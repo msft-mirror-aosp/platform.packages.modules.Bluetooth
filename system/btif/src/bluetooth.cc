@@ -61,6 +61,7 @@
 #include "bta/include/bta_le_audio_broadcaster_api.h"
 #include "bta/include/bta_vc_api.h"
 #include "btif/avrcp/avrcp_service.h"
+#include "btif/include/btif_sock.h"
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager.h"
 #include "btif_a2dp.h"
@@ -760,6 +761,7 @@ static void dump(int fd, const char** arguments) {
   btif_debug_av_dump(fd);
   bta_debug_av_dump(fd);
   stack_debug_avdtp_api_dump(fd);
+  btif_sock_dump(fd);
   bluetooth::avrcp::AvrcpService::DebugDump(fd);
   btif_debug_config_dump(fd);
   device_debug_iot_config_dump(fd);
@@ -786,6 +788,27 @@ static void dump(int fd, const char** arguments) {
 
 static void dumpMetrics(std::string* output) {
   bluetooth::common::BluetoothMetricsLogger::GetInstance()->WriteString(output);
+}
+
+static int get_remote_pbap_pce_version(const RawAddress* bd_addr) {
+  // Read and restore the PCE version from local storage
+  uint16_t pce_version = 0;
+  size_t version_value_size = sizeof(pce_version);
+  if (!btif_config_get_bin(bd_addr->ToString(), BT_CONFIG_KEY_PBAP_PCE_VERSION,
+                           (uint8_t*)&pce_version, &version_value_size)) {
+    LOG_WARN("Failed to read cached peer PCE version for %s",
+             ADDRESS_TO_LOGGABLE_CSTR(*bd_addr));
+  }
+  return pce_version;
+}
+
+static bool pbap_pse_dynamic_version_upgrade_is_enabled() {
+  if (bluetooth::common::init_flags::
+          pbap_pse_dynamic_version_upgrade_is_enabled()) {
+    return true;
+  }
+  LOG_WARN("PBAP PSE dynamic version upgrade is not enabled");
+  return false;
 }
 
 static const void* get_profile_interface(const char* profile_id) {
@@ -1086,6 +1109,9 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     .interop_match_addr_or_name = interop_match_addr_or_name,
     .interop_database_add_remove_addr = interop_database_add_remove_addr,
     .interop_database_add_remove_name = interop_database_add_remove_name,
+    .get_remote_pbap_pce_version = get_remote_pbap_pce_version,
+    .pbap_pse_dynamic_version_upgrade_is_enabled =
+        pbap_pse_dynamic_version_upgrade_is_enabled,
 };
 
 // callback reporting helpers
