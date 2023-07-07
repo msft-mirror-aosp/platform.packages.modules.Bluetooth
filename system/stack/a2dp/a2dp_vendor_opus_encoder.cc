@@ -15,13 +15,9 @@
  */
 
 #define LOG_TAG "a2dp_vendor_opus_encoder"
-#define ATRACE_TAG ATRACE_TAG_AUDIO
 
 #include "a2dp_vendor_opus_encoder.h"
 
-#ifndef OS_GENERIC
-#include <cutils/trace.h>
-#endif
 #include <dlfcn.h>
 #include <inttypes.h>
 #include <opus.h>
@@ -231,7 +227,6 @@ static bool a2dp_vendor_opus_encoder_update(uint16_t peer_mtu,
   LOG_INFO("sample_rate=%u bits_per_sample=%u channel_count=%u",
            p_feeding_params->sample_rate, p_feeding_params->bits_per_sample,
            p_feeding_params->channel_count);
-  a2dp_vendor_opus_feeding_reset();
 
   // The codec parameters
   p_encoder_params->sample_rate =
@@ -240,6 +235,8 @@ static bool a2dp_vendor_opus_encoder_update(uint16_t peer_mtu,
       A2DP_VendorGetChannelModeCodeOpus(p_codec_info);
   p_encoder_params->framesize = A2DP_VendorGetFrameSizeOpus(p_codec_info);
   p_encoder_params->bitrate = A2DP_VendorGetBitRateOpus(p_codec_info);
+
+  a2dp_vendor_opus_feeding_reset();
 
   uint16_t mtu_size =
       BT_DEFAULT_BUFFER_SIZE - A2DP_OPUS_OFFSET - sizeof(BT_HDR);

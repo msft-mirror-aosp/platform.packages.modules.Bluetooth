@@ -102,7 +102,8 @@ public class BluetoothOppPreference {
     }
 
     public String getName(BluetoothDevice remoteDevice) {
-        if (remoteDevice.getIdentityAddress().equals("FF:FF:FF:00:00:00")) {
+        String identityAddress = remoteDevice.getIdentityAddress();
+        if (identityAddress != null && identityAddress.equals("FF:FF:FF:00:00:00")) {
             return "localhost";
         }
         if (!mNames.isEmpty()) {
@@ -163,6 +164,14 @@ public class BluetoothOppPreference {
         ed.remove(key);
         ed.apply();
         mChannels.remove(key);
+    }
+
+    public void removeName(BluetoothDevice remoteDevice) {
+        Editor ed = mNamePreference.edit();
+        String key = remoteDevice.getIdentityAddress();
+        ed.remove(key);
+        ed.apply();
+        mNames.remove(key);
     }
 
     public void dump() {

@@ -25,7 +25,7 @@ using namespace std::chrono_literals;
 bool Beacon::registered_ = DeviceBoutique::Register("beacon", &Beacon::Create);
 
 Beacon::Beacon()
-    : advertising_type_(AdvertisementType::ADV_NONCONN_IND),
+    : advertising_type_(LegacyAdvertisingType::ADV_NONCONN_IND),
       advertising_data_({
           0x0F /* Length */, 0x09 /* TYPE_NAME_COMPLETE */, 'g', 'D', 'e', 'v',
           'i', 'c', 'e', '-', 'b', 'e', 'a', 'c', 'o', 'n', 0x02 /* Length */,
@@ -46,25 +46,28 @@ Beacon::Beacon(const std::vector<std::string>& args) : Beacon() {
   }
 }
 
-void Beacon::TimerTick() {
+void Beacon::Tick() {
   std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
   if ((now - advertising_last_) >= advertising_interval_) {
     advertising_last_ = now;
     SendLinkLayerPacket(
-        std::move(LeAdvertisementBuilder::Create(
-            address_, Address::kEmpty, AddressType::PUBLIC, advertising_type_,
+        std::move(LeLegacyAdvertisingPduBuilder::Create(
+            address_, Address::kEmpty, AddressType::PUBLIC, AddressType::PUBLIC,
+            advertising_type_,
             std::vector(advertising_data_.begin(), advertising_data_.end()))),
         Phy::Type::LOW_ENERGY);
   }
 }
 
-void Beacon::IncomingPacket(LinkLayerPacketView packet) {
+void Beacon::ReceiveLinkLayerPacket(LinkLayerPacketView packet,
+                                    Phy::Type /*type*/, int8_t /*rssi*/) {
   if (packet.GetDestinationAddress() == address_ &&
-      packet.GetType() == PacketType::LE_SCAN) {
+      packet.GetType() == PacketType::LE_SCAN &&
+      (advertising_type_ == LegacyAdvertisingType::ADV_IND ||
+       advertising_type_ == LegacyAdvertisingType::ADV_SCAN_IND)) {
     SendLinkLayerPacket(
-        std::move(LeAdvertisementBuilder::Create(
+        std::move(LeScanResponseBuilder::Create(
             address_, packet.GetSourceAddress(), AddressType::PUBLIC,
-            AdvertisementType::SCAN_RESPONSE,
             std::vector(scan_response_data_.begin(),
                         scan_response_data_.end()))),
         Phy::Type::LOW_ENERGY);

@@ -175,6 +175,18 @@ public class McpService extends ProfileService {
                 gmcs.dump(sb);
             }
         }
+
+        for (Map.Entry<BluetoothDevice, Integer> entry : mDeviceAuthorizations.entrySet()) {
+            String accessString;
+            if (entry.getValue() == BluetoothDevice.ACCESS_REJECTED) {
+                accessString = "ACCESS_REJECTED";
+            } else if (entry.getValue() == BluetoothDevice.ACCESS_ALLOWED) {
+                accessString = "ACCESS_ALLOWED";
+            } else {
+                accessString = "ACCESS_UNKNOWN";
+            }
+            sb.append("\n\t\tDevice: " + entry.getKey() + ", access: " + accessString);
+        }
     }
 
     public void onDeviceUnauthorized(BluetoothDevice device) {
@@ -184,10 +196,12 @@ public class McpService extends ProfileService {
             return;
         }
         Log.w(TAG, "onDeviceUnauthorized - authorization notification not implemented yet ");
+        setDeviceAuthorized(device, false);
     }
 
     public void setDeviceAuthorized(BluetoothDevice device, boolean isAuthorized) {
-        Log.i(TAG, "setDeviceAuthorized(): device: " + device + ", isAuthorized: " + isAuthorized);
+        Log.i(TAG, "\tsetDeviceAuthorized(): device: " + device + ", isAuthorized: "
+                + isAuthorized);
         int authorization = isAuthorized ? BluetoothDevice.ACCESS_ALLOWED
                 : BluetoothDevice.ACCESS_REJECTED;
         mDeviceAuthorizations.put(device, authorization);
@@ -206,10 +220,10 @@ public class McpService extends ProfileService {
          * 2. authorized devices
          * 3. Any LeAudio devices which are allowed to connect
          */
-        if (mDeviceAuthorizations.getOrDefault(device, Utils.isPtsTestMode()
-                ? BluetoothDevice.ACCESS_ALLOWED : BluetoothDevice.ACCESS_UNKNOWN)
-                        == BluetoothDevice.ACCESS_ALLOWED) {
-            return BluetoothDevice.ACCESS_ALLOWED;
+        int authorization = mDeviceAuthorizations.getOrDefault(device, Utils.isPtsTestMode()
+                ? BluetoothDevice.ACCESS_ALLOWED : BluetoothDevice.ACCESS_UNKNOWN);
+        if (authorization != BluetoothDevice.ACCESS_UNKNOWN) {
+            return authorization;
         }
 
         LeAudioService leAudioService = LeAudioService.getLeAudioService();

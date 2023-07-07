@@ -70,13 +70,14 @@ void ConfigCache::SetPersistentConfigChangedCallback(std::function<void()> persi
 }
 
 ConfigCache::ConfigCache(ConfigCache&& other) noexcept
-    : persistent_config_changed_callback_(std::move(other.persistent_config_changed_callback_)),
+    : persistent_config_changed_callback_(nullptr),
       persistent_property_names_(std::move(other.persistent_property_names_)),
       information_sections_(std::move(other.information_sections_)),
       persistent_devices_(std::move(other.persistent_devices_)),
       temporary_devices_(std::move(other.temporary_devices_)) {
-  // std::function will be in a valid but unspecified state after std::move(), hence resetting it
-  other.persistent_config_changed_callback_ = {};
+  ASSERT_LOG(
+      other.persistent_config_changed_callback_ == nullptr,
+      "Can't assign after setting the callback");
 }
 
 ConfigCache& ConfigCache::operator=(ConfigCache&& other) noexcept {
@@ -85,8 +86,10 @@ ConfigCache& ConfigCache::operator=(ConfigCache&& other) noexcept {
   }
   std::lock_guard<std::recursive_mutex> my_lock(mutex_);
   std::lock_guard<std::recursive_mutex> others_lock(other.mutex_);
-  persistent_config_changed_callback_.swap(other.persistent_config_changed_callback_);
-  other.persistent_config_changed_callback_ = {};
+  ASSERT_LOG(
+      other.persistent_config_changed_callback_ == nullptr,
+      "Can't assign after setting the callback");
+  persistent_config_changed_callback_ = {};
   persistent_property_names_ = std::move(other.persistent_property_names_);
   information_sections_ = std::move(other.information_sections_);
   persistent_devices_ = std::move(other.persistent_devices_);
@@ -176,9 +179,9 @@ std::optional<std::string> ConfigCache::GetProperty(const std::string& section, 
 
 void ConfigCache::SetProperty(std::string section, std::string property, std::string value) {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
-  if (TrimAfterNewLine(section) || TrimAfterNewLine(property) || TrimAfterNewLine(value)) {
-    android_errorWriteLog(0x534e4554, "70808273");
-  }
+  TrimAfterNewLine(section);
+  TrimAfterNewLine(property);
+  TrimAfterNewLine(value);
   ASSERT_LOG(!section.empty(), "Empty section name not allowed");
   ASSERT_LOG(!property.empty(), "Empty property name not allowed");
   if (!IsDeviceSection(section)) {

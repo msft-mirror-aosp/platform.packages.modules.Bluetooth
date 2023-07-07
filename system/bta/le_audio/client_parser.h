@@ -60,6 +60,16 @@ constexpr uint8_t kCtpResponseMaxTransportLatency = 0x08;
 constexpr uint8_t kCtpResponsePresentationDelay = 0x09;
 constexpr uint8_t kCtpResponseInvalidAseCisMapping = 0x0A;
 
+constexpr uint8_t kCtpMetadataResponsePreferredAudioContexts = 0x01;
+constexpr uint8_t kCtpMetadataResponseStreamingAudioContexts = 0x02;
+constexpr uint8_t kCtpMetadataResponseProgramInfo = 0x03;
+constexpr uint8_t kCtpMetadataResponseLanguage = 0x04;
+constexpr uint8_t kCtpMetadataResponseCcidList = 0x05;
+constexpr uint8_t kCtpMetadataResponseParentalRating = 0x06;
+constexpr uint8_t kCtpMetadataResponseProgramInfoUri = 0x07;
+constexpr uint8_t kCtpMetadataResponseExtendedMetadata = 0xFE;
+constexpr uint8_t kCtpMetadataResponseVendorSpecific = 0xFF;
+
 constexpr uint8_t kLeAudioErrorCtpUnsupporterdOpcode = 0xFF;
 constexpr uint8_t kLeAudioErrorCtpTruncatedOperation = 0xFE;
 constexpr uint8_t kLeAudioErrorCtpCtpErr = 0xFD;
@@ -221,14 +231,14 @@ constexpr uint16_t kAudioLocationsRspMinLen = 4;
 
 constexpr uint16_t kAseAudioAvailRspMinLen = 4;
 struct acs_available_audio_contexts {
-  std::bitset<16> snk_avail_cont;
-  std::bitset<16> src_avail_cont;
+  types::AudioContexts snk_avail_cont;
+  types::AudioContexts src_avail_cont;
 };
 
 constexpr uint16_t kAseAudioSuppContRspMinLen = 4;
 struct acs_supported_audio_contexts {
-  std::bitset<16> snk_supp_cont;
-  std::bitset<16> src_supp_cont;
+  types::AudioContexts snk_supp_cont;
+  types::AudioContexts src_supp_cont;
 };
 
 int ParseSinglePac(std::vector<struct types::acs_ac_record>& pac_recs,

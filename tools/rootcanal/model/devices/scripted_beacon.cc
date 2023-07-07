@@ -21,9 +21,9 @@
 #include <cstdint>
 #include <fstream>
 
+#include "log.h"
 #include "model/devices/scripted_beacon_ble_payload.pb.h"
 #include "model/setup/device_boutique.h"
-#include "os/log.h"
 
 #ifdef _WIN32
 #define F_OK 00
@@ -43,7 +43,7 @@ bool ScriptedBeacon::registered_ =
 
 ScriptedBeacon::ScriptedBeacon(const vector<std::string>& args) : Beacon(args) {
   advertising_interval_ = 1280ms;
-  advertising_type_ = AdvertisementType::ADV_SCAN_IND;
+  advertising_type_ = LegacyAdvertisingType::ADV_SCAN_IND;
   advertising_data_ = {
       0x18 /* Length */,
       0x09 /* TYPE_NAME_CMPL */,
@@ -78,14 +78,14 @@ ScriptedBeacon::ScriptedBeacon(const vector<std::string>& args) : Beacon(args) {
   scan_response_data_ = {
       0x05 /* Length */, 0x08 /* TYPE_NAME_SHORT */, 'g', 'b', 'e', 'a'};
 
-  LOG_INFO("Scripted_beacon registered %s", registered_ ? "true" : "false");
+  INFO("Scripted_beacon registered {}", registered_);
 
   if (args.size() >= 4) {
     config_file_ = args[2];
     events_file_ = args[3];
     set_state(PlaybackEvent::INITIALIZED);
   } else {
-    LOG_ERROR(
+    ERROR(
         "Initialization failed, need playback and playback events file "
         "arguments");
   }
@@ -95,9 +95,9 @@ bool has_time_elapsed(steady_clock::time_point time_point) {
   return steady_clock::now() > time_point;
 }
 
-void ScriptedBeacon::populate_event(PlaybackEvent* event,
-                                    PlaybackEvent::PlaybackEventType type) {
-  LOG_INFO("Adding event: %d", type);
+static void populate_event(PlaybackEvent* event,
+                           PlaybackEvent::PlaybackEventType type) {
+  INFO("Adding event: {}", type);
   event->set_type(type);
   event->set_secs_since_epoch(system_clock::now().time_since_epoch().count());
 }
@@ -111,7 +111,7 @@ void ScriptedBeacon::set_state(PlaybackEvent::PlaybackEventType state) {
     events_ostream_.open(events_file_,
                          std::ios::out | std::ios::binary | std::ios::trunc);
     if (!events_ostream_.is_open()) {
-      LOG_INFO("Events file not opened yet, for event: %d", state);
+      INFO("Events file not opened yet, for event: {}", state);
       return;
     }
   }
@@ -120,10 +120,10 @@ void ScriptedBeacon::set_state(PlaybackEvent::PlaybackEventType state) {
   events_ostream_.flush();
 }
 
-void ScriptedBeacon::TimerTick() {
+void ScriptedBeacon::Tick() {
   switch (current_state_) {
     case PlaybackEvent::INITIALIZED:
-      Beacon::TimerTick();
+      Beacon::Tick();
       break;
     case PlaybackEvent::SCANNED_ONCE:
       next_check_time_ =
@@ -153,24 +153,23 @@ void ScriptedBeacon::TimerTick() {
       }
       std::fstream input(config_file_, std::ios::in | std::ios::binary);
       if (!ble_ad_list_.ParseFromIstream(&input)) {
-        LOG_ERROR("Cannot parse playback file %s", config_file_.c_str());
+        ERROR("Cannot parse playback file {}", config_file_);
         set_state(PlaybackEvent::FILE_PARSING_FAILED);
         return;
-      } else {
-        set_state(PlaybackEvent::PLAYBACK_STARTED);
-        LOG_INFO("Starting Ble advertisement playback from file: %s",
-                 config_file_.c_str());
-        next_ad_.ad_time = steady_clock::now();
-        get_next_advertisement();
-        input.close();
       }
-    } break;
+      set_state(PlaybackEvent::PLAYBACK_STARTED);
+      INFO("Starting Ble advertisement playback from file: {}", config_file_);
+      next_ad_.ad_time = steady_clock::now();
+      get_next_advertisement();
+      input.close();
+      break;
+    }
     case PlaybackEvent::PLAYBACK_STARTED: {
       while (has_time_elapsed(next_ad_.ad_time)) {
-        auto ad = model::packets::LeAdvertisementBuilder::Create(
+        auto ad = model::packets::LeLegacyAdvertisingPduBuilder::Create(
             next_ad_.address, Address::kEmpty /* Destination */,
-            AddressType::RANDOM, AdvertisementType::ADV_NONCONN_IND,
-            next_ad_.ad);
+            AddressType::RANDOM, AddressType::PUBLIC,
+            LegacyAdvertisingType::ADV_NONCONN_IND, next_ad_.ad);
         SendLinkLayerPacket(std::move(ad), Phy::Type::LOW_ENERGY);
         if (packet_num_ < ble_ad_list_.advertisements().size()) {
           get_next_advertisement();
@@ -179,10 +178,10 @@ void ScriptedBeacon::TimerTick() {
           if (events_ostream_.is_open()) {
             events_ostream_.close();
           }
-          LOG_INFO(
-              "Completed Ble advertisement playback from file: %s with %d "
+          INFO(
+              "Completed Ble advertisement playback from file: {} with {} "
               "packets",
-              config_file_.c_str(), packet_num_);
+              config_file_, packet_num_);
           break;
         }
       }
@@ -194,8 +193,9 @@ void ScriptedBeacon::TimerTick() {
   }
 }
 
-void ScriptedBeacon::IncomingPacket(
-    model::packets::LinkLayerPacketView packet) {
+void ScriptedBeacon::ReceiveLinkLayerPacket(
+    model::packets::LinkLayerPacketView packet, Phy::Type /*type*/,
+    int8_t /*rssi*/) {
   if (current_state_ == PlaybackEvent::INITIALIZED) {
     if (packet.GetDestinationAddress() == address_ &&
         packet.GetType() == PacketType::LE_SCAN) {
@@ -203,7 +203,6 @@ void ScriptedBeacon::IncomingPacket(
       SendLinkLayerPacket(
           std::move(model::packets::LeScanResponseBuilder::Create(
               address_, packet.GetSourceAddress(), AddressType::PUBLIC,
-              AdvertisementType::SCAN_RESPONSE,
               std::vector(scan_response_data_.begin(),
                           scan_response_data_.end()))),
           Phy::Type::LOW_ENERGY);

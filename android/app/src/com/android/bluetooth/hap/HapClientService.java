@@ -100,7 +100,8 @@ public class HapClientService extends ProfileService {
         return BluetoothProperties.isProfileHapClientEnabled().orElse(false);
     }
 
-    private static synchronized void setHapClient(HapClientService instance) {
+    @VisibleForTesting
+    static synchronized void setHapClient(HapClientService instance) {
         if (DBG) {
             Log.d(TAG, "setHapClient(): set to: " + instance);
         }
@@ -170,10 +171,12 @@ public class HapClientService extends ProfileService {
 
         // Setup broadcast receivers
         IntentFilter filter = new IntentFilter();
+        filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         filter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
         mBondStateChangedReceiver = new BondStateChangedReceiver();
         registerReceiver(mBondStateChangedReceiver, filter);
         filter = new IntentFilter();
+        filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         filter.addAction(BluetoothHapClient.ACTION_HAP_CONNECTION_STATE_CHANGED);
         mConnectionStateChangedReceiver = new ConnectionStateChangedReceiver();
         registerReceiver(mConnectionStateChangedReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
@@ -267,6 +270,8 @@ public class HapClientService extends ProfileService {
                 return;
             }
             if (sm.getConnectionState() != BluetoothProfile.STATE_DISCONNECTED) {
+                Log.i(TAG, "Disconnecting device because it was unbonded.");
+                disconnect(device);
                 return;
             }
             removeStateMachine(device);
@@ -1221,8 +1226,8 @@ public class HapClientService extends ProfileService {
             if (mIsTesting) {
                 return mService;
             }
-            if (!Utils.checkCallerIsSystemOrActiveUser(TAG)
-                    || !Utils.checkServiceAvailable(mService, TAG)
+            if (!Utils.checkServiceAvailable(mService, TAG)
+                    || !Utils.checkCallerIsSystemOrActiveOrManagedUser(mService, TAG)
                     || !Utils.checkConnectPermissionForDataDelivery(mService, source, TAG)) {
                 Log.w(TAG, "Hearing Access call not allowed for non-active user");
                 return null;

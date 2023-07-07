@@ -26,8 +26,6 @@
 #include <string>
 #include <vector>
 
-extern std::map<std::string, int> mock_function_count_map;
-
 // Original included files, if any
 // NOTE: Since this is a mock file with mock definitions some number of
 //       include files may not be required.  The include-what-you-use
@@ -48,6 +46,7 @@ extern std::map<std::string, int> mock_function_count_map;
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2c_api.h"
 #include "stack/l2cap/l2c_int.h"
+#include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
 // Mocked compile conditionals, if any
@@ -421,6 +420,15 @@ struct L2CA_SetLeGattTimeout {
   };
 };
 extern struct L2CA_SetLeGattTimeout L2CA_SetLeGattTimeout;
+// Name: L2CA_MarkLeLinkAsActive
+// Params: const RawAddress& rem_bda
+// Returns: bool
+struct L2CA_MarkLeLinkAsActive {
+  std::function<bool(const RawAddress& rem_bda)> body{
+      [](const RawAddress& rem_bda) { return false; }};
+  bool operator()(const RawAddress& rem_bda) { return body(rem_bda); };
+};
+extern struct L2CA_MarkLeLinkAsActive L2CA_MarkLeLinkAsActive;
 // Name: L2CA_DataWrite
 // Params: uint16_t cid, BT_HDR* p_data
 // Returns: uint8_t
@@ -476,6 +484,46 @@ struct L2CA_IsLinkEstablished {
   };
 };
 extern struct L2CA_IsLinkEstablished L2CA_IsLinkEstablished;
+// Name: L2CA_SetMediaStreamChannel
+// Params: uint16_t handle, uint16_t channel_id, bool is_local_cid
+// Returns: void
+struct L2CA_SetMediaStreamChannel {
+  std::function<void(uint16_t local_media_cid, bool status)> body{
+      [](uint16_t local_media_cid, bool status) {}};
+  void operator()(uint16_t local_media_cid, bool status) {
+    body(local_media_cid, status);
+  };
+};
+extern struct L2CA_SetMediaStreamChannel L2CA_SetMediaStreamChannel;
+// Name: L2CA_isMediaChannel
+// Params: uint16_t handle, uint16_t channel_id, bool is_local_cid
+// Returns: bool
+struct L2CA_isMediaChannel {
+  std::function<bool(uint16_t handle, uint16_t channel_id, bool is_local_cid)>
+      body{[](uint16_t handle, uint16_t channel_id, bool is_local_cid) {
+        return false;
+      }};
+  bool operator()(uint16_t handle, uint16_t channel_id, bool is_local_cid) {
+    return body(handle, channel_id, is_local_cid);
+  };
+};
+extern struct L2CA_isMediaChannel L2CA_isMediaChannel;
+// Name: L2CA_LeCreditDefault
+// Params:
+// Returns: uint16_t
+struct L2CA_LeCreditDefault {
+  std::function<uint16_t()> body{[]() { return 0; }};
+  uint16_t operator()() { return body(); };
+};
+extern struct L2CA_LeCreditDefault L2CA_LeCreditDefault;
+// Name: L2CA_LeCreditThreshold
+// Params:
+// Returns: uint16_t
+struct L2CA_LeCreditThreshold {
+  std::function<uint16_t()> body{[]() { return 0; }};
+  uint16_t operator()() { return body(); };
+};
+extern struct L2CA_LeCreditThreshold L2CA_LeCreditThreshold;
 
 }  // namespace stack_l2cap_api
 }  // namespace mock

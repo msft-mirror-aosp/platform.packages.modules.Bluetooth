@@ -30,6 +30,7 @@ import android.provider.CallLog.Calls;
 import android.util.Log;
 
 import com.android.bluetooth.BluetoothObexTransport;
+import com.android.bluetooth.ObexAppParameters;
 import com.android.bluetooth.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.obex.ClientSession;
@@ -57,8 +58,8 @@ class PbapClientConnectionHandler extends Handler {
     private static final int UPPER_LIMIT = 65535;
 
     static final String TAG = "PbapClientConnHandler";
-    static final boolean DBG = Utils.DBG;
-    static final boolean VDBG = Utils.VDBG;
+    static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
+    static final boolean VDBG = Log.isLoggable(TAG, Log.VERBOSE);
     static final int MSG_CONNECT = 1;
     static final int MSG_DISCONNECT = 2;
     static final int MSG_DOWNLOAD = 3;
@@ -228,13 +229,13 @@ class PbapClientConnectionHandler extends Handler {
                         mObexSession.disconnect(null);
                         mObexSession.close();
                     }
-
+                } catch (IOException e) {
+                    Log.w(TAG, "DISCONNECT Failure ", e);
+                } finally {
                     if (DBG) {
                         Log.d(TAG, "Closing Socket");
                     }
                     closeSocket();
-                } catch (IOException e) {
-                    Log.w(TAG, "DISCONNECT Failure ", e);
                 }
                 if (DBG) {
                     Log.d(TAG, "Completing Disconnect");
@@ -246,7 +247,7 @@ class PbapClientConnectionHandler extends Handler {
                 break;
 
             case MSG_DOWNLOAD:
-                mAccountCreated = addAccount(mAccount);
+                mAccountCreated = addAccount();
                 if (!mAccountCreated) {
                     Log.e(TAG, "Account creation failed.");
                     return;
@@ -455,8 +456,8 @@ class PbapClientConnectionHandler extends Handler {
     }
 
     @VisibleForTesting
-    boolean addAccount(Account account) {
-        if (mAccountManager.addAccountExplicitly(account, null, null)) {
+    boolean addAccount() {
+        if (mAccountManager.addAccountExplicitly(mAccount, null, null)) {
             if (DBG) {
                 Log.d(TAG, "Added account " + mAccount);
             }

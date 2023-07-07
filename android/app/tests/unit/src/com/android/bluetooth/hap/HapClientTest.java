@@ -146,6 +146,7 @@ public class HapClientTest {
 
         // Set up the State Changed receiver
         IntentFilter filter = new IntentFilter();
+        filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         filter.addAction(BluetoothHapClient.ACTION_HAP_CONNECTION_STATE_CHANGED);
         filter.addAction(BluetoothHapClient.ACTION_HAP_DEVICE_AVAILABLE);
 
@@ -153,7 +154,7 @@ public class HapClientTest {
         mService.mCallbacks.register(mCallback);
 
         mHasIntentReceiver = new HasIntentReceiver();
-        mTargetContext.registerReceiver(mHasIntentReceiver, filter);
+        mTargetContext.registerReceiver(mHasIntentReceiver, filter, Context.RECEIVER_EXPORTED);
 
         mDevice = TestUtils.getTestDevice(mAdapter, 0);
         when(mNativeInterface.getDevice(getByteAddress(mDevice))).thenReturn(mDevice);
@@ -1050,6 +1051,24 @@ public class HapClientTest {
         recv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS)).getValue(null);
         Assert.assertEquals(size, mService.mCallbacks.getRegisteredCallbackCount());
 
+    }
+
+    @Test
+    public void testDumpDoesNotCrash() {
+        // Update the device policy so okToConnect() returns true
+        when(mDatabaseManager
+                .getProfileConnectionPolicy(mDevice, BluetoothProfile.HAP_CLIENT))
+                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+        doReturn(true).when(mNativeInterface).connectHapClient(any(BluetoothDevice.class));
+        doReturn(true).when(mNativeInterface).disconnectHapClient(any(BluetoothDevice.class));
+
+        doReturn(new ParcelUuid[]{BluetoothUuid.HAS}).when(mAdapterService)
+                .getRemoteUuids(any(BluetoothDevice.class));
+
+        // Add state machine for testing dump()
+        mService.connect(mDevice);
+
+        mService.dump(new StringBuilder());
     }
 
     /**

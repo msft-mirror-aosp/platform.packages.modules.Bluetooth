@@ -38,12 +38,13 @@ class Beacon : public Device {
 
   virtual std::string GetTypeString() const override { return "beacon"; }
 
-  virtual void TimerTick() override;
-  virtual void IncomingPacket(
-      model::packets::LinkLayerPacketView packet) override;
+  virtual void Tick() override;
+  virtual void ReceiveLinkLayerPacket(
+      model::packets::LinkLayerPacketView packet, Phy::Type type,
+      int8_t rssi) override;
 
  protected:
-  model::packets::AdvertisementType advertising_type_{};
+  model::packets::LegacyAdvertisingType advertising_type_{};
   std::array<uint8_t, 31> advertising_data_{};
   std::array<uint8_t, 31> scan_response_data_{};
   std::chrono::steady_clock::duration advertising_interval_{};

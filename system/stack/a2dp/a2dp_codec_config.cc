@@ -36,7 +36,11 @@
 #include "a2dp_vendor_opus.h"
 #endif
 
+#if !defined(UNIT_TESTS)
+#include "audio_hal_interface/a2dp_encoding.h"
+#endif
 #include "bta/av/bta_av_int.h"
+#include "device/include/device_iot_config.h"
 #include "osi/include/log.h"
 #include "osi/include/properties.h"
 #include "stack/include/bt_hdr.h"
@@ -522,6 +526,44 @@ void A2dpCodecConfig::debug_codec_dump(int fd) {
   dprintf(fd, "  Local capability: %s\n", result.c_str());
 }
 
+int A2DP_IotGetPeerSinkCodecType(const uint8_t* p_codec_info) {
+  int peer_codec_type = 0;
+  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
+  LOG_VERBOSE("%s: codec_type = 0x%x", __func__, codec_type);
+  switch (codec_type) {
+    case A2DP_MEDIA_CT_SBC:
+      peer_codec_type = IOT_CONF_VAL_A2DP_CODECTYPE_SBC;
+      break;
+#if !defined(EXCLUDE_NONSTANDARD_CODECS)
+    case A2DP_MEDIA_CT_NON_A2DP: {
+      uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
+      uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
+
+      LOG_VERBOSE("%s codec_id = %d", __func__, codec_id);
+      LOG_VERBOSE("%s vendor_id = %x", __func__, vendor_id);
+
+      if (codec_id == A2DP_APTX_CODEC_ID_BLUETOOTH &&
+          vendor_id == A2DP_APTX_VENDOR_ID) {
+        peer_codec_type = IOT_CONF_VAL_A2DP_CODECTYPE_APTX;
+      } else if (codec_id == A2DP_APTX_HD_CODEC_ID_BLUETOOTH &&
+                 vendor_id == A2DP_APTX_HD_VENDOR_ID) {
+        peer_codec_type = IOT_CONF_VAL_A2DP_CODECTYPE_APTXHD;
+      } else if (codec_id == A2DP_LDAC_CODEC_ID &&
+                 vendor_id == A2DP_LDAC_VENDOR_ID) {
+        peer_codec_type = IOT_CONF_VAL_A2DP_CODECTYPE_LDAC;
+      }
+      break;
+    }
+    case A2DP_MEDIA_CT_AAC:
+      peer_codec_type = IOT_CONF_VAL_A2DP_CODECTYPE_AAC;
+      break;
+#endif
+    default:
+      break;
+  }
+  return peer_codec_type;
+}
+
 //
 // Compares two codecs |lhs| and |rhs| based on their priority.
 // Returns true if |lhs| has higher priority (larger priority value).
@@ -559,6 +601,9 @@ bool A2dpCodecs::init() {
   LOG_INFO("%s", __func__);
   std::lock_guard<std::recursive_mutex> lock(codec_mutex_);
 
+  bool opus_enabled =
+      osi_property_get_bool("persist.bluetooth.opus.enabled", false);
+
   for (int i = BTAV_A2DP_CODEC_INDEX_MIN; i < BTAV_A2DP_CODEC_INDEX_MAX; i++) {
     btav_a2dp_codec_index_t codec_index =
         static_cast<btav_a2dp_codec_index_t>(i);
@@ -569,6 +614,23 @@ bool A2dpCodecs::init() {
     auto cp_iter = codec_priorities_.find(codec_index);
     if (cp_iter != codec_priorities_.end()) {
       codec_priority = cp_iter->second;
+    }
+
+#if !defined(UNIT_TESTS)
+    if (codec_index == BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS) {
+      if (!bluetooth::audio::a2dp::is_opus_supported()) {
+        // We are using HIDL HAL which does not support OPUS codec
+        // Mark OPUS as disabled
+        opus_enabled = false;
+      }
+    }
+#endif
+
+    // If OPUS is not supported it is disabled
+    if (codec_index == BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS && !opus_enabled) {
+      codec_priority = BTAV_A2DP_CODEC_PRIORITY_DISABLED;
+      LOG_INFO("%s: OPUS codec disabled, updated priority to %d", __func__,
+               codec_priority);
     }
 
     A2dpCodecConfig* codec_config =

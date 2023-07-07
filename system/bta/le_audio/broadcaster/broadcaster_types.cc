@@ -92,6 +92,21 @@ static void EmitMetadata(
   }
 }
 
+static void EmitBroadcastName(const std::string& name,
+                              std::vector<uint8_t>& data) {
+  int name_len = name.length();
+  size_t old_size = data.size();
+  data.resize(old_size + name_len + 2);
+
+  // Set the cursor behind the old data
+  uint8_t* p_value = data.data() + old_size;
+  UINT8_TO_STREAM(p_value, name_len + 1);
+  UINT8_TO_STREAM(p_value, BTM_BLE_AD_TYPE_BROADCAST_NAME);
+
+  std::vector<uint8_t> vec(name.begin(), name.end());
+  ARRAY_TO_STREAM(p_value, vec.data(), name_len);
+}
+
 static void EmitBisConfigs(
     const std::vector<BasicAudioAnnouncementBisConfig>& bis_configs,
     std::vector<uint8_t>& data) {
@@ -156,15 +171,42 @@ bool ToRawPacket(BasicAudioAnnouncementData const& in,
   return true;
 }
 
-void PrepareAdvertisingData(bluetooth::le_audio::BroadcastId& broadcast_id,
-                            std::vector<uint8_t>& periodic_data) {
-  periodic_data.resize(7);
-  uint8_t* data_ptr = periodic_data.data();
+void PrepareAdvertisingData(
+    bool is_public, const std::string& broadcast_name,
+    bluetooth::le_audio::BroadcastId& broadcast_id,
+    const bluetooth::le_audio::PublicBroadcastAnnouncementData&
+        public_announcement,
+    std::vector<uint8_t>& adv_data) {
+  adv_data.resize(7);
+  uint8_t* data_ptr = adv_data.data();
   UINT8_TO_STREAM(data_ptr, 6);
   UINT8_TO_STREAM(data_ptr, BTM_BLE_AD_TYPE_SERVICE_DATA_TYPE);
   UINT16_TO_STREAM(data_ptr, kBroadcastAudioAnnouncementServiceUuid);
-  UINT24_TO_STREAM(data_ptr, broadcast_id)
-};
+  UINT24_TO_STREAM(data_ptr, broadcast_id);
+
+  // Prepare public broadcast announcement data
+  if (is_public) {
+    size_t old_size = adv_data.size();
+    // 5: datalen(1) + adtype(1) + serviceuuid(2) + features(1)
+    adv_data.resize(old_size + 5);
+    // Skip the data length field until the full content is generated
+    data_ptr = adv_data.data() + old_size + 1;
+    UINT8_TO_STREAM(data_ptr, BTM_BLE_AD_TYPE_SERVICE_DATA_TYPE);
+    UINT16_TO_STREAM(data_ptr, kPublicBroadcastAnnouncementServiceUuid);
+    UINT8_TO_STREAM(data_ptr, public_announcement.features);
+    // Set metadata length to 0 if no meta data present
+    EmitMetadata(public_announcement.metadata, adv_data);
+
+    // Update the length field accordingly
+    data_ptr = adv_data.data() + old_size;
+    UINT8_TO_STREAM(data_ptr, adv_data.size() - old_size - 1);
+
+    // Prepare broadcast name
+    if (!broadcast_name.empty()) {
+      EmitBroadcastName(broadcast_name, adv_data);
+    }
+  }
+}
 
 void PreparePeriodicData(const BasicAudioAnnouncementData& announcement,
                          std::vector<uint8_t>& periodic_data) {
@@ -365,14 +407,6 @@ std::ostream& operator<<(
   return os;
 }
 
-static const BroadcastQosConfig qos_config_2_10 = BroadcastQosConfig(2, 10);
-
-static const BroadcastQosConfig qos_config_4_50 = BroadcastQosConfig(4, 50);
-
-static const BroadcastQosConfig qos_config_4_60 = BroadcastQosConfig(4, 60);
-
-static const BroadcastQosConfig qos_config_4_65 = BroadcastQosConfig(4, 65);
-
 std::ostream& operator<<(
     std::ostream& os, const le_audio::broadcaster::BroadcastQosConfig& config) {
   os << " BroadcastQosConfig=[";
@@ -410,7 +444,7 @@ static const std::pair<const BroadcastCodecWrapper&, const BroadcastQosConfig&>
     lc3_stereo_48_4_2 = {lc3_stereo_48_4, qos_config_4_65};
 
 std::pair<const BroadcastCodecWrapper&, const BroadcastQosConfig&>
-getStreamConfigForContext(uint16_t context) {
+getStreamConfigForContext(types::AudioContexts context) {
   const std::string* options =
       stack_config_get_interface()->get_pts_broadcast_audio_config_options();
   if (options) {
@@ -420,41 +454,24 @@ getStreamConfigForContext(uint16_t context) {
     if (!options->compare("lc3_stereo_48_4_2")) return lc3_stereo_48_4_2;
   }
   // High quality, Low Latency
-  auto contexts_stereo_24_2_1 =
-      static_cast<std::underlying_type<LeAudioContextType>::type>(
-          LeAudioContextType::GAME) |
-      static_cast<std::underlying_type<LeAudioContextType>::type>(
-          LeAudioContextType::LIVE);
-  if (context & contexts_stereo_24_2_1) return lc3_stereo_24_2_1;
+  if (context.test_any(LeAudioContextType::GAME | LeAudioContextType::LIVE))
+    return lc3_stereo_24_2_1;
 
   // Low quality, Low Latency
-  auto contexts_mono_16_2_1 =
-      static_cast<std::underlying_type<LeAudioContextType>::type>(
-          LeAudioContextType::INSTRUCTIONAL);
-  if (context & contexts_mono_16_2_1) return lc3_mono_16_2_1;
+  if (context.test(LeAudioContextType::INSTRUCTIONAL)) return lc3_mono_16_2_1;
 
   // Low quality, High Reliability
-  auto contexts_stereo_16_2_2 =
-      static_cast<std::underlying_type<LeAudioContextType>::type>(
-          LeAudioContextType::SOUNDEFFECTS) |
-      static_cast<std::underlying_type<LeAudioContextType>::type>(
-          LeAudioContextType::UNSPECIFIED);
-  if (context & contexts_stereo_16_2_2) return lc3_stereo_16_2_2;
+  if (context.test_any(LeAudioContextType::SOUNDEFFECTS |
+                       LeAudioContextType::UNSPECIFIED))
+    return lc3_stereo_16_2_2;
 
-  auto contexts_mono_16_2_2 =
-      static_cast<std::underlying_type<LeAudioContextType>::type>(
-          LeAudioContextType::ALERTS) |
-      static_cast<std::underlying_type<LeAudioContextType>::type>(
-          LeAudioContextType::NOTIFICATIONS) |
-      static_cast<std::underlying_type<LeAudioContextType>::type>(
-          LeAudioContextType::EMERGENCYALARM);
-  if (context & contexts_mono_16_2_2) return lc3_mono_16_2_2;
+  if (context.test_any(LeAudioContextType::ALERTS |
+                       LeAudioContextType::NOTIFICATIONS |
+                       LeAudioContextType::EMERGENCYALARM))
+    return lc3_mono_16_2_2;
 
   // High quality, High Reliability
-  auto contexts_stereo_24_2_2 =
-      static_cast<std::underlying_type<LeAudioContextType>::type>(
-          LeAudioContextType::MEDIA);
-  if (context & contexts_stereo_24_2_2) return lc3_stereo_24_2_2;
+  if (context.test(LeAudioContextType::MEDIA)) return lc3_stereo_24_2_2;
 
   // Defaults: Low quality, High Reliability
   return lc3_mono_16_2_2;
@@ -524,6 +541,14 @@ bool operator==(const BasicAudioAnnouncementData& lhs,
         return false;
     }
   }
+
+  return true;
+}
+
+bool operator==(const PublicBroadcastAnnouncementData& lhs,
+                const PublicBroadcastAnnouncementData& rhs) {
+  if (lhs.features != rhs.features) return false;
+  if (!isMetadataSame(lhs.metadata, rhs.metadata)) return false;
 
   return true;
 }
