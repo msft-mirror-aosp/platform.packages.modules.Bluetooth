@@ -39,7 +39,8 @@
 #define BTM_MAX_SCN_ 31  // PORT_MAX_RFC_PORTS packages/modules/Bluetooth/system/stack/include/rfcdefs.h
 
 constexpr size_t kMaxLogSize = 255;
-constexpr size_t kBtmLogHistoryBufferSize = 100;
+constexpr size_t kBtmLogHistoryBufferSize = 200;
+constexpr size_t kMaxInquiryScanHistory = 10;
 
 extern bluetooth::common::TimestamperInMilliseconds timestamper_in_milliseconds;
 
@@ -116,6 +117,7 @@ typedef struct {
   uint16_t psm;
   bool is_orig;
   tBTM_SEC_CALLBACK* p_callback;
+  tSMP_SIRK_CALLBACK* p_sirk_callback;
   void* p_ref_data;
   uint16_t rfcomm_security_requirement;
   tBT_TRANSPORT transport;
@@ -163,6 +165,10 @@ typedef struct tBTM_DEVCB {
   tBTM_CMPL_CB* p_tx_power_cmpl_cb; /* Callback function to be called       */
 
   DEV_CLASS dev_class; /* Local device class                   */
+
+  tBTM_CMPL_CB*
+      p_le_test_cmd_cmpl_cb; /* Callback function to be called when
+                             LE test mode command has been sent successfully */
 
   RawAddress read_tx_pwr_addr; /* read TX power target address     */
 
@@ -283,16 +289,7 @@ typedef struct tBTM_CB {
   RawAddress connecting_bda;
   DEV_CLASS connecting_dc;
   uint8_t trace_level;
-  bool is_paging{false};  /* true, if paging is in progess */
   bool is_inquiry{false}; /* true, if inquiry is in progess */
-  fixed_queue_t* page_queue{nullptr};
-
-  bool paging{false};
-  void set_paging() { paging = true; }
-  void reset_paging() { paging = false; }
-  bool is_paging_active() const {
-    return paging;
-  }  // TODO remove all this paging state
 
   fixed_queue_t* sec_pending_q{nullptr}; /* pending sequrity requests in
                                             tBTM_SEC_QUEUE_ENTRY format */
@@ -313,6 +310,11 @@ typedef struct tBTM_CB {
       long long start_time_ms;
       unsigned long results;
     } classic_inquiry, le_scan, le_inquiry, le_observe, le_legacy_scan;
+    std::unique_ptr<
+        bluetooth::common::TimestampedCircularBuffer<tBTM_INQUIRY_CMPL>>
+        inquiry_history_ = std::make_unique<
+            bluetooth::common::TimestampedCircularBuffer<tBTM_INQUIRY_CMPL>>(
+            kMaxInquiryScanHistory);
   } neighbor;
 
   void Init(uint8_t initial_security_mode) {
@@ -334,7 +336,6 @@ typedef struct tBTM_CB {
     acl_cb_ = {};
     neighbor = {};
 
-    page_queue = fixed_queue_new(SIZE_MAX);
     sec_pending_q = fixed_queue_new(SIZE_MAX);
     sec_collision_timer = alarm_new("btm.sec_collision_timer");
     pairing_timer = alarm_new("btm.pairing_timer");
@@ -363,6 +364,7 @@ typedef struct tBTM_CB {
         kBtmLogHistoryBufferSize);
     CHECK(history_ != nullptr);
     history_->Push(std::string("Initialized btm history"));
+    btm_available_index = 1;
   }
 
   void Free() {
@@ -371,9 +373,6 @@ typedef struct tBTM_CB {
     devcb.Free();
     sco_cb.Free();
     btm_inq_vars.Free();
-
-    fixed_queue_free(page_queue, nullptr);
-    page_queue = nullptr;
 
     fixed_queue_free(sec_pending_q, nullptr);
     sec_pending_q = nullptr;
@@ -396,6 +395,7 @@ typedef struct tBTM_CB {
   friend bool BTM_TryAllocateSCN(uint8_t scn);
   friend bool BTM_FreeSCN(uint8_t scn);
   uint8_t btm_scn[BTM_MAX_SCN_];
+  uint8_t btm_available_index;
 } tBTM_CB;
 
 /* security action for L2CAP COC channels */

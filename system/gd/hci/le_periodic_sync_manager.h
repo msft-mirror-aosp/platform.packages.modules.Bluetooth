@@ -399,6 +399,29 @@ class PeriodicSyncManager {
     RemoveSyncRequest(sync);
   }
 
+  void HandleLeBigInfoAdvertisingReport(LeBigInfoAdvertisingReportView event_view) {
+    ASSERT(event_view.IsValid());
+    LOG_DEBUG(
+        "[PAST]:sync_handle %u, num_bises = %u, nse = %u,"
+        "iso_interval = %d, bn = %u, pto = %u, irc = %u, max_pdu = %u "
+        "sdu_interval = %d, max_sdu = %u, phy = %u, framing = %u, encryption  = "
+        "%u",
+        event_view.GetSyncHandle(), event_view.GetNumBis(), event_view.GetNse(),
+        event_view.GetIsoInterval(), event_view.GetBn(), event_view.GetPto(), event_view.GetIrc(),
+        event_view.GetMaxPdu(), event_view.GetSduInterval(), event_view.GetMaxSdu(),
+        static_cast<uint32_t>(event_view.GetPhy()), static_cast<uint32_t>(event_view.GetFraming()),
+        static_cast<uint32_t>(event_view.GetEncryption()));
+
+    uint16_t sync_handle = event_view.GetSyncHandle();
+    auto periodic_sync = GetEstablishedSyncFromHandle(sync_handle);
+    if (periodic_sync == periodic_syncs_.end()) {
+      LOG_ERROR("[PSync]: index not found for handle %u", sync_handle);
+      return;
+    }
+    LOG_DEBUG("%s", "[PSync]: invoking callback");
+    callbacks_->OnBigInfoReport(sync_handle, event_view.GetEncryption() == Enable::ENABLED ? true : false);
+  }
+
  private:
   std::list<PeriodicSyncStates>::iterator GetEstablishedSyncFromHandle(uint16_t handle) {
     for (auto it = periodic_syncs_.begin(); it != periodic_syncs_.end(); it++) {
@@ -453,11 +476,13 @@ class PeriodicSyncManager {
   }
 
   void HandleStartSyncRequest(uint8_t sid, const AddressWithType& address_with_type, uint16_t skip, uint16_t timeout) {
-    auto options = static_cast<PeriodicAdvertisingOptions>(0);
-    auto sync_cte_type = static_cast<PeriodicSyncCteType>(
+    PeriodicAdvertisingOptions options;
+    auto sync_cte_type =
         static_cast<uint8_t>(PeriodicSyncCteType::AVOID_AOA_CONSTANT_TONE_EXTENSION) |
-        static_cast<uint8_t>(PeriodicSyncCteType::AVOID_AOD_CONSTANT_TONE_EXTENSION_WITH_ONE_US_SLOTS) |
-        static_cast<uint8_t>(PeriodicSyncCteType::AVOID_AOD_CONSTANT_TONE_EXTENSION_WITH_TWO_US_SLOTS));
+        static_cast<uint8_t>(
+            PeriodicSyncCteType::AVOID_AOD_CONSTANT_TONE_EXTENSION_WITH_ONE_US_SLOTS) |
+        static_cast<uint8_t>(
+            PeriodicSyncCteType::AVOID_AOD_CONSTANT_TONE_EXTENSION_WITH_TWO_US_SLOTS);
     auto sync = GetSyncFromAddressWithTypeAndSid(address_with_type, sid);
     sync->sync_state = PERIODIC_SYNC_STATE_PENDING;
     AdvertisingAddressType advertisingAddressType =

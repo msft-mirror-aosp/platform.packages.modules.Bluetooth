@@ -40,12 +40,13 @@ namespace rusty = ::bluetooth::topshim::rust;
 namespace internal {
 ApcfCommand ConvertApcfFromRust(const RustApcfCommand& command) {
   // Copy vectors + arrays
-  std::vector<uint8_t> name, data, data_mask;
+  std::vector<uint8_t> name, data, data_mask, meta_data;
   std::array<uint8_t, 16> irk;
   std::copy(command.name.begin(), command.name.end(), std::back_inserter(name));
   std::copy(command.data.begin(), command.data.end(), std::back_inserter(data));
   std::copy(command.data_mask.begin(), command.data_mask.end(), std::back_inserter(data_mask));
   std::copy(command.irk.begin(), command.irk.end(), std::begin(irk));
+  std::copy(command.meta_data.begin(), command.meta_data.end(), std::back_inserter(meta_data));
 
   ApcfCommand converted = {
       .type = command.type_,
@@ -56,6 +57,11 @@ ApcfCommand ConvertApcfFromRust(const RustApcfCommand& command) {
       .name = name,
       .company = command.company,
       .company_mask = command.company_mask,
+      .org_id = command.org_id,
+      .tds_flags = command.tds_flags,
+      .tds_flags_mask = command.tds_flags_mask,
+      .meta_data_type = command.meta_data_type,
+      .meta_data = meta_data,
       .ad_type = command.ad_type,
       .data = data,
       .data_mask = data_mask,
@@ -169,6 +175,7 @@ void BleScannerIntf::OnScanResult(
 
 void BleScannerIntf::OnTrackAdvFoundLost(AdvertisingTrackInfo ati) {
   rusty::RustAdvertisingTrackInfo rust_info = {
+      .monitor_handle = ati.monitor_handle,
       .scanner_id = ati.scanner_id,
       .filter_index = ati.filter_index,
       .advertiser_state = ati.advertiser_state,
@@ -386,6 +393,10 @@ void BleScannerIntf::OnPeriodicSyncLost(uint16_t sync_handle) {
 
 void BleScannerIntf::OnPeriodicSyncTransferred(int, uint8_t status, RawAddress addr) {
   rusty::gdscan_sync_transfer_callback(status, &addr);
+}
+
+void BleScannerIntf::OnBigInfoReport(uint16_t sync_handle, bool encrypted) {
+  rusty::gdscan_biginfo_report_callback(sync_handle, encrypted);
 }
 
 void BleScannerIntf::RegisterCallbacks() {

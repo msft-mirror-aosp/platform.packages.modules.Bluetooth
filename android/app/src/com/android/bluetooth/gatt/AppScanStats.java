@@ -394,6 +394,15 @@ import java.util.Objects;
         }
     }
 
+    @GuardedBy("sLock")
+    private static void recordScreenOnOffMetrics(boolean isScreenOn) {
+        if (isScreenOn) {
+            MetricsLogger.getInstance().cacheCount(BluetoothProtoEnums.SCREEN_ON_EVENT, 1);
+        } else {
+            MetricsLogger.getInstance().cacheCount(BluetoothProtoEnums.SCREEN_OFF_EVENT, 1);
+        }
+    }
+
     private static int getScanWeight(int scanMode) {
         switch (scanMode) {
             case ScanSettings.SCAN_MODE_OPPORTUNISTIC:
@@ -413,6 +422,23 @@ import java.util.Objects;
         }
     }
 
+    static void recordScanRadioResultCount() {
+        synchronized (sLock) {
+            if (!sIsRadioStarted) {
+                return;
+            }
+            MetricsLogger.getInstance().cacheCount(
+                    BluetoothProtoEnums.LE_SCAN_RESULTS_COUNT_REGULAR, 1);
+            if (sIsScreenOn) {
+                MetricsLogger.getInstance().cacheCount(
+                        BluetoothProtoEnums.LE_SCAN_RESULTS_COUNT_REGULAR_SCREEN_ON, 1);
+            } else {
+                MetricsLogger.getInstance().cacheCount(
+                        BluetoothProtoEnums.LE_SCAN_RESULTS_COUNT_REGULAR_SCREEN_OFF, 1);
+            }
+        }
+    }
+
     static void setScreenState(boolean isScreenOn) {
         synchronized (sLock) {
             if (sIsScreenOn == isScreenOn) {
@@ -422,6 +448,7 @@ import java.util.Objects;
                 recordScanRadioDurationMetrics();
                 sRadioStartTime = SystemClock.elapsedRealtime();
             }
+            recordScreenOnOffMetrics(isScreenOn);
             sIsScreenOn = isScreenOn;
         }
     }

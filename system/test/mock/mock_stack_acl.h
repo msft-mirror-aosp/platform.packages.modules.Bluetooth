@@ -40,6 +40,7 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_client_interface.h"
 #include "test/common/mock_functions.h"
+#include "types/class_of_device.h"
 #include "types/raw_address.h"
 
 // Mocked compile conditionals, if any
@@ -193,10 +194,14 @@ extern struct acl_create_le_connection acl_create_le_connection;
 // Params: uint8_t id, const RawAddress& bd_addr
 // Returns: bool
 struct acl_create_le_connection_with_id {
-  std::function<bool(uint8_t id, const RawAddress& bd_addr)> body{
-      [](uint8_t id, const RawAddress& bd_addr) { return false; }};
-  bool operator()(uint8_t id, const RawAddress& bd_addr) {
-    return body(id, bd_addr);
+  std::function<bool(uint8_t id, const RawAddress& bd_addr,
+                     tBLE_ADDR_TYPE addr_type)>
+      body{[](uint8_t id, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type) {
+        return false;
+      }};
+  bool operator()(uint8_t id, const RawAddress& bd_addr,
+                  tBLE_ADDR_TYPE addr_type) {
+    return body(id, bd_addr, addr_type);
   };
 };
 extern struct acl_create_le_connection_with_id acl_create_le_connection_with_id;
@@ -354,15 +359,6 @@ struct acl_create_classic_connection {
   };
 };
 extern struct acl_create_classic_connection acl_create_classic_connection;
-// Name: IsEprAvailable
-// Params: const tACL_CONN& p_acl
-// Returns: inline bool
-struct IsEprAvailable {
-  std::function<bool(const tACL_CONN& p_acl)> body{
-      [](const tACL_CONN& p_acl) { return 0; }};
-  inline bool operator()(const tACL_CONN& p_acl) { return body(p_acl); };
-};
-extern struct IsEprAvailable IsEprAvailable;
 // Name: acl_get_connection_from_address
 // Params: const RawAddress& bd_addr, tBT_TRANSPORT transport
 // Returns: tACL_CONN*
@@ -747,14 +743,6 @@ struct acl_disconnect_from_handle {
   };
 };
 extern struct acl_disconnect_from_handle acl_disconnect_from_handle;
-// Name: acl_link_segments_xmitted
-// Params: BT_HDR* p_msg
-// Returns: void
-struct acl_link_segments_xmitted {
-  std::function<void(BT_HDR* p_msg)> body{[](BT_HDR* p_msg) { ; }};
-  void operator()(BT_HDR* p_msg) { body(p_msg); };
-};
-extern struct acl_link_segments_xmitted acl_link_segments_xmitted;
 // Name: acl_packets_completed
 // Params: uint16_t handle, uint16_t credits
 // Returns: void
@@ -856,15 +844,20 @@ struct btm_acl_connected {
   };
 };
 extern struct btm_acl_connected btm_acl_connected;
-// Name: btm_acl_connection_request
-// Params: const RawAddress& bda, uint8_t* dc
+// Name: btm_connection_request
+// Params: const RawAddress& bda, const bluetooth::types::ClassOfDevice& cod
 // Returns: void
-struct btm_acl_connection_request {
-  std::function<void(const RawAddress& bda, uint8_t* dc)> body{
-      [](const RawAddress& bda, uint8_t* dc) { ; }};
-  void operator()(const RawAddress& bda, uint8_t* dc) { body(bda, dc); };
+struct btm_connection_request {
+  std::function<void(const RawAddress& bda,
+                     const bluetooth::types::ClassOfDevice& cod)>
+      body{[](const RawAddress& bda,
+              const bluetooth::types::ClassOfDevice& cod) { ; }};
+  void operator()(const RawAddress& bda,
+                  const bluetooth::types::ClassOfDevice& cod) {
+    body(bda, cod);
+  };
 };
-extern struct btm_acl_connection_request btm_acl_connection_request;
+extern struct btm_connection_request btm_connection_request;
 // Name: btm_acl_created
 // Params: const RawAddress& bda, uint16_t hci_handle, tHCI_ROLE link_role,
 // tBT_TRANSPORT transport Returns: void
@@ -929,15 +922,6 @@ struct btm_acl_notif_conn_collision {
   void operator()(const RawAddress& bda) { body(bda); };
 };
 extern struct btm_acl_notif_conn_collision btm_acl_notif_conn_collision;
-// Name: btm_acl_paging
-// Params: BT_HDR* p, const RawAddress& bda
-// Returns: void
-struct btm_acl_paging {
-  std::function<void(BT_HDR* p, const RawAddress& bda)> body{
-      [](BT_HDR* p, const RawAddress& bda) { ; }};
-  void operator()(BT_HDR* p, const RawAddress& bda) { body(p, bda); };
-};
-extern struct btm_acl_paging btm_acl_paging;
 // Name: btm_acl_process_sca_cmpl_pkt
 // Params: uint8_t len, uint8_t* data
 // Returns: void
@@ -955,22 +939,6 @@ struct btm_acl_removed {
   void operator()(uint16_t handle) { body(handle); };
 };
 extern struct btm_acl_removed btm_acl_removed;
-// Name: btm_acl_reset_paging
-// Params: void
-// Returns: void
-struct btm_acl_reset_paging {
-  std::function<void(void)> body{[](void) { ; }};
-  void operator()(void) { body(); };
-};
-extern struct btm_acl_reset_paging btm_acl_reset_paging;
-// Name: btm_acl_resubmit_page
-// Params: void
-// Returns: void
-struct btm_acl_resubmit_page {
-  std::function<void(void)> body{[](void) { ; }};
-  void operator()(void) { body(); };
-};
-extern struct btm_acl_resubmit_page btm_acl_resubmit_page;
 // Name: btm_acl_role_changed
 // Params: tHCI_STATUS hci_status, const RawAddress& bd_addr, tHCI_ROLE
 // new_role Returns: void
@@ -985,14 +953,6 @@ struct btm_acl_role_changed {
   };
 };
 extern struct btm_acl_role_changed btm_acl_role_changed;
-// Name: btm_acl_set_paging
-// Params: bool value
-// Returns: void
-struct btm_acl_set_paging {
-  std::function<void(bool value)> body{[](bool value) { ; }};
-  void operator()(bool value) { body(value); };
-};
-extern struct btm_acl_set_paging btm_acl_set_paging;
 // Name: btm_acl_update_conn_addr
 // Params: uint16_t handle, const RawAddress& address
 // Returns: void

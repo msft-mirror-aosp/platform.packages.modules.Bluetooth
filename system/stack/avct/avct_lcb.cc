@@ -29,7 +29,6 @@
 #include "avct_api.h"
 #include "avct_int.h"
 #include "bt_target.h"
-#include "bt_utils.h"
 #include "device/include/device_iot_config.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
@@ -252,7 +251,7 @@ tAVCT_LCB* avct_lcb_by_bd(const RawAddress& bd_addr) {
     /* if no lcb found */
     p_lcb = NULL;
 
-    VLOG(1) << "No lcb for addr " << bd_addr;
+    VLOG(1) << "No lcb for addr " << ADDRESS_TO_LOGGABLE_STR(bd_addr);
   }
   return p_lcb;
 }

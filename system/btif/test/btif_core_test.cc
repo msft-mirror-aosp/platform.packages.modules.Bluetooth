@@ -43,9 +43,9 @@ const tBTA_AG_RES_DATA tBTA_AG_RES_DATA::kEmpty = {};
 
 module_t bt_utils_module;
 module_t gd_controller_module;
-module_t gd_idle_module;
 module_t gd_shim_module;
 module_t osi_module;
+module_t rust_module;
 
 namespace {
 
@@ -85,6 +85,8 @@ void link_quality_report_callback(uint64_t timestamp, int report_id, int rssi,
                                   int packets_not_receive_count,
                                   int negative_acknowledgement_count) {}
 void callback_thread_event(bt_cb_thread_evt evt) { TESTCB; }
+void dut_mode_recv_callback(uint16_t opcode, uint8_t* buf, uint8_t len) {}
+void le_test_mode_callback(bt_status_t status, uint16_t num_packets) {}
 void energy_info_callback(bt_activity_energy_info* energy_info,
                           bt_uid_traffic_t* uid_data) {}
 void generate_local_oob_data_callback(tBT_TRANSPORT transport,
@@ -107,6 +109,8 @@ bt_callbacks_t callbacks = {
     .le_address_associate_cb = le_address_associate_callback,
     .acl_state_changed_cb = acl_state_changed_callback,
     .thread_evt_cb = callback_thread_event,
+    .dut_mode_recv_cb = dut_mode_recv_callback,
+    .le_test_mode_cb = le_test_mode_callback,
     .energy_info_cb = energy_info_callback,
     .link_quality_report_cb = link_quality_report_callback,
     .generate_local_oob_data_cb = generate_local_oob_data_callback,
@@ -290,7 +294,6 @@ TEST_F(BtifCoreTest, dump_dm_event) {
       std::make_pair(BTA_DM_BLE_AUTH_CMPL_EVT, "BTA_DM_BLE_AUTH_CMPL_EVT"),
       std::make_pair(BTA_DM_DEV_UNPAIRED_EVT, "BTA_DM_DEV_UNPAIRED_EVT"),
       std::make_pair(BTA_DM_ENER_INFO_READ, "BTA_DM_ENER_INFO_READ"),
-      std::make_pair(BTA_DM_REPORT_BONDING_EVT, "BTA_DM_REPORT_BONDING_EVT"),
   };
   for (const auto& event : events) {
     ASSERT_STREQ(event.second.c_str(), dump_dm_event(event.first));
@@ -314,7 +317,7 @@ TEST_F(BtifCoreTest, dump_hf_event) {
       std::make_pair(BTA_AG_MIC_EVT, "BTA_AG_MIC_EVT"),
       std::make_pair(BTA_AG_AT_CKPD_EVT, "BTA_AG_AT_CKPD_EVT"),
       std::make_pair(BTA_AG_DISABLE_EVT, "BTA_AG_DISABLE_EVT"),
-      std::make_pair(BTA_AG_WBS_EVT, "BTA_AG_WBS_EVT"),
+      std::make_pair(BTA_AG_CODEC_EVT, "BTA_AG_CODEC_EVT"),
       std::make_pair(BTA_AG_AT_A_EVT, "BTA_AG_AT_A_EVT"),
       std::make_pair(BTA_AG_AT_D_EVT, "BTA_AG_AT_D_EVT"),
       std::make_pair(BTA_AG_AT_CHLD_EVT, "BTA_AG_AT_CHLD_EVT"),

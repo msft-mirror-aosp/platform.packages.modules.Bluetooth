@@ -28,6 +28,7 @@ import static android.bluetooth.le.ScanSettings.SCAN_MODE_SCREEN_OFF_BALANCED;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.anyString;
@@ -36,13 +37,18 @@ import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.ActivityManager;
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.le.ScanFilter;
+import android.bluetooth.le.ScanRecord;
+import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
+import android.bluetooth.le.TransportDiscoveryData;
 import android.content.Context;
 import android.location.LocationManager;
 import android.os.Binder;
@@ -61,6 +67,7 @@ import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.BluetoothAdapterProxy;
 import com.android.bluetooth.btservice.MetricsLogger;
+import com.android.internal.util.ArrayUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -1048,7 +1055,6 @@ public class ScanManagerTest {
         final boolean isFiltered = true;
         // Turn on screen
         sendMessageWaitForProcessed(createScreenOnOffMessage(true));
-        verify(mMetricsLogger, never()).cacheCount(anyInt(), anyLong());
         Mockito.clearInvocations(mMetricsLogger);
         // Create scan client
         ScanClient client = createScanClient(0, isFiltered, SCAN_MODE_LOW_POWER);
@@ -1079,7 +1085,6 @@ public class ScanManagerTest {
         final boolean isFiltered = true;
         // Turn on screen
         sendMessageWaitForProcessed(createScreenOnOffMessage(true));
-        verify(mMetricsLogger, never()).cacheCount(anyInt(), anyLong());
         Mockito.clearInvocations(mMetricsLogger);
         // Create scan client
         ScanClient client = createScanClient(0, isFiltered, SCAN_MODE_LOW_POWER);
@@ -1130,7 +1135,6 @@ public class ScanManagerTest {
         final boolean isFiltered = true;
         // Turn on screen
         sendMessageWaitForProcessed(createScreenOnOffMessage(true));
-        verify(mMetricsLogger, never()).cacheCount(anyInt(), anyLong());
         Mockito.clearInvocations(mMetricsLogger);
         // Create scan clients with different duty cycles
         ScanClient client = createScanClient(0, isFiltered, SCAN_MODE_LOW_POWER);
@@ -1210,5 +1214,26 @@ public class ScanManagerTest {
                     && capturedDuration <= weightedScanDuration + DELAY_ASYNC_MS).isTrue();
             Mockito.clearInvocations(mMetricsLogger);
         }
+    }
+
+    @Test
+    public void testMetricsScreenOnOff() {
+        // Turn off screen initially
+        sendMessageWaitForProcessed(createScreenOnOffMessage(false));
+        Mockito.clearInvocations(mMetricsLogger);
+        // Turn on screen
+        sendMessageWaitForProcessed(createScreenOnOffMessage(true));
+        verify(mMetricsLogger, never()).cacheCount(
+                eq(BluetoothProtoEnums.SCREEN_OFF_EVENT), anyLong());
+        verify(mMetricsLogger, times(1)).cacheCount(
+                eq(BluetoothProtoEnums.SCREEN_ON_EVENT), anyLong());
+        Mockito.clearInvocations(mMetricsLogger);
+        // Turn off screen
+        sendMessageWaitForProcessed(createScreenOnOffMessage(false));
+        verify(mMetricsLogger, never()).cacheCount(
+                eq(BluetoothProtoEnums.SCREEN_ON_EVENT), anyLong());
+        verify(mMetricsLogger, times(1)).cacheCount(
+                eq(BluetoothProtoEnums.SCREEN_OFF_EVENT), anyLong());
+        Mockito.clearInvocations(mMetricsLogger);
     }
 }

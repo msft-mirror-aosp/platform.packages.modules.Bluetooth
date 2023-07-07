@@ -41,6 +41,7 @@ import android.net.Uri;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.bluetooth.BluetoothMethodProxy;
+import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.opp.BluetoothOppTestUtils.CursorMockData;
 
 import org.junit.After;
@@ -51,6 +52,7 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -73,15 +75,18 @@ public class BluetoothOppUtilityTest {
 
 
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         mContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         BluetoothMethodProxy.setInstanceForTesting(mCallProxy);
         BluetoothOppTestUtils.enableOppActivities(true, mContext);
+        TestUtils.setUpUiTest();
     }
 
     @After
-    public void tearDown() {
+    public void tearDown() throws Exception {
+        TestUtils.tearDownUiTest();
+
         BluetoothOppTestUtils.enableOppActivities(false, mContext);
         BluetoothMethodProxy.setInstanceForTesting(null);
     }

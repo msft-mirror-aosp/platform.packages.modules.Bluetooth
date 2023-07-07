@@ -59,6 +59,7 @@
 #define BT_PROFILE_CSIS_CLIENT_ID "csis_client"
 #define BT_PROFILE_LE_AUDIO_ID "le_audio"
 #define BT_PROFILE_LE_AUDIO_BROADCASTER_ID "le_audio_broadcaster"
+#define BT_BQR_ID "bqr"
 
 /** Bluetooth Device Name */
 typedef struct { uint8_t name[249]; } __attribute__((packed)) bt_bdname_t;
@@ -67,7 +68,8 @@ typedef struct { uint8_t name[249]; } __attribute__((packed)) bt_bdname_t;
 typedef enum {
   BT_SCAN_MODE_NONE,
   BT_SCAN_MODE_CONNECTABLE,
-  BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE
+  BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE,
+  BT_SCAN_MODE_CONNECTABLE_LIMITED_DISCOVERABLE
 } bt_scan_mode_t;
 
 /** Bluetooth Adapter State */
@@ -222,6 +224,7 @@ typedef struct {
   bool le_connected_isochronous_stream_central_supported;
   bool le_isochronous_broadcast_supported;
   bool le_periodic_advertising_sync_transfer_recipient_supported;
+  uint16_t adv_filter_extended_features_mask;
 } bt_local_le_features_t;
 
 /** Bluetooth Vendor and Product ID info */
@@ -342,12 +345,7 @@ typedef enum {
    */
   BT_PROPERTY_LOCAL_IO_CAPS,
 
-  /**
-   * Description - Local Input/Output Capabilities for BLE
-   * Access mode - GET and SET
-   * Data Type - bt_io_cap_t.
-   */
-  BT_PROPERTY_LOCAL_IO_CAPS_BLE,
+  BT_PROPERTY_RESERVED_0F,
 
   BT_PROPERTY_DYNAMIC_AUDIO_BUFFER,
 
@@ -387,6 +385,13 @@ typedef enum {
    */
   BT_PROPERTY_REMOTE_ASHA_TRUNCATED_HISYNCID,
 
+  /**
+   * Description - Model name read from Device Information Service(DIS).
+   * Access mode - GET and SET.
+   * Data Type - char array.
+   */
+  BT_PROPERTY_REMOTE_MODEL_NUM,
+
   BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP = 0xFF,
 } bt_property_type_t;
 
@@ -397,25 +402,38 @@ typedef struct {
   void* val;
 } bt_property_t;
 
+// OOB_ADDRESS_SIZE is 6 bytes address + 1 byte address type
+#define OOB_ADDRESS_SIZE 7
+#define OOB_C_SIZE 16
+#define OOB_R_SIZE 16
+#define OOB_NAME_MAX_SIZE 256
+// Classic
+#define OOB_DATA_LEN_SIZE 2
+#define OOB_COD_SIZE 3
+// LE
+#define OOB_TK_SIZE 16
+#define OOB_LE_FLAG_SIZE 1
+#define OOB_LE_ROLE_SIZE 1
+#define OOB_LE_APPEARANCE_SIZE 2
 /** Represents the actual Out of Band data itself */
 typedef struct bt_oob_data_s {
   // Both
   bool is_valid = false; /* Default to invalid data; force caller to verify */
-  uint8_t address[7]; /* Bluetooth Device Address (6) plus Address Type (1) */
-  uint8_t c[16];      /* Simple Pairing Hash C-192/256 (Classic or LE) */
-  uint8_t r[16];      /* Simple Pairing Randomizer R-192/256 (Classic or LE) */
-  uint8_t device_name[256]; /* Name of the device */
+  uint8_t address[OOB_ADDRESS_SIZE];
+  uint8_t c[OOB_C_SIZE];      /* Simple Pairing Hash C-192/256 (Classic or LE) */
+  uint8_t r[OOB_R_SIZE];      /* Simple Pairing Randomizer R-192/256 (Classic or LE) */
+  uint8_t device_name[OOB_NAME_MAX_SIZE]; /* Name of the device */
 
   // Classic
-  uint8_t oob_data_length[2]; /* Classic only data Length. Value includes this
-                                 in length */
-  uint8_t class_of_device[2]; /* Class of Device (Classic or LE) */
+  uint8_t oob_data_length[OOB_DATA_LEN_SIZE]; /* Classic only data Length. Value includes this
+                                                 in length */
+  uint8_t class_of_device[OOB_COD_SIZE]; /* Class of Device (Classic or LE) */
 
   // LE
   uint8_t le_device_role;   /* Supported and preferred role of device */
-  uint8_t sm_tk[16];        /* Security Manager TK Value (LE Only) */
+  uint8_t sm_tk[OOB_TK_SIZE];        /* Security Manager TK Value (LE Only) */
   uint8_t le_flags;         /* LE Flags for discoverability and features */
-  uint8_t le_appearance[2]; /* For the appearance of the device */
+  uint8_t le_appearance[OOB_LE_APPEARANCE_SIZE]; /* For the appearance of the device */
 } bt_oob_data_t;
 
 /** Bluetooth Device Type */
@@ -539,6 +557,18 @@ typedef enum { ASSOCIATE_JVM, DISASSOCIATE_JVM } bt_cb_thread_evt;
  * attach/detach to/from the JVM */
 typedef void (*callback_thread_event)(bt_cb_thread_evt evt);
 
+/** Bluetooth Test Mode Callback */
+/* Receive any HCI event from controller. Must be in DUT Mode for this callback
+ * to be received */
+typedef void (*dut_mode_recv_callback)(uint16_t opcode, uint8_t* buf,
+                                       uint8_t len);
+
+/* LE Test mode callbacks
+ * This callback shall be invoked whenever the le_tx_test, le_rx_test or
+ * le_test_end is invoked The num_packets is valid only for le_test_end command
+ */
+typedef void (*le_test_mode_callback)(bt_status_t status, uint16_t num_packets);
+
 /** Callback invoked when energy details are obtained */
 /* Ctrl_state-Current controller state-Active-1,scan-2,or idle-3 state as
  * defined by HCI spec. If the ctrl_state value is 0, it means the API call
@@ -573,6 +603,8 @@ typedef struct {
   le_address_associate_callback le_address_associate_cb;
   acl_state_changed_callback acl_state_changed_cb;
   callback_thread_event thread_evt_cb;
+  dut_mode_recv_callback dut_mode_recv_cb;
+  le_test_mode_callback le_test_mode_cb;
   energy_info_callback energy_info_cb;
   link_quality_report_callback link_quality_report_cb;
   generate_local_oob_data_callback generate_local_oob_data_cb;
@@ -724,6 +756,18 @@ typedef struct {
 
   /** Get Bluetooth profile interface */
   const void* (*get_profile_interface)(const char* profile_id);
+
+  /** Bluetooth Test Mode APIs - Bluetooth must be enabled for these APIs */
+  /* Configure DUT Mode - Use this mode to enter/exit DUT mode */
+  int (*dut_mode_configure)(uint8_t enable);
+
+  /* Send any test HCI (vendor-specific) command to the controller. Must be in
+   * DUT Mode */
+  int (*dut_mode_send)(uint16_t opcode, uint8_t* buf, uint8_t len);
+  /** BLE Test Mode APIs */
+  /* opcode MUST be one of: LE_Receiver_Test, LE_Transmitter_Test, LE_Test_End
+   */
+  int (*le_test_mode)(uint16_t opcode, uint8_t* buf, uint8_t len);
 
   /** Sets the OS call-out functions that bluedroid needs for alarms and wake
    * locks. This should be called immediately after a successful |init|.
@@ -878,6 +922,13 @@ typedef struct {
    *
    */
   bool (*get_wbs_supported)();
+
+  /**
+   *
+   * Is swb supported by the controller
+   *
+   */
+  bool (*get_swb_supported)();
 
   /**
    * Data passed from BluetoothDevice.metadata_changed

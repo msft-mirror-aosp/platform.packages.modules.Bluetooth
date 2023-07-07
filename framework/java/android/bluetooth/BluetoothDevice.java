@@ -309,6 +309,13 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     public static final String EXTRA_NAME = "android.bluetooth.device.extra.NAME";
 
     /**
+     * Used as a Parcelable {@link BluetoothQualityReport} extra field in
+     * {@link #ACTION_REMOTE_ISSUE_OCCURRED} intent. It contains the {@link BluetoothQualityReport}.
+     * @hide
+     */
+    public static final String EXTRA_BQR = "android.bluetooth.qti.extra.EXTRA_BQR";
+
+    /**
      * Used as an optional short extra field in {@link #ACTION_FOUND} intents.
      * Contains the RSSI value of the remote device as reported by the
      * Bluetooth hardware.
@@ -1470,9 +1477,12 @@ public final class BluetoothDevice implements Parcelable, Attributable {
             }
 
             try {
-                sIsLogRedactionEnabled = service.isLogRedactionEnabled();
+                final SynchronousResultReceiver<Boolean> recv = SynchronousResultReceiver.get();
+                service.isLogRedactionEnabled(recv);
+                sIsLogRedactionEnabled =
+                    recv.awaitResultNoInterrupt(getSyncTimeout()).getValue(defaultValue);
                 sIsLogRedactionFlagSynced = true;
-            } catch (RemoteException e) {
+            } catch (RemoteException | TimeoutException e) {
                 // by default, set to true
                 Log.e(TAG, "Failed to call IBluetooth.isLogRedactionEnabled"
                             + e.toString() + "\n"
@@ -2122,17 +2132,17 @@ public final class BluetoothDevice implements Parcelable, Attributable {
             android.Manifest.permission.BLUETOOTH_CONNECT,
             android.Manifest.permission.BLUETOOTH_PRIVILEGED,
     })
-    public String getCreateBondCaller() {
-        if (DBG) log("getCreateBondCaller()");
+    public String getPackageNameOfBondingApplication() {
+        if (DBG) log("getPackageNameOfBondingApplication()");
         final IBluetooth service = getService();
         final String defaultValue = null;
         if (service == null || !isBluetoothEnabled()) {
-            Log.w(TAG, "BT not enabled, getCreateBondCaller failed");
+            Log.w(TAG, "BT not enabled, getPackageNameOfBondingApplication failed");
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else {
             try {
                 final SynchronousResultReceiver<String> recv = SynchronousResultReceiver.get();
-                service.getCreateBondCaller(this, recv);
+                service.getPackageNameOfBondingApplication(this, recv);
                 return recv.awaitResultNoInterrupt(getSyncTimeout()).getValue(defaultValue);
             } catch (RemoteException | TimeoutException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
@@ -3256,22 +3266,18 @@ public final class BluetoothDevice implements Parcelable, Attributable {
 
         // TODO(Bluetooth) check whether platform support BLE
         //     Do the check here or in GattServer?
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-        IBluetoothManager managerService = adapter.getBluetoothManager();
-        try {
-            IBluetoothGatt iGatt = managerService.getBluetoothGatt();
-            if (iGatt == null) {
-                // BLE is not supported
-                return null;
-            }
-            BluetoothGatt gatt = new BluetoothGatt(
-                    iGatt, this, transport, opportunistic, phy, mAttributionSource);
-            gatt.connect(autoConnect, callback, handler);
-            return gatt;
-        } catch (RemoteException e) {
-            Log.e(TAG, "", e);
+        IBluetoothGatt iGatt = BluetoothAdapter.getDefaultAdapter().getBluetoothGatt();
+        if (iGatt == null) {
+            // BLE is not supported
+            return null;
+        } else if (NULL_MAC_ADDRESS.equals(mAddress)) {
+            Log.e(TAG, "Unable to connect gatt, invalid address " + mAddress);
+            return null;
         }
-        return null;
+        BluetoothGatt gatt =
+                new BluetoothGatt(iGatt, this, transport, opportunistic, phy, mAttributionSource);
+        gatt.connect(autoConnect, callback, handler);
+        return gatt;
     }
 
     /**
@@ -3427,11 +3433,8 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     @IntDef(
         prefix = { "FEATURE_" },
         value = {
-            /** Remote support status of audio policy feature is unknown/unconfigured **/
             BluetoothStatusCodes.FEATURE_NOT_CONFIGURED,
-            /** Remote support status of audio policy feature is supported **/
             BluetoothStatusCodes.FEATURE_SUPPORTED,
-            /** Remote support status of audio policy feature is not supported **/
             BluetoothStatusCodes.FEATURE_NOT_SUPPORTED,
         }
     )

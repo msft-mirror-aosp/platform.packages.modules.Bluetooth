@@ -1,11 +1,12 @@
 //! Parsing of various Bluetooth packets.
 use chrono::NaiveDateTime;
+use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::cast::FromPrimitive;
 use std::convert::TryFrom;
 use std::fs::File;
-use std::io::{Error, ErrorKind, Read, Seek};
+use std::io::{BufRead, BufReader, Error, ErrorKind, Read};
 
-use bt_packets::hci::{AclPacket, CommandPacket, EventPacket};
+use bt_packets::hci::{Acl, Command, Event};
 
 /// Linux snoop file header format. This format is used by `btmon` on Linux systems that have bluez
 /// installed.
@@ -69,8 +70,8 @@ impl TryFrom<&[u8]> for LinuxSnoopHeader {
 pub enum LinuxSnoopOpcodes {
     NewIndex = 0,
     DeleteIndex,
-    CommandPacket,
-    EventPacket,
+    Command,
+    Event,
     AclTxPacket,
     AclRxPacket,
     ScoTxPacket,
@@ -107,7 +108,7 @@ pub struct LinuxSnoopPacket {
 }
 
 impl LinuxSnoopPacket {
-    pub fn index(&self) -> u16 {
+    pub fn adapter_index(&self) -> u16 {
         (self.flags >> 16).try_into().unwrap_or(0u16)
     }
 
@@ -169,11 +170,11 @@ impl TryFrom<&[u8]> for LinuxSnoopPacket {
 
 /// Reader for Linux snoop files.
 pub struct LinuxSnoopReader<'a> {
-    fd: &'a File,
+    fd: Box<dyn BufRead + 'a>,
 }
 
 impl<'a> LinuxSnoopReader<'a> {
-    fn new(fd: &'a File) -> Self {
+    fn new(fd: Box<dyn BufRead + 'a>) -> Self {
         LinuxSnoopReader { fd }
     }
 }
@@ -183,8 +184,8 @@ impl<'a> Iterator for LinuxSnoopReader<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut data = [0u8; LINUX_SNOOP_PACKET_PREAMBLE_SIZE];
-        let bytes = match self.fd.read(&mut data) {
-            Ok(b) => b,
+        match self.fd.read_exact(&mut data) {
+            Ok(()) => {}
             Err(e) => {
                 // |UnexpectedEof| could be seen since we're trying to read more
                 // data than is available (i.e. end of file).
@@ -195,22 +196,14 @@ impl<'a> Iterator for LinuxSnoopReader<'a> {
             }
         };
 
-        match LinuxSnoopPacket::try_from(&data[0..bytes]) {
+        match LinuxSnoopPacket::try_from(&data[0..LINUX_SNOOP_PACKET_PREAMBLE_SIZE]) {
             Ok(mut p) => {
                 if p.included_length > 0 {
                     let size: usize = p.included_length.try_into().unwrap();
                     let mut rem_data = [0u8; LINUX_SNOOP_MAX_PACKET_SIZE];
-                    match self.fd.read(&mut rem_data[0..size]) {
-                        Ok(b) => {
-                            if b != size {
-                                eprintln!(
-                                    "Size({}) doesn't match bytes read({}). Aborting...",
-                                    size, b
-                                );
-                                return None;
-                            }
-
-                            p.data = rem_data[0..b].to_vec();
+                    match self.fd.read_exact(&mut rem_data[0..size]) {
+                        Ok(()) => {
+                            p.data = rem_data[0..size].to_vec();
                             Some(p)
                         }
                         Err(e) => {
@@ -236,25 +229,30 @@ pub enum LogType {
 
 /// Parses different Bluetooth log types.
 pub struct LogParser {
-    fd: File,
+    fd: Box<dyn BufRead>,
     log_type: Option<LogType>,
 }
 
 impl<'a> LogParser {
     pub fn new(filepath: &str) -> std::io::Result<Self> {
-        Ok(Self { fd: File::open(filepath)?, log_type: None })
+        let fd: Box<dyn BufRead>;
+        if filepath.len() == 0 {
+            fd = Box::new(BufReader::new(std::io::stdin()));
+        } else {
+            fd = Box::new(BufReader::new(File::open(filepath)?));
+        }
+
+        Ok(Self { fd, log_type: None })
     }
 
-    /// Check the log file type for the current log file. This rewinds the position of the file.
+    /// Check the log file type for the current log file. This advances the read pointer.
     /// For a non-intrusive query, use |get_log_type|.
     pub fn read_log_type(&mut self) -> std::io::Result<LogType> {
         let mut buf = [0; LINUX_SNOOP_HEADER_SIZE];
 
-        // First rewind to start of the file.
-        self.fd.rewind()?;
-        let bytes = self.fd.read(&mut buf)?;
+        self.fd.read_exact(&mut buf)?;
 
-        if let Ok(header) = LinuxSnoopHeader::try_from(&buf[0..bytes]) {
+        if let Ok(header) = LinuxSnoopHeader::try_from(&buf[0..LINUX_SNOOP_HEADER_SIZE]) {
             let log_type = LogType::LinuxSnoop(header);
             self.log_type = Some(log_type.clone());
             Ok(log_type)
@@ -274,17 +272,17 @@ impl<'a> LogParser {
             return None;
         }
 
-        Some(LinuxSnoopReader::new(&mut self.fd))
+        Some(LinuxSnoopReader::new(Box::new(BufReader::new(&mut self.fd))))
     }
 }
 
 /// Data owned by a packet.
 #[derive(Debug, Clone)]
 pub enum PacketChild {
-    HciCommand(CommandPacket),
-    HciEvent(EventPacket),
-    AclTx(AclPacket),
-    AclRx(AclPacket),
+    HciCommand(Command),
+    HciEvent(Event),
+    AclTx(Acl),
+    AclRx(Acl),
 }
 
 impl<'a> TryFrom<&'a LinuxSnoopPacket> for PacketChild {
@@ -292,22 +290,22 @@ impl<'a> TryFrom<&'a LinuxSnoopPacket> for PacketChild {
 
     fn try_from(item: &'a LinuxSnoopPacket) -> Result<Self, Self::Error> {
         match item.opcode() {
-            LinuxSnoopOpcodes::CommandPacket => match CommandPacket::parse(item.data.as_slice()) {
+            LinuxSnoopOpcodes::Command => match Command::parse(item.data.as_slice()) {
                 Ok(command) => Ok(PacketChild::HciCommand(command)),
                 Err(e) => Err(format!("Couldn't parse command: {:?}", e)),
             },
 
-            LinuxSnoopOpcodes::EventPacket => match EventPacket::parse(item.data.as_slice()) {
+            LinuxSnoopOpcodes::Event => match Event::parse(item.data.as_slice()) {
                 Ok(event) => Ok(PacketChild::HciEvent(event)),
                 Err(e) => Err(format!("Couldn't parse event: {:?}", e)),
             },
 
-            LinuxSnoopOpcodes::AclTxPacket => match AclPacket::parse(item.data.as_slice()) {
+            LinuxSnoopOpcodes::AclTxPacket => match Acl::parse(item.data.as_slice()) {
                 Ok(data) => Ok(PacketChild::AclTx(data)),
                 Err(e) => Err(format!("Couldn't parse acl tx: {:?}", e)),
             },
 
-            LinuxSnoopOpcodes::AclRxPacket => match AclPacket::parse(item.data.as_slice()) {
+            LinuxSnoopOpcodes::AclRxPacket => match Acl::parse(item.data.as_slice()) {
                 Ok(data) => Ok(PacketChild::AclRx(data)),
                 Err(e) => Err(format!("Couldn't parse acl rx: {:?}", e)),
             },
@@ -327,25 +325,30 @@ pub struct Packet {
     /// Which adapter this packet is for. Unassociated packets should use 0xFFFE.
     pub adapter_index: u16,
 
+    /// Packet number in current stream.
+    pub index: usize,
+
     /// Inner data for this packet.
     pub inner: PacketChild,
 }
 
-impl<'a> TryFrom<&'a LinuxSnoopPacket> for Packet {
+impl<'a> TryFrom<(usize, &'a LinuxSnoopPacket)> for Packet {
     type Error = String;
 
-    fn try_from(item: &'a LinuxSnoopPacket) -> Result<Self, Self::Error> {
-        match PacketChild::try_from(item) {
+    fn try_from(item: (usize, &'a LinuxSnoopPacket)) -> Result<Self, Self::Error> {
+        let (index, packet) = item;
+        match PacketChild::try_from(packet) {
             Ok(inner) => {
-                let base_ts = i64::try_from(item.timestamp_magic_us)
+                let base_ts = i64::try_from(packet.timestamp_magic_us)
                     .map_err(|e| format!("u64 conversion error: {}", e))?;
 
                 let ts_secs = (base_ts / USECS_TO_SECS) + LINUX_SNOOP_OFFSET_TO_UNIXTIME_SECS;
                 let ts_nsecs = u32::try_from((base_ts % USECS_TO_SECS) * 1000).unwrap_or(0);
-                let ts = NaiveDateTime::from_timestamp(ts_secs, ts_nsecs);
-                let adapter_index = item.index();
+                let ts = NaiveDateTime::from_timestamp_opt(ts_secs, ts_nsecs)
+                    .ok_or(format!("timestamp conversion error: {}", base_ts))?;
+                let adapter_index = packet.adapter_index();
 
-                Ok(Packet { ts, adapter_index, inner })
+                Ok(Packet { ts, adapter_index, index, inner })
             }
 
             Err(e) => Err(e),

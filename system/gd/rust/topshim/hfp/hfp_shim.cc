@@ -95,6 +95,8 @@ static headset::bthf_call_state_t from_rust_call_state(rusty::CallState state) {
       return headset::BTHF_CALL_STATE_INCOMING;
     case rusty::CallState::Dialing:
       return headset::BTHF_CALL_STATE_DIALING;
+    case rusty::CallState::Alerting:
+      return headset::BTHF_CALL_STATE_ALERTING;
     case rusty::CallState::Active:
       return headset::BTHF_CALL_STATE_ACTIVE;
     case rusty::CallState::Held:
@@ -102,6 +104,26 @@ static headset::bthf_call_state_t from_rust_call_state(rusty::CallState state) {
     default:
       ASSERT_LOG(false, "Unhandled enum value from Rust");
   }
+}
+
+static void debug_dump_cb(
+    bool active,
+    bool wbs,
+    int total_num_decoded_frames,
+    double packet_loss_ratio,
+    uint64_t begin_ts,
+    uint64_t end_ts,
+    const char* pkt_status_in_hex,
+    const char* pkt_status_in_binary) {
+  rusty::hfp_debug_dump_callback(
+      active,
+      wbs,
+      total_num_decoded_frames,
+      packet_loss_ratio,
+      begin_ts,
+      end_ts,
+      ::rust::String{pkt_status_in_hex},
+      ::rust::String{pkt_status_in_binary});
 }
 }  // namespace internal
 
@@ -154,7 +176,12 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
 
   void WbsCallback(headset::bthf_wbs_config_t wbs, RawAddress* addr) override {
     LOG_INFO("WbsCallback %d from %s", wbs, ADDRESS_TO_LOGGABLE_CSTR(*addr));
-    rusty::hfp_caps_update_callback(wbs == headset::BTHF_WBS_YES, *addr);
+    rusty::hfp_wbs_caps_update_callback(wbs == headset::BTHF_WBS_YES, *addr);
+  }
+
+  void SwbCallback(headset::bthf_swb_config_t swb, RawAddress* addr) override {
+    LOG_INFO("SwbCallback %d from %s", swb, ADDRESS_TO_LOGGABLE_CSTR(*addr));
+    rusty::hfp_swb_caps_update_callback(swb == headset::BTHF_SWB_YES, *addr);
   }
 
   void AtChldCallback(headset::bthf_chld_type_t chld, RawAddress* bd_addr) override {
@@ -220,6 +247,36 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
              battery, ADDRESS_TO_LOGGABLE_CSTR(*bd_addr));
   }
 
+  void DebugDumpCallback(
+      bool active,
+      bool wbs,
+      int total_num_decoded_frames,
+      double packet_loss_ratio,
+      uint64_t begin_ts,
+      uint64_t end_ts,
+      const char* pkt_status_in_hex,
+      const char* pkt_status_in_binary) override {
+    LOG_WARN(
+        "DebugDumpCallback %d %d %d %f %llu %llu %s %s",
+        active,
+        wbs,
+        total_num_decoded_frames,
+        packet_loss_ratio,
+        (unsigned long long)begin_ts,
+        (unsigned long long)end_ts,
+        pkt_status_in_hex,
+        pkt_status_in_binary);
+    topshim::rust::internal::debug_dump_cb(
+        active,
+        wbs,
+        total_num_decoded_frames,
+        packet_loss_ratio,
+        begin_ts,
+        end_ts,
+        pkt_status_in_hex,
+        pkt_status_in_binary);
+  }
+
  private:
   headset::Interface* headset_;
 };
@@ -232,9 +289,9 @@ uint32_t HfpIntf::connect(RawAddress addr) {
   return intf_->Connect(&addr);
 }
 
-int HfpIntf::connect_audio(RawAddress addr, bool sco_offload, bool force_cvsd) {
+int HfpIntf::connect_audio(RawAddress addr, bool sco_offload, int disabled_codecs) {
   intf_->SetScoOffloadEnabled(sco_offload);
-  return intf_->ConnectAudio(&addr, force_cvsd);
+  return intf_->ConnectAudio(&addr, disabled_codecs);
 }
 
 int HfpIntf::set_active_device(RawAddress addr) {
@@ -320,6 +377,10 @@ uint32_t HfpIntf::phone_state_change(
 uint32_t HfpIntf::simple_at_response(bool ok, RawAddress addr) {
   return intf_->AtResponse(
       (ok ? headset::BTHF_AT_RESPONSE_OK : headset::BTHF_AT_RESPONSE_ERROR), 0, &addr);
+}
+
+void HfpIntf::debug_dump() {
+  intf_->DebugDump();
 }
 
 void HfpIntf::cleanup() {}

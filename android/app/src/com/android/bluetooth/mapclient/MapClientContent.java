@@ -186,25 +186,25 @@ class MapClientContent {
      * Store a message in database with the associated handle and timestamp.
      * The handle is used to associate the local message with the remote message.
      */
-    void storeMessage(Bmessage message, String handle, Long timestamp) {
+    void storeMessage(Bmessage message, String handle, Long timestamp, boolean seen) {
         logI("storeMessage(device=" + Utils.getLoggableAddress(mDevice) + ", time=" + timestamp
                 + ", handle=" + handle + ", type=" + message.getType()
                 + ", folder=" + message.getFolder());
 
         switch (message.getType()) {
             case MMS:
-                storeMms(message, handle, timestamp);
+                storeMms(message, handle, timestamp, seen);
                 return;
             case SMS_CDMA:
             case SMS_GSM:
-                storeSms(message, handle, timestamp);
+                storeSms(message, handle, timestamp, seen);
                 return;
             default:
                 logD("Request to store unsupported message type: " + message.getType());
         }
     }
 
-    private void storeSms(Bmessage message, String handle, Long timestamp) {
+    private void storeSms(Bmessage message, String handle, Long timestamp, boolean seen) {
         logD("storeSms");
         logV(message.toString());
         VCardEntry originator = message.getOriginator();
@@ -233,6 +233,7 @@ class MapClientContent {
         values.put(Sms.SUBSCRIPTION_ID, mSubscriptionId);
         values.put(Sms.DATE, timestamp);
         values.put(Sms.READ, readStatus);
+        values.put(Sms.SEEN, seen);
 
         Uri results = mResolver.insert(contentUri, values);
         mHandleToUriMap.put(handle, results);
@@ -279,17 +280,19 @@ class MapClientContent {
         originalUriToHandleMap = mUriToHandleMap;
         duplicateUriToHandleMap = new HashMap<>(originalUriToHandleMap);
         for (Uri uri : new Uri[]{Mms.CONTENT_URI, Sms.CONTENT_URI}) {
-            Cursor cursor = mResolver.query(uri, null, null, null, null);
-            while (cursor.moveToNext()) {
-                Uri index = Uri
-                        .withAppendedPath(uri, cursor.getString(cursor.getColumnIndex("_id")));
-                int readStatus = cursor.getInt(cursor.getColumnIndex(Sms.READ));
-                MessageStatus currentMessage = duplicateUriToHandleMap.remove(index);
-                if (currentMessage != null && currentMessage.mRead != readStatus) {
-                    logV(currentMessage.mHandle);
-                    currentMessage.mRead = readStatus;
-                    mCallbacks.onMessageStatusChanged(currentMessage.mHandle,
-                            BluetoothMapClient.READ);
+            try (Cursor cursor = mResolver.query(uri, null, null, null, null)) {
+                while (cursor.moveToNext()) {
+                    Uri index =
+                            Uri.withAppendedPath(
+                                    uri, cursor.getString(cursor.getColumnIndex("_id")));
+                    int readStatus = cursor.getInt(cursor.getColumnIndex(Sms.READ));
+                    MessageStatus currentMessage = duplicateUriToHandleMap.remove(index);
+                    if (currentMessage != null && currentMessage.mRead != readStatus) {
+                        logV(currentMessage.mHandle);
+                        currentMessage.mRead = readStatus;
+                        mCallbacks.onMessageStatusChanged(
+                                currentMessage.mHandle, BluetoothMapClient.READ);
+                    }
                 }
             }
         }
@@ -301,7 +304,7 @@ class MapClientContent {
         }
     }
 
-    private void storeMms(Bmessage message, String handle, Long timestamp) {
+    private void storeMms(Bmessage message, String handle, Long timestamp, boolean seen) {
         logD("storeMms");
         logV(message.toString());
         try {
@@ -326,7 +329,7 @@ class MapClientContent {
             values.put(Mms.TEXT_ONLY, true);
             values.put(Mms.MESSAGE_BOX, messageBox);
             values.put(Mms.READ, read);
-            values.put(Mms.SEEN, 0);
+            values.put(Mms.SEEN, seen);
             values.put(Mms.MESSAGE_TYPE, PduHeaders.MESSAGE_TYPE_SEND_REQ);
             values.put(Mms.MMS_VERSION, PduHeaders.CURRENT_MMS_VERSION);
             values.put(Mms.PRIORITY, PduHeaders.PRIORITY_NORMAL);
@@ -432,9 +435,10 @@ class MapClientContent {
         String threads = new String();
 
         Uri uri = Threads.CONTENT_URI.buildUpon().appendQueryParameter("simple", "true").build();
-        Cursor threadCursor = resolver.query(uri, null, null, null, null);
-        while (threadCursor.moveToNext()) {
-            threads += threadCursor.getInt(threadCursor.getColumnIndex(Threads._ID)) + ", ";
+        try (Cursor threadCursor = resolver.query(uri, null, null, null, null)) {
+            while (threadCursor.moveToNext()) {
+                threads += threadCursor.getInt(threadCursor.getColumnIndex(Threads._ID)) + ", ";
+            }
         }
 
         resolver.delete(Sms.CONTENT_URI, Sms.SUBSCRIPTION_ID + " =? ",
@@ -523,21 +527,25 @@ class MapClientContent {
         logD("MATCHING THREAD" + threadId);
         logD(MmsSms.CONTENT_CONVERSATIONS_URI + threadId + "/recipients");
 
-        Cursor cursor = mResolver
-                .query(Uri.withAppendedPath(MmsSms.CONTENT_CONVERSATIONS_URI,
-                        threadId + "/recipients"),
-                        null, null,
-                        null, null);
+        try (Cursor cursor =
+                mResolver.query(
+                        Uri.withAppendedPath(
+                                MmsSms.CONTENT_CONVERSATIONS_URI, threadId + "/recipients"),
+                        null,
+                        null,
+                        null,
+                        null)) {
 
-        if (cursor.moveToNext()) {
-            logD("Columns" + Arrays.toString(cursor.getColumnNames()));
-            logV("CONTACT LIST: " + cursor.getString(cursor.getColumnIndex("recipient_ids")));
-            addRecipientsToEntries(bmsg,
-                    cursor.getString(cursor.getColumnIndex("recipient_ids")).split(" "));
-            return true;
-        } else {
-            Log.w(TAG, "Thread Not Found");
-            return false;
+            if (cursor.moveToNext()) {
+                logD("Columns" + Arrays.toString(cursor.getColumnNames()));
+                logV("CONTACT LIST: " + cursor.getString(cursor.getColumnIndex("recipient_ids")));
+                addRecipientsToEntries(
+                        bmsg, cursor.getString(cursor.getColumnIndex("recipient_ids")).split(" "));
+                return true;
+            } else {
+                Log.w(TAG, "Thread Not Found");
+                return false;
+            }
         }
     }
 
@@ -545,19 +553,23 @@ class MapClientContent {
     private void addRecipientsToEntries(Bmessage bmsg, String[] recipients) {
         logV("CONTACT LIST: " + Arrays.toString(recipients));
         for (String recipient : recipients) {
-            Cursor cursor = mResolver
-                    .query(Uri.parse("content://mms-sms/canonical-address/" + recipient), null,
-                            null, null,
-                            null);
-            while (cursor.moveToNext()) {
-                String number = cursor.getString(cursor.getColumnIndex(Mms.Addr.ADDRESS));
-                logV("CONTACT number: " + number);
-                VCardEntry destEntry = new VCardEntry();
-                VCardProperty destEntryPhone = new VCardProperty();
-                destEntryPhone.setName(VCardConstants.PROPERTY_TEL);
-                destEntryPhone.addValues(number);
-                destEntry.addProperty(destEntryPhone);
-                bmsg.addRecipient(destEntry);
+            try (Cursor cursor =
+                    mResolver.query(
+                            Uri.parse("content://mms-sms/canonical-address/" + recipient),
+                            null,
+                            null,
+                            null,
+                            null)) {
+                while (cursor.moveToNext()) {
+                    String number = cursor.getString(cursor.getColumnIndex(Mms.Addr.ADDRESS));
+                    logV("CONTACT number: " + number);
+                    VCardEntry destEntry = new VCardEntry();
+                    VCardProperty destEntryPhone = new VCardProperty();
+                    destEntryPhone.setName(VCardConstants.PROPERTY_TEL);
+                    destEntryPhone.addValues(number);
+                    destEntry.addProperty(destEntryPhone);
+                    bmsg.addRecipient(destEntry);
+                }
             }
         }
     }

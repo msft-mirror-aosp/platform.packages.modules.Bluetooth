@@ -26,7 +26,7 @@
 #include <utility>      // for move
 
 #include "include/phy.h"  // for Phy, Phy::Type
-#include "log.h"          // for LOG_WARN, LOG_INFO
+#include "log.h"
 #include "phy_layer.h"
 
 namespace rootcanal {
@@ -73,14 +73,14 @@ void TestModel::SetTimerPeriod(std::chrono::milliseconds new_period) {
 }
 
 void TestModel::StartTimer() {
-  LOG_INFO("StartTimer()");
+  INFO("StartTimer()");
   timer_tick_task_ =
       schedule_periodic_task_(model_user_id_, std::chrono::milliseconds(0),
                               timer_period_, [this]() { TestModel::Tick(); });
 }
 
 void TestModel::StopTimer() {
-  LOG_INFO("StopTimer()");
+  INFO("StopTimer()");
   cancel_task_(timer_tick_task_);
   timer_tick_task_ = kInvalidTaskId;
 }
@@ -166,8 +166,8 @@ void TestModel::RemoveDeviceFromPhy(PhyDevice::Identifier device_id,
 
 void TestModel::AddLinkLayerConnection(std::shared_ptr<Device> device,
                                        Phy::Type type) {
-  LOG_INFO("Adding a new link layer connection of type: %s",
-           type == Phy::Type::BR_EDR ? "BR_EDR" : "LOW_ENERGY");
+  INFO("Adding a new link layer connection of type: {}",
+       type == Phy::Type::BR_EDR ? "BR_EDR" : "LOW_ENERGY");
 
   PhyDevice::Identifier device_id = AddDevice(device);
 
@@ -208,19 +208,13 @@ PhyDevice::Identifier TestModel::AddHciConnection(
   }};
   device->SetAddress(bluetooth_address);
 
-  LOG_INFO("Initialized device with address %s",
-           bluetooth_address.ToString().c_str());
+  INFO("Initialized device with address {}", bluetooth_address.ToString());
 
   for (auto& [_, phy_layer] : phy_layers_) {
     phy_layer->Register(phy_devices_[device_id]);
   }
 
   AsyncUserId user_id = get_user_id_();
-  device->RegisterTaskScheduler([user_id, this](std::chrono::milliseconds delay,
-                                                TaskCallback task_callback) {
-    return schedule_task_(user_id, delay, std::move(task_callback));
-  });
-  device->RegisterTaskCancel(cancel_task_);
   device->RegisterCloseCallback([this, device_id, user_id] {
     schedule_task_(user_id, std::chrono::milliseconds(0),
                    [this, device_id, user_id]() {
@@ -273,7 +267,7 @@ void TestModel::Tick() {
 void TestModel::Reset() {
   StopTimer();
   schedule_task_(model_user_id_, std::chrono::milliseconds(0), [this]() {
-    LOG_INFO("Running Reset task");
+    INFO("Running Reset task");
     for (auto& [_, phy_layer] : phy_layers_) {
       phy_layer->UnregisterAll();
     }

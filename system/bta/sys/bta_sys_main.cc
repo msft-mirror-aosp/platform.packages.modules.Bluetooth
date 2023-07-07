@@ -133,10 +133,7 @@ void bta_sys_register(uint8_t id, const tBTA_SYS_REG* p_reg) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_sys_deregister(uint8_t id) {
-  bta_sys_cb.is_reg[id] = false;
-  bta_sys_cb.reg[id] = nullptr;
-}
+void bta_sys_deregister(uint8_t id) { bta_sys_cb.is_reg[id] = false; }
 
 /*******************************************************************************
  *
@@ -169,7 +166,7 @@ bool bta_sys_is_register(uint8_t id) { return bta_sys_cb.is_reg[id]; }
 void bta_sys_sendmsg(void* p_msg) {
   if (do_in_main_thread(
           FROM_HERE,
-          base::Bind(&bta_sys_event, static_cast<BT_HDR_RIGID*>(p_msg))) !=
+          base::BindOnce(&bta_sys_event, static_cast<BT_HDR_RIGID*>(p_msg))) !=
       BT_STATUS_SUCCESS) {
     LOG(ERROR) << __func__ << ": do_in_main_thread failed";
   }

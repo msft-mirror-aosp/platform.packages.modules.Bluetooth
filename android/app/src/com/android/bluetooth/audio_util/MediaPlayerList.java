@@ -36,6 +36,7 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.KeyEvent;
 
+import com.android.bluetooth.BluetoothEventLogger;
 import com.android.bluetooth.Utils;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -71,9 +72,10 @@ public class MediaPlayerList {
     private static final int BLUETOOTH_PLAYER_ID = 0;
     private static final String BLUETOOTH_PLAYER_NAME = "Bluetooth Player";
     private static final int ACTIVE_PLAYER_LOGGER_SIZE = 5;
-    private static final String ACTIVE_PLAYER_LOGGER_TITLE = "Active Player Events";
+    private static final String ACTIVE_PLAYER_LOGGER_TITLE = "BTAudio Active Player Events";
     private static final int AUDIO_PLAYBACK_STATE_LOGGER_SIZE = 15;
-    private static final String AUDIO_PLAYBACK_STATE_LOGGER_TITLE = "Audio Playback State Events";
+    private static final String AUDIO_PLAYBACK_STATE_LOGGER_TITLE =
+            "BTAudio Audio Playback State Events";
 
     // mediaId's for the now playing list will be in the form of "NowPlayingId[XX]" where [XX]
     // is the Queue ID for the requested item.
@@ -90,10 +92,11 @@ public class MediaPlayerList {
     private MediaData mCurrMediaData = null;
     private final AudioManager mAudioManager;
 
-    private final BTAudioEventLogger mActivePlayerLogger = new BTAudioEventLogger(
-        ACTIVE_PLAYER_LOGGER_SIZE, ACTIVE_PLAYER_LOGGER_TITLE);
-    private final BTAudioEventLogger mAudioPlaybackStateLogger = new BTAudioEventLogger(
-        AUDIO_PLAYBACK_STATE_LOGGER_SIZE, AUDIO_PLAYBACK_STATE_LOGGER_TITLE);
+    private final BluetoothEventLogger mActivePlayerLogger =
+            new BluetoothEventLogger(ACTIVE_PLAYER_LOGGER_SIZE, ACTIVE_PLAYER_LOGGER_TITLE);
+    private final BluetoothEventLogger mAudioPlaybackStateLogger =
+            new BluetoothEventLogger(
+                    AUDIO_PLAYBACK_STATE_LOGGER_SIZE, AUDIO_PLAYBACK_STATE_LOGGER_TITLE);
 
     private Map<Integer, MediaPlayerWrapper> mMediaPlayers =
             Collections.synchronizedMap(new HashMap<Integer, MediaPlayerWrapper>());
@@ -108,6 +111,8 @@ public class MediaPlayerList {
 
     private BrowsablePlayerConnector mBrowsablePlayerConnector;
 
+    private MediaPlayerSettingsEventListener mPlayerSettingsListener;
+
     public interface MediaUpdateCallback {
         void run(MediaData data);
         void run(boolean availablePlayers, boolean addressedPlayers, boolean uids);
@@ -121,6 +126,16 @@ public class MediaPlayerList {
         void run(String parentId, List<ListItem> items);
     }
 
+    /**
+     * Listener for PlayerSettingsManager.
+     */
+    public interface MediaPlayerSettingsEventListener {
+        /**
+         * Called when the active player has changed.
+         */
+        void onActivePlayerChanged(MediaPlayerWrapper player);
+    }
+
     public MediaPlayerList(Looper looper, Context context) {
         Log.v(TAG, "Creating MediaPlayerList");
 
@@ -129,6 +144,7 @@ public class MediaPlayerList {
 
         // Register for intents where available players might have changed
         IntentFilter pkgFilter = new IntentFilter();
+        pkgFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         pkgFilter.addAction(Intent.ACTION_PACKAGE_REMOVED);
         pkgFilter.addAction(Intent.ACTION_PACKAGE_DATA_CLEARED);
         pkgFilter.addAction(Intent.ACTION_PACKAGE_ADDED);
@@ -153,6 +169,12 @@ public class MediaPlayerList {
                 mMediaSessionManager.getActiveSessions(null);
 
         for (android.media.session.MediaController controller : controllers) {
+            if ((controller.getFlags() & MediaSession.FLAG_EXCLUSIVE_GLOBAL_PRIORITY) != 0) {
+                // GLOBAL_PRIORITY session is created by Telecom to handle call control key events
+                // but Bluetooth Headset profile handles the key events for calls so we don't have
+                // to handle these sessions in AVRCP.
+                continue;
+            }
             addMediaPlayer(controller);
         }
 
@@ -627,6 +649,10 @@ public class MediaPlayerList {
         mActivePlayerLogger.logd(TAG, "setActivePlayer(): setting player to "
                 + getActivePlayer().getPackageName());
 
+        if (mPlayerSettingsListener != null) {
+            mPlayerSettingsListener.onActivePlayerChanged(getActivePlayer());
+        }
+
         // Ensure that metadata is synced on the new player
         if (!getActivePlayer().isMetadataSynced()) {
             Log.w(TAG, "setActivePlayer(): Metadata not synced on new player");
@@ -665,7 +691,7 @@ public class MediaPlayerList {
 
     private void sendMediaUpdate(MediaData data) {
         d("sendMediaUpdate");
-        if (mCallback == null) {
+        if (mCallback == null || data == null) {
             return;
         }
 
@@ -680,7 +706,8 @@ public class MediaPlayerList {
         mCallback.run(data);
     }
 
-    private final MediaSessionManager.OnActiveSessionsChangedListener
+    @VisibleForTesting
+    final MediaSessionManager.OnActiveSessionsChangedListener
             mActiveSessionsChangedListener =
             new MediaSessionManager.OnActiveSessionsChangedListener() {
         @Override
@@ -689,7 +716,12 @@ public class MediaPlayerList {
             synchronized (MediaPlayerList.this) {
                 Log.v(TAG, "onActiveSessionsChanged: number of controllers: "
                         + newControllers.size());
-                if (newControllers.size() == 0) return;
+                if (newControllers.size() == 0) {
+                    if (mPlayerSettingsListener != null) {
+                        mPlayerSettingsListener.onActivePlayerChanged(null);
+                    }
+                    return;
+                }
 
                 // Apps are allowed to have multiple MediaControllers. If an app does have
                 // multiple controllers then newControllers contains them in highest
@@ -699,6 +731,13 @@ public class MediaPlayerList {
                 HashSet<String> addedPackages = new HashSet<String>();
 
                 for (int i = 0; i < newControllers.size(); i++) {
+                    if ((newControllers.get(i).getFlags()
+                            & MediaSession.FLAG_EXCLUSIVE_GLOBAL_PRIORITY) != 0) {
+                        Log.d(TAG, "onActiveSessionsChanged: controller: "
+                                + newControllers.get(i).getPackageName()
+                                + " ignored due to global priority flag");
+                        continue;
+                    }
                     Log.d(TAG, "onActiveSessionsChanged: controller: "
                             + newControllers.get(i).getPackageName());
                     if (addedPackages.contains(newControllers.get(i).getPackageName())) {
@@ -783,6 +822,10 @@ public class MediaPlayerList {
         updateMediaForAudioPlayback();
     }
 
+    void setPlayerSettingsCallback(MediaPlayerSettingsEventListener listener) {
+        mPlayerSettingsListener = listener;
+    }
+
     private final AudioManager.AudioPlaybackCallback mAudioPlaybackCallback =
             new AudioManager.AudioPlaybackCallback() {
         @Override
@@ -845,7 +888,8 @@ public class MediaPlayerList {
         }
     };
 
-    private final MediaSessionManager.OnMediaKeyEventSessionChangedListener
+    @VisibleForTesting
+    final MediaSessionManager.OnMediaKeyEventSessionChangedListener
             mMediaKeyEventSessionChangedListener =
             new MediaSessionManager.OnMediaKeyEventSessionChangedListener() {
                 @Override
@@ -862,6 +906,13 @@ public class MediaPlayerList {
                     if (token != null) {
                         android.media.session.MediaController controller =
                                 new android.media.session.MediaController(mContext, token);
+                        if ((controller.getFlags() & MediaSession.FLAG_EXCLUSIVE_GLOBAL_PRIORITY)
+                                != 0) {
+                            // Skip adding controller for GLOBAL_PRIORITY session.
+                            Log.i(TAG, "onMediaKeyEventSessionChanged,"
+                                    + " ignoring global priority session");
+                            return;
+                        }
                         if (!haveMediaPlayer(controller.getPackageName())) {
                             // Since we have a controller, we can try to to recover by adding the
                             // player and then setting it as active.

@@ -51,91 +51,11 @@ tBTM_STATUS btm_sec_disconnect(uint16_t handle, tHCI_STATUS reason,
 void btm_acl_created(const RawAddress& bda, uint16_t hci_handle,
                      uint8_t link_role, tBT_TRANSPORT transport);
 void btm_acl_removed(uint16_t handle);
-void btm_acl_set_paging(bool value);
 void btm_ble_decrement_link_topology_mask(uint8_t link_role);
 void btm_sco_acl_removed(const RawAddress* bda);
 
 static void l2c_link_send_to_lower(tL2C_LCB* p_lcb, BT_HDR* p_buf);
 static BT_HDR* l2cu_get_next_buffer_to_send(tL2C_LCB* p_lcb);
-
-/*******************************************************************************
- *
- * Function         l2c_link_hci_conn_req
- *
- * Description      This function is called when an HCI Connection Request
- *                  event is received.
- *
- ******************************************************************************/
-void l2c_link_hci_conn_req(const RawAddress& bd_addr) {
-  tL2C_LCB* p_lcb;
-  tL2C_LCB* p_lcb_cur;
-  int xx;
-  bool no_links;
-
-  /* See if we have a link control block for the remote device */
-  p_lcb = l2cu_find_lcb_by_bd_addr(bd_addr, BT_TRANSPORT_BR_EDR);
-
-  /* If we don't have one, create one and accept the connection. */
-  if (!p_lcb) {
-    p_lcb = l2cu_allocate_lcb(bd_addr, false, BT_TRANSPORT_BR_EDR);
-    if (!p_lcb) {
-      btsnd_hcic_reject_conn(bd_addr, HCI_ERR_HOST_REJECT_RESOURCES);
-      LOG_ERROR("L2CAP failed to allocate LCB");
-      return;
-    }
-
-    no_links = true;
-
-    /* If we already have connection, accept as a central */
-    for (xx = 0, p_lcb_cur = &l2cb.lcb_pool[0]; xx < MAX_L2CAP_LINKS;
-         xx++, p_lcb_cur++) {
-      if (p_lcb_cur == p_lcb) continue;
-
-      if (p_lcb_cur->in_use) {
-        no_links = false;
-        p_lcb->SetLinkRoleAsCentral();
-        break;
-      }
-    }
-
-    if (no_links) {
-      if (!btm_dev_support_role_switch(bd_addr))
-        p_lcb->SetLinkRoleAsPeripheral();
-      else
-        p_lcb->SetLinkRoleAsCentral();
-    }
-
-    /* Tell the other side we accept the connection */
-    acl_accept_connection_request(bd_addr, p_lcb->LinkRole());
-
-    p_lcb->link_state = LST_CONNECTING;
-
-    /* Start a timer waiting for connect complete */
-    alarm_set_on_mloop(p_lcb->l2c_lcb_timer, L2CAP_LINK_CONNECT_TIMEOUT_MS,
-                       l2c_lcb_timer_timeout, p_lcb);
-    return;
-  }
-
-  /* We already had a link control block. Check what state it is in
-   */
-  if ((p_lcb->link_state == LST_CONNECTING) ||
-      (p_lcb->link_state == LST_CONNECT_HOLDING)) {
-    if (!btm_dev_support_role_switch(bd_addr))
-      p_lcb->SetLinkRoleAsPeripheral();
-    else
-      p_lcb->SetLinkRoleAsCentral();
-
-    acl_accept_connection_request(bd_addr, p_lcb->LinkRole());
-
-    p_lcb->link_state = LST_CONNECTING;
-  } else if (p_lcb->link_state == LST_DISCONNECTING) {
-    acl_reject_connection_request(bd_addr, HCI_ERR_HOST_REJECT_DEVICE);
-  } else {
-    LOG_ERROR("L2CAP got conn_req while connected (state:%d). Reject it",
-              p_lcb->link_state);
-    acl_reject_connection_request(bd_addr, HCI_ERR_CONNECTION_EXISTS);
-  }
-}
 
 void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle,
                             const RawAddress& p_bda) {
@@ -196,9 +116,6 @@ void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle,
       LOG_DEBUG("Link is dedicated bonding handle:0x%04x", p_lcb->Handle());
       if (l2cu_start_post_bond_timer(handle)) return;
     }
-
-    /* Update the timeouts in the hold queue */
-    l2c_process_held_packets(false);
 
     alarm_cancel(p_lcb->l2c_lcb_timer);
 
@@ -437,26 +354,18 @@ bool l2c_link_hci_disc_comp(uint16_t handle, tHCI_REASON reason) {
         for (xx = 0; xx < L2CAP_NUM_FIXED_CHNLS; xx++) {
           if (p_lcb->p_fixed_ccbs[xx] &&
               p_lcb->p_fixed_ccbs[xx] != p_lcb->p_pending_ccb) {
-            (*l2cb.fixed_reg[xx].pL2CA_FixedConn_Cb)(
-                xx + L2CAP_FIRST_FIXED_CHNL, p_lcb->remote_bd_addr, false,
-                p_lcb->DisconnectReason(), p_lcb->transport);
-            if (p_lcb->p_fixed_ccbs[xx] == NULL) {
-              LOG_ERROR(
-                  "unexpected p_fixed_ccbs[%d] is NULL remote_bd_addr = %s "
-                  "p_lcb = %p in_use = %d link_state = %d handle = %d "
-                  "link_role = %d is_bonding = %d disc_reason = %d transport = "
-                  "%d",
-                  xx, ADDRESS_TO_LOGGABLE_CSTR(p_lcb->remote_bd_addr), p_lcb,
-                  p_lcb->in_use, p_lcb->link_state, p_lcb->Handle(),
-                  p_lcb->LinkRole(), p_lcb->IsBonding(),
-                  p_lcb->DisconnectReason(), p_lcb->transport);
-            }
-            CHECK(p_lcb->p_fixed_ccbs[xx] != NULL);
             l2cu_release_ccb(p_lcb->p_fixed_ccbs[xx]);
 
             p_lcb->p_fixed_ccbs[xx] = NULL;
+            (*l2cb.fixed_reg[xx].pL2CA_FixedConn_Cb)(
+                xx + L2CAP_FIRST_FIXED_CHNL, p_lcb->remote_bd_addr, false,
+                p_lcb->DisconnectReason(), p_lcb->transport);
           }
         }
+        /* Cleanup connection state to avoid race conditions because
+         * l2cu_release_lcb won't be invoked to cleanup */
+        btm_acl_removed(p_lcb->Handle());
+        p_lcb->InvalidateHandle();
       }
       if (p_lcb->transport == BT_TRANSPORT_LE) {
         if (l2cu_create_conn_le(p_lcb))
@@ -1228,7 +1137,6 @@ tBTM_STATUS l2cu_ConnectAclForSecurity(const RawAddress& bd_addr) {
   }
 
   l2cu_create_conn_br_edr(p_lcb);
-  btm_acl_set_paging(true);
   return BTM_SUCCESS;
 }
 

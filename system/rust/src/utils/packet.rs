@@ -33,11 +33,16 @@ pub fn HACK_child_to_opcode(child: &AttChild) -> AttOpcode {
         AttChild::AttErrorResponse(_) => AttOpcode::ERROR_RESPONSE,
         AttChild::AttReadByGroupTypeResponse(_) => AttOpcode::READ_BY_GROUP_TYPE_RESPONSE,
         AttChild::AttReadByTypeResponse(_) => AttOpcode::READ_BY_TYPE_RESPONSE,
-        AttChild::AttFindInformationResponse(_) => AttOpcode::FIND_BY_TYPE_VALUE_RESPONSE,
+        AttChild::AttFindInformationResponse(_) => AttOpcode::FIND_INFORMATION_RESPONSE,
         AttChild::AttFindByTypeValueRequest(_) => AttOpcode::FIND_BY_TYPE_VALUE_REQUEST,
         AttChild::AttFindByTypeValueResponse(_) => AttOpcode::FIND_BY_TYPE_VALUE_RESPONSE,
         AttChild::AttWriteRequest(_) => AttOpcode::WRITE_REQUEST,
         AttChild::AttWriteResponse(_) => AttOpcode::WRITE_RESPONSE,
+        AttChild::AttHandleValueIndication(_) => AttOpcode::HANDLE_VALUE_INDICATION,
+        AttChild::AttHandleValueConfirmation(_) => AttOpcode::HANDLE_VALUE_CONFIRMATION,
+        AttChild::AttExchangeMtuRequest(_) => AttOpcode::EXCHANGE_MTU_REQUEST,
+        AttChild::AttExchangeMtuResponse(_) => AttOpcode::EXCHANGE_MTU_RESPONSE,
+        AttChild::AttWriteCommand(_) => AttOpcode::WRITE_COMMAND,
     }
 }
 

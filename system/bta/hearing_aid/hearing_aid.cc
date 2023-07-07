@@ -25,12 +25,16 @@
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>  // HexEncode
 
+#include <chrono>
 #include <cstdint>
+#include <mutex>
 #include <vector>
 
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_gatt_queue.h"
 #include "bta/include/bta_hearing_aid_api.h"
+#include "btm_iso_api.h"
+#include "common/init_flags.h"
 #include "device/include/controller.h"
 #include "embdrv/g722/g722_enc_dec.h"
 #include "osi/include/compat.h"
@@ -48,12 +52,15 @@
 
 using base::Closure;
 using bluetooth::Uuid;
+using bluetooth::hci::IsoManager;
 using bluetooth::hearing_aid::ConnectionState;
 
 // The MIN_CE_LEN parameter for Connection Parameters based on the current
 // Connection Interval
 constexpr uint16_t MIN_CE_LEN_10MS_CI = 0x0006;
 constexpr uint16_t MIN_CE_LEN_20MS_CI = 0x000C;
+constexpr uint16_t MAX_CE_LEN_20MS_CI = 0x000C;
+constexpr uint16_t CE_LEN_20MS_CI_ISO_RUNNING = 0x0000;
 constexpr uint16_t CONNECTION_INTERVAL_10MS_PARAM = 0x0008;
 constexpr uint16_t CONNECTION_INTERVAL_20MS_PARAM = 0x0010;
 
@@ -121,6 +128,7 @@ inline uint8_t* get_l2cap_sdu_start_ptr(BT_HDR* msg) {
 
 class HearingAidImpl;
 HearingAidImpl* instance;
+std::mutex instance_mutex;
 HearingAidAudioReceiver* audioReceiver;
 
 class HearingDevices {
@@ -242,8 +250,22 @@ class HearingAidImpl : public HearingAid {
  private:
   // Keep track of whether the Audio Service has resumed audio playback
   bool audio_running;
-  // For Testing: overwrite the MIN_CE_LEN during connection parameter updates
-  uint16_t overwrite_min_ce_len;
+  bool is_iso_running = false;
+  // For Testing: overwrite the MIN_CE_LEN and MAX_CE_LEN during connection
+  // parameter updates
+  int16_t overwrite_min_ce_len = -1;
+  int16_t overwrite_max_ce_len = -1;
+  const std::string PERSIST_MIN_CE_LEN_NAME =
+      "persist.bluetooth.hearing_aid_min_ce_len";
+  const std::string PERSIST_MAX_CE_LEN_NAME =
+      "persist.bluetooth.hearing_aid_max_ce_len";
+  // Record whether the connection parameter needs to update to a better one
+  bool needs_parameter_update = false;
+  std::chrono::time_point<std::chrono::steady_clock> last_drop_time_point =
+      std::chrono::steady_clock::now();
+  // at most 1 packet DROP per DROP_FREQUENCY_THRESHOLD seconds
+  const int DROP_FREQUENCY_THRESHOLD =
+      bluetooth::common::init_flags::get_asha_packet_drop_frequency_threshold();
 
  public:
   ~HearingAidImpl() override = default;
@@ -251,7 +273,8 @@ class HearingAidImpl : public HearingAid {
   HearingAidImpl(bluetooth::hearing_aid::HearingAidCallbacks* callbacks,
                  Closure initCb)
       : audio_running(false),
-        overwrite_min_ce_len(0),
+        overwrite_min_ce_len(-1),
+        overwrite_max_ce_len(-1),
         gatt_if(0),
         seq_counter(0),
         current_volume(VOLUME_UNKNOWN),
@@ -267,10 +290,15 @@ class HearingAidImpl : public HearingAid {
     }
     LOG_DEBUG("default_data_interval_ms=%u", default_data_interval_ms);
 
-    overwrite_min_ce_len = (uint16_t)osi_property_get_int32(
-        "persist.bluetooth.hearingaidmincelen", 0);
-    if (overwrite_min_ce_len) {
-      LOG_INFO("Overwrites MIN_CE_LEN=%u", overwrite_min_ce_len);
+    overwrite_min_ce_len =
+        (int16_t)osi_property_get_int32(PERSIST_MIN_CE_LEN_NAME.c_str(), -1);
+    if (overwrite_min_ce_len != -1) {
+      LOG_INFO("Overwrites MIN_CE_LEN=%d", overwrite_min_ce_len);
+    }
+    overwrite_max_ce_len =
+        (int16_t)osi_property_get_int32(PERSIST_MAX_CE_LEN_NAME.c_str(), -1);
+    if (overwrite_max_ce_len != -1) {
+      LOG_INFO("Overwrites MAX_CE_LEN=%d", overwrite_max_ce_len);
     }
 
     BTA_GATTC_AppRegister(
@@ -287,11 +315,41 @@ class HearingAidImpl : public HearingAid {
             },
             initCb),
         false);
+
+    IsoManager::GetInstance()->Start();
+    IsoManager::GetInstance()->RegisterOnIsoTrafficActiveCallback(
+        [](bool is_active) {
+          if (!instance) {
+            return;
+          }
+          instance->IsoTrafficEventCb(is_active);
+        });
+  }
+
+  void IsoTrafficEventCb(bool is_active) {
+    if (is_active) {
+      is_iso_running = true;
+      needs_parameter_update = true;
+    } else {
+      is_iso_running = false;
+    }
+    LOG_INFO("is_iso_running: %d, needs_parameter_update: %d", is_iso_running,
+             needs_parameter_update);
+    if (needs_parameter_update) {
+      for (auto& device : hearingDevices.devices) {
+        if (device.conn_id != 0) {
+          device.connection_update_status = STARTED;
+          device.requested_connection_interval =
+              UpdateBleConnParams(device.address);
+        }
+      }
+    }
   }
 
   uint16_t UpdateBleConnParams(const RawAddress& address) {
     /* List of parameters that depends on the chosen Connection Interval */
-    uint16_t min_ce_len;
+    uint16_t min_ce_len = MIN_CE_LEN_20MS_CI;
+    uint16_t max_ce_len = MAX_CE_LEN_20MS_CI;
     uint16_t connection_interval;
 
     switch (default_data_interval_ms) {
@@ -300,7 +358,21 @@ class HearingAidImpl : public HearingAid {
         connection_interval = CONNECTION_INTERVAL_10MS_PARAM;
         break;
       case HA_INTERVAL_20_MS:
-        min_ce_len = MIN_CE_LEN_20MS_CI;
+        LOG_INFO("is_iso_running %d", is_iso_running);
+
+        // Because when ISO is connected, controller might not be able to
+        // update connection event length successfully.
+        // So if ISO is running, we use a small ce length to connect first,
+        // then update to a better value later on
+        if (is_iso_running) {
+          min_ce_len = CE_LEN_20MS_CI_ISO_RUNNING;
+          max_ce_len = CE_LEN_20MS_CI_ISO_RUNNING;
+          needs_parameter_update = true;
+        } else {
+          min_ce_len = MIN_CE_LEN_20MS_CI;
+          max_ce_len = MAX_CE_LEN_20MS_CI;
+          needs_parameter_update = false;
+        }
         connection_interval = CONNECTION_INTERVAL_20MS_PARAM;
         break;
       default:
@@ -310,15 +382,34 @@ class HearingAidImpl : public HearingAid {
         connection_interval = CONNECTION_INTERVAL_10MS_PARAM;
     }
 
-    if (overwrite_min_ce_len != 0) {
-      LOG_DEBUG("min_ce_len=%u is overwritten to %u", min_ce_len,
-                overwrite_min_ce_len);
+    if (overwrite_min_ce_len != -1) {
+      LOG_WARN("min_ce_len=%u for device %s is overwritten to %d", min_ce_len,
+               ADDRESS_TO_LOGGABLE_CSTR(address), overwrite_min_ce_len);
       min_ce_len = overwrite_min_ce_len;
     }
+    if (overwrite_max_ce_len != -1) {
+      LOG_WARN("max_ce_len=%u for device %s is overwritten to %d", max_ce_len,
+               ADDRESS_TO_LOGGABLE_CSTR(address), overwrite_max_ce_len);
+      max_ce_len = overwrite_max_ce_len;
+    }
 
+    LOG_INFO(
+        "L2CA_UpdateBleConnParams for device %s min_ce_len:%u "
+        "max_ce_len:%u",
+        ADDRESS_TO_LOGGABLE_CSTR(address), min_ce_len, max_ce_len);
     L2CA_UpdateBleConnParams(address, connection_interval, connection_interval,
-                             0x000A, 0x0064 /*1s*/, min_ce_len, min_ce_len);
+                             0x000A, 0x0064 /*1s*/, min_ce_len, max_ce_len);
     return connection_interval;
+  }
+
+  bool IsBelowDropFrequency(
+      std::chrono::time_point<std::chrono::steady_clock> tp) {
+    auto duration = tp - last_drop_time_point;
+    bool droppable =
+        std::chrono::duration_cast<std::chrono::seconds>(duration).count() >=
+        DROP_FREQUENCY_THRESHOLD;
+    LOG_INFO("IsBelowDropFrequency %s", droppable ? "true" : "false");
+    return droppable;
   }
 
   void Connect(const RawAddress& address) {
@@ -604,13 +695,20 @@ class HearingAidImpl : public HearingAid {
     if (tx_phys == PHY_LE_2M && rx_phys == PHY_LE_2M) {
       LOG_INFO("%s phy update to 2M successful",
                ADDRESS_TO_LOGGABLE_CSTR(hearingDevice->address));
+      hearingDevice->phy_update_retry_remain = PHY_UPDATE_RETRY_LIMIT;
       return;
     }
-    LOG_INFO(
-        "%s phy update successful but not target phy, try again. tx_phys: "
-        "%u,rx_phys: %u",
-        ADDRESS_TO_LOGGABLE_CSTR(hearingDevice->address), tx_phys, rx_phys);
-    BTM_BleSetPhy(hearingDevice->address, PHY_LE_2M, PHY_LE_2M, 0);
+
+    if (hearingDevice->phy_update_retry_remain > 0) {
+      LOG_INFO(
+          "%s phy update successful but not target phy, try again. tx_phys: "
+          "%u,rx_phys: %u",
+          ADDRESS_TO_LOGGABLE_CSTR(hearingDevice->address), tx_phys, rx_phys);
+      BTM_BleSetPhy(hearingDevice->address, PHY_LE_2M, PHY_LE_2M, 0);
+      hearingDevice->phy_update_retry_remain--;
+    } else {
+      LOG_INFO("no more phy update after %d retry", PHY_UPDATE_RETRY_LIMIT);
+    }
   }
 
   void OnServiceChangeEvent(const RawAddress& address) {
@@ -1302,6 +1400,7 @@ class HearingAidImpl : public HearingAid {
     // reallocations
     // TODO: this should basically fit the encoded data, tune the size later
     std::vector<uint8_t> encoded_data_left;
+    auto time_point = std::chrono::steady_clock::now();
     if (left) {
       // TODO: instead of a magic number, we need to figure out the correct
       // buffer size
@@ -1316,7 +1415,7 @@ class HearingAidImpl : public HearingAid {
       if (packets_in_chans) {
         // Compare the two sides LE CoC credit value to confirm need to drop or
         // skip audio packet.
-        if (NeedToDropPacket(left, right)) {
+        if (NeedToDropPacket(left, right) && IsBelowDropFrequency(time_point)) {
           LOG_INFO("%s triggers dropping, %u packets in channel",
                    ADDRESS_TO_LOGGABLE_CSTR(left->address),
                    packets_in_chans);
@@ -1350,7 +1449,7 @@ class HearingAidImpl : public HearingAid {
       if (packets_in_chans) {
         // Compare the two sides LE CoC credit value to confirm need to drop or
         // skip audio packet.
-        if (NeedToDropPacket(right, left)) {
+        if (NeedToDropPacket(right, left) && IsBelowDropFrequency(time_point)) {
           LOG_INFO("%s triggers dropping, %u packets in channel",
                    ADDRESS_TO_LOGGABLE_CSTR(right->address),
                    packets_in_chans);
@@ -1376,6 +1475,7 @@ class HearingAidImpl : public HearingAid {
         CalcCompressedAudioPacketSize(codec_in_use, default_data_interval_ms);
 
     if (need_drop) {
+      last_drop_time_point = time_point;
       if (left) {
         left->audio_stats.packet_drop_count++;
       }
@@ -1948,6 +2048,7 @@ HearingAidAudioReceiverImpl audioReceiverImpl;
 
 void HearingAid::Initialize(
     bluetooth::hearing_aid::HearingAidCallbacks* callbacks, Closure initCb) {
+  std::scoped_lock<std::mutex> lock(instance_mutex);
   if (instance) {
     LOG_ERROR("Already initialized!");
     return;
@@ -2011,6 +2112,7 @@ int HearingAid::GetDeviceCount() {
 }
 
 void HearingAid::CleanUp() {
+  std::scoped_lock<std::mutex> lock(instance_mutex);
   // Must stop audio source to make sure it doesn't call any of callbacks on our
   // soon to be  null instance
   HearingAidAudioSource::Stop();
@@ -2025,6 +2127,7 @@ void HearingAid::CleanUp() {
 };
 
 void HearingAid::DebugDump(int fd) {
+  std::scoped_lock<std::mutex> lock(instance_mutex);
   dprintf(fd, "Hearing Aid Manager:\n");
   if (instance) instance->Dump(fd);
   HearingAidAudioSource::DebugDump(fd);

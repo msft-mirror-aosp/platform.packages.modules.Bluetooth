@@ -17,21 +17,21 @@ package com.android.bluetooth.opp;
 
 import static com.android.bluetooth.opp.BluetoothOppService.WHERE_INVISIBLE_UNCONFIRMED;
 
-import static com.google.common.truth.Truth.assertThat;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import android.app.NotificationManager;
+import static com.google.common.truth.Truth.assertThat;
+
 import android.bluetooth.BluetoothAdapter;
 import android.content.ContentResolver;
 import android.database.MatrixCursor;
-import android.os.Handler;
 
+import androidx.test.filters.MediumTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
@@ -42,7 +42,6 @@ import com.android.bluetooth.btservice.AdapterService;
 
 import org.junit.After;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,35 +49,36 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+
+@MediumTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppServiceTest {
-    @Rule
-    public final ServiceTestRule mServiceRule = new ServiceTestRule();
-    @Mock
-    BluetoothMethodProxy mMethodProxy;
     private BluetoothOppService mService = null;
     private BluetoothAdapter mAdapter = null;
 
-    @Mock
-    private AdapterService mAdapterService;
+    @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
+
+    @Mock BluetoothMethodProxy mBluetoothMethodProxy;
+
+    @Mock private AdapterService mAdapterService;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
 
-        BluetoothMethodProxy.setInstanceForTesting(mMethodProxy);
-
-        // To void mockito multi-thread inter-tests problem
-        // If the thread still run in the next test, it will raise un-related mockito error
-        BluetoothOppNotification bluetoothOppNotification = mock(BluetoothOppNotification.class);
-        bluetoothOppNotification.mNotificationMgr = mock(NotificationManager.class);
-        doReturn(bluetoothOppNotification).when(mMethodProxy).newBluetoothOppNotification(any());
+        BluetoothMethodProxy.setInstanceForTesting(mBluetoothMethodProxy);
+        // BluetoothOppService can create a UpdateThread, which will call
+        // BluetoothOppNotification#updateNotification(), which in turn create a new
+        // NotificationUpdateThread. Both threads may cause the tests to fail because they try to
+        // access to ContentProvider in multiple places (ContentProvider might be disabled & there
+        // is no mocking). Since we have no intention to test those threads, avoid running them
+        doNothing().when(mBluetoothMethodProxy).threadStart(any());
 
         TestUtils.setAdapterService(mAdapterService);
         doReturn(true, false).when(mAdapterService).isStartedProfile(anyString());
-
         TestUtils.startService(mServiceRule, BluetoothOppService.class);
         mService = BluetoothOppService.getBluetoothOppService();
+
         Assert.assertNotNull(mService);
         // Try getting the Bluetooth adapter
         mAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -87,6 +87,10 @@ public class BluetoothOppServiceTest {
 
     @After
     public void tearDown() throws Exception {
+        // Since the update thread is not run (we mocked it), it will not clean itself on interrupt
+        // (normally, the service will wait for the update thread to clean itself after
+        // being interrupted). We clean it manually here
+        mService.mUpdateThread = null;
         BluetoothMethodProxy.setInstanceForTesting(null);
         TestUtils.stopService(mServiceRule, BluetoothOppService.class);
         TestUtils.clearAdapterService(mAdapterService);
@@ -140,30 +144,48 @@ public class BluetoothOppServiceTest {
 
     @Test
     public void trimDatabase_trimsOldOrInvisibleRecords() {
-        ContentResolver contentResolver = InstrumentationRegistry
-                .getInstrumentation().getTargetContext().getContentResolver();
-        Assume.assumeTrue("Ignore test when there is no content provider",
-                contentResolver.acquireContentProviderClient(BluetoothShare.CONTENT_URI) != null);
+        ContentResolver contentResolver =
+                InstrumentationRegistry.getInstrumentation()
+                        .getTargetContext()
+                        .getContentResolver();
 
-        doReturn(1 /* any int is Ok */).when(mMethodProxy).contentResolverDelete(
-                eq(contentResolver), eq(BluetoothShare.CONTENT_URI), anyString(), any());
+        doReturn(1 /* any int is Ok */)
+                .when(mBluetoothMethodProxy)
+                .contentResolverDelete(
+                        eq(contentResolver), eq(BluetoothShare.CONTENT_URI), anyString(), any());
 
-        MatrixCursor cursor = new MatrixCursor(new String[]{BluetoothShare._ID}, 500);
+        MatrixCursor cursor = new MatrixCursor(new String[] {BluetoothShare._ID}, 500);
         for (long i = 0; i < Constants.MAX_RECORDS_IN_DATABASE + 20; i++) {
-            cursor.addRow(new Object[]{i});
+            cursor.addRow(new Object[] {i});
         }
 
-        doReturn(cursor).when(mMethodProxy).contentResolverQuery(eq(contentResolver),
-                eq(BluetoothShare.CONTENT_URI), any(), any(), any(), any());
+        doReturn(cursor)
+                .when(mBluetoothMethodProxy)
+                .contentResolverQuery(
+                        eq(contentResolver),
+                        eq(BluetoothShare.CONTENT_URI),
+                        any(),
+                        any(),
+                        any(),
+                        any());
 
         BluetoothOppService.trimDatabase(contentResolver);
 
         // check trimmed invisible records
-        verify(mMethodProxy).contentResolverDelete(eq(contentResolver),
-                eq(BluetoothShare.CONTENT_URI), eq(WHERE_INVISIBLE_UNCONFIRMED), any());
+        verify(mBluetoothMethodProxy)
+                .contentResolverDelete(
+                        eq(contentResolver),
+                        eq(BluetoothShare.CONTENT_URI),
+                        eq(WHERE_INVISIBLE_UNCONFIRMED),
+                        any());
 
         // check trimmed old records
-        verify(mMethodProxy).contentResolverDelete(eq(contentResolver),
-                eq(BluetoothShare.CONTENT_URI), eq(BluetoothShare._ID + " < " + 20), any());
+        verify(mBluetoothMethodProxy)
+                .contentResolverDelete(
+                        eq(contentResolver),
+                        eq(BluetoothShare.CONTENT_URI),
+                        eq(BluetoothShare._ID + " < " + 20),
+                        any());
     }
 }
+

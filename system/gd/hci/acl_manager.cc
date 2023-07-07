@@ -25,6 +25,7 @@
 #include "hci/acl_manager/acl_scheduler.h"
 #include "hci/acl_manager/classic_impl.h"
 #include "hci/acl_manager/connection_management_callbacks.h"
+#include "hci/acl_manager/le_acceptlist_callbacks.h"
 #include "hci/acl_manager/le_acl_connection.h"
 #include "hci/acl_manager/le_impl.h"
 #include "hci/acl_manager/round_robin_scheduler.h"
@@ -49,6 +50,7 @@ using acl_manager::ClassicAclConnection;
 using acl_manager::ConnectionCallbacks;
 
 using acl_manager::le_impl;
+using acl_manager::LeAcceptlistCallbacks;
 using acl_manager::LeAclConnection;
 using acl_manager::LeConnectionCallbacks;
 
@@ -66,9 +68,7 @@ struct AclManager::impl {
     round_robin_scheduler_ = new RoundRobinScheduler(handler_, controller_, hci_layer_->GetAclQueueEnd());
     acl_scheduler_ = acl_manager_.GetDependency<AclScheduler>();
 
-    if (bluetooth::common::init_flags::gd_remote_name_request_is_enabled()) {
-      remote_name_request_module_ = acl_manager_.GetDependency<RemoteNameRequestModule>();
-    }
+    remote_name_request_module_ = acl_manager_.GetDependency<RemoteNameRequestModule>();
 
     bool crash_on_unknown_handle = false;
     {
@@ -103,6 +103,9 @@ struct AclManager::impl {
       classic_impl_ = nullptr;
     }
 
+    unknown_acl_alarm_.reset();
+    waiting_packets_.clear();
+
     delete round_robin_scheduler_;
     hci_queue_end_ = nullptr;
     handler_ = nullptr;
@@ -110,8 +113,44 @@ struct AclManager::impl {
     acl_scheduler_ = nullptr;
   }
 
+  void retry_unknown_acl(bool timed_out) {
+    std::vector<AclView> unsent_packets;
+    for (const auto& itr : waiting_packets_) {
+      auto handle = itr.GetHandle();
+      if (!classic_impl_->send_packet_upward(
+              handle,
+              [itr](struct acl_manager::assembler* assembler) {
+                assembler->on_incoming_packet(itr);
+              }) &&
+          !le_impl_->send_packet_upward(handle, [itr](struct acl_manager::assembler* assembler) {
+            assembler->on_incoming_packet(itr);
+          })) {
+        if (!timed_out) {
+          unsent_packets.push_back(itr);
+        } else {
+          LOG_ERROR(
+              "Dropping packet of size %zu to unknown connection 0x%0hx",
+              itr.size(),
+              itr.GetHandle());
+        }
+      }
+    }
+    waiting_packets_ = std::move(unsent_packets);
+  }
+
+  static void on_unknown_acl_timer(struct AclManager::impl* impl) {
+    LOG_INFO("Timer fired!");
+    impl->retry_unknown_acl(/* timed_out = */ true);
+    impl->unknown_acl_alarm_.reset();
+  }
+
   // Invoked from some external Queue Reactable context 2
   void dequeue_and_route_acl_packet_to_connection() {
+    // Retry any waiting packets first
+    if (!waiting_packets_.empty()) {
+      retry_unknown_acl(/* timed_out = */ false);
+    }
+
     auto packet = hci_queue_end_->TryDequeue();
     ASSERT(packet != nullptr);
     if (!packet->IsValid()) {
@@ -126,7 +165,16 @@ struct AclManager::impl {
     if (le_impl_->send_packet_upward(
             handle, [&packet](struct acl_manager::assembler* assembler) { assembler->on_incoming_packet(*packet); }))
       return;
-    LOG_INFO("Dropping packet of size %zu to unknown connection 0x%0hx", packet->size(), packet->GetHandle());
+    if (unknown_acl_alarm_ == nullptr) {
+      unknown_acl_alarm_.reset(new os::Alarm(handler_));
+    }
+    waiting_packets_.push_back(*packet);
+    LOG_INFO(
+        "Saving packet of size %zu to unknown connection 0x%0hx",
+        packet->size(),
+        packet->GetHandle());
+    unknown_acl_alarm_->Schedule(
+        BindOnce(&on_unknown_acl_timer, common::Unretained(this)), kWaitBeforeDroppingUnknownAcl);
   }
 
   void Dump(
@@ -146,6 +194,9 @@ struct AclManager::impl {
   std::atomic_bool enqueue_registered_ = false;
   uint16_t default_link_policy_settings_ = 0xffff;
   mutable std::mutex dumpsys_mutex_;
+  std::unique_ptr<os::Alarm> unknown_acl_alarm_;
+  std::vector<AclView> waiting_packets_;
+  static constexpr std::chrono::seconds kWaitBeforeDroppingUnknownAcl{1};
 };
 
 AclManager::AclManager() : pimpl_(std::make_unique<impl>(*this)) {}
@@ -177,9 +228,27 @@ void AclManager::RegisterLeCallbacks(LeConnectionCallbacks* callbacks, os::Handl
       common::Unretained(handler));
 }
 
+void AclManager::RegisterLeAcceptlistCallbacks(LeAcceptlistCallbacks* callbacks) {
+  ASSERT(callbacks != nullptr);
+  CallOn(
+      pimpl_->le_impl_,
+      &le_impl::handle_register_le_acceptlist_callbacks,
+      common::Unretained(callbacks));
+}
+
 void AclManager::UnregisterLeCallbacks(LeConnectionCallbacks* callbacks, std::promise<void> promise) {
   ASSERT(callbacks != nullptr);
   CallOn(pimpl_->le_impl_, &le_impl::handle_unregister_le_callbacks, common::Unretained(callbacks), std::move(promise));
+}
+
+void AclManager::UnregisterLeAcceptlistCallbacks(
+    LeAcceptlistCallbacks* callbacks, std::promise<void> promise) {
+  ASSERT(callbacks != nullptr);
+  CallOn(
+      pimpl_->le_impl_,
+      &le_impl::handle_unregister_le_acceptlist_callbacks,
+      common::Unretained(callbacks),
+      std::move(promise));
 }
 
 void AclManager::CreateConnection(Address address) {
@@ -212,9 +281,13 @@ void AclManager::SetPrivacyPolicyForInitiatorAddress(
     std::chrono::milliseconds minimum_rotation_time,
     std::chrono::milliseconds maximum_rotation_time) {
   crypto_toolbox::Octet16 rotation_irk{};
-  auto irk = GetDependency<storage::StorageModule>()->GetAdapterConfig().GetLeIdentityResolvingKey();
-  if (irk.has_value()) {
-    rotation_irk = irk->bytes;
+  auto irk_prop =
+      GetDependency<storage::StorageModule>()->GetProperty("Adapter", "LE_LOCAL_KEY_IRK");
+  if (irk_prop.has_value()) {
+    auto irk = common::ByteArray<16>::FromString(irk_prop.value());
+    if (irk.has_value()) {
+      rotation_irk = irk->bytes;
+    }
   }
   CallOn(
       pimpl_->le_impl_,
@@ -254,21 +327,6 @@ void AclManager::CancelLeConnect(AddressWithType address_with_type) {
 
 void AclManager::RemoveFromBackgroundList(AddressWithType address_with_type) {
   CallOn(pimpl_->le_impl_, &le_impl::remove_device_from_background_connection_list, address_with_type);
-}
-
-void AclManager::CancelLeConnectAndRemoveFromBackgroundList(AddressWithType address_with_type) {
-  CallOn(
-      pimpl_->le_impl_,
-      &le_impl::cancel_connection_and_remove_device_from_background_connection_list,
-      address_with_type);
-}
-
-void AclManager::AddDeviceToFilterAcceptList(AddressWithType address_with_type) {
-  CallOn(pimpl_->le_impl_, &le_impl::add_device_to_connect_list, address_with_type);
-}
-
-void AclManager::RemoveDeviceFromFilterAcceptList(AddressWithType address_with_type) {
-  CallOn(pimpl_->le_impl_, &le_impl::remove_device_from_connect_list, address_with_type);
 }
 
 void AclManager::ClearFilterAcceptList() {
@@ -337,6 +395,10 @@ void AclManager::OnLeSuspendInitiatedDisconnect(uint16_t handle, ErrorCode reaso
   CallOn(pimpl_->le_impl_, &le_impl::on_le_disconnect, handle, reason);
 }
 
+void AclManager::SetSystemSuspendState(bool suspended) {
+  CallOn(pimpl_->le_impl_, &le_impl::set_system_suspend_state, suspended);
+}
+
 LeAddressManager* AclManager::GetLeAddressManager() {
   return pimpl_->le_impl_->le_address_manager_;
 }
@@ -362,9 +424,7 @@ void AclManager::ListDependencies(ModuleList* list) const {
   list->add<Controller>();
   list->add<storage::StorageModule>();
   list->add<AclScheduler>();
-  if (bluetooth::common::init_flags::gd_remote_name_request_is_enabled()) {
-    list->add<RemoteNameRequestModule>();
-  }
+  list->add<RemoteNameRequestModule>();
 }
 
 void AclManager::Start() {

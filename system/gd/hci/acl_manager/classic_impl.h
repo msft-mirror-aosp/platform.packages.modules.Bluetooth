@@ -261,6 +261,12 @@ struct classic_impl : public security::ISecurityManagerListener {
         return;
 
       case ConnectionRequestLinkType::ACL:
+        // Need to upstream Cod information when getting connection_request
+        client_handler_->CallOn(
+            client_callbacks_,
+            &ConnectionCallbacks::OnConnectRequest,
+            address,
+            request.GetClassOfDevice());
         break;
 
       case ConnectionRequestLinkType::ESCO:
@@ -440,12 +446,7 @@ struct classic_impl : public security::ISecurityManagerListener {
                   ADDRESS_TO_LOGGABLE_CSTR(address),
                   ErrorCodeText(status).c_str());
               LOG_WARN("Firmware error after RemoteNameRequestCancel?");  // see b/184239841
-              if (bluetooth::common::init_flags::gd_remote_name_request_is_enabled()) {
-                ASSERT_LOG(
-                    remote_name_request_module != nullptr,
-                    "RNR module enabled but module not provided");
-                remote_name_request_module->ReportRemoteNameRequestCancellation(address);
-              }
+              remote_name_request_module->ReportRemoteNameRequestCancellation(address);
             },
             common::Unretained(remote_name_request_module_),
             address,

@@ -26,6 +26,7 @@
 #include "bta_csis_api.h"
 #include "bta_gatt_api.h"
 #include "bta_groups.h"
+#include "btif_storage.h"
 #include "gap_api.h"
 #include "gd/common/init_flags.h"
 #include "gd/common/strings.h"
@@ -270,9 +271,18 @@ class CsisDevice : public GattServiceDevice {
     }
   }
 
+  void SetExpectedGroupIdMember(int group_id) {
+    LOG_DEBUG("Expected Group ID: %d, for member: %s is set", group_id,
+              ADDRESS_TO_LOGGABLE_CSTR(addr));
+    expected_group_id_member = group_id;
+  }
+
+  inline int GetExpectedGroupIdMember() { return expected_group_id_member; }
+
  private:
   /* Instances per start handle  */
   std::map<uint16_t, std::shared_ptr<CsisInstance>> csis_instances_;
+  int expected_group_id_member = bluetooth::groups::kGroupUnknown;
 };
 
 /*
@@ -291,7 +301,12 @@ class CsisGroup {
         target_lock_state_(CsisLockState::CSIS_STATE_UNSET),
         lock_transition_cnt_(0) {
     devices_.clear();
+    BTIF_STORAGE_FILL_PROPERTY(&model_name, BT_PROPERTY_REMOTE_MODEL_NUM,
+                               sizeof(model_name_val), &model_name_val);
   }
+
+  bt_property_t model_name;
+  bt_bdname_t model_name_val = {0};
 
   void AddDevice(std::shared_ptr<CsisDevice> csis_device) {
     auto it =

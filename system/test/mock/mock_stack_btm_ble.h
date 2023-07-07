@@ -156,6 +156,18 @@ struct BTM_BleReadPhy {
 };
 extern struct BTM_BleReadPhy BTM_BleReadPhy;
 
+// Name: BTM_BleReceiverTest
+// Params: uint8_t rx_freq, tBTM_CMPL_CB* p_cmd_cmpl_cback
+// Return: void
+struct BTM_BleReceiverTest {
+  std::function<void(uint8_t rx_freq, tBTM_CMPL_CB* p_cmd_cmpl_cback)> body{
+      [](uint8_t rx_freq, tBTM_CMPL_CB* p_cmd_cmpl_cback) {}};
+  void operator()(uint8_t rx_freq, tBTM_CMPL_CB* p_cmd_cmpl_cback) {
+    body(rx_freq, p_cmd_cmpl_cback);
+  };
+};
+extern struct BTM_BleReceiverTest BTM_BleReceiverTest;
+
 // Name: BTM_BleSecureConnectionOobDataReply
 // Params: const RawAddress& bd_addr, uint8_t* p_c, uint8_t* p_r
 // Return: void
@@ -204,6 +216,31 @@ struct BTM_BleSetPrefConnParams {
 };
 extern struct BTM_BleSetPrefConnParams BTM_BleSetPrefConnParams;
 
+// Name: BTM_BleTestEnd
+// Params: tBTM_CMPL_CB* p_cmd_cmpl_cback
+// Return: void
+struct BTM_BleTestEnd {
+  std::function<void(tBTM_CMPL_CB* p_cmd_cmpl_cback)> body{
+      [](tBTM_CMPL_CB* p_cmd_cmpl_cback) {}};
+  void operator()(tBTM_CMPL_CB* p_cmd_cmpl_cback) { body(p_cmd_cmpl_cback); };
+};
+extern struct BTM_BleTestEnd BTM_BleTestEnd;
+
+// Name: BTM_BleTransmitterTest
+// Params: uint8_t tx_freq, uint8_t test_data_len, uint8_t packet_payload,
+// tBTM_CMPL_CB* p_cmd_cmpl_cback Return: void
+struct BTM_BleTransmitterTest {
+  std::function<void(uint8_t tx_freq, uint8_t test_data_len,
+                     uint8_t packet_payload, tBTM_CMPL_CB* p_cmd_cmpl_cback)>
+      body{[](uint8_t tx_freq, uint8_t test_data_len, uint8_t packet_payload,
+              tBTM_CMPL_CB* p_cmd_cmpl_cback) {}};
+  void operator()(uint8_t tx_freq, uint8_t test_data_len,
+                  uint8_t packet_payload, tBTM_CMPL_CB* p_cmd_cmpl_cback) {
+    body(tx_freq, test_data_len, packet_payload, p_cmd_cmpl_cback);
+  };
+};
+extern struct BTM_BleTransmitterTest BTM_BleTransmitterTest;
+
 // Name: BTM_BleVerifySignature
 // Params: const RawAddress& bd_addr, uint8_t* p_orig, uint16_t len, uint32_t
 // counter, uint8_t* p_comp Return: bool
@@ -225,7 +262,9 @@ extern struct BTM_BleVerifySignature BTM_BleVerifySignature;
 // Return: const Octet16&
 struct BTM_GetDeviceDHK {
   static const Octet16 return_value;
-  std::function<const Octet16&()> body{[]() { return return_value; }};
+  std::function<const Octet16&()> body{
+      // Explicit return type is needed otherwise it returns copy of object
+      []() -> const Octet16& { return return_value; }};
   const Octet16& operator()() { return body(); };
 };
 extern struct BTM_GetDeviceDHK BTM_GetDeviceDHK;
@@ -235,7 +274,9 @@ extern struct BTM_GetDeviceDHK BTM_GetDeviceDHK;
 // Return: const Octet16&
 struct BTM_GetDeviceEncRoot {
   static const Octet16 return_value;
-  std::function<const Octet16&()> body{[]() { return return_value; }};
+  std::function<const Octet16&()> body{
+      // Explicit return type is needed otherwise it returns copy of object
+      []() -> const Octet16& { return return_value; }};
   const Octet16& operator()() { return body(); };
 };
 extern struct BTM_GetDeviceEncRoot BTM_GetDeviceEncRoot;
@@ -245,7 +286,9 @@ extern struct BTM_GetDeviceEncRoot BTM_GetDeviceEncRoot;
 // Return: const Octet16&
 struct BTM_GetDeviceIDRoot {
   static const Octet16 return_value;
-  std::function<const Octet16&()> body{[]() { return return_value; }};
+  std::function<const Octet16&()> body{
+      // Explicit return type is needed otherwise it returns copy of object
+      []() -> const Octet16& { return return_value; }};
   const Octet16& operator()() { return body(); };
 };
 extern struct BTM_GetDeviceIDRoot BTM_GetDeviceIDRoot;

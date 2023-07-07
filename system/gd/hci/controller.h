@@ -24,19 +24,8 @@
 #include "module.h"
 #include "os/handler.h"
 
-#define COD_MASK 0x07FF
-
-#define COD_UNCLASSIFIED ((0x1F) << 8)
-#define COD_HID_KEYBOARD 0x0540
-#define COD_HID_POINTING 0x0580
-#define COD_HID_COMBO 0x05C0
-#define COD_HID_MAJOR 0x0500
-#define COD_HID_MASK 0x0700
-#define COD_AV_HEADSETS 0x0404
-#define COD_AV_HANDSFREE 0x0408
-#define COD_AV_HEADPHONES 0x0418
-#define COD_AV_PORTABLE_AUDIO 0x041C
-#define COD_AV_HIFI_AUDIO 0x0428
+// TODO Remove this once all QTI specific hacks are removed.
+#define LMP_COMPID_QTI 0x001D
 
 namespace bluetooth {
 namespace hci {
@@ -148,8 +137,6 @@ class Controller : public Module {
 
   virtual void LeRand(LeRandCallback cb);
 
-  virtual void AllowWakeByHid();
-
   virtual void SetEventFilterClearAll();
 
   virtual void SetEventFilterInquiryResultAllDevices();
@@ -223,11 +210,12 @@ class Controller : public Module {
   static const ModuleFactory Factory;
 
   static constexpr uint64_t kDefaultEventMask = 0x3dbfffffffffffff;
-  static constexpr uint64_t kDefaultLeEventMask = 0x000000054d02fe7f;
+  static constexpr uint64_t kDefaultLeEventMask = 0x000000074d02fe7f;
 
   static constexpr uint64_t kLeEventMask53 = 0x00000007ffffffff;
   static constexpr uint64_t kLeEventMask52 = 0x00000003ffffffff;
   static constexpr uint64_t kLeEventMask51 = 0x0000000000ffffff;
+  static constexpr uint64_t kLeEventMask50 = 0x0000000000ffffff;
   static constexpr uint64_t kLeEventMask42 = 0x00000000000003ff;
   static constexpr uint64_t kLeEventMask41 = 0x000000000000003f;
 
@@ -241,6 +229,8 @@ class Controller : public Module {
       return mask & kLeEventMask52;
     } else if (version >= HciVersion::V_5_1) {
       return mask & kLeEventMask51;
+    } else if (version >= HciVersion::V_5_0) {
+      return mask & kLeEventMask50;
     } else if (version >= HciVersion::V_4_2) {
       return mask & kLeEventMask42;
     } else {

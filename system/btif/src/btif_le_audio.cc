@@ -106,6 +106,24 @@ class LeAudioClientInterfaceImpl : public LeAudioClientInterface,
                           output_selectable_codec_conf));
   }
 
+  void OnHealthBasedRecommendationAction(
+      const RawAddress& address,
+      bluetooth::le_audio::LeAudioHealthBasedAction action) override {
+    do_in_jni_thread(
+        FROM_HERE,
+        Bind(&LeAudioClientCallbacks::OnHealthBasedRecommendationAction,
+             Unretained(callbacks), address, action));
+  }
+
+  void OnHealthBasedGroupRecommendationAction(
+      int group_id,
+      bluetooth::le_audio::LeAudioHealthBasedAction action) override {
+    do_in_jni_thread(
+        FROM_HERE,
+        Bind(&LeAudioClientCallbacks::OnHealthBasedGroupRecommendationAction,
+             Unretained(callbacks), group_id, action));
+  }
+
   void Initialize(LeAudioClientCallbacks* callbacks,
                   const std::vector<btle_audio_codec_config_t>&
                       offloading_preference) override {
@@ -199,6 +217,21 @@ class LeAudioClientInterfaceImpl : public LeAudioClientInterface,
                            Unretained(LeAudioClient::Get()), address));
   }
 
+  void SetEnableState(const RawAddress& address, bool enabled) override {
+    DVLOG(2) << __func__ << " address: " << address << ", enabled: " << enabled;
+
+    if (!initialized || !LeAudioClient::IsLeAudioClientRunning()) {
+      DVLOG(2) << __func__
+               << " call ignored, due to already started cleanup procedure or "
+                  "service being not read";
+      return;
+    }
+
+    do_in_main_thread(FROM_HERE,
+                      Bind(&LeAudioClient::SetEnableState,
+                           Unretained(LeAudioClient::Get()), address, enabled));
+  }
+
   void GroupAddNode(const int group_id, const RawAddress& address) override {
     DVLOG(2) << __func__ << " group_id: " << group_id
              << " address: " << ADDRESS_TO_LOGGABLE_STR(address);
@@ -287,6 +320,28 @@ class LeAudioClientInterfaceImpl : public LeAudioClientInterface,
     do_in_main_thread(FROM_HERE,
                       Bind(&LeAudioClient::SetInCall,
                            Unretained(LeAudioClient::Get()), in_call));
+  }
+
+  void SendAudioProfilePreferences(int group_id,
+                                   bool is_output_preference_le_audio,
+                                   bool is_duplex_preference_le_audio) {
+    DVLOG(2) << __func__ << " group_id: " << group_id
+             << ", is_output_preference_le_audio: "
+             << is_output_preference_le_audio
+             << ", is_duplex_preference_le_audio: "
+             << is_duplex_preference_le_audio;
+    if (!initialized || !LeAudioClient::IsLeAudioClientRunning()) {
+      DVLOG(2) << __func__
+               << " call ignored, due to already started cleanup procedure or "
+                  "service being not read";
+      return;
+    }
+
+    do_in_main_thread(
+        FROM_HERE,
+        Bind(&LeAudioClient::SendAudioProfilePreferences,
+             Unretained(LeAudioClient::Get()), group_id,
+             is_output_preference_le_audio, is_duplex_preference_le_audio));
   }
 
  private:

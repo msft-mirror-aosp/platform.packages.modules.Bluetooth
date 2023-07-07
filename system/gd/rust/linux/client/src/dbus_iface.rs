@@ -1,16 +1,25 @@
 //! D-Bus proxy implementations of the APIs.
 
 use bt_topshim::btif::{
-    BtBondState, BtConnectionState, BtDeviceType, BtPropertyType, BtSspVariant, BtStatus,
-    BtTransport, Uuid, Uuid128Bit,
+    BtBondState, BtConnectionState, BtDeviceType, BtDiscMode, BtPropertyType, BtSspVariant,
+    BtStatus, BtTransport, BtVendorProductInfo, Uuid, Uuid128Bit,
 };
+use bt_topshim::profiles::a2dp::{A2dpCodecConfig, PresentationPosition};
+use bt_topshim::profiles::avrcp::PlayerMetadata;
 use bt_topshim::profiles::gatt::{AdvertisingStatus, GattStatus, LePhy};
+use bt_topshim::profiles::hfp::HfpCodecCapability;
 use bt_topshim::profiles::hid_host::BthhReportType;
+use bt_topshim::profiles::sdp::{
+    BtSdpDipRecord, BtSdpHeaderOverlay, BtSdpMasRecord, BtSdpMnsRecord, BtSdpMpsRecord,
+    BtSdpOpsRecord, BtSdpPceRecord, BtSdpPseRecord, BtSdpRecord, BtSdpSapRecord, BtSdpType,
+    SupportedDependencies, SupportedFormatsList, SupportedScenarios,
+};
 use bt_topshim::profiles::socket::SocketType;
 use bt_topshim::profiles::ProfileConnectionState;
 
 use btstack::bluetooth::{
-    BluetoothDevice, IBluetooth, IBluetoothCallback, IBluetoothConnectionCallback, IBluetoothQA,
+    BluetoothDevice, IBluetooth, IBluetoothCallback, IBluetoothConnectionCallback,
+    IBluetoothQALegacy,
 };
 use btstack::bluetooth_admin::{IBluetoothAdmin, IBluetoothAdminPolicyCallback, PolicyEffect};
 use btstack::bluetooth_adv::{
@@ -23,7 +32,10 @@ use btstack::bluetooth_gatt::{
     IBluetoothGattServerCallback, IScannerCallback, ScanFilter, ScanFilterCondition,
     ScanFilterPattern, ScanResult, ScanSettings, ScanType,
 };
-use btstack::bluetooth_media::IBluetoothTelephony;
+use btstack::bluetooth_media::{
+    BluetoothAudioDevice, IBluetoothMedia, IBluetoothMediaCallback, IBluetoothTelephony,
+};
+use btstack::bluetooth_qa::IBluetoothQA;
 use btstack::socket_manager::{
     BluetoothServerSocket, BluetoothSocket, CallbackId, IBluetoothSocketManager,
     IBluetoothSocketManagerCallbacks, SocketId, SocketResult,
@@ -53,7 +65,9 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::sync::Arc;
 
-use crate::dbus_arg::{DBusArg, DBusArgError, RefArgToRust};
+use btstack::bluetooth_qa::IBluetoothQACallback;
+
+use crate::dbus_arg::{DBusArg, DBusArgError, DirectDBus, RefArgToRust};
 
 fn make_object_path(idx: i32, name: &str) -> dbus::Path {
     dbus::Path::new(format!("/org/chromium/bluetooth/hci{}/{}", idx, name)).unwrap()
@@ -108,6 +122,239 @@ impl DBusArg for Uuid128Bit {
     }
 }
 
+impl_dbus_arg_enum!(BtSdpType);
+
+#[dbus_propmap(BtSdpHeaderOverlay)]
+struct BtSdpHeaderOverlayDBus {
+    sdp_type: BtSdpType,
+    uuid: Uuid,
+    service_name_length: u32,
+    service_name: String,
+    rfcomm_channel_number: i32,
+    l2cap_psm: i32,
+    profile_version: i32,
+
+    user1_len: i32,
+    user1_data: Vec<u8>,
+    user2_len: i32,
+    user2_data: Vec<u8>,
+}
+
+#[dbus_propmap(BtSdpMasRecord)]
+struct BtSdpMasRecordDBus {
+    hdr: BtSdpHeaderOverlay,
+    mas_instance_id: u32,
+    supported_features: u32,
+    supported_message_types: u32,
+}
+
+#[dbus_propmap(BtSdpMnsRecord)]
+struct BtSdpMnsRecordDBus {
+    hdr: BtSdpHeaderOverlay,
+    supported_features: u32,
+}
+
+#[dbus_propmap(BtSdpPseRecord)]
+struct BtSdpPseRecordDBus {
+    hdr: BtSdpHeaderOverlay,
+    supported_features: u32,
+    supported_repositories: u32,
+}
+
+#[dbus_propmap(BtSdpPceRecord)]
+struct BtSdpPceRecordDBus {
+    hdr: BtSdpHeaderOverlay,
+}
+
+impl_dbus_arg_from_into!(SupportedFormatsList, Vec<u8>);
+
+#[dbus_propmap(BtSdpOpsRecord)]
+struct BtSdpOpsRecordDBus {
+    hdr: BtSdpHeaderOverlay,
+    supported_formats_list_len: i32,
+    supported_formats_list: SupportedFormatsList,
+}
+
+#[dbus_propmap(BtSdpSapRecord)]
+struct BtSdpSapRecordDBus {
+    hdr: BtSdpHeaderOverlay,
+}
+
+#[dbus_propmap(BtSdpDipRecord)]
+struct BtSdpDipRecordDBus {
+    hdr: BtSdpHeaderOverlay,
+    spec_id: u16,
+    vendor: u16,
+    vendor_id_source: u16,
+    product: u16,
+    version: u16,
+    primary_record: bool,
+}
+
+impl_dbus_arg_from_into!(SupportedScenarios, Vec<u8>);
+impl_dbus_arg_from_into!(SupportedDependencies, Vec<u8>);
+
+#[dbus_propmap(BtSdpMpsRecord)]
+pub struct BtSdpMpsRecordDBus {
+    hdr: BtSdpHeaderOverlay,
+    supported_scenarios_mpsd: SupportedScenarios,
+    supported_scenarios_mpmd: SupportedScenarios,
+    supported_dependencies: SupportedDependencies,
+}
+
+#[dbus_propmap(BtVendorProductInfo)]
+pub struct BtVendorProductInfoDBus {
+    vendor_id_src: u8,
+    vendor_id: u16,
+    product_id: u16,
+    version: u16,
+}
+
+fn read_propmap_value<T: 'static + DirectDBus>(
+    propmap: &dbus::arg::PropMap,
+    key: &str,
+) -> Result<T, Box<dyn std::error::Error>> {
+    let output = propmap
+        .get(key)
+        .ok_or(Box::new(DBusArgError::new(String::from(format!("Key {} does not exist", key,)))))?;
+    let output = <T as RefArgToRust>::ref_arg_to_rust(
+        output.as_static_inner(0).ok_or(Box::new(DBusArgError::new(String::from(format!(
+            "Unable to convert propmap[\"{}\"] to {}",
+            key,
+            stringify!(T),
+        )))))?,
+        String::from(stringify!(T)),
+    )?;
+    Ok(output)
+}
+
+fn parse_propmap_value<T: DBusArg>(
+    propmap: &dbus::arg::PropMap,
+    key: &str,
+) -> Result<T, Box<dyn std::error::Error>>
+where
+    <T as DBusArg>::DBusType: RefArgToRust<RustType = <T as DBusArg>::DBusType>,
+{
+    let output = propmap
+        .get(key)
+        .ok_or(Box::new(DBusArgError::new(String::from(format!("Key {} does not exist", key,)))))?;
+    let output = <<T as DBusArg>::DBusType as RefArgToRust>::ref_arg_to_rust(
+        output.as_static_inner(0).ok_or(Box::new(DBusArgError::new(String::from(format!(
+            "Unable to convert propmap[\"{}\"] to {}",
+            key,
+            stringify!(T),
+        )))))?,
+        format!("{}", stringify!(T)),
+    )?;
+    let output = T::from_dbus(output, None, None, None)?;
+    Ok(output)
+}
+
+fn write_propmap_value<T: DBusArg>(
+    propmap: &mut dbus::arg::PropMap,
+    value: T,
+    key: &str,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    T::DBusType: 'static + dbus::arg::RefArg,
+{
+    propmap.insert(String::from(key), dbus::arg::Variant(Box::new(DBusArg::to_dbus(value)?)));
+    Ok(())
+}
+
+impl DBusArg for BtSdpRecord {
+    type DBusType = dbus::arg::PropMap;
+    fn from_dbus(
+        data: dbus::arg::PropMap,
+        _conn: Option<std::sync::Arc<dbus::nonblock::SyncConnection>>,
+        _remote: Option<dbus::strings::BusName<'static>>,
+        _disconnect_watcher: Option<
+            std::sync::Arc<std::sync::Mutex<dbus_projection::DisconnectWatcher>>,
+        >,
+    ) -> Result<BtSdpRecord, Box<dyn std::error::Error>> {
+        let sdp_type = read_propmap_value::<u32>(&data, &String::from("type"))?;
+        let sdp_type = BtSdpType::from(sdp_type);
+        let record = match sdp_type {
+            BtSdpType::Raw => {
+                let arg_0 = parse_propmap_value::<BtSdpHeaderOverlay>(&data, "0")?;
+                BtSdpRecord::HeaderOverlay(arg_0)
+            }
+            BtSdpType::MapMas => {
+                let arg_0 = parse_propmap_value::<BtSdpMasRecord>(&data, "0")?;
+                BtSdpRecord::MapMas(arg_0)
+            }
+            BtSdpType::MapMns => {
+                let arg_0 = parse_propmap_value::<BtSdpMnsRecord>(&data, "0")?;
+                BtSdpRecord::MapMns(arg_0)
+            }
+            BtSdpType::PbapPse => {
+                let arg_0 = parse_propmap_value::<BtSdpPseRecord>(&data, "0")?;
+                BtSdpRecord::PbapPse(arg_0)
+            }
+            BtSdpType::PbapPce => {
+                let arg_0 = parse_propmap_value::<BtSdpPceRecord>(&data, "0")?;
+                BtSdpRecord::PbapPce(arg_0)
+            }
+            BtSdpType::OppServer => {
+                let arg_0 = parse_propmap_value::<BtSdpOpsRecord>(&data, "0")?;
+                BtSdpRecord::OppServer(arg_0)
+            }
+            BtSdpType::SapServer => {
+                let arg_0 = parse_propmap_value::<BtSdpSapRecord>(&data, "0")?;
+                BtSdpRecord::SapServer(arg_0)
+            }
+            BtSdpType::Dip => {
+                let arg_0 = parse_propmap_value::<BtSdpDipRecord>(&data, "0")?;
+                BtSdpRecord::Dip(arg_0)
+            }
+            BtSdpType::Mps => {
+                let arg_0 = parse_propmap_value::<BtSdpMpsRecord>(&data, "0")?;
+                BtSdpRecord::Mps(arg_0)
+            }
+        };
+        Ok(record)
+    }
+
+    fn to_dbus(record: BtSdpRecord) -> Result<dbus::arg::PropMap, Box<dyn std::error::Error>> {
+        let mut map: dbus::arg::PropMap = std::collections::HashMap::new();
+        write_propmap_value::<u32>(
+            &mut map,
+            BtSdpType::from(&record) as u32,
+            &String::from("type"),
+        )?;
+        match record {
+            BtSdpRecord::HeaderOverlay(header) => {
+                write_propmap_value::<BtSdpHeaderOverlay>(&mut map, header, &String::from("0"))?
+            }
+            BtSdpRecord::MapMas(mas_record) => {
+                write_propmap_value::<BtSdpMasRecord>(&mut map, mas_record, &String::from("0"))?
+            }
+            BtSdpRecord::MapMns(mns_record) => {
+                write_propmap_value::<BtSdpMnsRecord>(&mut map, mns_record, &String::from("0"))?
+            }
+            BtSdpRecord::PbapPse(pse_record) => {
+                write_propmap_value::<BtSdpPseRecord>(&mut map, pse_record, &String::from("0"))?
+            }
+            BtSdpRecord::PbapPce(pce_record) => {
+                write_propmap_value::<BtSdpPceRecord>(&mut map, pce_record, &String::from("0"))?
+            }
+            BtSdpRecord::OppServer(ops_record) => {
+                write_propmap_value::<BtSdpOpsRecord>(&mut map, ops_record, &String::from("0"))?
+            }
+            BtSdpRecord::SapServer(sap_record) => {
+                write_propmap_value::<BtSdpSapRecord>(&mut map, sap_record, &String::from("0"))?
+            }
+            BtSdpRecord::Dip(dip_record) => {
+                write_propmap_value::<BtSdpDipRecord>(&mut map, dip_record, &String::from("0"))?
+            }
+            BtSdpRecord::Mps(mps_record) => {
+                write_propmap_value::<BtSdpMpsRecord>(&mut map, mps_record, &String::from("0"))?
+            }
+        }
+        Ok(map)
+    }
+}
+
 #[dbus_propmap(BluetoothGattDescriptor)]
 pub struct BluetoothGattDescriptorDBus {
     uuid: Uuid128Bit,
@@ -153,6 +400,29 @@ struct ScanFilterPatternDBus {
     start_position: u8,
     ad_type: u8,
     content: Vec<u8>,
+}
+
+#[dbus_propmap(A2dpCodecConfig)]
+pub struct A2dpCodecConfigDBus {
+    codec_type: i32,
+    codec_priority: i32,
+    sample_rate: i32,
+    bits_per_sample: i32,
+    channel_mode: i32,
+    codec_specific_1: i64,
+    codec_specific_2: i64,
+    codec_specific_3: i64,
+    codec_specific_4: i64,
+}
+
+impl_dbus_arg_from_into!(HfpCodecCapability, i32);
+#[dbus_propmap(BluetoothAudioDevice)]
+pub struct BluetoothAudioDeviceDBus {
+    address: String,
+    name: String,
+    a2dp_caps: Vec<A2dpCodecConfig>,
+    hfp_cap: HfpCodecCapability,
+    absolute_volume: bool,
 }
 
 // Manually converts enum variant from/into D-Bus.
@@ -260,6 +530,22 @@ struct ScanResultDBus {
     adv_data: Vec<u8>,
 }
 
+#[dbus_propmap(PresentationPosition)]
+struct PresentationPositionDBus {
+    remote_delay_report_ns: u64,
+    total_bytes_read: u64,
+    data_position_sec: i64,
+    data_position_nsec: i32,
+}
+
+#[dbus_propmap(PlayerMetadata)]
+struct PlayerMetadataDBus {
+    title: String,
+    artist: String,
+    album: String,
+    length_us: i64,
+}
+
 struct IBluetoothCallbackDBus {}
 
 impl RPCProxy for IBluetoothCallbackDBus {}
@@ -270,29 +556,37 @@ impl RPCProxy for IBluetoothCallbackDBus {}
 )]
 impl IBluetoothCallback for IBluetoothCallbackDBus {
     #[dbus_method("OnAdapterPropertyChanged")]
-    fn on_adapter_property_changed(&self, prop: BtPropertyType) {}
+    fn on_adapter_property_changed(&mut self, prop: BtPropertyType) {}
+
+    #[dbus_method("OnDevicePropertiesChanged")]
+    fn on_device_properties_changed(
+        &mut self,
+        remote_device: BluetoothDevice,
+        props: Vec<BtPropertyType>,
+    ) {
+    }
 
     #[dbus_method("OnAddressChanged")]
-    fn on_address_changed(&self, addr: String) {}
+    fn on_address_changed(&mut self, addr: String) {}
 
     #[dbus_method("OnNameChanged")]
-    fn on_name_changed(&self, name: String) {}
+    fn on_name_changed(&mut self, name: String) {}
 
     #[dbus_method("OnDiscoverableChanged")]
-    fn on_discoverable_changed(&self, discoverable: bool) {}
+    fn on_discoverable_changed(&mut self, discoverable: bool) {}
 
     #[dbus_method("OnDeviceFound")]
-    fn on_device_found(&self, remote_device: BluetoothDevice) {}
+    fn on_device_found(&mut self, remote_device: BluetoothDevice) {}
 
     #[dbus_method("OnDeviceCleared")]
-    fn on_device_cleared(&self, remote_device: BluetoothDevice) {}
+    fn on_device_cleared(&mut self, remote_device: BluetoothDevice) {}
 
     #[dbus_method("OnDiscoveringChanged")]
-    fn on_discovering_changed(&self, discovering: bool) {}
+    fn on_discovering_changed(&mut self, discovering: bool) {}
 
     #[dbus_method("OnSspRequest")]
     fn on_ssp_request(
-        &self,
+        &mut self,
         remote_device: BluetoothDevice,
         cod: u32,
         variant: BtSspVariant,
@@ -300,8 +594,26 @@ impl IBluetoothCallback for IBluetoothCallbackDBus {
     ) {
     }
 
+    #[dbus_method("OnPinRequest")]
+    fn on_pin_request(&mut self, remote_device: BluetoothDevice, cod: u32, min_16_digit: bool) {}
+
+    #[dbus_method("OnPinDisplay")]
+    fn on_pin_display(&mut self, remote_device: BluetoothDevice, pincode: String) {}
+
     #[dbus_method("OnBondStateChanged")]
-    fn on_bond_state_changed(&self, status: u32, address: String, state: u32) {}
+    fn on_bond_state_changed(&mut self, status: u32, address: String, state: u32) {}
+
+    #[dbus_method("OnSdpSearchComplete")]
+    fn on_sdp_search_complete(
+        &mut self,
+        remote_device: BluetoothDevice,
+        searched_uuid: Uuid128Bit,
+        sdp_records: Vec<BtSdpRecord>,
+    ) {
+    }
+
+    #[dbus_method("OnSdpRecordCreated")]
+    fn on_sdp_record_created(&mut self, record: BtSdpRecord, handle: i32) {}
 }
 
 struct IBluetoothConnectionCallbackDBus {}
@@ -314,10 +626,10 @@ impl RPCProxy for IBluetoothConnectionCallbackDBus {}
 )]
 impl IBluetoothConnectionCallback for IBluetoothConnectionCallbackDBus {
     #[dbus_method("OnDeviceConnected")]
-    fn on_device_connected(&self, remote_device: BluetoothDevice) {}
+    fn on_device_connected(&mut self, remote_device: BluetoothDevice) {}
 
     #[dbus_method("OnDeviceDisconnected")]
-    fn on_device_disconnected(&self, remote_device: BluetoothDevice) {}
+    fn on_device_disconnected(&mut self, remote_device: BluetoothDevice) {}
 }
 
 struct IScannerCallbackDBus {}
@@ -330,25 +642,32 @@ impl RPCProxy for IScannerCallbackDBus {}
 )]
 impl IScannerCallback for IScannerCallbackDBus {
     #[dbus_method("OnScannerRegistered")]
-    fn on_scanner_registered(&self, uuid: Uuid128Bit, scanner_id: u8, status: GattStatus) {
+    fn on_scanner_registered(&mut self, uuid: Uuid128Bit, scanner_id: u8, status: GattStatus) {
         dbus_generated!()
     }
 
     #[dbus_method("OnScanResult")]
-    fn on_scan_result(&self, scan_result: ScanResult) {
+    fn on_scan_result(&mut self, scan_result: ScanResult) {
         dbus_generated!()
     }
 
-    #[dbus_method("OnScanResultLost")]
-    fn on_scan_result_lost(&self, scan_result: ScanResult) {
+    #[dbus_method("OnAdvertisementFound")]
+    fn on_advertisement_found(&mut self, scanner_id: u8, scan_result: ScanResult) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("OnAdvertisementLost")]
+    fn on_advertisement_lost(&mut self, scanner_id: u8, scan_result: ScanResult) {
         dbus_generated!()
     }
 
     #[dbus_method("OnSuspendModeChange")]
-    fn on_suspend_mode_change(&self, suspend_mode: SuspendMode) {
+    fn on_suspend_mode_change(&mut self, suspend_mode: SuspendMode) {
         dbus_generated!()
     }
 }
+
+impl_dbus_arg_enum!(BtDiscMode);
 
 // Implements RPC-friendly wrapper methods for calling IBluetooth, generated by
 // `generate_dbus_interface_client` below.
@@ -382,7 +701,12 @@ impl BluetoothDBus {
 #[generate_dbus_interface_client(BluetoothDBusRPC)]
 impl IBluetooth for BluetoothDBus {
     #[dbus_method("RegisterCallback")]
-    fn register_callback(&mut self, callback: Box<dyn IBluetoothCallback + Send>) {
+    fn register_callback(&mut self, callback: Box<dyn IBluetoothCallback + Send>) -> u32 {
+        dbus_generated!()
+    }
+
+    #[dbus_method("UnregisterCallback")]
+    fn unregister_callback(&mut self, id: u32) -> bool {
         dbus_generated!()
     }
 
@@ -450,7 +774,7 @@ impl IBluetooth for BluetoothDBus {
     }
 
     #[dbus_method("SetDiscoverable")]
-    fn set_discoverable(&mut self, mode: bool, duration: u32) -> bool {
+    fn set_discoverable(&mut self, mode: BtDiscMode, duration: u32) -> bool {
         dbus_generated!()
     }
 
@@ -465,12 +789,12 @@ impl IBluetooth for BluetoothDBus {
     }
 
     #[dbus_method("StartDiscovery")]
-    fn start_discovery(&self) -> bool {
+    fn start_discovery(&mut self) -> bool {
         dbus_generated!()
     }
 
     #[dbus_method("CancelDiscovery")]
-    fn cancel_discovery(&self) -> bool {
+    fn cancel_discovery(&mut self) -> bool {
         dbus_generated!()
     }
 
@@ -485,7 +809,7 @@ impl IBluetooth for BluetoothDBus {
     }
 
     #[dbus_method("CreateBond")]
-    fn create_bond(&self, device: BluetoothDevice, transport: BtTransport) -> bool {
+    fn create_bond(&mut self, device: BluetoothDevice, transport: BtTransport) -> bool {
         dbus_generated!()
     }
 
@@ -564,6 +888,11 @@ impl IBluetooth for BluetoothDBus {
         dbus_generated!()
     }
 
+    #[dbus_method("GetRemoteVendorProductInfo")]
+    fn get_remote_vendor_product_info(&self, _device: BluetoothDevice) -> BtVendorProductInfo {
+        dbus_generated!()
+    }
+
     #[dbus_method("GetConnectedDevices")]
     fn get_connected_devices(&self) -> Vec<BluetoothDevice> {
         dbus_generated!()
@@ -594,6 +923,16 @@ impl IBluetooth for BluetoothDBus {
         dbus_generated!()
     }
 
+    #[dbus_method("CreateSdpRecord")]
+    fn create_sdp_record(&mut self, sdp_record: BtSdpRecord) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("RemoveSdpRecord")]
+    fn remove_sdp_record(&self, handle: i32) -> bool {
+        dbus_generated!()
+    }
+
     #[dbus_method("ConnectAllEnabledProfiles")]
     fn connect_all_enabled_profiles(&mut self, device: BluetoothDevice) -> bool {
         dbus_generated!()
@@ -608,27 +947,32 @@ impl IBluetooth for BluetoothDBus {
     fn is_wbs_supported(&self) -> bool {
         dbus_generated!()
     }
+
+    #[dbus_method("IsSwbSupported")]
+    fn is_swb_supported(&self) -> bool {
+        dbus_generated!()
+    }
 }
 
-pub(crate) struct BluetoothQADBus {
+pub(crate) struct BluetoothQALegacyDBus {
     client_proxy: ClientDBusProxy,
 }
 
-impl BluetoothQADBus {
-    pub(crate) fn new(conn: Arc<SyncConnection>, index: i32) -> BluetoothQADBus {
-        BluetoothQADBus {
+impl BluetoothQALegacyDBus {
+    pub(crate) fn new(conn: Arc<SyncConnection>, index: i32) -> BluetoothQALegacyDBus {
+        BluetoothQALegacyDBus {
             client_proxy: ClientDBusProxy::new(
                 conn.clone(),
                 String::from("org.chromium.bluetooth"),
                 make_object_path(index, "adapter"),
-                String::from("org.chromium.bluetooth.BluetoothQA"),
+                String::from("org.chromium.bluetooth.BluetoothQALegacy"),
             ),
         }
     }
 }
 
 #[generate_dbus_interface_client]
-impl IBluetoothQA for BluetoothQADBus {
+impl IBluetoothQALegacy for BluetoothQALegacyDBus {
     #[dbus_method("GetConnectable")]
     fn get_connectable(&self) -> bool {
         dbus_generated!()
@@ -636,6 +980,16 @@ impl IBluetoothQA for BluetoothQADBus {
 
     #[dbus_method("SetConnectable")]
     fn set_connectable(&mut self, mode: bool) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("GetAlias")]
+    fn get_alias(&self) -> String {
+        dbus_generated!()
+    }
+
+    #[dbus_method("GetModalias")]
+    fn get_modalias(&self) -> String {
         dbus_generated!()
     }
 
@@ -761,13 +1115,13 @@ impl RPCProxy for IBluetoothManagerCallbackDBus {}
 )]
 impl IBluetoothManagerCallback for IBluetoothManagerCallbackDBus {
     #[dbus_method("OnHciDeviceChanged")]
-    fn on_hci_device_changed(&self, hci_interface: i32, present: bool) {}
+    fn on_hci_device_changed(&mut self, hci_interface: i32, present: bool) {}
 
     #[dbus_method("OnHciEnabledChanged")]
-    fn on_hci_enabled_changed(&self, hci_interface: i32, enabled: bool) {}
+    fn on_hci_enabled_changed(&mut self, hci_interface: i32, enabled: bool) {}
 
     #[dbus_method("OnDefaultAdapterChanged")]
-    fn on_default_adapter_changed(&self, hci_interface: i32) {}
+    fn on_default_adapter_changed(&mut self, hci_interface: i32) {}
 }
 
 #[allow(dead_code)]
@@ -782,7 +1136,7 @@ impl RPCProxy for IAdvertisingSetCallbackDBus {}
 impl IAdvertisingSetCallback for IAdvertisingSetCallbackDBus {
     #[dbus_method("OnAdvertisingSetStarted")]
     fn on_advertising_set_started(
-        &self,
+        &mut self,
         reg_id: i32,
         advertiser_id: i32,
         tx_power: i32,
@@ -791,23 +1145,29 @@ impl IAdvertisingSetCallback for IAdvertisingSetCallbackDBus {
     }
 
     #[dbus_method("OnOwnAddressRead")]
-    fn on_own_address_read(&self, advertiser_id: i32, address_type: i32, address: String) {}
+    fn on_own_address_read(&mut self, advertiser_id: i32, address_type: i32, address: String) {}
 
     #[dbus_method("OnAdvertisingSetStopped")]
-    fn on_advertising_set_stopped(&self, advertiser_id: i32) {}
+    fn on_advertising_set_stopped(&mut self, advertiser_id: i32) {}
 
     #[dbus_method("OnAdvertisingEnabled")]
-    fn on_advertising_enabled(&self, advertiser_id: i32, enable: bool, status: AdvertisingStatus) {}
+    fn on_advertising_enabled(
+        &mut self,
+        advertiser_id: i32,
+        enable: bool,
+        status: AdvertisingStatus,
+    ) {
+    }
 
     #[dbus_method("OnAdvertisingDataSet")]
-    fn on_advertising_data_set(&self, advertiser_id: i32, status: AdvertisingStatus) {}
+    fn on_advertising_data_set(&mut self, advertiser_id: i32, status: AdvertisingStatus) {}
 
     #[dbus_method("OnScanResponseDataSet")]
-    fn on_scan_response_data_set(&self, advertiser_id: i32, status: AdvertisingStatus) {}
+    fn on_scan_response_data_set(&mut self, advertiser_id: i32, status: AdvertisingStatus) {}
 
     #[dbus_method("OnAdvertisingParametersUpdated")]
     fn on_advertising_parameters_updated(
-        &self,
+        &mut self,
         advertiser_id: i32,
         tx_power: i32,
         status: AdvertisingStatus,
@@ -816,18 +1176,18 @@ impl IAdvertisingSetCallback for IAdvertisingSetCallbackDBus {
 
     #[dbus_method("OnPeriodicAdvertisingParametersUpdated")]
     fn on_periodic_advertising_parameters_updated(
-        &self,
+        &mut self,
         advertiser_id: i32,
         status: AdvertisingStatus,
     ) {
     }
 
     #[dbus_method("OnPeriodicAdvertisingDataSet")]
-    fn on_periodic_advertising_data_set(&self, advertiser_id: i32, status: AdvertisingStatus) {}
+    fn on_periodic_advertising_data_set(&mut self, advertiser_id: i32, status: AdvertisingStatus) {}
 
     #[dbus_method("OnPeriodicAdvertisingEnabled")]
     fn on_periodic_advertising_enabled(
-        &self,
+        &mut self,
         advertiser_id: i32,
         enable: bool,
         status: AdvertisingStatus,
@@ -835,7 +1195,7 @@ impl IAdvertisingSetCallback for IAdvertisingSetCallbackDBus {
     }
 
     #[dbus_method("OnSuspendModeChange")]
-    fn on_suspend_mode_change(&self, suspend_mode: SuspendMode) {}
+    fn on_suspend_mode_change(&mut self, suspend_mode: SuspendMode) {}
 }
 
 #[dbus_propmap(AdvertisingSetParameters)]
@@ -950,13 +1310,13 @@ impl RPCProxy for IBluetoothAdminPolicyCallbackDBus {}
 )]
 impl IBluetoothAdminPolicyCallback for IBluetoothAdminPolicyCallbackDBus {
     #[dbus_method("OnServiceAllowlistChanged")]
-    fn on_service_allowlist_changed(&self, allowed_list: Vec<Uuid128Bit>) {
+    fn on_service_allowlist_changed(&mut self, allowed_list: Vec<Uuid128Bit>) {
         dbus_generated!()
     }
 
     #[dbus_method("OnDevicePolicyEffectChanged")]
     fn on_device_policy_effect_changed(
-        &self,
+        &mut self,
         device: BluetoothDevice,
         new_policy_effect: Option<PolicyEffect>,
     ) {
@@ -1052,7 +1412,7 @@ impl IBluetoothGatt for BluetoothGattDBus {
     }
 
     #[dbus_method("UnregisterAdvertiserCallback")]
-    fn unregister_advertiser_callback(&mut self, callback_id: u32) {
+    fn unregister_advertiser_callback(&mut self, callback_id: u32) -> bool {
         dbus_generated!()
     }
 
@@ -1205,6 +1565,11 @@ impl IBluetoothGatt for BluetoothGattDBus {
 
     #[dbus_method("DiscoverServiceByUuid")]
     fn discover_service_by_uuid(&self, client_id: i32, addr: String, uuid: String) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("BtifGattcDiscoverServiceByUuid")]
+    fn btif_gattc_discover_service_by_uuid(&self, client_id: i32, addr: String, uuid: String) {
         dbus_generated!()
     }
 
@@ -1397,11 +1762,11 @@ impl RPCProxy for IBluetoothGattCallbackDBus {}
 )]
 impl IBluetoothGattCallback for IBluetoothGattCallbackDBus {
     #[dbus_method("OnClientRegistered")]
-    fn on_client_registered(&self, status: GattStatus, client_id: i32) {}
+    fn on_client_registered(&mut self, status: GattStatus, client_id: i32) {}
 
     #[dbus_method("OnClientConnectionState")]
     fn on_client_connection_state(
-        &self,
+        &mut self,
         status: GattStatus,
         client_id: i32,
         connected: bool,
@@ -1410,14 +1775,14 @@ impl IBluetoothGattCallback for IBluetoothGattCallbackDBus {
     }
 
     #[dbus_method("OnPhyUpdate")]
-    fn on_phy_update(&self, addr: String, tx_phy: LePhy, rx_phy: LePhy, status: GattStatus) {}
+    fn on_phy_update(&mut self, addr: String, tx_phy: LePhy, rx_phy: LePhy, status: GattStatus) {}
 
     #[dbus_method("OnPhyRead")]
-    fn on_phy_read(&self, addr: String, tx_phy: LePhy, rx_phy: LePhy, status: GattStatus) {}
+    fn on_phy_read(&mut self, addr: String, tx_phy: LePhy, rx_phy: LePhy, status: GattStatus) {}
 
     #[dbus_method("OnSearchComplete")]
     fn on_search_complete(
-        &self,
+        &mut self,
         addr: String,
         services: Vec<BluetoothGattService>,
         status: GattStatus,
@@ -1426,7 +1791,7 @@ impl IBluetoothGattCallback for IBluetoothGattCallbackDBus {
 
     #[dbus_method("OnCharacteristicRead")]
     fn on_characteristic_read(
-        &self,
+        &mut self,
         addr: String,
         status: GattStatus,
         handle: i32,
@@ -1435,29 +1800,36 @@ impl IBluetoothGattCallback for IBluetoothGattCallbackDBus {
     }
 
     #[dbus_method("OnCharacteristicWrite")]
-    fn on_characteristic_write(&self, addr: String, status: GattStatus, handle: i32) {}
+    fn on_characteristic_write(&mut self, addr: String, status: GattStatus, handle: i32) {}
 
     #[dbus_method("OnExecuteWrite")]
-    fn on_execute_write(&self, addr: String, status: GattStatus) {}
+    fn on_execute_write(&mut self, addr: String, status: GattStatus) {}
 
     #[dbus_method("OnDescriptorRead")]
-    fn on_descriptor_read(&self, addr: String, status: GattStatus, handle: i32, value: Vec<u8>) {}
+    fn on_descriptor_read(
+        &mut self,
+        addr: String,
+        status: GattStatus,
+        handle: i32,
+        value: Vec<u8>,
+    ) {
+    }
 
     #[dbus_method("OnDescriptorWrite")]
-    fn on_descriptor_write(&self, addr: String, status: GattStatus, handle: i32) {}
+    fn on_descriptor_write(&mut self, addr: String, status: GattStatus, handle: i32) {}
 
     #[dbus_method("OnNotify")]
-    fn on_notify(&self, addr: String, handle: i32, value: Vec<u8>) {}
+    fn on_notify(&mut self, addr: String, handle: i32, value: Vec<u8>) {}
 
     #[dbus_method("OnReadRemoteRssi")]
-    fn on_read_remote_rssi(&self, addr: String, rssi: i32, status: GattStatus) {}
+    fn on_read_remote_rssi(&mut self, addr: String, rssi: i32, status: GattStatus) {}
 
     #[dbus_method("OnConfigureMtu")]
-    fn on_configure_mtu(&self, addr: String, mtu: i32, status: GattStatus) {}
+    fn on_configure_mtu(&mut self, addr: String, mtu: i32, status: GattStatus) {}
 
     #[dbus_method("OnConnectionUpdated")]
     fn on_connection_updated(
-        &self,
+        &mut self,
         addr: String,
         interval: i32,
         latency: i32,
@@ -1467,7 +1839,7 @@ impl IBluetoothGattCallback for IBluetoothGattCallbackDBus {
     }
 
     #[dbus_method("OnServiceChanged")]
-    fn on_service_changed(&self, addr: String) {}
+    fn on_service_changed(&mut self, addr: String) {}
 }
 
 #[generate_dbus_exporter(
@@ -1476,17 +1848,20 @@ impl IBluetoothGattCallback for IBluetoothGattCallbackDBus {
 )]
 impl IBluetoothGattServerCallback for IBluetoothGattCallbackDBus {
     #[dbus_method("OnServerRegistered")]
-    fn on_server_registered(&self, status: GattStatus, client_id: i32) {}
+    fn on_server_registered(&mut self, status: GattStatus, client_id: i32) {}
 
     #[dbus_method("OnServerConnectionState")]
-    fn on_server_connection_state(&self, server_id: i32, connected: bool, addr: String) {}
+    fn on_server_connection_state(&mut self, server_id: i32, connected: bool, addr: String) {}
 
     #[dbus_method("OnServiceAdded")]
-    fn on_service_added(&self, status: GattStatus, service: BluetoothGattService) {}
+    fn on_service_added(&mut self, status: GattStatus, service: BluetoothGattService) {}
+
+    #[dbus_method("OnServiceRemoved")]
+    fn on_service_removed(&mut self, status: GattStatus, handle: i32) {}
 
     #[dbus_method("OnCharacteristicReadRequest")]
     fn on_characteristic_read_request(
-        &self,
+        &mut self,
         addr: String,
         trans_id: i32,
         offset: i32,
@@ -1497,7 +1872,7 @@ impl IBluetoothGattServerCallback for IBluetoothGattCallbackDBus {
 
     #[dbus_method("OnDescriptorReadRequest")]
     fn on_descriptor_read_request(
-        &self,
+        &mut self,
         addr: String,
         trans_id: i32,
         offset: i32,
@@ -1508,7 +1883,7 @@ impl IBluetoothGattServerCallback for IBluetoothGattCallbackDBus {
 
     #[dbus_method("OnCharacteristicWriteRequest")]
     fn on_characteristic_write_request(
-        &self,
+        &mut self,
         addr: String,
         trans_id: i32,
         offset: i32,
@@ -1522,7 +1897,7 @@ impl IBluetoothGattServerCallback for IBluetoothGattCallbackDBus {
 
     #[dbus_method("OnDescriptorWriteRequest")]
     fn on_descriptor_write_request(
-        &self,
+        &mut self,
         addr: String,
         trans_id: i32,
         offset: i32,
@@ -1535,23 +1910,23 @@ impl IBluetoothGattServerCallback for IBluetoothGattCallbackDBus {
     }
 
     #[dbus_method("OnExecuteWrite")]
-    fn on_execute_write(&self, addr: String, trans_id: i32, exec_write: bool) {}
+    fn on_execute_write(&mut self, addr: String, trans_id: i32, exec_write: bool) {}
 
     #[dbus_method("OnNotificationSent")]
-    fn on_notification_sent(&self, addr: String, status: GattStatus) {}
+    fn on_notification_sent(&mut self, addr: String, status: GattStatus) {}
 
     #[dbus_method("OnMtuChanged")]
-    fn on_mtu_changed(&self, addr: String, mtu: i32) {}
+    fn on_mtu_changed(&mut self, addr: String, mtu: i32) {}
 
     #[dbus_method("OnPhyUpdate")]
-    fn on_phy_update(&self, addr: String, tx_phy: LePhy, rx_phy: LePhy, status: GattStatus) {}
+    fn on_phy_update(&mut self, addr: String, tx_phy: LePhy, rx_phy: LePhy, status: GattStatus) {}
 
     #[dbus_method("OnPhyRead")]
-    fn on_phy_read(&self, addr: String, tx_phy: LePhy, rx_phy: LePhy, status: GattStatus) {}
+    fn on_phy_read(&mut self, addr: String, tx_phy: LePhy, rx_phy: LePhy, status: GattStatus) {}
 
     #[dbus_method("OnConnectionUpdated")]
     fn on_connection_updated(
-        &self,
+        &mut self,
         addr: String,
         interval: i32,
         latency: i32,
@@ -1562,7 +1937,7 @@ impl IBluetoothGattServerCallback for IBluetoothGattCallbackDBus {
 
     #[dbus_method("OnSubrateChange")]
     fn on_subrate_change(
-        &self,
+        &mut self,
         addr: String,
         subrate_factor: i32,
         latency: i32,
@@ -1642,13 +2017,28 @@ impl IBluetoothSocketManager for BluetoothSocketManagerDBus {
         dbus_generated!()
     }
 
+    #[dbus_method("UnregisterCallback")]
+    fn unregister_callback(&mut self, callback: CallbackId) -> bool {
+        dbus_generated!()
+    }
+
     #[dbus_method("ListenUsingInsecureL2capChannel")]
     fn listen_using_insecure_l2cap_channel(&mut self, callback: CallbackId) -> SocketResult {
         dbus_generated!()
     }
 
+    #[dbus_method("ListenUsingInsecureL2capLeChannel")]
+    fn listen_using_insecure_l2cap_le_channel(&mut self, callback: CallbackId) -> SocketResult {
+        dbus_generated!()
+    }
+
     #[dbus_method("ListenUsingL2capChannel")]
     fn listen_using_l2cap_channel(&mut self, callback: CallbackId) -> SocketResult {
+        dbus_generated!()
+    }
+
+    #[dbus_method("ListenUsingL2capLeChannel")]
+    fn listen_using_l2cap_le_channel(&mut self, callback: CallbackId) -> SocketResult {
         dbus_generated!()
     }
 
@@ -1672,6 +2062,18 @@ impl IBluetoothSocketManager for BluetoothSocketManagerDBus {
         dbus_generated!()
     }
 
+    #[dbus_method("ListenUsingRfcomm")]
+    fn listen_using_rfcomm(
+        &mut self,
+        callback: CallbackId,
+        channel: Option<i32>,
+        application_uuid: Option<Uuid>,
+        name: Option<String>,
+        flags: Option<i32>,
+    ) -> SocketResult {
+        dbus_generated!()
+    }
+
     #[dbus_method("CreateInsecureL2capChannel")]
     fn create_insecure_l2cap_channel(
         &mut self,
@@ -1682,8 +2084,28 @@ impl IBluetoothSocketManager for BluetoothSocketManagerDBus {
         dbus_generated!()
     }
 
+    #[dbus_method("CreateInsecureL2capLeChannel")]
+    fn create_insecure_l2cap_le_channel(
+        &mut self,
+        callback: CallbackId,
+        device: BluetoothDevice,
+        psm: i32,
+    ) -> SocketResult {
+        dbus_generated!()
+    }
+
     #[dbus_method("CreateL2capChannel")]
     fn create_l2cap_channel(
+        &mut self,
+        callback: CallbackId,
+        device: BluetoothDevice,
+        psm: i32,
+    ) -> SocketResult {
+        dbus_generated!()
+    }
+
+    #[dbus_method("CreateL2capLeChannel")]
+    fn create_l2cap_le_channel(
         &mut self,
         callback: CallbackId,
         device: BluetoothDevice,
@@ -1812,11 +2234,11 @@ impl RPCProxy for ISuspendCallbackDBus {}
 )]
 impl ISuspendCallback for ISuspendCallbackDBus {
     #[dbus_method("OnCallbackRegistered")]
-    fn on_callback_registered(&self, callback_id: u32) {}
+    fn on_callback_registered(&mut self, callback_id: u32) {}
     #[dbus_method("OnSuspendReady")]
-    fn on_suspend_ready(&self, suspend_id: i32) {}
+    fn on_suspend_ready(&mut self, suspend_id: i32) {}
     #[dbus_method("OnResumed")]
-    fn on_resumed(&self, suspend_id: i32) {}
+    fn on_resumed(&mut self, suspend_id: i32) {}
 }
 
 pub(crate) struct BluetoothTelephonyDBus {
@@ -1901,5 +2323,317 @@ impl IBluetoothTelephony for BluetoothTelephonyDBus {
     #[dbus_method("AudioDisconnect")]
     fn audio_disconnect(&mut self, address: String) {
         dbus_generated!()
+    }
+}
+
+pub(crate) struct BluetoothQADBusRPC {
+    client_proxy: ClientDBusProxy,
+}
+
+pub(crate) struct BluetoothQADBus {
+    client_proxy: ClientDBusProxy,
+    pub rpc: BluetoothQADBusRPC,
+}
+
+impl BluetoothQADBus {
+    fn make_client_proxy(conn: Arc<SyncConnection>, index: i32) -> ClientDBusProxy {
+        ClientDBusProxy::new(
+            conn.clone(),
+            String::from("org.chromium.bluetooth"),
+            make_object_path(index, "qa"),
+            String::from("org.chromium.bluetooth.BluetoothQA"),
+        )
+    }
+
+    pub(crate) fn new(conn: Arc<SyncConnection>, index: i32) -> BluetoothQADBus {
+        BluetoothQADBus {
+            client_proxy: Self::make_client_proxy(conn.clone(), index),
+            rpc: BluetoothQADBusRPC { client_proxy: Self::make_client_proxy(conn.clone(), index) },
+        }
+    }
+}
+
+#[generate_dbus_interface_client(BluetoothQADBusRPC)]
+impl IBluetoothQA for BluetoothQADBus {
+    #[dbus_method("RegisterQACallback")]
+    fn register_qa_callback(&mut self, callback: Box<dyn IBluetoothQACallback + Send>) -> u32 {
+        dbus_generated!()
+    }
+    #[dbus_method("UnregisterQACallback")]
+    fn unregister_qa_callback(&mut self, callback_id: u32) -> bool {
+        dbus_generated!()
+    }
+    #[dbus_method("AddMediaPlayer")]
+    fn add_media_player(&self, name: String, browsing_supported: bool) {
+        dbus_generated!()
+    }
+    #[dbus_method("RfcommSendMsc")]
+    fn rfcomm_send_msc(&self, dlci: u8, addr: String) {
+        dbus_generated!()
+    }
+    #[dbus_method("FetchDiscoverableMode")]
+    fn fetch_discoverable_mode(&self) {
+        dbus_generated!()
+    }
+    #[dbus_method("FetchConnectable")]
+    fn fetch_connectable(&self) {
+        dbus_generated!()
+    }
+    #[dbus_method("SetConnectable")]
+    fn set_connectable(&self, mode: bool) {
+        dbus_generated!()
+    }
+    #[dbus_method("FetchAlias")]
+    fn fetch_alias(&self) {
+        dbus_generated!()
+    }
+    #[dbus_method("GetModalias")]
+    fn get_modalias(&self) -> String {
+        dbus_generated!()
+    }
+    #[dbus_method("GetHIDReport")]
+    fn get_hid_report(&self, addr: String, report_type: BthhReportType, report_id: u8) {
+        dbus_generated!()
+    }
+    #[dbus_method("SetHIDReport")]
+    fn set_hid_report(&self, addr: String, report_type: BthhReportType, report: String) {
+        dbus_generated!()
+    }
+    #[dbus_method("SendHIDData")]
+    fn send_hid_data(&self, addr: String, data: String) {
+        dbus_generated!()
+    }
+}
+
+struct IBluetoothQACallbackDBus {}
+
+impl RPCProxy for IBluetoothQACallbackDBus {}
+
+#[generate_dbus_exporter(export_qa_callback_dbus_intf, "org.chromium.bluetooth.QACallback")]
+impl IBluetoothQACallback for IBluetoothQACallbackDBus {
+    #[dbus_method("OnFetchDiscoverableModeComplete")]
+    fn on_fetch_discoverable_mode_completed(&mut self, disc_mode: BtDiscMode) {
+        dbus_generated!()
+    }
+    #[dbus_method("OnFetchConnectableComplete")]
+    fn on_fetch_connectable_completed(&mut self, connectable: bool) {
+        dbus_generated!()
+    }
+    #[dbus_method("OnSetConnectableComplete")]
+    fn on_set_connectable_completed(&mut self, succeed: bool) {
+        dbus_generated!()
+    }
+    #[dbus_method("OnFetchAliasComplete")]
+    fn on_fetch_alias_completed(&mut self, alias: String) {
+        dbus_generated!()
+    }
+    #[dbus_method("OnGetHIDReportComplete")]
+    fn on_get_hid_report_completed(&mut self, status: BtStatus) {
+        dbus_generated!()
+    }
+    #[dbus_method("OnSetHIDReportComplete")]
+    fn on_set_hid_report_completed(&mut self, status: BtStatus) {
+        dbus_generated!()
+    }
+    #[dbus_method("OnSendHIDDataComplete")]
+    fn on_send_hid_data_completed(&mut self, status: BtStatus) {
+        dbus_generated!()
+    }
+}
+
+pub(crate) struct BluetoothMediaDBusRPC {
+    client_proxy: ClientDBusProxy,
+}
+
+pub(crate) struct BluetoothMediaDBus {
+    client_proxy: ClientDBusProxy,
+    pub rpc: BluetoothMediaDBusRPC,
+}
+
+impl BluetoothMediaDBus {
+    fn make_client_proxy(conn: Arc<SyncConnection>, index: i32) -> ClientDBusProxy {
+        ClientDBusProxy::new(
+            conn.clone(),
+            String::from("org.chromium.bluetooth"),
+            make_object_path(index, "media"),
+            String::from("org.chromium.bluetooth.BluetoothMedia"),
+        )
+    }
+
+    pub(crate) fn new(conn: Arc<SyncConnection>, index: i32) -> BluetoothMediaDBus {
+        BluetoothMediaDBus {
+            client_proxy: Self::make_client_proxy(conn.clone(), index),
+            rpc: BluetoothMediaDBusRPC {
+                client_proxy: Self::make_client_proxy(conn.clone(), index),
+            },
+        }
+    }
+}
+
+#[generate_dbus_interface_client(BluetoothMediaDBusRPC)]
+impl IBluetoothMedia for BluetoothMediaDBus {
+    #[dbus_method("RegisterCallback")]
+    fn register_callback(&mut self, callback: Box<dyn IBluetoothMediaCallback + Send>) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("Initialize")]
+    fn initialize(&mut self) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("Cleanup")]
+    fn cleanup(&mut self) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("Connect")]
+    fn connect(&mut self, address: String) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("Disconnect")]
+    fn disconnect(&mut self, address: String) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("SetActiveDevice")]
+    fn set_active_device(&mut self, address: String) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("ResetActiveDevice")]
+    fn reset_active_device(&mut self) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("SetHfpActiveDevice")]
+    fn set_hfp_active_device(&mut self, address: String) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("SetAudioConfig")]
+    fn set_audio_config(
+        &mut self,
+        sample_rate: i32,
+        bits_per_sample: i32,
+        channel_mode: i32,
+    ) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("SetVolume")]
+    fn set_volume(&mut self, volume: u8) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("SetHfpVolume")]
+    fn set_hfp_volume(&mut self, volume: u8, address: String) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("StartAudioRequest")]
+    fn start_audio_request(&mut self) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("GetA2dpAudioStarted")]
+    fn get_a2dp_audio_started(&mut self, address: String) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("StopAudioRequest")]
+    fn stop_audio_request(&mut self) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("StartScoCall")]
+    fn start_sco_call(
+        &mut self,
+        address: String,
+        sco_offload: bool,
+        disabled_codecs: HfpCodecCapability,
+    ) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("GetHfpAudioFinalCodecs")]
+    fn get_hfp_audio_final_codecs(&mut self, address: String) -> u8 {
+        dbus_generated!()
+    }
+
+    #[dbus_method("StopScoCall")]
+    fn stop_sco_call(&mut self, address: String) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("GetPresentationPosition")]
+    fn get_presentation_position(&mut self) -> PresentationPosition {
+        dbus_generated!()
+    }
+
+    // Temporary AVRCP-related meida DBUS APIs. The following APIs intercept between Chrome CRAS
+    // and cras_server as an expedited solution for AVRCP implementation. The APIs are subject to
+    // change when retiring Chrome CRAS.
+    #[dbus_method("SetPlayerPlaybackStatus")]
+    fn set_player_playback_status(&mut self, status: String) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("SetPlayerPosition")]
+    fn set_player_position(&mut self, position_us: i64) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("SetPlayerMetadata")]
+    fn set_player_metadata(&mut self, metadata: PlayerMetadata) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("TriggerDebugDump")]
+    fn trigger_debug_dump(&mut self) {
+        dbus_generated!()
+    }
+}
+
+struct IBluetoothMediaCallbackDBus {}
+
+impl RPCProxy for IBluetoothMediaCallbackDBus {}
+
+#[generate_dbus_exporter(
+    export_bluetooth_media_callback_dbus_intf,
+    "org.chromium.bluetooth.BluetoothMediaCallback"
+)]
+impl IBluetoothMediaCallback for IBluetoothMediaCallbackDBus {
+    #[dbus_method("OnBluetoothAudioDeviceAdded")]
+    fn on_bluetooth_audio_device_added(&mut self, device: BluetoothAudioDevice) {}
+
+    #[dbus_method("OnBluetoothAudioDeviceRemoved")]
+    fn on_bluetooth_audio_device_removed(&mut self, addr: String) {}
+
+    #[dbus_method("OnAbsoluteVolumeSupportedChanged")]
+    fn on_absolute_volume_supported_changed(&mut self, supported: bool) {}
+
+    #[dbus_method("OnAbsoluteVolumeChanged")]
+    fn on_absolute_volume_changed(&mut self, volume: u8) {}
+
+    #[dbus_method("OnHfpVolumeChanged")]
+    fn on_hfp_volume_changed(&mut self, volume: u8, addr: String) {}
+
+    #[dbus_method("OnHfpAudioDisconnected")]
+    fn on_hfp_audio_disconnected(&mut self, addr: String) {}
+
+    #[dbus_method("OnHfpDebugDump")]
+    fn on_hfp_debug_dump(
+        &mut self,
+        active: bool,
+        wbs: bool,
+        total_num_decoded_frames: i32,
+        pkt_loss_ratio: f64,
+        begin_ts: u64,
+        end_ts: u64,
+        pkt_status_in_hex: String,
+        pkt_status_in_binary: String,
+    ) {
     }
 }

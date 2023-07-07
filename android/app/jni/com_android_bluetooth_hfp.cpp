@@ -37,6 +37,7 @@ static jmethodID method_onDialCall;
 static jmethodID method_onSendDtmf;
 static jmethodID method_onNoiseReductionEnable;
 static jmethodID method_onWBS;
+static jmethodID method_onSWB;
 static jmethodID method_onAtChld;
 static jmethodID method_onAtCnum;
 static jmethodID method_onAtCind;
@@ -236,6 +237,19 @@ class JniHeadsetCallbacks : bluetooth::headset::Callbacks {
                                  addr.get());
   }
 
+  void SwbCallback(bluetooth::headset::bthf_swb_config_t swb_config,
+                   RawAddress* bd_addr) override {
+    std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
+    CallbackEnv sCallbackEnv(__func__);
+    if (!sCallbackEnv.valid() || !mCallbacksObj) return;
+
+    ScopedLocalRef<jbyteArray> addr(sCallbackEnv.get(), marshall_bda(bd_addr));
+    if (addr.get() == nullptr) return;
+
+    sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onSWB, swb_config,
+                                 addr.get());
+  }
+
   void AtChldCallback(bluetooth::headset::bthf_chld_type_t chld,
                       RawAddress* bd_addr) override {
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
@@ -395,6 +409,13 @@ class JniHeadsetCallbacks : bluetooth::headset::Callbacks {
     sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onAtBia, service, roam,
                                  signal, battery, addr.get());
   }
+
+  void DebugDumpCallback(bool active, bool wbs, int total_num_decoded_frames,
+                         double pkt_loss_ratio, uint64_t begin_ts,
+                         uint64_t end_ts, const char* pkt_status_in_hex,
+                         const char* pkt_status_in_binary) override {
+    ALOGE("Not implemented and shouldn't be called");
+  }
 };
 
 static void classInitNative(JNIEnv* env, jclass clazz) {
@@ -414,6 +435,7 @@ static void classInitNative(JNIEnv* env, jclass clazz) {
   method_onNoiseReductionEnable =
       env->GetMethodID(clazz, "onNoiseReductionEnable", "(Z[B)V");
   method_onWBS = env->GetMethodID(clazz, "onWBS", "(I[B)V");
+  method_onSWB = env->GetMethodID(clazz, "onSWB", "(I[B)V");
   method_onAtChld = env->GetMethodID(clazz, "onAtChld", "(I[B)V");
   method_onAtCnum = env->GetMethodID(clazz, "onAtCnum", "([B)V");
   method_onAtCind = env->GetMethodID(clazz, "onAtCind", "([B)V");
@@ -561,7 +583,7 @@ static jboolean connectAudioNative(JNIEnv* env, jobject object,
   ALOGI("%s: device %s", __func__,
         ADDRESS_TO_LOGGABLE_CSTR(*((RawAddress*)addr)));
   bt_status_t status =
-      sBluetoothHfpInterface->ConnectAudio((RawAddress*)addr, false);
+      sBluetoothHfpInterface->ConnectAudio((RawAddress*)addr, 0);
   if (status != BT_STATUS_SUCCESS) {
     ALOGE("Failed HF audio connection, status: %d", status);
   }

@@ -33,6 +33,7 @@ enum codec : uint64_t {
   CVSD = 1 << 0,
   MSBC_TRANSPARENT = 1 << 1,
   MSBC = 1 << 2,
+  LC3 = 1 << 3,
 };
 
 struct bt_codec {
@@ -55,6 +56,8 @@ constexpr inline int esco_coding_to_codec(esco_coding_format_t esco_coding) {
       return codec::MSBC_TRANSPARENT;
     case ESCO_CODING_FORMAT_MSBC:
       return codec::MSBC;
+    case ESCO_CODING_FORMAT_LC3:
+      return codec::LC3;
 
     // Default to CVSD encoding if unknown format.
     case ESCO_CODING_FORMAT_CVSD:
@@ -69,6 +72,9 @@ void init();
 // Check if wideband speech is supported on local device.
 bool get_wbs_supported();
 
+// Check if super wideband speech is supported on local device.
+bool get_swb_supported();
+
 // Checks the details of the codecs (specified as a bitmask of enum codec).
 bt_codecs get_codec_capabilities(uint64_t codecs);
 
@@ -82,7 +88,7 @@ bool get_offload_enabled();
 bool enable_offload(bool enable);
 
 // Notify the codec datapath to lower layer for offload mode.
-void set_codec_datapath(esco_coding_format_t coding_format);
+void set_codec_datapath(int codec_uuid);
 
 // Get the maximum supported packet size from the lower layer.
 int get_packet_size(int codec);

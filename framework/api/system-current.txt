@@ -66,6 +66,7 @@ package android.bluetooth {
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public long getDiscoveryEndMillis();
     method @Nullable @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public android.bluetooth.le.DistanceMeasurementManager getDistanceMeasurementManager();
     method @NonNull @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public java.util.List<android.bluetooth.BluetoothDevice> getMostRecentlyConnectedDevices();
+    method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public int getOffloadedTransportDiscoveryDataScanSupported();
     method @NonNull @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public android.os.Bundle getPreferredAudioProfiles(@NonNull android.bluetooth.BluetoothDevice);
     method @NonNull @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public java.util.List<java.lang.Integer> getSupportedProfiles();
     method @NonNull @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public java.util.List<android.os.ParcelUuid> getUuidsList();
@@ -75,6 +76,7 @@ package android.bluetooth {
     method @NonNull public static String nameForState(int);
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public int notifyActiveDeviceChangeApplied(@NonNull android.bluetooth.BluetoothDevice);
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public boolean registerBluetoothConnectionCallback(@NonNull java.util.concurrent.Executor, @NonNull android.bluetooth.BluetoothAdapter.BluetoothConnectionCallback);
+    method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public int registerBluetoothQualityReportReadyCallback(@NonNull java.util.concurrent.Executor, @NonNull android.bluetooth.BluetoothAdapter.BluetoothQualityReportReadyCallback);
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public int registerPreferredAudioProfilesChangedCallback(@NonNull java.util.concurrent.Executor, @NonNull android.bluetooth.BluetoothAdapter.PreferredAudioProfilesChangedCallback);
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED, android.Manifest.permission.MODIFY_PHONE_STATE}) public boolean removeActiveDevice(int);
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public boolean removeOnMetadataChangedListener(@NonNull android.bluetooth.BluetoothDevice, @NonNull android.bluetooth.BluetoothAdapter.OnMetadataChangedListener);
@@ -88,6 +90,7 @@ package android.bluetooth {
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public int startRfcommServer(@NonNull String, @NonNull java.util.UUID, @NonNull android.app.PendingIntent);
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public int stopRfcommServer(@NonNull java.util.UUID);
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public boolean unregisterBluetoothConnectionCallback(@NonNull android.bluetooth.BluetoothAdapter.BluetoothConnectionCallback);
+    method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public int unregisterBluetoothQualityReportReadyCallback(@NonNull android.bluetooth.BluetoothAdapter.BluetoothQualityReportReadyCallback);
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public int unregisterPreferredAudioProfilesChangedCallback(@NonNull android.bluetooth.BluetoothAdapter.PreferredAudioProfilesChangedCallback);
     field public static final String ACTION_BLE_STATE_CHANGED = "android.bluetooth.adapter.action.BLE_STATE_CHANGED";
     field public static final String ACTION_REQUEST_BLE_SCAN_ALWAYS_AVAILABLE = "android.bluetooth.adapter.action.REQUEST_BLE_SCAN_ALWAYS_AVAILABLE";
@@ -111,6 +114,10 @@ package android.bluetooth {
     method public void onDeviceDisconnected(@NonNull android.bluetooth.BluetoothDevice, int);
   }
 
+  public static interface BluetoothAdapter.BluetoothQualityReportReadyCallback {
+    method public void onBluetoothQualityReportReady(@NonNull android.bluetooth.BluetoothDevice, @NonNull android.bluetooth.BluetoothQualityReport, int);
+  }
+
   public static interface BluetoothAdapter.OnBluetoothActivityEnergyInfoCallback {
     method public void onBluetoothActivityEnergyInfoAvailable(@NonNull android.bluetooth.BluetoothActivityEnergyInfo);
     method public void onBluetoothActivityEnergyInfoError(int);
@@ -127,6 +134,12 @@ package android.bluetooth {
 
   public static interface BluetoothAdapter.PreferredAudioProfilesChangedCallback {
     method public void onPreferredAudioProfilesChanged(@NonNull android.bluetooth.BluetoothDevice, @NonNull android.os.Bundle, int);
+  }
+
+  public class BluetoothAssignedNumbers.OrganizationId {
+    field public static final int BLUETOOTH_SIG = 1; // 0x1
+    field public static final int WIFI_ALLIANCE_NEIGHBOR_AWARENESS_NETWORKING = 2; // 0x2
+    field public static final int WIFI_ALLIANCE_SERVICE_ADVERTISEMENT = 3; // 0x3
   }
 
   public final class BluetoothClass implements android.os.Parcelable {
@@ -164,10 +177,10 @@ package android.bluetooth {
     method @NonNull @RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED) public String getAnonymizedAddress();
     method @IntRange(from=0xffffff9c, to=100) @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public int getBatteryLevel();
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public int getConnectionHandle(int);
-    method @Nullable @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public String getCreateBondCaller();
     method @Nullable @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public String getIdentityAddress();
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public int getMessageAccessPermission();
     method @Nullable @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public byte[] getMetadata(int);
+    method @Nullable @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public String getPackageNameOfBondingApplication();
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public int getPhonebookAccessPermission();
     method @Nullable @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public android.bluetooth.BluetoothSinkAudioPolicy getRequestedAudioPolicyAsSink();
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public int getSimAccessPermission();
@@ -755,6 +768,128 @@ package android.bluetooth {
     field public static final int VOLUME_CONTROL = 23; // 0x17
   }
 
+  public final class BluetoothQualityReport implements android.os.Parcelable {
+    method @Nullable public android.bluetooth.BluetoothClass getBluetoothClass();
+    method @Nullable public android.bluetooth.BluetoothQualityReport.BqrCommon getBqrCommon();
+    method @Nullable public android.os.Parcelable getBqrEvent();
+    method public int getLmpSubVersion();
+    method public int getLmpVersion();
+    method public int getManufacturerId();
+    method public int getQualityReportId();
+    method @Nullable public String getRemoteAddress();
+    method @Nullable public String getRemoteName();
+    method @NonNull public static String qualityReportIdToString(int);
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.BluetoothQualityReport> CREATOR;
+    field public static final int QUALITY_REPORT_ID_A2DP_CHOPPY = 3; // 0x3
+    field public static final int QUALITY_REPORT_ID_APPROACH_LSTO = 2; // 0x2
+    field public static final int QUALITY_REPORT_ID_CONN_FAIL = 8; // 0x8
+    field public static final int QUALITY_REPORT_ID_MONITOR = 1; // 0x1
+    field public static final int QUALITY_REPORT_ID_SCO_CHOPPY = 4; // 0x4
+  }
+
+  public static final class BluetoothQualityReport.BqrCommon implements android.os.Parcelable {
+    method @NonNull public static String connectionRoleToString(int);
+    method public int getAfhSelectUnidealChannelCount();
+    method public int getCalFailedItemCount();
+    method public int getConnectionHandle();
+    method public int getConnectionRole();
+    method public long getFlowOffCount();
+    method public long getLastFlowOnTimestamp();
+    method public long getLastTxAckTimestamp();
+    method public int getLsto();
+    method public long getNakCount();
+    method public long getNoRxCount();
+    method public long getOverflowCount();
+    method public int getPacketType();
+    method public long getPiconetClock();
+    method public long getRetransmissionCount();
+    method public int getRssi();
+    method public int getSnr();
+    method public int getTxPowerLevel();
+    method public long getUnderflowCount();
+    method public int getUnusedAfhChannelCount();
+    method @Nullable public static String packetTypeToString(int);
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field public static final int CONNECTION_ROLE_CENTRAL = 0; // 0x0
+    field public static final int CONNECTION_ROLE_PERIPHERAL = 1; // 0x1
+    field @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.BluetoothQualityReport.BqrCommon> CREATOR;
+  }
+
+  public static final class BluetoothQualityReport.BqrConnectFail implements android.os.Parcelable {
+    method @NonNull public static String connectFailIdToString(int);
+    method public int getFailReason();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field public static final int CONNECT_FAIL_ID_ACL_ALREADY_EXIST = 11; // 0xb
+    field public static final int CONNECT_FAIL_ID_CONNECTION_TIMEOUT = 8; // 0x8
+    field public static final int CONNECT_FAIL_ID_CONTROLLER_BUSY = 58; // 0x3a
+    field public static final int CONNECT_FAIL_ID_NO_ERROR = 0; // 0x0
+    field public static final int CONNECT_FAIL_ID_PAGE_TIMEOUT = 4; // 0x4
+    field @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.BluetoothQualityReport.BqrConnectFail> CREATOR;
+  }
+
+  public static final class BluetoothQualityReport.BqrVsA2dpChoppy implements android.os.Parcelable {
+    method public int getAclTxQueueLength();
+    method public long getArrivalTime();
+    method public int getGlitchCount();
+    method public int getLinkQuality();
+    method public int getRxCxmDenials();
+    method public long getScheduleTime();
+    method public int getTxCxmDenials();
+    method @Nullable public static String linkQualityToString(int);
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.BluetoothQualityReport.BqrVsA2dpChoppy> CREATOR;
+  }
+
+  public static final class BluetoothQualityReport.BqrVsLsto implements android.os.Parcelable {
+    method @Nullable public static String connStateToString(int);
+    method public long getBasebandStats();
+    method public int getConnState();
+    method public int getCxmDenials();
+    method public long getLastTxAckTimestamp();
+    method public long getNativeClock();
+    method public int getRfLoss();
+    method public long getSlotsUsed();
+    method public int getTxSkipped();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.BluetoothQualityReport.BqrVsLsto> CREATOR;
+  }
+
+  public static final class BluetoothQualityReport.BqrVsScoChoppy implements android.os.Parcelable {
+    method @Nullable public static String airFormatToString(int);
+    method public int getAirFormat();
+    method public int getGlitchCount();
+    method public int getGoodRxFrameCount();
+    method public int getInstanceCount();
+    method public int getIntervalEsco();
+    method public int getLateDispatch();
+    method public int getLpaIntrMiss();
+    method public int getMicIntrMiss();
+    method public int getMissedInstanceCount();
+    method public int getPlcDiscardCount();
+    method public int getPlcFillCount();
+    method public int getRxCxmDenials();
+    method public int getRxRetransmitSlotCount();
+    method public int getSprIntrMiss();
+    method public int getTxAbortCount();
+    method public int getTxCxmDenials();
+    method public int getTxRetransmitSlotCount();
+    method public int getWindowEsco();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.BluetoothQualityReport.BqrVsScoChoppy> CREATOR;
+  }
+
+  public static final class BluetoothQualityReport.Builder {
+    ctor public BluetoothQualityReport.Builder(@NonNull byte[]);
+    method @NonNull public android.bluetooth.BluetoothQualityReport build();
+    method @NonNull public android.bluetooth.BluetoothQualityReport.Builder setBluetoothClass(@Nullable android.bluetooth.BluetoothClass);
+    method @NonNull public android.bluetooth.BluetoothQualityReport.Builder setLmpSubVersion(int);
+    method @NonNull public android.bluetooth.BluetoothQualityReport.Builder setLmpVersion(int);
+    method @NonNull public android.bluetooth.BluetoothQualityReport.Builder setManufacturerId(int);
+    method @NonNull public android.bluetooth.BluetoothQualityReport.Builder setRemoteAddress(@Nullable String);
+    method @NonNull public android.bluetooth.BluetoothQualityReport.Builder setRemoteName(@Nullable String);
+  }
+
   public final class BluetoothSap implements java.lang.AutoCloseable android.bluetooth.BluetoothProfile {
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public int getConnectionPolicy(@NonNull android.bluetooth.BluetoothDevice);
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public boolean setConnectionPolicy(@NonNull android.bluetooth.BluetoothDevice, int);
@@ -783,7 +918,6 @@ package android.bluetooth {
 
   public final class BluetoothStatusCodes {
     field public static final int ALLOWED = 400; // 0x190
-    field public static final int DISTANCE_MEASUREMENT_ERROR_INTERNAL = 1301; // 0x515
     field public static final int ERROR_ALREADY_IN_TARGET_STATE = 26; // 0x1a
     field public static final int ERROR_ANOTHER_ACTIVE_OOB_REQUEST = 1000; // 0x3e8
     field public static final int ERROR_ANOTHER_ACTIVE_REQUEST = 29; // 0x1d
@@ -796,6 +930,7 @@ package android.bluetooth {
     field public static final int ERROR_CSIP_GROUP_LOCKED_BY_OTHER = 1208; // 0x4b8
     field public static final int ERROR_CSIP_INVALID_GROUP_ID = 1207; // 0x4b7
     field public static final int ERROR_CSIP_LOCKED_GROUP_MEMBER_LOST = 1209; // 0x4b9
+    field public static final int ERROR_DISTANCE_MEASUREMENT_INTERNAL = 1301; // 0x515
     field public static final int ERROR_HAP_INVALID_PRESET_INDEX = 1211; // 0x4bb
     field public static final int ERROR_HAP_PRESET_NAME_TOO_LONG = 1210; // 0x4ba
     field public static final int ERROR_HARDWARE_GENERIC = 20; // 0x14
@@ -1023,12 +1158,12 @@ package android.bluetooth.le {
   }
 
   public final class DistanceMeasurementParams implements android.os.Parcelable {
-    method public static int getDefaultDuration();
+    method public static int getDefaultDurationSeconds();
     method @NonNull public android.bluetooth.BluetoothDevice getDevice();
-    method public int getDuration();
+    method @IntRange(from=0) public int getDurationSeconds();
     method public int getFrequency();
-    method public static int getMaxDuration();
-    method public int getMethod();
+    method public static int getMaxDurationSeconds();
+    method public int getMethodId();
     field @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.le.DistanceMeasurementParams> CREATOR;
     field public static final int REPORT_FREQUENCY_HIGH = 2; // 0x2
     field public static final int REPORT_FREQUENCY_LOW = 0; // 0x0
@@ -1038,9 +1173,9 @@ package android.bluetooth.le {
   public static final class DistanceMeasurementParams.Builder {
     ctor public DistanceMeasurementParams.Builder(@NonNull android.bluetooth.BluetoothDevice);
     method @NonNull public android.bluetooth.le.DistanceMeasurementParams build();
-    method @NonNull public android.bluetooth.le.DistanceMeasurementParams.Builder setDuration(@IntRange(from=0, to=3600) int);
+    method @NonNull public android.bluetooth.le.DistanceMeasurementParams.Builder setDurationSeconds(@IntRange(from=0) int);
     method @NonNull public android.bluetooth.le.DistanceMeasurementParams.Builder setFrequency(int);
-    method @NonNull public android.bluetooth.le.DistanceMeasurementParams.Builder setMethod(int);
+    method @NonNull public android.bluetooth.le.DistanceMeasurementParams.Builder setMethodId(int);
   }
 
   public final class DistanceMeasurementResult implements android.os.Parcelable {
@@ -1049,7 +1184,7 @@ package android.bluetooth.le {
     method public double getErrorAltitudeAngle();
     method public double getErrorAzimuthAngle();
     method @FloatRange(from=0.0) public double getErrorMeters();
-    method public double getMeters();
+    method public double getResultMeters();
     field @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.le.DistanceMeasurementResult> CREATOR;
   }
 
@@ -1086,12 +1221,18 @@ package android.bluetooth.le {
   public final class ScanFilter implements android.os.Parcelable {
     method public int getAddressType();
     method @Nullable public byte[] getIrk();
+    method @Nullable public android.bluetooth.le.TransportBlockFilter getTransportBlockFilter();
   }
 
   public static final class ScanFilter.Builder {
     method @NonNull public android.bluetooth.le.ScanFilter.Builder setDeviceAddress(@NonNull String, int);
     method @NonNull public android.bluetooth.le.ScanFilter.Builder setDeviceAddress(@NonNull String, int, @NonNull byte[]);
+    method @NonNull public android.bluetooth.le.ScanFilter.Builder setTransportBlockFilter(@NonNull android.bluetooth.le.TransportBlockFilter);
     field public static final int LEN_IRK_OCTETS = 16; // 0x10
+  }
+
+  public final class ScanRecord {
+    method @Nullable public android.bluetooth.le.TransportDiscoveryData getTransportDiscoveryData();
   }
 
   public final class ScanSettings implements android.os.Parcelable {
@@ -1102,6 +1243,26 @@ package android.bluetooth.le {
 
   public static final class ScanSettings.Builder {
     method public android.bluetooth.le.ScanSettings.Builder setScanResultType(int);
+  }
+
+  public final class TransportBlockFilter implements android.os.Parcelable {
+    method public int getOrgId();
+    method public int getTdsFlags();
+    method public int getTdsFlagsMask();
+    method @Nullable public byte[] getTransportData();
+    method @Nullable public byte[] getTransportDataMask();
+    method @Nullable public byte[] getWifiNanHash();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.le.TransportBlockFilter> CREATOR;
+    field public static final int WIFI_NAN_HASH_LENGTH_BYTES = 8; // 0x8
+  }
+
+  public static final class TransportBlockFilter.Builder {
+    ctor public TransportBlockFilter.Builder(int);
+    method @NonNull public android.bluetooth.le.TransportBlockFilter build();
+    method @NonNull public android.bluetooth.le.TransportBlockFilter.Builder setTdsFlags(int, int);
+    method @NonNull public android.bluetooth.le.TransportBlockFilter.Builder setTransportData(@NonNull byte[], @NonNull byte[]);
+    method @NonNull public android.bluetooth.le.TransportBlockFilter.Builder setWifiNanHash(@NonNull byte[]);
   }
 
   @Deprecated public final class TruncatedFilter {
