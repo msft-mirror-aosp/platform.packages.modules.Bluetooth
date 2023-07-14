@@ -28,7 +28,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHapClient;
@@ -974,11 +973,8 @@ public class ActiveDeviceManagerTest {
         mDeviceConnectionStack.add(device);
         mMostRecentDevice = device;
 
-        Intent intent = new Intent(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED);
-        intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
-        intent.putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, BluetoothProfile.STATE_DISCONNECTED);
-        intent.putExtra(BluetoothProfile.EXTRA_STATE, BluetoothProfile.STATE_CONNECTED);
-        mActiveDeviceManager.getBroadcastReceiver().onReceive(mContext, intent);
+        mActiveDeviceManager.a2dpConnectionStateChanged(
+                device, BluetoothProfile.STATE_DISCONNECTED, BluetoothProfile.STATE_CONNECTED);
     }
 
     /**
@@ -989,11 +985,8 @@ public class ActiveDeviceManagerTest {
         mMostRecentDevice = (mDeviceConnectionStack.size() > 0)
                 ? mDeviceConnectionStack.get(mDeviceConnectionStack.size() - 1) : null;
 
-        Intent intent = new Intent(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED);
-        intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
-        intent.putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, BluetoothProfile.STATE_CONNECTED);
-        intent.putExtra(BluetoothProfile.EXTRA_STATE, BluetoothProfile.STATE_DISCONNECTED);
-        mActiveDeviceManager.getBroadcastReceiver().onReceive(mContext, intent);
+        mActiveDeviceManager.a2dpConnectionStateChanged(
+                device, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_DISCONNECTED);
     }
 
     /**
@@ -1004,9 +997,7 @@ public class ActiveDeviceManagerTest {
         mDeviceConnectionStack.add(device);
         mMostRecentDevice = device;
 
-        Intent intent = new Intent(BluetoothA2dp.ACTION_ACTIVE_DEVICE_CHANGED);
-        intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
-        mActiveDeviceManager.getBroadcastReceiver().onReceive(mContext, intent);
+        mActiveDeviceManager.a2dpActiveStateChanged(device);
     }
 
     /**
