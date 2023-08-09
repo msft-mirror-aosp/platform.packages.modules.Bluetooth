@@ -595,7 +595,7 @@ public class HeadsetStateMachine extends StateMachine {
 
                 BluetoothStatsLog.write(
                         BluetoothStatsLog.BLUETOOTH_PROFILE_CONNECTION_ATTEMPTED,
-                        BluetoothProfile.A2DP,
+                        BluetoothProfile.HEADSET,
                         result,
                         mPrevState.getConnectionStateInt(),
                         BluetoothProfile.STATE_DISCONNECTED,
