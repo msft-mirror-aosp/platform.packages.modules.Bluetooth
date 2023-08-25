@@ -97,7 +97,7 @@ public class HeadsetClientStateMachineTest {
     @Mock
     private AudioManager mAudioManager;
 
-    private NativeInterface mNativeInterface;
+    @Mock private NativeInterface mNativeInterface;
 
     private static final int STANDARD_WAIT_MILLIS = 1000;
     private static final int QUERY_CURRENT_CALLS_WAIT_MILLIS = 2000;
@@ -122,7 +122,6 @@ public class HeadsetClientStateMachineTest {
                 .thenReturn(2000);
 
         TestUtils.setAdapterService(mAdapterService);
-        mNativeInterface = spy(NativeInterface.getInstance());
         doReturn(true).when(mNativeInterface).sendAndroidAt(anyObject(), anyString());
 
         // This line must be called to make sure relevant objects are initialized properly
@@ -1209,6 +1208,45 @@ public class HeadsetClientStateMachineTest {
         doReturn(false).when(mNativeInterface).sendAndroidAt(anyObject(), anyString());
         mHeadsetClientStateMachine.setAudioPolicy(dummyAudioPolicy);
         Assert.assertEquals(0, mHeadsetClientStateMachine.mQueuedActions.size());
+    }
+
+    @Test
+    public void testTestDefaultAudioPolicy() {
+        mHeadsetClientStateMachine.setForceSetAudioPolicyProperty(true);
+        initToConnectedState();
+
+        // Check if set default policy when Connecting -> Connected
+        // The testing sys prop is 0. It is ok to check if set audio policy while leaving connecting
+        // state.
+        verify(mNativeInterface, times(1))
+                .sendAndroidAt(mTestDevice, "+ANDROID=SINKAUDIOPOLICY,0,0,0");
+
+        // Check if won't set default policy when AudioOn -> Connected
+        // Transit to AudioOn
+        mHeadsetClientStateMachine.setAudioRouteAllowed(true);
+        StackEvent event = new StackEvent(StackEvent.EVENT_TYPE_AUDIO_STATE_CHANGED);
+        event.valueInt = HeadsetClientHalConstants.AUDIO_STATE_CONNECTED;
+        event.device = mTestDevice;
+        mHeadsetClientStateMachine.sendMessage(
+                mHeadsetClientStateMachine.obtainMessage(StackEvent.STACK_EVENT, event));
+        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+        Assert.assertThat(
+                mHeadsetClientStateMachine.getCurrentState(),
+                IsInstanceOf.instanceOf(HeadsetClientStateMachine.AudioOn.class));
+
+        // Back to Connected
+        event = new StackEvent(StackEvent.EVENT_TYPE_AUDIO_STATE_CHANGED);
+        event.valueInt = HeadsetClientHalConstants.AUDIO_STATE_DISCONNECTED;
+        event.device = mTestDevice;
+        mHeadsetClientStateMachine.sendMessage(
+                mHeadsetClientStateMachine.obtainMessage(StackEvent.STACK_EVENT, event));
+        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+        Assert.assertThat(
+                mHeadsetClientStateMachine.getCurrentState(),
+                IsInstanceOf.instanceOf(HeadsetClientStateMachine.Connected.class));
+
+        verify(mNativeInterface, times(1))
+                .sendAndroidAt(mTestDevice, "+ANDROID=SINKAUDIOPOLICY,0,0,0");
     }
 
     @Test

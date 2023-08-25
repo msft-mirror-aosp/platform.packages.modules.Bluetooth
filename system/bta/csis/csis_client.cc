@@ -780,9 +780,25 @@ class CsisClientImpl : public CsisClient {
       }
 
       csis_group->RemoveDevice(device->addr);
+
       if (csis_group->IsEmpty()) {
         RemoveCsisGroup(group_id);
+
+        /* Remove cached candidate devices for group */
+        devices_.erase(
+            std::remove_if(devices_.begin(), devices_.end(),
+                           [group_id](auto& dev) {
+                             if (dev->GetNumberOfCsisInstances() == 0 &&
+                                 dev->GetExpectedGroupIdMember() == group_id &&
+                                 dev->GetPairingSirkReadFlag() == false) {
+                               return true;
+                             }
+
+                             return false;
+                           }),
+            devices_.end());
       }
+
       device->RemoveCsisInstance(group_id);
     }
 
@@ -1264,8 +1280,6 @@ class CsisClientImpl : public CsisClient {
      * truly is member of group.
      */
     device.get()->SetExpectedGroupIdMember(group_id);
-    devices_.push_back(device);
-
     callbacks_->OnSetMemberAvailable(address,
                                      device.get()->GetExpectedGroupIdMember());
   }
@@ -1314,16 +1328,23 @@ class CsisClientImpl : public CsisClient {
     }
   }
 
-  void CsisActiveObserverSet(bool enable) {
+  static void csis_ad_type_filter_set(bool enable) {
     bool is_ad_type_filter_supported =
         bluetooth::shim::is_ad_type_filter_supported();
-    LOG_INFO("Group_id %d: enable: %d, is_ad_type_filter_supported: %d",
-             discovering_group_, enable, is_ad_type_filter_supported);
+
+    LOG_INFO("enable: %d, is_ad_type_filter_supported: %d", enable,
+             is_ad_type_filter_supported);
+
     if (is_ad_type_filter_supported) {
       bluetooth::shim::set_ad_type_rsi_filter(enable);
     } else {
       bluetooth::shim::set_empty_filter(enable);
     }
+  }
+
+  void CsisActiveObserverSet(bool enable) {
+    LOG_INFO("Group_id %d: enable: %d", discovering_group_, enable);
+    csis_ad_type_filter_set(enable);
 
     BTA_DmBleCsisObserve(
         enable, [](tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH* p_data) {
@@ -1335,6 +1356,7 @@ class CsisClientImpl : public CsisClient {
           if (event == BTA_DM_INQ_CMPL_EVT) {
             LOG(INFO) << "BLE observe complete. Num Resp: "
                       << static_cast<int>(p_data->inq_cmpl.num_resps);
+            csis_ad_type_filter_set(false);
             instance->OnCsisObserveCompleted();
             instance->CsisObserverSetBackground(true);
             return;
@@ -1913,6 +1935,12 @@ class CsisClientImpl : public CsisClient {
       return;
     }
 
+    /* verify encryption enabled */
+    if (!BTM_IsEncrypted(device->addr, BT_TRANSPORT_LE)) {
+      LOG_WARN("Device not yet bonded - waiting for encryption");
+      return;
+    }
+
     /* Ignore if our service data is valid (discovery initiated by someone
      * else?) */
     if (!device->is_gatt_service_valid) {
@@ -2116,22 +2144,39 @@ class CsisClientImpl : public CsisClient {
     }
   }
 
-  void ReadSirkValue(tGATT_STATUS status, const RawAddress& address,
-                     uint8_t sirk_type, Octet16& received_sirk) {
+  void SirkValueReadCompleteDuringPairing(tGATT_STATUS status,
+                                          const RawAddress& address,
+                                          uint8_t sirk_type,
+                                          Octet16& received_sirk) {
+    LOG_INFO("%s, status: 0x%02x", ADDRESS_TO_LOGGABLE_CSTR(address), status);
+
+    auto device = FindDeviceByAddress(address);
+    if (device == nullptr) {
+      LOG_ERROR("Unknown device %s", ADDRESS_TO_LOGGABLE_CSTR(address));
+      BTA_DmSirkConfirmDeviceReply(address, false);
+      return;
+    }
+
+    auto group_id_to_join = device->GetExpectedGroupIdMember();
+    device->SetPairingSirkReadFlag(false);
+
+    /* Verify group still exist, if not it means user forget the group and
+     * paring should be rejected.
+     */
+    auto csis_group = FindCsisGroup(group_id_to_join);
+    if (!csis_group) {
+      LOG_ERROR("Group %d removed during paring a set member",
+                group_id_to_join);
+      RemoveDevice(address);
+      BTA_DmSirkConfirmDeviceReply(address, false);
+      return;
+    }
+
     if (status != GATT_SUCCESS) {
       LOG_INFO("Invalid member, can't read SIRK (status: %02x)", status);
       BTA_DmSirkConfirmDeviceReply(address, false);
       return;
     }
-
-    auto device = FindDeviceByAddress(address);
-    if (device == nullptr) {
-      LOG_ERROR("Invalid SIRK value read for unknown device");
-      BTA_DmSirkConfirmDeviceReply(address, false);
-      return;
-    }
-
-    LOG_DEBUG("%s, status: 0x%02x", ADDRESS_TO_LOGGABLE_CSTR(address), status);
 
     /* Verify if sirk is not all zeros */
     Octet16 zero{};
@@ -2145,30 +2190,11 @@ class CsisClientImpl : public CsisClient {
     if (sirk_type == bluetooth::csis::kCsisSirkTypeEncrypted) {
       /* Decrypt encrypted SIRK */
       Octet16 sirk;
-      sdf(device->addr, received_sirk, sirk);
+      sdf(address, received_sirk, sirk);
       received_sirk = sirk;
     }
 
-    /* SIRK is ready. Add device to the group */
-
-    /* Now having SIRK we can decide if the device belongs to some group we
-     * know or this is a new group
-     */
-    auto csis_group = FindCsisGroup(device->GetExpectedGroupIdMember());
-    if (!csis_group) {
-      LOG_ERROR("Expected group with ID: %d, isn't cached",
-                device->GetExpectedGroupIdMember());
-      return;
-    }
-
-    /* Device will be added to group when upper layer decides */
-    RemoveDevice(device->addr);
-
-    if (csis_group->IsSirkBelongsToGroup(received_sirk)) {
-      LOG_INFO("Device %s, verified successfully by SIRK",
-               ADDRESS_TO_LOGGABLE_CSTR(address));
-      BTA_DmSirkConfirmDeviceReply(address, true);
-    } else {
+    if (!csis_group->IsSirkBelongsToGroup(received_sirk)) {
       /*
        * Joining member must join already existing group otherwise it means
        * that its SIRK is different. Device connection was triggered by RSI
@@ -2177,7 +2203,17 @@ class CsisClientImpl : public CsisClient {
       LOG_ERROR("Joining device %s, does not match any existig group",
                 ADDRESS_TO_LOGGABLE_CSTR(address));
       BTA_DmSirkConfirmDeviceReply(address, false);
+      return;
     }
+
+    LOG_INFO("Device %s, verified successfully by SIRK",
+             ADDRESS_TO_LOGGABLE_CSTR(address));
+    BTA_DmSirkConfirmDeviceReply(address, true);
+
+    /* It was temporary device and we can remove it. When upper layer
+     * decides to connect CSIS it will be added then
+     */
+    RemoveDevice(address);
   }
 
   void VerifySetMember(const RawAddress& address) {
@@ -2192,9 +2228,15 @@ class CsisClientImpl : public CsisClient {
       return;
     }
 
-    gatt_cl_read_sirk_req(address,
-                          base::BindOnce(&CsisClientImpl::ReadSirkValue,
-                                         base::Unretained(instance)));
+    if (!gatt_cl_read_sirk_req(
+            address,
+            base::BindOnce(&CsisClientImpl::SirkValueReadCompleteDuringPairing,
+                           weak_factory_.GetWeakPtr()))) {
+      LOG_ERROR("Could not read SIKR of %s", ADDRESS_TO_LOGGABLE_CSTR(address));
+      BTA_DmSirkConfirmDeviceReply(address, false);
+      return;
+    }
+    device->SetPairingSirkReadFlag(true);
   }
 
   uint8_t gatt_if_;
@@ -2203,6 +2245,8 @@ class CsisClientImpl : public CsisClient {
   std::list<std::shared_ptr<CsisGroup>> csis_groups_;
   DeviceGroups* dev_groups_;
   int discovering_group_ = bluetooth::groups::kGroupUnknown;
+
+  base::WeakPtrFactory<CsisClientImpl> weak_factory_{this};
 };
 
 class DeviceGroupsCallbacksImpl : public DeviceGroupsCallbacks {

@@ -31,7 +31,6 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadset;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
-import android.bluetooth.IBluetoothHeadset;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -50,15 +49,15 @@ import androidx.test.filters.MediumTest;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
+import com.android.bluetooth.btservice.ActiveDeviceManager;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.btservice.SilenceDeviceManager;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -84,9 +83,11 @@ import java.util.concurrent.LinkedBlockingQueue;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class HeadsetServiceAndStateMachineTest {
+    private static final String TAG = "HeadsetServiceAndStateMachineTest";
     private static final int ASYNC_CALL_TIMEOUT_MILLIS = 250;
     private static final int START_VR_TIMEOUT_MILLIS = 1000;
     private static final int START_VR_TIMEOUT_WAIT_MILLIS = START_VR_TIMEOUT_MILLIS * 3 / 2;
+    private static final int STATE_CHANGE_TIMEOUT_MILLIS = 1000;
     private static final int MAX_HEADSET_CONNECTIONS = 5;
     private static final ParcelUuid[] FAKE_HEADSET_UUID = {BluetoothUuid.HFP};
     private static final String TEST_PHONE_NUMBER = "1234567890";
@@ -97,7 +98,6 @@ public class HeadsetServiceAndStateMachineTest {
     private Context mTargetContext;
     private HeadsetService mHeadsetService;
     private BluetoothAdapter mAdapter;
-    private HeadsetNativeInterface mNativeInterface;
     private ArgumentCaptor<HeadsetStateMachine> mStateMachineArgument =
             ArgumentCaptor.forClass(HeadsetStateMachine.class);
     private HashSet<BluetoothDevice> mBondedDevices = new HashSet<>();
@@ -107,6 +107,8 @@ public class HeadsetServiceAndStateMachineTest {
     private HeadsetIntentReceiver mHeadsetIntentReceiver;
     private int mOriginalVrTimeoutMs = 5000;
     private PowerManager.WakeLock mVoiceRecognitionWakeLock;
+
+    @Mock private HeadsetNativeInterface mNativeInterface;
 
     private class HeadsetIntentReceiver extends BroadcastReceiver {
         @Override
@@ -150,6 +152,8 @@ public class HeadsetServiceAndStateMachineTest {
 
     @Spy private HeadsetObjectsFactory mObjectsFactory = HeadsetObjectsFactory.getInstance();
     @Mock private AdapterService mAdapterService;
+    @Mock private ActiveDeviceManager mActiveDeviceManager;
+    @Mock private SilenceDeviceManager mSilenceDeviceManager;
     @Mock private DatabaseManager mDatabaseManager;
     @Mock private HeadsetSystemInterface mSystemInterface;
     @Mock private AudioManager mAudioManager;
@@ -184,6 +188,8 @@ public class HeadsetServiceAndStateMachineTest {
                 mAdapterService).getBondedDevices();
         doReturn(new BluetoothSinkAudioPolicy.Builder().build()).when(mAdapterService)
                 .getRequestedAudioPolicyAsSink(any(BluetoothDevice.class));
+        doReturn(mActiveDeviceManager).when(mAdapterService).getActiveDeviceManager();
+        doReturn(mSilenceDeviceManager).when(mAdapterService).getSilenceDeviceManager();
         // Mock system interface
         doNothing().when(mSystemInterface).stop();
         doReturn(mPhoneState).when(mSystemInterface).getHeadsetPhoneState();
@@ -193,9 +199,6 @@ public class HeadsetServiceAndStateMachineTest {
         doReturn(mVoiceRecognitionWakeLock).when(mSystemInterface).getVoiceRecognitionWakeLock();
         doReturn(true).when(mSystemInterface).isCallIdle();
         // Mock methods in HeadsetNativeInterface
-        mNativeInterface = spy(HeadsetNativeInterface.getInstance());
-        doNothing().when(mNativeInterface).init(anyInt(), anyBoolean());
-        doNothing().when(mNativeInterface).cleanup();
         doReturn(true).when(mNativeInterface).connectHfp(any(BluetoothDevice.class));
         doReturn(true).when(mNativeInterface).disconnectHfp(any(BluetoothDevice.class));
         doReturn(true).when(mNativeInterface).connectAudio(any(BluetoothDevice.class));
@@ -470,7 +473,9 @@ public class HeadsetServiceAndStateMachineTest {
         BluetoothDevice activeDevice = connectedDevices.get(MAX_HEADSET_CONNECTIONS / 2);
         Assert.assertTrue(mHeadsetService.setActiveDevice(activeDevice));
         verify(mNativeInterface).setActiveDevice(activeDevice);
-        waitAndVerifyActiveDeviceChangedIntent(ASYNC_CALL_TIMEOUT_MILLIS, activeDevice);
+        verify(mActiveDeviceManager)
+                .profileActiveDeviceChanged(BluetoothProfile.HEADSET, activeDevice);
+        verify(mSilenceDeviceManager).hfpActiveDeviceChanged(activeDevice);
         Assert.assertEquals(activeDevice, mHeadsetService.getActiveDevice());
         // Start virtual call
         Assert.assertTrue(mHeadsetService.startScoUsingVirtualVoiceCall());
@@ -1176,11 +1181,17 @@ public class HeadsetServiceAndStateMachineTest {
         verify(mObjectsFactory).makeStateMachine(device,
                 mHeadsetService.getStateMachinesThreadLooper(), mHeadsetService, mAdapterService,
                 mNativeInterface, mSystemInterface);
-        // Wait ASYNC_CALL_TIMEOUT_MILLIS for state to settle, timing is also tested here and
-        // 250ms for processing two messages should be way more than enough. Anything that breaks
-        // this indicate some breakage in other part of Android OS
-        waitAndVerifyConnectionStateIntent(ASYNC_CALL_TIMEOUT_MILLIS, device,
-                BluetoothProfile.STATE_CONNECTING, BluetoothProfile.STATE_DISCONNECTED);
+        verify(mActiveDeviceManager, timeout(STATE_CHANGE_TIMEOUT_MILLIS))
+                .profileConnectionStateChanged(
+                        BluetoothProfile.HEADSET,
+                        device,
+                        BluetoothProfile.STATE_DISCONNECTED,
+                        BluetoothProfile.STATE_CONNECTING);
+        verify(mSilenceDeviceManager, timeout(STATE_CHANGE_TIMEOUT_MILLIS))
+                .hfpConnectionStateChanged(
+                        device,
+                        BluetoothProfile.STATE_DISCONNECTED,
+                        BluetoothProfile.STATE_CONNECTING);
         Assert.assertEquals(BluetoothProfile.STATE_CONNECTING,
                 mHeadsetService.getConnectionState(device));
         Assert.assertEquals(Collections.singletonList(device),
@@ -1191,11 +1202,17 @@ public class HeadsetServiceAndStateMachineTest {
                 new HeadsetStackEvent(HeadsetStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED,
                         HeadsetHalConstants.CONNECTION_STATE_SLC_CONNECTED, device);
         mHeadsetService.messageFromNative(slcConnectedEvent);
-        // Wait ASYNC_CALL_TIMEOUT_MILLIS for state to settle, timing is also tested here and
-        // 250ms for processing two messages should be way more than enough. Anything that breaks
-        // this indicate some breakage in other part of Android OS
-        waitAndVerifyConnectionStateIntent(ASYNC_CALL_TIMEOUT_MILLIS, device,
-                BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_CONNECTING);
+        verify(mActiveDeviceManager, timeout(STATE_CHANGE_TIMEOUT_MILLIS))
+                .profileConnectionStateChanged(
+                        BluetoothProfile.HEADSET,
+                        device,
+                        BluetoothProfile.STATE_CONNECTING,
+                        BluetoothProfile.STATE_CONNECTED);
+        verify(mSilenceDeviceManager, timeout(STATE_CHANGE_TIMEOUT_MILLIS))
+                .hfpConnectionStateChanged(
+                        device,
+                        BluetoothProfile.STATE_CONNECTING,
+                        BluetoothProfile.STATE_CONNECTED);
         Assert.assertEquals(BluetoothProfile.STATE_CONNECTED,
                 mHeadsetService.getConnectionState(device));
     }
