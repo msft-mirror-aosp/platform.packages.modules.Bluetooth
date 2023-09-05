@@ -379,6 +379,7 @@ static const char* interop_feature_string_(const interop_feature_t feature) {
     CASE_RETURN_STR(INTEROP_AVRCP_1_3_ONLY)
     CASE_RETURN_STR(INTEROP_DISABLE_ROBUST_CACHING);
     CASE_RETURN_STR(INTEROP_HFP_1_7_ALLOWLIST);
+    CASE_RETURN_STR(INTEROP_HFP_1_9_ALLOWLIST);
   }
   return UNKNOWN_INTEROP_FEATURE;
 }
