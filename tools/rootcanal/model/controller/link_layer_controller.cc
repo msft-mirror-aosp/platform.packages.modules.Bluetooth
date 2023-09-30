@@ -14,26 +14,44 @@
  * limitations under the License.
  */
 
-#include "link_layer_controller.h"
+#include "model/controller/link_layer_controller.h"
+
+#include <packet_runtime.h>
 
 #include <algorithm>
+#include <array>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <utility>
+#include <vector>
 
 #include "crypto/crypto.h"
+#include "hci/address.h"
+#include "hci/address_with_type.h"
 #include "log.h"
+#include "model/controller/acl_connection.h"
+#include "model/controller/acl_connection_handler.h"
+#include "model/controller/controller_properties.h"
+#include "model/controller/le_advertiser.h"
+#include "model/controller/sco_connection.h"
 #include "packets/hci_packets.h"
-#include "rootcanal_rs.h"
+#include "packets/link_layer_packets.h"
+#include "phy.h"
+#include "rust/include/rootcanal_rs.h"
 
 using namespace std::chrono;
 using bluetooth::hci::Address;
 using bluetooth::hci::AddressType;
 using bluetooth::hci::AddressWithType;
-using bluetooth::hci::DirectAdvertisingAddressType;
-using bluetooth::hci::EventCode;
 using bluetooth::hci::LLFeaturesBits;
 using bluetooth::hci::SubeventCode;
 
 using namespace model::packets;
-using model::packets::PacketType;
 using namespace std::literals;
 
 using TaskId = rootcanal::LinkLayerController::TaskId;
@@ -682,7 +700,7 @@ ErrorCode LinkLayerController::LeAddDeviceToResolvingList(
   for (auto const& entry : le_resolving_list_) {
     if ((entry.peer_identity_address_type == peer_identity_address_type &&
          entry.peer_identity_address == peer_identity_address) ||
-        entry.peer_irk == peer_irk) {
+        (entry.peer_irk == peer_irk && !irk_is_zero(peer_irk))) {
       INFO(id_, "device is already present in the resolving list");
       return ErrorCode::INVALID_HCI_COMMAND_PARAMETERS;
     }
@@ -1281,7 +1299,8 @@ ErrorCode LinkLayerController::LeSetExtendedScanParameters(
     bluetooth::hci::OwnAddressType own_address_type,
     bluetooth::hci::LeScanningFilterPolicy scanning_filter_policy,
     uint8_t scanning_phys,
-    std::vector<bluetooth::hci::PhyScanParameters> scanning_phy_parameters) {
+    std::vector<bluetooth::hci::ScanningPhyParameters>
+        scanning_phy_parameters) {
   uint8_t supported_phys = properties_.LeSupportedPhys();
 
   // Extended advertising commands are disallowed when legacy advertising
@@ -1676,7 +1695,7 @@ ErrorCode LinkLayerController::LeExtendedCreateConnection(
     bluetooth::hci::InitiatorFilterPolicy initiator_filter_policy,
     bluetooth::hci::OwnAddressType own_address_type,
     AddressWithType peer_address, uint8_t initiating_phys,
-    std::vector<bluetooth::hci::LeCreateConnPhyScanParameters>
+    std::vector<bluetooth::hci::InitiatingPhyParameters>
         initiating_phy_parameters) {
   // Extended advertising commands are disallowed when legacy advertising
   // commands were used since the last reset.
@@ -1751,36 +1770,39 @@ ErrorCode LinkLayerController::LeExtendedCreateConnection(
     // Note: no explicit error code stated for invalid connection interval
     // values but assuming Unsupported Feature or Parameter Value (0x11)
     // error code based on similar advertising command.
-    if (parameter.conn_interval_min_ < 0x6 ||
-        parameter.conn_interval_min_ > 0x0c80 ||
-        parameter.conn_interval_max_ < 0x6 ||
-        parameter.conn_interval_max_ > 0x0c80) {
+    if (parameter.connection_interval_min_ < 0x6 ||
+        parameter.connection_interval_min_ > 0x0c80 ||
+        parameter.connection_interval_max_ < 0x6 ||
+        parameter.connection_interval_max_ > 0x0c80) {
       INFO(id_,
            "connection_interval_min (0x{:04x}) and/or "
            "connection_interval_max (0x{:04x}) are outside the range"
            " of supported values (0x6 - 0x0c80)",
-           parameter.conn_interval_min_, parameter.conn_interval_max_);
+           parameter.connection_interval_min_,
+           parameter.connection_interval_max_);
       return ErrorCode::UNSUPPORTED_FEATURE_OR_PARAMETER_VALUE;
     }
 
     // The Connection_Interval_Min parameter shall not be greater than the
     // Connection_Interval_Max parameter.
-    if (parameter.conn_interval_max_ < parameter.conn_interval_min_) {
+    if (parameter.connection_interval_max_ <
+        parameter.connection_interval_min_) {
       INFO(id_,
            "connection_interval_min (0x{:04x}) is larger than"
            " connection_interval_max (0x{:04x})",
-           parameter.conn_interval_min_, parameter.conn_interval_max_);
+           parameter.connection_interval_min_,
+           parameter.connection_interval_max_);
       return ErrorCode::INVALID_HCI_COMMAND_PARAMETERS;
     }
 
     // Note: no explicit error code stated for invalid max_latency
     // values but assuming Unsupported Feature or Parameter Value (0x11)
     // error code based on similar advertising command.
-    if (parameter.conn_latency_ > 0x01f3) {
+    if (parameter.max_latency_ > 0x01f3) {
       INFO(id_,
            "max_latency (0x{:04x}) is outside the range"
            " of supported values (0x0 - 0x01f3)",
-           parameter.conn_latency_);
+           parameter.max_latency_);
       return ErrorCode::UNSUPPORTED_FEATURE_OR_PARAMETER_VALUE;
     }
 
@@ -1800,8 +1822,8 @@ ErrorCode LinkLayerController::LeExtendedCreateConnection(
     // (1 + Max_Latency) * Connection_Interval_Max * 2, where
     // Connection_Interval_Max is given in milliseconds.
     milliseconds min_supervision_timeout = duration_cast<milliseconds>(
-        (1 + parameter.conn_latency_) *
-        slots(2 * parameter.conn_interval_max_) * 2);
+        (1 + parameter.max_latency_) *
+        slots(2 * parameter.connection_interval_max_) * 2);
     if (parameter.supervision_timeout_ * 10ms < min_supervision_timeout) {
       INFO(
           id_,
@@ -1862,10 +1884,10 @@ ErrorCode LinkLayerController::LeExtendedCreateConnection(
         .scan_interval = initiating_phy_parameters[offset].scan_interval_,
         .scan_window = initiating_phy_parameters[offset].scan_window_,
         .connection_interval_min =
-            initiating_phy_parameters[offset].conn_interval_min_,
+            initiating_phy_parameters[offset].connection_interval_min_,
         .connection_interval_max =
-            initiating_phy_parameters[offset].conn_interval_max_,
-        .max_latency = initiating_phy_parameters[offset].conn_latency_,
+            initiating_phy_parameters[offset].connection_interval_max_,
+        .max_latency = initiating_phy_parameters[offset].max_latency_,
         .supervision_timeout =
             initiating_phy_parameters[offset].supervision_timeout_,
         .min_ce_length = initiating_phy_parameters[offset].min_ce_length_,
@@ -1880,10 +1902,10 @@ ErrorCode LinkLayerController::LeExtendedCreateConnection(
         .scan_interval = initiating_phy_parameters[offset].scan_interval_,
         .scan_window = initiating_phy_parameters[offset].scan_window_,
         .connection_interval_min =
-            initiating_phy_parameters[offset].conn_interval_min_,
+            initiating_phy_parameters[offset].connection_interval_min_,
         .connection_interval_max =
-            initiating_phy_parameters[offset].conn_interval_max_,
-        .max_latency = initiating_phy_parameters[offset].conn_latency_,
+            initiating_phy_parameters[offset].connection_interval_max_,
+        .max_latency = initiating_phy_parameters[offset].max_latency_,
         .supervision_timeout =
             initiating_phy_parameters[offset].supervision_timeout_,
         .min_ce_length = initiating_phy_parameters[offset].min_ce_length_,
@@ -1898,10 +1920,10 @@ ErrorCode LinkLayerController::LeExtendedCreateConnection(
         .scan_interval = initiating_phy_parameters[offset].scan_interval_,
         .scan_window = initiating_phy_parameters[offset].scan_window_,
         .connection_interval_min =
-            initiating_phy_parameters[offset].conn_interval_min_,
+            initiating_phy_parameters[offset].connection_interval_min_,
         .connection_interval_max =
-            initiating_phy_parameters[offset].conn_interval_max_,
-        .max_latency = initiating_phy_parameters[offset].conn_latency_,
+            initiating_phy_parameters[offset].connection_interval_max_,
+        .max_latency = initiating_phy_parameters[offset].max_latency_,
         .supervision_timeout =
             initiating_phy_parameters[offset].supervision_timeout_,
         .min_ce_length = initiating_phy_parameters[offset].min_ce_length_,
@@ -1976,7 +1998,7 @@ void LinkLayerController::SetExtendedInquiryResponse(
 
 LinkLayerController::LinkLayerController(const Address& address,
                                          const ControllerProperties& properties,
-                                         int id)
+                                         uint32_t id)
     : id_(id),
       address_(address),
       properties_(properties),
@@ -2130,7 +2152,7 @@ ErrorCode LinkLayerController::SendCommandToRemoteByAddress(
               own_address, peer_address));
       break;
     case (OpCode::READ_REMOTE_EXTENDED_FEATURES): {
-      pdl::packet::slice page_number_slice = args.subrange(5, 2);
+      pdl::packet::slice page_number_slice = args.subrange(5, 1);
       uint8_t page_number = page_number_slice.read_le<uint8_t>();
       SendLinkLayerPacket(
           model::packets::ReadRemoteExtendedFeaturesBuilder::Create(
@@ -2833,6 +2855,10 @@ Address LinkLayerController::generate_rpa(
   return rpa;
 }
 
+bool LinkLayerController::irk_is_zero(std::array<uint8_t, LinkLayerController::kIrkSize> irk) {
+    return std::all_of(irk.begin(), irk.end(), [](uint8_t b) { return b == 0; });
+}
+
 // Handle legacy advertising PDUs while in the Scanning state.
 void LinkLayerController::ScanIncomingLeLegacyAdvertisingPdu(
     model::packets::LeLegacyAdvertisingPduView& pdu, uint8_t rssi) {
@@ -3280,6 +3306,7 @@ void LinkLayerController::ConnectIncomingLeLegacyAdvertisingPdu(
   }
 
   initiator_.pending_connect_request = advertising_address;
+  initiator_.initiating_address = initiating_address.GetAddress();
 
   INFO(id_, "Sending LE Connect request to {} with initiating address {}",
        resolved_advertising_address, initiating_address);
@@ -3706,6 +3733,7 @@ void LinkLayerController::ConnectIncomingLeExtendedAdvertisingPdu(
   }
 
   initiator_.pending_connect_request = advertising_address;
+  initiator_.initiating_address = initiating_address.GetAddress();
 
   INFO(id_, "Sending LE Connect request to {} with initiating address {}",
        resolved_advertising_address, initiating_address);
@@ -5016,6 +5044,20 @@ void LinkLayerController::IncomingPagePacket(
   auto page = model::packets::PageView::Create(incoming);
   ASSERT(page.IsValid());
 
+  // [HCI] 7.3.3 Set Event Filter command
+  // If the Auto_Accept_Flag is off and the Host has masked the
+  // HCI_Connection_Request event, the Controller shall reject the
+  // connection attempt.
+  if (!IsEventUnmasked(EventCode::CONNECTION_REQUEST)) {
+    INFO(id_,
+         "rejecting connection request from {} because the HCI_Connection_Request"
+         " event is masked by the Host", bd_addr);
+    SendLinkLayerPacket(
+        model::packets::PageRejectBuilder::Create(
+            GetAddress(), bd_addr, static_cast<uint8_t>(ErrorCode::CONNECTION_TIMEOUT)));
+    return;
+  }
+
   // Cannot establish two BR-EDR connections with the same peer.
   if (connections_.GetAclConnectionHandle(bd_addr).has_value()) {
     return;
@@ -5031,11 +5073,9 @@ void LinkLayerController::IncomingPagePacket(
     return;
   }
 
-  if (IsEventUnmasked(EventCode::CONNECTION_REQUEST)) {
-    send_event_(bluetooth::hci::ConnectionRequestBuilder::Create(
-        bd_addr, page.GetClassOfDevice(),
-        bluetooth::hci::ConnectionRequestLinkType::ACL));
-  }
+  send_event_(bluetooth::hci::ConnectionRequestBuilder::Create(
+      bd_addr, page.GetClassOfDevice(),
+      bluetooth::hci::ConnectionRequestLinkType::ACL));
 }
 
 void LinkLayerController::IncomingPageRejectPacket(
@@ -5286,15 +5326,9 @@ void LinkLayerController::MakePeripheralConnection(const Address& bd_addr,
   if (page_.has_value() && page_->bd_addr == bd_addr) {
     // TODO: the core specification is very unclear as to what behavior
     // is expected when two connections are established simultaneously.
-    // This implementation considers that an HCI Connection Complete
+    // This implementation considers that a unique HCI Connection Complete
     // event is expected for both the HCI Create Connection and HCI Accept
-    // Connection Request commands. Both events are sent with the status
-    // for success.
-    if (IsEventUnmasked(EventCode::CONNECTION_COMPLETE)) {
-      send_event_(bluetooth::hci::ConnectionCompleteBuilder::Create(
-          ErrorCode::SUCCESS, connection_handle, bd_addr,
-          bluetooth::hci::LinkType::ACL, bluetooth::hci::Enable::DISABLED));
-    }
+    // Connection Request commands.
     page_ = {};
   }
 

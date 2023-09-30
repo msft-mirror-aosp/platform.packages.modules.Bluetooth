@@ -602,11 +602,6 @@ static void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
   GetInterfaceToProfiles()->events->invoke_bond_state_changed_cb(
       status, bd_addr, state, pairing_cb.fail_reason);
 
-  int dev_type;
-  if (!btif_get_device_type(bd_addr, &dev_type)) {
-    dev_type = BT_DEVICE_TYPE_BREDR;
-  }
-
   if ((state == BT_BOND_STATE_NONE) && (pairing_cb.bd_addr != bd_addr)
       && is_bonding_or_sdp()) {
     LOG_WARN("Ignoring bond state changed for unexpected device: %s pairing: %s",
@@ -878,18 +873,27 @@ static void btif_dm_cb_create_bond_le(const RawAddress bd_addr,
  *                  encrypted
  *
  ******************************************************************************/
-uint16_t btif_dm_get_connection_state(const RawAddress* bd_addr) {
-  uint16_t rc = BTA_DmGetConnectionState(*bd_addr);
-
-  if (rc != 0) {
-    if (BTM_IsEncrypted(*bd_addr, BT_TRANSPORT_BR_EDR)) {
+uint16_t btif_dm_get_connection_state(const RawAddress& bd_addr) {
+  uint16_t rc = 0;
+  if (BTA_DmGetConnectionState(bd_addr)) {
+    rc = (uint16_t) true;
+    if (BTM_IsEncrypted(bd_addr, BT_TRANSPORT_BR_EDR)) {
       rc |= ENCRYPTED_BREDR;
     }
-    if (BTM_IsEncrypted(*bd_addr, BT_TRANSPORT_LE)) {
+    if (BTM_IsEncrypted(bd_addr, BT_TRANSPORT_LE)) {
       rc |= ENCRYPTED_LE;
     }
+  } else {
+    LOG_INFO("Acl is not connected to peer:%s",
+             ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
   }
 
+  BTM_LogHistory(
+      kBtmLogTag, bd_addr, "Get connection state",
+      base::StringPrintf("connected:%c classic_encrypted:%c le_encrypted:%c",
+                         (rc & (int)true) ? 'T' : 'F',
+                         (rc & ENCRYPTED_BREDR) ? 'T' : 'F',
+                         (rc & ENCRYPTED_LE) ? 'T' : 'F'));
   return rc;
 }
 
@@ -1929,23 +1933,39 @@ static void btif_dm_search_services_evt(tBTA_DM_SEARCH_EVT event,
       }
 
       Uuid existing_uuids[BT_MAX_NUM_UUIDS] = {};
+
+      // Look up UUIDs using pseudo address (either RPA or static address)
       bt_status_t existing_lookup_result =
           btif_get_existing_uuids(&bd_addr, existing_uuids);
-      if (existing_lookup_result == BT_STATUS_FAIL &&
-          bd_addr != static_addr_copy) {
+
+      if (existing_lookup_result != BT_STATUS_FAIL) {
+        LOG_INFO("Got some existing UUIDs by address %s",
+                 ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+
+        for (int i = 0; i < BT_MAX_NUM_UUIDS; i++) {
+          Uuid uuid = existing_uuids[i];
+          if (uuid.IsEmpty()) {
+            continue;
+          }
+          uuids.insert(uuid);
+        }
+      }
+
+      if (bd_addr != static_addr_copy) {
+        // Look up UUID using static address, if different than sudo address
         existing_lookup_result =
             btif_get_existing_uuids(&static_addr_copy, existing_uuids);
         if (existing_lookup_result != BT_STATUS_FAIL) {
           LOG_INFO("Got some existing UUIDs by static address %s",
                    ADDRESS_TO_LOGGABLE_CSTR(static_addr_copy));
+          for (int i = 0; i < BT_MAX_NUM_UUIDS; i++) {
+            Uuid uuid = existing_uuids[i];
+            if (uuid.IsEmpty()) {
+              continue;
+            }
+            uuids.insert(uuid);
+          }
         }
-      }
-      for (int i = 0; i < BT_MAX_NUM_UUIDS; i++) {
-        Uuid uuid = existing_uuids[i];
-        if (uuid.IsEmpty()) {
-          continue;
-        }
-        uuids.insert(uuid);
       }
 
       for (auto& uuid : uuids) {
@@ -4056,7 +4076,7 @@ void btif_dm_disconnect_all_acls() {
 
 void btif_dm_le_rand(LeRandCallback callback) {
   LOG_VERBOSE("%s: called", __func__);
-  BTA_DmLeRand(callback);
+  BTA_DmLeRand(std::move(callback));
 }
 
 void btif_dm_set_event_filter_connection_setup_all_devices() {

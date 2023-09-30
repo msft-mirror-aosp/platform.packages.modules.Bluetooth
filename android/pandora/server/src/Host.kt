@@ -31,8 +31,10 @@ import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.AdvertisingSetParameters
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanRecord
 import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -435,7 +437,7 @@ class Host(
                         throw IllegalArgumentException("Request address field must be set")
                 }
             Log.i(TAG, "connectLE: $address")
-            val bluetoothDevice = scanLeDevice(address.decodeAsMacAddressToString(), type)!!
+            val bluetoothDevice = bluetoothAdapter.getRemoteLeDevice(address.decodeAsMacAddressToString(), type)
             initiatedConnection.add(bluetoothDevice)
             GattInstance(bluetoothDevice, TRANSPORT_LE, context)
                 .waitForState(BluetoothProfile.STATE_CONNECTED)
@@ -443,37 +445,6 @@ class Host(
                 .setConnection(bluetoothDevice.toConnection(TRANSPORT_LE))
                 .build()
         }
-    }
-
-    private fun scanLeDevice(address: String, addressType: Int): BluetoothDevice? {
-        Log.d(TAG, "scanLeDevice")
-        var bluetoothDevice: BluetoothDevice? = null
-        runBlocking {
-            val flow = callbackFlow {
-                val leScanCallback =
-                    object : ScanCallback() {
-                        override fun onScanFailed(errorCode: Int) {
-                            super.onScanFailed(errorCode)
-                            Log.d(TAG, "onScanFailed: errorCode: $errorCode")
-                            trySendBlocking(null)
-                        }
-                        override fun onScanResult(callbackType: Int, result: ScanResult) {
-                            super.onScanResult(callbackType, result)
-                            val deviceAddress = result.device.address
-                            val deviceAddressType = result.device.addressType
-                            if (deviceAddress == address && deviceAddressType == addressType) {
-                                Log.d(TAG, "found device address: $deviceAddress")
-                                trySendBlocking(result.device)
-                            }
-                        }
-                    }
-                val bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
-                bluetoothLeScanner?.startScan(leScanCallback) ?: run { trySendBlocking(null) }
-                awaitClose { bluetoothLeScanner?.stopScan(leScanCallback) }
-            }
-            bluetoothDevice = flow.first()
-        }
-        return bluetoothDevice
     }
 
     override fun advertise(
@@ -614,8 +585,10 @@ class Host(
                         override fun onScanResult(callbackType: Int, result: ScanResult) {
                             val bluetoothDevice = result.device
                             val scanRecord = result.scanRecord
+                            checkNotNull(scanRecord)
                             val scanData = scanRecord.getAdvertisingDataMap()
-                            val serviceData = scanRecord?.serviceData!!
+                            val serviceData = scanRecord.serviceData
+                            checkNotNull(serviceData)
 
                             var dataTypesBuilder =
                                 DataTypes.newBuilder().setTxPowerLevel(scanRecord.getTxPowerLevel())
@@ -732,7 +705,7 @@ class Host(
 
                             // Flags DataTypes CSSv10 1.3 Flags
                             val mode: DiscoverabilityMode =
-                                when (result.scanRecord.advertiseFlags and 0b11) {
+                                when (scanRecord.advertiseFlags and 0b11) {
                                     0b01 -> DiscoverabilityMode.DISCOVERABLE_LIMITED
                                     0b10 -> DiscoverabilityMode.DISCOVERABLE_GENERAL
                                     else -> DiscoverabilityMode.NOT_DISCOVERABLE

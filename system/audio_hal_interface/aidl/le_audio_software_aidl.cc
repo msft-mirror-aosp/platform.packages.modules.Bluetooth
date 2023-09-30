@@ -69,6 +69,12 @@ LeAudioTransport::LeAudioTransport(void (*flush)(void),
       start_request_state_(StartRequestState::IDLE){};
 
 BluetoothAudioCtrlAck LeAudioTransport::StartRequest(bool is_low_latency) {
+  // Check if operation is pending already
+  if (GetStartRequestState() == StartRequestState::PENDING_AFTER_RESUME) {
+    LOG_INFO("Start request is already pending. Ignore the request");
+    return BluetoothAudioCtrlAck::PENDING;
+  }
+
   SetStartRequestState(StartRequestState::PENDING_BEFORE_RESUME);
   if (stream_cb_.on_resume_(true)) {
     auto expected = StartRequestState::CONFIRMED;
@@ -441,6 +447,7 @@ std::unordered_map<int32_t, uint16_t> octets_per_frame_map{
     {40, ::le_audio::codec_spec_conf::kLeAudioCodecLC3FrameLen40},
     {60, ::le_audio::codec_spec_conf::kLeAudioCodecLC3FrameLen60},
     {80, ::le_audio::codec_spec_conf::kLeAudioCodecLC3FrameLen80},
+    {100, ::le_audio::codec_spec_conf::kLeAudioCodecLC3FrameLen100},
     {120, ::le_audio::codec_spec_conf::kLeAudioCodecLC3FrameLen120}};
 
 std::unordered_map<AudioLocation, uint32_t> audio_location_map{

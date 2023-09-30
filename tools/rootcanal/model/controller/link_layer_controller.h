@@ -16,20 +16,32 @@
 
 #pragma once
 
+#include <packet_runtime.h>
+
 #include <algorithm>
+#include <array>
 #include <chrono>
-#include <map>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <optional>
 #include <set>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "hci/address.h"
-#include "include/phy.h"
+#include "hci/address_with_type.h"
 #include "model/controller/acl_connection_handler.h"
 #include "model/controller/controller_properties.h"
 #include "model/controller/le_advertiser.h"
+#include "model/controller/sco_connection.h"
+#include "model/controller/vendor_commands/le_apcf.h"
 #include "packets/hci_packets.h"
 #include "packets/link_layer_packets.h"
-#include "rootcanal_rs.h"
+#include "phy.h"
+#include "rust/include/rootcanal_rs.h"
 
 namespace rootcanal {
 
@@ -40,6 +52,7 @@ using ::bluetooth::hci::ErrorCode;
 using ::bluetooth::hci::FilterAcceptListAddressType;
 using ::bluetooth::hci::OpCode;
 using ::bluetooth::hci::PageScanRepetitionMode;
+using rootcanal::apcf::ApcfScanner;
 
 // Create an address with type Public Device Address or Random Device Address.
 AddressWithType PeerDeviceAddress(Address address,
@@ -57,14 +70,17 @@ class LinkLayerController {
   static constexpr size_t kExtendedInquiryResponseSize = 240;
 
   // Unique instance identifier.
-  const int id_;
+  const uint32_t id_;
 
   // Generate a resolvable private address using the specified IRK.
   static Address generate_rpa(
       std::array<uint8_t, LinkLayerController::kIrkSize> irk);
 
+  // Return true if the input IRK is all 0s.
+  static bool irk_is_zero(std::array<uint8_t, LinkLayerController::kIrkSize> irk);
+
   LinkLayerController(const Address& address,
-                      const ControllerProperties& properties, int id = 0);
+                      const ControllerProperties& properties, uint32_t id = 0);
   ~LinkLayerController();
 
   ErrorCode SendCommandToRemoteByAddress(OpCode opcode, pdl::packet::slice args,
@@ -480,7 +496,8 @@ class LinkLayerController {
       bluetooth::hci::OwnAddressType own_address_type,
       bluetooth::hci::LeScanningFilterPolicy scanning_filter_policy,
       uint8_t scanning_phys,
-      std::vector<bluetooth::hci::PhyScanParameters> scanning_phy_parameters);
+      std::vector<bluetooth::hci::ScanningPhyParameters>
+          scanning_phy_parameters);
 
   // HCI command LE_Set_Extended_Scan_Enable (Vol 4, Part E § 7.8.65).
   ErrorCode LeSetExtendedScanEnable(
@@ -509,7 +526,7 @@ class LinkLayerController {
       bluetooth::hci::InitiatorFilterPolicy initiator_filter_policy,
       bluetooth::hci::OwnAddressType own_address_type,
       AddressWithType peer_address, uint8_t initiating_phys,
-      std::vector<bluetooth::hci::LeCreateConnPhyScanParameters>
+      std::vector<bluetooth::hci::InitiatingPhyParameters>
           initiating_phy_parameters);
 
   // Periodic Advertising
@@ -563,6 +580,55 @@ class LinkLayerController {
 
   // HCI LE Clear Periodic Advertiser List command (Vol 4, Part E § 7.8.72).
   ErrorCode LeClearPeriodicAdvertiserList();
+
+  // LE APCF
+
+  ErrorCode LeApcfEnable(bool apcf_enable);
+
+  ErrorCode LeApcfSetFilteringParameters(
+      bluetooth::hci::ApcfAction apcf_action, uint8_t apcf_filter_index,
+      uint16_t apcf_feature_selection, uint16_t apcf_list_logic_type,
+      uint8_t apcf_filter_logic_type, uint8_t rssi_high_thresh,
+      bluetooth::hci::DeliveryMode delivery_mode, uint16_t onfound_timeout,
+      uint8_t onfound_timeout_cnt, uint8_t rssi_low_thresh,
+      uint16_t onlost_timeout, uint16_t num_of_tracking_entries,
+      uint8_t* apcf_available_spaces);
+
+  ErrorCode LeApcfBroadcasterAddress(
+      bluetooth::hci::ApcfAction apcf_action, uint8_t apcf_filter_index,
+      bluetooth::hci::Address apcf_broadcaster_address,
+      bluetooth::hci::ApcfApplicationAddressType apcf_application_address_type,
+      uint8_t* apcf_available_spaces);
+
+  ErrorCode LeApcfServiceUuid(bluetooth::hci::ApcfAction apcf_action,
+                              uint8_t apcf_filter_index,
+                              std::vector<uint8_t> acpf_uuid_data,
+                              uint8_t* apcf_available_spaces);
+
+  ErrorCode LeApcfServiceSolicitationUuid(
+      bluetooth::hci::ApcfAction apcf_action, uint8_t apcf_filter_index,
+      std::vector<uint8_t> acpf_uuid_data, uint8_t* apcf_available_spaces);
+
+  ErrorCode LeApcfLocalName(bluetooth::hci::ApcfAction apcf_action,
+                            uint8_t apcf_filter_index,
+                            std::vector<uint8_t> apcf_local_name,
+                            uint8_t* apcf_available_spaces);
+
+  ErrorCode LeApcfManufacturerData(bluetooth::hci::ApcfAction apcf_action,
+                                   uint8_t apcf_filter_index,
+                                   std::vector<uint8_t> apcf_manufacturer_data,
+                                   uint8_t* apcf_available_spaces);
+
+  ErrorCode LeApcfServiceData(bluetooth::hci::ApcfAction apcf_action,
+                              uint8_t apcf_filter_index,
+                              std::vector<uint8_t> apcf_service_data,
+                              uint8_t* apcf_available_spaces);
+
+  ErrorCode LeApcfAdTypeFilter(bluetooth::hci::ApcfAction apcf_action,
+                               uint8_t apcf_filter_index, uint8_t ad_type,
+                               std::vector<uint8_t> apcf_ad_data,
+                               std::vector<uint8_t> apcf_ad_data_mask,
+                               uint8_t* apcf_available_spaces);
 
  protected:
   void SendLinkLayerPacket(
@@ -1018,6 +1084,9 @@ class LinkLayerController {
   // of legacy_advertising_in_use_ and extended_advertising_in_use_ flags.
   // Only one type of advertising may be used during a controller session.
   Scanner scanner_{};
+
+  // APCF scanning state for Android vendor support.
+  ApcfScanner apcf_scanner_{};
 
   struct Initiator {
     bool connect_enable;

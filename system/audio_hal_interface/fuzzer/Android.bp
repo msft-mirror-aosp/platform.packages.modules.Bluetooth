@@ -60,6 +60,7 @@ cc_defaults {
         "libbt-audio-hal-interface",
         "libbt-bta",
         "libbt-bta-core",
+        "libbt-btu-main-thread",
         "libbt-common",
         "libbt-hci",
         "libbt-sbc-decoder",
@@ -77,7 +78,6 @@ cc_defaults {
         "libchrome",
         "libcutils",
         "libevent",
-        "libflatbuffers-cpp",
         "libg722codec",
         "libhidlbase",
         "libjsoncpp",
@@ -96,7 +96,6 @@ cc_defaults {
         "packages/modules/Bluetooth/system/bta/include",
         "packages/modules/Bluetooth/system/btif",
         "packages/modules/Bluetooth/system/gd",
-        "packages/modules/Bluetooth/system/gd/rust/shim",
         "packages/modules/Bluetooth/system/stack/include",
     ],
     fuzz_config: {

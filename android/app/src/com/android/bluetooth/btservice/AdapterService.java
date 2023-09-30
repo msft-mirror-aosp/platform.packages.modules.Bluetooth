@@ -41,7 +41,6 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
-import android.app.AlarmManager;
 import android.app.AppOpsManager;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -69,7 +68,6 @@ import android.bluetooth.IBluetooth;
 import android.bluetooth.IBluetoothActivityEnergyInfoListener;
 import android.bluetooth.IBluetoothCallback;
 import android.bluetooth.IBluetoothConnectionCallback;
-import android.bluetooth.IBluetoothGatt;
 import android.bluetooth.IBluetoothMetadataListener;
 import android.bluetooth.IBluetoothOobDataCallback;
 import android.bluetooth.IBluetoothPreferredAudioProfilesCallback;
@@ -80,12 +78,8 @@ import android.bluetooth.OobData;
 import android.bluetooth.UidTraffic;
 import android.companion.CompanionDeviceManager;
 import android.content.AttributionSource;
-import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
@@ -115,6 +109,7 @@ import android.util.SparseArray;
 
 import com.android.bluetooth.BluetoothMetricsProto;
 import com.android.bluetooth.BluetoothStatsLog;
+import com.android.bluetooth.Flags;
 import com.android.bluetooth.R;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.a2dp.A2dpService;
@@ -123,7 +118,7 @@ import com.android.bluetooth.bas.BatteryService;
 import com.android.bluetooth.bass_client.BassClientService;
 import com.android.bluetooth.btservice.InteropUtil.InteropFeature;
 import com.android.bluetooth.btservice.RemoteDevices.DeviceProperties;
-import com.android.bluetooth.btservice.activityattribution.ActivityAttributionService;
+import com.android.bluetooth.btservice.bluetoothkeystore.BluetoothKeystoreNativeInterface;
 import com.android.bluetooth.btservice.bluetoothkeystore.BluetoothKeystoreService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.btservice.storage.MetadataDatabase;
@@ -181,6 +176,18 @@ public class AdapterService extends Service {
     private static final String TAG = "BluetoothAdapterService";
     private static final boolean DBG = true;
     private static final boolean VERBOSE = false;
+
+    static {
+        if (DBG) {
+            Log.d(TAG, "Loading JNI Library");
+        }
+        if (Utils.isInstrumentationTestMode()) {
+            Log.w(TAG, "App is instrumented. Skip loading the native");
+        } else {
+            System.loadLibrary("bluetooth_jni");
+        }
+    }
+
     private static final int MIN_ADVT_INSTANCES_FOR_MA = 5;
     private static final int MIN_OFFLOADED_FILTERS = 10;
     private static final int MIN_OFFLOADED_SCAN_STORAGE_BYTES = 1024;
@@ -208,9 +215,6 @@ public class AdapterService extends Service {
             "com.android.bluetooth.btservice.action.STATE_CHANGED";
     public static final String EXTRA_ACTION = "action";
     public static final int PROFILE_CONN_REJECTED = 2;
-
-    private static final String ACTION_ALARM_WAKEUP =
-            "com.android.bluetooth.btservice.action.ALARM_WAKEUP";
 
     private static BluetoothProperties.snoop_log_mode_values sSnoopLogSettingAtEnable =
             BluetoothProperties.snoop_log_mode_values.EMPTY;
@@ -240,8 +244,13 @@ public class AdapterService extends Service {
 
     private static final int CONTROLLER_ENERGY_UPDATE_TIMEOUT_MILLIS = 30;
 
-    public static final String ACTIVITY_ATTRIBUTION_NO_ACTIVE_DEVICE_ADDRESS =
-            "no_active_device_address";
+    /**
+     * Connection state bitmask as returned by getConnectionState.
+     */
+    public static final int CONNECTION_STATE_DISCONNECTED = 0;
+    public static final int CONNECTION_STATE_CONNECTED = 1;
+    public static final int CONNECTION_STATE_ENCRYPTED_BREDR = 2;
+    public static final int CONNECTION_STATE_ENCRYPTED_LE = 4;
 
     // Report ID definition
     public enum BqrQualityReportId {
@@ -268,11 +277,8 @@ public class AdapterService extends Service {
 
     private final ArrayList<DiscoveringPackage> mDiscoveringPackages = new ArrayList<>();
 
-    static {
-        classInitNative();
-    }
-
     private static AdapterService sAdapterService;
+    private final AdapterNativeInterface mNativeInterface = AdapterNativeInterface.getInstance();
 
     // Keep a constructor for ActivityThread.handleCreateService
     AdapterService() {}
@@ -286,17 +292,33 @@ public class AdapterService extends Service {
         return sAdapterService;
     }
 
-    private static synchronized void setAdapterService(AdapterService instance) {
-        Log.d(TAG, "setAdapterService() - trying to set service to " + instance);
+    AdapterNativeInterface getNative() {
+        return mNativeInterface;
+    }
+
+    /** Allow test to set an AdapterService to be return by AdapterService.getAdapterService() */
+    @VisibleForTesting
+    public static synchronized void setAdapterService(AdapterService instance) {
         if (instance == null) {
+            Log.e(TAG, "setAdapterService() - instance is null");
             return;
         }
+        Log.d(TAG, "setAdapterService() - set service to " + instance);
         sAdapterService = instance;
     }
 
-    private static synchronized void clearAdapterService(AdapterService current) {
-        if (sAdapterService == current) {
+    /** Clear test Adapter service. See {@code setAdapterService} */
+    @VisibleForTesting
+    public static synchronized void clearAdapterService(AdapterService instance) {
+        if (sAdapterService == instance) {
+            Log.d(TAG, "clearAdapterService() - This adapter was cleared " + instance);
             sAdapterService = null;
+        } else {
+            Log.d(
+                    TAG,
+                    "clearAdapterService() - incorrect cleared adapter."
+                            + (" Instance=" + instance)
+                            + (" vs sAdapterService=" + sAdapterService));
         }
     }
 
@@ -304,7 +326,6 @@ public class AdapterService extends Service {
     @VisibleForTesting AdapterProperties mAdapterProperties;
     private AdapterState mAdapterStateMachine;
     private BondStateMachine mBondStateMachine;
-    private JniCallbacks mJniCallbacks;
     private RemoteDevices mRemoteDevices;
 
     /* TODO: Consider to remove the search API from this class, if changed to use call-back */
@@ -324,7 +345,8 @@ public class AdapterService extends Service {
     private final Map<Integer, PendingAudioProfilePreferenceRequest>
             mCsipGroupsPendingAudioProfileChanges = new HashMap<>();
     // Only BluetoothManagerService should be registered
-    private RemoteCallbackList<IBluetoothCallback> mCallbacks;
+    private RemoteCallbackList<IBluetoothCallback> mRemoteCallbacks;
+    private final Map<BluetoothStateCallback, Executor> mLocalCallbacks = new ConcurrentHashMap<>();
     private int mCurrentRequestId;
     private boolean mQuietmode = false;
     private HashMap<String, CallerInfo> mBondAttemptCallerInfo = new HashMap<>();
@@ -332,8 +354,6 @@ public class AdapterService extends Service {
     private final Map<UUID, RfcommListenerData> mBluetoothServerSockets = new ConcurrentHashMap<>();
     private final Executor mSocketServersExecutor = r -> new Thread(r).start();
 
-    private AlarmManager mAlarmManager;
-    private PendingIntent mPendingAlarm;
     private BatteryStatsManager mBatteryStatsManager;
     private PowerManager mPowerManager;
     private PowerManager.WakeLock mWakeLock;
@@ -341,7 +361,9 @@ public class AdapterService extends Service {
     private UserManager mUserManager;
     private CompanionDeviceManager mCompanionDeviceManager;
 
-    private PhonePolicy mPhonePolicy;
+    // Phone Policy is not used on all devices. Ensure you null check before using it
+    @Nullable private PhonePolicy mPhonePolicy;
+
     private ActiveDeviceManager mActiveDeviceManager;
     private DatabaseManager mDatabaseManager;
     private SilenceDeviceManager mSilenceDeviceManager;
@@ -353,7 +375,6 @@ public class AdapterService extends Service {
     private BluetoothKeystoreService mBluetoothKeystoreService;
     private A2dpService mA2dpService;
     private A2dpSinkService mA2dpSinkService;
-    private ActivityAttributionService mActivityAttributionService;
     private HeadsetService mHeadsetService;
     private HeadsetClientService mHeadsetClientService;
     private BluetoothMapService mMapService;
@@ -372,7 +393,7 @@ public class AdapterService extends Service {
     private BassClientService mBassClientService;
     private BatteryService mBatteryService;
     private BluetoothQualityReportNativeInterface mBluetoothQualityReportNativeInterface;
-    private IBluetoothGatt mBluetoothGatt;
+    private GattService mGattService;
 
     private volatile boolean mTestModeEnabled = false;
 
@@ -426,8 +447,6 @@ public class AdapterService extends Service {
     private static final int MESSAGE_PROFILE_SERVICE_REGISTERED = 2;
     private static final int MESSAGE_PROFILE_SERVICE_UNREGISTERED = 3;
     private static final int MESSAGE_PREFERRED_AUDIO_PROFILES_AUDIO_FRAMEWORK_TIMEOUT = 4;
-    private static final int MESSAGE_ON_PROFILE_SERVICE_BIND = 5;
-    private static final int MESSAGE_ON_PROFILE_SERVICE_UNBIND = 6;
 
     class AdapterServiceHandler extends Handler {
         AdapterServiceHandler(Looper looper) {
@@ -450,14 +469,6 @@ public class AdapterService extends Service {
                 case MESSAGE_PROFILE_SERVICE_UNREGISTERED:
                     verboseLog("handleMessage() - MESSAGE_PROFILE_SERVICE_UNREGISTERED");
                     unregisterProfileService((ProfileService) msg.obj);
-                    break;
-                case MESSAGE_ON_PROFILE_SERVICE_BIND:
-                    verboseLog("handleMessage() - MESSAGE_ON_PROFILE_SERVICE_BIND");
-                    onGattBind((IBinder) msg.obj);
-                    break;
-                case MESSAGE_ON_PROFILE_SERVICE_UNBIND:
-                    verboseLog("handleMessage() - MESSAGE_ON_PROFILE_SERVICE_UNBIND");
-                    onGattUnbind();
                     break;
                 case MESSAGE_PREFERRED_AUDIO_PROFILES_AUDIO_FRAMEWORK_TIMEOUT:
                     errorLog(
@@ -498,22 +509,6 @@ public class AdapterService extends Service {
             mRegisteredProfiles.remove(profile);
         }
 
-        private void onGattBind(IBinder service) {
-            mBluetoothGatt = IBluetoothGatt.Stub.asInterface(service);
-            try {
-                mBluetoothGatt.startService();
-            } catch (RemoteException e) {
-                Log.e(TAG, "onGattBind: RemoteException", e);
-            }
-        }
-
-        private void onGattUnbind() {
-            mBluetoothGatt = null;
-            Log.e(
-                    TAG,
-                    "onGattUnbind: Gatt service has disconnected from AdapterService unexpectedly");
-        }
-
         private void processProfileServiceStateChanged(ProfileService profile, int state) {
             switch (state) {
                 case BluetoothAdapter.STATE_ON:
@@ -529,14 +524,16 @@ public class AdapterService extends Service {
                     // TODO(b/228875190): GATT is assumed supported. GATT starting triggers hardware
                     // initializtion. Configuring a device without GATT causes start up failures.
                     if (GattService.class.getSimpleName().equals(profile.getName())) {
-                        enableNative();
+                        mNativeInterface.enable();
                     } else if (mRegisteredProfiles.size() == Config.getSupportedProfiles().length
                             && mRegisteredProfiles.size() == mRunningProfiles.size()) {
                         mAdapterProperties.onBluetoothReady();
                         updateUuids();
                         initProfileServices();
-                        getAdapterPropertyNative(AbstractionLayer.BT_PROPERTY_LOCAL_IO_CAPS);
-                        getAdapterPropertyNative(AbstractionLayer.BT_PROPERTY_DYNAMIC_AUDIO_BUFFER);
+                        mNativeInterface.getAdapterProperty(
+                                AbstractionLayer.BT_PROPERTY_LOCAL_IO_CAPS);
+                        mNativeInterface.getAdapterProperty(
+                                AbstractionLayer.BT_PROPERTY_DYNAMIC_AUDIO_BUFFER);
                         mAdapterStateMachine.sendMessage(AdapterState.BREDR_STARTED);
                         mBtCompanionManager.loadCompanionInfo();
                     }
@@ -560,7 +557,7 @@ public class AdapterService extends Service {
                                     .equals(mRunningProfiles.get(0).getName())))) {
                         mAdapterStateMachine.sendMessage(AdapterState.BREDR_STOPPED);
                     } else if (mRunningProfiles.size() == 0) {
-                        disableNative();
+                        mNativeInterface.disable();
                     }
                     break;
                 default:
@@ -618,6 +615,7 @@ public class AdapterService extends Service {
             })
     public void onCreate() {
         super.onCreate();
+        Config.init(this);
         if (mLooper == null) {
             mLooper = Looper.getMainLooper();
         }
@@ -628,7 +626,6 @@ public class AdapterService extends Service {
 
         mUserManager = getNonNullSystemService(UserManager.class);
         mAppOps = getNonNullSystemService(AppOpsManager.class);
-        mAlarmManager = getNonNullSystemService(AlarmManager.class);
         mPowerManager = getNonNullSystemService(PowerManager.class);
         mBatteryStatsManager = getNonNullSystemService(BatteryStatsManager.class);
         mCompanionDeviceManager = getNonNullSystemService(CompanionDeviceManager.class);
@@ -640,8 +637,9 @@ public class AdapterService extends Service {
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mAdapterProperties = new AdapterProperties(this);
         mAdapterStateMachine = new AdapterState(this, mLooper);
-        mJniCallbacks = new JniCallbacks(this, mAdapterProperties);
-        mBluetoothKeystoreService = new BluetoothKeystoreService(isCommonCriteriaMode());
+        mBluetoothKeystoreService =
+                new BluetoothKeystoreService(
+                        BluetoothKeystoreNativeInterface.getInstance(), isCommonCriteriaMode());
         mBluetoothKeystoreService.start();
         int configCompareResult = mBluetoothKeystoreService.getCompareResult();
 
@@ -653,7 +651,9 @@ public class AdapterService extends Service {
                 getApplicationContext()
                         .getPackageManager()
                         .hasSystemFeature(PackageManager.FEATURE_LEANBACK_ONLY);
-        initNative(
+        mNativeInterface.init(
+                this,
+                mAdapterProperties,
                 mUserManager.isGuestUser(),
                 isCommonCriteriaMode(),
                 configCompareResult,
@@ -665,11 +665,11 @@ public class AdapterService extends Service {
                 new RemoteCallbackList<IBluetoothPreferredAudioProfilesCallback>();
         mBluetoothQualityReportReadyCallbacks =
                 new RemoteCallbackList<IBluetoothQualityReportReadyCallback>();
-        mCallbacks = new RemoteCallbackList<IBluetoothCallback>();
+        mRemoteCallbacks = new RemoteCallbackList<IBluetoothCallback>();
         // Load the name and address
-        getAdapterPropertyNative(AbstractionLayer.BT_PROPERTY_BDADDR);
-        getAdapterPropertyNative(AbstractionLayer.BT_PROPERTY_BDNAME);
-        getAdapterPropertyNative(AbstractionLayer.BT_PROPERTY_CLASS_OF_DEVICE);
+        mNativeInterface.getAdapterProperty(AbstractionLayer.BT_PROPERTY_BDADDR);
+        mNativeInterface.getAdapterProperty(AbstractionLayer.BT_PROPERTY_BDNAME);
+        mNativeInterface.getAdapterProperty(AbstractionLayer.BT_PROPERTY_CLASS_OF_DEVICE);
 
         mBluetoothKeystoreService.initJni();
 
@@ -680,9 +680,6 @@ public class AdapterService extends Service {
         mBluetoothQualityReportNativeInterface.init();
 
         mSdpManager = SdpManager.init(this);
-        IntentFilter filter = new IntentFilter(ACTION_ALARM_WAKEUP);
-        filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
-        registerReceiver(mAlarmBroadcastReceiver, filter);
         loadLeAudioAllowDevices();
 
         mDatabaseManager = new DatabaseManager(this);
@@ -707,7 +704,11 @@ public class AdapterService extends Service {
             Log.i(TAG, "Phone policy disabled");
         }
 
-        mActiveDeviceManager = new ActiveDeviceManager(this, new ServiceFactory());
+        if (Flags.audioRoutingCentralization()) {
+            mActiveDeviceManager = new AudioRoutingManager(this, new ServiceFactory());
+        } else {
+            mActiveDeviceManager = new ActiveDeviceManager(this, new ServiceFactory());
+        }
         mActiveDeviceManager.start();
 
         mSilenceDeviceManager = new SilenceDeviceManager(this, new ServiceFactory(), mLooper);
@@ -716,9 +717,6 @@ public class AdapterService extends Service {
         mBtCompanionManager = new CompanionManager(this, new ServiceFactory());
 
         mBluetoothSocketManagerBinder = new BluetoothSocketManagerBinder(this);
-
-        mActivityAttributionService = new ActivityAttributionService();
-        mActivityAttributionService.start();
 
         setAdapterService(this);
 
@@ -780,6 +778,10 @@ public class AdapterService extends Service {
 
     public ActiveDeviceManager getActiveDeviceManager() {
         return mActiveDeviceManager;
+    }
+
+    public SilenceDeviceManager getSilenceDeviceManager() {
+        return mSilenceDeviceManager;
     }
 
     private boolean initMetricsLogger() {
@@ -929,7 +931,7 @@ public class AdapterService extends Service {
         debugLog("bleOnProcessStart() - Make Bond State Machine");
         mBondStateMachine = BondStateMachine.make(this, mAdapterProperties, mRemoteDevices);
 
-        mJniCallbacks.init(mBondStateMachine, mRemoteDevices);
+        mNativeInterface.getCallbacks().init(mBondStateMachine, mRemoteDevices);
 
         mBatteryStatsManager.reportBleScanReset();
         BluetoothStatsLog.write_non_chained(
@@ -987,7 +989,7 @@ public class AdapterService extends Service {
 
     void stopProfileServices() {
         // Make sure to stop classic background tasks now
-        cancelDiscoveryNative();
+        mNativeInterface.cancelDiscovery();
         mAdapterProperties.setScanMode(BluetoothAdapter.SCAN_MODE_NONE);
 
         Class[] supportedProfileServices = Config.getSupportedProfiles();
@@ -1005,47 +1007,11 @@ public class AdapterService extends Service {
         }
     }
 
-    class GattServiceConnection implements ServiceConnection {
-        public void onServiceConnected(ComponentName componentName, IBinder service) {
-            String name = componentName.getClassName();
-            if (DBG) {
-                Log.d(TAG, "GattServiceConnection.onServiceConnected: " + name);
-            }
-            if (!name.equals(GattService.class.getName())) {
-                Log.e(TAG, "Unknown service connected: " + name);
-                return;
-            }
-            mHandler.obtainMessage(MESSAGE_ON_PROFILE_SERVICE_BIND, service).sendToTarget();
-        }
-
-        public void onServiceDisconnected(ComponentName componentName) {
-            // Called if we unexpectedly disconnect. This should never happen.
-            String name = componentName.getClassName();
-            Log.e(TAG, "GattServiceConnection.onServiceDisconnected: " + name);
-            if (!name.equals(GattService.class.getName())) {
-                Log.e(TAG, "Unknown service disconnected: " + name);
-                return;
-            }
-            mHandler.sendEmptyMessage(MESSAGE_ON_PROFILE_SERVICE_UNBIND);
-        }
-    }
-
-    private GattServiceConnection mGattConnection = new GattServiceConnection();
-
     private void startGattProfileService() {
         mStartedProfiles.add(GattService.class.getSimpleName());
 
-        Intent intent = new Intent(this, GattService.class);
-        if (!bindServiceAsUser(
-                intent,
-                mGattConnection,
-                Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT,
-                UserHandle.CURRENT)) {
-            // This should never happen
-            // unbindService will be called during stopGattProfileService triggered by AdapterState
-            Log.e(TAG, "Error while binding to gatt. This Bluetooth session will timeout");
-            unbindService(mGattConnection);
-        }
+        mGattService = new GattService(this);
+        ((ProfileService) mGattService).doStart();
     }
 
     private void stopGattProfileService() {
@@ -1056,15 +1022,10 @@ public class AdapterService extends Service {
         }
 
         mStartedProfiles.remove(GattService.class.getSimpleName());
-
-        try {
-            if (mBluetoothGatt != null) {
-                mBluetoothGatt.stopService();
-            }
-        } catch (RemoteException e) {
-            Log.e(TAG, "stopGattProfileService: RemoteException", e);
+        if (mGattService != null) {
+            ((ProfileService) mGattService).doStop();
+            mGattService = null;
         }
-        unbindService(mGattConnection);
     }
 
     private void invalidateBluetoothGetStateCache() {
@@ -1104,8 +1065,9 @@ public class AdapterService extends Service {
     void updateAdapterState(int prevState, int newState) {
         mAdapterProperties.setState(newState);
         invalidateBluetoothGetStateCache();
-        if (mCallbacks != null) {
-            int n = mCallbacks.beginBroadcast();
+
+        if (mRemoteCallbacks != null) {
+            int n = mRemoteCallbacks.beginBroadcast();
             debugLog(
                     "updateAdapterState() - Broadcasting state "
                             + BluetoothAdapter.nameForState(newState)
@@ -1114,12 +1076,18 @@ public class AdapterService extends Service {
                             + " receivers.");
             for (int i = 0; i < n; i++) {
                 try {
-                    mCallbacks.getBroadcastItem(i).onBluetoothStateChange(prevState, newState);
+                    mRemoteCallbacks
+                            .getBroadcastItem(i)
+                            .onBluetoothStateChange(prevState, newState);
                 } catch (RemoteException e) {
                     debugLog("updateAdapterState() - Callback #" + i + " failed (" + e + ")");
                 }
             }
-            mCallbacks.finishBroadcast();
+            mRemoteCallbacks.finishBroadcast();
+        }
+
+        for (Map.Entry<BluetoothStateCallback, Executor> e : mLocalCallbacks.entrySet()) {
+            e.getValue().execute(() -> e.getKey().onBluetoothStateChange(prevState, newState));
         }
 
         // Turn the Adapter all the way off if we are disabling and the snoop log setting changed.
@@ -1321,14 +1289,7 @@ public class AdapterService extends Service {
         mCleaningUp = true;
         invalidateBluetoothCaches();
 
-        unregisterReceiver(mAlarmBroadcastReceiver);
-
         stopRfcommServerSockets();
-
-        if (mPendingAlarm != null) {
-            mAlarmManager.cancel(mPendingAlarm);
-            mPendingAlarm = null;
-        }
 
         // This wake lock release may also be called concurrently by
         // {@link #releaseWakeLock(String lockName)}, so a synchronization is needed here.
@@ -1362,13 +1323,9 @@ public class AdapterService extends Service {
             mSdpManager = null;
         }
 
-        if (mActivityAttributionService != null) {
-            mActivityAttributionService.cleanup();
-        }
-
         if (mNativeAvailable) {
             debugLog("cleanup() - Cleaning up adapter native");
-            cleanupNative();
+            mNativeInterface.cleanup();
             mNativeAvailable = false;
         }
 
@@ -1376,8 +1333,8 @@ public class AdapterService extends Service {
             mAdapterProperties.cleanup();
         }
 
-        if (mJniCallbacks != null) {
-            mJniCallbacks.cleanup();
+        if (mNativeInterface.getCallbacks() != null) {
+            mNativeInterface.getCallbacks().cleanup();
         }
 
         if (mBluetoothKeystoreService != null) {
@@ -1419,8 +1376,8 @@ public class AdapterService extends Service {
             mBluetoothQualityReportReadyCallbacks.kill();
         }
 
-        if (mCallbacks != null) {
-            mCallbacks.kill();
+        if (mRemoteCallbacks != null) {
+            mRemoteCallbacks.kill();
         }
     }
 
@@ -1534,7 +1491,15 @@ public class AdapterService extends Service {
         ParcelUuid[] remoteDeviceUuids = getRemoteUuids(device);
         ParcelUuid[] localDeviceUuids = mAdapterProperties.getUuids();
         if (remoteDeviceUuids == null || remoteDeviceUuids.length == 0) {
-            Log.e(TAG, "isSupported: Remote Device Uuids Empty");
+            Log.e(TAG, "isProfileSupported(device=" + device + ", profile="
+                    + BluetoothProfile.getProfileName(profile) + "): remote device Uuids Empty");
+        }
+
+        if (VERBOSE) {
+            Log.v(TAG, "isProfileSupported(device=" + device + ", profile="
+                    + BluetoothProfile.getProfileName(profile) + "): local_uuids="
+                    + Arrays.toString(localDeviceUuids) + ", remote_uuids="
+                    + Arrays.toString(remoteDeviceUuids));
         }
 
         if (profile == BluetoothProfile.HEADSET) {
@@ -1576,7 +1541,8 @@ public class AdapterService extends Service {
             return mPbapService.getConnectionState(device) == BluetoothProfile.STATE_CONNECTED;
         }
         if (profile == BluetoothProfile.MAP_CLIENT) {
-            return true;
+            return Utils.arrayContains(localDeviceUuids, BluetoothUuid.MNS)
+                    && Utils.arrayContains(remoteDeviceUuids, BluetoothUuid.MAS);
         }
         if (profile == BluetoothProfile.PBAP_CLIENT) {
             return Utils.arrayContains(localDeviceUuids, BluetoothUuid.PBAP_PCE)
@@ -2106,6 +2072,12 @@ public class AdapterService extends Service {
         return mDatabaseManager.getCustomMeta(device, key);
     }
 
+    /** Update Adapter Properties when BT profiles connection state changes. */
+    public void updateProfileConnectionAdapterProperties(
+            BluetoothDevice device, int profile, int state, int prevState) {
+        mAdapterProperties.updateOnProfileConnectionChanged(device, profile, state, prevState);
+    }
+
     /** Handlers for incoming service calls */
     private AdapterServiceBinder mBinder;
 
@@ -2243,7 +2215,7 @@ public class AdapterService extends Service {
                 // by default return true
                 receiver.send(true);
             } else {
-                receiver.send(service.isLogRedactionEnabled());
+                receiver.send(service.mNativeInterface.isLogRedactionEnabled());
             }
         }
 
@@ -2561,7 +2533,7 @@ public class AdapterService extends Service {
             }
 
             service.debugLog("cancelDiscovery");
-            return service.cancelDiscoveryNative();
+            return service.mNativeInterface.cancelDiscovery();
         }
 
         @Override
@@ -2802,7 +2774,7 @@ public class AdapterService extends Service {
                 deviceProp.setBondingInitiatedLocally(false);
             }
 
-            return service.cancelBondNative(getBytesFromAddress(device.getAddress()));
+            return service.mNativeInterface.cancelBond(getBytesFromAddress(device.getAddress()));
         }
 
         @Override
@@ -2970,7 +2942,7 @@ public class AdapterService extends Service {
             if (service == null
                     || !Utils.checkConnectPermissionForDataDelivery(
                             service, attributionSource, "AdapterService getConnectionState")) {
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return CONNECTION_STATE_DISCONNECTED;
             }
 
             return service.getConnectionState(device);
@@ -3516,7 +3488,7 @@ public class AdapterService extends Service {
             }
             service.logUserBondResponse(
                     device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_PIN_REPLIED);
-            return service.pinReplyNative(
+            return service.mNativeInterface.pinReply(
                     getBytesFromAddress(device.getAddress()), accept, len, pinCode);
         }
 
@@ -3561,7 +3533,7 @@ public class AdapterService extends Service {
             }
             service.logUserBondResponse(
                     device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_SSP_REPLIED);
-            return service.sspReplyNative(
+            return service.mNativeInterface.sspReply(
                     getBytesFromAddress(device.getAddress()),
                     AbstractionLayer.BT_SSP_VARIANT_PASSKEY_ENTRY,
                     accept,
@@ -3603,7 +3575,7 @@ public class AdapterService extends Service {
             }
             service.logUserBondResponse(
                     device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_SSP_REPLIED);
-            return service.sspReplyNative(
+            return service.mNativeInterface.sspReply(
                     getBytesFromAddress(device.getAddress()),
                     AbstractionLayer.BT_SSP_VARIANT_PASSKEY_CONFIRMATION,
                     accept,
@@ -4017,30 +3989,6 @@ public class AdapterService extends Service {
             return service.getMaxConnectedAudioDevices();
         }
 
-        // @Override
-        @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
-        public void isA2dpOffloadEnabled(
-                AttributionSource source, SynchronousResultReceiver receiver) {
-            try {
-                receiver.send(isA2dpOffloadEnabled(source));
-            } catch (RuntimeException e) {
-                receiver.propagateException(e);
-            }
-        }
-
-        @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
-        private boolean isA2dpOffloadEnabled(AttributionSource attributionSource) {
-            // don't check caller, may be called from system UI
-            AdapterService service = getService();
-            if (service == null
-                    || !Utils.checkConnectPermissionForDataDelivery(
-                            service, attributionSource, "AdapterService isA2dpOffloadEnabled")) {
-                return false;
-            }
-
-            return service.isA2dpOffloadEnabled();
-        }
-
         @Override
         public void factoryReset(AttributionSource source, SynchronousResultReceiver receiver) {
             try {
@@ -4155,7 +4103,7 @@ public class AdapterService extends Service {
 
             enforceBluetoothPrivilegedPermission(service);
 
-            service.registerCallback(callback);
+            service.registerRemoteCallback(callback);
         }
 
         @Override
@@ -4180,7 +4128,7 @@ public class AdapterService extends Service {
         private void unregisterCallback(IBluetoothCallback callback, AttributionSource source) {
             AdapterService service = getService();
             if (service == null
-                    || service.mCallbacks == null
+                    || service.mRemoteCallbacks == null
                     || !callerIsSystemOrActiveOrManagedUser(service, TAG, "unregisterCallback")
                     || !Utils.checkConnectPermissionForDataDelivery(service, source, TAG)) {
                 return;
@@ -4188,7 +4136,7 @@ public class AdapterService extends Service {
 
             enforceBluetoothPrivilegedPermission(service);
 
-            service.unregisterCallback(callback);
+            service.unregisterRemoteCallback(callback);
         }
 
         @Override
@@ -5029,7 +4977,7 @@ public class AdapterService extends Service {
             if (service == null) {
                 return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
             }
-            if (!callerIsSystem(TAG, "setPreferredAudioProfiles")) {
+            if (!callerIsSystem(TAG, "notifyActiveDeviceChangeApplied")) {
                 return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ALLOWED;
             }
             requireNonNull(device);
@@ -5246,7 +5194,42 @@ public class AdapterService extends Service {
         }
 
         @Override
-        public IBluetoothGatt getBluetoothGatt() {
+        public void isMediaProfileConnected(
+                AttributionSource source, SynchronousResultReceiver receiver) {
+            try {
+                receiver.send(isMediaProfileConnected(source));
+            } catch (RuntimeException e) {
+                receiver.propagateException(e);
+            }
+        }
+
+        @RequiresPermission(
+                allOf = {
+                    android.Manifest.permission.BLUETOOTH_CONNECT,
+                    android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                })
+        private boolean isMediaProfileConnected(AttributionSource source) {
+            AdapterService service = getService();
+            if (service == null
+                    || !Utils.checkConnectPermissionForDataDelivery(
+                            service, source, "AdapterService.isMediaProfileConnected")) {
+                return false;
+            }
+            enforceBluetoothPrivilegedPermission(service);
+
+            return service.isMediaProfileConnected();
+        }
+
+        @Override
+        public void getBluetoothGatt(SynchronousResultReceiver receiver) {
+            try {
+                receiver.send(getBluetoothGatt());
+            } catch (RuntimeException e) {
+                receiver.propagateException(e);
+            }
+        }
+
+        private IBinder getBluetoothGatt() {
             AdapterService service = getService();
             if (service == null) {
                 return null;
@@ -5261,6 +5244,7 @@ public class AdapterService extends Service {
             try {
                 AdapterService service = getService();
                 if (service != null) {
+                    enforceBluetoothPrivilegedPermission(service);
                     service.unregAllGattClient(source);
                 }
                 receiver.send(null);
@@ -5697,8 +5681,6 @@ public class AdapterService extends Service {
         return mAdapterProperties.getName();
     }
 
-    private native boolean isLogRedactionEnabled();
-
     public int getNameLengthForAdvertise() {
         return mAdapterProperties.getName().length();
     }
@@ -5754,7 +5736,7 @@ public class AdapterService extends Service {
             mDiscoveringPackages.add(
                     new DiscoveringPackage(callingPackage, permission, hasDisavowedLocation));
         }
-        return startDiscoveryNative();
+        return mNativeInterface.startDiscovery();
     }
 
     /**
@@ -5833,7 +5815,7 @@ public class AdapterService extends Service {
 
         // Pairing is unreliable while scanning, so cancel discovery
         // Note, remove this when native stack improves
-        cancelDiscoveryNative();
+        mNativeInterface.cancelDiscovery();
 
         Message msg = mBondStateMachine.obtainMessage(BondStateMachine.CREATE_BOND);
         msg.obj = device;
@@ -5884,7 +5866,7 @@ public class AdapterService extends Service {
         mHandler.postDelayed(
                 () -> removeFromOobDataCallbackQueue(callback),
                 GENERATE_LOCAL_OOB_DATA_TIMEOUT.toMillis());
-        generateLocalOobDataNative(transport);
+        mNativeInterface.generateLocalOobData(transport);
     }
 
     private synchronized void removeFromOobDataCallbackQueue(IBluetoothOobDataCallback callback) {
@@ -5968,7 +5950,7 @@ public class AdapterService extends Service {
     }
 
     int getConnectionState(BluetoothDevice device) {
-        return getConnectionStateNative(getBytesFromAddress(device.getAddress()));
+        return mNativeInterface.getConnectionState(getBytesFromAddress(device.getAddress()));
     }
 
     int getConnectionHandle(BluetoothDevice device, int transport) {
@@ -6092,7 +6074,10 @@ public class AdapterService extends Service {
         if (leAudioSupported) {
             Log.i(TAG, "setActiveDevice: Setting active Le Audio device " + device);
             if (device == null) {
-                mLeAudioService.removeActiveDevice(false);
+                /* If called by BluetoothAdapter it means Audio should not be stopped.
+                 * For this reason let's say that fallback device exists
+                 */
+                mLeAudioService.removeActiveDevice(true /* hasFallbackDevice */);
             } else {
                 mLeAudioService.setActiveDevice(device);
             }
@@ -6778,14 +6763,24 @@ public class AdapterService extends Service {
         return mAdapterProperties.isA2dpOffloadEnabled();
     }
 
-    @VisibleForTesting
-    void registerCallback(IBluetoothCallback callback) {
-        mCallbacks.register(callback);
+    /** Register a bluetooth state callback */
+    public void registerBluetoothStateCallback(Executor executor, BluetoothStateCallback callback) {
+        mLocalCallbacks.put(callback, executor);
+    }
+
+    /** Unregister a bluetooth state callback */
+    public void unregisterBluetoothStateCallback(BluetoothStateCallback callback) {
+        mLocalCallbacks.remove(callback);
     }
 
     @VisibleForTesting
-    void unregisterCallback(IBluetoothCallback callback) {
-        mCallbacks.unregister(callback);
+    void registerRemoteCallback(IBluetoothCallback callback) {
+        mRemoteCallbacks.register(callback);
+    }
+
+    @VisibleForTesting
+    void unregisterRemoteCallback(IBluetoothCallback callback) {
+        mRemoteCallbacks.unregister(callback);
     }
 
     @VisibleForTesting
@@ -6812,7 +6807,7 @@ public class AdapterService extends Service {
             mBtCompanionManager.factoryReset();
         }
 
-        return factoryResetNative();
+        return mNativeInterface.factoryReset();
     }
 
     @VisibleForTesting
@@ -6832,7 +6827,7 @@ public class AdapterService extends Service {
         }
 
         // Pull the data. The callback will notify mEnergyInfoLock.
-        readEnergyInfo();
+        mNativeInterface.readEnergyInfo();
 
         synchronized (mEnergyInfoLock) {
             long now = System.currentTimeMillis();
@@ -6896,29 +6891,79 @@ public class AdapterService extends Service {
         return BluetoothStatusCodes.FEATURE_NOT_SUPPORTED;
     }
 
-    IBluetoothGatt getBluetoothGatt() {
-        return mBluetoothGatt;
+    IBinder getBluetoothGatt() {
+        if (mGattService == null) {
+            return null;
+        }
+        return ((ProfileService) mGattService).getBinder();
     }
 
     void unregAllGattClient(AttributionSource source) {
-        if (mBluetoothGatt != null) {
-            try {
-                mBluetoothGatt.unregAll(source);
-            } catch (RemoteException e) {
-                Log.e(TAG, "Unable to disconnect all apps.", e);
-            }
+        if (mGattService != null) {
+            mGattService.unregAll(source);
+        }
+    }
+
+    boolean isMediaProfileConnected() {
+        if (mA2dpService != null && mA2dpService.getConnectedDevices().size() > 0) {
+            debugLog("isMediaProfileConnected. A2dp is connected");
+            return true;
+        } else if (mHearingAidService != null
+                && mHearingAidService.getConnectedDevices().size() > 0) {
+            debugLog("isMediaProfileConnected. HearingAid is connected");
+            return true;
+        } else if (mLeAudioService != null && mLeAudioService.getConnectedDevices().size() > 0) {
+            debugLog("isMediaProfileConnected. LeAudio is connected");
+            return true;
+        } else {
+            debugLog(
+                    "isMediaProfileConnected: no Media connected."
+                            + (" A2dp=" + mA2dpService)
+                            + (" HearingAid=" + mHearingAidService)
+                            + (" LeAudio=" + mLeAudioService));
+            return false;
+        }
+    }
+
+    /** Update PhonePolicy when new {@link BluetoothDevice} creates an ACL connection. */
+    public void updatePhonePolicyOnAclConnect(BluetoothDevice device) {
+        if (mPhonePolicy != null) {
+            mPhonePolicy.handleAclConnected(device);
         }
     }
 
     /**
-     * Notify the UID and package name of the app, and the address of associated active device
-     *
-     * @param source The attribution source that starts the activity
-     * @param deviceAddress The address of the active device associated with the app
+     * Notify GATT of a Bluetooth profile's connection state change for a given {@link
+     * BluetoothProfile}.
      */
-    public void notifyActivityAttributionInfo(AttributionSource source, String deviceAddress) {
-        mActivityAttributionService.notifyActivityAttributionInfo(
-                source.getUid(), source.getPackageName(), deviceAddress);
+    public void notifyProfileConnectionStateChangeToGatt(int profile, int fromState, int toState) {
+        if (mGattService == null) {
+            Log.w(TAG, "GATT Service is not running!");
+            return;
+        }
+        mGattService.notifyProfileConnectionStateChange(profile, fromState, toState);
+    }
+
+    /**
+     * Handle Bluetooth app state when connection state changes for a given {@code profile}.
+     *
+     * <p>Currently this function is limited to handling Phone policy but the eventual goal is to
+     * move all connection logic here.
+     */
+    public void handleProfileConnectionStateChange(
+            int profile, BluetoothDevice device, int fromState, int toState) {
+        if (mPhonePolicy != null) {
+            mPhonePolicy.profileConnectionStateChanged(profile, device, fromState, toState);
+        }
+    }
+
+    /** Handle Bluetooth app state when active device changes for a given {@code profile}. */
+    public void handleActiveDeviceChange(int profile, BluetoothDevice device) {
+        mActiveDeviceManager.profileActiveDeviceChanged(profile, device);
+        mSilenceDeviceManager.profileActiveDeviceChanged(profile, device);
+        if (mPhonePolicy != null) {
+            mPhonePolicy.profileActiveDeviceChanged(profile, device);
+        }
     }
 
     static int convertScanModeToHal(int mode) {
@@ -6947,40 +6992,12 @@ public class AdapterService extends Service {
         return -1;
     }
 
-    // This function is called from JNI. It allows native code to set a single wake
-    // alarm. If an alarm is already pending and a new request comes in, the alarm
-    // will be rescheduled (i.e. the previously set alarm will be cancelled).
-    @RequiresPermission(android.Manifest.permission.SCHEDULE_EXACT_ALARM)
-    private boolean setWakeAlarm(long delayMillis, boolean shouldWake) {
-        synchronized (this) {
-            if (mPendingAlarm != null) {
-                mAlarmManager.cancel(mPendingAlarm);
-            }
-
-            long wakeupTime = SystemClock.elapsedRealtime() + delayMillis;
-            int type =
-                    shouldWake
-                            ? AlarmManager.ELAPSED_REALTIME_WAKEUP
-                            : AlarmManager.ELAPSED_REALTIME;
-
-            Intent intent = new Intent(ACTION_ALARM_WAKEUP);
-            mPendingAlarm =
-                    PendingIntent.getBroadcast(
-                            this,
-                            0,
-                            intent,
-                            PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE);
-            mAlarmManager.setExact(type, wakeupTime, mPendingAlarm);
-            return true;
-        }
-    }
-
     // This function is called from JNI. It allows native code to acquire a single wake lock.
     // If the wake lock is already held, this function returns success. Although this function
     // only supports acquiring a single wake lock at a time right now, it will eventually be
     // extended to allow acquiring an arbitrary number of wake locks. The current interface
     // takes |lockName| as a parameter in anticipation of that implementation.
-    private boolean acquireWakeLock(String lockName) {
+    boolean acquireWakeLock(String lockName) {
         synchronized (this) {
             if (mWakeLock == null) {
                 mWakeLockName = lockName;
@@ -6998,7 +7015,7 @@ public class AdapterService extends Service {
     // by |acquireWakeLock|. If the wake lock is not held, this function returns failure.
     // Note that the release() call is also invoked by {@link #cleanup()} so a synchronization is
     // needed here. See the comment for |acquireWakeLock| for an explanation of the interface.
-    private boolean releaseWakeLock(String lockName) {
+    boolean releaseWakeLock(String lockName) {
         synchronized (this) {
             if (mWakeLock == null) {
                 errorLog("Repeated wake lock release; aborting release: " + lockName);
@@ -7012,15 +7029,14 @@ public class AdapterService extends Service {
         return true;
     }
 
-    private void energyInfoCallback(
+    void energyInfoCallback(
             int status,
             int ctrlState,
             long txTime,
             long rxTime,
             long idleTime,
             long energyUsed,
-            UidTraffic[] data)
-            throws RemoteException {
+            UidTraffic[] data) {
         if (ctrlState >= BluetoothActivityEnergyInfo.BT_STACK_STATE_INVALID
                 && ctrlState <= BluetoothActivityEnergyInfo.BT_STACK_STATE_STATE_IDLE) {
             // Energy is product of mA, V and ms. If the chipset doesn't
@@ -7097,7 +7113,7 @@ public class AdapterService extends Service {
 
         // pass just interesting metadata to native, to reduce spam
         if (key == BluetoothDevice.METADATA_LE_AUDIO) {
-            metadataChangedNative(Utils.getBytesFromAddress(address), key, value);
+            mNativeInterface.metadataChanged(Utils.getBytesFromAddress(address), key, value);
         }
 
         if (mMetadataListeners.containsKey(device)) {
@@ -7128,8 +7144,7 @@ public class AdapterService extends Service {
         return BluetoothProperties.getHardwareOperatingVoltageMv().orElse(0) / 1000.0;
     }
 
-    @VisibleForTesting
-    protected RemoteDevices getRemoteDevices() {
+    public RemoteDevices getRemoteDevices() {
         return mRemoteDevices;
     }
 
@@ -7188,14 +7203,14 @@ public class AdapterService extends Service {
             writer.println("Not dumping, since Bluetooth is turning off");
             writer.println();
         } else {
-            dumpNative(fd, args);
+            mNativeInterface.dump(fd, args);
         }
     }
 
     private void dumpMetrics(FileDescriptor fd) {
         BluetoothMetricsProto.BluetoothLog.Builder metricsBuilder =
                 BluetoothMetricsProto.BluetoothLog.newBuilder();
-        byte[] nativeMetricsBytes = dumpMetricsNative();
+        byte[] nativeMetricsBytes = mNativeInterface.dumpMetrics();
         debugLog("dumpMetrics: native metrics size is " + nativeMetricsBytes.length);
         if (nativeMetricsBytes.length > 0) {
             try {
@@ -7234,17 +7249,6 @@ public class AdapterService extends Service {
     private void errorLog(String msg) {
         Log.e(TAG, msg);
     }
-
-    private final BroadcastReceiver mAlarmBroadcastReceiver =
-            new BroadcastReceiver() {
-                @Override
-                public void onReceive(Context context, Intent intent) {
-                    synchronized (AdapterService.this) {
-                        mPendingAlarm = null;
-                        alarmFiredNative();
-                    }
-                }
-            };
 
     private boolean isCommonCriteriaMode() {
         return getNonNullSystemService(DevicePolicyManager.class).isCommonCriteriaModeEnabled(null);
@@ -7513,6 +7517,20 @@ public class AdapterService extends Service {
         }
     }
 
+    /** A callback that will be called when AdapterState is changed */
+    public interface BluetoothStateCallback {
+        /**
+         * Called when the status of bluetooth adapter is changing. {@code prevState} and {@code
+         * newState} takes one of following values defined in BluetoothAdapter.java: STATE_OFF,
+         * STATE_TURNING_ON, STATE_ON, STATE_TURNING_OFF, STATE_BLE_TURNING_ON, STATE_BLE_ON,
+         * STATE_BLE_TURNING_OFF
+         *
+         * @param prevState the previous Bluetooth state.
+         * @param newState the new Bluetooth state.
+         */
+        void onBluetoothStateChange(int prevState, int newState);
+    }
+
     /**
      * Obfuscate Bluetooth MAC address into a PII free ID string
      *
@@ -7524,7 +7542,7 @@ public class AdapterService extends Service {
         if (device == null) {
             return new byte[0];
         }
-        return obfuscateAddressNative(Utils.getByteAddress(device));
+        return mNativeInterface.obfuscateAddress(Utils.getByteAddress(device));
     }
 
     /**
@@ -7569,7 +7587,7 @@ public class AdapterService extends Service {
         if (device == null) {
             return 0;
         }
-        return getMetricIdNative(Utils.getByteAddress(device));
+        return mNativeInterface.getMetricId(Utils.getByteAddress(device));
     }
 
     public CompanionManager getCompanionManager() {
@@ -7658,7 +7676,7 @@ public class AdapterService extends Service {
      * @return boolean true if audio low latency is successfully allowed or disallowed
      */
     public boolean allowLowLatencyAudio(boolean allowed, BluetoothDevice device) {
-        return allowLowLatencyAudioNative(allowed, Utils.getByteAddress(device));
+        return mNativeInterface.allowLowLatencyAudio(allowed, Utils.getByteAddress(device));
     }
 
     /**
@@ -7668,7 +7686,7 @@ public class AdapterService extends Service {
      * @return int value other than 0 if remote PBAP PCE version is found
      */
     public int getRemotePbapPceVersion(String address) {
-        return getRemotePbapPceVersionNative(address);
+        return mNativeInterface.getRemotePbapPceVersion(address);
     }
 
     /**
@@ -7677,7 +7695,7 @@ public class AdapterService extends Service {
      * @return true/false.
      */
     public boolean pbapPseDynamicVersionUpgradeIsEnabled() {
-        return pbapPseDynamicVersionUpgradeIsEnabledNative();
+        return mNativeInterface.pbapPseDynamicVersionUpgradeIsEnabled();
     }
 
     /** Sets the battery level of the remote device */
@@ -7690,31 +7708,31 @@ public class AdapterService extends Service {
     }
 
     public boolean interopMatchAddr(InteropFeature feature, String address) {
-        return interopMatchAddrNative(feature.name(), address);
+        return mNativeInterface.interopMatchAddr(feature.name(), address);
     }
 
     public boolean interopMatchName(InteropFeature feature, String name) {
-        return interopMatchNameNative(feature.name(), name);
+        return mNativeInterface.interopMatchName(feature.name(), name);
     }
 
     public boolean interopMatchAddrOrName(InteropFeature feature, String address) {
-        return interopMatchAddrOrNameNative(feature.name(), address);
+        return mNativeInterface.interopMatchAddrOrName(feature.name(), address);
     }
 
     public void interopDatabaseAddAddr(InteropFeature feature, String address, int length) {
-        interopDatabaseAddRemoveAddrNative(true, feature.name(), address, length);
+        mNativeInterface.interopDatabaseAddRemoveAddr(true, feature.name(), address, length);
     }
 
     public void interopDatabaseRemoveAddr(InteropFeature feature, String address) {
-        interopDatabaseAddRemoveAddrNative(false, feature.name(), address, 0);
+        mNativeInterface.interopDatabaseAddRemoveAddr(false, feature.name(), address, 0);
     }
 
     public void interopDatabaseAddName(InteropFeature feature, String name) {
-        interopDatabaseAddRemoveNameNative(true, feature.name(), name);
+        mNativeInterface.interopDatabaseAddRemoveName(true, feature.name(), name);
     }
 
     public void interopDatabaseRemoveName(InteropFeature feature, String name) {
-        interopDatabaseAddRemoveNameNative(false, feature.name(), name);
+        mNativeInterface.interopDatabaseAddRemoveName(false, feature.name(), name);
     }
 
     private void loadLeAudioAllowDevices() {
@@ -7796,123 +7814,6 @@ public class AdapterService extends Service {
             mPhonePolicy.onUuidsDiscovered(device, uuids);
         }
     }
-
-    static native void classInitNative();
-
-    native boolean initNative(
-            boolean startRestricted,
-            boolean isCommonCriteriaMode,
-            int configCompareResult,
-            String[] initFlags,
-            boolean isAtvDevice,
-            String userDataDirectory);
-
-    native void cleanupNative();
-
-    /*package*/
-    native boolean enableNative();
-
-    /*package*/
-    native boolean disableNative();
-
-    /*package*/
-    native boolean setAdapterPropertyNative(int type, byte[] val);
-
-    /*package*/
-    native boolean getAdapterPropertiesNative();
-
-    /*package*/
-    native boolean getAdapterPropertyNative(int type);
-
-    /*package*/
-    native boolean setAdapterPropertyNative(int type);
-
-    /*package*/
-    native boolean setDevicePropertyNative(byte[] address, int type, byte[] val);
-
-    /*package*/
-    native boolean getDevicePropertyNative(byte[] address, int type);
-
-    /** package */
-    public native boolean createBondNative(byte[] address, int addressType, int transport);
-
-    /*package*/
-    native boolean createBondOutOfBandNative(
-            byte[] address, int transport, OobData p192Data, OobData p256Data);
-
-    /*package*/
-    public native boolean removeBondNative(byte[] address);
-
-    /*package*/
-    native boolean cancelBondNative(byte[] address);
-
-    /*package*/
-    native void generateLocalOobDataNative(int transport);
-
-    /*package*/
-    native boolean sdpSearchNative(byte[] address, byte[] uuid);
-
-    /*package*/
-    native int getConnectionStateNative(byte[] address);
-
-    private native boolean startDiscoveryNative();
-
-    private native boolean cancelDiscoveryNative();
-
-    private native boolean pinReplyNative(byte[] address, boolean accept, int len, byte[] pin);
-
-    private native boolean sspReplyNative(byte[] address, int type, boolean accept, int passkey);
-
-    /*package*/
-    native boolean getRemoteServicesNative(byte[] address, int transport);
-
-    /*package*/
-    native boolean getRemoteMasInstancesNative(byte[] address);
-
-    private native int readEnergyInfo();
-
-    /*package*/
-    native boolean factoryResetNative();
-
-    private native void alarmFiredNative();
-
-    private native void dumpNative(FileDescriptor fd, String[] arguments);
-
-    private native byte[] dumpMetricsNative();
-
-    private native byte[] obfuscateAddressNative(byte[] address);
-
-    native boolean setBufferLengthMillisNative(int codec, int value);
-
-    private native int getMetricIdNative(byte[] address);
-
-    /*package*/ native int connectSocketNative(
-            byte[] address, int type, byte[] uuid, int port, int flag, int callingUid);
-
-    /*package*/ native int createSocketChannelNative(
-            int type, String serviceName, byte[] uuid, int port, int flag, int callingUid);
-
-    /*package*/ native void requestMaximumTxDataLengthNative(byte[] address);
-
-    private native boolean allowLowLatencyAudioNative(boolean allowed, byte[] address);
-
-    private native void metadataChangedNative(byte[] address, int key, byte[] value);
-
-    private native boolean interopMatchAddrNative(String featureName, String address);
-
-    private native boolean interopMatchNameNative(String featureName, String name);
-
-    private native boolean interopMatchAddrOrNameNative(String featureName, String address);
-
-    private native void interopDatabaseAddRemoveAddrNative(
-            boolean doAdd, String featureName, String address, int length);
-
-    private native void interopDatabaseAddRemoveNameNative(
-            boolean doAdd, String featureBame, String name);
-
-    private native int getRemotePbapPceVersionNative(String address);
-
-    private native boolean pbapPseDynamicVersionUpgradeIsEnabledNative();
 
     // Returns if this is a mock object. This is currently used in testing so that we may not call
     // System.exit() while finalizing the object. Otherwise GC of mock objects unfortunately ends up

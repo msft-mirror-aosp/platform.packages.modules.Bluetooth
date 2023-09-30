@@ -43,8 +43,9 @@ use crate::uuid::Profile;
 use crate::{Message, RPCProxy};
 
 // The timeout we have to wait for all supported profiles to connect after we
-// receive the first profile connected event. The host shall disconnect the
-// device after this many seconds of timeout.
+// receive the first profile connected event. The host shall disconnect or
+// force connect the potentially partially connected device after this many
+// seconds of timeout.
 const PROFILE_DISCOVERY_TIMEOUT_SEC: u64 = 10;
 // The timeout we have to wait for the initiator peer device to complete the
 // initial profile connection. After this many seconds, we will begin to
@@ -256,6 +257,7 @@ enum DeviceConnectionStates {
     ConnectingAfterRetry,  // Host initiated requests to missing profiles after timeout
     FullyConnected,        // All profiles (excluding AVRCP) are connected
     Disconnecting,         // Working towards disconnection of each connected profile
+    WaitingConnection,     // Waiting for new connections initiated by peer
 }
 
 pub struct BluetoothMedia {
@@ -605,7 +607,8 @@ impl BluetoothMedia {
                     info!("[{}]: state {:?}", DisplayAddress(&addr), state);
                     match state {
                         DeviceConnectionStates::ConnectingBeforeRetry
-                        | DeviceConnectionStates::ConnectingAfterRetry => {
+                        | DeviceConnectionStates::ConnectingAfterRetry
+                        | DeviceConnectionStates::WaitingConnection => {
                             self.delay_volume_update.insert(Profile::AvrcpController, volume);
                         }
                         DeviceConnectionStates::FullyConnected => {
@@ -779,7 +782,8 @@ impl BluetoothMedia {
                 );
                 match states.get(&addr).unwrap() {
                     DeviceConnectionStates::ConnectingBeforeRetry
-                    | DeviceConnectionStates::ConnectingAfterRetry => {
+                    | DeviceConnectionStates::ConnectingAfterRetry
+                    | DeviceConnectionStates::WaitingConnection => {
                         self.delay_volume_update.insert(Profile::Hfp, volume);
                     }
                     DeviceConnectionStates::FullyConnected => {
@@ -1095,6 +1099,15 @@ impl BluetoothMedia {
         let sleep_duration = (first_conn_ts + total_duration).saturating_duration_since(now_ts);
         sleep(sleep_duration).await;
 
+        Self::async_disconnect(fallback_tasks, device_states, txl, addr).await;
+    }
+
+    async fn async_disconnect(
+        fallback_tasks: &Arc<Mutex<HashMap<RawAddress, Option<(JoinHandle<()>, Instant)>>>>,
+        device_states: &Arc<Mutex<HashMap<RawAddress, DeviceConnectionStates>>>,
+        txl: &Sender<Message>,
+        addr: &RawAddress,
+    ) {
         device_states.lock().unwrap().insert(*addr, DeviceConnectionStates::Disconnecting);
         fallback_tasks.lock().unwrap().insert(*addr, None);
 
@@ -1113,10 +1126,20 @@ impl BluetoothMedia {
         first_conn_ts: Instant,
     ) {
         let now_ts = Instant::now();
-        let total_duration = Duration::from_secs(CONNECT_MISSING_PROFILES_TIMEOUT_SEC);
+        let total_duration = Duration::from_secs(PROFILE_DISCOVERY_TIMEOUT_SEC);
         let sleep_duration = (first_conn_ts + total_duration).saturating_duration_since(now_ts);
         sleep(sleep_duration).await;
         let _ = txl.send(Message::Media(MediaActions::ForceEnterConnected(addr.to_string()))).await;
+    }
+
+    fn is_bonded(&self, addr: &RawAddress) -> bool {
+        match &self.adapter {
+            Some(adapter) => {
+                BtBondState::Bonded
+                    == adapter.lock().unwrap().get_bond_state_by_addr(&addr.to_string())
+            }
+            _ => false,
+        }
     }
 
     fn notify_media_capability_updated(&mut self, addr: RawAddress) {
@@ -1135,8 +1158,22 @@ impl BluetoothMedia {
                 guard.insert(addr, None);
             } else {
                 // The device is already added or is disconnecting.
-                // Ignore unless all profiles are cleared.
+                // Ignore unless all profiles are cleared, where we need to do some clean up.
                 if !is_profile_cleared {
+                    // Unbonded device is special, we need to reject the connection from them.
+                    if !self.is_bonded(&addr) {
+                        let tasks = self.fallback_tasks.clone();
+                        let states = self.device_states.clone();
+                        let txl = self.tx.clone();
+                        let task = topstack::get_runtime().spawn(async move {
+                            warn!(
+                                "[{}]: Rejecting an unbonded device's attempt to connect media",
+                                DisplayAddress(&addr)
+                            );
+                            BluetoothMedia::async_disconnect(&tasks, &states, &txl, &addr).await;
+                        });
+                        guard.insert(addr, Some((task, first_conn_ts)));
+                    }
                     return;
                 }
             }
@@ -1160,17 +1197,46 @@ impl BluetoothMedia {
         if states.get(&addr).is_none() {
             states.insert(addr, DeviceConnectionStates::ConnectingBeforeRetry);
         }
-        if missing_profiles.is_empty()
-            || missing_profiles == HashSet::from([Profile::AvrcpController])
-        {
-            info!(
-                "[{}]: Fully connected, available profiles: {:?}, connected profiles: {:?}.",
-                DisplayAddress(&addr),
-                available_profiles,
-                connected_profiles
-            );
 
-            states.insert(addr, DeviceConnectionStates::FullyConnected);
+        if states.get(&addr).unwrap() != &DeviceConnectionStates::FullyConnected {
+            if available_profiles.is_empty() {
+                // Some headsets may start initiating connections to audio profiles before they are
+                // exposed to the stack. In this case, wait for either all critical profiles have been
+                // connected or some timeout to enter the |FullyConnected| state.
+                if connected_profiles.contains(&Profile::Hfp)
+                    && connected_profiles.contains(&Profile::A2dpSink)
+                {
+                    info!(
+                        "[{}]: Fully connected, available profiles: {:?}, connected profiles: {:?}.",
+                        DisplayAddress(&addr),
+                        available_profiles,
+                        connected_profiles
+                    );
+
+                    states.insert(addr, DeviceConnectionStates::FullyConnected);
+                } else {
+                    warn!(
+                        "[{}]: Connected profiles: {:?}, waiting for peer to initiate remaining connections.",
+                        DisplayAddress(&addr),
+                        connected_profiles
+                    );
+
+                    states.insert(addr, DeviceConnectionStates::WaitingConnection);
+                }
+            } else {
+                if missing_profiles.is_empty()
+                    || missing_profiles == HashSet::from([Profile::AvrcpController])
+                {
+                    info!(
+                        "[{}]: Fully connected, available profiles: {:?}, connected profiles: {:?}.",
+                        DisplayAddress(&addr),
+                        available_profiles,
+                        connected_profiles
+                    );
+
+                    states.insert(addr, DeviceConnectionStates::FullyConnected);
+                }
+            }
         }
 
         info!(
@@ -1222,39 +1288,18 @@ impl BluetoothMedia {
             }
             DeviceConnectionStates::FullyConnected => {
                 // Rejecting the unbonded connection after we finished our profile
-                // reconnectinglogic to avoid a collision.
-                if let Some(adapter) = &self.adapter {
-                    if BtBondState::Bonded
-                        != adapter.lock().unwrap().get_bond_state_by_addr(&addr.to_string())
-                    {
-                        warn!(
-                            "[{}]: Rejecting a unbonded device's attempt to connect to media profiles",
-                            DisplayAddress(&addr));
-                        let fallback_tasks = self.fallback_tasks.clone();
-                        let device_states = self.device_states.clone();
-                        let txl = self.tx.clone();
-                        let task = topstack::get_runtime().spawn(async move {
-                            {
-                                device_states
-                                    .lock()
-                                    .unwrap()
-                                    .insert(addr, DeviceConnectionStates::Disconnecting);
-                                fallback_tasks.lock().unwrap().insert(addr, None);
-                            }
+                // reconnecting logic to avoid a collision.
+                if !self.is_bonded(&addr) {
+                    warn!(
+                        "[{}]: Rejecting a unbonded device's attempt to connect to media profiles",
+                        DisplayAddress(&addr)
+                    );
 
-                            debug!(
-                                "[{}]: Device connection state: {:?}.",
-                                DisplayAddress(&addr),
-                                DeviceConnectionStates::Disconnecting
-                            );
-
-                            let _ = txl
-                                .send(Message::Media(MediaActions::Disconnect(addr.to_string())))
-                                .await;
-                        });
-                        guard.insert(addr, Some((task, first_conn_ts)));
-                        return;
-                    }
+                    let task = topstack::get_runtime().spawn(async move {
+                        BluetoothMedia::async_disconnect(&tasks, &device_states, &txl, &addr).await;
+                    });
+                    guard.insert(addr, Some((task, ts)));
+                    return;
                 }
 
                 let cur_a2dp_caps = self.a2dp_caps.get(&addr);
@@ -1288,6 +1333,13 @@ impl BluetoothMedia {
                 guard.insert(addr, None);
             }
             DeviceConnectionStates::Disconnecting => {}
+            DeviceConnectionStates::WaitingConnection => {
+                let task = topstack::get_runtime().spawn(async move {
+                    BluetoothMedia::wait_retry(&tasks, &device_states, &txl, &addr, ts).await;
+                    BluetoothMedia::wait_force_enter_connected(&txl, &addr, ts).await;
+                });
+                guard.insert(addr, Some((task, ts)));
+            }
         }
     }
 
@@ -1704,9 +1756,9 @@ impl BluetoothMedia {
     }
 
     // Force the media enters the FullyConnected state and then triggers a retry.
-    // This function is only used for qualification as a replacement of normal retry.
-    // Usually PTS initiates the connection of the necessary profiles, and Floss should notify
-    // CRAS of the new audio device regardless of the unconnected profiles.
+    // When this function is used for qualification as a replacement of normal retry,
+    // PTS could initiate the connection of the necessary profiles, and Floss should
+    // notify CRAS of the new audio device regardless of the unconnected profiles.
     // Still retry in the end because some test cases require that.
     fn force_enter_connected(&mut self, address: String) {
         let addr = match RawAddress::from_string(address.clone()) {
