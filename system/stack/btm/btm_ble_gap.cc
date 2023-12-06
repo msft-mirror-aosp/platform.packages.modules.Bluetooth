@@ -28,6 +28,10 @@
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 
+#ifdef __ANDROID__
+#include <ble.sysprop.h>
+#endif
+
 #include <cstdint>
 #include <list>
 #include <memory>
@@ -43,6 +47,7 @@
 #include "osi/include/log.h"
 #include "osi/include/osi.h"  // UNUSED_ATTR
 #include "osi/include/properties.h"
+#include "osi/include/stack_power_telemetry.h"
 #include "stack/acl/acl.h"
 #include "stack/btm/btm_ble_int.h"
 #include "stack/btm/btm_ble_int_types.h"
@@ -180,9 +185,18 @@ AdvertisingCache cache;
 
 }  // namespace
 
-#if (BLE_VND_INCLUDED == TRUE)
-static tBTM_BLE_CTRL_FEATURES_CBACK* p_ctrl_le_feature_rd_cmpl_cback = NULL;
+bool ble_vnd_is_included() {
+#ifdef __ANDROID__
+  // replace build time config BLE_VND_INCLUDED with runtime
+  static const bool vnd_is_included =
+      android::sysprop::bluetooth::Ble::vnd_included().value_or(true);
+  return vnd_is_included;
+#else
+  return true;
 #endif
+}
+
+static tBTM_BLE_CTRL_FEATURES_CBACK* p_ctrl_le_feature_rd_cmpl_cback = NULL;
 /**********PAST & PS *******************/
 using StartSyncCb = base::Callback<void(
     uint8_t /*status*/, uint16_t /*sync_handle*/, uint8_t /*advertising_sid*/,
@@ -608,8 +622,6 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration,
   return status;
 }
 
-#if (BLE_VND_INCLUDED == TRUE)
-
 static void btm_get_dynamic_audio_buffer_vsc_cmpl_cback(
     tBTM_VSC_CMPL* p_vsc_cmpl_params) {
   LOG(INFO) << __func__;
@@ -769,7 +781,6 @@ static void btm_ble_vendor_capability_vsc_cmpl_cback(
   if (p_ctrl_le_feature_rd_cmpl_cback != NULL)
     p_ctrl_le_feature_rd_cmpl_cback(static_cast<tHCI_STATUS>(status));
 }
-#endif /* (BLE_VND_INCLUDED == TRUE) */
 
 /*******************************************************************************
  *
@@ -811,8 +822,9 @@ void BTM_BleGetDynamicAudioBuffer(
  * Returns          void
  *
  ******************************************************************************/
-#if (BLE_VND_INCLUDED == TRUE)
 void BTM_BleReadControllerFeatures(tBTM_BLE_CTRL_FEATURES_CBACK* p_vsc_cback) {
+  if (!ble_vnd_is_included()) return;
+
   if (btm_cb.cmn_ble_vsc_cb.values_read) return;
 
   BTM_TRACE_DEBUG("BTM_BleReadControllerFeatures");
@@ -821,10 +833,6 @@ void BTM_BleReadControllerFeatures(tBTM_BLE_CTRL_FEATURES_CBACK* p_vsc_cback) {
   BTM_VendorSpecificCommand(HCI_BLE_VENDOR_CAP, 0, NULL,
                             btm_ble_vendor_capability_vsc_cmpl_cback);
 }
-#else
-void BTM_BleReadControllerFeatures(
-    UNUSED_ATTR tBTM_BLE_CTRL_FEATURES_CBACK* p_vsc_cback) {}
-#endif
 
 /*******************************************************************************
  *
@@ -3237,6 +3245,8 @@ static tBTM_STATUS btm_ble_start_adv(void) {
   btsnd_hcic_ble_set_adv_enable(BTM_BLE_ADV_ENABLE);
   p_cb->adv_mode = BTM_BLE_ADV_ENABLE;
   btm_ble_adv_states_operation(btm_ble_set_topology_mask, p_cb->evt_type);
+  power_telemetry::GetInstance().LogBleAdvStarted();
+
   return BTM_SUCCESS;
 }
 
@@ -3257,9 +3267,9 @@ static tBTM_STATUS btm_ble_stop_adv(void) {
 
     p_cb->fast_adv_on = false;
     p_cb->adv_mode = BTM_BLE_ADV_DISABLE;
-
     /* clear all adv states */
     btm_ble_clear_topology_mask(BTM_BLE_STATE_ALL_ADV_MASK);
+    power_telemetry::GetInstance().LogBleAdvStopped();
   }
   return BTM_SUCCESS;
 }
@@ -3560,9 +3570,9 @@ void btm_ble_init(void) {
       alarm_new("btm_ble_addr.refresh_raddr_timer");
   btm_ble_pa_sync_cb = {};
   sync_timeout_alarm = alarm_new("btm.sync_start_task");
-#if (BLE_VND_INCLUDED == FALSE)
-  btm_ble_adv_filter_init();
-#endif
+  if (!ble_vnd_is_included()) {
+    btm_ble_adv_filter_init();
+  }
 }
 
 // Clean up btm ble control block
