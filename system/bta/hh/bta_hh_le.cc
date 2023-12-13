@@ -978,16 +978,18 @@ void bta_hh_security_cmpl(tBTA_HH_DEV_CB* p_cb,
   APPL_TRACE_DEBUG("%s", __func__);
   if (p_cb->status == BTA_HH_OK) {
     if (p_cb->hid_srvc.state < BTA_HH_SERVICE_DISCOVERED) {
-      APPL_TRACE_DEBUG("bta_hh_security_cmpl no reports loaded, try to load");
+      LOG_DEBUG("No reports loaded, try to load");
 
       /* start loading the cache if not in stack */
       tBTA_HH_RPT_CACHE_ENTRY* p_rpt_cache;
       uint8_t num_rpt = 0;
       if ((p_rpt_cache = bta_hh_le_co_cache_load(p_cb->addr, &num_rpt,
                                                  p_cb->app_id)) != NULL) {
+        LOG_DEBUG("Cache found, no need to perform service discovery");
         bta_hh_process_cache_rpt(p_cb, p_rpt_cache, num_rpt);
       }
     }
+
     /*  discovery has been done for HID service */
     if (p_cb->app_id != 0 &&
         p_cb->hid_srvc.state >= BTA_HH_SERVICE_DISCOVERED) {
@@ -1177,14 +1179,14 @@ static void bta_hh_le_close(const tBTA_GATTC_CLOSE& gattc_data) {
     const tBTA_HH_DATA data = {
         .le_close =
             {
-                .conn_id = gattc_data.conn_id,
-                .reason = gattc_data.reason,
                 .hdr =
                     {
                         .event = BTA_HH_GATT_CLOSE_EVT,
                         .layer_specific =
                             static_cast<uint16_t>(p_cb->hid_handle),
                     },
+                .conn_id = gattc_data.conn_id,
+                .reason = gattc_data.reason,
             },
     };
     bta_hh_sm_execute(p_cb, BTA_HH_GATT_CLOSE_EVT, &data);
@@ -1646,12 +1648,12 @@ void bta_hh_le_open_fail(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
   tBTA_HH data = {
       .conn =
           {
-              .handle = p_cb->hid_handle,
               .bda = p_cb->addr,
-              .le_hid = true,
-              .scps_supported = p_cb->scps_supported,
               .status = (le_close->reason != GATT_CONN_OK) ? BTA_HH_ERR
                                                            : p_cb->status,
+              .handle = p_cb->hid_handle,
+              .le_hid = true,
+              .scps_supported = p_cb->scps_supported,
           },
   };
 
@@ -2104,13 +2106,13 @@ static void bta_hh_le_service_changed(RawAddress remote_bda) {
   const tBTA_HH_DATA data = {
       .le_close =
           {
-              .conn_id = p_cb->conn_id,
-              .reason = GATT_CONN_OK,
               .hdr =
                   {
                       .event = BTA_HH_GATT_CLOSE_EVT,
                       .layer_specific = static_cast<uint16_t>(p_cb->hid_handle),
                   },
+              .conn_id = p_cb->conn_id,
+              .reason = GATT_CONN_OK,
           },
   };
   bta_hh_sm_execute(p_cb, BTA_HH_GATT_CLOSE_EVT, &data);
@@ -2221,7 +2223,7 @@ static void bta_hh_process_cache_rpt(tBTA_HH_DEV_CB* p_cb,
 
   if (num_rpt != 0) /* no cache is found */
   {
-    p_cb->hid_srvc.state = BTA_HH_SERVICE_UNKNOWN;
+    p_cb->hid_srvc.state = BTA_HH_SERVICE_DISCOVERED;
 
     /* set the descriptor info */
     p_cb->hid_srvc.descriptor.dl_len = p_cb->dscp_info.descriptor.dl_len;

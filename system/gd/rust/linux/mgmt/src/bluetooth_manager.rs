@@ -13,6 +13,7 @@ use crate::state_machine::{
 use crate::{config_util, migrate};
 
 const BLUEZ_INIT_TARGET: &str = "bluetoothd";
+const INVALID_VER: u16 = 0xffff;
 
 /// Implementation of IBluetoothManager.
 pub struct BluetoothManager {
@@ -41,9 +42,9 @@ impl BluetoothManager {
 
     pub(crate) fn callback_hci_enabled_change(&mut self, hci_device: i32, enabled: bool) {
         if enabled {
-            info!("Started {}", hci_device);
+            warn!("Started {}", hci_device);
         } else {
-            info!("Stopped {}", hci_device);
+            warn!("Stopped {}", hci_device);
         }
 
         for (_, callback) in &mut self.callbacks {
@@ -72,7 +73,7 @@ impl BluetoothManager {
 
 impl IBluetoothManager for BluetoothManager {
     fn start(&mut self, hci_interface: i32) {
-        info!("Starting {}", hci_interface);
+        warn!("Starting {}", hci_interface);
 
         if !config_util::modify_hci_n_enabled(hci_interface, true) {
             error!("Config is not successfully modified");
@@ -84,7 +85,13 @@ impl IBluetoothManager for BluetoothManager {
         self.proxy.modify_state(virt_hci, move |a: &mut AdapterState| a.config_enabled = true);
 
         // Ignore the request if adapter is already enabled or not present.
-        if self.is_adapter_enabled(virt_hci) || !self.is_adapter_present(virt_hci) {
+        if self.is_adapter_enabled(virt_hci) {
+            warn!("Adapter {} is already enabled.", hci_interface);
+            return;
+        }
+
+        if !self.is_adapter_present(virt_hci) {
+            warn!("Adapter {} is not present.", hci_interface);
             return;
         }
 
@@ -92,7 +99,7 @@ impl IBluetoothManager for BluetoothManager {
     }
 
     fn stop(&mut self, hci_interface: i32) {
-        info!("Stopping {}", hci_interface);
+        warn!("Stopping {}", hci_interface);
         if !config_util::modify_hci_n_enabled(hci_interface, false) {
             error!("Config is not successfully modified");
         }
@@ -104,6 +111,7 @@ impl IBluetoothManager for BluetoothManager {
 
         // Ignore the request if adapter is already disabled.
         if !self.is_adapter_enabled(virt_hci) {
+            warn!("Adapter {} is already stopped", hci_interface);
             return;
         }
 
@@ -175,6 +183,12 @@ impl IBluetoothManager for BluetoothManager {
 
     fn set_desired_default_adapter(&mut self, adapter_index: i32) {
         self.proxy.set_desired_default_adapter(VirtualHciIndex(adapter_index));
+    }
+
+    fn get_floss_api_version(&mut self) -> u32 {
+        let major = env!("CARGO_PKG_VERSION_MAJOR").parse::<u16>().unwrap_or(INVALID_VER);
+        let minor = env!("CARGO_PKG_VERSION_MINOR").parse::<u16>().unwrap_or(INVALID_VER);
+        ((major as u32) << 16) | (minor as u32)
     }
 }
 

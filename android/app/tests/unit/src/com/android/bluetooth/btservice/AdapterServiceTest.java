@@ -119,7 +119,6 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.List;
-import java.util.stream.IntStream;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -179,7 +178,6 @@ public class AdapterServiceTest {
 
     private PackageManager mMockPackageManager;
     private MockContentResolver mMockContentResolver;
-    private HashMap<String, HashMap<String, String>> mAdapterConfig;
     private int mForegroundUserId;
     private TestLooper mLooper;
 
@@ -345,9 +343,6 @@ public class AdapterServiceTest {
         mLooper.dispatchAll();
 
         mAdapterService.registerRemoteCallback(mIBluetoothCallback);
-
-        mAdapterConfig = TestUtils.readAdapterConfig();
-        assertThat(mAdapterConfig).isNotNull();
     }
 
     @After
@@ -370,13 +365,8 @@ public class AdapterServiceTest {
         PeriodicScanNativeInterface.setInstance(null);
     }
 
-    /**
-     * Dispatch all the message on the Loopper and check that the `what` is expected
-     *
-     * @param what list of message that are expected to be run by the handler
-     */
     private void syncHandler(int... what) {
-        syncHandler(mLooper, what);
+        TestUtils.syncHandler(mLooper, what);
     }
 
     private void dropNextMessage(int what) {
@@ -384,20 +374,6 @@ public class AdapterServiceTest {
         assertThat(msg).isNotNull();
         assertWithMessage("Not the expected Message:\n" + msg).that(msg.what).isEqualTo(what);
         Log.d(TAG, "Message dropped on purpose: " + msg);
-    }
-
-    private static void syncHandler(TestLooper looper, int... what) {
-        IntStream.of(what)
-                .forEach(
-                        w -> {
-                            Message msg = looper.nextMessage();
-                            assertThat(msg).isNotNull();
-                            assertWithMessage("Not the expected Message:\n" + msg)
-                                    .that(msg.what)
-                                    .isEqualTo(w);
-                            Log.d(TAG, "Processing message: " + msg);
-                            msg.getTarget().dispatchMessage(msg);
-                        });
     }
 
     private void verifyStateChange(int prevState, int currState) {
@@ -442,16 +418,16 @@ public class AdapterServiceTest {
             IBluetoothCallback callback,
             AdapterNativeInterface nativeInterface) {
         adapter.enable(false);
-        syncHandler(looper, AdapterState.BLE_TURN_ON);
+        TestUtils.syncHandler(looper, AdapterState.BLE_TURN_ON);
         verifyStateChange(callback, STATE_OFF, STATE_BLE_TURNING_ON);
 
-        syncHandler(looper, MESSAGE_PROFILE_SERVICE_REGISTERED);
+        TestUtils.syncHandler(looper, MESSAGE_PROFILE_SERVICE_REGISTERED);
 
-        syncHandler(looper, MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
+        TestUtils.syncHandler(looper, MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
 
         verify(nativeInterface).enable();
         adapter.stateChangeCallback(AbstractionLayer.BT_STATE_ON);
-        syncHandler(looper, AdapterState.BLE_STARTED);
+        TestUtils.syncHandler(looper, AdapterState.BLE_STARTED);
         verifyStateChange(callback, STATE_BLE_TURNING_ON, STATE_BLE_ON);
         assertThat(adapter.getState()).isEqualTo(STATE_BLE_ON);
     }
@@ -464,7 +440,7 @@ public class AdapterServiceTest {
             boolean onlyGatt,
             List<ProfileService> services) {
         adapter.disable();
-        syncHandler(looper, AdapterState.USER_TURN_OFF);
+        TestUtils.syncHandler(looper, AdapterState.USER_TURN_OFF);
         verifyStateChange(callback, STATE_ON, STATE_TURNING_OFF);
 
         if (!onlyGatt) {
@@ -473,11 +449,11 @@ public class AdapterServiceTest {
 
             for (ProfileService service : services) {
                 adapter.onProfileServiceStateChanged(service, STATE_OFF);
-                syncHandler(looper, MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
+                TestUtils.syncHandler(looper, MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
             }
         }
 
-        syncHandler(looper, AdapterState.BREDR_STOPPED);
+        TestUtils.syncHandler(looper, AdapterState.BREDR_STOPPED);
         verifyStateChange(callback, STATE_TURNING_OFF, STATE_BLE_ON);
 
         assertThat(adapter.getState()).isEqualTo(STATE_BLE_ON);
@@ -514,7 +490,7 @@ public class AdapterServiceTest {
         offToBleOn(looper, gattService, adapter, ctx, callback, nativeInterface);
 
         adapter.startBrEdr();
-        syncHandler(looper, AdapterState.USER_TURN_ON);
+        TestUtils.syncHandler(looper, AdapterState.USER_TURN_ON);
         verifyStateChange(callback, STATE_BLE_ON, STATE_TURNING_ON);
 
         if (!onlyGatt) {
@@ -523,16 +499,16 @@ public class AdapterServiceTest {
 
             for (ProfileService service : services) {
                 adapter.addProfile(service);
-                syncHandler(looper, MESSAGE_PROFILE_SERVICE_REGISTERED);
+                TestUtils.syncHandler(looper, MESSAGE_PROFILE_SERVICE_REGISTERED);
             }
             // Keep in 2 separate loop to first add the services and then eventually trigger the
             // ON transition during the callback
             for (ProfileService service : services) {
                 adapter.onProfileServiceStateChanged(service, STATE_ON);
-                syncHandler(looper, MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
+                TestUtils.syncHandler(looper, MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
             }
         }
-        syncHandler(looper, AdapterState.BREDR_STARTED);
+        TestUtils.syncHandler(looper, AdapterState.BREDR_STARTED);
         verifyStateChange(callback, STATE_TURNING_ON, STATE_ON);
 
         assertThat(adapter.getState()).isEqualTo(STATE_ON);
@@ -570,15 +546,15 @@ public class AdapterServiceTest {
         onToBleOn(looper, adapter, ctx, callback, onlyGatt, services);
 
         adapter.stopBle();
-        syncHandler(looper, AdapterState.BLE_TURN_OFF);
+        TestUtils.syncHandler(looper, AdapterState.BLE_TURN_OFF);
         verifyStateChange(callback, STATE_BLE_ON, STATE_BLE_TURNING_OFF);
 
-        syncHandler(looper, MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
-        syncHandler(looper, MESSAGE_PROFILE_SERVICE_UNREGISTERED);
+        TestUtils.syncHandler(looper, MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
+        TestUtils.syncHandler(looper, MESSAGE_PROFILE_SERVICE_UNREGISTERED);
 
         verify(nativeInterface).disable();
         adapter.stateChangeCallback(AbstractionLayer.BT_STATE_OFF);
-        syncHandler(looper, AdapterState.BLE_STOPPED);
+        TestUtils.syncHandler(looper, AdapterState.BLE_STOPPED);
         verifyStateChange(callback, STATE_BLE_TURNING_OFF, STATE_OFF);
 
         assertThat(adapter.getState()).isEqualTo(STATE_OFF);
@@ -822,7 +798,7 @@ public class AdapterServiceTest {
         verify(mNativeInterface).disable();
 
         mAdapterService.stateChangeCallback(AbstractionLayer.BT_STATE_OFF);
-        syncHandler(mLooper, AdapterState.BLE_STOPPED);
+        syncHandler(AdapterState.BLE_STOPPED);
 
         verifyStateChange(STATE_BLE_TURNING_OFF, STATE_OFF);
         assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
@@ -849,8 +825,11 @@ public class AdapterServiceTest {
     @Test
     @Ignore("b/296127545: This is a native test")
     public void testObfuscateBluetoothAddress_BluetoothDisabled() {
+        HashMap<String, HashMap<String, String>> adapterConfig = TestUtils.readAdapterConfig();
+        assertThat(adapterConfig).isNotNull();
+
         assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
-        byte[] metricsSalt = getMetricsSalt(mAdapterConfig);
+        byte[] metricsSalt = getMetricsSalt(adapterConfig);
         assertThat(metricsSalt).isNotNull();
         BluetoothDevice device = TestUtils.getTestDevice(BluetoothAdapter.getDefaultAdapter(), 0);
         byte[] obfuscatedAddress = mAdapterService.obfuscateAddress(device);
@@ -866,10 +845,13 @@ public class AdapterServiceTest {
     @Test
     @Ignore("b/296127545: This is a native test")
     public void testObfuscateBluetoothAddress_BluetoothEnabled() {
+        HashMap<String, HashMap<String, String>> adapterConfig = TestUtils.readAdapterConfig();
+        assertThat(adapterConfig).isNotNull();
+
         assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
         doEnable(false);
         assertThat(mAdapterService.getState()).isEqualTo(STATE_ON);
-        byte[] metricsSalt = getMetricsSalt(mAdapterConfig);
+        byte[] metricsSalt = getMetricsSalt(adapterConfig);
         assertThat(metricsSalt).isNotNull();
         BluetoothDevice device = TestUtils.getTestDevice(BluetoothAdapter.getDefaultAdapter(), 0);
         byte[] obfuscatedAddress = mAdapterService.obfuscateAddress(device);
@@ -882,8 +864,11 @@ public class AdapterServiceTest {
     @Test
     @Ignore("b/296127545: This is a native test")
     public void testObfuscateBluetoothAddress_PersistentBetweenToggle() {
+        HashMap<String, HashMap<String, String>> adapterConfig = TestUtils.readAdapterConfig();
+        assertThat(adapterConfig).isNotNull();
+
         assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
-        byte[] metricsSalt = getMetricsSalt(mAdapterConfig);
+        byte[] metricsSalt = getMetricsSalt(adapterConfig);
         assertThat(metricsSalt).isNotNull();
         BluetoothDevice device = TestUtils.getTestDevice(BluetoothAdapter.getDefaultAdapter(), 0);
         byte[] obfuscatedAddress1 = mAdapterService.obfuscateAddress(device);
