@@ -17,11 +17,17 @@
 
 #include "dumpsys/dumpsys.h"
 
+#include <android_bluetooth_flags.h>
+#include <unistd.h>
+
 #include <future>
+#include <sstream>
 #include <string>
 
 #include "dumpsys/filter.h"
+#include "dumpsys_data_generated.h"
 #include "module.h"
+#include "module_dumper.h"
 #include "os/log.h"
 #include "os/system_properties.h"
 #include "shim/dumpsys.h"
@@ -113,7 +119,19 @@ std::string Dumpsys::impl::PrintAsJson(std::string* dumpsys_data) const {
   }
 
   std::string jsongen;
+  // GenerateText was renamed to GenText in 23.5.26 because the return behavior was changed.
+  // https://github.com/google/flatbuffers/commit/950a71ab893e96147c30dd91735af6db73f72ae0
+#if FLATBUFFERS_VERSION_MAJOR < 23 ||   \
+    (FLATBUFFERS_VERSION_MAJOR == 23 && \
+     (FLATBUFFERS_VERSION_MINOR < 5 ||  \
+      (FLATBUFFERS_VERSION_MINOR == 5 && FLATBUFFERS_VERSION_REVISION < 26)))
   flatbuffers::GenerateText(parser, dumpsys_data->data(), &jsongen);
+#else
+  const char* error = flatbuffers::GenText(parser, dumpsys_data->data(), &jsongen);
+  if (error != nullptr) {
+    LOG_WARN("%s", error);
+  }
+#endif
   return jsongen;
 }
 
@@ -121,9 +139,14 @@ void Dumpsys::impl::DumpWithArgsAsync(int fd, const char** args) {
   ParsedDumpsysArgs parsed_dumpsys_args(args);
   const auto registry = dumpsys_module_.GetModuleRegistry();
 
-  ModuleDumper dumper(*registry, kDumpsysTitle);
+  int dumper_fd = STDOUT_FILENO;
+  if (IS_FLAG_ENABLED(dumpsys_use_passed_in_fd)) {
+    dumper_fd = fd;
+  }
+  ModuleDumper dumper(dumper_fd, *registry, kDumpsysTitle);
   std::string dumpsys_data;
-  dumper.DumpState(&dumpsys_data);
+  std::ostringstream oss;
+  dumper.DumpState(&dumpsys_data, oss);
 
   dprintf(fd, " ----- Filtering as Developer -----\n");
   FilterAsDeveloper(&dumpsys_data);
@@ -164,7 +187,7 @@ os::Handler* Dumpsys::GetGdShimHandler() {
 /**
  * Module methods
  */
-void Dumpsys::ListDependencies(ModuleList* list) const {}
+void Dumpsys::ListDependencies(ModuleList* /* list */) const {}
 
 void Dumpsys::Start() {
   pimpl_ = std::make_unique<impl>(*this, reflection_schema_);

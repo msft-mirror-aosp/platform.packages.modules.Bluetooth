@@ -19,12 +19,12 @@
 #include <atomic>
 #include <future>
 #include <mutex>
-#include <set>
 
 #include "common/bidi_queue.h"
+#include "common/byte_array.h"
+#include "dumpsys_data_generated.h"
 #include "hci/acl_manager/acl_scheduler.h"
 #include "hci/acl_manager/classic_impl.h"
-#include "hci/acl_manager/connection_management_callbacks.h"
 #include "hci/acl_manager/le_acceptlist_callbacks.h"
 #include "hci/acl_manager/le_acl_connection.h"
 #include "hci/acl_manager/le_impl.h"
@@ -34,6 +34,7 @@
 #include "hci/remote_name_request.h"
 #include "hci_acl_manager_generated.h"
 #include "security/security_module.h"
+#include "storage/config_keys.h"
 #include "storage/storage_module.h"
 
 namespace bluetooth {
@@ -68,9 +69,7 @@ struct AclManager::impl {
     round_robin_scheduler_ = new RoundRobinScheduler(handler_, controller_, hci_layer_->GetAclQueueEnd());
     acl_scheduler_ = acl_manager_.GetDependency<AclScheduler>();
 
-    if (bluetooth::common::init_flags::gd_remote_name_request_is_enabled()) {
-      remote_name_request_module_ = acl_manager_.GetDependency<RemoteNameRequestModule>();
-    }
+    remote_name_request_module_ = acl_manager_.GetDependency<RemoteNameRequestModule>();
 
     bool crash_on_unknown_handle = false;
     {
@@ -282,9 +281,9 @@ void AclManager::SetPrivacyPolicyForInitiatorAddress(
     AddressWithType fixed_address,
     std::chrono::milliseconds minimum_rotation_time,
     std::chrono::milliseconds maximum_rotation_time) {
-  crypto_toolbox::Octet16 rotation_irk{};
-  auto irk_prop =
-      GetDependency<storage::StorageModule>()->GetProperty("Adapter", "LE_LOCAL_KEY_IRK");
+  Octet16 rotation_irk{};
+  auto irk_prop = GetDependency<storage::StorageModule>()->GetProperty(
+      BTIF_STORAGE_SECTION_ADAPTER, BTIF_STORAGE_KEY_LE_LOCAL_KEY_IRK);
   if (irk_prop.has_value()) {
     auto irk = common::ByteArray<16>::FromString(irk_prop.value());
     if (irk.has_value()) {
@@ -305,7 +304,7 @@ void AclManager::SetPrivacyPolicyForInitiatorAddress(
 void AclManager::SetPrivacyPolicyForInitiatorAddressForTest(
     LeAddressManager::AddressPolicy address_policy,
     AddressWithType fixed_address,
-    crypto_toolbox::Octet16 rotation_irk,
+    Octet16 rotation_irk,
     std::chrono::milliseconds minimum_rotation_time,
     std::chrono::milliseconds maximum_rotation_time) {
   CallOn(
@@ -413,10 +412,6 @@ uint16_t AclManager::HACK_GetLeHandle(Address address) {
   return pimpl_->le_impl_->HACK_get_handle(address);
 }
 
-void AclManager::HACK_SetNonAclDisconnectCallback(std::function<void(uint16_t, uint8_t)> callback) {
-  pimpl_->classic_impl_->HACK_SetNonAclDisconnectCallback(callback);
-}
-
 void AclManager::HACK_SetAclTxPriority(uint8_t handle, bool high_priority) {
   CallOn(pimpl_->round_robin_scheduler_, &RoundRobinScheduler::SetLinkPriority, handle, high_priority);
 }
@@ -426,9 +421,7 @@ void AclManager::ListDependencies(ModuleList* list) const {
   list->add<Controller>();
   list->add<storage::StorageModule>();
   list->add<AclScheduler>();
-  if (bluetooth::common::init_flags::gd_remote_name_request_is_enabled()) {
-    list->add<RemoteNameRequestModule>();
-  }
+  list->add<RemoteNameRequestModule>();
 }
 
 void AclManager::Start() {
@@ -450,7 +443,7 @@ AclManager::~AclManager() = default;
 void AclManager::impl::Dump(
     std::promise<flatbuffers::Offset<AclManagerData>> promise, flatbuffers::FlatBufferBuilder* fb_builder) const {
   const std::lock_guard<std::mutex> lock(dumpsys_mutex_);
-  const auto connect_list = (le_impl_ != nullptr) ? le_impl_->connect_list : std::unordered_set<AddressWithType>();
+  const auto accept_list = (le_impl_ != nullptr) ? le_impl_->accept_list : std::unordered_set<AddressWithType>();
   const auto le_connectability_state_text =
       (le_impl_ != nullptr) ? connectability_state_machine_text(le_impl_->connectability_state_) : "INDETERMINATE";
   const auto le_create_connection_timeout_alarms_count =
@@ -459,17 +452,17 @@ void AclManager::impl::Dump(
   auto title = fb_builder->CreateString("----- Acl Manager Dumpsys -----");
   auto le_connectability_state = fb_builder->CreateString(le_connectability_state_text);
 
-  flatbuffers::Offset<flatbuffers::String> strings[connect_list.size()];
+  flatbuffers::Offset<flatbuffers::String> strings[accept_list.size()];
 
   size_t cnt = 0;
-  for (const auto& it : connect_list) {
+  for (const auto& it : accept_list) {
     strings[cnt++] = fb_builder->CreateString(it.ToString());
   }
-  auto vecofstrings = fb_builder->CreateVector(strings, connect_list.size());
+  auto vecofstrings = fb_builder->CreateVector(strings, accept_list.size());
 
   AclManagerDataBuilder builder(*fb_builder);
   builder.add_title(title);
-  builder.add_le_filter_accept_list_count(connect_list.size());
+  builder.add_le_filter_accept_list_count(accept_list.size());
   builder.add_le_filter_accept_list(vecofstrings);
   builder.add_le_connectability_state(le_connectability_state);
   builder.add_le_create_connection_timeout_alarms_count(le_create_connection_timeout_alarms_count);

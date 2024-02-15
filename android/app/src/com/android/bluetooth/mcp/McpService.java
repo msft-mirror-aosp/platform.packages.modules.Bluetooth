@@ -21,8 +21,10 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.IBluetoothMcpServiceManager;
 import android.content.AttributionSource;
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.ParcelUuid;
 import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
@@ -32,7 +34,9 @@ import com.android.bluetooth.le_audio.LeAudioService;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -47,11 +51,15 @@ public class McpService extends ProfileService {
     private static McpService sMcpService;
     private static MediaControlProfile sGmcsForTesting;
 
-    private Object mLock = new Object();
+    private final Object mLock = new Object();
     @GuardedBy("mLock")
     private MediaControlProfile mGmcs;
     private Map<BluetoothDevice, Integer> mDeviceAuthorizations = new HashMap<>();
     private Handler mHandler = new Handler(Looper.getMainLooper());
+
+    public McpService(Context ctx) {
+        super(ctx);
+    }
 
     public static boolean isEnabled() {
         return BluetoothProperties.isProfileMcpServerEnabled().orElse(false);
@@ -93,14 +101,7 @@ public class McpService extends ProfileService {
     }
 
     @Override
-    protected void create() {
-        if (DBG) {
-            Log.d(TAG, "create()");
-        }
-    }
-
-    @Override
-    protected boolean start() {
+    public void start() {
         if (DBG) {
             Log.d(TAG, "start()");
         }
@@ -115,6 +116,9 @@ public class McpService extends ProfileService {
         synchronized (mLock) {
             if (getGmcsLocked() == null) {
                 // Initialize the Media Control Service Server
+                if (mGmcs != null) {
+                    mGmcs.cleanup();
+                }
                 mGmcs = new MediaControlProfile(this);
                 // Requires this service to be already started thus we have to make it an async call
                 mHandler.post(() -> {
@@ -126,19 +130,17 @@ public class McpService extends ProfileService {
                 });
             }
         }
-
-        return true;
     }
 
     @Override
-    protected boolean stop() {
+    public void stop() {
         if (DBG) {
             Log.d(TAG, "stop()");
         }
 
         if (sMcpService == null) {
             Log.w(TAG, "stop() called before start()");
-            return true;
+            return;
         }
 
         synchronized (mLock) {
@@ -156,11 +158,10 @@ public class McpService extends ProfileService {
 
         // Mark service as stopped
         setMcpService(null);
-        return true;
     }
 
     @Override
-    protected void cleanup() {
+    public void cleanup() {
         if (DBG) {
             Log.d(TAG, "cleanup()");
         }
@@ -197,6 +198,17 @@ public class McpService extends ProfileService {
         }
         Log.w(TAG, "onDeviceUnauthorized - authorization notification not implemented yet ");
         setDeviceAuthorized(device, false);
+    }
+
+    /**
+     * Remove authorization information for the device.
+     *
+     * @param device device to remove from the service information
+     * @hide
+     */
+    public void removeDeviceAuthorizationInfo(BluetoothDevice device) {
+        Log.i(TAG, "removeDeviceAuthorizationInfo(): device: " + device);
+        mDeviceAuthorizations.remove(device);
     }
 
     public void setDeviceAuthorized(BluetoothDevice device, boolean isAuthorized) {
@@ -243,6 +255,26 @@ public class McpService extends ProfileService {
 
         Log.e(TAG, "MCS access not permited");
         return BluetoothDevice.ACCESS_UNKNOWN;
+    }
+
+    List<ParcelUuid> getNotificationSubscriptions(int ccid, BluetoothDevice device) {
+        synchronized (mLock) {
+            MediaControlProfile gmcs = getGmcsLocked();
+            if (gmcs != null) {
+                return gmcs.getNotificationSubscriptions(ccid, device);
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    void setNotificationSubscription(
+            int ccid, BluetoothDevice device, ParcelUuid charUuid, boolean doNotify) {
+        synchronized (mLock) {
+            MediaControlProfile gmcs = getGmcsLocked();
+            if (gmcs != null) {
+                gmcs.setNotificationSubscription(ccid, device, charUuid, doNotify);
+            }
+        }
     }
 
     @GuardedBy("mLock")

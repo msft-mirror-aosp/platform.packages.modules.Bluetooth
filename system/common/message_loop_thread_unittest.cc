@@ -119,8 +119,8 @@ TEST_F(MessageLoopThreadTest, test_do_in_thread_before_start) {
   std::string name = "test_thread";
   MessageLoopThread message_loop_thread(name);
   ASSERT_FALSE(message_loop_thread.DoInThread(
-      FROM_HERE, base::Bind(&MessageLoopThreadTest::ShouldNotHappen,
-                            base::Unretained(this))));
+      FROM_HERE, base::BindOnce(&MessageLoopThreadTest::ShouldNotHappen,
+                                base::Unretained(this))));
 }
 
 TEST_F(MessageLoopThreadTest, test_do_in_thread_after_shutdown) {
@@ -129,8 +129,8 @@ TEST_F(MessageLoopThreadTest, test_do_in_thread_after_shutdown) {
   message_loop_thread.StartUp();
   message_loop_thread.ShutDown();
   ASSERT_FALSE(message_loop_thread.DoInThread(
-      FROM_HERE, base::Bind(&MessageLoopThreadTest::ShouldNotHappen,
-                            base::Unretained(this))));
+      FROM_HERE, base::BindOnce(&MessageLoopThreadTest::ShouldNotHappen,
+                                base::Unretained(this))));
 }
 
 TEST_F(MessageLoopThreadTest, test_name) {
@@ -327,4 +327,22 @@ TEST_F(MessageLoopThreadTest, shut_down_start_up_multi_thread) {
   message_loop_thread.ShutDown();
   auto thread = std::thread(&MessageLoopThread::StartUp, &message_loop_thread);
   thread.join();
+}
+
+// Verify that Post executes in order
+TEST_F(MessageLoopThreadTest, test_post_twice) {
+  std::string name = "test_thread";
+  MessageLoopThread message_loop_thread(name);
+  int counter = 0;
+  message_loop_thread.StartUp();
+  message_loop_thread.Post(
+      base::BindOnce([](MessageLoopThread* thread,
+                        int* counter) { ASSERT_EQ((*counter)++, 0); },
+                     &message_loop_thread, &counter));
+  message_loop_thread.Post(
+      base::BindOnce([](MessageLoopThread* thread,
+                        int* counter) { ASSERT_EQ((*counter)++, 1); },
+                     &message_loop_thread, &counter));
+  message_loop_thread.ShutDown();
+  ASSERT_EQ(counter, 2);
 }

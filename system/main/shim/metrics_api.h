@@ -20,9 +20,8 @@
 #include <frameworks/proto_logging/stats/enums/bluetooth/hci/enums.pb.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/le/enums.pb.h>
 
-#include <unordered_map>
+#include "os/metrics.h"
 #include "types/raw_address.h"
-#include "metrics/metrics_state.h"
 
 namespace bluetooth {
 namespace shim {
@@ -88,15 +87,52 @@ void LogMetricA2dpPlaybackEvent(const RawAddress& raw_address,
                                 int playback_state, int audio_coding_mode);
 
 /**
+ * Log A2DP audio session metrics event
+ *
+ * @param address A2DP device associated with this session
+ * @param audio_duration_ms duration of the A2DP session
+ * @param media_timer_min_ms min time interval for the media timer
+ * @param media_timer_max_ms max time interval for the media timer
+ * @param media_timer_avg_ms avg time interval for the media timer
+ * @param total_scheduling_count total scheduling count
+ * @param buffer_overruns_max_count max count of Tx queue messages dropped
+                                    caused by buffer overruns
+ * @param buffer_overruns_total total count of Tx queue messages dropped
+                                caused by buffer overruns
+ * @param buffer_underruns_average  avg number of bytes short in buffer
+                                    underruns
+ * @param buffer_underruns_count count of buffer underruns
+ * @param codec_index A2DP codec index (SBC=0, AAC=1, etc...)
+ * @param is_a2dp_offload if A2DP is offload
+ */
+void LogMetricA2dpSessionMetricsEvent(
+    const RawAddress& address, int64_t audio_duration_ms,
+    int media_timer_min_ms, int media_timer_max_ms, int media_timer_avg_ms,
+    int total_scheduling_count, int buffer_overruns_max_count,
+    int buffer_overruns_total, float buffer_underruns_average,
+    int buffer_underruns_count, int64_t codec_index, bool is_a2dp_offload);
+/**
  * Log HFP audio capture packet loss statistics
  *
  * @param address HFP device associated with this stats
  * @param num_decoded_frames number of decoded frames
  * @param packet_loss_ratio ratio of packet loss frames
+ * @param codec_id codec ID of the packet (mSBC=2, LC3=3)
  */
 void LogMetricHfpPacketLossStats(const RawAddress& address,
                                  int num_decoded_frames,
-                                 double packet_loss_ratio);
+                                 double packet_loss_ratio, uint16_t codec_id);
+
+/**
+ * Log Mmc transcode round-trip time statistics
+ *
+ * @param maximum_rtt maximum round-trip time in this session
+ * @param mean_rtt the average of round-trip time in this session
+ * @param num_requests the number of transcoding requests in the session
+ * @param codec_type codec type used in this session
+ */
+void LogMetricMmcTranscodeRttStats(int maximum_rtt, double mean_rtt,
+                                   int num_requests, int codec_type);
 
 /**
  * Log read RSSI result

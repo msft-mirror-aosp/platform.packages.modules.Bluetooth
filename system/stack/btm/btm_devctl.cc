@@ -23,30 +23,35 @@
  *
  ******************************************************************************/
 
+#define LOG_TAG "devctl"
 #include <base/logging.h>
+#include <bluetooth/log.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "bta/dm/bta_dm_int.h"
-#include "bta/sys/bta_sys.h"
-#include "btcore/include/module.h"
+#include "acl_api_types.h"
 #include "btif/include/btif_bqr.h"
-#include "common/message_loop_thread.h"
-#include "hci/include/hci_layer.h"
+#include "btm_sec_cb.h"
+#include "btm_sec_int_types.h"
+#include "device/include/controller.h"
+#include "hci/controller_interface.h"
+#include "internal_include/bt_target.h"
 #include "main/shim/btm_api.h"
-#include "main/shim/controller.h"
 #include "main/shim/entry.h"
-#include "main/shim/hci_layer.h"
-#include "main/shim/shim.h"
-#include "osi/include/compat.h"
-#include "osi/include/osi.h"
-#include "stack/btm/btm_ble_int.h"
+#include "os/log.h"
+#include "stack/btm/btm_int_types.h"
+#include "stack/btm/btm_sec.h"
 #include "stack/gatt/connection_manager.h"
 #include "stack/include/acl_api.h"
-#include "stack/include/bt_hdr.h"
+#include "stack/include/acl_api_types.h"
+#include "stack/include/bt_types.h"
+#include "stack/include/btm_api.h"
+#include "stack/include/btm_ble_privacy.h"
 #include "stack/include/l2cap_controller_interface.h"
 #include "types/raw_address.h"
+
+using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
 
@@ -86,7 +91,7 @@ static void BTM_BT_Quality_Report_VSE_CBack(uint8_t length,
  ******************************************************************************/
 void btm_dev_init() {
   /* Initialize nonzero defaults */
-  memset(btm_cb.cfg.bd_name, 0, sizeof(tBTM_LOC_BD_NAME));
+  memset(btm_sec_cb.cfg.bd_name, 0, sizeof(tBTM_LOC_BD_NAME));
 
   btm_cb.devcb.read_local_name_timer = alarm_new("btm.read_local_name_timer");
   btm_cb.devcb.read_rssi_timer = alarm_new("btm.read_rssi_timer");
@@ -163,7 +168,7 @@ void BTM_db_reset(void) {
 
 static bool set_sec_state_idle(void* data, void* context) {
   tBTM_SEC_DEV_REC* p_dev_rec = static_cast<tBTM_SEC_DEV_REC*>(data);
-  p_dev_rec->sec_state = BTM_SEC_STATE_IDLE;
+  p_dev_rec->sec_rec.sec_state = BTM_SEC_STATE_IDLE;
   return true;
 }
 
@@ -174,7 +179,7 @@ void BTM_reset_complete() {
   l2cu_device_reset();
 
   /* Clear current security state */
-  list_foreach(btm_cb.sec_dev_rec, set_sec_state_idle, NULL);
+  list_foreach(btm_sec_cb.sec_dev_rec, set_sec_state_idle, NULL);
 
   /* After the reset controller should restore all parameters to defaults. */
   btm_cb.btm_inq_vars.inq_counter = 1;
@@ -197,23 +202,23 @@ void BTM_reset_complete() {
   std::srand(std::time(nullptr));
 
   /* Set up the BLE privacy settings */
-  if (controller->supports_ble() && controller->supports_ble_privacy() &&
+  if (controller->SupportsBle() && controller->SupportsBlePrivacy() &&
       controller->get_ble_resolving_list_max_size() > 0) {
     btm_ble_resolving_list_init(controller->get_ble_resolving_list_max_size());
     /* set the default random private address timeout */
     btsnd_hcic_ble_set_rand_priv_addr_timeout(
         btm_get_next_private_addrress_interval_ms() / 1000);
   } else {
-    LOG_INFO(
+    log::info(
         "Le Address Resolving list disabled due to lack of controller support");
   }
 
-  if (controller->supports_ble()) {
+  if (controller->SupportsBle()) {
     l2c_link_processs_ble_num_bufs(controller->get_acl_buffer_count_ble());
   }
 
-  BTM_SetPinType(btm_cb.cfg.pin_type, btm_cb.cfg.pin_code,
-                 btm_cb.cfg.pin_code_len);
+  BTM_SetPinType(btm_sec_cb.cfg.pin_type, btm_sec_cb.cfg.pin_code,
+                 btm_sec_cb.cfg.pin_code_len);
 
   decode_controller_support();
 }
@@ -245,44 +250,42 @@ static void btm_read_local_name_timeout(UNUSED_ATTR void* data) {
 }
 
 static void decode_controller_support() {
-  const controller_t* controller = controller_get_interface();
-
   /* Create (e)SCO supported packet types mask */
   btm_cb.btm_sco_pkt_types_supported = 0;
   btm_cb.sco_cb.esco_supported = false;
-  if (controller->supports_sco()) {
+  if (bluetooth::shim::GetController()->SupportsSco()) {
     btm_cb.btm_sco_pkt_types_supported = ESCO_PKT_TYPES_MASK_HV1;
 
-    if (controller->supports_hv2_packets())
+    if (bluetooth::shim::GetController()->SupportsHv2Packets())
       btm_cb.btm_sco_pkt_types_supported |= ESCO_PKT_TYPES_MASK_HV2;
 
-    if (controller->supports_hv3_packets())
+    if (bluetooth::shim::GetController()->SupportsHv3Packets())
       btm_cb.btm_sco_pkt_types_supported |= ESCO_PKT_TYPES_MASK_HV3;
   }
 
-  if (controller->supports_ev3_packets())
+  if (bluetooth::shim::GetController()->SupportsEv3Packets())
     btm_cb.btm_sco_pkt_types_supported |= ESCO_PKT_TYPES_MASK_EV3;
 
-  if (controller->supports_ev4_packets())
+  if (bluetooth::shim::GetController()->SupportsEv4Packets())
     btm_cb.btm_sco_pkt_types_supported |= ESCO_PKT_TYPES_MASK_EV4;
 
-  if (controller->supports_ev5_packets())
+  if (bluetooth::shim::GetController()->SupportsEv5Packets())
     btm_cb.btm_sco_pkt_types_supported |= ESCO_PKT_TYPES_MASK_EV5;
 
   if (btm_cb.btm_sco_pkt_types_supported & BTM_ESCO_LINK_ONLY_MASK) {
     btm_cb.sco_cb.esco_supported = true;
 
     /* Add in EDR related eSCO types */
-    if (controller->supports_esco_2m_phy()) {
-      if (!controller->supports_3_slot_edr_packets())
+    if (bluetooth::shim::GetController()->SupportsEsco2mPhy()) {
+      if (!bluetooth::shim::GetController()->Supports3SlotEdrPackets())
         btm_cb.btm_sco_pkt_types_supported |= ESCO_PKT_TYPES_MASK_NO_2_EV5;
     } else {
       btm_cb.btm_sco_pkt_types_supported |=
           (ESCO_PKT_TYPES_MASK_NO_2_EV3 + ESCO_PKT_TYPES_MASK_NO_2_EV5);
     }
 
-    if (controller->supports_esco_3m_phy()) {
-      if (!controller->supports_3_slot_edr_packets())
+    if (bluetooth::shim::GetController()->SupportsEsco3mPhy()) {
+      if (!bluetooth::shim::GetController()->Supports3SlotEdrPackets())
         btm_cb.btm_sco_pkt_types_supported |= ESCO_PKT_TYPES_MASK_NO_3_EV5;
     } else {
       btm_cb.btm_sco_pkt_types_supported |=
@@ -290,20 +293,21 @@ static void decode_controller_support() {
     }
   }
 
-  BTM_TRACE_DEBUG("Local supported SCO packet types: 0x%04x",
-                  btm_cb.btm_sco_pkt_types_supported);
+  log::verbose("Local supported SCO packet types: 0x{:04x}",
+               btm_cb.btm_sco_pkt_types_supported);
 
   BTM_acl_after_controller_started(controller_get_interface());
   btm_sec_dev_reset();
 
-  if (controller->supports_rssi_with_inquiry_results()) {
-    if (controller->supports_extended_inquiry_response())
+  if (bluetooth::shim::GetController()->SupportsRssiWithInquiryResults()) {
+    if (bluetooth::shim::GetController()->SupportsExtendedInquiryResponse())
       BTM_SetInquiryMode(BTM_INQ_RESULT_EXTENDED);
     else
       BTM_SetInquiryMode(BTM_INQ_RESULT_WITH_RSSI);
   }
 
-  l2cu_set_non_flushable_pbf(controller->supports_non_flushable_pb());
+  l2cu_set_non_flushable_pbf(
+      bluetooth::shim::GetController()->SupportsNonFlushablePb());
   BTM_EnableInterlacedPageScan();
   BTM_EnableInterlacedInquiryScan();
 }
@@ -325,9 +329,9 @@ tBTM_STATUS BTM_SetLocalDeviceName(const char* p_name) {
 
   if (!controller_get_interface()->get_is_ready()) return (BTM_DEV_RESET);
   /* Save the device name if local storage is enabled */
-  p = (uint8_t*)btm_cb.cfg.bd_name;
+  p = (uint8_t*)btm_sec_cb.cfg.bd_name;
   if (p != (uint8_t*)p_name)
-    strlcpy((char*)btm_cb.cfg.bd_name, p_name, BTM_MAX_LOC_BD_NAME_LEN + 1);
+    strlcpy((char*)btm_sec_cb.cfg.bd_name, p_name, BTM_MAX_LOC_BD_NAME_LEN + 1);
 
   btsnd_hcic_change_name(p);
   return (BTM_CMD_STARTED);
@@ -347,7 +351,7 @@ tBTM_STATUS BTM_SetLocalDeviceName(const char* p_name) {
  *
  ******************************************************************************/
 tBTM_STATUS BTM_ReadLocalDeviceName(const char** p_name) {
-  *p_name = (const char*)btm_cb.cfg.bd_name;
+  *p_name = (const char*)btm_sec_cb.cfg.bd_name;
   return (BTM_SUCCESS);
 }
 
@@ -416,10 +420,9 @@ void btm_read_local_name_complete(uint8_t* p, UNUSED_ATTR uint16_t evt_len) {
  *
  ******************************************************************************/
 tBTM_STATUS BTM_SetDeviceClass(DEV_CLASS dev_class) {
-  if (!memcmp(btm_cb.devcb.dev_class, dev_class, DEV_CLASS_LEN))
-    return (BTM_SUCCESS);
+  if (btm_cb.devcb.dev_class == dev_class) return (BTM_SUCCESS);
 
-  memcpy(btm_cb.devcb.dev_class, dev_class, DEV_CLASS_LEN);
+  btm_cb.devcb.dev_class = dev_class;
 
   if (!controller_get_interface()->get_is_ready()) return (BTM_DEV_RESET);
 
@@ -434,12 +437,10 @@ tBTM_STATUS BTM_SetDeviceClass(DEV_CLASS dev_class) {
  *
  * Description      This function is called to read the local device class
  *
- * Returns          pointer to the device class
+ * Returns          the device class
  *
  ******************************************************************************/
-uint8_t* BTM_ReadDeviceClass(void) {
-  return ((uint8_t*)btm_cb.devcb.dev_class);
-}
+DEV_CLASS BTM_ReadDeviceClass(void) { return btm_cb.devcb.dev_class; }
 
 /*******************************************************************************
  *
@@ -453,41 +454,10 @@ uint8_t* BTM_ReadDeviceClass(void) {
  ******************************************************************************/
 void BTM_VendorSpecificCommand(uint16_t opcode, uint8_t param_len,
                                uint8_t* p_param_buf, tBTM_VSC_CMPL_CB* p_cb) {
-  /* Allocate a buffer to hold HCI command plus the callback function */
-  void* p_buf = osi_malloc(sizeof(BT_HDR) + sizeof(tBTM_CMPL_CB*) + param_len +
-                           HCIC_PREAMBLE_SIZE);
-
-  BTM_TRACE_EVENT("BTM: %s: Opcode: 0x%04X, ParamLen: %i.", __func__, opcode,
-                  param_len);
+  log::verbose("BTM: Opcode: 0x{:04X}, ParamLen: {}.", opcode, param_len);
 
   /* Send the HCI command (opcode will be OR'd with HCI_GRP_VENDOR_SPECIFIC) */
-  btsnd_hcic_vendor_spec_cmd(p_buf, opcode, param_len, p_param_buf,
-                             (void*)p_cb);
-}
-
-/*******************************************************************************
- *
- * Function         btm_vsc_complete
- *
- * Description      This function is called when local HCI Vendor Specific
- *                  Command complete message is received from the HCI.
- *
- * Returns          void
- *
- ******************************************************************************/
-void btm_vsc_complete(uint8_t* p, uint16_t opcode, uint16_t evt_len,
-                      tBTM_VSC_CMPL_CB* p_vsc_cplt_cback) {
-  tBTM_VSC_CMPL vcs_cplt_params;
-
-  /* If there was a callback address for vcs complete, call it */
-  if (p_vsc_cplt_cback) {
-    /* Pass paramters to the callback function */
-    vcs_cplt_params.opcode = opcode;     /* Number of bytes in return info */
-    vcs_cplt_params.param_len = evt_len; /* Number of bytes in return info */
-    vcs_cplt_params.p_param_buf = p;
-    (*p_vsc_cplt_cback)(
-        &vcs_cplt_params); /* Call the VSC complete callback function */
-  }
+  btsnd_hcic_vendor_spec_cmd(opcode, param_len, p_param_buf, p_cb);
 }
 
 /*******************************************************************************
@@ -518,7 +488,7 @@ tBTM_STATUS BTM_RegisterForVSEvents(tBTM_VS_EVT_CB* p_cb, bool is_register) {
       /* Found callback in lookup table. If deregistering, clear the entry. */
       if (!is_register) {
         btm_cb.devcb.p_vend_spec_cb[i] = NULL;
-        BTM_TRACE_EVENT("BTM Deregister For VSEvents is successfully");
+        log::verbose("BTM Deregister For VSEvents is successfully");
       }
       return (BTM_SUCCESS);
     }
@@ -528,10 +498,10 @@ tBTM_STATUS BTM_RegisterForVSEvents(tBTM_VS_EVT_CB* p_cb, bool is_register) {
   if (is_register) {
     if (free_idx < BTM_MAX_VSE_CALLBACKS) {
       btm_cb.devcb.p_vend_spec_cb[free_idx] = p_cb;
-      BTM_TRACE_EVENT("BTM Register For VSEvents is successfully");
+      log::verbose("BTM Register For VSEvents is successfully");
     } else {
       /* No free entries available */
-      BTM_TRACE_ERROR("BTM_RegisterForVSEvents: too many callbacks registered");
+      log::error("BTM_RegisterForVSEvents: too many callbacks registered");
 
       retval = BTM_NO_RESOURCES;
     }
@@ -552,7 +522,7 @@ tBTM_STATUS BTM_RegisterForVSEvents(tBTM_VS_EVT_CB* p_cb, bool is_register) {
 void btm_vendor_specific_evt(const uint8_t* p, uint8_t evt_len) {
   uint8_t i;
 
-  BTM_TRACE_DEBUG("BTM Event: Vendor Specific event from controller");
+  log::verbose("BTM Event: Vendor Specific event from controller");
 
   // Handle BQR events
   const uint8_t* bqr_ptr = p;
@@ -576,7 +546,7 @@ void btm_vendor_specific_evt(const uint8_t* p, uint8_t evt_len) {
           if (bqr_parameter_length >= bluetooth::bqr::kLogDumpParamTotalLen) {
             bluetooth::bqr::DumpLmpLlMessage(bqr_parameter_length, p_bqr_event);
           } else {
-            LOG_INFO("Malformed LMP event of length %hd", bqr_parameter_length);
+            log::info("Malformed LMP event of length {}", bqr_parameter_length);
           }
 
           break;
@@ -585,13 +555,13 @@ void btm_vendor_specific_evt(const uint8_t* p, uint8_t evt_len) {
           if (bqr_parameter_length >= bluetooth::bqr::kLogDumpParamTotalLen) {
             bluetooth::bqr::DumpBtScheduling(bqr_parameter_length, p_bqr_event);
           } else {
-            LOG_INFO("Malformed TRACE event of length %hd",
-                     bqr_parameter_length);
+            log::info("Malformed TRACE event of length {}",
+                      bqr_parameter_length);
           }
           break;
 
         default:
-          LOG_INFO("Unhandled BQR subevent 0x%02hxx", sub_event_code);
+          log::info("Unhandled BQR subevent 0x{:02x}x", sub_event_code);
         }
       }
     }
@@ -611,7 +581,7 @@ void btm_vendor_specific_evt(const uint8_t* p, uint8_t evt_len) {
  *
  ******************************************************************************/
 void BTM_WritePageTimeout(uint16_t timeout) {
-  BTM_TRACE_EVENT("BTM: BTM_WritePageTimeout: Timeout: %d.", timeout);
+  log::verbose("BTM: BTM_WritePageTimeout: Timeout: {}.", timeout);
 
   /* Send the HCI command */
   btsnd_hcic_write_page_tout(timeout);
@@ -626,10 +596,54 @@ void BTM_WritePageTimeout(uint16_t timeout) {
  *
  ******************************************************************************/
 void BTM_WriteVoiceSettings(uint16_t settings) {
-  BTM_TRACE_EVENT("BTM: BTM_WriteVoiceSettings: Settings: 0x%04x.", settings);
+  log::verbose("BTM: BTM_WriteVoiceSettings: Settings: 0x{:04x}.", settings);
 
   /* Send the HCI command */
   btsnd_hcic_write_voice_settings((uint16_t)(settings & 0x03ff));
+}
+
+/*******************************************************************************
+ *
+ * Function         BTM_EnableTestMode
+ *
+ * Description      Send HCI the enable device under test command.
+ *
+ *                  Note: Controller can only be taken out of this mode by
+ *                      resetting the controller.
+ *
+ * Returns
+ *      BTM_SUCCESS         Command sent.
+ *      BTM_NO_RESOURCES    If out of resources to send the command.
+ *
+ *
+ ******************************************************************************/
+tBTM_STATUS BTM_EnableTestMode(void) {
+  uint8_t cond;
+
+  log::verbose("BTM: BTM_EnableTestMode");
+
+  /* set auto accept connection as this is needed during test mode */
+  /* Allocate a buffer to hold HCI command */
+  cond = HCI_DO_AUTO_ACCEPT_CONNECT;
+  btsnd_hcic_set_event_filter(HCI_FILTER_CONNECTION_SETUP,
+                              HCI_FILTER_COND_NEW_DEVICE, &cond, sizeof(cond));
+
+  /* put device to connectable mode */
+  if (BTM_SetConnectability(BTM_CONNECTABLE) != BTM_SUCCESS) {
+    return BTM_NO_RESOURCES;
+  }
+
+  /* put device to discoverable mode */
+  if (BTM_SetDiscoverability(BTM_GENERAL_DISCOVERABLE) != BTM_SUCCESS) {
+    return BTM_NO_RESOURCES;
+  }
+
+  /* mask off all of event from controller */
+  bluetooth::shim::BTM_ClearEventMask();
+
+  /* Send the HCI command */
+  btsnd_hcic_enable_test_mode();
+  return (BTM_SUCCESS);
 }
 
 /*******************************************************************************
@@ -653,14 +667,14 @@ tBTM_STATUS BTM_DeleteStoredLinkKey(const RawAddress* bd_addr,
    */
 #if !defined(TARGET_FLOSS)
   /* Check if the previous command is completed */
-  if (btm_cb.devcb.p_stored_link_key_cmpl_cb) return (BTM_BUSY);
+  if (btm_sec_cb.devcb.p_stored_link_key_cmpl_cb) return (BTM_BUSY);
 
   bool delete_all_flag = !bd_addr;
 
-  BTM_TRACE_EVENT("BTM: BTM_DeleteStoredLinkKey: delete_all_flag: %s",
-                  delete_all_flag ? "true" : "false");
+  log::verbose("BTM: BTM_DeleteStoredLinkKey: delete_all_flag: {}",
+               delete_all_flag ? "true" : "false");
 
-  btm_cb.devcb.p_stored_link_key_cmpl_cb = p_cb;
+  btm_sec_cb.devcb.p_stored_link_key_cmpl_cb = p_cb;
   if (!bd_addr) {
     /* This is to delete all link keys */
     /* We don't care the BD address. Just pass a non zero pointer */
@@ -686,18 +700,18 @@ tBTM_STATUS BTM_DeleteStoredLinkKey(const RawAddress* bd_addr,
  *
  ******************************************************************************/
 void btm_delete_stored_link_key_complete(uint8_t* p, uint16_t evt_len) {
-  tBTM_CMPL_CB* p_cb = btm_cb.devcb.p_stored_link_key_cmpl_cb;
+  tBTM_CMPL_CB* p_cb = btm_sec_cb.devcb.p_stored_link_key_cmpl_cb;
   tBTM_DELETE_STORED_LINK_KEY_COMPLETE result;
 
   /* If there was a callback registered for read stored link key, call it */
-  btm_cb.devcb.p_stored_link_key_cmpl_cb = NULL;
+  btm_sec_cb.devcb.p_stored_link_key_cmpl_cb = NULL;
 
   if (p_cb) {
     /* Set the call back event to indicate command complete */
     result.event = BTM_CB_EVT_DELETE_STORED_LINK_KEYS;
 
     if (evt_len < 3) {
-      LOG(ERROR) << __func__ << "Malformatted event packet, too short";
+      log::error("Malformatted event packet, too short");
       return;
     }
 
@@ -727,7 +741,7 @@ void btm_delete_stored_link_key_complete(uint8_t* p, uint16_t evt_len) {
 static void BTM_BT_Quality_Report_VSE_CBack(uint8_t length,
                                             const uint8_t* p_stream) {
   if (length == 0) {
-    LOG(WARNING) << __func__ << ": Lengths of all of the parameters are zero.";
+    log::warn("Lengths of all of the parameters are zero.");
     return;
   }
 
@@ -737,7 +751,7 @@ static void BTM_BT_Quality_Report_VSE_CBack(uint8_t length,
 
   if (sub_event == HCI_VSE_SUBCODE_BQR_SUB_EVT) {
     if (btm_cb.p_bqr_report_receiver == nullptr) {
-      LOG(WARNING) << __func__ << ": No registered report receiver.";
+      log::warn("No registered report receiver.");
       return;
     }
 
@@ -763,8 +777,8 @@ tBTM_STATUS BTM_BT_Quality_Report_VSE_Register(
       BTM_RegisterForVSEvents(BTM_BT_Quality_Report_VSE_CBack, is_register);
 
   if (retval != BTM_SUCCESS) {
-    LOG(WARNING) << __func__ << ": Fail to (un)register VSEvents: " << retval
-                 << ", is_register: " << logbool(is_register);
+    log::warn("Fail to (un)register VSEvents: {}, is_register: {}", retval,
+              logbool(is_register));
     return retval;
   }
 
@@ -774,7 +788,7 @@ tBTM_STATUS BTM_BT_Quality_Report_VSE_Register(
     btm_cb.p_bqr_report_receiver = nullptr;
   }
 
-  LOG(INFO) << __func__ << ": Success to (un)register VSEvents."
-            << " is_register: " << logbool(is_register);
+  log::info("Success to (un)register VSEvents. is_register: {}",
+            logbool(is_register));
   return retval;
 }

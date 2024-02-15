@@ -33,11 +33,12 @@ import android.bluetooth.IBluetoothCsipSetCoordinator;
 import android.bluetooth.IBluetoothCsipSetCoordinatorCallback;
 import android.bluetooth.IBluetoothCsipSetCoordinatorLockCallback;
 import android.content.AttributionSource;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.os.ParcelUuid;
 import android.os.RemoteException;
 import android.sysprop.BluetoothProperties;
@@ -81,6 +82,8 @@ public class CsipSetCoordinatorService extends ProfileService {
     private static final int MAX_CSIS_STATE_MACHINES = 10;
     private static CsipSetCoordinatorService sCsipSetCoordinatorService;
 
+    private Handler mHandler = null;
+
     private AdapterService mAdapterService;
     private LeAudioService mLeAudioService;
     private DatabaseManager mDatabaseManager;
@@ -106,8 +109,9 @@ public class CsipSetCoordinatorService extends ProfileService {
     private final Map<Integer, Pair<UUID, IBluetoothCsipSetCoordinatorLockCallback>> mLocks =
             new ConcurrentHashMap<>();
 
-    private BroadcastReceiver mBondStateChangedReceiver;
-    private BroadcastReceiver mConnectionStateChangedReceiver;
+    public CsipSetCoordinatorService(Context ctx) {
+        super(ctx);
+    }
 
     public static boolean isEnabled() {
         return BluetoothProperties.isProfileCsipSetCoordinatorEnabled().orElse(false);
@@ -119,14 +123,7 @@ public class CsipSetCoordinatorService extends ProfileService {
     }
 
     @Override
-    protected void create() {
-        if (DBG) {
-            Log.d(TAG, "create()");
-        }
-    }
-
-    @Override
-    protected boolean start() {
+    public void start() {
         if (DBG) {
             Log.d(TAG, "start()");
         }
@@ -145,6 +142,9 @@ public class CsipSetCoordinatorService extends ProfileService {
                 "CsipSetCoordinatorNativeInterface cannot be null when"
                 .concat("CsipSetCoordinatorService starts"));
 
+        // Setup Handler.
+        mHandler = new Handler(Looper.getMainLooper());
+
         // Get LE Audio service (can be null)
         mLeAudioService = mServiceFactory.getLeAudioService();
 
@@ -157,49 +157,30 @@ public class CsipSetCoordinatorService extends ProfileService {
         IntentFilter filter = new IntentFilter();
         filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         filter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-        mBondStateChangedReceiver = new BondStateChangedReceiver();
-        registerReceiver(mBondStateChangedReceiver, filter);
-        filter = new IntentFilter();
-        filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
-        filter.addAction(BluetoothCsipSetCoordinator.ACTION_CSIS_CONNECTION_STATE_CHANGED);
-        mConnectionStateChangedReceiver = new ConnectionStateChangedReceiver();
-        registerReceiver(mConnectionStateChangedReceiver, filter);
 
         // Mark service as started
         setCsipSetCoordinatorService(this);
 
         // Initialize native interface
         mCsipSetCoordinatorNativeInterface.init();
-        mAdapterService.notifyActivityAttributionInfo(getAttributionSource(),
-                AdapterService.ACTIVITY_ATTRIBUTION_NO_ACTIVE_DEVICE_ADDRESS);
-
-        return true;
     }
 
     @Override
-    protected boolean stop() {
+    public void stop() {
         if (DBG) {
             Log.d(TAG, "stop()");
         }
         if (sCsipSetCoordinatorService == null) {
             Log.w(TAG, "stop() called before start()");
-            return true;
+            return;
         }
 
-        mAdapterService.notifyActivityAttributionInfo(getAttributionSource(),
-                AdapterService.ACTIVITY_ATTRIBUTION_NO_ACTIVE_DEVICE_ADDRESS);
         // Cleanup native interface
         mCsipSetCoordinatorNativeInterface.cleanup();
         mCsipSetCoordinatorNativeInterface = null;
 
         // Mark service as stopped
         setCsipSetCoordinatorService(null);
-
-        // Unregister broadcast receivers
-        unregisterReceiver(mBondStateChangedReceiver);
-        mBondStateChangedReceiver = null;
-        unregisterReceiver(mConnectionStateChangedReceiver);
-        mConnectionStateChangedReceiver = null;
 
         // Destroy state machines and stop handler thread
         synchronized (mStateMachines) {
@@ -220,6 +201,12 @@ public class CsipSetCoordinatorService extends ProfileService {
             }
         }
 
+        // Unregister Handler and stop all queued messages.
+        if (mHandler != null) {
+            mHandler.removeCallbacksAndMessages(null);
+            mHandler = null;
+        }
+
         mDeviceGroupIdRankMap.clear();
         mCallbacks.clear();
         mFoundSetMemberToGroupId.clear();
@@ -232,12 +219,10 @@ public class CsipSetCoordinatorService extends ProfileService {
         // Clear AdapterService, CsipSetCoordinatorNativeInterface
         mCsipSetCoordinatorNativeInterface = null;
         mAdapterService = null;
-
-        return true;
     }
 
     @Override
-    protected void cleanup() {
+    public void cleanup() {
         if (DBG) {
             Log.d(TAG, "cleanup()");
         }
@@ -274,7 +259,8 @@ public class CsipSetCoordinatorService extends ProfileService {
      * @return true if connection is successful, false otherwise.
      */
     public boolean connect(BluetoothDevice device) {
-        enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, "Need BLUETOOTH_PRIVILEGED permission");
+        enforceCallingOrSelfPermission(
+                BLUETOOTH_PRIVILEGED, "Need BLUETOOTH_PRIVILEGED permission");
         if (DBG) {
             Log.d(TAG, "connect(): " + device);
         }
@@ -309,7 +295,8 @@ public class CsipSetCoordinatorService extends ProfileService {
      * @return true if disconnect is successful, false otherwise.
      */
     public boolean disconnect(BluetoothDevice device) {
-        enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, "Need BLUETOOTH_PRIVILEGED permission");
+        enforceCallingOrSelfPermission(
+                BLUETOOTH_PRIVILEGED, "Need BLUETOOTH_PRIVILEGED permission");
         if (DBG) {
             Log.d(TAG, "disconnect(): " + device);
         }
@@ -480,7 +467,8 @@ public class CsipSetCoordinatorService extends ProfileService {
      * @return true on success, otherwise false
      */
     public boolean setConnectionPolicy(BluetoothDevice device, int connectionPolicy) {
-        enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, "Need BLUETOOTH_PRIVILEGED permission");
+        enforceCallingOrSelfPermission(
+                BLUETOOTH_PRIVILEGED, "Need BLUETOOTH_PRIVILEGED permission");
         if (DBG) {
             Log.d(TAG, "Saved connectionPolicy " + device + " = " + connectionPolicy);
         }
@@ -501,7 +489,8 @@ public class CsipSetCoordinatorService extends ProfileService {
      * @return connection policy of the specified device
      */
     public int getConnectionPolicy(BluetoothDevice device) {
-        enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, "Need BLUETOOTH_PRIVILEGED permission");
+        enforceCallingOrSelfPermission(
+                BLUETOOTH_PRIVILEGED, "Need BLUETOOTH_PRIVILEGED permission");
         return mDatabaseManager.getProfileConnectionPolicy(
                 device, BluetoothProfile.CSIP_SET_COORDINATOR);
     }
@@ -847,7 +836,7 @@ public class CsipSetCoordinatorService extends ProfileService {
         intent.addFlags(
                 Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                         | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-        sendBroadcast(intent, BLUETOOTH_PRIVILEGED);
+        sendOrderedBroadcast(intent, BLUETOOTH_PRIVILEGED);
 
         /* Notify registered parties */
         handleSetMemberAvailable(device, groupId);
@@ -890,7 +879,7 @@ public class CsipSetCoordinatorService extends ProfileService {
         if (intent != null) {
             intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                     | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-            sendBroadcast(intent, BLUETOOTH_PRIVILEGED);
+            sendOrderedBroadcast(intent, BLUETOOTH_PRIVILEGED);
         }
 
         synchronized (mStateMachines) {
@@ -945,28 +934,18 @@ public class CsipSetCoordinatorService extends ProfileService {
         }
     }
 
-    // Remove state machine if the bonding for a device is removed
-    private class BondStateChangedReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (!BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(intent.getAction())) {
-                return;
-            }
-            int state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR);
-            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-            Objects.requireNonNull(device, "ACTION_BOND_STATE_CHANGED with no EXTRA_DEVICE");
-            bondStateChanged(device, state);
-        }
+    /** Process a change in the bonding state for a device */
+    public void handleBondStateChanged(BluetoothDevice device, int fromState, int toState) {
+        mHandler.post(() -> bondStateChanged(device, toState));
     }
 
     /**
-     * Process a change in the bonding state for a device.
+     * Remove state machine if the bonding for a device is removed
      *
      * @param device the device whose bonding state has changed
-     * @param bondState the new bond state for the device. Possible values are:
-     * {@link BluetoothDevice#BOND_NONE},
-     * {@link BluetoothDevice#BOND_BONDING},
-     * {@link BluetoothDevice#BOND_BONDED}.
+     * @param bondState the new bond state for the device. Possible values are: {@link
+     *     BluetoothDevice#BOND_NONE}, {@link BluetoothDevice#BOND_BONDING}, {@link
+     *     BluetoothDevice#BOND_BONDED}.
      */
     @VisibleForTesting
     void bondStateChanged(BluetoothDevice device, int bondState) {
@@ -1018,8 +997,17 @@ public class CsipSetCoordinatorService extends ProfileService {
         }
     }
 
+    void handleConnectionStateChanged(BluetoothDevice device, int fromState, int toState) {
+        mHandler.post(() -> connectionStateChanged(device, fromState, toState));
+    }
+
     @VisibleForTesting
     synchronized void connectionStateChanged(BluetoothDevice device, int fromState, int toState) {
+        if (!isAvailable()) {
+            Log.w(TAG, "connectionStateChanged: service is not available");
+            return;
+        }
+
         if ((device == null) || (fromState == toState)) {
             Log.e(TAG,
                     "connectionStateChanged: unexpected invocation. device=" + device
@@ -1049,20 +1037,8 @@ public class CsipSetCoordinatorService extends ProfileService {
             mGroupIdToConnectedDevices.get(groupId).add(device);
             disableCsipIfNeeded(groupId);
         }
-    }
-
-    private class ConnectionStateChangedReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (!BluetoothCsipSetCoordinator.ACTION_CSIS_CONNECTION_STATE_CHANGED.equals(
-                        intent.getAction())) {
-                return;
-            }
-            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-            int toState = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1);
-            int fromState = intent.getIntExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, -1);
-            connectionStateChanged(device, fromState, toState);
-        }
+        mAdapterService.handleProfileConnectionStateChange(
+                BluetoothProfile.CSIP_SET_COORDINATOR, device, fromState, toState);
     }
 
     /**

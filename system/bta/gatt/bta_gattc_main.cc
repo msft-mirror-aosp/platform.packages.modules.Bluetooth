@@ -26,9 +26,9 @@
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
 
-#include "bt_target.h"  // Must be first to define build configuration"
 #include "bta/gatt/bta_gattc_int.h"
-#include "osi/include/log.h"
+#include "internal_include/bt_target.h"
+#include "os/log.h"
 #include "stack/include/bt_hdr.h"
 
 using base::StringPrintf;
@@ -364,7 +364,7 @@ bool bta_gattc_sm_execute(tBTA_GATTC_CLCB* p_clcb, uint16_t event,
  * Returns          bool
  *
  ******************************************************************************/
-bool bta_gattc_hdl_event(BT_HDR_RIGID* p_msg) {
+bool bta_gattc_hdl_event(const BT_HDR_RIGID* p_msg) {
   tBTA_GATTC_CLCB* p_clcb = NULL;
   bool rt = true;
 #if (BTA_GATT_DEBUG == TRUE)

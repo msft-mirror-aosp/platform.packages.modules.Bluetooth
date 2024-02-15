@@ -31,10 +31,12 @@ RUN apt-get update && \
     libdouble-conversion-dev \
     libevent-dev \
     libflatbuffers-dev \
+    libfmt-dev \
     libgl1-mesa-dev \
     libglib2.0-dev \
     libgtest-dev \
     libgmock-dev \
+    liblc3-dev \
     liblz4-tool \
     libncurses5 \
     libnss3-dev \
@@ -65,7 +67,7 @@ RUN /tmp/rustup.sh -y --default-toolchain 1.68.2
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Install cargo packages required on build image.
-RUN cargo install cxxbridge-cmd --version 1.0.94
+RUN cargo install --locked cxxbridge-cmd@1.0.94 pdl-compiler@0.1.1 grpcio-compiler@0.13.0
 
 # Rename llvm packages. By default, they are named 11vm-ar-13, etc. which won't
 # work properly with the build.

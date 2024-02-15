@@ -18,23 +18,14 @@
 #include <base/functional/bind.h>
 #include <hardware/bt_csis.h>
 
-#include <map>
-#include <string>
-
 #include "bta/include/bta_csis_api.h"
-#include "btif/include/btif_storage.h"
 #include "test/common/mock_functions.h"
-
-#ifndef UNUSED_ATTR
-#define UNUSED_ATTR
-#endif
 
 using bluetooth::csis::CsisClient;
 using bluetooth::csis::CsisClientCallbacks;
 
 void CsisClient::AddFromStorage(const RawAddress& addr,
-                                const std::vector<uint8_t>& in,
-                                bool autoconnect) {
+                                const std::vector<uint8_t>& in) {
   inc_func_call_count(__func__);
 }
 bool CsisClient::GetForStorage(const RawAddress& addr,

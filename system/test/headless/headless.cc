@@ -20,19 +20,23 @@
 
 #include <dlfcn.h>  //  dlopen
 
-#include <algorithm>
 #include <iostream>
 #include <map>
+#include <memory>
 
 #include "base/logging.h"  // LOG() stdout and android log
+#include "gd/os/log.h"
+#include "include/check.h"
 #include "include/hardware/bluetooth.h"
-#include "internal_include/bt_trace.h"
-#include "osi/include/log.h"  // android log only
-#include "test/headless/get_options.h"
+#include "test/headless/bt_stack_info.h"
 #include "test/headless/interface.h"
 #include "test/headless/log.h"
+#include "test/headless/messenger.h"
 #include "types/raw_address.h"
 
+//
+// Aggregate disparate variables from callback API into unified single structure
+//
 extern bt_interface_t bluetoothInterface;
 
 using namespace bluetooth::test::headless;
@@ -56,14 +60,13 @@ void headless_add_callback(const std::string interface_name,
   interface_api_callback_map_[interface_name].push_back(function);
 }
 
-void headless_remove_callback(const std::string interface_name,
-                              callback_function_t function) {
+void headless_remove_callback(const std::string interface_name) {
   if (interface_api_callback_map_.find(interface_name) ==
       interface_api_callback_map_.end()) {
     ASSERT_LOG(false, "No callbacks registered for interface:%s",
                interface_name.c_str());
   }
-  interface_api_callback_map_[interface_name].remove(function);
+  interface_api_callback_map_.erase(interface_name);
 }
 
 std::mutex adapter_state_mutex_;
@@ -75,10 +78,21 @@ void adapter_state_changed(bt_state_t state) {
   bt_state_ = state;
   adapter_state_cv_.notify_all();
 }
-void adapter_properties([[maybe_unused]] bt_status_t status,
-                        [[maybe_unused]] int num_properties,
-                        [[maybe_unused]] ::bt_property_t* properties) {
-  LOG_INFO("%s", __func__);
+void adapter_properties(bt_status_t status, int num_properties,
+                        ::bt_property_t* properties) {
+  const size_t num_callbacks = interface_api_callback_map_.size();
+  auto callback_list = interface_api_callback_map_.find(__func__);
+  if (callback_list != interface_api_callback_map_.end()) {
+    for (auto callback : callback_list->second) {
+      adapter_properties_params_t params(status, num_properties, properties);
+      (callback)(&params);
+    }
+  }
+  LOG_INFO(
+      "num_callbacks:%zu status:%s num_properties:%d "
+      "properties:%p",
+      num_callbacks, bt_status_text(status).c_str(), num_properties,
+      properties);
 }
 
 void remote_device_properties(bt_status_t status, RawAddress* bd_addr,
@@ -96,15 +110,25 @@ void remote_device_properties(bt_status_t status, RawAddress* bd_addr,
     }
   }
   LOG_INFO(
-      "%s num_callbacks:%zu status:%s device:%s num_properties:%d "
+      "num_callbacks:%zu status:%s device:%s num_properties:%d "
       "properties:%p",
-      __func__, num_callbacks, bt_status_text(status).c_str(), STR(*bd_addr),
+      num_callbacks, bt_status_text(status).c_str(), STR(*bd_addr),
       num_properties, properties);
 }
 
-void device_found([[maybe_unused]] int num_properties,
-                  [[maybe_unused]] ::bt_property_t* properties) {
-  LOG_INFO("%s", __func__);
+// Aggregate disparate variables from callback API into unified single structure
+void device_found(int num_properties, ::bt_property_t* properties) {
+  [[maybe_unused]] const size_t num_callbacks =
+      interface_api_callback_map_.size();
+  auto callback_list = interface_api_callback_map_.find(__func__);
+  if (callback_list != interface_api_callback_map_.end()) {
+    for (auto callback : callback_list->second) {
+      device_found_params_t params(num_properties, properties);
+      (callback)(&params);
+    }
+  }
+  LOG_INFO("Device found callback: num_properties:%d properties:%p",
+           num_properties, properties);
 }
 
 void discovery_state_changed(bt_discovery_state_t state) {
@@ -199,6 +223,17 @@ void thread_event([[maybe_unused]] bt_cb_thread_evt evt) {
   LOG_INFO("%s", __func__);
 }
 
+void dut_mode_recv([[maybe_unused]] uint16_t opcode,
+                   [[maybe_unused]] uint8_t* buf,
+                   [[maybe_unused]] uint8_t len) {
+  LOG_INFO("%s", __func__);
+}
+
+void le_test_mode([[maybe_unused]] bt_status_t status,
+                  [[maybe_unused]] uint16_t num_packets) {
+  LOG_INFO("%s", __func__);
+}
+
 void energy_info([[maybe_unused]] bt_activity_energy_info* energy_info,
                  [[maybe_unused]] bt_uid_traffic_t* uid_data) {
   LOG_INFO("%s", __func__);
@@ -219,6 +254,8 @@ bt_callbacks_t bt_callbacks{
     .le_address_associate_cb = le_address_associate,
     .acl_state_changed_cb = acl_state_changed,
     .thread_evt_cb = thread_event,
+    .dut_mode_recv_cb = dut_mode_recv,
+    .le_test_mode_cb = le_test_mode,
     .energy_info_cb = energy_info,
     .link_quality_report_cb = link_quality_report,
     .switch_buffer_size_cb = switch_buffer_size,
@@ -227,13 +264,6 @@ bt_callbacks_t bt_callbacks{
 // HAL HARDWARE CALLBACKS
 
 // OS CALLOUTS
-bool set_wake_alarm_co([[maybe_unused]] uint64_t delay_millis,
-                       [[maybe_unused]] bool should_wake,
-                       [[maybe_unused]] alarm_cb cb,
-                       [[maybe_unused]] void* data) {
-  LOG_INFO("%s", __func__);
-  return true;
-}
 int acquire_wake_lock_co([[maybe_unused]] const char* lock_name) {
   LOG_INFO("%s", __func__);
   return 1;
@@ -246,7 +276,6 @@ int release_wake_lock_co([[maybe_unused]] const char* lock_name) {
 
 bt_os_callouts_t bt_os_callouts{
     .size = sizeof(bt_os_callouts_t),
-    .set_wake_alarm = set_wake_alarm_co,
     .acquire_wake_lock = acquire_wake_lock_co,
     .release_wake_lock = release_wake_lock_co,
 };
@@ -279,9 +308,7 @@ void HeadlessStack::SetUp() {
   while (bt_state_ != BT_STATE_ON) adapter_state_cv_.wait(lck);
   LOG_INFO("%s HeadlessStack stack is operational", __func__);
 
-  // Logging can only be enabled after the stack has started up to override
-  // the default logging levels built into the stack.
-  enable_logging();
+  bt_stack_info_ = std::make_unique<BtStackInfo>();
 
   bluetooth::test::headless::start_messenger();
 
@@ -291,7 +318,6 @@ void HeadlessStack::SetUp() {
 void HeadlessStack::TearDown() {
   bluetooth::test::headless::stop_messenger();
 
-  log_logging();
   LOG_INFO("Stack has disabled");
   int status = bluetoothInterface.disable();
 

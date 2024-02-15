@@ -25,14 +25,13 @@
 
 #include <cstdint>
 
-#include "bt_target.h"  // Must be first to define build configuration
 #include "bta/dm/bta_dm_int.h"
 #include "bta/include/bta_api.h"
 #include "bta/include/bta_hh_api.h"
 #include "bta/include/bta_jv_api.h"
 #include "bta/sys/bta_sys.h"
+#include "internal_include/bt_target.h"
 #include "osi/include/properties.h"
-#include "types/raw_address.h"
 
 /* page timeout in 625uS */
 #ifndef BTA_DM_PAGE_TIMEOUT
@@ -129,6 +128,13 @@ tBTA_DM_PM_TYPE_QUALIFIER tBTA_DM_PM_CFG
 tBTA_DM_PM_TYPE_QUALIFIER tBTA_DM_PM_SPEC* get_bta_dm_pm_spec() {
   static uint16_t hs_sniff_delay = uint16_t(
       osi_property_get_int32("bluetooth.bta_hs_sniff_delay_ms.config", 7000));
+  static uint16_t fts_ops_idle_to_sniff_delay_ms =
+      uint16_t(osi_property_get_int32(
+          "bluetooth.bta_fts_ops_idle_to_sniff_delay_ms.config",
+          BTA_FTS_OPS_IDLE_TO_SNIFF_DELAY_MS));
+  static uint16_t ftc_idle_to_sniff_delay_ms = uint16_t(
+      osi_property_get_int32("bluetooth.bta_ftc_idle_to_sniff_delay_ms.config",
+                             BTA_FTC_IDLE_TO_SNIFF_DELAY_MS));
 
   static tBTA_DM_PM_TYPE_QUALIFIER tBTA_DM_PM_SPEC
       bta_dm_pm_spec[BTA_DM_NUM_PM_SPEC] = {
@@ -308,7 +314,7 @@ tBTA_DM_PM_TYPE_QUALIFIER tBTA_DM_PM_SPEC* get_bta_dm_pm_spec() {
                 {BTA_DM_PM_NO_ACTION, 0}}, /* sco open  */
                {{BTA_DM_PM_NO_ACTION, 0},
                 {BTA_DM_PM_NO_ACTION, 0}}, /* sco close   */
-               {{BTA_DM_PM_SNIFF_A2DP_IDX, BTA_FTC_IDLE_TO_SNIFF_DELAY_MS},
+               {{BTA_DM_PM_SNIFF_A2DP_IDX, ftc_idle_to_sniff_delay_ms},
                 {BTA_DM_PM_NO_ACTION, 0}},                        /* idle */
                {{BTA_DM_PM_ACTIVE, 0}, {BTA_DM_PM_NO_ACTION, 0}}, /* busy */
                {{BTA_DM_PM_NO_ACTION, 0},
@@ -330,7 +336,7 @@ tBTA_DM_PM_TYPE_QUALIFIER tBTA_DM_PM_SPEC* get_bta_dm_pm_spec() {
                 {BTA_DM_PM_NO_ACTION, 0}}, /* sco open  */
                {{BTA_DM_PM_NO_ACTION, 0},
                 {BTA_DM_PM_NO_ACTION, 0}}, /* sco close   */
-               {{BTA_DM_PM_SNIFF_A2DP_IDX, BTA_FTS_OPS_IDLE_TO_SNIFF_DELAY_MS},
+               {{BTA_DM_PM_SNIFF_A2DP_IDX, fts_ops_idle_to_sniff_delay_ms},
                 {BTA_DM_PM_NO_ACTION, 0}},                        /* idle */
                {{BTA_DM_PM_ACTIVE, 0}, {BTA_DM_PM_NO_ACTION, 0}}, /* busy */
                {{BTA_DM_PM_NO_ACTION, 0},

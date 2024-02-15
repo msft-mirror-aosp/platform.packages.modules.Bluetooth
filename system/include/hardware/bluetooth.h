@@ -23,6 +23,8 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
+#include <vector>
+
 #include "avrcp/avrcp.h"
 #include "base/functional/callback.h"
 #include "bluetooth/uuid.h"
@@ -54,7 +56,6 @@
 #define BT_PROFILE_HAP_CLIENT_ID "has_client"
 #define BT_PROFILE_LE_AUDIO_ID "le_audio"
 #define BT_KEYSTORE_ID "bluetooth_keystore"
-#define BT_ACTIVITY_ATTRIBUTION_ID "activity_attribution"
 #define BT_PROFILE_VC_ID "volume_control"
 #define BT_PROFILE_CSIS_CLIENT_ID "csis_client"
 #define BT_PROFILE_LE_AUDIO_ID "le_audio"
@@ -105,7 +106,8 @@ typedef enum {
   BT_STATUS_AUTH_REJECTED,
   BT_STATUS_JNI_ENVIRONMENT_ERROR,
   BT_STATUS_JNI_THREAD_ATTACH_ERROR,
-  BT_STATUS_WAKELOCK_ERROR
+  BT_STATUS_WAKELOCK_ERROR,
+  BT_STATUS_TIMEOUT
 } bt_status_t;
 
 inline std::string bt_status_text(const bt_status_t& status) {
@@ -129,17 +131,19 @@ inline std::string bt_status_text(const bt_status_t& status) {
     case BT_STATUS_UNHANDLED:
       return std::string("unhandled");
     case BT_STATUS_AUTH_FAILURE:
-      return std::string("failure");
+      return std::string("auth_failure");
     case BT_STATUS_RMT_DEV_DOWN:
       return std::string("remote_device_down");
     case BT_STATUS_AUTH_REJECTED:
-      return std::string("rejected");
+      return std::string("auth_rejected");
     case BT_STATUS_JNI_ENVIRONMENT_ERROR:
       return std::string("jni_env_error");
     case BT_STATUS_JNI_THREAD_ATTACH_ERROR:
       return std::string("jni_thread_error");
     case BT_STATUS_WAKELOCK_ERROR:
       return std::string("wakelock_error");
+    case BT_STATUS_TIMEOUT:
+      return std::string("timeout_error");
     default:
       return std::string("UNKNOWN");
   }
@@ -392,6 +396,27 @@ typedef enum {
    */
   BT_PROPERTY_REMOTE_MODEL_NUM,
 
+  /**
+   * Description - Address type of the remote device - PUBLIC or REMOTE
+   * Access mode - GET.
+   * Data Type - uint8_t.
+   */
+  BT_PROPERTY_REMOTE_ADDR_TYPE,
+
+  /**
+   * Description - Whether remote device supports Secure Connections mode
+   * Access mode - GET and SET.
+   * Data Type - uint8_t.
+   */
+  BT_PROPERTY_REMOTE_SECURE_CONNECTIONS_SUPPORTED,
+
+  /**
+   * Description - Maximum observed session key for remote device
+   * Access mode - GET and SET.
+   * Data Type - uint8_t.
+   */
+  BT_PROPERTY_REMOTE_MAX_SESSION_KEY_SIZE,
+
   BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP = 0xFF,
 } bt_property_type_t;
 
@@ -557,6 +582,18 @@ typedef enum { ASSOCIATE_JVM, DISASSOCIATE_JVM } bt_cb_thread_evt;
  * attach/detach to/from the JVM */
 typedef void (*callback_thread_event)(bt_cb_thread_evt evt);
 
+/** Bluetooth Test Mode Callback */
+/* Receive any HCI event from controller. Must be in DUT Mode for this callback
+ * to be received */
+typedef void (*dut_mode_recv_callback)(uint16_t opcode, uint8_t* buf,
+                                       uint8_t len);
+
+/* LE Test mode callbacks
+ * This callback shall be invoked whenever the le_tx_test, le_rx_test or
+ * le_test_end is invoked The num_packets is valid only for le_test_end command
+ */
+typedef void (*le_test_mode_callback)(bt_status_t status, uint16_t num_packets);
+
 /** Callback invoked when energy details are obtained */
 /* Ctrl_state-Current controller state-Active-1,scan-2,or idle-3 state as
  * defined by HCI spec. If the ctrl_state value is 0, it means the API call
@@ -571,6 +608,8 @@ typedef void (*energy_info_callback)(bt_activity_energy_info* energy_info,
 /** Callback invoked when OOB data is returned from the controller */
 typedef void (*generate_local_oob_data_callback)(tBT_TRANSPORT transport,
                                                  bt_oob_data_t oob_data);
+
+typedef void (*key_missing_callback)(const RawAddress bd_addr);
 
 /** TODO: Add callbacks for Link Up/Down and other generic
  *  notifications/callbacks */
@@ -591,17 +630,17 @@ typedef struct {
   le_address_associate_callback le_address_associate_cb;
   acl_state_changed_callback acl_state_changed_cb;
   callback_thread_event thread_evt_cb;
+  dut_mode_recv_callback dut_mode_recv_cb;
+  le_test_mode_callback le_test_mode_cb;
   energy_info_callback energy_info_cb;
   link_quality_report_callback link_quality_report_cb;
   generate_local_oob_data_callback generate_local_oob_data_cb;
   switch_buffer_size_callback switch_buffer_size_cb;
   switch_codec_callback switch_codec_cb;
   le_rand_callback le_rand_cb;
+  key_missing_callback key_missing_cb;
 } bt_callbacks_t;
 
-typedef void (*alarm_cb)(void* data);
-typedef bool (*set_wake_alarm_callout)(uint64_t delay_millis, bool should_wake,
-                                       alarm_cb cb, void* data);
 typedef int (*acquire_wake_lock_callout)(const char* lock_name);
 typedef int (*release_wake_lock_callout)(const char* lock_name);
 
@@ -613,7 +652,6 @@ typedef struct {
   /* set to sizeof(bt_os_callouts_t) */
   size_t size;
 
-  set_wake_alarm_callout set_wake_alarm;
   acquire_wake_lock_callout acquire_wake_lock;
   release_wake_lock_callout release_wake_lock;
 } bt_os_callouts_t;
@@ -720,6 +758,8 @@ typedef struct {
   /** Cancel Bond */
   int (*cancel_bond)(const RawAddress* bd_addr);
 
+  bool (*pairing_is_busy)();
+
   /**
    * Get the connection status for a given remote device.
    * return value of 0 means the device is not connected,
@@ -742,6 +782,18 @@ typedef struct {
 
   /** Get Bluetooth profile interface */
   const void* (*get_profile_interface)(const char* profile_id);
+
+  /** Bluetooth Test Mode APIs - Bluetooth must be enabled for these APIs */
+  /* Configure DUT Mode - Use this mode to enter/exit DUT mode */
+  int (*dut_mode_configure)(uint8_t enable);
+
+  /* Send any test HCI (vendor-specific) command to the controller. Must be in
+   * DUT Mode */
+  int (*dut_mode_send)(uint16_t opcode, uint8_t* buf, uint8_t len);
+  /** BLE Test Mode APIs */
+  /* opcode MUST be one of: LE_Receiver_Test, LE_Transmitter_Test, LE_Test_End
+   */
+  int (*le_test_mode)(uint16_t opcode, uint8_t* buf, uint8_t len);
 
   /** Sets the OS call-out functions that bluedroid needs for alarms and wake
    * locks. This should be called immediately after a successful |init|.

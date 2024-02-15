@@ -29,9 +29,9 @@
 #include "bta/include/bta_hearing_aid_api.h"
 #include "common/repeating_timer.h"
 #include "common/time_util.h"
-#include "osi/include/log.h"
+#include "os/log.h"
 #include "osi/include/wakelock.h"
-#include "stack/include/btu.h"  // get_main_thread
+#include "stack/include/main_thread.h"
 #include "udrv/include/uipc.h"
 
 using base::FilePath;
@@ -128,13 +128,9 @@ void start_audio_ticks() {
   }
 
   wakelock_acquire();
-  audio_timer.SchedulePeriodic(
-      get_main_thread()->GetWeakPtr(), FROM_HERE, base::Bind(&send_audio_data),
-#if BASE_VER < 931007
-      base::TimeDelta::FromMilliseconds(data_interval_ms));
-#else
-      base::Milliseconds(data_interval_ms));
-#endif
+  audio_timer.SchedulePeriodic(get_main_thread()->GetWeakPtr(), FROM_HERE,
+                               base::BindRepeating(&send_audio_data),
+                               std::chrono::milliseconds(data_interval_ms));
   LOG_INFO("running with data interval: %d", data_interval_ms);
 }
 

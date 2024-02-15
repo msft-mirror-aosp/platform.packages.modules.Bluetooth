@@ -19,16 +19,9 @@
  *   Functions generated:3
  */
 
-#include <map>
-#include <string>
-
 #include "include/hardware/ble_scanner.h"
 #include "main/shim/le_scanning_manager.h"
 #include "test/common/mock_functions.h"
-
-#ifndef UNUSED_ATTR
-#define UNUSED_ATTR
-#endif
 
 ::BleScannerInterface* bluetooth::shim::get_ble_scanner_instance() {
   inc_func_call_count(__func__);
@@ -41,14 +34,14 @@ bool bluetooth::shim::is_ad_type_filter_supported() {
   return false;
 }
 
-void bluetooth::shim::set_ad_type_rsi_filter(bool enable) {
+void bluetooth::shim::set_ad_type_rsi_filter(bool /* enable */) {
   inc_func_call_count(__func__);
 }
 
-void bluetooth::shim::set_empty_filter(bool enable) {
+void bluetooth::shim::set_empty_filter(bool /* enable */) {
   inc_func_call_count(__func__);
 }
 
-void bluetooth::shim::set_target_announcements_filter(bool enable) {
+void bluetooth::shim::set_target_announcements_filter(bool /* enable */) {
   inc_func_call_count(__func__);
 }

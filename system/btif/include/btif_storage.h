@@ -22,9 +22,10 @@
 #include <bluetooth/uuid.h>
 #include <hardware/bluetooth.h>
 
-#include "bt_target.h"
+#include "internal_include/bt_target.h"
 #include "stack/include/bt_device_type.h"
 #include "stack/include/bt_octets.h"
+#include "stack/include/btm_sec_api_types.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
@@ -37,8 +38,6 @@
     (p_prop)->len = (l);                              \
     (p_prop)->val = (p_v);                            \
   } while (0)
-
-#define BTIF_STORAGE_PATH_REMOTE_SERVICE "Service"
 
 #define STORAGE_BDADDR_STRING_SZ (18) /* 00:11:22:33:44:55 */
 #define STORAGE_UUID_STRING_SIZE \
@@ -142,7 +141,7 @@ bt_status_t btif_storage_set_remote_device_property(
  *                  returns BTM_LOCAL_IO_CAPS.
  *
  ******************************************************************************/
-uint8_t btif_storage_get_local_io_caps();
+tBTM_IO_CAP btif_storage_get_local_io_caps();
 
 /*******************************************************************************
  *
@@ -322,6 +321,9 @@ void btif_storage_set_leaudio_supported_context_types(
     const RawAddress& addr, uint16_t sink_supported_context_type,
     uint16_t source_supported_context_type);
 
+/** Remove Le Audio device service data */
+void btif_storage_leaudio_clear_service_data(const RawAddress& address);
+
 /** Remove Le Audio device from the storage */
 void btif_storage_remove_leaudio(const RawAddress& address);
 
@@ -389,8 +391,6 @@ void btif_storage_add_groups(const RawAddress& addr);
 void btif_storage_load_bonded_groups(void);
 void btif_storage_remove_groups(const RawAddress& address);
 
-void btif_storage_set_csis_autoconnect(const RawAddress& addr,
-                                       bool autoconnect);
 void btif_storage_update_csis_info(const RawAddress& addr);
 void btif_storage_load_bonded_csis_devices();
 void btif_storage_remove_csis_device(const RawAddress& address);

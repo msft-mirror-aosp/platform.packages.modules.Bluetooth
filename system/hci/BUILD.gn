@@ -23,7 +23,6 @@ static_library("hci") {
   include_dirs = [
     "include",
     "//bt/system/",
-    "//bt/system/internal_include",
     "//bt/system/bta/include",
     "//bt/system/stack/include",
   ]
@@ -40,14 +39,11 @@ static_library("hci") {
 if (use.test) {
   executable("net_test_hci") {
     sources = [
-      "//bt/system/osi/test/AllocationTestHarness.cc",
-      "//bt/system/osi/test/AlarmTestHarness.cc",
       "test/packet_fragmenter_test.cc",
     ]
 
     include_dirs = [
       "//bt/system/",
-      "//bt/system/internal_include",
       "//bt/system/osi/test",
       "//bt/system/stack/include",
     ]

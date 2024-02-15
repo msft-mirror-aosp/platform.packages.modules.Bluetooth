@@ -40,17 +40,18 @@ import androidx.test.filters.MediumTest;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.ServiceFactory;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.csip.CsipSetCoordinatorService;
-import com.android.bluetooth.R;
-import com.android.bluetooth.TestUtils;
+import com.android.bluetooth.flags.FakeFeatureFlagsImpl;
+import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.le_audio.LeAudioService;
 import com.android.bluetooth.x.com.android.modules.utils.SynchronousResultReceiver;
 
 import org.junit.After;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -60,10 +61,10 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.IntStream;
 
 @MediumTest
@@ -85,8 +86,10 @@ public class VolumeControlServiceTest {
     private static final int CALL_MAX_VOL = 8;
 
     private BroadcastReceiver mVolumeControlIntentReceiver;
+    private FakeFeatureFlagsImpl mFakeFlagsImpl;
 
     @Mock private AdapterService mAdapterService;
+    @Mock private LeAudioService mLeAudioService;
     @Mock private DatabaseManager mDatabaseManager;
     @Mock private VolumeControlNativeInterface mNativeInterface;
     @Mock private AudioManager mAudioManager;
@@ -107,7 +110,6 @@ public class VolumeControlServiceTest {
 
         TestUtils.setAdapterService(mAdapterService);
         doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
-        doReturn(true, false).when(mAdapterService).isStartedProfile(anyString());
 
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mAttributionSource = mAdapter.getAttributionSource();
@@ -121,14 +123,23 @@ public class VolumeControlServiceTest {
         doReturn(CALL_MAX_VOL).when(mAudioManager)
                 .getStreamMaxVolume(eq(AudioManager.STREAM_VOICE_CALL));
 
-        startService();
-        mService.mVolumeControlNativeInterface = mNativeInterface;
+        mFakeFlagsImpl = new FakeFeatureFlagsImpl();
+        mFakeFlagsImpl.setFlag(
+                Flags.FLAG_LEAUDIO_BROADCAST_VOLUME_CONTROL_FOR_CONNECTED_DEVICES, false);
+        mFakeFlagsImpl.setFlag(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API, false);
+
+        VolumeControlNativeInterface.setInstance(mNativeInterface);
+        mService = new VolumeControlService(mTargetContext, mFakeFlagsImpl);
+        mService.start();
+        mService.setAvailable(true);
+
         mService.mAudioManager = mAudioManager;
         mService.mFactory = mServiceFactory;
         mServiceBinder = (VolumeControlService.BluetoothVolumeControlBinder) mService.initBinder();
         mServiceBinder.mIsTesting = true;
 
         doReturn(mCsipService).when(mServiceFactory).getCsipSetCoordinatorService();
+        doReturn(mLeAudioService).when(mServiceFactory).getLeAudioService();
 
         // Override the timeout value to speed up the test
         VolumeControlStateMachine.sConnectTimeoutMs = TIMEOUT_MS;    // 1s
@@ -159,23 +170,12 @@ public class VolumeControlServiceTest {
             return;
         }
 
-        stopService();
+        mService.stop();
+        VolumeControlNativeInterface.setInstance(null);
         mTargetContext.unregisterReceiver(mVolumeControlIntentReceiver);
         mDeviceQueueMap.clear();
         TestUtils.clearAdapterService(mAdapterService);
         reset(mAudioManager);
-    }
-
-    private void startService() throws TimeoutException {
-        TestUtils.startService(mServiceRule, VolumeControlService.class);
-        mService = VolumeControlService.getVolumeControlService();
-        Assert.assertNotNull(mService);
-    }
-
-    private void stopService() throws TimeoutException {
-        TestUtils.stopService(mServiceRule, VolumeControlService.class);
-        mService = VolumeControlService.getVolumeControlService();
-        Assert.assertNull(mService);
     }
 
     private class VolumeControlIntentReceiver extends BroadcastReceiver {
@@ -229,22 +229,12 @@ public class VolumeControlServiceTest {
         connectDevice(mDevice);
         // VolumeControl Service is already running: test stop().
         // Note: must be done on the main thread
-        InstrumentationRegistry.getInstrumentation().runOnMainSync(new Runnable() {
-            public void run() {
-                Assert.assertTrue(mService.stop());
-            }
-        });
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(mService::stop);
         // Try to restart the service. Note: must be done on the main thread
-        InstrumentationRegistry.getInstrumentation().runOnMainSync(new Runnable() {
-            public void run() {
-                Assert.assertTrue(mService.start());
-            }
-        });
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(mService::start);
     }
 
-    /**
-     * Test get/set policy for BluetoothDevice
-     */
+    /** Test get/set policy for BluetoothDevice */
     @Test
     public void testGetSetPolicy() {
         when(mAdapterService.getDatabase()).thenReturn(mDatabaseManager);
@@ -678,6 +668,43 @@ public class VolumeControlServiceTest {
         Assert.assertEquals(volume, mService.getGroupVolume(groupId));
     }
 
+    /** Test Active Group change */
+    @Test
+    public void testActiveGroupChange() throws Exception {
+        int groupId_1 = 1;
+        int volume_groupId_1 = 6;
+
+        int groupId_2 = 2;
+        int volume_groupId_2 = 20;
+
+        Assert.assertEquals(-1, mService.getGroupVolume(groupId_1));
+        Assert.assertEquals(-1, mService.getGroupVolume(groupId_2));
+        SynchronousResultReceiver<Void> voidRecv = SynchronousResultReceiver.get();
+        mServiceBinder.setGroupVolume(groupId_1, volume_groupId_1, mAttributionSource, voidRecv);
+        voidRecv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS));
+
+        voidRecv = SynchronousResultReceiver.get();
+        mServiceBinder.setGroupVolume(groupId_2, volume_groupId_2, mAttributionSource, voidRecv);
+        voidRecv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS));
+
+        voidRecv = SynchronousResultReceiver.get();
+        mServiceBinder.setGroupActive(groupId_1, true, mAttributionSource, voidRecv);
+        voidRecv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS));
+
+        // Expected index for STREAM_MUSIC
+        int expectedVol =
+                (int) Math.round((double) (volume_groupId_1 * MEDIA_MAX_VOL) / BT_LE_AUDIO_MAX_VOL);
+        verify(mAudioManager, times(1)).setStreamVolume(anyInt(), eq(expectedVol), anyInt());
+
+        voidRecv = SynchronousResultReceiver.get();
+        mServiceBinder.setGroupActive(groupId_2, true, mAttributionSource, voidRecv);
+
+        expectedVol =
+                (int) Math.round((double) (volume_groupId_2 * MEDIA_MAX_VOL) / BT_LE_AUDIO_MAX_VOL);
+        verify(mAudioManager, times(1)).setStreamVolume(anyInt(), eq(expectedVol), anyInt());
+        voidRecv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS));
+    }
+
     /**
      * Test Volume Control Mute cache.
      */
@@ -985,23 +1012,80 @@ public class VolumeControlServiceTest {
     @Test
     public void testServiceBinderVolumeOffsetMethods() throws Exception {
         // Send a message to trigger connection completed
-        VolumeControlStackEvent event = new VolumeControlStackEvent(
-                VolumeControlStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
-        event.device = mDevice;
-        event.valueInt1 = 2; // number of external outputs
-        mService.messageFromNative(event);
+        generateDeviceAvailableMessageFromNative(mDevice, 2);
 
         final SynchronousResultReceiver<Boolean> boolRecv = SynchronousResultReceiver.get();
-        boolean defaultRecvValue = false;
+        boolean defaultAvailability = false;
         mServiceBinder.isVolumeOffsetAvailable(mDevice, mAttributionSource, boolRecv);
-        Assert.assertTrue(boolRecv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS))
-                .getValue(defaultRecvValue));
+        Assert.assertTrue(
+                boolRecv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS))
+                        .getValue(defaultAvailability));
 
+        final SynchronousResultReceiver<Integer> intRecv = SynchronousResultReceiver.get();
+        int defaultNumberOfInstances = 0;
+        mServiceBinder.getNumberOfVolumeOffsetInstances(mDevice, mAttributionSource, intRecv);
+        int numberOfInstances =
+                intRecv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS))
+                        .getValue(defaultNumberOfInstances);
+        Assert.assertEquals(2, numberOfInstances);
+
+        int id = 1;
         int volumeOffset = 100;
         final SynchronousResultReceiver<Void> voidRecv = SynchronousResultReceiver.get();
-        mServiceBinder.setVolumeOffset(mDevice, volumeOffset, mAttributionSource, voidRecv);
+        mServiceBinder.setVolumeOffset(mDevice, id, volumeOffset, mAttributionSource, voidRecv);
         voidRecv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS));
-        verify(mNativeInterface).setExtAudioOutVolumeOffset(mDevice, 1, volumeOffset);
+        verify(mNativeInterface).setExtAudioOutVolumeOffset(mDevice, id, volumeOffset);
+    }
+
+    @Test
+    public void testServiceBinderSetDeviceVolumeMethods() throws Exception {
+        mFakeFlagsImpl.setFlag(
+                Flags.FLAG_LEAUDIO_BROADCAST_VOLUME_CONTROL_FOR_CONNECTED_DEVICES, true);
+
+        int groupId = 1;
+        int groupVolume = 56;
+        int deviceOneVolume = 46;
+        int deviceTwoVolume = 36;
+
+        // Both devices are in the same group
+        when(mLeAudioService.getGroupId(mDevice)).thenReturn(groupId);
+        when(mLeAudioService.getGroupId(mDeviceTwo)).thenReturn(groupId);
+
+        // Update the device policy so okToConnect() returns true
+        when(mAdapterService.getDatabase()).thenReturn(mDatabaseManager);
+        when(mDatabaseManager.getProfileConnectionPolicy(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.VOLUME_CONTROL)))
+                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+        doReturn(true).when(mNativeInterface).connectVolumeControl(any(BluetoothDevice.class));
+        doReturn(true).when(mNativeInterface).disconnectVolumeControl(any(BluetoothDevice.class));
+
+        generateDeviceAvailableMessageFromNative(mDevice, 1);
+        generateConnectionMessageFromNative(
+                mDevice, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_DISCONNECTED);
+        Assert.assertEquals(BluetoothProfile.STATE_CONNECTED, mService.getConnectionState(mDevice));
+        Assert.assertTrue(mService.getDevices().contains(mDevice));
+
+        SynchronousResultReceiver<Void> voidRecv = SynchronousResultReceiver.get();
+        mServiceBinder.setDeviceVolume(mDevice, groupVolume, true, mAttributionSource, voidRecv);
+        voidRecv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS));
+        verify(mNativeInterface).setGroupVolume(groupId, groupVolume);
+        Assert.assertEquals(groupVolume, mService.getGroupVolume(groupId));
+
+        voidRecv = SynchronousResultReceiver.get();
+        mServiceBinder.setDeviceVolume(
+                mDevice, deviceOneVolume, false, mAttributionSource, voidRecv);
+        voidRecv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS));
+        verify(mNativeInterface).setVolume(mDevice, deviceOneVolume);
+        Assert.assertEquals(deviceOneVolume, mService.getDeviceVolume(mDevice));
+        Assert.assertNotEquals(deviceOneVolume, mService.getDeviceVolume(mDeviceTwo));
+
+        voidRecv = SynchronousResultReceiver.get();
+        mServiceBinder.setDeviceVolume(
+                mDeviceTwo, deviceTwoVolume, false, mAttributionSource, voidRecv);
+        voidRecv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS));
+        verify(mNativeInterface).setVolume(mDeviceTwo, deviceTwoVolume);
+        Assert.assertEquals(deviceTwoVolume, mService.getDeviceVolume(mDeviceTwo));
+        Assert.assertNotEquals(deviceTwoVolume, mService.getDeviceVolume(mDevice));
     }
 
     @Test
@@ -1021,6 +1105,224 @@ public class VolumeControlServiceTest {
         mServiceBinder.unregisterCallback(callback, mAttributionSource, recv);
         recv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS)).getValue(null);
         Assert.assertEquals(size, mService.mCallbacks.getRegisteredCallbackCount());
+    }
+
+    @Test
+    public void testServiceBinderRegisterCallbackWhenDeviceAlreadyConnected() throws Exception {
+        mFakeFlagsImpl.setFlag(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API, true);
+
+        int groupId = 1;
+        int groupVolume = 56;
+
+        // Both devices are in the same group
+        when(mCsipService.getGroupId(mDevice, BluetoothUuid.CAP)).thenReturn(groupId);
+        when(mCsipService.getGroupId(mDeviceTwo, BluetoothUuid.CAP)).thenReturn(groupId);
+
+        // Update the device policy so okToConnect() returns true
+        when(mAdapterService.getDatabase()).thenReturn(mDatabaseManager);
+        when(mDatabaseManager.getProfileConnectionPolicy(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.VOLUME_CONTROL)))
+                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+        doReturn(true).when(mNativeInterface).connectVolumeControl(any(BluetoothDevice.class));
+        doReturn(true).when(mNativeInterface).disconnectVolumeControl(any(BluetoothDevice.class));
+
+        generateDeviceAvailableMessageFromNative(mDevice, 2);
+        generateConnectionMessageFromNative(
+                mDevice, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_DISCONNECTED);
+        Assert.assertEquals(BluetoothProfile.STATE_CONNECTED, mService.getConnectionState(mDevice));
+        Assert.assertTrue(mService.getDevices().contains(mDevice));
+
+        mService.setGroupVolume(groupId, groupVolume);
+        verify(mNativeInterface, times(1)).setGroupVolume(eq(groupId), eq(groupVolume));
+        verify(mNativeInterface, times(0)).setVolume(eq(mDeviceTwo), eq(groupVolume));
+
+        // Verify that second device gets the proper group volume level when connected
+        generateDeviceAvailableMessageFromNative(mDeviceTwo, 1);
+        generateConnectionMessageFromNative(
+                mDeviceTwo, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_DISCONNECTED);
+        Assert.assertEquals(
+                BluetoothProfile.STATE_CONNECTED, mService.getConnectionState(mDeviceTwo));
+        Assert.assertTrue(mService.getDevices().contains(mDeviceTwo));
+        verify(mNativeInterface, times(1)).setVolume(eq(mDeviceTwo), eq(groupVolume));
+
+        // Generate events for both devices
+        generateDeviceOffsetChangedMessageFromNative(mDevice, 1, 100);
+        generateDeviceLocationChangedMessageFromNative(mDevice, 1, 1);
+        final String testDevice1Desc1 = "testDevice1Desc1";
+        generateDeviceDescriptionChangedMessageFromNative(mDevice, 1, testDevice1Desc1);
+
+        generateDeviceOffsetChangedMessageFromNative(mDevice, 2, 200);
+        generateDeviceLocationChangedMessageFromNative(mDevice, 2, 2);
+        final String testDevice1Desc2 = "testDevice1Desc2";
+        generateDeviceDescriptionChangedMessageFromNative(mDevice, 2, testDevice1Desc2);
+
+        generateDeviceOffsetChangedMessageFromNative(mDeviceTwo, 1, 250);
+        generateDeviceLocationChangedMessageFromNative(mDeviceTwo, 1, 3);
+        final String testDevice2Desc = "testDevice2Desc";
+        generateDeviceDescriptionChangedMessageFromNative(mDeviceTwo, 1, testDevice2Desc);
+
+        // Register callback and verify it is called with known devices
+        IBluetoothVolumeControlCallback callback =
+                Mockito.mock(IBluetoothVolumeControlCallback.class);
+        Binder binder = Mockito.mock(Binder.class);
+        when(callback.asBinder()).thenReturn(binder);
+
+        int size = mService.mCallbacks.getRegisteredCallbackCount();
+        SynchronousResultReceiver<Void> recv = SynchronousResultReceiver.get();
+        mServiceBinder.registerCallback(callback, mAttributionSource, recv);
+        recv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS)).getValue(null);
+        Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+
+        verify(callback).onVolumeOffsetChanged(eq(mDevice), eq(1), eq(100));
+        verify(callback).onVolumeOffsetAudioLocationChanged(eq(mDevice), eq(1), eq(1));
+        verify(callback)
+                .onVolumeOffsetAudioDescriptionChanged(eq(mDevice), eq(1), eq(testDevice1Desc1));
+
+        verify(callback).onVolumeOffsetChanged(eq(mDevice), eq(2), eq(200));
+        verify(callback).onVolumeOffsetAudioLocationChanged(eq(mDevice), eq(2), eq(2));
+        verify(callback)
+                .onVolumeOffsetAudioDescriptionChanged(eq(mDevice), eq(2), eq(testDevice1Desc2));
+
+        verify(callback).onVolumeOffsetChanged(eq(mDeviceTwo), eq(1), eq(250));
+        verify(callback).onVolumeOffsetAudioLocationChanged(eq(mDeviceTwo), eq(1), eq(3));
+        verify(callback)
+                .onVolumeOffsetAudioDescriptionChanged(eq(mDeviceTwo), eq(1), eq(testDevice2Desc));
+
+        generateDeviceOffsetChangedMessageFromNative(mDevice, 1, 50);
+        generateDeviceLocationChangedMessageFromNative(mDevice, 1, 0);
+        final String testDevice1Desc3 = "testDevice1Desc3";
+        generateDeviceDescriptionChangedMessageFromNative(mDevice, 1, testDevice1Desc3);
+
+        verify(callback).onVolumeOffsetChanged(eq(mDevice), eq(1), eq(50));
+        verify(callback).onVolumeOffsetAudioLocationChanged(eq(mDevice), eq(1), eq(0));
+        verify(callback)
+                .onVolumeOffsetAudioDescriptionChanged(eq(mDevice), eq(1), eq(testDevice1Desc3));
+    }
+
+    @Test
+    public void testServiceBinderRegisterVolumeChangedCallbackWhenDeviceAlreadyConnected()
+            throws Exception {
+        mFakeFlagsImpl.setFlag(
+                Flags.FLAG_LEAUDIO_BROADCAST_VOLUME_CONTROL_FOR_CONNECTED_DEVICES, true);
+        int groupId = 1;
+        int deviceOneVolume = 46;
+        int deviceTwoVolume = 36;
+
+        // Update the device policy so okToConnect() returns true
+        when(mAdapterService.getDatabase()).thenReturn(mDatabaseManager);
+        when(mDatabaseManager.getProfileConnectionPolicy(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.VOLUME_CONTROL)))
+                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+        doReturn(true).when(mNativeInterface).connectVolumeControl(any(BluetoothDevice.class));
+        doReturn(true).when(mNativeInterface).disconnectVolumeControl(any(BluetoothDevice.class));
+
+        generateDeviceAvailableMessageFromNative(mDevice, 1);
+        generateConnectionMessageFromNative(
+                mDevice, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_DISCONNECTED);
+        Assert.assertEquals(BluetoothProfile.STATE_CONNECTED, mService.getConnectionState(mDevice));
+        Assert.assertTrue(mService.getDevices().contains(mDevice));
+        mService.setDeviceVolume(mDevice, deviceOneVolume, false);
+        verify(mNativeInterface, times(1)).setVolume(eq(mDevice), eq(deviceOneVolume));
+
+        // Verify that second device gets the proper group volume level when connected
+        generateDeviceAvailableMessageFromNative(mDeviceTwo, 1);
+        generateConnectionMessageFromNative(
+                mDeviceTwo, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_DISCONNECTED);
+        Assert.assertEquals(
+                BluetoothProfile.STATE_CONNECTED, mService.getConnectionState(mDeviceTwo));
+        Assert.assertTrue(mService.getDevices().contains(mDeviceTwo));
+        mService.setDeviceVolume(mDeviceTwo, deviceTwoVolume, false);
+        verify(mNativeInterface, times(1)).setVolume(eq(mDeviceTwo), eq(deviceTwoVolume));
+
+        // Both devices are in the same group
+        when(mLeAudioService.getGroupId(mDevice)).thenReturn(groupId);
+        when(mLeAudioService.getGroupId(mDeviceTwo)).thenReturn(groupId);
+
+        // Register callback and verify it is called with known devices
+        IBluetoothVolumeControlCallback callback =
+                Mockito.mock(IBluetoothVolumeControlCallback.class);
+        Binder binder = Mockito.mock(Binder.class);
+        when(callback.asBinder()).thenReturn(binder);
+
+        int size = mService.mCallbacks.getRegisteredCallbackCount();
+        SynchronousResultReceiver<Void> recv = SynchronousResultReceiver.get();
+        mServiceBinder.registerCallback(callback, mAttributionSource, recv);
+        recv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS)).getValue(null);
+        Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+
+        verify(callback, times(1)).onDeviceVolumeChanged(eq(mDevice), eq(deviceOneVolume));
+        verify(callback, times(1)).onDeviceVolumeChanged(eq(mDeviceTwo), eq(deviceTwoVolume));
+    }
+
+    @Test
+    public void testServiceBinderTestNotifyNewRegisteredCallback() throws Exception {
+        mFakeFlagsImpl.setFlag(
+                Flags.FLAG_LEAUDIO_BROADCAST_VOLUME_CONTROL_FOR_CONNECTED_DEVICES, true);
+        int groupId = 1;
+        int deviceOneVolume = 46;
+        int deviceTwoVolume = 36;
+
+        // Update the device policy so okToConnect() returns true
+        when(mAdapterService.getDatabase()).thenReturn(mDatabaseManager);
+        when(mDatabaseManager.getProfileConnectionPolicy(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.VOLUME_CONTROL)))
+                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+        doReturn(true).when(mNativeInterface).connectVolumeControl(any(BluetoothDevice.class));
+        doReturn(true).when(mNativeInterface).disconnectVolumeControl(any(BluetoothDevice.class));
+
+        generateDeviceAvailableMessageFromNative(mDevice, 1);
+        generateConnectionMessageFromNative(
+                mDevice, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_DISCONNECTED);
+        Assert.assertEquals(BluetoothProfile.STATE_CONNECTED, mService.getConnectionState(mDevice));
+        Assert.assertTrue(mService.getDevices().contains(mDevice));
+        mService.setDeviceVolume(mDevice, deviceOneVolume, false);
+        verify(mNativeInterface, times(1)).setVolume(eq(mDevice), eq(deviceOneVolume));
+
+        // Verify that second device gets the proper group volume level when connected
+        generateDeviceAvailableMessageFromNative(mDeviceTwo, 1);
+        generateConnectionMessageFromNative(
+                mDeviceTwo, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_DISCONNECTED);
+        Assert.assertEquals(
+                BluetoothProfile.STATE_CONNECTED, mService.getConnectionState(mDeviceTwo));
+        Assert.assertTrue(mService.getDevices().contains(mDeviceTwo));
+        mService.setDeviceVolume(mDeviceTwo, deviceTwoVolume, false);
+        verify(mNativeInterface, times(1)).setVolume(eq(mDeviceTwo), eq(deviceTwoVolume));
+
+        // Both devices are in the same group
+        when(mLeAudioService.getGroupId(mDevice)).thenReturn(groupId);
+        when(mLeAudioService.getGroupId(mDeviceTwo)).thenReturn(groupId);
+
+        // Register callback and verify it is called with known devices
+        IBluetoothVolumeControlCallback callback =
+                Mockito.mock(IBluetoothVolumeControlCallback.class);
+        Binder binder = Mockito.mock(Binder.class);
+        when(callback.asBinder()).thenReturn(binder);
+
+        int size = mService.mCallbacks.getRegisteredCallbackCount();
+        SynchronousResultReceiver<Void> recv = SynchronousResultReceiver.get();
+        mServiceBinder.registerCallback(callback, mAttributionSource, recv);
+        recv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS)).getValue(null);
+        Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+
+        IBluetoothVolumeControlCallback callback_new_client =
+                Mockito.mock(IBluetoothVolumeControlCallback.class);
+        Binder binder_new_client = Mockito.mock(Binder.class);
+        when(callback_new_client.asBinder()).thenReturn(binder_new_client);
+
+        recv = SynchronousResultReceiver.get();
+        mServiceBinder.notifyNewRegisteredCallback(callback_new_client, mAttributionSource, recv);
+        recv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS)).getValue(null);
+        Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+
+        // This shall be done only once after mServiceBinder.registerCallback
+        verify(callback, times(1)).onDeviceVolumeChanged(eq(mDevice), eq(deviceOneVolume));
+        verify(callback, times(1)).onDeviceVolumeChanged(eq(mDeviceTwo), eq(deviceTwoVolume));
+
+        // This shall be done only once after mServiceBinder.updateNewRegistedCallback
+        verify(callback_new_client, times(1))
+                .onDeviceVolumeChanged(eq(mDevice), eq(deviceOneVolume));
+        verify(callback_new_client, times(1))
+                .onDeviceVolumeChanged(eq(mDeviceTwo), eq(deviceTwoVolume));
     }
 
     @Test
@@ -1096,6 +1398,71 @@ public class VolumeControlServiceTest {
         mService.dump(sb);
     }
 
+    /** Test Volume Control changed callback. */
+    @Test
+    public void testVolumeControlChangedCallback() throws Exception {
+        mFakeFlagsImpl.setFlag(
+                Flags.FLAG_LEAUDIO_BROADCAST_VOLUME_CONTROL_FOR_CONNECTED_DEVICES, true);
+
+        int groupId = 1;
+        int groupVolume = 56;
+        int deviceOneVolume = 46;
+
+        // Both devices are in the same group
+        when(mLeAudioService.getGroupId(mDevice)).thenReturn(groupId);
+        when(mLeAudioService.getGroupId(mDeviceTwo)).thenReturn(groupId);
+
+        // Send a message to trigger connection completed
+        generateDeviceAvailableMessageFromNative(mDevice, 2);
+
+        final SynchronousResultReceiver<Void> voidRecv = SynchronousResultReceiver.get();
+        mServiceBinder.setDeviceVolume(mDevice, groupVolume, true, mAttributionSource, voidRecv);
+        voidRecv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS));
+        verify(mNativeInterface, times(1)).setGroupVolume(eq(groupId), eq(groupVolume));
+
+        // Register callback and verify it is called with known devices
+        IBluetoothVolumeControlCallback callback =
+                Mockito.mock(IBluetoothVolumeControlCallback.class);
+        Binder binder = Mockito.mock(Binder.class);
+        when(callback.asBinder()).thenReturn(binder);
+
+        int size = mService.mCallbacks.getRegisteredCallbackCount();
+        SynchronousResultReceiver<Void> recv = SynchronousResultReceiver.get();
+        mServiceBinder.registerCallback(callback, mAttributionSource, recv);
+        recv.awaitResultNoInterrupt(Duration.ofMillis(TIMEOUT_MS)).getValue(null);
+        Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+
+        when(mLeAudioService.getGroupDevices(groupId))
+                .thenReturn(Arrays.asList(mDevice, mDeviceTwo));
+        // Send group volume change.
+        VolumeControlStackEvent stackEvent =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_VOLUME_STATE_CHANGED);
+        stackEvent.device = null;
+        stackEvent.valueInt1 = groupId;
+        stackEvent.valueInt2 = groupVolume;
+        stackEvent.valueBool1 = false;
+        stackEvent.valueBool2 = true;
+        mService.messageFromNative(stackEvent);
+
+        verify(callback).onDeviceVolumeChanged(eq(mDeviceTwo), eq(groupVolume));
+        verify(callback).onDeviceVolumeChanged(eq(mDevice), eq(groupVolume));
+
+        // Send device volume change only for one device
+        VolumeControlStackEvent stackEvent2 =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_VOLUME_STATE_CHANGED);
+        stackEvent2.device = mDevice;
+        stackEvent2.valueInt1 = -1;
+        stackEvent2.valueInt2 = deviceOneVolume;
+        stackEvent2.valueBool1 = false;
+        stackEvent2.valueBool2 = false;
+        mService.messageFromNative(stackEvent2);
+
+        verify(callback).onDeviceVolumeChanged(eq(mDevice), eq(deviceOneVolume));
+        verify(callback, never()).onDeviceVolumeChanged(eq(mDeviceTwo), eq(deviceOneVolume));
+    }
+
     private void connectDevice(BluetoothDevice device) throws Exception {
         VolumeControlStackEvent connCompletedEvent;
 
@@ -1165,6 +1532,52 @@ public class VolumeControlServiceTest {
         mService.messageFromNative(stackEvent);
         // Verify the connection state broadcast
         verifyNoConnectionStateIntent(TIMEOUT_MS, device);
+    }
+
+    private void generateDeviceAvailableMessageFromNative(
+            BluetoothDevice device, int numberOfExtOffsets) {
+        // Send a message to trigger connection completed
+        VolumeControlStackEvent event =
+                new VolumeControlStackEvent(VolumeControlStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
+        event.device = device;
+        event.valueInt1 = numberOfExtOffsets; // number of external outputs
+        mService.messageFromNative(event);
+    }
+
+    private void generateDeviceOffsetChangedMessageFromNative(
+            BluetoothDevice device, int extOffsetIndex, int offset) {
+        // Send a message to trigger connection completed
+        VolumeControlStackEvent event =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_VOL_OFFSET_CHANGED);
+        event.device = device;
+        event.valueInt1 = extOffsetIndex; // external output index
+        event.valueInt2 = offset; // offset value
+        mService.messageFromNative(event);
+    }
+
+    private void generateDeviceLocationChangedMessageFromNative(
+            BluetoothDevice device, int extOffsetIndex, int location) {
+        // Send a message to trigger connection completed
+        VolumeControlStackEvent event =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_LOCATION_CHANGED);
+        event.device = device;
+        event.valueInt1 = extOffsetIndex; // external output index
+        event.valueInt2 = location; // location
+        mService.messageFromNative(event);
+    }
+
+    private void generateDeviceDescriptionChangedMessageFromNative(
+            BluetoothDevice device, int extOffsetIndex, String description) {
+        // Send a message to trigger connection completed
+        VolumeControlStackEvent event =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED);
+        event.device = device;
+        event.valueInt1 = extOffsetIndex; // external output index
+        event.valueString1 = description; // description
+        mService.messageFromNative(event);
     }
 
     /**

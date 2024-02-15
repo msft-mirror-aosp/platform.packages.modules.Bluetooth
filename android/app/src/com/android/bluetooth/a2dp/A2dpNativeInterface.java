@@ -25,15 +25,18 @@ import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothCodecConfig;
 import android.bluetooth.BluetoothCodecStatus;
+import android.bluetooth.BluetoothCodecType;
 import android.bluetooth.BluetoothDevice;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -47,11 +50,10 @@ public class A2dpNativeInterface {
 
     @GuardedBy("INSTANCE_LOCK")
     private static A2dpNativeInterface sInstance;
-    private static final Object INSTANCE_LOCK = new Object();
 
-    static {
-        classInitNative();
-    }
+    private static BluetoothCodecType[] sSupportedCodecTypes;
+
+    private static final Object INSTANCE_LOCK = new Object();
 
     @VisibleForTesting
     private A2dpNativeInterface() {
@@ -75,24 +77,39 @@ public class A2dpNativeInterface {
         }
     }
 
+    /** Set singleton instance. */
+    @VisibleForTesting
+    public static void setInstance(A2dpNativeInterface instance) {
+        synchronized (INSTANCE_LOCK) {
+            sInstance = instance;
+        }
+    }
+
     /**
      * Initializes the native interface.
      *
      * @param maxConnectedAudioDevices maximum number of A2DP Sink devices that can be connected
-     * simultaneously
-     * @param codecConfigPriorities an array with the codec configuration
-     * priorities to configure.
+     *     simultaneously
+     * @param codecConfigPriorities an array with the codec configuration priorities to configure.
      */
-    public void init(int maxConnectedAudioDevices, BluetoothCodecConfig[] codecConfigPriorities,
+    public void init(
+            int maxConnectedAudioDevices,
+            BluetoothCodecConfig[] codecConfigPriorities,
             BluetoothCodecConfig[] codecConfigOffloading) {
         initNative(maxConnectedAudioDevices, codecConfigPriorities, codecConfigOffloading);
     }
 
-    /**
-     * Cleanup the native interface.
-     */
+    /** Cleanup the native interface. */
     public void cleanup() {
         cleanupNative();
+    }
+
+    /** Returns the list of locally supported codec types. */
+    public List<BluetoothCodecType> getSupportedCodecTypes() {
+        if (sSupportedCodecTypes == null) {
+            sSupportedCodecTypes = getSupportedCodecTypesNative();
+        }
+        return Arrays.asList(sSupportedCodecTypes);
     }
 
     /**
@@ -157,7 +174,11 @@ public class A2dpNativeInterface {
         if (device == null) {
             return Utils.getBytesFromAddress("00:00:00:00:00:00");
         }
-        return mAdapterService.getByteIdentityAddress(device);
+        if (Flags.identityAddressNullIfUnknown()) {
+            return Utils.getByteBrEdrAddress(device);
+        } else {
+            return mAdapterService.getByteIdentityAddress(device);
+        }
     }
 
     private void sendMessageToService(A2dpStackEvent event) {
@@ -227,11 +248,13 @@ public class A2dpNativeInterface {
     }
 
     // Native methods that call into the JNI interface
-    private static native void classInitNative();
     private native void initNative(int maxConnectedAudioDevices,
                                    BluetoothCodecConfig[] codecConfigPriorities,
                                    BluetoothCodecConfig[] codecConfigOffloading);
     private native void cleanupNative();
+
+    private native BluetoothCodecType[] getSupportedCodecTypesNative();
+
     private native boolean connectA2dpNative(byte[] address);
     private native boolean disconnectA2dpNative(byte[] address);
     private native boolean setSilenceDeviceNative(byte[] address, boolean silence);

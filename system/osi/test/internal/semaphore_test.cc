@@ -1,15 +1,14 @@
-#include <gtest/gtest.h>
-
-#include "AllocationTestHarness.h"
+#include "osi/semaphore.h"
 
 #include <base/logging.h>
+#include <gtest/gtest.h>
 #include <sys/select.h>
 #include <unistd.h>
 
 #include "common/message_loop_thread.h"
+#include "include/check.h"
 #include "osi/include/osi.h"
 #include "osi/include/reactor.h"
-#include "osi/semaphore.h"
 
 using bluetooth::common::MessageLoopThread;
 
@@ -30,7 +29,7 @@ void sleep_then_increment_counter(void* context) {
 }
 }  // namespace
 
-class SemaphoreTest : public AllocationTestHarness {};
+class SemaphoreTest : public ::testing::Test {};
 
 TEST_F(SemaphoreTest, test_new_simple) {
   semaphore_t* semaphore = semaphore_new(0);
@@ -79,8 +78,8 @@ TEST_F(SemaphoreTest, test_ensure_wait) {
 
   EXPECT_FALSE(semaphore_try_wait(semaphore));
   SemaphoreTestSequenceHelper sequence_helper = {semaphore, 0};
-  thread.DoInThread(FROM_HERE,
-                    base::Bind(sleep_then_increment_counter, &sequence_helper));
+  thread.DoInThread(FROM_HERE, base::BindOnce(sleep_then_increment_counter,
+                                              &sequence_helper));
   semaphore_wait(semaphore);
   EXPECT_EQ(sequence_helper.counter, 1)
       << "semaphore_wait() did not wait for counter to increment";

@@ -16,27 +16,33 @@
 
 #include "message_loop_thread.h"
 
+#include <base/functional/callback.h>
+#include <base/location.h>
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
+#include <base/time/time.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#include <future>
+#include <mutex>
+#include <string>
 #include <thread>
 
-#include "gd/common/init_flags.h"
-#include "osi/include/log.h"
-
 namespace bluetooth {
-
 namespace common {
 
 static constexpr int kRealTimeFifoSchedulingPriority = 1;
 
-MessageLoopThread::MessageLoopThread(const std::string& thread_name)
-    : MessageLoopThread(thread_name, false) {}
+static base::TimeDelta timeDeltaFromMicroseconds(std::chrono::microseconds t) {
+#if BASE_VER < 931007
+  return base::TimeDelta::FromMicroseconds(t.count());
+#else
+  return base::Microseconds(t.count());
+#endif
+}
 
-MessageLoopThread::MessageLoopThread(const std::string& thread_name,
-                                     bool is_main)
+MessageLoopThread::MessageLoopThread(const std::string& thread_name)
     : thread_name_(thread_name),
       message_loop_(nullptr),
       run_loop_(nullptr),
@@ -44,8 +50,7 @@ MessageLoopThread::MessageLoopThread(const std::string& thread_name,
       thread_id_(-1),
       linux_tid_(-1),
       weak_ptr_factory_(this),
-      shutting_down_(false),
-      is_main_(is_main) {}
+      shutting_down_(false) {}
 
 MessageLoopThread::~MessageLoopThread() { ShutDown(); }
 
@@ -67,12 +72,13 @@ void MessageLoopThread::StartUp() {
 
 bool MessageLoopThread::DoInThread(const base::Location& from_here,
                                    base::OnceClosure task) {
-  return DoInThreadDelayed(from_here, std::move(task), base::TimeDelta());
+  return DoInThreadDelayed(from_here, std::move(task),
+                           std::chrono::microseconds(0));
 }
 
 bool MessageLoopThread::DoInThreadDelayed(const base::Location& from_here,
                                           base::OnceClosure task,
-                                          const base::TimeDelta& delay) {
+                                          std::chrono::microseconds delay) {
   std::lock_guard<std::recursive_mutex> api_lock(api_mutex_);
 
   if (message_loop_ == nullptr) {
@@ -80,8 +86,8 @@ bool MessageLoopThread::DoInThreadDelayed(const base::Location& from_here,
                << ", from " << from_here.ToString();
     return false;
   }
-  if (!message_loop_->task_runner()->PostDelayedTask(from_here, std::move(task),
-                                                     delay)) {
+  if (!message_loop_->task_runner()->PostDelayedTask(
+          from_here, std::move(task), timeDeltaFromMicroseconds(delay))) {
     LOG(ERROR) << __func__
                << ": failed to post task to message loop for thread " << *this
                << ", from " << from_here.ToString();
@@ -143,10 +149,8 @@ void MessageLoopThread::RunThread(MessageLoopThread* thread,
   thread->Run(std::move(start_up_promise));
 }
 
+// This is only for use in tests.
 btbase::AbstractMessageLoop* MessageLoopThread::message_loop() const {
-  ASSERT_LOG(!is_main_,
-             "you are not allowed to get the main thread's message loop");
-
   std::lock_guard<std::recursive_mutex> api_lock(api_mutex_);
   return message_loop_;
 }
@@ -207,6 +211,9 @@ void MessageLoopThread::Run(std::promise<void> start_up_promise) {
   }
 }
 
-}  // namespace common
+void MessageLoopThread::Post(base::OnceClosure closure) {
+  DoInThread(FROM_HERE, std::move(closure));
+}
 
+}  // namespace common
 }  // namespace bluetooth

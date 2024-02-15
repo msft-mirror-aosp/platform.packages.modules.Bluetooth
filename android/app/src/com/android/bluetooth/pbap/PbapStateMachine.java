@@ -26,6 +26,7 @@ import android.app.PendingIntent;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothPbap;
 import android.bluetooth.BluetoothProfile;
+import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.os.Handler;
@@ -36,11 +37,14 @@ import android.util.Log;
 
 import com.android.bluetooth.BluetoothMetricsProto;
 import com.android.bluetooth.BluetoothObexTransport;
+import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.IObexConnectionHandler;
 import com.android.bluetooth.ObexRejectServer;
 import com.android.bluetooth.R;
 import com.android.bluetooth.Utils;
+import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.MetricsLogger;
+import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.annotations.VisibleForTesting.Visibility;
 import com.android.internal.util.State;
@@ -63,6 +67,7 @@ import java.io.IOException;
  *          CONNECTED   ----->  FINISHED
  *                (OBEX Server done)
  */
+// Next tag value for ContentProfileErrorReportUtils.report(): 3
 @VisibleForTesting(visibility = Visibility.PACKAGE)
 public class PbapStateMachine extends StateMachine {
     private static final String TAG = "PbapStateMachine";
@@ -159,6 +164,12 @@ public class PbapStateMachine extends StateMachine {
         // Should not be called from enter() method
         private void broadcastConnectionState(BluetoothDevice device, int fromState, int toState) {
             stateLogD("broadcastConnectionState " + device + ": " + fromState + "->" + toState);
+            AdapterService adapterService = AdapterService.getAdapterService();
+            if (adapterService != null) {
+                adapterService.updateProfileConnectionAdapterProperties(
+                        device, BluetoothProfile.PBAP, toState, fromState);
+            }
+
             Intent intent = new Intent(BluetoothPbap.ACTION_CONNECTION_STATE_CHANGED);
             intent.putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, fromState);
             intent.putExtra(BluetoothProfile.EXTRA_STATE, toState);
@@ -258,6 +269,11 @@ public class PbapStateMachine extends StateMachine {
             try {
                 mServerSession = new ServerSession(transport, server, null);
             } catch (IOException ex) {
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.PBAP,
+                        BluetoothProtoEnums.BLUETOOTH_PBAP_STATE_MACHINE,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                        0);
                 Log.e(TAG, "Caught exception starting OBEX reject server session" + ex.toString());
             }
         }
@@ -283,6 +299,11 @@ public class PbapStateMachine extends StateMachine {
                 mConnSocket.close();
                 mConnSocket = null;
             } catch (IOException e) {
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.PBAP,
+                        BluetoothProtoEnums.BLUETOOTH_PBAP_STATE_MACHINE,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                        1);
                 Log.e(TAG, "Close Connection Socket error: " + e.toString());
             }
 
@@ -303,6 +324,11 @@ public class PbapStateMachine extends StateMachine {
             try {
                 startObexServerSession();
             } catch (IOException ex) {
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.PBAP,
+                        BluetoothProtoEnums.BLUETOOTH_PBAP_STATE_MACHINE,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                        2);
                 Log.e(TAG, "Caught exception starting OBEX server session" + ex.toString());
             }
             broadcastStateTransitions();

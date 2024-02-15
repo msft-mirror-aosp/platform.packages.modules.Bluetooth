@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <flatbuffers/flatbuffers.h>
 #include <chrono>
 #include <functional>
 #include <future>
@@ -26,7 +25,7 @@
 #include <vector>
 
 #include "common/bind.h"
-#include "dumpsys_data_generated.h"
+#include "module_state_dumper.h"
 #include "os/handler.h"
 #include "os/log.h"
 #include "os/thread.h"
@@ -60,11 +59,14 @@ public:
    list_.push_back(&T::Factory);
  }
 
+ // Return the number of modules in this list
+ size_t NumModules() const {
+   return list_.size();
+ }
+
  private:
   std::vector<const ModuleFactory*> list_;
 };
-
-using DumpsysDataFinisher = std::function<void(DumpsysDataBuilder* dumpsys_data_builder)>;
 
 // Each leaf node module must have a factory like so:
 //
@@ -73,7 +75,7 @@ using DumpsysDataFinisher = std::function<void(DumpsysDataBuilder* dumpsys_data_
 // which will provide a constructor for the module registry to call.
 // The module registry will also use the factory as the identifier
 // for that module.
-class Module {
+class Module : protected ModuleStateDumper {
   friend ModuleDumper;
   friend ModuleRegistry;
   friend TestModuleRegistry;
@@ -90,9 +92,6 @@ class Module {
 
   // Release all resources, you're about to be deleted
   virtual void Stop() = 0;
-
-  // Get relevant state data from the module
-  virtual DumpsysDataFinisher GetDumpsysData(flatbuffers::FlatBufferBuilder* builder) const;
 
   virtual std::string ToString() const = 0;
 
@@ -159,17 +158,6 @@ class ModuleRegistry {
   std::map<const ModuleFactory*, Module*> started_modules_;
   std::vector<const ModuleFactory*> start_order_;
   std::string last_instance_;
-};
-
-class ModuleDumper {
- public:
-  ModuleDumper(const ModuleRegistry& module_registry, const char* title)
-      : module_registry_(module_registry), title_(title) {}
-  void DumpState(std::string* output) const;
-
- private:
-  const ModuleRegistry& module_registry_;
-  const std::string title_;
 };
 
 class TestModuleRegistry : public ModuleRegistry {

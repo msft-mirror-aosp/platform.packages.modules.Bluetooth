@@ -23,7 +23,10 @@ package com.android.bluetooth.hfpclient;
 import android.bluetooth.BluetoothDevice;
 import android.util.Log;
 
+import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.flags.Flags;
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.Objects;
@@ -36,18 +39,18 @@ import java.util.Objects;
 public class NativeInterface {
     private static final String TAG = "NativeInterface";
     private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
+
     private AdapterService mAdapterService;
 
-    static {
-        classInitNative();
-    }
+    @GuardedBy("INSTANCE_LOCK")
+    private static NativeInterface sInstance;
+
+    private static final Object INSTANCE_LOCK = new Object();
 
     private NativeInterface() {
         mAdapterService = Objects.requireNonNull(AdapterService.getAdapterService(),
                 "AdapterService cannot be null when NativeInterface init");
     }
-    private static NativeInterface sInterface;
-    private static final Object INSTANCE_LOCK = new Object();
 
     /**
      * This class is a singleton because native library should only be loaded once
@@ -56,11 +59,19 @@ public class NativeInterface {
      */
     public static NativeInterface getInstance() {
         synchronized (INSTANCE_LOCK) {
-            if (sInterface == null) {
-                sInterface = new NativeInterface();
+            if (sInstance == null) {
+                sInstance = new NativeInterface();
             }
+            return sInstance;
         }
-        return sInterface;
+    }
+
+    /** Set singleton instance. */
+    @VisibleForTesting
+    public static void setInstance(NativeInterface instance) {
+        synchronized (INSTANCE_LOCK) {
+            sInstance = instance;
+        }
     }
 
     // Native wrappers to help unit testing
@@ -282,8 +293,9 @@ public class NativeInterface {
         return sendAndroidAtNative(getByteAddress(device), cmd);
     }
 
-    // Native methods that call into the JNI interface
-    private static native void classInitNative();
+    /**********************************************************************************************/
+    /******************************************* native *******************************************/
+    /**********************************************************************************************/
 
     private native void initializeNative();
 
@@ -329,7 +341,11 @@ public class NativeInterface {
     }
 
     private byte[] getByteAddress(BluetoothDevice device) {
-        return mAdapterService.getByteIdentityAddress(device);
+        if (Flags.identityAddressNullIfUnknown()) {
+            return Utils.getByteBrEdrAddress(device);
+        } else {
+            return mAdapterService.getByteIdentityAddress(device);
+        }
     }
 
     // Callbacks from the native back into the java framework. All callbacks are routed via the

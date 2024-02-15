@@ -18,8 +18,6 @@
 
 #define LOG_TAG "bt_stack_manager"
 
-#include "btif/include/stack_manager.h"
-
 #include <hardware/bluetooth.h>
 
 #include <cstdlib>
@@ -27,16 +25,17 @@
 
 #include "btcore/include/module.h"
 #include "btcore/include/osi_module.h"
+#include "btif/include/stack_manager_t.h"
 #include "btif_api.h"
 #include "btif_common.h"
 #include "common/message_loop_thread.h"
 #include "core_callbacks.h"
+#include "include/check.h"
 #include "main/shim/shim.h"
-#include "osi/include/log.h"
-#include "osi/include/osi.h"
+#include "os/log.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/btm_client_interface.h"
-#include "stack/include/btu.h"
+#include "stack/include/main_thread.h"
 
 // Temp includes
 #include "bta/sys/bta_sys.h"
@@ -55,21 +54,15 @@
 #if (PAN_INCLUDED == TRUE)
 #include "stack/include/pan_api.h"
 #endif
-#include "stack/include/a2dp_api.h"
-#include "stack/include/avrc_api.h"
 #if (HID_HOST_INCLUDED == TRUE)
 #include "stack/include/hidh_api.h"
 #endif
-#include "bta/sys/bta_sys_int.h"
-#include "bta_ar_api.h"
-#include "bta_dm_int.h"
-#include "btif/include/btif_pan.h"
-#include "btif/include/btif_sock.h"
-#include "btm_ble_int.h"
+#include "bta/dm/bta_dm_int.h"
 #include "device/include/interop.h"
 #include "internal_include/stack_config.h"
 #include "main/shim/controller.h"
 #include "rust/src/core/ffi/module.h"
+#include "stack/btm/btm_ble_int.h"
 #include "stack/include/smp_api.h"
 
 #ifndef BT_STACK_CLEANUP_WAIT_MS
@@ -77,14 +70,6 @@
 #endif
 
 // Validate or respond to various conditional compilation flags
-
-#if SDP_RAW_DATA_INCLUDED != TRUE
-// Once SDP_RAW_DATA_INCLUDED is no longer exposed via bt_target.h
-// this check and error statement may be removed.
-#warning \
-    "#define SDP_RAW_DATA_INCLUDED preprocessor compilation flag is unsupported"
-#error "*** Conditional Compilation Directive error"
-#endif
 
 // Once BTA_PAN_INCLUDED is no longer exposed via bt_target.h
 // this check and error statement may be removed.
@@ -120,8 +105,6 @@ static_assert(
     "  Host interface device profile is always enabled in the bluetooth stack"
     "*** Conditional Compilation Directive error");
 
-void main_thread_shut_down();
-void main_thread_start_up();
 void BTA_dm_on_hw_on();
 void BTA_dm_on_hw_off();
 
@@ -177,13 +160,13 @@ static void start_up_stack_async(bluetooth::core::CoreInterface* interface,
                                  ProfileStartCallback startProfiles,
                                  ProfileStopCallback stopProfiles) {
   management_thread.DoInThread(
-      FROM_HERE,
-      base::Bind(event_start_up_stack, interface, startProfiles, stopProfiles));
+      FROM_HERE, base::BindOnce(event_start_up_stack, interface, startProfiles,
+                                stopProfiles));
 }
 
 static void shut_down_stack_async(ProfileStopCallback stopProfiles) {
-  management_thread.DoInThread(FROM_HERE,
-                               base::Bind(event_shut_down_stack, stopProfiles));
+  management_thread.DoInThread(
+      FROM_HERE, base::BindOnce(event_shut_down_stack, stopProfiles));
 }
 
 static void clean_up_stack(ProfileStopCallback stopProfiles) {
@@ -259,7 +242,6 @@ static void init_stack_internal(bluetooth::core::CoreInterface* interface) {
 
   module_init(get_local_module(DEVICE_IOT_CONFIG_MODULE));
   module_init(get_local_module(OSI_MODULE));
-  bte_main_init();
   module_start_up(get_local_module(GD_SHIM_MODULE));
   module_init(get_local_module(BTIF_CONFIG_MODULE));
   btif_init_bluetooth();
@@ -318,7 +300,7 @@ static void event_start_up_stack(bluetooth::core::CoreInterface* interface,
   l2c_init();
   sdp_init();
   gatt_init();
-  SMP_Init();
+  SMP_Init(get_btm_client_interface().security.BTM_GetSecurityMode());
   get_btm_client_interface().lifecycle.btm_ble_init();
 
   RFCOMM_Init();
@@ -332,9 +314,8 @@ static void event_start_up_stack(bluetooth::core::CoreInterface* interface,
 
   btif_init_ok();
   BTA_dm_init();
-  bta_dm_enable(bte_dm_evt);
+  bta_dm_enable(btif_dm_sec_evt, btif_dm_acl_evt);
 
-  bta_set_forward_hw_failures(true);
   btm_acl_device_down();
   CHECK(module_start_up(get_local_module(GD_CONTROLLER_MODULE)));
   BTM_reset_complete();
@@ -352,7 +333,7 @@ static void event_start_up_stack(bluetooth::core::CoreInterface* interface,
 
   stack_is_running = true;
   LOG_INFO("%s finished", __func__);
-  do_in_jni_thread(FROM_HERE, base::Bind(event_signal_stack_up, nullptr));
+  do_in_jni_thread(FROM_HERE, base::BindOnce(event_signal_stack_up, nullptr));
 }
 
 // Synchronous function to shut down the stack
@@ -369,21 +350,20 @@ static void event_shut_down_stack(ProfileStopCallback stopProfiles) {
 
   module_shut_down(get_local_module(RUST_MODULE));
 
-  do_in_main_thread(FROM_HERE, base::Bind(&btm_ble_multi_adv_cleanup));
-
-  do_in_main_thread(FROM_HERE, base::Bind(&btm_ble_scanner_cleanup));
+  do_in_main_thread(FROM_HERE, base::BindOnce(&btm_ble_scanner_cleanup));
 
   btif_dm_on_disable();
   stopProfiles();
 
-  do_in_main_thread(FROM_HERE, base::Bind(bta_dm_disable));
+  do_in_main_thread(FROM_HERE, base::BindOnce(bta_dm_disable));
+
+  btif_dm_cleanup();
 
   future_await(local_hack_future);
   local_hack_future = future_new();
   hack_future = local_hack_future;
 
   bta_sys_disable();
-  bta_set_forward_hw_failures(false);
   BTA_dm_on_hw_off();
 
   module_shut_down(get_local_module(BTIF_CONFIG_MODULE));
@@ -401,7 +381,7 @@ static void event_shut_down_stack(ProfileStopCallback stopProfiles) {
   get_btm_client_interface().lifecycle.btm_free();
 
   hack_future = future_new();
-  do_in_jni_thread(FROM_HERE, base::Bind(event_signal_stack_down, nullptr));
+  do_in_jni_thread(FROM_HERE, base::BindOnce(event_signal_stack_down, nullptr));
   future_await(hack_future);
   LOG_INFO("%s finished", __func__);
 }
@@ -448,7 +428,7 @@ cleanup:;
   promise.set_value();
 }
 
-static void event_signal_stack_up(UNUSED_ATTR void* context) {
+static void event_signal_stack_up(void* /* context */) {
   // Notify BTIF connect queue that we've brought up the stack. It's
   // now time to dispatch all the pending profile connect requests.
   btif_queue_connect_next();
@@ -456,7 +436,7 @@ static void event_signal_stack_up(UNUSED_ATTR void* context) {
       BT_STATE_ON);
 }
 
-static void event_signal_stack_down(UNUSED_ATTR void* context) {
+static void event_signal_stack_down(void* /* context */) {
   GetInterfaceToProfiles()->events->invoke_adapter_state_changed_cb(
       BT_STATE_OFF);
   future_ready(stack_manager_get_hack_future(), FUTURE_SUCCESS);
@@ -482,3 +462,16 @@ const stack_manager_t* stack_manager_get_interface() {
 }
 
 future_t* stack_manager_get_hack_future() { return hack_future; }
+
+namespace bluetooth {
+namespace legacy {
+namespace testing {
+
+void set_interface_to_profiles(
+    bluetooth::core::CoreInterface* interfaceToProfiles) {
+  ::interfaceToProfiles = interfaceToProfiles;
+}
+
+}  // namespace testing
+}  // namespace legacy
+}  // namespace bluetooth

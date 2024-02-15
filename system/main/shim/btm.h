@@ -20,18 +20,16 @@
 #include <cstdint>
 #include <functional>
 #include <mutex>
-#include <unordered_map>
 #include <vector>
 
-#include "gd/common/callback.h"
-#include "gd/hci/le_advertising_manager.h"
-#include "gd/hci/le_scanning_manager.h"
-#include "gd/neighbor/inquiry.h"
-#include "gd/os/alarm.h"
+#include "bt_transport.h"
+#include "common/callback.h"
 #include "hci/hci_packets.h"
+#include "hci/le_advertising_manager.h"
+#include "hci/le_scanning_callback.h"
+#include "neighbor/inquiry.h"
+#include "os/alarm.h"
 #include "stack/btm/neighbor_inquiry.h"
-#include "stack/include/btm_api_types.h"
-#include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
 //
@@ -76,8 +74,6 @@ using DiscoverabilityState = struct {
 };
 using ConnectabilityState = DiscoverabilityState;
 
-using HACK_NonAclDisconnectCallback = std::function<void(uint16_t, uint8_t)>;
-
 using BtmStatus = tBTM_STATUS;
 
 namespace bluetooth {
@@ -88,12 +84,6 @@ class Btm {
   // |handler| is used to run timer tasks and scan callbacks
   Btm(os::Handler* handler, neighbor::InquiryModule* inquiry);
   ~Btm() = default;
-
-  // Inquiry result callbacks
-  void OnInquiryResult(bluetooth::hci::InquiryResultView view);
-  void OnInquiryResultWithRssi(bluetooth::hci::InquiryResultWithRssiView view);
-  void OnExtendedInquiryResult(bluetooth::hci::ExtendedInquiryResultView view);
-  void OnInquiryComplete(bluetooth::hci::ErrorCode status);
 
   void SetStandardInquiryResultMode();
   void SetInquiryWithRssiResultMode();
@@ -148,8 +138,6 @@ class Btm {
   // Remote device name API
   BtmStatus ReadClassicRemoteDeviceName(const RawAddress& raw_address,
                                         tBTM_NAME_CMPL_CB* callback);
-  BtmStatus ReadLeRemoteDeviceName(const RawAddress& raw_address,
-                                   tBTM_NAME_CMPL_CB* callback);
   BtmStatus CancelAllReadRemoteDeviceName();
 
   // Le neighbor interaction API
@@ -248,11 +236,7 @@ class Btm {
     void OnBigInfoReport(uint16_t sync_handle, bool encrypted) override;
   };
   ScanningCallbacks scanning_callbacks_;
-
-  // TODO(cmanton) abort if there is no classic acl link up
-  bool CheckClassicAclLink(const RawAddress& raw_address) { return true; }
-  bool CheckLeAclLink(const RawAddress& raw_address) { return true; }
-  void StartScanning(bool use_active_scanning);
+  void StartScanning(bool /* use_active_scanning */);
 };
 
 }  // namespace shim

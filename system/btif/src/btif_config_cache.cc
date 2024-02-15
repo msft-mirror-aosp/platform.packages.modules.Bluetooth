@@ -16,22 +16,25 @@
 
 #include "btif_config_cache.h"
 
+#include <base/logging.h>
+
 #include <limits>
+#include <unordered_set>
 #include <vector>
 
-#include "stack/include/bt_octets.h"
+#include "storage/config_keys.h"
 #include "types/raw_address.h"
-
-#include <base/logging.h>
 
 namespace {
 
 const std::unordered_set<std::string> kLinkKeyTypes = {
-    "LinkKey",      "LE_KEY_PENC", "LE_KEY_PID",
-    "LE_KEY_PCSRK", "LE_KEY_LENC", "LE_KEY_LCSRK"};
+    BTIF_STORAGE_KEY_LINK_KEY,    BTIF_STORAGE_KEY_LE_KEY_PENC,
+    BTIF_STORAGE_KEY_LE_KEY_PID,  BTIF_STORAGE_KEY_LE_KEY_PCSRK,
+    BTIF_STORAGE_KEY_LE_KEY_LENC, BTIF_STORAGE_KEY_LE_KEY_LCSRK};
 
-const std::unordered_set<std::string> kLocalSectionNames = {"Info", "Metrics",
-                                                            "Adapter"};
+const std::unordered_set<std::string> kLocalSectionNames = {
+    BTIF_STORAGE_SECTION_INFO, BTIF_STORAGE_SECTION_METRICS,
+    BTIF_STORAGE_SECTION_ADAPTER};
 
 bool is_link_key(const std::string& key) {
   return kLinkKeyTypes.find(key) != kLinkKeyTypes.end();

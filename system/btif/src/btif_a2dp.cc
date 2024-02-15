@@ -21,6 +21,7 @@
 
 #include "btif_a2dp.h"
 
+#include <base/logging.h>
 #include <stdbool.h>
 
 #include "audio_a2dp_hw/include/audio_a2dp_hw.h"
@@ -33,14 +34,25 @@
 #include "btif_av_co.h"
 #include "btif_hf.h"
 #include "btif_util.h"
-#include "osi/include/log.h"
+#include "internal_include/bt_trace.h"
+#include "os/log.h"
 #include "types/raw_address.h"
 
-#include <base/logging.h>
-
-void btif_a2dp_on_idle(void) {
+void btif_a2dp_on_idle(const RawAddress& peer_addr) {
   LOG_VERBOSE("Peer stream endpoint type:%s",
               peer_stream_endpoint_text(btif_av_get_peer_sep()).c_str());
+  if (btif_av_src_sink_coexist_enabled()) {
+    bool is_sink = btif_av_peer_is_sink(peer_addr);
+    bool is_source = btif_av_peer_is_source(peer_addr);
+    LOG_INFO("## ON A2DP IDLE ## is_sink:%d is_source:%d", is_sink, is_source);
+    if (is_sink) {
+      btif_a2dp_source_on_idle();
+    } else if (is_source) {
+      btif_a2dp_sink_on_idle();
+    }
+    return;
+  }
+
   if (btif_av_get_peer_sep() == AVDT_TSEP_SNK) {
     btif_a2dp_source_on_idle();
   } else if (btif_av_get_peer_sep() == AVDT_TSEP_SRC) {

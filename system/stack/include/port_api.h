@@ -26,7 +26,7 @@
 
 #include <cstdint>
 
-#include "bt_target.h"
+#include "internal_include/bt_target.h"
 #include "types/raw_address.h"
 
 /*****************************************************************************
@@ -426,18 +426,6 @@ int PORT_WriteDataCO(uint16_t handle, int* p_len);
  *
  ******************************************************************************/
 void RFCOMM_Init(void);
-
-/*******************************************************************************
- *
- * Function         PORT_SetTraceLevel
- *
- * Description      Set the trace level for RFCOMM. If called with
- *                  a value of 0xFF, it simply reads the current trace level.
- *
- * Returns          the new (current) trace level
- *
- ******************************************************************************/
-uint8_t PORT_SetTraceLevel(uint8_t new_level);
 
 /*******************************************************************************
  *

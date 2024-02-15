@@ -16,15 +16,17 @@
 
 package com.android.bluetooth.gatt;
 
+import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE;
+
 import static com.android.bluetooth.Utils.callerIsSystemOrActiveOrManagedUser;
 import static com.android.bluetooth.Utils.checkCallerTargetSdk;
 import static com.android.bluetooth.Utils.enforceBluetoothPrivilegedPermission;
 
 import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
+import android.app.ActivityManager;
 import android.app.AppOpsManager;
 import android.app.PendingIntent;
-import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -41,6 +43,7 @@ import android.bluetooth.IBluetoothGattServerCallback;
 import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ChannelSoundingParams;
 import android.bluetooth.le.DistanceMeasurementMethod;
 import android.bluetooth.le.DistanceMeasurementParams;
 import android.bluetooth.le.IAdvertisingSetCallback;
@@ -56,7 +59,9 @@ import android.bluetooth.le.ScanSettings;
 import android.companion.AssociationInfo;
 import android.companion.CompanionDeviceManager;
 import android.content.AttributionSource;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.PackageManager.PackageInfoFlags;
 import android.content.res.Resources;
@@ -64,6 +69,7 @@ import android.net.MacAddress;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.ParcelUuid;
@@ -84,9 +90,15 @@ import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AbstractionLayer;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.BluetoothAdapterProxy;
-import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.btservice.CompanionManager;
+import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.btservice.ProfileService;
+import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.le_scan.AppScanStats;
+import com.android.bluetooth.le_scan.PeriodicScanManager;
+import com.android.bluetooth.le_scan.ScanClient;
+import com.android.bluetooth.le_scan.ScanManager;
+import com.android.bluetooth.le_scan.TransitionalScanHelper;
 import com.android.bluetooth.util.NumberUtils;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.modules.utils.SynchronousResultReceiver;
@@ -187,25 +199,25 @@ public class GattService extends ProfileService {
             UUID.fromString("00001846-0000-1000-8000-00805F9B34FB"), // CSIS
     };
 
-    /**
-     * Example raw beacons captured from a Blue Charm BC011
-     */
-    private static final String[] TEST_MODE_BEACONS = new String[] {
-            "020106",
-            "0201060303AAFE1716AAFE10EE01626C7565636861726D626561636F6E730009168020691E0EFE13551109426C7565436861726D5F313639363835000000",
-            "0201060303AAFE1716AAFE00EE626C7565636861726D31000000000001000009168020691E0EFE13551109426C7565436861726D5F313639363835000000",
-            "0201060303AAFE1116AAFE20000BF017000008874803FB93540916802069080EFE13551109426C7565436861726D5F313639363835000000000000000000",
-            "0201061AFF4C000215426C7565436861726D426561636F6E730EFE1355C509168020691E0EFE13551109426C7565436861726D5F31363936383500000000",
-    };
+    /** Example raw beacons captured from a Blue Charm BC011 */
+    private static final String[] TEST_MODE_BEACONS =
+            new String[] {
+                "020106",
+                "0201060303AAFE1716AAFE10EE01626C7565636861726D626561636F6E730009168020691E0EFE13551109426C7565436861726D5F313639363835000000",
+                "0201060303AAFE1716AAFE00EE626C7565636861726D31000000000001000009168020691E0EFE13551109426C7565436861726D5F313639363835000000",
+                "0201060303AAFE1116AAFE20000BF017000008874803FB93540916802069080EFE13551109426C7565436861726D5F313639363835000000000000000000",
+                "0201061AFF4C000215426C7565436861726D426561636F6E730EFE1355C509168020691E0EFE13551109426C7565436861726D5F31363936383500000000",
+            };
 
     /**
      * Keep the arguments passed in for the PendingIntent.
      */
-    class PendingIntentInfo {
+    public static class PendingIntentInfo {
         public PendingIntent intent;
         public ScanSettings settings;
         public List<ScanFilter> filters;
         public String callingPackage;
+        public int callingUid;
 
         @Override
         public boolean equals(Object other) {
@@ -224,12 +236,7 @@ public class GattService extends ProfileService {
                 }
             };
 
-    /**
-     * List of our registered scanners.
-     */
-    class ScannerMap extends ContextMap<IScannerCallback, PendingIntentInfo> {}
-
-    ScannerMap mScannerMap = new ScannerMap();
+    public final TransitionalScanHelper mTransitionalScanHelper = new TransitionalScanHelper();
 
     /**
      * List of our registered advertisers.
@@ -271,7 +278,7 @@ public class GattService extends ProfileService {
     /**
      * Set of restricted (which require a BLUETOOTH_PRIVILEGED permission) handles per connectionId.
      */
-    private final Map<Integer, Set<Integer>> mRestrictedHandles = new HashMap<>();
+    @VisibleForTesting final Map<Integer, Set<Integer>> mRestrictedHandles = new HashMap<>();
 
     /**
      * HashMap used to synchronize writeCharacteristic calls mapping remote device address to
@@ -281,19 +288,21 @@ public class GattService extends ProfileService {
 
     private AdapterService mAdapterService;
     private BluetoothAdapterProxy mBluetoothAdapterProxy;
-    @VisibleForTesting
     AdvertiseManager mAdvertiseManager;
-    @VisibleForTesting
     PeriodicScanManager mPeriodicScanManager;
-    @VisibleForTesting
     DistanceMeasurementManager mDistanceMeasurementManager;
-    @VisibleForTesting
     ScanManager mScanManager;
     private AppOpsManager mAppOps;
     private CompanionDeviceManager mCompanionManager;
     private String mExposureNotificationPackage;
     private Handler mTestModeHandler;
+    private ActivityManager mActivityManager;
+    private PackageManager mPackageManager;
     private final Object mTestModeLock = new Object();
+
+    public GattService(Context ctx) {
+        super(ctx);
+    }
 
     public static boolean isEnabled() {
         return BluetoothProperties.isProfileGattEnabled().orElse(true);
@@ -316,8 +325,6 @@ public class GattService extends ProfileService {
         return false;
     };
 
-    private static GattService sGattService;
-
     /**
      * Reliable write queue
      */
@@ -332,7 +339,7 @@ public class GattService extends ProfileService {
     }
 
     @Override
-    protected boolean start() {
+    public void start() {
         if (DBG) {
             Log.d(TAG, "start()");
         }
@@ -346,41 +353,49 @@ public class GattService extends ProfileService {
         mBluetoothAdapterProxy = BluetoothAdapterProxy.getInstance();
         mCompanionManager = getSystemService(CompanionDeviceManager.class);
         mAppOps = getSystemService(AppOpsManager.class);
-        mAdvertiseManager = new AdvertiseManager(this, mAdapterService, mAdvertiserMap);
-        mAdvertiseManager.start();
+        mAdvertiseManager =
+                new AdvertiseManager(
+                        this,
+                        AdvertiseManagerNativeInterface.getInstance(),
+                        mAdapterService,
+                        mAdvertiserMap);
 
-        mScanManager = new ScanManager(this, mAdapterService, mBluetoothAdapterProxy);
-        mScanManager.start();
+        HandlerThread thread = new HandlerThread("BluetoothScanManager");
+        thread.start();
+        mScanManager =
+                GattObjectsFactory.getInstance()
+                        .createScanManager(
+                                this, mAdapterService, mBluetoothAdapterProxy, thread.getLooper());
 
-        mPeriodicScanManager = new PeriodicScanManager(mAdapterService);
-        mPeriodicScanManager.start();
+        mPeriodicScanManager = GattObjectsFactory.getInstance()
+                .createPeriodicScanManager(mAdapterService);
 
-        mDistanceMeasurementManager = new DistanceMeasurementManager(mAdapterService);
-        mDistanceMeasurementManager.start();
+        mDistanceMeasurementManager = GattObjectsFactory.getInstance()
+                .createDistanceMeasurementManager(mAdapterService);
 
-        setGattService(this);
-        return true;
+        mActivityManager = getSystemService(ActivityManager.class);
+        mPackageManager = mAdapterService.getPackageManager();
     }
 
     @Override
-    protected boolean stop() {
+    public void stop() {
         if (DBG) {
             Log.d(TAG, "stop()");
         }
-        setGattService(null);
-        mScannerMap.clear();
+        mTransitionalScanHelper.getScannerMap().clear();
         mAdvertiserMap.clear();
         mClientMap.clear();
+        if (Flags.gattCleanupRestrictedHandles()) {
+            mRestrictedHandles.clear();
+        }
         mServerMap.clear();
         mHandleMap.clear();
         mReliableQueue.clear();
         cleanup();
-
-        return true;
     }
 
     @Override
-    protected void cleanup() {
+    public void cleanup() {
         if (DBG) {
             Log.d(TAG, "cleanup()");
         }
@@ -436,24 +451,6 @@ public class GattService extends ProfileService {
         }
     }
 
-    /**
-     * Get the current instance of {@link GattService}
-     *
-     * @return current instance of {@link GattService}
-     */
-    @VisibleForTesting
-    public static synchronized GattService getGattService() {
-        if (sGattService == null) {
-            Log.w(TAG, "getGattService(): service is null");
-            return null;
-        }
-        if (!sGattService.isAvailable()) {
-            Log.w(TAG, "getGattService(): service is not available");
-            return null;
-        }
-        return sGattService;
-    }
-
     @VisibleForTesting
     ScanManager getScanManager() {
         if (mScanManager == null) {
@@ -461,13 +458,6 @@ public class GattService extends ProfileService {
             return null;
         }
         return mScanManager;
-    }
-
-    private static synchronized void setGattService(GattService instance) {
-        if (DBG) {
-            Log.d(TAG, "setGattService(): set to: " + instance);
-        }
-        sGattService = instance;
     }
 
     // Suppressed because we are conditionally enforcing
@@ -503,12 +493,13 @@ public class GattService extends ProfileService {
         return restrictedHandles != null && restrictedHandles.contains(handle);
     }
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        if (GattDebugUtils.handleDebugAction(this, intent)) {
-            return Service.START_NOT_STICKY;
+    /** Notify Scan manager of bluetooth profile connection state changes */
+    public void notifyProfileConnectionStateChange(int profile, int fromState, int toState) {
+        if (mScanManager == null) {
+            Log.w(TAG, "scan manager is null");
+            return;
         }
-        return super.onStartCommand(intent, flags, startId);
+        mScanManager.handleBluetoothProfileConnectionStateChanged(profile, fromState, toState);
     }
 
     /**
@@ -518,21 +509,33 @@ public class GattService extends ProfileService {
 
     class ScannerDeathRecipient implements IBinder.DeathRecipient {
         int mScannerId;
+        private String mPackageName;
 
-        ScannerDeathRecipient(int scannerId) {
+        ScannerDeathRecipient(int scannerId, String packageName) {
             mScannerId = scannerId;
+            mPackageName = packageName;
         }
 
         @Override
         public void binderDied() {
             if (DBG) {
-                Log.d(TAG, "Binder is dead - unregistering scanner (" + mScannerId + ")!");
+                Log.d(
+                        TAG,
+                        "Binder is dead - unregistering scanner ("
+                                + mPackageName
+                                + " "
+                                + mScannerId
+                                + ")!");
             }
 
             ScanClient client = getScanClient(mScannerId);
             if (client != null) {
-                client.appDied = true;
-                stopScan(client.scannerId, getAttributionSource());
+                if (Flags.leScanFixRemoteException()) {
+                    handleDeadScanClient(client);
+                } else {
+                    client.appDied = true;
+                    stopScan(client.scannerId, getAttributionSource());
+                }
             }
         }
 
@@ -553,15 +556,23 @@ public class GattService extends ProfileService {
 
     class ServerDeathRecipient implements IBinder.DeathRecipient {
         int mAppIf;
+        private String mPackageName;
 
-        ServerDeathRecipient(int appIf) {
+        ServerDeathRecipient(int appIf, String packageName) {
             mAppIf = appIf;
+            mPackageName = packageName;
         }
 
         @Override
         public void binderDied() {
             if (DBG) {
-                Log.d(TAG, "Binder is dead - unregistering server (" + mAppIf + ")!");
+                Log.d(
+                        TAG,
+                        "Binder is dead - unregistering server ("
+                                + mPackageName
+                                + " "
+                                + mAppIf
+                                + ")!");
             }
             unregisterServer(mAppIf, getAttributionSource());
         }
@@ -569,15 +580,23 @@ public class GattService extends ProfileService {
 
     class ClientDeathRecipient implements IBinder.DeathRecipient {
         int mAppIf;
+        private String mPackageName;
 
-        ClientDeathRecipient(int appIf) {
+        ClientDeathRecipient(int appIf, String packageName) {
             mAppIf = appIf;
+            mPackageName = packageName;
         }
 
         @Override
         public void binderDied() {
             if (DBG) {
-                Log.d(TAG, "Binder is dead - unregistering client (" + mAppIf + ")!");
+                Log.d(
+                        TAG,
+                        "Binder is dead - unregistering client ("
+                                + mPackageName
+                                + " "
+                                + mAppIf
+                                + ")!");
             }
             unregisterClient(mAppIf, getAttributionSource());
         }
@@ -1747,23 +1766,6 @@ public class GattService extends ProfileService {
         }
 
         @Override
-        public void unregAll(AttributionSource source, SynchronousResultReceiver receiver) {
-            try {
-                unregAll(source);
-                receiver.send(null);
-            } catch (RuntimeException e) {
-                receiver.propagateException(e);
-            }
-        }
-        private void unregAll(AttributionSource attributionSource) {
-            GattService service = getService();
-            if (service == null) {
-                return;
-            }
-            service.unregAll(attributionSource);
-        }
-
-        @Override
         public void numHwTrackFiltersAvailable(AttributionSource attributionSource,
                 SynchronousResultReceiver receiver) {
             try {
@@ -1855,6 +1857,64 @@ public class GattService extends ProfileService {
             }
             enforceBluetoothPrivilegedPermission(service);
             return service.stopDistanceMeasurement(uuid.getUuid(), device, method);
+        }
+
+        @Override
+        public void getChannelSoundingMaxSupportedSecurityLevel(
+                BluetoothDevice remoteDevice,
+                AttributionSource attributionSource,
+                SynchronousResultReceiver receiver) {
+            try {
+                receiver.send(
+                        getChannelSoundingMaxSupportedSecurityLevel(
+                                remoteDevice, attributionSource));
+            } catch (RuntimeException e) {
+                receiver.propagateException(e);
+            }
+        }
+
+        private int getChannelSoundingMaxSupportedSecurityLevel(
+                BluetoothDevice remoteDevice, AttributionSource attributionSource) {
+            GattService service = getService();
+            if (service == null
+                    || !callerIsSystemOrActiveOrManagedUser(
+                            service, TAG, "GattService getChannelSoundingMaxSupportedSecurityLevel")
+                    || !Utils.checkConnectPermissionForDataDelivery(
+                            service,
+                            attributionSource,
+                            "GattService getChannelSoundingMaxSupportedSecurityLevel")) {
+                return ChannelSoundingParams.CS_SECURITY_LEVEL_UNKNOWN;
+            }
+            enforceBluetoothPrivilegedPermission(service);
+            return service.getChannelSoundingMaxSupportedSecurityLevel(remoteDevice);
+        }
+
+        @Override
+        public void getLocalChannelSoundingMaxSupportedSecurityLevel(
+                AttributionSource attributionSource, SynchronousResultReceiver receiver) {
+            try {
+                receiver.send(getLocalChannelSoundingMaxSupportedSecurityLevel(attributionSource));
+            } catch (RuntimeException e) {
+                receiver.propagateException(e);
+            }
+        }
+
+        private int getLocalChannelSoundingMaxSupportedSecurityLevel(
+                AttributionSource attributionSource) {
+            GattService service = getService();
+            if (service == null
+                    || !callerIsSystemOrActiveOrManagedUser(
+                            service,
+                            TAG,
+                            "GattService getLocalChannelSoundingMaxSupportedSecurityLevel")
+                    || !Utils.checkConnectPermissionForDataDelivery(
+                            service,
+                            attributionSource,
+                            "GattService getLocalChannelSoundingMaxSupportedSecurityLevel")) {
+                return ChannelSoundingParams.CS_SECURITY_LEVEL_UNKNOWN;
+            }
+            enforceBluetoothPrivilegedPermission(service);
+            return service.getLocalChannelSoundingMaxSupportedSecurityLevel();
         }
     };
 
@@ -1948,7 +2008,8 @@ public class GattService extends ProfileService {
         byte[] legacyAdvData = Arrays.copyOfRange(advData, 0, 62);
 
         for (ScanClient client : mScanManager.getRegularScanQueue()) {
-            ScannerMap.App app = mScannerMap.getById(client.scannerId);
+            TransitionalScanHelper.ScannerMap.App app =
+                    mTransitionalScanHelper.getScannerMap().getById(client.scannerId);
             if (app == null) {
                 if (VDBG) {
                     Log.d(TAG, "App is null; skip.");
@@ -2037,8 +2098,12 @@ public class GattService extends ProfileService {
                 }
             } catch (RemoteException | PendingIntent.CanceledException e) {
                 Log.e(TAG, "Exception: " + e);
-                mScannerMap.remove(client.scannerId);
-                mScanManager.stopScan(client.scannerId);
+                if (Flags.leScanFixRemoteException()) {
+                    handleDeadScanClient(client);
+                } else {
+                    mTransitionalScanHelper.getScannerMap().remove(client.scannerId);
+                    mScanManager.stopScan(client.scannerId);
+                }
             }
         }
     }
@@ -2085,19 +2150,20 @@ public class GattService extends ProfileService {
         }
 
         // First check the callback map
-        ScannerMap.App cbApp = mScannerMap.getByUuid(uuid);
+        TransitionalScanHelper.ScannerMap.App cbApp =
+                mTransitionalScanHelper.getScannerMap().getByUuid(uuid);
         if (cbApp != null) {
             if (status == 0) {
                 cbApp.id = scannerId;
                 // If app is callback based, setup a death recipient. App will initiate the start.
                 // Otherwise, if PendingIntent based, start the scan directly.
                 if (cbApp.callback != null) {
-                    cbApp.linkToDeath(new ScannerDeathRecipient(scannerId));
+                    cbApp.linkToDeath(new ScannerDeathRecipient(scannerId, cbApp.name));
                 } else {
                     continuePiStartScan(scannerId, cbApp);
                 }
             } else {
-                mScannerMap.remove(scannerId);
+                mTransitionalScanHelper.getScannerMap().remove(scannerId);
             }
             if (cbApp.callback != null) {
                 cbApp.callback.onScannerRegistered(status, scannerId);
@@ -2143,6 +2209,15 @@ public class GattService extends ProfileService {
         return new MatchResult(false, MatchOrigin.PSEUDO_ADDRESS);
     }
 
+    private void handleDeadScanClient(ScanClient client) {
+        if (client.appDied) {
+            Log.w(TAG, "Already dead client " + client.scannerId);
+            return;
+        }
+        client.appDied = true;
+        stopScan(client.scannerId, getAttributionSource());
+    }
+
     void onClientRegistered(int status, int clientIf, long uuidLsb, long uuidMsb)
             throws RemoteException {
         UUID uuid = new UUID(uuidMsb, uuidLsb);
@@ -2153,7 +2228,7 @@ public class GattService extends ProfileService {
         if (app != null) {
             if (status == 0) {
                 app.id = clientIf;
-                app.linkToDeath(new ClientDeathRecipient(clientIf));
+                app.linkToDeath(new ClientDeathRecipient(clientIf, app.name));
             } else {
                 mClientMap.remove(uuid);
             }
@@ -2198,6 +2273,10 @@ public class GattService extends ProfileService {
 
         mClientMap.removeConnection(clientIf, connId);
         ClientMap.App app = mClientMap.getById(clientIf);
+
+        if (Flags.gattCleanupRestrictedHandles()) {
+            mRestrictedHandles.remove(connId);
+        }
 
         // Remove AtomicBoolean representing permit if no other connections rely on this remote device.
         if (!mClientMap.getConnectedDevices().contains(address)) {
@@ -2699,6 +2778,7 @@ public class GattService extends ProfileService {
         // When in testing mode, ignore all real-world events
         if (isTestModeEnabled()) return;
 
+        AppScanStats.recordBatchScanRadioResultCount(numRecords);
         onBatchScanReportsInternal(status, scannerId, reportType, numRecords, recordData);
     }
 
@@ -2712,7 +2792,8 @@ public class GattService extends ProfileService {
         Set<ScanResult> results = parseBatchScanResults(numRecords, reportType, recordData);
         if (reportType == ScanManager.SCAN_RESULT_TYPE_TRUNCATED) {
             // We only support single client for truncated mode.
-            ScannerMap.App app = mScannerMap.getById(scannerId);
+            TransitionalScanHelper.ScannerMap.App app =
+                    mTransitionalScanHelper.getScannerMap().getById(scannerId);
             if (app == null) {
                 return;
             }
@@ -2763,7 +2844,7 @@ public class GattService extends ProfileService {
         mScanManager.callbackDone(scannerId, status);
     }
 
-    private void sendBatchScanResults(ScannerMap.App app, ScanClient client,
+    private void sendBatchScanResults(TransitionalScanHelper.ScannerMap.App app, ScanClient client,
             ArrayList<ScanResult> results) {
         try {
             if (app.callback != null) {
@@ -2787,15 +2868,20 @@ public class GattService extends ProfileService {
             }
         } catch (RemoteException | PendingIntent.CanceledException e) {
             Log.e(TAG, "Exception: " + e);
-            mScannerMap.remove(client.scannerId);
-            mScanManager.stopScan(client.scannerId);
+            if (Flags.leScanFixRemoteException()) {
+                handleDeadScanClient(client);
+            } else {
+                mTransitionalScanHelper.getScannerMap().remove(client.scannerId);
+                mScanManager.stopScan(client.scannerId);
+            }
         }
     }
 
     // Check and deliver scan results for different scan clients.
     private void deliverBatchScan(ScanClient client, Set<ScanResult> allResults)
             throws RemoteException {
-        ScannerMap.App app = mScannerMap.getById(client.scannerId);
+        TransitionalScanHelper.ScannerMap.App app =
+                mTransitionalScanHelper.getScannerMap().getById(client.scannerId);
         if (app == null) {
             return;
         }
@@ -2956,7 +3042,8 @@ public class GattService extends ProfileService {
                     + trackingInfo.getAdvState());
         }
 
-        ScannerMap.App app = mScannerMap.getById(trackingInfo.getClientIf());
+        TransitionalScanHelper.ScannerMap.App app =
+                mTransitionalScanHelper.getScannerMap().getById(trackingInfo.getClientIf());
         if (app == null || (app.callback == null && app.info == null)) {
             Log.e(TAG, "app or callback is null");
             return;
@@ -3002,7 +3089,8 @@ public class GattService extends ProfileService {
     }
 
     void onScanParamSetupCompleted(int status, int scannerId) throws RemoteException {
-        ScannerMap.App app = mScannerMap.getById(scannerId);
+        TransitionalScanHelper.ScannerMap.App app =
+                mTransitionalScanHelper.getScannerMap().getById(scannerId);
         if (app == null || app.callback == null) {
             Log.e(TAG, "Advertise app or callback is null");
             return;
@@ -3013,8 +3101,9 @@ public class GattService extends ProfileService {
     }
 
     // callback from ScanManager for dispatch of errors apps.
-    void onScanManagerErrorCallback(int scannerId, int errorCode) throws RemoteException {
-        ScannerMap.App app = mScannerMap.getById(scannerId);
+    public void onScanManagerErrorCallback(int scannerId, int errorCode) throws RemoteException {
+        TransitionalScanHelper.ScannerMap.App app =
+                mTransitionalScanHelper.getScannerMap().getById(scannerId);
         if (app == null || (app.callback == null && app.info == null)) {
             Log.e(TAG, "App or callback is null");
             return;
@@ -3131,7 +3220,8 @@ public class GattService extends ProfileService {
 
         enforceImpersonatationPermissionIfNeeded(workSource);
 
-        AppScanStats app = mScannerMap.getAppScanStatsByUid(Binder.getCallingUid());
+        AppScanStats app = mTransitionalScanHelper.getScannerMap()
+                    .getAppScanStatsByUid(Binder.getCallingUid());
         if (app != null && app.isScanningTooFrequently()
                 && !Utils.checkCallerHasPrivilegedPermission(this)) {
             Log.e(TAG, "App '" + app.appName + "' is scanning too frequently");
@@ -3139,12 +3229,13 @@ public class GattService extends ProfileService {
             return;
         }
 
-        mScannerMap.add(uuid, workSource, callback, null, this);
+        mTransitionalScanHelper
+            .getScannerMap().add(uuid, workSource, callback, null, this);
         mScanManager.registerScanner(uuid);
     }
 
     @RequiresPermission(android.Manifest.permission.BLUETOOTH_SCAN)
-    void unregisterScanner(int scannerId, AttributionSource attributionSource) {
+    public void unregisterScanner(int scannerId, AttributionSource attributionSource) {
         if (!Utils.checkScanPermissionForDataDelivery(
                 this, attributionSource, "GattService unregisterScanner")) {
             return;
@@ -3153,7 +3244,7 @@ public class GattService extends ProfileService {
         if (DBG) {
             Log.d(TAG, "unregisterScanner() - scannerId=" + scannerId);
         }
-        mScannerMap.remove(scannerId);
+        mTransitionalScanHelper.getScannerMap().remove(scannerId);
         mScanManager.unregisterScanner(scannerId);
     }
 
@@ -3225,8 +3316,9 @@ public class GattService extends ProfileService {
                 Utils.checkCallerHasScanWithoutLocationPermission(this);
         scanClient.associatedDevices = getAssociatedDevices(callingPackage);
 
-        AppScanStats app = mScannerMap.getAppScanStatsById(scannerId);
-        ScannerMap.App cbApp = mScannerMap.getById(scannerId);
+        AppScanStats app = mTransitionalScanHelper.getScannerMap().getAppScanStatsById(scannerId);
+        TransitionalScanHelper.ScannerMap.App cbApp =
+                mTransitionalScanHelper.getScannerMap().getById(scannerId);
         if (app != null) {
             scanClient.stats = app;
             boolean isFilteredScan = (filters != null) && !filters.isEmpty();
@@ -3238,8 +3330,6 @@ public class GattService extends ProfileService {
         }
 
         mScanManager.startScan(scanClient);
-        mAdapterService.notifyActivityAttributionInfo(getAttributionSource(),
-                AdapterService.ACTIVITY_ATTRIBUTION_NO_ACTIVE_DEVICE_ADDRESS);
     }
 
     @RequiresPermission(android.Manifest.permission.BLUETOOTH_SCAN)
@@ -3257,23 +3347,31 @@ public class GattService extends ProfileService {
         settings = enforceReportDelayFloor(settings);
         enforcePrivilegedPermissionIfNeeded(filters);
         UUID uuid = UUID.randomUUID();
-        if (DBG) {
-            Log.d(TAG, "startScan(PI) - UUID=" + uuid);
-        }
         String callingPackage = attributionSource.getPackageName();
+        int callingUid = attributionSource.getUid();
         PendingIntentInfo piInfo = new PendingIntentInfo();
         piInfo.intent = pendingIntent;
         piInfo.settings = settings;
         piInfo.filters = filters;
         piInfo.callingPackage = callingPackage;
+        piInfo.callingUid = callingUid;
+        if (DBG) {
+            Log.d(
+                    TAG,
+                    "startScan(PI) -"
+                            + (" UUID=" + uuid)
+                            + (" Package=" + callingPackage)
+                            + (" UID=" + callingUid));
+        }
 
         // Don't start scan if the Pi scan already in mScannerMap.
-        if (mScannerMap.getByContextInfo(piInfo) != null) {
+        if (mTransitionalScanHelper.getScannerMap().getByContextInfo(piInfo) != null) {
             Log.d(TAG, "Don't startScan(PI) since the same Pi scan already in mScannerMap.");
             return;
         }
 
-        ScannerMap.App app = mScannerMap.add(uuid, null, null, piInfo, this);
+        TransitionalScanHelper.ScannerMap.App app =
+                mTransitionalScanHelper.getScannerMap().add(uuid, null, null, piInfo, this);
 
         app.mUserHandle = UserHandle.getUserHandleForUid(Binder.getCallingUid());
         mAppOps.checkPackage(Binder.getCallingUid(), callingPackage);
@@ -3313,10 +3411,10 @@ public class GattService extends ProfileService {
         }
     }
 
-    void continuePiStartScan(int scannerId, ScannerMap.App app) {
+    void continuePiStartScan(int scannerId, TransitionalScanHelper.ScannerMap.App app) {
         final PendingIntentInfo piInfo = app.info;
         final ScanClient scanClient =
-                new ScanClient(scannerId, piInfo.settings, piInfo.filters);
+                new ScanClient(scannerId, piInfo.settings, piInfo.filters, piInfo.callingUid);
         scanClient.hasLocationPermission = app.hasLocationPermission;
         scanClient.userHandle = app.mUserHandle;
         scanClient.isQApp = checkCallerTargetSdk(this, app.name, Build.VERSION_CODES.Q);
@@ -3328,7 +3426,8 @@ public class GattService extends ProfileService {
         scanClient.associatedDevices = app.mAssociatedDevices;
         scanClient.hasDisavowedLocation = app.mHasDisavowedLocation;
 
-        AppScanStats scanStats = mScannerMap.getAppScanStatsById(scannerId);
+        AppScanStats scanStats =
+                mTransitionalScanHelper.getScannerMap().getAppScanStatsById(scannerId);
         if (scanStats != null) {
             scanClient.stats = scanStats;
             boolean isFilteredScan = (piInfo.filters != null) && !piInfo.filters.isEmpty();
@@ -3364,14 +3463,12 @@ public class GattService extends ProfileService {
         }
 
         AppScanStats app = null;
-        app = mScannerMap.getAppScanStatsById(scannerId);
+        app = mTransitionalScanHelper.getScannerMap().getAppScanStatsById(scannerId);
         if (app != null) {
             app.recordScanStop(scannerId);
         }
 
         mScanManager.stopScan(scannerId);
-        mAdapterService.notifyActivityAttributionInfo(getAttributionSource(),
-                AdapterService.ACTIVITY_ATTRIBUTION_NO_ACTIVE_DEVICE_ADDRESS);
     }
 
     @RequiresPermission(android.Manifest.permission.BLUETOOTH_SCAN)
@@ -3382,7 +3479,8 @@ public class GattService extends ProfileService {
         }
         PendingIntentInfo pii = new PendingIntentInfo();
         pii.intent = intent;
-        ScannerMap.App app = mScannerMap.getByContextInfo(pii);
+        TransitionalScanHelper.ScannerMap.App app =
+                mTransitionalScanHelper.getScannerMap().getByContextInfo(pii);
         if (VDBG) {
             Log.d(TAG, "stopScan(PendingIntent): app found = " + app);
         }
@@ -3411,7 +3509,7 @@ public class GattService extends ProfileService {
     }
 
     @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
-    void unregAll(AttributionSource attributionSource) {
+    public void unregAll(AttributionSource attributionSource) {
         for (Integer appId : mClientMap.getAllAppsIds()) {
             if (DBG) {
                 Log.d(TAG, "unreg:" + appId);
@@ -3594,6 +3692,15 @@ public class GattService extends ProfileService {
         return mDistanceMeasurementManager.stopDistanceMeasurement(uuid, device, method, false);
     }
 
+    int getChannelSoundingMaxSupportedSecurityLevel(BluetoothDevice remoteDevice) {
+        return mDistanceMeasurementManager.getChannelSoundingMaxSupportedSecurityLevel(
+                remoteDevice);
+    }
+
+    int getLocalChannelSoundingMaxSupportedSecurityLevel() {
+        return mDistanceMeasurementManager.getLocalChannelSoundingMaxSupportedSecurityLevel();
+    }
+
     /**************************************************************************
      * GATT Service functions - CLIENT
      *************************************************************************/
@@ -3642,11 +3749,9 @@ public class GattService extends ProfileService {
                     + opportunistic + ", phy=" + phy);
         }
         statsLogAppPackage(address, attributionSource.getUid(), clientIf);
-        if (isDirect) {
-          MetricsLogger.getInstance().count(BluetoothProtoEnums.GATT_CLIENT_CONNECT_IS_DIRECT, 1);
-        } else {
-          MetricsLogger.getInstance().count(BluetoothProtoEnums.GATT_CLIENT_CONNECT_IS_AUTOCONNECT, 1);
-        }
+
+        logClientForegroundInfo(attributionSource.getUid(), isDirect);
+
         statsLogGattConnectionStateChange(
                 BluetoothProfile.GATT, address, clientIf,
                 BluetoothProtoEnums.CONNECTION_STATE_CONNECTING, -1);
@@ -4209,7 +4314,7 @@ public class GattService extends ProfileService {
         ServerMap.App app = mServerMap.getByUuid(uuid);
         if (app != null) {
             app.id = serverIf;
-            app.linkToDeath(new ServerDeathRecipient(serverIf));
+            app.linkToDeath(new ServerDeathRecipient(serverIf, app.name));
             app.callback.onServerRegistered(status, serverIf);
         }
     }
@@ -4540,6 +4645,9 @@ public class GattService extends ProfileService {
         if (DBG) {
             Log.d(TAG, "serverConnect() - address=" + address);
         }
+
+        logServerForegroundInfo(attributionSource.getUid(), isDirect);
+
         mNativeInterface.gattServerConnect(serverIf, address, isDirect, transport);
     }
 
@@ -4855,6 +4963,62 @@ public class GattService extends ProfileService {
         }
     }
 
+    private void logClientForegroundInfo(int uid, boolean isDirect) {
+        if (mPackageManager == null) {
+            return;
+        }
+
+        String packageName = mPackageManager.getPackagesForUid(uid)[0];
+        int importance = mActivityManager.getPackageImportance(packageName);
+        if (importance == IMPORTANCE_FOREGROUND_SERVICE) {
+            MetricsLogger.getInstance()
+                    .count(
+                            isDirect
+                                    ? BluetoothProtoEnums
+                                            .GATT_CLIENT_CONNECT_IS_DIRECT_IN_FOREGROUND
+                                    : BluetoothProtoEnums
+                                            .GATT_CLIENT_CONNECT_IS_AUTOCONNECT_IN_FOREGROUND,
+                            1);
+        } else {
+            MetricsLogger.getInstance()
+                    .count(
+                            isDirect
+                                    ? BluetoothProtoEnums
+                                            .GATT_CLIENT_CONNECT_IS_DIRECT_NOT_IN_FOREGROUND
+                                    : BluetoothProtoEnums
+                                            .GATT_CLIENT_CONNECT_IS_AUTOCONNECT_NOT_IN_FOREGROUND,
+                            1);
+        }
+    }
+
+    private void logServerForegroundInfo(int uid, boolean isDirect) {
+        if (mPackageManager == null) {
+            return;
+        }
+
+        String packageName = mPackageManager.getPackagesForUid(uid)[0];
+        int importance = mActivityManager.getPackageImportance(packageName);
+        if (importance == IMPORTANCE_FOREGROUND_SERVICE) {
+            MetricsLogger.getInstance()
+                    .count(
+                            isDirect
+                                    ? BluetoothProtoEnums
+                                            .GATT_SERVER_CONNECT_IS_DIRECT_IN_FOREGROUND
+                                    : BluetoothProtoEnums
+                                            .GATT_SERVER_CONNECT_IS_AUTOCONNECT_IN_FOREGROUND,
+                            1);
+        } else {
+            MetricsLogger.getInstance()
+                    .count(
+                            isDirect
+                                    ? BluetoothProtoEnums
+                                            .GATT_SERVER_CONNECT_IS_DIRECT_NOT_IN_FOREGROUND
+                                    : BluetoothProtoEnums
+                                            .GATT_SERVER_CONNECT_IS_AUTOCONNECT_NOT_IN_FOREGROUND,
+                            1);
+        }
+    }
+
     /**
      * Ensures the report delay is either 0 or at least the floor value (5000ms)
      *
@@ -4939,8 +5103,9 @@ public class GattService extends ProfileService {
 
     void dumpRegisterId(StringBuilder sb) {
         sb.append("  Scanner:\n");
-        for (Integer appId : mScannerMap.getAllAppsIds()) {
-            println(sb, "    app_if: " + appId + ", appName: " + mScannerMap.getById(appId).name);
+        for (Integer appId : mTransitionalScanHelper.getScannerMap().getAllAppsIds()) {
+            println(sb, "    app_if: " + appId + ", appName: " +
+                    mTransitionalScanHelper.getScannerMap().getById(appId).name);
         }
         sb.append("  Client:\n");
         for (Integer appId : mClientMap.getAllAppsIds()) {
@@ -4967,7 +5132,7 @@ public class GattService extends ProfileService {
         dumpRegisterId(sb);
 
         sb.append("GATT Scanner Map\n");
-        mScannerMap.dump(sb);
+        mTransitionalScanHelper.getScannerMap().dump(sb);
 
         sb.append("GATT Advertiser Map\n");
         mAdvertiserMap.dumpAdvertiser(sb);
@@ -4982,7 +5147,7 @@ public class GattService extends ProfileService {
         mHandleMap.dump(sb);
     }
 
-    void addScanEvent(BluetoothMetricsProto.ScanEvent event) {
+    public void addScanEvent(BluetoothMetricsProto.ScanEvent event) {
         synchronized (mScanEvents) {
             if (mScanEvents.size() == NUM_SCAN_EVENTS_KEPT) {
                 mScanEvents.remove();

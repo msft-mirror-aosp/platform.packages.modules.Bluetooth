@@ -20,30 +20,18 @@
  *
  *  mockcify.pl ver 0.2
  */
-
-#include <map>
-#include <string>
+// Mock include file to share data between tests and mock
+#include "test/mock/mock_device_controller.h"
 
 // Original included files, if any
-// NOTE: Since this is a mock file with mock definitions some number of
-//       include files may not be required.  The include-what-you-use
-//       still applies, but crafting proper inclusion is out of scope
-//       for this effort.  This compilation unit may compile as-is, or
-//       may need attention to prune the inclusion set.
-#include "main/shim/controller.h"
-#include "types/raw_address.h"
-
-// Mock include file to share data between tests and mock
+#include "btcore/include/version.h"
+#include "device/include/controller.h"
 #include "stack/include/btm_api_types.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/hcidefs.h"
-#include "test/mock/mock_device_controller.h"
+#include "types/raw_address.h"
 
 // Mocked compile conditionals, if any
-#ifndef UNUSED_ATTR
-#define UNUSED_ATTR
-#endif
-
 // Mocked internal structures, if any
 namespace test {
 namespace mock {
@@ -93,6 +81,9 @@ bool ble_supported{false};
 bool iso_supported{false};
 bool simple_pairing_supported{false};
 bool secure_connections_supported{false};
+bool supports_hold_mode{false};
+bool supports_sniff_mode{true};
+bool supports_park_mode{false};
 
 bool get_is_ready(void) { return readable; }
 
@@ -110,34 +101,6 @@ uint8_t* get_local_supported_codecs(uint8_t* number_of_codecs) {
 
 const uint8_t* get_ble_supported_states(void) { return ble_supported_states; }
 
-bool supports_simple_pairing(void) { return simple_pairing_supported; }
-
-bool supports_secure_connections(void) { return secure_connections_supported; }
-
-bool supports_simultaneous_le_bredr(void) {
-  return HCI_SIMUL_LE_BREDR_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_reading_remote_extended_features(void) {
-  return HCI_READ_REMOTE_EXT_FEATURES_SUPPORTED(supported_commands);
-}
-
-bool supports_interlaced_inquiry_scan(void) {
-  return HCI_LMP_INTERLACED_INQ_SCAN_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_rssi_with_inquiry_results(void) {
-  return HCI_LMP_INQ_RSSI_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_extended_inquiry_response(void) {
-  return HCI_EXT_INQ_RSP_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_central_peripheral_role_switch(void) {
-  return HCI_SWITCH_SUPPORTED(features_classic[0].as_array);
-}
-
 bool supports_enhanced_setup_synchronous_connection(void) {
   return HCI_ENH_SETUP_SYNCH_CONN_SUPPORTED(supported_commands);
 }
@@ -146,80 +109,8 @@ bool supports_enhanced_accept_synchronous_connection(void) {
   return HCI_ENH_ACCEPT_SYNCH_CONN_SUPPORTED(supported_commands);
 }
 
-bool supports_3_slot_packets(void) {
-  return HCI_3_SLOT_PACKETS_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_5_slot_packets(void) {
-  return HCI_5_SLOT_PACKETS_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_classic_2m_phy(void) {
-  return HCI_EDR_ACL_2MPS_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_classic_3m_phy(void) {
-  return HCI_EDR_ACL_3MPS_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_3_slot_edr_packets(void) {
-  return HCI_3_SLOT_EDR_ACL_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_5_slot_edr_packets(void) {
-  return HCI_5_SLOT_EDR_ACL_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_sco(void) {
-  return HCI_SCO_LINK_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_hv2_packets(void) {
-  return HCI_HV2_PACKETS_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_hv3_packets(void) {
-  return HCI_HV3_PACKETS_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_ev3_packets(void) {
-  return HCI_ESCO_EV3_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_ev4_packets(void) {
-  return HCI_ESCO_EV4_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_ev5_packets(void) {
-  return HCI_ESCO_EV5_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_esco_2m_phy(void) {
-  return HCI_EDR_ESCO_2MPS_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_esco_3m_phy(void) {
-  return HCI_EDR_ESCO_3MPS_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_3_slot_esco_edr_packets(void) {
-  return HCI_3_SLOT_EDR_ESCO_SUPPORTED(features_classic[0].as_array);
-}
-
 bool supports_role_switch(void) {
   return HCI_SWITCH_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_hold_mode(void) {
-  return HCI_HOLD_MODE_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_sniff_mode(void) {
-  return HCI_SNIFF_MODE_SUPPORTED(features_classic[0].as_array);
-}
-
-bool supports_park_mode(void) {
-  return HCI_PARK_MODE_SUPPORTED(features_classic[0].as_array);
 }
 
 bool supports_non_flushable_pb(void) {
@@ -285,10 +176,6 @@ bool supports_ble_periodic_advertising(void) {
 
 bool supports_ble_peripheral_initiated_feature_exchange(void) {
   return HCI_LE_PERIPHERAL_INIT_FEAT_EXC_SUPPORTED(features_ble.as_array);
-}
-
-bool supports_ble_connection_parameter_request(void) {
-  return HCI_LE_CONN_PARAM_REQ_SUPPORTED(features_ble.as_array);
 }
 
 bool supports_ble_periodic_advertising_sync_transfer_sender(void) {
@@ -405,7 +292,6 @@ tBTM_STATUS set_event_filter_inquiry_result_all_devices() {
   return BTM_SUCCESS;
 }
 
-// clang-format off
 const controller_t interface = {
     get_is_ready,
 
@@ -414,35 +300,12 @@ const controller_t interface = {
 
     get_ble_supported_states,
 
-    supports_simple_pairing,
-    supports_secure_connections,
-    supports_simultaneous_le_bredr,
-    supports_reading_remote_extended_features,
-    supports_interlaced_inquiry_scan,
-    supports_rssi_with_inquiry_results,
-    supports_extended_inquiry_response,
-    supports_central_peripheral_role_switch,
     supports_enhanced_setup_synchronous_connection,
     supports_enhanced_accept_synchronous_connection,
-    supports_3_slot_packets,
-    supports_5_slot_packets,
-    supports_classic_2m_phy,
-    supports_classic_3m_phy,
-    supports_3_slot_edr_packets,
-    supports_5_slot_edr_packets,
-    supports_sco,
-    supports_hv2_packets,
-    supports_hv3_packets,
-    supports_ev3_packets,
-    supports_ev4_packets,
-    supports_ev5_packets,
-    supports_esco_2m_phy,
-    supports_esco_3m_phy,
-    supports_3_slot_esco_edr_packets,
     supports_role_switch,
-    supports_hold_mode,
-    supports_sniff_mode,
-    supports_park_mode,
+    []() { return supports_hold_mode; },
+    []() { return supports_sniff_mode; },
+    []() { return supports_park_mode; },
     supports_non_flushable_pb,
     supports_sniff_subrating,
     supports_encryption_pause,
@@ -460,7 +323,6 @@ const controller_t interface = {
     supports_ble_extended_advertising,
     supports_ble_periodic_advertising,
     supports_ble_peripheral_initiated_feature_exchange,
-    supports_ble_connection_parameter_request,
     supports_ble_periodic_advertising_sync_transfer_sender,
     supports_ble_periodic_advertising_sync_transfer_recipient,
     supports_ble_connected_isochronous_stream_central,
@@ -503,7 +365,6 @@ const controller_t interface = {
     set_default_event_mask_except,
     set_event_filter_inquiry_result_all_devices,
 };
-// clang-format on
 
 }  // namespace device_controller
 }  // namespace mock

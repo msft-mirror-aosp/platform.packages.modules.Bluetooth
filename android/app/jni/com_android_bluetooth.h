@@ -15,15 +15,16 @@
  * limitations under the License.
  */
 
-#ifndef COM_ANDROID_BLUETOOTH_H
-#define COM_ANDROID_BLUETOOTH_H
+#pragma once
+
+#include <bluetooth/log.h>
 
 #include "hardware/bluetooth.h"
 #include "hardware/hardware.h"
 #include "jni.h"
-#include "jni_logging.h"
 #include "nativehelper/ScopedLocalRef.h"
-#include "utils/Log.h"
+
+namespace log = bluetooth::log;
 
 namespace android {
 
@@ -38,15 +39,15 @@ public:
 
     ~CallbackEnv() {
       if (mCallbackEnv && mCallbackEnv->ExceptionCheck()) {
-          ALOGE("An exception was thrown by callback '%s'.", mName);
-          LOGE_EX(mCallbackEnv);
-          mCallbackEnv->ExceptionClear();
+        log::error("An exception was thrown by callback '{}'.", mName);
+        jniLogException(mCallbackEnv, ANDROID_LOG_ERROR, LOG_TAG);
+        mCallbackEnv->ExceptionClear();
       }
     }
 
     bool valid() const {
       if (!mCallbackEnv || !isCallbackThread()) {
-        ALOGE("%s: Callback env fail", mName);
+        log::error("{}: Callback env fail", mName);
         return false;
       }
       return true;
@@ -158,8 +159,6 @@ int register_com_android_bluetooth_hap_client(JNIEnv* env);
 
 int register_com_android_bluetooth_btservice_BluetoothKeystore(JNIEnv* env);
 
-int register_com_android_bluetooth_btservice_activity_attribution(JNIEnv* env);
-
 int register_com_android_bluetooth_le_audio(JNIEnv* env);
 
 int register_com_android_bluetooth_vc(JNIEnv* env);
@@ -168,6 +167,21 @@ int register_com_android_bluetooth_csip_set_coordinator(JNIEnv* env);
 
 int register_com_android_bluetooth_btservice_BluetoothQualityReport(
     JNIEnv* env);
-}  // namespace android
 
-#endif /* COM_ANDROID_BLUETOOTH_H */
+struct JNIJavaMethod {
+    const char* name;
+    const char* signature;
+    jmethodID* id;
+    bool is_static{false};
+};
+
+void jniGetMethodsOrDie(JNIEnv* env, const char* className,
+                        const JNIJavaMethod* methods, int nMethods);
+
+#define REGISTER_NATIVE_METHODS(env, classname, methodsArray) \
+    jniRegisterNativeMethods(env, classname, methodsArray, NELEM(methodsArray))
+
+#define GET_JAVA_METHODS(env, classname, methodsArray) \
+    jniGetMethodsOrDie(env, classname, methodsArray, NELEM(methodsArray))
+
+}  // namespace android

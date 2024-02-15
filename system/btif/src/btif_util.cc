@@ -32,12 +32,11 @@
 
 #include <base/logging.h>
 #include <ctype.h>
+#include <hardware/bt_av.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <hardware/bt_av.h>
 
 #include "avrc_defs.h"
 #include "bta_ag_api.h"
@@ -48,7 +47,6 @@
 #include "bta_hh_api.h"
 #include "btif_common.h"
 #include "btif_dm.h"
-#include "btu.h"
 
 /*******************************************************************************
  *  Constants & Macros
@@ -59,20 +57,22 @@
  *   Logging helper functions
  ****************************************************************************/
 
-uint32_t devclass2uint(DEV_CLASS dev_class) {
+uint32_t devclass2uint(const DEV_CLASS dev_class) {
   uint32_t cod = 0;
 
-  if (dev_class != NULL) {
+  if (dev_class != kDevClassEmpty) {
     /* if COD is 0, irrespective of the device type set it to Unclassified
      * device */
     cod = (dev_class[2]) | (dev_class[1] << 8) | (dev_class[0] << 16);
   }
   return cod;
 }
-void uint2devclass(uint32_t cod, DEV_CLASS dev_class) {
+DEV_CLASS uint2devclass(uint32_t cod) {
+  DEV_CLASS dev_class;
   dev_class[2] = (uint8_t)cod;
   dev_class[1] = (uint8_t)(cod >> 8);
   dev_class[0] = (uint8_t)(cod >> 16);
+  return dev_class;
 }
 
 /*****************************************************************************
@@ -116,6 +116,7 @@ const char* dump_dm_search_event(uint16_t event) {
     CASE_RETURN_STR(BTA_DM_DISC_CMPL_EVT)
     CASE_RETURN_STR(BTA_DM_SEARCH_CANCEL_CMPL_EVT)
     CASE_RETURN_STR(BTA_DM_GATT_OVER_SDP_RES_EVT)
+    CASE_RETURN_STR(BTA_DM_NAME_READ_EVT)
 
     default:
       return "UNKNOWN MSG ID";
@@ -160,6 +161,8 @@ const char* dump_dm_event(uint16_t event) {
     CASE_RETURN_STR(BTA_DM_BLE_AUTH_CMPL_EVT)
     CASE_RETURN_STR(BTA_DM_DEV_UNPAIRED_EVT)
     CASE_RETURN_STR(BTA_DM_ENER_INFO_READ)
+    CASE_RETURN_STR(BTA_DM_SIRK_VERIFICATION_REQ_EVT)
+    CASE_RETURN_STR(BTA_DM_KEY_MISSING_EVT)
 
     default:
       return "UNKNOWN DM EVENT";
@@ -216,6 +219,7 @@ const char* dump_hf_client_event(uint16_t event) {
     CASE_RETURN_STR(BTA_HF_CLIENT_CONN_EVT)
     CASE_RETURN_STR(BTA_HF_CLIENT_AUDIO_OPEN_EVT)
     CASE_RETURN_STR(BTA_HF_CLIENT_AUDIO_MSBC_OPEN_EVT)
+    CASE_RETURN_STR(BTA_HF_CLIENT_AUDIO_LC3_OPEN_EVT)
     CASE_RETURN_STR(BTA_HF_CLIENT_AUDIO_CLOSE_EVT)
     CASE_RETURN_STR(BTA_HF_CLIENT_SPK_EVT)
     CASE_RETURN_STR(BTA_HF_CLIENT_MIC_EVT)

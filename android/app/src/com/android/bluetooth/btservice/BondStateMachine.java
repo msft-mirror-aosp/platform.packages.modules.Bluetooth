@@ -38,6 +38,7 @@ import com.android.bluetooth.Utils;
 import com.android.bluetooth.a2dp.A2dpService;
 import com.android.bluetooth.a2dpsink.A2dpSinkService;
 import com.android.bluetooth.btservice.RemoteDevices.DeviceProperties;
+import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.hfp.HeadsetService;
 import com.android.bluetooth.hfpclient.HeadsetClientService;
 import com.android.bluetooth.hid.HidHostService;
@@ -89,6 +90,9 @@ final class BondStateMachine extends StateMachine {
     public static final String OOBDATAP192 = "oobdatap192";
     public static final String OOBDATAP256 = "oobdatap256";
     public static final String DISPLAY_PASSKEY = "display_passkey";
+    public static final String DELAY_RETRY_COUNT = "delay_retry_count";
+    public static final short DELAY_MAX_RETRIES = 30;
+    public static final int BOND_RETRY_DELAY_MS = 500;
 
     @VisibleForTesting Set<BluetoothDevice> mPendingBondedDevices = new HashSet<>();
 
@@ -141,6 +145,41 @@ final class BondStateMachine extends StateMachine {
             switch (msg.what) {
 
                 case CREATE_BOND:
+                    /* BOND_BONDED event is send after keys are exchanged, but BTIF layer would
+                    still use bonding control blocks until service discovery is finished. If
+                    next pairing is started while previous still makes service discovery, it
+                    would fail. Check the busy status of BTIF instead, and wait with starting
+                    the bond. */
+                    if (Flags.delayBondingWhenBusy()
+                            && mAdapterService.getNative().pairingIsBusy()) {
+                        short retry_no =
+                                (msg.getData() != null)
+                                        ? msg.getData().getShort(DELAY_RETRY_COUNT)
+                                        : 0;
+                        Log.d(
+                                TAG,
+                                "Delay CREATE_BOND because native is busy - attempt no "
+                                        + retry_no);
+
+                        if (retry_no < DELAY_MAX_RETRIES) {
+                            retry_no++;
+
+                            Message new_msg = obtainMessage();
+                            new_msg.copyFrom(msg);
+
+                            if (new_msg.getData() == null) {
+                                Bundle bundle = new Bundle();
+                                new_msg.setData(bundle);
+                            }
+                            new_msg.getData().putShort(DELAY_RETRY_COUNT, retry_no);
+
+                            sendMessageDelayed(new_msg, BOND_RETRY_DELAY_MS);
+                            return true;
+                        } else {
+                            Log.w(TAG, "Native was busy - the bond will most likely fail!");
+                        }
+                    }
+
                     OobData p192Data = (msg.getData() != null)
                             ? msg.getData().getParcelable(OOBDATAP192) : null;
                     OobData p256Data = (msg.getData() != null)
@@ -250,6 +289,11 @@ final class BondStateMachine extends StateMachine {
                     }
                     break;
                 case SSP_REQUEST:
+                    if (devProp == null) {
+                        errorLog("devProp is null, maybe the device is disconnected");
+                        break;
+                    }
+
                     int passkey = msg.arg1;
                     int variant = msg.arg2;
                     boolean displayPasskey =
@@ -262,10 +306,16 @@ final class BondStateMachine extends StateMachine {
                             variant);
                     break;
                 case PIN_REQUEST:
+                    if (devProp == null) {
+                        errorLog("devProp is null, maybe the device is disconnected");
+                        break;
+                    }
+
                     BluetoothClass btClass = dev.getBluetoothClass();
-                    int btDeviceClass = btClass.getDeviceClass();
-                    if (btDeviceClass == BluetoothClass.Device.PERIPHERAL_KEYBOARD || btDeviceClass
-                            == BluetoothClass.Device.PERIPHERAL_KEYBOARD_POINTING) {
+                    int btDeviceClass = btClass == null ? 0 : btClass.getDeviceClass();
+                    if (btDeviceClass == BluetoothClass.Device.PERIPHERAL_KEYBOARD
+                            || btDeviceClass
+                                    == BluetoothClass.Device.PERIPHERAL_KEYBOARD_POINTING) {
                         // Its a keyboard. Follow the HID spec recommendation of creating the
                         // passkey and displaying it to the user. If the keyboard doesn't follow
                         // the spec recommendation, check if the keyboard has a fixed PIN zero
@@ -310,7 +360,7 @@ final class BondStateMachine extends StateMachine {
     private boolean cancelBond(BluetoothDevice dev) {
         if (dev.getBondState() == BluetoothDevice.BOND_BONDING) {
             byte[] addr = Utils.getBytesFromAddress(dev.getAddress());
-            if (!mAdapterService.cancelBondNative(addr)) {
+            if (!mAdapterService.getNative().cancelBond(addr)) {
                 Log.e(TAG, "Unexpected error while cancelling bond:");
             } else {
                 return true;
@@ -323,7 +373,7 @@ final class BondStateMachine extends StateMachine {
         DeviceProperties devProp = mRemoteDevices.getDeviceProperties(dev);
         if (devProp != null && devProp.getBondState() == BluetoothDevice.BOND_BONDED) {
             byte[] addr = Utils.getBytesFromAddress(dev.getAddress());
-            if (!mAdapterService.removeBondNative(addr)) {
+            if (!mAdapterService.getNative().removeBond(addr)) {
                 Log.e(TAG, "Unexpected error while removing bond:");
             } else {
                 if (transition) {
@@ -332,6 +382,14 @@ final class BondStateMachine extends StateMachine {
                 return true;
             }
         }
+
+        Log.w(
+                TAG,
+                dev.getAddressForLogging()
+                        + " cannot be removed since "
+                        + ((devProp == null)
+                                ? "properties are empty"
+                                : "bond state is " + devProp.getBondState()));
         return false;
     }
 
@@ -342,7 +400,7 @@ final class BondStateMachine extends StateMachine {
     private boolean createBond(BluetoothDevice dev, int transport, OobData remoteP192Data,
             OobData remoteP256Data, boolean transition) {
         if (dev.getBondState() == BluetoothDevice.BOND_NONE) {
-            infoLog("Bond address is:" + dev);
+            infoLog("Bond address is:" + dev + ", transport is: " + transport);
             byte[] addr = Utils.getBytesFromAddress(dev.getAddress());
             int addrType = dev.getAddressType();
             boolean result;
@@ -353,15 +411,18 @@ final class BondStateMachine extends StateMachine {
                       BluetoothDevice.BOND_BONDING,
                       BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_START_PAIRING_OOB,
                       BluetoothProtoEnums.UNBOND_REASON_UNKNOWN, mAdapterService.getMetricId(dev));
-                result = mAdapterService.createBondOutOfBandNative(addr, transport,
-                    remoteP192Data, remoteP256Data);
+                result =
+                        mAdapterService
+                                .getNative()
+                                .createBondOutOfBand(
+                                        addr, transport, remoteP192Data, remoteP256Data);
             } else {
                 BluetoothStatsLog.write(BluetoothStatsLog.BLUETOOTH_BOND_STATE_CHANGED,
                       mAdapterService.obfuscateAddress(dev), transport, dev.getType(),
                       BluetoothDevice.BOND_BONDING,
                       BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_START_PAIRING,
                       BluetoothProtoEnums.UNBOND_REASON_UNKNOWN, mAdapterService.getMetricId(dev));
-                result = mAdapterService.createBondNative(addr, addrType, transport);
+                result = mAdapterService.getNative().createBond(addr, addrType, transport);
             }
             BluetoothStatsLog.write(BluetoothStatsLog.BLUETOOTH_DEVICE_NAME_REPORTED,
                     mAdapterService.getMetricId(dev), dev.getName());
@@ -473,6 +534,7 @@ final class BondStateMachine extends StateMachine {
             }
         }
 
+        mAdapterService.handleBondStateChanged(device, oldState, newState);
         Intent intent = new Intent(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.putExtra(BluetoothDevice.EXTRA_BOND_STATE, newState);
@@ -522,7 +584,7 @@ final class BondStateMachine extends StateMachine {
         if (bdDevice == null) {
             mRemoteDevices.addDeviceProperties(address);
         }
-        infoLog("sspRequestCallback: " + Arrays.toString(address)
+        infoLog("sspRequestCallback: " + Utils.getRedactedAddressStringFromByte(address)
                 + " name: " + Arrays.toString(name)
                 + " cod: " + cod
                 + " pairingVariant " + pairingVariant

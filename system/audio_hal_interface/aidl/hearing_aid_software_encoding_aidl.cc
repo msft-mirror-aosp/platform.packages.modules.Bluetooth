@@ -20,7 +20,7 @@
 
 #include "audio_hearing_aid_hw/include/audio_hearing_aid_hw.h"
 #include "client_interface_aidl.h"
-#include "osi/include/log.h"
+#include "os/log.h"
 #include "osi/include/properties.h"
 
 namespace {
@@ -29,6 +29,7 @@ using ::aidl::android::hardware::bluetooth::audio::ChannelMode;
 using ::aidl::android::hardware::bluetooth::audio::CodecType;
 using ::bluetooth::audio::aidl::AudioConfiguration;
 using ::bluetooth::audio::aidl::BluetoothAudioCtrlAck;
+using ::bluetooth::audio::aidl::LatencyMode;
 using ::bluetooth::audio::aidl::PcmConfiguration;
 using ::bluetooth::audio::aidl::SessionType;
 using ::bluetooth::audio::aidl::hearing_aid::StreamCallbacks;
@@ -74,7 +75,7 @@ class HearingAidTransport
     }
   }
 
-  void SetLowLatency(bool is_low_latency) override {}
+  void SetLatencyMode(LatencyMode latency_mode) override {}
 
   bool GetPresentationPosition(uint64_t* remote_delay_report_ns,
                                uint64_t* total_bytes_read,
@@ -97,20 +98,20 @@ class HearingAidTransport
   }
 
   void SourceMetadataChanged(
-      const source_metadata_t& source_metadata) override {
+      const source_metadata_v7_t& source_metadata) override {
     auto track_count = source_metadata.track_count;
     auto tracks = source_metadata.tracks;
     LOG(INFO) << __func__ << ": " << track_count << " track(s) received";
     while (track_count) {
-      VLOG(1) << __func__ << ": usage=" << tracks->usage
-              << ", content_type=" << tracks->content_type
-              << ", gain=" << tracks->gain;
+      VLOG(1) << __func__ << ": usage=" << tracks->base.usage
+              << ", content_type=" << tracks->base.content_type
+              << ", gain=" << tracks->base.gain;
       --track_count;
       ++tracks;
     }
   }
 
-  void SinkMetadataChanged(const sink_metadata_t&) override {}
+  void SinkMetadataChanged(const sink_metadata_v7_t&) override {}
 
   void ResetPresentationPosition() override {
     VLOG(2) << __func__ << ": called.";
@@ -178,7 +179,7 @@ namespace hearing_aid {
 bool is_hal_enabled() { return hearing_aid_hal_clientinterface != nullptr; }
 
 bool init(StreamCallbacks stream_cb,
-          bluetooth::common::MessageLoopThread* message_loop) {
+          bluetooth::common::MessageLoopThread* /*message_loop*/) {
   LOG(INFO) << __func__;
 
   if (is_hal_force_disabled()) {
@@ -195,7 +196,7 @@ bool init(StreamCallbacks stream_cb,
   hearing_aid_sink = new HearingAidTransport(std::move(stream_cb));
   hearing_aid_hal_clientinterface =
       new bluetooth::audio::aidl::BluetoothAudioSinkClientInterface(
-          hearing_aid_sink, message_loop);
+          hearing_aid_sink);
   if (!hearing_aid_hal_clientinterface->IsValid()) {
     LOG(WARNING) << __func__
                  << ": BluetoothAudio HAL for Hearing Aid is invalid?!";

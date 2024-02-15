@@ -30,31 +30,31 @@
 #include <base/functional/bind.h>
 #include <base/logging.h>
 #include <base/threading/thread.h>
-#include <errno.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_gatt.h>
+#include <hardware/bt_gatt_types.h>
 
 #include <string>
 
+#include "bta/include/bta_sec_api.h"
 #include "bta_api.h"
 #include "bta_gatt_api.h"
 #include "btif_common.h"
 #include "btif_config.h"
-#include "btif_dm.h"
 #include "btif_gatt.h"
 #include "btif_gatt_util.h"
-#include "btif_storage.h"
-#include "btif_util.h"
 #include "device/include/controller.h"
+#include "include/check.h"
+#include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/log.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/acl_api_types.h"
-#include "stack/include/btu.h"
+#include "stack/include/main_thread.h"
+#include "storage/config_keys.h"
+#include "types/ble_address_with_type.h"
 #include "types/bluetooth/uuid.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
-#include "vendor_api.h"
 
 using base::Bind;
 using base::Owned;
@@ -71,20 +71,20 @@ extern const btgatt_callbacks_t* bt_gatt_callbacks;
 /*******************************************************************************
  *  Constants & Macros
  ******************************************************************************/
-#define CLI_CBACK_WRAP_IN_JNI(P_CBACK, P_CBACK_WRAP)                 \
-  do {                                                               \
-    if (bt_gatt_callbacks && bt_gatt_callbacks->client->P_CBACK) {   \
-      BTIF_TRACE_API("HAL bt_gatt_callbacks->client->%s", #P_CBACK); \
-      do_in_jni_thread(P_CBACK_WRAP);                                \
-    } else {                                                         \
-      ASSERTC(0, "Callback is NULL", 0);                             \
-    }                                                                \
+#define CLI_CBACK_WRAP_IN_JNI(P_CBACK, P_CBACK_WRAP)               \
+  do {                                                             \
+    if (bt_gatt_callbacks && bt_gatt_callbacks->client->P_CBACK) { \
+      LOG_VERBOSE("HAL bt_gatt_callbacks->client->%s", #P_CBACK);  \
+      do_in_jni_thread(P_CBACK_WRAP);                              \
+    } else {                                                       \
+      ASSERTC(0, "Callback is NULL", 0);                           \
+    }                                                              \
   } while (0)
 
 #define CLI_CBACK_IN_JNI(P_CBACK, ...)                                         \
   do {                                                                         \
     if (bt_gatt_callbacks && bt_gatt_callbacks->client->P_CBACK) {             \
-      BTIF_TRACE_API("HAL bt_gatt_callbacks->client->%s", #P_CBACK);           \
+      LOG_VERBOSE("HAL bt_gatt_callbacks->client->%s", #P_CBACK);              \
       do_in_jni_thread(Bind(bt_gatt_callbacks->client->P_CBACK, __VA_ARGS__)); \
     } else {                                                                   \
       ASSERTC(0, "Callback is NULL", 0);                                       \
@@ -298,7 +298,7 @@ void btif_gattc_open_impl(int client_if, RawAddress address,
     // Check for privacy 1.0 and 1.1 controller and do not start background
     // connection if RPA offloading is not supported, since it will not
     // connect after change of random address
-    if (!controller_get_interface()->supports_ble_privacy() &&
+    if (!controller_get_interface()->SupportsBlePrivacy() &&
         (addr_type == BLE_ADDR_RANDOM) && BTM_BLE_IS_RESOLVE_BDA(address)) {
       tBTM_BLE_VSC_CB vnd_capabilities;
       BTM_BleGetVendorCapabilities(&vnd_capabilities);
@@ -421,7 +421,7 @@ void read_char_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
   params->status = status;
   params->handle = handle;
   params->value.len = len;
-  CHECK(len <= BTGATT_MAX_ATTR_LEN);
+  CHECK(len <= GATT_MAX_ATTR_LEN);
   if (len > 0) memcpy(params->value.value, value, len);
 
   // clang-tidy analyzer complains about |params| is leaked.  It doesn't know
@@ -445,7 +445,7 @@ void read_using_char_uuid_cb(uint16_t conn_id, tGATT_STATUS status,
   params->status = status;
   params->handle = handle;
   params->value.len = len;
-  CHECK(len <= BTGATT_MAX_ATTR_LEN);
+  CHECK(len <= GATT_MAX_ATTR_LEN);
   if (len > 0) memcpy(params->value.value, value, len);
 
   // clang-tidy analyzer complains about |params| is leaked.  It doesn't know
@@ -472,7 +472,7 @@ void read_desc_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
   params.status = status;
   params.handle = handle;
   params.value.len = len;
-  CHECK(len <= BTGATT_MAX_ATTR_LEN);
+  CHECK(len <= GATT_MAX_ATTR_LEN);
   if (len > 0) memcpy(params.value.value, value, len);
 
   CLI_CBACK_IN_JNI(read_descriptor_cb, conn_id, status, params);
@@ -507,7 +507,7 @@ static bt_status_t btif_gattc_write_char(int conn_id, uint16_t handle,
 
   std::vector<uint8_t> value(val, val + len);
 
-  if (value.size() > BTGATT_MAX_ATTR_LEN) value.resize(BTGATT_MAX_ATTR_LEN);
+  if (value.size() > GATT_MAX_ATTR_LEN) value.resize(GATT_MAX_ATTR_LEN);
 
   return do_in_jni_thread(Bind(&BTA_GATTC_WriteCharValue, conn_id, handle,
                                write_type, std::move(value), auth_req,
@@ -537,7 +537,7 @@ static bt_status_t btif_gattc_write_char_descr(int conn_id, uint16_t handle,
 
   std::vector<uint8_t> value(val, val + len);
 
-  if (value.size() > BTGATT_MAX_ATTR_LEN) value.resize(BTGATT_MAX_ATTR_LEN);
+  if (value.size() > GATT_MAX_ATTR_LEN) value.resize(GATT_MAX_ATTR_LEN);
 
   return do_in_jni_thread(Bind(&BTA_GATTC_WriteCharDescr, conn_id, handle,
                                std::move(value), auth_req, write_descr_cb,
@@ -652,7 +652,8 @@ static bt_status_t btif_gattc_read_phy(
 static int btif_gattc_get_device_type(const RawAddress& bd_addr) {
   int device_type = 0;
 
-  if (btif_config_get_int(bd_addr.ToString().c_str(), "DevType", &device_type))
+  if (btif_config_get_int(bd_addr.ToString().c_str(), BTIF_STORAGE_KEY_DEV_TYPE,
+                          &device_type))
     return device_type;
   return 0;
 }

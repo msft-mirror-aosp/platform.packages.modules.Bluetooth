@@ -18,16 +18,11 @@
 #include <gtest/gtest.h>
 
 #include <cstring>
-#include <map>
 #include <utility>
 
-#include "osi/include/log.h"
 #include "stack/include/hcidefs.h"
 #include "stack/include/l2cdefs.h"
 #include "test/common/mock_functions.h"
-#include "test/mock/mock_hcic_hcicmds.h"
-
-namespace mock = test::mock::hcic_hcicmds;
 
 using testing::_;
 using testing::DoAll;

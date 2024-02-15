@@ -16,6 +16,7 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_name" msgid="2326164424236203271">"Bluetooth"</string>
     <string name="permlab_bluetoothShareManager" msgid="5297865456717871041">"ჩამოტვირთვების მენეჯერზე წვდომა."</string>
     <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"ანიჭებს აპს BluetoothShare მენეჯერზე წვდომას და მისი გამოყენების უფლებას ფაილების გასაგზავნად."</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"შეიყვანეთ Bluetooth მოწყობილობის წვდომა მისაღებ სიაში."</string>
@@ -100,7 +101,6 @@
     <string name="status_connection_error" msgid="8253709700568062220">"კავშირი ვერ განხორციელდა."</string>
     <string name="status_protocol_error" msgid="3231573735130475654">"მოთხოვნის სწორად დამუშავება ვერ ხერხდება."</string>
     <string name="status_unknown_error" msgid="314676481744304866">"უცნობი შეცდომა."</string>
-    <string name="btopp_live_folder" msgid="4859989703965326287">"Bluetooth-ით მიღებული"</string>
     <string name="opp_notification_group" msgid="150067508422520653">"Bluetooth გაზიარება"</string>
     <string name="download_success" msgid="3438268368708549686">"<xliff:g id="FILE_SIZE">%1$s</xliff:g> მიღება დასრულდა."</string>
     <string name="upload_success" msgid="143787470859042049">"<xliff:g id="FILE_SIZE">%1$s</xliff:g> გაგზავნა დასრულდა."</string>

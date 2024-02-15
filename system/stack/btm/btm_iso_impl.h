@@ -21,29 +21,30 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <set>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
-#include "bind_helpers.h"
 #include "btm_dev.h"
 #include "btm_iso_api.h"
 #include "common/time_util.h"
 #include "device/include/controller.h"
 #include "hci/include/hci_layer.h"
+#include "internal_include/bt_trace.h"
 #include "internal_include/stack_config.h"
+#include "main/shim/hci_layer.h"
+#include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/log.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/bt_types.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hcidefs.h"
+#include "stack/include/hcimsgs.h"
 
 namespace bluetooth {
 namespace hci {
 namespace iso_manager {
-static constexpr uint8_t kIsoDataInTsBtHdrOffset = 0x0C;
 static constexpr uint8_t kIsoHeaderWithTsLen = 12;
 static constexpr uint8_t kIsoHeaderWithoutTsLen = 8;
 
@@ -56,7 +57,6 @@ static constexpr uint8_t kStateFlagIsBroadcast = 0x10;
 constexpr char kBtmLogTag[] = "ISO";
 
 struct iso_sync_info {
-  uint32_t first_sync_ts;
   uint16_t seq_nb;
 };
 
@@ -94,9 +94,11 @@ struct iso_impl {
   iso_impl() {
     iso_credits_ = controller_get_interface()->get_iso_buffer_count();
     iso_buffer_size_ = controller_get_interface()->get_iso_data_size();
+    log::info("{} created, iso credits: {}, buffer size: {}.", fmt::ptr(this),
+              iso_credits_.load(), iso_buffer_size_);
   }
 
-  ~iso_impl() {}
+  ~iso_impl() { log::info("{} removed.", fmt::ptr(this)); }
 
   void handle_register_cis_callbacks(CigCallbacks* callbacks) {
     LOG_ASSERT(callbacks != nullptr) << "Invalid CIG callbacks";
@@ -161,7 +163,7 @@ struct iso_impl {
         auto cis = std::unique_ptr<iso_cis>(new iso_cis());
         cis->cig_id = cig_id;
         cis->sdu_itv = sdu_itv_mtos;
-        cis->sync_info = {.first_sync_ts = 0, .seq_nb = 0};
+        cis->sync_info = {.seq_nb = 0};
         cis->used_credits = 0;
         cis->state_flags = kStateFlagsNone;
         conn_hdl_to_cis_map_[conn_handle] = std::move(cis);
@@ -189,7 +191,7 @@ struct iso_impl {
         cig_params.sca, cig_params.packing, cig_params.framing,
         cig_params.max_trans_lat_stom, cig_params.max_trans_lat_mtos,
         cig_params.cis_cfgs.size(), cig_params.cis_cfgs.data(),
-        base::BindOnce(&iso_impl::on_set_cig_params, base::Unretained(this),
+        base::BindOnce(&iso_impl::on_set_cig_params, weak_factory_.GetWeakPtr(),
                        cig_id, cig_params.sdu_itv_mtos));
 
     BTM_LogHistory(
@@ -207,7 +209,7 @@ struct iso_impl {
         cig_params.sca, cig_params.packing, cig_params.framing,
         cig_params.max_trans_lat_stom, cig_params.max_trans_lat_mtos,
         cig_params.cis_cfgs.size(), cig_params.cis_cfgs.data(),
-        base::BindOnce(&iso_impl::on_set_cig_params, base::Unretained(this),
+        base::BindOnce(&iso_impl::on_set_cig_params, weak_factory_.GetWeakPtr(),
                        cig_id, cig_params.sdu_itv_mtos));
   }
 
@@ -251,11 +253,11 @@ struct iso_impl {
     if (!force) {
       LOG_ASSERT(IsCigKnown(cig_id)) << "No such cig: " << +cig_id;
     } else {
-      LOG_WARN("Forcing to remove CIG %d", cig_id);
+      log::warn("Forcing to remove CIG {}", cig_id);
     }
 
     btsnd_hcic_remove_cig(cig_id, base::BindOnce(&iso_impl::on_remove_cig,
-                                                 base::Unretained(this)));
+                                                 weak_factory_.GetWeakPtr()));
     BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "CIG Remove",
                    base::StringPrintf("cig_id:0x%02x (f:%d)", cig_id, force));
   }
@@ -300,7 +302,10 @@ struct iso_impl {
       LOG_ASSERT(cis) << "No such cis: " << +el.cis_conn_handle;
       LOG_ASSERT(!(cis->state_flags &
                    (kStateFlagIsConnected | kStateFlagIsConnecting)))
-          << "Already connected or connecting";
+          << "cis: " << +el.cis_conn_handle
+          << " is already connected or connecting flags: " << +cis->state_flags
+          << ", num of cis params: " << +conn_params.conn_pairs.size();
+
       cis->state_flags |= kStateFlagIsConnecting;
 
       tBTM_SEC_DEV_REC* p_rec = btm_find_dev_by_handle(el.acl_conn_handle);
@@ -310,10 +315,10 @@ struct iso_impl {
                        base::StringPrintf("handle:0x%04x", el.acl_conn_handle));
       }
     }
-    btsnd_hcic_create_cis(conn_params.conn_pairs.size(),
-                          conn_params.conn_pairs.data(),
-                          base::BindOnce(&iso_impl::on_status_establish_cis,
-                                         base::Unretained(this), conn_params));
+    btsnd_hcic_create_cis(
+        conn_params.conn_pairs.size(), conn_params.conn_pairs.data(),
+        base::BindOnce(&iso_impl::on_status_establish_cis,
+                       weak_factory_.GetWeakPtr(), conn_params));
   }
 
   void disconnect_cis(uint16_t cis_handle, uint8_t reason) {
@@ -342,7 +347,7 @@ struct iso_impl {
     if (iso == nullptr) {
       /* That can happen when ACL has been disconnected while ISO patch was
        * creating */
-      LOG(WARNING) << __func__ << "Invalid connection handle: " << +conn_handle;
+      log::warn("Invalid connection handle: {}", +conn_handle);
       return;
     }
 
@@ -379,7 +384,7 @@ struct iso_impl {
         path_params.codec_id_vendor, path_params.controller_delay,
         std::move(path_params.codec_conf),
         base::BindOnce(&iso_impl::on_setup_iso_data_path,
-                       base::Unretained(this)));
+                       weak_factory_.GetWeakPtr()));
     BTM_LogHistory(
         kBtmLogTag, cis_hdl_to_addr[conn_handle], "Setup data path",
         base::StringPrintf(
@@ -393,7 +398,7 @@ struct iso_impl {
     uint16_t conn_handle;
 
     if (len < 3) {
-      LOG(WARNING) << __func__ << "Malformatted packet received";
+      log::warn("Malformatted packet received");
       return;
     }
     STREAM_TO_UINT8(status, stream);
@@ -403,7 +408,7 @@ struct iso_impl {
     if (iso == nullptr) {
       /* That could happen when ACL has been disconnected while removing data
        * path */
-      LOG(WARNING) << __func__ << "Invalid connection handle: " << +conn_handle;
+      log::warn("Invalid connection handle: {}", +conn_handle);
       return;
     }
 
@@ -434,7 +439,8 @@ struct iso_impl {
     btsnd_hcic_remove_iso_data_path(
         iso_handle, data_path_dir,
         base::BindOnce(&iso_impl::on_remove_iso_data_path,
-                       base::Unretained(this)));
+                       weak_factory_.GetWeakPtr()));
+
     BTM_LogHistory(kBtmLogTag, cis_hdl_to_addr[iso_handle], "Remove data path",
                    base::StringPrintf("handle:0x%04x, dir:0x%02x", iso_handle,
                                       data_path_dir));
@@ -454,14 +460,13 @@ struct iso_impl {
     // 1 + 2 + 4 * 7
 #define ISO_LINK_QUALITY_SIZE 31
     if (len < ISO_LINK_QUALITY_SIZE) {
-      LOG(ERROR) << "Malformated link quality format, len=" << len;
+      log::error("Malformated link quality format, len={}", len);
       return;
     }
 
     STREAM_TO_UINT8(status, stream);
     if (status != HCI_SUCCESS) {
-      LOG(ERROR) << "Failed to Read ISO Link Quality, status: "
-                 << loghex(status);
+      log::error("Failed to Read ISO Link Quality, status: {}", loghex(status));
       return;
     }
 
@@ -471,7 +476,7 @@ struct iso_impl {
     if (iso == nullptr) {
       /* That could happen when ACL has been disconnected while waiting on the
        * read respose */
-      LOG(WARNING) << __func__ << "Invalid connection handle: " << +conn_handle;
+      log::warn("Invalid connection handle: {}", +conn_handle);
       return;
     }
 
@@ -493,19 +498,19 @@ struct iso_impl {
   void read_iso_link_quality(uint16_t iso_handle) {
     iso_base* iso = GetIsoIfKnown(iso_handle);
     if (iso == nullptr) {
-      LOG(ERROR) << __func__ << "No such iso connection: " << loghex(iso_handle);
+      log::error("No such iso connection: {}", loghex(iso_handle));
       return;
     }
 
     btsnd_hcic_read_iso_link_quality(
         iso_handle, base::BindOnce(&iso_impl::on_iso_link_quality_read,
-                                   base::Unretained(this)));
+                                   weak_factory_.GetWeakPtr()));
   }
 
-  BT_HDR* prepare_ts_hci_packet(uint16_t iso_handle, uint32_t ts,
-                                uint16_t seq_nb, uint16_t data_len) {
-    /* Add 2 for packet seq., 2 for length, 4 for the timestamp */
-    uint16_t iso_data_load_len = data_len + 8;
+  BT_HDR* prepare_hci_packet(uint16_t iso_handle, uint16_t seq_nb,
+                             uint16_t data_len) {
+    /* Add 2 for packet seq., 2 for length */
+    uint16_t iso_data_load_len = data_len + 4;
 
     /* Add 2 for handle, 2 for length */
     uint16_t iso_full_len = iso_data_load_len + 4;
@@ -519,17 +524,10 @@ struct iso_impl {
     UINT16_TO_STREAM(packet_data, iso_handle);
     UINT16_TO_STREAM(packet_data, iso_data_load_len);
 
-    packet->layer_specific |= BT_ISO_HDR_CONTAINS_TS;
-    UINT32_TO_STREAM(packet_data, ts);
-
     UINT16_TO_STREAM(packet_data, seq_nb);
     UINT16_TO_STREAM(packet_data, data_len);
 
     return packet;
-  }
-
-  void send_iso_data_hci_packet(BT_HDR* packet) {
-    bte_main_hci_send(packet, MSG_STACK_TO_HC_HCI_ISO | 0x0001);
   }
 
   void send_iso_data(uint16_t iso_handle, const uint8_t* data,
@@ -540,22 +538,21 @@ struct iso_impl {
 
     if (!(iso->state_flags & kStateFlagIsBroadcast)) {
       if (!(iso->state_flags & kStateFlagIsConnected)) {
-        LOG(WARNING) << __func__ << "Cis handle: " << loghex(iso_handle)
-                     << " not established";
+        log::warn("Cis handle: {} not established", loghex(iso_handle));
         return;
       }
     }
 
     if (!(iso->state_flags & kStateFlagHasDataPathSet)) {
-      LOG_WARN("Data path not set for handle: 0x%04x", iso_handle);
+      log::warn("Data path not set for handle: 0x{:04x}", iso_handle);
       return;
     }
 
     /* Calculate sequence number for the ISO data packet.
      * It should be incremented by 1 every SDU Interval.
      */
-    uint32_t ts = bluetooth::common::time_get_os_boottime_us();
-    iso->sync_info.seq_nb = (ts - iso->sync_info.first_sync_ts) / iso->sdu_itv;
+    uint16_t seq_nb = iso->sync_info.seq_nb;
+    iso->sync_info.seq_nb = (seq_nb + 1) & 0xffff;
 
     if (iso_credits_ == 0 || data_len > iso_buffer_size_) {
       iso->cr_stats.credits_underflow_bytes += data_len;
@@ -563,20 +560,21 @@ struct iso_impl {
       iso->cr_stats.credits_last_underflow_us =
           bluetooth::common::time_get_os_boottime_us();
 
-      LOG(WARNING) << __func__ << ", dropping ISO packet, len: "
-                   << static_cast<int>(data_len)
-                   << ", iso credits: " << static_cast<int>(iso_credits_)
-                   << ", iso handle: " << loghex(iso_handle);
+      log::warn(
+          ", dropping ISO packet, len: {}, iso credits: {}, iso handle: {}",
+          static_cast<int>(data_len), static_cast<int>(iso_credits_),
+          loghex(iso_handle));
       return;
     }
 
     iso_credits_--;
     iso->used_credits++;
 
-    BT_HDR* packet =
-        prepare_ts_hci_packet(iso_handle, ts, iso->sync_info.seq_nb, data_len);
-    memcpy(packet->data + kIsoDataInTsBtHdrOffset, data, data_len);
-    send_iso_data_hci_packet(packet);
+    BT_HDR* packet = prepare_hci_packet(iso_handle, seq_nb, data_len);
+    memcpy(packet->data + kIsoHeaderWithoutTsLen, data, data_len);
+    auto hci = bluetooth::shim::hci_layer_get_interface();
+    packet->event = MSG_STACK_TO_HC_HCI_ISO | 0x0001;
+    hci->transmit_downward(packet, iso_buffer_size_);
   }
 
   void process_cis_est_pkt(uint8_t len, uint8_t* data) {
@@ -596,8 +594,6 @@ struct iso_impl {
                    base::StringPrintf(
                        "cis_handle:0x%04x status:%s", evt.cis_conn_hdl,
                        hci_error_code_text((tHCI_STATUS)(evt.status)).c_str()));
-
-    cis->sync_info.first_sync_ts = bluetooth::common::time_get_os_boottime_us();
 
     STREAM_TO_UINT24(evt.cig_sync_delay, data);
     STREAM_TO_UINT24(evt.cis_sync_delay, data);
@@ -633,7 +629,7 @@ struct iso_impl {
 
     LOG_ASSERT(cig_callbacks_ != nullptr) << "Invalid CIG callbacks";
 
-    LOG_INFO("%s flags: %d", __func__, +cis->state_flags);
+    log::info("flags: {}", +cis->state_flags);
 
     BTM_LogHistory(
         kBtmLogTag, cis_hdl_to_addr[handle], "CIS disconnected",
@@ -644,8 +640,8 @@ struct iso_impl {
     if (cis->state_flags & kStateFlagIsConnected) {
       cis_disconnected_evt evt = {
           .reason = reason,
-          .cis_conn_hdl = handle,
           .cig_id = cis->cig_id,
+          .cis_conn_hdl = handle,
       };
 
       cig_callbacks_->OnCisEvent(kIsoEventCisDisconnected, &evt);
@@ -730,18 +726,17 @@ struct iso_impl {
     LOG_ASSERT(len == (18 + num_bis * sizeof(uint16_t)))
         << "Invalid packet length: " << len << ". Number of bis: " << +num_bis;
 
-    uint32_t ts = bluetooth::common::time_get_os_boottime_us();
     for (auto i = 0; i < num_bis; ++i) {
       uint16_t conn_handle;
       STREAM_TO_UINT16(conn_handle, data);
       evt.conn_handles.push_back(conn_handle);
-      LOG_INFO(" received BIS conn_hdl %d", +conn_handle);
+      log::info(" received BIS conn_hdl {}", +conn_handle);
 
       if (evt.status == HCI_SUCCESS) {
         auto bis = std::unique_ptr<iso_bis>(new iso_bis());
         bis->big_handle = evt.big_id;
         bis->sdu_itv = last_big_create_req_sdu_itv_;
-        bis->sync_info = {.first_sync_ts = ts, .seq_nb = 0};
+        bis->sync_info = {.seq_nb = 0};
         bis->used_credits = 0;
         bis->state_flags = kStateFlagIsBroadcast;
         conn_hdl_to_bis_map_[conn_handle] = std::move(bis);
@@ -796,7 +791,7 @@ struct iso_impl {
         << "Invalid big - already exists: " << +big_id;
 
     if (stack_config_get_interface()->get_pts_unencrypt_broadcast()) {
-      LOG_INFO("Force create broadcst without encryption for PTS test");
+      log::info("Force create broadcst without encryption for PTS test");
       big_params.enc = 0;
       big_params.enc_code = {0};
     }
@@ -836,7 +831,7 @@ struct iso_impl {
         /* Not supported */
         break;
       default:
-        LOG_ERROR("Unhandled event code %d", +code);
+        log::error("Unhandled event code {}", +code);
     }
   }
 
@@ -857,7 +852,7 @@ struct iso_impl {
 
     iso_base* iso = GetCisIfKnown(evt.cis_conn_hdl);
     if (iso == nullptr) {
-      LOG(ERROR) << __func__ << ", received data for the non-registered CIS!";
+      log::error(", received data for the non-registered CIS!");
       return;
     }
 
@@ -870,34 +865,18 @@ struct iso_impl {
 
     STREAM_TO_UINT16(seq_nb, stream);
 
-    uint32_t ts = bluetooth::common::time_get_os_boottime_us();
-    uint32_t new_calc_seq_nb =
-        (ts - iso->sync_info.first_sync_ts) / iso->sdu_itv;
-    if (new_calc_seq_nb <= iso->sync_info.seq_nb)
-      new_calc_seq_nb = iso->sync_info.seq_nb + 1;
+    uint16_t expected_seq_nb = iso->sync_info.seq_nb;
+    iso->sync_info.seq_nb = (seq_nb + 1) & 0xffff;
 
-    if (iso->sync_info.seq_nb == 0) {
-      evt.evt_lost = 0;
-    } else {
-      evt.evt_lost = new_calc_seq_nb - iso->sync_info.seq_nb - 1;
-      if (evt.evt_lost > 0) {
-        iso->evt_stats.evt_lost_count += evt.evt_lost;
-        iso->evt_stats.evt_last_lost_us =
-            bluetooth::common::time_get_os_boottime_us();
+    evt.evt_lost = ((1 << 16) + seq_nb - expected_seq_nb) & 0xffff;
+    if (evt.evt_lost > 0) {
+      iso->evt_stats.evt_lost_count += evt.evt_lost;
+      iso->evt_stats.evt_last_lost_us =
+          bluetooth::common::time_get_os_boottime_us();
 
-        LOG(WARNING) << evt.evt_lost << " packets possibly lost.";
-      }
-
-      if (new_calc_seq_nb != seq_nb) {
-        LOG(WARNING) << "Sequence number mismatch. "
-                        "Adjusting own time reference point.";
-        iso->sync_info.first_sync_ts = ts - (seq_nb * iso->sdu_itv);
-        new_calc_seq_nb = seq_nb;
-
-        iso->evt_stats.seq_nb_mismatch_count++;
-      }
+      log::warn("{} packets lost.", evt.evt_lost);
+      iso->evt_stats.seq_nb_mismatch_count++;
     }
-    iso->sync_info.seq_nb = new_calc_seq_nb;
 
     evt.p_msg = p_msg;
     evt.cig_id = iso->cig_id;
@@ -1016,6 +995,7 @@ struct iso_impl {
   BigCallbacks* big_callbacks_ = nullptr;
   std::mutex on_iso_traffic_active_callbacks_list_mutex_;
   std::list<void (*)(bool)> on_iso_traffic_active_callbacks_list_;
+  base::WeakPtrFactory<iso_impl> weak_factory_{this};
 };
 
 }  // namespace iso_manager

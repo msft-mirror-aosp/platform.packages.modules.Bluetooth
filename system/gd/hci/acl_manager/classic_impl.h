@@ -16,17 +16,16 @@
 
 #pragma once
 
-#include <atomic>
 #include <memory>
-#include <unordered_set>
 
 #include "common/bind.h"
 #include "common/init_flags.h"
 #include "hci/acl_manager/acl_scheduler.h"
 #include "hci/acl_manager/assembler.h"
-#include "hci/acl_manager/event_checkers.h"
 #include "hci/acl_manager/round_robin_scheduler.h"
+#include "hci/class_of_device.h"
 #include "hci/controller.h"
+#include "hci/event_checkers.h"
 #include "hci/remote_name_request.h"
 #include "os/metrics.h"
 #include "security/security_manager_listener.h"
@@ -70,6 +69,7 @@ struct classic_impl : public security::ISecurityManagerListener {
     acl_connection_interface_ = hci_layer_->GetAclConnectionInterface(
         handler_->BindOn(this, &classic_impl::on_classic_event),
         handler_->BindOn(this, &classic_impl::on_classic_disconnect),
+        handler_->BindOn(this, &classic_impl::on_incoming_connection),
         handler_->BindOn(this, &classic_impl::on_read_remote_version_information));
   }
 
@@ -84,9 +84,6 @@ struct classic_impl : public security::ISecurityManagerListener {
     switch (event_code) {
       case EventCode::CONNECTION_COMPLETE:
         on_connection_complete(event_packet);
-        break;
-      case EventCode::CONNECTION_REQUEST:
-        on_incoming_connection(event_packet);
         break;
       case EventCode::CONNECTION_PACKET_TYPE_CHANGED:
         on_connection_packet_type_changed(event_packet);
@@ -243,10 +240,7 @@ struct classic_impl : public security::ISecurityManagerListener {
     return connections.send_packet_upward(handle, cb);
   }
 
-  void on_incoming_connection(EventView packet) {
-    ConnectionRequestView request = ConnectionRequestView::Create(packet);
-    ASSERT(request.IsValid());
-    Address address = request.GetBdAddr();
+  void on_incoming_connection(Address address, ClassOfDevice cod) {
     if (client_callbacks_ == nullptr) {
       LOG_ERROR("No callbacks to call");
       auto reason = RejectConnectionReason::LIMITED_RESOURCES;
@@ -254,37 +248,15 @@ struct classic_impl : public security::ISecurityManagerListener {
       return;
     }
 
-    switch (request.GetLinkType()) {
-      case ConnectionRequestLinkType::SCO:
-        client_handler_->CallOn(
-            client_callbacks_, &ConnectionCallbacks::HACK_OnScoConnectRequest, address, request.GetClassOfDevice());
-        return;
-
-      case ConnectionRequestLinkType::ACL:
-        // Need to upstream Cod information when getting connection_request
-        client_handler_->CallOn(
-            client_callbacks_,
-            &ConnectionCallbacks::OnConnectRequest,
-            address,
-            request.GetClassOfDevice());
-        break;
-
-      case ConnectionRequestLinkType::ESCO:
-        client_handler_->CallOn(
-            client_callbacks_, &ConnectionCallbacks::HACK_OnEscoConnectRequest, address, request.GetClassOfDevice());
-        return;
-
-      case ConnectionRequestLinkType::UNKNOWN:
-        LOG_ERROR("Request has unknown ConnectionRequestLinkType.");
-        return;
-    }
+    client_handler_->CallOn(
+        client_callbacks_, &ConnectionCallbacks::OnConnectRequest, address, cod);
 
     acl_scheduler_->RegisterPendingIncomingConnection(address);
 
     if (is_classic_link_already_connected(address)) {
       auto reason = RejectConnectionReason::UNACCEPTABLE_BD_ADDR;
       this->reject_connection(RejectConnectionRequestBuilder::Create(address, reason));
-    } else if (should_accept_connection_.Run(address, request.GetClassOfDevice())) {
+    } else if (should_accept_connection_.Run(address, cod)) {
       this->accept_connection(address);
     } else {
       auto reason = RejectConnectionReason::LIMITED_RESOURCES;  // TODO: determine reason
@@ -396,27 +368,6 @@ struct classic_impl : public security::ISecurityManagerListener {
     auto status = connection_complete.GetStatus();
     auto address = connection_complete.GetBdAddr();
 
-    // TODO(b/261610529) - Some controllers incorrectly return connection
-    // failures via HCI Connect Complete instead of SCO connect complete.
-    // Temporarily just drop these packets until we have finer grained control
-    // over these ASSERTs.
-#if TARGET_FLOSS
-    auto handle = connection_complete.GetConnectionHandle();
-    auto link_type = connection_complete.GetLinkType();
-
-    // HACK: Some failed SCO connections are reporting failures via
-    //       ConnectComplete instead of ScoConnectionComplete.
-    //       Drop such packets.
-    if (handle == 0xffff && link_type == LinkType::SCO) {
-      LOG_ERROR(
-          "ConnectionComplete with invalid handle(%u), link type(%u) and status(%d). Dropping packet.",
-          handle,
-          link_type,
-          status);
-      return;
-    }
-#endif
-
     acl_scheduler_->ReportAclConnectionCompletion(
         address,
         handler_->BindOnceOn(
@@ -446,12 +397,7 @@ struct classic_impl : public security::ISecurityManagerListener {
                   ADDRESS_TO_LOGGABLE_CSTR(address),
                   ErrorCodeText(status).c_str());
               LOG_WARN("Firmware error after RemoteNameRequestCancel?");  // see b/184239841
-              if (bluetooth::common::init_flags::gd_remote_name_request_is_enabled()) {
-                ASSERT_LOG(
-                    remote_name_request_module != nullptr,
-                    "RNR module enabled but module not provided");
-                remote_name_request_module->ReportRemoteNameRequestCancellation(address);
-              }
+              remote_name_request_module->ReportRemoteNameRequestCancellation(address);
             },
             common::Unretained(remote_name_request_module_),
             address,
@@ -473,7 +419,7 @@ struct classic_impl : public security::ISecurityManagerListener {
   void actually_cancel_connect(Address address) {
     std::unique_ptr<CreateConnectionCancelBuilder> packet = CreateConnectionCancelBuilder::Create(address);
     acl_connection_interface_->EnqueueCommand(
-        std::move(packet), handler_->BindOnce(&check_command_complete<CreateConnectionCancelCompleteView>));
+        std::move(packet), handler_->BindOnce(check_complete<CreateConnectionCancelCompleteView>));
   }
 
   static constexpr bool kRemoveConnectionAfterwards = true;
@@ -489,10 +435,6 @@ struct classic_impl : public security::ISecurityManagerListener {
           callbacks->OnDisconnection(reason);
         },
         kRemoveConnectionAfterwards);
-    // This handle is probably for SCO, so we use the callback workaround.
-    if (non_acl_disconnect_callback_ != nullptr) {
-      non_acl_disconnect_callback_(handle, static_cast<uint8_t>(reason));
-    }
     connections.crash_on_unknown_handle_ = event_also_routes_to_other_receivers;
   }
 
@@ -508,7 +450,7 @@ struct classic_impl : public security::ISecurityManagerListener {
       return;
     }
     uint16_t handle = packet_type_changed.GetConnectionHandle();
-    connections.execute(handle, [=](ConnectionManagementCallbacks* callbacks) {
+    connections.execute(handle, [=](ConnectionManagementCallbacks* /* callbacks */) {
       // We don't handle this event; we didn't do this in legacy stack either.
     });
   }
@@ -757,20 +699,21 @@ struct classic_impl : public security::ISecurityManagerListener {
   void central_link_key(KeyFlag key_flag) {
     std::unique_ptr<CentralLinkKeyBuilder> packet = CentralLinkKeyBuilder::Create(key_flag);
     acl_connection_interface_->EnqueueCommand(
-        std::move(packet), handler_->BindOnce(&check_command_status<CentralLinkKeyStatusView>));
+        std::move(packet), handler_->BindOnce(check_status<CentralLinkKeyStatusView>));
   }
 
   void switch_role(Address address, Role role) {
     std::unique_ptr<SwitchRoleBuilder> packet = SwitchRoleBuilder::Create(address, role);
     acl_connection_interface_->EnqueueCommand(
-        std::move(packet), handler_->BindOnce(&check_command_status<SwitchRoleStatusView>));
+        std::move(packet), handler_->BindOnce(check_status<SwitchRoleStatusView>));
   }
 
   void write_default_link_policy_settings(uint16_t default_link_policy_settings) {
     std::unique_ptr<WriteDefaultLinkPolicySettingsBuilder> packet =
         WriteDefaultLinkPolicySettingsBuilder::Create(default_link_policy_settings);
     acl_connection_interface_->EnqueueCommand(
-        std::move(packet), handler_->BindOnce(&check_command_complete<WriteDefaultLinkPolicySettingsCompleteView>));
+        std::move(packet),
+        handler_->BindOnce(check_complete<WriteDefaultLinkPolicySettingsCompleteView>));
   }
 
   void accept_connection(Address address) {
@@ -782,12 +725,14 @@ struct classic_impl : public security::ISecurityManagerListener {
 
   void reject_connection(std::unique_ptr<RejectConnectionRequestBuilder> builder) {
     acl_connection_interface_->EnqueueCommand(
-        std::move(builder), handler_->BindOnce(&check_command_status<RejectConnectionRequestStatusView>));
+        std::move(builder), handler_->BindOnce(check_status<RejectConnectionRequestStatusView>));
   }
 
-  void OnDeviceBonded(bluetooth::hci::AddressWithType device) override {}
-  void OnDeviceUnbonded(bluetooth::hci::AddressWithType device) override {}
-  void OnDeviceBondFailed(bluetooth::hci::AddressWithType device, security::PairingFailure status) override {}
+  void OnDeviceBonded(bluetooth::hci::AddressWithType /* device */) override {}
+  void OnDeviceUnbonded(bluetooth::hci::AddressWithType /* device */) override {}
+  void OnDeviceBondFailed(
+      bluetooth::hci::AddressWithType /* device */,
+      security::PairingFailure /* status */) override {}
 
   void set_security_module(security::SecurityModule* security_module) {
     security_manager_ = security_module->GetSecurityManager();
@@ -796,10 +741,6 @@ struct classic_impl : public security::ISecurityManagerListener {
 
   uint16_t HACK_get_handle(Address address) {
     return connections.HACK_get_handle(address);
-  }
-
-  void HACK_SetNonAclDisconnectCallback(std::function<void(uint16_t, uint8_t)> callback) {
-    non_acl_disconnect_callback_ = callback;
   }
 
   void handle_register_callbacks(ConnectionCallbacks* callbacks, os::Handler* handler) {
@@ -830,8 +771,6 @@ struct classic_impl : public security::ISecurityManagerListener {
   std::unique_ptr<RoleChangeView> delayed_role_change_ = nullptr;
 
   std::unique_ptr<security::SecurityManager> security_manager_;
-
-  std::function<void(uint16_t, uint8_t)> non_acl_disconnect_callback_;
 };
 
 }  // namespace acl_manager

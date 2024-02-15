@@ -18,25 +18,17 @@
 
 #define LOG_TAG "bt_btif_gatt"
 
-#include "btif_gatt.h"
-
-#include <errno.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_gatt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "bta_gatt_api.h"
-#include "bte_appl.h"
-#include "btif_common.h"
-#include "btif_dm.h"
-#include "btif_gatt_util.h"
-#include "btif_storage.h"
-#include "btif_util.h"
 #include "gatt_api.h"
-#include "osi/include/log.h"
-#include "osi/include/osi.h"
+#include "internal_include/bte_appl.h"
+#include "os/log.h"
+#include "stack/include/btm_ble_sec_api.h"
+#include "types/ble_address_with_type.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
@@ -98,7 +90,7 @@ static void btif_test_command_complete_cback(uint16_t conn_id, tGATTC_OPTYPE op,
   }
 }
 
-static void btif_test_discovery_result_cback(UNUSED_ATTR uint16_t conn_id,
+static void btif_test_discovery_result_cback(uint16_t /* conn_id */,
                                              tGATT_DISC_TYPE disc_type,
                                              tGATT_DISC_RES* p_data) {
   LOG_INFO("------ GATT Discovery result %-22s -------", disc_name[disc_type]);
@@ -152,9 +144,9 @@ static void btif_test_discovery_result_cback(UNUSED_ATTR uint16_t conn_id,
   LOG_INFO("-----------------------------------------------------------");
 }
 
-static void btif_test_discovery_complete_cback(
-    UNUSED_ATTR uint16_t conn_id, UNUSED_ATTR tGATT_DISC_TYPE disc_type,
-    tGATT_STATUS status) {
+static void btif_test_discovery_complete_cback(uint16_t /* conn_id */,
+                                               tGATT_DISC_TYPE /* disc_type */,
+                                               tGATT_STATUS status) {
   LOG_INFO("%s: status=%d", __func__, status);
 }
 

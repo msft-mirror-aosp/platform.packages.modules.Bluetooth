@@ -26,12 +26,12 @@ import android.bluetooth.BluetoothUuid;
 import android.bluetooth.IBluetoothMapClient;
 import android.bluetooth.SdpMasRecord;
 import android.content.AttributionSource;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.ParcelUuid;
+import android.os.Parcelable;
 import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
@@ -58,14 +58,28 @@ public class MapClientService extends ProfileService {
 
     static final int MAXIMUM_CONNECTED_DEVICES = 4;
 
-    private Map<BluetoothDevice, MceStateMachine> mMapInstanceMap = new ConcurrentHashMap<>(1);
+    private final Map<BluetoothDevice, MceStateMachine> mMapInstanceMap =
+            new ConcurrentHashMap<>(1);
     private MnsService mMnsServer;
 
     private AdapterService mAdapterService;
     private DatabaseManager mDatabaseManager;
     private static MapClientService sMapClientService;
     @VisibleForTesting
-    MapBroadcastReceiver mMapReceiver;
+    private Handler mHandler;
+
+    private Looper mSmLooper;
+
+    public MapClientService(Context ctx) {
+        super(ctx);
+    }
+
+    @VisibleForTesting
+    MapClientService(Context ctx, Looper looper, MnsService mnsServer) {
+        this(ctx);
+        mSmLooper = looper;
+        mMnsServer = mnsServer;
+    }
 
     public static boolean isEnabled() {
         return BluetoothProperties.isProfileMapClientEnabled().orElse(false);
@@ -110,10 +124,7 @@ public class MapClientService extends ProfileService {
             throw new IllegalArgumentException("Null device");
         }
         if (DBG) {
-            StringBuilder sb = new StringBuilder();
-            dump(sb);
-            Log.d(TAG, "MAP connect device: " + device
-                    + ", InstanceMap start state: " + sb.toString());
+            Log.d(TAG, "connect(device= " + device + "): devices=" + mMapInstanceMap.keySet());
         }
         if (getConnectionPolicy(device) == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
             Log.w(TAG, "Connection not allowed: <" + device.getAddress()
@@ -155,12 +166,11 @@ public class MapClientService extends ProfileService {
             Log.d(TAG, "Statemachine exists for a device in unexpected state: " + state);
         }
         mMapInstanceMap.remove(device);
+        mapStateMachine.doQuit();
+
         addDeviceToMapAndConnect(device);
         if (DBG) {
-            StringBuilder sb = new StringBuilder();
-            dump(sb);
-            Log.d(TAG, "MAP connect device: " + device
-                    + ", InstanceMap end state: " + sb.toString());
+            Log.d(TAG, "connect(device= " + device + "): end devices=" + mMapInstanceMap.keySet());
         }
         return true;
     }
@@ -168,7 +178,9 @@ public class MapClientService extends ProfileService {
     private synchronized void addDeviceToMapAndConnect(BluetoothDevice device) {
         // When creating a new statemachine, its state is set to CONNECTING - which will trigger
         // connect.
-        MceStateMachine mapStateMachine = new MceStateMachine(this, device);
+        MceStateMachine mapStateMachine;
+        if (mSmLooper != null) mapStateMachine = new MceStateMachine(this, device, mSmLooper);
+        else mapStateMachine = new MceStateMachine(this, device);
         mMapInstanceMap.put(device, mapStateMachine);
     }
 
@@ -177,10 +189,7 @@ public class MapClientService extends ProfileService {
         enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED,
                 "Need BLUETOOTH_PRIVILEGED permission");
         if (DBG) {
-            StringBuilder sb = new StringBuilder();
-            dump(sb);
-            Log.d(TAG, "MAP disconnect device: " + device
-                    + ", InstanceMap start state: " + sb.toString());
+            Log.d(TAG, "disconnect(device= " + device + "): devices=" + mMapInstanceMap.keySet());
         }
         MceStateMachine mapStateMachine = mMapInstanceMap.get(device);
         // a map state machine instance doesn't exist. maybe it is already gone?
@@ -194,10 +203,8 @@ public class MapClientService extends ProfileService {
         }
         mapStateMachine.disconnect();
         if (DBG) {
-            StringBuilder sb = new StringBuilder();
-            dump(sb);
-            Log.d(TAG, "MAP disconnect device: " + device
-                    + ", InstanceMap start state: " + sb.toString());
+            Log.d(TAG, "disconnect(device= " + device + "): end devices="
+                    + mMapInstanceMap.keySet());
         }
         return true;
     }
@@ -303,52 +310,30 @@ public class MapClientService extends ProfileService {
     }
 
     @Override
-    protected synchronized boolean start() {
+    public synchronized void start() {
         Log.e(TAG, "start()");
 
         mAdapterService = AdapterService.getAdapterService();
         mDatabaseManager = Objects.requireNonNull(AdapterService.getAdapterService().getDatabase(),
                 "DatabaseManager cannot be null when MapClientService starts");
 
+        mHandler = new Handler(Looper.getMainLooper());
+
         if (mMnsServer == null) {
-            mMnsServer = MapUtils.newMnsServiceInstance(this);
-            if (mMnsServer == null) {
-                // this can't happen
-                Log.w(TAG, "MnsService is *not* created!");
-                return false;
-            }
+            mMnsServer = new MnsService(this);
         }
 
-        mMapReceiver = new MapBroadcastReceiver();
-        IntentFilter filter = new IntentFilter();
-        filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
-        filter.addAction(BluetoothDevice.ACTION_SDP_RECORD);
-        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
-        registerReceiver(mMapReceiver, filter);
         removeUncleanAccounts();
         MapClientContent.clearAllContent(this);
         setMapClientService(this);
-        mAdapterService.notifyActivityAttributionInfo(
-                getAttributionSource(),
-                AdapterService.ACTIVITY_ATTRIBUTION_NO_ACTIVE_DEVICE_ADDRESS);
-        return true;
     }
 
     @Override
-    protected synchronized boolean stop() {
+    public synchronized void stop() {
         if (DBG) {
             Log.d(TAG, "stop()");
         }
 
-        if (mAdapterService != null) {
-            mAdapterService.notifyActivityAttributionInfo(
-                    getAttributionSource(),
-                    AdapterService.ACTIVITY_ATTRIBUTION_NO_ACTIVE_DEVICE_ADDRESS);
-        }
-        if (mMapReceiver != null) {
-            unregisterReceiver(mMapReceiver);
-            mMapReceiver = null;
-        }
         if (mMnsServer != null) {
             mMnsServer.stop();
         }
@@ -359,11 +344,16 @@ public class MapClientService extends ProfileService {
             stateMachine.doQuit();
         }
         mMapInstanceMap.clear();
-        return true;
+
+        // Unregister Handler and stop all queued messages.
+        if (mHandler != null) {
+            mHandler.removeCallbacksAndMessages(null);
+            mHandler = null;
+        }
     }
 
     @Override
-    protected void cleanup() {
+    public void cleanup() {
         if (DBG) {
             Log.d(TAG, "in Cleanup");
         }
@@ -376,36 +366,33 @@ public class MapClientService extends ProfileService {
      * cleanupDevice removes the associated state machine from the instance map
      *
      * @param device BluetoothDevice address of remote device
+     * @param sm the state machine to clean up or {@code null} to clean up any state machine.
      */
     @VisibleForTesting
-    public void cleanupDevice(BluetoothDevice device) {
+    public void cleanupDevice(BluetoothDevice device, MceStateMachine sm) {
         if (DBG) {
-            StringBuilder sb = new StringBuilder();
-            dump(sb);
-            Log.d(TAG, "Cleanup device: " + device + ", InstanceMap start state: "
-                    + sb.toString());
+            Log.d(TAG, "cleanup(device= " + device + "): devices=" + mMapInstanceMap.keySet());
         }
         synchronized (mMapInstanceMap) {
             MceStateMachine stateMachine = mMapInstanceMap.get(device);
             if (stateMachine != null) {
-                mMapInstanceMap.remove(device);
+                if (sm == null || stateMachine == sm) {
+                    mMapInstanceMap.remove(device);
+                    stateMachine.doQuit();
+                } else {
+                    Log.w(TAG, "Trying to clean up wrong state machine");
+                }
             }
         }
         if (DBG) {
-            StringBuilder sb = new StringBuilder();
-            dump(sb);
-            Log.d(TAG, "Cleanup device: " + device + ", InstanceMap end state: "
-                    + sb.toString());
+            Log.d(TAG, "cleanup(device= " + device + "): end devices=" + mMapInstanceMap.keySet());
         }
     }
 
     @VisibleForTesting
     void removeUncleanAccounts() {
         if (DBG) {
-            StringBuilder sb = new StringBuilder();
-            dump(sb);
-            Log.d(TAG, "removeUncleanAccounts:InstanceMap end state: "
-                    + sb.toString());
+            Log.d(TAG, "removeUncleanAccounts(): devices=" + mMapInstanceMap.keySet());
         }
         Iterator iterator = mMapInstanceMap.entrySet().iterator();
         while (iterator.hasNext()) {
@@ -416,10 +403,7 @@ public class MapClientService extends ProfileService {
             }
         }
         if (DBG) {
-            StringBuilder sb = new StringBuilder();
-            dump(sb);
-            Log.d(TAG, "removeUncleanAccounts:InstanceMap end state: "
-                    + sb.toString());
+            Log.d(TAG, "removeUncleanAccounts(): end devices=" + mMapInstanceMap.keySet());
         }
     }
 
@@ -484,8 +468,8 @@ public class MapClientService extends ProfileService {
                 return mService;
             }
             if (!Utils.checkServiceAvailable(mService, TAG)
-                    || !(MapUtils.isSystemUser()
-                    || Utils.checkCallerIsSystemOrActiveOrManagedUser(mService, TAG))
+                    || !(getCallingUserHandle().isSystem()
+                            || Utils.checkCallerIsSystemOrActiveOrManagedUser(mService, TAG))
                     || !Utils.checkConnectPermissionForDataDelivery(mService, source, TAG)) {
                 return null;
             }
@@ -725,61 +709,51 @@ public class MapClientService extends ProfileService {
         }
     }
 
-    @VisibleForTesting
-    class MapBroadcastReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
+    public void aclDisconnected(BluetoothDevice device, int transport) {
+        mHandler.post(() -> handleAclDisconnected(device, transport));
+    }
+
+    private void handleAclDisconnected(BluetoothDevice device, int transport) {
+        MceStateMachine stateMachine = mMapInstanceMap.get(device);
+        if (stateMachine == null) {
+            Log.e(TAG, "No Statemachine found for the device=" + device.toString());
+            return;
+        }
+
+        Log.i(TAG, "Received ACL disconnection event, device=" + device.toString()
+                + ", transport=" + transport);
+
+        if (transport != BluetoothDevice.TRANSPORT_BREDR) {
+            return;
+        }
+
+        if (stateMachine.getState() == BluetoothProfile.STATE_CONNECTED) {
+            stateMachine.disconnect();
+        }
+    }
+
+    public void receiveSdpSearchRecord(
+            BluetoothDevice device, int status, Parcelable record, ParcelUuid uuid) {
+        mHandler.post(() -> handleSdpSearchRecordReceived(device, status, record, uuid));
+    }
+
+    private void handleSdpSearchRecordReceived(
+            BluetoothDevice device, int status, Parcelable record, ParcelUuid uuid) {
+        MceStateMachine stateMachine = mMapInstanceMap.get(device);
+        if (DBG) {
+            Log.d(TAG, "Received SDP Record, device=" + device.toString() + ", uuid=" + uuid);
+        }
+        if (stateMachine == null) {
+            Log.e(TAG, "No Statemachine found for the device=" + device.toString());
+            return;
+        }
+        if (uuid.equals(BluetoothUuid.MAS)) {
+            // Check if we have a valid SDP record.
+            SdpMasRecord masRecord = (SdpMasRecord) record;
             if (DBG) {
-                Log.d(TAG, "onReceive: " + action);
+                Log.d(TAG, "SDP complete, status: " + status + ", record:" + masRecord);
             }
-            if (!action.equals(BluetoothDevice.ACTION_ACL_DISCONNECTED)
-                    && !action.equals(BluetoothDevice.ACTION_SDP_RECORD)) {
-                // we don't care about this intent
-                return;
-            }
-            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-            if (device == null) {
-                Log.e(TAG, "broadcast has NO device param!");
-                return;
-            }
-            if (DBG) {
-                Log.d(TAG, "broadcast has device: (" + device.getAddress() + ")");
-            }
-            MceStateMachine stateMachine = mMapInstanceMap.get(device);
-            if (stateMachine == null) {
-                Log.e(TAG, "No Statemachine found for the device from broadcast");
-                return;
-            }
-
-            if (action.equals(BluetoothDevice.ACTION_ACL_DISCONNECTED)) {
-                if (stateMachine.getState() == BluetoothProfile.STATE_CONNECTED) {
-                    stateMachine.disconnect();
-                }
-            }
-
-            if (action.equals(BluetoothDevice.ACTION_SDP_RECORD)) {
-                ParcelUuid uuid = intent.getParcelableExtra(BluetoothDevice.EXTRA_UUID);
-                if (DBG) {
-                    Log.d(TAG, "UUID of SDP: " + uuid);
-                }
-
-                if (uuid.equals(BluetoothUuid.MAS)) {
-                    // Check if we have a valid SDP record.
-                    SdpMasRecord masRecord =
-                            intent.getParcelableExtra(BluetoothDevice.EXTRA_SDP_RECORD);
-                    if (DBG) {
-                        Log.d(TAG, "SDP = " + masRecord);
-                    }
-                    int status = intent.getIntExtra(BluetoothDevice.EXTRA_SDP_SEARCH_STATUS, -1);
-                    if (masRecord == null) {
-                        Log.w(TAG, "SDP search ended with no MAS record. Status: " + status);
-                        return;
-                    }
-                    stateMachine.obtainMessage(MceStateMachine.MSG_MAS_SDP_DONE,
-                            masRecord).sendToTarget();
-                }
-            }
+            stateMachine.sendSdpResult(status, masRecord);
         }
     }
 }

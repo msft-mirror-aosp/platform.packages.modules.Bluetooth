@@ -24,6 +24,7 @@ import android.content.Context;
 import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.Uri;
+import android.provider.BaseColumns;
 import android.provider.Telephony;
 import android.provider.Telephony.Mms;
 import android.provider.Telephony.MmsSms;
@@ -45,7 +46,12 @@ import com.android.vcard.VCardProperty;
 
 import com.google.android.mms.pdu.PduHeaders;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
@@ -57,6 +63,20 @@ class MapClientContent {
     private static final int DEFAULT_CHARSET = 106;
     private static final int ORIGINATOR_ADDRESS_TYPE = 137;
     private static final int RECIPIENT_ADDRESS_TYPE = 151;
+
+    private static final int NUM_RECENT_MSGS_TO_DUMP = 5;
+
+    private enum Type {
+        UNKNOWN,
+        SMS,
+        MMS
+    }
+
+    private enum Folder {
+        UNKNOWN,
+        INBOX,
+        SENT
+    }
 
     final BluetoothDevice mDevice;
     private final Context mContext;
@@ -81,18 +101,16 @@ class MapClientContent {
     /**
      * MapClientContent manages all interactions between Bluetooth and the messaging provider.
      *
-     * Changes to the database are mirrored between the remote and local providers, specifically new
-     * messages, changes to read status, and removal of messages.
+     * <p>Changes to the database are mirrored between the remote and local providers, specifically
+     * new messages, changes to read status, and removal of messages.
      *
-     * Object is invalid after cleanUp() is called.
+     * <p>Object is invalid after cleanUp() is called.
      *
-     * context: the context that all content provider interactions are conducted
-     * MceStateMachine:  the interface to send outbound updates such as when a message is read
-     * locally
-     * device: the associated Bluetooth device used for associating messages with a subscription
+     * <p>context: the context that all content provider interactions are conducted MceStateMachine:
+     * the interface to send outbound updates such as when a message is read locally device: the
+     * associated Bluetooth device used for associating messages with a subscription
      */
-    MapClientContent(Context context, Callbacks callbacks,
-            BluetoothDevice device) {
+    MapClientContent(Context context, Callbacks callbacks, BluetoothDevice device) {
         mContext = context;
         mDevice = device;
         mCallbacks = callbacks;
@@ -187,9 +205,20 @@ class MapClientContent {
      * The handle is used to associate the local message with the remote message.
      */
     void storeMessage(Bmessage message, String handle, Long timestamp, boolean seen) {
-        logI("storeMessage(device=" + Utils.getLoggableAddress(mDevice) + ", time=" + timestamp
-                + ", handle=" + handle + ", type=" + message.getType()
-                + ", folder=" + message.getFolder());
+        logI(
+                "storeMessage(device="
+                        + Utils.getLoggableAddress(mDevice)
+                        + ", time="
+                        + timestamp
+                        + "["
+                        + toDatetimeString(timestamp)
+                        + "]"
+                        + ", handle="
+                        + handle
+                        + ", type="
+                        + message.getType()
+                        + ", folder="
+                        + message.getFolder());
 
         switch (message.getType()) {
             case MMS:
@@ -280,17 +309,19 @@ class MapClientContent {
         originalUriToHandleMap = mUriToHandleMap;
         duplicateUriToHandleMap = new HashMap<>(originalUriToHandleMap);
         for (Uri uri : new Uri[]{Mms.CONTENT_URI, Sms.CONTENT_URI}) {
-            Cursor cursor = mResolver.query(uri, null, null, null, null);
-            while (cursor.moveToNext()) {
-                Uri index = Uri
-                        .withAppendedPath(uri, cursor.getString(cursor.getColumnIndex("_id")));
-                int readStatus = cursor.getInt(cursor.getColumnIndex(Sms.READ));
-                MessageStatus currentMessage = duplicateUriToHandleMap.remove(index);
-                if (currentMessage != null && currentMessage.mRead != readStatus) {
-                    logV(currentMessage.mHandle);
-                    currentMessage.mRead = readStatus;
-                    mCallbacks.onMessageStatusChanged(currentMessage.mHandle,
-                            BluetoothMapClient.READ);
+            try (Cursor cursor = mResolver.query(uri, null, null, null, null)) {
+                while (cursor.moveToNext()) {
+                    Uri index =
+                            Uri.withAppendedPath(
+                                    uri, cursor.getString(cursor.getColumnIndex("_id")));
+                    int readStatus = cursor.getInt(cursor.getColumnIndex(Sms.READ));
+                    MessageStatus currentMessage = duplicateUriToHandleMap.remove(index);
+                    if (currentMessage != null && currentMessage.mRead != readStatus) {
+                        logV(currentMessage.mHandle);
+                        currentMessage.mRead = readStatus;
+                        mCallbacks.onMessageStatusChanged(
+                                currentMessage.mHandle, BluetoothMapClient.READ);
+                    }
                 }
             }
         }
@@ -433,9 +464,10 @@ class MapClientContent {
         String threads = new String();
 
         Uri uri = Threads.CONTENT_URI.buildUpon().appendQueryParameter("simple", "true").build();
-        Cursor threadCursor = resolver.query(uri, null, null, null, null);
-        while (threadCursor.moveToNext()) {
-            threads += threadCursor.getInt(threadCursor.getColumnIndex(Threads._ID)) + ", ";
+        try (Cursor threadCursor = resolver.query(uri, null, null, null, null)) {
+            while (threadCursor.moveToNext()) {
+                threads += threadCursor.getInt(threadCursor.getColumnIndex(Threads._ID)) + ", ";
+            }
         }
 
         resolver.delete(Sms.CONTENT_URI, Sms.SUBSCRIPTION_ID + " =? ",
@@ -524,21 +556,25 @@ class MapClientContent {
         logD("MATCHING THREAD" + threadId);
         logD(MmsSms.CONTENT_CONVERSATIONS_URI + threadId + "/recipients");
 
-        Cursor cursor = mResolver
-                .query(Uri.withAppendedPath(MmsSms.CONTENT_CONVERSATIONS_URI,
-                        threadId + "/recipients"),
-                        null, null,
-                        null, null);
+        try (Cursor cursor =
+                mResolver.query(
+                        Uri.withAppendedPath(
+                                MmsSms.CONTENT_CONVERSATIONS_URI, threadId + "/recipients"),
+                        null,
+                        null,
+                        null,
+                        null)) {
 
-        if (cursor.moveToNext()) {
-            logD("Columns" + Arrays.toString(cursor.getColumnNames()));
-            logV("CONTACT LIST: " + cursor.getString(cursor.getColumnIndex("recipient_ids")));
-            addRecipientsToEntries(bmsg,
-                    cursor.getString(cursor.getColumnIndex("recipient_ids")).split(" "));
-            return true;
-        } else {
-            Log.w(TAG, "Thread Not Found");
-            return false;
+            if (cursor.moveToNext()) {
+                logD("Columns" + Arrays.toString(cursor.getColumnNames()));
+                logV("CONTACT LIST: " + cursor.getString(cursor.getColumnIndex("recipient_ids")));
+                addRecipientsToEntries(
+                        bmsg, cursor.getString(cursor.getColumnIndex("recipient_ids")).split(" "));
+                return true;
+            } else {
+                Log.w(TAG, "Thread Not Found");
+                return false;
+            }
         }
     }
 
@@ -546,19 +582,23 @@ class MapClientContent {
     private void addRecipientsToEntries(Bmessage bmsg, String[] recipients) {
         logV("CONTACT LIST: " + Arrays.toString(recipients));
         for (String recipient : recipients) {
-            Cursor cursor = mResolver
-                    .query(Uri.parse("content://mms-sms/canonical-address/" + recipient), null,
-                            null, null,
-                            null);
-            while (cursor.moveToNext()) {
-                String number = cursor.getString(cursor.getColumnIndex(Mms.Addr.ADDRESS));
-                logV("CONTACT number: " + number);
-                VCardEntry destEntry = new VCardEntry();
-                VCardProperty destEntryPhone = new VCardProperty();
-                destEntryPhone.setName(VCardConstants.PROPERTY_TEL);
-                destEntryPhone.addValues(number);
-                destEntry.addProperty(destEntryPhone);
-                bmsg.addRecipient(destEntry);
+            try (Cursor cursor =
+                    mResolver.query(
+                            Uri.parse("content://mms-sms/canonical-address/" + recipient),
+                            null,
+                            null,
+                            null,
+                            null)) {
+                while (cursor.moveToNext()) {
+                    String number = cursor.getString(cursor.getColumnIndex(Mms.Addr.ADDRESS));
+                    logV("CONTACT number: " + number);
+                    VCardEntry destEntry = new VCardEntry();
+                    VCardProperty destEntryPhone = new VCardProperty();
+                    destEntryPhone.setName(VCardConstants.PROPERTY_TEL);
+                    destEntryPhone.addValues(number);
+                    destEntry.addProperty(destEntryPhone);
+                    bmsg.addRecipient(destEntry);
+                }
             }
         }
     }
@@ -598,6 +638,146 @@ class MapClientContent {
         return count;
     }
 
+    private List<MessageDumpElement> getRecentMessagesFromFolder(Folder folder) {
+        Uri smsUri = null;
+        Uri mmsUri = null;
+        if (folder == Folder.INBOX) {
+            smsUri = Sms.Inbox.CONTENT_URI;
+            mmsUri = Mms.Inbox.CONTENT_URI;
+        } else if (folder == Folder.SENT) {
+            smsUri = Sms.Sent.CONTENT_URI;
+            mmsUri = Mms.Sent.CONTENT_URI;
+        } else {
+            Log.w(TAG, "getRecentMessagesFromFolder: Failed, unsupported folder=" + folder);
+            return null;
+        }
+
+        ArrayList<MessageDumpElement> messages = new ArrayList<MessageDumpElement>();
+        for (Uri uri : new Uri[] {smsUri, mmsUri}) {
+            messages.addAll(getMessagesFromUri(uri));
+        }
+        logV(
+                "getRecentMessagesFromFolder: "
+                        + folder
+                        + ", "
+                        + messages.size()
+                        + " messages found.");
+
+        Collections.sort(messages);
+        if (messages.size() > NUM_RECENT_MSGS_TO_DUMP) {
+            return messages.subList(0, NUM_RECENT_MSGS_TO_DUMP);
+        }
+        return messages;
+    }
+
+    private List<MessageDumpElement> getMessagesFromUri(Uri uri) {
+        logD("getMessagesFromUri: uri=" + uri);
+        ArrayList<MessageDumpElement> messages = new ArrayList<MessageDumpElement>();
+
+        if (mSubscriptionId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            Log.w(TAG, "getMessagesFromUri: Failed, no subscription ID");
+            return messages;
+        }
+
+        Type type = getMessageTypeFromUri(uri);
+        if (type == Type.UNKNOWN) {
+            Log.w(TAG, "getMessagesFromUri: unknown message type");
+            return messages;
+        }
+
+        String[] selectionArgs = new String[] {Integer.toString(mSubscriptionId)};
+        String limit = " LIMIT " + NUM_RECENT_MSGS_TO_DUMP;
+        String[] projection = null;
+        String selectionClause = null;
+        String threadIdColumnName = null;
+        String timestampColumnName = null;
+
+        if (type == Type.SMS) {
+            projection = new String[] {BaseColumns._ID, Sms.THREAD_ID, Sms.DATE};
+            selectionClause = Sms.SUBSCRIPTION_ID + " =? ";
+            threadIdColumnName = Sms.THREAD_ID;
+            timestampColumnName = Sms.DATE;
+        } else if (type == Type.MMS) {
+            projection = new String[] {BaseColumns._ID, Mms.THREAD_ID, Mms.DATE};
+            selectionClause = Mms.SUBSCRIPTION_ID + " =? ";
+            threadIdColumnName = Mms.THREAD_ID;
+            timestampColumnName = Mms.DATE;
+        }
+
+        Cursor cursor =
+                mResolver.query(
+                        uri,
+                        projection,
+                        selectionClause,
+                        selectionArgs,
+                        timestampColumnName + " DESC" + limit);
+
+        try {
+            if (cursor == null) {
+                Log.w(TAG, "getMessagesFromUri: null cursor for uri=" + uri);
+                return messages;
+            }
+            logV("Number of rows in cursor = " + cursor.getCount() + ", for uri=" + uri);
+
+            cursor.moveToPosition(-1);
+            while (cursor.moveToNext()) {
+                // Even though {@link storeSms} and {@link storeMms} use Uris that contain the
+                // folder name (e.g., {@code Sms.Inbox.CONTENT_URI}), the Uri returned by
+                // {@link ContentResolver#insert} does not (e.g., {@code Sms.CONTENT_URI}).
+                // Therefore, the Uris in the keyset of {@code mUriToHandleMap} do not contain
+                // the folder name, but unfortunately, the Uri passed in to query the database
+                // does contains the folder name, so we can't simply append messageId to the
+                // passed-in Uri.
+                String messageId = cursor.getString(cursor.getColumnIndex(BaseColumns._ID));
+                Uri messageUri =
+                        Uri.withAppendedPath(
+                                type == Type.SMS ? Sms.CONTENT_URI : Mms.CONTENT_URI, messageId);
+
+                MessageStatus handleAndStatus = mUriToHandleMap.get(messageUri);
+                String messageHandle = "<unknown>";
+                if (handleAndStatus == null) {
+                    Log.w(TAG, "getMessagesFromUri: no entry for message uri=" + messageUri);
+                } else {
+                    messageHandle = handleAndStatus.mHandle;
+                }
+
+                long timestamp = cursor.getLong(cursor.getColumnIndex(timestampColumnName));
+                // TODO: why does `storeMms` truncate down to the seconds instead of keeping it
+                // millisec, like `storeSms`?
+                if (type == Type.MMS) {
+                    timestamp *= 1000L;
+                }
+
+                messages.add(
+                        new MessageDumpElement(
+                                messageHandle,
+                                messageUri,
+                                timestamp,
+                                cursor.getLong(cursor.getColumnIndex(threadIdColumnName)),
+                                type));
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Exception when querying db for dumpsys", e);
+        } finally {
+            cursor.close();
+        }
+        return messages;
+    }
+
+    private Type getMessageTypeFromUri(Uri uri) {
+        if (Sms.CONTENT_URI.equals(uri)
+                || Sms.Inbox.CONTENT_URI.equals(uri)
+                || Sms.Sent.CONTENT_URI.equals(uri)) {
+            return Type.SMS;
+        } else if (Mms.CONTENT_URI.equals(uri)
+                || Mms.Inbox.CONTENT_URI.equals(uri)
+                || Mms.Sent.CONTENT_URI.equals(uri)) {
+            return Type.MMS;
+        } else {
+            return Type.UNKNOWN;
+        }
+    }
+
     public void dump(StringBuilder sb) {
         sb.append("    Device Message DB:");
         sb.append("\n      Subscription ID: " + mSubscriptionId);
@@ -613,6 +793,17 @@ class MapClientContent {
                     + " / " + getStoredMessagesCount(Mms.CONTENT_URI));
 
             sb.append("\n      Threads: " + getStoredMessagesCount(Threads.CONTENT_URI));
+
+            sb.append("\n      Most recent 'Sent' messages:");
+            sb.append("\n        " + MessageDumpElement.getFormattedColumnNames());
+            for (MessageDumpElement e : getRecentMessagesFromFolder(Folder.SENT)) {
+                sb.append("\n        " + e);
+            }
+            sb.append("\n      Most recent 'Inbox' messages:");
+            sb.append("\n        " + MessageDumpElement.getFormattedColumnNames());
+            for (MessageDumpElement e : getRecentMessagesFromFolder(Folder.INBOX)) {
+                sb.append("\n        " + e);
+            }
         }
         sb.append("\n");
     }
@@ -637,6 +828,55 @@ class MapClientContent {
         public boolean equals(Object other) {
             return ((other instanceof MessageStatus) && ((MessageStatus) other).mHandle
                     .equals(mHandle));
+        }
+    }
+
+    @SuppressWarnings("GoodTime") // Use system time zone to render times for logging
+    private static String toDatetimeString(long epochMillis) {
+        return DateTimeFormatter.ofPattern("MM-dd HH:mm:ss.SSS")
+                .format(
+                        Instant.ofEpochMilli(epochMillis)
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDateTime());
+    }
+
+    private static class MessageDumpElement implements Comparable<MessageDumpElement> {
+        private String mMessageHandle;
+        private long mTimestamp;
+        private Type mType;
+        private long mThreadId;
+        private Uri mUri;
+
+        MessageDumpElement(String handle, Uri uri, long timestamp, long threadId, Type type) {
+            mMessageHandle = handle;
+            mTimestamp = timestamp;
+            mUri = uri;
+            mThreadId = threadId;
+            mType = type;
+        }
+
+        public static String getFormattedColumnNames() {
+            return String.format(
+                    "%-19s %s %-16s %s %s", "Timestamp", "ThreadId", "Handle", "Type", "Uri");
+        }
+
+        @Override
+        public String toString() {
+            return String.format(
+                    "%-19s %8d %-16s %-4s %s",
+                    toDatetimeString(mTimestamp), mThreadId, mMessageHandle, mType, mUri);
+        }
+
+        @Override
+        public int compareTo(MessageDumpElement e) {
+            // we want reverse chronological.
+            if (this.mTimestamp < e.mTimestamp) {
+                return 1;
+            } else if (this.mTimestamp > e.mTimestamp) {
+                return -1;
+            } else {
+                return 0;
+            }
         }
     }
 }

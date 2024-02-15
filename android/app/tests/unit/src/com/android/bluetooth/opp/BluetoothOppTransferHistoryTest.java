@@ -32,6 +32,7 @@ import static org.mockito.Mockito.verify;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.view.MenuItem;
@@ -43,12 +44,15 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
+import com.android.bluetooth.flags.Flags;
 
 import com.google.common.base.Objects;
 
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -56,7 +60,6 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -74,6 +77,11 @@ public class BluetoothOppTransferHistoryTest {
 
     Intent mIntent;
     Context mTargetContext;
+
+    // Activity tests can sometimes flaky because of external factors like system dialog, etc.
+    // making the expected Espresso's root not focused or the activity doesn't show up.
+    // Add retry rule to resolve this problem.
+    @Rule public TestUtils.RetryTestRule mRetryTestRule = new TestUtils.RetryTestRule();
 
     @Before
     public void setUp() throws Exception {
@@ -118,33 +126,30 @@ public class BluetoothOppTransferHistoryTest {
                         BluetoothShare.USER_CONFIRMATION_HANDOVER_CONFIRMED)
         ));
 
-        BluetoothOppTestUtils.enableOppActivities(true, mTargetContext);
-        TestUtils.wakeUpAndDismissKeyGuard();
+        BluetoothOppTestUtils.enableActivity(
+                BluetoothOppTransferHistory.class, true, mTargetContext);
+        TestUtils.setUpUiTest();
     }
 
     @After
-    public void tearDown() {
+    public void tearDown() throws Exception {
+        TestUtils.tearDownUiTest();
         BluetoothMethodProxy.setInstanceForTesting(null);
-        BluetoothOppTestUtils.enableOppActivities(false, mTargetContext);
+        BluetoothOppTestUtils.enableActivity(
+                BluetoothOppTransferHistory.class, false, mTargetContext);
     }
 
     @Test
-    public void onCreate_withDirectionInbound_withExtraShowAllFileIsTrue_displayLiveFolder() {
-        BluetoothOppTestUtils.setUpMockCursor(mCursor, mCursorMockDataList);
-        mIntent.putExtra(Constants.EXTRA_SHOW_ALL_FILES, true);
-        mIntent.putExtra("direction", BluetoothShare.DIRECTION_INBOUND);
-        ActivityScenario<BluetoothOppTransferHistory> scenario = ActivityScenario.launch(mIntent);
-        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+    public void onCreate_withDirectionInbound_displayInboundHistory() {
+        Assume.assumeFalse(
+                mTargetContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH));
 
-        onView(withText(mTargetContext.getText(R.string.btopp_live_folder).toString())).check(
-                matches(isDisplayed()));
-    }
-
-    @Test
-    public void onCreate_withDirectionInbound_withExtraShowAllFileIsFalse_displayInboundHistory() {
         BluetoothOppTestUtils.setUpMockCursor(mCursor, mCursorMockDataList);
-        mIntent.putExtra(Constants.EXTRA_SHOW_ALL_FILES, false);
-        mIntent.putExtra("direction", BluetoothShare.DIRECTION_INBOUND);
+        if (Flags.oppStartActivityDirectlyFromNotification()) {
+            mIntent.setAction(Constants.ACTION_OPEN_INBOUND_TRANSFER);
+        } else {
+            mIntent.putExtra(Constants.EXTRA_DIRECTION, BluetoothShare.DIRECTION_INBOUND);
+        }
 
         ActivityScenario<BluetoothOppTransferHistory> scenario = ActivityScenario.launch(mIntent);
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
@@ -155,12 +160,18 @@ public class BluetoothOppTransferHistoryTest {
 
     @Test
     public void onCreate_withDirectionOutbound_displayOutboundHistory() {
+        Assume.assumeFalse(
+                mTargetContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH));
+
         BluetoothOppTestUtils.setUpMockCursor(mCursor, mCursorMockDataList);
         mCursorMockDataList.set(1,
                 new BluetoothOppTestUtils.CursorMockData(BluetoothShare.DIRECTION, 2,
                         BluetoothShare.DIRECTION_OUTBOUND));
-        mIntent.putExtra(Constants.EXTRA_SHOW_ALL_FILES, true);
-        mIntent.putExtra("direction", BluetoothShare.DIRECTION_OUTBOUND);
+        if (Flags.oppStartActivityDirectlyFromNotification()) {
+            mIntent.setAction(Constants.ACTION_OPEN_OUTBOUND_TRANSFER);
+        } else {
+            mIntent.putExtra(Constants.EXTRA_DIRECTION, BluetoothShare.DIRECTION_OUTBOUND);
+        }
 
         ActivityScenario<BluetoothOppTransferHistory> scenario = ActivityScenario.launch(mIntent);
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
@@ -169,12 +180,12 @@ public class BluetoothOppTransferHistoryTest {
                 matches(isDisplayed()));
     }
 
+    // TODO: Check whether watch devices can pass this test
     @Ignore("b/268424815")
     @Test
     public void onOptionsItemSelected_clearAllSelected_promptWarning() {
         BluetoothOppTestUtils.setUpMockCursor(mCursor, mCursorMockDataList);
-        mIntent.putExtra(Constants.EXTRA_SHOW_ALL_FILES, false);
-        mIntent.putExtra("direction", BluetoothShare.DIRECTION_INBOUND);
+        mIntent.putExtra(Constants.EXTRA_DIRECTION, BluetoothShare.DIRECTION_INBOUND);
 
         ActivityScenario<BluetoothOppTransferHistory> scenario = ActivityScenario.launch(mIntent);
 

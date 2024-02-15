@@ -100,8 +100,26 @@ void LogMetricSmpPairingEvent(
 
 void LogMetricA2dpPlaybackEvent(const Address& address, int playback_state, int audio_coding_mode) {}
 
+void LogMetricA2dpSessionMetricsEvent(
+    const Address& address,
+    int64_t audio_duration_ms,
+    int media_timer_min_ms,
+    int media_timer_max_ms,
+    int media_timer_avg_ms,
+    int total_scheduling_count,
+    int buffer_overruns_max_count,
+    int buffer_overruns_total,
+    float buffer_underruns_average,
+    int buffer_underruns_count,
+    int64_t codec_index,
+    bool is_a2dp_offload) {}
+
 void LogMetricHfpPacketLossStats(
-    const Address& address, int num_decoded_frames, double packet_loss_ratio) {}
+    const Address& address, int num_decoded_frames, double packet_loss_ratio, uint16_t codec_type) {
+}
+
+void LogMetricMmcTranscodeRttStats(
+    int maximum_rtt, double mean_rtt, int num_requests, int codec_type) {}
 
 void LogMetricBluetoothHalCrashReason(
     const Address& address, uint32_t error_code, uint32_t vendor_error_code) {}
@@ -130,5 +148,6 @@ void LogMetricBluetoothLEConnectionMetricEvent(
     android::bluetooth::le::LeConnectionState transaction_state,
     std::vector<std::pair<os::ArgumentType, int>>& argument_list) {}
 
+void LogMetricBluetoothLEConnection(os::LEConnectionSessionOptions /* session_options */) {}
 }  // namespace os
 }  // namespace bluetooth

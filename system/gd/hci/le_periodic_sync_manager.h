@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <android_bluetooth_flags.h>
+
 #include <chrono>
 #include <memory>
 #include <utility>
@@ -22,9 +24,11 @@
 #include "common/callback.h"
 #include "common/init_flags.h"
 #include "hci/address_with_type.h"
+#include "hci/event_checkers.h"
 #include "hci/hci_packets.h"
 #include "hci/le_scanning_callback.h"
 #include "hci/le_scanning_interface.h"
+#include "hci/le_scanning_reassembler.h"
 #include "hci/uuid.h"
 #include "module.h"
 #include "os/alarm.h"
@@ -118,14 +122,13 @@ class PeriodicSyncManager {
       LOG_ERROR("[PSync]: invalid index for handle %u", handle);
       le_scanning_interface_->EnqueueCommand(
           hci::LePeriodicAdvertisingTerminateSyncBuilder::Create(handle),
-          handler_->BindOnceOn(
-              this, &PeriodicSyncManager::check_status<LePeriodicAdvertisingTerminateSyncCompleteView>));
+          handler_->BindOnce(check_complete<LePeriodicAdvertisingTerminateSyncCompleteView>));
       return;
     };
     periodic_syncs_.erase(periodic_sync);
     le_scanning_interface_->EnqueueCommand(
         hci::LePeriodicAdvertisingTerminateSyncBuilder::Create(handle),
-        handler_->BindOnceOn(this, &PeriodicSyncManager::check_status<LePeriodicAdvertisingTerminateSyncCompleteView>));
+        handler_->BindOnce(check_complete<LePeriodicAdvertisingTerminateSyncCompleteView>));
   }
 
   void CancelCreateSync(uint8_t adv_sid, Address address) {
@@ -185,7 +188,8 @@ class PeriodicSyncManager {
             connection_handle));
   }
 
-  void SyncTxParameters(const Address& address, uint8_t mode, uint16_t skip, uint16_t timeout, int reg_id) {
+  void SyncTxParameters(
+      const Address& /* address */, uint8_t mode, uint16_t skip, uint16_t timeout, int reg_id) {
     LOG_DEBUG("[PAST]: mode=%u, skip=%u, timeout=%u", mode, skip, timeout);
     auto sync_cte_type = static_cast<CteType>(
         static_cast<uint8_t>(PeriodicSyncCteType::AVOID_AOA_CONSTANT_TONE_EXTENSION) |
@@ -197,9 +201,8 @@ class PeriodicSyncManager {
     le_scanning_interface_->EnqueueCommand(
         hci::LeSetDefaultPeriodicAdvertisingSyncTransferParametersBuilder::Create(
             static_cast<SyncTransferMode>(mode), skip, timeout, sync_cte_type),
-        handler_->BindOnceOn(
-            this,
-            &PeriodicSyncManager::check_status<LeSetDefaultPeriodicAdvertisingSyncTransferParametersCompleteView>));
+        handler_->BindOnce(
+            check_complete<LeSetDefaultPeriodicAdvertisingSyncTransferParametersCompleteView>));
   }
 
   void HandlePeriodicAdvertisingCreateSyncStatus(CommandStatusView) {}
@@ -234,24 +237,6 @@ class PeriodicSyncManager {
     callbacks_->OnPeriodicSyncTransferred(
         periodic_sync_transfer->pa_source, (uint16_t)status_view.GetStatus(), periodic_sync_transfer->addr);
     periodic_sync_transfers_.erase(periodic_sync_transfer);
-  }
-
-  template <class View>
-  void check_status(CommandCompleteView view) {
-    ASSERT(view.IsValid());
-    auto status_view = View::Create(view);
-    ASSERT(status_view.IsValid());
-    if (status_view.GetStatus() != ErrorCode::SUCCESS) {
-      LOG_WARN(
-          "Got a Command complete %s, status %s",
-          OpCodeText(view.GetCommandOpCode()).c_str(),
-          ErrorCodeText(status_view.GetStatus()).c_str());
-    } else {
-      LOG_DEBUG(
-          "Got a Command complete %s, status %s",
-          OpCodeText(view.GetCommandOpCode()).c_str(),
-          ErrorCodeText(status_view.GetStatus()).c_str());
-    }
   }
 
   void HandleLePeriodicAdvertisingSyncEstablished(LePeriodicAdvertisingSyncEstablishedView event_view) {
@@ -295,8 +280,7 @@ class PeriodicSyncManager {
         LOG_WARN("Terminate sync");
         le_scanning_interface_->EnqueueCommand(
             hci::LePeriodicAdvertisingTerminateSyncBuilder::Create(event_view.GetSyncHandle()),
-            handler_->BindOnceOn(
-                this, &PeriodicSyncManager::check_status<LePeriodicAdvertisingTerminateSyncCompleteView>));
+            handler_->BindOnce(check_complete<LePeriodicAdvertisingTerminateSyncCompleteView>));
       }
       AdvanceRequest();
       return;
@@ -332,13 +316,23 @@ class PeriodicSyncManager {
       LOG_ERROR("[PSync]: index not found for handle %u", sync_handle);
       return;
     }
+
+    auto complete_advertising_data =
+        IS_FLAG_ENABLED(le_periodic_scanning_reassembler)
+            ? scanning_reassembler_.ProcessPeriodicAdvertisingReport(
+                  sync_handle, DataStatus(event_view.GetDataStatus()), event_view.GetData())
+            : event_view.GetData();
+    if (!complete_advertising_data.has_value()) {
+      return;
+    }
+
     LOG_DEBUG("%s", "[PSync]: invoking callback");
     callbacks_->OnPeriodicSyncReport(
         sync_handle,
         event_view.GetTxPower(),
         event_view.GetRssi(),
         (uint16_t)event_view.GetDataStatus(),
-        event_view.GetData());
+        complete_advertising_data.value());
   }
 
   void HandleLePeriodicAdvertisingSyncLost(LePeriodicAdvertisingSyncLostView event_view) {
@@ -347,6 +341,10 @@ class PeriodicSyncManager {
     LOG_DEBUG("[PSync]: sync_handle = %d", sync_handle);
     callbacks_->OnPeriodicSyncLost(sync_handle);
     auto periodic_sync = GetEstablishedSyncFromHandle(sync_handle);
+    if (periodic_sync == periodic_syncs_.end()) {
+      LOG_ERROR("[PSync]: index not found for handle %u", sync_handle);
+      return;
+    }
     periodic_syncs_.erase(periodic_sync);
   }
 
@@ -547,6 +545,7 @@ class PeriodicSyncManager {
   std::list<PendingPeriodicSyncRequest> pending_sync_requests_;
   std::list<PeriodicSyncStates> periodic_syncs_;
   std::list<PeriodicSyncTransferStates> periodic_sync_transfers_;
+  LeScanningReassembler scanning_reassembler_;
   bool sync_received_callback_registered_ = false;
   int sync_received_callback_id{};
 };

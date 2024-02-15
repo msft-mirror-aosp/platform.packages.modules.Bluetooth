@@ -16,6 +16,7 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_name" msgid="2326164424236203271">"ဘလူးတုသ်"</string>
     <string name="permlab_bluetoothShareManager" msgid="5297865456717871041">"ဒေါင်းလုပ်မန်နေဂျာကို အသုံးပြုနိုင်မည်"</string>
     <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"အပလီကေးရှင်းအား ဘလူးတုသ်မျှဝေမှု မန်နေဂျာကို အသုံးပြုခွင့်ပေးပြီး ဖိုင်လွှဲရန် အသုံးပြုပါ"</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"ဘလူးတုသ်ယာယီလက်ခံစာရင်းကို အသုံးပြုခွင့်။"</string>
@@ -100,7 +101,6 @@
     <string name="status_connection_error" msgid="8253709700568062220">"ချိတ်ဆက်ခြင်း မအောင်မြင်ပါ"</string>
     <string name="status_protocol_error" msgid="3231573735130475654">"တောင်းခံခြင်းကို မှန်ကန်စွာကိုင်တွယ်မရပါ"</string>
     <string name="status_unknown_error" msgid="314676481744304866">"အမည်မသိသော မှားယွင်းမှု"</string>
-    <string name="btopp_live_folder" msgid="4859989703965326287">"ဘလူးတုသ် လက်ခံရပြီး"</string>
     <string name="opp_notification_group" msgid="150067508422520653">"ဘလူးတုသ် မျှဝေမှု"</string>
     <string name="download_success" msgid="3438268368708549686">"<xliff:g id="FILE_SIZE">%1$s</xliff:g> လက်ခံရရှိပြီး"</string>
     <string name="upload_success" msgid="143787470859042049">"<xliff:g id="FILE_SIZE">%1$s</xliff:g> ပို့ခြင်း ပြီးဆုံးပြီး"</string>

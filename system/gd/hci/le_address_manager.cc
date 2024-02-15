@@ -16,7 +16,10 @@
 
 #include "hci/le_address_manager.h"
 
+#include <android_bluetooth_flags.h>
+
 #include "common/init_flags.h"
+#include "hci/octets.h"
 #include "os/log.h"
 #include "os/rand.h"
 
@@ -29,12 +32,12 @@ LeAddressManager::LeAddressManager(
     common::Callback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
     os::Handler* handler,
     Address public_address,
-    uint8_t connect_list_size,
+    uint8_t accept_list_size,
     uint8_t resolving_list_size)
     : enqueue_command_(enqueue_command),
       handler_(handler),
       public_address_(public_address),
-      connect_list_size_(connect_list_size),
+      accept_list_size_(accept_list_size),
       resolving_list_size_(resolving_list_size){};
 
 LeAddressManager::~LeAddressManager() {
@@ -48,7 +51,7 @@ LeAddressManager::~LeAddressManager() {
 void LeAddressManager::SetPrivacyPolicyForInitiatorAddress(
     AddressPolicy address_policy,
     AddressWithType fixed_address,
-    crypto_toolbox::Octet16 rotation_irk,
+    Octet16 rotation_irk,
     bool supports_ble_privacy,
     std::chrono::milliseconds minimum_rotation_time,
     std::chrono::milliseconds maximum_rotation_time) {
@@ -70,6 +73,11 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddress(
   address_policy_ = address_policy;
   supports_ble_privacy_ = supports_ble_privacy;
   LOG_INFO("SetPrivacyPolicyForInitiatorAddress with policy %d", address_policy);
+
+  if (IS_FLAG_ENABLED(nrpa_non_connectable_adv)) {
+    minimum_rotation_time_ = minimum_rotation_time;
+    maximum_rotation_time_ = maximum_rotation_time;
+  }
 
   switch (address_policy_) {
     case AddressPolicy::USE_PUBLIC_ADDRESS:
@@ -96,8 +104,10 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddress(
     case AddressPolicy::USE_RESOLVABLE_ADDRESS:
       le_address_ = fixed_address;
       rotation_irk_ = rotation_irk;
-      minimum_rotation_time_ = minimum_rotation_time;
-      maximum_rotation_time_ = maximum_rotation_time;
+      if (!IS_FLAG_ENABLED(nrpa_non_connectable_adv)) {
+        minimum_rotation_time_ = minimum_rotation_time;
+        maximum_rotation_time_ = maximum_rotation_time;
+      }
       address_rotation_alarm_ = std::make_unique<os::Alarm>(handler_);
       set_random_address();
       break;
@@ -110,7 +120,7 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddress(
 void LeAddressManager::SetPrivacyPolicyForInitiatorAddressForTest(
     AddressPolicy address_policy,
     AddressWithType fixed_address,
-    crypto_toolbox::Octet16 rotation_irk,
+    Octet16 rotation_irk,
     std::chrono::milliseconds minimum_rotation_time,
     std::chrono::milliseconds maximum_rotation_time) {
   ASSERT(address_policy != AddressPolicy::POLICY_NOT_SET);
@@ -227,7 +237,9 @@ AddressWithType LeAddressManager::NewResolvableAddress() {
 }
 
 AddressWithType LeAddressManager::NewNonResolvableAddress() {
-  ASSERT(RotatingAddress());
+  if (!IS_FLAG_ENABLED(nrpa_non_connectable_adv)) {
+    ASSERT(RotatingAddress());
+  }
   hci::Address address = generate_nrpa();
   auto random_address = AddressWithType(address, AddressType::RANDOM_DEVICE_ADDRESS);
   return random_address;
@@ -384,8 +396,13 @@ hci::Address LeAddressManager::generate_rpa() {
   address.address[4] = prand[1];
   address.address[5] = prand[2];
 
+  Octet16 rand{};
+  rand[0] = prand[0];
+  rand[1] = prand[1];
+  rand[2] = prand[2];
+
   /* encrypt with IRK */
-  crypto_toolbox::Octet16 p = crypto_toolbox::aes_128(rotation_irk_, prand.data(), 3);
+  Octet16 p = crypto_toolbox::aes_128(rotation_irk_, rand);
 
   /* set hash to be LSB of rpAddress */
   address.address[0] = p[0];
@@ -425,7 +442,7 @@ std::chrono::milliseconds LeAddressManager::GetNextPrivateAddressIntervalMs() {
 }
 
 uint8_t LeAddressManager::GetFilterAcceptListSize() {
-  return connect_list_size_;
+  return accept_list_size_;
 }
 
 uint8_t LeAddressManager::GetResolvingListSize() {
@@ -462,9 +479,9 @@ void LeAddressManager::handle_next_command() {
 }
 
 void LeAddressManager::AddDeviceToFilterAcceptList(
-    FilterAcceptListAddressType connect_list_address_type, bluetooth::hci::Address address) {
-  auto packet_builder = hci::LeAddDeviceToFilterAcceptListBuilder::Create(connect_list_address_type, address);
-  Command command = {CommandType::ADD_DEVICE_TO_CONNECT_LIST, HCICommand{std::move(packet_builder)}};
+    FilterAcceptListAddressType accept_list_address_type, bluetooth::hci::Address address) {
+  auto packet_builder = hci::LeAddDeviceToFilterAcceptListBuilder::Create(accept_list_address_type, address);
+  Command command = {CommandType::ADD_DEVICE_TO_ACCEPT_LIST, HCICommand{std::move(packet_builder)}};
   handler_->BindOnceOn(this, &LeAddressManager::push_command, std::move(command)).Invoke();
 }
 
@@ -507,9 +524,9 @@ void LeAddressManager::AddDeviceToResolvingList(
 }
 
 void LeAddressManager::RemoveDeviceFromFilterAcceptList(
-    FilterAcceptListAddressType connect_list_address_type, bluetooth::hci::Address address) {
-  auto packet_builder = hci::LeRemoveDeviceFromFilterAcceptListBuilder::Create(connect_list_address_type, address);
-  Command command = {CommandType::REMOVE_DEVICE_FROM_CONNECT_LIST, HCICommand{std::move(packet_builder)}};
+    FilterAcceptListAddressType accept_list_address_type, bluetooth::hci::Address address) {
+  auto packet_builder = hci::LeRemoveDeviceFromFilterAcceptListBuilder::Create(accept_list_address_type, address);
+  Command command = {CommandType::REMOVE_DEVICE_FROM_ACCEPT_LIST, HCICommand{std::move(packet_builder)}};
   handler_->BindOnceOn(this, &LeAddressManager::push_command, std::move(command)).Invoke();
 }
 
@@ -543,7 +560,7 @@ void LeAddressManager::RemoveDeviceFromResolvingList(
 
 void LeAddressManager::ClearFilterAcceptList() {
   auto packet_builder = hci::LeClearFilterAcceptListBuilder::Create();
-  Command command = {CommandType::CLEAR_CONNECT_LIST, HCICommand{std::move(packet_builder)}};
+  Command command = {CommandType::CLEAR_ACCEPT_LIST, HCICommand{std::move(packet_builder)}};
   handler_->BindOnceOn(this, &LeAddressManager::push_command, std::move(command)).Invoke();
 }
 

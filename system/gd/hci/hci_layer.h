@@ -30,6 +30,7 @@
 #include "common/contextual_callback.h"
 #include "hal/hci_hal.h"
 #include "hci/acl_connection_interface.h"
+#include "hci/distance_measurement_interface.h"
 #include "hci/hci_packets.h"
 #include "hci/le_acl_connection_interface.h"
 #include "hci/le_advertising_interface.h"
@@ -38,6 +39,7 @@
 #include "hci/le_security_interface.h"
 #include "hci/security_interface.h"
 #include "module.h"
+#include "os/handler.h"
 #include "os/utils.h"
 
 namespace bluetooth {
@@ -75,6 +77,9 @@ class HciLayer : public Module, public CommandInterface<CommandBuilder> {
 
   virtual void UnregisterLeEventHandler(SubeventCode subevent_code);
 
+  virtual void RegisterForDisconnects(
+      common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect);
+
   virtual SecurityInterface* GetSecurityInterface(common::ContextualCallback<void(EventView)> event_handler);
 
   virtual LeSecurityInterface* GetLeSecurityInterface(common::ContextualCallback<void(LeMetaEventView)> event_handler);
@@ -82,6 +87,7 @@ class HciLayer : public Module, public CommandInterface<CommandBuilder> {
   virtual AclConnectionInterface* GetAclConnectionInterface(
       common::ContextualCallback<void(EventView)> event_handler,
       common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect,
+      common::ContextualCallback<void(Address, ClassOfDevice)> on_connection_request,
       common::ContextualCallback<void(hci::ErrorCode, uint16_t, uint8_t, uint16_t, uint16_t)>
           on_read_remote_version_complete);
   virtual void PutAclConnectionInterface();
@@ -98,7 +104,14 @@ class HciLayer : public Module, public CommandInterface<CommandBuilder> {
 
   virtual LeScanningInterface* GetLeScanningInterface(common::ContextualCallback<void(LeMetaEventView)> event_handler);
 
+  virtual void RegisterForScoConnectionRequests(
+      common::ContextualCallback<void(Address, ClassOfDevice, ConnectionRequestLinkType)>
+          on_sco_connection_request);
+
   virtual LeIsoInterface* GetLeIsoInterface(common::ContextualCallback<void(LeMetaEventView)> event_handler);
+
+  virtual DistanceMeasurementInterface* GetDistanceMeasurementInterface(
+      common::ContextualCallback<void(LeMetaEventView)> event_handler);
 
   std::string ToString() const override {
     return "Hci Layer";
@@ -114,6 +127,8 @@ class HciLayer : public Module, public CommandInterface<CommandBuilder> {
   void ListDependencies(ModuleList* list) const override;
 
   void Start() override;
+
+  void StartWithNoHalDependencies(os::Handler* handler);
 
   void Stop() override;
 
@@ -154,8 +169,14 @@ class HciLayer : public Module, public CommandInterface<CommandBuilder> {
   };
 
   std::mutex callback_handlers_guard_;
+  void on_connection_request(EventView event_view);
   void on_disconnection_complete(EventView event_view);
   void on_read_remote_version_complete(EventView event_view);
+
+  common::ContextualCallback<void(Address bd_addr, ClassOfDevice cod)> on_acl_connection_request_{};
+  common::ContextualCallback<void(
+      Address bd_addr, ClassOfDevice cod, ConnectionRequestLinkType link_type)>
+      on_sco_connection_request_{};
 
   // Interfaces
   CommandInterfaceImpl<AclCommandBuilder> acl_connection_manager_interface_{*this};
@@ -165,6 +186,7 @@ class HciLayer : public Module, public CommandInterface<CommandBuilder> {
   CommandInterfaceImpl<LeAdvertisingCommandBuilder> le_advertising_interface{*this};
   CommandInterfaceImpl<LeScanningCommandBuilder> le_scanning_interface{*this};
   CommandInterfaceImpl<LeIsoCommandBuilder> le_iso_interface{*this};
+  CommandInterfaceImpl<DistanceMeasurementCommandBuilder> distance_measurement_interface{*this};
 };
 }  // namespace hci
 }  // namespace bluetooth

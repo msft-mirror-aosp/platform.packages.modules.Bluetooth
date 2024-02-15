@@ -29,26 +29,18 @@
 
 #include <cstring>
 
-#include "bt_target.h"  // Must be first to define build configuration
 #include "bta/sys/bta_sys.h"
 #include "bta/sys/bta_sys_int.h"
 #include "include/hardware/bluetooth.h"
+#include "internal_include/bt_target.h"
+#include "os/log.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
-#include "osi/include/log.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/bt_types.h"
-#include "stack/include/btu.h"  // do_in_main_thread
-
-void BTIF_dm_on_hw_error();
+#include "stack/include/main_thread.h"
 
 /* system manager control block definition */
 tBTA_SYS_CB bta_sys_cb;
-
-/* trace level */
-/* TODO Hard-coded trace levels -  Needs to be configurable */
-uint8_t appl_trace_level = APPL_INITIAL_TRACE_LEVEL;
-uint8_t btif_trace_level = BT_TRACE_LEVEL_WARNING;
 
 /*******************************************************************************
  *
@@ -64,16 +56,6 @@ void bta_sys_init(void) {
   memset(&bta_sys_cb, 0, sizeof(tBTA_SYS_CB));
 }
 
-void bta_set_forward_hw_failures(bool value) {
-  bta_sys_cb.forward_hw_failures = value;
-}
-
-void BTA_sys_signal_hw_error() {
-  if (bta_sys_cb.forward_hw_failures) {
-    BTIF_dm_on_hw_error();
-  }
-}
-
 /*******************************************************************************
  *
  * Function         bta_sys_event
@@ -85,20 +67,19 @@ void BTA_sys_signal_hw_error() {
  *
  ******************************************************************************/
 static void bta_sys_event(BT_HDR_RIGID* p_msg) {
-  uint8_t id;
   bool freebuf = true;
 
-  APPL_TRACE_EVENT("%s: Event 0x%x", __func__, p_msg->event);
+  LOG_VERBOSE("%s: Event 0x%x", __func__, p_msg->event);
 
   /* get subsystem id from event */
-  id = (uint8_t)(p_msg->event >> 8);
+  uint8_t id = (uint8_t)(p_msg->event >> 8);
 
   /* verify id and call subsystem event handler */
   if ((id < BTA_ID_MAX) && (bta_sys_cb.reg[id] != NULL)) {
     freebuf = (*bta_sys_cb.reg[id]->evt_hdlr)(p_msg);
   } else {
-    LOG_INFO("Ignoring receipt of unregistered event id:%s",
-             BtaIdSysText(id).c_str());
+    LOG_INFO("Ignoring receipt of unregistered event id:%s[%hhu]",
+             BtaIdSysText(static_cast<tBTA_SYS_ID>(id)).c_str(), id);
   }
 
   if (freebuf) {
@@ -166,13 +147,13 @@ bool bta_sys_is_register(uint8_t id) { return bta_sys_cb.is_reg[id]; }
 void bta_sys_sendmsg(void* p_msg) {
   if (do_in_main_thread(
           FROM_HERE,
-          base::Bind(&bta_sys_event, static_cast<BT_HDR_RIGID*>(p_msg))) !=
+          base::BindOnce(&bta_sys_event, static_cast<BT_HDR_RIGID*>(p_msg))) !=
       BT_STATUS_SUCCESS) {
     LOG(ERROR) << __func__ << ": do_in_main_thread failed";
   }
 }
 
-void bta_sys_sendmsg_delayed(void* p_msg, const base::TimeDelta& delay) {
+void bta_sys_sendmsg_delayed(void* p_msg, std::chrono::microseconds delay) {
   if (do_in_main_thread_delayed(
           FROM_HERE,
           base::Bind(&bta_sys_event, static_cast<BT_HDR_RIGID*>(p_msg)),

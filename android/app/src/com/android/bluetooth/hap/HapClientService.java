@@ -18,7 +18,6 @@
 package com.android.bluetooth.hap;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
-import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
 import static com.android.bluetooth.Utils.enforceBluetoothPrivilegedPermission;
 
@@ -34,11 +33,10 @@ import android.bluetooth.BluetoothUuid;
 import android.bluetooth.IBluetoothHapClient;
 import android.bluetooth.IBluetoothHapClientCallback;
 import android.content.AttributionSource;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
+import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.os.ParcelUuid;
 import android.os.RemoteCallbackList;
 import android.os.RemoteException;
@@ -46,11 +44,13 @@ import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
+import com.android.bluetooth.btservice.ActiveDeviceManager;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.ServiceFactory;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.csip.CsipSetCoordinatorService;
+import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.modules.utils.SynchronousResultReceiver;
 
@@ -82,8 +82,7 @@ public class HapClientService extends ProfileService {
     private AdapterService mAdapterService;
     private DatabaseManager mDatabaseManager;
     private HandlerThread mStateMachinesThread;
-    private BroadcastReceiver mBondStateChangedReceiver;
-    private BroadcastReceiver mConnectionStateChangedReceiver;
+    private Handler mHandler;
 
     private final Map<BluetoothDevice, Integer> mDeviceCurrentPresetMap = new HashMap<>();
     private final Map<BluetoothDevice, Integer> mDeviceFeaturesMap = new HashMap<>();
@@ -125,15 +124,13 @@ public class HapClientService extends ProfileService {
         return sHapClient;
     }
 
-    @Override
-    protected void create() {
-        if (DBG) {
-            Log.d(TAG, "create()");
-        }
+    public HapClientService(AdapterService adapterService) {
+        super(adapterService);
+        mAdapterService = Objects.requireNonNull(adapterService);
     }
 
     @Override
-    protected void cleanup() {
+    public void cleanup() {
         if (DBG) {
             Log.d(TAG, "cleanup()");
         }
@@ -145,7 +142,7 @@ public class HapClientService extends ProfileService {
     }
 
     @Override
-    protected boolean start() {
+    public void start() {
         if (DBG) {
             Log.d(TAG, "start()");
         }
@@ -154,32 +151,21 @@ public class HapClientService extends ProfileService {
             throw new IllegalStateException("start() called twice");
         }
 
-        // Get AdapterService, HapClientNativeInterface, DatabaseManager, AudioManager.
+        // Get HapClientNativeInterface, DatabaseManager, AudioManager.
         // None of them can be null.
-        mAdapterService = Objects.requireNonNull(AdapterService.getAdapterService(),
-                "AdapterService cannot be null when HapClientService starts");
-        mDatabaseManager = Objects.requireNonNull(mAdapterService.getDatabase(),
-                "DatabaseManager cannot be null when HapClientService starts");
+        mDatabaseManager =
+                Objects.requireNonNull(
+                        mAdapterService.getDatabase(),
+                        "DatabaseManager cannot be null when HapClientService starts");
         mHapClientNativeInterface = Objects.requireNonNull(
                 HapClientNativeInterface.getInstance(),
                 "HapClientNativeInterface cannot be null when HapClientService starts");
 
         // Start handler thread for state machines
+        mHandler = new Handler(Looper.getMainLooper());
         mStateMachines.clear();
         mStateMachinesThread = new HandlerThread("HapClientService.StateMachines");
         mStateMachinesThread.start();
-
-        // Setup broadcast receivers
-        IntentFilter filter = new IntentFilter();
-        filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
-        filter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-        mBondStateChangedReceiver = new BondStateChangedReceiver();
-        registerReceiver(mBondStateChangedReceiver, filter);
-        filter = new IntentFilter();
-        filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
-        filter.addAction(BluetoothHapClient.ACTION_HAP_CONNECTION_STATE_CHANGED);
-        mConnectionStateChangedReceiver = new ConnectionStateChangedReceiver();
-        registerReceiver(mConnectionStateChangedReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
 
         mCallbacks = new RemoteCallbackList<IBluetoothHapClientCallback>();
 
@@ -188,28 +174,20 @@ public class HapClientService extends ProfileService {
 
         // Mark service as started
         setHapClient(this);
-
-        return true;
     }
 
     @Override
-    protected boolean stop() {
+    public void stop() {
         if (DBG) {
             Log.d(TAG, "stop()");
         }
         if (sHapClient == null) {
             Log.w(TAG, "stop() called before start()");
-            return true;
+            return;
         }
 
         // Marks service as stopped
         setHapClient(null);
-
-        // Unregister broadcast receivers
-        unregisterReceiver(mBondStateChangedReceiver);
-        mBondStateChangedReceiver = null;
-        unregisterReceiver(mConnectionStateChangedReceiver);
-        mConnectionStateChangedReceiver = null;
 
         // Destroy state machines and stop handler thread
         synchronized (mStateMachines) {
@@ -230,6 +208,12 @@ public class HapClientService extends ProfileService {
             }
         }
 
+        // Unregister Handler and stop all queued messages.
+        if (mHandler != null) {
+            mHandler.removeCallbacksAndMessages(null);
+            mHandler = null;
+        }
+
         // Cleanup GATT interface
         mHapClientNativeInterface.cleanup();
         mHapClientNativeInterface = null;
@@ -242,11 +226,11 @@ public class HapClientService extends ProfileService {
         if (mCallbacks != null) {
             mCallbacks.kill();
         }
+    }
 
-        // Clear AdapterService
-        mAdapterService = null;
-
-        return true;
+    /** Process a change in the bonding state for a device */
+    public void handleBondStateChanged(BluetoothDevice device, int fromState, int toState) {
+        mHandler.post(() -> bondStateChanged(device, toState));
     }
 
     @VisibleForTesting
@@ -451,6 +435,13 @@ public class HapClientService extends ProfileService {
                     Log.d(TAG, device + " is unbond. Remove state machine");
                 }
                 removeStateMachine(device);
+            }
+        }
+        if (!Flags.audioRoutingCentralization()) {
+            ActiveDeviceManager adManager = mAdapterService.getActiveDeviceManager();
+            if (adManager != null) {
+                adManager.profileConnectionStateChanged(
+                        BluetoothProfile.HAP_CLIENT, device, fromState, toState);
             }
         }
     }
@@ -1642,35 +1633,6 @@ public class HapClientService extends ProfileService {
             } catch (RuntimeException e) {
                 receiver.propagateException(e);
             }
-        }
-    }
-
-    // Remove state machine if the bonding for a device is removed
-    private class BondStateChangedReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (!BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(intent.getAction())) {
-                return;
-            }
-            int state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE,
-                    BluetoothDevice.ERROR);
-            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-            Objects.requireNonNull(device, "ACTION_BOND_STATE_CHANGED with no EXTRA_DEVICE");
-            bondStateChanged(device, state);
-        }
-    }
-
-    private class ConnectionStateChangedReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (!BluetoothHapClient.ACTION_HAP_CONNECTION_STATE_CHANGED.equals(
-                    intent.getAction())) {
-                return;
-            }
-            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-            int toState = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1);
-            int fromState = intent.getIntExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, -1);
-            connectionStateChanged(device, fromState, toState);
         }
     }
 }

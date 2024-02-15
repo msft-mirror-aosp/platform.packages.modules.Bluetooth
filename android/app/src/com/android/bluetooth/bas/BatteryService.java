@@ -26,11 +26,10 @@ import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.IBluetoothBattery;
 import android.content.AttributionSource;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
+import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.os.ParcelUuid;
 import android.sysprop.BluetoothProperties;
 import android.util.Log;
@@ -53,8 +52,8 @@ import java.util.Objects;
  * A profile service that connects to the Battery service (BAS) of BLE devices
  */
 public class BatteryService extends ProfileService {
-    private static final boolean DBG = false;
     private static final String TAG = "BatteryService";
+    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
 
     // Timeout for state machine thread join, to prevent potential ANR.
     private static final int SM_THREAD_JOIN_TIMEOUT_MS = 1_000;
@@ -64,9 +63,12 @@ public class BatteryService extends ProfileService {
     private AdapterService mAdapterService;
     private DatabaseManager mDatabaseManager;
     private HandlerThread mStateMachinesThread;
+    private Handler mHandler;
     private final Map<BluetoothDevice, BatteryStateMachine> mStateMachines = new HashMap<>();
 
-    private BroadcastReceiver mBondStateChangedReceiver;
+    public BatteryService(Context ctx) {
+        super(ctx);
+    }
 
     public static boolean isEnabled() {
         return BluetoothProperties.isProfileBasClientEnabled().orElse(false);
@@ -78,14 +80,7 @@ public class BatteryService extends ProfileService {
     }
 
     @Override
-    protected void create() {
-        if (DBG) {
-            Log.d(TAG, "create()");
-        }
-    }
-
-    @Override
-    protected boolean start() {
+    public void start() {
         if (DBG) {
             Log.d(TAG, "start()");
         }
@@ -98,36 +93,25 @@ public class BatteryService extends ProfileService {
         mDatabaseManager = Objects.requireNonNull(mAdapterService.getDatabase(),
                 "DatabaseManager cannot be null when BatteryService starts");
 
+        mHandler = new Handler(Looper.getMainLooper());
         mStateMachines.clear();
         mStateMachinesThread = new HandlerThread("BatteryService.StateMachines");
         mStateMachinesThread.start();
 
-        // Setup broadcast receivers
-        IntentFilter filter = new IntentFilter();
-        filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
-        filter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-        mBondStateChangedReceiver = new BondStateChangedReceiver();
-        registerReceiver(mBondStateChangedReceiver, filter);
-
         setBatteryService(this);
-
-        return true;
     }
 
     @Override
-    protected boolean stop() {
+    public void stop() {
         if (DBG) {
             Log.d(TAG, "stop()");
         }
         if (sBatteryService == null) {
             Log.w(TAG, "stop() called before start()");
-            return true;
+            return;
         }
 
         setBatteryService(null);
-        // Unregister broadcast receivers
-        unregisterReceiver(mBondStateChangedReceiver);
-        mBondStateChangedReceiver = null;
 
         // Destroy state machines and stop handler thread
         synchronized (mStateMachines) {
@@ -149,13 +133,17 @@ public class BatteryService extends ProfileService {
             }
         }
 
-        mAdapterService = null;
+        // Unregister Handler and stop all queued messages.
+        if (mHandler != null) {
+            mHandler.removeCallbacksAndMessages(null);
+            mHandler = null;
+        }
 
-        return true;
+        mAdapterService = null;
     }
 
     @Override
-    protected void cleanup() {
+    public void cleanup() {
         if (DBG) {
             Log.d(TAG, "cleanup()");
         }
@@ -442,7 +430,7 @@ public class BatteryService extends ProfileService {
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void handleBatteryChanged(BluetoothDevice device, int batteryLevel) {
-        mAdapterService.setBatteryLevel(device, batteryLevel);
+        mAdapterService.setBatteryLevel(device, batteryLevel, /*isBas=*/ true);
     }
 
     private BatteryStateMachine getOrCreateStateMachine(BluetoothDevice device) {
@@ -470,33 +458,21 @@ public class BatteryService extends ProfileService {
         }
     }
 
-    // Remove state machine if the bonding for a device is removed
-    private class BondStateChangedReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (!BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(intent.getAction())) {
-                return;
-            }
-            int state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE,
-                    BluetoothDevice.ERROR);
-            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-            Objects.requireNonNull(device, "ACTION_BOND_STATE_CHANGED with no EXTRA_DEVICE");
-            handleBondStateChanged(device, state);
-        }
+    /** Process a change in the bonding state for a device */
+    public void handleBondStateChanged(BluetoothDevice device, int fromState, int toState) {
+        mHandler.post(() -> bondStateChanged(device, toState));
     }
 
     /**
-     * Process a change in the bonding state for a device.
+     * Remove state machine if the bonding for a device is removed
      *
      * @param device the device whose bonding state has changed
-     * @param bondState the new bond state for the device. Possible values are:
-     * {@link BluetoothDevice#BOND_NONE},
-     * {@link BluetoothDevice#BOND_BONDING},
-     * {@link BluetoothDevice#BOND_BONDED},
-     * {@link BluetoothDevice#ERROR}.
+     * @param bondState the new bond state for the device. Possible values are: {@link
+     *     BluetoothDevice#BOND_NONE}, {@link BluetoothDevice#BOND_BONDING}, {@link
+     *     BluetoothDevice#BOND_BONDED}, {@link BluetoothDevice#ERROR}.
      */
     @VisibleForTesting
-    void handleBondStateChanged(BluetoothDevice device, int bondState) {
+    void bondStateChanged(BluetoothDevice device, int bondState) {
         if (DBG) {
             Log.d(TAG, "Bond state changed for device: " + device + " state: " + bondState);
         }

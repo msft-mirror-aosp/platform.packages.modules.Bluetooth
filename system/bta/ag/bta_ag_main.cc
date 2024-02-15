@@ -22,20 +22,22 @@
  *
  ******************************************************************************/
 
+#include <android_bluetooth_flags.h>
+#include <base/logging.h>
+
 #include <string>
 #include <vector>
 
 #include "bta/ag/bta_ag_int.h"
-#include "main/shim/dumpsys.h"
+#include "bta/include/bta_hfp_api.h"
+#include "internal_include/bt_target.h"
+#include "os/log.h"
 #include "osi/include/alarm.h"
 #include "osi/include/compat.h"
-#include "osi/include/log.h"
 #include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_api.h"
 #include "types/raw_address.h"
-
-#include <base/logging.h>
 
 /*****************************************************************************
  * Constants and types
@@ -147,6 +149,7 @@ static tBTA_AG_SCB* bta_ag_scb_alloc(void) {
       p_scb->received_at_bac = false;
       p_scb->codec_updated = false;
       p_scb->codec_fallback = false;
+      p_scb->retransmission_effort_retries = 0;
       p_scb->peer_codecs = BTM_SCO_CODEC_CVSD;
       p_scb->sco_codec = BTM_SCO_CODEC_CVSD;
       p_scb->peer_version = HFP_HSP_VERSION_UNKNOWN;
@@ -160,7 +163,10 @@ static tBTA_AG_SCB* bta_ag_scb_alloc(void) {
       /* set eSCO mSBC setting to T2 as the preferred */
       p_scb->codec_msbc_settings = BTA_AG_SCO_MSBC_SETTINGS_T2;
       p_scb->codec_lc3_settings = BTA_AG_SCO_LC3_SETTINGS_T2;
-      APPL_TRACE_DEBUG("bta_ag_scb_alloc %d", bta_ag_scb_to_idx(p_scb));
+      /* set eSCO SWB setting to Q0 as the preferred */
+      p_scb->codec_aptx_settings = BTA_AG_SCO_APTX_SWB_SETTINGS_Q0;
+      p_scb->is_aptx_swb_codec = false;
+      LOG_VERBOSE("bta_ag_scb_alloc %d", bta_ag_scb_to_idx(p_scb));
       break;
     }
   }
@@ -187,7 +193,7 @@ void bta_ag_scb_dealloc(tBTA_AG_SCB* p_scb) {
   uint8_t idx;
   bool allocated = false;
 
-  APPL_TRACE_DEBUG("bta_ag_scb_dealloc %d", bta_ag_scb_to_idx(p_scb));
+  LOG_VERBOSE("bta_ag_scb_dealloc %d", bta_ag_scb_to_idx(p_scb));
 
   /* stop and free timers */
   alarm_free(p_scb->ring_timer);
@@ -246,11 +252,11 @@ tBTA_AG_SCB* bta_ag_scb_by_idx(uint16_t idx) {
     p_scb = &bta_ag_cb.scb[idx - 1];
     if (!p_scb->in_use) {
       p_scb = nullptr;
-      APPL_TRACE_WARNING("ag scb idx %d not allocated", idx);
+      LOG_WARN("ag scb idx %d not allocated", idx);
     }
   } else {
     p_scb = nullptr;
-    APPL_TRACE_DEBUG("ag scb idx %d out of range", idx);
+    LOG_VERBOSE("ag scb idx %d out of range", idx);
   }
   return p_scb;
 }
@@ -294,7 +300,7 @@ uint16_t bta_ag_idx_by_bdaddr(const RawAddress* peer_addr) {
   }
 
   /* no scb found */
-  APPL_TRACE_WARNING("No ag scb for peer addr");
+  LOG_WARN("No ag scb for peer addr");
   return 0;
 }
 
@@ -346,8 +352,8 @@ bool bta_ag_scb_open(tBTA_AG_SCB* p_curr_scb) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_collision_cback(UNUSED_ATTR tBTA_SYS_CONN_STATUS status, uint8_t id,
-                            UNUSED_ATTR uint8_t app_id,
+void bta_ag_collision_cback(UNUSED_ATTR tBTA_SYS_CONN_STATUS status,
+                            tBTA_SYS_ID id, UNUSED_ATTR uint8_t app_id,
                             const RawAddress& peer_addr) {
   /* Check if we have opening scb for the peer device. */
   uint16_t handle = bta_ag_idx_by_bdaddr(&peer_addr);
@@ -439,7 +445,7 @@ void bta_ag_api_disable() {
   int i;
 
   if (!bta_sys_is_register(BTA_ID_AG)) {
-    APPL_TRACE_ERROR("BTA AG is already disabled, ignoring ...");
+    LOG_ERROR("BTA AG is already disabled, ignoring ...");
     return;
   }
 
@@ -451,6 +457,11 @@ void bta_ag_api_disable() {
       bta_ag_sm_execute(p_scb, BTA_AG_API_DEREGISTER_EVT, tBTA_AG_DATA::kEmpty);
       do_dereg = true;
     }
+  }
+
+  if (IS_FLAG_ENABLED(is_sco_managed_by_audio)) {
+    // Stop session if not done
+    bta_clear_active_device();
   }
 
   if (!do_dereg) {
@@ -771,7 +782,7 @@ void bta_ag_sm_execute_by_handle(uint16_t handle, uint16_t event,
  * @param p_msg event message
  * @return True to free p_msg, or False if p_msg is freed within this function
  */
-bool bta_ag_hdl_event(BT_HDR_RIGID* p_msg) {
+bool bta_ag_hdl_event(const BT_HDR_RIGID* p_msg) {
   switch (p_msg->event) {
     case BTA_AG_RING_TIMEOUT_EVT:
     case BTA_AG_SVC_TIMEOUT_EVT:

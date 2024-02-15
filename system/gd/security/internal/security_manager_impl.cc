@@ -17,18 +17,19 @@
  */
 #include "security_manager_impl.h"
 
-#include <iostream>
+#include <android_bluetooth_sysprop.h>
 
 #include "common/bind.h"
-#include "crypto_toolbox/crypto_toolbox.h"
 #include "hci/address_with_type.h"
+#include "hci/octets.h"
 #include "os/log.h"
 #include "os/rand.h"
 #include "security/initial_informations.h"
 #include "security/internal/security_manager_impl.h"
 #include "security/pairing_handler_le.h"
-#include "security/security_manager.h"
+#include "security/security_manager_listener.h"
 #include "security/ui.h"
+#include "storage/config_keys.h"
 
 namespace bluetooth {
 namespace security {
@@ -80,23 +81,29 @@ void SecurityManagerImpl::Init() {
   ASSERT_LOG(storage_module_ != nullptr, "Storage module must not be null!");
   security_database_.LoadRecordsFromStorage();
 
-  auto irk_prop = storage_module_->GetBin("Adapter", "LE_LOCAL_KEY_IRK");
+  auto irk_prop =
+      storage_module_->GetBin(BTIF_STORAGE_SECTION_ADAPTER, BTIF_STORAGE_KEY_LE_LOCAL_KEY_IRK);
   if (!irk_prop.has_value()) {
     auto rand16 = bluetooth::os::GenerateRandom<16>();
     std::vector<uint8_t> new_irk{rand16.begin(), rand16.end()};
-    storage_module_->SetBin("Adapter", "LE_LOCAL_KEY_IRK", new_irk);
-    irk_prop = storage_module_->GetBin("Adapter", "LE_LOCAL_KEY_IRK");
+    storage_module_->SetBin(
+        BTIF_STORAGE_SECTION_ADAPTER, BTIF_STORAGE_KEY_LE_LOCAL_KEY_IRK, new_irk);
+    irk_prop =
+        storage_module_->GetBin(BTIF_STORAGE_SECTION_ADAPTER, BTIF_STORAGE_KEY_LE_LOCAL_KEY_IRK);
   }
 
   Address controllerAddress = controller_->GetMacAddress();
-  auto address_prop = storage_module_->GetProperty("Adapter", "Address");
+  auto address_prop =
+      storage_module_->GetProperty(BTIF_STORAGE_SECTION_ADAPTER, BTIF_STORAGE_KEY_ADDRESS);
   if (!address_prop || address_prop.value() != controllerAddress.ToString()) {
-    storage_module_->SetProperty("Adapter", "Address", controllerAddress.ToString());
+    storage_module_->SetProperty(
+        BTIF_STORAGE_SECTION_ADAPTER, BTIF_STORAGE_KEY_ADDRESS, controllerAddress.ToString());
   }
 
   local_identity_address_ =
       hci::AddressWithType(controllerAddress, hci::AddressType::PUBLIC_DEVICE_ADDRESS);
-  irk_prop = storage_module_->GetBin("Adapter", "LE_LOCAL_KEY_IRK");
+  irk_prop =
+      storage_module_->GetBin(BTIF_STORAGE_SECTION_ADAPTER, BTIF_STORAGE_KEY_LE_LOCAL_KEY_IRK);
   ASSERT_LOG(irk_prop.has_value(), "Irk not found in storage");
   ASSERT_LOG(irk_prop->size() == 16, "Irk corrupted in storage");
   std::copy(irk_prop->begin(), irk_prop->end(), local_identity_resolving_key_.data());
@@ -104,9 +111,12 @@ void SecurityManagerImpl::Init() {
   hci::LeAddressManager::AddressPolicy address_policy = hci::LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS;
   hci::AddressWithType address_with_type(hci::Address{}, hci::AddressType::RANDOM_DEVICE_ADDRESS);
 
-  /* 7 minutes minimum, 15 minutes maximum for random address refreshing */
-  auto minimum_rotation_time = std::chrono::minutes(7);
-  auto maximum_rotation_time = std::chrono::minutes(15);
+  /* Default to 7 minutes minimum, 15 minutes maximum for random address refreshing;
+   * device can override. */
+  auto minimum_rotation_time = std::chrono::minutes(
+      GET_SYSPROP(Ble, random_address_rotation_interval_min, 7));
+  auto maximum_rotation_time = std::chrono::minutes(
+      GET_SYSPROP(Ble, random_address_rotation_interval_max, 15));
 
   acl_manager_->SetPrivacyPolicyForInitiatorAddress(
       address_policy, address_with_type, minimum_rotation_time, maximum_rotation_time);
@@ -194,7 +204,7 @@ void SecurityManagerImpl::SetUserInterfaceHandler(UI* user_interface, os::Handle
 void SecurityManagerImpl::SetLeInitiatorAddressPolicyForTest(
     hci::LeAddressManager::AddressPolicy address_policy,
     hci::AddressWithType fixed_address,
-    crypto_toolbox::Octet16 rotation_irk,
+    hci::Octet16 rotation_irk,
     std::chrono::milliseconds minimum_rotation_time,
     std::chrono::milliseconds maximum_rotation_time) {
   acl_manager_->SetPrivacyPolicyForInitiatorAddressForTest(
@@ -452,9 +462,10 @@ void SecurityManagerImpl::OnPairingHandlerComplete(hci::Address address, Pairing
 
 void SecurityManagerImpl::OnL2capRegistrationCompleteLe(
     l2cap::le::FixedChannelManager::RegistrationResult result,
-    std::unique_ptr<l2cap::le::FixedChannelService> le_smp_service) {
-  ASSERT_LOG(result == bluetooth::l2cap::le::FixedChannelManager::RegistrationResult::SUCCESS,
-             "Failed to register to LE SMP Fixed Channel Service");
+    [[maybe_unused]] std::unique_ptr<l2cap::le::FixedChannelService> le_smp_service) {
+  ASSERT_LOG(
+      result == bluetooth::l2cap::le::FixedChannelManager::RegistrationResult::SUCCESS,
+      "Failed to register to LE SMP Fixed Channel Service");
 }
 
 LeFixedChannelEntry* SecurityManagerImpl::FindStoredLeChannel(const hci::AddressWithType& device) {
@@ -636,7 +647,8 @@ void SecurityManagerImpl::ConnectionIsReadyStartPairing(LeFixedChannelEntry* sto
   pending_le_pairing_.handler_ = std::make_unique<PairingHandlerLe>(PairingHandlerLe::PHASE1, initial_informations);
 }
 
-void SecurityManagerImpl::OnConnectionClosedLe(hci::AddressWithType address, hci::ErrorCode error_code) {
+void SecurityManagerImpl::OnConnectionClosedLe(
+    hci::AddressWithType address, hci::ErrorCode /* error_code */) {
   if (pending_le_pairing_.address_ != address) {
     LeFixedChannelEntry* stored_chan = FindStoredLeChannel(address);
     if (!stored_chan) {
@@ -866,7 +878,8 @@ void SecurityManagerImpl::EnforceSecurityPolicy(
 }
 
 void SecurityManagerImpl::EnforceLeSecurityPolicy(
-    hci::AddressWithType remote, l2cap::le::SecurityPolicy policy,
+    hci::AddressWithType /* remote */,
+    l2cap::le::SecurityPolicy policy,
     l2cap::le::SecurityEnforcementInterface::ResultCallback result_callback) {
   bool result = false;
   // TODO(jpawlowski): Implement for LE

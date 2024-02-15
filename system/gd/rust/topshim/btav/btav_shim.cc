@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "gd/rust/topshim/btav/btav_shim.h"
+#include "rust/topshim/btav/btav_shim.h"
 
 #include <cstdio>
 #include <memory>
@@ -246,7 +246,7 @@ static void audio_config_cb(
 }
 static bool mandatory_codec_preferred_cb(const RawAddress& addr) {
   rusty::mandatory_codec_preferred_callback(addr);
-  return true;
+  return false;
 }
 
 btav_source_callbacks_t g_callbacks = {
@@ -276,7 +276,8 @@ std::unique_ptr<A2dpIntf> GetA2dpProfile(const unsigned char* btif) {
 int A2dpIntf::init() const {
   std::vector<btav_a2dp_codec_config_t> a;
   std::vector<btav_a2dp_codec_config_t> b;
-  return intf_->init(&internal::g_callbacks, 1, a, b);
+  std::vector<btav_a2dp_codec_info_t> c;
+  return intf_->init(&internal::g_callbacks, 1, a, b, &c);
 }
 
 uint32_t A2dpIntf::connect(RawAddress addr) const {

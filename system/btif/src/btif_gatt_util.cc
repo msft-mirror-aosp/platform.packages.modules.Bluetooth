@@ -18,28 +18,26 @@
 
 #define LOG_TAG "bt_btif_gatt"
 
+#include <algorithm>
+
 #include "btif_gatt_util.h"
 
-#include <errno.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_gatt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "bta_api.h"
-#include "bta_gatt_api.h"
-#include "bta_jv_api.h"
-#include "btif_common.h"
-#include "btif_config.h"
-#include "btif_dm.h"
-#include "btif_gatt.h"
+#include "bta/include/bta_api_data_types.h"
+#include "bta/include/bta_sec_api.h"
 #include "btif_storage.h"
-#include "btif_util.h"
-#include "gd/os/system_properties.h"
+#include "common/init_flags.h"
+#include "os/log.h"
+#include "os/system_properties.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
 #include "stack/btm/btm_sec.h"
+#include "stack/include/acl_api.h"
+#include "types/ble_address_with_type.h"
 #include "types/bluetooth/uuid.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
@@ -52,9 +50,9 @@ using bluetooth::Uuid;
 void btif_to_bta_response(tGATTS_RSP* p_dest, btgatt_response_t* p_src) {
   p_dest->attr_value.auth_req = p_src->attr_value.auth_req;
   p_dest->attr_value.handle = p_src->attr_value.handle;
-  p_dest->attr_value.len = p_src->attr_value.len;
+  p_dest->attr_value.len = std::min<uint16_t>(p_src->attr_value.len, GATT_MAX_ATTR_LEN);
   p_dest->attr_value.offset = p_src->attr_value.offset;
-  memcpy(p_dest->attr_value.value, p_src->attr_value.value, GATT_MAX_ATTR_LEN);
+  memcpy(p_dest->attr_value.value, p_src->attr_value.value, p_dest->attr_value.len);
 }
 
 /*******************************************************************************
@@ -66,16 +64,25 @@ static bool btif_gatt_is_link_encrypted(const RawAddress& bd_addr) {
          BTM_IsEncrypted(bd_addr, BT_TRANSPORT_LE);
 }
 
-static void btif_gatt_set_encryption_cb(UNUSED_ATTR const RawAddress& bd_addr,
-                                        UNUSED_ATTR tBT_TRANSPORT transport,
+static void btif_gatt_set_encryption_cb(const RawAddress& /* bd_addr */,
+                                        tBT_TRANSPORT /* transport */,
                                         tBTA_STATUS result) {
   if (result != BTA_SUCCESS && result != BTA_BUSY) {
-    BTIF_TRACE_WARNING("%s() - Encryption failed (%d)", __func__, result);
+    LOG_WARN("%s() - Encryption failed (%d)", __func__, result);
   }
 }
 
 void btif_gatt_check_encrypted_link(RawAddress bd_addr,
                                     tBT_TRANSPORT transport_link) {
+  RawAddress raw_local_addr;
+  tBLE_ADDR_TYPE local_addr_type;
+  BTM_ReadConnectionAddr(bd_addr, raw_local_addr, &local_addr_type);
+  tBLE_BD_ADDR local_addr{local_addr_type, raw_local_addr};
+  if (!local_addr.IsPublic() && !local_addr.IsAddressResolvable()) {
+    LOG_DEBUG("Not establishing encryption since address type is NRPA");
+    return;
+  }
+
   static const bool check_encrypted = bluetooth::os::GetSystemPropertyBool(
       "bluetooth.gatt.check_encrypted_link.enabled", true);
   if (!check_encrypted) {

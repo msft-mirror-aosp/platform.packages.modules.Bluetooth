@@ -22,11 +22,11 @@
  *
  ******************************************************************************/
 
-#include "bt_target.h"  // Must be first to define build configuration
-#include "bta/gatt/bta_gatts_int.h"
-#include "stack/include/bt_hdr.h"
-
 #include <base/logging.h>
+
+#include "bta/gatt/bta_gatts_int.h"
+#include "internal_include/bt_target.h"
+#include "stack/include/bt_hdr.h"
 
 /* GATTS control block */
 tBTA_GATTS_CB bta_gatts_cb;
@@ -41,7 +41,7 @@ tBTA_GATTS_CB bta_gatts_cb;
  * Returns          void
  *
  ******************************************************************************/
-bool bta_gatts_hdl_event(BT_HDR_RIGID* p_msg) {
+bool bta_gatts_hdl_event(const BT_HDR_RIGID* p_msg) {
   tBTA_GATTS_CB* p_cb = &bta_gatts_cb;
 
   switch (p_msg->event) {

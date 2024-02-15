@@ -19,8 +19,6 @@ package com.android.bluetooth.avrcpcontroller;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAdapter;
@@ -57,17 +55,15 @@ public class AvrcpCoverArtProviderTest {
 
     @Rule
     public final ServiceTestRule mServiceRule = new ServiceTestRule();
-    @Mock
-    private Uri mUri;
-    @Mock
-    private AdapterService mAdapterService;
+    @Mock private Uri mUri;
+    @Mock private AdapterService mAdapterService;
+    @Mock private AvrcpControllerNativeInterface mNativeInterface;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         TestUtils.setAdapterService(mAdapterService);
-        doReturn(true, false).when(mAdapterService).isStartedProfile(anyString());
-        TestUtils.startService(mServiceRule, AvrcpControllerService.class);
+        AvrcpControllerNativeInterface.setInstance(mNativeInterface);
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mTestDevice = mAdapter.getRemoteDevice(mTestAddress);
         mArtProvider = new AvrcpCoverArtProvider();
@@ -75,7 +71,7 @@ public class AvrcpCoverArtProviderTest {
 
     @After
     public void tearDown() throws Exception {
-        TestUtils.stopService(mServiceRule, AvrcpControllerService.class);
+        AvrcpControllerNativeInterface.setInstance(null);
         TestUtils.clearAdapterService(mAdapterService);
     }
 

@@ -176,8 +176,25 @@ void LogMetricA2dpPlaybackEvent(const Address& address, int playback_state, int 
   }
 }
 
+void LogMetricA2dpSessionMetricsEvent(
+    const hci::Address& /* address */,
+    int64_t /* audio_duration_ms */,
+    int /* media_timer_min_ms */,
+    int /* media_timer_max_ms */,
+    int /* media_timer_avg_ms */,
+    int /* total_scheduling_count */,
+    int /* buffer_overruns_max_count */,
+    int /* buffer_overruns_total */,
+    float /* buffer_underruns_average */,
+    int /* buffer_underruns_count */,
+    int64_t /* codec_index */,
+    bool /* is_a2dp_offload */) {}
+
 void LogMetricHfpPacketLossStats(
-    const Address& address, int num_decoded_frames, double packet_loss_ratio) {}
+    const Address& /* address */,
+    int /* num_decoded_frames */,
+    double /* packet_loss_ratio */,
+    uint16_t /* codec_type */) {}
 
 void LogMetricReadRssiResult(const Address& address, uint16_t handle, uint32_t cmd_status, int8_t rssi) {
   int metric_id = 0;
@@ -429,7 +446,8 @@ void LogMetricBluetoothHalCrashReason(
 }
 
 void LogMetricBluetoothLocalSupportedFeatures(uint32_t page_num, uint64_t features) {
-  int ret = stats_write(BLUETOOTH_LOCAL_SUPPORTED_FEATURES_REPORTED, page_num, features);
+  int ret = stats_write(
+      BLUETOOTH_LOCAL_SUPPORTED_FEATURES_REPORTED, page_num, static_cast<int64_t>(features));
   if (ret < 0) {
     LOG_WARN(
         "Failed for LogMetricBluetoothLocalSupportedFeatures, "
@@ -490,7 +508,12 @@ void LogMetricBluetoothRemoteSupportedFeatures(
   if (!address.IsEmpty()) {
     metric_id = MetricIdManager::GetInstance().AllocateId(address);
   }
-  int ret = stats_write(BLUETOOTH_REMOTE_SUPPORTED_FEATURES_REPORTED, metric_id, page, features, connection_handle);
+  int ret = stats_write(
+      BLUETOOTH_REMOTE_SUPPORTED_FEATURES_REPORTED,
+      metric_id,
+      page,
+      static_cast<int64_t>(features),
+      connection_handle);
   if (ret < 0) {
     LOG_WARN(
         "Failed for LogMetricBluetoothRemoteSupportedFeatures, "

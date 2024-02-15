@@ -30,51 +30,39 @@
 #include <string>
 #include <unordered_set>
 
-#include "btif/include/btif_hh.h"
+#include "common/bind.h"
 #include "common/interfaces/ILoggable.h"
+#include "common/strings.h"
+#include "common/sync_map_count.h"
 #include "device/include/controller.h"
-#include "gd/common/bidi_queue.h"
-#include "gd/common/bind.h"
-#include "gd/common/init_flags.h"
-#include "gd/common/strings.h"
-#include "gd/common/sync_map_count.h"
-#include "gd/hci/acl_manager.h"
-#include "gd/hci/acl_manager/acl_connection.h"
-#include "gd/hci/acl_manager/classic_acl_connection.h"
-#include "gd/hci/acl_manager/connection_management_callbacks.h"
-#include "gd/hci/acl_manager/le_acl_connection.h"
-#include "gd/hci/acl_manager/le_connection_management_callbacks.h"
-#include "gd/hci/acl_manager/le_impl.h"
-#include "gd/hci/address.h"
-#include "gd/hci/address_with_type.h"
-#include "gd/hci/class_of_device.h"
-#include "gd/hci/controller.h"
-#include "gd/os/handler.h"
-#include "gd/os/queue.h"
-#include "main/shim/btm.h"
+#include "hci/acl_manager.h"
+#include "hci/acl_manager/acl_connection.h"
+#include "hci/acl_manager/classic_acl_connection.h"
+#include "hci/acl_manager/connection_management_callbacks.h"
+#include "hci/acl_manager/le_acl_connection.h"
+#include "hci/acl_manager/le_connection_management_callbacks.h"
+#include "hci/address.h"
+#include "hci/address_with_type.h"
+#include "hci/class_of_device.h"
+#include "hci/controller_interface.h"
+#include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
 #include "main/shim/stack.h"
+#include "os/handler.h"
 #include "osi/include/allocator.h"
 #include "stack/acl/acl.h"
 #include "stack/btm/btm_int_types.h"
-#include "stack/include/acl_hci_link_interface.h"
-#include "stack/include/ble_acl_interface.h"
+#include "stack/btm/btm_sec_cb.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/btm_api.h"
-#include "stack/include/btm_status.h"
-#include "stack/include/gatt_api.h"
-#include "stack/include/pan_api.h"
-#include "stack/include/sec_hci_link_interface.h"
+#include "stack/include/btm_log_history.h"
+#include "stack/include/main_thread.h"
 #include "stack/l2cap/l2c_int.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
 extern tBTM_CB btm_cb;
-
-bt_status_t do_in_main_thread(const base::Location& from_here,
-                              base::OnceClosure task);
 
 using namespace bluetooth;
 
@@ -373,13 +361,13 @@ void ValidateAclInterface(const shim::legacy::acl_interface_t& acl_interface) {
 
 }  // namespace
 
-#define TRY_POSTING_ON_MAIN(cb, ...)                               \
-  do {                                                             \
-    if (cb == nullptr) {                                           \
-      LOG_WARN("Dropping ACL event with no callback");             \
-    } else {                                                       \
-      do_in_main_thread(FROM_HERE, base::Bind(cb, ##__VA_ARGS__)); \
-    }                                                              \
+#define TRY_POSTING_ON_MAIN(cb, ...)                                   \
+  do {                                                                 \
+    if (cb == nullptr) {                                               \
+      LOG_WARN("Dropping ACL event with no callback");                 \
+    } else {                                                           \
+      do_in_main_thread(FROM_HERE, base::BindOnce(cb, ##__VA_ARGS__)); \
+    }                                                                  \
   } while (0)
 
 constexpr HciHandle kInvalidHciHandle = 0xffff;
@@ -439,7 +427,7 @@ class ShimAclConnection {
       LOG_WARN("Dropping ACL data with no callback");
       osi_free(p_buf);
     } else if (do_in_main_thread(FROM_HERE,
-                                 base::Bind(send_data_upwards_, p_buf)) !=
+                                 base::BindOnce(send_data_upwards_, p_buf)) !=
                BT_STATUS_SUCCESS) {
       osi_free(p_buf);
     }
@@ -554,7 +542,7 @@ class ClassicShimAclConnection
     TRY_POSTING_ON_MAIN(interface_.on_change_connection_link_key_complete);
   }
 
-  void OnReadClockOffsetComplete(uint16_t clock_offset) override {
+  void OnReadClockOffsetComplete(uint16_t /* clock_offset */) override {
     LOG_INFO("UNIMPLEMENTED");
   }
 
@@ -575,66 +563,73 @@ class ClassicShimAclConnection
                         minimum_remote_timeout, minimum_local_timeout);
   }
 
-  void OnQosSetupComplete(hci::ServiceType service_type, uint32_t token_rate,
-                          uint32_t peak_bandwidth, uint32_t latency,
-                          uint32_t delay_variation) override {
+  void OnQosSetupComplete(hci::ServiceType /* service_type */,
+                          uint32_t /* token_rate */,
+                          uint32_t /* peak_bandwidth */, uint32_t /* latency */,
+                          uint32_t /* delay_variation */) override {
     LOG_INFO("UNIMPLEMENTED");
   }
 
-  void OnFlowSpecificationComplete(hci::FlowDirection flow_direction,
-                                   hci::ServiceType service_type,
-                                   uint32_t token_rate,
-                                   uint32_t token_bucket_size,
-                                   uint32_t peak_bandwidth,
-                                   uint32_t access_latency) override {
+  void OnFlowSpecificationComplete(hci::FlowDirection /* flow_direction */,
+                                   hci::ServiceType /* service_type */,
+                                   uint32_t /* token_rate */,
+                                   uint32_t /* token_bucket_size */,
+                                   uint32_t /* peak_bandwidth */,
+                                   uint32_t /* access_latency */) override {
     LOG_INFO("UNIMPLEMENTED");
   }
 
   void OnFlushOccurred() override { LOG_INFO("UNIMPLEMENTED"); }
 
-  void OnRoleDiscoveryComplete(hci::Role current_role) override {
+  void OnRoleDiscoveryComplete(hci::Role /* current_role */) override {
     LOG_INFO("UNIMPLEMENTED");
   }
 
   void OnReadLinkPolicySettingsComplete(
-      uint16_t link_policy_settings) override {
+      uint16_t /* link_policy_settings */) override {
     LOG_INFO("UNIMPLEMENTED");
   }
 
-  void OnReadAutomaticFlushTimeoutComplete(uint16_t flush_timeout) override {
+  void OnReadAutomaticFlushTimeoutComplete(
+      uint16_t /* flush_timeout */) override {
     LOG_INFO("UNIMPLEMENTED");
   }
 
-  void OnReadTransmitPowerLevelComplete(uint8_t transmit_power_level) override {
+  void OnReadTransmitPowerLevelComplete(
+      uint8_t /* transmit_power_level */) override {
     LOG_INFO("UNIMPLEMENTED");
   }
 
   void OnReadLinkSupervisionTimeoutComplete(
-      uint16_t link_supervision_timeout) override {
+      uint16_t /* link_supervision_timeout */) override {
     LOG_INFO("UNIMPLEMENTED");
   }
 
   void OnReadFailedContactCounterComplete(
-      uint16_t failed_contact_counter) override {
+      uint16_t /* failed_contact_counter */) override {
     LOG_INFO("UNIMPLEMENTED");
   }
 
-  void OnReadLinkQualityComplete(uint8_t link_quality) override {
+  void OnReadLinkQualityComplete(uint8_t /* link_quality */) override {
     LOG_INFO("UNIMPLEMENTED");
   }
 
   void OnReadAfhChannelMapComplete(
-      hci::AfhMode afh_mode, std::array<uint8_t, 10> afh_channel_map) override {
+      hci::AfhMode /* afh_mode */,
+      std::array<uint8_t, 10> /* afh_channel_map */) override {
     LOG_INFO("UNIMPLEMENTED");
   }
 
-  void OnReadRssiComplete(uint8_t rssi) override { LOG_INFO("UNIMPLEMENTED"); }
-
-  void OnReadClockComplete(uint32_t clock, uint16_t accuracy) override {
+  void OnReadRssiComplete(uint8_t /* rssi */) override {
     LOG_INFO("UNIMPLEMENTED");
   }
 
-  void OnCentralLinkKeyComplete(hci::KeyFlag key_flag) override {
+  void OnReadClockComplete(uint32_t /* clock */,
+                           uint16_t /* accuracy */) override {
+    LOG_INFO("UNIMPLEMENTED");
+  }
+
+  void OnCentralLinkKeyComplete(hci::KeyFlag /* key_flag */) override {
     LOG_INFO("%s UNIMPLEMENTED", __func__);
   }
 
@@ -763,6 +758,18 @@ class LeShimAclConnection
     return connection_->GetLocalAddress();
   }
 
+  bluetooth::hci::AddressWithType GetLocalOtaAddressWithType() {
+    return connection_->GetLocalOtaAddress();
+  }
+
+  bluetooth::hci::AddressWithType GetPeerAddressWithType() {
+    return connection_->GetPeerAddress();
+  }
+
+  bluetooth::hci::AddressWithType GetPeerOtaAddressWithType() {
+    return connection_->GetPeerOtaAddress();
+  }
+
   std::optional<uint8_t> GetAdvertisingSetConnectedTo() {
     return std::visit(
         [](auto&& data) {
@@ -807,22 +814,16 @@ class LeShimAclConnection
                         manufacturer_name, sub_version);
   }
 
-  void OnLeReadRemoteFeaturesComplete(hci::ErrorCode hci_status,
-                                      uint64_t features) {
+  void OnLeReadRemoteFeaturesComplete(hci::ErrorCode /* hci_status */,
+                                      uint64_t /* features */) {
     // TODO
   }
 
   void OnPhyUpdate(hci::ErrorCode hci_status, uint8_t tx_phy,
                    uint8_t rx_phy) override {
-    if (common::init_flags::pass_phy_update_callback_is_enabled()) {
-      TRY_POSTING_ON_MAIN(
-          interface_.on_phy_update,
-          static_cast<tGATT_STATUS>(ToLegacyHciErrorCode(hci_status)), handle_,
-          tx_phy, rx_phy);
-    } else {
-      LOG_WARN("Not posting OnPhyUpdate callback since it is disabled: (tx:%x, rx:%x, status:%s)",
-               tx_phy, rx_phy, hci::ErrorCodeText(hci_status).c_str());
-    }
+    TRY_POSTING_ON_MAIN(interface_.on_phy_update,
+                        ToLegacyHciErrorCode(hci_status), handle_, tx_phy,
+                        rx_phy);
   }
 
   void OnDisconnection(hci::ErrorCode reason) {
@@ -1116,7 +1117,7 @@ struct shim::legacy::Acl::impl {
   }
 
   void le_rand(LeRandCallback cb ) {
-    controller_get_interface()->le_rand(cb);
+    controller_get_interface()->le_rand(std::move(cb));
   }
 
   void AddToAddressResolution(const hci::AddressWithType& address_with_type,
@@ -1312,14 +1313,14 @@ void DumpsysBtm(int fd) {
 void DumpsysRecord(int fd) {
   LOG_DUMPSYS_TITLE(fd, DUMPSYS_TAG);
 
-  if (btm_cb.sec_dev_rec == nullptr) {
+  if (btm_sec_cb.sec_dev_rec == nullptr) {
     LOG_DUMPSYS(fd, "Record is empty - no devices");
     return;
   }
 
   unsigned cnt = 0;
-  list_node_t* end = list_end(btm_cb.sec_dev_rec);
-  for (list_node_t* node = list_begin(btm_cb.sec_dev_rec); node != end;
+  list_node_t* end = list_end(btm_sec_cb.sec_dev_rec);
+  for (list_node_t* node = list_begin(btm_sec_cb.sec_dev_rec); node != end;
        node = list_next(node)) {
     tBTM_SEC_DEV_REC* p_dev_rec =
         static_cast<tBTM_SEC_DEV_REC*>(list_node(node));
@@ -1390,17 +1391,6 @@ shim::legacy::Acl::Acl(os::Handler* handler,
       handler->BindOn(this, &Acl::on_incoming_acl_credits));
   shim::RegisterDumpsysFunction(static_cast<void*>(this),
                                 [this](int fd) { Dump(fd); });
-
-  GetAclManager()->HACK_SetNonAclDisconnectCallback(
-      [this](uint16_t handle, uint8_t reason) {
-        TRY_POSTING_ON_MAIN(acl_interface_.connection.sco.on_disconnected,
-                            handle, static_cast<tHCI_REASON>(reason));
-
-        // HACKCEPTION! LE ISO connections, just like SCO are not registered in
-        // GD, so ISO can use same hack to get notified about disconnections
-        TRY_POSTING_ON_MAIN(acl_interface_.connection.le.on_iso_disconnected,
-                            handle, static_cast<tHCI_REASON>(reason));
-      });
 }
 
 shim::legacy::Acl::~Acl() {
@@ -1523,19 +1513,41 @@ void shim::legacy::Acl::OnClassicLinkDisconnected(HciHandle handle,
       kBtmLogTag, ToRawAddress(remote_address), "Disconnected",
       base::StringPrintf("classic reason:%s", ErrorCodeText(reason).c_str()));
   pimpl_->connection_history_.Push(
-      std::move(std::make_unique<ClassicConnectionDescriptor>(
+      std::make_unique<ClassicConnectionDescriptor>(
           remote_address, creation_time, teardown_time, handle,
-          is_locally_initiated, reason)));
+          is_locally_initiated, reason));
 }
 
 bluetooth::hci::AddressWithType shim::legacy::Acl::GetConnectionLocalAddress(
-    const RawAddress& remote_bda) {
+    uint16_t handle, bool ota_address) {
   bluetooth::hci::AddressWithType address_with_type;
-  auto remote_address = ToGdAddress(remote_bda);
-  for (auto& [handle, connection] : pimpl_->handle_to_le_connection_map_) {
-    if (connection->GetRemoteAddressWithType().GetAddress() == remote_address) {
-      return connection->GetLocalAddressWithType();
+
+  for (auto& [acl_handle, connection] : pimpl_->handle_to_le_connection_map_) {
+    if (acl_handle != handle) {
+      continue;
     }
+
+    if (ota_address) {
+      return connection->GetLocalOtaAddressWithType();
+    }
+    return connection->GetLocalAddressWithType();
+  }
+  LOG_WARN("address not found!");
+  return address_with_type;
+}
+
+bluetooth::hci::AddressWithType shim::legacy::Acl::GetConnectionPeerAddress(
+    uint16_t handle, bool ota_address) {
+  bluetooth::hci::AddressWithType address_with_type;
+  for (auto& [acl_handle, connection] : pimpl_->handle_to_le_connection_map_) {
+    if (acl_handle != handle) {
+      continue;
+    }
+
+    if (ota_address) {
+      return connection->GetPeerOtaAddressWithType();
+    }
+    return connection->GetPeerAddressWithType();
   }
   LOG_WARN("address not found!");
   return address_with_type;
@@ -1575,10 +1587,9 @@ void shim::legacy::Acl::OnLeLinkDisconnected(HciHandle handle,
       kBtmLogTag, ToLegacyAddressWithType(remote_address_with_type),
       "Disconnected",
       base::StringPrintf("Le reason:%s", ErrorCodeText(reason).c_str()));
-  pimpl_->connection_history_.Push(
-      std::move(std::make_unique<LeConnectionDescriptor>(
-          remote_address_with_type, creation_time, teardown_time, handle,
-          is_locally_initiated, reason)));
+  pimpl_->connection_history_.Push(std::make_unique<LeConnectionDescriptor>(
+      remote_address_with_type, creation_time, teardown_time, handle,
+      is_locally_initiated, reason));
 }
 
 void shim::legacy::Acl::OnConnectSuccess(
@@ -1615,11 +1626,8 @@ void shim::legacy::Acl::OnConnectRequest(hci::Address address,
                                          hci::ClassOfDevice cod) {
   const RawAddress bd_addr = ToRawAddress(address);
 
-  types::ClassOfDevice legacy_cod;
-  legacy_cod.FromOctets(cod.data());
-
   TRY_POSTING_ON_MAIN(acl_interface_.connection.classic.on_connect_request,
-                      bd_addr, legacy_cod);
+                      bd_addr, cod);
   LOG_DEBUG("Received connect request remote:%s",
             ADDRESS_TO_LOGGABLE_CSTR(address));
   BTM_LogHistory(kBtmLogTag, ToRawAddress(address), "Connection request");
@@ -1636,31 +1644,6 @@ void shim::legacy::Acl::OnConnectFail(hci::Address address,
   BTM_LogHistory(kBtmLogTag, ToRawAddress(address), "Connection failed",
                  base::StringPrintf("classic reason:%s",
                                     hci::ErrorCodeText(reason).c_str()));
-}
-
-void shim::legacy::Acl::HACK_OnEscoConnectRequest(hci::Address address,
-                                                  hci::ClassOfDevice cod) {
-  const RawAddress bd_addr = ToRawAddress(address);
-  types::ClassOfDevice legacy_cod;
-  types::ClassOfDevice::FromString(cod.ToLegacyConfigString(), legacy_cod);
-
-  TRY_POSTING_ON_MAIN(acl_interface_.connection.sco.on_esco_connect_request,
-                      bd_addr, legacy_cod);
-  LOG_DEBUG("Received ESCO connect request remote:%s",
-            ADDRESS_TO_LOGGABLE_CSTR(address));
-  BTM_LogHistory(kBtmLogTag, ToRawAddress(address), "ESCO Connection request");
-}
-
-void shim::legacy::Acl::HACK_OnScoConnectRequest(hci::Address address,
-                                                 hci::ClassOfDevice cod) {
-  const RawAddress bd_addr = ToRawAddress(address);
-  types::ClassOfDevice legacy_cod;
-  types::ClassOfDevice::FromString(cod.ToLegacyConfigString(), legacy_cod);
-
-  TRY_POSTING_ON_MAIN(acl_interface_.connection.sco.on_sco_connect_request,
-                      bd_addr, legacy_cod);
-  LOG_DEBUG("Received SCO connect request remote:%s", ADDRESS_TO_LOGGABLE_CSTR(address));
-  BTM_LogHistory(kBtmLogTag, ToRawAddress(address), "SCO Connection request");
 }
 
 void shim::legacy::Acl::OnLeConnectSuccess(
@@ -1900,7 +1883,7 @@ void shim::legacy::Acl::ClearFilterAcceptList() {
 }
 
 void shim::legacy::Acl::LeRand(LeRandCallback cb) {
-  handler_->CallOn(pimpl_.get(), &Acl::impl::le_rand, cb);
+  handler_->CallOn(pimpl_.get(), &Acl::impl::le_rand, std::move(cb));
 }
 
 void shim::legacy::Acl::AddToAddressResolution(

@@ -16,6 +16,7 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_name" msgid="2326164424236203271">"ប៊្លូធូស"</string>
     <string name="permlab_bluetoothShareManager" msgid="5297865456717871041">"ចូល​ដំណើរ​ការ​កម្មវិធី​គ្រប់គ្រង​ការ​ទាញ​យក​។"</string>
     <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"អនុញ្ញាត​ឲ្យ​កម្មវិធី​ត្រូវ​​ចូល​ដំណើរការ​កម្មវិធី​គ្រប់គ្រង BluetoothShare ហើយ​​ប្រើ​វា​ដើម្បី​ផ្ទេរ​ឯកសារ។"</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"សិទ្ធិ​ចូលប្រើ​ឧបករណ៍​ប៊្លូធូស​ក្នុងបញ្ជី​អនុញ្ញាត​។"</string>
@@ -100,7 +101,6 @@
     <string name="status_connection_error" msgid="8253709700568062220">"ការ​តភ្ជាប់​​មិន​ជោគជ័យ​។"</string>
     <string name="status_protocol_error" msgid="3231573735130475654">"មិន​អាច​ដោះស្រាយ​សំណើ​​​​ដោយ​ត្រឹមត្រូវ​ទេ។"</string>
     <string name="status_unknown_error" msgid="314676481744304866">"មិន​ស្គាល់​កំហុស។"</string>
-    <string name="btopp_live_folder" msgid="4859989703965326287">"​បាន​ទទួលតាម​​ប៊្លូ​ធូ​ស"</string>
     <string name="opp_notification_group" msgid="150067508422520653">"ការ​ចែករំលែក​ប៊្លូ​ធូ​ស"</string>
     <string name="download_success" msgid="3438268368708549686">"បាន​ទទួល​ពេញ​លេញ <xliff:g id="FILE_SIZE">%1$s</xliff:g> ។"</string>
     <string name="upload_success" msgid="143787470859042049">"បាន​ផ្ញើ​ពេញ​លេញ <xliff:g id="FILE_SIZE">%1$s</xliff:g> ។"</string>

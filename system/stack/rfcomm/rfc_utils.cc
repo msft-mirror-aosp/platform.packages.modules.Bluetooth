@@ -22,17 +22,21 @@
  *
  *****************************************************************************/
 
+#define LOG_TAG "rfcomm"
+
+#include <base/logging.h>
+
 #include <cstdint>
 
-#include "bt_target.h"
+#include "include/check.h"
+#include "internal_include/bt_target.h"
+#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"  // UNUSED_ATTR
 #include "stack/include/bt_hdr.h"
 #include "stack/include/port_ext.h"
 #include "stack/rfcomm/rfc_int.h"
 #include "types/raw_address.h"
-
-#include <base/logging.h>
 
 /*******************************************************************************
  *
@@ -130,16 +134,13 @@ tRFC_MCB* rfc_alloc_multiplexer_channel(const RawAddress& bd_addr,
                                         bool is_initiator) {
   int i, j;
   tRFC_MCB* p_mcb = NULL;
-  VLOG(1) << __func__ << ": bd_addr:" << ADDRESS_TO_LOGGABLE_STR(bd_addr);
-  RFCOMM_TRACE_DEBUG("rfc_alloc_multiplexer_channel:is_initiator:%d",
-                     is_initiator);
+  LOG_VERBOSE("bd_addr:%s, is_initiator:%d", ADDRESS_TO_LOGGABLE_CSTR(bd_addr),
+              is_initiator);
 
   for (i = 0; i < MAX_BD_CONNECTIONS; i++) {
-    RFCOMM_TRACE_DEBUG(
-        "rfc_alloc_multiplexer_channel rfc_cb.port.rfc_mcb[%d].state:%d", i,
-        rfc_cb.port.rfc_mcb[i].state);
-    VLOG(1) << "(rfc_cb.port.rfc_mcb[i].bd_addr:"
-            << ADDRESS_TO_LOGGABLE_STR(rfc_cb.port.rfc_mcb[i].bd_addr);
+    LOG_VERBOSE("rfc_cb.port.rfc_mcb[%d] - state:%d, bd_addr:%s", i,
+                rfc_cb.port.rfc_mcb[i].state,
+                ADDRESS_TO_LOGGABLE_CSTR(rfc_cb.port.rfc_mcb[i].bd_addr));
 
     if ((rfc_cb.port.rfc_mcb[i].state != RFC_MX_STATE_IDLE) &&
         rfc_cb.port.rfc_mcb[i].bd_addr == bd_addr) {
@@ -147,7 +148,7 @@ tRFC_MCB* rfc_alloc_multiplexer_channel(const RawAddress& bd_addr,
       /* If there was an inactivity timer running stop it now */
       if (rfc_cb.port.rfc_mcb[i].state == RFC_MX_STATE_CONNECTED)
         rfc_timer_stop(&rfc_cb.port.rfc_mcb[i]);
-      RFCOMM_TRACE_DEBUG(
+      LOG_VERBOSE(
           "rfc_alloc_multiplexer_channel:is_initiator:%d, found, state:%d, "
           "p_mcb:%p",
           is_initiator, rfc_cb.port.rfc_mcb[i].state, &rfc_cb.port.rfc_mcb[i]);
@@ -166,7 +167,7 @@ tRFC_MCB* rfc_alloc_multiplexer_channel(const RawAddress& bd_addr,
       fixed_queue_free(p_mcb->cmd_q, NULL);
       memset(p_mcb, 0, sizeof(tRFC_MCB));
       p_mcb->bd_addr = bd_addr;
-      RFCOMM_TRACE_DEBUG(
+      LOG_VERBOSE(
           "rfc_alloc_multiplexer_channel:is_initiator:%d, create new p_mcb:%p, "
           "index:%d",
           is_initiator, &rfc_cb.port.rfc_mcb[j], j);
@@ -219,7 +220,7 @@ void rfc_release_multiplexer_channel(tRFC_MCB* p_mcb) {
  *
  ******************************************************************************/
 void rfc_timer_start(tRFC_MCB* p_mcb, uint16_t timeout) {
-  RFCOMM_TRACE_EVENT("%s - timeout:%d seconds", __func__, timeout);
+  LOG_VERBOSE("%s - timeout:%d seconds", __func__, timeout);
 
   uint64_t interval_ms = timeout * 1000;
   alarm_set_on_mloop(p_mcb->mcb_timer, interval_ms, rfcomm_mcb_timer_timeout,
@@ -234,7 +235,7 @@ void rfc_timer_start(tRFC_MCB* p_mcb, uint16_t timeout) {
  *
  ******************************************************************************/
 void rfc_timer_stop(tRFC_MCB* p_mcb) {
-  RFCOMM_TRACE_EVENT("%s", __func__);
+  LOG_VERBOSE("%s", __func__);
 
   alarm_cancel(p_mcb->mcb_timer);
 }
@@ -247,7 +248,7 @@ void rfc_timer_stop(tRFC_MCB* p_mcb) {
  *
  ******************************************************************************/
 void rfc_port_timer_start(tPORT* p_port, uint16_t timeout) {
-  RFCOMM_TRACE_EVENT("%s - timeout:%d seconds", __func__, timeout);
+  LOG_VERBOSE("%s - timeout:%d seconds", __func__, timeout);
 
   uint64_t interval_ms = timeout * 1000;
   alarm_set_on_mloop(p_port->rfc.port_timer, interval_ms,
@@ -262,7 +263,7 @@ void rfc_port_timer_start(tPORT* p_port, uint16_t timeout) {
  *
  ******************************************************************************/
 void rfc_port_timer_stop(tPORT* p_port) {
-  RFCOMM_TRACE_EVENT("%s", __func__);
+  LOG_VERBOSE("%s", __func__);
 
   alarm_cancel(p_port->rfc.port_timer);
 }
@@ -375,7 +376,7 @@ void rfc_inc_credit(tPORT* p_port, uint8_t credit) {
   if (p_port->rfc.p_mcb->flow == PORT_FC_CREDIT) {
     p_port->credit_tx += credit;
 
-    RFCOMM_TRACE_EVENT("rfc_inc_credit:%d", p_port->credit_tx);
+    LOG_VERBOSE("rfc_inc_credit:%d", p_port->credit_tx);
 
     if (p_port->tx.peer_fc) PORT_FlowInd(p_port->rfc.p_mcb, p_port->dlci, true);
   }
@@ -414,7 +415,7 @@ void rfc_check_send_cmd(tRFC_MCB* p_mcb, BT_HDR* p_buf) {
   /* if passed a buffer queue it */
   if (p_buf != NULL) {
     if (p_mcb->cmd_q == NULL) {
-      RFCOMM_TRACE_ERROR(
+      LOG_ERROR(
           "%s: empty queue: p_mcb = %p p_mcb->lcid = %u cached p_mcb = %p",
           __func__, p_mcb, p_mcb->lcid, rfc_find_lcid_mcb(p_mcb->lcid));
     }
