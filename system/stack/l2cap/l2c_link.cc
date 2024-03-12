@@ -25,6 +25,7 @@
  ******************************************************************************/
 #define LOG_TAG "l2c_link"
 
+#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -214,27 +215,60 @@ void l2c_link_sec_comp(const RawAddress* p_bda,
     return;
   }
 
-  /* Match p_ccb with p_ref_data returned by sec manager */
-  for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb; p_ccb = p_next_ccb) {
-    p_next_ccb = p_ccb->p_next_ccb;
+  if (IS_FLAG_ENABLED(l2cap_p_ccb_check_rewrite)) {
+    if (!p_ref_data) {
+      log::warn("Argument p_ref_data is NULL");
+      return;
+    }
 
-    if (p_ccb == p_ref_data) {
-      switch (status) {
-        case BTM_SUCCESS:
-          l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP, &ci);
-          break;
+    /* Match p_ccb with p_ref_data returned by sec manager */
+    p_ccb = (tL2C_CCB*)p_ref_data;
 
-        case BTM_DELAY_CHECK:
-          /* start a timer - encryption change not received before L2CAP connect
-           * req */
-          alarm_set_on_mloop(p_ccb->l2c_ccb_timer,
-                             L2CAP_DELAY_CHECK_SM4_TIMEOUT_MS,
-                             l2c_ccb_timer_timeout, p_ccb);
-          return;
+    if (p_lcb != p_ccb->p_lcb) {
+      log::warn("p_ref_data doesn't match with sec manager record");
+      return;
+    }
 
-        default:
-          l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP_NEG, &ci);
-          break;
+    switch (status) {
+      case BTM_SUCCESS:
+        l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP, &ci);
+        break;
+
+      case BTM_DELAY_CHECK:
+        /* start a timer - encryption change not received before L2CAP connect
+         * req */
+        alarm_set_on_mloop(p_ccb->l2c_ccb_timer,
+                           L2CAP_DELAY_CHECK_SM4_TIMEOUT_MS,
+                           l2c_ccb_timer_timeout, p_ccb);
+        return;
+
+      default:
+        l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP_NEG, &ci);
+        break;
+    }
+  } else {
+    /* Match p_ccb with p_ref_data returned by sec manager */
+    for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb; p_ccb = p_next_ccb) {
+      p_next_ccb = p_ccb->p_next_ccb;
+
+      if (p_ccb == p_ref_data) {
+        switch (status) {
+          case BTM_SUCCESS:
+            l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP, &ci);
+            break;
+
+          case BTM_DELAY_CHECK:
+            /* start a timer - encryption change not received before L2CAP
+             * connect req */
+            alarm_set_on_mloop(p_ccb->l2c_ccb_timer,
+                               L2CAP_DELAY_CHECK_SM4_TIMEOUT_MS,
+                               l2c_ccb_timer_timeout, p_ccb);
+            return;
+
+          default:
+            l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP_NEG, &ci);
+            break;
+        }
       }
     }
   }
@@ -828,7 +862,7 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, uint16_t local_cid,
    ** This LCB will be served when receiving number of completed packet event.
    */
   if (l2cb.is_cong_cback_context) {
-    log::info("skipping, is_cong_cback_context=true");
+    log::warn("skipping, is_cong_cback_context=true");
     return;
   }
 
@@ -900,10 +934,11 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, uint16_t local_cid,
       l2cb.ble_check_round_robin = false;
   } else /* if this is not round-robin service */
   {
-    /* If a partial segment is being sent, can't send anything else */
+    /* link_state or power mode not ready, can't send anything else */
     if ((p_lcb->link_state != LST_CONNECTED) ||
         (l2c_link_check_power_mode(p_lcb))) {
-      log::info("A partial segment is being sent, cannot send anything else");
+      log::warn("Can't send, link state: {} not LST_CONNECTED or power mode BTM_PM_STS_PENDING",
+                p_lcb->link_state);
       return;
     }
     log::verbose(

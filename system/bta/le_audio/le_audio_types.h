@@ -591,6 +591,11 @@ struct LeAudioCoreCodecConfig {
   uint8_t GetChannelCountPerIsoStream(void) const {
     return allocated_channel_count;
   }
+
+  uint16_t CalculateMaxSduSize() const {
+    return GetChannelCountPerIsoStream() * octets_per_codec_frame.value_or(0) *
+           codec_frames_blocks_per_sdu.value_or(1);
+  }
 };
 
 struct LeAudioCoreCodecCapabilities {
@@ -643,23 +648,56 @@ struct LeAudioCoreCodecCapabilities {
 
 class LeAudioLtvMap {
  public:
-  LeAudioLtvMap() {}
   LeAudioLtvMap(std::map<uint8_t, std::vector<uint8_t>> values)
-      : values(std::move(values)), core_config(std::nullopt) {}
+      : values(values),
+        value_hash(0),
+        core_config(std::nullopt),
+        core_capabilities(std::nullopt) {}
+  LeAudioLtvMap() = default;
+  ~LeAudioLtvMap() = default;
+
+  bool operator==(const LeAudioLtvMap& other) const {
+    return GetHash() == other.GetHash();
+  }
+
+  bool operator!=(const LeAudioLtvMap& other) const {
+    return GetHash() != other.GetHash();
+  }
 
   std::optional<std::vector<uint8_t>> Find(uint8_t type) const;
+  const auto& At(uint8_t type) const { return values.at(type); }
+
   LeAudioLtvMap& Add(uint8_t type, std::vector<uint8_t> value) {
     values.insert_or_assign(type, std::move(value));
-    core_config = std::nullopt;
+    invalidate();
     return *this;
   }
+
+  LeAudioLtvMap& Add(uint8_t type, const std::string& value) {
+    std::vector<uint8_t> v(value.size());
+    auto ptr = v.data();
+    ARRAY_TO_STREAM(ptr, value.c_str(), (int)value.size());
+    values.insert_or_assign(type, v);
+    invalidate();
+    return *this;
+  }
+
+  LeAudioLtvMap& Add(uint8_t type, bool value) {
+    std::vector<uint8_t> v(1);
+    auto ptr = v.data();
+    UINT8_TO_STREAM(ptr, value ? 0x01 : 0x00);
+    values.insert_or_assign(type, v);
+    invalidate();
+    return *this;
+  }
+
   LeAudioLtvMap& Add(uint8_t type, uint8_t value) {
     std::vector<uint8_t> v(sizeof(value));
     auto ptr = v.data();
 
     UINT8_TO_STREAM(ptr, value);
     values.insert_or_assign(type, v);
-    core_config = std::nullopt;
+    invalidate();
     return *this;
   }
   LeAudioLtvMap& Add(uint8_t type, uint16_t value) {
@@ -668,7 +706,7 @@ class LeAudioLtvMap {
 
     UINT16_TO_STREAM(ptr, value);
     values.insert_or_assign(type, std::move(v));
-    core_config = std::nullopt;
+    invalidate();
     return *this;
   }
   LeAudioLtvMap& Add(uint8_t type, uint32_t value) {
@@ -677,12 +715,19 @@ class LeAudioLtvMap {
 
     UINT32_TO_STREAM(ptr, value);
     values.insert_or_assign(type, std::move(v));
-    core_config = std::nullopt;
+    invalidate();
     return *this;
   }
-  void Remove(uint8_t type) { values.erase(type); }
+  void Remove(uint8_t type) {
+    values.erase(type);
+    invalidate();
+  }
+  void RemoveAllTypes(const LeAudioLtvMap& other);
   bool IsEmpty() const { return values.empty(); }
-  void Clear() { values.clear(); }
+  void Clear() {
+    invalidate();
+    values.clear();
+  }
   size_t Size() const { return values.size(); }
   const std::map<uint8_t, std::vector<uint8_t>>& Values() const {
     return values;
@@ -690,6 +735,7 @@ class LeAudioLtvMap {
 
   const struct LeAudioCoreCodecConfig& GetAsCoreCodecConfig() const;
   const struct LeAudioCoreCodecCapabilities& GetAsCoreCodecCapabilities() const;
+  LeAudioLtvMap GetIntersection(const LeAudioLtvMap& other) const;
 
   std::string ToString(
       const std::string& indent_string,
@@ -698,10 +744,22 @@ class LeAudioLtvMap {
   uint8_t* RawPacket(uint8_t* p_buf) const;
   std::vector<uint8_t> RawPacket() const;
   static LeAudioLtvMap Parse(const uint8_t* value, uint8_t len, bool& success);
+  bool Parse(const uint8_t* value, uint8_t len);
   void Append(const LeAudioLtvMap& other);
+  size_t GetHash() const {
+    if (value_hash == 0) RecalculateValueHash();
+    return value_hash;
+  }
 
  private:
-  static LeAudioCoreCodecConfig LtvMapToCoreCodecConfig(LeAudioLtvMap ltvs) {
+  void invalidate() {
+    core_config = std::nullopt;
+    core_capabilities = std::nullopt;
+    value_hash = 0;
+  }
+
+  static LeAudioCoreCodecConfig LtvMapToCoreCodecConfig(
+      const LeAudioLtvMap& ltvs) {
     LeAudioCoreCodecConfig core;
 
     auto vec_opt = ltvs.Find(codec_spec_conf::kLeAudioLtvTypeSamplingFreq);
@@ -750,7 +808,7 @@ class LeAudioLtvMap {
   }
 
   static LeAudioCoreCodecCapabilities LtvMapToCoreCodecCapabilities(
-      LeAudioLtvMap pacs) {
+      const LeAudioLtvMap& pacs) {
     LeAudioCoreCodecCapabilities core;
 
     auto pac =
@@ -819,10 +877,24 @@ class LeAudioLtvMap {
     return core;
   }
 
-  std::map<uint8_t, std::vector<uint8_t>> values;
+  void RecalculateValueHash() const {
+    if (IsEmpty()) {
+      value_hash = 0;
+      return;
+    }
+
+    auto value_vec = RawPacket();
+    value_hash = std::hash<std::string_view>{}(
+        {reinterpret_cast<const char*>(value_vec.data()), value_vec.size()});
+  }
+
+  std::map<uint8_t, std::vector<uint8_t>> values = {};
+  mutable size_t value_hash = 0;
   // Lazy-constructed views of the LTV data
-  mutable std::optional<struct LeAudioCoreCodecConfig> core_config;
-  mutable std::optional<struct LeAudioCoreCodecCapabilities> core_capabilities;
+  mutable std::optional<struct LeAudioCoreCodecConfig> core_config =
+      std::nullopt;
+  mutable std::optional<struct LeAudioCoreCodecCapabilities> core_capabilities =
+      std::nullopt;
 };
 
 struct LeAudioCodecId {
@@ -860,6 +932,26 @@ struct hdl_pair {
   uint16_t ccc_hdl = 0;
 };
 
+struct AseQosConfiguration {
+  uint32_t presentation_delay = 0;
+  uint32_t sdu_interval = 0;
+  uint16_t max_transport_latency = 0;
+  uint16_t max_sdu_size = 0;
+  uint8_t retrans_nb = 0;
+  uint8_t framing = 0;
+  uint8_t phy = 0;
+};
+
+struct AseQosPreferences {
+  uint8_t supported_framing = 0;
+  uint8_t preferred_phy = 0;
+  uint8_t preferred_retrans_nb = 0;
+  uint32_t pres_delay_min = 0;
+  uint32_t pres_delay_max = 0;
+  uint32_t preferred_pres_delay_min = 0;
+  uint32_t preferred_pres_delay_max = 0;
+};
+
 struct ase {
   static constexpr uint8_t kAseIdInvalid = 0x00;
 
@@ -875,16 +967,8 @@ struct ase {
         cis_state(CisState::IDLE),
         data_path_state(DataPathState::IDLE),
         configured_for_context_type(LeAudioContextType::UNINITIALIZED),
-        preferred_phy(0),
         is_codec_in_controller(false),
         data_path_id(bluetooth::hci::iso_manager::kIsoDataPathDisabled),
-        max_sdu_size(0),
-        retrans_nb(0),
-        max_transport_latency(0),
-        pres_delay_min(0),
-        pres_delay_max(0),
-        preferred_pres_delay_min(0),
-        preferred_pres_delay_max(0),
         autonomous_operation_timer_(nullptr),
         autonomous_target_state_(AseState::BTA_LE_AUDIO_ASE_STATE_IDLE),
         state(AseState::BTA_LE_AUDIO_ASE_STATE_IDLE) {}
@@ -906,9 +990,6 @@ struct ase {
   LeAudioCodecId codec_id;
   LeAudioLtvMap codec_config;
 
-  uint8_t framing;
-  uint8_t preferred_phy;
-
   /* Set to true, if the codec is implemented in BT controller, false if it's
    * implemented in host, or in separate DSP
    */
@@ -917,13 +998,10 @@ struct ase {
   uint8_t data_path_id;
 
   /* Qos configuration */
-  uint16_t max_sdu_size;
-  uint8_t retrans_nb;
-  uint16_t max_transport_latency;
-  uint32_t pres_delay_min;
-  uint32_t pres_delay_max;
-  uint32_t preferred_pres_delay_min;
-  uint32_t preferred_pres_delay_max;
+  AseQosConfiguration qos_config;
+
+  /* QoS requirements in Codec Configured state */
+  AseQosPreferences qos_preferences;
 
   std::vector<uint8_t> metadata;
 
@@ -937,6 +1015,7 @@ struct ase {
 struct acs_ac_record {
   LeAudioCodecId codec_id;
   LeAudioLtvMap codec_spec_caps;
+  std::vector<uint8_t> codec_spec_caps_raw;
   std::vector<uint8_t> metadata;
 };
 
@@ -946,6 +1025,7 @@ using AudioLocations = std::bitset<32>;
 
 std::ostream& operator<<(std::ostream& os, const AseState& state);
 std::ostream& operator<<(std::ostream& os, const CigState& state);
+std::ostream& operator<<(std::ostream& os, const LeAudioCodecId& codec_id);
 std::ostream& operator<<(std::ostream& os,
                          const LeAudioCoreCodecConfig& config);
 std::string contextTypeToStr(const LeAudioContextType& context);

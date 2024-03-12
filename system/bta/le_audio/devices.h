@@ -119,6 +119,7 @@ class LeAudioDevice {
   uint16_t tmap_role_hdl_;
   std::string model_name_;
   bool allowlist_flag_;
+  bool acl_asymmetric_;
 
   alarm_t* link_quality_timer;
   uint16_t link_quality_timer_data;
@@ -140,6 +141,7 @@ class LeAudioDevice {
         audio_directions_(0),
         model_name_(""),
         allowlist_flag_(false),
+        acl_asymmetric_(false),
         link_quality_timer(nullptr),
         dsa_({{DsaMode::DISABLED},
               types::DataPathState::IDLE,
@@ -186,7 +188,8 @@ class LeAudioDevice {
       uint8_t direction,
       const set_configurations::CodecConfigSetting& codec_capability_setting);
   uint8_t GetSupportedAudioChannelCounts(uint8_t direction) const;
-  uint8_t GetPhyBitmask(void);
+  uint8_t GetPhyBitmask(void) const;
+  uint8_t GetPreferredPhyBitmask(uint8_t preferred_phy) const;
   bool ConfigureAses(
       const le_audio::set_configurations::SetConfiguration& ent,
       types::LeAudioContextType context_type,

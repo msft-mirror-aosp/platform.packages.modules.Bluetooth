@@ -68,19 +68,21 @@ import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.ServiceFactory;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.csip.CsipSetCoordinatorService;
-import com.android.bluetooth.flags.FakeFeatureFlagsImpl;
 import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.le_audio.LeAudioService;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.Mockito;
 import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -138,9 +140,10 @@ public class BassClientServiceTest {
     private BluetoothDevice mCurrentDevice;
     private BluetoothDevice mCurrentDevice1;
     private BassIntentReceiver mBassIntentReceiver;
-    private FakeFeatureFlagsImpl mFakeFlagsImpl;
 
     @Spy private BassObjectsFactory mObjectsFactory = BassObjectsFactory.getInstance();
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
     @Mock private AdapterService mAdapterService;
     @Mock private DatabaseManager mDatabaseManager;
     @Mock private BluetoothLeScannerWrapper mBluetoothLeScannerWrapper;
@@ -201,7 +204,6 @@ public class BassClientServiceTest {
         }
 
         mTargetContext = InstrumentationRegistry.getTargetContext();
-        MockitoAnnotations.initMocks(this);
         TestUtils.setAdapterService(mAdapterService);
         BassObjectsFactory.setInstanceForTesting(mObjectsFactory);
 
@@ -243,10 +245,7 @@ public class BassClientServiceTest {
         doReturn(mBluetoothLeScannerWrapper).when(mObjectsFactory)
                 .getBluetoothLeScannerWrapper(any());
 
-        mFakeFlagsImpl = new FakeFeatureFlagsImpl();
-        mFakeFlagsImpl.setFlag(Flags.FLAG_LEAUDIO_BROADCAST_AUDIO_HANDOVER_POLICIES, false);
-
-        mBassClientService = new BassClientService(mTargetContext, mFakeFlagsImpl);
+        mBassClientService = new BassClientService(mTargetContext);
         mBassClientService.start();
         mBassClientService.setAvailable(true);
 
@@ -350,7 +349,11 @@ public class BassClientServiceTest {
 
         assertThat(mBassClientService.connect(mCurrentDevice)).isTrue();
         verify(mObjectsFactory)
-                .makeStateMachine(eq(mCurrentDevice), eq(mBassClientService), any(), any());
+                .makeStateMachine(
+                        eq(mCurrentDevice),
+                        eq(mBassClientService),
+                        eq(mAdapterService),
+                        any());
         BassClientStateMachine stateMachine = mStateMachines.get(mCurrentDevice);
         assertThat(stateMachine).isNotNull();
         verify(stateMachine).sendMessage(BassClientStateMachine.CONNECT);
@@ -390,10 +393,20 @@ public class BassClientServiceTest {
      */
     @Test
     public void testStartSearchingForSources() {
+        prepareConnectedDeviceGroup();
         List<ScanFilter> scanFilters = new ArrayList<>();
+
+        assertThat(mStateMachines.size()).isEqualTo(2);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            Mockito.clearInvocations(sm);
+        }
+
         mBassClientService.startSearchingForSources(scanFilters);
 
         verify(mBluetoothLeScannerWrapper).startScan(notNull(), notNull(), notNull());
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            verify(sm).sendMessage(BassClientStateMachine.START_SCAN_OFFLOAD);
+        }
     }
 
     /**
@@ -483,9 +496,20 @@ public class BassClientServiceTest {
                 -1));
     }
 
+    private void handleHandoverSupport() {
+        if (Flags.leaudioBroadcastAudioHandoverPolicies()) {
+            /* Unicast finished streaming */
+            mBassClientService.handleUnicastSourceStreamStatusChange(
+                    2 /* STATUS_LOCAL_STREAM_SUSPENDED */);
+        }
+    }
+
     private void verifyAddSourceForGroup(BluetoothLeBroadcastMetadata meta) {
         // Add broadcast source
         mBassClientService.addSource(mCurrentDevice, meta, true);
+
+        /* In case if device supporth handover, Source stream status needs to be updated */
+        handleHandoverSupport();
 
         // Verify all group members getting ADD_BCAST_SOURCE message
         assertThat(mStateMachines.size()).isEqualTo(2);

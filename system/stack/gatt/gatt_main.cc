@@ -45,6 +45,7 @@
 #include "stack/btm/btm_sec.h"
 #include "stack/eatt/eatt.h"
 #include "stack/gatt/gatt_int.h"
+#include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
@@ -317,8 +318,8 @@ bool gatt_disconnect(tGATT_TCB* p_tcb) {
  *                  when it already exists, false otherwise.
  *
  ******************************************************************************/
-bool gatt_update_app_hold_link_status(tGATT_IF gatt_if, tGATT_TCB* p_tcb,
-                                      bool is_add) {
+static bool gatt_update_app_hold_link_status(tGATT_IF gatt_if, tGATT_TCB* p_tcb,
+                                             bool is_add) {
   log::debug("gatt_if={}, is_add={}, peer_bda={}", gatt_if, is_add,
              ADDRESS_TO_LOGGABLE_CSTR(p_tcb->peer_bda));
   auto& holders = p_tcb->app_hold_link;
@@ -421,6 +422,8 @@ void gatt_update_app_use_link_flag(tGATT_IF gatt_if, tGATT_TCB* p_tcb,
 bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr,
                       tBLE_ADDR_TYPE addr_type, tBT_TRANSPORT transport,
                       int8_t initiating_phys) {
+  log::verbose("address:{}, transport:{}", ADDRESS_TO_LOGGABLE_CSTR(bd_addr),
+               bt_transport_text(transport).c_str());
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, transport);
   if (p_tcb != NULL) {
     /* before link down, another app try to open a GATT connection */
@@ -526,6 +529,13 @@ static void gatt_le_connect_cback(uint16_t chan, const RawAddress& bd_addr,
     p_tcb = gatt_allocate_tcb_by_bdaddr(bd_addr, BT_TRANSPORT_LE);
     if (!p_tcb) {
       log::error("CCB max out, no rsources");
+      if (IS_FLAG_ENABLED(gatt_drop_acl_on_out_of_resources_fix)) {
+        log::error("Disconnecting address:{} due to out of resources.",
+                   ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+        // When single FIXED channel cannot be created, there is no reason to
+        // keep the link
+        btm_remove_acl(bd_addr, transport);
+      }
       return;
     }
 

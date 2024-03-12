@@ -23,6 +23,7 @@
  ******************************************************************************/
 #define LOG_TAG "gatt_utils"
 
+#include <android_bluetooth_flags.h>
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
@@ -434,6 +435,36 @@ tGATT_TCB* gatt_find_tcb_by_addr(const RawAddress& bda,
   if (i != GATT_INDEX_INVALID) p_tcb = &gatt_cb.tcb[i];
 
   return p_tcb;
+}
+
+/*******************************************************************************
+ *
+ * Function     gatt_tcb_dump
+ *
+ * Description  Print gatt_cb.tcb[] into dumpsys
+ *
+ * Returns      void
+ *
+ ******************************************************************************/
+void gatt_tcb_dump(int fd) {
+  std::stringstream stream;
+  int in_use_cnt = 0;
+
+  for (int i = 0; i < GATT_MAX_PHY_CHANNEL; i++) {
+    tGATT_TCB* p_tcb = &gatt_cb.tcb[i];
+
+    if (p_tcb->in_use) {
+      in_use_cnt++;
+      stream << "  id: " << +p_tcb->tcb_idx
+             << "  address: " << ADDRESS_TO_LOGGABLE_STR(p_tcb->peer_bda)
+             << "  transport: " << bt_transport_text(p_tcb->transport)
+             << "  ch_state: " << gatt_channel_state_text(p_tcb->ch_state);
+      stream << "\n";
+    }
+  }
+
+  dprintf(fd, "TCB (GATT_MAX_PHY_CHANNEL: %d) in_use: %d\n%s\n",
+          GATT_MAX_PHY_CHANNEL, in_use_cnt, stream.str().c_str());
 }
 
 /*******************************************************************************
@@ -1714,6 +1745,26 @@ void gatt_end_operation(tGATT_CLCB* p_clcb, tGATT_STATUS status, void* p_data) {
               fmt::ptr(p_disc_cmpl_cb), fmt::ptr(p_cmpl_cb));
 }
 
+static void gatt_le_disconnect_complete_notify_user(const RawAddress& bda,
+                                                    tGATT_DISCONN_REASON reason,
+                                                    tBT_TRANSPORT transport) {
+  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bda, transport);
+  uint8_t tcb_idx = 0;
+
+  if (p_tcb) {
+    tcb_idx = p_tcb->tcb_idx;
+  }
+
+  for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
+    tGATT_REG* p_reg = &gatt_cb.cl_rcb[i];
+    if (p_reg->in_use && p_reg->app_cb.p_conn_cb) {
+      uint16_t conn_id = GATT_CREATE_CONN_ID(tcb_idx, p_reg->gatt_if);
+      (*p_reg->app_cb.p_conn_cb)(p_reg->gatt_if, bda, conn_id,
+                                 kGattDisconnected, reason, transport);
+    }
+  }
+}
+
 /** This function cleans up the control blocks when L2CAP channel disconnect */
 void gatt_cleanup_upon_disc(const RawAddress& bda, tGATT_DISCONN_REASON reason,
                             tBT_TRANSPORT transport) {
@@ -1725,6 +1776,13 @@ void gatt_cleanup_upon_disc(const RawAddress& bda, tGATT_DISCONN_REASON reason,
         "Disconnect for unknown connection bd_addr:{} reason:{} transport:{}",
         ADDRESS_TO_LOGGABLE_CSTR(bda), gatt_disconnection_reason_text(reason),
         bt_transport_text(transport));
+
+    if (!IS_FLAG_ENABLED(gatt_reconnect_on_bt_on_fix)) {
+      return;
+    }
+
+    /* Notify about timeout on direct connect */
+    gatt_le_disconnect_complete_notify_user(bda, reason, transport);
     return;
   }
 
@@ -1763,14 +1821,7 @@ void gatt_cleanup_upon_disc(const RawAddress& bda, tGATT_DISCONN_REASON reason,
   fixed_queue_free(p_tcb->sr_cmd.multi_rsp_q, NULL);
   p_tcb->sr_cmd.multi_rsp_q = NULL;
 
-  for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
-    tGATT_REG* p_reg = &gatt_cb.cl_rcb[i];
-    if (p_reg->in_use && p_reg->app_cb.p_conn_cb) {
-      uint16_t conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
-      (*p_reg->app_cb.p_conn_cb)(p_reg->gatt_if, bda, conn_id,
-                                 kGattDisconnected, reason, transport);
-    }
-  }
+  gatt_le_disconnect_complete_notify_user(bda, reason, transport);
 
   *p_tcb = tGATT_TCB();
   log::verbose("exit");

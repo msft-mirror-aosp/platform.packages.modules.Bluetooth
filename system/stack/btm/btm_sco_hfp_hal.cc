@@ -48,8 +48,13 @@ void init() {
   cached_codecs.emplace_back(msbc);
 }
 
+// This is not used in Android.
+bool is_coding_format_supported(esco_coding_format_t coding_format) {
+  return true;
+}
+
 // Android statically compiles WBS support.
-bool get_wbs_supported() { return !DISABLE_WBS; }
+bool get_wbs_supported() { return true; }
 
 bool get_swb_supported() {
   return osi_property_get_bool("bluetooth.hfp.swb.supported", false) &&
@@ -88,7 +93,7 @@ bool enable_offload(bool enable) {
 void set_codec_datapath(int codec_uuid) {}
 
 // No packet size limits on Android since it will be offloaded.
-int get_packet_size(int codec) { return kDefaultPacketSize; }
+size_t get_packet_size(int codec) { return kDefaultPacketSize; }
 
 void notify_sco_connection_change(RawAddress device, bool is_connected,
                                   int codec) {

@@ -48,7 +48,7 @@ struct bt_codecs {
 };
 
 // Use default packet size for codec if this value is given.
-constexpr int kDefaultPacketSize = 0;
+constexpr size_t kDefaultPacketSize = 0;
 
 constexpr inline int esco_coding_to_codec(esco_coding_format_t esco_coding) {
   switch (esco_coding) {
@@ -68,6 +68,9 @@ constexpr inline int esco_coding_to_codec(esco_coding_format_t esco_coding) {
 
 // Initialize the SCO HFP HAL module
 void init();
+
+// Check if specified coding format is supported by the adapter.
+bool is_coding_format_supported(esco_coding_format_t coding_format);
 
 // Check if wideband speech is supported on local device.
 bool get_wbs_supported();
@@ -91,7 +94,7 @@ bool enable_offload(bool enable);
 void set_codec_datapath(int codec_uuid);
 
 // Get the maximum supported packet size from the lower layer.
-int get_packet_size(int codec);
+size_t get_packet_size(int codec);
 
 // Notify the lower layer about SCO connection change.
 void notify_sco_connection_change(RawAddress device, bool is_connected,

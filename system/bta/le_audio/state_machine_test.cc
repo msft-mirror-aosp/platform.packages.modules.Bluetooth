@@ -781,6 +781,24 @@ class StateMachineTestBase : public Test {
       uint8_t coding_format = codec_specific::kLc3CodingFormat,
       uint16_t vendor_company_id = 0x0000, uint16_t vendor_codec_id = 0x0000,
       std::vector<uint8_t> metadata = {}) {
+    auto ltv_map = types::LeAudioLtvMap({
+        {codec_specific::kCapTypeSupportedSamplingFrequencies,
+         {(uint8_t)(sampling_frequencies_bitfield),
+          (uint8_t)(sampling_frequencies_bitfield >> 8)}},
+        {codec_specific::kCapTypeSupportedFrameDurations,
+         {supported_frame_durations_bitfield}},
+        {codec_specific::kCapTypeAudioChannelCount,
+         {audio_channel_count_bitfield}},
+        {codec_specific::kCapTypeSupportedOctetsPerCodecFrame,
+         {
+             // Min
+             (uint8_t)(supported_octets_per_codec_frame_min),
+             (uint8_t)(supported_octets_per_codec_frame_min >> 8),
+             // Max
+             (uint8_t)(supported_octets_per_codec_frame_max),
+             (uint8_t)(supported_octets_per_codec_frame_max >> 8),
+         }},
+    });
     recs.push_back({
         .codec_id =
             {
@@ -788,24 +806,8 @@ class StateMachineTestBase : public Test {
                 .vendor_company_id = vendor_company_id,
                 .vendor_codec_id = vendor_codec_id,
             },
-        .codec_spec_caps = types::LeAudioLtvMap({
-            {codec_specific::kCapTypeSupportedSamplingFrequencies,
-             {(uint8_t)(sampling_frequencies_bitfield),
-              (uint8_t)(sampling_frequencies_bitfield >> 8)}},
-            {codec_specific::kCapTypeSupportedFrameDurations,
-             {supported_frame_durations_bitfield}},
-            {codec_specific::kCapTypeAudioChannelCount,
-             {audio_channel_count_bitfield}},
-            {codec_specific::kCapTypeSupportedOctetsPerCodecFrame,
-             {
-                 // Min
-                 (uint8_t)(supported_octets_per_codec_frame_min),
-                 (uint8_t)(supported_octets_per_codec_frame_min >> 8),
-                 // Max
-                 (uint8_t)(supported_octets_per_codec_frame_max),
-                 (uint8_t)(supported_octets_per_codec_frame_max >> 8),
-             }},
-        }),
+        .codec_spec_caps = ltv_map,
+        .codec_spec_caps_raw = ltv_map.RawPacket(),
         .metadata = std::move(metadata),
     });
   }
@@ -4523,8 +4525,8 @@ TEST_F(StateMachineTest, testAttachDeviceToTheStream) {
 
   /* Verify that ASE of first device are still good*/
   auto ase = fistDevice->GetFirstActiveAse();
-  ASSERT_NE(ase->max_transport_latency, 0);
-  ASSERT_NE(ase->retrans_nb, 0);
+  ASSERT_NE(ase->qos_config.max_transport_latency, 0);
+  ASSERT_NE(ase->qos_config.retrans_nb, 0);
 }
 
 TEST_F(StateMachineTest, testAttachDeviceToTheStreamV2) {
@@ -4644,8 +4646,8 @@ TEST_F(StateMachineTest, testAttachDeviceToTheStreamV2) {
 
   /* Verify that ASE of first device are still good*/
   auto ase = fistDevice->GetFirstActiveAse();
-  ASSERT_NE(ase->max_transport_latency, 0);
-  ASSERT_NE(ase->retrans_nb, 0);
+  ASSERT_NE(ase->qos_config.max_transport_latency, 0);
+  ASSERT_NE(ase->qos_config.retrans_nb, 0);
 }
 
 TEST_F(StateMachineTest, testAttachDeviceToTheStreamDeviceNoAvailableContext) {
@@ -4888,8 +4890,8 @@ TEST_F(StateMachineTest, testAutonomousConfiguredAndAttachToStream) {
 
   /* Verify that ASE of first device are still good*/
   auto ase = fistDevice->GetFirstActiveAse();
-  ASSERT_NE(ase->max_transport_latency, 0);
-  ASSERT_NE(ase->retrans_nb, 0);
+  ASSERT_NE(ase->qos_config.max_transport_latency, 0);
+  ASSERT_NE(ase->qos_config.retrans_nb, 0);
 }
 
 TEST_F(StateMachineTest,
@@ -5002,8 +5004,8 @@ TEST_F(StateMachineTest,
 
   /* Verify that ASE of first device are still good*/
   auto ase = fistDevice->GetFirstActiveAse();
-  ASSERT_NE(ase->max_transport_latency, 0);
-  ASSERT_NE(ase->retrans_nb, 0);
+  ASSERT_NE(ase->qos_config.max_transport_latency, 0);
+  ASSERT_NE(ase->qos_config.retrans_nb, 0);
 }
 
 TEST_F(StateMachineTest, testAttachDeviceToTheStreamDoNotAttach) {
@@ -5174,8 +5176,8 @@ TEST_F(StateMachineTest, testReconfigureAfterLateDeviceAttached) {
   /* Verify that ASE of first device are still good*/
   ase = fistDevice->GetFirstActiveAse();
   ASSERT_NE(nullptr, ase);
-  ASSERT_NE(ase->max_transport_latency, 0);
-  ASSERT_NE(ase->retrans_nb, 0);
+  ASSERT_NE(ase->qos_config.max_transport_latency, 0);
+  ASSERT_NE(ase->qos_config.retrans_nb, 0);
 }
 
 TEST_F(StateMachineTest, testStreamToGettingReadyDevice) {
@@ -5405,8 +5407,8 @@ TEST_F(StateMachineTest, testAttachDeviceToTheConversationalStream) {
 
   /* Verify that ASE of first device are still good*/
   auto ase = firstDevice->GetFirstActiveAse();
-  ASSERT_NE(ase->max_transport_latency, 0);
-  ASSERT_NE(ase->retrans_nb, 0);
+  ASSERT_NE(ase->qos_config.max_transport_latency, 0);
+  ASSERT_NE(ase->qos_config.retrans_nb, 0);
 
   // Make sure ASEs with reconnected CIS are in STREAMING state
   ASSERT_TRUE(lastDevice->HaveAllActiveAsesSameState(
@@ -6696,8 +6698,8 @@ TEST_F(StateMachineTest, testAttachDeviceToTheStreamCisFailure) {
 
   /* Verify that ASE of first device are still good*/
   auto ase = fistDevice->GetFirstActiveAse();
-  ASSERT_NE(ase->max_transport_latency, 0);
-  ASSERT_NE(ase->retrans_nb, 0);
+  ASSERT_NE(ase->qos_config.max_transport_latency, 0);
+  ASSERT_NE(ase->qos_config.retrans_nb, 0);
 }
 
 TEST_F(StateMachineTest, testAclDropWithoutApriorCisDisconnection) {
