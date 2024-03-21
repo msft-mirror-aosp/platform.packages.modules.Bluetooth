@@ -25,6 +25,7 @@
 #include <stddef.h>
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "android_bluetooth_flags.h"
@@ -1561,10 +1562,7 @@ static void bta_dm_service_search_remname_cback(const RawAddress& bd_addr,
   /* if this is what we are looking for */
   if (bta_dm_search_cb.peer_bdaddr == bd_addr) {
     rem_name.bd_addr = bd_addr;
-    rem_name.length = bd_name_copy(rem_name.remote_bd_name, bd_name);
-    if (rem_name.length > BD_NAME_LEN) {
-      rem_name.length = BD_NAME_LEN;
-    }
+    bd_name_copy(rem_name.remote_bd_name, bd_name);
     rem_name.status = BTM_SUCCESS;
     rem_name.hci_status = HCI_SUCCESS;
     bta_dm_remname_cback(&rem_name);
@@ -1583,7 +1581,6 @@ static void bta_dm_service_search_remname_cback(const RawAddress& bd_addr,
       // needed so our response is not ignored, since this corresponds to the
       // actual peer_bdaddr
       rem_name.bd_addr = bta_dm_search_cb.peer_bdaddr;
-      rem_name.length = 0;
       rem_name.remote_bd_name[0] = 0;
       rem_name.status = btm_status;
       rem_name.hci_status = HCI_SUCCESS;
@@ -1610,7 +1607,8 @@ static void bta_dm_remname_cback(const tBTM_REMOTE_DEV_NAME* p_remote_name) {
       ADDRESS_TO_LOGGABLE_CSTR(p_remote_name->bd_addr),
       btm_status_text(p_remote_name->status),
       hci_error_code_text(p_remote_name->hci_status),
-      p_remote_name->remote_bd_name[0], p_remote_name->length);
+      p_remote_name->remote_bd_name[0],
+      strnlen((const char*)p_remote_name->remote_bd_name, BD_NAME_LEN));
 
   if (bta_dm_search_cb.peer_bdaddr == p_remote_name->bd_addr) {
     get_btm_client_interface().security.BTM_SecDeleteRmtNameNotifyCallback(
@@ -2340,7 +2338,10 @@ bool bta_dm_search_sm_execute(const BT_HDR_RIGID* p_msg) {
           break;
         case BTA_DM_API_SEARCH_CANCEL_EVT:
           bta_dm_search_clear_queue();
-          bta_dm_search_set_state(BTA_DM_SEARCH_CANCELLING);
+          if (IS_FLAG_ENABLED(
+                  continue_service_discovery_when_cancel_device_discovery)) {
+            bta_dm_search_set_state(BTA_DM_SEARCH_CANCELLING);
+          }
           bta_dm_search_cancel_notify();
           break;
         case BTA_DM_DISC_CLOSE_TOUT_EVT:
