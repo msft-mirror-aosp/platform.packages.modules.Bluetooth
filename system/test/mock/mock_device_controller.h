@@ -43,10 +43,6 @@ extern uint8_t supported_commands[HCI_SUPPORTED_COMMANDS_ARRAY_SIZE];
 extern bt_device_features_t features_classic[MAX_FEATURES_CLASSIC_PAGE_COUNT];
 extern uint8_t last_features_classic_page_index;
 
-extern uint16_t acl_data_size_classic;
-extern uint16_t acl_data_size_ble;
-extern uint16_t iso_data_size;
-
 extern uint16_t acl_buffer_count_classic;
 extern uint8_t acl_buffer_count_ble;
 extern uint8_t iso_buffer_count;
@@ -55,7 +51,6 @@ extern uint8_t ble_acceptlist_size;
 extern uint8_t ble_resolving_list_max_size;
 extern uint8_t ble_supported_states[BLE_SUPPORTED_STATES_SIZE];
 extern bt_device_features_t features_ble;
-extern uint16_t ble_suggested_default_data_length;
 extern uint16_t ble_supported_max_tx_octets;
 extern uint16_t ble_supported_max_tx_time;
 extern uint16_t ble_supported_max_rx_octets;
