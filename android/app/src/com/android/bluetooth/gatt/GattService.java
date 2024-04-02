@@ -1940,6 +1940,10 @@ public class GattService extends ProfileService {
             Log.d(TAG, "unreg:" + appId);
             unregisterClient(appId, attributionSource);
         }
+        for (Integer appId : mServerMap.getAllAppsIds()) {
+            Log.d(TAG, "unreg:" + appId);
+            unregisterServer(appId, attributionSource);
+        }
     }
 
     /**************************************************************************
