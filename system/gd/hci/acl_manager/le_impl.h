@@ -646,6 +646,10 @@ struct le_impl : public bluetooth::hci::LeAddressManagerCallback {
     return connections.HACK_get_handle(address);
   }
 
+  Address HACK_get_address(uint16_t connection_handle) {
+    return connections.getAddressWithType(connection_handle).GetAddress();
+  }
+
   void OnAdvertisingSetTerminated(
       uint16_t conn_handle,
       uint8_t adv_set_id,
@@ -1041,7 +1045,7 @@ struct le_impl : public bluetooth::hci::LeAddressManagerCallback {
           auto complete_view = LeSetDefaultSubrateCompleteView::Create(complete);
           ASSERT(complete_view.IsValid());
           ErrorCode status = complete_view.GetStatus();
-          ASSERT_LOG(status == ErrorCode::SUCCESS, "Status 0x%02hhx, %s", status, ErrorCodeText(status).c_str());
+          ASSERT_LOG(status == ErrorCode::SUCCESS, "Status = %s", ErrorCodeText(status).c_str());
         }));
   }
 

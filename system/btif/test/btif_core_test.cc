@@ -255,14 +255,9 @@ TEST_F(BtifCoreTest, dump_dm_search_event) {
   std::vector<std::pair<uint16_t, std::string>> events = {
       std::make_pair(BTA_DM_INQ_RES_EVT, "BTA_DM_INQ_RES_EVT"),
       std::make_pair(BTA_DM_INQ_CMPL_EVT, "BTA_DM_INQ_CMPL_EVT"),
-      std::make_pair(BTA_DM_DISC_RES_EVT, "BTA_DM_DISC_RES_EVT"),
-      std::make_pair(BTA_DM_GATT_OVER_LE_RES_EVT,
-                     "BTA_DM_GATT_OVER_LE_RES_EVT"),
       std::make_pair(BTA_DM_DISC_CMPL_EVT, "BTA_DM_DISC_CMPL_EVT"),
       std::make_pair(BTA_DM_SEARCH_CANCEL_CMPL_EVT,
                      "BTA_DM_SEARCH_CANCEL_CMPL_EVT"),
-      std::make_pair(BTA_DM_GATT_OVER_SDP_RES_EVT,
-                     "BTA_DM_GATT_OVER_SDP_RES_EVT"),
       std::make_pair(BTA_DM_NAME_READ_EVT, "BTA_DM_NAME_READ_EVT"),
   };
   for (const auto& event : events) {
@@ -423,8 +418,9 @@ TEST_F(BtifCoreTest, dump_hf_client_event) {
                dump_hf_client_event(std::numeric_limits<uint16_t>::max()));
 }
 
-TEST_F(BtifCoreTest, dump_hh_event) {
+TEST_F(BtifCoreTest, bta_hh_event_text) {
   std::vector<std::pair<int, std::string>> events = {
+      std::make_pair(BTA_HH_EMPTY_EVT, "BTA_HH_EMPTY_EVT"),
       std::make_pair(BTA_HH_ENABLE_EVT, "BTA_HH_ENABLE_EVT"),
       std::make_pair(BTA_HH_DISABLE_EVT, "BTA_HH_DISABLE_EVT"),
       std::make_pair(BTA_HH_OPEN_EVT, "BTA_HH_OPEN_EVT"),
@@ -442,12 +438,12 @@ TEST_F(BtifCoreTest, dump_hh_event) {
       std::make_pair(BTA_HH_API_ERR_EVT, "BTA_HH_API_ERR_EVT"),
   };
   for (const auto& event : events) {
-    ASSERT_STREQ(event.second.c_str(), dump_hh_event(event.first));
+    ASSERT_EQ(event.second, bta_hh_event_text(event.first));
   }
   std::ostringstream oss;
-  oss << "UNKNOWN MSG ID";
-  ASSERT_STREQ(oss.str().c_str(),
-               dump_hh_event(std::numeric_limits<uint16_t>::max()));
+  auto unknown_evt = std::numeric_limits<uint16_t>::max();
+  oss << "UNKNOWN[" << unknown_evt << "]";
+  ASSERT_EQ(oss.str(), bta_hh_event_text(unknown_evt));
 }
 
 TEST_F(BtifCoreTest, dump_hd_event) {

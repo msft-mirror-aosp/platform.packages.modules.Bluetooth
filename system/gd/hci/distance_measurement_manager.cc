@@ -456,6 +456,7 @@ struct DistanceMeasurementManager::impl {
       // Create a cs tracker with role reflector
       // TODO: Check ROLE via CS config. (b/304295768)
       cs_trackers_[connection_handle].role = CsRole::REFLECTOR;
+      cs_trackers_[connection_handle].address = acl_manager_->HACK_GetLeAddress(connection_handle);
     } else {
       send_le_cs_security_enable(connection_handle);
     }
@@ -624,14 +625,16 @@ struct DistanceMeasurementManager::impl {
       procedure_done_status = cs_event_result.GetProcedureDoneStatus();
       subevent_done_status = cs_event_result.GetSubeventDoneStatus();
       result_data_structures = cs_event_result.GetResultDataStructures();
-      init_cs_procedure_data(
+      if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
+        log::warn("Can't find any tracker for {}", connection_handle);
+        return;
+      }
+      CsProcedureData* procedure_data = init_cs_procedure_data(
           connection_handle,
           cs_event_result.GetProcedureCounter(),
           cs_event_result.GetNumAntennaPaths(),
           true);
-      CsProcedureData* procedure_data =
-          get_procedure_data(connection_handle, cs_event_result.GetProcedureCounter());
-      if (procedure_data != nullptr && cs_trackers_[connection_handle].role == CsRole::INITIATOR) {
+      if (cs_trackers_[connection_handle].role == CsRole::INITIATOR) {
         procedure_data->frequency_compensation.push_back(
             cs_event_result.GetFrequencyCompensation());
       }
@@ -662,6 +665,10 @@ struct DistanceMeasurementManager::impl {
       procedure_done_status = cs_event_result.GetProcedureDoneStatus();
       subevent_done_status = cs_event_result.GetSubeventDoneStatus();
       result_data_structures = cs_event_result.GetResultDataStructures();
+      if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
+        log::warn("Can't find any tracker for {}", connection_handle);
+        return;
+      }
     }
 
     uint16_t counter = cs_trackers_[connection_handle].local_counter;
@@ -706,11 +713,11 @@ struct DistanceMeasurementManager::impl {
       append_vector(procedure_data->ras_subevents, subevent_raw);
       // erase buffer
       procedure_data->ras_subevent_data_.clear();
-      send_on_demand_data(procedure_data);
+      send_on_demand_data(cs_trackers_[connection_handle].address, procedure_data);
     }
   }
 
-  void send_on_demand_data(CsProcedureData* procedure_data) {
+  void send_on_demand_data(Address address, CsProcedureData* procedure_data) {
     if (procedure_data->local_status != CsProcedureDoneStatus::PARTIAL_RESULTS) {
       procedure_data->segmentation_header_.last_segment_ = 1;
     }
@@ -721,7 +728,11 @@ struct DistanceMeasurementManager::impl {
         procedure_data->ras_subevents);
     auto raw_data = builder_to_bytes(std::move(builder));
     log::debug("counter: {}, size:{}", procedure_data->counter, (uint16_t)raw_data.size());
-    // TODO, push data to RAS server
+    distance_measurement_callbacks_->OnRasFragmentReady(
+        address,
+        procedure_data->counter,
+        procedure_data->local_status != CsProcedureDoneStatus::PARTIAL_RESULTS,
+        raw_data);
 
     procedure_data->ras_subevents.clear();
     procedure_data->segmentation_header_.first_segment_ = 0;
@@ -729,15 +740,11 @@ struct DistanceMeasurementManager::impl {
     procedure_data->segmentation_header_.rolling_segment_counter_ %= 64;
   }
 
-  void init_cs_procedure_data(
+  CsProcedureData* init_cs_procedure_data(
       uint16_t connection_handle,
       uint16_t procedure_counter,
       uint8_t num_antenna_paths,
       bool local) {
-    if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
-      log::warn("Can't find any tracker for {}", connection_handle);
-      return;
-    }
     // Update procedure count
     if (local) {
       cs_trackers_[connection_handle].local_counter = procedure_counter;
@@ -746,10 +753,10 @@ struct DistanceMeasurementManager::impl {
     }
 
     std::vector<CsProcedureData>& data_list = cs_trackers_[connection_handle].procedure_data_list;
-    for (CsProcedureData procedure_data : data_list) {
-      if (procedure_data.counter == procedure_counter) {
-        // Data already exist, return
-        return;
+    for (auto& data : data_list) {
+      if (data.counter == procedure_counter) {
+        // Data already exists, return
+        return &data;
       }
     }
     log::info("Create data for procedure_counter: {}", procedure_counter);
@@ -763,6 +770,7 @@ struct DistanceMeasurementManager::impl {
       log::warn("buffer full, drop procedure data with counter: {}", data_list.front().counter);
       data_list.erase(data_list.begin());
     }
+    return &data_list.back();
   }
 
   CsProcedureData* get_procedure_data(uint16_t connection_handle, uint16_t counter) {

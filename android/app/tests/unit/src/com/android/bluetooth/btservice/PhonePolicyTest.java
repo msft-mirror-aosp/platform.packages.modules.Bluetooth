@@ -22,6 +22,7 @@ import static com.android.bluetooth.TestUtils.waitForLooperToFinishScheduledTask
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothCsipSetCoordinator;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
@@ -40,7 +41,10 @@ import com.android.bluetooth.Utils;
 import com.android.bluetooth.a2dp.A2dpService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.btservice.storage.MetadataDatabase;
+import com.android.bluetooth.csip.CsipSetCoordinatorService;
 import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.hap.HapClientService;
+import com.android.bluetooth.hearingaid.HearingAidService;
 import com.android.bluetooth.hfp.HeadsetService;
 import com.android.bluetooth.le_audio.LeAudioService;
 
@@ -81,9 +85,16 @@ public class PhonePolicyTest {
     @Mock private A2dpService mA2dpService;
     @Mock private LeAudioService mLeAudioService;
     @Mock private DatabaseManager mDatabaseManager;
+    @Mock private CsipSetCoordinatorService mCsipSetCoordinatorService;
+    @Mock private HearingAidService mHearingAidService;
+    @Mock private HapClientService mHapClientService;
+
+    private List<BluetoothDevice> mLeAudioAllowedConnectionPolicyList = new ArrayList<>();
 
     @Before
     public void setUp() throws Exception {
+        mLeAudioAllowedConnectionPolicyList.clear();
+
         // Stub A2DP and HFP
         when(mHeadsetService.connect(any(BluetoothDevice.class))).thenReturn(true);
         when(mA2dpService.connect(any(BluetoothDevice.class))).thenReturn(true);
@@ -96,6 +107,10 @@ public class PhonePolicyTest {
         doReturn(mHeadsetService).when(mServiceFactory).getHeadsetService();
         doReturn(mA2dpService).when(mServiceFactory).getA2dpService();
         doReturn(mLeAudioService).when(mServiceFactory).getLeAudioService();
+        doReturn(mCsipSetCoordinatorService).when(mServiceFactory).getCsipSetCoordinatorService();
+        doReturn(mHearingAidService).when(mServiceFactory).getHearingAidService();
+        doReturn(mHapClientService).when(mServiceFactory).getHapClientService();
+
         // Start handler thread for this test
         mHandlerThread = new HandlerThread("PhonePolicyTestHandlerThread");
         mHandlerThread.start();
@@ -118,6 +133,18 @@ public class PhonePolicyTest {
         }
         TestUtils.clearAdapterService(mAdapterService);
         Utils.setDualModeAudioStateForTesting(mOriginalDualModeState);
+    }
+
+    int getLeAudioConnectionPolicy(BluetoothDevice dev) {
+        if (!mLeAudioAllowedConnectionPolicyList.contains(dev)) {
+            return BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+        }
+        return BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+    }
+
+    boolean setLeAudioAllowedConnectionPolicy(BluetoothDevice dev) {
+        mLeAudioAllowedConnectionPolicyList.add(dev);
+        return true;
     }
 
     /**
@@ -148,13 +175,147 @@ public class PhonePolicyTest {
 
         // Check that the priorities of the devices for preferred profiles are set to ON
         verify(mDatabaseManager, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
-                .setProfileConnectionPolicy(device, BluetoothProfile.HEADSET,
+                .setProfileConnectionPolicy(
+                        device,
+                        BluetoothProfile.HEADSET,
                         BluetoothProfile.CONNECTION_POLICY_ALLOWED);
         verify(mDatabaseManager, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
-                .setProfileConnectionPolicy(device, BluetoothProfile.A2DP,
-                        BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                .setProfileConnectionPolicy(
+                        device, BluetoothProfile.A2DP, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
     }
 
+    private void processInitProfilePriorities_LeAudioOnlyHelper(
+            int csipGroupId, int groupSize, boolean dualMode, boolean ashaDevice) {
+        Utils.setDualModeAudioStateForTesting(false);
+        mPhonePolicy.mLeAudioEnabledByDefault = true;
+        mPhonePolicy.mAutoConnectProfilesSupported = true;
+        SystemProperties.set(
+                PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY, Boolean.toString(false));
+
+        int testedDeviceType = BluetoothDevice.DEVICE_TYPE_LE;
+        if (dualMode) {
+            /* If CSIP mode, use DUAL type only for single device */
+            testedDeviceType = BluetoothDevice.DEVICE_TYPE_DUAL;
+        }
+
+        List<BluetoothDevice> allConnectedDevices = new ArrayList<>();
+        for (int i = 0; i < groupSize; i++) {
+            BluetoothDevice device = getTestDevice(mAdapter, i);
+            allConnectedDevices.add(device);
+        }
+
+        when(mCsipSetCoordinatorService.getGroupId(any(), any())).thenReturn(csipGroupId);
+        when(mCsipSetCoordinatorService.getDesiredGroupSize(csipGroupId)).thenReturn(groupSize);
+
+        /* Build list of test UUIDs */
+        int numOfServices = 1;
+        if (groupSize > 1) {
+            numOfServices++;
+        }
+        if (ashaDevice) {
+            numOfServices++;
+        }
+        ParcelUuid[] uuids = new ParcelUuid[numOfServices];
+        int iter = 0;
+        uuids[iter++] = BluetoothUuid.LE_AUDIO;
+        if (groupSize > 1) {
+            uuids[iter++] = BluetoothUuid.COORDINATED_SET;
+        }
+        if (ashaDevice) {
+            uuids[iter++] = BluetoothUuid.HEARING_AID;
+        }
+
+        List<BluetoothDevice> connectedDevices = new ArrayList<>();
+
+        for (BluetoothDevice dev : allConnectedDevices) {
+            // Mock the HFP, A2DP and LE audio services to return unknown connection policy
+            when(mHeadsetService.getConnectionPolicy(dev))
+                    .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+            when(mA2dpService.getConnectionPolicy(dev))
+                    .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+
+            when(mLeAudioService.setConnectionPolicy(
+                            dev, BluetoothProfile.CONNECTION_POLICY_ALLOWED))
+                    .thenAnswer(
+                            invocation -> {
+                                return setLeAudioAllowedConnectionPolicy(dev);
+                            });
+            when(mLeAudioService.getConnectionPolicy(dev))
+                    .thenAnswer(
+                            invocation -> {
+                                return getLeAudioConnectionPolicy(dev);
+                            });
+
+            when(mAdapterService.getDatabase()).thenReturn(mDatabaseManager);
+            when(mAdapterService.getRemoteUuids(dev)).thenReturn(uuids);
+            when(mAdapterService.isProfileSupported(dev, BluetoothProfile.LE_AUDIO))
+                    .thenReturn(true);
+            when(mAdapterService.isProfileSupported(dev, BluetoothProfile.HEARING_AID))
+                    .thenReturn(ashaDevice);
+
+            /* First device is always LE only second depends on dualMode */
+            if (groupSize == 1 || connectedDevices.size() >= 1) {
+                when(mAdapterService.getRemoteType(dev)).thenReturn(testedDeviceType);
+            } else {
+                when(mAdapterService.getRemoteType(dev)).thenReturn(BluetoothDevice.DEVICE_TYPE_LE);
+            }
+
+            when(mCsipSetCoordinatorService.getGroupDevicesOrdered(csipGroupId))
+                    .thenReturn(connectedDevices);
+            mPhonePolicy.onUuidsDiscovered(dev, uuids);
+            if (groupSize > 1) {
+                connectedDevices.add(dev);
+                // Simulate CSIP connection
+                mPhonePolicy.profileConnectionStateChanged(
+                        BluetoothProfile.CSIP_SET_COORDINATOR,
+                        dev,
+                        BluetoothProfile.STATE_DISCONNECTED,
+                        BluetoothProfile.STATE_CONNECTED);
+                waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+            }
+        }
+    }
+
+    @Test
+    public void testConnectLeAudioOnlyDevices_BandedHeadphones() {
+        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_ALLOW_LEAUDIO_ONLY_DEVICES);
+        // Single device, no CSIP
+        processInitProfilePriorities_LeAudioOnlyHelper(
+                BluetoothCsipSetCoordinator.GROUP_ID_INVALID, 1, false, false);
+        verify(mLeAudioService, times(1))
+                .setConnectionPolicy(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED));
+    }
+
+    @Test
+    public void testConnectLeAudioOnlyDevices_CsipSet() {
+        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_ALLOW_LEAUDIO_ONLY_DEVICES);
+        // CSIP Le Audio only devices
+        processInitProfilePriorities_LeAudioOnlyHelper(1, 2, false, false);
+        verify(mLeAudioService, times(2))
+                .setConnectionPolicy(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED));
+    }
+
+    @Test
+    public void testConnectLeAudioOnlyDevices_DualModeCsipSet() {
+        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_ALLOW_LEAUDIO_ONLY_DEVICES);
+        // CSIP Dual mode devices
+        processInitProfilePriorities_LeAudioOnlyHelper(1, 2, true, false);
+        verify(mLeAudioService, times(0))
+                .setConnectionPolicy(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED));
+    }
+
+    @Test
+    public void testConnectLeAudioOnlyDevices_AshaAndCsipSet() {
+        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_ALLOW_LEAUDIO_ONLY_DEVICES);
+        // CSIP Dual mode devices
+        processInitProfilePriorities_LeAudioOnlyHelper(1, 2, false, true);
+        verify(mLeAudioService, times(0))
+                .setConnectionPolicy(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED));
+    }
 
     @Test
     public void testProcessInitProfilePriorities_WithAutoConnect() {
@@ -312,6 +473,246 @@ public class PhonePolicyTest {
         uuids[1] = BluetoothUuid.A2DP_SINK;
         uuids[2] = BluetoothUuid.LE_AUDIO;
         mPhonePolicy.onUuidsDiscovered(device, uuids);
+    }
+
+    /* In this test we want to check following scenario
+     * 1. First Le Audio set member bonds/connect and user switch LeAudio toggle
+     * 2. Second device connects later, and LeAudio shall be enabled automatically
+     */
+    @Test
+    public void testLateConnectOfLeAudioEnabled_DualModeBud() {
+        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_QUICK_LEAUDIO_TOGGLE_SWITCH_FIX);
+        Utils.setDualModeAudioStateForTesting(false);
+        mPhonePolicy.mLeAudioEnabledByDefault = true;
+        mPhonePolicy.mAutoConnectProfilesSupported = true;
+
+        /* Just for the moment, set to true to setup first device */
+        SystemProperties.set(
+                PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY, Boolean.toString(true));
+
+        int csipGroupId = 1;
+        int groupSize = 2;
+
+        List<BluetoothDevice> connectedDevices = new ArrayList<>();
+        when(mCsipSetCoordinatorService.getDesiredGroupSize(csipGroupId)).thenReturn(groupSize);
+        when(mCsipSetCoordinatorService.getGroupId(any(), any())).thenReturn(csipGroupId);
+        when(mLeAudioService.getGroupId(any())).thenReturn(csipGroupId);
+        when(mCsipSetCoordinatorService.getGroupDevicesOrdered(csipGroupId))
+                .thenReturn(connectedDevices);
+
+        // Connect first set member
+        BluetoothDevice firstDevice = getTestDevice(mAdapter, 0);
+        connectedDevices.add(firstDevice);
+
+        /* Build list of test UUIDs */
+        ParcelUuid[] uuids = new ParcelUuid[4];
+        uuids[0] = BluetoothUuid.LE_AUDIO;
+        uuids[1] = BluetoothUuid.COORDINATED_SET;
+        uuids[2] = BluetoothUuid.A2DP_SINK;
+        uuids[3] = BluetoothUuid.HFP;
+
+        // Prepare common handlers
+        when(mHeadsetService.getConnectionPolicy(any(BluetoothDevice.class)))
+                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+        when(mA2dpService.getConnectionPolicy(any(BluetoothDevice.class)))
+                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+
+        when(mLeAudioService.setConnectionPolicy(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED)))
+                .thenAnswer(
+                        invocation -> {
+                            return setLeAudioAllowedConnectionPolicy(invocation.getArgument(0));
+                        });
+        when(mLeAudioService.getConnectionPolicy(any(BluetoothDevice.class)))
+                .thenAnswer(
+                        invocation -> {
+                            return getLeAudioConnectionPolicy(invocation.getArgument(0));
+                        });
+        when(mLeAudioService.getGroupDevices(csipGroupId)).thenReturn(connectedDevices);
+
+        when(mAdapterService.getDatabase()).thenReturn(mDatabaseManager);
+        when(mAdapterService.getRemoteUuids(any(BluetoothDevice.class))).thenReturn(uuids);
+        when(mAdapterService.isProfileSupported(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.HEARING_AID)))
+                .thenReturn(false);
+        when(mAdapterService.isProfileSupported(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.LE_AUDIO)))
+                .thenReturn(true);
+
+        /* Always DualMode for test purpose */
+        when(mAdapterService.getRemoteType(any(BluetoothDevice.class)))
+                .thenReturn(BluetoothDevice.DEVICE_TYPE_DUAL);
+
+        // Inject first devices
+        mPhonePolicy.onUuidsDiscovered(firstDevice, uuids);
+        mPhonePolicy.profileConnectionStateChanged(
+                BluetoothProfile.CSIP_SET_COORDINATOR,
+                firstDevice,
+                BluetoothProfile.STATE_DISCONNECTED,
+                BluetoothProfile.STATE_CONNECTED);
+        waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+
+        // Verify connection policy is set properly
+        verify(mLeAudioService, times(1))
+                .setConnectionPolicy(
+                        eq(firstDevice), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED));
+
+        mPhonePolicy.profileActiveDeviceChanged(BluetoothProfile.LE_AUDIO, firstDevice);
+        waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+
+        verify(mA2dpService, times(1))
+                .setConnectionPolicy(
+                        eq(firstDevice), eq(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN));
+        verify(mHeadsetService, times(1))
+                .setConnectionPolicy(
+                        eq(firstDevice), eq(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN));
+
+        /* Remove bypass and check that second set member will be added*/
+        SystemProperties.set(
+                PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY, Boolean.toString(false));
+
+        // Now connect second device and make sure
+        // Connect first set member
+        BluetoothDevice secondDevice = getTestDevice(mAdapter, 1);
+        connectedDevices.add(secondDevice);
+
+        // Inject second set member connection
+        mPhonePolicy.onUuidsDiscovered(secondDevice, uuids);
+        mPhonePolicy.profileConnectionStateChanged(
+                BluetoothProfile.CSIP_SET_COORDINATOR,
+                secondDevice,
+                BluetoothProfile.STATE_DISCONNECTED,
+                BluetoothProfile.STATE_CONNECTED);
+        waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+
+        // Verify connection policy is set properly
+        verify(mLeAudioService, times(1))
+                .setConnectionPolicy(
+                        eq(secondDevice), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED));
+
+        mPhonePolicy.profileActiveDeviceChanged(BluetoothProfile.LE_AUDIO, secondDevice);
+        waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+
+        verify(mA2dpService, times(1))
+                .setConnectionPolicy(
+                        eq(secondDevice), eq(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN));
+        verify(mHeadsetService, times(1))
+                .setConnectionPolicy(
+                        eq(secondDevice), eq(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN));
+    }
+
+    @Test
+    public void testLateConnectOfLeAudioEnabled_AshaAndLeAudioBud() {
+        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_QUICK_LEAUDIO_TOGGLE_SWITCH_FIX);
+        Utils.setDualModeAudioStateForTesting(false);
+        mPhonePolicy.mLeAudioEnabledByDefault = true;
+        mPhonePolicy.mAutoConnectProfilesSupported = true;
+
+        /* Just for the moment, set to true to setup first device */
+        SystemProperties.set(
+                PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY, Boolean.toString(true));
+
+        int csipGroupId = 1;
+        int groupSize = 2;
+
+        List<BluetoothDevice> connectedDevices = new ArrayList<>();
+        when(mCsipSetCoordinatorService.getDesiredGroupSize(csipGroupId)).thenReturn(groupSize);
+        when(mCsipSetCoordinatorService.getGroupId(any(), any())).thenReturn(csipGroupId);
+        when(mLeAudioService.getGroupId(any())).thenReturn(csipGroupId);
+        when(mCsipSetCoordinatorService.getGroupDevicesOrdered(csipGroupId))
+                .thenReturn(connectedDevices);
+
+        // Connect first set member
+        BluetoothDevice firstDevice = getTestDevice(mAdapter, 0);
+        connectedDevices.add(firstDevice);
+
+        /* Build list of test UUIDs */
+        ParcelUuid[] uuids = new ParcelUuid[4];
+        uuids[0] = BluetoothUuid.LE_AUDIO;
+        uuids[1] = BluetoothUuid.COORDINATED_SET;
+        uuids[2] = BluetoothUuid.HEARING_AID;
+        uuids[3] = BluetoothUuid.HAS;
+
+        // Prepare common handlers
+        when(mHearingAidService.getConnectionPolicy(any(BluetoothDevice.class)))
+                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+
+        when(mLeAudioService.setConnectionPolicy(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED)))
+                .thenAnswer(
+                        invocation -> {
+                            return setLeAudioAllowedConnectionPolicy(invocation.getArgument(0));
+                        });
+        when(mLeAudioService.getConnectionPolicy(any(BluetoothDevice.class)))
+                .thenAnswer(
+                        invocation -> {
+                            return getLeAudioConnectionPolicy(invocation.getArgument(0));
+                        });
+        when(mLeAudioService.getGroupDevices(csipGroupId)).thenReturn(connectedDevices);
+
+        when(mAdapterService.getDatabase()).thenReturn(mDatabaseManager);
+        when(mAdapterService.getRemoteUuids(any(BluetoothDevice.class))).thenReturn(uuids);
+        when(mAdapterService.isProfileSupported(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.HEARING_AID)))
+                .thenReturn(false);
+        when(mAdapterService.isProfileSupported(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.LE_AUDIO)))
+                .thenReturn(true);
+
+        /* Always DualMode for test purpose */
+        when(mAdapterService.getRemoteType(any(BluetoothDevice.class)))
+                .thenReturn(BluetoothDevice.DEVICE_TYPE_LE);
+
+        // Inject first devices
+        mPhonePolicy.onUuidsDiscovered(firstDevice, uuids);
+        mPhonePolicy.profileConnectionStateChanged(
+                BluetoothProfile.CSIP_SET_COORDINATOR,
+                firstDevice,
+                BluetoothProfile.STATE_DISCONNECTED,
+                BluetoothProfile.STATE_CONNECTED);
+        waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+
+        // Verify connection policy is set properly
+        verify(mLeAudioService, times(1))
+                .setConnectionPolicy(
+                        eq(firstDevice), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED));
+
+        mPhonePolicy.profileActiveDeviceChanged(BluetoothProfile.LE_AUDIO, firstDevice);
+        waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+
+        verify(mHearingAidService, times(1))
+                .setConnectionPolicy(
+                        eq(firstDevice), eq(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN));
+
+        /* Remove bypass and check that second set member will be added*/
+        SystemProperties.set(
+                PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY, Boolean.toString(false));
+
+        // Now connect second device and make sure
+        // Connect first set member
+        BluetoothDevice secondDevice = getTestDevice(mAdapter, 1);
+        connectedDevices.add(secondDevice);
+
+        // Inject second set member connection
+        mPhonePolicy.onUuidsDiscovered(secondDevice, uuids);
+        mPhonePolicy.profileConnectionStateChanged(
+                BluetoothProfile.CSIP_SET_COORDINATOR,
+                secondDevice,
+                BluetoothProfile.STATE_DISCONNECTED,
+                BluetoothProfile.STATE_CONNECTED);
+        waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+
+        // Verify connection policy is set properly
+        verify(mLeAudioService, times(1))
+                .setConnectionPolicy(
+                        eq(secondDevice), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED));
+
+        mPhonePolicy.profileActiveDeviceChanged(BluetoothProfile.LE_AUDIO, secondDevice);
+        waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+
+        verify(mHearingAidService, times(1))
+                .setConnectionPolicy(
+                        eq(secondDevice), eq(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN));
     }
 
     /**
