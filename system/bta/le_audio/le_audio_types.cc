@@ -22,7 +22,6 @@
 
 #include "le_audio_types.h"
 
-#include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
 
@@ -46,7 +45,7 @@ using types::LeAudioCoreCodecConfig;
 
 static uint8_t min_req_devices_cnt(
     const AudioSetConfiguration* audio_set_conf) {
-  ASSERT_LOG(
+  log::assert_that(
       audio_set_conf->topology_info.has_value(),
       "No topology info, which is required to properly configure the ASEs");
   return std::max(audio_set_conf->topology_info->device_count.sink,
@@ -160,90 +159,15 @@ uint8_t get_num_of_devices_in_configuration(
   return min_req_devices_cnt(audio_set_conf);
 }
 
-static bool IsCodecConfigCoreSupported(const types::LeAudioLtvMap& pacs,
-                                       const types::LeAudioLtvMap& reqs) {
-  auto caps = pacs.GetAsCoreCodecCapabilities();
-  auto config = reqs.GetAsCoreCodecConfig();
-
-  /* Sampling frequency */
-  if (!caps.HasSupportedSamplingFrequencies() || !config.sampling_frequency) {
-    log::debug("Missing supported sampling frequencies capability");
-    return false;
+uint16_t CodecConfigSetting::GetOctectsPerFrame() const {
+  switch (id.coding_format) {
+    case kLeAudioCodingFormatLC3:
+      return params.GetAsCoreCodecConfig().GetOctectsPerFrame();
+    default:
+      log::warn(", invalid codec id: 0x{:02x}", id.coding_format);
+      return 0;
   }
-  if (!caps.IsSamplingFrequencyConfigSupported(
-          config.sampling_frequency.value())) {
-    log::debug("Cfg: SamplingFrequency= 0x{:04x}",
-               config.sampling_frequency.value());
-    log::debug("Cap: SupportedSamplingFrequencies= 0x{:04x}",
-               caps.supported_sampling_frequencies.value());
-    log::debug("Sampling frequency not supported");
-    return false;
-  }
-
-  /* Channel counts */
-  if (!caps.IsAudioChannelCountsSupported(
-          config.GetChannelCountPerIsoStream())) {
-    log::debug("Cfg: Allocated channel count= 0x{:04x}",
-               config.GetChannelCountPerIsoStream());
-    log::debug("Cap: Supported channel counts= 0x{:04x}",
-               caps.supported_audio_channel_counts.value_or(1));
-    log::debug("Channel count not supported");
-    return false;
-  }
-
-  /* Frame duration */
-  if (!caps.HasSupportedFrameDurations() || !config.frame_duration) {
-    log::debug("Missing supported frame durations capability");
-    return false;
-  }
-  if (!caps.IsFrameDurationConfigSupported(config.frame_duration.value())) {
-    log::debug("Cfg: FrameDuration= 0x{:04x}", config.frame_duration.value());
-    log::debug("Cap: SupportedFrameDurations= 0x{:04x}",
-               caps.supported_frame_durations.value());
-    log::debug("Frame duration not supported");
-    return false;
-  }
-
-  /* Octets per frame */
-  if (!caps.HasSupportedOctetsPerCodecFrame() ||
-      !config.octets_per_codec_frame) {
-    log::debug("Missing supported octets per codec frame");
-    return false;
-  }
-  if (!caps.IsOctetsPerCodecFrameConfigSupported(
-          config.octets_per_codec_frame.value())) {
-    log::debug("Cfg: Octets per frame={}",
-               config.octets_per_codec_frame.value());
-    log::debug("Cap: Min octets per frame={}",
-               caps.supported_min_octets_per_codec_frame.value());
-    log::debug("Cap: Max octets per frame={}",
-               caps.supported_max_octets_per_codec_frame.value());
-    log::debug("Octets per codec frame outside the capabilities");
-    return false;
-  }
-
-  return true;
-}
-
-bool IsCodecConfigSettingSupported(
-    const acs_ac_record& pac, const CodecConfigSetting& codec_config_setting) {
-  const auto& codec_id = codec_config_setting.id;
-
-  if (codec_id != pac.codec_id) return false;
-
-  log::debug(": Settings for format: 0x{:02x}", codec_id.coding_format);
-
-  if (utils::IsCodecUsingLtvFormat(codec_id)) {
-    ASSERT_LOG(!pac.codec_spec_caps.IsEmpty(),
-               "Codec specific capabilities are not parsed approprietly.");
-    return IsCodecConfigCoreSupported(pac.codec_spec_caps,
-                                      codec_config_setting.params);
-  }
-
-  log::error("Codec {}, seems to be not supported here.",
-             bluetooth::common::ToString(codec_id));
-  return false;
-}
+};
 
 uint32_t CodecConfigSetting::GetSamplingFrequencyHz() const {
   switch (id.coding_format) {
@@ -608,7 +532,8 @@ std::string LeAudioLtvMap::ToString(
 
 const struct LeAudioCoreCodecConfig& LeAudioLtvMap::GetAsCoreCodecConfig()
     const {
-  ASSERT_LOG(!core_capabilities, "LTVs were already parsed for capabilities!");
+  log::assert_that(!core_capabilities,
+                   "LTVs were already parsed for capabilities!");
 
   if (!core_config) {
     core_config = LtvMapToCoreCodecConfig(*this);
@@ -618,7 +543,8 @@ const struct LeAudioCoreCodecConfig& LeAudioLtvMap::GetAsCoreCodecConfig()
 
 const struct LeAudioCoreCodecCapabilities&
 LeAudioLtvMap::GetAsCoreCodecCapabilities() const {
-  ASSERT_LOG(!core_config, "LTVs were already parsed for configurations!");
+  log::assert_that(!core_config,
+                   "LTVs were already parsed for configurations!");
 
   if (!core_capabilities) {
     core_capabilities = LtvMapToCoreCodecCapabilities(*this);
@@ -827,18 +753,17 @@ std::ostream& operator<<(std::ostream& os, const AudioContexts& contexts) {
 
 template <typename T>
 const T& BidirectionalPair<T>::get(uint8_t direction) const {
-  ASSERT_LOG(
-      direction < types::kLeAudioDirectionBoth,
-      "Unsupported complex direction. Consider using get_bidirectional<>() "
-      "instead.");
+  log::assert_that(direction < types::kLeAudioDirectionBoth,
+                   "Unsupported complex direction. Consider using "
+                   "get_bidirectional<>() instead.");
   return (direction == types::kLeAudioDirectionSink) ? sink : source;
 }
 
 template <typename T>
 T& BidirectionalPair<T>::get(uint8_t direction) {
-  ASSERT_LOG(direction < types::kLeAudioDirectionBoth,
-             "Unsupported complex direction. Reference to a single complex"
-             " direction value is not supported.");
+  log::assert_that(direction < types::kLeAudioDirectionBoth,
+                   "Unsupported complex direction. Reference to a single "
+                   "complex direction value is not supported.");
   return (direction == types::kLeAudioDirectionSink) ? sink : source;
 }
 

@@ -137,7 +137,7 @@ typedef uint8_t tBTA_JV_PM_ID;
 #endif
 
 /* JV pm connection states */
-enum {
+typedef enum : uint8_t {
   BTA_JV_CONN_OPEN = 0, /* Connection opened state */
   BTA_JV_CONN_CLOSE,    /* Connection closed state */
   BTA_JV_APP_OPEN,      /* JV Application opened state */
@@ -147,8 +147,28 @@ enum {
   BTA_JV_CONN_IDLE,     /* Connection idle state */
   BTA_JV_CONN_BUSY,     /* Connection busy state */
   BTA_JV_MAX_CONN_STATE /* Max number of connection state */
-};
-typedef uint8_t tBTA_JV_CONN_STATE;
+} tBTA_JV_CONN_STATE;
+
+inline std::string bta_jv_conn_state_text(const tBTA_JV_CONN_STATE& state) {
+  switch (state) {
+    CASE_RETURN_STRING(BTA_JV_CONN_OPEN);
+    CASE_RETURN_STRING(BTA_JV_CONN_CLOSE);
+    CASE_RETURN_STRING(BTA_JV_APP_OPEN);
+    CASE_RETURN_STRING(BTA_JV_APP_CLOSE);
+    CASE_RETURN_STRING(BTA_JV_SCO_OPEN);
+    CASE_RETURN_STRING(BTA_JV_SCO_CLOSE);
+    CASE_RETURN_STRING(BTA_JV_CONN_IDLE);
+    CASE_RETURN_STRING(BTA_JV_CONN_BUSY);
+    CASE_RETURN_STRING(BTA_JV_MAX_CONN_STATE);
+    default:
+      RETURN_UNKNOWN_TYPE_STRING(tBTA_JV_CONN_STATE, state);
+  }
+}
+
+namespace fmt {
+template <>
+struct formatter<tBTA_JV_CONN_STATE> : enum_formatter<tBTA_JV_CONN_STATE> {};
+}  // namespace fmt
 
 /* JV Connection types */
 #define BTA_JV_CONN_TYPE_RFCOMM 0
@@ -466,7 +486,8 @@ void BTA_JvDisable(void);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_JvGetChannelId(int conn_type, uint32_t id, int32_t channel);
+void BTA_JvGetChannelId(tBTA_JV_CONN_TYPE conn_type, uint32_t id,
+                        int32_t channel);
 
 /*******************************************************************************
  *
@@ -479,7 +500,7 @@ void BTA_JvGetChannelId(int conn_type, uint32_t id, int32_t channel);
  *                  BTA_JV_FAILURE, otherwise.
  *
  ******************************************************************************/
-tBTA_JV_STATUS BTA_JvFreeChannel(uint16_t channel, int conn_type);
+tBTA_JV_STATUS BTA_JvFreeChannel(uint16_t channel, tBTA_JV_CONN_TYPE conn_type);
 
 /*******************************************************************************
  *
@@ -536,7 +557,8 @@ tBTA_JV_STATUS BTA_JvDeleteRecord(uint32_t handle);
  *                  tBTA_JV_L2CAP_CBACK is called with BTA_JV_L2CAP_OPEN_EVT
  *
  ******************************************************************************/
-void BTA_JvL2capConnect(int conn_type, tBTA_SEC sec_mask, tBTA_JV_ROLE role,
+void BTA_JvL2capConnect(tBTA_JV_CONN_TYPE conn_type, tBTA_SEC sec_mask,
+                        tBTA_JV_ROLE role,
                         std::unique_ptr<tL2CAP_ERTM_INFO> ertm_info,
                         uint16_t remote_psm, uint16_t rx_mtu,
                         std::unique_ptr<tL2CAP_CFG_INFO> cfg,
@@ -569,7 +591,8 @@ tBTA_JV_STATUS BTA_JvL2capClose(uint32_t handle);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_JvL2capStartServer(int conn_type, tBTA_SEC sec_mask, tBTA_JV_ROLE role,
+void BTA_JvL2capStartServer(tBTA_JV_CONN_TYPE conn_type, tBTA_SEC sec_mask,
+                            tBTA_JV_ROLE role,
                             std::unique_ptr<tL2CAP_ERTM_INFO> ertm_info,
                             uint16_t local_psm, uint16_t rx_mtu,
                             std::unique_ptr<tL2CAP_CFG_INFO> cfg,

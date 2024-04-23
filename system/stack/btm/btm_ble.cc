@@ -140,7 +140,7 @@ void read_phy_cb(
   uint8_t status, tx_phy, rx_phy;
   uint16_t handle;
 
-  ASSERT_LOG(len == 5, "Received bad response length:%d", len);
+  log::assert_that(len == 5, "Received bad response length:{}", len);
   uint8_t* pp = data;
   STREAM_TO_UINT8(status, pp);
   STREAM_TO_UINT16(handle, pp);
@@ -191,7 +191,7 @@ void BTM_BleReadPhy(
                             base::Bind(&read_phy_cb, std::move(cb)));
 }
 
-void doNothing(uint8_t* data, uint16_t len) {}
+void doNothing(uint8_t* /* data */, uint16_t /* len */) {}
 
 void BTM_BleSetPhy(const RawAddress& bd_addr, uint8_t tx_phys, uint8_t rx_phys,
                    uint16_t phy_options) {

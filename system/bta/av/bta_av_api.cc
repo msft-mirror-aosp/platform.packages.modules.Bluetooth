@@ -155,8 +155,7 @@ void BTA_AvDeregister(tBTA_AV_HNDL hndl) {
  ******************************************************************************/
 void BTA_AvOpen(const RawAddress& bd_addr, tBTA_AV_HNDL handle, bool use_rc,
                 uint16_t uuid) {
-  log::info("peer {} bta_handle:0x{:x} use_rc={} uuid=0x{:x}",
-            ADDRESS_TO_LOGGABLE_CSTR(bd_addr), handle,
+  log::info("peer {} bta_handle:0x{:x} use_rc={} uuid=0x{:x}", bd_addr, handle,
             (use_rc) ? "true" : "false", uuid);
 
   tBTA_AV_API_OPEN* p_buf =
@@ -270,26 +269,6 @@ void BTA_AvOffloadStart(tBTA_AV_HNDL hndl) {
 
 /*******************************************************************************
  *
- * Function         BTA_AvOffloadStartRsp
- *
- * Description      Response from vendor lib for A2DP Offload Start request.
- *
- * Returns          void
- *
- ******************************************************************************/
-void BTA_AvOffloadStartRsp(tBTA_AV_HNDL hndl, tBTA_AV_STATUS status) {
-  tBTA_AV_API_STATUS_RSP* p_buf =
-      (tBTA_AV_API_STATUS_RSP*)osi_malloc(sizeof(tBTA_AV_API_STATUS_RSP));
-
-  p_buf->hdr.event = BTA_AV_API_OFFLOAD_START_RSP_EVT;
-  p_buf->hdr.layer_specific = hndl;
-  p_buf->status = status;
-
-  bta_sys_sendmsg(p_buf);
-}
-
-/*******************************************************************************
- *
  * Function         BTA_AvStop
  *
  * Description      Stop audio/video stream data transfer.
@@ -300,7 +279,7 @@ void BTA_AvOffloadStartRsp(tBTA_AV_HNDL hndl, tBTA_AV_STATUS status) {
  *
  ******************************************************************************/
 void BTA_AvStop(tBTA_AV_HNDL handle, bool suspend) {
-  log::info("bta_handle=0x{:x} suspend={}", handle, logbool(suspend));
+  log::info("bta_handle=0x{:x} suspend={}", handle, suspend);
 
   tBTA_AV_API_STOP* p_buf =
       (tBTA_AV_API_STOP*)osi_malloc(sizeof(tBTA_AV_API_STOP));
@@ -330,8 +309,8 @@ void BTA_AvStop(tBTA_AV_HNDL handle, bool suspend) {
 void BTA_AvReconfig(tBTA_AV_HNDL hndl, bool suspend, uint8_t sep_info_idx,
                     uint8_t* p_codec_info, uint8_t num_protect,
                     const uint8_t* p_protect_info) {
-  log::info("bta_handle=0x{:x} suspend={} sep_info_idx={}", hndl,
-            logbool(suspend), sep_info_idx);
+  log::info("bta_handle=0x{:x} suspend={} sep_info_idx={}", hndl, suspend,
+            sep_info_idx);
 
   tBTA_AV_API_RCFG* p_buf =
       (tBTA_AV_API_RCFG*)osi_malloc(sizeof(tBTA_AV_API_RCFG) + num_protect);

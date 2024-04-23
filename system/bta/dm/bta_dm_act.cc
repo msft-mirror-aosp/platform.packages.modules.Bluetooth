@@ -28,12 +28,12 @@
 #include <android_bluetooth_flags.h>
 #include <android_bluetooth_sysprop.h>
 #include <base/location.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
 #include <vector>
 
+#include "bta/dm/bta_dm_device_search.h"
 #include "bta/dm/bta_dm_disc.h"
 #include "bta/dm/bta_dm_gatt_client.h"
 #include "bta/dm/bta_dm_int.h"
@@ -46,14 +46,11 @@
 #include "btif/include/btif_dm.h"
 #include "btif/include/stack_manager_t.h"
 #include "hci/controller_interface.h"
-#include "include/bind_helpers.h"
-#include "include/check.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/acl_api.h"
 #include "main/shim/btm_api.h"
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "osi/include/properties.h"
 #include "stack/gatt/connection_manager.h"
 #include "stack/include/acl_api.h"
@@ -226,6 +223,7 @@ void BTA_dm_on_hw_off() {
   bta_dm_deinit_cb();
 
   bta_dm_disc_stop();
+  bta_dm_search_stop();
 }
 
 void BTA_dm_on_hw_on() {
@@ -318,7 +316,12 @@ void bta_dm_disable() {
   BTM_SetConnectability(BTM_NON_CONNECTABLE);
 
   bta_dm_disable_pm();
-  bta_dm_disc_disable_search_and_disc();
+  if (IS_FLAG_ENABLED(separate_service_and_device_discovery)) {
+    bta_dm_disc_disable_search();
+    bta_dm_disc_disable_disc();
+  } else {
+    bta_dm_disc_disable_search_and_disc();
+  }
   bta_dm_cb.disabling = true;
 
   connection_manager::reset(false);
@@ -369,7 +372,7 @@ static bool force_disconnect_all_acl_connections() {
 }
 
 static void bta_dm_wait_for_acl_to_drain_cback(void* data) {
-  ASSERT(data != nullptr);
+  log::assert_that(data != nullptr, "assert failed: data != nullptr");
   const WaitForAllAclConnectionsToDrain* pass =
       WaitForAllAclConnectionsToDrain::FromAlarmCallbackData(data);
 
@@ -522,8 +525,8 @@ void bta_dm_remove_device(const RawAddress& bd_addr) {
       other_transport =
           connected_with_br_edr ? BT_TRANSPORT_BR_EDR : BT_TRANSPORT_LE;
     }
-    log::info("other_address {} with transport {} connected",
-              ADDRESS_TO_LOGGABLE_CSTR(other_address), other_transport);
+    log::info("other_address {} with transport {} connected", other_address,
+              other_transport);
     /* Take the link down first, and mark the device for removal when
      * disconnected */
     for (int i = 0; i < bta_dm_cb.device_list.count; i++) {
@@ -531,8 +534,7 @@ void bta_dm_remove_device(const RawAddress& bd_addr) {
       if (peer_device.peer_bdaddr == other_address &&
           peer_device.transport == other_transport) {
         peer_device.conn_state = BTA_DM_UNPAIRING;
-        log::info("Remove ACL of address {}",
-                  ADDRESS_TO_LOGGABLE_CSTR(other_address));
+        log::info("Remove ACL of address {}", other_address);
 
         /* Make sure device is not in acceptlist before we disconnect */
         GATT_CancelConnect(0, bd_addr, false);
@@ -554,42 +556,6 @@ void bta_dm_remove_device(const RawAddress& bd_addr) {
   }
 }
 
-/** This function forces to close the connection to a remote device and
- * optionaly remove the device from security database if required. */
-void bta_dm_close_acl(const RawAddress& bd_addr, bool remove_dev,
-                      tBT_TRANSPORT transport) {
-  uint8_t index;
-
-  log::verbose("bta_dm_close_acl");
-
-  if (BTM_IsAclConnectionUp(bd_addr, transport)) {
-    for (index = 0; index < bta_dm_cb.device_list.count; index++) {
-      if (bta_dm_cb.device_list.peer_device[index].peer_bdaddr == bd_addr)
-        break;
-    }
-    if (index != bta_dm_cb.device_list.count) {
-      if (remove_dev) {
-        log::info("Setting remove_dev_pending for {}",
-                  ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
-        bta_dm_cb.device_list.peer_device[index].remove_dev_pending = true;
-      }
-    } else {
-      log::error("unknown device, remove ACL failed");
-    }
-
-    /* Make sure device is not in acceptlist before we disconnect */
-    GATT_CancelConnect(0, bd_addr, false);
-
-    /* Disconnect the ACL link */
-    btm_remove_acl(bd_addr, transport);
-  }
-  /* if to remove the device from security database ? do it now */
-  else if (remove_dev) {
-    bta_dm_process_remove_device_no_callback(bd_addr);
-  }
-  /* otherwise, no action needed */
-}
-
 /*******************************************************************************
  *
  * Function         bta_dm_local_name_cback
@@ -600,9 +566,7 @@ void bta_dm_close_acl(const RawAddress& bd_addr, bool remove_dev,
  * Returns          void
  *
  ******************************************************************************/
-static void bta_dm_local_name_cback(UNUSED_ATTR void* p_name) {
-  BTIF_dm_enable();
-}
+static void bta_dm_local_name_cback(void* /* p_name */) { BTIF_dm_enable(); }
 
 static void handle_role_change(const RawAddress& bd_addr, tHCI_ROLE new_role,
                                tHCI_STATUS hci_status) {
@@ -611,15 +575,14 @@ static void handle_role_change(const RawAddress& bd_addr, tHCI_ROLE new_role,
     log::warn(
         "Unable to find device for role change peer:{} new_role:{} "
         "hci_status:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), RoleText(new_role),
-        hci_error_code_text(hci_status));
+        bd_addr, RoleText(new_role), hci_error_code_text(hci_status));
     return;
   }
 
   log::info(
       "Role change callback peer:{} info:{} new_role:{} dev count:{} "
       "hci_status:{}",
-      ADDRESS_TO_LOGGABLE_CSTR(bd_addr), p_dev->info_text(), RoleText(new_role),
+      bd_addr, p_dev->info_text(), RoleText(new_role),
       bta_dm_cb.device_list.count, hci_error_code_text(hci_status));
 
   if (p_dev->is_av_active()) {
@@ -661,19 +624,16 @@ void BTA_dm_report_role_change(const RawAddress bd_addr, tHCI_ROLE new_role,
 void handle_remote_features_complete(const RawAddress& bd_addr) {
   tBTA_DM_PEER_DEVICE* p_dev = bta_dm_find_peer_device(bd_addr);
   if (!p_dev) {
-    log::warn("Unable to find device peer:{}",
-              ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+    log::warn("Unable to find device peer:{}", bd_addr);
     return;
   }
 
   if (bluetooth::shim::GetController()->SupportsSniffSubrating() &&
       acl_peer_supports_sniff_subrating(bd_addr)) {
-    log::debug("Device supports sniff subrating peer:{}",
-               ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+    log::debug("Device supports sniff subrating peer:{}", bd_addr);
     p_dev->set_both_device_ssr_capable();
   } else {
-    log::debug("Device does NOT support sniff subrating peer:{}",
-               ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+    log::debug("Device does NOT support sniff subrating peer:{}", bd_addr);
   }
 }
 
@@ -711,9 +671,8 @@ void bta_dm_acl_up(const RawAddress& bd_addr, tBT_TRANSPORT transport,
     log::warn("Unable to allocate device resources for new connection");
     return;
   }
-  log::info("Acl connected peer:{} transport:{} handle:{}",
-            ADDRESS_TO_LOGGABLE_CSTR(bd_addr), bt_transport_text(transport),
-            acl_handle);
+  log::info("Acl connected peer:{} transport:{} handle:{}", bd_addr,
+            bt_transport_text(transport), acl_handle);
   device->conn_state = BTA_DM_CONNECTED;
   device->pref_role = BTA_ANY_ROLE;
   device->reset_device_info();
@@ -821,8 +780,7 @@ static void bta_dm_acl_down(const RawAddress& bd_addr,
     }
   }
   if (remove_device) {
-    log::info("remove_dev_pending actually removing {}",
-              ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+    log::info("remove_dev_pending actually removing {}", bd_addr);
     bta_dm_process_remove_device_no_callback(bd_addr);
   }
 
@@ -892,7 +850,7 @@ static void bta_dm_check_av() {
  * Returns          void
  *
  ******************************************************************************/
-static void bta_dm_disable_conn_down_timer_cback(UNUSED_ATTR void* data) {
+static void bta_dm_disable_conn_down_timer_cback(void* /* data */) {
   /* disable the power managment module */
   bta_dm_disable_pm();
 
@@ -919,7 +877,7 @@ static void bta_dm_rm_cback(tBTA_SYS_CONN_STATUS status, tBTA_SYS_ID id,
 
   log::debug("BTA Role management callback count:{} status:{} peer:{}",
              bta_dm_cb.cur_av_count, bta_sys_conn_status_text(status),
-             ADDRESS_TO_LOGGABLE_CSTR(peer_addr));
+             peer_addr);
 
   p_dev = bta_dm_find_peer_device(peer_addr);
   if (status == BTA_SYS_CONN_OPEN) {
@@ -937,10 +895,10 @@ static void bta_dm_rm_cback(tBTA_SYS_CONN_STATUS status, tBTA_SYS_ID id,
         if (((p_bta_dm_rm_cfg[j].app_id == app_id) ||
              (p_bta_dm_rm_cfg[j].app_id == BTA_ALL_APP_ID)) &&
             (p_bta_dm_rm_cfg[j].id == id)) {
-          ASSERT_LOG(p_bta_dm_rm_cfg[j].cfg <= BTA_PERIPHERAL_ROLE_ONLY,
-                     "Passing illegal preferred role:0x%02x [0x%02x<=>0x%02x]",
-                     p_bta_dm_rm_cfg[j].cfg, BTA_ANY_ROLE,
-                     BTA_PERIPHERAL_ROLE_ONLY);
+          log::assert_that(
+              p_bta_dm_rm_cfg[j].cfg <= BTA_PERIPHERAL_ROLE_ONLY,
+              "Passing illegal preferred role:0x{:02x} [0x{:02x}<=>0x{:02x}]",
+              p_bta_dm_rm_cfg[j].cfg, BTA_ANY_ROLE, BTA_PERIPHERAL_ROLE_ONLY);
           role = static_cast<tBTA_PREF_ROLES>(p_bta_dm_rm_cfg[j].cfg);
           if (role > p_dev->pref_role) p_dev->pref_role = role;
           break;
@@ -978,7 +936,7 @@ static void bta_dm_rm_cback(tBTA_SYS_CONN_STATUS status, tBTA_SYS_ID id,
  * Returns          void
  *
  ******************************************************************************/
-static void bta_dm_delay_role_switch_cback(UNUSED_ATTR void* data) {
+static void bta_dm_delay_role_switch_cback(void* /* data */) {
   log::verbose("initiating Delayed RS");
   bta_dm_adjust_roles(false);
 }
@@ -1041,8 +999,8 @@ static void bta_dm_adjust_roles(bool delay_role_switch) {
  *
  ******************************************************************************/
 static size_t find_utf8_char_boundary(const char* utf8str, size_t offset) {
-  CHECK(utf8str);
-  CHECK(offset > 0);
+  log::assert_that(utf8str != nullptr, "assert failed: utf8str != nullptr");
+  log::assert_that(offset > 0, "assert failed: offset > 0");
 
   while (--offset) {
     uint8_t ch = (uint8_t)utf8str[offset];
@@ -1068,13 +1026,11 @@ static size_t find_utf8_char_boundary(const char* utf8str, size_t offset) {
 static void bta_dm_set_eir(char* local_name) {
   uint8_t* p;
   uint8_t* p_length;
-#if (BTA_EIR_CANNED_UUID_LIST != TRUE)
   uint8_t* p_type;
   uint8_t max_num_uuid;
 #if (BTA_EIR_SERVER_NUM_CUSTOM_UUID > 0)
   uint8_t custom_uuid_idx;
 #endif  // BTA_EIR_SERVER_NUM_CUSTOM_UUID
-#endif  // BTA_EIR_CANNED_UUID_LIST
   uint8_t free_eir_length = HCI_DM5_PACKET_SIZE;
   uint8_t num_uuid;
   uint8_t data_type;
@@ -1083,18 +1039,16 @@ static void bta_dm_set_eir(char* local_name) {
   /* wait until complete to disable */
   if (alarm_is_scheduled(bta_dm_cb.disable_timer)) return;
 
-#if (BTA_EIR_CANNED_UUID_LIST != TRUE)
   /* if local name is not provided, get it from controller */
   if (local_name == NULL) {
     if (BTM_ReadLocalDeviceName((const char**)&local_name) != BTM_SUCCESS) {
       log::error("Fail to read local device name for EIR");
     }
   }
-#endif  // BTA_EIR_CANNED_UUID_LIST
 
   /* Allocate a buffer to hold HCI command */
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(BTM_CMD_BUF_SIZE);
-  ASSERT(p_buf != nullptr);
+  log::assert_that(p_buf != nullptr, "assert failed: p_buf != nullptr");
   p = (uint8_t*)p_buf + BTM_HCI_EIR_OFFSET;
 
   memset(p, 0x00, HCI_EXT_INQ_RESPONSE_LEN);
@@ -1110,15 +1064,11 @@ static void bta_dm_set_eir(char* local_name) {
   /* if local name is longer than minimum length of shortened name */
   /* check whether it needs to be shortened or not */
   if (local_name_len > p_bta_dm_eir_cfg->bta_dm_eir_min_name_len) {
-/* get number of UUID 16-bit list */
-#if (BTA_EIR_CANNED_UUID_LIST == TRUE)
-    num_uuid = p_bta_dm_eir_cfg->bta_dm_eir_uuid16_len / Uuid::kNumBytes16;
-#else   // BTA_EIR_CANNED_UUID_LIST
+    /* get number of UUID 16-bit list */
     max_num_uuid = (free_eir_length - 2) / Uuid::kNumBytes16;
     data_type = get_btm_client_interface().eir.BTM_GetEirSupportedServices(
         bta_dm_cb.eir_uuid, &p, max_num_uuid, &num_uuid);
     p = (uint8_t*)p_buf + BTM_HCI_EIR_OFFSET; /* reset p */
-#endif  // BTA_EIR_CANNED_UUID_LIST
 
     /* if UUID doesn't fit remaing space, shorten local name */
     if (local_name_len > (free_eir_length - 4 - num_uuid * Uuid::kNumBytes16)) {
@@ -1140,31 +1090,6 @@ static void bta_dm_set_eir(char* local_name) {
   }
   free_eir_length -= local_name_len + 2;
 
-#if (BTA_EIR_CANNED_UUID_LIST == TRUE)
-  /* if UUID list is provided as static data in configuration */
-  if ((p_bta_dm_eir_cfg->bta_dm_eir_uuid16_len > 0) &&
-      (p_bta_dm_eir_cfg->bta_dm_eir_uuid16)) {
-    if (free_eir_length > Uuid::kNumBytes16 + 2) {
-      free_eir_length -= 2;
-
-      if (free_eir_length >= p_bta_dm_eir_cfg->bta_dm_eir_uuid16_len) {
-        num_uuid = p_bta_dm_eir_cfg->bta_dm_eir_uuid16_len / Uuid::kNumBytes16;
-        data_type = HCI_EIR_COMPLETE_16BITS_UUID_TYPE;
-      } else /* not enough room for all UUIDs */
-      {
-        log::warn("BTA EIR: UUID 16-bit list is truncated");
-        num_uuid = free_eir_length / Uuid::kNumBytes16;
-        data_type = HCI_EIR_MORE_16BITS_UUID_TYPE;
-      }
-      UINT8_TO_STREAM(p, num_uuid * Uuid::kNumBytes16 + 1);
-      UINT8_TO_STREAM(p, data_type);
-      memcpy(p, p_bta_dm_eir_cfg->bta_dm_eir_uuid16,
-             num_uuid * Uuid::kNumBytes16);
-      p += num_uuid * Uuid::kNumBytes16;
-      free_eir_length -= num_uuid * Uuid::kNumBytes16;
-    }
-  }
-#else /* (BTA_EIR_CANNED_UUID_LIST == TRUE) */
   /* if UUID list is dynamic */
   if (free_eir_length >= 2) {
     p_length = p++;
@@ -1202,9 +1127,8 @@ static void bta_dm_set_eir(char* local_name) {
     UINT8_TO_STREAM(p_type, data_type);
     free_eir_length -= num_uuid * Uuid::kNumBytes16 + 2;
   }
-#endif /* (BTA_EIR_CANNED_UUID_LIST == TRUE) */
 
-#if (BTA_EIR_CANNED_UUID_LIST != TRUE && BTA_EIR_SERVER_NUM_CUSTOM_UUID > 0)
+#if (BTA_EIR_SERVER_NUM_CUSTOM_UUID > 0)
   /* Adding 32-bit UUID list */
   if (free_eir_length >= 2) {
     p_length = p++;
@@ -1262,8 +1186,7 @@ static void bta_dm_set_eir(char* local_name) {
     UINT8_TO_STREAM(p_type, data_type);
     free_eir_length -= num_uuid * Uuid::kNumBytes128 + 2;
   }
-#endif /* ( BTA_EIR_CANNED_UUID_LIST != TRUE \
-          )&&(BTA_EIR_SERVER_NUM_CUSTOM_UUID > 0) */
+#endif /* BTA_EIR_SERVER_NUM_CUSTOM_UUID > 0 */
 
   /* if Flags are provided in configuration */
   if ((p_bta_dm_eir_cfg->bta_dm_eir_flag_len > 0) &&
@@ -1308,7 +1231,6 @@ static void bta_dm_set_eir(char* local_name) {
   get_btm_client_interface().eir.BTM_WriteEIR(p_buf);
 }
 
-#if (BTA_EIR_CANNED_UUID_LIST != TRUE)
 /*******************************************************************************
  *
  * Function         bta_dm_get_cust_uuid_index
@@ -1414,10 +1336,9 @@ void bta_dm_eir_update_uuid(uint16_t uuid16, bool adding) {
 
   bta_dm_set_eir(NULL);
 }
-#endif  // BTA_EIR_CANNED_UUID_LIST
 
-tBTA_DM_PEER_DEVICE* find_connected_device(
-    const RawAddress& bd_addr, UNUSED_ATTR tBT_TRANSPORT transport) {
+tBTA_DM_PEER_DEVICE* find_connected_device(const RawAddress& bd_addr,
+                                           tBT_TRANSPORT /* transport */) {
   for (uint8_t i = 0; i < bta_dm_cb.device_list.count; i++) {
     if (bta_dm_cb.device_list.peer_device[i].peer_bdaddr == bd_addr &&
         bta_dm_cb.device_list.peer_device[i].conn_state == BTA_DM_CONNECTED)

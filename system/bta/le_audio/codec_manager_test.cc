@@ -19,6 +19,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "audio_hal_interface/le_audio_software.h"
 #include "common/init_flags.h"
 #include "hci/controller_interface_mock.h"
 #include "hci/hci_packets.h"
@@ -107,8 +108,8 @@ const stack_config_t* stack_config_get_interface(void) {
 namespace bluetooth {
 namespace audio {
 namespace le_audio {
-std::vector<AudioSetConfiguration> get_offload_capabilities() {
-  return *offload_capabilities;
+OffloadCapabilities get_offload_capabilities() {
+  return {*offload_capabilities, *offload_capabilities};
 }
 }  // namespace le_audio
 }  // namespace audio
@@ -183,6 +184,8 @@ static constexpr char kPropLeAudioOffloadSupported[] =
     "ro.bluetooth.leaudio_offload.supported";
 static constexpr char kPropLeAudioOffloadDisabled[] =
     "persist.bluetooth.leaudio_offload.disabled";
+static constexpr char kPropLeAudioBidirSwbSupported[] =
+    "bluetooth.leaudio.dual_bidirection_swb.supported";
 
 class CodecManagerTestBase : public Test {
  public:
@@ -216,6 +219,23 @@ class CodecManagerTestAdsp : public CodecManagerTestBase {
     // Enable the HW offloader
     osi_property_set_bool(kPropLeAudioOffloadSupported, true);
     osi_property_set_bool(kPropLeAudioOffloadDisabled, false);
+
+    // Allow for bidir SWB configurations
+    osi_property_set_bool(kPropLeAudioBidirSwbSupported, true);
+
+    CodecManagerTestBase::SetUp();
+  }
+};
+
+class CodecManagerTestAdspNoSwb : public CodecManagerTestBase {
+ public:
+  virtual void SetUp() override {
+    // Enable the HW offloader
+    osi_property_set_bool(kPropLeAudioOffloadSupported, true);
+    osi_property_set_bool(kPropLeAudioOffloadDisabled, false);
+
+    // Allow for bidir SWB configurations
+    osi_property_set_bool(kPropLeAudioBidirSwbSupported, false);
 
     CodecManagerTestBase::SetUp();
   }
@@ -389,10 +409,15 @@ TEST_F(CodecManagerTestAdsp, test_capabilities_none) {
       offloading_preference(0);
   codec_manager->Start(offloading_preference);
 
+  bool has_null_config = false;
   auto match_first_config =
-      [](types::LeAudioContextType context_type,
-         const set_configurations::AudioSetConfigurations* confs)
+      [&](const CodecManager::UnicastConfigurationRequirements& requirements,
+          const set_configurations::AudioSetConfigurations* confs)
       -> const set_configurations::AudioSetConfiguration* {
+    // Don't expect the matcher being called on nullptr
+    if (confs == nullptr) {
+      has_null_config = true;
+    }
     if (confs && confs->size()) {
       // For simplicity return the first element, the real matcher should
       // check the group capabilities.
@@ -404,8 +429,13 @@ TEST_F(CodecManagerTestAdsp, test_capabilities_none) {
   // Verify every context
   for (::bluetooth::le_audio::types::LeAudioContextType ctx_type :
        ::bluetooth::le_audio::types::kLeAudioContextAllTypesArray) {
+    has_null_config = false;
+    CodecManager::UnicastConfigurationRequirements requirements = {
+        .audio_context_type = ctx_type,
+    };
     ASSERT_EQ(nullptr,
-              codec_manager->GetCodecConfig(ctx_type, match_first_config));
+              codec_manager->GetCodecConfig(requirements, match_first_config));
+    ASSERT_FALSE(has_null_config);
   }
 }
 
@@ -435,7 +465,7 @@ TEST_F(CodecManagerTestAdsp, test_capabilities) {
     size_t available_configs_size = 0;
     auto match_first_config =
         [&available_configs_size](
-            types::LeAudioContextType context_type,
+            const CodecManager::UnicastConfigurationRequirements& requirements,
             const set_configurations::AudioSetConfigurations* confs)
         -> const set_configurations::AudioSetConfiguration* {
       if (confs && confs->size()) {
@@ -447,7 +477,10 @@ TEST_F(CodecManagerTestAdsp, test_capabilities) {
       return nullptr;
     };
 
-    auto cfg = codec_manager->GetCodecConfig(test_context, match_first_config);
+    CodecManager::UnicastConfigurationRequirements requirements = {
+        .audio_context_type = test_context,
+    };
+    auto cfg = codec_manager->GetCodecConfig(requirements, match_first_config);
     ASSERT_NE(nullptr, cfg);
     ASSERT_EQ(offload_capabilities.size(), available_configs_size);
 
@@ -469,8 +502,9 @@ TEST_F(CodecManagerTestAdsp, test_broadcast_config) {
           {.codec_type = bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3}};
   codec_manager->Start(offloading_preference);
 
-  auto cfg = codec_manager->GetBroadcastConfig(
-      {{types::LeAudioContextType::MEDIA, 1}}, std::nullopt);
+  CodecManager::BroadcastConfigurationRequirements requirements = {
+      .subgroup_quality = {{types::LeAudioContextType::MEDIA, 1}}};
+  auto cfg = codec_manager->GetBroadcastConfig(requirements);
   ASSERT_EQ(2, cfg->GetNumBisTotal());
   ASSERT_EQ(2, cfg->GetNumChannelsMax());
   ASSERT_EQ(48000u, cfg->GetSamplingFrequencyHzMax());
@@ -493,8 +527,9 @@ TEST_F(CodecManagerTestAdsp, test_update_broadcast_offloader) {
           {.codec_type = bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3}};
   codec_manager->Start(offloading_preference);
 
-  codec_manager->GetBroadcastConfig({{types::LeAudioContextType::MEDIA, 1}},
-                                    std::nullopt);
+  CodecManager::BroadcastConfigurationRequirements requirements = {
+      .subgroup_quality = {{types::LeAudioContextType::MEDIA, 1}}};
+  codec_manager->GetBroadcastConfig(requirements);
 
   bool was_called = false;
   bluetooth::le_audio::broadcast_offload_config bcast_config;
@@ -524,6 +559,23 @@ class CodecManagerTestHost : public CodecManagerTestBase {
     // Enable the HW offloader
     osi_property_set_bool(kPropLeAudioOffloadSupported, false);
     osi_property_set_bool(kPropLeAudioOffloadDisabled, false);
+
+    // Allow for bidir SWB configurations
+    osi_property_set_bool(kPropLeAudioBidirSwbSupported, true);
+
+    CodecManagerTestBase::SetUp();
+  }
+};
+
+class CodecManagerTestHostNoSwb : public CodecManagerTestBase {
+ public:
+  virtual void SetUp() override {
+    // Enable the HW offloader
+    osi_property_set_bool(kPropLeAudioOffloadSupported, true);
+    osi_property_set_bool(kPropLeAudioOffloadDisabled, false);
+
+    // Do not allow for bidir SWB configurations
+    osi_property_set_bool(kPropLeAudioBidirSwbSupported, false);
 
     CodecManagerTestBase::SetUp();
   }
@@ -565,10 +617,6 @@ TEST_F(CodecManagerTestHost, test_non_bidir_swb) {
       offloading_preference = {
           {.codec_type = bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3}};
   codec_manager->Start(offloading_preference);
-
-  std::vector<AudioSetConfiguration> offload_capabilities = {
-      {.confs = {.sink = {set_configurations::AseConfiguration(lc3_48_2)},
-                 .source = {}}}};
 
   // NON-SWB configs
   ASSERT_FALSE(codec_manager->CheckCodecConfigIsBiDirSwb(
@@ -687,6 +735,172 @@ TEST_F(CodecManagerTestHost, test_bidir_swb) {
                  .source = {set_configurations::AseConfiguration(lc3_48_2),
                             set_configurations::AseConfiguration(lc3_48_2)}},
        .topology_info = {{{1, 1}}}}));
+}
+
+TEST_F(CodecManagerTestHost, test_dual_bidir_swb_supported) {
+  const std::vector<bluetooth::le_audio::btle_audio_codec_config_t>
+      offloading_preference = {
+          {.codec_type = bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3}};
+  codec_manager->Start(offloading_preference);
+
+  int num_of_dual_bidir_swb_configs = 0;
+  for (auto context : types::kLeAudioContextAllTypesArray) {
+    bool got_null_cfgs_container = false;
+    auto ptr = codec_manager->GetCodecConfig(
+        {.audio_context_type = context},
+        [&](const CodecManager::UnicastConfigurationRequirements& requirements,
+            const set_configurations::AudioSetConfigurations* confs)
+            -> const set_configurations::AudioSetConfiguration* {
+          if (confs == nullptr) {
+            got_null_cfgs_container = true;
+          } else {
+            num_of_dual_bidir_swb_configs += std::count_if(
+                confs->begin(), confs->end(), [&](auto const& cfg) {
+                  bool is_bidir = AudioSetConfigurationProvider::Get()
+                                      ->CheckConfigurationIsDualBiDirSwb(*cfg);
+                  return AudioSetConfigurationProvider::Get()
+                      ->CheckConfigurationIsDualBiDirSwb(*cfg);
+                });
+          }
+          // In this case the chosen configuration doesn't matter - select none
+          return nullptr;
+        });
+    ASSERT_FALSE(got_null_cfgs_container);
+  }
+
+  // Make sure some dual bidir SWB configs were returned
+  ASSERT_NE(0, num_of_dual_bidir_swb_configs);
+}
+
+TEST_F(CodecManagerTestAdsp, test_dual_bidir_swb_supported) {
+  // Set the offloader capabilities
+  std::vector<AudioSetConfiguration> offload_capabilities = {
+      {.name = "Test_Bidir_SWB_Config_No_Dev_lc3_32_2",
+       .confs = {.sink = {set_configurations::AseConfiguration(lc3_32_2)},
+                 .source = {set_configurations::AseConfiguration(lc3_32_2)}},
+       .topology_info = {{{0, 0}}}},
+      {
+          .name = "Test_Bidir_Non_SWB_Config_No_Dev_lc3_16_2",
+          .confs = {.sink = {set_configurations::AseConfiguration(lc3_16_2)},
+                    .source = {set_configurations::AseConfiguration(lc3_16_2)}},
+          .topology_info = {{{0, 0}}},
+      },
+  };
+  set_mock_offload_capabilities(offload_capabilities);
+
+  const std::vector<bluetooth::le_audio::btle_audio_codec_config_t>
+      offloading_preference = {
+          {.codec_type = bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3}};
+  codec_manager->Start(offloading_preference);
+
+  int num_of_dual_bidir_swb_configs = 0;
+  for (auto context : types::kLeAudioContextAllTypesArray) {
+    bool got_null_cfgs_container = false;
+    auto ptr = codec_manager->GetCodecConfig(
+        {.audio_context_type = context},
+        [&](const CodecManager::UnicastConfigurationRequirements& requirements,
+            const set_configurations::AudioSetConfigurations* confs)
+            -> const set_configurations::AudioSetConfiguration* {
+          if (confs == nullptr) {
+            got_null_cfgs_container = true;
+          } else {
+            num_of_dual_bidir_swb_configs += std::count_if(
+                confs->begin(), confs->end(), [&](auto const& cfg) {
+                  bool is_bidir = AudioSetConfigurationProvider::Get()
+                                      ->CheckConfigurationIsDualBiDirSwb(*cfg);
+                  return AudioSetConfigurationProvider::Get()
+                      ->CheckConfigurationIsDualBiDirSwb(*cfg);
+                });
+          }
+          // In this case the chosen configuration doesn't matter - select none
+          return nullptr;
+        });
+    ASSERT_FALSE(got_null_cfgs_container);
+  }
+
+  // Make sure some dual bidir SWB configs were returned
+  ASSERT_NE(0, num_of_dual_bidir_swb_configs);
+}
+
+TEST_F(CodecManagerTestHostNoSwb, test_dual_bidir_swb_not_supported) {
+  const std::vector<bluetooth::le_audio::btle_audio_codec_config_t>
+      offloading_preference = {
+          {.codec_type = bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3}};
+  codec_manager->Start(offloading_preference);
+
+  int num_of_dual_bidir_swb_configs = 0;
+  for (auto context : types::kLeAudioContextAllTypesArray) {
+    bool got_null_cfgs_container = false;
+    auto ptr = codec_manager->GetCodecConfig(
+        {.audio_context_type = context},
+        [&](const CodecManager::UnicastConfigurationRequirements& requirements,
+            const set_configurations::AudioSetConfigurations* confs)
+            -> const set_configurations::AudioSetConfiguration* {
+          if (confs == nullptr) {
+            got_null_cfgs_container = true;
+          } else {
+            num_of_dual_bidir_swb_configs += std::count_if(
+                confs->begin(), confs->end(), [&](auto const& cfg) {
+                  return AudioSetConfigurationProvider::Get()
+                      ->CheckConfigurationIsDualBiDirSwb(*cfg);
+                });
+          }
+          // In this case the chosen configuration doesn't matter - select none
+          return nullptr;
+        });
+    ASSERT_FALSE(got_null_cfgs_container);
+  }
+
+  // Make sure no dual bidir SWB configs were returned
+  ASSERT_EQ(0, num_of_dual_bidir_swb_configs);
+}
+
+TEST_F(CodecManagerTestAdspNoSwb, test_dual_bidir_swb_not_supported) {
+  // Set the offloader capabilities
+  std::vector<AudioSetConfiguration> offload_capabilities = {
+      {.name = "Test_Bidir_SWB_Config_No_Dev_lc3_32_2",
+       .confs = {.sink = {set_configurations::AseConfiguration(lc3_32_2)},
+                 .source = {set_configurations::AseConfiguration(lc3_32_2)}},
+       .topology_info = {{{0, 0}}}},
+      {
+          .name = "Test_Bidir_Non_SWB_Config_No_Dev_lc3_16_2",
+          .confs = {.sink = {set_configurations::AseConfiguration(lc3_16_2)},
+                    .source = {set_configurations::AseConfiguration(lc3_16_2)}},
+          .topology_info = {{{0, 0}}},
+      },
+  };
+  set_mock_offload_capabilities(offload_capabilities);
+
+  const std::vector<bluetooth::le_audio::btle_audio_codec_config_t>
+      offloading_preference = {
+          {.codec_type = bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3}};
+  codec_manager->Start(offloading_preference);
+
+  int num_of_dual_bidir_swb_configs = 0;
+  for (auto context : types::kLeAudioContextAllTypesArray) {
+    bool got_null_cfgs_container = false;
+    auto ptr = codec_manager->GetCodecConfig(
+        {.audio_context_type = context},
+        [&](const CodecManager::UnicastConfigurationRequirements& requirements,
+            const set_configurations::AudioSetConfigurations* confs)
+            -> const set_configurations::AudioSetConfiguration* {
+          if (confs == nullptr) {
+            got_null_cfgs_container = true;
+          } else {
+            num_of_dual_bidir_swb_configs += std::count_if(
+                confs->begin(), confs->end(), [&](auto const& cfg) {
+                  return AudioSetConfigurationProvider::Get()
+                      ->CheckConfigurationIsDualBiDirSwb(*cfg);
+                });
+          }
+          // In this case the chosen configuration doesn't matter - select none
+          return nullptr;
+        });
+    ASSERT_FALSE(got_null_cfgs_container);
+  }
+
+  // Make sure no dual bidir SWB configs were returned
+  ASSERT_EQ(0, num_of_dual_bidir_swb_configs);
 }
 
 TEST_F(CodecManagerTestHost, test_dont_update_broadcast_offloader) {

@@ -27,7 +27,6 @@
 #include "a2dp_ext.h"
 #include "a2dp_sbc.h"
 #include "a2dp_vendor.h"
-#include "include/check.h"
 
 #if !defined(EXCLUDE_NONSTANDARD_CODECS)
 #include "a2dp_vendor_aptx.h"
@@ -645,7 +644,7 @@ bool A2dpCodecs::init() {
     if (codec_config == nullptr) continue;
 
     if (codec_priority != BTAV_A2DP_CODEC_PRIORITY_DEFAULT) {
-      log::info("updated {} codec priority to {}", codec_config->name().c_str(),
+      log::info("updated {} codec priority to {}", codec_config->name(),
                 codec_priority);
     }
 
@@ -670,7 +669,7 @@ bool A2dpCodecs::init() {
     log::error("no Source codecs were initialized");
   } else {
     for (auto iter : ordered_source_codecs_) {
-      log::info("initialized Source codec {}, idx {}", iter->name().c_str(),
+      log::info("initialized Source codec {}, idx {}", iter->name(),
                 iter->codecIndex());
     }
   }
@@ -678,7 +677,7 @@ bool A2dpCodecs::init() {
     log::error("no Sink codecs were initialized");
   } else {
     for (auto iter : ordered_sink_codecs_) {
-      log::info("initialized Sink codec {}, idx {}", iter->name().c_str(),
+      log::info("initialized Sink codec {}, idx {}", iter->name(),
                 iter->codecIndex());
     }
   }
@@ -768,7 +767,7 @@ bool A2dpCodecs::setCodecUserConfig(
   *p_restart_output = false;
   *p_config_updated = false;
 
-  log::info("Configuring: {}", codec_user_config.ToString().c_str());
+  log::info("Configuring: {}", codec_user_config.ToString());
 
   if (codec_user_config.codec_type < BTAV_A2DP_CODEC_INDEX_MAX) {
     auto iter = indexed_codecs_.find(codec_user_config.codec_type);
@@ -907,8 +906,7 @@ bool A2dpCodecs::setCodecOtaConfig(
       log::warn(
           "ignoring peer OTA configuration for codec {}: existing user "
           "configuration for current codec {}",
-          A2DP_CodecName(p_ota_codec_config),
-          current_codec_config_->name().c_str());
+          A2DP_CodecName(p_ota_codec_config), current_codec_config_->name());
       goto fail;
     }
   }
@@ -950,7 +948,8 @@ bool A2dpCodecs::setCodecOtaConfig(
               A2DP_CodecName(p_ota_codec_config));
     goto fail;
   }
-  CHECK(current_codec_config_ != nullptr);
+  log::assert_that(current_codec_config_ != nullptr,
+                   "assert failed: current_codec_config_ != nullptr");
 
   if (*p_restart_input || *p_restart_output) *p_config_updated = true;
 

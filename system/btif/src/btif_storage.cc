@@ -33,7 +33,6 @@
 #include "btif_storage.h"
 
 #include <alloca.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
 #include <stdlib.h>
 #include <string.h>
@@ -116,8 +115,7 @@ static bool btif_has_ble_keys(const std::string& bdstr);
 static void btif_storage_set_mode(RawAddress* remote_bd_addr) {
   std::string bdstr = remote_bd_addr->ToString();
   if (GetInterfaceToProfiles()->config->isRestrictedMode()) {
-    log::info("{} will be removed exiting restricted mode",
-              ADDRESS_TO_LOGGABLE_CSTR(*remote_bd_addr));
+    log::info("{} will be removed exiting restricted mode", *remote_bd_addr);
     btif_config_set_int(bdstr, BTIF_STORAGE_KEY_RESTRICTED, 1);
   }
 }
@@ -472,7 +470,7 @@ static bt_status_t btif_in_fetch_bonded_devices(
   for (const auto& bd_addr : btif_config_get_paired_devices()) {
     auto name = bd_addr.ToString();
 
-    log::verbose("Remote device:{}", ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+    log::verbose("Remote device:{}", bd_addr);
     LinkKey link_key;
     size_t size = sizeof(link_key);
     if (btif_config_get_bin(name, BTIF_STORAGE_KEY_LINK_KEY, link_key.data(),
@@ -508,8 +506,7 @@ static bt_status_t btif_in_fetch_bonded_devices(
     }
     if (!btif_in_fetch_bonded_ble_device(name, add, p_bonded_devices) &&
         !bt_linkkey_file_found) {
-      log::verbose("No link key or ble key found for device:{}",
-                   ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+      log::verbose("No link key or ble key found for device:{}", bd_addr);
     }
   }
   return BT_STATUS_SUCCESS;
@@ -519,8 +516,9 @@ static void btif_read_le_key(const uint8_t key_type, const size_t key_len,
                              RawAddress bd_addr, const tBLE_ADDR_TYPE addr_type,
                              const bool add_key, bool* device_added,
                              bool* key_found) {
-  CHECK(device_added);
-  CHECK(key_found);
+  log::assert_that(device_added != nullptr,
+                   "assert failed: device_added != nullptr");
+  log::assert_that(key_found != nullptr, "assert failed: key_found != nullptr");
 
   tBTA_LE_KEY_VALUE key;
   memset(&key, 0, sizeof(key));
@@ -533,8 +531,7 @@ static void btif_read_le_key(const uint8_t key_type, const size_t key_len,
         *device_added = true;
       }
 
-      log::verbose("Adding key type {} for {}", key_type,
-                   ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+      log::verbose("Adding key type {} for {}", key_type, bd_addr);
       BTA_DmAddBleKey(bd_addr, &key, key_type);
     }
 
@@ -564,8 +561,8 @@ static void btif_read_le_key(const uint8_t key_type, const size_t key_len,
  ******************************************************************************/
 size_t btif_split_uuids_string(const char* str, bluetooth::Uuid* p_uuid,
                                size_t max_uuids) {
-  CHECK(str);
-  CHECK(p_uuid);
+  log::assert_that(str != nullptr, "assert failed: str != nullptr");
+  log::assert_that(p_uuid != nullptr, "assert failed: p_uuid != nullptr");
 
   size_t num_uuids = 0;
   while (str && num_uuids < max_uuids) {
@@ -887,8 +884,7 @@ bt_status_t btif_storage_add_bonded_device(RawAddress* remote_bd_addr,
 bt_status_t btif_storage_remove_bonded_device(
     const RawAddress* remote_bd_addr) {
   std::string bdstr = remote_bd_addr->ToString();
-  log::info("Removing bonded device addr={}",
-            ADDRESS_TO_LOGGABLE_CSTR(*remote_bd_addr));
+  log::info("Removing bonded device addr={}", *remote_bd_addr);
 
   btif_config_remove_device(bdstr);
 
@@ -927,8 +923,7 @@ static void remove_devices_with_sample_ltk() {
   }
 
   for (RawAddress address : bad_ltk) {
-    log::error("Removing bond to device using test TLK: {}",
-               ADDRESS_TO_LOGGABLE_CSTR(address));
+    log::error("Removing bond to device using test TLK: {}", address);
 
     btif_storage_remove_bonded_device(&address);
   }
@@ -963,8 +958,7 @@ void btif_storage_load_le_devices(void) {
             sizeof(tBTM_LE_PID_KEYS)) == BT_STATUS_SUCCESS) {
       if (bonded_devices.devices[i] != key.pid_key.identity_addr) {
         log::info("Found device with a known identity address {} {}",
-                  ADDRESS_TO_LOGGABLE_CSTR(bonded_devices.devices[i]),
-                  ADDRESS_TO_LOGGABLE_CSTR(key.pid_key.identity_addr));
+                  bonded_devices.devices[i], key.pid_key.identity_addr);
 
         if (bonded_devices.devices[i].IsEmpty() ||
             key.pid_key.identity_addr.IsEmpty()) {
@@ -1249,8 +1243,7 @@ bt_status_t btif_storage_get_ble_bonding_key(const RawAddress& remote_bd_addr,
 bt_status_t btif_storage_remove_ble_bonding_keys(
     const RawAddress* remote_bd_addr) {
   std::string bdstr = remote_bd_addr->ToString();
-  log::info("Removing bonding keys for bd addr:{}",
-            ADDRESS_TO_LOGGABLE_CSTR(*remote_bd_addr));
+  log::info("Removing bonding keys for bd addr:{}", *remote_bd_addr);
   bool ret = true;
   for (size_t i = 0; i < std::size(BTIF_STORAGE_LE_KEYS); i++) {
     auto key_name = BTIF_STORAGE_LE_KEYS[i].name;
@@ -1306,26 +1299,6 @@ bt_status_t btif_storage_get_ble_local_key(uint8_t key_type,
   return BT_STATUS_FAIL;
 }
 
-/*******************************************************************************
- *
- * Function         btif_storage_remove_ble_local_keys
- *
- * Description      BTIF storage API - Deletes the bonded device from NVRAM
- *
- * Returns          BT_STATUS_SUCCESS if the deletion was successful,
- *                  BT_STATUS_FAIL otherwise
- *
- ******************************************************************************/
-bt_status_t btif_storage_remove_ble_local_keys(void) {
-  bool ret = true;
-  for (size_t i = 0; i < std::size(BTIF_STORAGE_LOCAL_LE_KEYS); i++) {
-    auto key = BTIF_STORAGE_LOCAL_LE_KEYS[i];
-    if (btif_config_exist(BTIF_STORAGE_SECTION_ADAPTER, key.name))
-      ret &= btif_config_remove(BTIF_STORAGE_SECTION_ADAPTER, key.name);
-  }
-  return ret ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
-}
-
 bt_status_t btif_in_fetch_bonded_ble_device(
     const std::string& remote_bd_addr, int add,
     btif_bonded_devices_t* p_bonded_devices) {
@@ -1343,7 +1316,7 @@ bt_status_t btif_in_fetch_bonded_ble_device(
 
   if ((device_type & BT_DEVICE_TYPE_BLE) == BT_DEVICE_TYPE_BLE ||
       btif_has_ble_keys(remote_bd_addr)) {
-    log::verbose("Found a LE device: {}", ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+    log::verbose("Found a LE device: {}", bd_addr);
 
     if (btif_storage_get_remote_addr_type(&bd_addr, &addr_type) !=
         BT_STATUS_SUCCESS) {
@@ -1395,27 +1368,6 @@ bt_status_t btif_storage_set_remote_addr_type(const RawAddress* remote_bd_addr,
   return ret ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
 }
 
-void btif_storage_set_remote_addr_type(const RawAddress& remote_bd_addr,
-                                       const tBLE_ADDR_TYPE& addr_type) {
-  if (!btif_config_set_int(remote_bd_addr.ToString(),
-                           BTIF_STORAGE_KEY_ADDR_TYPE,
-                           static_cast<int>(addr_type)))
-    log::error("Unable to set storage property");
-  else {
-#if TARGET_FLOSS
-    // Floss needs to get address type for diagnosis API.
-    btif_storage_invoke_addr_type_update(remote_bd_addr, addr_type);
-#endif
-  }
-}
-
-void btif_storage_set_remote_device_type(const RawAddress& remote_bd_addr,
-                                         const tBT_DEVICE_TYPE& device_type) {
-  if (!btif_config_set_int(remote_bd_addr.ToString(), BTIF_STORAGE_KEY_DEV_TYPE,
-                           static_cast<int>(device_type)))
-    log::error("Unable to set storage property");
-}
-
 bool btif_has_ble_keys(const std::string& bdstr) {
   return btif_config_exist(bdstr, BTIF_STORAGE_KEY_LE_KEY_PENC);
 }
@@ -1439,24 +1391,6 @@ bt_status_t btif_storage_get_remote_addr_type(const RawAddress* remote_bd_addr,
   return ret ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
 }
 
-bool btif_storage_get_remote_addr_type(const RawAddress& remote_bd_addr,
-                                       tBLE_ADDR_TYPE& addr_type) {
-  int val;
-  bool ret = btif_config_get_int(remote_bd_addr.ToString(),
-                                 BTIF_STORAGE_KEY_ADDR_TYPE, &val);
-  addr_type = static_cast<tBLE_ADDR_TYPE>(val);
-  return ret;
-}
-
-bool btif_storage_get_remote_device_type(const RawAddress& remote_bd_addr,
-                                         tBT_DEVICE_TYPE& device_type) {
-  int val;
-  bool ret = btif_config_get_int(remote_bd_addr.ToString(),
-                                 BTIF_STORAGE_KEY_DEV_TYPE, &val);
-  device_type = static_cast<tBT_DEVICE_TYPE>(val);
-  return ret;
-}
-
 /** Stores information about GATT server supported features */
 void btif_storage_set_gatt_sr_supp_feat(const RawAddress& addr, uint8_t feat) {
   do_in_jni_thread(
@@ -1466,7 +1400,7 @@ void btif_storage_set_gatt_sr_supp_feat(const RawAddress& addr, uint8_t feat) {
                        log::verbose(
                            "GATT server supported features for: {} features: "
                            "{}",
-                           ADDRESS_TO_LOGGABLE_STR(addr), feat);
+                           addr, feat);
                        btif_config_set_int(
                            bdstr, BTIF_STORAGE_KEY_GATT_SERVER_SUPPORTED, feat);
                      },
@@ -1480,7 +1414,7 @@ uint8_t btif_storage_get_sr_supp_feat(const RawAddress& bd_addr) {
   int value = 0;
   btif_config_get_int(name, BTIF_STORAGE_KEY_GATT_SERVER_SUPPORTED, &value);
   log::verbose("Remote device: {} GATT server supported features 0x{:02x}",
-               ADDRESS_TO_LOGGABLE_CSTR(bd_addr), value);
+               bd_addr, value);
 
   return value;
 }
@@ -1500,12 +1434,6 @@ bool btif_storage_is_restricted_device(const RawAddress* remote_bd_addr) {
   int val;
   return btif_config_get_int(remote_bd_addr->ToString(),
                              BTIF_STORAGE_KEY_RESTRICTED, &val);
-}
-
-int btif_storage_get_num_bonded_devices(void) {
-  btif_bonded_devices_t bonded_devices;
-  btif_in_fetch_bonded_devices(&bonded_devices, 0);
-  return bonded_devices.num_devices;
 }
 
 // Get the name of a device from btif for interop database matching.
@@ -1528,7 +1456,7 @@ void btif_storage_set_gatt_cl_supp_feat(const RawAddress& bd_addr,
                      [](const RawAddress& bd_addr, uint8_t feat) {
                        std::string bdstr = bd_addr.ToString();
                        log::verbose("saving gatt client supported feat: {}",
-                                    ADDRESS_TO_LOGGABLE_STR(bd_addr));
+                                    bd_addr);
                        btif_config_set_int(
                            bdstr, BTIF_STORAGE_KEY_GATT_CLIENT_SUPPORTED, feat);
                      },
@@ -1542,7 +1470,7 @@ uint8_t btif_storage_get_gatt_cl_supp_feat(const RawAddress& bd_addr) {
   int value = 0;
   btif_config_get_int(name, BTIF_STORAGE_KEY_GATT_CLIENT_SUPPORTED, &value);
   log::verbose("Remote device: {} GATT client supported features 0x{:02x}",
-               ADDRESS_TO_LOGGABLE_CSTR(bd_addr), value);
+               bd_addr, value);
 
   return value;
 }

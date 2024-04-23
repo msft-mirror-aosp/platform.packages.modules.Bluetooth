@@ -79,7 +79,10 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
         request->peer_address().type(),
         request->is_direct());
     Address peer_address;
-    ASSERT(Address::FromString(request->peer_address().address().address(), peer_address));
+    log::assert_that(
+        Address::FromString(request->peer_address().address().address(), peer_address),
+        "assert failed: Address::FromString(request->peer_address().address().address(), "
+        "peer_address)");
     AddressWithType peer(peer_address, static_cast<AddressType>(request->peer_address().type()));
     bool is_direct = request->is_direct();
     acl_manager_->CreateLeConnection(peer, is_direct);
@@ -107,7 +110,9 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
       google::protobuf::Empty* /* response */) override {
     log::info("peer={}, type={}", request->address().address(), request->type());
     Address peer_address;
-    ASSERT(Address::FromString(request->address().address(), peer_address));
+    log::assert_that(
+        Address::FromString(request->address().address(), peer_address),
+        "assert failed: Address::FromString(request->address().address(), peer_address)");
     AddressWithType peer(peer_address, static_cast<AddressType>(request->type()));
     if (peer == direct_connection_address_) {
       direct_connection_address_ = AddressWithType();
@@ -195,7 +200,9 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
       ::google::protobuf::Empty* /* response */) override {
     log::info("peer={}, type={}", request->peer().address().address(), request->peer().type());
     Address peer_address;
-    ASSERT(Address::FromString(request->peer().address().address(), peer_address));
+    log::assert_that(
+        Address::FromString(request->peer().address().address(), peer_address),
+        "assert failed: Address::FromString(request->peer().address().address(), peer_address)");
     AddressWithType peer(peer_address, static_cast<AddressType>(request->peer().type()));
 
     auto request_peer_irk_length = request->peer_irk().end() - request->peer_irk().begin();
@@ -252,7 +259,7 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
 
   std::unique_ptr<BasePacketBuilder> enqueue_packet(const LeAclData* request, std::promise<void> promise) {
     auto connection = acl_connections_.find(request->handle());
-    ASSERT_LOG(connection != acl_connections_.end(), "handle %d", request->handle());
+    log::assert_that(connection != acl_connections_.end(), "handle {}", request->handle());
     connection->second.connection_->GetAclQueueEnd()->UnregisterEnqueue();
     std::unique_ptr<RawBuilder> packet =
         std::make_unique<RawBuilder>(std::vector<uint8_t>(request->payload().begin(), request->payload().end()));
@@ -278,13 +285,10 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
   }
 
   void on_incoming_acl(std::shared_ptr<LeAclConnection> connection, uint16_t handle) {
-    log::info(
-        "handle={}, addr={}",
-        connection->GetHandle(),
-        ADDRESS_TO_LOGGABLE_CSTR(connection->GetRemoteAddress()));
+    log::info("handle={}, addr={}", connection->GetHandle(), connection->GetRemoteAddress());
     auto packet = connection->GetAclQueueEnd()->TryDequeue();
     auto connection_tracker = acl_connections_.find(handle);
-    ASSERT_LOG(connection_tracker != acl_connections_.end(), "handle %d", handle);
+    log::assert_that(connection_tracker != acl_connections_.end(), "handle {}", handle);
     LeAclData acl_data;
     acl_data.set_handle(handle);
     acl_data.set_payload(std::string(packet->begin(), packet->end()));
@@ -292,13 +296,15 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
   }
 
   void OnLeConnectSuccess(AddressWithType peer, std::unique_ptr<LeAclConnection> connection) override {
-    log::info("handle={}, addr={}", connection->GetHandle(), ADDRESS_TO_LOGGABLE_CSTR(peer));
+    log::info("handle={}, addr={}", connection->GetHandle(), peer);
     std::unique_lock<std::mutex> lock(acl_connections_mutex_);
     std::shared_ptr<LeAclConnection> shared_connection = std::move(connection);
     uint16_t handle = shared_connection->GetHandle();
     auto role = shared_connection->GetRole();
     if (role == Role::PERIPHERAL) {
-      ASSERT(incoming_connection_events_ != nullptr);
+      log::assert_that(
+          incoming_connection_events_ != nullptr,
+          "assert failed: incoming_connection_events_ != nullptr");
       if (per_connection_events_.find(peer) == per_connection_events_.end()) {
         per_connection_events_.emplace(peer, incoming_connection_events_);
       } else {
@@ -310,9 +316,10 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
       per_connection_events_.emplace(peer, direct_connection_events_);
       direct_connection_events_.reset();
     } else {
-      ASSERT_LOG(
+      log::assert_that(
           per_connection_events_.count(peer) > 0,
-          "No connection request for %s", ADDRESS_TO_LOGGABLE_CSTR(peer));
+          "No connection request for {}",
+          ADDRESS_TO_LOGGABLE_CSTR(peer));
     }
     acl_connections_.erase(handle);
     acl_connections_.emplace(
@@ -334,7 +341,7 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
   }
 
   void OnLeConnectFail(AddressWithType address, ErrorCode reason) override {
-    log::info("addr={}, reason={}", ADDRESS_TO_LOGGABLE_CSTR(address), ErrorCodeText(reason));
+    log::info("addr={}, reason={}", address, ErrorCodeText(reason));
     std::unique_ptr<BasePacketBuilder> builder = LeConnectionCompleteBuilder::Create(
         reason, 0, Role::CENTRAL, address.GetAddressType(), address.GetAddress(), 0, 0, 0, ClockAccuracy::PPM_20);
     LeConnectionEvent fail;
@@ -425,7 +432,10 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
       const ::blueberry::facade::hci::BackgroundRequestMsg* request,
       ::blueberry::facade::hci::BackgroundResultMsg* msg) {
     Address peer_address;
-    ASSERT(Address::FromString(request->peer_address().address().address(), peer_address));
+    log::assert_that(
+        Address::FromString(request->peer_address().address().address(), peer_address),
+        "assert failed: Address::FromString(request->peer_address().address().address(), "
+        "peer_address)");
     AddressWithType peer(peer_address, static_cast<AddressType>(request->peer_address().type()));
     std::promise<bool> promise;
     auto future = promise.get_future();
@@ -439,7 +449,10 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
       const ::blueberry::facade::hci::BackgroundRequestMsg* request,
       ::google::protobuf::Empty* /* response */) {
     Address peer_address;
-    ASSERT(Address::FromString(request->peer_address().address().address(), peer_address));
+    log::assert_that(
+        Address::FromString(request->peer_address().address().address(), peer_address),
+        "assert failed: Address::FromString(request->peer_address().address().address(), "
+        "peer_address)");
     AddressWithType peer(peer_address, static_cast<AddressType>(request->peer_address().type()));
     acl_manager_->RemoveFromBackgroundList(peer);
     return ::grpc::Status::OK;

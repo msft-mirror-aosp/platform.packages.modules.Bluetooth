@@ -20,10 +20,12 @@
 namespace bluetooth {
 namespace shim {
 
-Stack* Stack::GetInstance() {
-  static Stack instance;
-  return &instance;
-}
+namespace testing {
+legacy::Acl* acl_{nullptr};
+Stack* instance_{nullptr};
+}  // namespace testing
+
+Stack* Stack::GetInstance() { return testing::instance_; }
 
 void Stack::StartEverything() {}
 
@@ -40,11 +42,7 @@ StackManager* Stack::GetStackManager() { return nullptr; }
 
 const StackManager* Stack::GetStackManager() const { return nullptr; }
 
-legacy::Acl* Stack::GetAcl() { return acl_; }
-
-LinkPolicyInterface* Stack::LinkPolicy() { return nullptr; }
-
-Btm* Stack::GetBtm() { return btm_; }
+legacy::Acl* Stack::GetAcl() { return testing::acl_; }
 
 os::Handler* Stack::GetHandler() { return stack_handler_; }
 

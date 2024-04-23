@@ -26,7 +26,6 @@
 
 #include "stack/include/port_api.h"
 
-#include <base/logging.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
@@ -120,8 +119,8 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn,
   if ((scn == 0) || (scn > RFCOMM_MAX_SCN)) {
     // Server Channel Number (SCN) should be in range [1, 30]
     log::error("Invalid SCN, bd_addr={}, scn={}, is_server={}, mtu={}, uuid={}",
-               ADDRESS_TO_LOGGABLE_STR(bd_addr), static_cast<int>(scn),
-               is_server, static_cast<int>(mtu), loghex(uuid));
+               bd_addr, static_cast<int>(scn), is_server, static_cast<int>(mtu),
+               loghex(uuid));
     return (PORT_INVALID_SCN);
   }
 
@@ -149,9 +148,9 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn,
             "p_mcb={}, port={}",
             static_cast<int>(p_port->state),
             static_cast<int>(p_port->rfc.state),
-            (p_port->rfc.p_mcb ? p_port->rfc.p_mcb->state : 0),
-            ADDRESS_TO_LOGGABLE_STR(bd_addr), scn, is_server, mtu, loghex(uuid),
-            dlci, fmt::ptr(p_mcb), p_port->handle);
+            (p_port->rfc.p_mcb ? p_port->rfc.p_mcb->state : 0), bd_addr, scn,
+            is_server, mtu, loghex(uuid), dlci, fmt::ptr(p_mcb),
+            p_port->handle);
         *p_handle = p_port->handle;
         return (PORT_ALREADY_OPENED);
       }
@@ -164,8 +163,7 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn,
     log::error(
         "no resources, bd_addr={}, scn={}, is_server={}, mtu={}, uuid={}, "
         "dlci={}",
-        ADDRESS_TO_LOGGABLE_STR(bd_addr), scn, is_server, mtu, loghex(uuid),
-        dlci);
+        bd_addr, scn, is_server, mtu, loghex(uuid), dlci);
     return PORT_NO_RESOURCES;
   }
   p_port->sec_mask = sec_mask;
@@ -226,7 +224,7 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn,
   log::info(
       "bd_addr={}, scn={}, is_server={}, mtu={}, uuid={}, dlci={}, "
       "signal_state={}, p_port={}",
-      ADDRESS_TO_LOGGABLE_STR(bd_addr), scn, is_server, mtu, loghex(uuid), dlci,
+      bd_addr, scn, is_server, mtu, loghex(uuid), dlci,
       loghex(p_port->default_signal_state), fmt::ptr(p_port));
 
   // If this is not initiator of the connection need to just wait
@@ -318,7 +316,7 @@ int RFCOMM_RemoveConnection(uint16_t handle) {
       kBtmLogTag, bd_addr, "Connection closed",
       base::StringPrintf("handle:%hu scn:%hhu dlci:%hhu is_server:%s", handle,
                          p_port->scn, p_port->dlci,
-                         logbool(p_port->is_server).c_str()));
+                         p_port->is_server ? "true" : "false"));
 
   p_port->state = PORT_CONNECTION_STATE_CLOSING;
 
@@ -359,7 +357,7 @@ int RFCOMM_RemoveServer(uint16_t handle) {
       kBtmLogTag, bd_addr, "Server stopped",
       base::StringPrintf("handle:%hu scn:%hhu dlci:%hhu is_server:%s", handle,
                          p_port->scn, p_port->dlci,
-                         logbool(p_port->is_server).c_str()));
+                         p_port->is_server ? "true" : "false"));
 
   /* this port will be deallocated after closing */
   p_port->keep_port_handle = false;

@@ -19,7 +19,6 @@
 #include "metrics.h"
 
 #include <base/base64.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/le/enums.pb.h>
 #include <include/hardware/bt_av.h>
@@ -615,9 +614,8 @@ void LogLinkLayerConnectionEvent(const RawAddress* address,
         "failed to log status {}, reason {} from cmd {}, event {}, ble_event "
         "{} for {}, handle {}, type {}, error {}",
         loghex(cmd_status), loghex(reason_code), loghex(hci_cmd),
-        loghex(hci_event), loghex(hci_ble_event),
-        ADDRESS_TO_LOGGABLE_STR(*address), connection_handle, loghex(link_type),
-        ret);
+        loghex(hci_event), loghex(hci_ble_event), *address, connection_handle,
+        loghex(link_type), ret);
   }
 }
 
@@ -662,8 +660,7 @@ void LogA2dpAudioUnderrunEvent(const RawAddress& address,
     log::warn(
         "failed for {}, encoding_interval_nanos {}, num_missing_pcm_bytes {}, "
         "error {}",
-        ADDRESS_TO_LOGGABLE_STR(address), encoding_interval_nanos,
-        num_missing_pcm_bytes, ret);
+        address, encoding_interval_nanos, num_missing_pcm_bytes, ret);
   }
 }
 
@@ -691,9 +688,8 @@ void LogA2dpAudioOverrunEvent(const RawAddress& address,
         "failed to log for {}, encoding_interval_nanos {}, num_dropped_buffers "
         "{}, num_dropped_encoded_frames {}, num_dropped_encoded_bytes {}, "
         "error {}",
-        ADDRESS_TO_LOGGABLE_STR(address), encoding_interval_nanos,
-        num_dropped_buffers, num_dropped_encoded_frames,
-        num_dropped_encoded_bytes, ret);
+        address, encoding_interval_nanos, num_dropped_buffers,
+        num_dropped_encoded_frames, num_dropped_encoded_bytes, ret);
   }
 }
 
@@ -714,8 +710,7 @@ void LogA2dpPlaybackEvent(const RawAddress& address, int playback_state,
     log::warn(
         "failed to log for {}, playback_state {}, audio_coding_mode {}, error "
         "{}",
-        ADDRESS_TO_LOGGABLE_STR(address), playback_state, audio_coding_mode,
-        ret);
+        address, playback_state, audio_coding_mode, ret);
   }
 }
 
@@ -734,8 +729,7 @@ void LogReadRssiResult(const RawAddress& address, uint16_t handle,
                         cmd_status, rssi, metric_id);
   if (ret < 0) {
     log::warn("failed for {}, handle {}, status {}, rssi {} dBm, error {}",
-              ADDRESS_TO_LOGGABLE_STR(address), handle, loghex(cmd_status),
-              rssi, ret);
+              address, handle, loghex(cmd_status), rssi, ret);
   }
 }
 
@@ -758,8 +752,7 @@ void LogReadFailedContactCounterResult(const RawAddress& address,
     log::warn(
         "failed for {}, handle {}, status {}, failed_contact_counter {} "
         "packets, error {}",
-        ADDRESS_TO_LOGGABLE_STR(address), handle, loghex(cmd_status),
-        failed_contact_counter, ret);
+        address, handle, loghex(cmd_status), failed_contact_counter, ret);
   }
 }
 
@@ -781,8 +774,7 @@ void LogReadTxPowerLevelResult(const RawAddress& address, uint16_t handle,
     log::warn(
         "failed for {}, handle {}, status {}, transmit_power_level {} packets, "
         "error {}",
-        ADDRESS_TO_LOGGABLE_STR(address), handle, loghex(cmd_status),
-        transmit_power_level, ret);
+        address, handle, loghex(cmd_status), transmit_power_level, ret);
   }
 }
 
@@ -805,8 +797,7 @@ void LogSmpPairingEvent(const RawAddress& address, uint8_t smp_cmd,
   if (ret < 0) {
     log::warn(
         "failed for {}, smp_cmd {}, direction {}, smp_fail_reason {}, error {}",
-        ADDRESS_TO_LOGGABLE_STR(address), loghex(smp_cmd), direction,
-        loghex(smp_fail_reason), ret);
+        address, loghex(smp_cmd), direction, loghex(smp_fail_reason), ret);
   }
 }
 
@@ -829,9 +820,8 @@ void LogClassicPairingEvent(const RawAddress& address, uint16_t handle, uint32_t
     log::warn(
         "failed for {}, handle {}, hci_cmd {}, hci_event {}, cmd_status {}, "
         "reason {}, event_value {}, error {}",
-        ADDRESS_TO_LOGGABLE_STR(address), handle, loghex(hci_cmd),
-        loghex(hci_event), loghex(cmd_status), loghex(reason_code), event_value,
-        ret);
+        address, handle, loghex(hci_cmd), loghex(hci_event), loghex(cmd_status),
+        loghex(reason_code), event_value, ret);
   }
 }
 
@@ -854,8 +844,7 @@ void LogSdpAttribute(const RawAddress& address, uint16_t protocol_uuid,
                   protocol_uuid, attribute_id, attribute_field, metric_id);
   if (ret < 0) {
     log::warn("failed for {}, protocol_uuid {}, attribute_id {}, error {}",
-              ADDRESS_TO_LOGGABLE_STR(address), loghex(protocol_uuid),
-              loghex(attribute_id), ret);
+              address, loghex(protocol_uuid), loghex(attribute_id), ret);
   }
 }
 
@@ -882,8 +871,8 @@ void LogSocketConnectionState(
     log::warn(
         "failed for {}, port {}, type {}, state {}, tx_bytes {}, rx_bytes {}, "
         "uid {}, server_port {}, socket_role {}, error {}",
-        ADDRESS_TO_LOGGABLE_STR(address), port, type, connection_state,
-        tx_bytes, rx_bytes, uid, server_port, socket_role, ret);
+        address, port, type, connection_state, tx_bytes, rx_bytes, uid,
+        server_port, socket_role, ret);
   }
 }
 
@@ -915,9 +904,9 @@ void LogManufacturerInfo(const RawAddress& address,
         "failed for {}, source_type {}, source_name {}, manufacturer {}, model "
         "{}, hardware_version {}, software_version {} MAC address type {} MAC "
         "address prefix {} {} {}, error {}",
-        ADDRESS_TO_LOGGABLE_STR(address), source_type, source_name,
-        manufacturer, model, hardware_version, software_version, address_type,
-        address.address[5], address.address[4], address.address[3], ret);
+        address, source_type, source_name, manufacturer, model,
+        hardware_version, software_version, address_type, address.address[5],
+        address.address[4], address.address[3], ret);
   }
 }
 
@@ -935,8 +924,7 @@ void LogBluetoothHalCrashReason(const RawAddress& address, uint32_t error_code,
                         obfuscated_id_field, error_code, vendor_error_code);
   if (ret < 0) {
     log::warn("failed for {}, error_code {}, vendor_error_code {}, error {}",
-              ADDRESS_TO_LOGGABLE_STR(address), loghex(error_code),
-              loghex(vendor_error_code), ret);
+              address, loghex(error_code), loghex(vendor_error_code), ret);
   }
 }
 

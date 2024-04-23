@@ -160,7 +160,9 @@ public class SdpManager {
             for (SdpSearchInstance inst : mList) {
                 String instAddressString =
                         mAdapterService.getIdentityAddress(inst.getDevice().getAddress());
-                if (instAddressString.equals(addressString) && inst.getUuid().equals(uuid)) {
+                if (instAddressString != null
+                        && instAddressString.equals(addressString)
+                        && inst.getUuid().equals(uuid)) {
                     return inst.isSearching();
                 }
             }
@@ -436,11 +438,8 @@ public class SdpManager {
          * Keep in mind that the MAP client needs to use this as well,
          * hence to make it call-backs, the MAP client profile needs to be
          * part of the Bluetooth APK. */
-        Utils.sendBroadcast(
-                mAdapterService,
-                intent,
-                BLUETOOTH_CONNECT,
-                Utils.getTempAllowlistBroadcastOptions());
+        mAdapterService.sendBroadcast(
+                intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
 
         if (!moreResults) {
             //Remove the outstanding UUID request

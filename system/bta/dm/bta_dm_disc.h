@@ -24,6 +24,7 @@
 // Bta module start and stop entry points
 void bta_dm_disc_start(bool delay_close_gatt);
 void bta_dm_disc_stop();
+void bta_dm_search_stop();
 
 // Bta device discovery start and stop entry points
 void bta_dm_disc_start_device_discovery(tBTA_DM_SEARCH_CBACK*);
@@ -33,19 +34,18 @@ void bta_dm_disc_stop_device_discovery();
 void bta_dm_disc_start_service_discovery(service_discovery_callbacks cbacks,
                                          const RawAddress& bd_addr,
                                          tBT_TRANSPORT transport);
-void bta_dm_disc_stop_service_discovery(const RawAddress& bd_addr,
-                                        tBT_TRANSPORT transport);
 
 // Bta subsystem entrypoint and lifecycle
-bool bta_dm_search_sm_execute(const BT_HDR_RIGID* p_msg);
-void bta_dm_search_sm_disable();
+// Remove when separate_service_and_device_discovery rolls out
 void bta_dm_disc_disable_search_and_disc();
+void bta_dm_disc_disable_disc();
+void bta_dm_disc_disable_search();
 // Indication that an acl has gone down and to examine the current
 // service discovery procedure, if any.
 void bta_dm_disc_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 
 // Return most recent remote name
-const char* bta_dm_get_remname(void);
+const char* bta_dm_get_remname();
 
 // LE observe and scan interface
 void bta_dm_ble_scan(bool start, uint8_t duration_sec, bool low_latency_scan);
@@ -67,3 +67,4 @@ void bta_dm_disc_remove_device(const RawAddress& bd_addr);
 
 // Provide data for the dumpsys procedure
 void DumpsysBtaDmDisc(int fd);
+void DumpsysBtaDmSearch(int fd);

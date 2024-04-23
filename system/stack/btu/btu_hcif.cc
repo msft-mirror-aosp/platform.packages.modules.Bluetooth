@@ -38,7 +38,6 @@
 #include "common/init_flags.h"
 #include "common/metrics.h"
 #include "hci/controller_interface.h"
-#include "include/check.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/bt_trace.h"
 #include "main/shim/entry.h"
@@ -702,7 +701,7 @@ static void btu_hcif_command_status_evt_with_cb_on_task(uint8_t status,
   uint8_t* stream = event->data + event->offset;
   STREAM_TO_UINT16(opcode, stream);
 
-  CHECK(status != 0);
+  log::assert_that(status != 0, "assert failed: status != 0");
 
   // stream + 1 to skip parameter length field
   // No need to check length since stream is written by us
@@ -857,11 +856,10 @@ static void btu_hcif_esco_connection_comp_evt(const uint8_t* p) {
   STREAM_SKIP_UINT8(p);   // air_mode
 
   handle = HCID_GET_HANDLE(handle);
-  ASSERT_LOG(
-      handle <= HCI_HANDLE_MAX,
-      "Received eSCO connection complete event with invalid handle: 0x%X "
-      "that should be <= 0x%X",
-      handle, HCI_HANDLE_MAX);
+  log::assert_that(handle <= HCI_HANDLE_MAX,
+                   "Received eSCO connection complete event with invalid "
+                   "handle: 0x{:X} that should be <= 0x{:X}",
+                   handle, HCI_HANDLE_MAX);
 
   data.bd_addr = bda;
   if (status == HCI_SUCCESS) {
@@ -1060,7 +1058,7 @@ static void btu_hcif_command_complete_evt(BT_HDR* response,
  ******************************************************************************/
 static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status,
                                         const uint8_t* p_cmd) {
-  ASSERT_LOG(p_cmd != nullptr, "Null command for opcode 0x%x", opcode);
+  log::assert_that(p_cmd != nullptr, "Null command for opcode 0x{:x}", opcode);
   p_cmd++;  // Skip parameter total length
 
   const tHCI_STATUS hci_status = to_hci_status_code(status);

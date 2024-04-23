@@ -33,12 +33,6 @@ namespace bluetooth {
 namespace os {
 class Handler;
 }
-namespace neighbor {
-class ConnectabilityModule;
-class DiscoverabilityModule;
-class InquiryModule;
-class PageModule;
-}
 namespace hal {
 class SnoopLogger;
 }
@@ -52,7 +46,9 @@ class DistanceMeasurementManager;
 class LeAdvertisingManager;
 class LeScanningManager;
 class VendorSpecificEventManager;
+#if TARGET_FLOSS
 class MsftExtensionManager;
+#endif
 }
 
 namespace metrics {
@@ -71,12 +67,8 @@ class Dumpsys;
 os::Handler* GetGdShimHandler();
 hci::LeAdvertisingManager* GetAdvertising();
 bluetooth::hci::ControllerInterface* GetController();
-neighbor::DiscoverabilityModule* GetDiscoverability();
-neighbor::ConnectabilityModule* GetConnectability();
 Dumpsys* GetDumpsys();
-neighbor::InquiryModule* GetInquiry();
 hci::HciInterface* GetHciLayer();
-neighbor::PageModule* GetPage();
 hci::RemoteNameRequestModule* GetRemoteNameRequest();
 hci::DistanceMeasurementManager* GetDistanceMeasurementManager();
 hci::LeScanningManager* GetScanning();
@@ -85,7 +77,9 @@ storage::StorageModule* GetStorage();
 hci::AclManager* GetAclManager();
 hci::VendorSpecificEventManager* GetVendorSpecificEventManager();
 metrics::CounterMetrics* GetCounterMetrics();
+#if TARGET_FLOSS
 hci::MsftExtensionManager* GetMsftExtensionManager();
+#endif
 
 }  // namespace shim
 }  // namespace bluetooth

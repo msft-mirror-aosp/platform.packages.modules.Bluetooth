@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-#include <base/logging.h>
 #include <fcntl.h>
 #ifdef __ANDROID__
 #include <statslog_bt.h>
 #endif
 #include <bluetooth/log.h>
-#include <stdio.h>
 #include <sys/stat.h>
 
 #include <cerrno>
@@ -323,7 +321,7 @@ std::string PacketTypeToString(uint8_t packet_type) {
 }
 
 void EnableBtQualityReport(bool is_enable) {
-  log::info("is_enable: {}", logbool(is_enable));
+  log::info("is_enable: {}", is_enable);
 
   char bqr_prop_evtmask[PROPERTY_VALUE_MAX] = {0};
   char bqr_prop_interval_ms[PROPERTY_VALUE_MAX] = {0};
@@ -840,8 +838,7 @@ class BluetoothQualityReportInterfaceImpl
 
     log::info(
         "len: {}, addr: {}, lmp_ver: {}, manufacturer_id: {}, lmp_subver: {}",
-        bqr_raw_data_len, ADDRESS_TO_LOGGABLE_CSTR(bd_addr), lmp_ver,
-        manufacturer_id, lmp_subver);
+        bqr_raw_data_len, bd_addr, lmp_ver, manufacturer_id, lmp_subver);
 
     if (callbacks == nullptr) {
       log::error("callbacks is nullptr");

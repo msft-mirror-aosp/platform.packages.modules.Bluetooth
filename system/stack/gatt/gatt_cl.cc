@@ -24,13 +24,11 @@
 
 #define LOG_TAG "bluetooth"
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 #include <string.h>
 
 #include "gatt_int.h"
 #include "hardware/bt_gatt_types.h"
-#include "include/check.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/bt_trace.h"
 #include "os/log.h"
@@ -229,7 +227,8 @@ void gatt_act_read(tGATT_CLCB* p_clcb, uint16_t offset) {
 void gatt_act_write(tGATT_CLCB* p_clcb, uint8_t sec_act) {
   tGATT_TCB& tcb = *p_clcb->p_tcb;
 
-  CHECK(p_clcb->p_attr_buf);
+  log::assert_that(p_clcb->p_attr_buf != nullptr,
+                   "assert failed: p_clcb->p_attr_buf != nullptr");
   tGATT_VALUE& attr = *((tGATT_VALUE*)p_clcb->p_attr_buf);
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, p_clcb->cid);
@@ -278,7 +277,7 @@ void gatt_act_write(tGATT_CLCB* p_clcb, uint8_t sec_act) {
       return;
 
     default:
-      CHECK(false) << "Unknown write type" << p_clcb->op_subtype;
+      log::fatal("Unknown write type {}", p_clcb->op_subtype);
       return;
   }
 }
@@ -1106,8 +1105,7 @@ void gatt_process_mtu_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint16_t len,
     STREAM_TO_UINT16(mtu, p_data);
 
     log::info("Local pending MTU {}, Remote ({}) MTU {}",
-              tcb.pending_user_mtu_exchange_value,
-              ADDRESS_TO_LOGGABLE_STR(tcb.peer_bda), mtu);
+              tcb.pending_user_mtu_exchange_value, tcb.peer_bda, mtu);
 
     /* Aim for default as we did in the request */
     if (mtu < GATT_DEF_BLE_MTU_SIZE) {

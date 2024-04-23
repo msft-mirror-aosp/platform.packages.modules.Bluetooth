@@ -18,13 +18,11 @@
 
 #include "a2dp_vendor_ldac_decoder.h"
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 #include <dlfcn.h>
 #include <ldacBT.h>
 #include <ldacBT_bco_for_fluoride.h>
 #include <pthread.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "a2dp_vendor_ldac.h"

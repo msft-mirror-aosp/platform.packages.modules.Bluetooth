@@ -20,7 +20,6 @@
 #include <bluetooth/log.h>
 
 #include "hci/acl_manager/acl_scheduler.h"
-#include "hci/event_checkers.h"
 #include "hci/hci_layer.h"
 #include "hci/hci_packets.h"
 
@@ -117,7 +116,7 @@ struct RemoteNameRequestModule::impl {
       RemoteHostSupportedFeaturesCallback on_remote_host_supported_features_notification,
       std::shared_ptr<RemoteNameCallback> on_remote_name_complete_ptr) {
     log::info("Starting remote name request to {}", address.ToRedactedStringForLogging());
-    ASSERT(pending_ == false);
+    log::assert_that(pending_ == false, "assert failed: pending_ == false");
     pending_ = true;
     on_remote_host_supported_features_notification_ =
         std::move(on_remote_host_supported_features_notification);
@@ -133,17 +132,19 @@ struct RemoteNameRequestModule::impl {
     // TODO(b/294961421): Remove the ifdef when firmware fix in place. Realtek controllers
     // unexpectedly sent a Remote Name Req Complete HCI event without the corresponding HCI command.
 #ifndef TARGET_FLOSS
-    ASSERT(pending_ == true);
+    log::assert_that(pending_ == true, "assert failed: pending_ == true");
 #else
     if (pending_ != true) {
       log::warn("Unexpected remote name response with no request pending");
       return;
     }
 #endif
-    ASSERT(status.GetCommandOpCode() == OpCode::REMOTE_NAME_REQUEST);
+    log::assert_that(
+        status.GetCommandOpCode() == OpCode::REMOTE_NAME_REQUEST,
+        "assert failed: status.GetCommandOpCode() == OpCode::REMOTE_NAME_REQUEST");
     log::info(
         "Started remote name request peer:{} status:{}",
-        address.ToString(),
+        address.ToRedactedStringForLogging(),
         ErrorCodeText(status.GetStatus()));
     on_completion.Invoke(status.GetStatus());
     if (status.GetStatus() != ErrorCode::SUCCESS /* pending */) {
@@ -158,24 +159,24 @@ struct RemoteNameRequestModule::impl {
         log::info("Cancelling remote name request to {}", address.ToRedactedStringForLogging());
         hci_layer_->EnqueueCommand(
             RemoteNameRequestCancelBuilder::Create(address),
-            handler_->BindOnce(check_complete<RemoteNameRequestCancelCompleteView>));
+            handler_->BindOnceOn(this, &impl::check_cancel_status, address));
       } else {
         log::info(
             "Ignoring cancel RNR as RNR event already received to {}",
             address.ToRedactedStringForLogging());
       }
     } else {
-      ASSERT(pending_ == true);
+      log::assert_that(pending_ == true, "assert failed: pending_ == true");
       log::info("Cancelling remote name request to {}", address.ToRedactedStringForLogging());
       hci_layer_->EnqueueCommand(
           RemoteNameRequestCancelBuilder::Create(address),
-          handler_->BindOnce(check_complete<RemoteNameRequestCancelCompleteView>));
+          handler_->BindOnceOn(this, &impl::check_cancel_status, address));
     }
   }
 
   void on_remote_host_supported_features_notification(EventView view) {
     auto packet = RemoteHostSupportedFeaturesNotificationView::Create(view);
-    ASSERT(packet.IsValid());
+    log::assert_that(packet.IsValid(), "assert failed: packet.IsValid()");
     if (pending_ && !on_remote_host_supported_features_notification_.IsEmpty()) {
       log::info(
           "Received REMOTE_HOST_SUPPORTED_FEATURES_NOTIFICATION from {}",
@@ -194,20 +195,38 @@ struct RemoteNameRequestModule::impl {
     }
   }
 
-  void on_remote_name_request_complete(EventView view) {
-    auto packet = RemoteNameRequestCompleteView::Create(view);
-    ASSERT(packet.IsValid());
+  void completed(ErrorCode status, std::array<uint8_t, 248> name, Address address) {
     if (pending_) {
       log::info(
-          "Received REMOTE_NAME_REQUEST_COMPLETE from {}",
-          packet.GetBdAddr().ToRedactedStringForLogging());
+          "Received REMOTE_NAME_REQUEST_COMPLETE from {} with status {}",
+          address.ToRedactedStringForLogging(),
+          ErrorCodeText(status));
       pending_ = false;
-      on_remote_name_complete_.Invoke(packet.GetStatus(), packet.GetRemoteName());
-      acl_scheduler_->ReportRemoteNameRequestCompletion(packet.GetBdAddr());
+      on_remote_name_complete_.Invoke(status, name);
+      acl_scheduler_->ReportRemoteNameRequestCompletion(address);
     } else {
       log::error(
-          "Received unexpected REMOTE_NAME_REQUEST_COMPLETE when no Remote Name Request is "
-          "outstanding");
+          "Received unexpected REMOTE_NAME_REQUEST_COMPLETE from {} with status {}",
+          address.ToRedactedStringForLogging(),
+          ErrorCodeText(status));
+    }
+  }
+
+  void on_remote_name_request_complete(EventView view) {
+    auto packet = RemoteNameRequestCompleteView::Create(view);
+    log::assert_that(packet.IsValid(), "Invalid packet");
+    completed(packet.GetStatus(), packet.GetRemoteName(), packet.GetBdAddr());
+  }
+
+  void check_cancel_status(Address remote, CommandCompleteView complete) {
+    auto packet = RemoteNameRequestCancelCompleteView::Create(complete);
+    if (!packet.IsValid()) {
+      completed(ErrorCode::UNSPECIFIED_ERROR, std::array<uint8_t, 248>{}, remote);
+      return;
+    }
+    auto status = packet.GetStatus();
+    if (status != ErrorCode::SUCCESS) {
+      completed(status, std::array<uint8_t, 248>{}, packet.GetBdAddr());
     }
   }
 

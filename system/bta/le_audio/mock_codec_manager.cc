@@ -60,26 +60,22 @@ void CodecManager::UpdateActiveAudioConfig(
 
 std::unique_ptr<set_configurations::AudioSetConfiguration>
 CodecManager::GetCodecConfig(
-    types::LeAudioContextType ctx_type,
-    std::function<const le_audio::set_configurations::AudioSetConfiguration*(
-        le_audio::types::LeAudioContextType context_type,
-        const le_audio::set_configurations::AudioSetConfigurations* confs)>
-        non_vendor_config_matcher) {
+    const CodecManager::UnicastConfigurationRequirements& requirements,
+    CodecManager::UnicastConfigurationVerifier verifier) {
   if (!pimpl_) return nullptr;
-  return pimpl_->GetCodecConfig(ctx_type, non_vendor_config_matcher);
+  return pimpl_->GetCodecConfig(requirements, verifier);
 }
 
 std::unique_ptr<::bluetooth::le_audio::broadcaster::BroadcastConfiguration>
 CodecManager::GetBroadcastConfig(
-    const std::vector<std::pair<bluetooth::le_audio::types::LeAudioContextType,
-                                uint8_t>>& subgroup_quality,
-    std::optional<const bluetooth::le_audio::types::PublishedAudioCapabilities*>
-        pacs) const {
+    const bluetooth::le_audio::CodecManager::BroadcastConfigurationRequirements&
+        requirements) const {
   if (!pimpl_)
     return std::make_unique<
         bluetooth::le_audio::broadcaster::BroadcastConfiguration>(
-        bluetooth::le_audio::broadcaster::GetBroadcastConfig(subgroup_quality));
-  return pimpl_->GetBroadcastConfig(subgroup_quality, pacs);
+        bluetooth::le_audio::broadcaster::GetBroadcastConfig(
+            requirements.subgroup_quality));
+  return pimpl_->GetBroadcastConfig(requirements);
 }
 
 bool CodecManager::CheckCodecConfigIsBiDirSwb(
@@ -145,6 +141,13 @@ void CodecManager::UpdateCisConfiguration(
 
 void CodecManager::ClearCisConfiguration(uint8_t direction) {
   if (pimpl_) return pimpl_->ClearCisConfiguration(direction);
+}
+
+std::ostream& operator<<(
+    std::ostream& os,
+    const CodecManager::UnicastConfigurationRequirements& req) {
+  os << "{audio context type: " << req.audio_context_type << "}";
+  return os;
 }
 
 // CodecManager::~CodecManager() = default;

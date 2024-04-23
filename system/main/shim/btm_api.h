@@ -382,18 +382,6 @@ void BTM_BleAdvFilterParamSetup(
     std::unique_ptr<btgatt_filt_param_setup_t> p_filt_params,
     tBTM_BLE_PF_PARAM_CB cb);
 
-/*******************************************************************************
- *
- * Function          BTM_BleMaxMultiAdvInstanceCount
- *
- * Description      Returns the maximum number of multi adv instances supported
- *                  by the controller.
- *
- * Returns          Max multi adv instance count
- *
- ******************************************************************************/
-uint8_t BTM_BleMaxMultiAdvInstanceCount();
-
 void BTM_reset_complete();
 
 /*******************************************************************************
@@ -566,7 +554,6 @@ void BTM_unblock_role_switch_for(const RawAddress& peer_addr);
 void BTM_block_role_switch_for(const RawAddress& peer_addr);
 
 void BTM_default_unblock_role_switch();
-void BTM_default_block_role_switch();
 
 /*******************************************************************************
  *
@@ -857,19 +844,6 @@ tBTM_SCO_DEBUG_DUMP BTM_GetScoDebugDump(void);
  ******************************************************************************/
 tBT_DEVICE_TYPE BTM_GetPeerDeviceTypeFromFeatures(const RawAddress& bd_addr);
 
-/*******************************************************************************
- *
- * Function         BTM_GetHCIConnHandle
- *
- * Description      This function is called to get the handle for an ACL
- *                  connection to a specific remote BD Address.
- *
- * Returns          the handle of the connection, or 0xFFFF if none.
- *
- ******************************************************************************/
-uint16_t BTM_GetHCIConnHandle(const RawAddress& remote_bda,
-                              tBT_TRANSPORT transport);
-
 /**
  *
  * BLE API
@@ -950,34 +924,6 @@ void BTM_BleTrackAdvertiser(tBTM_BLE_TRACK_ADV_CBACK* p_track_cback,
  ******************************************************************************/
 void BTM_BleReadControllerFeatures(tBTM_BLE_CTRL_FEATURES_CBACK* p_vsc_cback);
 
-/*******************************************************************************
- *
- * Function         BTM__BLEReadDiscoverability
- *
- * Description      This function is called to read the current LE
- *                  discoverability mode of the device.
- *
- * Returns          BTM_BLE_NON_DISCOVERABLE ,BTM_BLE_LIMITED_DISCOVERABLE or
- *                     BTM_BLE_GENRAL_DISCOVERABLE
- *
- ******************************************************************************/
-uint16_t BTM_BleReadDiscoverability();
-
-/*******************************************************************************
- *
- * Function         BTM__BLEReadConnectability
- *
- * Description      This function is called to read the current LE
- *                  connectibility mode of the device.
- *
- * Returns          BTM_BLE_NON_CONNECTABLE or BTM_BLE_CONNECTABLE
- *
- ******************************************************************************/
-uint16_t BTM_BleReadConnectability();
-
-/**
- * This functions are called to configure the adv data payload filter condition
- */
 /*******************************************************************************
  *
  * Function         BTM_BleGetEnergyInfo

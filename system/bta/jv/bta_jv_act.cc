@@ -25,7 +25,6 @@
 #define LOG_TAG "bluetooth"
 
 #include <android_bluetooth_flags.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -39,7 +38,6 @@
 #include "internal_include/bt_trace.h"
 #include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "osi/include/properties.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/avct_api.h"  // AVCT_PSM
@@ -716,7 +714,7 @@ static uint16_t bta_jv_allocate_l2cap_classic_psm() {
 
 /** Obtain a free SCN (Server Channel Number) (RFCOMM channel or L2CAP PSM) */
 void bta_jv_get_channel_id(
-    int32_t type /* One of BTA_JV_CONN_TYPE_ */,
+    tBTA_JV_CONN_TYPE type /* One of BTA_JV_CONN_TYPE_ */,
     int32_t channel /* optionally request a specific channel */,
     uint32_t l2cap_socket_id, uint32_t rfcomm_slot_id) {
   uint16_t psm = 0;
@@ -768,7 +766,7 @@ void bta_jv_get_channel_id(
 }
 
 /** free a SCN */
-void bta_jv_free_scn(int32_t type /* One of BTA_JV_CONN_TYPE_ */,
+void bta_jv_free_scn(tBTA_JV_CONN_TYPE type /* One of BTA_JV_CONN_TYPE_ */,
                      uint16_t scn) {
   switch (type) {
     case BTA_JV_CONN_TYPE_RFCOMM:
@@ -795,21 +793,19 @@ void bta_jv_free_scn(int32_t type /* One of BTA_JV_CONN_TYPE_ */,
  * Returns      void
  *
  ******************************************************************************/
-static void bta_jv_start_discovery_cback(UNUSED_ATTR const RawAddress& bd_addr,
+static void bta_jv_start_discovery_cback(const RawAddress& bd_addr,
                                          tSDP_RESULT result,
                                          const void* user_data) {
   if (!bta_jv_cb.sdp_cb.sdp_active) {
     log::warn(
         "Received unexpected service discovery callback bd_addr:{} result:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), sdp_result_text(result),
-        bta_jv_cb.sdp_cb.sdp_active);
+        bd_addr, sdp_result_text(result), bta_jv_cb.sdp_cb.sdp_active);
   }
   if (bta_jv_cb.sdp_cb.bd_addr != bta_jv_cb.sdp_cb.bd_addr) {
     log::warn(
         "Received incorrect service discovery callback expected_bd_addr:{} "
         "actual_bd_addr:{} result:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bta_jv_cb.sdp_cb.bd_addr),
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), sdp_result_text(result),
+        bta_jv_cb.sdp_cb.bd_addr, bd_addr, sdp_result_text(result),
         bta_jv_cb.sdp_cb.sdp_active);
   }
 
@@ -825,7 +821,7 @@ static void bta_jv_start_discovery_cback(UNUSED_ATTR const RawAddress& bd_addr,
     if (result == SDP_SUCCESS || result == SDP_DB_FULL) {
       log::info(
           "Received service discovery callback success bd_addr:{} result:{}",
-          ADDRESS_TO_LOGGABLE_CSTR(bd_addr), sdp_result_text(result));
+          bd_addr, sdp_result_text(result));
       tSDP_PROTOCOL_ELEM pe;
       tSDP_DISC_REC* p_sdp_rec = NULL;
       p_sdp_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceUUIDInDb(
@@ -846,19 +842,19 @@ static void bta_jv_start_discovery_cback(UNUSED_ATTR const RawAddress& bd_addr,
     } else {
       log::warn(
           "Received service discovery callback failed bd_addr:{} result:{}",
-          ADDRESS_TO_LOGGABLE_CSTR(bd_addr), sdp_result_text(result));
+          bd_addr, sdp_result_text(result));
     }
     log::info(
         "Issuing service discovery complete callback bd_addr:{} result:{} "
         "status:{} scn:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), sdp_result_text(result),
+        bd_addr, sdp_result_text(result),
         bta_jv_status_text(bta_jv.disc_comp.status), bta_jv.disc_comp.scn);
     bta_jv_cb.p_dm_cback(BTA_JV_DISCOVERY_COMP_EVT, &bta_jv, rfcomm_slot_id);
   } else {
     log::warn(
         "Received service discovery callback when disabled bd_addr:{} "
         "result:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), sdp_result_text(result));
+        bd_addr, sdp_result_text(result));
   }
   // User data memory is allocated in `bta_jv_start_discovery`
   osi_free(const_cast<void*>(user_data));
@@ -869,14 +865,12 @@ static void bta_jv_start_discovery_cback(UNUSED_ATTR const RawAddress& bd_addr,
 void bta_jv_start_discovery(const RawAddress& bd_addr, uint16_t num_uuid,
                             bluetooth::Uuid* uuid_list,
                             uint32_t rfcomm_slot_id) {
-  ASSERT(uuid_list != nullptr);
+  log::assert_that(uuid_list != nullptr, "assert failed: uuid_list != nullptr");
   if (bta_jv_cb.sdp_cb.sdp_active) {
     log::warn(
         "Unable to start discovery as already in progress active_bd_addr{} "
-        "request_bd_addr:{} "
-        "num:uuid:{} rfcomm_slot_id:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bta_jv_cb.sdp_cb.bd_addr),
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), num_uuid, rfcomm_slot_id);
+        "request_bd_addr:{} num:uuid:{} rfcomm_slot_id:{}",
+        bta_jv_cb.sdp_cb.bd_addr, bd_addr, num_uuid, rfcomm_slot_id);
     if (bta_jv_cb.p_dm_cback) {
       tBTA_JV bta_jv = {
           .status = tBTA_JV_STATUS::BUSY,
@@ -898,7 +892,7 @@ void bta_jv_start_discovery(const RawAddress& bd_addr, uint16_t num_uuid,
     log::warn(
         "Unable to initialize service discovery db bd_addr:{} num:uuid:{} "
         "rfcomm_slot_id:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), num_uuid, rfcomm_slot_id);
+        bd_addr, num_uuid, rfcomm_slot_id);
   }
 
   /* tell SDP to keep the raw data */
@@ -925,7 +919,7 @@ void bta_jv_start_discovery(const RawAddress& bd_addr, uint16_t num_uuid,
     log::warn(
         "Unable to original service discovery bd_addr:{} num:uuid:{} "
         "rfcomm_slot_id:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), num_uuid, rfcomm_slot_id);
+        bd_addr, num_uuid, rfcomm_slot_id);
     /* failed to start SDP. report the failure right away */
     if (bta_jv_cb.p_dm_cback) {
       tBTA_JV bta_jv = {
@@ -937,9 +931,8 @@ void bta_jv_start_discovery(const RawAddress& bd_addr, uint16_t num_uuid,
     }
   } else {
     log::info(
-        "Started service discovery bd_addr:{} num_uuid:{} "
-        "rfcomm_slot_id:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), num_uuid, rfcomm_slot_id);
+        "Started service discovery bd_addr:{} num_uuid:{} rfcomm_slot_id:{}",
+        bd_addr, num_uuid, rfcomm_slot_id);
   }
 }
 
@@ -1032,7 +1025,7 @@ static void bta_jv_l2cap_client_cback(uint16_t gap_handle, uint16_t event,
 }
 
 /* makes an l2cap client connection */
-void bta_jv_l2cap_connect(int32_t type, tBTA_SEC sec_mask,
+void bta_jv_l2cap_connect(tBTA_JV_CONN_TYPE type, tBTA_SEC sec_mask,
                           tBTA_JV_ROLE /* role */, uint16_t remote_psm,
                           uint16_t rx_mtu, const RawAddress& peer_bd_addr,
                           std::unique_ptr<tL2CAP_CFG_INFO> cfg_param,
@@ -1062,10 +1055,27 @@ void bta_jv_l2cap_connect(int32_t type, tBTA_SEC sec_mask,
     if ((type != BTA_JV_CONN_TYPE_L2CAP) ||
         (bta_jv_check_psm(remote_psm))) /* allowed */
     {
+      // Given a client socket type
+      // return the associated transport
+      const tBT_TRANSPORT transport =
+          [](tBTA_JV_CONN_TYPE type) -> tBT_TRANSPORT {
+        switch (type) {
+          case BTA_JV_CONN_TYPE_L2CAP:
+            return BT_TRANSPORT_BR_EDR;
+          case BTA_JV_CONN_TYPE_L2CAP_LE:
+            return BT_TRANSPORT_LE;
+          case BTA_JV_CONN_TYPE_RFCOMM:
+          default:
+            break;
+        }
+        log::warn("Unexpected socket type:{}", type);
+        return BT_TRANSPORT_AUTO;
+      }(type);
+
       uint16_t max_mps = 0xffff;  // Let GAP_ConnOpen set the max_mps.
       handle = GAP_ConnOpen("", sec_id, 0, &peer_bd_addr, remote_psm, max_mps,
                             &cfg, ertm_info.get(), sec_mask,
-                            bta_jv_l2cap_client_cback, type);
+                            bta_jv_l2cap_client_cback, transport);
       if (handle != GAP_INVALID_HANDLE) {
         evt_data.status = tBTA_JV_STATUS::SUCCESS;
       }
@@ -1179,7 +1189,7 @@ static void bta_jv_l2cap_server_cback(uint16_t gap_handle, uint16_t event,
 }
 
 /** starts an L2CAP server */
-void bta_jv_l2cap_start_server(int32_t type, tBTA_SEC sec_mask,
+void bta_jv_l2cap_start_server(tBTA_JV_CONN_TYPE type, tBTA_SEC sec_mask,
                                tBTA_JV_ROLE /* role */, uint16_t local_psm,
                                uint16_t rx_mtu,
                                std::unique_ptr<tL2CAP_CFG_INFO> cfg_param,
@@ -1207,11 +1217,28 @@ void bta_jv_l2cap_start_server(int32_t type, tBTA_SEC sec_mask,
   uint8_t sec_id = bta_jv_alloc_sec_id();
   uint16_t max_mps = 0xffff;  // Let GAP_ConnOpen set the max_mps.
   /* PSM checking is not required for LE COC */
+
+  // Given a server socket type
+  // return the associated transport
+  const tBT_TRANSPORT transport = [](tBTA_JV_CONN_TYPE type) -> tBT_TRANSPORT {
+    switch (type) {
+      case BTA_JV_CONN_TYPE_L2CAP:
+        return BT_TRANSPORT_BR_EDR;
+      case BTA_JV_CONN_TYPE_L2CAP_LE:
+        return BT_TRANSPORT_LE;
+      case BTA_JV_CONN_TYPE_RFCOMM:
+      default:
+        break;
+    }
+    log::warn("Unexpected socket type:{}", type);
+    return BT_TRANSPORT_AUTO;
+  }(type);
+
   if (0 == sec_id ||
       ((type == BTA_JV_CONN_TYPE_L2CAP) && (!bta_jv_check_psm(local_psm))) ||
       (handle = GAP_ConnOpen("JV L2CAP", sec_id, 1, nullptr, local_psm, max_mps,
                              &cfg, ertm_info.get(), sec_mask,
-                             bta_jv_l2cap_server_cback, type)) ==
+                             bta_jv_l2cap_server_cback, transport)) ==
           GAP_INVALID_HANDLE) {
     bta_jv_free_sec_id(&sec_id);
     evt_data.status = tBTA_JV_STATUS::FAILURE;

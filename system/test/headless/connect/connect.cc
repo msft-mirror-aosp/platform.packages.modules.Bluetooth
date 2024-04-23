@@ -27,7 +27,6 @@
 #include <future>
 #include <string>
 
-#include "base/logging.h"  // LOG() stdout and android log
 #include "btif/include/stack_manager_t.h"
 #include "os/log.h"  // android log only
 #include "stack/include/acl_api.h"
@@ -64,7 +63,7 @@ int do_connect([[maybe_unused]] unsigned int num_loops,
       if (v[0] == "wait") disconnect_wait_time = std::stoi(v[1]);
     }
   }
-  ASSERT_LOG(disconnect_wait_time >= 0, "Time cannot go backwards");
+  log::assert_that(disconnect_wait_time >= 0, "Time cannot go backwards");
 
   headless::messenger::Context context{
       .stop_watch = Stopwatch("Connect_timeout"),

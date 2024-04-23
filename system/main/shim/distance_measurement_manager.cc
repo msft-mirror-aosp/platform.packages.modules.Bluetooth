@@ -27,7 +27,8 @@ using bluetooth::hci::DistanceMeasurementMethod;
 
 class DistanceMeasurementInterfaceImpl
     : public DistanceMeasurementInterface,
-      public bluetooth::hci::DistanceMeasurementCallbacks {
+      public bluetooth::hci::DistanceMeasurementCallbacks,
+      public bluetooth::ras::RasClientCallbacks {
  public:
   ~DistanceMeasurementInterfaceImpl() override{};
 
@@ -35,6 +36,7 @@ class DistanceMeasurementInterfaceImpl
     // Register callback
     bluetooth::shim::GetDistanceMeasurementManager()
         ->RegisterDistanceMeasurementCallbacks(this);
+    bluetooth::ras::GetRasClient()->RegisterCallbacks(this);
   }
 
   void RegisterDistanceMeasurementCallbacks(
@@ -111,6 +113,11 @@ class DistanceMeasurementInterfaceImpl
                           std::vector<uint8_t> raw_data) {
     bluetooth::ras::GetRasServer()->PushProcedureData(
         bluetooth::ToRawAddress(address), procedure_counter, is_last, raw_data);
+  }
+
+  void OnRemoteData(RawAddress address, std::vector<uint8_t> data) {
+    bluetooth::shim::GetDistanceMeasurementManager()->HandleRemoteData(
+        bluetooth::ToGdAddress(address), data);
   }
 
  private:

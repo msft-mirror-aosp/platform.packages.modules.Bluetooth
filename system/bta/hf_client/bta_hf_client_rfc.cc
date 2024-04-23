@@ -24,7 +24,6 @@
  *
  ******************************************************************************/
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -32,7 +31,6 @@
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/include/bta_sec_api.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/port_api.h"
 #include "stack/include/sdp_api.h"
@@ -52,7 +50,7 @@ using namespace bluetooth;
  * Returns          void
  *
  ******************************************************************************/
-static void bta_hf_client_port_cback(UNUSED_ATTR uint32_t code,
+static void bta_hf_client_port_cback(uint32_t /* code */,
                                      uint16_t port_handle) {
   /* ignore port events for port handles other than connected handle */
   tBTA_HF_CLIENT_CB* client_cb =
@@ -139,7 +137,7 @@ static void bta_hf_client_mgmt_cback(uint32_t code, uint16_t port_handle) {
   } else if (client_cb != NULL &&
              port_handle == client_cb->conn_handle) { /* code != PORT_SUC */
     log::error("closing port handle {} dev {}", port_handle,
-               ADDRESS_TO_LOGGABLE_STR(client_cb->peer_addr));
+               client_cb->peer_addr);
 
     RFCOMM_RemoveServer(port_handle);
     p_buf->hdr.event = BTA_HF_CLIENT_RFC_CLOSE_EVT;

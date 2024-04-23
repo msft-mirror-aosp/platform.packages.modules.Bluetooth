@@ -25,7 +25,6 @@
 
 #define LOG_TAG "bt_bta_gattc"
 
-#include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
@@ -42,7 +41,6 @@
 #include "internal_include/bt_trace.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "stack/btm/btm_sec.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
@@ -183,8 +181,7 @@ RobustCachingSupport GetRobustCachingSupport(const tBTA_GATTC_CLCB* p_clcb,
   // support GATT Caching.
   uint8_t lmp_version = 0;
   if (!BTM_ReadRemoteVersion(p_clcb->bda, &lmp_version, nullptr, nullptr)) {
-    log::warn("Could not read remote version for {}",
-              ADDRESS_TO_LOGGABLE_CSTR(p_clcb->bda));
+    log::warn("Could not read remote version for {}", p_clcb->bda);
   }
 
   if (lmp_version < 0x0a) {
@@ -360,7 +357,7 @@ descriptor_discovery_done:
 }
 
 /* Process the discovery result from sdp */
-void bta_gattc_sdp_callback(UNUSED_ATTR const RawAddress& bd_addr,
+void bta_gattc_sdp_callback(const RawAddress& /* bd_addr */,
                             tSDP_STATUS sdp_status, const void* user_data) {
   tBTA_GATTC_CB_DATA* cb_data = (tBTA_GATTC_CB_DATA*)user_data;
   tBTA_GATTC_SERV* p_srvc_cb = bta_gattc_find_scb_by_cid(cb_data->sdp_conn_id);

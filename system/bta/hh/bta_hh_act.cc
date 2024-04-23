@@ -35,10 +35,8 @@
 #include "bta/include/bta_hh_co.h"
 #include "bta/sys/bta_sys.h"
 #include "btif/include/btif_storage.h"
-#include "include/check.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
@@ -265,7 +263,7 @@ static void bta_hh_sdp_cback(uint16_t result, uint16_t attr_mask,
  * Returns          void
  *
  ******************************************************************************/
-static void bta_hh_di_sdp_cback(UNUSED_ATTR const RawAddress& bd_addr,
+static void bta_hh_di_sdp_cback(const RawAddress& /* bd_addr */,
                                 tSDP_RESULT result) {
   tBTA_HH_DEV_CB* p_cb = bta_hh_cb.p_cur;
   tBTA_HH_STATUS status = BTA_HH_ERR_SDP;
@@ -371,7 +369,7 @@ static void bta_hh_start_sdp(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_hh_sdp_cmpl(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
-  CHECK(p_data != nullptr);
+  log::assert_that(p_data != nullptr, "assert failed: p_data != nullptr");
 
   tBTA_HH_CONN conn_dat;
   tBTA_HH_STATUS status = p_data->status;
@@ -519,11 +517,10 @@ void bta_hh_connect(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_hh_api_disc_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
-  CHECK(p_cb != nullptr);
+  log::assert_that(p_cb != nullptr, "assert failed: p_cb != nullptr");
 
   if (p_cb->link_spec.transport == BT_TRANSPORT_LE) {
-    log::debug("Host initiating close to le device:{}",
-               ADDRESS_TO_LOGGABLE_CSTR(p_cb->link_spec));
+    log::debug("Host initiating close to le device:{}", p_cb->link_spec);
 
     bta_hh_le_api_disc_act(p_cb);
 
@@ -533,12 +530,10 @@ void bta_hh_api_disc_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
                             : p_cb->hid_handle;
     tHID_STATUS status = HID_HostCloseDev(hid_handle);
     if (status != HID_SUCCESS) {
-      log::warn("Failed closing classic device:{} status:{}",
-                ADDRESS_TO_LOGGABLE_CSTR(p_cb->link_spec),
+      log::warn("Failed closing classic device:{} status:{}", p_cb->link_spec,
                 hid_status_text(status));
     } else {
-      log::debug("Host initiated close to classic device:{}",
-                 ADDRESS_TO_LOGGABLE_CSTR(p_cb->link_spec));
+      log::debug("Host initiated close to classic device:{}", p_cb->link_spec);
     }
     tBTA_HH bta_hh = {
         .dev_status = {.status =
@@ -913,7 +908,7 @@ void bta_hh_close_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_hh_get_dscp_act(tBTA_HH_DEV_CB* p_cb,
-                         UNUSED_ATTR const tBTA_HH_DATA* p_data) {
+                         const tBTA_HH_DATA* /* p_data */) {
   if (p_cb->link_spec.transport == BT_TRANSPORT_LE) {
     if (p_cb->hid_srvc.state >= BTA_HH_SERVICE_DISCOVERED) {
       p_cb->dscp_info.hid_handle = p_cb->hid_handle;
@@ -984,7 +979,7 @@ void bta_hh_maint_dev_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
           }
         } else {
           log::error("unexpected BT transport: {}",
-                     bt_transport_text(transport).c_str());
+                     bt_transport_text(transport));
           break;
         }
       } else /* device already been added */

@@ -34,10 +34,11 @@
 
 #include "bta_api_data_types.h"
 #include "hci/le_rand_callback.h"
-#include "internal_include/bt_target.h"
 #include "macros.h"
 #include "os/log.h"
+#include "stack/btm/btm_eir.h"
 #include "stack/btm/power_mode.h"
+#include "stack/include/bt_dev_class.h"
 #include "stack/include/bt_device_type.h"
 #include "stack/include/bt_name.h"
 #include "stack/include/btm_api_types.h"
@@ -121,9 +122,10 @@ typedef enum : uint8_t {
 } tBTA_PREF_ROLES;
 
 inline tBTA_PREF_ROLES toBTA_PREF_ROLES(uint8_t role) {
-  ASSERT_LOG(role <= BTA_PERIPHERAL_ROLE_ONLY,
-             "Passing illegal preferred role:0x%02x [0x%02x<=>0x%02x]", role,
-             BTA_ANY_ROLE, BTA_PERIPHERAL_ROLE_ONLY);
+  bluetooth::log::assert_that(
+      role <= BTA_PERIPHERAL_ROLE_ONLY,
+      "Passing illegal preferred role:0x{:02x} [0x{:02x}<=>0x{:02x}]", role,
+      int(BTA_ANY_ROLE), int(BTA_PERIPHERAL_ROLE_ONLY));
   return static_cast<tBTA_PREF_ROLES>(role);
 }
 
@@ -155,12 +157,7 @@ enum {
 typedef struct {
   uint8_t bta_dm_eir_min_name_len; /* minimum length of local name when it is
                                       shortened */
-#if (BTA_EIR_CANNED_UUID_LIST == TRUE)
-  uint8_t bta_dm_eir_uuid16_len; /* length of 16-bit UUIDs */
-  uint8_t* bta_dm_eir_uuid16;    /* 16-bit UUIDs */
-#else
   uint32_t uuid_mask[BTM_EIR_SERVICE_ARRAY_SIZE]; /* mask of UUID list in EIR */
-#endif
   int8_t* bta_dm_eir_inq_tx_power;     /* Inquiry TX power         */
   uint8_t bta_dm_eir_flag_len;         /* length of flags in bytes */
   uint8_t* bta_dm_eir_flags;           /* flags for EIR */
@@ -270,58 +267,49 @@ typedef struct {
   uint8_t num_resps; /* Number of responses. */
 } tBTA_DM_OBSERVE_CMPL;
 
-/* Structure associated with BTA_DM_DISC_RES_EVT */
+/* Structure associated with BTA_DM_NAME_READ_EVT */
 typedef struct {
   RawAddress bd_addr;          /* BD address peer device. */
   BD_NAME bd_name;             /* Name of peer device. */
-  tBTA_SERVICE_MASK services;  /* Services found on peer device. */
-  tBT_DEVICE_TYPE device_type; /* device type in case it is BLE device */
-  size_t num_uuids;
-  bluetooth::Uuid* p_uuid_list;
-  tBTA_STATUS result;
-  tHCI_STATUS hci_status;
-} tBTA_DM_DISC_RES;
+} tBTA_DM_NAME_READ_CMPL;
 
 /* Union of all search callback structures */
 typedef union {
   tBTA_DM_INQ_RES inq_res;   /* Inquiry result for a peer device. */
-  tBTA_DM_DISC_RES disc_res; /* Discovery result for a peer device. */
+  tBTA_DM_NAME_READ_CMPL name_res;   /* Name read result for a peer device. */
   tBTA_DM_OBSERVE_CMPL observe_cmpl; /* Observe complete. */
 } tBTA_DM_SEARCH;
 
 /* Search callback */
 typedef void(tBTA_DM_SEARCH_CBACK)(tBTA_DM_SEARCH_EVT event,
                                    tBTA_DM_SEARCH* p_data);
+
+// TODO: delete bd_name parameter after separate_service_and_device_discovery
+// rolls out
 typedef void(tBTA_DM_GATT_DISC_CBACK)(RawAddress bd_addr, BD_NAME bd_name,
                                       std::vector<bluetooth::Uuid>& services,
                                       bool transport_le);
 typedef void(tBTA_DM_DID_RES_CBACK)(RawAddress bd_addr, uint8_t vendor_id_src,
                                     uint16_t vendor_id, uint16_t product_id,
                                     uint16_t version);
-
+// TODO: delete after separate_service_and_device_discovery rolls out
 typedef void(tBTA_DM_NAME_READ_CBACK)(RawAddress bd_addr,
                                       tHCI_ERROR_CODE hci_status,
                                       const BD_NAME bd_name);
-typedef void(tBTA_DM_DISC_CBACK)(RawAddress bd_addr, BD_NAME bd_name,
-                                 tBTA_SERVICE_MASK services,
-                                 tBT_DEVICE_TYPE device_type, size_t num_uuids,
-                                 bluetooth::Uuid* p_uuid_list,
+typedef void(tBTA_DM_DISC_CBACK)(RawAddress bd_addr, tBTA_SERVICE_MASK services,
+                                 tBT_DEVICE_TYPE device_type,
+                                 const std::vector<bluetooth::Uuid>& uuids,
                                  tBTA_STATUS result, tHCI_STATUS hci_status);
 struct service_discovery_callbacks {
-  /* legacy callback I'll tear apart and get rid of */
   tBTA_DM_GATT_DISC_CBACK* on_gatt_results;
   tBTA_DM_DID_RES_CBACK* on_did_received;
+  // TODO: delete after separate_service_and_device_discovery rolls out
   tBTA_DM_NAME_READ_CBACK* on_name_read;
   tBTA_DM_DISC_CBACK* on_service_discovery_results;
 };
 
 /* Execute call back */
 typedef void(tBTA_DM_EXEC_CBACK)(void* p_param);
-
-/* Encryption callback*/
-typedef void(tBTA_DM_ENCRYPT_CBACK)(const RawAddress& bd_addr,
-                                    tBT_TRANSPORT transport,
-                                    tBTA_STATUS result);
 
 typedef void(tBTA_BLE_ENERGY_INFO_CBACK)(tBTM_BLE_TX_TIME_MS tx_time,
                                          tBTM_BLE_RX_TIME_MS rx_time,
@@ -593,22 +581,6 @@ tBTA_STATUS BTA_DmGetCachedRemoteName(const RawAddress& remote_device,
 
 /*******************************************************************************
  *
- * Function         BTA_GetEirService
- *
- * Description      This function is called to get BTA service mask from EIR.
- *
- * Parameters       p_eir - pointer of EIR significant part
- *                  eir_len - EIR length
- *                  p_services - return the BTA service mask
- *
- * Returns          None
- *
- ******************************************************************************/
-void BTA_GetEirService(const uint8_t* p_eir, size_t eir_len,
-                       tBTA_SERVICE_MASK* p_services);
-
-/*******************************************************************************
- *
  * Function         BTA_DmGetConnectionState
  *
  * Description      Returns whether the remote device is currently connected.
@@ -629,26 +601,6 @@ bool BTA_DmGetConnectionState(const RawAddress& bd_addr);
  ******************************************************************************/
 tBTA_STATUS BTA_DmSetLocalDiRecord(tSDP_DI_RECORD* p_device_info,
                                    uint32_t* p_handle);
-
-/*******************************************************************************
- *
- *
- * Function         BTA_DmCloseACL
- *
- * Description      This function force to close an ACL connection and remove
- the
- *                  device from the security database list of known devices.
- *
- * Parameters:      bd_addr       - Address of the peer device
- *                  remove_dev    - remove device or not after link down
- *                  transport     - which transport to close
-
- *
- * Returns          void.
- *
- ******************************************************************************/
-void BTA_DmCloseACL(const RawAddress& bd_addr, bool remove_dev,
-                    tBT_TRANSPORT transport);
 
 /*******************************************************************************
  *
@@ -776,18 +728,6 @@ void BTA_DmBleRequestMaxTxDataLength(const RawAddress& remote_device);
  *
  ******************************************************************************/
 void BTA_DmBleGetEnergyInfo(tBTA_BLE_ENERGY_INFO_CBACK* p_cmpl_cback);
-
-/*******************************************************************************
- *
- * Function         BTA_BrcmInit
- *
- * Description      This function initializes Broadcom specific VS handler in
- *                  BTA
- *
- * Returns          void
- *
- ******************************************************************************/
-void BTA_VendorInit(void);
 
 /*******************************************************************************
  *
@@ -954,6 +894,8 @@ template <>
 struct formatter<tBTA_DM_SEARCH_EVT> : enum_formatter<tBTA_DM_SEARCH_EVT> {};
 template <>
 struct formatter<tBTA_DM_ACL_EVT> : enum_formatter<tBTA_DM_ACL_EVT> {};
+template <>
+struct formatter<tBTA_PREF_ROLES> : enum_formatter<tBTA_PREF_ROLES> {};
 }  // namespace fmt
 
 #endif /* BTA_API_H */

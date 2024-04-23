@@ -27,7 +27,6 @@
 
 #include "stack/include/pan_api.h"
 
-#include <base/logging.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
@@ -329,7 +328,7 @@ tPAN_RESULT PAN_Connect(const RawAddress& rem_bda, tPAN_ROLE src_role,
     return PAN_NO_RESOURCES;
   }
 
-  log::verbose("for BD Addr: {}", ADDRESS_TO_LOGGABLE_STR(rem_bda));
+  log::verbose("for BD Addr: {}", rem_bda);
   if (pcb->con_state == PAN_STATE_IDLE) {
     pan_cb.num_conns++;
   } else if (pcb->con_state == PAN_STATE_CONNECTED) {

@@ -15,7 +15,6 @@
  *
  */
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include <mutex>
@@ -84,10 +83,9 @@ struct AudioSetConfigurationProviderJson {
   static constexpr auto kDefaultScenario = "Media";
 
   AudioSetConfigurationProviderJson(types::CodecLocation location) {
-    dual_bidirection_swb_supported_ = osi_property_get_bool(
-        "bluetooth.leaudio.dual_bidirection_swb.supported", false);
-    ASSERT_LOG(LoadContent(kLeAudioSetConfigs, kLeAudioSetScenarios, location),
-               ": Unable to load le audio set configuration files.");
+    log::assert_that(
+        LoadContent(kLeAudioSetConfigs, kLeAudioSetScenarios, location),
+        ": Unable to load le audio set configuration files.");
   }
 
   /* Use the same scenario configurations for different contexts to avoid
@@ -176,11 +174,6 @@ struct AudioSetConfigurationProviderJson {
            AudioSetConfigurations>
       context_configurations_;
 
-  /* property to check if bidirectional sampling frequency >= 32k dual mic is
-   * supported or not
-   */
-  bool dual_bidirection_swb_supported_;
-
   static const fbs::le_audio::CodecSpecificConfiguration*
   LookupCodecSpecificParam(
       const flatbuffers::Vector<
@@ -223,8 +216,9 @@ struct AudioSetConfigurationProviderJson {
       auto ptr = param->data();
       uint32_t audio_channel_allocation;
 
-      ASSERT_LOG((param->size() == sizeof(audio_channel_allocation)),
-                 "invalid channel allocation value %d", (int)param->size());
+      log::assert_that((param->size() == sizeof(audio_channel_allocation)),
+                       "invalid channel allocation value {}",
+                       (int)param->size());
       STREAM_TO_UINT32(audio_channel_allocation, ptr);
       codec.channel_count_per_iso_stream =
           std::bitset<32>(audio_channel_allocation).count();
@@ -238,9 +232,7 @@ struct AudioSetConfigurationProviderJson {
 
   void SetConfigurationFromFlatSubconfig(
       const fbs::le_audio::AudioSetSubConfiguration* flat_subconfig,
-      QosConfigSetting qos, bool& dual_dev_one_chan_stereo_swb,
-      bool& single_dev_one_chan_stereo_swb,
-      std::vector<AseConfiguration>& subconfigs,
+      QosConfigSetting qos, std::vector<AseConfiguration>& subconfigs,
       types::CodecLocation location) {
     auto config = AseConfiguration(
         CodecConfigSettingFromFlat(flat_subconfig->codec_id(),
@@ -266,17 +258,6 @@ struct AudioSetConfigurationProviderJson {
         break;
     }
 
-    // Check for SWB support
-    if (config.codec.GetSamplingFrequencyHz() >=
-        le_audio::LeAudioCodecConfiguration::kSampleRate32000) {
-      if (flat_subconfig->device_cnt() == 2 && flat_subconfig->ase_cnt() == 2) {
-        dual_dev_one_chan_stereo_swb |= true;
-      }
-      if (flat_subconfig->device_cnt() == 1 && flat_subconfig->ase_cnt() == 2) {
-        single_dev_one_chan_stereo_swb |= true;
-      }
-    }
-
     // Store each ASE configuration
     for (auto i = flat_subconfig->ase_cnt(); i; --i) {
       subconfigs.push_back(std::move(config));
@@ -300,7 +281,7 @@ struct AudioSetConfigurationProviderJson {
       std::vector<const fbs::le_audio::CodecConfiguration*>* codec_cfgs,
       std::vector<const fbs::le_audio::QosConfiguration*>* qos_cfgs,
       types::CodecLocation location) {
-    ASSERT_LOG(flat_cfg != nullptr, "flat_cfg cannot be null");
+    log::assert_that(flat_cfg != nullptr, "flat_cfg cannot be null");
     std::string codec_config_key = flat_cfg->codec_config_name()->str();
     auto* qos_config_key_array = flat_cfg->qos_config_name();
 
@@ -372,8 +353,6 @@ struct AudioSetConfigurationProviderJson {
     }
 
     types::BidirectionalPair<std::vector<AseConfiguration>> subconfigs;
-    types::BidirectionalPair<bool> dual_dev_one_chan_stereo_swb;
-    types::BidirectionalPair<bool> single_dev_one_chan_stereo_swb;
     types::BidirectionalPair<uint8_t> device_cnt;
     types::BidirectionalPair<types::LeAudioConfigurationStrategy> strategy = {
         le_audio::types::LeAudioConfigurationStrategy::MONO_ONE_CIS_PER_DEVICE,
@@ -398,8 +377,6 @@ struct AudioSetConfigurationProviderJson {
         device_cnt.get(direction) = subconfig->device_cnt();
 
         processSubconfig(*subconfig, qos.get(direction),
-                         dual_dev_one_chan_stereo_swb.get(direction),
-                         single_dev_one_chan_stereo_swb.get(direction),
                          subconfigs.get(direction), location);
       }
     } else {
@@ -408,20 +385,6 @@ struct AudioSetConfigurationProviderJson {
       } else {
         log::error("Configuration '{}' has no valid subconfigurations.",
                    flat_cfg->name()->c_str());
-      }
-    }
-
-    if (!dual_bidirection_swb_supported_) {
-      if ((dual_dev_one_chan_stereo_swb.sink &&
-           dual_dev_one_chan_stereo_swb.source) ||
-          (single_dev_one_chan_stereo_swb.sink &&
-           single_dev_one_chan_stereo_swb.source)) {
-        return {
-            .name = flat_cfg->name()->c_str(),
-            .packing = bluetooth::hci::kIsoCigPackingSequential,
-            .confs = {},
-            .topology_info = {{device_cnt, strategy}},
-        };
       }
     }
 
@@ -435,13 +398,11 @@ struct AudioSetConfigurationProviderJson {
 
   void processSubconfig(
       const fbs::le_audio::AudioSetSubConfiguration& subconfig,
-      const QosConfigSetting& qos_setting, bool& dual_dev_one_chan_stereo_swb,
-      bool& single_dev_one_chan_stereo_swb,
+      const QosConfigSetting& qos_setting,
       std::vector<AseConfiguration>& subconfigs,
       types::CodecLocation location) {
-    SetConfigurationFromFlatSubconfig(
-        &subconfig, qos_setting, dual_dev_one_chan_stereo_swb,
-        single_dev_one_chan_stereo_swb, subconfigs, location);
+    SetConfigurationFromFlatSubconfig(&subconfig, qos_setting, subconfigs,
+                                      location);
   }
 
   bool LoadConfigurationsFromFiles(const char* schema_file,
@@ -599,13 +560,14 @@ struct AudioSetConfigurationProvider::impl {
       : config_provider_(config_provider) {}
 
   void Initialize(types::CodecLocation location) {
-    ASSERT_LOG(!config_provider_impl_, " Config provider not available.");
+    log::assert_that(!config_provider_impl_, "Config provider not available.");
     config_provider_impl_ =
         std::make_unique<AudioSetConfigurationProviderJson>(location);
   }
 
   void Cleanup() {
-    ASSERT_LOG(config_provider_impl_, " Config provider not available.");
+    log::assert_that(config_provider_impl_ != nullptr,
+                     "Config provider not available.");
     config_provider_impl_.reset();
   }
 
@@ -742,7 +704,7 @@ bool AudioSetConfigurationProvider::CheckConfigurationIsDualBiDirSwb(
       ++ase_cnt;
     }
 
-    ASSERT_LOG(
+    log::assert_that(
         set_configuration.topology_info.has_value(),
         "No topology info, which is required to properly configure the ASEs");
     if (set_configuration.topology_info->device_count.get(direction) == 1 &&

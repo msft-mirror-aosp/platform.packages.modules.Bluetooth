@@ -80,9 +80,13 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
 
     @Override
     @Nullable
-    public IBluetooth registerAdapter(@NonNull IBluetoothManagerCallback callback) {
+    public IBinder registerAdapter(@NonNull IBluetoothManagerCallback callback) {
         requireNonNull(callback, "Callback cannot be null in registerAdapter");
-        return mBluetoothManagerService.registerAdapter(callback);
+        IBluetooth bluetooth = mBluetoothManagerService.registerAdapter(callback);
+        if (bluetooth == null) {
+            return null;
+        }
+        return bluetooth.asBinder();
     }
 
     @Override
@@ -281,11 +285,6 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
         }
 
         return mBluetoothManagerService.disableBle(source.getPackageName(), token);
-    }
-
-    @Override
-    public boolean isBleAppPresent() {
-        return mBluetoothManagerService.isBleAppPresent();
     }
 
     @Override

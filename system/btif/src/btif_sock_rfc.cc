@@ -35,7 +35,6 @@
 #include "btif/include/btif_sock_sdp.h"
 #include "btif/include/btif_sock_thread.h"
 #include "btif/include/btif_sock_util.h"
-#include "include/check.h"
 #include "include/hardware/bt_sock.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
@@ -119,7 +118,8 @@ bt_status_t btsock_rfc_init(int poll_thread_handle, uid_set_t* set) {
     rfc_slots[i].fd = INVALID_FD;
     rfc_slots[i].app_fd = INVALID_FD;
     rfc_slots[i].incoming_queue = list_new(osi_free);
-    CHECK(rfc_slots[i].incoming_queue != NULL);
+    log::assert_that(rfc_slots[i].incoming_queue != NULL,
+                     "assert failed: rfc_slots[i].incoming_queue != NULL");
   }
 
   BTA_JvEnable(jv_dm_cback);
@@ -257,7 +257,15 @@ static rfc_slot_t* create_srv_accept_rfc_slot(rfc_slot_t* srv_rs,
   srv_rs->rfc_handle = new_listen_handle;
   srv_rs->rfc_port_handle = BTA_JvRfcommGetPortHdl(new_listen_handle);
 
-  CHECK(accept_rs->rfc_port_handle != srv_rs->rfc_port_handle);
+  if (accept_rs->rfc_port_handle == srv_rs->rfc_port_handle) {
+    log::error(
+        "accept_rs->rfc_port_handle == srv_rs->rfc_port_handle, "
+        "rfc_port_handle={}",
+        accept_rs->rfc_port_handle);
+  }
+  log::assert_that(
+      accept_rs->rfc_port_handle != srv_rs->rfc_port_handle,
+      "assert failed: accept_rs->rfc_port_handle != srv_rs->rfc_port_handle");
 
   // now swap the slot id
   uint32_t new_listen_id = accept_rs->id;
@@ -284,10 +292,12 @@ bt_status_t btsock_rfc_control_req(uint8_t dlci, const RawAddress& bd_addr,
 bt_status_t btsock_rfc_listen(const char* service_name,
                               const Uuid* service_uuid, int channel,
                               int* sock_fd, int flags, int app_uid) {
-  CHECK(sock_fd != NULL);
-  CHECK((service_uuid != NULL) ||
-        (channel >= 1 && channel <= MAX_RFC_CHANNEL) ||
-        ((flags & BTSOCK_FLAG_NO_SDP) != 0));
+  log::assert_that(sock_fd != NULL, "assert failed: sock_fd != NULL");
+  log::assert_that(
+      (service_uuid != NULL) || (channel >= 1 && channel <= MAX_RFC_CHANNEL) ||
+          ((flags & BTSOCK_FLAG_NO_SDP) != 0),
+      "assert failed: (service_uuid != NULL) || (channel >= 1 && channel <= "
+      "MAX_RFC_CHANNEL) || ((flags & BTSOCK_FLAG_NO_SDP) != 0)");
 
   *sock_fd = INVALID_FD;
 
@@ -344,8 +354,11 @@ bt_status_t btsock_rfc_listen(const char* service_name,
 bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
                                const Uuid* service_uuid, int channel,
                                int* sock_fd, int flags, int app_uid) {
-  CHECK(sock_fd != NULL);
-  CHECK((service_uuid != NULL) || (channel >= 1 && channel <= MAX_RFC_CHANNEL));
+  log::assert_that(sock_fd != NULL, "assert failed: sock_fd != NULL");
+  log::assert_that(
+      (service_uuid != NULL) || (channel >= 1 && channel <= MAX_RFC_CHANNEL),
+      "assert failed: (service_uuid != NULL) || (channel >= 1 && channel <= "
+      "MAX_RFC_CHANNEL)");
 
   *sock_fd = INVALID_FD;
 
@@ -363,8 +376,7 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
   rfc_slot_t* slot =
       alloc_rfc_slot(bd_addr, NULL, *service_uuid, channel, flags, false);
   if (!slot) {
-    log::error("unable to allocate RFCOMM slot. bd_addr:{}",
-               ADDRESS_TO_LOGGABLE_CSTR(*bd_addr));
+    log::error("unable to allocate RFCOMM slot. bd_addr:{}", *bd_addr);
     return BT_STATUS_FAIL;
   }
 
@@ -375,8 +387,7 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
     if (ret != tBTA_JV_STATUS::SUCCESS) {
       log::error(
           "unable to initiate RFCOMM connection. status:{}, scn:{}, bd_addr:{}",
-          bta_jv_status_text(ret), slot->scn,
-          ADDRESS_TO_LOGGABLE_CSTR(slot->addr));
+          bta_jv_status_text(ret), slot->scn, slot->addr);
       cleanup_rfc_slot(slot);
       return BT_STATUS_FAIL;
     }
@@ -388,8 +399,7 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
     }
   } else {
     log::info("service_uuid:{}, bd_addr:{}, slot_id:{}",
-              service_uuid->ToString(), ADDRESS_TO_LOGGABLE_CSTR(*bd_addr),
-              slot->id);
+              service_uuid->ToString(), *bd_addr, slot->id);
     if (!is_requesting_sdp()) {
       BTA_JvStartDiscovery(*bd_addr, 1, service_uuid, slot->id);
       slot->f.pending_sdp_request = false;
@@ -437,8 +447,7 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
     log::info(
         "disconnected from RFCOMM socket connections for device: {}, scn: {}, "
         "app_uid: {}, id: {}",
-        ADDRESS_TO_LOGGABLE_CSTR(slot->addr), slot->scn, slot->app_uid,
-        slot->id);
+        slot->addr, slot->scn, slot->app_uid, slot->id);
     btif_sock_connection_logger(
         slot->addr, slot->id, BTSOCK_RFCOMM,
         SOCKET_CONNECTION_STATE_DISCONNECTED,
@@ -481,8 +490,7 @@ static bool send_app_scn(rfc_slot_t* slot) {
     // already sent, just return success.
     return true;
   }
-  log::debug("Sending scn for slot {}. bd_addr:{}", slot->id,
-             ADDRESS_TO_LOGGABLE_CSTR(slot->addr));
+  log::debug("Sending scn for slot {}. bd_addr:{}", slot->id, slot->addr);
   slot->scn_notified = true;
   return sock_send_all(slot->fd, (const uint8_t*)&slot->scn,
                        sizeof(slot->scn)) == sizeof(slot->scn);
@@ -511,10 +519,10 @@ static void on_cl_rfc_init(tBTA_JV_RFCOMM_CL_INIT* p_init, uint32_t id) {
   rfc_slot_t* slot = find_rfc_slot_by_id(id);
   if (!slot) {
     log::error("RFCOMM slot with id {} not found. p_init->status={}", id,
-               bta_jv_status_text(p_init->status).c_str());
+               bta_jv_status_text(p_init->status));
   } else if (p_init->status != tBTA_JV_STATUS::SUCCESS) {
     log::warn("INIT unsuccessful, status {}. Cleaning up slot with id {}",
-              bta_jv_status_text(p_init->status).c_str(), slot->id);
+              bta_jv_status_text(p_init->status), slot->id);
     cleanup_rfc_slot(slot);
   } else {
     slot->rfc_handle = p_init->handle;
@@ -530,7 +538,7 @@ static void on_srv_rfc_listen_started(tBTA_JV_RFCOMM_START* p_start,
     return;
   } else if (p_start->status != tBTA_JV_STATUS::SUCCESS) {
     log::warn("START unsuccessful, status {}. Cleaning up slot with id {}",
-              bta_jv_status_text(p_start->status).c_str(), slot->id);
+              bta_jv_status_text(p_start->status), slot->id);
     cleanup_rfc_slot(slot);
     return;
   }
@@ -539,7 +547,7 @@ static void on_srv_rfc_listen_started(tBTA_JV_RFCOMM_START* p_start,
   log::info(
       "listening for RFCOMM socket connections for device: {}, scn: {}, "
       "app_uid: {}, id: {}",
-      ADDRESS_TO_LOGGABLE_CSTR(slot->addr), slot->scn, slot->app_uid, id);
+      slot->addr, slot->scn, slot->app_uid, id);
   btif_sock_connection_logger(
       slot->addr, slot->id, BTSOCK_RFCOMM, SOCKET_CONNECTION_STATE_LISTENING,
       slot->f.server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION,
@@ -564,8 +572,7 @@ static uint32_t on_srv_rfc_connect(tBTA_JV_RFCOMM_SRV_OPEN* p_open,
   log::info(
       "connected to RFCOMM socket connections for device: {}, scn: {}, "
       "app_uid: {}, id: {}",
-      ADDRESS_TO_LOGGABLE_CSTR(accept_rs->addr), accept_rs->scn,
-      accept_rs->app_uid, id);
+      accept_rs->addr, accept_rs->scn, accept_rs->app_uid, id);
   btif_sock_connection_logger(
       accept_rs->addr, accept_rs->id, BTSOCK_RFCOMM,
       SOCKET_CONNECTION_STATE_DISCONNECTED,
@@ -595,7 +602,7 @@ static void on_cli_rfc_connect(tBTA_JV_RFCOMM_OPEN* p_open, uint32_t id) {
 
   if (p_open->status != tBTA_JV_STATUS::SUCCESS) {
     log::warn("CONNECT unsuccessful, status {}. Cleaning up slot with id {}",
-              bta_jv_status_text(p_open->status).c_str(), slot->id);
+              bta_jv_status_text(p_open->status), slot->id);
     cleanup_rfc_slot(slot);
     return;
   }
@@ -606,7 +613,7 @@ static void on_cli_rfc_connect(tBTA_JV_RFCOMM_OPEN* p_open, uint32_t id) {
   log::info(
       "connected to RFCOMM socket connections for device: {}, scn: {}, "
       "app_uid: {}, id: {}",
-      ADDRESS_TO_LOGGABLE_CSTR(slot->addr), slot->scn, slot->app_uid, id);
+      slot->addr, slot->scn, slot->app_uid, id);
   btif_sock_connection_logger(
       slot->addr, slot->id, BTSOCK_RFCOMM, SOCKET_CONNECTION_STATE_CONNECTED,
       slot->f.server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION,
@@ -854,7 +861,7 @@ static void handle_discovery_comp(tBTA_JV_STATUS status, int scn, uint32_t id) {
     log::error(
         "SDP service discovery completed for slot id: {} with the result "
         "status: {}, scn: {}",
-        id, bta_jv_status_text(status).c_str(), scn);
+        id, bta_jv_status_text(status), scn);
     cleanup_rfc_slot(slot);
     return;
   }
@@ -1066,7 +1073,7 @@ int bta_co_rfc_data_outgoing(uint32_t id, uint8_t* buf, uint16_t size) {
 }
 
 bt_status_t btsock_rfc_disconnect(const RawAddress* bd_addr) {
-  CHECK(bd_addr != NULL);
+  log::assert_that(bd_addr != NULL, "assert failed: bd_addr != NULL");
   if (!is_init_done()) {
     log::error("BT not ready");
     return BT_STATUS_NOT_READY;

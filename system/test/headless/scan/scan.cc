@@ -20,7 +20,6 @@
 
 #include <bluetooth/log.h>
 
-#include "base/logging.h"  // LOG() stdout and android log
 #include "os/log.h"
 #include "test/headless/get_options.h"
 #include "test/headless/headless.h"
@@ -39,7 +38,9 @@ namespace {
 int start_scan([[maybe_unused]] unsigned int num_loops) {
   log::info("Started Device Scan");
 
-  ASSERT(bluetoothInterface.start_discovery() == BT_STATUS_SUCCESS);
+  log::assert_that(bluetoothInterface.start_discovery() == BT_STATUS_SUCCESS,
+                   "assert failed: bluetoothInterface.start_discovery() == "
+                   "BT_STATUS_SUCCESS");
   LOG_CONSOLE("Started inquiry - device discovery");
 
   headless::messenger::Context context{

@@ -28,7 +28,6 @@
 
 #include <base/at_exit.h>
 #include <base/functional/bind.h>
-#include <base/logging.h>
 #include <base/threading/thread.h>
 #include <bluetooth/log.h>
 #include <hardware/bluetooth.h>
@@ -145,8 +144,7 @@ static void btif_gattc_upstreams_evt(uint16_t event, char* p_param) {
     }
 
     case BTA_GATTC_OPEN_EVT: {
-      log::debug("BTA_GATTC_OPEN_EVT {}",
-                 ADDRESS_TO_LOGGABLE_CSTR(p_data->open.remote_bda));
+      log::debug("BTA_GATTC_OPEN_EVT {}", p_data->open.remote_bda);
       HAL_CBACK(bt_gatt_callbacks, client->open_cb, p_data->open.conn_id,
                 p_data->open.status, p_data->open.client_if,
                 p_data->open.remote_bda);
@@ -358,7 +356,7 @@ static bt_status_t btif_gattc_open(int client_if, const RawAddress& bd_addr,
 
 void btif_gattc_close_impl(int client_if, RawAddress address, int conn_id) {
   log::info("client_if={}, conn_id={}, address={}", client_if, conn_id,
-            ADDRESS_TO_LOGGABLE_CSTR(address));
+            address);
   // Disconnect established connections
   if (conn_id != 0) {
     BTA_GATTC_Close(conn_id);
@@ -422,7 +420,8 @@ void read_char_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
   params->status = status;
   params->handle = handle;
   params->value.len = len;
-  CHECK(len <= GATT_MAX_ATTR_LEN);
+  log::assert_that(len <= GATT_MAX_ATTR_LEN,
+                   "assert failed: len <= GATT_MAX_ATTR_LEN");
   if (len > 0) memcpy(params->value.value, value, len);
 
   // clang-tidy analyzer complains about |params| is leaked.  It doesn't know
@@ -446,7 +445,8 @@ void read_using_char_uuid_cb(uint16_t conn_id, tGATT_STATUS status,
   params->status = status;
   params->handle = handle;
   params->value.len = len;
-  CHECK(len <= GATT_MAX_ATTR_LEN);
+  log::assert_that(len <= GATT_MAX_ATTR_LEN,
+                   "assert failed: len <= GATT_MAX_ATTR_LEN");
   if (len > 0) memcpy(params->value.value, value, len);
 
   // clang-tidy analyzer complains about |params| is leaked.  It doesn't know
@@ -473,7 +473,8 @@ void read_desc_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
   params.status = status;
   params.handle = handle;
   params.value.len = len;
-  CHECK(len <= GATT_MAX_ATTR_LEN);
+  log::assert_that(len <= GATT_MAX_ATTR_LEN,
+                   "assert failed: len <= GATT_MAX_ATTR_LEN");
   if (len > 0) memcpy(params.value.value, value, len);
 
   CLI_CBACK_IN_JNI(read_descriptor_cb, conn_id, status, params);

@@ -73,13 +73,6 @@ flag {
 }
 
 flag {
-    name: "brcm_better_le_scan_params"
-    namespace: "bluetooth"
-    description: "Optimize LE scan parameters for BRCM controllers"
-    bug: "324238597"
-}
-
-flag {
     name: "le_periodic_scanning_reassembler"
     namespace: "bluetooth"
     description: "Enable reassembly of LE periodic advertising events"
@@ -169,6 +162,36 @@ flag {
     namespace: "bluetooth"
     description: "If a scan record has multiple datas under same manufacturer id, merge the values"
     bug: "331723396"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "msft_addr_tracking_quirk"
+    namespace: "bluetooth"
+    description: "Scanning with MSFT paddress tracking for Realtek BT controllers"
+    bug: "332438857"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "gatt_server_add_handler_to_run_callbacks_on"
+    namespace: "bluetooth"
+    description: "Make BluetoothGattServer able to run callbacks on specified Handler"
+    bug: "333332161"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "gatt_rediscover_on_canceled"
+    namespace: "bluetooth"
+    description: "Re-initiate discovery if the previous discovery is canceled for multiple GATT clients"
+    bug: "335082571"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

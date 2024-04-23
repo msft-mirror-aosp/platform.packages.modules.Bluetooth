@@ -68,7 +68,9 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
       ::grpc::ServerWriter<ConnectionEvent>* writer) override {
     log::info("peer={}", request->address());
     Address peer;
-    ASSERT(Address::FromString(request->address(), peer));
+    log::assert_that(
+        Address::FromString(request->address(), peer),
+        "assert failed: Address::FromString(request->address(), peer)");
     acl_manager_->CreateConnection(peer);
     if (per_connection_events_.size() > current_connection_request_) {
       return ::grpc::Status(::grpc::StatusCode::RESOURCE_EXHAUSTED, "Only one outstanding request is supported");
@@ -317,7 +319,7 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
 
   std::unique_ptr<BasePacketBuilder> enqueue_packet(const AclData* request, std::promise<void> promise) {
     auto connection = acl_connections_.find(request->handle());
-    ASSERT_LOG(connection != acl_connections_.end(), "handle %d", request->handle());
+    log::assert_that(connection != acl_connections_.end(), "handle {}", request->handle());
     connection->second.connection_->GetAclQueueEnd()->UnregisterEnqueue();
     std::unique_ptr<RawBuilder> packet =
         std::make_unique<RawBuilder>(std::vector<uint8_t>(request->payload().begin(), request->payload().end()));
@@ -347,13 +349,10 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
   }
 
   void on_incoming_acl(std::shared_ptr<ClassicAclConnection> connection, uint16_t handle) {
-    log::info(
-        "handle={}, addr={}",
-        connection->GetHandle(),
-        ADDRESS_TO_LOGGABLE_CSTR(connection->GetAddress()));
+    log::info("handle={}, addr={}", connection->GetHandle(), connection->GetAddress());
     auto packet = connection->GetAclQueueEnd()->TryDequeue();
     auto connection_tracker = acl_connections_.find(handle);
-    ASSERT_LOG(connection_tracker != acl_connections_.end(), "handle %d", handle);
+    log::assert_that(connection_tracker != acl_connections_.end(), "handle {}", handle);
     AclData acl_data;
     acl_data.set_handle(handle);
     acl_data.set_payload(std::string(packet->begin(), packet->end()));
@@ -362,10 +361,7 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
   }
 
   void OnConnectSuccess(std::unique_ptr<ClassicAclConnection> connection) override {
-    log::info(
-        "handle={}, addr={}",
-        connection->GetHandle(),
-        ADDRESS_TO_LOGGABLE_CSTR(connection->GetAddress()));
+    log::info("handle={}, addr={}", connection->GetHandle(), connection->GetAddress());
     std::unique_lock<std::mutex> lock(acl_connections_mutex_);
     std::shared_ptr<ClassicAclConnection> shared_connection = std::move(connection);
     uint16_t handle = to_handle(current_connection_request_);
@@ -393,7 +389,7 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
   }
 
   void OnConnectFail(Address address, ErrorCode reason, bool /* locally_initiated */) override {
-    log::info("addr={}, reason={}", ADDRESS_TO_LOGGABLE_CSTR(address), ErrorCodeText(reason));
+    log::info("addr={}, reason={}", address, ErrorCodeText(reason));
     std::unique_ptr<BasePacketBuilder> builder =
         ConnectionCompleteBuilder::Create(reason, 0, address, LinkType::ACL, Enable::DISABLED);
     ConnectionEvent fail;

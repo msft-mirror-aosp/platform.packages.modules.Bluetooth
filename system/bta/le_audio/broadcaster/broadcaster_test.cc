@@ -893,6 +893,8 @@ static const broadcaster::BroadcastSubgroupCodecConfig vendor_stereo_16_2 =
         {broadcaster::BroadcastSubgroupBisCodecConfig{
             // num_bis
             2,
+            // bis_channel_cnt
+            1,
             // codec_specific
             types::LeAudioLtvMap({
                 LTV_ENTRY_SAMPLING_FREQUENCY(
@@ -928,13 +930,11 @@ TEST_F(BroadcasterTest, VendorCodecConfig) {
   ConfigCodecManagerMock(types::CodecLocation::HOST);
 
   ON_CALL(*mock_codec_manager_, GetBroadcastConfig)
-      .WillByDefault(Invoke(
-          [](const std::vector<std::pair<types::LeAudioContextType, uint8_t>>&
-                 subgroup_quality,
-             std::optional<const types::PublishedAudioCapabilities*> pacs) {
-            return std::make_unique<broadcaster::BroadcastConfiguration>(
-                vendor_stereo_16_2_1);
-          }));
+      .WillByDefault(Invoke([](const bluetooth::le_audio::CodecManager::
+                                   BroadcastConfigurationRequirements&) {
+        return std::make_unique<broadcaster::BroadcastConfiguration>(
+            vendor_stereo_16_2_1);
+      }));
   ContentControlIdKeeper::GetInstance()->SetCcid(LeAudioContextType::MEDIA,
                                                  media_ccid);
 

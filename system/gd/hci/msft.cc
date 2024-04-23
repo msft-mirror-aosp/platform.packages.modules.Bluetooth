@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#if TARGET_FLOSS
 #include "hci/msft.h"
 
+#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
 #include <hardware/bt_common_types.h>
 
@@ -84,7 +86,7 @@ struct MsftExtensionManager::impl {
   }
 
   void handle_le_monitor_device_event(MsftLeMonitorDeviceEventPayloadView view) {
-    ASSERT(view.IsValid());
+    log::assert_that(view.IsValid(), "assert failed: view.IsValid()");
 
     // The monitor state is 0x00 when the controller stops monitoring the device.
     if (view.GetMonitorState() == 0x00 || view.GetMonitorState() == 0x01) {
@@ -111,7 +113,7 @@ struct MsftExtensionManager::impl {
 
     auto msft_view = MsftEventPayloadView::Create(
         payload.GetLittleEndianSubview(msft_.prefix.size() - 1, payload.size()));
-    ASSERT(msft_view.IsValid());
+    log::assert_that(msft_view.IsValid(), "assert failed: msft_view.IsValid()");
 
     MsftEventCode ev_code = msft_view.GetMsftEventCode();
     switch (ev_code) {
@@ -142,6 +144,31 @@ struct MsftExtensionManager::impl {
     if (!supports_msft_extensions()) {
       log::warn("Disallowed as MSFT extension is not supported.");
       return;
+    }
+
+    if (IS_FLAG_ENABLED(msft_addr_tracking_quirk)) {
+      if (monitor.condition_type != MSFT_CONDITION_TYPE_ADDRESS &&
+          monitor.condition_type != MSFT_CONDITION_TYPE_PATTERNS) {
+        log::warn("Disallowed as MSFT condition type {} is not supported.", monitor.condition_type);
+        return;
+      }
+
+      if (monitor.condition_type == MSFT_CONDITION_TYPE_ADDRESS) {
+        msft_adv_monitor_add_cb_ = cb;
+        Address addr;
+        Address::FromString(monitor.addr_info.bd_addr.ToString(), addr);
+        hci_layer_->EnqueueCommand(
+            MsftLeMonitorAdvConditionAddressBuilder::Create(
+                static_cast<OpCode>(msft_.opcode.value()),
+                monitor.rssi_threshold_high,
+                monitor.rssi_threshold_low,
+                monitor.rssi_threshold_low_time_interval,
+                monitor.rssi_sampling_period,
+                monitor.addr_info.addr_type,
+                addr),
+            module_handler_->BindOnceOn(this, &impl::on_msft_adv_monitor_add_complete));
+        return;
+      }
     }
 
     std::vector<MsftLeMonitorAdvConditionPattern> patterns;
@@ -207,9 +234,9 @@ struct MsftExtensionManager::impl {
    * Vendor Specific events. Also get the MSFT supported features.
    */
   void on_msft_read_supported_features_complete(CommandCompleteView view) {
-    ASSERT(view.IsValid());
+    log::assert_that(view.IsValid(), "assert failed: view.IsValid()");
     auto status_view = MsftReadSupportedFeaturesCommandCompleteView::Create(MsftCommandCompleteView::Create(view));
-    ASSERT(status_view.IsValid());
+    log::assert_that(status_view.IsValid(), "assert failed: status_view.IsValid()");
 
     if (status_view.GetStatus() != ErrorCode::SUCCESS) {
       log::warn("MSFT Command complete status {}", ErrorCodeText(status_view.GetStatus()));
@@ -245,10 +272,10 @@ struct MsftExtensionManager::impl {
   }
 
   void on_msft_adv_monitor_add_complete(CommandCompleteView view) {
-    ASSERT(view.IsValid());
+    log::assert_that(view.IsValid(), "assert failed: view.IsValid()");
     auto status_view =
         MsftLeMonitorAdvCommandCompleteView::Create(MsftCommandCompleteView::Create(view));
-    ASSERT(status_view.IsValid());
+    log::assert_that(status_view.IsValid(), "assert failed: status_view.IsValid()");
 
     MsftSubcommandOpcode sub_opcode = status_view.GetSubcommandOpcode();
     if (sub_opcode != MsftSubcommandOpcode::MSFT_LE_MONITOR_ADV) {
@@ -260,10 +287,10 @@ struct MsftExtensionManager::impl {
   }
 
   void on_msft_adv_monitor_remove_complete(CommandCompleteView view) {
-    ASSERT(view.IsValid());
+    log::assert_that(view.IsValid(), "assert failed: view.IsValid()");
     auto status_view =
         MsftLeCancelMonitorAdvCommandCompleteView::Create(MsftCommandCompleteView::Create(view));
-    ASSERT(status_view.IsValid());
+    log::assert_that(status_view.IsValid(), "assert failed: status_view.IsValid()");
 
     MsftSubcommandOpcode sub_opcode = status_view.GetSubcommandOpcode();
     if (sub_opcode != MsftSubcommandOpcode::MSFT_LE_CANCEL_MONITOR_ADV) {
@@ -275,10 +302,10 @@ struct MsftExtensionManager::impl {
   }
 
   void on_msft_adv_monitor_enable_complete(CommandCompleteView view) {
-    ASSERT(view.IsValid());
+    log::assert_that(view.IsValid(), "assert failed: view.IsValid()");
     auto status_view =
         MsftLeSetAdvFilterEnableCommandCompleteView::Create(MsftCommandCompleteView::Create(view));
-    ASSERT(status_view.IsValid());
+    log::assert_that(status_view.IsValid(), "assert failed: status_view.IsValid()");
 
     MsftSubcommandOpcode sub_opcode = status_view.GetSubcommandOpcode();
     if (sub_opcode != MsftSubcommandOpcode::MSFT_LE_SET_ADV_FILTER_ENABLE) {
@@ -352,3 +379,4 @@ void MsftExtensionManager::SetScanningCallback(ScanningCallback* callbacks) {
 
 }  // namespace hci
 }  // namespace bluetooth
+#endif

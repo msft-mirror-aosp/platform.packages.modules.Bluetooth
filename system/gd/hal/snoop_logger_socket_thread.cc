@@ -19,13 +19,11 @@
 #include "hal/snoop_logger_socket_thread.h"
 
 #include <arpa/inet.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <string.h>
 #include <sys/prctl.h>
 #include <sys/socket.h>

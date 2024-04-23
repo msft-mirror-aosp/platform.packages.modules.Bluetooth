@@ -46,6 +46,7 @@ import android.util.Log;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
@@ -357,8 +358,11 @@ public class HeadsetStateMachine extends StateMachine {
             intent.putExtra(BluetoothProfile.EXTRA_STATE, toState);
             intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
             intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-            mHeadsetService.sendBroadcastAsUser(intent, UserHandle.ALL,
-                    BLUETOOTH_CONNECT, Utils.getTempAllowlistBroadcastOptions());
+            mHeadsetService.sendBroadcastAsUser(
+                    intent,
+                    UserHandle.ALL,
+                    BLUETOOTH_CONNECT,
+                    Utils.getTempBroadcastOptions().toBundle());
         }
 
         // Should not be called from enter() method
@@ -376,8 +380,11 @@ public class HeadsetStateMachine extends StateMachine {
             intent.putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, fromState);
             intent.putExtra(BluetoothProfile.EXTRA_STATE, toState);
             intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
-            mHeadsetService.sendBroadcastAsUser(intent, UserHandle.ALL,
-                    BLUETOOTH_CONNECT, Utils.getTempAllowlistBroadcastOptions());
+            mHeadsetService.sendBroadcastAsUser(
+                    intent,
+                    UserHandle.ALL,
+                    BLUETOOTH_CONNECT,
+                    Utils.getTempBroadcastOptions().toBundle());
         }
 
         /**
@@ -580,7 +587,8 @@ public class HeadsetStateMachine extends StateMachine {
                                 BluetoothProtoEnums.RESULT_FAILURE,
                                 BluetoothProfile.STATE_DISCONNECTED,
                                 BluetoothProfile.STATE_DISCONNECTED,
-                                BluetoothProtoEnums.REASON_NATIVE_LAYER_REJECTED);
+                                BluetoothProtoEnums.REASON_NATIVE_LAYER_REJECTED,
+                                MetricsLogger.getInstance().getRemoteDeviceInfoProto(mDevice));
                         break;
                     }
                     transitionTo(mConnecting);
@@ -648,7 +656,8 @@ public class HeadsetStateMachine extends StateMachine {
                                 BluetoothProtoEnums.RESULT_FAILURE,
                                 BluetoothProfile.STATE_DISCONNECTED,
                                 BluetoothProfile.STATE_DISCONNECTED,
-                                BluetoothProtoEnums.REASON_INCOMING_CONN_REJECTED);
+                                BluetoothProtoEnums.REASON_INCOMING_CONN_REJECTED,
+                                MetricsLogger.getInstance().getRemoteDeviceInfoProto(mDevice));
                     }
                     break;
                 case HeadsetHalConstants.CONNECTION_STATE_DISCONNECTING:
@@ -675,7 +684,8 @@ public class HeadsetStateMachine extends StateMachine {
                         result,
                         mPrevState.getConnectionStateInt(),
                         BluetoothProfile.STATE_DISCONNECTED,
-                        BluetoothProtoEnums.REASON_UNEXPECTED_STATE);
+                        BluetoothProtoEnums.REASON_UNEXPECTED_STATE,
+                        MetricsLogger.getInstance().getRemoteDeviceInfoProto(mDevice));
             }
         }
     }
@@ -1318,7 +1328,8 @@ public class HeadsetStateMachine extends StateMachine {
                         BluetoothProtoEnums.RESULT_SUCCESS,
                         mPrevState.getConnectionStateInt(),
                         BluetoothProfile.STATE_CONNECTED,
-                        BluetoothProtoEnums.REASON_SUCCESS);
+                        BluetoothProtoEnums.REASON_SUCCESS,
+                        MetricsLogger.getInstance().getRemoteDeviceInfoProto(mDevice));
             }
         }
     }
@@ -1729,8 +1740,11 @@ public class HeadsetStateMachine extends StateMachine {
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.addCategory(BluetoothHeadset.VENDOR_SPECIFIC_HEADSET_EVENT_COMPANY_ID_CATEGORY + "."
                 + Integer.toString(companyId));
-        mHeadsetService.sendBroadcastAsUser(intent, UserHandle.ALL, BLUETOOTH_CONNECT,
-                Utils.getTempAllowlistBroadcastOptions());
+        mHeadsetService.sendBroadcastAsUser(
+                intent,
+                UserHandle.ALL,
+                BLUETOOTH_CONNECT,
+                Utils.getTempBroadcastOptions().toBundle());
     }
 
     private void setAudioParameters() {
@@ -2493,8 +2507,8 @@ public class HeadsetStateMachine extends StateMachine {
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.putExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_ID, indId);
         intent.putExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_VALUE, indValue);
-        Utils.sendBroadcast(mHeadsetService, intent, BLUETOOTH_CONNECT,
-                Utils.getTempAllowlistBroadcastOptions());
+        mHeadsetService.sendBroadcast(
+                intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
     }
 
     private void processAtBind(String atString, BluetoothDevice device) {

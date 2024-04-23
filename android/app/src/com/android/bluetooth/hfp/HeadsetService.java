@@ -158,7 +158,7 @@ public class HeadsetService extends ProfileService {
     @VisibleForTesting boolean mIsAptXSwbEnabled = false;
     @VisibleForTesting boolean mIsAptXSwbPmEnabled = false;
 
-    private final ServiceFactory mFactory = new ServiceFactory();
+    @VisibleForTesting ServiceFactory mFactory = new ServiceFactory();
 
     public HeadsetService(Context ctx) {
         super(ctx);
@@ -782,7 +782,8 @@ public class HeadsetService extends ProfileService {
 
             if (Flags.audioRoutingCentralization()) {
                 return ((AudioRoutingManager) service.mAdapterService.getActiveDeviceManager())
-                        .activateDeviceProfile(device, BluetoothProfile.HEADSET);
+                        .activateDeviceProfile(device, BluetoothProfile.HEADSET)
+                        .join();
             }
 
             return service.setActiveDevice(device);
@@ -1353,6 +1354,21 @@ public class HeadsetService extends ProfileService {
             }
             BluetoothDevice previousActiveDevice = mActiveDevice;
             mActiveDevice = device;
+
+            /* If HFP is getting active for a phone call and there are active LE Audio devices,
+             * Lets inactive LeAudio device as soon as possible so there is no CISes connected
+             * when SCO is going to be created
+             */
+            if (mSystemInterface.isInCall() || mSystemInterface.isRinging()) {
+                LeAudioService leAudioService = mFactory.getLeAudioService();
+                if (leAudioService != null
+                        && !leAudioService.getConnectedDevices().isEmpty()
+                        && Flags.leaudioResumeActiveAfterHfpHandover()) {
+                    Log.i(TAG, "Make sure no le audio device active for HFP handover.");
+                    leAudioService.setInactiveForHfpHandover(mActiveDevice);
+                }
+            }
+
             if (getAudioState(previousActiveDevice) != BluetoothHeadset.STATE_AUDIO_DISCONNECTED) {
                 int disconnectStatus = disconnectAudio(previousActiveDevice);
                 if (disconnectStatus != BluetoothStatusCodes.SUCCESS) {
@@ -1382,7 +1398,7 @@ public class HeadsetService extends ProfileService {
                  * when SCO is created
                  */
                 LeAudioService leAudioService = mFactory.getLeAudioService();
-                if (leAudioService != null) {
+                if (leAudioService != null && !Flags.leaudioResumeActiveAfterHfpHandover()) {
                     Log.i(TAG, "Make sure there is no le audio device active.");
                     leAudioService.setInactiveForHfpHandover(mActiveDevice);
                 }
@@ -1899,12 +1915,25 @@ public class HeadsetService extends ProfileService {
                 if (currentPolicy != null && currentPolicy.getActiveDevicePolicyAfterConnection()
                         == BluetoothSinkAudioPolicy.POLICY_NOT_ALLOWED) {
                     /**
-                     * If the active device was set because of the pick up audio policy
-                     * and the connecting policy is NOT_ALLOWED, then after the call is
-                     * terminated, we must de-activate this device.
-                     * If there is a fallback mechanism, we should follow it.
+                     * If the active device was set because of the pick up audio policy and the
+                     * connecting policy is NOT_ALLOWED, then after the call is terminated, we must
+                     * de-activate this device. If there is a fallback mechanism, we should follow
+                     * it to set fallback device be active.
                      */
                     removeActiveDevice();
+                    if (Flags.sinkAudioPolicyHandover()) {
+                        BluetoothDevice fallbackDevice = getFallbackDevice();
+                        if (fallbackDevice != null
+                                && getConnectionState(fallbackDevice)
+                                        == BluetoothProfile.STATE_CONNECTED) {
+                            Log.d(
+                                    TAG,
+                                    "BluetoothSinkAudioPolicy set fallbackDevice="
+                                            + fallbackDevice
+                                            + " active");
+                            setActiveDevice(fallbackDevice);
+                        }
+                    }
                 }
             }
         }
@@ -2137,6 +2166,18 @@ public class HeadsetService extends ProfileService {
                                 + "voice call");
                     }
                 }
+                // Resumes LE audio previous active device if HFP handover happened before.
+                // Do it here because some controllers cannot handle SCO and CIS
+                // co-existence see {@link LeAudioService#setInactiveForHfpHandover}
+                if (Flags.leaudioResumeActiveAfterHfpHandover()) {
+                    LeAudioService leAudioService = mFactory.getLeAudioService();
+                    if (leAudioService != null
+                            && !leAudioService.getConnectedDevices().isEmpty()
+                            && leAudioService.getActiveDevices().get(0) == null) {
+                        leAudioService.setActiveAfterHfpHandover();
+                    }
+                }
+
                 // Unsuspend A2DP when SCO connection is gone and call state is idle
                 if (mSystemInterface.isCallIdle()) {
                     mSystemInterface.getAudioManager().setA2dpSuspended(false);
@@ -2163,8 +2204,11 @@ public class HeadsetService extends ProfileService {
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                 | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-        sendBroadcastAsUser(intent, UserHandle.ALL, BLUETOOTH_CONNECT,
-                Utils.getTempAllowlistBroadcastOptions());
+        sendBroadcastAsUser(
+                intent,
+                UserHandle.ALL,
+                BLUETOOTH_CONNECT,
+                Utils.getTempBroadcastOptions().toBundle());
     }
 
     /**

@@ -53,6 +53,7 @@ import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
+import com.android.bluetooth.flags.Flags;
 import com.android.obex.HeaderSet;
 import com.android.obex.ObexTransport;
 import com.android.obex.Operation;
@@ -426,6 +427,18 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
                     msg.obj = mInfo;
                     msg.sendToTarget();
                 }
+
+                if (Flags.oppRemoveIncompleteDownload() && mFileInfo.mInsertUri != null) {
+                    Log.d(
+                        TAG,
+                        "Download failed. Removing the file. Uri=" + mFileInfo.mInsertUri);
+                    BluetoothMethodProxy.getInstance()
+                            .contentResolverDelete(
+                                    mContext.getContentResolver(),
+                                    mFileInfo.mInsertUri,
+                                    null,
+                                    null);
+                }
             }
         } else if (mAccepted == BluetoothShare.USER_CONFIRMATION_DENIED
                 || mAccepted == BluetoothShare.USER_CONFIRMATION_TIMEOUT) {
@@ -647,8 +660,10 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
                         Constants.COUNT_HEADER_UNAVAILABLE);
             }
             intent.putExtra(Constants.EXTRA_BT_OPP_ADDRESS, destination);
-            Utils.sendBroadcast(mContext, intent, Constants.HANDOVER_STATUS_PERMISSION,
-                    Utils.getTempAllowlistBroadcastOptions());
+            mContext.sendBroadcast(
+                    intent,
+                    Constants.HANDOVER_STATUS_PERMISSION,
+                    Utils.getTempBroadcastOptions().toBundle());
         }
         mTimestamp = System.currentTimeMillis();
         mNumFilesAttemptedToReceive = 0;

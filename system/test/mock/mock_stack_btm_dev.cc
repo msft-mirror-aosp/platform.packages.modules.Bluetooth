@@ -22,7 +22,6 @@
 #include "test/mock/mock_stack_btm_dev.h"
 
 #include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #include <string>
@@ -51,10 +50,6 @@ void BTM_SecAddDevice(const RawAddress& /* bd_addr */,
   inc_func_call_count(__func__);
 }
 bool BTM_SecDeleteDevice(const RawAddress& /* bd_addr */) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool btm_dev_support_role_switch(const RawAddress& /* bd_addr */) {
   inc_func_call_count(__func__);
   return false;
 }

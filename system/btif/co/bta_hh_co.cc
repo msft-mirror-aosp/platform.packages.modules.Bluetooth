@@ -19,13 +19,11 @@
 #include "bta_hh_co.h"
 
 #include <android_bluetooth_flags.h>
-#include <base/logging.h>
 #include <fcntl.h>
 #include <linux/uhid.h>
 #include <poll.h>
 #include <pthread.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -34,7 +32,6 @@
 #include "bta_hh_api.h"
 #include "btif_hh.h"
 #include "hci/controller_interface.h"
-#include "include/check.h"
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
@@ -49,7 +46,7 @@ const char* dev_path = "/dev/uhid";
 static tBTA_HH_RPT_CACHE_ENTRY sReportCache[BTA_HH_NV_LOAD_MAX];
 #define BTA_HH_CACHE_REPORT_VERSION 1
 #define THREAD_NORMAL_PRIORITY 0
-#define BT_HH_THREAD "bt_hh_thread"
+#define BT_HH_THREAD_PREFIX "bt_hh_"
 #define BTA_HH_UHID_POLL_PERIOD_MS 50
 /* Max number of polling interrupt allowed */
 #define BTA_HH_UHID_INTERRUPT_COUNT_MAX 100
@@ -146,7 +143,7 @@ static int uhid_write(int fd, const struct uhid_event* ev) {
 
 /* Internal function to parse the events received from UHID driver*/
 static int uhid_read_event(btif_hh_device_t* p_dev) {
-  CHECK(p_dev);
+  log::assert_that(p_dev != nullptr, "assert failed: p_dev != nullptr");
 
   struct uhid_event ev;
   memset(&ev, 0, sizeof(ev));
@@ -273,8 +270,7 @@ static void uhid_fd_close(btif_hh_device_t* p_dev) {
     struct uhid_event ev = {};
     ev.type = UHID_DESTROY;
     uhid_write(p_dev->fd, &ev);
-    log::debug("Closing fd={}, addr:{}", p_dev->fd,
-               ADDRESS_TO_LOGGABLE_CSTR(p_dev->link_spec));
+    log::debug("Closing fd={}, addr:{}", p_dev->fd, p_dev->link_spec);
     close(p_dev->fd);
     p_dev->fd = -1;
   }
@@ -297,6 +293,90 @@ static bool uhid_fd_open(btif_hh_device_t* p_dev) {
   return true;
 }
 
+static int uhid_fd_poll(btif_hh_device_t* p_dev,
+                        std::array<struct pollfd, 1>& pfds) {
+  int ret = 0;
+  int counter = 0;
+
+  do {
+    if (IS_FLAG_ENABLED(break_uhid_polling_early) && !p_dev->hh_keep_polling) {
+      log::debug("Polling stopped");
+      return -1;
+    }
+
+    if (counter++ > BTA_HH_UHID_INTERRUPT_COUNT_MAX) {
+      log::error("Polling interrupted consecutively {} times",
+                 BTA_HH_UHID_INTERRUPT_COUNT_MAX);
+      return -1;
+    }
+
+    ret = poll(pfds.data(), pfds.size(), BTA_HH_UHID_POLL_PERIOD_MS);
+  } while (ret == -1 && errno == EINTR);
+
+  if (!IS_FLAG_ENABLED(break_uhid_polling_early)) {
+    if (ret == 0) {
+      log::debug("Polling timed out, attempt to read (old behavior)");
+      return 1;
+    }
+  }
+
+  return ret;
+}
+
+static void uhid_start_polling(btif_hh_device_t* p_dev) {
+  std::array<struct pollfd, 1> pfds = {};
+  pfds[0].fd = p_dev->fd;
+  pfds[0].events = POLLIN;
+
+  while (p_dev->hh_keep_polling) {
+    int ret = uhid_fd_poll(p_dev, pfds);
+
+    if (ret < 0) {
+      log::error("Cannot poll for fds: {}\n", strerror(errno));
+      break;
+    } else if (ret == 0) {
+      /* Poll timeout, poll again */
+      continue;
+    }
+
+    /* At least one of the fd is ready */
+    if (pfds[0].revents & POLLIN) {
+      log::verbose("POLLIN");
+      int result = uhid_read_event(p_dev);
+      if (result != 0) {
+        log::error("Unhandled UHID event, error: {}", result);
+        break;
+      }
+    }
+  }
+}
+
+static bool uhid_configure_thread(btif_hh_device_t* p_dev) {
+  pid_t pid = gettid();
+  // This thread is created by bt_main_thread with RT priority. Lower the thread
+  // priority here since the tasks in this thread is not timing critical.
+  struct sched_param sched_params;
+  sched_params.sched_priority = THREAD_NORMAL_PRIORITY;
+  if (sched_setscheduler(pid, SCHED_OTHER, &sched_params)) {
+    log::error("Failed to set thread priority to normal: {}", strerror(errno));
+    return false;
+  }
+
+  // Change the name of thread
+  char thread_name[16] = {};
+  sprintf(thread_name, BT_HH_THREAD_PREFIX "%02x:%02x",
+          p_dev->link_spec.addrt.bda.address[4],
+          p_dev->link_spec.addrt.bda.address[5]);
+  pthread_setname_np(pthread_self(), thread_name);
+  log::debug("Host hid polling thread created name:{} pid:{} fd:{}",
+             thread_name, pid, p_dev->fd);
+
+  // Set the uhid fd as non-blocking to ensure we never block the BTU thread
+  uhid_set_non_blocking(p_dev->fd);
+
+  return true;
+}
+
 /*******************************************************************************
  *
  * Function btif_hh_poll_event_thread
@@ -308,60 +388,13 @@ static bool uhid_fd_open(btif_hh_device_t* p_dev) {
  ******************************************************************************/
 static void* btif_hh_poll_event_thread(void* arg) {
   btif_hh_device_t* p_dev = (btif_hh_device_t*)arg;
-  struct pollfd pfds[1];
-  pid_t pid = gettid();
 
-  // This thread is created by bt_main_thread with RT priority. Lower the thread
-  // priority here since the tasks in this thread is not timing critical.
-  struct sched_param sched_params;
-  sched_params.sched_priority = THREAD_NORMAL_PRIORITY;
-  if (sched_setscheduler(pid, SCHED_OTHER, &sched_params)) {
-    log::error("Failed to set thread priority to normal: {}", strerror(errno));
-    p_dev->hh_poll_thread_id = -1;
-    p_dev->hh_keep_polling = 0;
-    uhid_fd_close(p_dev);
-    return 0;
-  }
-
-  pthread_setname_np(pthread_self(), BT_HH_THREAD);
-  log::debug("Host hid polling thread created name:{} pid:{} fd:{}",
-             BT_HH_THREAD, pid, p_dev->fd);
-
-  pfds[0].fd = p_dev->fd;
-  pfds[0].events = POLLIN;
-
-  // Set the uhid fd as non-blocking to ensure we never block the BTU thread
-  uhid_set_non_blocking(p_dev->fd);
-
-  while (p_dev->hh_keep_polling) {
-    int ret;
-    int counter = 0;
-
-    do {
-      if (counter++ > BTA_HH_UHID_INTERRUPT_COUNT_MAX) {
-        log::error("Polling interrupted");
-        break;
-      }
-      ret = poll(pfds, 1, BTA_HH_UHID_POLL_PERIOD_MS);
-    } while (ret == -1 && errno == EINTR);
-
-    if (ret < 0) {
-      log::error("Cannot poll for fds: {}\n", strerror(errno));
-      break;
-    }
-    if (pfds[0].revents & POLLIN) {
-      log::verbose("POLLIN");
-      ret = uhid_read_event(p_dev);
-      if (ret != 0) {
-        log::error("Unhandled UHID event");
-        break;
-      }
-    }
+  if (uhid_configure_thread(p_dev)) {
+    uhid_start_polling(p_dev);
   }
 
   /* Todo: Disconnect if loop exited due to a failure */
-  log::info("Polling thread stopped for device {}",
-            ADDRESS_TO_LOGGABLE_CSTR(p_dev->link_spec));
+  log::info("Polling thread stopped for device {}", p_dev->link_spec);
   p_dev->hh_poll_thread_id = -1;
   p_dev->hh_keep_polling = 0;
   uhid_fd_close(p_dev);
@@ -409,8 +442,8 @@ bool bta_hh_co_open(uint8_t dev_handle, uint8_t sub_class,
         "Found an existing device with the same handle dev_status={}, "
         "device={}, attr_mask=0x{:04x}, sub_class=0x{:02x}, app_id={}, "
         "dev_handle={}",
-        p_dev->dev_status, ADDRESS_TO_LOGGABLE_CSTR(p_dev->link_spec),
-        p_dev->attr_mask, p_dev->sub_class, p_dev->app_id, dev_handle);
+        p_dev->dev_status, p_dev->link_spec, p_dev->attr_mask, p_dev->sub_class,
+        p_dev->app_id, dev_handle);
   } else {  // Use an empty slot
     p_dev = btif_hh_find_empty_dev();
     if (p_dev == nullptr) {
@@ -440,10 +473,12 @@ bool bta_hh_co_open(uint8_t dev_handle, uint8_t sub_class,
   p_dev->dev_status = BTHH_CONN_STATE_CONNECTED;
   p_dev->dev_handle = dev_handle;
   p_dev->get_rpt_id_queue = fixed_queue_new(SIZE_MAX);
-  CHECK(p_dev->get_rpt_id_queue);
+  log::assert_that(p_dev->get_rpt_id_queue,
+                   "assert failed: p_dev->get_rpt_id_queue");
 #if ENABLE_UHID_SET_REPORT
   p_dev->set_rpt_id_queue = fixed_queue_new(SIZE_MAX);
-  CHECK(p_dev->set_rpt_id_queue);
+  log::assert_that(p_dev->set_rpt_id_queue,
+                   "assert failed: p_dev->set_rpt_id_queue");
 #endif  // ENABLE_UHID_SET_REPORT
 
   log::debug("Return device status {}", p_dev->dev_status);
@@ -463,8 +498,7 @@ bool bta_hh_co_open(uint8_t dev_handle, uint8_t sub_class,
  ******************************************************************************/
 void bta_hh_co_close(btif_hh_device_t* p_dev) {
   log::info("Closing device handle={}, status={}, address={}",
-            p_dev->dev_handle, p_dev->dev_status,
-            ADDRESS_TO_LOGGABLE_CSTR(p_dev->link_spec));
+            p_dev->dev_handle, p_dev->dev_status, p_dev->link_spec);
 
   /* Clear the queues */
   fixed_queue_flush(p_dev->get_rpt_id_queue, osi_free);
@@ -742,7 +776,7 @@ void bta_hh_le_co_rpt_info(const tAclLinkSpec& link_spec,
                            UNUSED_ATTR uint8_t app_id) {
   unsigned idx = 0;
 
-  std::string addrstr = link_spec.addrt.ToString();
+  std::string addrstr = link_spec.addrt.bda.ToString();
   const char* bdstr = addrstr.c_str();
 
   size_t len = btif_config_get_bin_length(bdstr, BTIF_STORAGE_KEY_HID_REPORT);
@@ -759,8 +793,7 @@ void bta_hh_le_co_rpt_info(const tAclLinkSpec& link_spec,
                         idx * sizeof(tBTA_HH_RPT_CACHE_ENTRY));
     btif_config_set_int(bdstr, BTIF_STORAGE_KEY_HID_REPORT_VERSION,
                         BTA_HH_CACHE_REPORT_VERSION);
-    log::verbose("Saving report; dev={}, idx={}",
-                 ADDRESS_TO_LOGGABLE_CSTR(link_spec), idx);
+    log::verbose("Saving report; dev={}, idx={}", link_spec, idx);
   }
 }
 
@@ -783,7 +816,7 @@ void bta_hh_le_co_rpt_info(const tAclLinkSpec& link_spec,
 tBTA_HH_RPT_CACHE_ENTRY* bta_hh_le_co_cache_load(const tAclLinkSpec& link_spec,
                                                  uint8_t* p_num_rpt,
                                                  UNUSED_ATTR uint8_t app_id) {
-  std::string addrstr = link_spec.addrt.ToString();
+  std::string addrstr = link_spec.addrt.bda.ToString();
   const char* bdstr = addrstr.c_str();
 
   size_t len = btif_config_get_bin_length(bdstr, BTIF_STORAGE_KEY_HID_REPORT);
@@ -804,8 +837,7 @@ tBTA_HH_RPT_CACHE_ENTRY* bta_hh_le_co_cache_load(const tAclLinkSpec& link_spec,
 
   *p_num_rpt = len / sizeof(tBTA_HH_RPT_CACHE_ENTRY);
 
-  log::verbose("Loaded {} reports; dev={}", *p_num_rpt,
-               ADDRESS_TO_LOGGABLE_CSTR(link_spec));
+  log::verbose("Loaded {} reports; dev={}", *p_num_rpt, link_spec);
 
   return sReportCache;
 }
@@ -823,10 +855,10 @@ tBTA_HH_RPT_CACHE_ENTRY* bta_hh_le_co_cache_load(const tAclLinkSpec& link_spec,
  ******************************************************************************/
 void bta_hh_le_co_reset_rpt_cache(const tAclLinkSpec& link_spec,
                                   UNUSED_ATTR uint8_t app_id) {
-  std::string addrstr = link_spec.addrt.ToString();
+  std::string addrstr = link_spec.addrt.bda.ToString();
   const char* bdstr = addrstr.c_str();
 
   btif_config_remove(bdstr, BTIF_STORAGE_KEY_HID_REPORT);
   btif_config_remove(bdstr, BTIF_STORAGE_KEY_HID_REPORT_VERSION);
-  log::verbose("Reset cache for bda {}", ADDRESS_TO_LOGGABLE_CSTR(link_spec));
+  log::verbose("Reset cache for bda {}", link_spec);
 }
