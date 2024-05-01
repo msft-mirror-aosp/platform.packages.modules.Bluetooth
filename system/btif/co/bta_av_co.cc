@@ -25,8 +25,8 @@
 
 #include "btif/include/bta_av_co.h"
 
-#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <mutex>
 #include <optional>
@@ -42,7 +42,6 @@
 #include "include/hardware/bt_av.h"
 #include "internal_include/bt_trace.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "stack/include/a2dp_codec_api.h"
 #include "stack/include/a2dp_error_codes.h"
 #include "stack/include/a2dp_ext.h"
@@ -133,7 +132,7 @@ A2dpCodecConfig* BtaAvCo::GetActivePeerCurrentCodec() {
   std::lock_guard<std::recursive_mutex> lock(peer_cache_->codec_lock_);
 
   BtaAvCoState* reference_state = nullptr;
-  if (IS_FLAG_ENABLED(a2dp_concurrent_source_sink)) {
+  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
     reference_state = &bta_av_source_state_;
   } else {
     reference_state = &bta_av_legacy_state_;
@@ -321,8 +320,7 @@ tA2DP_STATUS BtaAvCo::ProcessSourceGetConfig(
   // If acceptor -> reconfig otherwise reply for configuration
   *p_sep_info_idx = p_sink->sep_info_idx;
   log::verbose("peer {} acceptor:{} reconfig_needed:{}", p_peer->addr,
-               (p_peer->acceptor) ? "true" : "false",
-               (p_peer->reconfig_needed) ? "true" : "false");
+               p_peer->acceptor, p_peer->reconfig_needed);
   if (p_peer->acceptor) {
     if (p_peer->reconfig_needed) {
       log::verbose("call BTA_AvReconfig(0x{:x}) for peer {}", bta_av_handle,
@@ -433,8 +431,7 @@ tA2DP_STATUS BtaAvCo::ProcessSinkGetConfig(tBTA_AV_HNDL bta_av_handle,
   // If acceptor -> reconfig otherwise reply for configuration
   *p_sep_info_idx = p_source->sep_info_idx;
   log::verbose("peer {} acceptor:{} reconfig_needed:{}", p_peer->addr,
-               (p_peer->acceptor) ? "true" : "false",
-               (p_peer->reconfig_needed) ? "true" : "false");
+               p_peer->acceptor, p_peer->reconfig_needed);
   if (p_peer->acceptor) {
     if (p_peer->reconfig_needed) {
       log::verbose("call BTA_AvReconfig(0x{:x}) for peer {}", bta_av_handle,
@@ -450,9 +447,9 @@ tA2DP_STATUS BtaAvCo::ProcessSinkGetConfig(tBTA_AV_HNDL bta_av_handle,
 }
 
 void BtaAvCo::ProcessSetConfig(tBTA_AV_HNDL bta_av_handle,
-                               UNUSED_ATTR const RawAddress& peer_address,
-                               const uint8_t* p_codec_info,
-                               UNUSED_ATTR uint8_t seid, uint8_t num_protect,
+                               const RawAddress& peer_address,
+                               const uint8_t* p_codec_info, uint8_t seid,
+                               uint8_t num_protect,
                                const uint8_t* p_protect_info,
                                uint8_t t_local_sep, uint8_t avdt_handle) {
   tA2DP_STATUS status = A2DP_SUCCESS;
@@ -638,7 +635,7 @@ void BtaAvCo::ProcessStart(tBTA_AV_HNDL bta_av_handle,
       A2DP_UsesRtpHeader(p_peer->ContentProtectActive(), p_codec_info);
 
   log::verbose("bta_av_handle: 0x{:x} add_rtp_header: {}", bta_av_handle,
-               add_rtp_header ? "true" : "false");
+               add_rtp_header);
   *p_no_rtp_header = !add_rtp_header;
 }
 
@@ -679,7 +676,7 @@ BT_HDR* BtaAvCo::GetNextSourceDataPacket(const uint8_t* p_codec_info,
   }
 
   BtaAvCoState* reference_state = nullptr;
-  if (IS_FLAG_ENABLED(a2dp_concurrent_source_sink)) {
+  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
     reference_state = &bta_av_source_state_;
   } else {
     reference_state = &bta_av_legacy_state_;
@@ -715,15 +712,15 @@ void BtaAvCo::ProcessAudioDelay(tBTA_AV_HNDL bta_av_handle,
 
 void BtaAvCo::UpdateMtu(tBTA_AV_HNDL bta_av_handle,
                         const RawAddress& peer_address, uint16_t mtu) {
-  log::info("peer {} bta_av_handle: {} mtu: {}", peer_address,
-            loghex(bta_av_handle), mtu);
+  log::info("peer {} bta_av_handle: 0x{:x} mtu: {}", peer_address,
+            bta_av_handle, mtu);
 
   // Find the peer
   BtaAvCoPeer* p_peer =
       peer_cache_->FindPeerAndUpdate(bta_av_handle, peer_address);
   if (p_peer == nullptr) {
-    log::error("could not find peer entry for bta_av_handle {} peer {}",
-               loghex(bta_av_handle), peer_address);
+    log::error("could not find peer entry for bta_av_handle 0x{:x} peer {}",
+               bta_av_handle, peer_address);
     return;
   }
   p_peer->mtu = mtu;
@@ -765,7 +762,7 @@ bool BtaAvCo::SetActivePeer(const RawAddress& peer_address,
 }
 
 BtaAvCoState* BtaAvCo::getStateFromLocalProfile(const uint8_t t_local_sep) {
-  if (IS_FLAG_ENABLED(a2dp_concurrent_source_sink)) {
+  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
     if (t_local_sep == AVDT_TSEP_SRC) {
       return &bta_av_source_state_;
     } else if (t_local_sep == AVDT_TSEP_SNK) {
@@ -780,7 +777,7 @@ BtaAvCoState* BtaAvCo::getStateFromLocalProfile(const uint8_t t_local_sep) {
 }
 
 void BtaAvCo::SaveCodec(const uint8_t* new_codec_config) {
-  if (IS_FLAG_ENABLED(a2dp_concurrent_source_sink)) {
+  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
     bta_av_sink_state_.setCodecConfig(new_codec_config);
   } else {
     bta_av_legacy_state_.setCodecConfig(new_codec_config);
@@ -816,7 +813,7 @@ void BtaAvCo::GetPeerEncoderParameters(
 
 const tA2DP_ENCODER_INTERFACE* BtaAvCo::GetSourceEncoderInterface() {
   std::lock_guard<std::recursive_mutex> lock(peer_cache_->codec_lock_);
-  if (IS_FLAG_ENABLED(a2dp_concurrent_source_sink)) {
+  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
     return A2DP_GetEncoderInterface(bta_av_source_state_.getCodecConfig());
   }
   return A2DP_GetEncoderInterface(bta_av_legacy_state_.getCodecConfig());
@@ -893,7 +890,7 @@ bool BtaAvCo::SetCodecUserConfig(
     }
 
     p_peer->acceptor = false;
-    log::verbose("call BTA_AvReconfig({})", loghex(p_peer->BtaAvHandle()));
+    log::verbose("call BTA_AvReconfig(0x{:x})", p_peer->BtaAvHandle());
     BTA_AvReconfig(p_peer->BtaAvHandle(), true, p_sink->sep_info_idx,
                    p_peer->codec_config, num_protect, bta_av_co_cp_scmst);
     *p_restart_output = true;
@@ -911,7 +908,7 @@ done:
 
   // Find the peer that is currently open
   BtaAvCoPeer* active_peer;
-  if (IS_FLAG_ENABLED(a2dp_concurrent_source_sink)) {
+  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
     active_peer = bta_av_source_state_.getActivePeer();
   } else {
     active_peer = bta_av_legacy_state_.getActivePeer();
@@ -934,7 +931,7 @@ bool BtaAvCo::SetCodecAudioConfig(
 
   // Find the peer that is currently open
   BtaAvCoPeer* p_peer;
-  if (IS_FLAG_ENABLED(a2dp_concurrent_source_sink)) {
+  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
     p_peer = bta_av_source_state_.getActivePeer();
   } else {
     p_peer = bta_av_legacy_state_.getActivePeer();
@@ -977,7 +974,7 @@ bool BtaAvCo::SetCodecAudioConfig(
                        p_sink->protect_info, AVDT_TSEP_SRC);
 
     p_peer->acceptor = false;
-    log::verbose("call BTA_AvReconfig({})", loghex(p_peer->BtaAvHandle()));
+    log::verbose("call BTA_AvReconfig(0x{:x})", p_peer->BtaAvHandle());
     BTA_AvReconfig(p_peer->BtaAvHandle(), true, p_sink->sep_info_idx,
                    p_peer->codec_config, num_protect, bta_av_co_cp_scmst);
   }
@@ -994,7 +991,7 @@ bool BtaAvCo::SetCodecAudioConfig(
 int BtaAvCo::GetSourceEncoderEffectiveFrameSize() {
   std::lock_guard<std::recursive_mutex> lock(peer_cache_->codec_lock_);
 
-  if (IS_FLAG_ENABLED(a2dp_concurrent_source_sink)) {
+  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
     return A2DP_GetEecoderEffectiveFrameSize(
         bta_av_source_state_.getCodecConfig());
   }
@@ -1398,7 +1395,7 @@ void BtaAvCo::SaveNewCodecConfig(BtaAvCoPeer* p_peer,
 }
 
 BtaAvCoState* BtaAvCo::getStateFromPeer(const BtaAvCoPeer* p_peer) {
-  if (IS_FLAG_ENABLED(a2dp_concurrent_source_sink)) {
+  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
     if (p_peer->uuid_to_connect == UUID_SERVCLASS_AUDIO_SINK) {
       return &bta_av_source_state_;
     } else if (p_peer->uuid_to_connect == UUID_SERVCLASS_AUDIO_SOURCE) {

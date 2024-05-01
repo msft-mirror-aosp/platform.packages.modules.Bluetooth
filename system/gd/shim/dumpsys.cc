@@ -17,8 +17,8 @@
 
 #include "dumpsys/dumpsys.h"
 
-#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <unistd.h>
 
 #include <future>
@@ -54,8 +54,7 @@ struct Dumpsys::impl {
   ~impl() = default;
 
  protected:
-  void FilterAsUser(std::string* dumpsys_data) const;
-  void FilterAsDeveloper(std::string* dumpsys_data) const;
+  void FilterSchema(std::string* dumpsys_data) const;
   std::string PrintAsJson(std::string* dumpsys_data) const;
 
   bool IsDebuggable() const;
@@ -81,14 +80,9 @@ bool Dumpsys::impl::IsDebuggable() const {
   return (os::GetSystemProperty(kReadOnlyDebuggableProperty) == "1");
 }
 
-void Dumpsys::impl::FilterAsDeveloper(std::string* dumpsys_data) const {
+void Dumpsys::impl::FilterSchema(std::string* dumpsys_data) const {
   log::assert_that(dumpsys_data != nullptr, "assert failed: dumpsys_data != nullptr");
-  dumpsys::FilterInPlace(dumpsys::FilterType::AS_DEVELOPER, reflection_schema_, dumpsys_data);
-}
-
-void Dumpsys::impl::FilterAsUser(std::string* dumpsys_data) const {
-  log::assert_that(dumpsys_data != nullptr, "assert failed: dumpsys_data != nullptr");
-  dumpsys::FilterInPlace(dumpsys::FilterType::AS_USER, reflection_schema_, dumpsys_data);
+  dumpsys::FilterSchema(reflection_schema_, dumpsys_data);
 }
 
 std::string Dumpsys::impl::PrintAsJson(std::string* dumpsys_data) const {
@@ -142,7 +136,7 @@ void Dumpsys::impl::DumpWithArgsAsync(int fd, const char** args) const {
   const auto registry = dumpsys_module_.GetModuleRegistry();
 
   int dumper_fd = STDOUT_FILENO;
-  if (IS_FLAG_ENABLED(dumpsys_use_passed_in_fd)) {
+  if (com::android::bluetooth::flags::dumpsys_use_passed_in_fd()) {
     dumper_fd = fd;
   }
   ModuleDumper dumper(dumper_fd, *registry, kDumpsysTitle);
@@ -151,13 +145,13 @@ void Dumpsys::impl::DumpWithArgsAsync(int fd, const char** args) const {
   dumper.DumpState(&dumpsys_data, oss);
 
   dprintf(fd, " ----- Filtering as Developer -----\n");
-  FilterAsDeveloper(&dumpsys_data);
+  FilterSchema(&dumpsys_data);
 
   dprintf(fd, "%s", PrintAsJson(&dumpsys_data).c_str());
 }
 
 void Dumpsys::impl::DumpWithArgsSync(int fd, const char** args, std::promise<void> promise) {
-  if (IS_FLAG_ENABLED(dumpsys_acquire_stack_when_executing)) {
+  if (com::android::bluetooth::flags::dumpsys_acquire_stack_when_executing()) {
     if (bluetooth::shim::Stack::GetInstance()->LockForDumpsys(
             [=, *this]() { this->DumpWithArgsAsync(fd, args); })) {
       log::info("Successful dumpsys procedure");

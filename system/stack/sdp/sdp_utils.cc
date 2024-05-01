@@ -23,8 +23,8 @@
  *  This file contains SDP utility functions
  *
  ******************************************************************************/
-#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <array>
 #include <cstdint>
@@ -107,8 +107,8 @@ static std::vector<std::pair<uint16_t, uint16_t>> sdpu_find_profile_version(
       // Safety check - each entry should itself be a sequence
       if (SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type) !=
           DATA_ELE_SEQ_DESC_TYPE) {
-        log::warn("Descriptor type is not sequence: {}",
-                  loghex(SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type)));
+        log::warn("Descriptor type is not sequence: 0x{:x}",
+                  SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type));
         return std::vector<std::pair<uint16_t, uint16_t>>();
       }
       // Now, see if the entry contains the profile UUID we are interested in
@@ -127,8 +127,8 @@ static std::vector<std::pair<uint16_t, uint16_t>> sdpu_find_profile_version(
           if (version_attr == nullptr) {
             log::warn("version attr not found");
           } else {
-            log::warn("Bad version type {}, or length {}",
-                      loghex(SDP_DISC_ATTR_TYPE(version_attr->attr_len_type)),
+            log::warn("Bad version type 0x{:x}, or length {}",
+                      SDP_DISC_ATTR_TYPE(version_attr->attr_len_type),
                       SDP_DISC_ATTR_LEN(version_attr->attr_len_type));
           }
           return std::vector<std::pair<uint16_t, uint16_t>>();
@@ -399,7 +399,7 @@ tCONN_CB* sdpu_allocate_ccb(void) {
   for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
     if (p_ccb->con_state == SDP_STATE_IDLE) {
       alarm_t* alarm = p_ccb->sdp_conn_timer;
-      memset(p_ccb, 0, sizeof(tCONN_CB));
+      *p_ccb = {};
       p_ccb->sdp_conn_timer = alarm;
       return (p_ccb);
     }
@@ -995,7 +995,8 @@ uint8_t* sdpu_get_len_from_type(uint8_t* p, uint8_t* p_end, uint8_t type,
 
   switch (type & 7) {
     case SIZE_ONE_BYTE:
-      if (IS_FLAG_ENABLED(stack_sdp_detect_nil_property_type)) {
+      if (com::android::bluetooth::flags::
+              stack_sdp_detect_nil_property_type()) {
         // Return NIL type if appropriate
         *p_len = (type == 0) ? 0 : sizeof(uint8_t);
       } else {

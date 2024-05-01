@@ -388,9 +388,8 @@ void gatt_send_prepare_write(tGATT_TCB& tcb, tGATT_CLCB* p_clcb) {
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_find_type_value_rsp(UNUSED_ATTR tGATT_TCB& tcb,
-                                      tGATT_CLCB* p_clcb, uint16_t len,
-                                      uint8_t* p_data) {
+void gatt_process_find_type_value_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb,
+                                      uint16_t len, uint8_t* p_data) {
   tGATT_DISC_RES result;
   uint8_t* p = p_data;
 
@@ -435,8 +434,8 @@ void gatt_process_find_type_value_rsp(UNUSED_ATTR tGATT_TCB& tcb,
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_read_info_rsp(UNUSED_ATTR tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
-                                UNUSED_ATTR uint8_t op_code, uint16_t len,
+void gatt_process_read_info_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb,
+                                uint8_t /* op_code */, uint16_t len,
                                 uint8_t* p_data) {
   tGATT_DISC_RES result;
   uint8_t *p = p_data, uuid_len = 0, type;
@@ -489,8 +488,8 @@ void gatt_process_read_info_rsp(UNUSED_ATTR tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
  * Returns          void.
  *
  ******************************************************************************/
-void gatt_proc_disc_error_rsp(UNUSED_ATTR tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
-                              uint8_t opcode, UNUSED_ATTR uint16_t handle,
+void gatt_proc_disc_error_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb,
+                              uint8_t opcode, uint16_t /* handle */,
                               uint8_t reason) {
   tGATT_STATUS status = (tGATT_STATUS)reason;
 
@@ -525,8 +524,8 @@ void gatt_proc_disc_error_rsp(UNUSED_ATTR tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
  *
  ******************************************************************************/
 void gatt_process_error_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
-                            UNUSED_ATTR uint8_t op_code,
-                            UNUSED_ATTR uint16_t len, uint8_t* p_data) {
+                            uint8_t /* op_code */, uint16_t len,
+                            uint8_t* p_data) {
   uint8_t opcode, *p = p_data;
   uint8_t reason;
   uint16_t handle;
@@ -677,8 +676,7 @@ void gatt_process_notification(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code,
     STREAM_TO_UINT16(value.len, p);
 
     if (value.len > len - 4) {
-      log::error("value.len ({}) greater than length ({})", value.len,
-                 (len - 4));
+      log::error("value.len ({}) greater than length ({})", value.len, len - 4);
       return;
     }
 
@@ -820,7 +818,7 @@ void gatt_process_read_by_type_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
        or value_len > message total length -1 */
     log::error(
         "Discard response op_code={} vale_len={} > (MTU-2={} or msg_len-1={})",
-        op_code, value_len, (payload_size - 2), (len - 1));
+        op_code, value_len, payload_size - 2, len - 1);
     gatt_end_operation(p_clcb, GATT_ERROR, NULL);
     return;
   }
@@ -995,7 +993,7 @@ void gatt_process_read_by_type_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
  *
  ******************************************************************************/
 void gatt_process_read_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
-                           UNUSED_ATTR uint8_t op_code, uint16_t len,
+                           uint8_t /* op_code */, uint16_t len,
                            uint8_t* p_data) {
   uint16_t offset = p_clcb->counter;
   uint8_t* p = p_data;
@@ -1211,7 +1209,7 @@ bool gatt_cl_send_next_cmd_inq(tGATT_TCB& tcb) {
 void gatt_client_handle_server_rsp(tGATT_TCB& tcb, uint16_t cid,
                                    uint8_t op_code, uint16_t len,
                                    uint8_t* p_data) {
-  log::verbose("opcode: {} cid{}", loghex(op_code), cid);
+  log::verbose("opcode: 0x{:x} cid{}", op_code, cid);
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, cid);
 

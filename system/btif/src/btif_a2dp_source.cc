@@ -20,9 +20,9 @@
 #define LOG_TAG "bt_btif_a2dp_source"
 #define ATRACE_TAG ATRACE_TAG_AUDIO
 
-#include <android_bluetooth_flags.h>
 #include <base/run_loop.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #ifdef __ANDROID__
 #include <cutils/trace.h>
 #endif
@@ -344,7 +344,7 @@ static void btif_a2dp_source_init_delayed(void) {
   // the provider needs to be initialized earlier in order to ensure
   // get_a2dp_configuration and parse_a2dp_configuration can be
   // invoked before the stream is started.
-  if (IS_FLAG_ENABLED(a2dp_offload_codec_extensibility)) {
+  if (com::android::bluetooth::flags::a2dp_offload_codec_extensibility()) {
     bluetooth::audio::a2dp::init(&btif_a2dp_source_thread);
   }
 }
@@ -575,7 +575,7 @@ static void btif_a2dp_source_setup_codec_delayed(
 
   tA2DP_ENCODER_INIT_PEER_PARAMS peer_params;
   bta_av_co_get_peer_params(peer_address, &peer_params);
-  if (IS_FLAG_ENABLED(a2dp_concurrent_source_sink)) {
+  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
     if (!bta_av_co_set_active_source_peer(peer_address)) {
       log::error("Cannot stream audio: cannot set active peer to {}",
                  peer_address);
@@ -673,7 +673,7 @@ static void btif_a2dp_source_encoder_user_config_update_event(
       log::info(
           "peer_address={} state={} codec_preference=[{}] restart_output={}",
           peer_address, btif_a2dp_source_cb.StateStr(),
-          codec_user_config.ToString(), (restart_output ? "true" : "false"));
+          codec_user_config.ToString(), restart_output);
       break;
     }
   }
@@ -730,8 +730,7 @@ void btif_a2dp_source_on_stopped(tBTA_AV_SUSPEND* p_av_suspend) {
   // than suspend
   if (p_av_suspend != nullptr && p_av_suspend->status != BTA_AV_SUCCESS) {
     log::error("A2DP stop failed: status={}, initiator={}",
-               p_av_suspend->status,
-               (p_av_suspend->initiator ? "true" : "false"));
+               p_av_suspend->status, p_av_suspend->initiator);
     if (p_av_suspend->initiator) {
       if (bluetooth::audio::a2dp::is_hal_enabled()) {
         bluetooth::audio::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_FAILURE);
@@ -768,8 +767,7 @@ void btif_a2dp_source_on_suspended(tBTA_AV_SUSPEND* p_av_suspend) {
   // check for status failures
   if (p_av_suspend->status != BTA_AV_SUCCESS) {
     log::warn("A2DP suspend failed: status={}, initiator={}",
-              p_av_suspend->status,
-              (p_av_suspend->initiator ? "true" : "false"));
+              p_av_suspend->status, p_av_suspend->initiator);
     if (p_av_suspend->initiator) {
       if (bluetooth::audio::a2dp::is_hal_enabled()) {
         bluetooth::audio::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_FAILURE);
@@ -793,14 +791,12 @@ void btif_a2dp_source_on_suspended(tBTA_AV_SUSPEND* p_av_suspend) {
 
 /* when true media task discards any tx frames */
 void btif_a2dp_source_set_tx_flush(bool enable) {
-  log::info("enable={} state={}", (enable) ? "true" : "false",
-            btif_a2dp_source_cb.StateStr());
+  log::info("enable={} state={}", enable, btif_a2dp_source_cb.StateStr());
   btif_a2dp_source_cb.tx_flush = enable;
 }
 
 static void btif_a2dp_source_audio_tx_start_event(void) {
-  log::info("streaming {} state={}",
-            btif_a2dp_source_is_streaming() ? "true" : "false",
+  log::info("streaming {} state={}", btif_a2dp_source_is_streaming(),
             btif_a2dp_source_cb.StateStr());
 
   if (btif_av_is_a2dp_offload_running()) return;
@@ -843,8 +839,7 @@ static void btif_a2dp_source_audio_tx_start_event(void) {
 }
 
 static void btif_a2dp_source_audio_tx_stop_event(void) {
-  log::info("streaming {} state={}",
-            btif_a2dp_source_is_streaming() ? "true" : "false",
+  log::info("streaming {} state={}", btif_a2dp_source_is_streaming(),
             btif_a2dp_source_cb.StateStr());
 
   if (btif_av_is_a2dp_offload_running()) return;

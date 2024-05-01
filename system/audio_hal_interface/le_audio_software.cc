@@ -19,8 +19,8 @@
 
 #include "le_audio_software.h"
 
-#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <unordered_map>
 #include <vector>
@@ -105,8 +105,6 @@ void LeAudioClientInterface::Sink::Cleanup() {
   log::info("HAL transport: 0x{:02x}, is broadcast: {}",
             static_cast<int>(HalVersionManager::GetHalTransport()),
             is_broadcaster_);
-
-  StopSession();
 
   /* Cleanup transport interface and instance according to type and role */
   if (HalVersionManager::GetHalTransport() ==
@@ -466,7 +464,6 @@ size_t LeAudioClientInterface::Sink::Read(uint8_t* p_buf, uint32_t len) {
 
 void LeAudioClientInterface::Source::Cleanup() {
   log::info("source");
-  StopSession();
   if (hidl::le_audio::LeAudioSourceTransport::interface) {
     delete hidl::le_audio::LeAudioSourceTransport::interface;
     hidl::le_audio::LeAudioSourceTransport::interface = nullptr;
@@ -799,7 +796,7 @@ LeAudioClientInterface::Sink* LeAudioClientInterface::GetSink(
     return nullptr;
   }
 
-  Sink* sink = is_broadcasting_session_type ? broadcast_sink_ : unicast_sink_;
+  auto& sink = is_broadcasting_session_type ? broadcast_sink_ : unicast_sink_;
   if (sink == nullptr) {
     sink = new Sink(is_broadcasting_session_type);
   } else {
@@ -1016,7 +1013,7 @@ bool LeAudioClientInterface::ReleaseSource(
 }
 
 void LeAudioClientInterface::SetAllowedDsaModes(DsaModes dsa_modes) {
-  if (!IS_FLAG_ENABLED(leaudio_dynamic_spatial_audio)) {
+  if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
     return;
   }
 

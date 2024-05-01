@@ -18,8 +18,8 @@
 
 #define LOG_TAG "smp_act"
 
-#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstring>
 
@@ -536,7 +536,8 @@ void smp_proc_pair_fail(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
               p_cb->rcvd_cmd_len);
     p_cb->status = SMP_INVALID_PARAMETERS;
   } else {
-    if (IS_FLAG_ENABLED(fix_pairing_failure_reason_from_remote)) {
+    if (com::android::bluetooth::flags::
+            fix_pairing_failure_reason_from_remote()) {
       p_cb->status = static_cast<tSMP_STATUS>(p_data->p_data[0]);
     } else {
       p_cb->status = p_data->status;
@@ -689,7 +690,7 @@ void smp_proc_rand(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
     return;
   }
 
-  if (IS_FLAG_ENABLED(fix_le_pairing_passkey_entry_bypass)) {
+  if (com::android::bluetooth::flags::fix_le_pairing_passkey_entry_bypass()) {
     if (!((p_cb->loc_auth_req & SMP_SC_SUPPORT_BIT) &&
           (p_cb->peer_auth_req & SMP_SC_SUPPORT_BIT)) &&
         !(p_cb->flags & SMP_PAIR_FLAGS_CMD_CONFIRM_SENT)) {

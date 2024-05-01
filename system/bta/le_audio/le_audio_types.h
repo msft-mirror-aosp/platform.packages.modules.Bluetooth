@@ -264,7 +264,7 @@ constexpr uint8_t kLeAudioCodecChannelCountFourChannel = 0x08;
 constexpr uint8_t kLeAudioCodecChannelCountFiveChannel = 0x10;
 constexpr uint8_t kLeAudioCodecChannelCountSixChannel = 0x20;
 constexpr uint8_t kLeAudioCodecChannelCountSevenChannel = 0x40;
-constexpr uint8_t kLeAudioCodecChannelCountEightChannel = 0x40;
+constexpr uint8_t kLeAudioCodecChannelCountEightChannel = 0x80;
 
 /* Octets Per Frame */
 constexpr uint16_t kLeAudioCodecFrameLen30 =
@@ -316,10 +316,12 @@ constexpr uint8_t kLeAudioDirectionBoth =
 constexpr uint8_t kFramingUnframedPduSupported = 0x00;
 constexpr uint8_t kFramingUnframedPduUnsupported = 0x01;
 
+constexpr uint8_t kTargetLatencyUndefined = 0x00;
 constexpr uint8_t kTargetLatencyLower = 0x01;
 constexpr uint8_t kTargetLatencyBalancedLatencyReliability = 0x02;
 constexpr uint8_t kTargetLatencyHigherReliability = 0x03;
 
+constexpr uint8_t kTargetPhyUndefined = 0x00;
 constexpr uint8_t kTargetPhy1M = 0x01;
 constexpr uint8_t kTargetPhy2M = 0x02;
 constexpr uint8_t kTargetPhyCoded = 0x03;
@@ -556,8 +558,6 @@ struct LeAudioCoreCodecConfig {
   std::optional<uint16_t> octets_per_codec_frame;
   std::optional<uint8_t> codec_frames_blocks_per_sdu;
 
-  uint8_t allocated_channel_count = 1;
-
   static uint32_t GetSamplingFrequencyHz(uint8_t sample_freq) {
     return sampling_freq_map.count(sample_freq)
                ? sampling_freq_map.at(sample_freq)
@@ -591,16 +591,6 @@ struct LeAudioCoreCodecConfig {
                  : 0;
 
     return 0;
-  }
-
-  /** Channel count per CIS or BIS */
-  uint8_t GetChannelCountPerIsoStream(void) const {
-    return allocated_channel_count;
-  }
-
-  uint16_t CalculateMaxSduSize() const {
-    return GetChannelCountPerIsoStream() * octets_per_codec_frame.value_or(0) *
-           codec_frames_blocks_per_sdu.value_or(1);
   }
 };
 
@@ -822,10 +812,6 @@ class LeAudioLtvMap {
          sizeof(decltype(core.audio_channel_allocation)::value_type))) {
       auto ptr = vec_opt->data();
       STREAM_TO_UINT32(core.audio_channel_allocation, ptr);
-      core.allocated_channel_count =
-          std::bitset<32>(core.audio_channel_allocation.value()).count();
-    } else {
-      core.allocated_channel_count = 1;
     }
 
     vec_opt = ltvs.Find(codec_spec_conf::kLeAudioLtvTypeOctetsPerCodecFrame);
@@ -1079,6 +1065,8 @@ struct ase {
   /* Codec configuration */
   LeAudioCodecId codec_id;
   LeAudioLtvMap codec_config;
+  std::vector<uint8_t> vendor_codec_config;
+  uint8_t channel_count;
 
   /* Set to true, if the codec is implemented in BT controller, false if it's
    * implemented in host, or in separate DSP
@@ -1133,6 +1121,8 @@ struct CodecConfigSetting {
 
   /* Codec Specific Configuration */
   types::LeAudioLtvMap params;
+  /* Vendor Specific Configuration */
+  std::vector<uint8_t> vendor_params;
 
   /* Channel count per device */
   uint8_t channel_count_per_iso_stream;
@@ -1154,7 +1144,7 @@ struct CodecConfigSetting {
     return (id == other.id) &&
            (channel_count_per_iso_stream ==
             other.channel_count_per_iso_stream) &&
-           (params == other.params);
+           (vendor_params == other.vendor_params) && (params == other.params);
   }
 
   bool operator!=(const CodecConfigSetting& other) const {
@@ -1170,6 +1160,8 @@ struct QosConfigSetting {
   uint8_t target_latency;
   uint8_t retransmission_number;
   uint16_t max_transport_latency;
+  int sduIntervalUs;
+  int maxSdu;
 
   bool operator!=(const QosConfigSetting& other) { return !(*this == other); }
 
@@ -1215,22 +1207,8 @@ struct AudioSetConfiguration {
   }
 
   bool operator==(const AudioSetConfiguration& other) const {
-    return ((packing == other.packing) &&
-            // (codec_flags == other.codec_flags) &&
-            (confs == other.confs));
+    return ((packing == other.packing) && (confs == other.confs));
   }
-  struct TopologyInfo {
-    /* How many sink and source devices must be in the set */
-    types::BidirectionalPair<uint8_t> device_count;
-    /* Note: Strategy is used for selecting a particular configuration from the
-     * set of configurations if the configuration provider did not select a
-     * single configuration for us (json file configuration provider).
-     */
-    types::BidirectionalPair<types::LeAudioConfigurationStrategy> strategy = {
-        types::LeAudioConfigurationStrategy::RFU,
-        types::LeAudioConfigurationStrategy::RFU};
-  };
-  std::optional<TopologyInfo> topology_info = std::nullopt;
 };
 
 using AudioSetConfigurations = std::vector<const AudioSetConfiguration*>;
@@ -1251,12 +1229,6 @@ void get_cis_count(types::LeAudioContextType context_type,
                    int group_ase_snk_cnt, int group_ase_src_count,
                    uint8_t& cis_count_bidir, uint8_t& cis_count_unidir_sink,
                    uint8_t& cis_count_unidir_source);
-bool check_if_may_cover_scenario(
-    const AudioSetConfigurations* audio_set_configurations, uint8_t group_size);
-bool check_if_may_cover_scenario(
-    const AudioSetConfiguration* audio_set_configuration, uint8_t group_size);
-uint8_t get_num_of_devices_in_configuration(
-    const AudioSetConfiguration* audio_set_configuration);
 }  // namespace set_configurations
 
 struct stream_parameters {

@@ -17,11 +17,11 @@
 
 #include "state_machine.h"
 
-#include <android_bluetooth_flags.h>
 #include <base/functional/bind.h>
 #include <base/functional/callback.h>
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include "bta_gatt_queue.h"
 #include "btm_iso_api.h"
@@ -330,7 +330,8 @@ class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
   void notifyLeAudioHealth(
       LeAudioDeviceGroup* group,
       bluetooth::le_audio::LeAudioHealthGroupStatType stat) {
-    if (!IS_FLAG_ENABLED(leaudio_enable_health_based_actions)) {
+    if (!com::android::bluetooth::flags::
+            leaudio_enable_health_based_actions()) {
       return;
     }
 
@@ -614,7 +615,7 @@ class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
       return;
     }
 
-    if (IS_FLAG_ENABLED(leaudio_dynamic_spatial_audio)) {
+    if (com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
       if (group->dsa_.active &&
           (group->dsa_.mode == DsaMode::ISO_SW ||
            group->dsa_.mode == DsaMode::ISO_HW) &&
@@ -702,7 +703,8 @@ class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
         ases_pair.source->cis_state = CisState::DISCONNECTING;
         do_disconnect = true;
       }
-    } else if (IS_FLAG_ENABLED(leaudio_dynamic_spatial_audio)) {
+    } else if (com::android::bluetooth::flags::
+                   leaudio_dynamic_spatial_audio()) {
       if (group->dsa_.active &&
           leAudioDevice->GetDsaDataPathState() == DataPathState::REMOVING) {
         log::info("DSA data path removed");
@@ -728,13 +730,13 @@ class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
       uint32_t crcErrorPackets, uint32_t rxUnreceivedPackets,
       uint32_t duplicatePackets) {
     log::info(
-        "conn_handle: {}, txUnackedPackets: {}, txFlushedPackets: {}, "
-        "txLastSubeventPackets: {}, retransmittedPackets: {}, crcErrorPackets: "
-        "{}, rxUnreceivedPackets: {}, duplicatePackets: {}",
-        loghex(conn_handle), loghex(txUnackedPackets), loghex(txFlushedPackets),
-        loghex(txLastSubeventPackets), loghex(retransmittedPackets),
-        loghex(crcErrorPackets), loghex(rxUnreceivedPackets),
-        loghex(duplicatePackets));
+        "conn_handle: 0x{:x}, txUnackedPackets: 0x{:x}, txFlushedPackets: "
+        "0x{:x}, txLastSubeventPackets: 0x{:x}, retransmittedPackets: 0x{:x}, "
+        "crcErrorPackets: 0x{:x}, rxUnreceivedPackets: 0x{:x}, "
+        "duplicatePackets: 0x{:x}",
+        conn_handle, txUnackedPackets, txFlushedPackets, txLastSubeventPackets,
+        retransmittedPackets, crcErrorPackets, rxUnreceivedPackets,
+        duplicatePackets);
   }
 
   void ReleaseCisIds(LeAudioDeviceGroup* group) {
@@ -800,6 +802,7 @@ class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
     group->ReloadAudioDirections();
     group->UpdateAudioContextAvailability();
     group->InvalidateCachedConfigurations();
+    group->InvalidateGroupStrategy();
 
     /* If group is in Idle and not transitioning, update the current group
      * audio context availability which could change due to disconnected group
@@ -871,7 +874,7 @@ class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
 
   void applyDsaDataPath(LeAudioDeviceGroup* group, LeAudioDevice* leAudioDevice,
                         uint16_t conn_hdl) {
-    if (!IS_FLAG_ENABLED(leaudio_dynamic_spatial_audio)) {
+    if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
       return;
     }
 
@@ -1067,7 +1070,7 @@ class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
     if (value.size() > (leAudioDevice->mtu_ - 3)) {
       log::warn("{}, using long write procedure ({} > {})",
                 leAudioDevice->address_, static_cast<int>(value.size()),
-                (leAudioDevice->mtu_ - 3));
+                leAudioDevice->mtu_ - 3);
 
       /* Note, that this type is actually LONG WRITE.
        * Meaning all the Prepare Writes plus Execute is handled in the stack
@@ -1096,7 +1099,7 @@ class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
       value |= bluetooth::hci::iso_manager::kRemoveIsoDataPathDirectionOutput;
       ases_pair.source->data_path_state = DataPathState::REMOVING;
     } else {
-      if (IS_FLAG_ENABLED(leaudio_dynamic_spatial_audio)) {
+      if (com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
         if (leAudioDevice->GetDsaDataPathState() == DataPathState::CONFIGURED) {
           value |=
               bluetooth::hci::iso_manager::kRemoveIsoDataPathDirectionOutput;
@@ -1348,7 +1351,7 @@ class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
     auto core_config = ase->codec_config.GetAsCoreCodecConfig();
 
     params.num_of_devices++;
-    params.num_of_channels += core_config.GetChannelCountPerIsoStream();
+    params.num_of_channels += ase->channel_count;
 
     if (!core_config.audio_channel_allocation.has_value()) {
       log::warn("ASE has invalid audio location");
@@ -1425,7 +1428,7 @@ class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
 
   void ApplyDsaParams(LeAudioDeviceGroup* group,
                       bluetooth::hci::iso_manager::cig_create_params& param) {
-    if (!IS_FLAG_ENABLED(leaudio_dynamic_spatial_audio)) {
+    if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
       return;
     }
 
@@ -1700,8 +1703,8 @@ class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
             BTM_GetHCIConnHandle(leAudioDevice->address_, BT_TRANSPORT_LE);
         conn_pairs.push_back({.cis_conn_handle = ase->cis_conn_hdl,
                               .acl_conn_handle = acl_handle});
-        log::debug("cis handle: {} acl handle : {}", ase->cis_conn_hdl,
-                   loghex(+acl_handle));
+        log::debug("cis handle: {} acl handle : 0x{:x}", ase->cis_conn_hdl,
+                   acl_handle);
 
       } while ((ase = leAudioDevice->GetNextActiveAse(ase)));
     } while ((leAudioDevice = group->GetNextActiveDevice(leAudioDevice)));
@@ -1906,7 +1909,13 @@ class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
       conf.target_latency = ase->target_latency;
       conf.target_phy = group->GetTargetPhy(ase->direction);
       conf.codec_id = ase->codec_id;
-      conf.codec_config = ase->codec_config.RawPacket();
+
+      if (!ase->vendor_codec_config.empty()) {
+        log::debug("Using vendor codec configuration.");
+        conf.codec_config = ase->vendor_codec_config;
+      } else {
+        conf.codec_config = ase->codec_config.RawPacket();
+      }
       confs.push_back(conf);
 
       msg_stream << "ASE_ID " << +conf.ase_id << ",";

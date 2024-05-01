@@ -15,8 +15,8 @@
  */
 #include "hci/distance_measurement_manager.h"
 
-#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <math.h>
 
 #include <complex>
@@ -142,7 +142,7 @@ struct DistanceMeasurementManager::impl {
     hci_layer_->RegisterLeEventHandler(
         hci::SubeventCode::TRANSMIT_POWER_REPORTING,
         handler_->BindOn(this, &impl::on_transmit_power_reporting));
-    if (!IS_FLAG_ENABLED(channel_sounding_in_stack)) {
+    if (!com::android::bluetooth::flags::channel_sounding_in_stack()) {
       log::info("IS_FLAG_ENABLED channel_sounding_in_stack: false");
       return;
     }
@@ -201,7 +201,7 @@ struct DistanceMeasurementManager::impl {
   void start_distance_measurement_with_cs(
       const Address& cs_remote_address, uint16_t connection_handle, uint16_t interval) {
     log::info("connection_handle: {}, address: {}", connection_handle, cs_remote_address);
-    if (!IS_FLAG_ENABLED(channel_sounding_in_stack)) {
+    if (!com::android::bluetooth::flags::channel_sounding_in_stack()) {
       log::error("Channel Sounding is not enabled");
       distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
           cs_remote_address, REASON_INTERNAL_ERROR, METHOD_CS);
@@ -778,7 +778,7 @@ struct DistanceMeasurementManager::impl {
     uint16_t connection_handle = acl_manager_->HACK_GetLeHandle(address);
     log::debug(
         "address:{}, connection_handle 0x{:04x}, size:{}",
-        address.ToString().c_str(),
+        address.ToString(),
         connection_handle,
         raw_data.size());
 
@@ -832,7 +832,7 @@ struct DistanceMeasurementManager::impl {
       RangingHeader ranging_header,
       PacketViewForRecombination& segment_data,
       uint16_t connection_handle) {
-    log::debug("Data size {}, Ranging_header {}", segment_data.size(), ranging_header.ToString().c_str());
+    log::debug("Data size {}, Ranging_header {}", segment_data.size(), ranging_header.ToString());
     auto procedure_data =
         get_procedure_data_for_ras(connection_handle, ranging_header.ranging_counter_);
     if (procedure_data == nullptr) {
@@ -886,9 +886,7 @@ struct DistanceMeasurementManager::impl {
               after = LeCsMode0InitatorData::Parse(&tone_data, parse_index);
               if (after == parse_index) {
                 log::warn(
-                    "Error invalid mode {} data, role:{}",
-                    step_mode.mode_type_,
-                    CsRoleText(role).c_str());
+                    "Error invalid mode {} data, role:{}", step_mode.mode_type_, CsRoleText(role));
                 return;
               }
               parse_index = after;
@@ -897,9 +895,7 @@ struct DistanceMeasurementManager::impl {
               after = LeCsMode0ReflectorData::Parse(&tone_data, parse_index);
               if (after == parse_index) {
                 log::warn(
-                    "Error invalid mode {} data, role:{}",
-                    step_mode.mode_type_,
-                    CsRoleText(role).c_str());
+                    "Error invalid mode {} data, role:{}", step_mode.mode_type_, CsRoleText(role));
                 return;
               }
             }
@@ -928,9 +924,7 @@ struct DistanceMeasurementManager::impl {
             after = LeCsMode2Data::Parse(&tone_data, packet_bytes_view.begin());
             if (after == packet_bytes_view.begin()) {
               log::warn(
-                  "Error invalid mode {} data, role:{}",
-                  step_mode.mode_type_,
-                  CsRoleText(role).c_str());
+                  "Error invalid mode {} data, role:{}", step_mode.mode_type_, CsRoleText(role));
               return;
             }
             parse_index += data_len;

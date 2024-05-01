@@ -318,6 +318,8 @@ public class AdapterService extends Service {
 
     private volatile boolean mTestModeEnabled = false;
 
+    private MetricsLogger mMetricsLogger;
+
     /** Handlers for incoming service calls */
     private AdapterServiceBinder mBinder;
 
@@ -636,6 +638,7 @@ public class AdapterService extends Service {
     private void init() {
         Log.d(TAG, "init()");
         Config.init(this);
+        initMetricsLogger();
         mDeviceConfigListener.start();
 
         if (!Flags.fastBindToApp()) {
@@ -806,6 +809,23 @@ public class AdapterService extends Service {
         return mSilenceDeviceManager;
     }
 
+    private boolean initMetricsLogger() {
+        if (mMetricsLogger != null) {
+            return false;
+        }
+        mMetricsLogger = MetricsLogger.getInstance();
+        return mMetricsLogger.init(this);
+    }
+
+    private boolean closeMetricsLogger() {
+        if (mMetricsLogger == null) {
+            return false;
+        }
+        boolean result = mMetricsLogger.close();
+        mMetricsLogger = null;
+        return result;
+    }
+
     /**
      * Log L2CAP CoC Server Connection Metrics
      *
@@ -856,6 +876,10 @@ public class AdapterService extends Service {
                 appUid,
                 socketCreationLatencyMillis,
                 socketAcceptanceLatencyMillis);
+    }
+
+    public void setMetricsLogger(MetricsLogger metricsLogger) {
+        mMetricsLogger = metricsLogger;
     }
 
     /**
@@ -1317,6 +1341,8 @@ public class AdapterService extends Service {
             return;
         }
 
+        closeMetricsLogger();
+
         clearAdapterService(this);
 
         mCleaningUp = true;
@@ -1607,7 +1633,10 @@ public class AdapterService extends Service {
         }
         if (profile == BluetoothProfile.HID_HOST) {
             return Utils.arrayContains(remoteDeviceUuids, BluetoothUuid.HID)
-                    || Utils.arrayContains(remoteDeviceUuids, BluetoothUuid.HOGP);
+                    || Utils.arrayContains(remoteDeviceUuids, BluetoothUuid.HOGP)
+                    || (Flags.androidHeadtrackerService()
+                            && Utils.arrayContains(
+                                    remoteDeviceUuids, HidHostService.ANDROID_HEADTRACKER_UUID));
         }
         if (profile == BluetoothProfile.HID_DEVICE) {
             return mHidDeviceService.getConnectionState(device)

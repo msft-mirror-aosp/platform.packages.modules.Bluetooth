@@ -247,7 +247,7 @@ bool BTM_IsDeviceUp(void) {
  * Returns          void
  *
  ******************************************************************************/
-static void btm_read_local_name_timeout(UNUSED_ATTR void* data) {
+static void btm_read_local_name_timeout(void* /* data */) {
   tBTM_CMPL_CB* p_cb = btm_cb.devcb.p_rln_cmpl_cb;
   btm_cb.devcb.p_rln_cmpl_cb = NULL;
   if (p_cb) (*p_cb)((void*)NULL);
@@ -395,7 +395,7 @@ tBTM_STATUS BTM_ReadLocalDeviceNameFromController(
  * Returns          void
  *
  ******************************************************************************/
-void btm_read_local_name_complete(uint8_t* p, UNUSED_ATTR uint16_t evt_len) {
+void btm_read_local_name_complete(uint8_t* p, uint16_t /* evt_len */) {
   tBTM_CMPL_CB* p_cb = btm_cb.devcb.p_rln_cmpl_cb;
   uint8_t status;
 
@@ -670,7 +670,7 @@ tBTM_STATUS BTM_DeleteStoredLinkKey(const RawAddress* bd_addr,
   bool delete_all_flag = !bd_addr;
 
   log::verbose("BTM: BTM_DeleteStoredLinkKey: delete_all_flag: {}",
-               delete_all_flag ? "true" : "false");
+               delete_all_flag);
 
   btm_sec_cb.devcb.p_stored_link_key_cmpl_cb = p_cb;
   if (!bd_addr) {
