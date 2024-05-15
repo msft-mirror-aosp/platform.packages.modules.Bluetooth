@@ -73,10 +73,11 @@ class BluetoothChannelSoundingSessionTracker : public BnBluetoothChannelSounding
 public:
   BluetoothChannelSoundingSessionTracker(uint16_t connection_handle,
                                          RangingHalCallback* ranging_hal_callback,
-                                         bool for_vendor_specific_reply)
+                                         bool for_vendor_specific_reply, RangingHalVersion hal_ver)
       : connection_handle_(connection_handle),
         ranging_hal_callback_(ranging_hal_callback),
-        for_vendor_specific_reply_(for_vendor_specific_reply) {}
+        for_vendor_specific_reply_(for_vendor_specific_reply),
+        hal_ver_(hal_ver) {}
 
   ::ndk::ScopedAStatus onOpened(::aidl::android::hardware::bluetooth::ranging::Reason in_reason) {
     log::info("connection_handle 0x{:04x}, reason {}", connection_handle_, (uint16_t)in_reason);
@@ -103,8 +104,15 @@ public:
     log::verbose("resultMeters {}", in_result.resultMeters);
     hal::RangingResult ranging_result = {
             .result_meters_ = in_result.resultMeters,
+            .error_meters_ = in_result.errorMeters,
             .confidence_level_ = in_result.confidenceLevel,
+            .delay_spread_meters_ = in_result.delaySpreadMeters,
+            .detected_attack_level_ = static_cast<uint8_t>(in_result.detectedAttackLevel),
+            .velocity_meters_per_second_ = in_result.velocityMetersPerSecond,
     };
+    if (hal_ver_ == V_2) {
+      ranging_result.elapsed_timestamp_nanos_ = in_result.timestampNanos;
+    }
     ranging_hal_callback_->OnResult(connection_handle_, ranging_result);
     return ::ndk::ScopedAStatus::ok();
   }
@@ -129,6 +137,7 @@ private:
   uint16_t connection_handle_;
   RangingHalCallback* ranging_hal_callback_;
   bool for_vendor_specific_reply_;
+  RangingHalVersion hal_ver_;
 };
 
 class RangingHalAndroid : public RangingHal {
@@ -167,7 +176,7 @@ public:
               connection_handle, att_handle, vendor_specific_data.size());
     session_trackers_[connection_handle] =
             ndk::SharedRefBase::make<BluetoothChannelSoundingSessionTracker>(
-                    connection_handle, ranging_hal_callback_, false);
+                    connection_handle, ranging_hal_callback_, false, hal_ver_);
     BluetoothChannelSoundingParameters parameters;
     parameters.aclHandle = connection_handle;
     parameters.role = aidl::android::hardware::bluetooth::ranging::Role::INITIATOR;
@@ -200,7 +209,7 @@ public:
     log::info("connection_handle 0x{:04x}", connection_handle);
     session_trackers_[connection_handle] =
             ndk::SharedRefBase::make<BluetoothChannelSoundingSessionTracker>(
-                    connection_handle, ranging_hal_callback_, true);
+                    connection_handle, ranging_hal_callback_, true, hal_ver_);
     BluetoothChannelSoundingParameters parameters;
     parameters.aclHandle = connection_handle;
     parameters.role = aidl::android::hardware::bluetooth::ranging::Role::REFLECTOR;
