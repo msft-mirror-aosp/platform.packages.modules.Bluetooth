@@ -2659,20 +2659,23 @@ impl IBluetoothGatt for BluetoothGatt {
 
             let data: [u8; 512] = array_utils::to_sized_array(&value);
 
-            self.gatt.lock().unwrap().server.send_response(
-                conn_id,
-                request_id,
-                status as i32,
-                &BtGattResponse {
-                    attr_value: BtGattValue {
-                        value: data,
-                        handle: handle as u16,
-                        offset: offset as u16,
-                        len,
-                        auth_req: 0_u8,
+            // SAFETY: Initialized all values of the BtGattResponse object
+            unsafe {
+                self.gatt.lock().unwrap().server.send_response(
+                    conn_id,
+                    request_id,
+                    status as i32,
+                    &BtGattResponse {
+                        attr_value: BtGattValue {
+                            value: data,
+                            handle: handle as u16,
+                            offset: offset as u16,
+                            len,
+                            auth_req: 0_u8,
+                        },
                     },
-                },
-            );
+                );
+            }
 
             Some(())
         })()

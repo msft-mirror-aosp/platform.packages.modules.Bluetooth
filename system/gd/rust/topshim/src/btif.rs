@@ -1478,6 +1478,12 @@ impl BluetoothInterface {
     }
 }
 
+impl Debug for BluetoothInterface {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "BluetoothInterface {{ is_init: {:?} }}", self.is_init)
+    }
+}
+
 pub trait ToggleableProfile {
     fn is_enabled(&self) -> bool;
     fn enable(&mut self) -> bool;
