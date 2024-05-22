@@ -74,7 +74,10 @@ class SourceImpl : public LeAudioSourceAudioHalClient {
   // Internal functionality
   SourceImpl(bool is_broadcaster)
       : le_audio_sink_hal_state_(HAL_UNINITIALIZED),
-        is_broadcaster_(is_broadcaster){};
+        audio_timer_(
+            /* clock_tick_us= */ bluetooth::common::
+                time_get_audio_server_tick_us),
+        is_broadcaster_(is_broadcaster) {}
   ~SourceImpl() override {
     if (le_audio_sink_hal_state_ != HAL_UNINITIALIZED) Release();
   }
@@ -252,8 +255,8 @@ void SourceImpl::StartAudioTicks() {
   wakelock_acquire();
   if (com::android::bluetooth::flags::leaudio_hal_client_asrc()) {
     asrc_ = std::make_unique<bluetooth::audio::asrc::SourceAudioHalAsrc>(
-        source_codec_config_.num_channels, source_codec_config_.sample_rate,
-        source_codec_config_.bits_per_sample,
+        worker_thread_, source_codec_config_.num_channels,
+        source_codec_config_.sample_rate, source_codec_config_.bits_per_sample,
         source_codec_config_.data_interval_us);
   }
   audio_timer_.SchedulePeriodic(

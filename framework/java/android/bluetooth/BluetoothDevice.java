@@ -797,12 +797,14 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * Specify the exclusive manager app for this BluetoothDevice.
      *
      * <p>If there's a manager app specified for this BluetoothDevice, and the app is currently
-     * installed on the device, that manager app shall be responsible for providing the
+     * installed and enabled on the device, that manager app shall be responsible for providing the
      * BluetoothDevice management functionality (e.g. connect, disconnect, forget, etc.). Android
-     * Settings app shall not provide any management functionality for such BluetoothDevice.
+     * Settings app or Quick Settings System UI shall not provide any management functionality for
+     * such BluetoothDevice.
      *
-     * <p>Data type should be a {@link String} representing the package name of the app (e.g.
-     * "com.android.settings"), provided as a {@link Byte} array.
+     * <p>Data type should be a {@link String} representation of the {@link ComponentName} (e.g.
+     * "com.android.settings/.SettingsActivity") or the package name (e.g. "com.android.settings")
+     * of the exclusive manager, provided as a {@link Byte} array.
      *
      * @hide
      */
@@ -1908,10 +1910,10 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
     private boolean createBondInternal(
             int transport, @Nullable OobData remoteP192Data, @Nullable OobData remoteP256Data) {
-        if (DBG) log("createBondOutOfBand()");
+        if (DBG) log("createBondInternal()");
         final IBluetooth service = getService();
         if (service == null || !isBluetoothEnabled()) {
-            Log.w(TAG, "BT not enabled, createBondOutOfBand failed");
+            Log.w(TAG, "BT not enabled, createBondInternal failed");
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (NULL_MAC_ADDRESS.equals(mAddress)) {
             Log.e(TAG, "Unable to create bond, invalid address " + mAddress);

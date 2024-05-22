@@ -112,6 +112,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -240,10 +241,10 @@ class BluetoothManagerService {
         @Override
         public String toString() {
             return timeToLog(mTimestamp)
-                    + ("\tPackage [" + mPackageName + "]")
+                    + (" \tPackage [" + mPackageName + "]")
                     + " requested to"
                     + (" [" + (mEnable ? "Enable" : "Disable") + (mIsBle ? "Ble" : "") + "]")
-                    + (".\tReason is " + getEnableDisableReasonString(mReason));
+                    + (". \tReason is " + getEnableDisableReasonString(mReason));
         }
 
         long getTimestamp() {
@@ -1213,15 +1214,52 @@ class BluetoothManagerService {
         try {
             mHandler.removeMessages(MESSAGE_BLUETOOTH_STATE_CHANGE);
             if (mAdapter != null) {
-                // Unregister callback object
                 try {
                     mAdapter.unregisterCallback(
                             mBluetoothCallback, mContext.getAttributionSource());
                 } catch (RemoteException e) {
                     Log.e(TAG, "Unable to unregister BluetoothCallback", e);
                 }
-                mAdapter = null;
+
+                if (!Flags.explicitKillFromSystemServer()) {
+                    mAdapter = null;
+                    mContext.unbindService(mConnection);
+                    mHandler.removeMessages(MESSAGE_TIMEOUT_BIND);
+                    return;
+                }
+
+                CompletableFuture<Void> binderDead = new CompletableFuture<>();
+                try {
+                    mAdapter.getAdapterBinder()
+                            .asBinder()
+                            .linkToDeath(() -> binderDead.complete(null), 0);
+                } catch (RemoteException e) {
+                    Log.e(TAG, "Failed to linkToDeath", e);
+                    binderDead.complete(null);
+                }
+
+                // Unbind first to avoid receiving "onServiceDisconnected"
                 mContext.unbindService(mConnection);
+
+                try {
+                    // Force kill the bluetooth to make sure the process is not reused.
+                    // Note that in a perfect world, we should be able to re-init the same process.
+                    // Unfortunately, this require an heavy rework of the shutdown implementation
+                    // TODO: b/339501753 - Properly stop Bluetooth without killing it
+                    mAdapter.killBluetoothProcess();
+
+                    // if the kill throw, skip waiting as there is no bluetooth to wait for
+                    binderDead.get(1, TimeUnit.SECONDS);
+                } catch (android.os.DeadObjectException e) {
+                    // Reduce error -> info since Bluetooth may already be dead prior to this call
+                    Log.i(TAG, "Bluetooth already dead 💀");
+                } catch (RemoteException e) {
+                    Log.e(TAG, "Unexpected error when calling killBluetoothProcess", e);
+                } catch (TimeoutException | InterruptedException | ExecutionException e) {
+                    Log.e(TAG, "Bluetooth death not received in time", e);
+                }
+
+                mAdapter = null;
                 mHandler.removeMessages(MESSAGE_TIMEOUT_BIND);
             }
         } finally {
@@ -1694,6 +1732,7 @@ class BluetoothManagerService {
                         if (mAdapter == null) {
                             break;
                         }
+                        mContext.unbindService(mConnection);
                         mAdapter = null;
                     } finally {
                         mAdapterLock.writeLock().unlock();

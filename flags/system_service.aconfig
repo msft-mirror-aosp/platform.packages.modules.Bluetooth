@@ -2,6 +2,16 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
+    name: "airplane_mode_x_ble_on"
+    namespace: "bluetooth"
+    description: "Airplane mode is not properly listen to when reaching BLE mode"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+    bug: "338079154"
+}
+
+flag {
     name: "auto_on_feature"
     is_exported: true
     namespace: "bluetooth"
@@ -10,10 +20,23 @@ flag {
 }
 
 flag {
-    name: "system_server_messenger"
+    name: "avoid_static_loading_of_native"
     namespace: "bluetooth"
-    description: "Replace binder call to the system server with a Messenger to enforce thread safety"
-    bug: "321804999"
+    description: "Prevent loading native during static initialization and prefer doing it during init"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+    bug: "339554081"
+}
+
+flag {
+    name: "explicit_kill_from_system_server"
+    namespace: "bluetooth"
+    description: "Explicit kill and wait of Bluetooth AdapterService when turning Bluetooth OFF"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+    bug: "339548431"
 }
 
 flag {
@@ -24,11 +47,18 @@ flag {
 }
 
 flag {
-    name: "airplane_mode_x_ble_on"
+    name: "kill_instead_of_exit"
     namespace: "bluetooth"
-    description: "Airplane mode is not properly listen to when reaching BLE mode"
+    description: "There is no value in pretending we are exiting properly. This is a kill and we should express it this way when finishing the process"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
-    bug: "338079154"
+    bug: "339553092"
+}
+
+flag {
+    name: "system_server_messenger"
+    namespace: "bluetooth"
+    description: "Replace binder call to the system server with a Messenger to enforce thread safety"
+    bug: "321804999"
 }
