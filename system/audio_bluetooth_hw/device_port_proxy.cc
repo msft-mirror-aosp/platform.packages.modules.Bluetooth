@@ -101,11 +101,11 @@ std::vector<std::string> CovertAudioTagFromV7(char* tags_v7) {
   std::vector<std::string> tags;
   char tags_copy[AUDIO_ATTRIBUTES_TAGS_MAX_SIZE];
   strlcpy(tags_copy, tags_v7, AUDIO_ATTRIBUTES_TAGS_MAX_SIZE);
-  char* tag = strtok(tags_copy, ";");
-
+  char* tmpstr;
+  char* tag = strtok_r(tags_copy, ";", &tmpstr);
   while (tag != NULL) {
     tags.push_back(tag);
-    tag = strtok(NULL, ";");
+    tag = strtok_r(NULL, ";", &tmpstr);
   }
 
   return tags;
@@ -457,7 +457,7 @@ bool BluetoothAudioPortAidl::CondwaitState(BluetoothStreamState state) {
   return retval;  // false if any failure like timeout
 }
 
-bool BluetoothAudioPortAidl::Start() {
+bool BluetoothAudioPortAidl::Start(bool low_latency) {
   if (!in_use()) {
     LOG(ERROR) << __func__ << ": BluetoothAudioPortAidl is not in use";
     return false;
@@ -469,7 +469,7 @@ bool BluetoothAudioPortAidl::Start() {
   bool retval = false;
   if (state_ == BluetoothStreamState::STANDBY) {
     state_ = BluetoothStreamState::STARTING;
-    if (BluetoothAudioSessionControl::StartStream(session_type_)) {
+    if (BluetoothAudioSessionControl::StartStream(session_type_, low_latency)) {
       retval = CondwaitState(BluetoothStreamState::STARTING);
     } else {
       LOG(ERROR) << __func__ << ": session_type=" << toString(session_type_)

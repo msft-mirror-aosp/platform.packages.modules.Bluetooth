@@ -631,7 +631,11 @@ static int out_resume(struct audio_stream_out* stream) {
   LOG(VERBOSE) << __func__ << ": state=" << out->bluetooth_output_->GetState()
                << ", resuming (start)";
   if (out->bluetooth_output_->GetState() == BluetoothStreamState::STANDBY) {
-    retval = (out->bluetooth_output_->Start() ? 0 : -EIO);
+    bool low_latency = out->is_low_latency_ && out->bt_dev_->support_low_latency_;
+    LOG(INFO) << __func__ << ": low_latency=" << low_latency
+              << ", out->is_low_latency_=" << out->is_low_latency_
+              << ", out->bt_dev_->support_low_latency_=" << out->bt_dev_->support_low_latency_;
+    retval = (out->bluetooth_output_->Start(low_latency) ? 0 : -EIO);
   } else if (out->bluetooth_output_->GetState() == BluetoothStreamState::STARTING ||
              out->bluetooth_output_->GetState() == BluetoothStreamState::SUSPENDING) {
     LOG(WARNING) << __func__ << ": state=" << out->bluetooth_output_->GetState()
@@ -701,7 +705,20 @@ static int out_get_recommended_latency_modes(struct audio_stream_out* stream,
                                              audio_latency_mode_t* modes, size_t* num_modes) {
   auto* out = reinterpret_cast<BluetoothStreamOut*>(stream);
 
-  return out->bluetooth_output_->GetRecommendedLatencyModes(modes, num_modes);
+  int ret = out->bluetooth_output_->GetRecommendedLatencyModes(modes, num_modes);
+  bool support_low_latency = false;
+  for (int i = 0; i < *num_modes; i++) {
+    if (modes[i] == AUDIO_LATENCY_MODE_LOW) {
+      support_low_latency = true;
+      break;
+    }
+  }
+  {
+    BluetoothAudioDevice* bluetooth_device = out->bt_dev_;
+    std::lock_guard<std::mutex> guard(bluetooth_device->mutex_);
+    bluetooth_device->support_low_latency_ = support_low_latency;
+  }
+  return ret;
 }
 
 static int out_set_latency_mode_callback(struct audio_stream_out* stream,
@@ -795,11 +812,18 @@ int adev_open_output_stream(struct audio_hw_device* dev, audio_io_handle_t /*han
               << StringPrintf("%zu", out->preferred_data_interval_us);
   }
 
+  if (flags == AUDIO_OUTPUT_FLAG_SPATIALIZER) {
+    LOG(INFO) << __func__ << ": Designating spatial output stream";
+    out->is_low_latency_ = true;
+  }
+
   out->frames_count_ = FrameCount(out->preferred_data_interval_us, out->sample_rate_);
 
   out->frames_rendered_ = 0;
   out->frames_presented_ = 0;
   out->last_write_time_us_ = 0;
+
+  out->bt_dev_ = reinterpret_cast<BluetoothAudioDevice*>(dev);
 
   BluetoothStreamOut* out_ptr = out.release();
   {
@@ -814,7 +838,8 @@ int adev_open_output_stream(struct audio_hw_device* dev, audio_io_handle_t /*han
             << ", channels=" << StringPrintf("%#x", out_ptr->channel_mask_)
             << ", format=" << out_ptr->format_
             << ", preferred_data_interval_us=" << out_ptr->preferred_data_interval_us
-            << ", frames=" << out_ptr->frames_count_;
+            << ", frames=" << out_ptr->frames_count_
+            << ", is_low_latency=" << out_ptr->is_low_latency_ << ", bt_dev=" << out_ptr->bt_dev_;
   return 0;
 }
 

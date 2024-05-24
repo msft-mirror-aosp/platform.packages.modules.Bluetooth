@@ -74,7 +74,7 @@ public:
    * Note: Both Start() and Suspend() will return true when there are no errors.
    * Called by Audio framework / HAL to start the stream
    ***/
-  virtual bool Start() { return false; }
+  virtual bool Start(bool /*low_latency*/ = false) { return false; }
 
   /***
    * Called by Audio framework / HAL to suspend the stream
@@ -140,7 +140,7 @@ public:
 
   void ForcePcmStereoToMono(bool force) override { is_stereo_to_mono_ = force; }
 
-  bool Start() override;
+  bool Start(bool low_latency = false) override;
   bool Suspend() override;
   void Stop() override;
 
