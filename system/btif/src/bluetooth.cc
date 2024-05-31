@@ -538,7 +538,6 @@ static int set_adapter_property(const bt_property_t* property) {
     case BT_PROPERTY_ADAPTER_SCAN_MODE:
     case BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT:
     case BT_PROPERTY_CLASS_OF_DEVICE:
-    case BT_PROPERTY_LOCAL_IO_CAPS:
       break;
     default:
       return BT_STATUS_FAIL;
@@ -808,6 +807,7 @@ static int set_event_filter_connection_setup_all_devices() {
 }
 
 static void dump(int fd, const char** arguments) {
+  log::debug("Started bluetooth dumpsys");
   btif_debug_conn_dump(fd);
   btif_debug_bond_event_dump(fd);
   btif_debug_linkkey_type_dump(fd);
@@ -837,6 +837,7 @@ static void dump(int fd, const char** arguments) {
   DumpsysBtaDm(fd);
   bluetooth::shim::Dump(fd, arguments);
   power_telemetry::GetInstance().Dumpsys(fd);
+  log::debug("Finished bluetooth dumpsys");
 }
 
 static void dumpMetrics(std::string* output) {

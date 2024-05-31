@@ -133,4 +133,22 @@ std::string GetResponseOpcodeValueText(ResponseCodeValue response_code_value) {
   }
 }
 
+bool IsRangingServiceCharacteristic(const bluetooth::Uuid& uuid) {
+  if (!uuid.Is16Bit()) {
+    return false;
+  }
+  switch (uuid.As16Bit()) {
+    case kRangingService16Bit:
+    case kRasFeaturesCharacteristic16bit:
+    case kRasRealTimeRangingDataCharacteristic16bit:
+    case kRasOnDemandDataCharacteristic16bit:
+    case kRasControlPointCharacteristic16bit:
+    case kRasRangingDataReadyCharacteristic16bit:
+    case kRasRangingDataOverWrittenCharacteristic16bit:
+      return true;
+    default:
+      return false;
+  }
+}
+
 }  // namespace ras

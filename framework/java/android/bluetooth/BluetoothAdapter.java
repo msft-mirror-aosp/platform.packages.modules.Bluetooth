@@ -515,69 +515,6 @@ public final class BluetoothAdapter {
     @Retention(RetentionPolicy.SOURCE)
     public @interface SetSnoopLogModeStatusCode {}
 
-    /**
-     * Device only has a display.
-     *
-     * @hide
-     */
-    public static final int IO_CAPABILITY_OUT = 0;
-
-    /**
-     * Device has a display and the ability to input Yes/No.
-     *
-     * @hide
-     */
-    public static final int IO_CAPABILITY_IO = 1;
-
-    /**
-     * Device only has a keyboard for entry but no display.
-     *
-     * @hide
-     */
-    public static final int IO_CAPABILITY_IN = 2;
-
-    /**
-     * Device has no Input or Output capability.
-     *
-     * @hide
-     */
-    public static final int IO_CAPABILITY_NONE = 3;
-
-    /**
-     * Device has a display and a full keyboard.
-     *
-     * @hide
-     */
-    public static final int IO_CAPABILITY_KBDISP = 4;
-
-    /**
-     * Maximum range value for Input/Output capabilities.
-     *
-     * <p>This should be updated when adding a new Input/Output capability. Other code like
-     * validation depends on this being accurate.
-     *
-     * @hide
-     */
-    public static final int IO_CAPABILITY_MAX = 5;
-
-    /**
-     * The Input/Output capability of the device is unknown.
-     *
-     * @hide
-     */
-    public static final int IO_CAPABILITY_UNKNOWN = 255;
-
-    /** @hide */
-    @IntDef({
-        IO_CAPABILITY_OUT,
-        IO_CAPABILITY_IO,
-        IO_CAPABILITY_IN,
-        IO_CAPABILITY_NONE,
-        IO_CAPABILITY_KBDISP
-    })
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface IoCapability {}
-
     /** @hide */
     @IntDef(
             prefix = "ACTIVE_DEVICE_",
@@ -1873,66 +1810,6 @@ public final class BluetoothAdapter {
         try {
             if (mService != null) {
                 return mService.setName(name, mAttributionSource);
-            }
-        } catch (RemoteException e) {
-            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-        } finally {
-            mServiceLock.readLock().unlock();
-        }
-        return false;
-    }
-
-    /**
-     * Returns the Input/Output capability of the device for classic Bluetooth.
-     *
-     * @return Input/Output capability of the device. One of {@link #IO_CAPABILITY_OUT}, {@link
-     *     #IO_CAPABILITY_IO}, {@link #IO_CAPABILITY_IN}, {@link #IO_CAPABILITY_NONE}, {@link
-     *     #IO_CAPABILITY_KBDISP} or {@link #IO_CAPABILITY_UNKNOWN}.
-     * @hide
-     */
-    @RequiresLegacyBluetoothAdminPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
-    @IoCapability
-    public int getIoCapability() {
-        if (getState() != STATE_ON) return BluetoothAdapter.IO_CAPABILITY_UNKNOWN;
-        mServiceLock.readLock().lock();
-        try {
-            if (mService != null) {
-                return mService.getIoCapability(mAttributionSource);
-            }
-        } catch (RemoteException e) {
-            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-        } finally {
-            mServiceLock.readLock().unlock();
-        }
-        return BluetoothAdapter.IO_CAPABILITY_UNKNOWN;
-    }
-
-    /**
-     * Sets the Input/Output capability of the device for classic Bluetooth.
-     *
-     * <p>Changing the Input/Output capability of a device only takes effect on restarting the
-     * Bluetooth stack. You would need to restart the stack using {@link BluetoothAdapter#disable()}
-     * and {@link BluetoothAdapter#enable()} to see the changes.
-     *
-     * @param capability Input/Output capability of the device. One of {@link #IO_CAPABILITY_OUT},
-     *     {@link #IO_CAPABILITY_IO}, {@link #IO_CAPABILITY_IN}, {@link #IO_CAPABILITY_NONE} or
-     *     {@link #IO_CAPABILITY_KBDISP}.
-     * @hide
-     */
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
-            })
-    public boolean setIoCapability(@IoCapability int capability) {
-        if (getState() != STATE_ON) return false;
-        mServiceLock.readLock().lock();
-        try {
-            if (mService != null) {
-                return mService.setIoCapability(capability, mAttributionSource);
             }
         } catch (RemoteException e) {
             Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
@@ -3885,23 +3762,10 @@ public final class BluetoothAdapter {
                                 }
                             }
                         }
-                        synchronized (mBluetoothConnectionCallbackExecutorMap) {
-                            if (!mBluetoothConnectionCallbackExecutorMap.isEmpty()) {
-                                try {
-                                    mService.registerBluetoothConnectionCallback(
-                                            mConnectionCallback, mAttributionSource);
-                                } catch (RemoteException e) {
-                                    Log.e(
-                                            TAG,
-                                            "onBluetoothServiceUp: Failed to register "
-                                                    + "bluetooth connection callback",
-                                            e);
-                                }
-                            }
-                        }
                     } finally {
                         mServiceLock.readLock().unlock();
                     }
+                    registerBluetoothConnectionCallbackIfNeeded();
                 }
 
                 public void onBluetoothServiceDown() {
@@ -4753,7 +4617,7 @@ public final class BluetoothAdapter {
     }
 
     @SuppressLint("AndroidFrameworkBluetoothPermission")
-    private final IBluetoothConnectionCallback mConnectionCallback =
+    private final IBluetoothConnectionCallback mBluetoothConnectionCallback =
             new IBluetoothConnectionCallback.Stub() {
                 @Override
                 public void onDeviceConnected(BluetoothDevice device) {
@@ -4809,27 +4673,37 @@ public final class BluetoothAdapter {
             }
 
             if (mBluetoothConnectionCallbackExecutorMap.isEmpty()) {
-                // If the callback map is empty, we register the service-to-app callback
-                mServiceLock.readLock().lock();
-                try {
-                    if (mService == null) {
-                        return false;
-                    }
-                    mService.registerBluetoothConnectionCallback(
-                            mConnectionCallback, mAttributionSource);
-                } catch (RemoteException e) {
-                    Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                    return false;
-                } finally {
-                    mServiceLock.readLock().unlock();
-                }
+                registerBluetoothConnectionCallback();
             }
 
-            // Adds the passed in callback to our map of callbacks to executors
             mBluetoothConnectionCallbackExecutorMap.put(callback, executor);
         }
 
         return true;
+    }
+
+    private void registerBluetoothConnectionCallback() {
+        mServiceLock.readLock().lock();
+        try {
+            if (mService == null) {
+                return;
+            }
+            mService.registerBluetoothConnectionCallback(
+                    mBluetoothConnectionCallback, mAttributionSource);
+        } catch (RemoteException e) {
+            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+        } finally {
+            mServiceLock.readLock().unlock();
+        }
+    }
+
+    private void registerBluetoothConnectionCallbackIfNeeded() {
+        synchronized (mBluetoothConnectionCallbackExecutorMap) {
+            if (mBluetoothConnectionCallbackExecutorMap.isEmpty()) {
+                return;
+            }
+            registerBluetoothConnectionCallback();
+        }
     }
 
     /**
@@ -4868,7 +4742,7 @@ public final class BluetoothAdapter {
                         return true;
                     }
                     mService.unregisterBluetoothConnectionCallback(
-                            mConnectionCallback, mAttributionSource);
+                            mBluetoothConnectionCallback, mAttributionSource);
                 } catch (RemoteException e) {
                     Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                 } finally {
@@ -5316,7 +5190,7 @@ public final class BluetoothAdapter {
             }
         }
 
-        if (!mBluetoothConnectionCallbackExecutorMap.isEmpty()) {
+        if (!mAudioProfilesChangedCallbackExecutorMap.isEmpty()) {
             return BluetoothStatusCodes.SUCCESS;
         }
 
@@ -5508,7 +5382,7 @@ public final class BluetoothAdapter {
             }
         }
 
-        if (!mBluetoothConnectionCallbackExecutorMap.isEmpty()) {
+        if (!mBluetoothQualityReportReadyCallbackExecutorMap.isEmpty()) {
             return BluetoothStatusCodes.SUCCESS;
         }
 
