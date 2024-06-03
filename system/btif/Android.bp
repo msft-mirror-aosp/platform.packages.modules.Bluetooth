@@ -187,14 +187,12 @@ cc_library_static {
         "src/btif_ble_scanner.cc",
         "src/btif_bqr.cc",
         "src/btif_config.cc",
-        "src/btif_config_cache.cc",
         "src/btif_core.cc",
         "src/btif_debug_conn.cc",
         "src/btif_dm.cc",
         "src/btif_gatt.cc",
         "src/btif_gatt_client.cc",
         "src/btif_gatt_server.cc",
-        "src/btif_gatt_test.cc",
         "src/btif_gatt_util.cc",
         "src/btif_iot_config.cc",
         "src/btif_keystore.cc",
@@ -499,50 +497,6 @@ cc_test {
     },
 }
 
-// btif config cache unit tests for target
-cc_test {
-    name: "net_test_btif_config_cache",
-    defaults: [
-        "fluoride_defaults",
-        "mts_defaults",
-    ],
-    test_suites: ["general-tests"],
-    host_supported: true,
-    test_options: {
-        unit_test: true,
-    },
-    include_dirs: btifCommonIncludes,
-    srcs: [
-        "src/btif_config_cache.cc",
-        "test/btif_config_cache_test.cc",
-    ],
-    header_libs: ["libbluetooth_headers"],
-    shared_libs: [
-        "libbase",
-        "libbinder_ndk",
-        "libcrypto",
-        "libcutils",
-        "liblog",
-    ],
-    static_libs: [
-        "libbluetooth-types",
-        "libbluetooth_crypto_toolbox",
-        "libbluetooth_log",
-        "libbt_shim_bridge",
-        "libc++fs",
-        "libchrome",
-        "libgmock",
-        "libosi",
-    ],
-    target: {
-        android: {
-            static_libs: [
-                "android.system.suspend.control-V1-ndk",
-            ],
-        },
-    },
-}
-
 // btif hf client service tests for target
 cc_test {
     name: "net_test_btif_hf_client_service",
@@ -681,9 +635,6 @@ cc_test {
         "libprotobuf-cpp-lite",
         "libstatslog_bt",
     ],
-    cflags: [
-        "-Wno-unused-parameter",
-    ],
     target: {
         android: {
             static_libs: [
@@ -723,7 +674,6 @@ cc_test {
         ":LibBluetoothSources",
         ":OsiCompatSources",
         ":TestCommonCoreInterface",
-        ":TestCommonMainHandler",
         ":TestCommonMockFunctions",
         ":TestFakeOsi",
         ":TestMockBtaAg",
@@ -784,8 +734,10 @@ cc_test {
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
+        "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libbt-audio-hal-interface",
+        "libbt-btu-main-thread",
         "libbt-common",
         "libbt-jni-thread",
         "libbt-platform-protos-lite",
@@ -800,12 +752,10 @@ cc_test {
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libevent",
+        "libflatbuffers-cpp",
         "libgmock",
         "libprotobuf-cpp-lite",
         "libstatslog_bt",
-    ],
-    cflags: [
-        "-Wno-unused-parameter",
     ],
     target: {
         android: {

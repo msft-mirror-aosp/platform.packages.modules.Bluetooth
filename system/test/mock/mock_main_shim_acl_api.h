@@ -60,6 +60,21 @@ struct ACL_AcceptLeConnectionFrom {
 };
 extern struct ACL_AcceptLeConnectionFrom ACL_AcceptLeConnectionFrom;
 
+// Name: ACL_DeviceAlreadyConnected
+// Params: const tBLE_BD_ADDR& legacy_address_with_type
+// Return: bool
+struct ACL_DeviceAlreadyConnected {
+  static bool return_value;
+  std::function<bool(const tBLE_BD_ADDR& legacy_address_with_type)> body{
+      [](const tBLE_BD_ADDR& legacy_address_with_type) {
+        return return_value;
+      }};
+  bool operator()(const tBLE_BD_ADDR& legacy_address_with_type) {
+    return body(legacy_address_with_type);
+  };
+};
+extern struct ACL_DeviceAlreadyConnected ACL_DeviceAlreadyConnected;
+
 // Name: ACL_AddToAddressResolution
 // Params: const tBLE_BD_ADDR& legacy_address_with_type, const Octet16&
 // peer_irk, const Octet16& local_irk Return: void
@@ -275,6 +290,33 @@ struct ACL_Flush {
 };
 extern struct ACL_Flush ACL_Flush;
 
+// Name: ACL_SendConnectionParameterUpdateRequest
+// Params: uint16_t handle
+// Params: uint16_t conn_int_min
+// Params: uint16_t conn_int_max
+// Params: uint16_t conn_latency
+// Params: uint16_t conn_timeout
+// Params: uint16_t min_ce_len
+// Params: uint16_t max_ce_len
+// Return: void
+struct ACL_SendConnectionParameterUpdateRequest {
+  std::function<void(uint16_t handle, uint16_t conn_int_min,
+                     uint16_t conn_int_max, uint16_t conn_latency,
+                     uint16_t conn_timeout, uint16_t min_ce_len,
+                     uint16_t max_ce_len)>
+      body{[](uint16_t /* handle */, uint16_t /* conn_int_min */,
+              uint16_t /* conn_int_max */, uint16_t /* conn_latency */,
+              uint16_t /* conn_timeout */, uint16_t /* min_ce_len */,
+              uint16_t /* max_ce_len */) {}};
+  void operator()(uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
+                  uint16_t conn_latency, uint16_t conn_timeout,
+                  uint16_t min_ce_len, uint16_t max_ce_len) {
+    body(handle, conn_int_min, conn_int_max, conn_latency, conn_timeout,
+         min_ce_len, max_ce_len);
+  };
+};
+extern struct ACL_SendConnectionParameterUpdateRequest
+    ACL_SendConnectionParameterUpdateRequest;
 }  // namespace main_shim_acl_api
 }  // namespace mock
 }  // namespace test

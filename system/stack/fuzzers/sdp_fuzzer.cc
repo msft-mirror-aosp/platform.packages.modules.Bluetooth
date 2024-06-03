@@ -22,6 +22,7 @@
 
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/l2cdefs.h"
 #include "stack/include/sdpdefs.h"
 #include "stack/sdp/internal/sdp_api.h"
 #include "stack/sdp/sdpint.h"
@@ -147,8 +148,7 @@ class Fakes {
 
 }  // namespace
 
-static void FuzzAsServer(const uint8_t* data, size_t size) {
-  FuzzedDataProvider fdp(data, size);
+static void FuzzAsServer(FuzzedDataProvider& fdp) {
   std::vector<std::vector<uint8_t>> attrs;
 
   sdp_init();
@@ -191,8 +191,7 @@ static void FuzzAsServer(const uint8_t* data, size_t size) {
   sdp_free();
 }
 
-static void FuzzAsClient(const uint8_t* data, size_t size) {
-  FuzzedDataProvider fdp(data, size);
+static void FuzzAsClient(FuzzedDataProvider& fdp) {
   std::shared_ptr<tSDP_DISCOVERY_DB> p_db(
       (tSDP_DISCOVERY_DB*)malloc(SDP_DB_SIZE), free);
 
@@ -246,10 +245,16 @@ static void FuzzAsClient(const uint8_t* data, size_t size) {
   sdp_free();
 }
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   auto fakes = std::make_unique<Fakes>();
 
-  FuzzAsServer(Data, Size);
-  FuzzAsClient(Data, Size);
+  FuzzedDataProvider fdp(data, size);
+
+  if (fdp.ConsumeBool()) {
+    FuzzAsServer(fdp);
+  } else {
+    FuzzAsClient(fdp);
+  }
+
   return 0;
 }

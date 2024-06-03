@@ -18,7 +18,6 @@
 
 #include <base/functional/bind.h>
 #include <base/functional/callback.h>
-#include <cutils/log.h>
 #include <string.h>
 
 #include <array>
@@ -32,7 +31,6 @@
 #include "rust/cxx.h"
 #include "rust/src/gatt/ffi/gatt_shim.h"
 #include "src/gatt/ffi.rs.h"
-#include "utils/Log.h"
 
 using bluetooth::Uuid;
 
@@ -459,7 +457,7 @@ void btgattc_track_adv_event_cb(btgatt_track_adv_info_t* p_adv_track_info) {
   ScopedLocalRef<jobject> trackadv_obj(
       sCallbackEnv.get(),
       sCallbackEnv->CallObjectMethod(
-          mCallbacksObj, method_createOnTrackAdvFoundLostObject,
+          mScanCallbacksObj, method_createOnTrackAdvFoundLostObject,
           p_adv_track_info->client_if, p_adv_track_info->adv_pkt_len,
           jb_adv_pkt.get(), p_adv_track_info->scan_rsp_len, jb_scan_rsp.get(),
           p_adv_track_info->filt_index, p_adv_track_info->advertiser_state,
@@ -1039,7 +1037,10 @@ class JniScanningCallbacks : ScanningCallbacks {
   void OnTrackAdvFoundLost(AdvertisingTrackInfo track_info) {
     std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
     CallbackEnv sCallbackEnv(__func__);
-    if (!sCallbackEnv.valid() || !mScanCallbacksObj) return;
+    if (!sCallbackEnv.valid() || !mScanCallbacksObj) {
+      log::error("sCallbackEnv not valid or no mScanCallbacksObj.");
+      return;
+    }
 
     ScopedLocalRef<jstring> address(
         sCallbackEnv.get(),
@@ -1063,7 +1064,7 @@ class JniScanningCallbacks : ScanningCallbacks {
     ScopedLocalRef<jobject> trackadv_obj(
         sCallbackEnv.get(),
         sCallbackEnv->CallObjectMethod(
-            mCallbacksObj, method_createOnTrackAdvFoundLostObject,
+            mScanCallbacksObj, method_createOnTrackAdvFoundLostObject,
             track_info.scanner_id, track_info.adv_packet_len, jb_adv_pkt.get(),
             track_info.scan_response_len, jb_scan_rsp.get(),
             track_info.filter_index, track_info.advertiser_state,
@@ -1937,11 +1938,12 @@ static void gattServerUnregisterAppNative(JNIEnv* /* env */,
 
 static void gattServerConnectNative(JNIEnv* env, jobject /* object */,
                                     jint server_if, jstring address,
-                                    jboolean is_direct, jint transport) {
+                                    jint addr_type, jboolean is_direct,
+                                    jint transport) {
   if (!sGattIf) return;
 
   RawAddress bd_addr = str2addr(env, address);
-  sGattIf->server->connect(server_if, bd_addr, is_direct, transport);
+  sGattIf->server->connect(server_if, bd_addr, addr_type, is_direct, transport);
 }
 
 static void gattServerDisconnectNative(JNIEnv* env, jobject /* object */,
@@ -2825,7 +2827,7 @@ static int register_com_android_bluetooth_gatt_(JNIEnv* env) {
        (void*)gattServerRegisterAppNative},
       {"gattServerUnregisterAppNative", "(I)V",
        (void*)gattServerUnregisterAppNative},
-      {"gattServerConnectNative", "(ILjava/lang/String;ZI)V",
+      {"gattServerConnectNative", "(ILjava/lang/String;IZI)V",
        (void*)gattServerConnectNative},
       {"gattServerDisconnectNative", "(ILjava/lang/String;I)V",
        (void*)gattServerDisconnectNative},

@@ -22,14 +22,13 @@
 #include "test/mock/mock_stack_btm_dev.h"
 
 #include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #include <string>
 
-#include "btm_api.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/include/bt_octets.h"
+#include "stack/include/btm_api.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
@@ -51,10 +50,6 @@ void BTM_SecAddDevice(const RawAddress& /* bd_addr */,
   inc_func_call_count(__func__);
 }
 bool BTM_SecDeleteDevice(const RawAddress& /* bd_addr */) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool btm_dev_support_role_switch(const RawAddress& /* bd_addr */) {
   inc_func_call_count(__func__);
   return false;
 }

@@ -28,13 +28,12 @@
 
 #define LOG_TAG "bt_btif_core"
 
-#include <android_bluetooth_flags.h>
 #include <android_bluetooth_sysprop.h>
 #include <base/at_exit.h>
 #include <base/functional/bind.h>
-#include <base/logging.h>
 #include <base/threading/platform_thread.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <signal.h>
 #include <sys/types.h>
 
@@ -195,8 +194,7 @@ void btif_enable_bluetooth_evt() {
       strcmp(bdstr.c_str(), val) != 0) {
     // We failed to get an address or the one in the config file does not match
     // the address given by the controller interface. Update the config cache
-    log::info("Storing '{}' into the config file",
-              ADDRESS_TO_LOGGABLE_CSTR(local_bd_addr));
+    log::info("Storing '{}' into the config file", local_bd_addr);
     btif_config_set_str(BTIF_STORAGE_SECTION_ADAPTER, BTIF_STORAGE_KEY_ADDRESS,
                         bdstr.c_str());
 
@@ -219,7 +217,7 @@ void btif_enable_bluetooth_evt() {
 
   GetInterfaceToProfiles()->onBluetoothEnabled();
 
-  if (!IS_FLAG_ENABLED(load_did_config_from_sysprops)) {
+  if (!com::android::bluetooth::flags::load_did_config_from_sysprops()) {
     bte_load_did_conf(BTE_DID_CONF_FILE);
   } else {
     tSDP_DI_RECORD record = {
@@ -308,7 +306,7 @@ void btif_dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len) {
  ****************************************************************************/
 
 static bt_status_t btif_in_get_adapter_properties(void) {
-  const static uint32_t NUM_ADAPTER_PROPERTIES = 7;
+  const static uint32_t NUM_ADAPTER_PROPERTIES = 6;
   bt_property_t properties[NUM_ADAPTER_PROPERTIES];
   uint32_t num_props = 0;
 
@@ -319,7 +317,6 @@ static bt_status_t btif_in_get_adapter_properties(void) {
   RawAddress bonded_devices[BTM_SEC_MAX_DEVICE_RECORDS];
   Uuid local_uuids[BT_MAX_NUM_UUIDS];
   bt_status_t status;
-  bt_io_cap_t local_bt_io_cap;
 
   /* RawAddress */
   BTIF_STORAGE_FILL_PROPERTY(&properties[num_props], BT_PROPERTY_BDADDR,
@@ -361,12 +358,6 @@ static bt_status_t btif_in_get_adapter_properties(void) {
   /* LOCAL UUIDs */
   BTIF_STORAGE_FILL_PROPERTY(&properties[num_props], BT_PROPERTY_UUIDS,
                              sizeof(local_uuids), local_uuids);
-  btif_storage_get_adapter_property(&properties[num_props]);
-  num_props++;
-
-  /* LOCAL IO Capabilities */
-  BTIF_STORAGE_FILL_PROPERTY(&properties[num_props], BT_PROPERTY_LOCAL_IO_CAPS,
-                             sizeof(bt_io_cap_t), &local_bt_io_cap);
   btif_storage_get_adapter_property(&properties[num_props]);
   num_props++;
 
@@ -629,12 +620,6 @@ void btif_set_adapter_property(bt_property_t* property) {
       /* Nothing to do beside store the value in NV.  Java
          will change the SCAN_MODE property after setting timeout,
          if required */
-      btif_core_storage_adapter_write(property);
-    } break;
-    case BT_PROPERTY_LOCAL_IO_CAPS: {
-      // Changing IO Capability of stack at run-time is not currently supported.
-      // This call changes the stored value which will affect the stack next
-      // time it starts up.
       btif_core_storage_adapter_write(property);
     } break;
     default:

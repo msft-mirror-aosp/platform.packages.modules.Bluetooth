@@ -214,7 +214,6 @@ cc_library {
 
 android_app {
     name: "Bluetooth",
-    defaults: ["bluetooth-module-sdk-version-defaults"],
 
     srcs: [
         ":statslog-bluetooth-java-gen",
@@ -300,6 +299,7 @@ android_app {
             "UseSparseArrays",
             "UseValueOf",
         ],
+        extra_check_modules: ["BluetoothLintChecker"],
         baseline_filename: "lint-baseline.xml",
     },
 

@@ -18,8 +18,8 @@
 
 #define LOG_TAG "bt_stack_manager"
 
-#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <hardware/bluetooth.h>
 
 #include <cstdlib>
@@ -33,7 +33,6 @@
 #include "btif_common.h"
 #include "common/message_loop_thread.h"
 #include "core_callbacks.h"
-#include "include/check.h"
 #include "main/shim/shim.h"
 #include "os/log.h"
 #include "stack/include/acl_api.h"
@@ -194,7 +193,6 @@ static bool get_stack_is_running() { return stack_is_running; }
 
 // Internal functions
 extern const module_t bt_utils_module;
-extern const module_t bte_logmsg_module;
 extern const module_t btif_config_module;
 extern const module_t gd_shim_module;
 extern const module_t interop_module;
@@ -209,7 +207,6 @@ struct module_lookup {
 };
 
 const struct module_lookup module_table[] = {
-    {BTE_LOGMSG_MODULE, &bte_logmsg_module},
     {BTIF_CONFIG_MODULE, &btif_config_module},
     {GD_SHIM_MODULE, &gd_shim_module},
     {INTEROP_MODULE, &interop_module},
@@ -311,8 +308,6 @@ static void event_start_up_stack(bluetooth::core::CoreInterface* interface,
 
   bta_sys_init();
 
-  module_init(get_local_module(BTE_LOGMSG_MODULE));
-
   btif_init_ok();
   BTA_dm_init();
   bta_dm_enable(btif_dm_sec_evt, btif_dm_acl_evt);
@@ -330,8 +325,9 @@ static void event_start_up_stack(bluetooth::core::CoreInterface* interface,
   }
 
   module_start_up(get_local_module(RUST_MODULE));
-  if (IS_FLAG_ENABLED(channel_sounding_in_stack)) {
+  if (com::android::bluetooth::flags::channel_sounding_in_stack()) {
     bluetooth::ras::GetRasServer()->Initialize();
+    bluetooth::ras::GetRasClient()->Initialize();
   }
 
   stack_is_running = true;
@@ -374,11 +370,9 @@ static void event_shut_down_stack(ProfileStopCallback stopProfiles) {
 
   future_await(local_hack_future);
 
-  module_clean_up(get_local_module(BTE_LOGMSG_MODULE));
-
   gatt_free();
-  l2c_free();
   sdp_free();
+  l2c_free();
   get_btm_client_interface().lifecycle.btm_ble_free();
 
   get_btm_client_interface().lifecycle.btm_free();

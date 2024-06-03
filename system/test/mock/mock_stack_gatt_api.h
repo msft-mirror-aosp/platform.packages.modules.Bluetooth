@@ -27,9 +27,8 @@
 #include <string>
 
 // Original included files, if any
-#include <base/logging.h>
+
 #include <base/strings/string_number_conversions.h>
-#include <stdio.h>
 
 #include <string>
 

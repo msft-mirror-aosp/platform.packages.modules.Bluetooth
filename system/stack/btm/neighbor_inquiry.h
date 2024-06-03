@@ -23,6 +23,7 @@
 #include "internal_include/bt_target.h"
 #include "macros.h"
 #include "osi/include/alarm.h"
+#include "stack/btm/btm_eir.h"
 #include "stack/include/bt_device_type.h"
 #include "stack/include/bt_name.h"
 #include "stack/include/btm_api_types.h"
@@ -241,6 +242,7 @@ struct tBTM_INQUIRY_VAR_ST {
   RawAddress remname_bda; /* Name of bd addr for active remote name request */
 #define BTM_RMT_NAME_EXT 0x1 /* Initiated through API */
   bool remname_active; /* State of a remote name request by external API */
+  tBT_DEVICE_TYPE remname_dev_type; /* Whether it's LE or BREDR name request */
 
   tBTM_CMPL_CB* p_inq_cmpl_cb;
   tBTM_INQ_RESULTS_CB* p_inq_results_cb;
@@ -286,6 +288,7 @@ struct tBTM_INQUIRY_VAR_ST {
 
     remname_bda = {};
     remname_active = false;
+    remname_dev_type = BT_DEVICE_TYPE_UNKNOWN;
 
     p_inq_cmpl_cb = nullptr;
     p_inq_results_cb = nullptr;

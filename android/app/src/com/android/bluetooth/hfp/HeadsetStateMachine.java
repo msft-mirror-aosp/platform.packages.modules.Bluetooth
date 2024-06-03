@@ -20,6 +20,8 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 
 import static com.android.modules.utils.build.SdkLevel.isAtLeastU;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.RequiresPermission;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothAssignedNumbers;
@@ -46,6 +48,7 @@ import android.util.Log;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
@@ -83,10 +86,8 @@ import java.util.Scanner;
  *                           V      |
  *                           (AudioOn)
  */
-@VisibleForTesting
-public class HeadsetStateMachine extends StateMachine {
-    private static final String TAG = "HeadsetStateMachine";
-    private static final boolean DBG = true;
+class HeadsetStateMachine extends StateMachine {
+    private static final String TAG = HeadsetStateMachine.class.getSimpleName();
 
     static final int CONNECT = 1;
     static final int DISCONNECT = 2;
@@ -123,8 +124,6 @@ public class HeadsetStateMachine extends StateMachine {
     private static final HeadsetAgIndicatorEnableState DEFAULT_AG_INDICATOR_ENABLE_STATE =
             new HeadsetAgIndicatorEnableState(true, true, true, true);
 
-    private final BluetoothDevice mDevice;
-
     // State machine states
     private final Disconnected mDisconnected = new Disconnected();
     private final Connecting mConnecting = new Connecting();
@@ -137,11 +136,12 @@ public class HeadsetStateMachine extends StateMachine {
     private HeadsetStateBase mCurrentState;
 
     // Run time dependencies
+    private final BluetoothDevice mDevice;
     private final HeadsetService mHeadsetService;
     private final AdapterService mAdapterService;
     private final HeadsetNativeInterface mNativeInterface;
     private final HeadsetSystemInterface mSystemInterface;
-    private DatabaseManager mDatabaseManager;
+    private final DatabaseManager mDatabaseManager;
 
     // Runtime states
     @VisibleForTesting
@@ -201,22 +201,19 @@ public class HeadsetStateMachine extends StateMachine {
     private HeadsetStateMachine(BluetoothDevice device, Looper looper,
             HeadsetService headsetService, AdapterService adapterService,
             HeadsetNativeInterface nativeInterface, HeadsetSystemInterface systemInterface) {
-        super(TAG, Objects.requireNonNull(looper, "looper cannot be null"));
+        super(TAG, requireNonNull(looper));
 
         // Let the logging framework enforce the log level. TAG is set above in the parent
         // constructor.
         setDbg(true);
 
-        mDevice = Objects.requireNonNull(device, "device cannot be null");
-        mHeadsetService = Objects.requireNonNull(headsetService, "headsetService cannot be null");
-        mNativeInterface =
-                Objects.requireNonNull(nativeInterface, "nativeInterface cannot be null");
-        mSystemInterface =
-                Objects.requireNonNull(systemInterface, "systemInterface cannot be null");
-        mAdapterService = Objects.requireNonNull(adapterService, "AdapterService cannot be null");
-        mDatabaseManager = Objects.requireNonNull(
-            AdapterService.getAdapterService().getDatabase(),
-            "DatabaseManager cannot be null when HeadsetClientStateMachine is created");
+        mDevice = requireNonNull(device);
+        mHeadsetService = requireNonNull(headsetService);
+        mNativeInterface = requireNonNull(nativeInterface);
+        mSystemInterface = requireNonNull(systemInterface);
+        mAdapterService = requireNonNull(adapterService);
+        mDatabaseManager = requireNonNull(adapterService.getDatabase());
+
         mDeviceSilenced = false;
 
         BluetoothSinkAudioPolicy storedAudioPolicy =
@@ -358,8 +355,11 @@ public class HeadsetStateMachine extends StateMachine {
             intent.putExtra(BluetoothProfile.EXTRA_STATE, toState);
             intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
             intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-            mHeadsetService.sendBroadcastAsUser(intent, UserHandle.ALL,
-                    BLUETOOTH_CONNECT, Utils.getTempAllowlistBroadcastOptions());
+            mHeadsetService.sendBroadcastAsUser(
+                    intent,
+                    UserHandle.ALL,
+                    BLUETOOTH_CONNECT,
+                    Utils.getTempBroadcastOptions().toBundle());
         }
 
         // Should not be called from enter() method
@@ -377,8 +377,11 @@ public class HeadsetStateMachine extends StateMachine {
             intent.putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, fromState);
             intent.putExtra(BluetoothProfile.EXTRA_STATE, toState);
             intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
-            mHeadsetService.sendBroadcastAsUser(intent, UserHandle.ALL,
-                    BLUETOOTH_CONNECT, Utils.getTempAllowlistBroadcastOptions());
+            mHeadsetService.sendBroadcastAsUser(
+                    intent,
+                    UserHandle.ALL,
+                    BLUETOOTH_CONNECT,
+                    Utils.getTempBroadcastOptions().toBundle());
         }
 
         /**
@@ -581,7 +584,8 @@ public class HeadsetStateMachine extends StateMachine {
                                 BluetoothProtoEnums.RESULT_FAILURE,
                                 BluetoothProfile.STATE_DISCONNECTED,
                                 BluetoothProfile.STATE_DISCONNECTED,
-                                BluetoothProtoEnums.REASON_NATIVE_LAYER_REJECTED);
+                                BluetoothProtoEnums.REASON_NATIVE_LAYER_REJECTED,
+                                MetricsLogger.getInstance().getRemoteDeviceInfoProto(mDevice));
                         break;
                     }
                     transitionTo(mConnecting);
@@ -649,7 +653,8 @@ public class HeadsetStateMachine extends StateMachine {
                                 BluetoothProtoEnums.RESULT_FAILURE,
                                 BluetoothProfile.STATE_DISCONNECTED,
                                 BluetoothProfile.STATE_DISCONNECTED,
-                                BluetoothProtoEnums.REASON_INCOMING_CONN_REJECTED);
+                                BluetoothProtoEnums.REASON_INCOMING_CONN_REJECTED,
+                                MetricsLogger.getInstance().getRemoteDeviceInfoProto(mDevice));
                     }
                     break;
                 case HeadsetHalConstants.CONNECTION_STATE_DISCONNECTING:
@@ -676,7 +681,8 @@ public class HeadsetStateMachine extends StateMachine {
                         result,
                         mPrevState.getConnectionStateInt(),
                         BluetoothProfile.STATE_DISCONNECTED,
-                        BluetoothProtoEnums.REASON_UNEXPECTED_STATE);
+                        BluetoothProtoEnums.REASON_UNEXPECTED_STATE,
+                        MetricsLogger.getInstance().getRemoteDeviceInfoProto(mDevice));
             }
         }
     }
@@ -1319,7 +1325,8 @@ public class HeadsetStateMachine extends StateMachine {
                         BluetoothProtoEnums.RESULT_SUCCESS,
                         mPrevState.getConnectionStateInt(),
                         BluetoothProfile.STATE_CONNECTED,
-                        BluetoothProtoEnums.REASON_SUCCESS);
+                        BluetoothProtoEnums.REASON_SUCCESS,
+                        MetricsLogger.getInstance().getRemoteDeviceInfoProto(mDevice));
             }
         }
     }
@@ -1652,7 +1659,7 @@ public class HeadsetStateMachine extends StateMachine {
      * @return device in focus
      */
     @VisibleForTesting
-    public synchronized BluetoothDevice getDevice() {
+    public BluetoothDevice getDevice() {
         return mDevice;
     }
 
@@ -1730,8 +1737,11 @@ public class HeadsetStateMachine extends StateMachine {
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.addCategory(BluetoothHeadset.VENDOR_SPECIFIC_HEADSET_EVENT_COMPANY_ID_CATEGORY + "."
                 + Integer.toString(companyId));
-        mHeadsetService.sendBroadcastAsUser(intent, UserHandle.ALL, BLUETOOTH_CONNECT,
-                Utils.getTempAllowlistBroadcastOptions());
+        mHeadsetService.sendBroadcastAsUser(
+                intent,
+                UserHandle.ALL,
+                BLUETOOTH_CONNECT,
+                Utils.getTempBroadcastOptions().toBundle());
     }
 
     private void setAudioParameters() {
@@ -2494,8 +2504,8 @@ public class HeadsetStateMachine extends StateMachine {
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.putExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_ID, indId);
         intent.putExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_VALUE, indValue);
-        Utils.sendBroadcast(mHeadsetService, intent, BLUETOOTH_CONNECT,
-                Utils.getTempAllowlistBroadcastOptions());
+        mHeadsetService.sendBroadcast(
+                intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
     }
 
     private void processAtBind(String atString, BluetoothDevice device) {
@@ -2584,9 +2594,7 @@ public class HeadsetStateMachine extends StateMachine {
 
     @Override
     protected void log(String msg) {
-        if (DBG) {
-            super.log(msg);
-        }
+        super.log(msg);
     }
 
     @Override

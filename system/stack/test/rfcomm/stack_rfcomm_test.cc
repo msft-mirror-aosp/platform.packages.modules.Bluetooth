@@ -16,7 +16,6 @@
  *
  ******************************************************************************/
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -28,6 +27,7 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/l2c_api.h"
+#include "stack/include/l2cdefs.h"
 #include "stack/include/port_api.h"
 #include "stack/include/rfcdefs.h"
 #include "stack_rfcomm_test_utils.h"
@@ -107,11 +107,11 @@ MATCHER_P(BtHdrEqual, expected, DumpBtHdrToString(expected)) {
 
 bluetooth::rfcomm::MockRfcommCallback* rfcomm_callback = nullptr;
 
-void port_mgmt_cback_0(uint32_t code, uint16_t port_handle) {
+void port_mgmt_cback_0(const tPORT_RESULT code, uint16_t port_handle) {
   rfcomm_callback->PortManagementCallback(code, port_handle, 0);
 }
 
-void port_mgmt_cback_1(uint32_t code, uint16_t port_handle) {
+void port_mgmt_cback_1(const tPORT_RESULT code, uint16_t port_handle) {
   rfcomm_callback->PortManagementCallback(code, port_handle, 1);
 }
 
@@ -124,7 +124,7 @@ void port_event_cback_1(uint32_t code, uint16_t port_handle) {
 }
 
 RawAddress GetTestAddress(int index) {
-  CHECK_LT(index, UINT8_MAX);
+  EXPECT_LT(index, UINT8_MAX);
   RawAddress result = {
       {0xAA, 0x00, 0x11, 0x22, 0x33, static_cast<uint8_t>(index)}};
   return result;
@@ -133,7 +133,7 @@ RawAddress GetTestAddress(int index) {
 class StackRfcommTest : public Test {
  public:
   void StartServerPort(uint16_t uuid, uint8_t scn, uint16_t mtu,
-                       tPORT_CALLBACK* management_callback,
+                       tPORT_MGMT_CALLBACK* management_callback,
                        tPORT_CALLBACK* event_callback,
                        uint16_t* server_handle) {
     log::verbose("Step 1");
@@ -266,7 +266,7 @@ class StackRfcommTest : public Test {
 
   void StartClientPort(const RawAddress& peer_bd_addr, uint16_t uuid,
                        uint8_t scn, uint16_t mtu,
-                       tPORT_CALLBACK* management_callback,
+                       tPORT_MGMT_CALLBACK* management_callback,
                        tPORT_CALLBACK* event_callback, uint16_t lcid,
                        uint16_t acl_handle, uint16_t* client_handle,
                        bool is_first_connection) {

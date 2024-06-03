@@ -65,7 +65,9 @@ void SecurityManagerImpl::DispatchPairingHandler(
       break;
     }
     default:
-      ASSERT_LOG(false, "Pairing type %hhu not implemented!", record->GetPseudoAddress()->GetAddressType());
+      log::fatal(
+          "Pairing type {} not implemented!",
+          (uint8_t)record->GetPseudoAddress()->GetAddressType());
   }
   auto new_entry = std::pair<hci::Address, std::shared_ptr<pairing::PairingHandler>>(
       record->GetPseudoAddress()->GetAddress(), pairing_handler);
@@ -79,7 +81,7 @@ void SecurityManagerImpl::Init() {
   security_manager_channel_->SendCommand(hci::WriteSimplePairingModeBuilder::Create(hci::Enable::ENABLED));
   security_manager_channel_->SendCommand(hci::WriteSecureConnectionsHostSupportBuilder::Create(hci::Enable::ENABLED));
 
-  ASSERT_LOG(storage_module_ != nullptr, "Storage module must not be null!");
+  log::assert_that(storage_module_ != nullptr, "Storage module must not be null!");
   security_database_.LoadRecordsFromStorage();
 
   auto irk_prop =
@@ -105,8 +107,8 @@ void SecurityManagerImpl::Init() {
       hci::AddressWithType(controllerAddress, hci::AddressType::PUBLIC_DEVICE_ADDRESS);
   irk_prop =
       storage_module_->GetBin(BTIF_STORAGE_SECTION_ADAPTER, BTIF_STORAGE_KEY_LE_LOCAL_KEY_IRK);
-  ASSERT_LOG(irk_prop.has_value(), "Irk not found in storage");
-  ASSERT_LOG(irk_prop->size() == 16, "Irk corrupted in storage");
+  log::assert_that(irk_prop.has_value(), "Irk not found in storage");
+  log::assert_that(irk_prop->size() == 16, "Irk corrupted in storage");
   std::copy(irk_prop->begin(), irk_prop->end(), local_identity_resolving_key_.data());
 
   hci::LeAddressManager::AddressPolicy address_policy = hci::LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS;
@@ -263,7 +265,7 @@ void SecurityManagerImpl::NotifyEncryptionStateChanged(hci::EncryptionChangeView
 
 template <class T>
 void SecurityManagerImpl::HandleEvent(T packet) {
-  ASSERT(packet.IsValid());
+  log::assert_that(packet.IsValid(), "assert failed: packet.IsValid()");
   auto entry = pairing_handler_map_.find(packet.GetBdAddr());
 
   if (entry == pairing_handler_map_.end()) {
@@ -274,7 +276,7 @@ void SecurityManagerImpl::HandleEvent(T packet) {
         event_code != hci::EventCode::IO_CAPABILITY_RESPONSE) {
       log::error(
           "No classic pairing handler for device '{}' ready for command {}",
-          ADDRESS_TO_LOGGABLE_CSTR(bd_addr),
+          bd_addr,
           hci::EventCodeText(event_code));
       return;
     }
@@ -298,7 +300,7 @@ void SecurityManagerImpl::HandleEvent(T packet) {
 
 void SecurityManagerImpl::OnHciEventReceived(hci::EventView packet) {
   auto event = hci::EventView::Create(packet);
-  ASSERT_LOG(event.IsValid(), "Received invalid packet");
+  log::assert_that(event.IsValid(), "Received invalid packet");
   const hci::EventCode code = event.GetEventCode();
   switch (code) {
     case hci::EventCode::PIN_CODE_REQUEST:
@@ -350,7 +352,7 @@ void SecurityManagerImpl::OnHciEventReceived(hci::EventView packet) {
     }
 
     default:
-      ASSERT_LOG(false, "Cannot handle received packet: %s", hci::EventCodeText(code).c_str());
+      log::fatal("Cannot handle received packet: {}", hci::EventCodeText(code));
       break;
   }
 }
@@ -358,7 +360,7 @@ void SecurityManagerImpl::OnHciEventReceived(hci::EventView packet) {
 void SecurityManagerImpl::OnConnectionClosed(hci::Address address) {
   auto entry = pairing_handler_map_.find(address);
   if (entry != pairing_handler_map_.end()) {
-    log::info("Cancelling pairing handler for '{}'", ADDRESS_TO_LOGGABLE_CSTR(address));
+    log::info("Cancelling pairing handler for '{}'", address);
     entry->second->Cancel();
   }
   auto record = security_database_.FindOrCreate(hci::AddressWithType(address, hci::AddressType::PUBLIC_DEVICE_ADDRESS));
@@ -431,10 +433,10 @@ void SecurityManagerImpl::OnPasskeyEntry(const bluetooth::hci::AddressWithType& 
 void SecurityManagerImpl::OnPinEntry(const bluetooth::hci::AddressWithType& address, std::vector<uint8_t> pin) {
   auto entry = pairing_handler_map_.find(address.GetAddress());
   if (entry != pairing_handler_map_.end()) {
-    log::info("PIN for {}", ADDRESS_TO_LOGGABLE_CSTR(address));
+    log::info("PIN for {}", address);
     entry->second->OnPinEntry(address, pin);
   } else {
-    log::warn("No handler found for PIN for {}", ADDRESS_TO_LOGGABLE_CSTR(address));
+    log::warn("No handler found for PIN for {}", address);
     // TODO(jpawlowski): Implement LE version
   }
 }
@@ -464,7 +466,7 @@ void SecurityManagerImpl::OnPairingHandlerComplete(hci::Address address, Pairing
 void SecurityManagerImpl::OnL2capRegistrationCompleteLe(
     l2cap::le::FixedChannelManager::RegistrationResult result,
     [[maybe_unused]] std::unique_ptr<l2cap::le::FixedChannelService> le_smp_service) {
-  ASSERT_LOG(
+  log::assert_that(
       result == bluetooth::l2cap::le::FixedChannelManager::RegistrationResult::SUCCESS,
       "Failed to register to LE SMP Fixed Channel Service");
 }
@@ -727,7 +729,7 @@ void SecurityManagerImpl::OnPairingFinished(security::PairingResultOrFailure pai
   }
 
   auto result = std::get<PairingResult>(pairing_result);
-  log::info("Pairing with {} was successful", ADDRESS_TO_LOGGABLE_CSTR(result.connection_address));
+  log::info("Pairing with {} was successful", result.connection_address);
 
   // TODO: ensure that the security level is not weaker than what we already have.
   auto record = this->security_database_.FindOrCreate(result.connection_address);
@@ -813,7 +815,7 @@ void SecurityManagerImpl::InternalEnforceSecurityPolicy(
     l2cap::classic::SecurityEnforcementInterface::ResultCallback result_callback) {
   if (IsSecurityRequirementSatisfied(remote, policy)) {
     // Notify client immediately if already satisfied
-    std::move(result_callback).Invoke(true);
+    std::move(result_callback)(true);
     return;
   }
 
@@ -833,7 +835,7 @@ void SecurityManagerImpl::InternalEnforceSecurityPolicy(
       break;
     default:
       // I could hear the voice of Myles, "This should be an ASSERT!"
-      ASSERT_LOG(false, "Unreachable code path");
+      log::fatal("Unreachable code path");
       return;
   }
 
@@ -850,11 +852,10 @@ void SecurityManagerImpl::InternalEnforceSecurityPolicy(
 void SecurityManagerImpl::UpdateLinkSecurityCondition(hci::AddressWithType remote) {
   auto entry = enforce_security_policy_callback_map_.find(remote);
   if (entry == enforce_security_policy_callback_map_.end()) {
-    log::error(
-        "No L2CAP security policy callback pending for {}", ADDRESS_TO_LOGGABLE_CSTR(remote));
+    log::error("No L2CAP security policy callback pending for {}", remote);
     return;
   }
-  std::move(entry->second.callback_).Invoke(IsSecurityRequirementSatisfied(remote, entry->second.policy_));
+  std::move(entry->second.callback_)(IsSecurityRequirementSatisfied(remote, entry->second.policy_));
   enforce_security_policy_callback_map_.erase(entry);
 }
 
@@ -904,7 +905,7 @@ void SecurityManagerImpl::EnforceLeSecurityPolicy(
     case l2cap::le::SecurityPolicy::_NOT_FOR_YOU__AUTHORIZATION:
       break;
   }
-  result_callback.Invoke(result);
+  result_callback(result);
 }
 }  // namespace internal
 }  // namespace security

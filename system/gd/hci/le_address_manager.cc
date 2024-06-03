@@ -16,18 +16,46 @@
 
 #include "hci/le_address_manager.h"
 
-#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include "common/init_flags.h"
 #include "hci/octets.h"
-#include "os/log.h"
+#include "include/macros.h"
 #include "os/rand.h"
 
 namespace bluetooth {
 namespace hci {
 
 static constexpr uint8_t BLE_ADDR_MASK = 0xc0u;
+
+enum class LeAddressManager::ClientState {
+  WAITING_FOR_PAUSE,
+  PAUSED,
+  WAITING_FOR_RESUME,
+  RESUMED,
+};
+
+std::string LeAddressManager::ClientStateText(const ClientState cs) {
+  switch (cs) {
+    CASE_RETURN_STRING(ClientState::WAITING_FOR_PAUSE);
+    CASE_RETURN_STRING(ClientState::PAUSED);
+    CASE_RETURN_STRING(ClientState::WAITING_FOR_RESUME);
+    CASE_RETURN_STRING(ClientState::RESUMED);
+  }
+  RETURN_UNKNOWN_TYPE_STRING(ClientState, cs);
+}
+
+std::string AddressPolicyText(const LeAddressManager::AddressPolicy policy) {
+  switch (policy) {
+    CASE_RETURN_STRING(LeAddressManager::AddressPolicy::POLICY_NOT_SET);
+    CASE_RETURN_STRING(LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS);
+    CASE_RETURN_STRING(LeAddressManager::AddressPolicy::USE_STATIC_ADDRESS);
+    CASE_RETURN_STRING(LeAddressManager::AddressPolicy::USE_NON_RESOLVABLE_ADDRESS);
+    CASE_RETURN_STRING(LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS);
+  }
+  RETURN_UNKNOWN_TYPE_STRING(LeAddressManager::AddressPolicy, policy);
+}
 
 LeAddressManager::LeAddressManager(
     common::Callback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
@@ -68,14 +96,19 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddress(
     }
     return;
   }
-  ASSERT(address_policy_ == AddressPolicy::POLICY_NOT_SET);
-  ASSERT(address_policy != AddressPolicy::POLICY_NOT_SET);
-  ASSERT_LOG(registered_clients_.empty(), "Policy must be set before clients are registered.");
+  log::assert_that(
+      address_policy_ == AddressPolicy::POLICY_NOT_SET,
+      "assert failed: address_policy_ == AddressPolicy::POLICY_NOT_SET");
+  log::assert_that(
+      address_policy != AddressPolicy::POLICY_NOT_SET,
+      "assert failed: address_policy != AddressPolicy::POLICY_NOT_SET");
+  log::assert_that(
+      registered_clients_.empty(), "Policy must be set before clients are registered.");
   address_policy_ = address_policy;
   supports_ble_privacy_ = supports_ble_privacy;
-  log::info("SetPrivacyPolicyForInitiatorAddress with policy {}", address_policy);
+  log::info("New policy: {}", AddressPolicyText(address_policy));
 
-  if (IS_FLAG_ENABLED(nrpa_non_connectable_adv)) {
+  if (com::android::bluetooth::flags::nrpa_non_connectable_adv()) {
     minimum_rotation_time_ = minimum_rotation_time;
     maximum_rotation_time_ = maximum_rotation_time;
   }
@@ -83,13 +116,15 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddress(
   switch (address_policy_) {
     case AddressPolicy::USE_PUBLIC_ADDRESS:
       le_address_ = AddressWithType(public_address_, AddressType::PUBLIC_DEVICE_ADDRESS);
-      handler_->BindOnceOn(this, &LeAddressManager::resume_registered_clients).Invoke();
+      handler_->BindOnceOn(this, &LeAddressManager::resume_registered_clients)();
       break;
     case AddressPolicy::USE_STATIC_ADDRESS: {
       auto addr = fixed_address.GetAddress();
       auto address = addr.address;
       // The two most significant bits of the static address shall be equal to 1
-      ASSERT_LOG((address[5] & BLE_ADDR_MASK) == BLE_ADDR_MASK, "The two most significant bits shall be equal to 1");
+      log::assert_that(
+          (address[5] & BLE_ADDR_MASK) == BLE_ADDR_MASK,
+          "The two most significant bits shall be equal to 1");
       // Bits of the random part of the address shall not be all 1 or all 0
       if ((address[0] == 0x00 && address[1] == 0x00 && address[2] == 0x00 && address[3] == 0x00 && address[4] == 0x00 &&
            address[5] == BLE_ADDR_MASK) ||
@@ -105,7 +140,7 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddress(
     case AddressPolicy::USE_RESOLVABLE_ADDRESS:
       le_address_ = fixed_address;
       rotation_irk_ = rotation_irk;
-      if (!IS_FLAG_ENABLED(nrpa_non_connectable_adv)) {
+      if (!com::android::bluetooth::flags::nrpa_non_connectable_adv()) {
         minimum_rotation_time_ = minimum_rotation_time;
         maximum_rotation_time_ = maximum_rotation_time;
       }
@@ -124,8 +159,11 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddressForTest(
     Octet16 rotation_irk,
     std::chrono::milliseconds minimum_rotation_time,
     std::chrono::milliseconds maximum_rotation_time) {
-  ASSERT(address_policy != AddressPolicy::POLICY_NOT_SET);
-  ASSERT_LOG(registered_clients_.empty(), "Policy must be set before clients are registered.");
+  log::assert_that(
+      address_policy != AddressPolicy::POLICY_NOT_SET,
+      "assert failed: address_policy != AddressPolicy::POLICY_NOT_SET");
+  log::assert_that(
+      registered_clients_.empty(), "Policy must be set before clients are registered.");
   address_policy_ = address_policy;
 
   switch (address_policy_) {
@@ -136,7 +174,9 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddressForTest(
       auto addr = fixed_address.GetAddress();
       auto address = addr.address;
       // The two most significant bits of the static address shall be equal to 1
-      ASSERT_LOG((address[5] & BLE_ADDR_MASK) == BLE_ADDR_MASK, "The two most significant bits shall be equal to 1");
+      log::assert_that(
+          (address[5] & BLE_ADDR_MASK) == BLE_ADDR_MASK,
+          "The two most significant bits shall be equal to 1");
       // Bits of the random part of the address shall not be all 1 or all 0
       if ((address[0] == 0x00 && address[1] == 0x00 && address[2] == 0x00 && address[3] == 0x00 && address[4] == 0x00 &&
            address[5] == BLE_ADDR_MASK) ||
@@ -168,7 +208,7 @@ bool LeAddressManager::RotatingAddress() {
          address_policy_ == AddressPolicy::USE_NON_RESOLVABLE_ADDRESS;
 }
 LeAddressManager::AddressPolicy LeAddressManager::Register(LeAddressManagerCallback* callback) {
-  handler_->BindOnceOn(this, &LeAddressManager::register_client, callback).Invoke();
+  handler_->BindOnceOn(this, &LeAddressManager::register_client, callback)();
   return address_policy_;
 }
 
@@ -190,7 +230,7 @@ void LeAddressManager::register_client(LeAddressManagerCallback* callback) {
 }
 
 void LeAddressManager::Unregister(LeAddressManagerCallback* callback) {
-  handler_->BindOnceOn(this, &LeAddressManager::unregister_client, callback).Invoke();
+  handler_->BindOnceOn(this, &LeAddressManager::unregister_client, callback)();
 }
 
 void LeAddressManager::unregister_client(LeAddressManagerCallback* callback) {
@@ -210,7 +250,7 @@ void LeAddressManager::unregister_client(LeAddressManagerCallback* callback) {
 }
 
 bool LeAddressManager::UnregisterSync(LeAddressManagerCallback* callback, std::chrono::milliseconds timeout) {
-  handler_->BindOnceOn(this, &LeAddressManager::unregister_client, callback).Invoke();
+  handler_->BindOnceOn(this, &LeAddressManager::unregister_client, callback)();
   std::promise<void> promise;
   auto future = promise.get_future();
   handler_->Post(common::BindOnce(&std::promise<void>::set_value, common::Unretained(&promise)));
@@ -218,28 +258,30 @@ bool LeAddressManager::UnregisterSync(LeAddressManagerCallback* callback, std::c
 }
 
 void LeAddressManager::AckPause(LeAddressManagerCallback* callback) {
-  handler_->BindOnceOn(this, &LeAddressManager::ack_pause, callback).Invoke();
+  handler_->BindOnceOn(this, &LeAddressManager::ack_pause, callback)();
 }
 
 void LeAddressManager::AckResume(LeAddressManagerCallback* callback) {
-  handler_->BindOnceOn(this, &LeAddressManager::ack_resume, callback).Invoke();
+  handler_->BindOnceOn(this, &LeAddressManager::ack_resume, callback)();
 }
 
 AddressWithType LeAddressManager::GetInitiatorAddress() {
-  ASSERT(address_policy_ != AddressPolicy::POLICY_NOT_SET);
+  log::assert_that(
+      address_policy_ != AddressPolicy::POLICY_NOT_SET,
+      "assert failed: address_policy_ != AddressPolicy::POLICY_NOT_SET");
   return le_address_;
 }
 
 AddressWithType LeAddressManager::NewResolvableAddress() {
-  ASSERT(RotatingAddress());
+  log::assert_that(RotatingAddress(), "assert failed: RotatingAddress()");
   hci::Address address = generate_rpa();
   auto random_address = AddressWithType(address, AddressType::RANDOM_DEVICE_ADDRESS);
   return random_address;
 }
 
 AddressWithType LeAddressManager::NewNonResolvableAddress() {
-  if (!IS_FLAG_ENABLED(nrpa_non_connectable_adv)) {
-    ASSERT(RotatingAddress());
+  if (!com::android::bluetooth::flags::nrpa_non_connectable_adv()) {
+    log::assert_that(RotatingAddress(), "assert failed: RotatingAddress()");
   }
   hci::Address address = generate_nrpa();
   auto random_address = AddressWithType(address, AddressType::RANDOM_DEVICE_ADDRESS);
@@ -252,8 +294,8 @@ void LeAddressManager::pause_registered_clients() {
       case ClientState::PAUSED:
       case ClientState::WAITING_FOR_PAUSE:
         break;
-      case WAITING_FOR_RESUME:
-      case RESUMED:
+      case ClientState::WAITING_FOR_RESUME:
+      case ClientState::RESUMED:
         client.second = ClientState::WAITING_FOR_PAUSE;
         client.first->OnPause();
         break;
@@ -275,20 +317,18 @@ void LeAddressManager::ack_pause(LeAddressManagerCallback* callback) {
   for (auto client : registered_clients_) {
     switch (client.second) {
       case ClientState::PAUSED:
-        log::info("Client already in paused state");
+        log::verbose("Client already in paused state");
         break;
       case ClientState::WAITING_FOR_PAUSE:
         // make sure all client paused
         log::debug("Wait all clients paused, return");
         return;
-      case WAITING_FOR_RESUME:
-      case RESUMED:
-        log::debug("Trigger OnPause for client that not paused and not waiting for pause");
+      case ClientState::WAITING_FOR_RESUME:
+      case ClientState::RESUMED:
+        log::warn("Trigger OnPause for client {}", ClientStateText(client.second));
         client.second = ClientState::WAITING_FOR_PAUSE;
         client.first->OnPause();
         return;
-      default:
-        log::error("Found client in unexpected state:{}", client.second);
     }
   }
 
@@ -306,6 +346,9 @@ void LeAddressManager::resume_registered_clients() {
 
   log::info("Resuming registered clients");
   for (auto& client : registered_clients_) {
+    if (client.second != ClientState::PAUSED) {
+      log::warn("client is not paused {}", ClientStateText(client.second));
+    }
     client.second = ClientState::WAITING_FOR_RESUME;
     client.first->OnResume();
   }
@@ -314,6 +357,8 @@ void LeAddressManager::resume_registered_clients() {
 void LeAddressManager::ack_resume(LeAddressManagerCallback* callback) {
   if (registered_clients_.find(callback) != registered_clients_.end()) {
     registered_clients_.find(callback)->second = ClientState::RESUMED;
+  } else {
+    log::info("Client not registered");
   }
 }
 
@@ -459,7 +504,7 @@ void LeAddressManager::handle_next_command() {
     }
   }
 
-  ASSERT(!cached_commands_.empty());
+  log::assert_that(!cached_commands_.empty(), "assert failed: !cached_commands_.empty()");
   auto command = std::move(cached_commands_.front());
   cached_commands_.pop();
 
@@ -483,7 +528,7 @@ void LeAddressManager::AddDeviceToFilterAcceptList(
     FilterAcceptListAddressType accept_list_address_type, bluetooth::hci::Address address) {
   auto packet_builder = hci::LeAddDeviceToFilterAcceptListBuilder::Create(accept_list_address_type, address);
   Command command = {CommandType::ADD_DEVICE_TO_ACCEPT_LIST, HCICommand{std::move(packet_builder)}};
-  handler_->BindOnceOn(this, &LeAddressManager::push_command, std::move(command)).Invoke();
+  handler_->BindOnceOn(this, &LeAddressManager::push_command, std::move(command))();
 }
 
 void LeAddressManager::AddDeviceToResolvingList(
@@ -518,9 +563,9 @@ void LeAddressManager::AddDeviceToResolvingList(
   cached_commands_.push(std::move(enable));
 
   if (registered_clients_.empty()) {
-    handler_->BindOnceOn(this, &LeAddressManager::handle_next_command).Invoke();
+    handler_->BindOnceOn(this, &LeAddressManager::handle_next_command)();
   } else {
-    handler_->BindOnceOn(this, &LeAddressManager::pause_registered_clients).Invoke();
+    handler_->BindOnceOn(this, &LeAddressManager::pause_registered_clients)();
   }
 }
 
@@ -528,7 +573,7 @@ void LeAddressManager::RemoveDeviceFromFilterAcceptList(
     FilterAcceptListAddressType accept_list_address_type, bluetooth::hci::Address address) {
   auto packet_builder = hci::LeRemoveDeviceFromFilterAcceptListBuilder::Create(accept_list_address_type, address);
   Command command = {CommandType::REMOVE_DEVICE_FROM_ACCEPT_LIST, HCICommand{std::move(packet_builder)}};
-  handler_->BindOnceOn(this, &LeAddressManager::push_command, std::move(command)).Invoke();
+  handler_->BindOnceOn(this, &LeAddressManager::push_command, std::move(command))();
 }
 
 void LeAddressManager::RemoveDeviceFromResolvingList(
@@ -553,16 +598,16 @@ void LeAddressManager::RemoveDeviceFromResolvingList(
   cached_commands_.push(std::move(enable));
 
   if (registered_clients_.empty()) {
-    handler_->BindOnceOn(this, &LeAddressManager::handle_next_command).Invoke();
+    handler_->BindOnceOn(this, &LeAddressManager::handle_next_command)();
   } else {
-    handler_->BindOnceOn(this, &LeAddressManager::pause_registered_clients).Invoke();
+    handler_->BindOnceOn(this, &LeAddressManager::pause_registered_clients)();
   }
 }
 
 void LeAddressManager::ClearFilterAcceptList() {
   auto packet_builder = hci::LeClearFilterAcceptListBuilder::Create();
   Command command = {CommandType::CLEAR_ACCEPT_LIST, HCICommand{std::move(packet_builder)}};
-  handler_->BindOnceOn(this, &LeAddressManager::push_command, std::move(command)).Invoke();
+  handler_->BindOnceOn(this, &LeAddressManager::push_command, std::move(command))();
 }
 
 void LeAddressManager::ClearResolvingList() {
@@ -584,7 +629,7 @@ void LeAddressManager::ClearResolvingList() {
   Command enable = {CommandType::SET_ADDRESS_RESOLUTION_ENABLE, HCICommand{std::move(enable_builder)}};
   cached_commands_.push(std::move(enable));
 
-  handler_->BindOnceOn(this, &LeAddressManager::pause_registered_clients).Invoke();
+  handler_->BindOnceOn(this, &LeAddressManager::pause_registered_clients)();
 }
 
 template <class View>
@@ -632,8 +677,7 @@ void LeAddressManager::OnCommandComplete(bluetooth::hci::CommandCompleteView vie
               "Received LE_SET_RANDOM_ADDRESS complete with status {}",
               ErrorCodeText(complete_view.GetStatus()));
         } else {
-          log::info(
-              "update random address : {}", ADDRESS_TO_LOGGABLE_CSTR(cached_address_.GetAddress()));
+          log::info("update random address : {}", cached_address_.GetAddress());
           le_address_ = cached_address_;
         }
       }
@@ -676,7 +720,7 @@ void LeAddressManager::OnCommandComplete(bluetooth::hci::CommandCompleteView vie
       break;
   }
 
-  handler_->BindOnceOn(this, &LeAddressManager::check_cached_commands).Invoke();
+  handler_->BindOnceOn(this, &LeAddressManager::check_cached_commands)();
 }
 
 void LeAddressManager::check_cached_commands() {

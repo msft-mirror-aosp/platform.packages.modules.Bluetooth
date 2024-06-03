@@ -55,6 +55,8 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import java.util.concurrent.TimeUnit;
+
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class HeadsetClientServiceTest {
@@ -65,6 +67,7 @@ public class HeadsetClientServiceTest {
     private boolean mIsHeadsetClientServiceStarted;
 
     private static final int STANDARD_WAIT_MILLIS = 1000;
+    private static final int SERVICE_START_WAIT_MILLIS = 100;
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
@@ -127,6 +130,8 @@ public class HeadsetClientServiceTest {
     public void testUpdateBatteryLevel() throws Exception {
         startService();
 
+        // Adding a wait to prevent potential failure caused by delayed broadcast intent.
+        TimeUnit.MILLISECONDS.sleep(SERVICE_START_WAIT_MILLIS);
         // Put mock state machine
         BluetoothDevice device =
                 BluetoothAdapter.getDefaultAdapter().getRemoteDevice("00:01:02:03:04:05");

@@ -160,21 +160,6 @@ struct BTA_DmBleGetEnergyInfo {
 };
 extern struct BTA_DmBleGetEnergyInfo BTA_DmBleGetEnergyInfo;
 
-// Name: BTA_DmBleObserve
-// Params: bool start, uint8_t duration, tBTA_DM_SEARCH_CBACK* p_results_cb
-// Return: void
-struct BTA_DmBleObserve {
-  std::function<void(bool start, uint8_t duration,
-                     tBTA_DM_SEARCH_CBACK* p_results_cb)>
-      body{[](bool /* start */, uint8_t /* duration */,
-              tBTA_DM_SEARCH_CBACK* /* p_results_cb */) {}};
-  void operator()(bool start, uint8_t duration,
-                  tBTA_DM_SEARCH_CBACK* p_results_cb) {
-    body(start, duration, p_results_cb);
-  };
-};
-extern struct BTA_DmBleObserve BTA_DmBleObserve;
-
 // Name: BTA_DmBlePasskeyReply
 // Params: const RawAddress& bd_addr, bool accept, uint32_t passkey
 // Return: void
@@ -335,21 +320,6 @@ struct BTA_DmClearFilterAcceptList {
   void operator()(void) { body(); };
 };
 extern struct BTA_DmClearFilterAcceptList BTA_DmClearFilterAcceptList;
-
-// Name: BTA_DmCloseACL
-// Params: const RawAddress& bd_addr, bool remove_dev, tBT_TRANSPORT transport
-// Return: void
-struct BTA_DmCloseACL {
-  std::function<void(const RawAddress& bd_addr, bool remove_dev,
-                     tBT_TRANSPORT transport)>
-      body{[](const RawAddress& /* bd_addr */, bool /* remove_dev */,
-              tBT_TRANSPORT /* transport */) {}};
-  void operator()(const RawAddress& bd_addr, bool remove_dev,
-                  tBT_TRANSPORT transport) {
-    body(bd_addr, remove_dev, transport);
-  };
-};
-extern struct BTA_DmCloseACL BTA_DmCloseACL;
 
 // Name: BTA_DmConfirm
 // Params: const RawAddress& bd_addr, bool accept
@@ -596,30 +566,6 @@ struct BTA_EnableTestMode {
   void operator()(void) { body(); };
 };
 extern struct BTA_EnableTestMode BTA_EnableTestMode;
-
-// Name: BTA_GetEirService
-// Params: const uint8_t* p_eir, size_t eir_len, tBTA_SERVICE_MASK* p_services
-// Return: void
-struct BTA_GetEirService {
-  std::function<void(const uint8_t* p_eir, size_t eir_len,
-                     tBTA_SERVICE_MASK* p_services)>
-      body{[](const uint8_t* /* p_eir */, size_t /* eir_len */,
-              tBTA_SERVICE_MASK* /* p_services */) {}};
-  void operator()(const uint8_t* p_eir, size_t eir_len,
-                  tBTA_SERVICE_MASK* p_services) {
-    body(p_eir, eir_len, p_services);
-  };
-};
-extern struct BTA_GetEirService BTA_GetEirService;
-
-// Name: BTA_VendorInit
-// Params: void
-// Return: void
-struct BTA_VendorInit {
-  std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); };
-};
-extern struct BTA_VendorInit BTA_VendorInit;
 
 // Name: BTA_dm_init
 // Params:

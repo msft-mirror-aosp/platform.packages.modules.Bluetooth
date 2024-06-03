@@ -26,7 +26,6 @@
 #include "hci/hci_packets.h"
 #include "hci/le_periodic_sync_manager.h"
 #include "hci/le_scanning_interface.h"
-#include "hci/vendor_specific_event_manager.h"
 #include "module.h"
 #include "os/handler.h"
 #include "os/log.h"
@@ -64,7 +63,7 @@ LeScanningReassembler::ProcessAdvertisingReport(
   // the previous data as safety measure if the report is not a scan
   // response.
   if (is_legacy && !is_scan_response) {
-    log::debug("Dropping repeated legacy advertising data");
+    log::verbose("Dropping repeated legacy advertising data");
     RemoveFragment(key);
   }
 

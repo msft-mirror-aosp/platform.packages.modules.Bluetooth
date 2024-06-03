@@ -19,8 +19,8 @@
 #include "a2dp_provider_info.h"
 
 #include <android/binder_manager.h>
-#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <optional>
 #include <vector>
@@ -52,7 +52,7 @@ using ::aidl::android::hardware::bluetooth::audio::SessionType;
  ***/
 std::unique_ptr<ProviderInfo> ProviderInfo::GetProviderInfo(
     bool supports_a2dp_hw_offload_v2) {
-  if (!IS_FLAG_ENABLED(a2dp_offload_codec_extensibility)) {
+  if (!com::android::bluetooth::flags::a2dp_offload_codec_extensibility()) {
     log::info(
         "a2dp offload codec extensibility is disabled,"
         " not going to load the ProviderInfo");
@@ -261,7 +261,7 @@ std::optional<btav_a2dp_codec_index_t> ProviderInfo::SourceCodecIndex(
 
 std::optional<btav_a2dp_codec_index_t> ProviderInfo::SourceCodecIndex(
     uint8_t const* codec_info) const {
-  LOG_ASSERT(codec_info != nullptr) << "codec_info is unexpectedly null";
+  log::assert_that(codec_info != nullptr, "codec_info is unexpectedly null");
   auto codec_type = A2DP_GetCodecType(codec_info);
   switch (codec_type) {
     case A2DP_MEDIA_CT_SBC: {
@@ -308,7 +308,7 @@ std::optional<btav_a2dp_codec_index_t> ProviderInfo::SinkCodecIndex(
 
 std::optional<btav_a2dp_codec_index_t> ProviderInfo::SinkCodecIndex(
     uint8_t const* codec_info) const {
-  LOG_ASSERT(codec_info != nullptr) << "codec_info is unexpectedly null";
+  log::assert_that(codec_info != nullptr, "codec_info is unexpectedly null");
   auto codec_type = A2DP_GetCodecType(codec_info);
   switch (codec_type) {
     case A2DP_MEDIA_CT_SBC: {

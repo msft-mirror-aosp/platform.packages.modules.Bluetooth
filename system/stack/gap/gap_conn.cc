@@ -16,8 +16,8 @@
  *
  ******************************************************************************/
 
-#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include "gap_api.h"
@@ -165,7 +165,7 @@ void gap_conn_init(void) {
  *                            GAP_INVALID_HANDLE
  *
  ******************************************************************************/
-uint16_t GAP_ConnOpen(const char* p_serv_name, uint8_t service_id,
+uint16_t GAP_ConnOpen(const char* /* p_serv_name */, uint8_t service_id,
                       bool is_server, const RawAddress* p_rem_bda, uint16_t psm,
                       uint16_t le_mps, tL2CAP_CFG_INFO* p_cfg,
                       tL2CAP_ERTM_INFO* ertm_info, uint16_t security,
@@ -319,9 +319,15 @@ uint16_t GAP_ConnClose(uint16_t gap_handle) {
     /* Check if we have a connection ID */
     if (p_ccb->con_state != GAP_CCB_STATE_LISTENING) {
       if (p_ccb->transport == BT_TRANSPORT_LE) {
-        L2CA_DisconnectLECocReq(p_ccb->connection_id);
+        if (!L2CA_DisconnectLECocReq(p_ccb->connection_id)) {
+          log::warn("Unable to request L2CAP disconnect le_coc peer:{} cid:{}",
+                    p_ccb->rem_dev_address, p_ccb->connection_id);
+        }
       } else {
-        L2CA_DisconnectReq(p_ccb->connection_id);
+        if (!L2CA_DisconnectReq(p_ccb->connection_id)) {
+          log::warn("Unable to request L2CAP disconnect le_coc peer:{} cid:{}",
+                    p_ccb->rem_dev_address, p_ccb->connection_id);
+        }
       }
     }
 
@@ -582,7 +588,7 @@ void gap_tx_complete_ind(uint16_t l2cap_cid, uint16_t sdu_sent) {
  *
  ******************************************************************************/
 static void gap_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid,
-                            uint16_t psm, uint8_t l2cap_id) {
+                            uint16_t psm, uint8_t /* l2cap_id */) {
   uint16_t xx;
   tGAP_CCB* p_ccb;
 
@@ -601,9 +607,15 @@ static void gap_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid,
 
     /* Disconnect because it is an unexpected connection */
     if (BTM_UseLeLink(bd_addr)) {
-      L2CA_DisconnectLECocReq(l2cap_cid);
+      if (!L2CA_DisconnectLECocReq(l2cap_cid)) {
+        log::warn("Unable to request L2CAP disconnect le_coc peer:{} cid:{}",
+                  bd_addr, l2cap_cid);
+      }
     } else {
-      L2CA_DisconnectReq(l2cap_cid);
+      if (!L2CA_DisconnectReq(l2cap_cid)) {
+        log::warn("Unable to request L2CAP disconnect le_coc peer:{} cid:{}",
+                  bd_addr, l2cap_cid);
+      }
     }
     return;
   }
@@ -618,7 +630,10 @@ static void gap_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid,
 
   if (p_ccb->transport == BT_TRANSPORT_LE) {
     /* get the remote coc configuration */
-    L2CA_GetPeerLECocConfig(l2cap_cid, &p_ccb->peer_coc_cfg);
+    if (!L2CA_GetPeerLECocConfig(l2cap_cid, &p_ccb->peer_coc_cfg)) {
+      log::warn("Unable to get L2CAP peer le_coc config peer:{} cid:{}",
+                p_ccb->rem_dev_address, l2cap_cid);
+    }
     p_ccb->rem_mtu_size = p_ccb->peer_coc_cfg.mtu;
 
     /* configuration is not required for LE COC */
@@ -644,7 +659,7 @@ static void gap_checks_con_flags(tGAP_CCB* p_ccb) {
     tGAP_CB_DATA* cb_data_ptr = nullptr;
     tGAP_CB_DATA cb_data;
     uint16_t l2cap_remote_cid;
-    if (IS_FLAG_ENABLED(bt_socket_api_l2cap_cid) &&
+    if (com::android::bluetooth::flags::bt_socket_api_l2cap_cid() &&
         L2CA_GetPeerChannelId(p_ccb->connection_id, &l2cap_remote_cid)) {
       cb_data.l2cap_cids.local_cid = p_ccb->connection_id;
       cb_data.l2cap_cids.remote_cid = l2cap_remote_cid;
@@ -722,7 +737,10 @@ static void gap_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
 
     if (p_ccb->transport == BT_TRANSPORT_LE) {
       /* get the remote coc configuration */
-      L2CA_GetPeerLECocConfig(l2cap_cid, &p_ccb->peer_coc_cfg);
+      if (!L2CA_GetPeerLECocConfig(l2cap_cid, &p_ccb->peer_coc_cfg)) {
+        log::warn("Unable to get L2CAP peer le_coc config peer:{} cid:{}",
+                  p_ccb->rem_dev_address, l2cap_cid);
+      }
       p_ccb->rem_mtu_size = p_ccb->peer_coc_cfg.mtu;
 
       /* configuration is not required for LE COC */
@@ -780,7 +798,7 @@ static void gap_config_ind(uint16_t l2cap_cid, tL2CAP_CFG_INFO* p_cfg) {
  * Returns          void
  *
  ******************************************************************************/
-static void gap_config_cfm(uint16_t l2cap_cid, uint16_t initiator,
+static void gap_config_cfm(uint16_t l2cap_cid, uint16_t /* initiator */,
                            tL2CAP_CFG_INFO* p_cfg) {
   gap_config_ind(l2cap_cid, p_cfg);
 
@@ -805,7 +823,7 @@ static void gap_config_cfm(uint16_t l2cap_cid, uint16_t initiator,
  * Returns          void
  *
  ******************************************************************************/
-static void gap_disconnect_ind(uint16_t l2cap_cid, bool ack_needed) {
+static void gap_disconnect_ind(uint16_t l2cap_cid, bool /* ack_needed */) {
   tGAP_CCB* p_ccb;
 
   /* Find CCB based on CID */

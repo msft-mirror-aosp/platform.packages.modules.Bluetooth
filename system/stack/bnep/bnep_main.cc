@@ -36,9 +36,7 @@
 #include "l2cdefs.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
@@ -113,14 +111,17 @@ tBNEP_RESULT bnep_register_with_l2cap(void) {
  *
  ******************************************************************************/
 static void bnep_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid,
-                             UNUSED_ATTR uint16_t psm, uint8_t l2cap_id) {
+                             uint16_t /* psm */, uint8_t l2cap_id) {
   tBNEP_CONN* p_bcb = bnepu_find_bcb_by_bd_addr(bd_addr);
 
   /* If we are not acting as server, or already have a connection, or have */
   /* no more resources to handle the connection, reject the connection.    */
   if (!(bnep_cb.profile_registered) || (p_bcb) ||
       ((p_bcb = bnepu_allocate_bcb(bd_addr)) == NULL)) {
-    L2CA_DisconnectReq(l2cap_cid);
+    if (!L2CA_DisconnectReq(l2cap_cid)) {
+      log::warn("Unable to request L2CAP disconnect peer:{} cid:{}", bd_addr,
+                l2cap_cid);
+    }
     return;
   }
 
@@ -147,7 +148,10 @@ static void bnep_on_l2cap_error(uint16_t l2cap_cid, uint16_t result) {
                                false);
   }
 
-  L2CA_DisconnectReq(p_bcb->l2cap_cid);
+  if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+    log::warn("Unable to request L2CAP disconnect peer:{} cid:{}",
+              p_bcb->rem_bda, l2cap_cid);
+  }
 
   bnepu_release_bcb(p_bcb);
 }
@@ -299,7 +303,10 @@ static void bnep_congestion_ind(uint16_t l2cap_cid, bool is_congested) {
 
       if (!p_buf) break;
 
-      L2CA_DataWrite(l2cap_cid, p_buf);
+      if (L2CA_DataWrite(l2cap_cid, p_buf) != L2CAP_DW_SUCCESS) {
+        log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}",
+                  p_bcb->rem_bda, l2cap_cid, p_buf->len);
+      }
     }
   }
 }
@@ -541,8 +548,10 @@ void bnep_conn_timer_timeout(void* data) {
                p_bcb->l2cap_cid);
 
     if (!(p_bcb->con_flags & BNEP_FLAGS_IS_ORIG)) {
-      L2CA_DisconnectReq(p_bcb->l2cap_cid);
-
+      if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+        log::warn("Unable to request L2CAP disconnect peer:{} cid:{}",
+                  p_bcb->rem_bda, p_bcb->l2cap_cid);
+      }
       bnepu_release_bcb(p_bcb);
       return;
     }
@@ -552,7 +561,10 @@ void bnep_conn_timer_timeout(void* data) {
       alarm_set_on_mloop(p_bcb->conn_timer, BNEP_CONN_TIMEOUT_MS,
                          bnep_conn_timer_timeout, p_bcb);
     } else {
-      L2CA_DisconnectReq(p_bcb->l2cap_cid);
+      if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+        log::warn("Unable to request L2CAP disconnect peer:{} cid:{}",
+                  p_bcb->rem_bda, p_bcb->l2cap_cid);
+      }
 
       if ((p_bcb->con_flags & BNEP_FLAGS_IS_ORIG) && (bnep_cb.p_conn_state_cb))
         (*bnep_cb.p_conn_state_cb)(p_bcb->handle, p_bcb->rem_bda,
@@ -565,7 +577,10 @@ void bnep_conn_timer_timeout(void* data) {
     log::debug("BNEP - CCB timeout in state: {}  CID: 0x{:x}", p_bcb->con_state,
                p_bcb->l2cap_cid);
 
-    L2CA_DisconnectReq(p_bcb->l2cap_cid);
+    if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+      log::warn("Unable to request L2CAP disconnect peer:{} cid:{}",
+                p_bcb->rem_bda, p_bcb->l2cap_cid);
+    }
 
     /* Tell the user if there is a callback */
     if ((p_bcb->con_flags & BNEP_FLAGS_IS_ORIG) && (bnep_cb.p_conn_state_cb))
@@ -579,7 +594,10 @@ void bnep_conn_timer_timeout(void* data) {
       alarm_set_on_mloop(p_bcb->conn_timer, BNEP_FILTER_SET_TIMEOUT_MS,
                          bnep_conn_timer_timeout, p_bcb);
     } else {
-      L2CA_DisconnectReq(p_bcb->l2cap_cid);
+      if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+        log::warn("Unable to request L2CAP disconnect peer:{} cid:{}",
+                  p_bcb->rem_bda, p_bcb->l2cap_cid);
+      }
 
       /* Tell the user if there is a callback */
       if (bnep_cb.p_conn_state_cb)
@@ -595,7 +613,10 @@ void bnep_conn_timer_timeout(void* data) {
       alarm_set_on_mloop(p_bcb->conn_timer, BNEP_FILTER_SET_TIMEOUT_MS,
                          bnep_conn_timer_timeout, p_bcb);
     } else {
-      L2CA_DisconnectReq(p_bcb->l2cap_cid);
+      if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+        log::warn("Unable to request L2CAP disconnect peer:{} cid:{}",
+                  p_bcb->rem_bda, p_bcb->l2cap_cid);
+      }
 
       /* Tell the user if there is a callback */
       if (bnep_cb.p_conn_state_cb)

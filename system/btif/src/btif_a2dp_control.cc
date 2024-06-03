@@ -17,11 +17,10 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "bt_btif_a2dp_control"
+#define LOG_TAG "bluetooth-a2dp"
 
 #include "btif_a2dp_control.h"
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 #include <stdbool.h>
 #include <stdint.h>

@@ -25,7 +25,7 @@ use crate::dbus_iface::{
     BluetoothTelephonyDBus, SuspendDBus,
 };
 use crate::editor::AsyncEditor;
-use bt_topshim::topstack;
+use bt_topshim::{btif::RawAddress, topstack};
 use btstack::bluetooth::{BluetoothDevice, IBluetooth};
 use btstack::suspend::ISuspend;
 use manager_service::iface_bluetooth_manager::IBluetoothManager;
@@ -38,6 +38,14 @@ mod console;
 mod dbus_arg;
 mod dbus_iface;
 mod editor;
+
+#[derive(Clone)]
+pub(crate) struct GattRequest {
+    address: RawAddress,
+    id: i32,
+    offset: i32,
+    value: Vec<u8>,
+}
 
 /// Context structure for the client. Used to keep track details about the active adapter and its
 /// state.
@@ -56,7 +64,7 @@ pub(crate) struct ClientContext {
     pub(crate) adapter_ready: bool,
 
     /// Current adapter address if known.
-    pub(crate) adapter_address: Option<String>,
+    pub(crate) adapter_address: Option<RawAddress>,
 
     /// Currently active bonding attempt. If it is not none, we are currently attempting to bond
     /// this device.
@@ -155,6 +163,9 @@ pub(crate) struct ClientContext {
 
     /// A set of addresses whose battery changes are being tracked.
     pub(crate) battery_address_filter: HashSet<String>,
+
+    /// A request from a GATT client that is still being processed.
+    pending_gatt_request: Option<GattRequest>,
 }
 
 impl ClientContext {
@@ -207,6 +218,7 @@ impl ClientContext {
             mps_sdp_handle: None,
             client_commands_with_callbacks,
             battery_address_filter: HashSet::new(),
+            pending_gatt_request: None,
         }
     }
 
@@ -269,7 +281,7 @@ impl ClientContext {
     }
 
     // Foreground-only: Updates the adapter address.
-    fn update_adapter_address(&mut self) -> String {
+    fn update_adapter_address(&mut self) -> RawAddress {
         let address = self.adapter_dbus.as_ref().unwrap().get_address();
         self.adapter_address = Some(address.clone());
 
@@ -281,7 +293,7 @@ impl ClientContext {
         let bonded_devices = self.adapter_dbus.as_ref().unwrap().get_bonded_devices();
 
         for device in bonded_devices {
-            self.bonded_devices.insert(device.address.clone(), device.clone());
+            self.bonded_devices.insert(device.address.to_string(), device.clone());
         }
     }
 
@@ -747,7 +759,7 @@ async fn handle_client_command(
                 let adapter_address = context.lock().unwrap().update_adapter_address();
                 context.lock().unwrap().update_bonded_devices();
 
-                print_info!("Adapter {} is ready", adapter_address);
+                print_info!("Adapter {} is ready", adapter_address.to_string());
 
                 // Run the command with the command arguments as the client is
                 // non-interactive.

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 #include <flag_macros.h>
 #include <gtest/gtest.h>
@@ -21,6 +22,7 @@
 
 #include <cstdint>
 
+#include "gd/os/rand.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
@@ -137,7 +139,8 @@ class StackSdpAsClientParseTest : public StackSdpParserInitTest {
 
   tCONN_CB* p_ccb_{nullptr};
   const bluetooth::Uuid p_uuid_list[1]{
-      bluetooth::Uuid::GetRandom(),
+      bluetooth::Uuid::From128BitBE(
+          bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>()),
   };
 
   void parse_sdp_responses(const bluetooth::testing::raw_packet_t* pkts,
@@ -157,8 +160,8 @@ class StackSdpAsClientParseTest : public StackSdpParserInitTest {
              pkt->len - kSdpPacketStartOffset);
       sdp_disc_server_rsp(p_ccb_, bt_hdr);
       osi_free(data);
-      LOG_INFO("i:%zu L2CA_DisconnectReq:%d", i,
-               get_func_call_count("L2CA_DisconnectReq"));
+      bluetooth::log::info("i:{} L2CA_DisconnectReq:{}", i,
+                           get_func_call_count("L2CA_DisconnectReq"));
     }
   }
 };

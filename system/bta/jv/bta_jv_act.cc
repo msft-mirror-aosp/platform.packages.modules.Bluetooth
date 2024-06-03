@@ -24,9 +24,8 @@
 
 #define LOG_TAG "bluetooth"
 
-#include <android_bluetooth_flags.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <unordered_set>
@@ -39,7 +38,6 @@
 #include "internal_include/bt_trace.h"
 #include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "osi/include/properties.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/avct_api.h"  // AVCT_PSM
@@ -230,8 +228,7 @@ tBTA_JV_RFC_CB* bta_jv_alloc_rfc_cb(uint16_t port_handle,
       p_cb->curr_sess = 1;
       for (j = 0; j < BTA_JV_MAX_RFC_SR_SESSION; j++) p_cb->rfc_hdl[j] = 0;
       p_cb->rfc_hdl[0] = port_handle;
-      log::verbose("port_handle={}, handle={}", port_handle,
-                   loghex(p_cb->handle));
+      log::verbose("port_handle={}, handle=0x{:x}", port_handle, p_cb->handle);
 
       p_pcb = &bta_jv_cb.port_cb[port_handle - 1];
       p_pcb->handle = p_cb->handle;
@@ -306,9 +303,10 @@ static tBTA_JV_STATUS bta_jv_free_rfc_cb(tBTA_JV_RFC_CB* p_cb,
     return tBTA_JV_STATUS::FAILURE;
   }
   log::verbose(
-      "max_sess={}, curr_sess={}, p_pcb={}, user={}, state={}, jv handle={}",
+      "max_sess={}, curr_sess={}, p_pcb={}, user={}, state={}, jv "
+      "handle=0x{:x}",
       p_cb->max_sess, p_cb->curr_sess, fmt::ptr(p_pcb), p_pcb->rfcomm_slot_id,
-      p_pcb->state, loghex(p_pcb->handle));
+      p_pcb->state, p_pcb->handle);
 
   if (p_cb->curr_sess <= 0) return tBTA_JV_STATUS::SUCCESS;
 
@@ -339,9 +337,9 @@ static tBTA_JV_STATUS bta_jv_free_rfc_cb(tBTA_JV_RFC_CB* p_cb,
       break;
     default:
       log::warn(
-          "failed, ignore port state= {}, scn={}, p_pcb= {}, jv handle={}, "
+          "failed, ignore port state= {}, scn={}, p_pcb= {}, jv handle=0x{:x}, "
           "port_handle={}, user_data={}",
-          p_pcb->state, p_cb->scn, fmt::ptr(p_pcb), loghex(p_pcb->handle),
+          p_pcb->state, p_cb->scn, fmt::ptr(p_pcb), p_pcb->handle,
           p_pcb->port_handle, p_pcb->rfcomm_slot_id);
       status = tBTA_JV_STATUS::FAILURE;
       break;
@@ -356,9 +354,9 @@ static tBTA_JV_STATUS bta_jv_free_rfc_cb(tBTA_JV_RFC_CB* p_cb,
     if (port_status != PORT_SUCCESS) {
       status = tBTA_JV_STATUS::FAILURE;
       log::warn(
-          "Remove jv handle={}, state={}, port_status={}, port_handle={}, "
+          "Remove jv handle=0x{:x}, state={}, port_status={}, port_handle={}, "
           "close_pending={}",
-          loghex(p_pcb->handle), p_pcb->state, port_status, p_pcb->port_handle,
+          p_pcb->handle, p_pcb->state, port_status, p_pcb->port_handle,
           close_pending);
     }
   }
@@ -464,9 +462,8 @@ static tBTA_JV_STATUS bta_jv_free_set_pm_profile_cb(uint32_t jv_handle) {
       }
 
       log::verbose(
-          "jv_handle={}, idx={}app_id={}, bd_counter={}, appid_counter={}",
-          loghex(jv_handle), i, bta_jv_cb.pm_cb[i].app_id, bd_counter,
-          appid_counter);
+          "jv_handle=0x{:x}, idx={}app_id={}, bd_counter={}, appid_counter={}",
+          jv_handle, i, bta_jv_cb.pm_cb[i].app_id, bd_counter, appid_counter);
       if (bd_counter > 1) {
         bta_jv_pm_conn_idle(&bta_jv_cb.pm_cb[i]);
       }
@@ -488,8 +485,9 @@ static tBTA_JV_STATUS bta_jv_free_set_pm_profile_cb(uint32_t jv_handle) {
               bta_jv_rfc_port_to_pcb(bta_jv_cb.rfc_cb[hi].rfc_hdl[si]);
           if (p_pcb) {
             if (NULL == p_pcb->p_pm_cb)
-              log::warn("jv_handle={}, port_handle={}, i={}, no link to pm_cb?",
-                        loghex(jv_handle), p_pcb->port_handle, i);
+              log::warn(
+                  "jv_handle=0x{:x}, port_handle={}, i={}, no link to pm_cb?",
+                  jv_handle, p_pcb->port_handle, i);
             p_cb = &p_pcb->p_pm_cb;
           }
         }
@@ -497,8 +495,7 @@ static tBTA_JV_STATUS bta_jv_free_set_pm_profile_cb(uint32_t jv_handle) {
         if (jv_handle < BTA_JV_MAX_L2C_CONN) {
           tBTA_JV_L2C_CB* p_l2c_cb = &bta_jv_cb.l2c_cb[jv_handle];
           if (NULL == p_l2c_cb->p_pm_cb)
-            log::warn("jv_handle={}, i={} no link to pm_cb?", loghex(jv_handle),
-                      i);
+            log::warn("jv_handle=0x{:x}, i={} no link to pm_cb?", jv_handle, i);
           p_cb = &p_l2c_cb->p_pm_cb;
         }
       }
@@ -559,8 +556,8 @@ static tBTA_JV_PM_CB* bta_jv_alloc_set_pm_profile_cb(uint32_t jv_handle,
         }
       }
       log::verbose(
-          "handle={}, app_id={}, idx={}, BTA_JV_PM_MAX_NUM={}, pp_cb={}",
-          loghex(jv_handle), app_id, i, BTA_JV_PM_MAX_NUM, fmt::ptr(pp_cb));
+          "handle=0x{:x}, app_id={}, idx={}, BTA_JV_PM_MAX_NUM={}, pp_cb={}",
+          jv_handle, app_id, i, BTA_JV_PM_MAX_NUM, fmt::ptr(pp_cb));
       break;
     }
   }
@@ -573,7 +570,7 @@ static tBTA_JV_PM_CB* bta_jv_alloc_set_pm_profile_cb(uint32_t jv_handle,
     bta_jv_cb.pm_cb[i].state = BTA_JV_PM_IDLE_ST;
     return &bta_jv_cb.pm_cb[i];
   }
-  log::warn("handle={}, app_id={}, return NULL", loghex(jv_handle), app_id);
+  log::warn("handle=0x{:x}, app_id={}, return NULL", jv_handle, app_id);
   return NULL;
 }
 
@@ -662,7 +659,7 @@ static uint16_t bta_jv_get_free_psm() {
   for (int i = 0; i < cnt; i++) {
     uint16_t psm = bta_jv_cb.free_psm_list[i];
     if (psm != 0) {
-      log::verbose("Reusing PSM={}", loghex(psm));
+      log::verbose("Reusing PSM=0x{:x}", psm);
       bta_jv_cb.free_psm_list[i] = 0;
       return psm;
     }
@@ -683,9 +680,9 @@ static void bta_jv_set_free_psm(uint16_t psm) {
   }
   if (free_index != -1) {
     bta_jv_cb.free_psm_list[free_index] = psm;
-    log::verbose("Recycling PSM={}", loghex(psm));
+    log::verbose("Recycling PSM=0x{:x}", psm);
   } else {
-    log::error("unable to free psm={} no more free slots", loghex(psm));
+    log::error("unable to free psm=0x{:x} no more free slots", psm);
   }
 }
 
@@ -716,13 +713,13 @@ static uint16_t bta_jv_allocate_l2cap_classic_psm() {
 
 /** Obtain a free SCN (Server Channel Number) (RFCOMM channel or L2CAP PSM) */
 void bta_jv_get_channel_id(
-    int32_t type /* One of BTA_JV_CONN_TYPE_ */,
+    tBTA_JV_CONN_TYPE type /* One of BTA_JV_CONN_TYPE_ */,
     int32_t channel /* optionally request a specific channel */,
     uint32_t l2cap_socket_id, uint32_t rfcomm_slot_id) {
   uint16_t psm = 0;
 
   switch (type) {
-    case BTA_JV_CONN_TYPE_RFCOMM: {
+    case tBTA_JV_CONN_TYPE::RFCOMM: {
       uint8_t scn = 0;
       if (channel > 0) {
         if (BTA_TryAllocateSCN(channel)) {
@@ -743,14 +740,14 @@ void bta_jv_get_channel_id(
       }
       return;
     }
-    case BTA_JV_CONN_TYPE_L2CAP:
+    case tBTA_JV_CONN_TYPE::L2CAP:
       psm = bta_jv_get_free_psm();
       if (psm == 0) {
         psm = bta_jv_allocate_l2cap_classic_psm();
-        log::verbose("returned PSM={}", loghex(psm));
+        log::verbose("returned PSM=0x{:x}", psm);
       }
       break;
-    case BTA_JV_CONN_TYPE_L2CAP_LE:
+    case tBTA_JV_CONN_TYPE::L2CAP_LE:
       psm = L2CA_AllocateLePSM();
       if (psm == 0) {
         log::error("Error: No free LE PSM available");
@@ -768,17 +765,17 @@ void bta_jv_get_channel_id(
 }
 
 /** free a SCN */
-void bta_jv_free_scn(int32_t type /* One of BTA_JV_CONN_TYPE_ */,
+void bta_jv_free_scn(tBTA_JV_CONN_TYPE type /* One of BTA_JV_CONN_TYPE_ */,
                      uint16_t scn) {
   switch (type) {
-    case BTA_JV_CONN_TYPE_RFCOMM:
+    case tBTA_JV_CONN_TYPE::RFCOMM:
       BTA_FreeSCN(scn);
       break;
-    case BTA_JV_CONN_TYPE_L2CAP:
+    case tBTA_JV_CONN_TYPE::L2CAP:
       bta_jv_set_free_psm(scn);
       break;
-    case BTA_JV_CONN_TYPE_L2CAP_LE:
-      log::verbose("type=BTA_JV_CONN_TYPE_L2CAP_LE. psm={}", scn);
+    case tBTA_JV_CONN_TYPE::L2CAP_LE:
+      log::verbose("type=BTA_JV_CONN_TYPE::L2CAP_LE. psm={}", scn);
       L2CA_FreeLePSM(scn);
       break;
     default:
@@ -795,26 +792,23 @@ void bta_jv_free_scn(int32_t type /* One of BTA_JV_CONN_TYPE_ */,
  * Returns      void
  *
  ******************************************************************************/
-static void bta_jv_start_discovery_cback(UNUSED_ATTR const RawAddress& bd_addr,
-                                         tSDP_RESULT result,
-                                         const void* user_data) {
+static void bta_jv_start_discovery_cback(uint32_t rfcomm_slot_id,
+                                         const RawAddress& bd_addr,
+                                         tSDP_RESULT result) {
   if (!bta_jv_cb.sdp_cb.sdp_active) {
     log::warn(
         "Received unexpected service discovery callback bd_addr:{} result:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), sdp_result_text(result),
-        bta_jv_cb.sdp_cb.sdp_active);
+        bd_addr, sdp_result_text(result), bta_jv_cb.sdp_cb.sdp_active);
   }
   if (bta_jv_cb.sdp_cb.bd_addr != bta_jv_cb.sdp_cb.bd_addr) {
     log::warn(
         "Received incorrect service discovery callback expected_bd_addr:{} "
         "actual_bd_addr:{} result:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bta_jv_cb.sdp_cb.bd_addr),
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), sdp_result_text(result),
+        bta_jv_cb.sdp_cb.bd_addr, bd_addr, sdp_result_text(result),
         bta_jv_cb.sdp_cb.sdp_active);
   }
 
   if (bta_jv_cb.p_dm_cback) {
-    const uint32_t rfcomm_slot_id = *static_cast<const uint32_t*>(user_data);
     tBTA_JV bta_jv = {
         .disc_comp =
             {
@@ -825,7 +819,7 @@ static void bta_jv_start_discovery_cback(UNUSED_ATTR const RawAddress& bd_addr,
     if (result == SDP_SUCCESS || result == SDP_DB_FULL) {
       log::info(
           "Received service discovery callback success bd_addr:{} result:{}",
-          ADDRESS_TO_LOGGABLE_CSTR(bd_addr), sdp_result_text(result));
+          bd_addr, sdp_result_text(result));
       tSDP_PROTOCOL_ELEM pe;
       tSDP_DISC_REC* p_sdp_rec = NULL;
       p_sdp_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceUUIDInDb(
@@ -846,22 +840,20 @@ static void bta_jv_start_discovery_cback(UNUSED_ATTR const RawAddress& bd_addr,
     } else {
       log::warn(
           "Received service discovery callback failed bd_addr:{} result:{}",
-          ADDRESS_TO_LOGGABLE_CSTR(bd_addr), sdp_result_text(result));
+          bd_addr, sdp_result_text(result));
     }
     log::info(
         "Issuing service discovery complete callback bd_addr:{} result:{} "
         "status:{} scn:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), sdp_result_text(result),
+        bd_addr, sdp_result_text(result),
         bta_jv_status_text(bta_jv.disc_comp.status), bta_jv.disc_comp.scn);
     bta_jv_cb.p_dm_cback(BTA_JV_DISCOVERY_COMP_EVT, &bta_jv, rfcomm_slot_id);
   } else {
     log::warn(
         "Received service discovery callback when disabled bd_addr:{} "
         "result:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), sdp_result_text(result));
+        bd_addr, sdp_result_text(result));
   }
-  // User data memory is allocated in `bta_jv_start_discovery`
-  osi_free(const_cast<void*>(user_data));
   bta_jv_cb.sdp_cb = {};
 }
 
@@ -869,14 +861,12 @@ static void bta_jv_start_discovery_cback(UNUSED_ATTR const RawAddress& bd_addr,
 void bta_jv_start_discovery(const RawAddress& bd_addr, uint16_t num_uuid,
                             bluetooth::Uuid* uuid_list,
                             uint32_t rfcomm_slot_id) {
-  ASSERT(uuid_list != nullptr);
+  log::assert_that(uuid_list != nullptr, "assert failed: uuid_list != nullptr");
   if (bta_jv_cb.sdp_cb.sdp_active) {
     log::warn(
         "Unable to start discovery as already in progress active_bd_addr{} "
-        "request_bd_addr:{} "
-        "num:uuid:{} rfcomm_slot_id:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bta_jv_cb.sdp_cb.bd_addr),
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), num_uuid, rfcomm_slot_id);
+        "request_bd_addr:{} num:uuid:{} rfcomm_slot_id:{}",
+        bta_jv_cb.sdp_cb.bd_addr, bd_addr, num_uuid, rfcomm_slot_id);
     if (bta_jv_cb.p_dm_cback) {
       tBTA_JV bta_jv = {
           .status = tBTA_JV_STATUS::BUSY,
@@ -898,7 +888,7 @@ void bta_jv_start_discovery(const RawAddress& bd_addr, uint16_t num_uuid,
     log::warn(
         "Unable to initialize service discovery db bd_addr:{} num:uuid:{} "
         "rfcomm_slot_id:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), num_uuid, rfcomm_slot_id);
+        bd_addr, num_uuid, rfcomm_slot_id);
   }
 
   /* tell SDP to keep the raw data */
@@ -912,20 +902,14 @@ void bta_jv_start_discovery(const RawAddress& bd_addr, uint16_t num_uuid,
       .uuid = uuid_list[0],
   };
 
-  // NOTE: This gets freed on the callback or when discovery failed to start
-  uint32_t* rfcomm_slot_id_copy = (uint32_t*)osi_malloc(sizeof(uint32_t));
-  *rfcomm_slot_id_copy = rfcomm_slot_id;
-
-  // user_data memory is freed in `bta_jv_start_discovery_cback` callback
   if (!get_legacy_stack_sdp_api()->service.SDP_ServiceSearchAttributeRequest2(
-          bd_addr, p_bta_jv_cfg->p_sdp_db, bta_jv_start_discovery_cback,
-          (const void*)rfcomm_slot_id_copy)) {
+          bd_addr, p_bta_jv_cfg->p_sdp_db,
+          base::BindRepeating(&bta_jv_start_discovery_cback, rfcomm_slot_id))) {
     bta_jv_cb.sdp_cb = {};
-    osi_free(rfcomm_slot_id_copy);
     log::warn(
         "Unable to original service discovery bd_addr:{} num:uuid:{} "
         "rfcomm_slot_id:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), num_uuid, rfcomm_slot_id);
+        bd_addr, num_uuid, rfcomm_slot_id);
     /* failed to start SDP. report the failure right away */
     if (bta_jv_cb.p_dm_cback) {
       tBTA_JV bta_jv = {
@@ -937,9 +921,8 @@ void bta_jv_start_discovery(const RawAddress& bd_addr, uint16_t num_uuid,
     }
   } else {
     log::info(
-        "Started service discovery bd_addr:{} num_uuid:{} "
-        "rfcomm_slot_id:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), num_uuid, rfcomm_slot_id);
+        "Started service discovery bd_addr:{} num_uuid:{} rfcomm_slot_id:{}",
+        bd_addr, num_uuid, rfcomm_slot_id);
   }
 }
 
@@ -959,7 +942,9 @@ void bta_jv_create_record(uint32_t rfcomm_slot_id) {
 void bta_jv_delete_record(uint32_t handle) {
   if (handle) {
     /* this is a record created by btif layer*/
-    get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(handle);
+    if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(handle)) {
+      log::warn("Unable to delete  SDP record handle:{}", handle);
+    }
   }
 }
 
@@ -979,7 +964,7 @@ static void bta_jv_l2cap_client_cback(uint16_t gap_handle, uint16_t event,
 
   if (gap_handle >= BTA_JV_MAX_L2C_CONN && !p_cb->p_cback) return;
 
-  log::verbose("gap_handle={}, evt={}", gap_handle, loghex(event));
+  log::verbose("gap_handle={}, evt=0x{:x}", gap_handle, event);
   evt_data.l2c_open.status = tBTA_JV_STATUS::SUCCESS;
   evt_data.l2c_open.handle = gap_handle;
 
@@ -1032,9 +1017,9 @@ static void bta_jv_l2cap_client_cback(uint16_t gap_handle, uint16_t event,
 }
 
 /* makes an l2cap client connection */
-void bta_jv_l2cap_connect(int32_t type, tBTA_SEC sec_mask,
-                          tBTA_JV_ROLE /* role */, uint16_t remote_psm,
-                          uint16_t rx_mtu, const RawAddress& peer_bd_addr,
+void bta_jv_l2cap_connect(tBTA_JV_CONN_TYPE type, tBTA_SEC sec_mask,
+                          uint16_t remote_psm, uint16_t rx_mtu,
+                          const RawAddress& peer_bd_addr,
                           std::unique_ptr<tL2CAP_CFG_INFO> cfg_param,
                           std::unique_ptr<tL2CAP_ERTM_INFO> ertm_info,
                           tBTA_JV_L2CAP_CBACK* p_cback,
@@ -1059,13 +1044,30 @@ void bta_jv_l2cap_connect(int32_t type, tBTA_SEC sec_mask,
 
   if (sec_id) {
     /* PSM checking is not required for LE COC */
-    if ((type != BTA_JV_CONN_TYPE_L2CAP) ||
+    if ((type != tBTA_JV_CONN_TYPE::L2CAP) ||
         (bta_jv_check_psm(remote_psm))) /* allowed */
     {
+      // Given a client socket type
+      // return the associated transport
+      const tBT_TRANSPORT transport =
+          [](tBTA_JV_CONN_TYPE type) -> tBT_TRANSPORT {
+        switch (type) {
+          case tBTA_JV_CONN_TYPE::L2CAP:
+            return BT_TRANSPORT_BR_EDR;
+          case tBTA_JV_CONN_TYPE::L2CAP_LE:
+            return BT_TRANSPORT_LE;
+          case tBTA_JV_CONN_TYPE::RFCOMM:
+          default:
+            break;
+        }
+        log::warn("Unexpected socket type:{}", bta_jv_conn_type_text(type));
+        return BT_TRANSPORT_AUTO;
+      }(type);
+
       uint16_t max_mps = 0xffff;  // Let GAP_ConnOpen set the max_mps.
       handle = GAP_ConnOpen("", sec_id, 0, &peer_bd_addr, remote_psm, max_mps,
                             &cfg, ertm_info.get(), sec_mask,
-                            bta_jv_l2cap_client_cback, type);
+                            bta_jv_l2cap_client_cback, transport);
       if (handle != GAP_INVALID_HANDLE) {
         evt_data.status = tBTA_JV_STATUS::SUCCESS;
       }
@@ -1128,7 +1130,7 @@ static void bta_jv_l2cap_server_cback(uint16_t gap_handle, uint16_t event,
 
   if (gap_handle >= BTA_JV_MAX_L2C_CONN && !p_cb->p_cback) return;
 
-  log::verbose("gap_handle={}, evt={}", gap_handle, loghex(event));
+  log::verbose("gap_handle={}, evt=0x{:x}", gap_handle, event);
   evt_data.l2c_open.status = tBTA_JV_STATUS::SUCCESS;
   evt_data.l2c_open.handle = gap_handle;
 
@@ -1179,9 +1181,8 @@ static void bta_jv_l2cap_server_cback(uint16_t gap_handle, uint16_t event,
 }
 
 /** starts an L2CAP server */
-void bta_jv_l2cap_start_server(int32_t type, tBTA_SEC sec_mask,
-                               tBTA_JV_ROLE /* role */, uint16_t local_psm,
-                               uint16_t rx_mtu,
+void bta_jv_l2cap_start_server(tBTA_JV_CONN_TYPE type, tBTA_SEC sec_mask,
+                               uint16_t local_psm, uint16_t rx_mtu,
                                std::unique_ptr<tL2CAP_CFG_INFO> cfg_param,
                                std::unique_ptr<tL2CAP_ERTM_INFO> ertm_info,
                                tBTA_JV_L2CAP_CBACK* p_cback,
@@ -1207,11 +1208,28 @@ void bta_jv_l2cap_start_server(int32_t type, tBTA_SEC sec_mask,
   uint8_t sec_id = bta_jv_alloc_sec_id();
   uint16_t max_mps = 0xffff;  // Let GAP_ConnOpen set the max_mps.
   /* PSM checking is not required for LE COC */
+
+  // Given a server socket type
+  // return the associated transport
+  const tBT_TRANSPORT transport = [](tBTA_JV_CONN_TYPE type) -> tBT_TRANSPORT {
+    switch (type) {
+      case tBTA_JV_CONN_TYPE::L2CAP:
+        return BT_TRANSPORT_BR_EDR;
+      case tBTA_JV_CONN_TYPE::L2CAP_LE:
+        return BT_TRANSPORT_LE;
+      case tBTA_JV_CONN_TYPE::RFCOMM:
+      default:
+        break;
+    }
+    log::warn("Unexpected socket type:{}", bta_jv_conn_type_text(type));
+    return BT_TRANSPORT_AUTO;
+  }(type);
+
   if (0 == sec_id ||
-      ((type == BTA_JV_CONN_TYPE_L2CAP) && (!bta_jv_check_psm(local_psm))) ||
+      ((type == tBTA_JV_CONN_TYPE::L2CAP) && (!bta_jv_check_psm(local_psm))) ||
       (handle = GAP_ConnOpen("JV L2CAP", sec_id, 1, nullptr, local_psm, max_mps,
                              &cfg, ertm_info.get(), sec_mask,
-                             bta_jv_l2cap_server_cback, type)) ==
+                             bta_jv_l2cap_server_cback, transport)) ==
           GAP_INVALID_HANDLE) {
     bta_jv_free_sec_id(&sec_id);
     evt_data.status = tBTA_JV_STATUS::FAILURE;
@@ -1354,36 +1372,52 @@ static int bta_jv_port_data_co_cback(uint16_t port_handle, uint8_t* buf,
  * Returns      void
  *
  ******************************************************************************/
-static void bta_jv_port_mgmt_cl_cback(uint32_t code, uint16_t port_handle) {
+static void bta_jv_port_mgmt_cl_cback(const tPORT_RESULT code,
+                                      uint16_t port_handle) {
   tBTA_JV_RFC_CB* p_cb = bta_jv_rfc_port_to_cb(port_handle);
   tBTA_JV_PCB* p_pcb = bta_jv_rfc_port_to_pcb(port_handle);
-  tBTA_JV evt_data;
   RawAddress rem_bda = RawAddress::kEmpty;
   uint16_t lcid;
   tBTA_JV_RFCOMM_CBACK* p_cback; /* the callback function */
 
-  log::verbose("code={}, port_handle={}", code, port_handle);
-  if (NULL == p_cb || NULL == p_cb->p_cback) return;
+  if (p_cb == NULL) {
+    log::warn("p_cb is NULL, code={}, port_handle={}", code, port_handle);
+    return;
+  } else if (p_cb->p_cback == NULL) {
+    log::warn("p_cb->p_cback is null, code={}, port_handle={}", code,
+              port_handle);
+    return;
+  }
 
   log::verbose("code={}, port_handle={}, handle={}", code, port_handle,
                p_cb->handle);
 
-  PORT_CheckConnection(port_handle, &rem_bda, &lcid);
+  if (PORT_CheckConnection(port_handle, &rem_bda, &lcid) != PORT_SUCCESS) {
+    log::warn("Unable to check RFCOMM connection peer:{} handle:{}", rem_bda,
+              port_handle);
+  }
 
   if (code == PORT_SUCCESS) {
-    evt_data.rfc_open.handle = p_cb->handle;
-    evt_data.rfc_open.status = tBTA_JV_STATUS::SUCCESS;
-    evt_data.rfc_open.rem_bda = rem_bda;
+    tBTA_JV evt_data = {
+        .rfc_open =
+            {
+                .status = tBTA_JV_STATUS::SUCCESS,
+                .handle = p_cb->handle,
+                .rem_bda = rem_bda,
+            },
+    };
     p_pcb->state = BTA_JV_ST_CL_OPEN;
     p_cb->p_cback(BTA_JV_RFCOMM_OPEN_EVT, &evt_data, p_pcb->rfcomm_slot_id);
   } else {
-    evt_data.rfc_close.handle = p_cb->handle;
-    evt_data.rfc_close.status = tBTA_JV_STATUS::FAILURE;
-    evt_data.rfc_close.port_status = code;
-    evt_data.rfc_close.async = true;
-    if (p_pcb->state == BTA_JV_ST_CL_CLOSING) {
-      evt_data.rfc_close.async = false;
-    }
+    tBTA_JV evt_data = {
+        .rfc_close =
+            {
+                .status = tBTA_JV_STATUS::FAILURE,
+                .port_status = code,
+                .handle = p_cb->handle,
+                .async = (p_pcb->state == BTA_JV_ST_CL_CLOSING) ? false : true,
+            },
+    };
     // p_pcb->state = BTA_JV_ST_NONE;
     // p_pcb->cong = false;
     p_cback = p_cb->p_cback;
@@ -1409,7 +1443,7 @@ static void bta_jv_port_event_cl_cback(uint32_t code, uint16_t port_handle) {
   log::verbose("port_handle={}", port_handle);
   if (NULL == p_cb || NULL == p_cb->p_cback) return;
 
-  log::verbose("code={}, port_handle={}, handle={}", loghex(code), port_handle,
+  log::verbose("code=0x{:x}, port_handle={}, handle={}", code, port_handle,
                p_cb->handle);
   if (code & PORT_EV_RXCHAR) {
     evt_data.data_ind.handle = p_cb->handle;
@@ -1438,16 +1472,17 @@ void bta_jv_rfcomm_connect(tBTA_SEC sec_mask, uint8_t remote_scn,
   uint32_t event_mask = BTA_JV_RFC_EV_MASK;
   tPORT_STATE port_state;
 
-  tBTA_JV_RFCOMM_CL_INIT evt_data;
-  memset(&evt_data, 0, sizeof(evt_data));
-  evt_data.status = tBTA_JV_STATUS::SUCCESS;
+  tBTA_JV bta_jv = {
+      .rfc_cl_init =
+          {
+              .status = tBTA_JV_STATUS::SUCCESS,
+              .handle = 0,
+              .sec_id = 0,
+              .use_co = false,
+          },
+  };
 
-#ifdef TARGET_FLOSS
-  if (true)
-#else
-  if (IS_FLAG_ENABLED(rfcomm_always_use_mitm))
-#endif
-  {
+  if (com::android::bluetooth::flags::rfcomm_always_use_mitm()) {
     // Update security service record for RFCOMM client so that
     // secure RFCOMM connection will be authenticated with MTIM protection
     // while creating the L2CAP connection.
@@ -1456,15 +1491,13 @@ void bta_jv_rfcomm_connect(tBTA_SEC sec_mask, uint8_t remote_scn,
         BTM_SEC_PROTO_RFCOMM, 0);
   }
 
-  if (evt_data.status == tBTA_JV_STATUS::SUCCESS &&
-      RFCOMM_CreateConnectionWithSecurity(
+  if (RFCOMM_CreateConnectionWithSecurity(
           UUID_SERVCLASS_SERIAL_PORT, remote_scn, false, BTA_JV_DEF_RFC_MTU,
           peer_bd_addr, &handle, bta_jv_port_mgmt_cl_cback,
           sec_mask) != PORT_SUCCESS) {
     log::error("RFCOMM_CreateConnection failed");
-    evt_data.status = tBTA_JV_STATUS::FAILURE;
-  }
-  if (evt_data.status == tBTA_JV_STATUS::SUCCESS) {
+    bta_jv.rfc_cl_init.status = tBTA_JV_STATUS::FAILURE;
+  } else {
     tBTA_JV_PCB* p_pcb;
     tBTA_JV_RFC_CB* p_cb = bta_jv_alloc_rfc_cb(handle, &p_pcb);
     if (p_cb) {
@@ -1472,29 +1505,45 @@ void bta_jv_rfcomm_connect(tBTA_SEC sec_mask, uint8_t remote_scn,
       p_cb->scn = 0;
       p_pcb->state = BTA_JV_ST_CL_OPENING;
       p_pcb->rfcomm_slot_id = rfcomm_slot_id;
-      evt_data.use_co = true;
+      bta_jv.rfc_cl_init.use_co = true;
 
-      PORT_SetEventCallback(handle, bta_jv_port_event_cl_cback);
-      PORT_SetEventMask(handle, event_mask);
-      PORT_SetDataCOCallback(handle, bta_jv_port_data_co_cback);
-
-      PORT_GetState(handle, &port_state);
+      if (PORT_SetEventMask(handle, event_mask) != PORT_SUCCESS) {
+        log::warn("Unable to set RFCOMM client event mask handle:{}", handle);
+      }
+      if (PORT_SetEventCallback(handle, bta_jv_port_event_cl_cback) !=
+          PORT_SUCCESS) {
+        log::warn("Unable to set RFCOMM client event callback handle:{}",
+                  handle);
+      }
+      if (PORT_SetDataCOCallback(handle, bta_jv_port_data_co_cback) !=
+          PORT_SUCCESS) {
+        log::warn("Unable to set RFCOMM client data callback handle:{}",
+                  handle);
+      }
+      if (PORT_GetState(handle, &port_state) != PORT_SUCCESS) {
+        log::warn("Unable to get RFCOMM client state handle:{}", handle);
+      }
 
       port_state.fc_type = (PORT_FC_CTS_ON_INPUT | PORT_FC_CTS_ON_OUTPUT);
 
-      PORT_SetState(handle, &port_state);
+      if (PORT_SetState(handle, &port_state) != PORT_SUCCESS) {
+        log::warn("Unable to set RFCOMM client state handle:{}", handle);
+      }
 
-      evt_data.handle = p_cb->handle;
+      bta_jv.rfc_cl_init.handle = p_cb->handle;
     } else {
-      evt_data.status = tBTA_JV_STATUS::FAILURE;
+      bta_jv.rfc_cl_init.status = tBTA_JV_STATUS::FAILURE;
       log::error("run out of rfc control block");
     }
   }
-  tBTA_JV bta_jv;
-  bta_jv.rfc_cl_init = evt_data;
+
   p_cback(BTA_JV_RFCOMM_CL_INIT_EVT, &bta_jv, rfcomm_slot_id);
   if (bta_jv.rfc_cl_init.status == tBTA_JV_STATUS::FAILURE) {
-    if (handle) RFCOMM_RemoveConnection(handle);
+    if (handle) {
+      if (RFCOMM_RemoveConnection(handle) != PORT_SUCCESS) {
+        log::warn("Unable to remove RFCOMM connection handle:{}", handle);
+      }
+    }
   }
 }
 
@@ -1510,10 +1559,9 @@ static int find_rfc_pcb(uint32_t rfcomm_slot_id, tBTA_JV_RFC_CB** cb,
       *pcb = &bta_jv_cb.port_cb[i];
       *cb = &bta_jv_cb.rfc_cb[rfc_handle - 1];
       log::verbose(
-          "FOUND rfc_cb_handle={}, port.jv_handle={}, state={}, "
-          "rfc_cb->handle={}",
-          loghex(rfc_handle), loghex((*pcb)->handle), (*pcb)->state,
-          loghex((*cb)->handle));
+          "FOUND rfc_cb_handle=0x{:x}, port.jv_handle=0x{:x}, state={}, "
+          "rfc_cb->handle=0x{:x}",
+          rfc_handle, (*pcb)->handle, (*pcb)->state, (*cb)->handle);
       return 1;
     }
   }
@@ -1547,7 +1595,8 @@ void bta_jv_rfcomm_close(uint32_t handle, uint32_t rfcomm_slot_id) {
  * Returns      void
  *
  ******************************************************************************/
-static void bta_jv_port_mgmt_sr_cback(uint32_t code, uint16_t port_handle) {
+static void bta_jv_port_mgmt_sr_cback(const tPORT_RESULT code,
+                                      uint16_t port_handle) {
   tBTA_JV_PCB* p_pcb = bta_jv_rfc_port_to_pcb(port_handle);
   tBTA_JV_RFC_CB* p_cb = bta_jv_rfc_port_to_cb(port_handle);
   tBTA_JV evt_data;
@@ -1560,8 +1609,8 @@ static void bta_jv_port_mgmt_sr_cback(uint32_t code, uint16_t port_handle) {
     return;
   }
   uint32_t rfcomm_slot_id = p_pcb->rfcomm_slot_id;
-  log::verbose("code={}, port_handle={}, handle={}, p_pcb{}, user={}", code,
-               loghex(port_handle), loghex(p_cb->handle), fmt::ptr(p_pcb),
+  log::verbose("code={}, port_handle=0x{:x}, handle=0x{:x}, p_pcb{}, user={}",
+               code, port_handle, p_cb->handle, fmt::ptr(p_pcb),
                p_pcb->rfcomm_slot_id);
 
   int status = PORT_CheckConnection(port_handle, &rem_bda, &lcid);
@@ -1636,7 +1685,7 @@ static void bta_jv_port_event_sr_cback(uint32_t code, uint16_t port_handle) {
     return;
   }
 
-  log::verbose("code={}, port_handle={}, handle={}", loghex(code), port_handle,
+  log::verbose("code=0x{:x}, port_handle={}, handle={}", code, port_handle,
                p_cb->handle);
 
   uint32_t user_data = p_pcb->rfcomm_slot_id;
@@ -1719,17 +1768,35 @@ static tBTA_JV_PCB* bta_jv_add_rfc_port(tBTA_JV_RFC_CB* p_cb,
         p_pcb->port_handle = p_cb->rfc_hdl[si];
         p_pcb->rfcomm_slot_id = p_pcb_open->rfcomm_slot_id;
 
-        PORT_ClearKeepHandleFlag(p_pcb->port_handle);
-        PORT_SetEventCallback(p_pcb->port_handle, bta_jv_port_event_sr_cback);
-        PORT_SetDataCOCallback(p_pcb->port_handle, bta_jv_port_data_co_cback);
-        PORT_SetEventMask(p_pcb->port_handle, event_mask);
-        PORT_GetState(p_pcb->port_handle, &port_state);
+        if (PORT_ClearKeepHandleFlag(p_pcb->port_handle) != PORT_SUCCESS) {
+          log::warn("Unable to clear RFCOMM server keep handle flag handle:{}",
+                    p_pcb->port_handle);
+        }
+        if (PORT_SetEventMask(p_pcb->port_handle, event_mask) != PORT_SUCCESS) {
+          log::warn("Unable to set RFCOMM server event mask handle:{}",
+                    p_pcb->port_handle);
+        }
+        if (PORT_SetEventCallback(p_pcb->port_handle,
+                                  bta_jv_port_event_sr_cback) != PORT_SUCCESS) {
+          log::warn("Unable to set RFCOMM server event callback handle:{}",
+                    p_pcb->port_handle);
+        }
+        if (PORT_SetDataCOCallback(p_pcb->port_handle,
+                                   bta_jv_port_data_co_cback) != PORT_SUCCESS) {
+          log::warn("Unable to set RFCOMM server data callback handle:{}",
+                    p_pcb->port_handle);
+        }
+        if (PORT_GetState(p_pcb->port_handle, &port_state) != PORT_SUCCESS) {
+          log::warn("Unable to get RFCOMM server state handle:{}",
+                    p_pcb->port_handle);
+        }
 
         port_state.fc_type = (PORT_FC_CTS_ON_INPUT | PORT_FC_CTS_ON_OUTPUT);
 
-        PORT_SetState(p_pcb->port_handle, &port_state);
+        if (PORT_SetState(p_pcb->port_handle, &port_state) != PORT_SUCCESS) {
+        }
         p_pcb->handle = BTA_JV_RFC_H_S_TO_HDL(p_cb->handle, si);
-        log::verbose("p_pcb->handle={}, curr_sess={}", loghex(p_pcb->handle),
+        log::verbose("p_pcb->handle=0x{:x}, curr_sess={}", p_pcb->handle,
                      p_cb->curr_sess);
       } else {
         log::error("RFCOMM_CreateConnection failed");
@@ -1783,23 +1850,44 @@ void bta_jv_rfcomm_start_server(tBTA_SEC sec_mask, uint8_t local_scn,
     evt_data.handle = p_cb->handle;
     evt_data.use_co = true;
 
-    PORT_ClearKeepHandleFlag(handle);
-    PORT_SetEventCallback(handle, bta_jv_port_event_sr_cback);
-    PORT_SetEventMask(handle, event_mask);
-    PORT_GetState(handle, &port_state);
+    if (PORT_ClearKeepHandleFlag(handle) != PORT_SUCCESS) {
+      log::warn("Unable to clear RFCOMM server keep handle flag handle:{}",
+                handle);
+    }
+    if (PORT_SetEventMask(handle, event_mask) != PORT_SUCCESS) {
+      log::warn("Unable to set RFCOMM server event mask handle:{}", handle);
+    }
+    if (PORT_SetEventCallback(handle, bta_jv_port_event_sr_cback) !=
+        PORT_SUCCESS) {
+      log::warn("Unable to clear RFCOMM server event callback handle:{}",
+                handle);
+    }
+    if (PORT_GetState(handle, &port_state) != PORT_SUCCESS) {
+      log::warn("Unable to get RFCOMM server state handle:{}", handle);
+    }
 
     port_state.fc_type = (PORT_FC_CTS_ON_INPUT | PORT_FC_CTS_ON_OUTPUT);
 
-    PORT_SetState(handle, &port_state);
+    if (PORT_SetState(handle, &port_state) != PORT_SUCCESS) {
+      log::warn("Unable to set RFCOMM port state handle:{}", handle);
+    };
   } while (0);
 
   tBTA_JV bta_jv;
   bta_jv.rfc_start = evt_data;
   p_cback(BTA_JV_RFCOMM_START_EVT, &bta_jv, rfcomm_slot_id);
   if (bta_jv.rfc_start.status == tBTA_JV_STATUS::SUCCESS) {
-    PORT_SetDataCOCallback(handle, bta_jv_port_data_co_cback);
+    if (PORT_SetDataCOCallback(handle, bta_jv_port_data_co_cback) !=
+        PORT_SUCCESS) {
+      log::error("Unable to set RFCOMM server data callback handle:{}", handle);
+    }
   } else {
-    if (handle) RFCOMM_RemoveConnection(handle);
+    if (handle) {
+      if (RFCOMM_RemoveConnection(handle) != PORT_SUCCESS) {
+        log::warn("Unable to remote RFCOMM server connection handle:{}",
+                  handle);
+      }
+    }
   }
 }
 
@@ -1861,8 +1949,8 @@ void bta_jv_set_pm_profile(uint32_t handle, tBTA_JV_PM_ID app_id,
   tBTA_JV_STATUS status;
   tBTA_JV_PM_CB* p_cb;
 
-  log::verbose("handle={}, app_id={}, init_st={}", loghex(handle), app_id,
-               init_st);
+  log::verbose("handle=0x{:x}, app_id={}, init_st={}", handle, app_id,
+               bta_jv_conn_state_text(init_st));
 
   /* clear PM control block */
   if (app_id == BTA_JV_PM_ID_CLEAR) {
@@ -1928,8 +2016,9 @@ static void bta_jv_pm_conn_idle(tBTA_JV_PM_CB* p_cb) {
 static void bta_jv_pm_state_change(tBTA_JV_PM_CB* p_cb,
                                    const tBTA_JV_CONN_STATE state) {
   log::verbose(
-      "p_cb={}, handle={}, busy/idle_state={}, app_id={}, conn_state={}",
-      fmt::ptr(p_cb), loghex(p_cb->handle), p_cb->state, p_cb->app_id, state);
+      "p_cb={}, handle=0x{:x}, busy/idle_state={}, app_id={}, conn_state={}",
+      fmt::ptr(p_cb), p_cb->handle, p_cb->state, p_cb->app_id,
+      bta_jv_conn_state_text(state));
 
   switch (state) {
     case BTA_JV_CONN_OPEN:
@@ -1967,7 +2056,7 @@ static void bta_jv_pm_state_change(tBTA_JV_PM_CB* p_cb,
       break;
 
     default:
-      log::warn("Invalid state={}", state);
+      log::warn("Invalid state={}", bta_jv_conn_state_text(state));
       break;
   }
 }
@@ -1993,9 +2082,10 @@ static void bta_jv_reset_sniff_timer(tBTA_JV_PM_CB* p_cb) {
 
 namespace bluetooth::legacy::testing {
 
-void bta_jv_start_discovery_cback(const RawAddress& bd_addr, tSDP_RESULT result,
-                                  const void* user_data) {
-  ::bta_jv_start_discovery_cback(bd_addr, result, user_data);
+void bta_jv_start_discovery_cback(uint32_t rfcomm_slot_id,
+                                  const RawAddress& bd_addr,
+                                  tSDP_RESULT result) {
+  ::bta_jv_start_discovery_cback(rfcomm_slot_id, bd_addr, result);
 }
 
 }  // namespace bluetooth::legacy::testing

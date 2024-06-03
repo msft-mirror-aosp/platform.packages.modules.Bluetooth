@@ -23,7 +23,6 @@
  ******************************************************************************/
 
 #include <base/functional/callback.h>
-#include <base/logging.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
@@ -36,7 +35,6 @@
 #include "internal_include/bt_target.h"
 #include "l2c_api.h"
 #include "l2cdefs.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
 #include "stack/include/acl_api.h"
@@ -153,8 +151,11 @@ tHID_STATUS hidh_conn_disconnect(uint8_t dhandle) {
 
     /* Set l2cap idle timeout to 0 (so ACL link is disconnected
      * immediately after last channel is closed) */
-    L2CA_SetIdleTimeoutByBdAddr(hh_cb.devices[dhandle].addr, 0,
-                                BT_TRANSPORT_BR_EDR);
+    if (!L2CA_SetIdleTimeoutByBdAddr(hh_cb.devices[dhandle].addr, 0,
+                                     BT_TRANSPORT_BR_EDR)) {
+      log::warn("Unable to set L2CAP idle timeout peer:{}",
+                hh_cb.devices[dhandle].addr);
+    }
     /* Disconnect both interrupt and control channels */
     if (p_hcon->intr_cid)
       hidh_l2cif_disconnect(p_hcon->intr_cid);
@@ -191,7 +192,10 @@ static void hidh_l2cif_connect_ind(const RawAddress& bd_addr,
 
   /* always add incoming connection device into HID database by default */
   if (HID_HostAddDev(bd_addr, HID_SEC_REQUIRED, &i) != HID_SUCCESS) {
-    L2CA_DisconnectReq(l2cap_cid);
+    if (!L2CA_DisconnectReq(l2cap_cid)) {
+      log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}",
+                bd_addr, l2cap_cid);
+    }
     return;
   }
 
@@ -229,7 +233,10 @@ static void hidh_l2cif_connect_ind(const RawAddress& bd_addr,
   }
 
   if (!bAccept) {
-    L2CA_DisconnectReq(l2cap_cid);
+    if (!L2CA_DisconnectReq(l2cap_cid)) {
+      log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}",
+                bd_addr, l2cap_cid);
+    }
     return;
   }
 
@@ -339,7 +346,7 @@ static void hidh_l2cif_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
       ((l2cap_cid == p_hcon->intr_cid) &&
        (p_hcon->conn_state != HID_CONN_STATE_CONNECTING_INTR) &&
        (p_hcon->conn_state != HID_CONN_STATE_DISCONNECTING))) {
-    log::warn("HID-Host Rcvd unexpected conn cnf, CID 0x{:x} ", l2cap_cid);
+    log::warn("HID-Host Rcvd unexpected conn cnf, CID 0x{:x}", l2cap_cid);
     return;
   }
 
@@ -564,7 +571,9 @@ static void hidh_l2cif_disconnect_ind(uint16_t l2cap_cid, bool ack_needed) {
 }
 
 static void hidh_l2cif_disconnect(uint16_t l2cap_cid) {
-  L2CA_DisconnectReq(l2cap_cid);
+  if (!L2CA_DisconnectReq(l2cap_cid)) {
+    log::warn("Unable to send L2CAP disconnect request cid:{}", l2cap_cid);
+  }
 
   /* Find CCB based on CID */
   const uint8_t dhandle = find_conn_by_cid(l2cap_cid);
@@ -580,7 +589,10 @@ static void hidh_l2cif_disconnect(uint16_t l2cap_cid) {
     p_hcon->intr_cid = 0;
     if (p_hcon->ctrl_cid) {
       log::verbose("HID-Host Initiating L2CAP Ctrl disconnection");
-      L2CA_DisconnectReq(p_hcon->ctrl_cid);
+      if (!L2CA_DisconnectReq(p_hcon->ctrl_cid)) {
+        log::warn("Unable to send L2CAP disconnect request cid:{}",
+                  p_hcon->ctrl_cid);
+      }
       p_hcon->ctrl_cid = 0;
     }
   }

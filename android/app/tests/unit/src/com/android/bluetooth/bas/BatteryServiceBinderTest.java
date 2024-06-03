@@ -24,7 +24,6 @@ import android.bluetooth.BluetoothProfile;
 import android.content.AttributionSource;
 
 import com.android.bluetooth.TestUtils;
-import com.android.bluetooth.jarjar.com.android.modules.utils.SynchronousResultReceiver;
 
 import org.junit.After;
 import org.junit.Before;
@@ -33,8 +32,6 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
-
-import java.util.List;
 
 public class BatteryServiceBinderTest {
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
@@ -59,9 +56,8 @@ public class BatteryServiceBinderTest {
     public void connect() {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<Boolean> recv = SynchronousResultReceiver.get();
 
-        mBinder.connect(device, source, recv);
+        mBinder.connect(device, source);
         verify(mService).connect(device);
     }
 
@@ -69,18 +65,16 @@ public class BatteryServiceBinderTest {
     public void disconnect() {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<Boolean> recv = SynchronousResultReceiver.get();
 
-        mBinder.disconnect(device, source, recv);
+        mBinder.disconnect(device, source);
         verify(mService).disconnect(device);
     }
 
     @Test
     public void getConnectedDevices() {
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<List<BluetoothDevice>> recv =
-                SynchronousResultReceiver.get();
-        mBinder.getConnectedDevices(source, recv);
+
+        mBinder.getConnectedDevices(source);
         verify(mService).getConnectedDevices();
     }
 
@@ -88,10 +82,8 @@ public class BatteryServiceBinderTest {
     public void getDevicesMatchingConnectionStates() {
         int[] states = new int[] { BluetoothProfile.STATE_CONNECTED };
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<List<BluetoothDevice>> recv =
-                SynchronousResultReceiver.get();
 
-        mBinder.getDevicesMatchingConnectionStates(states, source, recv);
+        mBinder.getDevicesMatchingConnectionStates(states, source);
         verify(mService).getDevicesMatchingConnectionStates(states);
     }
 
@@ -99,10 +91,8 @@ public class BatteryServiceBinderTest {
     public void getConnectionState() {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<List<BluetoothDevice>> recv =
-                SynchronousResultReceiver.get();
 
-        mBinder.getConnectionState(device, source, recv);
+        mBinder.getConnectionState(device, source);
         verify(mService).getConnectionState(device);
     }
 
@@ -111,9 +101,8 @@ public class BatteryServiceBinderTest {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
         int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<Boolean> recv = SynchronousResultReceiver.get();
 
-        mBinder.setConnectionPolicy(device, connectionPolicy, source, recv);
+        mBinder.setConnectionPolicy(device, connectionPolicy, source);
         verify(mService).setConnectionPolicy(device, connectionPolicy);
     }
 
@@ -121,9 +110,8 @@ public class BatteryServiceBinderTest {
     public void getConnectionPolicy() {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<Integer> recv = SynchronousResultReceiver.get();
 
-        mBinder.getConnectionPolicy(device, source, recv);
+        mBinder.getConnectionPolicy(device, source);
         verify(mService).getConnectionPolicy(device);
     }
 }

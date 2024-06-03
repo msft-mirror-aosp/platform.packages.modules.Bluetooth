@@ -22,7 +22,7 @@
 #include <hardware/audio.h>
 #endif
 
-#include <android_bluetooth_flags.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <functional>
 
@@ -66,8 +66,14 @@ struct StreamCallbacks {
   std::function<bool(const sink_metadata_v7_t&)> on_sink_metadata_update_;
 };
 
-std::vector<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
-get_offload_capabilities();
+struct OffloadCapabilities {
+  std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>
+      unicast_offload_capabilities;
+  std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>
+      broadcast_offload_capabilities;
+};
+
+OffloadCapabilities get_offload_capabilities();
 
 class LeAudioClientInterface {
  public:

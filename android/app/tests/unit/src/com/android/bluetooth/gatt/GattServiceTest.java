@@ -48,10 +48,9 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.CompanionManager;
+import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.le_scan.ScanManager;
 import com.android.bluetooth.le_scan.TransitionalScanHelper;
-
-import com.android.bluetooth.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
@@ -511,11 +510,14 @@ public class GattServiceTest {
     public void serverConnect() {
         int serverIf = 1;
         String address = REMOTE_DEVICE_ADDRESS;
+        int addressType = BluetoothDevice.ADDRESS_TYPE_RANDOM;
         boolean isDirect = true;
         int transport = 2;
 
-        mService.serverConnect(serverIf, address, isDirect, transport, mAttributionSource);
-        verify(mNativeInterface).gattServerConnect(serverIf, address, isDirect, transport);
+        mService.serverConnect(
+                serverIf, address, addressType, isDirect, transport, mAttributionSource);
+        verify(mNativeInterface)
+                .gattServerConnect(serverIf, address, addressType, isDirect, transport);
     }
 
     @Test
@@ -605,7 +607,7 @@ public class GattServiceTest {
 
     @Test
     public void numHwTrackFiltersAvailable() {
-        mService.numHwTrackFiltersAvailable(mAttributionSource);
+        mService.getTransitionalScanHelper().numHwTrackFiltersAvailable(mAttributionSource);
         verify(mScanManager).getCurrentUsedTrackingAdvertisement();
     }
 

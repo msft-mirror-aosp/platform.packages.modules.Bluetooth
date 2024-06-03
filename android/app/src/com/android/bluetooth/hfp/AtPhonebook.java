@@ -47,7 +47,6 @@ import java.util.HashMap;
  */
 public class AtPhonebook {
     private static final String TAG = "BluetoothAtPhonebook";
-    private static final boolean DBG = false;
 
     /** The projection to use when querying the call log database in response
      *  to AT+CPBR for the MC, RC, and DC phone books (missed, received, and
@@ -257,9 +256,7 @@ public class AtPhonebook {
                     pb = pb.substring(1, pb.length());
                 }
                 if (getPhonebookResult(pb, false) == null && !"SM".equals(pb)) {
-                    if (DBG) {
-                        Log.d(TAG, "Dont know phonebook: '" + pb + "'");
-                    }
+                    Log.d(TAG, "Dont know phonebook: '" + pb + "'");
                     atCommandErrorCode = BluetoothCmeError.OPERATION_NOT_ALLOWED;
                     break;
                 }
@@ -565,9 +562,7 @@ public class AtPhonebook {
                     c.close();
                 }
                 if (name == null) {
-                    if (DBG) {
-                        Log.d(TAG, "Caller ID lookup failed for " + number);
-                    }
+                    Log.d(TAG, "Caller ID lookup failed for " + number);
                 }
 
             } else if (pbr.nameColumn != -1) {
@@ -636,12 +631,12 @@ public class AtPhonebook {
     }
 
     /**
-     * Checks if the remote device has premission to read our phone book.
-     * If the return value is {@link BluetoothDevice#ACCESS_UNKNOWN}, it means this method has sent
-     * an Intent to Settings application to ask user preference.
+     * Checks if the remote device has permission to read our phone book. If the return value is
+     * {@link BluetoothDevice#ACCESS_UNKNOWN}, it means this method has sent an Intent to Settings
+     * application to ask user preference.
      *
      * @return {@link BluetoothDevice#ACCESS_UNKNOWN}, {@link BluetoothDevice#ACCESS_ALLOWED} or
-     *         {@link BluetoothDevice#ACCESS_REJECTED}.
+     *     {@link BluetoothDevice#ACCESS_REJECTED}.
      */
     @VisibleForTesting
     int checkAccessPermission(BluetoothDevice remoteDevice) {
@@ -657,9 +652,15 @@ public class AtPhonebook {
             intent.putExtra(BluetoothDevice.EXTRA_DEVICE, remoteDevice);
             // Leave EXTRA_PACKAGE_NAME and EXTRA_CLASS_NAME field empty.
             // BluetoothHandsfree's broadcast receiver is anonymous, cannot be targeted.
-            Utils.sendOrderedBroadcast(mContext, intent, BLUETOOTH_CONNECT,
-                    Utils.getTempAllowlistBroadcastOptions(), null, null,
-                    Activity.RESULT_OK, null, null);
+            mContext.sendOrderedBroadcast(
+                    intent,
+                    BLUETOOTH_CONNECT,
+                    Utils.getTempBroadcastOptions().toBundle(),
+                    null,
+                    null,
+                    Activity.RESULT_OK,
+                    null,
+                    null);
         }
 
         return permission;

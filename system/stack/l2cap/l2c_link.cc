@@ -25,8 +25,8 @@
  ******************************************************************************/
 #define LOG_TAG "l2c_link"
 
-#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
@@ -34,7 +34,6 @@
 #include "internal_include/bt_target.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
@@ -52,7 +51,6 @@ using namespace bluetooth;
 extern tBTM_CB btm_cb;
 
 bool BTM_ReadPowerMode(const RawAddress& remote_bda, tBTM_PM_MODE* p_mode);
-bool btm_dev_support_role_switch(const RawAddress& bd_addr);
 tBTM_STATUS btm_sec_disconnect(uint16_t handle, tHCI_STATUS reason,
                                std::string);
 void btm_acl_created(const RawAddress& bda, uint16_t hci_handle,
@@ -188,16 +186,15 @@ void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle,
  * Returns          void
  *
  ******************************************************************************/
-void l2c_link_sec_comp(const RawAddress* p_bda,
-                       UNUSED_ATTR tBT_TRANSPORT transport, void* p_ref_data,
-                       tBTM_STATUS status) {
+void l2c_link_sec_comp(const RawAddress* p_bda, tBT_TRANSPORT transport,
+                       void* p_ref_data, tBTM_STATUS status) {
   tL2C_CONN_INFO ci;
   tL2C_LCB* p_lcb;
   tL2C_CCB* p_ccb;
   tL2C_CCB* p_next_ccb;
 
   log::debug("btm_status={}, BD_ADDR={}, transport={}", btm_status_text(status),
-             ADDRESS_TO_LOGGABLE_CSTR(*p_bda), bt_transport_text(transport));
+             *p_bda, bt_transport_text(transport));
 
   if (status == BTM_SUCCESS_NO_SECURITY) {
     status = BTM_SUCCESS;
@@ -215,7 +212,7 @@ void l2c_link_sec_comp(const RawAddress* p_bda,
     return;
   }
 
-  if (IS_FLAG_ENABLED(l2cap_p_ccb_check_rewrite)) {
+  if (com::android::bluetooth::flags::l2cap_p_ccb_check_rewrite()) {
     if (!p_ref_data) {
       log::warn("Argument p_ref_data is NULL");
       return;
@@ -433,7 +430,7 @@ void l2c_link_timeout(tL2C_LCB* p_lcb) {
   tBTM_STATUS rc;
 
   log::debug("L2CAP - l2c_link_timeout() link state:{} is_bonding:{}",
-             link_state_text(p_lcb->link_state), logbool(p_lcb->IsBonding()));
+             link_state_text(p_lcb->link_state), p_lcb->IsBonding());
 
   /* If link was connecting or disconnecting, clear all channels and drop the
    * LCB */
@@ -900,7 +897,8 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, uint16_t local_cid,
       }
 
       /* See if we can send anything from the Link Queue */
-      if (!list_is_empty(p_lcb->link_xmit_data_q)) {
+      if (p_lcb->link_xmit_data_q != NULL &&
+          !list_is_empty(p_lcb->link_xmit_data_q)) {
         log::verbose("Sending to lower layer");
         p_buf = (BT_HDR*)list_front(p_lcb->link_xmit_data_q);
         list_remove(p_lcb->link_xmit_data_q, p_buf);
@@ -954,7 +952,8 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, uint16_t local_cid,
             (l2cb.controller_le_xmit_window != 0 &&
              (p_lcb->transport == BT_TRANSPORT_LE))) &&
            (p_lcb->sent_not_acked < p_lcb->link_xmit_quota)) {
-      if (list_is_empty(p_lcb->link_xmit_data_q)) {
+      if ((p_lcb->link_xmit_data_q == NULL) ||
+          list_is_empty(p_lcb->link_xmit_data_q)) {
         log::verbose("No transmit data, skipping");
         break;
       }
@@ -986,7 +985,8 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, uint16_t local_cid,
     /* There is a special case where we have readjusted the link quotas and  */
     /* this link may have sent anything but some other link sent packets so  */
     /* so we may need a timer to kick off this link's transmissions.         */
-    if ((!list_is_empty(p_lcb->link_xmit_data_q)) &&
+    if ((p_lcb->link_xmit_data_q != NULL) &&
+        (!list_is_empty(p_lcb->link_xmit_data_q)) &&
         (p_lcb->sent_not_acked < p_lcb->link_xmit_quota)) {
       alarm_set_on_mloop(p_lcb->l2c_lcb_timer,
                          L2CAP_LINK_FLOW_CONTROL_TIMEOUT_MS,
@@ -1153,7 +1153,7 @@ tBTM_STATUS l2cu_ConnectAclForSecurity(const RawAddress& bd_addr) {
   /* Make sure an L2cap link control block is available */
   if (!p_lcb &&
       (p_lcb = l2cu_allocate_lcb(bd_addr, true, BT_TRANSPORT_BR_EDR)) == NULL) {
-    log::warn("failed allocate LCB for {}", ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+    log::warn("failed allocate LCB for {}", bd_addr);
     return BTM_NO_RESOURCES;
   }
 

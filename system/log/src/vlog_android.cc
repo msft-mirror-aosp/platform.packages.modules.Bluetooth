@@ -21,15 +21,24 @@
 
 namespace bluetooth::log_internal {
 
+static constexpr std::string_view kAndroidRepoLocation =
+    "packages/modules/Bluetooth/";
+
 static constexpr size_t kBufferSize = 1024;
 
-void vlog(Level level, char const* tag, char const* file_name, int line,
-          char const* function_name, fmt::string_view fmt,
-          fmt::format_args vargs) {
+void vlog(Level level, char const* tag, source_location location,
+          fmt::string_view fmt, fmt::format_args vargs) {
   // Check if log is enabled.
   if (!__android_log_is_loggable(level, tag, ANDROID_LOG_INFO) &&
       !__android_log_is_loggable(level, "bluetooth", ANDROID_LOG_INFO)) {
     return;
+  }
+
+  // Strip prefix of file_name to remove kAndroidRepoLocation if present
+  const char* file_name = location.file_name;
+  if (strncmp(kAndroidRepoLocation.data(), location.file_name,
+              kAndroidRepoLocation.size()) == 0) {
+    file_name = location.file_name + kAndroidRepoLocation.size();
   }
 
   // Format to stack buffer.
@@ -39,7 +48,7 @@ void vlog(Level level, char const* tag, char const* file_name, int line,
   // message.
   truncating_buffer<kBufferSize> buffer;
   fmt::format_to(std::back_insert_iterator(buffer), "{}:{} {}: ", file_name,
-                 line, function_name);
+                 location.line, location.function_name);
   fmt::vformat_to(std::back_insert_iterator(buffer), fmt, vargs);
 
   // Send message to liblog.

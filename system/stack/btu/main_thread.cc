@@ -21,7 +21,6 @@
 #include "stack/include/main_thread.h"
 
 #include <base/functional/bind.h>
-#include <base/logging.h>
 #include <base/run_loop.h>
 #include <base/threading/thread.h>
 #include <bluetooth/log.h>
@@ -36,6 +35,9 @@ using namespace bluetooth;
 static MessageLoopThread main_thread("bt_main_thread");
 
 bluetooth::common::MessageLoopThread* get_main_thread() { return &main_thread; }
+bluetooth::common::PostableContext* get_main() {
+  return main_thread.Postable();
+}
 
 bt_status_t do_in_main_thread(const base::Location& from_here,
                               base::OnceClosure task) {
@@ -59,9 +61,13 @@ bt_status_t do_in_main_thread_delayed(const base::Location& from_here,
 static void do_post_on_bt_main(BtMainClosure closure) { closure(); }
 
 void post_on_bt_main(BtMainClosure closure) {
-  ASSERT(do_in_main_thread(FROM_HERE, base::BindOnce(do_post_on_bt_main,
-                                                     std::move(closure))) ==
-         BT_STATUS_SUCCESS);
+  log::assert_that(
+      do_in_main_thread(
+          FROM_HERE, base::BindOnce(do_post_on_bt_main, std::move(closure))) ==
+          BT_STATUS_SUCCESS,
+      "assert failed: do_in_main_thread(FROM_HERE, "
+      "base::BindOnce(do_post_on_bt_main, std::move(closure))) == "
+      "BT_STATUS_SUCCESS");
 }
 
 void main_thread_start_up() {

@@ -19,6 +19,7 @@ package com.android.bluetooth.mcp;
 import static java.util.Map.entry;
 
 import android.annotation.NonNull;
+import android.bluetooth.BluetoothAvrcp;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothLeAudio;
 import android.bluetooth.BluetoothUuid;
@@ -36,6 +37,7 @@ import com.android.bluetooth.Utils;
 import com.android.bluetooth.audio_util.MediaData;
 import com.android.bluetooth.audio_util.MediaPlayerList;
 import com.android.bluetooth.audio_util.MediaPlayerWrapper;
+import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.le_audio.ContentControlIdKeeper;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -62,7 +64,6 @@ import java.util.stream.Stream;
  */
 public class MediaControlProfile implements MediaControlServiceCallbacks {
     private static final String TAG = "MediaControlProfile";
-    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
     private final Context mContext;
 
     private static final int LOG_NB_EVENTS = 100;
@@ -152,7 +153,7 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
     }
 
     private void onCurrentPlayerQueueUpdated() {
-        if (DBG) Log.d(TAG, "onCurrentPlayerQueueUpdated: not implemented");
+        Log.d(TAG, "onCurrentPlayerQueueUpdated: not implemented");
 
         /* TODO: Implement once we have the Object Transfer Service */
         if (mCurrentData.queue == null) return;
@@ -403,8 +404,24 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
                         + Request.Opcodes.toString(request.getOpcode()));
         Request.Results status = Request.Results.COMMAND_CANNOT_BE_COMPLETED;
 
-        if (mMediaPlayerList.getActivePlayer() == null && mGMcsService != null) {
-            mGMcsService.setMediaControlRequestResult(request, status);
+        if (Flags.mcpAllowPlayWithoutActivePlayer()
+                && !Utils.isPtsTestMode()
+                && mMediaPlayerList.getActivePlayer() == null
+                && request.getOpcode() == Request.Opcodes.PLAY) {
+            Log.d(TAG, "Player is not active. GMCS send media key for PLAY");
+            mMediaPlayerList.sendMediaKeyEvent(BluetoothAvrcp.PASSTHROUGH_ID_PLAY, true);
+            mMediaPlayerList.sendMediaKeyEvent(BluetoothAvrcp.PASSTHROUGH_ID_PLAY, false);
+            return;
+        }
+
+        if (mMediaPlayerList.getActivePlayer() == null || mCurrentData.state == null) {
+            Log.w(TAG, "no active MediaPlayer or mCurrentData is null");
+            if (mGMcsService != null) {
+                mGMcsService.setMediaControlRequestResult(request, status);
+            } else {
+                Log.e(TAG, "mGMcsService is null");
+            }
+            return;
         }
 
         long actions = getCurrentPlayerSupportedActions();
@@ -577,7 +594,7 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
     }
 
     private void processPendingPlayerStateRequest() {
-        if (DBG) Log.d(TAG, "GMCS processPendingPlayerStateRequest");
+        Log.d(TAG, "GMCS processPendingPlayerStateRequest");
 
         Map<PlayerStateField, Object> handled_request_map = new HashMap<>();
 
@@ -666,13 +683,11 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
             }
         }
 
-        if (DBG) {
-            synchronized (this) {
-                if (mPendingStateRequest != null && !mPendingStateRequest.isEmpty()) {
-                    Log.w(TAG, "MCS service state fields left unhandled: ");
-                    for (PlayerStateField item : mPendingStateRequest) {
-                        Log.w(TAG, "   > " + item);
-                    }
+        synchronized (this) {
+            if (mPendingStateRequest != null && !mPendingStateRequest.isEmpty()) {
+                Log.w(TAG, "MCS service state fields left unhandled: ");
+                for (PlayerStateField item : mPendingStateRequest) {
+                    Log.w(TAG, "   > " + item);
                 }
             }
         }

@@ -25,7 +25,6 @@
 #define LOG_TAG "bta_gattc_api"
 
 #include <base/functional/bind.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include <ios>
@@ -33,6 +32,8 @@
 #include <vector>
 
 #include "bta/gatt/bta_gattc_int.h"
+#include "gd/hci/uuid.h"
+#include "gd/os/rand.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
@@ -85,9 +86,12 @@ void BTA_GATTC_AppRegister(tBTA_GATTC_CBACK* p_client_cb,
     bta_sys_register(BTA_ID_GATTC, &bta_gattc_reg);
   }
 
+  Uuid uuid =
+      Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
+
   do_in_main_thread(FROM_HERE,
-                    base::BindOnce(&bta_gattc_register, Uuid::GetRandom(),
-                                   p_client_cb, std::move(cb), eatt_support));
+                    base::BindOnce(&bta_gattc_register, uuid, p_client_cb,
+                                   std::move(cb), eatt_support));
 }
 
 static void app_deregister_impl(tGATT_IF client_if) {
@@ -746,8 +750,7 @@ tGATT_STATUS BTA_GATTC_DeregisterForNotifications(tGATT_IF client_if,
 
   tBTA_GATTC_RCB* p_clreg = bta_gattc_cl_get_regcb(client_if);
   if (p_clreg == NULL) {
-    log::error("client_if={} not registered bd_addr={}", client_if,
-               ADDRESS_TO_LOGGABLE_STR(bda));
+    log::error("client_if={} not registered bd_addr={}", client_if, bda);
     return GATT_ILLEGAL_PARAMETER;
   }
 
@@ -755,13 +758,13 @@ tGATT_STATUS BTA_GATTC_DeregisterForNotifications(tGATT_IF client_if,
     if (p_clreg->notif_reg[i].in_use &&
         p_clreg->notif_reg[i].remote_bda == bda &&
         p_clreg->notif_reg[i].handle == handle) {
-      log::verbose("deregistered bd_addr={}", ADDRESS_TO_LOGGABLE_STR(bda));
+      log::verbose("deregistered bd_addr={}", bda);
       memset(&p_clreg->notif_reg[i], 0, sizeof(tBTA_GATTC_NOTIF_REG));
       return GATT_SUCCESS;
     }
   }
 
-  log::error("registration not found bd_addr={}", ADDRESS_TO_LOGGABLE_STR(bda));
+  log::error("registration not found bd_addr={}", bda);
   return GATT_ERROR;
 }
 

@@ -18,15 +18,21 @@ package com.android.bluetooth.btservice;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMetricsProto.BluetoothLog;
+import com.android.bluetooth.BluetoothMetricsProto.BluetoothRemoteDeviceInformation;
 import com.android.bluetooth.BluetoothMetricsProto.ProfileConnectionStats;
 import com.android.bluetooth.BluetoothMetricsProto.ProfileId;
+import com.android.bluetooth.TestUtils;
 
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -58,37 +64,32 @@ public class MetricsLoggerTest {
         SANITIZED_DEVICE_NAME_MAP.put("Someone's AirpoDs", "airpods");
         SANITIZED_DEVICE_NAME_MAP.put("Galaxy Buds pro", "galaxybudspro");
         SANITIZED_DEVICE_NAME_MAP.put("Someone's AirpoDs", "airpods");
-        SANITIZED_DEVICE_NAME_MAP.put("Who's Pixel 7", "pixel7");
-        SANITIZED_DEVICE_NAME_MAP.put("陈的pixel 7手机", "pixel7");
-        SANITIZED_DEVICE_NAME_MAP.put("pixel 7 pro", "pixel7pro");
-        SANITIZED_DEVICE_NAME_MAP.put("My Pixel 7 Pro", "pixel7pro");
-        SANITIZED_DEVICE_NAME_MAP.put("My Pixel   7   PRO", "pixel7pro");
-        SANITIZED_DEVICE_NAME_MAP.put("My Pixel   7   - PRO", "pixel7pro");
         SANITIZED_DEVICE_NAME_MAP.put("My BMW X5", "bmwx5");
         SANITIZED_DEVICE_NAME_MAP.put("Jane Doe's Tesla Model--X", "teslamodelx");
         SANITIZED_DEVICE_NAME_MAP.put("TESLA of Jane DOE", "tesla");
-        SANITIZED_DEVICE_NAME_MAP.put("SONY WH-1000XM noise cancelling headsets", "sonywh1000xm");
-        SANITIZED_DEVICE_NAME_MAP.put("Amazon Echo Dot in Kitchen", "amazonechodot");
-        SANITIZED_DEVICE_NAME_MAP.put("斯巴鲁 Starlink", "starlink");
-        SANITIZED_DEVICE_NAME_MAP.put("大黄蜂MyLink", "mylink");
-        SANITIZED_DEVICE_NAME_MAP.put("Dad's Fitbit Charge 3", "fitbitcharge3");
+        SANITIZED_DEVICE_NAME_MAP.put("SONY WH-1000XM4", "sonywh1000xm4");
+        SANITIZED_DEVICE_NAME_MAP.put("Amazon Echo Dot", "amazonechodot");
+        SANITIZED_DEVICE_NAME_MAP.put("Chevy my link", "chevymylink");
+        SANITIZED_DEVICE_NAME_MAP.put("Dad's Hyundai i10", "hyundai");
         SANITIZED_DEVICE_NAME_MAP.put("Mike's new Galaxy Buds 2", "galaxybuds2");
         SANITIZED_DEVICE_NAME_MAP.put("My third Ford F-150", "fordf150");
-        SANITIZED_DEVICE_NAME_MAP.put("BOSE QC_35 Noise Cancelling Headsets", "boseqc35");
+        SANITIZED_DEVICE_NAME_MAP.put("Bose QuietComfort 35 Series 2", "bosequietcomfort35");
         SANITIZED_DEVICE_NAME_MAP.put("Fitbit versa 3 band", "fitbitversa3");
-        SANITIZED_DEVICE_NAME_MAP.put("vw atlas", "vwatlas");
-        SANITIZED_DEVICE_NAME_MAP.put("My volkswagen tiguan", "volkswagentiguan");
+        SANITIZED_DEVICE_NAME_MAP.put("my vw bt", "myvw");
         SANITIZED_DEVICE_NAME_MAP.put("SomeDevice1", "");
-        SANITIZED_DEVICE_NAME_MAP.put("Some Device-2", "");
-        SANITIZED_DEVICE_NAME_MAP.put("abcgfDG gdfg", "");
-        SANITIZED_DEVICE_NAME_MAP.put("Bluetooth headset", "");
+        SANITIZED_DEVICE_NAME_MAP.put("My traverse", "traverse");
+        SANITIZED_DEVICE_NAME_MAP.put("My Xbox wireless", "xboxwireless");
+        SANITIZED_DEVICE_NAME_MAP.put("Your buds3 lite NC", "buds3lite");
+        SANITIZED_DEVICE_NAME_MAP.put("MC's razer", "razer");
+        SANITIZED_DEVICE_NAME_MAP.put("Tim's Google Pixel Watch", "googlepixelwatch");
+        SANITIZED_DEVICE_NAME_MAP.put("lexus is connected", "lexusis");
+        SANITIZED_DEVICE_NAME_MAP.put("My wireless flash x earbuds", "wirelessflashx");
     }
 
     private TestableMetricsLogger mTestableMetricsLogger;
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock
-    private AdapterService mMockAdapterService;
+    @Mock private AdapterService mMockAdapterService;
 
     public class TestableMetricsLogger extends MetricsLogger {
         public HashMap<Integer, Long> mTestableCounters = new HashMap<>();
@@ -251,8 +252,28 @@ public class MetricsLoggerTest {
             String deviceName = entry.getKey();
             String sha256 = MetricsLogger.getSha256String(entry.getValue());
             Assert.assertEquals(
+                    deviceName,
                     sha256,
                     mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, deviceName, true));
+        }
+    }
+
+    @Test
+    public void testOuiFromBluetoothDevice() {
+        BluetoothDevice bluetoothDevice =
+                TestUtils.getTestDevice(BluetoothAdapter.getDefaultAdapter(), 0);
+
+        byte[] remoteDeviceInformationBytes =
+                MetricsLogger.getInstance().getRemoteDeviceInfoProto(bluetoothDevice);
+
+        try {
+            BluetoothRemoteDeviceInformation bluetoothRemoteDeviceInformation =
+                    BluetoothRemoteDeviceInformation.parseFrom(remoteDeviceInformationBytes);
+            int oui = (0 << 16) | (1 << 8) | 2; // OUI from the above mac address
+            Assert.assertEquals(bluetoothRemoteDeviceInformation.getOui(), oui);
+
+        } catch (InvalidProtocolBufferException e) {
+            Assert.assertNull(e.getMessage()); // test failure here
         }
     }
 

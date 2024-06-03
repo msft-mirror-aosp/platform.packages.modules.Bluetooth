@@ -50,6 +50,7 @@ import android.os.BatteryStatsManager;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.os.PowerManager;
 import android.os.Process;
@@ -59,6 +60,9 @@ import android.os.UserManager;
 import android.os.test.TestLooper;
 import android.permission.PermissionCheckerManager;
 import android.permission.PermissionManager;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.FlagsParameterization;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
 import android.sysprop.BluetoothProperties;
@@ -68,7 +72,6 @@ import android.util.Log;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
-import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.Utils;
@@ -94,6 +97,9 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
+import platform.test.runner.parameterized.Parameters;
+
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.security.InvalidKeyException;
@@ -105,7 +111,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 @MediumTest
-@RunWith(AndroidJUnit4.class)
+@RunWith(ParameterizedAndroidJunit4.class)
 public class AdapterServiceTest {
     private static final String TAG = AdapterServiceTest.class.getSimpleName();
     private static final String TEST_BT_ADDR_1 = "00:11:22:33:44:55";
@@ -115,7 +121,21 @@ public class AdapterServiceTest {
     private static final int MESSAGE_PROFILE_SERVICE_REGISTERED = 2;
     private static final int MESSAGE_PROFILE_SERVICE_UNREGISTERED = 3;
 
-    private AdapterService mAdapterService;
+    private MockAdapterService mAdapterService;
+
+    static class MockAdapterService extends AdapterService {
+
+        int mSetProfileServiceStateCounter = 0;
+
+        MockAdapterService(Looper looper) {
+            super(looper);
+        }
+
+        @Override
+        void setProfileServiceState(int profileId, int state) {
+            mSetProfileServiceStateCounter++;
+        }
+    }
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
@@ -140,7 +160,7 @@ public class AdapterServiceTest {
     private @Mock ScanNativeInterface mScanNativeInterface;
     private @Mock JniCallbacks mJniCallbacks;
 
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Rule public final SetFlagsRule mSetFlagsRule;
 
     // SystemService that are not mocked
     private BluetoothManager mBluetoothManager;
@@ -188,6 +208,15 @@ public class AdapterServiceTest {
         return TestUtils.mockGetSystemService(mMockContext, serviceName, serviceClass);
     }
 
+    @Parameters(name = "{0}")
+    public static List<FlagsParameterization> getParams() {
+        return FlagsParameterization.allCombinationsOf(Flags.FLAG_EXPLICIT_KILL_FROM_SYSTEM_SERVER);
+    }
+
+    public AdapterServiceTest(FlagsParameterization flags) {
+        mSetFlagsRule = new SetFlagsRule(flags);
+    }
+
     @Before
     public void setUp() throws PackageManager.NameNotFoundException {
         Log.e(TAG, "setUp()");
@@ -208,11 +237,9 @@ public class AdapterServiceTest {
         ScanNativeInterface.setInstance(mScanNativeInterface);
 
         // Post the creation of AdapterService since it rely on Looper.myLooper()
-        handler.post(() -> mAdapterService = spy(new AdapterService(mLooper.getLooper())));
+        handler.post(() -> mAdapterService = new MockAdapterService(mLooper.getLooper()));
         assertThat(mLooper.dispatchAll()).isEqualTo(1);
         assertThat(mAdapterService).isNotNull();
-
-        doNothing().when(mAdapterService).setProfileServiceState(anyInt(), anyInt());
 
         mMockPackageManager = mock(PackageManager.class);
         when(mMockPackageManager.getPermissionInfo(any(), anyInt()))
@@ -390,12 +417,17 @@ public class AdapterServiceTest {
             IBluetoothCallback callback,
             AdapterNativeInterface nativeInterface) {
         adapter.enable(false);
+        if (Flags.fastBindToApp()) {
+            TestUtils.syncHandler(looper, 0); // when fastBindToApp is enable init need to be run
+        }
         TestUtils.syncHandler(looper, AdapterState.BLE_TURN_ON);
         verifyStateChange(callback, STATE_OFF, STATE_BLE_TURNING_ON);
 
-        TestUtils.syncHandler(looper, MESSAGE_PROFILE_SERVICE_REGISTERED);
+        if (!Flags.scanManagerRefactor()) {
+            TestUtils.syncHandler(looper, MESSAGE_PROFILE_SERVICE_REGISTERED);
 
-        TestUtils.syncHandler(looper, MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
+            TestUtils.syncHandler(looper, MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
+        }
 
         verify(nativeInterface).enable();
         adapter.stateChangeCallback(AbstractionLayer.BT_STATE_ON);
@@ -406,7 +438,7 @@ public class AdapterServiceTest {
 
     static void onToBleOn(
             TestLooper looper,
-            AdapterService adapter,
+            MockAdapterService adapter,
             Context ctx,
             IBluetoothCallback callback,
             boolean onlyGatt,
@@ -417,7 +449,7 @@ public class AdapterServiceTest {
 
         if (!onlyGatt) {
             // Stop PBAP and PAN services
-            verify(adapter, times(4)).setProfileServiceState(anyInt(), anyInt());
+            assertThat(adapter.mSetProfileServiceStateCounter).isEqualTo(4);
 
             for (ProfileService service : services) {
                 adapter.onProfileServiceStateChanged(service, STATE_OFF);
@@ -441,11 +473,12 @@ public class AdapterServiceTest {
                 List.of(mMockService, mMockService2),
                 mNativeInterface);
     }
+
     // Method is re-used in other AdapterService*Test
     static void doEnable(
             TestLooper looper,
             ProfileService gattService,
-            AdapterService adapter,
+            MockAdapterService adapter,
             Context ctx,
             boolean onlyGatt,
             List<ProfileService> services,
@@ -467,7 +500,7 @@ public class AdapterServiceTest {
 
         if (!onlyGatt) {
             // Start Mock PBAP and PAN services
-            verify(adapter, times(2)).setProfileServiceState(anyInt(), anyInt());
+            assertThat(adapter.mSetProfileServiceStateCounter).isEqualTo(2);
 
             for (ProfileService service : services) {
                 adapter.addProfile(service);
@@ -502,7 +535,7 @@ public class AdapterServiceTest {
     private static void doDisable(
             TestLooper looper,
             ProfileService gattService,
-            AdapterService adapter,
+            MockAdapterService adapter,
             Context ctx,
             boolean onlyGatt,
             List<ProfileService> services,
@@ -527,6 +560,12 @@ public class AdapterServiceTest {
         verify(nativeInterface).disable();
         adapter.stateChangeCallback(AbstractionLayer.BT_STATE_OFF);
         TestUtils.syncHandler(looper, AdapterState.BLE_STOPPED);
+        if (Flags.explicitKillFromSystemServer()) {
+            // When reaching the OFF state, the cleanup is called that will destroy the state
+            // machine of the adapterService. Destroying state machine send a -1 event on the
+            // handler
+            TestUtils.syncHandler(looper, -1);
+        }
         verifyStateChange(callback, STATE_BLE_TURNING_OFF, STATE_OFF);
 
         assertThat(adapter.getState()).isEqualTo(STATE_OFF);
@@ -603,6 +642,9 @@ public class AdapterServiceTest {
         assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
 
         mAdapterService.enable(false);
+        if (Flags.fastBindToApp()) {
+            syncHandler(0); // when fastBindToApp is enable init need to be run
+        }
         syncHandler(AdapterState.BLE_TURN_ON);
         verifyStateChange(STATE_OFF, STATE_BLE_TURNING_ON);
         assertThat(mAdapterService.getBluetoothGatt()).isNotNull();
@@ -616,6 +658,12 @@ public class AdapterServiceTest {
         assertThat(mAdapterService.getBluetoothGatt()).isNull();
 
         syncHandler(AdapterState.BLE_STOPPED);
+        if (Flags.explicitKillFromSystemServer()) {
+            // When reaching the OFF state, the cleanup is called that will destroy the state
+            // machine of the adapterService. Destroying state machine send a -1 event on the
+            // handler
+            syncHandler(-1);
+        }
         syncHandler(MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
         syncHandler(MESSAGE_PROFILE_SERVICE_UNREGISTERED);
 
@@ -650,9 +698,147 @@ public class AdapterServiceTest {
 
         mLooper.moveTimeForward(120_000); // Skip time so the timeout fires
         syncHandler(AdapterState.BLE_STOP_TIMEOUT);
+        if (Flags.explicitKillFromSystemServer()) {
+            // When reaching the OFF state, the cleanup is called that will destroy the state
+            // machine of the adapterService. Destroying state machine send a -1 event on the
+            // handler
+            syncHandler(-1);
+        }
         verifyStateChange(STATE_BLE_TURNING_OFF, STATE_OFF);
 
         assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_SCAN_MANAGER_REFACTOR)
+    public void startBleOnly_whenScanManagerRefactorFlagIsOff_onlyStartGattProfile() {
+        mAdapterService.bringUpBle();
+
+        assertThat(mAdapterService.getBluetoothGatt()).isNotNull();
+        assertThat(mAdapterService.getBluetoothScan()).isNull();
+
+        dropNextMessage(MESSAGE_PROFILE_SERVICE_REGISTERED);
+        dropNextMessage(MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SCAN_MANAGER_REFACTOR)
+    public void startBleOnly_whenScanManagerRefactorFlagIsOn_onlyStartScanController() {
+        mAdapterService.bringUpBle();
+
+        assertThat(mAdapterService.getBluetoothGatt()).isNull();
+        assertThat(mAdapterService.getBluetoothScan()).isNotNull();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SCAN_MANAGER_REFACTOR)
+    public void startBleOnly_whenScanManagerRefactorFlagIsOn_startAndStopScanController() {
+        assertThat(mAdapterService.getBluetoothScan()).isNull();
+        assertThat(mAdapterService.getBluetoothGatt()).isNull();
+
+        IBluetoothCallback callback = mock(IBluetoothCallback.class);
+        Binder binder = mock(Binder.class);
+        doReturn(binder).when(callback).asBinder();
+        mAdapterService.registerRemoteCallback(callback);
+
+        offToBleOn(
+                mLooper,
+                mMockGattService,
+                mAdapterService,
+                mMockContext,
+                mIBluetoothCallback,
+                mNativeInterface);
+
+        assertThat(mAdapterService.getBluetoothScan()).isNotNull();
+        assertThat(mAdapterService.getBluetoothGatt()).isNull();
+
+        mAdapterService.stopBle();
+        syncHandler(AdapterState.BLE_TURN_OFF);
+        verifyStateChange(callback, STATE_BLE_ON, STATE_BLE_TURNING_OFF);
+
+        verify(mNativeInterface).disable();
+        mAdapterService.stateChangeCallback(AbstractionLayer.BT_STATE_OFF);
+        syncHandler(AdapterState.BLE_STOPPED);
+        if (Flags.explicitKillFromSystemServer()) {
+            // When reaching the OFF state, the cleanup is called that will destroy the state
+            // machine of the adapterService. Destroying state machine send a -1 event on the
+            // handler
+            syncHandler(-1);
+        }
+        verifyStateChange(callback, STATE_BLE_TURNING_OFF, STATE_OFF);
+
+        assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
+        mAdapterService.unregisterRemoteCallback(callback);
+
+        assertThat(mAdapterService.getBluetoothScan()).isNull();
+        assertThat(mAdapterService.getBluetoothGatt()).isNull();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SCAN_MANAGER_REFACTOR)
+    public void startBrDr_whenScanManagerRefactorFlagIsOn_startAndStopScanController() {
+        assertThat(mAdapterService.getBluetoothScan()).isNull();
+        assertThat(mAdapterService.getBluetoothGatt()).isNull();
+
+        IBluetoothCallback callback = mock(IBluetoothCallback.class);
+        Binder binder = mock(Binder.class);
+        doReturn(binder).when(callback).asBinder();
+        mAdapterService.registerRemoteCallback(callback);
+
+        assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
+
+        offToBleOn(
+                mLooper,
+                mMockGattService,
+                mAdapterService,
+                mMockContext,
+                mIBluetoothCallback,
+                mNativeInterface);
+
+        assertThat(mAdapterService.getBluetoothScan()).isNotNull();
+        assertThat(mAdapterService.getBluetoothGatt()).isNull();
+
+        mAdapterService.startBrEdr();
+        TestUtils.syncHandler(mLooper, AdapterState.USER_TURN_ON);
+        verifyStateChange(callback, STATE_BLE_ON, STATE_TURNING_ON);
+
+        // Start Mock PBAP, PAN, and GATT services
+        assertThat(mAdapterService.mSetProfileServiceStateCounter).isEqualTo(3);
+        List<ProfileService> services = List.of(mMockService, mMockService2, mMockGattService);
+
+        for (ProfileService service : services) {
+            mAdapterService.addProfile(service);
+            TestUtils.syncHandler(mLooper, MESSAGE_PROFILE_SERVICE_REGISTERED);
+        }
+
+        for (ProfileService service : services) {
+            mAdapterService.onProfileServiceStateChanged(service, STATE_ON);
+            TestUtils.syncHandler(mLooper, MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
+        }
+
+        TestUtils.syncHandler(mLooper, AdapterState.BREDR_STARTED);
+        verifyStateChange(callback, STATE_TURNING_ON, STATE_ON);
+
+        assertThat(mAdapterService.getState()).isEqualTo(STATE_ON);
+
+        mAdapterService.disable();
+        TestUtils.syncHandler(mLooper, AdapterState.USER_TURN_OFF);
+        verifyStateChange(callback, STATE_ON, STATE_TURNING_OFF);
+
+        // Stop PBAP, PAN, and GATT services
+        assertThat(mAdapterService.mSetProfileServiceStateCounter).isEqualTo(6);
+
+        for (ProfileService service : services) {
+            mAdapterService.onProfileServiceStateChanged(service, STATE_OFF);
+            TestUtils.syncHandler(mLooper, MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
+        }
+
+        TestUtils.syncHandler(mLooper, AdapterState.BREDR_STOPPED);
+        verifyStateChange(callback, STATE_TURNING_OFF, STATE_BLE_ON);
+
+        assertThat(mAdapterService.getState()).isEqualTo(STATE_BLE_ON);
+
+        mAdapterService.unregisterRemoteCallback(callback);
     }
 
     /**
@@ -674,8 +860,7 @@ public class AdapterServiceTest {
         mAdapterService.startBrEdr();
         syncHandler(AdapterState.USER_TURN_ON);
         verifyStateChange(STATE_BLE_ON, STATE_TURNING_ON);
-        verify(mAdapterService, times(2))
-                .setProfileServiceState(anyInt(), anyInt()); // Register Mock PBAP and PAN services
+        assertThat(mAdapterService.mSetProfileServiceStateCounter).isEqualTo(2);
 
         mAdapterService.addProfile(mMockService);
         syncHandler(MESSAGE_PROFILE_SERVICE_REGISTERED);
@@ -690,8 +875,7 @@ public class AdapterServiceTest {
         syncHandler(AdapterState.BREDR_START_TIMEOUT);
 
         verifyStateChange(STATE_TURNING_ON, STATE_TURNING_OFF);
-        verify(mAdapterService, times(4))
-                .setProfileServiceState(anyInt(), anyInt()); // Stop PBAP and PAN services
+        assertThat(mAdapterService.mSetProfileServiceStateCounter).isEqualTo(4);
 
         mAdapterService.onProfileServiceStateChanged(mMockService, STATE_OFF);
         syncHandler(MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
@@ -702,10 +886,7 @@ public class AdapterServiceTest {
         assertThat(mAdapterService.getBluetoothGatt()).isNotNull();
     }
 
-    /**
-     * Test: Don't stop a classic profile
-     * Check whether the AdapterService quits gracefully
-     */
+    /** Test: Don't stop a classic profile Check whether the AdapterService quits gracefully */
     @Test
     public void testProfileStopTimeout() {
         doEnable(false);
@@ -713,7 +894,7 @@ public class AdapterServiceTest {
         mAdapterService.disable();
         syncHandler(AdapterState.USER_TURN_OFF);
         verifyStateChange(STATE_ON, STATE_TURNING_OFF);
-        verify(mAdapterService, times(4)).setProfileServiceState(anyInt(), anyInt());
+        assertThat(mAdapterService.mSetProfileServiceStateCounter).isEqualTo(4);
 
         mAdapterService.onProfileServiceStateChanged(mMockService, STATE_OFF);
         syncHandler(MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
@@ -730,6 +911,12 @@ public class AdapterServiceTest {
         // TODO(b/280518177): The only timeout to fire here should be the BREDR
         mLooper.moveTimeForward(120_000); // Skip time so the timeout fires
         syncHandler(AdapterState.BLE_STOP_TIMEOUT);
+        if (Flags.explicitKillFromSystemServer()) {
+            // When reaching the OFF state, the cleanup is called that will destroy the state
+            // machine of the adapterService. Destroying state machine send a -1 event on the
+            // handler
+            syncHandler(-1);
+        }
         verifyStateChange(STATE_BLE_TURNING_OFF, STATE_OFF);
 
         assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
@@ -773,6 +960,12 @@ public class AdapterServiceTest {
 
         mAdapterService.stateChangeCallback(AbstractionLayer.BT_STATE_OFF);
         syncHandler(AdapterState.BLE_STOPPED);
+        if (Flags.explicitKillFromSystemServer()) {
+            // When reaching the OFF state, the cleanup is called that will destroy the state
+            // machine of the adapterService. Destroying state machine send a -1 event on the
+            // handler
+            syncHandler(-1);
+        }
 
         verifyStateChange(STATE_BLE_TURNING_OFF, STATE_OFF);
         assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
@@ -885,9 +1078,8 @@ public class AdapterServiceTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_IDENTITY_ADDRESS_NULL_IF_UNKNOWN)
     public void testIdentityAddressNullIfUnknown() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_IDENTITY_ADDRESS_NULL_IF_UNKNOWN);
-
         BluetoothDevice device = TestUtils.getTestDevice(BluetoothAdapter.getDefaultAdapter(), 0);
 
         assertThat(mAdapterService.getByteIdentityAddress(device)).isNull();

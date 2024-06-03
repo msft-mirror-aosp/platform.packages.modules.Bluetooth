@@ -105,12 +105,15 @@ cc_defaults {
         host: {
             srcs: [
                 ":BluetoothHalSources_hci_host",
+                ":BluetoothHalSources_ranging_host",
                 ":BluetoothOsSources_host",
+                ":BluetoothSyspropsSources",
             ],
         },
         android: {
             srcs: [
                 ":BluetoothHalSources_hci_android_hidl",
+                ":BluetoothHalSources_ranging_android",
                 ":BluetoothOsSources_android",
             ],
             shared_libs: [
@@ -126,16 +129,15 @@ cc_defaults {
             ],
             whole_static_libs: [
                 "android.hardware.bluetooth-V1-ndk",
+                "android.hardware.bluetooth.ranging-V1-ndk",
             ],
         },
     },
     srcs: [
-        ":BluetoothAttSources",
         ":BluetoothCommonSources",
         ":BluetoothDumpsysSources",
         ":BluetoothHalSources",
         ":BluetoothHciSources",
-        ":BluetoothIsoSources",
         ":BluetoothL2capSources",
         ":BluetoothLogRedactionSources",
         ":BluetoothMetricsSources",
@@ -144,10 +146,8 @@ cc_defaults {
         ":BluetoothPacketSources",
         ":BluetoothSecuritySources",
         ":BluetoothStorageSources",
-        ":BluetoothSyspropsSources",
         "module.cc",
         "module_dumper.cc",
-        "module_state_dumper.cc",
         "stack_manager.cc",
     ],
     generated_headers: [
@@ -166,6 +166,7 @@ cc_defaults {
         "bluetooth_flags_c_lib",
         "libbluetooth_hci_pdl",
         "libbluetooth_l2cap_pdl",
+        "libbluetooth_ras_pdl",
         "libbluetooth_smp_pdl",
         "libc++fs",
     ],
@@ -177,6 +178,7 @@ cc_defaults {
         "libbluetooth_crypto_toolbox",
         "libbluetooth_log",
         "libbluetooth_rust_interop",
+        "libbt-common",
         "libbt-platform-protos-lite",
         "libbt_shim_bridge",
         "libbt_shim_ffi",
@@ -243,6 +245,7 @@ cc_library {
     ],
     static_libs: [
         "libbluetooth-types",
+        "libbt-common",
         "libchrome",
         "libosi",
     ],
@@ -264,6 +267,7 @@ cc_library {
     ],
     static_libs: [
         "libbluetooth-types",
+        "libbt-common",
         "libchrome",
         "libosi",
     ],
@@ -283,11 +287,10 @@ cc_binary {
     srcs: [
         ":BluetoothFacade_hci_hal",
         ":BluetoothFacade_hci_layer",
-        ":BluetoothFacade_iso_layer",
         ":BluetoothFacade_l2cap_layer",
         ":BluetoothFacade_neighbor",
         ":BluetoothFacade_security_layer",
-        ":BluetoothFacade_shim_layer",
+        ":TestMockMainShimStack",
         "facade/facade_main.cc",
         "facade/grpc_root_server.cc",
         "facade/read_only_property_server.cc",
@@ -316,8 +319,10 @@ cc_binary {
         "libbluetooth_hci_pdl",
         "libbluetooth_l2cap_pdl",
         "libbluetooth_log",
+        "libbluetooth_ras_pdl",
         "libbluetooth_rust_interop",
         "libbluetooth_smp_pdl",
+        "libbt-common",
         "libbt_shim_bridge",
         "libbt_shim_ffi",
         "libchrome",
@@ -364,6 +369,49 @@ cc_binary {
 }
 
 cc_test {
+    name: "bluetooth_test_with_timerfd",
+    test_suites: ["general-tests"],
+    defaults: [
+        "gd_defaults",
+        "mts_defaults",
+    ],
+    include_dirs: [
+        "packages/modules/Bluetooth/system",
+        "packages/modules/Bluetooth/system/include",
+        "packages/modules/Bluetooth/system/types",
+    ],
+    host_supported: true,
+    target: {
+        host: {
+            srcs: [
+                ":BluetoothOsSystemProperties_host",
+            ],
+        },
+        android: {
+            srcs: [
+                ":BluetoothOsSystemProperties_android",
+            ],
+        },
+    },
+    srcs: [
+        ":BluetoothOsTestSources_timerfd",
+    ],
+    static_libs: [
+        "libbluetooth_log",
+        "libchrome",
+        "libgmock",
+    ],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
+    sanitize: {
+        address: true,
+    },
+    min_sdk_version: "Tiramisu",
+}
+
+cc_test {
     name: "bluetooth_test_gd_unit",
     test_suites: ["general-tests"],
     defaults: [
@@ -387,16 +435,12 @@ cc_test {
         host: {
             srcs: [
                 ":BluetoothHalTestSources_hci_host",
-                ":BluetoothHostTestingLogCapture",
-                ":BluetoothHostTestingLogCaptureTest",
                 ":BluetoothOsTestSources_host",
+                ":BluetoothSyspropsUnitTestSources",
             ],
         },
         android: {
             srcs: [
-                ":BluetoothAndroidTestingLogCapture",
-                ":BluetoothAndroidTestingLogCaptureTest",
-                ":BluetoothHalTestSources_hci_android_hidl",
                 ":BluetoothOsTestSources_android",
             ],
             static_libs: [
@@ -436,6 +480,7 @@ cc_test {
         "BluetoothGeneratedDumpsysTestData_h",
     ],
     static_libs: [
+        "libbase",
         "libbluetooth-protos",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
@@ -443,8 +488,10 @@ cc_test {
         "libbluetooth_hci_pdl",
         "libbluetooth_l2cap_pdl",
         "libbluetooth_log",
+        "libbluetooth_ras_pdl",
         "libbluetooth_rust_interop",
         "libbluetooth_smp_pdl",
+        "libbt-common",
         "libbt-platform-protos-lite",
         "libbt_shim_bridge",
         "libbt_shim_ffi",
@@ -458,7 +505,6 @@ cc_test {
     ],
     shared_libs: [
         "libPlatformProperties",
-        "libbase",
         "libcrypto",
         "server_configurable_flags",
     ],
@@ -487,6 +533,7 @@ cc_test {
         ":BluetoothDumpsysTestSources",
         ":BluetoothShimTestSources",
         ":TestCommonMockFunctions",
+        ":TestMockMainShimStack",
         "module_gdx_unittest.cc",
         "module_jniloop_unittest.cc",
         "module_mainloop_unittest.cc",
@@ -553,10 +600,12 @@ cc_test {
         cfi: true,
     },
     static_libs: [
+        "libbase",
         "libbluetooth_log",
         "libbluetooth_rust_interop",
         "libbt_shim_bridge",
         "libbt_shim_ffi",
+        "liblog",
     ],
     target: {
         android: {
@@ -591,6 +640,7 @@ cc_defaults {
         "libbluetooth_gd_fuzzing",
         "libbluetooth_log",
         "libbluetooth_rust_interop",
+        "libbt-common",
         "libbt_shim_bridge",
         "libbt_shim_ffi",
         "libchrome",
@@ -687,53 +737,6 @@ cc_benchmark {
         "libbt_shim_bridge",
         "libchrome",
         "liblog",
-    ],
-}
-
-rust_library {
-    name: "libbt_packets",
-    defaults: ["gd_rust_defaults"],
-    crate_name: "bt_packets",
-    srcs: [
-        "rust/packets/lib.rs",
-
-        ":BluetoothGeneratedPackets_rust",
-    ],
-    edition: "2018",
-    vendor_available: true,
-    host_supported: true,
-    proc_macros: ["libnum_derive"],
-    rustlibs: [
-        "libbytes",
-        "liblog_rust",
-        "libpdl_runtime",
-        "libthiserror",
-    ],
-    apex_available: [
-        "com.android.btservices",
-    ],
-    min_sdk_version: "30",
-}
-
-rust_test_host {
-    name: "libbt_packets_test",
-    defaults: [
-        "gd_rust_defaults",
-        "mts_defaults",
-    ],
-    srcs: [
-        "rust/packets/lib.rs",
-
-        ":BluetoothGeneratedPackets_rust",
-    ],
-    test_suites: ["general-tests"],
-    edition: "2018",
-    proc_macros: ["libnum_derive"],
-    rustlibs: [
-        "libbytes",
-        "liblog_rust",
-        "libpdl_runtime",
-        "libthiserror",
     ],
 }
 

@@ -43,13 +43,12 @@ inline std::string bt_property_type_text(const ::bt_property_type_t type) {
     CASE_RETURN_TEXT(BT_PROPERTY_REMOTE_RSSI);
     CASE_RETURN_TEXT(BT_PROPERTY_REMOTE_VERSION_INFO);
     CASE_RETURN_TEXT(BT_PROPERTY_LOCAL_LE_FEATURES);
-    CASE_RETURN_TEXT(BT_PROPERTY_LOCAL_IO_CAPS);
+    CASE_RETURN_TEXT(BT_PROPERTY_RESERVED_0E);
     CASE_RETURN_TEXT(BT_PROPERTY_RESERVED_0F);
     CASE_RETURN_TEXT(BT_PROPERTY_DYNAMIC_AUDIO_BUFFER);
     CASE_RETURN_TEXT(BT_PROPERTY_REMOTE_IS_COORDINATED_SET_MEMBER);
     CASE_RETURN_TEXT(BT_PROPERTY_APPEARANCE);
     CASE_RETURN_TEXT(BT_PROPERTY_VENDOR_PRODUCT_INFO);
-    CASE_RETURN_TEXT(BT_PROPERTY_WL_MEDIA_PLAYERS_LIST);
     CASE_RETURN_TEXT(BT_PROPERTY_REMOTE_ASHA_CAPABILITY);
     CASE_RETURN_TEXT(BT_PROPERTY_REMOTE_ASHA_TRUNCATED_HISYNCID);
     CASE_RETURN_TEXT(BT_PROPERTY_REMOTE_MODEL_NUM);
@@ -153,7 +152,7 @@ struct bdaddr_t : public bt_property_t {
     uint8_t* s = reinterpret_cast<uint8_t*>(data.get());
     // TODO This may need to be reversed
     RawAddress bd_addr;
-    ASSERT_LOG(6U == bd_addr.FromOctets(s), "Mac address is not 6 bytes");
+    log::assert_that(6U == bd_addr.FromOctets(s), "Mac address is not 6 bytes");
     return bd_addr;
   }
 

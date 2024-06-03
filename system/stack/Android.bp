@@ -291,7 +291,6 @@ cc_library_static {
         "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     cflags: [
-        "-Wno-unused-parameter",
         /* we export all classes, so change default visibility, instead of having EXPORT_SYMBOL on each class*/
         "-fvisibility=default",
     ],
@@ -669,6 +668,8 @@ cc_fuzz {
         "libbt_shim_ffi",
     ],
     shared_libs: [
+        "libbase",
+        "liblog",
         "server_configurable_flags",
     ],
     target: {
@@ -706,6 +707,7 @@ cc_test {
     shared_libs: [
         "libPlatformProperties",
         "libaaudio",
+        "libbase",
         "libcrypto",
         "libcutils",
         "libdl",
@@ -807,6 +809,7 @@ cc_test {
         ":TestMockHci",
         ":TestMockMainShim",
         ":TestMockMainShimEntry",
+        ":TestMockStackBtm",
         ":TestMockStackMetrics",
         "rfcomm/port_api.cc",
         "rfcomm/port_rfc.cc",
@@ -818,7 +821,6 @@ cc_test {
         "rfcomm/rfc_ts_frames.cc",
         "rfcomm/rfc_utils.cc",
         "test/common/mock_btm_layer.cc",
-        "test/common/mock_btu_layer.cc",
         "test/common/mock_l2cap_layer.cc",
         "test/common/stack_test_packet_utils.cc",
         "test/rfcomm/stack_rfcomm_test.cc",
@@ -1193,15 +1195,7 @@ cc_test {
         "packages/modules/Bluetooth/system/stack/include",
     ],
     target: {
-        host: {
-            srcs: [
-                ":BluetoothHostTestingLogCapture",
-            ],
-        },
         android: {
-            srcs: [
-                ":BluetoothAndroidTestingLogCapture",
-            ],
             test_config: "test/a2dp/AndroidTest.xml",
         },
         android_x86: {
@@ -1454,7 +1448,6 @@ cc_test {
         },
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 // EATT unit tests
@@ -1560,12 +1553,14 @@ cc_test {
     ],
     srcs: [
         ":BluetoothHalSources_hci_host",
+        ":BluetoothHalSources_ranging_host",
         ":BluetoothOsSources_host",
         ":OsiCompatSources",
         ":TestCommonMainHandler",
         ":TestCommonMockFunctions",
         ":TestCommonStackConfig",
         ":TestFakeLooper",
+        ":TestFakeOsi",
         ":TestFakeThread",
         ":TestMockBta",
         ":TestMockBtif",
@@ -1619,6 +1614,7 @@ cc_test {
         "test/btm/sco_hci_test.cc",
         "test/btm/sco_pkt_status_test.cc",
         "test/btm/stack_btm_dev_test.cc",
+        "test/btm/stack_btm_inq_test.cc",
         "test/btm/stack_btm_power_mode_test.cc",
         "test/btm/stack_btm_regression_tests.cc",
         "test/btm/stack_btm_sec_test.cc",
@@ -1664,7 +1660,6 @@ cc_test {
         },
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1689,6 +1684,7 @@ cc_test {
         "test/hci/stack_hci_test.cc",
     ],
     static_libs: [
+        "libbase",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_log",
         "libbt-common",
@@ -1734,6 +1730,7 @@ cc_test {
         "packages/modules/Bluetooth/system/stack/btm",
     ],
     srcs: [
+        ":BluetoothLogRedactionSources",
         ":TestCommonMockFunctions",
         ":TestMockStackBtm",
         ":TestMockStackL2cap",
@@ -2188,6 +2185,7 @@ cc_test {
         "liblog",
     ],
     shared_libs: [
+        "libcrypto",
         "libcutils",
         "server_configurable_flags",
     ],

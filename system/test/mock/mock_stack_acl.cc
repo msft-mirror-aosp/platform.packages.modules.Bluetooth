@@ -43,7 +43,6 @@ namespace stack_acl {
 struct BTM_BLE_IS_RESOLVE_BDA BTM_BLE_IS_RESOLVE_BDA;
 struct BTM_IsAclConnectionUp BTM_IsAclConnectionUp;
 struct BTM_IsAclConnectionUpAndHandleValid BTM_IsAclConnectionUpAndHandleValid;
-struct BTM_IsAclConnectionUpFromHandle BTM_IsAclConnectionUpFromHandle;
 struct BTM_IsBleConnection BTM_IsBleConnection;
 struct BTM_IsPhy2mSupported BTM_IsPhy2mSupported;
 struct BTM_ReadRemoteConnectionAddr BTM_ReadRemoteConnectionAddr;
@@ -59,6 +58,8 @@ struct acl_peer_supports_ble_coded_phy acl_peer_supports_ble_coded_phy;
 struct acl_send_data_packet_br_edr acl_send_data_packet_br_edr;
 struct acl_peer_supports_ble_connection_parameters_request
     acl_peer_supports_ble_connection_parameters_request;
+struct acl_ble_connection_parameters_request
+    acl_ble_connection_parameters_request;
 struct acl_peer_supports_ble_packet_extension
     acl_peer_supports_ble_packet_extension;
 struct acl_peer_supports_sniff_subrating acl_peer_supports_sniff_subrating;
@@ -99,7 +100,6 @@ struct BTM_acl_after_controller_started BTM_acl_after_controller_started;
 struct BTM_block_role_switch_for BTM_block_role_switch_for;
 struct BTM_block_sniff_mode_for BTM_block_sniff_mode_for;
 struct btm_connection_request btm_connection_request;
-struct BTM_default_block_role_switch BTM_default_block_role_switch;
 struct BTM_default_unblock_role_switch BTM_default_unblock_role_switch;
 struct BTM_unblock_role_switch_for BTM_unblock_role_switch_for;
 struct BTM_unblock_sniff_mode_for BTM_unblock_sniff_mode_for;
@@ -135,8 +135,6 @@ struct btm_read_failed_contact_counter_complete
     btm_read_failed_contact_counter_complete;
 struct btm_read_failed_contact_counter_timeout
     btm_read_failed_contact_counter_timeout;
-struct btm_read_link_quality_complete btm_read_link_quality_complete;
-struct btm_read_link_quality_timeout btm_read_link_quality_timeout;
 struct btm_read_remote_ext_features btm_read_remote_ext_features;
 struct btm_read_remote_ext_features_complete
     btm_read_remote_ext_features_complete;
@@ -177,10 +175,6 @@ bool BTM_IsAclConnectionUpAndHandleValid(const RawAddress& remote_bda,
   inc_func_call_count(__func__);
   return test::mock::stack_acl::BTM_IsAclConnectionUpAndHandleValid(remote_bda,
                                                                     transport);
-}
-bool BTM_IsAclConnectionUpFromHandle(uint16_t hci_handle) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_acl::BTM_IsAclConnectionUpFromHandle(hci_handle);
 }
 bool BTM_IsBleConnection(uint16_t hci_handle) {
   inc_func_call_count(__func__);
@@ -245,6 +239,15 @@ bool acl_peer_supports_ble_connection_parameters_request(
   inc_func_call_count(__func__);
   return test::mock::stack_acl::
       acl_peer_supports_ble_connection_parameters_request(remote_bda);
+}
+void acl_ble_connection_parameters_request(
+    uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
+    uint16_t conn_latency, uint16_t conn_timeout, uint16_t min_ce_len,
+    uint16_t max_ce_len) {
+  inc_func_call_count(__func__);
+  test::mock::stack_acl::acl_ble_connection_parameters_request(
+      handle, conn_int_min, conn_int_max, conn_latency, conn_timeout,
+      min_ce_len, max_ce_len);
 }
 bool acl_peer_supports_ble_packet_extension(uint16_t hci_handle) {
   inc_func_call_count(__func__);
@@ -414,10 +417,6 @@ void BTM_block_sniff_mode_for(const RawAddress& peer_addr) {
   inc_func_call_count(__func__);
   test::mock::stack_acl::BTM_block_sniff_mode_for(peer_addr);
 }
-void BTM_default_block_role_switch() {
-  inc_func_call_count(__func__);
-  test::mock::stack_acl::BTM_default_block_role_switch();
-}
 void BTM_default_unblock_role_switch() {
   inc_func_call_count(__func__);
   test::mock::stack_acl::BTM_default_unblock_role_switch();
@@ -562,14 +561,6 @@ void btm_read_failed_contact_counter_complete(uint8_t* p) {
 void btm_read_failed_contact_counter_timeout(void* data) {
   inc_func_call_count(__func__);
   test::mock::stack_acl::btm_read_failed_contact_counter_timeout(data);
-}
-void btm_read_link_quality_complete(uint8_t* p, uint16_t evt_len) {
-  inc_func_call_count(__func__);
-  test::mock::stack_acl::btm_read_link_quality_complete(p, evt_len);
-}
-void btm_read_link_quality_timeout(void* data) {
-  inc_func_call_count(__func__);
-  test::mock::stack_acl::btm_read_link_quality_timeout(data);
 }
 void btm_read_remote_ext_features(uint16_t handle, uint8_t page_number) {
   inc_func_call_count(__func__);

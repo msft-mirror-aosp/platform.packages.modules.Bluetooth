@@ -42,7 +42,6 @@ void BTM_unblock_role_switch_and_sniff_mode_for(const RawAddress& peer_addr);
 void BTM_block_role_switch_and_sniff_mode_for(const RawAddress& peer_addr);
 
 void BTM_default_unblock_role_switch();
-void BTM_default_block_role_switch();
 
 void BTM_acl_after_controller_started();
 
@@ -85,8 +84,6 @@ bool BTM_IsAclConnectionUp(const RawAddress& remote_bda,
 
 bool BTM_IsAclConnectionUpAndHandleValid(const RawAddress& remote_bda,
                                          tBT_TRANSPORT transport);
-
-bool BTM_IsAclConnectionUpFromHandle(uint16_t hci_handle);
 
 /*******************************************************************************
  *
@@ -204,6 +201,10 @@ void btm_establish_continue_from_address(const RawAddress& remote_bda,
 
 bool acl_peer_supports_ble_connection_parameters_request(
     const RawAddress& remote_bda);
+void acl_ble_connection_parameters_request(
+    uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
+    uint16_t conn_latency, uint16_t conn_timeout, uint16_t min_ce_len,
+    uint16_t max_ce_len);
 
 bool acl_peer_supports_ble_packet_extension(uint16_t hci_handle);
 bool acl_peer_supports_ble_2m_phy(uint16_t hci_handle);

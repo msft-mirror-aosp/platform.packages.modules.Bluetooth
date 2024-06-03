@@ -52,7 +52,6 @@ import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
@@ -463,10 +462,15 @@ final class BondStateMachine extends StateMachine {
         intent.setFlags(Intent.FLAG_RECEIVER_FOREGROUND);
         // Workaround for Android Auto until pre-accepting pairing requests is added.
         intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-        Utils.sendOrderedBroadcast(mAdapterService, intent, BLUETOOTH_CONNECT,
-                Utils.getTempAllowlistBroadcastOptions(), null/* resultReceiver */,
-                null/* scheduler */, Activity.RESULT_OK/* initialCode */, null/* initialData */,
-                null/* initialExtras */);
+        mAdapterService.sendOrderedBroadcast(
+                intent,
+                BLUETOOTH_CONNECT,
+                Utils.getTempBroadcastOptions().toBundle(),
+                null /* resultReceiver */,
+                null /* scheduler */,
+                Activity.RESULT_OK /* initialCode */,
+                null /* initialData */,
+                null /* initialExtras */);
     }
 
     @VisibleForTesting
@@ -484,6 +488,9 @@ final class BondStateMachine extends StateMachine {
             infoLog("Invalid bond state " + newState);
             return;
         }
+
+        mRemoteDevices.onBondStateChange(device, oldState, newState);
+
         if (devProp != null) {
             oldState = devProp.getBondState();
         }
@@ -547,8 +554,11 @@ final class BondStateMachine extends StateMachine {
             intent.putExtra(BluetoothDevice.EXTRA_UNBOND_REASON, reason);
         }
         mAdapterService.onBondStateChanged(device, newState);
-        mAdapterService.sendBroadcastAsUser(intent, UserHandle.ALL, BLUETOOTH_CONNECT,
-                Utils.getTempAllowlistBroadcastOptions());
+        mAdapterService.sendBroadcastAsUser(
+                intent,
+                UserHandle.ALL,
+                BLUETOOTH_CONNECT,
+                Utils.getTempBroadcastOptions().toBundle());
         infoLog("Bond State Change Intent:" + device + " " + state2str(oldState) + " => "
                 + state2str(newState));
     }
@@ -582,15 +592,12 @@ final class BondStateMachine extends StateMachine {
     }
 
     @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
-    void sspRequestCallback(byte[] address, byte[] name, int cod, int pairingVariant, int passkey) {
-        //TODO(BT): Get wakelock and update name and cod
+    void sspRequestCallback(byte[] address, int pairingVariant, int passkey) {
         BluetoothDevice bdDevice = mRemoteDevices.getDevice(address);
         if (bdDevice == null) {
             mRemoteDevices.addDeviceProperties(address);
         }
         infoLog("sspRequestCallback: " + Utils.getRedactedAddressStringFromByte(address)
-                + " name: " + Arrays.toString(name)
-                + " cod: " + cod
                 + " pairingVariant " + pairingVariant
                 + " passkey: " + (Build.isDebuggable() ? passkey : "******"));
         int variant;

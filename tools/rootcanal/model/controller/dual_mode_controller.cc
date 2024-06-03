@@ -49,7 +49,7 @@ constexpr uint16_t kLeMaximumDataLength = 64;
 constexpr uint16_t kLeMaximumDataTime = 0x148;
 constexpr uint8_t kTransmitPowerLevel = -20;
 
-constexpr bool kLeApcfTransportDiscoveryDataFilterSupported = true;
+constexpr bool kLeApcfTransportDiscoveryDataFilterSupported = false;
 constexpr bool kLeApcfAdTypeFilterSupported = true;
 
 #define CHECK_PACKET_VIEW(view)                                              \
@@ -3105,6 +3105,20 @@ void DualModeController::LeApcf(CommandView command) {
       send_event_(bluetooth::hci::LeApcfServiceDataCompleteBuilder::Create(
           kNumCommandPackets, status, subcommand_view.GetApcfAction(),
           apcf_available_spaces));
+      break;
+    }
+    case bluetooth::hci::ApcfOpcode::TRANSPORT_DISCOVERY_SERVICE: {
+      auto subcommand_view =
+          bluetooth::hci::LeApcfServiceDataView::Create(command_view);
+      CHECK_PACKET_VIEW(subcommand_view);
+
+      DEBUG(id_, "<< LE APCF Transport Discovery Service");
+      DEBUG(id_, "   action={}",
+            bluetooth::hci::ApcfActionText(subcommand_view.GetApcfAction()));
+
+      send_event_(bluetooth::hci::LeApcfTransportDiscoveryServiceCompleteBuilder::Create(
+          kNumCommandPackets, ErrorCode::INVALID_HCI_COMMAND_PARAMETERS,
+          subcommand_view.GetApcfAction(), 0));
       break;
     }
     case bluetooth::hci::ApcfOpcode::AD_TYPE_FILTER: {

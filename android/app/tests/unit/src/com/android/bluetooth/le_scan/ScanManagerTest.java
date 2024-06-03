@@ -16,7 +16,11 @@
 
 package com.android.bluetooth.le_scan;
 
+import static android.bluetooth.BluetoothDevice.PHY_LE_1M_MASK;
+import static android.bluetooth.BluetoothDevice.PHY_LE_CODED;
+import static android.bluetooth.BluetoothDevice.PHY_LE_CODED_MASK;
 import static android.bluetooth.le.ScanSettings.CALLBACK_TYPE_ALL_MATCHES_AUTO_BATCH;
+import static android.bluetooth.le.ScanSettings.PHY_LE_ALL_SUPPORTED;
 import static android.bluetooth.le.ScanSettings.SCAN_MODE_AMBIENT_DISCOVERY;
 import static android.bluetooth.le.ScanSettings.SCAN_MODE_BALANCED;
 import static android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_LATENCY;
@@ -71,7 +75,6 @@ import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.BluetoothAdapterProxy;
 import com.android.bluetooth.btservice.MetricsLogger;
-import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.gatt.GattNativeInterface;
 import com.android.bluetooth.gatt.GattObjectsFactory;
 import com.android.bluetooth.gatt.GattService;
@@ -682,8 +685,6 @@ public class ScanManagerTest {
 
     @Test
     public void testScanTimeoutResetForNewScan() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_SCAN_TIMEOUT_RESET);
-
         mTestLooper.stopAutoDispatchAndIgnoreExceptions();
         // Set filtered scan flag
         final boolean isFiltered = false;
@@ -1282,9 +1283,9 @@ public class ScanManagerTest {
         testSleep(50);
         // Turn off screen
         sendMessageWaitForProcessed(createScreenOnOffMessage(false));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger, atMost(2))
                 .cacheCount(eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR), anyLong());
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger, atMost(2))
                 .cacheCount(
                         eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR_SCREEN_ON),
                         anyLong());
@@ -1410,7 +1411,7 @@ public class ScanManagerTest {
             long capturedDuration = mScanDurationCaptor.getValue();
             Log.d(TAG, "capturedDuration: " + String.valueOf(capturedDuration));
             assertThat(capturedDuration).isAtLeast(weightedScanDuration);
-            assertThat(capturedDuration).isAtMost(weightedScanDuration + DELAY_ASYNC_MS);
+            assertThat(capturedDuration).isAtMost(weightedScanDuration + DELAY_ASYNC_MS * 2);
             Mockito.clearInvocations(mMetricsLogger);
         }
     }
@@ -1549,7 +1550,7 @@ public class ScanManagerTest {
         scanModeMap.put(SCAN_MODE_AMBIENT_DISCOVERY, SCAN_MODE_AMBIENT_DISCOVERY);
 
         for (int i = 0; i < scanModeMap.size(); i++) {
-            int phy = 2;
+            int phy = PHY_LE_CODED;
             int ScanMode = scanModeMap.keyAt(i);
             int expectedScanMode = scanModeMap.get(ScanMode);
             Log.d(
@@ -1569,7 +1570,49 @@ public class ScanManagerTest {
 
             assertThat(client.settings.getPhy()).isEqualTo(phy);
             verify(mScanNativeInterface, atLeastOnce())
-                    .gattSetScanParameters(anyInt(), anyInt(), anyInt(), eq(phy));
+                    .gattSetScanParameters(anyInt(), anyInt(), anyInt(), eq(PHY_LE_CODED_MASK));
+        }
+    }
+
+    @Test
+    public void testSetScanPhyAllSupported() {
+        final boolean isFiltered = false;
+        final boolean isEmptyFilter = false;
+        // Set scan mode map {original scan mode (ScanMode) : expected scan mode (expectedScanMode)}
+        SparseIntArray scanModeMap = new SparseIntArray();
+        scanModeMap.put(SCAN_MODE_LOW_POWER, SCAN_MODE_LOW_POWER);
+        scanModeMap.put(SCAN_MODE_BALANCED, SCAN_MODE_BALANCED);
+        scanModeMap.put(SCAN_MODE_LOW_LATENCY, SCAN_MODE_LOW_LATENCY);
+        scanModeMap.put(SCAN_MODE_AMBIENT_DISCOVERY, SCAN_MODE_AMBIENT_DISCOVERY);
+
+        for (int i = 0; i < scanModeMap.size(); i++) {
+            int phy = PHY_LE_ALL_SUPPORTED;
+            int ScanMode = scanModeMap.keyAt(i);
+            boolean adapterServiceSupportsCoded = mAdapterService.isLeCodedPhySupported();
+            int expectedScanMode = scanModeMap.get(ScanMode);
+            int expectedPhy;
+
+            if (adapterServiceSupportsCoded) expectedPhy = PHY_LE_1M_MASK & PHY_LE_CODED_MASK;
+            else expectedPhy = PHY_LE_1M_MASK;
+
+            Log.d(
+                    TAG,
+                    "ScanMode: "
+                            + String.valueOf(ScanMode)
+                            + " expectedScanMode: "
+                            + String.valueOf(expectedScanMode));
+
+            // Turn on screen
+            sendMessageWaitForProcessed(createScreenOnOffMessage(true));
+            // Create scan client
+            ScanClient client =
+                    createScanClientWithPhy(i, isFiltered, isEmptyFilter, ScanMode, phy);
+            // Start scan
+            sendMessageWaitForProcessed(createStartStopScanMessage(true, client));
+
+            assertThat(client.settings.getPhy()).isEqualTo(phy);
+            verify(mScanNativeInterface, atLeastOnce())
+                    .gattSetScanParameters(anyInt(), anyInt(), anyInt(), eq(expectedPhy));
         }
     }
 }

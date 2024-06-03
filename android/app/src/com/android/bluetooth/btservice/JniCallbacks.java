@@ -19,8 +19,6 @@ package com.android.bluetooth.btservice;
 import android.bluetooth.OobData;
 import android.bluetooth.UidTraffic;
 
-import com.android.bluetooth.flags.Flags;
-
 class JniCallbacks {
 
     private RemoteDevices mRemoteDevices;
@@ -50,8 +48,8 @@ class JniCallbacks {
         throw new CloneNotSupportedException();
     }
 
-    void sspRequestCallback(byte[] address, byte[] name, int cod, int pairingVariant, int passkey) {
-        mBondStateMachine.sspRequestCallback(address, name, cod, pairingVariant, passkey);
+    void sspRequestCallback(byte[] address, int pairingVariant, int passkey) {
+        mBondStateMachine.sspRequestCallback(address, pairingVariant, passkey);
     }
 
     void devicePropertyChangedCallback(byte[] address, int[] types, byte[][] val) {
@@ -68,9 +66,6 @@ class JniCallbacks {
 
     void bondStateChangeCallback(int status, byte[] address, int newState, int hciReason) {
         mBondStateMachine.bondStateChangeCallback(status, address, newState, hciReason);
-        if (Flags.removeBondWithAddressMap()) {
-            mRemoteDevices.onBondStateChange(address, newState);
-        }
     }
 
     void addressConsolidateCallback(byte[] mainAddress, byte[] secondaryAddress) {

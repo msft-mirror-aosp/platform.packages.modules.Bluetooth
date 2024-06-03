@@ -15,7 +15,6 @@
  */
 
 #include <android-base/properties.h>
-#include <android_bluetooth_flags.h>
 #include <base/functional/bind.h>
 #include <base/location.h>
 #include <bluetooth/log.h>
@@ -216,7 +215,7 @@ class BtaAgCmdTest : public BtaAgTest {
 TEST_F_WITH_FLAGS(BtaAgCmdTest, check_flag_disabling_guarding_with_prop,
                   REQUIRES_FLAGS_DISABLED(ACONFIG_FLAG(TEST_BT,
                                                        hfp_codec_aptx_voice))) {
-  ASSERT_FALSE(IS_FLAG_ENABLED(hfp_codec_aptx_voice));
+  ASSERT_FALSE(com::android::bluetooth::flags::hfp_codec_aptx_voice());
   ASSERT_TRUE(enable_aptx_voice_property(false));
   ASSERT_FALSE(is_hfp_aptx_voice_enabled());
 
@@ -227,7 +226,7 @@ TEST_F_WITH_FLAGS(BtaAgCmdTest, check_flag_disabling_guarding_with_prop,
 TEST_F_WITH_FLAGS(BtaAgCmdTest, check_flag_guarding_with_prop,
                   REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
                                                       hfp_codec_aptx_voice))) {
-  ASSERT_TRUE(IS_FLAG_ENABLED(hfp_codec_aptx_voice));
+  ASSERT_TRUE(com::android::bluetooth::flags::hfp_codec_aptx_voice());
   ASSERT_TRUE(enable_aptx_voice_property(false));
   ASSERT_FALSE(is_hfp_aptx_voice_enabled());
 
@@ -311,7 +310,7 @@ TEST_F_WITH_FLAGS(BtaAgCmdTest, at_hfp_cback__qcs_ev_codec_q0_enabled,
                       BTA_AG_SCO_APTX_SWB_SETTINGS_Q0);
 
   ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
-  ASSERT_EQ(2, get_func_call_count("esco_parameters_for_codec"));
+  ASSERT_EQ(1, get_func_call_count("esco_parameters_for_codec"));
   ASSERT_EQ(BT_STATUS_SUCCESS, enable_aptx_swb_codec(true, &addr));
   ASSERT_EQ(1, get_func_call_count("BTM_SetEScoMode"));
   ASSERT_EQ(1, get_func_call_count("BTM_CreateSco"));
@@ -342,7 +341,7 @@ TEST_F_WITH_FLAGS(BtaAgCmdTest,
                       BTA_AG_SCO_APTX_SWB_SETTINGS_Q1);
 
   ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
-  ASSERT_EQ(2, get_func_call_count("esco_parameters_for_codec"));
+  ASSERT_EQ(1, get_func_call_count("esco_parameters_for_codec"));
   ASSERT_EQ(BT_STATUS_SUCCESS, enable_aptx_swb_codec(true, &addr));
   ASSERT_EQ(1, get_func_call_count("BTM_SetEScoMode"));
   ASSERT_EQ(1, get_func_call_count("BTM_CreateSco"));

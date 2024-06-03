@@ -24,21 +24,18 @@
  ******************************************************************************/
 
 #define LOG_TAG "devctl"
-#include <base/logging.h>
+
 #include <bluetooth/log.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "acl_api_types.h"
-#include "btif/include/btif_bqr.h"
 #include "btm_sec_cb.h"
 #include "btm_sec_int_types.h"
 #include "hci/controller_interface.h"
-#include "internal_include/bt_target.h"
 #include "main/shim/btm_api.h"
 #include "main/shim/entry.h"
-#include "os/log.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/gatt/connection_manager.h"
@@ -47,6 +44,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_api.h"
 #include "stack/include/btm_ble_privacy.h"
+#include "stack/include/btm_inq.h"
 #include "stack/include/hcidefs.h"
 #include "stack/include/l2cap_controller_interface.h"
 #include "types/raw_address.h"
@@ -77,8 +75,6 @@ void btm_pm_reset(void);
 /******************************************************************************/
 
 static void decode_controller_support();
-static void BTM_BT_Quality_Report_VSE_CBack(uint8_t length,
-                                            const uint8_t* p_stream);
 
 /*******************************************************************************
  *
@@ -99,8 +95,6 @@ void btm_dev_init() {
       alarm_new("btm.read_failed_contact_counter_timer");
   btm_cb.devcb.read_automatic_flush_timeout_timer =
       alarm_new("btm.read_automatic_flush_timeout_timer");
-  btm_cb.devcb.read_link_quality_timer =
-      alarm_new("btm.read_link_quality_timer");
   btm_cb.devcb.read_tx_power_timer = alarm_new("btm.read_tx_power_timer");
 }
 
@@ -109,7 +103,6 @@ void btm_dev_free() {
   alarm_free(btm_cb.devcb.read_rssi_timer);
   alarm_free(btm_cb.devcb.read_failed_contact_counter_timer);
   alarm_free(btm_cb.devcb.read_automatic_flush_timeout_timer);
-  alarm_free(btm_cb.devcb.read_link_quality_timer);
   alarm_free(btm_cb.devcb.read_tx_power_timer);
 }
 
@@ -166,7 +159,7 @@ void BTM_db_reset(void) {
   }
 }
 
-static bool set_sec_state_idle(void* data, void* context) {
+static bool set_sec_state_idle(void* data, void* /* context */) {
   tBTM_SEC_DEV_REC* p_dev_rec = static_cast<tBTM_SEC_DEV_REC*>(data);
   p_dev_rec->sec_rec.sec_state = BTM_SEC_STATE_IDLE;
   return true;
@@ -247,7 +240,7 @@ bool BTM_IsDeviceUp(void) {
  * Returns          void
  *
  ******************************************************************************/
-static void btm_read_local_name_timeout(UNUSED_ATTR void* data) {
+static void btm_read_local_name_timeout(void* /* data */) {
   tBTM_CMPL_CB* p_cb = btm_cb.devcb.p_rln_cmpl_cb;
   btm_cb.devcb.p_rln_cmpl_cb = NULL;
   if (p_cb) (*p_cb)((void*)NULL);
@@ -304,10 +297,15 @@ static void decode_controller_support() {
   btm_sec_dev_reset();
 
   if (bluetooth::shim::GetController()->SupportsRssiWithInquiryResults()) {
-    if (bluetooth::shim::GetController()->SupportsExtendedInquiryResponse())
-      BTM_SetInquiryMode(BTM_INQ_RESULT_EXTENDED);
-    else
-      BTM_SetInquiryMode(BTM_INQ_RESULT_WITH_RSSI);
+    if (bluetooth::shim::GetController()->SupportsExtendedInquiryResponse()) {
+      if (BTM_SetInquiryMode(BTM_INQ_RESULT_EXTENDED) != BTM_SUCCESS) {
+        log::warn("Unable to set inquiry mode BTM_INQ_RESULT_EXTENDED");
+      }
+    } else {
+      if (BTM_SetInquiryMode(BTM_INQ_RESULT_WITH_RSSI) != BTM_SUCCESS) {
+        log::warn("Unable to set inquiry mode BTM_INQ_RESULT_WITH_RSSI");
+      }
+    }
   }
 
   l2cu_set_non_flushable_pbf(
@@ -395,7 +393,7 @@ tBTM_STATUS BTM_ReadLocalDeviceNameFromController(
  * Returns          void
  *
  ******************************************************************************/
-void btm_read_local_name_complete(uint8_t* p, UNUSED_ATTR uint16_t evt_len) {
+void btm_read_local_name_complete(uint8_t* p, uint16_t /* evt_len */) {
   tBTM_CMPL_CB* p_cb = btm_cb.devcb.p_rln_cmpl_cb;
   uint8_t status;
 
@@ -462,113 +460,6 @@ void BTM_VendorSpecificCommand(uint16_t opcode, uint8_t param_len,
 
   /* Send the HCI command (opcode will be OR'd with HCI_GRP_VENDOR_SPECIFIC) */
   btsnd_hcic_vendor_spec_cmd(opcode, param_len, p_param_buf, p_cb);
-}
-
-/*******************************************************************************
- *
- * Function         BTM_RegisterForVSEvents
- *
- * Description      This function is called to register/deregister for vendor
- *                  specific HCI events.
- *
- *                  If is_register=true, then the function will be registered;
- *                  otherwise, the the function will be deregistered.
- *
- * Returns          BTM_SUCCESS if successful,
- *                  BTM_BUSY if maximum number of callbacks have already been
- *                           registered.
- *
- ******************************************************************************/
-tBTM_STATUS BTM_RegisterForVSEvents(tBTM_VS_EVT_CB* p_cb, bool is_register) {
-  tBTM_STATUS retval = BTM_SUCCESS;
-  uint8_t i, free_idx = BTM_MAX_VSE_CALLBACKS;
-
-  /* See if callback is already registered */
-  for (i = 0; i < BTM_MAX_VSE_CALLBACKS; i++) {
-    if (btm_cb.devcb.p_vend_spec_cb[i] == NULL) {
-      /* Found a free slot. Store index */
-      free_idx = i;
-    } else if (btm_cb.devcb.p_vend_spec_cb[i] == p_cb) {
-      /* Found callback in lookup table. If deregistering, clear the entry. */
-      if (!is_register) {
-        btm_cb.devcb.p_vend_spec_cb[i] = NULL;
-        log::verbose("BTM Deregister For VSEvents is successfully");
-      }
-      return (BTM_SUCCESS);
-    }
-  }
-
-  /* Didn't find callback. Add callback to free slot if registering */
-  if (is_register) {
-    if (free_idx < BTM_MAX_VSE_CALLBACKS) {
-      btm_cb.devcb.p_vend_spec_cb[free_idx] = p_cb;
-      log::verbose("BTM Register For VSEvents is successfully");
-    } else {
-      /* No free entries available */
-      log::error("BTM_RegisterForVSEvents: too many callbacks registered");
-
-      retval = BTM_NO_RESOURCES;
-    }
-  }
-
-  return (retval);
-}
-
-/*******************************************************************************
- *
- * Function         btm_vendor_specific_evt
- *
- * Description      Process event HCI_VENDOR_SPECIFIC_EVT (BQR)
- *
- * Returns          void
- *
- ******************************************************************************/
-void btm_vendor_specific_evt(const uint8_t* p, uint8_t evt_len) {
-  uint8_t sub_event_code = HCI_VSE_SUBCODE_BQR_SUB_EVT;
-  uint8_t bqr_parameter_length = evt_len;
-  const uint8_t* p_bqr_event = p;
-
-  log::verbose("BTM Event: Vendor Specific event from controller");
-
-        // The stream currently points to the BQR sub-event parameters
-        switch (sub_event_code) {
-        case bluetooth::bqr::QUALITY_REPORT_ID_LMP_LL_MESSAGE_TRACE:
-          if (bqr_parameter_length >= bluetooth::bqr::kLogDumpParamTotalLen) {
-            bluetooth::bqr::DumpLmpLlMessage(bqr_parameter_length, p_bqr_event);
-          } else {
-            log::info("Malformed LMP event of length {}", bqr_parameter_length);
-          }
-
-          break;
-
-        case bluetooth::bqr::QUALITY_REPORT_ID_BT_SCHEDULING_TRACE:
-          if (bqr_parameter_length >= bluetooth::bqr::kLogDumpParamTotalLen) {
-            bluetooth::bqr::DumpBtScheduling(bqr_parameter_length, p_bqr_event);
-          } else {
-            log::info("Malformed TRACE event of length {}",
-                      bqr_parameter_length);
-          }
-          break;
-
-        default:
-          log::info("Unhandled BQR subevent 0x{:02x}x", sub_event_code);
-        }
-
-        uint8_t i;
-        std::vector<uint8_t> reconstructed_event;
-        reconstructed_event.reserve(4 + bqr_parameter_length);
-        reconstructed_event[0] = HCI_VENDOR_SPECIFIC_EVT;
-        reconstructed_event[1] = 3 + bqr_parameter_length;  // event size
-        reconstructed_event[2] = HCI_VSE_SUBCODE_BQR_SUB_EVT;
-        for (i = 0; i < bqr_parameter_length; i++) {
-          reconstructed_event.emplace_back(p[i]);
-        }
-
-  for (i = 0; i < BTM_MAX_VSE_CALLBACKS; i++) {
-    if (btm_cb.devcb.p_vend_spec_cb[i])
-      (*btm_cb.devcb.p_vend_spec_cb[i])(reconstructed_event.size(),
-                                        reconstructed_event.data());
-  }
 }
 
 /*******************************************************************************
@@ -670,7 +561,7 @@ tBTM_STATUS BTM_DeleteStoredLinkKey(const RawAddress* bd_addr,
   bool delete_all_flag = !bd_addr;
 
   log::verbose("BTM: BTM_DeleteStoredLinkKey: delete_all_flag: {}",
-               delete_all_flag ? "true" : "false");
+               delete_all_flag);
 
   btm_sec_cb.devcb.p_stored_link_key_cmpl_cb = p_cb;
   if (!bd_addr) {
@@ -720,73 +611,4 @@ void btm_delete_stored_link_key_complete(uint8_t* p, uint16_t evt_len) {
     /* Call the call back and pass the result */
     (*p_cb)(&result);
   }
-}
-
-/*******************************************************************************
- *
- * Function         BTM_BT_Quality_Report_VSE_CBack
- *
- * Description      Callback invoked on receiving of Vendor Specific Events.
- *                  This function will call registered BQR report receiver if
- *                  Bluetooth Quality Report sub-event is identified.
- *
- * Parameters:      length - Lengths of all of the parameters contained in the
- *                    Vendor Specific Event.
- *                  p_stream - A pointer to the quality report which is sent
- *                    from the Bluetooth controller via Vendor Specific Event.
- *
- ******************************************************************************/
-static void BTM_BT_Quality_Report_VSE_CBack(uint8_t length,
-                                            const uint8_t* p_stream) {
-  if (length == 0) {
-    log::warn("Lengths of all of the parameters are zero.");
-    return;
-  }
-
-  uint8_t sub_event = 0;
-  STREAM_TO_UINT8(sub_event, p_stream);
-  length--;
-
-  if (sub_event == HCI_VSE_SUBCODE_BQR_SUB_EVT) {
-    if (btm_cb.p_bqr_report_receiver == nullptr) {
-      log::warn("No registered report receiver.");
-      return;
-    }
-
-    btm_cb.p_bqr_report_receiver(length, p_stream);
-  }
-}
-
-/*******************************************************************************
- *
- * Function         BTM_BT_Quality_Report_VSE_Register
- *
- * Description      Register/Deregister for Bluetooth Quality Report VSE sub
- *                  event Callback.
- *
- * Parameters:      is_register - True/False to register/unregister for VSE.
- *                  p_bqr_report_receiver - The receiver for receiving Bluetooth
- *                    Quality Report VSE sub event.
- *
- ******************************************************************************/
-tBTM_STATUS BTM_BT_Quality_Report_VSE_Register(
-    bool is_register, tBTM_BT_QUALITY_REPORT_RECEIVER* p_bqr_report_receiver) {
-  tBTM_STATUS retval =
-      BTM_RegisterForVSEvents(BTM_BT_Quality_Report_VSE_CBack, is_register);
-
-  if (retval != BTM_SUCCESS) {
-    log::warn("Fail to (un)register VSEvents: {}, is_register: {}", retval,
-              logbool(is_register));
-    return retval;
-  }
-
-  if (is_register) {
-    btm_cb.p_bqr_report_receiver = p_bqr_report_receiver;
-  } else {
-    btm_cb.p_bqr_report_receiver = nullptr;
-  }
-
-  log::info("Success to (un)register VSEvents. is_register: {}",
-            logbool(is_register));
-  return retval;
 }

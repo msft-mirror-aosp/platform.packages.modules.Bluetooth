@@ -19,13 +19,11 @@
 #include "hal/snoop_logger_socket.h"
 
 #include <arpa/inet.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <string.h>
 #include <sys/prctl.h>
 #include <sys/socket.h>
@@ -275,7 +273,7 @@ int SnoopLoggerSocket::NotifySocketListener() {
 }
 
 void SnoopLoggerSocket::SafeCloseSocket(int& fd) {
-  log::debug("{}", (fd));
+  log::debug("{}", fd);
   if (fd != -1) {
     syscall_if_->Close(fd);
     syscall_if_->FDClr(fd, &save_sock_fds_);

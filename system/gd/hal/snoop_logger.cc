@@ -1187,7 +1187,11 @@ void SnoopLogger::FilterCapturedPacket(
   }
 }
 
-void SnoopLogger::Capture(HciPacket& packet, Direction direction, PacketType type) {
+void SnoopLogger::Capture(const HciPacket& immutable_packet, Direction direction, PacketType type) {
+  //// TODO(b/335520123) update FilterCapture to stop modifying packets ////
+  HciPacket mutable_packet(immutable_packet);
+  HciPacket& packet = mutable_packet;
+  //////////////////////////////////////////////////////////////////////////
   uint64_t timestamp_us =
       std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch())
           .count();
@@ -1273,6 +1277,7 @@ void SnoopLogger::DumpSnoozLogToFile(const std::vector<std::string>& data) const
     return;
   }
 
+  log::debug("Dumping btsnooz log data to {}", snooz_log_path_);
   auto last_file_path = get_last_log_path(snooz_log_path_);
 
   if (os::FileExists(snooz_log_path_)) {
@@ -1368,7 +1373,6 @@ void SnoopLogger::Stop() {
 
 DumpsysDataFinisher SnoopLogger::GetDumpsysData(
     flatbuffers::FlatBufferBuilder* /* builder */) const {
-  log::debug("Dumping btsnooz log data to {}", snooz_log_path_);
   DumpSnoozLogToFile(btsnooz_buffer_.Pull());
   return EmptyDumpsysDataFinisher;
 }

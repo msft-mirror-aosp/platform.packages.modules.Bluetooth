@@ -58,13 +58,32 @@ std::string uuid::getUuidName(const bluetooth::Uuid& uuid) {
 bool ParseControlPointCommand(ControlPointCommand* command,
                               const uint8_t* value, uint16_t len) {
   // Check for minimum expected length
-  if (len != kControlPointCommandSize) {
-    LOG_WARN("Invalid len %d", len);
-    return false;
+  switch (value[0]) {
+    case (uint8_t)Opcode::ABORT_OPERATION:
+      break;
+    case (uint8_t)Opcode::PCT_FORMAT: {
+      if (len < 2) {
+        return false;
+      }
+    } break;
+    case (uint8_t)Opcode::GET_RANGING_DATA:
+    case (uint8_t)Opcode::ACK_RANGING_DATA:
+    case (uint8_t)Opcode::FILTER: {
+      if (len < 3) {
+        return false;
+      }
+    } break;
+    case (uint8_t)Opcode::RETRIEVE_LOST_RANGING_DATA_SEGMENTS: {
+      if (len < 5) {
+        return false;
+      }
+    } break;
+    default:
+      log::warn("unknown opcode 0x{:02x}", value[0]);
+      return false;
   }
   command->opcode_ = static_cast<Opcode>(value[0]);
-  command->operator_ = value[1];
-  std::memcpy(command->operand_, value + 2, 6);
+  std::memcpy(command->parameter_, value + 1, len - 1);
   return true;
 }
 
@@ -111,6 +130,24 @@ std::string GetResponseOpcodeValueText(ResponseCodeValue response_code_value) {
       return "NO_RECORDS_FOUND";
     default:
       return "Unknown Opcode";
+  }
+}
+
+bool IsRangingServiceCharacteristic(const bluetooth::Uuid& uuid) {
+  if (!uuid.Is16Bit()) {
+    return false;
+  }
+  switch (uuid.As16Bit()) {
+    case kRangingService16Bit:
+    case kRasFeaturesCharacteristic16bit:
+    case kRasRealTimeRangingDataCharacteristic16bit:
+    case kRasOnDemandDataCharacteristic16bit:
+    case kRasControlPointCharacteristic16bit:
+    case kRasRangingDataReadyCharacteristic16bit:
+    case kRasRangingDataOverWrittenCharacteristic16bit:
+      return true;
+    default:
+      return false;
   }
 }
 

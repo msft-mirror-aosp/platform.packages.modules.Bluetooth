@@ -28,14 +28,14 @@
 #include "btcore/include/module.h"
 #include "common/init_flags.h"
 #include "include/hardware/bt_hh.h"
-#include "osi/include/allocator.h"
 #include "test/common/core_interface.h"
 #include "test/common/mock_functions.h"
-#include "test/mock/mock_osi_allocator.h"
 
 using namespace std::chrono_literals;
 
+namespace bluetooth::testing {
 void set_hal_cbacks(bt_callbacks_t* callbacks);
+}  // namespace bluetooth::testing
 
 // Used the legacy stack manager
 module_t bt_utils_module;
@@ -154,13 +154,13 @@ class BtifHhWithHalCallbacksTest : public BtifHhWithMockTest {
     bt_callbacks.thread_evt_cb = [](bt_cb_thread_evt evt) {
       g_thread_evt_promise.set_value(evt);
     };
-    set_hal_cbacks(&bt_callbacks);
+    bluetooth::testing::set_hal_cbacks(&bt_callbacks);
     // Start the jni callback thread
     InitializeCoreInterface();
     ASSERT_EQ(std::future_status::ready, future.wait_for(2s));
     ASSERT_EQ(ASSOCIATE_JVM, future.get());
 
-    bt_callbacks.thread_evt_cb = [](bt_cb_thread_evt evt) {};
+    bt_callbacks.thread_evt_cb = [](bt_cb_thread_evt /* evt */) {};
   }
 
   void TearDown() override {
@@ -173,7 +173,7 @@ class BtifHhWithHalCallbacksTest : public BtifHhWithMockTest {
     ASSERT_EQ(std::future_status::ready, future.wait_for(2s));
     ASSERT_EQ(DISASSOCIATE_JVM, future.get());
 
-    bt_callbacks.thread_evt_cb = [](bt_cb_thread_evt evt) {};
+    bt_callbacks.thread_evt_cb = [](bt_cb_thread_evt /* evt */) {};
     BtifHhWithMockTest::TearDown();
   }
 };
@@ -211,6 +211,8 @@ class BtifHhWithDevice : public BtifHhAdapterReady {
 
 TEST_F(BtifHhAdapterReady, lifecycle) {}
 
+static uint8_t report_data[sizeof(BT_HDR) + data32.size()];
+
 TEST_F(BtifHhWithDevice, BTA_HH_GET_RPT_EVT) {
   tBTA_HH data = {
       .hs_data =
@@ -219,8 +221,7 @@ TEST_F(BtifHhWithDevice, BTA_HH_GET_RPT_EVT) {
               .handle = kHhHandle,
               .rsp_data =
                   {
-                      .p_rpt_data = static_cast<BT_HDR*>(
-                          osi_calloc(data32.size() + sizeof(BT_HDR))),
+                      .p_rpt_data = reinterpret_cast<BT_HDR*>(report_data),
                   },
           },
   };
@@ -233,8 +234,8 @@ TEST_F(BtifHhWithDevice, BTA_HH_GET_RPT_EVT) {
   g_bthh_callbacks_get_report_promise = std::promise<get_report_cb_t>();
   auto future = g_bthh_callbacks_get_report_promise.get_future();
   bthh_callbacks.get_report_cb = [](RawAddress* bd_addr,
-                                    tBLE_ADDR_TYPE addr_type,
-                                    tBT_TRANSPORT transport,
+                                    tBLE_ADDR_TYPE /* addr_type */,
+                                    tBT_TRANSPORT /* transport */,
                                     bthh_status_t hh_status, uint8_t* rpt_data,
                                     int rpt_size) {
     get_report_cb_t report = {
@@ -247,7 +248,6 @@ TEST_F(BtifHhWithDevice, BTA_HH_GET_RPT_EVT) {
   };
 
   bluetooth::legacy::testing::bte_hh_evt(BTA_HH_GET_RPT_EVT, &data);
-  osi_free(data.hs_data.rsp_data.p_rpt_data);
 
   ASSERT_EQ(std::future_status::ready, future.wait_for(2s));
   auto report = future.get();
@@ -267,8 +267,8 @@ class BtifHHVirtualUnplugTest : public BtifHhAdapterReady {
   void SetUp() override {
     BtifHhAdapterReady::SetUp();
     bthh_callbacks.connection_state_cb = [](RawAddress* bd_addr,
-                                            tBLE_ADDR_TYPE addr_type,
-                                            tBT_TRANSPORT transport,
+                                            tBLE_ADDR_TYPE /* addr_type */,
+                                            tBT_TRANSPORT /* transport */,
                                             bthh_connection_state_t state) {
       connection_state_cb_t connection_state = {
         .raw_address = *bd_addr,
@@ -280,8 +280,9 @@ class BtifHHVirtualUnplugTest : public BtifHhAdapterReady {
 
   void TearDown() override {
     bthh_callbacks.connection_state_cb =
-        [](RawAddress* bd_addr, tBLE_ADDR_TYPE addr_type,
-           tBT_TRANSPORT transport, bthh_connection_state_t state) {};
+        [](RawAddress* /* bd_addr */, tBLE_ADDR_TYPE /* addr_type */,
+           tBT_TRANSPORT /* transport */,
+           bthh_connection_state_t /* state */) {};
     BtifHhAdapterReady::TearDown();
   }
 };

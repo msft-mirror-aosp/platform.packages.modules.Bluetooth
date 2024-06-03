@@ -16,9 +16,9 @@
 
 #include "bta_ag_swb_aptx.h"
 
-#include <android_bluetooth_flags.h>
 #include <android_bluetooth_sysprop.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -30,7 +30,7 @@
 using namespace bluetooth;
 
 bool is_hfp_aptx_voice_enabled() {
-  return IS_FLAG_ENABLED(hfp_codec_aptx_voice) &&
+  return com::android::bluetooth::flags::hfp_codec_aptx_voice() &&
          GET_SYSPROP(Hfp, codec_aptx_voice, false);
 }
 
@@ -60,14 +60,14 @@ bool get_swb_codec_status(bluetooth::headset::bthf_swb_codec_t swb_codec,
   switch (swb_codec) {
     case bluetooth::headset::BTHF_SWB_CODEC_LC3:
       status = get_lc3_swb_codec_status(bd_addr);
-      log::verbose("LC3 SWB status=%d", status);
+      log::verbose("LC3 SWB status={}", status);
       break;
     case bluetooth::headset::BTHF_SWB_CODEC_VENDOR_APTX:
       status = get_aptx_swb_codec_status();
-      log::verbose("AptX SWB status=%d", status);
+      log::verbose("AptX SWB status={}", status);
       break;
     default:
-      log::error("Unknown codec: %d", (int)swb_codec);
+      log::error("Unknown codec: {}", (int)swb_codec);
       break;
   }
   return status;
@@ -76,7 +76,7 @@ bool get_swb_codec_status(bluetooth::headset::bthf_swb_codec_t swb_codec,
 bt_status_t enable_aptx_swb_codec(bool enable, RawAddress* bd_addr) {
   if (is_hfp_aptx_voice_enabled() &&
       (get_lc3_swb_codec_status(bd_addr) == false)) {
-    log::verbose("enable=%d", enable);
+    log::verbose("enable={}", enable);
     aptx_swb_codec_status = enable;
     return BT_STATUS_SUCCESS;
   }

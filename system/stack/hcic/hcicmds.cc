@@ -286,6 +286,9 @@
 /* Read Local OOB Data */
 #define HCIC_PARAM_SIZE_R_LOCAL_OOB 0
 
+/* Read Local OOB Extended Data */
+#define HCIC_PARAM_SIZE_R_LOCAL_OOB_EXTENDED 0
+
 #define HCIC_PARAM_SIZE_UCONF_REPLY 6
 
 #define HCI_USER_CONF_BD_ADDR_OFF 0
@@ -522,21 +525,6 @@ void btsnd_hcic_create_conn_cancel(const RawAddress& dest) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_accept_conn(const RawAddress& dest, uint8_t role) {
-  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
-  uint8_t* pp = (uint8_t*)(p + 1);
-
-  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_ACCEPT_CONN;
-  p->offset = 0;
-
-  UINT16_TO_STREAM(pp, HCI_ACCEPT_CONNECTION_REQUEST);
-  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_ACCEPT_CONN);
-  BDADDR_TO_STREAM(pp, dest);
-  UINT8_TO_STREAM(pp, role);
-
-  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
 void btsnd_hcic_reject_conn(const RawAddress& dest, uint8_t reason) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
@@ -667,17 +655,6 @@ void btsnd_hcic_set_conn_encrypt(uint16_t handle, bool enable) {
   UINT8_TO_STREAM(pp, enable);
 
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
-void btsnd_hcic_rmt_name_req(const RawAddress& bd_addr,
-                             uint8_t page_scan_rep_mode, uint8_t page_scan_mode,
-                             uint16_t clock_offset) {
-  bluetooth::shim::ACL_RemoteNameRequest(bd_addr, page_scan_rep_mode,
-                                         page_scan_mode, clock_offset);
-}
-
-void btsnd_hcic_rmt_name_req_cancel(const RawAddress& bd_addr) {
-  bluetooth::shim::ACL_CancelRemoteNameRequest(bd_addr);
 }
 
 void btsnd_hcic_rmt_ext_features(uint16_t handle, uint8_t page_num) {
@@ -1388,6 +1365,19 @@ void btsnd_hcic_read_local_oob_data(void) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
+void btsnd_hcic_read_local_oob_extended_data(void) {
+  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
+  uint8_t* pp = (uint8_t*)(p + 1);
+
+  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_R_LOCAL_OOB_EXTENDED;
+  p->offset = 0;
+
+  UINT16_TO_STREAM(pp, HCI_READ_LOCAL_OOB_EXTENDED_DATA);
+  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_R_LOCAL_OOB_EXTENDED);
+
+  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
+}
+
 void btsnd_hcic_user_conf_reply(const RawAddress& bd_addr, bool is_yes) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
@@ -1495,8 +1485,9 @@ void btsnd_hcic_read_rssi(uint16_t handle) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-static void read_encryption_key_size_complete(ReadEncKeySizeCb cb, uint8_t* return_parameters,
-                                              uint16_t return_parameters_length) {
+static void read_encryption_key_size_complete(
+    ReadEncKeySizeCb cb, uint8_t* return_parameters,
+    uint16_t /* return_parameters_length */) {
   uint8_t status;
   uint16_t handle;
   uint8_t key_size;

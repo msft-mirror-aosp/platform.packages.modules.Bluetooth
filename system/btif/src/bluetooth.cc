@@ -27,9 +27,8 @@
 
 #define LOG_TAG "bt_btif"
 
-#include <android_bluetooth_flags.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bluetooth_headset_interface.h>
 #include <hardware/bt_av.h>
@@ -46,7 +45,6 @@
 #include <hardware/bt_sdp.h>
 #include <hardware/bt_sock.h>
 #include <hardware/bt_vc.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -93,10 +91,8 @@
 #include "device/include/esco_parameters.h"
 #include "device/include/interop.h"
 #include "device/include/interop_config.h"
-#include "include/check.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
-#include "os/log.h"
 #include "os/parameter_provider.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
@@ -107,6 +103,7 @@
 #include "stack/include/a2dp_api.h"
 #include "stack/include/avdt_api.h"
 #include "stack/include/btm_api.h"
+#include "stack/include/btm_client_interface.h"
 #include "stack/include/hfp_lc3_decoder.h"
 #include "stack/include/hfp_lc3_encoder.h"
 #include "stack/include/hfp_msbc_decoder.h"
@@ -335,7 +332,7 @@ struct CoreInterfaceImpl : bluetooth::core::CoreInterface {
   }
 
   void onLinkDown(const RawAddress& bd_addr) override {
-    if (IS_FLAG_ENABLED(a2dp_concurrent_source_sink)) {
+    if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
       btif_av_acl_disconnected(bd_addr, A2dpType::kSource);
       btif_av_acl_disconnected(bd_addr, A2dpType::kSink);
     } else {
@@ -399,11 +396,13 @@ static bluetooth::core::CoreInterface* CreateInterfaceToProfiles() {
  ******************************************************************************/
 
 static bool interface_ready(void) { return bt_hal_cbacks != NULL; }
-void set_hal_cbacks(bt_callbacks_t* callbacks) { bt_hal_cbacks = callbacks; }
+static void set_hal_cbacks(bt_callbacks_t* callbacks) {
+  bt_hal_cbacks = callbacks;
+}
 
 static bool is_profile(const char* p1, const char* p2) {
-  CHECK(p1);
-  CHECK(p2);
+  log::assert_that(p1 != nullptr, "assert failed: p1 != nullptr");
+  log::assert_that(p2 != nullptr, "assert failed: p2 != nullptr");
   return strlen(p1) == strlen(p2) && strncmp(p1, p2, strlen(p2)) == 0;
 }
 
@@ -539,7 +538,6 @@ static int set_adapter_property(const bt_property_t* property) {
     case BT_PROPERTY_ADAPTER_SCAN_MODE:
     case BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT:
     case BT_PROPERTY_CLASS_OF_DEVICE:
-    case BT_PROPERTY_LOCAL_IO_CAPS:
       break;
     default:
       return BT_STATUS_FAIL;
@@ -654,8 +652,7 @@ static int cancel_bond(const RawAddress* bd_addr) {
 
 static int remove_bond(const RawAddress* bd_addr) {
   if (is_restricted_mode() && !btif_storage_is_restricted_device(bd_addr)) {
-    log::info("{} cannot be removed in restricted mode",
-              ADDRESS_TO_LOGGABLE_CSTR(*bd_addr));
+    log::info("{} cannot be removed in restricted mode", *bd_addr);
     return BT_STATUS_SUCCESS;
   }
 
@@ -676,11 +673,7 @@ static int get_connection_state(const RawAddress* bd_addr) {
 
   if (bd_addr == nullptr) return 0;
 
-  if (IS_FLAG_ENABLED(api_get_connection_state_sync_on_main)) {
-    return btif_dm_get_connection_state_sync(*bd_addr);
-  } else {
-    return btif_dm_get_connection_state(*bd_addr);
-  }
+  return btif_dm_get_connection_state(*bd_addr);
 }
 
 static int pin_reply(const RawAddress* bd_addr, uint8_t accept, uint8_t pin_len,
@@ -814,6 +807,7 @@ static int set_event_filter_connection_setup_all_devices() {
 }
 
 static void dump(int fd, const char** arguments) {
+  log::debug("Started bluetooth dumpsys");
   btif_debug_conn_dump(fd);
   btif_debug_bond_event_dump(fd);
   btif_debug_linkkey_type_dump(fd);
@@ -824,7 +818,6 @@ static void dump(int fd, const char** arguments) {
   stack_debug_avdtp_api_dump(fd);
   btif_sock_dump(fd);
   bluetooth::avrcp::AvrcpService::DebugDump(fd);
-  btif_debug_config_dump(fd);
   gatt_tcb_dump(fd);
   bta_gatt_client_dump(fd);
   device_debug_iot_config_dump(fd);
@@ -844,6 +837,7 @@ static void dump(int fd, const char** arguments) {
   DumpsysBtaDm(fd);
   bluetooth::shim::Dump(fd, arguments);
   power_telemetry::GetInstance().Dumpsys(fd);
+  log::debug("Finished bluetooth dumpsys");
 }
 
 static void dumpMetrics(std::string* output) {
@@ -857,8 +851,7 @@ static int get_remote_pbap_pce_version(const RawAddress* bd_addr) {
   if (!btif_config_get_bin(bd_addr->ToString(),
                            BTIF_STORAGE_KEY_PBAP_PCE_VERSION,
                            (uint8_t*)&pce_version, &version_value_size)) {
-    log::warn("Failed to read cached peer PCE version for {}",
-              ADDRESS_TO_LOGGABLE_CSTR(*bd_addr));
+    log::warn("Failed to read cached peer PCE version for {}", *bd_addr);
   }
   return pce_version;
 }
@@ -936,12 +929,8 @@ static const void* get_profile_interface(const char* profile_id) {
   if (is_profile(profile_id, BT_PROFILE_CSIS_CLIENT_ID))
     return btif_csis_client_get_interface();
 
-  bool isBqrEnabled =
-      bluetooth::common::InitFlags::IsBluetoothQualityReportCallbackEnabled();
-  if (isBqrEnabled) {
-    if (is_profile(profile_id, BT_BQR_ID))
-      return bluetooth::bqr::getBluetoothQualityReportInterface();
-  }
+  if (is_profile(profile_id, BT_BQR_ID))
+    return bluetooth::bqr::getBluetoothQualityReportInterface();
 
   return NULL;
 }
@@ -1061,7 +1050,15 @@ static int set_dynamic_audio_buffer_size(int codec, int size) {
 static bool allow_low_latency_audio(bool allowed,
                                     const RawAddress& /* address */) {
   log::info("{}", allowed);
-  bluetooth::audio::a2dp::set_audio_low_latency_mode_allowed(allowed);
+  if (com::android::bluetooth::flags::a2dp_async_allow_low_latency()) {
+    do_in_main_thread(
+        FROM_HERE,
+        base::BindOnce(
+            bluetooth::audio::a2dp::set_audio_low_latency_mode_allowed,
+            allowed));
+  } else {
+    bluetooth::audio::a2dp::set_audio_low_latency_mode_allowed(allowed);
+  }
   return true;
 }
 
@@ -1247,7 +1244,7 @@ bt_property_t* property_deep_copy_array(int num_properties,
 
     copy = (bt_property_t*)osi_calloc((sizeof(bt_property_t) * num_properties) +
                                       content_len);
-    ASSERT(copy != nullptr);
+    log::assert_that(copy != nullptr, "assert failed: copy != nullptr");
     uint8_t* content = (uint8_t*)(copy + num_properties);
 
     for (int i = 0; i < num_properties; i++) {
@@ -1343,17 +1340,16 @@ void invoke_pin_request_cb(RawAddress bd_addr, bt_bdname_t bd_name,
                                   bd_addr, bd_name, cod, min_16_digit));
 }
 
-void invoke_ssp_request_cb(RawAddress bd_addr, bt_bdname_t bd_name,
-                           uint32_t cod, bt_ssp_variant_t pairing_variant,
+void invoke_ssp_request_cb(RawAddress bd_addr, bt_ssp_variant_t pairing_variant,
                            uint32_t pass_key) {
   do_in_jni_thread(FROM_HERE,
                    base::BindOnce(
-                       [](RawAddress bd_addr, bt_bdname_t bd_name, uint32_t cod,
-                          bt_ssp_variant_t pairing_variant, uint32_t pass_key) {
+                       [](RawAddress bd_addr, bt_ssp_variant_t pairing_variant,
+                          uint32_t pass_key) {
                          HAL_CBACK(bt_hal_cbacks, ssp_request_cb, &bd_addr,
-                                   &bd_name, cod, pairing_variant, pass_key);
+                                   pairing_variant, pass_key);
                        },
-                       bd_addr, bd_name, cod, pairing_variant, pass_key));
+                       bd_addr, pairing_variant, pass_key));
 }
 
 void invoke_oob_data_request_cb(tBT_TRANSPORT t, bool valid, Octet16 c,
@@ -1362,7 +1358,10 @@ void invoke_oob_data_request_cb(tBT_TRANSPORT t, bool valid, Octet16 c,
   log::info("");
   bt_oob_data_t oob_data = {};
   const char* local_name;
-  BTM_ReadLocalDeviceName(&local_name);
+  if (get_btm_client_interface().local.BTM_ReadLocalDeviceName(&local_name) !=
+      BTM_SUCCESS) {
+    log::warn("Unable to read local device name");
+  }
   for (int i = 0; i < BD_NAME_LEN; i++) {
     oob_data.device_name[i] = local_name[i];
   }
@@ -1533,3 +1532,8 @@ void invoke_key_missing_cb(RawAddress bd_addr) {
                                   },
                                   bd_addr));
 }
+
+namespace bluetooth::testing {
+void set_hal_cbacks(bt_callbacks_t* callbacks) { ::set_hal_cbacks(callbacks); }
+
+}  // namespace bluetooth::testing

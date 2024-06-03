@@ -24,10 +24,8 @@
 
 #define LOG_TAG "l2c_ble"
 
-#include <base/logging.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
-#include <log/log.h>
 
 #ifdef __ANDROID__
 #include <android/sysprop/BluetoothProperties.sysprop.h>
@@ -75,9 +73,7 @@ void L2CA_Consolidate(const RawAddress& identity_addr, const RawAddress& rpa) {
     return;
   }
 
-  log::info("consolidating l2c_lcb record {} -> {}",
-            ADDRESS_TO_LOGGABLE_CSTR(rpa),
-            ADDRESS_TO_LOGGABLE_CSTR(identity_addr));
+  log::info("consolidating l2c_lcb record {} -> {}", rpa, identity_addr);
   p_lcb->remote_bd_addr = identity_addr;
 }
 
@@ -126,7 +122,7 @@ void l2cble_notify_le_connection(const RawAddress& bda) {
 /** This function is called when an HCI Connection Complete event is received.
  */
 bool l2cble_conn_comp(uint16_t handle, uint8_t role, const RawAddress& bda,
-                      tBLE_ADDR_TYPE type, uint16_t conn_interval,
+                      tBLE_ADDR_TYPE /* type */, uint16_t conn_interval,
                       uint16_t conn_latency, uint16_t conn_timeout) {
   // role == HCI_ROLE_CENTRAL => scanner completed connection
   // role == HCI_ROLE_PERIPHERAL => advertiser completed connection
@@ -1115,7 +1111,7 @@ static bool is_legal_tx_data_len(const uint16_t& tx_data_len) {
 
 void l2cble_process_data_length_change_event(uint16_t handle,
                                              uint16_t tx_data_len,
-                                             uint16_t rx_data_len) {
+                                             uint16_t /* rx_data_len */) {
   tL2C_LCB* p_lcb = l2cu_find_lcb_by_handle(handle);
   if (p_lcb == nullptr) {
     log::warn(
@@ -1129,8 +1125,7 @@ void l2cble_process_data_length_change_event(uint16_t handle,
       log::debug(
           "Received data length change event for device:{} tx_data_len:{} => "
           "{}",
-          ADDRESS_TO_LOGGABLE_CSTR(p_lcb->remote_bd_addr), p_lcb->tx_data_len,
-          tx_data_len);
+          p_lcb->remote_bd_addr, p_lcb->tx_data_len, tx_data_len);
       BTM_LogHistory(kBtmLogTag, p_lcb->remote_bd_addr, "LE Data length change",
                      base::StringPrintf("tx_octets:%hu => %hu",
                                         p_lcb->tx_data_len, tx_data_len));
@@ -1139,13 +1134,13 @@ void l2cble_process_data_length_change_event(uint16_t handle,
       log::debug(
           "Received duplicated data length change event for device:{} "
           "tx_data_len:{}",
-          ADDRESS_TO_LOGGABLE_CSTR(p_lcb->remote_bd_addr), tx_data_len);
+          p_lcb->remote_bd_addr, tx_data_len);
     }
   } else {
     log::warn(
         "Received illegal data length change event for device:{} "
         "tx_data_len:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(p_lcb->remote_bd_addr), tx_data_len);
+        p_lcb->remote_bd_addr, tx_data_len);
   }
   /* ignore rx_data len for now */
 }
@@ -1254,15 +1249,14 @@ void l2cble_send_peer_disc_req(tL2C_CCB* p_ccb) {
  *
  ******************************************************************************/
 void l2cble_sec_comp(const RawAddress* bda, tBT_TRANSPORT transport,
-                     void* p_ref_data, tBTM_STATUS status) {
+                     void* /* p_ref_data */, tBTM_STATUS status) {
   const RawAddress& p_bda = *bda;
   tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(p_bda, BT_TRANSPORT_LE);
   tL2CAP_SEC_DATA* p_buf = NULL;
   uint8_t sec_act;
 
   if (!p_lcb) {
-    log::warn("security complete for unknown device. bda={}",
-              ADDRESS_TO_LOGGABLE_CSTR(*bda));
+    log::warn("security complete for unknown device. bda={}", *bda);
     return;
   }
 

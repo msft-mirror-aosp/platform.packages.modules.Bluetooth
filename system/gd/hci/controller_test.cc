@@ -16,8 +16,8 @@
 
 #include "hci/controller.h"
 
-#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <gtest/gtest.h>
 #include <unistd.h>
 
@@ -255,7 +255,7 @@ class HciLayerFakeForController : public HciLayerFake {
     ASSERT_TRUE(event.IsValid());
     CommandCompleteView command_complete = CommandCompleteView::Create(event);
     ASSERT_TRUE(command_complete.IsValid());
-    on_complete.Invoke(std::move(command_complete));
+    on_complete(std::move(command_complete));
   }
 
   void IncomingCredit() {
@@ -561,7 +561,7 @@ TEST_F(Controller103Test, set_dynamic_audio_buffer_time) {
 
 TEST_F(Controller104Test, feature_spec_version_104_test) {
   ASSERT_EQ(controller_->GetVendorCapabilities().version_supported_, 0x100 + 4);
-  if (IS_FLAG_ENABLED(a2dp_offload_codec_extensibility)) {
+  if (com::android::bluetooth::flags::a2dp_offload_codec_extensibility()) {
     ASSERT_TRUE(controller_->GetVendorCapabilities().a2dp_offload_v2_support_);
   } else {
     ASSERT_FALSE(controller_->GetVendorCapabilities().a2dp_offload_v2_support_);
@@ -596,7 +596,7 @@ void CheckReceivedCredits(uint16_t handle, uint16_t credits) {
       credits2_set.set_value();
       break;
     default:
-      ASSERT_LOG(false, "Unknown handle 0x%0hx with 0x%0hx credits", handle, credits);
+      log::fatal("Unknown handle 0x{:0x} with 0x{:0x} credits", handle, credits);
   }
 }
 

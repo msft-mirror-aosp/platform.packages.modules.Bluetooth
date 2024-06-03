@@ -43,24 +43,21 @@
  *  Constants and data types
  ****************************************************************************/
 
-#define BTA_DM_MSG_LEN 50
-
 #define BTA_DM_NUM_PEER_DEVICE 7
 
-typedef enum : uint8_t {
+enum class tBTA_DM_CONN_STATE : uint8_t {
   BTA_DM_NOT_CONNECTED = 0,
   BTA_DM_CONNECTED = 1,
   BTA_DM_UNPAIRING = 2,
-} tBTA_DM_CONN_STATE;
+};
 
 inline std::string bta_conn_state_text(tBTA_DM_CONN_STATE state) {
   switch (state) {
-    CASE_RETURN_TEXT(BTA_DM_NOT_CONNECTED);
-    CASE_RETURN_TEXT(BTA_DM_CONNECTED);
-    CASE_RETURN_TEXT(BTA_DM_UNPAIRING);
-    default:
-      return std::string("UNKNOWN");
+    CASE_RETURN_STRING(tBTA_DM_CONN_STATE::BTA_DM_NOT_CONNECTED);
+    CASE_RETURN_STRING(tBTA_DM_CONN_STATE::BTA_DM_CONNECTED);
+    CASE_RETURN_STRING(tBTA_DM_CONN_STATE::BTA_DM_UNPAIRING);
   }
+  RETURN_UNKNOWN_TYPE_STRING(tBTA_DM_CONN_STATE, state);
 }
 
 typedef enum : uint8_t {
@@ -98,7 +95,7 @@ typedef uint8_t tBTA_DM_PM_REQ;
 
 struct tBTA_DM_PEER_DEVICE {
   RawAddress peer_bdaddr;
-  tBTA_DM_CONN_STATE conn_state;
+  tBTA_DM_CONN_STATE conn_state{tBTA_DM_CONN_STATE::BTA_DM_NOT_CONNECTED};
   tBTA_PREF_ROLES pref_role;
   bool in_use;
 
@@ -160,9 +157,10 @@ typedef struct {
 
   std::string ToString() const {
     return base::StringPrintf(
-        "peer:%s sys_name:%s app_id:%hhu state:%s new:request:%s",
+        "peer:%s sys_name:%s app_id:%hhu state:%s new_request:%s",
         ADDRESS_TO_LOGGABLE_CSTR(peer_bdaddr), BtaIdSysText(id).c_str(), app_id,
-        bta_sys_conn_status_text(state).c_str(), logbool(new_request).c_str());
+        bta_sys_conn_status_text(state).c_str(),
+        new_request ? "true" : "false");
   }
 
 } tBTA_DM_SRVCS;
@@ -214,15 +212,11 @@ typedef struct {
   tBTA_PM_TIMER pm_timer[BTA_DM_NUM_PM_TIMER];
   uint8_t cur_av_count;   /* current AV connecions */
 
-#if (BTA_EIR_CANNED_UUID_LIST != TRUE)
   /* store UUID list for EIR */
   uint32_t eir_uuid[BTM_EIR_SERVICE_ARRAY_SIZE];
 #if (BTA_EIR_SERVER_NUM_CUSTOM_UUID > 0)
   tBTA_CUSTOM_UUID bta_custom_uuid[BTA_EIR_SERVER_NUM_CUSTOM_UUID];
 #endif
-
-#endif
-
   alarm_t* switch_delay_timer;
 } tBTA_DM_CB;
 
@@ -316,7 +310,6 @@ extern tBTA_DM_DI_CB bta_dm_di_cb;
 void bta_dm_enable(tBTA_DM_SEC_CBACK*, tBTA_DM_ACL_CBACK*);
 void bta_dm_disable();
 void bta_dm_set_dev_name(const std::vector<uint8_t>&);
-void bta_dm_close_acl(const RawAddress&, bool, tBT_TRANSPORT);
 
 void bta_dm_ble_set_conn_params(const RawAddress&, uint16_t, uint16_t, uint16_t,
                                 uint16_t);
