@@ -1,6 +1,6 @@
 //! Implementation of the Socket API (IBluetoothSocketManager).
 
-use bt_topshim::btif::{BluetoothInterface, BtStatus, RawAddress, Uuid};
+use bt_topshim::btif::{BluetoothInterface, BtStatus, DisplayAddress, RawAddress, Uuid};
 use bt_topshim::profiles::socket;
 use log;
 use nix::sys::socket::{recvmsg, ControlMessageOwned};
@@ -21,7 +21,6 @@ use tokio::time;
 use crate::bluetooth::BluetoothDevice;
 use crate::bluetooth_admin::{BluetoothAdmin, IBluetoothAdmin};
 use crate::callbacks::Callbacks;
-use crate::uuid::UuidHelper;
 use crate::Message;
 use crate::RPCProxy;
 
@@ -147,7 +146,7 @@ impl BluetoothServerSocket {
         sock.uuid = self.uuid.clone();
 
         // Data from connection.
-        sock.remote_device = BluetoothDevice::new(conn.addr.to_string(), "".into());
+        sock.remote_device = BluetoothDevice::new(conn.addr, "".into());
         sock.port = conn.channel;
         sock.max_rx_size = conn.max_rx_packet_size.into();
         sock.max_tx_size = conn.max_tx_packet_size.into();
@@ -174,7 +173,7 @@ impl fmt::Display for BluetoothServerSocket {
             self.sock_type,
             self.name.as_ref().unwrap_or(&String::new()),
             match self.uuid {
-                Some(u) => UuidHelper::to_string(&u.uu),
+                Some(u) => u.to_string(),
                 None => "".to_string(),
             }
         )
@@ -205,7 +204,7 @@ impl BluetoothSocket {
     fn new() -> Self {
         BluetoothSocket {
             id: 0,
-            remote_device: BluetoothDevice::new(String::new(), String::new()),
+            remote_device: BluetoothDevice::new(RawAddress::default(), String::new()),
             sock_type: SocketType::Unknown,
             flags: 0,
             fd: None,
@@ -253,11 +252,11 @@ impl fmt::Display for BluetoothSocket {
         write!(
             f,
             "[{}]:{} (type: {:?}) (uuid: {})",
-            self.remote_device.address,
+            DisplayAddress(&self.remote_device.address),
             self.port,
             self.sock_type,
             match self.uuid {
-                Some(u) => UuidHelper::to_string(&u.uu),
+                Some(u) => u.to_string(),
                 None => "".to_string(),
             }
         )
@@ -589,7 +588,7 @@ impl BluetoothSocketManager {
         cbid: CallbackId,
     ) -> SocketResult {
         if let Some(uuid) = socket_info.uuid {
-            if !self.admin.lock().unwrap().is_service_allowed(uuid.into()) {
+            if !self.admin.lock().unwrap().is_service_allowed(uuid) {
                 log::debug!("service {} is blocked by admin policy", uuid);
                 return SocketResult::new(BtStatus::AuthRejected, INVALID_SOCKET_ID);
             }
@@ -608,10 +607,7 @@ impl BluetoothSocketManager {
             self.sock.as_ref().expect("Socket Manager not initialized").listen(
                 socket_info.sock_type.clone(),
                 socket_info.name.as_ref().unwrap_or(&String::new()).clone(),
-                match socket_info.uuid {
-                    Some(u) => Some(u.uu.clone()),
-                    None => None,
-                },
+                socket_info.uuid,
                 match socket_info.sock_type {
                     SocketType::Rfcomm => socket_info.channel.unwrap_or(DYNAMIC_CHANNEL),
                     SocketType::L2cap | SocketType::L2capLe => {
@@ -691,32 +687,18 @@ impl BluetoothSocketManager {
         cbid: CallbackId,
     ) -> SocketResult {
         if let Some(uuid) = socket_info.uuid {
-            if !self.admin.lock().unwrap().is_service_allowed(uuid.into()) {
+            if !self.admin.lock().unwrap().is_service_allowed(uuid) {
                 log::debug!("service {} is blocked by admin policy", uuid);
                 return SocketResult::new(BtStatus::AuthRejected, INVALID_SOCKET_ID);
             }
         }
 
-        let addr = match RawAddress::from_string(socket_info.remote_device.address.clone()) {
-            Some(v) => v,
-            None => {
-                log::warn!(
-                    "Invalid address during socket connection: {}",
-                    socket_info.remote_device.address.clone()
-                );
-                return SocketResult::new(BtStatus::InvalidParam, INVALID_SOCKET_ID);
-            }
-        };
-
         // Create connecting socket pair.
         let (mut status, result) =
             self.sock.as_ref().expect("Socket manager not initialized").connect(
-                addr,
+                socket_info.remote_device.address,
                 socket_info.sock_type.clone(),
-                match socket_info.uuid {
-                    Some(u) => Some(u.uu.clone()),
-                    None => None,
-                },
+                socket_info.uuid,
                 socket_info.port,
                 socket_info.flags,
                 self.get_caller_uid(),
@@ -1226,9 +1208,7 @@ impl BluetoothSocketManager {
             .filter(|sock| {
                 sock.uuid
                     // Don't need to close L2cap socket (indicated by no uuid).
-                    .map_or(false, |uuid| {
-                        !self.admin.lock().unwrap().is_service_allowed(uuid.into())
-                    })
+                    .map_or(false, |uuid| !self.admin.lock().unwrap().is_service_allowed(uuid))
             })
             .map(|sock| (sock.socket_id, sock.tx.clone(), sock.uuid.unwrap()))
             .collect::<Vec<(u64, Sender<SocketRunnerActions>, Uuid)>>();
@@ -1274,22 +1254,14 @@ impl BluetoothSocketManager {
     // Send MSC command to the peer. ONLY FOR QUALIFICATION USE.
     // libbluetooth auto starts the control request only when it is the client.
     // This function allows the host to start the control request while as a server.
-    pub fn rfcomm_send_msc(&mut self, dlci: u8, addr: String) {
-        match (|| -> Result<(), &str> {
-            let addr = RawAddress::from_string(addr)
-                .ok_or("Invalid address for starting control request")?;
-            let sock = self
-                .sock
-                .as_ref()
-                .ok_or("Socket Manager not initialized when starting control request")?;
-            if sock.send_msc(dlci, addr) != BtStatus::Success {
-                return Err("Failed to start control request");
-            }
-            Ok(())
-        })() {
-            Ok(_) => {}
-            Err(msg) => log::warn!("{}", msg),
+    pub fn rfcomm_send_msc(&mut self, dlci: u8, addr: RawAddress) {
+        let Some(sock) = self.sock.as_ref() else {
+            log::warn!("Socket Manager not initialized when starting control request");
+            return;
         };
+        if sock.send_msc(dlci, addr) != BtStatus::Success {
+            log::warn!("Failed to start control request");
+        }
     }
 }
 

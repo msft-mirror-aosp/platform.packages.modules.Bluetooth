@@ -1,6 +1,6 @@
 use bt_topshim::btif::{
     BtAddrType, BtBondState, BtConnectionState, BtDeviceType, BtDiscMode, BtPropertyType,
-    BtSspVariant, BtStatus, BtTransport, BtVendorProductInfo, Uuid, Uuid128Bit,
+    BtSspVariant, BtStatus, BtTransport, BtVendorProductInfo, DisplayAddress, RawAddress, Uuid,
 };
 use bt_topshim::profiles::socket::SocketType;
 use bt_topshim::profiles::ProfileConnectionState;
@@ -41,16 +41,28 @@ use std::sync::{Arc, Mutex};
 use crate::dbus_arg::{DBusArg, DBusArgError, DirectDBus, RefArgToRust};
 
 // Represents Uuid as an array in D-Bus.
-impl_dbus_arg_from_into!(Uuid, Vec<u8>);
+impl DBusArg for Uuid {
+    type DBusType = Vec<u8>;
+    fn from_dbus(
+        data: Vec<u8>,
+        _conn: Option<Arc<SyncConnection>>,
+        _remote: Option<dbus::strings::BusName<'static>>,
+        _disconnect_watcher: Option<Arc<Mutex<dbus_projection::DisconnectWatcher>>>,
+    ) -> Result<Uuid, Box<dyn std::error::Error>> {
+        Ok(Uuid::try_from(data.clone()).or_else(|_| {
+            Err(format!(
+                "Invalid Uuid: first 4 bytes={:?}",
+                data.iter().take(4).collect::<Vec<_>>()
+            ))
+        })?)
+    }
 
-impl RefArgToRust for Uuid {
-    type RustType = Vec<u8>;
+    fn to_dbus(data: Uuid) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        Ok(data.try_into()?)
+    }
 
-    fn ref_arg_to_rust(
-        arg: &(dyn dbus::arg::RefArg + 'static),
-        name: String,
-    ) -> Result<Self::RustType, Box<dyn std::error::Error>> {
-        <Vec<u8> as RefArgToRust>::ref_arg_to_rust(arg, name)
+    fn log(data: &Uuid) -> String {
+        format!("{}", data)
     }
 }
 
@@ -68,7 +80,7 @@ pub struct BluetoothMixin {
 
 #[dbus_propmap(BluetoothDevice)]
 pub struct BluetoothDeviceDBus {
-    address: String,
+    address: RawAddress,
     name: String,
 }
 
@@ -90,7 +102,7 @@ impl IBluetoothCallback for BluetoothCallbackDBus {
         dbus_generated!()
     }
     #[dbus_method("OnAddressChanged")]
-    fn on_address_changed(&mut self, addr: String) {
+    fn on_address_changed(&mut self, addr: RawAddress) {
         dbus_generated!()
     }
     #[dbus_method("OnNameChanged")]
@@ -138,14 +150,14 @@ impl IBluetoothCallback for BluetoothCallbackDBus {
         "OnBondStateChanged",
         DBusLog::Enable(DBusLogOptions::LogAll, DBusLogVerbosity::Verbose)
     )]
-    fn on_bond_state_changed(&mut self, status: u32, address: String, state: u32) {
+    fn on_bond_state_changed(&mut self, status: u32, address: RawAddress, state: u32) {
         dbus_generated!()
     }
     #[dbus_method("OnSdpSearchComplete")]
     fn on_sdp_search_complete(
         &mut self,
         remote_device: BluetoothDevice,
-        searched_uuid: Uuid128Bit,
+        searched_uuid: Uuid,
         sdp_records: Vec<BtSdpRecord>,
     ) {
         dbus_generated!()
@@ -425,6 +437,33 @@ impl DBusArg for BtSdpRecord {
     }
 }
 
+impl DBusArg for RawAddress {
+    type DBusType = String;
+    fn from_dbus(
+        data: String,
+        _conn: Option<std::sync::Arc<dbus::nonblock::SyncConnection>>,
+        _remote: Option<dbus::strings::BusName<'static>>,
+        _disconnect_watcher: Option<
+            std::sync::Arc<std::sync::Mutex<dbus_projection::DisconnectWatcher>>,
+        >,
+    ) -> Result<RawAddress, Box<dyn std::error::Error>> {
+        Ok(RawAddress::from_string(data.clone()).ok_or_else(|| {
+            format!(
+                "Invalid Address: last 6 chars=\"{}\"",
+                data.chars().rev().take(6).collect::<String>().chars().rev().collect::<String>()
+            )
+        })?)
+    }
+
+    fn to_dbus(addr: RawAddress) -> Result<String, Box<dyn std::error::Error>> {
+        Ok(addr.to_string())
+    }
+
+    fn log(addr: &RawAddress) -> String {
+        format!("{}", DisplayAddress(addr))
+    }
+}
+
 impl_dbus_arg_enum!(BtDiscMode);
 impl_dbus_arg_from_into!(EscoCodingFormat, u8);
 
@@ -482,12 +521,12 @@ impl IBluetooth for IBluetoothDBus {
     }
 
     #[dbus_method("GetAddress", DBusLog::Disable)]
-    fn get_address(&self) -> String {
+    fn get_address(&self) -> RawAddress {
         dbus_generated!()
     }
 
     #[dbus_method("GetUuids", DBusLog::Disable)]
-    fn get_uuids(&self) -> Vec<Uuid128Bit> {
+    fn get_uuids(&self) -> Vec<Uuid> {
         dbus_generated!()
     }
 
@@ -662,12 +701,12 @@ impl IBluetooth for IBluetoothDBus {
     }
 
     #[dbus_method("GetProfileConnectionState", DBusLog::Disable)]
-    fn get_profile_connection_state(&self, profile: Uuid128Bit) -> ProfileConnectionState {
+    fn get_profile_connection_state(&self, profile: Uuid) -> ProfileConnectionState {
         dbus_generated!()
     }
 
     #[dbus_method("GetRemoteUuids", DBusLog::Disable)]
-    fn get_remote_uuids(&self, device: BluetoothDevice) -> Vec<Uuid128Bit> {
+    fn get_remote_uuids(&self, device: BluetoothDevice) -> Vec<Uuid> {
         dbus_generated!()
     }
 
@@ -677,7 +716,7 @@ impl IBluetooth for IBluetoothDBus {
     }
 
     #[dbus_method("SdpSearch")]
-    fn sdp_search(&self, device: BluetoothDevice, uuid: Uuid128Bit) -> bool {
+    fn sdp_search(&self, device: BluetoothDevice, uuid: Uuid) -> bool {
         dbus_generated!()
     }
 
@@ -718,6 +757,11 @@ impl IBluetooth for IBluetoothDBus {
 
     #[dbus_method("IsCodingFormatSupported", DBusLog::Disable)]
     fn is_coding_format_supported(&self, coding_format: EscoCodingFormat) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("IsLEAudioSupported", DBusLog::Disable)]
+    fn is_le_audio_supported(&self) -> bool {
         dbus_generated!()
     }
 }
@@ -1020,7 +1064,7 @@ impl IBluetoothQALegacy for IBluetoothQALegacyDBus {
     #[dbus_method("GetHIDReport")]
     fn get_hid_report(
         &mut self,
-        addr: String,
+        addr: RawAddress,
         report_type: BthhReportType,
         report_id: u8,
     ) -> BtStatus {
@@ -1030,7 +1074,7 @@ impl IBluetoothQALegacy for IBluetoothQALegacyDBus {
     #[dbus_method("SetHIDReport")]
     fn set_hid_report(
         &mut self,
-        addr: String,
+        addr: RawAddress,
         report_type: BthhReportType,
         report: String,
     ) -> BtStatus {
@@ -1038,7 +1082,7 @@ impl IBluetoothQALegacy for IBluetoothQALegacyDBus {
     }
 
     #[dbus_method("SendHIDData")]
-    fn send_hid_data(&mut self, addr: String, data: String) -> BtStatus {
+    fn send_hid_data(&mut self, addr: RawAddress, data: String) -> BtStatus {
         dbus_generated!()
     }
 }
