@@ -32,6 +32,8 @@
 
 package com.android.bluetooth.opp;
 
+import android.bluetooth.BluetoothProfile;
+import android.bluetooth.BluetoothProtoEnums;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
@@ -39,25 +41,26 @@ import android.net.Uri;
 import android.util.Log;
 
 import com.android.bluetooth.BluetoothMethodProxy;
+import com.android.bluetooth.BluetoothStatsLog;
+import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 import com.android.obex.HeaderSet;
 
 import java.io.IOException;
 import java.util.regex.Pattern;
 
-/**
- * Bluetooth OPP internal constant definitions
- */
+/** Bluetooth OPP internal constant definitions */
+// Next tag value for ContentProfileErrorReportUtils.report(): 1
 public class Constants {
     /** Tag used for debugging/logging */
     public static final String TAG = "BluetoothOpp";
 
     /** the permission required for others to send us handover broadcasts */
     static final String PERMISSION_ALLOWLIST_BLUETOOTH_DEVICE =
-                "com.android.permission.ALLOWLIST_BLUETOOTH_DEVICE";
+            "com.android.permission.ALLOWLIST_BLUETOOTH_DEVICE";
 
     /**
-     * The intent that gets sent when the service must wake up for a retry
-     * Note: Only retry Outbound transfers
+     * The intent that gets sent when the service must wake up for a retry Note: Only retry Outbound
+     * transfers
      */
     static final String ACTION_RETRY = "android.btopp.intent.action.RETRY";
 
@@ -70,18 +73,17 @@ public class Constants {
     /** the intent that gets sent when clicking a inbound transfer notification */
     static final String ACTION_OPEN_INBOUND_TRANSFER = "android.btopp.intent.action.OPEN_INBOUND";
 
-    /** the intent that gets sent from the Settings app to show the received files */
-    static final String ACTION_OPEN_RECEIVED_FILES =
-            "android.btopp.intent.action.OPEN_RECEIVED_FILES";
-
     /** the intent that acceptlists a remote bluetooth device for auto-receive confirmation (NFC) */
     static final String ACTION_ACCEPTLIST_DEVICE = "android.btopp.intent.action.ACCEPTLIST_DEVICE";
 
     /** the intent that can be sent by handover requesters to stop a BTOPP transfer */
     static final String ACTION_STOP_HANDOVER = "android.btopp.intent.action.STOP_HANDOVER_TRANSFER";
 
-    /** the intent extra to show all received files in the transfer history */
-    static final String EXTRA_SHOW_ALL_FILES = "android.btopp.intent.extra.SHOW_ALL";
+    /**
+     * the intent extra to show the direction of a transfer. Value should be one of {@link
+     * BluetoothShare#DIRECTION_INBOUND} or {@link BluetoothShare#DIRECTION_OUTBOUND}
+     */
+    static final String EXTRA_DIRECTION = "android.btopp.intent.extra.DIRECTION";
 
     /** the intent that gets sent when clicking an incomplete/failed transfer */
     static final String ACTION_LIST = "android.btopp.intent.action.LIST";
@@ -93,7 +95,7 @@ public class Constants {
     static final String ACTION_HANDOVER_SEND_MULTIPLE =
             "android.nfc.handover.intent.action.HANDOVER_SEND_MULTIPLE";
 
-    /** the intent that is used for indicating an incoming transfer*/
+    /** the intent that is used for indicating an incoming transfer */
     static final String ACTION_HANDOVER_STARTED =
             "android.nfc.handover.intent.action.HANDOVER_STARTED";
 
@@ -156,10 +158,20 @@ public class Constants {
     static final String ACTION_DECLINE = "android.btopp.intent.action.DECLINE";
 
     /**
-     * the intent that gets sent when deleting the notifications of outbound and
-     * inbound completed transfer
+     * The intent that gets sent when deleting the notifications of outbound and inbound completed
+     * transfer.
      */
+    // TODO(b/323096132): Remove this variable when the flag
+    //                    opp_fix_multiple_notifications_issues is ramped up.
     static final String ACTION_COMPLETE_HIDE = "android.btopp.intent.action.HIDE_COMPLETE";
+
+    /** The intent that gets sent when deleting the notifications of completed inbound transfer. */
+    static final String ACTION_HIDE_COMPLETED_INBOUND_TRANSFER =
+            "android.btopp.intent.action.HIDE_COMPLETED_INBOUND_TRANSFER";
+
+    /** The intent that gets sent when deleting the notifications of completed outbound transfer. */
+    static final String ACTION_HIDE_COMPLETED_OUTBOUND_TRANSFER =
+            "android.btopp.intent.action.HIDE_COMPLETED_OUTBOUND_TRANSFER";
 
     /** the intent that gets sent when clicking a incoming file confirm notification */
     static final String ACTION_INCOMING_FILE_CONFIRM = "android.btopp.intent.action.CONFIRM";
@@ -174,31 +186,31 @@ public class Constants {
     static final int MEDIA_SCANNED_SCANNED_FAILED = 2;
 
     /**
-     * The MIME type(s) of we could accept from other device.
-     * This is in essence a "acceptlist" of acceptable types.
-     * Today, restricted to images, audio, video and certain text types.
+     * The MIME type(s) of we could accept from other device. This is in essence a "acceptlist" of
+     * acceptable types. Today, restricted to images, audio, video and certain text types.
      */
-    static final String[] ACCEPTABLE_SHARE_INBOUND_TYPES = new String[]{
-            "image/*",
-            "video/*",
-            "audio/*",
-            "text/x-vcard",
-            "text/x-vcalendar",
-            "text/calendar",
-            "text/plain",
-            "text/html",
-            "text/xml",
-            "application/epub+zip",
-            "application/zip",
-            "application/vnd.ms-excel",
-            "application/msword",
-            "application/vnd.ms-powerpoint",
-            "application/pdf",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            "application/x-hwp",
-    };
+    static final String[] ACCEPTABLE_SHARE_INBOUND_TYPES =
+            new String[] {
+                "image/*",
+                "video/*",
+                "audio/*",
+                "text/x-vcard",
+                "text/x-vcalendar",
+                "text/calendar",
+                "text/plain",
+                "text/html",
+                "text/xml",
+                "application/epub+zip",
+                "application/zip",
+                "application/vnd.ms-excel",
+                "application/msword",
+                "application/vnd.ms-powerpoint",
+                "application/pdf",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                "application/x-hwp",
+            };
 
     /** Where we store received files */
     static final String DEFAULT_STORE_SUBDIR = "/bluetooth";
@@ -207,13 +219,9 @@ public class Constants {
     static final int NFC_ALIVE_CHECK_MS = 10000;
 
     /**
-     * To log debug/verbose in OPP, use the command "setprop log.tag.BluetoothOpp DEBUG" or
-     * "setprop log.tag.BluetoothOpp VERBOSE" and then "adb root" + "adb shell "stop; start""
-     **/
-    static final boolean DEBUG = true;
-
-    static final boolean VERBOSE = Log.isLoggable(TAG, Log.VERBOSE);
-
+     * To log debug/verbose in OPP, use the command "setprop log.tag.BluetoothOpp DEBUG" or "setprop
+     * log.tag.BluetoothOpp VERBOSE" and then "adb root" + "adb shell "stop; start""
+     */
     static final int MAX_RECORDS_IN_DATABASE = 50;
 
     static final int BATCH_STATUS_PENDING = 0;
@@ -234,8 +242,9 @@ public class Constants {
         Uri contentUri = Uri.parse(BluetoothShare.CONTENT_URI + "/" + id);
         ContentValues updateValues = new ContentValues();
         updateValues.put(BluetoothShare.STATUS, status);
-        BluetoothMethodProxy.getInstance().contentResolverUpdate(context.getContentResolver(),
-                contentUri, updateValues, null, null);
+        BluetoothMethodProxy.getInstance()
+                .contentResolverUpdate(
+                        context.getContentResolver(), contentUri, updateValues, null, null);
         Constants.sendIntentIfCompleted(context, contentUri, status);
     }
 
@@ -280,6 +289,11 @@ public class Constants {
             Log.v(TAG, "OBJECT_CLASS : " + hs.getHeader(HeaderSet.OBJECT_CLASS));
             Log.v(TAG, "APPLICATION_PARAMETER : " + hs.getHeader(HeaderSet.APPLICATION_PARAMETER));
         } catch (IOException e) {
+            ContentProfileErrorReportUtils.report(
+                    BluetoothProfile.OPP,
+                    BluetoothProtoEnums.BLUETOOTH_OPP_CONSTANTS,
+                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                    0);
             Log.e(TAG, "dump HeaderSet error " + e);
         }
     }

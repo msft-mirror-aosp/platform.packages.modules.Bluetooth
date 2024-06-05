@@ -6,7 +6,11 @@ use std::convert::TryFrom;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Error, ErrorKind, Read};
 
-use bt_packets::hci::{Acl, Command, Event};
+use hcidoc_packets::hci::{Acl, AclChild, Command, Event};
+use hcidoc_packets::l2cap::{
+    BasicFrame, BasicFrameChild, Control, ControlFrameChild, GroupFrameChild, LeControl,
+    LeControlFrameChild,
+};
 
 /// Linux snoop file header format. This format is used by `btmon` on Linux systems that have bluez
 /// installed.
@@ -283,6 +287,8 @@ pub enum PacketChild {
     HciEvent(Event),
     AclTx(Acl),
     AclRx(Acl),
+    NewIndex(NewIndex),
+    SystemNote(String),
 }
 
 impl<'a> TryFrom<&'a LinuxSnoopPacket> for PacketChild {
@@ -308,6 +314,16 @@ impl<'a> TryFrom<&'a LinuxSnoopPacket> for PacketChild {
             LinuxSnoopOpcodes::AclRxPacket => match Acl::parse(item.data.as_slice()) {
                 Ok(data) => Ok(PacketChild::AclRx(data)),
                 Err(e) => Err(format!("Couldn't parse acl rx: {:?}", e)),
+            },
+
+            LinuxSnoopOpcodes::NewIndex => match NewIndex::parse(item.data.as_slice()) {
+                Ok(data) => Ok(PacketChild::NewIndex(data)),
+                Err(e) => Err(format!("Couldn't parse new index: {:?}", e)),
+            },
+
+            LinuxSnoopOpcodes::SystemNote => match String::from_utf8(item.data.to_vec()) {
+                Ok(data) => Ok(PacketChild::SystemNote(data)),
+                Err(e) => Err(format!("Couldn't parse system note: {:?}", e)),
             },
 
             // TODO(b/262928525) - Add packet handlers for more packet types.
@@ -353,5 +369,87 @@ impl<'a> TryFrom<(usize, &'a LinuxSnoopPacket)> for Packet {
 
             Err(e) => Err(e),
         }
+    }
+}
+
+pub enum AclContent {
+    Control(Control),
+    LeControl(LeControl),
+    ConnectionlessData(u16, Vec<u8>),
+    StandardData(Vec<u8>),
+    None,
+}
+
+pub fn get_acl_content(acl: &Acl) -> AclContent {
+    match acl.specialize() {
+        AclChild::Payload(bytes) => match BasicFrame::parse(bytes.as_ref()) {
+            Ok(bf) => match bf.specialize() {
+                BasicFrameChild::ControlFrame(cf) => match cf.specialize() {
+                    ControlFrameChild::Payload(p) => match Control::parse(p.as_ref()) {
+                        Ok(control) => AclContent::Control(control),
+                        Err(_) => AclContent::None,
+                    },
+                    _ => AclContent::None,
+                },
+                BasicFrameChild::LeControlFrame(lcf) => match lcf.specialize() {
+                    LeControlFrameChild::Payload(p) => match LeControl::parse(p.as_ref()) {
+                        Ok(le_control) => AclContent::LeControl(le_control),
+                        Err(_) => AclContent::None,
+                    },
+                    _ => AclContent::None,
+                },
+                BasicFrameChild::GroupFrame(gf) => match gf.specialize() {
+                    GroupFrameChild::Payload(p) => {
+                        AclContent::ConnectionlessData(gf.get_psm(), p.to_vec())
+                    }
+                    _ => AclContent::None,
+                },
+                BasicFrameChild::Payload(p) => AclContent::StandardData(p.to_vec()),
+                _ => AclContent::None,
+            },
+            Err(_) => AclContent::None,
+        },
+        _ => AclContent::None,
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct NewIndex {
+    _hci_type: u8,
+    _bus: u8,
+    bdaddr: [u8; 6],
+    _name: [u8; 8],
+}
+
+impl NewIndex {
+    fn parse(data: &[u8]) -> Result<NewIndex, std::string::String> {
+        if data.len() != std::mem::size_of::<NewIndex>() {
+            return Err(format!("Invalid size for New Index packet: {}", data.len()));
+        }
+
+        let rest = data;
+        let (hci_type, rest) = rest.split_at(std::mem::size_of::<u8>());
+        let (bus, rest) = rest.split_at(std::mem::size_of::<u8>());
+        let (bdaddr, rest) = rest.split_at(6 * std::mem::size_of::<u8>());
+        let (name, _rest) = rest.split_at(8 * std::mem::size_of::<u8>());
+
+        Ok(NewIndex {
+            _hci_type: hci_type[0],
+            _bus: bus[0],
+            bdaddr: bdaddr.try_into().unwrap(),
+            _name: name.try_into().unwrap(),
+        })
+    }
+
+    pub fn get_addr_str(&self) -> String {
+        String::from(format!(
+            "[{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}]",
+            self.bdaddr[0],
+            self.bdaddr[1],
+            self.bdaddr[2],
+            self.bdaddr[3],
+            self.bdaddr[4],
+            self.bdaddr[5]
+        ))
     }
 }

@@ -22,19 +22,9 @@
  *  mockcify.pl ver 0.6.1
  */
 
-#include <cstdint>
 #include <functional>
-#include <map>
-#include <string>
-
-#include "test/common/mock_functions.h"
 
 // Original included files, if any
-// NOTE: Since this is a mock file with mock definitions some number of
-//       include files may not be required.  The include-what-you-use
-//       still applies, but crafting proper inclusion is out of scope
-//       for this effort.  This compilation unit may compile as-is, or
-//       may need attention to prune from (or add to ) the inclusion set.
 #include "bta/include/bta_sdp_api.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -54,7 +44,7 @@ namespace bta_sdp_api {
 struct BTA_SdpCreateRecordByUser {
   static tBTA_SDP_STATUS return_value;
   std::function<tBTA_SDP_STATUS(void* user_data)> body{
-      [](void* user_data) { return return_value; }};
+      [](void* /* user_data */) { return return_value; }};
   tBTA_SDP_STATUS operator()(void* user_data) { return body(user_data); };
 };
 extern struct BTA_SdpCreateRecordByUser BTA_SdpCreateRecordByUser;
@@ -63,7 +53,7 @@ extern struct BTA_SdpCreateRecordByUser BTA_SdpCreateRecordByUser;
 // Params: int fd
 // Return: void
 struct BTA_SdpDumpsys {
-  std::function<void(int fd)> body{[](int fd) {}};
+  std::function<void(int fd)> body{[](int /* fd */) {}};
   void operator()(int fd) { body(fd); };
 };
 extern struct BTA_SdpDumpsys BTA_SdpDumpsys;
@@ -74,7 +64,7 @@ extern struct BTA_SdpDumpsys BTA_SdpDumpsys;
 struct BTA_SdpEnable {
   static tBTA_SDP_STATUS return_value;
   std::function<tBTA_SDP_STATUS(tBTA_SDP_DM_CBACK* p_cback)> body{
-      [](tBTA_SDP_DM_CBACK* p_cback) { return return_value; }};
+      [](tBTA_SDP_DM_CBACK* /* p_cback */) { return return_value; }};
   tBTA_SDP_STATUS operator()(tBTA_SDP_DM_CBACK* p_cback) {
     return body(p_cback);
   };
@@ -87,7 +77,7 @@ extern struct BTA_SdpEnable BTA_SdpEnable;
 struct BTA_SdpRemoveRecordByUser {
   static tBTA_SDP_STATUS return_value;
   std::function<tBTA_SDP_STATUS(void* user_data)> body{
-      [](void* user_data) { return return_value; }};
+      [](void* /* user_data */) { return return_value; }};
   tBTA_SDP_STATUS operator()(void* user_data) { return body(user_data); };
 };
 extern struct BTA_SdpRemoveRecordByUser BTA_SdpRemoveRecordByUser;
@@ -99,9 +89,8 @@ struct BTA_SdpSearch {
   static tBTA_SDP_STATUS return_value;
   std::function<tBTA_SDP_STATUS(const RawAddress& bd_addr,
                                 const bluetooth::Uuid& uuid)>
-      body{[](const RawAddress& bd_addr, const bluetooth::Uuid& uuid) {
-        return return_value;
-      }};
+      body{[](const RawAddress& /* bd_addr */,
+              const bluetooth::Uuid& /* uuid */) { return return_value; }};
   tBTA_SDP_STATUS operator()(const RawAddress& bd_addr,
                              const bluetooth::Uuid& uuid) {
     return body(bd_addr, uuid);

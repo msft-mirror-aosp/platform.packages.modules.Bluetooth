@@ -21,16 +21,14 @@ import static org.mockito.Mockito.*;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
-import android.bluetooth.IBluetoothMapClient;
 import android.content.Context;
+import android.os.Looper;
 import android.os.UserHandle;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
-import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
@@ -38,13 +36,13 @@ import com.android.bluetooth.btservice.storage.DatabaseManager;
 
 import org.junit.After;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,33 +55,40 @@ public class MapClientTest {
     private MapClientService mService = null;
     private BluetoothAdapter mAdapter = null;
     private Context mTargetContext;
+    private boolean mIsAdapterServiceSet;
+    private boolean mIsMapClientServiceStarted;
+
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private MnsService mMockMnsService;
     @Mock private DatabaseManager mDatabaseManager;
 
-    @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
-
     @Before
     public void setUp() throws Exception {
         mTargetContext = InstrumentationRegistry.getTargetContext();
-        MockitoAnnotations.initMocks(this);
         TestUtils.setAdapterService(mAdapterService);
+        mIsAdapterServiceSet = true;
         when(mAdapterService.getDatabase()).thenReturn(mDatabaseManager);
-        doReturn(true, false).when(mAdapterService).isStartedProfile(anyString());
-        MapUtils.setMnsService(mMockMnsService);
-        TestUtils.startService(mServiceRule, MapClientService.class);
-        mService = MapClientService.getMapClientService();
-        Assert.assertNotNull(mService);
+        mIsMapClientServiceStarted = true;
+        Looper looper = null;
+        mService = new MapClientService(mTargetContext, looper, mMockMnsService);
+        mService.start();
+        mService.setAvailable(true);
         mAdapter = BluetoothAdapter.getDefaultAdapter();
     }
 
     @After
     public void tearDown() throws Exception {
-        TestUtils.stopService(mServiceRule, MapClientService.class);
-        mService = MapClientService.getMapClientService();
-        Assert.assertNull(mService);
-        TestUtils.clearAdapterService(mAdapterService);
+        if (mIsMapClientServiceStarted) {
+            mService.stop();
+            mService.cleanup();
+            mService = MapClientService.getMapClientService();
+            Assert.assertNull(mService);
+        }
+        if (mIsAdapterServiceSet) {
+            TestUtils.clearAdapterService(mAdapterService);
+        }
     }
 
     /**
@@ -102,9 +107,7 @@ public class MapClientTest {
         Assert.assertNotNull(MapClientService.getMapClientService());
     }
 
-    /**
-     * Test connection of one device.
-     */
+    /** Test connection of one device. */
     @Test
     public void testConnect() {
         // make sure there is no statemachine already defined for this device
@@ -124,13 +127,11 @@ public class MapClientTest {
         TestUtils.waitForLooperToFinishScheduledTask(sm.getHandler().getLooper());
 
         Assert.assertEquals(BluetoothProfile.STATE_CONNECTING, sm.getState());
-        mService.cleanupDevice(device);
+        mService.cleanupDevice(device, sm);
         Assert.assertNull(mService.getInstanceMap().get(device));
     }
 
-    /**
-     * Test that a PRIORITY_OFF device is not connected to
-     */
+    /** Test that a PRIORITY_OFF device is not connected to */
     @Test
     public void testConnectPriorityOffDevice() {
         // make sure there is no statemachine already defined for this device
@@ -147,9 +148,7 @@ public class MapClientTest {
         Assert.assertNull(map.get(device));
     }
 
-    /**
-     * Test connecting MAXIMUM_CONNECTED_DEVICES devices.
-     */
+    /** Test connecting MAXIMUM_CONNECTED_DEVICES devices. */
     @Test
     public void testConnectMaxDevices() {
         // Create bluetoothdevice & mock statemachine objects to be used in this test
@@ -182,9 +181,7 @@ public class MapClientTest {
         Assert.assertFalse(mService.connect(last));
     }
 
-    /**
-     * Test calling connect via Binder
-     */
+    /** Test calling connect via Binder */
     @Test
     public void testConnectViaBinder() {
         BluetoothDevice device = makeBluetoothDevice("11:11:11:11:11:11");

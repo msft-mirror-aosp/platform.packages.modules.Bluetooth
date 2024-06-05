@@ -5646,7 +5646,7 @@ struct VendorCapabilities_V_0_96 {
   filtering_support: 8,
   max_filter: 8,
   activity_energy_info_support: 8,
-  _fixed_ = 0x6000 : 16, // v0.96
+  _fixed_ = 0x0060 : 16, // v0.96
   total_num_of_advt_tracked: 16,
   extended_scan_support: 8,
   debug_logging_supported: 8,
@@ -5661,7 +5661,7 @@ struct VendorCapabilities_V_0_98 {
   filtering_support: 8,
   max_filter: 8,
   activity_energy_info_support: 8,
-  _fixed_ = 0x6200 : 16, // v0.98
+  _fixed_ = 0x0062 : 16, // v0.98
   total_num_of_advt_tracked: 16,
   extended_scan_support: 8,
   debug_logging_supported: 8,
@@ -5678,7 +5678,7 @@ struct VendorCapabilities_V_1_03 {
   filtering_support: 8,
   max_filter: 8,
   activity_energy_info_support: 8,
-  _fixed_ = 0x0301 : 16, // v1.03
+  _fixed_ = 0x0103 : 16, // v1.03
   total_num_of_advt_tracked: 16,
   extended_scan_support: 8,
   debug_logging_supported: 8,
@@ -5991,6 +5991,17 @@ packet LeApcfAdTypeFilter : LeApcf (apcf_opcode = AD_TYPE_FILTER) {
 }
 
 packet LeApcfAdTypeFilterComplete : LeApcfComplete (apcf_opcode = AD_TYPE_FILTER) {
+  apcf_action : ApcfAction,
+  apcf_available_spaces : 8,
+}
+
+packet LeApcfTransportDiscoveryService : LeApcf (apcf_opcode = TRANSPORT_DISCOVERY_SERVICE) {
+  apcf_action : ApcfAction,
+  apcf_filter_index : 8,
+  apcf_transport_discovery_data : 8[],
+}
+
+packet LeApcfTransportDiscoveryServiceComplete : LeApcfComplete (apcf_opcode = TRANSPORT_DISCOVERY_SERVICE) {
   apcf_action : ApcfAction,
   apcf_available_spaces : 8,
 }

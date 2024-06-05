@@ -1,22 +1,26 @@
 /*
-* Copyright (C) 2015 Samsung System LSI
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright (C) 2015 Samsung System LSI
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.android.bluetooth.map;
 
+import android.bluetooth.BluetoothProfile;
+import android.bluetooth.BluetoothProtoEnums;
 import android.util.Log;
 
+import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.SignedLongLong;
+import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -28,6 +32,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+// Next tag value for ContentProfileErrorReportUtils.report(): 1
 public class BluetoothMapConvoContactElement
         implements Comparable<BluetoothMapConvoContactElement> {
 
@@ -46,8 +51,6 @@ public class BluetoothMapConvoContactElement
     private static final String XML_ATT_UCI = "x_bt_uci";
     protected static final String XML_TAG_CONVOCONTACT = "convocontact";
     private static final String TAG = "BluetoothMapConvoContactElement";
-    private static final boolean D = false;
-    private static final boolean V = false;
 
     private String mUci = null;
     private String mName = null;
@@ -59,8 +62,8 @@ public class BluetoothMapConvoContactElement
     private SignedLongLong mBtUid = null;
     private int mChatState = -1;
 
-    public static BluetoothMapConvoContactElement createFromMapContact(MapContact contact,
-            String address) {
+    public static BluetoothMapConvoContactElement createFromMapContact(
+            MapContact contact, String address) {
         BluetoothMapConvoContactElement newElement = new BluetoothMapConvoContactElement();
         newElement.mUci = address;
         // TODO: For now we use the ID as BT-UID
@@ -69,9 +72,16 @@ public class BluetoothMapConvoContactElement
         return newElement;
     }
 
-    public BluetoothMapConvoContactElement(String uci, String name, String displayName,
-            String presenceStatus, int presenceAvailability, long lastActivity, int chatState,
-            int priority, String btUid) {
+    public BluetoothMapConvoContactElement(
+            String uci,
+            String name,
+            String displayName,
+            String presenceStatus,
+            int presenceAvailability,
+            long lastActivity,
+            int chatState,
+            int priority,
+            String btUid) {
         this.mUci = uci;
         this.mName = name;
         this.mDisplayName = displayName;
@@ -85,6 +95,11 @@ public class BluetoothMapConvoContactElement
             try {
                 this.mBtUid = SignedLongLong.fromString(btUid);
             } catch (UnsupportedEncodingException e) {
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.MAP,
+                        BluetoothProtoEnums.BLUETOOTH_MAP_CONVO_CONTACT_ELEMENT,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                        0);
                 Log.w(TAG, e);
             }
         }
@@ -154,7 +169,6 @@ public class BluetoothMapConvoContactElement
         this.mChatState = Integer.valueOf(chatState);
     }
 
-
     public String getLastActivityString() {
         SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
         Date date = new Date(mLastActivity);
@@ -201,12 +215,12 @@ public class BluetoothMapConvoContactElement
             xmlConvoElement.attribute(null, XML_ATT_UCI, mUci);
         }
         if (mDisplayName != null) {
-            xmlConvoElement.attribute(null, XML_ATT_DISPLAY_NAME,
-                    BluetoothMapUtils.stripInvalidChars(mDisplayName));
+            xmlConvoElement.attribute(
+                    null, XML_ATT_DISPLAY_NAME, BluetoothMapUtils.stripInvalidChars(mDisplayName));
         }
         if (mName != null) {
-            xmlConvoElement.attribute(null, XML_ATT_NAME,
-                    BluetoothMapUtils.stripInvalidChars(mName));
+            xmlConvoElement.attribute(
+                    null, XML_ATT_NAME, BluetoothMapUtils.stripInvalidChars(mName));
         }
         if (mChatState != -1) {
             xmlConvoElement.attribute(null, XML_ATT_CHAT_STATE, String.valueOf(mChatState));
@@ -218,8 +232,8 @@ public class BluetoothMapConvoContactElement
             xmlConvoElement.attribute(null, XML_ATT_X_BT_UID, mBtUid.toHexString());
         }
         if (mPresenceAvailability != -1) {
-            xmlConvoElement.attribute(null, XML_ATT_PRESENCE_AVAILABILITY,
-                    String.valueOf(mPresenceAvailability));
+            xmlConvoElement.attribute(
+                    null, XML_ATT_PRESENCE_AVAILABILITY, String.valueOf(mPresenceAvailability));
         }
         if (mPresenceStatus != null) {
             xmlConvoElement.attribute(null, XML_ATT_PRESENCE_STATUS, mPresenceStatus);
@@ -231,9 +245,9 @@ public class BluetoothMapConvoContactElement
         xmlConvoElement.endTag(null, XML_TAG_CONVOCONTACT);
     }
 
-
     /**
      * Call this function to create a BluetoothMapConvoContactElement. Will consume the end-tag.
+     *
      * @param parser must point into XML_TAG_CONVERSATION tag, hence attributes can be read.
      * @return
      * @throws IOException
@@ -270,9 +284,7 @@ public class BluetoothMapConvoContactElement
             } else if (attributeName.equalsIgnoreCase(XML_ATT_PRIORITY)) {
                 newElement.setPriority(Integer.parseInt(attributeValue));
             } else {
-                if (D) {
-                    Log.i(TAG, "Unknown XML attribute: " + parser.getAttributeName(i));
-                }
+                Log.w(TAG, "Unknown XML attribute: " + parser.getAttributeName(i));
             }
         }
         parser.nextTag(); // Consume the end-tag
@@ -291,14 +303,14 @@ public class BluetoothMapConvoContactElement
             return false;
         }
         BluetoothMapConvoContactElement other = (BluetoothMapConvoContactElement) obj;
-/*      As we use equals only for test, we don't compare auto assigned values
- *      if (mBtUid == null) {
-            if (other.mBtUid != null) {
-                return false;
-            }
-        } else if (!mBtUid.equals(other.mBtUid)) {
-            return false;
-        }*/
+        /*      As we use equals only for test, we don't compare auto assigned values
+        *      if (mBtUid == null) {
+                   if (other.mBtUid != null) {
+                       return false;
+                   }
+               } else if (!mBtUid.equals(other.mBtUid)) {
+                   return false;
+               }*/
         if (mChatState != other.mChatState) {
             return false;
         }
@@ -309,14 +321,14 @@ public class BluetoothMapConvoContactElement
         } else if (!mDisplayName.equals(other.mDisplayName)) {
             return false;
         }
-/*      As we use equals only for test, we don't compare auto assigned values
- *      if (mId == null) {
-            if (other.mId != null) {
-                return false;
-            }
-        } else if (!mId.equals(other.mId)) {
-            return false;
-        }*/
+        /*      As we use equals only for test, we don't compare auto assigned values
+        *      if (mId == null) {
+                   if (other.mId != null) {
+                       return false;
+                   }
+               } else if (!mId.equals(other.mId)) {
+                   return false;
+               }*/
         if (mLastActivity != other.mLastActivity) {
             return false;
         }
@@ -342,7 +354,4 @@ public class BluetoothMapConvoContactElement
         }
         return true;
     }
-
 }
-
-

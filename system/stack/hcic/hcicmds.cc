@@ -23,22 +23,21 @@
  *
  ******************************************************************************/
 
+#include <base/functional/bind.h>
 #include <base/functional/callback_forward.h>
-#include <stddef.h>
 #include <string.h>
 
-#include "bt_target.h"
-#include "device/include/device_iot_config.h"
 #include "device/include/esco_parameters.h"
-#include "gd/common/init_flags.h"
 #include "hcidefs.h"
 #include "hcimsgs.h"
+#include "internal_include/bt_target.h"
 #include "main/shim/acl_api.h"
 #include "osi/include/allocator.h"
-#include "stack/include/acl_hci_link_interface.h"
+#include "stack/include/bt_dev_class.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/bt_lap.h"
 #include "stack/include/bt_octets.h"
-#include "stack/include/btu.h"
+#include "stack/include/bt_types.h"
 #include "stack/include/btu_hcif.h"
 #include "types/raw_address.h"
 
@@ -49,10 +48,6 @@
 #define HCIC_INQ_INQ_LAP_OFF 0
 #define HCIC_INQ_DUR_OFF 3
 #define HCIC_INQ_RSP_CNT_OFF 4
-/* Inquiry */
-
-/* Inquiry Cancel */
-#define HCIC_PARAM_SIZE_INQ_CANCEL 0
 
 /* Periodic Inquiry Mode */
 #define HCIC_PARAM_SIZE_PER_INQ_MODE 9
@@ -291,6 +286,9 @@
 /* Read Local OOB Data */
 #define HCIC_PARAM_SIZE_R_LOCAL_OOB 0
 
+/* Read Local OOB Extended Data */
+#define HCIC_PARAM_SIZE_R_LOCAL_OOB_EXTENDED 0
+
 #define HCIC_PARAM_SIZE_UCONF_REPLY 6
 
 #define HCI_USER_CONF_BD_ADDR_OFF 0
@@ -321,8 +319,6 @@
 
 /* Read Default Erroneous Data Reporting */
 #define HCIC_PARAM_SIZE_R_ERR_DATA_RPT 0
-
-#define HCIC_PARAM_SIZE_ENHANCED_FLUSH 3
 
 #define HCIC_PARAM_SIZE_SEND_KEYPRESS_NOTIF 7
 
@@ -483,36 +479,6 @@
 #define HCIC_PARAM_SIZE_BLE_RC_PARAM_REQ_REPLY 14
 #define HCIC_PARAM_SIZE_BLE_RC_PARAM_REQ_NEG_REPLY 3
 
-static void btsnd_hcic_inquiry(const LAP inq_lap, uint8_t duration,
-                               uint8_t response_cnt) {
-  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
-  uint8_t* pp = (uint8_t*)(p + 1);
-
-  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_INQUIRY;
-  p->offset = 0;
-
-  UINT16_TO_STREAM(pp, HCI_INQUIRY);
-  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_INQUIRY);
-
-  LAP_TO_STREAM(pp, inq_lap);
-  UINT8_TO_STREAM(pp, duration);
-  UINT8_TO_STREAM(pp, response_cnt);
-
-  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
-static void btsnd_hcic_inq_cancel(void) {
-  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
-  uint8_t* pp = (uint8_t*)(p + 1);
-
-  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_INQ_CANCEL;
-  p->offset = 0;
-  UINT16_TO_STREAM(pp, HCI_INQUIRY_CANCEL);
-  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_INQ_CANCEL);
-
-  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
 static void btsnd_hcic_disconnect(uint16_t handle, uint8_t reason) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
@@ -555,21 +521,6 @@ void btsnd_hcic_create_conn_cancel(const RawAddress& dest) {
   UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_CREATE_CONN_CANCEL);
 
   BDADDR_TO_STREAM(pp, dest);
-
-  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
-void btsnd_hcic_accept_conn(const RawAddress& dest, uint8_t role) {
-  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
-  uint8_t* pp = (uint8_t*)(p + 1);
-
-  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_ACCEPT_CONN;
-  p->offset = 0;
-
-  UINT16_TO_STREAM(pp, HCI_ACCEPT_CONNECTION_REQUEST);
-  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_ACCEPT_CONN);
-  BDADDR_TO_STREAM(pp, dest);
-  UINT8_TO_STREAM(pp, role);
 
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
@@ -704,17 +655,6 @@ void btsnd_hcic_set_conn_encrypt(uint16_t handle, bool enable) {
   UINT8_TO_STREAM(pp, enable);
 
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
-void btsnd_hcic_rmt_name_req(const RawAddress& bd_addr,
-                             uint8_t page_scan_rep_mode, uint8_t page_scan_mode,
-                             uint16_t clock_offset) {
-  bluetooth::shim::ACL_RemoteNameRequest(bd_addr, page_scan_rep_mode,
-                                         page_scan_mode, clock_offset);
-}
-
-void btsnd_hcic_rmt_name_req_cancel(const RawAddress& bd_addr) {
-  bluetooth::shim::ACL_CancelRemoteNameRequest(bd_addr);
 }
 
 void btsnd_hcic_rmt_ext_features(uint16_t handle, uint8_t page_num) {
@@ -979,11 +919,11 @@ void btsnd_hcic_set_event_filter(uint8_t filt_type, uint8_t filt_cond_type,
 
     if (filt_cond_type == HCI_FILTER_COND_DEVICE_CLASS) {
       DEVCLASS_TO_STREAM(pp, filt_cond);
-      filt_cond += DEV_CLASS_LEN;
+      filt_cond += kDevClassLength;
       DEVCLASS_TO_STREAM(pp, filt_cond);
-      filt_cond += DEV_CLASS_LEN;
+      filt_cond += kDevClassLength;
 
-      filt_cond_len -= (2 * DEV_CLASS_LEN);
+      filt_cond_len -= (2 * kDevClassLength);
     } else if (filt_cond_type == HCI_FILTER_COND_BD_ADDR) {
       BDADDR_TO_STREAM(pp, *((RawAddress*)filt_cond));
       filt_cond += BD_ADDR_LEN;
@@ -1425,6 +1365,19 @@ void btsnd_hcic_read_local_oob_data(void) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
+void btsnd_hcic_read_local_oob_extended_data(void) {
+  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
+  uint8_t* pp = (uint8_t*)(p + 1);
+
+  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_R_LOCAL_OOB_EXTENDED;
+  p->offset = 0;
+
+  UINT16_TO_STREAM(pp, HCI_READ_LOCAL_OOB_EXTENDED_DATA);
+  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_R_LOCAL_OOB_EXTENDED);
+
+  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
+}
+
 void btsnd_hcic_user_conf_reply(const RawAddress& bd_addr, bool is_yes) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
@@ -1513,21 +1466,6 @@ void btsnd_hcic_rem_oob_neg_reply(const RawAddress& bd_addr) {
 
 /**** end of Simple Pairing Commands ****/
 
-void btsnd_hcic_enhanced_flush(uint16_t handle, uint8_t packet_type) {
-  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
-  uint8_t* pp = (uint8_t*)(p + 1);
-
-  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_ENHANCED_FLUSH;
-  p->offset = 0;
-  UINT16_TO_STREAM(pp, HCI_ENHANCED_FLUSH);
-  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_ENHANCED_FLUSH);
-
-  UINT16_TO_STREAM(pp, handle);
-  UINT8_TO_STREAM(pp, packet_type);
-
-  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
 /*************************
  * End of Lisbon Commands
  *************************/
@@ -1547,8 +1485,9 @@ void btsnd_hcic_read_rssi(uint16_t handle) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-static void read_encryption_key_size_complete(ReadEncKeySizeCb cb, uint8_t* return_parameters,
-                                              uint16_t return_parameters_length) {
+static void read_encryption_key_size_complete(
+    ReadEncKeySizeCb cb, uint8_t* return_parameters,
+    uint16_t /* return_parameters_length */) {
   uint8_t status;
   uint16_t handle;
   uint8_t key_size;
@@ -1668,7 +1607,7 @@ void btsnd_hcic_vendor_spec_cmd(uint16_t opcode, uint8_t len, uint8_t* p_data,
                      base::Unretained(p_cmd_cplt_cback), v_opcode));
 }
 
-void btsnd_hcic_configure_data_path(uint8_t data_path_direction,
+void btsnd_hcic_configure_data_path(hci_data_direction_t data_path_direction,
                                     uint8_t data_path_id,
                                     std::vector<uint8_t> vendor_config) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
@@ -1689,16 +1628,29 @@ void btsnd_hcic_configure_data_path(uint8_t data_path_direction,
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-bluetooth::legacy::hci::Interface interface_ = {
-    // LINK_CONTROL
-    .StartInquiry = btsnd_hcic_inquiry,                   // OCF 0x0401
-    .InquiryCancel = btsnd_hcic_inq_cancel,               // OCF 0x0402
-    .Disconnect = btsnd_hcic_disconnect,                  // OCF 0x0406
-    .ChangeConnectionPacketType = btsnd_hcic_change_conn_type,  // OCF 0x040F,
-    .StartRoleSwitch = btsnd_hcic_switch_role,               // OCF 0x080B,
+namespace bluetooth::legacy::hci {
+class InterfaceImpl : public Interface {
+  void Disconnect(uint16_t handle, uint8_t reason) const override {
+    btsnd_hcic_disconnect(handle, reason);
+  }
+  void ChangeConnectionPacketType(uint16_t handle,
+                                  uint16_t packet_types) const override {
+    btsnd_hcic_change_conn_type(handle, packet_types);
+  }
+  void StartRoleSwitch(const RawAddress& bd_addr, uint8_t role) const override {
+    btsnd_hcic_switch_role(bd_addr, role);
+  }
+  void ConfigureDataPath(hci_data_direction_t data_path_direction,
+                         uint8_t data_path_id,
+                         std::vector<uint8_t> vendor_config) const override {
+    btsnd_hcic_configure_data_path(data_path_direction, data_path_id,
+                                   vendor_config);
+  }
 };
 
-const bluetooth::legacy::hci::Interface&
-bluetooth::legacy::hci::GetInterface() {
-  return interface_;
+namespace {
+const InterfaceImpl interface_;
 }
+
+const Interface& GetInterface() { return interface_; }
+}  // namespace bluetooth::legacy::hci

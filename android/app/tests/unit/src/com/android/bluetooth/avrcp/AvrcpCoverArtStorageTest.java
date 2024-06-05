@@ -17,10 +17,7 @@
 package com.android.bluetooth.avrcp;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.common.truth.Truth.assertWithMessage;
 
-import android.content.Context;
-import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -46,8 +43,8 @@ public class AvrcpCoverArtStorageTest {
 
     @Before
     public void setUp() throws Exception {
-        mTestResources = TestUtils.getTestApplicationResources(
-                InstrumentationRegistry.getTargetContext());
+        mTestResources =
+                TestUtils.getTestApplicationResources(InstrumentationRegistry.getTargetContext());
 
         mAvrcpCoverArtStorage = new AvrcpCoverArtStorage(2);
     }
@@ -66,9 +63,7 @@ public class AvrcpCoverArtStorageTest {
         return new CoverArt(image);
     }
 
-    /**
-     * Make sure you can store and get an image handle for an image
-     */
+    /** Make sure you can store and get an image handle for an image */
     @Test
     public void testStoreImage() {
         CoverArt artwork = getCoverArt(com.android.bluetooth.tests.R.raw.image_200_200);
@@ -77,9 +72,7 @@ public class AvrcpCoverArtStorageTest {
         assertThat(mAvrcpCoverArtStorage.getImage(handle)).isEqualTo(artwork);
     }
 
-    /**
-     * Make sure an attempt to store an image that is already stored yields the previous handle
-     */
+    /** Make sure an attempt to store an image that is already stored yields the previous handle */
     @Test
     public void testStoreImageThatIsAlreadyStored() {
         CoverArt artwork = getCoverArt(com.android.bluetooth.tests.R.raw.image_200_200);
@@ -88,9 +81,7 @@ public class AvrcpCoverArtStorageTest {
         assertThat(mAvrcpCoverArtStorage.storeImage(artwork)).isEqualTo(handle);
     }
 
-    /**
-     * Make sure you can store and get an image handle for a second image thats not yet stored
-     */
+    /** Make sure you can store and get an image handle for a second image thats not yet stored */
     @Test
     public void testStoreSecondImage() {
         CoverArt artwork_green = getCoverArt(com.android.bluetooth.tests.R.raw.image_200_200);
@@ -107,7 +98,7 @@ public class AvrcpCoverArtStorageTest {
     /**
      * Make sure you can store and get an image handle for a third image thats not yet stored.
      *
-     * Since the cache size is set to 2 for these tests, this third image should force the least
+     * <p>Since the cache size is set to 2 for these tests, this third image should force the least
      * recently used image to be removed. This test has the LRU image as the first one entered.
      */
     @Test
@@ -139,7 +130,7 @@ public class AvrcpCoverArtStorageTest {
     /**
      * Make sure you can store and get an image handle for a third image thats not yet stored.
      *
-     * Since the cache size is set to 2 for these tests, this third image should force the least
+     * <p>Since the cache size is set to 2 for these tests, this third image should force the least
      * recently used image to be removed. This test has the LRU image as the second one entered.
      */
     @Test

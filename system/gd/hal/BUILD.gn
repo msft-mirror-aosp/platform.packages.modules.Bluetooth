@@ -16,6 +16,7 @@
 
 source_set("BluetoothHalSources") {
   sources = [
+    "link_clocker.cc",
     "snoop_logger.cc",
     "snoop_logger_socket.cc",
     "snoop_logger_socket_thread.cc",
@@ -38,6 +39,15 @@ source_set("BluetoothHalSources_hci_host") {
       "mgmt.cc",
     ]
   }
+
+  configs += [ "//bt/system/gd:gd_defaults" ]
+  deps = [ "//bt/system/gd:gd_default_deps" ]
+}
+
+source_set("BluetoothHalSources_ranging_host") {
+  sources = [
+    "ranging_hal_host.cc",
+  ]
 
   configs += [ "//bt/system/gd:gd_defaults" ]
   deps = [ "//bt/system/gd:gd_default_deps" ]

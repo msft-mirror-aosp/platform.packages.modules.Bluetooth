@@ -42,7 +42,6 @@ class AdvertiseHelper {
     private static final int LIST_32_BIT_SERVICE_SOLICITATION_UUIDS = 0x1F;
     private static final int SERVICE_DATA_32_BIT_UUID = 0X20;
     private static final int SERVICE_DATA_128_BIT_UUID = 0X21;
-    private static final int TRANSPORT_DISCOVERY_DATA = 0X26;
     private static final int MANUFACTURER_SPECIFIC_DATA = 0XFF;
 
     public static byte[] advertiseDataToBytes(AdvertiseData data, String name) {
@@ -179,7 +178,6 @@ class AdvertiseHelper {
             }
         }
 
-
         if (data.getServiceSolicitationUuids() != null) {
             ByteArrayOutputStream serviceUuids16 = new ByteArrayOutputStream();
             ByteArrayOutputStream serviceUuids32 = new ByteArrayOutputStream();
@@ -221,17 +219,21 @@ class AdvertiseHelper {
 
         for (TransportDiscoveryData transportDiscoveryData : data.getTransportDiscoveryData()) {
             ret.write(transportDiscoveryData.totalBytes());
-            ret.write(transportDiscoveryData.toByteArray(),
-                    0, transportDiscoveryData.totalBytes());
+            ret.write(transportDiscoveryData.toByteArray(), 0, transportDiscoveryData.totalBytes());
         }
         return ret.toByteArray();
     }
 
     static void check_length(int type, int length) {
         if (length > 255) {
-            Log.w(TAG, "Length of data with type " + Integer.toString(type, 16)
-                    + " is grater than 255");
-            throw new IllegalArgumentException("Length of data is grater than 255");
+            Log.w(
+                    TAG,
+                    "Length ("
+                            + length
+                            + ") of data with type "
+                            + Integer.toString(type, 16)
+                            + " is greater than 255");
+            throw new IllegalArgumentException("Length of data is greater than 255");
         }
     }
 }

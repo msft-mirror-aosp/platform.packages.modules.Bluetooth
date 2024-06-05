@@ -25,14 +25,13 @@
 
 #include <cstdint>
 
-#include "bt_target.h"  // Must be first to define build configuration
 #include "bta/dm/bta_dm_int.h"
 #include "bta/include/bta_api.h"
 #include "bta/include/bta_hh_api.h"
 #include "bta/include/bta_jv_api.h"
 #include "bta/sys/bta_sys.h"
+#include "internal_include/bt_target.h"
 #include "osi/include/properties.h"
-#include "types/raw_address.h"
 
 /* page timeout in 625uS */
 #ifndef BTA_DM_PAGE_TIMEOUT
@@ -129,6 +128,13 @@ tBTA_DM_PM_TYPE_QUALIFIER tBTA_DM_PM_CFG
 tBTA_DM_PM_TYPE_QUALIFIER tBTA_DM_PM_SPEC* get_bta_dm_pm_spec() {
   static uint16_t hs_sniff_delay = uint16_t(
       osi_property_get_int32("bluetooth.bta_hs_sniff_delay_ms.config", 7000));
+  static uint16_t fts_ops_idle_to_sniff_delay_ms =
+      uint16_t(osi_property_get_int32(
+          "bluetooth.bta_fts_ops_idle_to_sniff_delay_ms.config",
+          BTA_FTS_OPS_IDLE_TO_SNIFF_DELAY_MS));
+  static uint16_t ftc_idle_to_sniff_delay_ms = uint16_t(
+      osi_property_get_int32("bluetooth.bta_ftc_idle_to_sniff_delay_ms.config",
+                             BTA_FTC_IDLE_TO_SNIFF_DELAY_MS));
 
   static tBTA_DM_PM_TYPE_QUALIFIER tBTA_DM_PM_SPEC
       bta_dm_pm_spec[BTA_DM_NUM_PM_SPEC] = {
@@ -308,7 +314,7 @@ tBTA_DM_PM_TYPE_QUALIFIER tBTA_DM_PM_SPEC* get_bta_dm_pm_spec() {
                 {BTA_DM_PM_NO_ACTION, 0}}, /* sco open  */
                {{BTA_DM_PM_NO_ACTION, 0},
                 {BTA_DM_PM_NO_ACTION, 0}}, /* sco close   */
-               {{BTA_DM_PM_SNIFF_A2DP_IDX, BTA_FTC_IDLE_TO_SNIFF_DELAY_MS},
+               {{BTA_DM_PM_SNIFF_A2DP_IDX, ftc_idle_to_sniff_delay_ms},
                 {BTA_DM_PM_NO_ACTION, 0}},                        /* idle */
                {{BTA_DM_PM_ACTIVE, 0}, {BTA_DM_PM_NO_ACTION, 0}}, /* busy */
                {{BTA_DM_PM_NO_ACTION, 0},
@@ -330,7 +336,7 @@ tBTA_DM_PM_TYPE_QUALIFIER tBTA_DM_PM_SPEC* get_bta_dm_pm_spec() {
                 {BTA_DM_PM_NO_ACTION, 0}}, /* sco open  */
                {{BTA_DM_PM_NO_ACTION, 0},
                 {BTA_DM_PM_NO_ACTION, 0}}, /* sco close   */
-               {{BTA_DM_PM_SNIFF_A2DP_IDX, BTA_FTS_OPS_IDLE_TO_SNIFF_DELAY_MS},
+               {{BTA_DM_PM_SNIFF_A2DP_IDX, fts_ops_idle_to_sniff_delay_ms},
                 {BTA_DM_PM_NO_ACTION, 0}},                        /* idle */
                {{BTA_DM_PM_ACTIVE, 0}, {BTA_DM_PM_NO_ACTION, 0}}, /* busy */
                {{BTA_DM_PM_NO_ACTION, 0},
@@ -608,7 +614,6 @@ const tBTM_PM_PWR_MD* p_bta_dm_pm_md = &bta_dm_pm_md[0];
 
 /* The performance impact of EIR packet size
  *
- * When BTM_EIR_DEFAULT_FEC_REQUIRED is true,
  * 1 to 17 bytes,    DM1 is used and most robust.
  * 18 to 121 bytes,  DM3 is used but impacts inquiry scan time with large number
  *                    of devices.(almost double with 150 users)
@@ -616,42 +621,21 @@ const tBTM_PM_PWR_MD* p_bta_dm_pm_md = &bta_dm_pm_md[0];
  *                    small number of users. so it is not recommended.
  * 225 to 240 bytes, DH5 is used without FEC but it not recommended.
  *                    (same reason of DM5)
- *
- * When BTM_EIR_DEFAULT_FEC_REQUIRED is false,
- * 1 to 27 bytes,    DH1 is used but only robust at short range.
- * 28 to 183 bytes,  DH3 is used but only robust at short range and impacts
- * inquiry
- *                    scan time with large number of devices.
- * 184 to 240 bytes, DH5 is used but it not recommended.
-*/
-
-#if (BTA_EIR_CANNED_UUID_LIST == TRUE)
-/* for example */
-const uint8_t bta_dm_eir_uuid16_list[] = {
-    0x08, 0x11, /* Headset */
-    0x1E, 0x11, /* Handsfree */
-    0x0E, 0x11, /* AV Remote Control */
-    0x0B, 0x11, /* Audio Sink */
-};
-#endif  // BTA_EIR_CANNED_UUID_LIST
+ */
 
 /* Extended Inquiry Response */
 const tBTA_DM_EIR_CONF bta_dm_eir_cfg = {
     50, /* minimum length of local name when it is shortened */
         /* if length of local name is longer than this and EIR has not enough */
         /* room for all UUID list then local name is shortened to this length */
-#if (BTA_EIR_CANNED_UUID_LIST == TRUE)
-    8,    (uint8_t*)bta_dm_eir_uuid16_list,
-#else     // BTA_EIR_CANNED_UUID_LIST
     {
         /* mask of UUID list in EIR */
         0xFFFFFFFF, /* LSB is the first UUID of the first 32 UUIDs in
                        BTM_EIR_UUID_LKUP_TBL */
         0xFFFFFFFF  /* LSB is the first UUID of the next 32 UUIDs in
                        BTM_EIR_UUID_LKUP_TBL */
-        /* BTM_EIR_UUID_LKUP_TBL can be overrided */
+                    /* BTM_EIR_UUID_LKUP_TBL can be overrided */
     },
-#endif    // BTA_EIR_CANNED_UUID_LIST
     NULL, /* Inquiry TX power         */
     0,    /* length of flags in bytes */
     NULL, /* flags for EIR */

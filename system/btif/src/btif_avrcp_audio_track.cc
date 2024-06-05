@@ -19,17 +19,22 @@
 
 #include "btif_avrcp_audio_track.h"
 
+#ifndef __INTRODUCED_IN
+#define __INTRODUCED_IN(x)
+#endif
+
 #include <aaudio/AAudio.h>
-#include <base/logging.h>
+#include <bluetooth/log.h>
 #include <utils/StrongPointer.h>
 
 #include <algorithm>
-
-#include "bt_target.h"
-#include "osi/include/log.h"
 #include <thread>
 
+#include "internal_include/bt_target.h"
+#include "os/log.h"
+
 using namespace android;
+using namespace bluetooth;
 
 typedef struct {
   AAudioStream* stream;
@@ -39,11 +44,6 @@ typedef struct {
   size_t bufferLength;
   float gain;
 } BtifAvrcpAudioTrack;
-
-#if (DUMP_PCM_DATA == TRUE)
-FILE* outputPcmSampleFile;
-char outputFilename[50] = "/data/misc/bluedroid/output_sample.pcm";
-#endif
 
 // Maximum track gain that can be set.
 constexpr float kMaxTrackGain = 1.0f;
@@ -72,7 +72,7 @@ void BtifAvrcpAudioErrorHandle() {
                                          AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
   AAudioStreamBuilder_setErrorCallback(builder, ErrorCallback, nullptr);
   result = AAudioStreamBuilder_openStream(builder, &stream);
-  CHECK(result == AAUDIO_OK);
+  log::assert_that(result == AAUDIO_OK, "assert failed: result == AAUDIO_OK");
   AAudioStreamBuilder_delete(builder);
 
   BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(s_AudioEngine.trackHandle);
@@ -80,8 +80,8 @@ void BtifAvrcpAudioErrorHandle() {
   trackHolder->stream = stream;
 
   if (trackHolder != NULL && trackHolder->stream != NULL) {
-      LOG_DEBUG("%s AAudio Error handle: restart A2dp Sink AudioTrack", __func__);
-      AAudioStream_requestStart(trackHolder->stream);
+    log::debug("AAudio Error handle: restart A2dp Sink AudioTrack");
+    AAudioStream_requestStart(trackHolder->stream);
   }
   s_AudioEngine.thread = nullptr;
 }
@@ -96,8 +96,8 @@ void ErrorCallback(AAudioStream* stream,
 
 void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
                                 int channelCount) {
-  LOG_INFO("%s Track.cpp: btCreateTrack freq %d bps %d channel %d ", __func__,
-           trackFreq, bitsPerSample, channelCount);
+  log::info("Track.cpp: btCreateTrack freq {} bps {} channel {}", trackFreq,
+            bitsPerSample, channelCount);
 
   AAudioStreamBuilder* builder;
   AAudioStream* stream;
@@ -110,11 +110,11 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
                                          AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
   AAudioStreamBuilder_setErrorCallback(builder, ErrorCallback, nullptr);
   result = AAudioStreamBuilder_openStream(builder, &stream);
-  CHECK(result == AAUDIO_OK);
+  log::assert_that(result == AAUDIO_OK, "assert failed: result == AAUDIO_OK");
   AAudioStreamBuilder_delete(builder);
 
   BtifAvrcpAudioTrack* trackHolder = new BtifAvrcpAudioTrack;
-  CHECK(trackHolder != NULL);
+  log::assert_that(trackHolder != NULL, "assert failed: trackHolder != NULL");
   trackHolder->stream = stream;
   trackHolder->bitsPerSample = bitsPerSample;
   trackHolder->channelCount = channelCount;
@@ -123,9 +123,6 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
   trackHolder->gain = kMaxTrackGain;
   trackHolder->buffer = new float[trackHolder->bufferLength]();
 
-#if (DUMP_PCM_DATA == TRUE)
-  outputPcmSampleFile = fopen(outputFilename, "ab");
-#endif
   s_AudioEngine.trackFreq = trackFreq;
   s_AudioEngine.channelCount = channelCount;
   s_AudioEngine.trackHandle = (void*)trackHolder;
@@ -135,57 +132,51 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
 
 void BtifAvrcpAudioTrackStart(void* handle) {
   if (handle == NULL) {
-    LOG_ERROR("%s: handle is null!", __func__);
+    log::error("handle is null!");
     return;
   }
   BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(handle);
-  CHECK(trackHolder != NULL);
-  CHECK(trackHolder->stream != NULL);
-  LOG_VERBOSE("%s Track.cpp: btStartTrack", __func__);
+  log::assert_that(trackHolder != NULL, "assert failed: trackHolder != NULL");
+  log::assert_that(trackHolder->stream != NULL,
+                   "assert failed: trackHolder->stream != NULL");
+  log::verbose("Track.cpp: btStartTrack");
   AAudioStream_requestStart(trackHolder->stream);
 }
 
 void BtifAvrcpAudioTrackStop(void* handle) {
   if (handle == NULL) {
-    LOG_INFO("%s handle is null.", __func__);
+    log::info("handle is null.");
     return;
   }
   BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(handle);
   if (trackHolder != NULL && trackHolder->stream != NULL) {
-    LOG_VERBOSE("%s Track.cpp: btStopTrack", __func__);
+    log::verbose("Track.cpp: btStopTrack");
     AAudioStream_requestStop(trackHolder->stream);
   }
 }
 
 void BtifAvrcpAudioTrackDelete(void* handle) {
   if (handle == NULL) {
-    LOG_INFO("%s handle is null.", __func__);
+    log::info("handle is null.");
     return;
   }
   BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(handle);
   if (trackHolder != NULL && trackHolder->stream != NULL) {
-    LOG_VERBOSE("%s Track.cpp: btStartTrack", __func__);
+    log::verbose("Track.cpp: btStartTrack");
     AAudioStream_close(trackHolder->stream);
     delete trackHolder->buffer;
     delete trackHolder;
   }
-
-#if (DUMP_PCM_DATA == TRUE)
-  if (outputPcmSampleFile) {
-    fclose(outputPcmSampleFile);
-  }
-  outputPcmSampleFile = NULL;
-#endif
 }
 
 void BtifAvrcpAudioTrackPause(void* handle) {
   if (handle == NULL) {
-    LOG_INFO("%s handle is null.", __func__);
+    log::info("handle is null.");
     return;
   }
   BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(handle);
   if (trackHolder != NULL && trackHolder->stream != NULL) {
-    LOG_VERBOSE("%s Track.cpp: btPauseTrack", __func__);
+    log::verbose("Track.cpp: btPauseTrack");
     AAudioStream_requestPause(trackHolder->stream);
     AAudioStream_requestFlush(trackHolder->stream);
   }
@@ -193,18 +184,18 @@ void BtifAvrcpAudioTrackPause(void* handle) {
 
 void BtifAvrcpSetAudioTrackGain(void* handle, float gain) {
   if (handle == NULL) {
-    LOG_INFO("%s handle is null.", __func__);
+    log::info("handle is null.");
     return;
   }
   BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(handle);
   if (trackHolder != NULL) {
     const float clampedGain = std::clamp(gain, kMinTrackGain, kMaxTrackGain);
     if (clampedGain != gain) {
-      LOG_WARN("Out of bounds gain set. Clamping the gain from :%f to %f", gain,
-               clampedGain);
+      log::warn("Out of bounds gain set. Clamping the gain from :{:f} to {:f}",
+                gain, clampedGain);
     }
     trackHolder->gain = clampedGain;
-    LOG_INFO("Avrcp audio track gain is set to %f", trackHolder->gain);
+    log::info("Avrcp audio track gain is set to {:f}", trackHolder->gain);
   }
 }
 
@@ -269,14 +260,10 @@ constexpr int64_t kTimeoutNanos = 100 * 1000 * 1000;  // 100 ms
 int BtifAvrcpAudioTrackWriteData(void* handle, void* audioBuffer,
                                  int bufferLength) {
   BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(handle);
-  CHECK(trackHolder != NULL);
-  CHECK(trackHolder->stream != NULL);
+  log::assert_that(trackHolder != NULL, "assert failed: trackHolder != NULL");
+  log::assert_that(trackHolder->stream != NULL,
+                   "assert failed: trackHolder->stream != NULL");
   aaudio_result_t retval = -1;
-#if (DUMP_PCM_DATA == TRUE)
-  if (outputPcmSampleFile) {
-    fwrite((audioBuffer), 1, (size_t)bufferLength, outputPcmSampleFile);
-  }
-#endif
 
   size_t sampleSize = sampleSizeFor(trackHolder);
   int transcodedCount = 0;
@@ -289,8 +276,8 @@ int BtifAvrcpAudioTrackWriteData(void* handle, void* audioBuffer,
         trackHolder->stream, trackHolder->buffer,
         transcodedCount / (sampleSize * trackHolder->channelCount),
         kTimeoutNanos);
-    LOG_VERBOSE("%s Track.cpp: btWriteData len = %d ret = %d", __func__,
-                bufferLength, retval);
+    log::verbose("Track.cpp: btWriteData len = {} ret = {}", bufferLength,
+                 retval);
   } while (transcodedCount < bufferLength);
 
   return transcodedCount;

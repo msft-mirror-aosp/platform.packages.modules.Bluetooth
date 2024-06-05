@@ -28,11 +28,12 @@
 
 #include <cstdint>
 
-#include "bt_target.h"
+#include "internal_include/bt_target.h"
 #include "stack/include/avct_api.h"
 #include "stack/include/avrc_defs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/sdp_api.h"
+#include "stack/sdp/sdp_discovery_db.h"
 #include "types/raw_address.h"
 
 /*****************************************************************************
@@ -147,15 +148,6 @@
 #ifndef AVRC_DYNAMIC_AVRCP_ENABLE_PROPERTY
 #define AVRC_DYNAMIC_AVRCP_ENABLE_PROPERTY \
   "persist.bluetooth.dynamic_avrcp.enable"
-#endif
-
-/* Avrcp controller version key for bt_config.conf */
-#ifndef AVRCP_CONTROLLER_VERSION_CONFIG_KEY
-#define AVRCP_CONTROLLER_VERSION_CONFIG_KEY "AvrcpControllerVersion"
-#endif
-
-#ifndef AV_REM_CTRL_FEATURES_CONFIG_KEY
-#define AV_REM_CTRL_FEATURES_CONFIG_KEY "AvrcpPeerFeatures"
 #endif
 
 /* Supported categories */
@@ -688,29 +680,6 @@ uint16_t AVRC_VendorCmd(uint8_t handle, uint8_t label, tAVRC_MSG_VENDOR* p_msg);
  *
  *****************************************************************************/
 uint16_t AVRC_VendorRsp(uint8_t handle, uint8_t label, tAVRC_MSG_VENDOR* p_msg);
-
-/******************************************************************************
- *
- * Function         AVRC_SetTraceLevel
- *
- * Description      Sets the trace level for AVRC. If 0xff is passed, the
- *                  current trace level is returned.
- *
- *                  Input Parameters:
- *                      new_level:  The level to set the AVRC tracing to:
- *                      0xff-returns the current setting.
- *                      0-turns off tracing.
- *                      >= 1-Errors.
- *                      >= 2-Warnings.
- *                      >= 3-APIs.
- *                      >= 4-Events.
- *                      >= 5-Debug.
- *
- * Returns          The new trace level or current trace level if
- *                  the input parameter is 0xff.
- *
- *****************************************************************************/
-uint8_t AVRC_SetTraceLevel(uint8_t new_level);
 
 /*******************************************************************************
  *

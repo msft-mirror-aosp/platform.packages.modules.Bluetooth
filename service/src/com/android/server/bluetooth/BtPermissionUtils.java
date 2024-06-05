@@ -41,7 +41,6 @@ import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.permission.PermissionManager;
-import android.util.Log;
 
 import java.util.Objects;
 
@@ -87,7 +86,9 @@ class BtPermissionUtils {
             String message) {
         final String permission = BLUETOOTH_CONNECT;
         AttributionSource currentSource =
-                new AttributionSource.Builder(ctx.getAttributionSource()).setNext(source).build();
+                new AttributionSource.Builder(ctx.getAttributionSource())
+                        .setNext(Objects.requireNonNull(source))
+                        .build();
         final int result =
                 permissionManager.checkPermissionForDataDeliveryFromDataSource(
                         permission, currentSource, message);

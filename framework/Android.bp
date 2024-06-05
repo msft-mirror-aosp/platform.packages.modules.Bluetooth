@@ -2,11 +2,6 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-java_defaults {
-    name: "bluetooth-module-sdk-version-defaults",
-    min_sdk_version: "Tiramisu",
-}
-
 filegroup {
     name: "framework-bluetooth-sources",
     defaults: ["framework-sources-module-defaults"],
@@ -22,22 +17,27 @@ filegroup {
 // `framework-bluetooth-pre-jarjar`
 java_defaults {
     name: "framework-bluetooth-defaults",
-    defaults: ["bluetooth-module-sdk-version-defaults"],
     static_libs: [
         "PlatformProperties",
-        "modules-utils-synchronous-result-receiver",
+        "bluetooth_flags_java_lib",
+        "modules-utils-expresslog",
+        "service-bluetooth-binder-aidl",
     ],
     libs: [
         "app-compat-annotations",
         "framework-tethering.stubs.module_lib",
         "unsupportedappusage", // for android.compat.annotation.UnsupportedAppUsage
     ],
-    stub_only_libs: ["framework-tethering.stubs.module_lib"],
-    srcs: [
-        ":framework-bluetooth-sources",
-        ":libbluetooth-binder-aidl",
-        ":service-bluetooth-binder-aidl",
+    stub_only_libs: [
+        // TODO: b/332362688 --- Metalava should already ignore our library
+        "bluetooth_flags_java_lib",
+        "framework-tethering.stubs.module_lib",
     ],
+    srcs: [
+        ":Bluetooth-binder-aidl",
+        ":framework-bluetooth-sources",
+    ],
+    min_sdk_version: "Tiramisu",
 }
 
 // bluetooth-service needs pre-jarjared version of framework-bluetooth so it can reference copied utility
@@ -67,12 +67,10 @@ java_sdk_library {
 
     impl_library_visibility: [
         "//external/sl4a/Common",
-        "//frameworks/opt/wear",
         "//packages/modules/Bluetooth/android/app/tests/unit",
         "//packages/modules/Bluetooth/android/pandora/server",
         "//packages/modules/Bluetooth/framework/tests/bumble",
         "//packages/modules/Bluetooth/service",
-        "//packages/modules/Connectivity/nearby/tests/multidevices/clients/test_support/fastpair_provider",
         "//packages/services/Car/car-builtin-lib",
         // TODO(240720385)
         "//packages/services/Car/tests/carservice_unit_test",
@@ -85,9 +83,24 @@ java_sdk_library {
 
     permitted_packages: [
         "android.bluetooth",
-        // Created by jarjar rules.
-        "com.android.bluetooth.x",
+        "com.android.bluetooth.flags",
+        "com.android.bluetooth.jarjar",
     ],
+    errorprone: {
+        javacflags: [
+            "-Xep:InlineMeSuggester:OFF", // The @InlineMe annotation is not available
+
+            "-Xep:CatchFail:ERROR",
+            "-Xep:EmptyCatch:ERROR",
+            "-Xep:InvalidInlineTag:ERROR",
+            "-Xep:NonApiType:ERROR",
+            "-Xep:UnnecessaryAssignment:ERROR",
+            "-Xep:UnnecessaryAsync:ERROR",
+
+            "-XepExcludedPaths:.*/srcjars/.*", // Exclude generated files
+        ],
+        enabled: true,
+    },
     lint: {
         strict_updatability_linting: true,
     },
@@ -112,15 +125,6 @@ java_defaults {
 filegroup {
     name: "bluetooth-jarjar-rules",
     srcs: ["jarjar-rules.txt"],
-}
-
-java_api_contribution {
-    name: "framework-bluetooth-public-stubs",
-    api_surface: "public",
-    api_file: "api/current.txt",
-    visibility: [
-        "//build/orchestrator/apis",
-    ],
 }
 
 platform_compat_config {

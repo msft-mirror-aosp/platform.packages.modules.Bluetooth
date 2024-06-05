@@ -18,7 +18,7 @@
 
 #include "mock_btif_storage.h"
 
-#include "stack/include/btm_api_types.h"
+#include "stack/include/btm_sec_api_types.h"
 
 static bluetooth::manager::MockBtifStorageInterface* btif_storage_interface =
     nullptr;
@@ -31,5 +31,3 @@ void bluetooth::manager::SetMockBtifStorageInterface(
 void btif_storage_load_bonded_eatt(void) {
   btif_storage_interface->LoadBondedEatt();
 }
-
-tBTM_IO_CAP btif_storage_get_local_io_caps() { return BTM_IO_CAP_UNKNOWN; }

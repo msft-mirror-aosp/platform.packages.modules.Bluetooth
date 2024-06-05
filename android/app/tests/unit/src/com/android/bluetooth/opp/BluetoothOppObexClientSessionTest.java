@@ -44,10 +44,12 @@ import com.android.obex.ClientSession;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -55,21 +57,19 @@ import java.io.OutputStream;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppObexClientSessionTest {
-    @Mock
-    BluetoothMethodProxy mMethodProxy;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock BluetoothMethodProxy mMethodProxy;
 
     Context mTargetContext;
-    @Mock
-    BluetoothObexTransport mTransport;
+    @Mock BluetoothObexTransport mTransport;
 
     BluetoothOppObexClientSession mClientSession;
 
     @Before
     public void setUp() throws IOException {
-        MockitoAnnotations.initMocks(this);
         mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mClientSession = new BluetoothOppObexClientSession(mTargetContext, mTransport);
 
@@ -102,11 +102,24 @@ public class BluetoothOppObexClientSessionTest {
         int currentBytes = 42;
         int timestamp = 123456789;
         boolean mediaScanned = false;
-        BluetoothOppShareInfo shareInfo = new BluetoothOppShareInfo(0, uri, hintString, filename,
-                mimetype, direction, destination, visibility, confirm, status, totalBytes,
-                currentBytes, timestamp, mediaScanned);
-        BluetoothOppSendFileInfo sendFileInfo = new BluetoothOppSendFileInfo(
-                filename, mimetype, totalBytes, null, status);
+        BluetoothOppShareInfo shareInfo =
+                new BluetoothOppShareInfo(
+                        0,
+                        uri,
+                        hintString,
+                        filename,
+                        mimetype,
+                        direction,
+                        destination,
+                        visibility,
+                        confirm,
+                        status,
+                        totalBytes,
+                        currentBytes,
+                        timestamp,
+                        mediaScanned);
+        BluetoothOppSendFileInfo sendFileInfo =
+                new BluetoothOppSendFileInfo(filename, mimetype, totalBytes, null, status);
 
         BluetoothOppUtility.putSendFileInfo(uri, sendFileInfo);
         // throw exception so the session will not connect
@@ -114,15 +127,17 @@ public class BluetoothOppObexClientSessionTest {
         doThrow(new IOException()).when(mTransport).openOutputStream();
 
         CountDownLatch sessionCompletedLatch = new CountDownLatch(1);
-        mClientSession.start(new Handler(Looper.getMainLooper()) {
-            @Override
-            public void handleMessage(Message msg) {
-                super.handleMessage(msg);
-                if (msg.what == MSG_SESSION_COMPLETE) {
-                    sessionCompletedLatch.countDown();
-                }
-            }
-        }, 1);
+        mClientSession.start(
+                new Handler(Looper.getMainLooper()) {
+                    @Override
+                    public void handleMessage(Message msg) {
+                        super.handleMessage(msg);
+                        if (msg.what == MSG_SESSION_COMPLETE) {
+                            sessionCompletedLatch.countDown();
+                        }
+                    }
+                },
+                1);
 
         // make mWaitingForShare be false
         mClientSession.addShare(shareInfo);
@@ -135,7 +150,6 @@ public class BluetoothOppObexClientSessionTest {
         mClientSession.stop();
 
         BluetoothOppUtility.sSendFileMap.clear();
-
         assertThat(sessionCompletedLatch.await(3_000, TimeUnit.MILLISECONDS)).isTrue();
     }
 
@@ -156,14 +170,29 @@ public class BluetoothOppObexClientSessionTest {
         int currentBytes = 42;
         int timestamp = 123456789;
         boolean mediaScanned = false;
-        BluetoothOppShareInfo shareInfo = new BluetoothOppShareInfo(0, uri, hintString, filename,
-                mimetype, direction, destination, visibility, confirm, status, totalBytes,
-                currentBytes, timestamp, mediaScanned);
-        BluetoothOppSendFileInfo sendFileInfo = new BluetoothOppSendFileInfo(
-                filename, mimetype, totalBytes, null, status);
+        BluetoothOppShareInfo shareInfo =
+                new BluetoothOppShareInfo(
+                        0,
+                        uri,
+                        hintString,
+                        filename,
+                        mimetype,
+                        direction,
+                        destination,
+                        visibility,
+                        confirm,
+                        status,
+                        totalBytes,
+                        currentBytes,
+                        timestamp,
+                        mediaScanned);
+        BluetoothOppSendFileInfo sendFileInfo =
+                new BluetoothOppSendFileInfo(filename, mimetype, totalBytes, null, status);
 
-        BluetoothOppObexClientSession.ClientThread thread = mClientSession.new ClientThread(
-                mTargetContext, mTransport, 0);
+        BluetoothOppObexClientSession.ClientThread thread =
+                mClientSession
+                .new ClientThread(
+                        mTargetContext, mTransport, 0, new Handler(Looper.getMainLooper()));
         InputStream is = mock(InputStream.class);
         OutputStream os = mock(OutputStream.class);
         doReturn(is).when(mTransport).openInputStream();
@@ -171,24 +200,28 @@ public class BluetoothOppObexClientSessionTest {
         thread.mCs = new ClientSession(mTransport);
         thread.addShare(shareInfo);
 
-        //thread.mCs.put() will throw because the obexconnection is not connected
+        // thread.mCs.put() will throw because the obexconnection is not connected
         assertThat(thread.sendFile(sendFileInfo)).isEqualTo(BluetoothShare.STATUS_OBEX_DATA_ERROR);
     }
 
     @Test
     public void clientThreadInterrupt_sendMessageShareInterrupted() throws InterruptedException {
         CountDownLatch sessionInterruptLatch = new CountDownLatch(1);
-        mClientSession.mCallback = new Handler(Looper.getMainLooper()) {
-            @Override
-            public void handleMessage(Message msg) {
-                super.handleMessage(msg);
-                if (msg.what == MSG_SHARE_INTERRUPTED) {
-                    sessionInterruptLatch.countDown();
-                }
-            }
-        };
         BluetoothOppObexClientSession.ClientThread thread =
-                mClientSession.new ClientThread(mTargetContext, mTransport, 0);
+                mClientSession
+                .new ClientThread(
+                        mTargetContext,
+                        mTransport,
+                        0,
+                        new Handler(Looper.getMainLooper()) {
+                            @Override
+                            public void handleMessage(Message msg) {
+                                super.handleMessage(msg);
+                                if (msg.what == MSG_SHARE_INTERRUPTED) {
+                                    sessionInterruptLatch.countDown();
+                                }
+                            }
+                        });
         mClientSession.mWaitingForRemote = true;
         thread.interrupt();
         assertThat(sessionInterruptLatch.await(3_000, TimeUnit.MILLISECONDS)).isTrue();
@@ -199,8 +232,7 @@ public class BluetoothOppObexClientSessionTest {
         InputStream is = mock(InputStream.class);
         byte[] buffer = new byte[2];
         int size = 10000;
-        doReturn(500, 500, -1).when(is).read(eq(buffer), anyInt(),
-                anyInt());
+        doReturn(500, 500, -1).when(is).read(eq(buffer), anyInt(), anyInt());
         assertThat(BluetoothOppObexClientSession.readFully(is, buffer, size)).isEqualTo(1000);
     }
 }

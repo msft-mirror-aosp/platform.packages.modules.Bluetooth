@@ -1,7 +1,8 @@
 #[cxx::bridge(namespace = bluetooth::topshim::rust)]
 mod ffi {
     unsafe extern "C++" {
-        include!("gd/rust/topshim/common/type_alias.h");
+        include!("types/raw_address.h");
+        #[namespace = ""]
         type RawAddress = crate::btif::RawAddress;
     }
 
@@ -12,6 +13,8 @@ mod ffi {
 
         fn GetControllerInterface() -> UniquePtr<ControllerIntf>;
         fn read_local_addr(self: &ControllerIntf) -> RawAddress;
+        fn get_ble_supported_states(self: &ControllerIntf) -> u64;
+        fn get_ble_local_supported_features(self: &ControllerIntf) -> u64;
     }
 }
 
@@ -29,5 +32,13 @@ impl Controller {
 
     pub fn read_local_addr(&mut self) -> [u8; 6] {
         self.internal.read_local_addr().address
+    }
+
+    pub fn get_ble_supported_states(&mut self) -> u64 {
+        self.internal.get_ble_supported_states()
+    }
+
+    pub fn get_ble_local_supported_features(&mut self) -> u64 {
+        self.internal.get_ble_local_supported_features()
     }
 }

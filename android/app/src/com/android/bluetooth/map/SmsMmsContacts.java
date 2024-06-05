@@ -1,21 +1,22 @@
 /*
-* Copyright (C) 2015 Samsung System LSI
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright (C) 2015 Samsung System LSI
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package com.android.bluetooth.map;
 
-import android.annotation.TargetApi;
+import android.bluetooth.BluetoothProfile;
+import android.bluetooth.BluetoothProtoEnums;
 import android.content.ContentResolver;
 import android.database.Cursor;
 import android.net.Uri;
@@ -27,6 +28,8 @@ import android.provider.Telephony.MmsSms;
 import android.util.Log;
 
 import com.android.bluetooth.BluetoothMethodProxy;
+import com.android.bluetooth.BluetoothStatsLog;
+import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.Arrays;
@@ -34,14 +37,16 @@ import java.util.HashMap;
 import java.util.regex.Pattern;
 
 /**
- * Use these functions when extracting data for listings. It caches frequently used data to
- * speed up building large listings - e.g. before applying filtering.
+ * Use these functions when extracting data for listings. It caches frequently used data to speed up
+ * building large listings - e.g. before applying filtering.
  */
+// Next tag value for ContentProfileErrorReportUtils.report(): 2
 public class SmsMmsContacts {
 
     private static final String TAG = "SmsMmsContacts";
 
     private HashMap<Long, String> mPhoneNumbers = null;
+
     @VisibleForTesting
     final HashMap<String, MapContact> mNames = new HashMap<String, MapContact>(10);
 
@@ -50,8 +55,9 @@ public class SmsMmsContacts {
 
     @VisibleForTesting
     static final String[] ADDRESS_PROJECTION = {
-            CanonicalAddressesColumns._ID, CanonicalAddressesColumns.ADDRESS
+        CanonicalAddressesColumns._ID, CanonicalAddressesColumns.ADDRESS
     };
+
     private static final int COL_ADDR_ID =
             Arrays.asList(ADDRESS_PROJECTION).indexOf(CanonicalAddressesColumns._ID);
     private static final int COL_ADDR_ADDR =
@@ -59,6 +65,7 @@ public class SmsMmsContacts {
 
     @VisibleForTesting
     static final String[] CONTACT_PROJECTION = {Contacts._ID, Contacts.DISPLAY_NAME};
+
     private static final String CONTACT_SEL_VISIBLE = Contacts.IN_VISIBLE_GROUP + "=1";
     private static final int COL_CONTACT_ID =
             Arrays.asList(CONTACT_PROJECTION).indexOf(Contacts._ID);
@@ -66,8 +73,9 @@ public class SmsMmsContacts {
             Arrays.asList(CONTACT_PROJECTION).indexOf(Contacts.DISPLAY_NAME);
 
     /**
-     * Get a contacts phone number based on the canonical addresses id of the contact.
-     * (The ID listed in the Threads table.)
+     * Get a contacts phone number based on the canonical addresses id of the contact. (The ID
+     * listed in the Threads table.)
+     *
      * @param resolver the ContantResolver to be used.
      * @param id the id of the contact, as listed in the Threads table
      * @return the phone number of the contact - or null if id does not exist.
@@ -83,8 +91,10 @@ public class SmsMmsContacts {
 
     public static String getPhoneNumberUncached(ContentResolver resolver, long id) {
         String where = CanonicalAddressesColumns._ID + " = " + id;
-        Cursor c = BluetoothMethodProxy.getInstance().contentResolverQuery(resolver, ADDRESS_URI,
-                ADDRESS_PROJECTION, where, null, null);
+        Cursor c =
+                BluetoothMethodProxy.getInstance()
+                        .contentResolverQuery(
+                                resolver, ADDRESS_URI, ADDRESS_PROJECTION, where, null, null);
         try {
             if (c != null) {
                 if (c.moveToPosition(0)) {
@@ -92,6 +102,11 @@ public class SmsMmsContacts {
                 }
             }
             Log.e(TAG, "query failed");
+            ContentProfileErrorReportUtils.report(
+                    BluetoothProfile.MAP,
+                    BluetoothProtoEnums.BLUETOOTH_SMS_MMS_CONTACTS,
+                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
+                    0);
         } finally {
             if (c != null) {
                 c.close();
@@ -100,9 +115,7 @@ public class SmsMmsContacts {
         return null;
     }
 
-    /**
-     * Clears the local cache. Call after a listing is complete, to avoid using invalid data.
-     */
+    /** Clears the local cache. Call after a listing is complete, to avoid using invalid data. */
     public void clearCache() {
         if (mPhoneNumbers != null) {
             mPhoneNumbers.clear();
@@ -113,14 +126,17 @@ public class SmsMmsContacts {
     }
 
     /**
-     * Refreshes the cache, by clearing all cached values and fill the cache with the result of
-     * a new query.
+     * Refreshes the cache, by clearing all cached values and fill the cache with the result of a
+     * new query.
+     *
      * @param resolver the ContantResolver to be used.
      */
     @VisibleForTesting
     void fillPhoneCache(ContentResolver resolver) {
-        Cursor c = BluetoothMethodProxy.getInstance().contentResolverQuery(resolver, ADDRESS_URI,
-                ADDRESS_PROJECTION, null, null, null);
+        Cursor c =
+                BluetoothMethodProxy.getInstance()
+                        .contentResolverQuery(
+                                resolver, ADDRESS_URI, ADDRESS_PROJECTION, null, null, null);
         if (mPhoneNumbers == null) {
             int size = 0;
             if (c != null) {
@@ -142,6 +158,11 @@ public class SmsMmsContacts {
                 }
             } else {
                 Log.e(TAG, "query failed");
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.MAP,
+                        BluetoothProtoEnums.BLUETOOTH_SMS_MMS_CONTACTS,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
+                        1);
             }
         } finally {
             if (c != null) {
@@ -156,12 +177,13 @@ public class SmsMmsContacts {
 
     /**
      * Lookup a contacts name in the Android Contacts database.
+     *
      * @param phone the phone number of the contact
      * @param resolver the ContentResolver to use.
      * @return the name of the contact or null, if no contact was found.
      */
-    public MapContact getContactNameFromPhone(String phone, ContentResolver resolver,
-            String contactNameFilter) {
+    public MapContact getContactNameFromPhone(
+            String phone, ContentResolver resolver, String contactNameFilter) {
         MapContact contact = mNames.get(phone);
 
         if (contact != null) {
@@ -189,11 +211,13 @@ public class SmsMmsContacts {
         String[] selectionArgs = null;
         if (contactNameFilter != null) {
             selection += "AND " + ContactsContract.Contacts.DISPLAY_NAME + " like ?";
-            selectionArgs = new String[]{"%" + contactNameFilter.replace("*", "%") + "%"};
+            selectionArgs = new String[] {"%" + contactNameFilter.replace("*", "%") + "%"};
         }
 
-        Cursor c = BluetoothMethodProxy.getInstance().contentResolverQuery(resolver, uri,
-                CONTACT_PROJECTION, selection, selectionArgs, null);
+        Cursor c =
+                BluetoothMethodProxy.getInstance()
+                        .contentResolverQuery(
+                                resolver, uri, CONTACT_PROJECTION, selection, selectionArgs, null);
         try {
             if (c != null && c.getCount() >= 1) {
                 c.moveToFirst();

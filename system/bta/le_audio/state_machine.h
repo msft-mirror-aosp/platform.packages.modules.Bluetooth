@@ -26,7 +26,7 @@
 #include "hardware/bt_le_audio.h"
 #include "le_audio_types.h"
 
-namespace le_audio {
+namespace bluetooth::le_audio {
 
 /* State machine interface */
 class LeAudioGroupStateMachine {
@@ -39,6 +39,8 @@ class LeAudioGroupStateMachine {
         int group_id, bluetooth::le_audio::GroupStreamStatus status) = 0;
     virtual void OnStateTransitionTimeout(int group_id) = 0;
     virtual void OnUpdatedCisConfiguration(int group_id, uint8_t direction) = 0;
+    virtual void OnDeviceAutonomousStateTransitionTimeout(
+        LeAudioDevice* leAudioDevice) = 0;
   };
 
   virtual ~LeAudioGroupStateMachine() = default;
@@ -99,4 +101,4 @@ class LeAudioGroupStateMachine {
   virtual void ProcessHciNotifAclDisconnected(LeAudioDeviceGroup* group,
                                               LeAudioDevice* leAudioDevice) = 0;
 };
-}  // namespace le_audio
+}  // namespace bluetooth::le_audio

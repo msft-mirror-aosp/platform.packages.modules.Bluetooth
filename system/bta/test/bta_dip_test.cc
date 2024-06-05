@@ -21,6 +21,7 @@
 #include "bta/sdp/bta_sdp_int.h"
 #include "btif/include/btif_sock_sdp.h"
 #include "main/shim/metrics_api.h"
+#include "stack/include/sdpdefs.h"
 #include "test/mock/mock_stack_sdp_api.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -106,8 +107,8 @@ namespace testing {
 
 void bta_create_dip_sdp_record(bluetooth_sdp_record* record,
                                tSDP_DISC_REC* p_rec);
-void bta_sdp_search_cback(const RawAddress& bd_addr, tSDP_RESULT result,
-                          const void* user_data);
+void bta_sdp_search_cback(Uuid uuid, const RawAddress& bd_addr,
+                          tSDP_RESULT result);
 
 }  // namespace testing
 }  // namespace bluetooth
@@ -193,13 +194,20 @@ TEST_F(BtaDipTest, test_invalid_size_checks) {
   ASSERT_EQ(record.dip.product, 0);
   ASSERT_EQ(record.dip.version, 0);
   ASSERT_EQ(record.dip.primary_record, true);
+
+  // a size zero for boolean won't be accepted
+  g_attr_vendor_product_primary_record.attr_len_type =
+      (BOOLEAN_DESC_TYPE << 12) | 0;
+
+  record = {};
+
+  g_attr_vendor_product_primary_record.attr_value.v.u8 = 1;
+  bluetooth::testing::bta_create_dip_sdp_record(&record, &g_rec);
+  ASSERT_EQ(record.dip.primary_record, false);
 }
 
 
 TEST_F(BtaDipTest, test_bta_sdp_search_cback) {
-  Uuid* userdata = (Uuid*)malloc(sizeof(Uuid));
-
-  memcpy(userdata, &UUID_DIP, sizeof(UUID_DIP));
-  bluetooth::testing::bta_sdp_search_cback(RawAddress::kEmpty, SDP_SUCCESS,
-                                           userdata);
+  bluetooth::testing::bta_sdp_search_cback(UUID_DIP, RawAddress::kEmpty,
+                                           SDP_SUCCESS);
 }

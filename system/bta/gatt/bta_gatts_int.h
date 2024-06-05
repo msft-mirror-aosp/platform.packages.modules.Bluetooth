@@ -26,11 +26,11 @@
 
 #include <cstdint>
 
-#include "bt_target.h"  // Must be first to define build configuration
 #include "bta/include/bta_gatt_api.h"
 #include "bta/sys/bta_sys.h"
+#include "hardware/bt_gatt_types.h"
+#include "internal_include/bt_target.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_api_types.h"
 #include "stack/include/gatt_api.h"
 #include "types/bluetooth/uuid.h"
@@ -111,6 +111,7 @@ typedef struct {
   tGATT_IF server_if;
   tBTM_BLE_CONN_TYPE connection_type;
   tBT_TRANSPORT transport;
+  tBT_DEVICE_TYPE remote_addr_type;
 } tBTA_GATTS_API_OPEN;
 
 typedef struct {

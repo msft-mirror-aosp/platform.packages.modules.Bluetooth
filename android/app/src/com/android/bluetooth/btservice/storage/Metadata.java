@@ -33,24 +33,16 @@ import com.android.internal.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * @hide
- */
 @Entity(tableName = "metadata")
 @VisibleForTesting
 public class Metadata {
-    @PrimaryKey
-    @NonNull
-    private String address;
+    @PrimaryKey @NonNull private String address;
 
     public boolean migrated;
 
-    @Embedded
-    public ProfilePrioritiesEntity profileConnectionPolicies;
+    @Embedded public ProfilePrioritiesEntity profileConnectionPolicies;
 
-    @Embedded
-    @NonNull
-    public CustomizedMetadataEntity publicMetadata;
+    @Embedded @NonNull public CustomizedMetadataEntity publicMetadata;
 
     public @OptionalCodecsSupportStatus int a2dpSupportsOptionalCodecs;
     public @OptionalCodecsPreferenceStatus int a2dpOptionalCodecsEnabled;
@@ -58,8 +50,9 @@ public class Metadata {
     public long last_active_time;
     public boolean is_active_a2dp_device;
 
-    @Embedded
-    public AudioPolicyEntity audioPolicyMetadata;
+    public boolean isActiveHfpDevice;
+
+    @Embedded public AudioPolicyEntity audioPolicyMetadata;
 
     /**
      * The preferred profile to be used for {@link BluetoothDevice#AUDIO_MODE_OUTPUT_ONLY}. This can
@@ -70,14 +63,21 @@ public class Metadata {
     public int preferred_output_only_profile;
 
     /**
-     * The preferred profile to be used for {@link BluetoothDevice#AUDIO_MODE_DUPLEX}. This can
-     * be either {@link BluetoothProfile#HEADSET} or {@link BluetoothProfile#LE_AUDIO}. This value
-     * is only used if the remote device supports both HFP and LE Audio and both transports are
+     * The preferred profile to be used for {@link BluetoothDevice#AUDIO_MODE_DUPLEX}. This can be
+     * either {@link BluetoothProfile#HEADSET} or {@link BluetoothProfile#LE_AUDIO}. This value is
+     * only used if the remote device supports both HFP and LE Audio and both transports are
      * connected and active.
      */
     public int preferred_duplex_profile;
 
+    /** This is used to indicate whether device's active audio policy */
+    public int active_audio_device_policy;
+
     Metadata(String address) {
+        this(address, false, false);
+    }
+
+    private Metadata(String address, boolean isActiveA2dp, boolean isActiveHfp) {
         this.address = address;
         migrated = false;
         profileConnectionPolicies = new ProfilePrioritiesEntity();
@@ -85,15 +85,38 @@ public class Metadata {
         a2dpSupportsOptionalCodecs = BluetoothA2dp.OPTIONAL_CODECS_SUPPORT_UNKNOWN;
         a2dpOptionalCodecsEnabled = BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN;
         last_active_time = MetadataDatabase.sCurrentConnectionNumber++;
-        is_active_a2dp_device = true;
+        is_active_a2dp_device = isActiveA2dp;
+        isActiveHfpDevice = isActiveHfp;
         audioPolicyMetadata = new AudioPolicyEntity();
         preferred_output_only_profile = 0;
         preferred_duplex_profile = 0;
+        active_audio_device_policy = BluetoothDevice.ACTIVE_AUDIO_DEVICE_POLICY_DEFAULT;
     }
 
-    /**
-     * @hide
-     */
+    static final class Builder {
+        final String mAddress;
+        boolean mIsActiveA2dpDevice = false;
+        boolean mIsActiveHfpDevice = false;
+
+        Builder(String address) {
+            mAddress = address;
+        }
+
+        Builder setActiveA2dp() {
+            mIsActiveA2dpDevice = true;
+            return this;
+        }
+
+        Builder setActiveHfp() {
+            mIsActiveHfpDevice = true;
+            return this;
+        }
+
+        Metadata build() {
+            return new Metadata(mAddress, mIsActiveA2dpDevice, mIsActiveHfpDevice);
+        }
+    }
+
     @VisibleForTesting
     public String getAddress() {
         return address;
@@ -102,7 +125,8 @@ public class Metadata {
     /**
      * Returns the anonymized hardware address. The first three octets will be suppressed for
      * anonymization.
-     * <p> For example, "XX:XX:XX:AA:BB:CC".
+     *
+     * <p>For example, "XX:XX:XX:AA:BB:CC".
      *
      * @return Anonymized bluetooth hardware address as string
      */
@@ -181,9 +205,6 @@ public class Metadata {
         }
     }
 
-    /**
-     * @hide
-     */
     @VisibleForTesting
     public int getProfileConnectionPolicy(int profile) {
         switch (profile) {
@@ -318,12 +339,12 @@ public class Metadata {
             case BluetoothDevice.METADATA_GTBS_CCCD:
                 publicMetadata.gtbs_cccd = value;
                 break;
+            case BluetoothDevice.METADATA_EXCLUSIVE_MANAGER:
+                publicMetadata.exclusive_manager = value;
+                break;
         }
     }
 
-    /**
-     * @hide
-     */
     @VisibleForTesting
     public byte[] getCustomizedMeta(int key) {
         byte[] value = null;
@@ -415,6 +436,9 @@ public class Metadata {
             case BluetoothDevice.METADATA_GTBS_CCCD:
                 value = publicMetadata.gtbs_cccd;
                 break;
+            case BluetoothDevice.METADATA_EXCLUSIVE_MANAGER:
+                value = publicMetadata.exclusive_manager;
+                break;
         }
         return value;
     }
@@ -432,18 +456,20 @@ public class Metadata {
     public String toString() {
         StringBuilder builder = new StringBuilder();
         builder.append(getAnonymizedAddress())
-            .append(" last_active_time=" + last_active_time)
-            .append(" {profile connection policy(")
-            .append(profileConnectionPolicies)
-            .append("), optional codec(support=")
-            .append(a2dpSupportsOptionalCodecs)
-            .append("|enabled=")
-            .append(a2dpOptionalCodecsEnabled)
-            .append("), custom metadata(")
-            .append(publicMetadata)
-            .append("), hfp client audio policy(")
-            .append(audioPolicyMetadata)
-            .append(")}");
+                .append(" last_active_time=" + last_active_time)
+                .append(" {profile connection policy(")
+                .append(profileConnectionPolicies)
+                .append("), optional codec(support=")
+                .append(a2dpSupportsOptionalCodecs)
+                .append("|enabled=")
+                .append(a2dpOptionalCodecsEnabled)
+                .append("), isActiveHfpDevice (")
+                .append(isActiveHfpDevice)
+                .append("), custom metadata(")
+                .append(publicMetadata)
+                .append("), hfp client audio policy(")
+                .append(audioPolicyMetadata)
+                .append(")}");
 
         return builder.toString();
     }

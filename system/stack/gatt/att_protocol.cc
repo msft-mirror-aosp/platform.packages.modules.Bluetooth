@@ -22,16 +22,15 @@
  *
  ******************************************************************************/
 
-#include <base/logging.h>
+#include <bluetooth/log.h>
 
-#include "bt_target.h"
 #include "gatt_int.h"
+#include "internal_include/bt_target.h"
 #include "l2c_api.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/log.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/l2cdefs.h"
 #include "types/bluetooth/uuid.h"
 
 #define GATT_HDR_FIND_TYPE_VALUE_LEN 21
@@ -40,8 +39,10 @@
 
 using base::StringPrintf;
 using bluetooth::Uuid;
+using namespace bluetooth;
+
 /**********************************************************************
- *   ATT protocl message building utility                              *
+ *   ATT protocol message building utility                              *
  **********************************************************************/
 /*******************************************************************************
  *
@@ -205,7 +206,8 @@ static BT_HDR* attp_build_read_by_type_value_cmd(
 static BT_HDR* attp_build_read_multi_cmd(uint8_t op_code, uint16_t payload_size,
                                          uint16_t num_handle,
                                          uint16_t* p_handle) {
-  uint8_t *p, i = 0;
+  uint8_t* p;
+  uint16_t i = 0;
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(sizeof(BT_HDR) + num_handle * 2 + 1 +
                                       L2CAP_MIN_OFFSET);
 
@@ -291,13 +293,13 @@ static BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code,
   size_t pair_len;
   size_t size_now = 1;
 
-#define CHECK_SIZE()                       \
-  do {                                     \
-    if (size_now > payload_size) {         \
-      LOG_ERROR("payload size too small"); \
-      osi_free(p_buf);                     \
-      return nullptr;                      \
-    }                                      \
+#define CHECK_SIZE()                        \
+  do {                                      \
+    if (size_now > payload_size) {          \
+      log::error("payload size too small"); \
+      osi_free(p_buf);                      \
+      return nullptr;                       \
+    }                                       \
   } while (false)
 
   BT_HDR* p_buf =
@@ -338,8 +340,7 @@ static BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code,
         pair_len = (len + 2);
       }
 
-      LOG(WARNING) << StringPrintf(
-          "attribute value too long, to be truncated to %d", len);
+      log::warn("attribute value too long, to be truncated to {}", len);
     }
 
     size_now += len;
@@ -350,7 +351,7 @@ static BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code,
   // backfill pair len field
   if (op_code == GATT_RSP_READ_BY_TYPE) {
     if (pair_len > UINT8_MAX) {
-      LOG_ERROR("pair_len greater than %d", UINT8_MAX);
+      log::error("pair_len greater than {}", UINT8_MAX);
       osi_free(p_buf);
       return nullptr;
     }
@@ -376,18 +377,18 @@ tGATT_STATUS attp_send_msg_to_l2cap(tGATT_TCB& tcb, uint16_t lcid,
   uint16_t l2cap_ret;
 
   if (lcid == L2CAP_ATT_CID) {
-    LOG_DEBUG("Sending ATT message on att fixed channel");
+    log::debug("Sending ATT message on att fixed channel");
     l2cap_ret = L2CA_SendFixedChnlData(lcid, tcb.peer_bda, p_toL2CAP);
   } else {
-    LOG_DEBUG("Sending ATT message on lcid:%hu", lcid);
+    log::debug("Sending ATT message on lcid:{}", lcid);
     l2cap_ret = (uint16_t)L2CA_DataWrite(lcid, p_toL2CAP);
   }
 
   if (l2cap_ret == L2CAP_DW_FAILED) {
-    LOG(ERROR) << __func__ << ": failed to write data to L2CAP";
+    log::error("failed to write data to L2CAP");
     return GATT_INTERNAL_ERROR;
   } else if (l2cap_ret == L2CAP_DW_CONGESTED) {
-    VLOG(1) << StringPrintf("ATT congested, message accepted");
+    log::verbose("ATT congested, message accepted");
     return GATT_CONGESTED;
   }
   return GATT_SUCCESS;
@@ -398,11 +399,18 @@ BT_HDR* attp_build_sr_msg(tGATT_TCB& tcb, uint8_t op_code, tGATT_SR_MSG* p_msg,
                           uint16_t payload_size) {
   uint16_t offset = 0;
 
+  if (payload_size == 0) {
+    log::error(
+        "Cannot send response (op: 0x{:02x}) due to payload size = 0, {}",
+        op_code, tcb.peer_bda);
+    return nullptr;
+  }
+
   switch (op_code) {
     case GATT_RSP_READ_BLOB:
     case GATT_RSP_PREPARE_WRITE:
-      VLOG(1) << StringPrintf(
-          "ATT_RSP_READ_BLOB/GATT_RSP_PREPARE_WRITE: len = %d offset = %d",
+      log::verbose(
+          "ATT_RSP_READ_BLOB/GATT_RSP_PREPARE_WRITE: len = {} offset = {}",
           p_msg->attr_value.len, p_msg->attr_value.offset);
       offset = p_msg->attr_value.offset;
       FALLTHROUGH_INTENDED; /* FALLTHROUGH */
@@ -428,7 +436,7 @@ BT_HDR* attp_build_sr_msg(tGATT_TCB& tcb, uint8_t op_code, tGATT_SR_MSG* p_msg,
       return attp_build_mtu_cmd(op_code, p_msg->mtu);
 
     default:
-      LOG(FATAL) << "attp_build_sr_msg: unknown op code = " << +op_code;
+      log::fatal("attp_build_sr_msg: unknown op code = {}", op_code);
       return nullptr;
   }
 }
@@ -440,20 +448,19 @@ BT_HDR* attp_build_sr_msg(tGATT_TCB& tcb, uint8_t op_code, tGATT_SR_MSG* p_msg,
  * Description      This function sends the server response or indication
  *                  message to client.
  *
- * Parameter        p_tcb: pointer to the connecton control block.
+ * Parameter        p_tcb: pointer to the connection control block.
  *                  p_msg: pointer to message parameters structure.
  *
- * Returns          GATT_SUCCESS if sucessfully sent; otherwise error code.
- *
+ * Returns          GATT_SUCCESS if successfully sent; otherwise error code.
  *
  ******************************************************************************/
 tGATT_STATUS attp_send_sr_msg(tGATT_TCB& tcb, uint16_t cid, BT_HDR* p_msg) {
   if (p_msg == NULL) {
-    LOG_WARN("Unable to send empty message");
+    log::warn("Unable to send empty message");
     return GATT_NO_RESOURCES;
   }
 
-  LOG_DEBUG("Sending server response or indication message to client");
+  log::debug("Sending server response or indication message to client");
   p_msg->offset = L2CAP_MIN_OFFSET;
   return attp_send_msg_to_l2cap(tcb, cid, p_msg);
 }
@@ -477,24 +484,24 @@ static tGATT_STATUS attp_cl_send_cmd(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
   if (gatt_tcb_is_cid_busy(tcb, p_clcb->cid) &&
       cmd_code != GATT_HANDLE_VALUE_CONF) {
     if (gatt_cmd_enq(tcb, p_clcb, true, cmd_code, p_cmd)) {
-      LOG_DEBUG("Enqueued ATT command %p conn_id=0x%04x, cid=%d", p_clcb,
-                p_clcb->conn_id, p_clcb->cid);
+      log::debug("Enqueued ATT command {} conn_id=0x{:04x}, cid={}",
+                 fmt::ptr(p_clcb), p_clcb->conn_id, p_clcb->cid);
       return GATT_CMD_STARTED;
     }
 
-    LOG_ERROR("%s, cid 0x%02x already disconnected",
-             ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), p_clcb->cid);
+    log::error("{}, cid 0x{:02x} already disconnected", tcb.peer_bda,
+               p_clcb->cid);
     return GATT_INTERNAL_ERROR;
   }
 
-  LOG_DEBUG(
-      "Sending ATT command to l2cap cid:0x%04x eatt_channels:%u transport:%s",
-      p_clcb->cid, tcb.eatt, bt_transport_text(tcb.transport).c_str());
+  log::debug(
+      "Sending ATT command to l2cap cid:0x{:04x} eatt_channels:{} transport:{}",
+      p_clcb->cid, tcb.eatt, bt_transport_text(tcb.transport));
   tGATT_STATUS att_ret = attp_send_msg_to_l2cap(tcb, p_clcb->cid, p_cmd);
   if (att_ret != GATT_CONGESTED && att_ret != GATT_SUCCESS) {
-    LOG_WARN(
-        "Unable to send ATT command to l2cap layer %p conn_id=0x%04x, cid=%d",
-        p_clcb, p_clcb->conn_id, p_clcb->cid);
+    log::warn(
+        "Unable to send ATT command to l2cap layer {} conn_id=0x{:04x}, cid={}",
+        fmt::ptr(p_clcb), p_clcb->conn_id, p_clcb->cid);
     return GATT_INTERNAL_ERROR;
   }
 
@@ -502,12 +509,13 @@ static tGATT_STATUS attp_cl_send_cmd(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
     return att_ret;
   }
 
-  LOG_DEBUG("Starting ATT response timer %p conn_id=0x%04x, cid=%d", p_clcb,
-            p_clcb->conn_id, p_clcb->cid);
+  log::debug("Starting ATT response timer {} conn_id=0x{:04x}, cid={}",
+             fmt::ptr(p_clcb), p_clcb->conn_id, p_clcb->cid);
   gatt_start_rsp_timer(p_clcb);
   if (!gatt_cmd_enq(tcb, p_clcb, false, cmd_code, NULL)) {
-    LOG_ERROR("Could not queue sent request. %s, cid 0x%02x already disconnected",
-               ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), p_clcb->cid);
+    log::error(
+        "Could not queue sent request. {}, cid 0x{:02x} already disconnected",
+        tcb.peer_bda, p_clcb->cid);
     return GATT_INTERNAL_ERROR;
   }
 
@@ -550,12 +558,12 @@ tGATT_STATUS attp_send_cl_confirmation_msg(tGATT_TCB& tcb, uint16_t cid) {
  * Description      This function sends the client request or confirmation
  *                  message to server.
  *
- * Parameter        p_tcb: pointer to the connectino control block.
+ * Parameter        p_tcb: pointer to the connection control block.
  *                  p_clcb: clcb
  *                  op_code: message op code.
  *                  p_msg: pointer to message parameters structure.
  *
- * Returns          GATT_SUCCESS if sucessfully sent; otherwise error code.
+ * Returns          GATT_SUCCESS if successfully sent; otherwise error code.
  *
  *
  ******************************************************************************/
@@ -565,22 +573,25 @@ tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
   uint16_t offset = 0, handle;
 
   if (!p_clcb) {
-    LOG_ERROR("Missing p_clcb");
+    log::error("Missing p_clcb");
     return GATT_ILLEGAL_PARAMETER;
   }
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, p_clcb->cid);
+  if (payload_size == 0) {
+    log::error("Cannot send request (op: 0x{:02x}) due to payload size = 0, {}",
+               op_code, tcb.peer_bda);
+    return GATT_NO_RESOURCES;
+  }
 
   switch (op_code) {
     case GATT_REQ_MTU:
       if (p_msg->mtu > GATT_MAX_MTU_SIZE) {
-        LOG_WARN(
-            "GATT message MTU is larger than max GATT MTU size op_code:%hhu",
+        log::warn(
+            "GATT message MTU is larger than max GATT MTU size op_code:{}",
             op_code);
         return GATT_ILLEGAL_PARAMETER;
       }
-
-      tcb.payload_size = p_msg->mtu;
       p_cmd = attp_build_mtu_cmd(GATT_REQ_MTU, p_msg->mtu);
       break;
 
@@ -590,7 +601,7 @@ tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
       if (!GATT_HANDLE_IS_VALID(p_msg->browse.s_handle) ||
           !GATT_HANDLE_IS_VALID(p_msg->browse.e_handle) ||
           p_msg->browse.s_handle > p_msg->browse.e_handle) {
-        LOG_WARN("GATT message has invalid handle op_code:%hhu", op_code);
+        log::warn("GATT message has invalid handle op_code:{}", op_code);
         return GATT_ILLEGAL_PARAMETER;
       }
 
@@ -606,7 +617,7 @@ tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
           (op_code == GATT_REQ_READ) ? p_msg->handle : p_msg->read_blob.handle;
       /*  handle checking */
       if (!GATT_HANDLE_IS_VALID(handle)) {
-        LOG_WARN("GATT message has invalid handle op_code:%hhu", op_code);
+        log::warn("GATT message has invalid handle op_code:{}", op_code);
         return GATT_ILLEGAL_PARAMETER;
       }
 
@@ -620,7 +631,7 @@ tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
     case GATT_CMD_WRITE:
     case GATT_SIGN_CMD_WRITE:
       if (!GATT_HANDLE_IS_VALID(p_msg->attr_value.handle)) {
-        LOG_WARN("GATT message has invalid handle op_code:%hhu", op_code);
+        log::warn("GATT message has invalid handle op_code:{}", op_code);
         return GATT_ILLEGAL_PARAMETER;
       }
 
@@ -650,12 +661,24 @@ tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
   }
 
   if (p_cmd == NULL) {
-    LOG_WARN(
-        "Unable to build proper GATT message to send to peer device "
-        "op_code:%hhu",
+    log::warn(
+        "Unable to build proper GATT message to send to peer device op_code:{}",
         op_code);
     return GATT_NO_RESOURCES;
   }
 
   return attp_cl_send_cmd(tcb, p_clcb, op_code, p_cmd);
 }
+
+namespace bluetooth {
+namespace legacy {
+namespace testing {
+BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code,
+                             uint16_t handle, uint16_t offset, uint16_t len,
+                             uint8_t* p_data) {
+  return ::attp_build_value_cmd(payload_size, op_code, handle, offset, len,
+                                p_data);
+}
+}  // namespace testing
+}  // namespace legacy
+}  // namespace bluetooth

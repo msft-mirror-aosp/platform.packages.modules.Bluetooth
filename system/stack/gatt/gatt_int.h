@@ -21,19 +21,17 @@
 
 #include <base/functional/bind.h>
 #include <base/strings/stringprintf.h>
-#include <string.h>
+#include <bluetooth/log.h>
 
 #include <deque>
 #include <list>
-#include <queue>
 #include <unordered_set>
 #include <vector>
 
-#include "bt_target.h"
-#include "btm_ble_api.h"
-#include "btu.h"
 #include "common/init_flags.h"
 #include "gatt_api.h"
+#include "internal_include/bt_target.h"
+#include "macros.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "types/bluetooth/uuid.h"
@@ -57,10 +55,6 @@ typedef enum : uint8_t {
   GATT_SEC_ENC_PENDING = 6,     /* wait for link encryption pending */
 } tGATT_SEC_ACTION;
 
-#define CASE_RETURN_TEXT(code) \
-  case code:                   \
-    return #code
-
 inline std::string gatt_security_action_text(const tGATT_SEC_ACTION& action) {
   switch (action) {
     CASE_RETURN_TEXT(GATT_SEC_NONE);
@@ -74,8 +68,6 @@ inline std::string gatt_security_action_text(const tGATT_SEC_ACTION& action) {
       return base::StringPrintf("UNKNOWN[%hhu]", action);
   }
 }
-
-#undef CASE_RETURN_TEXT
 
 #define GATT_INDEX_INVALID 0xff
 
@@ -205,6 +197,7 @@ typedef struct {
   uint8_t listening{0}; /* if adv for all has been enabled */
   bool eatt_support{false};
   std::string name;
+  std::set<RawAddress> direct_connect_request;
 } tGATT_REG;
 
 struct tGATT_CLCB;
@@ -247,10 +240,6 @@ typedef enum : uint8_t {
   GATT_CH_OPEN = 4,
 } tGATT_CH_STATE;
 
-#define CASE_RETURN_TEXT(code) \
-  case code:                   \
-    return #code
-
 inline std::string gatt_channel_state_text(const tGATT_CH_STATE& state) {
   switch (state) {
     CASE_RETURN_TEXT(GATT_CH_CLOSE);
@@ -262,7 +251,6 @@ inline std::string gatt_channel_state_text(const tGATT_CH_STATE& state) {
       return base::StringPrintf("UNKNOWN[%hhu]", state);
   }
 }
-#undef CASE_RETURN_TEXT
 
 // If you change these values make sure to look at b/262219144 before.
 // Some platform rely on this to never changes
@@ -532,7 +520,7 @@ tGATT_STATUS attp_send_msg_to_l2cap(tGATT_TCB& tcb, uint16_t cid,
 
 /* utility functions */
 uint16_t gatt_get_local_mtu(void);
-uint8_t* gatt_dbg_op_name(uint8_t op_code);
+char const* gatt_dbg_op_name(uint8_t op_code);
 uint32_t gatt_add_sdp_record(const bluetooth::Uuid& uuid, uint16_t start_hdl,
                              uint16_t end_hdl);
 bool gatt_parse_uuid_from_cmd(bluetooth::Uuid* p_uuid, uint16_t len,
@@ -590,7 +578,7 @@ void gatt_sr_send_req_callback(uint16_t conn_id, uint32_t trans_id,
 uint32_t gatt_sr_enqueue_cmd(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code,
                              uint16_t handle);
 bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda);
-void gatt_notify_phy_updated(tGATT_STATUS status, uint16_t handle,
+void gatt_notify_phy_updated(tHCI_STATUS status, uint16_t handle,
                              uint8_t tx_phy, uint8_t rx_phy);
 void gatt_notify_subrate_change(uint16_t handle, uint16_t subrate_factor,
                                 uint16_t latency, uint16_t cont_num,
@@ -630,7 +618,6 @@ void gatt_sr_update_cback_cnt(tGATT_TCB& p_tcb, uint16_t cid, tGATT_IF gatt_if,
 void gatt_sr_update_prep_cnt(tGATT_TCB& tcb, tGATT_IF gatt_if, bool is_inc,
                              bool is_reset_first);
 
-uint8_t gatt_num_clcb_by_bd_addr(const RawAddress& bda);
 tGATT_TCB* gatt_find_tcb_by_cid(uint16_t lcid);
 tGATT_TCB* gatt_allocate_tcb_by_bdaddr(const RawAddress& bda,
                                        tBT_TRANSPORT transport);
@@ -703,5 +690,10 @@ bluetooth::Uuid* gatts_get_service_uuid(tGATT_SVC_DB* p_db);
 
 /* gatt_sr_hash.cc */
 Octet16 gatts_calculate_database_hash(std::list<tGATT_SRV_LIST_ELEM>* lst_ptr);
+
+namespace fmt {
+template <>
+struct formatter<tGATT_CH_STATE> : enum_formatter<tGATT_CH_STATE> {};
+}  // namespace fmt
 
 #endif

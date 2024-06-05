@@ -19,7 +19,7 @@
 #include <optional>
 
 #include "stack/include/bt_hdr.h"
-#include "stack/include/bt_types.h"
+#include "stack/include/bt_octets.h"
 #include "stack/include/hci_error_code.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
@@ -29,6 +29,7 @@ namespace shim {
 
 void ACL_CreateClassicConnection(const RawAddress& raw_address);
 void ACL_CancelClassicConnection(const RawAddress& raw_address);
+bool ACL_DeviceAlreadyConnected(const tBLE_BD_ADDR& legacy_address_with_type);
 bool ACL_AcceptLeConnectionFrom(const tBLE_BD_ADDR& legacy_address_with_type,
                                 bool is_direct);
 void ACL_IgnoreLeConnectionFrom(const tBLE_BD_ADDR& legacy_address_with_type);
@@ -36,6 +37,7 @@ void ACL_IgnoreLeConnectionFrom(const tBLE_BD_ADDR& legacy_address_with_type);
 void ACL_Disconnect(uint16_t handle, bool is_classic, tHCI_STATUS reason,
                     std::string comment);
 void ACL_WriteData(uint16_t handle, BT_HDR* p_buf);
+void ACL_Flush(uint16_t handle);
 void ACL_ConfigureLePrivacy(bool is_le_privacy_enabled);
 void ACL_Shutdown();
 void ACL_IgnoreAllLeConnections();
@@ -59,6 +61,10 @@ void ACL_ClearFilterAcceptList();
 void ACL_LeSetDefaultSubrate(uint16_t subrate_min, uint16_t subrate_max,
                              uint16_t max_latency, uint16_t cont_num,
                              uint16_t sup_tout);
+void ACL_SendConnectionParameterUpdateRequest(
+    uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
+    uint16_t conn_latency, uint16_t conn_timeout, uint16_t min_ce_len,
+    uint16_t max_ce_len);
 void ACL_LeSubrateRequest(uint16_t hci_handle, uint16_t subrate_min,
                           uint16_t subrate_max, uint16_t max_latency,
                           uint16_t cont_num, uint16_t sup_tout);

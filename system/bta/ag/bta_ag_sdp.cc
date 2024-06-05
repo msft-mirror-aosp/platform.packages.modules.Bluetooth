@@ -25,26 +25,28 @@
 
 #include <base/functional/bind.h>
 #include <base/location.h>
-#include <base/logging.h>
+#include <bluetooth/log.h>
 
-#include "bt_target.h"  // Legacy stack config
-#include "bt_trace.h"   // Legacy trace logging
 #include "bta/ag/bta_ag_int.h"
+#include "bta/include/bta_hfp_api.h"
+#include "bta/include/bta_rfcomm_scn.h"
 #include "btif/include/btif_config.h"
 #include "common/init_flags.h"
 #include "device/include/interop.h"
 #include "device/include/interop_config.h"
-#include "os/log.h"
+#include "internal_include/bt_target.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "stack/btm/btm_sco_hfp_hal.h"
-#include "stack/include/btm_api.h"
-#include "stack/include/btu.h"  // do_in_main_thread
-#include "stack/include/port_api.h"
+#include "stack/include/bt_types.h"
+#include "stack/include/bt_uuid16.h"
+#include "stack/include/main_thread.h"
 #include "stack/include/sdp_api.h"
+#include "storage/config_keys.h"
 #include "types/bluetooth/uuid.h"
 
 using namespace bluetooth::legacy::stack::sdp;
+using namespace bluetooth;
 using bluetooth::Uuid;
 
 /* Number of protocol elements in protocol element list. */
@@ -83,7 +85,7 @@ const tBTA_AG_SDP_CBACK bta_ag_sdp_cback_tbl[] = {
  *
  ******************************************************************************/
 static void bta_ag_sdp_cback(uint16_t status, uint8_t idx) {
-  APPL_TRACE_DEBUG("%s status:0x%x", __func__, status);
+  log::verbose("status:0x{:x}", status);
   tBTA_AG_SCB* p_scb = bta_ag_scb_by_idx(idx);
   if (p_scb) {
     uint16_t event;
@@ -111,28 +113,22 @@ static void bta_ag_sdp_cback(uint16_t status, uint8_t idx) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_sdp_cback_1(UNUSED_ATTR const RawAddress& bd_addr,
-                        tSDP_STATUS status) {
+void bta_ag_sdp_cback_1(const RawAddress& /* bd_addr */, tSDP_STATUS status) {
   bta_ag_sdp_cback(status, 1);
 }
-void bta_ag_sdp_cback_2(UNUSED_ATTR const RawAddress& bd_addr,
-                        tSDP_STATUS status) {
+void bta_ag_sdp_cback_2(const RawAddress& /* bd_addr */, tSDP_STATUS status) {
   bta_ag_sdp_cback(status, 2);
 }
-void bta_ag_sdp_cback_3(UNUSED_ATTR const RawAddress& bd_addr,
-                        tSDP_STATUS status) {
+void bta_ag_sdp_cback_3(const RawAddress& /* bd_addr */, tSDP_STATUS status) {
   bta_ag_sdp_cback(status, 3);
 }
-void bta_ag_sdp_cback_4(UNUSED_ATTR const RawAddress& bd_addr,
-                        tSDP_STATUS status) {
+void bta_ag_sdp_cback_4(const RawAddress& /* bd_addr */, tSDP_STATUS status) {
   bta_ag_sdp_cback(status, 4);
 }
-void bta_ag_sdp_cback_5(UNUSED_ATTR const RawAddress& bd_addr,
-                        tSDP_STATUS status) {
+void bta_ag_sdp_cback_5(const RawAddress& /* bd_addr */, tSDP_STATUS status) {
   bta_ag_sdp_cback(status, 5);
 }
-void bta_ag_sdp_cback_6(UNUSED_ATTR const RawAddress& bd_addr,
-                        tSDP_STATUS status) {
+void bta_ag_sdp_cback_6(const RawAddress& /* bd_addr */, tSDP_STATUS status) {
   bta_ag_sdp_cback(status, 6);
 }
 
@@ -162,8 +158,8 @@ bool bta_ag_add_record(uint16_t service_uuid, const char* p_service_name,
   bool codec_supported = false;
   uint8_t buf[2];
 
-  APPL_TRACE_DEBUG("%s uuid: %x", __func__, service_uuid);
-  LOG_INFO("features: %d", features);
+  log::verbose("uuid: {:x}", service_uuid);
+  log::info("features: {}", features);
 
   for (auto& proto_element : proto_elem_list) {
     proto_element = {};
@@ -258,7 +254,7 @@ void bta_ag_create_records(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
       if (bta_ag_cb.profile[i].sdp_handle == 0) {
         bta_ag_cb.profile[i].sdp_handle =
             get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
-        bta_ag_cb.profile[i].scn = BTM_AllocateSCN();
+        bta_ag_cb.profile[i].scn = BTA_AllocateSCN();
         bta_ag_add_record(bta_ag_uuid[i], data.api_register.p_name[i],
                           bta_ag_cb.profile[i].scn, data.api_register.features,
                           bta_ag_cb.profile[i].sdp_handle);
@@ -302,13 +298,16 @@ void bta_ag_del_records(tBTA_AG_SCB* p_scb) {
     /* if service registered for this scb and not registered for any other scb
      */
     if (((services & 1) == 1) && ((others & 1) == 0)) {
-      APPL_TRACE_DEBUG("bta_ag_del_records %d", i);
+      log::verbose("bta_ag_del_records {}", i);
       if (bta_ag_cb.profile[i].sdp_handle != 0) {
-        get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(
-            bta_ag_cb.profile[i].sdp_handle);
+        if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(
+                bta_ag_cb.profile[i].sdp_handle)) {
+          log::warn("Unable to delete record sdp_handle:{}",
+                    bta_ag_cb.profile[i].sdp_handle);
+        }
         bta_ag_cb.profile[i].sdp_handle = 0;
       }
-      BTM_FreeSCN(bta_ag_cb.profile[i].scn);
+      BTA_FreeSCN(bta_ag_cb.profile[i].scn);
       bta_sys_remove_uuid(bta_ag_uuid[i]);
     }
   }
@@ -379,8 +378,8 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
     uint16_t peer_version = HFP_HSP_VERSION_UNKNOWN;
     if (!get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
             p_rec, uuid, &peer_version)) {
-      APPL_TRACE_WARNING("%s: Get peer_version failed, using default 0x%04x",
-                         __func__, p_scb->peer_version);
+      log::warn("Get peer_version failed, using default 0x{:04x}",
+                p_scb->peer_version);
       peer_version = p_scb->peer_version;
     }
 
@@ -389,12 +388,11 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
       if (peer_version != p_scb->peer_version) {
         p_scb->peer_version = peer_version;
         if (btif_config_set_bin(
-                p_scb->peer_addr.ToString(), HFP_VERSION_CONFIG_KEY,
+                p_scb->peer_addr.ToString(), BTIF_STORAGE_KEY_HFP_VERSION,
                 (const uint8_t*)&peer_version, sizeof(peer_version))) {
         } else {
-          APPL_TRACE_WARNING("%s: Failed to store peer HFP version for %s",
-                             __func__,
-                             ADDRESS_TO_LOGGABLE_CSTR(p_scb->peer_addr));
+          log::warn("Failed to store peer HFP version for {}",
+                    p_scb->peer_addr);
         }
       }
       /* get features if HFP */
@@ -419,13 +417,13 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
         }
         if (sdp_features != p_scb->peer_sdp_features) {
           p_scb->peer_sdp_features = sdp_features;
-          if (btif_config_set_bin(
-                  p_scb->peer_addr.ToString(), HFP_SDP_FEATURES_CONFIG_KEY,
-                  (const uint8_t*)&sdp_features, sizeof(sdp_features))) {
+          if (btif_config_set_bin(p_scb->peer_addr.ToString(),
+                                  BTIF_STORAGE_KEY_HFP_SDP_FEATURES,
+                                  (const uint8_t*)&sdp_features,
+                                  sizeof(sdp_features))) {
           } else {
-            APPL_TRACE_WARNING(
-                "%s: Failed to store peer HFP SDP Features for %s", __func__,
-                ADDRESS_TO_LOGGABLE_CSTR(p_scb->peer_addr));
+            log::warn("Failed to store peer HFP SDP Features for {}",
+                      p_scb->peer_addr);
           }
         }
         if (p_scb->peer_features == 0) {
@@ -532,7 +530,7 @@ void bta_ag_do_disc(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
   }
 
   if (p_scb->p_disc_db != nullptr) {
-    LOG_ERROR("Discovery already in progress... returning.");
+    log::error("Discovery already in progress... returning.");
     return;
   }
 
@@ -547,12 +545,11 @@ void bta_ag_do_disc(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
             bta_ag_sdp_cback_tbl[bta_ag_scb_to_idx(p_scb) - 1])) {
       return;
     } else {
-      LOG(ERROR) << __func__ << ": failed to start SDP discovery for "
-                 << p_scb->peer_addr;
+      log::error("failed to start SDP discovery for {}", p_scb->peer_addr);
     }
   } else {
-    LOG(ERROR) << __func__ << ": failed to init SDP discovery database for "
-               << p_scb->peer_addr;
+    log::error("failed to init SDP discovery database for {}",
+               p_scb->peer_addr);
   }
   // Failure actions
   bta_ag_free_db(p_scb, tBTA_AG_DATA::kEmpty);

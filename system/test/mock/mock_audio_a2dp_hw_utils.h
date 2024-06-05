@@ -25,11 +25,6 @@
 #include <functional>
 
 // Original included files, if any
-// NOTE: Since this is a mock file with mock definitions some number of
-//       include files may not be required.  The include-what-you-use
-//       still applies, but crafting proper inclusion is out of scope
-//       for this effort.  This compilation unit may compile as-is, or
-//       may need attention to prune from (or add to ) the inclusion set.
 #include "audio_a2dp_hw/include/audio_a2dp_hw.h"
 
 // Original usings
@@ -47,7 +42,7 @@ namespace audio_a2dp_hw_utils {
 struct audio_a2dp_hw_dump_ctrl_event {
   static const char* return_value;
   std::function<const char*(tA2DP_CTRL_CMD event)> body{
-      [](tA2DP_CTRL_CMD event) { return return_value; }};
+      [](tA2DP_CTRL_CMD /* event */) { return return_value; }};
   const char* operator()(tA2DP_CTRL_CMD event) { return body(event); };
 };
 extern struct audio_a2dp_hw_dump_ctrl_event audio_a2dp_hw_dump_ctrl_event;

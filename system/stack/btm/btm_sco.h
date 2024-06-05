@@ -16,11 +16,16 @@
 
 #pragma once
 
+#include <bluetooth/log.h>
+
 #include <cstdint>
 #include <string>
+#include <vector>
 
-#include "btm_sco_hfp_hal.h"
 #include "device/include/esco_parameters.h"
+#include "internal_include/bt_target.h"
+#include "macros.h"
+#include "raw_address.h"
 #include "stack/btm/sco_pkt_status.h"
 #include "stack/include/btm_api_types.h"
 
@@ -186,12 +191,6 @@ size_t dequeue_packet(const uint8_t** output);
 tBTM_SCO_PKT_STATUS* get_pkt_status();
 }  // namespace bluetooth::audio::sco::swb
 
-#ifndef CASE_RETURN_TEXT
-#define CASE_RETURN_TEXT(code) \
-  case code:                   \
-    return #code
-#endif
-
 /* Define the structures needed by sco */
 typedef enum : uint16_t {
   SCO_ST_UNUSED = 0,
@@ -221,8 +220,6 @@ inline std::string sco_state_text(const tSCO_STATE& state) {
        std::to_string(static_cast<uint16_t>(state));
   }
 }
-
-#undef CASE_RETURN_TEXT
 
 /* Define the structure that contains (e)SCO data */
 typedef struct {
@@ -265,7 +262,7 @@ typedef struct {
 } tSCO_CONN;
 
 /* SCO Management control block */
-typedef struct {
+struct tSCO_CB {
   tSCO_CONN sco_db[BTM_MAX_SCO_LINKS];
   enh_esco_params_t def_esco_parms;
   bool esco_supported;        /* true if 1.2 cntlr AND supports eSCO links */
@@ -289,7 +286,8 @@ typedef struct {
   void Free();
 
   uint16_t get_index(const tSCO_CONN* p_sco) const {
-    CHECK(p_sco != nullptr);
+    bluetooth::log::assert_that(p_sco != nullptr,
+                                "assert failed: p_sco != nullptr");
     const tSCO_CONN* p = sco_db;
     for (uint16_t xx = 0; xx < kMaxScoLinks; xx++, p++) {
       if (p_sco == p) {
@@ -298,11 +296,14 @@ typedef struct {
     }
     return 0xffff;
   }
-
-} tSCO_CB;
+};
 
 void btm_sco_chk_pend_rolechange(uint16_t hci_handle);
 void btm_sco_disc_chk_pend_for_modechange(uint16_t hci_handle);
 
 /* Send a SCO packet */
 void btm_send_sco_packet(std::vector<uint8_t> data);
+
+bool btm_peer_supports_esco_2m_phy(RawAddress remote_bda);
+bool btm_peer_supports_esco_3m_phy(RawAddress remote_bda);
+bool btm_peer_supports_esco_ev3(RawAddress remote_bda);

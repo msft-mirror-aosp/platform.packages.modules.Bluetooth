@@ -28,15 +28,9 @@ import static org.mockito.Mockito.doReturn;
 import android.content.ComponentName;
 import android.content.Context;
 import android.database.Cursor;
-import android.os.RemoteException;
-
-import androidx.test.platform.app.InstrumentationRegistry;
-import androidx.test.uiautomator.UiDevice;
 
 import org.mockito.internal.util.MockUtil;
 
-import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -48,7 +42,7 @@ public class BluetoothOppTestUtils {
      * @attr columnName is name of column to be used as a parameter in cursor.getColumnIndexOrThrow
      * @attr mIndex should be returned from cursor.getColumnIndexOrThrow
      * @attr mValue should be returned from cursor.getInt() or cursor.getString() or
-     * cursor.getLong()
+     *     cursor.getLong()
      */
     public static class CursorMockData {
         public final String mColumnName;
@@ -63,8 +57,8 @@ public class BluetoothOppTestUtils {
     }
 
     /**
-     * Set up a mock single-row Cursor that work for common use cases in the OPP package.
-     * It mocks the database column index and value of the cell in that column of the current row
+     * Set up a mock single-row Cursor that work for common use cases in the OPP package. It mocks
+     * the database column index and value of the cell in that column of the current row
      *
      * <pre>
      *  cursorMockDataList.add(
@@ -80,37 +74,59 @@ public class BluetoothOppTestUtils {
      * @param cursor a mock/spy cursor to be setup
      * @param cursorMockDataList a list representing what cursor will return
      */
-    public static void setUpMockCursor(
-            Cursor cursor, List<CursorMockData> cursorMockDataList) {
-        assert(MockUtil.isMock(cursor));
+    public static void setUpMockCursor(Cursor cursor, List<CursorMockData> cursorMockDataList) {
+        assert (MockUtil.isMock(cursor));
 
-        doAnswer(invocation -> {
-            String name = invocation.getArgument(0);
-            return cursorMockDataList.stream().filter(
-                    mockCursorData -> Objects.equals(mockCursorData.mColumnName, name)
-            ).findFirst().orElse(new CursorMockData("", -1, null)).mColumnIndex;
-        }).when(cursor).getColumnIndexOrThrow(anyString());
+        doAnswer(
+                        invocation -> {
+                            String name = invocation.getArgument(0);
+                            return cursorMockDataList.stream()
+                                    .filter(
+                                            mockCursorData ->
+                                                    Objects.equals(
+                                                            mockCursorData.mColumnName, name))
+                                    .findFirst()
+                                    .orElse(new CursorMockData("", -1, null))
+                                    .mColumnIndex;
+                        })
+                .when(cursor)
+                .getColumnIndexOrThrow(anyString());
 
-        doAnswer(invocation -> {
-            int index = invocation.getArgument(0);
-            return cursorMockDataList.stream().filter(
-                    mockCursorData -> mockCursorData.mColumnIndex == index
-            ).findFirst().orElse(new CursorMockData("", -1, -1)).mValue;
-        }).when(cursor).getInt(anyInt());
+        doAnswer(
+                        invocation -> {
+                            int index = invocation.getArgument(0);
+                            return cursorMockDataList.stream()
+                                    .filter(mockCursorData -> mockCursorData.mColumnIndex == index)
+                                    .findFirst()
+                                    .orElse(new CursorMockData("", -1, -1))
+                                    .mValue;
+                        })
+                .when(cursor)
+                .getInt(anyInt());
 
-        doAnswer(invocation -> {
-            int index = invocation.getArgument(0);
-            return cursorMockDataList.stream().filter(
-                    mockCursorData -> mockCursorData.mColumnIndex == index
-            ).findFirst().orElse(new CursorMockData("", -1, -1)).mValue;
-        }).when(cursor).getLong(anyInt());
+        doAnswer(
+                        invocation -> {
+                            int index = invocation.getArgument(0);
+                            return cursorMockDataList.stream()
+                                    .filter(mockCursorData -> mockCursorData.mColumnIndex == index)
+                                    .findFirst()
+                                    .orElse(new CursorMockData("", -1, -1))
+                                    .mValue;
+                        })
+                .when(cursor)
+                .getLong(anyInt());
 
-        doAnswer(invocation -> {
-            int index = invocation.getArgument(0);
-            return cursorMockDataList.stream().filter(
-                    mockCursorData -> mockCursorData.mColumnIndex == index
-            ).findFirst().orElse(new CursorMockData("", -1, null)).mValue;
-        }).when(cursor).getString(anyInt());
+        doAnswer(
+                        invocation -> {
+                            int index = invocation.getArgument(0);
+                            return cursorMockDataList.stream()
+                                    .filter(mockCursorData -> mockCursorData.mColumnIndex == index)
+                                    .findFirst()
+                                    .orElse(new CursorMockData("", -1, null))
+                                    .mValue;
+                        })
+                .when(cursor)
+                .getString(anyInt());
 
         doReturn(true).when(cursor).moveToFirst();
         doReturn(true).when(cursor).moveToLast();
@@ -120,35 +136,24 @@ public class BluetoothOppTestUtils {
     }
 
     /**
-     * Enable/Disable all activities in Opp for testing
+     * Enable/Disable an activity for testing
      *
+     * @param activityClass the activity class to enable/disable
      * @param enable true to enable, false to disable
      * @param mTargetContext target context
      */
-    public static void enableOppActivities(boolean enable, Context mTargetContext) {
-        int enabledState = enable ? COMPONENT_ENABLED_STATE_ENABLED
-                : COMPONENT_ENABLED_STATE_DEFAULT;
+    public static void enableActivity(Class activityClass, boolean enable, Context mTargetContext) {
+        int enabledState =
+                enable ? COMPONENT_ENABLED_STATE_ENABLED : COMPONENT_ENABLED_STATE_DEFAULT;
 
-        mTargetContext.getPackageManager().setApplicationEnabledSetting(
-                mTargetContext.getPackageName(), enabledState, DONT_KILL_APP);
+        mTargetContext
+                .getPackageManager()
+                .setApplicationEnabledSetting(
+                        mTargetContext.getPackageName(), enabledState, DONT_KILL_APP);
 
-        // All activities to be test
-        Class[] activities = {
-                BluetoothOppTransferActivity.class,
-                BluetoothOppBtEnableActivity.class,
-                BluetoothOppBtEnablingActivity.class,
-                BluetoothOppBtErrorActivity.class,
-                BluetoothOppIncomingFileConfirmActivity.class,
-                BluetoothOppTransferHistory.class,
-                BluetoothOppLauncherActivity.class,
-        };
-
-        Arrays.stream(activities).forEach(activityClass -> {
-            ComponentName activityName = new ComponentName(mTargetContext, activityClass);
-            mTargetContext.getPackageManager().setComponentEnabledSetting(
-                    activityName, enabledState, DONT_KILL_APP);
-        });
-
+        ComponentName activityName = new ComponentName(mTargetContext, activityClass);
+        mTargetContext
+                .getPackageManager()
+                .setComponentEnabledSetting(activityName, enabledState, DONT_KILL_APP);
     }
 }
-

@@ -36,8 +36,7 @@ public class BluetoothEventLogger {
         }
 
         public String toString() {
-            return (new StringBuilder(mTimeStamp)
-                    .append(" ").append(mMsg).toString());
+            return (new StringBuilder(mTimeStamp).append(" ").append(mMsg).toString());
         }
     }
 
@@ -60,15 +59,8 @@ public class BluetoothEventLogger {
 
     /** Add the event record and log debug message */
     public synchronized void logd(String tag, String msg) {
-        logd(true, tag, msg);
-    }
-
-    /** Add the event record and log debug message */
-    public synchronized void logd(boolean debug, String tag, String msg) {
         add(msg);
-        if (debug) {
-            Log.d(tag, msg);
-        }
+        Log.d(tag, msg);
     }
 
     /** Add the event record and log warning message */

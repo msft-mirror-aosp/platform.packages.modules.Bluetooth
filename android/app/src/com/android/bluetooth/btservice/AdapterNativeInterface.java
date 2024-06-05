@@ -17,6 +17,7 @@
 package com.android.bluetooth.btservice;
 
 import android.bluetooth.OobData;
+import android.os.ParcelUuid;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
@@ -100,10 +101,6 @@ public class AdapterNativeInterface {
         return getAdapterPropertyNative(type);
     }
 
-    boolean setAdapterProperty(int type) {
-        return setAdapterPropertyNative(type);
-    }
-
     boolean setDeviceProperty(byte[] address, int type, byte[] val) {
         return setDevicePropertyNative(address, type, val);
     }
@@ -126,6 +123,10 @@ public class AdapterNativeInterface {
 
     boolean cancelBond(byte[] address) {
         return cancelBondNative(address);
+    }
+
+    boolean pairingIsBusy() {
+        return pairingIsBusyNative();
     }
 
     void generateLocalOobData(int transport) {
@@ -246,6 +247,18 @@ public class AdapterNativeInterface {
         return isLogRedactionEnabledNative();
     }
 
+    int getSocketL2capLocalChannelId(ParcelUuid connectionUuid) {
+        return getSocketL2capLocalChannelIdNative(
+                connectionUuid.getUuid().getLeastSignificantBits(),
+                connectionUuid.getUuid().getMostSignificantBits());
+    }
+
+    int getSocketL2capRemoteChannelId(ParcelUuid connectionUuid) {
+        return getSocketL2capRemoteChannelIdNative(
+                connectionUuid.getUuid().getLeastSignificantBits(),
+                connectionUuid.getUuid().getMostSignificantBits());
+    }
+
     /**********************************************************************************************/
     /*********************************** callbacks from native ************************************/
     /**********************************************************************************************/
@@ -276,8 +289,6 @@ public class AdapterNativeInterface {
 
     private native boolean getAdapterPropertyNative(int type);
 
-    private native boolean setAdapterPropertyNative(int type);
-
     private native boolean setDevicePropertyNative(byte[] address, int type, byte[] val);
 
     private native boolean getDevicePropertyNative(byte[] address, int type);
@@ -290,6 +301,8 @@ public class AdapterNativeInterface {
     private native boolean removeBondNative(byte[] address);
 
     private native boolean cancelBondNative(byte[] address);
+
+    private native boolean pairingIsBusyNative();
 
     private native void generateLocalOobDataNative(int transport);
 
@@ -352,4 +365,10 @@ public class AdapterNativeInterface {
     private native boolean pbapPseDynamicVersionUpgradeIsEnabledNative();
 
     private native boolean isLogRedactionEnabledNative();
+
+    private native int getSocketL2capLocalChannelIdNative(
+            long connectionUuidLsb, long connectionUuidMsb);
+
+    private native int getSocketL2capRemoteChannelIdNative(
+            long connectionUuidLsb, long connectionUuidMsb);
 }

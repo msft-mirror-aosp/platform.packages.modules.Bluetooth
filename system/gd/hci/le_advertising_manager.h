@@ -15,7 +15,10 @@
  */
 #pragma once
 
+#include <bluetooth/log.h>
+
 #include <memory>
+#include <vector>
 
 #include "common/callback.h"
 #include "hci/address_with_type.h"
@@ -103,13 +106,18 @@ class LeAdvertisingManager : public bluetooth::Module {
   static constexpr AdvertiserId kInvalidId = 0xFF;
   static constexpr uint8_t kInvalidHandle = 0xFF;
   static constexpr uint8_t kAdvertisingSetIdMask = 0x0F;
+  static constexpr uint16_t kLeMaximumLegacyAdvertisingDataLength = 31;
   static constexpr uint16_t kLeMaximumFragmentLength = 251;
+  static constexpr uint16_t kLeMaximumPeriodicDataFragmentLength = 252;
+  static constexpr uint16_t kLeMaximumGapDataLength = 255;
   static constexpr FragmentPreference kFragment_preference = FragmentPreference::CONTROLLER_SHOULD_NOT;
   LeAdvertisingManager();
   LeAdvertisingManager(const LeAdvertisingManager&) = delete;
   LeAdvertisingManager& operator=(const LeAdvertisingManager&) = delete;
 
   size_t GetNumberOfAdvertisingInstances() const;
+
+  size_t GetNumberOfAdvertisingInstancesInUse() const;
 
   int GetAdvertiserRegId(AdvertiserId advertiser_id);
 
@@ -173,3 +181,9 @@ class LeAdvertisingManager : public bluetooth::Module {
 
 }  // namespace hci
 }  // namespace bluetooth
+
+namespace fmt {
+template <>
+struct formatter<bluetooth::hci::AdvertiserAddressType>
+    : enum_formatter<bluetooth::hci::AdvertiserAddressType> {};
+}  // namespace fmt

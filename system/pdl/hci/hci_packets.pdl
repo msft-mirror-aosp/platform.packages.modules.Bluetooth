@@ -456,6 +456,7 @@ enum OpCode : 16 {
   CONTROLLER_DEBUG_INFO = 0xFD5B,
   CONTROLLER_A2DP_OPCODE = 0xFD5D,
   CONTROLLER_BQR = 0xFD5E,
+  DYNAMIC_AUDIO_BUFFER = 0xFD5F,
   // MSFT_OPCODE_xxxx below are needed for the tests.
   MSFT_OPCODE_MEDIATEK = 0xFD30,
   MSFT_OPCODE_QUALCOMM = 0xFD70,
@@ -920,6 +921,7 @@ enum FeatureFlag : 1 {
   SUPPORTED = 1,
 }
 
+// Vol 1, Part F: Controller Error Codes
 enum ErrorCode: 8 {
   STATUS_UNKNOWN = 0xFF,
   SUCCESS = 0x00,
@@ -958,12 +960,32 @@ enum ErrorCode: 8 {
   ROLE_CHANGE_NOT_ALLOWED = 0x21,
   TRANSACTION_RESPONSE_TIMEOUT = 0x22,
   LINK_LAYER_COLLISION = 0x23,
+  LMP_PDU_NOT_ALLOWED = 0x24,
   ENCRYPTION_MODE_NOT_ACCEPTABLE = 0x25,
+  LINK_KEY_CANNOT_BE_CHANGED = 0x26,
+  REQUESTED_QOS_NOT_SUPPORTED = 0x27,
+  INSTANT_PASSED = 0x28,
+  PAIRING_WITH_UNIT_KEY_NOT_SUPPORTED = 0x29,
+  DIFFERENT_TRANSACTION_COLLISION = 0x2A,
+  QOS_UNACCEPTABLE_PARAMETERS = 0x2C,
+  QOS_REJECTED = 0x2D,
+  CHANNEL_ASSESSMENT_NOT_SUPPORTED = 0x2E,
+  INSUFFICIENT_SECURITY = 0x2F,
+  PARAMETER_OUT_OF_MANDATORY_RANGE = 0x30,
+  ROLE_SWITCH_PENDING = 0x32,
+  RESERVED_SLOT_VIOLATION = 0x34,
   ROLE_SWITCH_FAILED = 0x35,
-  HOST_BUSY = 0x38,
+  EXTENDED_INQUIRY_RESPONSE_TOO_LARGE = 0x36,
+  SECURE_SIMPLE_PAIRING_NOT_SUPPORTED_BY_HOST = 0x37,
+  HOST_BUSY_PAIRING = 0x38,
+  CONNECTION_REJECTED_NO_SUITABLE_CHANNEL_FOUND = 0x39,
   CONTROLLER_BUSY = 0x3A,
+  UNACCEPTABLE_CONNECTION_PARAMETERS = 0x3B,
   ADVERTISING_TIMEOUT = 0x3C,
+  CONNECTION_TERMINATED_DUE_TO_MIC_FAILURE = 0x3D,
   CONNECTION_FAILED_ESTABLISHMENT = 0x3E,
+  COARSE_CLOCK_ADJUSTMENT_REJECTED = 0x40,
+  TYPE0_SUBMAP_NOT_DEFINED = 0x41,
   UNKNOWN_ADVERTISING_IDENTIFIER = 0x42,
   LIMIT_REACHED = 0x43,
   OPERATION_CANCELLED_BY_HOST = 0x44,
@@ -4001,8 +4023,8 @@ packet LeSetExtendedAdvertisingDataRaw : LeAdvertisingCommand (op_code = LE_SET_
   _reserved_ : 5,
   fragment_preference : FragmentPreference,
   _reserved_ : 7,
-  _size_(advertising_data) : 8,
-  advertising_data : 8[],
+  _size_(_payload_) : 8,
+  _payload_,
 }
 
 packet LeSetExtendedAdvertisingDataComplete : CommandComplete (command_op_code = LE_SET_EXTENDED_ADVERTISING_DATA) {
@@ -4029,8 +4051,8 @@ packet LeSetExtendedScanResponseDataRaw : LeAdvertisingCommand (op_code = LE_SET
   _reserved_ : 5,
   fragment_preference : FragmentPreference,
   _reserved_ : 7,
-  _size_(scan_response_data) : 8,
-  scan_response_data : 8[],
+  _size_(_payload_) : 8,
+  _payload_,
 }
 
 packet LeSetExtendedScanResponseDataComplete : CommandComplete (command_op_code = LE_SET_EXTENDED_SCAN_RESPONSE_DATA) {
@@ -4146,8 +4168,8 @@ packet LeSetPeriodicAdvertisingDataRaw : LeAdvertisingCommand (op_code = LE_SET_
   advertising_handle : 8,
   operation : Operation,
   _reserved_ : 5,
-  _size_(advertising_data) : 8,
-  advertising_data : 8[],
+  _size_(_payload_) : 8,
+  _payload_,
 }
 
 packet LeSetPeriodicAdvertisingDataComplete : CommandComplete (command_op_code = LE_SET_PERIODIC_ADVERTISING_DATA) {
@@ -5199,9 +5221,9 @@ packet LeCsSetProcedureParametersComplete : CommandComplete (command_op_code = L
 packet LeCsProcedureEnable : DistanceMeasurementCommand (op_code = LE_CS_PROCEDURE_ENABLE) {
   connection_handle: 12,
   _reserved_ : 4,
-  procedure_enable : 8,
   config_id : 2,
   _reserved_ : 6,
+  procedure_enable : Enable,
 }
 
 packet LeCsProcedureEnableStatus : CommandStatus (command_op_code = LE_CS_PROCEDURE_ENABLE) {
@@ -5290,7 +5312,22 @@ packet LeGetVendorCapabilitiesComplete096 : LeGetVendorCapabilitiesComplete095 {
 
 packet LeGetVendorCapabilitiesComplete098 : LeGetVendorCapabilitiesComplete096 {
   a2dp_source_offload_capability_mask: 32,
-  bluetooth_quality_report_support: 8
+  bluetooth_quality_report_support: 8,
+  _payload_,
+}
+
+packet LeGetVendorCapabilitiesComplete103 : LeGetVendorCapabilitiesComplete098 {
+  dynamic_audio_buffer_support : 32,
+  _payload_,
+}
+
+test LeGetVendorCapabilitiesComplete103 {
+  "\x0e\x1c\x01\x53\xfd\x00\x10\x01\x00\x28\x00\x01\x3e\x01\x03\x01\x14\x00\x01\x01\x00\x23\x00\x00\x00\x01\x23\x00\x00\x00",
+}
+
+packet LeGetVendorCapabilitiesComplete104 : LeGetVendorCapabilitiesComplete103 {
+  a2dp_offload_v2_support : 8,
+  _payload_,
 }
 
 enum SubOcf : 8 {
@@ -5740,7 +5777,7 @@ enum BqrReportAction : 8 {
   CLEAR = 0x02,
 }
 
-packet ControllerBqr : VendorCommand(op_code = CONTROLLER_BQR) {
+packet ControllerBqr : VendorCommand (op_code = CONTROLLER_BQR) {
   bqr_report_action : BqrReportAction,
   bqr_quality_event_mask : 32,
   bqr_minimum_report_interval : 16,
@@ -5757,6 +5794,60 @@ packet ControllerBqrComplete : CommandComplete (command_op_code = CONTROLLER_BQR
 
 test ControllerBqrComplete {
   "\x0e\x08\x01\x5e\xfd\x00\x1f\x00\x07\x00",
+}
+
+enum DabCommand : 8 {
+  GET_AUDIO_BUFFER_TIME_CAPABILITY = 0x01,
+  SET_AUDIO_BUFFER_TIME = 0x02,
+}
+
+packet DynamicAudioBuffer : VendorCommand (op_code = DYNAMIC_AUDIO_BUFFER) {
+  dab_command : DabCommand,
+  _body_,
+}
+
+packet DynamicAudioBufferComplete : CommandComplete (command_op_code = DYNAMIC_AUDIO_BUFFER) {
+  status : ErrorCode,
+  dab_command : DabCommand,
+  _body_,
+}
+
+packet DabGetAudioBufferTimeCapability : DynamicAudioBuffer (dab_command = GET_AUDIO_BUFFER_TIME_CAPABILITY) {
+}
+
+test DabGetAudioBufferTimeCapability {
+  "\x5f\xfd\x01\x01",
+}
+
+struct DynamicAudioBufferCodecCapability {
+  default_time_ms : 16,
+  maximum_time_ms : 16,
+  minimum_time_ms : 16,
+}
+
+packet DabGetAudioBufferTimeCapabilityComplete : DynamicAudioBufferComplete (dab_command = GET_AUDIO_BUFFER_TIME_CAPABILITY) {
+  audio_codec_type_supported : 32,
+  audio_codec_capabilities : DynamicAudioBufferCodecCapability[32],
+}
+
+test DabGetAudioBufferTimeCapabilityComplete {
+  "\x0e\xc9\x01\x5f\xfd\x00\x01\x03\x00\x00\x00\xf4\x01\xf4\x01\x64\x00\xf4\x01\xf4\x01\x64\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+}
+
+packet DabSetAudioBufferTime : DynamicAudioBuffer(dab_command = SET_AUDIO_BUFFER_TIME) {
+  buffer_time_ms : 16, // Requested audio buffer time for the currently used codec.
+}
+
+test DabSetAudioBufferTime {
+  "\x5f\xfd\x03\x02\x23\x01",
+}
+
+packet DabSetAudioBufferTimeComplete : DynamicAudioBufferComplete (dab_command = SET_AUDIO_BUFFER_TIME) {
+  current_buffer_time_ms : 16,
+}
+
+test DabSetAudioBufferTimeComplete {
+  "\x0e\x07\x01\x5f\xfd\x00\x02\x23\x01",
 }
 
 // HCI Event Packets
@@ -5795,7 +5886,6 @@ packet ConnectionComplete : Event (event_code = CONNECTION_COMPLETE) {
 }
 
 enum ConnectionRequestLinkType : 8 {
-  UNKNOWN = 0xFF,
   SCO = 0x00,
   ACL = 0x01,
   ESCO = 0x02,
@@ -6163,7 +6253,7 @@ packet LinkSupervisionTimeoutChanged : Event (event_code = LINK_SUPERVISION_TIME
   link_supervision_timeout : 16, // 0x001-0xFFFF (0.625ms-40.9s)
 }
 
-packet EnhancedFlush : Command (op_code = ENHANCED_FLUSH) {
+packet EnhancedFlush : AclCommand (op_code = ENHANCED_FLUSH) {
   connection_handle : 12,
   _reserved_ : 4,
   _reserved_ : 8, // Automatically flushable only (0x00)
@@ -6741,18 +6831,13 @@ packet LeCsConfigComplete : LeMetaEvent (subevent_code = LE_CS_CONFIG_COMPLETE) 
   t_pm_time : 8,
 }
 
-enum CsProcedureState : 8 {
-  DISABLED = 0x00,
-  ENABLED = 0x01,
-}
-
 packet LeCsProcedureEnableComplete : LeMetaEvent (subevent_code = LE_CS_PROCEDURE_ENABLE_COMPLETE) {
   status : ErrorCode,
   connection_handle : 12,
   _reserved_ : 4,
   config_id : 2,
   _reserved_ : 6,
-  state : CsProcedureState,
+  state : Enable,
   tone_antenna_config_selection : 8,
   selected_tx_power : 8,
   subevent_len : 24,
@@ -6761,6 +6846,32 @@ packet LeCsProcedureEnableComplete : LeMetaEvent (subevent_code = LE_CS_PROCEDUR
   event_interval : 16,
   procedure_interval : 16,
   procedure_count : 16,
+}
+
+struct LeCsMode0InitatorData {
+  packet_quality : 8,
+  packet_rssi : 8,
+  packet_antenna : 8,
+  measured_freq_offset : 15,
+  _reserved_ : 1,
+}
+
+struct LeCsMode0ReflectorData {
+  packet_quality : 8,
+  packet_rssi : 8,
+  packet_antenna : 8,
+}
+
+struct LeCsToneDataWithQuality {
+  i_sample : 12,
+  q_sample : 12,
+  tone_quality_indicator : 8,
+}
+
+struct LeCsMode2Data {
+  _count_(tone_data) : 8,
+  antenna_permutation_index : 8,
+  tone_data : LeCsToneDataWithQuality[],
 }
 
 enum CsProcedureDoneStatus : 4 {
@@ -6782,6 +6893,22 @@ struct LeCsResultDataStructure {
   step_data : 8[],
 }
 
+enum ProcedureAbortReason : 4 {
+  NO_ABORT = 0x0,
+  LOCAL_HOST_OR_REMOTE = 0x1,
+  INSUFFICIENT_FILTERED_CHANNELS = 0x2,
+  INSTANT_HAS_PASSED = 0x3,
+  UNSPECIFIED = 0xF,
+}
+
+enum SubeventAbortReason : 4 {
+  NO_ABORT = 0x0,
+  LOCAL_HOST_OR_REMOTE = 0x1,
+  NO_CS_SYNC_RECEIVED = 0x2,
+  SCHEDULING_CONFLICTS_OR_LIMITED_RESOURCES = 0x3,
+  UNSPECIFIED = 0xF,
+}
+
 packet LeCsSubeventResult : LeMetaEvent (subevent_code = LE_CS_SUBEVENT_RESULT) {
   connection_handle : 12,
   _reserved_ : 4,
@@ -6795,7 +6922,8 @@ packet LeCsSubeventResult : LeMetaEvent (subevent_code = LE_CS_SUBEVENT_RESULT) 
   _reserved_ : 4,
   subevent_done_status : CsSubeventDoneStatus,
   _reserved_ : 4,
-  abort_reason : 8,
+  procedure_abort_reason : ProcedureAbortReason,
+  subevent_abort_reason : SubeventAbortReason,
   num_antenna_paths : 8,
   _count_(result_data_structures) : 8,
   result_data_structures : LeCsResultDataStructure[],
@@ -6810,7 +6938,8 @@ packet LeCsSubeventResultContinue : LeMetaEvent (subevent_code = LE_CS_SUBEVENT_
   _reserved_ : 4,
   subevent_done_status : CsSubeventDoneStatus,
   _reserved_ : 4,
-  abort_reason : 8,
+  procedure_abort_reason : ProcedureAbortReason,
+  subevent_abort_reason : SubeventAbortReason,
   num_antenna_paths : 8,
   _count_(result_data_structures) : 8,
   result_data_structures : LeCsResultDataStructure[],
@@ -6867,6 +6996,8 @@ enum QualityReportId : 8 {
   A2DP_AUDIO_CHOPPY = 0x03,
   SCO_VOICE_CHOPPY = 0x04,
   ROOT_INFLAMMATION = 0x05,
+  LE_AUDIO_CHOPPY = 0x07,
+  CONNECT_FAIL = 0x08,
   LMP_LL_MESSAGE_TRACE = 0x11,
   BT_SCHEDULING_TRACE = 0x12,
   CONTROLLER_DBG_INFO = 0x13,
@@ -6944,6 +7075,14 @@ packet BqrA2dpAudioChoppyEvent : BqrLinkQualityEvent (quality_report_id = A2DP_A
 }
 
 packet BqrScoVoiceChoppyEvent : BqrLinkQualityEvent (quality_report_id = SCO_VOICE_CHOPPY) {
+ _payload_, // vendor specific parameter
+}
+
+packet BqrLeAudioChoppyEvent : BqrLinkQualityEvent (quality_report_id = LE_AUDIO_CHOPPY) {
+ _payload_, // vendor specific parameter
+}
+
+packet BqrConnectFailEvent : BqrLinkQualityEvent (quality_report_id = CONNECT_FAIL) {
  _payload_, // vendor specific parameter
 }
 
@@ -7076,6 +7215,15 @@ packet MsftLeMonitorAdvConditionPatterns : MsftLeMonitorAdv (condition_type = MS
 test MsftLeMonitorAdvConditionPatterns {
   "\x1e\xfc\x0e\x03\x10\x05\x04\xaa\x01\x01\x06\x03\x00\x80\x81\x82\x83", // 1 pattern
   "\x70\xfd\x13\x03\x15\x04\x02\xbb\x01\x02\x04\x03\x00\x80\x81\x06\x0f\x00\x90\x91\x92\x93", // 2 patterns
+}
+
+packet MsftLeMonitorAdvConditionAddress : MsftLeMonitorAdv (condition_type = MSFT_CONDITION_TYPE_ADDRESS) {
+  addr_type: 8,
+  addr : Address,
+}
+
+test MsftLeMonitorAdvConditionAddress {
+    "\x1e\xfc\x0d\x03\x10\x05\x04\xaa\x04\x00\x03\x03\x05\xc4\x05\xc4",
 }
 
 packet MsftLeMonitorAdvConditionUuid : MsftLeMonitorAdv (condition_type = MSFT_CONDITION_TYPE_UUID) {

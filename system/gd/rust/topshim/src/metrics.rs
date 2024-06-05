@@ -6,7 +6,8 @@ use crate::btif::{
 #[cxx::bridge(namespace = bluetooth::topshim::rust)]
 mod ffi {
     unsafe extern "C++" {
-        include!("gd/rust/topshim/common/type_alias.h");
+        include!("types/raw_address.h");
+        #[namespace = ""]
         type RawAddress = crate::btif::RawAddress;
     }
 
@@ -47,6 +48,7 @@ mod ffi {
             direction: u32,
             hci_reason: u32,
         );
+        fn suspend_complete_state(state: u32);
     }
 }
 
@@ -125,4 +127,8 @@ pub fn acl_connection_state_changed(
         direction as u32,
         hci_reason as u32,
     );
+}
+
+pub fn suspend_complete_state(state: u32) {
+    ffi::suspend_complete_state(state);
 }

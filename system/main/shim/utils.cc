@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
+#define LOG_TAG "shim"
+
 #include "utils.h"
+
+#include <bluetooth/log.h>
 
 namespace bluetooth {
 namespace shim {
@@ -26,6 +30,7 @@ void parse_gap_data(const std::vector<uint8_t> &raw_data,
       uint8_t len = raw_data[offset];
 
       if (offset + len + 1 > raw_data.size()) {
+        log::warn("GAP data out of bound");
         break;
       }
 

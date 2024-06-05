@@ -24,22 +24,25 @@
 
 #define LOG_TAG "bluetooth"
 
-#include <base/logging.h>
+#include <bluetooth/log.h>
 #include <string.h>
 
 #include "bnep_api.h"
 #include "bnep_int.h"
-#include "bt_target.h"
-#include "bta/include/bta_api.h"
-#include "device/include/controller.h"
+#include "bta/include/bta_sec_api.h"
+#include "hci/controller_interface.h"
+#include "internal_include/bt_target.h"
 #include "l2c_api.h"
 #include "l2cdefs.h"
-#include "os/log.h"
+#include "main/shim/entry.h"
+#include "main/shim/helpers.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
+#include "stack/include/bt_types.h"
 #include "types/raw_address.h"
+
+using namespace bluetooth;
 
 /******************************************************************************/
 /*                     G L O B A L    B N E P       D A T A                   */
@@ -86,10 +89,11 @@ tBNEP_RESULT bnep_register_with_l2cap(void) {
   bnep_cb.reg_info.pL2CA_Error_Cb = bnep_on_l2cap_error;
 
   /* Now, register with L2CAP */
-  if (!L2CA_Register2(BT_PSM_BNEP, bnep_cb.reg_info, false /* enable_snoop */,
-                      nullptr, BNEP_MTU_SIZE, BNEP_MTU_SIZE,
-                      BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT)) {
-    BNEP_TRACE_ERROR("BNEP - Registration failed");
+  if (!L2CA_RegisterWithSecurity(BT_PSM_BNEP, bnep_cb.reg_info,
+                                 false /* enable_snoop */, nullptr,
+                                 BNEP_MTU_SIZE, BNEP_MTU_SIZE,
+                                 BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT)) {
+    log::error("BNEP - Registration failed");
     return BNEP_SECURITY_FAIL;
   }
 
@@ -108,14 +112,17 @@ tBNEP_RESULT bnep_register_with_l2cap(void) {
  *
  ******************************************************************************/
 static void bnep_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid,
-                             UNUSED_ATTR uint16_t psm, uint8_t l2cap_id) {
+                             uint16_t /* psm */, uint8_t l2cap_id) {
   tBNEP_CONN* p_bcb = bnepu_find_bcb_by_bd_addr(bd_addr);
 
   /* If we are not acting as server, or already have a connection, or have */
   /* no more resources to handle the connection, reject the connection.    */
   if (!(bnep_cb.profile_registered) || (p_bcb) ||
       ((p_bcb = bnepu_allocate_bcb(bd_addr)) == NULL)) {
-    L2CA_DisconnectReq(l2cap_cid);
+    if (!L2CA_DisconnectReq(l2cap_cid)) {
+      log::warn("Unable to request L2CAP disconnect peer:{} cid:{}", bd_addr,
+                l2cap_cid);
+    }
     return;
   }
 
@@ -129,7 +136,7 @@ static void bnep_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid,
   alarm_set_on_mloop(p_bcb->conn_timer, BNEP_CONN_TIMEOUT_MS,
                      bnep_conn_timer_timeout, p_bcb);
 
-  LOG_DEBUG("BNEP - Rcvd L2CAP conn ind, CID: 0x%x", p_bcb->l2cap_cid);
+  log::debug("BNEP - Rcvd L2CAP conn ind, CID: 0x{:x}", p_bcb->l2cap_cid);
 }
 
 static void bnep_on_l2cap_error(uint16_t l2cap_cid, uint16_t result) {
@@ -142,7 +149,10 @@ static void bnep_on_l2cap_error(uint16_t l2cap_cid, uint16_t result) {
                                false);
   }
 
-  L2CA_DisconnectReq(p_bcb->l2cap_cid);
+  if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+    log::warn("Unable to request L2CAP disconnect peer:{} cid:{}",
+              p_bcb->rem_bda, l2cap_cid);
+  }
 
   bnepu_release_bcb(p_bcb);
 }
@@ -164,7 +174,7 @@ static void bnep_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
   /* Find CCB based on CID */
   p_bcb = bnepu_find_bcb_by_cid(l2cap_cid);
   if (p_bcb == NULL) {
-    LOG_WARN("BNEP - Rcvd conn cnf for unknown CID 0x%x", l2cap_cid);
+    log::warn("BNEP - Rcvd conn cnf for unknown CID 0x{:x}", l2cap_cid);
     return;
   }
 
@@ -178,9 +188,10 @@ static void bnep_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
     alarm_set_on_mloop(p_bcb->conn_timer, BNEP_CONN_TIMEOUT_MS,
                        bnep_conn_timer_timeout, p_bcb);
 
-    LOG_DEBUG("BNEP - got conn cnf, sent cfg req, CID: 0x%x", p_bcb->l2cap_cid);
+    log::debug("BNEP - got conn cnf, sent cfg req, CID: 0x{:x}",
+               p_bcb->l2cap_cid);
   } else {
-    LOG(ERROR) << __func__ << ": invoked with non OK status";
+    log::error("invoked with non OK status");
   }
 }
 
@@ -198,12 +209,12 @@ static void bnep_config_cfm(uint16_t l2cap_cid, uint16_t initiator,
                             tL2CAP_CFG_INFO* p_cfg) {
   tBNEP_CONN* p_bcb;
 
-  LOG_DEBUG("BNEP - Rcvd cfg cfm, CID: 0x%x", l2cap_cid);
+  log::debug("BNEP - Rcvd cfg cfm, CID: 0x{:x}", l2cap_cid);
 
   /* Find CCB based on CID */
   p_bcb = bnepu_find_bcb_by_cid(l2cap_cid);
   if (p_bcb == NULL) {
-    LOG_WARN("BNEP - Rcvd L2CAP cfg ind, unknown CID: 0x%x", l2cap_cid);
+    log::warn("BNEP - Rcvd L2CAP cfg ind, unknown CID: 0x{:x}", l2cap_cid);
     return;
   }
 
@@ -235,11 +246,11 @@ static void bnep_disconnect_ind(uint16_t l2cap_cid, bool ack_needed) {
   /* Find CCB based on CID */
   p_bcb = bnepu_find_bcb_by_cid(l2cap_cid);
   if (p_bcb == NULL) {
-    LOG_WARN("BNEP - Rcvd L2CAP disc, unknown CID: 0x%x", l2cap_cid);
+    log::warn("BNEP - Rcvd L2CAP disc, unknown CID: 0x{:x}", l2cap_cid);
     return;
   }
 
-  LOG_DEBUG("BNEP - Rcvd L2CAP disc, CID: 0x%x", l2cap_cid);
+  log::debug("BNEP - Rcvd L2CAP disc, CID: 0x{:x}", l2cap_cid);
 
   /* Tell the user if there is a callback */
   if (p_bcb->con_state == BNEP_STATE_CONNECTED) {
@@ -271,7 +282,7 @@ static void bnep_congestion_ind(uint16_t l2cap_cid, bool is_congested) {
   /* Find BCB based on CID */
   p_bcb = bnepu_find_bcb_by_cid(l2cap_cid);
   if (p_bcb == NULL) {
-    LOG_WARN("BNEP - Rcvd L2CAP cong, unknown CID: 0x%x", l2cap_cid);
+    log::warn("BNEP - Rcvd L2CAP cong, unknown CID: 0x{:x}", l2cap_cid);
     return;
   }
 
@@ -293,7 +304,10 @@ static void bnep_congestion_ind(uint16_t l2cap_cid, bool is_congested) {
 
       if (!p_buf) break;
 
-      L2CA_DataWrite(l2cap_cid, p_buf);
+      if (L2CA_DataWrite(l2cap_cid, p_buf) != L2CAP_DW_SUCCESS) {
+        log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}",
+                  p_bcb->rem_bda, l2cap_cid, p_buf->len);
+      }
     }
   }
 }
@@ -328,7 +342,7 @@ static void bnep_data_ind(uint16_t l2cap_cid, BT_HDR* p_buf) {
   /* Find CCB based on CID */
   p_bcb = bnepu_find_bcb_by_cid(l2cap_cid);
   if (p_bcb == NULL) {
-    LOG_WARN("BNEP - Rcvd L2CAP data, unknown CID: 0x%x", l2cap_cid);
+    log::warn("BNEP - Rcvd L2CAP data, unknown CID: 0x{:x}", l2cap_cid);
     osi_free(p_buf);
     return;
   }
@@ -338,12 +352,13 @@ static void bnep_data_ind(uint16_t l2cap_cid, BT_HDR* p_buf) {
   extension_present = type >> 7;
   type &= 0x7f;
   if (type >= sizeof(bnep_frame_hdr_sizes) / sizeof(bnep_frame_hdr_sizes[0])) {
-    LOG_INFO("BNEP - rcvd frame, bad type: 0x%02x", type);
+    log::info("BNEP - rcvd frame, bad type: 0x{:02x}", type);
     osi_free(p_buf);
     return;
   }
   if ((rem_len <= bnep_frame_hdr_sizes[type]) || (rem_len > BNEP_MTU_SIZE)) {
-    LOG_DEBUG("BNEP - rcvd frame, bad len: %d  type: 0x%02x", p_buf->len, type);
+    log::debug("BNEP - rcvd frame, bad len: {}  type: 0x{:02x}", p_buf->len,
+               type);
     osi_free(p_buf);
     return;
   }
@@ -353,8 +368,8 @@ static void bnep_data_ind(uint16_t l2cap_cid, BT_HDR* p_buf) {
   if ((p_bcb->con_state != BNEP_STATE_CONNECTED) &&
       (!(p_bcb->con_flags & BNEP_FLAGS_CONN_COMPLETED)) &&
       (type != BNEP_FRAME_CONTROL)) {
-    LOG_WARN("BNEP - Ignored L2CAP data while in state: %d, CID: 0x%x",
-             p_bcb->con_state, l2cap_cid);
+    log::warn("BNEP - Ignored L2CAP data while in state: {}, CID: 0x{:x}",
+              p_bcb->con_state, l2cap_cid);
 
     if (extension_present) {
       /*
@@ -397,23 +412,23 @@ static void bnep_data_ind(uint16_t l2cap_cid, BT_HDR* p_buf) {
   }
 
   if (type > BNEP_FRAME_COMPRESSED_ETHERNET_DEST_ONLY) {
-    LOG_DEBUG("BNEP - rcvd frame, unknown type: 0x%02x", type);
+    log::debug("BNEP - rcvd frame, unknown type: 0x{:02x}", type);
     osi_free(p_buf);
     return;
   }
 
-  LOG_DEBUG("BNEP - rcv frame, type: %d len: %d Ext: %d", type, p_buf->len,
-            extension_present);
+  log::debug("BNEP - rcv frame, type: {} len: {} Ext: {}", type, p_buf->len,
+             extension_present);
 
   /* Initialize addresses to 'not supplied' */
-  const RawAddress *p_src_addr, *p_dst_addr;
-  p_src_addr = p_dst_addr = NULL;
+  RawAddress src_addr = RawAddress::kEmpty;
+  RawAddress dst_addr = RawAddress::kEmpty;
 
   switch (type) {
     case BNEP_FRAME_GENERAL_ETHERNET:
-      p_dst_addr = (RawAddress*)p;
+      dst_addr = *(RawAddress*)p;
       p += BD_ADDR_LEN;
-      p_src_addr = (RawAddress*)p;
+      src_addr = *(RawAddress*)p;
       p += BD_ADDR_LEN;
       BE_STREAM_TO_UINT16(protocol, p);
       rem_len -= 14;
@@ -453,14 +468,14 @@ static void bnep_data_ind(uint16_t l2cap_cid, BT_HDR* p_buf) {
       break;
 
     case BNEP_FRAME_COMPRESSED_ETHERNET_SRC_ONLY:
-      p_src_addr = (RawAddress*)p;
+      src_addr = *(RawAddress*)p;
       p += BD_ADDR_LEN;
       BE_STREAM_TO_UINT16(protocol, p);
       rem_len -= 8;
       break;
 
     case BNEP_FRAME_COMPRESSED_ETHERNET_DEST_ONLY:
-      p_dst_addr = (RawAddress*)p;
+      dst_addr = *(RawAddress*)p;
       p += BD_ADDR_LEN;
       BE_STREAM_TO_UINT16(protocol, p);
       rem_len -= 8;
@@ -475,7 +490,7 @@ static void bnep_data_ind(uint16_t l2cap_cid, BT_HDR* p_buf) {
 
     /* if unknown extension present stop processing */
     if (ext_type) {
-      LOG_DEBUG("Data extension type 0x%x found", ext_type);
+      log::debug("Data extension type 0x{:x} found", ext_type);
       break;
     }
 
@@ -488,9 +503,11 @@ static void bnep_data_ind(uint16_t l2cap_cid, BT_HDR* p_buf) {
   p_buf->len = rem_len;
 
   /* Always give the upper layer MAC addresses */
-  if (!p_src_addr) p_src_addr = &p_bcb->rem_bda;
+  if (src_addr == RawAddress::kEmpty) src_addr = p_bcb->rem_bda;
 
-  if (!p_dst_addr) p_dst_addr = controller_get_interface()->get_address();
+  if (dst_addr == RawAddress::kEmpty)
+    dst_addr = bluetooth::ToRawAddress(
+        bluetooth::shim::GetController()->GetMacAddress());
 
   /* check whether there are any extensions to be forwarded */
   if (ext_type)
@@ -499,11 +516,11 @@ static void bnep_data_ind(uint16_t l2cap_cid, BT_HDR* p_buf) {
     fw_ext_present = false;
 
   if (bnep_cb.p_data_buf_cb) {
-    (*bnep_cb.p_data_buf_cb)(p_bcb->handle, *p_src_addr, *p_dst_addr, protocol,
-                             p_buf, fw_ext_present);
+    (*bnep_cb.p_data_buf_cb)(p_bcb->handle, src_addr, dst_addr, protocol, p_buf,
+                             fw_ext_present);
   } else if (bnep_cb.p_data_ind_cb) {
-    (*bnep_cb.p_data_ind_cb)(p_bcb->handle, *p_src_addr, *p_dst_addr, protocol,
-                             p, rem_len, fw_ext_present);
+    (*bnep_cb.p_data_ind_cb)(p_bcb->handle, src_addr, dst_addr, protocol, p,
+                             rem_len, fw_ext_present);
     osi_free(p_buf);
   }
 }
@@ -522,18 +539,20 @@ static void bnep_data_ind(uint16_t l2cap_cid, BT_HDR* p_buf) {
 void bnep_conn_timer_timeout(void* data) {
   tBNEP_CONN* p_bcb = (tBNEP_CONN*)data;
 
-  LOG_DEBUG(
-      "BNEP - CCB timeout in state: %d  CID: 0x%x flags %x, re_transmit %d",
+  log::debug(
+      "BNEP - CCB timeout in state: {}  CID: 0x{:x} flags {:x}, re_transmit {}",
       p_bcb->con_state, p_bcb->l2cap_cid, p_bcb->con_flags,
       p_bcb->re_transmits);
 
   if (p_bcb->con_state == BNEP_STATE_CONN_SETUP) {
-    LOG_DEBUG("BNEP - CCB timeout in state: %d  CID: 0x%x", p_bcb->con_state,
-              p_bcb->l2cap_cid);
+    log::debug("BNEP - CCB timeout in state: {}  CID: 0x{:x}", p_bcb->con_state,
+               p_bcb->l2cap_cid);
 
     if (!(p_bcb->con_flags & BNEP_FLAGS_IS_ORIG)) {
-      L2CA_DisconnectReq(p_bcb->l2cap_cid);
-
+      if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+        log::warn("Unable to request L2CAP disconnect peer:{} cid:{}",
+                  p_bcb->rem_bda, p_bcb->l2cap_cid);
+      }
       bnepu_release_bcb(p_bcb);
       return;
     }
@@ -543,7 +562,10 @@ void bnep_conn_timer_timeout(void* data) {
       alarm_set_on_mloop(p_bcb->conn_timer, BNEP_CONN_TIMEOUT_MS,
                          bnep_conn_timer_timeout, p_bcb);
     } else {
-      L2CA_DisconnectReq(p_bcb->l2cap_cid);
+      if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+        log::warn("Unable to request L2CAP disconnect peer:{} cid:{}",
+                  p_bcb->rem_bda, p_bcb->l2cap_cid);
+      }
 
       if ((p_bcb->con_flags & BNEP_FLAGS_IS_ORIG) && (bnep_cb.p_conn_state_cb))
         (*bnep_cb.p_conn_state_cb)(p_bcb->handle, p_bcb->rem_bda,
@@ -553,10 +575,13 @@ void bnep_conn_timer_timeout(void* data) {
       return;
     }
   } else if (p_bcb->con_state != BNEP_STATE_CONNECTED) {
-    LOG_DEBUG("BNEP - CCB timeout in state: %d  CID: 0x%x", p_bcb->con_state,
-              p_bcb->l2cap_cid);
+    log::debug("BNEP - CCB timeout in state: {}  CID: 0x{:x}", p_bcb->con_state,
+               p_bcb->l2cap_cid);
 
-    L2CA_DisconnectReq(p_bcb->l2cap_cid);
+    if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+      log::warn("Unable to request L2CAP disconnect peer:{} cid:{}",
+                p_bcb->rem_bda, p_bcb->l2cap_cid);
+    }
 
     /* Tell the user if there is a callback */
     if ((p_bcb->con_flags & BNEP_FLAGS_IS_ORIG) && (bnep_cb.p_conn_state_cb))
@@ -570,7 +595,10 @@ void bnep_conn_timer_timeout(void* data) {
       alarm_set_on_mloop(p_bcb->conn_timer, BNEP_FILTER_SET_TIMEOUT_MS,
                          bnep_conn_timer_timeout, p_bcb);
     } else {
-      L2CA_DisconnectReq(p_bcb->l2cap_cid);
+      if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+        log::warn("Unable to request L2CAP disconnect peer:{} cid:{}",
+                  p_bcb->rem_bda, p_bcb->l2cap_cid);
+      }
 
       /* Tell the user if there is a callback */
       if (bnep_cb.p_conn_state_cb)
@@ -586,7 +614,10 @@ void bnep_conn_timer_timeout(void* data) {
       alarm_set_on_mloop(p_bcb->conn_timer, BNEP_FILTER_SET_TIMEOUT_MS,
                          bnep_conn_timer_timeout, p_bcb);
     } else {
-      L2CA_DisconnectReq(p_bcb->l2cap_cid);
+      if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+        log::warn("Unable to request L2CAP disconnect peer:{} cid:{}",
+                  p_bcb->rem_bda, p_bcb->l2cap_cid);
+      }
 
       /* Tell the user if there is a callback */
       if (bnep_cb.p_conn_state_cb)

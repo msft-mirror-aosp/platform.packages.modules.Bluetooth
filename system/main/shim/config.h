@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <list>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>

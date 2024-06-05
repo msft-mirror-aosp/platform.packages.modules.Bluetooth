@@ -16,19 +16,20 @@
 
 #include "le_audio_log_history.h"
 
-#include <base/logging.h>
-#include <check.h>
+#include <bluetooth/log.h>
 
 #include <cstdint>
 #include <memory>
 #include <string>
 
-#include "gd/common/circular_buffer.h"
-#include "gd/common/strings.h"
+#include "common/circular_buffer.h"
+#include "common/strings.h"
 #include "main/shim/dumpsys.h"
-#include "osi/include/log.h"
+#include "os/log.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
+
+using namespace bluetooth;
 
 constexpr size_t kMaxLogSize = 255;
 constexpr size_t kLeAudioLogHistoryBufferSize = 200;
@@ -69,7 +70,7 @@ class LeAudioLogHistoryImpl : public LeAudioLogHistory {
   LeAudioLogHistoryImpl(void) {
     history_ = std::make_shared<TimestampedStringCircularBuffer>(
         kLeAudioLogHistoryBufferSize);
-    CHECK(history_ != nullptr);
+    log::assert_that(history_ != nullptr, "assert failed: history_ != nullptr");
     history_->Push(std::string("Initialized le_audio history"));
   }
 
@@ -109,7 +110,7 @@ class LeAudioLogHistoryImpl : public LeAudioLogHistory {
                                const RawAddress& addr, const std::string& msg,
                                const std::string& extra) {
     if (history_ == nullptr) {
-      LOG_ERROR(
+      log::error(
           "LeAudioLogHistory has not been constructed or already destroyed !");
       return;
     }

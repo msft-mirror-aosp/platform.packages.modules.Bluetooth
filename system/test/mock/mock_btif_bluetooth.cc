@@ -20,21 +20,15 @@
  *
  *  mockcify.pl ver 0.2.1
  */
-
-#include <cstdint>
-#include <functional>
-#include <map>
-#include <string>
-
 // Mock include file to share data between tests and mock
 #include "test/mock/mock_btif_bluetooth.h"
+
+#include <cstdint>
+
+#include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
 // Mocked compile conditionals, if any
-#ifndef UNUSED_ATTR
-#define UNUSED_ATTR
-#endif
-
 // Mocked internal structures, if any
 
 namespace test {
@@ -54,7 +48,7 @@ struct get_remote_device_property get_remote_device_property;
 struct get_remote_services get_remote_services;
 struct le_test_mode le_test_mode;
 struct set_remote_device_property set_remote_device_property;
-struct set_hal_cbacks set_hal_cbacks;
+struct invoke_switch_buffer_size_cb invoke_switch_buffer_size_cb;
 
 }  // namespace btif_bluetooth
 }  // namespace mock
@@ -110,9 +104,10 @@ int set_remote_device_property(RawAddress* remote_addr,
   return test::mock::btif_bluetooth::set_remote_device_property(remote_addr,
                                                                 property);
 }
-void set_hal_cbacks(bt_callbacks_t* callbacks) {
+void invoke_switch_buffer_size_cb(bool invoke_switch_buffer_size_cb) {
   inc_func_call_count(__func__);
-  test::mock::btif_bluetooth::set_hal_cbacks(callbacks);
+  test::mock::btif_bluetooth::invoke_switch_buffer_size_cb(
+      invoke_switch_buffer_size_cb);
 }
 
 // END mockcify generation

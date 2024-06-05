@@ -66,12 +66,14 @@ import com.android.internal.app.IBatteryStats;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
-import java.util.HashMap;
+import java.util.Map;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
@@ -79,6 +81,8 @@ public class AdapterServiceRestartTest {
     private static final String TAG = AdapterServiceTest.class.getSimpleName();
 
     private AdapterService mAdapterService;
+
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     private @Mock Context mMockContext;
     private @Mock ApplicationInfo mMockApplicationInfo;
@@ -112,7 +116,7 @@ public class AdapterServiceRestartTest {
 
     private PackageManager mMockPackageManager;
     private MockContentResolver mMockContentResolver;
-    private HashMap<String, HashMap<String, String>> mAdapterConfig;
+    private Map<String, Map<String, String>> mAdapterConfig;
     private int mForegroundUserId;
     private TestLooper mLooper;
 
@@ -124,7 +128,6 @@ public class AdapterServiceRestartTest {
     @Before
     public void setUp() throws PackageManager.NameNotFoundException {
         Log.e(TAG, "setUp()");
-        MockitoAnnotations.initMocks(this);
 
         mLooper = new TestLooper();
         Handler handler = new Handler(mLooper.getLooper());
@@ -145,12 +148,14 @@ public class AdapterServiceRestartTest {
         Context targetContext = InstrumentationRegistry.getTargetContext();
 
         mMockContentResolver = new MockContentResolver(targetContext);
-        mMockContentResolver.addProvider(Settings.AUTHORITY, new MockContentProvider() {
-            @Override
-            public Bundle call(String method, String request, Bundle args) {
-                return Bundle.EMPTY;
-            }
-        });
+        mMockContentResolver.addProvider(
+                Settings.AUTHORITY,
+                new MockContentProvider() {
+                    @Override
+                    public Bundle call(String method, String request, Bundle args) {
+                        return Bundle.EMPTY;
+                    }
+                });
 
         mPowerManager = targetContext.getSystemService(PowerManager.class);
         mPermissionCheckerManager = targetContext.getSystemService(PermissionCheckerManager.class);
@@ -167,8 +172,8 @@ public class AdapterServiceRestartTest {
         when(mMockContext.getApplicationInfo()).thenReturn(mMockApplicationInfo);
         when(mMockContext.getContentResolver()).thenReturn(mMockContentResolver);
         when(mMockContext.getApplicationContext()).thenReturn(mMockContext);
-        when(mMockContext.createContextAsUser(UserHandle.SYSTEM, /* flags= */ 0)).thenReturn(
-                mMockContext);
+        when(mMockContext.createContextAsUser(UserHandle.SYSTEM, /* flags= */ 0))
+                .thenReturn(mMockContext);
         when(mMockContext.getResources()).thenReturn(mMockResources);
         when(mMockContext.getUserId()).thenReturn(Process.BLUETOOTH_UID);
         when(mMockContext.getPackageManager()).thenReturn(mMockPackageManager);
@@ -201,10 +206,10 @@ public class AdapterServiceRestartTest {
                                 "AdapterServiceTestPrefs", Context.MODE_PRIVATE));
 
         doAnswer(
-                invocation -> {
-                    Object[] args = invocation.getArguments();
-                    return targetContext.getDatabasePath((String) args[0]);
-                })
+                        invocation -> {
+                            Object[] args = invocation.getArguments();
+                            return targetContext.getDatabasePath((String) args[0]);
+                        })
                 .when(mMockContext)
                 .getDatabasePath(anyString());
 
@@ -218,7 +223,8 @@ public class AdapterServiceRestartTest {
 
         when(mIBluetoothCallback.asBinder()).thenReturn(mBinder);
 
-        doReturn(Process.BLUETOOTH_UID).when(mMockPackageManager)
+        doReturn(Process.BLUETOOTH_UID)
+                .when(mMockPackageManager)
                 .getPackageUidAsUser(any(), anyInt(), anyInt());
 
         when(mMockMetricsLogger.init(any())).thenReturn(true);

@@ -7,10 +7,11 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use btstack::{
     battery_manager::BatteryManager, battery_provider_manager::BatteryProviderManager,
-    battery_service::BatteryService, bluetooth::Bluetooth, bluetooth_admin::BluetoothAdmin,
-    bluetooth_gatt::BluetoothGatt, bluetooth_logging::BluetoothLogging,
-    bluetooth_media::BluetoothMedia, bluetooth_qa::BluetoothQA,
-    socket_manager::BluetoothSocketManager, suspend::Suspend, APIMessage, BluetoothAPI,
+    battery_service::BatteryService, bluetooth::Bluetooth, bluetooth::IBluetooth,
+    bluetooth_admin::BluetoothAdmin, bluetooth_gatt::BluetoothGatt,
+    bluetooth_logging::BluetoothLogging, bluetooth_media::BluetoothMedia,
+    bluetooth_qa::BluetoothQA, socket_manager::BluetoothSocketManager, suspend::Suspend,
+    APIMessage, BluetoothAPI, Message,
 };
 
 use crate::iface_battery_manager;
@@ -27,7 +28,7 @@ pub(crate) struct InterfaceManager {}
 
 impl InterfaceManager {
     fn make_object_name(idx: i32, name: &str) -> String {
-        String::from(format!("/org/chromium/bluetooth/hci{}/{}", idx, name))
+        format!("/org/chromium/bluetooth/hci{}/{}", idx, name)
     }
 
     /// Creates an mpsc channel for passing messages to the main dispatch loop.
@@ -35,10 +36,25 @@ impl InterfaceManager {
         channel::<APIMessage>(1)
     }
 
+    /// Runs the dispatch loop for APIMessage
+    ///
+    /// # Arguments
+    ///
+    /// * `rx` - The receiver channel for APIMessage
+    /// * `tx` - The sender channel for Message
+    /// * `virt_index` - The virtual index of the adapter
+    /// * `conn` - The DBus connection
+    /// * `conn_join_handle` - The thread handle that's maintaining the DBus resource
+    /// * `disconnect_watcher` - DisconnectWatcher to monitor client disconnects
+    /// * `bluetooth` - Implementation of the Bluetooth API
+    /// other implementations follow.
+    ///
     pub async fn dispatch(
         mut rx: Receiver<APIMessage>,
-        adapter_index: i32,
+        tx: Sender<Message>,
+        virt_index: i32,
         conn: Arc<SyncConnection>,
+        conn_join_handle: tokio::task::JoinHandle<()>,
         disconnect_watcher: Arc<Mutex<DisconnectWatcher>>,
         bluetooth: Arc<Mutex<Box<Bluetooth>>>,
         bluetooth_admin: Arc<Mutex<Box<BluetoothAdmin>>>,
@@ -169,32 +185,45 @@ impl InterfaceManager {
                 APIMessage::IsReady(api) => match api {
                     BluetoothAPI::Adapter => {
                         cr.lock().unwrap().insert(
-                            Self::make_object_name(adapter_index, "adapter"),
+                            Self::make_object_name(virt_index, "adapter"),
                             &[adapter_iface, qa_legacy_iface, socket_mgr_iface, suspend_iface],
                             mixin.clone(),
                         );
 
                         cr.lock().unwrap().insert(
-                            Self::make_object_name(adapter_index, "admin"),
+                            Self::make_object_name(virt_index, "admin"),
                             &[admin_iface],
                             bluetooth_admin.clone(),
                         );
 
                         cr.lock().unwrap().insert(
-                            Self::make_object_name(adapter_index, "logging"),
+                            Self::make_object_name(virt_index, "logging"),
                             &[logging_iface],
                             logging.clone(),
                         );
 
                         cr.lock().unwrap().insert(
-                            Self::make_object_name(adapter_index, "qa"),
+                            Self::make_object_name(virt_index, "qa"),
                             &[qa_iface],
                             bluetooth_qa.clone(),
                         );
+
+                        // AdvertiseManager selects the stack per is_le_ext_adv_supported.
+                        // Initialize it after Adapter is ready.
+                        let bt_clone = bluetooth.clone();
+                        let gatt_clone = bluetooth_gatt.clone();
+                        tokio::spawn(async move {
+                            let is_le_ext_adv_supported =
+                                bt_clone.lock().unwrap().is_le_extended_advertising_supported();
+                            gatt_clone
+                                .lock()
+                                .unwrap()
+                                .init_adv_manager(bt_clone, is_le_ext_adv_supported);
+                        });
                     }
                     BluetoothAPI::Gatt => {
                         cr.lock().unwrap().insert(
-                            Self::make_object_name(adapter_index, "gatt"),
+                            Self::make_object_name(virt_index, "gatt"),
                             &[gatt_iface],
                             bluetooth_gatt.clone(),
                         );
@@ -208,31 +237,43 @@ impl InterfaceManager {
                     }
                     BluetoothAPI::Media => {
                         cr.lock().unwrap().insert(
-                            Self::make_object_name(adapter_index, "media"),
+                            Self::make_object_name(virt_index, "media"),
                             &[media_iface],
                             bluetooth_media.clone(),
                         );
 
                         cr.lock().unwrap().insert(
-                            Self::make_object_name(adapter_index, "telephony"),
+                            Self::make_object_name(virt_index, "telephony"),
                             &[telephony_iface],
                             bluetooth_media.clone(),
                         );
                     }
                     BluetoothAPI::Battery => {
                         cr.lock().unwrap().insert(
-                            Self::make_object_name(adapter_index, "battery_provider_manager"),
+                            Self::make_object_name(virt_index, "battery_provider_manager"),
                             &[battery_provider_manager_iface],
                             battery_provider_manager.clone(),
                         );
 
                         cr.lock().unwrap().insert(
-                            Self::make_object_name(adapter_index, "battery_manager"),
+                            Self::make_object_name(virt_index, "battery_manager"),
                             &[battery_manager_iface],
                             battery_manager.clone(),
                         );
                     }
                 },
+
+                APIMessage::ShutDown => {
+                    // To shut down the connection, call _handle.abort() and drop the connection.
+                    conn_join_handle.abort();
+                    drop(conn);
+
+                    let tx = tx.clone();
+                    tokio::spawn(async move {
+                        let _ = tx.send(Message::AdapterShutdown).await;
+                    });
+                    break;
+                }
             }
         }
     }

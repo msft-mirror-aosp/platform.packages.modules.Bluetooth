@@ -16,25 +16,33 @@
 
 #include "main/shim/acl_api.h"
 
-#include <cstddef>
+#include <android_bluetooth_sysprop.h>
+#include <base/location.h>
+#include <com_android_bluetooth_flags.h>
+
 #include <cstdint>
 #include <future>
 #include <optional>
 
-#include "gd/hci/acl_manager.h"
-#include "gd/hci/remote_name_request.h"
-#include "main/shim/dumpsys.h"
+#include "hci/acl_manager.h"
+#include "hci/remote_name_request.h"
+#include "main/shim/acl.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
 #include "main/shim/stack.h"
 #include "osi/include/allocator.h"
+#include "osi/include/properties.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/btm/security_device_record.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/btu.h"  // do_in_main_thread
 #include "stack/include/inq_hci_link_interface.h"
+#include "stack/include/main_thread.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
+#ifndef PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED
+#define PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED \
+  "bluetooth.core.gap.le.privacy.own_address_type.enabled"
+#endif
 
 void bluetooth::shim::ACL_CreateClassicConnection(
     const RawAddress& raw_address) {
@@ -46,6 +54,16 @@ void bluetooth::shim::ACL_CancelClassicConnection(
     const RawAddress& raw_address) {
   auto address = ToGdAddress(raw_address);
   Stack::GetInstance()->GetAcl()->CancelClassicConnection(address);
+}
+
+bool bluetooth::shim::ACL_DeviceAlreadyConnected(
+    const tBLE_BD_ADDR& legacy_address_with_type) {
+  std::promise<bool> promise;
+  auto future = promise.get_future();
+  Stack::GetInstance()->GetAcl()->DeviceAlreadyConnected(
+      ToAddressWithTypeFromLegacy(legacy_address_with_type),
+      std::move(promise));
+  return future.get();
 }
 
 bool bluetooth::shim::ACL_AcceptLeConnectionFrom(
@@ -72,16 +90,45 @@ void bluetooth::shim::ACL_WriteData(uint16_t handle, BT_HDR* p_buf) {
   osi_free(p_buf);
 }
 
+void bluetooth::shim::ACL_Flush(uint16_t handle) {
+  Stack::GetInstance()->GetAcl()->Flush(handle);
+}
+
+void bluetooth::shim::ACL_SendConnectionParameterUpdateRequest(
+    uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
+    uint16_t conn_latency, uint16_t conn_timeout, uint16_t min_ce_len,
+    uint16_t max_ce_len) {
+  Stack::GetInstance()->GetAcl()->UpdateConnectionParameters(
+      handle, conn_int_min, conn_int_max, conn_latency, conn_timeout,
+      min_ce_len, max_ce_len);
+}
+
 void bluetooth::shim::ACL_ConfigureLePrivacy(bool is_le_privacy_enabled) {
   hci::LeAddressManager::AddressPolicy address_policy =
       is_le_privacy_enabled
           ? hci::LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS
           : hci::LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS;
+  /* This is a Floss only flag. Android determines address policy according to
+   * privacy mode, hence it is not necessary to enable resolvable address with
+   * another sysprop */
+  if (com::android::bluetooth::flags::
+          floss_separate_host_privacy_and_llprivacy()) {
+    address_policy = hci::LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS;
+    if (osi_property_get_bool(PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED,
+                              is_le_privacy_enabled))
+      address_policy =
+          hci::LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS;
+  }
+
   hci::AddressWithType empty_address_with_type(
       hci::Address{}, hci::AddressType::RANDOM_DEVICE_ADDRESS);
-  /* 7 minutes minimum, 15 minutes maximum for random address refreshing */
-  auto minimum_rotation_time = std::chrono::minutes(7);
-  auto maximum_rotation_time = std::chrono::minutes(15);
+
+  /* Default to 7 minutes minimum, 15 minutes maximum for random address refreshing;
+   * device can override. */
+  auto minimum_rotation_time = std::chrono::minutes(
+      GET_SYSPROP(Ble, random_address_rotation_interval_min, 7));
+  auto maximum_rotation_time = std::chrono::minutes(
+      GET_SYSPROP(Ble, random_address_rotation_interval_max, 15));
 
   Stack::GetInstance()
       ->GetStackManager()
@@ -177,7 +224,7 @@ void bluetooth::shim::ACL_LeSubrateRequest(
 
 void bluetooth::shim::ACL_RemoteNameRequest(const RawAddress& addr,
                                             uint8_t page_scan_rep_mode,
-                                            uint8_t page_scan_mode,
+                                            uint8_t /* page_scan_mode */,
                                             uint16_t clock_offset) {
   bluetooth::shim::GetRemoteNameRequest()->StartRemoteNameRequest(
       ToGdAddress(addr),
@@ -209,16 +256,10 @@ void bluetooth::shim::ACL_RemoteNameRequest(const RawAddress& addr,
       GetGdShimHandler()->BindOnce(
           [](RawAddress addr, uint64_t features) {
             static_assert(sizeof(features) == 8);
-            auto addr_array = addr.ToArray();
-            auto p = (uint8_t*)osi_malloc(addr_array.size() + sizeof(features));
-            std::copy(addr_array.rbegin(), addr_array.rend(), p);
-            for (int i = 0; i != sizeof(features); ++i) {
-              p[addr_array.size() + i] = features & ((1 << 8) - 1);
-              features >>= 8;
-            }
             do_in_main_thread(
                 FROM_HERE,
-                base::BindOnce(btm_sec_rmt_host_support_feat_evt, p));
+                base::BindOnce(btm_sec_rmt_host_support_feat_evt, addr,
+                               static_cast<uint8_t>(features & 0xff)));
           },
           addr),
       GetGdShimHandler()->BindOnce(
@@ -229,13 +270,10 @@ void bluetooth::shim::ACL_RemoteNameRequest(const RawAddress& addr,
                 base::BindOnce(
                     [](RawAddress addr, hci::ErrorCode status,
                        std::array<uint8_t, 248> name) {
-                      auto p = (uint8_t*)osi_malloc(name.size());
-                      std::copy(name.begin(), name.end(), p);
-
-                      btm_process_remote_name(&addr, p, name.size(),
+                      btm_process_remote_name(&addr, name.data(), name.size(),
                                               static_cast<tHCI_STATUS>(status));
                       btm_sec_rmt_name_request_complete(
-                          &addr, p, static_cast<tHCI_STATUS>(status));
+                          &addr, name.data(), static_cast<tHCI_STATUS>(status));
                     },
                     addr, status, name));
           },

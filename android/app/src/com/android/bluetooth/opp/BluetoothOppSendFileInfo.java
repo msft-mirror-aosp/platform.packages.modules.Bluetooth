@@ -32,6 +32,8 @@
 
 package com.android.bluetooth.opp;
 
+import android.bluetooth.BluetoothProfile;
+import android.bluetooth.BluetoothProtoEnums;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
@@ -43,7 +45,9 @@ import android.util.EventLog;
 import android.util.Log;
 
 import com.android.bluetooth.BluetoothMethodProxy;
+import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.R;
+import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -51,14 +55,12 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 /**
- * This class stores information about a single sending file It will only be
- * used for outbound share.
+ * This class stores information about a single sending file It will only be used for outbound
+ * share.
  */
+// Next tag value for ContentProfileErrorReportUtils.report(): 15
 public class BluetoothOppSendFileInfo {
     private static final String TAG = "BluetoothOppSendFileInfo";
-
-    private static final boolean D = Constants.DEBUG;
-
 
     /** Reusable SendFileInfo for error status. */
     static final BluetoothOppSendFileInfo SEND_FILE_INFO_ERROR =
@@ -80,8 +82,8 @@ public class BluetoothOppSendFileInfo {
     public final long mLength;
 
     /** for media file */
-    public BluetoothOppSendFileInfo(String fileName, String type, long length,
-            FileInputStream inputStream, int status) {
+    public BluetoothOppSendFileInfo(
+            String fileName, String type, long length, FileInputStream inputStream, int status) {
         mFileName = fileName;
         mMimetype = type;
         mLength = length;
@@ -100,8 +102,8 @@ public class BluetoothOppSendFileInfo {
         mStatus = status;
     }
 
-    public static BluetoothOppSendFileInfo generateFileInfo(Context context, Uri uri, String type,
-            boolean fromExternal) {
+    public static BluetoothOppSendFileInfo generateFileInfo(
+            Context context, Uri uri, String type, boolean fromExternal) {
         ContentResolver contentResolver = context.getContentResolver();
         String scheme = uri.getScheme();
         String fileName = null;
@@ -114,20 +116,42 @@ public class BluetoothOppSendFileInfo {
             if (fromExternal && BluetoothOppUtility.isForbiddenContent(uri)) {
                 EventLog.writeEvent(0x534e4554, "179910660", -1, uri.toString());
                 Log.e(TAG, "Content from forbidden URI is not allowed.");
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.OPP,
+                        BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
+                        0);
                 return SEND_FILE_INFO_ERROR;
             }
 
             contentType = contentResolver.getType(uri);
             Cursor metadataCursor;
             try {
-                metadataCursor = BluetoothMethodProxy.getInstance().contentResolverQuery(
-                        contentResolver, uri, new String[]{
-                                OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE
-                        }, null, null, null);
+                metadataCursor =
+                        BluetoothMethodProxy.getInstance()
+                                .contentResolverQuery(
+                                        contentResolver,
+                                        uri,
+                                        new String[] {
+                                            OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE
+                                        },
+                                        null,
+                                        null,
+                                        null);
             } catch (SQLiteException e) {
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.OPP,
+                        BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                        1);
                 // some content providers don't support the DISPLAY_NAME or SIZE columns
                 metadataCursor = null;
             } catch (SecurityException e) {
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.OPP,
+                        BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                        2);
                 Log.e(TAG, "generateFileInfo: Permission error, could not access URI: " + uri);
                 return SEND_FILE_INFO_ERROR;
             }
@@ -143,9 +167,7 @@ public class BluetoothOppSendFileInfo {
                         if (indexSize != -1) {
                             length = metadataCursor.getLong(indexSize);
                         }
-                        if (D) {
-                            Log.d(TAG, "fileName = " + fileName + " length = " + length);
-                        }
+                        Log.d(TAG, "fileName = " + fileName + " length = " + length);
                     }
                 } finally {
                     metadataCursor.close();
@@ -154,17 +176,29 @@ public class BluetoothOppSendFileInfo {
             if (fileName == null) {
                 // use last segment of URI if DISPLAY_NAME query fails
                 fileName = uri.getLastPathSegment();
-                if (D) Log.d(TAG, "fileName from URI :" + fileName);
+                Log.d(TAG, "fileName from URI :" + fileName);
             }
         } else if ("file".equals(scheme)) {
             if (uri.getPath() == null) {
                 Log.e(TAG, "Invalid URI path: " + uri);
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.OPP,
+                        BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
+                        3);
                 return SEND_FILE_INFO_ERROR;
             }
             if (fromExternal && !BluetoothOppUtility.isInExternalStorageDir(uri)) {
                 EventLog.writeEvent(0x534e4554, "35310991", -1, uri.getPath());
-                Log.e(TAG, "File based URI not in Environment.getExternalStorageDirectory() is not "
-                        + "allowed.");
+                Log.e(
+                        TAG,
+                        "File based URI not in Environment.getExternalStorageDirectory() is not "
+                                + "allowed.");
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.OPP,
+                        BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
+                        4);
                 return SEND_FILE_INFO_ERROR;
             }
             fileName = uri.getLastPathSegment();
@@ -182,12 +216,24 @@ public class BluetoothOppSendFileInfo {
                 // right size in _OpenableColumns.SIZE
                 // As a second source of getting the correct file length,
                 // get a file descriptor and get the stat length
-                AssetFileDescriptor fd = BluetoothMethodProxy.getInstance()
-                        .contentResolverOpenAssetFileDescriptor(contentResolver, uri, "r");
+                AssetFileDescriptor fd =
+                        BluetoothMethodProxy.getInstance()
+                                .contentResolverOpenAssetFileDescriptor(contentResolver, uri, "r");
                 long statLength = fd.getLength();
                 if (length != statLength && statLength > 0) {
-                    Log.e(TAG, "Content provider length is wrong (" + Long.toString(length)
-                            + "), using stat length (" + Long.toString(statLength) + ")");
+                    Log.e(
+                            TAG,
+                            "Content provider length is wrong ("
+                                    + Long.toString(length)
+                                    + "), using stat length ("
+                                    + Long.toString(statLength)
+                                    + ")");
+                    ContentProfileErrorReportUtils.report(
+                            BluetoothProfile.OPP,
+                            BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                            BluetoothStatsLog
+                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
+                            5);
                     length = statLength;
                 }
 
@@ -202,52 +248,106 @@ public class BluetoothOppSendFileInfo {
                     if (length == 0) {
                         length = getStreamSize(is);
                         Log.w(TAG, "File length not provided. Length from stream = " + length);
+                        ContentProfileErrorReportUtils.report(
+                                BluetoothProfile.OPP,
+                                BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                                BluetoothStatsLog
+                                        .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
+                                6);
                         // Reset the stream
-                        fd = BluetoothMethodProxy.getInstance()
-                                .contentResolverOpenAssetFileDescriptor(contentResolver, uri, "r");
+                        fd =
+                                BluetoothMethodProxy.getInstance()
+                                        .contentResolverOpenAssetFileDescriptor(
+                                                contentResolver, uri, "r");
                         is = fd.createInputStream();
                     }
                 } catch (IOException e) {
+                    ContentProfileErrorReportUtils.report(
+                            BluetoothProfile.OPP,
+                            BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                            BluetoothStatsLog
+                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                            7);
                     try {
                         fd.close();
                     } catch (IOException e2) {
+                        ContentProfileErrorReportUtils.report(
+                                BluetoothProfile.OPP,
+                                BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                                BluetoothStatsLog
+                                        .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                                8);
                         // Ignore
                     }
                 }
             } catch (FileNotFoundException e) {
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.OPP,
+                        BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                        9);
                 // Ignore
             } catch (SecurityException e) {
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.OPP,
+                        BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                        10);
                 return SEND_FILE_INFO_ERROR;
             }
         }
 
         if (is == null) {
             try {
-                is = (FileInputStream) BluetoothMethodProxy.getInstance()
-                        .contentResolverOpenInputStream(contentResolver, uri);
+                is =
+                        (FileInputStream)
+                                BluetoothMethodProxy.getInstance()
+                                        .contentResolverOpenInputStream(contentResolver, uri);
 
                 // If the database doesn't contain the file size, get the size
                 // by reading through the entire stream
                 if (length == 0) {
                     length = getStreamSize(is);
                     // Reset the stream
-                    is = (FileInputStream) BluetoothMethodProxy.getInstance()
-                            .contentResolverOpenInputStream(contentResolver, uri);
+                    is =
+                            (FileInputStream)
+                                    BluetoothMethodProxy.getInstance()
+                                            .contentResolverOpenInputStream(contentResolver, uri);
                 }
             } catch (FileNotFoundException e) {
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.OPP,
+                        BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                        11);
                 return SEND_FILE_INFO_ERROR;
             } catch (IOException e) {
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.OPP,
+                        BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                        12);
                 return SEND_FILE_INFO_ERROR;
             }
         }
 
         if (length == 0) {
             Log.e(TAG, "Could not determine size of file");
+            ContentProfileErrorReportUtils.report(
+                    BluetoothProfile.OPP,
+                    BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
+                    13);
             return SEND_FILE_INFO_ERROR;
         } else if (length > 0xffffffffL) {
             Log.e(TAG, "File of size: " + length + " bytes can't be transferred");
-            throw new IllegalArgumentException(context
-                .getString(R.string.bluetooth_opp_file_limit_exceeded));
+            ContentProfileErrorReportUtils.report(
+                    BluetoothProfile.OPP,
+                    BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
+                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
+                    14);
+            throw new IllegalArgumentException(
+                    context.getString(R.string.bluetooth_opp_file_limit_exceeded));
         }
 
         return new BluetoothOppSendFileInfo(fileName, contentType, length, is, 0);

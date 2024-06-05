@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-#include <errno.h>
+#define LOG_TAG "sco_hci"
+
+#include <bluetooth/log.h>
 #include <grp.h>
 #include <math.h>
 #include <sys/stat.h>
@@ -23,13 +25,10 @@
 #include <cfloat>
 #include <memory>
 
-// Define before including log.h
-#define LOG_TAG "sco_hci"
-
 #include "btif/include/core_callbacks.h"
-#include "btif/include/stack_manager.h"
+#include "btif/include/stack_manager_t.h"
+#include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/log.h"
 #include "stack/btm/btm_sco.h"
 #include "udrv/include/uipc.h"
 
@@ -96,12 +95,12 @@ namespace sco {
 
 void open() {
   if (sco_uipc != nullptr) {
-    LOG_WARN("Re-opening UIPC that is already running");
+    log::warn("Re-opening UIPC that is already running");
   }
 
   sco_uipc = UIPC_Init();
   if (sco_uipc == nullptr) {
-    LOG_ERROR("%s failed to init UIPC", __func__);
+    log::error("failed to init UIPC");
     return;
   }
 
@@ -111,7 +110,7 @@ void open() {
   if (grp) {
     int res = chown(SCO_HOST_DATA_PATH, -1, grp->gr_gid);
     if (res == -1) {
-      LOG_ERROR("%s failed: %s", __func__, strerror(errno));
+      log::error("failed: {}", strerror(errno));
     }
   }
 }
@@ -126,7 +125,7 @@ void cleanup() {
 
 size_t read(uint8_t* p_buf, uint32_t len) {
   if (sco_uipc == nullptr) {
-    LOG_WARN("Read from uninitialized or closed UIPC");
+    log::warn("Read from uninitialized or closed UIPC");
     return 0;
   }
   return UIPC_Read(*sco_uipc, UIPC_CH_ID_AV_AUDIO, p_buf, len);
@@ -134,11 +133,19 @@ size_t read(uint8_t* p_buf, uint32_t len) {
 
 size_t write(const uint8_t* p_buf, uint32_t len) {
   if (sco_uipc == nullptr) {
-    LOG_WARN("Write to uninitialized or closed UIPC");
+    log::warn("Write to uninitialized or closed UIPC");
     return 0;
   }
   return UIPC_Send(*sco_uipc, UIPC_CH_ID_AV_AUDIO, 0, p_buf, len) ? len : 0;
 }
+
+enum decode_buf_state {
+  DECODE_BUF_EMPTY,
+  DECODE_BUF_FULL,
+
+  // Neither empty nor full.
+  DECODE_BUF_HALFFULL,
+};
 
 namespace wbs {
 
@@ -150,10 +157,10 @@ static const uint8_t btm_h2_header_frames_count[] = {0x08, 0x38, 0xc8, 0xf8};
  * code ties to limited packet size values. Specifically list them out
  * to check against when setting packet size. The first entry is the default
  * value as a fallback. */
-constexpr size_t btm_wbs_supported_pkt_size[] = {BTM_MSBC_PKT_LEN, 72, 0};
+constexpr size_t btm_wbs_supported_pkt_size[] = {BTM_MSBC_PKT_LEN, 72, 24, 0};
 /* Buffer size should be set to least common multiple of SCO packet size and
  * BTM_MSBC_PKT_LEN for optimizing buffer copy. */
-constexpr size_t btm_wbs_msbc_buffer_size[] = {BTM_MSBC_PKT_LEN, 360, 0};
+constexpr size_t btm_wbs_msbc_buffer_size[] = {BTM_MSBC_PKT_LEN, 360, 120, 0};
 
 /* The pre-computed SCO packet per HFP 1.7 spec. This mSBC packet will be
  * decoded into all-zero input PCM. */
@@ -397,9 +404,32 @@ struct tBTM_MSBC_INFO {
   size_t packet_size; /* SCO mSBC packet size supported by lower layer */
   size_t buf_size; /* The size of the buffer, determined by the packet_size. */
 
+  uint8_t* packet_buf;      /* Temporary buffer to store the data */
   uint8_t* msbc_decode_buf; /* Buffer to store mSBC packets to decode */
   size_t decode_buf_wo;     /* Write offset of the decode buffer */
   size_t decode_buf_ro;     /* Read offset of the decode buffer */
+
+  /* Within the circular buffer, which can be visualized as having
+     two halves, mirror indicators track the pointer's location,
+     signaling whether it resides in the first or second segment:
+
+              [buf_size-1] ┼ - - -─┼ [0]
+                           │       │
+                           │       │
+     wo = x, wo_mirror = 0 ^       v ro = x, ro_mirror = 1
+                           │       │
+                           │       │
+                       [0] ┼ - - - ┼ [buf_size-1]
+              (First Half)           (Second Half)
+  */
+  bool decode_buf_wo_mirror; /* The mirror indicator specifies whether
+                                the write pointer is currently located
+                                in the first or second half of the
+                                circular buffer */
+  bool decode_buf_ro_mirror; /* The mirror indicator specifies whether
+                                the read pointer is currently located
+                                in the first or second half of the
+                                circular buffer */
   bool read_corrupted;      /* If the current mSBC packet read is corrupted */
 
   uint8_t* msbc_encode_buf; /* Buffer to store the encoded SCO packets */
@@ -422,7 +452,7 @@ struct tBTM_MSBC_INFO {
     /* In case of unsupported value, error log and fallback to
      * BTM_MSBC_PKT_LEN(60). */
     if (btm_wbs_supported_pkt_size[i] == 0) {
-      LOG_WARN("Unsupported packet size %lu", (unsigned long)pkt_size);
+      log::warn("Unsupported packet size {}", (unsigned long)pkt_size);
       i = 0;
     }
 
@@ -445,12 +475,17 @@ struct tBTM_MSBC_INFO {
   size_t init(size_t pkt_size) {
     decode_buf_wo = 0;
     decode_buf_ro = 0;
+    decode_buf_wo_mirror = false;
+    decode_buf_ro_mirror = false;
+
     encode_buf_wo = 0;
     encode_buf_ro = 0;
 
     pkt_size = get_supported_packet_size(pkt_size, &buf_size);
     if (pkt_size == packet_size) return packet_size;
     packet_size = pkt_size;
+
+    if (!packet_buf) packet_buf = (uint8_t*)osi_calloc(BTM_MSBC_PKT_LEN);
 
     if (msbc_decode_buf) osi_free(msbc_decode_buf);
     msbc_decode_buf = (uint8_t*)osi_calloc(buf_size);
@@ -474,6 +509,7 @@ struct tBTM_MSBC_INFO {
 
   void deinit() {
     if (msbc_decode_buf) osi_free(msbc_decode_buf);
+    if (packet_buf) osi_free(packet_buf);
     if (msbc_encode_buf) osi_free(msbc_encode_buf);
     if (plc) {
       plc->deinit();
@@ -482,55 +518,109 @@ struct tBTM_MSBC_INFO {
     if (pkt_status) osi_free_and_reset((void**)&pkt_status);
   }
 
-  size_t decodable() { return decode_buf_wo - decode_buf_ro; }
-
-  void mark_pkt_decoded() {
-    if (decode_buf_ro + BTM_MSBC_PKT_LEN > decode_buf_wo) {
-      LOG_ERROR("Trying to mark read offset beyond write offset.");
+  void incr_buf_offset(size_t& offset, bool& mirror, size_t bsize,
+                       size_t amount) {
+    if (bsize - offset > amount) {
+      offset += amount;
       return;
     }
 
-    decode_buf_ro += BTM_MSBC_PKT_LEN;
+    mirror = !mirror;
+    offset = amount - (bsize - offset);
+  }
+
+  decode_buf_state decode_buf_status() {
     if (decode_buf_ro == decode_buf_wo) {
-      decode_buf_ro = 0;
-      decode_buf_wo = 0;
+      if (decode_buf_ro_mirror == decode_buf_wo_mirror) return DECODE_BUF_EMPTY;
+      return DECODE_BUF_FULL;
     }
+    return DECODE_BUF_HALFFULL;
+  }
+
+  size_t decode_buf_data_len() {
+    switch (decode_buf_status()) {
+      case DECODE_BUF_EMPTY:
+        return 0;
+      case DECODE_BUF_FULL:
+        return buf_size;
+      case DECODE_BUF_HALFFULL:
+      default:
+        if (decode_buf_wo > decode_buf_ro) return decode_buf_wo - decode_buf_ro;
+        return buf_size - (decode_buf_ro - decode_buf_wo);
+    };
+  }
+
+  size_t decode_buf_avail_len() { return buf_size - decode_buf_data_len(); }
+
+  void mark_pkt_decoded() {
+    if (decode_buf_data_len() < BTM_MSBC_PKT_LEN) {
+      log::error("Trying to mark read offset beyond write offset.");
+      return;
+    }
+
+    incr_buf_offset(decode_buf_ro, decode_buf_ro_mirror, buf_size,
+                    BTM_MSBC_PKT_LEN);
   }
 
   size_t write(const std::vector<uint8_t>& input) {
-    if (input.size() > buf_size - decode_buf_wo) {
+    if (input.size() > decode_buf_avail_len()) {
+      log::warn(
+          "Cannot write input with size {} into decode_buf with {} empty "
+          "space.",
+          input.size(), decode_buf_avail_len());
       return 0;
     }
 
-    std::copy(input.begin(), input.end(), msbc_decode_buf + decode_buf_wo);
-    decode_buf_wo += input.size();
+    if (buf_size - decode_buf_wo > input.size()) {
+      std::copy(input.begin(), input.end(), msbc_decode_buf + decode_buf_wo);
+    } else {
+      std::copy(input.begin(), input.begin() + buf_size - decode_buf_wo,
+                msbc_decode_buf + decode_buf_wo);
+      std::copy(input.begin() + buf_size - decode_buf_wo, input.end(),
+                msbc_decode_buf);
+    }
+
+    incr_buf_offset(decode_buf_wo, decode_buf_wo_mirror, buf_size,
+                    input.size());
     return input.size();
   }
 
   const uint8_t* find_msbc_pkt_head() {
     if (read_corrupted) {
-      LOG_DEBUG("Skip corrupted mSBC packets");
       read_corrupted = false;
       return nullptr;
     }
 
     size_t rp = 0;
-    while (rp < BTM_MSBC_PKT_LEN &&
-           decode_buf_wo - (decode_buf_ro + rp) >= BTM_MSBC_PKT_LEN) {
-      if ((msbc_decode_buf[decode_buf_ro + rp] != BTM_MSBC_H2_HEADER_0) ||
+    size_t data_len = decode_buf_data_len();
+    while (rp < BTM_MSBC_PKT_LEN && data_len - rp >= BTM_MSBC_PKT_LEN) {
+      if ((msbc_decode_buf[(decode_buf_ro + rp) % buf_size] !=
+           BTM_MSBC_H2_HEADER_0) ||
           (!verify_h2_header_seq_num(
-              msbc_decode_buf[decode_buf_ro + rp + 1])) ||
-          (msbc_decode_buf[decode_buf_ro + rp + 2] != BTM_MSBC_SYNC_WORD)) {
+              msbc_decode_buf[(decode_buf_ro + rp + 1) % buf_size])) ||
+          (msbc_decode_buf[(decode_buf_ro + rp + 2) % buf_size] !=
+           BTM_MSBC_SYNC_WORD)) {
         rp++;
         continue;
       }
 
       if (rp != 0) {
-        LOG_WARN("Skipped %lu bytes of mSBC data ahead of a valid mSBC frame",
-                 (unsigned long)rp);
-        decode_buf_ro += rp;
+        log::warn("Skipped {} bytes of mSBC data ahead of a valid mSBC frame",
+                  (unsigned long)rp);
+        incr_buf_offset(decode_buf_ro, decode_buf_ro_mirror, buf_size, rp);
       }
-      return &msbc_decode_buf[decode_buf_ro];
+
+      // Get the frame head.
+      if (buf_size - decode_buf_ro >= BTM_MSBC_PKT_LEN) {
+        return &msbc_decode_buf[decode_buf_ro];
+      }
+
+      std::copy(msbc_decode_buf + decode_buf_ro, msbc_decode_buf + buf_size,
+                packet_buf);
+      std::copy(msbc_decode_buf,
+                msbc_decode_buf + BTM_MSBC_PKT_LEN - (buf_size - decode_buf_ro),
+                packet_buf + (buf_size - decode_buf_ro));
+      return packet_buf;
     }
 
     return nullptr;
@@ -543,7 +633,7 @@ struct tBTM_MSBC_INFO {
   uint8_t* fill_msbc_pkt_template() {
     uint8_t* wp = &msbc_encode_buf[encode_buf_wo];
     if (buf_size - encode_buf_wo < BTM_MSBC_PKT_LEN) {
-      LOG_DEBUG("Packet queue can't accommodate more packets.");
+      log::debug("Packet queue can't accommodate more packets.");
       return nullptr;
     }
 
@@ -556,11 +646,6 @@ struct tBTM_MSBC_INFO {
   }
 
   size_t mark_pkt_dequeued() {
-    LOG_DEBUG(
-        "Try to mark an encoded packet dequeued: ro:%lu wo:%lu pkt_size:%lu",
-        (unsigned long)encode_buf_ro, (unsigned long)encode_buf_wo,
-        (unsigned long)packet_size);
-
     if (encode_buf_wo - encode_buf_ro < packet_size) return 0;
 
     encode_buf_ro += packet_size;
@@ -574,7 +659,6 @@ struct tBTM_MSBC_INFO {
 
   const uint8_t* sco_pkt_read_ptr() {
     if (encode_buf_wo - encode_buf_ro < packet_size) {
-      LOG_DEBUG("Insufficient data as a SCO packet to read.");
       return nullptr;
     }
 
@@ -588,7 +672,7 @@ size_t init(size_t pkt_size) {
   GetInterfaceToProfiles()->msbcCodec->initialize();
 
   if (msbc_info) {
-    LOG_WARN("Re-initiating mSBC buffer that is active or not cleaned");
+    log::warn("Re-initiating mSBC buffer that is active or not cleaned");
     msbc_info->deinit();
     osi_free(msbc_info);
   }
@@ -623,22 +707,20 @@ bool fill_plc_stats(int* num_decoded_frames, double* packet_loss_ratio) {
 
 bool enqueue_packet(const std::vector<uint8_t>& data, bool corrupted) {
   if (msbc_info == nullptr) {
-    LOG_WARN("mSBC buffer uninitialized or cleaned");
+    log::warn("mSBC buffer uninitialized or cleaned");
     return false;
   }
 
   if (data.size() != msbc_info->packet_size) {
-    LOG_WARN(
-        "Ignoring the coming packet with size %lu that is inconsistent with "
-        "the HAL reported packet size %lu",
+    log::warn(
+        "Ignoring the coming packet with size {} that is inconsistent with the "
+        "HAL reported packet size {}",
         (unsigned long)data.size(), (unsigned long)msbc_info->packet_size);
     return false;
   }
 
   msbc_info->read_corrupted |= corrupted;
   if (msbc_info->write(data) != data.size()) {
-    LOG_DEBUG("Fail to write packet with size %lu to buffer",
-              (unsigned long)data.size());
     return false;
   }
 
@@ -649,25 +731,21 @@ size_t decode(const uint8_t** out_data) {
   const uint8_t* frame_head = nullptr;
 
   if (msbc_info == nullptr) {
-    LOG_WARN("mSBC buffer uninitialized or cleaned");
+    log::warn("mSBC buffer uninitialized or cleaned");
     return 0;
   }
 
   if (out_data == nullptr) {
-    LOG_WARN("%s Invalid output pointer", __func__);
+    log::warn("Invalid output pointer");
     return 0;
   }
 
-  if (msbc_info->decodable() < BTM_MSBC_PKT_LEN) {
-    LOG_DEBUG("No complete mSBC packet to decode");
+  if (msbc_info->decode_buf_data_len() < BTM_MSBC_PKT_LEN) {
     return 0;
   }
 
   frame_head = msbc_info->find_msbc_pkt_head();
   if (frame_head == nullptr) {
-    LOG_DEBUG("No valid mSBC packet to decode %lu, %lu",
-              (unsigned long)msbc_info->decode_buf_ro,
-              (unsigned long)msbc_info->decode_buf_wo);
     /* Done with parsing the raw bytes just read. If we couldn't find a valid
      * mSBC frame head, we shall treat the existing BTM_MSBC_PKT_LEN length
      * of mSBC data as a corrupted packet and conduct the PLC. */
@@ -677,7 +755,6 @@ size_t decode(const uint8_t** out_data) {
   if (!GetInterfaceToProfiles()->msbcCodec->decodePacket(
           frame_head, msbc_info->decoded_pcm_buf,
           sizeof(msbc_info->decoded_pcm_buf))) {
-    LOG_DEBUG("Decoding mSBC packet failed");
     goto packet_loss;
   }
 
@@ -698,33 +775,28 @@ size_t encode(int16_t* data, size_t len) {
   uint8_t* pkt_body = nullptr;
   uint32_t encoded_size = 0;
   if (msbc_info == nullptr) {
-    LOG_WARN("mSBC buffer uninitialized or cleaned");
+    log::warn("mSBC buffer uninitialized or cleaned");
     return 0;
   }
 
   if (data == nullptr) {
-    LOG_WARN("Invalid data to encode");
+    log::warn("Invalid data to encode");
     return 0;
   }
 
   if (len < BTM_MSBC_CODE_SIZE) {
-    LOG_DEBUG(
-        "PCM frames with size %lu is insufficient to be encoded into a mSBC "
-        "packet",
-        (unsigned long)len);
     return 0;
   }
 
   pkt_body = msbc_info->fill_msbc_pkt_template();
   if (pkt_body == nullptr) {
-    LOG_DEBUG("Failed to fill the template to fill the mSBC packet");
     return 0;
   }
 
   encoded_size =
       GetInterfaceToProfiles()->msbcCodec->encodePacket(data, pkt_body);
   if (encoded_size != BTM_MSBC_PKT_FRAME_LEN) {
-    LOG_WARN("Encoding invalid packet size: %lu", (unsigned long)encoded_size);
+    log::warn("Encoding invalid packet size: {}", (unsigned long)encoded_size);
     std::copy(&btm_msbc_zero_packet[BTM_MSBC_H2_HEADER_LEN],
               std::end(btm_msbc_zero_packet), pkt_body);
   }
@@ -734,18 +806,17 @@ size_t encode(int16_t* data, size_t len) {
 
 size_t dequeue_packet(const uint8_t** output) {
   if (msbc_info == nullptr) {
-    LOG_WARN("mSBC buffer uninitialized or cleaned");
+    log::warn("mSBC buffer uninitialized or cleaned");
     return 0;
   }
 
   if (output == nullptr) {
-    LOG_WARN("%s Invalid output pointer", __func__);
+    log::warn("Invalid output pointer");
     return 0;
   }
 
   *output = msbc_info->sco_pkt_read_ptr();
   if (*output == nullptr) {
-    LOG_DEBUG("Insufficient data to dequeue.");
     return 0;
   }
 
@@ -772,20 +843,43 @@ constexpr uint8_t btm_h2_header_frames_count[] = {0x08, 0x38, 0xc8, 0xf8};
  * code ties to limited packet size values. Specifically list them out
  * to check against when setting packet size. The first entry is the default
  * value as a fallback. */
-constexpr size_t btm_swb_supported_pkt_size[] = {BTM_LC3_PKT_LEN, 72, 0};
+constexpr size_t btm_swb_supported_pkt_size[] = {BTM_LC3_PKT_LEN, 72, 24, 0};
 
 /* Buffer size should be set to least common multiple of SCO packet size and
  * BTM_LC3_PKT_LEN for optimizing buffer copy. */
-constexpr size_t btm_swb_lc3_buffer_size[] = {BTM_LC3_PKT_LEN, 360, 0};
+constexpr size_t btm_swb_lc3_buffer_size[] = {BTM_LC3_PKT_LEN, 360, 120, 0};
 
 /* Define the structure that contains LC3 data */
 struct tBTM_LC3_INFO {
   size_t packet_size; /* SCO LC3 packet size supported by lower layer */
   size_t buf_size; /* The size of the buffer, determined by the packet_size. */
 
+  uint8_t* packet_buf;     /* Temporary buffer to store the data */
   uint8_t* lc3_decode_buf; /* Buffer to store LC3 packets to decode */
   size_t decode_buf_wo;    /* Write offset of the decode buffer */
   size_t decode_buf_ro;    /* Read offset of the decode buffer */
+
+  /* Within the circular buffer, which can be visualized as having
+     two halves, mirror indicators track the pointer's location,
+     signaling whether it resides in the first or second segment:
+
+              [buf_size-1] ┼ - - -─┼ [0]
+                           │       │
+                           │       │
+     wo = x, wo_mirror = 0 ^       v ro = x, ro_mirror = 1
+                           │       │
+                           │       │
+                       [0] ┼ - - - ┼ [buf_size-1]
+              (First Half)           (Second Half)
+  */
+  bool decode_buf_wo_mirror; /* The mirror indicator specifies whether
+                                the write pointer is currently located
+                                in the first or second half of the
+                                circular buffer */
+  bool decode_buf_ro_mirror; /* The mirror indicator specifies whether
+                                the read pointer is currently located
+                                in the first or second half of the
+                                circular buffer */
   bool read_corrupted;     /* If the current LC3 packet read is corrupted */
 
   uint8_t* lc3_encode_buf; /* Buffer to store the encoded SCO packets */
@@ -808,7 +902,7 @@ struct tBTM_LC3_INFO {
     /* In case of unsupported value, error log and fallback to
      * BTM_LC3_PKT_LEN(60). */
     if (btm_swb_supported_pkt_size[i] == 0) {
-      LOG_WARN("Unsupported packet size %lu", (unsigned long)pkt_size);
+      log::warn("Unsupported packet size {}", (unsigned long)pkt_size);
       i = 0;
     }
 
@@ -831,12 +925,17 @@ struct tBTM_LC3_INFO {
   size_t init(size_t pkt_size) {
     decode_buf_wo = 0;
     decode_buf_ro = 0;
+    decode_buf_wo_mirror = false;
+    decode_buf_ro_mirror = false;
+
     encode_buf_wo = 0;
     encode_buf_ro = 0;
 
     pkt_size = get_supported_packet_size(pkt_size, &buf_size);
     if (pkt_size == packet_size) return packet_size;
     packet_size = pkt_size;
+
+    if (!packet_buf) packet_buf = (uint8_t*)osi_calloc(BTM_LC3_PKT_LEN);
 
     if (lc3_decode_buf) osi_free(lc3_decode_buf);
     lc3_decode_buf = (uint8_t*)osi_calloc(buf_size);
@@ -853,16 +952,49 @@ struct tBTM_LC3_INFO {
 
   void deinit() {
     if (lc3_decode_buf) osi_free(lc3_decode_buf);
+    if (packet_buf) osi_free(packet_buf);
     if (lc3_encode_buf) osi_free(lc3_encode_buf);
     if (pkt_status) osi_free_and_reset((void**)&pkt_status);
   }
 
-  size_t decodable() { return decode_buf_wo - decode_buf_ro; }
+  void incr_buf_offset(size_t& offset, bool& mirror, size_t bsize,
+                       size_t amount) {
+    if (bsize - offset > amount) {
+      offset += amount;
+      return;
+    }
+
+    mirror = !mirror;
+    offset = amount - (bsize - offset);
+  }
+
+  decode_buf_state decode_buf_status() {
+    if (decode_buf_ro == decode_buf_wo) {
+      if (decode_buf_ro_mirror == decode_buf_wo_mirror) return DECODE_BUF_EMPTY;
+      return DECODE_BUF_FULL;
+    }
+    return DECODE_BUF_HALFFULL;
+  }
+
+  size_t decode_buf_data_len() {
+    switch (decode_buf_status()) {
+      case DECODE_BUF_EMPTY:
+        return 0;
+      case DECODE_BUF_FULL:
+        return buf_size;
+      case DECODE_BUF_HALFFULL:
+      default:
+        if (decode_buf_wo > decode_buf_ro) return decode_buf_wo - decode_buf_ro;
+        return buf_size - (decode_buf_ro - decode_buf_wo);
+    };
+  }
+
+  size_t decode_buf_avail_len() { return buf_size - decode_buf_data_len(); }
 
   uint8_t* fill_lc3_pkt_template() {
     uint8_t* wp = &lc3_encode_buf[encode_buf_wo];
     if (buf_size - encode_buf_wo < BTM_LC3_PKT_LEN) {
-      LOG_DEBUG("Packet queue can't accommodate more packets.");
+      log::debug("Packet queue can't accommodate more packets.");
       return nullptr;
     }
 
@@ -875,61 +1007,78 @@ struct tBTM_LC3_INFO {
   }
 
   void mark_pkt_decoded() {
-    if (decode_buf_ro + BTM_LC3_PKT_LEN > decode_buf_wo) {
-      LOG_ERROR("Trying to mark read offset beyond write offset.");
+    if (decode_buf_data_len() < BTM_LC3_PKT_LEN) {
+      log::error("Trying to mark read offset beyond write offset.");
       return;
     }
 
-    decode_buf_ro += BTM_LC3_PKT_LEN;
-    if (decode_buf_ro == decode_buf_wo) {
-      decode_buf_ro = 0;
-      decode_buf_wo = 0;
-    }
+    incr_buf_offset(decode_buf_ro, decode_buf_ro_mirror, buf_size,
+                    BTM_LC3_PKT_LEN);
   }
 
   size_t write(const std::vector<uint8_t>& input) {
-    if (input.size() > buf_size - decode_buf_wo) {
+    if (input.size() > decode_buf_avail_len()) {
+      log::warn(
+          "Cannot write input with size {} into decode_buf with {} empty "
+          "space.",
+          input.size(), decode_buf_avail_len());
       return 0;
     }
 
-    std::copy(input.begin(), input.end(), lc3_decode_buf + decode_buf_wo);
-    decode_buf_wo += input.size();
+    if (buf_size - decode_buf_wo > input.size()) {
+      std::copy(input.begin(), input.end(), lc3_decode_buf + decode_buf_wo);
+    } else {
+      std::copy(input.begin(), input.begin() + buf_size - decode_buf_wo,
+                lc3_decode_buf + decode_buf_wo);
+      std::copy(input.begin() + buf_size - decode_buf_wo, input.end(),
+                lc3_decode_buf);
+    }
+
+    incr_buf_offset(decode_buf_wo, decode_buf_wo_mirror, buf_size,
+                    input.size());
     return input.size();
   }
 
   const uint8_t* find_lc3_pkt_head() {
     if (read_corrupted) {
-      LOG_DEBUG("Skip corrupted LC3 packets");
       read_corrupted = false;
       return nullptr;
     }
 
     size_t rp = 0;
-    while (rp < BTM_LC3_PKT_LEN &&
-           decode_buf_wo - (decode_buf_ro + rp) >= BTM_LC3_PKT_LEN) {
-      if ((lc3_decode_buf[decode_buf_ro + rp] != BTM_LC3_H2_HEADER_0) ||
-          !verify_h2_header_seq_num(lc3_decode_buf[decode_buf_ro + rp + 1])) {
+    size_t data_len = decode_buf_data_len();
+    while (rp < BTM_LC3_PKT_LEN && data_len - rp >= BTM_LC3_PKT_LEN) {
+      if ((lc3_decode_buf[(decode_buf_ro + rp) % buf_size] !=
+           BTM_LC3_H2_HEADER_0) ||
+          !verify_h2_header_seq_num(
+              lc3_decode_buf[(decode_buf_ro + rp + 1) % buf_size])) {
         rp++;
         continue;
       }
 
       if (rp != 0) {
-        LOG_WARN("Skipped %lu bytes of LC3 data ahead of a valid LC3 frame",
-                 (unsigned long)rp);
-        decode_buf_ro += rp;
+        log::warn("Skipped {} bytes of LC3 data ahead of a valid LC3 frame",
+                  (unsigned long)rp);
+        incr_buf_offset(decode_buf_ro, decode_buf_ro_mirror, buf_size, rp);
       }
-      return &lc3_decode_buf[decode_buf_ro];
+
+      // Get the frame head.
+      if (buf_size - decode_buf_ro >= BTM_LC3_PKT_LEN) {
+        return &lc3_decode_buf[decode_buf_ro];
+      }
+
+      std::copy(lc3_decode_buf + decode_buf_ro, lc3_decode_buf + buf_size,
+                packet_buf);
+      std::copy(lc3_decode_buf,
+                lc3_decode_buf + BTM_LC3_PKT_LEN - (buf_size - decode_buf_ro),
+                packet_buf + (buf_size - decode_buf_ro));
+      return packet_buf;
     }
 
     return nullptr;
   }
 
   size_t mark_pkt_dequeued() {
-    LOG_DEBUG(
-        "Try to mark an encoded packet dequeued: ro:%lu wo:%lu pkt_size:%lu",
-        (unsigned long)encode_buf_ro, (unsigned long)encode_buf_wo,
-        (unsigned long)packet_size);
-
     if (encode_buf_wo - encode_buf_ro < packet_size) return 0;
 
     encode_buf_ro += packet_size;
@@ -943,7 +1092,6 @@ struct tBTM_LC3_INFO {
 
   const uint8_t* sco_pkt_read_ptr() {
     if (encode_buf_wo - encode_buf_ro < packet_size) {
-      LOG_DEBUG("Insufficient data as a SCO packet to read.");
       return nullptr;
     }
 
@@ -962,7 +1110,7 @@ size_t init(size_t pkt_size) {
   lost_frames = 0;
 
   if (lc3_info) {
-    LOG_WARN("Re-initiating LC3 buffer that is active or not cleaned");
+    log::warn("Re-initiating LC3 buffer that is active or not cleaned");
     lc3_info->deinit();
     osi_free(lc3_info);
   }
@@ -998,22 +1146,20 @@ bool fill_plc_stats(int* num_decoded_frames, double* packet_loss_ratio) {
 
 bool enqueue_packet(const std::vector<uint8_t>& data, bool corrupted) {
   if (lc3_info == nullptr) {
-    LOG_WARN("LC3 buffer uninitialized or cleaned");
+    log::warn("LC3 buffer uninitialized or cleaned");
     return false;
   }
 
   if (data.size() != lc3_info->packet_size) {
-    LOG_WARN(
-        "Ignoring the coming packet with size %lu that is inconsistent with "
-        "the HAL reported packet size %lu",
+    log::warn(
+        "Ignoring the coming packet with size {} that is inconsistent with the "
+        "HAL reported packet size {}",
         (unsigned long)data.size(), (unsigned long)lc3_info->packet_size);
     return false;
   }
 
   lc3_info->read_corrupted |= corrupted;
   if (lc3_info->write(data) != data.size()) {
-    LOG_DEBUG("Fail to write packet with size %lu to buffer",
-              (unsigned long)data.size());
     return false;
   }
 
@@ -1024,26 +1170,20 @@ size_t decode(const uint8_t** out_data) {
   const uint8_t* frame_head = nullptr;
 
   if (lc3_info == nullptr) {
-    LOG_WARN("LC3 buffer uninitialized or cleaned");
+    log::warn("LC3 buffer uninitialized or cleaned");
     return 0;
   }
 
   if (out_data == nullptr) {
-    LOG_WARN("%s Invalid output pointer", __func__);
+    log::warn("Invalid output pointer");
     return 0;
   }
 
-  if (lc3_info->decodable() < BTM_LC3_PKT_LEN) {
-    LOG_DEBUG("No complete LC3 packet to decode");
+  if (lc3_info->decode_buf_data_len() < BTM_LC3_PKT_LEN) {
     return 0;
   }
 
   frame_head = lc3_info->find_lc3_pkt_head();
-  if (frame_head == nullptr) {
-    LOG_DEBUG("No valid LC3 packet to decode %lu, %lu",
-              (unsigned long)lc3_info->decode_buf_ro,
-              (unsigned long)lc3_info->decode_buf_wo);
-  }
 
   bool plc_conducted = !GetInterfaceToProfiles()->lc3Codec->decodePacket(
       frame_head, lc3_info->decoded_pcm_buf, sizeof(lc3_info->decoded_pcm_buf));
@@ -1062,26 +1202,21 @@ size_t decode(const uint8_t** out_data) {
 size_t encode(int16_t* data, size_t len) {
   uint8_t* pkt_body = nullptr;
   if (lc3_info == nullptr) {
-    LOG_WARN("LC3 buffer uninitialized or cleaned");
+    log::warn("LC3 buffer uninitialized or cleaned");
     return 0;
   }
 
   if (data == nullptr) {
-    LOG_WARN("Invalid data to encode");
+    log::warn("Invalid data to encode");
     return 0;
   }
 
   if (len < BTM_LC3_CODE_SIZE) {
-    LOG_DEBUG(
-        "PCM frames with size %lu is insufficient to be encoded into a LC3 "
-        "packet",
-        (unsigned long)len);
     return 0;
   }
 
   pkt_body = lc3_info->fill_lc3_pkt_template();
   if (pkt_body == nullptr) {
-    LOG_DEBUG("Failed to fill the template to fill the LC3 packet");
     return 0;
   }
 
@@ -1090,18 +1225,17 @@ size_t encode(int16_t* data, size_t len) {
 
 size_t dequeue_packet(const uint8_t** output) {
   if (lc3_info == nullptr) {
-    LOG_WARN("LC3 buffer uninitialized or cleaned");
+    log::warn("LC3 buffer uninitialized or cleaned");
     return 0;
   }
 
   if (output == nullptr) {
-    LOG_WARN("%s Invalid output pointer", __func__);
+    log::warn("Invalid output pointer");
     return 0;
   }
 
   *output = lc3_info->sco_pkt_read_ptr();
   if (*output == nullptr) {
-    LOG_DEBUG("Insufficient data to dequeue.");
     return 0;
   }
 

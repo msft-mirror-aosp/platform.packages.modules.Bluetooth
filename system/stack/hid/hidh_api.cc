@@ -22,26 +22,28 @@
  *
  ******************************************************************************/
 
+#define LOG_TAG "hidh"
+
 #include "hidh_api.h"
 
+#include <bluetooth/log.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "btif/include/btif_hh.h"
-#include "btm_api.h"
 #include "hiddefs.h"
 #include "hidh_int.h"
+#include "internal_include/bt_target.h"
+#include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
-#include "stack/btm/btm_dev.h"
-#include "stack/btm/btm_sec.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/bt_uuid16.h"
+#include "stack/include/sdpdefs.h"
 #include "stack/include/stack_metrics_logging.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
+using namespace bluetooth;
 using namespace bluetooth::legacy::stack::sdp;
 using bluetooth::Uuid;
 
@@ -70,8 +72,10 @@ tHID_STATUS HID_HostGetSDPRecord(const RawAddress& addr,
 
   hh_cb.p_sdp_db = p_db;
   Uuid uuid_list = Uuid::From16Bit(UUID_SERVCLASS_HUMAN_INTERFACE);
-  get_legacy_stack_sdp_api()->service.SDP_InitDiscoveryDb(p_db, db_len, 1,
-                                                          &uuid_list, 0, NULL);
+  if (!get_legacy_stack_sdp_api()->service.SDP_InitDiscoveryDb(
+          p_db, db_len, 1, &uuid_list, 0, NULL)) {
+    log::warn("Unable to initialize SDP service discovery db peer:{}", addr);
+  };
 
   if (get_legacy_stack_sdp_api()->service.SDP_ServiceSearchRequest(
           addr, p_db, hidh_search_callback)) {
@@ -79,6 +83,7 @@ tHID_STATUS HID_HostGetSDPRecord(const RawAddress& addr,
     hh_cb.sdp_busy = true;
     return HID_SUCCESS;
   } else {
+    log::warn("Unable to start SDP service search request peer:{}", addr);
     log_counter_metrics(
         android::bluetooth::CodePathCounterKeyEnum::HIDH_ERR_NO_RESOURCES_SDP,
         1);
@@ -105,13 +110,13 @@ void hidh_get_str_attr(tSDP_DISC_REC* p_rec, uint16_t attr_id, uint16_t max_len,
       }
     } else {
       str[0] = '\0';
-      LOG_ERROR("attr type not str!!");
+      log::error("attr type not str!!");
     }
   } else
     str[0] = '\0';
 }
 
-static void hidh_search_callback(UNUSED_ATTR const RawAddress& bd_addr,
+static void hidh_search_callback(const RawAddress& /* bd_addr */,
                                  tSDP_RESULT sdp_result) {
   tSDP_DISCOVERY_DB* p_db = hh_cb.p_sdp_db;
   tSDP_DISC_REC* p_rec;
@@ -280,25 +285,7 @@ static void hidh_search_callback(UNUSED_ATTR const RawAddress& bd_addr,
  *
  ******************************************************************************/
 void HID_HostInit(void) {
-  uint8_t log_level = hh_cb.trace_level;
   memset(&hh_cb, 0, sizeof(tHID_HOST_CTB));
-  hh_cb.trace_level = log_level;
-}
-
-/*******************************************************************************
- *
- * Function         HID_HostSetTraceLevel
- *
- * Description      This function sets the trace level for HID Host. If called
- *                  with 0xFF, it simply reads the current trace level.
- *
- * Returns          the new (current) trace level
- *
- ******************************************************************************/
-uint8_t HID_HostSetTraceLevel(uint8_t new_level) {
-  if (new_level != 0xFF) hh_cb.trace_level = new_level;
-
-  return (hh_cb.trace_level);
 }
 
 /*******************************************************************************
@@ -360,12 +347,32 @@ tHID_STATUS HID_HostDeregister(void) {
   for (i = 0; i < HID_HOST_MAX_DEVICES; i++) {
     HID_HostRemoveDev(i);
     alarm_free(hh_cb.devices[i].conn.process_repage_timer);
+    hh_cb.devices[i].conn.process_repage_timer = NULL;
   }
 
   hidh_conn_dereg();
   hh_cb.reg_flag = false;
 
   return (HID_SUCCESS);
+}
+
+/*******************************************************************************
+ *
+ * Function         HID_HostSDPDisable
+ *
+ * Description      This is called to check if the device has the HIDSDPDisable
+ *                  attribute.
+ *
+ * Returns          bool
+ *
+ ******************************************************************************/
+bool HID_HostSDPDisable(const RawAddress& addr) {
+  for (int i = 0; i < HID_HOST_MAX_DEVICES; i++) {
+    if (hh_cb.devices[i].in_use && (hh_cb.devices[i].addr == addr)) {
+      return (hh_cb.devices[i].attr_mask & HID_SDP_DISABLE);
+    }
+  }
+  return false;
 }
 
 /*******************************************************************************
@@ -407,7 +414,7 @@ tHID_STATUS HID_HostAddDev(const RawAddress& addr, uint16_t attr_mask,
     hh_cb.devices[i].conn_tries = 0;
   }
 
-  if (attr_mask != HID_ATTR_MASK_IGNORE) hh_cb.devices[i].attr_mask = attr_mask;
+  hh_cb.devices[i].attr_mask = attr_mask;
 
   *handle = i;
 
@@ -492,13 +499,13 @@ tHID_STATUS HID_HostWriteDev(uint8_t dev_handle, uint8_t t_type, uint8_t param,
   tHID_STATUS status = HID_SUCCESS;
 
   if (!hh_cb.reg_flag) {
-    HIDH_TRACE_ERROR("HID_ERR_NOT_REGISTERED");
+    log::error("HID_ERR_NOT_REGISTERED");
     status = HID_ERR_NOT_REGISTERED;
   }
 
   if ((dev_handle >= HID_HOST_MAX_DEVICES) ||
       (!hh_cb.devices[dev_handle].in_use)) {
-    HIDH_TRACE_ERROR("HID_ERR_INVALID_PARAM");
+    log::error("HID_ERR_INVALID_PARAM");
     log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::
                             HIDH_ERR_INVALID_PARAM_AT_HOST_WRITE_DEV,
                         1);
@@ -506,7 +513,7 @@ tHID_STATUS HID_HostWriteDev(uint8_t dev_handle, uint8_t t_type, uint8_t param,
   }
 
   else if (hh_cb.devices[dev_handle].state != HID_DEV_CONNECTED) {
-    HIDH_TRACE_ERROR("HID_ERR_NO_CONNECTION dev_handle %d", dev_handle);
+    log::error("HID_ERR_NO_CONNECTION dev_handle {}", dev_handle);
     log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::
                             HIDH_ERR_NO_CONNECTION_AT_HOST_WRITE_DEV,
                         1);

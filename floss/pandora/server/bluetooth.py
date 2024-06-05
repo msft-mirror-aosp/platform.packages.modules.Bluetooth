@@ -13,15 +13,21 @@
 # limitations under the License.
 """All functions relative to the bluetooth procedure."""
 
-import asyncio
 import logging
 import threading
 import traceback
 
 from floss.pandora.floss import adapter_client
 from floss.pandora.floss import advertising_client
+from floss.pandora.floss import floss_enums
+from floss.pandora.floss import gatt_client
+from floss.pandora.floss import gatt_server
 from floss.pandora.floss import manager_client
+from floss.pandora.floss import media_client
+from floss.pandora.floss import qa_client
 from floss.pandora.floss import scanner_client
+from floss.pandora.floss import socket_manager
+from floss.pandora.floss import telephony_client
 from floss.pandora.floss import utils
 from gi.repository import GLib
 import pydbus
@@ -48,21 +54,25 @@ class Bluetooth(object):
     SCANNER_WINDOW = 0
     SCANNER_SCAN_TYPE = 0
 
+    FAKE_GATT_APP_ID = '12345678123456781234567812345678'
+
     def __init__(self):
         self.setup_mainloop()
 
         # self state
         self.is_clean = False
 
-        # GRPC server state
-        self.pairing_events: asyncio.Queue = None
-        self.pairing_answers = None
-
         # DBUS clients
         self.manager_client = manager_client.FlossManagerClient(self.bus)
         self.adapter_client = adapter_client.FlossAdapterClient(self.bus, self.DEFAULT_ADAPTER)
         self.advertising_client = advertising_client.FlossAdvertisingClient(self.bus, self.DEFAULT_ADAPTER)
         self.scanner_client = scanner_client.FlossScannerClient(self.bus, self.DEFAULT_ADAPTER)
+        self.qa_client = qa_client.FlossQAClient(self.bus, self.DEFAULT_ADAPTER)
+        self.media_client = media_client.FlossMediaClient(self.bus, self.DEFAULT_ADAPTER)
+        self.gatt_client = gatt_client.FlossGattClient(self.bus, self.DEFAULT_ADAPTER)
+        self.gatt_server = gatt_server.FlossGattServer(self.bus, self.DEFAULT_ADAPTER)
+        self.socket_manager = socket_manager.FlossSocketManagerClient(self.bus, self.DEFAULT_ADAPTER)
+        self.telephony_client = telephony_client.FlossTelephonyClient(self.bus, self.DEFAULT_ADAPTER)
 
     def __del__(self):
         if not self.is_clean:
@@ -109,6 +119,63 @@ class Bluetooth(object):
         while not self.mainloop_quit.is_set():
             self.mainloop.run()
 
+    def register_clients_callback(self):
+        """Registers callback for all interfaces.
+
+        Returns:
+            True on success, False otherwise.
+        """
+        if not self.adapter_client.register_callbacks():
+            logging.error('adapter_client: Failed to register callbacks')
+            return False
+        if not self.advertising_client.register_advertiser_callback():
+            logging.error('advertising_client: Failed to register advertiser callbacks')
+            return False
+        if not self.scanner_client.register_scanner_callback():
+            logging.error('scanner_client: Failed to register callbacks')
+            return False
+        if not self.qa_client.register_qa_callback():
+            logging.error('qa_client: Failed to register callbacks')
+            return False
+        if not self.media_client.register_callback():
+            logging.error('media_client: Failed to register callbacks')
+            return False
+        if not self.gatt_client.register_client(self.FAKE_GATT_APP_ID, False):
+            logging.error('gatt_client: Failed to register callbacks')
+            return False
+        if not self.gatt_server.register_server(self.FAKE_GATT_APP_ID, False):
+            logging.error('gatt_server: Failed to register callbacks')
+            return False
+        if not self.socket_manager.register_callbacks():
+            logging.error('scanner_client: Failed to register callbacks')
+            return False
+        if not self.telephony_client.register_telephony_callback():
+            logging.error('telephony_client: Failed to register callbacks')
+            return False
+        return True
+
+    def is_bluetoothd_proxy_valid(self):
+        """Checks whether the proxy objects for Floss are ok and registers client callbacks."""
+
+        proxy_ready = all([
+            self.manager_client.has_proxy(),
+            self.adapter_client.has_proxy(),
+            self.advertising_client.has_proxy(),
+            self.scanner_client.has_proxy(),
+            self.qa_client.has_proxy(),
+            self.media_client.has_proxy(),
+            self.gatt_client.has_proxy(),
+            self.gatt_server.has_proxy(),
+            self.socket_manager.has_proxy(),
+            self.telephony_client.has_proxy()
+        ])
+
+        if not proxy_ready:
+            logging.info('Some proxy has not yet ready.')
+            return False
+
+        return self.register_clients_callback()
+
     def set_powered(self, powered: bool):
         """Set the power of bluetooth adapter and bluetooth clients.
 
@@ -123,9 +190,6 @@ class Bluetooth(object):
         def _is_adapter_down(client):
             return lambda: not client.has_proxy()
 
-        def _is_adapter_ready(client):
-            return lambda: client.has_proxy() and client.get_address()
-
         if powered:
             # FIXME: Close rootcanal will cause manager_client failed call has_default_adapter.
             # if not self.manager_client.has_default_adapter():
@@ -136,26 +200,22 @@ class Bluetooth(object):
             self.adapter_client = adapter_client.FlossAdapterClient(self.bus, default_adapter)
             self.advertising_client = advertising_client.FlossAdvertisingClient(self.bus, default_adapter)
             self.scanner_client = scanner_client.FlossScannerClient(self.bus, default_adapter)
+            self.qa_client = qa_client.FlossQAClient(self.bus, default_adapter)
+            self.media_client = media_client.FlossMediaClient(self.bus, default_adapter)
+            self.gatt_client = gatt_client.FlossGattClient(self.bus, default_adapter)
+            self.gatt_server = gatt_server.FlossGattServer(self.bus, default_adapter)
+            self.socket_manager = socket_manager.FlossSocketManagerClient(self.bus, default_adapter)
+            self.telephony_client = telephony_client.FlossTelephonyClient(self.bus, default_adapter)
 
             try:
-                utils.poll_for_condition(condition=_is_adapter_ready(self.adapter_client),
-                                         desc='Wait for adapter start',
-                                         sleep_interval=self.ADAPTER_CLIENT_POLL_INTERVAL,
-                                         timeout=self.ADAPTER_DAEMON_TIMEOUT_SEC)
+                utils.poll_for_condition(
+                    condition=lambda: self.is_bluetoothd_proxy_valid() and self.adapter_client.get_address(),
+                    desc='Wait for adapter start',
+                    sleep_interval=self.ADAPTER_CLIENT_POLL_INTERVAL,
+                    timeout=self.ADAPTER_DAEMON_TIMEOUT_SEC)
             except TimeoutError as e:
                 logging.error('timeout: error starting adapter daemon: %s', e)
                 logging.error(traceback.format_exc())
-                return False
-
-            # We need to observe callbacks for proper operation.
-            if not self.adapter_client.register_callbacks():
-                logging.error('adapter_client: Failed to register callbacks')
-                return False
-            if not self.advertising_client.register_advertiser_callback():
-                logging.error('advertising_client: Failed to register advertiser callbacks')
-                return False
-            if not self.scanner_client.register_scanner_callback():
-                logging.error('scanner_client: Failed to register callbacks')
                 return False
         else:
             self.manager_client.stop(default_adapter)
@@ -181,6 +241,9 @@ class Bluetooth(object):
     def get_address(self):
         return self.adapter_client.get_address()
 
+    def get_remote_type(self, address):
+        return self.adapter_client.get_remote_property(address, 'Type')
+
     def is_connected(self, address):
         return self.adapter_client.is_connected(address)
 
@@ -195,6 +258,18 @@ class Bluetooth(object):
 
     def create_bond(self, address, transport):
         return self.adapter_client.create_bond(address, transport)
+
+    def remove_bond(self, address):
+        return self.adapter_client.remove_bond(address)
+
+    def get_bonded_devices(self):
+        return self.adapter_client.get_bonded_devices()
+
+    def forget_device(self, address):
+        return self.adapter_client.forget_device(address)
+
+    def set_pin(self, address, accept, pin_code):
+        return self.adapter_client.set_pin(address, accept, pin_code)
 
     def set_pairing_confirmation(self, address, accept):
         return self.adapter_client.set_pairing_confirmation(address, accept)
@@ -247,3 +322,140 @@ class Bluetooth(object):
             logging.error('Failed to stop scanning.')
             return False
         return True
+
+    def set_hid_report(self, addr, report_type, report):
+        return self.qa_client.set_hid_report(addr, report_type, report)
+
+    def read_characteristic(self, address, handle, auth_re):
+        return self.gatt_client.read_characteristic(address, handle, auth_re)
+
+    def read_descriptor(self, address, handle, auth_req):
+        return self.gatt_client.read_descriptor(address, handle, auth_req)
+
+    def discover_services(self, address):
+        return self.gatt_client.discover_services(address)
+
+    def get_bond_state(self, address):
+        self.adapter_client.get_bond_state(address)
+
+    def fetch_remote(self, address):
+        return self.adapter_client.fetch_remote_uuids(address)
+
+    def get_remote_uuids(self, address):
+        return self.adapter_client.get_remote_property(address, 'Uuids')
+
+    def btif_gattc_discover_service_by_uuid(self, address, uuid):
+        return self.gatt_client.btif_gattc_discover_service_by_uuid(address, uuid)
+
+    def configure_mtu(self, address, mtu):
+        return self.gatt_client.configure_mtu(address, mtu)
+
+    def refresh_device(self, address):
+        return self.gatt_client.refresh_device(address)
+
+    def write_descriptor(self, address, handle, auth_req, value):
+        return self.gatt_client.write_descriptor(address, handle, auth_req, value)
+
+    def write_characteristic(self, address, handle, write_type, auth_req, value):
+        return self.gatt_client.write_characteristic(address, handle, write_type, auth_req, value)
+
+    def set_mps_qualification_enabled(self, enable):
+        return self.telephony_client.set_mps_qualification_enabled(enable)
+
+    def incoming_call(self, number):
+        return self.telephony_client.incoming_call(number)
+
+    def set_phone_ops_enabled(self, enable):
+        return self.telephony_client.set_phone_ops_enabled(enable)
+
+    def dial_call(self, number):
+        return self.telephony_client.dialing_call(number)
+
+    def answer_call(self):
+        return self.telephony_client.answer_call()
+
+    def swap_active_call(self):
+        return self.telephony_client.hold_active_accept_held()
+
+    def set_last_call(self, number=None):
+        return self.telephony_client.set_last_call(number)
+
+    def set_memory_call(self, number=None):
+        return self.telephony_client.set_memory_call(number)
+
+    def get_connected_audio_devices(self):
+        return self.media_client.devices
+
+    def audio_connect(self, address):
+        return self.telephony_client.audio_connect(address)
+
+    def audio_disconnect(self, address):
+        return self.telephony_client.audio_disconnect(address)
+
+    def hangup_call(self):
+        return self.telephony_client.hangup_call()
+
+    def set_battery_level(self, battery_level):
+        return self.telephony_client.set_battery_level(battery_level)
+
+    def gatt_connect(self, address, is_direct, transport):
+        return self.gatt_client.connect_client(address, is_direct, transport)
+
+    def set_connectable(self, mode):
+        return self.qa_client.set_connectable(mode)
+
+    def read_using_characteristic_uuid(self, address, uuid, start_handle, end_handle, auth_req):
+        return self.gatt_client.read_using_characteristic_uuid(address, uuid, start_handle, end_handle, auth_req)
+
+    def register_for_notification(self, address, handle, enable):
+        return self.gatt_client.register_for_notification(address, handle, enable)
+
+    def add_service(self, service):
+        service = self.gatt_server.make_dbus_service(service)
+        return self.gatt_server.add_service(service)
+
+    def is_encrypted(self, address):
+        connection_state = self.adapter_client.get_connection_state(address)
+        if connection_state is None:
+            logging.error('Failed to get connection state for address: %s', address)
+            return False
+        return connection_state > floss_enums.BtConnectionState.CONNECTED_ONLY
+
+    def listen_using_l2cap_channel(self):
+        return self.socket_manager.listen_using_l2cap_channel()
+
+    def listen_using_insecure_l2cap_channel(self):
+        return self.socket_manager.listen_using_insecure_l2cap_channel()
+
+    def create_l2cap_channel(self, address, psm):
+        name = self.adapter_client.get_remote_property(address, 'Name')
+        device = self.socket_manager.make_dbus_device(address, name)
+        return self.socket_manager.create_l2cap_channel(device, psm)
+
+    def create_insecure_l2cap_channel(self, address, psm):
+        name = self.adapter_client.get_remote_property(address, 'Name')
+        device = self.socket_manager.make_dbus_device(address, name)
+        return self.socket_manager.create_insecure_l2cap_channel(device, psm)
+
+    def accept_socket(self, socket_id, timeout_ms=None):
+        return self.socket_manager.accept(socket_id, timeout_ms)
+
+    def create_insecure_rfcomm_socket_to_service_record(self, address, uuid):
+        name = self.adapter_client.get_remote_property(address, 'Name')
+        device = self.socket_manager.make_dbus_device(address, name)
+        return self.socket_manager.create_insecure_rfcomm_socket_to_service_record(device, uuid)
+
+    def listen_using_insecure_rfcomm_with_service_record(self, name, uuid):
+        return self.socket_manager.listen_using_insecure_rfcomm_with_service_record(name, uuid)
+
+    def close_socket(self, socket_id):
+        return self.socket_manager.close(socket_id)
+
+    def get_connected_audio_devices(self):
+        return self.media_client.devices
+
+    def disconnect_media(self, address):
+        return self.media_client.disconnect(address)
+
+    def incoming_call(self, number):
+        return self.telephony_client.incoming_call(number)

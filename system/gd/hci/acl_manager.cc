@@ -16,15 +16,17 @@
 
 #include "hci/acl_manager.h"
 
+#include <bluetooth/log.h>
+
 #include <atomic>
 #include <future>
 #include <mutex>
-#include <set>
 
 #include "common/bidi_queue.h"
+#include "common/byte_array.h"
+#include "dumpsys_data_generated.h"
 #include "hci/acl_manager/acl_scheduler.h"
 #include "hci/acl_manager/classic_impl.h"
-#include "hci/acl_manager/connection_management_callbacks.h"
 #include "hci/acl_manager/le_acceptlist_callbacks.h"
 #include "hci/acl_manager/le_acl_connection.h"
 #include "hci/acl_manager/le_impl.h"
@@ -34,6 +36,7 @@
 #include "hci/remote_name_request.h"
 #include "hci_acl_manager_generated.h"
 #include "security/security_module.h"
+#include "storage/config_keys.h"
 #include "storage/storage_module.h"
 
 namespace bluetooth {
@@ -128,8 +131,8 @@ struct AclManager::impl {
         if (!timed_out) {
           unsent_packets.push_back(itr);
         } else {
-          LOG_ERROR(
-              "Dropping packet of size %zu to unknown connection 0x%0hx",
+          log::error(
+              "Dropping packet of size {} to unknown connection 0x{:x}",
               itr.size(),
               itr.GetHandle());
         }
@@ -139,7 +142,7 @@ struct AclManager::impl {
   }
 
   static void on_unknown_acl_timer(struct AclManager::impl* impl) {
-    LOG_INFO("Timer fired!");
+    log::info("Timer fired!");
     impl->retry_unknown_acl(/* timed_out = */ true);
     impl->unknown_acl_alarm_.reset();
   }
@@ -152,9 +155,9 @@ struct AclManager::impl {
     }
 
     auto packet = hci_queue_end_->TryDequeue();
-    ASSERT(packet != nullptr);
+    log::assert_that(packet != nullptr, "assert failed: packet != nullptr");
     if (!packet->IsValid()) {
-      LOG_INFO("Dropping invalid packet of size %zu", packet->size());
+      log::info("Dropping invalid packet of size {}", packet->size());
       return;
     }
     uint16_t handle = packet->GetHandle();
@@ -169,8 +172,8 @@ struct AclManager::impl {
       unknown_acl_alarm_.reset(new os::Alarm(handler_));
     }
     waiting_packets_.push_back(*packet);
-    LOG_INFO(
-        "Saving packet of size %zu to unknown connection 0x%0hx",
+    log::info(
+        "Saving packet of size {} to unknown connection 0x{:x}",
         packet->size(),
         packet->GetHandle());
     unknown_acl_alarm_->Schedule(
@@ -202,7 +205,9 @@ struct AclManager::impl {
 AclManager::AclManager() : pimpl_(std::make_unique<impl>(*this)) {}
 
 void AclManager::RegisterCallbacks(ConnectionCallbacks* callbacks, os::Handler* handler) {
-  ASSERT(callbacks != nullptr && handler != nullptr);
+  log::assert_that(
+      callbacks != nullptr && handler != nullptr,
+      "assert failed: callbacks != nullptr && handler != nullptr");
   GetHandler()->Post(common::BindOnce(
       &classic_impl::handle_register_callbacks,
       common::Unretained(pimpl_->classic_impl_),
@@ -211,7 +216,7 @@ void AclManager::RegisterCallbacks(ConnectionCallbacks* callbacks, os::Handler* 
 }
 
 void AclManager::UnregisterCallbacks(ConnectionCallbacks* callbacks, std::promise<void> promise) {
-  ASSERT(callbacks != nullptr);
+  log::assert_that(callbacks != nullptr, "assert failed: callbacks != nullptr");
   CallOn(
       pimpl_->classic_impl_,
       &classic_impl::handle_unregister_callbacks,
@@ -220,7 +225,9 @@ void AclManager::UnregisterCallbacks(ConnectionCallbacks* callbacks, std::promis
 }
 
 void AclManager::RegisterLeCallbacks(LeConnectionCallbacks* callbacks, os::Handler* handler) {
-  ASSERT(callbacks != nullptr && handler != nullptr);
+  log::assert_that(
+      callbacks != nullptr && handler != nullptr,
+      "assert failed: callbacks != nullptr && handler != nullptr");
   CallOn(
       pimpl_->le_impl_,
       &le_impl::handle_register_le_callbacks,
@@ -229,7 +236,7 @@ void AclManager::RegisterLeCallbacks(LeConnectionCallbacks* callbacks, os::Handl
 }
 
 void AclManager::RegisterLeAcceptlistCallbacks(LeAcceptlistCallbacks* callbacks) {
-  ASSERT(callbacks != nullptr);
+  log::assert_that(callbacks != nullptr, "assert failed: callbacks != nullptr");
   CallOn(
       pimpl_->le_impl_,
       &le_impl::handle_register_le_acceptlist_callbacks,
@@ -237,13 +244,13 @@ void AclManager::RegisterLeAcceptlistCallbacks(LeAcceptlistCallbacks* callbacks)
 }
 
 void AclManager::UnregisterLeCallbacks(LeConnectionCallbacks* callbacks, std::promise<void> promise) {
-  ASSERT(callbacks != nullptr);
+  log::assert_that(callbacks != nullptr, "assert failed: callbacks != nullptr");
   CallOn(pimpl_->le_impl_, &le_impl::handle_unregister_le_callbacks, common::Unretained(callbacks), std::move(promise));
 }
 
 void AclManager::UnregisterLeAcceptlistCallbacks(
     LeAcceptlistCallbacks* callbacks, std::promise<void> promise) {
-  ASSERT(callbacks != nullptr);
+  log::assert_that(callbacks != nullptr, "assert failed: callbacks != nullptr");
   CallOn(
       pimpl_->le_impl_,
       &le_impl::handle_unregister_le_acceptlist_callbacks,
@@ -280,9 +287,9 @@ void AclManager::SetPrivacyPolicyForInitiatorAddress(
     AddressWithType fixed_address,
     std::chrono::milliseconds minimum_rotation_time,
     std::chrono::milliseconds maximum_rotation_time) {
-  crypto_toolbox::Octet16 rotation_irk{};
-  auto irk_prop =
-      GetDependency<storage::StorageModule>()->GetProperty("Adapter", "LE_LOCAL_KEY_IRK");
+  Octet16 rotation_irk{};
+  auto irk_prop = GetDependency<storage::StorageModule>()->GetProperty(
+      BTIF_STORAGE_SECTION_ADAPTER, BTIF_STORAGE_KEY_LE_LOCAL_KEY_IRK);
   if (irk_prop.has_value()) {
     auto irk = common::ByteArray<16>::FromString(irk_prop.value());
     if (irk.has_value()) {
@@ -303,7 +310,7 @@ void AclManager::SetPrivacyPolicyForInitiatorAddress(
 void AclManager::SetPrivacyPolicyForInitiatorAddressForTest(
     LeAddressManager::AddressPolicy address_policy,
     AddressWithType fixed_address,
-    crypto_toolbox::Octet16 rotation_irk,
+    Octet16 rotation_irk,
     std::chrono::milliseconds minimum_rotation_time,
     std::chrono::milliseconds maximum_rotation_time) {
   CallOn(
@@ -357,7 +364,7 @@ void AclManager::SwitchRole(Address address, Role role) {
 }
 
 uint16_t AclManager::ReadDefaultLinkPolicySettings() {
-  ASSERT_LOG(pimpl_->default_link_policy_settings_ != 0xffff, "Settings were never written");
+  log::assert_that(pimpl_->default_link_policy_settings_ != 0xffff, "Settings were never written");
   return pimpl_->default_link_policy_settings_;
 }
 
@@ -381,10 +388,6 @@ void AclManager::OnAdvertisingSetTerminated(
         adv_address,
         is_discoverable);
   }
-}
-
-void AclManager::SetSecurityModule(security::SecurityModule* security_module) {
-  CallOn(pimpl_->classic_impl_, &classic_impl::set_security_module, security_module);
 }
 
 void AclManager::OnClassicSuspendInitiatedDisconnect(uint16_t handle, ErrorCode reason) {
@@ -411,8 +414,8 @@ uint16_t AclManager::HACK_GetLeHandle(Address address) {
   return pimpl_->le_impl_->HACK_get_handle(address);
 }
 
-void AclManager::HACK_SetNonAclDisconnectCallback(std::function<void(uint16_t, uint8_t)> callback) {
-  pimpl_->classic_impl_->HACK_SetNonAclDisconnectCallback(callback);
+Address AclManager::HACK_GetLeAddress(uint16_t connection_handle) {
+  return pimpl_->le_impl_->HACK_get_address(connection_handle);
 }
 
 void AclManager::HACK_SetAclTxPriority(uint8_t handle, bool high_priority) {
@@ -446,7 +449,7 @@ AclManager::~AclManager() = default;
 void AclManager::impl::Dump(
     std::promise<flatbuffers::Offset<AclManagerData>> promise, flatbuffers::FlatBufferBuilder* fb_builder) const {
   const std::lock_guard<std::mutex> lock(dumpsys_mutex_);
-  const auto connect_list = (le_impl_ != nullptr) ? le_impl_->connect_list : std::unordered_set<AddressWithType>();
+  const auto accept_list = (le_impl_ != nullptr) ? le_impl_->accept_list : std::unordered_set<AddressWithType>();
   const auto le_connectability_state_text =
       (le_impl_ != nullptr) ? connectability_state_machine_text(le_impl_->connectability_state_) : "INDETERMINATE";
   const auto le_create_connection_timeout_alarms_count =
@@ -455,17 +458,17 @@ void AclManager::impl::Dump(
   auto title = fb_builder->CreateString("----- Acl Manager Dumpsys -----");
   auto le_connectability_state = fb_builder->CreateString(le_connectability_state_text);
 
-  flatbuffers::Offset<flatbuffers::String> strings[connect_list.size()];
+  flatbuffers::Offset<flatbuffers::String> strings[accept_list.size()];
 
   size_t cnt = 0;
-  for (const auto& it : connect_list) {
+  for (const auto& it : accept_list) {
     strings[cnt++] = fb_builder->CreateString(it.ToString());
   }
-  auto vecofstrings = fb_builder->CreateVector(strings, connect_list.size());
+  auto vecofstrings = fb_builder->CreateVector(strings, accept_list.size());
 
   AclManagerDataBuilder builder(*fb_builder);
   builder.add_title(title);
-  builder.add_le_filter_accept_list_count(connect_list.size());
+  builder.add_le_filter_accept_list_count(accept_list.size());
   builder.add_le_filter_accept_list(vecofstrings);
   builder.add_le_connectability_state(le_connectability_state);
   builder.add_le_create_connection_timeout_alarms_count(le_create_connection_timeout_alarms_count);
@@ -475,7 +478,7 @@ void AclManager::impl::Dump(
 }
 
 DumpsysDataFinisher AclManager::GetDumpsysData(flatbuffers::FlatBufferBuilder* fb_builder) const {
-  ASSERT(fb_builder != nullptr);
+  log::assert_that(fb_builder != nullptr, "assert failed: fb_builder != nullptr");
 
   std::promise<flatbuffers::Offset<AclManagerData>> promise;
   auto future = promise.get_future();

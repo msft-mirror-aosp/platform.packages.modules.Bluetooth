@@ -15,17 +15,21 @@
  */
 #include "test/fake/fake_osi.h"
 
+#include <bluetooth/log.h>
+
 #include "test/mock/mock_osi_alarm.h"
 #include "test/mock/mock_osi_allocator.h"
 #include "test/mock/mock_osi_fixed_queue.h"
 #include "test/mock/mock_osi_list.h"
+
+using namespace bluetooth;
 
 // Must be global to resolve the symbol within the legacy stack
 struct alarm_t {
   alarm_callback_t cb;
   void* data;
 
-  alarm_t(const char* name) {
+  alarm_t(const char* /* name */) {
     cb = nullptr;
     data = nullptr;
   };
@@ -68,8 +72,8 @@ namespace test {
 namespace fake {
 
 static list_node_t* list_free_node_(list_t* l, list_node_t* node) {
-  CHECK(l);
-  CHECK(node);
+  log::assert_that(l != nullptr, "assert failed: l != nullptr");
+  log::assert_that(node != nullptr, "assert failed: node != nullptr");
 
   auto next = node->next_;
 
@@ -91,7 +95,7 @@ FakeOsi::FakeOsi() {
   };
 
   test::mock::osi_alarm::alarm_set_on_mloop.body =
-      [](alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb,
+      [](alarm_t* alarm, uint64_t /* interval_ms */, alarm_callback_t cb,
          void* data) {
         alarm->cb = cb;
         alarm->data = data;
@@ -121,7 +125,7 @@ FakeOsi::FakeOsi() {
   };
 
   test::mock::osi_list::list_free.body = [](list_t* l) {
-    CHECK(l);
+    log::assert_that(l != nullptr, "assert failed: l != nullptr");
     test::mock::osi_list::list_clear(l);
     delete l;
   };
@@ -130,7 +134,7 @@ FakeOsi::FakeOsi() {
   };
   test::mock::osi_list::list_foreach.body =
       [](const list_t* l, list_iter_cb callback, void* context) {
-        CHECK(l);
+        log::assert_that(l != nullptr, "assert failed: l != nullptr");
         for (auto node = l->head_; node;) {
           auto next = node->next_;
           if (!callback(node->data_, context)) return node;
@@ -146,29 +150,30 @@ FakeOsi::FakeOsi() {
     return node;
   };
   test::mock::osi_list::list_length.body = [](const list_t* l) {
-    CHECK(l);
+    log::assert_that(l != nullptr, "assert failed: l != nullptr");
     return l->length_;
   };
   test::mock::osi_list::list_front.body = [](const list_t* l) {
-    CHECK(l);
-    CHECK(l->head_);
+    log::assert_that(l != nullptr, "assert failed: l != nullptr");
+    log::assert_that(l->head_, "assert failed: l->head_");
     return l->head_->data_;
   };
   test::mock::osi_list::list_back.body = [](const list_t* l) {
-    CHECK(l);
-    CHECK(l->tail_);
+    log::assert_that(l != nullptr, "assert failed: l != nullptr");
+    log::assert_that(l->tail_, "assert failed: l->tail_");
     return l->tail_->data_;
   };
   test::mock::osi_list::list_back_node.body = [](const list_t* l) {
-    CHECK(l);
+    log::assert_that(l != nullptr, "assert failed: l != nullptr");
     return l->tail_;
   };
 
   test::mock::osi_list::list_insert_after.body =
       [](list_t* l, list_node_t* prev_node, void* data) {
-        CHECK(l);
-        CHECK(prev_node);
-        CHECK(data);
+        log::assert_that(l != nullptr, "assert failed: l != nullptr");
+        log::assert_that(prev_node != nullptr,
+                         "assert failed: prev_node != nullptr");
+        log::assert_that(data != nullptr, "assert failed: data != nullptr");
         auto node = new list_node_t(data, prev_node->next_);
         prev_node->next_ = node;
         if (l->tail_ == prev_node) l->tail_ = node;
@@ -176,8 +181,8 @@ FakeOsi::FakeOsi() {
         return true;
       };
   test::mock::osi_list::list_prepend.body = [](list_t* l, void* data) {
-    CHECK(l);
-    CHECK(data);
+    log::assert_that(l != nullptr, "assert failed: l != nullptr");
+    log::assert_that(data != nullptr, "assert failed: data != nullptr");
 
     auto node = new list_node_t(data, l->head_);
     l->head_ = node;
@@ -186,8 +191,8 @@ FakeOsi::FakeOsi() {
     return true;
   };
   test::mock::osi_list::list_append.body = [](list_t* l, void* data) {
-    CHECK(l);
-    CHECK(data);
+    log::assert_that(l != nullptr, "assert failed: l != nullptr");
+    log::assert_that(data != nullptr, "assert failed: data != nullptr");
 
     auto node = new list_node_t(data, nullptr);
     if (l->tail_) {
@@ -200,8 +205,8 @@ FakeOsi::FakeOsi() {
     return true;
   };
   test::mock::osi_list::list_remove.body = [](list_t* l, void* data) {
-    CHECK(l);
-    CHECK(data);
+    log::assert_that(l != nullptr, "assert failed: l != nullptr");
+    log::assert_that(data != nullptr, "assert failed: data != nullptr");
 
     if (test::mock::osi_list::list_is_empty(l)) return false;
 
@@ -223,7 +228,7 @@ FakeOsi::FakeOsi() {
     return false;
   };
   test::mock::osi_list::list_clear.body = [](list_t* l) {
-    CHECK(l);
+    log::assert_that(l != nullptr, "assert failed: l != nullptr");
     for (auto node = l->head_; node;) {
       node = list_free_node_(l, node);
     }
@@ -234,19 +239,19 @@ FakeOsi::FakeOsi() {
   };
 
   test::mock::osi_list::list_begin.body = [](const list_t* l) {
-    CHECK(l);
+    log::assert_that(l != nullptr, "assert failed: l != nullptr");
     return l->head_;
   };
   test::mock::osi_list::list_end.body = [](const list_t* l) {
-    CHECK(l);
+    log::assert_that(l != nullptr, "assert failed: l != nullptr");
     return l->tail_;
   };
   test::mock::osi_list::list_next.body = [](const list_node_t* node) {
-    CHECK(node);
+    log::assert_that(node != nullptr, "assert failed: node != nullptr");
     return node->next_;
   };
   test::mock::osi_list::list_node.body = [](const list_node_t* node) {
-    CHECK(node);
+    log::assert_that(node != nullptr, "assert failed: node != nullptr");
     return node->data_;
   };
 
@@ -332,34 +337,34 @@ FakeOsi::FakeOsi() {
       [](fixed_queue_t* q) { return q ? q->list_ : nullptr; };
 
   test::mock::osi_fixed_queue::fixed_queue_try_remove_from_queue.body =
-      [](fixed_queue_t* q, void* data) {
+      [](fixed_queue_t* /* q */, void* /* data */) {
         // not implemented
         abort();
         return nullptr;
       };
 
   test::mock::osi_fixed_queue::fixed_queue_get_enqueue_fd.body =
-      [](const fixed_queue_t* q) {
+      [](const fixed_queue_t* /* q */) {
         // not implemented
         abort();
         return 0;
       };
 
   test::mock::osi_fixed_queue::fixed_queue_get_dequeue_fd.body =
-      [](const fixed_queue_t* q) {
+      [](const fixed_queue_t* /* q */) {
         // not implemented
         abort();
         return 0;
       };
 
   test::mock::osi_fixed_queue::fixed_queue_register_dequeue.body =
-      [](fixed_queue_t* q, reactor_t* reactor, fixed_queue_cb ready_cb,
-         void* context) {
+      [](fixed_queue_t* /* q */, reactor_t* /* reactor */,
+         fixed_queue_cb /* ready_cb */, void* /* context */) {
         // not implemented
         abort();
       };
   test::mock::osi_fixed_queue::fixed_queue_unregister_dequeue.body =
-      [](fixed_queue_t* q) {
+      [](fixed_queue_t* /* q */) {
         // not implemented
         abort();
       };

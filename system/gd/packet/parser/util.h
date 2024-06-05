@@ -17,9 +17,11 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <iostream>
 #include <regex>
 #include <string>
+#include <vector>
 
 #include "logging.h"
 

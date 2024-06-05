@@ -20,7 +20,6 @@
  * Gabeldorsche related legacy-only-stack-side expansion and support code.
  */
 #include "btcore/include/module.h"
-#include "main/shim/entry.h"
 #include "osi/include/future.h"
 
 static const char GD_SHIM_MODULE[] = "gd_shim_module";
@@ -41,6 +40,8 @@ bool is_gd_stack_started_up();
 
 /**
  * Checks if the dumpsys module has been started.
+ *
+ * DEPRECATED Flag:dumpsys_acquire_stack_when_executing
  *
  * @return true if specified module has started, false otherwise.
  */

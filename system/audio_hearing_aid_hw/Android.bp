@@ -32,28 +32,33 @@ cc_library {
         "com.android.btservices",
     ],
     shared_libs: [
+        "libbase",
         "liblog",
     ],
-    static_libs: ["libosi"],
+    static_libs: [
+        "libbluetooth_log",
+        "libosi",
+    ],
 }
 
 // Audio A2DP library unit tests for target and host
 cc_test {
     name: "net_test_audio_hearing_aid_hw",
-    test_suites: ["device-tests"],
+    test_suites: ["general-tests"],
     defaults: [
         "audio_hearing_aid_hw_defaults",
-        "bluetooth_gtest_x86_asan_workaround",
         "mts_defaults",
     ],
     srcs: [
         "test/audio_hearing_aid_hw_test.cc",
     ],
     shared_libs: [
+        "libbase",
         "liblog",
     ],
     static_libs: [
         "audio.hearing_aid.default",
+        "libbluetooth_log",
         "libosi",
     ],
     min_sdk_version: "29",

@@ -24,13 +24,19 @@
 #ifndef BTA_AG_INT_H
 #define BTA_AG_INT_H
 
+#include <bluetooth/log.h>
+
 #include <cstdint>
+#include <string>
 
 #include "bta/ag/bta_ag_at.h"
 #include "bta/include/bta_ag_api.h"
 #include "bta/include/bta_api.h"
 #include "bta/sys/bta_sys.h"
+#include "internal_include/bt_target.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/btm_api_types.h"
+#include "stack/sdp/sdp_discovery_db.h"
 #include "types/raw_address.h"
 
 /*****************************************************************************
@@ -88,6 +94,17 @@ enum {
   BTA_AG_SVC_TIMEOUT_EVT,
   BTA_AG_COLLISION_EVT,
   BTA_AG_MAX_EVT,
+};
+
+/* Local events which will not trigger a higher layer callback */
+enum {
+  BTA_AG_LOCAL_EVT_FIRST = 0x100,
+  BTA_AG_LOCAL_EVT_CCWA,
+  BTA_AG_LOCAL_EVT_CLIP,
+  BTA_AG_LOCAL_EVT_CMER,
+  BTA_AG_LOCAL_EVT_BRSF,
+  BTA_AG_LOCAL_EVT_CMEE,
+  BTA_AG_LOCAL_EVT_BCC,
 };
 
 /* Actions to perform after a SCO event */
@@ -199,6 +216,12 @@ typedef struct {
 } tBTA_AG_PROFILE;
 
 typedef enum {
+  BTA_AG_SCO_CVSD_SETTINGS_S4 = 0, /* preferred/default when codec is CVSD */
+  BTA_AG_SCO_CVSD_SETTINGS_S3,
+  BTA_AG_SCO_CVSD_SETTINGS_S1,
+} tBTA_AG_SCO_CVSD_SETTINGS;
+
+typedef enum {
   BTA_AG_SCO_MSBC_SETTINGS_T2 = 0, /* preferred/default when codec is mSBC */
   BTA_AG_SCO_MSBC_SETTINGS_T1,
 } tBTA_AG_SCO_MSBC_SETTINGS;
@@ -207,6 +230,22 @@ typedef enum {
   BTA_AG_SCO_LC3_SETTINGS_T2 = 0, /* preferred/default when codec is LC3 */
   BTA_AG_SCO_LC3_SETTINGS_T1,
 } tBTA_AG_SCO_LC3_SETTINGS;
+
+typedef enum {
+  BTA_AG_SCO_APTX_SWB_SETTINGS_Q0 = 0, /* preferred/default when codec is SWB */
+  BTA_AG_SCO_APTX_SWB_SETTINGS_Q1 = 4,
+  BTA_AG_SCO_APTX_SWB_SETTINGS_Q2 = 6,
+  BTA_AG_SCO_APTX_SWB_SETTINGS_Q3 = 7,
+  BTA_AG_SCO_APTX_SWB_SETTINGS_UNKNOWN = 0xFFFF,
+} tBTA_AG_SCO_APTX_SWB_SETTINGS;
+
+/* state machine states */
+typedef enum {
+  BTA_AG_INIT_ST,
+  BTA_AG_OPENING_ST,
+  BTA_AG_OPEN_ST,
+  BTA_AG_CLOSING_ST
+} tBTA_AG_STATE;
 
 /* type for each service control block */
 struct tBTA_AG_SCB {
@@ -232,8 +271,9 @@ struct tBTA_AG_SCB {
   bool cmer_enabled;        /* set to true if HF enables CMER reporting */
   bool cmee_enabled;        /* set to true if HF enables CME ERROR reporting */
   bool inband_enabled;      /* set to true if inband ring enabled */
+  bool nrec_enabled;        /* noise reduction & echo canceling */
   bool svc_conn;            /* set to true when service level connection up */
-  uint8_t state;            /* state machine state */
+  tBTA_AG_STATE state;      /* state machine state */
   uint8_t conn_service;     /* connected service */
   uint8_t peer_scn;         /* peer scn */
   uint8_t app_id;           /* application id */
@@ -260,10 +300,20 @@ struct tBTA_AG_SCB {
       inuse_codec;     /* codec being used for the current SCO connection */
   bool codec_updated;  /* set to true whenever the app updates codec type */
   bool codec_fallback; /* If sco nego fails for mSBC, fallback to CVSD */
+  bool trying_cvsd_safe_settings; /* set to true whenever we are trying CVSD
+                                     safe settings */
+  uint8_t retransmission_effort_retries;         /* Retry eSCO
+                                                  with retransmission_effort value*/
   tBTA_AG_SCO_MSBC_SETTINGS codec_msbc_settings; /* settings to be used for the
                                                     impending eSCO on WB */
   tBTA_AG_SCO_LC3_SETTINGS codec_lc3_settings;   /* settings to be used for the
                                                     impending eSCO on SWB */
+  tBTA_AG_SCO_CVSD_SETTINGS codec_cvsd_settings; /* settings to be used for the
+                                                    impending eSCO on CVSD */
+  tBTA_AG_SCO_APTX_SWB_SETTINGS
+      codec_aptx_settings; /* settings to be used for the
+                              aptX Voice SWB eSCO */
+  bool is_aptx_swb_codec;  /* Flag to determine aptX Voice SWB codec  */
 
   tBTA_AG_HF_IND
       peer_hf_indicators[BTA_AG_MAX_NUM_PEER_HF_IND]; /* Peer supported
@@ -274,10 +324,10 @@ struct tBTA_AG_SCB {
 
   std::string ToString() const {
     return base::StringPrintf(
-        "codec_updated=%d, codec_fallback=%d, "
+        "codec_updated=%d, codec_fallback=%d, nrec=%d"
         "sco_codec=%d, peer_codec=%d, msbc_settings=%d, lc3_settings=%d, "
         "device=%s",
-        codec_updated, codec_fallback, sco_codec, peer_codecs,
+        codec_updated, codec_fallback, nrec_enabled, sco_codec, peer_codecs,
         codec_msbc_settings, codec_lc3_settings,
         ADDRESS_TO_LOGGABLE_CSTR(peer_addr));
   }
@@ -347,6 +397,7 @@ void bta_ag_sm_execute_by_handle(uint16_t handle, uint16_t event,
 void bta_ag_collision_cback(tBTA_SYS_CONN_STATUS status, tBTA_SYS_ID id,
                             uint8_t app_id, const RawAddress& peer_addr);
 void bta_ag_resume_open(tBTA_AG_SCB* p_scb);
+const std::string bta_ag_state_str(tBTA_AG_STATE state);
 
 /* SDP functions */
 bool bta_ag_add_record(uint16_t service_uuid, const char* p_service_name,
@@ -371,7 +422,6 @@ bool bta_ag_sco_is_opening(tBTA_AG_SCB* p_scb);
 void bta_ag_sco_conn_rsp(tBTA_AG_SCB* p_scb, tBTM_ESCO_CONN_REQ_EVT_DATA* data);
 // Testonly
 void bta_ag_create_sco(tBTA_AG_SCB* p_scb, bool is_orig);
-void bta_ag_create_pending_sco(tBTA_AG_SCB* p_scb, bool is_local);
 
 /* AT command functions */
 void bta_ag_at_hsp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
@@ -416,9 +466,30 @@ void bta_ag_sco_codec_nego(tBTA_AG_SCB* p_scb, bool result);
 void bta_ag_codec_negotiate(tBTA_AG_SCB* p_scb);
 bool bta_ag_is_sco_open_allowed(tBTA_AG_SCB* p_scb, const std::string event);
 void bta_ag_send_bcs(tBTA_AG_SCB* p_scb);
+bool bta_ag_get_sco_offload_enabled();
 void bta_ag_set_sco_offload_enabled(bool value);
 void bta_ag_set_sco_allowed(bool value);
 const RawAddress& bta_ag_get_active_device();
 void bta_clear_active_device();
+void bta_ag_send_qac(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
+void bta_ag_send_qcs(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
+/**
+ * Check if SCO is managed by Audio is enabled. This is set via the system property
+ * bluetooth.sco.managed_by_audio.
+ * <p>When set to false, Bluetooth will manage the start and end of the SCO.
+ * <p>When set to true, Audio will manage the start and end of the SCO through
+ * HAL.
+ *
+ * @return true if SCO managed by Audio is enabled, false otherwise
+ */
+bool bta_ag_is_sco_managed_by_audio();
+
+namespace fmt {
+template <>
+struct formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS>
+    : enum_formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> {};
+template <>
+struct formatter<tBTA_AG_SCO> : enum_formatter<tBTA_AG_SCO> {};
+}  // namespace fmt
 
 #endif /* BTA_AG_INT_H */

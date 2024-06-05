@@ -25,11 +25,13 @@
 #ifndef SDP_INT_H
 #define SDP_INT_H
 
+#include <base/functional/callback.h>
 #include <base/strings/stringprintf.h>
 
 #include <cstdint>
 
-#include "bt_target.h"
+#include "internal_include/bt_target.h"
+#include "macros.h"
 #include "osi/include/alarm.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2c_api.h"
@@ -135,12 +137,6 @@ enum : uint8_t {
 };
 typedef uint8_t tSDP_STATE;
 
-#ifndef CASE_RETURN_TEXT
-#define CASE_RETURN_TEXT(code) \
-  case code:                   \
-    return #code
-#endif
-
 inline std::string sdp_state_text(const tSDP_STATE& state) {
   switch (state) {
     CASE_RETURN_TEXT(SDP_STATE_IDLE);
@@ -170,8 +166,6 @@ inline std::string sdp_flags_text(const tSDP_FLAGS& flags) {
   }
 }
 
-#undef CASE_RETURN_TEXT
-
 enum : uint8_t {
   SDP_DISC_WAIT_CONN = 0,
   SDP_DISC_WAIT_HANDLES = 1,
@@ -198,9 +192,11 @@ struct tCONN_CB {
 
   tSDP_DISCOVERY_DB* p_db; /* Database to save info into   */
   tSDP_DISC_CMPL_CB* p_cb; /* Callback for discovery done  */
-  tSDP_DISC_CMPL_CB2*
-      p_cb2; /* Callback for discovery done piggy back with the user data */
-  const void* user_data; /* piggy back user data */
+  /* OnceCallback would be more appropriate, but it doesn't have copy
+   * constructor, so won't compile with current memory management for control
+   * blocks */
+  base::RepeatingCallback<tSDP_DISC_CMPL_CB>
+      complete_callback; /* Callback for discovery */
   uint32_t
       handles[SDP_MAX_DISC_SERVER_RECS]; /* Discovered server record handles */
   uint16_t num_handles;                  /* Number of server handles     */
@@ -220,12 +216,6 @@ struct tCONN_CB {
   tCONN_CB(const tCONN_CB&) = delete;
 };
 
-#ifndef CASE_RETURN_TEXT
-#define CASE_RETURN_TEXT(code) \
-  case code:                   \
-    return #code
-#endif
-
 inline std::string sdp_disc_wait_text(const tSDP_DISC_WAIT& state) {
   switch (state) {
     CASE_RETURN_TEXT(SDP_DISC_WAIT_CONN);
@@ -238,8 +228,6 @@ inline std::string sdp_disc_wait_text(const tSDP_DISC_WAIT& state) {
   }
 }
 
-#undef CASE_RETURN_TEXT
-
 /*  The main SDP control block */
 typedef struct {
   tL2CAP_CFG_INFO l2cap_my_cfg; /* My L2CAP config     */
@@ -248,7 +236,6 @@ typedef struct {
   tL2CAP_APPL_INFO reg_info;    /* L2CAP Registration info */
   uint16_t max_attr_list_size;  /* Max attribute list size to use   */
   uint16_t max_recs_per_search; /* Max records we want per seaarch  */
-  uint8_t trace_level;
 } tSDP_CB;
 
 /* Global SDP data */
@@ -261,7 +248,7 @@ void sdp_disconnect(tCONN_CB* p_ccb, tSDP_REASON reason);
 
 void sdp_conn_timer_timeout(void* data);
 
-tCONN_CB* sdp_conn_originate(const RawAddress& p_bd_addr);
+tCONN_CB* sdp_conn_originate(const RawAddress& bd_addr);
 
 /* Functions provided by sdp_utils.cc
  */
@@ -313,7 +300,7 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr,
 void sdpu_set_avrc_target_features(const tSDP_ATTRIBUTE* p_attr,
                                    const RawAddress* bdaddr,
                                    uint16_t profile_version);
-uint16_t sdpu_get_active_ccb_cid(const RawAddress& remote_bd_addr);
+uint16_t sdpu_get_active_ccb_cid(const RawAddress& bd_addr);
 bool sdpu_process_pend_ccb_same_cid(tCONN_CB& ccb);
 bool sdpu_process_pend_ccb_new_cid(tCONN_CB& ccb);
 void sdpu_clear_pend_ccb(tCONN_CB& ccb);
@@ -344,5 +331,8 @@ void sdp_save_local_pse_record_attributes(int32_t rfcomm_channel_number,
                                           int32_t profile_version,
                                           uint32_t supported_features,
                                           uint32_t supported_repositories);
+
+size_t sdp_get_num_records(const tSDP_DISCOVERY_DB& db);
+size_t sdp_get_num_attributes(const tSDP_DISC_REC& sdp_disc_rec);
 
 #endif

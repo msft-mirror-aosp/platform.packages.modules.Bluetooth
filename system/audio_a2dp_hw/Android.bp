@@ -33,11 +33,13 @@ cc_library {
         "com.android.btservices",
     ],
     shared_libs: [
+        "libbase",
         "libcutils",
         "liblog",
     ],
     static_libs: [
         "libbluetooth_gd",
+        "libbluetooth_log",
         "libosi",
     ],
 }
@@ -52,16 +54,18 @@ cc_library_static {
     apex_available: [
         "com.android.btservices",
     ],
+    static_libs: [
+        "libbluetooth_log",
+    ],
     min_sdk_version: "29",
 }
 
 // Audio A2DP library unit tests for target and host
 cc_test {
     name: "net_test_audio_a2dp_hw",
-    test_suites: ["device-tests"],
+    test_suites: ["general-tests"],
     defaults: [
         "audio_a2dp_hw_defaults",
-        "bluetooth_gtest_x86_asan_workaround",
         "mts_defaults",
     ],
     srcs: [
@@ -72,6 +76,7 @@ cc_test {
     ],
     static_libs: [
         "audio.a2dp.default",
+        "libbluetooth_log",
         "libosi",
     ],
     min_sdk_version: "29",

@@ -22,22 +22,10 @@
  *  mockcify.pl ver 0.5.0
  */
 
-#include <cstdint>
 #include <functional>
-#include <map>
-#include <string>
-
-#include "test/common/mock_functions.h"
 
 // Original included files, if any
-// NOTE: Since this is a mock file with mock definitions some number of
-//       include files may not be required.  The include-what-you-use
-//       still applies, but crafting proper inclusion is out of scope
-//       for this effort.  This compilation unit may compile as-is, or
-//       may need attention to prune from (or add to ) the inclusion set.
 #include <base/functional/bind.h>
-
-#include "btif/avrcp/avrcp_service.h"
 
 // Original usings
 
@@ -53,7 +41,7 @@ namespace btif_avrcp_service {
 // Return: void
 struct do_in_avrcp_jni {
   std::function<void(const base::Closure& task)> body{
-      [](const base::Closure& task) {}};
+      [](const base::Closure& /* task */) {}};
   void operator()(const base::Closure& task) { body(task); };
 };
 extern struct do_in_avrcp_jni do_in_avrcp_jni;

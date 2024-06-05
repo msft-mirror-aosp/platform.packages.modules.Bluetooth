@@ -19,6 +19,7 @@
 #pragma once
 
 #include <stdint.h>
+
 #include <array>
 #include <string>
 
@@ -45,9 +46,6 @@ class Uuid final {
   using UUID128Bit = std::array<uint8_t, kNumBytes128>;
 
   Uuid() = default;
-
-  // Creates and returns a random 128-bit UUID.
-  static Uuid GetRandom();
 
   // Returns the shortest possible representation of this UUID in bytes. Either
   // kNumBytes16, kNumBytes32, or kNumBytes128
@@ -145,3 +143,16 @@ struct hash<bluetooth::Uuid> {
 };
 
 }  // namespace std
+
+// This file is used outside bluetooth in components
+// that do not have access to bluetooth/log.h
+#if __has_include(<bluetooth/log.h>)
+
+#include <bluetooth/log.h>
+
+namespace fmt {
+template <>
+struct formatter<bluetooth::Uuid> : ostream_formatter {};
+}  // namespace fmt
+
+#endif  // __has_include(<bluetooth/log.h>)

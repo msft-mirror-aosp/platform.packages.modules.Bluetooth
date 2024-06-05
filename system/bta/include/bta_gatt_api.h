@@ -27,12 +27,15 @@
 
 #include <base/functional/callback_forward.h>
 #include <base/strings/stringprintf.h>
+#include <bluetooth/log.h>
 
 #include <list>
 #include <string>
 #include <vector>
 
 #include "bta/gatt/database.h"
+#include "hardware/bt_gatt_types.h"
+#include "macros.h"
 #include "stack/include/gatt_api.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -63,7 +66,6 @@ typedef enum : uint8_t {
   BTA_GATTC_SRVC_DISC_DONE_EVT = 8, /* GATT service discovery done event */
   BTA_GATTC_NOTIF_EVT = 10,         /* GATT attribute notification event */
   BTA_GATTC_EXEC_EVT = 12,          /* execute write complete event */
-  BTA_GATTC_ACL_EVT = 13,           /* ACL up event */
   BTA_GATTC_CANCEL_OPEN_EVT = 14,   /* cancel open event */
   BTA_GATTC_SRVC_CHG_EVT = 15,      /* service change event */
   BTA_GATTC_ENC_CMPL_CB_EVT = 17,   /* encryption complete callback event */
@@ -73,10 +75,6 @@ typedef enum : uint8_t {
   BTA_GATTC_CONN_UPDATE_EVT = 26,   /* Connection parameters update event */
   BTA_GATTC_SUBRATE_CHG_EVT = 27,   /* Subrate Change event */
 } tBTA_GATTC_EVT;
-
-#define CASE_RETURN_TEXT(code) \
-  case code:                   \
-    return #code
 
 inline std::string gatt_client_event_text(const tBTA_GATTC_EVT& event) {
   switch (event) {
@@ -88,7 +86,6 @@ inline std::string gatt_client_event_text(const tBTA_GATTC_EVT& event) {
     CASE_RETURN_TEXT(BTA_GATTC_SRVC_DISC_DONE_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_NOTIF_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_EXEC_EVT);
-    CASE_RETURN_TEXT(BTA_GATTC_ACL_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_CANCEL_OPEN_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_SRVC_CHG_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_ENC_CMPL_CB_EVT);
@@ -101,7 +98,6 @@ inline std::string gatt_client_event_text(const tBTA_GATTC_EVT& event) {
       return base::StringPrintf("UNKNOWN[%hhu]", event);
   }
 }
-#undef CASE_RETURN_TEXT
 
 typedef struct {
   uint16_t unit;  /* as UUIUD defined by SIG */
@@ -300,6 +296,33 @@ typedef void(tBTA_GATTC_CBACK)(tBTA_GATTC_EVT event, tBTA_GATTC* p_data);
 #define BTA_GATTS_SUBRATE_CHG_EVT 23
 
 typedef uint8_t tBTA_GATTS_EVT;
+
+inline std::string gatt_server_event_text(const tBTA_GATTS_EVT& event) {
+  switch (event) {
+    CASE_RETURN_TEXT(BTA_GATTS_REG_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_READ_CHARACTERISTIC_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_READ_DESCRIPTOR_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_WRITE_CHARACTERISTIC_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_WRITE_DESCRIPTOR_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_EXEC_WRITE_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_MTU_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_CONF_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_DEREG_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_DELELTE_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_STOP_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_CONNECT_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_DISCONNECT_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_OPEN_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_CANCEL_OPEN_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_CLOSE_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_CONGEST_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_PHY_UPDATE_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_CONN_UPDATE_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_SUBRATE_CHG_EVT);
+    default:
+      return base::StringPrintf("UNKNOWN[%hhu]", event);
+  }
+}
 
 #define BTA_GATTS_INVALID_APP 0xff
 
@@ -620,7 +643,9 @@ typedef void (*GATT_WRITE_OP_CB)(uint16_t conn_id, tGATT_STATUS status,
                                  const uint8_t* value, void* data);
 typedef void (*GATT_CONFIGURE_MTU_OP_CB)(uint16_t conn_id, tGATT_STATUS status,
                                          void* data);
-
+typedef void (*GATT_READ_MULTI_OP_CB)(uint16_t conn_id, tGATT_STATUS status,
+                                      tBTA_GATTC_MULTI& handles, uint16_t len,
+                                      uint8_t* value, void* data);
 /*******************************************************************************
  *
  * Function         BTA_GATTC_ReadCharacteristic
@@ -792,13 +817,16 @@ void BTA_GATTC_ExecuteWrite(uint16_t conn_id, bool is_execute);
  *                  characteristic descriptors.
  *
  * Parameters       conn_id - connectino ID.
- *                    p_read_multi - read multiple parameters.
+ *                  p_read_multi - read multiple parameters.
+ *                  variable_len - whether "read multi variable length" variant
+ *                                 shall be used.
  *
  * Returns          None
  *
  ******************************************************************************/
-void BTA_GATTC_ReadMultiple(uint16_t conn_id, tBTA_GATTC_MULTI* p_read_multi,
-                            tGATT_AUTH_REQ auth_req);
+void BTA_GATTC_ReadMultiple(uint16_t conn_id, tBTA_GATTC_MULTI& p_read_multi,
+                            bool variable_len, tGATT_AUTH_REQ auth_req,
+                            GATT_READ_MULTI_OP_CB callback, void* cb_data);
 
 /*******************************************************************************
  *
@@ -987,13 +1015,16 @@ void BTA_GATTS_SendRsp(uint16_t conn_id, uint32_t trans_id, tGATT_STATUS status,
  *
  * Parameters       server_if: server interface.
  *                  remote_bda: remote device BD address.
+ *                  addr_type: remote device address type
  *                  is_direct: direct connection or background auto connection
+ *                  transport: transport to use in this connection
  *
  * Returns          void
  *
  ******************************************************************************/
 void BTA_GATTS_Open(tGATT_IF server_if, const RawAddress& remote_bda,
-                    bool is_direct, tBT_TRANSPORT transport);
+                    tBLE_ADDR_TYPE addr_type, bool is_direct,
+                    tBT_TRANSPORT transport);
 
 /*******************************************************************************
  *
@@ -1027,5 +1058,10 @@ void BTA_GATTS_Close(uint16_t conn_id);
 
 // Adds bonded device for GATT server tracking service changes
 void BTA_GATTS_InitBonded(void);
+
+namespace fmt {
+template <>
+struct formatter<tBTA_GATTC_EVT> : enum_formatter<tBTA_GATTC_EVT> {};
+}  // namespace fmt
 
 #endif /* BTA_GATT_API_H */

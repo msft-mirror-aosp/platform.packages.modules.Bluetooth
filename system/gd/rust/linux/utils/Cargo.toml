@@ -17,15 +17,21 @@ name = "bt_utils"
 version = "0.0.1"
 edition = "2021"
 
+[features]
+chromeos = ["featured"]
+
 [dependencies]
 bt_topshim = { path = "../../topshim" }
 
+cfg-if = "1.0.0"
+featured = { version = "0.1.0", optional = true }
 libc = "0.2"
 log = "0.4.14"
 nix = "0.23"
 num-derive = "0.3"
 num-traits = "0.2"
 uhid-virt = "0.0.6"
+tokio = { version = "1", features = ['rt'] }
 
 [lib]
 crate-type = ["rlib"]

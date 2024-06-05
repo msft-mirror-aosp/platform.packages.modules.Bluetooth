@@ -17,12 +17,10 @@
 #include "btm_iso_api.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/bt_types.h"
 #include "stack/include/btu_hcif.h"
 
 using bluetooth::hci::IsoManager;
-
-/* Define BTU storage area */
-uint8_t btu_trace_level = HCI_INITIAL_TRACE_LEVEL;
 
 void btu_hci_msg_process(BT_HDR* p_msg) {
   /* Determine the input message type. */

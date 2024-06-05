@@ -20,17 +20,12 @@
 #define BT_TYPES_H
 
 #include <stdbool.h>
-#include <stdint.h>
-#ifdef __cplusplus
-#include <string>
-#endif  // __cplusplus
 
-#include "stack/include/bt_dev_class.h"
 #include "stack/include/bt_device_type.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/bt_octets.h"
 #ifdef __cplusplus
 #include "include/hardware/bluetooth.h"
+#include "stack/include/bt_octets.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 #endif  // __cplusplus
@@ -72,12 +67,6 @@
 #define BT_EVT_TO_LM_HCI_SCO 0x2200
 /* HCI ISO Data                     */
 #define BT_EVT_TO_LM_HCI_ISO 0x2d00
-
-#define BT_EVT_HCISU 0x5000
-
-/* BTIF Events */
-#define BT_EVT_BTIF 0xA000
-#define BT_EVT_CONTEXT_SWITCH_EVT (0x0001 | BT_EVT_BTIF)
 
 /* ISO Layer specific */
 #define BT_ISO_HDR_CONTAINS_TS (0x0001)
@@ -297,9 +286,6 @@
   }
 
 /* Common Bluetooth field definitions */
-
-#define LAP_LEN 3
-typedef uint8_t LAP[LAP_LEN];     /* IAC as passed to Inquiry (LAP) */
 
 #define BT_1SEC_TIMEOUT_MS (1 * 1000) /* 1 second */
 

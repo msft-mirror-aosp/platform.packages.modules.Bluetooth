@@ -23,10 +23,17 @@ import static android.content.pm.PackageManager.DONT_KILL_APP;
 
 import static androidx.lifecycle.Lifecycle.State;
 import static androidx.lifecycle.Lifecycle.State.DESTROYED;
-import static androidx.lifecycle.Lifecycle.State.RESUMED;
+
+import static com.android.bluetooth.pbap.BluetoothPbapActivity.DISMISS_TIMEOUT_DIALOG;
+import static com.android.bluetooth.pbap.BluetoothPbapActivity.DISMISS_TIMEOUT_DIALOG_DELAY_MS;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 import android.content.ComponentName;
 import android.content.Context;
@@ -38,6 +45,8 @@ import androidx.test.core.app.ActivityScenario;
 import androidx.test.filters.LargeTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
+
+import com.android.bluetooth.BluetoothMethodProxy;
 
 import org.junit.After;
 import org.junit.Before;
@@ -55,8 +64,13 @@ public class BluetoothPbapActivityTest {
 
     ActivityScenario<BluetoothPbapActivity> mActivityScenario;
 
+    BluetoothMethodProxy mMethodProxy;
+
     @Before
     public void setUp() {
+        mMethodProxy = spy(BluetoothMethodProxy.getInstance());
+        BluetoothMethodProxy.setInstanceForTesting(mMethodProxy);
+
         mIntent = new Intent();
         mIntent.setClass(mTargetContext, BluetoothPbapActivity.class);
         mIntent.setAction(BluetoothPbapService.AUTH_CHALL_ACTION);
@@ -73,6 +87,7 @@ public class BluetoothPbapActivityTest {
             mActivityScenario.close();
         }
         enableActivity(false);
+        BluetoothMethodProxy.setInstanceForTesting(null);
     }
 
     @Test
@@ -89,39 +104,53 @@ public class BluetoothPbapActivityTest {
     public void onPreferenceChange_returnsTrue() throws Exception {
         AtomicBoolean result = new AtomicBoolean(false);
 
-        mActivityScenario.onActivity(activity -> result.set(
-                activity.onPreferenceChange(/*preference=*/null, /*newValue=*/null)));
+        mActivityScenario.onActivity(
+                activity ->
+                        result.set(
+                                activity.onPreferenceChange(
+                                        /* preference= */ null, /* newValue= */ null)));
 
         assertThat(result.get()).isTrue();
     }
 
     @Test
     public void onPositive_finishesActivity() throws Exception {
-        mActivityScenario.onActivity(activity -> {
-            activity.onPositive();
-        });
+        AtomicBoolean finishCalled = new AtomicBoolean(false);
 
-        assertActivityState(DESTROYED);
+        mActivityScenario.onActivity(
+                activity -> {
+                    activity.onPositive();
+                    finishCalled.set(activity.isFinishing());
+                });
+
+        assertThat(finishCalled.get()).isTrue();
     }
 
     @Test
     public void onNegative_finishesActivity() throws Exception {
-        mActivityScenario.onActivity(activity -> {
-            activity.onNegative();
-        });
+        AtomicBoolean finishCalled = new AtomicBoolean(false);
 
-        assertActivityState(DESTROYED);
+        mActivityScenario.onActivity(
+                activity -> {
+                    activity.onNegative();
+                    finishCalled.set(activity.isFinishing());
+                });
+
+        assertThat(finishCalled.get()).isTrue();
     }
 
     @Test
-    public void onReceiveTimeoutIntent_finishesActivity() throws Exception {
+    public void onReceiveTimeoutIntent_sendsDismissDialogMessage() throws Exception {
         Intent intent = new Intent(BluetoothPbapService.USER_CONFIRM_TIMEOUT_ACTION);
 
-        mActivityScenario.onActivity(activity -> {
-            activity.mReceiver.onReceive(activity, intent);
-        });
+        mActivityScenario.onActivity(
+                activity -> {
+                    activity.mReceiver.onReceive(activity, intent);
+                });
 
-        assertActivityState(DESTROYED);
+        verify(mMethodProxy)
+                .handlerSendMessageDelayed(
+                        any(), eq(DISMISS_TIMEOUT_DIALOG), eq(DISMISS_TIMEOUT_DIALOG_DELAY_MS));
     }
 
     @Test
@@ -129,10 +158,11 @@ public class BluetoothPbapActivityTest {
         Editable editable = new SpannableStringBuilder("An editable text");
         AtomicBoolean result = new AtomicBoolean(false);
 
-        mActivityScenario.onActivity(activity -> {
-            activity.afterTextChanged(editable);
-            result.set(activity.getButton(BUTTON_POSITIVE).isEnabled());
-        });
+        mActivityScenario.onActivity(
+                activity -> {
+                    activity.afterTextChanged(editable);
+                    result.set(activity.getButton(BUTTON_POSITIVE).isEnabled());
+                });
 
         assertThat(result.get()).isTrue();
     }
@@ -144,10 +174,11 @@ public class BluetoothPbapActivityTest {
     @Test
     public void emptyMethods_doesNotThrowException() throws Exception {
         try {
-            mActivityScenario.onActivity(activity -> {
-                activity.beforeTextChanged(null, 0, 0, 0);
-                activity.onTextChanged(null, 0, 0, 0);
-            });
+            mActivityScenario.onActivity(
+                    activity -> {
+                        activity.beforeTextChanged(null, 0, 0, 0);
+                        activity.onTextChanged(null, 0, 0, 0);
+                    });
         } catch (Exception ex) {
             assertWithMessage("Exception should not happen!").fail();
         }
@@ -160,14 +191,17 @@ public class BluetoothPbapActivityTest {
     }
 
     private void enableActivity(boolean enable) {
-        int enabledState = enable ? COMPONENT_ENABLED_STATE_ENABLED
-                : COMPONENT_ENABLED_STATE_DEFAULT;
+        int enabledState =
+                enable ? COMPONENT_ENABLED_STATE_ENABLED : COMPONENT_ENABLED_STATE_DEFAULT;
 
-        mTargetContext.getPackageManager().setApplicationEnabledSetting(
-                mTargetContext.getPackageName(), enabledState, DONT_KILL_APP);
+        mTargetContext
+                .getPackageManager()
+                .setApplicationEnabledSetting(
+                        mTargetContext.getPackageName(), enabledState, DONT_KILL_APP);
 
         ComponentName activityName = new ComponentName(mTargetContext, BluetoothPbapActivity.class);
-        mTargetContext.getPackageManager().setComponentEnabledSetting(
-                activityName, enabledState, DONT_KILL_APP);
+        mTargetContext
+                .getPackageManager()
+                .setComponentEnabledSetting(activityName, enabledState, DONT_KILL_APP);
     }
 }

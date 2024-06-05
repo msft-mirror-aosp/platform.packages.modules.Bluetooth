@@ -28,6 +28,7 @@ static_library("bta") {
     "ag/bta_ag_rfc.cc",
     "ag/bta_ag_sco.cc",
     "ag/bta_ag_sdp.cc",
+    "ag/bta_ag_swb_aptx.cc",
     "ar/bta_ar.cc",
     "av/bta_av_aact.cc",
     "av/bta_av_act.cc",
@@ -39,12 +40,17 @@ static_library("bta") {
     "csis/csis_client.cc",
     "dm/bta_dm_act.cc",
     "dm/bta_dm_api.cc",
+    "dm/bta_dm_sec_api.cc",
     "dm/bta_dm_cfg.cc",
     "dm/bta_dm_ci.cc",
+    "dm/bta_dm_device_search.cc",
     "dm/bta_dm_disc.cc",
+    "dm/bta_dm_disc_legacy.cc",
+    "dm/bta_dm_disc_sdp.cc",
     "dm/bta_dm_gatt_client.cc",
     "dm/bta_dm_main.cc",
     "dm/bta_dm_pm.cc",
+    "dm/bta_dm_sec.cc",
     "gatt/bta_gattc_act.cc",
     "gatt/bta_gattc_api.cc",
     "gatt/bta_gattc_db_storage.cc",
@@ -76,6 +82,7 @@ static_library("bta") {
     "hh/bta_hh_act.cc",
     "hh/bta_hh_api.cc",
     "hh/bta_hh_cfg.cc",
+    "hh/bta_hh_headtracker.cc",
     "hh/bta_hh_le.cc",
     "hh/bta_hh_main.cc",
     "hh/bta_hh_utils.cc",
@@ -85,9 +92,9 @@ static_library("bta") {
     "hd/bta_hd_main.cc",
     "jv/bta_jv_act.cc",
     "jv/bta_jv_api.cc",
-    "jv/bta_jv_cfg.cc",
     "le_audio/audio_hal_client/audio_sink_hal_client.cc",
     "le_audio/audio_hal_client/audio_source_hal_client.cc",
+    "le_audio/broadcaster/broadcast_configuration_provider.cc",
     "le_audio/broadcaster/broadcaster.cc",
     "le_audio/broadcaster/broadcaster_types.cc",
     "le_audio/broadcaster/state_machine.cc",
@@ -111,6 +118,10 @@ static_library("bta") {
     "pan/bta_pan_api.cc",
     "pan/bta_pan_ci.cc",
     "pan/bta_pan_main.cc",
+    "ras/ras_client.cc",
+    "ras/ras_server.cc",
+    "ras/ras_utils.cc",
+    "rfcomm/bta_rfcomm_scn.cc",
     "sdp/bta_sdp.cc",
     "sdp/bta_sdp_act.cc",
     "sdp/bta_sdp_api.cc",
@@ -134,8 +145,6 @@ static_library("bta") {
     "//bt/system/linux_include",
     "//bt/system/bta",
     "//bt/system/gd",
-    "//bt/system/internal_include",
-    "//bt/system/internal_include",
     "//bt/system/stack/include",
     "//bt/system/stack/btm",
     "//bt/system/udrv/include",
@@ -149,10 +158,14 @@ static_library("bta") {
   ]
 
   configs += [
-    "//bt/system:target_defaults"
+    "//bt/system:target_defaults",
+    "//bt/system/log:log_defaults",
   ]
 
   deps = [
+    "//bt/flags:bluetooth_flags_c_lib",
+    "//bt/sysprop:libcom.android.sysprop.bluetooth",
+    "//bt/system/audio:libbt-audio-asrc",
     "//bt/system/bta:LeAudioSetScenariosSchema_bfbs",
     "//bt/system/bta:LeAudioSetConfigsSchema_bfbs",
     "//bt/system/bta:install_audio_set_scenarios_json",
@@ -219,7 +232,6 @@ if (use.test) {
       "include",
       "//bt/system/",
       "//bt/system/bta",
-      "//bt/system/internal_include",
       "//bt/system/stack/btm",
     ]
 

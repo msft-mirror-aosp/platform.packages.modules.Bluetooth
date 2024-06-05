@@ -19,15 +19,13 @@
  *
  *  mockcify.pl ver 0.5.1
  */
+// Mock include file to share data between tests and mock
+#include "test/mock/mock_stack_btm_sco_hfp_hal.h"
 
 #ifndef __clang_analyzer__
 #include <cstdint>
-#include <functional>
-#include <map>
-#include <string>
 
-// Mock include file to share data between tests and mock
-#include "test/mock/mock_stack_btm_sco_hfp_hal.h"
+#include "test/common/mock_functions.h"
 
 // Original usings
 
@@ -49,6 +47,7 @@ struct init init;
 struct notify_sco_connection_change notify_sco_connection_change;
 struct set_codec_datapath set_codec_datapath;
 struct update_esco_parameters update_esco_parameters;
+struct is_coding_format_supported is_coding_format_supported;
 
 }  // namespace stack_btm_sco_hfp_hal
 }  // namespace mock
@@ -63,9 +62,10 @@ bool enable_offload::return_value = false;
 hfp_hal_interface::bt_codecs get_codec_capabilities::return_value = {};
 bool get_offload_enabled::return_value = false;
 bool get_offload_supported::return_value = false;
-int get_packet_size::return_value = 0;
+size_t get_packet_size::return_value = 0;
 bool get_wbs_supported::return_value = false;
 bool get_swb_supported::return_value = false;
+bool is_coding_format_supported::return_value = false;
 
 }  // namespace stack_btm_sco_hfp_hal
 }  // namespace mock
@@ -90,7 +90,7 @@ bool get_offload_supported() {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_sco_hfp_hal::get_offload_supported();
 }
-int get_packet_size(int codec) {
+size_t get_packet_size(int codec) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_sco_hfp_hal::get_packet_size(codec);
 }
@@ -102,6 +102,11 @@ bool get_swb_supported() {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_sco_hfp_hal::get_swb_supported();
 }
+bool is_coding_format_supported(esco_coding_format_t coding_format) {
+  inc_func_call_count(__func__);
+  return test::mock::stack_btm_sco_hfp_hal::is_coding_format_supported(
+      coding_format);
+}
 void init() {
   inc_func_call_count(__func__);
   test::mock::stack_btm_sco_hfp_hal::init();
@@ -112,7 +117,7 @@ void notify_sco_connection_change(RawAddress device, bool is_connected,
   test::mock::stack_btm_sco_hfp_hal::notify_sco_connection_change(
       device, is_connected, codec);
 }
-void set_codec_datapath(esco_coding_format_t coding_format) {
+void set_codec_datapath(int coding_format) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_sco_hfp_hal::set_codec_datapath(coding_format);
 }

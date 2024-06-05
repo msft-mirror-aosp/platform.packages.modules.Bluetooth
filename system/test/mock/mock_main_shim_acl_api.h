@@ -24,28 +24,13 @@
 
 #include <cstdint>
 #include <functional>
-#include <map>
+#include <optional>
 #include <string>
 
-#include "test/common/mock_functions.h"
-
 // Original included files, if any
-// NOTE: Since this is a mock file with mock definitions some number of
-//       include files may not be required.  The include-what-you-use
-//       still applies, but crafting proper inclusion is out of scope
-//       for this effort.  This compilation unit may compile as-is, or
-//       may need attention to prune from (or add to ) the inclusion set.
-#include <cstddef>
-#include <cstdint>
-#include <future>
-
-#include "gd/hci/acl_manager.h"
-#include "main/shim/acl_api.h"
-#include "main/shim/dumpsys.h"
-#include "main/shim/helpers.h"
-#include "main/shim/stack.h"
-#include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/bt_octets.h"
+#include "stack/include/hci_error_code.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
@@ -74,6 +59,21 @@ struct ACL_AcceptLeConnectionFrom {
   };
 };
 extern struct ACL_AcceptLeConnectionFrom ACL_AcceptLeConnectionFrom;
+
+// Name: ACL_DeviceAlreadyConnected
+// Params: const tBLE_BD_ADDR& legacy_address_with_type
+// Return: bool
+struct ACL_DeviceAlreadyConnected {
+  static bool return_value;
+  std::function<bool(const tBLE_BD_ADDR& legacy_address_with_type)> body{
+      [](const tBLE_BD_ADDR& legacy_address_with_type) {
+        return return_value;
+      }};
+  bool operator()(const tBLE_BD_ADDR& legacy_address_with_type) {
+    return body(legacy_address_with_type);
+  };
+};
+extern struct ACL_DeviceAlreadyConnected ACL_DeviceAlreadyConnected;
 
 // Name: ACL_AddToAddressResolution
 // Params: const tBLE_BD_ADDR& legacy_address_with_type, const Octet16&
@@ -281,6 +281,42 @@ struct ACL_WriteData {
 };
 extern struct ACL_WriteData ACL_WriteData;
 
+// Name: ACL_Flush
+// Params: uint16_t handle
+// Return: void
+struct ACL_Flush {
+  std::function<void(uint16_t handle)> body{[](uint16_t /* handle */) {}};
+  void operator()(uint16_t handle) { body(handle); };
+};
+extern struct ACL_Flush ACL_Flush;
+
+// Name: ACL_SendConnectionParameterUpdateRequest
+// Params: uint16_t handle
+// Params: uint16_t conn_int_min
+// Params: uint16_t conn_int_max
+// Params: uint16_t conn_latency
+// Params: uint16_t conn_timeout
+// Params: uint16_t min_ce_len
+// Params: uint16_t max_ce_len
+// Return: void
+struct ACL_SendConnectionParameterUpdateRequest {
+  std::function<void(uint16_t handle, uint16_t conn_int_min,
+                     uint16_t conn_int_max, uint16_t conn_latency,
+                     uint16_t conn_timeout, uint16_t min_ce_len,
+                     uint16_t max_ce_len)>
+      body{[](uint16_t /* handle */, uint16_t /* conn_int_min */,
+              uint16_t /* conn_int_max */, uint16_t /* conn_latency */,
+              uint16_t /* conn_timeout */, uint16_t /* min_ce_len */,
+              uint16_t /* max_ce_len */) {}};
+  void operator()(uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
+                  uint16_t conn_latency, uint16_t conn_timeout,
+                  uint16_t min_ce_len, uint16_t max_ce_len) {
+    body(handle, conn_int_min, conn_int_max, conn_latency, conn_timeout,
+         min_ce_len, max_ce_len);
+  };
+};
+extern struct ACL_SendConnectionParameterUpdateRequest
+    ACL_SendConnectionParameterUpdateRequest;
 }  // namespace main_shim_acl_api
 }  // namespace mock
 }  // namespace test

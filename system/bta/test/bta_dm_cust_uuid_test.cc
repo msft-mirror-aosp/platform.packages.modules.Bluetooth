@@ -18,44 +18,11 @@
 
 #include <gtest/gtest.h>
 
-#include <memory>
-
 #include "bta/dm/bta_dm_int.h"
-#include "osi/include/allocator.h"
-#include "stack/include/bt_hdr.h"
-#include "stack/include/btm_status.h"
-#include "test/fake/fake_osi.h"
-#include "test/mock/mock_stack_btm.h"
+#include "bta/test/bta_test_fixtures.h"
 #include "types/bluetooth/uuid.h"
 
 using bluetooth::Uuid;
-
-class BtaCustUuid : public testing::Test {
- protected:
-  void SetUp() override {
-    fake_osi_ = std::make_unique<test::fake::FakeOsi>();
-    bta_dm_cb = {};
-    btm_client_interface = {};
-    btm_client_interface.eir.BTM_WriteEIR = [](BT_HDR* p_buf) -> tBTM_STATUS {
-      osi_free(p_buf);
-      return BTM_SUCCESS;
-    };
-    btm_client_interface.eir.BTM_GetEirSupportedServices =
-        [](uint32_t* p_eir_uuid, uint8_t** p, uint8_t max_num_uuid16,
-           uint8_t* p_num_uuid16) -> uint8_t { return 0; };
-    btm_client_interface.eir.BTM_WriteEIR = [](BT_HDR* p_buf) -> tBTM_STATUS {
-      osi_free(p_buf);
-      return BTM_SUCCESS;
-    };
-    btm_client_interface.local.BTM_ReadLocalDeviceNameFromController =
-        [](tBTM_CMPL_CB* cb) -> tBTM_STATUS { return BTM_CMD_STARTED; };
-    btm_client_interface.security.BTM_SecRegister =
-        [](const tBTM_APPL_INFO* p_cb_info) -> bool { return true; };
-  }
-  void TearDown() override { btm_client_interface = {}; }
-
-  std::unique_ptr<test::fake::FakeOsi> fake_osi_;
-};
 
 namespace {
   uint32_t handle1 = 1;
@@ -69,7 +36,7 @@ namespace {
 }
 
 // Test we can remove/add 128 bit custom UUID from/to bta_dm_cb.bta_custom_uuid
-TEST_F(BtaCustUuid, test_add_remove_cust_uuid) {
+TEST_F(BtaWithMocksTest, test_add_remove_cust_uuid) {
   tBTA_CUSTOM_UUID& curr0 = bta_dm_cb.bta_custom_uuid[0];
   tBTA_CUSTOM_UUID& curr1 = bta_dm_cb.bta_custom_uuid[1];
   tBTA_CUSTOM_UUID curr0_expect = {uuid1, handle1};

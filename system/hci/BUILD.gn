@@ -23,7 +23,6 @@ static_library("hci") {
   include_dirs = [
     "include",
     "//bt/system/",
-    "//bt/system/internal_include",
     "//bt/system/bta/include",
     "//bt/system/stack/include",
   ]
@@ -34,6 +33,7 @@ static_library("hci") {
 
   configs += [
     "//bt/system:target_defaults",
+    "//bt/system/log:log_defaults",
   ]
 }
 
@@ -45,7 +45,6 @@ if (use.test) {
 
     include_dirs = [
       "//bt/system/",
-      "//bt/system/internal_include",
       "//bt/system/osi/test",
       "//bt/system/stack/include",
     ]

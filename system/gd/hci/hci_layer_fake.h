@@ -16,6 +16,7 @@
 
 #include <future>
 #include <map>
+#include <vector>
 
 #include "common/bind.h"
 #include "hci/address.h"
@@ -30,7 +31,7 @@ packet::PacketView<packet::kLittleEndian> GetPacketView(
 
 std::unique_ptr<BasePacketBuilder> NextPayload(uint16_t handle);
 
-class TestHciLayer : public HciLayer {
+class HciLayerFake : public HciLayer {
  public:
   void EnqueueCommand(
       std::unique_ptr<CommandBuilder> command,
@@ -42,6 +43,8 @@ class TestHciLayer : public HciLayer {
 
   CommandView GetCommand();
 
+  CommandView GetCommand(OpCode op_code);
+
   void AssertNoQueuedCommand();
 
   void RegisterEventHandler(EventCode event_code, common::ContextualCallback<void(EventView)> event_handler) override;
@@ -52,6 +55,12 @@ class TestHciLayer : public HciLayer {
       SubeventCode subevent_code, common::ContextualCallback<void(LeMetaEventView)> event_handler) override;
 
   void UnregisterLeEventHandler(SubeventCode subevent_code) override;
+
+  void RegisterVendorSpecificEventHandler(
+      VseSubeventCode subevent_code,
+      common::ContextualCallback<void(VendorSpecificEventView)> event_handler) override;
+
+  void UnregisterVendorSpecificEventHandler(VseSubeventCode subevent_code) override;
 
   void IncomingEvent(std::unique_ptr<EventBuilder> event_builder);
 
@@ -87,6 +96,8 @@ class TestHciLayer : public HciLayer {
   std::list<common::ContextualOnceCallback<void(CommandStatusView)>> command_status_callbacks;
   std::map<EventCode, common::ContextualCallback<void(EventView)>> registered_events_;
   std::map<SubeventCode, common::ContextualCallback<void(LeMetaEventView)>> registered_le_events_;
+  std::map<VseSubeventCode, common::ContextualCallback<void(VendorSpecificEventView)>>
+      registered_vs_events_;
 
   // thread-safe
   common::BidiQueue<AclView, AclBuilder> acl_queue_{3 /* TODO: Set queue depth */};

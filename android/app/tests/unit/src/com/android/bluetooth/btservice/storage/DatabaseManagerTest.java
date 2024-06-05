@@ -20,6 +20,7 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
@@ -36,6 +37,7 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.room.Room;
 import androidx.room.testing.MigrationTestHelper;
@@ -47,6 +49,9 @@ import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.flags.Flags;
+
+import com.google.common.truth.Truth;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.After;
@@ -56,15 +61,21 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
+import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public final class DatabaseManagerTest {
+
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private AdapterService mAdapterService;
 
@@ -86,14 +97,17 @@ public final class DatabaseManagerTest {
     private static final int MAX_META_ID = 16;
     private static final byte[] TEST_BYTE_ARRAY = "TEST_VALUE".getBytes();
 
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     @Rule
-    public MigrationTestHelper testHelper = new MigrationTestHelper(
-            InstrumentationRegistry.getInstrumentation(),
-            MetadataDatabase.class.getCanonicalName(),
-            new FrameworkSQLiteOpenHelperFactory());
+    public MigrationTestHelper testHelper =
+            new MigrationTestHelper(
+                    InstrumentationRegistry.getInstrumentation(),
+                    MetadataDatabase.class.getCanonicalName(),
+                    new FrameworkSQLiteOpenHelperFactory());
+
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         TestUtils.setAdapterService(mAdapterService);
 
         mTestDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(TEST_BT_ADDR);
@@ -101,17 +115,19 @@ public final class DatabaseManagerTest {
         mTestDevice3 = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(TEST_BT_ADDR3);
 
         // Create a memory database for DatabaseManager instead of use a real database.
-        mDatabase = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getTargetContext(),
-                MetadataDatabase.class).build();
+        mDatabase =
+                Room.inMemoryDatabaseBuilder(
+                                InstrumentationRegistry.getTargetContext(), MetadataDatabase.class)
+                        .build();
 
-        when(mAdapterService.getPackageManager()).thenReturn(
-                InstrumentationRegistry.getTargetContext().getPackageManager());
+        when(mAdapterService.getPackageManager())
+                .thenReturn(InstrumentationRegistry.getTargetContext().getPackageManager());
+
         mDatabaseManager = new DatabaseManager(mAdapterService);
 
         BluetoothDevice[] bondedDevices = {mTestDevice};
         doReturn(bondedDevices).when(mAdapterService).getBondedDevices();
-        doNothing().when(mAdapterService).metadataChanged(
-                anyString(), anyInt(), any(byte[].class));
+        doNothing().when(mAdapterService).metadataChanged(anyString(), anyInt(), any(byte[].class));
 
         restartDatabaseManagerHelper();
     }
@@ -130,15 +146,18 @@ public final class DatabaseManagerTest {
         restartDatabaseManagerHelper();
 
         for (int id = 0; id < BluetoothProfile.MAX_PROFILE_ID; id++) {
-            Assert.assertEquals(BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
+            Assert.assertEquals(
+                    BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
                     mDatabaseManager.getProfileConnectionPolicy(mTestDevice, id));
         }
 
-        Assert.assertEquals(BluetoothA2dp.OPTIONAL_CODECS_SUPPORT_UNKNOWN,
+        Assert.assertEquals(
+                BluetoothA2dp.OPTIONAL_CODECS_SUPPORT_UNKNOWN,
                 mDatabaseManager.getA2dpSupportsOptionalCodecs(mTestDevice));
 
-        Assert.assertEquals(BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN,
-                    mDatabaseManager.getA2dpOptionalCodecsEnabled(mTestDevice));
+        Assert.assertEquals(
+                BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN,
+                mDatabaseManager.getA2dpOptionalCodecsEnabled(mTestDevice));
 
         for (int id = 0; id < MAX_META_ID; id++) {
             Assert.assertNull(mDatabaseManager.getCustomMeta(mTestDevice, id));
@@ -155,24 +174,42 @@ public final class DatabaseManagerTest {
         int badConnectionPolicy = -100;
 
         // Cases of device not in database
-        testSetGetProfileConnectionPolicyCase(false, BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
-                BluetoothProfile.CONNECTION_POLICY_UNKNOWN, true);
-        testSetGetProfileConnectionPolicyCase(false, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
-                BluetoothProfile.CONNECTION_POLICY_FORBIDDEN, true);
-        testSetGetProfileConnectionPolicyCase(false, BluetoothProfile.CONNECTION_POLICY_ALLOWED,
-                BluetoothProfile.CONNECTION_POLICY_ALLOWED, true);
-        testSetGetProfileConnectionPolicyCase(false, badConnectionPolicy,
-                BluetoothProfile.CONNECTION_POLICY_UNKNOWN, false);
+        testSetGetProfileConnectionPolicyCase(
+                false,
+                BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
+                BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
+                true);
+        testSetGetProfileConnectionPolicyCase(
+                false,
+                BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
+                BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
+                true);
+        testSetGetProfileConnectionPolicyCase(
+                false,
+                BluetoothProfile.CONNECTION_POLICY_ALLOWED,
+                BluetoothProfile.CONNECTION_POLICY_ALLOWED,
+                true);
+        testSetGetProfileConnectionPolicyCase(
+                false, badConnectionPolicy, BluetoothProfile.CONNECTION_POLICY_UNKNOWN, false);
 
         // Cases of device already in database
-        testSetGetProfileConnectionPolicyCase(true, BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
-                BluetoothProfile.CONNECTION_POLICY_UNKNOWN, true);
-        testSetGetProfileConnectionPolicyCase(true, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
-                BluetoothProfile.CONNECTION_POLICY_FORBIDDEN, true);
-        testSetGetProfileConnectionPolicyCase(true, BluetoothProfile.CONNECTION_POLICY_ALLOWED,
-                BluetoothProfile.CONNECTION_POLICY_ALLOWED, true);
-        testSetGetProfileConnectionPolicyCase(true, badConnectionPolicy,
-                BluetoothProfile.CONNECTION_POLICY_UNKNOWN, false);
+        testSetGetProfileConnectionPolicyCase(
+                true,
+                BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
+                BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
+                true);
+        testSetGetProfileConnectionPolicyCase(
+                true,
+                BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
+                BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
+                true);
+        testSetGetProfileConnectionPolicyCase(
+                true,
+                BluetoothProfile.CONNECTION_POLICY_ALLOWED,
+                BluetoothProfile.CONNECTION_POLICY_ALLOWED,
+                true);
+        testSetGetProfileConnectionPolicyCase(
+                true, badConnectionPolicy, BluetoothProfile.CONNECTION_POLICY_UNKNOWN, false);
     }
 
     @Test
@@ -180,30 +217,48 @@ public final class DatabaseManagerTest {
         int badValue = -100;
 
         // Cases of device not in database
-        testSetGetA2dpOptionalCodecsCase(A2DP_SUPPORT_OP_CODEC_TEST, false,
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_SUPPORT_OP_CODEC_TEST,
+                false,
                 BluetoothA2dp.OPTIONAL_CODECS_SUPPORT_UNKNOWN,
                 BluetoothA2dp.OPTIONAL_CODECS_SUPPORT_UNKNOWN);
-        testSetGetA2dpOptionalCodecsCase(A2DP_SUPPORT_OP_CODEC_TEST, false,
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_SUPPORT_OP_CODEC_TEST,
+                false,
                 BluetoothA2dp.OPTIONAL_CODECS_NOT_SUPPORTED,
                 BluetoothA2dp.OPTIONAL_CODECS_SUPPORT_UNKNOWN);
-        testSetGetA2dpOptionalCodecsCase(A2DP_SUPPORT_OP_CODEC_TEST, false,
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_SUPPORT_OP_CODEC_TEST,
+                false,
                 BluetoothA2dp.OPTIONAL_CODECS_SUPPORTED,
                 BluetoothA2dp.OPTIONAL_CODECS_SUPPORT_UNKNOWN);
-        testSetGetA2dpOptionalCodecsCase(A2DP_SUPPORT_OP_CODEC_TEST, false,
-                badValue, BluetoothA2dp.OPTIONAL_CODECS_SUPPORT_UNKNOWN);
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_SUPPORT_OP_CODEC_TEST,
+                false,
+                badValue,
+                BluetoothA2dp.OPTIONAL_CODECS_SUPPORT_UNKNOWN);
 
         // Cases of device already in database
-        testSetGetA2dpOptionalCodecsCase(A2DP_SUPPORT_OP_CODEC_TEST, true,
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_SUPPORT_OP_CODEC_TEST,
+                true,
                 BluetoothA2dp.OPTIONAL_CODECS_SUPPORT_UNKNOWN,
                 BluetoothA2dp.OPTIONAL_CODECS_SUPPORT_UNKNOWN);
-        testSetGetA2dpOptionalCodecsCase(A2DP_SUPPORT_OP_CODEC_TEST, true,
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_SUPPORT_OP_CODEC_TEST,
+                true,
                 BluetoothA2dp.OPTIONAL_CODECS_NOT_SUPPORTED,
                 BluetoothA2dp.OPTIONAL_CODECS_NOT_SUPPORTED);
-        testSetGetA2dpOptionalCodecsCase(A2DP_SUPPORT_OP_CODEC_TEST, true,
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_SUPPORT_OP_CODEC_TEST,
+                true,
                 BluetoothA2dp.OPTIONAL_CODECS_SUPPORTED,
                 BluetoothA2dp.OPTIONAL_CODECS_SUPPORTED);
-        testSetGetA2dpOptionalCodecsCase(A2DP_SUPPORT_OP_CODEC_TEST, true,
-                badValue, BluetoothA2dp.OPTIONAL_CODECS_SUPPORT_UNKNOWN);
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_SUPPORT_OP_CODEC_TEST,
+                true,
+                badValue,
+                BluetoothA2dp.OPTIONAL_CODECS_SUPPORT_UNKNOWN);
     }
 
     @Test
@@ -211,30 +266,48 @@ public final class DatabaseManagerTest {
         int badValue = -100;
 
         // Cases of device not in database
-        testSetGetA2dpOptionalCodecsCase(A2DP_ENALBED_OP_CODEC_TEST, false,
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_ENALBED_OP_CODEC_TEST,
+                false,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN);
-        testSetGetA2dpOptionalCodecsCase(A2DP_ENALBED_OP_CODEC_TEST, false,
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_ENALBED_OP_CODEC_TEST,
+                false,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_DISABLED,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN);
-        testSetGetA2dpOptionalCodecsCase(A2DP_ENALBED_OP_CODEC_TEST, false,
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_ENALBED_OP_CODEC_TEST,
+                false,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_ENABLED,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN);
-        testSetGetA2dpOptionalCodecsCase(A2DP_ENALBED_OP_CODEC_TEST, false,
-                badValue, BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN);
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_ENALBED_OP_CODEC_TEST,
+                false,
+                badValue,
+                BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN);
 
         // Cases of device already in database
-        testSetGetA2dpOptionalCodecsCase(A2DP_ENALBED_OP_CODEC_TEST, true,
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_ENALBED_OP_CODEC_TEST,
+                true,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN);
-        testSetGetA2dpOptionalCodecsCase(A2DP_ENALBED_OP_CODEC_TEST, true,
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_ENALBED_OP_CODEC_TEST,
+                true,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_DISABLED,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_DISABLED);
-        testSetGetA2dpOptionalCodecsCase(A2DP_ENALBED_OP_CODEC_TEST, true,
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_ENALBED_OP_CODEC_TEST,
+                true,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_ENABLED,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_ENABLED);
-        testSetGetA2dpOptionalCodecsCase(A2DP_ENALBED_OP_CODEC_TEST, true,
-                badValue, BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN);
+        testSetGetA2dpOptionalCodecsCase(
+                A2DP_ENALBED_OP_CODEC_TEST,
+                true,
+                badValue,
+                BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN);
     }
 
     @Test
@@ -297,10 +370,10 @@ public final class DatabaseManagerTest {
         mDatabase.insert(otherData2);
 
         // Add OTHER_BT_ADDR1 OTHER_BT_ADDR2 to bonded devices
-        BluetoothDevice otherDevice1 = BluetoothAdapter.getDefaultAdapter()
-                .getRemoteDevice(OTHER_BT_ADDR1);
-        BluetoothDevice otherDevice2 = BluetoothAdapter.getDefaultAdapter()
-                .getRemoteDevice(OTHER_BT_ADDR2);
+        BluetoothDevice otherDevice1 =
+                BluetoothAdapter.getDefaultAdapter().getRemoteDevice(OTHER_BT_ADDR1);
+        BluetoothDevice otherDevice2 =
+                BluetoothAdapter.getDefaultAdapter().getRemoteDevice(OTHER_BT_ADDR2);
         BluetoothDevice[] bondedDevices = {otherDevice1, otherDevice2};
         doReturn(bondedDevices).when(mAdapterService).getBondedDevices();
 
@@ -325,7 +398,6 @@ public final class DatabaseManagerTest {
         mDatabaseManager.mMetadataCache.clear();
         // Wait for clear database
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-
     }
 
     @Test
@@ -334,140 +406,110 @@ public final class DatabaseManagerTest {
         byte[] value = "input value".getBytes();
 
         // Device is not in database
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_MANUFACTURER_NAME,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_MODEL_NAME,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_SOFTWARE_VERSION,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_HARDWARE_VERSION,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_COMPANION_APP,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_MAIN_ICON,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_IS_UNTETHERED_HEADSET,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_UNTETHERED_LEFT_ICON,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_UNTETHERED_RIGHT_ICON,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_UNTETHERED_CASE_ICON,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_UNTETHERED_LEFT_BATTERY,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_UNTETHERED_RIGHT_BATTERY,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_UNTETHERED_CASE_BATTERY,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_UNTETHERED_LEFT_CHARGING,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_UNTETHERED_RIGHT_CHARGING,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_UNTETHERED_CASE_CHARGING,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_ENHANCED_SETTINGS_UI_URI,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_DEVICE_TYPE,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_MAIN_BATTERY,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_MAIN_CHARGING,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_MAIN_LOW_BATTERY_THRESHOLD,
-                value, true);
-        testSetGetCustomMetaCase(false,
-                BluetoothDevice.METADATA_UNTETHERED_LEFT_LOW_BATTERY_THRESHOLD,
-                value, true);
-        testSetGetCustomMetaCase(false,
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_MANUFACTURER_NAME, value, true);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_MODEL_NAME, value, true);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_SOFTWARE_VERSION, value, true);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_HARDWARE_VERSION, value, true);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_COMPANION_APP, value, true);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_MAIN_ICON, value, true);
+        testSetGetCustomMetaCase(
+                false, BluetoothDevice.METADATA_IS_UNTETHERED_HEADSET, value, true);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_UNTETHERED_LEFT_ICON, value, true);
+        testSetGetCustomMetaCase(
+                false, BluetoothDevice.METADATA_UNTETHERED_RIGHT_ICON, value, true);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_UNTETHERED_CASE_ICON, value, true);
+        testSetGetCustomMetaCase(
+                false, BluetoothDevice.METADATA_UNTETHERED_LEFT_BATTERY, value, true);
+        testSetGetCustomMetaCase(
+                false, BluetoothDevice.METADATA_UNTETHERED_RIGHT_BATTERY, value, true);
+        testSetGetCustomMetaCase(
+                false, BluetoothDevice.METADATA_UNTETHERED_CASE_BATTERY, value, true);
+        testSetGetCustomMetaCase(
+                false, BluetoothDevice.METADATA_UNTETHERED_LEFT_CHARGING, value, true);
+        testSetGetCustomMetaCase(
+                false, BluetoothDevice.METADATA_UNTETHERED_RIGHT_CHARGING, value, true);
+        testSetGetCustomMetaCase(
+                false, BluetoothDevice.METADATA_UNTETHERED_CASE_CHARGING, value, true);
+        testSetGetCustomMetaCase(
+                false, BluetoothDevice.METADATA_ENHANCED_SETTINGS_UI_URI, value, true);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_DEVICE_TYPE, value, true);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_MAIN_BATTERY, value, true);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_MAIN_CHARGING, value, true);
+        testSetGetCustomMetaCase(
+                false, BluetoothDevice.METADATA_MAIN_LOW_BATTERY_THRESHOLD, value, true);
+        testSetGetCustomMetaCase(
+                false, BluetoothDevice.METADATA_UNTETHERED_LEFT_LOW_BATTERY_THRESHOLD, value, true);
+        testSetGetCustomMetaCase(
+                false,
                 BluetoothDevice.METADATA_UNTETHERED_RIGHT_LOW_BATTERY_THRESHOLD,
-                value, true);
-        testSetGetCustomMetaCase(false,
-                BluetoothDevice.METADATA_UNTETHERED_CASE_LOW_BATTERY_THRESHOLD,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_SPATIAL_AUDIO,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_FAST_PAIR_CUSTOMIZED_FIELDS,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_LE_AUDIO,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_GMCS_CCCD,
-                value, true);
-        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_GTBS_CCCD,
-                value, true);
+                value,
+                true);
+        testSetGetCustomMetaCase(
+                false, BluetoothDevice.METADATA_UNTETHERED_CASE_LOW_BATTERY_THRESHOLD, value, true);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_SPATIAL_AUDIO, value, true);
+        testSetGetCustomMetaCase(
+                false, BluetoothDevice.METADATA_FAST_PAIR_CUSTOMIZED_FIELDS, value, true);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_LE_AUDIO, value, true);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_GMCS_CCCD, value, true);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_GTBS_CCCD, value, true);
         testSetGetCustomMetaCase(false, badKey, value, false);
+        testSetGetCustomMetaCase(false, BluetoothDevice.METADATA_EXCLUSIVE_MANAGER, value, true);
 
         // Device is in database
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_MANUFACTURER_NAME,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_MODEL_NAME,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_SOFTWARE_VERSION,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_HARDWARE_VERSION,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_COMPANION_APP,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_MAIN_ICON,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_IS_UNTETHERED_HEADSET,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_UNTETHERED_LEFT_ICON,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_UNTETHERED_RIGHT_ICON,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_UNTETHERED_CASE_ICON,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_UNTETHERED_LEFT_BATTERY,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_UNTETHERED_RIGHT_BATTERY,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_UNTETHERED_CASE_BATTERY,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_UNTETHERED_LEFT_CHARGING,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_UNTETHERED_RIGHT_CHARGING,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_UNTETHERED_CASE_CHARGING,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_ENHANCED_SETTINGS_UI_URI,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_DEVICE_TYPE,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_MAIN_BATTERY,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_MAIN_CHARGING,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_MAIN_LOW_BATTERY_THRESHOLD,
-                value, true);
-        testSetGetCustomMetaCase(true,
-                BluetoothDevice.METADATA_UNTETHERED_LEFT_LOW_BATTERY_THRESHOLD,
-                value, true);
-        testSetGetCustomMetaCase(true,
-                BluetoothDevice.METADATA_UNTETHERED_RIGHT_LOW_BATTERY_THRESHOLD,
-                value, true);
-        testSetGetCustomMetaCase(true,
-                BluetoothDevice.METADATA_UNTETHERED_CASE_LOW_BATTERY_THRESHOLD,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_SPATIAL_AUDIO,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_FAST_PAIR_CUSTOMIZED_FIELDS,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_LE_AUDIO,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_GMCS_CCCD,
-                value, true);
-        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_GTBS_CCCD,
-                value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_MANUFACTURER_NAME, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_MODEL_NAME, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_SOFTWARE_VERSION, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_HARDWARE_VERSION, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_COMPANION_APP, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_MAIN_ICON, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_IS_UNTETHERED_HEADSET, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_UNTETHERED_LEFT_ICON, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_UNTETHERED_RIGHT_ICON, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_UNTETHERED_CASE_ICON, value, true);
+        testSetGetCustomMetaCase(
+                true, BluetoothDevice.METADATA_UNTETHERED_LEFT_BATTERY, value, true);
+        testSetGetCustomMetaCase(
+                true, BluetoothDevice.METADATA_UNTETHERED_RIGHT_BATTERY, value, true);
+        testSetGetCustomMetaCase(
+                true, BluetoothDevice.METADATA_UNTETHERED_CASE_BATTERY, value, true);
+        testSetGetCustomMetaCase(
+                true, BluetoothDevice.METADATA_UNTETHERED_LEFT_CHARGING, value, true);
+        testSetGetCustomMetaCase(
+                true, BluetoothDevice.METADATA_UNTETHERED_RIGHT_CHARGING, value, true);
+        testSetGetCustomMetaCase(
+                true, BluetoothDevice.METADATA_UNTETHERED_CASE_CHARGING, value, true);
+        testSetGetCustomMetaCase(
+                true, BluetoothDevice.METADATA_ENHANCED_SETTINGS_UI_URI, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_DEVICE_TYPE, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_MAIN_BATTERY, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_MAIN_CHARGING, value, true);
+        testSetGetCustomMetaCase(
+                true, BluetoothDevice.METADATA_MAIN_LOW_BATTERY_THRESHOLD, value, true);
+        testSetGetCustomMetaCase(
+                true, BluetoothDevice.METADATA_UNTETHERED_LEFT_LOW_BATTERY_THRESHOLD, value, true);
+        testSetGetCustomMetaCase(
+                true, BluetoothDevice.METADATA_UNTETHERED_RIGHT_LOW_BATTERY_THRESHOLD, value, true);
+        testSetGetCustomMetaCase(
+                true, BluetoothDevice.METADATA_UNTETHERED_CASE_LOW_BATTERY_THRESHOLD, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_SPATIAL_AUDIO, value, true);
+        testSetGetCustomMetaCase(
+                true, BluetoothDevice.METADATA_FAST_PAIR_CUSTOMIZED_FIELDS, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_LE_AUDIO, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_GMCS_CCCD, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_GTBS_CCCD, value, true);
+        testSetGetCustomMetaCase(true, BluetoothDevice.METADATA_EXCLUSIVE_MANAGER, value, true);
     }
+
     @Test
     public void testSetGetAudioPolicyMetaData() {
         int badKey = 100;
-        BluetoothSinkAudioPolicy value = new BluetoothSinkAudioPolicy.Builder()
-                .setCallEstablishPolicy(BluetoothSinkAudioPolicy.POLICY_ALLOWED)
-                .setActiveDevicePolicyAfterConnection(BluetoothSinkAudioPolicy.POLICY_NOT_ALLOWED)
-                .setInBandRingtonePolicy(BluetoothSinkAudioPolicy.POLICY_ALLOWED)
-                .build();
+        BluetoothSinkAudioPolicy value =
+                new BluetoothSinkAudioPolicy.Builder()
+                        .setCallEstablishPolicy(BluetoothSinkAudioPolicy.POLICY_ALLOWED)
+                        .setActiveDevicePolicyAfterConnection(
+                                BluetoothSinkAudioPolicy.POLICY_NOT_ALLOWED)
+                        .setInBandRingtonePolicy(BluetoothSinkAudioPolicy.POLICY_ALLOWED)
+                        .build();
 
         // Device is not in database
         testSetGetAudioPolicyMetadataCase(false, value, true);
@@ -476,7 +518,61 @@ public final class DatabaseManagerTest {
     }
 
     @Test
+    public void testSetConnectionHeadset() {
+        mSetFlagsRule.disableFlags(Flags.FLAG_AUTO_CONNECT_ON_MULTIPLE_HFP_WHEN_NO_A2DP_DEVICE);
+        // Verify pre-conditions to ensure a fresh test
+        Assert.assertEquals(0, mDatabaseManager.mMetadataCache.size());
+        Assert.assertNotNull(mTestDevice);
+        Assert.assertNotNull(mTestDevice2);
+        Assert.assertNull(mDatabaseManager.getMostRecentlyActiveHfpDevice());
+
+        // Set the first device's connection
+        mDatabaseManager.setConnection(mTestDevice, BluetoothProfile.HEADSET);
+        // Wait for database update
+        TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
+        Assert.assertTrue(
+                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress()).isActiveHfpDevice);
+        List<BluetoothDevice> mostRecentlyConnectedDevicesOrdered =
+                mDatabaseManager.getMostRecentlyConnectedDevices();
+        Assert.assertEquals(mTestDevice, mDatabaseManager.getMostRecentlyActiveHfpDevice());
+        Assert.assertEquals(1, mostRecentlyConnectedDevicesOrdered.size());
+        Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(0));
+
+        // Setting the second device's connection
+        mDatabaseManager.setConnection(mTestDevice2, BluetoothProfile.HEADSET);
+        // Wait for database update
+        TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress()).isActiveHfpDevice);
+        Assert.assertTrue(
+                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress()).isActiveHfpDevice);
+        Assert.assertEquals(mTestDevice2, mDatabaseManager.getMostRecentlyActiveHfpDevice());
+        mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
+        Assert.assertEquals(2, mostRecentlyConnectedDevicesOrdered.size());
+        Assert.assertEquals(mTestDevice2, mostRecentlyConnectedDevicesOrdered.get(0));
+        Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(1));
+
+        // Disconnect first test device's connection
+        mDatabaseManager.setDisconnection(mTestDevice, BluetoothProfile.HEADSET);
+        // Wait for database update
+        TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress()).isActiveHfpDevice);
+        Assert.assertNotNull(mDatabaseManager.getMostRecentlyActiveHfpDevice());
+        mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
+        Assert.assertEquals(2, mostRecentlyConnectedDevicesOrdered.size());
+        Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(1));
+        Assert.assertEquals(mTestDevice2, mostRecentlyConnectedDevicesOrdered.get(0));
+
+        mDatabaseManager.factoryReset();
+        mDatabaseManager.mMetadataCache.clear();
+        // Wait for clear database
+        TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
+    }
+
+    @Test
     public void testSetConnection() {
+        mSetFlagsRule.disableFlags(Flags.FLAG_AUTO_CONNECT_ON_MULTIPLE_HFP_WHEN_NO_A2DP_DEVICE);
         // Verify pre-conditions to ensure a fresh test
         Assert.assertEquals(0, mDatabaseManager.mMetadataCache.size());
         Assert.assertNotNull(mTestDevice);
@@ -484,11 +580,12 @@ public final class DatabaseManagerTest {
         Assert.assertNull(mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
 
         // Set the first device's connection
-        mDatabaseManager.setConnection(mTestDevice, true);
+        mDatabaseManager.setConnection(mTestDevice, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(mDatabaseManager
-                .mMetadataCache.get(mTestDevice.getAddress()).is_active_a2dp_device);
+        Assert.assertTrue(
+                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                        .is_active_a2dp_device);
         List<BluetoothDevice> mostRecentlyConnectedDevicesOrdered =
                 mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(mTestDevice, mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
@@ -496,153 +593,168 @@ public final class DatabaseManagerTest {
         Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(0));
 
         // Setting the second device's connection
-        mDatabaseManager.setConnection(mTestDevice2, true);
+        mDatabaseManager.setConnection(mTestDevice2, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice.getAddress()).is_active_a2dp_device);
-        Assert.assertTrue(mDatabaseManager
-                .mMetadataCache.get(mTestDevice2.getAddress()).is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertTrue(
+                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                        .is_active_a2dp_device);
         Assert.assertEquals(mTestDevice2, mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
-        mostRecentlyConnectedDevicesOrdered =
-                mDatabaseManager.getMostRecentlyConnectedDevices();
+        mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(2, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice2, mostRecentlyConnectedDevicesOrdered.get(0));
         Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(1));
 
         // Connect first test device again
-        mDatabaseManager.setConnection(mTestDevice, true);
+        mDatabaseManager.setConnection(mTestDevice, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(mDatabaseManager
-                .mMetadataCache.get(mTestDevice.getAddress()).is_active_a2dp_device);
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice2.getAddress()).is_active_a2dp_device);
+        Assert.assertTrue(
+                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                        .is_active_a2dp_device);
         Assert.assertEquals(mTestDevice, mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
-        mostRecentlyConnectedDevicesOrdered =
-                mDatabaseManager.getMostRecentlyConnectedDevices();
+        mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(2, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(0));
         Assert.assertEquals(mTestDevice2, mostRecentlyConnectedDevicesOrdered.get(1));
 
         // Disconnect first test device's connection
-        mDatabaseManager.setDisconnection(mTestDevice);
+        mDatabaseManager.setDisconnection(mTestDevice, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice.getAddress()).is_active_a2dp_device);
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice2.getAddress()).is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                        .is_active_a2dp_device);
         Assert.assertNull(mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
-        mostRecentlyConnectedDevicesOrdered =
-                mDatabaseManager.getMostRecentlyConnectedDevices();
+        mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(2, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(0));
         Assert.assertEquals(mTestDevice2, mostRecentlyConnectedDevicesOrdered.get(1));
 
         // Connect third test device (non-a2dp device)
-        mDatabaseManager.setConnection(mTestDevice3, false);
+        mDatabaseManager.setConnection(mTestDevice3, BluetoothProfile.HEADSET);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice.getAddress()).is_active_a2dp_device);
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice2.getAddress()).is_active_a2dp_device);
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice3.getAddress()).is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
+                        .is_active_a2dp_device);
         Assert.assertNull(mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
-        mostRecentlyConnectedDevicesOrdered =
-                mDatabaseManager.getMostRecentlyConnectedDevices();
+        mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(3, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice3, mostRecentlyConnectedDevicesOrdered.get(0));
         Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(1));
         Assert.assertEquals(mTestDevice2, mostRecentlyConnectedDevicesOrdered.get(2));
 
         // Connect first test device again
-        mDatabaseManager.setConnection(mTestDevice, true);
+        mDatabaseManager.setConnection(mTestDevice, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(mDatabaseManager
-                .mMetadataCache.get(mTestDevice.getAddress()).is_active_a2dp_device);
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice2.getAddress()).is_active_a2dp_device);
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice3.getAddress()).is_active_a2dp_device);
+        Assert.assertTrue(
+                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
+                        .is_active_a2dp_device);
         Assert.assertEquals(mTestDevice, mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
-        mostRecentlyConnectedDevicesOrdered =
-                mDatabaseManager.getMostRecentlyConnectedDevices();
+        mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(3, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(0));
         Assert.assertEquals(mTestDevice3, mostRecentlyConnectedDevicesOrdered.get(1));
         Assert.assertEquals(mTestDevice2, mostRecentlyConnectedDevicesOrdered.get(2));
 
         // Connect third test device again and ensure it doesn't reset active a2dp device
-        mDatabaseManager.setConnection(mTestDevice3, false);
+        mDatabaseManager.setConnection(mTestDevice3, BluetoothProfile.HEADSET);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(mDatabaseManager
-                .mMetadataCache.get(mTestDevice.getAddress()).is_active_a2dp_device);
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice2.getAddress()).is_active_a2dp_device);
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice3.getAddress()).is_active_a2dp_device);
+        Assert.assertTrue(
+                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
+                        .is_active_a2dp_device);
         Assert.assertEquals(mTestDevice, mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
-        mostRecentlyConnectedDevicesOrdered =
-                mDatabaseManager.getMostRecentlyConnectedDevices();
+        mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(3, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice3, mostRecentlyConnectedDevicesOrdered.get(0));
         Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(1));
         Assert.assertEquals(mTestDevice2, mostRecentlyConnectedDevicesOrdered.get(2));
 
         // Disconnect second test device
-        mDatabaseManager.setDisconnection(mTestDevice2);
+        mDatabaseManager.setDisconnection(mTestDevice2, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(mDatabaseManager
-                .mMetadataCache.get(mTestDevice.getAddress()).is_active_a2dp_device);
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice2.getAddress()).is_active_a2dp_device);
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice3.getAddress()).is_active_a2dp_device);
+        Assert.assertTrue(
+                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
+                        .is_active_a2dp_device);
         Assert.assertEquals(mTestDevice, mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
-        mostRecentlyConnectedDevicesOrdered =
-                mDatabaseManager.getMostRecentlyConnectedDevices();
+        mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(3, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice3, mostRecentlyConnectedDevicesOrdered.get(0));
         Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(1));
         Assert.assertEquals(mTestDevice2, mostRecentlyConnectedDevicesOrdered.get(2));
 
         // Disconnect first test device
-        mDatabaseManager.setDisconnection(mTestDevice);
+        mDatabaseManager.setDisconnection(mTestDevice, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice.getAddress()).is_active_a2dp_device);
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice2.getAddress()).is_active_a2dp_device);
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice3.getAddress()).is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
+                        .is_active_a2dp_device);
         Assert.assertNull(mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
-        mostRecentlyConnectedDevicesOrdered =
-                mDatabaseManager.getMostRecentlyConnectedDevices();
+        mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(3, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice3, mostRecentlyConnectedDevicesOrdered.get(0));
         Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(1));
         Assert.assertEquals(mTestDevice2, mostRecentlyConnectedDevicesOrdered.get(2));
 
         // Disconnect third test device
-        mDatabaseManager.setDisconnection(mTestDevice3);
+        mDatabaseManager.setDisconnection(mTestDevice3, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice.getAddress()).is_active_a2dp_device);
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice2.getAddress()).is_active_a2dp_device);
-        Assert.assertFalse(mDatabaseManager
-                .mMetadataCache.get(mTestDevice3.getAddress()).is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                        .is_active_a2dp_device);
+        Assert.assertFalse(
+                mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
+                        .is_active_a2dp_device);
         Assert.assertNull(mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
-        mostRecentlyConnectedDevicesOrdered =
-                mDatabaseManager.getMostRecentlyConnectedDevices();
+        mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(3, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice3, mostRecentlyConnectedDevicesOrdered.get(0));
         Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(1));
@@ -661,22 +773,26 @@ public final class DatabaseManagerTest {
         preferences.putInt(BluetoothAdapter.AUDIO_MODE_DUPLEX, BluetoothProfile.LE_AUDIO);
 
         // TEST 1: If input is invalid, throws the right Exception
-        Assert.assertThrows(NullPointerException.class,
+        Assert.assertThrows(
+                NullPointerException.class,
                 () -> mDatabaseManager.setPreferredAudioProfiles(null, preferences));
-        Assert.assertThrows(NullPointerException.class,
+        Assert.assertThrows(
+                NullPointerException.class,
                 () -> mDatabaseManager.setPreferredAudioProfiles(new ArrayList<>(), null));
-        Assert.assertThrows(IllegalArgumentException.class,
+        Assert.assertThrows(
+                IllegalArgumentException.class,
                 () -> mDatabaseManager.setPreferredAudioProfiles(new ArrayList<>(), preferences));
-        Assert.assertThrows(IllegalArgumentException.class,
+        Assert.assertThrows(
+                IllegalArgumentException.class,
                 () -> mDatabaseManager.getPreferredAudioProfiles(null));
 
         // TEST 2: If not stored, setter fails and getter returns an empty Bundle
-        testSetGetPreferredAudioProfilesCase(false, preferences, Bundle.EMPTY,
-                BluetoothStatusCodes.ERROR_DEVICE_NOT_BONDED);
+        testSetGetPreferredAudioProfilesCase(
+                false, preferences, Bundle.EMPTY, BluetoothStatusCodes.ERROR_DEVICE_NOT_BONDED);
 
         // TEST 3: If stored, setter succeeds and getter returns the stored preference
-        testSetGetPreferredAudioProfilesCase(true, preferences, preferences,
-                BluetoothStatusCodes.SUCCESS);
+        testSetGetPreferredAudioProfilesCase(
+                true, preferences, preferences, BluetoothStatusCodes.SUCCESS);
     }
 
     @Test
@@ -690,8 +806,9 @@ public final class DatabaseManagerTest {
 
         // Migrate database from 100 to 101
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 101, true,
-                MetadataDatabase.MIGRATION_100_101);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 101, true, MetadataDatabase.MIGRATION_100_101);
         cursor = db.query("SELECT * FROM metadata");
 
         // Check whether pbap_client_priority exists in version 101
@@ -740,7 +857,8 @@ public final class DatabaseManagerTest {
         device.put("unthethered_left_charging", testString);
         device.put("unthethered_right_charging", testString);
         device.put("unthethered_case_charging", testString);
-        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
         // Check the metadata names on version 101
@@ -757,8 +875,9 @@ public final class DatabaseManagerTest {
 
         // Migrate database from 101 to 102
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 102, true,
-                MetadataDatabase.MIGRATION_101_102);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 102, true, MetadataDatabase.MIGRATION_101_102);
         cursor = db.query("SELECT * FROM metadata");
 
         // metadata names should be changed on version 102
@@ -865,7 +984,8 @@ public final class DatabaseManagerTest {
         device.put("untethered_left_charging", testString);
         device.put("untethered_right_charging", testString);
         device.put("untethered_case_charging", testString);
-        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
         // Check the metadata names on version 102
@@ -884,8 +1004,9 @@ public final class DatabaseManagerTest {
 
         // Migrate database from 102 to 103
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 103, true,
-                MetadataDatabase.MIGRATION_102_103);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 103, true, MetadataDatabase.MIGRATION_102_103);
         cursor = db.query("SELECT * FROM metadata");
 
         // metadata names should be changed on version 103
@@ -1009,13 +1130,15 @@ public final class DatabaseManagerTest {
         device.put("untethered_left_charging", testString);
         device.put("untethered_right_charging", testString);
         device.put("untethered_case_charging", testString);
-        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
         // Migrate database from 103 to 104
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 104, true,
-                MetadataDatabase.MIGRATION_103_104);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 104, true, MetadataDatabase.MIGRATION_103_104);
         Cursor cursor = db.query("SELECT * FROM metadata");
 
         assertHasColumn(cursor, "last_active_time", true);
@@ -1039,8 +1162,9 @@ public final class DatabaseManagerTest {
 
         // Migrate database from 104 to 105
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 105, true,
-                MetadataDatabase.MIGRATION_104_105);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 105, true, MetadataDatabase.MIGRATION_104_105);
         Cursor cursor = db.query("SELECT * FROM metadata");
 
         assertHasColumn(cursor, "device_type", true);
@@ -1077,13 +1201,15 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
         // Migrate database from 105 to 106
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 106, true,
-                MetadataDatabase.MIGRATION_105_106);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 106, true, MetadataDatabase.MIGRATION_105_106);
         Cursor cursor = db.query("SELECT * FROM metadata");
 
         assertHasColumn(cursor, "le_audio_connection_policy", true);
@@ -1105,13 +1231,15 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
         // Migrate database from 106 to 107
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 107, true,
-                MetadataDatabase.MIGRATION_106_107);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 107, true, MetadataDatabase.MIGRATION_106_107);
         Cursor cursor = db.query("SELECT * FROM metadata");
 
         assertHasColumn(cursor, "volume_control_connection_policy", true);
@@ -1131,12 +1259,14 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 107 to 108
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 108, true,
-                MetadataDatabase.MIGRATION_107_108);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 108, true, MetadataDatabase.MIGRATION_107_108);
         Cursor cursor = db.query("SELECT * FROM metadata");
         assertHasColumn(cursor, "csip_set_coordinator_connection_policy", true);
         while (cursor.moveToNext()) {
@@ -1154,12 +1284,14 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 108 to 109
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 109, true,
-                MetadataDatabase.MIGRATION_108_109);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 109, true, MetadataDatabase.MIGRATION_108_109);
         Cursor cursor = db.query("SELECT * FROM metadata");
         assertHasColumn(cursor, "le_call_control_connection_policy", true);
         while (cursor.moveToNext()) {
@@ -1177,12 +1309,14 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 109 to 110
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 110, true,
-                MetadataDatabase.MIGRATION_109_110);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 110, true, MetadataDatabase.MIGRATION_109_110);
         Cursor cursor = db.query("SELECT * FROM metadata");
         assertHasColumn(cursor, "hap_client_connection_policy", true);
         while (cursor.moveToNext()) {
@@ -1200,12 +1334,14 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 111 to 112
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 112, true,
-                MetadataDatabase.MIGRATION_111_112);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 112, true, MetadataDatabase.MIGRATION_111_112);
         Cursor cursor = db.query("SELECT * FROM metadata");
         assertHasColumn(cursor, "battery_connection_policy", true);
         while (cursor.moveToNext()) {
@@ -1222,12 +1358,14 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 112 to 113
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 113, true,
-                MetadataDatabase.MIGRATION_112_113);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 113, true, MetadataDatabase.MIGRATION_112_113);
         Cursor cursor = db.query("SELECT * FROM metadata");
         assertHasColumn(cursor, "spatial_audio", true);
         assertHasColumn(cursor, "fastpair_customized", true);
@@ -1246,12 +1384,14 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 113 to 114
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 114, true,
-                MetadataDatabase.MIGRATION_113_114);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 114, true, MetadataDatabase.MIGRATION_113_114);
         Cursor cursor = db.query("SELECT * FROM metadata");
         assertHasColumn(cursor, "le_audio", true);
         while (cursor.moveToNext()) {
@@ -1268,13 +1408,15 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
         // Migrate database from 114 to 115
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 115, true,
-                MetadataDatabase.MIGRATION_114_115);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 115, true, MetadataDatabase.MIGRATION_114_115);
         Cursor cursor = db.query("SELECT * FROM metadata");
 
         assertHasColumn(cursor, "call_establish_audio_policy", true);
@@ -1296,13 +1438,15 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
         // Migrate database from 115 to 116
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 116, true,
-                MetadataDatabase.MIGRATION_115_116);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 116, true, MetadataDatabase.MIGRATION_115_116);
         Cursor cursor = db.query("SELECT * FROM metadata");
         assertHasColumn(cursor, "preferred_output_only_profile", true);
         assertHasColumn(cursor, "preferred_duplex_profile", true);
@@ -1321,12 +1465,14 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 116 to 117
         db.close();
-        db = testHelper.runMigrationsAndValidate(DB_NAME, 117, true,
-                MetadataDatabase.MIGRATION_116_117);
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 117, true, MetadataDatabase.MIGRATION_116_117);
         Cursor cursor = db.query("SELECT * FROM metadata");
         assertHasColumn(cursor, "gmcs_cccd", true);
         assertHasColumn(cursor, "gtbs_cccd", true);
@@ -1337,9 +1483,80 @@ public final class DatabaseManagerTest {
         }
     }
 
-    /**
-     * Helper function to check whether the database has the expected column
-     */
+    @Test
+    public void testDatabaseMigration_117_118() throws IOException {
+        // Create a database with version 117
+        SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 117);
+        // insert a device to the database
+        ContentValues device = new ContentValues();
+        device.put("address", TEST_BT_ADDR);
+        device.put("migrated", false);
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+                CoreMatchers.not(-1));
+        // Migrate database from 117 to 118
+        db.close();
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 118, true, MetadataDatabase.MIGRATION_117_118);
+        Cursor cursor = db.query("SELECT * FROM metadata");
+        assertHasColumn(cursor, "isActiveHfpDevice", true);
+        while (cursor.moveToNext()) {
+            // Check the new columns was added with default value
+            assertColumnIntData(cursor, "isActiveHfpDevice", 0);
+        }
+    }
+
+    @Test
+    public void testDatabaseMigration_118_119() throws IOException {
+        // Create a database with version 118
+        SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 118);
+        // insert a device to the database
+        ContentValues device = new ContentValues();
+        device.put("address", TEST_BT_ADDR);
+        device.put("migrated", false);
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+                CoreMatchers.not(-1));
+
+        // Migrate database from 118 to 119
+        db.close();
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 119, true, MetadataDatabase.MIGRATION_118_119);
+        Cursor cursor = db.query("SELECT * FROM metadata");
+        assertHasColumn(cursor, "exclusive_manager", true);
+        while (cursor.moveToNext()) {
+            // Check the new column was added with default value
+            assertColumnBlobData(cursor, "exclusive_manager", null);
+        }
+    }
+
+    @Test
+    public void testDatabaseMigration_119_120() throws IOException {
+        // Create a database with version 119
+        SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 119);
+        // insert a device to the database
+        ContentValues device = new ContentValues();
+        device.put("address", TEST_BT_ADDR);
+        device.put("migrated", false);
+        assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+                CoreMatchers.not(-1));
+        // Migrate database from 119 to 120
+        db.close();
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 120, true, MetadataDatabase.MIGRATION_119_120);
+        Cursor cursor = db.query("SELECT * FROM metadata");
+        assertHasColumn(cursor, "active_audio_device_policy", true);
+        while (cursor.moveToNext()) {
+            // Check the new columns was added with default value
+            assertColumnIntData(cursor, "active_audio_device_policy", 0);
+        }
+    }
+
+    /** Helper function to check whether the database has the expected column */
     void assertHasColumn(Cursor cursor, String columnName, boolean hasColumn) {
         if (hasColumn) {
             assertThat(cursor.getColumnIndex(columnName), CoreMatchers.not(-1));
@@ -1348,27 +1565,21 @@ public final class DatabaseManagerTest {
         }
     }
 
-    /**
-     * Helper function to check whether the database has the expected value
-     */
+    /** Helper function to check whether the database has the expected value */
     void assertColumnIntData(Cursor cursor, String columnName, int value) {
         assertThat(cursor.getInt(cursor.getColumnIndex(columnName)), CoreMatchers.is(value));
     }
 
-    /**
-     * Helper function to check whether the column data type is BLOB
-     */
+    /** Helper function to check whether the column data type is BLOB */
     void assertColumnBlob(Cursor cursor, String columnName) {
-        assertThat(cursor.getType(cursor.getColumnIndex(columnName)),
+        assertThat(
+                cursor.getType(cursor.getColumnIndex(columnName)),
                 CoreMatchers.is(Cursor.FIELD_TYPE_BLOB));
     }
 
-    /**
-     * Helper function to check the BLOB data in a column is expected
-     */
+    /** Helper function to check the BLOB data in a column is expected */
     void assertColumnBlobData(Cursor cursor, String columnName, byte[] data) {
-        assertThat(cursor.getBlob(cursor.getColumnIndex(columnName)),
-                CoreMatchers.is(data));
+        assertThat(cursor.getBlob(cursor.getColumnIndex(columnName)), CoreMatchers.is(data));
     }
 
     void restartDatabaseManagerHelper() {
@@ -1388,17 +1599,22 @@ public final class DatabaseManagerTest {
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
     }
 
-    void testSetGetProfileConnectionPolicyCase(boolean stored, int connectionPolicy,
-            int expectedConnectionPolicy, boolean expectedSetResult) {
+    void testSetGetProfileConnectionPolicyCase(
+            boolean stored,
+            int connectionPolicy,
+            int expectedConnectionPolicy,
+            boolean expectedSetResult) {
         if (stored) {
             Metadata data = new Metadata(TEST_BT_ADDR);
             mDatabaseManager.mMetadataCache.put(TEST_BT_ADDR, data);
             mDatabase.insert(data);
         }
-        Assert.assertEquals(expectedSetResult,
-                mDatabaseManager.setProfileConnectionPolicy(mTestDevice,
-                BluetoothProfile.HEADSET, connectionPolicy));
-        Assert.assertEquals(expectedConnectionPolicy,
+        Assert.assertEquals(
+                expectedSetResult,
+                mDatabaseManager.setProfileConnectionPolicy(
+                        mTestDevice, BluetoothProfile.HEADSET, connectionPolicy));
+        Assert.assertEquals(
+                expectedConnectionPolicy,
                 mDatabaseManager.getProfileConnectionPolicy(mTestDevice, BluetoothProfile.HEADSET));
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
@@ -1418,7 +1634,8 @@ public final class DatabaseManagerTest {
 
         // Check whether the device is in database
         restartDatabaseManagerHelper();
-        Assert.assertEquals(expectedConnectionPolicy,
+        Assert.assertEquals(
+                expectedConnectionPolicy,
                 mDatabaseManager.getProfileConnectionPolicy(mTestDevice, BluetoothProfile.HEADSET));
 
         mDatabaseManager.factoryReset();
@@ -1435,12 +1652,12 @@ public final class DatabaseManagerTest {
         }
         if (test == A2DP_SUPPORT_OP_CODEC_TEST) {
             mDatabaseManager.setA2dpSupportsOptionalCodecs(mTestDevice, value);
-            Assert.assertEquals(expectedValue,
-                    mDatabaseManager.getA2dpSupportsOptionalCodecs(mTestDevice));
+            Assert.assertEquals(
+                    expectedValue, mDatabaseManager.getA2dpSupportsOptionalCodecs(mTestDevice));
         } else {
             mDatabaseManager.setA2dpOptionalCodecsEnabled(mTestDevice, value);
-            Assert.assertEquals(expectedValue,
-                    mDatabaseManager.getA2dpOptionalCodecsEnabled(mTestDevice));
+            Assert.assertEquals(
+                    expectedValue, mDatabaseManager.getA2dpOptionalCodecsEnabled(mTestDevice));
         }
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
@@ -1458,11 +1675,11 @@ public final class DatabaseManagerTest {
         // Check whether the device is in database
         restartDatabaseManagerHelper();
         if (test == A2DP_SUPPORT_OP_CODEC_TEST) {
-            Assert.assertEquals(expectedValue,
-                    mDatabaseManager.getA2dpSupportsOptionalCodecs(mTestDevice));
+            Assert.assertEquals(
+                    expectedValue, mDatabaseManager.getA2dpSupportsOptionalCodecs(mTestDevice));
         } else {
-            Assert.assertEquals(expectedValue,
-                    mDatabaseManager.getA2dpOptionalCodecsEnabled(mTestDevice));
+            Assert.assertEquals(
+                    expectedValue, mDatabaseManager.getA2dpOptionalCodecsEnabled(mTestDevice));
         }
 
         mDatabaseManager.factoryReset();
@@ -1478,18 +1695,17 @@ public final class DatabaseManagerTest {
             Metadata data = new Metadata(TEST_BT_ADDR);
             mDatabaseManager.mMetadataCache.put(TEST_BT_ADDR, data);
             mDatabase.insert(data);
-            Assert.assertEquals(expectedResult,
-                    mDatabaseManager.setCustomMeta(mTestDevice, key, testValue));
+            Assert.assertEquals(
+                    expectedResult, mDatabaseManager.setCustomMeta(mTestDevice, key, testValue));
             verify(mAdapterService).metadataChanged(TEST_BT_ADDR, key, testValue);
             verifyTime++;
         }
-        Assert.assertEquals(expectedResult,
-                mDatabaseManager.setCustomMeta(mTestDevice, key, value));
+        Assert.assertEquals(
+                expectedResult, mDatabaseManager.setCustomMeta(mTestDevice, key, value));
         if (expectedResult) {
             // Check for callback and get value
             verify(mAdapterService, times(verifyTime)).metadataChanged(TEST_BT_ADDR, key, value);
-            Assert.assertEquals(value,
-                    mDatabaseManager.getCustomMeta(mTestDevice, key));
+            Assert.assertEquals(value, mDatabaseManager.getCustomMeta(mTestDevice, key));
         } else {
             Assert.assertNull(mDatabaseManager.getCustomMeta(mTestDevice, key));
             return;
@@ -1499,8 +1715,7 @@ public final class DatabaseManagerTest {
 
         // Check whether the value is saved in database
         restartDatabaseManagerHelper();
-        Assert.assertArrayEquals(value,
-                mDatabaseManager.getCustomMeta(mTestDevice, key));
+        Assert.assertArrayEquals(value, mDatabaseManager.getCustomMeta(mTestDevice, key));
 
         mDatabaseManager.factoryReset();
         mDatabaseManager.mMetadataCache.clear();
@@ -1508,22 +1723,22 @@ public final class DatabaseManagerTest {
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
     }
 
-    void testSetGetAudioPolicyMetadataCase(boolean stored,
-                BluetoothSinkAudioPolicy policy, boolean expectedResult) {
+    void testSetGetAudioPolicyMetadataCase(
+            boolean stored, BluetoothSinkAudioPolicy policy, boolean expectedResult) {
         BluetoothSinkAudioPolicy testPolicy = new BluetoothSinkAudioPolicy.Builder().build();
         if (stored) {
             Metadata data = new Metadata(TEST_BT_ADDR);
             mDatabaseManager.mMetadataCache.put(TEST_BT_ADDR, data);
             mDatabase.insert(data);
-            Assert.assertEquals(expectedResult,
+            Assert.assertEquals(
+                    expectedResult,
                     mDatabaseManager.setAudioPolicyMetadata(mTestDevice, testPolicy));
         }
-        Assert.assertEquals(expectedResult,
-                mDatabaseManager.setAudioPolicyMetadata(mTestDevice, policy));
+        Assert.assertEquals(
+                expectedResult, mDatabaseManager.setAudioPolicyMetadata(mTestDevice, policy));
         if (expectedResult) {
             // Check for callback and get value
-            Assert.assertEquals(policy,
-                    mDatabaseManager.getAudioPolicyMetadata(mTestDevice));
+            Assert.assertEquals(policy, mDatabaseManager.getAudioPolicyMetadata(mTestDevice));
         } else {
             Assert.assertNull(mDatabaseManager.getAudioPolicyMetadata(mTestDevice));
             return;
@@ -1533,8 +1748,7 @@ public final class DatabaseManagerTest {
 
         // Check whether the value is saved in database
         restartDatabaseManagerHelper();
-        Assert.assertEquals(policy,
-                mDatabaseManager.getAudioPolicyMetadata(mTestDevice));
+        Assert.assertEquals(policy, mDatabaseManager.getAudioPolicyMetadata(mTestDevice));
 
         mDatabaseManager.factoryReset();
         mDatabaseManager.mMetadataCache.clear();
@@ -1542,8 +1756,11 @@ public final class DatabaseManagerTest {
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
     }
 
-    void testSetGetPreferredAudioProfilesCase(boolean stored, Bundle preferencesToSet,
-            Bundle expectedPreferences, int expectedSetResult) {
+    void testSetGetPreferredAudioProfilesCase(
+            boolean stored,
+            Bundle preferencesToSet,
+            Bundle expectedPreferences,
+            int expectedSetResult) {
         if (stored) {
             Metadata data = new Metadata(TEST_BT_ADDR);
             Metadata data2 = new Metadata(TEST_BT_ADDR2);
@@ -1556,19 +1773,22 @@ public final class DatabaseManagerTest {
         groupDevices.add(mTestDevice);
         groupDevices.add(mTestDevice2);
 
-        Assert.assertEquals(expectedSetResult,
+        Assert.assertEquals(
+                expectedSetResult,
                 mDatabaseManager.setPreferredAudioProfiles(groupDevices, preferencesToSet));
         Bundle testDevicePreferences = mDatabaseManager.getPreferredAudioProfiles(mTestDevice);
         Bundle testDevice2Preferences = mDatabaseManager.getPreferredAudioProfiles(mTestDevice2);
         Assert.assertNotNull(testDevicePreferences);
         Assert.assertNotNull(testDevice2Preferences);
 
-        Assert.assertEquals(expectedPreferences.getInt(BluetoothAdapter.AUDIO_MODE_OUTPUT_ONLY),
+        Assert.assertEquals(
+                expectedPreferences.getInt(BluetoothAdapter.AUDIO_MODE_OUTPUT_ONLY),
                 testDevicePreferences.getInt(BluetoothAdapter.AUDIO_MODE_OUTPUT_ONLY));
-        Assert.assertEquals(expectedPreferences.getInt(BluetoothAdapter.AUDIO_MODE_DUPLEX),
+        Assert.assertEquals(
+                expectedPreferences.getInt(BluetoothAdapter.AUDIO_MODE_DUPLEX),
                 testDevicePreferences.getInt(BluetoothAdapter.AUDIO_MODE_DUPLEX));
-        Assert.assertEquals(0,
-                testDevice2Preferences.getInt(BluetoothAdapter.AUDIO_MODE_OUTPUT_ONLY));
+        Assert.assertEquals(
+                0, testDevice2Preferences.getInt(BluetoothAdapter.AUDIO_MODE_OUTPUT_ONLY));
         Assert.assertEquals(0, testDevice2Preferences.getInt(BluetoothAdapter.AUDIO_MODE_DUPLEX));
 
         // Wait for database update
@@ -1590,17 +1810,48 @@ public final class DatabaseManagerTest {
         Assert.assertNotNull(testDevicePreferences);
         Assert.assertNotNull(testDevice2Preferences);
 
-        Assert.assertEquals(expectedPreferences.getInt(BluetoothAdapter.AUDIO_MODE_OUTPUT_ONLY),
+        Assert.assertEquals(
+                expectedPreferences.getInt(BluetoothAdapter.AUDIO_MODE_OUTPUT_ONLY),
                 testDevicePreferences.getInt(BluetoothAdapter.AUDIO_MODE_OUTPUT_ONLY));
-        Assert.assertEquals(expectedPreferences.getInt(BluetoothAdapter.AUDIO_MODE_DUPLEX),
+        Assert.assertEquals(
+                expectedPreferences.getInt(BluetoothAdapter.AUDIO_MODE_DUPLEX),
                 testDevicePreferences.getInt(BluetoothAdapter.AUDIO_MODE_DUPLEX));
-        Assert.assertEquals(0,
-                testDevice2Preferences.getInt(BluetoothAdapter.AUDIO_MODE_OUTPUT_ONLY));
+        Assert.assertEquals(
+                0, testDevice2Preferences.getInt(BluetoothAdapter.AUDIO_MODE_OUTPUT_ONLY));
         Assert.assertEquals(0, testDevice2Preferences.getInt(BluetoothAdapter.AUDIO_MODE_DUPLEX));
 
         mDatabaseManager.factoryReset();
         mDatabaseManager.mMetadataCache.clear();
         // Wait for clear database
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
+    }
+
+    @Test
+    public void setCustomMetadata_reentrantCallback_noDeadLock() throws Exception {
+        final int key = 3;
+        final byte[] newValue = new byte[2];
+
+        CompletableFuture<byte[]> future = new CompletableFuture();
+
+        Answer answer =
+                invocation -> {
+                    // Concurrent database call during callback execution
+                    byte[] value =
+                            CompletableFuture.supplyAsync(
+                                            () -> mDatabaseManager.getCustomMeta(mTestDevice, key))
+                                    .completeOnTimeout(null, 1, TimeUnit.SECONDS)
+                                    .get();
+
+                    future.complete(value);
+                    return null;
+                };
+
+        doAnswer(answer)
+                .when(mAdapterService)
+                .metadataChanged(any(String.class), anyInt(), any(byte[].class));
+
+        mDatabaseManager.setCustomMeta(mTestDevice, key, newValue);
+
+        Truth.assertThat(future.get()).isEqualTo(newValue);
     }
 }

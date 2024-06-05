@@ -46,7 +46,7 @@ void StructDef::GenSpecialize(std::ostream& s) const {
 }
 
 void StructDef::GenToString(std::ostream& s) const {
-  s << "std::string ToString() {";
+  s << "std::string ToString() const {";
   s << "std::stringstream ss;";
   s << "ss << std::hex << std::showbase << \"" << name_ << " { \";";
 
@@ -102,7 +102,7 @@ void StructDef::GenParse(std::ostream& s) const {
       if (fields_.HasBody()) {
         s << "if (!parent_optional_it) { return {}; }";
       } else {
-        s << "ASSERT(parent_optional_it);";
+        s << "ASSERT(parent_optional_it.has_value());";
       }
     } else {
       s << parent_->name_ << "::Parse(to_fill, to_bound" << parent_param << ");";

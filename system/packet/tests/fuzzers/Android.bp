@@ -32,14 +32,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -68,14 +71,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -104,14 +110,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -140,14 +149,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -176,14 +188,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -212,14 +227,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -248,14 +266,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -284,14 +305,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -320,14 +344,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -356,14 +383,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -392,14 +422,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -428,14 +461,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -464,14 +500,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -500,14 +539,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -536,14 +578,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -572,14 +617,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -608,14 +656,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -644,14 +695,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -680,14 +734,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -716,14 +773,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -752,14 +812,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -788,14 +851,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -824,14 +890,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -860,14 +929,17 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }
 
 cc_fuzz {
@@ -896,12 +968,15 @@ cc_fuzz {
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
     ],
     cflags: [
-        "-DBUILDCFG",
         "-Wno-unused-parameter",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }

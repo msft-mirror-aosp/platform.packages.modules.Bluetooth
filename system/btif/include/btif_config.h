@@ -31,20 +31,6 @@
 
 static const char BTIF_CONFIG_MODULE[] = "btif_config_module";
 
-static const std::string BT_CONFIG_KEY_SDP_DI_MANUFACTURER =
-    "SdpDiManufacturer";
-static const std::string BT_CONFIG_KEY_SDP_DI_MODEL = "SdpDiModel";
-static const std::string BT_CONFIG_KEY_SDP_DI_HW_VERSION =
-    "SdpDiHardwareVersion";
-static const std::string BT_CONFIG_KEY_SDP_DI_VENDOR_ID_SRC =
-    "SdpDiVendorIdSource";
-
-static const std::string BT_CONFIG_KEY_REMOTE_VER_MFCT = "Manufacturer";
-static const std::string BT_CONFIG_KEY_REMOTE_VER_VER = "LmpVer";
-static const std::string BT_CONFIG_KEY_REMOTE_VER_SUBVER = "LmpSubVer";
-static const std::string BT_CONFIG_KEY_PBAP_PCE_VERSION = "PbapPceVersion";
-static const std::string BT_CONFIG_KEY_DIS_MODEL_NUM = "ModelName";
-
 bool btif_config_exist(const std::string& section, const std::string& key);
 bool btif_config_get_int(const std::string& section, const std::string& key,
                          int* value);
@@ -72,6 +58,5 @@ size_t btif_config_get_bin_length(const std::string& section,
 std::vector<RawAddress> btif_config_get_paired_devices();
 
 bool btif_config_clear(void);
-void btif_debug_config_dump(int fd);
 bool btif_get_device_clockoffset(const RawAddress& bda, int* p_clock_offset);
 bool btif_set_device_clockoffset(const RawAddress& bda, int clock_offset);

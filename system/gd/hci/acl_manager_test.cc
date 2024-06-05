@@ -16,13 +16,12 @@
 
 #include "hci/acl_manager.h"
 
+#include <bluetooth/log.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <algorithm>
 #include <chrono>
 #include <future>
-#include <map>
 
 #include "common/bind.h"
 #include "hci/acl_manager/connection_callbacks_mock.h"
@@ -96,7 +95,7 @@ class TestController : public testing::MockController {
   }
 
   void CompletePackets(uint16_t handle, uint16_t packets) {
-    acl_cb_.Invoke(handle, packets);
+    acl_cb_(handle, packets);
   }
 
   uint16_t acl_buffer_length_ = 1024;
@@ -112,7 +111,7 @@ class TestController : public testing::MockController {
 class AclManagerNoCallbacksTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    test_hci_layer_ = new TestHciLayer;  // Ownership is transferred to registry
+    test_hci_layer_ = new HciLayerFake;     // Ownership is transferred to registry
     test_controller_ = new TestController;  // Ownership is transferred to registry
 
     EXPECT_CALL(*test_controller_, GetMacAddress());
@@ -168,27 +167,29 @@ class AclManagerNoCallbacksTest : public ::testing::Test {
   }
 
   void sync_client_handler() {
-    ASSERT(thread_.GetReactor()->WaitForIdle(std::chrono::seconds(2)));
+    log::assert_that(
+        thread_.GetReactor()->WaitForIdle(std::chrono::seconds(2)),
+        "assert failed: thread_.GetReactor()->WaitForIdle(std::chrono::seconds(2))");
   }
 
   TestModuleRegistry fake_registry_;
-  TestHciLayer* test_hci_layer_ = nullptr;
+  HciLayerFake* test_hci_layer_ = nullptr;
   TestController* test_controller_ = nullptr;
   os::Thread& thread_ = fake_registry_.GetTestThread();
   AclManager* acl_manager_ = nullptr;
   os::Handler* client_handler_ = nullptr;
   Address remote;
   AddressWithType my_initiating_address;
-  const bool use_connect_list_ = true;  // gd currently only supports connect list
+  const bool use_accept_list_ = true;  // gd currently only supports connect list
 
   std::future<void> GetConnectionFuture() {
-    ASSERT_LOG(connection_promise_ == nullptr, "Promises promises ... Only one at a time");
+    log::assert_that(connection_promise_ == nullptr, "Promises promises ... Only one at a time");
     connection_promise_ = std::make_unique<std::promise<void>>();
     return connection_promise_->get_future();
   }
 
   std::future<void> GetLeConnectionFuture() {
-    ASSERT_LOG(le_connection_promise_ == nullptr, "Promises promises ... Only one at a time");
+    log::assert_that(le_connection_promise_ == nullptr, "Promises promises ... Only one at a time");
     le_connection_promise_ = std::make_unique<std::promise<void>>();
     return le_connection_promise_->get_future();
   }
@@ -366,7 +367,7 @@ class AclManagerWithLeConnectionTest : public AclManagerTest {
         LeConnectionManagementCommandView::Create(AclCommandView::Create(packet));
     auto command_view = LeCreateConnectionView::Create(le_connection_management_command_view);
     ASSERT_TRUE(command_view.IsValid());
-    if (use_connect_list_) {
+    if (use_accept_list_) {
       ASSERT_EQ(command_view.GetPeerAddress(), empty_address_with_type.GetAddress());
       ASSERT_EQ(command_view.GetPeerAddressType(), empty_address_with_type.GetAddressType());
     } else {
@@ -389,7 +390,7 @@ class AclManagerWithLeConnectionTest : public AclManagerTest {
         });
 
     if (send_early_acl_) {
-      LOG_INFO("Sending a packet with handle 0x%02x (0x%d)", handle_, handle_);
+      log::info("Sending a packet with handle 0x{:02x} ({})", handle_, handle_);
       test_hci_layer_->IncomingAclData(handle_);
     }
 
@@ -457,7 +458,7 @@ TEST_F(AclManagerTest, invoke_registered_callback_le_connection_complete_fail) {
       LeConnectionManagementCommandView::Create(AclCommandView::Create(packet));
   auto command_view = LeCreateConnectionView::Create(le_connection_management_command_view);
   ASSERT_TRUE(command_view.IsValid());
-  if (use_connect_list_) {
+  if (use_accept_list_) {
     ASSERT_EQ(command_view.GetPeerAddress(), hci::Address::kEmpty);
   } else {
     ASSERT_EQ(command_view.GetPeerAddress(), remote);
@@ -958,12 +959,12 @@ TEST_F(AclManagerWithConnectionTest, send_flow_specification) {
 
 TEST_F(AclManagerWithConnectionTest, send_flush) {
   connection_->Flush();
-  auto packet = GetConnectionManagementCommand(OpCode::FLUSH);
-  auto command_view = FlushView::Create(packet);
+  auto packet = GetConnectionManagementCommand(OpCode::ENHANCED_FLUSH);
+  auto command_view = EnhancedFlushView::Create(packet);
   ASSERT_TRUE(command_view.IsValid());
 
   EXPECT_CALL(mock_connection_management_callbacks_, OnFlushOccurred());
-  test_hci_layer_->IncomingEvent(FlushOccurredBuilder::Create(handle_));
+  test_hci_layer_->IncomingEvent(EnhancedFlushCompleteBuilder::Create(handle_));
   sync_client_handler();
 }
 
@@ -1170,7 +1171,7 @@ TEST_F(AclManagerWithConnectionTest, send_read_clock) {
 class AclManagerWithResolvableAddressTest : public AclManagerNoCallbacksTest {
  protected:
   void SetUp() override {
-    test_hci_layer_ = new TestHciLayer;  // Ownership is transferred to registry
+    test_hci_layer_ = new HciLayerFake;  // Ownership is transferred to registry
     test_controller_ = new TestController;
     fake_registry_.InjectTestModule(&HciLayer::Factory, test_hci_layer_);
     fake_registry_.InjectTestModule(&Controller::Factory, test_controller_);
@@ -1291,7 +1292,7 @@ TEST_F(AclManagerLifeCycleTest, unregister_le_before_connection_complete) {
       LeConnectionManagementCommandView::Create(AclCommandView::Create(packet));
   auto command_view = LeCreateConnectionView::Create(le_connection_management_command_view);
   ASSERT_TRUE(command_view.IsValid());
-  if (use_connect_list_) {
+  if (use_accept_list_) {
     ASSERT_EQ(command_view.GetPeerAddress(), hci::Address::kEmpty);
   } else {
     ASSERT_EQ(command_view.GetPeerAddress(), remote);
@@ -1332,7 +1333,7 @@ TEST_F(AclManagerLifeCycleTest, unregister_le_before_enhanced_connection_complet
       LeConnectionManagementCommandView::Create(AclCommandView::Create(packet));
   auto command_view = LeCreateConnectionView::Create(le_connection_management_command_view);
   ASSERT_TRUE(command_view.IsValid());
-  if (use_connect_list_) {
+  if (use_accept_list_) {
     ASSERT_EQ(command_view.GetPeerAddress(), hci::Address::kEmpty);
   } else {
     ASSERT_EQ(command_view.GetPeerAddress(), remote);
@@ -1362,30 +1363,6 @@ TEST_F(AclManagerLifeCycleTest, unregister_le_before_enhanced_connection_complet
   sync_client_handler();
   auto connection_future_status = connection_future.wait_for(kShortTimeout);
   ASSERT_NE(connection_future_status, std::future_status::ready);
-}
-
-TEST_F(AclManagerWithConnectionTest, remote_sco_connect_request) {
-  ClassOfDevice class_of_device;
-
-  EXPECT_CALL(mock_connection_callback_, HACK_OnScoConnectRequest(remote, class_of_device));
-
-  test_hci_layer_->IncomingEvent(
-      ConnectionRequestBuilder::Create(remote, class_of_device, ConnectionRequestLinkType::SCO));
-  fake_registry_.SynchronizeModuleHandler(&HciLayer::Factory, std::chrono::milliseconds(20));
-  fake_registry_.SynchronizeModuleHandler(&AclManager::Factory, std::chrono::milliseconds(20));
-  fake_registry_.SynchronizeModuleHandler(&HciLayer::Factory, std::chrono::milliseconds(20));
-}
-
-TEST_F(AclManagerWithConnectionTest, remote_esco_connect_request) {
-  ClassOfDevice class_of_device;
-
-  EXPECT_CALL(mock_connection_callback_, HACK_OnEscoConnectRequest(remote, class_of_device));
-
-  test_hci_layer_->IncomingEvent(
-      ConnectionRequestBuilder::Create(remote, class_of_device, ConnectionRequestLinkType::ESCO));
-  fake_registry_.SynchronizeModuleHandler(&HciLayer::Factory, std::chrono::milliseconds(20));
-  fake_registry_.SynchronizeModuleHandler(&AclManager::Factory, std::chrono::milliseconds(20));
-  fake_registry_.SynchronizeModuleHandler(&HciLayer::Factory, std::chrono::milliseconds(20));
 }
 
 class AclManagerWithConnectionAssemblerTest : public AclManagerWithConnectionTest {

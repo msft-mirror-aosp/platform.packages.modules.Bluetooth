@@ -20,7 +20,11 @@ cc_defaults {
 
 cc_library_shared {
     name: "audio.bluetooth.default",
-    defaults: ["audio_bluetooth_hw_defaults"],
+    defaults: [
+        "audio_bluetooth_hw_defaults",
+        "latest_android_hardware_audio_common_ndk_shared",
+        "latest_android_hardware_bluetooth_audio_ndk_shared",
+    ],
     relative_install_path: "hw",
     proprietary: true,
     srcs: [
@@ -32,7 +36,6 @@ cc_library_shared {
     ],
     header_libs: ["libhardware_headers"],
     shared_libs: [
-        "android.hardware.bluetooth.audio-V3-ndk",
         "libaudioutils",
         "libbase",
         "libbinder_ndk",
@@ -48,6 +51,9 @@ cc_library_shared {
         "libhidlbase",
     ],
     cflags: ["-Wno-unused-parameter"],
+    visibility: [
+        "//device/generic/goldfish/audio",
+    ],
 }
 
 cc_test {

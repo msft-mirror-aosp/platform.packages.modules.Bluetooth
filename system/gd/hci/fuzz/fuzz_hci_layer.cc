@@ -15,7 +15,9 @@
  */
 
 #include "hci/fuzz/fuzz_hci_layer.h"
+
 #include "fuzz/helpers.h"
+#include "hci/class_of_device.h"
 
 namespace bluetooth {
 namespace hci {
@@ -38,6 +40,7 @@ hci::LeSecurityInterface* FuzzHciLayer::GetLeSecurityInterface(
 hci::AclConnectionInterface* FuzzHciLayer::GetAclConnectionInterface(
     ContextualCallback<void(hci::EventView)> /* event_handler */,
     ContextualCallback<void(uint16_t, hci::ErrorCode)> /* on_disconnect */,
+    ContextualCallback<void(Address, ClassOfDevice)> /* on_connection_request */,
     ContextualCallback<void(
         hci::ErrorCode,
         uint16_t,
@@ -178,8 +181,11 @@ void FuzzHciLayer::injectAclEvent(std::vector<uint8_t> data) {
 }
 
 void FuzzHciLayer::injectAclDisconnect(FuzzedDataProvider& fdp) {
-  acl_on_disconnect_.InvokeIfNotEmpty(fdp.ConsumeIntegral<uint16_t>(),
-                                      static_cast<hci::ErrorCode>(fdp.ConsumeIntegral<uint8_t>()));
+  if (acl_on_disconnect_) {
+    acl_on_disconnect_(
+        fdp.ConsumeIntegral<uint16_t>(),
+        static_cast<hci::ErrorCode>(fdp.ConsumeIntegral<uint8_t>()));
+  }
 }
 
 void FuzzHciLayer::injectLeAclEvent(std::vector<uint8_t> data) {
@@ -187,8 +193,11 @@ void FuzzHciLayer::injectLeAclEvent(std::vector<uint8_t> data) {
 }
 
 void FuzzHciLayer::injectLeAclDisconnect(FuzzedDataProvider& fdp) {
-  le_acl_on_disconnect_.InvokeIfNotEmpty(fdp.ConsumeIntegral<uint16_t>(),
-                                         static_cast<hci::ErrorCode>(fdp.ConsumeIntegral<uint8_t>()));
+  if (le_acl_on_disconnect_) {
+    le_acl_on_disconnect_(
+        fdp.ConsumeIntegral<uint16_t>(),
+        static_cast<hci::ErrorCode>(fdp.ConsumeIntegral<uint8_t>()));
+  }
 }
 
 void FuzzHciLayer::injectLeAdvertisingEvent(std::vector<uint8_t> data) {

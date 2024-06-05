@@ -1,20 +1,21 @@
 /*
-* Copyright (C) 2014 Samsung System LSI
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright (C) 2014 Samsung System LSI
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.android.bluetooth.map;
 
-import android.annotation.TargetApi;
+import android.bluetooth.BluetoothProfile;
+import android.bluetooth.BluetoothProtoEnums;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.database.Cursor;
@@ -23,6 +24,9 @@ import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.provider.Telephony.Mms;
 import android.util.Log;
+
+import com.android.bluetooth.BluetoothStatsLog;
+import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 
 import com.google.android.mms.MmsException;
 import com.google.android.mms.pdu.GenericPdu;
@@ -34,9 +38,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 
 /**
- * Provider to let the MMS subsystem read data from it own database from another process.
- * Workaround for missing access to sendStoredMessage().
+ * Provider to let the MMS subsystem read data from it own database from another process. Workaround
+ * for missing access to sendStoredMessage().
  */
+// Next tag value for ContentProfileErrorReportUtils.report(): 5
 public class MmsFileProvider extends ContentProvider {
     static final String TAG = "BluetoothMmsFileProvider";
     private PipeWriter mPipeWriter = new PipeWriter();
@@ -50,7 +55,11 @@ public class MmsFileProvider extends ContentProvider {
     }
 
     @Override
-    public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs,
+    public Cursor query(
+            Uri uri,
+            String[] projection,
+            String selection,
+            String[] selectionArgs,
             String sortOrder) {
         // Don't support queries.
         return null;
@@ -87,8 +96,13 @@ public class MmsFileProvider extends ContentProvider {
             throw new FileNotFoundException("Unable to extract message handle from: " + uri);
         }
         try {
-            long id = Long.parseLong(idStr);
+            Long.parseLong(idStr);
         } catch (NumberFormatException e) {
+            ContentProfileErrorReportUtils.report(
+                    BluetoothProfile.MAP,
+                    BluetoothProtoEnums.BLUETOOTH_MMS_FILE_PROVIDER,
+                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                    0);
             Log.w(TAG, e);
             throw new FileNotFoundException("Unable to extract message handle from: " + uri);
         }
@@ -97,19 +111,17 @@ public class MmsFileProvider extends ContentProvider {
         return openPipeHelper(messageUri, null, null, null, mPipeWriter);
     }
 
-
     public class PipeWriter implements PipeDataWriter<Cursor> {
-        /**
-         * Generate a message based on the cursor, and write the encoded data to the stream.
-         */
-
+        /** Generate a message based on the cursor, and write the encoded data to the stream. */
         @Override
-        public void writeDataToPipe(ParcelFileDescriptor output, Uri uri, String mimeType,
-                Bundle opts, Cursor c) {
-            if (BluetoothMapService.DEBUG) {
-                Log.d(TAG, "writeDataToPipe(): uri=" + uri.toString() + " - getLastPathSegment() = "
-                        + uri.getLastPathSegment());
-            }
+        public void writeDataToPipe(
+                ParcelFileDescriptor output, Uri uri, String mimeType, Bundle opts, Cursor c) {
+            Log.d(
+                    TAG,
+                    "writeDataToPipe(): uri="
+                            + uri.toString()
+                            + " - getLastPathSegment() = "
+                            + uri.getLastPathSegment());
 
             FileOutputStream fout = null;
             GenericPdu pdu = null;
@@ -123,11 +135,21 @@ public class MmsFileProvider extends ContentProvider {
                 fout.write(bytes);
 
             } catch (IOException e) {
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.MAP,
+                        BluetoothProtoEnums.BLUETOOTH_MMS_FILE_PROVIDER,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                        1);
                 Log.w(TAG, e);
                 /* TODO: How to signal the error to the calling entity? Had expected writeDataToPipe
                  *       to throw IOException?
                  */
             } catch (MmsException e) {
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.MAP,
+                        BluetoothProtoEnums.BLUETOOTH_MMS_FILE_PROVIDER,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                        2);
                 Log.w(TAG, e);
                 /* TODO: How to signal the error to the calling entity? Had expected writeDataToPipe
                  *       to throw IOException?
@@ -139,16 +161,26 @@ public class MmsFileProvider extends ContentProvider {
                 try {
                     fout.flush();
                 } catch (IOException e) {
+                    ContentProfileErrorReportUtils.report(
+                            BluetoothProfile.MAP,
+                            BluetoothProtoEnums.BLUETOOTH_MMS_FILE_PROVIDER,
+                            BluetoothStatsLog
+                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                            3);
                     Log.w(TAG, "IOException: ", e);
                 }
                 try {
                     fout.close();
                 } catch (IOException e) {
+                    ContentProfileErrorReportUtils.report(
+                            BluetoothProfile.MAP,
+                            BluetoothProtoEnums.BLUETOOTH_MMS_FILE_PROVIDER,
+                            BluetoothStatsLog
+                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                            4);
                     Log.w(TAG, "IOException: ", e);
                 }
             }
         }
     }
-
-
 }

@@ -19,14 +19,14 @@ package com.android.bluetooth.avrcpcontroller;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doReturn;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
+import android.content.Context;
 import android.content.Intent;
 
+import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
@@ -40,7 +40,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
@@ -48,10 +49,9 @@ public class AvrcpBipClientTest {
     private static final int TEST_PSM = 1;
 
     @Rule
-    public final ServiceTestRule mServiceRule = new ServiceTestRule();
-
-    @Rule
     public final ServiceTestRule mBluetoothBrowserMediaServiceTestRule = new ServiceTestRule();
+
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private AvrcpControllerNativeInterface mNativeInterface;
@@ -64,12 +64,11 @@ public class AvrcpBipClientTest {
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
+        Context targetContext = InstrumentationRegistry.getTargetContext();
         TestUtils.setAdapterService(mAdapterService);
-        doReturn(true, false).when(mAdapterService).isStartedProfile(anyString());
         AvrcpControllerNativeInterface.setInstance(mNativeInterface);
-        TestUtils.startService(mServiceRule, AvrcpControllerService.class);
-        mService = AvrcpControllerService.getAvrcpControllerService();
+        mService = new AvrcpControllerService(targetContext, mNativeInterface);
+        mService.start();
         final Intent bluetoothBrowserMediaServiceStartIntent =
                 TestUtils.prepareIntentToStartBluetoothBrowserMediaService();
         mBluetoothBrowserMediaServiceTestRule.startService(bluetoothBrowserMediaServiceStartIntent);
@@ -77,17 +76,17 @@ public class AvrcpBipClientTest {
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mTestDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
 
-        AvrcpCoverArtManager.Callback callback = (device, event) -> {
-        };
+        AvrcpCoverArtManager.Callback callback = (device, event) -> {};
         mArtManager = new AvrcpCoverArtManager(mService, callback);
 
-        mClient = new AvrcpBipClient(mTestDevice, TEST_PSM,
-                mArtManager.new BipClientCallback(mTestDevice));
+        mClient =
+                new AvrcpBipClient(
+                        mTestDevice, TEST_PSM, mArtManager.new BipClientCallback(mTestDevice));
     }
 
     @After
     public void tearDown() throws Exception {
-        TestUtils.stopService(mServiceRule, AvrcpControllerService.class);
+        mService.stop();
         AvrcpControllerNativeInterface.setInstance(null);
         mService = AvrcpControllerService.getAvrcpControllerService();
         assertThat(mService).isNull();
@@ -97,22 +96,26 @@ public class AvrcpBipClientTest {
 
     @Test
     public void constructor() {
-        AvrcpBipClient client = new AvrcpBipClient(mTestDevice, TEST_PSM,
-                mArtManager.new BipClientCallback(mTestDevice));
+        AvrcpBipClient client =
+                new AvrcpBipClient(
+                        mTestDevice, TEST_PSM, mArtManager.new BipClientCallback(mTestDevice));
 
         assertThat(client.getL2capPsm()).isEqualTo(TEST_PSM);
     }
 
     @Test
     public void constructor_withNullDevice() {
-        assertThrows(NullPointerException.class, () -> new AvrcpBipClient(null, TEST_PSM,
-                mArtManager.new BipClientCallback(mTestDevice)));
+        assertThrows(
+                NullPointerException.class,
+                () ->
+                        new AvrcpBipClient(
+                                null, TEST_PSM, mArtManager.new BipClientCallback(mTestDevice)));
     }
 
     @Test
     public void constructor_withNullCallback() {
-        assertThrows(NullPointerException.class, () -> new AvrcpBipClient(mTestDevice, TEST_PSM,
-                null));
+        assertThrows(
+                NullPointerException.class, () -> new AvrcpBipClient(mTestDevice, TEST_PSM, null));
     }
 
     @Test

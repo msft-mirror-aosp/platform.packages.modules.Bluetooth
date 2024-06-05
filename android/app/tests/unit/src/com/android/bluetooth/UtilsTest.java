@@ -19,8 +19,8 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -50,9 +50,7 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
-/**
- * Test for Utils.java
- */
+/** Test for Utils.java */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class UtilsTest {
@@ -72,10 +70,10 @@ public class UtilsTest {
 
     @Test
     public void uuidsToByteArray() {
-        ParcelUuid[] uuids = new ParcelUuid[] {
-                new ParcelUuid(new UUID(10, 20)),
-                new ParcelUuid(new UUID(30, 40))
-        };
+        ParcelUuid[] uuids =
+                new ParcelUuid[] {
+                    new ParcelUuid(new UUID(10, 20)), new ParcelUuid(new UUID(30, 40))
+                };
         ByteBuffer converter = ByteBuffer.allocate(uuids.length * 16);
         converter.order(ByteOrder.BIG_ENDIAN);
         converter.putLong(0, 10);
@@ -120,10 +118,12 @@ public class UtilsTest {
         boolean enabledStatus = locationManager.isLocationEnabledForUser(userHandle);
 
         locationManager.setLocationEnabledForUser(false, userHandle);
-        assertThat(Utils.checkCallerHasCoarseLocation(context, null, userHandle)).isFalse();
+        assertThat(Utils.checkCallerHasCoarseLocation(
+                       context, context.getAttributionSource(), userHandle))
+                .isFalse();
 
         locationManager.setLocationEnabledForUser(true, userHandle);
-        Utils.checkCallerHasCoarseLocation(context, null, userHandle);
+        Utils.checkCallerHasCoarseLocation(context, context.getAttributionSource(), userHandle);
         if (!enabledStatus) {
             locationManager.setLocationEnabledForUser(false, userHandle);
         }
@@ -137,10 +137,13 @@ public class UtilsTest {
         boolean enabledStatus = locationManager.isLocationEnabledForUser(userHandle);
 
         locationManager.setLocationEnabledForUser(false, userHandle);
-        assertThat(Utils.checkCallerHasCoarseOrFineLocation(context, null, userHandle)).isFalse();
+        assertThat(Utils.checkCallerHasCoarseOrFineLocation(
+                       context, context.getAttributionSource(), userHandle))
+                .isFalse();
 
         locationManager.setLocationEnabledForUser(true, userHandle);
-        Utils.checkCallerHasCoarseOrFineLocation(context, null, userHandle);
+        Utils.checkCallerHasCoarseOrFineLocation(
+                context, context.getAttributionSource(), userHandle);
         if (!enabledStatus) {
             locationManager.setLocationEnabledForUser(false, userHandle);
         }
@@ -211,8 +214,7 @@ public class UtilsTest {
                 .isEqualTo("STATE_TURNING_ON");
         assertThat(Utils.debugGetAdapterStateString(BluetoothAdapter.STATE_TURNING_OFF))
                 .isEqualTo("STATE_TURNING_OFF");
-        assertThat(Utils.debugGetAdapterStateString(-124))
-                .isEqualTo("UNKNOWN");
+        assertThat(Utils.debugGetAdapterStateString(-124)).isEqualTo("UNKNOWN");
     }
 
     @Test

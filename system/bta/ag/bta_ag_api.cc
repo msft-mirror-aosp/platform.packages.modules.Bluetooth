@@ -28,14 +28,17 @@
 
 #include <base/functional/bind.h>
 #include <base/location.h>
+#include <bluetooth/log.h>
 
 #include <cstdint>
 #include <cstring>
 #include <vector>
 
 #include "bta/ag/bta_ag_int.h"
-#include "stack/include/btu.h"  // do_in_main_thread
+#include "stack/include/main_thread.h"
 #include "types/raw_address.h"
+
+using namespace bluetooth;
 
 /*****************************************************************************
  *  Constants
@@ -61,7 +64,7 @@ tBTA_STATUS BTA_AgEnable(tBTA_AG_CBACK* p_cback) {
   /* Error if AG is already enabled, or AG is in the middle of disabling. */
   for (const tBTA_AG_SCB& scb : bta_ag_cb.scb) {
     if (scb.in_use) {
-      LOG_ERROR("BTA_AgEnable: FAILED, AG already enabled.");
+      log::error("BTA_AgEnable: FAILED, AG already enabled.");
       return BTA_FAILURE;
     }
   }

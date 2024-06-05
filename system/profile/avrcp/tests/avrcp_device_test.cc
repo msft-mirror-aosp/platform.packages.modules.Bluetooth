@@ -15,7 +15,6 @@
  */
 
 #include <base/functional/bind.h>
-#include <base/logging.h>
 #include <base/threading/thread.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -26,7 +25,7 @@
 #include "avrcp_packet.h"
 #include "avrcp_test_helper.h"
 #include "device.h"
-#include "stack_config.h"
+#include "internal_include/stack_config.h"
 #include "tests/avrcp/avrcp_test_packets.h"
 #include "tests/packet_test_helper.h"
 #include "types/raw_address.h"
@@ -52,17 +51,27 @@ using ::testing::SaveArg;
 
 bool get_pts_avrcp_test(void) { return false; }
 
-const stack_config_t interface = {nullptr, get_pts_avrcp_test,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
+const stack_config_t interface = {get_pts_avrcp_test,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
                                   nullptr};
 
 // TODO (apanicke): All the tests below are just basic positive unit tests.

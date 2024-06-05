@@ -3,8 +3,9 @@
 
 #include "avrcp_packet.h"
 #include "device.h"
+#include "internal_include/stack_config.h"
 #include "packet_test_helper.h"
-#include "stack_config.h"
+#include "stack/include/a2dp_api.h"
 #include "types/raw_address.h"
 
 bool btif_av_src_sink_coexist_enabled(void) { return true; }
@@ -65,21 +66,39 @@ class FakeA2dpInterface : public A2dpInterface {
   virtual bool is_peer_in_silence_mode(const RawAddress& peer_address) {
     return false;
   }
+  virtual void connect_audio_sink_delayed(uint8_t handle,
+                                          const RawAddress& peer_address) {
+    return;
+  }
+  virtual uint16_t find_audio_sink_service(const RawAddress& peer_address,
+                                           tA2DP_FIND_CBACK p_cback) override {
+    return 0;
+  }
 };
 
 bool get_pts_avrcp_test(void) { return false; }
 
-const stack_config_t interface = {nullptr, get_pts_avrcp_test,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
-                                  nullptr, nullptr,
+const stack_config_t interface = {get_pts_avrcp_test,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
+                                  nullptr,
                                   nullptr};
 
 void Callback(uint8_t, bool, std::unique_ptr<::bluetooth::PacketBuilder>) {}

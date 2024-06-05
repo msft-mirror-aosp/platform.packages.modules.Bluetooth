@@ -16,18 +16,15 @@
 
 #include "test/fake/fake_looper.h"
 
-#include <base/strings/stringprintf.h>
+#include <bluetooth/log.h>
 #include <gtest/gtest.h>
 #include <stddef.h>
 #include <stdlib.h>
 
-#include <condition_variable>
-#include <deque>
 #include <mutex>
 #include <queue>
 
 #include "osi/include/allocator.h"
-#include "osi/include/log.h"
 #include "test/fake/fake_thread.h"
 
 pid_t get_thread_id() {
@@ -37,7 +34,7 @@ pid_t get_thread_id() {
 #include <sys/syscall.h> /* For SYS_xxx definitions */
 #include <unistd.h>
   return syscall(__NR_gettid);
-#elif defined(OS_ANDROID)
+#elif defined(__ANDROID__)
 #include <sys/types.h>
 #include <unistd.h>
   return gettid();
@@ -48,7 +45,8 @@ pid_t get_thread_id() {
 
 // message loop
 void* run_message_loop(void* arg) {
-  ASSERT_LOG(arg != nullptr, "Must pass in a thread start argument");
+  bluetooth::log::assert_that(arg != nullptr,
+                              "Must pass in a thread start argument");
   thread_t* thread = nullptr;
   {
     // Decouple thread portion from |start_arg| wrapper
@@ -60,8 +58,8 @@ void* run_message_loop(void* arg) {
 
   // thread->tid_ = syscall(__NR_gettid);
   thread->tid_ = get_thread_id();
-  LOG_DEBUG("Thread message loop is operational name:%s tid:%u",
-            thread->name_.c_str(), thread->tid_);
+  bluetooth::log::debug("Thread message loop is operational name:{} tid:{}",
+                        thread->name_, thread->tid_);
 
   while (thread->is_running()) {
     thread->work_queue_semaphore.wait();

@@ -19,15 +19,17 @@
 #include <gtest/gtest.h>
 
 #include "btm_iso_api.h"
+#include "hci/controller_interface_mock.h"
+#include "hci/hci_packets.h"
 #include "hci/include/hci_layer.h"
-#include "main/shim/shim.h"
-#include "mock_controller.h"
 #include "mock_hcic_layer.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/bt_types.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hcidefs.h"
+#include "test/mock/mock_main_shim_entry.h"
 #include "test/mock/mock_main_shim_hci_layer.h"
 
 using bluetooth::hci::IsoManager;
@@ -44,20 +46,24 @@ using testing::Test;
 // for function pointer testing purpose
 bool IsIsoActive = false;
 
-tBTM_SEC_DEV_REC* btm_find_dev_by_handle(uint16_t handle) { return nullptr; }
-void BTM_LogHistory(const std::string& tag, const RawAddress& bd_addr,
-                    const std::string& msg, const std::string& extra) {}
+tBTM_SEC_DEV_REC* btm_find_dev_by_handle(uint16_t /* handle */) {
+  return nullptr;
+}
+void BTM_LogHistory(const std::string& /* tag */,
+                    const RawAddress& /* bd_addr */,
+                    const std::string& /* msg */,
+                    const std::string& /* extra */) {}
 
 namespace bluetooth::shim {
 class IsoInterface {
  public:
-  virtual void HciSend(BT_HDR* packet, uint16_t event) = 0;
+  virtual void HciSend(BT_HDR* packet) = 0;
   virtual ~IsoInterface() = default;
 };
 
 class MockIsoInterface : public IsoInterface {
  public:
-  MOCK_METHOD((void), HciSend, (BT_HDR * p_msg, uint16_t event), (override));
+  MOCK_METHOD((void), HciSend, (BT_HDR * p_msg), (override));
 };
 
 static MockIsoInterface* iso_interface = nullptr;
@@ -70,23 +76,23 @@ static void set_data_cb(
   FAIL() << __func__ << " should never be called";
 }
 
-static void transmit_command(const BT_HDR* command,
-                             command_complete_cb complete_callback,
-                             command_status_cb status_cb, void* context) {
+static void transmit_command(const BT_HDR* /* command */,
+                             command_complete_cb /* complete_callback */,
+                             command_status_cb /* status_cb */,
+                             void* /* context */) {
   FAIL() << __func__ << " should never be called";
 }
 
-static void transmit_downward(uint16_t type, void* data) {
-  iso_interface->HciSend((BT_HDR*)data, type);
+static void transmit_downward(void* data, uint16_t /* iso_Data_size */) {
+  iso_interface->HciSend((BT_HDR*)data);
   osi_free(data);
 }
 
 static hci_t interface = {.set_data_cb = set_data_cb,
                           .transmit_command = transmit_command,
                           .transmit_downward = transmit_downward};
-}  // namespace bluetooth::shim
 
-const hci_t* bluetooth::shim::hci_layer_get_interface() { return &interface; }
+}  // namespace bluetooth::shim
 
 namespace {
 class MockCigCallbacks : public bluetooth::hci::iso_manager::CigCallbacks {
@@ -138,18 +144,18 @@ class IsoManagerTest : public Test {
   void SetUp() override {
     bluetooth::shim::SetMockIsoInterface(&iso_interface_);
     hcic::SetMockHcicInterface(&hcic_interface_);
-    controller::SetMockControllerInterface(&controller_interface_);
+    bluetooth::shim::testing::hci_layer_set_interface(
+        &bluetooth::shim::interface);
+    bluetooth::hci::testing::mock_controller_ = &controller_;
 
     big_callbacks_.reset(new MockBigCallbacks());
     cig_callbacks_.reset(new MockCigCallbacks());
     IsIsoActive = false;
 
-    EXPECT_CALL(controller_interface_, GetIsoBufferCount())
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(6));
-    EXPECT_CALL(controller_interface_, GetIsoDataSize())
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(1024));
+    iso_sizes_.total_num_le_packets_ = 6;
+    iso_sizes_.le_data_packet_length_ = 1024;
+    ON_CALL(controller_, GetControllerIsoBufferSize())
+        .WillByDefault(Return(iso_sizes_));
 
     InitIsoManager();
   }
@@ -162,7 +168,8 @@ class IsoManagerTest : public Test {
 
     bluetooth::shim::SetMockIsoInterface(nullptr);
     hcic::SetMockHcicInterface(nullptr);
-    controller::SetMockControllerInterface(nullptr);
+    bluetooth::shim::testing::hci_layer_set_interface(nullptr);
+    bluetooth::hci::testing::mock_controller_ = nullptr;
   }
 
   virtual void InitIsoManager() {
@@ -200,33 +207,34 @@ class IsoManagerTest : public Test {
 
     // Default mock CreateCis action
     ON_CALL(hcic_interface_, CreateCis)
-        .WillByDefault([](uint8_t num_cis, const EXT_CIS_CREATE_CFG* cis_cfg,
-                          base::OnceCallback<void(uint8_t*, uint16_t)> cb) {
-          for (const EXT_CIS_CREATE_CFG* cis = cis_cfg; num_cis != 0;
-               num_cis--, cis++) {
-            std::vector<uint8_t> buf(28);
-            uint8_t* p = buf.data();
-            UINT8_TO_STREAM(p, HCI_SUCCESS);
-            UINT16_TO_STREAM(p, cis->cis_conn_handle);
-            UINT24_TO_STREAM(p, 0xEA);    // CIG sync delay
-            UINT24_TO_STREAM(p, 0xEB);    // CIS sync delay
-            UINT24_TO_STREAM(p, 0xEC);    // transport latency mtos
-            UINT24_TO_STREAM(p, 0xED);    // transport latency stom
-            UINT8_TO_STREAM(p, 0x01);     // phy mtos
-            UINT8_TO_STREAM(p, 0x02);     // phy stom
-            UINT8_TO_STREAM(p, 0x01);     // nse
-            UINT8_TO_STREAM(p, 0x02);     // bn mtos
-            UINT8_TO_STREAM(p, 0x03);     // bn stom
-            UINT8_TO_STREAM(p, 0x04);     // ft mtos
-            UINT8_TO_STREAM(p, 0x05);     // ft stom
-            UINT16_TO_STREAM(p, 0x00FA);  // Max PDU mtos
-            UINT16_TO_STREAM(p, 0x00FB);  // Max PDU stom
-            UINT16_TO_STREAM(p, 0x0C60);  // ISO interval
+        .WillByDefault(
+            [](uint8_t num_cis, const EXT_CIS_CREATE_CFG* cis_cfg,
+               base::OnceCallback<void(uint8_t*, uint16_t)> /* cb */) {
+              for (const EXT_CIS_CREATE_CFG* cis = cis_cfg; num_cis != 0;
+                   num_cis--, cis++) {
+                std::vector<uint8_t> buf(28);
+                uint8_t* p = buf.data();
+                UINT8_TO_STREAM(p, HCI_SUCCESS);
+                UINT16_TO_STREAM(p, cis->cis_conn_handle);
+                UINT24_TO_STREAM(p, 0xEA);    // CIG sync delay
+                UINT24_TO_STREAM(p, 0xEB);    // CIS sync delay
+                UINT24_TO_STREAM(p, 0xEC);    // transport latency mtos
+                UINT24_TO_STREAM(p, 0xED);    // transport latency stom
+                UINT8_TO_STREAM(p, 0x01);     // phy mtos
+                UINT8_TO_STREAM(p, 0x02);     // phy stom
+                UINT8_TO_STREAM(p, 0x01);     // nse
+                UINT8_TO_STREAM(p, 0x02);     // bn mtos
+                UINT8_TO_STREAM(p, 0x03);     // bn stom
+                UINT8_TO_STREAM(p, 0x04);     // ft mtos
+                UINT8_TO_STREAM(p, 0x05);     // ft stom
+                UINT16_TO_STREAM(p, 0x00FA);  // Max PDU mtos
+                UINT16_TO_STREAM(p, 0x00FB);  // Max PDU stom
+                UINT16_TO_STREAM(p, 0x0C60);  // ISO interval
 
-            IsoManager::GetInstance()->HandleHciEvent(HCI_BLE_CIS_EST_EVT,
-                                                      buf.data(), buf.size());
-          }
-        });
+                IsoManager::GetInstance()->HandleHciEvent(
+                    HCI_BLE_CIS_EST_EVT, buf.data(), buf.size());
+              }
+            });
 
     // Default mock disconnect action
     ON_CALL(hcic_interface_, Disconnect)
@@ -301,7 +309,7 @@ class IsoManagerTest : public Test {
 
     // Default mock RemoveIsoDataPath HCI action
     ON_CALL(hcic_interface_, RemoveIsoDataPath)
-        .WillByDefault([](uint16_t iso_handle, uint8_t data_path_dir,
+        .WillByDefault([](uint16_t iso_handle, uint8_t /* data_path_dir */,
                           base::OnceCallback<void(uint8_t*, uint16_t)> cb) {
           std::vector<uint8_t> buf(3);
           uint8_t* p = buf.data();
@@ -336,7 +344,8 @@ class IsoManagerTest : public Test {
   IsoManager* manager_instance_;
   bluetooth::shim::MockIsoInterface iso_interface_;
   hcic::MockHcicInterface hcic_interface_;
-  controller::MockControllerInterface controller_interface_;
+  bluetooth::hci::testing::MockControllerInterface controller_;
+  bluetooth::hci::LeBufferSize iso_sizes_;
 
   std::unique_ptr<MockBigCallbacks> big_callbacks_;
   std::unique_ptr<MockCigCallbacks> cig_callbacks_;
@@ -567,7 +576,7 @@ TEST_F(IsoManagerDeathTest, CreateSameCigTwice) {
   EXPECT_CALL(
       *cig_callbacks_,
       OnCigEvent(bluetooth::hci::iso_manager::kIsoEventCigOnCreateCmpl, _))
-      .WillOnce([&evt](uint8_t type, void* data) {
+      .WillOnce([&evt](uint8_t /* type */, void* data) {
         evt = *static_cast<bluetooth::hci::iso_manager::cig_create_cmpl_evt*>(
             data);
         return 0;
@@ -633,7 +642,7 @@ TEST_F(IsoManagerTest, CreateCigCallbackInvalidStatus) {
   EXPECT_CALL(
       *cig_callbacks_,
       OnCigEvent(bluetooth::hci::iso_manager::kIsoEventCigOnCreateCmpl, _))
-      .WillOnce([&evt](uint8_t type, void* data) {
+      .WillOnce([&evt](uint8_t /* type */, void* data) {
         evt = *static_cast<bluetooth::hci::iso_manager::cig_create_cmpl_evt*>(
             data);
         return 0;
@@ -651,7 +660,7 @@ TEST_F(IsoManagerTest, CreateCigCallbackValid) {
   EXPECT_CALL(
       *cig_callbacks_,
       OnCigEvent(bluetooth::hci::iso_manager::kIsoEventCigOnCreateCmpl, _))
-      .WillOnce([&evt](uint8_t type, void* data) {
+      .WillOnce([&evt](uint8_t /* type */, void* data) {
         evt = *static_cast<bluetooth::hci::iso_manager::cig_create_cmpl_evt*>(
             data);
         return 0;
@@ -671,7 +680,7 @@ TEST_F(IsoManagerTest, CreateCigLateArrivingCallback) {
   // Catch the callback
   base::OnceCallback<void(uint8_t*, uint16_t)> iso_cb;
   ON_CALL(hcic_interface_, SetCigParams)
-      .WillByDefault([&](auto cig_id, auto,
+      .WillByDefault([&](auto /* cig_id */, auto,
                          base::OnceCallback<void(uint8_t*, uint16_t)> cb) {
         iso_cb = std::move(cb);
       });
@@ -779,7 +788,7 @@ TEST_F(IsoManagerTest, ReconfigureCigInvalidStatus) {
   EXPECT_CALL(
       *cig_callbacks_,
       OnCigEvent(bluetooth::hci::iso_manager::kIsoEventCigOnReconfigureCmpl, _))
-      .WillOnce([&evt](uint8_t type, void* data) {
+      .WillOnce([&evt](uint8_t /* type */, void* data) {
         evt = *static_cast<bluetooth::hci::iso_manager::cig_create_cmpl_evt*>(
             data);
         return 0;
@@ -799,7 +808,7 @@ TEST_F(IsoManagerTest, ReconfigureCigValid) {
   EXPECT_CALL(
       *cig_callbacks_,
       OnCigEvent(bluetooth::hci::iso_manager::kIsoEventCigOnReconfigureCmpl, _))
-      .WillOnce([&evt](uint8_t type, void* data) {
+      .WillOnce([&evt](uint8_t /* type */, void* data) {
         evt = *static_cast<bluetooth::hci::iso_manager::cig_create_cmpl_evt*>(
             data);
         return 0;
@@ -822,7 +831,7 @@ TEST_F(IsoManagerTest, ReconfigureCigLateArrivingCallback) {
   // Catch the callback
   base::OnceCallback<void(uint8_t*, uint16_t)> iso_cb;
   ON_CALL(hcic_interface_, SetCigParams)
-      .WillByDefault([&](auto cig_id, auto,
+      .WillByDefault([&](auto /* cig_id */, auto,
                          base::OnceCallback<void(uint8_t*, uint16_t)> cb) {
         iso_cb = std::move(cb);
       });
@@ -937,7 +946,7 @@ TEST_F(IsoManagerTest, RemoveCigInvalidStatus) {
   bluetooth::hci::iso_manager::cig_remove_cmpl_evt evt;
   ON_CALL(*cig_callbacks_,
           OnCigEvent(bluetooth::hci::iso_manager::kIsoEventCigOnRemoveCmpl, _))
-      .WillByDefault([&evt](uint8_t type, void* data) {
+      .WillByDefault([&evt](uint8_t /* type */, void* data) {
         evt = *static_cast<bluetooth::hci::iso_manager::cig_remove_cmpl_evt*>(
             data);
         return 0;
@@ -970,7 +979,7 @@ TEST_F(IsoManagerTest, RemoveCigValid) {
   EXPECT_CALL(
       *cig_callbacks_,
       OnCigEvent(bluetooth::hci::iso_manager::kIsoEventCigOnRemoveCmpl, _))
-      .WillOnce([&evt](uint8_t type, void* data) {
+      .WillOnce([&evt](uint8_t /* type */, void* data) {
         evt = *static_cast<bluetooth::hci::iso_manager::cig_remove_cmpl_evt*>(
             data);
         return 0;
@@ -1028,7 +1037,7 @@ TEST_F(IsoManagerDeathTest, ConnectSameCisTwice) {
   ASSERT_EXIT(
       IsoManager::GetInstance()->IsoManager::GetInstance()->EstablishCis(
           params),
-      ::testing::KilledBySignal(SIGABRT), "Already connected or connecting");
+      ::testing::KilledBySignal(SIGABRT), "already connected or connecting");
 }
 
 TEST_F(IsoManagerDeathTest, EstablishCisInvalidResponsePacket) {
@@ -1036,31 +1045,33 @@ TEST_F(IsoManagerDeathTest, EstablishCisInvalidResponsePacket) {
       volatile_test_cig_create_cmpl_evt_.cig_id, kDefaultCigParams);
 
   ON_CALL(hcic_interface_, CreateCis)
-      .WillByDefault([this](uint8_t num_cis, const EXT_CIS_CREATE_CFG* cis_cfg,
-                            base::OnceCallback<void(uint8_t*, uint16_t)> cb) {
-        for (auto& handle : volatile_test_cig_create_cmpl_evt_.conn_handles) {
-          std::vector<uint8_t> buf(27);
-          uint8_t* p = buf.data();
-          UINT8_TO_STREAM(p, HCI_SUCCESS);
-          UINT16_TO_STREAM(p, handle);
-          UINT24_TO_STREAM(p, 0xEA);    // CIG sync delay
-          UINT24_TO_STREAM(p, 0xEB);    // CIS sync delay
-          UINT24_TO_STREAM(p, 0xEC);    // transport latency mtos
-          UINT24_TO_STREAM(p, 0xED);    // transport latency stom
-          UINT8_TO_STREAM(p, 0x01);     // phy mtos
-          UINT8_TO_STREAM(p, 0x02);     // phy stom
-          UINT8_TO_STREAM(p, 0x01);     // nse
-          UINT8_TO_STREAM(p, 0x02);     // bn mtos
-          UINT8_TO_STREAM(p, 0x03);     // bn stom
-          UINT8_TO_STREAM(p, 0x04);     // ft mtos
-          UINT8_TO_STREAM(p, 0x05);     // ft stom
-          UINT16_TO_STREAM(p, 0x00FA);  // Max PDU mtos
-          UINT16_TO_STREAM(p, 0x00FB);  // Max PDU stom
+      .WillByDefault(
+          [this](uint8_t /* num_cis */, const EXT_CIS_CREATE_CFG* /* cis_cfg */,
+                 base::OnceCallback<void(uint8_t*, uint16_t)> /* cb */) {
+            for (auto& handle :
+                 volatile_test_cig_create_cmpl_evt_.conn_handles) {
+              std::vector<uint8_t> buf(27);
+              uint8_t* p = buf.data();
+              UINT8_TO_STREAM(p, HCI_SUCCESS);
+              UINT16_TO_STREAM(p, handle);
+              UINT24_TO_STREAM(p, 0xEA);    // CIG sync delay
+              UINT24_TO_STREAM(p, 0xEB);    // CIS sync delay
+              UINT24_TO_STREAM(p, 0xEC);    // transport latency mtos
+              UINT24_TO_STREAM(p, 0xED);    // transport latency stom
+              UINT8_TO_STREAM(p, 0x01);     // phy mtos
+              UINT8_TO_STREAM(p, 0x02);     // phy stom
+              UINT8_TO_STREAM(p, 0x01);     // nse
+              UINT8_TO_STREAM(p, 0x02);     // bn mtos
+              UINT8_TO_STREAM(p, 0x03);     // bn stom
+              UINT8_TO_STREAM(p, 0x04);     // ft mtos
+              UINT8_TO_STREAM(p, 0x05);     // ft stom
+              UINT16_TO_STREAM(p, 0x00FA);  // Max PDU mtos
+              UINT16_TO_STREAM(p, 0x00FB);  // Max PDU stom
 
-          IsoManager::GetInstance()->HandleHciEvent(HCI_BLE_CIS_EST_EVT,
-                                                    buf.data(), buf.size());
-        }
-      });
+              IsoManager::GetInstance()->HandleHciEvent(HCI_BLE_CIS_EST_EVT,
+                                                        buf.data(), buf.size());
+            }
+          });
 
   bluetooth::hci::iso_manager::cis_establish_params params;
   for (auto& handle : volatile_test_cig_create_cmpl_evt_.conn_handles) {
@@ -1080,7 +1091,8 @@ TEST_F(IsoManagerTest, EstablishCisInvalidCommandStatus) {
 
   ON_CALL(hcic_interface_, CreateCis)
       .WillByDefault([invalid_status](
-                         uint8_t num_cis, const EXT_CIS_CREATE_CFG* cis_cfg,
+                         uint8_t /* num_cis */,
+                         const EXT_CIS_CREATE_CFG* /* cis_cfg */,
                          base::OnceCallback<void(uint8_t*, uint16_t)> cb) {
         std::move(cb).Run((uint8_t*)&invalid_status, sizeof(invalid_status));
         return 0;
@@ -1090,7 +1102,7 @@ TEST_F(IsoManagerTest, EstablishCisInvalidCommandStatus) {
       *cig_callbacks_,
       OnCisEvent(bluetooth::hci::iso_manager::kIsoEventCisEstablishCmpl, _))
       .Times(kDefaultCigParams.cis_cfgs.size())
-      .WillRepeatedly([this, invalid_status](uint8_t type, void* data) {
+      .WillRepeatedly([this, invalid_status](uint8_t /* type */, void* data) {
         bluetooth::hci::iso_manager::cis_establish_cmpl_evt* evt =
             static_cast<bluetooth::hci::iso_manager::cis_establish_cmpl_evt*>(
                 data);
@@ -1117,39 +1129,41 @@ TEST_F(IsoManagerTest, EstablishCisInvalidStatus) {
   uint8_t invalid_status = 0x01;
 
   ON_CALL(hcic_interface_, CreateCis)
-      .WillByDefault([this, invalid_status](
-                         uint8_t num_cis, const EXT_CIS_CREATE_CFG* cis_cfg,
-                         base::OnceCallback<void(uint8_t*, uint16_t)> cb) {
-        for (auto& handle : volatile_test_cig_create_cmpl_evt_.conn_handles) {
-          std::vector<uint8_t> buf(28);
-          uint8_t* p = buf.data();
-          UINT8_TO_STREAM(p, invalid_status);
-          UINT16_TO_STREAM(p, handle);
-          UINT24_TO_STREAM(p, 0xEA);    // CIG sync delay
-          UINT24_TO_STREAM(p, 0xEB);    // CIS sync delay
-          UINT24_TO_STREAM(p, 0xEC);    // transport latency mtos
-          UINT24_TO_STREAM(p, 0xED);    // transport latency stom
-          UINT8_TO_STREAM(p, 0x01);     // phy mtos
-          UINT8_TO_STREAM(p, 0x02);     // phy stom
-          UINT8_TO_STREAM(p, 0x01);     // nse
-          UINT8_TO_STREAM(p, 0x02);     // bn mtos
-          UINT8_TO_STREAM(p, 0x03);     // bn stom
-          UINT8_TO_STREAM(p, 0x04);     // ft mtos
-          UINT8_TO_STREAM(p, 0x05);     // ft stom
-          UINT16_TO_STREAM(p, 0x00FA);  // Max PDU mtos
-          UINT16_TO_STREAM(p, 0x00FB);  // Max PDU stom
-          UINT16_TO_STREAM(p, 0x0C60);  // ISO interval
+      .WillByDefault(
+          [this, invalid_status](
+              uint8_t /* num_cis */, const EXT_CIS_CREATE_CFG* /* cis_cfg */,
+              base::OnceCallback<void(uint8_t*, uint16_t)> /* cb */) {
+            for (auto& handle :
+                 volatile_test_cig_create_cmpl_evt_.conn_handles) {
+              std::vector<uint8_t> buf(28);
+              uint8_t* p = buf.data();
+              UINT8_TO_STREAM(p, invalid_status);
+              UINT16_TO_STREAM(p, handle);
+              UINT24_TO_STREAM(p, 0xEA);    // CIG sync delay
+              UINT24_TO_STREAM(p, 0xEB);    // CIS sync delay
+              UINT24_TO_STREAM(p, 0xEC);    // transport latency mtos
+              UINT24_TO_STREAM(p, 0xED);    // transport latency stom
+              UINT8_TO_STREAM(p, 0x01);     // phy mtos
+              UINT8_TO_STREAM(p, 0x02);     // phy stom
+              UINT8_TO_STREAM(p, 0x01);     // nse
+              UINT8_TO_STREAM(p, 0x02);     // bn mtos
+              UINT8_TO_STREAM(p, 0x03);     // bn stom
+              UINT8_TO_STREAM(p, 0x04);     // ft mtos
+              UINT8_TO_STREAM(p, 0x05);     // ft stom
+              UINT16_TO_STREAM(p, 0x00FA);  // Max PDU mtos
+              UINT16_TO_STREAM(p, 0x00FB);  // Max PDU stom
+              UINT16_TO_STREAM(p, 0x0C60);  // ISO interval
 
-          IsoManager::GetInstance()->HandleHciEvent(HCI_BLE_CIS_EST_EVT,
-                                                    buf.data(), buf.size());
-        }
-      });
+              IsoManager::GetInstance()->HandleHciEvent(HCI_BLE_CIS_EST_EVT,
+                                                        buf.data(), buf.size());
+            }
+          });
 
   EXPECT_CALL(
       *cig_callbacks_,
       OnCisEvent(bluetooth::hci::iso_manager::kIsoEventCisEstablishCmpl, _))
       .Times(kDefaultCigParams.cis_cfgs.size())
-      .WillRepeatedly([this, invalid_status](uint8_t type, void* data) {
+      .WillRepeatedly([this, invalid_status](uint8_t /* type */, void* data) {
         bluetooth::hci::iso_manager::cis_establish_cmpl_evt* evt =
             static_cast<bluetooth::hci::iso_manager::cis_establish_cmpl_evt*>(
                 data);
@@ -1178,7 +1192,7 @@ TEST_F(IsoManagerTest, EstablishCisValid) {
       *cig_callbacks_,
       OnCisEvent(bluetooth::hci::iso_manager::kIsoEventCisEstablishCmpl, _))
       .Times(kDefaultCigParams.cis_cfgs.size())
-      .WillRepeatedly([this](uint8_t type, void* data) {
+      .WillRepeatedly([this](uint8_t /* type */, void* data) {
         bluetooth::hci::iso_manager::cis_establish_cmpl_evt* evt =
             static_cast<bluetooth::hci::iso_manager::cis_establish_cmpl_evt*>(
                 data);
@@ -1260,7 +1274,7 @@ TEST_F(IsoManagerTest, ReconnectCisValid) {
       *cig_callbacks_,
       OnCisEvent(bluetooth::hci::iso_manager::kIsoEventCisEstablishCmpl, _))
       .Times(kDefaultCigParams.cis_cfgs.size())
-      .WillRepeatedly([this](uint8_t type, void* data) {
+      .WillRepeatedly([this](uint8_t /* type */, void* data) {
         bluetooth::hci::iso_manager::cis_establish_cmpl_evt* evt =
             static_cast<bluetooth::hci::iso_manager::cis_establish_cmpl_evt*>(
                 data);
@@ -1379,7 +1393,8 @@ TEST_F(IsoManagerDeathTest, DisconnectCisInvalidResponse) {
   // We don't expect any calls as these are not ISO handles
   ON_CALL(*cig_callbacks_,
           OnCisEvent(bluetooth::hci::iso_manager::kIsoEventCisDisconnected, _))
-      .WillByDefault([](uint8_t event_code, void* data) { FAIL(); });
+      .WillByDefault(
+          [](uint8_t /* event_code */, void* /* data */) { FAIL(); });
 
   for (auto& handle : volatile_test_cig_create_cmpl_evt_.conn_handles) {
     IsoManager::GetInstance()->IsoManager::GetInstance()->DisconnectCis(handle,
@@ -1403,7 +1418,7 @@ TEST_F(IsoManagerTest, CreateBigValid) {
   EXPECT_CALL(
       *big_callbacks_,
       OnBigEvent(bluetooth::hci::iso_manager::kIsoEventBigOnCreateCmpl, _))
-      .WillOnce([&evt](uint8_t type, void* data) {
+      .WillOnce([&evt](uint8_t /* type */, void* data) {
         evt = *static_cast<bluetooth::hci::iso_manager::big_create_cmpl_evt*>(
             data);
         return 0;
@@ -1439,8 +1454,7 @@ TEST_F(IsoManagerDeathTest, CreateBigInvalidResponsePacket) {
           });
 
   ASSERT_EXIT(IsoManager::GetInstance()->CreateBig(0x01, kDefaultBigParams),
-              ::testing::KilledBySignal(SIGABRT),
-              "num_bis != 0. Bis count is 0");
+              ::testing::KilledBySignal(SIGABRT), "Bis count is 0");
 }
 
 TEST_F(IsoManagerDeathTest, CreateBigInvalidResponsePacket2) {
@@ -1478,7 +1492,7 @@ TEST_F(IsoManagerTest, CreateBigInvalidStatus) {
   EXPECT_CALL(
       *big_callbacks_,
       OnBigEvent(bluetooth::hci::iso_manager::kIsoEventBigOnCreateCmpl, _))
-      .WillOnce([&evt](uint8_t type, void* data) {
+      .WillOnce([&evt](uint8_t /* type */, void* data) {
         evt = *static_cast<bluetooth::hci::iso_manager::big_create_cmpl_evt*>(
             data);
         return 0;
@@ -1526,7 +1540,7 @@ TEST_F(IsoManagerDeathTest, CreateSameBigTwice) {
   EXPECT_CALL(
       *big_callbacks_,
       OnBigEvent(bluetooth::hci::iso_manager::kIsoEventBigOnCreateCmpl, _))
-      .WillOnce([&evt](uint8_t type, void* data) {
+      .WillOnce([&evt](uint8_t /* type */, void* data) {
         evt = *static_cast<bluetooth::hci::iso_manager::big_create_cmpl_evt*>(
             data);
         return 0;
@@ -1576,7 +1590,7 @@ TEST_F(IsoManagerDeathTest, TerminateBigNoSuchBig) {
 
 TEST_F(IsoManagerDeathTest, TerminateBigInvalidResponsePacket) {
   ON_CALL(hcic_interface_, TerminateBig)
-      .WillByDefault([](auto big_handle, uint8_t reason) {
+      .WillByDefault([](auto /* big_handle */, uint8_t reason) {
         std::vector<uint8_t> buf(1);
         uint8_t* p = buf.data();
         UINT8_TO_STREAM(p, reason);
@@ -1598,7 +1612,7 @@ TEST_F(IsoManagerDeathTest, TerminateBigInvalidResponsePacket2) {
   const uint8_t reason = 0x16;  // Terminated by local host
 
   ON_CALL(hcic_interface_, TerminateBig)
-      .WillByDefault([](auto big_handle, uint8_t reason) {
+      .WillByDefault([](auto /* big_handle */, uint8_t reason) {
         std::vector<uint8_t> buf(3);
         uint8_t* p = buf.data();
         UINT8_TO_STREAM(p, reason);
@@ -1644,7 +1658,7 @@ TEST_F(IsoManagerTest, TerminateBigValid) {
   EXPECT_CALL(
       *big_callbacks_,
       OnBigEvent(bluetooth::hci::iso_manager::kIsoEventBigOnTerminateCmpl, _))
-      .WillOnce([&evt](uint8_t type, void* data) {
+      .WillOnce([&evt](uint8_t /* type */, void* data) {
         evt =
             *static_cast<bluetooth::hci::iso_manager::big_terminate_cmpl_evt*>(
                 data);
@@ -1830,7 +1844,7 @@ TEST_F(IsoManagerTest, SetupIsoDataPathLateArrivingCallback) {
   base::OnceCallback<void(uint8_t*, uint16_t)> iso_cb;
   ON_CALL(hcic_interface_, SetupIsoDataPath)
       .WillByDefault(
-          [&iso_cb](uint16_t iso_handle, uint8_t /* data_path_dir */,
+          [&iso_cb](uint16_t /* iso_handle */, uint8_t /* data_path_dir */,
                     uint8_t /* data_path_id */, uint8_t /* codec_id_format */,
                     uint16_t /* codec_id_company */,
                     uint16_t /* codec_id_vendor */,
@@ -1968,7 +1982,7 @@ TEST_F(IsoManagerTest, RemoveIsoDataPathInvalidStatus) {
   uint8_t remove_datapath_rsp_status = 0x12;
   ON_CALL(hcic_interface_, RemoveIsoDataPath)
       .WillByDefault([&remove_datapath_rsp_status](
-                         uint16_t iso_handle, uint8_t data_path_dir,
+                         uint16_t iso_handle, uint8_t /* data_path_dir */,
                          base::OnceCallback<void(uint8_t*, uint16_t)> cb) {
         std::vector<uint8_t> buf(3);
         uint8_t* p = buf.data();
@@ -2034,7 +2048,7 @@ TEST_F(IsoManagerTest, RemoveIsoDataPathLateArrivingCallback) {
   base::OnceCallback<void(uint8_t*, uint16_t)> iso_cb;
   ON_CALL(hcic_interface_, RemoveIsoDataPath)
       .WillByDefault(
-          [&iso_cb](uint16_t iso_handle, uint8_t data_path_dir,
+          [&iso_cb](uint16_t /* iso_handle */, uint8_t /* data_path_dir */,
                     base::OnceCallback<void(uint8_t*, uint16_t)> cb) {
             iso_cb = std::move(cb);
           });
@@ -2090,12 +2104,11 @@ TEST_F(IsoManagerTest, SendIsoDataCigValid) {
       constexpr uint8_t data_len = 108;
 
       EXPECT_CALL(iso_interface_, HciSend)
-          .WillOnce([handle, data_len](BT_HDR* p_msg, uint16_t event) {
+          .WillOnce([handle, data_len](BT_HDR* p_msg) {
             uint8_t* p = p_msg->data;
             uint16_t msg_handle;
             uint16_t iso_load_len;
 
-            ASSERT_TRUE((event & MSG_STACK_TO_HC_HCI_ISO) != 0);
             ASSERT_NE(p_msg, nullptr);
             ASSERT_EQ(p_msg->len, data_len + ((p_msg->layer_specific &
                                                BT_ISO_HDR_CONTAINS_TS)
@@ -2142,12 +2155,11 @@ TEST_F(IsoManagerTest, SendIsoDataBigValid) {
       constexpr uint8_t data_len = 108;
 
       EXPECT_CALL(iso_interface_, HciSend)
-          .WillOnce([handle, data_len](BT_HDR* p_msg, uint16_t event) {
+          .WillOnce([handle, data_len](BT_HDR* p_msg) {
             uint8_t* p = p_msg->data;
             uint16_t msg_handle;
             uint16_t iso_load_len;
 
-            ASSERT_TRUE((event & MSG_STACK_TO_HC_HCI_ISO) != 0);
             ASSERT_NE(p_msg, nullptr);
             ASSERT_EQ(p_msg->len, data_len + ((p_msg->layer_specific &
                                                BT_ISO_HDR_CONTAINS_TS)
@@ -2185,7 +2197,8 @@ TEST_F(IsoManagerTest, SendIsoDataBigValid) {
 }
 
 TEST_F(IsoManagerTest, SendIsoDataNoCredits) {
-  uint8_t num_buffers = controller_interface_.GetIsoBufferCount();
+  uint8_t num_buffers =
+      controller_.GetControllerIsoBufferSize().total_num_le_packets_;
   std::vector<uint8_t> data_vec(108, 0);
 
   // Check on CIG
@@ -2214,12 +2227,8 @@ TEST_F(IsoManagerTest, SendIsoDataNoCredits) {
   }
 
   // Return all credits for this one handle
-  uint8_t mock_rsp[5];
-  uint8_t* p = mock_rsp;
-  UINT8_TO_STREAM(p, 1);
-  UINT16_TO_STREAM(p, volatile_test_cig_create_cmpl_evt_.conn_handles[0]);
-  UINT16_TO_STREAM(p, num_buffers);
-  IsoManager::GetInstance()->HandleNumComplDataPkts(mock_rsp, sizeof(mock_rsp));
+  IsoManager::GetInstance()->HandleNumComplDataPkts(
+      volatile_test_cig_create_cmpl_evt_.conn_handles[0], num_buffers);
 
   // Check on BIG
   IsoManager::GetInstance()->CreateBig(volatile_test_big_params_evt_.big_id,
@@ -2240,7 +2249,8 @@ TEST_F(IsoManagerTest, SendIsoDataNoCredits) {
 }
 
 TEST_F(IsoManagerTest, SendIsoDataCreditsReturned) {
-  uint8_t num_buffers = controller_interface_.GetIsoBufferCount();
+  uint8_t num_buffers =
+      controller_.GetControllerIsoBufferSize().total_num_le_packets_;
   std::vector<uint8_t> data_vec(108, 0);
 
   // Check on CIG
@@ -2269,12 +2279,8 @@ TEST_F(IsoManagerTest, SendIsoDataCreditsReturned) {
   }
 
   // Return all credits for this one handle
-  uint8_t mock_rsp[5];
-  uint8_t* p = mock_rsp;
-  UINT8_TO_STREAM(p, 1);
-  UINT16_TO_STREAM(p, volatile_test_cig_create_cmpl_evt_.conn_handles[0]);
-  UINT16_TO_STREAM(p, num_buffers);
-  IsoManager::GetInstance()->HandleNumComplDataPkts(mock_rsp, sizeof(mock_rsp));
+  IsoManager::GetInstance()->HandleNumComplDataPkts(
+      volatile_test_cig_create_cmpl_evt_.conn_handles[0], num_buffers);
 
   // Expect some more events go down the HCI
   EXPECT_CALL(iso_interface_, HciSend).Times(num_buffers).RetiresOnSaturation();
@@ -2285,11 +2291,8 @@ TEST_F(IsoManagerTest, SendIsoDataCreditsReturned) {
   }
 
   // Return all credits for this one handle
-  p = mock_rsp;
-  UINT8_TO_STREAM(p, 1);
-  UINT16_TO_STREAM(p, volatile_test_cig_create_cmpl_evt_.conn_handles[0]);
-  UINT16_TO_STREAM(p, num_buffers);
-  IsoManager::GetInstance()->HandleNumComplDataPkts(mock_rsp, sizeof(mock_rsp));
+  IsoManager::GetInstance()->HandleNumComplDataPkts(
+      volatile_test_cig_create_cmpl_evt_.conn_handles[0], num_buffers);
 
   // Check on BIG
   IsoManager::GetInstance()->CreateBig(volatile_test_big_params_evt_.big_id,
@@ -2309,11 +2312,8 @@ TEST_F(IsoManagerTest, SendIsoDataCreditsReturned) {
   }
 
   // Return all credits for this one handle
-  p = mock_rsp;
-  UINT8_TO_STREAM(p, 1);
-  UINT16_TO_STREAM(p, volatile_test_big_params_evt_.conn_handles[0]);
-  UINT16_TO_STREAM(p, num_buffers);
-  IsoManager::GetInstance()->HandleNumComplDataPkts(mock_rsp, sizeof(mock_rsp));
+  IsoManager::GetInstance()->HandleNumComplDataPkts(
+      volatile_test_big_params_evt_.conn_handles[0], num_buffers);
 
   // Expect some more events go down the HCI
   EXPECT_CALL(iso_interface_, HciSend).Times(num_buffers).RetiresOnSaturation();
@@ -2325,7 +2325,8 @@ TEST_F(IsoManagerTest, SendIsoDataCreditsReturned) {
 }
 
 TEST_F(IsoManagerTest, SendIsoDataCreditsReturnedByDisconnection) {
-  uint8_t num_buffers = controller_interface_.GetIsoBufferCount();
+  uint8_t num_buffers =
+      controller_.GetControllerIsoBufferSize().total_num_le_packets_;
   std::vector<uint8_t> data_vec(108, 0);
 
   // Check on CIG
@@ -2562,7 +2563,8 @@ TEST_F(IsoManagerDeathTestNoCleanup, HandleLateArivingEventHandleDisconnect) {
  */
 TEST_F(IsoManagerDeathTestNoCleanup,
        HandleLateArivingEventHandleNumComplDataPkts) {
-  uint8_t num_buffers = controller_interface_.GetIsoBufferCount();
+  uint8_t num_buffers =
+      controller_.GetControllerIsoBufferSize().total_num_le_packets_;
 
   IsoManager::GetInstance()->CreateCig(
       volatile_test_cig_create_cmpl_evt_.cig_id, kDefaultCigParams);
@@ -2574,12 +2576,7 @@ TEST_F(IsoManagerDeathTestNoCleanup,
   IsoManager::GetInstance()->Stop();
 
   // Expect no assert on this call - should be gracefully ignored
-  uint8_t mock_rsp[5];
-  uint8_t* p = mock_rsp;
-  UINT8_TO_STREAM(p, 1);
-  UINT16_TO_STREAM(p, handle);
-  UINT16_TO_STREAM(p, num_buffers);
-  IsoManager::GetInstance()->HandleNumComplDataPkts(mock_rsp, sizeof(mock_rsp));
+  IsoManager::GetInstance()->HandleNumComplDataPkts(handle, num_buffers);
 }
 
 /* This test case simulates HCI thread scheduling events on the main thread,
@@ -2639,7 +2636,7 @@ TEST_F(IsoManagerTest, ReadIsoLinkQualityLateArrivingCallback) {
       *cig_callbacks_,
       OnCisEvent(bluetooth::hci::iso_manager::kIsoEventCisEstablishCmpl, _))
       .Times(kDefaultCigParams.cis_cfgs.size())
-      .WillRepeatedly([this](uint8_t type, void* data) {
+      .WillRepeatedly([this](uint8_t /* type */, void* data) {
         bluetooth::hci::iso_manager::cis_establish_cmpl_evt* evt =
             static_cast<bluetooth::hci::iso_manager::cis_establish_cmpl_evt*>(
                 data);
@@ -2663,7 +2660,7 @@ TEST_F(IsoManagerTest, ReadIsoLinkQualityLateArrivingCallback) {
   base::OnceCallback<void(uint8_t*, uint16_t)> iso_cb;
   ON_CALL(hcic_interface_, ReadIsoLinkQuality)
       .WillByDefault(
-          [&iso_cb](uint16_t iso_handle,
+          [&iso_cb](uint16_t /* iso_handle */,
                     base::OnceCallback<void(uint8_t*, uint16_t)> cb) {
             iso_cb = std::move(cb);
           });

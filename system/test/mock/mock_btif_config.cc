@@ -21,27 +21,16 @@
  *  mockcify.pl ver 0.2
  */
 
-#include <cstdint>
-#include <functional>
-#include <map>
-#include <string>
-
-// Original included files, if any
-// NOTE: Since this is a mock file with mock definitions some number of
-//       include files may not be required.  The include-what-you-use
-//       still applies, but crafting proper inclusion is out of scope
-//       for this effort.  This compilation unit may compile as-is, or
-//       may need attention to prune the inclusion set.
-
 // Mock include file to share data between tests and mock
 #include "test/mock/mock_btif_config.h"
+
+#include <cstdint>
+#include <string>
+
+#include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
 // Mocked compile conditionals, if any
-#ifndef UNUSED_ATTR
-#define UNUSED_ATTR
-#endif
-
 // Mocked internal structures, if any
 
 namespace test {
@@ -65,7 +54,6 @@ struct btif_config_get_paired_devices btif_config_get_paired_devices;
 struct btif_config_remove btif_config_remove;
 struct btif_config_remove_device btif_config_remove_device;
 struct btif_config_clear btif_config_clear;
-struct btif_debug_config_dump btif_debug_config_dump;
 
 }  // namespace btif_config
 }  // namespace mock
@@ -143,10 +131,6 @@ bool btif_config_remove(const std::string& section, const std::string& key) {
 bool btif_config_clear(void) {
   inc_func_call_count(__func__);
   return test::mock::btif_config::btif_config_clear();
-}
-void btif_debug_config_dump(int fd) {
-  inc_func_call_count(__func__);
-  test::mock::btif_config::btif_debug_config_dump(fd);
 }
 
 // END mockcify generation

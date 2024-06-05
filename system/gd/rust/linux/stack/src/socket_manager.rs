@@ -1,6 +1,8 @@
 //! Implementation of the Socket API (IBluetoothSocketManager).
 
-use bt_topshim::btif::{BluetoothInterface, BtStatus, RawAddress, Uuid};
+use bt_topshim::btif::{
+    BluetoothInterface, BtStatus, DisplayAddress, DisplayUuid, RawAddress, Uuid,
+};
 use bt_topshim::profiles::socket;
 use log;
 use nix::sys::socket::{recvmsg, ControlMessageOwned};
@@ -21,7 +23,6 @@ use tokio::time;
 use crate::bluetooth::BluetoothDevice;
 use crate::bluetooth_admin::{BluetoothAdmin, IBluetoothAdmin};
 use crate::callbacks::Callbacks;
-use crate::uuid::UuidHelper;
 use crate::Message;
 use crate::RPCProxy;
 
@@ -147,7 +148,7 @@ impl BluetoothServerSocket {
         sock.uuid = self.uuid.clone();
 
         // Data from connection.
-        sock.remote_device = BluetoothDevice::new(conn.addr.to_string(), "".into());
+        sock.remote_device = BluetoothDevice::new(conn.addr, "".into());
         sock.port = conn.channel;
         sock.max_rx_size = conn.max_rx_packet_size.into();
         sock.max_tx_size = conn.max_tx_packet_size.into();
@@ -174,7 +175,7 @@ impl fmt::Display for BluetoothServerSocket {
             self.sock_type,
             self.name.as_ref().unwrap_or(&String::new()),
             match self.uuid {
-                Some(u) => UuidHelper::to_string(&u.uu),
+                Some(u) => DisplayUuid(&u).to_string(),
                 None => "".to_string(),
             }
         )
@@ -205,7 +206,7 @@ impl BluetoothSocket {
     fn new() -> Self {
         BluetoothSocket {
             id: 0,
-            remote_device: BluetoothDevice::new(String::new(), String::new()),
+            remote_device: BluetoothDevice::new(RawAddress::default(), String::new()),
             sock_type: SocketType::Unknown,
             flags: 0,
             fd: None,
@@ -253,11 +254,11 @@ impl fmt::Display for BluetoothSocket {
         write!(
             f,
             "[{}]:{} (type: {:?}) (uuid: {})",
-            self.remote_device.address,
+            DisplayAddress(&self.remote_device.address),
             self.port,
             self.sock_type,
             match self.uuid {
-                Some(u) => UuidHelper::to_string(&u.uu),
+                Some(u) => DisplayUuid(&u).to_string(),
                 None => "".to_string(),
             }
         )
@@ -554,6 +555,19 @@ impl BluetoothSocketManager {
         self.sock = Some(socket::BtSocket::new(&intf.lock().unwrap()));
     }
 
+    /// Check if there is any listening socket.
+    pub fn is_listening(&self) -> bool {
+        self.listening.values().any(|vs| !vs.is_empty())
+    }
+
+    /// Trigger adapter to update connectable mode.
+    fn trigger_update_connectable_mode(&self) {
+        let txl = self.tx.clone();
+        tokio::spawn(async move {
+            let _ = txl.send(Message::TriggerUpdateConnectableMode).await;
+        });
+    }
+
     // TODO(abps) - We need to save information about who the caller is so that
     //              we can pipe it down to the lower levels. This needs to be
     //              provided by the projection layer and is currently missing.
@@ -576,8 +590,8 @@ impl BluetoothSocketManager {
         cbid: CallbackId,
     ) -> SocketResult {
         if let Some(uuid) = socket_info.uuid {
-            if !self.admin.lock().unwrap().is_service_allowed(uuid.into()) {
-                log::debug!("service {} is blocked by admin policy", uuid);
+            if !self.admin.lock().unwrap().is_service_allowed(uuid) {
+                log::debug!("service {} is blocked by admin policy", DisplayUuid(&uuid));
                 return SocketResult::new(BtStatus::AuthRejected, INVALID_SOCKET_ID);
             }
             if self
@@ -585,7 +599,7 @@ impl BluetoothSocketManager {
                 .iter()
                 .any(|(_, v)| v.iter().any(|s| s.uuid.map_or(false, |u| u == uuid)))
             {
-                log::warn!("Service {} already exists", uuid);
+                log::warn!("Service {} already exists", DisplayUuid(&uuid));
                 return SocketResult::new(BtStatus::Fail, INVALID_SOCKET_ID);
             }
         }
@@ -595,10 +609,7 @@ impl BluetoothSocketManager {
             self.sock.as_ref().expect("Socket Manager not initialized").listen(
                 socket_info.sock_type.clone(),
                 socket_info.name.as_ref().unwrap_or(&String::new()).clone(),
-                match socket_info.uuid {
-                    Some(u) => Some(u.uu.clone()),
-                    None => None,
-                },
+                socket_info.uuid,
                 match socket_info.sock_type {
                     SocketType::Rfcomm => socket_info.channel.unwrap_or(DYNAMIC_CHANNEL),
                     SocketType::L2cap | SocketType::L2capLe => {
@@ -652,6 +663,9 @@ impl BluetoothSocketManager {
                     .or_default()
                     .push(InternalListeningSocket::new(cbid, id, runner_tx, uuid, joinhandle));
 
+                // Update the connectable mode since the list of listening socket has changed.
+                self.trigger_update_connectable_mode();
+
                 SocketResult::new(status, id)
             }
             Err(_) => {
@@ -675,32 +689,18 @@ impl BluetoothSocketManager {
         cbid: CallbackId,
     ) -> SocketResult {
         if let Some(uuid) = socket_info.uuid {
-            if !self.admin.lock().unwrap().is_service_allowed(uuid.into()) {
-                log::debug!("service {} is blocked by admin policy", uuid);
+            if !self.admin.lock().unwrap().is_service_allowed(uuid) {
+                log::debug!("service {} is blocked by admin policy", DisplayUuid(&uuid));
                 return SocketResult::new(BtStatus::AuthRejected, INVALID_SOCKET_ID);
             }
         }
 
-        let addr = match RawAddress::from_string(socket_info.remote_device.address.clone()) {
-            Some(v) => v,
-            None => {
-                log::warn!(
-                    "Invalid address during socket connection: {}",
-                    socket_info.remote_device.address.clone()
-                );
-                return SocketResult::new(BtStatus::InvalidParam, INVALID_SOCKET_ID);
-            }
-        };
-
         // Create connecting socket pair.
         let (mut status, result) =
             self.sock.as_ref().expect("Socket manager not initialized").connect(
-                addr,
+                socket_info.remote_device.address,
                 socket_info.sock_type.clone(),
-                match socket_info.uuid {
-                    Some(u) => Some(u.uu.clone()),
-                    None => None,
-                },
+                socket_info.uuid,
                 socket_info.port,
                 socket_info.flags,
                 self.get_caller_uid(),
@@ -924,7 +924,7 @@ impl BluetoothSocketManager {
                                                         Ok(None)
                                                     }
                                                 }
-                                                Err(e) => Ok(None),
+                                                Err(_) => Ok(None),
                                             };
                                         }
 
@@ -1172,6 +1172,9 @@ impl BluetoothSocketManager {
                         .entry(cbid)
                         .and_modify(|v| v.retain(|s| s.socket_id != socket_id));
                 }
+
+                // Update the connectable mode since the list of listening socket has changed.
+                self.trigger_update_connectable_mode();
             }
 
             SocketActions::OnHandleIncomingConnection(cbid, socket_id, socket) => {
@@ -1207,9 +1210,7 @@ impl BluetoothSocketManager {
             .filter(|sock| {
                 sock.uuid
                     // Don't need to close L2cap socket (indicated by no uuid).
-                    .map_or(false, |uuid| {
-                        !self.admin.lock().unwrap().is_service_allowed(uuid.into())
-                    })
+                    .map_or(false, |uuid| !self.admin.lock().unwrap().is_service_allowed(uuid))
             })
             .map(|sock| (sock.socket_id, sock.tx.clone(), sock.uuid.unwrap()))
             .collect::<Vec<(u64, Sender<SocketRunnerActions>, Uuid)>>();
@@ -1219,7 +1220,7 @@ impl BluetoothSocketManager {
                 log::debug!(
                     "socket id {} is not allowed by admin policy due to uuid {}, closing",
                     id,
-                    uuid
+                    DisplayUuid(&uuid)
                 );
                 let _ = tx.send(SocketRunnerActions::Close(id)).await;
             }
@@ -1245,28 +1246,24 @@ impl BluetoothSocketManager {
                 });
             }
         });
+
+        // Update the connectable mode since the list of listening socket has changed.
+        self.trigger_update_connectable_mode();
+
         self.callbacks.remove_callback(callback);
     }
 
     // Send MSC command to the peer. ONLY FOR QUALIFICATION USE.
     // libbluetooth auto starts the control request only when it is the client.
     // This function allows the host to start the control request while as a server.
-    pub fn rfcomm_send_msc(&mut self, dlci: u8, addr: String) {
-        match (|| -> Result<(), &str> {
-            let addr = RawAddress::from_string(addr)
-                .ok_or("Invalid address for starting control request")?;
-            let sock = self
-                .sock
-                .as_ref()
-                .ok_or("Socket Manager not initialized when starting control request")?;
-            if sock.send_msc(dlci, addr) != BtStatus::Success {
-                return Err("Failed to start control request");
-            }
-            Ok(())
-        })() {
-            Ok(_) => {}
-            Err(msg) => log::warn!("{}", msg),
+    pub fn rfcomm_send_msc(&mut self, dlci: u8, addr: RawAddress) {
+        let Some(sock) = self.sock.as_ref() else {
+            log::warn!("Socket Manager not initialized when starting control request");
+            return;
         };
+        if sock.send_msc(dlci, addr) != BtStatus::Success {
+            log::warn!("Failed to start control request");
+        }
     }
 }
 

@@ -41,8 +41,6 @@ import static org.mockito.quality.Strictness.STRICT_STUBS;
 import android.app.AppOpsManager;
 import android.app.admin.DevicePolicyManager;
 import android.bluetooth.IBluetoothManagerCallback;
-import android.bluetooth.IBluetoothProfileServiceConnection;
-import android.bluetooth.IBluetoothStateChangeCallback;
 import android.compat.testing.PlatformCompatChangeRule;
 import android.content.AttributionSource;
 import android.content.Context;
@@ -114,7 +112,7 @@ public class BluetoothServiceBinderTest {
         doReturn(mAppOpsManager).when(mContext).getSystemService(eq(appops));
         doReturn(mDevicePolicyManager).when(mContext).getSystemService(eq(devicePolicy));
 
-        mBinder = new BluetoothServiceBinder(mManagerService, mContext, mUserManager);
+        mBinder = new BluetoothServiceBinder(mManagerService, null, mContext, mUserManager);
     }
 
     @After
@@ -138,22 +136,6 @@ public class BluetoothServiceBinderTest {
         assertThrows(NullPointerException.class, () -> mBinder.unregisterAdapter(null));
         mBinder.unregisterAdapter(mock(IBluetoothManagerCallback.class));
         verify(mManagerService).unregisterAdapter(any());
-        verifyMock();
-    }
-
-    @Test
-    public void registerStateChangeCallback() {
-        assertThrows(NullPointerException.class, () -> mBinder.registerStateChangeCallback(null));
-        mBinder.registerStateChangeCallback(mock(IBluetoothStateChangeCallback.class));
-        verify(mManagerService).registerStateChangeCallback(any());
-        verifyMock();
-    }
-
-    @Test
-    public void unregisterStateChangeCallback() {
-        assertThrows(NullPointerException.class, () -> mBinder.unregisterStateChangeCallback(null));
-        mBinder.unregisterStateChangeCallback(mock(IBluetoothStateChangeCallback.class));
-        verify(mManagerService).unregisterStateChangeCallback(any());
         verifyMock();
     }
 
@@ -246,27 +228,6 @@ public class BluetoothServiceBinderTest {
     }
 
     @Test
-    public void bindBluetoothProfileService() {
-        assertThrows(
-                NullPointerException.class,
-                () -> mBinder.bindBluetoothProfileService(0, "foo", null));
-        // No permission needed for this call
-
-        mBinder.bindBluetoothProfileService(
-                0, "foo", mock(IBluetoothProfileServiceConnection.class));
-        verify(mManagerService).bindBluetoothProfileService(anyInt(), any(), any());
-        verifyMock();
-    }
-
-    @Test
-    public void unbindBluetoothProfileService() {
-        // No permission needed for this call
-        mBinder.unbindBluetoothProfileService(0, null);
-        verify(mManagerService).unbindBluetoothProfileService(anyInt(), any());
-        verifyMock();
-    }
-
-    @Test
     public void getAddress() {
         assertThrows(NullPointerException.class, () -> mBinder.getAddress(null));
 
@@ -287,10 +248,10 @@ public class BluetoothServiceBinderTest {
         // TODO(b/280518177): add more test from not System / ...
         // TODO(b/280518177): add more test when caller is not in foreground
 
-        doReturn("foo").when(mManagerService).getAddress(any());
+        doReturn("foo").when(mManagerService).getAddress();
         assertThat(mBinder.getAddress(mSource)).isEqualTo("foo");
 
-        verify(mManagerService).getAddress(any());
+        verify(mManagerService).getAddress();
         verifyMockForCheckIfCallerIsForegroundUser();
     }
 
@@ -306,9 +267,9 @@ public class BluetoothServiceBinderTest {
         // TODO(b/280518177): add more test from not System / ...
         // TODO(b/280518177): add more test when caller is not in foreground
 
-        doReturn("foo").when(mManagerService).getName(any());
+        doReturn("foo").when(mManagerService).getName();
         assertThat(mBinder.getName(mSource)).isEqualTo("foo");
-        verify(mManagerService).getName(any());
+        verify(mManagerService).getName();
         verifyMockForCheckIfCallerIsForegroundUser();
     }
 
@@ -327,15 +288,15 @@ public class BluetoothServiceBinderTest {
                 .adoptShellPermissionIdentity(BLUETOOTH_PRIVILEGED, BLUETOOTH_CONNECT);
 
         assertThat(mBinder.onFactoryReset(mSource)).isFalse();
-        verify(mManagerService).onFactoryReset(any());
+        verify(mManagerService).onFactoryReset();
         verifyMock();
     }
 
     @Test
-    public void isBleScanAlwaysAvailable() {
+    public void isBleScanAvailable() {
         // No permission needed for this call
-        mBinder.isBleScanAlwaysAvailable();
-        verify(mManagerService).isBleScanAlwaysAvailable();
+        mBinder.isBleScanAvailable();
+        verify(mManagerService).isBleScanAvailable();
         verifyMock();
     }
 
@@ -361,17 +322,9 @@ public class BluetoothServiceBinderTest {
 
         checkDisabled(() -> mBinder.disableBle(mSource, token));
         checkHardDenied(() -> mBinder.disableBle(mSource, token), false);
-        doReturn(true).when(mManagerService).disableBle(eq(mSource), eq(TAG), eq(token));
+        doReturn(true).when(mManagerService).disableBle(eq(TAG), eq(token));
         checkGranted(() -> mBinder.disableBle(mSource, token), true);
-        verify(mManagerService).disableBle(eq(mSource), eq(TAG), eq(token));
-        verifyMock();
-    }
-
-    @Test
-    public void isBleAppPresent() {
-        // No permission needed for this call
-        mBinder.isBleAppPresent();
-        verify(mManagerService).isBleAppPresent();
+        verify(mManagerService).disableBle(eq(TAG), eq(token));
         verifyMock();
     }
 

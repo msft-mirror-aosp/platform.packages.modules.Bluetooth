@@ -20,350 +20,13 @@
  */
 
 #include <cstdint>
-#include <map>
-#include <string>
-
-#include <base/functional/bind.h>
-#include <base/functional/callback.h>
 
 #include "main/shim/btm_api.h"
-#include "stack/include/bt_hdr.h"
 #include "stack/include/bt_octets.h"
 #include "stack/include/btm_ble_api_types.h"
 #include "test/common/mock_functions.h"
-#include "types/bluetooth/uuid.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
-
-#ifndef UNUSED_ATTR
-#define UNUSED_ATTR
-#endif
-
-Octet16 octet16;
-
-bool bluetooth::shim::BTM_BleDataSignature(const RawAddress& bd_addr,
-                                           uint8_t* p_text, uint16_t len,
-                                           BLE_SIGNATURE signature) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool bluetooth::shim::BTM_BleLocalPrivacyEnabled(void) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool bluetooth::shim::BTM_BleSecurityProcedureIsRunning(
-    const RawAddress& bd_addr) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool bluetooth::shim::BTM_BleVerifySignature(const RawAddress& bd_addr,
-                                             uint8_t* p_orig, uint16_t len,
-                                             uint32_t counter,
-                                             uint8_t* p_comp) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool bluetooth::shim::BTM_GetLeSecurityState(const RawAddress& bd_addr,
-                                             uint8_t* p_le_dev_sec_flags,
-                                             uint8_t* p_le_key_size) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool bluetooth::shim::BTM_HasEirService(const uint32_t* p_eir_uuid,
-                                        uint16_t uuid16) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool bluetooth::shim::BTM_ReadConnectedTransportAddress(
-    RawAddress* remote_bda, tBT_TRANSPORT transport) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool bluetooth::shim::BTM_ReadRemoteConnectionAddr(
-    const RawAddress& pseudo_addr, RawAddress& conn_addr,
-    tBLE_ADDR_TYPE* p_addr_type, bool ota_address) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool bluetooth::shim::BTM_SecAddDevice(const RawAddress& bd_addr,
-                                       DEV_CLASS dev_class,
-                                       const BD_NAME& bd_name,
-                                       uint8_t* features, LinkKey* link_key,
-                                       uint8_t key_type, uint8_t pin_length) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool bluetooth::shim::BTM_SecAddRmtNameNotifyCallback(
-    tBTM_RMT_NAME_CALLBACK* p_callback) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool bluetooth::shim::BTM_SecDeleteDevice(const RawAddress& bd_addr) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool bluetooth::shim::BTM_SecDeleteRmtNameNotifyCallback(
-    tBTM_RMT_NAME_CALLBACK* p_callback) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool bluetooth::shim::BTM_SecRegister(const tBTM_APPL_INFO* bta_callbacks) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool bluetooth::shim::BTM_UseLeLink(const RawAddress& raw_address) {
-  inc_func_call_count(__func__);
-  return false;
-}
-const Octet16& bluetooth::shim::BTM_GetDeviceEncRoot() {
-  inc_func_call_count(__func__);
-  return octet16;
-}
-const Octet16& bluetooth::shim::BTM_GetDeviceDHK() {
-  inc_func_call_count(__func__);
-  return octet16;
-}
-const Octet16& bluetooth::shim::BTM_GetDeviceIDRoot() {
-  inc_func_call_count(__func__);
-  return octet16;
-}
-tBTM_INQ_INFO* bluetooth::shim::BTM_InqDbFirst(void) {
-  inc_func_call_count(__func__);
-  return nullptr;
-}
-tBTM_INQ_INFO* bluetooth::shim::BTM_InqDbNext(tBTM_INQ_INFO* p_cur) {
-  inc_func_call_count(__func__);
-  return nullptr;
-}
-tBTM_INQ_INFO* bluetooth::shim::BTM_InqDbRead(const RawAddress& p_bda) {
-  inc_func_call_count(__func__);
-  return nullptr;
-}
-tBTM_STATUS bluetooth::shim::BTM_BleObserve(bool start, uint8_t duration_sec,
-                                            tBTM_INQ_RESULTS_CB* p_results_cb,
-                                            tBTM_CMPL_CB* p_cmpl_cb) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-void bluetooth::shim::BTM_BleOpportunisticObserve(
-    bool enable, tBTM_INQ_RESULTS_CB* p_results_cb) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_BleTargetAnnouncementObserve(
-    bool enable, tBTM_INQ_RESULTS_CB* p_results_cb) {
-  inc_func_call_count(__func__);
-}
-tBTM_STATUS bluetooth::shim::BTM_CancelRemoteDeviceName(void) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-tBTM_STATUS bluetooth::shim::BTM_ClearInqDb(const RawAddress* p_bda) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-tBTM_STATUS bluetooth::shim::BTM_ReadRemoteDeviceName(
-    const RawAddress& raw_address, tBTM_NAME_CMPL_CB* callback,
-    tBT_TRANSPORT transport) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-tBTM_STATUS bluetooth::shim::BTM_SecBond(const RawAddress& bd_addr,
-                                         tBLE_ADDR_TYPE addr_type,
-                                         tBT_TRANSPORT transport,
-                                         tBT_DEVICE_TYPE device_type) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-tBTM_STATUS bluetooth::shim::BTM_SecBondCancel(const RawAddress& bd_addr) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-tBTM_STATUS bluetooth::shim::BTM_SetConnectability(uint16_t page_mode,
-                                                   uint16_t window,
-                                                   uint16_t interval) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-tBTM_STATUS bluetooth::shim::BTM_SetDeviceClass(DEV_CLASS dev_class) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-tBTM_STATUS bluetooth::shim::BTM_SetDiscoverability(uint16_t discoverable_mode,
-                                                    uint16_t window,
-                                                    uint16_t interval) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-tBTM_STATUS bluetooth::shim::BTM_SetEncryption(const RawAddress& bd_addr,
-                                               tBT_TRANSPORT transport,
-                                               tBTM_SEC_CALLBACK* p_callback,
-                                               void* p_ref_data,
-                                               tBTM_BLE_SEC_ACT sec_act) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-tBTM_STATUS bluetooth::shim::BTM_SetInquiryMode(uint8_t inquiry_mode) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-tBTM_STATUS bluetooth::shim::BTM_StartInquiry(tBTM_INQ_RESULTS_CB* p_results_cb,
-                                              tBTM_CMPL_CB* p_cmpl_cb) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-tBTM_STATUS bluetooth::shim::btm_sec_mx_access_request(
-    const RawAddress& bd_addr, bool is_originator,
-    uint16_t security_requirement, tBTM_SEC_CALLBACK* p_callback,
-    void* p_ref_data) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-uint16_t bluetooth::shim::BTM_GetHCIConnHandle(const RawAddress& remote_bda,
-                                               tBT_TRANSPORT transport) {
-  inc_func_call_count(__func__);
-  return 0;
-}
-uint16_t bluetooth::shim::BTM_IsInquiryActive(void) {
-  inc_func_call_count(__func__);
-  return 0;
-}
-uint8_t bluetooth::shim::BTM_BleGetSupportedKeySize(const RawAddress& bd_addr) {
-  inc_func_call_count(__func__);
-  return 0;
-}
-uint8_t bluetooth::shim::BTM_BleMaxMultiAdvInstanceCount() {
-  inc_func_call_count(__func__);
-  return 0;
-}
-void bluetooth::shim::BTM_AddEirService(uint32_t* p_eir_uuid, uint16_t uuid16) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_BleAdvFilterParamSetup(
-    tBTM_BLE_SCAN_COND_OP action, tBTM_BLE_PF_FILT_INDEX filt_index,
-    std::unique_ptr<btgatt_filt_param_setup_t> p_filt_params,
-    tBTM_BLE_PF_PARAM_CB cb) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_BleLoadLocalKeys(uint8_t key_type,
-                                           tBTM_BLE_LOCAL_KEYS* p_key) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_BleOobDataReply(const RawAddress& bd_addr,
-                                          uint8_t res, uint8_t len,
-                                          uint8_t* p_data) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_BleReadPhy(
-    const RawAddress& bd_addr,
-    base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_BleReceiverTest(uint8_t rx_freq,
-                                          tBTM_CMPL_CB* p_cmd_cmpl_cback) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_BleSecureConnectionOobDataReply(
-    const RawAddress& bd_addr, uint8_t* p_c, uint8_t* p_r) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_BleSetConnScanParams(uint32_t scan_interval,
-                                               uint32_t scan_window) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_BleSetPhy(const RawAddress& bd_addr, uint8_t tx_phys,
-                                    uint8_t rx_phys, uint16_t phy_options) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_BleSetPrefConnParams(const RawAddress& bd_addr,
-                                               uint16_t min_conn_int,
-                                               uint16_t max_conn_int,
-                                               uint16_t peripheral_latency,
-                                               uint16_t supervision_tout) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_BleTestEnd(tBTM_CMPL_CB* p_cmd_cmpl_cback) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_BleTransmitterTest(uint8_t tx_freq,
-                                             uint8_t test_data_len,
-                                             uint8_t packet_payload,
-                                             tBTM_CMPL_CB* p_cmd_cmpl_cback) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_CancelInquiry(void) { inc_func_call_count(__func__); }
-void bluetooth::shim::BTM_ConfirmReqReply(tBTM_STATUS res,
-                                          const RawAddress& bd_addr) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_EnableInterlacedInquiryScan() {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_EnableInterlacedPageScan() {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_PINCodeReply(const RawAddress& bd_addr,
-                                       tBTM_STATUS res, uint8_t pin_len,
-                                       uint8_t* p_pin) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_ReadConnectionAddr(const RawAddress& remote_bda,
-                                             RawAddress& local_conn_addr,
-                                             tBLE_ADDR_TYPE* p_addr_type,
-                                             bool ota_address) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_ReadDevInfo(const RawAddress& remote_bda,
-                                      tBT_DEVICE_TYPE* p_dev_type,
-                                      tBLE_ADDR_TYPE* p_addr_type) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_RemoteOobDataReply(tBTM_STATUS res,
-                                             const RawAddress& bd_addr,
-                                             const Octet16& c,
-                                             const Octet16& r) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_SecAddBleDevice(const RawAddress& bd_addr,
-                                          tBT_DEVICE_TYPE dev_type,
-                                          tBLE_ADDR_TYPE addr_type) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_SecAddBleKey(const RawAddress& bd_addr,
-                                       tBTM_LE_KEY_VALUE* p_le_key,
-                                       tBTM_LE_KEY_TYPE key_type) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_SecClearSecurityFlags(const RawAddress& bd_addr) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::BTM_SecurityGrant(const RawAddress& bd_addr,
-                                        uint8_t res) {
-  inc_func_call_count(__func__);
-}
-void bluetooth::shim::SendRemoteNameRequest(const RawAddress& raw_address) {
-  inc_func_call_count(__func__);
-}
-void btm_api_process_extended_inquiry_result(RawAddress raw_address,
-                                             uint8_t page_scan_rep_mode,
-                                             DEV_CLASS device_class,
-                                             uint16_t clock_offset, int8_t rssi,
-                                             const uint8_t* eir_data,
-                                             size_t eir_len) {
-  inc_func_call_count(__func__);
-}
-void btm_api_process_inquiry_result(const RawAddress& raw_address,
-                                    uint8_t page_scan_rep_mode,
-                                    DEV_CLASS device_class,
-                                    uint16_t clock_offset) {
-  inc_func_call_count(__func__);
-}
-void btm_api_process_inquiry_result_with_rssi(RawAddress raw_address,
-                                              uint8_t page_scan_rep_mode,
-                                              DEV_CLASS device_class,
-                                              uint16_t clock_offset,
-                                              int8_t rssi) {
-  inc_func_call_count(__func__);
-}
 
 tBTM_STATUS bluetooth::shim::BTM_ClearEventFilter() {
   inc_func_call_count(__func__);
@@ -385,31 +48,26 @@ tBTM_STATUS bluetooth::shim::BTM_DisconnectAllAcls() {
   return BTM_SUCCESS;
 }
 
-tBTM_STATUS bluetooth::shim::BTM_LeRand(LeRandCallback cb) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-
 tBTM_STATUS bluetooth::shim::BTM_SetEventFilterConnectionSetupAllDevices() {
   inc_func_call_count(__func__);
   return BTM_SUCCESS;
 }
 
 tBTM_STATUS bluetooth::shim::BTM_AllowWakeByHid(
-    std::vector<RawAddress> classic_hid_devices,
-    std::vector<std::pair<RawAddress, uint8_t>> le_hid_devices) {
+    std::vector<RawAddress> /* classic_hid_devices */,
+    std::vector<std::pair<RawAddress, uint8_t>> /* le_hid_devices */) {
   inc_func_call_count(__func__);
   return BTM_SUCCESS;
 }
 
 tBTM_STATUS bluetooth::shim::BTM_RestoreFilterAcceptList(
-    std::vector<std::pair<RawAddress, uint8_t>> le_devices) {
+    std::vector<std::pair<RawAddress, uint8_t>> /* le_devices */) {
   inc_func_call_count(__func__);
   return BTM_SUCCESS;
 }
 
-tBTM_STATUS bluetooth::shim::BTM_SetDefaultEventMaskExcept(uint64_t mask,
-                                                           uint64_t le_mask) {
+tBTM_STATUS bluetooth::shim::BTM_SetDefaultEventMaskExcept(
+    uint64_t /* mask */, uint64_t /* le_mask */) {
   inc_func_call_count(__func__);
   return BTM_SUCCESS;
 }
@@ -422,4 +80,8 @@ tBTM_STATUS bluetooth::shim::BTM_SetEventFilterInquiryResultAllDevices() {
 tBTM_STATUS bluetooth::shim::BTM_BleResetId() {
   inc_func_call_count(__func__);
   return BTM_SUCCESS;
+}
+size_t bluetooth::shim::BTM_BleGetNumberOfAdvertisingInstancesInUse() {
+  inc_func_call_count(__func__);
+  return 0;
 }

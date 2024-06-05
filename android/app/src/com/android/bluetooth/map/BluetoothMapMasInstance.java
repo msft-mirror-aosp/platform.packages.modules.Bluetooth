@@ -1,21 +1,23 @@
 /*
-* Copyright (C) 2014 Samsung System LSI
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright (C) 2014 Samsung System LSI
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.android.bluetooth.map;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothProfile;
+import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
@@ -25,8 +27,10 @@ import android.os.SystemProperties;
 import android.util.Log;
 
 import com.android.bluetooth.BluetoothObexTransport;
+import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.IObexConnectionHandler;
 import com.android.bluetooth.ObexServerSockets;
+import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 import com.android.bluetooth.map.BluetoothMapContentObserver.Msg;
 import com.android.bluetooth.map.BluetoothMapUtils.TYPE;
 import com.android.bluetooth.sdp.SdpManagerNativeInterface;
@@ -39,14 +43,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+// Next tag value for ContentProfileErrorReportUtils.report(): 4
 public class BluetoothMapMasInstance implements IObexConnectionHandler {
-    @VisibleForTesting
-    final String mTag;
-    @VisibleForTesting
-    static volatile int sInstanceCounter = 0;
+    private static final String TAG = "BluetoothMapMasInstance";
 
-    private static final boolean D = BluetoothMapService.DEBUG;
-    private static final boolean V = BluetoothMapService.VERBOSE;
+    @VisibleForTesting static volatile int sInstanceCounter = 0;
+
+    private final int mObjectInstanceId;
 
     private static final int SDP_MAP_MSG_TYPE_EMAIL = 0x01;
     private static final int SDP_MAP_MSG_TYPE_SMS_GSM = 0x02;
@@ -73,19 +76,17 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
     // The actual incoming connection handle
     private BluetoothSocket mConnSocket = null;
     // The remote connected device
-    private BluetoothDevice mRemoteDevice = null;
     private BluetoothAdapter mAdapter;
 
-    private volatile boolean mInterrupted;              // Used to interrupt socket accept thread
-    private volatile boolean mShutdown = false;         // Used to interrupt socket accept thread
+    private volatile boolean mShutdown = false; // Used to interrupt socket accept thread
     private volatile boolean mAcceptNewConnections = false;
 
-    private Handler mServiceHandler = null;             // MAP service message handler
-    private BluetoothMapService mMapService = null;     // Handle to the outer MAP service
-    private Context mContext = null;                    // MAP service context
-    private BluetoothMnsObexClient mMnsClient = null;   // Shared MAP MNS client
-    private BluetoothMapAccountItem mAccount = null;    //
-    private String mBaseUri = null;                     // Client base URI for this instance
+    private Handler mServiceHandler = null; // MAP service message handler
+    private BluetoothMapService mMapService = null; // Handle to the outer MAP service
+    private Context mContext = null; // MAP service context
+    private BluetoothMnsObexClient mMnsClient = null; // Shared MAP MNS client
+    private BluetoothMapAccountItem mAccount = null; //
+    private String mBaseUri = null; // Client base URI for this instance
     private int mMasInstanceId = -1;
     private boolean mEnableSmsMms = false;
     BluetoothMapContentObserver mObserver;
@@ -116,14 +117,19 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
 
     /**
      * Create a e-mail MAS instance
+     *
      * @param callback
      * @param context
      * @param mns
      * @param emailBaseUri - use null to create a SMS/MMS MAS instance
      */
-    public BluetoothMapMasInstance(BluetoothMapService mapService, Context context,
-            BluetoothMapAccountItem account, int masId, boolean enableSmsMms) {
-        mTag = "BluetoothMapMasInstance" + sInstanceCounter++;
+    public BluetoothMapMasInstance(
+            BluetoothMapService mapService,
+            Context context,
+            BluetoothMapAccountItem account,
+            int masId,
+            boolean enableSmsMms) {
+        mObjectInstanceId = sInstanceCounter++;
         mMapService = mapService;
         mServiceHandler = mapService.getHandler();
         mContext = context;
@@ -139,20 +145,17 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
     private void removeSdpRecord() {
         SdpManagerNativeInterface nativeInterface = SdpManagerNativeInterface.getInstance();
         if (mAdapter != null && mSdpHandle >= 0 && nativeInterface.isAvailable()) {
-            if (V) {
-                Log.d(mTag, "Removing SDP record for MAS instance: " + mMasInstanceId
-                        + " Object reference: " + this + "SDP handle: " + mSdpHandle);
-            }
+            verbose(
+                    "Removing SDP record for MAS instance: "
+                            + mMasInstanceId
+                            + " Object reference: "
+                            + this
+                            + ", SDP handle: "
+                            + mSdpHandle);
             boolean status = nativeInterface.removeSdpRecord(mSdpHandle);
-            Log.d(mTag, "RemoveSDPrecord returns " + status);
+            debug("RemoveSDPrecord returns " + status);
             mSdpHandle = -1;
         }
-    }
-
-    /* Needed only for test */
-    @VisibleForTesting
-    BluetoothMapMasInstance() {
-        mTag = "BluetoothMapMasInstance" + sInstanceCounter++;
     }
 
     @Override
@@ -165,32 +168,29 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
     }
 
     /**
-     * The data base identifier is used by connecting MCE devices to evaluate if cached data
-     * is still valid, hence only update this value when something actually invalidates the data.
-     * Situations where this must be called:
-     * - MAS ID's vs. server channels are scrambled (As neither MAS ID, name or server channels)
-     *   can be used by a client to uniquely identify a specific message database - except MAS id 0
-     *   we should change this value if the server channel is changed.
-     * - If a MAS instance folderVersionCounter roles over - will not happen before a long
-     *   is too small to hold a unix time-stamp, hence is not handled.
+     * The data base identifier is used by connecting MCE devices to evaluate if cached data is
+     * still valid, hence only update this value when something actually invalidates the data.
+     * Situations where this must be called: - MAS ID's vs. server channels are scrambled (As
+     * neither MAS ID, name or server channels) can be used by a client to uniquely identify a
+     * specific message database - except MAS id 0 we should change this value if the server channel
+     * is changed. - If a MAS instance folderVersionCounter roles over - will not happen before a
+     * long is too small to hold a unix time-stamp, hence is not handled.
      */
     private void updateDbIdentifier() {
         mDbIndetifier.set(Calendar.getInstance().getTime().getTime());
     }
 
     /**
-     * update the time stamp used for FOLDER version counter.
-     * Call once when a content provider notification caused applicable changes to the
-     * list of messages.
+     * update the time stamp used for FOLDER version counter. Call once when a content provider
+     * notification caused applicable changes to the list of messages.
      */
     /* package */ void updateFolderVersionCounter() {
         mFolderVersionCounter.incrementAndGet();
     }
 
     /**
-     * update the CONVO LIST version counter.
-     * Call once when a content provider notification caused applicable changes to the
-     * list of contacts, or when an update is manually triggered.
+     * update the CONVO LIST version counter. Call once when a content provider notification caused
+     * applicable changes to the list of contacts, or when an update is manually triggered.
      */
     /* package */ void updateSmsMmsConvoListVersionCounter() {
         mSmsMmsConvoListVersionCounter.incrementAndGet();
@@ -270,25 +270,17 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
         return combinedVersionCounter;
     }
 
-    /**
-     * Start Obex Server Sockets and create the SDP record.
-     */
+    /** Start Obex Server Sockets and create the SDP record. */
     public synchronized void startSocketListeners() {
-        if (D) {
-            Log.d(mTag, "Map Service startSocketListeners");
-        }
+        debug("Map Service startSocketListeners");
 
         if (mServerSession != null) {
-            if (D) {
-                Log.d(mTag, "mServerSession exists - shutting it down...");
-            }
+            debug("mServerSession exists - shutting it down...");
             mServerSession.close();
             mServerSession = null;
         }
         if (mObserver != null) {
-            if (D) {
-                Log.d(mTag, "mObserver exists - shutting it down...");
-            }
+            debug("mObserver exists - shutting it down...");
             mObserver.deinit();
             mObserver = null;
         }
@@ -304,23 +296,33 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
 
             if (mServerSockets == null) {
                 // TODO: Handle - was not handled before
-                Log.e(mTag, "Failed to start the listeners");
+                error("Failed to start the listeners");
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.MAP,
+                        BluetoothProtoEnums.BLUETOOTH_MAP_MAS_INSTANCE,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
+                        0);
                 return;
             }
             removeSdpRecord();
-            mSdpHandle = createMasSdpRecord(mServerSockets.getRfcommChannel(),
-                    mServerSockets.getL2capPsm());
+            mSdpHandle =
+                    createMasSdpRecord(
+                            mServerSockets.getRfcommChannel(), mServerSockets.getL2capPsm());
             // Here we might have changed crucial data, hence reset DB identifier
-            if (V) {
-                Log.d(mTag, "Creating new SDP record for MAS instance: " + mMasInstanceId
-                        + " Object reference: " + this + "SDP handle: " + mSdpHandle);
-            }
+            verbose(
+                    "Creating new SDP record for MAS instance: "
+                            + mMasInstanceId
+                            + " Object reference: "
+                            + this
+                            + ", SDP handle: "
+                            + mSdpHandle);
             updateDbIdentifier();
         }
     }
 
     /**
      * Create the MAS SDP record with the information stored in the instance.
+     *
      * @param rfcommChannel the rfcomm channel ID
      * @param l2capPsm the l2capPsm - set to -1 to exclude
      */
@@ -388,9 +390,7 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
      * Returns true at success. */
     public boolean startObexServerSession(BluetoothMnsObexClient mnsClient)
             throws IOException, RemoteException {
-        if (D) {
-            Log.d(mTag, "Map Service startObexServerSession masid = " + mMasInstanceId);
-        }
+        debug("Map Service startObexServerSession masid = " + mMasInstanceId);
 
         if (mConnSocket != null) {
             if (mServerSession != null) {
@@ -399,25 +399,22 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
             }
 
             mMnsClient = mnsClient;
-            mObserver = new BluetoothMapContentObserver(mContext, mMnsClient, this, mAccount,
-                    mEnableSmsMms);
+            mObserver =
+                    new BluetoothMapContentObserver(
+                            mContext, mMnsClient, this, mAccount, mEnableSmsMms);
             mObserver.init();
             mMapServer =
-                    new BluetoothMapObexServer(mServiceHandler, mContext, mObserver, this, mAccount,
-                            mEnableSmsMms);
+                    new BluetoothMapObexServer(
+                            mServiceHandler, mContext, mObserver, this, mAccount, mEnableSmsMms);
             mMapServer.setRemoteFeatureMask(mRemoteFeatureMask);
             // setup transport
             BluetoothObexTransport transport = new BluetoothObexTransport(mConnSocket);
             mServerSession = new ServerSession(transport, mMapServer, null);
-            if (D) {
-                Log.d(mTag, "    ServerSession started.");
-            }
+            debug("    ServerSession started.");
 
             return true;
         }
-        if (D) {
-            Log.d(mTag, "    No connection for this instance");
-        }
+        debug("    No connection for this instance");
         return false;
     }
 
@@ -430,6 +427,7 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
 
     /**
      * Check if this instance is started.
+     *
      * @return true if started
      */
     public boolean isStarted() {
@@ -437,9 +435,7 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
     }
 
     public void shutdown() {
-        if (D) {
-            Log.d(mTag, "MAP Service shutdown");
-        }
+        debug("MAP Service shutdown");
 
         if (mServerSession != null) {
             mServerSession.close();
@@ -458,16 +454,11 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
         closeServerSockets(false);
     }
 
-    /**
-     * Signal to the ServerSockets handler that a new connection may be accepted.
-     */
+    /** Signal to the ServerSockets handler that a new connection may be accepted. */
     public void restartObexServerSession() {
-        if (D) {
-            Log.d(mTag, "MAP Service restartObexServerSession()");
-        }
+        debug("MAP Service restartObexServerSession()");
         startSocketListeners();
     }
-
 
     private synchronized void closeServerSockets(boolean block) {
         // exit SocketAcceptThread early
@@ -483,7 +474,12 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
             try {
                 mConnSocket.close();
             } catch (IOException e) {
-                Log.e(mTag, "Close Connection Socket error: ", e);
+                ContentProfileErrorReportUtils.report(
+                        BluetoothProfile.MAP,
+                        BluetoothProtoEnums.BLUETOOTH_MAP_MAS_INSTANCE,
+                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                        1);
+                error("Close Connection Socket error: ", e);
             } finally {
                 mConnSocket = null;
             }
@@ -491,17 +487,13 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
     }
 
     public void setRemoteFeatureMask(int supportedFeatures) {
-        if (V) {
-            Log.v(mTag, "setRemoteFeatureMask : Curr: " + mRemoteFeatureMask);
-        }
+        verbose("setRemoteFeatureMask : Curr: " + mRemoteFeatureMask);
         mRemoteFeatureMask = supportedFeatures & sFeatureMask;
         BluetoothMapUtils.savePeerSupportUtcTimeStamp(mRemoteFeatureMask);
         if (mObserver != null) {
             mObserver.setObserverRemoteFeatureMask(mRemoteFeatureMask);
             mMapServer.setRemoteFeatureMask(mRemoteFeatureMask);
-            if (V) {
-                Log.v(mTag, "setRemoteFeatureMask : set: " + mRemoteFeatureMask);
-            }
+            verbose("setRemoteFeatureMask : set: " + mRemoteFeatureMask);
         }
     }
 
@@ -523,7 +515,6 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
         boolean isValid = mMapService.onConnect(device, BluetoothMapMasInstance.this);
 
         if (isValid) {
-            mRemoteDevice = device;
             mConnSocket = socket;
             mAcceptNewConnections = false;
         }
@@ -532,19 +523,44 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
     }
 
     /**
-     * Called when an unrecoverable error occurred in an accept thread.
-     * Close down the server socket, and restart.
-     * TODO: Change to message, to call start in correct context.
+     * Called when an unrecoverable error occurred in an accept thread. Close down the server
+     * socket, and restart. TODO: Change to message, to call start in correct context.
      */
     @Override
     public synchronized void onAcceptFailed() {
         mServerSockets = null; // Will cause a new to be created when calling start.
         if (mShutdown) {
-            Log.e(mTag, "Failed to accept incomming connection - " + "shutdown");
+            error("Failed to accept incoming connection - shutdown");
+            ContentProfileErrorReportUtils.report(
+                    BluetoothProfile.MAP,
+                    BluetoothProtoEnums.BLUETOOTH_MAP_MAS_INSTANCE,
+                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
+                    2);
         } else {
-            Log.e(mTag, "Failed to accept incomming connection - " + "restarting");
+            error("Failed to accept incoming connection - restarting");
+            ContentProfileErrorReportUtils.report(
+                    BluetoothProfile.MAP,
+                    BluetoothProtoEnums.BLUETOOTH_MAP_MAS_INSTANCE,
+                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
+                    3);
             startSocketListeners();
         }
     }
 
+    // Per-Instance logging
+    public void verbose(String message) {
+        Log.v(TAG, "[instance=" + mObjectInstanceId + "] " + message);
+    }
+
+    public void debug(String message) {
+        Log.d(TAG, "[instance=" + mObjectInstanceId + "] " + message);
+    }
+
+    public void error(String message) {
+        Log.e(TAG, "[instance=" + mObjectInstanceId + "] " + message);
+    }
+
+    public void error(String message, Exception e) {
+        Log.e(TAG, "[instance=" + mObjectInstanceId + "] " + message, e);
+    }
 }

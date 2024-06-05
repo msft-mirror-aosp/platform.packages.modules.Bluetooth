@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include "common/bind.h"
-#include "common/callback.h"
-#include "common/i_postable_context.h"
+#include "bind.h"
+#include "callback.h"
+#include "i_postable_context.h"
 
 namespace bluetooth {
 namespace common {
@@ -40,24 +40,22 @@ class ContextualOnceCallback<R(Args...)> {
   ContextualOnceCallback(ContextualOnceCallback&&) noexcept = default;
   ContextualOnceCallback& operator=(ContextualOnceCallback&&) noexcept = default;
 
-  void Invoke(Args... args) {
+  void operator()(Args... args) {
     context_->Post(common::BindOnce(std::move(callback_), std::forward<Args>(args)...));
   }
 
-  void InvokeIfNotEmpty(Args... args) {
-    if (context_ != nullptr) {
-      context_->Post(common::BindOnce(std::move(callback_), std::forward<Args>(args)...));
-    }
-  }
-
-  bool IsEmpty() {
-    return context_ == nullptr;
+  operator bool() const {
+    return context_ && callback_;
   }
 
  private:
   common::OnceCallback<R(Args...)> callback_;
   IPostableContext* context_;
 };
+
+template <typename Callback>
+ContextualOnceCallback(Callback&& callback, IPostableContext* context)
+    -> ContextualOnceCallback<typename Callback::RunType>;
 
 template <typename R, typename... Args>
 class ContextualCallback;
@@ -76,24 +74,22 @@ class ContextualCallback<R(Args...)> {
   ContextualCallback(ContextualCallback&&) noexcept = default;
   ContextualCallback& operator=(ContextualCallback&&) noexcept = default;
 
-  void Invoke(Args... args) {
+  void operator()(Args... args) {
     context_->Post(common::BindOnce(callback_, std::forward<Args>(args)...));
   }
 
-  void InvokeIfNotEmpty(Args... args) {
-    if (context_ != nullptr) {
-      context_->Post(common::BindOnce(callback_, std::forward<Args>(args)...));
-    }
-  }
-
-  bool IsEmpty() {
-    return context_ == nullptr;
+  operator bool() const {
+    return context_ && callback_;
   }
 
  private:
   common::Callback<R(Args...)> callback_;
   IPostableContext* context_;
 };
+
+template <typename Callback>
+ContextualCallback(Callback&& callback, IPostableContext* context)
+    -> ContextualCallback<typename Callback::RunType>;
 
 }  // namespace common
 }  // namespace bluetooth

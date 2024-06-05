@@ -14,8 +14,7 @@
 
 use crate::ffi;
 use crate::packets::{hci, llcp};
-use hci::Packet as _;
-use llcp::Packet as _;
+use pdl_runtime::Packet as _;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
@@ -328,11 +327,11 @@ impl IsoManager {
     }
 
     fn send_hci_event<E: Into<hci::Event>>(&self, event: E) {
-        self.ops.send_hci_event(&event.into().to_vec())
+        self.ops.send_hci_event(&event.into().encode_to_vec().unwrap())
     }
 
     fn send_llcp_packet<P: Into<llcp::LlcpPacket>>(&self, acl_connection_handle: u16, packet: P) {
-        self.ops.send_llcp_packet(acl_connection_handle, &packet.into().to_vec())
+        self.ops.send_llcp_packet(acl_connection_handle, &packet.into().encode_to_vec().unwrap())
     }
 
     fn get_le_features(&self) -> u64 {
@@ -547,12 +546,17 @@ impl IsoManager {
         }
 
         let Some(iso_interval) = iso_interval(
-            sdu_interval_c_to_p, sdu_interval_p_to_c, framed,
+            sdu_interval_c_to_p,
+            sdu_interval_p_to_c,
+            framed,
             max_transport_latency_c_to_p as u32 * 1000,
-            max_transport_latency_p_to_c as u32 * 1000) else {
+            max_transport_latency_p_to_c as u32 * 1000,
+        ) else {
             println!(
                 "ISO_Interval cannot be chosen that fulfills the requirement from the CIG parameters");
-            return self.send_hci_event(command_complete(hci::ErrorCode::UnsupportedFeatureOrParameterValue));
+            return self.send_hci_event(command_complete(
+                hci::ErrorCode::UnsupportedFeatureOrParameterValue,
+            ));
         };
 
         // If the Status return parameter is non-zero, then the state of the CIG

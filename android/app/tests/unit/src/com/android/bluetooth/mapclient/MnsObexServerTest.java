@@ -17,18 +17,12 @@
 package com.android.bluetooth.mapclient;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import android.os.Handler;
-
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -36,37 +30,35 @@ import com.android.obex.HeaderSet;
 import com.android.obex.Operation;
 import com.android.obex.ResponseCodes;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
-import java.io.IOException;
-import java.io.OutputStream;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class MnsObexServerTest {
 
-    @Mock
-    MceStateMachine mStateMachine;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock MceStateMachine mStateMachine;
 
     MnsObexServer mServer;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
-        mServer = new MnsObexServer(mStateMachine, null);
+        mServer = new MnsObexServer(mStateMachine);
     }
 
     @Test
     public void onConnect_whenUuidIsWrong() {
-        byte[] wrongUuid = new byte[]{};
+        byte[] wrongUuid = new byte[] {};
         HeaderSet request = new HeaderSet();
         request.setHeader(HeaderSet.TARGET, wrongUuid);
         HeaderSet reply = new HeaderSet();
@@ -122,14 +114,15 @@ public class MnsObexServerTest {
         xml.append("    old_folder=\"test_old_folder\"\n");
         xml.append("    msg_type=\"MMS\"\n");
         xml.append("/>\n");
-        DataInputStream stream = new DataInputStream(
-                new ByteArrayInputStream(xml.toString().getBytes()));
+        DataInputStream stream =
+                new DataInputStream(new ByteArrayInputStream(xml.toString().getBytes()));
 
-        byte[] applicationParameter = new byte[] {
-                Request.OAP_TAGID_MAS_INSTANCE_ID,
-                1, // length in byte
-                (byte) 55
-        };
+        byte[] applicationParameter =
+                new byte[] {
+                    Request.OAP_TAGID_MAS_INSTANCE_ID,
+                    1, // length in byte
+                    (byte) 55
+                };
 
         HeaderSet headerSet = new HeaderSet();
         headerSet.setHeader(HeaderSet.TYPE, MnsObexServer.TYPE);

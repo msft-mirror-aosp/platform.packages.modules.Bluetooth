@@ -16,8 +16,9 @@
 
 #include "distance_measurement_manager.h"
 
+#include "bta/include/bta_ras_api.h"
 #include "btif/include/btif_common.h"
-#include "gd/hci/distance_measurement_manager.h"
+#include "hci/distance_measurement_manager.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
 
@@ -26,7 +27,9 @@ using bluetooth::hci::DistanceMeasurementMethod;
 
 class DistanceMeasurementInterfaceImpl
     : public DistanceMeasurementInterface,
-      public bluetooth::hci::DistanceMeasurementCallbacks {
+      public bluetooth::hci::DistanceMeasurementCallbacks,
+      public bluetooth::ras::RasServerCallbacks,
+      public bluetooth::ras::RasClientCallbacks {
  public:
   ~DistanceMeasurementInterfaceImpl() override{};
 
@@ -34,6 +37,8 @@ class DistanceMeasurementInterfaceImpl
     // Register callback
     bluetooth::shim::GetDistanceMeasurementManager()
         ->RegisterDistanceMeasurementCallbacks(this);
+    bluetooth::ras::GetRasServer()->RegisterCallbacks(this);
+    bluetooth::ras::GetRasClient()->RegisterCallbacks(this);
   }
 
   void RegisterDistanceMeasurementCallbacks(
@@ -41,11 +46,12 @@ class DistanceMeasurementInterfaceImpl
     distance_measurement_callbacks_ = callbacks;
   }
 
-  void StartDistanceMeasurement(RawAddress raw_address, uint16_t frequency,
+  void StartDistanceMeasurement(RawAddress raw_address, uint16_t interval,
                                 uint8_t method) {
     bluetooth::shim::GetDistanceMeasurementManager()->StartDistanceMeasurement(
-        bluetooth::ToGdAddress(raw_address), frequency,
+        bluetooth::ToGdAddress(raw_address), interval,
         static_cast<DistanceMeasurementMethod>(method));
+    bluetooth::ras::GetRasClient()->Connect(raw_address);
   }
 
   void StopDistanceMeasurement(RawAddress raw_address, uint8_t method) {
@@ -54,6 +60,7 @@ class DistanceMeasurementInterfaceImpl
         static_cast<DistanceMeasurementMethod>(method));
   }
 
+  // Callbacks of bluetooth::hci::DistanceMeasurementCallbacks
   void OnDistanceMeasurementStarted(bluetooth::hci::Address address,
                                     DistanceMeasurementMethod method) override {
     do_in_jni_thread(
@@ -102,6 +109,111 @@ class DistanceMeasurementInterfaceImpl
             bluetooth::ToRawAddress(address), centimeter, error_centimeter,
             azimuth_angle, error_azimuth_angle, altitude_angle,
             error_altitude_angle, static_cast<uint8_t>(method)));
+  }
+
+  void OnRasFragmentReady(bluetooth::hci::Address address,
+                          uint16_t procedure_counter, bool is_last,
+                          std::vector<uint8_t> raw_data) {
+    bluetooth::ras::GetRasServer()->PushProcedureData(
+        bluetooth::ToRawAddress(address), procedure_counter, is_last, raw_data);
+  }
+
+  void OnVendorSpecificCharacteristics(
+      std::vector<bluetooth::hal::VendorSpecificCharacteristic>
+          vendor_specific_characteristics) {
+    std::vector<bluetooth::ras::VendorSpecificCharacteristic>
+        ras_vendor_specific_characteristics;
+    for (auto& characteristic : vendor_specific_characteristics) {
+      bluetooth::ras::VendorSpecificCharacteristic
+          vendor_specific_characteristic;
+      vendor_specific_characteristic.characteristicUuid_ =
+          bluetooth::Uuid::From128BitBE(characteristic.characteristicUuid_);
+      vendor_specific_characteristic.value_ = characteristic.value_;
+      ras_vendor_specific_characteristics.emplace_back(
+          vendor_specific_characteristic);
+    }
+    bluetooth::ras::GetRasServer()->SetVendorSpecificCharacteristic(
+        ras_vendor_specific_characteristics);
+  }
+
+  void OnVendorSpecificReply(
+      bluetooth::hci::Address address,
+      std::vector<bluetooth::hal::VendorSpecificCharacteristic>
+          vendor_specific_characteristics) {
+    std::vector<bluetooth::ras::VendorSpecificCharacteristic>
+        ras_vendor_specific_characteristics;
+    for (auto& characteristic : vendor_specific_characteristics) {
+      bluetooth::ras::VendorSpecificCharacteristic
+          vendor_specific_characteristic;
+      vendor_specific_characteristic.characteristicUuid_ =
+          bluetooth::Uuid::From128BitBE(characteristic.characteristicUuid_);
+      vendor_specific_characteristic.value_ = characteristic.value_;
+      ras_vendor_specific_characteristics.emplace_back(
+          vendor_specific_characteristic);
+    }
+    bluetooth::ras::GetRasClient()->SendVendorSpecificReply(
+        bluetooth::ToRawAddress(address), ras_vendor_specific_characteristics);
+  }
+
+  void OnHandleVendorSpecificReplyComplete(bluetooth::hci::Address address,
+                                           bool success) {
+    bluetooth::ras::GetRasServer()->HandleVendorSpecificReplyComplete(
+        bluetooth::ToRawAddress(address), success);
+  };
+
+  // Callbacks of bluetooth::ras::RasServerCallbacks
+  void OnVendorSpecificReply(
+      const RawAddress& address,
+      const std::vector<bluetooth::ras::VendorSpecificCharacteristic>&
+          vendor_specific_reply) {
+    std::vector<bluetooth::hal::VendorSpecificCharacteristic>
+        hal_vendor_specific_characteristics;
+    for (auto& characteristic : vendor_specific_reply) {
+      bluetooth::hal::VendorSpecificCharacteristic
+          vendor_specific_characteristic;
+      vendor_specific_characteristic.characteristicUuid_ =
+          characteristic.characteristicUuid_.To128BitBE();
+      vendor_specific_characteristic.value_ = characteristic.reply_value_;
+      hal_vendor_specific_characteristics.emplace_back(
+          vendor_specific_characteristic);
+    }
+    bluetooth::shim::GetDistanceMeasurementManager()->HandleVendorSpecificReply(
+        bluetooth::ToGdAddress(address), hal_vendor_specific_characteristics);
+  }
+
+  // Callbacks of bluetooth::ras::RasClientCallbacks
+  void OnConnected(
+      const RawAddress& address, uint16_t att_handle,
+      const std::vector<bluetooth::ras::VendorSpecificCharacteristic>&
+          vendor_specific_characteristics) {
+    std::vector<bluetooth::hal::VendorSpecificCharacteristic>
+        hal_vendor_specific_characteristics;
+    for (auto& characteristic : vendor_specific_characteristics) {
+      bluetooth::hal::VendorSpecificCharacteristic
+          vendor_specific_characteristic;
+      vendor_specific_characteristic.characteristicUuid_ =
+          characteristic.characteristicUuid_.To128BitBE();
+      vendor_specific_characteristic.value_ = characteristic.value_;
+      hal_vendor_specific_characteristics.emplace_back(
+          vendor_specific_characteristic);
+    }
+
+    bluetooth::shim::GetDistanceMeasurementManager()->HandleRasConnectedEvent(
+        bluetooth::ToGdAddress(address), att_handle,
+        hal_vendor_specific_characteristics);
+  }
+
+  void OnWriteVendorSpecificReplyComplete(const RawAddress& address,
+                                          bool success) {
+    bluetooth::shim::GetDistanceMeasurementManager()
+        ->HandleVendorSpecificReplyComplete(bluetooth::ToGdAddress(address),
+                                            success);
+  }
+
+  void OnRemoteData(const RawAddress& address,
+                    const std::vector<uint8_t>& data) {
+    bluetooth::shim::GetDistanceMeasurementManager()->HandleRemoteData(
+        bluetooth::ToGdAddress(address), data);
   }
 
  private:

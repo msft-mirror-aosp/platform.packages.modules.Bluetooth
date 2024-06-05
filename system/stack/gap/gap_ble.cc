@@ -16,25 +16,26 @@
  *
  ******************************************************************************/
 
-#include <base/logging.h>
-#include <base/strings/stringprintf.h>
+#include <bluetooth/log.h>
 #include <string.h>
 
 #include <array>
-#include <list>
 #include <queue>
 
+#include "common/init_flags.h"
 #include "gap_api.h"
 #include "gatt_api.h"
-#include "main/shim/dumpsys.h"
-#include "osi/include/log.h"
+#include "hardware/bt_gatt_types.h"
+#include "os/log.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/bt_uuid16.h"
+#include "stack/include/btm_client_interface.h"
 #include "types/bluetooth/uuid.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
-using base::StringPrintf;
 using bluetooth::Uuid;
+using namespace bluetooth;
 
 namespace {
 
@@ -139,7 +140,10 @@ tGATT_STATUS read_attr_value(uint16_t handle, tGATT_VALUE* p_value,
 
       switch (db_attr.uuid) {
         case GATT_UUID_GAP_DEVICE_NAME:
-          BTM_ReadLocalDeviceName((const char**)&p_dev_name);
+          if (get_btm_client_interface().local.BTM_ReadLocalDeviceName(
+                  (const char**)&p_dev_name) != BTM_SUCCESS) {
+            log::warn("Unable to read local device name");
+          };
           if (strlen((char*)p_dev_name) > GATT_MAX_ATTR_LEN)
             p_value->len = GATT_MAX_ATTR_LEN;
           else
@@ -151,7 +155,6 @@ tGATT_STATUS read_attr_value(uint16_t handle, tGATT_VALUE* p_value,
             p_value->len -= offset;
             p_dev_name += offset;
             ARRAY_TO_STREAM(p, p_dev_name, p_value->len);
-            DVLOG(1) << "GATT_UUID_GAP_DEVICE_NAME len=" << +p_value->len;
           }
           break;
 
@@ -204,8 +207,6 @@ void server_attr_request_cback(uint16_t conn_id, uint32_t trans_id,
   tGATT_STATUS status = GATT_INVALID_PDU;
   bool ignore = false;
 
-  DVLOG(1) << StringPrintf("%s: recv type (0x%02x)", __func__, type);
-
   tGATTS_RSP rsp_msg;
   memset(&rsp_msg, 0, sizeof(tGATTS_RSP));
 
@@ -224,21 +225,24 @@ void server_attr_request_cback(uint16_t conn_id, uint32_t trans_id,
 
     case GATTS_REQ_TYPE_WRITE_EXEC:
       ignore = true;
-      DVLOG(1) << "Ignore GATTS_REQ_TYPE_WRITE_EXEC";
+      log::verbose("Ignore GATTS_REQ_TYPE_WRITE_EXEC");
       break;
 
     case GATTS_REQ_TYPE_MTU:
-      DVLOG(1) << "Get MTU exchange new mtu size: " << +p_data->mtu;
+      log::verbose("Get MTU exchange new mtu size: {}", p_data->mtu);
       ignore = true;
       break;
 
     default:
-      DVLOG(1) << StringPrintf("Unknown/unexpected LE GAP ATT request: 0x%02x",
-                               type);
+      log::verbose("Unknown/unexpected LE GAP ATT request: 0x{:02x}", type);
       break;
   }
 
-  if (!ignore) GATTS_SendRsp(conn_id, trans_id, status, &rsp_msg);
+  if (!ignore) {
+    if (GATTS_SendRsp(conn_id, trans_id, status, &rsp_msg) != GATT_SUCCESS) {
+      log::warn("Unable to send GATT ervier response conn_id:{}", conn_id);
+    }
+  }
 }
 
 /**
@@ -275,20 +279,19 @@ void cl_op_cmpl(tGAP_CLCB& clcb, bool status, uint16_t len, uint8_t* p_name) {
   tGAP_BLE_CMPL_CBACK* p_cback = clcb.p_cback;
   uint16_t op = clcb.cl_op_uuid;
 
-  DVLOG(1) << StringPrintf("%s: status: %d", __func__, status);
-
   clcb.cl_op_uuid = 0;
   clcb.p_cback = NULL;
 
   if (p_cback && op) {
-    DVLOG(1) << __func__ << ": calling";
     (*p_cback)(status, clcb.bda, len, (char*)p_name);
   }
 
   /* if no further activity is requested in callback, drop the link */
   if (clcb.connected) {
     if (!send_cl_read_request(clcb)) {
-      GATT_Disconnect(clcb.conn_id);
+      if (GATT_Disconnect(clcb.conn_id) != GATT_SUCCESS) {
+        log::warn("Unable to disconnect GATT conn_id:{}", clcb.conn_id);
+      }
       clcb_dealloc(clcb);
     }
   }
@@ -296,23 +299,23 @@ void cl_op_cmpl(tGAP_CLCB& clcb, bool status, uint16_t len, uint8_t* p_name) {
 
 /** Client connection callback */
 void client_connect_cback(tGATT_IF, const RawAddress& bda, uint16_t conn_id,
-                          bool connected, tGATT_DISCONN_REASON reason,
+                          bool connected, tGATT_DISCONN_REASON /* reason */,
                           tBT_TRANSPORT) {
   tGAP_CLCB* p_clcb = find_clcb_by_bd_addr(bda);
   if (p_clcb == NULL) {
-    LOG_INFO("No active GAP service found for peer:%s callback:%s",
-             ADDRESS_TO_LOGGABLE_CSTR(bda), (connected) ? "Connected" : "Disconnected");
+    log::info("No active GAP service found for peer:{} callback:{}", bda,
+              (connected) ? "Connected" : "Disconnected");
     return;
   }
 
   if (connected) {
-    LOG_DEBUG("Connected GAP to remote device");
+    log::debug("Connected GAP to remote device");
     p_clcb->conn_id = conn_id;
     p_clcb->connected = true;
     /* start operation is pending */
     send_cl_read_request(*p_clcb);
   } else {
-    LOG_WARN("Disconnected GAP from remote device");
+    log::warn("Disconnected GAP from remote device");
     p_clcb->connected = false;
     cl_op_cmpl(*p_clcb, false, 0, NULL);
     /* clean up clcb */
@@ -333,9 +336,6 @@ void client_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
 
   op_type = p_clcb->cl_op_uuid;
 
-  DVLOG(1) << StringPrintf(
-      "%s: - op_code: 0x%02x  status: 0x%02x  read_type: 0x%04x", __func__, op,
-      status, op_type);
   /* Currently we only issue read commands */
   if (op != GATTC_OPTYPE_READ) return;
 
@@ -379,9 +379,6 @@ bool accept_client_operation(const RawAddress& peer_bda, uint16_t uuid,
     p_clcb = clcb_alloc(peer_bda);
   }
 
-  DVLOG(1) << __func__ << ": BDA: " << ADDRESS_TO_LOGGABLE_STR(peer_bda)
-           << StringPrintf(" cl_op_uuid: 0x%04x", uuid);
-
   if (GATT_GetConnIdIfConnected(gatt_if, peer_bda, &p_clcb->conn_id,
                                 BT_TRANSPORT_LE))
     p_clcb->connected = true;
@@ -411,8 +408,6 @@ bool accept_client_operation(const RawAddress& peer_bda, uint16_t uuid,
  *
  ******************************************************************************/
 void gap_attr_db_init(void) {
-  uint16_t service_handle;
-
   /* Fill our internal UUID with a fixed pattern 0x82 */
   std::array<uint8_t, Uuid::kNumBytes128> tmp;
   tmp.fill(0x82);
@@ -455,11 +450,11 @@ void gap_attr_db_init(void) {
   };
 
   /* Add a GAP service */
-  GATTS_AddService(gatt_if, service,
-                   sizeof(service) / sizeof(btgatt_db_element_t));
-  service_handle = service[0].attribute_handle;
-
-  DVLOG(1) << __func__ << ": service_handle = " << +service_handle;
+  if (GATTS_AddService(gatt_if, service,
+                       sizeof(service) / sizeof(btgatt_db_element_t)) !=
+      GATT_SERVICE_STARTED) {
+    log::warn("Unable to add GATT services gatt_if:{}", gatt_if);
+  }
 
   gatt_attr[0].uuid = GATT_UUID_GAP_DEVICE_NAME;
   gatt_attr[0].handle = service[1].attribute_handle;
@@ -491,12 +486,8 @@ void gap_attr_db_init(void) {
  *
  ******************************************************************************/
 void GAP_BleAttrDBUpdate(uint16_t attr_uuid, tGAP_BLE_ATTR_VALUE* p_value) {
-  DVLOG(1) << StringPrintf("%s: attr_uuid=0x%04x", __func__, attr_uuid);
-
   for (tGAP_ATTR& db_attr : gatt_attr) {
     if (db_attr.uuid == attr_uuid) {
-      DVLOG(1) << StringPrintf("Found attr_uuid=0x%04x", attr_uuid);
-
       switch (attr_uuid) {
         case GATT_UUID_GAP_ICON:
           db_attr.attr_value.icon = p_value->icon;
@@ -509,7 +500,10 @@ void GAP_BleAttrDBUpdate(uint16_t attr_uuid, tGAP_BLE_ATTR_VALUE* p_value) {
           break;
 
         case GATT_UUID_GAP_DEVICE_NAME:
-          BTM_SetLocalDeviceName((const char*)p_value->p_dev_name);
+          if (get_btm_client_interface().local.BTM_SetLocalDeviceName(
+                  (const char*)p_value->p_dev_name) != BTM_SUCCESS) {
+            log::warn("Unable to set local name");
+          }
           break;
 
         case GATT_UUID_GAP_CENTRAL_ADDR_RESOL:
@@ -564,18 +558,14 @@ bool GAP_BleReadPeerDevName(const RawAddress& peer_bda,
 bool GAP_BleCancelReadPeerDevName(const RawAddress& peer_bda) {
   tGAP_CLCB* p_clcb = find_clcb_by_bd_addr(peer_bda);
 
-  DVLOG(1) << __func__ << ": BDA: " << ADDRESS_TO_LOGGABLE_STR(peer_bda)
-           << StringPrintf(" cl_op_uuid: 0x%04x",
-                           (p_clcb == NULL) ? 0 : p_clcb->cl_op_uuid);
-
   if (p_clcb == NULL) {
-    LOG(ERROR) << "Cannot cancel current op is not get dev name";
+    log::error("Cannot cancel current op is not get dev name");
     return false;
   }
 
   if (!p_clcb->connected) {
     if (!GATT_CancelConnect(gatt_if, peer_bda, true)) {
-      LOG(ERROR) << "Cannot cancel where No connection id";
+      log::error("Cannot cancel where No connection id");
       return false;
     }
   }

@@ -16,83 +16,63 @@
 
 #include <base/functional/bind.h>
 #include <base/location.h>
+#include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
+#include <flag_macros.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <chrono>
-#include <iostream>
-#include <memory>
 #include <string>
 
+#include "bta/dm/bta_dm_device_search.h"
+#include "bta/dm/bta_dm_device_search_int.h"
+#include "bta/dm/bta_dm_disc.h"
 #include "bta/dm/bta_dm_int.h"
+#include "bta/dm/bta_dm_pm.cc"
+#include "bta/dm/bta_dm_sec_int.h"
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/include/bta_api.h"
-#include "bta/include/bta_dm_api.h"
-#include "bta/include/bta_hf_client_api.h"
-#include "btif/include/stack_manager.h"
-#include "common/message_loop_thread.h"
+#include "bta/test/bta_test_fixtures.h"
 #include "osi/include/compat.h"
-#include "stack/include/bt_dev_class.h"
-#include "stack/include/bt_device_type.h"
-#include "stack/include/bt_name.h"
+#include "osi/include/osi.h"
 #include "stack/include/btm_status.h"
 #include "test/common/main_handler.h"
 #include "test/common/mock_functions.h"
-#include "test/fake/fake_osi.h"
 #include "test/mock/mock_osi_alarm.h"
 #include "test/mock/mock_osi_allocator.h"
+#include "test/mock/mock_osi_properties.h"
 #include "test/mock/mock_stack_acl.h"
-#include "test/mock/mock_stack_btm.h"
-#include "test/mock/mock_stack_btm_ble.h"
-#include "test/mock/mock_stack_btm_inq.h"
-#include "test/mock/mock_stack_btm_sec.h"
-#include "types/ble_address_with_type.h"
+#include "test/mock/mock_stack_btm_interface.h"
+
+#define TEST_BT com::android::bluetooth::flags
 
 using namespace std::chrono_literals;
-using ::testing::ElementsAre;
-
-namespace base {
-class MessageLoop;
-}  // namespace base
+using namespace bluetooth;
 
 namespace {
 constexpr uint8_t kUnusedTimer = BTA_ID_MAX;
 const RawAddress kRawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
 const RawAddress kRawAddress2({0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc});
-const DEV_CLASS kDeviceClass = {0x11, 0x22, 0x33};
 
 constexpr char kRemoteName[] = "TheRemoteName";
 
-bool bta_dm_search_sm_execute(const BT_HDR_RIGID* p_msg) { return true; }
-void bta_dm_search_sm_disable() { bta_sys_deregister(BTA_ID_DM_SEARCH); }
-
-const tBTA_SYS_REG bta_dm_search_reg = {bta_dm_search_sm_execute,
-                                        bta_dm_search_sm_disable};
-
 }  // namespace
 
-namespace bluetooth {
-namespace legacy {
-namespace testing {
+namespace bluetooth::legacy::testing {
 
+tBTA_DM_SEARCH_CB& bta_dm_disc_search_cb();
 void bta_dm_deinit_cb();
 void bta_dm_init_cb();
-void bta_dm_remote_name_cmpl(const tBTA_DM_MSG* p_data);
+void bta_dm_remote_name_cmpl(const tBTA_DM_REMOTE_NAME& remote_name_msg);
 
-}  // namespace testing
-}  // namespace legacy
-}  // namespace bluetooth
+}  // namespace bluetooth::legacy::testing
 
-class BtaDmTest : public testing::Test {
+class BtaDmTest : public BtaWithContextTest {
  protected:
   void SetUp() override {
-    reset_mock_function_count_map();
-    fake_osi_ = std::make_unique<test::fake::FakeOsi>();
+    BtaWithContextTest::SetUp();
 
-    main_thread_start_up();
-    post_on_bt_main([]() { LOG_INFO("Main thread started up"); });
-
-    bta_sys_register(BTA_ID_DM_SEARCH, &bta_dm_search_reg);
+    BTA_dm_init();
     bluetooth::legacy::testing::bta_dm_init_cb();
 
     for (int i = 0; i < BTA_DM_NUM_PM_TIMER; i++) {
@@ -102,14 +82,9 @@ class BtaDmTest : public testing::Test {
     }
   }
   void TearDown() override {
-    bta_sys_deregister(BTA_ID_DM_SEARCH);
     bluetooth::legacy::testing::bta_dm_deinit_cb();
-    post_on_bt_main([]() { LOG_INFO("Main thread shutting down"); });
-    main_thread_shut_down();
-    btm_client_interface = {};
+    BtaWithContextTest::TearDown();
   }
-
-  std::unique_ptr<test::fake::FakeOsi> fake_osi_;
 };
 
 class BtaDmCustomAlarmTest : public BtaDmTest {
@@ -224,9 +199,9 @@ void bta_dm_remname_cback(const tBTM_REMOTE_DEV_NAME* p);
 tBT_TRANSPORT bta_dm_determine_discovery_transport(
     const RawAddress& remote_bd_addr);
 
-void btm_set_local_io_caps(uint8_t io_caps);
-
 tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data);
+
+void BTA_dm_on_hw_on();
 
 }  // namespace testing
 }  // namespace legacy
@@ -246,7 +221,7 @@ TEST_F(BtaDmTest, bta_dm_set_encryption) {
   tBTA_DM_PEER_DEVICE* device =
       bluetooth::legacy::testing::allocate_device_for(kRawAddress, transport);
   ASSERT_TRUE(device != nullptr);
-  device->conn_state = BTA_DM_CONNECTED;
+  device->conn_state = tBTA_DM_CONN_STATE::BTA_DM_CONNECTED;
   device->p_encrypt_cback = nullptr;
 
   // Setup a device that is busy with another encryption
@@ -261,10 +236,11 @@ TEST_F(BtaDmTest, bta_dm_set_encryption) {
   device->p_encrypt_cback = nullptr;
 
   // Setup a device that fails encryption
-  test::mock::stack_btm_sec::BTM_SetEncryption.body =
+  mock_btm_client_interface.security.BTM_SetEncryption =
       [](const RawAddress& bd_addr, tBT_TRANSPORT transport,
          tBTM_SEC_CALLBACK* p_callback, void* p_ref_data,
          tBTM_BLE_SEC_ACT sec_act) -> tBTM_STATUS {
+    inc_func_call_count("BTM_SetEncryption");
     return BTM_MODE_UNSUPPORTED;
   };
 
@@ -274,22 +250,24 @@ TEST_F(BtaDmTest, bta_dm_set_encryption) {
   device->p_encrypt_cback = nullptr;
 
   // Setup a device that successfully starts encryption
-  test::mock::stack_btm_sec::BTM_SetEncryption.body =
+  mock_btm_client_interface.security.BTM_SetEncryption =
       [](const RawAddress& bd_addr, tBT_TRANSPORT transport,
          tBTM_SEC_CALLBACK* p_callback, void* p_ref_data,
-         tBTM_BLE_SEC_ACT sec_act) -> tBTM_STATUS { return BTM_CMD_STARTED; };
+         tBTM_BLE_SEC_ACT sec_act) -> tBTM_STATUS {
+    inc_func_call_count("BTM_SetEncryption");
+    return BTM_CMD_STARTED;
+  };
 
   bta_dm_set_encryption(kRawAddress, transport, BTA_DM_ENCRYPT_CBACK, sec_act);
   ASSERT_EQ(2, get_func_call_count("BTM_SetEncryption"));
   ASSERT_EQ(0UL, BTA_DM_ENCRYPT_CBACK_queue.size());
   ASSERT_NE(nullptr, device->p_encrypt_cback);
 
-  test::mock::stack_btm_sec::BTM_SetEncryption = {};
   BTA_DM_ENCRYPT_CBACK_queue = {};
 }
 
 void bta_dm_encrypt_cback(const RawAddress* bd_addr, tBT_TRANSPORT transport,
-                          UNUSED_ATTR void* p_ref_data, tBTM_STATUS result);
+                          void* /* p_ref_data */, tBTM_STATUS result);
 
 TEST_F(BtaDmTest, bta_dm_encrypt_cback) {
   const tBT_TRANSPORT transport{BT_TRANSPORT_LE};
@@ -298,7 +276,7 @@ TEST_F(BtaDmTest, bta_dm_encrypt_cback) {
   tBTA_DM_PEER_DEVICE* device =
       bluetooth::legacy::testing::allocate_device_for(kRawAddress, transport);
   ASSERT_TRUE(device != nullptr);
-  device->conn_state = BTA_DM_CONNECTED;
+  device->conn_state = tBTA_DM_CONN_STATE::BTA_DM_CONNECTED;
 
   // Encryption with no callback set
   device->p_encrypt_cback = nullptr;
@@ -336,155 +314,75 @@ TEST_F(BtaDmTest, bta_dm_encrypt_cback) {
   ASSERT_EQ(BTA_FAILURE, params_BTM_ILLEGAL_VALUE.result);
 }
 
-TEST_F(BtaDmTest, bta_dm_event_text) {
-  std::vector<std::pair<tBTA_DM_EVT, std::string>> events = {
-      std::make_pair(BTA_DM_API_SEARCH_EVT, "BTA_DM_API_SEARCH_EVT"),
-      std::make_pair(BTA_DM_API_DISCOVER_EVT, "BTA_DM_API_DISCOVER_EVT"),
-      std::make_pair(BTA_DM_INQUIRY_CMPL_EVT, "BTA_DM_INQUIRY_CMPL_EVT"),
-      std::make_pair(BTA_DM_REMT_NAME_EVT, "BTA_DM_REMT_NAME_EVT"),
-      std::make_pair(BTA_DM_SDP_RESULT_EVT, "BTA_DM_SDP_RESULT_EVT"),
-      std::make_pair(BTA_DM_SEARCH_CMPL_EVT, "BTA_DM_SEARCH_CMPL_EVT"),
-      std::make_pair(BTA_DM_DISCOVERY_RESULT_EVT,
-                     "BTA_DM_DISCOVERY_RESULT_EVT"),
-      std::make_pair(BTA_DM_DISC_CLOSE_TOUT_EVT, "BTA_DM_DISC_CLOSE_TOUT_EVT"),
-  };
-  for (const auto& event : events) {
-    ASSERT_STREQ(event.second.c_str(), bta_dm_event_text(event.first).c_str());
-  }
-  ASSERT_STREQ(base::StringPrintf("UNKNOWN[0x%04x]",
-                                  std::numeric_limits<uint16_t>::max())
-                   .c_str(),
-               bta_dm_event_text(static_cast<tBTA_DM_EVT>(
-                                     std::numeric_limits<uint16_t>::max()))
-                   .c_str());
-}
-
-TEST_F(BtaDmTest, bta_dm_state_text) {
-  std::vector<std::pair<tBTA_DM_STATE, std::string>> states = {
-      std::make_pair(BTA_DM_SEARCH_IDLE, "BTA_DM_SEARCH_IDLE"),
-      std::make_pair(BTA_DM_SEARCH_ACTIVE, "BTA_DM_SEARCH_ACTIVE"),
-      std::make_pair(BTA_DM_SEARCH_CANCELLING, "BTA_DM_SEARCH_CANCELLING"),
-      std::make_pair(BTA_DM_DISCOVER_ACTIVE, "BTA_DM_DISCOVER_ACTIVE"),
-  };
-  for (const auto& state : states) {
-    ASSERT_STREQ(state.second.c_str(), bta_dm_state_text(state.first).c_str());
-  }
-  auto unknown =
-      base::StringPrintf("UNKNOWN[%d]", std::numeric_limits<int>::max());
-  ASSERT_STREQ(unknown.c_str(),
-               bta_dm_state_text(
-                   static_cast<tBTA_DM_STATE>(std::numeric_limits<int>::max()))
-                   .c_str());
-}
-
 TEST_F(BtaDmTest, bta_dm_remname_cback__typical) {
-  bta_dm_search_cb = {
-      .peer_bdaddr = kRawAddress,
-      .name_discover_done = false,
-  };
+  tBTA_DM_SEARCH_CB& search_cb =
+      bluetooth::legacy::testing::bta_dm_disc_search_cb();
+  search_cb.peer_bdaddr = kRawAddress;
+  search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
       .status = BTM_SUCCESS,
       .bd_addr = kRawAddress,
-      .length = static_cast<uint16_t>(strlen(kRemoteName)),
       .remote_bd_name = {},
       .hci_status = HCI_SUCCESS,
   };
-  strlcpy(reinterpret_cast<char*>(&name.remote_bd_name), kRemoteName,
-          strlen(kRemoteName));
+  bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);
 
-  btm_client_interface.security.BTM_SecDeleteRmtNameNotifyCallback =
-      [](tBTM_RMT_NAME_CALLBACK*) -> bool {
-    inc_func_call_count("BTM_SecDeleteRmtNameNotifyCallback");
-    return true;
-  };
   bluetooth::legacy::testing::bta_dm_remname_cback(&name);
 
   sync_main_handler();
 
-  ASSERT_EQ(1, get_func_call_count("BTM_SecDeleteRmtNameNotifyCallback"));
-  ASSERT_TRUE(bta_dm_search_cb.name_discover_done);
+  ASSERT_TRUE(
+      bluetooth::legacy::testing::bta_dm_disc_search_cb().name_discover_done);
 }
 
 TEST_F(BtaDmTest, bta_dm_remname_cback__wrong_address) {
-  bta_dm_search_cb = {
-      .peer_bdaddr = kRawAddress,
-      .name_discover_done = false,
-  };
+  tBTA_DM_SEARCH_CB& search_cb =
+      bluetooth::legacy::testing::bta_dm_disc_search_cb();
+  search_cb.p_device_search_cback = nullptr;
+  search_cb.peer_bdaddr = kRawAddress;
+  search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
       .status = BTM_SUCCESS,
       .bd_addr = kRawAddress2,
-      .length = static_cast<uint16_t>(strlen(kRemoteName)),
       .remote_bd_name = {},
       .hci_status = HCI_SUCCESS,
   };
-  strlcpy(reinterpret_cast<char*>(&name.remote_bd_name), kRemoteName,
-          strlen(kRemoteName));
+  bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);
 
-  btm_client_interface.security.BTM_SecDeleteRmtNameNotifyCallback =
-      [](tBTM_RMT_NAME_CALLBACK*) -> bool {
-    inc_func_call_count("BTM_SecDeleteRmtNameNotifyCallback");
-    return true;
-  };
   bluetooth::legacy::testing::bta_dm_remname_cback(&name);
 
   sync_main_handler();
-
-  ASSERT_EQ(0, get_func_call_count("BTM_SecDeleteRmtNameNotifyCallback"));
-  ASSERT_FALSE(bta_dm_search_cb.name_discover_done);
 }
 
 TEST_F(BtaDmTest, bta_dm_remname_cback__HCI_ERR_CONNECTION_EXISTS) {
-  bta_dm_search_cb = {
-      .peer_bdaddr = kRawAddress,
-      .name_discover_done = false,
-  };
+  tBTA_DM_SEARCH_CB& search_cb =
+      bluetooth::legacy::testing::bta_dm_disc_search_cb();
+  search_cb.peer_bdaddr = kRawAddress;
+  search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
       .status = BTM_SUCCESS,
       .bd_addr = RawAddress::kEmpty,
-      .length = static_cast<uint16_t>(strlen(kRemoteName)),
       .remote_bd_name = {},
       .hci_status = HCI_ERR_CONNECTION_EXISTS,
   };
-  strlcpy(reinterpret_cast<char*>(&name.remote_bd_name), kRemoteName,
-          strlen(kRemoteName));
+  bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);
 
-  btm_client_interface.security.BTM_SecDeleteRmtNameNotifyCallback =
-      [](tBTM_RMT_NAME_CALLBACK*) -> bool {
-    inc_func_call_count("BTM_SecDeleteRmtNameNotifyCallback");
-    return true;
-  };
   bluetooth::legacy::testing::bta_dm_remname_cback(&name);
 
   sync_main_handler();
 
-  ASSERT_EQ(1, get_func_call_count("BTM_SecDeleteRmtNameNotifyCallback"));
-  ASSERT_TRUE(bta_dm_search_cb.name_discover_done);
+  ASSERT_TRUE(
+      bluetooth::legacy::testing::bta_dm_disc_search_cb().name_discover_done);
 }
 
-TEST_F(BtaDmTest, bta_dm_determine_discovery_transport__BT_TRANSPORT_BR_EDR) {
-  bta_dm_search_cb.transport = BT_TRANSPORT_BR_EDR;
+TEST_F(BtaDmTest, bta_dm_determine_discovery_transport__BR_EDR) {
+  tBTA_DM_SEARCH_CB& search_cb =
+      bluetooth::legacy::testing::bta_dm_disc_search_cb();
 
-  ASSERT_EQ(BT_TRANSPORT_BR_EDR,
-            bluetooth::legacy::testing::bta_dm_determine_discovery_transport(
-                kRawAddress));
-}
-
-TEST_F(BtaDmTest, bta_dm_determine_discovery_transport__BT_TRANSPORT_LE) {
-  bta_dm_search_cb.transport = BT_TRANSPORT_LE;
-
-  ASSERT_EQ(BT_TRANSPORT_LE,
-            bluetooth::legacy::testing::bta_dm_determine_discovery_transport(
-                kRawAddress));
-}
-
-TEST_F(BtaDmTest,
-       bta_dm_determine_discovery_transport__BT_TRANSPORT_AUTO__BR_EDR) {
-  bta_dm_search_cb.transport = BT_TRANSPORT_AUTO;
-
-  test::mock::stack_btm_ble::BTM_ReadDevInfo.body =
+  mock_btm_client_interface.peer.BTM_ReadDevInfo =
       [](const RawAddress& remote_bda, tBT_DEVICE_TYPE* p_dev_type,
          tBLE_ADDR_TYPE* p_addr_type) {
         *p_dev_type = BT_DEVICE_TYPE_BREDR;
@@ -494,15 +392,13 @@ TEST_F(BtaDmTest,
   ASSERT_EQ(BT_TRANSPORT_BR_EDR,
             bluetooth::legacy::testing::bta_dm_determine_discovery_transport(
                 kRawAddress));
-
-  test::mock::stack_btm_ble::BTM_ReadDevInfo = {};
 }
 
-TEST_F(BtaDmTest,
-       bta_dm_determine_discovery_transport__BT_TRANSPORT_AUTO__BLE__PUBLIC) {
-  bta_dm_search_cb.transport = BT_TRANSPORT_AUTO;
+TEST_F(BtaDmTest, bta_dm_determine_discovery_transport__BLE__PUBLIC) {
+  tBTA_DM_SEARCH_CB& search_cb =
+      bluetooth::legacy::testing::bta_dm_disc_search_cb();
 
-  test::mock::stack_btm_ble::BTM_ReadDevInfo.body =
+  mock_btm_client_interface.peer.BTM_ReadDevInfo =
       [](const RawAddress& remote_bda, tBT_DEVICE_TYPE* p_dev_type,
          tBLE_ADDR_TYPE* p_addr_type) {
         *p_dev_type = BT_DEVICE_TYPE_BLE;
@@ -512,15 +408,13 @@ TEST_F(BtaDmTest,
   ASSERT_EQ(BT_TRANSPORT_LE,
             bluetooth::legacy::testing::bta_dm_determine_discovery_transport(
                 kRawAddress));
-
-  test::mock::stack_btm_ble::BTM_ReadDevInfo = {};
 }
 
-TEST_F(BtaDmTest,
-       bta_dm_determine_discovery_transport__BT_TRANSPORT_AUTO__DUMO) {
-  bta_dm_search_cb.transport = BT_TRANSPORT_AUTO;
+TEST_F(BtaDmTest, bta_dm_determine_discovery_transport__DUMO) {
+  tBTA_DM_SEARCH_CB& search_cb =
+      bluetooth::legacy::testing::bta_dm_disc_search_cb();
 
-  test::mock::stack_btm_ble::BTM_ReadDevInfo.body =
+  mock_btm_client_interface.peer.BTM_ReadDevInfo =
       [](const RawAddress& remote_bda, tBT_DEVICE_TYPE* p_dev_type,
          tBLE_ADDR_TYPE* p_addr_type) {
         *p_dev_type = BT_DEVICE_TYPE_DUMO;
@@ -530,23 +424,16 @@ TEST_F(BtaDmTest,
   ASSERT_EQ(BT_TRANSPORT_BR_EDR,
             bluetooth::legacy::testing::bta_dm_determine_discovery_transport(
                 kRawAddress));
-
-  test::mock::stack_btm_ble::BTM_ReadDevInfo = {};
 }
 
 TEST_F(BtaDmTest, bta_dm_search_evt_text) {
   std::vector<std::pair<tBTA_DM_SEARCH_EVT, std::string>> events = {
       std::make_pair(BTA_DM_INQ_RES_EVT, "BTA_DM_INQ_RES_EVT"),
       std::make_pair(BTA_DM_INQ_CMPL_EVT, "BTA_DM_INQ_CMPL_EVT"),
-      std::make_pair(BTA_DM_DISC_RES_EVT, "BTA_DM_DISC_RES_EVT"),
-      std::make_pair(BTA_DM_GATT_OVER_LE_RES_EVT,
-                     "BTA_DM_GATT_OVER_LE_RES_EVT"),
       std::make_pair(BTA_DM_DISC_CMPL_EVT, "BTA_DM_DISC_CMPL_EVT"),
       std::make_pair(BTA_DM_SEARCH_CANCEL_CMPL_EVT,
                      "BTA_DM_SEARCH_CANCEL_CMPL_EVT"),
-      std::make_pair(BTA_DM_DID_RES_EVT, "BTA_DM_DID_RES_EVT"),
-      std::make_pair(BTA_DM_GATT_OVER_SDP_RES_EVT,
-                     "BTA_DM_GATT_OVER_SDP_RES_EVT"),
+      std::make_pair(BTA_DM_NAME_READ_EVT, "BTA_DM_NAME_READ_EVT"),
   };
   for (const auto& event : events) {
     ASSERT_STREQ(event.second.c_str(),
@@ -561,191 +448,81 @@ TEST_F(BtaDmTest, bta_dm_search_evt_text) {
 }
 
 TEST_F(BtaDmTest, bta_dm_remote_name_cmpl) {
-  tBTA_DM_MSG msg = {
-      .remote_name_msg =
-          {
-              // tBTA_DM_REMOTE_NAME
-              .hdr = {},
-              .bd_addr = kRawAddress,
-              .bd_name = {0},
-              .hci_status = HCI_SUCCESS,
-          },
+  tBTA_DM_REMOTE_NAME remote_name_msg{
+      // tBTA_DM_REMOTE_NAME
+      .bd_addr = kRawAddress,
+      .bd_name = {0},
+      .hci_status = HCI_SUCCESS,
   };
-  bluetooth::legacy::testing::bta_dm_remote_name_cmpl(&msg);
+  bluetooth::legacy::testing::bta_dm_remote_name_cmpl(remote_name_msg);
   ASSERT_EQ(1, get_func_call_count("BTM_InqDbRead"));
 }
 
-TEST_F(BtaDmTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithName) {
-  constexpr uint32_t kNumVal = 1234;
-  static bool callback_sent = false;
-  static tBTA_DM_SP_CFM_REQ cfm_req{};
-  bta_dm_enable([](tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
-    callback_sent = true;
-    cfm_req = p_data->cfm_req;
-  });
+TEST_F(BtaDmTest, bta_dm_disc_start__true) { bta_dm_disc_start(true); }
+TEST_F(BtaDmTest, bta_dm_disc_start__false) { bta_dm_disc_start(false); }
 
-  bluetooth::legacy::testing::btm_set_local_io_caps(0xff);
+TEST_F(BtaDmTest, bta_dm_disc_stop) { bta_dm_disc_stop(); }
 
-  tBTM_SP_EVT_DATA data = {
-      .cfm_req =
-          {
-              // tBTM_SP_CFM_REQ
-              .bd_addr = kRawAddress,
-              .dev_class = {},
-              .bd_name = {},
-              .num_val = kNumVal,
-              .just_works = false,
-              .loc_auth_req = BTM_AUTH_SP_YES,
-              .rmt_auth_req = BTM_AUTH_SP_YES,
-              .loc_io_caps = BTM_IO_CAP_NONE,
-              .rmt_io_caps = BTM_IO_CAP_NONE,
-          },
-  };
-  dev_class_copy(data.cfm_req.dev_class, kDeviceClass);
-  bd_name_copy(data.cfm_req.bd_name, kRemoteName);
+TEST_F(BtaDmCustomAlarmTest, bta_dm_sniff_cback) {
+  // Setup a connected device
+  const tBT_TRANSPORT transport{BT_TRANSPORT_BR_EDR};
+  tBTA_DM_PEER_DEVICE* device =
+      bluetooth::legacy::testing::allocate_device_for(kRawAddress, transport);
+  ASSERT_TRUE(device != nullptr);
 
-  ASSERT_EQ(btm_status_text(BTM_CMD_STARTED),
-            btm_status_text(bluetooth::legacy::testing::bta_dm_sp_cback(
-                BTM_SP_CFM_REQ_EVT, &data)));
-  ASSERT_EQ(kNumVal, bta_dm_cb.num_val);
-  ASSERT_TRUE(callback_sent);
+  // Trigger a sniff timer
+  bta_dm_pm_start_timer(&bta_dm_cb.pm_timer[0],
+                        bta_pm_action_to_timer_idx(BTA_DM_PM_SNIFF), 10, 1,
+                        BTA_DM_PM_SNIFF);
+  bta_dm_cb.pm_timer[0].peer_bdaddr = kRawAddress;
+  ASSERT_EQ(1, get_func_call_count("alarm_set_on_mloop"));
 
-  ASSERT_EQ(kRawAddress, cfm_req.bd_addr);
-  ASSERT_THAT(cfm_req.dev_class,
-              ElementsAre(kDeviceClass[0], kDeviceClass[1], kDeviceClass[2]));
-  ASSERT_STREQ(kRemoteName, reinterpret_cast<const char*>(cfm_req.bd_name));
-  ASSERT_EQ(kNumVal, cfm_req.num_val);
-  ASSERT_EQ(false, cfm_req.just_works);
-  ASSERT_EQ(BTM_AUTH_SP_YES, cfm_req.loc_auth_req);
-  ASSERT_EQ(BTM_AUTH_SP_YES, cfm_req.rmt_auth_req);
-  ASSERT_EQ(BTM_IO_CAP_NONE, cfm_req.loc_io_caps);
-  ASSERT_EQ(BTM_IO_CAP_NONE, cfm_req.rmt_io_caps);
+  // Trigger reset sniff
+  bta_dm_sniff_cback(BTA_ID_JV, 1, kRawAddress);
+  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
+  ASSERT_EQ(2, get_func_call_count("alarm_set_on_mloop"));
 }
 
-TEST_F(BtaDmTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithoutName_RNRSuccess) {
-  constexpr uint32_t kNumVal = 1234;
-  static bool callback_sent = false;
-  test::mock::stack_btm_inq::BTM_ReadRemoteDeviceName.body =
-      [](const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb,
-         tBT_TRANSPORT transport) { return BTM_CMD_STARTED; };
-
-  static tBTA_DM_SP_CFM_REQ cfm_req{};
-  bta_dm_enable([](tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
-    callback_sent = true;
-    cfm_req = p_data->cfm_req;
-  });
-
-  bluetooth::legacy::testing::btm_set_local_io_caps(0xff);
-
-  tBTM_SP_EVT_DATA data = {
-      .cfm_req =
-          {
-              // tBTM_SP_CFM_REQ
-              .bd_addr = kRawAddress,
-              .dev_class = {},
-              .bd_name = {0},
-              .num_val = kNumVal,
-              .just_works = false,
-              .loc_auth_req = BTM_AUTH_SP_YES,
-              .rmt_auth_req = BTM_AUTH_SP_YES,
-              .loc_io_caps = BTM_IO_CAP_NONE,
-              .rmt_io_caps = BTM_IO_CAP_NONE,
-          },
+TEST_F_WITH_FLAGS(BtaDmCustomAlarmTest, sniff_offload_feature__enable_flag,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      enable_sniff_offload))) {
+  bool is_property_enabled = true;
+  test::mock::osi_properties::osi_property_get_bool.body =
+      [&](const char* key, bool default_value) -> int {
+    return is_property_enabled;
   };
-  dev_class_copy(data.cfm_req.dev_class, kDeviceClass);
 
-  ASSERT_EQ(btm_status_text(BTM_CMD_STARTED),
-            btm_status_text(bluetooth::legacy::testing::bta_dm_sp_cback(
-                BTM_SP_CFM_REQ_EVT, &data)));
-  ASSERT_EQ(kNumVal, bta_dm_cb.num_val);
-  ASSERT_FALSE(callback_sent);
+  // Expect not to trigger bta_dm_init_pm due to both flag and prop are enabled
+  // and reset the value of .srvc_id.
+  is_property_enabled = true;
+  bluetooth::legacy::testing::BTA_dm_on_hw_on();
+  ASSERT_EQ(0, bta_dm_cb.pm_timer[0].srvc_id[0]);
 
-  test::mock::stack_btm_inq::BTM_ReadRemoteDeviceName = {};
+  // Expect to trigger bta_dm_init_pm and init the value of .srvc_id to
+  // BTA_ID_MAX.
+  is_property_enabled = false;
+  bluetooth::legacy::testing::BTA_dm_on_hw_on();
+  ASSERT_EQ((uint8_t)BTA_ID_MAX, bta_dm_cb.pm_timer[0].srvc_id[0]);
 }
 
-TEST_F(BtaDmTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithoutName_RNRFail) {
-  constexpr uint32_t kNumVal = 1234;
-  static bool callback_sent = false;
-  test::mock::stack_btm_inq::BTM_ReadRemoteDeviceName.body =
-      [](const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb,
-         tBT_TRANSPORT transport) { return BTM_SUCCESS; };
-
-  static tBTA_DM_SP_CFM_REQ cfm_req{};
-  bta_dm_enable([](tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
-    callback_sent = true;
-    cfm_req = p_data->cfm_req;
-  });
-
-  bluetooth::legacy::testing::btm_set_local_io_caps(0xff);
-
-  tBTM_SP_EVT_DATA data = {
-      .cfm_req =
-          {
-              // tBTM_SP_CFM_REQ
-              .bd_addr = kRawAddress,
-              .dev_class = {},
-              .bd_name = {0},
-              .num_val = kNumVal,
-              .just_works = false,
-              .loc_auth_req = BTM_AUTH_SP_YES,
-              .rmt_auth_req = BTM_AUTH_SP_YES,
-              .loc_io_caps = BTM_IO_CAP_NONE,
-              .rmt_io_caps = BTM_IO_CAP_NONE,
-          },
+TEST_F_WITH_FLAGS(BtaDmCustomAlarmTest, sniff_offload_feature__disable_flag,
+                  REQUIRES_FLAGS_DISABLED(ACONFIG_FLAG(TEST_BT,
+                                                       enable_sniff_offload))) {
+  bool is_property_enabled = true;
+  test::mock::osi_properties::osi_property_get_bool.body =
+      [&](const char* key, bool default_value) -> int {
+    return is_property_enabled;
   };
-  dev_class_copy(data.cfm_req.dev_class, kDeviceClass);
 
-  ASSERT_EQ(btm_status_text(BTM_CMD_STARTED),
-            btm_status_text(bluetooth::legacy::testing::bta_dm_sp_cback(
-                BTM_SP_CFM_REQ_EVT, &data)));
-  ASSERT_EQ(kNumVal, bta_dm_cb.num_val);
-  ASSERT_TRUE(callback_sent);
+  // Expect to trigger bta_dm_init_pm and init the value of .srvc_id to
+  // BTA_ID_MAX.
+  is_property_enabled = true;
+  bluetooth::legacy::testing::BTA_dm_on_hw_on();
+  ASSERT_EQ((uint8_t)BTA_ID_MAX, bta_dm_cb.pm_timer[0].srvc_id[0]);
 
-  ASSERT_EQ(kRawAddress, cfm_req.bd_addr);
-  ASSERT_THAT(cfm_req.dev_class,
-              ElementsAre(kDeviceClass[0], kDeviceClass[1], kDeviceClass[2]));
-  ASSERT_EQ(kNumVal, cfm_req.num_val);
-  ASSERT_EQ(false, cfm_req.just_works);
-  ASSERT_EQ(BTM_AUTH_SP_YES, cfm_req.loc_auth_req);
-  ASSERT_EQ(BTM_AUTH_SP_YES, cfm_req.rmt_auth_req);
-  ASSERT_EQ(BTM_IO_CAP_NONE, cfm_req.loc_io_caps);
-  ASSERT_EQ(BTM_IO_CAP_NONE, cfm_req.rmt_io_caps);
-
-  test::mock::stack_btm_inq::BTM_ReadRemoteDeviceName = {};
-}
-
-TEST_F(BtaDmTest, bta_dm_sp_cback__BTM_SP_KEY_NOTIF_EVT) {
-  constexpr uint32_t kPassKey = 1234;
-  static bool callback_sent = false;
-  static tBTA_DM_SP_KEY_NOTIF key_notif{};
-  bta_dm_enable([](tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
-    callback_sent = true;
-    key_notif = p_data->key_notif;
-  });
-  bluetooth::legacy::testing::btm_set_local_io_caps(0xff);
-
-  tBTM_SP_EVT_DATA data = {
-      .key_notif =
-          {
-              // tBTM_SP_KEY_NOTIF
-              .bd_addr = kRawAddress,
-              .dev_class = {},
-              .bd_name = {},
-              .passkey = kPassKey,
-          },
-  };
-  dev_class_copy(data.key_notif.dev_class, kDeviceClass);
-  bd_name_copy(data.key_notif.bd_name, kRemoteName);
-
-  ASSERT_EQ(btm_status_text(BTM_CMD_STARTED),
-            btm_status_text(bluetooth::legacy::testing::bta_dm_sp_cback(
-                BTM_SP_KEY_NOTIF_EVT, &data)));
-  ASSERT_EQ(kPassKey, bta_dm_cb.num_val);
-  ASSERT_TRUE(callback_sent);
-
-  ASSERT_EQ(kRawAddress, key_notif.bd_addr);
-  ASSERT_THAT(key_notif.dev_class,
-              ElementsAre(kDeviceClass[0], kDeviceClass[1], kDeviceClass[2]));
-  ASSERT_STREQ(kRemoteName, reinterpret_cast<const char*>(key_notif.bd_name));
-  ASSERT_EQ(kPassKey, key_notif.passkey);
+  // Expect to trigger bta_dm_init_pm and init the value of .srvc_id to
+  // BTA_ID_MAX.
+  is_property_enabled = false;
+  bluetooth::legacy::testing::BTA_dm_on_hw_on();
+  ASSERT_EQ((uint8_t)BTA_ID_MAX, bta_dm_cb.pm_timer[0].srvc_id[0]);
 }

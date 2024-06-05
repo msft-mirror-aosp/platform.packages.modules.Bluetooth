@@ -26,7 +26,7 @@
 #define BNEP_INT_H
 
 #include "bnep_api.h"
-#include "bt_target.h"
+#include "internal_include/bt_target.h"
 #include "osi/include/alarm.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
@@ -154,7 +154,6 @@ typedef struct {
   tL2CAP_APPL_INFO reg_info;
 
   bool profile_registered; /* true when we got our BD addr */
-  uint8_t trace_level;
 
 } tBNEP_CB;
 
@@ -180,8 +179,8 @@ void bnepu_send_peer_our_filters(tBNEP_CONN* p_bcb);
 void bnepu_send_peer_our_multi_filters(tBNEP_CONN* p_bcb);
 bool bnepu_does_dest_support_prot(tBNEP_CONN* p_bcb, uint16_t protocol);
 void bnepu_build_bnep_hdr(tBNEP_CONN* p_bcb, BT_HDR* p_buf, uint16_t protocol,
-                          const RawAddress* p_src_addr,
-                          const RawAddress* p_dest_addr, bool ext_bit);
+                          const RawAddress& src_addr,
+                          const RawAddress& dest_addr, bool ext_bit);
 void test_bnepu_build_bnep_hdr(tBNEP_CONN* p_bcb, BT_HDR* p_buf,
                                uint16_t protocol, uint8_t* p_src_addr,
                                uint8_t* p_dest_addr, uint8_t type);
@@ -194,7 +193,7 @@ void bnepu_process_peer_filter_set(tBNEP_CONN* p_bcb, uint8_t* p_filters,
 void bnepu_process_peer_filter_rsp(tBNEP_CONN* p_bcb, uint8_t* p_data);
 void bnepu_process_multicast_filter_rsp(tBNEP_CONN* p_bcb, uint8_t* p_data);
 void bnep_send_conn_req(tBNEP_CONN* p_bcb);
-void bnep_send_conn_responce(tBNEP_CONN* p_bcb, uint16_t resp_code);
+void bnep_send_conn_response(tBNEP_CONN* p_bcb, uint16_t resp_code);
 void bnep_process_setup_conn_req(tBNEP_CONN* p_bcb, uint8_t* p_setup,
                                  uint8_t len);
 void bnep_process_setup_conn_responce(tBNEP_CONN* p_bcb, uint8_t* p_setup);
@@ -203,7 +202,7 @@ uint8_t* bnep_process_control_packet(tBNEP_CONN* p_bcb, uint8_t* p,
 void bnep_sec_check_complete(const RawAddress* bd_addr, tBT_TRANSPORT trasnport,
                              void* p_ref_data);
 tBNEP_RESULT bnep_is_packet_allowed(tBNEP_CONN* p_bcb,
-                                    const RawAddress& p_dest_addr,
+                                    const RawAddress& dest_addr,
                                     uint16_t protocol, bool fw_ext_present,
                                     uint8_t* p_data, uint16_t org_len);
 

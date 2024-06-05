@@ -50,9 +50,16 @@ public class BluetoothPbapRequestPullPhoneBookTest {
 
         final int wrongMaxListCount = -1;
 
-        assertThrows(IllegalArgumentException.class, () ->
-                new BluetoothPbapRequestPullPhoneBook(PB_NAME, ACCOUNT, filter, format,
-                        wrongMaxListCount, listStartOffset));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new BluetoothPbapRequestPullPhoneBook(
+                                PB_NAME,
+                                ACCOUNT,
+                                filter,
+                                format,
+                                wrongMaxListCount,
+                                listStartOffset));
     }
 
     @Test
@@ -63,21 +70,46 @@ public class BluetoothPbapRequestPullPhoneBookTest {
 
         final int wrongListStartOffset = -1;
 
-        assertThrows(IllegalArgumentException.class, () ->
-                new BluetoothPbapRequestPullPhoneBook(PB_NAME, ACCOUNT, filter, format,
-                        maxListCount, wrongListStartOffset));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new BluetoothPbapRequestPullPhoneBook(
+                                PB_NAME,
+                                ACCOUNT,
+                                filter,
+                                format,
+                                maxListCount,
+                                wrongListStartOffset));
     }
 
     @Test
-    public void readResponse_failWithMockInputStream() {
+    public void readResponse_failWithInputStreamThatThrowsIOEWhenRead() {
         final long filter = 1;
         final byte format = 0; // Will be properly handled as VCARD_TYPE_21.
         final int maxListCount = 0; // Will be specially handled as 65535.
         final int listStartOffset = 10;
-        BluetoothPbapRequestPullPhoneBook request = new BluetoothPbapRequestPullPhoneBook(
-                PB_NAME, ACCOUNT, filter, format, maxListCount, listStartOffset);
+        BluetoothPbapRequestPullPhoneBook request =
+                new BluetoothPbapRequestPullPhoneBook(
+                        PB_NAME, ACCOUNT, filter, format, maxListCount, listStartOffset);
 
-        InputStream is = mock(InputStream.class);
+        final InputStream is =
+                new InputStream() {
+                    @Override
+                    public int read() throws IOException {
+                        throw new IOException();
+                    }
+
+                    @Override
+                    public int read(byte[] b) throws IOException {
+                        throw new IOException();
+                    }
+
+                    @Override
+                    public int read(byte[] b, int off, int len) throws IOException {
+                        throw new IOException();
+                    }
+                };
+
         assertThrows(IOException.class, () -> request.readResponse(is));
     }
 
@@ -87,8 +119,9 @@ public class BluetoothPbapRequestPullPhoneBookTest {
         final byte format = 0; // Will be properly handled as VCARD_TYPE_21.
         final int maxListCount = 0; // Will be specially handled as 65535.
         final int listStartOffset = 10;
-        BluetoothPbapRequestPullPhoneBook request = new BluetoothPbapRequestPullPhoneBook(
-                PB_NAME, ACCOUNT, filter, format, maxListCount, listStartOffset);
+        BluetoothPbapRequestPullPhoneBook request =
+                new BluetoothPbapRequestPullPhoneBook(
+                        PB_NAME, ACCOUNT, filter, format, maxListCount, listStartOffset);
 
         try {
             HeaderSet headerSet = new HeaderSet();

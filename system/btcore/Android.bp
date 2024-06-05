@@ -55,7 +55,10 @@ cc_library_static {
             cflags: ["-D_GNU_SOURCE"],
         },
     },
-    static_libs: ["libbt_shim_bridge"],
+    static_libs: [
+        "libbluetooth_log",
+        "libbt_shim_bridge",
+    ],
 }
 
 cc_library_static {
@@ -66,7 +69,10 @@ cc_library_static {
     ],
     defaults: ["libbtcore_defaults"],
     min_sdk_version: "Tiramisu",
-    static_libs: ["libbt_shim_bridge"],
+    static_libs: [
+        "libbluetooth_log",
+        "libbt_shim_bridge",
+    ],
 }
 
 cc_library_headers {
@@ -86,9 +92,8 @@ cc_library_headers {
 // libbtcore unit tests for target and host
 cc_test {
     name: "net_test_btcore",
-    test_suites: ["device-tests"],
+    test_suites: ["general-tests"],
     defaults: [
-        "bluetooth_gtest_x86_asan_workaround",
         "fluoride_defaults",
         "mts_defaults",
     ],
@@ -99,10 +104,12 @@ cc_test {
         "test/property_test.cc",
     ],
     shared_libs: [
+        "libbase",
         "liblog",
     ],
     static_libs: [
         "libbluetooth-types",
+        "libbluetooth_log",
         "libbtcore",
         "libchrome",
         "libosi",

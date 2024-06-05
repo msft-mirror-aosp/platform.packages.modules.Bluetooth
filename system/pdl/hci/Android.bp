@@ -6,13 +6,6 @@ genrule {
     visibility: ["//visibility:private"],
 }
 
-genrule {
-    name: "BluetoothGeneratedPackets_rust",
-    defaults: ["pdl_rust_generator_defaults"],
-    srcs: ["hci_packets.pdl"],
-    out: ["hci/hci_packets.rs"],
-}
-
 cc_library_headers {
     name: "libbluetooth_hci_pdl_header",
     vendor_available: true,
@@ -54,6 +47,7 @@ cc_library_static {
     visibility: [
         "//hardware/interfaces/bluetooth/aidl/vts",
         "//packages/modules/Bluetooth/system:__subpackages__",
+        "//vendor:__subpackages__",
     ],
     apex_available: [
         "com.android.btservices",

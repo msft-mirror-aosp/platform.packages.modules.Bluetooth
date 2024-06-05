@@ -36,23 +36,22 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.IBluetooth;
 import android.bluetooth.IBluetoothManager;
 import android.bluetooth.IBluetoothManagerCallback;
-import android.bluetooth.IBluetoothProfileServiceConnection;
-import android.bluetooth.IBluetoothStateChangeCallback;
 import android.content.AttributionSource;
 import android.content.Context;
+import android.os.Build;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.os.UserManager;
 import android.permission.PermissionManager;
-import android.util.Log;
+
+import androidx.annotation.RequiresApi;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 
 class BluetoothServiceBinder extends IBluetoothManager.Stub {
     private static final String TAG = BluetoothServiceBinder.class.getSimpleName();
-    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
-    private static final boolean VDBG = Log.isLoggable(TAG, Log.VERBOSE);
 
     private final BluetoothManagerService mBluetoothManagerService;
     private final Context mContext;
@@ -60,9 +59,12 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
     private final AppOpsManager mAppOpsManager;
     private final PermissionManager mPermissionManager;
     private final BtPermissionUtils mPermissionUtils;
+    private final Looper unusedmLooper;
 
-    BluetoothServiceBinder(BluetoothManagerService bms, Context ctx, UserManager userManager) {
+    BluetoothServiceBinder(
+            BluetoothManagerService bms, Looper looper, Context ctx, UserManager userManager) {
         mBluetoothManagerService = bms;
+        unusedmLooper = looper;
         mContext = ctx;
         mUserManager = userManager;
         mAppOpsManager =
@@ -78,27 +80,19 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
 
     @Override
     @Nullable
-    public IBluetooth registerAdapter(@NonNull IBluetoothManagerCallback callback) {
+    public IBinder registerAdapter(@NonNull IBluetoothManagerCallback callback) {
         requireNonNull(callback, "Callback cannot be null in registerAdapter");
-        return mBluetoothManagerService.registerAdapter(callback);
+        IBluetooth bluetooth = mBluetoothManagerService.registerAdapter(callback);
+        if (bluetooth == null) {
+            return null;
+        }
+        return bluetooth.asBinder();
     }
 
     @Override
     public void unregisterAdapter(@NonNull IBluetoothManagerCallback callback) {
         requireNonNull(callback, "Callback cannot be null in unregisterAdapter");
         mBluetoothManagerService.unregisterAdapter(callback);
-    }
-
-    @Override
-    public void registerStateChangeCallback(@NonNull IBluetoothStateChangeCallback callback) {
-        requireNonNull(callback, "Callback cannot be null in registerStateChangeCallback");
-        mBluetoothManagerService.registerStateChangeCallback(callback);
-    }
-
-    @Override
-    public void unregisterStateChangeCallback(@NonNull IBluetoothStateChangeCallback callback) {
-        requireNonNull(callback, "Callback cannot be null in unregisterStateChangeCallback");
-        mBluetoothManagerService.unregisterStateChangeCallback(callback);
     }
 
     @Override
@@ -140,7 +134,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
-        if (!mPermissionUtils.isCallerNfc(getCallingAppId())) {
+        if (!BtPermissionUtils.isCallerNfc(getCallingAppId())) {
             throw new SecurityException("No permission to enable Bluetooth quietly");
         }
 
@@ -149,10 +143,10 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
 
     @Override
     public boolean disable(AttributionSource source, boolean persist) {
-        requireNonNull(source, "AttributionSource cannot be null in enableNoAutoConnect");
+        requireNonNull(source, "AttributionSource cannot be null in disable");
 
         if (!persist) {
-            mPermissionUtils.enforcePrivileged(mContext);
+            BtPermissionUtils.enforcePrivileged(mContext);
         }
 
         final String errorMsg =
@@ -184,23 +178,6 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
     }
 
     @Override
-    public boolean bindBluetoothProfileService(
-            int bluetoothProfile, String serviceName, IBluetoothProfileServiceConnection proxy) {
-        requireNonNull(
-                proxy,
-                "IBluetoothProfileServiceConnection cannot be null in bindBluetoothProfileService");
-
-        return mBluetoothManagerService.bindBluetoothProfileService(
-                bluetoothProfile, serviceName, proxy);
-    }
-
-    @Override
-    public void unbindBluetoothProfileService(
-            int bluetoothProfile, IBluetoothProfileServiceConnection proxy) {
-        mBluetoothManagerService.unbindBluetoothProfileService(bluetoothProfile, proxy);
-    }
-
-    @Override
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, LOCAL_MAC_ADDRESS})
     public String getAddress(AttributionSource source) {
         requireNonNull(source, "AttributionSource cannot be null in getAddress");
@@ -222,7 +199,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return BluetoothAdapter.DEFAULT_MAC_ADDRESS;
         }
 
-        return mBluetoothManagerService.getAddress(source);
+        return mBluetoothManagerService.getAddress();
     }
 
     @Override
@@ -241,7 +218,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return null;
         }
 
-        return mBluetoothManagerService.getName(source);
+        return mBluetoothManagerService.getName();
     }
 
     @Override
@@ -249,19 +226,19 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
     public boolean onFactoryReset(AttributionSource source) {
         requireNonNull(source, "AttributionSource cannot be null in onFactoryReset");
 
-        mPermissionUtils.enforcePrivileged(mContext);
+        BtPermissionUtils.enforcePrivileged(mContext);
 
         if (!checkConnectPermissionForDataDelivery(
                 mContext, mPermissionManager, source, "onFactoryReset")) {
             return false;
         }
 
-        return mBluetoothManagerService.onFactoryReset(source);
+        return mBluetoothManagerService.onFactoryReset();
     }
 
     @Override
-    public boolean isBleScanAlwaysAvailable() {
-        return mBluetoothManagerService.isBleScanAlwaysAvailable();
+    public boolean isBleScanAvailable() {
+        return mBluetoothManagerService.isBleScanAvailable();
     }
 
     @Override
@@ -307,12 +284,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
-        return mBluetoothManagerService.disableBle(source, source.getPackageName(), token);
-    }
-
-    @Override
-    public boolean isBleAppPresent() {
-        return mBluetoothManagerService.isBleAppPresent();
+        return mBluetoothManagerService.disableBle(source.getPackageName(), token);
     }
 
     @Override
@@ -323,7 +295,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
     @Override
     @RequiresPermission(BLUETOOTH_PRIVILEGED)
     public int setBtHciSnoopLogMode(int mode) {
-        mPermissionUtils.enforcePrivileged(mContext);
+        BtPermissionUtils.enforcePrivileged(mContext);
 
         return mBluetoothManagerService.setBtHciSnoopLogMode(mode);
     }
@@ -331,7 +303,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
     @Override
     @RequiresPermission(BLUETOOTH_PRIVILEGED)
     public int getBtHciSnoopLogMode() {
-        mPermissionUtils.enforcePrivileged(mContext);
+        BtPermissionUtils.enforcePrivileged(mContext);
 
         return mBluetoothManagerService.getBtHciSnoopLogMode();
     }
@@ -342,13 +314,35 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             @NonNull ParcelFileDescriptor out,
             @NonNull ParcelFileDescriptor err,
             @NonNull String[] args) {
-        return new BluetoothShellCommand(mBluetoothManagerService, mContext)
+        return new BluetoothShellCommand(mBluetoothManagerService)
                 .exec(
                         this,
                         in.getFileDescriptor(),
                         out.getFileDescriptor(),
                         err.getFileDescriptor(),
                         args);
+    }
+
+    @Override
+    @RequiresPermission(BLUETOOTH_PRIVILEGED)
+    public boolean isAutoOnSupported() {
+        BtPermissionUtils.enforcePrivileged(mContext);
+        return mBluetoothManagerService.isAutoOnSupported();
+    }
+
+    @Override
+    @RequiresPermission(BLUETOOTH_PRIVILEGED)
+    public boolean isAutoOnEnabled() {
+        BtPermissionUtils.enforcePrivileged(mContext);
+        return mBluetoothManagerService.isAutoOnEnabled();
+    }
+
+    @Override
+    @RequiresPermission(BLUETOOTH_PRIVILEGED)
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    public void setAutoOnEnabled(boolean status) {
+        BtPermissionUtils.enforcePrivileged(mContext);
+        mBluetoothManagerService.setAutoOnEnabled(status);
     }
 
     @Override

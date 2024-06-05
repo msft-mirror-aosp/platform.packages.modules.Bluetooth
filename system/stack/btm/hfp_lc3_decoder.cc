@@ -18,13 +18,15 @@
 
 #include "hfp_lc3_decoder.h"
 
-#include <base/logging.h>
+#include <bluetooth/log.h>
 #include <lc3.h>
 
 #include <cstring>
 
+#include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/log.h"
+
+using namespace bluetooth;
 
 const int HFP_LC3_H2_HEADER_LEN = 2;
 const int HFP_LC3_PKT_FRAME_LEN = 58;
@@ -35,8 +37,7 @@ static lc3_decoder_t hfp_lc3_decoder;
 
 bool hfp_lc3_decoder_init() {
   if (hfp_lc3_decoder_mem) {
-    LOG_WARN("%s: The decoder instance should have had been released.",
-             __func__);
+    log::warn("The decoder instance should have had been released.");
     osi_free(hfp_lc3_decoder_mem);
   }
 
@@ -61,8 +62,8 @@ void hfp_lc3_decoder_cleanup() {
 bool hfp_lc3_decoder_decode_packet(const uint8_t* i_buf, int16_t* o_buf,
                                    size_t out_len) {
   if (o_buf == nullptr || out_len < HFP_LC3_PCM_BYTES) {
-    LOG_ERROR("%s: Output buffer size %zu is less than LC3 frame size %d",
-              __func__, out_len, HFP_LC3_PCM_BYTES);
+    log::error("Output buffer size {} is less than LC3 frame size {}", out_len,
+               HFP_LC3_PCM_BYTES);
     return false;
   }
 
@@ -72,12 +73,7 @@ bool hfp_lc3_decoder_decode_packet(const uint8_t* i_buf, int16_t* o_buf,
   int rc = lc3_decode(hfp_lc3_decoder, frame, HFP_LC3_PKT_FRAME_LEN,
                       LC3_PCM_FORMAT_S16, o_buf, 1);
 
-  ASSERT(rc == 0 || rc == 1);
-
-  if (rc == 1) {
-    LOG_WARN("%s: PLC conducted", __func__);
-    /* TODO(b/269970706): change this to debug log */
-  }
+  log::assert_that(rc == 0 || rc == 1, "assert failed: rc == 0 || rc == 1");
 
   return !rc;
 }

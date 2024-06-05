@@ -18,7 +18,7 @@
 
 #include "btif/include/btif_common.h"
 #include "btif/include/core_callbacks.h"
-#include "btif/include/stack_manager.h"
+#include "btif/include/stack_manager_t.h"
 
 namespace {
 
@@ -38,7 +38,8 @@ static bluetooth::core::EventCallbacks eventCallbacks = {
     .invoke_thread_evt_cb = invoke_thread_evt_cb,
     .invoke_le_test_mode_cb = invoke_le_test_mode_cb,
     .invoke_energy_info_cb = invoke_energy_info_cb,
-    .invoke_link_quality_report_cb = invoke_link_quality_report_cb};
+    .invoke_link_quality_report_cb = invoke_link_quality_report_cb,
+    .invoke_key_missing_cb = invoke_key_missing_cb};
 
 // This interface lets us query for configuration properties of the stack that
 // could change at runtime
@@ -55,9 +56,11 @@ struct MockMsbcCodecInterface : public bluetooth::core::CodecInterface {
   virtual void initialize(){};
   virtual void cleanup() {}
 
-  virtual uint32_t encodePacket(int16_t* input, uint8_t* output) { return 0; };
-  virtual bool decodePacket(const uint8_t* i_buf, int16_t* o_buf,
-                            size_t out_len) {
+  virtual uint32_t encodePacket(int16_t* /* input */, uint8_t* /* output */) {
+    return 0;
+  };
+  virtual bool decodePacket(const uint8_t* /* i_buf */, int16_t* /* o_buf */,
+                            size_t /* out_len */) {
     return false;
   };
 };
@@ -66,9 +69,11 @@ struct MockLc3CodecInterface : public bluetooth::core::CodecInterface {
   virtual void initialize(){};
   virtual void cleanup() {}
 
-  virtual uint32_t encodePacket(int16_t* input, uint8_t* output) { return 0; };
-  virtual bool decodePacket(const uint8_t* i_buf, int16_t* o_buf,
-                            size_t out_len) {
+  virtual uint32_t encodePacket(int16_t* /* input */, uint8_t* /* output */) {
+    return 0;
+  };
+  virtual bool decodePacket(const uint8_t* /* i_buf */, int16_t* /* o_buf */,
+                            size_t /* out_len */) {
     return false;
   };
 };
@@ -113,11 +118,12 @@ MockCoreInterface::MockCoreInterface()
 
 void MockCoreInterface::onBluetoothEnabled(){};
 
-bt_status_t MockCoreInterface::toggleProfile(tBTA_SERVICE_ID service_id,
-                                             bool enable) {
+bt_status_t MockCoreInterface::toggleProfile(tBTA_SERVICE_ID /* service_id */,
+                                             bool /* enable */) {
   return BT_STATUS_SUCCESS;
 };
 
-void MockCoreInterface::removeDeviceFromProfiles(const RawAddress& bd_addr){};
+void MockCoreInterface::removeDeviceFromProfiles(
+    const RawAddress& /* bd_addr */){};
 
-void MockCoreInterface::onLinkDown(const RawAddress& bd_addr){};
+void MockCoreInterface::onLinkDown(const RawAddress& /* bd_addr */){};

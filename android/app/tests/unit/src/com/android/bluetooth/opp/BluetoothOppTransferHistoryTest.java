@@ -44,6 +44,7 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
+import com.android.bluetooth.flags.Flags;
 
 import com.google.common.base.Objects;
 
@@ -56,21 +57,20 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * This class will also test BluetoothOppTransferAdapter
- */
+/** This class will also test BluetoothOppTransferAdapter */
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppTransferHistoryTest {
-    @Mock
-    Cursor mCursor;
-    @Spy
-    BluetoothMethodProxy mBluetoothMethodProxy;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock Cursor mCursor;
+    @Spy BluetoothMethodProxy mBluetoothMethodProxy;
 
     List<BluetoothOppTestUtils.CursorMockData> mCursorMockDataList;
 
@@ -84,7 +84,6 @@ public class BluetoothOppTransferHistoryTest {
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         mBluetoothMethodProxy = Mockito.spy(BluetoothMethodProxy.getInstance());
         BluetoothMethodProxy.setInstanceForTesting(mBluetoothMethodProxy);
 
@@ -95,37 +94,50 @@ public class BluetoothOppTransferHistoryTest {
         mIntent.setClass(mTargetContext, BluetoothOppTransferHistory.class);
         mIntent.setData(dataUrl);
 
-        doReturn(mCursor).when(mBluetoothMethodProxy).contentResolverQuery(any(),
-                eq(BluetoothShare.CONTENT_URI),
-                any(), any(), any(), any());
+        doReturn(mCursor)
+                .when(mBluetoothMethodProxy)
+                .contentResolverQuery(
+                        any(), eq(BluetoothShare.CONTENT_URI), any(), any(), any(), any());
 
         int idValue = 1234;
         Long timestampValue = 123456789L;
         String destinationValue = "AA:BB:CC:00:11:22";
         String fileTypeValue = "text/plain";
 
-        mCursorMockDataList = new ArrayList<>(List.of(
-                new BluetoothOppTestUtils.CursorMockData(BluetoothShare.STATUS, 1,
-                        BluetoothShare.STATUS_SUCCESS),
-                new BluetoothOppTestUtils.CursorMockData(BluetoothShare.DIRECTION, 2,
-                        BluetoothShare.DIRECTION_INBOUND),
-                new BluetoothOppTestUtils.CursorMockData(BluetoothShare.TOTAL_BYTES, 3, 100),
-                new BluetoothOppTestUtils.CursorMockData(BluetoothShare.CURRENT_BYTES, 4, 0),
-                new BluetoothOppTestUtils.CursorMockData(BluetoothShare._ID, 0, idValue),
-                new BluetoothOppTestUtils.CursorMockData(BluetoothShare.MIMETYPE, 5, fileTypeValue),
-                new BluetoothOppTestUtils.CursorMockData(BluetoothShare.TIMESTAMP, 6,
-                        timestampValue),
-                new BluetoothOppTestUtils.CursorMockData(BluetoothShare.DESTINATION, 7,
-                        destinationValue),
-                new BluetoothOppTestUtils.CursorMockData(BluetoothShare._DATA, 8, null),
-                new BluetoothOppTestUtils.CursorMockData(BluetoothShare.FILENAME_HINT, 9, null),
-                new BluetoothOppTestUtils.CursorMockData(BluetoothShare.URI, 10,
-                        "content://textfile.txt"),
-                new BluetoothOppTestUtils.CursorMockData(BluetoothShare.USER_CONFIRMATION, 11,
-                        BluetoothShare.USER_CONFIRMATION_HANDOVER_CONFIRMED)
-        ));
+        mCursorMockDataList =
+                new ArrayList<>(
+                        List.of(
+                                new BluetoothOppTestUtils.CursorMockData(
+                                        BluetoothShare.STATUS, 1, BluetoothShare.STATUS_SUCCESS),
+                                new BluetoothOppTestUtils.CursorMockData(
+                                        BluetoothShare.DIRECTION,
+                                        2,
+                                        BluetoothShare.DIRECTION_INBOUND),
+                                new BluetoothOppTestUtils.CursorMockData(
+                                        BluetoothShare.TOTAL_BYTES, 3, 100),
+                                new BluetoothOppTestUtils.CursorMockData(
+                                        BluetoothShare.CURRENT_BYTES, 4, 0),
+                                new BluetoothOppTestUtils.CursorMockData(
+                                        BluetoothShare._ID, 0, idValue),
+                                new BluetoothOppTestUtils.CursorMockData(
+                                        BluetoothShare.MIMETYPE, 5, fileTypeValue),
+                                new BluetoothOppTestUtils.CursorMockData(
+                                        BluetoothShare.TIMESTAMP, 6, timestampValue),
+                                new BluetoothOppTestUtils.CursorMockData(
+                                        BluetoothShare.DESTINATION, 7, destinationValue),
+                                new BluetoothOppTestUtils.CursorMockData(
+                                        BluetoothShare._DATA, 8, null),
+                                new BluetoothOppTestUtils.CursorMockData(
+                                        BluetoothShare.FILENAME_HINT, 9, null),
+                                new BluetoothOppTestUtils.CursorMockData(
+                                        BluetoothShare.URI, 10, "content://textfile.txt"),
+                                new BluetoothOppTestUtils.CursorMockData(
+                                        BluetoothShare.USER_CONFIRMATION,
+                                        11,
+                                        BluetoothShare.USER_CONFIRMATION_HANDOVER_CONFIRMED)));
 
-        BluetoothOppTestUtils.enableOppActivities(true, mTargetContext);
+        BluetoothOppTestUtils.enableActivity(
+                BluetoothOppTransferHistory.class, true, mTargetContext);
         TestUtils.setUpUiTest();
     }
 
@@ -133,39 +145,27 @@ public class BluetoothOppTransferHistoryTest {
     public void tearDown() throws Exception {
         TestUtils.tearDownUiTest();
         BluetoothMethodProxy.setInstanceForTesting(null);
-        BluetoothOppTestUtils.enableOppActivities(false, mTargetContext);
+        BluetoothOppTestUtils.enableActivity(
+                BluetoothOppTransferHistory.class, false, mTargetContext);
     }
 
     @Test
-    public void onCreate_withDirectionInbound_withExtraShowAllFileIsTrue_displayLiveFolder()
-            throws Exception {
+    public void onCreate_withDirectionInbound_displayInboundHistory() {
         Assume.assumeFalse(
                 mTargetContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH));
 
         BluetoothOppTestUtils.setUpMockCursor(mCursor, mCursorMockDataList);
-        mIntent.putExtra(Constants.EXTRA_SHOW_ALL_FILES, true);
-        mIntent.putExtra("direction", BluetoothShare.DIRECTION_INBOUND);
-        ActivityScenario<BluetoothOppTransferHistory> scenario = ActivityScenario.launch(mIntent);
-        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-
-        onView(withText(mTargetContext.getText(R.string.btopp_live_folder).toString())).check(
-                matches(isDisplayed()));
-    }
-
-    @Test
-    public void onCreate_withDirectionInbound_withExtraShowAllFileIsFalse_displayInboundHistory() {
-        Assume.assumeFalse(
-                mTargetContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH));
-
-        BluetoothOppTestUtils.setUpMockCursor(mCursor, mCursorMockDataList);
-        mIntent.putExtra(Constants.EXTRA_SHOW_ALL_FILES, false);
-        mIntent.putExtra("direction", BluetoothShare.DIRECTION_INBOUND);
+        if (Flags.oppStartActivityDirectlyFromNotification()) {
+            mIntent.setAction(Constants.ACTION_OPEN_INBOUND_TRANSFER);
+        } else {
+            mIntent.putExtra(Constants.EXTRA_DIRECTION, BluetoothShare.DIRECTION_INBOUND);
+        }
 
         ActivityScenario<BluetoothOppTransferHistory> scenario = ActivityScenario.launch(mIntent);
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
 
-        onView(withText(mTargetContext.getText(R.string.inbound_history_title).toString())).check(
-                matches(isDisplayed()));
+        onView(withText(mTargetContext.getText(R.string.inbound_history_title).toString()))
+                .check(matches(isDisplayed()));
     }
 
     @Test
@@ -174,17 +174,21 @@ public class BluetoothOppTransferHistoryTest {
                 mTargetContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH));
 
         BluetoothOppTestUtils.setUpMockCursor(mCursor, mCursorMockDataList);
-        mCursorMockDataList.set(1,
-                new BluetoothOppTestUtils.CursorMockData(BluetoothShare.DIRECTION, 2,
-                        BluetoothShare.DIRECTION_OUTBOUND));
-        mIntent.putExtra(Constants.EXTRA_SHOW_ALL_FILES, true);
-        mIntent.putExtra("direction", BluetoothShare.DIRECTION_OUTBOUND);
+        mCursorMockDataList.set(
+                1,
+                new BluetoothOppTestUtils.CursorMockData(
+                        BluetoothShare.DIRECTION, 2, BluetoothShare.DIRECTION_OUTBOUND));
+        if (Flags.oppStartActivityDirectlyFromNotification()) {
+            mIntent.setAction(Constants.ACTION_OPEN_OUTBOUND_TRANSFER);
+        } else {
+            mIntent.putExtra(Constants.EXTRA_DIRECTION, BluetoothShare.DIRECTION_OUTBOUND);
+        }
 
         ActivityScenario<BluetoothOppTransferHistory> scenario = ActivityScenario.launch(mIntent);
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
 
-        onView(withText(mTargetContext.getText(R.string.outbound_history_title).toString())).check(
-                matches(isDisplayed()));
+        onView(withText(mTargetContext.getText(R.string.outbound_history_title).toString()))
+                .check(matches(isDisplayed()));
     }
 
     // TODO: Check whether watch devices can pass this test
@@ -192,36 +196,55 @@ public class BluetoothOppTransferHistoryTest {
     @Test
     public void onOptionsItemSelected_clearAllSelected_promptWarning() {
         BluetoothOppTestUtils.setUpMockCursor(mCursor, mCursorMockDataList);
-        mIntent.putExtra(Constants.EXTRA_SHOW_ALL_FILES, false);
-        mIntent.putExtra("direction", BluetoothShare.DIRECTION_INBOUND);
+        mIntent.putExtra(Constants.EXTRA_DIRECTION, BluetoothShare.DIRECTION_INBOUND);
 
         ActivityScenario<BluetoothOppTransferHistory> scenario = ActivityScenario.launch(mIntent);
 
-
         MenuItem mockMenuItem = mock(MenuItem.class);
         doReturn(R.id.transfer_menu_clear_all).when(mockMenuItem).getItemId();
-        scenario.onActivity(activity -> {
-            activity.onOptionsItemSelected(mockMenuItem);
-        });
+        scenario.onActivity(
+                activity -> {
+                    activity.onOptionsItemSelected(mockMenuItem);
+                });
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
 
         // Controlling clear all download
         doReturn(true, false).when(mCursor).moveToFirst();
         doReturn(false, true).when(mCursor).isAfterLast();
-        doReturn(0).when(mBluetoothMethodProxy).contentResolverUpdate(any(), any(),
-                argThat(arg -> Objects.equal(arg.get(BluetoothShare.VISIBILITY),
-                        BluetoothShare.VISIBILITY_HIDDEN)), any(), any());
+        doReturn(0)
+                .when(mBluetoothMethodProxy)
+                .contentResolverUpdate(
+                        any(),
+                        any(),
+                        argThat(
+                                arg ->
+                                        Objects.equal(
+                                                arg.get(BluetoothShare.VISIBILITY),
+                                                BluetoothShare.VISIBILITY_HIDDEN)),
+                        any(),
+                        any());
 
         onView(withText(mTargetContext.getText(R.string.transfer_clear_dlg_title).toString()))
-                .inRoot(isDialog()).check(matches(isDisplayed()));
+                .inRoot(isDialog())
+                .check(matches(isDisplayed()));
 
         // Click ok on the prompted dialog
-        onView(withText(mTargetContext.getText(android.R.string.ok).toString())).inRoot(
-                isDialog()).check(matches(isDisplayed())).perform(click());
+        onView(withText(mTargetContext.getText(android.R.string.ok).toString()))
+                .inRoot(isDialog())
+                .check(matches(isDisplayed()))
+                .perform(click());
 
         // Verify that item is hidden
-        verify(mBluetoothMethodProxy).contentResolverUpdate(any(), any(),
-                argThat(arg -> Objects.equal(arg.get(BluetoothShare.VISIBILITY),
-                        BluetoothShare.VISIBILITY_HIDDEN)), any(), any());
+        verify(mBluetoothMethodProxy)
+                .contentResolverUpdate(
+                        any(),
+                        any(),
+                        argThat(
+                                arg ->
+                                        Objects.equal(
+                                                arg.get(BluetoothShare.VISIBILITY),
+                                                BluetoothShare.VISIBILITY_HIDDEN)),
+                        any(),
+                        any());
     }
 }

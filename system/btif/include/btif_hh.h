@@ -20,14 +20,17 @@
 #define BTIF_HH_H
 
 #include <base/strings/stringprintf.h>
+#include <bluetooth/log.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_hh.h>
 #include <pthread.h>
 #include <stdint.h>
 
 #include "bta/include/bta_hh_api.h"
+#include "macros.h"
 #include "osi/include/alarm.h"
 #include "osi/include/fixed_queue.h"
+#include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
 /*******************************************************************************
@@ -67,10 +70,6 @@ typedef enum : unsigned {
   BTIF_HH_DEV_DISCONNECTED
 } BTIF_HH_STATUS;
 
-#define CASE_RETURN_TEXT(code) \
-  case code:                   \
-    return #code
-
 inline std::string btif_hh_status_text(const BTIF_HH_STATUS& status) {
   switch (status) {
     CASE_RETURN_TEXT(BTIF_HH_DISABLED);
@@ -84,13 +83,12 @@ inline std::string btif_hh_status_text(const BTIF_HH_STATUS& status) {
       return base::StringPrintf("UNKNOWN[%u]", status);
   }
 }
-#undef CASE_RETURN_TEXT
 
 // Shared with uhid polling thread
 typedef struct {
   bthh_connection_state_t dev_status;
   uint8_t dev_handle;
-  RawAddress bd_addr;
+  tAclLinkSpec link_spec;
   tBTA_HH_ATTR_MASK attr_mask;
   uint8_t sub_class;
   uint8_t app_id;
@@ -109,8 +107,9 @@ typedef struct {
 /* Control block to maintain properties of devices */
 typedef struct {
   uint8_t dev_handle;
-  RawAddress bd_addr;
+  tAclLinkSpec link_spec;
   tBTA_HH_ATTR_MASK attr_mask;
+  bool reconnect_allowed;  // Connection policy
 } btif_hh_added_device_t;
 
 /**
@@ -123,7 +122,7 @@ typedef struct {
   uint32_t device_num;
   btif_hh_added_device_t added_devices[BTIF_HH_MAX_ADDED_DEV];
   bool service_dereg_active;
-  RawAddress pending_conn_address;
+  tAclLinkSpec pending_link_spec;
 } btif_hh_cb_t;
 
 /*******************************************************************************
@@ -133,10 +132,11 @@ typedef struct {
 extern btif_hh_cb_t btif_hh_cb;
 
 btif_hh_device_t* btif_hh_find_connected_dev_by_handle(uint8_t handle);
-void btif_hh_remove_device(RawAddress bd_addr);
-bool btif_hh_add_added_dev(const RawAddress& bda, tBTA_HH_ATTR_MASK attr_mask);
-bt_status_t btif_hh_virtual_unplug(const RawAddress* bd_addr);
-void btif_hh_disconnect(RawAddress* bd_addr);
+btif_hh_device_t* btif_hh_find_dev_by_handle(uint8_t handle);
+btif_hh_device_t* btif_hh_find_empty_dev(void);
+bt_status_t btif_hh_connect(const tAclLinkSpec& link_spec);
+bt_status_t btif_hh_virtual_unplug(const tAclLinkSpec& link_spec);
+void btif_hh_remove_device(const tAclLinkSpec& link_spec);
 void btif_hh_setreport(btif_hh_device_t* p_dev, bthh_report_type_t r_type,
                        uint16_t size, uint8_t* report);
 void btif_hh_senddata(btif_hh_device_t* p_dev, uint16_t size, uint8_t* report);
@@ -144,6 +144,16 @@ void btif_hh_getreport(btif_hh_device_t* p_dev, bthh_report_type_t r_type,
                        uint8_t reportId, uint16_t bufferSize);
 void btif_hh_service_registration(bool enable);
 
+void btif_hh_load_bonded_dev(const tAclLinkSpec& link_spec,
+                             tBTA_HH_ATTR_MASK attr_mask, uint8_t sub_class,
+                             uint8_t app_id, tBTA_HH_DEV_DSCP_INFO dscp_info,
+                             bool reconnect_allowed);
+
 void DumpsysHid(int fd);
+
+namespace fmt {
+template <>
+struct formatter<BTIF_HH_STATUS> : enum_formatter<BTIF_HH_STATUS> {};
+}  // namespace fmt
 
 #endif

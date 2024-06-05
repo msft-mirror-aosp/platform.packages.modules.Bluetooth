@@ -20,6 +20,7 @@ import android.content.Context
 import android.os.Looper
 import android.provider.Settings
 import androidx.test.core.app.ApplicationProvider
+import com.android.server.bluetooth.Log
 import com.android.server.bluetooth.satellite.SETTINGS_SATELLITE_MODE_ENABLED
 import com.android.server.bluetooth.satellite.SETTINGS_SATELLITE_MODE_RADIOS
 import com.android.server.bluetooth.satellite.initialize
@@ -30,15 +31,35 @@ import com.android.server.bluetooth.test.enableMode
 import com.android.server.bluetooth.test.enableSensitive
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TestName
 import org.junit.runner.RunWith
-import org.mockito.Mockito.times
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class ModeListenerTest {
+    companion object {
+        internal fun setupSatelliteModeToOn(
+            resolver: ContentResolver,
+            looper: Looper,
+            callback: (m: Boolean) -> Unit
+        ) {
+            enableSensitive(resolver, looper, SETTINGS_SATELLITE_MODE_RADIOS)
+            enableMode(resolver, looper, SETTINGS_SATELLITE_MODE_ENABLED)
+
+            initialize(looper, resolver, callback)
+        }
+
+        internal fun setupSatelliteModeToOff(resolver: ContentResolver, looper: Looper) {
+            disableSensitive(resolver, looper, SETTINGS_SATELLITE_MODE_RADIOS)
+            disableMode(resolver, looper, SETTINGS_SATELLITE_MODE_ENABLED)
+        }
+    }
+
     private val resolver: ContentResolver =
         ApplicationProvider.getApplicationContext<Context>().getContentResolver()
+    @JvmField @Rule val testName = TestName()
 
     private val looper: Looper = Looper.getMainLooper()
 
@@ -46,6 +67,7 @@ class ModeListenerTest {
 
     @Before
     public fun setup() {
+        Log.i("SatelliteModeListener", "\t--> setup of " + testName.getMethodName())
         mode = ArrayList()
     }
 

@@ -23,7 +23,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.spy;
@@ -34,12 +33,13 @@ import static org.mockito.Mockito.when;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 
+import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
-import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -47,13 +47,13 @@ import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 
 import org.junit.After;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
@@ -64,20 +64,19 @@ public class BluetoothMapServiceTest {
     private BluetoothAdapter mAdapter = null;
     private BluetoothDevice mRemoteDevice;
 
-    @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private DatabaseManager mDatabaseManager;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
+        Context targetContext = InstrumentationRegistry.getTargetContext();
         TestUtils.setAdapterService(mAdapterService);
         doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
-        doReturn(true, false).when(mAdapterService).isStartedProfile(anyString());
-        TestUtils.startService(mServiceRule, BluetoothMapService.class);
-        mService = BluetoothMapService.getBluetoothMapService();
-        assertThat(mService).isNotNull();
+        mService = new BluetoothMapService(targetContext);
+        mService.start();
+        mService.setAvailable(true);
         // Try getting the Bluetooth adapter
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         assertThat(mAdapter).isNotNull();
@@ -86,7 +85,7 @@ public class BluetoothMapServiceTest {
 
     @After
     public void tearDown() throws Exception {
-        TestUtils.stopService(mServiceRule, BluetoothMapService.class);
+        mService.stop();
         mService = BluetoothMapService.getBluetoothMapService();
         assertThat(mService).isNull();
         TestUtils.clearAdapterService(mAdapterService);
@@ -101,8 +100,10 @@ public class BluetoothMapServiceTest {
     public void getDevicesMatchingConnectionStates_whenNoDeviceIsConnected_returnsEmptyList() {
         when(mAdapterService.getBondedDevices()).thenReturn(new BluetoothDevice[] {mRemoteDevice});
 
-        assertThat(mService.getDevicesMatchingConnectionStates(
-                new int[] {BluetoothProfile.STATE_CONNECTED})).isEmpty();
+        assertThat(
+                        mService.getDevicesMatchingConnectionStates(
+                                new int[] {BluetoothProfile.STATE_CONNECTED}))
+                .isEmpty();
     }
 
     @Test
@@ -119,8 +120,8 @@ public class BluetoothMapServiceTest {
 
         mService.sendConnectCancelMessage();
 
-        verify(handler, timeout(1_000)).messageArrived(
-                eq(MSG_MAS_CONNECT_CANCEL), anyInt(), anyInt(), any());
+        verify(handler, timeout(1_000))
+                .messageArrived(eq(MSG_MAS_CONNECT_CANCEL), anyInt(), anyInt(), any());
     }
 
     @Test
@@ -130,8 +131,7 @@ public class BluetoothMapServiceTest {
 
         mService.sendConnectTimeoutMessage();
 
-        verify(handler, timeout(1_000)).messageArrived(
-                eq(USER_TIMEOUT), anyInt(), anyInt(), any());
+        verify(handler, timeout(1_000)).messageArrived(eq(USER_TIMEOUT), anyInt(), anyInt(), any());
     }
 
     @Test
@@ -142,8 +142,8 @@ public class BluetoothMapServiceTest {
 
         mService.updateMasInstances(action);
 
-        verify(handler, timeout(1_000)).messageArrived(
-                eq(UPDATE_MAS_INSTANCES), eq(action), anyInt(), any());
+        verify(handler, timeout(1_000))
+                .messageArrived(eq(UPDATE_MAS_INSTANCES), eq(action), anyInt(), any());
     }
 
     public static class TestableHandler extends Handler {

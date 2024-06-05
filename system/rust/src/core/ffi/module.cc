@@ -16,10 +16,11 @@
 
 #include "module.h"
 
+#include <bluetooth/log.h>
 #include <hardware/bt_gatt.h>
 
 #include "btcore/include/module.h"
-#include "osi/include/log.h"
+#include "os/log.h"
 #ifndef TARGET_FLOSS
 #include "src/connection/ffi/connection_shim.h"
 #include "src/core/ffi.rs.h"
@@ -56,7 +57,7 @@ future_t* Start() {
     // We can't crash here since some adapter tests mis-use the stack
     // startup/cleanup logic and start the stack without GATT, but don't fully
     // mock out the native layer.
-    LOG_ERROR(
+    bluetooth::log::error(
         "GATT profile not started, so we cannot start the Rust loop - this "
         "happens only in tests.");
     bluetooth::rust_shim::FutureReady(*fut);

@@ -31,7 +31,6 @@
 #include "bta/include/bta_api.h"
 #include "stack/include/avrc_defs.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/bt_types.h"
 #include "types/raw_address.h"
 
 /*****************************************************************************
@@ -706,18 +705,6 @@ void BTA_AvSetLatency(tBTA_AV_HNDL handle, bool is_low_latency);
  *
  ******************************************************************************/
 void BTA_AvOffloadStart(tBTA_AV_HNDL hndl);
-
-/*******************************************************************************
- *
- * Function         BTA_AvOffloadStartRsp
- *
- * Description      Response from vendor library indicating response for
- *                  OffloadStart.
- *
- * Returns          void
- *
- ******************************************************************************/
-void BTA_AvOffloadStartRsp(tBTA_AV_HNDL hndl, tBTA_AV_STATUS status);
 
 /**
  * Obtain the Channel Index for a peer.

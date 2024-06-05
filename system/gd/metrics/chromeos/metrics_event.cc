@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "gd/metrics/chromeos/metrics_event.h"
+#include "metrics/chromeos/metrics_event.h"
 
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
@@ -25,7 +25,7 @@
 #include <map>
 #include <utility>
 
-#include "gd/common/init_flags.h"
+#include "common/init_flags.h"
 #include "hci/hci_packets.h"
 #include "include/hardware/bluetooth.h"
 #include "include/hardware/bt_av.h"
@@ -81,6 +81,8 @@ enum class ProfilesFloss {
   A2dpSink = 0,
   A2dpSource,
   AdvAudioDist,
+  Bas,
+  Dis,
   Hsp,
   HspAg,
   Hfp,
@@ -208,7 +210,7 @@ static PairingState FailReasonToPairingState(int32_t fail_reason) {
       return PairingState::PAIR_FAIL_AUTH_FAILED;
     case hci::ErrorCode::ROLE_SWITCH_FAILED:
       return PairingState::PAIR_FAIL_FAILED;
-    case hci::ErrorCode::HOST_BUSY:
+    case hci::ErrorCode::HOST_BUSY_PAIRING:
       return PairingState::PAIR_FAIL_BUSY;
     case hci::ErrorCode::CONTROLLER_BUSY:
       return PairingState::PAIR_FAIL_BUSY;
@@ -232,6 +234,10 @@ static PairingState FailReasonToPairingState(int32_t fail_reason) {
 
 AdapterState ToAdapterState(uint32_t state) {
   return state == 1 ? AdapterState::ON : AdapterState::OFF;
+}
+
+SuspendIdState ToSuspendIdState(uint32_t state) {
+  return state == 1 ? SuspendIdState::Recorded : SuspendIdState::NoRecord;
 }
 
 ConnectionType ToPairingDeviceType(std::string addr, uint32_t device_type) {
@@ -443,6 +449,10 @@ static std::pair<uint32_t, uint32_t> ToProfileConnectionState(uint32_t profile, 
           break;
         case BthhConnectionState::BTHH_CONN_STATE_DISCONNECTING:
           output.second = (uint32_t)ProfilesConnectionState::DISCONNECTING;
+          break;
+        case BthhConnectionState::BTHH_CONN_STATE_ACCEPTING:
+          // For metric purpose, we map accepting to connecting.
+          output.second = (uint32_t)ProfilesConnectionState::CONNECTING;
           break;
         case BthhConnectionState::BTHH_CONN_STATE_UNKNOWN:
           output.second = (uint32_t)ProfilesConnectionState::UNKNOWN;

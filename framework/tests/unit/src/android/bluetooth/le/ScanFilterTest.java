@@ -16,14 +16,20 @@
 
 package android.bluetooth.le;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import android.bluetooth.BluetoothDevice;
 import android.os.Parcel;
-import android.test.suitebuilder.annotation.SmallTest;
 
-import junit.framework.TestCase;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
-public class ScanFilterTest extends TestCase {
-    @SmallTest
+/** Test for Bluetooth LE {@link ScanFilter}. */
+@RunWith(JUnit4.class)
+public class ScanFilterTest {
+
+    @Test
     public void testIrkFilterParcelable() {
         // arrange: an IRK filter
         Parcel parcel = Parcel.obtain();
@@ -41,6 +47,6 @@ public class ScanFilterTest extends TestCase {
         ScanFilter filterFromParcel = ScanFilter.CREATOR.createFromParcel(parcel);
 
         // assert: no change
-        assertEquals(filter, filterFromParcel);
+        assertThat(filterFromParcel).isEqualTo(filter);
     }
 }

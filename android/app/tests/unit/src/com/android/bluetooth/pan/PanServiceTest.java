@@ -21,18 +21,18 @@ import static android.net.TetheringManager.TETHER_ERROR_SERVICE_UNAVAIL;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
+import android.content.Context;
 import android.net.TetheringInterface;
 import android.os.UserManager;
 
+import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
-import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -46,7 +46,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
@@ -58,7 +59,7 @@ public class PanServiceTest {
     private BluetoothAdapter mAdapter = null;
     private BluetoothDevice mRemoteDevice;
 
-    @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private DatabaseManager mDatabaseManager;
@@ -67,15 +68,14 @@ public class PanServiceTest {
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
+        Context targetContext = InstrumentationRegistry.getTargetContext();
         TestUtils.setAdapterService(mAdapterService);
         doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
-        doReturn(true, false).when(mAdapterService).isStartedProfile(anyString());
         PanNativeInterface.setInstance(mNativeInterface);
-        TestUtils.startService(mServiceRule, PanService.class);
-        mService = PanService.getPanService();
+        mService = new PanService(targetContext);
+        mService.start();
+        mService.setAvailable(true);
 
-        assertThat(mService).isNotNull();
         // Try getting the Bluetooth adapter
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         assertThat(mAdapter).isNotNull();
@@ -85,7 +85,8 @@ public class PanServiceTest {
 
     @After
     public void tearDown() throws Exception {
-        TestUtils.stopService(mServiceRule, PanService.class);
+        mService.stop();
+        mService.cleanup();
         PanNativeInterface.setInstance(null);
         mService = PanService.getPanService();
         assertThat(mService).isNull();
@@ -106,8 +107,10 @@ public class PanServiceTest {
     @Test
     public void connect_inConnectedState_returnsFalse() {
         when(mMockUserManager.isGuestUser()).thenReturn(false);
-        mService.mPanDevices.put(mRemoteDevice, new BluetoothPanDevice(
-                BluetoothProfile.STATE_CONNECTED, "iface", PAN_ROLE_NONE, PAN_ROLE_NONE));
+        mService.mPanDevices.put(
+                mRemoteDevice,
+                new BluetoothPanDevice(
+                        BluetoothProfile.STATE_CONNECTED, PAN_ROLE_NONE, PAN_ROLE_NONE));
 
         assertThat(mService.connect(mRemoteDevice)).isFalse();
     }
@@ -115,8 +118,10 @@ public class PanServiceTest {
     @Test
     public void connect() {
         when(mMockUserManager.isGuestUser()).thenReturn(false);
-        mService.mPanDevices.put(mRemoteDevice, new BluetoothPanDevice(
-                BluetoothProfile.STATE_DISCONNECTED, "iface", PAN_ROLE_NONE, PAN_ROLE_NONE));
+        mService.mPanDevices.put(
+                mRemoteDevice,
+                new BluetoothPanDevice(
+                        BluetoothProfile.STATE_DISCONNECTED, PAN_ROLE_NONE, PAN_ROLE_NONE));
 
         assertThat(mService.connect(mRemoteDevice)).isTrue();
     }
@@ -142,8 +147,10 @@ public class PanServiceTest {
 
     @Test
     public void dump() {
-        mService.mPanDevices.put(mRemoteDevice, new BluetoothPanDevice(
-                BluetoothProfile.STATE_DISCONNECTED, "iface", PAN_ROLE_NONE, PAN_ROLE_NONE));
+        mService.mPanDevices.put(
+                mRemoteDevice,
+                new BluetoothPanDevice(
+                        BluetoothProfile.STATE_DISCONNECTED, PAN_ROLE_NONE, PAN_ROLE_NONE));
 
         mService.dump(new StringBuilder());
     }
@@ -168,7 +175,8 @@ public class PanServiceTest {
     public void setConnectionPolicy_whenDatabaseManagerRefuses_returnsFalse() {
         int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
         when(mDatabaseManager.setProfileConnectionPolicy(
-                mRemoteDevice, BluetoothProfile.PAN, connectionPolicy)).thenReturn(false);
+                        mRemoteDevice, BluetoothProfile.PAN, connectionPolicy))
+                .thenReturn(false);
 
         assertThat(mService.setConnectionPolicy(mRemoteDevice, connectionPolicy)).isFalse();
     }
@@ -176,16 +184,24 @@ public class PanServiceTest {
     @Test
     public void setConnectionPolicy_returnsTrue() {
         when(mDatabaseManager.setProfileConnectionPolicy(
-                mRemoteDevice, BluetoothProfile.PAN, BluetoothProfile.CONNECTION_POLICY_ALLOWED))
+                        mRemoteDevice,
+                        BluetoothProfile.PAN,
+                        BluetoothProfile.CONNECTION_POLICY_ALLOWED))
                 .thenReturn(true);
-        assertThat(mService.setConnectionPolicy(
-                mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED)).isTrue();
+        assertThat(
+                        mService.setConnectionPolicy(
+                                mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED))
+                .isTrue();
 
         when(mDatabaseManager.setProfileConnectionPolicy(
-                mRemoteDevice, BluetoothProfile.PAN, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
+                        mRemoteDevice,
+                        BluetoothProfile.PAN,
+                        BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
                 .thenReturn(true);
-        assertThat(mService.setConnectionPolicy(
-                mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN)).isTrue();
+        assertThat(
+                        mService.setConnectionPolicy(
+                                mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
+                .isTrue();
     }
 
     @Test
@@ -195,8 +211,9 @@ public class PanServiceTest {
         int localRole = 3;
         int remoteRole = 4;
 
-        PanService.ConnectState connectState = new PanService.ConnectState(
-                REMOTE_DEVICE_ADDRESS_AS_ARRAY, state, error, localRole, remoteRole);
+        PanService.ConnectState connectState =
+                new PanService.ConnectState(
+                        REMOTE_DEVICE_ADDRESS_AS_ARRAY, state, error, localRole, remoteRole);
 
         assertThat(connectState.addr).isEqualTo(REMOTE_DEVICE_ADDRESS_AS_ARRAY);
         assertThat(connectState.state).isEqualTo(state);
@@ -208,8 +225,10 @@ public class PanServiceTest {
     @Test
     public void tetheringCallback_onError_clearsPanDevices() {
         mService.mIsTethering = true;
-        mService.mPanDevices.put(mRemoteDevice, new BluetoothPanDevice(
-                BluetoothProfile.STATE_DISCONNECTED, "iface", PAN_ROLE_NONE, PAN_ROLE_NONE));
+        mService.mPanDevices.put(
+                mRemoteDevice,
+                new BluetoothPanDevice(
+                        BluetoothProfile.STATE_DISCONNECTED, PAN_ROLE_NONE, PAN_ROLE_NONE));
         TetheringInterface iface = new TetheringInterface(TETHERING_BLUETOOTH, "iface");
 
         mService.mTetheringCallback.onError(iface, TETHER_ERROR_SERVICE_UNAVAIL);

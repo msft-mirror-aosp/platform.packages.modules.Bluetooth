@@ -31,6 +31,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.sysprop.BluetoothProperties;
 import android.view.KeyEvent;
 
 import androidx.lifecycle.Lifecycle;
@@ -42,20 +43,24 @@ import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.TestUtils;
 
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppBtEnablingActivityTest {
-    @Spy
-    BluetoothMethodProxy mBluetoothMethodProxy;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Spy BluetoothMethodProxy mBluetoothMethodProxy;
 
     Intent mIntent;
     Context mTargetContext;
@@ -69,7 +74,8 @@ public class BluetoothOppBtEnablingActivityTest {
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
+        Assume.assumeTrue(BluetoothProperties.isProfileOppEnabled().orElse(false));
+
         mBluetoothMethodProxy = Mockito.spy(BluetoothMethodProxy.getInstance());
         BluetoothMethodProxy.setInstanceForTesting(mBluetoothMethodProxy);
 
@@ -79,7 +85,6 @@ public class BluetoothOppBtEnablingActivityTest {
         mIntent.setClass(mTargetContext, BluetoothOppBtEnablingActivity.class);
 
         mRealTimeoutValue = BluetoothOppBtEnablingActivity.sBtEnablingTimeoutMs;
-        BluetoothOppTestUtils.enableOppActivities(true, mTargetContext);
         TestUtils.setUpUiTest();
     }
 
@@ -88,7 +93,6 @@ public class BluetoothOppBtEnablingActivityTest {
         TestUtils.tearDownUiTest();
         BluetoothMethodProxy.setInstanceForTesting(null);
         BluetoothOppBtEnablingActivity.sBtEnablingTimeoutMs = mRealTimeoutValue;
-        BluetoothOppTestUtils.enableOppActivities(false, mTargetContext);
     }
 
     @Ignore("b/277594572")
@@ -99,13 +103,14 @@ public class BluetoothOppBtEnablingActivityTest {
         BluetoothOppBtEnablingActivity.sBtEnablingTimeoutMs = spedUpTimeoutValue;
         doReturn(false).when(mBluetoothMethodProxy).bluetoothAdapterIsEnabled(any());
 
-        ActivityScenario<BluetoothOppBtEnablingActivity> activityScenario = ActivityScenario.launch(
-                mIntent);
+        ActivityScenario<BluetoothOppBtEnablingActivity> activityScenario =
+                ActivityScenario.launch(mIntent);
         final BluetoothOppManager[] mOppManager = new BluetoothOppManager[1];
-        activityScenario.onActivity(activity -> {
-            // Should be cancelled after timeout
-            mOppManager[0] = BluetoothOppManager.getInstance(activity);
-        });
+        activityScenario.onActivity(
+                activity -> {
+                    // Should be cancelled after timeout
+                    mOppManager[0] = BluetoothOppManager.getInstance(activity);
+                });
         Thread.sleep(spedUpTimeoutValue);
         assertThat(mOppManager[0].mSendingFlag).isEqualTo(false);
         assertActivityState(activityScenario, DESTROYED);
@@ -114,57 +119,55 @@ public class BluetoothOppBtEnablingActivityTest {
     @Test
     public void onKeyDown_cancelProgress() throws Exception {
         doReturn(false).when(mBluetoothMethodProxy).bluetoothAdapterIsEnabled(any());
-        ActivityScenario<BluetoothOppBtEnablingActivity> activityScenario = ActivityScenario.launch(
-                mIntent);
+        ActivityScenario<BluetoothOppBtEnablingActivity> activityScenario =
+                ActivityScenario.launch(mIntent);
 
-        activityScenario.onActivity(activity -> {
-            activity.onKeyDown(KeyEvent.KEYCODE_BACK,
-                    new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK));
-            // Should be cancelled immediately
-            BluetoothOppManager mOppManager = BluetoothOppManager.getInstance(activity);
-            assertThat(mOppManager.mSendingFlag).isEqualTo(false);
-        });
-        assertActivityState(activityScenario, DESTROYED);
+        AtomicBoolean finishCalled = new AtomicBoolean(false);
+
+        activityScenario.onActivity(
+                activity -> {
+                    activity.onKeyDown(
+                            KeyEvent.KEYCODE_BACK,
+                            new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK));
+                    // Should be cancelled immediately
+                    BluetoothOppManager mOppManager = BluetoothOppManager.getInstance(activity);
+                    assertThat(mOppManager.mSendingFlag).isEqualTo(false);
+
+                    finishCalled.set(activity.isFinishing());
+                });
+        assertThat(finishCalled.get()).isTrue();
     }
 
     @Test
     public void onCreate_bluetoothAlreadyEnabled_finishImmediately() throws Exception {
         doReturn(true).when(mBluetoothMethodProxy).bluetoothAdapterIsEnabled(any());
-        ActivityScenario<BluetoothOppBtEnablingActivity> activityScenario = ActivityScenario.launch(
-                mIntent);
+        ActivityScenario<BluetoothOppBtEnablingActivity> activityScenario =
+                ActivityScenario.launch(mIntent);
         assertActivityState(activityScenario, DESTROYED);
     }
 
     @Test
     public void broadcastReceiver_onReceive_finishImmediately() throws Exception {
         doReturn(false).when(mBluetoothMethodProxy).bluetoothAdapterIsEnabled(any());
-        ActivityScenario<BluetoothOppBtEnablingActivity> activityScenario = ActivityScenario.launch(
-                mIntent);
-        activityScenario.onActivity(activity -> {
-            Intent intent = new Intent(BluetoothAdapter.ACTION_STATE_CHANGED);
-            intent.putExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.STATE_ON);
-            activity.mBluetoothReceiver.onReceive(mTargetContext, intent);
-        });
-        assertActivityState(activityScenario, DESTROYED);
+        ActivityScenario<BluetoothOppBtEnablingActivity> activityScenario =
+                ActivityScenario.launch(mIntent);
+
+        AtomicBoolean finishCalled = new AtomicBoolean(false);
+        activityScenario.onActivity(
+                activity -> {
+                    Intent intent = new Intent(BluetoothAdapter.ACTION_STATE_CHANGED);
+                    intent.putExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.STATE_ON);
+                    activity.mBluetoothReceiver.onReceive(mTargetContext, intent);
+
+                    finishCalled.set(activity.isFinishing());
+                });
+        assertThat(finishCalled.get()).isTrue();
     }
 
     private void assertActivityState(ActivityScenario activityScenario, Lifecycle.State state)
-      throws Exception {
+            throws Exception {
         // TODO: Change this into an event driven systems
         Thread.sleep(3_000);
         assertThat(activityScenario.getState()).isEqualTo(state);
-    }
-
-    private void enableActivity(boolean enable) {
-        int enabledState = enable ? COMPONENT_ENABLED_STATE_ENABLED
-                : COMPONENT_ENABLED_STATE_DEFAULT;
-
-        mTargetContext.getPackageManager().setApplicationEnabledSetting(
-                mTargetContext.getPackageName(), enabledState, DONT_KILL_APP);
-
-        ComponentName activityName = new ComponentName(mTargetContext,
-                BluetoothOppTransferActivity.class);
-        mTargetContext.getPackageManager().setComponentEnabledSetting(
-                activityName, enabledState, DONT_KILL_APP);
     }
 }

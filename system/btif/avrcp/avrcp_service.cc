@@ -17,21 +17,22 @@
 #include "avrcp_service.h"
 
 #include <base/functional/bind.h>
-#include <base/logging.h>
 #include <base/task/cancelable_task_tracker.h>
 #include <base/threading/thread.h>
+#include <bluetooth/log.h>
 
 #include <mutex>
 #include <sstream>
 
-#include "abstract_message_loop.h"
 #include "bta/sys/bta_sys.h"
 #include "btif_av.h"
 #include "btif_common.h"
-#include "btif_dm.h"
 #include "device.h"
+#include "osi/include/osi.h"
+#include "stack/include/a2dp_api.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/btu.h"
+#include "stack/include/bt_uuid16.h"
+#include "stack/include/main_thread.h"
 #include "stack/include/sdp_api.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -54,6 +55,28 @@ class A2dpInterfaceImpl : public A2dpInterface {
   bool is_peer_in_silence_mode(const RawAddress& peer_address) override {
     return btif_av_is_peer_silenced(peer_address);
   }
+
+  void connect_audio_sink_delayed(uint8_t handle,
+                                  const RawAddress& peer_address) override {
+    btif_av_connect_sink_delayed(handle, peer_address);
+  }
+
+  uint16_t find_audio_sink_service(const RawAddress& peer_address,
+                                   tA2DP_FIND_CBACK p_cback) override {
+    uint16_t attr_list[] = {ATTR_ID_SERVICE_CLASS_ID_LIST,
+                            ATTR_ID_BT_PROFILE_DESC_LIST,
+                            ATTR_ID_SUPPORTED_FEATURES};
+
+    tA2DP_SDP_DB_PARAMS db_params = {
+        .db_len = BT_DEFAULT_BUFFER_SIZE,
+        .num_attr = ARRAY_SIZE(attr_list),
+        .p_attrs = attr_list,
+    };
+
+    return A2DP_FindService(UUID_SERVCLASS_AUDIO_SINK, peer_address, &db_params,
+                            p_cback);
+  }
+
 } a2dp_interface_;
 
 class AvrcpInterfaceImpl : public AvrcpInterface {
@@ -374,7 +397,7 @@ class PlayerSettingsInterfaceWrapper : public PlayerSettingsInterface {
 void AvrcpService::Init(MediaInterface* media_interface,
                         VolumeInterface* volume_interface,
                         PlayerSettingsInterface* player_settings_interface) {
-  LOG(INFO) << "AVRCP Target Service started";
+  log::info("AVRCP Target Service started");
 
   profile_version = avrcp_interface_.GetAvrcpVersion();
 
@@ -414,7 +437,8 @@ void AvrcpService::Init(MediaInterface* media_interface,
   player_settings_interface_ = wrapped_player_settings_interface;
 
   ConnectionHandler::Initialize(
-      base::Bind(&AvrcpService::DeviceCallback, base::Unretained(instance_)),
+      base::BindRepeating(&AvrcpService::DeviceCallback,
+                          base::Unretained(instance_)),
       &avrcp_interface_, &sdp_interface_, wrapped_volume_interface);
   connection_handler_ = ConnectionHandler::Get();
 }
@@ -434,7 +458,7 @@ uint16_t AvrcpService::GetSupportedFeatures(uint16_t profile_version) {
 }
 
 void AvrcpService::Cleanup() {
-  LOG(INFO) << "AVRCP Target Service stopped";
+  log::info("AVRCP Target Service stopped");
 
   avrcp_interface_.RemoveRecord(sdp_record_handle);
   bta_sys_remove_uuid(UUID_SERVCLASS_AV_REM_CTRL_TARGET);
@@ -455,8 +479,8 @@ void AvrcpService::Cleanup() {
 }
 
 void AvrcpService::RegisterBipServer(int psm) {
-  LOG(INFO) << "AVRCP Target Service has registered a BIP OBEX server, psm="
-            << psm;
+  log::info("AVRCP Target Service has registered a BIP OBEX server, psm={}",
+            psm);
   avrcp_interface_.RemoveRecord(sdp_record_handle);
   uint16_t supported_features
       = GetSupportedFeatures(profile_version) | AVRC_SUPF_TG_PLAYER_COVER_ART;
@@ -468,7 +492,7 @@ void AvrcpService::RegisterBipServer(int psm) {
 }
 
 void AvrcpService::UnregisterBipServer() {
-  LOG(INFO) << "AVRCP Target Service has unregistered a BIP OBEX server";
+  log::info("AVRCP Target Service has unregistered a BIP OBEX server");
   avrcp_interface_.RemoveRecord(sdp_record_handle);
   uint16_t supported_features = GetSupportedFeatures(profile_version);
   sdp_record_handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
@@ -479,7 +503,7 @@ void AvrcpService::UnregisterBipServer() {
 }
 
 AvrcpService* AvrcpService::Get() {
-  CHECK(instance_);
+  log::assert_that(instance_ != nullptr, "assert failed: instance_ != nullptr");
   return instance_;
 }
 
@@ -492,32 +516,26 @@ ServiceInterface* AvrcpService::GetServiceInterface() {
 }
 
 void AvrcpService::ConnectDevice(const RawAddress& bdaddr) {
-  LOG(INFO) << __PRETTY_FUNCTION__
-            << ": address=" << ADDRESS_TO_LOGGABLE_STR(bdaddr);
+  log::info("address={}", bdaddr);
 
   connection_handler_->ConnectDevice(bdaddr);
 }
 
 void AvrcpService::DisconnectDevice(const RawAddress& bdaddr) {
-  LOG(INFO) << __PRETTY_FUNCTION__
-            << ": address=" << ADDRESS_TO_LOGGABLE_STR(bdaddr);
+  log::info("address={}", bdaddr);
   connection_handler_->DisconnectDevice(bdaddr);
 }
 
 void AvrcpService::SetBipClientStatus(const RawAddress& bdaddr,
                                       bool connected) {
-  LOG(INFO) << __PRETTY_FUNCTION__
-            << ": address=" << ADDRESS_TO_LOGGABLE_STR(bdaddr)
-            << ", connected=" << connected;
+  log::info("address={}, connected={}", bdaddr, connected);
   connection_handler_->SetBipClientStatus(bdaddr, connected);
 }
 
 void AvrcpService::SendMediaUpdate(bool track_changed, bool play_state,
                                    bool queue) {
-  LOG(INFO) << __PRETTY_FUNCTION__ << " track_changed=" << track_changed
-            << " : "
-            << " play_state=" << play_state << " : "
-            << " queue=" << queue;
+  log::info("track_changed={} :  play_state={} :  queue={}", track_changed,
+            play_state, queue);
 
   // This function may be called on any thread, we need to make sure that the
   // device update happens on the main thread.
@@ -531,10 +549,8 @@ void AvrcpService::SendMediaUpdate(bool track_changed, bool play_state,
 
 void AvrcpService::SendFolderUpdate(bool available_players,
                                     bool addressed_players, bool uids) {
-  LOG(INFO) << __PRETTY_FUNCTION__ << " available_players=" << available_players
-            << " : "
-            << " addressed_players=" << addressed_players << " : "
-            << " uids=" << uids;
+  log::info("available_players={} :  addressed_players={} :  uids={}",
+            available_players, addressed_players, uids);
 
   // Ensure that the update is posted to the correct thread
   for (const auto& device :
@@ -553,10 +569,14 @@ void AvrcpService::SendActiveDeviceChanged(const RawAddress& address) {
 
 void AvrcpService::SendPlayerSettingsChanged(
     std::vector<PlayerAttribute> attributes, std::vector<uint8_t> values) {
-  LOG(INFO) << __PRETTY_FUNCTION__;
+  if (attributes.size() != values.size()) {
+    log::error("Attributes size {} doesn't match values size {}",
+               attributes.size(), values.size());
+    return;
+  }
   std::stringstream ss;
   for (size_t i = 0; i < attributes.size(); i++) {
-    ss << "attribute=" << attributes.at(i) << " : ";
+    ss << "{attribute=" << attributes.at(i) << " : ";
     if (attributes.at(i) == PlayerAttribute::REPEAT) {
       ss << "value=" << (PlayerRepeatValue)values.at(i);
     } else if (attributes.at(i) == PlayerAttribute::SHUFFLE) {
@@ -564,10 +584,10 @@ void AvrcpService::SendPlayerSettingsChanged(
     } else {
       ss << "value=" << std::to_string(values.at(i));
     }
-    ss << std::endl;
+    ss << ((i + 1 < attributes.size()) ? "}, " : "}");
   }
 
-  LOG(INFO) << ss.str();
+  log::info("{}", ss.str());
 
   // Ensure that the update is posted to the correct thread
   for (const auto& device :
@@ -597,7 +617,7 @@ void AvrcpService::ServiceInterfaceImpl::Init(
   // that its possible to call Get() on the service immediately after calling
   // init without issues.
 
-  CHECK(instance_ == nullptr);
+  log::assert_that(instance_ == nullptr, "assert failed: instance_ == nullptr");
   instance_ = new AvrcpService();
 
   do_in_main_thread(
@@ -608,7 +628,7 @@ void AvrcpService::ServiceInterfaceImpl::Init(
 
 void AvrcpService::ServiceInterfaceImpl::RegisterBipServer(int psm) {
   std::lock_guard<std::mutex> lock(service_interface_lock_);
-  CHECK(instance_ != nullptr);
+  log::assert_that(instance_ != nullptr, "assert failed: instance_ != nullptr");
   do_in_main_thread(FROM_HERE,
                     base::BindOnce(&AvrcpService::RegisterBipServer,
                                    base::Unretained(instance_), psm));
@@ -616,7 +636,7 @@ void AvrcpService::ServiceInterfaceImpl::RegisterBipServer(int psm) {
 
 void AvrcpService::ServiceInterfaceImpl::UnregisterBipServer() {
   std::lock_guard<std::mutex> lock(service_interface_lock_);
-  CHECK(instance_ != nullptr);
+  log::assert_that(instance_ != nullptr, "assert failed: instance_ != nullptr");
   do_in_main_thread(FROM_HERE,
                     base::BindOnce(&AvrcpService::UnregisterBipServer,
                                    base::Unretained(instance_)));
@@ -625,7 +645,7 @@ void AvrcpService::ServiceInterfaceImpl::UnregisterBipServer() {
 bool AvrcpService::ServiceInterfaceImpl::ConnectDevice(
     const RawAddress& bdaddr) {
   std::lock_guard<std::mutex> lock(service_interface_lock_);
-  CHECK(instance_ != nullptr);
+  log::assert_that(instance_ != nullptr, "assert failed: instance_ != nullptr");
   do_in_main_thread(FROM_HERE,
                     base::BindOnce(&AvrcpService::ConnectDevice,
                                    base::Unretained(instance_), bdaddr));
@@ -635,17 +655,38 @@ bool AvrcpService::ServiceInterfaceImpl::ConnectDevice(
 bool AvrcpService::ServiceInterfaceImpl::DisconnectDevice(
     const RawAddress& bdaddr) {
   std::lock_guard<std::mutex> lock(service_interface_lock_);
-  CHECK(instance_ != nullptr);
+  log::assert_that(instance_ != nullptr, "assert failed: instance_ != nullptr");
   do_in_main_thread(FROM_HERE,
                     base::BindOnce(&AvrcpService::DisconnectDevice,
                                    base::Unretained(instance_), bdaddr));
   return true;
 }
 
+bool AvrcpService::IsDeviceConnected(const RawAddress& bdaddr) {
+  if (instance_ == nullptr) {
+    log::warn("AVRCP Target Service not started");
+    return false;
+  }
+
+  auto handler = instance_->connection_handler_;
+  if (handler == nullptr) {
+    log::warn("AVRCP connection handler is null");
+    return false;
+  }
+
+  for (const auto& device : handler->GetListOfDevices()) {
+    if (bdaddr == device->GetAddress()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void AvrcpService::ServiceInterfaceImpl::SetBipClientStatus(
     const RawAddress& bdaddr, bool connected) {
   std::lock_guard<std::mutex> lock(service_interface_lock_);
-  CHECK(instance_ != nullptr);
+  log::assert_that(instance_ != nullptr, "assert failed: instance_ != nullptr");
   do_in_main_thread(FROM_HERE, base::BindOnce(&AvrcpService::SetBipClientStatus,
                                               base::Unretained(instance_),
                                               bdaddr, connected));
@@ -683,11 +724,8 @@ void AvrcpService::DebugDump(int fd) {
           device_list.size());
 
   std::stringstream stream;
-  {
-    ScopedIndent indent(stream);
-    for (const auto& device : device_list) {
-      stream << *device << std::endl;
-    }
+  for (const auto& device : device_list) {
+    stream << "  " << *device << std::endl;
   }
 
   dprintf(fd, "%s", stream.str().c_str());
@@ -696,7 +734,7 @@ void AvrcpService::DebugDump(int fd) {
 /** when a2dp connected, btif will start register vol changed, so we need a
  * interface for it. */
 void AvrcpService::RegisterVolChanged(const RawAddress& bdaddr) {
-  LOG(INFO) << ": address=" << ADDRESS_TO_LOGGABLE_STR(bdaddr);
+  log::info(": address={}", bdaddr);
 
   connection_handler_->RegisterVolChanged(bdaddr);
 }

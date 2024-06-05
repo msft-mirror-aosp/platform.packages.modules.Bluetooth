@@ -24,24 +24,24 @@
 #include <base/strings/stringprintf.h>
 #include <stddef.h>
 
-#include "bt_trace.h"
+#include "bta/dm/bta_dm_device_search.h"
 #include "bta/dm/bta_dm_disc.h"
 #include "bta/dm/bta_dm_gatt_client.h"
 #include "bta/dm/bta_dm_int.h"
-#include "gd/common/circular_buffer.h"
-#include "gd/common/strings.h"
+#include "bta/dm/bta_dm_sec_int.h"
 #include "main/shim/dumpsys.h"
-#include "stack/btm/btm_int_types.h"
-#include "stack/include/bt_hdr.h"
-#include "stack/include/bt_types.h"
 
+tBTA_DM_ACL_CB bta_dm_acl_cb;
 tBTA_DM_CB bta_dm_cb;
 tBTA_DM_DI_CB bta_dm_di_cb;
+
+tBTA_DM_SEC_CB bta_dm_sec_cb;
 
 #define DUMPSYS_TAG "shim::legacy::bta::dm"
 void DumpsysBtaDm(int fd) {
   LOG_DUMPSYS_TITLE(fd, DUMPSYS_TAG);
   DumpsysBtaDmDisc(fd);
+  DumpsysBtaDmSearch(fd);
   DumpsysBtaDmGattClient(fd);
 }
 #undef DUMPSYS_TAG

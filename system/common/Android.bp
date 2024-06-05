@@ -54,6 +54,8 @@ cc_library_static {
     min_sdk_version: "Tiramisu",
     header_libs: ["libbluetooth_headers"],
     static_libs: [
+        "libbluetooth_crypto_toolbox",
+        "libbluetooth_log",
         "libbt-platform-protos-lite",
         "libbt_shim_bridge",
     ],
@@ -62,9 +64,8 @@ cc_library_static {
 
 cc_test {
     name: "bluetooth_test_common",
-    test_suites: ["device-tests"],
+    test_suites: ["general-tests"],
     defaults: [
-        "bluetooth_gtest_x86_asan_workaround",
         "fluoride_defaults",
         "mts_defaults",
     ],
@@ -96,11 +97,15 @@ cc_test {
         },
     },
     shared_libs: [
+        "libbase",
         "libcrypto",
         "liblog",
     ],
     static_libs: [
         "libbluetooth-types",
+        "libbluetooth_crypto_toolbox",
+        "libbluetooth_log",
+        "libbluetooth_log",
         "libbt-common",
         "libbt-platform-protos-lite",
         "libbt_shim_bridge",
@@ -119,20 +124,24 @@ cc_test {
 cc_test {
     name: "net_test_performance",
     defaults: [
-        "bluetooth_gtest_x86_asan_workaround",
         "fluoride_defaults",
         "mts_defaults",
     ],
-    test_suites: ["device-tests"],
-    include_dirs: ["packages/modules/Bluetooth/system"],
+    test_suites: ["general-tests"],
+    include_dirs: [
+        "packages/modules/Bluetooth/system",
+        "packages/modules/Bluetooth/system/gd",
+    ],
     host_supported: true,
     srcs: [
         "test/thread_performance_test.cc",
     ],
     shared_libs: [
+        "libbase",
         "liblog",
     ],
     static_libs: [
+        "libbluetooth_log",
         "libbt-common",
         "libchrome",
         "libevent",
@@ -149,15 +158,19 @@ cc_benchmark {
         "fluoride_defaults",
     ],
     host_supported: true,
-    include_dirs: ["packages/modules/Bluetooth/system"],
+    include_dirs: [
+        "packages/modules/Bluetooth/system",
+        "packages/modules/Bluetooth/system/gd",
+    ],
     srcs: [
         "benchmark/thread_performance_benchmark.cc",
     ],
     shared_libs: [
-        "libcrypto",
+        "libbase",
         "liblog",
     ],
     static_libs: [
+        "libbluetooth_log",
         "libbt-common",
         "libchrome",
         "libevent",

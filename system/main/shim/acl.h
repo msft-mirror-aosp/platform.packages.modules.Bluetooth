@@ -19,20 +19,16 @@
 #include <future>
 #include <memory>
 
-#include "gd/hci/acl_manager/connection_callbacks.h"
-#include "gd/hci/acl_manager/le_connection_callbacks.h"
-#include "gd/hci/address.h"
-#include "gd/hci/address_with_type.h"
-#include "gd/hci/class_of_device.h"
-#include "gd/os/handler.h"
-#include "gd/packet/raw_builder.h"
+#include "hci/acl_manager/connection_callbacks.h"
+#include "hci/acl_manager/le_connection_callbacks.h"
+#include "hci/address.h"
+#include "hci/address_with_type.h"
+#include "hci/class_of_device.h"
 #include "main/shim/acl_legacy_interface.h"
 #include "main/shim/link_connection_interface.h"
-#include "main/shim/link_policy_interface.h"
-#include "stack/include/bt_types.h"
+#include "os/handler.h"
+#include "packet/raw_builder.h"
 #include "types/raw_address.h"
-
-using LeRandCallback = base::OnceCallback<void(uint64_t)>;
 
 namespace bluetooth {
 namespace shim {
@@ -40,8 +36,7 @@ namespace legacy {
 
 class Acl : public hci::acl_manager::ConnectionCallbacks,
             public hci::acl_manager::LeConnectionCallbacks,
-            public LinkConnectionInterface,
-            public LinkPolicyInterface {
+            public LinkConnectionInterface {
  public:
   Acl(os::Handler* handler, const acl_interface_t& acl_interface,
       uint8_t max_acceptlist_size, uint8_t max_address_resolution_size);
@@ -57,9 +52,6 @@ class Acl : public hci::acl_manager::ConnectionCallbacks,
   void OnConnectRequest(hci::Address, hci::ClassOfDevice) override;
   void OnConnectFail(hci::Address, hci::ErrorCode reason,
                      bool locally_initiated) override;
-
-  void HACK_OnEscoConnectRequest(hci::Address, hci::ClassOfDevice) override;
-  void HACK_OnScoConnectRequest(hci::Address, hci::ClassOfDevice) override;
 
   void OnClassicLinkDisconnected(uint16_t handle, hci::ErrorCode reason);
 
@@ -79,6 +71,8 @@ class Acl : public hci::acl_manager::ConnectionCallbacks,
   // LinkConnectionInterface
   void CreateClassicConnection(const hci::Address& address) override;
   void CancelClassicConnection(const hci::Address& address) override;
+  void DeviceAlreadyConnected(const hci::AddressWithType& address_with_type,
+                              std::promise<bool> promise);
   void AcceptLeConnectionFrom(const hci::AddressWithType& address_with_type,
                               bool is_direct,
                               std::promise<bool> promise) override;
@@ -88,6 +82,10 @@ class Acl : public hci::acl_manager::ConnectionCallbacks,
                          std::string comment) override;
   void DisconnectLe(uint16_t handle, tHCI_REASON reason,
                     std::string comment) override;
+  void UpdateConnectionParameters(uint16_t handle, uint16_t conn_int_min,
+                                  uint16_t conn_int_max, uint16_t conn_latency,
+                                  uint16_t conn_timeout, uint16_t min_ce_len,
+                                  uint16_t max_ce_len) override;
 
   // Address Resolution List
   void AddToAddressResolution(const hci::AddressWithType& address_with_type,
@@ -97,16 +95,6 @@ class Acl : public hci::acl_manager::ConnectionCallbacks,
       const hci::AddressWithType& address_with_type);
   void ClearAddressResolution();
 
-  // LinkPolicyInterface
-  bool HoldMode(uint16_t hci_handle, uint16_t max_interval,
-                uint16_t min_interval) override;
-  bool SniffMode(uint16_t hci_handle, uint16_t max_interval,
-                 uint16_t min_interval, uint16_t attempt,
-                 uint16_t timeout) override;
-  bool ExitSniffMode(uint16_t hci_handle) override;
-  bool SniffSubrating(uint16_t hci_handle, uint16_t maximum_latency,
-                      uint16_t minimum_remote_timeout,
-                      uint16_t minimum_local_timeout) override;
   void LeSetDefaultSubrate(uint16_t subrate_min, uint16_t subrate_max,
                            uint16_t max_latency, uint16_t cont_num,
                            uint16_t sup_tout);
@@ -117,6 +105,8 @@ class Acl : public hci::acl_manager::ConnectionCallbacks,
   void WriteData(uint16_t hci_handle,
                  std::unique_ptr<packet::RawBuilder> packet);
 
+  void Flush(uint16_t hci_handle);
+
   void Dump(int fd) const;
   void DumpConnectionHistory(int fd) const;
 
@@ -125,13 +115,13 @@ class Acl : public hci::acl_manager::ConnectionCallbacks,
 
   void ClearFilterAcceptList();
   void DisconnectAllForSuspend();
-  void LeRand(LeRandCallback cb);
   void SetSystemSuspendState(bool suspended);
 
  protected:
   void on_incoming_acl_credits(uint16_t handle, uint16_t credits);
   void write_data_sync(uint16_t hci_handle,
                        std::unique_ptr<packet::RawBuilder> packet);
+  void flush(uint16_t hci_handle);
 
  private:
   os::Handler* handler_;

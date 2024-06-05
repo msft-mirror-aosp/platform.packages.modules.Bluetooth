@@ -27,22 +27,23 @@ import android.util.Log;
 
 import androidx.core.util.Pair;
 import androidx.test.core.app.ApplicationProvider;
-import androidx.test.runner.AndroidJUnit4;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import com.android.compatibility.common.util.AdoptShellPermissionsRule;
 
 import io.grpc.Deadline;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import pandora.HostProto.ScanRequest;
+import pandora.HostProto.ScanningResponse;
+
 import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
-import pandora.HostProto.ScanRequest;
-import pandora.HostProto.ScanningResponse;
 
 /** Test cases for {@link AdvertiseManager}. */
 @RunWith(AndroidJUnit4.class)
@@ -56,6 +57,7 @@ public class LeAdvertisingTest {
     @Rule public final PandoraDevice mBumble = new PandoraDevice();
 
     @Test
+    @Ignore("b/343525982: Remove hidden api's dependencies to enable the test.")
     public void advertisingSet() throws Exception {
         Pair<String, Integer> addressPair = startAdvertising().join();
         ScanningResponse response = scanWithBumble(addressPair);

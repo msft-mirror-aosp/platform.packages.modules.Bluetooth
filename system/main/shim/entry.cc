@@ -16,26 +16,23 @@
 
 #include "main/shim/entry.h"
 
-#include "gd/hal/snoop_logger.h"
-#include "gd/hci/controller.h"
-#include "gd/hci/distance_measurement_manager.h"
-#include "gd/hci/hci_layer.h"
-#include "gd/hci/le_advertising_manager.h"
-#include "gd/hci/le_scanning_manager.h"
-#include "gd/hci/msft.h"
-#include "gd/hci/remote_name_request.h"
-#include "gd/hci/vendor_specific_event_manager.h"
-#include "gd/metrics/counter_metrics.h"
-#include "gd/neighbor/connectability.h"
-#include "gd/neighbor/discoverability.h"
-#include "gd/neighbor/inquiry.h"
-#include "gd/neighbor/page.h"
-#include "gd/os/handler.h"
-#include "gd/security/security_module.h"
-#include "gd/shim/dumpsys.h"
-#include "gd/storage/storage_module.h"
+#include "hal/snoop_logger.h"
 #include "hci/acl_manager.h"
+#include "hci/controller.h"
+#include "hci/controller_interface.h"
+#include "hci/distance_measurement_manager.h"
+#include "hci/hci_layer.h"
+#include "hci/le_advertising_manager.h"
+#include "hci/le_scanning_manager.h"
+#if TARGET_FLOSS
+#include "hci/msft.h"
+#endif
+#include "hci/remote_name_request.h"
 #include "main/shim/stack.h"
+#include "metrics/counter_metrics.h"
+#include "os/handler.h"
+#include "shim/dumpsys.h"
+#include "storage/storage_module.h"
 
 namespace bluetooth {
 namespace shim {
@@ -48,54 +45,18 @@ hci::LeAdvertisingManager* GetAdvertising() {
       ->GetInstance<hci::LeAdvertisingManager>();
 }
 
-hci::Controller* GetController() {
+hci::ControllerInterface* GetController() {
   return Stack::GetInstance()
       ->GetStackManager()
       ->GetInstance<hci::Controller>();
-}
-
-neighbor::ConnectabilityModule* GetConnectability() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<neighbor::ConnectabilityModule>();
-}
-
-neighbor::DiscoverabilityModule* GetDiscoverability() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<neighbor::DiscoverabilityModule>();
 }
 
 Dumpsys* GetDumpsys() {
   return Stack::GetInstance()->GetStackManager()->GetInstance<Dumpsys>();
 }
 
-neighbor::InquiryModule* GetInquiry() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<neighbor::InquiryModule>();
-}
-
-hci::HciLayer* GetHciLayer() {
+hci::HciInterface* GetHciLayer() {
   return Stack::GetInstance()->GetStackManager()->GetInstance<hci::HciLayer>();
-}
-
-l2cap::classic::L2capClassicModule* GetL2capClassicModule() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<bluetooth::l2cap::classic::L2capClassicModule>();
-}
-
-bluetooth::l2cap::le::L2capLeModule* GetL2capLeModule() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<bluetooth::l2cap::le::L2capLeModule>();
-}
-
-neighbor::PageModule* GetPage() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<neighbor::PageModule>();
 }
 
 hci::RemoteNameRequestModule* GetRemoteNameRequest() {
@@ -116,12 +77,6 @@ hci::DistanceMeasurementManager* GetDistanceMeasurementManager() {
       ->GetInstance<hci::DistanceMeasurementManager>();
 }
 
-security::SecurityModule* GetSecurityModule() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<security::SecurityModule>();
-}
-
 hal::SnoopLogger* GetSnoopLogger() {
   return Stack::GetInstance()
       ->GetStackManager()
@@ -140,23 +95,19 @@ hci::AclManager* GetAclManager() {
       ->GetInstance<hci::AclManager>();
 }
 
-hci::VendorSpecificEventManager* GetVendorSpecificEventManager() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<hci::VendorSpecificEventManager>();
-}
-
 metrics::CounterMetrics* GetCounterMetrics() {
   return Stack::GetInstance()
       ->GetStackManager()
       ->GetInstance<metrics::CounterMetrics>();
 }
 
+#if TARGET_FLOSS
 hci::MsftExtensionManager* GetMsftExtensionManager() {
   return Stack::GetInstance()
       ->GetStackManager()
       ->GetInstance<hci::MsftExtensionManager>();
 }
+#endif
 
 }  // namespace shim
 }  // namespace bluetooth

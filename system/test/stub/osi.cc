@@ -26,6 +26,7 @@
 #include <map>
 #include <string>
 
+#include "os/log.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/config.h"
@@ -33,7 +34,6 @@
 #include "osi/include/future.h"
 #include "osi/include/hash_map_utils.h"
 #include "osi/include/list.h"
-#include "osi/include/log.h"
 #include "osi/include/reactor.h"
 #include "osi/include/ringbuffer.h"
 #include "osi/include/socket.h"
@@ -43,9 +43,21 @@
 #include "test/common/fake_osi.h"
 #include "test/common/mock_functions.h"
 
-#ifndef UNUSED_ATTR
-#define UNUSED_ATTR
-#endif
+OsiObject::OsiObject(void* ptr) : ptr_(ptr) {}
+
+OsiObject::OsiObject(const void* ptr) : ptr_(const_cast<void*>(ptr)) {}
+
+OsiObject::~OsiObject() {
+  if (ptr_ != nullptr) {
+    osi_free(ptr_);
+  }
+}
+
+void* OsiObject::Release() {
+  void* ptr = ptr_;
+  ptr_ = nullptr;
+  return ptr;
+}
 
 struct StringComparison {
   bool operator()(char const* lhs, char const* rhs) const {
@@ -374,11 +386,6 @@ void alarm_set_on_mloop(alarm_t* alarm, uint64_t interval_ms,
   fake_osi_alarm_set_on_mloop_.data = data;
 }
 
-int osi_rand(void) {
-  inc_func_call_count(__func__);
-  return 0;
-}
-
 bool socket_listen(const socket_t* socket, port_t port) {
   inc_func_call_count(__func__);
   return false;
@@ -451,7 +458,7 @@ list_node_t* list_begin(const list_t* list) {
   inc_func_call_count(__func__);
   return nullptr;
 }
-list_node_t* list_end(UNUSED_ATTR const list_t* list) {
+list_node_t* list_end(const list_t* /* list */) {
   inc_func_call_count(__func__);
   return nullptr;
 }
@@ -497,7 +504,7 @@ int osi_socket_local_client(const char* name, int namespaceId, int type) {
   return 0;
 }
 int osi_socket_local_client_connect(int fd, const char* name, int namespaceId,
-                                    int type UNUSED_ATTR) {
+                                    int type) {
   inc_func_call_count(__func__);
   return 0;
 }

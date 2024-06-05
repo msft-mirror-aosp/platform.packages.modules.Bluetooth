@@ -25,7 +25,6 @@ import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_BLUET
 import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_BLUETOOTH_STATE_CHANGE;
 import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_DISABLE;
 import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_ENABLE;
-import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_REGISTER_STATE_CHANGE_CALLBACK;
 import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_TIMEOUT_BIND;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -34,10 +33,10 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.validateMockitoUsage;
 import static org.mockito.Mockito.verify;
@@ -75,14 +74,17 @@ import java.util.stream.IntStream;
 @RunWith(AndroidJUnit4.class)
 public class BluetoothManagerServiceTest {
     private static final String TAG = BluetoothManagerServiceTest.class.getSimpleName();
-    static final int STATE_BLE_TURNING_ON = 14; // can't find the symbol because hidden api
-    static final int TIMEOUT_MS = 1000; // TO use to wait for handler execution
+    private static final int STATE_BLE_TURNING_ON = 14; // can't find the symbol because hidden api
 
     BluetoothManagerService mManagerService;
 
-    /* @Spy */ Context mContext;
+    @Spy
+    private final Context mContext =
+            new ContextWrapper(InstrumentationRegistry.getInstrumentation().getTargetContext());
+
     @Spy BluetoothServerProxy mBluetoothServerProxy;
     @Mock UserManager mUserManager;
+    @Mock UserHandle mUserHandle;
 
     @Mock IBinder mBinder;
     @Mock IBluetoothManagerCallback mManagerCallback;
@@ -93,13 +95,12 @@ public class BluetoothManagerServiceTest {
 
     TestLooper mLooper;
 
-    boolean mHasException = false;
-
     static {
         // Required for reading DeviceConfig.
         InstrumentationRegistry.getInstrumentation()
                 .getUiAutomation()
-                .adoptShellPermissionIdentity(android.Manifest.permission.READ_DEVICE_CONFIG);
+                .adoptShellPermissionIdentity(
+                        android.Manifest.permission.INTERACT_ACROSS_USERS_FULL);
     }
 
     @Before
@@ -113,18 +114,26 @@ public class BluetoothManagerServiceTest {
         doReturn("00:11:22:33:44:55")
                 .when(mBluetoothServerProxy)
                 .settingsSecureGetString(any(), eq(Settings.Secure.BLUETOOTH_ADDRESS));
+        // Set persisted state to BLUETOOTH_OFF to not generate unwanted behavior when starting test
+        doReturn(BluetoothManagerService.BLUETOOTH_OFF)
+                .when(mBluetoothServerProxy)
+                .getBluetoothPersistedState(any(), anyInt());
 
-        mContext =
-                spy(
-                        new ContextWrapper(
-                                InstrumentationRegistry.getInstrumentation().getTargetContext()));
+        doAnswer(
+                        inv -> {
+                            doReturn(inv.getArguments()[1])
+                                    .when(mBluetoothServerProxy)
+                                    .getBluetoothPersistedState(any(), anyInt());
+                            return null;
+                        })
+                .when(mBluetoothServerProxy)
+                .setBluetoothPersistedState(any(), anyInt());
 
         // Test is not allowed to send broadcast as Bluetooth. doNothing Prevent SecurityException
         doNothing().when(mContext).sendBroadcastAsUser(any(), any(), any(), any());
         doReturn(mUserManager).when(mContext).getSystemService(UserManager.class);
 
         doReturn(mBinder).when(mManagerCallback).asBinder();
-        doReturn(mBinder).when(mStateChangeCallback).asBinder();
 
         doReturn(mAdapterBinder).when(mBluetoothServerProxy).createAdapterBinder(any());
         doReturn(mAdapterService).when(mAdapterBinder).getAdapterBinder();
@@ -146,18 +155,20 @@ public class BluetoothManagerServiceTest {
         mLooper = new TestLooper();
 
         mManagerService = new BluetoothManagerService(mContext, mLooper.getLooper());
+        mManagerService.initialize(mUserHandle);
+
         mManagerService.registerAdapter(mManagerCallback);
     }
 
     @After
     public void tearDown() {
-        mManagerService.unregisterAdapter(mManagerCallback);
-        mLooper.moveTimeForward(120_000); // 120 seconds
-        // Do not try to assert if `syncHandler()` already raised an exception for it
-        if (!mHasException) {
-            assertThat(mLooper.nextMessage()).isNull();
+        if (mManagerService != null) {
+            mManagerService.unregisterAdapter(mManagerCallback);
+            mManagerService = null;
         }
-        mManagerService = null;
+        mLooper.moveTimeForward(120_000); // 120 seconds
+
+        assertThat(mLooper.nextMessage()).isNull();
         validateMockitoUsage();
     }
 
@@ -197,23 +208,6 @@ public class BluetoothManagerServiceTest {
         // called from SYSTEM user, should try to toggle Bluetooth off
         mManagerService.onUserRestrictionsChanged(UserHandle.SYSTEM);
         syncHandler(MESSAGE_DISABLE);
-    }
-
-    @Test
-    public void testApmEnhancementEnabled() {
-        // Change the apm enhancement enabled value to 0
-        Settings.Global.putInt(mContext.getContentResolver(), "apm_enhancement_enabled", 0);
-        assertThat(
-                        Settings.Global.getInt(
-                                mContext.getContentResolver(), "apm_enhancement_enabled", 0))
-                .isEqualTo(0);
-
-        // Confirm that apm enhancement enabled value has been updated to 1
-        mManagerService.setApmEnhancementState();
-        assertThat(
-                        Settings.Global.getInt(
-                                mContext.getContentResolver(), "apm_enhancement_enabled", 0))
-                .isEqualTo(1);
     }
 
     @Test
@@ -322,11 +316,6 @@ public class BluetoothManagerServiceTest {
 
     @Test
     public void offToBleOn() throws Exception {
-        // In order to go to BLE only, the persisted state should be BLUETOOTH_OFF
-        doReturn(BluetoothManagerService.BLUETOOTH_OFF)
-                .when(mBluetoothServerProxy)
-                .getBluetoothPersistedState(any(), anyInt());
-
         mManagerService.enableBle("test_offToBleOn", mBinder);
         syncHandler(MESSAGE_ENABLE);
 
@@ -339,20 +328,11 @@ public class BluetoothManagerServiceTest {
 
     @Test
     public void offToOn() throws Exception {
-        // In order to not go to BLE only, the persisted state should not be BLUETOOTH_OFF
-        doReturn(BluetoothManagerService.BLUETOOTH_ON_BLUETOOTH)
-                .when(mBluetoothServerProxy)
-                .getBluetoothPersistedState(any(), anyInt());
-
-        mManagerService.registerStateChangeCallback(mStateChangeCallback);
-        syncHandler(MESSAGE_REGISTER_STATE_CHANGE_CALLBACK);
-
         mManagerService.enable("test_offToOn");
         syncHandler(MESSAGE_ENABLE);
 
         transition_offToOn();
 
-        verify(mStateChangeCallback).onBluetoothStateChange(eq(true));
         assertThat(mManagerService.getState()).isEqualTo(STATE_ON);
     }
 }

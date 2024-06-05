@@ -20,28 +20,16 @@
  *
  *  mockcify.pl ver 0.2
  */
-
-#include <cstdint>
-#include <functional>
-#include <map>
-#include <string>
-
-// Original included files, if any
-// NOTE: Since this is a mock file with mock definitions some number of
-//       include files may not be required.  The include-what-you-use
-//       still applies, but crafting proper inclusion is out of scope
-//       for this effort.  This compilation unit may compile as-is, or
-//       may need attention to prune the inclusion set.
-
 // Mock include file to share data between tests and mock
 #include "test/mock/mock_stack_smp_act.h"
+
+#include <cstdint>
+
+// Original included files, if any
+#include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
 // Mocked compile conditionals, if any
-#ifndef UNUSED_ATTR
-#define UNUSED_ATTR
-#endif
-
 // Mocked internal structures, if any
 
 namespace test {
@@ -54,7 +42,6 @@ struct smp_send_pair_fail smp_send_pair_fail;
 struct smp_send_pair_req smp_send_pair_req;
 struct smp_send_pair_rsp smp_send_pair_rsp;
 struct smp_send_confirm smp_send_confirm;
-struct smp_send_init smp_send_init;
 struct smp_send_rand smp_send_rand;
 struct smp_send_pair_public_key smp_send_pair_public_key;
 struct smp_send_commitment smp_send_commitment;
@@ -149,10 +136,6 @@ void smp_send_pair_rsp(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
 void smp_send_confirm(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   inc_func_call_count(__func__);
   test::mock::stack_smp_act::smp_send_confirm(p_cb, p_data);
-}
-void smp_send_init(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
-  inc_func_call_count(__func__);
-  test::mock::stack_smp_act::smp_send_init(p_cb, p_data);
 }
 void smp_send_rand(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   inc_func_call_count(__func__);

@@ -16,6 +16,8 @@
 
 package com.android.bluetooth;
 
+import com.android.obex.ObexTransport;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -24,12 +26,10 @@ import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 
-import com.android.obex.ObexTransport;
-
 /**
- * A fake obex transport used for testing Client/Server connections.
- * The transport uses two pairs of pipes to route input from the client to the server, and back.
- * The obex transport is of the simplest form, returning default values for everything.
+ * A fake obex transport used for testing Client/Server connections. The transport uses two pairs of
+ * pipes to route input from the client to the server, and back. The obex transport is of the
+ * simplest form, returning default values for everything.
  */
 public class FakeObexTransport {
     ObexTransport mClientTransport;
@@ -81,24 +81,19 @@ public class FakeObexTransport {
         }
 
         @Override
-        public void connect() throws IOException {
-        }
+        public void connect() throws IOException {}
 
         @Override
-        public void create() throws IOException {
-        }
+        public void create() throws IOException {}
 
         @Override
-        public void disconnect() throws IOException {
-        }
+        public void disconnect() throws IOException {}
 
         @Override
-        public void listen() throws IOException {
-        }
+        public void listen() throws IOException {}
 
         @Override
-        public void close() throws IOException {
-        }
+        public void close() throws IOException {}
 
         public boolean isConnected() throws IOException {
             return true;

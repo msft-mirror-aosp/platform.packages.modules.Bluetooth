@@ -27,6 +27,20 @@
 // Returns true on success, otherwise false.
 bool bta_av_co_set_active_peer(const RawAddress& peer_addr);
 
+/**
+ * Sets the active peer within the sink profile of the bta av co instance.
+ * @param peer_address peer address of the remote device.
+ * @return true on success, otherwise false.
+ */
+bool bta_av_co_set_active_sink_peer(const RawAddress& peer_address);
+
+/**
+ * Sets the active peer within the sink profile of the bta av co instance.
+ * @param peer_address peer address of the remote device.
+ * @return true on success, otherwise false.
+ */
+bool bta_av_co_set_active_source_peer(const RawAddress& peer_address);
+
 void bta_av_co_save_codec(const uint8_t* new_codec_config);
 
 // Gets the A2DP peer parameters that are used to initialize the encoder.
@@ -60,8 +74,10 @@ bool bta_av_co_set_codec_audio_config(
 
 // Initializes the control block.
 // |codec_priorities| contains the A2DP Source codec priorities to use.
+// |supported_codecs| returns the list of supported A2DP Source codecs.
 void bta_av_co_init(
-    const std::vector<btav_a2dp_codec_config_t>& codec_priorities);
+    const std::vector<btav_a2dp_codec_config_t>& codec_priorities,
+    std::vector<btav_a2dp_codec_info_t>* supported_codecs);
 
 // Checks whether the codec for |codec_index| is supported.
 // Returns true if the codec is supported, otherwise false.

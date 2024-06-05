@@ -52,6 +52,10 @@ typedef struct {
   // The reader must read using a buffer of at least this size to avoid
   // loosing data. (L2CAP only)
   unsigned short max_rx_packet_size;
+
+  // The connection uuid. (L2CAP only)
+  uint64_t conn_uuid_lsb;
+  uint64_t conn_uuid_msb;
 } __attribute__((packed)) sock_connect_signal_t;
 
 typedef struct {
@@ -107,6 +111,27 @@ typedef struct {
    */
   bt_status_t (*disconnect_all)(const RawAddress* bd_addr);
 
+  /**
+   * Get L2CAP local channel ID with the associated connection uuid.
+   */
+  bt_status_t (*get_l2cap_local_cid)(bluetooth::Uuid& conn_uuid, uint16_t* cid);
+
+  /**
+   * Get L2CAP remote channel ID with the associated connection uuid.
+   */
+  bt_status_t (*get_l2cap_remote_cid)(bluetooth::Uuid& conn_uuid,
+                                      uint16_t* cid);
+
 } btsock_interface_t;
 
 __END_DECLS
+
+#if __has_include(<bluetooth/log.h>)
+#include <bluetooth/log.h>
+
+namespace fmt {
+template <>
+struct formatter<btsock_type_t> : enum_formatter<btsock_type_t> {};
+}  // namespace fmt
+
+#endif  // __has_include(<bluetooth/log.h>)

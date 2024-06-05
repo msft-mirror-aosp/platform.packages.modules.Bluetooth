@@ -24,23 +24,25 @@
 #ifndef BTA_AV_INT_H
 #define BTA_AV_INT_H
 
+#include <bluetooth/log.h>
+
 #include <cstdint>
 #include <string>
 
 #include "bta/include/bta_av_api.h"
+#include "bta/include/bta_sec_api.h"
 #include "bta/sys/bta_sys.h"
 #include "include/hardware/bt_av.h"
+#include "internal_include/bt_target.h"
+#include "macros.h"
 #include "osi/include/list.h"
 #include "stack/include/a2dp_error_codes.h"
 #include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/hci_error_code.h"
+#include "stack/sdp/sdp_discovery_db.h"
 #include "types/hci_role.h"
 #include "types/raw_address.h"
-
-#define CASE_RETURN_TEXT(code) \
-  case code:                   \
-    return #code
 
 /*****************************************************************************
  *  Constants
@@ -666,6 +668,9 @@ typedef struct {
   bool sco_occupied; /* true if SCO is being used or call is in progress */
   uint16_t offload_start_pending_hndl;
   uint16_t offload_started_hndl;
+  /* Set to true if the new offload start vendor command
+   * was used to start the stream on the controller. */
+  bool offload_start_v2;
   tBTA_AV_FEAT sink_features; /* sink features */
   uint8_t reg_role;           /* bit0-src, bit1-sink */
   tBTA_AV_RC_FEAT rc_feature; /* save peer rc feature */
@@ -696,6 +701,9 @@ class tBT_A2DP_OFFLOAD {
 
 #define VS_HCI_A2DP_OFFLOAD_START 0x01
 #define VS_HCI_A2DP_OFFLOAD_STOP 0x02
+#define VS_HCI_A2DP_OFFLOAD_START_V2 0x03
+#define VS_HCI_A2DP_OFFLOAD_STOP_V2 0x04
+
 /*****************************************************************************
  *  Global data
  ****************************************************************************/
@@ -733,8 +741,6 @@ void bta_av_stream_chg(tBTA_AV_SCB* p_scb, bool started);
 bool bta_av_is_scb_opening(tBTA_AV_SCB* p_scb);
 bool bta_av_is_scb_incoming(tBTA_AV_SCB* p_scb);
 void bta_av_set_scb_sst_init(tBTA_AV_SCB* p_scb);
-bool bta_av_is_scb_init(tBTA_AV_SCB* p_scb);
-void bta_av_set_scb_sst_incoming(tBTA_AV_SCB* p_scb);
 tBTA_AV_LCB* bta_av_find_lcb(const RawAddress& addr, uint8_t op);
 const char* bta_av_sst_code(uint8_t state);
 void bta_av_free_scb(tBTA_AV_SCB* p_scb);
@@ -823,7 +829,6 @@ void bta_av_rcfg_cfm(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 void bta_av_rcfg_open(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 void bta_av_security_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 void bta_av_open_rc(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
-void bta_av_chk_2nd_start(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 void bta_av_save_caps(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 void bta_av_rej_conn(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 void bta_av_rej_conn(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
@@ -838,5 +843,10 @@ void bta_av_offload_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 void bta_av_vendor_offload_stop(void);
 void bta_av_st_rc_timer(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 void bta_av_api_set_peer_sep(tBTA_AV_DATA* p_data);
+
+namespace fmt {
+template <>
+struct formatter<tBTA_AV_RS_RES> : enum_formatter<tBTA_AV_RS_RES> {};
+}  // namespace fmt
 
 #endif /* BTA_AV_INT_H */

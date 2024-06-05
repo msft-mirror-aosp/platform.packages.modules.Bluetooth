@@ -37,6 +37,9 @@ java_library {
     ],
     min_sdk_version: "Tiramisu",
     sdk_version: "module_current",
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }
 
 java_library {
@@ -49,13 +52,21 @@ java_library {
     ],
     min_sdk_version: "Tiramisu",
     sdk_version: "module_current",
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }
 
 // Bluetooth JNI
 
 cc_library_shared {
     name: "libbluetooth_jni",
-    defaults: ["fluoride_defaults"],
+    defaults: [
+        "fluoride_defaults",
+        "latest_android_hardware_audio_common_ndk_static",
+        "latest_android_hardware_bluetooth_audio_ndk_static",
+        "latest_android_media_audio_common_types_ndk_static",
+    ],
     srcs: ["jni/**/*.cpp"],
     version_script: "libbluetooth_jni.map",
     header_libs: [
@@ -77,16 +88,13 @@ cc_library_shared {
     // is required to maintain FIPS compliance.
     stl: "libc++_static",
     static_libs: [
-        "android.hardware.audio.common-V2-ndk",
         "android.hardware.audio.common@5.0",
-        "android.hardware.bluetooth.audio-V3-ndk",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
         "android.hardware.bluetooth@1.0",
         "android.hardware.bluetooth@1.1",
         "android.hardware.common-V2-ndk",
         "android.hardware.common.fmq-V1-ndk",
-        "android.media.audio.common.types-V2-ndk",
         "android.system.suspend-V1-ndk",
         "android.system.suspend.control-V1-ndk",
         "avrcp-target-service",
@@ -97,16 +105,21 @@ cc_library_shared {
         "libbase",
         "libbluetooth",
         "libbluetooth-dumpsys",
+        "libbluetooth-gdx",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_core_rs_bridge",
+        "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
+        "libbluetooth_log",
+        "libbt-audio-asrc",
         "libbt-audio-hal-interface",
         "libbt-bta",
         "libbt-bta-core",
         "libbt-btu-main-thread",
         "libbt-common",
         "libbt-hci",
+        "libbt-jni-thread",
         "libbt-sbc-decoder",
         "libbt-sbc-encoder",
         "libbt-stack",
@@ -133,6 +146,7 @@ cc_library_shared {
         "libstatslog_bt",
         "libudrv-uipc",
         "libutils",
+        "server_configurable_flags",
     ],
     shared_libs: [
         "libaaudio",
@@ -200,11 +214,11 @@ cc_library {
 
 android_app {
     name: "Bluetooth",
-    defaults: ["bluetooth-module-sdk-version-defaults"],
 
     srcs: [
         ":statslog-bluetooth-java-gen",
         ":statslog-bt-restricted-java-gen",
+        ":system-messages-proto-src",
         "proto/keystore.proto",
         "src/**/*.java",
     ],
@@ -223,11 +237,13 @@ android_app {
     jni_uses_platform_apis: true,
     libs: [
         "app-compat-annotations",
+        "bluetooth_flags_java_lib",
         "error_prone_annotations",
         "framework-annotations-lib",
         "framework-bluetooth-pre-jarjar",
         "framework-configinfrastructure",
         "framework-connectivity.stubs.module_lib",
+        "framework-location.stubs.module_lib",
         "framework-mediaprovider",
         "framework-statsd.stubs.module_lib",
         "framework-tethering.stubs.module_lib",
@@ -237,6 +253,7 @@ android_app {
         "framework-bluetooth",
     ],
     static_libs: [
+        "BluetoothApiShims",
         "android.hardware.radio-V1.0-java",
         "android.hardware.radio.sap-V1-java",
         "androidx.annotation_annotation",
@@ -244,7 +261,6 @@ android_app {
         "androidx.lifecycle_lifecycle-livedata",
         "androidx.media_media",
         "androidx.room_room-runtime",
-        "BluetoothApiShims",
         "bluetooth-proto-enums-java-gen",
         "bluetooth-protos-lite",
         "bluetooth.change-ids",
@@ -266,21 +282,25 @@ android_app {
         "androidx.room_room-compiler-plugin",
     ],
 
-    // Add in path to Bluetooth directory because local path does not exist
+    // Export schemas to the test directory so that we have an history
+    // to be able to test migrations
+    // The following path is absolute because a relative path doesn't work
+    // TODO(b/147596836): Refactor this
     javacflags: ["-Aroom.schemaLocation=packages/modules/Bluetooth/android/app/tests/unit/src/com/android/bluetooth/btservice/storage/schemas"],
 
     lint: {
+        // TODO(b/318814235): Add back ObsoleteSdkInt to this list.
         error_checks: [
             "ExtraText",
             "MissingClass",
             "NewApi",
-            "ObsoleteSdkInt",
             "Recycle",
             "RtlHardcoded",
             "UseSparseArrays",
             "UseValueOf",
         ],
-        strict_updatability_linting: true,
+        extra_check_modules: ["BluetoothLintChecker"],
+        baseline_filename: "lint-baseline.xml",
     },
 
     optimize: {
@@ -295,9 +315,13 @@ android_app {
         "com.android.btservices",
     ],
     errorprone: {
+        enabled: true,
         javacflags: [
             // "-Xep:AndroidFrameworkRequiresPermission:ERROR",
             "-Xep:AlmostJavadoc:ERROR",
+            "-Xep:UnusedMethod:ERROR",
+            "-Xep:UnusedVariable:ERROR",
+            "-XepExcludedPaths:.*/srcjars/.*", // Exclude generated files
         ],
     },
     min_sdk_version: "Tiramisu",

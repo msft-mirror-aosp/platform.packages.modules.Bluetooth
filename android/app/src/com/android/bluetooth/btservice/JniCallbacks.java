@@ -48,8 +48,8 @@ class JniCallbacks {
         throw new CloneNotSupportedException();
     }
 
-    void sspRequestCallback(byte[] address, byte[] name, int cod, int pairingVariant, int passkey) {
-        mBondStateMachine.sspRequestCallback(address, name, cod, pairingVariant, passkey);
+    void sspRequestCallback(byte[] address, int pairingVariant, int passkey) {
+        mBondStateMachine.sspRequestCallback(address, pairingVariant, passkey);
     }
 
     void devicePropertyChangedCallback(byte[] address, int[] types, byte[][] val) {
@@ -76,10 +76,19 @@ class JniCallbacks {
         mRemoteDevices.leAddressAssociateCallback(mainAddress, secondaryAddress);
     }
 
-    void aclStateChangeCallback(int status, byte[] address, int newState,
-            int transportLinkType, int hciReason, int handle) {
-        mRemoteDevices.aclStateChangeCallback(status, address, newState,
-                transportLinkType, hciReason, handle);
+    void aclStateChangeCallback(
+            int status,
+            byte[] address,
+            int newState,
+            int transportLinkType,
+            int hciReason,
+            int handle) {
+        mRemoteDevices.aclStateChangeCallback(
+                status, address, newState, transportLinkType, hciReason, handle);
+    }
+
+    void keyMissingCallback(byte[] address) {
+        mRemoteDevices.keyMissingCallback(address);
     }
 
     void stateChangeCallback(int status) {
@@ -107,8 +116,13 @@ class JniCallbacks {
             int packets_not_receive_count,
             int negative_acknowledgement_count) {
         mAdapterService.linkQualityReportCallback(
-                timestamp, report_id, rssi, snr, retransmission_count,
-                packets_not_receive_count, negative_acknowledgement_count);
+                timestamp,
+                report_id,
+                rssi,
+                snr,
+                retransmission_count,
+                packets_not_receive_count,
+                negative_acknowledgement_count);
     }
 
     void switchBufferSizeCallback(boolean is_low_latency_buffer_size) {

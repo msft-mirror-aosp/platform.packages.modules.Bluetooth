@@ -25,14 +25,15 @@
 #ifndef BTA_AG_API_H
 #define BTA_AG_API_H
 
-#include "bta_api.h"
-#include "bta_hfp_api.h"
+#include <bluetooth/log.h>
 
 #include <string>
 #include <vector>
 
-#include "bta/include/bta_ag_api.h"
 #include "bta/include/bta_api.h"
+#include "bta_api.h"
+#include "internal_include/bt_target.h"
+#include "macros.h"
 #include "types/raw_address.h"
 
 /*****************************************************************************
@@ -107,10 +108,6 @@ typedef uint8_t tBTA_AG_STATUS;
 #endif
 
 #define BTA_AG_HANDLE_SCO_NO_CHANGE 0xFFFF
-
-#define CASE_RETURN_TEXT(code) \
-  case code:                   \
-    return #code
 
 typedef enum : uint8_t {
   /* AG result codes used with BTA_AgResult */
@@ -296,6 +293,23 @@ typedef uint16_t tBTA_AG_PEER_CODEC;
 #define BTA_AG_AT_MAX_LEN 256
 #endif
 
+// Define hfp offload config structure
+namespace hfp {
+
+struct offload_config {
+  tBTA_AG_PEER_CODEC sco_codec;
+  int32_t connection_handle;
+  bool is_controller_codec;
+  bool is_nrec;
+};
+
+struct sco_config {
+  int inputDataPath;
+  int outputDataPath;
+  bool useControllerCodec;
+};
+
+}  // namespace hfp
 /* data associated with BTA_AG_IND_RES */
 typedef struct {
   uint16_t id;
@@ -626,5 +640,10 @@ void BTA_AgSetScoOffloadEnabled(bool value);
 void BTA_AgSetScoAllowed(bool value);
 
 void BTA_AgSetActiveDevice(const RawAddress& active_device_addr);
+
+namespace fmt {
+template <>
+struct formatter<tBTA_AG_RES> : enum_formatter<tBTA_AG_RES> {};
+}  // namespace fmt
 
 #endif /* BTA_AG_API_H */

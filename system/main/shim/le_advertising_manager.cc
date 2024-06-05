@@ -17,28 +17,22 @@
 #define LOG_TAG "bt_shim_advertiser"
 
 #include "le_advertising_manager.h"
-#include "utils.h"
 
-#include <base/logging.h>
+#include <bluetooth/log.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_gatt.h>
 
 #include <vector>
 
 #include "btif/include/btif_common.h"
-#include "gd/common/init_flags.h"
-#include "gd/hci/acl_manager.h"
-#include "gd/hci/controller.h"
-#include "gd/hci/le_advertising_manager.h"
-#include "gd/packet/packet_view.h"
-#include "gd/storage/storage_module.h"
+#include "common/init_flags.h"
+#include "hci/le_advertising_manager.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
-#include "stack/include/ble_advertiser.h"
-#include "stack/include/btm_api.h"
 #include "stack/include/btm_log_history.h"
-#include "stack/include/btu.h"  // do_in_main_thread
+#include "stack/include/main_thread.h"
 #include "types/raw_address.h"
+#include "utils.h"
 
 using bluetooth::hci::Address;
 using bluetooth::hci::AddressType;
@@ -48,6 +42,7 @@ using bluetooth::hci::GapData;
 using bluetooth::hci::OwnAddressType;
 using bluetooth::shim::parse_gap_data;
 using std::vector;
+using namespace bluetooth;
 
 namespace {
 constexpr char kBtmLogTag[] = "ADV";
@@ -64,7 +59,7 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface,
   }
 
   void RegisterAdvertiser(IdStatusCallback cb) override {
-    LOG(INFO) << __func__ << " in shim layer";
+    log::info("in shim layer");
 
     bluetooth::shim::GetAdvertising()->RegisterAdvertiser(
         bluetooth::shim::GetGdShimHandler()->BindOnce(
@@ -79,7 +74,7 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface,
   }
 
   void Unregister(uint8_t advertiser_id) override {
-    LOG(INFO) << __func__ << " in shim layer";
+    log::info("in shim layer");
     bluetooth::shim::GetAdvertising()->RemoveAdvertiser(advertiser_id);
     int reg_id =
         bluetooth::shim::GetAdvertising()->GetAdvertiserRegId(advertiser_id);
@@ -93,32 +88,32 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface,
   }
 
   void GetOwnAddress(uint8_t advertiser_id, GetAddressCallback cb) override {
-    LOG(INFO) << __func__ << " in shim layer";
+    log::info("in shim layer");
     address_callbacks_[advertiser_id] = jni_thread_wrapper(FROM_HERE, cb);
     bluetooth::shim::GetAdvertising()->GetOwnAddress(advertiser_id);
   }
 
   void SetParameters(uint8_t advertiser_id, AdvertiseParameters params,
-                     ParametersCallback cb) override {
-    LOG(INFO) << __func__ << " in shim layer";
+                     ParametersCallback /* cb */) override {
+    log::info("in shim layer");
     bluetooth::hci::AdvertisingConfig config{};
     parse_parameter(config, params);
     bluetooth::shim::GetAdvertising()->SetParameters(advertiser_id, config);
   }
 
   void SetData(int advertiser_id, bool set_scan_rsp, vector<uint8_t> data,
-               StatusCallback cb) override {
-    LOG(INFO) << __func__ << " in shim layer";
+               StatusCallback /* cb */) override {
+    log::info("in shim layer");
     std::vector<GapData> advertising_data = {};
     parse_gap_data(data, advertising_data);
     bluetooth::shim::GetAdvertising()->SetData(advertiser_id, set_scan_rsp,
                                                advertising_data);
   }
 
-  void Enable(uint8_t advertiser_id, bool enable, StatusCallback cb,
+  void Enable(uint8_t advertiser_id, bool enable, StatusCallback /* cb */,
               uint16_t duration, uint8_t maxExtAdvEvents,
-              StatusCallback timeout_cb) override {
-    LOG(INFO) << __func__ << " in shim layer";
+              StatusCallback /* timeout_cb */) override {
+    log::info("in shim layer");
     bluetooth::shim::GetAdvertising()->EnableAdvertiser(
         advertiser_id, enable, duration, maxExtAdvEvents);
   }
@@ -128,8 +123,8 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface,
                         AdvertiseParameters params,
                         std::vector<uint8_t> advertise_data,
                         std::vector<uint8_t> scan_response_data, int timeout_s,
-                        MultiAdvCb timeout_cb) override {
-    LOG(INFO) << __func__ << " in shim layer";
+                        StatusCallback timeout_cb) override {
+    log::info("in shim layer");
 
     bluetooth::hci::AdvertisingConfig config{};
     parse_parameter(config, params);
@@ -143,15 +138,15 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface,
   }
 
   void StartAdvertisingSet(uint8_t client_id, int reg_id,
-                           IdTxPowerStatusCallback register_cb,
+                           IdTxPowerStatusCallback /* register_cb */,
                            AdvertiseParameters params,
                            std::vector<uint8_t> advertise_data,
                            std::vector<uint8_t> scan_response_data,
                            PeriodicAdvertisingParameters periodic_params,
                            std::vector<uint8_t> periodic_data,
                            uint16_t duration, uint8_t maxExtAdvEvents,
-                           IdStatusCallback timeout_cb) {
-    LOG(INFO) << __func__ << " in shim layer";
+                           IdStatusCallback /* timeout_cb */) {
+    log::info("in shim layer");
 
     bluetooth::hci::AdvertisingConfig config{};
     parse_parameter(config, params);
@@ -171,8 +166,8 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface,
         client_id, reg_id, config, scan_callback, set_terminated_callback,
         duration, maxExtAdvEvents, bluetooth::shim::GetGdShimHandler());
 
-    LOG_INFO("create advertising set, client_id:%d, reg_id:%d", client_id,
-             reg_id);
+    log::info("create advertising set, client_id:{}, reg_id:{}", client_id,
+              reg_id);
     BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Le advert started",
                    base::StringPrintf("reg_id:%d", reg_id));
 
@@ -181,8 +176,8 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface,
 
   void SetPeriodicAdvertisingParameters(
       int advertiser_id, PeriodicAdvertisingParameters periodic_params,
-      StatusCallback cb) override {
-    LOG(INFO) << __func__ << " in shim layer";
+      StatusCallback /* cb */) override {
+    log::info("in shim layer");
     bluetooth::hci::PeriodicAdvertisingParameters parameters;
     parameters.max_interval = periodic_params.max_interval;
     parameters.min_interval = periodic_params.min_interval;
@@ -192,8 +187,8 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface,
   }
 
   void SetPeriodicAdvertisingData(int advertiser_id, std::vector<uint8_t> data,
-                                  StatusCallback cb) override {
-    LOG(INFO) << __func__ << " in shim layer";
+                                  StatusCallback /* cb */) override {
+    log::info("in shim layer");
     std::vector<GapData> advertising_data = {};
     parse_gap_data(data, advertising_data);
     bluetooth::shim::GetAdvertising()->SetPeriodicData(advertiser_id,
@@ -202,8 +197,8 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface,
 
   void SetPeriodicAdvertisingEnable(int advertiser_id, bool enable,
                                     bool include_adi,
-                                    StatusCallback cb) override {
-    LOG(INFO) << __func__ << " in shim layer";
+                                    StatusCallback /* cb */) override {
+    log::info("in shim layer");
     bluetooth::shim::GetAdvertising()->EnablePeriodicAdvertising(
         advertiser_id, enable, include_adi);
   }
@@ -217,12 +212,12 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface,
     native_adv_callbacks_map_[client_id] = callbacks;
   }
 
-  void on_scan(Address address, AddressType address_type) {
-    LOG(INFO) << __func__ << " in shim layer";
+  void on_scan(Address /* address */, AddressType /* address_type */) {
+    log::info("in shim layer");
   }
 
-  void on_set_terminated(ErrorCode error_code, uint8_t, uint8_t) {
-    LOG(INFO) << __func__ << " in shim layer";
+  void on_set_terminated(ErrorCode /* error_code */, uint8_t, uint8_t) {
+    log::info("in shim layer");
   }
 
   const bluetooth::common::Callback<void(Address, AddressType)> scan_callback =
@@ -379,8 +374,8 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface,
             AdvertiserAddressType::NONRESOLVABLE_RANDOM;
         break;
       default:
-        LOG_ERROR("Received unexpected address type: %d",
-                  params.own_address_type);
+        log::error("Received unexpected address type: {}",
+                   params.own_address_type);
         config.requested_advertiser_address_type =
             AdvertiserAddressType::RESOLVABLE_RANDOM;
     }

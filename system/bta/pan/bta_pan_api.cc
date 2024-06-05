@@ -26,12 +26,12 @@
 #include <cstdint>
 #include <cstring>
 
-#include "bt_target.h"  // Must be first to define build configuration
 #include "bta/pan/bta_pan_int.h"
+#include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/btu.h"
+#include "stack/include/main_thread.h"
 #include "types/raw_address.h"
 
 static const tBTA_SYS_REG bta_pan_reg = {bta_pan_hdl_event, BTA_PanDisable};

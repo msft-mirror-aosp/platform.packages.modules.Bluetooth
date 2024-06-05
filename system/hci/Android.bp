@@ -15,9 +15,6 @@ cc_library_static {
         "src/buffer_allocator.cc",
         "src/packet_fragmenter.cc",
     ],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     local_include_dirs: [
         "include",
     ],
@@ -26,7 +23,6 @@ cc_library_static {
         "packages/modules/Bluetooth/system/bta/include",
         "packages/modules/Bluetooth/system/btif/include",
         "packages/modules/Bluetooth/system/gd",
-        "packages/modules/Bluetooth/system/internal_include",
         "packages/modules/Bluetooth/system/stack/include",
         "system/libhwbinder/include",
     ],
@@ -36,15 +32,17 @@ cc_library_static {
     host_supported: true,
     min_sdk_version: "Tiramisu",
     header_libs: ["libbluetooth_headers"],
-    static_libs: ["libbt_shim_bridge"],
+    static_libs: [
+        "libbluetooth_log",
+        "libbt_shim_bridge",
+    ],
 }
 
 // HCI unit tests for target
 cc_test {
     name: "net_test_hci",
-    test_suites: ["device-tests"],
+    test_suites: ["general-tests"],
     defaults: [
-        "bluetooth_gtest_x86_asan_workaround",
         "fluoride_defaults",
         "mts_defaults",
     ],
@@ -53,26 +51,21 @@ cc_test {
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
-        "packages/modules/Bluetooth/system/internal_include",
+        "packages/modules/Bluetooth/system/gd",
+        "packages/modules/Bluetooth/system/include",
         "packages/modules/Bluetooth/system/osi/test",
-        "packages/modules/Bluetooth/system/stack/include",
-        "system/libhwbinder/include",
     ],
     srcs: [
         "test/packet_fragmenter_test.cc",
     ],
     shared_libs: [
-        "android.hardware.bluetooth.audio@2.0",
-        "android.hardware.bluetooth.audio@2.1",
         "libbase",
-        "libdl",
         "liblog",
     ],
     static_libs: [
-        "libbluetooth-for-tests",
         "libbluetooth-types",
+        "libbluetooth_log",
         "libbt-hci",
-        "libbtcore",
         "libchrome",
         "libosi",
     ],
@@ -81,5 +74,4 @@ cc_test {
         cfi: true,
         misc_undefined: ["bounds"],
     },
-    cflags: ["-Wno-unused-parameter"],
 }

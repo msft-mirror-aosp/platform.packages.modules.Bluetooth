@@ -1,1 +1,2 @@
-include platform/packages/modules/Bluetooth:/OWNERS_automotive
+include /OWNERS_automotive
+include /OWNERS_content

@@ -19,9 +19,11 @@
 #include <base/cancelable_callback.h>
 #include <base/functional/bind.h>
 #include <base/location.h>
-#include <base/time/time.h>
 
+#include <chrono>
 #include <future>
+
+#include "time_util.h"
 
 namespace bluetooth {
 
@@ -38,7 +40,9 @@ class MessageLoopThread;
  */
 class RepeatingTimer final {
  public:
-  RepeatingTimer() : expected_time_next_task_us_(0) {}
+  RepeatingTimer(uint64_t (*clock_tick_us)(void) =
+                     bluetooth::common::time_get_os_boottime_us)
+      : expected_time_next_task_us_(0), clock_tick_us_(clock_tick_us) {}
   RepeatingTimer(const RepeatingTimer&) = delete;
   RepeatingTimer& operator=(const RepeatingTimer&) = delete;
 
@@ -58,7 +62,8 @@ class RepeatingTimer final {
    */
   bool SchedulePeriodic(const base::WeakPtr<MessageLoopThread>& thread,
                         const base::Location& from_here,
-                        base::RepeatingClosure task, base::TimeDelta period);
+                        base::RepeatingClosure task,
+                        std::chrono::microseconds period);
 
   /**
    * Post an event which cancels the current task asynchronously
@@ -81,8 +86,9 @@ class RepeatingTimer final {
   base::WeakPtr<MessageLoopThread> message_loop_thread_;
   base::CancelableClosure task_wrapper_;
   base::RepeatingClosure task_;
-  base::TimeDelta period_;
-  uint64_t expected_time_next_task_us_;  // Using clock boot time in time_util.h
+  std::chrono::microseconds period_;
+  uint64_t expected_time_next_task_us_;
+  uint64_t (*clock_tick_us_)(void);
   mutable std::recursive_mutex api_mutex_;
   void CancelHelper(std::promise<void> promise);
   void CancelClosure(std::promise<void> promise);

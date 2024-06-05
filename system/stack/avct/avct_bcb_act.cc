@@ -26,21 +26,22 @@
  *****************************************************************************/
 
 #define LOG_TAG "bluetooth"
-#ifdef __ANDROID__
-#include <a2dp.sysprop.h>
-#endif
+
+#include <bluetooth/log.h>
 #include <string.h>
 
 #include "avct_api.h"
 #include "avct_int.h"
-#include "bt_target.h"
-#include "bta/include/bta_api.h"
-#include "btm_api.h"
+#include "bta/include/bta_sec_api.h"
+#include "btif/include/btif_av.h"
+#include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
-#include "osi/include/log.h"
 #include "osi/include/osi.h"
-#include "stack/btm/btm_sec.h"
+#include "stack/avct/avct_defs.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/bt_types.h"
+
+using namespace bluetooth;
 
 /* action function list */
 const tAVCT_BCB_ACTION avct_bcb_action[] = {
@@ -73,7 +74,7 @@ const tAVCT_BCB_ACTION avct_bcb_action[] = {
  *                  available.
  *
  ******************************************************************************/
-static BT_HDR* avct_bcb_msg_asmbl(UNUSED_ATTR tAVCT_BCB* p_bcb, BT_HDR* p_buf) {
+static BT_HDR* avct_bcb_msg_asmbl(tAVCT_BCB* /* p_bcb */, BT_HDR* p_buf) {
   uint8_t* p;
   uint8_t pkt_type;
 
@@ -89,8 +90,7 @@ static BT_HDR* avct_bcb_msg_asmbl(UNUSED_ATTR tAVCT_BCB* p_bcb, BT_HDR* p_buf) {
   /* must be single packet - can not fragment */
   if (pkt_type != AVCT_PKT_TYPE_SINGLE) {
     osi_free_and_reset((void**)&p_buf);
-    AVCT_TRACE_WARNING("Pkt type=%d - fragmentation not allowed. drop it",
-                       pkt_type);
+    log::warn("Pkt type={} - fragmentation not allowed. drop it", pkt_type);
   }
   return p_buf;
 }
@@ -105,7 +105,7 @@ static BT_HDR* avct_bcb_msg_asmbl(UNUSED_ATTR tAVCT_BCB* p_bcb, BT_HDR* p_buf) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_bcb_chnl_open(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
+void avct_bcb_chnl_open(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
   uint16_t result = AVCT_RESULT_FAIL;
   tAVCT_LCB* p_lcb = avct_lcb_by_bcb(p_bcb);
   tL2CAP_ERTM_INFO ertm_info;
@@ -115,8 +115,8 @@ void avct_bcb_chnl_open(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
 
   /* call l2cap connect req */
   p_bcb->ch_state = AVCT_CH_CONN;
-  p_bcb->ch_lcid =
-      L2CA_ConnectReq2(AVCT_BR_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE);
+  p_bcb->ch_lcid = L2CA_ConnectReqWithSecurity(AVCT_BR_PSM, p_lcb->peer_addr,
+                                               BTA_SEC_AUTHENTICATE);
   if (p_bcb->ch_lcid == 0) {
     /* if connect req failed, send ourselves close event */
     tAVCT_LCB_EVT avct_lcb_evt;
@@ -135,7 +135,7 @@ void avct_bcb_chnl_open(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_bcb_unbind_disc(UNUSED_ATTR tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
+void avct_bcb_unbind_disc(tAVCT_BCB* /* p_bcb */, tAVCT_LCB_EVT* p_data) {
   p_data->p_ccb->p_bcb = NULL;
   (*p_data->p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_data->p_ccb),
                                     AVCT_BROWSE_DISCONN_CFM_EVT, 0, NULL);
@@ -220,7 +220,7 @@ void avct_bcb_open_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_bcb_open_fail(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
+void avct_bcb_open_fail(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
   tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
 
   for (int idx = 0; idx < AVCT_NUM_CONN; idx++, p_ccb++) {
@@ -241,7 +241,7 @@ void avct_bcb_open_fail(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_bcb_close_ind(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
+void avct_bcb_close_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
   tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
   tAVCT_LCB* p_lcb = avct_lcb_by_bcb(p_bcb);
 
@@ -349,7 +349,7 @@ void avct_bcb_chk_disc(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_bcb_chnl_disc(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
+void avct_bcb_chnl_disc(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
   avct_l2c_br_disconnect(p_bcb->ch_lcid, 0);
 }
 
@@ -364,7 +364,7 @@ void avct_bcb_chnl_disc(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_bcb_bind_fail(UNUSED_ATTR tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
+void avct_bcb_bind_fail(tAVCT_BCB* /* p_bcb */, tAVCT_LCB_EVT* p_data) {
   p_data->p_ccb->p_bcb = NULL;
   (*p_data->p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_data->p_ccb),
                                     AVCT_BROWSE_CONN_CFM_EVT, AVCT_RESULT_FAIL,
@@ -424,8 +424,8 @@ void avct_bcb_discard_msg(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
         (p_data->ul_msg.cr << 8) + p_data->ul_msg.label;
 
     /* the channel is closed, opening or closing - open it again */
-    AVCT_TRACE_DEBUG("ch_state: %d, allocated:%d->%d", p_bcb->ch_state,
-                     p_bcb->allocated, p_data->ul_msg.p_ccb->p_lcb->allocated);
+    log::verbose("ch_state: {}, allocated:{}->{}", p_bcb->ch_state,
+                 p_bcb->allocated, p_data->ul_msg.p_ccb->p_lcb->allocated);
     p_bcb->allocated = p_data->ul_msg.p_ccb->p_lcb->allocated;
     avct_bcb_event(p_bcb, AVCT_LCB_UL_BIND_EVT,
                    (tAVCT_LCB_EVT*)p_data->ul_msg.p_ccb);
@@ -454,8 +454,8 @@ void avct_bcb_send_msg(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
 
   /* initialize packet type and other stuff */
   if (curr_msg_len > (p_bcb->peer_mtu - AVCT_HDR_LEN_SINGLE)) {
-    AVCT_TRACE_ERROR("%s msg len (%d) exceeds peer mtu(%d-%d)!!", __func__,
-                     curr_msg_len, p_bcb->peer_mtu, AVCT_HDR_LEN_SINGLE);
+    log::error("msg len ({}) exceeds peer mtu({}-{})!!", curr_msg_len,
+               p_bcb->peer_mtu, AVCT_HDR_LEN_SINGLE);
     osi_free_and_reset((void**)&p_data->ul_msg.p_buf);
     return;
   }
@@ -476,7 +476,10 @@ void avct_bcb_send_msg(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
   p_buf->layer_specific = AVCT_DATA_BROWSE;
 
   /* send message to L2CAP */
-  L2CA_DataWrite(p_bcb->ch_lcid, p_buf);
+  if (L2CA_DataWrite(p_bcb->ch_lcid, p_buf) != L2CAP_DW_SUCCESS) {
+    log::warn("Unable to write L2CAP data peer:{} cid:{}", p_bcb->peer_addr,
+              p_bcb->ch_lcid);
+  }
 }
 
 /*******************************************************************************
@@ -489,8 +492,7 @@ void avct_bcb_send_msg(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_bcb_free_msg_ind(UNUSED_ATTR tAVCT_BCB* p_bcb,
-                           tAVCT_LCB_EVT* p_data) {
+void avct_bcb_free_msg_ind(tAVCT_BCB* /* p_bcb */, tAVCT_LCB_EVT* p_data) {
   if (p_data) osi_free_and_reset((void**)&p_data->p_buf);
 }
 
@@ -512,7 +514,7 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
   tAVCT_LCB* p_lcb = avct_lcb_by_bcb(p_bcb);
 
   if ((p_data == NULL) || (p_data->p_buf == NULL)) {
-    AVCT_TRACE_WARNING("%s p_data is NULL, returning!", __func__);
+    log::warn("p_data is NULL, returning!");
     return;
   }
 
@@ -529,8 +531,8 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
   }
 
   if (p_data->p_buf->len < AVCT_HDR_LEN_SINGLE) {
-    AVCT_TRACE_WARNING("Invalid AVCTP packet length %d: must be at least %d",
-                       p_data->p_buf->len, AVCT_HDR_LEN_SINGLE);
+    log::warn("Invalid AVCTP packet length {}: must be at least {}",
+              p_data->p_buf->len, AVCT_HDR_LEN_SINGLE);
     osi_free_and_reset((void**)&p_data->p_buf);
     return;
   }
@@ -539,25 +541,23 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
 
   /* parse header byte */
   AVCT_PARSE_HDR(p, label, type, cr_ipid);
+  /* parse PID */
+  BE_STREAM_TO_UINT16(pid, p);
 
   /* check for invalid cr_ipid */
   if (cr_ipid == AVCT_CR_IPID_INVALID) {
-    AVCT_TRACE_WARNING("Invalid cr_ipid", cr_ipid);
+    log::warn("Invalid cr_ipid {}", cr_ipid);
     osi_free_and_reset((void**)&p_data->p_buf);
     return;
   }
 
-#ifdef OS_ANDROID
   bool bind = false;
-  if (android::sysprop::bluetooth::A2dp::src_sink_coexist().value_or(false)) {
+  if (btif_av_src_sink_coexist_enabled()) {
     bind = avct_msg_ind_for_src_sink_coexist(p_lcb, p_data, label, cr_ipid);
     osi_free_and_reset((void**)&p_data->p_buf);
     if (bind) return;
-  } else
-#endif
-  {
-    /* parse and lookup PID */
-    BE_STREAM_TO_UINT16(pid, p);
+  } else {
+    /* lookup PID */
     p_ccb = avct_lcb_has_pid(p_lcb, pid);
     if (p_ccb) {
       /* PID found; send msg up, adjust bt hdr and call msg callback */
@@ -570,7 +570,7 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
   }
 
   /* PID not found; drop message */
-  AVCT_TRACE_WARNING("No ccb for PID=%x", pid);
+  log::warn("No ccb for PID={:x}", pid);
   osi_free_and_reset((void**)&p_data->p_buf);
 
   /* if command send reject */
@@ -582,7 +582,10 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
     AVCT_BUILD_HDR(p, label, AVCT_PKT_TYPE_SINGLE, AVCT_REJ);
     UINT16_TO_BE_STREAM(p, pid);
     p_buf->layer_specific = AVCT_DATA_BROWSE;
-    L2CA_DataWrite(p_bcb->ch_lcid, p_buf);
+    if (L2CA_DataWrite(p_bcb->ch_lcid, p_buf) != L2CAP_DW_SUCCESS) {
+      log::warn("Unable to write L2CAP data peer:{} cid:{}", p_bcb->peer_addr,
+                p_bcb->ch_lcid);
+    }
   }
 }
 
@@ -596,16 +599,16 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
  * Returns          void.
  *
  ******************************************************************************/
-void avct_bcb_dealloc(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
+void avct_bcb_dealloc(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
   tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
 
-  AVCT_TRACE_DEBUG("%s %d", __func__, p_bcb->allocated);
+  log::verbose("{}", p_bcb->allocated);
 
   for (int idx = 0; idx < AVCT_NUM_CONN; idx++, p_ccb++) {
     /* if ccb allocated and */
     if ((p_ccb->allocated) && (p_ccb->p_bcb == p_bcb)) {
       p_ccb->p_bcb = NULL;
-      AVCT_TRACE_DEBUG("%s used by ccb: %d", __func__, idx);
+      log::verbose("used by ccb: {}", idx);
       break;
     }
   }
@@ -703,6 +706,6 @@ tAVCT_BCB* avct_bcb_by_lcid(uint16_t lcid) {
   }
 
   /* out of lcbs */
-  AVCT_TRACE_WARNING("No bcb for lcid %x", lcid);
+  log::warn("No bcb for lcid {:x}", lcid);
   return NULL;
 }

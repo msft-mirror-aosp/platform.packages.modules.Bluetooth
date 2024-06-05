@@ -20,22 +20,16 @@
  *
  *  mockcify.pl ver 0.2.1
  */
-
-#include <cstdint>
-#include <functional>
-#include <map>
-#include <string>
-
 // Mock include file to share data between tests and mock
 #include "test/mock/mock_stack_sdp_api.h"
+
+#include <cstdint>
+
+#include "test/common/mock_functions.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
 // Mocked compile conditionals, if any
-#ifndef UNUSED_ATTR
-#define UNUSED_ATTR
-#endif
-
 // Mocked internal structures, if any
 
 namespace test {
@@ -60,7 +54,6 @@ struct SDP_DiDiscover SDP_DiDiscover;
 struct SDP_GetDiRecord SDP_GetDiRecord;
 struct SDP_SetLocalDiRecord SDP_SetLocalDiRecord;
 struct SDP_GetNumDiRecords SDP_GetNumDiRecords;
-struct SDP_SetTraceLevel SDP_SetTraceLevel;
 
 }  // namespace stack_sdp_api
 }  // namespace mock
@@ -109,13 +102,12 @@ bool SDP_ServiceSearchAttributeRequest(const RawAddress& p_bd_addr,
   return test::mock::stack_sdp_api::SDP_ServiceSearchAttributeRequest(
       p_bd_addr, p_db, p_cb);
 }
-bool SDP_ServiceSearchAttributeRequest2(const RawAddress& p_bd_addr,
-                                        tSDP_DISCOVERY_DB* p_db,
-                                        tSDP_DISC_CMPL_CB2* p_cb2,
-                                        const void* user_data) {
+bool SDP_ServiceSearchAttributeRequest2(
+    const RawAddress& p_bd_addr, tSDP_DISCOVERY_DB* p_db,
+    base::RepeatingCallback<tSDP_DISC_CMPL_CB> complete_callback) {
   inc_func_call_count(__func__);
   return test::mock::stack_sdp_api::SDP_ServiceSearchAttributeRequest2(
-      p_bd_addr, p_db, p_cb2, user_data);
+      p_bd_addr, p_db, complete_callback);
 }
 bool SDP_ServiceSearchRequest(const RawAddress& p_bd_addr,
                               tSDP_DISCOVERY_DB* p_db,
@@ -173,9 +165,4 @@ uint8_t SDP_GetNumDiRecords(const tSDP_DISCOVERY_DB* p_db) {
   inc_func_call_count(__func__);
   return test::mock::stack_sdp_api::SDP_GetNumDiRecords(p_db);
 }
-uint8_t SDP_SetTraceLevel(uint8_t new_level) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_sdp_api::SDP_SetTraceLevel(new_level);
-}
-
 // END mockcify generation

@@ -23,25 +23,12 @@
 
 #include <cstdint>
 #include <functional>
-#include <map>
-#include <string>
-
-#include "test/common/mock_functions.h"
 
 // Original included files, if any
-// NOTE: Since this is a mock file with mock definitions some number of
-//       include files may not be required.  The include-what-you-use
-//       still applies, but crafting proper inclusion is out of scope
-//       for this effort.  This compilation unit may compile as-is, or
-//       may need attention to prune the inclusion set.
 #include "include/hardware/bluetooth.h"
 #include "types/raw_address.h"
 
 // Mocked compile conditionals, if any
-#ifndef UNUSED_ATTR
-#define UNUSED_ATTR
-#endif
-
 namespace test {
 namespace mock {
 namespace btif_bluetooth {
@@ -75,7 +62,8 @@ extern struct is_restricted_mode is_restricted_mode;
 // Params: uint8_t enable
 // Returns: int
 struct dut_mode_configure {
-  std::function<int(uint8_t enable)> body{[](uint8_t enable) { return 0; }};
+  std::function<int(uint8_t enable)> body{
+      [](uint8_t /* enable */) { return 0; }};
   int operator()(uint8_t enable) { return body(enable); };
 };
 extern struct dut_mode_configure dut_mode_configure;
@@ -83,8 +71,11 @@ extern struct dut_mode_configure dut_mode_configure;
 // Params: uint16_t opcode, uint8_t* buf, uint8_t len
 // Returns: int
 struct dut_mode_send {
-  std::function<int(uint16_t opcode, uint8_t* buf, uint8_t len)> body{
-      [](uint16_t opcode, uint8_t* buf, uint8_t len) { return 0; }};
+  std::function<int(uint16_t /* opcode */, uint8_t* /* buf */,
+                    uint8_t /* len */)>
+      body{[](uint16_t /* opcode */, uint8_t* /* buf */, uint8_t /* len */) {
+        return 0;
+      }};
   int operator()(uint16_t opcode, uint8_t* buf, uint8_t len) {
     return body(opcode, buf, len);
   };
@@ -104,7 +95,7 @@ extern struct get_common_criteria_config_compare_result
 // Returns: int
 struct get_remote_device_properties {
   std::function<int(RawAddress* remote_addr)> body{
-      [](RawAddress* remote_addr) { return 0; }};
+      [](RawAddress* /* remote_addr */) { return 0; }};
   int operator()(RawAddress* remote_addr) { return body(remote_addr); };
 };
 extern struct get_remote_device_properties get_remote_device_properties;
@@ -113,7 +104,9 @@ extern struct get_remote_device_properties get_remote_device_properties;
 // Returns: int
 struct get_remote_device_property {
   std::function<int(RawAddress* remote_addr, bt_property_type_t type)> body{
-      [](RawAddress* remote_addr, bt_property_type_t type) { return 0; }};
+      [](RawAddress* /* remote_addr */, bt_property_type_t /* type */) {
+        return 0;
+      }};
   int operator()(RawAddress* remote_addr, bt_property_type_t type) {
     return body(remote_addr, type);
   };
@@ -124,7 +117,7 @@ extern struct get_remote_device_property get_remote_device_property;
 // Returns: int
 struct get_remote_services {
   std::function<int(RawAddress* remote_addr)> body{
-      [](RawAddress* remote_addr) { return 0; }};
+      [](RawAddress* /* remote_addr */) { return 0; }};
   int operator()(RawAddress* remote_addr) { return body(remote_addr); };
 };
 extern struct get_remote_services get_remote_services;
@@ -133,7 +126,9 @@ extern struct get_remote_services get_remote_services;
 // Returns: int
 struct le_test_mode {
   std::function<int(uint16_t opcode, uint8_t* buf, uint8_t len)> body{
-      [](uint16_t opcode, uint8_t* buf, uint8_t len) { return 0; }};
+      [](uint16_t /* opcode */, uint8_t* /* buf */, uint8_t /* len */) {
+        return 0;
+      }};
   int operator()(uint16_t opcode, uint8_t* buf, uint8_t len) {
     return body(opcode, buf, len);
   };
@@ -144,23 +139,23 @@ extern struct le_test_mode le_test_mode;
 // Returns: int
 struct set_remote_device_property {
   std::function<int(RawAddress* remote_addr, const bt_property_t* property)>
-      body{[](RawAddress* remote_addr, const bt_property_t* property) {
-        return 0;
-      }};
+      body{[](RawAddress* /* remote_addr */,
+              const bt_property_t* /* property */) { return 0; }};
   int operator()(RawAddress* remote_addr, const bt_property_t* property) {
     return body(remote_addr, property);
   };
 };
 extern struct set_remote_device_property set_remote_device_property;
-// Name: set_hal_cbacks
-// Params: bt_callbacks_t* callbacks
+// Name: invoke_switch_buffer_size_cb
+// Params: bool invoke_switch_buffer_size_cb
 // Returns: void
-struct set_hal_cbacks {
-  std::function<void(bt_callbacks_t* callbacks)> body{
-      [](bt_callbacks_t* callbacks) { ; }};
-  void operator()(bt_callbacks_t* callbacks) { body(callbacks); };
+struct invoke_switch_buffer_size_cb {
+  std::function<void(bool invoke_switch_buffer_size_cb)> body{[](bool) {}};
+  void operator()(bool invoke_switch_buffer_size_cb) {
+    body(invoke_switch_buffer_size_cb);
+  };
 };
-extern struct set_hal_cbacks set_hal_cbacks;
+extern struct invoke_switch_buffer_size_cb invoke_switch_buffer_size_cb;
 
 }  // namespace btif_bluetooth
 }  // namespace mock

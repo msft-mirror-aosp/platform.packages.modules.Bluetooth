@@ -25,7 +25,8 @@
 #include "bta/sys/bta_sys.h"
 #include "osi/include/alarm.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/bt_types.h"
+#include "stack/include/btm_api_types.h"
+#include "stack/sdp/sdp_discovery_db.h"
 #include "types/raw_address.h"
 
 /*****************************************************************************
@@ -202,6 +203,7 @@ typedef struct {
   tBTA_HF_CLIENT_FEAT features;  /* features registered by application */
   uint16_t serv_handle;          /* RFCOMM server handle */
   bool deregister;               /* true if service shutting down */
+  bool is_support_lc3;           /* true if enable lc3 codec support (HFP1.9) */
 
   // Maximum number of control blocks supported by the BTA layer.
   tBTA_HF_CLIENT_CB cb[HF_CLIENT_MAX_DEVICES];

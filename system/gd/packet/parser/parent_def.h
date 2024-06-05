@@ -16,9 +16,11 @@
 
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <set>
 #include <variant>
+#include <vector>
 
 #include "enum_def.h"
 #include "field_list.h"

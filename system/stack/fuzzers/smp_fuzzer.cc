@@ -18,15 +18,12 @@
 
 #include <cstdint>
 #include <functional>
-#include <string>
 #include <vector>
 
+#include "common/message_loop_thread.h"
 #include "osi/include/allocator.h"
-#include "stack/btm/btm_int_types.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/sdpdefs.h"
 #include "stack/include/smp_api.h"
-#include "stack/smp/p_256_ecc_pp.h"
 #include "stack/smp/smp_int.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_btif_config.h"
@@ -34,8 +31,12 @@
 #include "test/mock/mock_stack_btm_dev.h"
 #include "test/mock/mock_stack_l2cap_api.h"
 #include "test/mock/mock_stack_l2cap_ble.h"
-#include "types/bluetooth/uuid.h"
 
+bluetooth::common::MessageLoopThread* main_thread_ptr = nullptr;
+
+bluetooth::common::MessageLoopThread* get_main_thread() {
+  return main_thread_ptr;
+}
 namespace {
 
 #define SDP_DB_SIZE 0x10000
@@ -106,6 +107,9 @@ class FakeBtStack {
           }
           return true;
         };
+    main_thread_ptr =
+        new bluetooth::common::MessageLoopThread("smp_fuzz_main_thread");
+    main_thread_ptr->StartUp();
   }
 
   ~FakeBtStack() {
@@ -121,6 +125,9 @@ class FakeBtStack {
     test::mock::stack_l2cap_api::L2CA_ConnectFixedChnl = {};
     test::mock::stack_l2cap_api::L2CA_SendFixedChnlData = {};
     test::mock::stack_l2cap_api::L2CA_RegisterFixedChannel = {};
+    main_thread_ptr->ShutDown();
+    delete main_thread_ptr;
+    main_thread_ptr = nullptr;
   }
 };
 
@@ -178,7 +185,6 @@ void Fuzz(const uint8_t* data, size_t size) {
 
   SMP_Init(BTM_SEC_MODE_SP);
   SMP_Register(smp_callback);
-  SMP_SetTraceLevel(BT_TRACE_LEVEL_DEBUG);
   SMP_ClearLocScOobData();
 
   auto is_br = fdp.ConsumeBool();

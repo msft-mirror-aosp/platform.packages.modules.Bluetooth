@@ -25,12 +25,14 @@
 #define BTA_SYS_H
 
 #include <base/strings/stringprintf.h>
-#include <base/time/time.h>
+#include <bluetooth/log.h>
 
+#include <chrono>
 #include <cstdint>
 #include <string>
 
-#include "bt_target.h"  // Must be first to define build configuration
+#include "internal_include/bt_target.h"
+#include "macros.h"
 #include "osi/include/alarm.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/hci_error_code.h"
@@ -65,55 +67,47 @@ inline const T* Specialize(U* u) {
 
 typedef enum : uint8_t {
   /* SW sub-systems */
-  BTA_ID_SYS = 0,       /* system manager */
-                        /* BLUETOOTH PART - from = 0, to BTA_ID_BLUETOOTH_MAX */
-  BTA_ID_DM_SEARCH = 2, /* device manager search */
-  BTA_ID_DM_SEC = 3,    /* device manager security */
-  BTA_ID_DG = 4,        /* data gateway */
-  BTA_ID_AG = 5,        /* audio gateway */
-  BTA_ID_OPC = 6,       /* object push client */
-  BTA_ID_OPS = 7,       /* object push server */
-  BTA_ID_FTS = 8,       /* file transfer server */
-  BTA_ID_CT = 9,        /* cordless telephony terminal */
-  BTA_ID_FTC = 10,      /* file transfer client */
-  BTA_ID_SS = 11,       /* synchronization server */
-  BTA_ID_PR = 12,       /* Printer client */
-  BTA_ID_BIC = 13,      /* Basic Imaging Client */
-  BTA_ID_PAN = 14,      /* Personal Area Networking */
-  BTA_ID_BIS = 15,      /* Basic Imaging Server */
-  BTA_ID_ACC = 16,      /* Advanced Camera Client */
-  BTA_ID_SC = 17,       /* SIM Card Access server */
-  BTA_ID_AV = 18,       /* Advanced audio/video */
-  BTA_ID_AVK = 19,      /* Audio/video sink */
-  BTA_ID_HD = 20,       /* HID Device */
-  BTA_ID_CG = 21,       /* Cordless Gateway */
-  BTA_ID_BP = 22,       /* Basic Printing Client */
-  BTA_ID_HH = 23,       /* Human Interface Device Host */
-  BTA_ID_PBS = 24,      /* Phone Book Access Server */
-  BTA_ID_PBC = 25,      /* Phone Book Access Client */
-  BTA_ID_JV = 26,       /* Java */
-  BTA_ID_HS = 27,       /* Headset */
-  BTA_ID_MSE = 28,      /* Message Server Equipment */
-  BTA_ID_MCE = 29,      /* Message Client Equipment */
-  BTA_ID_HL = 30,       /* Health Device Profile*/
-  BTA_ID_GATTC = 31,    /* GATT Client */
-  BTA_ID_GATTS = 32,    /* GATT Client */
-  BTA_ID_SDP = 33,      /* SDP Client */
+  BTA_ID_SYS = 0,    /* system manager */
+                     /* BLUETOOTH PART - from = 0, to BTA_ID_BLUETOOTH_MAX */
+  BTA_ID_DM_SEC = 3, /* device manager security */
+  BTA_ID_DG = 4,     /* data gateway */
+  BTA_ID_AG = 5,     /* audio gateway */
+  BTA_ID_OPC = 6,    /* object push client */
+  BTA_ID_OPS = 7,    /* object push server */
+  BTA_ID_FTS = 8,    /* file transfer server */
+  BTA_ID_CT = 9,     /* cordless telephony terminal */
+  BTA_ID_FTC = 10,   /* file transfer client */
+  BTA_ID_SS = 11,    /* synchronization server */
+  BTA_ID_PR = 12,    /* Printer client */
+  BTA_ID_BIC = 13,   /* Basic Imaging Client */
+  BTA_ID_PAN = 14,   /* Personal Area Networking */
+  BTA_ID_BIS = 15,   /* Basic Imaging Server */
+  BTA_ID_ACC = 16,   /* Advanced Camera Client */
+  BTA_ID_SC = 17,    /* SIM Card Access server */
+  BTA_ID_AV = 18,    /* Advanced audio/video */
+  BTA_ID_AVK = 19,   /* Audio/video sink */
+  BTA_ID_HD = 20,    /* HID Device */
+  BTA_ID_CG = 21,    /* Cordless Gateway */
+  BTA_ID_BP = 22,    /* Basic Printing Client */
+  BTA_ID_HH = 23,    /* Human Interface Device Host */
+  BTA_ID_PBS = 24,   /* Phone Book Access Server */
+  BTA_ID_PBC = 25,   /* Phone Book Access Client */
+  BTA_ID_JV = 26,    /* Java */
+  BTA_ID_HS = 27,    /* Headset */
+  BTA_ID_MSE = 28,   /* Message Server Equipment */
+  BTA_ID_MCE = 29,   /* Message Client Equipment */
+  BTA_ID_HL = 30,    /* Health Device Profile*/
+  BTA_ID_GATTC = 31, /* GATT Client */
+  BTA_ID_GATTS = 32, /* GATT Client */
+  BTA_ID_SDP = 33,   /* SDP Client */
   BTA_ID_BLUETOOTH_MAX = 34, /* last BT profile */
 
   BTA_ID_MAX = (44 + BTA_DM_NUM_JV_ID),
 } tBTA_SYS_ID;
 
-#ifndef CASE_RETURN_TEXT
-#define CASE_RETURN_TEXT(code) \
-  case code:                   \
-    return #code
-#endif
-
 inline std::string BtaIdSysText(const tBTA_SYS_ID& sys_id) {
   switch (sys_id) {
     CASE_RETURN_TEXT(BTA_ID_SYS);
-    CASE_RETURN_TEXT(BTA_ID_DM_SEARCH);
     CASE_RETURN_TEXT(BTA_ID_DM_SEC);
     CASE_RETURN_TEXT(BTA_ID_DG);
     CASE_RETURN_TEXT(BTA_ID_AG);
@@ -150,8 +144,6 @@ inline std::string BtaIdSysText(const tBTA_SYS_ID& sys_id) {
       return base::StringPrintf("Unknown[%hhu]", sys_id);
   }
 }
-
-#undef CASE_RETURN_TEXT
 
 typedef enum : uint8_t {
   BTA_SYS_CONN_OPEN = 0x00,
@@ -207,29 +199,24 @@ typedef void(tBTA_SYS_ROLE_SWITCH_CBACK)(tBTA_SYS_CONN_STATUS status,
 typedef void(tBTA_SYS_SSR_CFG_CBACK)(uint8_t id, uint8_t app_id,
                                      uint16_t latency, uint16_t tout);
 
+typedef void(tBTA_SYS_SNIFF_CBACK)(uint8_t id, uint8_t app_id,
+                                   const RawAddress& peer_addr);
+
 typedef struct {
   bluetooth::Uuid custom_uuid;
   uint32_t handle;
 } tBTA_CUSTOM_UUID;
 
-#if (BTA_EIR_CANNED_UUID_LIST != TRUE)
 /* eir callback for adding/removeing UUID */
 typedef void(tBTA_SYS_EIR_CBACK)(uint16_t uuid16, bool adding);
-typedef void(tBTA_SYS_CUST_EIR_CBACK)(const tBTA_CUSTOM_UUID &curr, bool adding);
-#endif
+typedef void(tBTA_SYS_CUST_EIR_CBACK)(const tBTA_CUSTOM_UUID& curr,
+                                      bool adding);
 
 /* registration structure */
 typedef struct {
   tBTA_SYS_EVT_HDLR* evt_hdlr;
   tBTA_SYS_DISABLE* disable;
 } tBTA_SYS_REG;
-
-/*****************************************************************************
- *  Global data
- ****************************************************************************/
-
-/* trace level */
-extern uint8_t appl_trace_level;
 
 /*****************************************************************************
  *  Macros
@@ -240,22 +227,19 @@ extern uint8_t appl_trace_level;
 /*****************************************************************************
  *  Function declarations
  ****************************************************************************/
-void bta_set_forward_hw_failures(bool value);
-void BTA_sys_signal_hw_error();
-
 void bta_sys_init(void);
 void bta_sys_register(uint8_t id, const tBTA_SYS_REG* p_reg);
 void bta_sys_deregister(uint8_t id);
 bool bta_sys_is_register(uint8_t id);
 void bta_sys_sendmsg(void* p_msg);
-void bta_sys_sendmsg_delayed(void* p_msg, const base::TimeDelta& delay);
+void bta_sys_sendmsg_delayed(void* p_msg, std::chrono::microseconds delay);
 void bta_sys_start_timer(alarm_t* alarm, uint64_t interval_ms, uint16_t event,
                          uint16_t layer_specific);
 void bta_sys_disable();
 
 void bta_sys_rm_register(tBTA_SYS_CONN_CBACK* p_cback);
 void bta_sys_pm_register(tBTA_SYS_CONN_CBACK* p_cback);
-
+void bta_sys_sniff_register(tBTA_SYS_SNIFF_CBACK* p_cback);
 void bta_sys_sco_register(tBTA_SYS_CONN_SCO_CBACK* p_cback);
 
 void bta_sys_conn_open(tBTA_SYS_ID id, uint8_t app_id,
@@ -276,10 +260,8 @@ void bta_sys_sco_unuse(tBTA_SYS_ID id, uint8_t app_id,
                        const RawAddress& peer_addr);
 void bta_sys_idle(tBTA_SYS_ID id, uint8_t app_id, const RawAddress& peer_addr);
 void bta_sys_busy(tBTA_SYS_ID id, uint8_t app_id, const RawAddress& peer_addr);
-
-void bta_sys_ssr_cfg_register(tBTA_SYS_SSR_CFG_CBACK* p_cback);
-void bta_sys_chg_ssr_config(tBTA_SYS_ID id, uint8_t app_id,
-                            uint16_t max_latency, uint16_t min_tout);
+void bta_sys_reset_sniff(uint8_t id, uint8_t app_id,
+                         const RawAddress& peer_addr);
 
 void bta_sys_role_chg_register(tBTA_SYS_ROLE_SWITCH_CBACK* p_cback);
 void bta_sys_notify_role_chg(const RawAddress& peer_addr, tHCI_ROLE new_role,
@@ -288,7 +270,6 @@ void bta_sys_collision_register(tBTA_SYS_ID bta_id,
                                 tBTA_SYS_CONN_CBACK* p_cback);
 void bta_sys_notify_collision(const RawAddress& peer_addr);
 
-#if (BTA_EIR_CANNED_UUID_LIST != TRUE)
 void bta_sys_eir_register(tBTA_SYS_EIR_CBACK* p_cback);
 void bta_sys_eir_unregister();
 void bta_sys_add_uuid(uint16_t uuid16);
@@ -296,14 +277,13 @@ void bta_sys_remove_uuid(uint16_t uuid16);
 void bta_sys_cust_eir_register(tBTA_SYS_CUST_EIR_CBACK* p_cback);
 void bta_sys_add_cust_uuid(const tBTA_CUSTOM_UUID& curr);
 void bta_sys_remove_cust_uuid(const tBTA_CUSTOM_UUID& curr);
-#else
-#define bta_sys_eir_register(ut)
-#define bta_sys_eir_unregister()
-#define bta_sys_add_uuid(ut)
-#define bta_sys_remove_uuid(ut)
-#define bta_sys_cust_eir_register(ut)
-#define bta_sys_add_cust_uuid(ut)
-#define bta_sys_remove_cust_uuid(ut)
-#endif
+
+namespace fmt {
+template <>
+struct formatter<tBTA_SYS_ID> : enum_formatter<tBTA_SYS_ID> {};
+template <>
+struct formatter<tBTA_SYS_CONN_STATUS> : enum_formatter<tBTA_SYS_CONN_STATUS> {
+};
+}  // namespace fmt
 
 #endif /* BTA_SYS_H */

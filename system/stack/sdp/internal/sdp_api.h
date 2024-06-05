@@ -18,9 +18,12 @@
 
 #pragma once
 
+#include <base/functional/callback_forward.h>
+
 #include <cstdint>
 
 #include "stack/include/sdp_callback.h"
+#include "stack/include/sdp_device_id.h"
 #include "stack/sdp/sdp_discovery_db.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -93,10 +96,9 @@ bool SDP_ServiceSearchAttributeRequest(const RawAddress& p_bd_addr,
  * Returns          true if discovery started, false if failed.
  *
  ******************************************************************************/
-bool SDP_ServiceSearchAttributeRequest2(const RawAddress& p_bd_addr,
-                                        tSDP_DISCOVERY_DB* p_db,
-                                        tSDP_DISC_CMPL_CB2* p_cb,
-                                        const void* user_data);
+bool SDP_ServiceSearchAttributeRequest2(
+    const RawAddress& p_bd_addr, tSDP_DISCOVERY_DB* p_db,
+    base::RepeatingCallback<tSDP_DISC_CMPL_CB> complete_callback);
 
 /* API of utilities to find data in the local discovery database */
 
@@ -382,18 +384,6 @@ bool SDP_AddLanguageBaseAttrIDList(uint32_t handle, uint16_t lang,
  ******************************************************************************/
 bool SDP_AddServiceClassIdList(uint32_t handle, uint16_t num_services,
                                uint16_t* p_service_uuids);
-
-/*******************************************************************************
- *
- * Function         SDP_DeleteAttribute
- *
- * Description      Delete an attribute from a record.
- *                  This would be through the SDP database maintenance API.
- *
- * Returns          true if deleted OK, else false if not found
- *
- ******************************************************************************/
-bool SDP_DeleteAttribute(uint32_t handle, uint16_t attr_id);
 
 /* Device Identification APIs */
 

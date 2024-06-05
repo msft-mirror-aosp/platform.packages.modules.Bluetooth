@@ -24,23 +24,22 @@
 
 #include "avct_api.h"
 
+#include <bluetooth/log.h>
 #include <string.h>
 
 #include "avct_int.h"
-#include "bt_target.h"
-#include "bta/include/bta_api.h"
-#include "btm_api.h"
+#include "bta/include/bta_sec_api.h"
+#include "internal_include/bt_target.h"
 #include "l2c_api.h"
 #include "l2cdefs.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
-#include "stack/btm/btm_sec.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
 
+using namespace bluetooth;
+
 /* Control block for AVCT */
 tAVCT_CB avct_cb;
-uint8_t avct_trace_level = AVCT_INITIAL_TRACE_LEVEL;
 
 /*******************************************************************************
  *
@@ -57,24 +56,30 @@ uint8_t avct_trace_level = AVCT_INITIAL_TRACE_LEVEL;
  *
  ******************************************************************************/
 void AVCT_Register() {
-  AVCT_TRACE_API("AVCT_Register");
+  log::verbose("AVCT_Register");
 
   /* initialize AVCTP data structures */
   memset(&avct_cb, 0, sizeof(tAVCT_CB));
 
   /* register PSM with L2CAP */
-  L2CA_Register2(AVCT_PSM, avct_l2c_appl, true /* enable_snoop */, nullptr,
-                 kAvrcMtu, 0, BTA_SEC_AUTHENTICATE);
+  if (!L2CA_RegisterWithSecurity(AVCT_PSM, avct_l2c_appl,
+                                 true /* enable_snoop */, nullptr, kAvrcMtu, 0,
+                                 BTA_SEC_AUTHENTICATE)) {
+    log::error(
+        "Unable to register with L2CAP AVCT profile psm:AVCT_PSM[0x0017]");
+  }
 
   /* Include the browsing channel which uses eFCR */
   tL2CAP_ERTM_INFO ertm_info;
   ertm_info.preferred_mode = L2CAP_FCR_ERTM_MODE;
 
-  L2CA_Register2(AVCT_BR_PSM, avct_l2c_br_appl, true /*enable_snoop*/,
-                 &ertm_info, kAvrcBrMtu, AVCT_MIN_BROWSE_MTU,
-                 BTA_SEC_AUTHENTICATE);
-
-  avct_cb.trace_level = avct_trace_level;
+  if (!L2CA_RegisterWithSecurity(AVCT_BR_PSM, avct_l2c_br_appl,
+                                 true /*enable_snoop*/, &ertm_info, kAvrcBrMtu,
+                                 AVCT_MIN_BROWSE_MTU, BTA_SEC_AUTHENTICATE)) {
+    log::error(
+        "Unable to register with L2CAP AVCT_BR profile "
+        "psm:AVCT_BR_PSM[0x001b]");
+  }
 }
 
 /*******************************************************************************
@@ -92,7 +97,7 @@ void AVCT_Register() {
  *
  ******************************************************************************/
 void AVCT_Deregister(void) {
-  AVCT_TRACE_API("AVCT_Deregister");
+  log::verbose("AVCT_Deregister");
 
   /* deregister PSM with L2CAP */
   L2CA_Deregister(AVCT_PSM);
@@ -121,7 +126,7 @@ uint16_t AVCT_CreateConn(uint8_t* p_handle, tAVCT_CC* p_cc,
   tAVCT_CCB* p_ccb;
   tAVCT_LCB* p_lcb;
 
-  AVCT_TRACE_API("AVCT_CreateConn: %d, control:%d", p_cc->role, p_cc->control);
+  log::verbose("AVCT_CreateConn: {}, control:{}", p_cc->role, p_cc->control);
 
   /* Allocate ccb; if no ccbs, return failure */
   p_ccb = avct_ccb_alloc(p_cc);
@@ -152,7 +157,7 @@ uint16_t AVCT_CreateConn(uint8_t* p_handle, tAVCT_CC* p_cc,
       if (result == AVCT_SUCCESS) {
         /* bind lcb to ccb */
         p_ccb->p_lcb = p_lcb;
-        AVCT_TRACE_DEBUG("ch_state: %d", p_lcb->ch_state);
+        log::verbose("ch_state: {}", p_lcb->ch_state);
         tAVCT_LCB_EVT avct_lcb_evt;
         avct_lcb_evt.p_ccb = p_ccb;
         avct_lcb_event(p_lcb, AVCT_LCB_UL_BIND_EVT, &avct_lcb_evt);
@@ -179,7 +184,7 @@ uint16_t AVCT_RemoveConn(uint8_t handle) {
   uint16_t result = AVCT_SUCCESS;
   tAVCT_CCB* p_ccb;
 
-  AVCT_TRACE_API("AVCT_RemoveConn");
+  log::verbose("AVCT_RemoveConn");
 
   /* map handle to ccb */
   p_ccb = avct_ccb_by_idx(handle);
@@ -222,7 +227,7 @@ uint16_t AVCT_CreateBrowse(uint8_t handle, uint8_t role) {
   tAVCT_BCB* p_bcb;
   int index;
 
-  AVCT_TRACE_API("AVCT_CreateBrowse: %d", role);
+  log::verbose("AVCT_CreateBrowse: {}", role);
 
   /* map handle to ccb */
   p_ccb = avct_ccb_by_idx(handle);
@@ -256,7 +261,7 @@ uint16_t AVCT_CreateBrowse(uint8_t handle, uint8_t role) {
       /* bind bcb to ccb */
       p_ccb->p_bcb = p_bcb;
       p_bcb->peer_addr = p_ccb->p_lcb->peer_addr;
-      AVCT_TRACE_DEBUG("ch_state: %d", p_bcb->ch_state);
+      log::verbose("ch_state: {}", p_bcb->ch_state);
       tAVCT_LCB_EVT avct_lcb_evt;
       avct_lcb_evt.p_ccb = p_ccb;
       avct_bcb_event(p_bcb, AVCT_LCB_UL_BIND_EVT, &avct_lcb_evt);
@@ -283,7 +288,7 @@ uint16_t AVCT_RemoveBrowse(uint8_t handle) {
   uint16_t result = AVCT_SUCCESS;
   tAVCT_CCB* p_ccb;
 
-  AVCT_TRACE_API("AVCT_RemoveBrowse");
+  log::verbose("AVCT_RemoveBrowse");
 
   /* map handle to ccb */
   p_ccb = avct_ccb_by_idx(handle);
@@ -374,14 +379,13 @@ uint16_t AVCT_MsgReq(uint8_t handle, uint8_t label, uint8_t cr, BT_HDR* p_msg) {
   tAVCT_CCB* p_ccb;
   tAVCT_UL_MSG ul_msg;
 
-  AVCT_TRACE_API("%s", __func__);
+  log::verbose("");
 
   /* verify p_msg parameter */
   if (p_msg == NULL) {
     return AVCT_NO_RESOURCES;
   }
-  AVCT_TRACE_API("%s len: %d layer_specific: %d", __func__, p_msg->len,
-                 p_msg->layer_specific);
+  log::verbose("len: {} layer_specific: {}", p_msg->len, p_msg->layer_specific);
 
   /* map handle to ccb */
   p_ccb = avct_ccb_by_idx(handle);
@@ -422,32 +426,4 @@ uint16_t AVCT_MsgReq(uint8_t handle, uint8_t label, uint8_t cr, BT_HDR* p_msg) {
     }
   }
   return result;
-}
-
-/******************************************************************************
- *
- * Function         AVCT_SetTraceLevel
- *
- * Description      Sets the trace level for AVCT. If 0xff is passed, the
- *                  current trace level is returned.
- *
- *                  Input Parameters:
- *                      new_level:  The level to set the AVCT tracing to:
- *                      0xff-returns the current setting.
- *                      0-turns off tracing.
- *                      >= 1-Errors.
- *                      >= 2-Warnings.
- *                      >= 3-APIs.
- *                      >= 4-Events.
- *                      >= 5-Debug.
- *
- * Returns          The new trace level or current trace level if
- *                  the input parameter is 0xff.
- *
- *****************************************************************************/
-uint8_t AVCT_SetTraceLevel(uint8_t new_level) {
-  if (new_level != 0xFF) {
-    avct_cb.trace_level = avct_trace_level = new_level;
-  }
-  return avct_trace_level;
 }

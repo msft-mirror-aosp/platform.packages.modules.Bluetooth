@@ -23,6 +23,7 @@ cc_library_static {
     static_libs: [
         "lib-bt-packets",
         "libbluetooth-types",
+        "libbluetooth_log",
     ],
     header_libs: ["libbluetooth_headers"],
 }
@@ -31,13 +32,13 @@ cc_test {
     name: "bluetooth_test_sdp",
     test_suites: ["general-tests"],
     defaults: [
-        "bluetooth_gtest_x86_asan_workaround",
         "fluoride_defaults",
         "mts_defaults",
     ],
     host_supported: true,
     include_dirs: [
         "packages/modules/Bluetooth/system/",
+        "packages/modules/Bluetooth/system/gd",
     ],
     srcs: [
         "common/test/data_element_reader_test.cc",
@@ -47,9 +48,13 @@ cc_test {
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libbluetooth-types",
+        "libbluetooth_log",
         "libchrome",
         "libgmock",
         "sdp_service",
     ],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }

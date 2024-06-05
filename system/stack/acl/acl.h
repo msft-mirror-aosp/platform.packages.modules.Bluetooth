@@ -18,17 +18,18 @@
 
 #include <cstdint>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
+#include "internal_include/bt_target.h"
+#include "internal_include/bt_trace.h"
 #include "stack/acl/peer_packet_types.h"
-#include "stack/include/acl_api_types.h"
-#include "stack/include/bt_types.h"
-#include "stack/include/btm_api_types.h"
+#include "stack/btm/power_mode.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/hcimsgs.h"
 #include "types/bt_transport.h"
 #include "types/hci_role.h"
 #include "types/raw_address.h"
+#include "types/remote_version_type.h"
 
 enum btm_acl_encrypt_state_t {
   BTM_ACL_ENCRYPT_STATE_IDLE = 0,
@@ -44,11 +45,6 @@ enum btm_acl_swkey_state_t {
   BTM_ACL_SWKEY_STATE_SWITCHING = 3,
   BTM_ACL_SWKEY_STATE_ENCRYPTION_ON = 4,
   BTM_ACL_SWKEY_STATE_IN_PROGRESS = 5,
-};
-
-enum btm_data_direction {
-  HOST_TO_CONTROLLER = 0,
-  CONTROLLER_TO_HOST = 1,
 };
 
 /* Policy settings status */
@@ -142,7 +138,7 @@ typedef struct {
 } tSSR_PARAMS;
 
 #define BTM_PM_REC_NOT_USED 0
-typedef struct {
+typedef struct tBTM_PM_RCB {
   tBTM_PM_STATUS_CBACK* cback =
       nullptr;      /* to notify the registered party of mode change event */
   uint8_t mask = 0; /* registered request mask. 0, if this entry is not used */
@@ -308,15 +304,11 @@ struct tACL_CONN {
     return is_switch_role_switching() || is_switch_role_in_progress();
   }
 
-  friend void DumpsysL2cap(int fd);
-
  public:
   uint8_t sca; /* Sleep clock accuracy */
 
   void Reset();
 };
-
-struct controller_t;
 
 /****************************************************
  **      ACL Management API
@@ -332,7 +324,6 @@ struct tACL_CB {
   friend void btm_acl_encrypt_change(uint16_t handle, uint8_t status,
                                      uint8_t encr_enable);
 
-  friend void DumpsysL2cap(int fd);
   friend void DumpsysAcl(int fd);
   friend struct StackAclBtmAcl;
 
@@ -369,3 +360,6 @@ struct tACL_CB {
 };
 
 tACL_CONN* btm_acl_for_bda(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+
+void btm_acl_encrypt_change(uint16_t handle, uint8_t status,
+                            uint8_t encr_enable);

@@ -26,6 +26,7 @@ use num_derive::{FromPrimitive, ToPrimitive};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::channel;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::time::{sleep, Duration};
 
 use crate::battery_manager::{BatteryManager, BatterySet};
 use crate::battery_provider_manager::BatteryProviderManager;
@@ -35,19 +36,21 @@ use crate::bluetooth::{
     BluetoothDevice, DelayedActions, IBluetooth,
 };
 use crate::bluetooth_admin::{BluetoothAdmin, IBluetoothAdmin};
+use crate::bluetooth_adv::{dispatch_le_adv_callbacks, AdvertiserActions};
 use crate::bluetooth_gatt::{
-    dispatch_gatt_client_callbacks, dispatch_gatt_server_callbacks, dispatch_le_adv_callbacks,
-    dispatch_le_scanner_callbacks, dispatch_le_scanner_inband_callbacks, BluetoothGatt,
+    dispatch_gatt_client_callbacks, dispatch_gatt_server_callbacks, dispatch_le_scanner_callbacks,
+    dispatch_le_scanner_inband_callbacks, BluetoothGatt, GattActions,
 };
 use crate::bluetooth_media::{BluetoothMedia, MediaActions};
 use crate::dis::{DeviceInformation, ServiceCallbacks};
 use crate::socket_manager::{BluetoothSocketManager, SocketActions};
 use crate::suspend::Suspend;
 use bt_topshim::{
-    btif::{BaseCallbacks, BtTransport},
+    btif::{BaseCallbacks, BtTransport, RawAddress},
     profiles::{
         a2dp::A2dpCallbacks,
         avrcp::AvrcpCallbacks,
+        csis::CsisClientCallbacks,
         gatt::GattAdvCallbacks,
         gatt::GattAdvInbandCallbacks,
         gatt::GattClientCallbacks,
@@ -56,14 +59,19 @@ use bt_topshim::{
         gatt::GattServerCallbacks,
         hfp::HfpCallbacks,
         hid_host::{BthhReportType, HHCallbacks},
+        le_audio::LeAudioClientCallbacks,
         sdp::SdpCallbacks,
+        vc::VolumeControlCallbacks,
     },
 };
 
 /// Message types that are sent to the stack main dispatch loop.
 pub enum Message {
-    // Shuts down the stack.
-    Shutdown,
+    /// Remove the DBus API. Call it before other AdapterShutdown.
+    InterfaceShutdown,
+    /// Disable the adapter by calling btif disable.
+    AdapterShutdown,
+    /// Clean up the adapter by calling btif cleanup.
     Cleanup,
 
     // Adapter is enabled and ready.
@@ -75,6 +83,7 @@ pub enum Message {
     Base(BaseCallbacks),
     GattClient(GattClientCallbacks),
     GattServer(GattServerCallbacks),
+    LeAudioClient(LeAudioClientCallbacks),
     LeScanner(GattScannerCallbacks),
     LeScannerInband(GattScannerInbandCallbacks),
     LeAdvInband(GattAdvInbandCallbacks),
@@ -82,16 +91,21 @@ pub enum Message {
     HidHost(HHCallbacks),
     Hfp(HfpCallbacks),
     Sdp(SdpCallbacks),
+    VolumeControl(VolumeControlCallbacks),
+    CsisClient(CsisClientCallbacks),
+    CreateBondWithRetry(BluetoothDevice, BtTransport, u32, Duration),
 
     // Actions within the stack
     Media(MediaActions),
     MediaCallbackDisconnected(u32),
+    TelephonyCallbackDisconnected(u32),
 
     // Client callback disconnections
     AdapterCallbackDisconnected(u32),
     ConnectionCallbackDisconnected(u32),
 
     // Some delayed actions for the adapter.
+    TriggerUpdateConnectableMode,
     DelayedAdapterActions(DelayedActions),
 
     // Follows IBluetooth's on_device_(dis)connected callback but doesn't require depending on
@@ -111,18 +125,20 @@ pub enum Message {
 
     // Advertising related
     AdvertiserCallbackDisconnected(u32),
+    AdvertiserActions(AdvertiserActions),
 
     SocketManagerActions(SocketActions),
     SocketManagerCallbackDisconnected(u32),
 
     // Battery related
     BatteryProviderManagerCallbackDisconnected(u32),
-    BatteryProviderManagerBatteryUpdated(String, BatterySet),
+    BatteryProviderManagerBatteryUpdated(RawAddress, BatterySet),
     BatteryServiceCallbackDisconnected(u32),
     BatteryService(BatteryServiceActions),
     BatteryServiceRefresh,
     BatteryManagerCallbackDisconnected(u32),
 
+    GattActions(GattActions),
     GattClientCallbackDisconnected(u32),
     GattServerCallbackDisconnected(u32),
 
@@ -140,14 +156,18 @@ pub enum Message {
     // Qualification Only
     QaCallbackDisconnected(u32),
     QaAddMediaPlayer(String, bool),
-    QaRfcommSendMsc(u8, String),
+    QaRfcommSendMsc(u8, RawAddress),
     QaFetchDiscoverableMode,
     QaFetchConnectable,
     QaSetConnectable(bool),
     QaFetchAlias,
-    QaGetHidReport(String, BthhReportType, u8),
-    QaSetHidReport(String, BthhReportType, String),
-    QaSendHidData(String, String),
+    QaGetHidReport(RawAddress, BthhReportType, u8),
+    QaSetHidReport(RawAddress, BthhReportType, String),
+    QaSendHidData(RawAddress, String),
+
+    // UHid callbacks
+    UHidHfpOutputCallback(RawAddress, u8, u8),
+    UHidTelephonyUseCallback(RawAddress, bool),
 }
 
 pub enum BluetoothAPI {
@@ -157,8 +177,12 @@ pub enum BluetoothAPI {
     Gatt,
 }
 
+/// Message types that are sent to the InterfaceManager's dispatch loop.
 pub enum APIMessage {
+    /// Indicates a subcomponent is ready to receive DBus messages.
     IsReady(BluetoothAPI),
+    /// Indicates bluetooth is shutting down, so we remove all DBus endpoints.
+    ShutDown,
 }
 
 /// Represents suspend mode of a module.
@@ -185,6 +209,8 @@ impl Stack {
     /// Runs the main dispatch loop.
     pub async fn dispatch(
         mut rx: Receiver<Message>,
+        tx: Sender<Message>,
+        api_tx: Sender<APIMessage>,
         bluetooth: Arc<Mutex<Box<Bluetooth>>>,
         bluetooth_gatt: Arc<Mutex<Box<BluetoothGatt>>>,
         battery_service: Arc<Mutex<Box<BatteryService>>>,
@@ -206,7 +232,14 @@ impl Stack {
             }
 
             match m.unwrap() {
-                Message::Shutdown => {
+                Message::InterfaceShutdown => {
+                    let txl = api_tx.clone();
+                    tokio::spawn(async move {
+                        let _ = txl.send(APIMessage::ShutDown).await;
+                    });
+                }
+
+                Message::AdapterShutdown => {
                     bluetooth.lock().unwrap().disable();
                 }
 
@@ -235,12 +268,51 @@ impl Stack {
                     dispatch_base_callbacks(suspend.lock().unwrap().as_mut(), b);
                 }
 
+                // When pairing is busy for any reason, the bond cannot be created.
+                // Allow retries until it is ready for bonding.
+                Message::CreateBondWithRetry(device, bt_transport, num_attempts, retry_delay) => {
+                    if num_attempts <= 0 {
+                        continue;
+                    }
+
+                    let mut bt = bluetooth.lock().unwrap();
+                    if !bt.is_pairing_busy() {
+                        bt.create_bond(device, bt_transport);
+                        continue;
+                    }
+
+                    let txl = tx.clone();
+                    tokio::spawn(async move {
+                        sleep(retry_delay).await;
+                        let _ = txl
+                            .send(Message::CreateBondWithRetry(
+                                device,
+                                bt_transport,
+                                num_attempts - 1,
+                                retry_delay,
+                            ))
+                            .await;
+                    });
+                }
+
                 Message::GattClient(m) => {
                     dispatch_gatt_client_callbacks(bluetooth_gatt.lock().unwrap().as_mut(), m);
                 }
 
                 Message::GattServer(m) => {
                     dispatch_gatt_server_callbacks(bluetooth_gatt.lock().unwrap().as_mut(), m);
+                }
+
+                Message::LeAudioClient(a) => {
+                    bluetooth_media.lock().unwrap().dispatch_le_audio_callbacks(a);
+                }
+
+                Message::VolumeControl(a) => {
+                    bluetooth_media.lock().unwrap().dispatch_vc_callbacks(a);
+                }
+
+                Message::CsisClient(a) => {
+                    bluetooth_media.lock().unwrap().dispatch_csis_callbacks(a);
                 }
 
                 Message::LeScanner(m) => {
@@ -282,12 +354,23 @@ impl Stack {
                     bluetooth_media.lock().unwrap().remove_callback(cb_id);
                 }
 
+                Message::TelephonyCallbackDisconnected(cb_id) => {
+                    bluetooth_media.lock().unwrap().remove_telephony_callback(cb_id);
+                }
+
                 Message::AdapterCallbackDisconnected(id) => {
                     bluetooth.lock().unwrap().adapter_callback_disconnected(id);
                 }
 
                 Message::ConnectionCallbackDisconnected(id) => {
                     bluetooth.lock().unwrap().connection_callback_disconnected(id);
+                }
+
+                Message::TriggerUpdateConnectableMode => {
+                    let is_listening = bluetooth_socketmgr.lock().unwrap().is_listening();
+                    bluetooth.lock().unwrap().handle_delayed_actions(
+                        DelayedActions::UpdateConnectableMode(is_listening),
+                    );
                 }
 
                 Message::DelayedAdapterActions(action) => {
@@ -341,6 +424,10 @@ impl Stack {
                     bluetooth_gatt.lock().unwrap().remove_adv_callback(id);
                 }
 
+                Message::AdvertiserActions(action) => {
+                    bluetooth_gatt.lock().unwrap().handle_adv_action(action);
+                }
+
                 Message::SocketManagerActions(action) => {
                     bluetooth_socketmgr.lock().unwrap().handle_actions(action);
                 }
@@ -367,6 +454,9 @@ impl Stack {
                 }
                 Message::BatteryManagerCallbackDisconnected(id) => {
                     battery_manager.lock().unwrap().remove_callback(id);
+                }
+                Message::GattActions(action) => {
+                    bluetooth_gatt.lock().unwrap().handle_action(action);
                 }
                 Message::GattClientCallbackDisconnected(id) => {
                     bluetooth_gatt.lock().unwrap().remove_client_callback(id);
@@ -434,6 +524,21 @@ impl Stack {
                 Message::QaSendHidData(addr, data) => {
                     let status = bluetooth.lock().unwrap().send_hid_data_internal(addr, data);
                     bluetooth_qa.lock().unwrap().on_send_hid_data_completed(status);
+                }
+
+                // UHid callbacks
+                Message::UHidHfpOutputCallback(addr, id, data) => {
+                    bluetooth_media
+                        .lock()
+                        .unwrap()
+                        .dispatch_uhid_hfp_output_callback(addr, id, data);
+                }
+
+                Message::UHidTelephonyUseCallback(addr, state) => {
+                    bluetooth_media
+                        .lock()
+                        .unwrap()
+                        .dispatch_uhid_telephony_use_callback(addr, state);
                 }
             }
         }

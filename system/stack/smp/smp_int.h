@@ -24,12 +24,16 @@
 #ifndef SMP_INT_H
 #define SMP_INT_H
 
-#include "btm_api.h"
-#include "btm_ble_api.h"
-#include "smp_api.h"
-#include "stack/crypto_toolbox/crypto_toolbox.h"
+#include <bluetooth/log.h>
+
+#include <cstdint>
+
+#include "macros.h"
+#include "osi/include/alarm.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_octets.h"
+#include "stack/include/smp_api_types.h"
+#include "types/hci_role.h"
 #include "types/raw_address.h"
 
 typedef enum : uint16_t {
@@ -58,14 +62,52 @@ typedef enum : uint8_t {
   SMP_MODEL_OUT_OF_RANGE = 9,
 } tSMP_ASSO_MODEL;
 
-#ifndef SMP_MAX_CONN
-#define SMP_MAX_CONN 2
-#endif
-
 #define SMP_WAIT_FOR_RSP_TIMEOUT_MS (30 * 1000)
 #define SMP_DELAYED_AUTH_TIMEOUT_MS 500
 
-#define SMP_OPCODE_INIT 0x04
+/* SMP command code */
+typedef enum : uint8_t {
+  SMP_OPCODE_PAIRING_REQ = 0x01,
+  SMP_OPCODE_PAIRING_RSP = 0x02,
+  SMP_OPCODE_CONFIRM = 0x03,
+  SMP_OPCODE_RAND = 0x04,
+  SMP_OPCODE_PAIRING_FAILED = 0x05,
+  SMP_OPCODE_ENCRYPT_INFO = 0x06,
+  SMP_OPCODE_CENTRAL_ID = 0x07,
+  SMP_OPCODE_IDENTITY_INFO = 0x08,
+  SMP_OPCODE_ID_ADDR = 0x09,
+  SMP_OPCODE_SIGN_INFO = 0x0A,
+  SMP_OPCODE_SEC_REQ = 0x0B,
+  SMP_OPCODE_PAIR_PUBLIC_KEY = 0x0C,
+  SMP_OPCODE_PAIR_DHKEY_CHECK = 0x0D,
+  SMP_OPCODE_PAIR_KEYPR_NOTIF = 0x0E,
+  SMP_OPCODE_MAX = SMP_OPCODE_PAIR_KEYPR_NOTIF,
+  SMP_OPCODE_MIN = SMP_OPCODE_PAIRING_REQ,
+  // NOTE: For some reason this is outside the MAX/MIN values
+  SMP_OPCODE_PAIR_COMMITM = 0x0F,
+} tSMP_OPCODE;
+
+inline std::string smp_opcode_text(const tSMP_OPCODE opcode) {
+  switch (opcode) {
+    CASE_RETURN_TEXT(SMP_OPCODE_PAIRING_REQ);
+    CASE_RETURN_TEXT(SMP_OPCODE_PAIRING_RSP);
+    CASE_RETURN_TEXT(SMP_OPCODE_CONFIRM);
+    CASE_RETURN_TEXT(SMP_OPCODE_RAND);
+    CASE_RETURN_TEXT(SMP_OPCODE_PAIRING_FAILED);
+    CASE_RETURN_TEXT(SMP_OPCODE_ENCRYPT_INFO);
+    CASE_RETURN_TEXT(SMP_OPCODE_CENTRAL_ID);
+    CASE_RETURN_TEXT(SMP_OPCODE_IDENTITY_INFO);
+    CASE_RETURN_TEXT(SMP_OPCODE_ID_ADDR);
+    CASE_RETURN_TEXT(SMP_OPCODE_SIGN_INFO);
+    CASE_RETURN_TEXT(SMP_OPCODE_SEC_REQ);
+    CASE_RETURN_TEXT(SMP_OPCODE_PAIR_PUBLIC_KEY);
+    CASE_RETURN_TEXT(SMP_OPCODE_PAIR_DHKEY_CHECK);
+    CASE_RETURN_TEXT(SMP_OPCODE_PAIR_KEYPR_NOTIF);
+    CASE_RETURN_TEXT(SMP_OPCODE_PAIR_COMMITM);
+    default:
+      return base::StringPrintf("UNKNOWN[%hhu]", opcode);
+  }
+}
 
 /* SMP events */
 typedef enum : uint8_t {
@@ -213,7 +255,7 @@ typedef union {
 /* internal status mask */
 #define SMP_PAIR_FLAGS_WE_STARTED_DD (1)
 #define SMP_PAIR_FLAGS_PEER_STARTED_DD (1 << 1)
-#define SMP_PAIR_FLAGS_CMD_CONFIRM (1 << SMP_OPCODE_CONFIRM) /* 1 << 3 */
+#define SMP_PAIR_FLAGS_CMD_CONFIRM_RCVD (1 << SMP_OPCODE_CONFIRM) /* 1 << 3 */
 #define SMP_PAIR_FLAG_ENC_AFTER_PAIR (1 << 4)
 #define SMP_PAIR_FLAG_HAVE_PEER_DHK_CHK \
   (1 << 5) /* used on peripheral to resolve race condition */
@@ -224,20 +266,21 @@ typedef union {
 #define SMP_PAIR_FLAG_HAVE_LOCAL_PUBL_KEY \
   (1 << 8) /* used on peripheral to resolve race condition */
 
+#define SMP_PAIR_FLAGS_CMD_CONFIRM_SENT (1 << 9)
+
 /* check if authentication requirement need MITM protection */
 #define SMP_NO_MITM_REQUIRED(x) (((x)&SMP_AUTH_YN_BIT) == 0)
 
-typedef struct {
-  RawAddress bd_addr;
-  BT_HDR* p_copy;
-} tSMP_REQ_Q_ENTRY;
-
 /* SMP control block */
-typedef struct {
+class tSMP_CB {
+ public:
+  void init(uint8_t security_mode);
+  void reset();
+
+ public:
   uint8_t init_security_mode{0};
   tSMP_CALLBACK* p_callback;
   alarm_t* smp_rsp_timer_ent;
-  uint8_t trace_level;
   RawAddress pairing_bda;
   tSMP_STATE state;
   bool derive_lk;
@@ -248,7 +291,7 @@ typedef struct {
   tSMP_BR_STATE br_state; /* if SMP over BR/ERD has priority over SMP */
   uint8_t failure;
   tSMP_STATUS status;
-  uint8_t role;
+  tHCI_ROLE role;
   uint16_t flags;
   tSMP_EVT cb_evt;
   tSMP_SEC_LEVEL sec_level;
@@ -275,11 +318,14 @@ typedef struct {
   tSMP_OOB_FLAG loc_oob_flag;
   tSMP_AUTH_REQ peer_auth_req;
   tSMP_AUTH_REQ loc_auth_req;
-  bool secure_connections_only_mode_required; /* true if locally SM is required
-                                                 to operate */
+
+  bool sc_only_mode_locally_required; /* true if sc_only required required
+                                         locally */
+  bool sc_mode_required_by_peer;      /* true if peer requires sc in pair_req or
+                                         pair_rsp */
+
   /* either in Secure Connections mode or not at all */
   tSMP_ASSO_MODEL selected_association_model;
-  bool le_secure_connections_mode_is_used;
   bool key_derivation_h7_used;
   bool le_sc_kp_notif_is_used;
   tSMP_SC_KEY_TYPE local_keypress_notification;
@@ -312,15 +358,12 @@ typedef struct {
   tSMP_STATUS cert_failure; /*failure case for certification */
   alarm_t* delayed_auth_timer_ent;
   tBLE_BD_ADDR pairing_ble_bd_addr;
-} tSMP_CB;
+};
 
 /* Server Action functions are of this type */
 typedef void (*tSMP_ACT)(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 
 extern tSMP_CB smp_cb;
-
-/* Functions provided by att_main.cc */
-void smp_init(void);
 
 /* smp main */
 bool smp_sm_event(tSMP_CB* p_cb, tSMP_EVENT event, tSMP_INT_DATA* p_data);
@@ -415,7 +458,6 @@ void smp_data_ind(const RawAddress& bd_addr, BT_HDR* p_buf);
 void smp_log_metrics(const RawAddress& bd_addr, bool is_outgoing,
                      const uint8_t* p_buf, size_t buf_len, bool is_over_br);
 bool smp_send_cmd(uint8_t cmd_code, tSMP_CB* p_cb);
-void smp_cb_cleanup(tSMP_CB* p_cb);
 void smp_reset_control_value(tSMP_CB* p_cb);
 void smp_proc_pairing_cmpl(tSMP_CB* p_cb);
 void smp_convert_string_to_tk(Octet16* tk, uint32_t passkey);
@@ -457,7 +499,7 @@ void smp_start_nonce_generation(tSMP_CB* p_cb);
 bool smp_calculate_link_key_from_long_term_key(tSMP_CB* p_cb);
 bool smp_calculate_long_term_key_from_link_key(tSMP_CB* p_cb);
 
-void print128(const Octet16& x, const uint8_t* key_name);
+void print128(const Octet16& x, const char* key_name);
 void smp_xor_128(Octet16* a, const Octet16& b);
 
 /* Save the p_cb->sc_oob_data.loc_oob_data for later, since the p_cb gets
@@ -465,4 +507,14 @@ void smp_xor_128(Octet16* a, const Octet16& b);
 void smp_save_local_oob_data(tSMP_CB* p_cb);
 void smp_clear_local_oob_data();
 bool smp_has_local_oob_data();
+
+namespace fmt {
+template <>
+struct formatter<tSMP_EVENT> : enum_formatter<tSMP_EVENT> {};
+template <>
+struct formatter<tSMP_OPCODE> : enum_formatter<tSMP_OPCODE> {};
+template <>
+struct formatter<tSMP_ASSO_MODEL> : enum_formatter<tSMP_ASSO_MODEL> {};
+}  // namespace fmt
+
 #endif /* SMP_INT_H */

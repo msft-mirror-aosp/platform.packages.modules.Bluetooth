@@ -33,18 +33,12 @@ import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.DistanceMeasurementMethod;
 import android.bluetooth.le.DistanceMeasurementParams;
 import android.bluetooth.le.IDistanceMeasurementCallback;
-import android.bluetooth.le.IPeriodicAdvertisingCallback;
-import android.bluetooth.le.IScannerCallback;
 import android.bluetooth.le.PeriodicAdvertisingParameters;
-import android.bluetooth.le.ScanResult;
-import android.bluetooth.le.ScanSettings;
 import android.content.AttributionSource;
 import android.content.Context;
 import android.content.res.Resources;
 import android.location.LocationManager;
-import android.os.Binder;
-import android.os.RemoteException;
-import android.os.WorkSource;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
@@ -54,16 +48,18 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.CompanionManager;
+import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.le_scan.ScanManager;
+import com.android.bluetooth.le_scan.TransitionalScanHelper;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -73,9 +69,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Test cases for {@link GattService}.
- */
+/** Test cases for {@link GattService}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class GattServiceTest {
@@ -86,11 +80,15 @@ public class GattServiceTest {
     private static final int TIMEOUT_MS = 5_000;
     private Context mTargetContext;
     private GattService mService;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
     @Mock private GattService.ClientMap mClientMap;
-    @Mock private GattService.ScannerMap mScannerMap;
-    @Mock private GattService.ScannerMap.App mApp;
-    @Mock private GattService.PendingIntentInfo mPiInfo;
-    @Mock private PeriodicScanManager mPeriodicScanManager;
+    @Mock private TransitionalScanHelper.ScannerMap mScannerMap;
+
+    @SuppressWarnings("NonCanonicalType")
+    @Mock
+    private TransitionalScanHelper.ScannerMap.App mApp;
+
     @Mock private ScanManager mScanManager;
     @Mock private Set<String> mReliableQueue;
     @Mock private GattService.ServerMap mServerMap;
@@ -98,6 +96,7 @@ public class GattServiceTest {
     @Mock private AdvertiseManagerNativeInterface mAdvertiseManagerNativeInterface;
 
     @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private BluetoothDevice mDevice;
     private BluetoothAdapter mAdapter;
@@ -114,14 +113,13 @@ public class GattServiceTest {
     public void setUp() throws Exception {
         mTargetContext = InstrumentationRegistry.getTargetContext();
 
-        MockitoAnnotations.initMocks(this);
         TestUtils.setAdapterService(mAdapterService);
 
         GattObjectsFactory.setInstanceForTesting(mFactory);
         doReturn(mNativeInterface).when(mFactory).getNativeInterface();
-        doReturn(mScanManager).when(mFactory).createScanManager(any(), any(), any());
-        doReturn(mPeriodicScanManager).when(mFactory).createPeriodicScanManager(any());
-        doReturn(mDistanceMeasurementManager).when(mFactory)
+        doReturn(mScanManager).when(mFactory).createScanManager(any(), any(), any(), any(), any());
+        doReturn(mDistanceMeasurementManager)
+                .when(mFactory)
                 .createDistanceMeasurementManager(any());
 
         mAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -131,8 +129,10 @@ public class GattServiceTest {
         when(mAdapterService.getResources()).thenReturn(mResources);
         when(mResources.getInteger(anyInt())).thenReturn(0);
         when(mAdapterService.getSharedPreferences(anyString(), anyInt()))
-                .thenReturn(InstrumentationRegistry.getTargetContext()
-                        .getSharedPreferences("GattServiceTestPrefs", Context.MODE_PRIVATE));
+                .thenReturn(
+                        InstrumentationRegistry.getTargetContext()
+                                .getSharedPreferences(
+                                        "GattServiceTestPrefs", Context.MODE_PRIVATE));
 
         TestUtils.mockGetSystemService(
                 mAdapterService, Context.LOCATION_SERVICE, LocationManager.class);
@@ -145,7 +145,7 @@ public class GattServiceTest {
         mService.start();
 
         mService.mClientMap = mClientMap;
-        mService.mScannerMap = mScannerMap;
+        mService.mTransitionalScanHelper.setScannerMap(mScannerMap);
         mService.mReliableQueue = mReliableQueue;
         mService.mServerMap = mServerMap;
     }
@@ -173,14 +173,6 @@ public class GattServiceTest {
             mService = new GattService(InstrumentationRegistry.getTargetContext());
             mService.start();
         }
-    }
-
-    @Test
-    public void testParseBatchTimestamp() {
-        long timestampNanos = mService.parseTimestampNanos(new byte[]{
-                -54, 7
-        });
-        Assert.assertEquals(99700000000L, timestampNanos);
     }
 
     @Test
@@ -214,10 +206,10 @@ public class GattServiceTest {
         Integer connId = 1;
         doReturn(connId).when(mClientMap).connIdByAddress(clientIf, address);
 
-        mService.clientSetPreferredPhy(clientIf, address, txPhy, rxPhy, phyOptions,
-                mAttributionSource);
-        verify(mNativeInterface).gattClientSetPreferredPhy(clientIf, address, txPhy, rxPhy,
-                phyOptions);
+        mService.clientSetPreferredPhy(
+                clientIf, address, txPhy, rxPhy, phyOptions, mAttributionSource);
+        verify(mNativeInterface)
+                .gattClientSetPreferredPhy(clientIf, address, txPhy, rxPhy, phyOptions);
     }
 
     @Test
@@ -226,99 +218,32 @@ public class GattServiceTest {
         String address = REMOTE_DEVICE_ADDRESS;
 
         int connectionPriority = BluetoothGatt.CONNECTION_PRIORITY_HIGH;
-        mService.connectionParameterUpdate(clientIf, address, connectionPriority,
-                mAttributionSource);
+        mService.connectionParameterUpdate(
+                clientIf, address, connectionPriority, mAttributionSource);
 
         connectionPriority = BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER;
-        mService.connectionParameterUpdate(clientIf, address, connectionPriority,
-                mAttributionSource);
+        mService.connectionParameterUpdate(
+                clientIf, address, connectionPriority, mAttributionSource);
 
-        connectionPriority = BluetoothGatt.CONNECTION_PRIORITY_BALANCED;;
-        mService.connectionParameterUpdate(clientIf, address, connectionPriority,
-                mAttributionSource);
+        connectionPriority = BluetoothGatt.CONNECTION_PRIORITY_BALANCED;
+        mService.connectionParameterUpdate(
+                clientIf, address, connectionPriority, mAttributionSource);
 
-        verify(mNativeInterface, times(3)).gattConnectionParameterUpdate(eq(clientIf),
-                eq(address), anyInt(), anyInt(), anyInt(), anyInt(), eq(0), eq(0));
+        verify(mNativeInterface, times(3))
+                .gattConnectionParameterUpdate(
+                        eq(clientIf),
+                        eq(address),
+                        anyInt(),
+                        anyInt(),
+                        anyInt(),
+                        anyInt(),
+                        eq(0),
+                        eq(0));
     }
 
     @Test
     public void testDumpDoesNotCrash() {
         mService.dump(new StringBuilder());
-    }
-
-    @Test
-    public void continuePiStartScan() {
-        int scannerId = 1;
-
-        mPiInfo.settings = new ScanSettings.Builder().build();
-        mApp.info = mPiInfo;
-
-        AppScanStats appScanStats = mock(AppScanStats.class);
-        doReturn(appScanStats).when(mScannerMap).getAppScanStatsById(scannerId);
-
-        mService.continuePiStartScan(scannerId, mApp);
-
-        verify(appScanStats).recordScanStart(
-                mPiInfo.settings, mPiInfo.filters, false, false, scannerId);
-        verify(mScanManager).startScan(any());
-    }
-
-    @Test
-    public void continuePiStartScanCheckUid() {
-        int scannerId = 1;
-
-        mPiInfo.settings = new ScanSettings.Builder().build();
-        mPiInfo.callingUid = 123;
-        mApp.info = mPiInfo;
-
-        AppScanStats appScanStats = mock(AppScanStats.class);
-        doReturn(appScanStats).when(mScannerMap).getAppScanStatsById(scannerId);
-
-        mService.continuePiStartScan(scannerId, mApp);
-
-        verify(appScanStats)
-                .recordScanStart(mPiInfo.settings, mPiInfo.filters, false, false, scannerId);
-        verify(mScanManager)
-                .startScan(
-                        argThat(
-                                new ArgumentMatcher<ScanClient>() {
-                                    @Override
-                                    public boolean matches(ScanClient client) {
-                                        return mPiInfo.callingUid == client.appUid;
-                                    }
-                                }));
-    }
-
-    @Test
-    public void onBatchScanReportsInternal_deliverBatchScan() throws RemoteException {
-        int status = 1;
-        int scannerId = 2;
-        int reportType = ScanManager.SCAN_RESULT_TYPE_FULL;
-        int numRecords = 1;
-        byte[] recordData = new byte[]{0x01, 0x02, 0x03, 0x04, 0x05,
-                0x06, 0x07, 0x08, 0x09, 0x00, 0x00, 0x00, 0x00};
-
-        Set<ScanClient> scanClientSet = new HashSet<>();
-        ScanClient scanClient = new ScanClient(scannerId);
-        scanClient.associatedDevices = new ArrayList<>();
-        scanClient.associatedDevices.add("02:00:00:00:00:00");
-        scanClient.scannerId = scannerId;
-        scanClientSet.add(scanClient);
-        doReturn(scanClientSet).when(mScanManager).getFullBatchScanQueue();
-        doReturn(mApp).when(mScannerMap).getById(scanClient.scannerId);
-
-        mService.onBatchScanReportsInternal(status, scannerId, reportType, numRecords, recordData);
-        verify(mScanManager).callbackDone(scannerId, status);
-
-        reportType = ScanManager.SCAN_RESULT_TYPE_TRUNCATED;
-        recordData = new byte[]{0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
-                0x06, 0x04, 0x02, 0x02, 0x00, 0x00, 0x02};
-        doReturn(scanClientSet).when(mScanManager).getBatchScanQueue();
-        IScannerCallback callback = mock(IScannerCallback.class);
-        mApp.callback = callback;
-
-        mService.onBatchScanReportsInternal(status, scannerId, reportType, numRecords, recordData);
-        verify(callback).onBatchScanResults(any());
     }
 
     @Test
@@ -331,11 +256,19 @@ public class GattServiceTest {
         boolean opportunistic = true;
         int phy = 3;
 
-        mService.clientConnect(clientIf, address, addressType, isDirect, transport,
-                opportunistic, phy, mAttributionSource);
+        mService.clientConnect(
+                clientIf,
+                address,
+                addressType,
+                isDirect,
+                transport,
+                opportunistic,
+                phy,
+                mAttributionSource);
 
-        verify(mNativeInterface).gattClientConnect(clientIf, address, addressType,
-                isDirect, transport, opportunistic, phy);
+        verify(mNativeInterface)
+                .gattClientConnect(
+                        clientIf, address, addressType, isDirect, transport, opportunistic, phy);
     }
 
     @Test
@@ -350,28 +283,6 @@ public class GattServiceTest {
 
         mService.disconnectAll(mAttributionSource);
         verify(mNativeInterface).gattClientDisconnect(clientIf, address, connId);
-    }
-
-    @Test
-    public void enforceReportDelayFloor() {
-        long reportDelayFloorHigher = GattService.DEFAULT_REPORT_DELAY_FLOOR + 1;
-        ScanSettings scanSettings = new ScanSettings.Builder()
-                .setReportDelay(reportDelayFloorHigher)
-                .build();
-
-        ScanSettings newScanSettings = mService.enforceReportDelayFloor(scanSettings);
-
-        assertThat(newScanSettings.getReportDelayMillis())
-                .isEqualTo(scanSettings.getReportDelayMillis());
-
-        ScanSettings scanSettingsFloor = new ScanSettings.Builder()
-                .setReportDelay(1)
-                .build();
-
-        ScanSettings newScanSettingsFloor = mService.enforceReportDelayFloor(scanSettingsFloor);
-
-        assertThat(newScanSettingsFloor.getReportDelayMillis())
-                .isEqualTo(GattService.DEFAULT_REPORT_DELAY_FLOOR);
     }
 
     @Test
@@ -428,7 +339,7 @@ public class GattServiceTest {
         int[] states = new int[] {BluetoothProfile.STATE_CONNECTED};
 
         BluetoothDevice testDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
-        BluetoothDevice[] bluetoothDevices = new BluetoothDevice[]{testDevice};
+        BluetoothDevice[] bluetoothDevices = new BluetoothDevice[] {testDevice};
         doReturn(bluetoothDevices).when(mAdapterService).getBondedDevices();
 
         Set<String> connectedDevices = new HashSet<>();
@@ -453,8 +364,9 @@ public class GattServiceTest {
         boolean eattSupport = true;
 
         mService.registerClient(uuid, callback, eattSupport, mAttributionSource);
-        verify(mNativeInterface).gattClientRegisterApp(uuid.getLeastSignificantBits(),
-                uuid.getMostSignificantBits(), eattSupport);
+        verify(mNativeInterface)
+                .gattClientRegisterApp(
+                        uuid.getLeastSignificantBits(), uuid.getMostSignificantBits(), eattSupport);
     }
 
     @Test
@@ -464,27 +376,6 @@ public class GattServiceTest {
         mService.unregisterClient(clientIf, mAttributionSource);
         verify(mClientMap).remove(clientIf);
         verify(mNativeInterface).gattClientUnregisterApp(clientIf);
-    }
-
-    @Test
-    public void registerScanner() throws Exception {
-        IScannerCallback callback = mock(IScannerCallback.class);
-        WorkSource workSource = mock(WorkSource.class);
-
-        AppScanStats appScanStats = mock(AppScanStats.class);
-        doReturn(appScanStats).when(mScannerMap).getAppScanStatsByUid(Binder.getCallingUid());
-
-        mService.registerScanner(callback, workSource, mAttributionSource);
-        verify(mScannerMap).add(any(), eq(workSource), eq(callback), eq(null), eq(mService));
-        verify(mScanManager).registerScanner(any());
-    }
-
-    @Test
-    public void flushPendingBatchResults() {
-        int scannerId = 3;
-
-        mService.flushPendingBatchResults(scannerId, mAttributionSource);
-        verify(mScanManager).flushBatchScanResults(new ScanClient(scannerId));
     }
 
     @Test
@@ -513,11 +404,16 @@ public class GattServiceTest {
         Integer connId = 1;
         doReturn(connId).when(mClientMap).connIdByAddress(clientIf, address);
 
-        mService.readUsingCharacteristicUuid(clientIf, address, uuid, startHandle, endHandle,
-                authReq, mAttributionSource);
-        verify(mNativeInterface).gattClientReadUsingCharacteristicUuid(connId,
-                uuid.getLeastSignificantBits(), uuid.getMostSignificantBits(), startHandle,
-                endHandle, authReq);
+        mService.readUsingCharacteristicUuid(
+                clientIf, address, uuid, startHandle, endHandle, authReq, mAttributionSource);
+        verify(mNativeInterface)
+                .gattClientReadUsingCharacteristicUuid(
+                        connId,
+                        uuid.getLeastSignificantBits(),
+                        uuid.getMostSignificantBits(),
+                        startHandle,
+                        endHandle,
+                        authReq);
     }
 
     @Test
@@ -532,8 +428,9 @@ public class GattServiceTest {
         Integer connId = 1;
         doReturn(connId).when(mClientMap).connIdByAddress(clientIf, address);
 
-        int writeCharacteristicResult = mService.writeCharacteristic(clientIf, address, handle,
-                writeType, authReq, value, mAttributionSource);
+        int writeCharacteristicResult =
+                mService.writeCharacteristic(
+                        clientIf, address, handle, writeType, authReq, value, mAttributionSource);
         assertThat(writeCharacteristicResult)
                 .isEqualTo(BluetoothStatusCodes.ERROR_DEVICE_NOT_CONNECTED);
     }
@@ -587,8 +484,8 @@ public class GattServiceTest {
 
         mService.registerForNotification(clientIf, address, handle, enable, mAttributionSource);
 
-        verify(mNativeInterface).gattClientRegisterForNotifications(clientIf, address, handle,
-                enable);
+        verify(mNativeInterface)
+                .gattClientRegisterForNotifications(clientIf, address, handle, enable);
     }
 
     @Test
@@ -624,24 +521,41 @@ public class GattServiceTest {
         int minConnectionEventLen = 7;
         int maxConnectionEventLen = 8;
 
-        mService.leConnectionUpdate(clientIf, address, minInterval, maxInterval,
-                peripheralLatency, supervisionTimeout, minConnectionEventLen,
-                maxConnectionEventLen, mAttributionSource);
+        mService.leConnectionUpdate(
+                clientIf,
+                address,
+                minInterval,
+                maxInterval,
+                peripheralLatency,
+                supervisionTimeout,
+                minConnectionEventLen,
+                maxConnectionEventLen,
+                mAttributionSource);
 
-        verify(mNativeInterface).gattConnectionParameterUpdate(clientIf, address, minInterval,
-                maxInterval, peripheralLatency, supervisionTimeout, minConnectionEventLen,
-                maxConnectionEventLen);
+        verify(mNativeInterface)
+                .gattConnectionParameterUpdate(
+                        clientIf,
+                        address,
+                        minInterval,
+                        maxInterval,
+                        peripheralLatency,
+                        supervisionTimeout,
+                        minConnectionEventLen,
+                        maxConnectionEventLen);
     }
 
     @Test
     public void serverConnect() {
         int serverIf = 1;
         String address = REMOTE_DEVICE_ADDRESS;
+        int addressType = BluetoothDevice.ADDRESS_TYPE_RANDOM;
         boolean isDirect = true;
         int transport = 2;
 
-        mService.serverConnect(serverIf, address, isDirect, transport, mAttributionSource);
-        verify(mNativeInterface).gattServerConnect(serverIf, address, isDirect, transport);
+        mService.serverConnect(
+                serverIf, address, addressType, isDirect, transport, mAttributionSource);
+        verify(mNativeInterface)
+                .gattServerConnect(serverIf, address, addressType, isDirect, transport);
     }
 
     @Test
@@ -664,10 +578,10 @@ public class GattServiceTest {
         int rxPhy = 1;
         int phyOptions = 3;
 
-        mService.serverSetPreferredPhy(serverIf, address, txPhy, rxPhy, phyOptions,
-                mAttributionSource);
-        verify(mNativeInterface).gattServerSetPreferredPhy(serverIf, address, txPhy, rxPhy,
-                phyOptions);
+        mService.serverSetPreferredPhy(
+                serverIf, address, txPhy, rxPhy, phyOptions, mAttributionSource);
+        verify(mNativeInterface)
+                .gattServerSetPreferredPhy(serverIf, address, txPhy, rxPhy, phyOptions);
     }
 
     @Test
@@ -685,7 +599,7 @@ public class GattServiceTest {
         String address = REMOTE_DEVICE_ADDRESS;
         int handle = 2;
         boolean confirm = true;
-        byte[] value = new byte[] {5, 6};;
+        byte[] value = new byte[] {5, 6};
 
         Integer connId = 1;
         doReturn(connId).when(mServerMap).connIdByAddress(serverIf, address);
@@ -713,47 +627,8 @@ public class GattServiceTest {
         int duration = 3;
         int maxExtAdvEvents = 4;
 
-        mService.enableAdvertisingSet(advertiserId, enable, duration, maxExtAdvEvents,
-                mAttributionSource);
-    }
-
-    @Test
-    public void registerSync() {
-        ScanResult scanResult = new ScanResult(mDevice, 1, 2, 3, 4, 5, 6, 7, null, 8);
-        int skip = 1;
-        int timeout = 2;
-        IPeriodicAdvertisingCallback callback = mock(IPeriodicAdvertisingCallback.class);
-
-        mService.registerSync(scanResult, skip, timeout, callback, mAttributionSource);
-        verify(mPeriodicScanManager).startSync(scanResult, skip, timeout, callback);
-    }
-
-    @Test
-    public void transferSync() {
-        int serviceData = 1;
-        int syncHandle = 2;
-
-        mService.transferSync(mDevice, serviceData, syncHandle, mAttributionSource);
-        verify(mPeriodicScanManager).transferSync(mDevice, serviceData, syncHandle);
-    }
-
-    @Test
-    public void transferSetInfo() {
-        int serviceData = 1;
-        int advHandle = 2;
-        IPeriodicAdvertisingCallback callback = mock(IPeriodicAdvertisingCallback.class);
-
-        mService.transferSetInfo(mDevice, serviceData, advHandle, callback,
-                mAttributionSource);
-        verify(mPeriodicScanManager).transferSetInfo(mDevice, serviceData, advHandle, callback);
-    }
-
-    @Test
-    public void unregisterSync() {
-        IPeriodicAdvertisingCallback callback = mock(IPeriodicAdvertisingCallback.class);
-
-        mService.unregisterSync(callback, mAttributionSource);
-        verify(mPeriodicScanManager).stopSync(callback);
+        mService.enableAdvertisingSet(
+                advertiserId, enable, duration, maxExtAdvEvents, mAttributionSource);
     }
 
     @Test
@@ -770,7 +645,7 @@ public class GattServiceTest {
 
     @Test
     public void numHwTrackFiltersAvailable() {
-        mService.numHwTrackFiltersAvailable(mAttributionSource);
+        mService.getTransitionalScanHelper().numHwTrackFiltersAvailable(mAttributionSource);
         verify(mScanManager).getCurrentUsedTrackingAdvertisement();
     }
 
@@ -784,10 +659,11 @@ public class GattServiceTest {
     public void startDistanceMeasurement() {
         UUID uuid = UUID.randomUUID();
         BluetoothDevice device = mAdapter.getRemoteDevice("00:01:02:03:04:05");
-        DistanceMeasurementParams params = new DistanceMeasurementParams.Builder(device)
-                .setDurationSeconds(123)
-                .setFrequency(DistanceMeasurementParams.REPORT_FREQUENCY_LOW)
-                .build();
+        DistanceMeasurementParams params =
+                new DistanceMeasurementParams.Builder(device)
+                        .setDurationSeconds(123)
+                        .setFrequency(DistanceMeasurementParams.REPORT_FREQUENCY_LOW)
+                        .build();
         IDistanceMeasurementCallback callback = mock(IDistanceMeasurementCallback.class);
         mService.startDistanceMeasurement(uuid, params, callback);
         verify(mDistanceMeasurementManager).startDistanceMeasurement(uuid, params, callback);
@@ -818,5 +694,48 @@ public class GattServiceTest {
                         BluetoothProfile.A2DP,
                         BluetoothProfile.STATE_CONNECTING,
                         BluetoothProfile.STATE_CONNECTED);
+    }
+
+    @Test
+    public void restrictedHandles() throws Exception {
+        mSetFlagsRule.enableFlags(Flags.FLAG_GATT_CLEANUP_RESTRICTED_HANDLES);
+        int clientIf = 1;
+        int connId = 1;
+        ArrayList<GattDbElement> db = new ArrayList<>();
+
+        @SuppressWarnings("NonCanonicalType")
+        GattService.ClientMap.App app = mock(GattService.ClientMap.App.class);
+        IBluetoothGattCallback callback = mock(IBluetoothGattCallback.class);
+
+        doReturn(app).when(mClientMap).getByConnId(connId);
+        app.callback = callback;
+
+        GattDbElement hidService =
+                GattDbElement.createPrimaryService(
+                        UUID.fromString("00001812-0000-1000-8000-00805F9B34FB"));
+        hidService.id = 1;
+
+        GattDbElement hidInfoChar =
+                GattDbElement.createCharacteristic(
+                        UUID.fromString("00002A4A-0000-1000-8000-00805F9B34FB"), 0, 0);
+        hidInfoChar.id = 2;
+
+        GattDbElement randomChar =
+                GattDbElement.createCharacteristic(
+                        UUID.fromString("0000FFFF-0000-1000-8000-00805F9B34FB"), 0, 0);
+        randomChar.id = 3;
+
+        db.add(hidService);
+        db.add(hidInfoChar);
+        db.add(randomChar);
+
+        mService.onGetGattDb(connId, db);
+        // HID characteristics should be restricted
+        assertThat(mService.mRestrictedHandles.get(connId)).contains(hidInfoChar.id);
+        assertThat(mService.mRestrictedHandles.get(connId)).doesNotContain(randomChar.id);
+
+        mService.onDisconnected(
+                clientIf, connId, BluetoothGatt.GATT_SUCCESS, REMOTE_DEVICE_ADDRESS);
+        assertThat(mService.mRestrictedHandles).doesNotContainKey(connId);
     }
 }

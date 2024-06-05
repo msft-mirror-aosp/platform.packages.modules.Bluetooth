@@ -25,10 +25,12 @@
 #define PAN_API_H
 
 #include <base/strings/stringprintf.h>
+#include <bluetooth/log.h>
 
 #include <cstdint>
 
 #include "bnep_api.h"
+#include "macros.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
 
@@ -97,10 +99,6 @@ typedef enum : uint8_t {
   PAN_HOTSPOT_DISABLED = 20,              /* Hotspot disabled             */
 } tPAN_RESULT;
 
-#define CASE_RETURN_TEXT(code) \
-  case code:                   \
-    return #code
-
 inline const std::string pan_result_text(const tPAN_RESULT& result) {
   switch (result) {
     CASE_RETURN_TEXT(PAN_SUCCESS);
@@ -128,8 +126,6 @@ inline const std::string pan_result_text(const tPAN_RESULT& result) {
       return base::StringPrintf("UNKNOWN[%hhu]", result);
   }
 }
-
-#undef CASE_RETURN_TEXT
 
 /*****************************************************************
  *       Callback Function Prototypes
@@ -433,18 +429,6 @@ tPAN_RESULT PAN_SetMulticastFilters(uint16_t handle, uint16_t num_mcast_filters,
 
 /*******************************************************************************
  *
- * Function         PAN_SetTraceLevel
- *
- * Description      This function sets the trace level for PAN. If called with
- *                  a value of 0xFF, it simply reads the current trace level.
- *
- * Returns          the new (current) trace level
- *
- ******************************************************************************/
-uint8_t PAN_SetTraceLevel(uint8_t new_level);
-
-/*******************************************************************************
- *
  * Function         PAN_Init
  *
  * Description      This function initializes the PAN unit. It should be called
@@ -457,5 +441,10 @@ uint8_t PAN_SetTraceLevel(uint8_t new_level);
 void PAN_Init(void);
 
 void PAN_Dumpsys(int fd);
+
+namespace fmt {
+template <>
+struct formatter<tPAN_RESULT> : enum_formatter<tPAN_RESULT> {};
+}  // namespace fmt
 
 #endif /* PAN_API_H */

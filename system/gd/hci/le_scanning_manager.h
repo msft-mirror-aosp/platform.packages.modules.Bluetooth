@@ -16,6 +16,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "common/callback.h"
 #include "hci/address_with_type.h"
@@ -52,7 +53,11 @@ class LeScanningManager : public bluetooth::Module {
   virtual void Scan(bool start);
 
   virtual void SetScanParameters(
-      ScannerId scanner_id, LeScanType scan_type, uint16_t scan_interval, uint16_t scan_window);
+      ScannerId scanner_id,
+      LeScanType scan_type,
+      uint16_t scan_interval,
+      uint16_t scan_window,
+      uint8_t scan_phy);
 
   virtual void SetScanFilterPolicy(LeScanningFilterPolicy filter_policy);
 

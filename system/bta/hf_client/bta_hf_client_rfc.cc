@@ -24,18 +24,20 @@
  *
  ******************************************************************************/
 
+#include <bluetooth/log.h>
+
 #include <cstdint>
 
 #include "bta/hf_client/bta_hf_client_int.h"
+#include "bta/include/bta_sec_api.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
+#include "stack/include/bt_uuid16.h"
 #include "stack/include/port_api.h"
 #include "stack/include/sdp_api.h"
 #include "types/raw_address.h"
 
-#include <base/logging.h>
-
 using namespace bluetooth::legacy::stack::sdp;
+using namespace bluetooth;
 
 /*******************************************************************************
  *
@@ -48,13 +50,13 @@ using namespace bluetooth::legacy::stack::sdp;
  * Returns          void
  *
  ******************************************************************************/
-static void bta_hf_client_port_cback(UNUSED_ATTR uint32_t code,
+static void bta_hf_client_port_cback(uint32_t /* code */,
                                      uint16_t port_handle) {
   /* ignore port events for port handles other than connected handle */
   tBTA_HF_CLIENT_CB* client_cb =
       bta_hf_client_find_cb_by_rfc_handle(port_handle);
   if (client_cb == NULL) {
-    APPL_TRACE_ERROR("%s: cb not found for handle %d", __func__, port_handle);
+    log::error("cb not found for handle {}", port_handle);
     return;
   }
 
@@ -75,18 +77,18 @@ static void bta_hf_client_port_cback(UNUSED_ATTR uint32_t code,
  * Returns          void
  *
  ******************************************************************************/
-static void bta_hf_client_mgmt_cback(uint32_t code, uint16_t port_handle) {
+static void bta_hf_client_mgmt_cback(const tPORT_RESULT code,
+                                     uint16_t port_handle) {
   tBTA_HF_CLIENT_CB* client_cb =
       bta_hf_client_find_cb_by_rfc_handle(port_handle);
 
-  APPL_TRACE_DEBUG("%s: code = %d, port_handle = %d serv = %d", __func__, code,
-                   port_handle, bta_hf_client_cb_arr.serv_handle);
+  log::verbose("code = {}, port_handle = {} serv = {}", code, port_handle,
+               bta_hf_client_cb_arr.serv_handle);
 
   /* ignore close event for port handles other than connected handle */
   if (code != PORT_SUCCESS && client_cb != NULL &&
       port_handle != client_cb->conn_handle) {
-    APPL_TRACE_DEBUG("bta_hf_client_mgmt_cback ignoring handle:%d",
-                     port_handle);
+    log::verbose("bta_hf_client_mgmt_cback ignoring handle:{}", port_handle);
     return;
   }
 
@@ -99,14 +101,13 @@ static void bta_hf_client_mgmt_cback(uint32_t code, uint16_t port_handle) {
     } else if (port_handle == bta_hf_client_cb_arr.serv_handle) {
       p_buf->hdr.event = BTA_HF_CLIENT_RFC_OPEN_EVT;
 
-      APPL_TRACE_DEBUG("%s: allocating a new CB for incoming connection",
-                       __func__);
+      log::verbose("allocating a new CB for incoming connection");
       // Find the BDADDR of the peer device
       RawAddress peer_addr = RawAddress::kEmpty;
       uint16_t lcid = 0;
       int status = PORT_CheckConnection(port_handle, &peer_addr, &lcid);
       if (status != PORT_SUCCESS) {
-        LOG(ERROR) << __func__ << ": PORT_CheckConnection returned " << status;
+        log::error("PORT_CheckConnection returned {}", status);
       }
 
       // Since we accepted a remote request we should allocate a handle first.
@@ -116,9 +117,13 @@ static void bta_hf_client_mgmt_cback(uint32_t code, uint16_t port_handle) {
 
       // If allocation fails then we abort.
       if (client_cb == NULL) {
-        APPL_TRACE_ERROR("%s: error allocating a new handle", __func__);
+        log::error("error allocating a new handle");
         p_buf->hdr.event = BTA_HF_CLIENT_RFC_CLOSE_EVT;
-        RFCOMM_RemoveConnection(port_handle);
+        if (RFCOMM_RemoveConnection(port_handle) != PORT_SUCCESS) {
+          log::warn("Unable to remote RFCOMM server connection handle:{}",
+                    port_handle);
+        }
+
       } else {
         // Set the connection fields for this new CB
         client_cb->conn_handle = port_handle;
@@ -130,17 +135,19 @@ static void bta_hf_client_mgmt_cback(uint32_t code, uint16_t port_handle) {
         bta_hf_client_start_server();
       }
     } else {
-      APPL_TRACE_ERROR("%s: PORT_SUCCESS, ignoring handle = %d", __func__,
-                       port_handle);
+      log::error("PORT_SUCCESS, ignoring handle = {}", port_handle);
       osi_free(p_buf);
       return;
     }
   } else if (client_cb != NULL &&
              port_handle == client_cb->conn_handle) { /* code != PORT_SUC */
-    LOG(ERROR) << __func__ << ": closing port handle " << port_handle << "dev "
-               << client_cb->peer_addr;
+    log::error("closing port handle {} dev {}", port_handle,
+               client_cb->peer_addr);
 
-    RFCOMM_RemoveServer(port_handle);
+    if (RFCOMM_RemoveServer(port_handle) != PORT_SUCCESS) {
+      log::warn("Unable to remote RFCOMM server connection handle:{}",
+                port_handle);
+    }
     p_buf->hdr.event = BTA_HF_CLIENT_RFC_CLOSE_EVT;
   } else if (client_cb == NULL) {
     // client_cb is already cleaned due to hfp client disabled.
@@ -163,8 +170,12 @@ static void bta_hf_client_mgmt_cback(uint32_t code, uint16_t port_handle) {
  *
  ******************************************************************************/
 void bta_hf_client_setup_port(uint16_t handle) {
-  PORT_SetEventMask(handle, PORT_EV_RXCHAR);
-  PORT_SetEventCallback(handle, bta_hf_client_port_cback);
+  if (PORT_SetEventMask(handle, PORT_EV_RXCHAR) != PORT_SUCCESS) {
+    log::warn("Unable to set RFCOMM event mask handle:{}", handle);
+  }
+  if (PORT_SetEventCallback(handle, bta_hf_client_port_cback) != PORT_SUCCESS) {
+    log::warn("Unable to set RFCOMM event callback handle:{}", handle);
+  }
 }
 
 /*******************************************************************************
@@ -181,8 +192,8 @@ void bta_hf_client_start_server() {
   int port_status;
 
   if (bta_hf_client_cb_arr.serv_handle > 0) {
-    APPL_TRACE_DEBUG("%s: already started, handle: %d", __func__,
-                     bta_hf_client_cb_arr.serv_handle);
+    log::verbose("already started, handle: {}",
+                 bta_hf_client_cb_arr.serv_handle);
     return;
   }
 
@@ -191,14 +202,13 @@ void bta_hf_client_start_server() {
       BTA_HF_CLIENT_MTU, RawAddress::kAny, &(bta_hf_client_cb_arr.serv_handle),
       bta_hf_client_mgmt_cback, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
 
-  APPL_TRACE_DEBUG("%s: started rfcomm server with handle %d", __func__,
-                   bta_hf_client_cb_arr.serv_handle);
+  log::verbose("started rfcomm server with handle {}",
+               bta_hf_client_cb_arr.serv_handle);
 
   if (port_status == PORT_SUCCESS) {
     bta_hf_client_setup_port(bta_hf_client_cb_arr.serv_handle);
   } else {
-    APPL_TRACE_DEBUG("%s: RFCOMM_CreateConnection returned error:%d", __func__,
-                     port_status);
+    log::verbose("RFCOMM_CreateConnection returned error:{}", port_status);
   }
 }
 
@@ -213,14 +223,17 @@ void bta_hf_client_start_server() {
  *
  ******************************************************************************/
 void bta_hf_client_close_server() {
-  APPL_TRACE_DEBUG("%s: %d", __func__, bta_hf_client_cb_arr.serv_handle);
+  log::verbose("{}", bta_hf_client_cb_arr.serv_handle);
 
   if (bta_hf_client_cb_arr.serv_handle == 0) {
-    APPL_TRACE_DEBUG("%s: already stopped", __func__);
+    log::verbose("already stopped");
     return;
   }
 
-  RFCOMM_RemoveServer(bta_hf_client_cb_arr.serv_handle);
+  if (RFCOMM_RemoveServer(bta_hf_client_cb_arr.serv_handle) != PORT_SUCCESS) {
+    log::warn("Unable to remove RFCOMM servier handle:{}",
+              bta_hf_client_cb_arr.serv_handle);
+  }
   bta_hf_client_cb_arr.serv_handle = 0;
 }
 
@@ -238,8 +251,7 @@ void bta_hf_client_rfc_do_open(tBTA_HF_CLIENT_DATA* p_data) {
   tBTA_HF_CLIENT_CB* client_cb =
       bta_hf_client_find_cb_by_handle(p_data->hdr.layer_specific);
   if (client_cb == NULL) {
-    APPL_TRACE_ERROR("%s: cb not found for handle %d", __func__,
-                     p_data->hdr.layer_specific);
+    log::error("cb not found for handle {}", p_data->hdr.layer_specific);
     return;
   }
 
@@ -249,8 +261,8 @@ void bta_hf_client_rfc_do_open(tBTA_HF_CLIENT_DATA* p_data) {
           bta_hf_client_mgmt_cback,
           BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT) == PORT_SUCCESS) {
     bta_hf_client_setup_port(client_cb->conn_handle);
-    APPL_TRACE_DEBUG("bta_hf_client_rfc_do_open : conn_handle = %d",
-                     client_cb->conn_handle);
+    log::verbose("bta_hf_client_rfc_do_open : conn_handle = {}",
+                 client_cb->conn_handle);
   }
   /* RFCOMM create connection failed; send ourselves RFCOMM close event */
   else {
@@ -272,13 +284,15 @@ void bta_hf_client_rfc_do_close(tBTA_HF_CLIENT_DATA* p_data) {
   tBTA_HF_CLIENT_CB* client_cb =
       bta_hf_client_find_cb_by_handle(p_data->hdr.layer_specific);
   if (client_cb == NULL) {
-    APPL_TRACE_ERROR("%s: cb not found for handle %d", __func__,
-                     p_data->hdr.layer_specific);
+    log::error("cb not found for handle {}", p_data->hdr.layer_specific);
     return;
   }
 
   if (client_cb->conn_handle) {
-    RFCOMM_RemoveConnection(client_cb->conn_handle);
+    if (RFCOMM_RemoveConnection(client_cb->conn_handle) != PORT_SUCCESS) {
+      log::warn("Unable to remove RFCOMM connection peer:{} handle:{}",
+                client_cb->peer_addr, client_cb->conn_handle);
+    }
   } else {
     /* Close API was called while HF Client is in Opening state.        */
     /* Need to trigger the state machine to send callback to the app    */

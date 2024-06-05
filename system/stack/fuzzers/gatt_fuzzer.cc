@@ -1,13 +1,30 @@
+/*
+ * Copyright 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <base/location.h>
+#include <bluetooth/log.h>
 #include <fuzzer/FuzzedDataProvider.h>
 
 #include <cstdint>
 #include <string>
-#include <vector>
 
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/bt_uuid16.h"
 #include "stack/include/gatt_api.h"
-#include "stack/include/sdpdefs.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_btif_config.h"
 #include "test/mock/mock_stack_acl.h"
@@ -24,7 +41,7 @@ bt_status_t do_in_main_thread(base::Location const&,
 }
 bt_status_t do_in_main_thread_delayed(base::Location const&,
                                       base::OnceCallback<void()>,
-                                      base::TimeDelta const&) {
+                                      std::chrono::microseconds) {
   // this is not properly mocked, so we use abort to catch if this is used in
   // any test cases
   abort();
@@ -60,7 +77,8 @@ class FakeBtStack {
         [](const RawAddress&, uint16_t, uint8_t) { return true; };
     test::mock::stack_l2cap_api::L2CA_RemoveFixedChnl.body =
         [](uint16_t lcid, const RawAddress&) {
-          CHECK(lcid == L2CAP_ATT_CID);
+          bluetooth::log::assert_that(lcid == L2CAP_ATT_CID,
+                                      "assert failed: lcid == L2CAP_ATT_CID");
           return true;
         };
     test::mock::stack_l2cap_api::L2CA_ConnectFixedChnl.body =
@@ -83,7 +101,7 @@ class FakeBtStack {
           fixed_chnl_reg = *p_freg;
           return true;
         };
-    test::mock::stack_l2cap_api::L2CA_Register2.body =
+    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity.body =
         [](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
            tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu,
            uint16_t required_remote_mtu, uint16_t sec_level) {
@@ -111,7 +129,7 @@ class FakeBtStack {
     test::mock::stack_l2cap_api::L2CA_DisconnectReq = {};
     test::mock::stack_l2cap_api::L2CA_SendFixedChnlData = {};
     test::mock::stack_l2cap_api::L2CA_RegisterFixedChannel = {};
-    test::mock::stack_l2cap_api::L2CA_Register2 = {};
+    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity = {};
     test::mock::stack_l2cap_api::L2CA_RegisterLECoc = {};
     test::mock::stack_l2cap_api::L2CA_SetIdleTimeoutByBdAddr = {};
     test::mock::stack_l2cap_api::L2CA_SetLeGattTimeout = {};
@@ -169,7 +187,7 @@ static void ServerInit() {
       .p_srv_chg_callback = [](tGATTS_SRV_CHG_CMD, tGATTS_SRV_CHG_REQ*,
                                tGATTS_SRV_CHG_RSP*) { return true; },
   };
-  GATTS_NVRegister(&appl_info);
+  (void)GATTS_NVRegister(&appl_info);
 
   Uuid svc_uuid = Uuid::From16Bit(UUID_SERVCLASS_GAP_SERVER);
   Uuid name_uuid = Uuid::From16Bit(GATT_UUID_GAP_DEVICE_NAME);
@@ -195,8 +213,8 @@ static void ServerInit() {
        .permissions = GATT_PERM_READ}};
 
   /* Add a GAP service */
-  GATTS_AddService(s_AppIf, service,
-                   sizeof(service) / sizeof(btgatt_db_element_t));
+  (void)GATTS_AddService(s_AppIf, service,
+                         sizeof(service) / sizeof(btgatt_db_element_t));
 }
 
 static void ServerCleanup() {
@@ -204,12 +222,11 @@ static void ServerCleanup() {
   gatt_free();
 }
 
-static void FuzzAsServer(const uint8_t* data, size_t size) {
+static void FuzzAsServer(FuzzedDataProvider& fdp) {
   ServerInit();
   fixed_chnl_reg.pL2CA_FixedConn_Cb(L2CAP_ATT_CID, kDummyAddr, true, 0,
                                     BT_TRANSPORT_LE);
 
-  FuzzedDataProvider fdp(data, size);
   while (fdp.remaining_bytes() > 0) {
     auto size = fdp.ConsumeIntegralInRange<uint16_t>(0, kMaxPacketSize);
     auto bytes = fdp.ConsumeBytes<uint8_t>(size);
@@ -224,28 +241,27 @@ static void FuzzAsServer(const uint8_t* data, size_t size) {
 
 static void ClientInit() {
   GattInit();
-  GATT_Connect(s_AppIf, kDummyAddr, BTM_BLE_DIRECT_CONNECTION, BT_TRANSPORT_LE,
-               false);
+  (void)GATT_Connect(s_AppIf, kDummyAddr, BTM_BLE_DIRECT_CONNECTION,
+                     BT_TRANSPORT_LE, false);
 }
 
 static void ClientCleanup() {
-  GATT_CancelConnect(s_AppIf, kDummyAddr, true);
+  (void)GATT_CancelConnect(s_AppIf, kDummyAddr, true);
   GATT_Deregister(s_AppIf);
   gatt_free();
 }
 
-static void FuzzAsClient(const uint8_t* data, size_t size) {
+static void FuzzAsClient(FuzzedDataProvider& fdp) {
   ClientInit();
   fixed_chnl_reg.pL2CA_FixedConn_Cb(L2CAP_ATT_CID, kDummyAddr, true, 0,
                                     BT_TRANSPORT_LE);
 
-  FuzzedDataProvider fdp(data, size);
   while (fdp.remaining_bytes() > 0) {
     auto op = fdp.ConsumeIntegral<uint8_t>();
     switch (op) {
       case GATTC_OPTYPE_CONFIG: {
         auto mtu = fdp.ConsumeIntegral<uint16_t>();
-        GATTC_ConfigureMTU(s_ConnId, mtu);
+        (void)GATTC_ConfigureMTU(s_ConnId, mtu);
         break;
       }
       case GATTC_OPTYPE_DISCOVERY: {
@@ -253,7 +269,7 @@ static void FuzzAsClient(const uint8_t* data, size_t size) {
             0, GATT_DISC_MAX);
         uint16_t start = fdp.ConsumeIntegral<uint16_t>();
         uint16_t end = fdp.ConsumeIntegral<uint16_t>();
-        GATTC_Discover(s_ConnId, type, start, end);
+        (void)GATTC_Discover(s_ConnId, type, start, end);
         break;
       }
       case GATTC_OPTYPE_READ: {
@@ -261,7 +277,7 @@ static void FuzzAsClient(const uint8_t* data, size_t size) {
             0, GATT_READ_MAX);
         tGATT_READ_PARAM param = {};
         fdp.ConsumeData(&param, sizeof(param));
-        GATTC_Read(s_ConnId, type, &param);
+        (void)GATTC_Read(s_ConnId, type, &param);
         break;
       }
       case GATTC_OPTYPE_WRITE: {
@@ -271,12 +287,12 @@ static void FuzzAsClient(const uint8_t* data, size_t size) {
         value.len =
             fdp.ConsumeIntegralInRange<uint16_t>(0, sizeof(value.value));
         value.len = fdp.ConsumeData(&value.value, value.len);
-        GATTC_Write(s_ConnId, type, &value);
+        (void)GATTC_Write(s_ConnId, type, &value);
         break;
       }
       case GATTC_OPTYPE_EXE_WRITE: {
         auto type = fdp.ConsumeBool();
-        GATTC_ExecuteWrite(s_ConnId, type);
+        (void)GATTC_ExecuteWrite(s_ConnId, type);
         break;
       }
       default:
@@ -295,10 +311,16 @@ static void FuzzAsClient(const uint8_t* data, size_t size) {
   ClientCleanup();
 }
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   auto fakes = std::make_unique<Fakes>();
 
-  FuzzAsServer(Data, Size);
-  FuzzAsClient(Data, Size);
+  FuzzedDataProvider fdp(data, size);
+
+  if (fdp.ConsumeBool()) {
+    FuzzAsServer(fdp);
+  } else {
+    FuzzAsClient(fdp);
+  }
+
   return 0;
 }

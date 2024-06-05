@@ -14,6 +14,8 @@
 
 #include "connection_shim.h"
 
+#include <bluetooth/log.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <iterator>
@@ -29,22 +31,19 @@
 #include "src/core/ffi/types.h"
 #include "stack/btm/btm_dev.h"
 
-extern const tBLE_BD_ADDR convert_to_address_with_type(
-    const RawAddress& bd_addr, const tBTM_SEC_DEV_REC* p_dev_rec);
-
 namespace bluetooth {
 namespace connection {
 
 #ifdef TARGET_FLOSS
 struct LeAclManagerCallbackShim {
   void OnLeConnectSuccess(core::AddressWithType addr) const {
-    LOG_ALWAYS_FATAL("system/rust not available in Floss");
+    log::fatal("system/rust not available in Floss");
   }
   void OnLeConnectFail(core::AddressWithType addr, uint8_t status) const {
-    LOG_ALWAYS_FATAL("system/rust not available in Floss");
+    log::fatal("system/rust not available in Floss");
   };
   void OnLeDisconnection(core::AddressWithType addr) const {
-    LOG_ALWAYS_FATAL("system/rust not available in Floss");
+    log::fatal("system/rust not available in Floss");
   };
 };
 
@@ -177,8 +176,7 @@ void RegisterRustApis(
 }
 
 core::AddressWithType ResolveRawAddress(RawAddress bd_addr) {
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
-  tBLE_BD_ADDR address = convert_to_address_with_type(bd_addr, p_dev_rec);
+  tBLE_BD_ADDR address = BTM_Sec_GetAddressWithType(bd_addr);
   return core::ToRustAddress(address);
 }
 

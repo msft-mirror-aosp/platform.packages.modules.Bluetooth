@@ -20,6 +20,8 @@
  *  This file contains action functions for SDP search.
  ******************************************************************************/
 
+#include <base/functional/bind.h>
+#include <bluetooth/log.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 #include <hardware/bt_sdp.h>
 
@@ -29,14 +31,19 @@
 #include "bta/sdp/bta_sdp_int.h"
 #include "btif/include/btif_profile_storage.h"
 #include "btif/include/btif_sock_sdp.h"
+#include "common/init_flags.h"
 #include "main/shim/metrics_api.h"
+#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
+#include "stack/include/bt_uuid16.h"
 #include "stack/include/sdp_api.h"
+#include "stack/include/sdpdefs.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth::legacy::stack::sdp;
+using namespace bluetooth;
 
 static void bta_create_mns_sdp_record(bluetooth_sdp_record* record,
                                       tSDP_DISC_REC* p_rec) {
@@ -58,10 +65,10 @@ static void bta_create_mns_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 4) {
       record->mns.supported_features = p_attr->attr_value.v.u32;
     } else {
-      LOG_ERROR("ATTR_ID_MAP_SUPPORTED_FEATURES attr type or size wrong!!");
+      log::error("ATTR_ID_MAP_SUPPORTED_FEATURES attr type or size wrong!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_MAP_SUPPORTED_FEATURES attr not found!!");
+    log::error("ATTR_ID_MAP_SUPPORTED_FEATURES attr not found!!");
   }
 
   p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
@@ -72,10 +79,10 @@ static void bta_create_mns_sdp_record(bluetooth_sdp_record* record,
           SDP_DISC_ATTR_LEN(p_attr->attr_len_type);
       record->mns.hdr.service_name = (char*)p_attr->attr_value.v.array;
     } else {
-      LOG_ERROR("ATTR_ID_SERVICE_NAME attr type not TEXT_STR_DESC_TYPE!!");
+      log::error("ATTR_ID_SERVICE_NAME attr type not TEXT_STR_DESC_TYPE!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_SERVICE_NAME attr not found!!");
+    log::error("ATTR_ID_SERVICE_NAME attr not found!!");
   }
 
   if (get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
@@ -95,10 +102,10 @@ static void bta_create_mns_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 2) {
       record->mns.hdr.l2cap_psm = p_attr->attr_value.v.u16;
     } else {
-      LOG_ERROR("ATTR_ID_GOEP_L2CAP_PSM attr type or len wrong!!");
+      log::error("ATTR_ID_GOEP_L2CAP_PSM attr type or len wrong!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_GOEP_L2CAP_PSM attr not found!!");
+    log::error("ATTR_ID_GOEP_L2CAP_PSM attr not found!!");
   }
 }
 
@@ -125,10 +132,10 @@ static void bta_create_mas_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 1) {
       record->mas.mas_instance_id = p_attr->attr_value.v.u8;
     } else {
-      LOG_ERROR("ATTR_ID_MAS_INSTANCE_ID attr type or len wrong!!");
+      log::error("ATTR_ID_MAS_INSTANCE_ID attr type or len wrong!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_MAS_INSTANCE_ID attr not found!!");
+    log::error("ATTR_ID_MAS_INSTANCE_ID attr not found!!");
   }
 
   p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
@@ -138,10 +145,10 @@ static void bta_create_mas_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 1) {
       record->mas.supported_message_types = p_attr->attr_value.v.u8;
     } else {
-      LOG_ERROR("ATTR_ID_SUPPORTED_MSG_TYPE attr type or len wrong!!");
+      log::error("ATTR_ID_SUPPORTED_MSG_TYPE attr type or len wrong!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_SUPPORTED_MSG_TYPE attr not found!!");
+    log::error("ATTR_ID_SUPPORTED_MSG_TYPE attr not found!!");
   }
 
   p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
@@ -151,10 +158,10 @@ static void bta_create_mas_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 4) {
       record->mas.supported_features = p_attr->attr_value.v.u32;
     } else {
-      LOG_ERROR("ATTR_ID_MAP_SUPPORTED_FEATURES attr type or len wrong!!");
+      log::error("ATTR_ID_MAP_SUPPORTED_FEATURES attr type or len wrong!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_MAP_SUPPORTED_FEATURES attr not found!!");
+    log::error("ATTR_ID_MAP_SUPPORTED_FEATURES attr not found!!");
   }
 
   p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
@@ -165,10 +172,10 @@ static void bta_create_mas_sdp_record(bluetooth_sdp_record* record,
           SDP_DISC_ATTR_LEN(p_attr->attr_len_type);
       record->mas.hdr.service_name = (char*)p_attr->attr_value.v.array;
     } else {
-      LOG_ERROR("ATTR_ID_SERVICE_NAME attr type wrong!!");
+      log::error("ATTR_ID_SERVICE_NAME attr type wrong!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_SERVICE_NAME attr not found!!");
+    log::error("ATTR_ID_SERVICE_NAME attr not found!!");
   }
 
   if (get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
@@ -188,10 +195,10 @@ static void bta_create_mas_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 2) {
       record->mas.hdr.l2cap_psm = p_attr->attr_value.v.u16;
     } else {
-      LOG_ERROR("ATTR_ID_GOEP_L2CAP_PSM attr type or len wrong!!");
+      log::error("ATTR_ID_GOEP_L2CAP_PSM attr type or len wrong!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_GOEP_L2CAP_PSM attr not found!!");
+    log::error("ATTR_ID_GOEP_L2CAP_PSM attr not found!!");
   }
 }
 
@@ -217,10 +224,10 @@ static void bta_create_pse_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 1) {
       record->pse.supported_repositories = p_attr->attr_value.v.u8;
     } else {
-      LOG_ERROR("ATTR_ID_SUPPORTED_REPOSITORIES attr type or len wrong!!");
+      log::error("ATTR_ID_SUPPORTED_REPOSITORIES attr type or len wrong!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_SUPPORTED_REPOSITORIES attr not found!!");
+    log::error("ATTR_ID_SUPPORTED_REPOSITORIES attr not found!!");
   }
   p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
       p_rec, ATTR_ID_PBAP_SUPPORTED_FEATURES);
@@ -229,10 +236,10 @@ static void bta_create_pse_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 4) {
       record->pse.supported_features = p_attr->attr_value.v.u32;
     } else {
-      LOG_ERROR("ATTR_ID_PBAP_SUPPORTED_FEATURES attr type or len wrong!!");
+      log::error("ATTR_ID_PBAP_SUPPORTED_FEATURES attr type or len wrong!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_PBAP_SUPPORTED_FEATURES attr not found!!");
+    log::error("ATTR_ID_PBAP_SUPPORTED_FEATURES attr not found!!");
   }
 
   p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
@@ -244,10 +251,10 @@ static void bta_create_pse_sdp_record(bluetooth_sdp_record* record,
       // TODO: validate the lifetime of this value
       record->pse.hdr.service_name = (char*)p_attr->attr_value.v.array;
     } else {
-      LOG_ERROR("ATTR_ID_SERVICE_NAME attr type NOT string!!");
+      log::error("ATTR_ID_SERVICE_NAME attr type NOT string!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_SERVICE_NAME attr not found!!");
+    log::error("ATTR_ID_SERVICE_NAME attr not found!!");
   }
 
   if (get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
@@ -267,10 +274,10 @@ static void bta_create_pse_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 2) {
       record->pse.hdr.l2cap_psm = p_attr->attr_value.v.u16;
     } else {
-      LOG_ERROR("ATTR_ID_GOEP_L2CAP_PSM attr type or len wrong!!");
+      log::error("ATTR_ID_GOEP_L2CAP_PSM attr type or len wrong!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_GOEP_L2CAP_PSM attr not found!!");
+    log::error("ATTR_ID_GOEP_L2CAP_PSM attr not found!!");
   }
 }
 
@@ -296,10 +303,10 @@ static void bta_create_ops_sdp_record(bluetooth_sdp_record* record,
           SDP_DISC_ATTR_LEN(p_attr->attr_len_type);
       record->ops.hdr.service_name = (char*)p_attr->attr_value.v.array;
     } else {
-      LOG_ERROR("ATTR_ID_SERVICE_NAME attr type NOT string!!");
+      log::error("ATTR_ID_SERVICE_NAME attr type NOT string!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_SERVICE_NAME attr not found!!");
+    log::error("ATTR_ID_SERVICE_NAME attr not found!!");
   }
 
   if (get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
@@ -319,10 +326,10 @@ static void bta_create_ops_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 2) {
       record->ops.hdr.l2cap_psm = p_attr->attr_value.v.u16;
     } else {
-      LOG_ERROR("ATTR_ID_GOEP_L2CAP_PSM attr type or len wrong!!");
+      log::error("ATTR_ID_GOEP_L2CAP_PSM attr type or len wrong!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_GOEP_L2CAP_PSM attr not found!!");
+    log::error("ATTR_ID_GOEP_L2CAP_PSM attr not found!!");
   }
 
   p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
@@ -331,10 +338,10 @@ static void bta_create_ops_sdp_record(bluetooth_sdp_record* record,
     /* Safety check - each entry should itself be a sequence */
     if (SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) != DATA_ELE_SEQ_DESC_TYPE) {
       record->ops.supported_formats_list_len = 0;
-      APPL_TRACE_ERROR(
-          "%s() - supported_formats_list - wrong attribute length/type:"
-          " 0x%02x - expected 0x06",
-          __func__, p_attr->attr_len_type);
+      log::error(
+          "supported_formats_list - wrong attribute length/type: 0x{:02x} - "
+          "expected 0x06",
+          p_attr->attr_len_type);
     } else {
       int count = 0;
       /* 1 byte for type/length 1 byte for value */
@@ -347,10 +354,9 @@ static void bta_create_ops_sdp_record(bluetooth_sdp_record* record,
         if ((SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type) == UINT_DESC_TYPE) &&
             (SDP_DISC_ATTR_LEN(p_sattr->attr_len_type) >= 1)) {
           if (count == sizeof(record->ops.supported_formats_list)) {
-            APPL_TRACE_ERROR(
-                "%s() - supported_formats_list - count overflow - "
-                "too many sub attributes!!",
-                __func__);
+            log::error(
+                "supported_formats_list - count overflow - too many sub "
+                "attributes!!");
             /* If you hit this, new formats have been added,
              * update SDP_OPP_SUPPORTED_FORMATS_MAX_LENGTH */
             break;
@@ -358,19 +364,19 @@ static void bta_create_ops_sdp_record(bluetooth_sdp_record* record,
           record->ops.supported_formats_list[count] = p_sattr->attr_value.v.u8;
           count++;
         } else {
-          APPL_TRACE_ERROR(
-              "%s() - supported_formats_list - wrong sub attribute "
-              "length/type: 0x%02x - expected 0x80",
-              __func__, p_sattr->attr_len_type);
+          log::error(
+              "supported_formats_list - wrong sub attribute length/type: "
+              "0x{:02x} - expected 0x80",
+              p_sattr->attr_len_type);
           break;
         }
       }
       if (record->ops.supported_formats_list_len != count) {
-        APPL_TRACE_WARNING(
-            "%s() - supported_formats_list - Length of attribute different "
-            "from the actual number of sub-attributes in the sequence "
-            "att-length: %d - number of elements: %d",
-            __func__, record->ops.supported_formats_list_len, count);
+        log::warn(
+            "supported_formats_list - Length of attribute different from the "
+            "actual number of sub-attributes in the sequence att-length: {} - "
+            "number of elements: {}",
+            record->ops.supported_formats_list_len, count);
       }
       record->ops.supported_formats_list_len = count;
     }
@@ -398,10 +404,10 @@ static void bta_create_sap_sdp_record(bluetooth_sdp_record* record,
           SDP_DISC_ATTR_LEN(p_attr->attr_len_type);
       record->sap.hdr.service_name = (char*)p_attr->attr_value.v.array;
     } else {
-      LOG_ERROR("ATTR_ID_SERVICE_NAME attr type NOT string!!");
+      log::error("ATTR_ID_SERVICE_NAME attr type NOT string!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_SERVICE_NAME attr not found!!");
+    log::error("ATTR_ID_SERVICE_NAME attr not found!!");
   }
 
   if (get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
@@ -419,7 +425,7 @@ static void bta_create_dip_sdp_record(bluetooth_sdp_record* record,
                                       tSDP_DISC_REC* p_rec) {
   tSDP_DISC_ATTR* p_attr;
 
-  APPL_TRACE_DEBUG("%s()", __func__);
+  log::verbose("");
 
   /* hdr is redundancy in dip */
   record->dip.hdr.type = SDP_TYPE_DIP;
@@ -436,10 +442,10 @@ static void bta_create_dip_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 2) {
       record->dip.spec_id = p_attr->attr_value.v.u16;
     } else {
-      LOG_ERROR("ATTR_ID_SPECIFICATION_ID attr type or len wrong!!");
+      log::error("ATTR_ID_SPECIFICATION_ID attr type or len wrong!!");
     }
   } else {
-    APPL_TRACE_ERROR("%s() ATTR_ID_SPECIFICATION_ID not found", __func__);
+    log::error("ATTR_ID_SPECIFICATION_ID not found");
   }
 
   p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
@@ -449,10 +455,10 @@ static void bta_create_dip_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 2) {
       record->dip.vendor = p_attr->attr_value.v.u16;
     } else {
-      LOG_ERROR("ATTR_ID_VENDOR_ID attr type or len wrong!!");
+      log::error("ATTR_ID_VENDOR_ID attr type or len wrong!!");
     }
   } else {
-    APPL_TRACE_ERROR("%s() ATTR_ID_VENDOR_ID not found", __func__);
+    log::error("ATTR_ID_VENDOR_ID not found");
   }
 
   p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
@@ -462,10 +468,10 @@ static void bta_create_dip_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 2) {
       record->dip.vendor_id_source = p_attr->attr_value.v.u16;
     } else {
-      LOG_ERROR("ATTR_ID_VENDOR_ID_SOURCE attr type or len wrong!!");
+      log::error("ATTR_ID_VENDOR_ID_SOURCE attr type or len wrong!!");
     }
   } else {
-    APPL_TRACE_ERROR("%s() ATTR_ID_VENDOR_ID_SOURCE not found", __func__);
+    log::error("ATTR_ID_VENDOR_ID_SOURCE not found");
   }
 
   p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
@@ -475,10 +481,10 @@ static void bta_create_dip_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 2) {
       record->dip.product = p_attr->attr_value.v.u16;
     } else {
-      LOG_ERROR("ATTR_ID_PRODUCT_ID attr type or len wrong!!");
+      log::error("ATTR_ID_PRODUCT_ID attr type or len wrong!!");
     }
   } else {
-    APPL_TRACE_ERROR("%s() ATTR_ID_PRODUCT_ID not found", __func__);
+    log::error("ATTR_ID_PRODUCT_ID not found");
   }
 
   p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
@@ -488,10 +494,10 @@ static void bta_create_dip_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 2) {
       record->dip.version = p_attr->attr_value.v.u16;
     } else {
-      LOG_ERROR("ATTR_ID_PRODUCT_VERSION attr type or len wrong!!");
+      log::error("ATTR_ID_PRODUCT_VERSION attr type or len wrong!!");
     }
   } else {
-    APPL_TRACE_ERROR("%s() ATTR_ID_PRODUCT_VERSION not found", __func__);
+    log::error("ATTR_ID_PRODUCT_VERSION not found");
   }
 
   p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
@@ -501,10 +507,10 @@ static void bta_create_dip_sdp_record(bluetooth_sdp_record* record,
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 1) {
       record->dip.primary_record = !(!p_attr->attr_value.v.u8);
     } else {
-      LOG_ERROR("ATTR_ID_PRIMARY_RECORD attr type or len wrong!!");
+      log::error("ATTR_ID_PRIMARY_RECORD attr type or len wrong!!");
     }
   } else {
-    APPL_TRACE_ERROR("%s() ATTR_ID_PRIMARY_RECORD not found", __func__);
+    log::error("ATTR_ID_PRIMARY_RECORD not found");
   }
 }
 
@@ -529,10 +535,10 @@ static void bta_create_raw_sdp_record(bluetooth_sdp_record* record,
           SDP_DISC_ATTR_LEN(p_attr->attr_len_type);
       record->pse.hdr.service_name = (char*)p_attr->attr_value.v.array;
     } else {
-      LOG_ERROR("ATTR_ID_SERVICE_NAME attr type NOT string!!");
+      log::error("ATTR_ID_SERVICE_NAME attr type NOT string!!");
     }
   } else {
-      LOG_ERROR("ATTR_ID_SERVICE_NAME attr not found!!");
+    log::error("ATTR_ID_SERVICE_NAME attr not found!!");
   }
 
   /* Try to extract an RFCOMM channel */
@@ -545,17 +551,15 @@ static void bta_create_raw_sdp_record(bluetooth_sdp_record* record,
 }
 
 /** Callback from btm after search is completed */
-static void bta_sdp_search_cback(UNUSED_ATTR const RawAddress& bd_addr,
-                                 tSDP_RESULT result, const void* user_data) {
+static void bta_sdp_search_cback(Uuid uuid, const RawAddress& /* bd_addr */,
+                                 tSDP_RESULT result) {
   tBTA_SDP_STATUS status = BTA_SDP_FAILURE;
   int count = 0;
-  APPL_TRACE_DEBUG("%s() -  res: 0x%x", __func__, result);
+  log::verbose("res: 0x{:x}", result);
 
   bta_sdp_cb.sdp_active = false;
 
   if (bta_sdp_cb.p_dm_cback == NULL) return;
-
-  Uuid& uuid = *(reinterpret_cast<Uuid*>(const_cast<void*>(user_data)));
 
   tBTA_SDP_SEARCH_COMP evt_data;
   memset(&evt_data, 0, sizeof(evt_data));
@@ -569,48 +573,48 @@ static void bta_sdp_search_cback(UNUSED_ATTR const RawAddress& bd_addr,
           p_bta_sdp_cfg->p_sdp_db, uuid, p_rec);
       /* generate the matching record data pointer */
       if (!p_rec) {
-        APPL_TRACE_DEBUG("%s() - UUID not found", __func__);
+        log::verbose("UUID not found");
         continue;
       }
 
       status = BTA_SDP_SUCCESS;
       if (uuid == UUID_MAP_MAS) {
-        APPL_TRACE_DEBUG("%s() - found MAP (MAS) uuid", __func__);
+        log::verbose("found MAP (MAS) uuid");
         bta_create_mas_sdp_record(&evt_data.records[count], p_rec);
       } else if (uuid == UUID_MAP_MNS) {
-        APPL_TRACE_DEBUG("%s() - found MAP (MNS) uuid", __func__);
+        log::verbose("found MAP (MNS) uuid");
         bta_create_mns_sdp_record(&evt_data.records[count], p_rec);
       } else if (uuid == UUID_PBAP_PSE) {
-        APPL_TRACE_DEBUG("%s() - found PBAP (PSE) uuid", __func__);
+        log::verbose("found PBAP (PSE) uuid");
         bta_create_pse_sdp_record(&evt_data.records[count], p_rec);
       } else if (uuid == UUID_OBEX_OBJECT_PUSH) {
-        APPL_TRACE_DEBUG("%s() - found Object Push Server (OPS) uuid",
-                         __func__);
+        log::verbose("found Object Push Server (OPS) uuid");
         bta_create_ops_sdp_record(&evt_data.records[count], p_rec);
       } else if (uuid == UUID_SAP) {
-        APPL_TRACE_DEBUG("%s() - found SAP uuid", __func__);
+        log::verbose("found SAP uuid");
         bta_create_sap_sdp_record(&evt_data.records[count], p_rec);
       } else if (uuid == UUID_PBAP_PCE) {
-        APPL_TRACE_DEBUG("%s() - found PBAP (PCE) uuid", __func__);
+        log::verbose("found PBAP (PCE) uuid");
         if (p_rec != NULL) {
           uint16_t peer_pce_version = 0;
 
-          get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
-              p_rec, UUID_SERVCLASS_PHONE_ACCESS, &peer_pce_version);
+          if (!get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
+                  p_rec, UUID_SERVCLASS_PHONE_ACCESS, &peer_pce_version)) {
+            log::warn("Unable to find PBAP profile version in SDP record");
+          }
           if (peer_pce_version != 0) {
             btif_storage_set_pce_profile_version(p_rec->remote_bd_addr,
                                                  peer_pce_version);
           }
         } else {
-          APPL_TRACE_DEBUG("%s() - PCE Record is null", __func__);
+          log::verbose("PCE Record is null");
         }
       } else if (uuid == UUID_DIP) {
-        APPL_TRACE_DEBUG("%s() - found DIP uuid", __func__);
+        log::verbose("found DIP uuid");
         bta_create_dip_sdp_record(&evt_data.records[count], p_rec);
       } else {
         /* we do not have specific structure for this */
-        APPL_TRACE_DEBUG("%s() - profile not identified. using raw data",
-                         __func__);
+        log::verbose("profile not identified. using raw data");
         bta_create_raw_sdp_record(&evt_data.records[count], p_rec);
         p_rec = NULL;  // Terminate loop
         /* For raw, we only extract the first entry, and then return the
@@ -631,8 +635,6 @@ static void bta_sdp_search_cback(UNUSED_ATTR const RawAddress& bd_addr,
   bta_sdp_cb.p_dm_cback(BTA_SDP_SEARCH_COMP_EVT, &bta_sdp, (void*)&uuid);
   bluetooth::shim::CountCounterMetrics(
       android::bluetooth::CodePathCounterKeyEnum::SDP_SUCCESS, 1);
-  osi_free(const_cast<void*>(
-      user_data));  // We no longer need the user data to track the search
 }
 
 /*******************************************************************************
@@ -645,7 +647,7 @@ static void bta_sdp_search_cback(UNUSED_ATTR const RawAddress& bd_addr,
  *
  ******************************************************************************/
 void bta_sdp_enable(tBTA_SDP_DM_CBACK* p_cback) {
-  APPL_TRACE_DEBUG("%s in, sdp_active:%d", __func__, bta_sdp_cb.sdp_active);
+  log::verbose("in, sdp_active:{}", bta_sdp_cb.sdp_active);
   tBTA_SDP_STATUS status = BTA_SDP_SUCCESS;
   bta_sdp_cb.p_dm_cback = p_cback;
   tBTA_SDP bta_sdp;
@@ -665,7 +667,7 @@ void bta_sdp_enable(tBTA_SDP_DM_CBACK* p_cback) {
 void bta_sdp_search(const RawAddress bd_addr, const bluetooth::Uuid uuid) {
   tBTA_SDP_STATUS status = BTA_SDP_FAILURE;
 
-  APPL_TRACE_DEBUG("%s in, sdp_active:%d", __func__, bta_sdp_cb.sdp_active);
+  log::verbose("in, sdp_active:{}", bta_sdp_cb.sdp_active);
 
   if (bta_sdp_cb.sdp_active) {
     /* SDP is still in progress */
@@ -687,16 +689,18 @@ void bta_sdp_search(const RawAddress bd_addr, const bluetooth::Uuid uuid) {
   bta_sdp_cb.remote_addr = bd_addr;
 
   /* initialize the search for the uuid */
-  APPL_TRACE_DEBUG("%s init discovery with UUID: %s", __func__,
-                   uuid.ToString().c_str());
-  get_legacy_stack_sdp_api()->service.SDP_InitDiscoveryDb(
-      p_bta_sdp_cfg->p_sdp_db, p_bta_sdp_cfg->sdp_db_size, 1, &uuid, 0, NULL);
+  log::verbose("init discovery with UUID: {}", uuid.ToString());
+  if (!get_legacy_stack_sdp_api()->service.SDP_InitDiscoveryDb(
+          p_bta_sdp_cfg->p_sdp_db, p_bta_sdp_cfg->sdp_db_size, 1, &uuid, 0,
+          NULL)) {
+    log::warn("Unable to initialize SDP service search db peer:{}", bd_addr);
+  }
 
-  Uuid* bta_sdp_search_uuid = (Uuid*)osi_malloc(sizeof(Uuid));
-  *bta_sdp_search_uuid = uuid;
   if (!get_legacy_stack_sdp_api()->service.SDP_ServiceSearchAttributeRequest2(
-          bd_addr, p_bta_sdp_cfg->p_sdp_db, bta_sdp_search_cback,
-          (void*)bta_sdp_search_uuid)) {
+          bd_addr, p_bta_sdp_cfg->p_sdp_db,
+          base::BindRepeating(bta_sdp_search_cback, uuid))) {
+    log::warn("Unable to start SDP service search attribute request peer:{}",
+              bd_addr);
     bta_sdp_cb.sdp_active = false;
 
     /* failed to start SDP. report the failure right away */
@@ -754,9 +758,9 @@ void bta_create_dip_sdp_record(bluetooth_sdp_record* record,
   ::bta_create_dip_sdp_record(record, p_rec);
 }
 
-void bta_sdp_search_cback(const RawAddress& bd_addr, tSDP_RESULT result,
-                          const void* user_data) {
-  ::bta_sdp_search_cback(bd_addr, result, user_data);
+void bta_sdp_search_cback(Uuid uuid, const RawAddress& bd_addr,
+                          tSDP_RESULT result) {
+  ::bta_sdp_search_cback(uuid, bd_addr, result);
 }
 
 }  // namespace testing

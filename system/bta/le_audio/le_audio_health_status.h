@@ -20,12 +20,14 @@
 
 #include <ostream>
 
+#include "device_groups.h"
+#include "devices.h"
 #include "hardware/bt_le_audio.h"
 #include "types/raw_address.h"
 
 using bluetooth::le_audio::LeAudioHealthBasedAction;
 
-namespace le_audio {
+namespace bluetooth::le_audio {
 using LeAudioRecommendationActionCb = base::RepeatingCallback<void(
     const RawAddress& address, int group_id, LeAudioHealthBasedAction action)>;
 
@@ -60,6 +62,8 @@ enum class LeAudioHealthGroupStatType {
    * e.g. ASE does not go to the proper State on time
    */
   STREAM_CREATE_SIGNALING_FAILED,
+  /* Context stream not available */
+  STREAM_CONTEXT_NOT_AVAILABLE,
 };
 
 class LeAudioHealthStatus {
@@ -70,9 +74,9 @@ class LeAudioHealthStatus {
   static void DebugDump(int fd);
 
   virtual void RegisterCallback(LeAudioRecommendationActionCb cb) = 0;
-  virtual void AddStatisticForDevice(const RawAddress& address,
+  virtual void AddStatisticForDevice(const LeAudioDevice* device,
                                      LeAudioHealthDeviceStatType type) = 0;
-  virtual void AddStatisticForGroup(int group_id,
+  virtual void AddStatisticForGroup(const LeAudioDeviceGroup* group,
                                     LeAudioHealthGroupStatType type) = 0;
   virtual void RemoveStatistics(const RawAddress& address, int group) = 0;
 
@@ -83,7 +87,8 @@ class LeAudioHealthStatus {
           stream_success_cnt_(0),
           stream_failures_cnt_(0),
           stream_cis_failures_cnt_(0),
-          stream_signaling_failures_cnt_(0){};
+          stream_signaling_failures_cnt_(0),
+          stream_context_not_avail_cnt_(0){};
 
     int group_id_;
     LeAudioHealthBasedAction latest_recommendation_;
@@ -92,6 +97,7 @@ class LeAudioHealthStatus {
     int stream_failures_cnt_;
     int stream_cis_failures_cnt_;
     int stream_signaling_failures_cnt_;
+    int stream_context_not_avail_cnt_;
   };
 
   struct device_stats {
@@ -109,16 +115,23 @@ class LeAudioHealthStatus {
 };
 
 inline std::ostream& operator<<(
-    std::ostream& os, const le_audio::LeAudioHealthGroupStatType& stat) {
+    std::ostream& os,
+    const bluetooth::le_audio::LeAudioHealthGroupStatType& stat) {
   switch (stat) {
-    case le_audio::LeAudioHealthGroupStatType::STREAM_CREATE_SUCCESS:
+    case bluetooth::le_audio::LeAudioHealthGroupStatType::STREAM_CREATE_SUCCESS:
       os << "STREAM_CREATE_SUCCESS";
       break;
-    case le_audio::LeAudioHealthGroupStatType::STREAM_CREATE_CIS_FAILED:
+    case bluetooth::le_audio::LeAudioHealthGroupStatType::
+        STREAM_CREATE_CIS_FAILED:
       os << "STREAM_CREATE_CIS_FAILED";
       break;
-    case le_audio::LeAudioHealthGroupStatType::STREAM_CREATE_SIGNALING_FAILED:
+    case bluetooth::le_audio::LeAudioHealthGroupStatType::
+        STREAM_CREATE_SIGNALING_FAILED:
       os << "STREAM_CREATE_SIGNALING_FAILED";
+      break;
+    case bluetooth::le_audio::LeAudioHealthGroupStatType::
+        STREAM_CONTEXT_NOT_AVAILABLE:
+      os << "STREAM_CONTEXT_NOT_AVAILABLE";
       break;
     default:
       os << "UNKNOWN";
@@ -128,18 +141,19 @@ inline std::ostream& operator<<(
 }
 
 inline std::ostream& operator<<(
-    std::ostream& os, const le_audio::LeAudioHealthDeviceStatType& stat) {
+    std::ostream& os,
+    const bluetooth::le_audio::LeAudioHealthDeviceStatType& stat) {
   switch (stat) {
-    case le_audio::LeAudioHealthDeviceStatType::INVALID_DB:
+    case bluetooth::le_audio::LeAudioHealthDeviceStatType::INVALID_DB:
       os << "INVALID_DB";
       break;
-    case le_audio::LeAudioHealthDeviceStatType::VALID_DB:
+    case bluetooth::le_audio::LeAudioHealthDeviceStatType::VALID_DB:
       os << "VALID_DB";
       break;
-    case le_audio::LeAudioHealthDeviceStatType::INVALID_CSIS:
+    case bluetooth::le_audio::LeAudioHealthDeviceStatType::INVALID_CSIS:
       os << "INVALID_CSIS";
       break;
-    case le_audio::LeAudioHealthDeviceStatType::VALID_CSIS:
+    case bluetooth::le_audio::LeAudioHealthDeviceStatType::VALID_CSIS:
       os << "VALID_CSIS";
       break;
     default:
@@ -148,4 +162,13 @@ inline std::ostream& operator<<(
   }
   return os;
 }
-}  // namespace le_audio
+}  // namespace bluetooth::le_audio
+
+namespace fmt {
+template <>
+struct formatter<bluetooth::le_audio::LeAudioHealthDeviceStatType>
+    : enum_formatter<bluetooth::le_audio::LeAudioHealthDeviceStatType> {};
+template <>
+struct formatter<bluetooth::le_audio::LeAudioHealthGroupStatType>
+    : enum_formatter<bluetooth::le_audio::LeAudioHealthGroupStatType> {};
+}  // namespace fmt

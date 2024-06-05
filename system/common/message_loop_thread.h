@@ -20,15 +20,15 @@
 #include <base/location.h>
 #include <base/run_loop.h>
 #include <base/threading/platform_thread.h>
+#include <bluetooth/log.h>
 #include <unistd.h>
 
 #include <future>
-#include <memory>
 #include <string>
 #include <thread>
 
 #include "abstract_message_loop.h"
-#include "gd/common/i_postable_context.h"
+#include "common/postable_context.h"
 
 namespace bluetooth {
 
@@ -37,7 +37,7 @@ namespace common {
 /**
  * An interface to various thread related functionality
  */
-class MessageLoopThread final : public IPostableContext {
+class MessageLoopThread final : public PostableContext {
  public:
   /**
    * Create a message loop thread with name. Thread won't be running until
@@ -166,11 +166,17 @@ class MessageLoopThread final : public IPostableContext {
    * scheduled
    */
   bool DoInThreadDelayed(const base::Location& from_here,
-                         base::OnceClosure task, const base::TimeDelta& delay);
+                         base::OnceClosure task,
+                         std::chrono::microseconds delay);
   /**
    * Wrapper around DoInThread without a location.
    */
   void Post(base::OnceClosure closure) override;
+
+  /**
+   * Returns a postable object
+   */
+  PostableContext* Postable();
 
  private:
   /**
@@ -212,5 +218,9 @@ inline std::ostream& operator<<(std::ostream& os,
 }
 
 }  // namespace common
-
 }  // namespace bluetooth
+
+namespace fmt {
+template <>
+struct formatter<bluetooth::common::MessageLoopThread> : ostream_formatter {};
+}  // namespace fmt
