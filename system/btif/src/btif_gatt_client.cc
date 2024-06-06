@@ -185,7 +185,6 @@ static void btif_gattc_upstreams_evt(uint16_t event, char* p_param) {
       break;
     }
 
-    case BTA_GATTC_ACL_EVT:
     case BTA_GATTC_DEREG_EVT:
     case BTA_GATTC_SEARCH_RES_EVT:
     case BTA_GATTC_CANCEL_OPEN_EVT:
@@ -664,8 +663,8 @@ static bt_status_t btif_gattc_read_phy(
     const RawAddress& bd_addr,
     base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb) {
   CHECK_BTGATT_INIT();
-  do_in_main_thread(FROM_HERE, Bind(&BTM_BleReadPhy, bd_addr,
-                                    jni_thread_wrapper(FROM_HERE, cb)));
+  do_in_main_thread(FROM_HERE,
+                    Bind(&BTM_BleReadPhy, bd_addr, jni_thread_wrapper(cb)));
   return BT_STATUS_SUCCESS;
 }
 
