@@ -3,11 +3,11 @@
 use btif_macros::{btif_callback, btif_callbacks_dispatcher};
 
 use bt_topshim::btif::{
-    BluetoothInterface, BtStatus, BtTransport, DisplayAddress, RawAddress, Uuid,
+    BluetoothInterface, BtStatus, BtTransport, DisplayAddress, DisplayUuid, RawAddress, Uuid,
 };
 use bt_topshim::profiles::gatt::{
-    ffi::RustAdvertisingTrackInfo, AdvertisingStatus, BtGattDbElement, BtGattNotifyParams,
-    BtGattReadParams, BtGattResponse, BtGattValue, Gatt, GattAdvCallbacksDispatcher,
+    AdvertisingStatus, AdvertisingTrackInfo, BtGattDbElement, BtGattNotifyParams, BtGattReadParams,
+    BtGattResponse, BtGattValue, Gatt, GattAdvCallbacksDispatcher,
     GattAdvInbandCallbacksDispatcher, GattClientCallbacks, GattClientCallbacksDispatcher,
     GattScannerCallbacks, GattScannerCallbacksDispatcher, GattScannerInbandCallbacks,
     GattScannerInbandCallbacksDispatcher, GattServerCallbacks, GattServerCallbacksDispatcher,
@@ -901,7 +901,10 @@ impl BluetoothGattService {
             if !services.iter().any(|s| {
                 s.instance_id == included_service.instance_id && s.uuid == included_service.uuid
             }) {
-                log::error!("Included service with uuid {} not found", included_service.uuid);
+                log::error!(
+                    "Included service with uuid {} not found",
+                    DisplayUuid(&included_service.uuid)
+                );
                 continue;
             }
 
@@ -3004,7 +3007,7 @@ impl BtifGattClientCallbacks for BluetoothGatt {
                 );
             }
             None => {
-                warn!("Warning: Client not registered for UUID {}", app_uuid);
+                warn!("Warning: Client not registered for UUID {}", DisplayUuid(&app_uuid));
             }
         }
     }
@@ -3382,7 +3385,7 @@ impl BtifGattServerCallbacks for BluetoothGatt {
                 }
             }
             None => {
-                warn!("Warning: No callback found for UUID {}", app_uuid);
+                warn!("Warning: No callback found for UUID {}", DisplayUuid(&app_uuid));
             }
         }
     }
@@ -3742,7 +3745,7 @@ pub(crate) trait BtifGattScannerCallbacks {
     );
 
     #[btif_callback(OnTrackAdvFoundLost)]
-    fn on_track_adv_found_lost(&mut self, adv_track_info: RustAdvertisingTrackInfo);
+    fn on_track_adv_found_lost(&mut self, adv_track_info: AdvertisingTrackInfo);
 }
 
 #[btif_callbacks_dispatcher(dispatch_le_scanner_inband_callbacks, GattScannerInbandCallbacks)]
@@ -3957,7 +3960,7 @@ impl BtifGattScannerCallbacks for BluetoothGatt {
     fn on_scanner_registered(&mut self, uuid: Uuid, scanner_id: u8, status: GattStatus) {
         log::debug!(
             "on_scanner_registered UUID = {}, scanner_id = {}, status = {}",
-            uuid,
+            DisplayUuid(&uuid),
             scanner_id,
             status
         );
@@ -3970,17 +3973,17 @@ impl BtifGattScannerCallbacks for BluetoothGatt {
             if let Some(cb) = self.scanner_callbacks.get_by_id_mut(info.callback_id) {
                 cb.on_scanner_registered(uuid, scanner_id, status);
             } else {
-                log::warn!("There is no callback for scanner UUID {}", uuid);
+                log::warn!("There is no callback for scanner UUID {}", DisplayUuid(&uuid));
             }
         } else {
             log::warn!(
                 "Scanner registered callback for non-existent scanner info, UUID = {}",
-                uuid
+                DisplayUuid(&uuid)
             );
         }
 
         if status != GattStatus::Success {
-            log::error!("Error registering scanner UUID {}", uuid);
+            log::error!("Error registering scanner UUID {}", DisplayUuid(&uuid));
             scanners_lock.remove(&uuid);
         }
     }
@@ -4019,7 +4022,7 @@ impl BtifGattScannerCallbacks for BluetoothGatt {
         });
     }
 
-    fn on_track_adv_found_lost(&mut self, track_adv_info: RustAdvertisingTrackInfo) {
+    fn on_track_adv_found_lost(&mut self, track_adv_info: AdvertisingTrackInfo) {
         let addr = track_adv_info.advertiser_address;
         let display_addr = DisplayAddress(&addr);
         let mut binding = self.scanners.lock().unwrap();
