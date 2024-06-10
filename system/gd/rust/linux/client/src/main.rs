@@ -25,7 +25,7 @@ use crate::dbus_iface::{
     BluetoothTelephonyDBus, SuspendDBus,
 };
 use crate::editor::AsyncEditor;
-use bt_topshim::topstack;
+use bt_topshim::{btif::RawAddress, topstack};
 use btstack::bluetooth::{BluetoothDevice, IBluetooth};
 use btstack::suspend::ISuspend;
 use manager_service::iface_bluetooth_manager::IBluetoothManager;
@@ -41,7 +41,7 @@ mod editor;
 
 #[derive(Clone)]
 pub(crate) struct GattRequest {
-    address: String,
+    address: RawAddress,
     id: i32,
     offset: i32,
     value: Vec<u8>,
@@ -64,7 +64,7 @@ pub(crate) struct ClientContext {
     pub(crate) adapter_ready: bool,
 
     /// Current adapter address if known.
-    pub(crate) adapter_address: Option<String>,
+    pub(crate) adapter_address: Option<RawAddress>,
 
     /// Currently active bonding attempt. If it is not none, we are currently attempting to bond
     /// this device.
@@ -272,7 +272,7 @@ impl ClientContext {
         // Trigger callback registration in the foreground
         let fg = self.fg.clone();
         tokio::spawn(async move {
-            let adapter = String::from(format!("adapter{}", idx));
+            let adapter = format!("adapter{}", idx);
             // Floss won't export the interface until it is ready to be used.
             // Wait 1 second before registering the callbacks.
             sleep(Duration::from_millis(1000)).await;
@@ -281,7 +281,7 @@ impl ClientContext {
     }
 
     // Foreground-only: Updates the adapter address.
-    fn update_adapter_address(&mut self) -> String {
+    fn update_adapter_address(&mut self) -> RawAddress {
         let address = self.adapter_dbus.as_ref().unwrap().get_address();
         self.adapter_address = Some(address.clone());
 
@@ -293,7 +293,7 @@ impl ClientContext {
         let bonded_devices = self.adapter_dbus.as_ref().unwrap().get_bonded_devices();
 
         for device in bonded_devices {
-            self.bonded_devices.insert(device.address.clone(), device.clone());
+            self.bonded_devices.insert(device.address.to_string(), device.clone());
         }
     }
 
@@ -521,7 +521,7 @@ async fn handle_client_command(
         });
     }
 
-    'readline: loop {
+    'foreground_actions: loop {
         let m = rx.recv().await;
 
         if m.is_none() {
@@ -759,7 +759,7 @@ async fn handle_client_command(
                 let adapter_address = context.lock().unwrap().update_adapter_address();
                 context.lock().unwrap().update_bonded_devices();
 
-                print_info!("Adapter {} is ready", adapter_address);
+                print_info!("Adapter {} is ready", adapter_address.to_string());
 
                 // Run the command with the command arguments as the client is
                 // non-interactive.
@@ -788,31 +788,26 @@ async fn handle_client_command(
                     break;
                 }
                 Ok(line) => {
-                    // Currently Chrome OS uses Rust 1.60 so use the 1-time loop block to
-                    // workaround this.
-                    // With Rust 1.65 onwards we can convert this loop hack into a named block:
-                    // https://blog.rust-lang.org/2022/11/03/Rust-1.65.0.html#break-from-labeled-blocks
-                    // TODO: Use named block when Android and Chrome OS Rust upgrade Rust to 1.65.
-                    loop {
+                    'readline: {
                         let args = match shell_words::split(line.as_str()) {
                             Ok(words) => words,
                             Err(e) => {
                                 print_error!("Error parsing arguments: {}", e);
-                                break;
+                                break 'readline;
                             }
                         };
 
                         let (cmd, rest) = match args.split_first() {
                             Some(pair) => pair,
-                            None => break,
+                            None => break 'readline,
                         };
 
                         if cmd == "quit" {
-                            break 'readline;
+                            break 'foreground_actions;
                         }
 
                         handler.process_cmd_line(cmd, &rest.to_vec());
-                        break;
+                        break 'readline;
                     }
 
                     // Ready to do readline again.
