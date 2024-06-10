@@ -417,18 +417,18 @@ impl DBusArg for ScanFilterCondition {
         let variant = match data.get("patterns") {
             Some(variant) => variant,
             None => {
-                return Err(Box::new(DBusArgError::new(String::from(format!(
+                return Err(Box::new(DBusArgError::new(String::from(
                     "ScanFilterCondition does not contain any enum variant",
-                )))));
+                ))));
             }
         };
 
         match variant.arg_type() {
             dbus::arg::ArgType::Variant => {}
             _ => {
-                return Err(Box::new(DBusArgError::new(String::from(format!(
+                return Err(Box::new(DBusArgError::new(String::from(
                     "ScanFilterCondition::Patterns must be a variant",
-                )))));
+                ))));
             }
         };
 
@@ -459,7 +459,7 @@ impl DBusArg for ScanFilterCondition {
     }
 
     fn log(condition: &ScanFilterCondition) -> String {
-        String::from(format!("{:?}", condition))
+        format!("{:?}", condition)
     }
 }
 
@@ -617,7 +617,7 @@ impl IBluetoothGatt for IBluetoothGattDBus {
         dbus_generated!()
     }
 
-    #[dbus_method("UnregisterScanner", DBusLog::Disable)]
+    #[dbus_method("UnregisterScanner")]
     fn unregister_scanner(&mut self, scanner_id: u8) -> bool {
         dbus_generated!()
     }

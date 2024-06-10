@@ -15,7 +15,7 @@ use bt_topshim::profiles::hid_host::BthhReportType;
 use bt_topshim::profiles::le_audio::{
     BtLeAudioContentType, BtLeAudioDirection, BtLeAudioGroupNodeStatus, BtLeAudioGroupStatus,
     BtLeAudioGroupStreamStatus, BtLeAudioSource, BtLeAudioUnicastMonitorModeStatus, BtLeAudioUsage,
-    BtLePcmConfig,
+    BtLePcmConfig, BtLeStreamStartedStatus,
 };
 use bt_topshim::profiles::sdp::{
     BtSdpDipRecord, BtSdpHeaderOverlay, BtSdpMasRecord, BtSdpMnsRecord, BtSdpMpsRecord,
@@ -98,6 +98,7 @@ impl_dbus_arg_from_into!(BtLeAudioGroupNodeStatus, i32);
 impl_dbus_arg_from_into!(BtLeAudioUnicastMonitorModeStatus, i32);
 impl_dbus_arg_from_into!(BtLeAudioDirection, i32);
 impl_dbus_arg_from_into!(BtLeAudioGroupStreamStatus, i32);
+impl_dbus_arg_from_into!(BtLeStreamStartedStatus, i32);
 impl_dbus_arg_enum!(GattStatus);
 impl_dbus_arg_enum!(GattWriteRequestStatus);
 impl_dbus_arg_enum!(GattWriteType);
@@ -206,13 +207,13 @@ fn read_propmap_value<T: 'static + DirectDBus>(
 ) -> Result<T, Box<dyn std::error::Error>> {
     let output = propmap
         .get(key)
-        .ok_or(Box::new(DBusArgError::new(String::from(format!("Key {} does not exist", key,)))))?;
+        .ok_or(Box::new(DBusArgError::new(format!("Key {} does not exist", key,))))?;
     let output = <T as RefArgToRust>::ref_arg_to_rust(
-        output.as_static_inner(0).ok_or(Box::new(DBusArgError::new(String::from(format!(
+        output.as_static_inner(0).ok_or(Box::new(DBusArgError::new(format!(
             "Unable to convert propmap[\"{}\"] to {}",
             key,
             stringify!(T),
-        )))))?,
+        ))))?,
         String::from(stringify!(T)),
     )?;
     Ok(output)
@@ -227,13 +228,13 @@ where
 {
     let output = propmap
         .get(key)
-        .ok_or(Box::new(DBusArgError::new(String::from(format!("Key {} does not exist", key,)))))?;
+        .ok_or(Box::new(DBusArgError::new(format!("Key {} does not exist", key,))))?;
     let output = <<T as DBusArg>::DBusType as RefArgToRust>::ref_arg_to_rust(
-        output.as_static_inner(0).ok_or(Box::new(DBusArgError::new(String::from(format!(
+        output.as_static_inner(0).ok_or(Box::new(DBusArgError::new(format!(
             "Unable to convert propmap[\"{}\"] to {}",
             key,
             stringify!(T),
-        )))))?,
+        ))))?,
         format!("{}", stringify!(T)),
     )?;
     let output = T::from_dbus(output, None, None, None)?;
@@ -490,18 +491,18 @@ impl DBusArg for ScanFilterCondition {
         let variant = match data.get("patterns") {
             Some(variant) => variant,
             None => {
-                return Err(Box::new(DBusArgError::new(String::from(format!(
+                return Err(Box::new(DBusArgError::new(String::from(
                     "ScanFilterCondition does not contain any enum variant",
-                )))));
+                ))));
             }
         };
 
         match variant.arg_type() {
             dbus::arg::ArgType::Variant => {}
             _ => {
-                return Err(Box::new(DBusArgError::new(String::from(format!(
+                return Err(Box::new(DBusArgError::new(String::from(
                     "ScanFilterCondition::Patterns must be a variant",
-                )))));
+                ))));
             }
         };
 
@@ -2824,12 +2825,12 @@ impl IBluetoothMedia for BluetoothMediaDBus {
     }
 
     #[dbus_method("GetHostStreamStarted")]
-    fn get_host_stream_started(&mut self) -> bool {
+    fn get_host_stream_started(&mut self) -> BtLeStreamStartedStatus {
         dbus_generated!()
     }
 
     #[dbus_method("GetPeerStreamStarted")]
-    fn get_peer_stream_started(&mut self) -> bool {
+    fn get_peer_stream_started(&mut self) -> BtLeStreamStartedStatus {
         dbus_generated!()
     }
 
@@ -2952,6 +2953,12 @@ impl IBluetoothMediaCallback for IBluetoothMediaCallbackDBus {
 
     #[dbus_method("OnLeaGroupStreamStatus")]
     fn on_lea_group_stream_status(&mut self, group_id: i32, status: BtLeAudioGroupStreamStatus) {}
+
+    #[dbus_method("OnLeaVcConnected")]
+    fn on_lea_vc_connected(&mut self, addr: RawAddress, group_id: i32) {}
+
+    #[dbus_method("OnLeaGroupVolumeChanged")]
+    fn on_lea_group_volume_changed(&mut self, group_id: i32, volume: u8) {}
 }
 
 pub(crate) struct BatteryManagerDBusRPC {
