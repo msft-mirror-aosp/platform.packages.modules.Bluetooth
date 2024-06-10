@@ -691,6 +691,26 @@ static void out_update_source_metadata_v7(struct audio_stream_out* stream,
   }
 }
 
+static int out_set_latency_mode(struct audio_stream_out* stream, audio_latency_mode_t mode) {
+  auto* out = reinterpret_cast<BluetoothStreamOut*>(stream);
+
+  return out->bluetooth_output_->SetLatencyMode(mode) ? 0 : -ENOSYS;
+}
+
+static int out_get_recommended_latency_modes(struct audio_stream_out* stream,
+                                             audio_latency_mode_t* modes, size_t* num_modes) {
+  auto* out = reinterpret_cast<BluetoothStreamOut*>(stream);
+
+  return out->bluetooth_output_->GetRecommendedLatencyModes(modes, num_modes);
+}
+
+static int out_set_latency_mode_callback(struct audio_stream_out* stream,
+                                         stream_latency_mode_callback_t callback, void* cookie) {
+  auto* out = reinterpret_cast<BluetoothStreamOut*>(stream);
+
+  return out->bluetooth_output_->SetLatencyModeCallback(callback, cookie);
+}
+
 int adev_open_output_stream(struct audio_hw_device* dev, audio_io_handle_t /*handle*/,
                             audio_devices_t devices, audio_output_flags_t flags,
                             struct audio_config* config, struct audio_stream_out** stream_out,
@@ -734,6 +754,10 @@ int adev_open_output_stream(struct audio_hw_device* dev, audio_io_handle_t /*han
   out->stream_out_.resume = out_resume;
   out->stream_out_.get_presentation_position = out_get_presentation_position;
   out->stream_out_.update_source_metadata_v7 = out_update_source_metadata_v7;
+  out->stream_out_.set_latency_mode = out_set_latency_mode;
+  out->stream_out_.get_recommended_latency_modes = out_get_recommended_latency_modes;
+  out->stream_out_.set_latency_mode_callback = out_set_latency_mode_callback;
+
   /** Fix Coverity Scan Issue @{ */
   out->channel_mask_ = AUDIO_CHANNEL_NONE;
   /** @} */
