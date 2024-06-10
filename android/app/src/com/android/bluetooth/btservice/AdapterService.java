@@ -151,12 +151,13 @@ import com.android.bluetooth.telephony.BluetoothInCallService;
 import com.android.bluetooth.vc.VolumeControlService;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.modules.expresslog.Counter;
 import com.android.modules.utils.BackgroundThread;
 import com.android.modules.utils.BytesMatcher;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-
 import libcore.util.SneakyThrow;
+
+import com.google.protobuf.InvalidProtocolBufferException;
 
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
@@ -2314,8 +2315,7 @@ public class AdapterService extends Service {
             mService.enforceCallingPermission(
                     android.Manifest.permission.BLUETOOTH_PRIVILEGED, null);
 
-            // Post on the main handler to be sure the cleanup has completed before calling exit
-            mService.mHandler.post(
+            Runnable killAction =
                     () -> {
                         if (Flags.killInsteadOfExit()) {
                             Log.i(TAG, "killBluetoothProcess: Calling killProcess(myPid())");
@@ -2324,7 +2324,24 @@ public class AdapterService extends Service {
                             Log.i(TAG, "killBluetoothProcess: Calling System.exit");
                             System.exit(0);
                         }
-                    });
+                    };
+
+            // Post on the main handler to let the cleanup complete before calling exit
+            mService.mHandler.post(killAction);
+
+            try {
+                // Wait for Bluetooth to be killed from its main thread
+                Thread.sleep(950); // SystemServer is waiting 1000 ms, we need to wait less here
+            } catch (InterruptedException e) {
+                Log.e(TAG, "killBluetoothProcess: Interrupted while waiting for kill");
+            }
+
+            // Bluetooth cannot be killed on the main thread; it is in a deadLock.
+            // Trying to recover by killing the Bluetooth from the binder thread.
+            // This is bad :(
+            Counter.logIncrement("bluetooth.value_kill_from_binder_thread");
+            Log.wtf(TAG, "Failed to kill Bluetooth using its main thread. Trying from binder");
+            killAction.run();
         }
 
         @Override
@@ -3120,6 +3137,7 @@ public class AdapterService extends Service {
             // Only allow setting a pin in bonding state, or bonded state in case of security
             // upgrade.
             if (deviceProp == null || !deviceProp.isBondingOrBonded()) {
+                Log.e(TAG, "setPin: device=" + device + ", not bonding");
                 return false;
             }
             if (pinCode.length != len) {
@@ -3129,6 +3147,14 @@ public class AdapterService extends Service {
             }
             service.logUserBondResponse(
                     device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_PIN_REPLIED);
+            Log.i(
+                    TAG,
+                    "setPin: device="
+                            + device
+                            + ", accept="
+                            + accept
+                            + ", from "
+                            + Utils.getUidPidString());
             return service.mNativeInterface.pinReply(
                     getBytesFromAddress(device.getAddress()), accept, len, pinCode);
         }
@@ -3150,6 +3176,7 @@ public class AdapterService extends Service {
 
             DeviceProperties deviceProp = service.mRemoteDevices.getDeviceProperties(device);
             if (deviceProp == null || !deviceProp.isBonding()) {
+                Log.e(TAG, "setPasskey: device=" + device + ", not bonding");
                 return false;
             }
             if (passkey.length != len) {
@@ -3159,6 +3186,15 @@ public class AdapterService extends Service {
             }
             service.logUserBondResponse(
                     device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_SSP_REPLIED);
+            Log.i(
+                    TAG,
+                    "setPasskey: device="
+                            + device
+                            + ", accept="
+                            + accept
+                            + ", from "
+                            + Utils.getUidPidString());
+
             return service.mNativeInterface.sspReply(
                     getBytesFromAddress(device.getAddress()),
                     AbstractionLayer.BT_SSP_VARIANT_PASSKEY_ENTRY,
@@ -3180,10 +3216,20 @@ public class AdapterService extends Service {
 
             DeviceProperties deviceProp = service.mRemoteDevices.getDeviceProperties(device);
             if (deviceProp == null || !deviceProp.isBonding()) {
+                Log.e(TAG, "setPairingConfirmation: device=" + device + ", not bonding");
                 return false;
             }
             service.logUserBondResponse(
                     device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_SSP_REPLIED);
+            Log.i(
+                    TAG,
+                    "setPairingConfirmation: device="
+                            + device
+                            + ", accept="
+                            + accept
+                            + ", from "
+                            + Utils.getUidPidString());
+
             return service.mNativeInterface.sspReply(
                     getBytesFromAddress(device.getAddress()),
                     AbstractionLayer.BT_SSP_VARIANT_PASSKEY_CONFIRMATION,
