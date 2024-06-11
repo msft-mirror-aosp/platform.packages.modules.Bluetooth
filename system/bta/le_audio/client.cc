@@ -547,11 +547,12 @@ class LeAudioClientImpl : public LeAudioClient {
     DisconnectDevice(leAudioDevice, true);
   }
 
-  void UpdateLocationsAndContextsAvailability(LeAudioDeviceGroup* group) {
+  void UpdateLocationsAndContextsAvailability(LeAudioDeviceGroup* group,
+                                              bool force = false) {
     bool group_conf_changed = group->ReloadAudioLocations();
     group_conf_changed |= group->ReloadAudioDirections();
     group_conf_changed |= group->UpdateAudioContextAvailability();
-    if (group_conf_changed) {
+    if (group_conf_changed || force) {
       /* All the configurations should be recalculated for the new conditions */
       group->InvalidateCachedConfigurations();
       group->InvalidateGroupStrategy();
@@ -1274,6 +1275,12 @@ class LeAudioClientImpl : public LeAudioClient {
         return;
       }
       log::info("switching active group to: {}", group_id);
+
+      auto result =
+          CodecManager::GetInstance()->UpdateActiveUnicastAudioHalClient(
+              le_audio_source_hal_client_.get(),
+              le_audio_sink_hal_client_.get(), false);
+      log::assert_that(result, "Could not update session to codec manager");
     }
 
     if (!le_audio_source_hal_client_) {
@@ -3307,7 +3314,7 @@ class LeAudioClientImpl : public LeAudioClient {
 
     LeAudioDeviceGroup* group = aseGroups_.FindById(leAudioDevice->group_id_);
     if (group) {
-      UpdateLocationsAndContextsAvailability(group);
+      UpdateLocationsAndContextsAvailability(group, true);
     }
 
     /* Notify connected after contexts are notified */
@@ -3885,6 +3892,9 @@ class LeAudioClientImpl : public LeAudioClient {
     }
     dprintf(fd, "  Source monitor mode: %s\n",
             source_monitor_mode_ ? "true" : "false");
+    dprintf(fd, "  Codec extensibility: %s\n",
+            CodecManager::GetInstance()->IsUsingCodecExtensibility() ? "true"
+                                                                     : "false");
     dprintf(fd, "  Start time: ");
     for (auto t : stream_start_history_queue_) {
       dprintf(fd, ", %d ms", static_cast<int>(t));

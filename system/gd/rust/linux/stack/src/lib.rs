@@ -46,7 +46,7 @@ use crate::dis::{DeviceInformation, ServiceCallbacks};
 use crate::socket_manager::{BluetoothSocketManager, SocketActions};
 use crate::suspend::Suspend;
 use bt_topshim::{
-    btif::{BaseCallbacks, BtTransport},
+    btif::{BaseCallbacks, BtTransport, RawAddress},
     profiles::{
         a2dp::A2dpCallbacks,
         avrcp::AvrcpCallbacks,
@@ -132,7 +132,7 @@ pub enum Message {
 
     // Battery related
     BatteryProviderManagerCallbackDisconnected(u32),
-    BatteryProviderManagerBatteryUpdated(String, BatterySet),
+    BatteryProviderManagerBatteryUpdated(RawAddress, BatterySet),
     BatteryServiceCallbackDisconnected(u32),
     BatteryService(BatteryServiceActions),
     BatteryServiceRefresh,
@@ -156,18 +156,18 @@ pub enum Message {
     // Qualification Only
     QaCallbackDisconnected(u32),
     QaAddMediaPlayer(String, bool),
-    QaRfcommSendMsc(u8, String),
+    QaRfcommSendMsc(u8, RawAddress),
     QaFetchDiscoverableMode,
     QaFetchConnectable,
     QaSetConnectable(bool),
     QaFetchAlias,
-    QaGetHidReport(String, BthhReportType, u8),
-    QaSetHidReport(String, BthhReportType, String),
-    QaSendHidData(String, String),
+    QaGetHidReport(RawAddress, BthhReportType, u8),
+    QaSetHidReport(RawAddress, BthhReportType, String),
+    QaSendHidData(RawAddress, String),
 
     // UHid callbacks
-    UHidHfpOutputCallback(String, u8, u8),
-    UHidTelephonyUseCallback(String, bool),
+    UHidHfpOutputCallback(RawAddress, u8, u8),
+    UHidTelephonyUseCallback(RawAddress, bool),
 }
 
 pub enum BluetoothAPI {
@@ -271,7 +271,7 @@ impl Stack {
                 // When pairing is busy for any reason, the bond cannot be created.
                 // Allow retries until it is ready for bonding.
                 Message::CreateBondWithRetry(device, bt_transport, num_attempts, retry_delay) => {
-                    if num_attempts <= 0 {
+                    if num_attempts == 0 {
                         continue;
                     }
 
