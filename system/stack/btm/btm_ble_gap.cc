@@ -1793,10 +1793,8 @@ tBTM_STATUS btm_ble_start_inquiry(uint8_t duration) {
   } else if ((btm_cb.ble_ctr_cb.inq_var.scan_interval != scan_interval) ||
              (btm_cb.ble_ctr_cb.inq_var.scan_window != scan_window)) {
     log::verbose("restart LE scan with low latency scan params");
-    if (com::android::bluetooth::flags::le_scan_parameters_fix()) {
-      btm_cb.ble_ctr_cb.inq_var.scan_interval = scan_interval;
-      btm_cb.ble_ctr_cb.inq_var.scan_window = scan_window;
-    }
+    btm_cb.ble_ctr_cb.inq_var.scan_interval = scan_interval;
+    btm_cb.ble_ctr_cb.inq_var.scan_window = scan_window;
     btm_send_hci_scan_enable(BTM_BLE_SCAN_DISABLE, BTM_BLE_DUPLICATE_ENABLE);
     btm_send_hci_set_scan_params(
         BTM_BLE_SCAN_MODE_ACTI, scan_interval, scan_window, scan_phy,
@@ -1873,8 +1871,12 @@ tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda,
   }
 
   /* read remote device name using GATT procedure */
-  if (btm_cb.btm_inq_vars.remname_active) return BTM_BUSY;
-
+  if (btm_cb.btm_inq_vars.remname_active) {
+    log::warn(
+        "Unable to start GATT RNR procedure for peer:{} busy with peer:{}",
+        remote_bda, btm_cb.btm_inq_vars.remname_bda);
+    return BTM_BUSY;
+  }
   if (!GAP_BleReadPeerDevName(remote_bda, btm_ble_read_remote_name_cmpl))
     return BTM_BUSY;
 

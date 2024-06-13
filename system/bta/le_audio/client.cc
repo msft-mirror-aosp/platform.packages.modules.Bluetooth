@@ -2277,7 +2277,7 @@ class LeAudioClientImpl : public LeAudioClient {
 
     BTA_GATTC_ServiceSearchRequest(
         leAudioDevice->conn_id_,
-        &bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
+        bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
   }
 
   void checkGroupConnectionStateAfterMemberDisconnect(int group_id) {
@@ -2581,7 +2581,7 @@ class LeAudioClientImpl : public LeAudioClient {
 
     BTA_GATTC_ServiceSearchRequest(
         leAudioDevice->conn_id_,
-        &bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
+        bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
   }
 
   void OnServiceChangeEvent(const RawAddress& address) {
@@ -2660,7 +2660,7 @@ class LeAudioClientImpl : public LeAudioClient {
     if (!leAudioDevice->known_service_handles_)
       BTA_GATTC_ServiceSearchRequest(
           leAudioDevice->conn_id_,
-          &bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
+          bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
   }
 
   void disconnectInvalidDevice(LeAudioDevice* leAudioDevice,
@@ -3286,10 +3286,7 @@ class LeAudioClientImpl : public LeAudioClient {
         "{},  {}", leAudioDevice->address_,
         bluetooth::common::ToString(leAudioDevice->GetConnectionState()));
 
-    if (com::android::bluetooth::flags::le_audio_fast_bond_params()) {
-      L2CA_LockBleConnParamsForProfileConnection(leAudioDevice->address_,
-                                                 false);
-    }
+    L2CA_LockBleConnParamsForProfileConnection(leAudioDevice->address_, false);
 
     if (leAudioDevice->GetConnectionState() ==
             DeviceConnectState::CONNECTED_BY_USER_GETTING_READY &&
@@ -3892,6 +3889,9 @@ class LeAudioClientImpl : public LeAudioClient {
     }
     dprintf(fd, "  Source monitor mode: %s\n",
             source_monitor_mode_ ? "true" : "false");
+    dprintf(fd, "  Codec extensibility: %s\n",
+            CodecManager::GetInstance()->IsUsingCodecExtensibility() ? "true"
+                                                                     : "false");
     dprintf(fd, "  Start time: ");
     for (auto t : stream_start_history_queue_) {
       dprintf(fd, ", %d ms", static_cast<int>(t));
