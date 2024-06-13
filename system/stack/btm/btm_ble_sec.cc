@@ -89,6 +89,11 @@ void BTM_SecAddBleDevice(const RawAddress& bd_addr, tBT_DEVICE_TYPE dev_type,
   if (!p_dev_rec) {
     p_dev_rec = btm_sec_allocate_dev_rec();
 
+    if (p_dev_rec == nullptr) {
+      log::warn("device record allocation failed bd_addr:{}", bd_addr);
+      return;
+    }
+
     p_dev_rec->bd_addr = bd_addr;
     p_dev_rec->hci_handle =
             get_btm_client_interface().peer.BTM_GetHCIConnHandle(bd_addr, BT_TRANSPORT_BR_EDR);
@@ -287,7 +292,7 @@ void BTM_SecurityGrant(const RawAddress& bd_addr, tBTM_STATUS res) {
 void BTM_BlePasskeyReply(const RawAddress& bd_addr, tBTM_STATUS res, uint32_t passkey) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
   log::verbose("bd_addr:{}, res:{}", bd_addr, res);
-  if (p_dev_rec == NULL) {
+  if (p_dev_rec == nullptr) {
     log::error("Unknown device:{}", bd_addr);
     return;
   }
@@ -318,7 +323,7 @@ void BTM_BlePasskeyReply(const RawAddress& bd_addr, tBTM_STATUS res, uint32_t pa
 void BTM_BleConfirmReply(const RawAddress& bd_addr, tBTM_STATUS res) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
   log::verbose("bd_addr:{}, res:{}", bd_addr, res);
-  if (p_dev_rec == NULL) {
+  if (p_dev_rec == nullptr) {
     log::error("Unknown device:{}", bd_addr);
     return;
   }
@@ -351,7 +356,7 @@ void BTM_BleConfirmReply(const RawAddress& bd_addr, tBTM_STATUS res) {
  ******************************************************************************/
 void BTM_BleOobDataReply(const RawAddress& bd_addr, tBTM_STATUS res, uint8_t len, uint8_t* p_data) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
-  if (p_dev_rec == NULL) {
+  if (p_dev_rec == nullptr) {
     log::error("Unknown device:{}", bd_addr);
     return;
   }
@@ -381,7 +386,7 @@ void BTM_BleOobDataReply(const RawAddress& bd_addr, tBTM_STATUS res, uint8_t len
  ******************************************************************************/
 void BTM_BleSecureConnectionOobDataReply(const RawAddress& bd_addr, uint8_t* p_c, uint8_t* p_r) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
-  if (p_dev_rec == NULL) {
+  if (p_dev_rec == nullptr) {
     log::error("Unknown device:{}", bd_addr);
     return;
   }
@@ -553,7 +558,7 @@ bool BTM_ReadConnectedTransportAddress(RawAddress* remote_bda, tBT_TRANSPORT tra
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(*remote_bda);
 
   /* if no device can be located, return */
-  if (p_dev_rec == NULL) {
+  if (p_dev_rec == nullptr) {
     return false;
   }
 
@@ -591,7 +596,7 @@ tBTM_STATUS BTM_SetBleDataLength(const RawAddress& bd_addr, uint16_t tx_pdu_leng
   log::info("bd_addr:{}, tx_pdu_length:{}", bd_addr, tx_pdu_length);
 
   auto p_dev_rec = btm_find_dev(bd_addr);
-  if (p_dev_rec == NULL) {
+  if (p_dev_rec == nullptr) {
     log::error("Device {} not found", bd_addr);
     return tBTM_STATUS::BTM_UNKNOWN_ADDR;
   }
@@ -1065,7 +1070,7 @@ void btm_ble_link_sec_check(const RawAddress& bd_addr, tBTM_LE_AUTH_REQ auth_req
 
   log::verbose("bd_addr:{}, auth_req=0x{:x}", bd_addr, auth_req);
 
-  if (p_dev_rec == NULL) {
+  if (p_dev_rec == nullptr) {
     log::error("received for unknown device");
     return;
   }
@@ -1859,7 +1864,7 @@ void BTM_BleSirkConfirmDeviceReply(const RawAddress& bd_addr, tBTM_STATUS res) {
 
   log::info("bd_addr:{}, result:{}", bd_addr, smp_status_text(res_smp));
 
-  if (p_dev_rec == NULL) {
+  if (p_dev_rec == nullptr) {
     log::error("Confirmation of Unknown device");
     return;
   }
