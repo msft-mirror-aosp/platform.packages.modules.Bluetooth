@@ -1,7 +1,7 @@
 {
   // Placeholder module version to be replaced during build.
   // Do not change!
-  "version": 350814000,
+  "version": 350815000,
 
   "provideNativeLibs": [
   ],
