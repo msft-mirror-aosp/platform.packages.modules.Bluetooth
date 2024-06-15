@@ -12,6 +12,7 @@ use std::convert::TryFrom;
 use std::fmt::{Debug, Display, Formatter, Result};
 use std::hash::{Hash, Hasher};
 use std::mem;
+use std::os::fd::RawFd;
 use std::os::raw::c_char;
 use std::sync::{Arc, Mutex};
 use std::vec::Vec;
@@ -217,6 +218,9 @@ pub enum BtStatus {
     JniThreadAttachError,
     WakeLockError,
     Timeout,
+    DeviceNotFound,
+    UnexpectedState,
+    SocketError,
 
     // Any statuses that couldn't be cleanly converted
     Unknown = 0xff,
@@ -1467,6 +1471,10 @@ impl BluetoothInterface {
 
     pub(crate) fn as_raw_ptr(&self) -> *const u8 {
         self.internal.raw as *const u8
+    }
+
+    pub fn dump(&self, fd: RawFd) {
+        ccall!(self, dump, fd, std::ptr::null_mut())
     }
 }
 
