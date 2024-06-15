@@ -26,6 +26,7 @@
 
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #ifdef __ANDROID__
 #include <android/sysprop/BluetoothProperties.sysprop.h>
@@ -34,6 +35,7 @@
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
 #include "hci/controller_interface.h"
+#include "hci/hci_layer.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
@@ -50,6 +52,7 @@
 #include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cdefs.h"
+#include "stack/include/main_thread.h"
 #include "stack/l2cap/l2c_int.h"
 #include "types/raw_address.h"
 
@@ -121,7 +124,7 @@ void l2cble_notify_le_connection(const RawAddress& bda) {
 
 /** This function is called when an HCI Connection Complete event is received.
  */
-bool l2cble_conn_comp(uint16_t handle, uint8_t role, const RawAddress& bda,
+bool l2cble_conn_comp(uint16_t handle, tHCI_ROLE role, const RawAddress& bda,
                       tBLE_ADDR_TYPE /* type */, uint16_t conn_interval,
                       uint16_t conn_latency, uint16_t conn_timeout) {
   // role == HCI_ROLE_CENTRAL => scanner completed connection
@@ -1248,15 +1251,14 @@ void l2cble_send_peer_disc_req(tL2C_CCB* p_ccb) {
  * Returns          void
  *
  ******************************************************************************/
-void l2cble_sec_comp(const RawAddress* bda, tBT_TRANSPORT transport,
+void l2cble_sec_comp(RawAddress bda, tBT_TRANSPORT transport,
                      void* /* p_ref_data */, tBTM_STATUS status) {
-  const RawAddress& p_bda = *bda;
-  tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(p_bda, BT_TRANSPORT_LE);
+  tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(bda, BT_TRANSPORT_LE);
   tL2CAP_SEC_DATA* p_buf = NULL;
   uint8_t sec_act;
 
   if (!p_lcb) {
-    log::warn("security complete for unknown device. bda={}", *bda);
+    log::warn("security complete for unknown device. bda={}", bda);
     return;
   }
 
@@ -1275,7 +1277,7 @@ void l2cble_sec_comp(const RawAddress* bda, tBT_TRANSPORT transport,
       osi_free(p_buf);
     } else {
       if (sec_act == BTM_SEC_ENCRYPT_MITM) {
-        if (BTM_IsLinkKeyAuthed(p_bda, transport))
+        if (BTM_IsLinkKeyAuthed(bda, transport))
           (*(p_buf->p_callback))(bda, BT_TRANSPORT_LE, p_buf->p_ref_data,
                                  status);
         else {
@@ -1304,8 +1306,8 @@ void l2cble_sec_comp(const RawAddress* bda, tBT_TRANSPORT transport,
       osi_free(p_buf);
     }
     else {
-      l2ble_sec_access_req(p_bda, p_buf->psm, p_buf->is_originator,
-          p_buf->p_callback, p_buf->p_ref_data);
+      l2ble_sec_access_req(bda, p_buf->psm, p_buf->is_originator,
+                           p_buf->p_callback, p_buf->p_ref_data);
 
       osi_free(p_buf);
       break;
@@ -1338,7 +1340,7 @@ tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr,
 
   if (!p_lcb) {
     log::error("Security check for unknown device");
-    p_callback(&bd_addr, BT_TRANSPORT_LE, p_ref_data, BTM_UNKNOWN_ADDR);
+    p_callback(bd_addr, BT_TRANSPORT_LE, p_ref_data, BTM_UNKNOWN_ADDR);
     return L2CAP_LE_RESULT_NO_RESOURCES;
   }
 
@@ -1346,7 +1348,7 @@ tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr,
       (tL2CAP_SEC_DATA*)osi_malloc((uint16_t)sizeof(tL2CAP_SEC_DATA));
   if (!p_buf) {
     log::error("No resources for connection");
-    p_callback(&bd_addr, BT_TRANSPORT_LE, p_ref_data, BTM_NO_RESOURCES);
+    p_callback(bd_addr, BT_TRANSPORT_LE, p_ref_data, BTM_NO_RESOURCES);
     return L2CAP_LE_RESULT_NO_RESOURCES;
   }
 
@@ -1419,4 +1421,28 @@ void L2CA_AdjustConnectionIntervals(uint16_t* min_interval,
                  *max_interval, phone_min_interval);
     *max_interval = phone_min_interval;
   }
+}
+
+void L2CA_SetEcosystemBaseInterval(uint32_t base_interval) {
+  if (!com::android::bluetooth::flags::le_audio_base_ecosystem_interval()) {
+    return;
+  }
+
+  log::info("base_interval: {}ms", base_interval);
+  bluetooth::shim::GetHciLayer()->EnqueueCommand(
+      bluetooth::hci::SetEcosystemBaseIntervalBuilder::Create(base_interval),
+      get_main_thread()->BindOnce([](bluetooth::hci::CommandCompleteView view) {
+        ASSERT(view.IsValid());
+        auto status_view =
+            bluetooth::hci::SetEcosystemBaseIntervalCompleteView::Create(
+                bluetooth::hci::SetEcosystemBaseIntervalCompleteView::Create(
+                    view));
+        ASSERT(status_view.IsValid());
+
+        if (status_view.GetStatus() != bluetooth::hci::ErrorCode::SUCCESS) {
+          log::warn("Set Ecosystem Base Interval status {}",
+                    ErrorCodeText(status_view.GetStatus()));
+          return;
+        }
+      }));
 }
