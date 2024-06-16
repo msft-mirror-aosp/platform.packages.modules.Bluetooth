@@ -131,7 +131,6 @@ cc_library_shared {
         "libbte",
         "libbtif",
         "libbtif-core",
-        "libc++fs",
         "libchrome",
         "libcutils",
         "libevent",
@@ -166,6 +165,9 @@ cc_library_shared {
     ],
     min_sdk_version: "Tiramisu",
     ldflags: ["-Wl,--allow-multiple-definition"],
+
+    // TODO(b/346919576) Workaround LTO build breakage.
+    lto_O0: true,
 }
 
 cc_library {
@@ -192,7 +194,6 @@ cc_library {
         "libosi",
 
         "libbluetooth-types",
-        "libc++fs",
     ],
     cflags: [
         /* we export all classes, so change default visibility, instead of having EXPORT_SYMBOL on each class*/
