@@ -133,6 +133,7 @@ public class GattServerConnectWithScanTest {
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_BLE_GATT_SERVER_USE_ADDRESS_TYPE_IN_CONNECTION)
+    @Ignore("b/343749428: Remove hidden api's dependencies to enable the test.")
     public void serverConnectToPublicAddress_withTransportAuto() throws Exception {
         String publicAddress = mBumble.getRemoteDevice().getAddress();
         advertiseWithBumble(OwnAddressType.PUBLIC);
@@ -156,7 +157,7 @@ public class GattServerConnectWithScanTest {
     }
 
     @Test
-    @Ignore("b/343525982: Remove hidden api's dependencies to enable the test.")
+    @Ignore("b/343749428: Remove hidden api's dependencies to enable the test.")
     public void serverConnectToPublicAddress_withTransportLE() throws Exception {
         String publicAddress = mBumble.getRemoteDevice().getAddress();
         advertiseWithBumble(OwnAddressType.PUBLIC);
