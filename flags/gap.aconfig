@@ -37,13 +37,6 @@ flag {
 }
 
 flag {
-    name: "le_scan_parameters_fix"
-    namespace: "bluetooth"
-    description: "Fix LE scan parameters downgrade during inquiry"
-    bug: "316885813"
-}
-
-flag {
     name: "le_scan_fix_remote_exception"
     namespace: "bluetooth"
     description: "Fix handling remote exception for LE scanners"
@@ -192,6 +185,26 @@ flag {
     namespace: "bluetooth"
     description: "Use uid instead of the first package name for fetching the importance of clients"
     bug: "336965663"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "sec_dont_clear_keys_on_encryption_err"
+    namespace: "bluetooth"
+    description: "Do not clear security record on encryption error"
+    bug: "342521414"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_scan_use_address_type"
+    namespace: "bluetooth"
+    description: "Fix an issue that le scanner omits athe ddress type for MATCH_FIRST scan"
+    bug: "342127181"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

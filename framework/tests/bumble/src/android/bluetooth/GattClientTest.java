@@ -46,17 +46,12 @@ import com.google.testing.junit.testparameterinjector.TestParameter;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 
 import org.junit.Assume;
-import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InOrder;
 import org.mockito.invocation.Invocation;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Collection;
-import java.util.UUID;
 
 import pandora.GattProto.AttStatusCode;
 import pandora.GattProto.GattCharacteristicParams;
@@ -69,6 +64,10 @@ import pandora.GattProto.RegisterServiceRequest;
 import pandora.HostProto.AdvertiseRequest;
 import pandora.HostProto.AdvertiseResponse;
 import pandora.HostProto.OwnAddressType;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.UUID;
 
 @RunWith(TestParameterInjector.class)
 public class GattClientTest {
@@ -85,11 +84,14 @@ public class GattClientTest {
             UUID.fromString("00000000-0000-0000-0000-00000000000");
     private static final UUID TEST_CHARACTERISTIC_UUID =
             UUID.fromString("00010001-0000-0000-0000-000000000000");
-    @ClassRule public static final AdoptShellPermissionsRule PERM = new AdoptShellPermissionsRule();
 
-    @Rule public final PandoraDevice mBumble = new PandoraDevice();
+    @Rule(order = 2)
+    public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
 
-    @Rule
+    @Rule(order = 1)
+    public final PandoraDevice mBumble = new PandoraDevice();
+
+    @Rule(order = 0)
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     private final Context mContext = ApplicationProvider.getApplicationContext();

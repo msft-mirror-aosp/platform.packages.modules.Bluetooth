@@ -23,6 +23,7 @@
 #include "stack/btm/power_mode.h"
 #include "stack/include/acl_client_callbacks.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/btm_api.h"
 #include "stack/include/btm_api_types.h"
 #include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_status.h"
@@ -67,6 +68,14 @@ struct btm_client_interface_t {
                                                 uint8_t* lmp_version,
                                                 uint16_t* manufacturer,
                                                 uint16_t* lmp_sub_version);
+    [[nodiscard]] tBT_DEVICE_TYPE (*BTM_GetPeerDeviceTypeFromFeatures)(
+        const RawAddress& bd_addr);
+    void (*BTM_RequestPeerSCA)(const RawAddress& remote_bda,
+                               tBT_TRANSPORT transport);
+    [[nodiscard]] uint8_t (*BTM_GetPeerSCA)(const RawAddress& remote_bda,
+                                            tBT_TRANSPORT transport);
+    [[nodiscard]] bool (*BTM_IsPhy2mSupported)(const RawAddress& remote_bda,
+                                               tBT_TRANSPORT transport);
   } peer;
 
   struct {
@@ -115,6 +124,9 @@ struct btm_client_interface_t {
                                      uint16_t peripheral_latency,
                                      uint16_t supervision_tout);
     [[nodiscard]] bool (*BTM_UseLeLink)(const RawAddress& bd_addr);
+    [[nodiscard]] bool (*BTM_IsRemoteVersionReceived)(
+        const RawAddress& remote_bda);
+    void (*BTM_SetConsolidationCallback)(BTM_CONSOLIDATION_CB* cb);
   } ble;
 
   struct {
@@ -127,10 +139,12 @@ struct btm_client_interface_t {
         uint16_t sco_inx, tBTM_ESCO_CBACK* p_esco_cback);
     [[nodiscard]] tBTM_STATUS (*BTM_RemoveSco)(uint16_t sco_inx);
     void (*BTM_WriteVoiceSettings)(uint16_t settings);
-    void (*BTM_EScoConnRsp)(uint16_t sco_inx, uint8_t hci_status,
+    void (*BTM_EScoConnRsp)(uint16_t sco_inx, tHCI_STATUS hci_status,
                             enh_esco_params_t* p_parms);
     [[nodiscard]] uint8_t (*BTM_GetNumScoLinks)();
     [[nodiscard]] tBTM_STATUS (*BTM_SetEScoMode)(enh_esco_params_t* p_parms);
+    [[nodiscard]] tBTM_SCO_DEBUG_DUMP (*BTM_GetScoDebugDump)(void);
+    [[nodiscard]] bool (*BTM_IsScoActiveByBdaddr)(const RawAddress& remote_bda);
   } sco;
 
   struct {

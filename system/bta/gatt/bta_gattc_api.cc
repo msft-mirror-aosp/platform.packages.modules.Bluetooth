@@ -32,6 +32,8 @@
 #include <vector>
 
 #include "bta/gatt/bta_gattc_int.h"
+#include "gd/hci/uuid.h"
+#include "gd/os/rand.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
@@ -84,9 +86,12 @@ void BTA_GATTC_AppRegister(tBTA_GATTC_CBACK* p_client_cb,
     bta_sys_register(BTA_ID_GATTC, &bta_gattc_reg);
   }
 
+  Uuid uuid =
+      Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
+
   do_in_main_thread(FROM_HERE,
-                    base::BindOnce(&bta_gattc_register, Uuid::GetRandom(),
-                                   p_client_cb, std::move(cb), eatt_support));
+                    base::BindOnce(&bta_gattc_register, uuid, p_client_cb,
+                                   std::move(cb), eatt_support));
 }
 
 static void app_deregister_impl(tGATT_IF client_if) {
@@ -250,35 +255,25 @@ void BTA_GATTC_ConfigureMTU(uint16_t conn_id, uint16_t mtu,
   bta_sys_sendmsg(p_buf);
 }
 
-/*******************************************************************************
- *
- * Function         BTA_GATTC_ServiceSearchRequest
- *
- * Description      This function is called to request a GATT service discovery
- *                  on a GATT server. This function report service search
- *                  result by a callback event, and followed by a service search
- *                  complete event.
- *
- * Parameters       conn_id: connection ID.
- *                  p_srvc_uuid: a UUID of the service application is interested
- *                               in.
- *                              If Null, discover for all services.
- *
- * Returns          None
- *
- ******************************************************************************/
-void BTA_GATTC_ServiceSearchRequest(uint16_t conn_id, const Uuid* p_srvc_uuid) {
+void BTA_GATTC_ServiceSearchAllRequest(uint16_t conn_id) {
+  const size_t len = sizeof(tBTA_GATTC_API_SEARCH);
+  tBTA_GATTC_API_SEARCH* p_buf = (tBTA_GATTC_API_SEARCH*)osi_calloc(len);
+
+  p_buf->hdr.event = BTA_GATTC_API_SEARCH_EVT;
+  p_buf->hdr.layer_specific = conn_id;
+  p_buf->p_srvc_uuid = NULL;
+
+  bta_sys_sendmsg(p_buf);
+}
+
+void BTA_GATTC_ServiceSearchRequest(uint16_t conn_id, Uuid p_srvc_uuid) {
   const size_t len = sizeof(tBTA_GATTC_API_SEARCH) + sizeof(Uuid);
   tBTA_GATTC_API_SEARCH* p_buf = (tBTA_GATTC_API_SEARCH*)osi_calloc(len);
 
   p_buf->hdr.event = BTA_GATTC_API_SEARCH_EVT;
   p_buf->hdr.layer_specific = conn_id;
-  if (p_srvc_uuid) {
-    p_buf->p_srvc_uuid = (Uuid*)(p_buf + 1);
-    *p_buf->p_srvc_uuid = *p_srvc_uuid;
-  } else {
-    p_buf->p_srvc_uuid = NULL;
-  }
+  p_buf->p_srvc_uuid = (Uuid*)(p_buf + 1);
+  *p_buf->p_srvc_uuid = p_srvc_uuid;
 
   bta_sys_sendmsg(p_buf);
 }

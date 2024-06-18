@@ -547,11 +547,12 @@ class LeAudioClientImpl : public LeAudioClient {
     DisconnectDevice(leAudioDevice, true);
   }
 
-  void UpdateLocationsAndContextsAvailability(LeAudioDeviceGroup* group) {
+  void UpdateLocationsAndContextsAvailability(LeAudioDeviceGroup* group,
+                                              bool force = false) {
     bool group_conf_changed = group->ReloadAudioLocations();
     group_conf_changed |= group->ReloadAudioDirections();
     group_conf_changed |= group->UpdateAudioContextAvailability();
-    if (group_conf_changed) {
+    if (group_conf_changed || force) {
       /* All the configurations should be recalculated for the new conditions */
       group->InvalidateCachedConfigurations();
       group->InvalidateGroupStrategy();
@@ -1159,6 +1160,8 @@ class LeAudioClientImpl : public LeAudioClient {
       log::assert_that(true, "Both configs are invalid");
     }
 
+    L2CA_SetEcosystemBaseInterval(frame_duration_us / 1250);
+
     audio_framework_source_config.data_interval_us = frame_duration_us;
     le_audio_source_hal_client_->Start(audio_framework_source_config,
                                        audioSinkReceiver, dsa_modes);
@@ -1274,6 +1277,12 @@ class LeAudioClientImpl : public LeAudioClient {
         return;
       }
       log::info("switching active group to: {}", group_id);
+
+      auto result =
+          CodecManager::GetInstance()->UpdateActiveUnicastAudioHalClient(
+              le_audio_source_hal_client_.get(),
+              le_audio_sink_hal_client_.get(), false);
+      log::assert_that(result, "Could not update session to codec manager");
     }
 
     if (!le_audio_source_hal_client_) {
@@ -2270,7 +2279,7 @@ class LeAudioClientImpl : public LeAudioClient {
 
     BTA_GATTC_ServiceSearchRequest(
         leAudioDevice->conn_id_,
-        &bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
+        bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
   }
 
   void checkGroupConnectionStateAfterMemberDisconnect(int group_id) {
@@ -2574,7 +2583,7 @@ class LeAudioClientImpl : public LeAudioClient {
 
     BTA_GATTC_ServiceSearchRequest(
         leAudioDevice->conn_id_,
-        &bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
+        bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
   }
 
   void OnServiceChangeEvent(const RawAddress& address) {
@@ -2653,7 +2662,7 @@ class LeAudioClientImpl : public LeAudioClient {
     if (!leAudioDevice->known_service_handles_)
       BTA_GATTC_ServiceSearchRequest(
           leAudioDevice->conn_id_,
-          &bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
+          bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
   }
 
   void disconnectInvalidDevice(LeAudioDevice* leAudioDevice,
@@ -3279,10 +3288,7 @@ class LeAudioClientImpl : public LeAudioClient {
         "{},  {}", leAudioDevice->address_,
         bluetooth::common::ToString(leAudioDevice->GetConnectionState()));
 
-    if (com::android::bluetooth::flags::le_audio_fast_bond_params()) {
-      L2CA_LockBleConnParamsForProfileConnection(leAudioDevice->address_,
-                                                 false);
-    }
+    L2CA_LockBleConnParamsForProfileConnection(leAudioDevice->address_, false);
 
     if (leAudioDevice->GetConnectionState() ==
             DeviceConnectState::CONNECTED_BY_USER_GETTING_READY &&
@@ -3307,7 +3313,7 @@ class LeAudioClientImpl : public LeAudioClient {
 
     LeAudioDeviceGroup* group = aseGroups_.FindById(leAudioDevice->group_id_);
     if (group) {
-      UpdateLocationsAndContextsAvailability(group);
+      UpdateLocationsAndContextsAvailability(group, true);
     }
 
     /* Notify connected after contexts are notified */
@@ -3834,7 +3840,10 @@ class LeAudioClientImpl : public LeAudioClient {
     CleanCachedMicrophoneData();
   }
 
-  void StopAudio(void) { SuspendAudio(); }
+  void StopAudio(void) {
+    SuspendAudio();
+    L2CA_SetEcosystemBaseInterval(0 /* clear recommendation */);
+  }
 
   void printCurrentStreamConfiguration(int fd) {
     std::stringstream stream;
@@ -3885,6 +3894,9 @@ class LeAudioClientImpl : public LeAudioClient {
     }
     dprintf(fd, "  Source monitor mode: %s\n",
             source_monitor_mode_ ? "true" : "false");
+    dprintf(fd, "  Codec extensibility: %s\n",
+            CodecManager::GetInstance()->IsUsingCodecExtensibility() ? "true"
+                                                                     : "false");
     dprintf(fd, "  Start time: ");
     for (auto t : stream_start_history_queue_) {
       dprintf(fd, ", %d ms", static_cast<int>(t));

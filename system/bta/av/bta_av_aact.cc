@@ -28,6 +28,7 @@
 
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <cstring>
@@ -1816,13 +1817,25 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
             p_scb->avdt_handle, p_scb->hndl);
   AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label, AVDT_ERR_UNSUP_CFG, 0);
 
-  tBTA_AV bta_av_data = {
-      .reject =
-          {
-              .bd_addr = p_data->str_msg.bd_addr,
-              .hndl = p_scb->hndl,
-          },
-  };
+  tBTA_AV bta_av_data;
+
+  if (com::android::bluetooth::flags::bta_av_setconfig_rej_type_confusion()) {
+    bta_av_data = {
+        .reject =
+            {
+                .bd_addr = p_scb->PeerAddress(),
+                .hndl = p_scb->hndl,
+            },
+    };
+  } else {
+    bta_av_data = {
+        .reject =
+            {
+                .bd_addr = p_data->str_msg.bd_addr,
+                .hndl = p_scb->hndl,
+            },
+    };
+  }
 
   (*bta_av_cb.p_cback)(BTA_AV_REJECT_EVT, &bta_av_data);
 }
@@ -3153,7 +3166,7 @@ void bta_av_vendor_offload_start_v2(tBTA_AV_SCB* p_scb,
   if (mtu > MAX_3MBPS_AVDTP_MTU) {
     mtu = MAX_3MBPS_AVDTP_MTU;
   }
-  if (L2CA_GetRemoteCid(p_scb->l2c_cid, &l2cap_channel_handle) == false) {
+  if (L2CA_GetRemoteChannelId(p_scb->l2c_cid, &l2cap_channel_handle) == false) {
     log::error("Failed to fetch l2c rcid");
   }
 
@@ -3208,7 +3221,8 @@ void bta_av_vendor_offload_stop() {
             p_scb->PeerAddress(), BT_TRANSPORT_BR_EDR);
     uint16_t l2cap_channel_handle = 0;
 
-    if (L2CA_GetRemoteCid(p_scb->l2c_cid, &l2cap_channel_handle) == false) {
+    if (L2CA_GetRemoteChannelId(p_scb->l2c_cid, &l2cap_channel_handle) ==
+        false) {
       log::error("Failed to fetch l2c rcid");
     }
 
@@ -3399,7 +3413,8 @@ static void bta_av_offload_codec_builder(tBTA_AV_SCB* p_scb,
       p_a2dp_offload->sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_96000;
       break;
   }
-  if (L2CA_GetRemoteCid(p_scb->l2c_cid, &p_a2dp_offload->l2c_rcid) == false) {
+  if (L2CA_GetRemoteChannelId(p_scb->l2c_cid, &p_a2dp_offload->l2c_rcid) ==
+      false) {
     log::error("Failed to fetch l2c rcid");
     return;
   }
