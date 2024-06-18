@@ -112,7 +112,6 @@ cc_binary {
         "libbte",
         "libbtif",
         "libbtif-core",
-        "libc++fs",
         "libchrome",
         "libevent",
         "libflatbuffers-cpp",
@@ -129,6 +128,7 @@ cc_binary {
     ],
     shared_libs: [
         "libPlatformProperties",
+        "libaconfig_storage_read_api_cc",
         "libcrypto",
         "libcutils", // property_get_bool
         "libhidlbase",

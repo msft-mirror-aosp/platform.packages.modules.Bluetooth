@@ -527,8 +527,8 @@ bool sdpu_process_pend_ccb_new_cid(tCONN_CB& ccb) {
       if (!new_conn) {
         // Only change state of the first ccb
         p_ccb->con_state = SDP_STATE_CONN_SETUP;
-        new_cid =
-            L2CA_ConnectReq2(BT_PSM_SDP, p_ccb->device_address, BTM_SEC_NONE);
+        new_cid = L2CA_ConnectReqWithSecurity(BT_PSM_SDP, p_ccb->device_address,
+                                              BTM_SEC_NONE);
         new_conn = true;
       }
       // Check if L2CAP started the connection process
@@ -739,7 +739,8 @@ void sdpu_build_n_send_error(tCONN_CB* p_ccb, uint16_t trans_num,
   p_buf->len = p_rsp - p_rsp_start;
 
   /* Send the buffer through L2CAP */
-  if (L2CA_DataWrite(p_ccb->connection_id, p_buf) != L2CAP_DW_SUCCESS) {
+  if (L2CA_DataWrite(p_ccb->connection_id, p_buf) !=
+      tL2CAP_DW_RESULT::L2CAP_DW_SUCCESS) {
     log::warn("Unable to write L2CAP data cid:{}", p_ccb->connection_id);
   }
 }

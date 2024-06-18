@@ -50,6 +50,7 @@
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_sec_api.h"
+#include "stack/include/btm_client_interface.h"
 
 using base::Closure;
 using bluetooth::Uuid;
@@ -862,7 +863,7 @@ class CsisClientImpl : public CsisClient {
     if (device->is_gatt_service_valid) {
       NotifyCsisDeviceValidAndStoreIfNeeded(device);
     } else {
-      BTA_GATTC_ServiceSearchRequest(device->conn_id, &kCsisServiceUuid);
+      BTA_GATTC_ServiceSearchRequest(device->conn_id, kCsisServiceUuid);
     }
   }
 
@@ -1446,8 +1447,10 @@ class CsisClientImpl : public CsisClient {
 
   void CheckForGroupInInqDb(const std::shared_ptr<CsisGroup>& csis_group) {
     // Check if last inquiry already found devices with RSI matching this group
-    for (tBTM_INQ_INFO* inq_ent = BTM_InqDbFirst(); inq_ent != nullptr;
-         inq_ent = BTM_InqDbNext(inq_ent)) {
+    for (tBTM_INQ_INFO* inq_ent =
+             get_btm_client_interface().db.BTM_InqDbFirst();
+         inq_ent != nullptr;
+         inq_ent = get_btm_client_interface().db.BTM_InqDbNext(inq_ent)) {
       RawAddress rsi = inq_ent->results.ble_ad_rsi;
       if (!csis_group->IsRsiMatching(rsi)) continue;
 
@@ -2135,7 +2138,7 @@ class CsisClientImpl : public CsisClient {
     if (device->is_gatt_service_valid) {
       instance->OnEncrypted(device);
     } else {
-      BTA_GATTC_ServiceSearchRequest(device->conn_id, &kCsisServiceUuid);
+      BTA_GATTC_ServiceSearchRequest(device->conn_id, kCsisServiceUuid);
     }
   }
 
@@ -2151,7 +2154,7 @@ class CsisClientImpl : public CsisClient {
     BtaGattQueue::Clean(device->conn_id);
     DeregisterNotifications(device);
     device->ClearSvcData();
-    BTA_GATTC_ServiceSearchRequest(device->conn_id, &kCsisServiceUuid);
+    BTA_GATTC_ServiceSearchRequest(device->conn_id, kCsisServiceUuid);
   }
 
   void OnGattServiceChangeEvent(const RawAddress& address) {
@@ -2175,7 +2178,7 @@ class CsisClientImpl : public CsisClient {
     log::debug("address={}", address);
 
     if (!device->is_gatt_service_valid)
-      BTA_GATTC_ServiceSearchRequest(device->conn_id, &kCsisServiceUuid);
+      BTA_GATTC_ServiceSearchRequest(device->conn_id, kCsisServiceUuid);
   }
 
   static uint16_t FindCccHandle(uint16_t conn_id, uint16_t char_handle) {

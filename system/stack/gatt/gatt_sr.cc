@@ -162,6 +162,13 @@ static void build_read_multi_rsp(tGATT_SR_CMD* p_cmd, uint16_t mtu) {
   uint8_t* p;
   bool is_overflow = false;
 
+  // We need at least one extra byte for the opcode
+  if (mtu == 0) {
+    log::error("Invalid MTU");
+    p_cmd->status = GATT_ILLEGAL_PARAMETER;
+    return;
+  }
+
   len = sizeof(BT_HDR) + L2CAP_MIN_OFFSET + mtu;
   BT_HDR* p_buf = (BT_HDR*)osi_calloc(len);
   p_buf->offset = L2CAP_MIN_OFFSET;
@@ -854,7 +861,7 @@ static void gatts_process_mtu_req(tGATT_TCB& tcb, uint16_t cid, uint16_t len,
   gatt_sr_msg.mtu = gatt_get_local_mtu();
 
   log::info("MTU {} request from remote ({}), resulted MTU {}", mtu,
-            tcb.peer_bda.ToString(), tcb.payload_size);
+            tcb.peer_bda, tcb.payload_size);
 
   BTM_SetBleDataLength(tcb.peer_bda, tcb.payload_size + L2CAP_PKT_OVERHEAD);
 

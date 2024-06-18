@@ -9,7 +9,8 @@ use log::warn;
 #[cxx::bridge(namespace = bluetooth::topshim::rust)]
 pub mod ffi {
     unsafe extern "C++" {
-        include!("gd/rust/topshim/common/type_alias.h");
+        include!("types/raw_address.h");
+        #[namespace = ""]
         type RawAddress = crate::btif::RawAddress;
     }
 
@@ -71,6 +72,14 @@ pub mod ffi {
         AudioSourceCamcorder = 5,
         AudioSourceVoiceRecognition = 6,
         AudioSourceVoiceCommunication = 7,
+    }
+
+    #[derive(Debug, Copy, Clone)]
+    #[repr(i32)]
+    pub enum BtLeStreamStartedStatus {
+        Canceled = -1,
+        Idle = 0,
+        Started = 1,
     }
 
     #[derive(Debug, Default)]
@@ -162,8 +171,8 @@ pub mod ffi {
         fn peer_stop_audio_request(self: Pin<&mut LeAudioClientIntf>);
         fn get_host_pcm_config(self: Pin<&mut LeAudioClientIntf>) -> BtLePcmConfig;
         fn get_peer_pcm_config(self: Pin<&mut LeAudioClientIntf>) -> BtLePcmConfig;
-        fn get_host_stream_started(self: Pin<&mut LeAudioClientIntf>) -> bool;
-        fn get_peer_stream_started(self: Pin<&mut LeAudioClientIntf>) -> bool;
+        fn get_host_stream_started(self: Pin<&mut LeAudioClientIntf>) -> BtLeStreamStartedStatus;
+        fn get_peer_stream_started(self: Pin<&mut LeAudioClientIntf>) -> BtLeStreamStartedStatus;
         fn source_metadata_changed(
             self: Pin<&mut LeAudioClientIntf>,
             metadata: Vec<SourceMetadata>,
@@ -218,6 +227,7 @@ pub type BtLeAudioDirection = ffi::BtLeAudioDirection;
 pub type BtLeAudioGroupStatus = ffi::BtLeAudioGroupStatus;
 pub type BtLeAudioGroupNodeStatus = ffi::BtLeAudioGroupNodeStatus;
 pub type BtLePcmConfig = ffi::BtLePcmConfig;
+pub type BtLeStreamStartedStatus = ffi::BtLeStreamStartedStatus;
 pub type BtLeAudioUsage = ffi::BtLeAudioUsage;
 pub type BtLeAudioContentType = ffi::BtLeAudioContentType;
 pub type BtLeAudioSource = ffi::BtLeAudioSource;
@@ -245,6 +255,12 @@ impl From<i32> for BtLeAudioGroupStatus {
             2 => BtLeAudioGroupStatus::TurnedIdleDuringCall,
             _ => panic!("Invalid value {} for BtLeAudioGroupStatus", value),
         }
+    }
+}
+
+impl Default for BtLeAudioGroupStatus {
+    fn default() -> Self {
+        BtLeAudioGroupStatus::Inactive
     }
 }
 
@@ -348,6 +364,27 @@ impl From<i32> for BtLeAudioSource {
     }
 }
 
+impl From<BtLeStreamStartedStatus> for i32 {
+    fn from(value: BtLeStreamStartedStatus) -> Self {
+        match value {
+            BtLeStreamStartedStatus::Canceled => -1,
+            BtLeStreamStartedStatus::Idle => 0,
+            BtLeStreamStartedStatus::Started => 1,
+            _ => panic!("Invalid value {:?} for BtLeStreamStartedStatus", value),
+        }
+    }
+}
+
+impl From<i32> for BtLeStreamStartedStatus {
+    fn from(value: i32) -> Self {
+        match value {
+            -1 => BtLeStreamStartedStatus::Canceled,
+            0 => BtLeStreamStartedStatus::Idle,
+            1 => BtLeStreamStartedStatus::Started,
+            _ => panic!("Invalid value {} for BtLeStreamStartedStatus", value),
+        }
+    }
+}
 impl From<BtLeAudioUnicastMonitorModeStatus> for i32 {
     fn from(value: BtLeAudioUnicastMonitorModeStatus) -> Self {
         match value {
@@ -399,6 +436,12 @@ impl From<i32> for BtLeAudioGroupStreamStatus {
             7 => BtLeAudioGroupStreamStatus::Destroyed,
             _ => panic!("Invalid value {} to BtLeAudioGroupStreamStatus", value),
         }
+    }
+}
+
+impl Default for BtLeAudioGroupStreamStatus {
+    fn default() -> Self {
+        BtLeAudioGroupStreamStatus::Idle
     }
 }
 
@@ -681,13 +724,13 @@ impl LeAudioClient {
         self.internal.pin_mut().get_peer_pcm_config()
     }
 
-    #[profile_enabled_or(false)]
-    pub fn get_host_stream_started(&mut self) -> bool {
+    #[profile_enabled_or(BtLeStreamStartedStatus::Idle)]
+    pub fn get_host_stream_started(&mut self) -> BtLeStreamStartedStatus {
         self.internal.pin_mut().get_host_stream_started()
     }
 
-    #[profile_enabled_or(false)]
-    pub fn get_peer_stream_started(&mut self) -> bool {
+    #[profile_enabled_or(BtLeStreamStartedStatus::Idle)]
+    pub fn get_peer_stream_started(&mut self) -> BtLeStreamStartedStatus {
         self.internal.pin_mut().get_peer_stream_started()
     }
 

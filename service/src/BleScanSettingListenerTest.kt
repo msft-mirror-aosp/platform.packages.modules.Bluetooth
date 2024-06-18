@@ -20,6 +20,7 @@ import android.content.Context
 import android.os.Looper
 import android.provider.Settings
 import androidx.test.core.app.ApplicationProvider
+import com.android.server.bluetooth.BleScanSettingListener.BLE_SCAN_ALWAYS_AVAILABLE
 import com.android.server.bluetooth.BleScanSettingListener.initialize
 import com.android.server.bluetooth.BleScanSettingListener.isScanAllowed
 import com.google.common.truth.Truth.assertThat
@@ -41,7 +42,6 @@ class BleScanSettingListenerTest {
     @Before
     public fun setup() {
         callbackTriggered = false
-        enableSetting()
     }
 
     private fun startListener() {
@@ -49,17 +49,25 @@ class BleScanSettingListenerTest {
     }
 
     private fun enableSetting() {
-        Settings.Global.putInt(resolver, Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE, 1)
+        Settings.Global.putInt(resolver, BLE_SCAN_ALWAYS_AVAILABLE, 1)
         shadowOf(looper).idle()
     }
 
     private fun disableSetting() {
-        Settings.Global.putInt(resolver, Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE, 0)
+        Settings.Global.putInt(resolver, BLE_SCAN_ALWAYS_AVAILABLE, 0)
         shadowOf(looper).idle()
     }
 
     private fun callback() {
         callbackTriggered = true
+    }
+
+    @Test
+    fun initialize_whenNoSettings_isOff() {
+        startListener()
+
+        assertThat(isScanAllowed).isFalse()
+        assertThat(callbackTriggered).isFalse()
     }
 
     @Test
@@ -74,6 +82,7 @@ class BleScanSettingListenerTest {
 
     @Test
     fun initialize_whenSettingsOn_isScanAllowed() {
+        enableSetting()
         startListener()
 
         assertThat(isScanAllowed).isTrue()
@@ -82,6 +91,7 @@ class BleScanSettingListenerTest {
 
     @Test
     fun changeModeToOn_whenSettingsOn_isScanAllowedAndEventDiscarded() {
+        enableSetting()
         startListener()
 
         enableSetting()
@@ -92,7 +102,6 @@ class BleScanSettingListenerTest {
 
     @Test
     fun changeModeToOff_whenSettingsOff_isOffAndEventDiscarded() {
-        disableSetting()
         startListener()
 
         disableSetting()
@@ -103,7 +112,6 @@ class BleScanSettingListenerTest {
 
     @Test
     fun changeModeToOn_whenSettingsOff_isScanAllowedWithoutCallback() {
-        disableSetting()
         startListener()
 
         enableSetting()
@@ -114,6 +122,7 @@ class BleScanSettingListenerTest {
 
     @Test
     fun changeModeToOff_whenSettingsOn_isOffAndCallbackTriggered() {
+        enableSetting()
         startListener()
 
         disableSetting()

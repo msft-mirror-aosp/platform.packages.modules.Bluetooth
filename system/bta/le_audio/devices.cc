@@ -250,18 +250,42 @@ bool LeAudioDevice::ConfigureAses(
   /* First try to use the already configured ASE */
   auto ase = GetFirstActiveAseByDirection(direction);
   if (ase) {
-    log::info("Using an already active ASE id={}", ase->id);
+    log::info("{}, using an already active ASE id={}", address_, ase->id);
   } else {
     ase = GetFirstInactiveAse(direction, reuse_cis_id);
   }
 
   if (!ase) {
-    log::error("Unable to find an ASE to configure");
+    log::error("{}, unable to find an ASE to configure", address_);
     PrintDebugState();
     return false;
   }
 
-  auto const& ase_configs = audio_set_conf->confs.get(direction);
+  auto audio_locations = (direction == types::kLeAudioDirectionSink)
+                             ? snk_audio_locations_
+                             : src_audio_locations_;
+
+  auto const& group_ase_configs = audio_set_conf->confs.get(direction);
+  std::vector<set_configurations::AseConfiguration> ase_configs;
+  std::copy_if(group_ase_configs.cbegin(), group_ase_configs.cend(),
+               std::back_inserter(ase_configs),
+               [&audio_locations](auto const& cfg) {
+                 /* Pass as matching if config has no allocation to match
+                  * (the legacy json config provider). Otherwise, with the codec
+                  * extensibility feature enabled, we receive ASE configurations
+                  * for the whole group and we should filter them by audio
+                  * allocations to match with the locations supported by a
+                  * particular device.
+                  */
+                 auto config = cfg.codec.params.GetAsCoreCodecConfig();
+                 if (!config.audio_channel_allocation.has_value()) return true;
+
+                 // Filter-out not matching audio locations
+                 return (cfg.codec.params.GetAsCoreCodecConfig()
+                             .audio_channel_allocation.value() &
+                         audio_locations.to_ulong()) != 0;
+               });
+
   auto const& pacs =
       (direction == types::kLeAudioDirectionSink) ? snk_pacs_ : src_pacs_;
   for (size_t i = 0; i < ase_configs.size() && ase; ++i) {
@@ -280,26 +304,24 @@ bool LeAudioDevice::ConfigureAses(
    */
   uint8_t active_ases = *number_of_already_active_group_ase;
 
-  auto audio_locations = (direction == types::kLeAudioDirectionSink)
-                             ? snk_audio_locations_
-                             : src_audio_locations_;
-
   // Before we activate the ASEs, make sure we have the right configuration
   // Check for matching PACs only if we know that the LTV format is being used.
   uint8_t max_required_ase_per_dev = ase_configs.size() / num_of_devices +
                                      (ase_configs.size() % num_of_devices);
-  int needed_ase = std::min((int)(max_required_ase_per_dev),
-                            (int)(ase_configs.size() - active_ases));
+  int needed_ase =
+      std::min((int)(max_required_ase_per_dev), (int)(ase_configs.size()));
+
   for (int i = 0; i < needed_ase; ++i) {
     auto const& ase_cfg = ase_configs.at(i);
     if (utils::IsCodecUsingLtvFormat(ase_cfg.codec.id) &&
         !utils::GetConfigurationSupportedPac(pacs, ase_cfg.codec)) {
-      log::error("No matching PAC found. Stop the activation.");
+      log::error("{}, no matching PAC found. Stop the activation.", address_);
       return false;
     }
   }
 
-  auto strategy = utils::GetStrategyForAseConfig(ase_configs, num_of_devices);
+  auto strategy =
+      utils::GetStrategyForAseConfig(group_ase_configs, num_of_devices);
 
   // Make sure we configure a single microphone if Dual Bidir SWB is not
   // supported.
@@ -309,8 +331,9 @@ bool LeAudioDevice::ConfigureAses(
     if (CodecManager::GetInstance()->CheckCodecConfigIsDualBiDirSwb(
             *audio_set_conf)) {
       log::error(
-          "Trying to configure the dual bidir SWB, but the feature is "
-          "disabled. This should not happen! Skipping ASE activation.");
+          "{}, trying to configure the dual bidir SWB, but the feature is "
+          "disabled. This should not happen! Skipping ASE activation.",
+          address_);
       return true;
     }
   }
@@ -443,7 +466,7 @@ void LeAudioDevice::ParseHeadtrackingCodec(
      */
     std::vector<uint8_t> ltv = pac.metadata;
     if (ltv.size() < 7) {
-      log::info("Headtracker codec does not have metadata");
+      log::info("{}, headtracker codec does not have metadata", address_);
       return;
     }
 
@@ -452,7 +475,7 @@ void LeAudioDevice::ParseHeadtrackingCodec(
         ltv[3] != (types::kLeAudioVendorCompanyIdGoogle >> 8) ||
         ltv[4] != types::kLeAudioMetadataHeadtrackerTransportLen ||
         ltv[5] != types::kLeAudioMetadataHeadtrackerTransportVal) {
-      log::warn("Headtracker codec metadata invalid");
+      log::warn("{}, headtracker codec metadata invalid", address_);
       return;
     }
 
@@ -461,13 +484,13 @@ void LeAudioDevice::ParseHeadtrackingCodec(
 
     if ((supported_transports &
          types::kLeAudioMetadataHeadtrackerTransportLeAcl) != 0) {
-      log::debug("Headtracking supported over LE-ACL");
+      log::debug("{}, headtracking supported over LE-ACL", address_);
       dsa_modes.push_back(DsaMode::ACL);
     }
 
     if ((supported_transports &
          types::kLeAudioMetadataHeadtrackerTransportLeIso) != 0) {
-      log::debug("Headtracking supported over LE-ISO");
+      log::debug("{}, headtracking supported over LE-ISO", address_);
       dsa_modes.push_back(DsaMode::ISO_SW);
       dsa_modes.push_back(DsaMode::ISO_HW);
     }
@@ -481,7 +504,7 @@ void LeAudioDevice::RegisterPACs(
     std::vector<struct types::acs_ac_record>* pac_recs) {
   /* Clear PAC database for characteristic in case if re-read, indicated */
   if (!pac_db->empty()) {
-    log::debug("upgrade PACs for characteristic");
+    log::debug("{}, upgrade PACs for characteristic", address_);
     pac_db->clear();
   }
 
@@ -578,7 +601,8 @@ struct ase* LeAudioDevice::GetNextActiveAseWithDifferentDirection(
 
   /* Invalid ase given */
   if (std::distance(iter, ases_.end()) < 1) {
-    log::debug("ASE {} does not use bidirectional CIS", base_ase->id);
+    log::debug("{}, ASE {} does not use bidirectional CIS", address_,
+               base_ase->id);
     return nullptr;
   }
 
@@ -715,6 +739,7 @@ bool LeAudioDevice::HaveAnyUnconfiguredAses(void) {
 }
 
 bool LeAudioDevice::HaveAllActiveAsesSameState(AseState state) {
+  log::verbose("{}", address_);
   auto iter =
       std::find_if(ases_.begin(), ases_.end(), [&state](const auto& ase) {
         log::verbose("ASE id: {}, active: {}, state: {}", ase.id, ase.active,
@@ -727,6 +752,7 @@ bool LeAudioDevice::HaveAllActiveAsesSameState(AseState state) {
 
 bool LeAudioDevice::HaveAllActiveAsesSameDataPathState(
     types::DataPathState state) const {
+  log::verbose("{}", address_);
   auto iter =
       std::find_if(ases_.begin(), ases_.end(), [&state](const auto& ase) {
         log::verbose("ASE id: {}, active: {}, state: {}", ase.id, ase.active,
@@ -738,6 +764,7 @@ bool LeAudioDevice::HaveAllActiveAsesSameDataPathState(
 }
 
 bool LeAudioDevice::IsReadyToCreateStream(void) {
+  log::verbose("{}", address_);
   auto iter = std::find_if(ases_.begin(), ases_.end(), [](const auto& ase) {
     if (!ase.active) return false;
 
@@ -785,6 +812,8 @@ bool LeAudioDevice::HaveAllActiveAsesCisEst(void) const {
     return true;
   }
 
+  log::verbose("{}", address_);
+
   bool has_active_ase = false;
   auto iter = std::find_if(ases_.begin(), ases_.end(), [&](const auto& ase) {
     if (!has_active_ase && ase.active) {
@@ -816,7 +845,7 @@ uint8_t LeAudioDevice::GetSupportedAudioChannelCounts(uint8_t direction) const {
       direction == types::kLeAudioDirectionSink ? snk_pacs_ : src_pacs_;
 
   if (pacs.size() == 0) {
-    log::error("missing PAC for direction {}", direction);
+    log::error("{}, missing PAC for direction {}", address_, direction);
     return 0;
   }
 
@@ -826,7 +855,7 @@ uint8_t LeAudioDevice::GetSupportedAudioChannelCounts(uint8_t direction) const {
 
     for (const auto pac : pac_recs) {
       if (!utils::IsCodecUsingLtvFormat(pac.codec_id)) {
-        log::warn("Unknown codec PAC record for codec: {}",
+        log::warn(" {} Unknown codec PAC record for codec: {}", address_,
                   bluetooth::common::ToString(pac.codec_id));
         continue;
       }
@@ -910,12 +939,14 @@ uint8_t LeAudioDevice::GetPreferredPhyBitmask(uint8_t preferred_phy) const {
   // Take the preferences if possible
   if (preferred_phy && (phy_bitmask & preferred_phy)) {
     phy_bitmask &= preferred_phy;
-    log::debug("Using ASE preferred phy 0x{:02x}",
+    log::debug("{},  using ASE preferred phy 0x{:02x}", address_,
                static_cast<int>(phy_bitmask));
   } else {
     log::warn(
-        "ASE preferred 0x{:02x} has nothing common with phy_bitfield  0x{:02x}",
-        static_cast<int>(preferred_phy), static_cast<int>(phy_bitmask));
+        " {}, ASE preferred 0x{:02x} has nothing common with phy_bitfield  "
+        "0x{:02x}",
+        address_, static_cast<int>(preferred_phy),
+        static_cast<int>(phy_bitmask));
   }
   return phy_bitmask;
 }
@@ -1033,10 +1064,12 @@ void LeAudioDevice::DisconnectAcl(void) {
 void LeAudioDevice::SetAvailableContexts(
     BidirectionalPair<AudioContexts> contexts) {
   log::debug(
-      "\n\t previous_contexts_.sink: {} \n\t previous_contexts_.source: {}  "
+      "{}: \n\t previous_contexts_.sink: {} \n\t previous_contexts_.source: {} "
+      " "
       "\n\t new_contexts.sink: {} \n\t new_contexts.source: {} \n\t",
-      avail_contexts_.sink.to_string(), avail_contexts_.source.to_string(),
-      contexts.sink.to_string(), contexts.source.to_string());
+      address_, avail_contexts_.sink.to_string(),
+      avail_contexts_.source.to_string(), contexts.sink.to_string(),
+      contexts.source.to_string());
 
   avail_contexts_.sink = contexts.sink;
   avail_contexts_.source = contexts.source;
