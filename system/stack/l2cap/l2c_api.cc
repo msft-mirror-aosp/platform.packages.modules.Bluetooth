@@ -65,10 +65,10 @@ tBT_TRANSPORT l2c_get_transport_from_fixed_cid(uint16_t fixed_cid) {
   return BT_TRANSPORT_BR_EDR;
 }
 
-uint16_t L2CA_Register2(uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info,
-                        bool enable_snoop, tL2CAP_ERTM_INFO* p_ertm_info,
-                        uint16_t my_mtu, uint16_t required_remote_mtu,
-                        uint16_t sec_level) {
+uint16_t L2CA_RegisterWithSecurity(
+    uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
+    tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu,
+    uint16_t required_remote_mtu, uint16_t sec_level) {
   auto ret = L2CA_Register(psm, p_cb_info, enable_snoop, p_ertm_info, my_mtu,
                            required_remote_mtu, sec_level);
   get_btm_client_interface().security.BTM_SetSecurityLevel(
@@ -116,7 +116,7 @@ static const bool enforce_assert = check_l2cap_credit();
 uint16_t L2CA_Register(uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info,
                        bool enable_snoop, tL2CAP_ERTM_INFO* p_ertm_info,
                        uint16_t my_mtu, uint16_t required_remote_mtu,
-                       uint16_t sec_level) {
+                       uint16_t /* sec_level */) {
   const bool config_cfm_cb = (p_cb_info.pL2CA_ConfigCfm_Cb != nullptr);
   const bool config_ind_cb = (p_cb_info.pL2CA_ConfigInd_Cb != nullptr);
   const bool data_ind_cb = (p_cb_info.pL2CA_DataInd_Cb != nullptr);
@@ -293,8 +293,8 @@ void L2CA_FreeLePSM(uint16_t psm) {
   l2cb.le_dyn_psm_assigned[psm - LE_DYNAMIC_PSM_START] = false;
 }
 
-uint16_t L2CA_ConnectReq2(uint16_t psm, const RawAddress& p_bd_addr,
-                          uint16_t sec_level) {
+uint16_t L2CA_ConnectReqWithSecurity(uint16_t psm, const RawAddress& p_bd_addr,
+                                     uint16_t sec_level) {
   get_btm_client_interface().security.BTM_SetSecurityLevel(
       true, "", 0, sec_level, psm, 0, 0);
   return L2CA_ConnectReq(psm, p_bd_addr);
@@ -842,7 +842,7 @@ std::vector<uint16_t> L2CA_ConnectCreditBasedReq(uint16_t psm,
  *
  ******************************************************************************/
 
-bool L2CA_ReconfigCreditBasedConnsReq(const RawAddress& bda,
+bool L2CA_ReconfigCreditBasedConnsReq(const RawAddress& /* bda */,
                                       std::vector<uint16_t>& lcids,
                                       tL2CAP_LE_CFG_INFO* p_cfg) {
   tL2C_CCB* p_ccb;
@@ -931,12 +931,29 @@ bool L2CA_DisconnectReq(uint16_t cid) {
 
 bool L2CA_DisconnectLECocReq(uint16_t cid) { return L2CA_DisconnectReq(cid); }
 
-bool L2CA_GetRemoteCid(uint16_t lcid, uint16_t* rcid) {
-  tL2C_CCB* control_block = l2cu_find_ccb_by_cid(NULL, lcid);
-  if (!control_block) return false;
+/*******************************************************************************
+ *
+ *  Function        L2CA_GetRemoteChannelId
+ *
+ *  Description     Get remote channel ID for Connection Oriented Channel.
+ *
+ *  Parameters:     lcid: Local CID
+ *                  rcid: Pointer to remote CID
+ *
+ *  Return value:   true if peer is connected
+ *
+ ******************************************************************************/
+bool L2CA_GetRemoteChannelId(uint16_t lcid, uint16_t* rcid) {
+  log::assert_that(rcid != nullptr, "assert failed: rcid != nullptr");
 
-  if (rcid) *rcid = control_block->remote_cid;
+  log::verbose("LCID: 0x{:04x}", lcid);
+  tL2C_CCB* p_ccb = l2cu_find_ccb_by_cid(nullptr, lcid);
+  if (p_ccb == nullptr) {
+    log::error("No CCB for CID:0x{:04x}", lcid);
+    return false;
+  }
 
+  *rcid = p_ccb->remote_cid;
   return true;
 }
 
@@ -1266,12 +1283,13 @@ bool L2CA_ConnectFixedChnl(uint16_t fixed_cid, const RawAddress& rem_bda) {
  *                  BD Address of remote
  *                  Pointer to buffer of type BT_HDR
  *
- * Return value     L2CAP_DW_SUCCESS, if data accepted
- *                  L2CAP_DW_FAILED,  if error
+ * Return value     tL2CAP_DW_RESULT::L2CAP_DW_SUCCESS, if data accepted
+ *                  tL2CAP_DW_RESULT::L2CAP_DW_FAILED,  if error
  *
  ******************************************************************************/
-uint16_t L2CA_SendFixedChnlData(uint16_t fixed_cid, const RawAddress& rem_bda,
-                                BT_HDR* p_buf) {
+tL2CAP_DW_RESULT L2CA_SendFixedChnlData(uint16_t fixed_cid,
+                                        const RawAddress& rem_bda,
+                                        BT_HDR* p_buf) {
   tL2C_LCB* p_lcb;
   tBT_TRANSPORT transport = BT_TRANSPORT_BR_EDR;
 
@@ -1284,13 +1302,13 @@ uint16_t L2CA_SendFixedChnlData(uint16_t fixed_cid, const RawAddress& rem_bda,
        NULL)) {
     log::warn("No service registered or invalid CID: 0x{:04x}", fixed_cid);
     osi_free(p_buf);
-    return (L2CAP_DW_FAILED);
+    return (tL2CAP_DW_RESULT::L2CAP_DW_FAILED);
   }
 
   if (!BTM_IsDeviceUp()) {
     log::warn("Controller is not ready CID: 0x{:04x}", fixed_cid);
     osi_free(p_buf);
-    return (L2CAP_DW_FAILED);
+    return (tL2CAP_DW_RESULT::L2CAP_DW_FAILED);
   }
 
   p_lcb = l2cu_find_lcb_by_bd_addr(rem_bda, transport);
@@ -1299,7 +1317,7 @@ uint16_t L2CA_SendFixedChnlData(uint16_t fixed_cid, const RawAddress& rem_bda,
     log::warn("Link is disconnecting or does not exist CID: 0x{:04x}",
               fixed_cid);
     osi_free(p_buf);
-    return (L2CAP_DW_FAILED);
+    return (tL2CAP_DW_RESULT::L2CAP_DW_FAILED);
   }
 
   tL2C_BLE_FIXED_CHNLS_MASK peer_channel_mask;
@@ -1313,7 +1331,7 @@ uint16_t L2CA_SendFixedChnlData(uint16_t fixed_cid, const RawAddress& rem_bda,
   if ((peer_channel_mask & (1 << fixed_cid)) == 0) {
     log::warn("Peer does not support fixed channel CID: 0x{:04x}", fixed_cid);
     osi_free(p_buf);
-    return (L2CAP_DW_FAILED);
+    return (tL2CAP_DW_RESULT::L2CAP_DW_FAILED);
   }
 
   p_buf->event = 0;
@@ -1323,7 +1341,7 @@ uint16_t L2CA_SendFixedChnlData(uint16_t fixed_cid, const RawAddress& rem_bda,
     if (!l2cu_initialize_fixed_ccb(p_lcb, fixed_cid)) {
       log::warn("No channel control block found for CID: 0x{:4x}", fixed_cid);
       osi_free(p_buf);
-      return (L2CAP_DW_FAILED);
+      return (tL2CAP_DW_RESULT::L2CAP_DW_FAILED);
     }
   }
 
@@ -1337,7 +1355,7 @@ uint16_t L2CA_SendFixedChnlData(uint16_t fixed_cid, const RawAddress& rem_bda,
                 ->xmit_hold_q),
         p_lcb->p_fixed_ccbs[fixed_cid - L2CAP_FIRST_FIXED_CHNL]->buff_quota);
     osi_free(p_buf);
-    return (L2CAP_DW_FAILED);
+    return (tL2CAP_DW_RESULT::L2CAP_DW_FAILED);
   }
 
   log::debug("Enqueued data for CID: 0x{:04x} len:{}", fixed_cid, p_buf->len);
@@ -1355,10 +1373,10 @@ uint16_t L2CA_SendFixedChnlData(uint16_t fixed_cid, const RawAddress& rem_bda,
 
   if (p_lcb->p_fixed_ccbs[fixed_cid - L2CAP_FIRST_FIXED_CHNL]->cong_sent) {
     log::debug("Link congested for CID: 0x{:04x}", fixed_cid);
-    return (L2CAP_DW_CONGESTED);
+    return (tL2CAP_DW_RESULT::L2CAP_DW_CONGESTED);
   }
 
-  return (L2CAP_DW_SUCCESS);
+  return (tL2CAP_DW_RESULT::L2CAP_DW_SUCCESS);
 }
 
 /*******************************************************************************
@@ -1478,18 +1496,19 @@ bool L2CA_MarkLeLinkAsActive(const RawAddress& rem_bda) {
  *
  * Description      Higher layers call this function to write data.
  *
- * Returns          L2CAP_DW_SUCCESS, if data accepted, else false
- *                  L2CAP_DW_CONGESTED, if data accepted and the channel is
- *                                      congested
- *                  L2CAP_DW_FAILED, if error
+ * Returns          tL2CAP_DW_RESULT::L2CAP_DW_SUCCESS, if data accepted, else
+ *                  false
+ *                  tL2CAP_DW_RESULT::L2CAP_DW_CONGESTED, if data accepted
+ *                  and the channel is congested
+ *                  tL2CAP_DW_RESULT::L2CAP_DW_FAILED, if error
  *
  ******************************************************************************/
-uint8_t L2CA_DataWrite(uint16_t cid, BT_HDR* p_data) {
+tL2CAP_DW_RESULT L2CA_DataWrite(uint16_t cid, BT_HDR* p_data) {
   log::verbose("L2CA_DataWrite()  CID: 0x{:04x}  Len: {}", cid, p_data->len);
   return l2c_data_write(cid, p_data, L2CAP_FLUSHABLE_CH_BASED);
 }
 
-uint8_t L2CA_LECocDataWrite(uint16_t cid, BT_HDR* p_data) {
+tL2CAP_DW_RESULT L2CA_LECocDataWrite(uint16_t cid, BT_HDR* p_data) {
   return L2CA_DataWrite(cid, p_data);
 }
 
@@ -1756,32 +1775,6 @@ bool L2CA_isMediaChannel(uint16_t handle, uint16_t channel_id,
   }
 
   return ret;
-}
-
-/*******************************************************************************
- *
- *  Function        L2CA_GetPeerChannelId
- *
- *  Description     Get remote channel ID for Connection Oriented Channel.
- *
- *  Parameters:     lcid: Local CID
- *                  rcid: Pointer to remote CID
- *
- *  Return value:   true if peer is connected
- *
- ******************************************************************************/
-bool L2CA_GetPeerChannelId(uint16_t lcid, uint16_t* rcid) {
-  log::verbose("CID: 0x{:04x}", lcid);
-
-  tL2C_CCB* p_ccb = l2cu_find_ccb_by_cid(nullptr, lcid);
-  if (p_ccb == nullptr) {
-    log::error("No CCB for CID:0x{:04x}", lcid);
-    return false;
-  }
-
-  log::assert_that(rcid != nullptr, "assert failed: rcid != nullptr");
-  *rcid = p_ccb->remote_cid;
-  return true;
 }
 
 using namespace bluetooth;

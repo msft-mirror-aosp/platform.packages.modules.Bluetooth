@@ -66,7 +66,6 @@ typedef enum : uint8_t {
   BTA_GATTC_SRVC_DISC_DONE_EVT = 8, /* GATT service discovery done event */
   BTA_GATTC_NOTIF_EVT = 10,         /* GATT attribute notification event */
   BTA_GATTC_EXEC_EVT = 12,          /* execute write complete event */
-  BTA_GATTC_ACL_EVT = 13,           /* ACL up event */
   BTA_GATTC_CANCEL_OPEN_EVT = 14,   /* cancel open event */
   BTA_GATTC_SRVC_CHG_EVT = 15,      /* service change event */
   BTA_GATTC_ENC_CMPL_CB_EVT = 17,   /* encryption complete callback event */
@@ -87,7 +86,6 @@ inline std::string gatt_client_event_text(const tBTA_GATTC_EVT& event) {
     CASE_RETURN_TEXT(BTA_GATTC_SRVC_DISC_DONE_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_NOTIF_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_EXEC_EVT);
-    CASE_RETURN_TEXT(BTA_GATTC_ACL_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_CANCEL_OPEN_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_SRVC_CHG_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_ENC_CMPL_CB_EVT);
@@ -541,6 +539,22 @@ void BTA_GATTC_Close(uint16_t conn_id);
 
 /*******************************************************************************
  *
+ * Function         BTA_GATTC_ServiceSearchAllRequest
+ *
+ * Description      This function is called to request a GATT service discovery
+ *                  of all services on a GATT server. This function report
+ *                  service search result by a callback event, and followed by a
+ *                  service search complete event.
+ *
+ * Parameters       conn_id: connection ID.
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+void BTA_GATTC_ServiceSearchAllRequest(uint16_t conn_id);
+
+/*******************************************************************************
+ *
  * Function         BTA_GATTC_ServiceSearchRequest
  *
  * Description      This function is called to request a GATT service discovery
@@ -550,13 +564,12 @@ void BTA_GATTC_Close(uint16_t conn_id);
  *
  * Parameters       conn_id: connection ID.
  *                  p_srvc_uuid: a UUID of the service application is interested
- *                               in. If Null, discover for all services.
- *
+ *                               in.
  * Returns          None
  *
  ******************************************************************************/
 void BTA_GATTC_ServiceSearchRequest(uint16_t conn_id,
-                                    const bluetooth::Uuid* p_srvc_uuid);
+                                    bluetooth::Uuid p_srvc_uuid);
 
 /**
  * This function is called to send "Find service by UUID" request. Used only for

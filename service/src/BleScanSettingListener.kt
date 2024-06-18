@@ -27,6 +27,9 @@ import android.provider.Settings
 private const val TAG = "BleScanSettingListener"
 
 object BleScanSettingListener {
+    // Must match Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE but cannot depend on the variable
+    const val BLE_SCAN_ALWAYS_AVAILABLE = "ble_scan_always_enabled"
+
     @JvmStatic
     var isScanAllowed = false
         private set
@@ -43,13 +46,17 @@ object BleScanSettingListener {
         val notifyForDescendants = false
 
         resolver.registerContentObserver(
-            Settings.Global.getUriFor(Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE),
+            Settings.Global.getUriFor(BLE_SCAN_ALWAYS_AVAILABLE),
             notifyForDescendants,
             object : ContentObserver(Handler(looper)) {
                 override fun onChange(selfChange: Boolean) {
+                    val previousValue = isScanAllowed
                     isScanAllowed = getScanSettingValue(resolver)
                     if (isScanAllowed) {
                         Log.i(TAG, "Ble Scan mode is now allowed. Nothing to do")
+                        return
+                    } else if (previousValue == isScanAllowed) {
+                        Log.i(TAG, "Ble Scan mode was already considered as false. Discarding")
                         return
                     } else {
                         Log.i(TAG, "Trigger callback to disable BLE_ONLY mode")
@@ -67,6 +74,11 @@ object BleScanSettingListener {
      * @return whether Bluetooth should consider this radio or not
      */
     private fun getScanSettingValue(resolver: ContentResolver): Boolean {
-        return Settings.Global.getInt(resolver, Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE) != 0
+        try {
+            return Settings.Global.getInt(resolver, BLE_SCAN_ALWAYS_AVAILABLE) != 0
+        } catch (e: Settings.SettingNotFoundException) {
+            Log.i(TAG, "Settings not found. Default to false")
+            return false
+        }
     }
 }

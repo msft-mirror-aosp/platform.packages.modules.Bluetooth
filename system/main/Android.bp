@@ -226,6 +226,7 @@ cc_test {
     ],
     shared_libs: [
         "libPlatformProperties",
+        "libaconfig_storage_read_api_cc",
         "libbinder_ndk",
         "libcrypto",
         "server_configurable_flags",
@@ -309,6 +310,7 @@ cc_test {
     ],
     shared_libs: [
         "libPlatformProperties",
+        "libaconfig_storage_read_api_cc",
         "libcrypto",
         "server_configurable_flags",
     ],

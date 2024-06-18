@@ -154,7 +154,7 @@ static void queue_int_release() { connect_queue.clear(); }
 bt_status_t btif_queue_connect(uint16_t uuid, const RawAddress* bda,
                                btif_connect_cb_t connect_cb) {
   return do_in_jni_thread(
-      FROM_HERE, base::BindOnce(&queue_int_add, uuid, *bda, connect_cb));
+      base::BindOnce(&queue_int_add, uuid, *bda, connect_cb));
 }
 
 /*******************************************************************************
@@ -167,7 +167,7 @@ bt_status_t btif_queue_connect(uint16_t uuid, const RawAddress* bda,
  *
  ******************************************************************************/
 void btif_queue_cleanup(uint16_t uuid) {
-  do_in_jni_thread(FROM_HERE, base::BindOnce(&queue_int_cleanup, uuid));
+  do_in_jni_thread(base::BindOnce(&queue_int_cleanup, uuid));
 }
 
 /*******************************************************************************
@@ -181,7 +181,7 @@ void btif_queue_cleanup(uint16_t uuid) {
  *
  ******************************************************************************/
 void btif_queue_advance() {
-  do_in_jni_thread(FROM_HERE, base::BindOnce(&queue_int_advance));
+  do_in_jni_thread(base::BindOnce(&queue_int_advance));
 }
 
 bt_status_t btif_queue_connect_next(void) {
@@ -191,7 +191,7 @@ bt_status_t btif_queue_connect_next(void) {
 
   if (connect_queue.empty()) return BT_STATUS_FAIL;
   if (!stack_manager_get_interface()->get_stack_is_running())
-    return BT_STATUS_FAIL;
+    return BT_STATUS_UNEXPECTED_STATE;
 
   ConnectNode& head = connect_queue.front();
 
@@ -216,7 +216,7 @@ bt_status_t btif_queue_connect_next(void) {
  ******************************************************************************/
 void btif_queue_release() {
   log::info("");
-  if (do_in_jni_thread(FROM_HERE, base::BindOnce(&queue_int_release)) !=
+  if (do_in_jni_thread(base::BindOnce(&queue_int_release)) !=
       BT_STATUS_SUCCESS) {
     log::fatal("Failed to schedule on JNI thread");
   }

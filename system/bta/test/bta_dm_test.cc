@@ -24,7 +24,6 @@
 
 #include <string>
 
-#include "bta/dm/bta_dm_device_search.h"
 #include "bta/dm/bta_dm_device_search_int.h"
 #include "bta/dm/bta_dm_disc.h"
 #include "bta/dm/bta_dm_int.h"
@@ -33,8 +32,6 @@
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/include/bta_api.h"
 #include "bta/test/bta_test_fixtures.h"
-#include "osi/include/compat.h"
-#include "osi/include/osi.h"
 #include "stack/include/btm_status.h"
 #include "test/common/main_handler.h"
 #include "test/common/mock_functions.h"
@@ -221,7 +218,7 @@ TEST_F(BtaDmTest, bta_dm_set_encryption) {
   tBTA_DM_PEER_DEVICE* device =
       bluetooth::legacy::testing::allocate_device_for(kRawAddress, transport);
   ASSERT_TRUE(device != nullptr);
-  device->conn_state = BTA_DM_CONNECTED;
+  device->conn_state = tBTA_DM_CONN_STATE::BTA_DM_CONNECTED;
   device->p_encrypt_cback = nullptr;
 
   // Setup a device that is busy with another encryption
@@ -266,7 +263,7 @@ TEST_F(BtaDmTest, bta_dm_set_encryption) {
   BTA_DM_ENCRYPT_CBACK_queue = {};
 }
 
-void bta_dm_encrypt_cback(const RawAddress* bd_addr, tBT_TRANSPORT transport,
+void bta_dm_encrypt_cback(RawAddress bd_addr, tBT_TRANSPORT transport,
                           void* /* p_ref_data */, tBTM_STATUS result);
 
 TEST_F(BtaDmTest, bta_dm_encrypt_cback) {
@@ -276,24 +273,24 @@ TEST_F(BtaDmTest, bta_dm_encrypt_cback) {
   tBTA_DM_PEER_DEVICE* device =
       bluetooth::legacy::testing::allocate_device_for(kRawAddress, transport);
   ASSERT_TRUE(device != nullptr);
-  device->conn_state = BTA_DM_CONNECTED;
+  device->conn_state = tBTA_DM_CONN_STATE::BTA_DM_CONNECTED;
 
   // Encryption with no callback set
   device->p_encrypt_cback = nullptr;
-  bta_dm_encrypt_cback(&kRawAddress, transport, nullptr, BTM_SUCCESS);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_SUCCESS);
   ASSERT_EQ(0UL, BTA_DM_ENCRYPT_CBACK_queue.size());
 
   // Encryption with callback
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(&kRawAddress, transport, nullptr, BTM_SUCCESS);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_SUCCESS);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(&kRawAddress, transport, nullptr, BTM_WRONG_MODE);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_WRONG_MODE);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(&kRawAddress, transport, nullptr, BTM_NO_RESOURCES);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_NO_RESOURCES);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(&kRawAddress, transport, nullptr, BTM_BUSY);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_BUSY);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(&kRawAddress, transport, nullptr, BTM_ILLEGAL_VALUE);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_ILLEGAL_VALUE);
 
   ASSERT_EQ(5UL, BTA_DM_ENCRYPT_CBACK_queue.size());
 
@@ -448,6 +445,12 @@ TEST_F(BtaDmTest, bta_dm_search_evt_text) {
 }
 
 TEST_F(BtaDmTest, bta_dm_remote_name_cmpl) {
+  reset_mock_btm_client_interface();
+  mock_btm_client_interface.db.BTM_InqDbRead =
+      [](const RawAddress& bd_addr) -> tBTM_INQ_INFO* {
+    inc_func_call_count("BTM_InqDbRead");
+    return nullptr;
+  };
   tBTA_DM_REMOTE_NAME remote_name_msg{
       // tBTA_DM_REMOTE_NAME
       .bd_addr = kRawAddress,

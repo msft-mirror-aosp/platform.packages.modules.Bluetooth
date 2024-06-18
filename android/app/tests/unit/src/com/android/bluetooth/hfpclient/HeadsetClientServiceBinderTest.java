@@ -40,8 +40,7 @@ public class HeadsetClientServiceBinderTest {
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock
-    private HeadsetClientService mService;
+    @Mock private HeadsetClientService mService;
 
     BluetoothDevice mRemoteDevice;
 
@@ -135,7 +134,6 @@ public class HeadsetClientServiceBinderTest {
 
     @Test
     public void getAudioRouteAllowed_callsServiceMethod() {
-        boolean allowed = true;
         mBinder.getAudioRouteAllowed(mRemoteDevice, null);
 
         verify(mService).getAudioRouteAllowed(mRemoteDevice);

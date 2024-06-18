@@ -168,9 +168,9 @@ cc_defaults {
         "libbluetooth_l2cap_pdl",
         "libbluetooth_ras_pdl",
         "libbluetooth_smp_pdl",
-        "libc++fs",
     ],
     static_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libbluetooth-dumpsys",
         "libbluetooth-protos",
@@ -331,6 +331,7 @@ cc_binary {
         "libosi",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "libgrpc++",
@@ -348,12 +349,13 @@ cc_binary {
                 "libbinder_ndk",
                 "libcutils",
                 "libhidlbase",
-                "libstatslog_bt",
+                "libstatssocket",
                 "libutils",
             ],
             static_libs: [
                 "android.system.suspend-V1-ndk",
                 "android.system.suspend.control-V1-ndk",
+                "libstatslog_bt",
             ],
         },
         host: {
@@ -495,7 +497,6 @@ cc_test {
         "libbt-platform-protos-lite",
         "libbt_shim_bridge",
         "libbt_shim_ffi",
-        "libc++fs",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libflagtest",
@@ -505,6 +506,7 @@ cc_test {
     ],
     shared_libs: [
         "libPlatformProperties",
+        "libaconfig_storage_read_api_cc",
         "libcrypto",
         "server_configurable_flags",
     ],
@@ -546,6 +548,7 @@ cc_test {
         "BluetoothGeneratedDumpsysTestData_h",
     ],
     static_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libbluetooth-dumpsys",
         "libbluetooth-dumpsys-test",
@@ -655,6 +658,7 @@ cc_defaults {
     ],
     shared_libs: [
         "libPlatformProperties",
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "libgrpc++",
