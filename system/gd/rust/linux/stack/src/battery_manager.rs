@@ -33,7 +33,6 @@ pub struct Battery {
 }
 
 /// Helper representation of a collection of BatterySet to simplify passing around data internally.
-#[derive(Default)]
 pub struct Batteries(Vec<BatterySet>);
 
 /// Callback for interacting with the BatteryManager.
@@ -124,7 +123,7 @@ impl BatterySet {
 
 impl Batteries {
     pub fn new() -> Self {
-        Default::default()
+        Self(vec![])
     }
 
     /// Updates a battery matching all non-battery-level fields if found, otherwise adds new_battery

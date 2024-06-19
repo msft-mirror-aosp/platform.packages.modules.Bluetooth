@@ -269,15 +269,9 @@ impl Drop for BtSocket {
     }
 }
 
-impl Default for BtSocket {
-    fn default() -> Self {
-        BtSocket { sock_fd: -1, channel_type: HciChannels::Unbound }
-    }
-}
-
 impl BtSocket {
     pub fn new() -> Self {
-        Default::default()
+        BtSocket { sock_fd: -1, channel_type: HciChannels::Unbound }
     }
 
     /// Is the current file descriptor valid?
@@ -316,11 +310,11 @@ impl BtSocket {
                 hci_channel: channel.into(),
             };
 
-            libc::bind(
+            return libc::bind(
                 self.sock_fd,
                 (&addr as *const SockAddrHci) as *const libc::sockaddr,
                 mem::size_of::<SockAddrHci>() as u32,
-            )
+            );
         }
     }
 
@@ -385,7 +379,7 @@ impl BtSocket {
                 index: u16::from_le_bytes(index_arr.try_into().unwrap()),
                 len: u16::from_le_bytes(len_arr.try_into().unwrap()),
                 data: match data_size {
-                    x if x > 0 => data_arr[..x].to_vec(),
+                    x if x > 0 => data_arr[..x].iter().map(|x| *x).collect::<Vec<u8>>(),
                     _ => Vec::new(),
                 },
             })
@@ -444,7 +438,7 @@ mod tests {
         packet.len = packet.data.len().try_into().unwrap_or(0);
 
         let event = packet.try_into();
-        assert!(event.is_ok(), "Packet doesn't parse into event.");
+        assert_eq!(true, event.is_ok(), "Packet doesn't parse into event.");
         if let Ok(ev) = event {
             if let MgmtEvent::CommandComplete { opcode, status, response } = ev {
                 assert_eq!(opcode, 0x3);

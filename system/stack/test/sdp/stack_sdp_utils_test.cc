@@ -254,10 +254,10 @@ class StackSdpMockAndFakeTest : public ::testing::Test {
            uint16_t /* sec_level */) {
           return ++L2CA_ConnectReqWithSecurity_cid;
         };
-    test::mock::stack_l2cap_api::L2CA_DataWrite.body =
-        [](uint16_t /* cid */, BT_HDR* p_data) -> tL2CAP_DW_RESULT {
+    test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t /* cid */,
+                                                          BT_HDR* p_data) {
       osi_free_and_reset((void**)&p_data);
-      return tL2CAP_DW_RESULT::L2CAP_DW_FAILED;
+      return 0;
     };
     test::mock::stack_l2cap_api::L2CA_DisconnectReq.body =
         [](uint16_t /* cid */) { return true; };

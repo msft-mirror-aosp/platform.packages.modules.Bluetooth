@@ -128,8 +128,9 @@ impl BluetoothAdmin {
 
     fn write_config(&self) -> Result<()> {
         let mut f = File::create(&self.path)?;
-        f.write_all(self.get_config_string().as_bytes()).map(|_| {
+        f.write_all(self.get_config_string().as_bytes()).and_then(|_| {
             info!("Write settings into {} successfully", &self.path);
+            Ok(())
         })
     }
 

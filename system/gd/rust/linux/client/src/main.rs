@@ -283,7 +283,7 @@ impl ClientContext {
     // Foreground-only: Updates the adapter address.
     fn update_adapter_address(&mut self) -> RawAddress {
         let address = self.adapter_dbus.as_ref().unwrap().get_address();
-        self.adapter_address = Some(address);
+        self.adapter_address = Some(address.clone());
 
         address
     }
@@ -314,12 +314,14 @@ impl ClientContext {
     fn get_devices(&self) -> Vec<String> {
         let mut result: Vec<String> = vec![];
 
-        result.extend(self.found_devices.keys().map(String::from).collect::<Vec<String>>());
+        result.extend(
+            self.found_devices.keys().map(|key| String::from(key)).collect::<Vec<String>>(),
+        );
         result.extend(
             self.bonded_devices
                 .keys()
                 .filter(|key| !self.found_devices.contains_key(&String::from(*key)))
-                .map(String::from)
+                .map(|key| String::from(key))
                 .collect::<Vec<String>>(),
         );
 
@@ -448,7 +450,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         let handler = CommandHandler::new(context.clone());
-        if command.is_ok() {
+        if let Ok(_) = command {
             // Timeout applies only to non-interactive commands.
             if let Ok(timeout_secs) = timeout_secs {
                 let timeout_duration = Duration::from_secs(timeout_secs);
@@ -471,7 +473,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // - Interactive commands: none of these commands require a timeout.
         // - Non-interactive commands that have not specified a timeout.
         handle_client_command(handler, tx, rx, context, command).await?;
-        Result::Ok(())
+        return Result::Ok(());
     })
 }
 
@@ -494,7 +496,7 @@ async fn handle_client_command(
     let semaphore_fg = Arc::new(tokio::sync::Semaphore::new(1));
 
     // If there are no command arguments, start the interactive shell.
-    if command.is_err() {
+    if let Err(_) = command {
         let command_rule_list = handler.get_command_rule_list().clone();
         let context_for_closure = context.clone();
 
@@ -544,7 +546,7 @@ async fn handle_client_command(
                 callback(context.clone());
 
                 // Break the loop as a non-interactive command is completed.
-                if command.is_ok() {
+                if let Ok(_) = command {
                     break;
                 }
             }
@@ -761,7 +763,7 @@ async fn handle_client_command(
 
                 // Run the command with the command arguments as the client is
                 // non-interactive.
-                if let Ok(command) = command.as_ref() {
+                if let Some(command) = command.as_ref().ok() {
                     let mut iter = command.split(' ').map(String::from);
                     let first = iter.next().unwrap_or(String::from(""));
                     if !handler.process_cmd_line(&first, &iter.collect::<Vec<String>>()) {

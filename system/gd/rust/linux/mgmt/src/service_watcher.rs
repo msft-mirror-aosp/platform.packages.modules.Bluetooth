@@ -123,10 +123,10 @@ impl ServiceWatcher {
                         return true;
                     }
 
-                    if old_owner.is_empty() && !new_owner.is_empty() {
+                    if old_owner == "" && new_owner != "" {
                         context.lock().unwrap().set_owner(new_owner.clone());
                         on_available();
-                    } else if !old_owner.is_empty() && new_owner.is_empty() {
+                    } else if old_owner != "" && new_owner == "" {
                         context.lock().unwrap().unset_owner();
                         on_unavailable();
                     } else {

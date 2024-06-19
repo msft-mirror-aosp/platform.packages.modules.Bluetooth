@@ -71,7 +71,6 @@ use num_traits::{FromPrimitive, ToPrimitive};
 
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
-use std::fs::File;
 use std::sync::Arc;
 
 use btstack::bluetooth_qa::IBluetoothQACallback;
@@ -236,7 +235,7 @@ where
             key,
             stringify!(T),
         ))))?,
-        stringify!(T).to_string(),
+        format!("{}", stringify!(T)),
     )?;
     let output = T::from_dbus(output, None, None, None)?;
     Ok(output)
@@ -510,11 +509,11 @@ impl DBusArg for ScanFilterCondition {
         let patterns =
             <<Vec<ScanFilterPattern> as DBusArg>::DBusType as RefArgToRust>::ref_arg_to_rust(
                 variant.as_static_inner(0).unwrap(),
-                "ScanFilterCondition::Patterns".to_string(),
+                format!("ScanFilterCondition::Patterns"),
             )?;
 
         let patterns = Vec::<ScanFilterPattern>::from_dbus(patterns, None, None, None)?;
-        Ok(ScanFilterCondition::Patterns(patterns))
+        return Ok(ScanFilterCondition::Patterns(patterns));
     }
 
     fn to_dbus(
@@ -530,7 +529,7 @@ impl DBusArg for ScanFilterCondition {
             }
             _ => {}
         }
-        Ok(map)
+        return Ok(map);
     }
 
     // We don't log in btclient.
@@ -1142,7 +1141,7 @@ impl BluetoothManagerDBus {
 
     pub(crate) fn is_valid(&self) -> bool {
         let result: Result<(bool,), _> = self.client_proxy.method_withresult("GetFlossEnabled", ());
-        result.is_ok()
+        return result.is_ok();
     }
 }
 
@@ -2738,7 +2737,7 @@ impl IBluetoothMedia for BluetoothMediaDBus {
     }
 
     #[dbus_method("StartAudioRequest")]
-    fn start_audio_request(&mut self, connection_listener: File) -> bool {
+    fn start_audio_request(&mut self) -> bool {
         dbus_generated!()
     }
 
@@ -2748,7 +2747,7 @@ impl IBluetoothMedia for BluetoothMediaDBus {
     }
 
     #[dbus_method("StopAudioRequest")]
-    fn stop_audio_request(&mut self, connection_listener: File) {
+    fn stop_audio_request(&mut self) {
         dbus_generated!()
     }
 
@@ -2758,7 +2757,6 @@ impl IBluetoothMedia for BluetoothMediaDBus {
         address: RawAddress,
         sco_offload: bool,
         disabled_codecs: HfpCodecBitId,
-        connection_listener: File,
     ) -> bool {
         dbus_generated!()
     }
@@ -2769,7 +2767,7 @@ impl IBluetoothMedia for BluetoothMediaDBus {
     }
 
     #[dbus_method("StopScoCall")]
-    fn stop_sco_call(&mut self, address: RawAddress, connection_listener: File) {
+    fn stop_sco_call(&mut self, address: RawAddress) {
         dbus_generated!()
     }
 

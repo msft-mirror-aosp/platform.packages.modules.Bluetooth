@@ -410,16 +410,13 @@ class FlossMediaClient(BluetoothMediaCallbacks):
         return True
 
     @utils.glib_call(False)
-    def start_audio_request(self, connection_listener):
+    def start_audio_request(self):
         """Starts audio request.
-
-        Args:
-            connection_listener: The file descriptor to write 1 (u8) on audio connection.
 
         Returns:
             True on success, False otherwise.
         """
-        self.proxy().StartAudioRequest(connection_listener)
+        self.proxy().StartAudioRequest()
         return True
 
     @utils.glib_call(None)
@@ -435,32 +432,28 @@ class FlossMediaClient(BluetoothMediaCallbacks):
         return self.proxy().GetA2dpAudioStarted(address)
 
     @utils.glib_call(False)
-    def stop_audio_request(self, connection_listener):
+    def stop_audio_request(self):
         """Stops audio request.
-
-        Args:
-            connection_listener: The file descriptor to write 0 (u8) on audio connection.
 
         Returns:
             True on success, False otherwise.
         """
-        self.proxy().StopAudioRequest(connection_listener)
+        self.proxy().StopAudioRequest()
         return True
 
     @utils.glib_call(False)
-    def start_sco_call(self, address, sco_offload, disabled_codecs, connection_listener):
+    def start_sco_call(self, address, sco_offload, force_cvsd):
         """Starts the SCO call.
 
         Args:
             address: Device address to make SCO call.
             sco_offload: Whether SCO offload is enabled.
-            disabled_codecs: The disabled codecs in bitmask form. CVSD=1, MSBC=2, LC3=4.
-            connection_listener: The file descriptor to write the codec id on audio connection.
+            force_cvsd: True to force the stack to use CVSD even if mSBC is supported.
 
         Returns:
             True on success, False otherwise.
         """
-        self.proxy().StartScoCall(address, sco_offload, disabled_codecs, connection_listener)
+        self.proxy().StartScoCall(address, sco_offload, force_cvsd)
         return True
 
     @utils.glib_call(None)
@@ -477,17 +470,16 @@ class FlossMediaClient(BluetoothMediaCallbacks):
         return self.proxy().GetHfpAudioStarted(address)
 
     @utils.glib_call(False)
-    def stop_sco_call(self, address, connection_listener):
+    def stop_sco_call(self, address):
         """Stops the SCO call.
 
         Args:
             address: Device address to stop SCO call.
-            connection_listener: The file descriptor to write 0 (u8) on audio disconnection.
 
         Returns:
             True on success, False otherwise.
         """
-        self.proxy().StopScoCall(address, connection_listener)
+        self.proxy().StopScoCall(address)
         return True
 
     @utils.glib_call(None)

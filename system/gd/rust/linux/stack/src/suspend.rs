@@ -285,7 +285,7 @@ impl ISuspend for Suspend {
 
     fn resume(&mut self) -> bool {
         // Suspend is not ready (e.g. aborted early), delay cleanup after SuspendReady.
-        if self.suspend_state.lock().unwrap().suspend_expected {
+        if self.suspend_state.lock().unwrap().suspend_expected == true {
             log::error!("Suspend is expected but not ready, abort resume.");
             return false;
         }

@@ -101,9 +101,9 @@ struct DisplayList<T>(Vec<T>);
 
 impl<T: Display> Display for DisplayList<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let _ = writeln!(f, "[");
+        let _ = write!(f, "[\n");
         for item in self.0.iter() {
-            let _ = writeln!(f, "  {}", item);
+            let _ = write!(f, "  {}\n", item);
         }
 
         write!(f, "]")
@@ -429,7 +429,7 @@ impl CommandHandler {
             _ => match self.command_options.get(command) {
                 Some(cmd) => {
                     let rules = cmd.rules.clone();
-                    match (cmd.function_pointer)(self, args) {
+                    match (cmd.function_pointer)(self, &args) {
                         Ok(()) => true,
                         Err(CommandError::InvalidArgs) => {
                             print_error!("Invalid arguments. Usage:\n{}", rules.join("\n"));
@@ -443,7 +443,7 @@ impl CommandHandler {
                 }
                 None => {
                     println!("'{}' is an invalid command!", command);
-                    self.cmd_help(args).ok();
+                    self.cmd_help(&args).ok();
                     false
                 }
             },
@@ -464,7 +464,7 @@ impl CommandHandler {
     }
 
     fn cmd_help(&mut self, args: &Vec<String>) -> CommandResult {
-        if let Some(command) = args.first() {
+        if let Some(command) = args.get(0) {
             match self.command_options.get(command) {
                 Some(cmd) => {
                     println!(
@@ -501,7 +501,7 @@ impl CommandHandler {
             for (key, val) in self.command_options.iter() {
                 println!(
                     "{}\n{}\n{}",
-                    wrap_help_text(key, MAX_MENU_CHAR_WIDTH, 4),
+                    wrap_help_text(&key, MAX_MENU_CHAR_WIDTH, 4),
                     wrap_help_text(&val.description, MAX_MENU_CHAR_WIDTH, 8),
                     empty_bar
                 );
@@ -715,7 +715,7 @@ impl CommandHandler {
                 {
                     None => println!("Battery status for device {} could not be fetched", address),
                     Some(set) => {
-                        if set.batteries.is_empty() {
+                        if set.batteries.len() == 0 {
                             println!("Battery set for device {} is empty", set.address.to_string());
                             return Ok(());
                         }
@@ -751,7 +751,7 @@ impl CommandHandler {
                 }
                 println!("Stopped tracking {}", address);
 
-                if self.lock_context().battery_address_filter.is_empty() {
+                if self.lock_context().battery_address_filter.len() == 0 {
                     println!("No longer tracking any addresses for battery status updates");
                     return Ok(());
                 }
@@ -997,7 +997,7 @@ impl CommandHandler {
 
                 let (accept, pin) = match (&pin[..], pin) {
                     ("reject", _) => (false, vec![]),
-                    (_, p) => (true, p.as_bytes().to_vec()),
+                    (_, p) => (true, p.as_bytes().iter().cloned().collect::<Vec<u8>>()),
                 };
 
                 self.lock_context().adapter_dbus.as_mut().unwrap().set_pin(
@@ -1248,7 +1248,7 @@ impl CommandHandler {
                     }
                 };
 
-                let value = hex::decode(get_arg(args, 4)?).or(Err("Failed to parse value"))?;
+                let value = hex::decode(&get_arg(args, 4)?).or(Err("Failed to parse value"))?;
 
                 let client_id = self
                     .lock_context()
@@ -1499,7 +1499,7 @@ impl CommandHandler {
                 };
                 self.lock_context().gatt_dbus.as_mut().unwrap().send_response(
                     server_id,
-                    request.address,
+                    request.address.clone(),
                     request.id,
                     status,
                     request.offset,
@@ -1603,11 +1603,11 @@ impl CommandHandler {
             return Err(self.adapter_not_ready());
         }
 
-        if self.lock_context().advertiser_callback_id.is_none() {
+        if self.lock_context().advertiser_callback_id == None {
             return Err("No advertiser callback registered".into());
         }
 
-        let callback_id = self.lock_context().advertiser_callback_id.unwrap();
+        let callback_id = self.lock_context().advertiser_callback_id.clone().unwrap();
 
         let command = get_arg(args, 0)?;
 
@@ -1627,7 +1627,7 @@ impl CommandHandler {
             }
             "set-interval" => {
                 let ms = String::from(get_arg(args, 1)?).parse::<i32>();
-                if ms.is_err() {
+                if !ms.is_ok() {
                     return Err("Failed parsing interval".into());
                 }
                 let interval = ms.unwrap() * 8 / 5; // in 0.625 ms.
@@ -1641,7 +1641,7 @@ impl CommandHandler {
                 let advs: Vec<(_, _)> = context
                     .adv_sets
                     .iter()
-                    .filter_map(|(_, s)| s.adv_id.map(|adv_id| (adv_id, s.params.clone())))
+                    .filter_map(|(_, s)| s.adv_id.map(|adv_id| (adv_id.clone(), s.params.clone())))
                     .collect();
                 for (adv_id, params) in advs {
                     print_info!("Setting advertising parameters for {}", adv_id);
@@ -1696,7 +1696,8 @@ impl CommandHandler {
                     .adv_sets
                     .iter()
                     .filter_map(|(_, s)| {
-                        s.adv_id.map(|adv_id| (adv_id, s.params.clone(), s.scan_rsp.clone()))
+                        s.adv_id
+                            .map(|adv_id| (adv_id.clone(), s.params.clone(), s.scan_rsp.clone()))
                     })
                     .collect();
                 for (adv_id, params, scan_rsp) in advs {
@@ -1714,7 +1715,11 @@ impl CommandHandler {
                     .or(Err("Failed parsing adv_id"))?;
 
                 let mut context = self.context.lock().unwrap();
-                if !context.adv_sets.iter().any(|(_, s)| s.adv_id.map_or(false, |id| id == adv_id))
+                if context
+                    .adv_sets
+                    .iter()
+                    .find(|(_, s)| s.adv_id.map_or(false, |id| id == adv_id))
+                    .is_none()
                 {
                     return Err("Failed to find advertising set".into());
                 }
@@ -1758,7 +1763,7 @@ impl CommandHandler {
             return Err(self.adapter_not_ready());
         }
 
-        let callback_id = match self.lock_context().socket_manager_callback_id {
+        let callback_id = match self.lock_context().socket_manager_callback_id.clone() {
             Some(id) => id,
             None => {
                 return Err("No socket manager callback registered.".into());
@@ -1840,10 +1845,12 @@ impl CommandHandler {
                         } else {
                             proxy.listen_using_l2cap_channel(callback_id)
                         }
-                    } else if is_le {
-                        proxy.listen_using_insecure_l2cap_le_channel(callback_id)
                     } else {
-                        proxy.listen_using_insecure_l2cap_channel(callback_id)
+                        if is_le {
+                            proxy.listen_using_insecure_l2cap_le_channel(callback_id)
+                        } else {
+                            proxy.listen_using_insecure_l2cap_channel(callback_id)
+                        }
                     }
                 };
 
@@ -1898,19 +1905,21 @@ impl CommandHandler {
                                 } else {
                                     proxy.create_l2cap_channel(callback_id, device, psm)
                                 }
-                            } else if is_le {
-                                proxy.create_insecure_l2cap_le_channel(callback_id, device, psm)
                             } else {
-                                proxy.create_insecure_l2cap_channel(callback_id, device, psm)
+                                if is_le {
+                                    proxy.create_insecure_l2cap_le_channel(callback_id, device, psm)
+                                } else {
+                                    proxy.create_insecure_l2cap_channel(callback_id, device, psm)
+                                }
                             }
                         }
                         "rfcomm" => {
                             let uuid = match Uuid::from_string(*psm_or_uuid) {
                                 Some(uu) => uu,
                                 None => {
-                                    return Err(CommandError::Failed(
-                                        "Could not parse given uuid.".to_string(),
-                                    ));
+                                    return Err(CommandError::Failed(format!(
+                                        "Could not parse given uuid."
+                                    )));
                                 }
                             };
 
@@ -2109,7 +2118,7 @@ impl CommandHandler {
                 let strength = String::from(get_arg(args, 1)?)
                     .parse::<i32>()
                     .or(Err("Failed parsing signal strength"))?;
-                if !(0..=5).contains(&strength) {
+                if strength < 0 || strength > 5 {
                     return Err(
                         format!("Invalid signal strength, got {}, want 0 to 5", strength).into()
                     );
@@ -2126,7 +2135,7 @@ impl CommandHandler {
                 let level = String::from(get_arg(args, 1)?)
                     .parse::<i32>()
                     .or(Err("Failed parsing battery level"))?;
-                if !(0..=5).contains(&level) {
+                if level < 0 || level > 5 {
                     return Err(format!("Invalid battery level, got {}, want 0 to 5", level).into());
                 }
                 self.context
@@ -2147,7 +2156,7 @@ impl CommandHandler {
                         .unwrap()
                         .create_sdp_record(BtSdpRecord::Mps(BtSdpMpsRecord::default()));
                     if !success {
-                        return Err("Failed to create SDP record".to_string().into());
+                        return Err(format!("Failed to create SDP record").into());
                     }
                 }
             }
@@ -2157,7 +2166,7 @@ impl CommandHandler {
                 if let Some(handle) = context.mps_sdp_handle.take() {
                     let success = context.adapter_dbus.as_mut().unwrap().remove_sdp_record(handle);
                     if !success {
-                        return Err("Failed to remove SDP record".to_string().into());
+                        return Err(format!("Failed to remove SDP record").into());
                     }
                 }
             }

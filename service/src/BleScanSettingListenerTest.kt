@@ -20,7 +20,6 @@ import android.content.Context
 import android.os.Looper
 import android.provider.Settings
 import androidx.test.core.app.ApplicationProvider
-import com.android.server.bluetooth.BleScanSettingListener.BLE_SCAN_ALWAYS_AVAILABLE
 import com.android.server.bluetooth.BleScanSettingListener.initialize
 import com.android.server.bluetooth.BleScanSettingListener.isScanAllowed
 import com.google.common.truth.Truth.assertThat
@@ -49,12 +48,12 @@ class BleScanSettingListenerTest {
     }
 
     private fun enableSetting() {
-        Settings.Global.putInt(resolver, BLE_SCAN_ALWAYS_AVAILABLE, 1)
+        Settings.Global.putInt(resolver, Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE, 1)
         shadowOf(looper).idle()
     }
 
     private fun disableSetting() {
-        Settings.Global.putInt(resolver, BLE_SCAN_ALWAYS_AVAILABLE, 0)
+        Settings.Global.putInt(resolver, Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE, 0)
         shadowOf(looper).idle()
     }
 

@@ -219,7 +219,7 @@ impl PowerdSuspendManager {
     }
 
     pub fn get_suspend_manager_context(&mut self) -> Arc<Mutex<SuspendManagerContext>> {
-        self.context.clone()
+        return self.context.clone();
     }
 
     /// Sets up all required D-Bus listeners.
@@ -552,7 +552,7 @@ impl PowerdSuspendManager {
             let context = self.context.clone();
             tokio::spawn(async move {
                 let suspend_cb_objpath: String =
-                    "/org/chromium/bluetooth/Manager/suspend_callback".to_string();
+                    format!("/org/chromium/bluetooth/Manager/suspend_callback");
                 let status = suspend_dbus_rpc
                     .register_callback(Box::new(SuspendCallback::new(
                         suspend_cb_objpath,

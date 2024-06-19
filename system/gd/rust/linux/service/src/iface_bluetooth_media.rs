@@ -26,7 +26,6 @@ use crate::dbus_arg::{DBusArg, DBusArgError, RefArgToRust};
 use num_traits::{FromPrimitive, ToPrimitive};
 
 use std::convert::{TryFrom, TryInto};
-use std::fs::File;
 use std::sync::Arc;
 
 #[allow(dead_code)]
@@ -242,7 +241,7 @@ impl DBusArg for PlayerMetadata {
                 _ => {}
             }
         }
-        Ok(metadata)
+        return Ok(metadata);
     }
 
     fn to_dbus(
@@ -361,7 +360,7 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
     }
 
     #[dbus_method("StartAudioRequest")]
-    fn start_audio_request(&mut self, connection_listener: File) -> bool {
+    fn start_audio_request(&mut self) -> bool {
         dbus_generated!()
     }
 
@@ -371,7 +370,7 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
     }
 
     #[dbus_method("StopAudioRequest", DBusLog::Disable)]
-    fn stop_audio_request(&mut self, connection_listener: File) {
+    fn stop_audio_request(&mut self) {
         dbus_generated!()
     }
 
@@ -381,7 +380,6 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
         address: RawAddress,
         sco_offload: bool,
         disabled_codecs: HfpCodecBitId,
-        connection_listener: File,
     ) -> bool {
         dbus_generated!()
     }
@@ -392,7 +390,7 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
     }
 
     #[dbus_method("StopScoCall")]
-    fn stop_sco_call(&mut self, address: RawAddress, connection_listener: File) {
+    fn stop_sco_call(&mut self, address: RawAddress) {
         dbus_generated!()
     }
 

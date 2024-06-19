@@ -45,10 +45,9 @@ import java.util.concurrent.TimeUnit;
 public class LeLegacyAdvertisingTest {
     private static final int TIMEOUT_MS = 1_000;
 
-    @Rule(order = 1)
-    public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
+    @Rule public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
 
-    @Rule(order = 0)
+    @Rule
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     @RequiresFlagsEnabled(Flags.FLAG_BLE_CHECK_DATA_LENGTH_ON_LEGACY_ADVERTISING)

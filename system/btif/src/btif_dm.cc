@@ -2021,8 +2021,12 @@ static void btif_on_name_read(RawAddress bd_addr, tHCI_ERROR_CODE hci_status,
   // Differentiate between merged callbacks
   if (!during_device_search
       // New fix after refactor, this callback is needed for the fix to work
-      && !com::android::bluetooth::flags::
-             separate_service_and_device_discovery()) {
+      &&
+      !com::android::bluetooth::flags::separate_service_and_device_discovery()
+      // Original fix, this callback should not be called if RNR should not be
+      // called
+      &&
+      !com::android::bluetooth::flags::rnr_present_during_service_discovery()) {
     log::info("Skipping name read event - called on bad callback.");
     return;
   }
@@ -2431,8 +2435,7 @@ void btif_dm_acl_evt(tBTA_DM_ACL_EVT event, tBTA_DM_ACL* p_data) {
     case BTA_DM_LINK_DOWN_EVT: {
       bd_addr = p_data->link_down.bd_addr;
       btm_set_bond_type_dev(p_data->link_down.bd_addr, BOND_TYPE_UNKNOWN);
-      GetInterfaceToProfiles()->onLinkDown(
-          bd_addr, p_data->link_down.transport_link_type);
+      GetInterfaceToProfiles()->onLinkDown(bd_addr);
 
       bt_conn_direction_t direction;
       switch (btm_get_acl_disc_reason_code()) {

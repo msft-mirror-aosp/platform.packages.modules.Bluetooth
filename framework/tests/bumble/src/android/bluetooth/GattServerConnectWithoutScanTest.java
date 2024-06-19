@@ -50,13 +50,11 @@ public class GattServerConnectWithoutScanTest {
     private static final String TAG = "GattServerConnectWithoutScanTest";
     private static final int TIMEOUT_GATT_CONNECTION_MS = 2_000;
 
-    @Rule(order = 2)
-    public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
+    @Rule public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
 
-    @Rule(order = 1)
-    public final PandoraDevice mBumble = new PandoraDevice();
+    @Rule public final PandoraDevice mBumble = new PandoraDevice();
 
-    @Rule(order = 0)
+    @Rule
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     private final Context mContext = ApplicationProvider.getApplicationContext();

@@ -1283,13 +1283,12 @@ bool L2CA_ConnectFixedChnl(uint16_t fixed_cid, const RawAddress& rem_bda) {
  *                  BD Address of remote
  *                  Pointer to buffer of type BT_HDR
  *
- * Return value     tL2CAP_DW_RESULT::L2CAP_DW_SUCCESS, if data accepted
- *                  tL2CAP_DW_RESULT::L2CAP_DW_FAILED,  if error
+ * Return value     L2CAP_DW_SUCCESS, if data accepted
+ *                  L2CAP_DW_FAILED,  if error
  *
  ******************************************************************************/
-tL2CAP_DW_RESULT L2CA_SendFixedChnlData(uint16_t fixed_cid,
-                                        const RawAddress& rem_bda,
-                                        BT_HDR* p_buf) {
+uint16_t L2CA_SendFixedChnlData(uint16_t fixed_cid, const RawAddress& rem_bda,
+                                BT_HDR* p_buf) {
   tL2C_LCB* p_lcb;
   tBT_TRANSPORT transport = BT_TRANSPORT_BR_EDR;
 
@@ -1302,13 +1301,13 @@ tL2CAP_DW_RESULT L2CA_SendFixedChnlData(uint16_t fixed_cid,
        NULL)) {
     log::warn("No service registered or invalid CID: 0x{:04x}", fixed_cid);
     osi_free(p_buf);
-    return (tL2CAP_DW_RESULT::L2CAP_DW_FAILED);
+    return (L2CAP_DW_FAILED);
   }
 
   if (!BTM_IsDeviceUp()) {
     log::warn("Controller is not ready CID: 0x{:04x}", fixed_cid);
     osi_free(p_buf);
-    return (tL2CAP_DW_RESULT::L2CAP_DW_FAILED);
+    return (L2CAP_DW_FAILED);
   }
 
   p_lcb = l2cu_find_lcb_by_bd_addr(rem_bda, transport);
@@ -1317,7 +1316,7 @@ tL2CAP_DW_RESULT L2CA_SendFixedChnlData(uint16_t fixed_cid,
     log::warn("Link is disconnecting or does not exist CID: 0x{:04x}",
               fixed_cid);
     osi_free(p_buf);
-    return (tL2CAP_DW_RESULT::L2CAP_DW_FAILED);
+    return (L2CAP_DW_FAILED);
   }
 
   tL2C_BLE_FIXED_CHNLS_MASK peer_channel_mask;
@@ -1331,7 +1330,7 @@ tL2CAP_DW_RESULT L2CA_SendFixedChnlData(uint16_t fixed_cid,
   if ((peer_channel_mask & (1 << fixed_cid)) == 0) {
     log::warn("Peer does not support fixed channel CID: 0x{:04x}", fixed_cid);
     osi_free(p_buf);
-    return (tL2CAP_DW_RESULT::L2CAP_DW_FAILED);
+    return (L2CAP_DW_FAILED);
   }
 
   p_buf->event = 0;
@@ -1341,7 +1340,7 @@ tL2CAP_DW_RESULT L2CA_SendFixedChnlData(uint16_t fixed_cid,
     if (!l2cu_initialize_fixed_ccb(p_lcb, fixed_cid)) {
       log::warn("No channel control block found for CID: 0x{:4x}", fixed_cid);
       osi_free(p_buf);
-      return (tL2CAP_DW_RESULT::L2CAP_DW_FAILED);
+      return (L2CAP_DW_FAILED);
     }
   }
 
@@ -1355,7 +1354,7 @@ tL2CAP_DW_RESULT L2CA_SendFixedChnlData(uint16_t fixed_cid,
                 ->xmit_hold_q),
         p_lcb->p_fixed_ccbs[fixed_cid - L2CAP_FIRST_FIXED_CHNL]->buff_quota);
     osi_free(p_buf);
-    return (tL2CAP_DW_RESULT::L2CAP_DW_FAILED);
+    return (L2CAP_DW_FAILED);
   }
 
   log::debug("Enqueued data for CID: 0x{:04x} len:{}", fixed_cid, p_buf->len);
@@ -1373,10 +1372,10 @@ tL2CAP_DW_RESULT L2CA_SendFixedChnlData(uint16_t fixed_cid,
 
   if (p_lcb->p_fixed_ccbs[fixed_cid - L2CAP_FIRST_FIXED_CHNL]->cong_sent) {
     log::debug("Link congested for CID: 0x{:04x}", fixed_cid);
-    return (tL2CAP_DW_RESULT::L2CAP_DW_CONGESTED);
+    return (L2CAP_DW_CONGESTED);
   }
 
-  return (tL2CAP_DW_RESULT::L2CAP_DW_SUCCESS);
+  return (L2CAP_DW_SUCCESS);
 }
 
 /*******************************************************************************
@@ -1496,19 +1495,18 @@ bool L2CA_MarkLeLinkAsActive(const RawAddress& rem_bda) {
  *
  * Description      Higher layers call this function to write data.
  *
- * Returns          tL2CAP_DW_RESULT::L2CAP_DW_SUCCESS, if data accepted, else
- *                  false
- *                  tL2CAP_DW_RESULT::L2CAP_DW_CONGESTED, if data accepted
- *                  and the channel is congested
- *                  tL2CAP_DW_RESULT::L2CAP_DW_FAILED, if error
+ * Returns          L2CAP_DW_SUCCESS, if data accepted, else false
+ *                  L2CAP_DW_CONGESTED, if data accepted and the channel is
+ *                                      congested
+ *                  L2CAP_DW_FAILED, if error
  *
  ******************************************************************************/
-tL2CAP_DW_RESULT L2CA_DataWrite(uint16_t cid, BT_HDR* p_data) {
+uint8_t L2CA_DataWrite(uint16_t cid, BT_HDR* p_data) {
   log::verbose("L2CA_DataWrite()  CID: 0x{:04x}  Len: {}", cid, p_data->len);
   return l2c_data_write(cid, p_data, L2CAP_FLUSHABLE_CH_BASED);
 }
 
-tL2CAP_DW_RESULT L2CA_LECocDataWrite(uint16_t cid, BT_HDR* p_data) {
+uint8_t L2CA_LECocDataWrite(uint16_t cid, BT_HDR* p_data) {
   return L2CA_DataWrite(cid, p_data);
 }
 

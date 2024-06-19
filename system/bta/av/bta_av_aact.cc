@@ -28,7 +28,6 @@
 
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
-#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <cstring>
@@ -1817,25 +1816,13 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
             p_scb->avdt_handle, p_scb->hndl);
   AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label, AVDT_ERR_UNSUP_CFG, 0);
 
-  tBTA_AV bta_av_data;
-
-  if (com::android::bluetooth::flags::bta_av_setconfig_rej_type_confusion()) {
-    bta_av_data = {
-        .reject =
-            {
-                .bd_addr = p_scb->PeerAddress(),
-                .hndl = p_scb->hndl,
-            },
-    };
-  } else {
-    bta_av_data = {
-        .reject =
-            {
-                .bd_addr = p_data->str_msg.bd_addr,
-                .hndl = p_scb->hndl,
-            },
-    };
-  }
+  tBTA_AV bta_av_data = {
+      .reject =
+          {
+              .bd_addr = p_data->str_msg.bd_addr,
+              .hndl = p_scb->hndl,
+          },
+  };
 
   (*bta_av_cb.p_cback)(BTA_AV_REJECT_EVT, &bta_av_data);
 }

@@ -126,5 +126,4 @@ bt_status_t MockCoreInterface::toggleProfile(tBTA_SERVICE_ID /* service_id */,
 void MockCoreInterface::removeDeviceFromProfiles(
     const RawAddress& /* bd_addr */){};
 
-void MockCoreInterface::onLinkDown(const RawAddress& /* bd_addr */,
-                                   tBT_TRANSPORT /* transport */){};
+void MockCoreInterface::onLinkDown(const RawAddress& /* bd_addr */){};

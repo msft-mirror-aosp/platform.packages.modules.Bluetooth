@@ -63,7 +63,9 @@ impl DeviceInformation {
 
                 // Construct and add Device Information service.
                 let mut service = BluetoothGattService::new(
-                    *UuidHelper::get_profile_uuid(&Profile::Dis).expect("DIS uuid mapping missing"),
+                    UuidHelper::get_profile_uuid(&Profile::Dis)
+                        .expect("DIS uuid mapping missing")
+                        .clone(),
                     /*instance_id=*/ 0,
                     GattDbElementType::PrimaryService.into(),
                 );
