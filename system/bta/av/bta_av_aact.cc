@@ -28,6 +28,7 @@
 
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <cstring>
@@ -1816,13 +1817,25 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
             p_scb->avdt_handle, p_scb->hndl);
   AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label, AVDT_ERR_UNSUP_CFG, 0);
 
-  tBTA_AV bta_av_data = {
-      .reject =
-          {
-              .bd_addr = p_data->str_msg.bd_addr,
-              .hndl = p_scb->hndl,
-          },
-  };
+  tBTA_AV bta_av_data;
+
+  if (com::android::bluetooth::flags::bta_av_setconfig_rej_type_confusion()) {
+    bta_av_data = {
+        .reject =
+            {
+                .bd_addr = p_scb->PeerAddress(),
+                .hndl = p_scb->hndl,
+            },
+    };
+  } else {
+    bta_av_data = {
+        .reject =
+            {
+                .bd_addr = p_data->str_msg.bd_addr,
+                .hndl = p_scb->hndl,
+            },
+    };
+  }
 
   (*bta_av_cb.p_cback)(BTA_AV_REJECT_EVT, &bta_av_data);
 }
@@ -3143,8 +3156,8 @@ void bta_av_vendor_offload_start_v2(tBTA_AV_SCB* p_scb,
   log::verbose("");
 
   uint16_t connection_handle =
-      get_btm_client_interface().lifecycle.BTM_GetHCIConnHandle(
-          p_scb->PeerAddress(), BT_TRANSPORT_BR_EDR);
+      get_btm_client_interface().peer.BTM_GetHCIConnHandle(p_scb->PeerAddress(),
+                                                           BT_TRANSPORT_BR_EDR);
   btav_a2dp_scmst_info_t scmst_info =
       p_scb->p_cos->get_scmst_info(p_scb->PeerAddress());
   uint16_t mtu = p_scb->stream_mtu;
@@ -3204,7 +3217,7 @@ void bta_av_vendor_offload_stop() {
       return;
     }
     uint16_t connection_handle =
-        get_btm_client_interface().lifecycle.BTM_GetHCIConnHandle(
+        get_btm_client_interface().peer.BTM_GetHCIConnHandle(
             p_scb->PeerAddress(), BT_TRANSPORT_BR_EDR);
     uint16_t l2cap_channel_handle = 0;
 
@@ -3376,8 +3389,8 @@ static void bta_av_offload_codec_builder(tBTA_AV_SCB* p_scb,
   p_a2dp_offload->max_latency = 0;
   p_a2dp_offload->mtu = mtu;
   p_a2dp_offload->acl_hdl =
-      get_btm_client_interface().lifecycle.BTM_GetHCIConnHandle(
-          p_scb->PeerAddress(), BT_TRANSPORT_BR_EDR);
+      get_btm_client_interface().peer.BTM_GetHCIConnHandle(p_scb->PeerAddress(),
+                                                           BT_TRANSPORT_BR_EDR);
   btav_a2dp_scmst_info_t scmst_info =
       p_scb->p_cos->get_scmst_info(p_scb->PeerAddress());
   p_a2dp_offload->scms_t_enable[0] = scmst_info.enable_status;
