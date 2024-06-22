@@ -665,7 +665,8 @@ static void btif_update_remote_version_property(RawAddress* p_bd) {
   log::assert_that(p_bd != nullptr, "assert failed: p_bd != nullptr");
 
   const bool version_info_valid =
-      BTM_ReadRemoteVersion(*p_bd, &lmp_ver, &mfct_set, &lmp_subver);
+      get_btm_client_interface().peer.BTM_ReadRemoteVersion(
+          *p_bd, &lmp_ver, &mfct_set, &lmp_subver);
 
   log::info("Remote version info valid:{} [{}]:0x{:x},0x{:x},0x{:x}",
             version_info_valid, *p_bd, lmp_ver, mfct_set, lmp_subver);
@@ -980,8 +981,8 @@ static void btif_dm_pin_req_evt(tBTA_DM_PIN_REQ* p_pin_req) {
   int dev_type;
 
   /* Remote properties update */
-  if (BTM_GetPeerDeviceTypeFromFeatures(p_pin_req->bd_addr) ==
-      BT_DEVICE_TYPE_DUMO) {
+  if (get_btm_client_interface().peer.BTM_GetPeerDeviceTypeFromFeatures(
+          p_pin_req->bd_addr) == BT_DEVICE_TYPE_DUMO) {
     dev_type = BT_DEVICE_TYPE_DUMO;
   } else if (!btif_get_device_type(p_pin_req->bd_addr, &dev_type)) {
     // Failed to get device type, defaulting to BR/EDR.
@@ -1074,8 +1075,8 @@ static void btif_dm_ssp_cfm_req_evt(tBTA_DM_SP_CFM_REQ* p_ssp_cfm_req) {
                p_ssp_cfm_req->bd_addr, p_ssp_cfm_req->just_works,
                p_ssp_cfm_req->loc_auth_req, p_ssp_cfm_req->rmt_auth_req);
   /* Remote properties update */
-  if (BTM_GetPeerDeviceTypeFromFeatures(p_ssp_cfm_req->bd_addr) ==
-      BT_DEVICE_TYPE_DUMO) {
+  if (get_btm_client_interface().peer.BTM_GetPeerDeviceTypeFromFeatures(
+          p_ssp_cfm_req->bd_addr) == BT_DEVICE_TYPE_DUMO) {
     dev_type = BT_DEVICE_TYPE_DUMO;
   } else if (!btif_get_device_type(p_ssp_cfm_req->bd_addr, &dev_type)) {
     // Failed to get device type, defaulting to BR/EDR.
@@ -1142,8 +1143,8 @@ static void btif_dm_ssp_key_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif) {
   log::verbose("addr:{}", p_ssp_key_notif->bd_addr);
 
   /* Remote properties update */
-  if (BTM_GetPeerDeviceTypeFromFeatures(p_ssp_key_notif->bd_addr) ==
-      BT_DEVICE_TYPE_DUMO) {
+  if (get_btm_client_interface().peer.BTM_GetPeerDeviceTypeFromFeatures(
+          p_ssp_key_notif->bd_addr) == BT_DEVICE_TYPE_DUMO) {
     dev_type = BT_DEVICE_TYPE_DUMO;
   } else if (!btif_get_device_type(p_ssp_key_notif->bd_addr, &dev_type)) {
     // Failed to get device type, defaulting to BR/EDR.
@@ -1236,7 +1237,8 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
     btif_storage_set_remote_addr_type(&bd_addr, p_auth_cmpl->addr_type);
 
     int dev_type;
-    if (BTM_GetPeerDeviceTypeFromFeatures(bd_addr) == BT_DEVICE_TYPE_DUMO) {
+    if (get_btm_client_interface().peer.BTM_GetPeerDeviceTypeFromFeatures(
+            bd_addr) == BT_DEVICE_TYPE_DUMO) {
       dev_type = BT_DEVICE_TYPE_DUMO;
     } else {
       dev_type = p_auth_cmpl->dev_type;
@@ -2021,12 +2023,8 @@ static void btif_on_name_read(RawAddress bd_addr, tHCI_ERROR_CODE hci_status,
   // Differentiate between merged callbacks
   if (!during_device_search
       // New fix after refactor, this callback is needed for the fix to work
-      &&
-      !com::android::bluetooth::flags::separate_service_and_device_discovery()
-      // Original fix, this callback should not be called if RNR should not be
-      // called
-      &&
-      !com::android::bluetooth::flags::rnr_present_during_service_discovery()) {
+      && !com::android::bluetooth::flags::
+             separate_service_and_device_discovery()) {
     log::info("Skipping name read event - called on bad callback.");
     return;
   }
@@ -2435,7 +2433,8 @@ void btif_dm_acl_evt(tBTA_DM_ACL_EVT event, tBTA_DM_ACL* p_data) {
     case BTA_DM_LINK_DOWN_EVT: {
       bd_addr = p_data->link_down.bd_addr;
       btm_set_bond_type_dev(p_data->link_down.bd_addr, BOND_TYPE_UNKNOWN);
-      GetInterfaceToProfiles()->onLinkDown(bd_addr);
+      GetInterfaceToProfiles()->onLinkDown(
+          bd_addr, p_data->link_down.transport_link_type);
 
       bt_conn_direction_t direction;
       switch (btm_get_acl_disc_reason_code()) {
@@ -3021,14 +3020,6 @@ bt_status_t btif_dm_get_adapter_property(bt_property_t* prop) {
               sizeof(bd_name->name) - 1);
       bd_name->name[sizeof(bd_name->name) - 1] = 0;
       prop->len = strlen((char*)bd_name->name);
-    } break;
-
-    case BT_PROPERTY_ADAPTER_SCAN_MODE: {
-      /* if the storage does not have it. Most likely app never set it. Default
-       * is NONE */
-      bt_scan_mode_t* mode = (bt_scan_mode_t*)prop->val;
-      *mode = BT_SCAN_MODE_NONE;
-      prop->len = sizeof(bt_scan_mode_t);
     } break;
 
     case BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT: {

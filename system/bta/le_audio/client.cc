@@ -267,12 +267,10 @@ class LeAudioClientImpl : public LeAudioClient {
       reconnection_mode_ = BTM_BLE_BKG_CONNECT_ALLOW_LIST;
     }
 
-    if (com::android::bluetooth::flags::leaudio_enable_health_based_actions()) {
-      log::info("Loading health status module");
-      leAudioHealthStatus_ = LeAudioHealthStatus::Get();
-      leAudioHealthStatus_->RegisterCallback(
-          base::BindRepeating(le_audio_health_status_callback));
-    }
+    log::info("Loading health status module");
+    leAudioHealthStatus_ = LeAudioHealthStatus::Get();
+    leAudioHealthStatus_->RegisterCallback(
+        base::BindRepeating(le_audio_health_status_callback));
 
     BTA_GATTC_AppRegister(
         le_audio_gattc_callback,
@@ -5628,8 +5626,12 @@ class LeAudioClientImpl : public LeAudioClient {
 
     switch (status) {
       case GroupStreamStatus::STREAMING: {
-        log::assert_that(group_id == active_group_id_,
-                         "invalid group id {}!={}", group_id, active_group_id_);
+        if (group_id != active_group_id_) {
+          log::error("Streaming group {} is no longer active. Stop the group.",
+                     group_id);
+          GroupStop(group_id);
+          return;
+        }
 
         take_stream_time();
 
