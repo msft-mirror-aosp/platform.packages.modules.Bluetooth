@@ -101,15 +101,6 @@ static constexpr char kNotifyUpperLayerAboutGroupBeingInIdleDuringCall[] =
 const char* test_flags[] = {
     "INIT_default_log_level_str=LOG_VERBOSE",
     "INIT_leaudio_targeted_announcement_reconnection_mode=true",
-    "INIT_leaudio_enable_health_based_actions=false",
-    "INIT_leaudio_broadcast_audio_handover_policies=false",
-    nullptr,
-};
-
-const char* test_flags_with_health_status[] = {
-    "INIT_default_log_level_str=LOG_VERBOSE",
-    "INIT_leaudio_targeted_announcement_reconnection_mode=true",
-    "INIT_leaudio_enable_health_based_actions=true",
     "INIT_leaudio_broadcast_audio_handover_policies=false",
     nullptr,
 };
@@ -117,7 +108,6 @@ const char* test_flags_with_health_status[] = {
 const char* test_flags_with_handover_mode[] = {
     "INIT_default_log_level_str=LOG_VERBOSE",
     "INIT_leaudio_targeted_announcement_reconnection_mode=true",
-    "INIT_leaudio_enable_health_based_actions=false",
     "INIT_leaudio_broadcast_audio_handover_policies=true",
     nullptr,
 };
@@ -375,7 +365,6 @@ class MockLeAudioSourceHalClient : public LeAudioSourceAudioHalClient {
 
 class UnicastTestNoInit : public Test {
  public:
-  bool use_health_status = false;
   bool use_handover_mode = false;
 
  protected:
@@ -423,9 +412,7 @@ class UnicastTestNoInit : public Test {
   }
 
   void SetUpMockAudioHal() {
-    if (use_health_status) {
-      bluetooth::common::InitFlags::Load(test_flags_with_health_status);
-    } else if (use_handover_mode) {
+    if (use_handover_mode) {
       bluetooth::common::InitFlags::Load(test_flags_with_handover_mode);
     } else {
       bluetooth::common::InitFlags::Load(test_flags);
@@ -2925,7 +2912,6 @@ class UnicastTest : public UnicastTestNoInit {
 class UnicastTestHealthStatus : public UnicastTest {
  protected:
   void SetUp() override {
-    use_health_status = true;
     UnicastTest::SetUp();
     group_ = new LeAudioDeviceGroup(group_id_);
   }
@@ -3160,10 +3146,7 @@ TEST_F(UnicastTest, ConnectOneEarbudWithInvalidCsis) {
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
 }
 
-TEST_F_WITH_FLAGS(UnicastTestHealthStatus,
-                  ConnectOneEarbudEmpty_withHealthStatus,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, leaudio_enable_health_based_actions))) {
+TEST_F(UnicastTestHealthStatus, ConnectOneEarbudEmpty_withHealthStatus) {
   const RawAddress test_address0 = GetTestAddress(0);
   SetSampleDatabaseEmpty(1, test_address0);
   EXPECT_CALL(mock_audio_hal_client_callbacks_,
@@ -3183,10 +3166,7 @@ TEST_F_WITH_FLAGS(UnicastTestHealthStatus,
       test_address0, bluetooth::groups::kGroupUnknown);
 }
 
-TEST_F_WITH_FLAGS(UnicastTestHealthStatus,
-                  ConnectOneEarbudNoPacs_withHealthStatus,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, leaudio_enable_health_based_actions))) {
+TEST_F(UnicastTestHealthStatus, ConnectOneEarbudNoPacs_withHealthStatus) {
   const RawAddress test_address0 = GetTestAddress(0);
   SetSampleDatabaseEarbudsValid(
       1, test_address0, codec_spec_conf::kLeAudioLocationStereo,
@@ -3213,10 +3193,7 @@ TEST_F_WITH_FLAGS(UnicastTestHealthStatus,
       test_address0, bluetooth::groups::kGroupUnknown);
 }
 
-TEST_F_WITH_FLAGS(UnicastTestHealthStatus,
-                  ConnectOneEarbudNoAscs_withHealthStatus,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, leaudio_enable_health_based_actions))) {
+TEST_F(UnicastTestHealthStatus, ConnectOneEarbudNoAscs_withHealthStatus) {
   const RawAddress test_address0 = GetTestAddress(0);
   SetSampleDatabaseEarbudsValid(
       1, test_address0, codec_spec_conf::kLeAudioLocationStereo,
@@ -3295,10 +3272,8 @@ TEST_F(UnicastTestHealthStatus, ConnectOneEarbudNoCsis_withHealthStatus) {
       test_address0, bluetooth::groups::kGroupUnknown);
 }
 
-TEST_F_WITH_FLAGS(UnicastTestHealthStatus,
-                  ConnectOneEarbudWithInvalidCsis_withHealthStatus,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, leaudio_enable_health_based_actions))) {
+TEST_F(UnicastTestHealthStatus,
+       ConnectOneEarbudWithInvalidCsis_withHealthStatus) {
   const RawAddress test_address0 = GetTestAddress(0);
   SetSampleDatabaseEarbudsValid(
       1, test_address0, codec_spec_conf::kLeAudioLocationStereo,
@@ -3337,10 +3312,7 @@ TEST_F_WITH_FLAGS(UnicastTestHealthStatus,
       test_address0, bluetooth::groups::kGroupUnknown);
 }
 
-TEST_F_WITH_FLAGS(UnicastTestHealthStatus,
-                  ConnectOneEarbudDisable_withHealthStatus,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, leaudio_enable_health_based_actions))) {
+TEST_F(UnicastTestHealthStatus, ConnectOneEarbudDisable_withHealthStatus) {
   const RawAddress test_address0 = GetTestAddress(0);
   int conn_id = 1;
 
@@ -3395,10 +3367,8 @@ TEST_F_WITH_FLAGS(UnicastTestHealthStatus,
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
 }
 
-TEST_F_WITH_FLAGS(UnicastTestHealthStatus,
-                  ConnectOneEarbudConsiderDisabling_withHealthStatus,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, leaudio_enable_health_based_actions))) {
+TEST_F(UnicastTestHealthStatus,
+       ConnectOneEarbudConsiderDisabling_withHealthStatus) {
   const RawAddress test_address0 = GetTestAddress(0);
   int conn_id = 1;
 
@@ -5111,6 +5081,49 @@ TEST_F(UnicastTest, TestUpdateConfigurationCallbackWhileStreaming) {
   SyncOnMainLoop();
   Mock::VerifyAndClearExpectations(&mock_state_machine_);
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
+}
+
+TEST_F(UnicastTest, TestDeactivateWhileStartingStream) {
+  const RawAddress test_address0 = GetTestAddress(0);
+  int group_id = bluetooth::groups::kGroupUnknown;
+
+  SetSampleDatabaseEarbudsValid(
+      1, test_address0, codec_spec_conf::kLeAudioLocationStereo,
+      codec_spec_conf::kLeAudioLocationStereo, default_channel_cnt,
+      default_channel_cnt, 0x0004,
+      /* source sample freq 16khz */ false /*add_csis*/, true /*add_cas*/,
+      true /*add_pacs*/, default_ase_cnt /*add_ascs_cnt*/, 1 /*set_size*/,
+      0 /*rank*/);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnGroupNodeStatus(test_address0, _, GroupNodeStatus::ADDED))
+      .WillOnce(DoAll(SaveArg<1>(&group_id)));
+
+  ConnectLeAudio(test_address0);
+  ASSERT_NE(group_id, bluetooth::groups::kGroupUnknown);
+
+  // Start streaming
+  LeAudioClient::Get()->GroupSetActive(group_id);
+  SyncOnMainLoop();
+  StartStreaming(AUDIO_USAGE_MEDIA, AUDIO_CONTENT_TYPE_MUSIC, group_id);
+
+  // Deactivate while starting to stream
+  LeAudioClient::Get()->GroupSetActive(bluetooth::groups::kGroupUnknown);
+
+  // Inject STREAMING Status from state machine.
+  auto group = streaming_groups.at(group_id);
+  do_in_main_thread(
+      FROM_HERE,
+      base::BindOnce(
+          [](int group_id,
+             bluetooth::le_audio::LeAudioGroupStateMachine::Callbacks*
+                 state_machine_callbacks,
+             LeAudioDeviceGroup* group) {
+            state_machine_callbacks->StatusReportCb(
+                group_id, GroupStreamStatus::STREAMING);
+          },
+          group_id, base::Unretained(this->state_machine_callbacks_),
+          std::move(group)));
+  SyncOnMainLoop();
 }
 
 TEST_F(UnicastTest, RemoveNodeWhileStreaming) {
