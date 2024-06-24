@@ -590,6 +590,7 @@ public class TransitionalScanHelper {
             return;
         }
         client.appDied = true;
+        client.stats.isAppDead = true;
         stopScan(client.scannerId, mContext.getAttributionSource());
     }
 
@@ -1065,9 +1066,6 @@ public class TransitionalScanHelper {
             return;
         }
 
-        UUID uuid = UUID.randomUUID();
-        Log.d(TAG, "registerScanner() - UUID=" + uuid);
-
         enforceImpersonatationPermissionIfNeeded(workSource);
 
         AppScanStats app = mScannerMap.getAppScanStatsByUid(Binder.getCallingUid());
@@ -1082,6 +1080,13 @@ public class TransitionalScanHelper {
             }
             return;
         }
+        registerScannerInternal(callback, workSource);
+    }
+
+    /** Intended for internal use within the Bluetooth app. Bypass permission check */
+    public void registerScannerInternal(IScannerCallback callback, WorkSource workSource) {
+        UUID uuid = UUID.randomUUID();
+        Log.d(TAG, "registerScanner() - UUID=" + uuid);
 
         mScannerMap.add(uuid, workSource, callback, null, mContext, this);
         mScanManager.registerScanner(uuid);
@@ -1094,6 +1099,11 @@ public class TransitionalScanHelper {
             return;
         }
 
+        unregisterScannerInternal(scannerId);
+    }
+
+    /** Intended for internal use within the Bluetooth app. Bypass permission check */
+    public void unregisterScannerInternal(int scannerId) {
         Log.d(TAG, "unregisterScanner() - scannerId=" + scannerId);
         mScannerMap.remove(scannerId);
         mScanManager.unregisterScanner(scannerId);
@@ -1431,6 +1441,7 @@ public class TransitionalScanHelper {
                     handleDeadScanClient(client);
                 } else {
                     client.appDied = true;
+                    client.stats.isAppDead = true;
                     stopScan(client.scannerId, mContext.getAttributionSource());
                 }
             }

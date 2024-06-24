@@ -236,7 +236,8 @@ static void bta_ag_sco_disc_cback(uint16_t sco_idx) {
       /* Bypass vendor specific and voice settings if enhanced eSCO supported */
       if (!(bluetooth::shim::GetController()->IsSupported(
               bluetooth::hci::OpCode::ENHANCED_SETUP_SYNCHRONOUS_CONNECTION))) {
-        BTM_WriteVoiceSettings(BTM_VOICE_SETTING_CVSD);
+        get_btm_client_interface().sco.BTM_WriteVoiceSettings(
+            BTM_VOICE_SETTING_CVSD);
       }
 
       /* If SCO open was initiated by AG and failed for mSBC T2, try mSBC T1
@@ -1502,6 +1503,8 @@ void bta_ag_sco_conn_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
 
     bta_sys_sco_close(BTA_ID_AG, p_scb->app_id, p_scb->peer_addr);
 
+    bta_ag_stream_suspended();
+
     /* if av got suspended by this call, let it resume. */
     /* In case call stays alive regardless of sco, av should not be affected. */
     if (((p_scb->call_ind == BTA_AG_CALL_INACTIVE) &&
@@ -1604,10 +1607,17 @@ bool bta_ag_is_sco_managed_by_audio() {
   return value;
 }
 
+void bta_ag_stream_suspended() {
+  if (bta_ag_is_sco_managed_by_audio() && hfp_offload_interface) {
+    hfp_offload_interface->CancelStreamingRequest();
+  }
+}
+
 const RawAddress& bta_ag_get_active_device() { return active_device_addr; }
 
 void bta_clear_active_device() {
-  log::debug("Set bta active device to null");
+  log::debug("Set bta active device to null, current active device:{}",
+             active_device_addr);
   if (bta_ag_is_sco_managed_by_audio()) {
     if (hfp_offload_interface && !active_device_addr.IsEmpty()) {
       hfp_offload_interface->StopSession();
@@ -1617,6 +1627,8 @@ void bta_clear_active_device() {
 }
 
 void bta_ag_api_set_active_device(const RawAddress& new_active_device) {
+  log::info("active_device_addr{}, new_active_device:{}", active_device_addr,
+            new_active_device);
   if (new_active_device.IsEmpty()) {
     log::error("empty device");
     return;
@@ -1627,22 +1639,22 @@ void bta_ag_api_set_active_device(const RawAddress& new_active_device) {
       hfp_client_interface = std::unique_ptr<HfpInterface>(HfpInterface::Get());
       if (!hfp_client_interface) {
         log::error("could not acquire audio source interface");
-        return;
       }
     }
 
-    if (!hfp_offload_interface) {
+    if (hfp_client_interface && !hfp_offload_interface) {
       hfp_offload_interface = std::unique_ptr<HfpInterface::Offload>(
           hfp_client_interface->GetOffload(get_main_thread()));
-      sco_config_map = hfp_offload_interface->GetHfpScoConfig();
       if (!hfp_offload_interface) {
         log::warn("could not get offload interface");
-      } else {
-        // start audio session if there was no previous active device
-        // if there was an active device, java layer would call disconnectAudio
-        if (active_device_addr.IsEmpty()) {
-          hfp_offload_interface->StartSession();
-        }
+      }
+    }
+
+    if (hfp_offload_interface) {
+      sco_config_map = hfp_offload_interface->GetHfpScoConfig();
+      // start audio session if there was no previous active device
+      if (active_device_addr.IsEmpty()) {
+        hfp_offload_interface->StartSession();
       }
     }
   }

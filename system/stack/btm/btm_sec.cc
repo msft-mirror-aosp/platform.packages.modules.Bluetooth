@@ -2353,13 +2353,14 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
     p_dev_rec->sec_bd_name[0] = 0;
   }
 
-  uint8_t old_sec_state = p_dev_rec->sec_rec.sec_state;
-  if (p_dev_rec->sec_rec.sec_state == BTM_SEC_STATE_GETTING_NAME)
-    p_dev_rec->sec_rec.sec_state = BTM_SEC_STATE_IDLE;
-
   /* Notify all clients waiting for name to be resolved */
   call_registered_rmt_name_callbacks(p_bd_addr, p_dev_rec->dev_class,
                                      p_dev_rec->sec_bd_name, status);
+
+  // Security procedure resumes
+  uint8_t old_sec_state = p_dev_rec->sec_rec.sec_state;
+  if (p_dev_rec->sec_rec.sec_state == BTM_SEC_STATE_GETTING_NAME)
+    p_dev_rec->sec_rec.sec_state = BTM_SEC_STATE_IDLE;
 
   /* If we were delaying asking UI for a PIN because name was not resolved,
    * ask now */
@@ -2374,7 +2375,7 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
       log::verbose("calling pin_callback");
       btm_sec_cb.pairing_flags |= BTM_PAIR_FLAGS_PIN_REQD;
       (*btm_sec_cb.api.p_pin_callback)(
-          p_dev_rec->bd_addr, p_dev_rec->dev_class, p_bd_name,
+          p_dev_rec->bd_addr, p_dev_rec->dev_class, p_dev_rec->sec_bd_name,
           (p_dev_rec->sec_rec.required_security_flags_for_pairing &
            BTM_SEC_IN_MIN_16_DIGIT_PIN));
     }
