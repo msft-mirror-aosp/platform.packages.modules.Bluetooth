@@ -854,20 +854,7 @@ static void btif_dm_cb_create_bond(const RawAddress bd_addr,
                        static_cast<tBT_DEVICE_TYPE>(device_type));
   }
 
-  if (!com::android::bluetooth::flags::connect_hid_after_service_discovery() &&
-      is_hid && (device_type & BT_DEVICE_TYPE_BLE) == 0) {
-    tAclLinkSpec link_spec;
-    link_spec.addrt.bda = bd_addr;
-    link_spec.addrt.type = addr_type;
-    link_spec.transport = transport;
-    const bt_status_t status =
-        GetInterfaceToProfiles()->profileSpecific_HACK->btif_hh_connect(
-            link_spec);
-    if (status != BT_STATUS_SUCCESS)
-      bond_state_changed(status, bd_addr, BT_BOND_STATE_NONE);
-  } else {
-    BTA_DmBond(bd_addr, addr_type, transport, device_type);
-  }
+  BTA_DmBond(bd_addr, addr_type, transport, device_type);
   /*  Track  originator of bond creation  */
   pairing_cb.is_local_initiated = true;
 }
@@ -1658,27 +1645,8 @@ static bool btif_should_ignore_uuid(const Uuid& uuid) {
 }
 
 static bool btif_is_gatt_service_discovery_post_pairing(const RawAddress bd_addr) {
-  if (!com::android::bluetooth::flags::
-          reset_pairing_only_for_related_service_discovery()) {
-    if (bd_addr == pairing_cb.bd_addr || bd_addr == pairing_cb.static_bdaddr) {
-      if (pairing_cb.gatt_over_le !=
-          btif_dm_pairing_cb_t::ServiceDiscoveryState::SCHEDULED) {
-        log::error(
-            "gatt_over_le should be SCHEDULED, did someone clear the control "
-            "block for {} ?",
-            bd_addr);
-      }
-
-      return true;
-    }
-
-    return false;
-  }
-
- return ((bd_addr == pairing_cb.bd_addr ||
-          bd_addr == pairing_cb.static_bdaddr) &&
-         (pairing_cb.gatt_over_le ==
-          btif_dm_pairing_cb_t::ServiceDiscoveryState::SCHEDULED));
+  return (bd_addr == pairing_cb.bd_addr || bd_addr == pairing_cb.static_bdaddr) &&
+         (pairing_cb.gatt_over_le == btif_dm_pairing_cb_t::ServiceDiscoveryState::SCHEDULED);
 }
 
 static void btif_merge_existing_uuids(RawAddress& addr, std::set<Uuid>* uuids) {
@@ -1716,11 +1684,7 @@ static void btif_on_service_discovery_results(
     if (pairing_cb.sdp_attempts) {
       log::warn("SDP failed after bonding re-attempting for {}", bd_addr);
       pairing_cb.sdp_attempts++;
-      if (com::android::bluetooth::flags::force_bredr_for_sdp_retry()) {
-        btif_dm_get_remote_services(bd_addr, BT_TRANSPORT_BR_EDR);
-      } else {
-        btif_dm_get_remote_services(bd_addr, BT_TRANSPORT_AUTO);
-      }
+      btif_dm_get_remote_services(bd_addr, BT_TRANSPORT_BR_EDR);
     } else {
       log::warn("SDP triggered by someone failed when bonding");
     }
@@ -3493,10 +3457,6 @@ static void btif_dm_ble_key_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif) {
 
 static bool btif_dm_ble_is_temp_pairing(RawAddress& bd_addr, bool ctkd) {
   if (btm_get_bond_type_dev(bd_addr) == BOND_TYPE_TEMPORARY) {
-    if (!com::android::bluetooth::flags::ignore_bond_type_for_le()) {
-      return true;
-    }
-
     return ctkd;
   }
 
