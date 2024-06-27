@@ -20,14 +20,13 @@
 
 #include <cstdint>
 
-#include "internal_include/bt_target.h"
 #include "macros.h"
 #include "osi/include/alarm.h"
 #include "stack/btm/btm_eir.h"
 #include "stack/include/bt_device_type.h"
 #include "stack/include/bt_name.h"
 #include "stack/include/btm_api_types.h"
-#include "stack/include/btm_status.h"
+#include "stack/include/hci_error_code.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
@@ -63,27 +62,12 @@ enum : uint16_t {
  * Note: These modes are associated with the inquiry active values (BTM_*ACTIVE)
  */
 enum : uint8_t {
-  BTM_INQUIRY_NONE = 0,
   BTM_INQUIRY_INACTIVE = 0x0,
   BTM_GENERAL_INQUIRY = 0x01,
-  /* SSP is active, so inquiry is disallowed (work around for FW bug) */
-  BTM_SSP_INQUIRY_ACTIVE = 0x4,
   /* high nibble of inquiry mode for BLE inquiry mode */
   BTM_BLE_GENERAL_INQUIRY = 0x10,
-  BTM_BR_INQUIRY_MASK = (BTM_GENERAL_INQUIRY),
-  BTM_BLE_INQUIRY_MASK = (BTM_BLE_GENERAL_INQUIRY),
-  BTM_BLE_INQUIRY_NONE = BTM_INQUIRY_NONE,
-  BTM_GENERAL_INQUIRY_ACTIVE = BTM_GENERAL_INQUIRY,
-  /* a general inquiry is in progress */
-  BTM_LE_GENERAL_INQUIRY_ACTIVE = BTM_BLE_GENERAL_INQUIRY,
-  /* BR/EDR inquiry activity mask */
-  BTM_BR_INQ_ACTIVE_MASK = (BTM_GENERAL_INQUIRY_ACTIVE),
-  /* LE scan activity mask */
-  BTM_BLE_SCAN_ACTIVE_MASK = 0xF0,
-  /* LE inquiry activity mask*/
-  BTM_BLE_INQ_ACTIVE_MASK = (BTM_LE_GENERAL_INQUIRY_ACTIVE),
   /* inquiry activity mask */
-  BTM_INQUIRY_ACTIVE_MASK = (BTM_BR_INQ_ACTIVE_MASK | BTM_BLE_INQ_ACTIVE_MASK),
+  BTM_INQUIRY_ACTIVE_MASK = (BTM_GENERAL_INQUIRY | BTM_BLE_GENERAL_INQUIRY),
 };
 
 /* Define scan types */
@@ -214,20 +198,7 @@ inline std::string btm_inquiry_cmpl_status_text(
   }
 }
 
-/* Structure returned with remote name  request */
-typedef struct {
-  tBTM_STATUS status;
-  RawAddress bd_addr;
-  BD_NAME remote_bd_name;
-  tHCI_STATUS hci_status;
-} tBTM_REMOTE_DEV_NAME;
-
-typedef void(tBTM_NAME_CMPL_CB)(const tBTM_REMOTE_DEV_NAME*);
-
 struct tBTM_INQUIRY_VAR_ST {
-  tBTM_NAME_CMPL_CB* p_remname_cmpl_cb;
-
-  alarm_t* remote_name_timer;
   alarm_t* classic_inquiry_timer;
 
   uint16_t discoverable_mode;
@@ -238,11 +209,6 @@ struct tBTM_INQUIRY_VAR_ST {
   uint16_t inq_scan_period;
   uint16_t inq_scan_type;
   uint16_t page_scan_type; /* current page scan type */
-
-  RawAddress remname_bda; /* Name of bd addr for active remote name request */
-#define BTM_RMT_NAME_EXT 0x1 /* Initiated through API */
-  bool remname_active; /* State of a remote name request by external API */
-  tBT_DEVICE_TYPE remname_dev_type; /* Whether it's LE or BREDR name request */
 
   tBTM_CMPL_CB* p_inq_cmpl_cb;
   tBTM_INQ_RESULTS_CB* p_inq_results_cb;
@@ -269,11 +235,8 @@ struct tBTM_INQUIRY_VAR_ST {
   bool registered_for_hci_events;
 
   void Init() {
-    p_remname_cmpl_cb = nullptr;
-
-    alarm_free(remote_name_timer);
     alarm_free(classic_inquiry_timer);
-    remote_name_timer = alarm_new("btm_inq.remote_name_timer");
+
     classic_inquiry_timer = alarm_new("btm_inq.classic_inquiry_timer");
 
     discoverable_mode = BTM_NON_DISCOVERABLE;
@@ -285,10 +248,6 @@ struct tBTM_INQUIRY_VAR_ST {
     inq_scan_period = HCI_DEF_INQUIRYSCAN_INTERVAL;
     inq_scan_type = BTM_SCAN_TYPE_STANDARD;
     page_scan_type = HCI_DEF_SCAN_TYPE;
-
-    remname_bda = {};
-    remname_active = false;
-    remname_dev_type = BT_DEVICE_TYPE_UNKNOWN;
 
     p_inq_cmpl_cb = nullptr;
     p_inq_results_cb = nullptr;
@@ -303,10 +262,7 @@ struct tBTM_INQUIRY_VAR_ST {
     inq_active = 0;
     registered_for_hci_events = false;
   }
-  void Free() {
-    alarm_free(remote_name_timer);
-    alarm_free(classic_inquiry_timer);
-  }
+  void Free() { alarm_free(classic_inquiry_timer); }
 };
 
 bool btm_inq_find_bdaddr(const RawAddress& p_bda);

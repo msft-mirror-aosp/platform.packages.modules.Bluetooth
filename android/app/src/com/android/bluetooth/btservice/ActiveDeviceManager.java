@@ -19,7 +19,6 @@ package com.android.bluetooth.btservice;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
-import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
@@ -47,6 +46,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -57,35 +57,55 @@ import java.util.Set;
  * The active device manager selects a fallback device when the currently active device is
  * disconnected, and it selects BT devices that are lastly activated one.
  *
- * <p>Current policy (subject to change): 1) If the maximum number of connected devices is one, the
- * manager doesn't do anything. Each profile is responsible for automatically selecting the
- * connected device as active. Only if the maximum number of connected devices is more than one, the
- * rules below will apply. 2) The selected A2DP active device is the one used for AVRCP as well. 3)
- * The HFP active device might be different from the A2DP active device. 4) The Active Device
- * Manager always listens for the change of active devices. When it changed (e.g., triggered
- * indirectly by user action on the UI), the new active device is marked as the current active
- * device for that profile. 5) If there is a HearingAid active device, then A2DP, HFP and LE audio
- * active devices must be set to null (i.e., A2DP, HFP and LE audio cannot have active devices). The
- * reason is that A2DP, HFP or LE audio cannot be used together with HearingAid. 6) If there are no
- * connected devices (e.g., during startup, or after all devices have been disconnected, the active
- * device per profile (A2DP/HFP/HearingAid/LE audio) is selected as follows: 6.1) The last connected
- * HearingAid device is selected as active. If there is an active A2DP, HFP or LE audio device,
- * those must be set to null. 6.2) The last connected A2DP, HFP or LE audio device is selected as
- * active. However, if there is an active HearingAid device, then the A2DP, HFP, or LE audio active
- * device is not set (must remain null). 7) If the currently active device (per profile) is
- * disconnected, the Active Device Manager just marks that the profile has no active device, and the
- * lastly activated BT device that is still connected would be selected. 8) If there is already an
- * active device, however, if active device change notified with a null device, the corresponding
- * profile is marked as having no active device. 9) If a wired audio device is connected, the audio
- * output is switched by the Audio Framework itself to that device. We detect this here, and the
- * active device for each profile (A2DP/HFP/HearingAid/LE audio) is set to null to reflect the
- * output device state change. However, if the wired audio device is disconnected, we don't do
- * anything explicit and apply the default behavior instead: 9.1) If the wired headset is still the
- * selected output device (i.e. the active device is set to null), the Phone itself will become the
- * output device (i.e., the active device will remain null). If music was playing, it will stop.
- * 9.2) If one of the Bluetooth devices is the selected active device (e.g., by the user in the UI),
- * disconnecting the wired audio device will have no impact. E.g., music will continue streaming
- * over the active Bluetooth device.
+ * <p>Current policy (subject to change):
+ *
+ * <p>1) If the maximum number of connected devices is one, the manager doesn't do anything. Each
+ * profile is responsible for automatically selecting the connected device as active. Only if the
+ * maximum number of connected devices is more than one, the rules below will apply.
+ *
+ * <p>2) The selected A2DP active device is the one used for AVRCP as well.
+ *
+ * <p>3) The HFP active device might be different from the A2DP active device.
+ *
+ * <p>4) The Active Device Manager always listens for the change of active devices. When it changed
+ * (e.g., triggered indirectly by user action on the UI), the new active device is marked as the
+ * current active device for that profile.
+ *
+ * <p>5) If there is a HearingAid active device, then A2DP, HFP and LE audio active devices must be
+ * set to null (i.e., A2DP, HFP and LE audio cannot have active devices). The reason is that A2DP,
+ * HFP or LE audio cannot be used together with HearingAid.
+ *
+ * <p>6) If there are no connected devices (e.g., during startup, or after all devices have been
+ * disconnected, the active device per profile (A2DP/HFP/HearingAid/LE audio) is selected as
+ * follows:
+ *
+ * <p>6.1) The last connected HearingAid device is selected as active. If there is an active A2DP,
+ * HFP or LE audio device, those must be set to null.
+ *
+ * <p>6.2) The last connected A2DP, HFP or LE audio device is selected as active. However, if there
+ * is an active HearingAid device, then the A2DP, HFP, or LE audio active device is not set (must
+ * remain null).
+ *
+ * <p>7) If the currently active device (per profile) is disconnected, the Active Device Manager
+ * just marks that the profile has no active device, and the lastly activated BT device that is
+ * still connected would be selected.
+ *
+ * <p>8) If there is already an active device, however, if active device change notified with a null
+ * device, the corresponding profile is marked as having no active device.
+ *
+ * <p>9) If a wired audio device is connected, the audio output is switched by the Audio Framework
+ * itself to that device. We detect this here, and the active device for each profile
+ * (A2DP/HFP/HearingAid/LE audio) is set to null to reflect the output device state change. However,
+ * if the wired audio device is disconnected, we don't do anything explicit and apply the default
+ * behavior instead:
+ *
+ * <p>9.1) If the wired headset is still the selected output device (i.e. the active device is set
+ * to null), the Phone itself will become the output device (i.e. the active device will remain
+ * null). If music was playing, it will stop.
+ *
+ * <p>9.2) If one of the Bluetooth devices is the selected active device (e.g., by the user in the
+ * UI), disconnecting the wired audio device will have no impact. E.g., music will continue
+ * streaming over the active Bluetooth device.
  */
 public class ActiveDeviceManager implements AdapterService.BluetoothStateCallback {
     private static final String TAG = ActiveDeviceManager.class.getSimpleName();
@@ -97,7 +117,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
     private HandlerThread mHandlerThread = null;
     private Handler mHandler = null;
     private final AudioManager mAudioManager;
-    private final AudioManagerAudioDeviceCallback mAudioManagerAudioDeviceCallback;
+    @VisibleForTesting final AudioManagerAudioDeviceCallback mAudioManagerAudioDeviceCallback;
 
     private final Object mLock = new Object();
 
@@ -763,9 +783,9 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
     }
 
     /** Notifications of audio device connection and disconnection events. */
-    @SuppressLint("AndroidFrameworkRequiresPermission")
-    private class AudioManagerAudioDeviceCallback extends AudioDeviceCallback {
-        private boolean isWiredAudioHeadset(AudioDeviceInfo deviceInfo) {
+    @VisibleForTesting
+    class AudioManagerAudioDeviceCallback extends AudioDeviceCallback {
+        private static boolean isWiredAudioHeadset(AudioDeviceInfo deviceInfo) {
             switch (deviceInfo.getType()) {
                 case AudioDeviceInfo.TYPE_WIRED_HEADSET:
                 case AudioDeviceInfo.TYPE_WIRED_HEADPHONES:
@@ -780,26 +800,27 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
         @Override
         public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
             Log.d(TAG, "onAudioDevicesAdded");
-            boolean hasAddedWiredDevice = false;
-            for (AudioDeviceInfo deviceInfo : addedDevices) {
-                Log.d(
-                        TAG,
-                        "Audio device added: "
-                                + deviceInfo.getProductName()
-                                + " type: "
-                                + deviceInfo.getType());
-                if (isWiredAudioHeadset(deviceInfo)) {
-                    hasAddedWiredDevice = true;
-                    break;
-                }
+            if (!Arrays.stream(addedDevices)
+                    .anyMatch(AudioManagerAudioDeviceCallback::isWiredAudioHeadset)) {
+                return;
             }
-            if (hasAddedWiredDevice) {
-                wiredAudioDeviceConnected();
-            }
+            wiredAudioDeviceConnected();
         }
 
         @Override
-        public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {}
+        public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
+            Log.d(TAG, "onAudioDevicesRemoved");
+            if (!Flags.fallbackWhenWiredAudioDisconnected()) {
+                return;
+            }
+            if (!Arrays.stream(removedDevices)
+                    .anyMatch(AudioManagerAudioDeviceCallback::isWiredAudioHeadset)) {
+                return;
+            }
+            synchronized (mLock) {
+                setFallbackDeviceActiveLocked();
+            }
+        }
     }
 
     ActiveDeviceManager(AdapterService service, ServiceFactory factory) {
@@ -962,12 +983,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
 
     private boolean setLeAudioActiveDevice(
             @Nullable BluetoothDevice device, boolean hasFallbackDevice) {
-        Log.d(
-                TAG,
-                "setLeAudioActiveDevice("
-                        + device
-                        + ")"
-                        + (device == null ? " hasFallbackDevice=" + hasFallbackDevice : ""));
+        Log.d(TAG, "setLeAudioActiveDevice(" + device + ", " + hasFallbackDevice + ")");
         synchronized (mLock) {
             final LeAudioService leAudioService = mFactory.getLeAudioService();
             if (leAudioService == null) {
@@ -1093,62 +1109,61 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
                 }
         }
         BluetoothDevice device = mDbManager.getMostRecentlyConnectedDevicesInList(connectedDevices);
-        if (device != null) {
-            if (mAudioManager.getMode() == AudioManager.MODE_NORMAL) {
-                if (Objects.equals(a2dpFallbackDevice, device)) {
-                    Log.d(TAG, "Found an A2DP fallback device: " + device);
-                    setA2dpActiveDevice(device);
-                    if (Objects.equals(headsetFallbackDevice, device)) {
-                        setHfpActiveDevice(device);
-                    } else {
-                        setHfpActiveDevice(null);
-                    }
-                    /* If dual mode is enabled, LEA will be made active once all supported
-                    classic audio profiles are made active for the device. */
-                    if (!Utils.isDualModeAudioEnabled()) {
-                        setLeAudioActiveDevice(null, true);
-                    }
-                    setHearingAidActiveDevice(null, true);
-                } else {
-                    Log.d(TAG, "Found a LE audio fallback device: " + device);
-                    if (!setLeAudioActiveDevice(device)) {
-                        return false;
-                    }
-
-                    if (!Utils.isDualModeAudioEnabled()) {
-                        setA2dpActiveDevice(null, true);
-                        setHfpActiveDevice(null);
-                    }
-                    setHearingAidActiveDevice(null, true);
-                }
-            } else {
-                if (Objects.equals(headsetFallbackDevice, device)) {
-                    Log.d(TAG, "Found a HFP fallback device: " + device);
-                    setHfpActiveDevice(device);
-                    if (Objects.equals(a2dpFallbackDevice, device)) {
-                        setA2dpActiveDevice(a2dpFallbackDevice);
-                    } else {
-                        setA2dpActiveDevice(null, true);
-                    }
-                    if (!Utils.isDualModeAudioEnabled()) {
-                        setLeAudioActiveDevice(null, true);
-                    }
-                    setHearingAidActiveDevice(null, true);
-                } else {
-                    Log.d(TAG, "Found a LE audio fallback device: " + device);
-                    setLeAudioActiveDevice(device);
-                    if (!Utils.isDualModeAudioEnabled()) {
-                        setA2dpActiveDevice(null, true);
-                        setHfpActiveDevice(null);
-                    }
-                    setHearingAidActiveDevice(null, true);
-                }
-            }
-            return true;
+        if (device == null) {
+            Log.d(TAG, "No fallback devices are found");
+            return false;
         }
+        if (mAudioManager.getMode() == AudioManager.MODE_NORMAL) {
+            if (Objects.equals(a2dpFallbackDevice, device)) {
+                Log.d(TAG, "Found an A2DP fallback device: " + device);
+                setA2dpActiveDevice(device);
+                if (Objects.equals(headsetFallbackDevice, device)) {
+                    setHfpActiveDevice(device);
+                } else {
+                    setHfpActiveDevice(null);
+                }
+                /* If dual mode is enabled, LEA will be made active once all supported
+                classic audio profiles are made active for the device. */
+                if (!Utils.isDualModeAudioEnabled()) {
+                    setLeAudioActiveDevice(null, true);
+                }
+                setHearingAidActiveDevice(null, true);
+            } else {
+                Log.d(TAG, "Found a LE audio fallback device: " + device);
+                if (!setLeAudioActiveDevice(device)) {
+                    return false;
+                }
 
-        Log.d(TAG, "No fallback devices are found");
-        return false;
+                if (!Utils.isDualModeAudioEnabled()) {
+                    setA2dpActiveDevice(null, true);
+                    setHfpActiveDevice(null);
+                }
+                setHearingAidActiveDevice(null, true);
+            }
+        } else {
+            if (Objects.equals(headsetFallbackDevice, device)) {
+                Log.d(TAG, "Found a HFP fallback device: " + device);
+                setHfpActiveDevice(device);
+                if (Objects.equals(a2dpFallbackDevice, device)) {
+                    setA2dpActiveDevice(a2dpFallbackDevice);
+                } else {
+                    setA2dpActiveDevice(null, true);
+                }
+                if (!Utils.isDualModeAudioEnabled()) {
+                    setLeAudioActiveDevice(null, true);
+                }
+                setHearingAidActiveDevice(null, true);
+            } else {
+                Log.d(TAG, "Found a LE audio fallback device: " + device);
+                setLeAudioActiveDevice(device);
+                if (!Utils.isDualModeAudioEnabled()) {
+                    setA2dpActiveDevice(null, true);
+                    setHfpActiveDevice(null);
+                }
+                setHearingAidActiveDevice(null, true);
+            }
+        }
+        return true;
     }
 
     private void resetState() {

@@ -73,6 +73,7 @@ import com.android.bluetooth.btservice.ServiceFactory;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.csip.CsipSetCoordinatorService;
 import com.android.bluetooth.le_audio.LeAudioService;
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.nio.charset.StandardCharsets;
@@ -888,7 +889,8 @@ public class BassClientService extends ProfileService {
             return;
         }
 
-        boolean isAssistantActive = isAnyReceiverReceivingBroadcast(getConnectedDevices());
+        boolean isAssistantActive =
+                areReceiversReceivingOnlyExternalBroadcast(getConnectedDevices());
 
         if (isAssistantActive) {
             /* Assistant become active */
@@ -1581,7 +1583,6 @@ public class BassClientService extends ProfileService {
     public void registerCallback(IBluetoothLeBroadcastAssistantCallback cb) {
         Log.i(TAG, "registerCallback");
         mCallbacks.register(cb);
-        return;
     }
 
     /**
@@ -1592,7 +1593,6 @@ public class BassClientService extends ProfileService {
     public void unregisterCallback(IBluetoothLeBroadcastAssistantCallback cb) {
         Log.i(TAG, "unregisterCallback");
         mCallbacks.unregister(cb);
-        return;
     }
 
     /**
@@ -1958,13 +1958,13 @@ public class BassClientService extends ProfileService {
                 log("No PA record found");
                 return;
             }
+            BaseData baseData = getBase(syncHandle);
+            if (baseData == null) {
+                log("No BaseData found");
+                return;
+            }
             if (!result.isNotified()) {
                 result.setNotified(true);
-                BaseData baseData = getBase(syncHandle);
-                if (baseData == null) {
-                    log("No BaseData found");
-                    return;
-                }
                 BluetoothLeBroadcastMetadata metaData =
                         getBroadcastMetadataFromBaseData(
                                 baseData, srcDevice, syncHandle, encrypted);
@@ -2263,8 +2263,8 @@ public class BassClientService extends ProfileService {
             }
         }
 
-        if (broadcastId == BassConstants.INVALID_BROADCAST_ID || pbData == null) {
-            Log.w(TAG, "Invalid broadcast ID or public broadcast data");
+        if (broadcastId == BassConstants.INVALID_BROADCAST_ID) {
+            Log.w(TAG, "Invalid broadcast ID");
             mPeriodicAdvCallbacksMap.remove(BassConstants.INVALID_SYNC_HANDLE);
             handleSelectSourceRequest();
             return;
@@ -3098,9 +3098,9 @@ public class BassClientService extends ProfileService {
                             DeviceConfig.getBoolean(
                                             DeviceConfig.NAMESPACE_BLUETOOTH,
                                             "persist.vendor.service.bt.defNoPAS",
-                                            true)
-                                    ? BassConstants.PA_SYNC_PAST_AVAILABLE
-                                    : BassConstants.PA_SYNC_PAST_NOT_AVAILABLE;
+                                            false)
+                                    ? BassConstants.PA_SYNC_PAST_NOT_AVAILABLE
+                                    : BassConstants.PA_SYNC_PAST_AVAILABLE;
                     message.obj = metadata;
                     stateMachine.sendMessage(message);
                 } else {
@@ -3125,7 +3125,7 @@ public class BassClientService extends ProfileService {
         mUnicastSourceStreamStatus = Optional.of(status);
 
         if (status == STATUS_LOCAL_STREAM_REQUESTED) {
-            if (isAnyReceiverReceivingBroadcast(getConnectedDevices())) {
+            if (areReceiversReceivingOnlyExternalBroadcast(getConnectedDevices())) {
                 if (leaudioBroadcastAssistantPeripheralEntrustment()) {
                     cacheSuspendingSources(BassConstants.INVALID_BROADCAST_ID);
                 } else {
@@ -3162,18 +3162,41 @@ public class BassClientService extends ProfileService {
             for (BluetoothLeBroadcastReceiveState receiveState : getAllSources(device)) {
                 for (int i = 0; i < receiveState.getNumSubgroups(); i++) {
                     Long syncState = receiveState.getBisSyncState().get(i);
-                    /* Not synced to BIS of failed to sync to BIG */
-                    if (syncState == BassConstants.BIS_SYNC_NOT_SYNC_TO_BIS
-                            || syncState == BassConstants.BIS_SYNC_FAILED_SYNC_TO_BIG) {
-                        continue;
+                    /* Synced to BIS */
+                    if (syncState != BassConstants.BIS_SYNC_NOT_SYNC_TO_BIS
+                            && syncState != BassConstants.BIS_SYNC_FAILED_SYNC_TO_BIG) {
+                        return true;
                     }
-
-                    return true;
                 }
             }
         }
 
         return false;
+    }
+
+    /** Check if any sink receivers are receiving broadcast stream */
+    public boolean areReceiversReceivingOnlyExternalBroadcast(List<BluetoothDevice> devices) {
+        boolean isReceivingExternalBroadcast = false;
+
+        for (BluetoothDevice device : devices) {
+            for (BluetoothLeBroadcastReceiveState receiveState : getAllSources(device)) {
+                for (int i = 0; i < receiveState.getNumSubgroups(); i++) {
+                    Long syncState = receiveState.getBisSyncState().get(i);
+                    /* Synced to BIS */
+                    if (syncState != BassConstants.BIS_SYNC_NOT_SYNC_TO_BIS
+                            && syncState != BassConstants.BIS_SYNC_FAILED_SYNC_TO_BIG) {
+                        if (isLocalBroadcast(receiveState)) {
+                            return false;
+                        } else {
+                            isReceivingExternalBroadcast = true;
+                        }
+                    }
+
+                }
+            }
+        }
+
+        return isReceivingExternalBroadcast;
     }
 
     /** Get the active broadcast sink devices receiving broadcast stream */
@@ -3238,7 +3261,8 @@ public class BassClientService extends ProfileService {
         private static final int MSG_RECEIVESTATE_CHANGED = 12;
         private static final int MSG_SOURCE_LOST = 13;
 
-        private final RemoteCallbackList<IBluetoothLeBroadcastAssistantCallback> mCallbacks =
+        @GuardedBy("mCallbacksList")
+        private final RemoteCallbackList<IBluetoothLeBroadcastAssistantCallback> mCallbacksList =
                 new RemoteCallbackList<>();
 
         Callbacks(Looper looper) {
@@ -3246,11 +3270,15 @@ public class BassClientService extends ProfileService {
         }
 
         public void register(IBluetoothLeBroadcastAssistantCallback callback) {
-            mCallbacks.register(callback);
+            synchronized (mCallbacksList) {
+                mCallbacksList.register(callback);
+            }
         }
 
         public void unregister(IBluetoothLeBroadcastAssistantCallback callback) {
-            mCallbacks.unregister(callback);
+            synchronized (mCallbacksList) {
+                mCallbacksList.unregister(callback);
+            }
         }
 
         private void checkForPendingGroupOpRequest(Message msg) {
@@ -3287,20 +3315,23 @@ public class BassClientService extends ProfileService {
         @Override
         public void handleMessage(Message msg) {
             checkForPendingGroupOpRequest(msg);
-            final int n = mCallbacks.beginBroadcast();
-            for (int i = 0; i < n; i++) {
-                final IBluetoothLeBroadcastAssistantCallback callback =
-                        mCallbacks.getBroadcastItem(i);
-                try {
-                    invokeCallback(callback, msg);
-                } catch (RemoteException e) {
-                    continue;
+
+            synchronized (mCallbacksList) {
+                final int n = mCallbacksList.beginBroadcast();
+                for (int i = 0; i < n; i++) {
+                    final IBluetoothLeBroadcastAssistantCallback callback =
+                            mCallbacksList.getBroadcastItem(i);
+                    try {
+                        invokeCallback(callback, msg);
+                    } catch (RemoteException e) {
+                        continue;
+                    }
                 }
+                mCallbacksList.finishBroadcast();
             }
-            mCallbacks.finishBroadcast();
         }
 
-        private class ObjParams {
+        private static class ObjParams {
             Object mObj1;
             Object mObj2;
 
