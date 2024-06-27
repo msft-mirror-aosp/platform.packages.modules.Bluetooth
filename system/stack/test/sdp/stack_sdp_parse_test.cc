@@ -63,7 +63,7 @@ class StackSdpParserWithMocksTest : public ::testing::Test {
     test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t /* cid */,
                                                           BT_HDR* p_data) {
       osi_free_and_reset((void**)&p_data);
-      return 0;
+      return tL2CAP_DW_RESULT::FAILED;
     };
     test::mock::stack_l2cap_api::L2CA_DisconnectReq.body =
         [](uint16_t /* cid */) { return true; };
@@ -130,7 +130,7 @@ class StackSdpAsClientParseTest : public StackSdpParserInitTest {
     p_ccb_ = sdpu_find_ccb_by_db(p_db_);
     ASSERT_NE(nullptr, p_ccb_);
     p_ccb_->disc_state = SDP_DISC_WAIT_SEARCH_ATTR;
-    p_ccb_->con_state = SDP_STATE_CONNECTED;
+    p_ccb_->con_state = tSDP_STATE::CONNECTED;
     p_ccb_->con_flags = SDP_FLAGS_IS_ORIG;
   }
 

@@ -79,6 +79,10 @@ static const std::string kPropertyConnScanWindow2mFast = "bluetooth.core.le.conn
 static const std::string kPropertyConnScanWindowCodedFast = "bluetooth.core.le.connection_scan_window_coded_fast";
 static const std::string kPropertyConnScanIntervalSlow = "bluetooth.core.le.connection_scan_interval_slow";
 static const std::string kPropertyConnScanWindowSlow = "bluetooth.core.le.connection_scan_window_slow";
+static const std::string kPropertyConnScanIntervalSystemSuspend =
+    "bluetooth.core.le.connection_scan_interval_system_suspend";
+static const std::string kPropertyConnScanWindowSystemSuspend =
+    "bluetooth.core.le.connection_scan_window_system_suspend";
 static const std::string kPropertyEnableBlePrivacy = "bluetooth.core.gap.le.privacy.enabled";
 static const std::string kPropertyEnableBleOnlyInit1mPhy = "bluetooth.core.gap.le.conn.only_init_1m_phy.enabled";
 
@@ -609,21 +613,15 @@ struct le_impl : public bluetooth::hci::LeAddressManagerCallback {
       return;
     }
 
-    auto handle = request_view.GetConnectionHandle();
-    connections.execute(handle, [=, this](LeConnectionManagementCallbacks* /* callbacks */) {
-      // TODO: this is blindly accepting any parameters, just so we don't hang connection
-      // have proper parameter negotiation
-      le_acl_connection_interface_->EnqueueCommand(
-          LeRemoteConnectionParameterRequestReplyBuilder::Create(
-              handle,
+    connections.execute(
+        request_view.GetConnectionHandle(),
+        [request_view](LeConnectionManagementCallbacks* callbacks) {
+          callbacks->OnParameterUpdateRequest(
               request_view.GetIntervalMin(),
               request_view.GetIntervalMax(),
               request_view.GetLatency(),
-              request_view.GetTimeout(),
-              0,
-              0),
-          handler_->BindOnce([](CommandCompleteView /* status */) {}));
-    });
+              request_view.GetTimeout());
+        });
   }
 
   void on_le_subrate_change(LeMetaEventView view) {
@@ -829,8 +827,10 @@ struct le_impl : public bluetooth::hci::LeAddressManagerCallback {
     }
     // Use specific parameters when in system suspend.
     if (system_suspend_) {
-      le_scan_interval = kScanIntervalSystemSuspend;
-      le_scan_window = kScanWindowSystemSuspend;
+      le_scan_interval = os::GetSystemPropertyUint32(
+          kPropertyConnScanIntervalSystemSuspend, kScanIntervalSystemSuspend);
+      le_scan_window = os::GetSystemPropertyUint32(
+          kPropertyConnScanWindowSystemSuspend, kScanWindowSystemSuspend);
       le_scan_window_2m = le_scan_window;
       le_scan_window_coded = le_scan_window;
     }

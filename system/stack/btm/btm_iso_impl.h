@@ -286,7 +286,7 @@ struct iso_impl {
 
         evt.status = status;
         evt.cis_conn_hdl = cis_param.cis_conn_handle;
-        evt.cig_id = 0xFF;
+        evt.cig_id = cis->cig_id;
         cis->state_flags &= ~kStateFlagIsConnecting;
         cig_callbacks_->OnCisEvent(kIsoEventCisEstablishCmpl, &evt);
 
@@ -340,6 +340,12 @@ struct iso_impl {
                    base::StringPrintf(
                        "handle:0x%04x, reason:%s", cis_handle,
                        hci_reason_code_text((tHCI_REASON)(reason)).c_str()));
+  }
+
+  int get_number_of_active_iso() {
+    int num_iso = conn_hdl_to_cis_map_.size() + conn_hdl_to_bis_map_.size();
+    log::info("Current number of active_iso is {}", num_iso);
+    return num_iso;
   }
 
   void on_setup_iso_data_path(uint8_t* stream, uint16_t /* len */) {

@@ -52,9 +52,11 @@
 #define L2CAP_FCS_LENGTH 2
 
 /* result code for L2CA_DataWrite() */
-#define L2CAP_DW_FAILED false
-#define L2CAP_DW_SUCCESS true
-#define L2CAP_DW_CONGESTED 2
+enum class tL2CAP_DW_RESULT : uint8_t {
+  FAILED = 0,
+  SUCCESS = 1,
+  CONGESTED = 2,
+};
 
 /* Values for priority parameter to L2CA_SetAclPriority */
 typedef enum : uint8_t {
@@ -350,12 +352,6 @@ typedef struct {
   uint8_t preferred_mode;
 } tL2CAP_ERTM_INFO;
 
-/**
- * Stack management declarations
- */
-void l2c_init();
-void l2c_free();
-
 /*****************************************************************************
  *  External Function Declarations
  ****************************************************************************/
@@ -576,21 +572,34 @@ void L2CA_DeregisterLECoc(uint16_t psm);
  *
  * Description      Higher layers call this function to write data.
  *
- * Returns          L2CAP_DW_SUCCESS, if data accepted, else false
- *                  L2CAP_DW_CONGESTED, if data accepted and the channel is
- *                                      congested
- *                  L2CAP_DW_FAILED, if error
+ * Returns          tL2CAP_DW_RESULT::L2CAP_DW_SUCCESS, if data accepted, else
+ *                  false
+ *                  tL2CAP_DW_RESULT::L2CAP_DW_CONGESTED, if data accepted and
+ *                  the channel is congested
+ *                  tL2CAP_DW_RESULT::L2CAP_DW_FAILED, if error
  *
  ******************************************************************************/
-[[nodiscard]] uint8_t L2CA_DataWrite(uint16_t cid, BT_HDR* p_data);
+[[nodiscard]] tL2CAP_DW_RESULT L2CA_DataWrite(uint16_t cid, BT_HDR* p_data);
 
-[[nodiscard]] uint8_t L2CA_LECocDataWrite(uint16_t cid, BT_HDR* p_data);
+[[nodiscard]] tL2CAP_DW_RESULT L2CA_LECocDataWrite(uint16_t cid,
+                                                   BT_HDR* p_data);
 
-// Given a local channel identifier, |lcid|, this function returns the bound
-// remote channel identifier, |rcid|. If
-// |lcid| is not known or is invalid, this function returns false and does not
-// modify the value pointed at by |rcid|. |rcid| may be NULL.
-[[nodiscard]] bool L2CA_GetRemoteCid(uint16_t lcid, uint16_t* rcid);
+/*******************************************************************************
+ *
+ *  Function        L2CA_GetRemoteChannelId
+ *
+ *  Description     Given a local channel identifier, |lcid|, this function
+ *                  returns the bound remote channel identifier, |rcid|. If
+ *                  |lcid| is not known or is invalid, this function returns
+ *                  false and does not modify the value pointed at by |rcid|.
+ *
+ *  Parameters:     lcid: Local CID
+ *                  rcid: Pointer to remote CID must NOT be nullptr
+ *
+ *  Return value:   true if rcid lookup was successful
+ *
+ ******************************************************************************/
+[[nodiscard]] bool L2CA_GetRemoteChannelId(uint16_t lcid, uint16_t* rcid);
 
 /*******************************************************************************
  *
@@ -792,13 +801,13 @@ typedef struct {
  *                  BD Address of remote
  *                  Pointer to buffer of type BT_HDR
  *
- * Return value     L2CAP_DW_SUCCESS, if data accepted
- *                  L2CAP_DW_FAILED,  if error
+ * Return value     tL2CAP_DW_RESULT::L2CAP_DW_SUCCESS, if data accepted
+ *                  tL2CAP_DW_RESULT::L2CAP_DW_FAILED,  if error
  *
  ******************************************************************************/
-[[nodiscard]] uint16_t L2CA_SendFixedChnlData(uint16_t fixed_cid,
-                                              const RawAddress& rem_bda,
-                                              BT_HDR* p_buf);
+[[nodiscard]] tL2CAP_DW_RESULT L2CA_SendFixedChnlData(uint16_t fixed_cid,
+                                                      const RawAddress& rem_bda,
+                                                      BT_HDR* p_buf);
 
 /*******************************************************************************
  *
@@ -874,6 +883,8 @@ void L2CA_AdjustConnectionIntervals(uint16_t* min_interval,
                                     uint16_t* max_interval,
                                     uint16_t floor_interval);
 
+void L2CA_SetEcosystemBaseInterval(uint32_t base_interval);
+
 /**
  * Check whether an ACL or LE link to the remote device is established
  */
@@ -946,39 +957,11 @@ void L2CA_SetMediaStreamChannel(uint16_t local_media_cid, bool status);
 [[nodiscard]] bool L2CA_isMediaChannel(uint16_t handle, uint16_t channel_id,
                                        bool is_local_cid);
 
-/*******************************************************************************
- *
- *  Function        L2CA_GetPeerChannelId
- *
- *  Description     Get remote channel ID for Connection Oriented Channel.
- *
- *  Parameters:     lcid: Local CID
- *                  rcid: Pointer to remote CID
- *
- *  Return value:   true if peer is connected
- *
- ******************************************************************************/
-[[nodiscard]] bool L2CA_GetPeerChannelId(uint16_t lcid, uint16_t* rcid);
-
 namespace fmt {
 template <>
 struct formatter<tL2CAP_LATENCY> : enum_formatter<tL2CAP_LATENCY> {};
 template <>
 struct formatter<tL2CAP_PRIORITY> : enum_formatter<tL2CAP_PRIORITY> {};
 }  // namespace fmt
-
-/*******************************************************************************
-**
-** Function         L2CA_Dumpsys
-**
-** Description      This function provides dumpsys data during the dumpsys
-**                  procedure.
-**
-** Parameters:      fd: Descriptor used to write the L2CAP internals
-**
-** Returns          void
-**
-*******************************************************************************/
-void L2CA_Dumpsys(int fd);
 
 #endif /* L2C_API_H */

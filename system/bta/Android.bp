@@ -213,6 +213,7 @@ cc_library_static {
     static_libs: [
         "bluetooth_flags_c_lib",
         "lib-bt-packets",
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
@@ -288,6 +289,7 @@ cc_test {
         "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libcrypto",
         "libcutils",
         "libhidlbase",
@@ -377,6 +379,7 @@ cc_test {
         "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "liblog",
@@ -422,6 +425,7 @@ cc_test {
         "test/bta_hf_client_security_test.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "libcutils",
@@ -484,6 +488,7 @@ cc_test {
         "test/bta_rfcomm_scn_test.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "libcutils",
@@ -540,6 +545,7 @@ cc_test {
         ":TestCommonMockFunctions",
         ":TestMockBtif",
         ":TestMockMainShimLeScanning",
+        ":TestMockStackBtmInterface",
         "csis/csis_client.cc",
         "csis/csis_client_test.cc",
         "gatt/database.cc",
@@ -551,6 +557,7 @@ cc_test {
         "test/common/btm_api_mock.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "liblog",
@@ -649,6 +656,7 @@ cc_test {
     ],
     srcs: [
         ":TestCommonMockFunctions",
+        ":TestMockStackBtmInterface",
         ":TestStubOsi",
         "gatt/database.cc",
         "gatt/database_builder.cc",
@@ -763,6 +771,7 @@ cc_test {
     name: "bluetooth_le_audio_codec_manager_test",
     test_suites: ["general-tests"],
     defaults: [
+        "aconfig_lib_cc_shared_link.defaults",
         "bluetooth_flatbuffer_bundler_defaults",
         "fluoride_defaults",
         "mts_defaults",
@@ -876,6 +885,7 @@ cc_test {
         ":TestMockBtaLeAudioHalVerifier",
         ":TestMockMainShim",
         ":TestMockMainShimEntry",
+        ":TestMockStackBtmInterface",
         ":TestMockStackBtmIso",
         ":TestMockStackL2cap",
         ":TestStubOsi",
@@ -921,6 +931,7 @@ cc_test {
         "LeAudioSetConfigSchemas_h",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "libhidlbase",
@@ -973,6 +984,7 @@ cc_test {
         ":TestMockBtaLeAudioHalVerifier",
         ":TestMockMainShim",
         ":TestMockMainShimEntry",
+        ":TestMockStackBtmInterface",
         ":TestMockStackBtmIso",
         ":TestMockStackL2cap",
         ":TestStubOsi",
@@ -1006,6 +1018,7 @@ cc_test {
         "test/common/mock_device_groups.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "libhidlbase",
@@ -1072,6 +1085,7 @@ cc_test {
     name: "bluetooth_test_broadcaster_state_machine",
     test_suites: ["general-tests"],
     defaults: [
+        "aconfig_lib_cc_shared_link.defaults",
         "fluoride_bta_defaults",
         "mts_defaults",
     ],
@@ -1103,6 +1117,7 @@ cc_test {
         "libbase",
         "libcrypto",
         "liblog",
+        "server_configurable_flags",
     ],
     static_libs: [
         "libbluetooth-types",
@@ -1114,6 +1129,7 @@ cc_test {
         "libbt_shim_bridge",
         "libbt_shim_ffi",
         "libchrome",
+        "libflagtest",
         "libflatbuffers-cpp",
         "libgmock",
         "libgtest",
@@ -1137,6 +1153,7 @@ cc_test {
     name: "bluetooth_test_broadcaster",
     test_suites: ["general-tests"],
     defaults: [
+        "aconfig_lib_cc_shared_link.defaults",
         "bluetooth_flatbuffer_bundler_defaults",
         "fluoride_bta_defaults",
         "mts_defaults",
@@ -1188,6 +1205,7 @@ cc_test {
         "libbt_shim_ffi",
         "libchrome",
         "libevent",
+        "libflagtest",
         "libflatbuffers-cpp",
         "libgmock",
         "libgtest",
@@ -1225,6 +1243,7 @@ cc_test {
     ],
     srcs: [
         ":TestCommonMockFunctions",
+        ":TestMockStackBtmInterface",
         ":TestStubOsi",
         "gatt/database.cc",
         "gatt/database_builder.cc",
@@ -1310,6 +1329,7 @@ cc_test {
         "test/bta_hh_test.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "liblog",
@@ -1381,6 +1401,7 @@ cc_test {
         "test/bta_jv_test.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "liblog",
