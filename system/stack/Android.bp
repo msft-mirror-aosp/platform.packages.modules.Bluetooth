@@ -786,7 +786,6 @@ cc_test {
     ],
     static_libs: [
         "android.hardware.audio.common@5.0",
-        "android.hardware.bluetooth.a2dp@1.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
         "android.hardware.common-V2-ndk",
@@ -1073,6 +1072,7 @@ cc_test {
     ],
     srcs: [
         ":TestCommonMainHandler",
+        ":TestMockStackBtmInterface",
         "gatt/connection_manager.cc",
         "test/common/mock_btm_api_layer.cc",
         "test/gatt_connection_manager_test.cc",
