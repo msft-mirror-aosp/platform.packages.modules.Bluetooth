@@ -371,24 +371,22 @@ enh_esco_params_t esco_parameters_for_codec(esco_codec_t codec, bool offload) {
                    ESCO_NUM_CODECS);
 
   std::vector<uint8_t> codecIds;
-  if (com::android::bluetooth::flags::
-          use_dsp_codec_when_controller_does_not_support()) {
-    auto controller = bluetooth::shim::GetController();
-    if (controller == nullptr) {
-      log::warn("controller is null");
-    } else {
-      codecIds = controller->GetLocalSupportedBrEdrCodecIds();
-      if (std::find(codecIds.begin(), codecIds.end(), ESCO_CODING_FORMAT_LC3) ==
-          codecIds.end()) {
-        if (codec == ESCO_CODEC_LC3_T1 || codec == ESCO_CODEC_LC3_T2) {
-          log::info("BT controller does not support LC3 codec, use DSP codec");
-          enh_esco_params_t param = default_esco_parameters[codec];
-          param.input_coding_format.coding_format = ESCO_CODING_FORMAT_LC3;
-          param.output_coding_format.coding_format = ESCO_CODING_FORMAT_LC3;
-          param.input_bandwidth = TXRX_64KBITS_RATE;
-          param.output_bandwidth = TXRX_64KBITS_RATE;
-          return param;
-        }
+
+  auto controller = bluetooth::shim::GetController();
+  if (controller == nullptr) {
+    log::warn("controller is null");
+  } else {
+    codecIds = controller->GetLocalSupportedBrEdrCodecIds();
+    if (std::find(codecIds.begin(), codecIds.end(), ESCO_CODING_FORMAT_LC3) ==
+        codecIds.end()) {
+      if (codec == ESCO_CODEC_LC3_T1 || codec == ESCO_CODEC_LC3_T2) {
+        log::info("BT controller does not support LC3 codec, use DSP codec");
+        enh_esco_params_t param = default_esco_parameters[codec];
+        param.input_coding_format.coding_format = ESCO_CODING_FORMAT_LC3;
+        param.output_coding_format.coding_format = ESCO_CODING_FORMAT_LC3;
+        param.input_bandwidth = TXRX_64KBITS_RATE;
+        param.output_bandwidth = TXRX_64KBITS_RATE;
+        return param;
       }
     }
   }
@@ -415,27 +413,27 @@ enh_esco_params_t esco_parameters_for_codec(esco_codec_t codec, bool offload) {
     param.output_bandwidth = TXRX_64KBITS_RATE;
   }
 
-#if TARGET_FLOSS
-  esco_packet_types_t new_packet_types = param.packet_types;
-  if (codec == ESCO_CODEC_CVSD_S3 || codec == ESCO_CODEC_CVSD_S4 ||
-      codec == ESCO_CODEC_MSBC_T2 || codec == ESCO_CODEC_LC3_T2) {
-    new_packet_types =
-        (ESCO_PKT_TYPES_MASK_NO_3_EV3 | ESCO_PKT_TYPES_MASK_NO_2_EV5 |
-         ESCO_PKT_TYPES_MASK_NO_3_EV5);
-  } else if (codec == ESCO_CODEC_CVSD_S1) {
-    new_packet_types =
-        (ESCO_PKT_TYPES_MASK_EV3 | ESCO_PKT_TYPES_MASK_EV4 |
-         ESCO_PKT_TYPES_MASK_EV5 | ESCO_PKT_TYPES_MASK_NO_3_EV3 |
-         ESCO_PKT_TYPES_MASK_NO_2_EV5 | ESCO_PKT_TYPES_MASK_NO_3_EV5);
-  }
+  if (com::android::bluetooth::flags::fix_hfp_qual_1_9()) {
+    esco_packet_types_t new_packet_types = param.packet_types;
+    if (codec == ESCO_CODEC_CVSD_S3 || codec == ESCO_CODEC_CVSD_S4 ||
+        codec == ESCO_CODEC_MSBC_T2 || codec == ESCO_CODEC_LC3_T2) {
+      new_packet_types =
+          (ESCO_PKT_TYPES_MASK_NO_3_EV3 | ESCO_PKT_TYPES_MASK_NO_2_EV5 |
+           ESCO_PKT_TYPES_MASK_NO_3_EV5);
+    } else if (codec == ESCO_CODEC_CVSD_S1) {
+      new_packet_types =
+          (ESCO_PKT_TYPES_MASK_EV3 | ESCO_PKT_TYPES_MASK_EV4 |
+           ESCO_PKT_TYPES_MASK_EV5 | ESCO_PKT_TYPES_MASK_NO_3_EV3 |
+           ESCO_PKT_TYPES_MASK_NO_2_EV5 | ESCO_PKT_TYPES_MASK_NO_3_EV5);
+    }
 
-  if (param.packet_types != new_packet_types) {
-    log::info(
-        "Applying restricted packet types for codec {}: 0x{:04x} -> 0x{:04x}",
-        (int)codec, param.packet_types, new_packet_types);
-    param.packet_types = new_packet_types;
+    if (param.packet_types != new_packet_types) {
+      log::info(
+          "Applying restricted packet types for codec {}: 0x{:04x} -> 0x{:04x}",
+          (int)codec, param.packet_types, new_packet_types);
+      param.packet_types = new_packet_types;
+    }
   }
-#endif
 
   return param;
 }

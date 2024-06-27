@@ -434,17 +434,17 @@ static bool gap_try_write_queued_data(tGAP_CCB* p_ccb) {
   /* Send the buffer through L2CAP */
   BT_HDR* p_buf;
   while ((p_buf = (BT_HDR*)fixed_queue_try_dequeue(p_ccb->tx_queue)) != NULL) {
-    uint8_t status;
+    tL2CAP_DW_RESULT status;
     if (p_ccb->transport == BT_TRANSPORT_LE) {
       status = L2CA_LECocDataWrite(p_ccb->connection_id, p_buf);
     } else {
       status = L2CA_DataWrite(p_ccb->connection_id, p_buf);
     }
 
-    if (status == L2CAP_DW_CONGESTED) {
+    if (status == tL2CAP_DW_RESULT::CONGESTED) {
       p_ccb->is_congested = true;
       return true;
-    } else if (status != L2CAP_DW_SUCCESS)
+    } else if (status != tL2CAP_DW_RESULT::SUCCESS)
       return false;
   }
   return true;
@@ -660,7 +660,7 @@ static void gap_checks_con_flags(tGAP_CCB* p_ccb) {
     tGAP_CB_DATA cb_data;
     uint16_t l2cap_remote_cid;
     if (com::android::bluetooth::flags::bt_socket_api_l2cap_cid() &&
-        L2CA_GetPeerChannelId(p_ccb->connection_id, &l2cap_remote_cid)) {
+        L2CA_GetRemoteChannelId(p_ccb->connection_id, &l2cap_remote_cid)) {
       cb_data.l2cap_cids.local_cid = p_ccb->connection_id;
       cb_data.l2cap_cids.remote_cid = l2cap_remote_cid;
       cb_data_ptr = &cb_data;

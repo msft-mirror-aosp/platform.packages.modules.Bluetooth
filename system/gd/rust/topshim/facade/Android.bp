@@ -67,7 +67,6 @@ rust_defaults {
         "libbthalutils",
         "libbtif",
         "libbtif-core",
-        "libc++fs",
         "libchrome",
         "libevent",
         "libflatbuffers-cpp",
@@ -78,6 +77,7 @@ rust_defaults {
         "libudrv-uipc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libcrypto",
         "libcutils",
         "libgrpc++",

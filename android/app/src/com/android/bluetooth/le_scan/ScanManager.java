@@ -49,7 +49,6 @@ import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.BluetoothAdapterProxy;
 import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.gatt.FilterParams;
-import com.android.bluetooth.gatt.GattObjectsFactory;
 import com.android.bluetooth.gatt.GattServiceConfig;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
@@ -70,13 +69,13 @@ public class ScanManager {
     private static final String TAG = GattServiceConfig.TAG_PREFIX + "ScanManager";
 
     /** Scan params corresponding to regular scan setting */
-    private static final int SCAN_MODE_LOW_POWER_WINDOW_MS = 140;
+    @VisibleForTesting static final int SCAN_MODE_LOW_POWER_WINDOW_MS = 140;
 
-    private static final int SCAN_MODE_LOW_POWER_INTERVAL_MS = 1400;
-    private static final int SCAN_MODE_BALANCED_WINDOW_MS = 183;
-    private static final int SCAN_MODE_BALANCED_INTERVAL_MS = 730;
-    private static final int SCAN_MODE_LOW_LATENCY_WINDOW_MS = 100;
-    private static final int SCAN_MODE_LOW_LATENCY_INTERVAL_MS = 100;
+    @VisibleForTesting static final int SCAN_MODE_LOW_POWER_INTERVAL_MS = 1400;
+    @VisibleForTesting static final int SCAN_MODE_BALANCED_WINDOW_MS = 183;
+    @VisibleForTesting static final int SCAN_MODE_BALANCED_INTERVAL_MS = 730;
+    @VisibleForTesting static final int SCAN_MODE_LOW_LATENCY_WINDOW_MS = 100;
+    @VisibleForTesting static final int SCAN_MODE_LOW_LATENCY_INTERVAL_MS = 100;
     public static final int SCAN_MODE_SCREEN_OFF_LOW_POWER_WINDOW_MS = 512;
     public static final int SCAN_MODE_SCREEN_OFF_LOW_POWER_INTERVAL_MS = 10240;
     public static final int SCAN_MODE_SCREEN_OFF_BALANCED_WINDOW_MS = 183;
@@ -911,7 +910,7 @@ public class ScanManager {
     }
 
     /** Parameters for batch scans. */
-    class BatchScanParams {
+    static class BatchScanParams {
         public int scanMode;
         public int fullScanscannerId;
         public int truncatedScanscannerId;
@@ -982,7 +981,7 @@ public class ScanManager {
         private ScanNativeInterface mNativeInterface;
 
         ScanNative(TransitionalScanHelper scanHelper) {
-            mNativeInterface = GattObjectsFactory.getInstance().getScanNativeInterface();
+            mNativeInterface = ScanObjectsFactory.getInstance().getScanNativeInterface();
             mNativeInterface.init(scanHelper);
             mFilterIndexStack = new ArrayDeque<Integer>();
             mClientFilterIndexMap = new HashMap<Integer, Deque<Integer>>();
@@ -1078,7 +1077,12 @@ public class ScanManager {
                     mNativeInterface.gattSetScanParameters(
                             client.scannerId, scanInterval, scanWindow, scanPhyMask);
                     mNativeInterface.gattClientScan(true);
-                    if (!AppScanStats.recordScanRadioStart(curScanSetting)) {
+                    if (!AppScanStats.recordScanRadioStart(
+                            client.scanModeApp,
+                            client.scannerId,
+                            client.stats,
+                            scanWindowMs,
+                            scanIntervalMs)) {
                         Log.w(TAG, "Scan radio already started");
                     }
                     mLastConfiguredScanSetting = curScanSetting;
@@ -1117,8 +1121,15 @@ public class ScanManager {
                     && client.settings.getScanMode() != ScanSettings.SCAN_MODE_OPPORTUNISTIC) {
                 Log.d(TAG, "start gattClientScanNative from startRegularScan()");
                 mNativeInterface.gattClientScan(true);
-                if (!AppScanStats.recordScanRadioStart(client.settings.getScanMode())) {
-                    Log.w(TAG, "Scan radio already started");
+                if (!Flags.bleScanAdvMetricsRedesign()) {
+                    if (!AppScanStats.recordScanRadioStart(
+                            client.settings.getScanMode(),
+                            client.scannerId,
+                            client.stats,
+                            getScanWindowMillis(client.settings),
+                            getScanIntervalMillis(client.settings))) {
+                        Log.w(TAG, "Scan radio already started");
+                    }
                 }
             }
         }
@@ -1378,7 +1389,8 @@ public class ScanManager {
                 }
                 if (client.stats != null) {
                     client.stats.setScanTimeout(client.scannerId);
-                    client.stats.recordScanTimeoutCountMetrics();
+                    client.stats.recordScanTimeoutCountMetrics(
+                            client.scannerId, mAdapterService.getScanTimeoutMillis());
                 }
             }
 
@@ -1524,7 +1536,10 @@ public class ScanManager {
                                     "No hardware resources for onfound/onlost filter "
                                             + trackEntries);
                             if (client.stats != null) {
-                                client.stats.recordTrackingHwFilterNotAvailableCountMetrics();
+                                client.stats.recordTrackingHwFilterNotAvailableCountMetrics(
+                                        client.scannerId,
+                                        AdapterService.getAdapterService()
+                                                .getTotalNumOfTrackableAdvertisements());
                             }
                             try {
                                 mScanHelper.onScanManagerErrorCallback(
@@ -1623,7 +1638,10 @@ public class ScanManager {
             }
             if (client.filters.size() > mFilterIndexStack.size()) {
                 if (client.stats != null) {
-                    client.stats.recordHwFilterNotAvailableCountMetrics();
+                    client.stats.recordHwFilterNotAvailableCountMetrics(
+                            client.scannerId,
+                            AdapterService.getAdapterService()
+                                    .getNumOfOffloadedScanFilterSupported());
                 }
                 return true;
             }
@@ -2097,6 +2115,5 @@ public class ScanManager {
                         toState,
                         Integer.valueOf(profile))
                 .sendToTarget();
-        return;
     }
 }

@@ -12,6 +12,7 @@ use std::convert::TryFrom;
 use std::fmt::{Debug, Display, Formatter, Result};
 use std::hash::{Hash, Hasher};
 use std::mem;
+use std::os::fd::RawFd;
 use std::os::raw::c_char;
 use std::sync::{Arc, Mutex};
 use std::vec::Vec;
@@ -150,7 +151,7 @@ pub enum BtPropertyType {
     ClassOfDevice,
     TypeOfDevice,
     ServiceRecord,
-    AdapterScanMode,
+    Reserved07,
     AdapterBondedDevices,
     AdapterDiscoverableTimeout,
     RemoteFriendlyName,
@@ -217,6 +218,9 @@ pub enum BtStatus {
     JniThreadAttachError,
     WakeLockError,
     Timeout,
+    DeviceNotFound,
+    UnexpectedState,
+    SocketError,
 
     // Any statuses that couldn't be cleanly converted
     Unknown = 0xff,
@@ -321,6 +325,12 @@ pub enum BtScanMode {
 impl From<bindings::bt_scan_mode_t> for BtScanMode {
     fn from(item: bindings::bt_scan_mode_t) -> Self {
         BtScanMode::from_u32(item).unwrap_or(BtScanMode::None_)
+    }
+}
+
+impl Into<bindings::bt_scan_mode_t> for BtScanMode {
+    fn into(self) -> bindings::bt_scan_mode_t {
+        BtScanMode::to_u32(&self).unwrap_or_default()
     }
 }
 
@@ -569,7 +579,6 @@ pub enum BluetoothProperty {
     ClassOfDevice(u32),
     TypeOfDevice(BtDeviceType),
     ServiceRecord(BtServiceRecord),
-    AdapterScanMode(BtScanMode),
     AdapterBondedDevices(Vec<RawAddress>),
     AdapterDiscoverableTimeout(u32),
     RemoteFriendlyName(String),
@@ -608,7 +617,6 @@ impl BluetoothProperty {
             BluetoothProperty::ClassOfDevice(_) => BtPropertyType::ClassOfDevice,
             BluetoothProperty::TypeOfDevice(_) => BtPropertyType::TypeOfDevice,
             BluetoothProperty::ServiceRecord(_) => BtPropertyType::ServiceRecord,
-            BluetoothProperty::AdapterScanMode(_) => BtPropertyType::AdapterScanMode,
             BluetoothProperty::AdapterBondedDevices(_) => BtPropertyType::AdapterBondedDevices,
             BluetoothProperty::AdapterDiscoverableTimeout(_) => {
                 BtPropertyType::AdapterDiscoverableTimeout
@@ -641,7 +649,6 @@ impl BluetoothProperty {
             BluetoothProperty::ServiceRecord(rec) => {
                 mem::size_of::<BtServiceRecord>() + cmp::min(PROPERTY_NAME_MAX, rec.name.len() + 1)
             }
-            BluetoothProperty::AdapterScanMode(_) => mem::size_of::<BtScanMode>(),
             BluetoothProperty::AdapterBondedDevices(devlist) => {
                 devlist.len() * mem::size_of::<RawAddress>()
             }
@@ -708,9 +715,6 @@ impl BluetoothProperty {
                         [0..name_len],
                 );
                 record.name[name_len] = 0;
-            }
-            BluetoothProperty::AdapterScanMode(sm) => {
-                data.copy_from_slice(&BtScanMode::to_u32(sm).unwrap_or_default().to_ne_bytes());
             }
             BluetoothProperty::AdapterBondedDevices(devlist) => {
                 for (idx, &dev) in devlist.iter().enumerate() {
@@ -808,9 +812,6 @@ impl From<bindings::bt_property_t> for BluetoothProperty {
                     unsafe { (prop.val as *const bindings::bt_service_record_t).read_unaligned() };
                 BluetoothProperty::ServiceRecord(BtServiceRecord::from(v))
             }
-            BtPropertyType::AdapterScanMode => BluetoothProperty::AdapterScanMode(
-                BtScanMode::from_u32(u32_from_bytes(slice)).unwrap_or(BtScanMode::None_),
-            ),
             BtPropertyType::AdapterBondedDevices => {
                 let count = len / mem::size_of::<RawAddress>();
                 BluetoothProperty::AdapterBondedDevices(ptr_to_vec(
@@ -1053,7 +1054,7 @@ pub enum BaseCallbacks {
     // link_quality_report_cb
     // switch_buffer_size_cb
     // switch_codec_cb
-    GenerateLocalOobData(u8, OobData),
+    GenerateLocalOobData(u8, Box<OobData>), // Box OobData as its size is much bigger than others
     LeRandCallback(u64),
     // key_missing_cb
 }
@@ -1113,7 +1114,7 @@ u32 -> BtStatus, *mut RawAddress, bindings::bt_acl_state_t -> BtAclState, i32 ->
     let _1 = unsafe { *(_1 as *const RawAddress) };
 });
 
-cb_variant!(BaseCb, generate_local_oob_data_cb -> BaseCallbacks::GenerateLocalOobData, u8, OobData);
+cb_variant!(BaseCb, generate_local_oob_data_cb -> BaseCallbacks::GenerateLocalOobData, u8, OobData -> Box::<OobData>);
 
 cb_variant!(BaseCb, le_rand_cb -> BaseCallbacks::LeRandCallback, u64);
 
@@ -1312,6 +1313,10 @@ impl BluetoothInterface {
         ccall!(self, set_adapter_property, prop_ptr.into())
     }
 
+    pub fn set_scan_mode(&self, mode: BtScanMode) {
+        ccall!(self, set_scan_mode, mode.into())
+    }
+
     pub fn get_remote_device_properties(&self, addr: &mut RawAddress) -> i32 {
         let addr_ptr = LTCheckedPtrMut::from_ref(addr);
         ccall!(self, get_remote_device_properties, addr_ptr.into())
@@ -1467,6 +1472,10 @@ impl BluetoothInterface {
 
     pub(crate) fn as_raw_ptr(&self) -> *const u8 {
         self.internal.raw as *const u8
+    }
+
+    pub fn dump(&self, fd: RawFd) {
+        ccall!(self, dump, fd, std::ptr::null_mut())
     }
 }
 

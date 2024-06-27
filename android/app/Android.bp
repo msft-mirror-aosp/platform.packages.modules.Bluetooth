@@ -101,6 +101,7 @@ cc_library_shared {
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libFraunhoferAAC",
+        "libaconfig_storage_read_api_cc",
         "libaudio-a2dp-hw-utils",
         "libbase",
         "libbluetooth",
@@ -130,10 +131,10 @@ cc_library_shared {
         "libbte",
         "libbtif",
         "libbtif-core",
-        "libc++fs",
         "libchrome",
         "libcutils",
         "libevent",
+        "libexpresslog",
         "libflatbuffers-cpp",
         "libfmq",
         "libg722codec",
@@ -144,6 +145,8 @@ cc_library_shared {
         "libosi",
         "libprotobuf-cpp-lite",
         "libstatslog_bt",
+        "libstatslog_express",
+        "libtextclassifier_hash_static",
         "libudrv-uipc",
         "libutils",
         "server_configurable_flags",
@@ -164,6 +167,10 @@ cc_library_shared {
         "com.android.btservices",
     ],
     min_sdk_version: "Tiramisu",
+    ldflags: ["-Wl,--allow-multiple-definition"],
+
+    // TODO(b/346919576) Workaround LTO build breakage.
+    lto_O0: true,
 }
 
 cc_library {
@@ -190,7 +197,6 @@ cc_library {
         "libosi",
 
         "libbluetooth-types",
-        "libc++fs",
     ],
     cflags: [
         /* we export all classes, so change default visibility, instead of having EXPORT_SYMBOL on each class*/
@@ -319,6 +325,19 @@ android_app {
         javacflags: [
             // "-Xep:AndroidFrameworkRequiresPermission:ERROR",
             "-Xep:AlmostJavadoc:ERROR",
+            "-Xep:BadImport:ERROR",
+            "-Xep:ClassCanBeStatic:ERROR",
+            "-Xep:EmptyBlockTag:ERROR",
+            "-Xep:InlineMeInliner:ERROR",
+            "-Xep:InvalidBlockTag:ERROR",
+            "-Xep:InvalidParam:ERROR",
+            "-Xep:MockNotUsedInProduction:ERROR",
+            "-Xep:NonApiType:ERROR",
+            "-Xep:NonCanonicalType:ERROR",
+            "-Xep:NotJavadoc:ERROR",
+            "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
+            "-Xep:StringCaseLocaleUsage:ERROR",
+            "-Xep:StringCharset:ERROR",
             "-Xep:UnusedMethod:ERROR",
             "-Xep:UnusedVariable:ERROR",
             "-XepExcludedPaths:.*/srcjars/.*", // Exclude generated files

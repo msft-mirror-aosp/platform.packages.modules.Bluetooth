@@ -39,8 +39,9 @@ import com.android.obex.ResponseCodes;
 import com.android.vcard.VCardEntry;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /* Bluetooth/pbapclient/PbapClientConnectionHandler is responsible
  * for connecting, disconnecting and downloading contacts from the
@@ -145,7 +146,7 @@ class PbapClientConnectionHandler extends Handler {
     /**
      * Constructs PCEConnectionHandler object
      *
-     * @param Builder To build BluetoothPbapClientHandler Instance.
+     * @param pceHandlerbuild To build BluetoothPbapClientHandler Instance.
      */
     PbapClientConnectionHandler(Builder pceHandlerbuild) {
         super(pceHandlerbuild.mLooper);
@@ -255,7 +256,7 @@ class PbapClientConnectionHandler extends Handler {
                     downloadContacts(SIM_PB_PATH);
                 }
 
-                HashMap<String, Integer> callCounter = new HashMap<>();
+                Map<String, Integer> callCounter = new HashMap<>();
                 downloadCallLog(MCH_PATH, callCounter);
                 downloadCallLog(ICH_PATH, callCounter);
                 downloadCallLog(OCH_PATH, callCounter);
@@ -264,7 +265,6 @@ class PbapClientConnectionHandler extends Handler {
             default:
                 Log.w(TAG, "Received Unexpected Message");
         }
-        return;
     }
 
     @VisibleForTesting
@@ -284,7 +284,7 @@ class PbapClientConnectionHandler extends Handler {
         try {
             /* Use BluetoothSocket to connect */
             if (mPseRec == null) {
-                // BackWardCompatability: Fall back to create RFCOMM through UUID.
+                // BackWardCompatibility: Fall back to create RFCOMM through UUID.
                 Log.v(TAG, "connectSocket: UUID: " + BluetoothUuid.PBAP_PSE.getUuid());
                 mSocket =
                         mDevice.createRfcommSocketToServiceRecord(BluetoothUuid.PBAP_PSE.getUuid());
@@ -407,7 +407,7 @@ class PbapClientConnectionHandler extends Handler {
                                 numberOfContactsToDownload,
                                 startOffset);
                 request.execute(mObexSession);
-                ArrayList<VCardEntry> vcards = request.getList();
+                List<VCardEntry> vcards = request.getList();
                 if (path == FAV_PATH) {
                     // mark each vcard as a favorite
                     for (VCardEntry v : vcards) {
@@ -431,7 +431,7 @@ class PbapClientConnectionHandler extends Handler {
     }
 
     @VisibleForTesting
-    void downloadCallLog(String path, HashMap<String, Integer> callCounter) {
+    void downloadCallLog(String path, Map<String, Integer> callCounter) {
         try {
             BluetoothPbapRequestPullPhoneBook request =
                     new BluetoothPbapRequestPullPhoneBook(path, mAccount, 0, VCARD_TYPE_30, 0, 0);
