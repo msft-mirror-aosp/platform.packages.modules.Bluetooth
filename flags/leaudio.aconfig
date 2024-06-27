@@ -18,13 +18,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_enable_health_based_actions"
-    namespace: "bluetooth"
-    description: "Le audio device and group health actions for fallback mechanism"
-    bug: "290845728"
-}
-
-flag {
     name: "leaudio_broadcast_audio_handover_policies"
     namespace: "bluetooth"
     description: "Support le audio broadcast audio routing policies"
@@ -71,27 +64,6 @@ flag {
     namespace: "bluetooth"
     description: "Le audio broadcast feature roll-out control flag"
     bug: "316005152"
-}
-
-flag {
-    name: "delay_bonding_when_busy"
-    namespace: "bluetooth"
-    description: "Fix bonding failure due to native stack being busy"
-    bug: "316927319"
-}
-
-flag {
-    name: "le_audio_fast_bond_params"
-    namespace: "bluetooth"
-    description: "Faster LE Audio devices connection"
-    bug: "319405267"
-}
-
-flag {
-    name: "le_audio_dev_type_detection_fix"
-    namespace: "bluetooth"
-    description: "Better LE Audio devices detection"
-    bug: "319511584"
 }
 
 flag {
@@ -341,6 +313,16 @@ flag {
 }
 
 flag {
+    name: "leaudio_call_start_scan_directly"
+    namespace: "bluetooth"
+    description: "Calling the framework is working only when we are expecting IPC. This will call the underlying implementation directly"
+    bug: "348562830"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
     name: "leaudio_no_context_validate_streaming_request"
     namespace: "bluetooth"
     description: "Request streaming would be send without available cotext validation"
@@ -351,10 +333,10 @@ flag {
 }
 
 flag {
-    name: "leaudio_broadcast_stop_on_streaming_request"
+    name: "leaudio_synchronize_start"
     namespace: "bluetooth"
-    description: "Stop instead of pause on unicast stream request"
-    bug: "336740254"
+    description: "Do not post on main looper when starting le_audio"
+    bug: "341385684"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -375,6 +357,26 @@ flag {
     namespace: "bluetooth"
     description: "Use Audio Mode listener instead of Telecom in call callback"
     bug: "339612732"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_big_depends_on_audio_state"
+    namespace: "bluetooth"
+    description: "BIG creation/termination depends on audio resume/pause"
+    bug: "347204335"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_broadcast_update_metadata_callback"
+    namespace: "bluetooth"
+    description: "Notify upper layer with callback when medadata is updated"
+    bug: "347710374"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

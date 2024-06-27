@@ -141,7 +141,11 @@ struct gatt_interface_t {
     .BTA_GATTC_Close = [](uint16_t conn_id) { BTA_GATTC_Close(conn_id); },
     .BTA_GATTC_ServiceSearchRequest =
         [](uint16_t conn_id, const bluetooth::Uuid* p_srvc_uuid) {
-          BTA_GATTC_ServiceSearchRequest(conn_id, p_srvc_uuid);
+          if (p_srvc_uuid) {
+            BTA_GATTC_ServiceSearchRequest(conn_id, *p_srvc_uuid);
+          } else {
+            BTA_GATTC_ServiceSearchAllRequest(conn_id);
+          }
         },
     .BTA_GATTC_Open =
         [](tGATT_IF client_if, const RawAddress& remote_bda,
@@ -613,12 +617,9 @@ static void bta_dm_gatt_disc_complete(uint16_t conn_id, tGATT_STATUS status) {
   } else {
     bta_dm_discovery_cb.conn_id = GATT_INVALID_CONN_ID;
 
-    if (com::android::bluetooth::flags::bta_dm_disc_stuck_in_cancelling_fix()) {
-      log::info(
-          "Discovery complete for invalid conn ID. Will pick up next job");
-      bta_dm_discovery_set_state(BTA_DM_DISCOVER_IDLE);
-      bta_dm_execute_queued_discovery_request();
-    }
+    log::info("Discovery complete for invalid conn ID. Will pick up next job");
+    bta_dm_discovery_set_state(BTA_DM_DISCOVER_IDLE);
+    bta_dm_execute_queued_discovery_request();
   }
 }
 

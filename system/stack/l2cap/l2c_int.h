@@ -701,7 +701,7 @@ void l2c_receive_hold_timer_timeout(void* data);
 void l2c_ccb_timer_timeout(void* data);
 void l2c_lcb_timer_timeout(void* data);
 void l2c_fcrb_ack_timer_timeout(void* data);
-uint8_t l2c_data_write(uint16_t cid, BT_HDR* p_data, uint16_t flag);
+tL2CAP_DW_RESULT l2c_data_write(uint16_t cid, BT_HDR* p_data, uint16_t flag);
 void l2c_acl_flush(uint16_t handle);
 
 tL2C_LCB* l2cu_allocate_lcb(const RawAddress& p_bd_addr, bool is_bonding,
@@ -818,7 +818,7 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, uint16_t local_cid,
                               BT_HDR* p_buf);
 void l2c_link_adjust_allocation(void);
 
-void l2c_link_sec_comp(const RawAddress* p_bda, tBT_TRANSPORT trasnport,
+void l2c_link_sec_comp(RawAddress p_bda, tBT_TRANSPORT transport,
                        void* p_ref_data, tBTM_STATUS status);
 void l2c_link_adjust_chnl_allocation(void);
 
