@@ -412,52 +412,6 @@ bool BTM_SecRegister(const tBTM_APPL_INFO* p_cb_info) {
   return (true);
 }
 
-/*******************************************************************************
- *
- * Function         BTM_SecAddRmtNameNotifyCallback
- *
- * Description      Any profile can register to be notified when name of the
- *                  remote device is resolved.
- *
- * Returns          true if registered OK, else false
- *
- ******************************************************************************/
-bool BTM_SecAddRmtNameNotifyCallback(tBTM_RMT_NAME_CALLBACK* p_callback) {
-  int i;
-
-  for (i = 0; i < BTM_SEC_MAX_RMT_NAME_CALLBACKS; i++) {
-    if (btm_cb.rnr.p_rmt_name_callback[i] == NULL) {
-      btm_cb.rnr.p_rmt_name_callback[i] = p_callback;
-      return (true);
-    }
-  }
-
-  return (false);
-}
-
-/*******************************************************************************
- *
- * Function         BTM_SecDeleteRmtNameNotifyCallback
- *
- * Description      Any profile can deregister notification when a new Link Key
- *                  is generated per connection.
- *
- * Returns          true if OK, else false
- *
- ******************************************************************************/
-bool BTM_SecDeleteRmtNameNotifyCallback(tBTM_RMT_NAME_CALLBACK* p_callback) {
-  int i;
-
-  for (i = 0; i < BTM_SEC_MAX_RMT_NAME_CALLBACKS; i++) {
-    if (btm_cb.rnr.p_rmt_name_callback[i] == p_callback) {
-      btm_cb.rnr.p_rmt_name_callback[i] = NULL;
-      return (true);
-    }
-  }
-
-  return (false);
-}
-
 bool BTM_IsEncrypted(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   return btm_sec_cb.IsDeviceEncrypted(bd_addr, transport);
 }
@@ -2360,8 +2314,9 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
                                      p_dev_rec->sec_bd_name, status);
 
   // Security procedure resumes
-  tSECURITY_STATE old_sec_state = p_dev_rec->sec_rec.sec_state;
-  if (p_dev_rec->sec_rec.sec_state == tSECURITY_STATE::BTM_SEC_STATE_GETTING_NAME) {
+  const bool is_security_state_getting_name =
+          (p_dev_rec->sec_rec.sec_state == tSECURITY_STATE::BTM_SEC_STATE_GETTING_NAME);
+  if (is_security_state_getting_name) {
     p_dev_rec->sec_rec.sec_state = tSECURITY_STATE::BTM_SEC_STATE_IDLE;
   }
 
@@ -2485,7 +2440,8 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
     return;
   }
 
-  if (old_sec_state != tSECURITY_STATE::BTM_SEC_STATE_GETTING_NAME) {
+  if (!is_security_state_getting_name) {
+    log::warn("Security manager received RNR event when not in expected state");
     return;
   }
 
@@ -2534,7 +2490,7 @@ void btm_sec_rmt_host_support_feat_evt(const RawAddress bd_addr,
 
   if (BTM_SEC_IS_SM4_UNKNOWN(p_dev_rec->sm4)) {
     p_dev_rec->sm4 = BTM_SM4_KNOWN;
-    if (HCI_SSP_HOST_SUPPORTED((std::array<uint8_t, 1>({features_0})))) {
+    if (HCI_SSP_HOST_SUPPORTED(&features_0)) {
       p_dev_rec->sm4 = BTM_SM4_TRUE;
     }
     log::verbose(
@@ -2689,8 +2645,9 @@ void btm_io_capabilities_req(RawAddress p) {
 
   btm_sec_cb.pairing_bda = evt_data.bd_addr;
 
-  if (evt_data.bd_addr == btm_sec_cb.connecting_bda)
+  if (evt_data.bd_addr == btm_sec_cb.connecting_bda) {
     p_dev_rec->dev_class = btm_sec_cb.connecting_dc;
+  }
 
   btm_sec_cb.change_pairing_state(BTM_PAIR_STATE_WAIT_LOCAL_IOCAPS);
 
@@ -2813,6 +2770,7 @@ void btm_proc_sp_req_evt(tBTM_SP_EVT event, const RawAddress bda,
       (btm_sec_cb.pairing_bda == p_bda)) {
     evt_data.cfm_req.bd_addr = p_dev_rec->bd_addr;
     evt_data.cfm_req.dev_class = p_dev_rec->dev_class;
+    log::info("CoD: evt_data.cfm_req.dev_class = {}", dev_class_text(evt_data.cfm_req.dev_class));
     bd_name_copy(evt_data.cfm_req.bd_name, p_dev_rec->sec_bd_name);
 
     switch (event) {
@@ -4478,9 +4436,11 @@ void btm_sec_pin_code_request(const RawAddress p_bda) {
   }
 
   /* Use the connecting device's CoD for the connection */
-  if ((p_bda == p_cb->connecting_bda) &&
-      (p_cb->connecting_dc != kDevClassEmpty))
+  if ((p_bda == p_cb->connecting_bda) && (p_cb->connecting_dc != kDevClassEmpty)) {
+    log::info("CoD: previous value {}, replaced with {}", dev_class_text(p_dev_rec->dev_class),
+              dev_class_text(p_cb->connecting_dc));
     p_dev_rec->dev_class = p_cb->connecting_dc;
+  }
 
   /* We could have started connection after asking user for the PIN code */
   if (btm_sec_cb.pin_code_len != 0) {
