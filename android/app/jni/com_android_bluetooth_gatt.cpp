@@ -25,6 +25,7 @@
 #include <shared_mutex>
 
 #include "com_android_bluetooth.h"
+#include "com_android_bluetooth_flags.h"
 #include "common/init_flags.h"
 #include "hardware/bt_gatt.h"
 #include "hardware/bt_gatt_types.h"
@@ -1279,6 +1280,10 @@ static void initializeNative(JNIEnv* env, jobject object) {
     return;
   }
 
+  if (com::android::bluetooth::flags::scan_manager_refactor()) {
+    btIf->start_rust_module();
+  }
+
   sGattIf->advertiser->RegisterCallbacks(
       JniAdvertisingCallbacks::GetInstance());
   sGattIf->distance_measurement_manager->RegisterDistanceMeasurementCallbacks(
@@ -1291,6 +1296,10 @@ static void cleanupNative(JNIEnv* env, jobject /* object */) {
   std::unique_lock<std::shared_mutex> lock(callbacks_mutex);
 
   if (!btIf) return;
+
+  if (com::android::bluetooth::flags::scan_manager_refactor()) {
+    btIf->stop_rust_module();
+  }
 
   if (sGattIf != NULL) {
     sGattIf->cleanup();
@@ -2882,7 +2891,7 @@ static int register_com_android_bluetooth_gatt_(JNIEnv* env) {
       {"onClientCongestion", "(IZ)V", &method_onClientCongestion},
       {"getSampleGattDbElement", "()Lcom/android/bluetooth/gatt/GattDbElement;",
        &method_getSampleGattDbElement},
-      {"onGetGattDb", "(ILjava/util/ArrayList;)V", &method_onGetGattDb},
+      {"onGetGattDb", "(ILjava/util/List;)V", &method_onGetGattDb},
       {"onClientPhyRead", "(ILjava/lang/String;III)V", &method_onClientPhyRead},
       {"onClientPhyUpdate", "(IIII)V", &method_onClientPhyUpdate},
       {"onClientConnUpdate", "(IIIII)V", &method_onClientConnUpdate},

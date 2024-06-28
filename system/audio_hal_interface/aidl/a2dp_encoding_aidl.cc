@@ -386,6 +386,11 @@ bool a2dp_get_selected_hal_pcm_config(PcmConfiguration* pcm_config) {
   pcm_config->sampleRateHz = A2dpCodecToHalSampleRate(current_codec);
   pcm_config->bitsPerSample = A2dpCodecToHalBitsPerSample(current_codec);
   pcm_config->channelMode = A2dpCodecToHalChannelMode(current_codec);
+
+  if (com::android::bluetooth::flags::a2dp_aidl_encoding_interval()) {
+    pcm_config->dataIntervalUs = bta_av_co_get_encoder_preferred_interval_us();
+  }
+
   return (pcm_config->sampleRateHz > 0 && pcm_config->bitsPerSample > 0 &&
           pcm_config->channelMode != ChannelMode::UNKNOWN);
 }
@@ -642,6 +647,10 @@ void end_session() {
 }
 
 void ack_stream_started(const tA2DP_CTRL_ACK& ack) {
+  if (!is_hal_enabled()) {
+    log::error("BluetoothAudio HAL is not enabled");
+    return;
+  }
   auto ctrl_ack = a2dp_ack_to_bt_audio_ctrl_ack(ack);
   log::info("result={}", ctrl_ack);
   auto a2dp_sink =
@@ -659,6 +668,10 @@ void ack_stream_started(const tA2DP_CTRL_ACK& ack) {
 }
 
 void ack_stream_suspended(const tA2DP_CTRL_ACK& ack) {
+  if (!is_hal_enabled()) {
+    log::error("BluetoothAudio HAL is not enabled");
+    return;
+  }
   auto ctrl_ack = a2dp_ack_to_bt_audio_ctrl_ack(ack);
   log::info("result={}", ctrl_ack);
   auto a2dp_sink =
@@ -682,7 +695,8 @@ size_t read(uint8_t* p_buf, uint32_t len) {
   if (!is_hal_enabled()) {
     log::error("BluetoothAudio HAL is not enabled");
     return 0;
-  } else if (is_hal_offloading()) {
+  }
+  if (is_hal_offloading()) {
     log::error(
         "session_type={} is not A2DP_SOFTWARE_ENCODING_DATAPATH",
         toString(

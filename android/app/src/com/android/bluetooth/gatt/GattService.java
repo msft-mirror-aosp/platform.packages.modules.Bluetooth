@@ -292,7 +292,7 @@ public class GattService extends ProfileService {
         sGattService = instance;
     }
 
-    TransitionalScanHelper getTransitionalScanHelper() {
+    public TransitionalScanHelper getTransitionalScanHelper() {
         return mTransitionalScanHelper;
     }
 
@@ -419,11 +419,15 @@ public class GattService extends ProfileService {
         }
 
         private GattService getService() {
-            if (mService != null && mService.isAvailable()) {
-                return mService;
+            // Cache mService because it can change while getService is called
+            GattService service = mService;
+
+            if (service == null || !service.isAvailable()) {
+                Log.e(TAG, "getService() - Service requested, but not available!");
+                return null;
             }
-            Log.e(TAG, "getService() - Service requested, but not available!");
-            return null;
+
+            return service;
         }
 
         @Override
@@ -1555,7 +1559,7 @@ public class GattService extends ProfileService {
         return new GattDbElement();
     }
 
-    void onGetGattDb(int connId, ArrayList<GattDbElement> db) throws RemoteException {
+    void onGetGattDb(int connId, List<GattDbElement> db) throws RemoteException {
         String address = mClientMap.addressByConnId(connId);
 
         Log.d(TAG, "onGetGattDb() - address=" + address);

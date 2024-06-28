@@ -53,9 +53,9 @@
 
 /* result code for L2CA_DataWrite() */
 enum class tL2CAP_DW_RESULT : uint8_t {
-  L2CAP_DW_FAILED = 0,
-  L2CAP_DW_SUCCESS = 1,
-  L2CAP_DW_CONGESTED = 2,
+  FAILED = 0,
+  SUCCESS = 1,
+  CONGESTED = 2,
 };
 
 /* Values for priority parameter to L2CA_SetAclPriority */
@@ -351,12 +351,6 @@ typedef struct {
 typedef struct {
   uint8_t preferred_mode;
 } tL2CAP_ERTM_INFO;
-
-/**
- * Stack management declarations
- */
-void l2c_init();
-void l2c_free();
 
 /*****************************************************************************
  *  External Function Declarations
@@ -969,19 +963,5 @@ struct formatter<tL2CAP_LATENCY> : enum_formatter<tL2CAP_LATENCY> {};
 template <>
 struct formatter<tL2CAP_PRIORITY> : enum_formatter<tL2CAP_PRIORITY> {};
 }  // namespace fmt
-
-/*******************************************************************************
-**
-** Function         L2CA_Dumpsys
-**
-** Description      This function provides dumpsys data during the dumpsys
-**                  procedure.
-**
-** Parameters:      fd: Descriptor used to write the L2CAP internals
-**
-** Returns          void
-**
-*******************************************************************************/
-void L2CA_Dumpsys(int fd);
 
 #endif /* L2C_API_H */
