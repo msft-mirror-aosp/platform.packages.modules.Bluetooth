@@ -37,7 +37,6 @@ static_library("btif") {
     # BTIF implementation
     "src/btif_a2dp.cc",
 
-    "src/btif_a2dp_control.cc",
     "src/btif_a2dp_sink.cc",
     "src/btif_a2dp_source.cc",
     "src/btif_av.cc",
@@ -118,6 +117,7 @@ static_library("btif") {
     "//bt/system/common",
     "//bt/system/gd/rust/shim:init_flags_bridge_header",
     "//bt/system/profile/avrcp:profile_avrcp",
+    "//bt/system/gd:libbluetooth-gdx",
   ]
 
   configs += [
