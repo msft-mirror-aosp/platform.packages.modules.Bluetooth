@@ -25,13 +25,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_unicast_inactivate_device_based_on_context"
-    namespace: "bluetooth"
-    description: "Inactivate audio device when stream cannot be created due to unavailable context type"
-    bug: "313054788"
-}
-
-flag {
     name: "leaudio_multicodec_aidl_support"
     namespace: "bluetooth"
     description: "Enables support for the multicodec AIDL"
@@ -67,13 +60,6 @@ flag {
 }
 
 flag {
-    name: "le_audio_dev_type_detection_fix"
-    namespace: "bluetooth"
-    description: "Better LE Audio devices detection"
-    bug: "319511584"
-}
-
-flag {
     name: "metadata_api_inactive_audio_device_upon_connection"
     is_exported: true
     namespace: "bluetooth"
@@ -98,41 +84,11 @@ flag {
 }
 
 flag {
-    name: "leaudio_mcs_tbs_authorization_rebond_fix"
-    namespace: "bluetooth"
-    description: "Removes authorization data for unbonded devices in MCS and TBS service"
-    bug: "323339440"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "leaudio_multiple_vocs_instances_api"
     is_exported: true
     namespace: "bluetooth"
     description: "Support multiple audio outputs for volume offset"
     bug: "323156655"
-}
-
-flag {
-    name: "leaudio_volume_change_on_ringtone_fix"
-    namespace: "bluetooth"
-    description: "Apply the volume update to call volume during ringtone"
-    bug: "324041939"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_active_device_manager_group_handling_fix"
-    namespace: "bluetooth"
-    description: "Make sure Active Device Manager understands LeAudio groups"
-    bug: "324364321"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -344,16 +300,6 @@ flag {
     namespace: "bluetooth"
     description: "Do not post on main looper when starting le_audio"
     bug: "341385684"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_broadcast_stop_on_streaming_request"
-    namespace: "bluetooth"
-    description: "Stop instead of pause on unicast stream request"
-    bug: "336740254"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

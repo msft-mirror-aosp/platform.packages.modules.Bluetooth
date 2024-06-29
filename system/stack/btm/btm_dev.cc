@@ -36,17 +36,15 @@
 #include "btm_sec_api.h"
 #include "btm_sec_cb.h"
 #include "common/init_flags.h"
-#include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
 #include "l2c_api.h"
-#include "main/shim/entry.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "rust/src/connection/ffi/connection_shim.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_octets.h"
 #include "stack/include/btm_ble_privacy.h"
+#include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "types/raw_address.h"
 
@@ -93,7 +91,8 @@ void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class,
         bd_addr, fmt::join(dev_class, ""), key_type);
 
     p_dev_rec->bd_addr = bd_addr;
-    p_dev_rec->hci_handle = BTM_GetHCIConnHandle(bd_addr, BT_TRANSPORT_BR_EDR);
+    p_dev_rec->hci_handle =
+            get_btm_client_interface().peer.BTM_GetHCIConnHandle(bd_addr, BT_TRANSPORT_BR_EDR);
 
     /* use default value for background connection params */
     /* update conn params, use default value for background connection params */
@@ -125,9 +124,7 @@ void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class,
   p_dev_rec->sec_rec.link_key_type = key_type;
   p_dev_rec->sec_rec.pin_code_length = pin_length;
 
-  if (com::android::bluetooth::flags::correct_bond_type_of_loaded_devices()) {
-    p_dev_rec->sec_rec.bond_type = BOND_TYPE_PERSISTENT;
-  }
+  p_dev_rec->sec_rec.bond_type = BOND_TYPE_PERSISTENT;
 
   if (pin_length >= 16 || key_type == BTM_LKEY_TYPE_AUTH_COMB ||
       key_type == BTM_LKEY_TYPE_AUTH_COMB_P_256) {
@@ -214,7 +211,7 @@ void BTM_SecClearSecurityFlags(const RawAddress& bd_addr) {
   if (p_dev_rec == NULL) return;
 
   p_dev_rec->sec_rec.sec_flags = 0;
-  p_dev_rec->sec_rec.sec_state = BTM_SEC_STATE_IDLE;
+  p_dev_rec->sec_rec.sec_state = tSECURITY_STATE::IDLE;
   p_dev_rec->sm4 = BTM_SM4_UNKNOWN;
 }
 
@@ -277,8 +274,10 @@ tBTM_SEC_DEV_REC* btm_sec_alloc_dev(const RawAddress& bd_addr) {
 
   p_dev_rec->bd_addr = bd_addr;
 
-  p_dev_rec->ble_hci_handle = BTM_GetHCIConnHandle(bd_addr, BT_TRANSPORT_LE);
-  p_dev_rec->hci_handle = BTM_GetHCIConnHandle(bd_addr, BT_TRANSPORT_BR_EDR);
+  p_dev_rec->ble_hci_handle =
+          get_btm_client_interface().peer.BTM_GetHCIConnHandle(bd_addr, BT_TRANSPORT_LE);
+  p_dev_rec->hci_handle =
+          get_btm_client_interface().peer.BTM_GetHCIConnHandle(bd_addr, BT_TRANSPORT_BR_EDR);
 
   return (p_dev_rec);
 }
@@ -742,12 +741,6 @@ const tBLE_BD_ADDR BTM_Sec_GetAddressWithType(const RawAddress& bd_addr) {
 #endif
     return p_dev_rec->ble.identity_address_with_type;
   }
-}
-
-bool BTM_IsRemoteNameKnown(const RawAddress& bd_addr,
-                           tBT_TRANSPORT /* transport */) {
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
-  return (p_dev_rec == nullptr) ? false : p_dev_rec->sec_rec.is_name_known();
 }
 
 namespace bluetooth {
