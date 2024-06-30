@@ -245,11 +245,6 @@ void btif_av_set_audio_delay(const RawAddress& peer_address, uint16_t delay,
 uint16_t btif_av_get_audio_delay(const A2dpType local_a2dp_type);
 
 /**
- * Reset the audio delay and count of audio bytes sent to zero.
- */
-void btif_av_reset_audio_delay(void);
-
-/**
  *  check A2DP offload support enabled
  *  @param  none
  */
@@ -308,8 +303,6 @@ bool btif_av_is_source_enabled(void);
 bool btif_av_both_enable(void);
 bool btif_av_src_sink_coexist_enabled(void);
 bool btif_av_is_sink_enabled(void);
-bool btif_av_is_connected_addr(const RawAddress& peer_address,
-                               const A2dpType local_a2dp_type);
 bool btif_av_peer_is_connected_sink(const RawAddress& peer_address);
 bool btif_av_peer_is_connected_source(const RawAddress& peer_address);
 bool btif_av_peer_is_sink(const RawAddress& peer_address);
