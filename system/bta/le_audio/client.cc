@@ -44,7 +44,6 @@
 #include "content_control_id_keeper.h"
 #include "devices.h"
 #include "hci/controller_interface.h"
-#include "internal_include/bt_trace.h"
 #include "internal_include/stack_config.h"
 #include "le_audio_health_status.h"
 #include "le_audio_set_configuration_provider.h"
@@ -52,12 +51,12 @@
 #include "le_audio_utils.h"
 #include "main/shim/entry.h"
 #include "metrics_collector.h"
-#include "os/log.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/btm_client_interface.h"
 #include "stack/include/main_thread.h"
 #include "state_machine.h"
 #include "storage_helper.h"
@@ -267,12 +266,10 @@ class LeAudioClientImpl : public LeAudioClient {
       reconnection_mode_ = BTM_BLE_BKG_CONNECT_ALLOW_LIST;
     }
 
-    if (com::android::bluetooth::flags::leaudio_enable_health_based_actions()) {
-      log::info("Loading health status module");
-      leAudioHealthStatus_ = LeAudioHealthStatus::Get();
-      leAudioHealthStatus_->RegisterCallback(
-          base::BindRepeating(le_audio_health_status_callback));
-    }
+    log::info("Loading health status module");
+    leAudioHealthStatus_ = LeAudioHealthStatus::Get();
+    leAudioHealthStatus_->RegisterCallback(
+        base::BindRepeating(le_audio_health_status_callback));
 
     BTA_GATTC_AppRegister(
         le_audio_gattc_callback,
@@ -539,12 +536,6 @@ class LeAudioClientImpl : public LeAudioClient {
        * is inactive */
       groupSetAndNotifyInactive();
     }
-  }
-
-  void OnDeviceAutonomousStateTransitionTimeout(LeAudioDevice* leAudioDevice) {
-    log::error("Device {}, failed to complete autonomous transition",
-               leAudioDevice->address_);
-    DisconnectDevice(leAudioDevice, true);
   }
 
   void UpdateLocationsAndContextsAvailability(LeAudioDeviceGroup* group,
@@ -1160,12 +1151,21 @@ class LeAudioClientImpl : public LeAudioClient {
       log::assert_that(true, "Both configs are invalid");
     }
 
-    audio_framework_source_config.data_interval_us = frame_duration_us;
+    L2CA_SetEcosystemBaseInterval(frame_duration_us / 1250);
+
+    // Scale by the codec frame blocks per SDU if set
+    uint8_t codec_frame_blocks_per_sdu =
+        group->stream_conf.stream_params.source.codec_frames_blocks_per_sdu
+            ?: 1;
+    audio_framework_source_config.data_interval_us =
+        frame_duration_us * codec_frame_blocks_per_sdu;
+
     le_audio_source_hal_client_->Start(audio_framework_source_config,
                                        audioSinkReceiver, dsa_modes);
 
     /* We use same frame duration for sink/source */
-    audio_framework_sink_config.data_interval_us = frame_duration_us;
+    audio_framework_sink_config.data_interval_us =
+        frame_duration_us * codec_frame_blocks_per_sdu;
 
     /* If group supports more than 16kHz for the microphone in converstional
      * case let's use that also for Audio Framework.
@@ -2099,7 +2099,7 @@ class LeAudioClientImpl : public LeAudioClient {
       BTM_BleSetPhy(address, PHY_LE_2M, PHY_LE_2M, 0);
     }
 
-    BTM_RequestPeerSCA(leAudioDevice->address_, transport);
+    get_btm_client_interface().peer.BTM_RequestPeerSCA(leAudioDevice->address_, transport);
 
     if (leAudioDevice->GetConnectionState() ==
         DeviceConnectState::CONNECTING_AUTOCONNECT) {
@@ -2277,7 +2277,7 @@ class LeAudioClientImpl : public LeAudioClient {
 
     BTA_GATTC_ServiceSearchRequest(
         leAudioDevice->conn_id_,
-        &bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
+        bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
   }
 
   void checkGroupConnectionStateAfterMemberDisconnect(int group_id) {
@@ -2581,7 +2581,7 @@ class LeAudioClientImpl : public LeAudioClient {
 
     BTA_GATTC_ServiceSearchRequest(
         leAudioDevice->conn_id_,
-        &bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
+        bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
   }
 
   void OnServiceChangeEvent(const RawAddress& address) {
@@ -2660,7 +2660,7 @@ class LeAudioClientImpl : public LeAudioClient {
     if (!leAudioDevice->known_service_handles_)
       BTA_GATTC_ServiceSearchRequest(
           leAudioDevice->conn_id_,
-          &bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
+          bluetooth::le_audio::uuid::kPublishedAudioCapabilityServiceUuid);
   }
 
   void disconnectInvalidDevice(LeAudioDevice* leAudioDevice,
@@ -3286,10 +3286,7 @@ class LeAudioClientImpl : public LeAudioClient {
         "{},  {}", leAudioDevice->address_,
         bluetooth::common::ToString(leAudioDevice->GetConnectionState()));
 
-    if (com::android::bluetooth::flags::le_audio_fast_bond_params()) {
-      L2CA_LockBleConnParamsForProfileConnection(leAudioDevice->address_,
-                                                 false);
-    }
+    L2CA_LockBleConnParamsForProfileConnection(leAudioDevice->address_, false);
 
     if (leAudioDevice->GetConnectionState() ==
             DeviceConnectState::CONNECTED_BY_USER_GETTING_READY &&
@@ -3396,6 +3393,12 @@ class LeAudioClientImpl : public LeAudioClient {
         right_cis_handle = cis_handle;
     }
 
+    if (stream_params.codec_frames_blocks_per_sdu != 1) {
+      log::error(
+          "Codec Frame Blocks of {} is not supported by the software encoding",
+          +stream_params.codec_frames_blocks_per_sdu);
+    }
+
     uint16_t byte_count = stream_params.octets_per_codec_frame;
     bool mix_to_mono = (left_cis_handle == 0) || (right_cis_handle == 0);
     if (mix_to_mono) {
@@ -3442,6 +3445,12 @@ class LeAudioClientImpl : public LeAudioClient {
                             number_of_required_samples_per_channel)) {
       log::error("Missing samples");
       return;
+    }
+
+    if (stream_params.codec_frames_blocks_per_sdu != 1) {
+      log::error(
+          "Codec Frame Blocks of {} is not supported by the software encoding",
+          +stream_params.codec_frames_blocks_per_sdu);
     }
 
     uint16_t byte_count = stream_params.octets_per_codec_frame;
@@ -3841,7 +3850,10 @@ class LeAudioClientImpl : public LeAudioClient {
     CleanCachedMicrophoneData();
   }
 
-  void StopAudio(void) { SuspendAudio(); }
+  void StopAudio(void) {
+    SuspendAudio();
+    L2CA_SetEcosystemBaseInterval(0 /* clear recommendation */);
+  }
 
   void printCurrentStreamConfiguration(int fd) {
     std::stringstream stream;
@@ -3892,6 +3904,9 @@ class LeAudioClientImpl : public LeAudioClient {
     }
     dprintf(fd, "  Source monitor mode: %s\n",
             source_monitor_mode_ ? "true" : "false");
+    dprintf(fd, "  Codec extensibility: %s\n",
+            CodecManager::GetInstance()->IsUsingCodecExtensibility() ? "true"
+                                                                     : "false");
     dprintf(fd, "  Start time: ");
     for (auto t : stream_start_history_queue_) {
       dprintf(fd, ", %d ms", static_cast<int>(t));
@@ -5623,8 +5638,12 @@ class LeAudioClientImpl : public LeAudioClient {
 
     switch (status) {
       case GroupStreamStatus::STREAMING: {
-        log::assert_that(group_id == active_group_id_,
-                         "invalid group id {}!={}", group_id, active_group_id_);
+        if (group_id != active_group_id_) {
+          log::error("Streaming group {} is no longer active. Stop the group.",
+                     group_id);
+          GroupStop(group_id);
+          return;
+        }
 
         take_stream_time();
 
@@ -5908,7 +5927,7 @@ class LeAudioClientImpl : public LeAudioClient {
   std::vector<uint8_t> encoded_data;
   std::unique_ptr<LeAudioSourceAudioHalClient> le_audio_source_hal_client_;
   std::unique_ptr<LeAudioSinkAudioHalClient> le_audio_sink_hal_client_;
-  static constexpr uint64_t kAudioSuspentKeepIsoAliveTimeoutMs = 5000;
+  static constexpr uint64_t kAudioSuspentKeepIsoAliveTimeoutMs = 500;
   static constexpr uint64_t kAudioDisableTimeoutMs = 3000;
   static constexpr char kAudioSuspentKeepIsoAliveTimeoutMsProp[] =
       "persist.bluetooth.leaudio.audio.suspend.timeoutms";
@@ -6165,12 +6184,6 @@ class CallbacksImpl : public LeAudioGroupStateMachine::Callbacks {
 
   void OnStateTransitionTimeout(int group_id) override {
     if (instance) instance->OnLeAudioDeviceSetStateTimeout(group_id);
-  }
-
-  void OnDeviceAutonomousStateTransitionTimeout(
-      LeAudioDevice* leAudioDevice) override {
-    if (instance)
-      instance->OnDeviceAutonomousStateTransitionTimeout(leAudioDevice);
   }
 
   void OnUpdatedCisConfiguration(int group_id, uint8_t direction) {

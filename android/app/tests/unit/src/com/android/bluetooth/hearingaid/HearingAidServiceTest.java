@@ -90,7 +90,6 @@ public class HearingAidServiceTest {
 
     private HearingAidService mService;
     private HearingAidService.BluetoothHearingAidBinder mServiceBinder;
-    private HashMap<BluetoothDevice, LinkedBlockingQueue<Intent>> mDeviceQueueMap;
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
@@ -135,7 +134,6 @@ public class HearingAidServiceTest {
         HearingAidNativeInterface.setInstance(mNativeInterface);
         startService();
         mServiceBinder = (HearingAidService.BluetoothHearingAidBinder) mService.initBinder();
-        mServiceBinder.mIsTesting = true;
 
         // Override the timeout value to speed up the test
         HearingAidStateMachine.sConnectTimeoutMs = (int) TIMEOUT.toMillis(); // 1s
