@@ -994,7 +994,6 @@ static void btu_hcif_hdl_command_complete(uint16_t opcode, uint8_t* p,
     case HCI_BLE_READ_RESOLVABLE_ADDR_LOCAL:
     case HCI_BLE_SET_ADDR_RESOLUTION_ENABLE:
     case HCI_BLE_SET_RAND_PRIV_ADDR_TIMOUT:
-    case HCI_CHANGE_LOCAL_NAME:
     case HCI_WRITE_CLASS_OF_DEVICE:
     case HCI_WRITE_DEF_POLICY_SETTINGS:
     case HCI_WRITE_EXT_INQ_RESPONSE:
@@ -1094,13 +1093,6 @@ static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status,
         // Device refused to start encryption
         // This is treated as an encryption failure
         btm_sec_encrypt_change(HCI_INVALID_HANDLE, hci_status, false);
-      }
-      break;
-    case HCI_RMT_NAME_REQUEST:
-      if (status != HCI_SUCCESS) {
-        // Tell inquiry processing that we are done
-        btm_process_remote_name(nullptr, nullptr, 0, hci_status);
-        btm_sec_rmt_name_request_complete(nullptr, nullptr, hci_status);
       }
       break;
     case HCI_READ_RMT_EXT_FEATURES:

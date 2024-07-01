@@ -274,6 +274,7 @@ cc_library_static {
         "rfcomm/rfc_port_if.cc",
         "rfcomm/rfc_ts_frames.cc",
         "rfcomm/rfc_utils.cc",
+        "rnr/remote_name_request.cc",
         "smp/p_256_curvepara.cc",
         "smp/p_256_ecc_pp.cc",
         "smp/p_256_multprecision.cc",
@@ -295,6 +296,7 @@ cc_library_static {
         "-fvisibility=default",
     ],
     static_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbluetooth_core_rs",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
@@ -420,7 +422,66 @@ cc_fuzz {
         "libbt_shim_ffi",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "server_configurable_flags",
+    ],
+}
+
+cc_fuzz {
+    name: "rfcomm-fuzzer",
+    team: "trendy_team_attack_tools",
+    defaults: [
+        "btstack_fuzzer_default",
+        "fluoride_defaults",
+    ],
+    include_dirs: [
+        "external/flatbuffers/include",
+        "external/rust/crates/quiche/deps/boringssl/src/include",
+        "packages/modules/Bluetooth/system/stack/btm",
+        "packages/modules/Bluetooth/system/stack/test/common",
+        "packages/modules/Bluetooth/system/stack/test/rfcomm",
+    ],
+    generated_headers: [
+        "BluetoothGeneratedDumpsysDataSchema_h",
+    ],
+    srcs: [
+        ":BluetoothPacketSources",
+        ":TestCommonMockFunctions",
+        ":TestCommonStackConfig",
+        ":TestFakeOsi",
+        ":TestMockBtif",
+        ":TestMockDevice",
+        ":TestMockGdOsLoggingLogRedaction",
+        ":TestMockMainShim",
+        ":TestMockMainShimEntry",
+        ":TestMockRustFfi",
+        ":TestMockSrvcDis",
+        ":TestMockStackAcl",
+        ":TestMockStackArbiter",
+        ":TestMockStackBtm",
+        ":TestMockStackHcic",
+        ":TestMockStackL2cap",
+        ":TestMockStackMetrics",
+        ":TestMockStackSdp",
+        "fuzzers/rfcomm_fuzzer.cc",
+        "rfcomm/*.cc",
+        "test/common/stack_test_packet_utils.cc",
+        "test/rfcomm/stack_rfcomm_test_utils.cc",
+    ],
+    shared_libs: [
+        "server_configurable_flags",
+    ],
+    static_libs: [
+        "bluetooth_flags_c_lib",
+        "libbluetooth-types",
+        "libbluetooth_crypto_toolbox",
+        "libbluetooth_hci_pdl",
+        "libbluetooth_l2cap_pdl",
+        "libbluetooth_log",
+        "libbluetooth_smp_pdl",
+        "libbt-platform-protos-lite",
+        "libbt_shim_bridge",
+        "libbt_shim_ffi",
     ],
 }
 
@@ -462,6 +523,7 @@ cc_fuzz {
         "gatt/*.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "server_configurable_flags",
     ],
     static_libs: [
@@ -511,6 +573,7 @@ cc_fuzz {
         "smp/*.cc", // add other sources files  (p256 related) under smp into this test
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "server_configurable_flags",
     ],
     static_libs: [
@@ -608,6 +671,7 @@ cc_fuzz {
         "fuzzers/avrc_fuzzer.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "server_configurable_flags",
     ],
     static_libs: [
@@ -668,6 +732,7 @@ cc_fuzz {
         "libbt_shim_ffi",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "liblog",
         "server_configurable_flags",
@@ -707,6 +772,7 @@ cc_test {
     shared_libs: [
         "libPlatformProperties",
         "libaaudio",
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "libcutils",
@@ -721,7 +787,6 @@ cc_test {
     ],
     static_libs: [
         "android.hardware.audio.common@5.0",
-        "android.hardware.bluetooth.a2dp@1.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
         "android.hardware.common-V2-ndk",
@@ -772,6 +837,9 @@ cc_test {
             static_libs: [
                 "android.hardware.bluetooth@1.0",
                 "android.hardware.bluetooth@1.1",
+                "libexpresslog",
+                "libstatslog_express",
+                "libtextclassifier_hash_static",
             ],
         },
         host: {
@@ -823,6 +891,7 @@ cc_test {
         "test/common/mock_btm_layer.cc",
         "test/common/mock_l2cap_layer.cc",
         "test/common/stack_test_packet_utils.cc",
+        "test/rfcomm/stack_rfcomm_port_test.cc",
         "test/rfcomm/stack_rfcomm_test.cc",
         "test/rfcomm/stack_rfcomm_test_main.cc",
         "test/rfcomm/stack_rfcomm_test_utils.cc",
@@ -920,6 +989,7 @@ cc_test {
         "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libcrypto",
         "libcutils",
         "server_configurable_flags",
@@ -1003,6 +1073,7 @@ cc_test {
     ],
     srcs: [
         ":TestCommonMainHandler",
+        ":TestMockStackBtmInterface",
         "gatt/connection_manager.cc",
         "test/common/mock_btm_api_layer.cc",
         "test/gatt_connection_manager_test.cc",
@@ -1061,6 +1132,7 @@ cc_test {
         "test/gatt/gatt_sr_test.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libcrypto",
         "libcutils",
         "server_configurable_flags",
@@ -1358,6 +1430,7 @@ cc_test {
         "test/stack_gatt_sr_hash_test.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libcrypto",
         "libcutils",
         "server_configurable_flags",
@@ -1554,6 +1627,7 @@ cc_test {
     srcs: [
         ":BluetoothHalSources_hci_host",
         ":BluetoothHalSources_ranging_host",
+        ":BluetoothHciFake",
         ":BluetoothOsSources_host",
         ":OsiCompatSources",
         ":TestCommonMainHandler",
@@ -1610,6 +1684,7 @@ cc_test {
         "btm/hfp_msbc_encoder.cc",
         "btm/security_event_parser.cc",
         "metrics/stack_metrics_logging.cc",
+        "rnr/remote_name_request.cc",
         "test/btm/peer_packet_types_test.cc",
         "test/btm/sco_hci_test.cc",
         "test/btm/sco_pkt_status_test.cc",
@@ -1646,6 +1721,7 @@ cc_test {
         "libudrv-uipc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libcrypto",
         "server_configurable_flags",
     ],
@@ -1930,6 +2006,7 @@ cc_test {
         "libstatslog_bt",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libbinder_ndk",
         "libcrypto",
@@ -2021,6 +2098,7 @@ cc_test {
         "libstatslog_bt",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libbinder_ndk",
         "libcrypto",
@@ -2114,6 +2192,7 @@ cc_test {
         "libstatslog_bt",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libbinder_ndk",
         "libcrypto",
@@ -2185,6 +2264,7 @@ cc_test {
         "liblog",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libcrypto",
         "libcutils",
         "server_configurable_flags",

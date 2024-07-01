@@ -91,6 +91,7 @@ cc_library_static {
     ],
     header_libs: ["libbluetooth_headers"],
     static_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
         "libbt_shim_bridge",
@@ -125,6 +126,7 @@ cc_test {
         "test/internal/semaphore_test.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "libcutils",
@@ -143,7 +145,6 @@ cc_test {
         "libbt-common",
         "libbt_shim_bridge",
         "libbt_shim_ffi",
-        "libc++fs",
         "libchrome",
         "libevent",
         "libgmock",

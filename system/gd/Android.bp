@@ -125,7 +125,13 @@ cc_defaults {
                 "libcutils",
                 "libhidlbase",
                 "libstatslog_bt",
+                "libstatssocket",
                 "libutils",
+            ],
+            static_libs: [
+                "libexpresslog",
+                "libstatslog_express",
+                "libtextclassifier_hash_static",
             ],
             whole_static_libs: [
                 "android.hardware.bluetooth-V1-ndk",
@@ -168,9 +174,9 @@ cc_defaults {
         "libbluetooth_l2cap_pdl",
         "libbluetooth_ras_pdl",
         "libbluetooth_smp_pdl",
-        "libc++fs",
     ],
     static_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libbluetooth-dumpsys",
         "libbluetooth-protos",
@@ -331,6 +337,7 @@ cc_binary {
         "libosi",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "libgrpc++",
@@ -496,7 +503,6 @@ cc_test {
         "libbt-platform-protos-lite",
         "libbt_shim_bridge",
         "libbt_shim_ffi",
-        "libc++fs",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libflagtest",
@@ -506,6 +512,7 @@ cc_test {
     ],
     shared_libs: [
         "libPlatformProperties",
+        "libaconfig_storage_read_api_cc",
         "libcrypto",
         "server_configurable_flags",
     ],
@@ -519,6 +526,7 @@ cc_test {
     name: "bluetooth_test_gdx_unit",
     test_suites: ["device-tests"],
     defaults: [
+        "aconfig_lib_cc_shared_link.defaults",
         "gd_defaults",
         "mts_defaults",
     ],
@@ -656,6 +664,7 @@ cc_defaults {
     ],
     shared_libs: [
         "libPlatformProperties",
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "libgrpc++",
