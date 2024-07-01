@@ -139,16 +139,17 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
                     | Request.SupportedOpcodes.PREVIOUS_TRACK;
 
     private final int mCcid;
-    private Map<String, Map<UUID, Short>> mCccDescriptorValues = new HashMap<>();
+    private final Map<String, Map<UUID, Short>> mCccDescriptorValues = new HashMap<>();
     private long mFeatures;
     private Context mContext;
     private MediaControlServiceCallbacks mCallbacks;
     private BluetoothGattServerProxy mBluetoothGattServer;
     private BluetoothGattService mGattService = null;
-    private Handler mHandler = new Handler(Looper.getMainLooper());
-    private Map<Integer, BluetoothGattCharacteristic> mCharacteristics = new HashMap<>();
+    private final Handler mHandler = new Handler(Looper.getMainLooper());
+    private final Map<Integer, BluetoothGattCharacteristic> mCharacteristics = new HashMap<>();
     private MediaState mCurrentMediaState = MediaState.INACTIVE;
-    private Map<BluetoothDevice, List<GattOpContext>> mPendingGattOperations = new HashMap<>();
+    private final Map<BluetoothDevice, List<GattOpContext>> mPendingGattOperations =
+            new HashMap<>();
     private McpService mMcpService;
     private LeAudioService mLeAudioService;
     private AdapterService mAdapterService;
@@ -1206,7 +1207,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
      * to test the correct functioning of the McpService class, the final class must be put into a
      * container that can be mocked correctly.
      */
-    public class BluetoothGattServerProxy {
+    public static class BluetoothGattServerProxy {
         private BluetoothGattServer mBluetoothGattServer;
         private BluetoothManager mBluetoothManager;
 
@@ -1584,7 +1585,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
             SearchRequest request, SearchRequest.Results resultStatus, long resultObjectId) {
         Log.d(TAG, "setSearchRequestResult");
 
-        // TODO: There is no Object Trasfer Service implementation.
+        // TODO: There is no Object Transfer Service implementation.
         BluetoothGattCharacteristic characteristic =
                 mCharacteristics.get(CharId.SEARCH_CONTROL_POINT);
         characteristic.setValue(new byte[] {SEARCH_CONTROL_POINT_RESULT_FAILURE});

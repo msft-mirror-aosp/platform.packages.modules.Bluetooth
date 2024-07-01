@@ -106,7 +106,6 @@ cc_library_static {
         "src/bluetooth.cc",
         // BTIF implementation
         "src/btif_a2dp.cc",
-        "src/btif_a2dp_control.cc",
         "src/btif_a2dp_sink.cc",
         "src/btif_a2dp_source.cc",
         "src/btif_av.cc",
@@ -287,6 +286,7 @@ cc_test {
     ],
     header_libs: ["libbluetooth_headers"],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "libcutils",
@@ -347,7 +347,6 @@ cc_test {
                 "libstatssocket",
             ],
             static_libs: [
-                "android.hardware.bluetooth.a2dp@1.0",
                 "android.hardware.bluetooth@1.0",
                 "android.hardware.bluetooth@1.1",
                 "android.hardware.common-V2-ndk",
@@ -589,6 +588,7 @@ cc_test {
     ],
     header_libs: ["libbluetooth_headers"],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "libcutils",
@@ -600,7 +600,6 @@ cc_test {
     ],
     static_libs: [
         "android.hardware.audio.common@5.0",
-        "android.hardware.bluetooth.a2dp@1.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
         "avrcp-target-service",
@@ -626,7 +625,6 @@ cc_test {
         "libbtdevice",
         "libbtif",
         "libbtif-core",
-        "libc++fs",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libevent",
@@ -712,6 +710,7 @@ cc_test {
     ],
     header_libs: ["libbluetooth_headers"],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libcrypto",
         "libcutils",
@@ -748,7 +747,6 @@ cc_test {
         "libbtdevice",
         "libbtif",
         "libbtif-core",
-        "libc++fs",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libevent",
@@ -760,7 +758,6 @@ cc_test {
     target: {
         android: {
             static_libs: [
-                "android.hardware.bluetooth.a2dp@1.0",
                 "android.hardware.common-V2-ndk",
                 "android.hardware.common.fmq-V1-ndk",
             ],

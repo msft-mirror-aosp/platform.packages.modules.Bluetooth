@@ -47,14 +47,15 @@
 #include "stack/include/bt_dev_class.h"
 #include "stack/include/bt_name.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/btm_ble_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_inq.h"
 #include "stack/include/btm_log_history.h"
-#include "stack/include/btm_sec_api.h"  // BTM_IsRemoteNameKnown
 #include "stack/include/gap_api.h"      // GAP_BleReadPeerPrefConnParams
 #include "stack/include/hidh_api.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/sdp_status.h"
+#include "stack/rnr/remote_name_request.h"
 #include "stack/sdp/sdpint.h"  // is_sdp_pbap_pce_disabled
 #include "storage/config_keys.h"
 #include "types/raw_address.h"
@@ -179,7 +180,11 @@ struct gatt_interface_t {
         [](uint16_t conn_id, const bluetooth::Uuid* p_srvc_uuid) {
           disc_gatt_history_.Push(base::StringPrintf(
               "%-32s conn_id:%hu", "GATTC_ServiceSearchRequest", conn_id));
-          BTA_GATTC_ServiceSearchRequest(conn_id, p_srvc_uuid);
+          if (p_srvc_uuid) {
+            BTA_GATTC_ServiceSearchRequest(conn_id, *p_srvc_uuid);
+          } else {
+            BTA_GATTC_ServiceSearchAllRequest(conn_id);
+          }
         },
     .BTA_GATTC_Open =
         [](tGATT_IF client_if, const RawAddress& remote_bda,
@@ -839,11 +844,7 @@ static void bta_dm_search_cmpl() {
 
   std::vector<Uuid> gatt_services;
 
-  bool send_gatt_results =
-      bluetooth::common::init_flags::
-              always_send_services_if_gatt_disc_done_is_enabled()
-          ? bta_dm_search_cb.gatt_disc_active
-          : false;
+  bool send_gatt_results = bta_dm_search_cb.gatt_disc_active;
 
   /* no BLE connection, i.e. Classic service discovery end */
   if (conn_id == GATT_INVALID_CONN_ID) {
@@ -1035,13 +1036,7 @@ bool bta_dm_is_search_request_queued() {
  * Returns          void
  *
  ******************************************************************************/
-static void bta_dm_search_clear_queue() {
-  bta_dm_search_cb.p_pending_search.reset();
-  if (bluetooth::common::InitFlags::
-          IsBtmDmFlushDiscoveryQueueOnSearchCancel()) {
-    bta_dm_search_cb.pending_discovery_queue = {};
-  }
-}
+static void bta_dm_search_clear_queue() { bta_dm_search_cb.p_pending_search.reset(); }
 
 /*******************************************************************************
  *
@@ -1832,13 +1827,10 @@ static void bta_dm_gatt_disc_complete(uint16_t conn_id, tGATT_STATUS status) {
   } else {
     bta_dm_search_cb.conn_id = GATT_INVALID_CONN_ID;
 
-    if (com::android::bluetooth::flags::bta_dm_disc_stuck_in_cancelling_fix()) {
-      log::info(
-          "Discovery complete for invalid conn ID. Will pick up next job");
-      bta_dm_search_set_state(BTA_DM_SEARCH_IDLE);
-      bta_dm_free_sdp_db();
-      bta_dm_execute_queued_request();
-    }
+    log::info("Discovery complete for invalid conn ID. Will pick up next job");
+    bta_dm_search_set_state(BTA_DM_SEARCH_IDLE);
+    bta_dm_free_sdp_db();
+    bta_dm_execute_queued_request();
   }
 }
 
