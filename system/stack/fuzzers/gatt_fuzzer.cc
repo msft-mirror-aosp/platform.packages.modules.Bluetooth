@@ -86,7 +86,7 @@ class FakeBtStack {
     test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t lcid,
                                                           BT_HDR* hdr) {
       osi_free(hdr);
-      return L2CAP_DW_SUCCESS;
+      return tL2CAP_DW_RESULT::SUCCESS;
     };
     test::mock::stack_l2cap_api::L2CA_DisconnectReq.body = [](uint16_t) {
       return true;
@@ -94,14 +94,14 @@ class FakeBtStack {
     test::mock::stack_l2cap_api::L2CA_SendFixedChnlData.body =
         [](uint16_t cid, const RawAddress& addr, BT_HDR* hdr) {
           osi_free(hdr);
-          return L2CAP_DW_SUCCESS;
+          return tL2CAP_DW_RESULT::SUCCESS;
         };
     test::mock::stack_l2cap_api::L2CA_RegisterFixedChannel.body =
         [](uint16_t fixed_cid, tL2CAP_FIXED_CHNL_REG* p_freg) {
           fixed_chnl_reg = *p_freg;
           return true;
         };
-    test::mock::stack_l2cap_api::L2CA_Register2.body =
+    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity.body =
         [](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
            tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu,
            uint16_t required_remote_mtu, uint16_t sec_level) {
@@ -129,7 +129,7 @@ class FakeBtStack {
     test::mock::stack_l2cap_api::L2CA_DisconnectReq = {};
     test::mock::stack_l2cap_api::L2CA_SendFixedChnlData = {};
     test::mock::stack_l2cap_api::L2CA_RegisterFixedChannel = {};
-    test::mock::stack_l2cap_api::L2CA_Register2 = {};
+    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity = {};
     test::mock::stack_l2cap_api::L2CA_RegisterLECoc = {};
     test::mock::stack_l2cap_api::L2CA_SetIdleTimeoutByBdAddr = {};
     test::mock::stack_l2cap_api::L2CA_SetLeGattTimeout = {};

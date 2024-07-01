@@ -240,9 +240,9 @@ uint16_t GAP_ConnOpen(const char* /* p_serv_name */, uint8_t service_id,
 
   /* Register the PSM with L2CAP */
   if (transport == BT_TRANSPORT_BR_EDR) {
-    p_ccb->psm =
-        L2CA_Register2(psm, conn.reg_info, false /* enable_snoop */,
-                       &p_ccb->ertm_info, L2CAP_SDU_LENGTH_MAX, 0, security);
+    p_ccb->psm = L2CA_RegisterWithSecurity(
+        psm, conn.reg_info, false /* enable_snoop */, &p_ccb->ertm_info,
+        L2CAP_SDU_LENGTH_MAX, 0, security);
     if (p_ccb->psm == 0) {
       log::error("Failure registering PSM 0x{:04x}", psm);
       gap_release_ccb(p_ccb);
@@ -279,7 +279,7 @@ uint16_t GAP_ConnOpen(const char* /* p_serv_name */, uint8_t service_id,
 
     /* Check if L2CAP started the connection process */
     if (p_rem_bda && (transport == BT_TRANSPORT_BR_EDR)) {
-      cid = L2CA_ConnectReq2(p_ccb->psm, *p_rem_bda, security);
+      cid = L2CA_ConnectReqWithSecurity(p_ccb->psm, *p_rem_bda, security);
       if (cid != 0) {
         p_ccb->connection_id = cid;
         return (p_ccb->gap_handle);
@@ -434,17 +434,17 @@ static bool gap_try_write_queued_data(tGAP_CCB* p_ccb) {
   /* Send the buffer through L2CAP */
   BT_HDR* p_buf;
   while ((p_buf = (BT_HDR*)fixed_queue_try_dequeue(p_ccb->tx_queue)) != NULL) {
-    uint8_t status;
+    tL2CAP_DW_RESULT status;
     if (p_ccb->transport == BT_TRANSPORT_LE) {
       status = L2CA_LECocDataWrite(p_ccb->connection_id, p_buf);
     } else {
       status = L2CA_DataWrite(p_ccb->connection_id, p_buf);
     }
 
-    if (status == L2CAP_DW_CONGESTED) {
+    if (status == tL2CAP_DW_RESULT::CONGESTED) {
       p_ccb->is_congested = true;
       return true;
-    } else if (status != L2CAP_DW_SUCCESS)
+    } else if (status != tL2CAP_DW_RESULT::SUCCESS)
       return false;
   }
   return true;
@@ -660,7 +660,7 @@ static void gap_checks_con_flags(tGAP_CCB* p_ccb) {
     tGAP_CB_DATA cb_data;
     uint16_t l2cap_remote_cid;
     if (com::android::bluetooth::flags::bt_socket_api_l2cap_cid() &&
-        L2CA_GetPeerChannelId(p_ccb->connection_id, &l2cap_remote_cid)) {
+        L2CA_GetRemoteChannelId(p_ccb->connection_id, &l2cap_remote_cid)) {
       cb_data.l2cap_cids.local_cid = p_ccb->connection_id;
       cb_data.l2cap_cids.remote_cid = l2cap_remote_cid;
       cb_data_ptr = &cb_data;

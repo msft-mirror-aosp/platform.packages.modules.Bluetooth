@@ -272,7 +272,7 @@ impl ClientContext {
         // Trigger callback registration in the foreground
         let fg = self.fg.clone();
         tokio::spawn(async move {
-            let adapter = String::from(format!("adapter{}", idx));
+            let adapter = format!("adapter{}", idx);
             // Floss won't export the interface until it is ready to be used.
             // Wait 1 second before registering the callbacks.
             sleep(Duration::from_millis(1000)).await;
@@ -283,7 +283,7 @@ impl ClientContext {
     // Foreground-only: Updates the adapter address.
     fn update_adapter_address(&mut self) -> RawAddress {
         let address = self.adapter_dbus.as_ref().unwrap().get_address();
-        self.adapter_address = Some(address.clone());
+        self.adapter_address = Some(address);
 
         address
     }
@@ -314,14 +314,12 @@ impl ClientContext {
     fn get_devices(&self) -> Vec<String> {
         let mut result: Vec<String> = vec![];
 
-        result.extend(
-            self.found_devices.keys().map(|key| String::from(key)).collect::<Vec<String>>(),
-        );
+        result.extend(self.found_devices.keys().map(String::from).collect::<Vec<String>>());
         result.extend(
             self.bonded_devices
                 .keys()
                 .filter(|key| !self.found_devices.contains_key(&String::from(*key)))
-                .map(|key| String::from(key))
+                .map(String::from)
                 .collect::<Vec<String>>(),
         );
 
@@ -450,7 +448,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         let handler = CommandHandler::new(context.clone());
-        if let Ok(_) = command {
+        if command.is_ok() {
             // Timeout applies only to non-interactive commands.
             if let Ok(timeout_secs) = timeout_secs {
                 let timeout_duration = Duration::from_secs(timeout_secs);
@@ -473,7 +471,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // - Interactive commands: none of these commands require a timeout.
         // - Non-interactive commands that have not specified a timeout.
         handle_client_command(handler, tx, rx, context, command).await?;
-        return Result::Ok(());
+        Result::Ok(())
     })
 }
 
@@ -496,7 +494,7 @@ async fn handle_client_command(
     let semaphore_fg = Arc::new(tokio::sync::Semaphore::new(1));
 
     // If there are no command arguments, start the interactive shell.
-    if let Err(_) = command {
+    if command.is_err() {
         let command_rule_list = handler.get_command_rule_list().clone();
         let context_for_closure = context.clone();
 
@@ -521,7 +519,7 @@ async fn handle_client_command(
         });
     }
 
-    'readline: loop {
+    'foreground_actions: loop {
         let m = rx.recv().await;
 
         if m.is_none() {
@@ -546,7 +544,7 @@ async fn handle_client_command(
                 callback(context.clone());
 
                 // Break the loop as a non-interactive command is completed.
-                if let Ok(_) = command {
+                if command.is_ok() {
                     break;
                 }
             }
@@ -763,7 +761,7 @@ async fn handle_client_command(
 
                 // Run the command with the command arguments as the client is
                 // non-interactive.
-                if let Some(command) = command.as_ref().ok() {
+                if let Ok(command) = command.as_ref() {
                     let mut iter = command.split(' ').map(String::from);
                     let first = iter.next().unwrap_or(String::from(""));
                     if !handler.process_cmd_line(&first, &iter.collect::<Vec<String>>()) {
@@ -788,31 +786,26 @@ async fn handle_client_command(
                     break;
                 }
                 Ok(line) => {
-                    // Currently Chrome OS uses Rust 1.60 so use the 1-time loop block to
-                    // workaround this.
-                    // With Rust 1.65 onwards we can convert this loop hack into a named block:
-                    // https://blog.rust-lang.org/2022/11/03/Rust-1.65.0.html#break-from-labeled-blocks
-                    // TODO: Use named block when Android and Chrome OS Rust upgrade Rust to 1.65.
-                    loop {
+                    'readline: {
                         let args = match shell_words::split(line.as_str()) {
                             Ok(words) => words,
                             Err(e) => {
                                 print_error!("Error parsing arguments: {}", e);
-                                break;
+                                break 'readline;
                             }
                         };
 
                         let (cmd, rest) = match args.split_first() {
                             Some(pair) => pair,
-                            None => break,
+                            None => break 'readline,
                         };
 
                         if cmd == "quit" {
-                            break 'readline;
+                            break 'foreground_actions;
                         }
 
-                        handler.process_cmd_line(cmd, &rest.to_vec());
-                        break;
+                        handler.process_cmd_line(cmd, rest);
+                        break 'readline;
                     }
 
                     // Ready to do readline again.

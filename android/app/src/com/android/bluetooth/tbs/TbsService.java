@@ -46,7 +46,7 @@ public class TbsService extends ProfileService {
     private static final String TAG = "TbsService";
 
     private static TbsService sTbsService;
-    private Map<BluetoothDevice, Integer> mDeviceAuthorizations = new HashMap<>();
+    private final Map<BluetoothDevice, Integer> mDeviceAuthorizations = new HashMap<>();
 
     private final TbsGeneric mTbsGeneric = new TbsGeneric();
 
@@ -65,7 +65,6 @@ public class TbsService extends ProfileService {
 
     @Override
     public void start() {
-
         Log.d(TAG, "start()");
         if (sTbsService != null) {
             throw new IllegalStateException("start() called twice");
@@ -88,9 +87,7 @@ public class TbsService extends ProfileService {
         // Mark service as stopped
         setTbsService(null);
 
-        if (mTbsGeneric != null) {
-            mTbsGeneric.cleanup();
-        }
+        mTbsGeneric.cleanup();
     }
 
     @Override
@@ -156,9 +153,7 @@ public class TbsService extends ProfileService {
                 isAuthorized ? BluetoothDevice.ACCESS_ALLOWED : BluetoothDevice.ACCESS_REJECTED;
         mDeviceAuthorizations.put(device, authorization);
 
-        if (mTbsGeneric != null) {
-            mTbsGeneric.onDeviceAuthorizationSet(device);
-        }
+        mTbsGeneric.onDeviceAuthorizationSet(device);
     }
 
     /**
@@ -187,7 +182,7 @@ public class TbsService extends ProfileService {
 
         LeAudioService leAudioService = LeAudioService.getLeAudioService();
         if (leAudioService == null) {
-            Log.e(TAG, "TBS access not permited. LeAudioService not available");
+            Log.e(TAG, "TBS access not permitted. LeAudioService not available");
             return BluetoothDevice.ACCESS_UNKNOWN;
         }
 
@@ -198,7 +193,7 @@ public class TbsService extends ProfileService {
             return BluetoothDevice.ACCESS_ALLOWED;
         }
 
-        Log.e(TAG, "TBS access not permited");
+        Log.e(TAG, "TBS access not permitted");
         return BluetoothDevice.ACCESS_UNKNOWN;
     }
 
@@ -208,10 +203,6 @@ public class TbsService extends ProfileService {
      * @param device device for which inband ringtone has been set
      */
     public void setInbandRingtoneSupport(BluetoothDevice device) {
-        if (mTbsGeneric == null) {
-            Log.i(TAG, "setInbandRingtoneSupport, mTbsGeneric not available");
-            return;
-        }
         mTbsGeneric.setInbandRingtoneSupport(device);
     }
 
@@ -221,10 +212,6 @@ public class TbsService extends ProfileService {
      * @param device device for which inband ringtone has been clear
      */
     public void clearInbandRingtoneSupport(BluetoothDevice device) {
-        if (mTbsGeneric == null) {
-            Log.i(TAG, "clearInbandRingtoneSupport, mTbsGeneric not available");
-            return;
-        }
         mTbsGeneric.clearInbandRingtoneSupport(device);
     }
 
@@ -234,24 +221,6 @@ public class TbsService extends ProfileService {
             implements IProfileServiceBinder {
         private TbsService mService;
 
-        private TbsService getService(AttributionSource source) {
-            if (!Utils.checkServiceAvailable(mService, TAG)
-                    || !Utils.checkCallerIsSystemOrActiveOrManagedUser(mService, TAG)
-                    || !Utils.checkConnectPermissionForDataDelivery(mService, source, TAG)) {
-                Log.w(TAG, "TbsService call not allowed for non-active user");
-                return null;
-            }
-
-            if (mService != null) {
-                Log.d(TAG, "Service available");
-
-                enforceBluetoothPrivilegedPermission(mService);
-                return mService;
-            }
-
-            return null;
-        }
-
         TbsServerBinder(TbsService service) {
             mService = service;
         }
@@ -259,6 +228,20 @@ public class TbsService extends ProfileService {
         @Override
         public void cleanup() {
             mService = null;
+        }
+
+        private TbsService getService(AttributionSource source) {
+            // Cache mService because it can change while getService is called
+            TbsService service = mService;
+
+            if (!Utils.checkServiceAvailable(service, TAG)
+                    || !Utils.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
+                    || !Utils.checkConnectPermissionForDataDelivery(service, source, TAG)) {
+                return null;
+            }
+
+            enforceBluetoothPrivilegedPermission(service);
+            return service;
         }
 
         @Override
@@ -275,8 +258,6 @@ public class TbsService extends ProfileService {
             if (service != null) {
                 service.registerBearer(
                         token, callback, uci, uriSchemes, capabilities, providerName, technology);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
 
@@ -285,8 +266,6 @@ public class TbsService extends ProfileService {
             TbsService service = getService(source);
             if (service != null) {
                 service.unregisterBearer(token);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
 
@@ -295,8 +274,6 @@ public class TbsService extends ProfileService {
             TbsService service = getService(source);
             if (service != null) {
                 service.requestResult(ccid, requestId, result);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
 
@@ -305,8 +282,6 @@ public class TbsService extends ProfileService {
             TbsService service = getService(source);
             if (service != null) {
                 service.callAdded(ccid, call);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
 
@@ -315,8 +290,6 @@ public class TbsService extends ProfileService {
             TbsService service = getService(source);
             if (service != null) {
                 service.callRemoved(ccid, callId.getUuid(), reason);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
 
@@ -326,8 +299,6 @@ public class TbsService extends ProfileService {
             TbsService service = getService(source);
             if (service != null) {
                 service.callStateChanged(ccid, callId.getUuid(), state);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
 
@@ -337,8 +308,6 @@ public class TbsService extends ProfileService {
             TbsService service = getService(source);
             if (service != null) {
                 service.currentCallsList(ccid, calls);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
 
@@ -348,8 +317,6 @@ public class TbsService extends ProfileService {
             TbsService service = getService(source);
             if (service != null) {
                 service.networkStateChanged(ccid, providerName, technology);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
     }

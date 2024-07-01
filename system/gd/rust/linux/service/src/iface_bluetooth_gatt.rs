@@ -417,49 +417,46 @@ impl DBusArg for ScanFilterCondition {
         let variant = match data.get("patterns") {
             Some(variant) => variant,
             None => {
-                return Err(Box::new(DBusArgError::new(String::from(format!(
+                return Err(Box::new(DBusArgError::new(String::from(
                     "ScanFilterCondition does not contain any enum variant",
-                )))));
+                ))));
             }
         };
 
         match variant.arg_type() {
             dbus::arg::ArgType::Variant => {}
             _ => {
-                return Err(Box::new(DBusArgError::new(String::from(format!(
+                return Err(Box::new(DBusArgError::new(String::from(
                     "ScanFilterCondition::Patterns must be a variant",
-                )))));
+                ))));
             }
         };
 
         let patterns =
             <<Vec<ScanFilterPattern> as DBusArg>::DBusType as RefArgToRust>::ref_arg_to_rust(
                 variant.as_static_inner(0).unwrap(),
-                format!("ScanFilterCondition::Patterns"),
+                "ScanFilterCondition::Patterns".to_string(),
             )?;
 
         let patterns = Vec::<ScanFilterPattern>::from_dbus(patterns, None, None, None)?;
-        return Ok(ScanFilterCondition::Patterns(patterns));
+        Ok(ScanFilterCondition::Patterns(patterns))
     }
 
     fn to_dbus(
         condition: ScanFilterCondition,
     ) -> Result<dbus::arg::PropMap, Box<dyn std::error::Error>> {
         let mut map: dbus::arg::PropMap = std::collections::HashMap::new();
-        match condition {
-            ScanFilterCondition::Patterns(patterns) => {
-                map.insert(
-                    String::from("patterns"),
-                    dbus::arg::Variant(Box::new(DBusArg::to_dbus(patterns)?)),
-                );
-            }
-            _ => {}
+        if let ScanFilterCondition::Patterns(patterns) = condition {
+            map.insert(
+                String::from("patterns"),
+                dbus::arg::Variant(Box::new(DBusArg::to_dbus(patterns)?)),
+            );
         }
-        return Ok(map);
+        Ok(map)
     }
 
     fn log(condition: &ScanFilterCondition) -> String {
-        String::from(format!("{:?}", condition))
+        format!("{:?}", condition)
     }
 }
 
@@ -617,7 +614,7 @@ impl IBluetoothGatt for IBluetoothGattDBus {
         dbus_generated!()
     }
 
-    #[dbus_method("UnregisterScanner", DBusLog::Disable)]
+    #[dbus_method("UnregisterScanner")]
     fn unregister_scanner(&mut self, scanner_id: u8) -> bool {
         dbus_generated!()
     }

@@ -42,7 +42,7 @@ using bluetooth::Uuid;
 using namespace bluetooth;
 
 /**********************************************************************
- *   ATT protocl message building utility                              *
+ *   ATT protocol message building utility                              *
  **********************************************************************/
 /*******************************************************************************
  *
@@ -374,20 +374,20 @@ static BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code,
  ******************************************************************************/
 tGATT_STATUS attp_send_msg_to_l2cap(tGATT_TCB& tcb, uint16_t lcid,
                                     BT_HDR* p_toL2CAP) {
-  uint16_t l2cap_ret;
+  tL2CAP_DW_RESULT l2cap_ret;
 
   if (lcid == L2CAP_ATT_CID) {
     log::debug("Sending ATT message on att fixed channel");
     l2cap_ret = L2CA_SendFixedChnlData(lcid, tcb.peer_bda, p_toL2CAP);
   } else {
     log::debug("Sending ATT message on lcid:{}", lcid);
-    l2cap_ret = (uint16_t)L2CA_DataWrite(lcid, p_toL2CAP);
+    l2cap_ret = L2CA_DataWrite(lcid, p_toL2CAP);
   }
 
-  if (l2cap_ret == L2CAP_DW_FAILED) {
+  if (l2cap_ret == tL2CAP_DW_RESULT::FAILED) {
     log::error("failed to write data to L2CAP");
     return GATT_INTERNAL_ERROR;
-  } else if (l2cap_ret == L2CAP_DW_CONGESTED) {
+  } else if (l2cap_ret == tL2CAP_DW_RESULT::CONGESTED) {
     log::verbose("ATT congested, message accepted");
     return GATT_CONGESTED;
   }
@@ -448,11 +448,10 @@ BT_HDR* attp_build_sr_msg(tGATT_TCB& tcb, uint8_t op_code, tGATT_SR_MSG* p_msg,
  * Description      This function sends the server response or indication
  *                  message to client.
  *
- * Parameter        p_tcb: pointer to the connecton control block.
+ * Parameter        p_tcb: pointer to the connection control block.
  *                  p_msg: pointer to message parameters structure.
  *
- * Returns          GATT_SUCCESS if sucessfully sent; otherwise error code.
- *
+ * Returns          GATT_SUCCESS if successfully sent; otherwise error code.
  *
  ******************************************************************************/
 tGATT_STATUS attp_send_sr_msg(tGATT_TCB& tcb, uint16_t cid, BT_HDR* p_msg) {
@@ -559,12 +558,12 @@ tGATT_STATUS attp_send_cl_confirmation_msg(tGATT_TCB& tcb, uint16_t cid) {
  * Description      This function sends the client request or confirmation
  *                  message to server.
  *
- * Parameter        p_tcb: pointer to the connectino control block.
+ * Parameter        p_tcb: pointer to the connection control block.
  *                  p_clcb: clcb
  *                  op_code: message op code.
  *                  p_msg: pointer to message parameters structure.
  *
- * Returns          GATT_SUCCESS if sucessfully sent; otherwise error code.
+ * Returns          GATT_SUCCESS if successfully sent; otherwise error code.
  *
  *
  ******************************************************************************/

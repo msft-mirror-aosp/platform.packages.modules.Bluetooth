@@ -29,14 +29,14 @@
 #include "hal/snoop_logger.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
+#include "main/shim/acl_api.h"
 #include "main/shim/entry.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
-#include "stack/include/btm_api.h"
+#include "stack/include/btm_client_interface.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hcidefs.h"
 #include "stack/include/l2c_api.h"
@@ -106,7 +106,7 @@ tL2C_LCB* l2cu_allocate_lcb(const RawAddress& p_bd_addr, bool is_bonding,
   return (NULL);
 }
 
-void l2cu_set_lcb_handle(struct t_l2c_linkcb& p_lcb, uint16_t handle) {
+void l2cu_set_lcb_handle(tL2C_LCB& p_lcb, uint16_t handle) {
   if (p_lcb.Handle() != HCI_INVALID_HANDLE) {
     log::warn("Should not replace active handle:{} with new handle:{}",
               p_lcb.Handle(), handle);
@@ -217,7 +217,7 @@ void l2cu_release_lcb(tL2C_LCB* p_lcb) {
       tL2CAP_SEC_DATA* p_buf =
           (tL2CAP_SEC_DATA*)fixed_queue_try_dequeue(p_lcb->le_sec_pending_q);
       if (p_buf->p_callback)
-        p_buf->p_callback(&p_lcb->remote_bd_addr, p_lcb->transport,
+        p_buf->p_callback(p_lcb->remote_bd_addr, p_lcb->transport,
                           p_buf->p_ref_data, BTM_DEV_RESET);
       osi_free(p_buf);
     }
@@ -2144,12 +2144,7 @@ uint8_t l2cu_get_num_hi_priority(void) {
  *
  ******************************************************************************/
 void l2cu_create_conn_after_switch(tL2C_LCB* p_lcb) {
-  const bool there_are_high_priority_channels =
-      (l2cu_get_num_hi_priority() > 0);
-
-  acl_create_classic_connection(p_lcb->remote_bd_addr,
-                                there_are_high_priority_channels,
-                                p_lcb->IsBonding());
+  bluetooth::shim::ACL_CreateClassicConnection(p_lcb->remote_bd_addr);
 
   alarm_set_on_mloop(p_lcb->l2c_lcb_timer, L2CAP_LINK_CONNECT_TIMEOUT_MS,
                      l2c_lcb_timer_timeout, p_lcb);
@@ -2260,8 +2255,9 @@ static void l2cu_set_acl_priority_latency_brcm(tL2C_LCB* p_lcb,
   UINT16_TO_STREAM(pp, p_lcb->Handle());
   UINT8_TO_STREAM(pp, vs_param);
 
-  BTM_VendorSpecificCommand(HCI_BRCM_SET_ACL_PRIORITY,
-                            HCI_BRCM_ACL_PRIORITY_PARAM_SIZE, command, NULL);
+  get_btm_client_interface().vendor.BTM_VendorSpecificCommand(
+      HCI_BRCM_SET_ACL_PRIORITY, HCI_BRCM_ACL_PRIORITY_PARAM_SIZE, command,
+      NULL);
 }
 
 /*******************************************************************************
@@ -2301,8 +2297,9 @@ static void l2cu_set_acl_priority_latency_syna(tL2C_LCB* p_lcb,
   UINT16_TO_STREAM(pp, p_lcb->Handle());
   UINT8_TO_STREAM(pp, vs_param);
 
-  BTM_VendorSpecificCommand(HCI_SYNA_SET_ACL_PRIORITY,
-                            HCI_SYNA_ACL_PRIORITY_PARAM_SIZE, command, NULL);
+  get_btm_client_interface().vendor.BTM_VendorSpecificCommand(
+      HCI_SYNA_SET_ACL_PRIORITY, HCI_SYNA_ACL_PRIORITY_PARAM_SIZE, command,
+      NULL);
 }
 
 /*******************************************************************************
@@ -2333,8 +2330,9 @@ static void l2cu_set_acl_priority_unisoc(tL2C_LCB* p_lcb,
   UINT16_TO_STREAM(pp, p_lcb->Handle());
   UINT8_TO_STREAM(pp, vs_param);
 
-  BTM_VendorSpecificCommand(HCI_UNISOC_SET_ACL_PRIORITY,
-                            HCI_UNISOC_ACL_PRIORITY_PARAM_SIZE, command, NULL);
+  get_btm_client_interface().vendor.BTM_VendorSpecificCommand(
+      HCI_UNISOC_SET_ACL_PRIORITY, HCI_UNISOC_ACL_PRIORITY_PARAM_SIZE, command,
+      NULL);
 }
 
 /*******************************************************************************
@@ -2421,8 +2419,9 @@ static void l2cu_set_acl_latency_brcm(tL2C_LCB* p_lcb, tL2CAP_LATENCY latency) {
   UINT16_TO_STREAM(pp, p_lcb->Handle());
   UINT8_TO_STREAM(pp, vs_param);
 
-  BTM_VendorSpecificCommand(HCI_BRCM_SET_ACL_PRIORITY,
-                            HCI_BRCM_ACL_PRIORITY_PARAM_SIZE, command, NULL);
+  get_btm_client_interface().vendor.BTM_VendorSpecificCommand(
+      HCI_BRCM_SET_ACL_PRIORITY, HCI_BRCM_ACL_PRIORITY_PARAM_SIZE, command,
+      NULL);
 }
 
 /*******************************************************************************
@@ -2447,8 +2446,9 @@ static void l2cu_set_acl_latency_syna(tL2C_LCB* p_lcb, tL2CAP_LATENCY latency) {
   UINT16_TO_STREAM(pp, p_lcb->Handle());
   UINT8_TO_STREAM(pp, vs_param);
 
-  BTM_VendorSpecificCommand(HCI_SYNA_SET_ACL_PRIORITY,
-                            HCI_SYNA_ACL_PRIORITY_PARAM_SIZE, command, NULL);
+  get_btm_client_interface().vendor.BTM_VendorSpecificCommand(
+      HCI_SYNA_SET_ACL_PRIORITY, HCI_SYNA_ACL_PRIORITY_PARAM_SIZE, command,
+      NULL);
 }
 
 /*******************************************************************************
@@ -2474,8 +2474,8 @@ static void l2cu_set_acl_latency_mtk(tL2CAP_LATENCY latency) {
   UINT8_TO_STREAM(pp, 0);
   UINT16_TO_STREAM(pp, 0);  //reserved bytes
 
-  BTM_VendorSpecificCommand(HCI_MTK_SET_ACL_PRIORITY,
-                            HCI_MTK_ACL_PRIORITY_PARAM_SIZE, command, NULL);
+  get_btm_client_interface().vendor.BTM_VendorSpecificCommand(
+      HCI_MTK_SET_ACL_PRIORITY, HCI_MTK_ACL_PRIORITY_PARAM_SIZE, command, NULL);
 }
 
 
@@ -2620,7 +2620,8 @@ void l2cu_adjust_out_mps(tL2C_CCB* p_ccb) {
   uint16_t packet_size;
 
   /* on the tx side MTU is selected based on packet size of the controller */
-  packet_size = BTM_GetMaxPacketSize(p_ccb->p_lcb->remote_bd_addr);
+  packet_size = get_btm_client_interface().peer.BTM_GetMaxPacketSize(
+      p_ccb->p_lcb->remote_bd_addr);
 
   if (packet_size <= (L2CAP_PKT_OVERHEAD + L2CAP_FCR_OVERHEAD +
                       L2CAP_SDU_LEN_OVERHEAD + L2CAP_FCS_LEN)) {

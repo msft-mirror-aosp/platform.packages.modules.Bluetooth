@@ -54,8 +54,6 @@ import java.util.Map;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class MetricsLoggerTest {
-    private static final String TEST_BLOOMFILTER_NAME = "TestBloomfilter";
-
     private static final HashMap<String, String> SANITIZED_DEVICE_NAME_MAP = new HashMap<>();
 
     static {
@@ -91,7 +89,7 @@ public class MetricsLoggerTest {
 
     @Mock private AdapterService mMockAdapterService;
 
-    public class TestableMetricsLogger extends MetricsLogger {
+    private static class TestableMetricsLogger extends MetricsLogger {
         public HashMap<Integer, Long> mTestableCounters = new HashMap<>();
         public HashMap<String, Integer> mTestableDeviceNames = new HashMap<>();
 
@@ -157,7 +155,7 @@ public class MetricsLoggerTest {
         MetricsLogger.dumpProto(metricsBuilder);
         BluetoothLog metricsProto = metricsBuilder.build();
         Assert.assertEquals(2, metricsProto.getProfileConnectionStatsCount());
-        HashMap<ProfileId, ProfileConnectionStats> profileConnectionCountMap =
+        Map<ProfileId, ProfileConnectionStats> profileConnectionCountMap =
                 getProfileUsageStatsMap(metricsProto.getProfileConnectionStatsList());
         Assert.assertTrue(profileConnectionCountMap.containsKey(ProfileId.AVRCP));
         Assert.assertEquals(
@@ -172,7 +170,7 @@ public class MetricsLoggerTest {
         Assert.assertEquals(0, metricsProtoAfterDump.getProfileConnectionStatsCount());
     }
 
-    private static HashMap<ProfileId, ProfileConnectionStats> getProfileUsageStatsMap(
+    private static Map<ProfileId, ProfileConnectionStats> getProfileUsageStatsMap(
             List<ProfileConnectionStats> profileUsageStats) {
         HashMap<ProfileId, ProfileConnectionStats> profileUsageStatsMap = new HashMap<>();
         profileUsageStats.forEach(item -> profileUsageStatsMap.put(item.getProfileId(), item));

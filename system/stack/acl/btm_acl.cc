@@ -50,7 +50,6 @@
 #include "main/shim/dumpsys.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
-#include "os/log.h"
 #include "os/parameter_provider.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
@@ -69,8 +68,8 @@
 #include "stack/include/acl_hci_link_interface.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
-#include "stack/include/btm_api.h"
 #include "stack/include/btm_ble_api.h"
+#include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_iso_api.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hcimsgs.h"
@@ -578,7 +577,7 @@ tBTM_STATUS BTM_SwitchRoleToCentral(const RawAddress& remote_bd_addr) {
     return BTM_DEV_RESTRICT_LISTED;
   }
 
-  if (BTM_IsScoActiveByBdaddr(remote_bd_addr)) {
+  if (get_btm_client_interface().sco.BTM_IsScoActiveByBdaddr(remote_bd_addr)) {
     log::info("An active SCO to device prevents role switch at this time");
     return BTM_NO_RESOURCES;
   }
@@ -1138,7 +1137,6 @@ bool BTM_IsAclConnectionUpAndHandleValid(const RawAddress& remote_bda,
                                          tBT_TRANSPORT transport) {
   tACL_CONN* p_acl = internal_.btm_bda_to_acl(remote_bda, transport);
   if (p_acl == nullptr) {
-    log::warn("Unable to find active acl");
     return false;
   }
   return p_acl->hci_handle != HCI_INVALID_HANDLE;
@@ -2420,12 +2418,6 @@ void btm_acl_disconnected(tHCI_STATUS status, uint16_t handle,
   /* Notify security manager */
   btm_sec_disconnected(handle, reason,
                        "stack::acl::btm_acl::btm_acl_disconnected");
-}
-
-void acl_create_classic_connection(const RawAddress& bd_addr,
-                                   bool /* there_are_high_priority_channels */,
-                                   bool /* is_bonding */) {
-  return bluetooth::shim::ACL_CreateClassicConnection(bd_addr);
 }
 
 void btm_connection_request(const RawAddress& bda,

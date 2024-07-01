@@ -89,9 +89,10 @@ tBNEP_RESULT bnep_register_with_l2cap(void) {
   bnep_cb.reg_info.pL2CA_Error_Cb = bnep_on_l2cap_error;
 
   /* Now, register with L2CAP */
-  if (!L2CA_Register2(BT_PSM_BNEP, bnep_cb.reg_info, false /* enable_snoop */,
-                      nullptr, BNEP_MTU_SIZE, BNEP_MTU_SIZE,
-                      BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT)) {
+  if (!L2CA_RegisterWithSecurity(BT_PSM_BNEP, bnep_cb.reg_info,
+                                 false /* enable_snoop */, nullptr,
+                                 BNEP_MTU_SIZE, BNEP_MTU_SIZE,
+                                 BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT)) {
     log::error("BNEP - Registration failed");
     return BNEP_SECURITY_FAIL;
   }
@@ -303,7 +304,7 @@ static void bnep_congestion_ind(uint16_t l2cap_cid, bool is_congested) {
 
       if (!p_buf) break;
 
-      if (L2CA_DataWrite(l2cap_cid, p_buf) != L2CAP_DW_SUCCESS) {
+      if (L2CA_DataWrite(l2cap_cid, p_buf) != tL2CAP_DW_RESULT::SUCCESS) {
         log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}",
                   p_bcb->rem_bda, l2cap_cid, p_buf->len);
       }

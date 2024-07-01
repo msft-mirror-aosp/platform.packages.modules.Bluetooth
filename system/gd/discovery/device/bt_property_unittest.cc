@@ -28,7 +28,7 @@ using namespace bluetooth::property;
 
 namespace {
 
-constexpr size_t kNumberTestedProperties = 21;
+constexpr size_t kNumberTestedProperties = 20;
 
 constexpr size_t kBdPropNameLength = kBdNameLength + sizeof(kBdNameDelim);
 
@@ -65,9 +65,6 @@ const bt_service_record_t kServiceRecord{
              'c', 'o', 'r', 'd', '.', 'n', 'a', 'm', 'e', '\0'},
 };
 
-// BT_PROPERTY_ADAPTER_SCAN_MODE
-constexpr bt_scan_mode_t kAdapterScanMode{BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE};
-//
 // BT_PROPERTY_ADAPTER_BONDED_DEVICES
 const RawAddress kAdapterBondedDevices[] = {
     {{0x11, 0x22, 0x33, 0x44, 0x55}},
@@ -120,6 +117,7 @@ constexpr bt_local_le_features_t kLocalLeFeatures{
     .le_isochronous_broadcast_supported = true,
     .le_periodic_advertising_sync_transfer_recipient_supported = true,
     .adv_filter_extended_features_mask = 0x3366,
+    .le_channel_sounding_supported = true,
 };
 
 // BT_PROPERTY_RESERVED_0F
@@ -188,11 +186,6 @@ void fill_property(
     case BT_PROPERTY_SERVICE_RECORD:
       properties.push_back(ServiceRecord::Create(kServiceRecord));
       ASSERT_EQ(sizeof(bt_service_record_t), properties.back()->Size());
-      break;
-
-    case BT_PROPERTY_ADAPTER_SCAN_MODE:
-      properties.push_back(AdapterScanMode::Create(kAdapterScanMode));
-      ASSERT_EQ(sizeof(bt_scan_mode_t), properties.back()->Size());
       break;
 
     case BT_PROPERTY_ADAPTER_BONDED_DEVICES: {
@@ -316,11 +309,6 @@ void verify_property(const bt_property_type_t& type, const bt_property_t& proper
       ASSERT_STREQ(kServiceRecord.name, ((bt_service_record_t*)property.val)->name);
       break;
 
-    case BT_PROPERTY_ADAPTER_SCAN_MODE:
-      ASSERT_EQ((int)sizeof(bt_scan_mode_t), property.len);
-      ASSERT_EQ(kAdapterScanMode, *((bt_scan_mode_t*)property.val));
-      break;
-
     case BT_PROPERTY_ADAPTER_BONDED_DEVICES: {
       ASSERT_EQ((int)sizeof(kAdapterBondedDevices), property.len);
       const RawAddress* raw_address = static_cast<RawAddress*>(property.val);
@@ -426,6 +414,9 @@ void verify_property(const bt_property_type_t& type, const bt_property_t& proper
       ASSERT_EQ(
           kLocalLeFeatures.adv_filter_extended_features_mask,
           ((bt_local_le_features_t*)property.val)->adv_filter_extended_features_mask);
+      ASSERT_EQ(
+          kLocalLeFeatures.le_channel_sounding_supported,
+          ((bt_local_le_features_t*)property.val)->le_channel_sounding_supported);
       break;
 
     case BT_PROPERTY_RESERVED_0E:
@@ -493,7 +484,6 @@ void fill_properties(std::vector<std::shared_ptr<BtProperty>>& properties) {
   fill_property(BT_PROPERTY_CLASS_OF_DEVICE, properties);
   fill_property(BT_PROPERTY_TYPE_OF_DEVICE, properties);
   fill_property(BT_PROPERTY_SERVICE_RECORD, properties);
-  fill_property(BT_PROPERTY_ADAPTER_SCAN_MODE, properties);
   fill_property(BT_PROPERTY_ADAPTER_BONDED_DEVICES, properties);
   fill_property(BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT, properties);
   fill_property(BT_PROPERTY_REMOTE_FRIENDLY_NAME, properties);
@@ -583,15 +573,6 @@ TEST_F(BtPropertyTest, bt_property_text_test) {
 
   {
     bt_property_t prop = {
-        .type = BT_PROPERTY_ADAPTER_SCAN_MODE,
-        .len = (int)sizeof(kAdapterScanMode),
-        .val = (void*)&kAdapterScanMode,
-    };
-    ASSERT_STREQ("type:BT_PROPERTY_ADAPTER_SCAN_MODE scan_mode:2", bt_property_text(prop).c_str());
-  }
-
-  {
-    bt_property_t prop = {
         .type = BT_PROPERTY_ADAPTER_BONDED_DEVICES,
         .len = (int)(sizeof(kAdapterBondedDevices)),
         .val = (void*)kAdapterBondedDevices,
@@ -663,7 +644,8 @@ TEST_F(BtPropertyTest, bt_property_text_test) {
         "le_periodic_advertising_sync_transfer_sender_supported:1 "
         "le_connected_isochronous_stream_central_supported:1 le_isochronous_broadcast_supported:1 "
         "le_periodic_advertising_sync_transfer_recipient_supported:1 "
-        "adv_filter_extended_features_mask:13158",
+        "adv_filter_extended_features_mask:13158"
+        "le_channel_sounding_supported:1 ",
         bt_property_text(prop).c_str());
   }
 

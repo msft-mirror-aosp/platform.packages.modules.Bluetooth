@@ -483,8 +483,8 @@ void avdt_ad_tc_data_ind(AvdtpTransportChannel* p_tbl, BT_HDR* p_buf) {
  *                  AVDT_AD_FAILED, if error
  *
  ******************************************************************************/
-uint8_t avdt_ad_write_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb,
-                          BT_HDR* p_buf) {
+tL2CAP_DW_RESULT avdt_ad_write_req(uint8_t type, AvdtpCcb* p_ccb,
+                                   AvdtpScb* p_scb, BT_HDR* p_buf) {
   uint8_t tcid;
 
   /* get tcid from type, scb */
@@ -548,8 +548,8 @@ void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb,
     p_tbl->state = AVDT_AD_ST_CONN;
 
     /* call l2cap connect req */
-    lcid =
-        L2CA_ConnectReq2(AVDT_PSM, p_ccb->peer_addr, BTM_SEC_OUT_AUTHENTICATE);
+    lcid = L2CA_ConnectReqWithSecurity(AVDT_PSM, p_ccb->peer_addr,
+                                       BTM_SEC_OUT_AUTHENTICATE);
     if (lcid != 0) {
       /* if connect req ok, store tcid in lcid table  */
       avdtp_cb.ad.lcid_tbl[lcid] = avdt_ad_tc_tbl_to_idx(p_tbl);

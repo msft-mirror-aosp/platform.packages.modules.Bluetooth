@@ -25,7 +25,6 @@
 
 #include "include/hardware/bluetooth.h"
 #include "macros.h"
-#include "test/headless/log.h"
 #include "types/bluetooth/uuid.h"
 
 inline std::string bt_property_type_text(const ::bt_property_type_t type) {
@@ -36,7 +35,6 @@ inline std::string bt_property_type_text(const ::bt_property_type_t type) {
     CASE_RETURN_TEXT(BT_PROPERTY_CLASS_OF_DEVICE);
     CASE_RETURN_TEXT(BT_PROPERTY_TYPE_OF_DEVICE);
     CASE_RETURN_TEXT(BT_PROPERTY_SERVICE_RECORD);
-    CASE_RETURN_TEXT(BT_PROPERTY_ADAPTER_SCAN_MODE);
     CASE_RETURN_TEXT(BT_PROPERTY_ADAPTER_BONDED_DEVICES);
     CASE_RETURN_TEXT(BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT);
     CASE_RETURN_TEXT(BT_PROPERTY_REMOTE_FRIENDLY_NAME);
@@ -53,8 +51,10 @@ inline std::string bt_property_type_text(const ::bt_property_type_t type) {
     CASE_RETURN_TEXT(BT_PROPERTY_REMOTE_ASHA_TRUNCATED_HISYNCID);
     CASE_RETURN_TEXT(BT_PROPERTY_REMOTE_MODEL_NUM);
     CASE_RETURN_TEXT(BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP);
+    CASE_RETURN_TEXT(BT_PROPERTY_REMOTE_ADDR_TYPE);
+    CASE_RETURN_TEXT(BT_PROPERTY_RESERVED_0x14);
     default:
-      return base::StringPrintf("UNKNOWN[%d]", type);
+      RETURN_UNKNOWN_TYPE_STRING(::bt_property_type_t, type);
   }
 }
 
@@ -100,8 +100,8 @@ struct void_t : public bt_property_t {
 
  public:
   virtual std::string ToString() const override {
-    return base::StringPrintf("Unimplemented property type:%d name:%s", type,
-                              bt_property_type_text(type).c_str());
+    return fmt::format("Unimplemented property type:{} name:{}", type,
+                       bt_property_type_text(type));
   }
 };
 
@@ -121,7 +121,7 @@ struct uuid_t : public bt_property_t {
   }
 
   virtual std::string ToString() const override {
-    return base::StringPrintf("Number of uuids:%zu", get_uuids().size());
+    return fmt::format("Number of uuids:{}", get_uuids().size());
   }
 
  private:
@@ -139,7 +139,7 @@ struct name_t : public bt_property_t {
   }
 
   virtual std::string ToString() const override {
-    return base::StringPrintf("Name:%s", get_name().c_str());
+    return fmt::format("Name:{}", get_name());
   }
 };
 
@@ -157,7 +157,7 @@ struct bdaddr_t : public bt_property_t {
   }
 
   virtual std::string ToString() const override {
-    return base::StringPrintf("bd_addr:%s", get_addr().ToString().c_str());
+    return fmt::format("bd_addr:{}", get_addr().ToString());
   }
 };
 
@@ -173,7 +173,7 @@ struct class_of_device_t : public bt_property_t {
   }
 
   virtual std::string ToString() const override {
-    return base::StringPrintf("cod:0x%04x", get_class_of_device());
+    return fmt::format("cod:0x{:04x}", get_class_of_device());
   }
 };
 
@@ -189,7 +189,7 @@ struct type_of_device_t : public bt_property_t {
   }
 
   virtual std::string ToString() const override {
-    return base::StringPrintf("tod:0x%04x", get_type_of_device());
+    return fmt::format("tod:0x{:04x}", get_type_of_device());
   }
 };
 

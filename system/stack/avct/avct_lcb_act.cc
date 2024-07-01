@@ -184,8 +184,8 @@ void avct_lcb_chnl_open(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* /* p_data */) {
   uint16_t result = AVCT_RESULT_FAIL;
 
   p_lcb->ch_state = AVCT_CH_CONN;
-  p_lcb->ch_lcid =
-      L2CA_ConnectReq2(AVCT_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE);
+  p_lcb->ch_lcid = L2CA_ConnectReqWithSecurity(AVCT_PSM, p_lcb->peer_addr,
+                                               BTA_SEC_AUTHENTICATE);
   if (p_lcb->ch_lcid == 0) {
     /* if connect req failed, send ourselves close event */
     tAVCT_LCB_EVT avct_lcb_evt;
@@ -507,7 +507,8 @@ void avct_lcb_cong_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
   if (!p_lcb->cong && !fixed_queue_is_empty(p_lcb->tx_q)) {
     while (!p_lcb->cong &&
            (p_buf = (BT_HDR*)fixed_queue_try_dequeue(p_lcb->tx_q)) != NULL) {
-      if (L2CA_DataWrite(p_lcb->ch_lcid, p_buf) == L2CAP_DW_CONGESTED) {
+      if (L2CA_DataWrite(p_lcb->ch_lcid, p_buf) ==
+          tL2CAP_DW_RESULT::CONGESTED) {
         p_lcb->cong = true;
       }
     }
@@ -619,7 +620,8 @@ void avct_lcb_send_msg(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
 
     /* send message to L2CAP */
     else {
-      if (L2CA_DataWrite(p_lcb->ch_lcid, p_buf) == L2CAP_DW_CONGESTED) {
+      if (L2CA_DataWrite(p_lcb->ch_lcid, p_buf) ==
+          tL2CAP_DW_RESULT::CONGESTED) {
         p_lcb->cong = true;
       }
     }
@@ -723,7 +725,7 @@ void avct_lcb_msg_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
     p = (uint8_t*)(p_buf + 1) + p_buf->offset;
     AVCT_BUILD_HDR(p, label, AVCT_PKT_TYPE_SINGLE, AVCT_REJ);
     UINT16_TO_BE_STREAM(p, pid);
-    if (L2CA_DataWrite(p_lcb->ch_lcid, p_buf) != L2CAP_DW_SUCCESS) {
+    if (L2CA_DataWrite(p_lcb->ch_lcid, p_buf) != tL2CAP_DW_RESULT::SUCCESS) {
       log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}",
                 p_lcb->peer_addr, p_lcb->ch_lcid, p_buf->len);
     }

@@ -1071,7 +1071,6 @@ public class PhonePolicyTest {
      */
     @Test
     public void testAutoConnectHfpOnly() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_AUTO_CONNECT_ON_HFP_WHEN_NO_A2DP_DEVICE);
         mSetFlagsRule.disableFlags(Flags.FLAG_AUTO_CONNECT_ON_MULTIPLE_HFP_WHEN_NO_A2DP_DEVICE);
 
         // Return desired values from the mocked object(s)
@@ -1109,7 +1108,6 @@ public class PhonePolicyTest {
 
     @Test
     public void autoConnect_whenMultiHfp_startConnection() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_AUTO_CONNECT_ON_HFP_WHEN_NO_A2DP_DEVICE);
         mSetFlagsRule.enableFlags(Flags.FLAG_AUTO_CONNECT_ON_MULTIPLE_HFP_WHEN_NO_A2DP_DEVICE);
 
         // Return desired values from the mocked object(s)
@@ -1154,7 +1152,6 @@ public class PhonePolicyTest {
     @Test
     public void autoConnect_whenMultiHfpAndDeconnection_startConnection() {
         mSetFlagsRule.enableFlags(Flags.FLAG_AUTO_CONNECT_ON_MULTIPLE_HFP_WHEN_NO_A2DP_DEVICE);
-        mSetFlagsRule.enableFlags(Flags.FLAG_AUTO_CONNECT_ON_HFP_WHEN_NO_A2DP_DEVICE);
 
         // Return desired values from the mocked object(s)
         doReturn(BluetoothAdapter.STATE_ON).when(mAdapterService).getState();
@@ -1219,8 +1216,6 @@ public class PhonePolicyTest {
         BluetoothDevice[] testDevices = new BluetoothDevice[kMaxTestDevices];
         ArrayList<BluetoothDevice> hsConnectedDevices = new ArrayList<>();
         ArrayList<BluetoothDevice> a2dpConnectedDevices = new ArrayList<>();
-        BluetoothDevice a2dpNotConnectedDevice1 = null;
-        BluetoothDevice a2dpNotConnectedDevice2 = null;
 
         for (int i = 0; i < kMaxTestDevices; i++) {
             BluetoothDevice testDevice = getTestDevice(mAdapter, i);
@@ -1245,8 +1240,8 @@ public class PhonePolicyTest {
                 a2dpConnectedDevices.add(testDevice);
             }
         }
-        a2dpNotConnectedDevice1 = hsConnectedDevices.get(kMaxTestDevices - 1);
-        a2dpNotConnectedDevice2 = hsConnectedDevices.get(kMaxTestDevices - 2);
+        BluetoothDevice a2dpNotConnectedDevice1 = hsConnectedDevices.get(kMaxTestDevices - 1);
+        BluetoothDevice a2dpNotConnectedDevice2 = hsConnectedDevices.get(kMaxTestDevices - 2);
 
         when(mAdapterService.getBondedDevices()).thenReturn(testDevices);
         when(mAdapterService.getState()).thenReturn(BluetoothAdapter.STATE_ON);

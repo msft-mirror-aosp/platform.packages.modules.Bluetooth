@@ -49,6 +49,7 @@ cc_library_static {
                 "aidl/hearing_aid_software_encoding_aidl.cc",
                 "aidl/hfp_client_interface_aidl.cc",
                 "aidl/le_audio_software_aidl.cc",
+                "aidl/le_audio_utils.cc",
                 "aidl/provider_info.cc",
                 "hal_version_manager.cc",
                 "hearing_aid_software_encoding.cc",
@@ -166,6 +167,7 @@ cc_test {
         "aidl/a2dp_provider_info_unittest.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbinder_ndk",
         "libcutils",
         "libhidlbase",
@@ -182,6 +184,7 @@ cc_test {
         "android.hardware.common.fmq-V1-ndk",
         "bluetooth_flags_c_lib",
         "libbase",
+        "libbluetooth-types",
         "libbluetooth_log",
         "libbt-common",
         "libbt_shim_bridge",
@@ -201,6 +204,7 @@ cc_defaults {
         "libbluetooth_headers",
     ],
     defaults: [
+        "aconfig_lib_cc_shared_link.defaults",
         "latest_android_hardware_audio_common_ndk_static",
         "latest_android_hardware_bluetooth_audio_ndk_static",
         "latest_android_media_audio_common_types_ndk_static",
@@ -216,7 +220,6 @@ cc_defaults {
     ],
     static_libs: [
         "android.hardware.audio.common@5.0",
-        "android.hardware.bluetooth.a2dp@1.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
         "android.hardware.bluetooth@1.0",
@@ -340,6 +343,7 @@ cc_test {
         ":TestMockCodecManager",
         ":TestMockOsi",
         "aidl/le_audio_software_aidl.cc",
+        "aidl/le_audio_utils.cc",
         "hidl/le_audio_software_hidl.cc",
         "le_audio_software.cc",
         "le_audio_software_unittest.cc",

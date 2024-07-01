@@ -53,7 +53,6 @@ import org.mockito.junit.MockitoRule;
 @RunWith(AndroidJUnit4.class)
 public class DipTest {
     private BluetoothAdapter mAdapter;
-    private Context mTargetContext;
     private SdpManager mSdpManager;
     private BluetoothDevice mTestDevice;
 
@@ -63,13 +62,11 @@ public class DipTest {
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock private AdapterService mAdapterService = null;
+    @Mock private AdapterService mAdapterService;
     @Mock private SdpManagerNativeInterface mNativeInterface;
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
-
         SdpManagerNativeInterface.setInstance(mNativeInterface);
         TestUtils.setAdapterService(mAdapterService);
         doReturn("00:01:02:03:04:05").when(mAdapterService).getIdentityAddress("00:01:02:03:04:05");

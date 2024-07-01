@@ -115,8 +115,8 @@ void avct_bcb_chnl_open(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
 
   /* call l2cap connect req */
   p_bcb->ch_state = AVCT_CH_CONN;
-  p_bcb->ch_lcid =
-      L2CA_ConnectReq2(AVCT_BR_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE);
+  p_bcb->ch_lcid = L2CA_ConnectReqWithSecurity(AVCT_BR_PSM, p_lcb->peer_addr,
+                                               BTA_SEC_AUTHENTICATE);
   if (p_bcb->ch_lcid == 0) {
     /* if connect req failed, send ourselves close event */
     tAVCT_LCB_EVT avct_lcb_evt;
@@ -476,7 +476,7 @@ void avct_bcb_send_msg(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
   p_buf->layer_specific = AVCT_DATA_BROWSE;
 
   /* send message to L2CAP */
-  if (L2CA_DataWrite(p_bcb->ch_lcid, p_buf) != L2CAP_DW_SUCCESS) {
+  if (L2CA_DataWrite(p_bcb->ch_lcid, p_buf) != tL2CAP_DW_RESULT::SUCCESS) {
     log::warn("Unable to write L2CAP data peer:{} cid:{}", p_bcb->peer_addr,
               p_bcb->ch_lcid);
   }
@@ -582,7 +582,7 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
     AVCT_BUILD_HDR(p, label, AVCT_PKT_TYPE_SINGLE, AVCT_REJ);
     UINT16_TO_BE_STREAM(p, pid);
     p_buf->layer_specific = AVCT_DATA_BROWSE;
-    if (L2CA_DataWrite(p_bcb->ch_lcid, p_buf) != L2CAP_DW_SUCCESS) {
+    if (L2CA_DataWrite(p_bcb->ch_lcid, p_buf) != tL2CAP_DW_RESULT::SUCCESS) {
       log::warn("Unable to write L2CAP data peer:{} cid:{}", p_bcb->peer_addr,
                 p_bcb->ch_lcid);
     }

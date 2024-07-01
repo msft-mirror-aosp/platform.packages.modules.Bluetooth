@@ -16,6 +16,8 @@
  */
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
+#include <flag_macros.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <hardware/audio.h>
@@ -35,6 +37,8 @@
 #include "test/common/mock_functions.h"
 #include "test/mock/mock_main_shim_entry.h"
 #include "test/mock/mock_stack_btm_iso.h"
+
+#define TEST_BT com::android::bluetooth::flags
 
 using namespace std::chrono_literals;
 
@@ -72,6 +76,14 @@ static base::Callback<void(BT_OCTET8)> generator_cb;
 void btsnd_hcic_ble_rand(base::Callback<void(BT_OCTET8)> cb) {
   generator_cb = cb;
 }
+
+namespace server_configurable_flags {
+std::string GetServerConfigurableFlag(
+    const std::string& experiment_category_name,
+    const std::string& experiment_flag_name, const std::string& default_value) {
+  return "";
+}
+}  // namespace server_configurable_flags
 
 std::atomic<int> num_async_tasks;
 bluetooth::common::MessageLoopThread message_loop_thread("test message loop");
@@ -193,6 +205,10 @@ static const std::vector<uint8_t> default_public_metadata = {
     5,   bluetooth::le_audio::types::kLeAudioMetadataTypeProgramInfo,
     0x1, 0x2,
     0x3, 0x4};
+static const std::vector<uint8_t> audio_active_state_false = {
+        2, bluetooth::le_audio::types::kLeAudioMetadataTypeAudioActiveState, 0x00};
+static const std::vector<uint8_t> audio_active_state_true = {
+        2, bluetooth::le_audio::types::kLeAudioMetadataTypeAudioActiveState, 0x01};
 // bit 0: encrypted, bit 1: standard quality present
 static const uint8_t test_public_broadcast_features = 0x3;
 
@@ -237,6 +253,17 @@ class MockAudioHalClientEndpoint : public LeAudioSourceAudioHalClient {
   MOCK_METHOD((void), UpdateRemoteDelay, (uint16_t delay), (override));
   MOCK_METHOD((void), UpdateAudioConfigToHal,
               (const ::bluetooth::le_audio::offload_config&), (override));
+  MOCK_METHOD(
+      (std::optional<broadcaster::BroadcastConfiguration>), GetBroadcastConfig,
+      ((const std::vector<std::pair<types::LeAudioContextType, uint8_t>>&),
+       (const std::optional<
+           std::vector<::bluetooth::le_audio::types::acs_ac_record>>&)),
+      (const override));
+  MOCK_METHOD(
+      (std::optional<::le_audio::set_configurations::AudioSetConfiguration>),
+      GetUnicastConfig,
+      (const CodecManager::UnicastConfigurationRequirements& requirements),
+      (const override));
   MOCK_METHOD((void), UpdateBroadcastAudioConfigToHal,
               (const ::bluetooth::le_audio::broadcast_offload_config&),
               (override));
@@ -418,6 +445,14 @@ class BroadcasterTest : public Test {
 TEST_F(BroadcasterTest, Initialize) {
   ASSERT_NE(LeAudioBroadcaster::Get(), nullptr);
   ASSERT_TRUE(LeAudioBroadcaster::IsLeAudioBroadcasterRunning());
+}
+
+TEST_F(BroadcasterTest, CleanupWithBroadcastInstance) {
+  auto broadcast_id = InstantiateBroadcast();
+  ASSERT_NE(broadcast_id, LeAudioBroadcaster::kInstanceIdUndefined);
+  EXPECT_CALL(*mock_codec_manager_,
+              UpdateActiveBroadcastAudioHalClient(mock_audio_source_, false))
+      .WillOnce(Return(false));
 }
 
 TEST_F(BroadcasterTest, GetStreamingPhy) {
@@ -647,6 +682,8 @@ TEST_F(BroadcasterTest, DestroyAudioBroadcast) {
 
   Mock::VerifyAndClearExpectations(mock_codec_manager_);
   Mock::VerifyAndClearExpectations(&mock_broadcaster_callbacks_);
+  // Verify the expectations before the CleanUp, which may call Stop()
+  Mock::VerifyAndClearExpectations(mock_audio_source_);
 }
 
 TEST_F(BroadcasterTest, GetBroadcastAllStates) {
@@ -707,11 +744,19 @@ TEST_F(BroadcasterTest, UpdateMetadata) {
       broadcast_id, test_broadcast_name, default_public_metadata,
       {std::vector<uint8_t>({0x02, 0x01, 0x02, 0x03, 0x02, 0x04, 0x04})});
 
+  std::vector<uint8_t> public_metadata(default_public_metadata);
+  public_metadata.insert(public_metadata.end(), audio_active_state_false.begin(),
+                         audio_active_state_false.end());
+
   ASSERT_EQ(2u, ccid_list.size());
   ASSERT_NE(0, std::count(ccid_list.begin(), ccid_list.end(), media_ccid));
   ASSERT_NE(0, std::count(ccid_list.begin(), ccid_list.end(), default_ccid));
   ASSERT_EQ(expected_broadcast_name, test_broadcast_name);
-  ASSERT_EQ(expected_public_meta, default_public_metadata);
+  if (!com::android::bluetooth::flags::leaudio_big_depends_on_audio_state()) {
+    ASSERT_EQ(expected_public_meta, default_public_metadata);
+  } else {
+    ASSERT_EQ(expected_public_meta, public_metadata);
+  }
 }
 
 static BasicAudioAnnouncementData prepareAnnouncement(
@@ -751,7 +796,7 @@ static BasicAudioAnnouncementData prepareAnnouncement(
       }
 
       // Check for non vendor LTVs
-      auto config_ltv = codec_config.GetBisCodecSpecData(bis_num);
+      auto config_ltv = codec_config.GetBisCodecSpecData(bis_num, cfg_idx);
       if (config_ltv) {
         bis_config.codec_specific_params = config_ltv->Values();
       }
@@ -1154,6 +1199,90 @@ TEST_F(BroadcasterTest, VendorCodecConfig) {
       memcmp(expected_subgroup_codec_conf.GetBisVendorCodecSpecData(1)->data(),
              subgroup.bis_configs.at(1).vendor_codec_specific_params->data(),
              subgroup.bis_configs.at(1).vendor_codec_specific_params->size()));
+}
+
+TEST_F_WITH_FLAGS(BroadcasterTest, AudioActiveState,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_big_depends_on_audio_state))) {
+  std::vector<uint8_t> updated_public_meta;
+  PublicBroadcastAnnouncementData pb_announcement;
+
+  std::vector<uint8_t> public_metadata_audio_false(default_public_metadata);
+  public_metadata_audio_false.insert(public_metadata_audio_false.end(),
+                                     audio_active_state_false.begin(),
+                                     audio_active_state_false.end());
+  std::vector<uint8_t> public_metadata_audio_true(default_public_metadata);
+  public_metadata_audio_true.insert(public_metadata_audio_true.end(),
+                                    audio_active_state_true.begin(), audio_active_state_true.end());
+
+  // Add Audio Actie State while broadcast created
+  auto broadcast_id = InstantiateBroadcast();
+  auto sm = MockBroadcastStateMachine::GetLastInstance();
+  pb_announcement = sm->GetPublicBroadcastAnnouncement();
+  auto created_public_meta = types::LeAudioLtvMap(pb_announcement.metadata).RawPacket();
+  ASSERT_EQ(created_public_meta, public_metadata_audio_false);
+
+  ON_CALL(*sm, UpdatePublicBroadcastAnnouncement(broadcast_id, _, _))
+          .WillByDefault(
+                  [&](uint32_t broadcast_id, const std::string& broadcast_name,
+                      const bluetooth::le_audio::PublicBroadcastAnnouncementData& announcement) {
+                    pb_announcement = announcement;
+                    updated_public_meta = types::LeAudioLtvMap(announcement.metadata).RawPacket();
+                  });
+  ON_CALL(*sm, GetPublicBroadcastAnnouncement()).WillByDefault(ReturnRef(pb_announcement));
+
+  LeAudioSourceAudioHalClient::Callbacks* audio_receiver;
+  EXPECT_CALL(*mock_audio_source_, Start)
+          .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)));
+  LeAudioBroadcaster::Get()->StartAudioBroadcast(broadcast_id);
+  ASSERT_NE(audio_receiver, nullptr);
+
+  // Update to true Audio Active State while audio resumed
+  EXPECT_CALL(*sm, UpdatePublicBroadcastAnnouncement);
+  audio_receiver->OnAudioResume();
+  ASSERT_EQ(updated_public_meta, public_metadata_audio_true);
+
+  // No update Audio Active State if the same value
+  EXPECT_CALL(*sm, UpdatePublicBroadcastAnnouncement).Times(0);
+  audio_receiver->OnAudioResume();
+
+  // Updated to false Audio Active State while audio suspended
+  EXPECT_CALL(*sm, UpdatePublicBroadcastAnnouncement);
+  audio_receiver->OnAudioSuspend();
+  ASSERT_EQ(updated_public_meta, public_metadata_audio_false);
+
+  // No update Audio Active State if the same value
+  EXPECT_CALL(*sm, UpdatePublicBroadcastAnnouncement).Times(0);
+  audio_receiver->OnAudioSuspend();
+
+  // Update to false Audio Active State while metada updated
+  EXPECT_CALL(*sm, UpdatePublicBroadcastAnnouncement);
+  LeAudioBroadcaster::Get()->UpdateMetadata(
+          broadcast_id, test_broadcast_name, default_public_metadata,
+          {std::vector<uint8_t>({0x02, 0x01, 0x02, 0x03, 0x02, 0x04, 0x04})});
+  ASSERT_EQ(updated_public_meta, public_metadata_audio_false);
+
+  // Update to true Audio Active State while audio resumed
+  EXPECT_CALL(*sm, UpdatePublicBroadcastAnnouncement);
+  audio_receiver->OnAudioResume();
+  ASSERT_EQ(updated_public_meta, public_metadata_audio_true);
+
+  // Update to true Audio Active State while metada updated
+  EXPECT_CALL(*sm, UpdatePublicBroadcastAnnouncement);
+  LeAudioBroadcaster::Get()->UpdateMetadata(
+          broadcast_id, test_broadcast_name, default_public_metadata,
+          {std::vector<uint8_t>({0x02, 0x01, 0x02, 0x03, 0x02, 0x04, 0x04})});
+  ASSERT_EQ(updated_public_meta, public_metadata_audio_true);
+
+  // Updated to false Audio Active State while broadcast suspended
+  EXPECT_CALL(*sm, UpdatePublicBroadcastAnnouncement);
+  LeAudioBroadcaster::Get()->SuspendAudioBroadcast(broadcast_id);
+  ASSERT_EQ(updated_public_meta, public_metadata_audio_false);
+
+  // No update to true Audio Active State while audio resumed when not in
+  // streaming state
+  EXPECT_CALL(*sm, UpdatePublicBroadcastAnnouncement).Times(0);
+  audio_receiver->OnAudioResume();
 }
 
 // TODO: Add tests for:

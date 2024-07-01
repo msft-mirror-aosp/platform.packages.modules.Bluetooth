@@ -31,11 +31,10 @@
 #include "le_audio/codec_manager.h"
 #include "le_audio/devices.h"
 #include "le_audio/le_audio_types.h"
-#include "le_audio_set_configuration_provider.h"
 #include "le_audio_utils.h"
 #include "main/shim/entry.h"
 #include "metrics_collector.h"
-#include "os/log.h"
+#include "stack/include/btm_client_interface.h"
 
 namespace bluetooth::le_audio {
 
@@ -353,6 +352,18 @@ bool LeAudioDeviceGroup::IsGroupReadyToSuspendStream(void) const {
   return iter == leAudioDevices_.end();
 }
 
+bool LeAudioDeviceGroup::HaveAnyActiveDeviceInStreamingState() const {
+  auto iter =
+      std::find_if(leAudioDevices_.begin(), leAudioDevices_.end(), [](auto& d) {
+        if (d.expired())
+          return false;
+        else
+          return (((d.lock()).get())->HaveAnyStreamingAses());
+      });
+
+  return iter != leAudioDevices_.end();
+}
+
 bool LeAudioDeviceGroup::HaveAnyActiveDeviceInUnconfiguredState() const {
   auto iter =
       std::find_if(leAudioDevices_.begin(), leAudioDevices_.end(), [](auto& d) {
@@ -487,8 +498,8 @@ uint8_t LeAudioDeviceGroup::GetSCA(void) const {
   uint8_t sca = bluetooth::hci::iso_manager::kIsoSca0To20Ppm;
 
   for (const auto& leAudioDevice : leAudioDevices_) {
-    uint8_t dev_sca =
-        BTM_GetPeerSCA(leAudioDevice.lock()->address_, BT_TRANSPORT_LE);
+    uint8_t dev_sca = get_btm_client_interface().peer.BTM_GetPeerSCA(leAudioDevice.lock()->address_,
+                                                                     BT_TRANSPORT_LE);
 
     /* If we could not read SCA from the peer device or sca is 0,
      * then there is no reason to continue.
@@ -800,6 +811,16 @@ LeAudioDeviceGroup::GetAudioSetConfigurationRequirements(
 
     for (auto direction :
          {types::kLeAudioDirectionSink, types::kLeAudioDirectionSource}) {
+      // Do not put any requirements on the Source if Sink only scenario is used
+      // Note: With the RINGTONE we should already prepare for a call.
+      if ((direction == types::kLeAudioDirectionSource) &&
+          ((types::kLeAudioContextAllRemoteSinkOnly.test(ctx_type) &&
+            (ctx_type != types::LeAudioContextType::RINGTONE)) ||
+           ctx_type == types::LeAudioContextType::UNSPECIFIED)) {
+        log::debug("Skipping the remote source requirements.");
+        continue;
+      }
+
       if (device->GetAseCount(direction) == 0) {
         log::warn("Device {} has no ASEs for direction: {}", device->address_,
                   (int)direction);
@@ -825,13 +846,17 @@ LeAudioDeviceGroup::GetAudioSetConfigurationRequirements(
                             DeviceDirectionRequirements>();
       }
 
-      // Pass the audio channel allocation requirement
-      auto locations = dev_locations.to_ulong();
+      // Pass the audio channel allocation requirement according to TMAP
+      auto locations = dev_locations.to_ulong() &
+                       (codec_spec_conf::kLeAudioLocationFrontLeft |
+                        codec_spec_conf::kLeAudioLocationFrontRight);
       CodecManager::UnicastConfigurationRequirements::
           DeviceDirectionRequirements config_req;
       config_req.params.Add(
           codec_spec_conf::kLeAudioLtvTypeAudioChannelAllocation,
           (uint32_t)locations);
+      config_req.target_latency =
+          utils::GetTargetLatencyForAudioContext(ctx_type);
       log::warn("Device {} pushes requirement, location: {}, direction: {}",
                 device->address_, (int)locations, (int)direction);
       direction_req->push_back(std::move(config_req));
