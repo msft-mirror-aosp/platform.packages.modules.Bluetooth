@@ -446,16 +446,6 @@ public class AdapterService extends Service {
         mHandler.sendMessage(m);
     }
 
-    /**
-     * Confirm whether the ProfileService is started expectedly.
-     *
-     * @param serviceSampleName the service simple name.
-     * @return true if the service is started expectedly, false otherwise.
-     */
-    public boolean isStartedProfile(int profileId) {
-        return mStartedProfiles.containsKey(profileId);
-    }
-
     class AdapterServiceHandler extends Handler {
         AdapterServiceHandler(Looper looper) {
             super(looper);
@@ -1190,7 +1180,7 @@ public class AdapterService extends Service {
         // Disable the non-supported profiles service
         for (int profileId : nonSupportedProfiles) {
             Config.setProfileEnabled(profileId, false);
-            if (isStartedProfile(profileId)) {
+            if (mStartedProfiles.containsKey(profileId)) {
                 setProfileServiceState(profileId, BluetoothAdapter.STATE_OFF);
             }
         }
@@ -2007,6 +1997,9 @@ public class AdapterService extends Service {
         mLeAudioService = LeAudioService.getLeAudioService();
         mBassClientService = BassClientService.getBassClientService();
         mBatteryService = BatteryService.getBatteryService();
+        if (Flags.scanManagerRefactor()) {
+            mGattService = GattService.getGattService();
+        }
     }
 
     @BluetoothAdapter.RfcommListenerResult
@@ -2264,7 +2257,10 @@ public class AdapterService extends Service {
     /** Update Adapter Properties when BT profiles connection state changes. */
     public void updateProfileConnectionAdapterProperties(
             BluetoothDevice device, int profile, int state, int prevState) {
-        mAdapterProperties.updateOnProfileConnectionChanged(device, profile, state, prevState);
+        mHandler.post(
+                () ->
+                        mAdapterProperties.updateOnProfileConnectionChanged(
+                                device, profile, state, prevState));
     }
 
     /**
@@ -3137,6 +3133,7 @@ public class AdapterService extends Service {
             // Only allow setting a pin in bonding state, or bonded state in case of security
             // upgrade.
             if (deviceProp == null || !deviceProp.isBondingOrBonded()) {
+                Log.e(TAG, "setPin: device=" + device + ", not bonding");
                 return false;
             }
             if (pinCode.length != len) {
@@ -3146,6 +3143,14 @@ public class AdapterService extends Service {
             }
             service.logUserBondResponse(
                     device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_PIN_REPLIED);
+            Log.i(
+                    TAG,
+                    "setPin: device="
+                            + device
+                            + ", accept="
+                            + accept
+                            + ", from "
+                            + Utils.getUidPidString());
             return service.mNativeInterface.pinReply(
                     getBytesFromAddress(device.getAddress()), accept, len, pinCode);
         }
@@ -3167,6 +3172,7 @@ public class AdapterService extends Service {
 
             DeviceProperties deviceProp = service.mRemoteDevices.getDeviceProperties(device);
             if (deviceProp == null || !deviceProp.isBonding()) {
+                Log.e(TAG, "setPasskey: device=" + device + ", not bonding");
                 return false;
             }
             if (passkey.length != len) {
@@ -3176,6 +3182,15 @@ public class AdapterService extends Service {
             }
             service.logUserBondResponse(
                     device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_SSP_REPLIED);
+            Log.i(
+                    TAG,
+                    "setPasskey: device="
+                            + device
+                            + ", accept="
+                            + accept
+                            + ", from "
+                            + Utils.getUidPidString());
+
             return service.mNativeInterface.sspReply(
                     getBytesFromAddress(device.getAddress()),
                     AbstractionLayer.BT_SSP_VARIANT_PASSKEY_ENTRY,
@@ -3197,10 +3212,20 @@ public class AdapterService extends Service {
 
             DeviceProperties deviceProp = service.mRemoteDevices.getDeviceProperties(device);
             if (deviceProp == null || !deviceProp.isBonding()) {
+                Log.e(TAG, "setPairingConfirmation: device=" + device + ", not bonding");
                 return false;
             }
             service.logUserBondResponse(
                     device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_SSP_REPLIED);
+            Log.i(
+                    TAG,
+                    "setPairingConfirmation: device="
+                            + device
+                            + ", accept="
+                            + accept
+                            + ", from "
+                            + Utils.getUidPidString());
+
             return service.mNativeInterface.sspReply(
                     getBytesFromAddress(device.getAddress()),
                     AbstractionLayer.BT_SSP_VARIANT_PASSKEY_CONFIRMATION,
@@ -4178,10 +4203,7 @@ public class AdapterService extends Service {
         @Override
         public IBinder getBluetoothGatt() {
             AdapterService service = getService();
-            if (service == null) {
-                return null;
-            }
-            return service.getBluetoothGatt();
+            return service == null ? null : service.getBluetoothGatt();
         }
 
         @Override
@@ -5745,6 +5767,15 @@ public class AdapterService extends Service {
                                 .isLePeriodicAdvertisingSyncTransferRecipientSupported());
     }
 
+    /**
+     * Check if the LE channel sounding feature is supported.
+     *
+     * @return true, if the LE channel sounding is supported
+     */
+    public boolean isLeChannelSoundingSupported() {
+        return mAdapterProperties.isLeChannelSoundingSupported();
+    }
+
     public long getSupportedProfilesBitMask() {
         return Config.getSupportedProfilesBitMask();
     }
@@ -5893,10 +5924,7 @@ public class AdapterService extends Service {
     }
 
     IBinder getBluetoothGatt() {
-        if (mGattService == null) {
-            return null;
-        }
-        return ((ProfileService) mGattService).getBinder();
+        return mGattService == null ? null : mGattService.getBinder();
     }
 
     IBinder getBluetoothScan() {
