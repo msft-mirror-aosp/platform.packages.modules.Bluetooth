@@ -9674,6 +9674,124 @@ TEST_F(StateMachineTest, testAutonomousReleaseFromEnablingState) {
   ASSERT_TRUE(earbudRightAse->state == types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
 }
 
+TEST_F(StateMachineTest, testUnexpectedCisEstablishedEvent) {
+  const auto context_type = kContextTypeMedia;
+  const auto audio_contexts = types::AudioContexts(context_type);
+  const auto group_id = 4;
+  const auto num_devices = 2;
+
+  ContentControlIdKeeper::GetInstance()->SetCcid(media_context, media_ccid);
+
+  /**
+   * Scenario:
+   * 1. Start stream to set of 2 devices
+   * 2. The CIS Create is issued to 2 devices
+   * 3. One of the devices reports Releasing state before CIS Established event.
+   * 4. Phone Cancel the CIS Create by sending HCI Disconnect
+   * 5. The scheduled CIS Established event is reported by the controller.
+   * 5. The CIS Disconnection Complete event is reported later on.
+   * 6. Verify we keep streaming.
+   */
+
+  // Prepare multiple fake connected devices in a group
+  log::debug("[TESTING] PrepareSingleTestDeviceGroup");
+  auto* group = PrepareSingleTestDeviceGroup(group_id, context_type, num_devices);
+  ASSERT_EQ(group->Size(), num_devices);
+
+  log::debug("[TESTING] group->GetFirstDevice()");
+  auto* earbudLeft = group->GetFirstDevice();
+  EXPECT_CALL(gatt_queue, WriteCharacteristic(earbudLeft->conn_id_, earbudLeft->ctp_hdls_.val_hdl,
+                                              _, GATT_WRITE_NO_RSP, _, _))
+          .Times(AtLeast(3));
+
+  log::debug("[TESTING] group->GetNextDevice(earbudLeft)");
+  auto* earbudRight = group->GetNextDevice(earbudLeft);
+  EXPECT_CALL(gatt_queue, WriteCharacteristic(earbudRight->conn_id_, earbudRight->ctp_hdls_.val_hdl,
+                                              _, GATT_WRITE_NO_RSP, _, _))
+          .Times(AtLeast(3));
+
+  // let us decide when the HCI Disconnection Complete event and HCI Connection
+  // Established events will be reported
+  do_not_send_cis_disconnected_event_ = true;
+  do_not_send_cis_establish_event_ = true;
+
+  PrepareConfigureCodecHandler(group, 0, true);
+  PrepareConfigureQosHandler(group);
+  PrepareEnableHandler(group, 0, true, /* inject_streaming */ false);
+  PrepareDisableHandler(group);
+  PrepareReleaseHandler(group);
+
+  // StartStream action initiated by upper layer
+  log::debug("[TESTING] StartStream");
+  ASSERT_TRUE(LeAudioGroupStateMachine::Get()->StartStream(
+          group, context_type,
+          {.sink = types::AudioContexts(context_type),
+           .source = types::AudioContexts(context_type)}));
+
+  log::debug("[TESTING] left earbud indicates there are no available context at the time");
+  DeviceContextsUpdate(earbudLeft, types::kLeAudioDirectionSink, types::AudioContexts(),
+                       audio_contexts);
+
+  log::debug("[TESTING] GetFirstActiveAseByDirection earbudLeftAse");
+  auto* earbudLeftAse = earbudLeft->GetFirstActiveAseByDirection(types::kLeAudioDirectionSink);
+  ASSERT_FALSE(earbudLeftAse == nullptr);
+
+  // make sure the ASE is in correct state, required in this scenario
+  ASSERT_TRUE(earbudLeftAse->state == types::AseState::BTA_LE_AUDIO_ASE_STATE_ENABLING);
+
+  log::debug("[TESTING] left earbud performs autonomous ASE state transition to Releasing state");
+  InjectAseStateNotification(earbudLeftAse, earbudLeft, group, ascs::kAseStateReleasing, nullptr);
+
+  //
+  log::debug(
+          "[TESTING] left earbud performs autonomous ASE state transition to Codec Configured "
+          "state (caching)");
+  auto* codec_configured_params = &cached_codec_configuration_map_[earbudLeftAse->id];
+  InjectAseStateNotification(earbudLeftAse, earbudLeft, group, ascs::kAseStateCodecConfigured,
+                             codec_configured_params);
+
+  log::debug("[TESTING] GetFirstActiveAseByDirection earbudRightAse");
+  auto* earbudRightAse = earbudRight->GetFirstActiveAseByDirection(types::kLeAudioDirectionSink);
+  ASSERT_FALSE(earbudRightAse == nullptr);
+
+  // make sure the ASE is in correct state, required in this scenario
+  ASSERT_TRUE(earbudRightAse->state == types::AseState::BTA_LE_AUDIO_ASE_STATE_ENABLING);
+
+  bluetooth::hci::iso_manager::cis_establish_cmpl_evt cis_establish_evt = {
+          .status = 0,
+          .cig_id = group_id,
+          .cis_conn_hdl = earbudRightAse->cis_conn_hdl,
+  };
+  log::debug("[TESTING] controller reports right earbud CIS has been successfully established");
+  LeAudioGroupStateMachine::Get()->ProcessHciNotifCisEstablished(group, earbudRight,
+                                                                 &cis_establish_evt);
+
+  std::vector<uint8_t> streaming_params{};
+  log::debug("[TESTING] InjectAseStateNotification earbudRight kAseStateStreaming");
+  InjectAseStateNotification(earbudRightAse, earbudRight, group, ascs::kAseStateStreaming,
+                             &streaming_params);
+
+  cis_establish_evt = {
+          .status = 0,
+          .cig_id = group_id,
+          .cis_conn_hdl = earbudLeftAse->cis_conn_hdl,
+  };
+  log::debug("[TESTING] controller reports left earbud CIS has been successfully established");
+  LeAudioGroupStateMachine::Get()->ProcessHciNotifCisEstablished(group, earbudLeft,
+                                                                 &cis_establish_evt);
+
+  bluetooth::hci::iso_manager::cis_disconnected_evt cis_disconnected_evt = {
+          .reason = HCI_ERR_PEER_USER,
+          .cig_id = group_id,
+          .cis_conn_hdl = earbudLeftAse->cis_conn_hdl,
+  };
+  log::debug("[TESTING] controller reports left earbud CIS has been disconnected eventually");
+  LeAudioGroupStateMachine::Get()->ProcessHciNotifCisDisconnected(group, earbudLeft,
+                                                                  &cis_disconnected_evt);
+
+  ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
+}
+
 TEST_F(StateMachineTest, testKeepStreamingWhenCisCreateOperationCancelled) {
   const auto context_type = kContextTypeMedia;
   const auto audio_contexts = types::AudioContexts(context_type);
