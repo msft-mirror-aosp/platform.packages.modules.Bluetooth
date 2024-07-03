@@ -46,11 +46,6 @@ uint16_t L2CA_ConnectReq(uint16_t psm, const RawAddress& bd_addr) {
   return l2cap_interface->ConnectRequest(psm, bd_addr);
 }
 
-bool L2CA_ConnectRsp(const RawAddress& bd_addr, uint8_t id, uint16_t lcid,
-                     uint16_t result, uint16_t status) {
-  return l2cap_interface->ConnectResponse(bd_addr, id, lcid, result, status);
-}
-
 bool L2CA_DisconnectReq(uint16_t cid) {
   return l2cap_interface->DisconnectRequest(cid);
 }
@@ -67,7 +62,7 @@ bool L2CA_ConfigRsp(uint16_t cid, tL2CAP_CFG_INFO* p_cfg) {
   return l2cap_interface->ConfigResponse(cid, p_cfg);
 }
 
-uint8_t L2CA_DataWrite(uint16_t cid, BT_HDR* p_data) {
+tL2CAP_DW_RESULT L2CA_DataWrite(uint16_t cid, BT_HDR* p_data) {
   return l2cap_interface->DataWrite(cid, p_data);
 }
 

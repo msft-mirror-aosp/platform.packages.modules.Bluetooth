@@ -212,6 +212,7 @@ static void bta_dm_pinname_cback(const tBTM_REMOTE_DEV_NAME* p_data) {
     /* Retrieved saved device class and bd_addr */
     sec_event.cfm_req.bd_addr = bta_dm_sec_cb.pin_bd_addr;
     sec_event.cfm_req.dev_class = bta_dm_sec_cb.pin_dev_class;
+    log::info("CoD: sec_event.cfm_req.dev_class = {}", dev_class_text(sec_event.cfm_req.dev_class));
 
     if (p_result && p_result->status == BTM_SUCCESS) {
       bd_name_copy(sec_event.cfm_req.bd_name, p_result->remote_bd_name);
@@ -439,6 +440,8 @@ static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event,
            copy these values into key_notif from cfm_req */
         sec_event.key_notif.bd_addr = p_data->cfm_req.bd_addr;
         sec_event.key_notif.dev_class = p_data->cfm_req.dev_class;
+        log::info("CoD: sec_event.key_notif.dev_class = {}",
+                  dev_class_text(sec_event.key_notif.dev_class));
         bd_name_copy(sec_event.key_notif.bd_name, p_data->cfm_req.bd_name);
         /* Due to the switch case falling through below to BTM_SP_KEY_NOTIF_EVT,
            call remote name request using values from cfm_req */
@@ -451,6 +454,8 @@ static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event,
           bta_dm_sec_cb.loc_auth_req = sec_event.cfm_req.loc_auth_req;
 
           bta_dm_sec_cb.pin_dev_class = p_data->cfm_req.dev_class;
+          log::info("CoD: bta_dm_sec_cb.pin_dev_class = {}",
+                    dev_class_text(bta_dm_sec_cb.pin_dev_class));
           {
             const tBTM_STATUS btm_status =
                 get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(
@@ -794,17 +799,17 @@ static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
  * Returns         None
  *
  ******************************************************************************/
-void bta_dm_encrypt_cback(const RawAddress* bd_addr, tBT_TRANSPORT transport,
+void bta_dm_encrypt_cback(RawAddress bd_addr, tBT_TRANSPORT transport,
                           void* /* p_ref_data */, tBTM_STATUS result) {
   tBTA_DM_ENCRYPT_CBACK* p_callback = nullptr;
-  tBTA_DM_PEER_DEVICE* device = find_connected_device(*bd_addr, transport);
+  tBTA_DM_PEER_DEVICE* device = find_connected_device(bd_addr, transport);
   if (device != nullptr) {
     p_callback = device->p_encrypt_cback;
     device->p_encrypt_cback = nullptr;
   }
 
   log::debug("Encrypted:{:c}, peer:{} transport:{} status:{} callback:{:c}",
-             result == BTM_SUCCESS ? 'T' : 'F', *bd_addr,
+             result == BTM_SUCCESS ? 'T' : 'F', bd_addr,
              bt_transport_text(transport), btm_status_text(result),
              (p_callback) ? 'T' : 'F');
 
@@ -827,7 +832,7 @@ void bta_dm_encrypt_cback(const RawAddress* bd_addr, tBT_TRANSPORT transport,
   }
 
   if (p_callback) {
-    (*p_callback)(*bd_addr, transport, bta_status);
+    (*p_callback)(bd_addr, transport, bta_status);
   }
 }
 

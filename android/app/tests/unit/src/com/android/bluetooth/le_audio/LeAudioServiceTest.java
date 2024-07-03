@@ -381,19 +381,6 @@ public class LeAudioServiceTest {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(mService::stop);
     }
 
-    /** Test if stop during init is ok. */
-    @Test
-    public void testStopStartStopService() throws Exception {
-        InstrumentationRegistry.getInstrumentation()
-                .runOnMainSync(
-                        () -> {
-                            mService.stop();
-                            mService.start();
-                            mService.stop();
-                            mService.start();
-                        });
-    }
-
     /** Test get/set priority for BluetoothDevice */
     @Test
     public void testGetSetPriority() {
@@ -597,9 +584,7 @@ public class LeAudioServiceTest {
 
     private void injectNoVerifyDeviceConnected(BluetoothDevice device) {
         generateUnexpectedConnectionMessageFromNative(
-                device,
-                LeAudioStackEvent.CONNECTION_STATE_CONNECTED,
-                LeAudioStackEvent.CONNECTION_STATE_DISCONNECTED);
+                device, LeAudioStackEvent.CONNECTION_STATE_CONNECTED);
     }
 
     private void injectAndVerifyDeviceDisconnected(BluetoothDevice device) {
@@ -611,9 +596,7 @@ public class LeAudioServiceTest {
 
     private void injectNoVerifyDeviceDisconnected(BluetoothDevice device) {
         generateUnexpectedConnectionMessageFromNative(
-                device,
-                LeAudioStackEvent.CONNECTION_STATE_DISCONNECTED,
-                LeAudioStackEvent.CONNECTION_STATE_CONNECTED);
+                device, LeAudioStackEvent.CONNECTION_STATE_DISCONNECTED);
     }
 
     /** Test that the outgoing connect/disconnect and audio switch is successful. */
@@ -808,9 +791,7 @@ public class LeAudioServiceTest {
 
         // stack event: CONNECTION_STATE_DISCONNECTING - state machine should not be created
         generateUnexpectedConnectionMessageFromNative(
-                mLeftDevice,
-                BluetoothProfile.STATE_DISCONNECTING,
-                BluetoothProfile.STATE_DISCONNECTED);
+                mLeftDevice, BluetoothProfile.STATE_DISCONNECTING);
         assertThat(BluetoothProfile.STATE_DISCONNECTED)
                 .isEqualTo(mService.getConnectionState(mLeftDevice));
         assertThat(mService.getDevices().contains(mLeftDevice)).isFalse();
@@ -818,7 +799,6 @@ public class LeAudioServiceTest {
         // stack event: CONNECTION_STATE_DISCONNECTED - state machine should not be created
         generateUnexpectedConnectionMessageFromNative(
                 mLeftDevice,
-                BluetoothProfile.STATE_DISCONNECTED,
                 BluetoothProfile.STATE_DISCONNECTED);
         assertThat(BluetoothProfile.STATE_DISCONNECTED)
                 .isEqualTo(mService.getConnectionState(mLeftDevice));
@@ -905,7 +885,6 @@ public class LeAudioServiceTest {
     @Test
     public void testAuthorizationInfoRemovedFromTbsMcsOnUnbondEvents() {
         mSetFlagsRule.enableFlags(Flags.FLAG_AUDIO_ROUTING_CENTRALIZATION);
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_MCS_TBS_AUTHORIZATION_REBOND_FIX);
 
         // Update the device priority so okToConnect() returns true
         when(mDatabaseManager.getProfileConnectionPolicy(mLeftDevice, BluetoothProfile.LE_AUDIO))
@@ -1159,7 +1138,7 @@ public class LeAudioServiceTest {
     }
 
     private void generateUnexpectedConnectionMessageFromNative(
-            BluetoothDevice device, int newConnectionState, int oldConnectionState) {
+            BluetoothDevice device, int newConnectionState) {
         LeAudioStackEvent stackEvent =
                 new LeAudioStackEvent(LeAudioStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
         stackEvent.device = device;
@@ -1703,6 +1682,12 @@ public class LeAudioServiceTest {
         // Verify only update the fallback group and not proceed to change active
         assertThat(mService.setActiveDevice(mSingleDevice)).isTrue();
         assertThat(mService.mUnicastGroupIdDeactivatedForBroadcastTransition).isEqualTo(groupId);
+
+        // Verify only update the fallback group to INVALID and not proceed to change active
+        assertThat(mService.setActiveDevice(null)).isTrue();
+        assertThat(mService.mUnicastGroupIdDeactivatedForBroadcastTransition)
+                .isEqualTo(BluetoothLeAudio.GROUP_ID_INVALID);
+
         verify(mNativeInterface, times(0)).groupSetActive(anyInt());
     }
 
@@ -1905,7 +1890,6 @@ public class LeAudioServiceTest {
         doReturn(true).when(mNativeInterface).connectLeAudio(any(BluetoothDevice.class));
         connectTestDevice(mSingleDevice, testGroupId);
 
-        String action = BluetoothLeAudio.ACTION_LE_AUDIO_ACTIVE_DEVICE_CHANGED;
         Integer contexts =
                 BluetoothLeAudio.CONTEXT_TYPE_MEDIA | BluetoothLeAudio.CONTEXT_TYPE_CONVERSATIONAL;
         injectAudioConfChanged(testGroupId, contexts, 3);
@@ -1919,8 +1903,6 @@ public class LeAudioServiceTest {
     public void testMessageFromNativeAudioConfChangedNoGroupChanged() {
         doReturn(true).when(mNativeInterface).connectLeAudio(any(BluetoothDevice.class));
         connectTestDevice(mSingleDevice, testGroupId);
-
-        String action = BluetoothLeAudio.ACTION_LE_AUDIO_ACTIVE_DEVICE_CHANGED;
 
         injectAudioConfChanged(testGroupId, 0, 3);
         Intent intent = TestUtils.waitForNoIntent(TIMEOUT_MS, mDeviceQueueMap.get(mSingleDevice));
@@ -1960,13 +1942,11 @@ public class LeAudioServiceTest {
 
     @Test
     public void testMediaContextUnavailableForAWhile() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_UNICAST_INACTIVATE_DEVICE_BASED_ON_CONTEXT);
         mSetFlagsRule.enableFlags(Flags.FLAG_AUDIO_ROUTING_CENTRALIZATION);
 
         doReturn(true).when(mNativeInterface).connectLeAudio(any(BluetoothDevice.class));
         connectTestDevice(mSingleDevice, testGroupId);
 
-        String action = BluetoothLeAudio.ACTION_LE_AUDIO_ACTIVE_DEVICE_CHANGED;
         Integer contexts = BluetoothLeAudio.CONTEXT_TYPE_MEDIA;
         injectAudioConfChanged(testGroupId, contexts, 1);
 
@@ -1997,7 +1977,6 @@ public class LeAudioServiceTest {
 
     @Test
     public void testMediaContextUnavailableWhileReceivingBroadcast() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_UNICAST_INACTIVATE_DEVICE_BASED_ON_CONTEXT);
         mSetFlagsRule.enableFlags(Flags.FLAG_AUDIO_ROUTING_CENTRALIZATION);
         mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_BROADCAST_AUDIO_HANDOVER_POLICIES);
 

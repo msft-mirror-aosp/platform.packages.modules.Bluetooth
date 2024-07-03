@@ -106,6 +106,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -134,7 +135,7 @@ class BluetoothManagerService {
     private static final int TIMEOUT_BIND_MS = 4000 * HW_MULTIPLIER;
 
     // Timeout value for synchronous binder call
-    private static final Duration STATE_TIMEOUT = Duration.ofSeconds(4 * HW_MULTIPLIER);
+    private static final Duration STATE_TIMEOUT = Duration.ofSeconds(4L * HW_MULTIPLIER);
 
     // Maximum msec to wait for service restart
     private static final int SERVICE_RESTART_TIME_MS = 400 * HW_MULTIPLIER;
@@ -252,8 +253,10 @@ class BluetoothManagerService {
         }
     }
 
+    @SuppressWarnings("NonApiType")
     private final LinkedList<ActiveLog> mActiveLogs = new LinkedList<>();
-    private final LinkedList<Long> mCrashTimestamps = new LinkedList<>();
+
+    private final List<Long> mCrashTimestamps = new ArrayList<>();
     private int mCrashes = 0;
     private long mLastEnabledTime;
 
@@ -456,16 +459,27 @@ class BluetoothManagerService {
         }
 
         if (currentState == STATE_ON) {
-            sendDisableMsg(reason);
+            mAdapterLock.readLock().lock();
+            try {
+                if (mAdapter != null) {
+                    mEnable = false;
+                    addActiveLog(reason, false);
+                    mAdapter.disable(mContext.getAttributionSource());
+                }
+            } catch (RemoteException e) {
+                Log.e(TAG, "Unable to call disable", e);
+            } finally {
+                mAdapterLock.readLock().unlock();
+            }
         } else if (currentState == STATE_BLE_ON) {
             // If currentState is BLE_ON make sure we trigger stopBle
             mAdapterLock.readLock().lock();
             try {
                 if (mAdapter != null) {
-                    addActiveLog(reason, false);
-                    mAdapter.stopBle(mContext.getAttributionSource());
                     mEnable = false;
                     mEnableExternal = false;
+                    addActiveLog(reason, false);
+                    mAdapter.stopBle(mContext.getAttributionSource());
                 }
             } catch (RemoteException e) {
                 Log.e(TAG, "Unable to call stopBle", e);
@@ -905,7 +919,7 @@ class BluetoothManagerService {
         }
         try {
             return Settings.Global.getInt(
-                            mContentResolver, Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE)
+                            mContentResolver, BleScanSettingListener.BLE_SCAN_ALWAYS_AVAILABLE)
                     != 0;
         } catch (SettingNotFoundException e) {
             // The settings is considered as false by default.
@@ -956,7 +970,7 @@ class BluetoothManagerService {
                 };
 
         mContentResolver.registerContentObserver(
-                Settings.Global.getUriFor(Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE),
+                Settings.Global.getUriFor(BleScanSettingListener.BLE_SCAN_ALWAYS_AVAILABLE),
                 false,
                 contentObserver);
     }
@@ -2215,7 +2229,7 @@ class BluetoothManagerService {
     private void addCrashLog() {
         synchronized (mCrashTimestamps) {
             if (mCrashTimestamps.size() == CRASH_LOG_MAX_SIZE) {
-                mCrashTimestamps.removeFirst();
+                mCrashTimestamps.remove(0);
             }
             mCrashTimestamps.add(System.currentTimeMillis());
             mCrashes++;
