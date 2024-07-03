@@ -1231,7 +1231,7 @@ void smp_reject_unexpected_pairing_command(const RawAddress& bd_addr) {
 
   p = (uint8_t*)(p_buf + 1) + L2CAP_MIN_OFFSET;
   UINT8_TO_STREAM(p, SMP_OPCODE_PAIRING_FAILED);
-  UINT8_TO_STREAM(p, SMP_PAIR_NOT_SUPPORT);
+  UINT8_TO_STREAM(p, SMP_BUSY);
 
   p_buf->offset = L2CAP_MIN_OFFSET;
   p_buf->len = SMP_PAIR_FAIL_SIZE;
