@@ -102,16 +102,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_api_synchronized_block_fix"
-    namespace: "bluetooth"
-    description: "Fix possible deadlocks when synchronizing LeAudioService states"
-    bug: "326295400"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "run_ble_audio_ticks_in_worker_thread"
     namespace: "bluetooth"
     description: "Fix thread ownership issue in ble_audio_ticks"
@@ -340,6 +330,16 @@ flag {
     namespace: "bluetooth"
     description: "Notify upper layer with callback when medadata is updated"
     bug: "347710374"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "headtracker_sdu_size"
+    namespace: "bluetooth"
+    description: "Use updated headtracker SDU size"
+    bug: "350090733"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
