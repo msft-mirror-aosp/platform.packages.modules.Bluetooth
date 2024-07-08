@@ -53,7 +53,6 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
-#include "stack/include/btm_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/l2c_api.h"
@@ -1257,7 +1256,8 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
     L2CA_SetMediaStreamChannel(p_scb->l2c_cid, true);
 
-    p = BTM_ReadRemoteFeatures(p_scb->PeerAddress());
+    p = get_btm_client_interface().peer.BTM_ReadRemoteFeatures(
+        p_scb->PeerAddress());
     if (p != NULL) {
       if (HCI_EDR_ACL_2MPS_SUPPORTED(p)) open.edr |= BTA_AV_EDR_2MBPS;
       if (HCI_EDR_ACL_3MPS_SUPPORTED(p)) {
@@ -3147,8 +3147,8 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb,
       offload_start->bits_per_sample, offload_start->ch_mode,
       offload_start->encoded_audio_bitrate, offload_start->acl_hdl,
       offload_start->l2c_rcid, offload_start->mtu);
-  BTM_VendorSpecificCommand(HCI_CONTROLLER_A2DP, p_param - param, param,
-                            offload_vendor_callback);
+  get_btm_client_interface().vendor.BTM_VendorSpecificCommand(
+      HCI_CONTROLLER_A2DP, p_param - param, param, offload_vendor_callback);
 }
 
 void bta_av_vendor_offload_start_v2(tBTA_AV_SCB* p_scb,
@@ -3156,8 +3156,8 @@ void bta_av_vendor_offload_start_v2(tBTA_AV_SCB* p_scb,
   log::verbose("");
 
   uint16_t connection_handle =
-      get_btm_client_interface().lifecycle.BTM_GetHCIConnHandle(
-          p_scb->PeerAddress(), BT_TRANSPORT_BR_EDR);
+      get_btm_client_interface().peer.BTM_GetHCIConnHandle(p_scb->PeerAddress(),
+                                                           BT_TRANSPORT_BR_EDR);
   btav_a2dp_scmst_info_t scmst_info =
       p_scb->p_cos->get_scmst_info(p_scb->PeerAddress());
   uint16_t mtu = p_scb->stream_mtu;
@@ -3200,8 +3200,8 @@ void bta_av_vendor_offload_start_v2(tBTA_AV_SCB* p_scb,
   bta_av_cb.offload_start_pending_hndl = p_scb->hndl;
   bta_av_cb.offload_start_v2 = true;
 
-  BTM_VendorSpecificCommand(HCI_CONTROLLER_A2DP, p_param - param,
-                            param, offload_vendor_callback);
+  get_btm_client_interface().vendor.BTM_VendorSpecificCommand(
+      HCI_CONTROLLER_A2DP, p_param - param, param, offload_vendor_callback);
 }
 
 void bta_av_vendor_offload_stop() {
@@ -3217,7 +3217,7 @@ void bta_av_vendor_offload_stop() {
       return;
     }
     uint16_t connection_handle =
-        get_btm_client_interface().lifecycle.BTM_GetHCIConnHandle(
+        get_btm_client_interface().peer.BTM_GetHCIConnHandle(
             p_scb->PeerAddress(), BT_TRANSPORT_BR_EDR);
     uint16_t l2cap_channel_handle = 0;
 
@@ -3238,8 +3238,8 @@ void bta_av_vendor_offload_stop() {
     *p_param++ = VS_HCI_A2DP_OFFLOAD_STOP;
   }
 
-  BTM_VendorSpecificCommand(HCI_CONTROLLER_A2DP, p_param - param, param,
-                            offload_vendor_callback);
+  get_btm_client_interface().vendor.BTM_VendorSpecificCommand(
+      HCI_CONTROLLER_A2DP, p_param - param, param, offload_vendor_callback);
 }
 
 /*******************************************************************************
@@ -3389,8 +3389,8 @@ static void bta_av_offload_codec_builder(tBTA_AV_SCB* p_scb,
   p_a2dp_offload->max_latency = 0;
   p_a2dp_offload->mtu = mtu;
   p_a2dp_offload->acl_hdl =
-      get_btm_client_interface().lifecycle.BTM_GetHCIConnHandle(
-          p_scb->PeerAddress(), BT_TRANSPORT_BR_EDR);
+      get_btm_client_interface().peer.BTM_GetHCIConnHandle(p_scb->PeerAddress(),
+                                                           BT_TRANSPORT_BR_EDR);
   btav_a2dp_scmst_info_t scmst_info =
       p_scb->p_cos->get_scmst_info(p_scb->PeerAddress());
   p_a2dp_offload->scms_t_enable[0] = scmst_info.enable_status;

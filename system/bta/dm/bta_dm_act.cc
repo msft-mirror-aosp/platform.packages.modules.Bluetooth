@@ -58,6 +58,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_inq.h"
 #include "stack/include/gatt_api.h"
 #include "stack/include/l2c_api.h"
 #include "stack/include/main_thread.h"
@@ -347,7 +348,8 @@ void bta_dm_disable() {
   if (BTM_GetNumAclLinks() == 0) {
     // Time to wait after receiving shutdown request to delay the actual
     // shutdown process. This time may be zero which invokes immediate shutdown.
-    const uint64_t disable_delay_ms = GET_SYSPROP(Bta, disable_delay, 200);
+    const uint64_t disable_delay_ms =
+            android::sysprop::bluetooth::Bta::disable_delay().value_or(200);
     switch (disable_delay_ms) {
       case 0:
         log::debug("Immediately disabling device manager");

@@ -54,10 +54,7 @@ pub enum ProcessState {
 
 /// Check whether adapter is enabled by checking internal state.
 pub fn state_to_enabled(state: ProcessState) -> bool {
-    match state {
-        ProcessState::On | ProcessState::TurningOff => true,
-        _ => false,
-    }
+    matches!(state, ProcessState::On | ProcessState::TurningOff)
 }
 
 /// Device path of hci device in sysfs. This will uniquely identify a Bluetooth
@@ -73,7 +70,7 @@ pub const INVALID_HCI_INDEX: i32 = -1;
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct VirtualHciIndex(pub i32);
 impl VirtualHciIndex {
-    pub(crate) fn to_i32(&self) -> i32 {
+    pub(crate) fn to_i32(self) -> i32 {
         self.0
     }
 }
@@ -87,7 +84,7 @@ impl Display for VirtualHciIndex {
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct RealHciIndex(pub i32);
 impl RealHciIndex {
-    pub(crate) fn to_i32(&self) -> i32 {
+    pub(crate) fn to_i32(self) -> i32 {
         self.0
     }
 }
@@ -326,7 +323,8 @@ fn configure_pid(pid_tx: mpsc::Sender<Message>) {
 
         loop {
             let r = pid_async_fd.readable_mut();
-            let mut fd_ready = r.await.unwrap();
+            let mut fd_ready =
+                r.await.expect(format!("pid file in {} never became readable", PID_DIR).as_str());
             let mut buffer: [u8; 1024] = [0; 1024];
             debug!("Found new pid inotify entries. Reading them");
             match fd_ready.try_io(|inner| inner.get_mut().read_events(&mut buffer)) {
@@ -850,18 +848,15 @@ pub async fn mainloop(
                                     }
                                 }
                             });
-                            match context
+                            if let Some(handle) = context
                                 .state_machine
                                 .process_monitor
                                 .lock()
                                 .unwrap()
                                 .insert(fname.clone(), handle)
                             {
-                                Some(handle) => {
-                                    warn!("{}: Aborting old handler", hci);
-                                    handle.abort();
-                                }
-                                None => {}
+                                warn!("{}: Aborting old handler", hci);
+                                handle.abort();
                             }
                         }
                         _ => debug!("Invalid pid path: {}", fname),

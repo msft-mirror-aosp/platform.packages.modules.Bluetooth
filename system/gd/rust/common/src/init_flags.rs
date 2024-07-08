@@ -207,12 +207,6 @@ pub fn set_all_for_testing() {
 init_flags!(
     name: InitFlags
     flags: {
-        asha_packet_drop_frequency_threshold: i32 = 60,
-        asha_phy_update_retry_limit: i32 = 5,
-        always_send_services_if_gatt_disc_done = true,
-        always_use_private_gatt_for_debugging,
-        bluetooth_power_telemetry = false,
-        btm_dm_flush_discovery_queue_on_search_cancel,
         classic_discovery_only,
         dynamic_avrcp_version_enhancement = true,
         gatt_robust_caching_server,
@@ -231,7 +225,6 @@ init_flags!(
         sdp_return_classic_services_when_le_discovery_fails = true,
         use_rsi_from_cached_inqiry_results = false,
         att_mtu_default: i32 = 517,
-        encryption_in_busy_state = true,
     }
     extra_parsed_flags: {
         "--hci" => parse_hci_adapter(_, _),
