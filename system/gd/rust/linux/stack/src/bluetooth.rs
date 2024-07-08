@@ -23,7 +23,7 @@ use bt_topshim::{
 use bt_utils::array_utils;
 use bt_utils::cod::{is_cod_hid_combo, is_cod_hid_keyboard};
 use bt_utils::uhid::UHid;
-use btif_macros::{btif_callback, btif_callbacks_dispatcher};
+use btif_macros::{btif_callback, btif_callbacks_dispatcher, log_cb_args};
 
 use log::{debug, error, warn};
 use num_derive::{FromPrimitive, ToPrimitive};
@@ -1064,6 +1064,7 @@ impl Bluetooth {
     }
 
     /// Makes an LE_RAND call to the Bluetooth interface.
+    #[log_cb_args]
     pub fn le_rand(&mut self) -> bool {
         self.intf.lock().unwrap().le_rand() == BTM_SUCCESS
     }
@@ -1626,6 +1627,7 @@ pub fn get_bt_dispatcher(tx: Sender<Message>) -> BaseCallbacksDispatcher {
 }
 
 impl BtifBluetoothCallbacks for Bluetooth {
+    #[log_cb_args]
     fn adapter_state_changed(&mut self, state: BtState) {
         let prev_state = self.state.clone();
         self.state = state;
@@ -1720,6 +1722,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
     }
 
     #[allow(unused_variables)]
+    #[log_cb_args]
     fn adapter_properties_changed(
         &mut self,
         status: BtStatus,
@@ -1770,6 +1773,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
         }
     }
 
+    #[log_cb_args]
     fn device_found(&mut self, _n: i32, properties: Vec<BluetoothProperty>) {
         let device_info = BluetoothDevice::from_properties(&properties);
         self.check_new_property_and_potentially_connect_profiles(device_info.address, &properties);
@@ -1797,6 +1801,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
         });
     }
 
+    #[log_cb_args]
     fn discovery_state(&mut self, state: BtDiscoveryState) {
         let is_discovering = &state == &BtDiscoveryState::Started;
 
@@ -1844,6 +1849,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
         }
     }
 
+    #[log_cb_args]
     fn ssp_request(&mut self, remote_addr: RawAddress, variant: BtSspVariant, passkey: u32) {
         // Accept the Just-Works pairing that we initiated, reject otherwise.
         if variant == BtSspVariant::Consent {
@@ -1871,6 +1877,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
         });
     }
 
+    #[log_cb_args]
     fn pin_request(
         &mut self,
         remote_addr: RawAddress,
@@ -1914,6 +1921,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
         }
     }
 
+    #[log_cb_args]
     fn bond_state(
         &mut self,
         status: BtStatus,
@@ -1992,6 +2000,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
         }
     }
 
+    #[log_cb_args]
     fn remote_device_properties_changed(
         &mut self,
         _status: BtStatus,
@@ -2036,6 +2045,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
         }
     }
 
+    #[log_cb_args]
     fn acl_state(
         &mut self,
         status: BtStatus,
@@ -2130,6 +2140,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
         }
     }
 
+    #[log_cb_args]
     fn thread_event(&mut self, event: BtThreadEvent) {
         match event {
             BtThreadEvent::Associate => {
@@ -2158,6 +2169,7 @@ impl BleDiscoveryCallbacks {
 
 // Handle BLE scanner results.
 impl IScannerCallback for BleDiscoveryCallbacks {
+    #[log_cb_args]
     fn on_scanner_registered(&mut self, uuid: Uuid, scanner_id: u8, status: GattStatus) {
         let tx = self.tx.clone();
         tokio::spawn(async move {
@@ -2169,6 +2181,7 @@ impl IScannerCallback for BleDiscoveryCallbacks {
         });
     }
 
+    #[log_cb_args]
     fn on_scan_result(&mut self, scan_result: ScanResult) {
         let tx = self.tx.clone();
         tokio::spawn(async move {
@@ -2182,6 +2195,7 @@ impl IScannerCallback for BleDiscoveryCallbacks {
 
     fn on_advertisement_found(&mut self, _scanner_id: u8, _scan_result: ScanResult) {}
     fn on_advertisement_lost(&mut self, _scanner_id: u8, _scan_result: ScanResult) {}
+    #[log_cb_args]
     fn on_suspend_mode_change(&mut self, _suspend_mode: SuspendMode) {}
 }
 
@@ -2938,6 +2952,7 @@ impl IBluetooth for Bluetooth {
 }
 
 impl BtifSdpCallbacks for Bluetooth {
+    #[log_cb_args]
     fn sdp_search(
         &mut self,
         status: BtStatus,
@@ -2980,6 +2995,7 @@ impl BtifSdpCallbacks for Bluetooth {
 }
 
 impl BtifHHCallbacks for Bluetooth {
+    #[log_cb_args]
     fn connection_state(
         &mut self,
         address: RawAddress,
@@ -2987,12 +3003,6 @@ impl BtifHHCallbacks for Bluetooth {
         transport: BtTransport,
         state: BthhConnectionState,
     ) {
-        debug!(
-            "Hid host connection state updated: Address({}) State({:?})",
-            DisplayAddress(&address),
-            state
-        );
-
         // HID or HOG is not differentiated by the hid host when callback this function. Assume HOG
         // if the device is LE only and HID if classic only. And assume HOG if UUID said so when
         // device type is dual or unknown.
@@ -3053,6 +3063,7 @@ impl BtifHHCallbacks for Bluetooth {
         }
     }
 
+    #[log_cb_args]
     fn hid_info(
         &mut self,
         address: RawAddress,
@@ -3060,15 +3071,9 @@ impl BtifHHCallbacks for Bluetooth {
         transport: BtTransport,
         info: BthhHidInfo,
     ) {
-        debug!(
-            "Hid host info updated: Address({}) AddressType({:?}) Transport({:?}) Info({:?})",
-            DisplayAddress(&address),
-            address_type,
-            transport,
-            info
-        );
     }
 
+    #[log_cb_args]
     fn protocol_mode(
         &mut self,
         address: RawAddress,
@@ -3077,14 +3082,9 @@ impl BtifHHCallbacks for Bluetooth {
         status: BthhStatus,
         mode: BthhProtocolMode,
     ) {
-        debug!(
-            "Hid host protocol mode updated: Address({}) AddressType({:?}) Transport({:?}) Status({:?}) Mode({:?})",
-            DisplayAddress(&address), address_type, transport,
-            status,
-            mode
-        );
     }
 
+    #[log_cb_args]
     fn idle_time(
         &mut self,
         address: RawAddress,
@@ -3093,14 +3093,9 @@ impl BtifHHCallbacks for Bluetooth {
         status: BthhStatus,
         idle_rate: i32,
     ) {
-        debug!(
-            "Hid host idle time updated: Address({}) AddressType({:?}) Transport({:?}) Status({:?}) Idle Rate({:?})",
-            DisplayAddress(&address), address_type, transport,
-            status,
-            idle_rate
-        );
     }
 
+    #[log_cb_args]
     fn get_report(
         &mut self,
         address: RawAddress,
@@ -3110,14 +3105,9 @@ impl BtifHHCallbacks for Bluetooth {
         _data: Vec<u8>,
         size: i32,
     ) {
-        debug!(
-            "Hid host got report: Address({}) AddressType({:?}) Transport({:?}) Status({:?}) Report Size({:?})",
-            DisplayAddress(&address), address_type, transport,
-            status,
-            size
-        );
     }
 
+    #[log_cb_args]
     fn handshake(
         &mut self,
         address: RawAddress,
@@ -3125,13 +3115,6 @@ impl BtifHHCallbacks for Bluetooth {
         transport: BtTransport,
         status: BthhStatus,
     ) {
-        debug!(
-            "Hid host handshake: Address({}) AddressType({:?}) Transport({:?}) Status({:?})",
-            DisplayAddress(&address),
-            address_type,
-            transport,
-            status
-        );
     }
 }
 
