@@ -71,47 +71,12 @@ private:
 // NOTE: only codecs that are implemented are considered valid.
 // Returns true if |p_codec_info| contains information about a valid AAC
 // codec, otherwise false.
-bool A2DP_IsSourceCodecValidAac(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid A2DP AAC Sink codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid AAC codec,
-// otherwise false.
-bool A2DP_IsSinkCodecValidAac(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid peer A2DP AAC Source
-// codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid AAC codec,
-// otherwise false.
-bool A2DP_IsPeerSourceCodecValidAac(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid peer A2DP AAC Sink
-// codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid AAC
-// codec, otherwise false.
-bool A2DP_IsPeerSinkCodecValidAac(const uint8_t* p_codec_info);
+bool A2DP_IsCodecValidAac(const uint8_t* p_codec_info);
 
 // Checks whether A2DP AAC Sink codec is supported.
 // |p_codec_info| contains information about the codec capabilities.
 // Returns true if the A2DP AAC Sink codec is supported, otherwise false.
 bool A2DP_IsSinkCodecSupportedAac(const uint8_t* p_codec_info);
-
-// Checks whether an A2DP AAC Source codec for a peer Source device is
-// supported.
-// |p_codec_info| contains information about the codec capabilities of the
-// peer device.
-// Returns true if the A2DP AAC Source codec for a peer Source device is
-// supported, otherwise false.
-bool A2DP_IsPeerSourceCodecSupportedAac(const uint8_t* p_codec_info);
-
-// Checks whether the A2DP data packets should contain RTP header.
-// |content_protection_enabled| is true if Content Protection is
-// enabled. |p_codec_info| contains information about the codec capabilities.
-// Returns true if the A2DP data packets should contain RTP header, otherwise
-// false.
-bool A2DP_UsesRtpHeaderAac(bool content_protection_enabled, const uint8_t* p_codec_info);
 
 // Gets the A2DP AAC codec name for a given |p_codec_info|.
 const char* A2DP_CodecNameAac(const uint8_t* p_codec_info);

@@ -75,41 +75,12 @@ private:
 // NOTE: only codecs that are implemented are considered valid.
 // Returns true if |p_codec_info| contains information about a valid Opus
 // codec, otherwise false.
-bool A2DP_IsVendorSourceCodecValidOpus(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid A2DP Opus Sink
-// codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid Opus
-// codec, otherwise false.
-bool A2DP_IsVendorSinkCodecValidOpus(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid peer A2DP Opus Sink
-// codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid Opus
-// codec, otherwise false.
-bool A2DP_IsVendorPeerSinkCodecValidOpus(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid peer A2DP Opus Source
-// codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid Opus
-// codec, otherwise false.
-bool A2DP_IsVendorPeerSourceCodecValidOpus(const uint8_t* p_codec_info);
+bool A2DP_IsCodecValidOpus(const uint8_t* p_codec_info);
 
 // Checks whether A2DP Opus Sink codec is supported.
 // |p_codec_info| contains information about the codec capabilities.
 // Returns true if the A2DP Opus Sink codec is supported, otherwise false.
 bool A2DP_IsVendorSinkCodecSupportedOpus(const uint8_t* p_codec_info);
-
-// Checks whether an A2DP Opus Source codec for a peer Source device is
-// supported.
-// |p_codec_info| contains information about the codec capabilities of the
-// peer device.
-// Returns true if the A2DP Opus Source codec for a peer Source device is
-// supported, otherwise false.
-bool A2DP_IsPeerSourceCodecSupportedOpus(const uint8_t* p_codec_info);
 
 // Checks whether the A2DP data packets should contain RTP header.
 // |content_protection_enabled| is true if Content Protection is

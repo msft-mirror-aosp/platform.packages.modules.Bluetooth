@@ -192,7 +192,7 @@ static tA2DP_STATUS A2DP_ParseInfoOpus(tA2DP_OPUS_CIE* p_ie, const uint8_t* p_co
   }
 
   media_type = (*p_codec_info++) >> 4;
-  codec_type = *p_codec_info++;
+  codec_type = static_cast<tA2DP_CODEC_TYPE>(*p_codec_info++);
   /* Check the Media Type and Media Codec Type */
   if (media_type != AVDT_MEDIA_TYPE_AUDIO || codec_type != A2DP_MEDIA_CT_NON_A2DP) {
     log::error("invalid codec");
@@ -269,31 +269,7 @@ static void A2DP_BuildMediaPayloadHeaderOpus(uint8_t* p_dst, bool frag, bool sta
   *p_dst |= (A2DP_OPUS_HDR_NUM_MSK & num);
 }
 
-bool A2DP_IsVendorSourceCodecValidOpus(const uint8_t* p_codec_info) {
-  tA2DP_OPUS_CIE cfg_cie;
-
-  /* Use a liberal check when parsing the codec info */
-  return (A2DP_ParseInfoOpus(&cfg_cie, p_codec_info, false) == A2DP_SUCCESS) ||
-         (A2DP_ParseInfoOpus(&cfg_cie, p_codec_info, true) == A2DP_SUCCESS);
-}
-
-bool A2DP_IsVendorSinkCodecValidOpus(const uint8_t* p_codec_info) {
-  tA2DP_OPUS_CIE cfg_cie;
-
-  /* Use a liberal check when parsing the codec info */
-  return (A2DP_ParseInfoOpus(&cfg_cie, p_codec_info, false) == A2DP_SUCCESS) ||
-         (A2DP_ParseInfoOpus(&cfg_cie, p_codec_info, true) == A2DP_SUCCESS);
-}
-
-bool A2DP_IsVendorPeerSourceCodecValidOpus(const uint8_t* p_codec_info) {
-  tA2DP_OPUS_CIE cfg_cie;
-
-  /* Use a liberal check when parsing the codec info */
-  return (A2DP_ParseInfoOpus(&cfg_cie, p_codec_info, false) == A2DP_SUCCESS) ||
-         (A2DP_ParseInfoOpus(&cfg_cie, p_codec_info, true) == A2DP_SUCCESS);
-}
-
-bool A2DP_IsVendorPeerSinkCodecValidOpus(const uint8_t* p_codec_info) {
+bool A2DP_IsCodecValidOpus(const uint8_t* p_codec_info) {
   tA2DP_OPUS_CIE cfg_cie;
 
   /* Use a liberal check when parsing the codec info */
@@ -303,10 +279,6 @@ bool A2DP_IsVendorPeerSinkCodecValidOpus(const uint8_t* p_codec_info) {
 
 bool A2DP_IsVendorSinkCodecSupportedOpus(const uint8_t* p_codec_info) {
   return A2DP_CodecInfoMatchesCapabilityOpus(&a2dp_opus_sink_caps, p_codec_info, false) ==
-         A2DP_SUCCESS;
-}
-bool A2DP_IsPeerSourceCodecSupportedOpus(const uint8_t* p_codec_info) {
-  return A2DP_CodecInfoMatchesCapabilityOpus(&a2dp_opus_sink_caps, p_codec_info, true) ==
          A2DP_SUCCESS;
 }
 
@@ -611,16 +583,18 @@ std::string A2DP_VendorCodecInfoStringOpus(const uint8_t* p_codec_info) {
   return res.str();
 }
 
-const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceOpus(const uint8_t* p_codec_info) {
-  if (!A2DP_IsVendorSourceCodecValidOpus(p_codec_info)) {
+const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceOpus(
+    const uint8_t* p_codec_info) {
+  if (!A2DP_IsCodecValidOpus(p_codec_info)) {
     return NULL;
   }
 
   return &a2dp_encoder_interface_opus;
 }
 
-const tA2DP_DECODER_INTERFACE* A2DP_VendorGetDecoderInterfaceOpus(const uint8_t* p_codec_info) {
-  if (!A2DP_IsVendorSinkCodecValidOpus(p_codec_info)) {
+const tA2DP_DECODER_INTERFACE* A2DP_VendorGetDecoderInterfaceOpus(
+    const uint8_t* p_codec_info) {
+  if (!A2DP_IsCodecValidOpus(p_codec_info)) {
     return NULL;
   }
 
@@ -664,29 +638,6 @@ bool A2DP_VendorInitCodecConfigOpusSink(AvdtpSepConfig* p_cfg) {
          A2DP_SUCCESS;
 }
 
-UNUSED_ATTR static void build_codec_config(const tA2DP_OPUS_CIE& config_cie,
-                                           btav_a2dp_codec_config_t* result) {
-  if (config_cie.sampleRate & A2DP_OPUS_SAMPLING_FREQ_48000) {
-    result->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-  }
-
-  result->bits_per_sample = config_cie.bits_per_sample;
-
-  if (config_cie.channelMode & A2DP_OPUS_CHANNEL_MODE_MONO) {
-    result->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
-  }
-  if (config_cie.channelMode & A2DP_OPUS_CHANNEL_MODE_STEREO) {
-    result->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  }
-
-  if (config_cie.future1 & A2DP_OPUS_20MS_FRAMESIZE) {
-    result->codec_specific_1 |= BTAV_A2DP_CODEC_FRAME_SIZE_20MS;
-  }
-  if (config_cie.future1 & A2DP_OPUS_10MS_FRAMESIZE) {
-    result->codec_specific_1 |= BTAV_A2DP_CODEC_FRAME_SIZE_10MS;
-  }
-}
-
 A2dpCodecConfigOpusSource::A2dpCodecConfigOpusSource(btav_a2dp_codec_priority_t codec_priority)
     : A2dpCodecConfigOpusBase(BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS, A2DP_VendorCodecIndexStrOpus(),
                               codec_priority, true) {
@@ -706,10 +657,6 @@ A2dpCodecConfigOpusSource::A2dpCodecConfigOpusSource(btav_a2dp_codec_priority_t 
 A2dpCodecConfigOpusSource::~A2dpCodecConfigOpusSource() {}
 
 bool A2dpCodecConfigOpusSource::init() {
-  if (!isValid()) {
-    return false;
-  }
-
   return true;
 }
 
@@ -1277,10 +1224,6 @@ A2dpCodecConfigOpusSink::A2dpCodecConfigOpusSink(btav_a2dp_codec_priority_t code
 A2dpCodecConfigOpusSink::~A2dpCodecConfigOpusSink() {}
 
 bool A2dpCodecConfigOpusSink::init() {
-  if (!isValid()) {
-    return false;
-  }
-
   return true;
 }
 

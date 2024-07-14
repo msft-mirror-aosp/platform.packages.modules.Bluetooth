@@ -204,7 +204,7 @@ static tA2DP_STATUS A2DP_ParseInfoAac(tA2DP_AAC_CIE* p_ie, const uint8_t* p_code
   }
 
   media_type = (*p_codec_info++) >> 4;
-  codec_type = *p_codec_info++;
+  codec_type = static_cast<tA2DP_CODEC_TYPE>(*p_codec_info++);
   /* Check the Media Type and Media Codec Type */
   if (media_type != AVDT_MEDIA_TYPE_AUDIO || codec_type != A2DP_MEDIA_CT_AAC) {
     return A2DP_WRONG_CODEC;
@@ -253,31 +253,7 @@ static tA2DP_STATUS A2DP_ParseInfoAac(tA2DP_AAC_CIE* p_ie, const uint8_t* p_code
   return A2DP_SUCCESS;
 }
 
-bool A2DP_IsSourceCodecValidAac(const uint8_t* p_codec_info) {
-  tA2DP_AAC_CIE cfg_cie;
-
-  /* Use a liberal check when parsing the codec info */
-  return (A2DP_ParseInfoAac(&cfg_cie, p_codec_info, false) == A2DP_SUCCESS) ||
-         (A2DP_ParseInfoAac(&cfg_cie, p_codec_info, true) == A2DP_SUCCESS);
-}
-
-bool A2DP_IsSinkCodecValidAac(const uint8_t* p_codec_info) {
-  tA2DP_AAC_CIE cfg_cie;
-
-  /* Use a liberal check when parsing the codec info */
-  return (A2DP_ParseInfoAac(&cfg_cie, p_codec_info, false) == A2DP_SUCCESS) ||
-         (A2DP_ParseInfoAac(&cfg_cie, p_codec_info, true) == A2DP_SUCCESS);
-}
-
-bool A2DP_IsPeerSourceCodecValidAac(const uint8_t* p_codec_info) {
-  tA2DP_AAC_CIE cfg_cie;
-
-  /* Use a liberal check when parsing the codec info */
-  return (A2DP_ParseInfoAac(&cfg_cie, p_codec_info, false) == A2DP_SUCCESS) ||
-         (A2DP_ParseInfoAac(&cfg_cie, p_codec_info, true) == A2DP_SUCCESS);
-}
-
-bool A2DP_IsPeerSinkCodecValidAac(const uint8_t* p_codec_info) {
+bool A2DP_IsCodecValidAac(const uint8_t* p_codec_info) {
   tA2DP_AAC_CIE cfg_cie;
 
   /* Use a liberal check when parsing the codec info */
@@ -287,11 +263,6 @@ bool A2DP_IsPeerSinkCodecValidAac(const uint8_t* p_codec_info) {
 
 bool A2DP_IsSinkCodecSupportedAac(const uint8_t* p_codec_info) {
   return A2DP_CodecInfoMatchesCapabilityAac(&a2dp_aac_sink_caps, p_codec_info, false) ==
-         A2DP_SUCCESS;
-}
-
-bool A2DP_IsPeerSourceCodecSupportedAac(const uint8_t* p_codec_info) {
-  return A2DP_CodecInfoMatchesCapabilityAac(&a2dp_aac_sink_caps, p_codec_info, true) ==
          A2DP_SUCCESS;
 }
 
@@ -341,11 +312,6 @@ static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityAac(const tA2DP_AAC_CIE* p_ca
   }
 
   return A2DP_SUCCESS;
-}
-
-bool A2DP_UsesRtpHeaderAac(bool /* content_protection_enabled */,
-                           const uint8_t* /* p_codec_info */) {
-  return true;
 }
 
 const char* A2DP_CodecNameAac(const uint8_t* /* p_codec_info */) { return "AAC"; }
@@ -671,16 +637,18 @@ std::string A2DP_CodecInfoStringAac(const uint8_t* p_codec_info) {
   return res.str();
 }
 
-const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(const uint8_t* p_codec_info) {
-  if (!A2DP_IsSourceCodecValidAac(p_codec_info)) {
+const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(
+    const uint8_t* p_codec_info) {
+  if (!A2DP_IsCodecValidAac(p_codec_info)) {
     return NULL;
   }
 
   return &a2dp_encoder_interface_aac;
 }
 
-const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceAac(const uint8_t* p_codec_info) {
-  if (!A2DP_IsSinkCodecValidAac(p_codec_info)) {
+const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceAac(
+    const uint8_t* p_codec_info) {
+  if (!A2DP_IsCodecValidAac(p_codec_info)) {
     return NULL;
   }
 
@@ -710,7 +678,7 @@ const char* A2DP_CodecIndexStrAac(void) { return "AAC"; }
 
 const char* A2DP_CodecIndexStrAacSink(void) { return "AAC SINK"; }
 
-void aac_source_caps_initialize() {
+static void aac_source_caps_initialize() {
   if (aac_source_caps_configured) {
     return;
   }
@@ -733,31 +701,6 @@ bool A2DP_InitCodecConfigAac(AvdtpSepConfig* p_cfg) {
 bool A2DP_InitCodecConfigAacSink(AvdtpSepConfig* p_cfg) {
   return A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aac_sink_caps, p_cfg->codec_info) ==
          A2DP_SUCCESS;
-}
-
-UNUSED_ATTR static void build_codec_config(const tA2DP_AAC_CIE& config_cie,
-                                           btav_a2dp_codec_config_t* result) {
-  if (config_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_44100) {
-    result->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
-  }
-  if (config_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_48000) {
-    result->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-  }
-  if (config_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_88200) {
-    result->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_88200;
-  }
-  if (config_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_96000) {
-    result->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_96000;
-  }
-
-  result->bits_per_sample = config_cie.bits_per_sample;
-
-  if (config_cie.channelMode & A2DP_AAC_CHANNEL_MODE_MONO) {
-    result->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
-  }
-  if (config_cie.channelMode & A2DP_AAC_CHANNEL_MODE_STEREO) {
-    result->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  }
 }
 
 A2dpCodecConfigAacSource::A2dpCodecConfigAacSource(btav_a2dp_codec_priority_t codec_priority)
@@ -789,10 +732,6 @@ A2dpCodecConfigAacSource::A2dpCodecConfigAacSource(btav_a2dp_codec_priority_t co
 A2dpCodecConfigAacSource::~A2dpCodecConfigAacSource() {}
 
 bool A2dpCodecConfigAacSource::init() {
-  if (!isValid()) {
-    return false;
-  }
-
   // Load the encoder
   if (!A2DP_LoadEncoderAac()) {
     log::error("cannot load the encoder");
@@ -1461,10 +1400,6 @@ A2dpCodecConfigAacSink::A2dpCodecConfigAacSink(btav_a2dp_codec_priority_t codec_
 A2dpCodecConfigAacSink::~A2dpCodecConfigAacSink() {}
 
 bool A2dpCodecConfigAacSink::init() {
-  if (!isValid()) {
-    return false;
-  }
-
   // Load the decoder
   if (!A2DP_LoadDecoderAac()) {
     log::error("cannot load the decoder");
