@@ -20,9 +20,7 @@
 
 #include "a2dp_vendor_aptx.h"
 
-bool A2DP_IsVendorSourceCodecValidAptx(const uint8_t* p_codec_info) { return false; }
-
-bool A2DP_IsVendorPeerSinkCodecValidAptx(const uint8_t* p_codec_info) { return false; }
+bool A2DP_IsCodecValidAptx(const uint8_t* p_codec_info) { return false; }
 
 bool A2DP_VendorUsesRtpHeaderAptx(bool content_protection_enabled, const uint8_t* p_codec_info) {
   return false;
