@@ -117,13 +117,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"ਸੂਚੀ ਵਿੱਚੋਂ ਹਟਾਓ"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"ਕਲੀਅਰ ਕਰੋ"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Now Playing"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"ਰੱਖਿਅਤ ਕਰੋ"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"ਰੱਦ ਕਰੋ"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"ਉਹਨਾਂ ਖਾਤਿਆਂ ਨੂੰ ਚੁਣੋ ਜਿਨ੍ਹਾਂ ਨੂੰ ਤੁਸੀਂ ਬਲੂਟੁੱਥ ਦੇ ਰਾਹੀਂ ਸਾਂਝਾ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ। ਤੁਹਾਨੂੰ ਹਾਲੇ ਵੀ ਕਨੈਕਟ ਕਰਨ ਦੌਰਾਨ ਖਾਤਿਆਂ \'ਤੇ ਕਿਸੇ ਵੀ ਪਹੁੰਚ ਨੂੰ ਸਵੀਕਾਰ ਕਰਨਾ ਹੋਵੇਗਾ।"</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"ਸਲੌਟ ਬਾਕੀ:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"ਐਪਲੀਕੇਸ਼ਨ ਪ੍ਰਤੀਕ"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"ਬਲੂਟੁੱਥ ਸੁਨੇਹਾ ਸਾਂਝਾਕਰਨ ਸੈਟਿੰਗਾਂ"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"ਖਾਤਾ ਨਹੀਂ ਚੁਣ ਸਕਦਾ। 0 ਸਲੌਟ ਬਾਕੀ"</string>
     <string name="bluetooth_connected" msgid="5687474377090799447">"ਬਲੂਟੁੱਥ  ਆਡੀਓ  ਕਨੈਕਟ ਕੀਤੀ ਗਈ"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"ਬਲੂਟੁੱਥ  ਆਡੀਓ  ਡਿਸਕਨੈਕਟ ਕੀਤੀ ਗਈ"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"ਬਲੂਟੁੱਥ  ਆਡੀਓ"</string>
@@ -135,9 +129,7 @@
     <string name="bluetooth_stays_on_message" msgid="3669663452593157737">"ਤੁਹਾਡਾ ਡੀਵਾਈਸ ਹਵਾਈ-ਜਹਾਜ਼ ਮੋਡ ਵਿੱਚ ਬਲੂਟੁੱਥ ਨੂੰ ਚਾਲੂ ਰੱਖਣਾ ਯਾਦ ਰੱਖਦਾ ਹੈ। ਜੇ ਤੁਸੀਂ ਇਸਨੂੰ ਚਾਲੂ ਨਹੀਂ ਰੱਖਣਾ ਚਾਹੁੰਦੇ, ਤਾਂ ਬਲੂਟੁੱਥ ਨੂੰ ਬੰਦ ਕਰੋ।"</string>
     <string name="bluetooth_and_wifi_stays_on_title" msgid="5821932798860821244">"ਵਾਈ-ਫਾਈ ਅਤੇ ਬਲੂਟੁੱਥ ਚਾਲੂ ਰਹਿੰਦੇ ਹਨ"</string>
     <string name="bluetooth_and_wifi_stays_on_message" msgid="7848565203843882558">"ਤੁਹਾਡਾ ਡੀਵਾਈਸ ਹਵਾਈ-ਜਹਾਜ਼ ਮੋਡ ਵਿੱਚ ਵਾਈ-ਫਾਈ ਅਤੇ ਬਲੂਟੁੱਥ ਨੂੰ ਚਾਲੂ ਰੱਖਣਾ ਯਾਦ ਰੱਖਦਾ ਹੈ। ਜੇ ਤੁਸੀਂ ਇਨ੍ਹਾਂ ਨੂੰ ਚਾਲੂ ਨਹੀਂ ਰੱਖਣਾ ਚਾਹੁੰਦੇ, ਤਾਂ ਵਾਈ-ਫਾਈ ਅਤੇ ਬਲੂਟੁੱਥ ਨੂੰ ਬੰਦ ਕਰੋ।"</string>
-    <!-- no translation found for bluetooth_enabled_auto_on_title (8983664142805050578) -->
-    <skip />
-    <!-- no translation found for bluetooth_enabled_auto_on_message (2790514825041114851) -->
-    <skip />
+    <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"ਬਲੂਟੁੱਥ ਨੂੰ ਚਾਲੂ ਕੀਤਾ ਗਿਆ"</string>
+    <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"ਤੁਸੀਂ ਕਿਸੇ ਵੇਲੇ ਵੀ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਇਸਨੂੰ ਬਦਲ ਸਕਦੇ ਹੋ"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"ਬਲੂਟੁੱਥ ਨੂੰ ਸਵੈਚਲਿਤ ਤੌਰ \'ਤੇ ਚਾਲੂ ਕਰਨ ਦੀ ਸੁਵਿਧਾ ਨੂੰ ਬਦਲ ਦਿੱਤਾ ਗਿਆ ਹੈ"</string>
 </resources>

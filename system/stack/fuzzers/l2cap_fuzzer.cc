@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "btif/include/stack_manager_t.h"
+#include "common/message_loop_thread.h"
 #include "hal/snoop_logger.h"
 #include "hci/controller_interface_mock.h"
 #include "osi/include/allocator.h"
@@ -33,6 +34,7 @@
 #include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cap_controller_interface.h"
 #include "stack/include/l2cap_hci_link_interface.h"
+#include "stack/include/l2cap_module.h"
 #include "stack/include/l2cdefs.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_main_shim_entry.h"
@@ -53,24 +55,23 @@ static void ConsumeData(const uint8_t* data, size_t size) {
 
 tBTM_CB btm_cb;
 
-bt_status_t do_in_main_thread(base::Location const&,
-                              base::OnceCallback<void()>) {
+bt_status_t do_in_main_thread(base::OnceCallback<void()>) {
   // this is not properly mocked, so we use abort to catch if this is used in
   // any test cases
   abort();
 }
-bt_status_t do_in_main_thread_delayed(base::Location const&,
-                                      base::OnceCallback<void()>,
-                                      std::chrono::microseconds) {
+bt_status_t do_in_main_thread_delayed(base::OnceCallback<void()>, std::chrono::microseconds) {
   // this is not properly mocked, so we use abort to catch if this is used in
   // any test cases
   abort();
 }
+bluetooth::common::MessageLoopThread* get_main_thread() { return nullptr; }
+bluetooth::common::PostableContext* get_main() { return nullptr; }
 
 namespace bluetooth {
 namespace os {
-uint32_t GetSystemPropertyUint32Base(const std::string& property,
-                                     uint32_t default_value, int base) {
+uint32_t GetSystemPropertyUint32Base(const std::string& property, uint32_t default_value,
+                                     int base) {
   return default_value;
 }
 }  // namespace os
@@ -87,44 +88,37 @@ void SnoopLogger::AddRfcommL2capChannel(uint16_t, uint16_t, uint16_t) {}
 void SnoopLogger::ClearL2capAcceptlist(uint16_t, uint16_t, uint16_t) {}
 void SnoopLogger::RemoveA2dpMediaChannel(uint16_t, uint16_t) {}
 void SnoopLogger::SetL2capChannelClose(uint16_t, uint16_t, uint16_t) {}
-void SnoopLogger::SetL2capChannelOpen(uint16_t, uint16_t, uint16_t, uint16_t,
-                                      bool) {}
+void SnoopLogger::SetL2capChannelOpen(uint16_t, uint16_t, uint16_t, uint16_t, bool) {}
 }  // namespace hal
 }  // namespace bluetooth
 
 namespace {
 
 class FakeBtStack {
- public:
+public:
   FakeBtStack() {
     test::mock::stack_btm_devctl::BTM_IsDeviceUp.body = []() { return true; };
-    test::mock::stack_acl::acl_create_le_connection.body =
-        [](const RawAddress& bd_addr) { return true; };
-    test::mock::stack_acl::acl_create_classic_connection.body =
-        [](const RawAddress& bd_addr, bool there_are_high_priority_channels,
-           bool is_bonding) { return true; };
+    test::mock::stack_acl::acl_create_le_connection.body = [](const RawAddress& bd_addr) {
+      return true;
+    };
+    test::mock::stack_acl::acl_send_data_packet_br_edr.body = [](const RawAddress& bd_addr,
+                                                                 BT_HDR* hdr) {
+      ConsumeData((const uint8_t*)hdr, hdr->offset + hdr->len);
+      osi_free(hdr);
+    };
+    test::mock::stack_acl::acl_send_data_packet_ble.body = [](const RawAddress& bd_addr,
+                                                              BT_HDR* hdr) {
+      ConsumeData((const uint8_t*)hdr, hdr->offset + hdr->len);
+      osi_free(hdr);
+    };
 
-    test::mock::stack_acl::acl_send_data_packet_br_edr.body =
-        [](const RawAddress& bd_addr, BT_HDR* hdr) {
-          ConsumeData((const uint8_t*)hdr, hdr->offset + hdr->len);
-          osi_free(hdr);
-        };
-    test::mock::stack_acl::acl_send_data_packet_ble.body =
-        [](const RawAddress& bd_addr, BT_HDR* hdr) {
-          ConsumeData((const uint8_t*)hdr, hdr->offset + hdr->len);
-          osi_free(hdr);
-        };
+    GetInterfaceToProfiles()->profileSpecific_HACK->GetHearingAidDeviceCount = []() { return 1; };
 
-    GetInterfaceToProfiles()->profileSpecific_HACK->GetHearingAidDeviceCount =
-        []() { return 1; };
-
-    ON_CALL(controller_, GetLeSuggestedDefaultDataLength)
-        .WillByDefault(Return(512));
+    ON_CALL(controller_, GetLeSuggestedDefaultDataLength).WillByDefault(Return(512));
     bluetooth::hci::LeBufferSize iso_size;
     iso_size.le_data_packet_length_ = 512;
     iso_size.total_num_le_packets_ = 6;
-    ON_CALL(controller_, GetControllerIsoBufferSize)
-        .WillByDefault(Return(iso_size));
+    ON_CALL(controller_, GetControllerIsoBufferSize).WillByDefault(Return(iso_size));
     bluetooth::hci::LeBufferSize le_size;
     le_size.le_data_packet_length_ = 512;
     le_size.total_num_le_packets_ = 6;
@@ -137,7 +131,6 @@ class FakeBtStack {
   ~FakeBtStack() {
     test::mock::stack_btm_devctl::BTM_IsDeviceUp = {};
     test::mock::stack_acl::acl_create_le_connection = {};
-    test::mock::stack_acl::acl_create_classic_connection = {};
     test::mock::stack_acl::acl_send_data_packet_br_edr = {};
     test::mock::stack_acl::acl_send_data_packet_ble = {};
     bluetooth::hci::testing::mock_controller_ = nullptr;
@@ -146,7 +139,7 @@ class FakeBtStack {
 };
 
 class Fakes {
- public:
+public:
   test::fake::FakeOsi fake_osi;
   FakeBtStack fake_stack;
 };
@@ -164,8 +157,7 @@ constexpr uint16_t kSmpBrHndl = 0x0222;
 constexpr uint16_t kNumClassicAclBuffer = 100;
 constexpr uint16_t kNumLeAclBuffer = 100;
 
-void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle,
-                            const RawAddress& p_bda);
+void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddress& p_bda);
 
 static void Fuzz(const uint8_t* data, size_t size) {
   memset(&btm_cb, 0, sizeof(btm_cb));
@@ -173,70 +165,60 @@ static void Fuzz(const uint8_t* data, size_t size) {
   l2c_init();
 
   l2c_link_init(kNumClassicAclBuffer);
-  l2c_link_processs_ble_num_bufs(kNumLeAclBuffer);
+  l2c_link_process_ble_num_bufs(kNumLeAclBuffer);
 
   tL2CAP_FIXED_CHNL_REG reg = {
-      .pL2CA_FixedConn_Cb = [](uint16_t, const RawAddress&, bool, uint16_t,
-                               tBT_TRANSPORT) {},
-      .pL2CA_FixedData_Cb =
-          [](uint16_t, const RawAddress&, BT_HDR* hdr) {
-            ConsumeData((const uint8_t*)hdr, hdr->offset + hdr->len);
-          },
-      .pL2CA_FixedCong_Cb = [](const RawAddress&, bool) {},
-      .default_idle_tout = 1000,
+          .pL2CA_FixedConn_Cb = [](uint16_t, const RawAddress&, bool, uint16_t, tBT_TRANSPORT) {},
+          .pL2CA_FixedData_Cb =
+                  [](uint16_t, const RawAddress&, BT_HDR* hdr) {
+                    ConsumeData((const uint8_t*)hdr, hdr->offset + hdr->len);
+                  },
+          .pL2CA_FixedCong_Cb = [](const RawAddress&, bool) {},
+          .default_idle_tout = 1000,
   };
 
   tL2CAP_APPL_INFO appl_info = {
-      .pL2CA_ConnectInd_Cb = [](const RawAddress&, uint16_t, uint16_t,
-                                uint8_t) {},
-      .pL2CA_ConnectCfm_Cb = [](uint16_t, uint16_t) {},
-      .pL2CA_ConfigInd_Cb = [](uint16_t, tL2CAP_CFG_INFO*) {},
-      .pL2CA_ConfigCfm_Cb = [](uint16_t, uint16_t, tL2CAP_CFG_INFO*) {},
-      .pL2CA_DisconnectInd_Cb = [](uint16_t, bool) {},
-      .pL2CA_DisconnectCfm_Cb = [](uint16_t, uint16_t) {},
-      .pL2CA_DataInd_Cb =
-          [](uint16_t, BT_HDR* hdr) {
-            ConsumeData((const uint8_t*)hdr, hdr->offset + hdr->len);
-          },
-      .pL2CA_CongestionStatus_Cb = [](uint16_t, bool) {},
-      .pL2CA_TxComplete_Cb = [](uint16_t, uint16_t) {},
-      .pL2CA_Error_Cb = [](uint16_t, uint16_t) {},
-      .pL2CA_CreditBasedConnectInd_Cb = [](const RawAddress&,
-                                           std::vector<uint16_t>&, uint16_t,
-                                           uint16_t, uint8_t) {},
-      .pL2CA_CreditBasedConnectCfm_Cb = [](const RawAddress&, uint16_t,
-                                           uint16_t, uint16_t) {},
-      .pL2CA_CreditBasedReconfigCompleted_Cb = [](const RawAddress&, uint16_t,
-                                                  bool, tL2CAP_LE_CFG_INFO*) {},
-      .pL2CA_CreditBasedCollisionInd_Cb = [](const RawAddress&) {},
+          .pL2CA_ConnectInd_Cb = [](const RawAddress&, uint16_t, uint16_t, uint8_t) {},
+          .pL2CA_ConnectCfm_Cb = [](uint16_t, uint16_t) {},
+          .pL2CA_ConfigInd_Cb = [](uint16_t, tL2CAP_CFG_INFO*) {},
+          .pL2CA_ConfigCfm_Cb = [](uint16_t, uint16_t, tL2CAP_CFG_INFO*) {},
+          .pL2CA_DisconnectInd_Cb = [](uint16_t, bool) {},
+          .pL2CA_DisconnectCfm_Cb = [](uint16_t, uint16_t) {},
+          .pL2CA_DataInd_Cb =
+                  [](uint16_t, BT_HDR* hdr) {
+                    ConsumeData((const uint8_t*)hdr, hdr->offset + hdr->len);
+                  },
+          .pL2CA_CongestionStatus_Cb = [](uint16_t, bool) {},
+          .pL2CA_TxComplete_Cb = [](uint16_t, uint16_t) {},
+          .pL2CA_Error_Cb = [](uint16_t, uint16_t) {},
+          .pL2CA_CreditBasedConnectInd_Cb = [](const RawAddress&, std::vector<uint16_t>&, uint16_t,
+                                               uint16_t, uint8_t) {},
+          .pL2CA_CreditBasedConnectCfm_Cb = [](const RawAddress&, uint16_t, uint16_t, uint16_t) {},
+          .pL2CA_CreditBasedReconfigCompleted_Cb = [](const RawAddress&, uint16_t, bool,
+                                                      tL2CAP_LE_CFG_INFO*) {},
+          .pL2CA_CreditBasedCollisionInd_Cb = [](const RawAddress&) {},
   };
-  log::assert_that(
-      L2CA_RegisterWithSecurity(BT_PSM_ATT, appl_info, false, nullptr,
-                                L2CAP_MTU_SIZE, 0, BTM_SEC_NONE),
-      "assert failed: L2CA_RegisterWithSecurity(BT_PSM_ATT, appl_info, "
-      "false, nullptr, L2CAP_MTU_SIZE, 0, BTM_SEC_NONE)");
+  log::assert_that(L2CA_RegisterWithSecurity(BT_PSM_ATT, appl_info, false, nullptr, L2CAP_MTU_SIZE,
+                                             0, BTM_SEC_NONE),
+                   "assert failed: L2CA_RegisterWithSecurity(BT_PSM_ATT, appl_info, "
+                   "false, nullptr, L2CAP_MTU_SIZE, 0, BTM_SEC_NONE)");
   log::assert_that(L2CA_RegisterLECoc(BT_PSM_EATT, appl_info, BTM_SEC_NONE, {}),
                    "assert failed: L2CA_RegisterLECoc(BT_PSM_EATT, appl_info, "
                    "BTM_SEC_NONE, {{}})");
 
+  log::assert_that(L2CA_RegisterFixedChannel(L2CAP_ATT_CID, &reg),
+                   "assert failed: L2CA_RegisterFixedChannel(L2CAP_ATT_CID, &reg)");
+  log::assert_that(L2CA_ConnectFixedChnl(L2CAP_ATT_CID, kAttAddr),
+                   "assert failed: L2CA_ConnectFixedChnl(L2CAP_ATT_CID, kAttAddr)");
   log::assert_that(
-      L2CA_RegisterFixedChannel(L2CAP_ATT_CID, &reg),
-      "assert failed: L2CA_RegisterFixedChannel(L2CAP_ATT_CID, &reg)");
-  log::assert_that(
-      L2CA_ConnectFixedChnl(L2CAP_ATT_CID, kAttAddr),
-      "assert failed: L2CA_ConnectFixedChnl(L2CAP_ATT_CID, kAttAddr)");
-  log::assert_that(
-      l2cble_conn_comp(kAttHndl, HCI_ROLE_CENTRAL, kAttAddr, BLE_ADDR_PUBLIC,
-                       100, 100, 100),
-      "assert failed: l2cble_conn_comp(kAttHndl, HCI_ROLE_CENTRAL, kAttAddr, "
-      "BLE_ADDR_PUBLIC, 100, 100, 100)");
+          l2cble_conn_comp(kAttHndl, HCI_ROLE_CENTRAL, kAttAddr, BLE_ADDR_PUBLIC, 100, 100, 100),
+          "assert failed: l2cble_conn_comp(kAttHndl, HCI_ROLE_CENTRAL, kAttAddr, "
+          "BLE_ADDR_PUBLIC, 100, 100, 100)");
 
-  log::assert_that(
-      L2CA_RegisterFixedChannel(L2CAP_SMP_BR_CID, &reg),
-      "assert failed: L2CA_RegisterFixedChannel(L2CAP_SMP_BR_CID, &reg)");
-  log::assert_that(
-      L2CA_ConnectFixedChnl(L2CAP_SMP_BR_CID, kSmpBrAddr),
-      "assert failed: L2CA_ConnectFixedChnl(L2CAP_SMP_BR_CID, kSmpBrAddr)");
+  log::assert_that(L2CA_RegisterFixedChannel(L2CAP_SMP_BR_CID, &reg),
+                   "assert failed: L2CA_RegisterFixedChannel(L2CAP_SMP_BR_CID, &reg)");
+  log::assert_that(L2CA_ConnectFixedChnl(L2CAP_SMP_BR_CID, kSmpBrAddr),
+                   "assert failed: L2CA_ConnectFixedChnl(L2CAP_SMP_BR_CID, kSmpBrAddr)");
   l2c_link_hci_conn_comp(HCI_SUCCESS, kSmpBrHndl, kSmpBrAddr);
 
   auto att_cid = L2CA_ConnectReq(BT_PSM_ATT, kAttAddr);
@@ -252,8 +234,7 @@ static void Fuzz(const uint8_t* data, size_t size) {
   constexpr uint16_t kMinPacketSize = 4 + L2CAP_PKT_OVERHEAD;
   constexpr uint16_t kMaxPacketSize = 1024;
   for (;;) {
-    auto size =
-        fdp.ConsumeIntegralInRange<uint16_t>(kMinPacketSize, kMaxPacketSize);
+    auto size = fdp.ConsumeIntegralInRange<uint16_t>(kMinPacketSize, kMaxPacketSize);
     auto bytes = fdp.ConsumeBytes<uint8_t>(size);
     if (bytes.size() < kMinPacketSize) {
       break;

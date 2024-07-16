@@ -57,6 +57,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 /** Provides Bluetooth Pan Device profile, as a service in the Bluetooth application. */
 public class PanService extends ProfileService {
@@ -65,7 +66,8 @@ public class PanService extends ProfileService {
 
     private static final int BLUETOOTH_MAX_PAN_CONNECTIONS = 5;
 
-    @VisibleForTesting HashMap<BluetoothDevice, BluetoothPanDevice> mPanDevices;
+    @VisibleForTesting ConcurrentHashMap<BluetoothDevice, BluetoothPanDevice> mPanDevices;
+
     private int mMaxPanDevices;
     private String mPanIfName;
     @VisibleForTesting boolean mIsTethering = false;
@@ -96,7 +98,11 @@ public class PanService extends ProfileService {
                         Log.e(TAG, "Error setting up tether interface: " + error);
                         for (Map.Entry device : mPanDevices.entrySet()) {
                             mNativeInterface.disconnect(
-                                    Utils.getByteAddress((BluetoothDevice) device.getKey()));
+                                    Flags.panUseIdentityAddress()
+                                            ? Utils.getByteBrEdrAddress(
+                                                    (BluetoothDevice) device.getKey())
+                                            : Utils.getByteAddress(
+                                                    (BluetoothDevice) device.getKey()));
                         }
                         mPanDevices.clear();
                         mIsTethering = false;
@@ -151,7 +157,7 @@ public class PanService extends ProfileService {
                         "PanNativeInterface cannot be null when PanService starts");
 
         mBluetoothTetheringCallbacks = new HashMap<>();
-        mPanDevices = new HashMap<BluetoothDevice, BluetoothPanDevice>();
+        mPanDevices = new ConcurrentHashMap<BluetoothDevice, BluetoothPanDevice>();
         try {
             mMaxPanDevices =
                     getResources()
@@ -660,7 +666,10 @@ public class PanService extends ProfileService {
                             "handlePanDeviceStateChange BT tethering is off/Local role"
                                     + " is PANU drop the connection");
                     mPanDevices.remove(device);
-                    mNativeInterface.disconnect(Utils.getByteAddress(device));
+                    mNativeInterface.disconnect(
+                            Flags.panUseIdentityAddress()
+                                    ? Utils.getByteBrEdrAddress(device)
+                                    : Utils.getByteAddress(device));
                     return;
                 }
                 Log.d(TAG, "handlePanDeviceStateChange LOCAL_NAP_ROLE:REMOTE_PANU_ROLE");
@@ -693,7 +702,6 @@ public class PanService extends ProfileService {
             }
         } else if (mStarted) {
             // PANU Role = reverse Tether
-
             Log.d(
                     TAG,
                     "handlePanDeviceStateChange LOCAL_PANU_ROLE:REMOTE_NAP_ROLE state = "
@@ -713,7 +721,6 @@ public class PanService extends ProfileService {
                 mPanDevices.remove(device);
             }
         }
-
         if (state == BluetoothProfile.STATE_CONNECTED) {
             MetricsLogger.logProfileConnectionEvent(BluetoothMetricsProto.ProfileId.PAN);
         }

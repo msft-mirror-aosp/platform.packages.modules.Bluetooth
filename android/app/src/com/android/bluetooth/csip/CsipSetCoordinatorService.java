@@ -73,8 +73,6 @@ public class CsipSetCoordinatorService extends ProfileService {
     // Timeout for state machine thread join, to prevent potential ANR.
     private static final int SM_THREAD_JOIN_TIMEOUT_MS = 1000;
 
-    // Upper limit of all CSIP devices: Bonded or Connected
-    private static final int MAX_CSIS_STATE_MACHINES = 10;
     private static CsipSetCoordinatorService sCsipSetCoordinatorService;
 
     private Handler mHandler = null;
@@ -904,14 +902,7 @@ public class CsipSetCoordinatorService extends ProfileService {
             if (sm != null) {
                 return sm;
             }
-            // Limit the maximum number of state machines to avoid DoS attack
-            if (mStateMachines.size() >= MAX_CSIS_STATE_MACHINES) {
-                Log.e(
-                        TAG,
-                        "Maximum number of CSIS state machines reached: "
-                                + MAX_CSIS_STATE_MACHINES);
-                return null;
-            }
+
             Log.d(TAG, "Creating a new state machine for " + device);
             sm =
                     CsipSetCoordinatorStateMachine.make(
@@ -1039,18 +1030,6 @@ public class CsipSetCoordinatorService extends ProfileService {
             implements IProfileServiceBinder {
         private CsipSetCoordinatorService mService;
 
-        private CsipSetCoordinatorService getService() {
-            if (Utils.isInstrumentationTestMode()) {
-                return mService;
-            }
-            if (!Utils.checkServiceAvailable(mService, TAG)
-                    || !Utils.checkCallerIsSystemOrActiveOrManagedUser(mService, TAG)) {
-                return null;
-            }
-
-            return mService;
-        }
-
         BluetoothCsisBinder(CsipSetCoordinatorService svc) {
             mService = svc;
         }
@@ -1060,32 +1039,19 @@ public class CsipSetCoordinatorService extends ProfileService {
             mService = null;
         }
 
-        @Override
-        public boolean connect(BluetoothDevice device, AttributionSource source) {
-            Objects.requireNonNull(device, "device cannot be null");
-            Objects.requireNonNull(source, "source cannot be null");
+        private CsipSetCoordinatorService getService() {
+            // Cache mService because it can change while getService is called
+            CsipSetCoordinatorService service = mService;
 
-            CsipSetCoordinatorService service = getService();
-            if (service == null) {
-                return false;
+            if (Utils.isInstrumentationTestMode()) {
+                return service;
+            }
+            if (!Utils.checkServiceAvailable(service, TAG)
+                    || !Utils.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)) {
+                return null;
             }
 
-            enforceBluetoothPrivilegedPermission(service);
-            return service.connect(device);
-        }
-
-        @Override
-        public boolean disconnect(BluetoothDevice device, AttributionSource source) {
-            Objects.requireNonNull(device, "device cannot be null");
-            Objects.requireNonNull(source, "source cannot be null");
-
-            CsipSetCoordinatorService service = getService();
-            if (service == null) {
-                return false;
-            }
-
-            enforceBluetoothPrivilegedPermission(service);
-            return service.disconnect(device);
+            return service;
         }
 
         @Override

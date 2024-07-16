@@ -46,7 +46,7 @@
 #include "device/include/device_iot_config.h"
 #include "internal_include/bt_target.h"
 #include "stack/include/gatt_api.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_module.h"
 #include "stack/include/port_api.h"
 #include "stack/sdp/sdpint.h"
 #if (BNEP_INCLUDED == TRUE)
@@ -74,37 +74,33 @@
 
 // Once BTA_PAN_INCLUDED is no longer exposed via bt_target.h
 // this check and error statement may be removed.
-static_assert(
-    BTA_PAN_INCLUDED,
-    "#define BTA_PAN_INCLUDED preprocessor compilation flag is unsupported"
-    "  Pan profile is always included in the bluetooth stack"
-    "*** Conditional Compilation Directive error");
+static_assert(BTA_PAN_INCLUDED,
+              "#define BTA_PAN_INCLUDED preprocessor compilation flag is unsupported"
+              "  Pan profile is always included in the bluetooth stack"
+              "*** Conditional Compilation Directive error");
 
 // Once PAN_SUPPORTS_ROLE_NAP is no longer exposed via bt_target.h
 // this check and error statement may be removed.
-static_assert(
-    PAN_SUPPORTS_ROLE_NAP,
-    "#define PAN_SUPPORTS_ROLE_NAP preprocessor compilation flag is unsupported"
-    "  Pan profile always supports network access point in the bluetooth stack"
-    "*** Conditional Compilation Directive error");
+static_assert(PAN_SUPPORTS_ROLE_NAP,
+              "#define PAN_SUPPORTS_ROLE_NAP preprocessor compilation flag is unsupported"
+              "  Pan profile always supports network access point in the bluetooth stack"
+              "*** Conditional Compilation Directive error");
 
 // Once PAN_SUPPORTS_ROLE_PANU is no longer exposed via bt_target.h
 // this check and error statement may be removed.
-static_assert(
-    PAN_SUPPORTS_ROLE_PANU,
-    "#define PAN_SUPPORTS_ROLE_PANU preprocessor compilation flag is "
-    "unsupported"
-    "  Pan profile always supports user as a client in the bluetooth stack"
-    "*** Conditional Compilation Directive error");
+static_assert(PAN_SUPPORTS_ROLE_PANU,
+              "#define PAN_SUPPORTS_ROLE_PANU preprocessor compilation flag is "
+              "unsupported"
+              "  Pan profile always supports user as a client in the bluetooth stack"
+              "*** Conditional Compilation Directive error");
 
 // Once BTA_HH_INCLUDED is no longer exposed via bt_target.h
 // this check and error statement may be removed.
-static_assert(
-    BTA_HH_INCLUDED,
-    "#define BTA_HH_INCLUDED preprocessor compilation flag is "
-    "unsupported"
-    "  Host interface device profile is always enabled in the bluetooth stack"
-    "*** Conditional Compilation Directive error");
+static_assert(BTA_HH_INCLUDED,
+              "#define BTA_HH_INCLUDED preprocessor compilation flag is "
+              "unsupported"
+              "  Host interface device profile is always enabled in the bluetooth stack"
+              "*** Conditional Compilation Directive error");
 
 void BTA_dm_on_hw_on();
 void BTA_dm_on_hw_off();
@@ -120,23 +116,21 @@ static bool stack_is_initialized;
 // If running, the stack is fully up and able to bluetooth.
 static bool stack_is_running;
 
-static void event_init_stack(std::promise<void> promise,
-                             bluetooth::core::CoreInterface* interface);
+static void event_init_stack(std::promise<void> promise, bluetooth::core::CoreInterface* interface);
 static void event_start_up_stack(bluetooth::core::CoreInterface* interface,
                                  ProfileStartCallback startProfiles,
                                  ProfileStopCallback stopProfiles);
 static void event_shut_down_stack(ProfileStopCallback stopProfiles);
-static void event_clean_up_stack(std::promise<void> promise,
-                                 ProfileStopCallback stopProfiles);
+static void event_clean_up_stack(std::promise<void> promise, ProfileStopCallback stopProfiles);
+static void event_start_up_rust_module();
+static void event_shut_down_rust_module();
 
 static void event_signal_stack_up(void* context);
 static void event_signal_stack_down(void* context);
 
 static bluetooth::core::CoreInterface* interfaceToProfiles;
 
-bluetooth::core::CoreInterface* GetInterfaceToProfiles() {
-  return interfaceToProfiles;
-}
+bluetooth::core::CoreInterface* GetInterfaceToProfiles() { return interfaceToProfiles; }
 
 // Unvetted includes/imports, etc which should be removed or vetted in the
 // future
@@ -152,9 +146,8 @@ static void init_stack(bluetooth::core::CoreInterface* interface) {
   // and do not overlap.
   std::promise<void> promise;
   auto future = promise.get_future();
-  management_thread.DoInThread(
-      FROM_HERE, base::BindOnce(event_init_stack, std::move(promise),
-                                base::Unretained(interface)));
+  management_thread.DoInThread(FROM_HERE, base::BindOnce(event_init_stack, std::move(promise),
+                                                         base::Unretained(interface)));
   future.wait();
 }
 
@@ -162,13 +155,11 @@ static void start_up_stack_async(bluetooth::core::CoreInterface* interface,
                                  ProfileStartCallback startProfiles,
                                  ProfileStopCallback stopProfiles) {
   management_thread.DoInThread(
-      FROM_HERE, base::BindOnce(event_start_up_stack, interface, startProfiles,
-                                stopProfiles));
+          FROM_HERE, base::BindOnce(event_start_up_stack, interface, startProfiles, stopProfiles));
 }
 
 static void shut_down_stack_async(ProfileStopCallback stopProfiles) {
-  management_thread.DoInThread(
-      FROM_HERE, base::BindOnce(event_shut_down_stack, stopProfiles));
+  management_thread.DoInThread(FROM_HERE, base::BindOnce(event_shut_down_stack, stopProfiles));
 }
 
 static void clean_up_stack(ProfileStopCallback stopProfiles) {
@@ -177,16 +168,22 @@ static void clean_up_stack(ProfileStopCallback stopProfiles) {
   std::promise<void> promise;
   auto future = promise.get_future();
   management_thread.DoInThread(
-      FROM_HERE,
-      base::BindOnce(event_clean_up_stack, std::move(promise), stopProfiles));
+          FROM_HERE, base::BindOnce(event_clean_up_stack, std::move(promise), stopProfiles));
 
-  auto status =
-      future.wait_for(std::chrono::milliseconds(BT_STACK_CLEANUP_WAIT_MS));
+  auto status = future.wait_for(std::chrono::milliseconds(BT_STACK_CLEANUP_WAIT_MS));
   if (status == std::future_status::ready) {
     management_thread.ShutDown();
   } else {
     log::error("cleanup could not be completed in time, abandon it");
   }
+}
+
+static void start_up_rust_module_async() {
+  management_thread.DoInThread(FROM_HERE, base::BindOnce(event_start_up_rust_module));
+}
+
+static void shut_down_rust_module_async() {
+  management_thread.DoInThread(FROM_HERE, base::BindOnce(event_shut_down_rust_module));
 }
 
 static bool get_stack_is_running() { return stack_is_running; }
@@ -207,14 +204,14 @@ struct module_lookup {
 };
 
 const struct module_lookup module_table[] = {
-    {BTIF_CONFIG_MODULE, &btif_config_module},
-    {GD_SHIM_MODULE, &gd_shim_module},
-    {INTEROP_MODULE, &interop_module},
-    {OSI_MODULE, &osi_module},
-    {RUST_MODULE, &rust_module},
-    {STACK_CONFIG_MODULE, &stack_config_module},
-    {DEVICE_IOT_CONFIG_MODULE, &device_iot_config_module},
-    {NULL, NULL},
+        {BTIF_CONFIG_MODULE, &btif_config_module},
+        {GD_SHIM_MODULE, &gd_shim_module},
+        {INTEROP_MODULE, &interop_module},
+        {OSI_MODULE, &osi_module},
+        {RUST_MODULE, &rust_module},
+        {STACK_CONFIG_MODULE, &stack_config_module},
+        {DEVICE_IOT_CONFIG_MODULE, &device_iot_config_module},
+        {NULL, NULL},
 };
 
 inline const module_t* get_local_module(const char* name) {
@@ -267,8 +264,7 @@ static void event_init_stack(std::promise<void> promise,
   promise.set_value();
 }
 
-static void ensure_stack_is_initialized(
-    bluetooth::core::CoreInterface* interface) {
+static void ensure_stack_is_initialized(bluetooth::core::CoreInterface* interface) {
   if (!stack_is_initialized) {
     log::warn("found the stack was uninitialized. Initializing now.");
     // No future needed since we are calling it directly
@@ -313,7 +309,7 @@ static void event_start_up_stack(bluetooth::core::CoreInterface* interface,
   bta_dm_enable(btif_dm_sec_evt, btif_dm_acl_evt);
 
   btm_acl_device_down();
-  BTM_reset_complete();
+  get_btm_client_interface().lifecycle.BTM_reset_complete();
 
   BTA_dm_on_hw_on();
 
@@ -324,7 +320,9 @@ static void event_start_up_stack(bluetooth::core::CoreInterface* interface,
     return;
   }
 
-  module_start_up(get_local_module(RUST_MODULE));
+  if (!com::android::bluetooth::flags::scan_manager_refactor()) {
+    module_start_up(get_local_module(RUST_MODULE));
+  }
   if (com::android::bluetooth::flags::channel_sounding_in_stack()) {
     bluetooth::ras::GetRasServer()->Initialize();
     bluetooth::ras::GetRasClient()->Initialize();
@@ -347,14 +345,16 @@ static void event_shut_down_stack(ProfileStopCallback stopProfiles) {
   hack_future = local_hack_future;
   stack_is_running = false;
 
-  module_shut_down(get_local_module(RUST_MODULE));
+  if (!com::android::bluetooth::flags::scan_manager_refactor()) {
+    module_shut_down(get_local_module(RUST_MODULE));
+  }
 
-  do_in_main_thread(FROM_HERE, base::BindOnce(&btm_ble_scanner_cleanup));
+  do_in_main_thread(base::BindOnce(&btm_ble_scanner_cleanup));
 
   btif_dm_on_disable();
   stopProfiles();
 
-  do_in_main_thread(FROM_HERE, base::BindOnce(bta_dm_disable));
+  do_in_main_thread(base::BindOnce(bta_dm_disable));
 
   btif_dm_cleanup();
 
@@ -383,6 +383,18 @@ static void event_shut_down_stack(ProfileStopCallback stopProfiles) {
   log::info("finished");
 }
 
+static void event_start_up_rust_module() {
+  log::info("is bringing up the Rust module");
+  module_start_up(get_local_module(RUST_MODULE));
+  log::info("finished");
+}
+
+static void event_shut_down_rust_module() {
+  log::info("is bringing down the Rust module");
+  module_shut_down(get_local_module(RUST_MODULE));
+  log::info("finished");
+}
+
 static void ensure_stack_is_not_running(ProfileStopCallback stopProfiles) {
   if (stack_is_running) {
     log::warn("found the stack was still running. Bringing it down now.");
@@ -391,8 +403,7 @@ static void ensure_stack_is_not_running(ProfileStopCallback stopProfiles) {
 }
 
 // Synchronous function to clean up the stack
-static void event_clean_up_stack(std::promise<void> promise,
-                                 ProfileStopCallback stopProfiles) {
+static void event_clean_up_stack(std::promise<void> promise, ProfileStopCallback stopProfiles) {
   if (!stack_is_initialized) {
     log::info("found the stack already in a clean state");
     goto cleanup;
@@ -428,18 +439,18 @@ static void event_signal_stack_up(void* /* context */) {
   // Notify BTIF connect queue that we've brought up the stack. It's
   // now time to dispatch all the pending profile connect requests.
   btif_queue_connect_next();
-  GetInterfaceToProfiles()->events->invoke_adapter_state_changed_cb(
-      BT_STATE_ON);
+  GetInterfaceToProfiles()->events->invoke_adapter_state_changed_cb(BT_STATE_ON);
 }
 
 static void event_signal_stack_down(void* /* context */) {
-  GetInterfaceToProfiles()->events->invoke_adapter_state_changed_cb(
-      BT_STATE_OFF);
+  GetInterfaceToProfiles()->events->invoke_adapter_state_changed_cb(BT_STATE_OFF);
   future_ready(stack_manager_get_hack_future(), FUTURE_SUCCESS);
 }
 
 static void ensure_manager_initialized() {
-  if (management_thread.IsRunning()) return;
+  if (management_thread.IsRunning()) {
+    return;
+  }
 
   management_thread.StartUp();
   if (!management_thread.IsRunning()) {
@@ -448,9 +459,10 @@ static void ensure_manager_initialized() {
   }
 }
 
-static const stack_manager_t interface = {init_stack, start_up_stack_async,
-                                          shut_down_stack_async, clean_up_stack,
-                                          get_stack_is_running};
+static const stack_manager_t interface = {
+        init_stack,          start_up_stack_async,       shut_down_stack_async,
+        clean_up_stack,      start_up_rust_module_async, shut_down_rust_module_async,
+        get_stack_is_running};
 
 const stack_manager_t* stack_manager_get_interface() {
   ensure_manager_initialized();
@@ -463,8 +475,7 @@ namespace bluetooth {
 namespace legacy {
 namespace testing {
 
-void set_interface_to_profiles(
-    bluetooth::core::CoreInterface* interfaceToProfiles) {
+void set_interface_to_profiles(bluetooth::core::CoreInterface* interfaceToProfiles) {
   ::interfaceToProfiles = interfaceToProfiles;
 }
 
