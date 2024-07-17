@@ -118,6 +118,13 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
         @Override
         public void onChange(boolean selfChange) {
             Log.v(TAG, "ContentObserver received notification");
+
+            // Since ContentObserver is created with Handler, onChange() can be called
+            // even after the observer is unregistered.
+            if (Flags.oppIgnoreContentObserverAfterServiceStop() && mObserver != this) {
+                Log.d(TAG, "onChange() called after stop() is called.");
+                return;
+            }
             updateFromProvider();
         }
     }
@@ -485,7 +492,7 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
                                                 BluetoothStatsLog
                                                         .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                                                 9);
-                                        Log.e(TAG, "close tranport error");
+                                        Log.e(TAG, "close transport error");
                                     }
                                     if (mServerSocket != null) {
                                         acceptNewConnections();
@@ -1372,8 +1379,8 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
                         + " \n :device :"
                         + BluetoothUtils.toAnonymizedAddress(
                                 Flags.identityAddressNullIfUnknown()
-                                        ? Utils.getBrEdrAddress(device)
-                                        : device.getIdentityAddress()));
+                                        ? Utils.getBrEdrAddress(device, mAdapterService)
+                                        : mAdapterService.getIdentityAddress(device.getAddress())));
         if (!mAcceptNewConnections) {
             Log.d(TAG, " onConnect BluetoothSocket :" + socket + " rejected");
             return false;

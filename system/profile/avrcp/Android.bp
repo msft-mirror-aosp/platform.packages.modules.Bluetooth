@@ -20,6 +20,8 @@ cc_library_static {
     ],
     export_include_dirs: ["./"],
     srcs: [
+        "avrcp_sdp_records.cc",
+        "avrcp_sdp_service.cc",
         "connection_handler.cc",
         "device.cc",
     ],
@@ -65,8 +67,8 @@ cc_test {
         "tests/avrcp_device_test.cc",
     ],
     shared_libs: [
-        "server_configurable_flags",
         "libaconfig_storage_read_api_cc",
+        "server_configurable_flags",
     ],
     static_libs: [
         "avrcp-target-service",
