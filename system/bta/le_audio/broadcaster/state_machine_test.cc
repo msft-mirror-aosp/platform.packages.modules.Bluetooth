@@ -27,6 +27,7 @@
 #include "../le_audio_types.h"
 #include "broadcast_configuration_provider.h"
 #include "btm_iso_api.h"
+#include "gd/os/system_properties.h"
 #include "stack/include/btm_ble_api_types.h"
 #include "state_machine.h"
 #include "test/common/mock_functions.h"
@@ -46,6 +47,9 @@ using testing::Test;
 
 // Disables most likely false-positives from base::SplitString()
 extern "C" const char* __asan_default_options() { return "detect_container_overflow=0"; }
+
+static std::string kFlagPrefix(
+        "persist.device_config.aconfig_flags.bluetooth.com.android.bluetooth.flags.");
 
 void btsnd_hcic_ble_rand(base::Callback<void(BT_OCTET8)> cb) {}
 
@@ -512,9 +516,10 @@ TEST_F(StateMachineTest, UpdateAnnouncement) {
   ASSERT_EQ(first_len + types::LeAudioLtvMap(metadata).RawPacketSize(), second_len);
 }
 
-TEST_F_WITH_FLAGS(
-        StateMachineTest, UpdateBroadcastAnnouncementWithCallback,
-        REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, leaudio_broadcast_update_metadata_callback))) {
+TEST_F(StateMachineTest, UpdateBroadcastAnnouncementWithCallback) {
+  std::string flagString = kFlagPrefix + "leaudio_broadcast_update_metadata_callback";
+  os::SetSystemProperty(flagString, std::string("true"));
+
   EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineCreateStatus(_, true)).Times(1);
 
   auto broadcast_id = InstantiateStateMachine();
@@ -534,9 +539,10 @@ TEST_F_WITH_FLAGS(
   ASSERT_EQ(announcement, broadcasts_[broadcast_id]->GetBroadcastAnnouncement());
 }
 
-TEST_F_WITH_FLAGS(
-        StateMachineTest, UpdatePublicBroadcastAnnouncementWithCallback,
-        REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, leaudio_broadcast_update_metadata_callback))) {
+TEST_F(StateMachineTest, UpdatePublicBroadcastAnnouncementWithCallback) {
+  std::string flagString = kFlagPrefix + "leaudio_broadcast_update_metadata_callback";
+  os::SetSystemProperty(flagString, std::string("true"));
+
   EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineCreateStatus(_, true)).Times(1);
 
   auto broadcast_id = InstantiateStateMachine();

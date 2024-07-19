@@ -103,8 +103,7 @@ struct Controller::impl {
             ReadBufferSizeBuilder::Create(),
             handler->BindOnceOn(this, &Controller::impl::read_buffer_size_complete_handler));
 
-    if (common::init_flags::set_min_encryption_is_enabled() &&
-        is_supported(OpCode::SET_MIN_ENCRYPTION_KEY_SIZE)) {
+    if (is_supported(OpCode::SET_MIN_ENCRYPTION_KEY_SIZE)) {
       hci_->EnqueueCommand(
               SetMinEncryptionKeySizeBuilder::Create(kMinEncryptionKeySize),
               handler->BindOnceOn(this, &Controller::impl::set_min_encryption_key_size_handler));
@@ -213,8 +212,7 @@ struct Controller::impl {
               handler->BindOnceOn(this, &Controller::impl::le_set_host_feature_handler));
     }
 
-    if (common::init_flags::subrating_is_enabled() && is_supported(OpCode::LE_SET_HOST_FEATURE) &&
-        module_.SupportsBleConnectionSubrating()) {
+    if (is_supported(OpCode::LE_SET_HOST_FEATURE) && module_.SupportsBleConnectionSubrating()) {
       hci_->EnqueueCommand(
               LeSetHostFeatureBuilder::Create(LeHostFeatureBits::CONNECTION_SUBRATING_HOST_SUPPORT,
                                               Enable::ENABLED),
@@ -1518,9 +1516,6 @@ bool Controller::IsSupported(bluetooth::hci::OpCode op_code) const {
 }
 
 uint64_t Controller::MaskLeEventMask(HciVersion version, uint64_t mask) {
-  if (!common::init_flags::subrating_is_enabled()) {
-    mask = mask & ~(static_cast<uint64_t>(LLFeaturesBits::CONNECTION_SUBRATING_HOST_SUPPORT));
-  }
   if (version >= HciVersion::V_5_3) {
     return mask;
   } else if (version >= HciVersion::V_5_2) {

@@ -595,12 +595,6 @@ static void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
     if (com::android::bluetooth::flags::bond_transport_after_bond_cancel_fix()) {
       btif_config_remove_device(bd_addr.ToString());
     }
-
-    if (bluetooth::common::init_flags::pbap_pse_dynamic_version_upgrade_is_enabled()) {
-      if (btif_storage_is_pce_version_102(bd_addr)) {
-        update_pce_entry_to_interop_database(bd_addr);
-      }
-    }
   } else if (state == BT_BOND_STATE_BONDED) {
     allocate_metric_id_from_metric_id_allocator(bd_addr);
     if (!save_metric_id_from_metric_id_allocator(bd_addr)) {
@@ -1787,21 +1781,11 @@ void btif_on_gatt_results(RawAddress bd_addr, BD_NAME bd_name,
       return;
     }
 
-    if (lea_supported) {
-      if (bluetooth::common::init_flags::
-                  sdp_return_classic_services_when_le_discovery_fails_is_enabled()) {
-        log::info("Will return Classic SDP results, if done, to unblock bonding");
-      } else {
-        // LEA device w/o this flag
-        // TODO: we might want to remove bond or do some action on
-        // half-discovered device
-        log::warn("No GATT service found for the LE Audio device {}", bd_addr);
-        return;
-      }
-    } else {
+    if (!lea_supported) {
       log::info("LE audio not supported, no need to report any UUIDs");
       return;
     }
+    log::info("Will return Classic SDP results, if done, to unblock bonding");
   }
 
   Uuid existing_uuids[BT_MAX_NUM_UUIDS] = {};

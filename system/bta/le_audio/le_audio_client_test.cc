@@ -37,6 +37,7 @@
 #include "common/message_loop_thread.h"
 #include "fake_osi.h"
 #include "gatt/database_builder.h"
+#include "gd/os/system_properties.h"
 #include "gmock/gmock.h"
 #include "hardware/bt_gatt_types.h"
 #include "hci/controller_interface_mock.h"
@@ -93,25 +94,15 @@ using bluetooth::le_audio::types::LeAudioContextType;
 
 extern struct fake_osi_alarm_set_on_mloop fake_osi_alarm_set_on_mloop_;
 
+static std::string kFlagPrefix(
+        "persist.device_config.aconfig_flags.bluetooth.com.android.bluetooth.flags.");
+
 constexpr int max_num_of_ases = 5;
 constexpr bluetooth::le_audio::types::LeAudioContextType kLeAudioDefaultConfigurationContext =
         bluetooth::le_audio::types::LeAudioContextType::UNSPECIFIED;
 
 static constexpr char kNotifyUpperLayerAboutGroupBeingInIdleDuringCall[] =
         "persist.bluetooth.leaudio.notify.idle.during.call";
-const char* test_flags[] = {
-        "INIT_default_log_level_str=LOG_VERBOSE",
-        "INIT_leaudio_targeted_announcement_reconnection_mode=true",
-        "INIT_leaudio_broadcast_audio_handover_policies=false",
-        nullptr,
-};
-
-const char* test_flags_with_handover_mode[] = {
-        "INIT_default_log_level_str=LOG_VERBOSE",
-        "INIT_leaudio_targeted_announcement_reconnection_mode=true",
-        "INIT_leaudio_broadcast_audio_handover_policies=true",
-        nullptr,
-};
 
 void osi_property_set_bool(const char* key, bool value);
 
@@ -218,7 +209,9 @@ namespace server_configurable_flags {
 std::string GetServerConfigurableFlag(const std::string& experiment_category_name,
                                       const std::string& experiment_flag_name,
                                       const std::string& default_value) {
-  return "";
+  std::string prop_name =
+          "persist.device_config." + experiment_category_name + "." + experiment_flag_name;
+  return bluetooth::os::GetSystemProperty(prop_name).value_or(default_value);
 }
 }  // namespace server_configurable_flags
 
@@ -383,12 +376,6 @@ protected:
   }
 
   void SetUpMockAudioHal() {
-    if (use_handover_mode) {
-      bluetooth::common::InitFlags::Load(test_flags_with_handover_mode);
-    } else {
-      bluetooth::common::InitFlags::Load(test_flags);
-    }
-
     /* Since these are returned by the Acquire() methods as unique_ptrs, we
      * will not free them manually.
      */
@@ -721,20 +708,94 @@ protected:
                                     return;
                                   }
 
+                                  GattStatus status;
+                                  std::vector<uint8_t> value;
                                   // Dispatch to mockable handler functions
                                   if (svc->handle == device->csis->start) {
-                                    device->csis->OnReadCharacteristic(handle, cb, cb_data);
+                                    std::tie(status, value) =
+                                            device->csis->OnGetCharacteristicValue(handle);
                                   } else if (svc->handle == device->cas->start) {
-                                    device->cas->OnReadCharacteristic(handle, cb, cb_data);
+                                    std::tie(status, value) =
+                                            device->cas->OnGetCharacteristicValue(handle);
                                   } else if (svc->handle == device->ascs->start) {
-                                    device->ascs->OnReadCharacteristic(handle, cb, cb_data);
+                                    std::tie(status, value) =
+                                            device->ascs->OnGetCharacteristicValue(handle);
                                   } else if (svc->handle == device->pacs->start) {
-                                    device->pacs->OnReadCharacteristic(handle, cb, cb_data);
+                                    std::tie(status, value) =
+                                            device->pacs->OnGetCharacteristicValue(handle);
+                                  } else {
+                                    return;
                                   }
+
+                                  cb(conn_id, status, handle, value.size(), value.data(), cb_data);
                                 }
                               },
                               &peer_devices, conn_id, handle, cb, cb_data));
                     }));
+
+    // default multiple Characteristic read handler dispatches requests to service mocks
+    ON_CALL(mock_gatt_queue_, ReadMultiCharacteristic(_, _, _, _))
+            .WillByDefault(Invoke([&](uint16_t conn_id, tBTA_GATTC_MULTI& handles,
+                                      GATT_READ_MULTI_OP_CB cb, void* cb_data) {
+              do_in_main_thread(base::BindOnce(
+                      [](std::map<uint16_t, std::unique_ptr<NiceMock<MockDeviceWrapper>>>*
+                                 peer_devices,
+                         uint16_t conn_id, tBTA_GATTC_MULTI handles, GATT_READ_MULTI_OP_CB cb,
+                         void* cb_data) -> void {
+                        if (!peer_devices->count(conn_id)) {
+                          return;
+                        }
+                        auto& device = peer_devices->at(conn_id);
+
+                        auto get_char_value_helper = [&](NiceMock<MockDeviceWrapper>& device,
+                                                         uint16_t handle) {
+                          auto svc = std::find_if(device.services.begin(), device.services.end(),
+                                                  [handle](const gatt::Service& svc) {
+                                                    return (handle >= svc.handle) &&
+                                                           (handle <= svc.end_handle);
+                                                  });
+                          if (svc == device.services.end()) {
+                            return std::make_pair(GATT_ERROR, std::vector<uint8_t>());
+                          }
+
+                          // Dispatch to mockable handler functions
+                          if (svc->handle == device.csis->start) {
+                            return device.csis->OnGetCharacteristicValue(handle);
+                          } else if (svc->handle == device.cas->start) {
+                            return device.cas->OnGetCharacteristicValue(handle);
+                          } else if (svc->handle == device.ascs->start) {
+                            return device.ascs->OnGetCharacteristicValue(handle);
+                          } else if (svc->handle == device.pacs->start) {
+                            return device.pacs->OnGetCharacteristicValue(handle);
+                          } else {
+                            return std::make_pair(GATT_ERROR, std::vector<uint8_t>());
+                          };
+                        };
+                        std::array<uint8_t, GATT_MAX_ATTR_LEN> value;
+                        uint16_t value_end = 0;
+                        for (int i = 0; i < handles.num_attr; i++) {
+                          GattStatus status;
+                          std::vector<uint8_t> curr_val;
+                          std::tie(status, curr_val) =
+                                  get_char_value_helper(*device, handles.handles[i]);
+
+                          if (status != GATT_SUCCESS) {
+                            cb(conn_id, status, handles, 0, value.data(), cb_data);
+                            return;
+                          }
+
+                          value[value_end] = (curr_val.size() & 0x00ff);
+                          value[value_end + 1] = (curr_val.size() & 0xff00) >> 8;
+                          value_end += 2;
+
+                          // concatenate all read values together
+                          std::copy(curr_val.begin(), curr_val.end(), value.data() + value_end);
+                          value_end += curr_val.size();
+                        }
+                        cb(conn_id, GATT_SUCCESS, handles, value_end, value.data(), cb_data);
+                      },
+                      &peer_devices, conn_id, handles, cb, cb_data));
+            }));
   }
 
   void SetUpMockGroups() {
@@ -1473,7 +1534,8 @@ protected:
     public:
       // IGattHandlers() = default;
       virtual ~IGattHandlers() = default;
-      virtual void OnReadCharacteristic(uint16_t handle, GATT_READ_OP_CB cb, void* cb_data) = 0;
+      virtual std::pair<GattStatus, std::vector<uint8_t>> OnGetCharacteristicValue(
+              uint16_t handle) = 0;
       virtual void OnWriteCharacteristic(uint16_t handle, std::vector<uint8_t> value,
                                          tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
                                          void* cb_data) = 0;
@@ -1494,8 +1556,8 @@ protected:
       int rank = 0;
       int size = 0;
 
-      MOCK_METHOD((void), OnReadCharacteristic,
-                  (uint16_t handle, GATT_READ_OP_CB cb, void* cb_data), (override));
+      MOCK_METHOD((std::pair<GattStatus, std::vector<uint8_t>>), OnGetCharacteristicValue,
+                  (uint16_t handle), (override));
       MOCK_METHOD((void), OnWriteCharacteristic,
                   (uint16_t handle, std::vector<uint8_t> value, tGATT_WRITE_TYPE write_type,
                    GATT_WRITE_OP_CB cb, void* cb_data),
@@ -1507,8 +1569,8 @@ protected:
       uint16_t end = 0;
       uint16_t csis_include = 0;
 
-      MOCK_METHOD((void), OnReadCharacteristic,
-                  (uint16_t handle, GATT_READ_OP_CB cb, void* cb_data), (override));
+      MOCK_METHOD((std::pair<GattStatus, std::vector<uint8_t>>), OnGetCharacteristicValue,
+                  (uint16_t handle), (override));
       MOCK_METHOD((void), OnWriteCharacteristic,
                   (uint16_t handle, std::vector<uint8_t> value, tGATT_WRITE_TYPE write_type,
                    GATT_WRITE_OP_CB cb, void* cb_data),
@@ -1531,8 +1593,8 @@ protected:
       uint16_t supp_contexts_ccc = 0;
       uint16_t end = 0;
 
-      MOCK_METHOD((void), OnReadCharacteristic,
-                  (uint16_t handle, GATT_READ_OP_CB cb, void* cb_data), (override));
+      MOCK_METHOD((std::pair<GattStatus, std::vector<uint8_t>>), OnGetCharacteristicValue,
+                  (uint16_t handle), (override));
       MOCK_METHOD((void), OnWriteCharacteristic,
                   (uint16_t handle, std::vector<uint8_t> value, tGATT_WRITE_TYPE write_type,
                    GATT_WRITE_OP_CB cb, void* cb_data),
@@ -1552,8 +1614,8 @@ protected:
       uint16_t ctp_ccc_val = 0;
       uint16_t end = 0;
 
-      MOCK_METHOD((void), OnReadCharacteristic,
-                  (uint16_t handle, GATT_READ_OP_CB cb, void* cb_data), (override));
+      MOCK_METHOD((std::pair<GattStatus, std::vector<uint8_t>>), OnGetCharacteristicValue,
+                  (uint16_t handle), (override));
       MOCK_METHOD((void), OnWriteCharacteristic,
                   (uint16_t handle, std::vector<uint8_t> value, tGATT_WRITE_TYPE write_type,
                    GATT_WRITE_OP_CB cb, void* cb_data),
@@ -2240,8 +2302,8 @@ protected:
       sample_freq[1] = (uint8_t)(sample_freq_mask >> 8);
 
       // Set pacs default read values
-      ON_CALL(*peer_devices.at(conn_id)->pacs, OnReadCharacteristic(_, _, _))
-              .WillByDefault([=, this](uint16_t handle, GATT_READ_OP_CB cb, void* cb_data) {
+      ON_CALL(*peer_devices.at(conn_id)->pacs, OnGetCharacteristicValue(_))
+              .WillByDefault([=, this](uint16_t handle) {
                 auto& pacs = peer_devices.at(conn_id)->pacs;
                 std::vector<uint8_t> value;
                 if (gatt_status == GATT_SUCCESS) {
@@ -2406,15 +2468,14 @@ protected:
                     };
                   }
                 }
-                cb(conn_id, gatt_status, handle, value.size(), value.data(), cb_data);
+                return std::make_pair(gatt_status, value);
               });
     }
 
     if (add_ascs_cnt > 0) {
       // Set ascs default read values
-      ON_CALL(*peer_devices.at(conn_id)->ascs, OnReadCharacteristic(_, _, _))
-              .WillByDefault([this, conn_id, gatt_status](uint16_t handle, GATT_READ_OP_CB cb,
-                                                          void* cb_data) {
+      ON_CALL(*peer_devices.at(conn_id)->ascs, OnGetCharacteristicValue(_))
+              .WillByDefault([this, conn_id, gatt_status](uint16_t handle) {
                 auto& ascs = peer_devices.at(conn_id)->ascs;
                 std::vector<uint8_t> value;
                 bool is_ase_sink_request = false;
@@ -2423,9 +2484,7 @@ protected:
 
                 if (handle == ascs->ctp_ccc && ccc_stored_byte_val_.has_value()) {
                   value = {*ccc_stored_byte_val_, 00};
-                  cb(conn_id, gatt_read_ctp_ccc_status_, handle, value.size(), value.data(),
-                     cb_data);
-                  return;
+                  return std::make_pair(gatt_read_ctp_ccc_status_, value);
                 }
 
                 if (gatt_status == GATT_SUCCESS) {
@@ -2475,7 +2534,7 @@ protected:
                     };
                   }
                 }
-                cb(conn_id, gatt_status, handle, value.size(), value.data(), cb_data);
+                return std::make_pair(gatt_status, value);
               });
     }
   }
@@ -4320,11 +4379,12 @@ TEST_F(UnicastTest, GroupSetActiveNonConnectedGroup) {
   Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
 }
 
-TEST_F_WITH_FLAGS(UnicastTest, GroupSetActive_CurrentCodecSentOfActive,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_codec_config_callback_order_fix))) {
+TEST_F(UnicastTest, GroupSetActive_CurrentCodecSentOfActive) {
   const RawAddress test_address0 = GetTestAddress(0);
   int group_id = bluetooth::groups::kGroupUnknown;
+
+  std::string flagString = kFlagPrefix + "leaudio_codec_config_callback_order_fix";
+  os::SetSystemProperty(flagString, std::string("true"));
 
   /**
    * In this test we want to make sure that Available context change reach Java
@@ -5649,11 +5709,12 @@ TEST_F(UnicastTest, SpeakerStreamingNonDefault) {
   LocalAudioSourceResume();
 }
 
-TEST_F_WITH_FLAGS(UnicastTest, TestUnidirectionalVoiceAssistant_Sink,
-                  REQUIRES_FLAGS_ENABLED(
-                          ACONFIG_FLAG(TEST_BT, le_audio_support_unidirectional_voice_assistant))) {
+TEST_F(UnicastTest, TestUnidirectionalVoiceAssistant_Sink) {
   const RawAddress test_address0 = GetTestAddress(0);
   int group_id = bluetooth::groups::kGroupUnknown;
+
+  std::string flagString = kFlagPrefix + "le_audio_support_unidirectional_voice_assistant";
+  os::SetSystemProperty(flagString, std::string("true"));
 
   /**
    * Scenario test steps
@@ -5722,11 +5783,12 @@ TEST_F_WITH_FLAGS(UnicastTest, TestUnidirectionalVoiceAssistant_Sink,
   SyncOnMainLoop();
 }
 
-TEST_F_WITH_FLAGS(UnicastTest, TestUnidirectionalVoiceAssistant_Source,
-                  REQUIRES_FLAGS_ENABLED(
-                          ACONFIG_FLAG(TEST_BT, le_audio_support_unidirectional_voice_assistant))) {
+TEST_F(UnicastTest, TestUnidirectionalVoiceAssistant_Source) {
   const RawAddress test_address0 = GetTestAddress(0);
   int group_id = bluetooth::groups::kGroupUnknown;
+
+  std::string flagString = kFlagPrefix + "le_audio_support_unidirectional_voice_assistant";
+  os::SetSystemProperty(flagString, std::string("true"));
 
   /**
    * Scenario test steps
@@ -8880,10 +8942,11 @@ TEST_F(UnicastTest, DisconnectAclBeforeGettingReadResponses) {
   SyncOnMainLoop();
 }
 
-TEST_F_WITH_FLAGS(UnicastTest, GroupStreamStatus,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_callback_on_group_stream_status))) {
+TEST_F(UnicastTest, GroupStreamStatus) {
   int group_id = bluetooth::groups::kGroupUnknown;
+
+  std::string flagString = kFlagPrefix + "leaudio_callback_on_group_stream_status";
+  os::SetSystemProperty(flagString, std::string("true"));
 
   InSequence s;
 
@@ -8968,12 +9031,13 @@ TEST_F_WITH_FLAGS(UnicastTest, GroupStreamStatus,
   state_machine_callbacks_->StatusReportCb(group_id, GroupStreamStatus::STREAMING);
 }
 
-TEST_F_WITH_FLAGS(UnicastTest, GroupStreamStatusManyGroups,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_callback_on_group_stream_status))) {
+TEST_F(UnicastTest, GroupStreamStatusManyGroups) {
   uint8_t group_size = 2;
   int group_id_1 = 1;
   int group_id_2 = 2;
+
+  std::string flagString = kFlagPrefix + "leaudio_callback_on_group_stream_status";
+  os::SetSystemProperty(flagString, std::string("true"));
 
   // Report working CSIS
   ON_CALL(mock_csis_client_module_, IsCsisClientRunning()).WillByDefault(Return(true));
@@ -9049,11 +9113,12 @@ TEST_F_WITH_FLAGS(UnicastTest, GroupStreamStatusManyGroups,
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
 }
 
-TEST_F_WITH_FLAGS(UnicastTest, GroupStreamStatusResendAfterRemove,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_callback_on_group_stream_status))) {
+TEST_F(UnicastTest, GroupStreamStatusResendAfterRemove) {
   uint8_t group_size = 2;
   int group_id = 1;
+
+  std::string flagString = kFlagPrefix + "leaudio_callback_on_group_stream_status";
+  os::SetSystemProperty(flagString, std::string("true"));
 
   // Report working CSIS
   ON_CALL(mock_csis_client_module_, IsCsisClientRunning()).WillByDefault(Return(true));
@@ -9132,11 +9197,12 @@ TEST_F_WITH_FLAGS(UnicastTest, GroupStreamStatusResendAfterRemove,
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
 }
 
-TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetSinkMonitorModeWhileUnicastIsActive,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_broadcast_audio_handover_policies))) {
+TEST_F(UnicastTestHandoverMode, SetSinkMonitorModeWhileUnicastIsActive) {
   uint8_t group_size = 2;
   int group_id = 2;
+
+  std::string flagString = kFlagPrefix + "leaudio_broadcast_audio_handover_policies";
+  os::SetSystemProperty(flagString, std::string("true"));
 
   // Report working CSIS
   ON_CALL(mock_csis_client_module_, IsCsisClientRunning()).WillByDefault(Return(true));
@@ -9275,11 +9341,12 @@ TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetSinkMonitorModeWhileUnicastIsActiv
   Mock::VerifyAndClearExpectations(mock_le_audio_sink_hal_client_);
 }
 
-TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetSinkMonitorModeWhileUnicastIsInactive,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_broadcast_audio_handover_policies))) {
+TEST_F(UnicastTestHandoverMode, SetSinkMonitorModeWhileUnicastIsInactive) {
   uint8_t group_size = 2;
   int group_id = 2;
+
+  std::string flagString = kFlagPrefix + "leaudio_broadcast_audio_handover_policies";
+  os::SetSystemProperty(flagString, std::string("true"));
 
   // Imitate activation of monitor mode
   do_in_main_thread(base::BindOnce(
@@ -9371,11 +9438,12 @@ TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetSinkMonitorModeWhileUnicastIsInact
                       .size());
 }
 
-TEST_F_WITH_FLAGS(UnicastTestHandoverMode, ClearSinkMonitorModeWhileUnicastIsActive,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_broadcast_audio_handover_policies))) {
+TEST_F(UnicastTestHandoverMode, ClearSinkMonitorModeWhileUnicastIsActive) {
   uint8_t group_size = 2;
   int group_id = 2;
+
+  std::string flagString = kFlagPrefix + "leaudio_broadcast_audio_handover_policies";
+  os::SetSystemProperty(flagString, std::string("true"));
 
   // Imitate activation of monitor mode
   do_in_main_thread(base::BindOnce(
@@ -9466,9 +9534,10 @@ TEST_F_WITH_FLAGS(UnicastTestHandoverMode, ClearSinkMonitorModeWhileUnicastIsAct
                       .size());
 }
 
-TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetAndClearSinkMonitorModeWhileUnicastIsInactive,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_broadcast_audio_handover_policies))) {
+TEST_F(UnicastTestHandoverMode, SetAndClearSinkMonitorModeWhileUnicastIsInactive) {
+  std::string flagString = kFlagPrefix + "leaudio_broadcast_audio_handover_policies";
+  os::SetSystemProperty(flagString, std::string("true"));
+
   EXPECT_CALL(*mock_le_audio_source_hal_client_, Start(_, _, _)).Times(0);
   EXPECT_CALL(*mock_le_audio_source_hal_client_, Stop()).Times(0);
   EXPECT_CALL(*mock_le_audio_source_hal_client_, OnDestroyed()).Times(0);
@@ -9490,9 +9559,10 @@ TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetAndClearSinkMonitorModeWhileUnicas
   Mock::VerifyAndClearExpectations(mock_le_audio_sink_hal_client_);
 }
 
-TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsInactive,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_broadcast_audio_handover_policies))) {
+TEST_F(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsInactive) {
+  std::string flagString = kFlagPrefix + "leaudio_broadcast_audio_handover_policies";
+  os::SetSystemProperty(flagString, std::string("true"));
+
   /* Enabling monitor mode for source while group is not active should result in
    * sending STREAMING_SUSPENDED notification.
    */
@@ -9509,9 +9579,10 @@ TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsIna
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
 }
 
-TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsNotStreaming,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_broadcast_audio_handover_policies))) {
+TEST_F(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsNotStreaming) {
+  std::string flagString = kFlagPrefix + "leaudio_broadcast_audio_handover_policies";
+  os::SetSystemProperty(flagString, std::string("true"));
+
   int group_id = 2;
 
   LeAudioClient::Get()->GroupSetActive(group_id);
@@ -9532,9 +9603,10 @@ TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsNot
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
 }
 
-TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsActive,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_broadcast_audio_handover_policies))) {
+TEST_F(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsActive) {
+  std::string flagString = kFlagPrefix + "leaudio_broadcast_audio_handover_policies";
+  os::SetSystemProperty(flagString, std::string("true"));
+
   uint8_t group_size = 2;
   int group_id = 2;
 
@@ -9738,9 +9810,10 @@ TEST_F(UnicastTestHandoverMode, SetAllowedContextMask) {
   Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
 }
 
-TEST_F_WITH_FLAGS(UnicastTest, NoContextvalidateStreamingRequest,
-                  REQUIRES_FLAGS_ENABLED(
-                          ACONFIG_FLAG(TEST_BT, leaudio_no_context_validate_streaming_request))) {
+TEST_F(UnicastTest, NoContextvalidateStreamingRequest) {
+  std::string flagString = kFlagPrefix + "leaudio_no_context_validate_streaming_request";
+  os::SetSystemProperty(flagString, std::string("true"));
+
   const RawAddress test_address0 = GetTestAddress(0);
   int group_id = bluetooth::groups::kGroupUnknown;
 
