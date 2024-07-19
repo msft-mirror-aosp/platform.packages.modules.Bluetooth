@@ -22,7 +22,7 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "sdp"
+#define LOG_TAG "stack::sdp"
 
 #include <bluetooth/log.h>
 
@@ -284,7 +284,7 @@ tCONN_CB* sdp_conn_originate(const RawAddress& bd_addr) {
   p_ccb->device_address = bd_addr;
 
   /* Transition to the next appropriate state, waiting for connection confirm */
-  if (!bluetooth::common::init_flags::sdp_serialization_is_enabled() || cid == 0) {
+  if (cid == 0) {
     p_ccb->con_state = tSDP_STATE::CONN_SETUP;
     cid = L2CA_ConnectReqWithSecurity(BT_PSM_SDP, bd_addr, BTM_SEC_NONE);
   } else {

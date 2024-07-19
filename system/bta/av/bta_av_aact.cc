@@ -1738,11 +1738,22 @@ void bta_av_getcap_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  ******************************************************************************/
 void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   uint8_t avdt_handle = p_data->ci_setconfig.avdt_handle;
+  uint8_t err_code = p_data->ci_setconfig.err_code;
 
   bta_av_adjust_seps_idx(p_scb, avdt_handle);
-  log::info("sep_idx={} avdt_handle={} bta_handle=0x{:x}", p_scb->sep_idx,
-            p_scb->avdt_handle, p_scb->hndl);
-  AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label, AVDT_ERR_UNSUP_CFG, 0);
+
+  log::info("sep_idx={} avdt_handle={} bta_handle=0x{:x} err_code=0x{:x}", p_scb->sep_idx,
+            p_scb->avdt_handle, p_scb->hndl, err_code);
+
+  if (!com::android::bluetooth::flags::avdtp_error_codes()) {
+    err_code = AVDT_ERR_UNSUP_CFG;
+  }
+
+  // The error code must be set by the caller, otherwise
+  // AVDT_ConfigRsp will interpret the event as RSP instead of REJ.
+  log::assert_that(err_code != 0, "err_code != 0");
+
+  AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label, err_code, 0);
 
   tBTA_AV bta_av_data;
 
@@ -2414,7 +2425,7 @@ void bta_av_str_closed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
   BTM_unblock_role_switch_and_sniff_mode_for(p_scb->PeerAddress());
   if (bta_av_cb.audio_open_cnt <= 1) {
-    BTM_default_unblock_role_switch();
+    get_btm_client_interface().link_policy.BTM_default_unblock_role_switch();
   }
 
   L2CA_SetMediaStreamChannel(p_scb->l2c_cid, false);
