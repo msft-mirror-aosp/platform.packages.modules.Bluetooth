@@ -102,7 +102,6 @@
 #include "stack/gatt/connection_manager.h"
 #include "stack/include/a2dp_api.h"
 #include "stack/include/avdt_api.h"
-#include "stack/include/btm_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/hfp_lc3_decoder.h"
 #include "stack/include/hfp_lc3_encoder.h"
@@ -111,6 +110,7 @@
 #include "stack/include/hidh_api.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/pan_api.h"
+#include "stack/include/sdp_api.h"
 #include "storage/config_keys.h"
 #include "types/raw_address.h"
 
@@ -876,6 +876,7 @@ static void dump(int fd, const char** arguments) {
   PAN_Dumpsys(fd);
   DumpsysHid(fd);
   DumpsysBtaDm(fd);
+  SDP_Dumpsys(fd);
   bluetooth::shim::Dump(fd, arguments);
   power_telemetry::GetInstance().Dumpsys(fd);
   log::debug("Finished bluetooth dumpsys");
@@ -897,10 +898,7 @@ static int get_remote_pbap_pce_version(const RawAddress* bd_addr) {
 }
 
 static bool pbap_pse_dynamic_version_upgrade_is_enabled() {
-  if (bluetooth::common::init_flags::pbap_pse_dynamic_version_upgrade_is_enabled()) {
-    return true;
-  }
-  log::warn("PBAP PSE dynamic version upgrade is not enabled");
+  log::info("PBAP PSE dynamic version upgrade is not enabled");
   return false;
 }
 
