@@ -32,7 +32,6 @@
 #include "bta/le_audio/content_control_id_keeper.h"
 #include "bta/le_audio/le_audio_types.h"
 #include "bta/le_audio/mock_codec_manager.h"
-#include "gd/os/system_properties.h"
 #include "hci/controller_interface_mock.h"
 #include "stack/include/btm_iso_api.h"
 #include "test/common/mock_functions.h"
@@ -89,9 +88,7 @@ namespace server_configurable_flags {
 std::string GetServerConfigurableFlag(const std::string& experiment_category_name,
                                       const std::string& experiment_flag_name,
                                       const std::string& default_value) {
-  std::string prop_name =
-          "persist.device_config." + experiment_category_name + "." + experiment_flag_name;
-  return bluetooth::os::GetSystemProperty(prop_name).value_or(default_value);
+  return "";
 }
 }  // namespace server_configurable_flags
 
@@ -99,9 +96,6 @@ std::atomic<int> num_async_tasks;
 bluetooth::common::MessageLoopThread message_loop_thread("test message loop");
 bluetooth::common::MessageLoopThread* get_main_thread() { return &message_loop_thread; }
 void invoke_switch_buffer_size_cb(bool is_low_latency_buffer_size) {}
-
-static std::string kFlagPrefix(
-        "persist.device_config.aconfig_flags.bluetooth.com.android.bluetooth.flags.");
 
 bt_status_t do_in_main_thread(base::OnceClosure task) {
   // Wrap the task with task counter so we could later know if there are
@@ -1149,10 +1143,9 @@ TEST_F(BroadcasterTest, VendorCodecConfig) {
                       subgroup.bis_configs.at(1).vendor_codec_specific_params->size()));
 }
 
-TEST_F(BroadcasterTest, AudioActiveState) {
-  std::string flagString = kFlagPrefix + "leaudio_big_depends_on_audio_state";
-  os::SetSystemProperty(flagString, std::string("true"));
-
+TEST_F_WITH_FLAGS(BroadcasterTest, AudioActiveState,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_big_depends_on_audio_state))) {
   std::vector<uint8_t> updated_public_meta;
   PublicBroadcastAnnouncementData pb_announcement;
 
@@ -1230,10 +1223,9 @@ TEST_F(BroadcasterTest, AudioActiveState) {
   ASSERT_EQ(updated_public_meta, public_metadata_audio_false);
 }
 
-TEST_F(BroadcasterTest, BigTerminationAndBroadcastStopWhenNoSoundFromTheBeginning) {
-  std::string flagString = kFlagPrefix + "leaudio_big_depends_on_audio_state";
-  os::SetSystemProperty(flagString, std::string("true"));
-
+TEST_F_WITH_FLAGS(BroadcasterTest, BigTerminationAndBroadcastStopWhenNoSoundFromTheBeginning,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_big_depends_on_audio_state))) {
   // Timers created
   ASSERT_TRUE(big_terminate_timer_ != nullptr);
   ASSERT_TRUE(broadcast_stop_timer_ != nullptr);
@@ -1273,10 +1265,9 @@ TEST_F(BroadcasterTest, BigTerminationAndBroadcastStopWhenNoSoundFromTheBeginnin
   broadcast_stop_timer_->cb(broadcast_stop_timer_->data);
 }
 
-TEST_F(BroadcasterTest, BigTerminationAndBroadcastStopWhenNoSoundAfterSuspend) {
-  std::string flagString = kFlagPrefix + "leaudio_big_depends_on_audio_state";
-  os::SetSystemProperty(flagString, std::string("true"));
-
+TEST_F_WITH_FLAGS(BroadcasterTest, BigTerminationAndBroadcastStopWhenNoSoundAfterSuspend,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_big_depends_on_audio_state))) {
   // Timers created
   ASSERT_TRUE(big_terminate_timer_ != nullptr);
   ASSERT_TRUE(broadcast_stop_timer_ != nullptr);
@@ -1344,10 +1335,9 @@ TEST_F(BroadcasterTest, BigTerminationAndBroadcastStopWhenNoSoundAfterSuspend) {
   broadcast_stop_timer_->cb(broadcast_stop_timer_->data);
 }
 
-TEST_F(BroadcasterTest, BigCreationTerminationDependsOnAudioResumeSuspend) {
-  std::string flagString = kFlagPrefix + "leaudio_big_depends_on_audio_state";
-  os::SetSystemProperty(flagString, std::string("true"));
-
+TEST_F_WITH_FLAGS(BroadcasterTest, BigCreationTerminationDependsOnAudioResumeSuspend,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_big_depends_on_audio_state))) {
   // Timers created
   ASSERT_TRUE(big_terminate_timer_ != nullptr);
   ASSERT_TRUE(broadcast_stop_timer_ != nullptr);
