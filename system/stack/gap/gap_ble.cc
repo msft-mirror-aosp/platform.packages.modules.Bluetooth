@@ -22,11 +22,9 @@
 #include <array>
 #include <queue>
 
-#include "common/init_flags.h"
 #include "gap_api.h"
 #include "gatt_api.h"
 #include "hardware/bt_gatt_types.h"
-#include "os/log.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
@@ -367,7 +365,7 @@ void client_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
       STREAM_TO_UINT16(latency, pp);
       STREAM_TO_UINT16(tout, pp);
 
-      BTM_BleSetPrefConnParams(p_clcb->bda, min, max, latency, tout);
+      get_btm_client_interface().ble.BTM_BleSetPrefConnParams(p_clcb->bda, min, max, latency, tout);
       /* release the connection here */
       cl_op_cmpl(*p_clcb, true, 0, NULL);
       break;

@@ -93,10 +93,10 @@ static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_aptx_hd = {
 // |p_ie| is a pointer to the aptX-HD Codec Information Element information.
 // The result is stored in |p_result|. Returns A2DP_SUCCESS on success,
 // otherwise the corresponding A2DP error status code.
-static tA2DP_STATUS A2DP_BuildInfoAptxHd(uint8_t media_type, const tA2DP_APTX_HD_CIE* p_ie,
-                                         uint8_t* p_result) {
+static bool A2DP_BuildInfoAptxHd(uint8_t media_type, const tA2DP_APTX_HD_CIE* p_ie,
+                                 uint8_t* p_result) {
   if (p_ie == NULL || p_result == NULL) {
-    return A2DP_INVALID_PARAMS;
+    return false;
   }
 
   *p_result++ = A2DP_APTX_HD_CODEC_LEN;
@@ -114,7 +114,7 @@ static tA2DP_STATUS A2DP_BuildInfoAptxHd(uint8_t media_type, const tA2DP_APTX_HD
   *p_result++ = p_ie->acl_sprint_reserved2;
   *p_result++ = p_ie->acl_sprint_reserved3;
 
-  return A2DP_SUCCESS;
+  return true;
 }
 
 // Parses the aptX-HD Media Codec Capabilities byte sequence beginning from the
@@ -130,20 +130,20 @@ static tA2DP_STATUS A2DP_ParseInfoAptxHd(tA2DP_APTX_HD_CIE* p_ie, const uint8_t*
   tA2DP_CODEC_TYPE codec_type;
 
   if (p_ie == NULL || p_codec_info == NULL) {
-    return A2DP_INVALID_PARAMS;
+    return AVDTP_UNSUPPORTED_CONFIGURATION;
   }
 
   // Check the codec capability length
   losc = *p_codec_info++;
   if (losc != A2DP_APTX_HD_CODEC_LEN) {
-    return A2DP_WRONG_CODEC;
+    return AVDTP_UNSUPPORTED_CONFIGURATION;
   }
 
   media_type = (*p_codec_info++) >> 4;
   codec_type = static_cast<tA2DP_CODEC_TYPE>(*p_codec_info++);
   /* Check the Media Type and Media Codec Type */
   if (media_type != AVDT_MEDIA_TYPE_AUDIO || codec_type != A2DP_MEDIA_CT_NON_A2DP) {
-    return A2DP_WRONG_CODEC;
+    return AVDTP_UNSUPPORTED_CONFIGURATION;
   }
 
   // Check the Vendor ID and Codec ID */
@@ -155,7 +155,7 @@ static tA2DP_STATUS A2DP_ParseInfoAptxHd(tA2DP_APTX_HD_CIE* p_ie, const uint8_t*
   p_codec_info += 2;
   if (p_ie->vendorId != A2DP_APTX_HD_VENDOR_ID ||
       p_ie->codecId != A2DP_APTX_HD_CODEC_ID_BLUETOOTH) {
-    return A2DP_WRONG_CODEC;
+    return AVDTP_UNSUPPORTED_CONFIGURATION;
   }
 
   p_ie->channelMode = *p_codec_info & 0x0F;
@@ -171,20 +171,20 @@ static tA2DP_STATUS A2DP_ParseInfoAptxHd(tA2DP_APTX_HD_CIE* p_ie, const uint8_t*
     // NOTE: The checks here are very liberal. We should be using more
     // pedantic checks specific to the SRC or SNK as specified in the spec.
     if (A2DP_BitsSet(p_ie->sampleRate) == A2DP_SET_ZERO_BIT) {
-      return A2DP_BAD_SAMP_FREQ;
+      return A2DP_INVALID_SAMPLING_FREQUENCY;
     }
     if (A2DP_BitsSet(p_ie->channelMode) == A2DP_SET_ZERO_BIT) {
-      return A2DP_BAD_CH_MODE;
+      return A2DP_INVALID_CHANNEL_MODE;
     }
 
     return A2DP_SUCCESS;
   }
 
   if (A2DP_BitsSet(p_ie->sampleRate) != A2DP_SET_ONE_BIT) {
-    return A2DP_BAD_SAMP_FREQ;
+    return A2DP_INVALID_SAMPLING_FREQUENCY;
   }
   if (A2DP_BitsSet(p_ie->channelMode) != A2DP_SET_ONE_BIT) {
-    return A2DP_BAD_CH_MODE;
+    return A2DP_INVALID_CHANNEL_MODE;
   }
 
   return A2DP_SUCCESS;
@@ -377,12 +377,7 @@ btav_a2dp_codec_index_t A2DP_VendorSourceCodecIndexAptxHd(const uint8_t* p_codec
 const char* A2DP_VendorCodecIndexStrAptxHd(void) { return "aptX-HD"; }
 
 bool A2DP_VendorInitCodecConfigAptxHd(AvdtpSepConfig* p_cfg) {
-  if (A2DP_BuildInfoAptxHd(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_hd_source_caps, p_cfg->codec_info) !=
-      A2DP_SUCCESS) {
-    return false;
-  }
-
-  return true;
+  return A2DP_BuildInfoAptxHd(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_hd_source_caps, p_cfg->codec_info);
 }
 
 A2dpCodecConfigAptxHd::A2dpCodecConfigAptxHd(btav_a2dp_codec_priority_t codec_priority)
@@ -554,8 +549,9 @@ static bool select_audio_channel_mode(const btav_a2dp_codec_config_t* p_codec_au
   return false;
 }
 
-bool A2dpCodecConfigAptxHd::setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
-                                           uint8_t* p_result_codec_config) {
+tA2DP_STATUS A2dpCodecConfigAptxHd::setCodecConfig(const uint8_t* p_peer_codec_info,
+                                                   bool is_capability,
+                                                   uint8_t* p_result_codec_config) {
   std::lock_guard<std::recursive_mutex> lock(codec_mutex_);
   tA2DP_APTX_HD_CIE peer_info_cie;
   tA2DP_APTX_HD_CIE result_config_cie;
@@ -663,6 +659,7 @@ bool A2dpCodecConfigAptxHd::setCodecConfig(const uint8_t* p_peer_codec_info, boo
   if (codec_config_.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_NONE) {
     log::error("cannot match sample frequency: local caps = 0x{:x} peer info = 0x{:x}",
                a2dp_aptx_hd_source_caps.sampleRate, peer_info_cie.sampleRate);
+    status = A2DP_NOT_SUPPORTED_SAMPLING_FREQUENCY;
     goto fail;
   }
 
@@ -716,6 +713,7 @@ bool A2dpCodecConfigAptxHd::setCodecConfig(const uint8_t* p_peer_codec_info, boo
   if (codec_config_.bits_per_sample == BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE) {
     log::error("cannot match bits per sample: user preference = 0x{:x}",
                codec_user_config_.bits_per_sample);
+    status = A2DP_NOT_SUPPORTED_BIT_RATE;
     goto fail;
   }
 
@@ -788,6 +786,7 @@ bool A2dpCodecConfigAptxHd::setCodecConfig(const uint8_t* p_peer_codec_info, boo
   if (codec_config_.channel_mode == BTAV_A2DP_CODEC_CHANNEL_MODE_NONE) {
     log::error("cannot match channel mode: local caps = 0x{:x} peer info = 0x{:x}",
                a2dp_aptx_hd_source_caps.channelMode, peer_info_cie.channelMode);
+    status = A2DP_NOT_SUPPORTED_CHANNEL_MODE;
     goto fail;
   }
 
@@ -803,8 +802,8 @@ bool A2dpCodecConfigAptxHd::setCodecConfig(const uint8_t* p_peer_codec_info, boo
   result_config_cie.acl_sprint_reserved3 =
           a2dp_aptx_hd_source_caps.acl_sprint_reserved3 & peer_info_cie.acl_sprint_reserved3;
 
-  if (A2DP_BuildInfoAptxHd(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, p_result_codec_config) !=
-      A2DP_SUCCESS) {
+  if (!A2DP_BuildInfoAptxHd(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, p_result_codec_config)) {
+    status = AVDTP_UNSUPPORTED_CONFIGURATION;
     goto fail;
   }
 
@@ -827,15 +826,18 @@ bool A2dpCodecConfigAptxHd::setCodecConfig(const uint8_t* p_peer_codec_info, boo
   // Create a local copy of the peer codec capability/config, and the
   // result codec config.
   if (is_capability) {
-    status =
-            A2DP_BuildInfoAptxHd(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_capability_);
+    log::assert_that(
+            A2DP_BuildInfoAptxHd(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_capability_),
+            "Failed to build media codec capabilities");
   } else {
-    status = A2DP_BuildInfoAptxHd(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_config_);
+    log::assert_that(
+            A2DP_BuildInfoAptxHd(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_config_),
+            "Failed to build media codec capabilities");
   }
-  log::assert_that(status == A2DP_SUCCESS, "assert failed: status == A2DP_SUCCESS");
-  status = A2DP_BuildInfoAptxHd(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, ota_codec_config_);
-  log::assert_that(status == A2DP_SUCCESS, "assert failed: status == A2DP_SUCCESS");
-  return true;
+  log::assert_that(
+          A2DP_BuildInfoAptxHd(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, ota_codec_config_),
+          "Failed to build media codec capabilities");
+  return A2DP_SUCCESS;
 
 fail:
   // Restore the internal state
@@ -848,7 +850,7 @@ fail:
   memcpy(ota_codec_peer_capability_, saved_ota_codec_peer_capability,
          sizeof(ota_codec_peer_capability_));
   memcpy(ota_codec_peer_config_, saved_ota_codec_peer_config, sizeof(ota_codec_peer_config_));
-  return false;
+  return status;
 }
 
 bool A2dpCodecConfigAptxHd::setPeerCodecCapabilities(const uint8_t* p_peer_codec_capabilities) {
@@ -890,8 +892,9 @@ bool A2dpCodecConfigAptxHd::setPeerCodecCapabilities(const uint8_t* p_peer_codec
     codec_selectable_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
   }
 
-  status = A2DP_BuildInfoAptxHd(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_capability_);
-  log::assert_that(status == A2DP_SUCCESS, "assert failed: status == A2DP_SUCCESS");
+  log::assert_that(
+          A2DP_BuildInfoAptxHd(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_capability_),
+          "Failed to build media codec capabilities");
   return true;
 
 fail:

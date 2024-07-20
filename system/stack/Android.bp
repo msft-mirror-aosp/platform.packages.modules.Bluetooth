@@ -1209,8 +1209,11 @@ cc_test {
     shared_libs: [
         "libcrypto",
         "libcutils",
+        "server_configurable_flags",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
@@ -1417,6 +1420,7 @@ cc_test {
         ":LegacyStackSdp",
         ":TestCommonMainHandler",
         ":TestCommonMockFunctions",
+        ":TestMockBta",
         ":TestMockBtif",
         ":TestMockDevice",
         ":TestMockRustFfi",
@@ -2241,6 +2245,7 @@ cc_test {
         ":LegacyStackSdp",
         ":TestCommonMockFunctions",
         ":TestFakeOsi",
+        ":TestMockBta",
         ":TestMockBtif",
         ":TestMockStackBtm",
         ":TestMockStackL2cap",

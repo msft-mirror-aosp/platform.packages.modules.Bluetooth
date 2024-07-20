@@ -41,7 +41,6 @@
 #include "raw_address.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/include/bt_types.h"
-#include "stack/include/btm_api.h"
 #include "stack/include/btm_ble_api.h"
 #include "stack/include/btm_client_interface.h"
 
@@ -786,11 +785,10 @@ static void btif_get_remote_version(const RawAddress& bd_addr, uint8_t& lmp_vers
   uint8_t tmp_lmp_ver = 0;
   uint16_t tmp_manufacturer = 0;
   uint16_t tmp_lmp_subver = 0;
-  tBTM_STATUS status;
 
-  status = get_btm_client_interface().peer.BTM_ReadRemoteVersion(
+  const bool status = get_btm_client_interface().peer.BTM_ReadRemoteVersion(
           bd_addr, &tmp_lmp_ver, &tmp_manufacturer, &tmp_lmp_subver);
-  if (status == BTM_SUCCESS && (tmp_lmp_ver || tmp_manufacturer || tmp_lmp_subver)) {
+  if (status && (tmp_lmp_ver || tmp_manufacturer || tmp_lmp_subver)) {
     lmp_version = tmp_lmp_ver;
     manufacturer = tmp_manufacturer;
     lmp_sub_version = tmp_lmp_subver;
