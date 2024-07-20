@@ -345,16 +345,11 @@ class MapClientContent {
 
             logD("Map InsertedThread" + results);
 
+            storeAddressPart(message, results);
+
             for (MimePart part : mmsBmessage.getMimeParts()) {
                 storeMmsPart(part, results);
             }
-
-            storeAddressPart(message, results);
-
-            String messageContent = mmsBmessage.getMessageAsText();
-
-            values.put(Mms.Part.CONTENT_TYPE, "plain/text");
-            values.put(Mms.SUBSCRIPTION_ID, mSubscriptionId);
         } catch (Exception e) {
             Log.e(TAG, e.toString());
             throw e;
