@@ -595,13 +595,6 @@ filegroup {
 }
 
 filegroup {
-    name: "TestFakeComAndroidBluetoothFlags",
-    srcs: [
-        "fake/fake_com_android_bluetooth_flags.cc",
-    ],
-}
-
-filegroup {
     name: "TestFakeOsi",
     srcs: [
         ":TestMockOsi",

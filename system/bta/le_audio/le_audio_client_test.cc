@@ -37,7 +37,6 @@
 #include "common/message_loop_thread.h"
 #include "fake_osi.h"
 #include "gatt/database_builder.h"
-#include "gd/os/system_properties.h"
 #include "gmock/gmock.h"
 #include "hardware/bt_gatt_types.h"
 #include "hci/controller_interface_mock.h"
@@ -93,9 +92,6 @@ using bluetooth::le_audio::types::BidirectionalPair;
 using bluetooth::le_audio::types::LeAudioContextType;
 
 extern struct fake_osi_alarm_set_on_mloop fake_osi_alarm_set_on_mloop_;
-
-static std::string kFlagPrefix(
-        "persist.device_config.aconfig_flags.bluetooth.com.android.bluetooth.flags.");
 
 constexpr int max_num_of_ases = 5;
 constexpr bluetooth::le_audio::types::LeAudioContextType kLeAudioDefaultConfigurationContext =
@@ -209,9 +205,7 @@ namespace server_configurable_flags {
 std::string GetServerConfigurableFlag(const std::string& experiment_category_name,
                                       const std::string& experiment_flag_name,
                                       const std::string& default_value) {
-  std::string prop_name =
-          "persist.device_config." + experiment_category_name + "." + experiment_flag_name;
-  return bluetooth::os::GetSystemProperty(prop_name).value_or(default_value);
+  return "";
 }
 }  // namespace server_configurable_flags
 
@@ -3797,6 +3791,115 @@ TEST_F(UnicastTestNoInit, LoadStoredEarbudsCsisGrouped) {
   DisconnectLeAudioWithAclClose(test_address1, 2);
 }
 
+TEST_F(UnicastTest, LoadStoredBandedHeadphones) {
+  const RawAddress test_address0 = GetTestAddress(0);
+  uint16_t conn_id = 1;
+
+  SetSampleDatabaseEarbudsValid(
+          conn_id, test_address0,
+          codec_spec_conf::kLeAudioLocationFrontLeft | codec_spec_conf::kLeAudioLocationFrontRight,
+          codec_spec_conf::kLeAudioLocationMonoAudio, 2, 1, 0x0004,
+          /* source sample freq 16khz */ false, /*add_csis*/
+          true,                                 /*add_cas*/
+          true,                                 /*add_pacs*/
+          true,                                 /*add_ascs*/
+          0, 0);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnConnectionState(ConnectionState::CONNECTED, test_address0))
+          .Times(1);
+
+  /* Connect and fill the device storage */
+  ConnectLeAudio(test_address0);
+
+  std::vector<uint8_t> handles;
+  LeAudioClient::GetHandlesForStorage(test_address0, handles);
+
+  std::vector<uint8_t> ases;
+  LeAudioClient::GetAsesForStorage(test_address0, ases);
+
+  std::vector<uint8_t> src_pacs;
+  LeAudioClient::GetSourcePacsForStorage(test_address0, src_pacs);
+
+  std::vector<uint8_t> snk_pacs;
+  LeAudioClient::GetSinkPacsForStorage(test_address0, snk_pacs);
+
+  /* Disconnect & Cleanup */
+  DisconnectLeAudioWithAclClose(test_address0, conn_id);
+  if (LeAudioClient::IsLeAudioClientRunning()) {
+    LeAudioClient::Cleanup();
+    ASSERT_FALSE(LeAudioClient::IsLeAudioClientRunning());
+  }
+
+  Mock::VerifyAndClearExpectations(&mock_hal_2_1_verifier);
+  Mock::VerifyAndClearExpectations(&mock_storage_load);
+
+  // Load devices from the storage when storage API is called
+  bool autoconnect = true;
+  EXPECT_CALL(mock_storage_load, Call()).WillOnce([&]() {
+    do_in_main_thread(base::BindOnce(&LeAudioClient::AddFromStorage, test_address0, autoconnect,
+                                     codec_spec_conf::kLeAudioLocationFrontLeft |
+                                             codec_spec_conf::kLeAudioLocationFrontRight,
+                                     codec_spec_conf::kLeAudioLocationMonoAudio, 0xff, 0xff,
+                                     std::move(handles), std::move(snk_pacs), std::move(src_pacs),
+                                     std::move(ases)));
+    SyncOnMainLoop();
+  });
+
+  /* Prepare  mock to not inject connect event so the device can stay in
+   * CONNECTING state*/
+  ON_CALL(mock_gatt_interface_, Open(_, _, BTM_BLE_DIRECT_CONNECTION, false))
+          .WillByDefault(DoAll(Return()));
+
+  // Re-Initialize & load from storage
+  BtaAppRegisterCallback app_register_callback;
+  ON_CALL(mock_gatt_interface_, AppRegister(_, _, _))
+          .WillByDefault(DoAll(SaveArg<0>(&gatt_callback), SaveArg<1>(&app_register_callback)));
+  std::vector<::bluetooth::le_audio::btle_audio_codec_config_t> framework_encode_preference;
+  LeAudioClient::Initialize(
+          &mock_audio_hal_client_callbacks_,
+          base::Bind([](MockFunction<void()>* foo) { foo->Call(); }, &mock_storage_load),
+          base::Bind([](MockFunction<bool()>* foo) { return foo->Call(); }, &mock_hal_2_1_verifier),
+          framework_encode_preference);
+  if (app_register_callback) {
+    app_register_callback.Run(gatt_if, GATT_SUCCESS);
+  }
+
+  InjectConnectedEvent(test_address0, conn_id);
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_gatt_interface_);
+
+  // Verify if all went well and we got the proper group
+  auto group_id = MockDeviceGroups::DeviceGroups::Get()->GetGroupId(test_address0);
+  std::vector<RawAddress> devs = LeAudioClient::Get()->GetGroupDevices(group_id);
+  ASSERT_NE(std::find(devs.begin(), devs.end(), test_address0), devs.end());
+
+  SetUpMockCodecManager(::bluetooth::le_audio::types::CodecLocation::HOST);
+
+  // Start streaming
+  LeAudioClient::Get()->GroupSetActive(group_id);
+  SyncOnMainLoop();
+
+  EXPECT_CALL(mock_state_machine_, StartStream(_, _, _, _)).Times(1);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_, OnAudioGroupCurrentCodecConf(group_id, _, _))
+          .Times(1);
+  StartStreaming(AUDIO_USAGE_MEDIA, AUDIO_CONTENT_TYPE_MUSIC, group_id);
+
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
+  Mock::VerifyAndClearExpectations(&mock_state_machine_);
+
+  ASSERT_NE(0lu, streaming_groups.count(group_id));
+  auto group = streaming_groups.at(group_id);
+  ASSERT_NE(group, nullptr);
+
+  auto device = group->GetFirstDevice();
+  ASSERT_NE(device, nullptr);
+  ASSERT_EQ(device->audio_directions_, bluetooth::le_audio::types::kLeAudioDirectionSink |
+                                               bluetooth::le_audio::types::kLeAudioDirectionSource);
+
+  DisconnectLeAudioWithAclClose(test_address0, conn_id);
+}
+
 TEST_F(UnicastTestNoInit, ServiceChangedBeforeServiceIsConnected) {
   // Prepare two devices
   uint8_t group_size = 2;
@@ -4379,12 +4482,11 @@ TEST_F(UnicastTest, GroupSetActiveNonConnectedGroup) {
   Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
 }
 
-TEST_F(UnicastTest, GroupSetActive_CurrentCodecSentOfActive) {
+TEST_F_WITH_FLAGS(UnicastTest, GroupSetActive_CurrentCodecSentOfActive,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_codec_config_callback_order_fix))) {
   const RawAddress test_address0 = GetTestAddress(0);
   int group_id = bluetooth::groups::kGroupUnknown;
-
-  std::string flagString = kFlagPrefix + "leaudio_codec_config_callback_order_fix";
-  os::SetSystemProperty(flagString, std::string("true"));
 
   /**
    * In this test we want to make sure that Available context change reach Java
@@ -5709,12 +5811,11 @@ TEST_F(UnicastTest, SpeakerStreamingNonDefault) {
   LocalAudioSourceResume();
 }
 
-TEST_F(UnicastTest, TestUnidirectionalVoiceAssistant_Sink) {
+TEST_F_WITH_FLAGS(UnicastTest, TestUnidirectionalVoiceAssistant_Sink,
+                  REQUIRES_FLAGS_ENABLED(
+                          ACONFIG_FLAG(TEST_BT, le_audio_support_unidirectional_voice_assistant))) {
   const RawAddress test_address0 = GetTestAddress(0);
   int group_id = bluetooth::groups::kGroupUnknown;
-
-  std::string flagString = kFlagPrefix + "le_audio_support_unidirectional_voice_assistant";
-  os::SetSystemProperty(flagString, std::string("true"));
 
   /**
    * Scenario test steps
@@ -5783,12 +5884,11 @@ TEST_F(UnicastTest, TestUnidirectionalVoiceAssistant_Sink) {
   SyncOnMainLoop();
 }
 
-TEST_F(UnicastTest, TestUnidirectionalVoiceAssistant_Source) {
+TEST_F_WITH_FLAGS(UnicastTest, TestUnidirectionalVoiceAssistant_Source,
+                  REQUIRES_FLAGS_ENABLED(
+                          ACONFIG_FLAG(TEST_BT, le_audio_support_unidirectional_voice_assistant))) {
   const RawAddress test_address0 = GetTestAddress(0);
   int group_id = bluetooth::groups::kGroupUnknown;
-
-  std::string flagString = kFlagPrefix + "le_audio_support_unidirectional_voice_assistant";
-  os::SetSystemProperty(flagString, std::string("true"));
 
   /**
    * Scenario test steps
@@ -8942,11 +9042,10 @@ TEST_F(UnicastTest, DisconnectAclBeforeGettingReadResponses) {
   SyncOnMainLoop();
 }
 
-TEST_F(UnicastTest, GroupStreamStatus) {
+TEST_F_WITH_FLAGS(UnicastTest, GroupStreamStatus,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_callback_on_group_stream_status))) {
   int group_id = bluetooth::groups::kGroupUnknown;
-
-  std::string flagString = kFlagPrefix + "leaudio_callback_on_group_stream_status";
-  os::SetSystemProperty(flagString, std::string("true"));
 
   InSequence s;
 
@@ -9031,13 +9130,12 @@ TEST_F(UnicastTest, GroupStreamStatus) {
   state_machine_callbacks_->StatusReportCb(group_id, GroupStreamStatus::STREAMING);
 }
 
-TEST_F(UnicastTest, GroupStreamStatusManyGroups) {
+TEST_F_WITH_FLAGS(UnicastTest, GroupStreamStatusManyGroups,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_callback_on_group_stream_status))) {
   uint8_t group_size = 2;
   int group_id_1 = 1;
   int group_id_2 = 2;
-
-  std::string flagString = kFlagPrefix + "leaudio_callback_on_group_stream_status";
-  os::SetSystemProperty(flagString, std::string("true"));
 
   // Report working CSIS
   ON_CALL(mock_csis_client_module_, IsCsisClientRunning()).WillByDefault(Return(true));
@@ -9113,12 +9211,11 @@ TEST_F(UnicastTest, GroupStreamStatusManyGroups) {
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
 }
 
-TEST_F(UnicastTest, GroupStreamStatusResendAfterRemove) {
+TEST_F_WITH_FLAGS(UnicastTest, GroupStreamStatusResendAfterRemove,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_callback_on_group_stream_status))) {
   uint8_t group_size = 2;
   int group_id = 1;
-
-  std::string flagString = kFlagPrefix + "leaudio_callback_on_group_stream_status";
-  os::SetSystemProperty(flagString, std::string("true"));
 
   // Report working CSIS
   ON_CALL(mock_csis_client_module_, IsCsisClientRunning()).WillByDefault(Return(true));
@@ -9197,12 +9294,11 @@ TEST_F(UnicastTest, GroupStreamStatusResendAfterRemove) {
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
 }
 
-TEST_F(UnicastTestHandoverMode, SetSinkMonitorModeWhileUnicastIsActive) {
+TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetSinkMonitorModeWhileUnicastIsActive,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_broadcast_audio_handover_policies))) {
   uint8_t group_size = 2;
   int group_id = 2;
-
-  std::string flagString = kFlagPrefix + "leaudio_broadcast_audio_handover_policies";
-  os::SetSystemProperty(flagString, std::string("true"));
 
   // Report working CSIS
   ON_CALL(mock_csis_client_module_, IsCsisClientRunning()).WillByDefault(Return(true));
@@ -9341,12 +9437,11 @@ TEST_F(UnicastTestHandoverMode, SetSinkMonitorModeWhileUnicastIsActive) {
   Mock::VerifyAndClearExpectations(mock_le_audio_sink_hal_client_);
 }
 
-TEST_F(UnicastTestHandoverMode, SetSinkMonitorModeWhileUnicastIsInactive) {
+TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetSinkMonitorModeWhileUnicastIsInactive,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_broadcast_audio_handover_policies))) {
   uint8_t group_size = 2;
   int group_id = 2;
-
-  std::string flagString = kFlagPrefix + "leaudio_broadcast_audio_handover_policies";
-  os::SetSystemProperty(flagString, std::string("true"));
 
   // Imitate activation of monitor mode
   do_in_main_thread(base::BindOnce(
@@ -9438,12 +9533,11 @@ TEST_F(UnicastTestHandoverMode, SetSinkMonitorModeWhileUnicastIsInactive) {
                       .size());
 }
 
-TEST_F(UnicastTestHandoverMode, ClearSinkMonitorModeWhileUnicastIsActive) {
+TEST_F_WITH_FLAGS(UnicastTestHandoverMode, ClearSinkMonitorModeWhileUnicastIsActive,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_broadcast_audio_handover_policies))) {
   uint8_t group_size = 2;
   int group_id = 2;
-
-  std::string flagString = kFlagPrefix + "leaudio_broadcast_audio_handover_policies";
-  os::SetSystemProperty(flagString, std::string("true"));
 
   // Imitate activation of monitor mode
   do_in_main_thread(base::BindOnce(
@@ -9534,10 +9628,9 @@ TEST_F(UnicastTestHandoverMode, ClearSinkMonitorModeWhileUnicastIsActive) {
                       .size());
 }
 
-TEST_F(UnicastTestHandoverMode, SetAndClearSinkMonitorModeWhileUnicastIsInactive) {
-  std::string flagString = kFlagPrefix + "leaudio_broadcast_audio_handover_policies";
-  os::SetSystemProperty(flagString, std::string("true"));
-
+TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetAndClearSinkMonitorModeWhileUnicastIsInactive,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_broadcast_audio_handover_policies))) {
   EXPECT_CALL(*mock_le_audio_source_hal_client_, Start(_, _, _)).Times(0);
   EXPECT_CALL(*mock_le_audio_source_hal_client_, Stop()).Times(0);
   EXPECT_CALL(*mock_le_audio_source_hal_client_, OnDestroyed()).Times(0);
@@ -9559,10 +9652,9 @@ TEST_F(UnicastTestHandoverMode, SetAndClearSinkMonitorModeWhileUnicastIsInactive
   Mock::VerifyAndClearExpectations(mock_le_audio_sink_hal_client_);
 }
 
-TEST_F(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsInactive) {
-  std::string flagString = kFlagPrefix + "leaudio_broadcast_audio_handover_policies";
-  os::SetSystemProperty(flagString, std::string("true"));
-
+TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsInactive,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_broadcast_audio_handover_policies))) {
   /* Enabling monitor mode for source while group is not active should result in
    * sending STREAMING_SUSPENDED notification.
    */
@@ -9579,10 +9671,9 @@ TEST_F(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsInactive) {
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
 }
 
-TEST_F(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsNotStreaming) {
-  std::string flagString = kFlagPrefix + "leaudio_broadcast_audio_handover_policies";
-  os::SetSystemProperty(flagString, std::string("true"));
-
+TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsNotStreaming,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_broadcast_audio_handover_policies))) {
   int group_id = 2;
 
   LeAudioClient::Get()->GroupSetActive(group_id);
@@ -9603,10 +9694,9 @@ TEST_F(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsNotStreaming) 
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
 }
 
-TEST_F(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsActive) {
-  std::string flagString = kFlagPrefix + "leaudio_broadcast_audio_handover_policies";
-  os::SetSystemProperty(flagString, std::string("true"));
-
+TEST_F_WITH_FLAGS(UnicastTestHandoverMode, SetSourceMonitorModeWhileUnicastIsActive,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
+                                                      leaudio_broadcast_audio_handover_policies))) {
   uint8_t group_size = 2;
   int group_id = 2;
 
@@ -9810,10 +9900,9 @@ TEST_F(UnicastTestHandoverMode, SetAllowedContextMask) {
   Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
 }
 
-TEST_F(UnicastTest, NoContextvalidateStreamingRequest) {
-  std::string flagString = kFlagPrefix + "leaudio_no_context_validate_streaming_request";
-  os::SetSystemProperty(flagString, std::string("true"));
-
+TEST_F_WITH_FLAGS(UnicastTest, NoContextvalidateStreamingRequest,
+                  REQUIRES_FLAGS_ENABLED(
+                          ACONFIG_FLAG(TEST_BT, leaudio_no_context_validate_streaming_request))) {
   const RawAddress test_address0 = GetTestAddress(0);
   int group_id = bluetooth::groups::kGroupUnknown;
 
