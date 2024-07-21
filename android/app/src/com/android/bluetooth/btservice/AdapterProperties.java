@@ -21,7 +21,6 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
 
 import android.annotation.NonNull;
-import android.annotation.RequiresPermission;
 import android.app.BroadcastOptions;
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothA2dpSink;
@@ -110,7 +109,7 @@ class AdapterProperties {
     private int mMaxConnectedAudioDevices = 1;
     private boolean mA2dpOffloadEnabled = false;
 
-    private AdapterService mService;
+    private final AdapterService mService;
     private boolean mDiscovering;
     private long mDiscoveryEndMs; // < Time (ms since epoch) that discovery ended or will end.
     private RemoteDevices mRemoteDevices;
@@ -282,7 +281,6 @@ class AdapterProperties {
             mService.unregisterReceiver(mReceiver);
             mReceiverRegistered = false;
         }
-        mService = null;
         mBondedDevices.clear();
         invalidateBluetoothCaches();
     }
@@ -1171,7 +1169,6 @@ class AdapterProperties {
         return options.toBundle();
     }
 
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
     protected void dump(FileDescriptor fd, PrintWriter writer, String[] args) {
         writer.println(TAG);
         writer.println("  " + "Name: " + getName());
@@ -1187,8 +1184,6 @@ class AdapterProperties {
         StringBuilder sb = new StringBuilder();
         for (BluetoothDevice device : mBondedDevices) {
             String address = device.getAddress();
-            BluetoothClass cod = device.getBluetoothClass();
-            int codInt = cod != null ? cod.getClassOfDevice() : 0;
             String brEdrAddress =
                     Flags.identityAddressNullIfUnknown()
                             ? Utils.getBrEdrAddress(device)
@@ -1198,9 +1193,9 @@ class AdapterProperties {
                         "    "
                                 + address
                                 + " ["
-                                + dumpDeviceType(device.getType())
+                                + dumpDeviceType(mRemoteDevices.getType(device))
                                 + "][ 0x"
-                                + String.format("%06X", codInt)
+                                + String.format("%06X", mRemoteDevices.getBluetoothClass(device))
                                 + " ] "
                                 + Utils.getName(device));
             } else {
@@ -1210,9 +1205,9 @@ class AdapterProperties {
                                 + " => "
                                 + brEdrAddress
                                 + " ["
-                                + dumpDeviceType(device.getType())
+                                + dumpDeviceType(mRemoteDevices.getType(device))
                                 + "][ 0x"
-                                + String.format("%06X", codInt)
+                                + String.format("%06X", mRemoteDevices.getBluetoothClass(device))
                                 + " ] "
                                 + Utils.getName(device)
                                 + "\n");

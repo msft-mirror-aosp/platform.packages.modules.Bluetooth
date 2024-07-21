@@ -16,7 +16,7 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "SDP_Utils"
+#define LOG_TAG "stack::sdp"
 
 /******************************************************************************
  *
@@ -36,7 +36,6 @@
 
 #include "btif/include/btif_config.h"
 #include "btif/include/stack_manager_t.h"
-#include "common/init_flags.h"
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/bt_trace.h"
@@ -311,7 +310,7 @@ void sdpu_log_attribute_metrics(const RawAddress& bda, tSDP_DISCOVERY_DB* p_db) 
  ******************************************************************************/
 tCONN_CB* sdpu_find_ccb_by_cid(uint16_t cid) {
   uint16_t xx;
-  tCONN_CB* p_ccb;
+  tCONN_CB* p_ccb{};
 
   /* Look through each connection control block */
   for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
@@ -337,7 +336,7 @@ tCONN_CB* sdpu_find_ccb_by_cid(uint16_t cid) {
  ******************************************************************************/
 tCONN_CB* sdpu_find_ccb_by_db(const tSDP_DISCOVERY_DB* p_db) {
   uint16_t xx;
-  tCONN_CB* p_ccb;
+  tCONN_CB* p_ccb{};
 
   if (p_db) {
     /* Look through each connection control block */
@@ -362,7 +361,7 @@ tCONN_CB* sdpu_find_ccb_by_db(const tSDP_DISCOVERY_DB* p_db) {
  ******************************************************************************/
 tCONN_CB* sdpu_allocate_ccb(void) {
   uint16_t xx;
-  tCONN_CB* p_ccb;
+  tCONN_CB* p_ccb{};
 
   /* Look through each connection control block for a free one */
   for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
@@ -452,7 +451,7 @@ void sdpu_dump_all_ccb() {
  ******************************************************************************/
 uint16_t sdpu_get_active_ccb_cid(const RawAddress& bd_addr) {
   uint16_t xx;
-  tCONN_CB* p_ccb;
+  tCONN_CB* p_ccb{};
 
   // Look through each connection control block for active sdp on given remote
   for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
@@ -483,7 +482,7 @@ uint16_t sdpu_get_active_ccb_cid(const RawAddress& bd_addr) {
  ******************************************************************************/
 bool sdpu_process_pend_ccb_same_cid(tCONN_CB& ccb) {
   uint16_t xx;
-  tCONN_CB* p_ccb;
+  tCONN_CB* p_ccb{};
 
   // Look through each connection control block for active sdp on given remote
   for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
@@ -512,7 +511,7 @@ bool sdpu_process_pend_ccb_same_cid(tCONN_CB& ccb) {
  ******************************************************************************/
 bool sdpu_process_pend_ccb_new_cid(tCONN_CB& ccb) {
   uint16_t xx;
-  tCONN_CB* p_ccb;
+  tCONN_CB* p_ccb{};
   uint16_t new_cid = 0;
   bool new_conn = false;
 
@@ -552,7 +551,7 @@ bool sdpu_process_pend_ccb_new_cid(tCONN_CB& ccb) {
  ******************************************************************************/
 void sdpu_clear_pend_ccb(tCONN_CB& ccb) {
   uint16_t xx;
-  tCONN_CB* p_ccb;
+  tCONN_CB* p_ccb{};
 
   // Look through each connection control block for active sdp on given remote
   for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
@@ -697,7 +696,7 @@ uint8_t* sdpu_build_attrib_entry(uint8_t* p_out, const tSDP_ATTRIBUTE* p_attr) {
  * Returns          void
  *
  ******************************************************************************/
-void sdpu_build_n_send_error(tCONN_CB* p_ccb, uint16_t trans_num, uint16_t error_code,
+void sdpu_build_n_send_error(tCONN_CB* p_ccb, uint16_t trans_num, tSDP_STATUS error_code,
                              char* p_error_text) {
   uint8_t *p_rsp, *p_rsp_start, *p_rsp_param_len;
   uint16_t rsp_param_len;
@@ -717,7 +716,8 @@ void sdpu_build_n_send_error(tCONN_CB* p_ccb, uint16_t trans_num, uint16_t error
   p_rsp_param_len = p_rsp;
   p_rsp += 2;
 
-  UINT16_TO_BE_STREAM(p_rsp, error_code);
+  const uint16_t response = static_cast<uint16_t>(error_code);
+  UINT16_TO_BE_STREAM(p_rsp, response);
 
   /* Unplugfest example traces do not have any error text */
   if (p_error_text) {
@@ -1521,9 +1521,7 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress
   }
 
   uint16_t dut_avrcp_version =
-          (bluetooth::common::init_flags::dynamic_avrcp_version_enhancement_is_enabled())
-                  ? GetInterfaceToProfiles()->profileSpecific_HACK->AVRC_GetProfileVersion()
-                  : avrcp_version;
+          GetInterfaceToProfiles()->profileSpecific_HACK->AVRC_GetProfileVersion();
 
   log::info("Current DUT AVRCP Version {:x}", dut_avrcp_version);
   // Some remote devices will have interoperation issue when receive higher
@@ -1576,11 +1574,6 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress
             "cached AVRC Controller version {:x} of {} is not valid. Reply default "
             "AVRC Target version {:x}.",
             cached_version, *bdaddr, avrcp_version);
-    return;
-  }
-
-  if (!bluetooth::common::init_flags::dynamic_avrcp_version_enhancement_is_enabled() &&
-      dut_avrcp_version <= cached_version) {
     return;
   }
 

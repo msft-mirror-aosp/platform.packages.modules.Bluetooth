@@ -35,7 +35,7 @@
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
 #include "hci/controller_interface.h"
-#include "hci/hci_layer.h"
+#include "hci/hci_interface.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
@@ -65,8 +65,6 @@ constexpr char kBtmLogTag[] = "L2CAP";
 }
 
 extern tBTM_CB btm_cb;
-
-using base::StringPrintf;
 
 void l2cble_start_conn_update(tL2C_LCB* p_lcb);
 
@@ -273,7 +271,7 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       if (reason == L2CAP_CMD_REJ_NOT_UNDERSTOOD && p_lcb->pending_ecoc_conn_cnt > 0) {
         tL2C_CONN_INFO con_info = {
                 .bd_addr{},
-                .status{},
+                .hci_status{},
                 .psm{},
                 .l2cap_result = L2CAP_LE_RESULT_NO_PSM,
                 .l2cap_status{},
@@ -1423,6 +1421,9 @@ void L2CA_SetEcosystemBaseInterval(uint32_t base_interval) {
         bool ret = L2CA_UpdateBleConnParams(p_lcb->remote_bd_addr, p_lcb->min_interval,
                                             p_lcb->max_interval, p_lcb->latency, p_lcb->timeout,
                                             p_lcb->min_ce_len, p_lcb->max_ce_len);
+        if (!ret) {
+          log::warn("Unable to update BLE connection parameters peer:{}", p_lcb->remote_bd_addr);
+        }
       }
     }
   }
