@@ -42,6 +42,7 @@
 #include "btif_gatt_util.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/btm_client_interface.h"
 #include "stack/include/main_thread.h"
 #include "types/ble_address_with_type.h"
 #include "types/bluetooth/uuid.h"
@@ -386,18 +387,19 @@ static bt_status_t btif_gatts_add_service(int server_if, const btgatt_db_element
           Bind(&add_service_impl, server_if, std::vector(service, service + service_count)));
 }
 
-static bt_status_t btif_gatts_stop_service(int server_if, int service_handle) {
+static bt_status_t btif_gatts_stop_service(int /* server_if */, int service_handle) {
   CHECK_BTGATT_INIT();
   return do_in_jni_thread(Bind(&BTA_GATTS_StopService, service_handle));
 }
 
-static bt_status_t btif_gatts_delete_service(int server_if, int service_handle) {
+static bt_status_t btif_gatts_delete_service(int /* server_if */, int service_handle) {
   CHECK_BTGATT_INIT();
   return do_in_jni_thread(Bind(&BTA_GATTS_DeleteService, service_handle));
 }
 
-static bt_status_t btif_gatts_send_indication(int server_if, int attribute_handle, int conn_id,
-                                              int confirm, const uint8_t* value, size_t length) {
+static bt_status_t btif_gatts_send_indication(int /* server_if */, int attribute_handle,
+                                              int conn_id, int confirm, const uint8_t* value,
+                                              size_t length) {
   CHECK_BTGATT_INIT();
 
   if (length > GATT_MAX_ATTR_LEN) {
@@ -430,7 +432,11 @@ static bt_status_t btif_gatts_send_response(int conn_id, int trans_id, int statu
 static bt_status_t btif_gatts_set_preferred_phy(const RawAddress& bd_addr, uint8_t tx_phy,
                                                 uint8_t rx_phy, uint16_t phy_options) {
   CHECK_BTGATT_INIT();
-  do_in_main_thread(Bind(&BTM_BleSetPhy, bd_addr, tx_phy, rx_phy, phy_options));
+  do_in_main_thread(Bind(
+          [](const RawAddress& bd_addr, uint8_t tx_phy, uint8_t rx_phy, uint16_t phy_options) {
+            get_btm_client_interface().ble.BTM_BleSetPhy(bd_addr, tx_phy, rx_phy, phy_options);
+          },
+          bd_addr, tx_phy, rx_phy, phy_options));
   return BT_STATUS_SUCCESS;
 }
 

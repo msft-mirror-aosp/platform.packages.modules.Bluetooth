@@ -35,14 +35,9 @@ namespace mock {
 namespace stack_btm_inq {
 
 // Function state capture and return values, if needed
-struct BTM_AddEirService BTM_AddEirService;
 struct BTM_CancelInquiry BTM_CancelInquiry;
-struct BTM_CancelRemoteDeviceName BTM_CancelRemoteDeviceName;
-struct BTM_ClearInqDb BTM_ClearInqDb;
 struct BTM_EnableInterlacedInquiryScan BTM_EnableInterlacedInquiryScan;
 struct BTM_EnableInterlacedPageScan BTM_EnableInterlacedPageScan;
-struct BTM_GetEirSupportedServices BTM_GetEirSupportedServices;
-struct BTM_GetEirUuidList BTM_GetEirUuidList;
 struct BTM_HasEirService BTM_HasEirService;
 struct BTM_InqDbFirst BTM_InqDbFirst;
 struct BTM_InqDbNext BTM_InqDbNext;
@@ -78,21 +73,17 @@ namespace test {
 namespace mock {
 namespace stack_btm_inq {
 
-tBTM_STATUS BTM_CancelRemoteDeviceName::return_value = 0;
-tBTM_STATUS BTM_ClearInqDb::return_value = 0;
-uint8_t BTM_GetEirSupportedServices::return_value = 0;
-uint8_t BTM_GetEirUuidList::return_value = 0;
 bool BTM_HasEirService::return_value = false;
 tBTM_INQ_INFO* BTM_InqDbFirst::return_value = nullptr;
 tBTM_INQ_INFO* BTM_InqDbNext::return_value = nullptr;
 tBTM_INQ_INFO* BTM_InqDbRead::return_value = nullptr;
 uint16_t BTM_IsInquiryActive::return_value = 0;
-tBTM_STATUS BTM_ReadRemoteDeviceName::return_value = 0;
-tBTM_STATUS BTM_SetConnectability::return_value = 0;
-tBTM_STATUS BTM_SetDiscoverability::return_value = 0;
-tBTM_STATUS BTM_SetInquiryMode::return_value = 0;
-tBTM_STATUS BTM_StartInquiry::return_value = 0;
-tBTM_STATUS BTM_WriteEIR::return_value = 0;
+tBTM_STATUS BTM_ReadRemoteDeviceName::return_value = BTM_SUCCESS;
+tBTM_STATUS BTM_SetConnectability::return_value = BTM_SUCCESS;
+tBTM_STATUS BTM_SetDiscoverability::return_value = BTM_SUCCESS;
+tBTM_STATUS BTM_SetInquiryMode::return_value = BTM_SUCCESS;
+tBTM_STATUS BTM_StartInquiry::return_value = BTM_SUCCESS;
+tBTM_STATUS BTM_WriteEIR::return_value = BTM_SUCCESS;
 tINQ_DB_ENT* btm_inq_db_find::return_value = nullptr;
 tINQ_DB_ENT* btm_inq_db_new::return_value = nullptr;
 bool btm_inq_find_bdaddr::return_value = false;
@@ -102,21 +93,9 @@ bool btm_inq_find_bdaddr::return_value = false;
 }  // namespace test
 
 // Mocked functions, if any
-void BTM_AddEirService(uint32_t* p_eir_uuid, uint16_t uuid16) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_inq::BTM_AddEirService(p_eir_uuid, uuid16);
-}
 void BTM_CancelInquiry(void) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_inq::BTM_CancelInquiry();
-}
-tBTM_STATUS BTM_CancelRemoteDeviceName(void) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_btm_inq::BTM_CancelRemoteDeviceName();
-}
-tBTM_STATUS BTM_ClearInqDb(const RawAddress* p_bda) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_btm_inq::BTM_ClearInqDb(p_bda);
 }
 void BTM_EnableInterlacedInquiryScan() {
   inc_func_call_count(__func__);
@@ -125,18 +104,6 @@ void BTM_EnableInterlacedInquiryScan() {
 void BTM_EnableInterlacedPageScan() {
   inc_func_call_count(__func__);
   test::mock::stack_btm_inq::BTM_EnableInterlacedPageScan();
-}
-uint8_t BTM_GetEirSupportedServices(uint32_t* p_eir_uuid, uint8_t** p, uint8_t max_num_uuid16,
-                                    uint8_t* p_num_uuid16) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_btm_inq::BTM_GetEirSupportedServices(p_eir_uuid, p, max_num_uuid16,
-                                                                p_num_uuid16);
-}
-uint8_t BTM_GetEirUuidList(const uint8_t* p_eir, size_t eir_len, uint8_t uuid_size,
-                           uint8_t* p_num_uuid, uint8_t* p_uuid_list, uint8_t max_num_uuid) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_btm_inq::BTM_GetEirUuidList(p_eir, eir_len, uuid_size, p_num_uuid,
-                                                       p_uuid_list, max_num_uuid);
 }
 bool BTM_HasEirService(const uint32_t* p_eir_uuid, uint16_t uuid16) {
   inc_func_call_count(__func__);

@@ -112,21 +112,14 @@ typedef enum {
 
 inline std::string link_state_text(const tL2C_LINK_STATE& state) {
   switch (state) {
-    case LST_DISCONNECTED:
-      return std::string("LST_DISCONNECTED");
-    case LST_CONNECT_HOLDING:
-      return std::string("LST_CONNECT_HOLDING");
-    case LST_CONNECTING_WAIT_SWITCH:
-      return std::string("LST_CONNECTING_WAIT_SWITCH");
-    case LST_CONNECTING:
-      return std::string("LST_CONNECTING");
-    case LST_CONNECTED:
-      return std::string("LST_CONNECTED");
-    case LST_DISCONNECTING:
-      return std::string("LST_DISCONNECTING");
-    default:
-      return std::string("UNKNOWN");
+    CASE_RETURN_STRING(LST_DISCONNECTED);
+    CASE_RETURN_STRING(LST_CONNECT_HOLDING);
+    CASE_RETURN_STRING(LST_CONNECTING_WAIT_SWITCH);
+    CASE_RETURN_STRING(LST_CONNECTING);
+    CASE_RETURN_STRING(LST_CONNECTED);
+    CASE_RETURN_STRING(LST_DISCONNECTING);
   }
+  RETURN_UNKNOWN_TYPE_STRING(tL2C_LINK_STATE, state);
 }
 
 /* Define input events to the L2CAP link and channel state machines. The names
@@ -640,7 +633,7 @@ struct tL2C_CB {
  */
 struct tL2C_CONN_INFO {
   RawAddress bd_addr;          /* Remote BD address */
-  uint8_t status;              /* Connection status */
+  tHCI_STATUS hci_status;      /* Connection status */
   uint16_t psm;                /* PSM of the connection */
   uint16_t l2cap_result;       /* L2CAP result */
   uint16_t l2cap_status;       /* L2CAP status */

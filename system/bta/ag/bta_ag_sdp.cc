@@ -31,11 +31,9 @@
 #include "bta/include/bta_hfp_api.h"
 #include "bta/include/bta_rfcomm_scn.h"
 #include "btif/include/btif_config.h"
-#include "common/init_flags.h"
 #include "device/include/interop.h"
 #include "device/include/interop_config.h"
 #include "internal_include/bt_target.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/include/bt_types.h"
@@ -84,7 +82,7 @@ const tBTA_AG_SDP_CBACK bta_ag_sdp_cback_tbl[] = {bta_ag_sdp_cback_1, bta_ag_sdp
  * Returns          void
  *
  ******************************************************************************/
-static void bta_ag_sdp_cback(uint16_t status, uint8_t idx) {
+static void bta_ag_sdp_cback(tSDP_STATUS status, uint8_t idx) {
   log::verbose("status:0x{:x}", status);
   tBTA_AG_SCB* p_scb = bta_ag_scb_by_idx(idx);
   if (p_scb) {
@@ -181,11 +179,7 @@ bool bta_ag_add_record(uint16_t service_uuid, const char* p_service_name, uint8_
   /* add profile descriptor list */
   if (service_uuid == UUID_SERVCLASS_AG_HANDSFREE) {
     profile_uuid = UUID_SERVCLASS_HF_HANDSFREE;
-    if (bluetooth::common::init_flags::hfp_dynamic_version_is_enabled()) {
-      version = HFP_VERSION_1_6;
-    } else {
-      version = get_default_hfp_version();
-    }
+    version = HFP_VERSION_1_6;
   } else {
     profile_uuid = UUID_SERVCLASS_HEADSET;
     version = HSP_VERSION_1_2;
@@ -418,12 +412,10 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
           p_scb->peer_features = sdp_features & HFP_SDP_BRSF_FEATURES_MASK;
         }
         /* Remote supports 1.7, store it in HFP 1.7 BL file */
-        if (bluetooth::common::init_flags::hfp_dynamic_version_is_enabled()) {
-          if (p_scb->peer_version >= HFP_VERSION_1_9) {
-            interop_database_add_addr(INTEROP_HFP_1_9_ALLOWLIST, &p_scb->peer_addr, 3);
-          } else if (p_scb->peer_version >= HFP_VERSION_1_7) {
-            interop_database_add_addr(INTEROP_HFP_1_7_ALLOWLIST, &p_scb->peer_addr, 3);
-          }
+        if (p_scb->peer_version >= HFP_VERSION_1_9) {
+          interop_database_add_addr(INTEROP_HFP_1_9_ALLOWLIST, &p_scb->peer_addr, 3);
+        } else if (p_scb->peer_version >= HFP_VERSION_1_7) {
+          interop_database_add_addr(INTEROP_HFP_1_7_ALLOWLIST, &p_scb->peer_addr, 3);
         }
       }
     } else {

@@ -32,7 +32,6 @@
 
 #include "device/include/device_iot_config.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/include/acl_api.h"
@@ -62,19 +61,24 @@ static void l2c_link_send_to_lower(tL2C_LCB* p_lcb, BT_HDR* p_buf, tL2C_TX_COMPL
 static BT_HDR* l2cu_get_next_buffer_to_send(tL2C_LCB* p_lcb, tL2C_TX_COMPLETE_CB_INFO* p_cbi);
 
 void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddress& p_bda) {
-  tL2C_CONN_INFO ci;
-  tL2C_LCB* p_lcb;
   tL2C_CCB* p_ccb;
 
   /* Save the parameters */
-  ci.status = status;
-  ci.bd_addr = p_bda;
+  tL2C_CONN_INFO ci = {
+          .bd_addr = p_bda,
+          .hci_status = status,
+          .psm{},
+          .l2cap_result{},
+          .l2cap_status{},
+          .remote_cid{},
+          .lcids{},
+          .peer_mtu{},
+  };
 
   /* See if we have a link control block for the remote device */
-  p_lcb = l2cu_find_lcb_by_bd_addr(ci.bd_addr, BT_TRANSPORT_BR_EDR);
-
-  /* If we don't have one, allocate one */
+  tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(ci.bd_addr, BT_TRANSPORT_BR_EDR);
   if (p_lcb == nullptr) {
+    /* If we don't have one, allocate one */
     p_lcb = l2cu_allocate_lcb(ci.bd_addr, false, BT_TRANSPORT_BR_EDR);
     if (p_lcb == nullptr) {
       log::warn("Failed to allocate an LCB");
@@ -103,7 +107,7 @@ void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddres
   /* Save the handle */
   l2cu_set_lcb_handle(*p_lcb, handle);
 
-  if (ci.status == HCI_SUCCESS) {
+  if (ci.hci_status == HCI_SUCCESS) {
     /* Connected OK. Change state to connected */
     p_lcb->link_state = LST_CONNECTED;
 
@@ -131,7 +135,7 @@ void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddres
   }
   /* Max number of acl connections.                          */
   /* If there's an lcb disconnecting set this one to holding */
-  else if ((ci.status == HCI_ERR_MAX_NUM_OF_CONNECTIONS) && l2cu_lcb_disconnecting()) {
+  else if ((ci.hci_status == HCI_ERR_MAX_NUM_OF_CONNECTIONS) && l2cu_lcb_disconnecting()) {
     log::warn("Delaying connection as reached max number of links:{}",
               HCI_ERR_MAX_NUM_OF_CONNECTIONS);
     p_lcb->link_state = LST_CONNECT_HOLDING;
@@ -158,7 +162,7 @@ void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddres
       l2cu_release_lcb(p_lcb);
     } else /* there are any CCBs remaining */
     {
-      if (ci.status == HCI_ERR_CONNECTION_EXISTS) {
+      if (ci.hci_status == HCI_ERR_CONNECTION_EXISTS) {
         /* we are in collision situation, wait for connecttion request from
          * controller */
         p_lcb->link_state = LST_CONNECTING;
@@ -180,26 +184,31 @@ void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddres
  *
  ******************************************************************************/
 void l2c_link_sec_comp(RawAddress p_bda, tBT_TRANSPORT transport, void* p_ref_data,
-                       tBTM_STATUS status) {
-  tL2C_CONN_INFO ci;
-  tL2C_LCB* p_lcb;
+                       tBTM_STATUS btm_status) {
   tL2C_CCB* p_ccb;
   tL2C_CCB* p_next_ccb;
 
-  log::debug("btm_status={}, BD_ADDR={}, transport={}", btm_status_text(status), p_bda,
+  log::debug("btm_status={}, BD_ADDR={}, transport={}", btm_status_text(btm_status), p_bda,
              bt_transport_text(transport));
 
-  if (status == BTM_SUCCESS_NO_SECURITY) {
-    status = BTM_SUCCESS;
+  if (btm_status == BTM_SUCCESS_NO_SECURITY) {
+    btm_status = BTM_SUCCESS;
   }
 
   /* Save the parameters */
-  ci.status = status;
-  ci.bd_addr = p_bda;
-
-  p_lcb = l2cu_find_lcb_by_bd_addr(p_bda, transport);
+  tL2C_CONN_INFO ci = {
+          .bd_addr = p_bda,
+          .hci_status = static_cast<tHCI_STATUS>(btm_status),
+          .psm{},
+          .l2cap_result{},
+          .l2cap_status{},
+          .remote_cid{},
+          .lcids{},
+          .peer_mtu{},
+  };
 
   /* If we don't have one, this is an error */
+  tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(p_bda, transport);
   if (!p_lcb) {
     log::warn("L2CAP got sec_comp for unknown BD_ADDR");
     return;
@@ -219,7 +228,7 @@ void l2c_link_sec_comp(RawAddress p_bda, tBT_TRANSPORT transport, void* p_ref_da
       return;
     }
 
-    switch (status) {
+    switch (btm_status) {
       case BTM_SUCCESS:
         l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP, &ci);
         break;
@@ -241,7 +250,7 @@ void l2c_link_sec_comp(RawAddress p_bda, tBT_TRANSPORT transport, void* p_ref_da
       p_next_ccb = p_ccb->p_next_ccb;
 
       if (p_ccb == p_ref_data) {
-        switch (status) {
+        switch (btm_status) {
           case BTM_SUCCESS:
             l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP, &ci);
             break;
@@ -305,12 +314,12 @@ static void l2c_link_iot_store_disc_reason(RawAddress& bda, uint8_t reason) {
  *
  ******************************************************************************/
 bool l2c_link_hci_disc_comp(uint16_t handle, tHCI_REASON reason) {
-  tL2C_LCB* p_lcb = l2cu_find_lcb_by_handle(handle);
   tL2C_CCB* p_ccb;
   bool status = true;
   bool lcb_is_free = true;
 
   /* If we don't have one, maybe an SCO link. Send to MM */
+  tL2C_LCB* p_lcb = l2cu_find_lcb_by_handle(handle);
   if (!p_lcb) {
     status = false;
   } else {
@@ -508,7 +517,6 @@ void l2c_link_timeout(tL2C_LCB* p_lcb) {
 void l2c_info_resp_timer_timeout(void* data) {
   tL2C_LCB* p_lcb = (tL2C_LCB*)data;
   tL2C_CCB* p_ccb;
-  tL2C_CONN_INFO ci;
 
   /* If we timed out waiting for info response, just continue using basic if
    * allowed */
@@ -529,9 +537,16 @@ void l2c_info_resp_timer_timeout(void* data) {
     if ((p_lcb->link_state != LST_DISCONNECTED) && (p_lcb->link_state != LST_DISCONNECTING)) {
       /* Notify active channels that peer info is finished */
       if (p_lcb->ccb_queue.p_first_ccb) {
-        ci.status = HCI_SUCCESS;
-        ci.bd_addr = p_lcb->remote_bd_addr;
-
+        tL2C_CONN_INFO ci = {
+                .bd_addr = p_lcb->remote_bd_addr,
+                .hci_status = HCI_SUCCESS,
+                .psm{},
+                .l2cap_result{},
+                .l2cap_status{},
+                .remote_cid{},
+                .lcids{},
+                .peer_mtu{},
+        };
         for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb; p_ccb = p_ccb->p_next_ccb) {
           l2c_csm_execute(p_ccb, L2CEVT_L2CAP_INFO_RSP, &ci);
         }
