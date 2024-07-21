@@ -23,9 +23,9 @@
 
 #include <map>
 #include <utility>
+#include <vector>
 
 #include "common/bind.h"
-#include "common/init_flags.h"
 #include "common/stop_watch.h"
 #include "hal/hci_hal.h"
 #include "hci/class_of_device.h"
@@ -525,7 +525,7 @@ struct HciLayer::impl {
 
 // All functions here are running on the HAL thread
 struct HciLayer::hal_callbacks : public hal::HciHalCallbacks {
-  hal_callbacks(HciLayer& module) : module_(module) {}
+  explicit hal_callbacks(HciLayer& module) : module_(module) {}
 
   void hciEventReceived(hal::HciPacket event_bytes) override {
     auto packet = packet::PacketView<packet::kLittleEndian>(

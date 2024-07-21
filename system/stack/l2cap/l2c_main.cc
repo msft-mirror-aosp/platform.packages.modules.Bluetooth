@@ -27,12 +27,10 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
-#include "common/init_flags.h"
 #include "hal/snoop_logger.h"
 #include "hcimsgs.h"  // HCID_GET_
 #include "internal_include/bt_target.h"
 #include "main/shim/entry.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
@@ -347,7 +345,7 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
           p_lcb->w4_info_rsp = false;
           tL2C_CONN_INFO ci = {
                   .bd_addr = p_lcb->remote_bd_addr,
-                  .status = HCI_SUCCESS,
+                  .hci_status = HCI_SUCCESS,
                   .psm{},
                   .l2cap_result{},
                   .l2cap_status{},
@@ -810,7 +808,7 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         {
           tL2C_CONN_INFO ci = {
                   .bd_addr = p_lcb->remote_bd_addr,
-                  .status = HCI_SUCCESS,
+                  .hci_status = HCI_SUCCESS,
                   .psm{},
                   .l2cap_result{},
                   .l2cap_status{},
