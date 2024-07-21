@@ -40,7 +40,6 @@
 #include <hardware/bt_hearing_aid.h>
 #include <hardware/bt_le_audio.h>
 #include <hardware/bt_vc.h>
-#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -62,10 +61,8 @@
 #include "btif_config.h"
 #include "btif_dm.h"
 #include "btif_metrics_logging.h"
-#include "btif_profile_storage.h"
 #include "btif_storage.h"
 #include "btif_util.h"
-#include "common/init_flags.h"
 #include "common/lru_cache.h"
 #include "common/metrics.h"
 #include "device/include/interop.h"
@@ -77,9 +74,7 @@
 #include "main/shim/helpers.h"
 #include "main/shim/le_advertising_manager.h"
 #include "main_thread.h"
-#include "os/log.h"
 #include "os/logging/log_adapter.h"
-#include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "stack/btm/btm_dev.h"
@@ -100,7 +95,6 @@
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/smp_api.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
-#include "stack/sdp/sdpint.h"
 #include "storage/config_keys.h"
 #include "types/raw_address.h"
 
@@ -595,12 +589,6 @@ static void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
     if (com::android::bluetooth::flags::bond_transport_after_bond_cancel_fix()) {
       btif_config_remove_device(bd_addr.ToString());
     }
-
-    if (bluetooth::common::init_flags::pbap_pse_dynamic_version_upgrade_is_enabled()) {
-      if (btif_storage_is_pce_version_102(bd_addr)) {
-        update_pce_entry_to_interop_database(bd_addr);
-      }
-    }
   } else if (state == BT_BOND_STATE_BONDED) {
     allocate_metric_id_from_metric_id_allocator(bd_addr);
     if (!save_metric_id_from_metric_id_allocator(bd_addr)) {
@@ -785,7 +773,6 @@ bool is_le_audio_capable_during_service_discovery(const RawAddress& bd_addr) {
  *
  ******************************************************************************/
 static void btif_dm_cb_create_bond(const RawAddress bd_addr, tBT_TRANSPORT transport) {
-  bool is_hid = check_cod_hid_major(bd_addr, COD_HID_POINTING);
   bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
 
   if (transport == BT_TRANSPORT_AUTO && is_device_le_audio_capable(bd_addr)) {
@@ -1368,7 +1355,6 @@ static void btif_dm_search_devices_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH*
       {
         std::vector<bt_property_t> bt_properties;
         uint32_t dev_type;
-        uint32_t num_properties = 0;
         bt_status_t status;
         tBLE_ADDR_TYPE addr_type = BLE_ADDR_PUBLIC;
 
@@ -1555,7 +1541,7 @@ static bool btif_is_interesting_le_service(bluetooth::Uuid uuid) {
 
 static bt_status_t btif_get_existing_uuids(RawAddress* bd_addr, Uuid* existing_uuids) {
   bt_property_t tmp_prop;
-  BTIF_STORAGE_FILL_PROPERTY(&tmp_prop, BT_PROPERTY_UUIDS, sizeof(existing_uuids), existing_uuids);
+  BTIF_STORAGE_FILL_PROPERTY(&tmp_prop, BT_PROPERTY_UUIDS, sizeof(*existing_uuids), existing_uuids);
 
   return btif_storage_get_remote_device_property(bd_addr, &tmp_prop);
 }
@@ -1787,21 +1773,11 @@ void btif_on_gatt_results(RawAddress bd_addr, BD_NAME bd_name,
       return;
     }
 
-    if (lea_supported) {
-      if (bluetooth::common::init_flags::
-                  sdp_return_classic_services_when_le_discovery_fails_is_enabled()) {
-        log::info("Will return Classic SDP results, if done, to unblock bonding");
-      } else {
-        // LEA device w/o this flag
-        // TODO: we might want to remove bond or do some action on
-        // half-discovered device
-        log::warn("No GATT service found for the LE Audio device {}", bd_addr);
-        return;
-      }
-    } else {
+    if (!lea_supported) {
       log::info("LE audio not supported, no need to report any UUIDs");
       return;
     }
+    log::info("Will return Classic SDP results, if done, to unblock bonding");
   }
 
   Uuid existing_uuids[BT_MAX_NUM_UUIDS] = {};
@@ -1993,7 +1969,7 @@ void BTIF_dm_enable() {
   BTA_DmBleConfigLocalPrivacy(ble_privacy_enabled);
 
   if (com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    BTM_SecAddRmtNameNotifyCallback(btif_on_name_read_from_btm);
+    get_security_client_interface().BTM_SecAddRmtNameNotifyCallback(btif_on_name_read_from_btm);
   }
 
   /* for each of the enabled services in the mask, trigger the profile
@@ -2021,7 +1997,7 @@ void BTIF_dm_enable() {
 
 void BTIF_dm_disable() {
   if (com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    BTM_SecDeleteRmtNameNotifyCallback(&btif_on_name_read_from_btm);
+    get_security_client_interface().BTM_SecDeleteRmtNameNotifyCallback(&btif_on_name_read_from_btm);
   }
 
   /* for each of the enabled services in the mask, trigger the profile

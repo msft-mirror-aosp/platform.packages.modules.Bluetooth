@@ -69,7 +69,6 @@ struct acl_set_peer_le_features_from_handle acl_set_peer_le_features_from_handle
 struct acl_get_connection_from_address acl_get_connection_from_address;
 struct btm_acl_for_bda btm_acl_for_bda;
 struct acl_get_connection_from_handle acl_get_connection_from_handle;
-struct BTM_GetLinkSuperTout BTM_GetLinkSuperTout;
 struct BTM_GetRole BTM_GetRole;
 struct BTM_ReadFailedContactCounter BTM_ReadFailedContactCounter;
 struct BTM_ReadRSSI BTM_ReadRSSI;
@@ -79,7 +78,6 @@ struct BTM_SwitchRoleToCentral BTM_SwitchRoleToCentral;
 struct btm_remove_acl btm_remove_acl;
 struct btm_get_acl_disc_reason_code btm_get_acl_disc_reason_code;
 struct btm_is_acl_locally_initiated btm_is_acl_locally_initiated;
-struct BTM_GetHCIConnHandle BTM_GetHCIConnHandle;
 struct BTM_GetMaxPacketSize BTM_GetMaxPacketSize;
 struct BTM_GetNumAclLinks BTM_GetNumAclLinks;
 struct acl_get_supported_packet_types acl_get_supported_packet_types;
@@ -91,7 +89,6 @@ struct BTM_ReadConnectionAddr BTM_ReadConnectionAddr;
 struct BTM_RequestPeerSCA BTM_RequestPeerSCA;
 struct BTM_acl_after_controller_started BTM_acl_after_controller_started;
 struct btm_connection_request btm_connection_request;
-struct BTM_default_unblock_role_switch BTM_default_unblock_role_switch;
 struct BTM_unblock_role_switch_for BTM_unblock_role_switch_for;
 struct BTM_unblock_sniff_mode_for BTM_unblock_sniff_mode_for;
 struct acl_disconnect_after_role_switch acl_disconnect_after_role_switch;
@@ -264,10 +261,6 @@ tACL_CONN* acl_get_connection_from_handle(uint16_t handle) {
   inc_func_call_count(__func__);
   return test::mock::stack_acl::acl_get_connection_from_handle(handle);
 }
-tBTM_STATUS BTM_GetLinkSuperTout(const RawAddress& remote_bda, uint16_t* p_timeout) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_acl::BTM_GetLinkSuperTout(remote_bda, p_timeout);
-}
 tBTM_STATUS BTM_GetRole(const RawAddress& remote_bd_addr, tHCI_ROLE* p_role) {
   inc_func_call_count(__func__);
   return test::mock::stack_acl::BTM_GetRole(remote_bd_addr, p_role);
@@ -304,10 +297,6 @@ tHCI_REASON btm_get_acl_disc_reason_code(void) {
 bool btm_is_acl_locally_initiated(void) {
   inc_func_call_count(__func__);
   return test::mock::stack_acl::btm_is_acl_locally_initiated();
-}
-uint16_t BTM_GetHCIConnHandle(const RawAddress& remote_bda, tBT_TRANSPORT transport) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_acl::BTM_GetHCIConnHandle(remote_bda, transport);
 }
 uint16_t BTM_GetMaxPacketSize(const RawAddress& addr) {
   inc_func_call_count(__func__);
@@ -350,10 +339,6 @@ void BTM_RequestPeerSCA(const RawAddress& remote_bda, tBT_TRANSPORT transport) {
 void BTM_acl_after_controller_started() {
   inc_func_call_count(__func__);
   test::mock::stack_acl::BTM_acl_after_controller_started();
-}
-void BTM_default_unblock_role_switch() {
-  inc_func_call_count(__func__);
-  test::mock::stack_acl::BTM_default_unblock_role_switch();
 }
 void BTM_unblock_role_switch_for(const RawAddress& peer_addr) {
   inc_func_call_count(__func__);

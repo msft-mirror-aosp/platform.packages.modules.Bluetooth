@@ -319,19 +319,6 @@ struct acl_get_connection_from_handle {
   tACL_CONN* operator()(uint16_t handle) { return body(handle); }
 };
 extern struct acl_get_connection_from_handle acl_get_connection_from_handle;
-// Name: BTM_GetLinkSuperTout
-// Params: const RawAddress& remote_bda, uint16_t* p_timeout
-// Returns: tBTM_STATUS
-struct BTM_GetLinkSuperTout {
-  std::function<tBTM_STATUS(const RawAddress& remote_bda, uint16_t* p_timeout)> body{
-          [](const RawAddress& /* remote_bda */, uint16_t* /* p_timeout */) {
-            return BTM_SUCCESS;
-          }};
-  tBTM_STATUS operator()(const RawAddress& remote_bda, uint16_t* p_timeout) {
-    return body(remote_bda, p_timeout);
-  }
-};
-extern struct BTM_GetLinkSuperTout BTM_GetLinkSuperTout;
 // Name: BTM_GetRole
 // Params: const RawAddress& remote_bd_addr, tHCI_ROLE* p_role
 // Returns: tBTM_STATUS
@@ -430,19 +417,6 @@ struct btm_is_acl_locally_initiated {
   bool operator()(void) { return body(); }
 };
 extern struct btm_is_acl_locally_initiated btm_is_acl_locally_initiated;
-// Name: BTM_GetHCIConnHandle
-// Params: const RawAddress& remote_bda, tBT_TRANSPORT transport
-// Returns: uint16_t
-struct BTM_GetHCIConnHandle {
-  std::function<uint16_t(const RawAddress& remote_bda, tBT_TRANSPORT transport)> body{
-          [](const RawAddress& /* remote_bda */, tBT_TRANSPORT /* transport */) {
-            return BT_TRANSPORT_BR_EDR;
-          }};
-  uint16_t operator()(const RawAddress& remote_bda, tBT_TRANSPORT transport) {
-    return body(remote_bda, transport);
-  }
-};
-extern struct BTM_GetHCIConnHandle BTM_GetHCIConnHandle;
 // Name: BTM_GetMaxPacketSize
 // Params: const RawAddress& addr
 // Returns: uint16_t
@@ -538,14 +512,6 @@ struct BTM_acl_after_controller_started {
   void operator()() { body(); }
 };
 extern struct BTM_acl_after_controller_started BTM_acl_after_controller_started;
-// Name: BTM_default_unblock_role_switch
-// Params:
-// Returns: void
-struct BTM_default_unblock_role_switch {
-  std::function<void()> body{[]() { ; }};
-  void operator()() { body(); }
-};
-extern struct BTM_default_unblock_role_switch BTM_default_unblock_role_switch;
 // Name: BTM_unblock_role_switch_for
 // Params: const RawAddress& peer_addr
 // Returns: void
