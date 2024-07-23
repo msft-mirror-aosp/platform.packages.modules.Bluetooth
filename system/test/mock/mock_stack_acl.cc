@@ -42,7 +42,6 @@ namespace stack_acl {
 // Function state capture and return values, if needed
 struct BTM_BLE_IS_RESOLVE_BDA BTM_BLE_IS_RESOLVE_BDA;
 struct BTM_IsAclConnectionUp BTM_IsAclConnectionUp;
-struct BTM_IsAclConnectionUpAndHandleValid BTM_IsAclConnectionUpAndHandleValid;
 struct BTM_IsBleConnection BTM_IsBleConnection;
 struct BTM_IsPhy2mSupported BTM_IsPhy2mSupported;
 struct BTM_ReadRemoteConnectionAddr BTM_ReadRemoteConnectionAddr;
@@ -69,7 +68,6 @@ struct acl_set_peer_le_features_from_handle acl_set_peer_le_features_from_handle
 struct acl_get_connection_from_address acl_get_connection_from_address;
 struct btm_acl_for_bda btm_acl_for_bda;
 struct acl_get_connection_from_handle acl_get_connection_from_handle;
-struct BTM_GetRole BTM_GetRole;
 struct BTM_ReadFailedContactCounter BTM_ReadFailedContactCounter;
 struct BTM_ReadRSSI BTM_ReadRSSI;
 struct BTM_ReadTxPower BTM_ReadTxPower;
@@ -78,10 +76,8 @@ struct BTM_SwitchRoleToCentral BTM_SwitchRoleToCentral;
 struct btm_remove_acl btm_remove_acl;
 struct btm_get_acl_disc_reason_code btm_get_acl_disc_reason_code;
 struct btm_is_acl_locally_initiated btm_is_acl_locally_initiated;
-struct BTM_GetMaxPacketSize BTM_GetMaxPacketSize;
 struct BTM_GetNumAclLinks BTM_GetNumAclLinks;
 struct acl_get_supported_packet_types acl_get_supported_packet_types;
-struct BTM_GetPeerSCA BTM_GetPeerSCA;
 struct acl_link_role_from_handle acl_link_role_from_handle;
 struct btm_handle_to_acl_index btm_handle_to_acl_index;
 struct BTM_ReadRemoteFeatures BTM_ReadRemoteFeatures;
@@ -148,10 +144,6 @@ bool BTM_BLE_IS_RESOLVE_BDA(const RawAddress& x) {
 bool BTM_IsAclConnectionUp(const RawAddress& remote_bda, tBT_TRANSPORT transport) {
   inc_func_call_count(__func__);
   return test::mock::stack_acl::BTM_IsAclConnectionUp(remote_bda, transport);
-}
-bool BTM_IsAclConnectionUpAndHandleValid(const RawAddress& remote_bda, tBT_TRANSPORT transport) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_acl::BTM_IsAclConnectionUpAndHandleValid(remote_bda, transport);
 }
 bool BTM_IsBleConnection(uint16_t hci_handle) {
   inc_func_call_count(__func__);
@@ -261,10 +253,6 @@ tACL_CONN* acl_get_connection_from_handle(uint16_t handle) {
   inc_func_call_count(__func__);
   return test::mock::stack_acl::acl_get_connection_from_handle(handle);
 }
-tBTM_STATUS BTM_GetRole(const RawAddress& remote_bd_addr, tHCI_ROLE* p_role) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_acl::BTM_GetRole(remote_bd_addr, p_role);
-}
 tBTM_STATUS BTM_ReadFailedContactCounter(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb) {
   inc_func_call_count(__func__);
   return test::mock::stack_acl::BTM_ReadFailedContactCounter(remote_bda, p_cb);
@@ -298,10 +286,6 @@ bool btm_is_acl_locally_initiated(void) {
   inc_func_call_count(__func__);
   return test::mock::stack_acl::btm_is_acl_locally_initiated();
 }
-uint16_t BTM_GetMaxPacketSize(const RawAddress& addr) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_acl::BTM_GetMaxPacketSize(addr);
-}
 uint16_t BTM_GetNumAclLinks(void) {
   inc_func_call_count(__func__);
   return test::mock::stack_acl::BTM_GetNumAclLinks();
@@ -309,10 +293,6 @@ uint16_t BTM_GetNumAclLinks(void) {
 uint16_t acl_get_supported_packet_types() {
   inc_func_call_count(__func__);
   return test::mock::stack_acl::acl_get_supported_packet_types();
-}
-uint8_t BTM_GetPeerSCA(const RawAddress& remote_bda, tBT_TRANSPORT transport) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_acl::BTM_GetPeerSCA(remote_bda, transport);
 }
 uint8_t acl_link_role_from_handle(uint16_t handle) {
   inc_func_call_count(__func__);
