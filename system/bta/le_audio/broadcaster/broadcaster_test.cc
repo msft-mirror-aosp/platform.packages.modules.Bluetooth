@@ -84,14 +84,6 @@ static base::Callback<void(BT_OCTET8)> generator_cb;
 
 void btsnd_hcic_ble_rand(base::Callback<void(BT_OCTET8)> cb) { generator_cb = cb; }
 
-namespace server_configurable_flags {
-std::string GetServerConfigurableFlag(const std::string& experiment_category_name,
-                                      const std::string& experiment_flag_name,
-                                      const std::string& default_value) {
-  return "";
-}
-}  // namespace server_configurable_flags
-
 std::atomic<int> num_async_tasks;
 bluetooth::common::MessageLoopThread message_loop_thread("test message loop");
 bluetooth::common::MessageLoopThread* get_main_thread() { return &message_loop_thread; }
@@ -364,6 +356,7 @@ protected:
   }
 
   void TearDown() override {
+    com::android::bluetooth::flags::provider_->reset_flags();
     // Message loop cleanup should wait for all the 'till now' scheduled calls
     // so it should be called right at the very begginning of teardown.
     cleanup_message_loop_thread();
@@ -1165,9 +1158,9 @@ TEST_F(BroadcasterTest, VendorCodecConfig) {
                       subgroup.bis_configs.at(1).vendor_codec_specific_params->size()));
 }
 
-TEST_F_WITH_FLAGS(BroadcasterTest, AudioActiveState,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_big_depends_on_audio_state))) {
+TEST_F(BroadcasterTest, AudioActiveState) {
+  com::android::bluetooth::flags::provider_->leaudio_big_depends_on_audio_state(true);
+
   std::vector<uint8_t> updated_public_meta;
   PublicBroadcastAnnouncementData pb_announcement;
 
@@ -1245,9 +1238,9 @@ TEST_F_WITH_FLAGS(BroadcasterTest, AudioActiveState,
   ASSERT_EQ(updated_public_meta, public_metadata_audio_false);
 }
 
-TEST_F_WITH_FLAGS(BroadcasterTest, BigTerminationAndBroadcastStopWhenNoSoundFromTheBeginning,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_big_depends_on_audio_state))) {
+TEST_F(BroadcasterTest, BigTerminationAndBroadcastStopWhenNoSoundFromTheBeginning) {
+  com::android::bluetooth::flags::provider_->leaudio_big_depends_on_audio_state(true);
+
   // Timers created
   ASSERT_TRUE(big_terminate_timer_ != nullptr);
   ASSERT_TRUE(broadcast_stop_timer_ != nullptr);
@@ -1287,9 +1280,9 @@ TEST_F_WITH_FLAGS(BroadcasterTest, BigTerminationAndBroadcastStopWhenNoSoundFrom
   broadcast_stop_timer_->cb(broadcast_stop_timer_->data);
 }
 
-TEST_F_WITH_FLAGS(BroadcasterTest, BigTerminationAndBroadcastStopWhenNoSoundAfterSuspend,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_big_depends_on_audio_state))) {
+TEST_F(BroadcasterTest, BigTerminationAndBroadcastStopWhenNoSoundAfterSuspend) {
+  com::android::bluetooth::flags::provider_->leaudio_big_depends_on_audio_state(true);
+
   // Timers created
   ASSERT_TRUE(big_terminate_timer_ != nullptr);
   ASSERT_TRUE(broadcast_stop_timer_ != nullptr);
@@ -1357,9 +1350,9 @@ TEST_F_WITH_FLAGS(BroadcasterTest, BigTerminationAndBroadcastStopWhenNoSoundAfte
   broadcast_stop_timer_->cb(broadcast_stop_timer_->data);
 }
 
-TEST_F_WITH_FLAGS(BroadcasterTest, BigCreationTerminationDependsOnAudioResumeSuspend,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_big_depends_on_audio_state))) {
+TEST_F(BroadcasterTest, BigCreationTerminationDependsOnAudioResumeSuspend) {
+  com::android::bluetooth::flags::provider_->leaudio_big_depends_on_audio_state(true);
+
   // Timers created
   ASSERT_TRUE(big_terminate_timer_ != nullptr);
   ASSERT_TRUE(broadcast_stop_timer_ != nullptr);
