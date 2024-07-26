@@ -134,7 +134,6 @@ public class VolumeControlServiceTest {
         mService.mAudioManager = mAudioManager;
         mService.mFactory = mServiceFactory;
         mServiceBinder = (VolumeControlService.BluetoothVolumeControlBinder) mService.initBinder();
-        mServiceBinder.mIsTesting = true;
 
         doReturn(mCsipService).when(mServiceFactory).getCsipSetCoordinatorService();
         doReturn(mLeAudioService).when(mServiceFactory).getLeAudioService();
@@ -365,9 +364,8 @@ public class VolumeControlServiceTest {
                 .when(mAdapterService)
                 .getRemoteUuids(any(BluetoothDevice.class));
 
-        // Send a connect request via binder
-        Assert.assertTrue(
-                "Connect expected to succeed", mServiceBinder.connect(mDevice, mAttributionSource));
+        // Send a connect request
+        Assert.assertTrue("Connect expected to succeed", mService.connect(mDevice));
 
         // Verify the connection state broadcast, and that we are in Connecting state
         verifyConnectionStateIntent(
@@ -376,10 +374,8 @@ public class VolumeControlServiceTest {
                 BluetoothProfile.STATE_CONNECTING,
                 BluetoothProfile.STATE_DISCONNECTED);
 
-        // Send a disconnect request via binder
-        Assert.assertTrue(
-                "Disconnect expected to succeed",
-                mServiceBinder.disconnect(mDevice, mAttributionSource));
+        // Send a disconnect request
+        Assert.assertTrue("Disconnect expected to succeed", mService.disconnect(mDevice));
 
         // Verify the connection state broadcast, and that we are in Connecting state
         verifyConnectionStateIntent(

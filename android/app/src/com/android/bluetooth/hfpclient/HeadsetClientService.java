@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.hfpclient;
 
+import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.content.pm.PackageManager.FEATURE_WATCH;
 
 import android.annotation.RequiresPermission;
@@ -289,17 +290,22 @@ public class HeadsetClientService extends ProfileService {
             mService = null;
         }
 
-        @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+        @RequiresPermission(BLUETOOTH_CONNECT)
         private HeadsetClientService getService(AttributionSource source) {
+            // Cache mService because it can change while getService is called
+            HeadsetClientService service = mService;
+
             if (Utils.isInstrumentationTestMode()) {
-                return mService;
+                return service;
             }
-            if (!Utils.checkServiceAvailable(mService, TAG)
-                    || !Utils.checkCallerIsSystemOrActiveOrManagedUser(mService, TAG)
-                    || !Utils.checkConnectPermissionForDataDelivery(mService, source, TAG)) {
+
+            if (!Utils.checkServiceAvailable(service, TAG)
+                    || !Utils.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
+                    || !Utils.checkConnectPermissionForDataDelivery(service, source, TAG)) {
                 return null;
             }
-            return mService;
+
+            return service;
         }
 
         @Override
@@ -791,7 +797,6 @@ public class HeadsetClientService extends ProfileService {
     }
 
     public void setAudioRouteAllowed(BluetoothDevice device, boolean allowed) {
-        enforceCallingOrSelfPermission(BLUETOOTH_PERM, "Need BLUETOOTH permission");
         Log.i(
                 TAG,
                 "setAudioRouteAllowed: device="
@@ -807,7 +812,6 @@ public class HeadsetClientService extends ProfileService {
     }
 
     public boolean getAudioRouteAllowed(BluetoothDevice device) {
-        enforceCallingOrSelfPermission(BLUETOOTH_PERM, "Need BLUETOOTH permission");
         HeadsetClientStateMachine sm = mStateMachineMap.get(device);
         if (sm != null) {
             return sm.getAudioRouteAllowed();
@@ -823,7 +827,6 @@ public class HeadsetClientService extends ProfileService {
      * @param policies to be set policies
      */
     public void setAudioPolicy(BluetoothDevice device, BluetoothSinkAudioPolicy policies) {
-        enforceCallingOrSelfPermission(BLUETOOTH_PERM, "Need BLUETOOTH permission");
         Log.i(
                 TAG,
                 "setAudioPolicy: device="
@@ -845,7 +848,6 @@ public class HeadsetClientService extends ProfileService {
      * @param supported support status
      */
     public void setAudioPolicyRemoteSupported(BluetoothDevice device, boolean supported) {
-        enforceCallingOrSelfPermission(BLUETOOTH_PERM, "Need BLUETOOTH permission");
         Log.i(TAG, "setAudioPolicyRemoteSupported: " + supported);
         HeadsetClientStateMachine sm = getStateMachine(device);
         if (sm != null) {
@@ -860,7 +862,6 @@ public class HeadsetClientService extends ProfileService {
      * @return int support status
      */
     public int getAudioPolicyRemoteSupported(BluetoothDevice device) {
-        enforceCallingOrSelfPermission(BLUETOOTH_PERM, "Need BLUETOOTH permission");
         HeadsetClientStateMachine sm = getStateMachine(device);
         if (sm != null) {
             return sm.getAudioPolicyRemoteSupported();

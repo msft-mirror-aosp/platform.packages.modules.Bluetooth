@@ -209,3 +209,33 @@ flag {
     description: "Allocate GATT clients in heap to unlimit the number of clients"
     bug: "348559823"
 }
+
+flag {
+    name: "gatt_fix_multiple_direct_connect"
+    namespace: "bluetooth"
+    description: "Do not remove device when multiple clients attempt to connect"
+    bug: "349232327"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "pan_use_identity_address"
+    namespace: "bluetooth"
+    description: "Use identity address when communicate with native interface"
+    bug: "351961492"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "gatt_cleanup_jni_thread"
+    namespace: "bluetooth"
+    description: "Clean up gatt inside jni thread to prevent a race"
+    bug: "354831506"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,18 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.android.pandora
 
-package android.bluetooth;
+import android.app.Activity
+import android.os.Bundle
 
 /**
- * API for Bluetooth AVRCP Target Interface
+ * A skeleton class that provides empty implementations for Activity class.
  *
- * @hide
+ * <p>This is needed to test AVRCP Browsing as players without an audio activity are filtered out.
  */
-interface IBluetoothAvrcpTarget {
-    /**
-     * @hide
-     */
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
-    void sendVolumeChanged(in int volume);
+class MediaPlayerActivity : Activity() {
+    override fun onCreate(icicle: Bundle?) {}
+
+    override fun onDestroy() {}
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {}
 }

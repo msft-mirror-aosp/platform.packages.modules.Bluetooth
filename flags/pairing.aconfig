@@ -64,3 +64,43 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "guest_mode_bond"
+    namespace: "bluetooth"
+    description: "Do not remove guest mode bonded devices on BT restart in guest mode"
+    bug: "349882273"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "remove_dup_pairing_response_in_oob_pairing"
+    namespace: "bluetooth"
+    description: "Avoid sending duplicate pairing response when device is in peripheral role & OOB pairing mode chosen"
+    bug: "351948689"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "wait_for_disconnect_before_unbond"
+    namespace: "bluetooth"
+    description: "Disconnect all links before removing the bond"
+    bug: "345299969"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "name_discovery_for_le_pairing"
+    namespace: "bluetooth"
+    description: "Perform LE name discovery for pairing if device name is not known"
+    bug: "355095011"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
