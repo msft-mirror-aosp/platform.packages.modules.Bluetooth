@@ -1409,6 +1409,12 @@ public class LeAudioService extends ProfileService {
         return descriptor.mGroupId == mUnicastGroupIdDeactivatedForBroadcastTransition;
     }
 
+    /** Return true if group is primary - is active or was active before switch to broadcast */
+    private boolean isPrimaryGroup(int groupId) {
+        return groupId != IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID
+                && groupId == mUnicastGroupIdDeactivatedForBroadcastTransition;
+    }
+
     private boolean areBroadcastsAllStopped() {
         if (mBroadcastDescriptors == null) {
             Log.e(TAG, "areBroadcastsAllStopped: Invalid Broadcast Descriptors");
@@ -4342,15 +4348,29 @@ public class LeAudioService extends ProfileService {
             if (Flags.leaudioBroadcastVolumeControlWithSetVolume()
                     && currentlyActiveGroupId == LE_AUDIO_GROUP_ID_INVALID
                     && !activeBroadcastSinks.isEmpty()) {
-                Set<Integer> broadcastGroups =
-                        activeBroadcastSinks.stream()
-                                .map(dev -> getGroupId(dev))
-                                .filter(id -> id != IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID)
-                                .collect(Collectors.toSet());
+                if (Flags.leaudioBroadcastVolumeControlPrimaryGroupOnly()) {
+                    if (activeBroadcastSinks.stream()
+                            .anyMatch(dev -> isPrimaryGroup(getGroupId(dev)))) {
+                        Log.d(
+                                TAG,
+                                "Setting volume for broadcast sink primary group: "
+                                        + mUnicastGroupIdDeactivatedForBroadcastTransition);
+                        volumeControlService.setGroupVolume(
+                                mUnicastGroupIdDeactivatedForBroadcastTransition, volume);
+                    } else {
+                        Log.w(TAG, "Setting volume when no active or broadcast primary group");
+                    }
+                } else {
+                    Set<Integer> broadcastGroups =
+                            activeBroadcastSinks.stream()
+                                    .map(dev -> getGroupId(dev))
+                                    .filter(id -> id != IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID)
+                                    .collect(Collectors.toSet());
 
-                Log.d(TAG, "Setting volume for broadcast sink groups: " + broadcastGroups);
-                broadcastGroups.forEach(
-                        groupId -> volumeControlService.setGroupVolume(groupId, volume));
+                    Log.d(TAG, "Setting volume for broadcast sink groups: " + broadcastGroups);
+                    broadcastGroups.forEach(
+                            groupId -> volumeControlService.setGroupVolume(groupId, volume));
+                }
             } else {
                 volumeControlService.setGroupVolume(currentlyActiveGroupId, volume);
             }
@@ -5051,8 +5071,9 @@ public class LeAudioService extends ProfileService {
             mService = null;
         }
 
-        @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
-        private LeAudioService getService(AttributionSource source) {
+        @RequiresPermission(BLUETOOTH_CONNECT)
+        private LeAudioService getServiceAndEnforceConnect(AttributionSource source) {
+            Objects.requireNonNull(source);
             // Cache mService because it can change while getService is called
             LeAudioService service = mService;
 
@@ -5088,7 +5109,7 @@ public class LeAudioService extends ProfileService {
             Objects.requireNonNull(device, "device cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return false;
             }
@@ -5101,7 +5122,7 @@ public class LeAudioService extends ProfileService {
             Objects.requireNonNull(device, "device cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return false;
             }
@@ -5113,7 +5134,7 @@ public class LeAudioService extends ProfileService {
         public List<BluetoothDevice> getConnectedDevices(AttributionSource source) {
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return Collections.emptyList();
             }
@@ -5125,7 +5146,7 @@ public class LeAudioService extends ProfileService {
         public BluetoothDevice getConnectedGroupLeadDevice(int groupId, AttributionSource source) {
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return null;
             }
@@ -5138,7 +5159,7 @@ public class LeAudioService extends ProfileService {
                 int[] states, AttributionSource source) {
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return Collections.emptyList();
             }
@@ -5151,7 +5172,7 @@ public class LeAudioService extends ProfileService {
             Objects.requireNonNull(device, "device cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return BluetoothProfile.STATE_DISCONNECTED;
             }
@@ -5163,7 +5184,7 @@ public class LeAudioService extends ProfileService {
         public boolean setActiveDevice(BluetoothDevice device, AttributionSource source) {
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return false;
             }
@@ -5184,7 +5205,7 @@ public class LeAudioService extends ProfileService {
         public List<BluetoothDevice> getActiveDevices(AttributionSource source) {
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return Collections.emptyList();
             }
@@ -5197,7 +5218,7 @@ public class LeAudioService extends ProfileService {
             Objects.requireNonNull(device, "device cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return BluetoothLeAudio.AUDIO_LOCATION_INVALID;
             }
@@ -5210,7 +5231,7 @@ public class LeAudioService extends ProfileService {
         public boolean isInbandRingtoneEnabled(AttributionSource source, int groupId) {
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return false;
             }
@@ -5225,7 +5246,7 @@ public class LeAudioService extends ProfileService {
             Objects.requireNonNull(device, "device cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return false;
             }
@@ -5239,7 +5260,7 @@ public class LeAudioService extends ProfileService {
             Objects.requireNonNull(device, "device cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
             }
@@ -5254,7 +5275,7 @@ public class LeAudioService extends ProfileService {
             Objects.requireNonNull(userUuid, "userUuid cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return;
             }
@@ -5268,7 +5289,7 @@ public class LeAudioService extends ProfileService {
             Objects.requireNonNull(device, "device cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return LE_AUDIO_GROUP_ID_INVALID;
             }
@@ -5281,7 +5302,7 @@ public class LeAudioService extends ProfileService {
             Objects.requireNonNull(device, "device cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return false;
             }
@@ -5294,7 +5315,7 @@ public class LeAudioService extends ProfileService {
         public void setInCall(boolean inCall, AttributionSource source) {
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return;
             }
@@ -5308,7 +5329,7 @@ public class LeAudioService extends ProfileService {
                 BluetoothDevice hfpHandoverDevice, AttributionSource source) {
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return;
             }
@@ -5323,7 +5344,7 @@ public class LeAudioService extends ProfileService {
             Objects.requireNonNull(device, "device cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return false;
             }
@@ -5336,7 +5357,7 @@ public class LeAudioService extends ProfileService {
         public void setVolume(int volume, AttributionSource source) {
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return;
             }
@@ -5350,7 +5371,7 @@ public class LeAudioService extends ProfileService {
             Objects.requireNonNull(callback, "callback cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return;
             }
@@ -5370,7 +5391,7 @@ public class LeAudioService extends ProfileService {
             Objects.requireNonNull(callback, "callback cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return;
             }
@@ -5387,7 +5408,7 @@ public class LeAudioService extends ProfileService {
             Objects.requireNonNull(callback, "callback cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if ((service == null) || (service.mBroadcastCallbacks == null)) {
                 return;
             }
@@ -5404,7 +5425,7 @@ public class LeAudioService extends ProfileService {
             Objects.requireNonNull(callback, "callback cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
 
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if ((service == null) || (service.mBroadcastCallbacks == null)) {
                 return;
             }
@@ -5418,7 +5439,7 @@ public class LeAudioService extends ProfileService {
         @Override
         public void startBroadcast(
                 BluetoothLeBroadcastSettings broadcastSettings, AttributionSource source) {
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return;
             }
@@ -5429,7 +5450,7 @@ public class LeAudioService extends ProfileService {
 
         @Override
         public void stopBroadcast(int broadcastId, AttributionSource source) {
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return;
             }
@@ -5443,7 +5464,7 @@ public class LeAudioService extends ProfileService {
                 int broadcastId,
                 BluetoothLeBroadcastSettings broadcastSettings,
                 AttributionSource source) {
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return;
             }
@@ -5454,7 +5475,7 @@ public class LeAudioService extends ProfileService {
 
         @Override
         public boolean isPlaying(int broadcastId, AttributionSource source) {
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return false;
             }
@@ -5466,7 +5487,7 @@ public class LeAudioService extends ProfileService {
         @Override
         public List<BluetoothLeBroadcastMetadata> getAllBroadcastMetadata(
                 AttributionSource source) {
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return Collections.emptyList();
             }
@@ -5510,7 +5531,7 @@ public class LeAudioService extends ProfileService {
 
         @Override
         public BluetoothLeAudioCodecStatus getCodecStatus(int groupId, AttributionSource source) {
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return null;
             }
@@ -5525,7 +5546,7 @@ public class LeAudioService extends ProfileService {
                 BluetoothLeAudioCodecConfig inputCodecConfig,
                 BluetoothLeAudioCodecConfig outputCodecConfig,
                 AttributionSource source) {
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return;
             }
@@ -5536,7 +5557,7 @@ public class LeAudioService extends ProfileService {
 
         @Override
         public boolean isBroadcastActive(AttributionSource source) {
-            LeAudioService service = getService(source);
+            LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return false;
             }
