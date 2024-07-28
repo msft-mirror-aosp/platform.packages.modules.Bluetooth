@@ -86,38 +86,6 @@ struct BTM_HasEirService {
 };
 extern struct BTM_HasEirService BTM_HasEirService;
 
-// Name: BTM_InqDbFirst
-// Params: void
-// Return: tBTM_INQ_INFO*
-struct BTM_InqDbFirst {
-  static tBTM_INQ_INFO* return_value;
-  std::function<tBTM_INQ_INFO*(void)> body{[](void) { return return_value; }};
-  tBTM_INQ_INFO* operator()(void) { return body(); }
-};
-extern struct BTM_InqDbFirst BTM_InqDbFirst;
-
-// Name: BTM_InqDbNext
-// Params: tBTM_INQ_INFO* p_cur
-// Return: tBTM_INQ_INFO*
-struct BTM_InqDbNext {
-  static tBTM_INQ_INFO* return_value;
-  std::function<tBTM_INQ_INFO*(tBTM_INQ_INFO* p_cur)> body{
-          [](tBTM_INQ_INFO* /* p_cur */) { return return_value; }};
-  tBTM_INQ_INFO* operator()(tBTM_INQ_INFO* p_cur) { return body(p_cur); }
-};
-extern struct BTM_InqDbNext BTM_InqDbNext;
-
-// Name: BTM_InqDbRead
-// Params: const RawAddress& p_bda
-// Return: tBTM_INQ_INFO*
-struct BTM_InqDbRead {
-  static tBTM_INQ_INFO* return_value;
-  std::function<tBTM_INQ_INFO*(const RawAddress& p_bda)> body{
-          [](const RawAddress& /* p_bda */) { return return_value; }};
-  tBTM_INQ_INFO* operator()(const RawAddress& p_bda) { return body(p_bda); }
-};
-extern struct BTM_InqDbRead BTM_InqDbRead;
-
 // Name: BTM_IsInquiryActive
 // Params: void
 // Return: uint16_t
@@ -127,32 +95,6 @@ struct BTM_IsInquiryActive {
   uint16_t operator()(void) { return body(); }
 };
 extern struct BTM_IsInquiryActive BTM_IsInquiryActive;
-
-// Name: BTM_ReadRemoteDeviceName
-// Params: const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb, tBT_TRANSPORT
-// transport Return: tBTM_STATUS
-struct BTM_ReadRemoteDeviceName {
-  static tBTM_STATUS return_value;
-  std::function<tBTM_STATUS(const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb,
-                            tBT_TRANSPORT transport)>
-          body{[](const RawAddress& /* remote_bda */, tBTM_NAME_CMPL_CB* /* p_cb */,
-                  tBT_TRANSPORT /* transport */) { return return_value; }};
-  tBTM_STATUS operator()(const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb,
-                         tBT_TRANSPORT transport) {
-    return body(remote_bda, p_cb, transport);
-  }
-};
-extern struct BTM_ReadRemoteDeviceName BTM_ReadRemoteDeviceName;
-
-// Name: BTM_RemoveEirService
-// Params: uint32_t* p_eir_uuid, uint16_t uuid16
-// Return: void
-struct BTM_RemoveEirService {
-  std::function<void(uint32_t* p_eir_uuid, uint16_t uuid16)> body{
-          [](uint32_t* /* p_eir_uuid */, uint16_t /* uuid16 */) {}};
-  void operator()(uint32_t* p_eir_uuid, uint16_t uuid16) { body(p_eir_uuid, uuid16); }
-};
-extern struct BTM_RemoveEirService BTM_RemoveEirService;
 
 // Name: BTM_SetConnectability
 // Params: uint16_t page_mode
