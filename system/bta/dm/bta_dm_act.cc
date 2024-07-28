@@ -321,7 +321,15 @@ void bta_dm_disable() {
     log::warn("Unable to disable classic BR/EDR connectability");
   }
 
-  bta_dm_disable_pm();
+  /* if sniff is offload, no need to handle it in the stack */
+  if (com::android::bluetooth::flags::enable_sniff_offload() &&
+      osi_property_get_bool(kPropertySniffOffloadEnabled, false)) {
+    log::info("Sniff offloading. Skip bta_dm_disable_pm.");
+  } else {
+    /* Disable bluetooth low power manager */
+    bta_dm_disable_pm();
+  }
+
   if (com::android::bluetooth::flags::separate_service_and_device_discovery()) {
     bta_dm_disc_disable_search();
     bta_dm_disc_disable_disc();
@@ -1243,7 +1251,8 @@ static void bta_dm_set_eir(char* local_name) {
 
   /* if local name is not provided, get it from controller */
   if (local_name == NULL) {
-    if (BTM_ReadLocalDeviceName((const char**)&local_name) != BTM_SUCCESS) {
+    if (get_btm_client_interface().local.BTM_ReadLocalDeviceName((const char**)&local_name) !=
+        BTM_SUCCESS) {
       log::error("Fail to read local device name for EIR");
     }
   }
