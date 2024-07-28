@@ -214,7 +214,6 @@ TEST_F(BtaDmTest, bta_dm_set_encryption) {
   tBTA_DM_PEER_DEVICE* device =
           bluetooth::legacy::testing::allocate_device_for(kRawAddress, transport);
   ASSERT_TRUE(device != nullptr);
-  device->conn_state = tBTA_DM_CONN_STATE::BTA_DM_CONNECTED;
   device->p_encrypt_cback = nullptr;
 
   // Setup a device that is busy with another encryption
@@ -267,7 +266,6 @@ TEST_F(BtaDmTest, bta_dm_encrypt_cback) {
   tBTA_DM_PEER_DEVICE* device =
           bluetooth::legacy::testing::allocate_device_for(kRawAddress, transport);
   ASSERT_TRUE(device != nullptr);
-  device->conn_state = tBTA_DM_CONN_STATE::BTA_DM_CONNECTED;
 
   // Encryption with no callback set
   device->p_encrypt_cback = nullptr;
@@ -480,6 +478,12 @@ TEST_F_WITH_FLAGS(BtaDmCustomAlarmTest, sniff_offload_feature__enable_flag,
   is_property_enabled = false;
   bluetooth::legacy::testing::BTA_dm_on_hw_on();
   ASSERT_EQ((uint8_t)BTA_ID_MAX, bta_dm_cb.pm_timer[0].srvc_id[0]);
+
+  // Shouldn't crash even there's no active timer when calling
+  // bta_dm_disable_pm.
+  bta_dm_cb.pm_timer[0].in_use = false;
+  bta_dm_cb.pm_timer[0].srvc_id[0] = kUnusedTimer;
+  bta_dm_disable_pm();
 }
 
 TEST_F_WITH_FLAGS(BtaDmCustomAlarmTest, sniff_offload_feature__disable_flag,
