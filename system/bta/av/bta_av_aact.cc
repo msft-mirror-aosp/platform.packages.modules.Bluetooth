@@ -1074,50 +1074,65 @@ void bta_av_setconfig_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       p_scb->role |= BTA_AV_ROLE_SUSPEND_OPT;
     }
     log::verbose("recfg_needed:{} role:0x{:x}", p_data->ci_setconfig.recfg_needed, p_scb->role);
-    p_scb->num_seps = 1;
 
     if (p_scb->cur_psc_mask & AVDT_PSC_DELAY_RPT) {
       p_scb->SetAvdtpVersion(AVDT_VERSION_1_3);
     }
 
-    if (A2DP_GetCodecType(p_scb->cfg.codec_info) == A2DP_MEDIA_CT_SBC) {
-      /* if SBC is used by the SNK as INT, discover req is not sent in
-       * bta_av_config_ind.
-       * call disc_res now */
-      /* this is called in A2DP SRC path only, In case of SINK we don't need it
-       */
-      if (local_sep == AVDT_TSEP_SRC) {
-        p_scb->p_cos->disc_res(p_scb->hndl, p_scb->PeerAddress(), p_scb->num_seps, p_scb->num_seps,
-                               0, UUID_SERVCLASS_AUDIO_SOURCE);
-      }
-    } else {
-      /* we do not know the peer device and it is using non-SBC codec
-       * we need to know all the SEPs on SNK */
-      if (p_scb->uuid_int == 0) {
+    if (com::android::bluetooth::flags::avdt_discover_seps_as_acceptor()) {
+      if (btif_av_src_sink_coexist_enabled()) {
+        if (local_sep == AVDT_TSEP_SRC) {
+          /* Make sure UUID has been initialized... */
+          /* if local sep is source, uuid_int should be source */
+          p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SOURCE;
+        } else {
+          p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SINK;
+        }
+      } else if (p_scb->uuid_int == 0) {
         p_scb->uuid_int = p_scb->open_api.uuid;
       }
       bta_av_discover_req(p_scb, NULL);
-      return;
-    }
-
-    /* only in case of local sep as SRC we need to look for other SEPs, In case
-     * of SINK we don't */
-    if (btif_av_src_sink_coexist_enabled()) {
-      if (local_sep == AVDT_TSEP_SRC) {
-        /* Make sure UUID has been initialized... */
-        /* if local sep is source, uuid_int should be source */
-        p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SOURCE;
-        bta_av_next_getcap(p_scb, p_data);
-      } else {
-        p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SINK;
-      }
     } else {
-      if (local_sep == AVDT_TSEP_SRC) {
-        /* Make sure UUID has been initialized... */
+      p_scb->num_seps = 1;
+      if (A2DP_GetCodecType(p_scb->cfg.codec_info) == A2DP_MEDIA_CT_SBC) {
+        /* if SBC is used by the SNK as INT, discover req is not sent in
+         * bta_av_config_ind.
+         * call disc_res now */
+        /* this is called in A2DP SRC path only, In case of SINK we don't need it
+         */
+        if (local_sep == AVDT_TSEP_SRC) {
+          p_scb->p_cos->disc_res(p_scb->hndl, p_scb->PeerAddress(), p_scb->num_seps,
+                                 p_scb->num_seps, 0, UUID_SERVCLASS_AUDIO_SOURCE);
+        }
+      } else {
+        /* we do not know the peer device and it is using non-SBC codec
+         * we need to know all the SEPs on SNK */
         if (p_scb->uuid_int == 0) {
           p_scb->uuid_int = p_scb->open_api.uuid;
         }
-        bta_av_next_getcap(p_scb, p_data);
+        bta_av_discover_req(p_scb, NULL);
+        return;
+      }
+
+      /* only in case of local sep as SRC we need to look for other SEPs, In case
+       * of SINK we don't */
+      if (btif_av_src_sink_coexist_enabled()) {
+        if (local_sep == AVDT_TSEP_SRC) {
+          /* Make sure UUID has been initialized... */
+          /* if local sep is source, uuid_int should be source */
+          p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SOURCE;
+          bta_av_next_getcap(p_scb, p_data);
+        } else {
+          p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SINK;
+        }
+      } else {
+        if (local_sep == AVDT_TSEP_SRC) {
+          /* Make sure UUID has been initialized... */
+          if (p_scb->uuid_int == 0) {
+            p_scb->uuid_int = p_scb->open_api.uuid;
+          }
+          bta_av_next_getcap(p_scb, p_data);
+        }
       }
     }
   }
@@ -1863,7 +1878,8 @@ void bta_av_do_start(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
    * It would not hurt us, if the peer device wants us to be central
    * disable sniff mode unconditionally during streaming */
   tHCI_ROLE cur_role;
-  if ((BTM_GetRole(p_scb->PeerAddress(), &cur_role) == BTM_SUCCESS) &&
+  if ((get_btm_client_interface().link_policy.BTM_GetRole(p_scb->PeerAddress(), &cur_role) ==
+       BTM_SUCCESS) &&
       (cur_role == HCI_ROLE_CENTRAL)) {
     BTM_block_role_switch_and_sniff_mode_for(p_scb->PeerAddress());
   } else {
@@ -2334,7 +2350,8 @@ void bta_av_start_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
        * Because it would not hurt source, if the peer device wants source to be
        * central.
        * disable sniff mode unconditionally during streaming */
-      if ((BTM_GetRole(p_scb->PeerAddress(), &cur_role) == BTM_SUCCESS) &&
+      if ((get_btm_client_interface().link_policy.BTM_GetRole(p_scb->PeerAddress(), &cur_role) ==
+           BTM_SUCCESS) &&
           (cur_role == HCI_ROLE_CENTRAL)) {
         BTM_block_role_switch_and_sniff_mode_for(p_scb->PeerAddress());
       } else {
