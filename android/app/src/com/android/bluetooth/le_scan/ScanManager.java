@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.le_scan;
 
-import android.annotation.RequiresPermission;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
@@ -482,7 +481,6 @@ public class ScanManager {
             return atLeastOneValidFilter;
         }
 
-        @RequiresPermission(android.Manifest.permission.BLUETOOTH_SCAN)
         void handleStopScan(ScanClient client) {
             if (client == null) {
                 return;
@@ -508,7 +506,7 @@ public class ScanManager {
             }
             if (client.appDied) {
                 Log.d(TAG, "app died, unregister scanner - " + client.scannerId);
-                mScanHelper.unregisterScanner(client.scannerId, mContext.getAttributionSource());
+                mScanHelper.unregisterScannerInternal(client.scannerId);
             }
         }
 
@@ -595,7 +593,6 @@ public class ScanManager {
             mIsConnecting = false;
         }
 
-        @RequiresPermission(android.Manifest.permission.BLUETOOTH_SCAN)
         void handleSuspendScans() {
             for (ScanClient client : mRegularScanClients) {
                 if ((requiresScreenOn(client) && !mScreenOn)
@@ -680,24 +677,35 @@ public class ScanManager {
             if (mScanNative.isOpportunisticScanClient(client)) {
                 return false;
             }
+            int updatedScanMode = client.scanModeApp;
             if (!isAppForeground(client) || mScanNative.isForceDowngradedScanClient(client)) {
-                return client.updateScanMode(ScanSettings.SCAN_MODE_SCREEN_OFF);
+                updatedScanMode = ScanSettings.SCAN_MODE_SCREEN_OFF;
+            } else {
+                // The following codes are effectively only for services
+                // Apps are either already or will be soon handled by handleImportanceChange().
+                switch (client.scanModeApp) {
+                    case ScanSettings.SCAN_MODE_LOW_POWER:
+                        updatedScanMode = ScanSettings.SCAN_MODE_SCREEN_OFF;
+                        break;
+                    case ScanSettings.SCAN_MODE_BALANCED:
+                    case ScanSettings.SCAN_MODE_AMBIENT_DISCOVERY:
+                        updatedScanMode = ScanSettings.SCAN_MODE_SCREEN_OFF_BALANCED;
+                        break;
+                    case ScanSettings.SCAN_MODE_LOW_LATENCY:
+                        updatedScanMode = ScanSettings.SCAN_MODE_LOW_LATENCY;
+                        break;
+                    case ScanSettings.SCAN_MODE_OPPORTUNISTIC:
+                    default:
+                        return false;
+                }
             }
-
-            // The following codes are effectively only for services
-            // Apps are either already or will be soon handled by handleImportanceChange().
-            switch (client.scanModeApp) {
-                case ScanSettings.SCAN_MODE_LOW_POWER:
-                    return client.updateScanMode(ScanSettings.SCAN_MODE_SCREEN_OFF);
-                case ScanSettings.SCAN_MODE_BALANCED:
-                case ScanSettings.SCAN_MODE_AMBIENT_DISCOVERY:
-                    return client.updateScanMode(ScanSettings.SCAN_MODE_SCREEN_OFF_BALANCED);
-                case ScanSettings.SCAN_MODE_LOW_LATENCY:
-                    return client.updateScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY);
-                case ScanSettings.SCAN_MODE_OPPORTUNISTIC:
-                default:
-                    return false;
-            }
+            Log.d(
+                    TAG,
+                    "Scan mode update during screen off from "
+                            + client.scanModeApp
+                            + " to "
+                            + updatedScanMode);
+            return client.updateScanMode(updatedScanMode);
         }
 
         /**
@@ -1077,12 +1085,13 @@ public class ScanManager {
                     mNativeInterface.gattSetScanParameters(
                             client.scannerId, scanInterval, scanWindow, scanPhyMask);
                     mNativeInterface.gattClientScan(true);
-                    if (!AppScanStats.recordScanRadioStart(
-                            client.scanModeApp,
-                            client.scannerId,
-                            client.stats,
-                            scanWindowMs,
-                            scanIntervalMs)) {
+                    if (client.stats != null
+                            && !AppScanStats.recordScanRadioStart(
+                                    client.scanModeApp,
+                                    client.scannerId,
+                                    client.stats,
+                                    scanWindowMs,
+                                    scanIntervalMs)) {
                         Log.w(TAG, "Scan radio already started");
                     }
                     mLastConfiguredScanSetting = curScanSetting;
@@ -1122,12 +1131,13 @@ public class ScanManager {
                 Log.d(TAG, "start gattClientScanNative from startRegularScan()");
                 mNativeInterface.gattClientScan(true);
                 if (!Flags.bleScanAdvMetricsRedesign()) {
-                    if (!AppScanStats.recordScanRadioStart(
-                            client.settings.getScanMode(),
-                            client.scannerId,
-                            client.stats,
-                            getScanWindowMillis(client.settings),
-                            getScanIntervalMillis(client.settings))) {
+                    if (client.stats != null
+                            && !AppScanStats.recordScanRadioStart(
+                                    client.settings.getScanMode(),
+                                    client.scannerId,
+                                    client.stats,
+                                    getScanWindowMillis(client.settings),
+                                    getScanIntervalMillis(client.settings))) {
                         Log.w(TAG, "Scan radio already started");
                     }
                 }

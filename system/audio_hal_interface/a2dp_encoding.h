@@ -20,7 +20,7 @@
 #include <sstream>
 #include <vector>
 
-#include "a2dp_error_codes.h"
+#include "a2dp_constants.h"
 #include "avdt_api.h"
 #include "common/message_loop_thread.h"
 #include "hardware/bt_av.h"
@@ -29,21 +29,19 @@ namespace bluetooth {
 namespace audio {
 namespace a2dp {
 
-/// Copied after the definition from the Bluetooth Audio interface:
+/// Loosely copied after the definition from the Bluetooth Audio interface:
 /// hardware/interfaces/bluetooth/audio/aidl/android/hardware/bluetooth/audio/BluetoothAudioStatus.aidl
-enum BluetoothAudioStatus {
-  UNKNOWN = 0,
-  SUCCESS = 1,
-  UNSUPPORTED_CODEC_CONFIGURATION = 2,
-  FAILURE = 3,
-  // Not defined in BluetoothAudioStatus, but used internally for
-  // state keeping.
-  PENDING = 5,
+enum class BluetoothAudioStatus {
+  SUCCESS = 0,
+  UNKNOWN,
+  UNSUPPORTED_CODEC_CONFIGURATION,
+  FAILURE,
+  PENDING,
 };
 
 bool update_codec_offloading_capabilities(
-    const std::vector<btav_a2dp_codec_config_t>& framework_preference,
-    bool supports_a2dp_hw_offload_v2);
+        const std::vector<btav_a2dp_codec_config_t>& framework_preference,
+        bool supports_a2dp_hw_offload_v2);
 
 // Check if new bluetooth_audio is enabled
 bool is_hal_enabled();
@@ -83,12 +81,10 @@ bool is_opus_supported();
 namespace provider {
 
 // Lookup the codec info in the list of supported offloaded sink codecs.
-std::optional<btav_a2dp_codec_index_t> sink_codec_index(
-    const uint8_t* p_codec_info);
+std::optional<btav_a2dp_codec_index_t> sink_codec_index(const uint8_t* p_codec_info);
 
 // Lookup the codec info in the list of supported offloaded source codecs.
-std::optional<btav_a2dp_codec_index_t> source_codec_index(
-    const uint8_t* p_codec_info);
+std::optional<btav_a2dp_codec_index_t> source_codec_index(const uint8_t* p_codec_info);
 
 // Return the name of the codec which is assigned to the input index.
 // The codec index must be in the ranges
@@ -105,8 +101,8 @@ bool supports_codec(btav_a2dp_codec_index_t codec_index);
 // Return the A2DP capabilities for the selected codec.
 // `codec_info` returns the OTA codec capabilities, `codec_config`
 // returns the supported capabilities in a generic format.
-bool codec_info(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id,
-                uint8_t* codec_info, btav_a2dp_codec_config_t* codec_config);
+bool codec_info(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id, uint8_t* codec_info,
+                btav_a2dp_codec_config_t* codec_config);
 
 struct a2dp_configuration {
   int remote_seid;
@@ -123,7 +119,9 @@ struct a2dp_configuration {
     for (int i = 0; i < AVDT_CODEC_SIZE; i++) {
       os << "0x" << std::hex << std::setw(2) << std::setfill('0')
          << static_cast<int>(codec_config[i]);
-      if (i != AVDT_CODEC_SIZE - 1) os << ",";
+      if (i != AVDT_CODEC_SIZE - 1) {
+        os << ",";
+      }
     }
     os << "}";
     os << "}";
@@ -144,7 +142,9 @@ struct a2dp_remote_capabilities {
       for (int i = 0; i < AVDT_CODEC_SIZE; i++) {
         os << "0x" << std::hex << std::setw(2) << std::setfill('0')
            << static_cast<int>(capabilities[i]);
-        if (i != AVDT_CODEC_SIZE - 1) os << ",";
+        if (i != AVDT_CODEC_SIZE - 1) {
+          os << ",";
+        }
       }
     }
     os << "}";
@@ -157,18 +157,17 @@ struct a2dp_remote_capabilities {
 // The HAL is expected to pick the best audio configuration based on the
 // discovered remote SEPs.
 std::optional<a2dp_configuration> get_a2dp_configuration(
-    RawAddress peer_address,
-    std::vector<a2dp_remote_capabilities> const& remote_seps,
-    btav_a2dp_codec_config_t const& user_preferences);
+        RawAddress peer_address, std::vector<a2dp_remote_capabilities> const& remote_seps,
+        btav_a2dp_codec_config_t const& user_preferences);
 
 // Query the codec parameters from the audio HAL.
 // The HAL is expected to parse the codec configuration
 // received from the peer and decide whether accept
 // the it or not.
-tA2DP_STATUS parse_a2dp_configuration(
-    btav_a2dp_codec_index_t codec_index, const uint8_t* codec_info,
-    btav_a2dp_codec_config_t* codec_parameters,
-    std::vector<uint8_t>* vendor_specific_parameters);
+tA2DP_STATUS parse_a2dp_configuration(btav_a2dp_codec_index_t codec_index,
+                                      const uint8_t* codec_info,
+                                      btav_a2dp_codec_config_t* codec_parameters,
+                                      std::vector<uint8_t>* vendor_specific_parameters);
 
 }  // namespace provider
 }  // namespace a2dp
@@ -179,4 +178,4 @@ namespace fmt {
 template <>
 struct formatter<::bluetooth::audio::a2dp::BluetoothAudioStatus>
     : enum_formatter<::bluetooth::audio::a2dp::BluetoothAudioStatus> {};
-} // namespace fmt
+}  // namespace fmt
