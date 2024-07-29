@@ -208,8 +208,12 @@ public class AvrcpControllerService extends ProfileService {
      */
     @VisibleForTesting
     boolean setActiveDevice(BluetoothDevice device) {
+        if (DBG) {
+            Log.d(TAG, "setActiveDevice(device=" + device + ")");
+        }
         A2dpSinkService a2dpSinkService = A2dpSinkService.getA2dpSinkService();
         if (a2dpSinkService == null) {
+            Log.w(TAG, "setActiveDevice(device=" + device + "): A2DP Sink not available");
             return false;
         }
 
@@ -242,6 +246,8 @@ public class AvrcpControllerService extends ProfileService {
                 return true;
             }
         }
+
+        Log.w(TAG, "setActiveDevice(device=" + device + "): A2DP Sink request failed");
         return false;
     }
 
@@ -267,10 +273,6 @@ public class AvrcpControllerService extends ProfileService {
                 playbackState = PlaybackStateCompat.STATE_NONE;
         }
         return playbackState;
-    }
-
-    protected AvrcpControllerStateMachine newStateMachine(BluetoothDevice device) {
-        return new AvrcpControllerStateMachine(device, this);
     }
 
     protected void getCurrentMetadataIfNoCoverArt(BluetoothDevice device) {
@@ -333,15 +335,21 @@ public class AvrcpControllerService extends ProfileService {
             for (AvrcpControllerStateMachine stateMachine : mDeviceStateMap.values()) {
                 requestedNode = stateMachine.findNode(parentMediaId);
                 if (requestedNode != null) {
-                    Log.d(TAG, "Found a node");
                     break;
                 }
             }
         }
+
+        if (DBG) {
+            Log.d(TAG, "getContents(" + parentMediaId + "): "
+                    + (requestedNode == null
+                            ? "Failed to find node"
+                            : "node=" + requestedNode + ", device=" + requestedNode.getDevice()));
+        }
+
         // If we don't find a node in the tree then do not have any way to browse for the contents.
         // Return an empty list instead.
         if (requestedNode == null) {
-            if (DBG) Log.d(TAG, "Didn't find a node");
             return new BrowseResult(new ArrayList(0), BrowseResult.ERROR_MEDIA_ID_INVALID);
         }
         if (parentMediaId.equals(BrowseTree.ROOT) && requestedNode.getChildrenCount() == 0) {
@@ -355,15 +363,18 @@ public class AvrcpControllerService extends ProfileService {
 
         List<MediaItem> contents = requestedNode.getContents();
 
-        if (DBG) Log.d(TAG, "Returning contents");
         if (!requestedNode.isCached()) {
-            if (DBG) Log.d(TAG, "node is not cached");
+            if (DBG) Log.d(TAG, "getContents(" + parentMediaId + "): node download pending");
             refreshContents(requestedNode);
             /* Ongoing downloads can have partial results and we want to make sure they get sent
              * to the client. If a download gets kicked off as a result of this request, the
              * contents will be null until the first results arrive.
              */
             return new BrowseResult(contents, BrowseResult.DOWNLOAD_PENDING);
+        }
+        if (DBG) {
+            Log.d(TAG, "getContents(" + parentMediaId + "): return node, contents="
+                    + requestedNode.getContents());
         }
         return new BrowseResult(contents, BrowseResult.SUCCESS);
     }
@@ -908,10 +919,7 @@ public class AvrcpControllerService extends ProfileService {
      */
     public synchronized boolean disconnect(BluetoothDevice device) {
         if (DBG) {
-            StringBuilder sb = new StringBuilder();
-            dump(sb);
-            Log.d(TAG, "MAP disconnect device: " + device
-                    + ", InstanceMap start state: " + sb.toString());
+            Log.d(TAG, "disconnect(device=" + device + ")");
         }
         AvrcpControllerStateMachine stateMachine = mDeviceStateMap.get(device);
         // a map state machine instance doesn't exist. maybe it is already gone?
@@ -924,12 +932,6 @@ public class AvrcpControllerService extends ProfileService {
             return false;
         }
         stateMachine.disconnect();
-        if (DBG) {
-            StringBuilder sb = new StringBuilder();
-            dump(sb);
-            Log.d(TAG, "MAP disconnect device: " + device
-                    + ", InstanceMap start state: " + sb.toString());
-        }
         return true;
     }
 
@@ -937,11 +939,15 @@ public class AvrcpControllerService extends ProfileService {
      * Remove state machine from device map once it is no longer needed.
      */
     public void removeStateMachine(AvrcpControllerStateMachine stateMachine) {
+        if (stateMachine == null) {
+            return;
+        }
         BluetoothDevice device = stateMachine.getDevice();
         if (device.equals(getActiveDevice())) {
             setActiveDevice(null);
         }
         mDeviceStateMap.remove(stateMachine.getDevice());
+        stateMachine.quitNow();
     }
 
     public List<BluetoothDevice> getConnectedDevices() {
@@ -956,13 +962,23 @@ public class AvrcpControllerService extends ProfileService {
     }
 
     protected AvrcpControllerStateMachine getOrCreateStateMachine(BluetoothDevice device) {
-        AvrcpControllerStateMachine stateMachine = mDeviceStateMap.get(device);
-        if (stateMachine == null) {
-            stateMachine = newStateMachine(device);
-            mDeviceStateMap.put(device, stateMachine);
-            stateMachine.start();
+        AvrcpControllerStateMachine newStateMachine =
+                new AvrcpControllerStateMachine(device, this);
+        AvrcpControllerStateMachine existingStateMachine =
+                mDeviceStateMap.putIfAbsent(device, newStateMachine);
+        // Given null is not a valid value in our map, ConcurrentHashMap will return null if the
+        // key was absent and our new value was added. We should then start and return it. Else
+        // we quit the new one so we don't leak a thread
+        if (existingStateMachine == null) {
+            newStateMachine.start();
+            return newStateMachine;
+        } else {
+            // If you try to quit a StateMachine that hasn't been constructed yet, the StateMachine
+            // spits out an NPE trying to read a state stack array that only gets made on start().
+            // We can just quit the thread made explicitly
+            newStateMachine.getHandler().getLooper().quit();
         }
-        return stateMachine;
+        return existingStateMachine;
     }
 
     protected AvrcpCoverArtManager getCoverArtManager() {
@@ -1005,7 +1021,8 @@ public class AvrcpControllerService extends ProfileService {
                     "==== StateMachine for " + stateMachine.getDevice() + " ====");
             stateMachine.dump(sb);
         }
-        sb.append("\n  sBrowseTree: " + sBrowseTree.toString());
+        sb.append("\n  BrowseTree:\n");
+        sBrowseTree.dump(sb);
 
         sb.append("\n  Cover Artwork Enabled: " + (mCoverArtEnabled ? "True" : "False"));
         if (mCoverArtManager != null) {
