@@ -43,8 +43,9 @@ public class PeriodicScanManager {
 
     private final BluetoothAdapter mAdapter;
     private final PeriodicScanNativeInterface mNativeInterface;
-    Map<IBinder, SyncInfo> mSyncs = new ConcurrentHashMap<>();
-    Map<IBinder, SyncTransferInfo> mSyncTransfers = Collections.synchronizedMap(new HashMap<>());
+    private final Map<IBinder, SyncInfo> mSyncs = new ConcurrentHashMap<>();
+    private final Map<IBinder, SyncTransferInfo> mSyncTransfers =
+            Collections.synchronizedMap(new HashMap<>());
     static int sTempRegistrationId = -1;
 
     /** Constructor of {@link PeriodicScanManager}. */
@@ -62,7 +63,7 @@ public class PeriodicScanManager {
         sTempRegistrationId = -1;
     }
 
-    class SyncTransferInfo {
+    static class SyncTransferInfo {
         public String address;
         public SyncDeathRecipient deathRecipient;
         public IPeriodicAdvertisingCallback callback;
@@ -73,7 +74,7 @@ public class PeriodicScanManager {
         }
     }
 
-    class SyncInfo {
+    static class SyncInfo {
         /* When id is negative, the registration is ongoing. When the registration finishes, id
          * becomes equal to sync_handle */
         public Integer id;

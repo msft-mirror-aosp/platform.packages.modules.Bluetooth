@@ -19,7 +19,6 @@ package com.android.bluetooth.btservice;
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 
 import android.annotation.NonNull;
-import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
@@ -99,7 +98,6 @@ public class AudioRoutingManager extends ActiveDeviceManager {
      *
      * @param device The device to be activated.
      * @param profile The profile to be activated
-     * @param receiver to post the results
      */
     public CompletableFuture<Boolean> activateDeviceProfile(BluetoothDevice device, int profile) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
@@ -696,9 +694,8 @@ public class AudioRoutingManager extends ActiveDeviceManager {
                     }
                 }
             }
-            BluetoothClass deviceClass = device.getBluetoothClass();
-            if (deviceClass != null
-                    && deviceClass.getDeviceClass() == BluetoothClass.Device.WEARABLE_WRIST_WATCH) {
+            BluetoothClass deviceClass = new BluetoothClass(mAdapterService.getRemoteClass(device));
+            if (deviceClass.getDeviceClass() == BluetoothClass.Device.WEARABLE_WRIST_WATCH) {
                 Log.i(TAG, "Do not set profile active for watch device when connected: " + device);
                 return false;
             }
@@ -735,7 +732,6 @@ public class AudioRoutingManager extends ActiveDeviceManager {
          * time a wired audio device is connected.
          */
         @VisibleForTesting
-        @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
         void wiredAudioDeviceConnected() {
             Log.d(TAG, "wiredAudioDeviceConnected");
             removeActiveDevice(BluetoothProfile.A2DP, true);

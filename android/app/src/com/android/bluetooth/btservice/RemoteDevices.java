@@ -20,7 +20,10 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
 
+import static com.android.modules.utils.build.SdkLevel.isAtLeastV;
+
 import android.annotation.RequiresPermission;
+import android.app.Activity;
 import android.app.admin.SecurityLog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothAssignedNumbers;
@@ -43,6 +46,8 @@ import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.R;
 import com.android.bluetooth.Utils;
@@ -51,7 +56,7 @@ import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.hfp.HeadsetHalConstants;
 import com.android.internal.annotations.VisibleForTesting;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -164,7 +169,7 @@ public class RemoteDevices {
      * Reset should be called when the state of this object needs to be cleared RemoteDevices is
      * still usable after reset
      */
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(BLUETOOTH_CONNECT)
     void reset() {
         mSdpTracker.clear();
 
@@ -225,6 +230,46 @@ public class RemoteDevices {
             }
             return mDevices.get(address);
         }
+    }
+
+    int getBondState(BluetoothDevice device) {
+        DeviceProperties deviceProp = getDeviceProperties(device);
+        if (deviceProp == null) {
+            return BluetoothDevice.BOND_NONE;
+        }
+        return deviceProp.getBondState();
+    }
+
+    String getName(BluetoothDevice device) {
+        DeviceProperties deviceProp = getDeviceProperties(device);
+        if (deviceProp == null) {
+            return null;
+        }
+        return deviceProp.getName();
+    }
+
+    int getType(BluetoothDevice device) {
+        DeviceProperties deviceProp = getDeviceProperties(device);
+        if (deviceProp == null) {
+            return BluetoothDevice.DEVICE_TYPE_UNKNOWN;
+        }
+        return deviceProp.getDeviceType();
+    }
+
+    public ParcelUuid[] getUuids(BluetoothDevice device) {
+        DeviceProperties deviceProp = getDeviceProperties(device);
+        if (deviceProp == null) {
+            return null;
+        }
+        return deviceProp.getUuids();
+    }
+
+    public int getBluetoothClass(BluetoothDevice device) {
+        DeviceProperties deviceProp = getDeviceProperties(device);
+        if (deviceProp == null) {
+            return 0;
+        }
+        return deviceProp.getBluetoothClass();
     }
 
     BluetoothDevice getDevice(byte[] address) {
@@ -665,14 +710,10 @@ public class RemoteDevices {
 
         public void setModelName(String modelName) {
             mModelName = modelName;
-            try {
-                mAdapterService.setMetadata(
-                        this.mDevice,
-                        BluetoothDevice.METADATA_MODEL_NAME,
-                        mModelName.getBytes("UTF-8"));
-            } catch (UnsupportedEncodingException uee) {
-                Log.e(TAG, "setModelName: UTF-8 not supported?!?"); // this should not happen
-            }
+            mAdapterService.setMetadata(
+                    this.mDevice,
+                    BluetoothDevice.METADATA_MODEL_NAME,
+                    mModelName.getBytes(StandardCharsets.UTF_8));
         }
 
         /**
@@ -1012,19 +1053,19 @@ public class RemoteDevices {
         // The device properties are already registered - we can send the intent
         // now
         BluetoothDevice device = getDevice(address);
-        debugLog("deviceFoundCallback: Remote Address is:" + device);
         DeviceProperties deviceProp = getDeviceProperties(device);
         if (deviceProp == null) {
-            errorLog("Device Properties is null for Device:" + device);
+            errorLog("deviceFoundCallback: Device Properties is null for Device:" + device);
             return;
         }
         boolean restrict_device_found =
                 SystemProperties.getBoolean("bluetooth.restrict_discovered_device.enabled", false);
         if (restrict_device_found && (deviceProp.mName == null || deviceProp.mName.isEmpty())) {
-            debugLog("Device name is null or empty: " + device);
+            warnLog("deviceFoundCallback: Device name is null or empty: " + device);
             return;
         }
 
+        infoLog("deviceFoundCallback: Remote Address is:" + device);
         Intent intent = new Intent(BluetoothDevice.ACTION_FOUND);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.putExtra(
@@ -1111,11 +1152,6 @@ public class RemoteDevices {
         deviceProperties.mIdentityAddress = Utils.getAddressStringFromByte(secondaryAddress);
     }
 
-    @RequiresPermission(
-            allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
-            })
     void aclStateChangeCallback(
             int status,
             byte[] address,
@@ -1171,18 +1207,10 @@ public class RemoteDevices {
                             + device);
         } else {
             deviceProperties.setConnectionHandle(BluetoothDevice.ERROR, transportLinkType);
-            if (device.getBondState() == BluetoothDevice.BOND_BONDING) {
+            if (getBondState(device) == BluetoothDevice.BOND_BONDING) {
                 // Send PAIRING_CANCEL intent to dismiss any dialog requesting bonding.
-                intent = new Intent(BluetoothDevice.ACTION_PAIRING_CANCEL);
-                intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
-                intent.setPackage(
-                        SystemProperties.get(
-                                Utils.PAIRING_UI_PROPERTY,
-                                mAdapterService.getString(R.string.pairing_ui_package)));
-
-                mAdapterService.sendBroadcast(
-                        intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
-            } else if (device.getBondState() == BluetoothDevice.BOND_NONE) {
+                sendPairingCancelIntent(device);
+            } else if (getBondState(device) == BluetoothDevice.BOND_NONE) {
                 removeAddressMapping(Utils.getAddressStringFromByte(address));
             }
             if (state == BluetoothAdapter.STATE_ON || state == BluetoothAdapter.STATE_TURNING_OFF) {
@@ -1239,43 +1267,53 @@ public class RemoteDevices {
                 metricId,
                 transportLinkType);
 
-        BluetoothClass deviceClass = device.getBluetoothClass();
-        int classOfDevice = deviceClass == null ? 0 : deviceClass.getClassOfDevice();
         BluetoothStatsLog.write(
                 BluetoothStatsLog.BLUETOOTH_CLASS_OF_DEVICE_REPORTED,
                 mAdapterService.obfuscateAddress(device),
-                classOfDevice,
+                getBluetoothClass(device),
                 metricId);
 
-        if (intent != null) {
-            intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device)
-                    .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT)
-                    .addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-            mAdapterService.sendBroadcast(
-                    intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
+        if (intent == null) {
+            Log.e(TAG, "aclStateChangeCallback intent is null. BondState: " + getBondState(device));
+            return;
+        }
 
-            synchronized (mAdapterService.getBluetoothConnectionCallbacks()) {
-                Set<IBluetoothConnectionCallback> bluetoothConnectionCallbacks =
-                        mAdapterService.getBluetoothConnectionCallbacks();
-                for (IBluetoothConnectionCallback callback : bluetoothConnectionCallbacks) {
-                    try {
-                        if (connectionState == BluetoothAdapter.STATE_CONNECTED) {
-                            callback.onDeviceConnected(device);
-                        } else {
-                            callback.onDeviceDisconnected(
-                                    device, AdapterService.hciToAndroidDisconnectReason(hciReason));
-                        }
-                    } catch (RemoteException ex) {
-                        Log.e(TAG, "RemoteException in calling IBluetoothConnectionCallback");
+        intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device)
+                .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT)
+                .addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+        mAdapterService.sendBroadcast(
+                intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
+
+        synchronized (mAdapterService.getBluetoothConnectionCallbacks()) {
+            Set<IBluetoothConnectionCallback> bluetoothConnectionCallbacks =
+                    mAdapterService.getBluetoothConnectionCallbacks();
+            for (IBluetoothConnectionCallback callback : bluetoothConnectionCallbacks) {
+                try {
+                    if (connectionState == BluetoothAdapter.STATE_CONNECTED) {
+                        callback.onDeviceConnected(device);
+                    } else {
+                        callback.onDeviceDisconnected(
+                                device, AdapterService.hciToAndroidDisconnectReason(hciReason));
                     }
+                } catch (RemoteException ex) {
+                    Log.e(TAG, "RemoteException in calling IBluetoothConnectionCallback");
                 }
             }
-        } else {
-            Log.e(
-                    TAG,
-                    "aclStateChangeCallback intent is null. deviceBondState: "
-                            + device.getBondState());
         }
+    }
+
+    @NonNull
+    private void sendPairingCancelIntent(BluetoothDevice device) {
+        Intent intent = new Intent(BluetoothDevice.ACTION_PAIRING_CANCEL);
+        intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
+        intent.setPackage(
+                SystemProperties.get(
+                        Utils.PAIRING_UI_PROPERTY,
+                        mAdapterService.getString(R.string.pairing_ui_package)));
+
+        Log.i(TAG, "sendPairingCancelIntent: device=" + device);
+        mAdapterService.sendBroadcast(
+                intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
     }
 
     private void removeAddressMapping(String address) {
@@ -1329,7 +1367,7 @@ public class RemoteDevices {
         }
         Log.i(TAG, "keyMissingCallback device: " + bluetoothDevice);
 
-        if (bluetoothDevice.getBondState() == BluetoothDevice.BOND_BONDED) {
+        if (getBondState(bluetoothDevice) == BluetoothDevice.BOND_BONDED) {
             if (!Flags.keyMissingBroadcast()) {
                 Log.d(TAG, "flag not set - don't send key missing broadcast");
                 return;
@@ -1340,10 +1378,26 @@ public class RemoteDevices {
                             .addFlags(
                                     Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                                             | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-            mAdapterService.sendBroadcastMultiplePermissions(
-                    intent,
-                    new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
-                    Utils.getTempBroadcastOptions());
+
+            if (isAtLeastV()
+                    && Flags.keyMissingAsOrderedBroadcast()
+                    && android.os.Flags.orderedBroadcastMultiplePermissions()) {
+                mAdapterService.sendOrderedBroadcastMultiplePermissions(
+                        intent,
+                        new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+                        null /* receiverAppOp */,
+                        null /* resultReceiver */,
+                        null /* scheduler */,
+                        Activity.RESULT_OK /* initialCode */,
+                        null /* initialData */,
+                        null /* initialExtras */,
+                        Utils.getTempBroadcastOptions().toBundle());
+            } else {
+                mAdapterService.sendBroadcastMultiplePermissions(
+                        intent,
+                        new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+                        Utils.getTempBroadcastOptions());
+            }
         }
     }
 

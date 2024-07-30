@@ -36,8 +36,8 @@ import android.os.Looper;
 import android.os.ParcelUuid;
 import android.platform.test.flag.junit.SetFlagsRule;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -101,7 +101,7 @@ public class VolumeControlServiceTest {
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
+        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
         if (Looper.myLooper() == null) {
             Looper.prepare();
@@ -134,7 +134,6 @@ public class VolumeControlServiceTest {
         mService.mAudioManager = mAudioManager;
         mService.mFactory = mServiceFactory;
         mServiceBinder = (VolumeControlService.BluetoothVolumeControlBinder) mService.initBinder();
-        mServiceBinder.mIsTesting = true;
 
         doReturn(mCsipService).when(mServiceFactory).getCsipSetCoordinatorService();
         doReturn(mLeAudioService).when(mServiceFactory).getLeAudioService();
@@ -365,9 +364,8 @@ public class VolumeControlServiceTest {
                 .when(mAdapterService)
                 .getRemoteUuids(any(BluetoothDevice.class));
 
-        // Send a connect request via binder
-        Assert.assertTrue(
-                "Connect expected to succeed", mServiceBinder.connect(mDevice, mAttributionSource));
+        // Send a connect request
+        Assert.assertTrue("Connect expected to succeed", mService.connect(mDevice));
 
         // Verify the connection state broadcast, and that we are in Connecting state
         verifyConnectionStateIntent(
@@ -376,10 +374,8 @@ public class VolumeControlServiceTest {
                 BluetoothProfile.STATE_CONNECTING,
                 BluetoothProfile.STATE_DISCONNECTED);
 
-        // Send a disconnect request via binder
-        Assert.assertTrue(
-                "Disconnect expected to succeed",
-                mServiceBinder.disconnect(mDevice, mAttributionSource));
+        // Send a disconnect request
+        Assert.assertTrue("Disconnect expected to succeed", mService.disconnect(mDevice));
 
         // Verify the connection state broadcast, and that we are in Connecting state
         verifyConnectionStateIntent(
@@ -483,14 +479,13 @@ public class VolumeControlServiceTest {
 
         // stack event: CONNECTION_STATE_DISCONNECTING - state machine should not be created
         generateUnexpectedConnectionMessageFromNative(
-                mDevice, BluetoothProfile.STATE_DISCONNECTING, BluetoothProfile.STATE_DISCONNECTED);
+                mDevice, BluetoothProfile.STATE_DISCONNECTING);
         Assert.assertEquals(
                 BluetoothProfile.STATE_DISCONNECTED, mService.getConnectionState(mDevice));
         Assert.assertFalse(mService.getDevices().contains(mDevice));
 
         // stack event: CONNECTION_STATE_DISCONNECTED - state machine should not be created
-        generateUnexpectedConnectionMessageFromNative(
-                mDevice, BluetoothProfile.STATE_DISCONNECTED, BluetoothProfile.STATE_DISCONNECTED);
+        generateUnexpectedConnectionMessageFromNative(mDevice, BluetoothProfile.STATE_DISCONNECTED);
         Assert.assertEquals(
                 BluetoothProfile.STATE_DISCONNECTED, mService.getConnectionState(mDevice));
         Assert.assertFalse(mService.getDevices().contains(mDevice));
@@ -998,7 +993,6 @@ public class VolumeControlServiceTest {
 
         Assert.assertTrue(mServiceBinder.isVolumeOffsetAvailable(mDevice, mAttributionSource));
 
-        int defaultNumberOfInstances = 0;
         int numberOfInstances =
                 mServiceBinder.getNumberOfVolumeOffsetInstances(mDevice, mAttributionSource);
         Assert.assertEquals(2, numberOfInstances);
@@ -1465,7 +1459,7 @@ public class VolumeControlServiceTest {
     }
 
     private void generateUnexpectedConnectionMessageFromNative(
-            BluetoothDevice device, int newConnectionState, int oldConnectionState) {
+            BluetoothDevice device, int newConnectionState) {
         VolumeControlStackEvent stackEvent =
                 new VolumeControlStackEvent(
                         VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);

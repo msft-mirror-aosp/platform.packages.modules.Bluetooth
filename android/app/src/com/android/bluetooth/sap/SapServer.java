@@ -13,7 +13,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.drawable.Icon;
 import android.os.Handler;
-import android.os.Handler.Callback;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
@@ -44,7 +43,7 @@ import java.util.concurrent.CountDownLatch;
  * thread. (There are helper functions to do this) Communication to the RIL is through an intent,
  * and a BroadcastReceiver.
  */
-public class SapServer extends Thread implements Callback {
+public class SapServer extends Thread implements Handler.Callback {
     private static final String TAG = "SapServer";
     private static final String TAG_HANDLER = "SapServerHandler";
 
@@ -239,9 +238,8 @@ public class SapServer extends Thread implements Callback {
         /* For PTS TC_SERVER_DCN_BV_03_I we need to expose the option to send immediate disconnect
          * without first sending a graceful disconnect.
          * To enable this option set
-         * bt.sap.pts="true" */
-        String ptsEnabled = SystemProperties.get("bt.sap.pts");
-        Boolean ptsTest = Boolean.parseBoolean(ptsEnabled);
+         * persist.bluetooth.pts="true" or bt.sap.pts="true" */
+        Boolean ptsTest = Utils.isPtsTestMode() || SystemProperties.getBoolean("bt.sap.pts", false);
 
         /* put notification up for the user to be able to disconnect from the client*/
         Intent sapDisconnectIntent = new Intent(SapServer.SAP_DISCONNECT_ACTION);

@@ -52,6 +52,7 @@ cc_library_static {
     host_supported: true,
     min_sdk_version: "Tiramisu",
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbluetooth_gd",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
@@ -146,6 +147,7 @@ cc_library_static {
     ],
     header_libs: ["libbluetooth_headers"],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
         "libbt_shim_bridge",
@@ -203,6 +205,7 @@ cc_test {
         "test/main_shim_test.cc",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbase",
         "libbluetooth-dumpsys",
         "libbluetooth-gdx",
@@ -226,10 +229,10 @@ cc_test {
     ],
     shared_libs: [
         "libPlatformProperties",
+        "libaconfig_storage_read_api_cc",
         "libbinder_ndk",
         "libcrypto",
         "server_configurable_flags",
-        "libaconfig_storage_read_api_cc",
     ],
     sanitize: {
         address: true,
@@ -287,6 +290,7 @@ cc_test {
         "test/main_shim_stack_dumpsys_test.cc",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbase",
         "libbluetooth-dumpsys",
         "libbluetooth-gdx",
@@ -310,9 +314,9 @@ cc_test {
     ],
     shared_libs: [
         "libPlatformProperties",
+        "libaconfig_storage_read_api_cc",
         "libcrypto",
         "server_configurable_flags",
-        "libaconfig_storage_read_api_cc",
     ],
     target: {
         linux: {

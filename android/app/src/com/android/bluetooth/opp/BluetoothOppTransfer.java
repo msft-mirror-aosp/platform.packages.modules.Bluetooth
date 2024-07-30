@@ -34,6 +34,7 @@ package com.android.bluetooth.opp;
 
 import static java.util.Objects.requireNonNull;
 
+import android.annotation.SuppressLint;
 import android.app.NotificationManager;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -70,6 +71,7 @@ import java.io.IOException;
 
 /** This class run an actual Opp transfer session (from connect target device to disconnect) */
 // Next tag value for ContentProfileErrorReportUtils.report(): 24
+@SuppressLint("AndroidFrameworkRequiresPermission")
 public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatchListener {
     private static final String TAG = "BtOppTransfer";
 
@@ -635,7 +637,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
              * mSession instance.
              */
             if (mSession == null) {
-                /** set current share as error */
+                /* set current share as error */
                 Log.e(TAG, "Unexpected error happened !");
                 ContentProfileErrorReportUtils.report(
                         BluetoothProfile.OPP,
@@ -927,7 +929,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
         }
         BluetoothMethodProxy.getInstance()
                 .handlerSendEmptyMessage(mSessionHandler, TRANSPORT_ERROR);
-        return;
     }
 
     /* update a trivial field of a share to notify Provider the batch status change */

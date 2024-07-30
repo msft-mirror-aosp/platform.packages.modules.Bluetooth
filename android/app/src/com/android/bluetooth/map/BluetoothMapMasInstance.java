@@ -102,11 +102,9 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
 
     private Map<String, BluetoothMapConvoContactElement> mContactList;
 
-    private HashMap<Long, BluetoothMapConvoListingElement> mSmsMmsConvoList =
-            new HashMap<Long, BluetoothMapConvoListingElement>();
+    private Map<Long, BluetoothMapConvoListingElement> mSmsMmsConvoList = new HashMap<>();
 
-    private HashMap<Long, BluetoothMapConvoListingElement> mImEmailConvoList =
-            new HashMap<Long, BluetoothMapConvoListingElement>();
+    private Map<Long, BluetoothMapConvoListingElement> mImEmailConvoList = new HashMap<>();
 
     private int mRemoteFeatureMask = BluetoothMapUtils.MAP_FEATURE_DEFAULT_BITMASK;
     private static int sFeatureMask = SDP_MAP_MAS_FEATURES_1_4;
@@ -115,14 +113,7 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
     public static final String TYPE_EMAIL_STR = "EMAIL";
     public static final String TYPE_IM_STR = "IM";
 
-    /**
-     * Create a e-mail MAS instance
-     *
-     * @param callback
-     * @param context
-     * @param mns
-     * @param emailBaseUri - use null to create a SMS/MMS MAS instance
-     */
+    /** Create a e-mail MAS instance */
     public BluetoothMapMasInstance(
             BluetoothMapService mapService,
             Context context,
@@ -232,19 +223,19 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
         mContactList = contactList;
     }
 
-    HashMap<Long, BluetoothMapConvoListingElement> getSmsMmsConvoList() {
+    Map<Long, BluetoothMapConvoListingElement> getSmsMmsConvoList() {
         return mSmsMmsConvoList;
     }
 
-    void setSmsMmsConvoList(HashMap<Long, BluetoothMapConvoListingElement> smsMmsConvoList) {
+    void setSmsMmsConvoList(Map<Long, BluetoothMapConvoListingElement> smsMmsConvoList) {
         mSmsMmsConvoList = smsMmsConvoList;
     }
 
-    HashMap<Long, BluetoothMapConvoListingElement> getImEmailConvoList() {
+    Map<Long, BluetoothMapConvoListingElement> getImEmailConvoList() {
         return mImEmailConvoList;
     }
 
-    void setImEmailConvoList(HashMap<Long, BluetoothMapConvoListingElement> imEmailConvoList) {
+    void setImEmailConvoList(Map<Long, BluetoothMapConvoListingElement> imEmailConvoList) {
         mImEmailConvoList = imEmailConvoList;
     }
 

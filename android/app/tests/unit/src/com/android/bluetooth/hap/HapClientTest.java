@@ -55,8 +55,8 @@ import android.os.Binder;
 import android.os.ParcelUuid;
 import android.os.RemoteException;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -128,7 +128,6 @@ public class HapClientTest {
         mService.mFactory = mServiceFactory;
         doReturn(mCsipService).when(mServiceFactory).getCsipSetCoordinatorService();
         mServiceBinder = (HapClientService.BluetoothHapClientBinder) mService.initBinder();
-        mServiceBinder.mIsTesting = true;
 
         when(mCallback.asBinder()).thenReturn(mBinder);
         mService.mCallbacks.register(mCallback);
@@ -371,7 +370,7 @@ public class HapClientTest {
         // Send a connect request
         Assert.assertTrue("Connect expected to succeed", mService.connect(mDevice));
 
-        verify(mAdapterService, timeout(TIMEOUT_MS)).sendBroadcast(any(), any());
+        verify(mAdapterService, timeout(TIMEOUT_MS)).sendBroadcastMultiplePermissions(any(), any());
     }
 
     /** Test that an outgoing connection to device with POLICY_FORBIDDEN is rejected */
@@ -403,7 +402,7 @@ public class HapClientTest {
         Assert.assertTrue("Connect failed", mService.connect(mDevice));
 
         order.verify(mAdapterService, timeout(TIMEOUT_MS))
-                .sendBroadcast(
+                .sendBroadcastMultiplePermissions(
                         argThat(
                                 allOf(
                                         hasAction(ACTION_HAP_CONNECTION_STATE_CHANGED),
@@ -417,7 +416,7 @@ public class HapClientTest {
 
         // Verify the connection state broadcast, and that we are in Disconnected state via binder
         order.verify(mAdapterService, timeout(HapClientStateMachine.sConnectTimeoutMs * 2))
-                .sendBroadcast(
+                .sendBroadcastMultiplePermissions(
                         argThat(
                                 allOf(
                                         hasAction(ACTION_HAP_CONNECTION_STATE_CHANGED),
@@ -473,18 +472,14 @@ public class HapClientTest {
         testConnectingDevice(order, mDevice2);
         testConnectingDevice(order, mDevice3);
 
-        int flags = 0x04;
-        mNativeInterface.onFeaturesUpdate(getByteAddress(mDevice), flags);
-
-        int flags3 = 0x04;
-        mNativeInterface.onFeaturesUpdate(getByteAddress(mDevice3), flags);
+        mNativeInterface.onFeaturesUpdate(getByteAddress(mDevice), 0x04);
+        mNativeInterface.onFeaturesUpdate(getByteAddress(mDevice3), 0x04);
 
         /* This one has no coordinated operation support but is part of a coordinated set with
          * mDevice, which supports it, thus mDevice will forward the operation to mDevice2.
          * This device should also be rocognised as grouped one.
          */
-        int flags2 = 0;
-        mNativeInterface.onFeaturesUpdate(getByteAddress(mDevice2), flags2);
+        mNativeInterface.onFeaturesUpdate(getByteAddress(mDevice2), 0);
 
         /* Two devices support coordinated operations thus shall report valid group ID */
         Assert.assertEquals(2, mService.getHapGroup(mDevice));
@@ -736,7 +731,7 @@ public class HapClientTest {
         mNativeInterface.onDeviceAvailable(getByteAddress(mDevice), 0x03);
 
         verify(mAdapterService, timeout(TIMEOUT_MS))
-                .sendBroadcast(
+                .sendBroadcastMultiplePermissions(
                         argThat(
                                 allOf(
                                         hasAction(ACTION_HAP_DEVICE_AVAILABLE),
@@ -1027,7 +1022,7 @@ public class HapClientTest {
         // Add state machine for testing dump()
         mService.connect(mDevice);
 
-        verify(mAdapterService, timeout(TIMEOUT_MS)).sendBroadcast(any(), any());
+        verify(mAdapterService, timeout(TIMEOUT_MS)).sendBroadcastMultiplePermissions(any(), any());
 
         mService.dump(new StringBuilder());
     }
@@ -1054,7 +1049,7 @@ public class HapClientTest {
     private void verifyConnectingDevice(InOrder order, BluetoothDevice device) {
         // Verify the connection state broadcast, and that we are in Connecting state
         order.verify(mAdapterService, timeout(TIMEOUT_MS))
-                .sendBroadcast(
+                .sendBroadcastMultiplePermissions(
                         argThat(
                                 allOf(
                                         hasAction(ACTION_HAP_CONNECTION_STATE_CHANGED),
@@ -1073,7 +1068,7 @@ public class HapClientTest {
 
         // Verify the connection state broadcast, and that we are in Connected state
         order.verify(mAdapterService, timeout(TIMEOUT_MS))
-                .sendBroadcast(
+                .sendBroadcastMultiplePermissions(
                         argThat(
                                 allOf(
                                         hasAction(ACTION_HAP_CONNECTION_STATE_CHANGED),
@@ -1089,7 +1084,7 @@ public class HapClientTest {
         mService.messageFromNative(evt);
 
         order.verify(mAdapterService, timeout(TIMEOUT_MS))
-                .sendBroadcast(
+                .sendBroadcastMultiplePermissions(
                         argThat(
                                 allOf(
                                         hasAction(ACTION_HAP_DEVICE_AVAILABLE),

@@ -14,6 +14,7 @@
  */
 package com.android.bluetooth.map;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothProtoEnums;
@@ -92,7 +93,7 @@ public class BluetoothMnsObexClient {
         return mHandler;
     }
 
-    class MnsSdpSearchInfo {
+    static class MnsSdpSearchInfo {
         private boolean mIsSearchInProgress;
         public int lastMasId;
         public int lastNotificationStatus;
@@ -225,12 +226,7 @@ public class BluetoothMnsObexClient {
         mRegisteredMasIds.clear();
     }
 
-    /**
-     * We store a list of registered MasIds only to control connect/disconnect
-     *
-     * @param masId
-     * @param notificationStatus
-     */
+    /** We store a list of registered MasIds only to control connect/disconnect */
     public synchronized void handleRegistration(int masId, int notificationStatus) {
         Log.d(TAG, "handleRegistration( " + masId + ", " + notificationStatus + ")");
         boolean sendObserverRegistration = true;
@@ -312,6 +308,7 @@ public class BluetoothMnsObexClient {
         }
     }
 
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     public void connect() {
 
         mConnected = true;

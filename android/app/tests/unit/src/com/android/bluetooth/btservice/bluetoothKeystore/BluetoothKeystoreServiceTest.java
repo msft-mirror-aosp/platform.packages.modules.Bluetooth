@@ -52,13 +52,10 @@ public final class BluetoothKeystoreServiceTest {
 
     // Please also check bt_stack string configuration if you want to change the content.
     private static final String CONFIG_FILE_PREFIX = "bt_config-origin";
-    private static final String CONFIG_BACKUP_PREFIX = "bt_config-backup";
     private static final String CONFIG_FILE_HASH = "hash";
     private static final String CONFIG_FILE_PATH = "/data/misc/bluedroid/bt_config.conf";
     private static final String CONFIG_FILE_ENCRYPTION_PATH =
             "/data/misc/bluedroid/bt_config.conf.encrypted";
-    private static final String CONFIG_BACKUP_ENCRYPTION_PATH =
-            "/data/misc/bluedroid/bt_config.bak.encrypted";
     private static final String CONFIG_CHECKSUM_ENCRYPTION_PATH =
             "/data/misc/bluedroid/bt_config.checksum.encrypted";
 
@@ -91,42 +88,6 @@ public final class BluetoothKeystoreServiceTest {
                     "LE_KEY_PCSRK = c33333333333333333333333333333333333333333333333",
                     "LE_KEY_LENC = eec4444444444444444444444444444444444444",
                     "LE_KEY_LCSRK = aec555555555555555555555555555555555555555555555",
-                    "LE_KEY_LID =");
-
-    private final List<String> mConfigTestDataForOldEncryptedFile =
-            List.of(
-                    "[Info]",
-                    "FileSource = Empty",
-                    "TimeCreated = XXXX-XX-XX XX:XX:XX",
-                    "",
-                    "[Metrics]",
-                    "Salt256Bit = aaaaaaaaaaaaaaaaaaa",
-                    "",
-                    "[Adapter]",
-                    "Address = 11:22:33:44:55:66",
-                    "LE_LOCAL_KEY_IRK = IRK1234567890",
-                    "LE_LOCAL_KEY_IR = IR1234567890",
-                    "LE_LOCAL_KEY_DHK = DHK1234567890",
-                    "LE_LOCAL_KEY_ER = ER1234567890",
-                    "ScanMode = 0",
-                    "DiscoveryTimeout = 120",
-                    "",
-                    "[aa:bb:cc:dd:ee:ff]",
-                    "Timestamp = 12345678",
-                    "Name = Test",
-                    "DevClass = 1234567",
-                    "LinkKey ="
-                        + " CgzgWAk2ROa2cjknZhsaMIPzf20MvCRx2QeAHycQ7gFy9LnVi9FYs/PodOfl+FP5YkXP/WHkY4",
-                    "LE_KEY_PENC ="
-                        + " CgwomFvDc/IuhOeoTn8aSPHqDneIZJ7aszhKQPorqeDPF50cytW4I/LzmdNvMeVX0qBsuh",
-                    "LE_KEY_PID ="
-                        + " Cgxu7Z7sXniNj3ija1waPkvHCLH4gnttOyb0OZjiJj+xH3KvtfDh6k2wbgGcGTLe9pYS4EX",
-                    "LE_KEY_PCSRK ="
-                        + " Cgx5t1PkIm8ohz9BLzYaQOsrmZakN77CMgbWeBIqT8bW6bQhK1JZYpp3qWZVM8HM3y09h",
-                    "LE_KEY_LENC ="
-                        + " CgytzELdVX+QptdzuuMaOLDiNuzn7BNK9OmPNHYspp4ojThTA/5iWBxrZV6E3qZydLyNHk",
-                    "LE_KEY_LCSRK ="
-                        + " CgydDaLIr/pSx1/eoPEaQEZN2BDpSJPjOSiJWwDBkMkgIpf/YmfxB6rUB8EXHkC+9eSy4",
                     "LE_KEY_LID =");
 
     private List<String> mConfigData = new ArrayList<>();
@@ -307,11 +268,9 @@ public final class BluetoothKeystoreServiceTest {
         // check encryption file clean up.
         Assert.assertFalse(Files.exists(Paths.get(CONFIG_CHECKSUM_ENCRYPTION_PATH)));
         Assert.assertFalse(Files.exists(Paths.get(CONFIG_FILE_ENCRYPTION_PATH)));
-        Assert.assertFalse(Files.exists(Paths.get(CONFIG_BACKUP_ENCRYPTION_PATH)));
 
         // remove hash data avoid interfering result.
         mBluetoothKeystoreService.getNameDecryptKey().remove(CONFIG_FILE_PREFIX);
-        mBluetoothKeystoreService.getNameDecryptKey().remove(CONFIG_BACKUP_PREFIX);
 
         Assert.assertTrue(
                 doCompareMap(mNameDecryptKeyResult, mBluetoothKeystoreService.getNameDecryptKey()));

@@ -24,6 +24,8 @@ import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 import com.android.bluetooth.mapapi.BluetoothMapContract;
 
+import com.google.common.base.Ascii;
+
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
@@ -183,21 +185,19 @@ public class BluetoothMapUtils {
      * Converts a hex-string to a long - please mind that Java has no unsigned data types, hence any
      * value passed to this function, which has the upper bit set, will return a negative value. The
      * bitwise content of the variable will however be the same. Will ignore any white-space
-     * characters as well as '-' seperators
+     * characters as well as '-' separators
      *
      * @param valueStr a hexstring - NOTE: shall not contain any "0x" prefix.
-     * @return
-     * @throws UnsupportedEncodingException if "US-ASCII" charset is not supported,
-     *     NullPointerException if a null pointer is passed to the function, NumberFormatException
-     *     if the string contains invalid characters.
+     * @throws NullPointerException if a null pointer is passed to the function
+     * @throws NumberFormatException if the string contains invalid characters.
      */
-    public static long getLongFromString(String valueStr) throws UnsupportedEncodingException {
+    public static long getLongFromString(String valueStr) {
         if (valueStr == null) {
             throw new NullPointerException();
         }
         Log.v(TAG, "getLongFromString(): converting: " + valueStr);
         byte[] nibbles;
-        nibbles = valueStr.getBytes("US-ASCII");
+        nibbles = valueStr.getBytes(StandardCharsets.US_ASCII);
         Log.v(TAG, "  byte values: " + Arrays.toString(nibbles));
         byte c;
         int count = 0;
@@ -212,7 +212,11 @@ public class BluetoothMapUtils {
             } else if (c >= 'a' && c <= 'f') {
                 c -= ('a' - 10);
             } else if (c <= ' ' || c == '-') {
-                Log.v(TAG, "Skipping c = '" + new String(new byte[] {(byte) c}, "US-ASCII") + "'");
+                Log.v(
+                        TAG,
+                        "Skipping c = '"
+                                + new String(new byte[] {(byte) c}, StandardCharsets.US_ASCII)
+                                + "'");
                 continue; // Skip any whitespace and '-' (which is used for UUIDs)
             } else {
                 throw new NumberFormatException("Invalid character:" + c);
@@ -359,12 +363,7 @@ public class BluetoothMapUtils {
         return cpHandle;
     }
 
-    /**
-     * Extract the message type from the handle.
-     *
-     * @param mapHandle
-     * @return
-     */
+    /** Extract the message type from the handle. */
     public static TYPE getMsgTypeFromHandle(String mapHandle) {
         long cpHandle = getMsgHandleAsLong(mapHandle);
 
@@ -422,23 +421,12 @@ public class BluetoothMapUtils {
      * @param utf8String String to convert to bytes array h
      * @param maxLength Max length of byte array returned including null termination
      * @return byte array containing valid utf8 characters with max length
-     * @throws UnsupportedEncodingException
      */
-    public static byte[] truncateUtf8StringToBytearray(String utf8String, int maxLength)
-            throws UnsupportedEncodingException {
+    public static byte[] truncateUtf8StringToBytearray(String utf8String, int maxLength) {
 
         byte[] utf8Bytes = new byte[utf8String.length() + 1];
-        try {
-            System.arraycopy(utf8String.getBytes("UTF-8"), 0, utf8Bytes, 0, utf8String.length());
-        } catch (UnsupportedEncodingException e) {
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_UTILS,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                    1);
-            Log.e(TAG, "truncateUtf8StringToBytearray: getBytes exception ", e);
-            throw e;
-        }
+        System.arraycopy(
+                utf8String.getBytes(StandardCharsets.UTF_8), 0, utf8Bytes, 0, utf8String.length());
 
         if (utf8Bytes.length > maxLength) {
             /* if 'continuation' byte is in place 200,
@@ -468,10 +456,8 @@ public class BluetoothMapUtils {
      * @param utf8InString String to truncate
      * @param maxBytesLength Max length in bytes of the returned string
      * @return A valid truncated utf-8 string
-     * @throws UnsupportedEncodingException
      */
-    public static String truncateUtf8StringToString(String utf8InString, int maxBytesLength)
-            throws UnsupportedEncodingException {
+    public static String truncateUtf8StringToString(String utf8InString, int maxBytesLength) {
         Charset charset = StandardCharsets.UTF_8;
         final byte[] utf8InBytes = utf8InString.getBytes(charset);
         if (utf8InBytes.length <= maxBytesLength) {
@@ -577,17 +563,7 @@ public class BluetoothMapUtils {
      */
     public static byte[] quotedPrintableToUtf8(String text, String charset) {
         byte[] output = new byte[text.length()]; // We allocate for the worst case memory need
-        byte[] input = null;
-        try {
-            input = text.getBytes("US-ASCII");
-        } catch (UnsupportedEncodingException e) {
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_UTILS,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                    5);
-            /* This cannot happen as "US-ASCII" is supported for all Java implementations */
-        }
+        byte[] input = text.getBytes(StandardCharsets.US_ASCII);
 
         if (input == null) {
             return "".getBytes();
@@ -667,7 +643,7 @@ public class BluetoothMapUtils {
         if (charset == null) {
             charset = "UTF-8";
         } else {
-            charset = charset.toUpperCase();
+            charset = Ascii.toUpperCase(charset);
             try {
                 if (!Charset.isSupported(charset)) {
                     charset = "UTF-8";
@@ -705,6 +681,10 @@ public class BluetoothMapUtils {
         return result.getBytes(); /* return the result as "UTF-8" bytes */
     }
 
+    private static final byte ESCAPE_CHAR = '=';
+    private static final byte TAB = 9;
+    private static final byte SPACE = 32;
+
     /**
      * Encodes an array of bytes into an array of quoted-printable 7-bit characters. Unsafe
      * characters are escaped. Simplified version of encoder from QuetedPrintableCodec.java (Apache
@@ -713,11 +693,6 @@ public class BluetoothMapUtils {
      * @param bytes array of bytes to be encoded
      * @return UTF-8 string containing quoted-printable characters
      */
-    private static final byte ESCAPE_CHAR = '=';
-
-    private static final byte TAB = 9;
-    private static final byte SPACE = 32;
-
     public static final String encodeQuotedPrintable(byte[] bytes) {
         if (bytes == null) {
             return null;

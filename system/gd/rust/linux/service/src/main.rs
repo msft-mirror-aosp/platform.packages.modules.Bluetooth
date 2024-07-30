@@ -10,7 +10,7 @@ use std::time::Duration;
 use tokio::sync::mpsc::Sender;
 
 // Necessary to link right entries.
-#[allow(unused_imports)]
+#[allow(clippy::single_component_path_imports, unused_imports)]
 use bt_shim;
 
 use bt_topshim::{btif::get_btinterface, topstack};
@@ -98,7 +98,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // The remaining flags are passed down to Fluoride as is.
     let mut init_flags: Vec<String> = match matches.values_of("init-flags") {
-        Some(args) => args.map(|s| String::from(s)).collect(),
+        Some(args) => args.map(String::from).collect(),
         None => vec![],
     };
 
@@ -215,8 +215,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         ));
 
         // Set up the disconnect watcher to monitor client disconnects.
-        let disconnect_watcher = Arc::new(Mutex::new(DisconnectWatcher::new()));
-        disconnect_watcher.lock().unwrap().setup_watch(conn.clone()).await;
+        let mut disconnect_watcher = DisconnectWatcher::new();
+        disconnect_watcher.setup_watch(conn.clone()).await;
+        let disconnect_watcher = Arc::new(Mutex::new(disconnect_watcher));
 
         tokio::spawn(interface_manager::InterfaceManager::dispatch(
             api_rx,
@@ -261,15 +262,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 signal::SigSet::empty(),
             );
 
-            let sig_action_int = signal::SigAction::new(
-                signal::SigHandler::Handler(handle_sigint),
-                signal::SaFlags::empty(),
-                signal::SigSet::empty(),
-            );
-
             unsafe {
                 signal::sigaction(signal::SIGTERM, &sig_action_term).unwrap();
-                signal::sigaction(signal::SIGINT, &sig_action_int).unwrap();
             }
         }
 
@@ -315,12 +309,5 @@ extern "C" fn handle_sigterm(_signum: i32) {
     }
 
     log::debug!("Sigterm completed");
-    std::process::exit(0);
-}
-
-extern "C" fn handle_sigint(_signum: i32) {
-    // Assumed this is from HAL Host, which is likely caused by chipset error.
-    // In this case, don't crash the daemon and don't try to power off the adapter.
-    log::debug!("Sigint completed");
     std::process::exit(0);
 }

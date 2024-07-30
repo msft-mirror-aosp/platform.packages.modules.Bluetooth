@@ -20,6 +20,7 @@ java_defaults {
     static_libs: [
         "PlatformProperties",
         "bluetooth_flags_java_lib",
+        "modules-utils-build",
         "modules-utils-expresslog",
         "service-bluetooth-binder-aidl",
     ],
@@ -90,10 +91,23 @@ java_sdk_library {
         javacflags: [
             "-Xep:InlineMeSuggester:OFF", // The @InlineMe annotation is not available
 
+            "-Xep:BadImport:ERROR",
             "-Xep:CatchFail:ERROR",
+            "-Xep:ClassCanBeStatic:ERROR",
+            "-Xep:EmptyBlockTag:ERROR",
             "-Xep:EmptyCatch:ERROR",
+            "-Xep:FutureReturnValueIgnored:ERROR",
+            "-Xep:InlineMeInliner:ERROR",
+            "-Xep:InvalidBlockTag:ERROR",
             "-Xep:InvalidInlineTag:ERROR",
+            "-Xep:InvalidParam:ERROR",
+            "-Xep:MockNotUsedInProduction:ERROR",
             "-Xep:NonApiType:ERROR",
+            "-Xep:NonCanonicalType:ERROR",
+            "-Xep:NotJavadoc:ERROR",
+            "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
+            "-Xep:StringCaseLocaleUsage:ERROR",
+            "-Xep:StringCharset:ERROR",
             "-Xep:UnnecessaryAssignment:ERROR",
             "-Xep:UnnecessaryAsync:ERROR",
 
@@ -103,6 +117,7 @@ java_sdk_library {
     },
     lint: {
         strict_updatability_linting: true,
+        baseline_filename: "lint-baseline.xml",
     },
 }
 
