@@ -234,7 +234,7 @@ public class TbsGeneric {
      *
      * @param device device for which authorization is changed
      */
-    public void onDeviceAuthorizationSet(BluetoothDevice device) {
+    public synchronized void onDeviceAuthorizationSet(BluetoothDevice device) {
         // Notify TBS GATT service instance in case of pending operations
         if (mTbsGatt != null) {
             mTbsGatt.onDeviceAuthorizationSet(device);
@@ -1244,14 +1244,14 @@ public class TbsGeneric {
      * @param sb string builder object that TBS module will be appending
      */
     public void dump(StringBuilder sb) {
-        sb.append("\tRinger Mode: " + mStoredRingerMode);
+        sb.append("\tRinger Mode: ").append(mStoredRingerMode);
 
         sb.append("\n\tCurrent call list:");
         for (TbsCall call : mCurrentCallsList.values()) {
-            sb.append("\n\t\tFriendly name: " + call.getSafeFriendlyName());
-            sb.append("\n\t\t\tState: " + TbsCall.stateToString(call.getState()));
-            sb.append("\n\t\t\tURI: " + call.getSafeUri());
-            sb.append("\n\t\t\tFlags: " + TbsCall.flagsToString(call.getFlags()));
+            sb.append("\n\t\tFriendly name: ").append(call.getSafeFriendlyName());
+            sb.append("\n\t\t\tState: ").append(TbsCall.stateToString(call.getState()));
+            sb.append("\n\t\t\tURI: ").append(call.getSafeUri());
+            sb.append("\n\t\t\tFlags: ").append(TbsCall.flagsToString(call.getFlags()));
         }
 
         mTbsGatt.dump(sb);
