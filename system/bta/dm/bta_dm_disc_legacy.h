@@ -35,8 +35,7 @@ void bta_dm_disc_stop_device_discovery();
 
 // Bta service discovery start and stop entry points
 void bta_dm_disc_start_service_discovery(service_discovery_callbacks cbacks,
-                                         const RawAddress& bd_addr,
-                                         tBT_TRANSPORT transport);
+                                         const RawAddress& bd_addr, tBT_TRANSPORT transport);
 
 // Bta subsystem entrypoint and lifecycle
 void bta_dm_disc_disable_search_and_disc();
@@ -48,7 +47,7 @@ void bta_dm_disc_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 const char* bta_dm_get_remname(void);
 
 // LE observe and scan interface
-void bta_dm_ble_scan(bool start, uint8_t duration_sec, bool low_latency_scan);
+void bta_dm_ble_scan(bool start, uint8_t duration_sec);
 void bta_dm_ble_csis_observe(bool observe, tBTA_DM_SEARCH_CBACK* p_cback);
 
 // Checks if there is a device discovery request queued
