@@ -20,7 +20,6 @@ import android.annotation.NonNull;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUtils;
-import android.bluetooth.IBluetoothAvrcpTarget;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -36,7 +35,6 @@ import android.view.KeyEvent;
 import com.android.bluetooth.BluetoothEventLogger;
 import com.android.bluetooth.BluetoothMetricsProto;
 import com.android.bluetooth.R;
-import com.android.bluetooth.Utils;
 import com.android.bluetooth.a2dp.A2dpService;
 import com.android.bluetooth.audio_util.MediaData;
 import com.android.bluetooth.audio_util.MediaPlayerList;
@@ -45,6 +43,7 @@ import com.android.bluetooth.audio_util.Metadata;
 import com.android.bluetooth.audio_util.PlayStatus;
 import com.android.bluetooth.audio_util.PlayerInfo;
 import com.android.bluetooth.audio_util.PlayerSettingsManager;
+import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.ServiceFactory;
@@ -97,9 +96,11 @@ public class AvrcpTargetService extends ProfileService {
     private AvrcpCoverArtService mAvrcpCoverArtService = null;
 
     private static AvrcpTargetService sInstance = null;
+    private final AdapterService mAdapterService;
 
-    public AvrcpTargetService(Context ctx) {
-        super(ctx);
+    public AvrcpTargetService(AdapterService adapterService) {
+        super(adapterService);
+        mAdapterService = adapterService;
     }
 
     /** Checks for profile enabled state in Bluetooth sysprops. */
@@ -115,7 +116,7 @@ public class AvrcpTargetService extends ProfileService {
 
             boolean metadata = !Objects.equals(mCurrentData.metadata, data.metadata);
             boolean state = !MediaPlayerWrapper.playstateEquals(mCurrentData.state, data.state);
-            boolean queue = !Objects.equals(mCurrentData.queue, data.queue);
+            boolean queue = isQueueUpdated(mCurrentData.queue, data.queue);
 
             Log.d(
                     TAG,
@@ -188,7 +189,7 @@ public class AvrcpTargetService extends ProfileService {
 
     @Override
     protected IProfileServiceBinder initBinder() {
-        return new AvrcpTargetBinder(this);
+        return null;
     }
 
     @Override
@@ -216,7 +217,7 @@ public class AvrcpTargetService extends ProfileService {
 
         mAvrcpVersion = AvrcpVersion.getCurrentSystemPropertiesValue();
 
-        mVolumeManager = new AvrcpVolumeManager(this, mAudioManager, mNativeInterface);
+        mVolumeManager = new AvrcpVolumeManager(mAdapterService, mAudioManager, mNativeInterface);
 
         UserManager userManager = getApplicationContext().getSystemService(UserManager.class);
         if (userManager.isUserUnlocked()) {
@@ -561,6 +562,39 @@ public class AvrcpTargetService extends ProfileService {
         mNativeInterface.sendPlayerSettings(repeatMode, shuffleMode);
     }
 
+    /**
+     * Compares the {@link Metadata} of the current and new queues
+     *
+     * <p>Whenever the current playing track changed in the now playing list, its metadata is
+     * updated. We should only send an update if the elements of the queue have been modified.
+     *
+     * <p>Only Title, Album and Artist metadata can be used for comparison. The metadata ID
+     * corresponds to the position in the list and is not unique for each media. Genre, duration and
+     * cover art are updated when the playing track changes as we are only able to retrieve this
+     * information then.
+     */
+    @VisibleForTesting
+    public static boolean isQueueUpdated(List<Metadata> currentQueue, List<Metadata> newQueue) {
+        if (newQueue == null && currentQueue == null) {
+            return false;
+        }
+        if (newQueue == null || currentQueue == null || currentQueue.size() != newQueue.size()) {
+            return true;
+        }
+
+        for (int index = 0; index < currentQueue.size(); index++) {
+            Metadata currentMetadata = currentQueue.get(index);
+            Metadata newMetadata = newQueue.get(index);
+
+            if (!Objects.equals(currentMetadata.title, newMetadata.title)
+                    || !Objects.equals(currentMetadata.artist, newMetadata.artist)
+                    || !Objects.equals(currentMetadata.album, newMetadata.album)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Dump debugging information to the string builder */
     public void dump(StringBuilder sb) {
         sb.append("\nProfile: AvrcpTargetService:\n");
@@ -570,7 +604,7 @@ public class AvrcpTargetService extends ProfileService {
         }
 
         StringBuilder tempBuilder = new StringBuilder();
-        tempBuilder.append("AVRCP version: " + mAvrcpVersion + "\n");
+        tempBuilder.append("AVRCP version: ").append(mAvrcpVersion).append("\n");
 
         if (mMediaPlayerList != null) {
             mMediaPlayerList.dump(tempBuilder);
@@ -588,29 +622,5 @@ public class AvrcpTargetService extends ProfileService {
 
         // Tab everything over by two spaces
         sb.append(tempBuilder.toString().replaceAll("(?m)^", "  "));
-    }
-
-    private static class AvrcpTargetBinder extends IBluetoothAvrcpTarget.Stub
-            implements IProfileServiceBinder {
-        private AvrcpTargetService mService;
-
-        AvrcpTargetBinder(AvrcpTargetService service) {
-            mService = service;
-        }
-
-        @Override
-        public void cleanup() {
-            mService = null;
-        }
-
-        @Override
-        public void sendVolumeChanged(int volume) {
-            if (mService == null
-                    || !Utils.checkCallerIsSystemOrActiveOrManagedUser(mService, TAG)) {
-                return;
-            }
-
-            mService.sendVolumeChanged(volume);
-        }
     }
 }
