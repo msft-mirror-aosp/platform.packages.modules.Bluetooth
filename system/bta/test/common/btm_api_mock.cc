@@ -31,8 +31,7 @@ using namespace bluetooth;
 
 static bluetooth::manager::MockBtmInterface* btm_interface = nullptr;
 
-void bluetooth::manager::SetMockBtmInterface(
-    MockBtmInterface* mock_btm_interface) {
+void bluetooth::manager::SetMockBtmInterface(MockBtmInterface* mock_btm_interface) {
   btm_interface = mock_btm_interface;
   mock_btm_client_interface.peer.BTM_IsPhy2mSupported = [](const RawAddress& remote_bda,
                                                            tBT_TRANSPORT transport) {
@@ -50,6 +49,14 @@ void bluetooth::manager::SetMockBtmInterface(
                                                          tBT_TRANSPORT transport) {
     btm_interface->RequestPeerSCA(bd_addr, transport);
   };
+  mock_btm_client_interface.ble.BTM_BleSetPhy = [](const RawAddress& bd_addr, uint8_t tx_phys,
+                                                   uint8_t rx_phys, uint16_t phy_options) {
+    btm_interface->BleSetPhy(bd_addr, tx_phys, rx_phys, phy_options);
+  };
+  mock_btm_client_interface.peer.BTM_IsAclConnectionUp = [](const RawAddress& remote_bda,
+                                                            tBT_TRANSPORT transport) {
+    return btm_interface->BTM_IsAclConnectionUp(remote_bda, transport);
+  };
 }
 
 bool BTM_IsLinkKeyKnown(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
@@ -61,18 +68,10 @@ bool BTM_IsEncrypted(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   return btm_interface->BTM_IsEncrypted(bd_addr, transport);
 }
 
-tBTM_STATUS BTM_SetEncryption(const RawAddress& bd_addr,
-                              tBT_TRANSPORT transport,
+tBTM_STATUS BTM_SetEncryption(const RawAddress& bd_addr, tBT_TRANSPORT transport,
                               tBTM_SEC_CALLBACK* p_callback, void* p_ref_data,
                               tBTM_BLE_SEC_ACT sec_act) {
-  return btm_interface->SetEncryption(bd_addr, transport, p_callback,
-                                      p_ref_data, sec_act);
-}
-
-void BTM_BleSetPhy(const RawAddress& bd_addr, uint8_t tx_phys, uint8_t rx_phys,
-                   uint16_t phy_options) {
-  log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
-  btm_interface->BleSetPhy(bd_addr, tx_phys, rx_phys, phy_options);
+  return btm_interface->SetEncryption(bd_addr, transport, p_callback, p_ref_data, sec_act);
 }
 
 bool BTM_SecIsSecurityPending(const RawAddress& bd_addr) {
@@ -85,8 +84,7 @@ tBTM_SEC_DEV_REC* btm_find_dev(const RawAddress& bd_addr) {
   return btm_interface->FindDevice(bd_addr);
 }
 
-void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason,
-                                std::string comment) {
+void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason, std::string comment) {
   log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
   return btm_interface->AclDisconnectFromHandle(handle, reason);
 }
@@ -115,14 +113,7 @@ bool BTM_BleIsLinkKeyKnown(const RawAddress address) {
   return btm_interface->BTM_BleIsLinkKeyKnown(address);
 }
 
-bool BTM_IsAclConnectionUp(const RawAddress& remote_bda,
-                           tBT_TRANSPORT transport) {
-  log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
-  return btm_interface->BTM_IsAclConnectionUp(remote_bda, transport);
-}
-
-std::optional<tBLE_BD_ADDR> BTM_BleGetIdentityAddress(
-    const RawAddress address) {
+std::optional<tBLE_BD_ADDR> BTM_BleGetIdentityAddress(const RawAddress address) {
   log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
   return btm_interface->BTM_BleGetIdentityAddress(address);
 }

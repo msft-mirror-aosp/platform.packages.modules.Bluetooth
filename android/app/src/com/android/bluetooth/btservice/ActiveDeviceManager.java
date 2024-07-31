@@ -18,7 +18,6 @@ package com.android.bluetooth.btservice;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.annotation.RequiresPermission;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
@@ -159,6 +158,9 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
 
     private BluetoothDevice mClassicDeviceToBeActivated = null;
     private BluetoothDevice mClassicDeviceNotToBeActivated = null;
+
+    // Timeout for state machine thread join, to prevent potential ANR.
+    private static final int SM_THREAD_JOIN_TIMEOUT_MS = 1000;
 
     @Override
     public void onBluetoothStateChange(int prevState, int newState) {
@@ -849,7 +851,12 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
         mAudioManager.unregisterAudioDeviceCallback(mAudioManagerAudioDeviceCallback);
         mAdapterService.unregisterBluetoothStateCallback(this);
         if (mHandlerThread != null) {
-            mHandlerThread.quit();
+            mHandlerThread.quitSafely();
+            try {
+                mHandlerThread.join(SM_THREAD_JOIN_TIMEOUT_MS);
+            } catch (InterruptedException e) {
+                // Do not rethrow as we are shutting down anyway
+            }
             mHandlerThread = null;
         }
         resetState();
@@ -909,7 +916,6 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
         return true;
     }
 
-    @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
     private boolean setHfpActiveDevice(BluetoothDevice device) {
         synchronized (mLock) {
             Log.d(TAG, "setHfpActiveDevice(" + device + ")");
@@ -1076,16 +1082,19 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
         BluetoothDevice a2dpFallbackDevice = null;
         if (a2dpService != null) {
             a2dpFallbackDevice = a2dpService.getFallbackDevice();
+            Log.d(TAG, "a2dpFallbackDevice: " + a2dpFallbackDevice);
         }
 
         HeadsetService headsetService = mFactory.getHeadsetService();
         BluetoothDevice headsetFallbackDevice = null;
         if (headsetService != null) {
             headsetFallbackDevice = headsetService.getFallbackDevice();
+            Log.d(TAG, "headsetFallbackDevice: " + headsetFallbackDevice);
         }
 
         List<BluetoothDevice> connectedDevices = new ArrayList<>();
         connectedDevices.addAll(mLeAudioConnectedDevices);
+        Log.d(TAG, "Audio mode: " + mAudioManager.getMode());
         switch (mAudioManager.getMode()) {
             case AudioManager.MODE_NORMAL:
                 if (a2dpFallbackDevice != null) {
@@ -1107,14 +1116,19 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
             Log.d(TAG, "No fallback devices are found");
             return false;
         }
+        Log.d(TAG, "Most recently connected device: " + device);
         if (mAudioManager.getMode() == AudioManager.MODE_NORMAL) {
             if (Objects.equals(a2dpFallbackDevice, device)) {
                 Log.d(TAG, "Found an A2DP fallback device: " + device);
                 setA2dpActiveDevice(device);
-                if (Objects.equals(headsetFallbackDevice, device)) {
-                    setHfpActiveDevice(device);
+                if (Flags.alwaysFallbackToAvailableDevice()) {
+                    setHfpActiveDevice(headsetFallbackDevice);
                 } else {
-                    setHfpActiveDevice(null);
+                    if (Objects.equals(headsetFallbackDevice, device)) {
+                        setHfpActiveDevice(device);
+                    } else {
+                        setHfpActiveDevice(null);
+                    }
                 }
                 /* If dual mode is enabled, LEA will be made active once all supported
                 classic audio profiles are made active for the device. */
@@ -1138,10 +1152,14 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
             if (Objects.equals(headsetFallbackDevice, device)) {
                 Log.d(TAG, "Found a HFP fallback device: " + device);
                 setHfpActiveDevice(device);
-                if (Objects.equals(a2dpFallbackDevice, device)) {
+                if (Flags.alwaysFallbackToAvailableDevice()) {
                     setA2dpActiveDevice(a2dpFallbackDevice);
                 } else {
-                    setA2dpActiveDevice(null, true);
+                    if (Objects.equals(a2dpFallbackDevice, device)) {
+                        setA2dpActiveDevice(a2dpFallbackDevice);
+                    } else {
+                        setA2dpActiveDevice(null, true);
+                    }
                 }
                 if (!Utils.isDualModeAudioEnabled()) {
                     setLeAudioActiveDevice(null, true);
@@ -1217,9 +1235,8 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
      */
     private boolean isWatch(BluetoothDevice device) {
         // Check CoD
-        BluetoothClass deviceClass = device.getBluetoothClass();
-        if (deviceClass != null
-                && deviceClass.getDeviceClass() == BluetoothClass.Device.WEARABLE_WRIST_WATCH) {
+        BluetoothClass deviceClass = new BluetoothClass(mAdapterService.getRemoteClass(device));
+        if (deviceClass.getDeviceClass() == BluetoothClass.Device.WEARABLE_WRIST_WATCH) {
             return true;
         }
 
@@ -1256,7 +1273,6 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
      * wired audio device is connected.
      */
     @VisibleForTesting
-    @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
     void wiredAudioDeviceConnected() {
         Log.d(TAG, "wiredAudioDeviceConnected");
         setA2dpActiveDevice(null, true);
