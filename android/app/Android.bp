@@ -324,6 +324,7 @@ android_app {
         enabled: true,
         javacflags: [
             "-Xep:AlmostJavadoc:ERROR",
+            "-Xep:AndroidFrameworkEfficientStrings:ERROR",
             "-Xep:AndroidFrameworkRequiresPermission:ERROR",
             "-Xep:BadImport:ERROR",
             "-Xep:ClassCanBeStatic:ERROR",
