@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import android.annotation.SuppressLint;
 import android.util.Log;
 
 import java.util.Objects;
@@ -179,6 +180,7 @@ public class BipImageFormat {
     }
 
     @Override
+    @SuppressLint("ToStringReturnsNull") // Since this is used for encoding to xml
     public String toString() {
         if (mEncoding == null
                 || mEncoding.getType() == BipEncoding.UNKNOWN
@@ -195,25 +197,25 @@ public class BipImageFormat {
         switch (mFormatType) {
             case FORMAT_NATIVE:
                 sb.append("<native");
-                sb.append(" encoding=\"" + mEncoding.toString() + "\"");
-                sb.append(" pixel=\"" + mPixel.toString() + "\"");
+                sb.append(" encoding=\"").append(mEncoding.toString()).append("\"");
+                sb.append(" pixel=\"").append(mPixel.toString()).append("\"");
                 if (mSize > -1) {
-                    sb.append(" size=\"" + mSize + "\"");
+                    sb.append(" size=\"").append(mSize).append("\"");
                 }
                 sb.append(" />");
                 return sb.toString();
             case FORMAT_VARIANT:
                 sb.append("<variant");
-                sb.append(" encoding=\"" + mEncoding.toString() + "\"");
-                sb.append(" pixel=\"" + mPixel.toString() + "\"");
+                sb.append(" encoding=\"").append(mEncoding.toString()).append("\"");
+                sb.append(" pixel=\"").append(mPixel.toString()).append("\"");
                 if (mTransformation != null && mTransformation.supportsAny()) {
-                    sb.append(" transformation=\"" + mTransformation.toString() + "\"");
+                    sb.append(" transformation=\"").append(mTransformation.toString()).append("\"");
                 }
                 if (mSize > -1) {
-                    sb.append(" size=\"" + mSize + "\"");
+                    sb.append(" size=\"").append(mSize).append("\"");
                 }
                 if (mMaxSize > -1) {
-                    sb.append(" maxsize=\"" + mMaxSize + "\"");
+                    sb.append(" maxsize=\"").append(mMaxSize).append("\"");
                 }
                 sb.append(" />");
                 return sb.toString();

@@ -16,9 +16,12 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import android.annotation.SuppressLint;
+
+import com.android.bluetooth.Utils;
+
 import java.util.Calendar;
 import java.util.Date;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
@@ -120,6 +123,7 @@ public class BipDateTime {
     }
 
     @Override
+    @SuppressLint("ToStringReturnsNull")
     public String toString() {
         Date d = getTime();
         if (d == null) {
@@ -134,8 +138,7 @@ public class BipDateTime {
             TimeZone utc = TimeZone.getTimeZone("UTC");
             utc.setRawOffset(0);
             cal.setTimeZone(utc);
-            return String.format(
-                    Locale.US,
+            return Utils.formatSimple(
                     "%04d%02d%02dT%02d%02d%02dZ",
                     cal.get(Calendar.YEAR),
                     cal.get(Calendar.MONTH) + 1,
@@ -145,8 +148,7 @@ public class BipDateTime {
                     cal.get(Calendar.SECOND));
         } else {
             cal.setTimeZone(TimeZone.getDefault());
-            return String.format(
-                    Locale.US,
+            return Utils.formatSimple(
                     "%04d%02d%02dT%02d%02d%02d",
                     cal.get(Calendar.YEAR),
                     cal.get(Calendar.MONTH) + 1,
