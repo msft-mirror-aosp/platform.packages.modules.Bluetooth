@@ -179,6 +179,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -1152,7 +1153,9 @@ public class AdapterService extends Service {
     }
 
     private void invalidateBluetoothGetStateCache() {
-        BluetoothAdapter.invalidateBluetoothGetStateCache();
+        if (!Flags.broadcastAdapterStateWithCallback()) {
+            BluetoothAdapter.invalidateBluetoothGetStateCache();
+        }
     }
 
     void updateLeAudioProfileServiceState() {
@@ -1183,7 +1186,9 @@ public class AdapterService extends Service {
 
     void updateAdapterState(int prevState, int newState) {
         mAdapterProperties.setState(newState);
-        invalidateBluetoothGetStateCache();
+        if (!Flags.broadcastAdapterStateWithCallback()) {
+            invalidateBluetoothGetStateCache();
+        }
 
         // Only BluetoothManagerService should be registered
         int n = mRemoteCallbacks.beginBroadcast();
@@ -1261,7 +1266,7 @@ public class AdapterService extends Service {
                             .orElse(BluetoothProperties.snoop_log_filter_profile_map_values.EMPTY);
 
             if (!(sSnoopLogSettingAtEnable == snoopLogSetting)
-                    || !(sDefaultSnoopLogSettingAtEnable == snoopDefaultModeSetting)
+                    || !(Objects.equals(sDefaultSnoopLogSettingAtEnable, snoopDefaultModeSetting))
                     || !(sSnoopLogFilterHeadersSettingAtEnable
                             == snoopLogFilterHeadersSettingAtEnable)
                     || !(sSnoopLogFilterProfileA2dpSettingAtEnable
@@ -1481,7 +1486,9 @@ public class AdapterService extends Service {
         BluetoothAdapter.invalidateGetProfileConnectionStateCache();
         BluetoothAdapter.invalidateIsOffloadedFilteringSupportedCache();
         BluetoothDevice.invalidateBluetoothGetBondStateCache();
-        BluetoothAdapter.invalidateBluetoothGetStateCache();
+        if (!Flags.broadcastAdapterStateWithCallback()) {
+            BluetoothAdapter.invalidateBluetoothGetStateCache();
+        }
         BluetoothAdapter.invalidateGetAdapterConnectionStateCache();
         BluetoothMap.invalidateBluetoothGetConnectionStateCache();
         BluetoothSap.invalidateBluetoothGetConnectionStateCache();
@@ -2239,7 +2246,9 @@ public class AdapterService extends Service {
 
         AdapterServiceBinder(AdapterService svc) {
             mService = svc;
-            mService.invalidateBluetoothGetStateCache();
+            if (!Flags.broadcastAdapterStateWithCallback()) {
+                mService.invalidateBluetoothGetStateCache();
+            }
             BluetoothAdapter.getDefaultAdapter().disableBluetoothGetStateCache();
         }
 
@@ -2250,6 +2259,7 @@ public class AdapterService extends Service {
             return mService;
         }
 
+        // TODO: b/357645528 - delete getState method
         @Override
         public int getState() {
             AdapterService service = getService();
@@ -2849,7 +2859,7 @@ public class AdapterService extends Service {
         @Override
         public int connectAllEnabledProfiles(BluetoothDevice device, AttributionSource source) {
             AdapterService service = getService();
-            if (service == null) {
+            if (service == null || !service.isEnabled()) {
                 return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
             }
             if (!callerIsSystemOrActiveOrManagedUser(service, TAG, "connectAllEnabledProfiles")) {

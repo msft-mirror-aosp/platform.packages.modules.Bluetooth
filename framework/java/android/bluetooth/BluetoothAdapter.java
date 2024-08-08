@@ -873,6 +873,8 @@ public final class BluetoothAdapter {
     @GuardedBy("mServiceLock")
     private IBluetooth mService;
 
+    private static int sAdapterState = BluetoothAdapter.STATE_OFF;
+
     private final ReentrantReadWriteLock mServiceLock = new ReentrantReadWriteLock();
 
     @GuardedBy("sServiceLock")
@@ -887,8 +889,6 @@ public final class BluetoothAdapter {
     private final Map<LeScanCallback, ScanCallback> mLeScanClients = new HashMap<>();
     private final Map<BluetoothDevice, List<Pair<OnMetadataChangedListener, Executor>>>
             mMetadataListeners = new HashMap<>();
-    private final Map<BluetoothConnectionCallback, Executor>
-            mBluetoothConnectionCallbackExecutorMap = new HashMap<>();
 
     private static final class ProfileConnection {
         int mProfile;
@@ -1148,6 +1148,28 @@ public final class BluetoothAdapter {
                 new CallbackWrapper(
                         registerAudioProfilesCallbackConsumer,
                         unregisterAudioProfilesCallbackConsumer);
+        Consumer<IBluetooth> registerBluetoothConnectionCallbackConsumer =
+                (IBluetooth service) -> {
+                    try {
+                        service.registerBluetoothConnectionCallback(
+                                mBluetoothConnectionCallback, mAttributionSource);
+                    } catch (RemoteException e) {
+                        Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+                    }
+                };
+        Consumer<IBluetooth> unregisterBluetoothConnectionCallbackConsumer =
+                (IBluetooth service) -> {
+                    try {
+                        service.registerBluetoothConnectionCallback(
+                                mBluetoothConnectionCallback, mAttributionSource);
+                    } catch (RemoteException e) {
+                        Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+                    }
+                };
+        mBluetoothConnectionCallbackWrapper =
+                new CallbackWrapper(
+                        registerBluetoothConnectionCallbackConsumer,
+                        unregisterBluetoothConnectionCallbackConsumer);
     }
 
     /**
@@ -1490,6 +1512,9 @@ public final class BluetoothAdapter {
 
     /** Fetch the current bluetooth state. If the service is down, return OFF. */
     private @InternalAdapterState int getStateInternal() {
+        if (Flags.broadcastAdapterStateWithCallback()) {
+            return sAdapterState;
+        }
         mServiceLock.readLock().lock();
         try {
             if (mService != null) {
@@ -3748,6 +3773,10 @@ public final class BluetoothAdapter {
                         }
                     }
                 }
+
+                public void onBluetoothAdapterStateChange(int newState) {
+                    sAdapterState = newState;
+                }
             };
 
     private final IBluetoothManagerCallback mManagerCallback =
@@ -3784,10 +3813,10 @@ public final class BluetoothAdapter {
                         }
                         mAudioProfilesCallbackWrapper.registerToNewService(mService);
                         mQualityCallbackWrapper.registerToNewService(mService);
+                        mBluetoothConnectionCallbackWrapper.registerToNewService(mService);
                     } finally {
                         mServiceLock.readLock().unlock();
                     }
-                    registerBluetoothConnectionCallbackIfNeeded();
                 }
 
                 public void onBluetoothServiceDown() {
@@ -3839,6 +3868,10 @@ public final class BluetoothAdapter {
                                             }
                                         });
                             });
+                }
+
+                public void onBluetoothAdapterStateChange(int newState) {
+                    // Nothing to do, this is entirely handled by sManagerCallback.
                 }
             };
 
@@ -4638,29 +4671,23 @@ public final class BluetoothAdapter {
         void onMetadataChanged(@NonNull BluetoothDevice device, int key, @Nullable byte[] value);
     }
 
-    @SuppressLint("AndroidFrameworkBluetoothPermission")
+    private final CallbackWrapper<BluetoothConnectionCallback, IBluetooth>
+            mBluetoothConnectionCallbackWrapper;
+
     private final IBluetoothConnectionCallback mBluetoothConnectionCallback =
             new IBluetoothConnectionCallback.Stub() {
                 @Override
                 public void onDeviceConnected(BluetoothDevice device) {
                     Attributable.setAttributionSource(device, mAttributionSource);
-                    for (Map.Entry<BluetoothConnectionCallback, Executor> callbackExecutorEntry :
-                            mBluetoothConnectionCallbackExecutorMap.entrySet()) {
-                        BluetoothConnectionCallback callback = callbackExecutorEntry.getKey();
-                        Executor executor = callbackExecutorEntry.getValue();
-                        executor.execute(() -> callback.onDeviceConnected(device));
-                    }
+                    mBluetoothConnectionCallbackWrapper.forEach(
+                            (cb) -> cb.onDeviceConnected(device));
                 }
 
                 @Override
                 public void onDeviceDisconnected(BluetoothDevice device, int hciReason) {
                     Attributable.setAttributionSource(device, mAttributionSource);
-                    for (Map.Entry<BluetoothConnectionCallback, Executor> callbackExecutorEntry :
-                            mBluetoothConnectionCallbackExecutorMap.entrySet()) {
-                        BluetoothConnectionCallback callback = callbackExecutorEntry.getKey();
-                        Executor executor = callbackExecutorEntry.getValue();
-                        executor.execute(() -> callback.onDeviceDisconnected(device, hciReason));
-                    }
+                    mBluetoothConnectionCallbackWrapper.forEach(
+                            (cb) -> cb.onDeviceDisconnected(device, hciReason));
                 }
             };
 
@@ -4685,47 +4712,15 @@ public final class BluetoothAdapter {
             @NonNull @CallbackExecutor Executor executor,
             @NonNull BluetoothConnectionCallback callback) {
         if (DBG) Log.d(TAG, "registerBluetoothConnectionCallback()");
-        if (callback == null || executor == null) {
-            return false;
-        }
 
-        synchronized (mBluetoothConnectionCallbackExecutorMap) {
-            if (mBluetoothConnectionCallbackExecutorMap.containsKey(callback)) {
-                throw new IllegalArgumentException("This callback has already been registered");
-            }
-
-            if (mBluetoothConnectionCallbackExecutorMap.isEmpty()) {
-                registerBluetoothConnectionCallback();
-            }
-
-            mBluetoothConnectionCallbackExecutorMap.put(callback, executor);
-        }
-
-        return true;
-    }
-
-    private void registerBluetoothConnectionCallback() {
         mServiceLock.readLock().lock();
         try {
-            if (mService == null) {
-                return;
-            }
-            mService.registerBluetoothConnectionCallback(
-                    mBluetoothConnectionCallback, mAttributionSource);
-        } catch (RemoteException e) {
-            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+            mBluetoothConnectionCallbackWrapper.registerCallback(mService, callback, executor);
         } finally {
             mServiceLock.readLock().unlock();
         }
-    }
 
-    private void registerBluetoothConnectionCallbackIfNeeded() {
-        synchronized (mBluetoothConnectionCallbackExecutorMap) {
-            if (mBluetoothConnectionCallbackExecutorMap.isEmpty()) {
-                return;
-            }
-            registerBluetoothConnectionCallback();
-        }
+        return true;
     }
 
     /**
@@ -4745,34 +4740,12 @@ public final class BluetoothAdapter {
     public boolean unregisterBluetoothConnectionCallback(
             @NonNull BluetoothConnectionCallback callback) {
         if (DBG) Log.d(TAG, "unregisterBluetoothConnectionCallback()");
-        if (callback == null) {
-            return false;
+        mServiceLock.readLock().lock();
+        try {
+            mBluetoothConnectionCallbackWrapper.unregisterCallback(mService, callback);
+        } finally {
+            mServiceLock.readLock().unlock();
         }
-
-        synchronized (mBluetoothConnectionCallbackExecutorMap) {
-            if (!mBluetoothConnectionCallbackExecutorMap.containsKey(callback)) {
-                return true;
-            }
-
-            mBluetoothConnectionCallbackExecutorMap.remove(callback);
-
-            if (mBluetoothConnectionCallbackExecutorMap.isEmpty()) {
-                // If the callback map is empty, we unregister the service-to-app callback
-                mServiceLock.readLock().lock();
-                try {
-                    if (mService == null) {
-                        return true;
-                    }
-                    mService.unregisterBluetoothConnectionCallback(
-                            mBluetoothConnectionCallback, mAttributionSource);
-                } catch (RemoteException e) {
-                    Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                } finally {
-                    mServiceLock.readLock().unlock();
-                }
-            }
-        }
-
         return true;
     }
 
