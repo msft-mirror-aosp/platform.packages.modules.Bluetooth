@@ -50,6 +50,7 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_inq.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/gap_api.h"  // GAP_BleReadPeerPrefConnParams
 #include "stack/include/hidh_api.h"
 #include "stack/include/main_thread.h"
@@ -212,10 +213,6 @@ void bta_dm_disc_discover_next_device() { bta_dm_discover_next_device(); }
 
 void bta_dm_disc_gattc_register() { bta_dm_gattc_register(); }
 
-static void bta_dm_observe_results_cb(tBTM_INQ_RESULTS* p_inq, const uint8_t* p_eir,
-                                      uint16_t eir_len);
-static void bta_dm_observe_cmpl_cb(void* p_result);
-
 const uint16_t bta_service_id_to_uuid_lkup_tbl[BTA_MAX_SERVICE_ID] = {
         UUID_SERVCLASS_PNP_INFORMATION,       /* Reserved */
         UUID_SERVCLASS_SERIAL_PORT,           /* BTA_SPP_SERVICE_ID */
@@ -268,7 +265,7 @@ static tBTA_DM_STATE bta_dm_search_get_state() { return bta_dm_search_cb.state; 
 static void bta_dm_search_start(tBTA_DM_API_SEARCH& search) {
   bta_dm_gattc_register();
 
-  if (get_btm_client_interface().db.BTM_ClearInqDb(nullptr) != BTM_SUCCESS) {
+  if (get_btm_client_interface().db.BTM_ClearInqDb(nullptr) != tBTM_STATUS::BTM_SUCCESS) {
     log::warn("Unable to clear inquiry db for device discovery");
   }
 
@@ -588,8 +585,9 @@ static void bta_dm_sdp_result(tBTA_DM_SDP_RESULT& sdp_event) {
 
   const tSDP_RESULT sdp_result = sdp_event.sdp_result;
 
-  if ((sdp_event.sdp_result == SDP_SUCCESS) || (sdp_event.sdp_result == SDP_NO_RECS_MATCH) ||
-      (sdp_event.sdp_result == SDP_DB_FULL)) {
+  if ((sdp_event.sdp_result == tSDP_STATUS::SDP_SUCCESS) ||
+      (sdp_event.sdp_result == tSDP_STATUS::SDP_NO_RECS_MATCH) ||
+      (sdp_event.sdp_result == tSDP_STATUS::SDP_DB_FULL)) {
     log::verbose("sdp_result::0x{:x}", sdp_event.sdp_result);
     do {
       p_sdp_rec = NULL;
@@ -680,7 +678,7 @@ static void bta_dm_sdp_result(tBTA_DM_SDP_RESULT& sdp_event) {
 #if TARGET_FLOSS
     tSDP_DI_GET_RECORD di_record;
     if (get_legacy_stack_sdp_api()->device_id.SDP_GetDiRecord(
-                1, &di_record, bta_dm_search_cb.p_sdp_db) == SDP_SUCCESS) {
+                1, &di_record, bta_dm_search_cb.p_sdp_db) == tSDP_STATUS::SDP_SUCCESS) {
       bta_dm_search_cb.service_search_cbacks.on_did_received(
               bta_dm_search_cb.peer_bdaddr, di_record.rec.vendor_id_source, di_record.rec.vendor,
               di_record.rec.product, di_record.rec.version);
@@ -743,7 +741,7 @@ static void bta_dm_sdp_result(tBTA_DM_SDP_RESULT& sdp_event) {
     BTM_LogHistory(kBtmLogTag, bta_dm_search_cb.peer_bdaddr, "Discovery failed",
                    base::StringPrintf("Result:%s", sdp_result_text(sdp_result).c_str()));
     log::error("SDP connection failed {}", sdp_status_text(sdp_result));
-    if (sdp_event.sdp_result == SDP_CONN_FAILED) {
+    if (sdp_event.sdp_result == tSDP_STATUS::SDP_CONN_FAILED) {
       bta_dm_search_cb.wait_disc = false;
     }
 
@@ -1383,7 +1381,7 @@ static void bta_dm_service_search_remname_cback(const RawAddress& bd_addr, DEV_C
   if (bta_dm_search_cb.peer_bdaddr == bd_addr) {
     rem_name.bd_addr = bd_addr;
     bd_name_copy(rem_name.remote_bd_name, bd_name);
-    rem_name.status = BTM_SUCCESS;
+    rem_name.status = tBTM_STATUS::BTM_SUCCESS;
     rem_name.hci_status = HCI_SUCCESS;
     bta_dm_remname_cback(&rem_name);
   } else {
@@ -1484,164 +1482,6 @@ const char* bta_dm_get_remname(void) {
   }
 
   return p_name;
-}
-
-/*******************************************************************************
- *
- * Function         bta_dm_observe_results_cb
- *
- * Description      Callback for BLE Observe result
- *
- *
- * Returns          void
- *
- ******************************************************************************/
-static void bta_dm_observe_results_cb(tBTM_INQ_RESULTS* p_inq, const uint8_t* p_eir,
-                                      uint16_t eir_len) {
-  tBTA_DM_SEARCH result;
-  tBTM_INQ_INFO* p_inq_info;
-  log::verbose("bta_dm_observe_results_cb");
-
-  result.inq_res.bd_addr = p_inq->remote_bd_addr;
-  result.inq_res.original_bda = p_inq->original_bda;
-  result.inq_res.rssi = p_inq->rssi;
-  result.inq_res.ble_addr_type = p_inq->ble_addr_type;
-  result.inq_res.inq_result_type = p_inq->inq_result_type;
-  result.inq_res.device_type = p_inq->device_type;
-  result.inq_res.flag = p_inq->flag;
-  result.inq_res.ble_evt_type = p_inq->ble_evt_type;
-  result.inq_res.ble_primary_phy = p_inq->ble_primary_phy;
-  result.inq_res.ble_secondary_phy = p_inq->ble_secondary_phy;
-  result.inq_res.ble_advertising_sid = p_inq->ble_advertising_sid;
-  result.inq_res.ble_tx_power = p_inq->ble_tx_power;
-  result.inq_res.ble_periodic_adv_int = p_inq->ble_periodic_adv_int;
-
-  /* application will parse EIR to find out remote device name */
-  result.inq_res.p_eir = const_cast<uint8_t*>(p_eir);
-  result.inq_res.eir_len = eir_len;
-
-  p_inq_info = get_btm_client_interface().db.BTM_InqDbRead(p_inq->remote_bd_addr);
-  if (p_inq_info != NULL) {
-    /* initialize remt_name_not_required to false so that we get the name by
-     * default */
-    result.inq_res.remt_name_not_required = false;
-  }
-
-  if (p_inq_info) {
-    /* application indicates if it knows the remote name, inside the callback
-     copy that to the inquiry data base*/
-    if (result.inq_res.remt_name_not_required) {
-      p_inq_info->appl_knows_rem_name = true;
-    }
-  }
-}
-
-/*******************************************************************************
- *
- * Function         bta_dm_opportunistic_observe_results_cb
- *
- * Description      Callback for BLE Observe result
- *
- *
- * Returns          void
- *
- ******************************************************************************/
-static void bta_dm_opportunistic_observe_results_cb(tBTM_INQ_RESULTS* p_inq, const uint8_t* p_eir,
-                                                    uint16_t eir_len) {
-  tBTA_DM_SEARCH result;
-  tBTM_INQ_INFO* p_inq_info;
-
-  result.inq_res.bd_addr = p_inq->remote_bd_addr;
-  result.inq_res.rssi = p_inq->rssi;
-  result.inq_res.ble_addr_type = p_inq->ble_addr_type;
-  result.inq_res.inq_result_type = p_inq->inq_result_type;
-  result.inq_res.device_type = p_inq->device_type;
-  result.inq_res.flag = p_inq->flag;
-  result.inq_res.ble_evt_type = p_inq->ble_evt_type;
-  result.inq_res.ble_primary_phy = p_inq->ble_primary_phy;
-  result.inq_res.ble_secondary_phy = p_inq->ble_secondary_phy;
-  result.inq_res.ble_advertising_sid = p_inq->ble_advertising_sid;
-  result.inq_res.ble_tx_power = p_inq->ble_tx_power;
-  result.inq_res.ble_periodic_adv_int = p_inq->ble_periodic_adv_int;
-
-  /* application will parse EIR to find out remote device name */
-  result.inq_res.p_eir = const_cast<uint8_t*>(p_eir);
-  result.inq_res.eir_len = eir_len;
-
-  p_inq_info = get_btm_client_interface().db.BTM_InqDbRead(p_inq->remote_bd_addr);
-  if (p_inq_info != NULL) {
-    /* initialize remt_name_not_required to false so that we get the name by
-     * default */
-    result.inq_res.remt_name_not_required = false;
-  }
-
-  if (bta_dm_search_cb.p_csis_scan_cback) {
-    bta_dm_search_cb.p_csis_scan_cback(BTA_DM_INQ_RES_EVT, &result);
-  }
-
-  if (p_inq_info) {
-    /* application indicates if it knows the remote name, inside the callback
-     copy that to the inquiry data base*/
-    if (result.inq_res.remt_name_not_required) {
-      p_inq_info->appl_knows_rem_name = true;
-    }
-  }
-}
-
-/*******************************************************************************
- *
- * Function         bta_dm_observe_cmpl_cb
- *
- * Description      Callback for BLE Observe complete
- *
- *
- * Returns          void
- *
- ******************************************************************************/
-static void bta_dm_observe_cmpl_cb(void* p_result) {
-  log::verbose("bta_dm_observe_cmpl_cb");
-
-  if (bta_dm_search_cb.p_csis_scan_cback) {
-    auto num_resps = ((tBTM_INQUIRY_CMPL*)p_result)->num_resp;
-    tBTA_DM_SEARCH data{.observe_cmpl{.num_resps = num_resps}};
-    bta_dm_search_cb.p_csis_scan_cback(BTA_DM_OBSERVE_CMPL_EVT, &data);
-  }
-}
-
-static void bta_dm_start_scan(uint8_t duration_sec) {
-  tBTM_STATUS status = get_btm_client_interface().ble.BTM_BleObserve(
-          true, duration_sec, bta_dm_observe_results_cb, bta_dm_observe_cmpl_cb);
-
-  if (status != BTM_CMD_STARTED) {
-    log::warn("BTM_BleObserve  failed. status {}", status);
-    if (bta_dm_search_cb.p_csis_scan_cback) {
-      tBTA_DM_SEARCH data{.observe_cmpl = {.num_resps = 0}};
-      bta_dm_search_cb.p_csis_scan_cback(BTA_DM_OBSERVE_CMPL_EVT, &data);
-    }
-  }
-}
-
-void bta_dm_ble_scan(bool start, uint8_t duration_sec) {
-  if (!start) {
-    if (get_btm_client_interface().ble.BTM_BleObserve(false, 0, NULL, NULL) != BTM_CMD_STARTED) {
-      log::warn("Unable to stop ble observe");
-    }
-    return;
-  }
-
-  bta_dm_start_scan(duration_sec);
-}
-
-void bta_dm_ble_csis_observe(bool observe, tBTA_DM_SEARCH_CBACK* p_cback) {
-  if (!observe) {
-    bta_dm_search_cb.p_csis_scan_cback = NULL;
-    BTM_BleOpportunisticObserve(false, NULL);
-    return;
-  }
-
-  /* Save the callback to be called when a scan results are available */
-  bta_dm_search_cb.p_csis_scan_cback = p_cback;
-  BTM_BleOpportunisticObserve(true, bta_dm_opportunistic_observe_results_cb);
 }
 
 #ifndef BTA_DM_GATT_CLOSE_DELAY_TOUT
@@ -2214,26 +2054,13 @@ void bta_dm_find_services(const RawAddress& bd_addr) {
 }
 void bta_dm_inq_cmpl() { ::bta_dm_disc_legacy::bta_dm_inq_cmpl(); }
 void bta_dm_inq_cmpl_cb(void* p_result) { ::bta_dm_disc_legacy::bta_dm_inq_cmpl_cb(p_result); }
-void bta_dm_observe_cmpl_cb(void* p_result) {
-  ::bta_dm_disc_legacy::bta_dm_observe_cmpl_cb(p_result);
-}
-void bta_dm_observe_results_cb(tBTM_INQ_RESULTS* p_inq, const uint8_t* p_eir, uint16_t eir_len) {
-  ::bta_dm_disc_legacy::bta_dm_observe_results_cb(p_inq, p_eir, eir_len);
-}
-void bta_dm_opportunistic_observe_results_cb(tBTM_INQ_RESULTS* p_inq, const uint8_t* p_eir,
-                                             uint16_t eir_len) {
-  ::bta_dm_disc_legacy::bta_dm_opportunistic_observe_results_cb(p_inq, p_eir, eir_len);
-}
+
 void bta_dm_queue_search(tBTA_DM_API_SEARCH& search) {
   ::bta_dm_disc_legacy::bta_dm_queue_search(search);
 }
 
 void bta_dm_service_search_remname_cback(const RawAddress& bd_addr, DEV_CLASS dc, BD_NAME bd_name) {
   ::bta_dm_disc_legacy::bta_dm_service_search_remname_cback(bd_addr, dc, bd_name);
-}
-
-void bta_dm_start_scan(uint8_t duration_sec) {
-  ::bta_dm_disc_legacy::bta_dm_start_scan(duration_sec);
 }
 
 void store_avrcp_profile_feature(tSDP_DISC_REC* sdp_rec) {
