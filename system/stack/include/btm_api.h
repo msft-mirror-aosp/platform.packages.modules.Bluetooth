@@ -79,7 +79,7 @@ void BTM_reset_complete();
  *
  * Description      This function is called to set the local device class
  *
- * Returns          BTM_SUCCESS if successful, otherwise an error
+ * Returns          tBTM_STATUS::BTM_SUCCESS if successful, otherwise an error
  *
  ******************************************************************************/
 [[nodiscard]] tBTM_STATUS BTM_SetDeviceClass(DEV_CLASS dev_class);
@@ -91,7 +91,7 @@ void BTM_reset_complete();
  * Description      This function is called to read the local device name.
  *
  * Returns          status of the operation
- *                  If success, BTM_SUCCESS is returned and p_name points stored
+ *                  If success, tBTM_STATUS::BTM_SUCCESS is returned and p_name points stored
  *                              local device name
  *                  If BTM doesn't store local device name, BTM_NO_RESOURCES is
  *                              is returned and p_name is set to NULL
@@ -161,7 +161,7 @@ void BTM_WriteVoiceSettings(uint16_t settings);
  *                      resetting the controller.
  *
  * Returns
- *      BTM_SUCCESS         Command sent.
+ *      tBTM_STATUS::BTM_SUCCESS         Command sent.
  *      BTM_NO_RESOURCES    If out of resources to send the command.
  *
  *
@@ -303,7 +303,7 @@ void BTM_WriteVoiceSettings(uint16_t settings);
  *                                              (NULL clears all entries)
  *
  * Returns          BTM_BUSY if an inquiry, get remote name, or event filter
- *                          is active, otherwise BTM_SUCCESS
+ *                          is active, otherwise tBTM_STATUS::BTM_SUCCESS
  *
  ******************************************************************************/
 [[nodiscard]] tBTM_STATUS BTM_ClearInqDb(const RawAddress* p_bda);
@@ -342,7 +342,19 @@ void BTM_WriteVoiceSettings(uint16_t settings);
  *
  ******************************************************************************/
 [[nodiscard]] tBTM_STATUS BTM_RemoveSco(uint16_t sco_inx);
-void BTM_RemoveSco(const RawAddress& bda);
+
+/*******************************************************************************
+ *
+ * Function         BTM_RemoveScoByBdaddr
+ *
+ * Description      This function is called to remove a specific SCO connection.
+ *                  but using the bluetooth device addess typically used
+ *                  for ACL termination.
+ *
+ * Returns         void
+ *
+ ******************************************************************************/
+void BTM_RemoveScoByBdaddr(const RawAddress& bda);
 
 /*******************************************************************************
  *
@@ -365,7 +377,7 @@ void BTM_RemoveSco(const RawAddress& bda);
  *                  BTM_CreateSco.  It can be called only when there are no
  *                  active (e)SCO links.
  *
- * Returns          BTM_SUCCESS if the successful.
+ * Returns          tBTM_STATUS::BTM_SUCCESS if the successful.
  *                  BTM_BUSY if there are one or more active (e)SCO links.
  *
  ******************************************************************************/
@@ -380,7 +392,7 @@ void BTM_RemoveSco(const RawAddress& bda);
  *                  connection indication events and change of link parameter
  *                  events.
  *
- * Returns          BTM_SUCCESS if the successful.
+ * Returns          tBTM_STATUS::BTM_SUCCESS if the successful.
  *                  BTM_ILLEGAL_VALUE if there is an illegal sco_inx
  *
  ******************************************************************************/
@@ -500,7 +512,7 @@ void BTM_RequestPeerSCA(const RawAddress& remote_bda, tBT_TRANSPORT transport);
  * Parameters       p_buff - allocated HCI command buffer including extended
  *                           inquriry response
  *
- * Returns          BTM_SUCCESS  - if successful
+ * Returns          tBTM_STATUS::BTM_SUCCESS  - if successful
  *                  BTM_MODE_UNSUPPORTED - if local device cannot support it
  *
  ******************************************************************************/

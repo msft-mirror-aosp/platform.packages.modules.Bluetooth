@@ -29,8 +29,8 @@
 #include "hci/class_of_device.h"
 #include "stack/acl/acl.h"
 #include "stack/btm/security_device_record.h"
-#include "stack/include/acl_client_callbacks.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/btm_status.h"
 #include "types/raw_address.h"
 
 // Mocked compile conditionals, if any
@@ -278,7 +278,9 @@ extern struct acl_get_connection_from_handle acl_get_connection_from_handle;
 // Returns: tBTM_STATUS
 struct BTM_ReadFailedContactCounter {
   std::function<tBTM_STATUS(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb)> body{
-          [](const RawAddress& /* remote_bda */, tBTM_CMPL_CB* /* p_cb */) { return BTM_SUCCESS; }};
+          [](const RawAddress& /* remote_bda */, tBTM_CMPL_CB* /* p_cb */) {
+            return tBTM_STATUS::BTM_SUCCESS;
+          }};
   tBTM_STATUS operator()(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb) {
     return body(remote_bda, p_cb);
   }
@@ -291,7 +293,7 @@ struct BTM_ReadTxPower {
   std::function<tBTM_STATUS(const RawAddress& remote_bda, tBT_TRANSPORT transport,
                             tBTM_CMPL_CB* p_cb)>
           body{[](const RawAddress& /* remote_bda */, tBT_TRANSPORT /* transport */,
-                  tBTM_CMPL_CB* /* p_cb */) { return BTM_SUCCESS; }};
+                  tBTM_CMPL_CB* /* p_cb */) { return tBTM_STATUS::BTM_SUCCESS; }};
   tBTM_STATUS operator()(const RawAddress& remote_bda, tBT_TRANSPORT transport,
                          tBTM_CMPL_CB* p_cb) {
     return body(remote_bda, transport, p_cb);
@@ -303,28 +305,21 @@ extern struct BTM_ReadTxPower BTM_ReadTxPower;
 // Returns: tBTM_STATUS
 struct BTM_SetLinkSuperTout {
   std::function<tBTM_STATUS(const RawAddress& remote_bda, uint16_t timeout)> body{
-          [](const RawAddress& /* remote_bda */, uint16_t /* timeout */) { return BTM_SUCCESS; }};
+          [](const RawAddress& /* remote_bda */, uint16_t /* timeout */) {
+            return tBTM_STATUS::BTM_SUCCESS;
+          }};
   tBTM_STATUS operator()(const RawAddress& remote_bda, uint16_t timeout) {
     return body(remote_bda, timeout);
   }
 };
 extern struct BTM_SetLinkSuperTout BTM_SetLinkSuperTout;
-// Name: BTM_SwitchRoleToCentral
-// Params: const RawAddress& remote_bd_addr
-// Returns: tBTM_STATUS
-struct BTM_SwitchRoleToCentral {
-  std::function<tBTM_STATUS(const RawAddress& remote_bd_addr)> body{
-          [](const RawAddress& /* remote_bd_addr */) { return BTM_SUCCESS; }};
-  tBTM_STATUS operator()(const RawAddress& remote_bd_addr) { return body(remote_bd_addr); }
-};
-extern struct BTM_SwitchRoleToCentral BTM_SwitchRoleToCentral;
 // Name: btm_remove_acl
 // Params: const RawAddress& bd_addr, tBT_TRANSPORT transport
 // Returns: tBTM_STATUS
 struct btm_remove_acl {
   std::function<tBTM_STATUS(const RawAddress& bd_addr, tBT_TRANSPORT transport)> body{
           [](const RawAddress& /* bd_addr */, tBT_TRANSPORT /* transport */) {
-            return BTM_SUCCESS;
+            return tBTM_STATUS::BTM_SUCCESS;
           }};
   tBTM_STATUS operator()(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
     return body(bd_addr, transport);
@@ -393,17 +388,6 @@ struct BTM_ReadConnectionAddr {
   }
 };
 extern struct BTM_ReadConnectionAddr BTM_ReadConnectionAddr;
-// Name: BTM_RequestPeerSCA
-// Params: const RawAddress& remote_bda, tBT_TRANSPORT transport
-// Returns: void
-struct BTM_RequestPeerSCA {
-  std::function<void(const RawAddress& remote_bda, tBT_TRANSPORT transport)> body{
-          [](const RawAddress& /* remote_bda */, tBT_TRANSPORT /* transport */) { ; }};
-  void operator()(const RawAddress& remote_bda, tBT_TRANSPORT transport) {
-    body(remote_bda, transport);
-  }
-};
-extern struct BTM_RequestPeerSCA BTM_RequestPeerSCA;
 // Name: BTM_acl_after_controller_started
 // Returns: void
 struct BTM_acl_after_controller_started {
@@ -411,24 +395,6 @@ struct BTM_acl_after_controller_started {
   void operator()() { body(); }
 };
 extern struct BTM_acl_after_controller_started BTM_acl_after_controller_started;
-// Name: BTM_unblock_role_switch_for
-// Params: const RawAddress& peer_addr
-// Returns: void
-struct BTM_unblock_role_switch_for {
-  std::function<void(const RawAddress& peer_addr)> body{
-          [](const RawAddress& /* peer_addr */) { ; }};
-  void operator()(const RawAddress& peer_addr) { body(peer_addr); }
-};
-extern struct BTM_unblock_role_switch_for BTM_unblock_role_switch_for;
-// Name: BTM_unblock_sniff_mode_for
-// Params: const RawAddress& peer_addr
-// Returns: void
-struct BTM_unblock_sniff_mode_for {
-  std::function<void(const RawAddress& peer_addr)> body{
-          [](const RawAddress& /* peer_addr */) { ; }};
-  void operator()(const RawAddress& peer_addr) { body(peer_addr); }
-};
-extern struct BTM_unblock_sniff_mode_for BTM_unblock_sniff_mode_for;
 // Name: acl_disconnect_after_role_switch
 // Params: uint16_t conn_handle, tHCI_STATUS reason
 // Returns: void

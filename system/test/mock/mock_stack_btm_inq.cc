@@ -24,6 +24,7 @@
 
 #include <cstdint>
 
+#include "stack/include/btm_status.h"
 #include "test/common/mock_functions.h"
 
 // Original usings
@@ -44,7 +45,6 @@ struct BTM_SetConnectability BTM_SetConnectability;
 struct BTM_SetDiscoverability BTM_SetDiscoverability;
 struct BTM_SetInquiryMode BTM_SetInquiryMode;
 struct BTM_StartInquiry BTM_StartInquiry;
-struct BTM_WriteEIR BTM_WriteEIR;
 struct btm_clear_all_pending_le_entry btm_clear_all_pending_le_entry;
 struct btm_clr_inq_db btm_clr_inq_db;
 struct btm_clr_inq_result_flt btm_clr_inq_result_flt;
@@ -70,11 +70,10 @@ namespace stack_btm_inq {
 
 bool BTM_HasEirService::return_value = false;
 uint16_t BTM_IsInquiryActive::return_value = 0;
-tBTM_STATUS BTM_SetConnectability::return_value = BTM_SUCCESS;
-tBTM_STATUS BTM_SetDiscoverability::return_value = BTM_SUCCESS;
-tBTM_STATUS BTM_SetInquiryMode::return_value = BTM_SUCCESS;
-tBTM_STATUS BTM_StartInquiry::return_value = BTM_SUCCESS;
-tBTM_STATUS BTM_WriteEIR::return_value = BTM_SUCCESS;
+tBTM_STATUS BTM_SetConnectability::return_value = tBTM_STATUS::BTM_SUCCESS;
+tBTM_STATUS BTM_SetDiscoverability::return_value = tBTM_STATUS::BTM_SUCCESS;
+tBTM_STATUS BTM_SetInquiryMode::return_value = tBTM_STATUS::BTM_SUCCESS;
+tBTM_STATUS BTM_StartInquiry::return_value = tBTM_STATUS::BTM_SUCCESS;
 tINQ_DB_ENT* btm_inq_db_find::return_value = nullptr;
 tINQ_DB_ENT* btm_inq_db_new::return_value = nullptr;
 bool btm_inq_find_bdaddr::return_value = false;
@@ -119,10 +118,6 @@ tBTM_STATUS BTM_SetInquiryMode(uint8_t mode) {
 tBTM_STATUS BTM_StartInquiry(tBTM_INQ_RESULTS_CB* p_results_cb, tBTM_CMPL_CB* p_cmpl_cb) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_inq::BTM_StartInquiry(p_results_cb, p_cmpl_cb);
-}
-tBTM_STATUS BTM_WriteEIR(BT_HDR* p_buff) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_btm_inq::BTM_WriteEIR(p_buff);
 }
 void btm_clear_all_pending_le_entry(void) {
   inc_func_call_count(__func__);

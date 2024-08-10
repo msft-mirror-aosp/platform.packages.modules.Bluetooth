@@ -50,6 +50,7 @@
 #include "stack/include/btm_ble_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cdefs.h"
@@ -1075,7 +1076,10 @@ void l2cble_update_data_length(tL2C_LCB* p_lcb) {
 
   /* update TX data length if changed */
   if (p_lcb->tx_data_len != tx_mtu) {
-    BTM_SetBleDataLength(p_lcb->remote_bd_addr, tx_mtu);
+    if (get_btm_client_interface().ble.BTM_SetBleDataLength(p_lcb->remote_bd_addr, tx_mtu) !=
+        tBTM_STATUS::BTM_SUCCESS) {
+      log::warn("Unable to set BLE data length peer:{} mtu:{}", p_lcb->remote_bd_addr, tx_mtu);
+    }
   }
 }
 
@@ -1236,7 +1240,7 @@ void l2cble_send_peer_disc_req(tL2C_CCB* p_ccb) {
  *
  ******************************************************************************/
 void l2cble_sec_comp(RawAddress bda, tBT_TRANSPORT transport, void* /* p_ref_data */,
-                     tBTM_STATUS status) {
+                     tBTM_STATUS btm_status) {
   tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(bda, BT_TRANSPORT_LE);
   tL2CAP_SEC_DATA* p_buf = NULL;
   uint8_t sec_act;
@@ -1256,13 +1260,13 @@ void l2cble_sec_comp(RawAddress bda, tBT_TRANSPORT transport, void* /* p_ref_dat
       return;
     }
 
-    if (status != BTM_SUCCESS) {
-      (*(p_buf->p_callback))(bda, BT_TRANSPORT_LE, p_buf->p_ref_data, status);
+    if (btm_status != tBTM_STATUS::BTM_SUCCESS) {
+      (*(p_buf->p_callback))(bda, BT_TRANSPORT_LE, p_buf->p_ref_data, btm_status);
       osi_free(p_buf);
     } else {
       if (sec_act == BTM_SEC_ENCRYPT_MITM) {
         if (BTM_IsLinkKeyAuthed(bda, transport)) {
-          (*(p_buf->p_callback))(bda, BT_TRANSPORT_LE, p_buf->p_ref_data, status);
+          (*(p_buf->p_callback))(bda, BT_TRANSPORT_LE, p_buf->p_ref_data, btm_status);
         } else {
           log::verbose("MITM Protection Not present");
           (*(p_buf->p_callback))(bda, BT_TRANSPORT_LE, p_buf->p_ref_data, BTM_FAILED_ON_SECURITY);
@@ -1270,7 +1274,7 @@ void l2cble_sec_comp(RawAddress bda, tBT_TRANSPORT transport, void* /* p_ref_dat
       } else {
         log::verbose("MITM Protection not required sec_act = {}", p_lcb->sec_act);
 
-        (*(p_buf->p_callback))(bda, BT_TRANSPORT_LE, p_buf->p_ref_data, status);
+        (*(p_buf->p_callback))(bda, BT_TRANSPORT_LE, p_buf->p_ref_data, btm_status);
       }
       osi_free(p_buf);
     }
@@ -1282,8 +1286,8 @@ void l2cble_sec_comp(RawAddress bda, tBT_TRANSPORT transport, void* /* p_ref_dat
   while (!fixed_queue_is_empty(p_lcb->le_sec_pending_q)) {
     p_buf = (tL2CAP_SEC_DATA*)fixed_queue_dequeue(p_lcb->le_sec_pending_q);
 
-    if (status != BTM_SUCCESS) {
-      (*(p_buf->p_callback))(bda, BT_TRANSPORT_LE, p_buf->p_ref_data, status);
+    if (btm_status != tBTM_STATUS::BTM_SUCCESS) {
+      (*(p_buf->p_callback))(bda, BT_TRANSPORT_LE, p_buf->p_ref_data, btm_status);
       osi_free(p_buf);
     } else {
       l2ble_sec_access_req(bda, p_buf->psm, p_buf->is_originator, p_buf->p_callback,
@@ -1339,7 +1343,7 @@ tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr, uint16_t p
           btm_ble_start_sec_check(bd_addr, psm, is_originator, &l2cble_sec_comp, p_ref_data);
 
   switch (result) {
-    case BTM_SUCCESS:
+    case tBTM_STATUS::BTM_SUCCESS:
       return L2CAP_LE_RESULT_CONN_OK;
     case BTM_ILLEGAL_VALUE:
       return L2CAP_LE_RESULT_NO_PSM;

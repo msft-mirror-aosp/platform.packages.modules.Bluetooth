@@ -38,6 +38,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/smp_api_types.h"
 #include "types/raw_address.h"
 
@@ -157,7 +158,7 @@ void smp_send_app_cback(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
 
     callback_rc = (*p_cb->p_callback)(p_cb->cb_evt, p_cb->pairing_bda, &cb_data);
 
-    if (callback_rc == BTM_SUCCESS) {
+    if (callback_rc == tBTM_STATUS::BTM_SUCCESS) {
       switch (p_cb->cb_evt) {
         case SMP_IO_CAP_REQ_EVT:
           p_cb->loc_auth_req = cb_data.io_req.auth_req;
@@ -1226,7 +1227,7 @@ void smp_sirk_verify(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
     callback_rc = (*p_cb->p_callback)(p_cb->cb_evt, p_cb->pairing_bda, nullptr);
 
     /* There is no member validator callback - device is by default valid */
-    if (callback_rc == BTM_SUCCESS_NO_SECURITY) {
+    if (callback_rc == tBTM_STATUS::BTM_SUCCESS_NO_SECURITY) {
       BTM_LogHistory(kBtmLogTag, p_cb->pairing_bda, "SIRK verification",
                      base::StringPrintf("Device validated due to no security"));
 
@@ -1512,7 +1513,9 @@ void smp_process_io_response(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_data */) {
       switch (p_cb->loc_oob_flag) {
         case SMP_OOB_NONE:
           log::info("SMP_MODEL_SEC_CONN_OOB with SMP_OOB_NONE");
-          smp_send_pair_rsp(p_cb, NULL);
+          if (!com::android::bluetooth::flags::remove_dup_pairing_response_in_oob_pairing()) {
+              smp_send_pair_rsp(p_cb, NULL);
+          }
           break;
         case SMP_OOB_PRESENT:
           log::info("SMP_MODEL_SEC_CONN_OOB with SMP_OOB_PRESENT");
