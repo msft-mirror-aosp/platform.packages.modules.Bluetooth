@@ -57,6 +57,7 @@ struct BTM_SecAddBleDevice BTM_SecAddBleDevice;
 struct BTM_SecAddBleKey BTM_SecAddBleKey;
 struct BTM_SecurityGrant BTM_SecurityGrant;
 struct btm_ble_connected btm_ble_connected;
+struct btm_ble_connection_established btm_ble_connection_established;
 struct btm_ble_get_acl_remote_addr btm_ble_get_acl_remote_addr;
 struct btm_ble_get_enc_key_type btm_ble_get_enc_key_type;
 struct btm_ble_link_encrypted btm_ble_link_encrypted;
@@ -101,11 +102,11 @@ const Octet16 BTM_GetDeviceIDRoot::return_value{0xd5, 0xcb, 0x84, 0x54, 0xd1, 0x
 bool btm_ble_get_acl_remote_addr::return_value = false;
 bool btm_ble_get_enc_key_type::return_value = false;
 uint8_t btm_ble_read_sec_key_size::return_value = 0;
-tBTM_STATUS btm_ble_set_encryption::return_value = BTM_SUCCESS;
-tBTM_STATUS btm_ble_start_encrypt::return_value = BTM_SUCCESS;
-tBTM_STATUS btm_ble_start_sec_check::return_value = BTM_SUCCESS;
+tBTM_STATUS btm_ble_set_encryption::return_value = tBTM_STATUS::BTM_SUCCESS;
+tBTM_STATUS btm_ble_start_encrypt::return_value = tBTM_STATUS::BTM_SUCCESS;
+tBTM_STATUS btm_ble_start_sec_check::return_value = tBTM_STATUS::BTM_SUCCESS;
 bool btm_get_local_div::return_value = false;
-tBTM_STATUS btm_proc_smp_cback::return_value = BTM_SUCCESS;
+tBTM_STATUS btm_proc_smp_cback::return_value = tBTM_STATUS::BTM_SUCCESS;
 
 }  // namespace stack_btm_ble
 }  // namespace mock
@@ -197,6 +198,10 @@ void btm_ble_connected(const RawAddress& bda, uint16_t handle, uint8_t enc_mode,
   inc_func_call_count(__func__);
   test::mock::stack_btm_ble::btm_ble_connected(bda, handle, enc_mode, role, addr_type, addr_matched,
                                                can_read_discoverable_characteristics);
+}
+void btm_ble_connection_established(const RawAddress& bda) {
+  inc_func_call_count(__func__);
+  test::mock::stack_btm_ble::btm_ble_connection_established(bda);
 }
 bool btm_ble_get_acl_remote_addr(uint16_t hci_handle, RawAddress& conn_addr,
                                  tBLE_ADDR_TYPE* p_addr_type) {
