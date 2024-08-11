@@ -61,6 +61,7 @@
 #include "stack/include/btm_ble_addr.h"
 #include "stack/include/btm_ble_privacy.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/gap_api.h"
 #include "stack/include/gattdefs.h"
 #include "stack/include/hci_error_code.h"
@@ -1005,7 +1006,7 @@ void btm_ble_periodic_adv_sync_established(uint8_t status, uint16_t sync_handle,
   /*if (param_len != ADV_SYNC_ESTB_EVT_LEN) {
     log::error("[PSync]Invalid event length");
     STREAM_TO_UINT8(status, param);
-    if (status == BTM_SUCCESS) {
+    if (status == tBTM_STATUS::BTM_SUCCESS) {
       STREAM_TO_UINT16(sync_handle, param);
       //btsnd_hcic_ble_terminate_periodic_sync(sync_handle);
       if (BleScanningManager::IsInitialized()) {
@@ -1303,7 +1304,7 @@ void btm_ble_set_adv_flag(uint16_t connect_mode, uint16_t disc_mode) {
  *
  * Parameters:      combined_mode: discoverability mode.
  *
- * Returns          BTM_SUCCESS is status set successfully; otherwise failure.
+ * Returns          tBTM_STATUS::BTM_SUCCESS is status set successfully; otherwise failure.
  *
  ******************************************************************************/
 tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode) {
@@ -1311,7 +1312,7 @@ tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode) {
   uint16_t mode = (combined_mode & BTM_BLE_DISCOVERABLE_MASK);
   uint8_t new_mode = BTM_BLE_ADV_ENABLE;
   uint8_t evt_type;
-  tBTM_STATUS status = BTM_SUCCESS;
+  tBTM_STATUS status = tBTM_STATUS::BTM_SUCCESS;
   RawAddress address = RawAddress::kEmpty;
   tBLE_ADDR_TYPE init_addr_type = BLE_ADDR_PUBLIC, own_addr_type = p_addr_cb->own_addr_type;
   uint16_t adv_int_min, adv_int_max;
@@ -1357,7 +1358,7 @@ tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode) {
     }
   }
 
-  if (status == BTM_SUCCESS && btm_cb.ble_ctr_cb.inq_var.adv_mode != new_mode) {
+  if (status == tBTM_STATUS::BTM_SUCCESS && btm_cb.ble_ctr_cb.inq_var.adv_mode != new_mode) {
     if (new_mode == BTM_BLE_ADV_ENABLE) {
       status = btm_ble_start_adv();
     } else {
@@ -1373,7 +1374,7 @@ tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode) {
   }
 
   /* set up stop advertising timer */
-  if (status == BTM_SUCCESS && mode == BTM_BLE_LIMITED_DISCOVERABLE) {
+  if (status == tBTM_STATUS::BTM_SUCCESS && mode == BTM_BLE_LIMITED_DISCOVERABLE) {
     log::verbose("start timer for limited disc mode duration={} ms", BTM_BLE_GAP_LIM_TIMEOUT_MS);
     /* start Tgap(lim_timeout) */
     alarm_set_on_mloop(btm_cb.ble_ctr_cb.inq_var.inquiry_timer, BTM_BLE_GAP_LIM_TIMEOUT_MS,
@@ -1390,7 +1391,7 @@ tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode) {
  *
  * Parameters:      combined_mode: connectability mode.
  *
- * Returns          BTM_SUCCESS is status set successfully; otherwise failure.
+ * Returns          tBTM_STATUS::BTM_SUCCESS is status set successfully; otherwise failure.
  *
  ******************************************************************************/
 tBTM_STATUS btm_ble_set_connectability(uint16_t combined_mode) {
@@ -1398,7 +1399,7 @@ tBTM_STATUS btm_ble_set_connectability(uint16_t combined_mode) {
   uint16_t mode = (combined_mode & BTM_BLE_CONNECTABLE_MASK);
   uint8_t new_mode = BTM_BLE_ADV_ENABLE;
   uint8_t evt_type;
-  tBTM_STATUS status = BTM_SUCCESS;
+  tBTM_STATUS status = tBTM_STATUS::BTM_SUCCESS;
   RawAddress address = RawAddress::kEmpty;
   tBLE_ADDR_TYPE peer_addr_type = BLE_ADDR_PUBLIC, own_addr_type = p_addr_cb->own_addr_type;
   uint16_t adv_int_min, adv_int_max;
@@ -1439,7 +1440,7 @@ tBTM_STATUS btm_ble_set_connectability(uint16_t combined_mode) {
   }
 
   /* update advertising mode */
-  if (status == BTM_SUCCESS && new_mode != btm_cb.ble_ctr_cb.inq_var.adv_mode) {
+  if (status == tBTM_STATUS::BTM_SUCCESS && new_mode != btm_cb.ble_ctr_cb.inq_var.adv_mode) {
     if (new_mode == BTM_BLE_ADV_ENABLE) {
       status = btm_ble_start_adv();
     } else {
@@ -1499,8 +1500,8 @@ void btm_send_hci_set_scan_params(uint8_t scan_type, uint16_t scan_int, uint16_t
 static void btm_ble_scan_filt_param_cfg_evt(uint8_t /* avbl_space */,
                                             tBTM_BLE_SCAN_COND_OP /* action_type */,
                                             tBTM_STATUS btm_status) {
-  if (btm_status != btm_status_value(BTM_SUCCESS)) {
-    log::error("{}", btm_status);
+  if (btm_status != tBTM_STATUS::BTM_SUCCESS) {
+    log::error("{}", btm_status_text(btm_status));
   } else {
     log::verbose("");
   }
@@ -1514,7 +1515,9 @@ static void btm_ble_scan_filt_param_cfg_evt(uint8_t /* avbl_space */,
  *                  If the duration is zero, the periodic inquiry mode is
  *                  cancelled.
  *
- * Parameters:      duration - Duration of inquiry in seconds
+ * Parameters:      duration - Duration of inquiry in seconds. With flag
+ *                             le_inquiry_duration duration is a multiplier for
+ *                             1.28 seconds.
  *
  * Returns          BTM_CMD_STARTED if successfully started
  *                  BTM_BUSY - if an inquiry is already active
@@ -1560,8 +1563,10 @@ tBTM_STATUS btm_ble_start_inquiry(uint8_t duration) {
   } else if ((btm_cb.ble_ctr_cb.inq_var.scan_interval != scan_interval) ||
              (btm_cb.ble_ctr_cb.inq_var.scan_window != scan_window)) {
     log::verbose("restart LE scan with low latency scan params");
-    btm_cb.ble_ctr_cb.inq_var.scan_interval = scan_interval;
-    btm_cb.ble_ctr_cb.inq_var.scan_window = scan_window;
+    if (!com::android::bluetooth::flags::le_inquiry_duration()) {
+      btm_cb.ble_ctr_cb.inq_var.scan_interval = scan_interval;
+      btm_cb.ble_ctr_cb.inq_var.scan_window = scan_window;
+    }
     btm_send_hci_scan_enable(BTM_BLE_SCAN_DISABLE, BTM_BLE_DUPLICATE_ENABLE);
     btm_send_hci_set_scan_params(BTM_BLE_SCAN_MODE_ACTI, scan_interval, scan_window, scan_phy,
                                  btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type, SP_ADV_ALL);
@@ -1575,7 +1580,8 @@ tBTM_STATUS btm_ble_start_inquiry(uint8_t duration) {
 
   if (duration != 0) {
     /* start inquiry timer */
-    uint64_t duration_ms = duration * 1000;
+    uint64_t duration_ms =
+            duration * (com::android::bluetooth::flags::le_inquiry_duration() ? 1280 : 1000);
     alarm_set_on_mloop(btm_cb.ble_ctr_cb.inq_var.inquiry_timer, duration_ms,
                        btm_ble_inquiry_timer_timeout, NULL);
   }
@@ -2509,7 +2515,7 @@ static tBTM_STATUS btm_ble_start_adv(void) {
   btm_ble_adv_states_operation(btm_ble_set_topology_mask, btm_cb.ble_ctr_cb.inq_var.evt_type);
   power_telemetry::GetInstance().LogBleAdvStarted();
 
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 /*******************************************************************************
@@ -2531,7 +2537,7 @@ static tBTM_STATUS btm_ble_stop_adv(void) {
     btm_ble_clear_topology_mask(BTM_BLE_STATE_ALL_ADV_MASK);
     power_telemetry::GetInstance().LogBleAdvStopped();
   }
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 static void btm_ble_fast_adv_timer_timeout(void* /* data */) {

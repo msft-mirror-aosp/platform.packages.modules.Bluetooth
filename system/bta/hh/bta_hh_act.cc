@@ -34,17 +34,13 @@
 #include "bta/include/bta_hh_api.h"
 #include "bta/include/bta_hh_co.h"
 #include "bta/sys/bta_sys.h"
-#include "btif/include/btif_storage.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
-#include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/bt_uuid16.h"
+#include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/hiddefs.h"
 #include "stack/include/hidh_api.h"
 #include "stack/include/sdp_api.h"
-#include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth::legacy::stack::sdp;
@@ -212,7 +208,7 @@ static void bta_hh_sdp_cback(const RawAddress& bd_addr, tSDP_STATUS result, uint
     return;
   }
 
-  if (result == SDP_SUCCESS) {
+  if (result == tSDP_STATUS::SDP_SUCCESS) {
     /* security is required for the connection, add attr_mask bit*/
     attr_mask |= HID_SEC_REQUIRED;
 
@@ -291,14 +287,14 @@ static void bta_hh_di_sdp_cback(const RawAddress& bd_addr, tSDP_RESULT result) {
    * HID devices do not set this. So for IOP purposes, we allow the connection
    * to go through and update the DI record to invalid DI entry.
    */
-  if (result == SDP_SUCCESS || result == SDP_NO_RECS_MATCH) {
-    if (result == SDP_SUCCESS &&
+  if (result == tSDP_STATUS::SDP_SUCCESS || result == tSDP_STATUS::SDP_NO_RECS_MATCH) {
+    if (result == tSDP_STATUS::SDP_SUCCESS &&
         get_legacy_stack_sdp_api()->device_id.SDP_GetNumDiRecords(p_cb->p_disc_db) != 0) {
       tSDP_DI_GET_RECORD di_rec;
 
       /* always update information with primary DI record */
       if (get_legacy_stack_sdp_api()->device_id.SDP_GetDiRecord(1, &di_rec, p_cb->p_disc_db) ==
-          SDP_SUCCESS) {
+          tSDP_STATUS::SDP_SUCCESS) {
         bta_hh_update_di_info(p_cb, di_rec.rec.vendor, di_rec.rec.product, di_rec.rec.version, 0,
                               0);
       }
@@ -354,7 +350,7 @@ static void bta_hh_start_sdp(tBTA_HH_DEV_CB* p_cb) {
   /* Do DI discovery first */
   if (get_legacy_stack_sdp_api()->device_id.SDP_DiDiscover(
               p_cb->link_spec.addrt.bda, p_cb->p_disc_db, p_bta_hh_cfg->sdp_db_size,
-              bta_hh_di_sdp_cback) == SDP_SUCCESS) {
+              bta_hh_di_sdp_cback) == tSDP_STATUS::SDP_SUCCESS) {
     // SDP search started successfully. Connection will be triggered at the end of successful SDP
     // search
   } else {
@@ -925,8 +921,10 @@ void bta_hh_maint_dev_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
       if (p_cb->hid_handle == BTA_HH_INVALID_HANDLE) {
         tBT_TRANSPORT transport = p_data->api_maintdev.link_spec.transport;
         if (!com::android::bluetooth::flags::allow_switching_hid_and_hogp()) {
-          transport = BTM_UseLeLink(p_data->api_maintdev.link_spec.addrt.bda) ? BT_TRANSPORT_LE
-                                                                              : BT_TRANSPORT_BR_EDR;
+          transport = get_btm_client_interface().ble.BTM_UseLeLink(
+                              p_data->api_maintdev.link_spec.addrt.bda)
+                              ? BT_TRANSPORT_LE
+                              : BT_TRANSPORT_BR_EDR;
         }
         if (transport == BT_TRANSPORT_LE) {
           p_cb->link_spec.transport = BT_TRANSPORT_LE;
