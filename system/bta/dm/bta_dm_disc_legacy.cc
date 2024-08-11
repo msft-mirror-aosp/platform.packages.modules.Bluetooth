@@ -50,6 +50,7 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_inq.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/gap_api.h"  // GAP_BleReadPeerPrefConnParams
 #include "stack/include/hidh_api.h"
 #include "stack/include/main_thread.h"
@@ -264,7 +265,7 @@ static tBTA_DM_STATE bta_dm_search_get_state() { return bta_dm_search_cb.state; 
 static void bta_dm_search_start(tBTA_DM_API_SEARCH& search) {
   bta_dm_gattc_register();
 
-  if (get_btm_client_interface().db.BTM_ClearInqDb(nullptr) != BTM_SUCCESS) {
+  if (get_btm_client_interface().db.BTM_ClearInqDb(nullptr) != tBTM_STATUS::BTM_SUCCESS) {
     log::warn("Unable to clear inquiry db for device discovery");
   }
 
@@ -584,8 +585,9 @@ static void bta_dm_sdp_result(tBTA_DM_SDP_RESULT& sdp_event) {
 
   const tSDP_RESULT sdp_result = sdp_event.sdp_result;
 
-  if ((sdp_event.sdp_result == SDP_SUCCESS) || (sdp_event.sdp_result == SDP_NO_RECS_MATCH) ||
-      (sdp_event.sdp_result == SDP_DB_FULL)) {
+  if ((sdp_event.sdp_result == tSDP_STATUS::SDP_SUCCESS) ||
+      (sdp_event.sdp_result == tSDP_STATUS::SDP_NO_RECS_MATCH) ||
+      (sdp_event.sdp_result == tSDP_STATUS::SDP_DB_FULL)) {
     log::verbose("sdp_result::0x{:x}", sdp_event.sdp_result);
     do {
       p_sdp_rec = NULL;
@@ -676,7 +678,7 @@ static void bta_dm_sdp_result(tBTA_DM_SDP_RESULT& sdp_event) {
 #if TARGET_FLOSS
     tSDP_DI_GET_RECORD di_record;
     if (get_legacy_stack_sdp_api()->device_id.SDP_GetDiRecord(
-                1, &di_record, bta_dm_search_cb.p_sdp_db) == SDP_SUCCESS) {
+                1, &di_record, bta_dm_search_cb.p_sdp_db) == tSDP_STATUS::SDP_SUCCESS) {
       bta_dm_search_cb.service_search_cbacks.on_did_received(
               bta_dm_search_cb.peer_bdaddr, di_record.rec.vendor_id_source, di_record.rec.vendor,
               di_record.rec.product, di_record.rec.version);
@@ -739,7 +741,7 @@ static void bta_dm_sdp_result(tBTA_DM_SDP_RESULT& sdp_event) {
     BTM_LogHistory(kBtmLogTag, bta_dm_search_cb.peer_bdaddr, "Discovery failed",
                    base::StringPrintf("Result:%s", sdp_result_text(sdp_result).c_str()));
     log::error("SDP connection failed {}", sdp_status_text(sdp_result));
-    if (sdp_event.sdp_result == SDP_CONN_FAILED) {
+    if (sdp_event.sdp_result == tSDP_STATUS::SDP_CONN_FAILED) {
       bta_dm_search_cb.wait_disc = false;
     }
 
@@ -1379,7 +1381,7 @@ static void bta_dm_service_search_remname_cback(const RawAddress& bd_addr, DEV_C
   if (bta_dm_search_cb.peer_bdaddr == bd_addr) {
     rem_name.bd_addr = bd_addr;
     bd_name_copy(rem_name.remote_bd_name, bd_name);
-    rem_name.status = BTM_SUCCESS;
+    rem_name.status = tBTM_STATUS::BTM_SUCCESS;
     rem_name.hci_status = HCI_SUCCESS;
     bta_dm_remname_cback(&rem_name);
   } else {
