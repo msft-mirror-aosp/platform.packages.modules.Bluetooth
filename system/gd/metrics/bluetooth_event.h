@@ -1,9 +1,9 @@
 /*
- * Copyright 2012 The Android Open Source Project
+ * Copyright 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * You may obtain a copy of the License at:
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-package android.bluetooth;
+#pragma once
 
-/**
- * API for Communication between BluetoothAdapter and BluetoothManager
- *
- * {@hide}
- */
-oneway interface IBluetoothManagerCallback {
-    void onBluetoothServiceUp(in IBinder bluetoothService);
-    void onBluetoothServiceDown();
-    void onBluetoothOn();
-    void onBluetoothOff();
-    void onBluetoothAdapterStateChange(int newState);
-}
+#include "hci/address.h"
+#include "hci/hci_packets.h"
+
+namespace bluetooth {
+namespace metrics {
+
+void LogAclCompletionEvent(const hci::Address& address, hci::ErrorCode reason,
+                           bool is_locally_initiated);
+
+}  // namespace metrics
+}  // namespace bluetooth
