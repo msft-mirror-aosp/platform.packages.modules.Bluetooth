@@ -35,16 +35,15 @@
 #include "osi/include/osi.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/btm_status.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
 
 /* callback function declarations */
-void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid,
-                                uint16_t psm, uint8_t id);
+void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16_t psm, uint8_t id);
 void avdt_l2c_connect_cfm_cback(uint16_t lcid, uint16_t result);
-void avdt_l2c_config_cfm_cback(uint16_t lcid, uint16_t result,
-                               tL2CAP_CFG_INFO* p_cfg);
+void avdt_l2c_config_cfm_cback(uint16_t lcid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
 void avdt_l2c_config_ind_cback(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg);
 void avdt_l2c_disconnect_ind_cback(uint16_t lcid, bool ack_needed);
 void avdt_l2c_congestion_ind_cback(uint16_t lcid, bool is_congested);
@@ -77,16 +76,17 @@ const tL2CAP_APPL_INFO avdt_l2c_appl = {avdt_l2c_connect_ind_cback,
  * Returns          void
  *
  ******************************************************************************/
-static void avdt_sec_check_complete_term(const RawAddress* bd_addr,
-                                         tBT_TRANSPORT transport,
-                                         void* p_ref_data) {
+static void avdt_sec_check_complete_term(const RawAddress* bd_addr, tBT_TRANSPORT /* transport */,
+                                         void* /* p_ref_data */) {
   AvdtpCcb* p_ccb = NULL;
   AvdtpTransportChannel* p_tbl;
 
   p_ccb = avdt_ccb_by_bd(*bd_addr);
 
   p_tbl = avdt_ad_tc_tbl_by_st(AVDT_CHAN_SIG, p_ccb, AVDT_AD_ST_SEC_ACP);
-  if (p_tbl == NULL) return;
+  if (p_tbl == NULL) {
+    return;
+  }
 
   /* store idx in LCID table, store LCID in routing table */
   avdtp_cb.ad.lcid_tbl[p_tbl->lcid] = avdt_ad_tc_tbl_to_idx(p_tbl);
@@ -106,18 +106,21 @@ static void avdt_sec_check_complete_term(const RawAddress* bd_addr,
  * Returns          void
  *
  ******************************************************************************/
-static void avdt_sec_check_complete_orig(const RawAddress* bd_addr,
-                                         tBT_TRANSPORT trasnport,
-                                         void* /* p_ref_data */, uint8_t res) {
+static void avdt_sec_check_complete_orig(const RawAddress* bd_addr, tBT_TRANSPORT /* transport */,
+                                         void* /* p_ref_data */, tBTM_STATUS res) {
   AvdtpCcb* p_ccb = NULL;
   AvdtpTransportChannel* p_tbl;
 
   log::verbose("avdt_sec_check_complete_orig res: {}", res);
-  if (bd_addr) p_ccb = avdt_ccb_by_bd(*bd_addr);
+  if (bd_addr) {
+    p_ccb = avdt_ccb_by_bd(*bd_addr);
+  }
   p_tbl = avdt_ad_tc_tbl_by_st(AVDT_CHAN_SIG, p_ccb, AVDT_AD_ST_SEC_INT);
-  if (p_tbl == NULL) return;
+  if (p_tbl == NULL) {
+    return;
+  }
 
-  if (res == BTM_SUCCESS) {
+  if (res == tBTM_STATUS::BTM_SUCCESS) {
     /* set channel state */
     p_tbl->state = AVDT_AD_ST_CFG;
   } else {
@@ -135,8 +138,8 @@ static void avdt_sec_check_complete_orig(const RawAddress* bd_addr,
  * Returns          void
  *
  ******************************************************************************/
-void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid,
-                                uint16_t /* psm */, uint8_t id) {
+void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16_t /* psm */,
+                                uint8_t /* id */) {
   AvdtpCcb* p_ccb;
   AvdtpTransportChannel* p_tbl = NULL;
   uint16_t result;
@@ -167,13 +170,11 @@ void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid,
       if (interop_match_addr(INTEROP_2MBPS_LINK_ONLY, &bd_addr)) {
         // Disable 3DH packets for AVDT ACL to improve sensitivity on HS
         btm_set_packet_types_from_address(
-            bd_addr,
-            (acl_get_supported_packet_types() | HCI_PKT_TYPES_MASK_NO_3_DH1 |
-             HCI_PKT_TYPES_MASK_NO_3_DH3 | HCI_PKT_TYPES_MASK_NO_3_DH5));
+                bd_addr, (acl_get_supported_packet_types() | HCI_PKT_TYPES_MASK_NO_3_DH1 |
+                          HCI_PKT_TYPES_MASK_NO_3_DH3 | HCI_PKT_TYPES_MASK_NO_3_DH5));
       }
       /* Assume security check is complete */
-      avdt_sec_check_complete_term(&p_ccb->peer_addr, BT_TRANSPORT_BR_EDR,
-                                   nullptr);
+      avdt_sec_check_complete_term(&p_ccb->peer_addr, BT_TRANSPORT_BR_EDR, nullptr);
       return;
     }
   } else {
@@ -223,9 +224,7 @@ void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid,
   p_tbl->state = AVDT_AD_ST_CFG;
 }
 
-static void avdt_on_l2cap_error(uint16_t lcid, uint16_t result) {
-  avdt_l2c_disconnect(lcid);
-}
+static void avdt_on_l2cap_error(uint16_t lcid, uint16_t /* result */) { avdt_l2c_disconnect(lcid); }
 
 /*******************************************************************************
  *
@@ -262,19 +261,17 @@ void avdt_l2c_connect_cfm_cback(uint16_t lcid, uint16_t result) {
             p_tbl->lcid = lcid;
             p_tbl->cfg_flags = AVDT_L2C_CFG_CONN_INT;
 
-            if (interop_match_addr(INTEROP_2MBPS_LINK_ONLY,
-                                   (const RawAddress*)&p_ccb->peer_addr)) {
+            if (interop_match_addr(INTEROP_2MBPS_LINK_ONLY, (const RawAddress*)&p_ccb->peer_addr)) {
               // Disable 3DH packets for AVDT ACL to improve sensitivity on HS
               btm_set_packet_types_from_address(
-                  p_ccb->peer_addr,
-                  (acl_get_supported_packet_types() |
-                   HCI_PKT_TYPES_MASK_NO_3_DH1 | HCI_PKT_TYPES_MASK_NO_3_DH3 |
-                   HCI_PKT_TYPES_MASK_NO_3_DH5));
+                      p_ccb->peer_addr,
+                      (acl_get_supported_packet_types() | HCI_PKT_TYPES_MASK_NO_3_DH1 |
+                       HCI_PKT_TYPES_MASK_NO_3_DH3 | HCI_PKT_TYPES_MASK_NO_3_DH5));
             }
 
             /* Assume security check is complete */
-            avdt_sec_check_complete_orig(&p_ccb->peer_addr, BT_TRANSPORT_BR_EDR,
-                                         nullptr, BTM_SUCCESS);
+            avdt_sec_check_complete_orig(&p_ccb->peer_addr, BT_TRANSPORT_BR_EDR, nullptr,
+                                         tBTM_STATUS::BTM_SUCCESS);
           }
         }
       }
@@ -297,8 +294,7 @@ void avdt_l2c_connect_cfm_cback(uint16_t lcid, uint16_t result) {
  * Returns          void
  *
  ******************************************************************************/
-void avdt_l2c_config_cfm_cback(uint16_t lcid, uint16_t initiator,
-                               tL2CAP_CFG_INFO* p_cfg) {
+void avdt_l2c_config_cfm_cback(uint16_t lcid, uint16_t /* initiator */, tL2CAP_CFG_INFO* p_cfg) {
   avdt_l2c_config_ind_cback(lcid, p_cfg);
 
   AvdtpTransportChannel* p_tbl;
@@ -358,8 +354,7 @@ void avdt_l2c_config_ind_cback(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg) {
 void avdt_l2c_disconnect_ind_cback(uint16_t lcid, bool ack_needed) {
   AvdtpTransportChannel* p_tbl;
 
-  log::verbose("avdt_l2c_disconnect_ind_cback lcid: {}, ack_needed: {}", lcid,
-               ack_needed);
+  log::verbose("avdt_l2c_disconnect_ind_cback lcid: {}, ack_needed: {}", lcid, ack_needed);
   /* look up info for this channel */
   p_tbl = avdt_ad_tc_tbl_by_lcid(lcid);
   if (p_tbl != NULL) {
@@ -419,6 +414,7 @@ void avdt_l2c_data_ind_cback(uint16_t lcid, BT_HDR* p_buf) {
   p_tbl = avdt_ad_tc_tbl_by_lcid(lcid);
   if (p_tbl != NULL) {
     avdt_ad_tc_data_ind(p_tbl, p_buf);
-  } else /* prevent buffer leak */
+  } else { /* prevent buffer leak */
     osi_free(p_buf);
+  }
 }

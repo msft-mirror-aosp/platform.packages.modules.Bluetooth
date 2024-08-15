@@ -117,13 +117,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Исчисти од списокот"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Исчисти"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Now Playing"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"Зачувај"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"Откажи"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"Изберете ги сметките што сакате да ги споделите преку Bluetooth. Сепак, ќе мора да го прифаќате секој пристап до сметките при поврзување."</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"Слободни отвори:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Икона на апликацијата"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"Поставки за споделување пораки преку Bluetooth"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"Не може да се избере сметка. 0 слободни отвори"</string>
     <string name="bluetooth_connected" msgid="5687474377090799447">"Аудиото преку Bluetooth е поврзано"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Аудиото преку Bluetooth е исклучено"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Аудио преку Bluetooth"</string>
@@ -135,8 +129,7 @@
     <string name="bluetooth_stays_on_message" msgid="3669663452593157737">"Уредот помни да го задржи Bluetooth вклучен во авионски режим. Исклучете го Bluetooth ако не сакате да остане вклучен."</string>
     <string name="bluetooth_and_wifi_stays_on_title" msgid="5821932798860821244">"Wi-Fi и Bluetooth остануваат вклучени"</string>
     <string name="bluetooth_and_wifi_stays_on_message" msgid="7848565203843882558">"Уредот помни да ги задржи Wi‑Fi и Bluetooth вклучени во авионски режим. Исклучете ги Wi-Fi и Bluetooth ако не сакате да бидат вклучени."</string>
-    <string name="bluetooth_enabled_auto_on_title" msgid="1799541656310353393">"Bluetooth е овозможен автоматски"</string>
-    <string name="bluetooth_enabled_auto_on_message" msgid="1070556457440100730">"Автоматското рестартирање може да се вклучи/исклучи во поставките за Bluetooth."</string>
-    <string name="bluetooth_disable_auto_on" msgid="1085026923461565937">"Исклучи"</string>
+    <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"Bluetooth се вклучи повторно"</string>
+    <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"Ова може да го промените во „Поставки“ кога сакате"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"Автоматска промена на состојбата на Bluetooth"</string>
 </resources>

@@ -18,6 +18,8 @@ package com.android.bluetooth.map;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.annotation.SuppressLint;
+
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.SignedLongLong;
@@ -91,8 +93,8 @@ public class BluetoothMapConvoListingTest {
     public void sort() {
         // BluetoothMapConvoListingElements are sorted according to their mLastActivity values
         mListing.sort();
-        assertThat(mListing.getList().get(0).getLastActivity()).isEqualTo(
-                TEST_LAST_ACTIVITY_LATEST);
+        assertThat(mListing.getList().get(0).getLastActivity())
+                .isEqualTo(TEST_LAST_ACTIVITY_LATEST);
     }
 
     @Test
@@ -106,6 +108,7 @@ public class BluetoothMapConvoListingTest {
     }
 
     @Test
+    @SuppressLint("EqualsIncompatibleType") // That the point of this test
     public void equals_withDifferentClass_returnsFalse() {
         assertThat(mListing.equals(mListingElementEarliestWithReadFalse)).isEqualTo(false);
     }
@@ -171,9 +174,9 @@ public class BluetoothMapConvoListingTest {
         BluetoothMapConvoListing listing = new BluetoothMapConvoListing();
         listing.appendFromXml(listingStream);
         assertThat(listing.getList().size()).isEqualTo(2);
-        assertThat(listing.getList().get(0).getConvoId()).isEqualTo(
-                signedLongLongIdOne.toHexString());
-        assertThat(listing.getList().get(1).getConvoId()).isEqualTo(
-                signedLongLongIdTwo.toHexString());
+        assertThat(listing.getList().get(0).getConvoId())
+                .isEqualTo(signedLongLongIdOne.toHexString());
+        assertThat(listing.getList().get(1).getConvoId())
+                .isEqualTo(signedLongLongIdTwo.toHexString());
     }
 }

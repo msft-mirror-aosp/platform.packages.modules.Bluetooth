@@ -29,9 +29,11 @@ import android.media.AudioPlaybackConfiguration;
 import android.media.session.MediaSession;
 import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemProperties;
+import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -52,17 +54,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * This class is directly responsible of maintaining the list of Browsable Players as well as
- * the list of Addressable Players. This variation of the list doesn't actually list all the
- * available players for a getAvailableMediaPlayers request. Instead it only reports one media
- * player with ID=0 and all the other browsable players are folders in the root of that player.
- *
- * Changing the directory to a browsable player will allow you to traverse that player as normal.
- * By only having one root player, we never have to send Addressed Player Changed notifications,
- * UIDs Changed notifications, or Available Players Changed notifications.
- *
- * TODO (apanicke): Add non-browsable players as song items to the root folder. Selecting that
- * player would effectively cause player switch by sending a play command to that player.
+ * This class is directly responsible of maintaining the list of Browsable Players as well as the
+ * list of Addressable Players.
  */
 public class MediaPlayerList {
     private static final String TAG = MediaPlayerList.class.getSimpleName();
@@ -105,7 +98,11 @@ public class MediaPlayerList {
             Collections.synchronizedMap(new HashMap<String, Integer>());
     private Map<Integer, BrowsedPlayerWrapper> mBrowsablePlayers =
             Collections.synchronizedMap(new HashMap<Integer, BrowsedPlayerWrapper>());
+    private Map<Integer, MediaBrowserWrapper> mMediaBrowserWrappers =
+            Collections.synchronizedMap(new HashMap<Integer, MediaBrowserWrapper>());
     private int mActivePlayerId = NO_ACTIVE_PLAYER;
+    private int mBrowsingPlayerId = NO_ACTIVE_PLAYER;
+    private int mAddressedPlayerId = NO_ACTIVE_PLAYER;
 
     private MediaUpdateCallback mCallback;
     private boolean mAudioPlaybackIsActive = false;
@@ -116,6 +113,7 @@ public class MediaPlayerList {
 
     public interface MediaUpdateCallback {
         void run(MediaData data);
+
         void run(boolean availablePlayers, boolean addressedPlayers, boolean uids);
     }
 
@@ -127,13 +125,9 @@ public class MediaPlayerList {
         void run(String parentId, List<ListItem> items);
     }
 
-    /**
-     * Listener for PlayerSettingsManager.
-     */
+    /** Listener for PlayerSettingsManager. */
     public interface MediaPlayerSettingsEventListener {
-        /**
-         * Called when the active player has changed.
-         */
+        /** Called when the active player has changed. */
         void onActivePlayerChanged(MediaPlayerWrapper player);
     }
 
@@ -201,63 +195,100 @@ public class MediaPlayerList {
         }
     }
 
-    /** Initiates browsable players and calls {@link #constructCurrentPlayers}. */
+    /** Initiates the media and browsable players list. */
     public void init(MediaUpdateCallback callback) {
         Log.v(TAG, "Initializing MediaPlayerList");
         mCallback = callback;
 
         if (!SystemProperties.getBoolean("bluetooth.avrcp.browsable_media_player.enabled", true)) {
             // Allow to disable BrowsablePlayerConnector with systemproperties.
-            // This is useful when for watches because:
-            //   1. It is not a regular use case
-            //   2. Registering to all players is a very loading task
+            // This is useful when for watches because it is not a regular use case
 
             Log.i(TAG, "init: without Browsable Player");
             constructCurrentPlayers();
             return;
         }
 
-        // Build the list of browsable players and afterwards, build the list of media players
-        Intent intent = new Intent(android.service.media.MediaBrowserService.SERVICE_INTERFACE);
-        if (Flags.keepStoppedMediaBrowserService()) {
-            // Don't query stopped apps, that would end up unstopping them
-            intent.addFlags(Intent.FLAG_EXCLUDE_STOPPED_PACKAGES);
-        }
-        List<ResolveInfo> playerList =
-                mContext
-                    .getApplicationContext()
-                    .getPackageManager()
-                    .queryIntentServices(intent, PackageManager.MATCH_ALL);
+        initPlayersLists();
+    }
 
-        mBrowsablePlayerConnector = BrowsablePlayerConnector.connectToPlayers(mContext, mLooper,
-                playerList, (List<BrowsedPlayerWrapper> players) -> {
-                Log.i(TAG, "init: Browsable Player list size is " + players.size());
+    private void initPlayersLists() {
+        if (Flags.browsingRefactor()) {
+            // Instantiate the media players list
+            constructCurrentPlayers();
+            // Instantiate the browsable players list
+            for (ResolveInfo info : getValidBrowsablePlayersPackages()) {
+                MediaBrowserWrapper wrapper =
+                        new MediaBrowserWrapper(
+                                mContext,
+                                mLooper,
+                                info.serviceInfo.packageName,
+                                info.serviceInfo.name);
 
-                // Check to see if the list has been cleaned up before this completed
-                if (mMediaSessionManager == null) {
-                    return;
+                if (!havePlayerId(wrapper.getPackageName())) {
+                    mMediaPlayerIds.put(wrapper.getPackageName(), getFreeMediaPlayerId());
                 }
+                mMediaBrowserWrappers.put(mMediaPlayerIds.get(wrapper.getPackageName()), wrapper);
+            }
+        } else {
+            // Build the list of browsable players and afterwards, build the list of media players
+            Intent intent = new Intent(android.service.media.MediaBrowserService.SERVICE_INTERFACE);
+            if (Flags.keepStoppedMediaBrowserService()) {
+                // Don't query stopped apps, that would end up unstopping them
+                intent.addFlags(Intent.FLAG_EXCLUDE_STOPPED_PACKAGES);
+            }
+            List<ResolveInfo> playerList =
+                    mContext.getApplicationContext()
+                            .getPackageManager()
+                            .queryIntentServices(intent, PackageManager.MATCH_ALL);
 
-                for (BrowsedPlayerWrapper wrapper : players) {
-                    // Generate new id and add the browsable player
-                    if (!havePlayerId(wrapper.getPackageName())) {
-                        mMediaPlayerIds.put(wrapper.getPackageName(), getFreeMediaPlayerId());
-                    }
+            mBrowsablePlayerConnector =
+                    BrowsablePlayerConnector.connectToPlayers(
+                            mContext,
+                            mLooper,
+                            playerList,
+                            (List<BrowsedPlayerWrapper> players) -> {
+                                Log.i(TAG, "init: Browsable Player list size is " + players.size());
 
-                    d("Adding Browser Wrapper for " + wrapper.getPackageName() + " with id "
-                            + mMediaPlayerIds.get(wrapper.getPackageName()));
+                                // Check to see if the list has been cleaned up before this
+                                // completed
+                                if (mMediaSessionManager == null) {
+                                    return;
+                                }
 
-                    mBrowsablePlayers.put(mMediaPlayerIds.get(wrapper.getPackageName()), wrapper);
+                                for (BrowsedPlayerWrapper wrapper : players) {
+                                    // Generate new id and add the browsable player
+                                    if (!havePlayerId(wrapper.getPackageName())) {
+                                        mMediaPlayerIds.put(
+                                                wrapper.getPackageName(), getFreeMediaPlayerId());
+                                    }
 
-                    wrapper.getFolderItems(wrapper.getRootId(),
-                            (int status, String mediaId, List<ListItem> results) -> {
-                                d("Got the contents for: " + mediaId + " : num results="
-                                        + results.size());
+                                    d(
+                                            "Adding Browser Wrapper for "
+                                                    + wrapper.getPackageName()
+                                                    + " with id "
+                                                    + mMediaPlayerIds.get(
+                                                            wrapper.getPackageName()));
+
+                                    mBrowsablePlayers.put(
+                                            mMediaPlayerIds.get(wrapper.getPackageName()), wrapper);
+
+                                    wrapper.getFolderItems(
+                                            wrapper.getRootId(),
+                                            (int status,
+                                                    String mediaId,
+                                                    List<ListItem> results) -> {
+                                                d(
+                                                        "Got the contents for: "
+                                                                + mediaId
+                                                                + " : num results="
+                                                                + results.size());
+                                            });
+                                }
+
+                                constructCurrentPlayers();
                             });
-                }
-
-                constructCurrentPlayers();
-            });
+        }
     }
 
     public void cleanup() {
@@ -265,6 +296,7 @@ public class MediaPlayerList {
         mContext.unregisterReceiver(mPackageChangedBroadcastReceiver);
 
         mActivePlayerId = NO_ACTIVE_PLAYER;
+        mBrowsingPlayerId = NO_ACTIVE_PLAYER;
 
         mMediaSessionManager.removeOnActiveSessionsChangedListener(mActiveSessionsChangedListener);
         mMediaSessionManager.removeOnMediaKeyEventSessionChangedListener(
@@ -283,19 +315,28 @@ public class MediaPlayerList {
         if (mBrowsablePlayerConnector != null) {
             mBrowsablePlayerConnector.cleanup();
         }
-        for (BrowsedPlayerWrapper player : mBrowsablePlayers.values()) {
-            player.disconnect();
+        if (Flags.browsingRefactor()) {
+            for (MediaBrowserWrapper browser : mMediaBrowserWrappers.values()) {
+                browser.disconnect();
+            }
+            mMediaBrowserWrappers.clear();
+        } else {
+            for (BrowsedPlayerWrapper player : mBrowsablePlayers.values()) {
+                player.disconnect();
+            }
+            mBrowsablePlayers.clear();
         }
-        mBrowsablePlayers.clear();
     }
 
-    /**
-     * Current player ID is always Bluetooth player ID.
-     *
-     * <p>All browsable players are subdirectories of Bluetooth player.
-     */
+    /** returns the current player ID. */
     public int getCurrentPlayerId() {
-        return BLUETOOTH_PLAYER_ID;
+        if (Flags.setAddressedPlayer()) {
+            return mAddressedPlayerId;
+        } else if (Flags.browsingRefactor()) {
+            return mBrowsingPlayerId;
+        } else {
+            return BLUETOOTH_PLAYER_ID;
+        }
     }
 
     /** Get the next ID available in the IDs map. */
@@ -312,7 +353,16 @@ public class MediaPlayerList {
         return mMediaPlayers.get(mActivePlayerId);
     }
 
-    /** This is used to send passthrough command to media session */
+    /** Returns the {@link #MediaPlayerWrapper} with ID matching {@link #mAddressedPlayerId}. */
+    public MediaPlayerWrapper getAddressedPlayer() {
+        return mMediaPlayers.get(mAddressedPlayerId);
+    }
+
+    /**
+     * This is used to send passthrough command to media session
+     *
+     * <p>Note: This is used only by MCP, AVRCP uses AvrcpTargetService.
+     */
     public void sendMediaKeyEvent(int key, boolean pushed) {
         if (mMediaSessionManager == null) {
             Log.d(TAG, "Bluetooth is turning off, ignore it");
@@ -323,53 +373,99 @@ public class MediaPlayerList {
         mMediaSessionManager.dispatchMediaKeyEvent(event, false);
     }
 
-    /**
-     * This is used by setBrowsedPlayer as the browsed player is always the Bluetooth player.
-     *
-     * <p>If the requested player ID is not {@link #BLUETOOTH_PLAYER_ID}, success will be false.
-     *
-     * <p>The number of items will be the number of browsable players as they all are direct
-     * subdirectories of the Bluetooth player ID.
-     *
-     * <p>The root ID will always be an empty string to correspond to bluetooth player ID.
-     */
     public void getPlayerRoot(int playerId, GetPlayerRootCallback cb) {
-        /** M: Fix PTS AVRCP/TG/MCN/CB/BI-02-C fail @{ */
-        if (Utils.isPtsTestMode()) {
-            d("PTS test mode: getPlayerRoot");
-            BrowsedPlayerWrapper wrapper = mBrowsablePlayers.get(BLUETOOTH_PLAYER_ID + 1);
-            String itemId = wrapper.getRootId();
+        if (Flags.browsingRefactor()) {
+            if (!haveMediaBrowser(playerId)) {
+                cb.run(playerId, false, "", 0);
+                return;
+            }
+            mBrowsingPlayerId = playerId;
+            MediaBrowserWrapper wrapper = mMediaBrowserWrappers.get(playerId);
+            wrapper.getRootId(
+                    (rootId) -> {
+                        wrapper.getFolderItems(
+                                rootId,
+                                (parentId, itemList) -> {
+                                    cb.run(playerId, true, rootId, itemList.size());
+                                });
+                    });
+        } else {
+            // Fix PTS AVRCP/TG/MCN/CB/BI-02-C
+            if (Utils.isPtsTestMode()) {
+                d("PTS test mode: getPlayerRoot");
+                BrowsedPlayerWrapper wrapper = mBrowsablePlayers.get(BLUETOOTH_PLAYER_ID + 1);
+                String itemId = wrapper.getRootId();
 
-            wrapper.getFolderItems(itemId, (status, id, results) -> {
-                if (status != BrowsedPlayerWrapper.STATUS_SUCCESS) {
-                    cb.run(playerId, playerId == BLUETOOTH_PLAYER_ID, "", 0);
-                    return;
-                }
-                cb.run(playerId, playerId == BLUETOOTH_PLAYER_ID, "", results.size());
-            });
-            return;
+                wrapper.getFolderItems(
+                        itemId,
+                        (status, id, results) -> {
+                            if (status != BrowsedPlayerWrapper.STATUS_SUCCESS) {
+                                cb.run(playerId, playerId == BLUETOOTH_PLAYER_ID, "", 0);
+                                return;
+                            }
+                            cb.run(playerId, playerId == BLUETOOTH_PLAYER_ID, "", results.size());
+                        });
+                return;
+            }
+            cb.run(playerId, playerId == BLUETOOTH_PLAYER_ID, "", mBrowsablePlayers.size());
         }
-        /** @} */
-        cb.run(playerId, playerId == BLUETOOTH_PLAYER_ID, "", mBrowsablePlayers.size());
     }
 
-    /**
-     * Returns a list containing only the Bluetooth player.
-     *
-     * <p>See class documentation.
-     */
-    public List<PlayerInfo> getMediaPlayerList() {
-        PlayerInfo info = new PlayerInfo();
-        info.id = BLUETOOTH_PLAYER_ID;
-        info.name = BLUETOOTH_PLAYER_NAME;
-        info.browsable = true;
-        if (mBrowsablePlayers.size() == 0) {
-            // Set Bluetooth Player as non-browable if there is not browsable player exist.
-            info.browsable = false;
+    /** Sets which player the AV/C commands should be addressed to. */
+    public int setAddressedPlayer(int playerId) {
+        if (!Flags.setAddressedPlayer()) {
+            return BLUETOOTH_PLAYER_ID;
         }
-        List<PlayerInfo> ret = new ArrayList<PlayerInfo>();
-        ret.add(info);
+        if (mMediaPlayerIds.containsValue(playerId)) {
+            mAddressedPlayerId = playerId;
+            sendFolderUpdate(false, true, false);
+        }
+        return mAddressedPlayerId;
+    }
 
+    /** Returns a list valid browsable players. */
+    public List<PlayerInfo> getMediaPlayerList() {
+        List<PlayerInfo> ret = new ArrayList<PlayerInfo>();
+        if (Flags.browsingRefactor()) {
+            // Add actual browsable players
+            for (MediaBrowserWrapper browser : mMediaBrowserWrappers.values()) {
+                Log.i(
+                        TAG,
+                        "getMediaPlayerList: Added browsable player: " + browser.getPackageName());
+                PlayerInfo info = new PlayerInfo();
+                info.id = mMediaPlayerIds.get(browser.getPackageName());
+                info.name = Util.getDisplayName(mContext, browser.getPackageName());
+                info.browsable = true;
+                ret.add(info);
+            }
+            Log.i(TAG, "getMediaPlayerList: number of mediaplayers: " + mMediaPlayers.size());
+            // Also list non-browsable players, they can be selected if controller supports it.
+            for (MediaPlayerWrapper mediaPlayer : mMediaPlayers.values()) {
+                // Skip player if already added as browsable
+                if (haveMediaBrowser(mMediaPlayerIds.get(mediaPlayer.getPackageName()))) {
+                    continue;
+                }
+                Log.i(
+                        TAG,
+                        "getMediaPlayerList: Added non browsable player: "
+                                + mediaPlayer.getPackageName());
+                PlayerInfo info = new PlayerInfo();
+                info.id = mMediaPlayerIds.get(mediaPlayer.getPackageName());
+                info.name = Util.getDisplayName(mContext, mediaPlayer.getPackageName());
+                info.browsable = false;
+                ret.add(info);
+            }
+        } else {
+            PlayerInfo info = new PlayerInfo();
+            info.id = BLUETOOTH_PLAYER_ID;
+            info.name = BLUETOOTH_PLAYER_NAME;
+            info.browsable = true;
+            if (mBrowsablePlayers.size() == 0) {
+                // Set Bluetooth Player as non-browable if there is not browsable player exist.
+                info.browsable = false;
+            }
+            ret.add(info);
+        }
         return ret;
     }
 
@@ -392,8 +488,10 @@ public class MediaPlayerList {
         if (state == null
                 || state.getActiveQueueItemId() == MediaSession.QueueItem.UNKNOWN_ID
                 || queue.size() == 0) {
-            d("getCurrentMediaId: No active queue item Id sending empty mediaId: PlaybackState="
-                     + state);
+            d(
+                    "getCurrentMediaId: No active queue item Id sending empty mediaId:"
+                            + " PlaybackState="
+                            + state);
             return "";
         }
 
@@ -427,10 +525,11 @@ public class MediaPlayerList {
         if (mAudioPlaybackIsActive
                 && (state == null || state.getState() != PlaybackState.STATE_PLAYING)) {
             return new PlaybackState.Builder()
-                .setState(PlaybackState.STATE_PLAYING,
-                          state == null ? 0 : state.getPosition(),
-                          1.0f)
-                .build();
+                    .setState(
+                            PlaybackState.STATE_PLAYING,
+                            state == null ? 0 : state.getPosition(),
+                            1.0f)
+                    .build();
         }
         return state;
     }
@@ -462,7 +561,7 @@ public class MediaPlayerList {
      *
      * <p>If the {@code nowPlaying} parameter is true, this will try to select the item from the
      * current active player's queue. Otherwise this means that the item is from a browsable player
-     * and this calls {@link BrowsedPlayerWrapper} to handle the change.
+     * and this calls {@link MediaBrowserWrapper} to handle the change.
      */
     public void playItem(int playerId, boolean nowPlaying, String mediaId) {
         if (nowPlaying) {
@@ -484,89 +583,116 @@ public class MediaPlayerList {
         Matcher m = regex.matcher(mediaId);
         if (!m.find()) {
             // This should never happen since we control the media ID's reported
-            Log.wtf(TAG, "playNowPlayingItem: Couldn't match mediaId to pattern: mediaId="
-                    + mediaId);
+            Log.wtf(
+                    TAG,
+                    "playNowPlayingItem: Couldn't match mediaId to pattern: mediaId=" + mediaId);
         }
 
         long queueItemId = Long.parseLong(m.group(1));
-        if (getActivePlayer() != null) {
-            getActivePlayer().playItemFromQueue(queueItemId);
+
+        MediaPlayerWrapper player;
+        if (Flags.setAddressedPlayer()) {
+            player = getAddressedPlayer();
+        } else {
+            player = getActivePlayer();
+        }
+        if (player != null) {
+            player.playItemFromQueue(queueItemId);
         }
     }
 
     /**
-     * Retrieves the {@link BrowsedPlayerWrapper} corresponding to the {@code mediaId} and plays it.
+     * Retrieves the {@link MediaBrowserWrapper} corresponding to the {@code mediaId} and plays it.
      *
      * <p>See {@link #playItem}.
      */
     private void playFolderItem(String mediaId) {
-        d("playFolderItem: mediaId=" + mediaId);
+        Log.d(TAG, "playFolderItem: mediaId=" + mediaId);
 
-        if (!mediaId.matches(BROWSE_ID_PATTERN)) {
-            // This should never happen since we control the media ID's reported
-            Log.wtf(TAG, "playFolderItem: mediaId didn't match pattern: mediaId=" + mediaId);
-        }
-
-        int playerIndex = Integer.parseInt(mediaId.substring(0, 2));
-        if (!haveMediaBrowser(playerIndex)) {
-            e("playFolderItem: Do not have the a browsable player with ID " + playerIndex);
-            return;
-        }
-
-        BrowsedPlayerWrapper wrapper = mBrowsablePlayers.get(playerIndex);
-        String itemId = mediaId.substring(2);
-        if (TextUtils.isEmpty(itemId)) {
-            itemId = wrapper.getRootId();
-            if (TextUtils.isEmpty(itemId)) {
-                e("playFolderItem: Failed to start playback with an empty media id.");
+        if (Flags.browsingRefactor()) {
+            if (!haveMediaBrowser(mBrowsingPlayerId)) {
+                Log.e(
+                        TAG,
+                        "playFolderItem: Do not have the a browsable player with ID "
+                                + mBrowsingPlayerId);
                 return;
             }
-            Log.i(TAG, "playFolderItem: Empty media id, trying with the root id for "
-                    + wrapper.getPackageName());
+
+            MediaBrowserWrapper wrapper = mMediaBrowserWrappers.get(mBrowsingPlayerId);
+            wrapper.playItem(mediaId);
+        } else {
+            if (!mediaId.matches(BROWSE_ID_PATTERN)) {
+                // This should never happen since we control the media ID's reported
+                Log.wtf(TAG, "playFolderItem: mediaId didn't match pattern: mediaId=" + mediaId);
+            }
+
+            int playerIndex = Integer.parseInt(mediaId.substring(0, 2));
+            if (!haveMediaBrowser(playerIndex)) {
+                e("playFolderItem: Do not have the a browsable player with ID " + playerIndex);
+                return;
+            }
+
+            BrowsedPlayerWrapper wrapper = mBrowsablePlayers.get(playerIndex);
+            String itemId = mediaId.substring(2);
+            if (TextUtils.isEmpty(itemId)) {
+                itemId = wrapper.getRootId();
+                if (TextUtils.isEmpty(itemId)) {
+                    e("playFolderItem: Failed to start playback with an empty media id.");
+                    return;
+                }
+                Log.i(
+                        TAG,
+                        "playFolderItem: Empty media id, trying with the root id for "
+                                + wrapper.getPackageName());
+            }
+            wrapper.playItem(itemId);
         }
-        wrapper.playItem(itemId);
     }
 
-    /**
-     * Calls {@code cb} with the list of browsable players as folder items.
-     *
-     * <p>As browsable players are subdirectories of the root Bluetooth player, the list always
-     * contains all the browsable players.
-     *
-     * <p>See {@link #getFolderItems}.
-     */
+    /** Calls {@code cb} with the list of browsable players as folder items. */
     void getFolderItemsMediaPlayerList(GetFolderItemsCallback cb) {
-        d("getFolderItemsMediaPlayerList: Sending Media Player list for root directory");
+        Log.d(TAG, "getFolderItemsMediaPlayerList: Sending Media Player list for root directory");
 
         ArrayList<ListItem> playerList = new ArrayList<ListItem>();
-        for (BrowsedPlayerWrapper player : mBrowsablePlayers.values()) {
+        if (Flags.browsingRefactor()) {
+            for (MediaBrowserWrapper browser : mMediaBrowserWrappers.values()) {
 
-            String displayName = Util.getDisplayName(mContext, player.getPackageName());
-            int id = mMediaPlayerIds.get(player.getPackageName());
+                String displayName = Util.getDisplayName(mContext, browser.getPackageName());
+                int id = mMediaPlayerIds.get(browser.getPackageName());
 
-            d("getFolderItemsMediaPlayerList: Adding player " + displayName);
-            Folder playerFolder = new Folder(String.format("%02d", id), false, displayName);
-            playerList.add(new ListItem(playerFolder));
+                Log.d(TAG, "getFolderItemsMediaPlayerList: Adding player " + displayName);
+                Folder playerFolder =
+                        new Folder(Utils.formatSimple("%02d", id), false, displayName);
+                playerList.add(new ListItem(playerFolder));
+            }
+        } else {
+            for (BrowsedPlayerWrapper player : mBrowsablePlayers.values()) {
+
+                String displayName = Util.getDisplayName(mContext, player.getPackageName());
+                int id = mMediaPlayerIds.get(player.getPackageName());
+
+                Log.d(TAG, "getFolderItemsMediaPlayerList: Adding player " + displayName);
+                Folder playerFolder =
+                        new Folder(Utils.formatSimple("%02d", id), false, displayName);
+                playerList.add(new ListItem(playerFolder));
+            }
         }
         cb.run("", playerList);
-        return;
     }
 
     /**
      * Calls {@code cb} with a list of browsable folders.
      *
-     * <p>If {@code mediaId} is empty, {@code cb} will be called with all the browsable players as
-     * they are subdirectories of the root Bluetooth player.
+     * <p>If {@code mediaId} is empty, {@code cb} will be called with all the browsable players.
      *
-     * <p>If {@code mediaId} corresponds to a known {@link BrowsedPlayerWrapper}, {@code cb} will be
-     * called with the folder items list of the {@link BrowsedPlayerWrapper}.
+     * <p>If {@code mediaId} corresponds to a known {@link MediaBrowserWrapper}, {@code cb} will be
+     * called with the folder items list of the {@link MediaBrowserWrapper}.
      */
     public void getFolderItems(int playerId, String mediaId, GetFolderItemsCallback cb) {
-        // The playerId is unused since we always assume the remote device is using the
-        // Bluetooth Player.
-        d("getFolderItems(): playerId=" + playerId + ", mediaId=" + mediaId);
-        /** M: Fix PTS AVRCP/TG/MCN/CB/BI-02-C fail @{ */
-        if (Utils.isPtsTestMode()) {
+        Log.d(TAG, "getFolderItems(): playerId=" + playerId + ", mediaId=" + mediaId);
+
+        if (!Flags.browsingRefactor() && Utils.isPtsTestMode()) {
+            // Fix PTS AVRCP/TG/MCN/CB/BI-02-C
             d("PTS test mode: getFolderItems");
             BrowsedPlayerWrapper wrapper = mBrowsablePlayers.get(BLUETOOTH_PLAYER_ID + 1);
             String itemId = mediaId;
@@ -574,16 +700,17 @@ public class MediaPlayerList {
                 itemId = wrapper.getRootId();
             }
 
-            wrapper.getFolderItems(itemId, (status, id, results) -> {
-                if (status != BrowsedPlayerWrapper.STATUS_SUCCESS) {
-                    cb.run(mediaId, new ArrayList<ListItem>());
-                    return;
-                }
-                cb.run(mediaId, results);
-            });
+            wrapper.getFolderItems(
+                    itemId,
+                    (status, id, results) -> {
+                        if (status != BrowsedPlayerWrapper.STATUS_SUCCESS) {
+                            cb.run(mediaId, new ArrayList<ListItem>());
+                            return;
+                        }
+                        cb.run(mediaId, results);
+                    });
             return;
         }
-        /** @} */
 
         // The device is requesting the content of the root folder. This folder contains a list of
         // Browsable Media Players displayed as folders with their contents contained within.
@@ -592,43 +719,57 @@ public class MediaPlayerList {
             return;
         }
 
-        if (!mediaId.matches(BROWSE_ID_PATTERN)) {
-            // This should never happen since we control the media ID's reported
-            Log.wtf(TAG, "getFolderItems: mediaId didn't match pattern: mediaId=" + mediaId);
-        }
-
-        int playerIndex = Integer.parseInt(mediaId.substring(0, 2));
-        String itemId = mediaId.substring(2);
-
-        // TODO (apanicke): Add timeouts for looking up folder items since media browsers don't
-        // have to respond.
-        if (haveMediaBrowser(playerIndex)) {
-            BrowsedPlayerWrapper wrapper = mBrowsablePlayers.get(playerIndex);
-            if (itemId.equals("")) {
-                Log.i(TAG, "Empty media id, getting the root for "
-                        + wrapper.getPackageName());
-                itemId = wrapper.getRootId();
+        if (Flags.browsingRefactor()) {
+            if (mMediaBrowserWrappers.containsKey(playerId)) {
+                MediaBrowserWrapper wrapper = mMediaBrowserWrappers.get(playerId);
+                wrapper.getFolderItems(
+                        mediaId,
+                        (id, results) -> {
+                            cb.run(mediaId, results);
+                        });
+            } else {
+                cb.run(mediaId, new ArrayList<ListItem>());
+            }
+        } else {
+            if (!mediaId.matches(BROWSE_ID_PATTERN)) {
+                // This should never happen since we control the media ID's reported
+                Log.wtf(TAG, "getFolderItems: mediaId didn't match pattern: mediaId=" + mediaId);
             }
 
-            wrapper.getFolderItems(itemId, (status, id, results) -> {
-                if (status != BrowsedPlayerWrapper.STATUS_SUCCESS) {
-                    cb.run(mediaId, new ArrayList<ListItem>());
-                    return;
+            int playerIndex = Integer.parseInt(mediaId.substring(0, 2));
+            String itemId = mediaId.substring(2);
+
+            // TODO (apanicke): Add timeouts for looking up folder items since media browsers don't
+            // have to respond.
+            if (haveMediaBrowser(playerIndex)) {
+                BrowsedPlayerWrapper wrapper = mBrowsablePlayers.get(playerIndex);
+                if (itemId.equals("")) {
+                    Log.i(TAG, "Empty media id, getting the root for " + wrapper.getPackageName());
+                    itemId = wrapper.getRootId();
                 }
 
-                String playerPrefix = String.format("%02d", playerIndex);
-                for (ListItem item : results) {
-                    if (item.isFolder) {
-                        item.folder.mediaId = playerPrefix.concat(item.folder.mediaId);
-                    } else {
-                        item.song.mediaId = playerPrefix.concat(item.song.mediaId);
-                    }
-                }
-                cb.run(mediaId, results);
-            });
-            return;
-        } else {
-            cb.run(mediaId, new ArrayList<ListItem>());
+                wrapper.getFolderItems(
+                        itemId,
+                        (status, id, results) -> {
+                            if (status != BrowsedPlayerWrapper.STATUS_SUCCESS) {
+                                cb.run(mediaId, new ArrayList<ListItem>());
+                                return;
+                            }
+
+                            String playerPrefix = Utils.formatSimple("%02d", playerIndex);
+                            for (ListItem item : results) {
+                                if (item.isFolder) {
+                                    item.folder.mediaId = playerPrefix.concat(item.folder.mediaId);
+                                } else {
+                                    item.song.mediaId = playerPrefix.concat(item.song.mediaId);
+                                }
+                            }
+                            cb.run(mediaId, results);
+                        });
+                return;
+            } else {
+                cb.run(mediaId, new ArrayList<ListItem>());
+            }
         }
     }
 
@@ -669,13 +810,15 @@ public class MediaPlayerList {
             return playerId;
         }
 
-        MediaPlayerWrapper newPlayer = MediaPlayerWrapperFactory.wrap(
-                mContext,
-                controller,
-                mLooper);
+        MediaPlayerWrapper newPlayer =
+                MediaPlayerWrapperFactory.wrap(mContext, controller, mLooper);
 
-        Log.i(TAG, "Adding wrapped media player: " + packageName + " at key: "
-                + mMediaPlayerIds.get(controller.getPackageName()));
+        Log.i(
+                TAG,
+                "Adding wrapped media player: "
+                        + packageName
+                        + " at key: "
+                        + mMediaPlayerIds.get(controller.getPackageName()));
 
         mMediaPlayers.put(playerId, newPlayer);
         return playerId;
@@ -694,6 +837,43 @@ public class MediaPlayerList {
         }
 
         return addMediaPlayer(MediaControllerFactory.wrap(controller));
+    }
+
+    /** Retrieves a list of all packages that both are browsable and play audio */
+    List<ResolveInfo> getValidBrowsablePlayersPackages() {
+
+        Intent intentPlayer = new Intent(Intent.ACTION_VIEW);
+        Intent intentBrowsable =
+                new Intent(android.service.media.MediaBrowserService.SERVICE_INTERFACE);
+
+        Uri uri = Uri.withAppendedPath(MediaStore.Audio.Media.INTERNAL_CONTENT_URI, "1");
+        intentPlayer.setDataAndType(uri, "audio/*");
+        List<ResolveInfo> audioPlayerList =
+                mContext.getApplicationContext()
+                        .getPackageManager()
+                        .queryIntentActivities(intentPlayer, 0);
+
+        if (Flags.keepStoppedMediaBrowserService()) {
+            // Don't query stopped apps, that would end up unstopping them
+            intentBrowsable.addFlags(Intent.FLAG_EXCLUDE_STOPPED_PACKAGES);
+        }
+        List<ResolveInfo> browsablePlayerList =
+                mContext.getApplicationContext()
+                        .getPackageManager()
+                        .queryIntentServices(intentBrowsable, PackageManager.MATCH_ALL);
+
+        List<ResolveInfo> validBrowsablePackagesList = new ArrayList<>();
+        for (ResolveInfo browsablePlayerInfo : browsablePlayerList) {
+            for (ResolveInfo audioPlayerInfo : audioPlayerList) {
+                if (audioPlayerInfo.activityInfo.packageName != null
+                        && audioPlayerInfo.activityInfo.packageName.equals(
+                                browsablePlayerInfo.serviceInfo.packageName)) {
+                    validBrowsablePackagesList.add(browsablePlayerInfo);
+                    break;
+                }
+            }
+        }
+        return validBrowsablePackagesList;
     }
 
     /** Returns true if {@code packageName} is present in {@link #mMediaPlayerIds}. */
@@ -719,7 +899,11 @@ public class MediaPlayerList {
 
     /** Returns true if {@code playerId} is present in {@link #mBrowsablePlayers}. */
     boolean haveMediaBrowser(int playerId) {
-        return mBrowsablePlayers.containsKey(playerId);
+        if (Flags.browsingRefactor()) {
+            return mMediaBrowserWrappers.containsKey(playerId);
+        } else {
+            return mBrowsablePlayers.containsKey(playerId);
+        }
     }
 
     /**
@@ -742,14 +926,14 @@ public class MediaPlayerList {
         // tells us otherwise
         if (playerId == mActivePlayerId && playerId != NO_ACTIVE_PLAYER) {
             getActivePlayer().unregisterCallback();
+            if (mAddressedPlayerId == mActivePlayerId) {
+                mAddressedPlayerId = NO_ACTIVE_PLAYER;
+            }
             mActivePlayerId = NO_ACTIVE_PLAYER;
+
             List<Metadata> queue = new ArrayList<Metadata>();
             queue.add(Util.empty_data());
-            MediaData newData = new MediaData(
-                    Util.empty_data(),
-                    null,
-                    queue
-                );
+            MediaData newData = new MediaData(Util.empty_data(), null, queue);
 
             sendMediaUpdate(newData);
         }
@@ -785,8 +969,8 @@ public class MediaPlayerList {
 
         mActivePlayerId = playerId;
         getActivePlayer().registerCallback(mMediaPlayerCallback);
-        mActivePlayerLogger.logd(TAG, "setActivePlayer(): setting player to "
-                + getActivePlayer().getPackageName());
+        mActivePlayerLogger.logd(
+                TAG, "setActivePlayer(): setting player to " + getActivePlayer().getPackageName());
 
         if (mPlayerSettingsListener != null) {
             mPlayerSettingsListener.onActivePlayerChanged(getActivePlayer());
@@ -800,6 +984,13 @@ public class MediaPlayerList {
 
         if (Utils.isPtsTestMode()) {
             sendFolderUpdate(true, true, false);
+        } else if (Flags.setAddressedPlayer()) {
+            // If the new active player has been set by Addressed player key event
+            // We don't send an addressed player update.
+            if (mActivePlayerId != mAddressedPlayerId) {
+                mAddressedPlayerId = mActivePlayerId;
+                sendFolderUpdate(false, true, false);
+            }
         }
 
         MediaData data = getActivePlayer().getCurrentMediaData();
@@ -811,8 +1002,8 @@ public class MediaPlayerList {
     }
 
     /** Informs AVRCP service that there has been an update in browsable players. */
-    private void sendFolderUpdate(boolean availablePlayers, boolean addressedPlayers,
-            boolean uids) {
+    private void sendFolderUpdate(
+            boolean availablePlayers, boolean addressedPlayers, boolean uids) {
         d("sendFolderUpdate");
         if (mCallback == null) {
             return;
@@ -853,49 +1044,55 @@ public class MediaPlayerList {
      * <p>See {@link #onMediaKeyEventSessionChanged}.
      */
     @VisibleForTesting
-    final MediaSessionManager.OnActiveSessionsChangedListener
-            mActiveSessionsChangedListener =
+    final MediaSessionManager.OnActiveSessionsChangedListener mActiveSessionsChangedListener =
             new MediaSessionManager.OnActiveSessionsChangedListener() {
-        @Override
-        public void onActiveSessionsChanged(
-                List<android.media.session.MediaController> newControllers) {
-            synchronized (MediaPlayerList.this) {
-                Log.v(TAG, "onActiveSessionsChanged: number of controllers: "
-                        + newControllers.size());
-                if (newControllers.size() == 0) {
-                    if (mPlayerSettingsListener != null) {
-                        mPlayerSettingsListener.onActivePlayerChanged(null);
+                @Override
+                public void onActiveSessionsChanged(
+                        List<android.media.session.MediaController> newControllers) {
+                    synchronized (MediaPlayerList.this) {
+                        Log.v(
+                                TAG,
+                                "onActiveSessionsChanged: number of controllers: "
+                                        + newControllers.size());
+                        if (newControllers.size() == 0) {
+                            if (mPlayerSettingsListener != null) {
+                                mPlayerSettingsListener.onActivePlayerChanged(null);
+                            }
+                            return;
+                        }
+
+                        // Apps are allowed to have multiple MediaControllers. If an app does have
+                        // multiple controllers then newControllers contains them in highest
+                        // priority order. Since we only want to keep the highest priority one,
+                        // we keep track of which controllers we updated and skip over ones
+                        // we've already looked at.
+                        HashSet<String> addedPackages = new HashSet<String>();
+
+                        for (int i = 0; i < newControllers.size(); i++) {
+                            if ((newControllers.get(i).getFlags()
+                                            & MediaSession.FLAG_EXCLUSIVE_GLOBAL_PRIORITY)
+                                    != 0) {
+                                Log.d(
+                                        TAG,
+                                        "onActiveSessionsChanged: controller: "
+                                                + newControllers.get(i).getPackageName()
+                                                + " ignored due to global priority flag");
+                                continue;
+                            }
+                            Log.d(
+                                    TAG,
+                                    "onActiveSessionsChanged: controller: "
+                                            + newControllers.get(i).getPackageName());
+                            if (addedPackages.contains(newControllers.get(i).getPackageName())) {
+                                continue;
+                            }
+
+                            addedPackages.add(newControllers.get(i).getPackageName());
+                            addMediaPlayer(newControllers.get(i));
+                        }
                     }
-                    return;
                 }
-
-                // Apps are allowed to have multiple MediaControllers. If an app does have
-                // multiple controllers then newControllers contains them in highest
-                // priority order. Since we only want to keep the highest priority one,
-                // we keep track of which controllers we updated and skip over ones
-                // we've already looked at.
-                HashSet<String> addedPackages = new HashSet<String>();
-
-                for (int i = 0; i < newControllers.size(); i++) {
-                    if ((newControllers.get(i).getFlags()
-                            & MediaSession.FLAG_EXCLUSIVE_GLOBAL_PRIORITY) != 0) {
-                        Log.d(TAG, "onActiveSessionsChanged: controller: "
-                                + newControllers.get(i).getPackageName()
-                                + " ignored due to global priority flag");
-                        continue;
-                    }
-                    Log.d(TAG, "onActiveSessionsChanged: controller: "
-                            + newControllers.get(i).getPackageName());
-                    if (addedPackages.contains(newControllers.get(i).getPackageName())) {
-                        continue;
-                    }
-
-                    addedPackages.add(newControllers.get(i).getPackageName());
-                    addMediaPlayer(newControllers.get(i));
-                }
-            }
-        }
-    };
+            };
 
     /**
      * {@link android.content.BroadcastReceiver} to catch intents indicating package add, change and
@@ -910,32 +1107,64 @@ public class MediaPlayerList {
      * <p>See {@link #removeMediaPlayer} and {@link
      * #addMediaPlayer(android.media.session.MediaController)}
      */
-    private final BroadcastReceiver mPackageChangedBroadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            Log.v(TAG, "mPackageChangedBroadcastReceiver: action: " + action);
+    private final BroadcastReceiver mPackageChangedBroadcastReceiver =
+            new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    String action = intent.getAction();
+                    Log.v(TAG, "mPackageChangedBroadcastReceiver: action: " + action);
 
-            if (action.equals(Intent.ACTION_PACKAGE_REMOVED)
-                    || action.equals(Intent.ACTION_PACKAGE_DATA_CLEARED)) {
-                if (intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) return;
+                    if (action.equals(Intent.ACTION_PACKAGE_REMOVED)
+                            || action.equals(Intent.ACTION_PACKAGE_DATA_CLEARED)) {
+                        if (intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) return;
 
-                String packageName = intent.getData().getSchemeSpecificPart();
-                if (haveMediaPlayer(packageName)) {
-                    removeMediaPlayer(mMediaPlayerIds.get(packageName));
+                        String packageName = intent.getData().getSchemeSpecificPart();
+                        Integer playerId = mMediaPlayerIds.get(packageName);
+                        if (playerId == null) {
+                            return;
+                        }
+                        if (haveMediaPlayer(playerId)) {
+                            removeMediaPlayer(playerId);
+                        }
+                        if (Flags.browsingRefactor()) {
+                            if (haveMediaBrowser(playerId)) {
+                                Log.i(TAG, "package removed from browsable list: " + packageName);
+                                mMediaBrowserWrappers.get(playerId).disconnect();
+                                mMediaBrowserWrappers.remove(playerId);
+                                sendFolderUpdate(true, false, false);
+                            }
+                        }
+                    } else if (action.equals(Intent.ACTION_PACKAGE_ADDED)
+                            || action.equals(Intent.ACTION_PACKAGE_CHANGED)) {
+                        String packageName = intent.getData().getSchemeSpecificPart();
+                        if (packageName == null) {
+                            return;
+                        }
+                        if (!Flags.browsingRefactor()) {
+                            return;
+                        }
+                        for (ResolveInfo info : getValidBrowsablePlayersPackages()) {
+
+                            // Check if added package is browsable
+                            if (!info.serviceInfo.packageName.equals(packageName)) {
+                                continue;
+                            }
+                            // Add it to the existing list
+                            MediaBrowserWrapper wrapper =
+                                    new MediaBrowserWrapper(
+                                            mContext, mLooper, packageName, info.serviceInfo.name);
+                            if (havePlayerId(packageName)) {
+                                continue;
+                            }
+                            Log.i(TAG, "package added to browsable list: " + packageName);
+                            int mediaId = getFreeMediaPlayerId();
+                            mMediaPlayerIds.put(packageName, mediaId);
+                            mMediaBrowserWrappers.put(mediaId, wrapper);
+                            sendFolderUpdate(true, false, false);
+                        }
+                    }
                 }
-            } else if (action.equals(Intent.ACTION_PACKAGE_ADDED)
-                    || action.equals(Intent.ACTION_PACKAGE_CHANGED)) {
-                String packageName = intent.getData().getSchemeSpecificPart();
-                if (packageName != null) {
-                    Log.d(TAG, "Name of package changed: " + packageName);
-                    // TODO (apanicke): Handle either updating or adding the new package.
-                    // Check if its browsable and send the UIDS changed to update the
-                    // root folder
-                }
-            }
-        }
-    };
+            };
 
     /**
      * Retrieves and sends the current {@link MediaData} of the active player (if present) to the
@@ -948,35 +1177,32 @@ public class MediaPlayerList {
         PlaybackState currState = null;
         if (getActivePlayer() == null) {
             Log.d(TAG, "updateMediaForAudioPlayback: no active player");
-            PlaybackState.Builder builder = new PlaybackState.Builder()
-                    .setState(PlaybackState.STATE_STOPPED, 0L, 0f);
+            PlaybackState.Builder builder =
+                    new PlaybackState.Builder().setState(PlaybackState.STATE_STOPPED, 0L, 0f);
             List<Metadata> queue = new ArrayList<Metadata>();
             queue.add(Util.empty_data());
-            currMediaData = new MediaData(
-                    Util.empty_data(),
-                    builder.build(),
-                    queue
-                );
+            currMediaData = new MediaData(Util.empty_data(), builder.build(), queue);
         } else {
             currMediaData = getActivePlayer().getCurrentMediaData();
             currState = currMediaData.state;
         }
 
-        if (currState != null
-                && currState.getState() == PlaybackState.STATE_PLAYING) {
+        if (currState != null && currState.getState() == PlaybackState.STATE_PLAYING) {
             Log.i(TAG, "updateMediaForAudioPlayback: Active player is playing, drop it");
             return;
         }
 
         if (mAudioPlaybackIsActive) {
-            PlaybackState.Builder builder = new PlaybackState.Builder()
-                    .setState(PlaybackState.STATE_PLAYING,
-                        currState == null ? 0 : currState.getPosition(),
-                        1.0f);
+            PlaybackState.Builder builder =
+                    new PlaybackState.Builder()
+                            .setState(
+                                    PlaybackState.STATE_PLAYING,
+                                    currState == null ? 0 : currState.getPosition(),
+                                    1.0f);
             currMediaData.state = builder.build();
         }
-        mAudioPlaybackStateLogger.logd(TAG, "updateMediaForAudioPlayback: update state="
-                + currMediaData.state);
+        mAudioPlaybackStateLogger.logd(
+                TAG, "updateMediaForAudioPlayback: update state=" + currMediaData.state);
         sendMediaUpdate(currMediaData);
     }
 
@@ -1000,35 +1226,40 @@ public class MediaPlayerList {
      */
     private final AudioManager.AudioPlaybackCallback mAudioPlaybackCallback =
             new AudioManager.AudioPlaybackCallback() {
-        @Override
-        public void onPlaybackConfigChanged(List<AudioPlaybackConfiguration> configs) {
-            if (configs == null) {
-                return;
-            }
-            boolean isActive = false;
-            AudioPlaybackConfiguration activeConfig = null;
-            for (AudioPlaybackConfiguration config : configs) {
-                if (config.isActive() && (config.getAudioAttributes().getUsage()
-                            == AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
-                        && (config.getAudioAttributes().getContentType()
-                            == AudioAttributes.CONTENT_TYPE_SPEECH)) {
-                    activeConfig = config;
-                    isActive = true;
+                @Override
+                public void onPlaybackConfigChanged(List<AudioPlaybackConfiguration> configs) {
+                    if (configs == null) {
+                        return;
+                    }
+                    boolean isActive = false;
+                    AudioPlaybackConfiguration activeConfig = null;
+                    for (AudioPlaybackConfiguration config : configs) {
+                        if (config.isActive()
+                                && (config.getAudioAttributes().getUsage()
+                                        == AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                                && (config.getAudioAttributes().getContentType()
+                                        == AudioAttributes.CONTENT_TYPE_SPEECH)) {
+                            activeConfig = config;
+                            isActive = true;
+                        }
+                    }
+                    if (isActive != mAudioPlaybackIsActive) {
+                        mAudioPlaybackStateLogger.logd(
+                                TAG,
+                                "onPlaybackConfigChanged: "
+                                        + (mAudioPlaybackIsActive ? "Active" : "Non-active")
+                                        + " -> "
+                                        + (isActive ? "Active" : "Non-active"));
+                        if (isActive) {
+                            mAudioPlaybackStateLogger.logd(
+                                    TAG,
+                                    "onPlaybackConfigChanged: " + "active config: " + activeConfig);
+                        }
+                        mAudioPlaybackIsActive = isActive;
+                        updateMediaForAudioPlayback();
+                    }
                 }
-            }
-            if (isActive != mAudioPlaybackIsActive) {
-                mAudioPlaybackStateLogger.logd(TAG, "onPlaybackConfigChanged: "
-                        + (mAudioPlaybackIsActive ? "Active" : "Non-active") + " -> "
-                        + (isActive ? "Active" : "Non-active"));
-                if (isActive) {
-                    mAudioPlaybackStateLogger.logd(TAG, "onPlaybackConfigChanged: "
-                            + "active config: " + activeConfig);
-                }
-                mAudioPlaybackIsActive = isActive;
-                updateMediaForAudioPlayback();
-            }
-        }
-    };
+            };
 
     /**
      * Callback from {@link MediaPlayerWrapper}.
@@ -1040,33 +1271,34 @@ public class MediaPlayerList {
      */
     private final MediaPlayerWrapper.Callback mMediaPlayerCallback =
             new MediaPlayerWrapper.Callback() {
-        @Override
-        public void mediaUpdatedCallback(MediaData data) {
-            if (data.metadata == null) {
-                Log.d(TAG, "mediaUpdatedCallback(): metadata is null");
-                return;
-            }
+                @Override
+                public void mediaUpdatedCallback(MediaData data) {
+                    if (data.metadata == null) {
+                        Log.d(TAG, "mediaUpdatedCallback(): metadata is null");
+                        return;
+                    }
 
-            if (data.state == null) {
-                Log.w(TAG, "mediaUpdatedCallback(): Tried to update with null state");
-                return;
-            }
+                    if (data.state == null) {
+                        Log.w(TAG, "mediaUpdatedCallback(): Tried to update with null state");
+                        return;
+                    }
 
-            if (mAudioPlaybackIsActive && (data.state.getState() != PlaybackState.STATE_PLAYING)) {
-                Log.d(TAG, "Some audio playbacks are still active, drop it");
-                return;
-            }
-            sendMediaUpdate(data);
-        }
+                    if (mAudioPlaybackIsActive
+                            && (data.state.getState() != PlaybackState.STATE_PLAYING)) {
+                        Log.d(TAG, "Some audio playbacks are still active, drop it");
+                        return;
+                    }
+                    sendMediaUpdate(data);
+                }
 
-        @Override
-        public void sessionUpdatedCallback(String packageName) {
-            if (haveMediaPlayer(packageName)) {
-                Log.d(TAG, "sessionUpdatedCallback(): packageName: " + packageName);
-                removeMediaPlayer(mMediaPlayerIds.get(packageName));
-            }
-        }
-    };
+                @Override
+                public void sessionUpdatedCallback(String packageName) {
+                    if (haveMediaPlayer(packageName)) {
+                        Log.d(TAG, "sessionUpdatedCallback(): packageName: " + packageName);
+                        removeMediaPlayer(mMediaPlayerIds.get(packageName));
+                    }
+                }
+            };
 
     /**
      * Listens for Media key events session changes.
@@ -1086,69 +1318,98 @@ public class MediaPlayerList {
     @VisibleForTesting
     final MediaSessionManager.OnMediaKeyEventSessionChangedListener
             mMediaKeyEventSessionChangedListener =
-            new MediaSessionManager.OnMediaKeyEventSessionChangedListener() {
-                @Override
-                public void onMediaKeyEventSessionChanged(String packageName,
-                        MediaSession.Token token) {
-                    if (mMediaSessionManager == null) {
-                        Log.w(TAG, "onMediaKeyEventSessionChanged(): Unexpected callback "
-                                + "from the MediaSessionManager, pkg" + packageName);
-                        return;
-                    }
-                    if (TextUtils.isEmpty(packageName)) {
-                        return;
-                    }
-                    if (token != null) {
-                        android.media.session.MediaController controller =
-                                new android.media.session.MediaController(mContext, token);
-                        if ((controller.getFlags() & MediaSession.FLAG_EXCLUSIVE_GLOBAL_PRIORITY)
-                                != 0) {
-                            // Skip adding controller for GLOBAL_PRIORITY session.
-                            Log.i(TAG, "onMediaKeyEventSessionChanged,"
-                                    + " ignoring global priority session");
-                            return;
-                        }
-                        if (!haveMediaPlayer(controller.getPackageName())) {
-                            // Since we have a controller, we can try to to recover by adding the
-                            // player and then setting it as active.
-                            Log.w(TAG, "onMediaKeyEventSessionChanged(Token): Addressed Player "
-                                    + "changed to a player we didn't have a session for");
-                            addMediaPlayer(controller);
-                        }
+                    new MediaSessionManager.OnMediaKeyEventSessionChangedListener() {
+                        @Override
+                        public void onMediaKeyEventSessionChanged(
+                                String packageName, MediaSession.Token token) {
+                            if (mMediaSessionManager == null) {
+                                Log.w(
+                                        TAG,
+                                        "onMediaKeyEventSessionChanged(): Unexpected callback "
+                                                + "from the MediaSessionManager, pkg"
+                                                + packageName);
+                                return;
+                            }
+                            if (TextUtils.isEmpty(packageName)) {
+                                return;
+                            }
+                            if (token != null) {
+                                android.media.session.MediaController controller =
+                                        new android.media.session.MediaController(mContext, token);
+                                if ((controller.getFlags()
+                                                & MediaSession.FLAG_EXCLUSIVE_GLOBAL_PRIORITY)
+                                        != 0) {
+                                    // Skip adding controller for GLOBAL_PRIORITY session.
+                                    Log.i(
+                                            TAG,
+                                            "onMediaKeyEventSessionChanged,"
+                                                    + " ignoring global priority session");
+                                    return;
+                                }
+                                if (!haveMediaPlayer(controller.getPackageName())) {
+                                    // Since we have a controller, we can try to to recover by
+                                    // adding the
+                                    // player and then setting it as active.
+                                    Log.w(
+                                            TAG,
+                                            "onMediaKeyEventSessionChanged(Token): Addressed Player"
+                                                + " changed to a player we didn't have a session"
+                                                + " for");
+                                    addMediaPlayer(controller);
+                                }
 
-                        Log.i(TAG, "onMediaKeyEventSessionChanged: token="
-                                + controller.getPackageName());
-                        setActivePlayer(mMediaPlayerIds.get(controller.getPackageName()));
-                    } else {
-                        if (!haveMediaPlayer(packageName)) {
-                            e("onMediaKeyEventSessionChanged(PackageName): Media key event session "
-                                    + "changed to a player we don't have a session for");
-                            return;
-                        }
+                                Log.i(
+                                        TAG,
+                                        "onMediaKeyEventSessionChanged: token="
+                                                + controller.getPackageName());
+                                setActivePlayer(mMediaPlayerIds.get(controller.getPackageName()));
+                            } else {
+                                if (!haveMediaPlayer(packageName)) {
+                                    e(
+                                            "onMediaKeyEventSessionChanged(PackageName): Media key"
+                                                + " event session changed to a player we don't have"
+                                                + " a session for");
+                                    return;
+                                }
 
-                        Log.i(TAG, "onMediaKeyEventSessionChanged: packageName=" + packageName);
-                        setActivePlayer(mMediaPlayerIds.get(packageName));
-                    }
-                }
-            };
+                                Log.i(
+                                        TAG,
+                                        "onMediaKeyEventSessionChanged: packageName="
+                                                + packageName);
+                                setActivePlayer(mMediaPlayerIds.get(packageName));
+                            }
+                        }
+                    };
 
     /** Dumps all players and browsable players currently listed in this class. */
     public void dump(StringBuilder sb) {
-        sb.append("List of MediaControllers: size=" + mMediaPlayers.size() + "\n");
+        sb.append("List of MediaControllers: size=").append(mMediaPlayers.size()).append("\n");
         for (int id : mMediaPlayers.keySet()) {
             if (id == mActivePlayerId) {
                 sb.append("<Active> ");
             }
             MediaPlayerWrapper player = mMediaPlayers.get(id);
-            sb.append("  Media Player " + id + ": " + player.getPackageName() + "\n");
+            sb.append("  Media Player ")
+                    .append(id)
+                    .append(": ")
+                    .append(player.getPackageName())
+                    .append("\n");
             sb.append(player.toString().replaceAll("(?m)^", "  "));
             sb.append("\n");
         }
 
-        sb.append("List of Browsers: size=" + mBrowsablePlayers.size() + "\n");
-        for (BrowsedPlayerWrapper player : mBrowsablePlayers.values()) {
-            sb.append(player.toString().replaceAll("(?m)^", "  "));
-            sb.append("\n");
+        if (Flags.browsingRefactor()) {
+            sb.append("List of Browsers: size=").append(mMediaBrowserWrappers.size()).append("\n");
+            for (MediaBrowserWrapper player : mMediaBrowserWrappers.values()) {
+                sb.append(player.toString().replaceAll("(?m)^", "  "));
+                sb.append("\n");
+            }
+        } else {
+            sb.append("List of Browsers: size=").append(mBrowsablePlayers.size()).append("\n");
+            for (BrowsedPlayerWrapper player : mBrowsablePlayers.values()) {
+                sb.append(player.toString().replaceAll("(?m)^", "  "));
+                sb.append("\n");
+            }
         }
 
         mActivePlayerLogger.dump(sb);

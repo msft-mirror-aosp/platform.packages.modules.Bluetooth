@@ -24,8 +24,9 @@ use bt_topshim::profiles::hfp::{
 use bt_topshim::profiles::le_audio::{
     BtLeAudioConnectionState, BtLeAudioContentType, BtLeAudioDirection, BtLeAudioGroupNodeStatus,
     BtLeAudioGroupStatus, BtLeAudioGroupStreamStatus, BtLeAudioSource,
-    BtLeAudioUnicastMonitorModeStatus, BtLeAudioUsage, BtLePcmConfig, LeAudioClient,
-    LeAudioClientCallbacks, LeAudioClientCallbacksDispatcher, SinkMetadata, SourceMetadata,
+    BtLeAudioUnicastMonitorModeStatus, BtLeAudioUsage, BtLePcmConfig, BtLeStreamStartedStatus,
+    LeAudioClient, LeAudioClientCallbacks, LeAudioClientCallbacksDispatcher, SinkMetadata,
+    SourceMetadata,
 };
 use bt_topshim::profiles::vc::{
     BtVcConnectionState, VolumeControl, VolumeControlCallbacks, VolumeControlCallbacksDispatcher,
@@ -45,6 +46,8 @@ use itertools::Itertools;
 use log::{debug, info, warn};
 use std::collections::{HashMap, HashSet};
 use std::convert::{TryFrom, TryInto};
+use std::fs::File;
+use std::io::Write;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -59,7 +62,7 @@ use crate::battery_provider_manager::{
 use crate::bluetooth::{Bluetooth, BluetoothDevice, IBluetooth};
 use crate::callbacks::Callbacks;
 use crate::uuid;
-use crate::uuid::Profile;
+use crate::uuid::{Profile, UuidHelper};
 use crate::{Message, RPCProxy};
 
 use num_derive::FromPrimitive;
@@ -82,15 +85,24 @@ const CONNECT_MISSING_PROFILES_TIMEOUT_SEC: u64 = 6;
 const CONNECT_AS_INITIATOR_TIMEOUT_SEC: u64 = 5;
 
 /// The list of profiles we consider as classic audio profiles for media.
-const MEDIA_CLASSIC_AUDIO_PROFILES: &[uuid::Profile] =
-    &[uuid::Profile::A2dpSink, uuid::Profile::Hfp, uuid::Profile::AvrcpController];
+const MEDIA_CLASSIC_AUDIO_PROFILES: &[Profile] =
+    &[Profile::A2dpSink, Profile::Hfp, Profile::AvrcpController];
 
 /// The list of profiles we consider as LE audio profiles for media.
-const MEDIA_LE_AUDIO_PROFILES: &[uuid::Profile] =
-    &[uuid::Profile::LeAudio, uuid::Profile::VolumeControl, uuid::Profile::CoordinatedSet];
+const MEDIA_LE_AUDIO_PROFILES: &[Profile] =
+    &[Profile::LeAudio, Profile::VolumeControl, Profile::CoordinatedSet];
+
+const MEDIA_PROFILE_ENABLE_ORDER: &[Profile] = &[
+    Profile::A2dpSource,
+    Profile::AvrcpTarget,
+    Profile::Hfp,
+    Profile::LeAudio,
+    Profile::VolumeControl,
+    Profile::CoordinatedSet,
+];
 
 /// Group ID used to identify unknown/non-existent groups.
-const LEA_UNKNOWN_GROUP_ID: i32 = -1;
+pub const LEA_UNKNOWN_GROUP_ID: i32 = -1;
 
 /// Refer to |pairDeviceByCsip| in |CachedBluetoothDeviceManager.java|.
 /// Number of attempts for CSIS to bond set members of a connected group.
@@ -104,6 +116,9 @@ pub trait IBluetoothMedia {
 
     /// initializes media (both A2dp and AVRCP) stack
     fn initialize(&mut self) -> bool;
+
+    /// Get if the media stack is initialized.
+    fn is_initialized(&self) -> bool;
 
     /// clean up media stack
     fn cleanup(&mut self) -> bool;
@@ -150,8 +165,8 @@ pub trait IBluetoothMedia {
     // Set the HFP speaker volume. Valid volume specified by the HFP spec should
     // be in the range of 0-15.
     fn set_hfp_volume(&mut self, volume: u8, address: RawAddress);
-    fn start_audio_request(&mut self) -> bool;
-    fn stop_audio_request(&mut self);
+    fn start_audio_request(&mut self, connection_listener: File) -> bool;
+    fn stop_audio_request(&mut self, connection_listener: File);
 
     /// Returns true iff A2DP audio has started.
     fn get_a2dp_audio_started(&mut self, address: RawAddress) -> bool;
@@ -168,8 +183,9 @@ pub trait IBluetoothMedia {
         address: RawAddress,
         sco_offload: bool,
         disabled_codecs: HfpCodecBitId,
+        connection_listener: File,
     ) -> bool;
-    fn stop_sco_call(&mut self, address: RawAddress);
+    fn stop_sco_call(&mut self, address: RawAddress, connection_listener: File);
 
     /// Set the current playback status: e.g., playing, paused, stopped, etc. The method is a copy
     /// of the existing CRAS API, hence not following Floss API conventions.
@@ -193,8 +209,8 @@ pub trait IBluetoothMedia {
     fn peer_stop_audio_request(&mut self);
     fn get_host_pcm_config(&mut self) -> BtLePcmConfig;
     fn get_peer_pcm_config(&mut self) -> BtLePcmConfig;
-    fn get_host_stream_started(&mut self) -> bool;
-    fn get_peer_stream_started(&mut self) -> bool;
+    fn get_host_stream_started(&mut self) -> BtLeStreamStartedStatus;
+    fn get_peer_stream_started(&mut self) -> BtLeStreamStartedStatus;
     fn source_metadata_changed(
         &mut self,
         usage: BtLeAudioUsage,
@@ -291,6 +307,10 @@ pub trait IBluetoothMediaCallback: RPCProxy {
     );
 
     fn on_lea_group_stream_status(&mut self, group_id: i32, status: BtLeAudioGroupStreamStatus);
+
+    fn on_lea_vc_connected(&mut self, addr: RawAddress, group_id: i32);
+
+    fn on_lea_group_volume_changed(&mut self, group_id: i32, volume: u8);
 }
 
 pub trait IBluetoothTelephony {
@@ -404,6 +424,14 @@ struct LEAAudioConf {
     pub avail_cont: u16,
 }
 
+#[derive(Default, Clone)]
+struct LeAudioGroup {
+    pub devices: HashSet<RawAddress>,
+    pub status: BtLeAudioGroupStatus,
+    pub stream_status: BtLeAudioGroupStreamStatus,
+    pub volume: Option<u8>,
+}
+
 #[derive(Debug, Copy, Clone, FromPrimitive)]
 #[repr(u8)]
 enum TelephonyEvent {
@@ -455,10 +483,10 @@ pub struct BluetoothMedia {
     fallback_tasks: Arc<Mutex<HashMap<RawAddress, Option<(JoinHandle<()>, Instant)>>>>,
     absolute_volume: bool,
     uinput: UInput,
-    delay_enable_profiles: HashSet<uuid::Profile>,
-    connected_profiles: HashMap<RawAddress, HashSet<uuid::Profile>>,
+    delay_enable_profiles: HashSet<Profile>,
+    connected_profiles: HashMap<RawAddress, HashSet<Profile>>,
     device_states: Arc<Mutex<HashMap<RawAddress, DeviceConnectionStates>>>,
-    delay_volume_update: HashMap<uuid::Profile, u8>,
+    delay_volume_update: HashMap<Profile, u8>,
     telephony_device_status: TelephonyDeviceStatus,
     phone_state: PhoneState,
     call_list: Vec<CallInfo>,
@@ -468,18 +496,19 @@ pub struct BluetoothMedia {
     last_dialing_number: Option<String>,
     uhid: HashMap<RawAddress, UHid>,
     le_audio: Option<LeAudioClient>,
-    le_audio_group_status: HashMap<i32, BtLeAudioGroupStatus>,
-    le_audio_groups: HashMap<i32, HashSet<RawAddress>>,
+    le_audio_groups: HashMap<i32, LeAudioGroup>,
     le_audio_node_to_group: HashMap<RawAddress, i32>,
     le_audio_states: HashMap<RawAddress, BtLeAudioConnectionState>,
     le_audio_unicast_monitor_mode_status: HashMap<i32, BtLeAudioUnicastMonitorModeStatus>,
-    le_audio_group_stream_status: HashMap<i32, BtLeAudioGroupStreamStatus>,
     le_audio_delayed_audio_conf_updates: HashMap<i32, LEAAudioConf>,
+    le_audio_delayed_vc_connection_updates: HashSet<RawAddress>,
     vc: Option<VolumeControl>,
     vc_states: HashMap<RawAddress, BtVcConnectionState>,
     csis: Option<CsisClient>,
     csis_states: HashMap<RawAddress, BtCsisConnectionState>,
     is_le_audio_only_enabled: bool, // TODO: remove this once there is dual mode.
+    hfp_audio_connection_listener: Option<File>,
+    a2dp_audio_connection_listener: Option<File>,
 }
 
 impl BluetoothMedia {
@@ -534,40 +563,53 @@ impl BluetoothMedia {
             last_dialing_number: None,
             uhid: HashMap::new(),
             le_audio: None,
-            le_audio_group_status: HashMap::new(),
             le_audio_groups: HashMap::new(),
             le_audio_node_to_group: HashMap::new(),
             le_audio_states: HashMap::new(),
             le_audio_unicast_monitor_mode_status: HashMap::new(),
-            le_audio_group_stream_status: HashMap::new(),
             le_audio_delayed_audio_conf_updates: HashMap::new(),
+            le_audio_delayed_vc_connection_updates: HashSet::new(),
             vc: None,
             vc_states: HashMap::new(),
             csis: None,
             csis_states: HashMap::new(),
             is_le_audio_only_enabled: false,
+            hfp_audio_connection_listener: None,
+            a2dp_audio_connection_listener: None,
         }
     }
 
-    fn is_profile_connected(&self, addr: &RawAddress, profile: &uuid::Profile) -> bool {
-        self.is_any_profile_connected(addr, &[profile.clone()])
+    pub fn cleanup(&mut self) -> bool {
+        for profile in MEDIA_PROFILE_ENABLE_ORDER.iter().rev() {
+            self.disable_profile(&profile);
+        }
+        self.initialized = false;
+        true
     }
 
-    fn is_any_profile_connected(&self, addr: &RawAddress, profiles: &[uuid::Profile]) -> bool {
+    fn is_profile_connected(&self, addr: &RawAddress, profile: &Profile) -> bool {
+        self.is_any_profile_connected(addr, &[*profile])
+    }
+
+    fn is_any_profile_connected(&self, addr: &RawAddress, profiles: &[Profile]) -> bool {
         if let Some(connected_profiles) = self.connected_profiles.get(addr) {
-            return profiles.iter().any(|p| connected_profiles.contains(&p));
+            return profiles.iter().any(|p| connected_profiles.contains(p));
         }
 
-        return false;
+        false
     }
 
-    fn add_connected_profile(&mut self, addr: RawAddress, profile: uuid::Profile) {
+    pub fn get_connected_profiles(&self, device: &BluetoothDevice) -> HashSet<Profile> {
+        self.connected_profiles.get(&device.address).unwrap_or(&HashSet::new()).clone()
+    }
+
+    fn add_connected_profile(&mut self, addr: RawAddress, profile: Profile) {
         if self.is_profile_connected(&addr, &profile) {
             warn!("[{}]: profile is already connected", DisplayAddress(&addr));
             return;
         }
 
-        self.connected_profiles.entry(addr).or_insert_with(HashSet::new).insert(profile);
+        self.connected_profiles.entry(addr).or_default().insert(profile);
 
         self.notify_media_capability_updated(addr);
     }
@@ -575,7 +617,7 @@ impl BluetoothMedia {
     fn rm_connected_profile(
         &mut self,
         addr: RawAddress,
-        profile: uuid::Profile,
+        profile: Profile,
         is_profile_critical: bool,
     ) {
         if !self.is_profile_connected(&addr, &profile) {
@@ -583,7 +625,7 @@ impl BluetoothMedia {
             return;
         }
 
-        self.connected_profiles.entry(addr).or_insert_with(HashSet::new).remove(&profile);
+        self.connected_profiles.entry(addr).or_default().remove(&profile);
         self.delay_volume_update.remove(&profile);
 
         if is_profile_critical && self.is_complete_profiles_required() {
@@ -592,6 +634,52 @@ impl BluetoothMedia {
         }
 
         self.notify_media_capability_updated(addr);
+    }
+
+    fn is_group_connected(&self, group: &LeAudioGroup) -> bool {
+        group.devices.iter().any(|&addr| {
+            *self.le_audio_states.get(&addr).unwrap_or(&BtLeAudioConnectionState::Disconnected)
+                == BtLeAudioConnectionState::Connected
+        })
+    }
+
+    fn remove_device_from_group(&mut self, addr: RawAddress) {
+        let group_id = match self.le_audio_node_to_group.get(&addr) {
+            Some(group_id) => group_id,
+            None => {
+                warn!("Cannot remove device {} that belongs to no group", DisplayAddress(&addr));
+                return;
+            }
+        };
+
+        match self.le_audio_groups.get_mut(group_id) {
+            Some(group) => {
+                group.devices.remove(&addr);
+                if group.devices.is_empty() {
+                    self.le_audio_groups.remove(group_id);
+                }
+            }
+            None => {
+                warn!(
+                    "{} claims to be in group {} which does not exist",
+                    DisplayAddress(&addr),
+                    group_id
+                );
+            }
+        }
+    }
+
+    fn write_data_to_listener(&self, mut listener: File, data: Vec<u8>) {
+        match listener.write(&data) {
+            Ok(nwritten) => {
+                if nwritten != data.len() {
+                    warn!("Did not write full data into the event listener.");
+                }
+            }
+            Err(e) => {
+                warn!("Cannot write data into the event listener: {}", e);
+            }
+        }
     }
 
     pub fn set_adapter(&mut self, adapter: Arc<Mutex<Box<Bluetooth>>>) {
@@ -655,7 +743,7 @@ impl BluetoothMedia {
         if self.is_profile_enabled(profile).unwrap() {
             self.delay_enable_profiles.remove(profile);
         } else {
-            self.delay_enable_profiles.insert(profile.clone());
+            self.delay_enable_profiles.insert(*profile);
         }
     }
 
@@ -726,7 +814,7 @@ impl BluetoothMedia {
     pub fn dispatch_csis_callbacks(&mut self, cb: CsisClientCallbacks) {
         match cb {
             CsisClientCallbacks::ConnectionState(addr, state) => {
-                if !self.csis_states.get(&addr).is_none()
+                if self.csis_states.get(&addr).is_some()
                     && state == *self.csis_states.get(&addr).unwrap()
                 {
                     return;
@@ -791,7 +879,7 @@ impl BluetoothMedia {
     pub fn dispatch_vc_callbacks(&mut self, cb: VolumeControlCallbacks) {
         match cb {
             VolumeControlCallbacks::ConnectionState(state, addr) => {
-                if !self.vc_states.get(&addr).is_none()
+                if self.vc_states.get(&addr).is_some()
                     && state == *self.vc_states.get(&addr).unwrap()
                 {
                     return;
@@ -806,6 +894,23 @@ impl BluetoothMedia {
                 match state {
                     BtVcConnectionState::Connected => {
                         self.vc_states.insert(addr, state);
+
+                        let group_id = self.get_group_id(addr);
+                        match self.le_audio_groups.get(&group_id) {
+                            Some(group) if self.is_group_connected(group) => {
+                                self.callbacks.lock().unwrap().for_all_callbacks(|callback| {
+                                    callback.on_lea_vc_connected(addr, group_id);
+                                });
+
+                                // Sync group volume in case this new member has not been adjusted.
+                                if let Some(volume) = group.volume {
+                                    self.set_group_volume(group_id, volume);
+                                }
+                            }
+                            _ => {
+                                self.le_audio_delayed_vc_connection_updates.insert(addr);
+                            }
+                        }
                     }
                     BtVcConnectionState::Disconnected => {
                         self.vc_states.remove(&addr);
@@ -829,6 +934,17 @@ impl BluetoothMedia {
                     "VolumeControlCallbacks::GroupVolumeState: group_id={}, volume={}, mute={}, is_autonomous={}",
                     group_id, volume, mute, is_autonomous
                 );
+
+                // This can come with ~300ms delay, thus notify only when
+                // triggered by the headset. Otherwise expect the audio server
+                // to know the expected volume.
+                if is_autonomous {
+                    self.callbacks.lock().unwrap().for_all_callbacks(|callback| {
+                        callback.on_lea_group_volume_changed(group_id, volume);
+                    });
+                }
+
+                self.le_audio_groups.entry(group_id).or_default().volume = Some(volume);
             }
             VolumeControlCallbacks::DeviceAvailable(addr, num_offset) => {
                 info!(
@@ -870,14 +986,13 @@ impl BluetoothMedia {
                 info!("LeAudioClientCallbacks::Initialized: ");
             }
             LeAudioClientCallbacks::ConnectionState(state, addr) => {
-                if !self.le_audio_states.get(&addr).is_none()
+                if self.le_audio_states.get(&addr).is_some()
                     && state == *self.le_audio_states.get(&addr).unwrap()
                 {
                     return;
                 }
 
-                let group_id =
-                    *self.le_audio_node_to_group.get(&addr).unwrap_or(&LEA_UNKNOWN_GROUP_ID);
+                let group_id = self.get_group_id(addr);
                 if group_id == LEA_UNKNOWN_GROUP_ID {
                     warn!(
                         "LeAudioClientCallbacks::ConnectionState: [{}] Ignored dispatching of LeAudio callback on a device with no group",
@@ -886,16 +1001,17 @@ impl BluetoothMedia {
                     return;
                 }
 
-                let group = self.le_audio_groups.get(&group_id).unwrap_or(&HashSet::new()).clone();
-
-                let is_only_connected_member = group.iter().all(|&member_addr| {
-                    member_addr == addr
-                        || *self
-                            .le_audio_states
-                            .get(&member_addr)
-                            .unwrap_or(&BtLeAudioConnectionState::Disconnected)
-                            != BtLeAudioConnectionState::Connected
-                });
+                let is_only_connected_member = match self.le_audio_groups.get(&group_id) {
+                    Some(group) => group.devices.iter().all(|&member_addr| {
+                        member_addr == addr
+                            || *self
+                                .le_audio_states
+                                .get(&member_addr)
+                                .unwrap_or(&BtLeAudioConnectionState::Disconnected)
+                                != BtLeAudioConnectionState::Connected
+                    }),
+                    _ => true,
+                };
 
                 info!(
                     "LeAudioClientCallbacks::ConnectionState: [{}]: state={:?}, group_id={}, is_only_connected_member={}",
@@ -931,16 +1047,24 @@ impl BluetoothMedia {
                             }
                         }
 
+                        if self.le_audio_delayed_vc_connection_updates.remove(&addr) {
+                            self.callbacks.lock().unwrap().for_all_callbacks(|callback| {
+                                callback.on_lea_vc_connected(addr, group_id);
+                            });
+                        }
+
                         self.le_audio_states.insert(addr, state);
                     }
                     BtLeAudioConnectionState::Disconnected => {
-                        if self.le_audio_states.remove(&addr).is_some() {
-                            if is_only_connected_member {
-                                self.callbacks.lock().unwrap().for_all_callbacks(|callback| {
-                                    callback.on_lea_group_disconnected(group_id);
-                                });
-                            }
+                        if self.le_audio_states.remove(&addr).is_some() && is_only_connected_member
+                        {
+                            self.callbacks.lock().unwrap().for_all_callbacks(|callback| {
+                                callback.on_lea_group_disconnected(group_id);
+                            });
                         }
+
+                        // In anticipation that it could possibly never be connected.
+                        self.le_audio_delayed_vc_connection_updates.remove(&addr);
                     }
                     _ => {
                         self.le_audio_states.insert(addr, state);
@@ -948,8 +1072,8 @@ impl BluetoothMedia {
                 }
             }
             LeAudioClientCallbacks::GroupStatus(group_id, status) => {
-                if !self.le_audio_group_status.get(&group_id).is_none()
-                    && status == *self.le_audio_group_status.get(&group_id).unwrap()
+                if self.le_audio_groups.get(&group_id).is_some()
+                    && status == self.le_audio_groups.get(&group_id).unwrap().status
                 {
                     return;
                 }
@@ -959,15 +1083,11 @@ impl BluetoothMedia {
                     group_id, status
                 );
 
-                if self.le_audio_groups.get(&group_id).is_none() {
-                    warn!("LeAudioClientCallbacks::GroupStatus: Updating status of a non-existent group.")
-                }
-
                 self.callbacks.lock().unwrap().for_all_callbacks(|callback| {
                     callback.on_lea_group_status(group_id, status);
                 });
 
-                self.le_audio_group_status.insert(group_id, status);
+                self.le_audio_groups.entry(group_id).or_default().status = status;
             }
             LeAudioClientCallbacks::GroupNodeStatus(addr, group_id, status) => {
                 info!(
@@ -979,51 +1099,48 @@ impl BluetoothMedia {
 
                 match status {
                     BtLeAudioGroupNodeStatus::Added => {
-                        if let Some(old_group_id) =
-                            self.le_audio_node_to_group.insert(addr, group_id)
-                        {
-                            if old_group_id != group_id {
+                        match self.le_audio_node_to_group.get(&addr) {
+                            Some(old_group_id) if *old_group_id != group_id => {
                                 warn!(
                                     "LeAudioClientCallbacks::GroupNodeStatus: [{}]: node already belongs to another group {}",
                                     DisplayAddress(&addr),
                                     old_group_id,
                                 );
 
-                                if let Some(old_group) = self.le_audio_groups.get_mut(&old_group_id)
-                                {
-                                    old_group.remove(&addr);
-                                    if old_group.is_empty() {
-                                        self.le_audio_groups.remove(&old_group_id);
-                                    }
-                                }
+                                self.remove_device_from_group(addr);
                             }
+                            _ => {}
                         }
 
-                        self.le_audio_groups.entry(group_id).or_insert(HashSet::new()).insert(addr);
+                        self.le_audio_node_to_group.insert(addr, group_id);
+
+                        let group = self.le_audio_groups.entry(group_id).or_default();
+
+                        group.devices.insert(addr);
+
+                        if let Some(volume) = group.volume {
+                            self.set_group_volume(group_id, volume);
+                        }
                     }
                     BtLeAudioGroupNodeStatus::Removed => {
-                        if let Some(old_group_id) = self.le_audio_node_to_group.remove(&addr) {
-                            if old_group_id != group_id {
+                        match self.le_audio_node_to_group.get(&addr) {
+                            Some(old_group_id) if *old_group_id == group_id => {
+                                self.remove_device_from_group(addr);
+                            }
+                            Some(old_group_id) if *old_group_id != group_id => {
                                 warn!(
-                                    "LeAudioClientCallbacks::GroupNodeStatus: [{}]: removed node from its group {} which is not the specified group {}",
+                                    "LeAudioClientCallbacks::GroupNodeStatus: [{}]: cannot remove node from group {} because it is in group {}",
                                     DisplayAddress(&addr),
-                                    old_group_id,
                                     group_id,
+                                    old_group_id,
                                 );
-                            }
 
-                            if let Some(old_group) = self.le_audio_groups.get_mut(&old_group_id) {
-                                old_group.remove(&addr);
-                                if old_group.is_empty() {
-                                    self.le_audio_groups.remove(&old_group_id);
-                                }
+                                return;
                             }
-                        } else {
-                            warn!(
-                                "LeAudioClientCallbacks::GroupNodeStatus: [{}]: node does not belong to any group",
-                                DisplayAddress(&addr)
-                            );
+                            _ => {}
                         }
+
+                        self.le_audio_node_to_group.remove(&addr);
                     }
                     _ => {
                         warn!("LeAudioClientCallbacks::GroupNodeStatus: Unknown status for GroupNodeStatus {:?}", status);
@@ -1046,37 +1163,30 @@ impl BluetoothMedia {
                     direction, group_id, snk_audio_location, src_audio_location, avail_cont,
                 );
 
-                let group = self.le_audio_groups.get(&group_id).unwrap_or(&HashSet::new()).clone();
-
-                let is_group_connected = group.iter().any(|&addr| {
-                    *self
-                        .le_audio_states
-                        .get(&addr)
-                        .unwrap_or(&BtLeAudioConnectionState::Disconnected)
-                        == BtLeAudioConnectionState::Connected
-                });
-
-                if is_group_connected {
-                    self.callbacks.lock().unwrap().for_all_callbacks(|callback| {
-                        callback.on_lea_audio_conf(
-                            direction,
+                match self.le_audio_groups.get(&group_id) {
+                    Some(group) if self.is_group_connected(group) => {
+                        self.callbacks.lock().unwrap().for_all_callbacks(|callback| {
+                            callback.on_lea_audio_conf(
+                                direction,
+                                group_id,
+                                snk_audio_location,
+                                src_audio_location,
+                                avail_cont,
+                            );
+                        });
+                    }
+                    _ => {
+                        self.le_audio_delayed_audio_conf_updates.insert(
                             group_id,
-                            snk_audio_location,
-                            src_audio_location,
-                            avail_cont,
+                            LEAAudioConf {
+                                direction,
+                                group_id,
+                                snk_audio_location,
+                                src_audio_location,
+                                avail_cont,
+                            },
                         );
-                    });
-                } else {
-                    self.le_audio_delayed_audio_conf_updates.insert(
-                        group_id,
-                        LEAAudioConf {
-                            direction,
-                            group_id,
-                            snk_audio_location,
-                            src_audio_location,
-                            avail_cont,
-                        },
-                    );
+                    }
                 }
             }
             LeAudioClientCallbacks::SinkAudioLocationAvailable(addr, snk_audio_locations) => {
@@ -1102,7 +1212,7 @@ impl BluetoothMedia {
                       group_id, input_codec_conf, output_codec_conf, input_caps, output_caps);
             }
             LeAudioClientCallbacks::UnicastMonitorModeStatus(direction, status) => {
-                if !self.le_audio_unicast_monitor_mode_status.get(&direction.into()).is_none()
+                if self.le_audio_unicast_monitor_mode_status.get(&direction.into()).is_some()
                     && status
                         == *self
                             .le_audio_unicast_monitor_mode_status
@@ -1124,8 +1234,8 @@ impl BluetoothMedia {
                 self.le_audio_unicast_monitor_mode_status.insert(direction.into(), status);
             }
             LeAudioClientCallbacks::GroupStreamStatus(group_id, status) => {
-                if !self.le_audio_group_stream_status.get(&group_id).is_none()
-                    && status == *self.le_audio_group_stream_status.get(&group_id).unwrap()
+                if self.le_audio_groups.get(&group_id).is_some()
+                    && status == self.le_audio_groups.get(&group_id).unwrap().stream_status
                 {
                     return;
                 }
@@ -1139,7 +1249,7 @@ impl BluetoothMedia {
                     callback.on_lea_group_stream_status(group_id, status);
                 });
 
-                self.le_audio_group_stream_status.insert(group_id, status);
+                self.le_audio_groups.entry(group_id).or_default().stream_status = status;
             }
         }
     }
@@ -1147,7 +1257,7 @@ impl BluetoothMedia {
     pub fn dispatch_a2dp_callbacks(&mut self, cb: A2dpCallbacks) {
         match cb {
             A2dpCallbacks::ConnectionState(addr, state, error) => {
-                if !self.a2dp_states.get(&addr).is_none()
+                if self.a2dp_states.get(&addr).is_some()
                     && state == *self.a2dp_states.get(&addr).unwrap()
                 {
                     return;
@@ -1161,15 +1271,23 @@ impl BluetoothMedia {
                 match state {
                     BtavConnectionState::Connected => {
                         info!("[{}]: a2dp connected.", DisplayAddress(&addr));
+
                         self.a2dp_states.insert(addr, state);
-                        self.add_connected_profile(addr, uuid::Profile::A2dpSink);
+                        self.add_connected_profile(addr, Profile::A2dpSink);
                     }
                     BtavConnectionState::Disconnected => {
                         info!("[{}]: a2dp disconnected.", DisplayAddress(&addr));
+
+                        if self.a2dp_audio_connection_listener.is_some() {
+                            let listener = self.a2dp_audio_connection_listener.take().unwrap();
+                            let data: Vec<u8> = vec![0];
+                            self.write_data_to_listener(listener, data);
+                        }
+
                         self.a2dp_states.remove(&addr);
                         self.a2dp_caps.remove(&addr);
                         self.a2dp_audio_state.remove(&addr);
-                        self.rm_connected_profile(addr, uuid::Profile::A2dpSink, true);
+                        self.rm_connected_profile(addr, Profile::A2dpSink, true);
                     }
                     _ => {
                         self.a2dp_states.insert(addr, state);
@@ -1178,6 +1296,18 @@ impl BluetoothMedia {
             }
             A2dpCallbacks::AudioState(addr, state) => {
                 info!("[{}]: a2dp audio state: {:?}", DisplayAddress(&addr), state);
+
+                let started: u8 = match state {
+                    BtavAudioState::Started => 1,
+                    _ => 0,
+                };
+
+                if self.a2dp_audio_connection_listener.is_some() {
+                    let listener = self.a2dp_audio_connection_listener.take().unwrap();
+                    let data: Vec<u8> = vec![started];
+                    self.write_data_to_listener(listener, data);
+                }
+
                 self.a2dp_audio_state.insert(addr, state);
             }
             A2dpCallbacks::AudioConfig(addr, _config, _local_caps, a2dp_caps) => {
@@ -1242,7 +1372,7 @@ impl BluetoothMedia {
                 // Reset direction to unknown.
                 self.avrcp_direction = BtConnectionDirection::Unknown;
 
-                self.add_connected_profile(addr, uuid::Profile::AvrcpController);
+                self.add_connected_profile(addr, Profile::AvrcpController);
             }
             AvrcpCallbacks::AvrcpDeviceDisconnected(addr) => {
                 info!("[{}]: avrcp disconnected.", DisplayAddress(&addr));
@@ -1255,7 +1385,7 @@ impl BluetoothMedia {
                 // This may be considered a critical profile in the extreme case
                 // where only AVRCP was connected.
                 let is_profile_critical = match self.connected_profiles.get(&addr) {
-                    Some(profiles) => *profiles == HashSet::from([uuid::Profile::AvrcpController]),
+                    Some(profiles) => *profiles == HashSet::from([Profile::AvrcpController]),
                     None => false,
                 };
 
@@ -1278,15 +1408,11 @@ impl BluetoothMedia {
                 // Reset direction to unknown.
                 self.avrcp_direction = BtConnectionDirection::Unknown;
 
-                self.rm_connected_profile(
-                    addr,
-                    uuid::Profile::AvrcpController,
-                    is_profile_critical,
-                );
+                self.rm_connected_profile(addr, Profile::AvrcpController, is_profile_critical);
             }
             AvrcpCallbacks::AvrcpAbsoluteVolumeUpdate(volume) => {
                 for (addr, state) in self.device_states.lock().unwrap().iter() {
-                    info!("[{}]: state {:?}", DisplayAddress(&addr), state);
+                    info!("[{}]: state {:?}", DisplayAddress(addr), state);
                     match state {
                         DeviceConnectionStates::ConnectingBeforeRetry
                         | DeviceConnectionStates::ConnectingAfterRetry
@@ -1353,7 +1479,7 @@ impl BluetoothMedia {
     pub fn dispatch_hfp_callbacks(&mut self, cb: HfpCallbacks) {
         match cb {
             HfpCallbacks::ConnectionState(state, addr) => {
-                if !self.hfp_states.get(&addr).is_none()
+                if self.hfp_states.get(&addr).is_some()
                     && state == *self.hfp_states.get(&addr).unwrap()
                 {
                     return;
@@ -1372,10 +1498,8 @@ impl BluetoothMedia {
                         info!("[{}]: hfp slc connected.", DisplayAddress(&addr));
                         // The device may not support codec-negotiation,
                         // in which case we shall assume it supports CVSD at this point.
-                        if !self.hfp_cap.contains_key(&addr) {
-                            self.hfp_cap.insert(addr, HfpCodecFormat::CVSD);
-                        }
-                        self.add_connected_profile(addr, uuid::Profile::Hfp);
+                        self.hfp_cap.entry(addr).or_insert(HfpCodecFormat::CVSD);
+                        self.add_connected_profile(addr, Profile::Hfp);
 
                         // Connect SCO if phone operations are enabled and an active call exists.
                         // This is only used for Bluetooth HFP qualification.
@@ -1390,11 +1514,18 @@ impl BluetoothMedia {
                     }
                     BthfConnectionState::Disconnected => {
                         info!("[{}]: hfp disconnected.", DisplayAddress(&addr));
+
+                        if self.hfp_audio_connection_listener.is_some() {
+                            let listener = self.hfp_audio_connection_listener.take().unwrap();
+                            let data: Vec<u8> = vec![0];
+                            self.write_data_to_listener(listener, data);
+                        }
+
                         self.uhid_destroy(&addr);
                         self.hfp_states.remove(&addr);
                         self.hfp_cap.remove(&addr);
                         self.hfp_audio_state.remove(&addr);
-                        self.rm_connected_profile(addr, uuid::Profile::Hfp, true);
+                        self.rm_connected_profile(addr, Profile::Hfp, true);
                     }
                     BthfConnectionState::Connecting => {
                         info!("[{}]: hfp connecting.", DisplayAddress(&addr));
@@ -1420,6 +1551,13 @@ impl BluetoothMedia {
 
                         self.hfp_audio_state.insert(addr, state);
 
+                        if self.hfp_audio_connection_listener.is_some() {
+                            let listener = self.hfp_audio_connection_listener.take().unwrap();
+                            let codec = self.get_hfp_audio_final_codecs(addr);
+                            let data: Vec<u8> = vec![codec];
+                            self.write_data_to_listener(listener, data);
+                        }
+
                         if self.should_insert_call_when_sco_start(addr) {
                             // This triggers a +CIEV command to set the call status for HFP devices.
                             // It is required for some devices to provide sound.
@@ -1429,6 +1567,12 @@ impl BluetoothMedia {
                     }
                     BthfAudioState::Disconnected => {
                         info!("[{}]: hfp audio disconnected.", DisplayAddress(&addr));
+
+                        if self.hfp_audio_connection_listener.is_some() {
+                            let listener = self.hfp_audio_connection_listener.take().unwrap();
+                            let data: Vec<u8> = vec![0];
+                            self.write_data_to_listener(listener, data);
+                        }
 
                         // Ignore disconnected -> disconnected
                         if let Some(BthfAudioState::Connected) =
@@ -1703,9 +1847,9 @@ impl BluetoothMedia {
                     self.simple_at_response(false, addr);
                     return;
                 }
-                let number = if number == "" {
+                let number = if number.is_empty() {
                     self.last_dialing_number.clone()
-                } else if number.starts_with(">") {
+                } else if number.starts_with('>') {
                     self.memory_dialing_number.clone()
                 } else {
                     Some(number)
@@ -1845,19 +1989,19 @@ impl BluetoothMedia {
 
     fn uhid_destroy(&mut self, addr: &RawAddress) {
         if let Some(uhid) = self.uhid.get_mut(addr) {
-            debug!("[{}]: UHID destroy", DisplayAddress(&addr));
+            debug!("[{}]: UHID destroy", DisplayAddress(addr));
             match uhid.handle.destroy() {
                 Err(e) => log::error!(
                     "[{}]: UHID destroy: Fail to destroy uhid {}",
-                    DisplayAddress(&addr),
+                    DisplayAddress(addr),
                     e
                 ),
                 Ok(_) => (),
             };
             self.uhid.remove(addr);
-            self.notify_telephony_event(&addr, TelephonyEvent::UHidDestroy);
+            self.notify_telephony_event(addr, TelephonyEvent::UHidDestroy);
         } else {
-            debug!("[{}]: UHID destroy: not a UHID device", DisplayAddress(&addr));
+            debug!("[{}]: UHID destroy: not a UHID device", DisplayAddress(addr));
         }
     }
 
@@ -1868,7 +2012,7 @@ impl BluetoothMedia {
         if let Some(uhid) = self.uhid.get_mut(addr) {
             info!(
                 "[{}]: UHID: Send telephony hid input report. hook_switch({}), mute({}), drop({})",
-                DisplayAddress(&addr),
+                DisplayAddress(addr),
                 (data & UHID_INPUT_HOOK_SWITCH) != 0,
                 (data & UHID_INPUT_PHONE_MUTE) != 0,
                 (data & UHID_INPUT_DROP) != 0,
@@ -1876,7 +2020,7 @@ impl BluetoothMedia {
             match uhid.handle.send_input(data) {
                 Err(e) => log::error!(
                     "[{}]: UHID: Fail to send hid input report. err:{}",
-                    DisplayAddress(&addr),
+                    DisplayAddress(addr),
                     e
                 ),
                 Ok(_) => (),
@@ -1899,7 +2043,7 @@ impl BluetoothMedia {
             if uhid.muted {
                 data |= UHID_INPUT_PHONE_MUTE;
             }
-            self.uhid_send_input_event_report(&addr, data);
+            self.uhid_send_input_event_report(addr, data);
         };
     }
     fn uhid_send_phone_mute_input_report(&mut self, addr: &RawAddress, muted: bool) {
@@ -1915,13 +2059,13 @@ impl BluetoothMedia {
             }
             info!(
                 "[{}]: UHID: Send phone_mute({}) hid input report. hook-switch({})",
-                DisplayAddress(&addr),
+                DisplayAddress(addr),
                 muted,
                 call_active
             );
             if muted {
                 data |= UHID_INPUT_PHONE_MUTE;
-                self.uhid_send_input_event_report(&addr, data);
+                self.uhid_send_input_event_report(addr, data);
             } else {
                 // We follow the same pattern as the USB headset, which sends an
                 // additional phone mute=1 event when unmuting the microphone.
@@ -1929,9 +2073,9 @@ impl BluetoothMedia {
                 // mute=0 and treat the phone mute=1 event as a toggle rather than
                 // an on off control.
                 data |= UHID_INPUT_PHONE_MUTE;
-                self.uhid_send_input_event_report(&addr, data);
+                self.uhid_send_input_event_report(addr, data);
                 data &= !UHID_INPUT_PHONE_MUTE;
-                self.uhid_send_input_event_report(&addr, data);
+                self.uhid_send_input_event_report(addr, data);
             }
         };
     }
@@ -2025,10 +2169,7 @@ impl BluetoothMedia {
         // Defaults to Idle if no calls are present.
         // Revisit this logic if the system supports multiple concurrent calls in the future (e.g., three-way-call).
         let mut call_state = CallState::Idle;
-        for c in self.call_list.iter() {
-            call_state = c.state;
-            break;
-        }
+        self.call_list.first().map(|c| call_state = c.state);
         self.telephony_callbacks.lock().unwrap().for_all_callbacks(|callback| {
             callback.on_telephony_event(*addr, u8::from(event), u8::from(call_state));
         });
@@ -2171,7 +2312,7 @@ impl BluetoothMedia {
     fn is_bonded(&self, addr: &RawAddress) -> bool {
         match &self.adapter {
             Some(adapter) => {
-                BtBondState::Bonded == adapter.lock().unwrap().get_bond_state_by_addr(&addr)
+                BtBondState::Bonded == adapter.lock().unwrap().get_bond_state_by_addr(addr)
             }
             _ => false,
         }
@@ -2196,7 +2337,16 @@ impl BluetoothMedia {
                 // Ignore unless all profiles are cleared, where we need to do some clean up.
                 if !is_profile_cleared {
                     // Unbonded device is special, we need to reject the connection from them.
-                    if !self.is_bonded(&addr) {
+                    // However, it's rather tricky to distinguish between these two cases:
+                    // (1) the unbonded device tries to reconnect some of the profiles.
+                    // (2) we just unbond a device, so now the profiles are disconnected one-by-one.
+                    // In case of (2), we should not send async_disconnect too soon because doing so
+                    // might prevent on_bluetooth_audio_device_removed() from firing, since the conn
+                    // state is already "Disconnecting" in notify_critical_profile_disconnected.
+                    // Therefore to prevent it, we also check the state is still FullyConnected.
+                    if !self.is_bonded(&addr)
+                        && states.get(&addr).unwrap() != &DeviceConnectionStates::FullyConnected
+                    {
                         let tasks = self.fallback_tasks.clone();
                         let states = self.device_states.clone();
                         let txl = self.tx.clone();
@@ -2226,7 +2376,7 @@ impl BluetoothMedia {
         let available_profiles = self.adapter_get_classic_audio_profiles(addr);
         let connected_profiles = self.connected_profiles.get(&addr).unwrap();
         let missing_profiles =
-            available_profiles.difference(&connected_profiles).cloned().collect::<HashSet<_>>();
+            available_profiles.difference(connected_profiles).cloned().collect::<HashSet<_>>();
 
         // Update device states
         if states.get(&addr).is_none() {
@@ -2258,19 +2408,17 @@ impl BluetoothMedia {
 
                     states.insert(addr, DeviceConnectionStates::WaitingConnection);
                 }
-            } else {
-                if missing_profiles.is_empty()
-                    || missing_profiles == HashSet::from([Profile::AvrcpController])
-                {
-                    info!(
-                        "[{}]: Fully connected, available profiles: {:?}, connected profiles: {:?}.",
-                        DisplayAddress(&addr),
-                        available_profiles,
-                        connected_profiles
-                    );
+            } else if missing_profiles.is_empty()
+                || missing_profiles == HashSet::from([Profile::AvrcpController])
+            {
+                info!(
+                    "[{}]: Fully connected, available profiles: {:?}, connected profiles: {:?}.",
+                    DisplayAddress(&addr),
+                    available_profiles,
+                    connected_profiles
+                );
 
-                    states.insert(addr, DeviceConnectionStates::FullyConnected);
-                }
+                states.insert(addr, DeviceConnectionStates::FullyConnected);
             }
         }
 
@@ -2395,7 +2543,7 @@ impl BluetoothMedia {
         }
     }
 
-    fn adapter_get_le_audio_profiles(&self, addr: RawAddress) -> HashSet<uuid::Profile> {
+    fn adapter_get_le_audio_profiles(&self, addr: RawAddress) -> HashSet<Profile> {
         let device = BluetoothDevice::new(addr, "".to_string());
         if let Some(adapter) = &self.adapter {
             adapter
@@ -2403,15 +2551,15 @@ impl BluetoothMedia {
                 .unwrap()
                 .get_remote_uuids(device)
                 .into_iter()
-                .filter_map(|u| uuid::UuidHelper::is_known_profile(&u))
-                .filter(|u| MEDIA_LE_AUDIO_PROFILES.contains(&u))
+                .filter_map(|u| UuidHelper::is_known_profile(&u))
+                .filter(|u| MEDIA_LE_AUDIO_PROFILES.contains(u))
                 .collect()
         } else {
             HashSet::new()
         }
     }
 
-    fn adapter_get_classic_audio_profiles(&self, addr: RawAddress) -> HashSet<uuid::Profile> {
+    fn adapter_get_classic_audio_profiles(&self, addr: RawAddress) -> HashSet<Profile> {
         let device = BluetoothDevice::new(addr, "".to_string());
         if let Some(adapter) = &self.adapter {
             adapter
@@ -2419,8 +2567,8 @@ impl BluetoothMedia {
                 .unwrap()
                 .get_remote_uuids(device)
                 .into_iter()
-                .filter_map(|u| uuid::UuidHelper::is_known_profile(&u))
-                .filter(|u| MEDIA_CLASSIC_AUDIO_PROFILES.contains(&u))
+                .filter_map(|u| UuidHelper::is_known_profile(&u))
+                .filter(|u| MEDIA_CLASSIC_AUDIO_PROFILES.contains(u))
                 .collect()
         } else {
             HashSet::new()
@@ -2501,8 +2649,8 @@ impl BluetoothMedia {
         devices
             .iter()
             .filter(|d| {
-                self.is_any_profile_connected(&d.address, &MEDIA_CLASSIC_AUDIO_PROFILES)
-                    || self.is_any_profile_connected(&d.address, &MEDIA_LE_AUDIO_PROFILES)
+                self.is_any_profile_connected(&d.address, MEDIA_CLASSIC_AUDIO_PROFILES)
+                    || self.is_any_profile_connected(&d.address, MEDIA_LE_AUDIO_PROFILES)
             })
             .cloned()
             .collect()
@@ -2928,7 +3076,7 @@ impl BluetoothMedia {
             }
         };
 
-        return interop_insert_call_when_sco_start(address);
+        interop_insert_call_when_sco_start(address)
     }
     // Places an active call into the call list and triggers a headset update (+CIEV).
     // Preconditions:
@@ -2945,14 +3093,19 @@ impl BluetoothMedia {
             return;
         }
 
-        self.call_list.push(CallInfo {
-            index: 1,
-            dir_incoming: false,
-            state: CallState::Active,
-            number: "".into(),
-        });
-        self.phone_state.num_active = 1;
-        self.phone_state_change("".into());
+        self.dialing_call_impl("".into(), None);
+        self.answer_call_impl();
+    }
+
+    pub fn get_group_devices(&self, group_id: i32) -> HashSet<RawAddress> {
+        match self.le_audio_groups.get(&group_id) {
+            Some(g) => g.devices.clone(),
+            _ => HashSet::new(),
+        }
+    }
+
+    pub fn get_group_id(&self, addr: RawAddress) -> i32 {
+        *self.le_audio_node_to_group.get(&addr).unwrap_or(&LEA_UNKNOWN_GROUP_ID)
     }
 }
 
@@ -3069,15 +3222,7 @@ impl IBluetoothMedia for BluetoothMedia {
 
         // TODO(b/284811956) A2DP needs to be enabled before AVRCP otherwise AVRCP gets memset'd.
         // Iterate the delay_enable_profiles hashmap directly when this is fixed.
-        let profile_order = vec![
-            Profile::A2dpSource,
-            Profile::AvrcpTarget,
-            Profile::Hfp,
-            Profile::LeAudio,
-            Profile::VolumeControl,
-            Profile::CoordinatedSet,
-        ];
-        for profile in profile_order {
+        for profile in MEDIA_PROFILE_ENABLE_ORDER {
             if self.delay_enable_profiles.contains(&profile) {
                 self.enable_profile(&profile);
             }
@@ -3092,13 +3237,13 @@ impl IBluetoothMedia for BluetoothMedia {
         // discovery of LE audio profiles.
         for profile in MEDIA_LE_AUDIO_PROFILES {
             match profile {
-                uuid::Profile::LeAudio => {
+                Profile::LeAudio => {
                     self.connect_lea(addr);
                 }
-                uuid::Profile::VolumeControl => {
+                Profile::VolumeControl => {
                     self.connect_vc(addr);
                 }
-                uuid::Profile::CoordinatedSet => {
+                Profile::CoordinatedSet => {
                     self.connect_csis(addr);
                 }
                 _ => {}
@@ -3107,7 +3252,7 @@ impl IBluetoothMedia for BluetoothMedia {
     }
 
     fn disconnect_lea_group_by_member_address(&mut self, addr: RawAddress) {
-        let group_id = *self.le_audio_node_to_group.get(&addr).unwrap_or(&LEA_UNKNOWN_GROUP_ID);
+        let group_id = self.get_group_id(addr);
         if group_id == LEA_UNKNOWN_GROUP_ID {
             warn!(
                 "disconnect_lea_group_by_member_address: [{}]: address belongs to no group",
@@ -3116,7 +3261,7 @@ impl IBluetoothMedia for BluetoothMedia {
             return;
         }
 
-        let group = self.le_audio_groups.get(&group_id).unwrap_or(&HashSet::new()).clone();
+        let group = self.le_audio_groups.entry(group_id).or_default().clone();
 
         let available_profiles = self.adapter_get_le_audio_profiles(addr);
 
@@ -3126,16 +3271,16 @@ impl IBluetoothMedia for BluetoothMedia {
             available_profiles
         );
 
-        for &member_addr in group.iter() {
+        for &member_addr in group.devices.iter() {
             for profile in self.adapter_get_le_audio_profiles(addr) {
                 match profile {
-                    uuid::Profile::LeAudio => {
+                    Profile::LeAudio => {
                         self.disconnect_lea(member_addr);
                     }
-                    uuid::Profile::VolumeControl => {
+                    Profile::VolumeControl => {
                         self.disconnect_vc(member_addr);
                     }
-                    uuid::Profile::CoordinatedSet => {
+                    Profile::CoordinatedSet => {
                         self.disconnect_csis(member_addr);
                     }
                     _ => {}
@@ -3319,11 +3464,11 @@ impl IBluetoothMedia for BluetoothMedia {
             available_profiles
         );
 
-        let connected_profiles = self.connected_profiles.entry(addr).or_insert_with(HashSet::new);
+        let connected_profiles = self.connected_profiles.entry(addr).or_default();
 
         // Sort here so the order of connection is always consistent
         let missing_profiles =
-            available_profiles.difference(&connected_profiles).sorted().collect::<Vec<_>>();
+            available_profiles.difference(connected_profiles).sorted().collect::<Vec<_>>();
 
         // Connect the profiles one-by-one so it won't stuck at the lower layer.
         // Therefore, just connect to one profile for now.
@@ -3331,7 +3476,7 @@ impl IBluetoothMedia for BluetoothMedia {
         let mut is_connect = false;
         for profile in missing_profiles {
             match profile {
-                uuid::Profile::A2dpSink => {
+                Profile::A2dpSink => {
                     metrics::profile_connection_state_changed(
                         addr,
                         Profile::A2dpSink as u32,
@@ -3364,7 +3509,7 @@ impl IBluetoothMedia for BluetoothMedia {
                         }
                     };
                 }
-                uuid::Profile::Hfp => {
+                Profile::Hfp => {
                     metrics::profile_connection_state_changed(
                         addr,
                         Profile::Hfp as u32,
@@ -3397,7 +3542,7 @@ impl IBluetoothMedia for BluetoothMedia {
                         }
                     };
                 }
-                uuid::Profile::AvrcpController => {
+                Profile::AvrcpController => {
                     // Fluoride will resolve AVRCP as a part of A2DP connection request.
                     // Explicitly connect to it only when it is considered missing, and don't
                     // bother about it when A2DP is not connected.
@@ -3448,7 +3593,7 @@ impl IBluetoothMedia for BluetoothMedia {
         if is_connect {
             let mut tasks = self.fallback_tasks.lock().unwrap();
             let mut states = self.device_states.lock().unwrap();
-            if !tasks.contains_key(&addr) {
+            if let std::collections::hash_map::Entry::Vacant(e) = tasks.entry(addr) {
                 states.insert(addr, DeviceConnectionStates::Initiating);
 
                 let fallback_tasks = self.fallback_tasks.clone();
@@ -3467,13 +3612,17 @@ impl IBluetoothMedia for BluetoothMedia {
                         fallback_tasks.lock().unwrap().remove(&addr);
                     }
                 });
-                tasks.insert(addr, Some((task, now_ts)));
+                e.insert(Some((task, now_ts)));
             }
         }
     }
 
+    fn is_initialized(&self) -> bool {
+        self.initialized
+    }
+
     fn cleanup(&mut self) -> bool {
-        true
+        self.cleanup()
     }
 
     // This may not disconnect all media profiles at once, but once the stack
@@ -3498,7 +3647,7 @@ impl IBluetoothMedia for BluetoothMedia {
 
         for profile in connected_profiles {
             match profile {
-                uuid::Profile::A2dpSink => {
+                Profile::A2dpSink => {
                     // Some headsets (b/278963515) will try reconnecting to A2DP
                     // when HFP is running but (requested to be) disconnected.
                     // TODO: Remove this workaround once proper fix lands.
@@ -3534,7 +3683,7 @@ impl IBluetoothMedia for BluetoothMedia {
                         }
                     };
                 }
-                uuid::Profile::Hfp => {
+                Profile::Hfp => {
                     metrics::profile_connection_state_changed(
                         addr,
                         Profile::Hfp as u32,
@@ -3564,7 +3713,7 @@ impl IBluetoothMedia for BluetoothMedia {
                         }
                     };
                 }
-                uuid::Profile::AvrcpController => {
+                Profile::AvrcpController => {
                     if connected_profiles.contains(&Profile::A2dpSink) {
                         continue;
                     }
@@ -3694,9 +3843,9 @@ impl IBluetoothMedia for BluetoothMedia {
                         let config = vec![A2dpCodecConfig {
                             codec_type: codec_type as i32,
                             codec_priority: A2dpCodecPriority::Highest as i32,
-                            sample_rate: sample_rate.bits() as i32,
-                            bits_per_sample: bits_per_sample.bits() as i32,
-                            channel_mode: channel_mode.bits() as i32,
+                            sample_rate: sample_rate.bits(),
+                            bits_per_sample: bits_per_sample.bits(),
+                            channel_mode: channel_mode.bits(),
                             ..Default::default()
                         }];
 
@@ -3756,12 +3905,23 @@ impl IBluetoothMedia for BluetoothMedia {
         };
     }
 
-    fn start_audio_request(&mut self) -> bool {
+    fn start_audio_request(&mut self, connection_listener: File) -> bool {
+        if self.a2dp_audio_connection_listener.is_some() {
+            warn!("start_audio_request: replacing an unresolved listener");
+        }
+
+        self.a2dp_audio_connection_listener = Some(connection_listener);
         self.start_audio_request_impl()
     }
 
-    fn stop_audio_request(&mut self) {
+    fn stop_audio_request(&mut self, connection_listener: File) {
         debug!("Stop audio request");
+
+        if self.a2dp_audio_connection_listener.is_some() {
+            warn!("stop_audio_request: replacing an unresolved listener");
+        }
+
+        self.a2dp_audio_connection_listener = Some(connection_listener);
 
         match self.a2dp.as_mut() {
             Some(a2dp) => a2dp.stop_audio_request(),
@@ -3774,11 +3934,22 @@ impl IBluetoothMedia for BluetoothMedia {
         address: RawAddress,
         sco_offload: bool,
         disabled_codecs: HfpCodecBitId,
+        connection_listener: File,
     ) -> bool {
+        if self.hfp_audio_connection_listener.is_some() {
+            warn!("start_sco_call: replacing an unresolved listener");
+        }
+
+        self.hfp_audio_connection_listener = Some(connection_listener);
         self.start_sco_call_impl(address, sco_offload, disabled_codecs)
     }
 
-    fn stop_sco_call(&mut self, address: RawAddress) {
+    fn stop_sco_call(&mut self, address: RawAddress, listener: File) {
+        if self.hfp_audio_connection_listener.is_some() {
+            warn!("stop_sco_call: replacing an unresolved listener");
+        }
+
+        self.hfp_audio_connection_listener = Some(listener);
         self.stop_sco_call_impl(address)
     }
 
@@ -3966,22 +4137,22 @@ impl IBluetoothMedia for BluetoothMedia {
         }
     }
 
-    fn get_host_stream_started(&mut self) -> bool {
+    fn get_host_stream_started(&mut self) -> BtLeStreamStartedStatus {
         match self.le_audio.as_mut() {
             Some(le_audio) => le_audio.get_host_stream_started(),
             None => {
                 warn!("Uninitialized LEA to get_host_stream_started");
-                Default::default()
+                BtLeStreamStartedStatus::Idle
             }
         }
     }
 
-    fn get_peer_stream_started(&mut self) -> bool {
+    fn get_peer_stream_started(&mut self) -> BtLeStreamStartedStatus {
         match self.le_audio.as_mut() {
             Some(le_audio) => le_audio.get_peer_stream_started(),
             None => {
                 warn!("Uninitialized LEA to get_peer_stream_started");
-                Default::default()
+                BtLeStreamStartedStatus::Idle
             }
         }
     }
@@ -3997,14 +4168,19 @@ impl IBluetoothMedia for BluetoothMedia {
     }
 
     fn get_group_stream_status(&mut self, group_id: i32) -> BtLeAudioGroupStreamStatus {
-        *self
-            .le_audio_group_stream_status
-            .get(&group_id)
-            .unwrap_or(&BtLeAudioGroupStreamStatus::Idle)
+        if self.le_audio_groups.get(&group_id).is_none() {
+            return BtLeAudioGroupStreamStatus::Idle;
+        }
+
+        self.le_audio_groups.get(&group_id).unwrap().stream_status
     }
 
     fn get_group_status(&mut self, group_id: i32) -> BtLeAudioGroupStatus {
-        *self.le_audio_group_status.get(&group_id).unwrap_or(&BtLeAudioGroupStatus::Inactive)
+        if self.le_audio_groups.get(&group_id).is_none() {
+            return BtLeAudioGroupStatus::Inactive;
+        }
+
+        self.le_audio_groups.get(&group_id).unwrap().status
     }
 
     fn set_group_volume(&mut self, group_id: i32, volume: u8) {
@@ -4043,7 +4219,7 @@ impl IBluetoothTelephony for BluetoothMedia {
     }
 
     fn set_signal_strength(&mut self, signal_strength: i32) -> bool {
-        if signal_strength < 0 || signal_strength > 5 {
+        if !(0..=5).contains(&signal_strength) {
             warn!("Invalid signal strength, got {}, want 0 to 5", signal_strength);
             return false;
         }
@@ -4058,7 +4234,7 @@ impl IBluetoothTelephony for BluetoothMedia {
     }
 
     fn set_battery_level(&mut self, battery_level: i32) -> bool {
-        if battery_level < 0 || battery_level > 5 {
+        if !(0..=5).contains(&battery_level) {
             warn!("Invalid battery level, got {}, want 0 to 5", battery_level);
             return false;
         }
@@ -4127,7 +4303,7 @@ impl IBluetoothTelephony for BluetoothMedia {
             warn!("Unexpected incoming_call dbus command. mps_qualification_enabled does not enabled.");
             return false;
         }
-        return self.incoming_call_impl(number);
+        self.incoming_call_impl(number)
     }
 
     fn dialing_call(&mut self, number: String) -> bool {
@@ -4135,7 +4311,7 @@ impl IBluetoothTelephony for BluetoothMedia {
             warn!("Unexpected incoming_call dbus command. mps_qualification_enabled does not enabled.");
             return false;
         }
-        return self.dialing_call_impl(number, None);
+        self.dialing_call_impl(number, None)
     }
 
     fn answer_call(&mut self) -> bool {
@@ -4145,7 +4321,7 @@ impl IBluetoothTelephony for BluetoothMedia {
             );
             return false;
         }
-        return self.answer_call_impl();
+        self.answer_call_impl()
     }
 
     fn hangup_call(&mut self) -> bool {
@@ -4155,7 +4331,7 @@ impl IBluetoothTelephony for BluetoothMedia {
             );
             return false;
         }
-        return self.hangup_call_impl();
+        self.hangup_call_impl()
     }
 
     fn set_memory_call(&mut self, number: Option<String>) -> bool {
@@ -4183,7 +4359,7 @@ impl IBluetoothTelephony for BluetoothMedia {
             );
             return false;
         }
-        return self.release_held_impl(None);
+        self.release_held_impl(None)
     }
 
     fn release_active_accept_held(&mut self) -> bool {
@@ -4191,7 +4367,7 @@ impl IBluetoothTelephony for BluetoothMedia {
             warn!("Unexpected release_active_accept_held dbus command. mps_qualification_enabled does not enabled.");
             return false;
         }
-        return self.release_active_accept_held_impl(None);
+        self.release_active_accept_held_impl(None)
     }
 
     fn hold_active_accept_held(&mut self) -> bool {
@@ -4199,7 +4375,7 @@ impl IBluetoothTelephony for BluetoothMedia {
             warn!("Unexpected hold_active_accept_held dbus command. mps_qualification_enabled does not enabled.");
             return false;
         }
-        return self.hold_active_accept_held_impl(None);
+        self.hold_active_accept_held_impl(None)
     }
 
     fn audio_connect(&mut self, address: RawAddress) -> bool {

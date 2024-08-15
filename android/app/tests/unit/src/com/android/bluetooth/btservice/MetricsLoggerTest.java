@@ -54,8 +54,6 @@ import java.util.Map;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class MetricsLoggerTest {
-    private static final String TEST_BLOOMFILTER_NAME = "TestBloomfilter";
-
     private static final HashMap<String, String> SANITIZED_DEVICE_NAME_MAP = new HashMap<>();
 
     static {
@@ -91,7 +89,7 @@ public class MetricsLoggerTest {
 
     @Mock private AdapterService mMockAdapterService;
 
-    public class TestableMetricsLogger extends MetricsLogger {
+    private static class TestableMetricsLogger extends MetricsLogger {
         public HashMap<Integer, Long> mTestableCounters = new HashMap<>();
         public HashMap<String, Integer> mTestableDeviceNames = new HashMap<>();
 
@@ -118,7 +116,7 @@ public class MetricsLoggerTest {
         // Dump metrics to clean up internal states
         MetricsLogger.dumpProto(BluetoothLog.newBuilder());
         mTestableMetricsLogger = new TestableMetricsLogger();
-        mTestableMetricsLogger.mBloomFilterInitialized = true;
+        mTestableMetricsLogger.init(mMockAdapterService);
         doReturn(null).when(mMockAdapterService).registerReceiver(any(), any());
     }
 
@@ -157,7 +155,7 @@ public class MetricsLoggerTest {
         MetricsLogger.dumpProto(metricsBuilder);
         BluetoothLog metricsProto = metricsBuilder.build();
         Assert.assertEquals(2, metricsProto.getProfileConnectionStatsCount());
-        HashMap<ProfileId, ProfileConnectionStats> profileConnectionCountMap =
+        Map<ProfileId, ProfileConnectionStats> profileConnectionCountMap =
                 getProfileUsageStatsMap(metricsProto.getProfileConnectionStatsList());
         Assert.assertTrue(profileConnectionCountMap.containsKey(ProfileId.AVRCP));
         Assert.assertEquals(
@@ -172,7 +170,7 @@ public class MetricsLoggerTest {
         Assert.assertEquals(0, metricsProtoAfterDump.getProfileConnectionStatsCount());
     }
 
-    private static HashMap<ProfileId, ProfileConnectionStats> getProfileUsageStatsMap(
+    private static Map<ProfileId, ProfileConnectionStats> getProfileUsageStatsMap(
             List<ProfileConnectionStats> profileUsageStats) {
         HashMap<ProfileId, ProfileConnectionStats> profileUsageStatsMap = new HashMap<>();
         profileUsageStats.forEach(item -> profileUsageStatsMap.put(item.getProfileId(), item));
@@ -182,7 +180,6 @@ public class MetricsLoggerTest {
     /** Test add counters and send them to statsd */
     @Test
     public void testAddAndSendCountersNormalCases() {
-        mTestableMetricsLogger.init(mMockAdapterService);
         mTestableMetricsLogger.cacheCount(1, 10);
         mTestableMetricsLogger.cacheCount(1, 10);
         mTestableMetricsLogger.cacheCount(2, 5);
@@ -203,7 +200,6 @@ public class MetricsLoggerTest {
 
     @Test
     public void testAddAndSendCountersCornerCases() {
-        mTestableMetricsLogger.init(mMockAdapterService);
         Assert.assertTrue(mTestableMetricsLogger.isInitialized());
         mTestableMetricsLogger.cacheCount(1, -1);
         mTestableMetricsLogger.cacheCount(3, 0);
@@ -219,7 +215,6 @@ public class MetricsLoggerTest {
 
     @Test
     public void testMetricsLoggerClose() {
-        mTestableMetricsLogger.init(mMockAdapterService);
         mTestableMetricsLogger.cacheCount(1, 1);
         mTestableMetricsLogger.cacheCount(2, 10);
         mTestableMetricsLogger.cacheCount(2, Long.MAX_VALUE);
@@ -232,6 +227,7 @@ public class MetricsLoggerTest {
 
     @Test
     public void testMetricsLoggerNotInit() {
+        mTestableMetricsLogger.close();
         Assert.assertFalse(mTestableMetricsLogger.cacheCount(1, 1));
         mTestableMetricsLogger.drainBufferedCounters();
         Assert.assertFalse(mTestableMetricsLogger.mTestableCounters.containsKey(1));
@@ -240,7 +236,6 @@ public class MetricsLoggerTest {
 
     @Test
     public void testAddAndSendCountersDoubleInit() {
-        Assert.assertTrue(mTestableMetricsLogger.init(mMockAdapterService));
         Assert.assertTrue(mTestableMetricsLogger.isInitialized());
         Assert.assertFalse(mTestableMetricsLogger.init(mMockAdapterService));
     }
@@ -264,7 +259,7 @@ public class MetricsLoggerTest {
                 TestUtils.getTestDevice(BluetoothAdapter.getDefaultAdapter(), 0);
 
         byte[] remoteDeviceInformationBytes =
-                MetricsLogger.getInstance().getRemoteDeviceInfoProto(bluetoothDevice);
+                mTestableMetricsLogger.getRemoteDeviceInfoProto(bluetoothDevice);
 
         try {
             BluetoothRemoteDeviceInformation bluetoothRemoteDeviceInformation =

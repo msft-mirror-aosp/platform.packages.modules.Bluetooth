@@ -23,9 +23,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.bluetooth.BluetoothManager;
 import android.content.Intent;
-import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.IBinder;
 import android.provider.Settings;
@@ -61,9 +59,6 @@ public class NotificationHelperService extends Service {
     private static final String NOTIFICATION_EXTRA =
             "android.bluetooth.notification.extra.NOTIFICATION_REASON";
 
-    private static final String AUTO_ON_USER_ACTION =
-            "android.bluetooth.notification.action.AUTO_ON_USER_ACTION";
-
     private static final Map<String, Pair<Integer /* titleId */, Integer /* messageId */>>
             NOTIFICATION_MAP =
                     Map.of(
@@ -94,9 +89,6 @@ public class NotificationHelperService extends Service {
         switch (intent.getAction()) {
             case NOTIFICATION_ACTION -> {
                 sendToggleNotification(intent.getStringExtra(NOTIFICATION_EXTRA));
-            }
-            case AUTO_ON_USER_ACTION -> {
-                autoOnUserAction();
             }
         }
         return Service.START_NOT_STICKY;
@@ -154,22 +146,13 @@ public class NotificationHelperService extends Service {
                                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                             PendingIntent.FLAG_IMMUTABLE));
         } else {
-            Intent baseIntent =
-                    new Intent()
-                            .setAction(AUTO_ON_USER_ACTION)
-                            .setClass(this, NotificationHelperService.class);
-            PendingIntent disablePendingIntent =
-                    PendingIntent.getService(
+            // Open the setting page when the notification is clicked
+            builder.setContentIntent(
+                    PendingIntent.getActivity(
                             this,
-                            0,
-                            new Intent(baseIntent),
-                            PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_ONE_SHOT);
-            builder.addAction(
-                    new Notification.Action.Builder(
-                                    Icon.createWithResource(this, R.drawable.ic_bluetooth_settings),
-                                    getString(R.string.bluetooth_disable_auto_on),
-                                    disablePendingIntent)
-                            .build());
+                            PendingIntent.FLAG_UPDATE_CURRENT,
+                            new Intent("android.settings.BLUETOOTH_DASHBOARD_SETTINGS"),
+                            PendingIntent.FLAG_IMMUTABLE));
         }
 
         notificationManager.notify(
@@ -177,27 +160,32 @@ public class NotificationHelperService extends Service {
     }
 
     private boolean shouldDisplayNotification(String countKey) {
-        final LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
         final String dateKey = countKey + "_date";
-        final String date = Settings.Secure.getString(getContentResolver(), dateKey);
         final int countShown = Settings.Secure.getInt(getContentResolver(), countKey, 0);
-
-        // The notification is always displayed the first time and if it has been at least…:
-        //  * … 1 week since the first display (aka recurring only once)
-        //  * … 6 months since the last display (aka recurring forever)
-
+        final LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
         LocalDateTime savedDate = null;
-        if (date != null) {
-            savedDate = LocalDateTime.parse(date);
-            if ((countShown == 1 && now.isBefore(savedDate.plusWeeks(1)))
-                    || now.isBefore(savedDate.plusMonths(6))) {
-                Log.i(
-                        TAG,
-                        ("shouldDisplayNotification(" + countKey + "): Notification discarded.")
-                                + (" countShown=" + countShown)
-                                + (" savedDate=" + savedDate));
-                return false;
+        if (countShown != 0) {
+            // Check the saved date only if there is a count of notification.
+            // This will detect manual override of the count setting.
+            final String date = Settings.Secure.getString(getContentResolver(), dateKey);
+
+            // The notification is always displayed the first time and if it has been at least…:
+            //  * … 1 week since the first display (aka recurring only once)
+            //  * … 6 months since the last display (aka recurring forever)
+
+            if (date != null) {
+                savedDate = LocalDateTime.parse(date);
+                if ((countShown == 1 && now.isBefore(savedDate.plusWeeks(1)))
+                        || now.isBefore(savedDate.plusMonths(6))) {
+                    Log.i(
+                            TAG,
+                            ("shouldDisplayNotification(" + countKey + "): Notification discarded.")
+                                    + (" countShown=" + countShown)
+                                    + (" savedDate=" + savedDate));
+                    return false;
+                }
             }
+
         }
 
         Settings.Secure.putInt(getContentResolver(), countKey, Math.min(3, countShown + 1));
@@ -208,13 +196,5 @@ public class NotificationHelperService extends Service {
                         + (" countShown=" + countShown)
                         + (" savedDate=" + savedDate));
         return true;
-    }
-
-    /** Process the tap on the Auto On popup action, that will disable the feature */
-    private void autoOnUserAction() {
-        getSystemService(BluetoothManager.class).getAdapter().setAutoOnEnabled(false);
-        String tag = NOTIFICATION_TAG + "/" + AUTO_ON_BT_ENABLED_NOTIFICATION;
-        getSystemService(NotificationManager.class)
-                .cancel(tag, SystemMessage.ID.NOTE_BT_APM_NOTIFICATION_VALUE);
     }
 }

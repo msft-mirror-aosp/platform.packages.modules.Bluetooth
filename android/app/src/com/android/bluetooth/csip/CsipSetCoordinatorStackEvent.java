@@ -21,9 +21,7 @@ import android.bluetooth.BluetoothDevice;
 
 import java.util.UUID;
 
-/**
- * CSIP Set Coordinator role stack event
- */
+/** CSIP Set Coordinator role stack event */
 public class CsipSetCoordinatorStackEvent {
     // Event types for STACK_EVENT message (coming from native)
     private static final int EVENT_TYPE_NONE = 0;
@@ -64,13 +62,13 @@ public class CsipSetCoordinatorStackEvent {
     public String toString() {
         // event dump
         StringBuilder result = new StringBuilder();
-        result.append("CsipSetCoordinatorStackEvent {type:" + eventTypeToString(type));
-        result.append(", device:" + device);
-        result.append(", " + eventTypeValueInt1ToString(type, valueInt1));
-        result.append(", " + eventTypeValueInt2ToString(type, valueInt2));
-        result.append(", " + eventTypeValueInt3ToString(type, valueInt3));
-        result.append(", " + eventTypeValueBool1ToString(type, valueBool1));
-        result.append(", " + eventTypeValueUuid1ToString(type, valueUuid1));
+        result.append("CsipSetCoordinatorStackEvent {type:").append(eventTypeToString(type));
+        result.append(", device:").append(device);
+        result.append(", ").append(eventTypeValueInt1ToString(type, valueInt1));
+        result.append(", ").append(eventTypeValueInt2ToString(type, valueInt2));
+        result.append(", ").append(eventTypeValueInt3ToString(type, valueInt3));
+        result.append(", ").append(eventTypeValueBool1ToString(type, valueBool1));
+        result.append(", ").append(eventTypeValueUuid1ToString(type, valueUuid1));
         result.append("}");
         return result.toString();
     }

@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import android.annotation.SuppressLint;
 import android.util.Log;
 import android.util.Xml;
 
@@ -27,37 +28,36 @@ import org.xmlpull.v1.XmlSerializer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 /**
  * Contains the metadata that describes either (1) the desired size of a image to be downloaded or
- * (2) the extact size of an image to be uploaded.
+ * (2) the exact size of an image to be uploaded.
  *
- * When using this to assert the size of an image to download/pull, it's best to derive this
+ * <p>When using this to assert the size of an image to download/pull, it's best to derive this
  * specific descriptor from any of the available BipImageFormat options returned from a
  * RequestGetImageProperties. Note that if a BipImageFormat is not of a fixed size type then you
  * must arrive on a desired fixed size for this descriptor.
  *
- * When using this to denote the size of an image when pushing an image for transfer this descriptor
- * must match the metadata of the image being sent.
+ * <p>When using this to denote the size of an image when pushing an image for transfer this
+ * descriptor must match the metadata of the image being sent.
  *
- * Note, the encoding and pixel values are mandatory by specification. The version number is fixed.
- * All other values are optional. The transformation field is to have *one* selected option in it.
+ * <p>Note, the encoding and pixel values are mandatory by specification. The version number is
+ * fixed. All other values are optional. The transformation field is to have *one* selected option
+ * in it.
  *
- * Example:
- *   < image-descriptor version=“1.0” >
- *   < image encoding=“JPEG” pixel=“1280*960” size=“500000”/>
- *   < /image-descriptor >
+ * <p>Example: < image-descriptor version=“1.0” > < image encoding=“JPEG” pixel=“1280*960”
+ * size=“500000”/> < /image-descriptor >
  */
 public class BipImageDescriptor {
     private static final String TAG = "avrcpcontroller.BipImageDescriptor";
     private static final String sVersion = "1.0";
 
-    /**
-     * A Builder for an ImageDescriptor object
-     */
+    /** A Builder for an ImageDescriptor object */
     public static class Builder {
         private BipImageDescriptor mImageDescriptor = new BipImageDescriptor();
+
         /**
          * Set the encoding for the descriptor you're building using a BipEncoding object
          *
@@ -147,14 +147,10 @@ public class BipImageDescriptor {
         }
     }
 
-    /**
-     * The encoding of the image, required by the specification
-     */
+    /** The encoding of the image, required by the specification */
     private BipEncoding mEncoding = null;
 
-    /**
-     * The width and height of the image, required by the specification
-     */
+    /** The width and height of the image, required by the specification */
     private BipPixel mPixel = null;
 
     /**
@@ -163,15 +159,13 @@ public class BipImageDescriptor {
      */
     private BipTransformation mTransformation = null;
 
-    /**
-     * The size in bytes of the image
-     */
+    /** The size in bytes of the image */
     private int mSize = -1;
 
     /**
      * The max size in bytes of the image.
      *
-     * Optional, used only when describing an image to pull
+     * <p>Optional, used only when describing an image to pull
      */
     private int mMaxSize = -1;
 
@@ -195,8 +189,9 @@ public class BipImageDescriptor {
                             mPixel = new BipPixel(xpp.getAttributeValue(null, "pixel"));
                             mSize = parseInt(xpp.getAttributeValue(null, "size"));
                             mMaxSize = parseInt(xpp.getAttributeValue(null, "maxsize"));
-                            mTransformation = new BipTransformation(
-                                        xpp.getAttributeValue(null, "transformation"));
+                            mTransformation =
+                                    new BipTransformation(
+                                            xpp.getAttributeValue(null, "transformation"));
                         } else {
                             Log.w(TAG, "Unrecognized tag in x-bt/img-Description object: " + tag);
                         }
@@ -252,31 +247,33 @@ public class BipImageDescriptor {
      */
     public byte[] serialize() {
         String s = toString();
-        try {
-            return s != null ? s.getBytes("UTF-8") : null;
-        } catch (UnsupportedEncodingException e) {
-            return null;
-        }
+        return s != null ? s.getBytes(StandardCharsets.UTF_8) : null;
     }
 
     @Override
     public boolean equals(Object o) {
-        if (o == this) return true;
-        if (!(o instanceof BipImageDescriptor)) return false;
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof BipImageDescriptor d)) {
+            return false;
+        }
 
-        BipImageDescriptor d = (BipImageDescriptor) o;
-        return d.getEncoding() == getEncoding()
-                && d.getPixel() == getPixel()
-                && d.getTransformation() == getTransformation()
+        return Objects.equals(d.getEncoding(), getEncoding())
+                && Objects.equals(d.getPixel(), getPixel())
+                && Objects.equals(d.getTransformation(), getTransformation())
                 && d.getSize() == getSize()
                 && d.getMaxSize() == getMaxSize();
     }
 
     @Override
+    @SuppressLint("ToStringReturnsNull") // Since this is used for encoding to xml
     public String toString() {
         if (mEncoding == null || mPixel == null) {
-            error("Missing required fields [ " + (mEncoding == null ? "encoding " : "")
-                    + (mPixel == null ? "pixel " : ""));
+            error(
+                    "Missing required fields [ "
+                            + (mEncoding == null ? "encoding " : "")
+                            + (mPixel == null ? "pixel " : ""));
             return null;
         }
         StringWriter writer = new StringWriter();

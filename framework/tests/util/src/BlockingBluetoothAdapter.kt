@@ -22,12 +22,15 @@ import android.bluetooth.BluetoothAdapter.ACTION_BLE_STATE_CHANGED
 import android.bluetooth.BluetoothAdapter.STATE_BLE_ON
 import android.bluetooth.BluetoothAdapter.STATE_OFF
 import android.bluetooth.BluetoothAdapter.STATE_ON
+import android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF
+import android.bluetooth.BluetoothAdapter.STATE_TURNING_ON
 import android.bluetooth.BluetoothManager
 import android.bluetooth.test_utils.Permissions.withPermissions
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.provider.Settings
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlin.time.Duration
@@ -47,6 +50,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 
 private const val TAG: String = "BlockingBluetoothAdapter"
+// There is no access to the module only API Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE
+private const val BLE_SCAN_ALWAYS_AVAILABLE = "ble_scan_always_enabled"
 
 object BlockingBluetoothAdapter {
     private val context = InstrumentationRegistry.getInstrumentation().getContext()
@@ -63,9 +68,23 @@ object BlockingBluetoothAdapter {
 
     /** Set Bluetooth in BLE mode. Only works if it was OFF before */
     @JvmStatic
-    fun enableBLE(): Boolean {
+    fun enableBLE(toggleScanSetting: Boolean): Boolean {
         if (!state.eq(STATE_OFF)) {
             throw IllegalStateException("Invalid call to enableBLE while current state is: $state")
+        }
+        if (toggleScanSetting) {
+            Log.d(TAG, "Allowing the scan to be perform while Bluetooth is OFF")
+            Settings.Global.putInt(context.contentResolver, BLE_SCAN_ALWAYS_AVAILABLE, 1)
+            for (i in 1..5) {
+                if (adapter.isBleScanAlwaysAvailable()) {
+                    break
+                }
+                Log.d(TAG, "Ble scan not yet available... Sleeping 20 ms $i/5")
+                Thread.sleep(20)
+            }
+            if (!adapter.isBleScanAlwaysAvailable()) {
+                throw IllegalStateException("Could not enable BLE scan")
+            }
         }
         Log.d(TAG, "Call to enableBLE")
         if (!withPermissions(BLUETOOTH_CONNECT).use { adapter.enableBLE() }) {
@@ -86,6 +105,8 @@ object BlockingBluetoothAdapter {
             Log.e(TAG, "disableBLE: Failed")
             return false
         }
+        Log.d(TAG, "Disallowing the scan to be perform while Bluetooth is OFF")
+        Settings.Global.putInt(context.contentResolver, BLE_SCAN_ALWAYS_AVAILABLE, 0)
         return state.waitForStateWithTimeout(stateChangeTimeout, STATE_OFF)
     }
 
@@ -132,6 +153,8 @@ object BlockingBluetoothAdapter {
 
 private class AdapterStateListener(context: Context, private val adapter: BluetoothAdapter) {
     private val STATE_UNKNOWN = -42
+    private val STATE_BLE_TURNING_ON = 14 // BluetoothAdapter.STATE_BLE_TURNING_ON
+    private val STATE_BLE_TURNING_OFF = 16 // BluetoothAdapter.STATE_BLE_TURNING_OFF
 
     // Set to true once a call to disable is made, in order to force the differentiation between the
     // various state hidden within STATE_OFF (OFF, BLE_TURNING_ON, BLE_TURNING_OFF)
@@ -151,7 +174,7 @@ private class AdapterStateListener(context: Context, private val adapter: Blueto
                 awaitClose { context.unregisterReceiver(broadcastReceiver) }
             }
             .map { it.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) }
-            .onEach { Log.d(TAG, "State changed to ${BluetoothAdapter.nameForState(it)}") }
+            .onEach { Log.d(TAG, "State changed to ${nameForState(it)}") }
             .shareIn(CoroutineScope(Dispatchers.Default), SharingStarted.Eagerly, 1)
 
     private fun get(): Int =
@@ -171,11 +194,21 @@ private class AdapterStateListener(context: Context, private val adapter: Blueto
     fun eq(state: Int): Boolean = state == get()
 
     override fun toString(): String {
-        val currentState = get()
-        return if (currentState == STATE_UNKNOWN) {
-            "UNKNOWN: State is uncertain, oneOf(OFF, BLE_TURNING_ON, BLE_TURNING_OFF)"
-        } else {
-            BluetoothAdapter.nameForState(currentState)
+        return nameForState(get())
+    }
+
+    // Cts cannot use BluetoothAdapter.nameForState prior to T, some module test on R
+    private fun nameForState(state: Int): String {
+        return when (state) {
+            STATE_UNKNOWN -> "UNKNOWN: State is oneOf(OFF, BLE_TURNING_ON, BLE_TURNING_OFF)"
+            STATE_OFF -> "OFF"
+            STATE_TURNING_ON -> "TURNING_ON"
+            STATE_ON -> "ON"
+            STATE_TURNING_OFF -> "TURNING_OFF"
+            STATE_BLE_TURNING_ON -> "BLE_TURNING_ON"
+            STATE_BLE_ON -> "BLE_ON"
+            STATE_BLE_TURNING_OFF -> "BLE_TURNING_OFF"
+            else -> "?!?!? ($state) ?!?!? "
         }
     }
 

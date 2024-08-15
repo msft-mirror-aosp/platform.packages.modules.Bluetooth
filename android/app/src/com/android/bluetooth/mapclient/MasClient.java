@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.mapclient;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.bluetooth.SdpMasRecord;
@@ -44,24 +45,25 @@ public class MasClient {
     private static final int CONNECT = 0;
     private static final int DISCONNECT = 1;
     private static final int REQUEST = 2;
-    private static final byte[] BLUETOOTH_UUID_OBEX_MAS = new byte[]{
-            (byte) 0xbb,
-            0x58,
-            0x2b,
-            0x40,
-            0x42,
-            0x0c,
-            0x11,
-            (byte) 0xdb,
-            (byte) 0xb0,
-            (byte) 0xde,
-            0x08,
-            0x00,
-            0x20,
-            0x0c,
-            (byte) 0x9a,
-            0x66
-    };
+    private static final byte[] BLUETOOTH_UUID_OBEX_MAS =
+            new byte[] {
+                (byte) 0xbb,
+                0x58,
+                0x2b,
+                0x40,
+                0x42,
+                0x0c,
+                0x11,
+                (byte) 0xdb,
+                (byte) 0xb0,
+                (byte) 0xde,
+                0x08,
+                0x00,
+                0x20,
+                0x0c,
+                (byte) 0x9a,
+                0x66
+            };
     private static final byte OAP_TAGID_MAP_SUPPORTED_FEATURES = 0x29;
     private static final int L2CAP_INVALID_PSM = -1;
     private static final int MAP_FEATURE_NOTIFICATION_REGISTRATION = 0x00000001;
@@ -70,9 +72,11 @@ public class MasClient {
     private static final int MAP_FEATURE_UPLOADING = 0x00000008;
     private static final int MAP_FEATURE_EXTENDED_EVENT_REPORT_1_1 = 0x00000040;
     static final int MAP_SUPPORTED_FEATURES =
-            MAP_FEATURE_NOTIFICATION_REGISTRATION | MAP_FEATURE_NOTIFICATION
-            | MAP_FEATURE_BROWSING | MAP_FEATURE_UPLOADING
-            | MAP_FEATURE_EXTENDED_EVENT_REPORT_1_1;
+            MAP_FEATURE_NOTIFICATION_REGISTRATION
+                    | MAP_FEATURE_NOTIFICATION
+                    | MAP_FEATURE_BROWSING
+                    | MAP_FEATURE_UPLOADING
+                    | MAP_FEATURE_EXTENDED_EVENT_REPORT_1_1;
 
     private final StateMachine mCallback;
     private Handler mHandler;
@@ -84,8 +88,8 @@ public class MasClient {
     private boolean mConnected = false;
     SdpMasRecord mSdpMasRecord;
 
-    public MasClient(BluetoothDevice remoteDevice, StateMachine callback,
-            SdpMasRecord sdpMasRecord) {
+    public MasClient(
+            BluetoothDevice remoteDevice, StateMachine callback, SdpMasRecord sdpMasRecord) {
         if (remoteDevice == null) {
             throw new NullPointerException("Obex transport is null");
         }
@@ -95,13 +99,14 @@ public class MasClient {
         mThread = new HandlerThread("Client");
         mThread.start();
         /* This will block until the looper have started, hence it will be safe to use it,
-           when the constructor completes */
+        when the constructor completes */
         Looper looper = mThread.getLooper();
         mHandler = new MasClientHandler(looper, this);
 
         mHandler.obtainMessage(CONNECT).sendToTarget();
     }
 
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     private void connect() {
         try {
             int l2capSocket = mSdpMasRecord.getL2capPsm();
@@ -110,8 +115,10 @@ public class MasClient {
                 Log.d(TAG, "Connecting to OBEX on L2CAP channel " + l2capSocket);
                 mSocket = mRemoteDevice.createL2capSocket(l2capSocket);
             } else {
-                Log.d(TAG, "Connecting to OBEX on RFCOM channel "
-                        + mSdpMasRecord.getRfcommCannelNumber());
+                Log.d(
+                        TAG,
+                        "Connecting to OBEX on RFCOM channel "
+                                + mSdpMasRecord.getRfcommCannelNumber());
                 mSocket = mRemoteDevice.createRfcommSocket(mSdpMasRecord.getRfcommCannelNumber());
             }
             Log.d(TAG, mRemoteDevice.toString() + "Socket: " + mSocket.toString());
@@ -203,7 +210,8 @@ public class MasClient {
     }
 
     public enum CharsetType {
-        NATIVE, UTF_8;
+        NATIVE,
+        UTF_8;
     }
 
     SdpMasRecord getSdpMasRecord() {
@@ -242,5 +250,4 @@ public class MasClient {
             }
         }
     }
-
 }

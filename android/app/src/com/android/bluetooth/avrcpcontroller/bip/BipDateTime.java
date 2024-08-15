@@ -16,9 +16,12 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import android.annotation.SuppressLint;
+
+import com.android.bluetooth.Utils;
+
 import java.util.Calendar;
 import java.util.Date;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
@@ -27,18 +30,13 @@ import java.util.regex.Pattern;
 /**
  * An object representing a DateTime sent over the Basic Imaging Profile
  *
- * Date-time format is as follows:
+ * <p>Date-time format is as follows:
  *
- *    YYYYMMDDTHHMMSSZ, where
- *      Y/M/D/H/M/S - years, months, days, hours, minutes, seconds
- *      T           - A delimiter
- *      Z           - An optional, but recommended, character indicating the time is in UTC. If UTC
- *                    is not used then we're to assume "local timezone" instead.
+ * <p>YYYYMMDDTHHMMSSZ, where Y/M/D/H/M/S - years, months, days, hours, minutes, seconds T - A
+ * delimiter Z - An optional, but recommended, character indicating the time is in UTC. If UTC is
+ * not used then we're to assume "local timezone" instead.
  *
- * Example date-time values:
- *    20000101T000000Z
- *    20000101T235959Z
- *    20000101T000000
+ * <p>Example date-time values: 20000101T000000Z 20000101T235959Z 20000101T000000
  */
 public class BipDateTime {
     private static final String TAG = "avrcpcontroller.BipDateTime";
@@ -49,12 +47,12 @@ public class BipDateTime {
     public BipDateTime(String time) {
         try {
             /*
-            * Match groups for the timestamp are numbered as follows:
-            *
-            *     YYYY MM DD T HH MM SS Z
-            *     ^^^^ ^^ ^^   ^^ ^^ ^^ ^
-            *     1    2  3    4  5  6  7
-            */
+             * Match groups for the timestamp are numbered as follows:
+             *
+             *     YYYY MM DD T HH MM SS Z
+             *     ^^^^ ^^ ^^   ^^ ^^ ^^ ^
+             *     1    2  3    4  5  6  7
+             */
             Pattern p = Pattern.compile("(\\d{4})(\\d{2})(\\d{2})T(\\d{2})(\\d{2})(\\d{2})([Z])?");
             Matcher m = p.matcher(time);
 
@@ -66,15 +64,17 @@ public class BipDateTime {
                 builder.setLenient(false);
 
                 /* Note that Calendar months are zero-based in Java framework */
-                builder.setDate(Integer.parseInt(m.group(1)), /* year */
-                        Integer.parseInt(m.group(2)) - 1,     /* month */
-                        Integer.parseInt(m.group(3)));        /* day of month */
+                builder.setDate(
+                        Integer.parseInt(m.group(1)), /* year */
+                        Integer.parseInt(m.group(2)) - 1, /* month */
+                        Integer.parseInt(m.group(3))); /* day of month */
 
                 /* Note the timestamp doesn't have milliseconds and we're explicitly setting to 0 */
-                builder.setTimeOfDay(Integer.parseInt(m.group(4)), /* hours */
-                        Integer.parseInt(m.group(5)),              /* minutes */
-                        Integer.parseInt(m.group(6)),              /* seconds */
-                        0);                                        /* milliseconds */
+                builder.setTimeOfDay(
+                        Integer.parseInt(m.group(4)), /* hours */
+                        Integer.parseInt(m.group(5)), /* minutes */
+                        Integer.parseInt(m.group(6)), /* seconds */
+                        0); /* milliseconds */
 
                 /* If the 7th group is matched then we have UTC based timestamp */
                 if (m.group(7) != null) {
@@ -115,14 +115,18 @@ public class BipDateTime {
 
     @Override
     public boolean equals(Object o) {
-        if (o == this) return true;
-        if (!(o instanceof BipDateTime)) return false;
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof BipDateTime d)) {
+            return false;
+        }
 
-        BipDateTime d = (BipDateTime) o;
-        return d.isUtc() == isUtc() && d.getTime() == getTime();
+        return d.isUtc() == isUtc() && Objects.equals(d.getTime(), getTime());
     }
 
     @Override
+    @SuppressLint("ToStringReturnsNull")
     public String toString() {
         Date d = getTime();
         if (d == null) {
@@ -137,15 +141,23 @@ public class BipDateTime {
             TimeZone utc = TimeZone.getTimeZone("UTC");
             utc.setRawOffset(0);
             cal.setTimeZone(utc);
-            return String.format(Locale.US, "%04d%02d%02dT%02d%02d%02dZ", cal.get(Calendar.YEAR),
-                    cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DATE),
-                    cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE),
+            return Utils.formatSimple(
+                    "%04d%02d%02dT%02d%02d%02dZ",
+                    cal.get(Calendar.YEAR),
+                    cal.get(Calendar.MONTH) + 1,
+                    cal.get(Calendar.DATE),
+                    cal.get(Calendar.HOUR_OF_DAY),
+                    cal.get(Calendar.MINUTE),
                     cal.get(Calendar.SECOND));
         } else {
             cal.setTimeZone(TimeZone.getDefault());
-            return String.format(Locale.US, "%04d%02d%02dT%02d%02d%02d", cal.get(Calendar.YEAR),
-                    cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DATE),
-                    cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE),
+            return Utils.formatSimple(
+                    "%04d%02d%02dT%02d%02d%02d",
+                    cal.get(Calendar.YEAR),
+                    cal.get(Calendar.MONTH) + 1,
+                    cal.get(Calendar.DATE),
+                    cal.get(Calendar.HOUR_OF_DAY),
+                    cal.get(Calendar.MINUTE),
                     cal.get(Calendar.SECOND));
         }
     }

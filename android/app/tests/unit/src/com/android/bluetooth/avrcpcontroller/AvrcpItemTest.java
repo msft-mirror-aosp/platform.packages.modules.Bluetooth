@@ -18,13 +18,11 @@ package com.android.bluetooth.avrcpcontroller;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.content.Context;
 import android.net.Uri;
 import android.support.v4.media.MediaBrowserCompat.MediaItem;
 import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
@@ -33,16 +31,14 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-/**
- * A test suite for the AvrcpItem class.
- */
+/** A test suite for the AvrcpItem class. */
 @RunWith(AndroidJUnit4.class)
 public final class AvrcpItemTest {
 
     private BluetoothDevice mDevice;
     private static final String UUID = "AVRCP-ITEM-TEST-UUID";
 
-     // Attribute ID Values from AVRCP Specification
+    // Attribute ID Values from AVRCP Specification
     private static final int MEDIA_ATTRIBUTE_TITLE = 0x01;
     private static final int MEDIA_ATTRIBUTE_ARTIST_NAME = 0x02;
     private static final int MEDIA_ATTRIBUTE_ALBUM_NAME = 0x03;
@@ -54,7 +50,6 @@ public final class AvrcpItemTest {
 
     @Before
     public void setUp() {
-        Context context = InstrumentationRegistry.getTargetContext();
         mDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice("AA:BB:CC:DD:EE:FF");
     }
 
@@ -74,7 +69,6 @@ public final class AvrcpItemTest {
         long playingTime = 301;
         String artHandle = "0000001";
         Uri uri = Uri.parse("content://somewhere");
-        Uri uri2 = Uri.parse("content://somewhereelse");
 
         AvrcpItem.Builder builder = new AvrcpItem.Builder();
         builder.setItemType(AvrcpItem.TYPE_MEDIA);
@@ -121,27 +115,22 @@ public final class AvrcpItemTest {
         String playingTime = "301";
         String artHandle = "0000001";
 
-        int[] attrIds = new int[]{
-            MEDIA_ATTRIBUTE_TITLE,
-            MEDIA_ATTRIBUTE_ARTIST_NAME,
-            MEDIA_ATTRIBUTE_ALBUM_NAME,
-            MEDIA_ATTRIBUTE_TRACK_NUMBER,
-            MEDIA_ATTRIBUTE_TOTAL_TRACK_NUMBER,
-            MEDIA_ATTRIBUTE_GENRE,
-            MEDIA_ATTRIBUTE_PLAYING_TIME,
-            MEDIA_ATTRIBUTE_COVER_ART_HANDLE
-        };
+        int[] attrIds =
+                new int[] {
+                    MEDIA_ATTRIBUTE_TITLE,
+                    MEDIA_ATTRIBUTE_ARTIST_NAME,
+                    MEDIA_ATTRIBUTE_ALBUM_NAME,
+                    MEDIA_ATTRIBUTE_TRACK_NUMBER,
+                    MEDIA_ATTRIBUTE_TOTAL_TRACK_NUMBER,
+                    MEDIA_ATTRIBUTE_GENRE,
+                    MEDIA_ATTRIBUTE_PLAYING_TIME,
+                    MEDIA_ATTRIBUTE_COVER_ART_HANDLE
+                };
 
-        String[] attrMap = new String[]{
-            title,
-            artist,
-            album,
-            trackNumber,
-            totalTracks,
-            genre,
-            playingTime,
-            artHandle
-        };
+        String[] attrMap =
+                new String[] {
+                    title, artist, album, trackNumber, totalTracks, genre, playingTime, artHandle
+                };
 
         AvrcpItem.Builder builder = new AvrcpItem.Builder();
         builder.fromAvrcpAttributeArray(attrIds, attrMap);
@@ -173,35 +162,37 @@ public final class AvrcpItemTest {
         String playingTime = "301";
         String artHandle = "0000001";
 
-        int[] attrIds = new int[]{
-            MEDIA_ATTRIBUTE_TITLE,
-            MEDIA_ATTRIBUTE_ARTIST_NAME,
-            MEDIA_ATTRIBUTE_ALBUM_NAME,
-            MEDIA_ATTRIBUTE_TRACK_NUMBER,
-            MEDIA_ATTRIBUTE_TOTAL_TRACK_NUMBER,
-            MEDIA_ATTRIBUTE_GENRE,
-            MEDIA_ATTRIBUTE_PLAYING_TIME,
-            MEDIA_ATTRIBUTE_COVER_ART_HANDLE,
-            75,
-            76,
-            77,
-            78
-        };
+        int[] attrIds =
+                new int[] {
+                    MEDIA_ATTRIBUTE_TITLE,
+                    MEDIA_ATTRIBUTE_ARTIST_NAME,
+                    MEDIA_ATTRIBUTE_ALBUM_NAME,
+                    MEDIA_ATTRIBUTE_TRACK_NUMBER,
+                    MEDIA_ATTRIBUTE_TOTAL_TRACK_NUMBER,
+                    MEDIA_ATTRIBUTE_GENRE,
+                    MEDIA_ATTRIBUTE_PLAYING_TIME,
+                    MEDIA_ATTRIBUTE_COVER_ART_HANDLE,
+                    75,
+                    76,
+                    77,
+                    78
+                };
 
-        String[] attrMap = new String[]{
-            title,
-            artist,
-            album,
-            trackNumber,
-            totalTracks,
-            genre,
-            playingTime,
-            artHandle,
-            "ignore me",
-            "ignore me",
-            "ignore me",
-            "ignore me"
-        };
+        String[] attrMap =
+                new String[] {
+                    title,
+                    artist,
+                    album,
+                    trackNumber,
+                    totalTracks,
+                    genre,
+                    playingTime,
+                    artHandle,
+                    "ignore me",
+                    "ignore me",
+                    "ignore me",
+                    "ignore me"
+                };
 
         AvrcpItem.Builder builder = new AvrcpItem.Builder();
         builder.fromAvrcpAttributeArray(attrIds, attrMap);
@@ -233,27 +224,22 @@ public final class AvrcpItemTest {
         String playingTime = "301";
         String artHandle = "000001"; // length 6 and not 7
 
-        int[] attrIds = new int[]{
-            MEDIA_ATTRIBUTE_TITLE,
-            MEDIA_ATTRIBUTE_ARTIST_NAME,
-            MEDIA_ATTRIBUTE_ALBUM_NAME,
-            MEDIA_ATTRIBUTE_TRACK_NUMBER,
-            MEDIA_ATTRIBUTE_TOTAL_TRACK_NUMBER,
-            MEDIA_ATTRIBUTE_GENRE,
-            MEDIA_ATTRIBUTE_PLAYING_TIME,
-            MEDIA_ATTRIBUTE_COVER_ART_HANDLE
-        };
+        int[] attrIds =
+                new int[] {
+                    MEDIA_ATTRIBUTE_TITLE,
+                    MEDIA_ATTRIBUTE_ARTIST_NAME,
+                    MEDIA_ATTRIBUTE_ALBUM_NAME,
+                    MEDIA_ATTRIBUTE_TRACK_NUMBER,
+                    MEDIA_ATTRIBUTE_TOTAL_TRACK_NUMBER,
+                    MEDIA_ATTRIBUTE_GENRE,
+                    MEDIA_ATTRIBUTE_PLAYING_TIME,
+                    MEDIA_ATTRIBUTE_COVER_ART_HANDLE
+                };
 
-        String[] attrMap = new String[]{
-            title,
-            artist,
-            album,
-            trackNumber,
-            totalTracks,
-            genre,
-            playingTime,
-            artHandle
-        };
+        String[] attrMap =
+                new String[] {
+                    title, artist, album, trackNumber, totalTracks, genre, playingTime, artHandle
+                };
 
         AvrcpItem.Builder builder = new AvrcpItem.Builder();
         builder.fromAvrcpAttributeArray(attrIds, attrMap);
@@ -285,27 +271,22 @@ public final class AvrcpItemTest {
         String playingTime = "301";
         String artHandle = "";
 
-        int[] attrIds = new int[]{
-            MEDIA_ATTRIBUTE_TITLE,
-            MEDIA_ATTRIBUTE_ARTIST_NAME,
-            MEDIA_ATTRIBUTE_ALBUM_NAME,
-            MEDIA_ATTRIBUTE_TRACK_NUMBER,
-            MEDIA_ATTRIBUTE_TOTAL_TRACK_NUMBER,
-            MEDIA_ATTRIBUTE_GENRE,
-            MEDIA_ATTRIBUTE_PLAYING_TIME,
-            MEDIA_ATTRIBUTE_COVER_ART_HANDLE
-        };
+        int[] attrIds =
+                new int[] {
+                    MEDIA_ATTRIBUTE_TITLE,
+                    MEDIA_ATTRIBUTE_ARTIST_NAME,
+                    MEDIA_ATTRIBUTE_ALBUM_NAME,
+                    MEDIA_ATTRIBUTE_TRACK_NUMBER,
+                    MEDIA_ATTRIBUTE_TOTAL_TRACK_NUMBER,
+                    MEDIA_ATTRIBUTE_GENRE,
+                    MEDIA_ATTRIBUTE_PLAYING_TIME,
+                    MEDIA_ATTRIBUTE_COVER_ART_HANDLE
+                };
 
-        String[] attrMap = new String[]{
-            title,
-            artist,
-            album,
-            trackNumber,
-            totalTracks,
-            genre,
-            playingTime,
-            artHandle
-        };
+        String[] attrMap =
+                new String[] {
+                    title, artist, album, trackNumber, totalTracks, genre, playingTime, artHandle
+                };
 
         AvrcpItem.Builder builder = new AvrcpItem.Builder();
         builder.fromAvrcpAttributeArray(attrIds, attrMap);
@@ -337,27 +318,22 @@ public final class AvrcpItemTest {
         String playingTime = "301";
         String artHandle = null;
 
-        int[] attrIds = new int[]{
-            MEDIA_ATTRIBUTE_TITLE,
-            MEDIA_ATTRIBUTE_ARTIST_NAME,
-            MEDIA_ATTRIBUTE_ALBUM_NAME,
-            MEDIA_ATTRIBUTE_TRACK_NUMBER,
-            MEDIA_ATTRIBUTE_TOTAL_TRACK_NUMBER,
-            MEDIA_ATTRIBUTE_GENRE,
-            MEDIA_ATTRIBUTE_PLAYING_TIME,
-            MEDIA_ATTRIBUTE_COVER_ART_HANDLE
-        };
+        int[] attrIds =
+                new int[] {
+                    MEDIA_ATTRIBUTE_TITLE,
+                    MEDIA_ATTRIBUTE_ARTIST_NAME,
+                    MEDIA_ATTRIBUTE_ALBUM_NAME,
+                    MEDIA_ATTRIBUTE_TRACK_NUMBER,
+                    MEDIA_ATTRIBUTE_TOTAL_TRACK_NUMBER,
+                    MEDIA_ATTRIBUTE_GENRE,
+                    MEDIA_ATTRIBUTE_PLAYING_TIME,
+                    MEDIA_ATTRIBUTE_COVER_ART_HANDLE
+                };
 
-        String[] attrMap = new String[]{
-            title,
-            artist,
-            album,
-            trackNumber,
-            totalTracks,
-            genre,
-            playingTime,
-            artHandle
-        };
+        String[] attrMap =
+                new String[] {
+                    title, artist, album, trackNumber, totalTracks, genre, playingTime, artHandle
+                };
 
         AvrcpItem.Builder builder = new AvrcpItem.Builder();
         builder.fromAvrcpAttributeArray(attrIds, attrMap);
@@ -389,27 +365,22 @@ public final class AvrcpItemTest {
         String playingTime = "301";
         String artHandle = "123abcd";
 
-        int[] attrIds = new int[]{
-            MEDIA_ATTRIBUTE_TITLE,
-            MEDIA_ATTRIBUTE_ARTIST_NAME,
-            MEDIA_ATTRIBUTE_ALBUM_NAME,
-            MEDIA_ATTRIBUTE_TRACK_NUMBER,
-            MEDIA_ATTRIBUTE_TOTAL_TRACK_NUMBER,
-            MEDIA_ATTRIBUTE_GENRE,
-            MEDIA_ATTRIBUTE_PLAYING_TIME,
-            MEDIA_ATTRIBUTE_COVER_ART_HANDLE
-        };
+        int[] attrIds =
+                new int[] {
+                    MEDIA_ATTRIBUTE_TITLE,
+                    MEDIA_ATTRIBUTE_ARTIST_NAME,
+                    MEDIA_ATTRIBUTE_ALBUM_NAME,
+                    MEDIA_ATTRIBUTE_TRACK_NUMBER,
+                    MEDIA_ATTRIBUTE_TOTAL_TRACK_NUMBER,
+                    MEDIA_ATTRIBUTE_GENRE,
+                    MEDIA_ATTRIBUTE_PLAYING_TIME,
+                    MEDIA_ATTRIBUTE_COVER_ART_HANDLE
+                };
 
-        String[] attrMap = new String[]{
-            title,
-            artist,
-            album,
-            trackNumber,
-            totalTracks,
-            genre,
-            playingTime,
-            artHandle
-        };
+        String[] attrMap =
+                new String[] {
+                    title, artist, album, trackNumber, totalTracks, genre, playingTime, artHandle
+                };
 
         AvrcpItem.Builder builder = new AvrcpItem.Builder();
         builder.fromAvrcpAttributeArray(attrIds, attrMap);
@@ -479,26 +450,27 @@ public final class AvrcpItemTest {
         MediaMetadataCompat metadata = item.toMediaMetadata();
 
         Assert.assertEquals(UUID, metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID));
-        Assert.assertEquals(title,
-                metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE));
+        Assert.assertEquals(
+                title, metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE));
         Assert.assertEquals(title, metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE));
         Assert.assertEquals(artist, metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST));
         Assert.assertEquals(album, metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM));
-        Assert.assertEquals(trackNumber,
-                metadata.getLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER));
-        Assert.assertEquals(totalTracks,
-                metadata.getLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS));
+        Assert.assertEquals(
+                trackNumber, metadata.getLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER));
+        Assert.assertEquals(
+                totalTracks, metadata.getLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS));
         Assert.assertEquals(genre, metadata.getString(MediaMetadataCompat.METADATA_KEY_GENRE));
-        Assert.assertEquals(playingTime,
-                metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
-        Assert.assertEquals(uri,
+        Assert.assertEquals(
+                playingTime, metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
+        Assert.assertEquals(
+                uri,
                 Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI)));
-        Assert.assertEquals(uri,
-                Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ART_URI)));
-        Assert.assertEquals(uri,
-                Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI)));
-        Assert.assertEquals(null,
-                metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON));
+        Assert.assertEquals(
+                uri, Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ART_URI)));
+        Assert.assertEquals(
+                uri, Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI)));
+        Assert.assertEquals(
+                null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON));
         Assert.assertEquals(null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ART));
         Assert.assertEquals(null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART));
         Assert.assertFalse(metadata.containsKey(MediaMetadataCompat.METADATA_KEY_BT_FOLDER_TYPE));
@@ -533,28 +505,29 @@ public final class AvrcpItemTest {
         MediaMetadataCompat metadata = item.toMediaMetadata();
 
         Assert.assertEquals(UUID, metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID));
-        Assert.assertEquals(title,
-                metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE));
+        Assert.assertEquals(
+                title, metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE));
         Assert.assertEquals(title, metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE));
         Assert.assertEquals(artist, metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST));
         Assert.assertEquals(null, metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM));
-        Assert.assertEquals(totalTracks,
-                metadata.getLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS));
+        Assert.assertEquals(
+                totalTracks, metadata.getLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS));
         Assert.assertEquals(genre, metadata.getString(MediaMetadataCompat.METADATA_KEY_GENRE));
-        Assert.assertEquals(playingTime,
-                metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
-        Assert.assertEquals(uri,
+        Assert.assertEquals(
+                playingTime, metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
+        Assert.assertEquals(
+                uri,
                 Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI)));
-        Assert.assertEquals(uri,
-                Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ART_URI)));
-        Assert.assertEquals(uri,
-                Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI)));
-        Assert.assertEquals(null,
-                metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON));
+        Assert.assertEquals(
+                uri, Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ART_URI)));
+        Assert.assertEquals(
+                uri, Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI)));
+        Assert.assertEquals(
+                null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON));
         Assert.assertEquals(null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ART));
         Assert.assertEquals(null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART));
-        Assert.assertEquals(type,
-                metadata.getLong(MediaMetadataCompat.METADATA_KEY_BT_FOLDER_TYPE));
+        Assert.assertEquals(
+                type, metadata.getLong(MediaMetadataCompat.METADATA_KEY_BT_FOLDER_TYPE));
     }
 
     @Test
@@ -579,7 +552,7 @@ public final class AvrcpItemTest {
         Assert.assertEquals(UUID, desc.getMediaId());
         Assert.assertEquals(null, desc.getMediaUri());
         Assert.assertEquals(title, desc.getTitle().toString());
-        Assert.assertEquals(desc.getSubtitle(), null);
+        Assert.assertNull(desc.getSubtitle());
         Assert.assertEquals(uri, desc.getIconUri());
         Assert.assertEquals(null, desc.getIconBitmap());
     }
@@ -608,7 +581,7 @@ public final class AvrcpItemTest {
         Assert.assertEquals(UUID, desc.getMediaId());
         Assert.assertEquals(null, desc.getMediaUri());
         Assert.assertEquals(displayName, desc.getTitle().toString());
-        Assert.assertEquals(desc.getSubtitle(), null);
+        Assert.assertNull(desc.getSubtitle());
         Assert.assertEquals(uri, desc.getIconUri());
         Assert.assertEquals(null, desc.getIconBitmap());
     }
@@ -635,7 +608,7 @@ public final class AvrcpItemTest {
         Assert.assertEquals(UUID, desc.getMediaId());
         Assert.assertEquals(null, desc.getMediaUri());
         Assert.assertEquals(title, desc.getTitle().toString());
-        Assert.assertEquals(desc.getSubtitle(), null);
+        Assert.assertNull(desc.getSubtitle());
         Assert.assertEquals(uri, desc.getIconUri());
         Assert.assertEquals(null, desc.getIconBitmap());
     }

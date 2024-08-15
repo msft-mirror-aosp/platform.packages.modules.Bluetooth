@@ -10,9 +10,7 @@ use crate::dbus_iface::{
 };
 use crate::{console_red, console_yellow, print_error, print_info};
 use crate::{ClientContext, GattRequest};
-use bt_topshim::btif::{
-    BtBondState, BtPropertyType, BtSspVariant, BtStatus, RawAddress, Uuid128Bit,
-};
+use bt_topshim::btif::{BtBondState, BtPropertyType, BtSspVariant, BtStatus, RawAddress, Uuid};
 use bt_topshim::profiles::gatt::{AdvertisingStatus, GattStatus, LePhy};
 use bt_topshim::profiles::hfp::HfpCodecId;
 use bt_topshim::profiles::le_audio::{
@@ -39,7 +37,6 @@ use btstack::socket_manager::{
     IBluetoothSocketManagerCallbacks, SocketId,
 };
 use btstack::suspend::ISuspendCallback;
-use btstack::uuid::UuidWrapper;
 use btstack::{RPCProxy, SuspendMode};
 use chrono::{TimeZone, Utc};
 use dbus::nonblock::SyncConnection;
@@ -179,15 +176,20 @@ impl IBluetoothCallback for BtCallback {
     }
 
     fn on_device_cleared(&mut self, remote_device: BluetoothDevice) {
-        match self.context.lock().unwrap().found_devices.remove(&remote_device.address.to_string())
+        if self
+            .context
+            .lock()
+            .unwrap()
+            .found_devices
+            .remove(&remote_device.address.to_string())
+            .is_some()
         {
-            Some(_) => print_info!(
+            print_info!(
                 "Removed device: [{}: {:?}]",
                 remote_device.address.to_string(),
                 remote_device.name
-            ),
-            None => (),
-        };
+            );
+        }
 
         self.context.lock().unwrap().bonded_devices.remove(&remote_device.address.to_string());
     }
@@ -220,19 +222,16 @@ impl IBluetoothCallback for BtCallback {
                     // Auto-confirm bonding attempts that were locally initiated.
                     // Ignore all other bonding attempts.
                     let bonding_device = context.lock().unwrap().bonding_attempt.as_ref().cloned();
-                    match bonding_device {
-                        Some(bd) => {
-                            if bd.address == rd.address {
-                                context
-                                    .lock()
-                                    .unwrap()
-                                    .adapter_dbus
-                                    .as_ref()
-                                    .unwrap()
-                                    .set_pairing_confirmation(rd.clone(), true);
-                            }
+                    if let Some(bd) = bonding_device {
+                        if bd.address == rd.address {
+                            context
+                                .lock()
+                                .unwrap()
+                                .adapter_dbus
+                                .as_ref()
+                                .unwrap()
+                                .set_pairing_confirmation(rd.clone(), true);
                         }
-                        None => (),
                     }
                 }));
             }
@@ -276,19 +275,16 @@ impl IBluetoothCallback for BtCallback {
             BtBondState::NotBonded | BtBondState::Bonded => {
                 let bonding_attempt =
                     self.context.lock().unwrap().bonding_attempt.as_ref().cloned();
-                match bonding_attempt {
-                    Some(bd) => {
-                        if address == bd.address {
-                            self.context.lock().unwrap().bonding_attempt = None;
-                        }
+                if let Some(bd) = bonding_attempt {
+                    if address == bd.address {
+                        self.context.lock().unwrap().bonding_attempt = None;
                     }
-                    None => (),
                 }
             }
             BtBondState::Bonding => (),
         }
 
-        let device = BluetoothDevice { address: address, name: String::from("Classic device") };
+        let device = BluetoothDevice { address, name: String::from("Classic device") };
 
         // If bonded, we should also automatically connect all enabled profiles
         if BtBondState::Bonded == state.into() {
@@ -304,14 +300,14 @@ impl IBluetoothCallback for BtCallback {
     fn on_sdp_search_complete(
         &mut self,
         remote_device: BluetoothDevice,
-        searched_uuid: Uuid128Bit,
+        searched_uuid: Uuid,
         sdp_records: Vec<BtSdpRecord>,
     ) {
         print_info!(
             "SDP search of [{}: {:?}] for UUID {} returned {} results",
             remote_device.address.to_string(),
             remote_device.name,
-            UuidWrapper(&searched_uuid),
+            searched_uuid,
             sdp_records.len()
         );
         if !sdp_records.is_empty() {
@@ -419,39 +415,35 @@ impl ScannerCallback {
 }
 
 impl IScannerCallback for ScannerCallback {
-    fn on_scanner_registered(&mut self, uuid: Uuid128Bit, scanner_id: u8, status: GattStatus) {
+    fn on_scanner_registered(&mut self, uuid: Uuid, scanner_id: u8, status: GattStatus) {
         if status != GattStatus::Success {
             print_error!("Failed registering scanner, status = {}", status);
             return;
         }
 
-        print_info!(
-            "Scanner callback registered, uuid = {}, id = {}",
-            UuidWrapper(&uuid),
-            scanner_id
-        );
+        print_info!("Scanner callback registered, uuid = {}, id = {}", uuid, scanner_id);
     }
 
     fn on_scan_result(&mut self, scan_result: ScanResult) {
-        if self.context.lock().unwrap().active_scanner_ids.len() > 0 {
+        if !self.context.lock().unwrap().active_scanner_ids.is_empty() {
             print_info!("Scan result: {:#?}", scan_result);
         }
     }
 
     fn on_advertisement_found(&mut self, scanner_id: u8, scan_result: ScanResult) {
-        if self.context.lock().unwrap().active_scanner_ids.len() > 0 {
+        if !self.context.lock().unwrap().active_scanner_ids.is_empty() {
             print_info!("Advertisement found for scanner_id {} : {:#?}", scanner_id, scan_result);
         }
     }
 
     fn on_advertisement_lost(&mut self, scanner_id: u8, scan_result: ScanResult) {
-        if self.context.lock().unwrap().active_scanner_ids.len() > 0 {
+        if !self.context.lock().unwrap().active_scanner_ids.is_empty() {
             print_info!("Advertisement lost for scanner_id {} : {:#?}", scanner_id, scan_result);
         }
     }
 
     fn on_suspend_mode_change(&mut self, suspend_mode: SuspendMode) {
-        if self.context.lock().unwrap().active_scanner_ids.len() > 0 {
+        if !self.context.lock().unwrap().active_scanner_ids.is_empty() {
             print_info!("Scan suspend mode change: {:#?}", suspend_mode);
         }
     }
@@ -491,8 +483,11 @@ impl AdminCallback {
 }
 
 impl IBluetoothAdminPolicyCallback for AdminCallback {
-    fn on_service_allowlist_changed(&mut self, allowlist: Vec<Uuid128Bit>) {
-        print_info!("new allowlist: {:?}", allowlist);
+    fn on_service_allowlist_changed(&mut self, allowlist: Vec<Uuid>) {
+        print_info!(
+            "new allowlist: [{}]",
+            allowlist.into_iter().map(|uu| uu.to_string()).collect::<Vec<String>>().join(", ")
+        );
     }
 
     fn on_device_policy_effect_changed(
@@ -955,7 +950,7 @@ impl IBluetoothGattServerCallback for BtGattServerCallback {
             return;
         }
         self.context.lock().unwrap().pending_gatt_request =
-            Some(GattRequest { address: addr, id: trans_id, offset: offset, value: vec![] });
+            Some(GattRequest { address: addr, id: trans_id, offset, value: vec![] });
     }
 
     fn on_descriptor_read_request(
@@ -982,7 +977,7 @@ impl IBluetoothGattServerCallback for BtGattServerCallback {
             return;
         }
         self.context.lock().unwrap().pending_gatt_request =
-            Some(GattRequest { address: addr, id: trans_id, offset: offset, value: vec![] });
+            Some(GattRequest { address: addr, id: trans_id, offset, value: vec![] });
     }
 
     fn on_characteristic_write_request(
@@ -1016,7 +1011,7 @@ impl IBluetoothGattServerCallback for BtGattServerCallback {
             return;
         }
         self.context.lock().unwrap().pending_gatt_request =
-            Some(GattRequest { address: addr, id: trans_id, offset: offset, value: value });
+            Some(GattRequest { address: addr, id: trans_id, offset, value });
     }
 
     fn on_descriptor_write_request(
@@ -1050,7 +1045,7 @@ impl IBluetoothGattServerCallback for BtGattServerCallback {
             return;
         }
         self.context.lock().unwrap().pending_gatt_request =
-            Some(GattRequest { address: addr, id: trans_id, offset: offset, value: value });
+            Some(GattRequest { address: addr, id: trans_id, offset, value });
     }
 
     fn on_execute_write(&mut self, addr: RawAddress, trans_id: i32, exec_write: bool) {
@@ -1245,7 +1240,7 @@ impl IBluetoothSocketManagerCallbacks for BtSocketManagerCallback {
             socket.uuid,
         );
 
-        let callback_id = self.context.lock().unwrap().socket_manager_callback_id.clone().unwrap();
+        let callback_id = self.context.lock().unwrap().socket_manager_callback_id.unwrap();
 
         self.context.lock().unwrap().run_callback(Box::new(move |context| {
             let status = context.lock().unwrap().socket_manager_dbus.as_mut().unwrap().accept(
@@ -1438,7 +1433,7 @@ impl MediaCallback {
 
 fn timestamp_to_string(ts_in_us: u64) -> String {
     i64::try_from(ts_in_us)
-        .and_then(|ts| Ok(Utc.timestamp_nanos(ts * 1000).to_rfc3339()))
+        .map(|ts| Utc.timestamp_nanos(ts * 1000).to_rfc3339())
         .unwrap_or("UNKNOWN".to_string())
 }
 
@@ -1470,6 +1465,8 @@ impl IBluetoothMediaCallback for MediaCallback {
     ) {
     }
     fn on_lea_group_stream_status(&mut self, _group_id: i32, _status: BtLeAudioGroupStreamStatus) {}
+    fn on_lea_vc_connected(&mut self, _addr: RawAddress, _group_id: i32) {}
+    fn on_lea_group_volume_changed(&mut self, _group_id: i32, _volume: u8) {}
     fn on_bluetooth_audio_device_added(&mut self, _device: BluetoothAudioDevice) {}
     fn on_bluetooth_audio_device_removed(&mut self, _addr: RawAddress) {}
     fn on_absolute_volume_supported_changed(&mut self, _supported: bool) {}
@@ -1627,7 +1624,7 @@ impl IBatteryManagerCallback for BatteryManagerCallback {
     fn on_battery_info_updated(&mut self, remote_address: RawAddress, battery_set: BatterySet) {
         let address = remote_address.to_string();
         if self.context.lock().unwrap().battery_address_filter.contains(&address) {
-            if battery_set.batteries.len() == 0 {
+            if battery_set.batteries.is_empty() {
                 print_info!(
                     "Battery info for address '{}' updated with empty battery set. \
                     The batteries for this device may have been removed.",

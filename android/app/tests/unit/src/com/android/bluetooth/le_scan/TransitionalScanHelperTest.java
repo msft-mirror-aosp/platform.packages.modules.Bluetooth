@@ -44,6 +44,7 @@ import android.os.Binder;
 import android.os.RemoteException;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.InstrumentationRegistry;
@@ -54,16 +55,16 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.CompanionManager;
-import com.android.bluetooth.gatt.GattObjectsFactory;
-import com.android.bluetooth.gatt.GattNativeInterface;
-
 import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.gatt.GattNativeInterface;
+import com.android.bluetooth.gatt.GattObjectsFactory;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -81,11 +82,9 @@ public class TransitionalScanHelperTest {
     private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
 
     private TransitionalScanHelper mScanHelper;
-    @Mock private TransitionalScanHelper.ScannerMap mScannerMap;
+    @Mock private ScannerMap mScannerMap;
 
-    @SuppressWarnings("NonCanonicalType")
-    @Mock
-    private TransitionalScanHelper.ScannerMap.App mApp;
+    @Mock private ScannerMap.ScannerApp mApp;
 
     @Mock private TransitionalScanHelper.PendingIntentInfo mPiInfo;
     @Mock private PeriodicScanManager mPeriodicScanManager;
@@ -100,7 +99,8 @@ public class TransitionalScanHelperTest {
 
     @Mock private Resources mResources;
     @Mock private AdapterService mAdapterService;
-    @Mock private GattObjectsFactory mFactory;
+    @Mock private GattObjectsFactory mGattObjectsFactory;
+    @Mock private ScanObjectsFactory mScanObjectsFactory;
     @Mock private GattNativeInterface mNativeInterface;
     private CompanionManager mBtCompanionManager;
 
@@ -109,10 +109,13 @@ public class TransitionalScanHelperTest {
         MockitoAnnotations.initMocks(this);
         TestUtils.setAdapterService(mAdapterService);
 
-        GattObjectsFactory.setInstanceForTesting(mFactory);
-        doReturn(mNativeInterface).when(mFactory).getNativeInterface();
-        doReturn(mScanManager).when(mFactory).createScanManager(any(), any(), any(), any(), any());
-        doReturn(mPeriodicScanManager).when(mFactory).createPeriodicScanManager(any());
+        GattObjectsFactory.setInstanceForTesting(mGattObjectsFactory);
+        ScanObjectsFactory.setInstanceForTesting(mScanObjectsFactory);
+        doReturn(mNativeInterface).when(mGattObjectsFactory).getNativeInterface();
+        doReturn(mScanManager)
+                .when(mScanObjectsFactory)
+                .createScanManager(any(), any(), any(), any(), any());
+        doReturn(mPeriodicScanManager).when(mScanObjectsFactory).createPeriodicScanManager(any());
 
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mAttributionSource = mAdapter.getAttributionSource();
@@ -149,6 +152,7 @@ public class TransitionalScanHelperTest {
 
         TestUtils.clearAdapterService(mAdapterService);
         GattObjectsFactory.setInstanceForTesting(null);
+        ScanObjectsFactory.setInstanceForTesting(null);
     }
 
     @Test
@@ -162,7 +166,7 @@ public class TransitionalScanHelperTest {
         int scannerId = 1;
 
         mPiInfo.settings = new ScanSettings.Builder().build();
-        mApp.info = mPiInfo;
+        mApp.mInfo = mPiInfo;
 
         AppScanStats appScanStats = mock(AppScanStats.class);
         doReturn(appScanStats).when(mScannerMap).getAppScanStatsById(scannerId);
@@ -180,7 +184,7 @@ public class TransitionalScanHelperTest {
 
         mPiInfo.settings = new ScanSettings.Builder().build();
         mPiInfo.callingUid = 123;
-        mApp.info = mPiInfo;
+        mApp.mInfo = mPiInfo;
 
         AppScanStats appScanStats = mock(AppScanStats.class);
         doReturn(appScanStats).when(mScannerMap).getAppScanStatsById(scannerId);
@@ -231,7 +235,7 @@ public class TransitionalScanHelperTest {
                 };
         doReturn(scanClientSet).when(mScanManager).getBatchScanQueue();
         IScannerCallback callback = mock(IScannerCallback.class);
-        mApp.callback = callback;
+        mApp.mCallback = callback;
 
         mScanHelper.onBatchScanReportsInternal(
                 status, scannerId, reportType, numRecords, recordData);
@@ -266,8 +270,7 @@ public class TransitionalScanHelperTest {
         doReturn(appScanStats).when(mScannerMap).getAppScanStatsByUid(Binder.getCallingUid());
 
         mScanHelper.registerScanner(callback, workSource, mAttributionSource);
-        verify(mScannerMap)
-                .add(any(), eq(workSource), eq(callback), eq(null), any(), eq(mScanHelper));
+        verify(mScannerMap).add(any(), eq(workSource), eq(callback), any(), eq(mScanHelper));
         verify(mScanManager).registerScanner(any());
     }
 
@@ -307,8 +310,9 @@ public class TransitionalScanHelperTest {
         AppScanStats appScanStats = mock(AppScanStats.class);
         IScannerCallback callback = mock(IScannerCallback.class);
 
-        mApp.callback = callback;
-        mApp.appScanStats = appScanStats;
+        mApp.mCallback = callback;
+        mApp.mAppScanStats = appScanStats;
+        scanClient.stats = appScanStats;
         Set<ScanClient> scanClientSet = Collections.singleton(scanClient);
 
         doReturn(address).when(mAdapterService).getIdentityAddress(anyString());
@@ -396,5 +400,65 @@ public class TransitionalScanHelperTest {
                         BluetoothProfile.A2DP,
                         BluetoothProfile.STATE_CONNECTING,
                         BluetoothProfile.STATE_CONNECTED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LE_SCAN_USE_ADDRESS_TYPE)
+    public void onTrackAdvFoundLost() throws Exception {
+        int scannerId = 1;
+        int advPktLen = 1;
+        byte[] advPkt = new byte[] {0x02};
+        int scanRspLen = 3;
+        byte[] scanRsp = new byte[] {0x04};
+        int filtIndex = 5;
+
+        int advState = TransitionalScanHelper.ADVT_STATE_ONFOUND;
+        int advInfoPresent = 7;
+        String address = "00:11:22:33:FF:EE";
+        int addrType = BluetoothDevice.ADDRESS_TYPE_RANDOM;
+        int txPower = 9;
+        int rssiValue = 10;
+        int timeStamp = 11;
+
+        ScanClient scanClient = new ScanClient(scannerId);
+        scanClient.hasNetworkSettingsPermission = true;
+        scanClient.settings =
+                new ScanSettings.Builder()
+                        .setCallbackType(ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
+                        .setLegacy(false)
+                        .build();
+        Set<ScanClient> scanClientSet = Collections.singleton(scanClient);
+
+        ScannerMap.ScannerApp app = mock(ScannerMap.ScannerApp.class);
+        IScannerCallback callback = mock(IScannerCallback.class);
+
+        app.mCallback = callback;
+        app.mInfo = mock(TransitionalScanHelper.PendingIntentInfo.class);
+
+        doReturn(app).when(mScannerMap).getById(scannerId);
+        doReturn(scanClientSet).when(mScanManager).getRegularScanQueue();
+
+        AdvtFilterOnFoundOnLostInfo advtFilterOnFoundOnLostInfo =
+                new AdvtFilterOnFoundOnLostInfo(
+                        scannerId,
+                        advPktLen,
+                        advPkt,
+                        scanRspLen,
+                        scanRsp,
+                        filtIndex,
+                        advState,
+                        advInfoPresent,
+                        address,
+                        addrType,
+                        txPower,
+                        rssiValue,
+                        timeStamp);
+
+        mScanHelper.onTrackAdvFoundLost(advtFilterOnFoundOnLostInfo);
+        ArgumentCaptor<ScanResult> result = ArgumentCaptor.forClass(ScanResult.class);
+        verify(callback).onFoundOrLost(eq(true), result.capture());
+        assertThat(result.getValue().getDevice()).isNotNull();
+        assertThat(result.getValue().getDevice().getAddress()).isEqualTo(address);
+        assertThat(result.getValue().getDevice().getAddressType()).isEqualTo(addrType);
     }
 }

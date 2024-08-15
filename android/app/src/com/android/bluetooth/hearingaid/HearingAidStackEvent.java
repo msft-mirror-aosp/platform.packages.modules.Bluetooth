@@ -19,8 +19,8 @@ package com.android.bluetooth.hearingaid;
 import android.bluetooth.BluetoothDevice;
 
 /**
- * Stack event sent via a callback from JNI to Java, or generated
- * internally by the Hearing Aid State Machine.
+ * Stack event sent via a callback from JNI to Java, or generated internally by the Hearing Aid
+ * State Machine.
  */
 public class HearingAidStackEvent {
     // Event types for STACK_EVENT message (coming from native)
@@ -48,10 +48,10 @@ public class HearingAidStackEvent {
     public String toString() {
         // event dump
         StringBuilder result = new StringBuilder();
-        result.append("HearingAidStackEvent {type:" + eventTypeToString(type));
-        result.append(", device:" + device);
-        result.append(", value1:" + valueInt1);
-        result.append(", value2:" + valueLong2);
+        result.append("HearingAidStackEvent {type:").append(eventTypeToString(type));
+        result.append(", device:").append(device);
+        result.append(", value1:").append(valueInt1);
+        result.append(", value2:").append(valueLong2);
         result.append("}");
         return result.toString();
     }

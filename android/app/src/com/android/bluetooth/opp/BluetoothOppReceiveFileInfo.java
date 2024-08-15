@@ -47,7 +47,7 @@ import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -60,7 +60,6 @@ import java.util.Calendar;
 public class BluetoothOppReceiveFileInfo {
     /* To truncate the name of the received file if the length exceeds 237 */
     private static final int OPP_LENGTH_OF_FILE_NAME = 237;
-
 
     /** absolute store file name */
     public String mFileName;
@@ -97,11 +96,19 @@ public class BluetoothOppReceiveFileInfo {
         Uri contentUri = Uri.parse(BluetoothShare.CONTENT_URI + "/" + id);
         String hint = null, mimeType = null;
         long length = 0;
-        Cursor metadataCursor = BluetoothMethodProxy.getInstance().contentResolverQuery(
-                contentResolver, contentUri, new String[]{
-                        BluetoothShare.FILENAME_HINT, BluetoothShare.TOTAL_BYTES,
-                        BluetoothShare.MIMETYPE
-                }, null, null, null);
+        Cursor metadataCursor =
+                BluetoothMethodProxy.getInstance()
+                        .contentResolverQuery(
+                                contentResolver,
+                                contentUri,
+                                new String[] {
+                                    BluetoothShare.FILENAME_HINT,
+                                    BluetoothShare.TOTAL_BYTES,
+                                    BluetoothShare.MIMETYPE
+                                },
+                                null,
+                                null,
+                                null);
         if (metadataCursor != null) {
             try {
                 if (metadataCursor.moveToFirst()) {
@@ -140,29 +147,20 @@ public class BluetoothOppReceiveFileInfo {
         Log.d(Constants.TAG, " File Name " + filename);
 
         if (filename.getBytes().length > OPP_LENGTH_OF_FILE_NAME) {
-          /* Including extn of the file, Linux supports 255 character as a maximum length of the
-           * file name to be created. Hence, Instead of sending OBEX_HTTP_INTERNAL_ERROR,
-           * as a response, truncate the length of the file name and save it. This check majorly
-           * helps in the case of vcard, where Phone book app supports contact name to be saved
-           * more than 255 characters, But the server rejects the card just because the length of
-           * vcf file name received exceeds 255 Characters.
-           */
+            /* Including extn of the file, Linux supports 255 character as a maximum length of the
+             * file name to be created. Hence, Instead of sending OBEX_HTTP_INTERNAL_ERROR,
+             * as a response, truncate the length of the file name and save it. This check majorly
+             * helps in the case of vcard, where Phone book app supports contact name to be saved
+             * more than 255 characters, But the server rejects the card just because the length of
+             * vcf file name received exceeds 255 Characters.
+             */
             Log.i(Constants.TAG, " File Name Length :" + filename.length());
             Log.i(Constants.TAG, " File Name Length in Bytes:" + filename.getBytes().length);
 
-            try {
-                byte[] oldfilename = filename.getBytes("UTF-8");
-                byte[] newfilename = new byte[OPP_LENGTH_OF_FILE_NAME];
-                System.arraycopy(oldfilename, 0, newfilename, 0, OPP_LENGTH_OF_FILE_NAME);
-                filename = new String(newfilename, "UTF-8");
-            } catch (UnsupportedEncodingException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.OPP,
-                        BluetoothProtoEnums.BLUETOOTH_OPP_RECEIVE_FILE_INFO,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        0);
-                Log.e(Constants.TAG, "Exception: " + e);
-            }
+            byte[] oldfilename = filename.getBytes(StandardCharsets.UTF_8);
+            byte[] newfilename = new byte[OPP_LENGTH_OF_FILE_NAME];
+            System.arraycopy(oldfilename, 0, newfilename, 0, OPP_LENGTH_OF_FILE_NAME);
+            filename = new String(newfilename, StandardCharsets.UTF_8);
             Log.d(Constants.TAG, "File name is too long. Name is truncated as: " + filename);
         }
 
@@ -175,8 +173,8 @@ public class BluetoothOppReceiveFileInfo {
         ContentValues mediaContentValues = new ContentValues();
         mediaContentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, fullfilename);
         mediaContentValues.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
-        mediaContentValues.put(MediaStore.MediaColumns.RELATIVE_PATH,
-                Environment.DIRECTORY_DOWNLOADS);
+        mediaContentValues.put(
+                MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
         Uri insertUri =
                 BluetoothMethodProxy.getInstance()
                         .contentResolverInsert(

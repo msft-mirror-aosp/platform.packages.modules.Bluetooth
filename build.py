@@ -69,6 +69,7 @@ USE_DEFAULTS = {
 
 VALID_TARGETS = [
     'all',  # All targets except test and clean
+    'bloat',  # Check bloat of crates
     'clean',  # Clean up output directory
     'docs',  # Build Rust docs
     'hosttools',  # Build the host tools (i.e. packetgen)
@@ -76,6 +77,7 @@ VALID_TARGETS = [
     'prepare',  # Prepare the output directory (gn gen + rust setup)
     'rust',  # Build only the rust components + copy artifacts to output dir
     'test',  # Run the unit tests
+    'clippy',  # Run cargo clippy
     'utils',  # Build Floss utils
 ]
 
@@ -147,7 +149,7 @@ REQUIRED_APT_PACKAGES = [
 ]
 
 # List of cargo packages required for linux build
-REQUIRED_CARGO_PACKAGES = ['cxxbridge-cmd', 'pdl-compiler']
+REQUIRED_CARGO_PACKAGES = ['cxxbridge-cmd', 'pdl-compiler', 'grpcio-compiler', 'cargo-bloat']
 
 APT_PKG_LIST = ['apt', '-qq', 'list']
 CARGO_PKG_LIST = ['cargo', 'install', '--list']
@@ -248,6 +250,8 @@ class HostBuild():
             'link-arg=-Wl,--allow-multiple-definition',
             # exclude uninteresting warnings
             '-A improper_ctypes_definitions -A improper_ctypes -A unknown_lints',
+            '-Cstrip=debuginfo',
+            '-Copt-level=z',
         ]
 
         return ' '.join(rust_flags)
@@ -293,6 +297,10 @@ class HostBuild():
             cwd = self.platform_dir
         if not env:
             env = self.env
+
+        for k, v in env.items():
+            if env[k] is None:
+                env[k] = ""
 
         log_file = os.path.join(self.output_dir, '{}.log'.format(target))
         with open(log_file, 'wb') as lf:
@@ -494,6 +502,12 @@ class HostBuild():
                              cwd=os.path.join(self.output_dir),
                              env=self.env)
 
+    def _target_clippy(self):
+        """ Runs cargo clippy, a collection of lints to catch common mistakes.
+        """
+        cmd = ['cargo', 'clippy']
+        self.run_command('rust', cmd, cwd=os.path.join(self.platform_dir, 'bt'), env=self.env)
+
     def _target_utils(self):
         """ Builds the utility applications.
         """
@@ -559,6 +573,17 @@ class HostBuild():
 
         print('Tarball created at {}'.format(tar_location))
 
+    def _target_bloat(self):
+        """Run cargo bloat on workspace.
+        """
+        crate_paths = [
+            os.path.join(self.platform_dir, 'bt', 'system', 'gd', 'rust', 'linux', 'mgmt'),
+            os.path.join(self.platform_dir, 'bt', 'system', 'gd', 'rust', 'linux', 'service'),
+            os.path.join(self.platform_dir, 'bt', 'system', 'gd', 'rust', 'linux', 'client')
+        ]
+        for crate in crate_paths:
+            self.run_command('bloat', ['cargo', 'bloat', '--release', '--crates', '--wide'], cwd=crate, env=self.env)
+
     def _target_clean(self):
         """ Delete the output directory entirely.
         """
@@ -605,12 +630,16 @@ class HostBuild():
             self._target_main()
         elif self.target == 'test':
             self._target_test()
+        elif self.target == 'clippy':
+            self._target_clippy()
         elif self.target == 'clean':
             self._target_clean()
         elif self.target == 'install':
             self._target_install()
         elif self.target == 'utils':
             self._target_utils()
+        elif self.target == 'bloat':
+            self._target_bloat()
         elif self.target == 'all':
             self._target_all()
 

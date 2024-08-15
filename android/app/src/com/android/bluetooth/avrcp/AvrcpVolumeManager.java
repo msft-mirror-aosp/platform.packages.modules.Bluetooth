@@ -30,6 +30,7 @@ import android.util.Log;
 
 import com.android.bluetooth.BluetoothEventLogger;
 import com.android.bluetooth.Utils;
+import com.android.bluetooth.btservice.AdapterService;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.HashMap;
@@ -59,8 +60,7 @@ class AvrcpVolumeManager extends AudioDeviceCallback {
     private static final String VOLUME_MAP = "bluetooth_volume_map";
     private static final String VOLUME_CHANGE_LOG_TITLE = "BTAudio Volume Events";
 
-    @VisibleForTesting
-    static final int AVRCP_MAX_VOL = 127;
+    @VisibleForTesting static final int AVRCP_MAX_VOL = 127;
     private static final int STREAM_MUSIC = AudioManager.STREAM_MUSIC;
     private static final int VOLUME_CHANGE_LOGGER_SIZE = 30;
     private static int sDeviceMaxVolume = 0;
@@ -68,7 +68,7 @@ class AvrcpVolumeManager extends AudioDeviceCallback {
     private final BluetoothEventLogger mVolumeEventLogger =
             new BluetoothEventLogger(VOLUME_CHANGE_LOGGER_SIZE, VOLUME_CHANGE_LOG_TITLE);
 
-    Context mContext;
+    AdapterService mAdapterService;
     AudioManager mAudioManager;
     AvrcpNativeInterface mNativeInterface;
 
@@ -112,7 +112,7 @@ class AvrcpVolumeManager extends AudioDeviceCallback {
      * <p>The map is written each time a volume update occurs from or to the remote device.
      */
     private SharedPreferences getVolumeMap() {
-        return mContext.getSharedPreferences(VOLUME_MAP, Context.MODE_PRIVATE);
+        return ((Context) mAdapterService).getSharedPreferences(VOLUME_MAP, Context.MODE_PRIVATE);
     }
 
     /**
@@ -156,8 +156,8 @@ class AvrcpVolumeManager extends AudioDeviceCallback {
         // If absolute volume for the device is supported, set the volume for the device
         if (mDeviceMap.get(device)) {
             int avrcpVolume = systemToAvrcpVolume(savedVolume);
-            mVolumeEventLogger.logd(TAG,
-                    "switchVolumeDevice: Updating device volume: avrcpVolume=" + avrcpVolume);
+            mVolumeEventLogger.logd(
+                    TAG, "switchVolumeDevice: Updating device volume: avrcpVolume=" + avrcpVolume);
             mNativeInterface.sendVolumeChanged(device, avrcpVolume);
         }
     }
@@ -168,9 +168,11 @@ class AvrcpVolumeManager extends AudioDeviceCallback {
      * <p>Fills {@code mVolumeMap} with content from {@link #getVolumeMap}, removing unbonded
      * devices if necessary.
      */
-    AvrcpVolumeManager(Context context, AudioManager audioManager,
+    AvrcpVolumeManager(
+            AdapterService adapterService,
+            AudioManager audioManager,
             AvrcpNativeInterface nativeInterface) {
-        mContext = context;
+        mAdapterService = adapterService;
         mAudioManager = audioManager;
         mNativeInterface = nativeInterface;
         sDeviceMaxVolume = mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
@@ -188,7 +190,8 @@ class AvrcpVolumeManager extends AudioDeviceCallback {
             Object value = entry.getValue();
             BluetoothDevice d = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(key);
 
-            if (value instanceof Integer && d.getBondState() == BluetoothDevice.BOND_BONDED) {
+            if (value instanceof Integer
+                    && mAdapterService.getBondState(d) == BluetoothDevice.BOND_BONDED) {
                 mVolumeMap.put(d, (Integer) value);
             } else {
                 d("Removing " + key + " from the volume map");
@@ -203,12 +206,16 @@ class AvrcpVolumeManager extends AudioDeviceCallback {
      * writes the map in the {@link SharedPreferences}.
      */
     synchronized void storeVolumeForDevice(@NonNull BluetoothDevice device, int storeVolume) {
-        if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
+        if (mAdapterService.getBondState(device) != BluetoothDevice.BOND_BONDED) {
             return;
         }
         SharedPreferences.Editor pref = getVolumeMap().edit();
-        mVolumeEventLogger.logd(TAG, "storeVolume: Storing stream volume level for device "
-                        + device + " : " + storeVolume);
+        mVolumeEventLogger.logd(
+                TAG,
+                "storeVolume: Storing stream volume level for device "
+                        + device
+                        + " : "
+                        + storeVolume);
         mVolumeMap.put(device, storeVolume);
         pref.putInt(device.getAddress(), storeVolume);
         // Always use apply() since it is asynchronous, otherwise the call can hang waiting for
@@ -221,7 +228,7 @@ class AvrcpVolumeManager extends AudioDeviceCallback {
      * #storeVolumeForDevice(BluetoothDevice, int)} with {@code device}.
      */
     synchronized void storeVolumeForDevice(@NonNull BluetoothDevice device) {
-        int storeVolume =  mAudioManager.getLastAudibleStreamVolume(STREAM_MUSIC);
+        int storeVolume = mAudioManager.getLastAudibleStreamVolume(STREAM_MUSIC);
         storeVolumeForDevice(device, storeVolume);
     }
 
@@ -230,12 +237,12 @@ class AvrcpVolumeManager extends AudioDeviceCallback {
      * {@link SharedPreferences}.
      */
     synchronized void removeStoredVolumeForDevice(@NonNull BluetoothDevice device) {
-        if (device.getBondState() != BluetoothDevice.BOND_NONE) {
+        if (mAdapterService.getBondState(device) != BluetoothDevice.BOND_NONE) {
             return;
         }
         SharedPreferences.Editor pref = getVolumeMap().edit();
-        mVolumeEventLogger.logd(TAG,
-                    "RemoveStoredVolume: Remove stored stream volume level for device " + device);
+        mVolumeEventLogger.logd(
+                TAG, "RemoveStoredVolume: Remove stored stream volume level for device " + device);
         mVolumeMap.remove(device);
         pref.remove(device.getAddress());
         // Always use apply() since it is asynchronous, otherwise the call can hang waiting for
@@ -273,14 +280,22 @@ class AvrcpVolumeManager extends AudioDeviceCallback {
      */
     void setVolume(@NonNull BluetoothDevice device, int avrcpVolume) {
         int deviceVolume = avrcpToSystemVolume(avrcpVolume);
-        mVolumeEventLogger.logd(TAG, "setVolume:"
-                        + " device=" + device
-                        + " avrcpVolume=" + avrcpVolume
-                        + " deviceVolume=" + deviceVolume
-                        + " sDeviceMaxVolume=" + sDeviceMaxVolume);
-        mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, deviceVolume,
+        mVolumeEventLogger.logd(
+                TAG,
+                "setVolume:"
+                        + " device="
+                        + device
+                        + " avrcpVolume="
+                        + avrcpVolume
+                        + " deviceVolume="
+                        + deviceVolume
+                        + " sDeviceMaxVolume="
+                        + sDeviceMaxVolume);
+        mAudioManager.setStreamVolume(
+                AudioManager.STREAM_MUSIC,
+                deviceVolume,
                 (deviceVolume != getVolume(device, -1) ? AudioManager.FLAG_SHOW_UI : 0)
-                    | AudioManager.FLAG_BLUETOOTH_ABS_VOLUME);
+                        | AudioManager.FLAG_BLUETOOTH_ABS_VOLUME);
         storeVolumeForDevice(device);
     }
 
@@ -297,11 +312,17 @@ class AvrcpVolumeManager extends AudioDeviceCallback {
             return;
         }
         int avrcpVolume = systemToAvrcpVolume(deviceVolume);
-        mVolumeEventLogger.logd(TAG, "sendVolumeChanged:"
-                        + " device=" + device
-                        + " avrcpVolume=" + avrcpVolume
-                        + " deviceVolume=" + deviceVolume
-                        + " sDeviceMaxVolume=" + sDeviceMaxVolume);
+        mVolumeEventLogger.logd(
+                TAG,
+                "sendVolumeChanged:"
+                        + " device="
+                        + device
+                        + " avrcpVolume="
+                        + avrcpVolume
+                        + " deviceVolume="
+                        + deviceVolume
+                        + " sDeviceMaxVolume="
+                        + sDeviceMaxVolume);
         mNativeInterface.sendVolumeChanged(device, avrcpVolume);
         storeVolumeForDevice(device);
     }
@@ -400,18 +421,22 @@ class AvrcpVolumeManager extends AudioDeviceCallback {
 
     public void dump(StringBuilder sb) {
         sb.append("AvrcpVolumeManager:\n");
-        sb.append("  mCurrentDevice: " + mCurrentDevice + "\n");
-        sb.append("  Current System Volume: " + mAudioManager.getStreamVolume(STREAM_MUSIC) + "\n");
+        sb.append("  mCurrentDevice: ").append(mCurrentDevice).append("\n");
+        sb.append("  Current System Volume: ")
+                .append(mAudioManager.getStreamVolume(STREAM_MUSIC))
+                .append("\n");
         sb.append("  Device Volume Memory Map:\n");
-        sb.append(String.format("    %-17s : %-14s : %3s : %s\n",
-                "Device Address", "Device Name", "Vol", "AbsVol"));
+        sb.append(
+                String.format(
+                        "    %-17s : %-14s : %3s : %s\n",
+                        "Device Address", "Device Name", "Vol", "AbsVol"));
         Map<String, ?> allKeys = getVolumeMap().getAll();
         for (Map.Entry<String, ?> entry : allKeys.entrySet()) {
             Object value = entry.getValue();
-            BluetoothDevice d = BluetoothAdapter.getDefaultAdapter()
-                    .getRemoteDevice(entry.getKey());
+            BluetoothDevice d =
+                    BluetoothAdapter.getDefaultAdapter().getRemoteDevice(entry.getKey());
 
-            String deviceName = d.getName();
+            String deviceName = mAdapterService.getRemoteName(d);
             if (deviceName == null) {
                 deviceName = "";
             } else if (deviceName.length() > 14) {
@@ -424,8 +449,10 @@ class AvrcpVolumeManager extends AudioDeviceCallback {
             }
 
             if (value instanceof Integer) {
-                sb.append(String.format("    %-17s : %-14s : %3d : %s\n",
-                        d.getAddress(), deviceName, (Integer) value, absoluteVolume));
+                sb.append(
+                        String.format(
+                                "    %-17s : %-14s : %3d : %s\n",
+                                d.getAddress(), deviceName, (Integer) value, absoluteVolume));
             }
         }
 

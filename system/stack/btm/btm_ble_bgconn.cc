@@ -27,7 +27,6 @@
 #include "stack/btm/btm_ble_bgconn.h"
 
 #include <bluetooth/log.h>
-#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <unordered_map>
@@ -39,7 +38,6 @@
 #include "stack/btm/btm_ble_int.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_int_types.h"
-#include "stack/include/acl_api.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -62,13 +60,11 @@ struct BackgroundConnection {
 struct BgConnHash {
   std::size_t operator()(const RawAddress& x) const {
     const uint8_t* a = x.address;
-    return a[0] ^ (a[1] << 8) ^ (a[2] << 16) ^ (a[3] << 24) ^ a[4] ^
-           (a[5] << 8);
+    return a[0] ^ (a[1] << 8) ^ (a[2] << 16) ^ (a[3] << 24) ^ a[4] ^ (a[5] << 8);
   }
 };
 
-static std::unordered_map<RawAddress, BackgroundConnection, BgConnHash>
-    background_connections;
+static std::unordered_map<RawAddress, BackgroundConnection, BgConnHash> background_connections;
 
 /*******************************************************************************
  *
@@ -78,34 +74,30 @@ static std::unordered_map<RawAddress, BackgroundConnection, BgConnHash>
  ******************************************************************************/
 void btm_update_scanner_filter_policy(tBTM_BLE_SFP scan_policy) {
   uint32_t scan_interval = !btm_cb.ble_ctr_cb.inq_var.scan_interval
-                               ? BTM_BLE_GAP_DISC_SCAN_INT
-                               : btm_cb.ble_ctr_cb.inq_var.scan_interval;
+                                   ? BTM_BLE_GAP_DISC_SCAN_INT
+                                   : btm_cb.ble_ctr_cb.inq_var.scan_interval;
   uint32_t scan_window = !btm_cb.ble_ctr_cb.inq_var.scan_window
-                             ? BTM_BLE_GAP_DISC_SCAN_WIN
-                             : btm_cb.ble_ctr_cb.inq_var.scan_window;
-  uint8_t scan_phy = !btm_cb.ble_ctr_cb.inq_var.scan_phy
-                         ? BTM_BLE_DEFAULT_PHYS
-                         : btm_cb.ble_ctr_cb.inq_var.scan_phy;
+                                 ? BTM_BLE_GAP_DISC_SCAN_WIN
+                                 : btm_cb.ble_ctr_cb.inq_var.scan_window;
+  uint8_t scan_phy = !btm_cb.ble_ctr_cb.inq_var.scan_phy ? BTM_BLE_DEFAULT_PHYS
+                                                         : btm_cb.ble_ctr_cb.inq_var.scan_phy;
 
   log::verbose("");
 
   btm_cb.ble_ctr_cb.inq_var.sfp = scan_policy;
   btm_cb.ble_ctr_cb.inq_var.scan_type =
-      btm_cb.ble_ctr_cb.inq_var.scan_type == BTM_BLE_SCAN_MODE_NONE
-          ? BTM_BLE_SCAN_MODE_ACTI
-          : btm_cb.ble_ctr_cb.inq_var.scan_type;
+          btm_cb.ble_ctr_cb.inq_var.scan_type == BTM_BLE_SCAN_MODE_NONE
+                  ? BTM_BLE_SCAN_MODE_ACTI
+                  : btm_cb.ble_ctr_cb.inq_var.scan_type;
 
-  btm_send_hci_set_scan_params(
-      btm_cb.ble_ctr_cb.inq_var.scan_type, (uint16_t)scan_interval,
-      (uint16_t)scan_window, (uint8_t)scan_phy,
-      btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type, scan_policy);
+  btm_send_hci_set_scan_params(btm_cb.ble_ctr_cb.inq_var.scan_type, (uint16_t)scan_interval,
+                               (uint16_t)scan_window, (uint8_t)scan_phy,
+                               btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type, scan_policy);
 }
 
 /** Adds the device into acceptlist. Returns false if acceptlist is full and
  * device can't be added, true otherwise. */
-bool BTM_AcceptlistAdd(const RawAddress& address) {
-  return BTM_AcceptlistAdd(address, false);
-}
+bool BTM_AcceptlistAdd(const RawAddress& address) { return BTM_AcceptlistAdd(address, false); }
 
 /** Adds the device into acceptlist and indicates whether to using direct
  * connect parameters. Returns false if acceptlist is full and device can't
@@ -116,20 +108,8 @@ bool BTM_AcceptlistAdd(const RawAddress& address, bool is_direct) {
     return false;
   }
 
-  if (com::android::bluetooth::flags::verify_handle_before_add_accept_list()) {
-    // Only RPA is checked here. RPA is converted to the identity address in
-    // BTM_Sec_GetAddressWithType if host has resolved it. Adding the identity
-    // address to accept list is not necessary if a valid handle already exists
-    // for the RPA.
-    if (BTM_BLE_IS_RESOLVE_BDA(address) &&
-        bluetooth::shim::ACL_DeviceAlreadyConnected(
-            {.type = 0x01, .bda = address})) {
-      log::info("Already connected, not adding to accept list.");
-      return true;
-    }
-  }
-  return bluetooth::shim::ACL_AcceptLeConnectionFrom(
-      BTM_Sec_GetAddressWithType(address), is_direct);
+  return bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address),
+                                                     is_direct);
 }
 
 /** Removes the device from acceptlist */
@@ -139,8 +119,7 @@ void BTM_AcceptlistRemove(const RawAddress& address) {
     return;
   }
 
-  bluetooth::shim::ACL_IgnoreLeConnectionFrom(
-      BTM_Sec_GetAddressWithType(address));
+  bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(address));
   return;
 }
 

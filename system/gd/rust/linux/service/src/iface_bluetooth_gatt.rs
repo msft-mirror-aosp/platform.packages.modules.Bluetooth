@@ -1,4 +1,4 @@
-use bt_topshim::btif::{BtStatus, BtTransport, RawAddress, Uuid, Uuid128Bit};
+use bt_topshim::btif::{BtStatus, BtTransport, RawAddress, Uuid};
 use bt_topshim::profiles::gatt::{AdvertisingStatus, GattStatus, LeDiscMode, LePhy};
 
 use btstack::bluetooth_adv::{
@@ -25,7 +25,6 @@ use dbus_projection::prelude::*;
 use num_traits::cast::{FromPrimitive, ToPrimitive};
 
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::sync::Arc;
 
 use crate::dbus_arg::{DBusArg, DBusArgError, RefArgToRust};
@@ -283,35 +282,13 @@ impl IBluetoothGattServerCallback for BluetoothGattServerCallbackDBus {
     }
 }
 
-// Represents Uuid128Bit as an array in D-Bus.
-impl DBusArg for Uuid128Bit {
-    type DBusType = Vec<u8>;
-
-    fn from_dbus(
-        data: Vec<u8>,
-        _conn: Option<Arc<SyncConnection>>,
-        _remote: Option<dbus::strings::BusName<'static>>,
-        _disconnect_watcher: Option<Arc<std::sync::Mutex<DisconnectWatcher>>>,
-    ) -> Result<[u8; 16], Box<dyn std::error::Error>> {
-        return Ok(data.try_into().unwrap());
-    }
-
-    fn to_dbus(data: [u8; 16]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        return Ok(data.to_vec());
-    }
-
-    fn log(data: &[u8; 16]) -> String {
-        String::from(format!("{:?}", data))
-    }
-}
-
 #[allow(dead_code)]
 struct ScannerCallbackDBus {}
 
 #[dbus_proxy_obj(ScannerCallback, "org.chromium.bluetooth.ScannerCallback")]
 impl IScannerCallback for ScannerCallbackDBus {
     #[dbus_method("OnScannerRegistered")]
-    fn on_scanner_registered(&mut self, uuid: Uuid128Bit, scanner_id: u8, status: GattStatus) {
+    fn on_scanner_registered(&mut self, uuid: Uuid, scanner_id: u8, status: GattStatus) {
         dbus_generated!()
     }
 
@@ -338,14 +315,14 @@ impl IScannerCallback for ScannerCallbackDBus {
 
 #[dbus_propmap(BluetoothGattDescriptor)]
 pub struct BluetoothGattDescriptorDBus {
-    uuid: Uuid128Bit,
+    uuid: Uuid,
     instance_id: i32,
     permissions: i32,
 }
 
 #[dbus_propmap(BluetoothGattCharacteristic)]
 pub struct BluetoothGattCharacteristicDBus {
-    uuid: Uuid128Bit,
+    uuid: Uuid,
     instance_id: i32,
     properties: i32,
     permissions: i32,
@@ -356,7 +333,7 @@ pub struct BluetoothGattCharacteristicDBus {
 
 #[dbus_propmap(BluetoothGattService)]
 pub struct BluetoothGattServiceDBus {
-    uuid: Uuid128Bit,
+    uuid: Uuid,
     instance_id: i32,
     service_type: i32,
     characteristics: Vec<BluetoothGattCharacteristic>,
@@ -383,7 +360,7 @@ struct ScanResultDBus {
     rssi: i8,
     periodic_adv_int: u16,
     flags: u8,
-    service_uuids: Vec<Uuid128Bit>,
+    service_uuids: Vec<Uuid>,
     service_data: HashMap<String, Vec<u8>>,
     manufacturer_data: HashMap<u16, Vec<u8>>,
     adv_data: Vec<u8>,
@@ -440,49 +417,46 @@ impl DBusArg for ScanFilterCondition {
         let variant = match data.get("patterns") {
             Some(variant) => variant,
             None => {
-                return Err(Box::new(DBusArgError::new(String::from(format!(
+                return Err(Box::new(DBusArgError::new(String::from(
                     "ScanFilterCondition does not contain any enum variant",
-                )))));
+                ))));
             }
         };
 
         match variant.arg_type() {
             dbus::arg::ArgType::Variant => {}
             _ => {
-                return Err(Box::new(DBusArgError::new(String::from(format!(
+                return Err(Box::new(DBusArgError::new(String::from(
                     "ScanFilterCondition::Patterns must be a variant",
-                )))));
+                ))));
             }
         };
 
         let patterns =
             <<Vec<ScanFilterPattern> as DBusArg>::DBusType as RefArgToRust>::ref_arg_to_rust(
                 variant.as_static_inner(0).unwrap(),
-                format!("ScanFilterCondition::Patterns"),
+                "ScanFilterCondition::Patterns".to_string(),
             )?;
 
         let patterns = Vec::<ScanFilterPattern>::from_dbus(patterns, None, None, None)?;
-        return Ok(ScanFilterCondition::Patterns(patterns));
+        Ok(ScanFilterCondition::Patterns(patterns))
     }
 
     fn to_dbus(
         condition: ScanFilterCondition,
     ) -> Result<dbus::arg::PropMap, Box<dyn std::error::Error>> {
         let mut map: dbus::arg::PropMap = std::collections::HashMap::new();
-        match condition {
-            ScanFilterCondition::Patterns(patterns) => {
-                map.insert(
-                    String::from("patterns"),
-                    dbus::arg::Variant(Box::new(DBusArg::to_dbus(patterns)?)),
-                );
-            }
-            _ => {}
+        if let ScanFilterCondition::Patterns(patterns) = condition {
+            map.insert(
+                String::from("patterns"),
+                dbus::arg::Variant(Box::new(DBusArg::to_dbus(patterns)?)),
+            );
         }
-        return Ok(map);
+        Ok(map)
     }
 
     fn log(condition: &ScanFilterCondition) -> String {
-        String::from(format!("{:?}", condition))
+        format!("{:?}", condition)
     }
 }
 
@@ -636,11 +610,11 @@ impl IBluetoothGatt for IBluetoothGattDBus {
     }
 
     #[dbus_method("RegisterScanner", DBusLog::Disable)]
-    fn register_scanner(&mut self, callback_id: u32) -> Uuid128Bit {
+    fn register_scanner(&mut self, callback_id: u32) -> Uuid {
         dbus_generated!()
     }
 
-    #[dbus_method("UnregisterScanner", DBusLog::Disable)]
+    #[dbus_method("UnregisterScanner")]
     fn unregister_scanner(&mut self, scanner_id: u8) -> bool {
         dbus_generated!()
     }

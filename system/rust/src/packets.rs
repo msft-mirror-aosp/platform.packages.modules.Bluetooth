@@ -5,5 +5,6 @@
 #![allow(clippy::all)]
 // this is now stable
 #![feature(mixed_integer_ops)]
-
-include!(concat!(env!("OUT_DIR"), "/_packets.rs"));
+pub mod att {
+    include!(concat!(env!("OUT_DIR"), "/_packets.rs"));
+}

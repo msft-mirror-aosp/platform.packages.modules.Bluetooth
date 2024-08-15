@@ -2,10 +2,10 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "verify_handle_before_add_accept_list"
+    name: "floss_separate_host_privacy_and_llprivacy"
     namespace: "bluetooth"
-    description: "Verify there is no valid handle before adding address to the accept list"
-    bug: "338112215"
+    description: "Allow enabling host privacy and LL privacy separately in floss"
+    bug: "338134627"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

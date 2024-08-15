@@ -1,17 +1,17 @@
 /*
-* Copyright (C) 2014 Samsung System LSI
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright (C) 2014 Samsung System LSI
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.android.bluetooth.map;
 
 import android.bluetooth.BluetoothProfile;
@@ -34,6 +34,7 @@ import com.android.bluetooth.mapapi.BluetoothMapContract;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /** Class to construct content observers for email applications on the system. */
@@ -43,9 +44,8 @@ public class BluetoothMapAppObserver {
     private static final String TAG = "BluetoothMapAppObserver";
 
     /*  */
-    private LinkedHashMap<BluetoothMapAccountItem, ArrayList<BluetoothMapAccountItem>> mFullList;
-    private LinkedHashMap<String, ContentObserver> mObserverMap =
-            new LinkedHashMap<String, ContentObserver>();
+    private Map<BluetoothMapAccountItem, List<BluetoothMapAccountItem>> mFullList;
+    private Map<String, ContentObserver> mObserverMap = new LinkedHashMap<>();
     private ContentResolver mResolver;
     private Context mContext;
     private BroadcastReceiver mReceiver;
@@ -64,7 +64,6 @@ public class BluetoothMapAppObserver {
         initObservers();
     }
 
-
     private BluetoothMapAccountItem getApp(String authoritiesName) {
         Log.v(TAG, "getApp(): Looking for " + authoritiesName);
         for (BluetoothMapAccountItem app : mFullList.keySet()) {
@@ -80,22 +79,22 @@ public class BluetoothMapAppObserver {
 
     private void handleAccountChanges(String packageNameWithProvider) {
 
-        Log.d(TAG, "handleAccountChanges (packageNameWithProvider: " + packageNameWithProvider
-                + "\n");
-        //String packageName = packageNameWithProvider.replaceFirst("\\.[^\\.]+$", "");
+        Log.d(
+                TAG,
+                "handleAccountChanges (packageNameWithProvider: " + packageNameWithProvider + "\n");
+        // String packageName = packageNameWithProvider.replaceFirst("\\.[^\\.]+$", "");
         BluetoothMapAccountItem app = getApp(packageNameWithProvider);
         if (app != null) {
-            ArrayList<BluetoothMapAccountItem> newAccountList = mLoader.parseAccounts(app);
-            ArrayList<BluetoothMapAccountItem> oldAccountList = mFullList.get(app);
-            ArrayList<BluetoothMapAccountItem> addedAccountList =
-                    (ArrayList<BluetoothMapAccountItem>) newAccountList.clone();
+            List<BluetoothMapAccountItem> newAccountList = mLoader.parseAccounts(app);
+            List<BluetoothMapAccountItem> oldAccountList = mFullList.get(app);
+            List<BluetoothMapAccountItem> addedAccountList = new ArrayList<>(newAccountList);
             // Same as oldAccountList.clone
-            ArrayList<BluetoothMapAccountItem> removedAccountList = mFullList.get(app);
+            List<BluetoothMapAccountItem> removedAccountList = mFullList.get(app);
             if (oldAccountList == null) {
-                oldAccountList = new ArrayList<BluetoothMapAccountItem>();
+                oldAccountList = new ArrayList<>();
             }
             if (removedAccountList == null) {
-                removedAccountList = new ArrayList<BluetoothMapAccountItem>();
+                removedAccountList = new ArrayList<>();
             }
 
             mFullList.put(app, newAccountList);
@@ -117,14 +116,18 @@ public class BluetoothMapAppObserver {
                                 // account added - create SDP record
                                 mMapService.updateMasInstances(
                                         BluetoothMapService.UPDATE_MAS_INSTANCES_ACCOUNT_ADDED);
-                                Log.v(TAG, "UPDATE_MAS_INSTANCES_ACCOUNT_ADDED "
-                                        + "isChecked changed");
+                                Log.v(
+                                        TAG,
+                                        "UPDATE_MAS_INSTANCES_ACCOUNT_ADDED "
+                                                + "isChecked changed");
                             } else {
                                 // account removed - remove SDP record
                                 mMapService.updateMasInstances(
                                         BluetoothMapService.UPDATE_MAS_INSTANCES_ACCOUNT_REMOVED);
-                                Log.v(TAG, "    UPDATE_MAS_INSTANCES_ACCOUNT_REMOVED "
-                                        + "isChecked changed");
+                                Log.v(
+                                        TAG,
+                                        "    UPDATE_MAS_INSTANCES_ACCOUNT_REMOVED "
+                                                + "isChecked changed");
                             }
                         }
                         break;
@@ -194,7 +197,7 @@ public class BluetoothMapAppObserver {
                     }
                 };
         mObserverMap.put(uri.toString(), observer);
-        //False "notifyForDescendents" : Get notified whenever a change occurs to the exact URI.
+        // False "notifyForDescendents" : Get notified whenever a change occurs to the exact URI.
         mResolver.registerContentObserver(uri, false, observer);
     }
 
@@ -298,9 +301,7 @@ public class BluetoothMapAppObserver {
                                 if (app != null) {
                                     registerObserver(app);
                                     // Add all accounts to mFullList
-                                    ArrayList<BluetoothMapAccountItem> newAccountList =
-                                            mLoader.parseAccounts(app);
-                                    mFullList.put(app, newAccountList);
+                                    mFullList.put(app, mLoader.parseAccounts(app));
                                 }
                             }
 
@@ -352,14 +353,14 @@ public class BluetoothMapAppObserver {
     /**
      * Method to get a list of the accounts (across all apps) that are set to be shared through MAP.
      *
-     * @return Arraylist<BluetoothMapAccountItem> containing all enabled accounts
+     * @return List containing all enabled accounts
      */
-    public ArrayList<BluetoothMapAccountItem> getEnabledAccountItems() {
+    public List<BluetoothMapAccountItem> getEnabledAccountItems() {
         Log.d(TAG, "getEnabledAccountItems()\n");
-        ArrayList<BluetoothMapAccountItem> list = new ArrayList<BluetoothMapAccountItem>();
+        List<BluetoothMapAccountItem> list = new ArrayList<>();
         for (BluetoothMapAccountItem app : mFullList.keySet()) {
             if (app != null) {
-                ArrayList<BluetoothMapAccountItem> accountList = mFullList.get(app);
+                List<BluetoothMapAccountItem> accountList = mFullList.get(app);
                 if (accountList != null) {
                     for (BluetoothMapAccountItem acc : accountList) {
                         if (acc.mIsChecked) {
@@ -389,22 +390,19 @@ public class BluetoothMapAppObserver {
 
     /**
      * Method to get a list of the accounts (across all apps).
-     * @return Arraylist<BluetoothMapAccountItem> containing all accounts
+     *
+     * @return List containing all accounts
      */
-    public ArrayList<BluetoothMapAccountItem> getAllAccountItems() {
+    public List<BluetoothMapAccountItem> getAllAccountItems() {
         Log.d(TAG, "getAllAccountItems()\n");
-        ArrayList<BluetoothMapAccountItem> list = new ArrayList<BluetoothMapAccountItem>();
+        List<BluetoothMapAccountItem> list = new ArrayList<>();
         for (BluetoothMapAccountItem app : mFullList.keySet()) {
-            ArrayList<BluetoothMapAccountItem> accountList = mFullList.get(app);
-            list.addAll(accountList);
+            list.addAll(mFullList.get(app));
         }
         return list;
     }
 
-
-    /**
-     * Cleanup all resources - must be called to avoid leaks.
-     */
+    /** Cleanup all resources - must be called to avoid leaks. */
     public void shutdown() {
         deinitObservers();
         removeReceiver();

@@ -20,8 +20,8 @@ import android.bluetooth.BluetoothCodecStatus;
 import android.bluetooth.BluetoothDevice;
 
 /**
- * Stack event sent via a callback from JNI to Java, or generated
- * internally by the A2DP State Machine.
+ * Stack event sent via a callback from JNI to Java, or generated internally by the A2DP State
+ * Machine.
  */
 public class A2dpStackEvent {
     // Event types for STACK_EVENT message (coming from native)
@@ -54,11 +54,11 @@ public class A2dpStackEvent {
     public String toString() {
         // event dump
         StringBuilder result = new StringBuilder();
-        result.append("A2dpStackEvent {type:" + eventTypeToString(type));
-        result.append(", device:" + device);
-        result.append(", value1:" + eventTypeValueIntToString(type, valueInt));
+        result.append("A2dpStackEvent {type:").append(eventTypeToString(type));
+        result.append(", device:").append(device);
+        result.append(", value1:").append(eventTypeValueIntToString(type, valueInt));
         if (codecStatus != null) {
-            result.append(", codecStatus:" + codecStatus);
+            result.append(", codecStatus:").append(codecStatus);
         }
         result.append("}");
         return result.toString();

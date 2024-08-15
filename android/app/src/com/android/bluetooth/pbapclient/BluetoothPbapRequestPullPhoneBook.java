@@ -25,7 +25,7 @@ import com.android.vcard.VCardEntry;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
+import java.util.List;
 
 final class BluetoothPbapRequestPullPhoneBook extends BluetoothPbapRequest {
     private static final String TAG = "PbapClient.PullPb";
@@ -40,8 +40,13 @@ final class BluetoothPbapRequestPullPhoneBook extends BluetoothPbapRequest {
 
     private final byte mFormat;
 
-    BluetoothPbapRequestPullPhoneBook(String pbName, Account account, long filter, byte format,
-            int maxListCount, int listStartOffset) {
+    BluetoothPbapRequestPullPhoneBook(
+            String pbName,
+            Account account,
+            long filter,
+            byte format,
+            int maxListCount,
+            int listStartOffset) {
         mAccount = account;
         if (maxListCount < 0 || maxListCount > 65535) {
             throw new IllegalArgumentException("maxListCount should be [0..65535]");
@@ -107,7 +112,7 @@ final class BluetoothPbapRequestPullPhoneBook extends BluetoothPbapRequest {
         }
     }
 
-    public ArrayList<VCardEntry> getList() {
+    public List<VCardEntry> getList() {
         return mResponse.getList();
     }
 

@@ -15,7 +15,6 @@
  */
 package com.android.bluetooth.mapclient;
 
-
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothAdapter;
@@ -41,8 +40,7 @@ public class MapClientServiceBinderTest {
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock
-    private MapClientService mService;
+    @Mock private MapClientService mService;
 
     BluetoothDevice mRemoteDevice;
 
@@ -112,29 +110,6 @@ public class MapClientServiceBinderTest {
         mBinder.sendMessage(mRemoteDevice, contacts, message, null, null, null);
 
         verify(mService).sendMessage(mRemoteDevice, contacts, message, null, null);
-    }
-
-    @Test
-    public void getUnreadMessages_callsServiceMethod() {
-        mBinder.getUnreadMessages(mRemoteDevice, null);
-
-        verify(mService).getUnreadMessages(mRemoteDevice);
-    }
-
-    @Test
-    public void getSupportedFeatures_callsServiceMethod() {
-        mBinder.getSupportedFeatures(mRemoteDevice, null);
-
-        verify(mService).getSupportedFeatures(mRemoteDevice);
-    }
-
-    @Test
-    public void setMessageStatus_callsServiceMethod() {
-        String handle = "FFAB";
-        int status = 1234;
-        mBinder.setMessageStatus(mRemoteDevice, handle, status, null);
-
-        verify(mService).setMessageStatus(mRemoteDevice, handle, status);
     }
 
     @Test

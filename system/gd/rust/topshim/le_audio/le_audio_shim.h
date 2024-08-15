@@ -27,15 +27,16 @@ namespace bluetooth {
 namespace topshim {
 namespace rust {
 
-struct BtLeAudioCodecConfig;
 enum class BtLeAudioDirection : uint8_t;
+enum class BtLeStreamStartedStatus : int32_t;
+struct BtLeAudioCodecConfig;
 struct BtLePcmConfig;
 struct SourceMetadata;
 struct SinkMetadata;
 
 class LeAudioClientIntf {
- public:
-  LeAudioClientIntf(le_audio::LeAudioClientInterface* intf) : intf_(intf){};
+public:
+  LeAudioClientIntf(le_audio::LeAudioClientInterface* intf) : intf_(intf) {}
 
   void init(
       /*
@@ -50,14 +51,12 @@ const std::vector<le_audio::btle_audio_codec_config_t>& offloading_preference
   void group_add_node(int group_id, RawAddress addr);
   void group_remove_node(int group_id, RawAddress addr);
   void group_set_active(int group_id);
-  void set_codec_config_preference(
-      int group_id,
-      BtLeAudioCodecConfig input_codec_config,
-      BtLeAudioCodecConfig output_codec_config);
+  void set_codec_config_preference(int group_id, BtLeAudioCodecConfig input_codec_config,
+                                   BtLeAudioCodecConfig output_codec_config);
   void set_ccid_information(int ccid, int context_type);
   void set_in_call(bool in_call);
-  void send_audio_profile_preferences(
-      int group_id, bool is_output_preference_le_audio, bool is_duplex_preference_le_audio);
+  void send_audio_profile_preferences(int group_id, bool is_output_preference_le_audio,
+                                      bool is_duplex_preference_le_audio);
   void set_unicast_monitor_mode(BtLeAudioDirection direction, bool enable);
 
   // interface for audio server
@@ -67,12 +66,12 @@ const std::vector<le_audio::btle_audio_codec_config_t>& offloading_preference
   void peer_stop_audio_request();
   BtLePcmConfig get_host_pcm_config();
   BtLePcmConfig get_peer_pcm_config();
-  bool get_host_stream_started();
-  bool get_peer_stream_started();
+  BtLeStreamStartedStatus get_host_stream_started();
+  BtLeStreamStartedStatus get_peer_stream_started();
   void source_metadata_changed(::rust::Vec<SourceMetadata> metadata);
   void sink_metadata_changed(::rust::Vec<SinkMetadata> metadata);
 
- private:
+private:
   le_audio::LeAudioClientInterface* intf_;
 };
 

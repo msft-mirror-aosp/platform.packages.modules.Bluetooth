@@ -37,18 +37,19 @@ class LeAudioCodecConfig {
 
         AudioManager audioManager = mContext.getSystemService(AudioManager.class);
         if (audioManager == null) {
-            Log.w(TAG, "Can't obtain the codec offloading prefernece from null AudioManager");
+            Log.w(TAG, "Can't obtain the codec offloading preference from null AudioManager");
             return;
         }
 
-        mCodecConfigOffloading = audioManager.getHwOffloadFormatsSupportedForLeAudio()
-                                             .toArray(mCodecConfigOffloading);
+        mCodecConfigOffloading =
+                audioManager
+                        .getHwOffloadFormatsSupportedForLeAudio()
+                        .toArray(mCodecConfigOffloading);
 
         Log.i(TAG, "mCodecConfigOffloading size for le -> " + mCodecConfigOffloading.length);
 
         for (int idx = 0; idx < mCodecConfigOffloading.length; idx++) {
-            Log.i(TAG, String.format("mCodecConfigOffloading[%d] -> %s",
-                    idx, mCodecConfigOffloading[idx].toString()));
+            Log.i(TAG, "mCodecConfigOffloading[" + idx + "] -> " + mCodecConfigOffloading[idx]);
         }
     }
 
@@ -56,4 +57,3 @@ class LeAudioCodecConfig {
         return mCodecConfigOffloading;
     }
 }
-

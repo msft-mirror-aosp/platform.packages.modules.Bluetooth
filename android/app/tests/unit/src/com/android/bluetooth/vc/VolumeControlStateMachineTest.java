@@ -28,13 +28,12 @@ import static org.mockito.Mockito.verify;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
-import android.content.Context;
 import android.content.Intent;
 import android.os.HandlerThread;
 import android.os.Message;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -57,8 +56,7 @@ import org.mockito.junit.MockitoRule;
 @RunWith(AndroidJUnit4.class)
 public class VolumeControlStateMachineTest {
     private BluetoothAdapter mAdapter;
-    private Context mTargetContext;
-    private HandlerThread mHandlerThread;
+    private HandlerThread mHandlerThread = null;
     private VolumeControlStateMachine mVolumeControlStateMachine;
     private BluetoothDevice mTestDevice;
     private static final int TIMEOUT_MS = 1000;
@@ -69,13 +67,17 @@ public class VolumeControlStateMachineTest {
     @Mock private VolumeControlService mVolumeControlService;
     @Mock private VolumeControlNativeInterface mVolumeControlNativeInterface;
 
+    boolean mIsAdapterServiceSet;
+
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
-        InstrumentationRegistry.getInstrumentation().getUiAutomation().adoptShellPermissionIdentity();
+        InstrumentationRegistry.getInstrumentation()
+                .getUiAutomation()
+                .adoptShellPermissionIdentity();
         TestUtils.setAdapterService(mAdapterService);
 
         mAdapter = BluetoothAdapter.getDefaultAdapter();
+        mIsAdapterServiceSet = true;
 
         // Get a device for testing
         mTestDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
@@ -83,25 +85,32 @@ public class VolumeControlStateMachineTest {
         // Set up thread and looper
         mHandlerThread = new HandlerThread("VolumeControlStateMachineTestHandlerThread");
         mHandlerThread.start();
-        mVolumeControlStateMachine = new VolumeControlStateMachine(mTestDevice,
-                mVolumeControlService, mVolumeControlNativeInterface, mHandlerThread.getLooper());
+        mVolumeControlStateMachine =
+                new VolumeControlStateMachine(
+                        mTestDevice,
+                        mVolumeControlService,
+                        mVolumeControlNativeInterface,
+                        mHandlerThread.getLooper());
         // Override the timeout value to speed up the test
-        mVolumeControlStateMachine.sConnectTimeoutMs = 1000;     // 1s
+        mVolumeControlStateMachine.sConnectTimeoutMs = 1000; // 1s
         mVolumeControlStateMachine.start();
     }
 
     @After
     public void tearDown() throws Exception {
-        mHandlerThread.quit();
-        TestUtils.clearAdapterService(mAdapterService);
+        if (mHandlerThread != null) {
+            mHandlerThread.quit();
+        }
+        if (mIsAdapterServiceSet) {
+            TestUtils.clearAdapterService(mAdapterService);
+        }
     }
 
-    /**
-     * Test that default state is disconnected
-     */
+    /** Test that default state is disconnected */
     @Test
     public void testDefaultDisconnectedState() {
-        Assert.assertEquals(BluetoothProfile.STATE_DISCONNECTED,
+        Assert.assertEquals(
+                BluetoothProfile.STATE_DISCONNECTED,
                 mVolumeControlStateMachine.getConnectionState());
     }
 
@@ -114,9 +123,7 @@ public class VolumeControlStateMachineTest {
         doReturn(allow).when(mVolumeControlService).okToConnect(any(BluetoothDevice.class));
     }
 
-    /**
-     * Test that an incoming connection with policy forbidding connection is rejected
-     */
+    /** Test that an incoming connection with policy forbidding connection is rejected */
     @Test
     public void testIncomingPolicyReject() {
         allowConnection(false);
@@ -130,16 +137,15 @@ public class VolumeControlStateMachineTest {
         mVolumeControlStateMachine.sendMessage(VolumeControlStateMachine.STACK_EVENT, connStCh);
 
         // Verify that no connection state broadcast is executed
-        verify(mVolumeControlService, after(TIMEOUT_MS).never()).sendBroadcast(any(Intent.class),
-                anyString());
+        verify(mVolumeControlService, after(TIMEOUT_MS).never())
+                .sendBroadcast(any(Intent.class), anyString());
         // Check that we are in Disconnected state
-        Assert.assertThat(mVolumeControlStateMachine.getCurrentState(),
+        Assert.assertThat(
+                mVolumeControlStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(VolumeControlStateMachine.Disconnected.class));
     }
 
-    /**
-     * Test that an incoming connection with policy allowing connection is accepted
-     */
+    /** Test that an incoming connection with policy allowing connection is accepted */
     @Test
     public void testIncomingPolicyAccept() {
         allowConnection(true);
@@ -154,82 +160,91 @@ public class VolumeControlStateMachineTest {
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument1 = ArgumentCaptor.forClass(Intent.class);
-        verify(mVolumeControlService, timeout(TIMEOUT_MS).times(1)).sendBroadcast(
-                intentArgument1.capture(), anyString());
-        Assert.assertEquals(BluetoothProfile.STATE_CONNECTING,
+        verify(mVolumeControlService, timeout(TIMEOUT_MS).times(1))
+                .sendBroadcast(intentArgument1.capture(), anyString());
+        Assert.assertEquals(
+                BluetoothProfile.STATE_CONNECTING,
                 intentArgument1.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
 
         // Check that we are in Connecting state
-        Assert.assertThat(mVolumeControlStateMachine.getCurrentState(),
+        Assert.assertThat(
+                mVolumeControlStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(VolumeControlStateMachine.Connecting.class));
 
         // Send a message to trigger connection completed
         VolumeControlStackEvent connCompletedEvent =
-                new VolumeControlStackEvent(VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
         connCompletedEvent.device = mTestDevice;
         connCompletedEvent.valueInt1 = VolumeControlStackEvent.CONNECTION_STATE_CONNECTED;
-        mVolumeControlStateMachine.sendMessage(VolumeControlStateMachine.STACK_EVENT,
-                connCompletedEvent);
+        mVolumeControlStateMachine.sendMessage(
+                VolumeControlStateMachine.STACK_EVENT, connCompletedEvent);
 
         // Verify that the expected number of broadcasts are executed:
         // - two calls to broadcastConnectionState(): Disconnected -> Connecting -> Connected
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
-        verify(mVolumeControlService, timeout(TIMEOUT_MS).times(2)).sendBroadcast(
-                intentArgument2.capture(), anyString());
+        verify(mVolumeControlService, timeout(TIMEOUT_MS).times(2))
+                .sendBroadcast(intentArgument2.capture(), anyString());
         // Check that we are in Connected state
-        Assert.assertThat(mVolumeControlStateMachine.getCurrentState(),
+        Assert.assertThat(
+                mVolumeControlStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(VolumeControlStateMachine.Connected.class));
     }
 
-    /**
-     * Test that an outgoing connection times out
-     */
+    /** Test that an outgoing connection times out */
     @Test
     public void testOutgoingTimeout() {
         allowConnection(true);
-        doReturn(true).when(mVolumeControlNativeInterface).connectVolumeControl(any(
-                BluetoothDevice.class));
-        doReturn(true).when(mVolumeControlNativeInterface).disconnectVolumeControl(any(
-                BluetoothDevice.class));
+        doReturn(true)
+                .when(mVolumeControlNativeInterface)
+                .connectVolumeControl(any(BluetoothDevice.class));
+        doReturn(true)
+                .when(mVolumeControlNativeInterface)
+                .disconnectVolumeControl(any(BluetoothDevice.class));
 
         // Send a connect request
         mVolumeControlStateMachine.sendMessage(VolumeControlStateMachine.CONNECT, mTestDevice);
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument1 = ArgumentCaptor.forClass(Intent.class);
-        verify(mVolumeControlService, timeout(TIMEOUT_MS).times(1)).sendBroadcast(
-                intentArgument1.capture(),
-                anyString());
-        Assert.assertEquals(BluetoothProfile.STATE_CONNECTING,
+        verify(mVolumeControlService, timeout(TIMEOUT_MS).times(1))
+                .sendBroadcast(intentArgument1.capture(), anyString());
+        Assert.assertEquals(
+                BluetoothProfile.STATE_CONNECTING,
                 intentArgument1.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
 
         // Check that we are in Connecting state
-        Assert.assertThat(mVolumeControlStateMachine.getCurrentState(),
+        Assert.assertThat(
+                mVolumeControlStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(VolumeControlStateMachine.Connecting.class));
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
-        verify(mVolumeControlService, timeout(VolumeControlStateMachine.sConnectTimeoutMs * 2)
-                .times(2)).sendBroadcast(intentArgument2.capture(), anyString());
-        Assert.assertEquals(BluetoothProfile.STATE_DISCONNECTED,
+        verify(
+                        mVolumeControlService,
+                        timeout(VolumeControlStateMachine.sConnectTimeoutMs * 2L).times(2))
+                .sendBroadcast(intentArgument2.capture(), anyString());
+        Assert.assertEquals(
+                BluetoothProfile.STATE_DISCONNECTED,
                 intentArgument2.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
 
         // Check that we are in Disconnected state
-        Assert.assertThat(mVolumeControlStateMachine.getCurrentState(),
+        Assert.assertThat(
+                mVolumeControlStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(VolumeControlStateMachine.Disconnected.class));
         verify(mVolumeControlNativeInterface).disconnectVolumeControl(eq(mTestDevice));
     }
 
-    /**
-     * Test that an incoming connection times out
-     */
+    /** Test that an incoming connection times out */
     @Test
     public void testIncomingTimeout() {
         allowConnection(true);
-        doReturn(true).when(mVolumeControlNativeInterface).connectVolumeControl(any(
-                BluetoothDevice.class));
-        doReturn(true).when(mVolumeControlNativeInterface).disconnectVolumeControl(any(
-                BluetoothDevice.class));
+        doReturn(true)
+                .when(mVolumeControlNativeInterface)
+                .connectVolumeControl(any(BluetoothDevice.class));
+        doReturn(true)
+                .when(mVolumeControlNativeInterface)
+                .disconnectVolumeControl(any(BluetoothDevice.class));
 
         // Inject an event for when incoming connection is requested
         VolumeControlStackEvent connStCh =
@@ -241,25 +256,30 @@ public class VolumeControlStateMachineTest {
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument1 = ArgumentCaptor.forClass(Intent.class);
-        verify(mVolumeControlService, timeout(TIMEOUT_MS).times(1)).sendBroadcast(
-                intentArgument1.capture(),
-                anyString());
-        Assert.assertEquals(BluetoothProfile.STATE_CONNECTING,
+        verify(mVolumeControlService, timeout(TIMEOUT_MS).times(1))
+                .sendBroadcast(intentArgument1.capture(), anyString());
+        Assert.assertEquals(
+                BluetoothProfile.STATE_CONNECTING,
                 intentArgument1.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
 
         // Check that we are in Connecting state
-        Assert.assertThat(mVolumeControlStateMachine.getCurrentState(),
+        Assert.assertThat(
+                mVolumeControlStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(VolumeControlStateMachine.Connecting.class));
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
-        verify(mVolumeControlService, timeout(VolumeControlStateMachine.sConnectTimeoutMs * 2)
-                .times(2)).sendBroadcast(intentArgument2.capture(), anyString());
-        Assert.assertEquals(BluetoothProfile.STATE_DISCONNECTED,
+        verify(
+                        mVolumeControlService,
+                        timeout(VolumeControlStateMachine.sConnectTimeoutMs * 2L).times(2))
+                .sendBroadcast(intentArgument2.capture(), anyString());
+        Assert.assertEquals(
+                BluetoothProfile.STATE_DISCONNECTED,
                 intentArgument2.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
 
         // Check that we are in Disconnected state
-        Assert.assertThat(mVolumeControlStateMachine.getCurrentState(),
+        Assert.assertThat(
+                mVolumeControlStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(VolumeControlStateMachine.Disconnected.class));
         verify(mVolumeControlNativeInterface).disconnectVolumeControl(eq(mTestDevice));
     }
@@ -267,18 +287,22 @@ public class VolumeControlStateMachineTest {
     @Test
     public void testStatesChangesWithMessages() {
         allowConnection(true);
-        doReturn(true).when(mVolumeControlNativeInterface).connectVolumeControl(any(
-                BluetoothDevice.class));
-        doReturn(true).when(mVolumeControlNativeInterface).disconnectVolumeControl(any(
-                BluetoothDevice.class));
+        doReturn(true)
+                .when(mVolumeControlNativeInterface)
+                .connectVolumeControl(any(BluetoothDevice.class));
+        doReturn(true)
+                .when(mVolumeControlNativeInterface)
+                .disconnectVolumeControl(any(BluetoothDevice.class));
 
         // Check that we are in Disconnected state
-        Assert.assertThat(mVolumeControlStateMachine.getCurrentState(),
+        Assert.assertThat(
+                mVolumeControlStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(VolumeControlStateMachine.Disconnected.class));
 
         mVolumeControlStateMachine.sendMessage(mVolumeControlStateMachine.DISCONNECT);
         // Check that we are in Disconnected state
-        Assert.assertThat(mVolumeControlStateMachine.getCurrentState(),
+        Assert.assertThat(
+                mVolumeControlStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(VolumeControlStateMachine.Disconnected.class));
 
         // disconnected -> connecting
@@ -291,8 +315,9 @@ public class VolumeControlStateMachineTest {
                 VolumeControlStateMachine.Disconnected.class);
 
         // disconnected -> connecting
-        VolumeControlStackEvent stackEvent = new VolumeControlStackEvent(
-                VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
+        VolumeControlStackEvent stackEvent =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
         stackEvent.device = mTestDevice;
         stackEvent.valueInt1 = VolumeControlStackEvent.CONNECTION_STATE_CONNECTING;
         sendMessageAndVerifyTransition(
@@ -310,8 +335,9 @@ public class VolumeControlStateMachineTest {
                 mVolumeControlStateMachine.obtainMessage(mVolumeControlStateMachine.CONNECT),
                 VolumeControlStateMachine.Connecting.class);
         // connecting -> disconnecting
-        stackEvent = new VolumeControlStackEvent(
-                VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
+        stackEvent =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
         stackEvent.device = mTestDevice;
         stackEvent.valueInt1 = VolumeControlStackEvent.CONNECTION_STATE_DISCONNECTING;
         sendMessageAndVerifyTransition(
@@ -319,8 +345,9 @@ public class VolumeControlStateMachineTest {
                         mVolumeControlStateMachine.STACK_EVENT, stackEvent),
                 VolumeControlStateMachine.Disconnecting.class);
         // disconnecting -> connecting
-        stackEvent = new VolumeControlStackEvent(
-                VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
+        stackEvent =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
         stackEvent.device = mTestDevice;
         stackEvent.valueInt1 = VolumeControlStackEvent.CONNECTION_STATE_CONNECTING;
         sendMessageAndVerifyTransition(
@@ -328,8 +355,9 @@ public class VolumeControlStateMachineTest {
                         mVolumeControlStateMachine.STACK_EVENT, stackEvent),
                 VolumeControlStateMachine.Connecting.class);
         // connecting -> connected
-        stackEvent = new VolumeControlStackEvent(
-                VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
+        stackEvent =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
         stackEvent.device = mTestDevice;
         stackEvent.valueInt1 = VolumeControlStackEvent.CONNECTION_STATE_CONNECTED;
         sendMessageAndVerifyTransition(
@@ -337,8 +365,9 @@ public class VolumeControlStateMachineTest {
                         mVolumeControlStateMachine.STACK_EVENT, stackEvent),
                 VolumeControlStateMachine.Connected.class);
         // connected -> disconnecting
-        stackEvent = new VolumeControlStackEvent(
-                VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
+        stackEvent =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
         stackEvent.device = mTestDevice;
         stackEvent.valueInt1 = VolumeControlStackEvent.CONNECTION_STATE_DISCONNECTING;
         sendMessageAndVerifyTransition(
@@ -351,8 +380,9 @@ public class VolumeControlStateMachineTest {
                 VolumeControlStateMachine.Disconnected.class);
 
         // disconnected -> connected
-        stackEvent = new VolumeControlStackEvent(
-                VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
+        stackEvent =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
         stackEvent.device = mTestDevice;
         stackEvent.valueInt1 = VolumeControlStackEvent.CONNECTION_STATE_CONNECTED;
         sendMessageAndVerifyTransition(
@@ -361,13 +391,13 @@ public class VolumeControlStateMachineTest {
                 VolumeControlStateMachine.Connected.class);
         // connected -> disconnected
         sendMessageAndVerifyTransition(
-                mVolumeControlStateMachine.obtainMessage(
-                        mVolumeControlStateMachine.DISCONNECT),
+                mVolumeControlStateMachine.obtainMessage(mVolumeControlStateMachine.DISCONNECT),
                 VolumeControlStateMachine.Disconnecting.class);
 
         // disconnecting -> connected
-        stackEvent = new VolumeControlStackEvent(
-                VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
+        stackEvent =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
         stackEvent.device = mTestDevice;
         stackEvent.valueInt1 = VolumeControlStackEvent.CONNECTION_STATE_CONNECTED;
         sendMessageAndVerifyTransition(
@@ -375,8 +405,9 @@ public class VolumeControlStateMachineTest {
                         mVolumeControlStateMachine.STACK_EVENT, stackEvent),
                 VolumeControlStateMachine.Connected.class);
         // connected -> disconnected
-        stackEvent = new VolumeControlStackEvent(
-                VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
+        stackEvent =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
         stackEvent.device = mTestDevice;
         stackEvent.valueInt1 = VolumeControlStackEvent.CONNECTION_STATE_DISCONNECTED;
         sendMessageAndVerifyTransition(
@@ -389,9 +420,9 @@ public class VolumeControlStateMachineTest {
         Mockito.clearInvocations(mVolumeControlService);
         mVolumeControlStateMachine.sendMessage(msg);
         // Verify that one connection state broadcast is executed
-        verify(mVolumeControlService, timeout(TIMEOUT_MS).times(1)).sendBroadcast(
-                any(Intent.class), anyString());
-        Assert.assertThat(mVolumeControlStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(type));
+        verify(mVolumeControlService, timeout(TIMEOUT_MS).times(1))
+                .sendBroadcast(any(Intent.class), anyString());
+        Assert.assertThat(
+                mVolumeControlStateMachine.getCurrentState(), IsInstanceOf.instanceOf(type));
     }
 }

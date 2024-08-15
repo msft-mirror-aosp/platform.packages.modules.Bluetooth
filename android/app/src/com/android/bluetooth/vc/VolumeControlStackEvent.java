@@ -40,6 +40,7 @@ public class VolumeControlStackEvent {
     public BluetoothDevice device;
     public int valueInt1;
     public int valueInt2;
+    public int valueInt3;
     public boolean valueBool1;
     public boolean valueBool2;
     public String valueString1;
@@ -54,13 +55,14 @@ public class VolumeControlStackEvent {
     public String toString() {
         // event dump
         StringBuilder result = new StringBuilder();
-        result.append("VolumeControlStackEvent {type:" + eventTypeToString(type));
-        result.append(", device:" + device);
-        result.append(", valueInt1:" + eventTypeValue1ToString(type, valueInt1));
-        result.append(", valueInt2:" + eventTypeValue2ToString(type, valueInt2));
-        result.append(", valueBool1:" + eventTypeValueBool1ToString(type, valueBool1));
-        result.append(", valueBool2:" + eventTypeValueBool2ToString(type, valueBool2));
-        result.append(", valueString1:" + eventTypeString1ToString(type, valueString1));
+        result.append("VolumeControlStackEvent {type:").append(eventTypeToString(type));
+        result.append(", device:").append(device);
+        result.append(", valueInt1:").append(eventTypeValue1ToString(type, valueInt1));
+        result.append(", valueInt2:").append(eventTypeValue2ToString(type, valueInt2));
+        result.append(", valueInt3:").append(eventTypeValue3ToString(type, valueInt3));
+        result.append(", valueBool1:").append(eventTypeValueBool1ToString(type, valueBool1));
+        result.append(", valueBool2:").append(eventTypeValueBool2ToString(type, valueBool2));
+        result.append(", valueString1:").append(eventTypeString1ToString(type, valueString1));
         result.append("}");
         return result.toString();
     }
@@ -91,20 +93,20 @@ public class VolumeControlStackEvent {
             case EVENT_TYPE_CONNECTION_STATE_CHANGED:
                 switch (value) {
                     case CONNECTION_STATE_DISCONNECTED:
-                        return  "CONNECTION_STATE_DISCONNECTED";
+                        return "CONNECTION_STATE_DISCONNECTED";
                     case CONNECTION_STATE_CONNECTING:
-                        return  "CONNECTION_STATE_CONNECTING";
+                        return "CONNECTION_STATE_CONNECTING";
                     case CONNECTION_STATE_CONNECTED:
-                        return  "CONNECTION_STATE_CONNECTED";
+                        return "CONNECTION_STATE_CONNECTED";
                     case CONNECTION_STATE_DISCONNECTING:
-                        return  "CONNECTION_STATE_DISCONNECTING";
+                        return "CONNECTION_STATE_DISCONNECTING";
                     default:
                         return "UNKNOWN";
                 }
             case EVENT_TYPE_VOLUME_STATE_CHANGED:
                 return "{group_id:" + value + "}";
             case EVENT_TYPE_DEVICE_AVAILABLE:
-                return "{num_ext_outputs:"  + value + "}";
+                return "{num_ext_outputs:" + value + "}";
             case EVENT_TYPE_EXT_AUDIO_OUT_VOL_OFFSET_CHANGED:
             case EVENT_TYPE_EXT_AUDIO_OUT_LOCATION_CHANGED:
             case EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED:
@@ -120,18 +122,28 @@ public class VolumeControlStackEvent {
             case EVENT_TYPE_CONNECTION_STATE_CHANGED:
                 switch (value) {
                     case CONNECTION_STATE_DISCONNECTED:
-                        return  "CONNECTION_STATE_DISCONNECTED";
+                        return "CONNECTION_STATE_DISCONNECTED";
                     case CONNECTION_STATE_CONNECTING:
-                        return  "CONNECTION_STATE_CONNECTING";
+                        return "CONNECTION_STATE_CONNECTING";
                     case CONNECTION_STATE_CONNECTED:
-                        return  "CONNECTION_STATE_CONNECTED";
+                        return "CONNECTION_STATE_CONNECTED";
                     case CONNECTION_STATE_DISCONNECTING:
-                        return  "CONNECTION_STATE_DISCONNECTING";
+                        return "CONNECTION_STATE_DISCONNECTING";
                     default:
                         return "UNKNOWN";
                 }
             case EVENT_TYPE_VOLUME_STATE_CHANGED:
                 return "{volume:" + value + "}";
+            default:
+                break;
+        }
+        return Integer.toString(value);
+    }
+
+    private static String eventTypeValue3ToString(int type, int value) {
+        switch (type) {
+            case EVENT_TYPE_VOLUME_STATE_CHANGED:
+                return "{flags:" + value + "}";
             default:
                 break;
         }

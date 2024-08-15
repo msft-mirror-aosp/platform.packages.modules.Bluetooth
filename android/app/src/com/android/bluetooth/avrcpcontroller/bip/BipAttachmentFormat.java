@@ -24,11 +24,10 @@ import java.util.Objects;
 /**
  * Represents BIP attachment metadata arriving from a GetImageProperties request.
  *
- * Content type is the only spec-required field.
+ * <p>Content type is the only spec-required field.
  *
- * Examples:
- *   <attachment content-type="text/plain" name="ABCD1234.txt" size="5120"/>
- *   <attachment content-type="audio/basic" name="ABCD1234.wav" size="102400"/>
+ * <p>Examples: <attachment content-type="text/plain" name="ABCD1234.txt" size="5120"/> <attachment
+ * content-type="audio/basic" name="ABCD1234.wav" size="102400"/>
  */
 public class BipAttachmentFormat {
     private static final String TAG = "avrcpcontroller.BipAttachmentFormat";
@@ -36,39 +35,36 @@ public class BipAttachmentFormat {
     /**
      * MIME content type of the image attachment, i.e. "text/plain"
      *
-     * This is required by the specification
+     * <p>This is required by the specification
      */
     private final String mContentType;
 
-    /**
-     * MIME character set of the image attachment, i.e. "ISO-8859-1"
-     */
+    /** MIME character set of the image attachment, i.e. "ISO-8859-1" */
     private final String mCharset;
 
     /**
      * File name of the image attachment
      *
-     * This is required by the specification
+     * <p>This is required by the specification
      */
     private final String mName;
 
-    /**
-     * Size of the image attachment in bytes
-     */
+    /** Size of the image attachment in bytes */
     private final int mSize;
 
-    /**
-     * Date the image attachment was created
-     */
+    /** Date the image attachment was created */
     private final BipDateTime mCreated;
 
-    /**
-     * Date the image attachment was last modified
-     */
+    /** Date the image attachment was last modified */
     private final BipDateTime mModified;
 
-    public BipAttachmentFormat(String contentType, String charset, String name, String size,
-            String created, String modified) {
+    public BipAttachmentFormat(
+            String contentType,
+            String charset,
+            String name,
+            String size,
+            String created,
+            String modified) {
         if (contentType == null) {
             throw new ParseException("ContentType is required and must be valid");
         }
@@ -98,8 +94,13 @@ public class BipAttachmentFormat {
         mModified = bipModified;
     }
 
-    public BipAttachmentFormat(String contentType, String charset, String name, int size,
-            Date created, Date modified) {
+    public BipAttachmentFormat(
+            String contentType,
+            String charset,
+            String name,
+            int size,
+            Date created,
+            Date modified) {
         mContentType = Objects.requireNonNull(contentType, "Content-Type cannot be null");
         mName = Objects.requireNonNull(name, "Name cannot be null");
         mCharset = charset;
@@ -144,28 +145,31 @@ public class BipAttachmentFormat {
 
     @Override
     public boolean equals(Object o) {
-        if (o == this) return true;
-        if (!(o instanceof BipAttachmentFormat)) return false;
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof BipAttachmentFormat a)) {
+            return false;
+        }
 
-        BipAttachmentFormat a = (BipAttachmentFormat) o;
-        return a.getContentType() == getContentType()
-                && a.getName() == getName()
-                && a.getCharset() == getCharset()
+        return a.getContentType().equals(getContentType())
+                && a.getName().equals(getName())
+                && Objects.equals(a.getCharset(), getCharset())
                 && a.getSize() == getSize()
-                && a.getCreatedDate() == getCreatedDate()
-                && a.getModifiedDate() == getModifiedDate();
+                && Objects.equals(a.getCreatedDate(), getCreatedDate())
+                && Objects.equals(a.getModifiedDate(), getModifiedDate());
     }
 
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("<attachment");
-        sb.append(" content-type=\"" + mContentType + "\"");
-        if (mCharset != null) sb.append(" charset=\"" + mCharset + "\"");
-        sb.append(" name=\"" + mName + "\"");
-        if (mSize > -1) sb.append(" size=\"" + mSize + "\"");
-        if (mCreated != null) sb.append(" created=\"" + mCreated.toString() + "\"");
-        if (mModified != null) sb.append(" modified=\"" + mModified.toString() + "\"");
+        sb.append(" content-type=\"").append(mContentType).append("\"");
+        if (mCharset != null) sb.append(" charset=\"").append(mCharset).append("\"");
+        sb.append(" name=\"").append(mName).append("\"");
+        if (mSize > -1) sb.append(" size=\"").append(mSize).append("\"");
+        if (mCreated != null) sb.append(" created=\"").append(mCreated.toString()).append("\"");
+        if (mModified != null) sb.append(" modified=\"").append(mModified.toString()).append("\"");
         sb.append(" />");
         return sb.toString();
     }

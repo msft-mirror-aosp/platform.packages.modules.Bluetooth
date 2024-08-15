@@ -101,7 +101,7 @@ cc_library_shared {
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libFraunhoferAAC",
-        "libaudio-a2dp-hw-utils",
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libbluetooth",
         "libbluetooth-dumpsys",
@@ -130,10 +130,10 @@ cc_library_shared {
         "libbte",
         "libbtif",
         "libbtif-core",
-        "libc++fs",
         "libchrome",
         "libcutils",
         "libevent",
+        "libexpresslog",
         "libflatbuffers-cpp",
         "libfmq",
         "libg722codec",
@@ -144,6 +144,8 @@ cc_library_shared {
         "libosi",
         "libprotobuf-cpp-lite",
         "libstatslog_bt",
+        "libstatslog_express",
+        "libtextclassifier_hash_static",
         "libudrv-uipc",
         "libutils",
         "server_configurable_flags",
@@ -164,6 +166,9 @@ cc_library_shared {
         "com.android.btservices",
     ],
     min_sdk_version: "Tiramisu",
+
+    // TODO(b/346919576) Workaround LTO build breakage.
+    lto_O0: true,
 }
 
 cc_library {
@@ -190,7 +195,6 @@ cc_library {
         "libosi",
 
         "libbluetooth-types",
-        "libc++fs",
     ],
     cflags: [
         /* we export all classes, so change default visibility, instead of having EXPORT_SYMBOL on each class*/
@@ -256,6 +260,7 @@ android_app {
         "BluetoothApiShims",
         "android.hardware.radio-V1.0-java",
         "android.hardware.radio.sap-V1-java",
+        "android.os.flags-aconfig-java-export",
         "androidx.annotation_annotation",
         "androidx.core_core",
         "androidx.lifecycle_lifecycle-livedata",
@@ -280,6 +285,7 @@ android_app {
 
     plugins: [
         "androidx.room_room-compiler-plugin",
+        "error_prone_android_framework",
     ],
 
     // Export schemas to the test directory so that we have an history
@@ -315,12 +321,54 @@ android_app {
         "com.android.btservices",
     ],
     errorprone: {
+        enabled: true,
         javacflags: [
-            // "-Xep:AndroidFrameworkRequiresPermission:ERROR",
             "-Xep:AlmostJavadoc:ERROR",
+            "-Xep:AlreadyChecked:ERROR",
+            "-Xep:AndroidFrameworkBinderIdentity:ERROR",
+            "-Xep:AndroidFrameworkEfficientStrings:ERROR",
+            "-Xep:AndroidFrameworkRequiresPermission:ERROR",
+            "-Xep:BadImport:ERROR",
+            "-Xep:ClassCanBeStatic:ERROR",
+            "-Xep:DateFormatConstant:ERROR",
+            "-Xep:EmptyBlockTag:ERROR",
+            "-Xep:EqualsGetClass:ERROR",
+            "-Xep:FallThrough:ERROR",
+            "-Xep:HidingField:ERROR",
+            "-Xep:InlineMeInliner:ERROR",
+            "-Xep:InvalidBlockTag:ERROR",
+            "-Xep:InvalidParam:ERROR",
+            "-Xep:LoopOverCharArray:ERROR",
+            "-Xep:MissingCasesInEnumSwitch:ERROR",
+            "-Xep:MockNotUsedInProduction:ERROR",
+            "-Xep:ModifyCollectionInEnhancedForLoop:ERROR",
+            "-Xep:NarrowCalculation:ERROR",
+            "-Xep:NonApiType:ERROR",
+            "-Xep:NonAtomicVolatileUpdate:ERROR",
+            "-Xep:NonCanonicalType:ERROR",
+            "-Xep:NotJavadoc:ERROR",
+            "-Xep:ObjectEqualsForPrimitives:ERROR",
+            "-Xep:OperatorPrecedence:ERROR",
+            "-Xep:ReferenceEquality:ERROR",
+            "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
+            "-Xep:StringCaseLocaleUsage:ERROR",
+            "-Xep:StringCharset:ERROR",
+            "-Xep:ToStringReturnsNull:ERROR",
+            "-Xep:UnnecessaryStringBuilder:ERROR",
+            "-Xep:UnrecognisedJavadocTag:ERROR",
             "-Xep:UnusedMethod:ERROR",
+            "-Xep:UnusedNestedClass:ERROR",
             "-Xep:UnusedVariable:ERROR",
-            "-XepExcludedPaths:.*/srcjars/.*", // Exclude generated files
+            "-Xep:WaitNotInLoop:ERROR",
+
+            // After fixing this errorprone, we decided to not merge the change.
+            // It is not very readable and the benefits are minimal when looking
+            // at the size of the maps used in the Bluetooth application.
+            // See https://r.android.com/3200511
+            "-Xep:AndroidFrameworkEfficientCollections:OFF",
+
+            // Exclude generated files
+            "-XepExcludedPaths:.*/srcjars/.*",
         ],
     },
     min_sdk_version: "Tiramisu",

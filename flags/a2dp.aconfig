@@ -75,3 +75,70 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "a2dp_check_lea_iso_channel"
+    namespace: "bluetooth"
+    description: "Prevent A2DP stream from starting when LEA ISO channels are in use"
+    bug: "346475618"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "a2dp_variable_aac_capability"
+    namespace: "bluetooth"
+    description: "Enable AAC 48 kHz sampling rate for sink devices in the allow list"
+    bug: "38443632"
+}
+
+flag {
+    name: "stop_on_offload_fail"
+    namespace: "bluetooth"
+    description: "Stop instead of disconnecting AVDT when offload fails"
+    bug: "345709100"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "a2dp_aidl_encoding_interval"
+    namespace: "bluetooth"
+    description: "Configure the data interval in audio BT HAL's PcmConfig"
+    bug: "347781402"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "av_stream_reconfigure_fix"
+    namespace: "bluetooth"
+    description: "Handle AVDT stream reconfiguration in an event"
+    bug: "348351688"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "avdt_discover_seps_as_acceptor"
+    namespace: "bluetooth"
+    description: "Discover stream end points when in acceptor role."
+    bug: "351158317"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "avdt_prioritize_mandatory_codec"
+    namespace: "bluetooth"
+    description: "Reject remote peer HD codec configuration if mandatory codec is preferred in the stack"
+    bug: "350427803"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

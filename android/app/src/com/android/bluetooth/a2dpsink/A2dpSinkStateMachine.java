@@ -16,6 +16,7 @@
 package com.android.bluetooth.a2dpsink;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
 import android.annotation.RequiresPermission;
 import android.bluetooth.BluetoothA2dpSink;
@@ -98,9 +99,7 @@ class A2dpSinkStateMachine extends StateMachine {
         return mMostRecentState;
     }
 
-    /**
-     * get current audio config
-     */
+    /** get current audio config */
     BluetoothAudioConfig getAudioConfig() {
         return mAudioConfig;
     }
@@ -131,17 +130,24 @@ class A2dpSinkStateMachine extends StateMachine {
 
     /**
      * Dump the current State Machine to the string builder.
+     *
      * @param sb output string
      */
     public void dump(StringBuilder sb) {
-        ProfileService.println(sb, "mDevice: " + mDevice + "("
-                + Utils.getName(mDevice) + ") " + this.toString());
+        ProfileService.println(
+                sb, "mDevice: " + mDevice + "(" + Utils.getName(mDevice) + ") " + this.toString());
     }
 
     @Override
     protected void unhandledMessage(Message msg) {
-        Log.w(TAG, "[" + mDevice + "] unhandledMessage state=" + getCurrentState() + ", msg.what="
-                + msg.what);
+        Log.w(
+                TAG,
+                "["
+                        + mDevice
+                        + "] unhandledMessage state="
+                        + getCurrentState()
+                        + ", msg.what="
+                        + msg.what);
     }
 
     class Disconnected extends State {
@@ -171,7 +177,7 @@ class A2dpSinkStateMachine extends StateMachine {
             return false;
         }
 
-        @RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)
+        @RequiresPermission(BLUETOOTH_PRIVILEGED)
         void processStackEvent(StackEvent event) {
             switch (event.mType) {
                 case StackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED:
@@ -179,8 +185,12 @@ class A2dpSinkStateMachine extends StateMachine {
                         case StackEvent.CONNECTION_STATE_CONNECTING:
                             if (mService.getConnectionPolicy(mDevice)
                                     == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
-                                Log.w(TAG, "[" + mDevice + "] Ignore incoming connection, profile"
-                                        + " is turned off");
+                                Log.w(
+                                        TAG,
+                                        "["
+                                                + mDevice
+                                                + "] Ignore incoming connection, profile"
+                                                + " is turned off");
                                 mNativeInterface.disconnectA2dpSink(mDevice);
                             } else {
                                 mConnecting.mIncomingConnection = true;
@@ -224,8 +234,12 @@ class A2dpSinkStateMachine extends StateMachine {
                     transitionTo(mDisconnected);
                     return true;
                 case DISCONNECT:
-                    Log.d(TAG, "[" + mDevice + "] Received disconnect message while connecting."
-                            + "deferred");
+                    Log.d(
+                            TAG,
+                            "["
+                                    + mDevice
+                                    + "] Received disconnect message while connecting."
+                                    + "deferred");
                     deferMessage(message);
                     return true;
             }
@@ -245,12 +259,12 @@ class A2dpSinkStateMachine extends StateMachine {
                     }
             }
         }
+
         @Override
         public void exit() {
             removeMessages(CONNECT_TIMEOUT);
             mIncomingConnection = false;
         }
-
     }
 
     class Connected extends State {
@@ -287,8 +301,11 @@ class A2dpSinkStateMachine extends StateMachine {
                     }
                     break;
                 case StackEvent.EVENT_TYPE_AUDIO_CONFIG_CHANGED:
-                    mAudioConfig = new BluetoothAudioConfig(event.mSampleRate, event.mChannelCount,
-                            AudioFormat.ENCODING_PCM_16BIT);
+                    mAudioConfig =
+                            new BluetoothAudioConfig(
+                                    event.mSampleRate,
+                                    event.mChannelCount,
+                                    AudioFormat.ENCODING_PCM_16BIT);
                     break;
             }
         }

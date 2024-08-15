@@ -7,11 +7,10 @@ use crate::bluetooth_gatt::{
     BluetoothGatt, BluetoothGattService, IBluetoothGatt, IBluetoothGattCallback,
 };
 use crate::callbacks::Callbacks;
-use crate::uuid::UuidHelper;
 use crate::Message;
 use crate::RPCProxy;
 use crate::{uuid, APIMessage, BluetoothAPI};
-use bt_topshim::btif::{BtTransport, DisplayAddress, RawAddress};
+use bt_topshim::btif::{BtAclState, BtBondState, BtTransport, DisplayAddress, RawAddress, Uuid};
 use bt_topshim::profiles::gatt::{GattStatus, LePhy};
 use log::debug;
 use std::collections::HashMap;
@@ -57,7 +56,7 @@ pub enum BatteryServiceActions {
     /// Params: addr, handle, value
     OnNotify(RawAddress, i32, Vec<u8>),
     /// Params: remote_device, transport
-    Connect(BluetoothDevice, BtTransport),
+    Connect(BluetoothDevice, BtAclState, BtBondState, BtTransport),
     /// Params: remote_device
     Disconnect(BluetoothDevice),
 }
@@ -163,62 +162,52 @@ impl BatteryService {
                         DisplayAddress(&addr),
                         status
                     );
+                    self.drop_device(addr);
                     return;
                 }
-                let (bas_uuid, battery_level_uuid) = match (
-                    UuidHelper::parse_string(uuid::BAS),
-                    UuidHelper::parse_string(CHARACTERISTIC_BATTERY_LEVEL),
-                ) {
-                    (Some(bas_uuid), Some(battery_level_uuid)) => (bas_uuid, battery_level_uuid),
-                    _ => return,
-                };
-                // TODO(b/233101174): handle multiple instances of BAS
-                let bas = match services.iter().find(|service| service.uuid == bas_uuid.uu) {
-                    Some(bas) => bas,
-                    None => {
-                        self.callbacks.for_all_callbacks(|callback| {
-                            callback.on_battery_service_status_updated(
-                                addr,
-                                BatteryServiceStatus::BatteryServiceNotSupported,
-                            )
-                        });
-                        return;
-                    }
-                };
-                let battery_level = match bas
-                    .characteristics
-                    .iter()
-                    .find(|characteristic| characteristic.uuid == battery_level_uuid.uu)
-                {
-                    Some(battery_level) => battery_level,
-                    None => {
-                        debug!(
-                            "Device {} has no BatteryLevel characteristic",
-                            DisplayAddress(&addr)
-                        );
+                let handle = match self.get_battery_level_handle(addr, services) {
+                    Ok(battery_level_handle) => battery_level_handle,
+                    Err(status) => {
+                        if let Some(BatteryServiceStatus::BatteryServiceNotSupported) = status {
+                            self.callbacks.for_all_callbacks(|callback| {
+                                callback.on_battery_service_status_updated(
+                                    addr,
+                                    BatteryServiceStatus::BatteryServiceNotSupported,
+                                )
+                            });
+                        }
+                        self.drop_device(addr);
                         return;
                     }
                 };
                 let client_id = match self.client_id {
                     Some(id) => id,
-                    None => return,
+                    None => {
+                        self.drop_device(addr);
+                        return;
+                    }
                 };
-                let handle = battery_level.instance_id;
-                self.handles.insert(addr, handle.clone());
+                self.handles.insert(addr, handle);
                 self.gatt.lock().unwrap().register_for_notification(client_id, addr, handle, true);
-                if let None = self.battery_sets.get(&addr) {
-                    self.gatt.lock().unwrap().read_characteristic(
-                        client_id,
-                        addr,
-                        battery_level.instance_id,
-                        0,
-                    );
+                if self.battery_sets.get(&addr).is_none() {
+                    self.gatt.lock().unwrap().read_characteristic(client_id, addr, handle, 0);
                 }
             }
 
-            BatteryServiceActions::OnCharacteristicRead(addr, status, _handle, value) => {
+            BatteryServiceActions::OnCharacteristicRead(addr, status, handle, value) => {
                 if status != GattStatus::Success {
                     return;
+                }
+                match self.handles.get(&addr) {
+                    Some(stored_handle) => {
+                        if *stored_handle != handle {
+                            return;
+                        }
+                    }
+                    None => {
+                        self.drop_device(addr);
+                        return;
+                    }
                 }
                 let battery_info = self.set_battery_info(&addr, &value);
                 self.callbacks.for_all_callbacks(|callback| {
@@ -233,10 +222,14 @@ impl BatteryService {
                 });
             }
 
-            BatteryServiceActions::Connect(device, transport) => {
-                if transport != BtTransport::Le {
+            BatteryServiceActions::Connect(device, acl_state, bond_state, transport) => {
+                if transport != BtTransport::Le
+                    || acl_state != BtAclState::Connected
+                    || bond_state != BtBondState::Bonded
+                {
                     return;
                 }
+
                 self.init_device(device.address, transport);
             }
 
@@ -247,9 +240,9 @@ impl BatteryService {
     }
 
     fn set_battery_info(&mut self, remote_address: &RawAddress, value: &Vec<u8>) -> BatterySet {
-        let level: Vec<_> = value.iter().cloned().chain(iter::repeat(0 as u8)).take(4).collect();
+        let level: Vec<_> = value.iter().cloned().chain(iter::repeat(0_u8)).take(4).collect();
         let level = u32::from_le_bytes(level.try_into().unwrap());
-        debug!("BAS received battery level for {}: {}", DisplayAddress(&remote_address), level);
+        debug!("BAS received battery level for {}: {}", DisplayAddress(remote_address), level);
         let battery_set = self.battery_sets.entry(*remote_address).or_insert_with(|| {
             BatterySet::new(
                 *remote_address,
@@ -282,20 +275,56 @@ impl BatteryService {
     }
 
     fn drop_device(&mut self, remote_address: RawAddress) {
+        if self.handles.contains_key(&remote_address) {
+            // Let BatteryProviderManager know that BAS no longer has a battery for this device.
+            self.battery_provider_manager.lock().unwrap().remove_battery_info(
+                self.battery_provider_id,
+                remote_address,
+                uuid::BAS.to_string(),
+            );
+        }
+        self.battery_sets.remove(&remote_address);
         self.handles.remove(&remote_address);
         match self.client_id {
             Some(client_id) => {
                 self.gatt.lock().unwrap().client_disconnect(client_id, remote_address);
             }
-            None => return,
+            None => (),
         }
-        // Let BatteryProviderManager know that BAS no longer has a battery for this device.
-        self.battery_provider_manager.lock().unwrap().remove_battery_info(
-            self.battery_provider_id,
-            remote_address,
-            uuid::BAS.to_string(),
-        );
-        self.battery_sets.remove(&remote_address);
+    }
+
+    fn get_battery_level_handle(
+        &mut self,
+        remote_address: RawAddress,
+        services: Vec<BluetoothGattService>,
+    ) -> Result<i32, Option<BatteryServiceStatus>> {
+        let (bas_uuid, battery_level_uuid) =
+            match (Uuid::from_string(uuid::BAS), Uuid::from_string(CHARACTERISTIC_BATTERY_LEVEL)) {
+                (Some(bas_uuid), Some(battery_level_uuid)) => (bas_uuid, battery_level_uuid),
+                _ => {
+                    return Err(None);
+                }
+            };
+        // TODO(b/233101174): handle multiple instances of BAS
+        let bas = match services.iter().find(|service| service.uuid == bas_uuid) {
+            Some(bas) => bas,
+            None => return Err(Some(BatteryServiceStatus::BatteryServiceNotSupported)),
+        };
+        let battery_level = match bas
+            .characteristics
+            .iter()
+            .find(|characteristic| characteristic.uuid == battery_level_uuid)
+        {
+            Some(battery_level) => battery_level,
+            None => {
+                debug!(
+                    "Device {} has no BatteryLevel characteristic",
+                    DisplayAddress(&remote_address)
+                );
+                return Err(None);
+            }
+        };
+        Ok(battery_level.instance_id)
     }
 
     /// Perform an explicit read on all devices BAS knows about.

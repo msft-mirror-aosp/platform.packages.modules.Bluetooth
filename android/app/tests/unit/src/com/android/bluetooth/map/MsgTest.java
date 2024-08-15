@@ -18,6 +18,8 @@ package com.android.bluetooth.map;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.annotation.SuppressLint;
+
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -33,8 +35,8 @@ public class MsgTest {
 
     @Test
     public void constructor() {
-        BluetoothMapContentObserver.Msg msg = new BluetoothMapContentObserver.Msg(TEST_ID,
-                TEST_FOLDER_ID, TEST_READ_FLAG);
+        BluetoothMapContentObserver.Msg msg =
+                new BluetoothMapContentObserver.Msg(TEST_ID, TEST_FOLDER_ID, TEST_READ_FLAG);
 
         assertThat(msg.id).isEqualTo(TEST_ID);
         assertThat(msg.folderId).isEqualTo(TEST_FOLDER_ID);
@@ -43,8 +45,8 @@ public class MsgTest {
 
     @Test
     public void hashCode_returnsExpectedResult() {
-        BluetoothMapContentObserver.Msg msg = new BluetoothMapContentObserver.Msg(TEST_ID,
-                TEST_FOLDER_ID, TEST_READ_FLAG);
+        BluetoothMapContentObserver.Msg msg =
+                new BluetoothMapContentObserver.Msg(TEST_ID, TEST_FOLDER_ID, TEST_READ_FLAG);
 
         int expected = 31 + (int) (TEST_ID ^ (TEST_ID >>> 32));
         assertThat(msg.hashCode()).isEqualTo(expected);
@@ -52,24 +54,25 @@ public class MsgTest {
 
     @Test
     public void equals_withSameInstance() {
-        BluetoothMapContentObserver.Msg msg = new BluetoothMapContentObserver.Msg(TEST_ID,
-                TEST_FOLDER_ID, TEST_READ_FLAG);
+        BluetoothMapContentObserver.Msg msg =
+                new BluetoothMapContentObserver.Msg(TEST_ID, TEST_FOLDER_ID, TEST_READ_FLAG);
 
         assertThat(msg.equals(msg)).isTrue();
     }
 
     @Test
     public void equals_withNull() {
-        BluetoothMapContentObserver.Msg msg = new BluetoothMapContentObserver.Msg(TEST_ID,
-                TEST_FOLDER_ID, TEST_READ_FLAG);
+        BluetoothMapContentObserver.Msg msg =
+                new BluetoothMapContentObserver.Msg(TEST_ID, TEST_FOLDER_ID, TEST_READ_FLAG);
 
         assertThat(msg).isNotNull();
     }
 
     @Test
+    @SuppressLint("TruthIncompatibleType") // That the point of this test
     public void equals_withDifferentClass() {
-        BluetoothMapContentObserver.Msg msg = new BluetoothMapContentObserver.Msg(TEST_ID,
-                TEST_FOLDER_ID, TEST_READ_FLAG);
+        BluetoothMapContentObserver.Msg msg =
+                new BluetoothMapContentObserver.Msg(TEST_ID, TEST_FOLDER_ID, TEST_READ_FLAG);
         String msgOfDifferentClass = "msg_of_different_class";
 
         assertThat(msg).isNotEqualTo(msgOfDifferentClass);
@@ -79,20 +82,20 @@ public class MsgTest {
     public void equals_withDifferentId() {
         long idOne = 1;
         long idTwo = 2;
-        BluetoothMapContentObserver.Msg msg = new BluetoothMapContentObserver.Msg(idOne,
-                TEST_FOLDER_ID, TEST_READ_FLAG);
-        BluetoothMapContentObserver.Msg msgWithDifferentId = new BluetoothMapContentObserver.Msg(
-                idTwo, TEST_FOLDER_ID, TEST_READ_FLAG);
+        BluetoothMapContentObserver.Msg msg =
+                new BluetoothMapContentObserver.Msg(idOne, TEST_FOLDER_ID, TEST_READ_FLAG);
+        BluetoothMapContentObserver.Msg msgWithDifferentId =
+                new BluetoothMapContentObserver.Msg(idTwo, TEST_FOLDER_ID, TEST_READ_FLAG);
 
         assertThat(msg).isNotEqualTo(msgWithDifferentId);
     }
 
     @Test
     public void equals_withEqualInstance() {
-        BluetoothMapContentObserver.Msg msg = new BluetoothMapContentObserver.Msg(TEST_ID,
-                TEST_FOLDER_ID, TEST_READ_FLAG);
-        BluetoothMapContentObserver.Msg msgWithSameId = new BluetoothMapContentObserver.Msg(TEST_ID,
-                TEST_FOLDER_ID, TEST_READ_FLAG);
+        BluetoothMapContentObserver.Msg msg =
+                new BluetoothMapContentObserver.Msg(TEST_ID, TEST_FOLDER_ID, TEST_READ_FLAG);
+        BluetoothMapContentObserver.Msg msgWithSameId =
+                new BluetoothMapContentObserver.Msg(TEST_ID, TEST_FOLDER_ID, TEST_READ_FLAG);
 
         assertThat(msg).isEqualTo(msgWithSameId);
     }

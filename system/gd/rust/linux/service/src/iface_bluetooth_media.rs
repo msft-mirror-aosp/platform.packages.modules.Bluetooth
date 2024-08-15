@@ -8,7 +8,7 @@ use bt_topshim::profiles::hfp::{HfpCodecBitId, HfpCodecFormat};
 use bt_topshim::profiles::le_audio::{
     BtLeAudioContentType, BtLeAudioDirection, BtLeAudioGroupNodeStatus, BtLeAudioGroupStatus,
     BtLeAudioGroupStreamStatus, BtLeAudioSource, BtLeAudioUnicastMonitorModeStatus, BtLeAudioUsage,
-    BtLePcmConfig,
+    BtLePcmConfig, BtLeStreamStartedStatus,
 };
 use btstack::bluetooth_media::{BluetoothAudioDevice, IBluetoothMedia, IBluetoothMediaCallback};
 use btstack::RPCProxy;
@@ -26,6 +26,7 @@ use crate::dbus_arg::{DBusArg, DBusArgError, RefArgToRust};
 use num_traits::{FromPrimitive, ToPrimitive};
 
 use std::convert::{TryFrom, TryInto};
+use std::fs::File;
 use std::sync::Arc;
 
 #[allow(dead_code)]
@@ -69,6 +70,7 @@ impl_dbus_arg_from_into!(BtLeAudioSource, i32);
 impl_dbus_arg_from_into!(BtLeAudioGroupStatus, i32);
 impl_dbus_arg_from_into!(BtLeAudioGroupNodeStatus, i32);
 impl_dbus_arg_from_into!(BtLeAudioUnicastMonitorModeStatus, i32);
+impl_dbus_arg_from_into!(BtLeStreamStartedStatus, i32);
 impl_dbus_arg_from_into!(BtLeAudioDirection, i32);
 impl_dbus_arg_from_into!(BtLeAudioGroupStreamStatus, i32);
 impl_dbus_arg_enum!(A2dpCodecIndex);
@@ -173,6 +175,16 @@ impl IBluetoothMediaCallback for BluetoothMediaCallbackDBus {
     fn on_lea_group_stream_status(&mut self, group_id: i32, status: BtLeAudioGroupStreamStatus) {
         dbus_generated!()
     }
+
+    #[dbus_method("OnLeaVcConnected")]
+    fn on_lea_vc_connected(&mut self, addr: RawAddress, group_id: i32) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("OnLeaGroupVolumeChanged")]
+    fn on_lea_group_volume_changed(&mut self, group_id: i32, volume: u8) {
+        dbus_generated!()
+    }
 }
 
 #[allow(dead_code)]
@@ -230,7 +242,7 @@ impl DBusArg for PlayerMetadata {
                 _ => {}
             }
         }
-        return Ok(metadata);
+        Ok(metadata)
     }
 
     fn to_dbus(
@@ -240,7 +252,7 @@ impl DBusArg for PlayerMetadata {
     }
 
     fn log(metadata: &PlayerMetadata) -> String {
-        String::from(format!("{:?}", metadata))
+        format!("{:?}", metadata)
     }
 }
 
@@ -253,6 +265,11 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
 
     #[dbus_method("Initialize")]
     fn initialize(&mut self) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("IsInitialized")]
+    fn is_initialized(&self) -> bool {
         dbus_generated!()
     }
 
@@ -349,7 +366,7 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
     }
 
     #[dbus_method("StartAudioRequest")]
-    fn start_audio_request(&mut self) -> bool {
+    fn start_audio_request(&mut self, connection_listener: File) -> bool {
         dbus_generated!()
     }
 
@@ -359,7 +376,7 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
     }
 
     #[dbus_method("StopAudioRequest", DBusLog::Disable)]
-    fn stop_audio_request(&mut self) {
+    fn stop_audio_request(&mut self, connection_listener: File) {
         dbus_generated!()
     }
 
@@ -369,6 +386,7 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
         address: RawAddress,
         sco_offload: bool,
         disabled_codecs: HfpCodecBitId,
+        connection_listener: File,
     ) -> bool {
         dbus_generated!()
     }
@@ -379,7 +397,7 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
     }
 
     #[dbus_method("StopScoCall")]
-    fn stop_sco_call(&mut self, address: RawAddress) {
+    fn stop_sco_call(&mut self, address: RawAddress, connection_listener: File) {
         dbus_generated!()
     }
 
@@ -447,12 +465,12 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
     }
 
     #[dbus_method("GetHostStreamStarted")]
-    fn get_host_stream_started(&mut self) -> bool {
+    fn get_host_stream_started(&mut self) -> BtLeStreamStartedStatus {
         dbus_generated!()
     }
 
     #[dbus_method("GetPeerStreamStarted")]
-    fn get_peer_stream_started(&mut self) -> bool {
+    fn get_peer_stream_started(&mut self) -> BtLeStreamStartedStatus {
         dbus_generated!()
     }
 
