@@ -29,6 +29,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
+import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.bluetooth.annotations.RequiresBluetoothConnectPermission;
 import android.content.AttributionSource;
@@ -39,14 +40,11 @@ import android.util.CloseGuard;
 import android.util.Log;
 
 import com.android.bluetooth.flags.Flags;
-import com.android.internal.annotations.GuardedBy;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
@@ -61,9 +59,6 @@ import java.util.function.Consumer;
 @SystemApi
 public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable {
     private static final String TAG = BluetoothHapClient.class.getSimpleName();
-
-    @GuardedBy("mCallbackExecutorMap")
-    private final Map<Callback, Executor> mCallbackExecutorMap = new HashMap<>();
 
     private CloseGuard mCloseGuard;
 
@@ -237,53 +232,46 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
                 int hapGroupId, @GroupPresetNameChangeFailureReason int reason);
     }
 
-    private final IBluetoothHapClientCallback mCallback =
-            new IBluetoothHapClientCallback.Stub() {
-                private void forEach(Consumer<BluetoothHapClient.Callback> consumer) {
-                    synchronized (mCallbackExecutorMap) {
-                        mCallbackExecutorMap.forEach(
-                                (callback, executor) ->
-                                        executor.execute(() -> consumer.accept(callback)));
-                    }
-                }
+    private final CallbackWrapper<Callback, IBluetoothHapClient> mCallbackWrapper;
 
-                @Override
-                public void onPresetSelected(BluetoothDevice device, int presetIndex, int reason) {
-                    Attributable.setAttributionSource(device, mAttributionSource);
-                    forEach((cb) -> cb.onPresetSelected(device, presetIndex, reason));
-                }
+    private final IBluetoothHapClientCallback mCallback = new HapClientNotifyCallback();
 
-                @Override
-                public void onPresetSelectionFailed(BluetoothDevice device, int status) {
-                    Attributable.setAttributionSource(device, mAttributionSource);
-                    forEach((cb) -> cb.onPresetSelectionFailed(device, status));
-                }
+    private class HapClientNotifyCallback extends IBluetoothHapClientCallback.Stub {
+        @Override
+        public void onPresetSelected(BluetoothDevice device, int presetIndex, int reason) {
+            Attributable.setAttributionSource(device, mAttributionSource);
+            mCallbackWrapper.forEach((cb) -> cb.onPresetSelected(device, presetIndex, reason));
+        }
 
-                @Override
-                public void onPresetSelectionForGroupFailed(int hapGroupId, int status) {
-                    forEach((cb) -> cb.onPresetSelectionForGroupFailed(hapGroupId, status));
-                }
+        @Override
+        public void onPresetSelectionFailed(BluetoothDevice device, int status) {
+            Attributable.setAttributionSource(device, mAttributionSource);
+            mCallbackWrapper.forEach((cb) -> cb.onPresetSelectionFailed(device, status));
+        }
 
-                @Override
-                public void onPresetInfoChanged(
-                        BluetoothDevice device,
-                        List<BluetoothHapPresetInfo> presetInfoList,
-                        int status) {
-                    Attributable.setAttributionSource(device, mAttributionSource);
-                    forEach((cb) -> cb.onPresetInfoChanged(device, presetInfoList, status));
-                }
+        @Override
+        public void onPresetSelectionForGroupFailed(int groupId, int status) {
+            mCallbackWrapper.forEach((cb) -> cb.onPresetSelectionForGroupFailed(groupId, status));
+        }
 
-                @Override
-                public void onSetPresetNameFailed(BluetoothDevice device, int status) {
-                    Attributable.setAttributionSource(device, mAttributionSource);
-                    forEach((cb) -> cb.onSetPresetNameFailed(device, status));
-                }
+        @Override
+        public void onPresetInfoChanged(
+                BluetoothDevice device, List<BluetoothHapPresetInfo> presets, int status) {
+            Attributable.setAttributionSource(device, mAttributionSource);
+            mCallbackWrapper.forEach((cb) -> cb.onPresetInfoChanged(device, presets, status));
+        }
 
-                @Override
-                public void onSetPresetNameForGroupFailed(int hapGroupId, int status) {
-                    forEach((cb) -> cb.onSetPresetNameForGroupFailed(hapGroupId, status));
-                }
-            };
+        @Override
+        public void onSetPresetNameFailed(BluetoothDevice device, int status) {
+            Attributable.setAttributionSource(device, mAttributionSource);
+            mCallbackWrapper.forEach((cb) -> cb.onSetPresetNameFailed(device, status));
+        }
+
+        @Override
+        public void onSetPresetNameForGroupFailed(int hapGroupId, int status) {
+            mCallbackWrapper.forEach((cb) -> cb.onSetPresetNameForGroupFailed(hapGroupId, status));
+        }
+    }
 
     /**
      * Intent used to broadcast the change in connection state of the Hearing Access Profile Client
@@ -457,11 +445,30 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
      * Create a BluetoothHapClient proxy object for interacting with the local Bluetooth Hearing
      * Access Profile (HAP) client.
      */
+    @SuppressLint("AndroidFrameworkRequiresPermission") // Consumer wrongly report permission
     BluetoothHapClient(Context context, BluetoothAdapter adapter) {
         mAdapter = adapter;
         mAttributionSource = mAdapter.getAttributionSource();
         mService = null;
 
+        Consumer<IBluetoothHapClient> registerConsumer =
+                (IBluetoothHapClient service) -> {
+                    try {
+                        service.registerCallback(mCallback, mAttributionSource);
+                    } catch (RemoteException e) {
+                        Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+                    }
+                };
+        Consumer<IBluetoothHapClient> unregisterConsumer =
+                (IBluetoothHapClient service) -> {
+                    try {
+                        service.unregisterCallback(mCallback, mAttributionSource);
+                    } catch (RemoteException e) {
+                        Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+                    }
+                };
+
+        mCallbackWrapper = new CallbackWrapper(registerConsumer, unregisterConsumer);
         mCloseGuard = new CloseGuard();
         mCloseGuard.open("close");
     }
@@ -486,18 +493,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
     @Override
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothHapClient.Stub.asInterface(service);
-        // re-register the service-to-app callback
-        synchronized (mCallbackExecutorMap) {
-            if (mCallbackExecutorMap.isEmpty()) {
-                return;
-            }
-
-            try {
-                mService.registerCallback(mCallback, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            }
-        }
+        mCallbackWrapper.registerToNewService(mService);
     }
 
     /** @hide */
@@ -533,36 +529,10 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    @SuppressLint("AndroidFrameworkRequiresPermission") // Consumer are fakely reporting permission
     public void registerCallback(
             @NonNull @CallbackExecutor Executor executor, @NonNull Callback callback) {
-        requireNonNull(executor);
-        requireNonNull(callback);
-
-        synchronized (mCallbackExecutorMap) {
-            // If the callback map is empty, we register the service-to-app callback
-            if (mCallbackExecutorMap.isEmpty()) {
-                if (!mAdapter.isEnabled()) {
-                    /* If Bluetooth is off, just store callback and it will be registered
-                     * when Bluetooth is on */
-                    mCallbackExecutorMap.put(callback, executor);
-                    return;
-                }
-                try {
-                    final IBluetoothHapClient service = getService();
-                    if (service != null) {
-                        service.registerCallback(mCallback, mAttributionSource);
-                    }
-                } catch (RemoteException e) {
-                    throw e.rethrowAsRuntimeException();
-                }
-            }
-
-            // Adds the passed in callback to our map of callbacks to executors
-            if (mCallbackExecutorMap.containsKey(callback)) {
-                throw new IllegalArgumentException("This callback has already been registered");
-            }
-            mCallbackExecutorMap.put(callback, executor);
-        }
+        mCallbackWrapper.registerCallback(mService, callback, executor);
     }
 
     /**
@@ -581,26 +551,9 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    @SuppressLint("AndroidFrameworkRequiresPermission") // Consumer are fakely reporting permission
     public void unregisterCallback(@NonNull Callback callback) {
-        requireNonNull(callback);
-
-        synchronized (mCallbackExecutorMap) {
-            if (mCallbackExecutorMap.remove(callback) == null) {
-                throw new IllegalArgumentException("This callback has not been registered");
-            }
-
-            // If the callback map is empty, we unregister the service-to-app callback
-            if (mCallbackExecutorMap.isEmpty()) {
-                try {
-                    final IBluetoothHapClient service = getService();
-                    if (service != null) {
-                        service.unregisterCallback(mCallback, mAttributionSource);
-                    }
-                } catch (RemoteException e) {
-                    throw e.rethrowAsRuntimeException();
-                }
-            }
-        }
+        mCallbackWrapper.unregisterCallback(mService, callback);
     }
 
     /**

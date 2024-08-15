@@ -54,7 +54,7 @@ void BTA_dm_init() {
   /* if UUID list is not provided as static data */
   bta_sys_eir_register(bta_dm_eir_update_uuid);
   bta_sys_cust_eir_register(bta_dm_eir_update_cust_uuid);
-  BTM_SetConsolidationCallback(bta_dm_consolidate);
+  get_btm_client_interface().ble.BTM_SetConsolidationCallback(bta_dm_consolidate);
 }
 
 /** Enables bluetooth device under test mode */
@@ -140,8 +140,8 @@ tBTA_STATUS BTA_DmSetLocalDiRecord(tSDP_DI_RECORD* p_device_info, uint32_t* p_ha
   tBTA_STATUS status = BTA_FAILURE;
 
   if (bta_dm_di_cb.di_num < BTA_DI_NUM_MAX) {
-    if (get_legacy_stack_sdp_api()->device_id.SDP_SetLocalDiRecord((tSDP_DI_RECORD*)p_device_info,
-                                                                   p_handle) == SDP_SUCCESS) {
+    if (get_legacy_stack_sdp_api()->device_id.SDP_SetLocalDiRecord(
+                (tSDP_DI_RECORD*)p_device_info, p_handle) == tSDP_STATUS::SDP_SUCCESS) {
       if (!p_device_info->primary_record) {
         bta_dm_di_cb.di_handle[bta_dm_di_cb.di_num] = *p_handle;
         bta_dm_di_cb.di_num++;
