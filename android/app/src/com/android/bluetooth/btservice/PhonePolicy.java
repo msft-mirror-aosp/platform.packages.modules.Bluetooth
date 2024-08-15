@@ -18,7 +18,6 @@ package com.android.bluetooth.btservice;
 
 import static com.android.bluetooth.Utils.isDualModeAudioEnabled;
 
-import android.annotation.RequiresPermission;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothCsipSetCoordinator;
 import android.bluetooth.BluetoothDevice;
@@ -175,10 +174,7 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
 
     PhonePolicy(AdapterService service, ServiceFactory factory) {
         mAdapterService = service;
-        mDatabaseManager =
-                Objects.requireNonNull(
-                        mAdapterService.getDatabase(),
-                        "DatabaseManager cannot be null when PhonePolicy starts");
+        mDatabaseManager = Objects.requireNonNull(service.getDatabase());
         mFactory = factory;
         mHandler = new PhonePolicyHandler(service.getMainLooper());
         mAutoConnectProfilesSupported =
@@ -285,8 +281,24 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
         return isLeAudioOnlyGroup(device);
     }
 
+    // return true if device support Hearing Access Service and it has not been manually disabled
+    private boolean shouldEnableHapByDefault(BluetoothDevice device, ParcelUuid[] uuids) {
+        if (!Flags.enableHapByDefault()) {
+            Log.i(TAG, "shouldDefaultToHap: Flag enableHapByDefault is disabled");
+            return false;
+        }
+
+        HapClientService hap = mFactory.getHapClientService();
+        if (hap == null) {
+            Log.e(TAG, "shouldDefaultToHap: HapClient is null");
+            return false;
+        }
+
+        return Utils.arrayContains(uuids, BluetoothUuid.HAS)
+                && hap.getConnectionPolicy(device) != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+    }
+
     // Policy implementation, all functions MUST be private
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)
     private void processInitProfilePriorities(BluetoothDevice device, ParcelUuid[] uuids) {
         debugLog("processInitProfilePriorities() - device " + device);
         HidHostService hidService = mFactory.getHidHostService();
@@ -306,6 +318,7 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
                 SystemProperties.getBoolean(BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY, false);
 
         boolean isLeAudioOnly = isLeAudioOnlyDevice(device, uuids);
+        boolean shouldEnableHapByDefault = shouldEnableHapByDefault(device, uuids);
         boolean isLeAudioProfileAllowed =
                 (leAudioService != null)
                         && Utils.arrayContains(uuids, BluetoothUuid.LE_AUDIO)
@@ -313,9 +326,9 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
                                 != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN)
                         && (mLeAudioEnabledByDefault || isDualModeAudioEnabled())
                         && (isBypassLeAudioAllowlist
+                                || shouldEnableHapByDefault
                                 || mAdapterService.isLeAudioAllowed(device)
                                 || isLeAudioOnly);
-
         debugLog(
                 "mLeAudioEnabledByDefault: "
                         + mLeAudioEnabledByDefault
@@ -328,7 +341,9 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
                         + ", isLeAudioProfileAllowed: "
                         + isLeAudioProfileAllowed
                         + ", isLeAudioOnly: "
-                        + isLeAudioOnly);
+                        + isLeAudioOnly
+                        + ", shouldEnableHapByDefault: "
+                        + shouldEnableHapByDefault);
 
         // Set profile priorities only for the profiles discovered on the remote device.
         // This avoids needless auto-connect attempts to profiles non-existent on the remote device
@@ -516,7 +531,7 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
                 && (hearingAidService.getConnectionPolicy(device)
                         == BluetoothProfile.CONNECTION_POLICY_UNKNOWN)) {
             if (isLeAudioProfileAllowed) {
-                debugLog("LE Audio preferred over ASHA for device " + device);
+                Log.i(TAG, "LE Audio preferred over ASHA for device " + device);
                 mAdapterService
                         .getDatabase()
                         .setProfileConnectionPolicy(
@@ -674,7 +689,6 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
         }
     }
 
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)
     private void processProfileStateChanged(
             BluetoothDevice device, int profileId, int nextState, int prevState) {
         debugLog(
@@ -786,7 +800,6 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
         mDatabaseManager.setConnection(device);
     }
 
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)
     private boolean handleAllProfilesDisconnected(BluetoothDevice device) {
         boolean atLeastOneProfileConnectedForDevice = false;
         boolean allProfilesEmpty = true;
@@ -794,7 +807,7 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
         A2dpService a2dpService = mFactory.getA2dpService();
         PanService panService = mFactory.getPanService();
         LeAudioService leAudioService = mFactory.getLeAudioService();
-        CsipSetCoordinatorService csipSetCooridnatorService =
+        CsipSetCoordinatorService csipSetCoordinatorService =
                 mFactory.getCsipSetCoordinatorService();
 
         if (hsService != null) {
@@ -807,8 +820,8 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
             allProfilesEmpty &= a2dpConnDevList.isEmpty();
             atLeastOneProfileConnectedForDevice |= a2dpConnDevList.contains(device);
         }
-        if (csipSetCooridnatorService != null) {
-            List<BluetoothDevice> csipConnDevList = csipSetCooridnatorService.getConnectedDevices();
+        if (csipSetCoordinatorService != null) {
+            List<BluetoothDevice> csipConnDevList = csipSetCoordinatorService.getConnectedDevices();
             allProfilesEmpty &= csipConnDevList.isEmpty();
             atLeastOneProfileConnectedForDevice |= csipConnDevList.contains(device);
         }
@@ -846,7 +859,6 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
     }
 
     @VisibleForTesting
-    @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
     void autoConnect() {
         if (mAdapterService.getState() != BluetoothAdapter.STATE_ON) {
             Log.e(TAG, "autoConnect: BT is not ON. Exiting autoConnect");
@@ -867,11 +879,6 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
             autoConnectHeadset(mostRecentlyActiveA2dpDevice);
             autoConnectA2dp(mostRecentlyActiveA2dpDevice);
             autoConnectHidHost(mostRecentlyActiveA2dpDevice);
-            return;
-        }
-
-        if (!Flags.autoConnectOnHfpWhenNoA2dpDevice()) {
-            debugLog("HFP auto connect is not enabled");
             return;
         }
 
@@ -919,7 +926,6 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
         }
     }
 
-    @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
     private void autoConnectHeadset(BluetoothDevice device) {
         final HeadsetService hsService = mFactory.getHeadsetService();
         if (hsService == null) {
@@ -939,7 +945,6 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
         }
     }
 
-    @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
     private void autoConnectHidHost(BluetoothDevice device) {
         final HidHostService hidHostService = mFactory.getHidHostService();
         if (hidHostService == null) {
@@ -978,15 +983,13 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
     // profiles which are not already connected or in the process of connecting to attempt to
     // connect to the device that initiated the connection.  In the event that this function is
     // invoked and there are no current bluetooth connections no new profiles will be connected.
-    @RequiresPermission(
-            allOf = {
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
-                android.Manifest.permission.MODIFY_PHONE_STATE,
-            })
     private void processConnectOtherProfiles(BluetoothDevice device) {
         debugLog("processConnectOtherProfiles, device=" + device);
-        if (mAdapterService.getState() != BluetoothAdapter.STATE_ON) {
-            warnLog("processConnectOtherProfiles, adapter is not ON " + mAdapterService.getState());
+        int currentState = mAdapterService.getState();
+        if (currentState != BluetoothAdapter.STATE_ON) {
+            warnLog(
+                    "processConnectOtherProfiles: Bluetooth is "
+                            + BluetoothAdapter.nameForState(currentState));
             return;
         }
 
@@ -1006,7 +1009,7 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
         A2dpService a2dpService = mFactory.getA2dpService();
         PanService panService = mFactory.getPanService();
         LeAudioService leAudioService = mFactory.getLeAudioService();
-        CsipSetCoordinatorService csipSetCooridnatorService =
+        CsipSetCoordinatorService csipSetCoordinatorService =
                 mFactory.getCsipSetCoordinatorService();
         VolumeControlService volumeControlService = mFactory.getVolumeControlService();
         BatteryService batteryService = mFactory.getBatteryService();
@@ -1059,15 +1062,15 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
                 leAudioService.connect(device);
             }
         }
-        if (csipSetCooridnatorService != null) {
-            List<BluetoothDevice> csipConnDevList = csipSetCooridnatorService.getConnectedDevices();
+        if (csipSetCoordinatorService != null) {
+            List<BluetoothDevice> csipConnDevList = csipSetCoordinatorService.getConnectedDevices();
             if (!csipConnDevList.contains(device)
-                    && (csipSetCooridnatorService.getConnectionPolicy(device)
+                    && (csipSetCoordinatorService.getConnectionPolicy(device)
                             == BluetoothProfile.CONNECTION_POLICY_ALLOWED)
-                    && (csipSetCooridnatorService.getConnectionState(device)
+                    && (csipSetCoordinatorService.getConnectionState(device)
                             == BluetoothProfile.STATE_DISCONNECTED)) {
                 debugLog("Retrying connection to CSIP with device " + device);
-                csipSetCooridnatorService.connect(device);
+                csipSetCoordinatorService.connect(device);
             }
         }
         if (volumeControlService != null) {
@@ -1122,9 +1125,19 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
      * @param uuids are the services supported by the remote device
      */
     void onUuidsDiscovered(BluetoothDevice device, ParcelUuid[] uuids) {
-        debugLog("onUuidsDiscovered: discovered services for device " + device);
+        int bondState = mAdapterService.getBondState(device);
+        debugLog(
+                "onUuidsDiscovered: discovered services for device "
+                        + device
+                        + " ("
+                        + BondStateMachine.bondStateToString(bondState)
+                        + ")");
         if (uuids != null) {
-            processInitProfilePriorities(device, uuids);
+            if (!Flags.unbondedProfileForbidFix() || bondState != BluetoothDevice.BOND_NONE) {
+                processInitProfilePriorities(device, uuids);
+            } else {
+                debugLog("Device in BOND_NONE state, won't connect profiles" + device);
+            }
         } else {
             warnLog("onUuidsDiscovered: uuids is null for device " + device);
         }

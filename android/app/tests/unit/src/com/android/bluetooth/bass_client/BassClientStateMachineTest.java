@@ -64,6 +64,7 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.BroadcastOptions;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -86,7 +87,6 @@ import android.bluetooth.le.ScanRecord;
 import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Bundle;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
@@ -282,8 +282,11 @@ public class BassClientStateMachineTest {
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument1 = ArgumentCaptor.forClass(Intent.class);
-        verify(mBassClientService, timeout(TIMEOUT_MS).times(1))
-                .sendBroadcast(intentArgument1.capture(), anyString(), any(Bundle.class));
+        verify(mBassClientService, timeout(TIMEOUT_MS))
+                .sendBroadcastMultiplePermissions(
+                        intentArgument1.capture(),
+                        any(String[].class),
+                        any(BroadcastOptions.class));
         Assert.assertEquals(
                 BluetoothProfile.STATE_CONNECTING,
                 intentArgument1.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
@@ -300,7 +303,10 @@ public class BassClientStateMachineTest {
         // - two calls to broadcastConnectionState(): Disconnected -> Connecting -> Connected
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
         verify(mBassClientService, timeout(TIMEOUT_MS).times(2))
-                .sendBroadcast(intentArgument2.capture(), anyString(), any(Bundle.class));
+                .sendBroadcastMultiplePermissions(
+                        intentArgument2.capture(),
+                        any(String[].class),
+                        any(BroadcastOptions.class));
 
         Assert.assertThat(
                 mBassClientStateMachine.getCurrentState(),
@@ -317,8 +323,11 @@ public class BassClientStateMachineTest {
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument1 = ArgumentCaptor.forClass(Intent.class);
-        verify(mBassClientService, timeout(TIMEOUT_MS).times(1))
-                .sendBroadcast(intentArgument1.capture(), anyString(), any(Bundle.class));
+        verify(mBassClientService, timeout(TIMEOUT_MS))
+                .sendBroadcastMultiplePermissions(
+                        intentArgument1.capture(),
+                        any(String[].class),
+                        any(BroadcastOptions.class));
         Assert.assertEquals(
                 BluetoothProfile.STATE_CONNECTING,
                 intentArgument1.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
@@ -330,7 +339,10 @@ public class BassClientStateMachineTest {
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
         verify(mBassClientService, timeout(TIMEOUT_MS).times(2))
-                .sendBroadcast(intentArgument2.capture(), anyString(), any(Bundle.class));
+                .sendBroadcastMultiplePermissions(
+                        intentArgument2.capture(),
+                        any(String[].class),
+                        any(BroadcastOptions.class));
         Assert.assertEquals(
                 BluetoothProfile.STATE_DISCONNECTED,
                 intentArgument2.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
@@ -907,7 +919,6 @@ public class BassClientStateMachineTest {
         verify(callbacks)
                 .notifyReceiveStateChanged(any(), eq(sourceId), receiveStateCaptor.capture());
         Assert.assertEquals(receiveStateCaptor.getValue().getSourceDevice(), mEmptyTestDevice);
-        assertThat(mBassClientStateMachine.mPendingSourceToSwitch).isEqualTo(null);
     }
 
     @Test
@@ -1364,6 +1375,9 @@ public class BassClientStateMachineTest {
 
     @Test
     public void sendAddBcastSourceMessage_inConnectedState() {
+        mSetFlagsRule.enableFlags(
+                Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE);
+
         initToConnectedState();
 
         BassClientService.Callbacks callbacks = Mockito.mock(BassClientService.Callbacks.class);
@@ -1386,11 +1400,13 @@ public class BassClientStateMachineTest {
                 Mockito.mock(BluetoothGattCharacteristic.class);
         mBassClientStateMachine.mBroadcastScanControlPoint = scanControlPoint;
 
+        mBassClientStateMachine.mPendingSourceToSwitch = metadata;
         sendMessageAndVerifyTransition(
                 mBassClientStateMachine.obtainMessage(ADD_BCAST_SOURCE, metadata),
                 BassClientStateMachine.ConnectedProcessing.class);
         verify(scanControlPoint).setValue(any(byte[].class));
         verify(btGatt).writeCharacteristic(any());
+        assertThat(mBassClientStateMachine.mPendingSourceToSwitch).isEqualTo(null);
     }
 
     @Test

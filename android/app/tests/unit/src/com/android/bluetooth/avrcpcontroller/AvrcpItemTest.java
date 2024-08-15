@@ -18,13 +18,11 @@ package com.android.bluetooth.avrcpcontroller;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.content.Context;
 import android.net.Uri;
 import android.support.v4.media.MediaBrowserCompat.MediaItem;
 import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
@@ -52,7 +50,6 @@ public final class AvrcpItemTest {
 
     @Before
     public void setUp() {
-        Context context = InstrumentationRegistry.getTargetContext();
         mDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice("AA:BB:CC:DD:EE:FF");
     }
 
@@ -72,7 +69,6 @@ public final class AvrcpItemTest {
         long playingTime = 301;
         String artHandle = "0000001";
         Uri uri = Uri.parse("content://somewhere");
-        Uri uri2 = Uri.parse("content://somewhereelse");
 
         AvrcpItem.Builder builder = new AvrcpItem.Builder();
         builder.setItemType(AvrcpItem.TYPE_MEDIA);
@@ -556,7 +552,7 @@ public final class AvrcpItemTest {
         Assert.assertEquals(UUID, desc.getMediaId());
         Assert.assertEquals(null, desc.getMediaUri());
         Assert.assertEquals(title, desc.getTitle().toString());
-        Assert.assertEquals(desc.getSubtitle(), null);
+        Assert.assertNull(desc.getSubtitle());
         Assert.assertEquals(uri, desc.getIconUri());
         Assert.assertEquals(null, desc.getIconBitmap());
     }
@@ -585,7 +581,7 @@ public final class AvrcpItemTest {
         Assert.assertEquals(UUID, desc.getMediaId());
         Assert.assertEquals(null, desc.getMediaUri());
         Assert.assertEquals(displayName, desc.getTitle().toString());
-        Assert.assertEquals(desc.getSubtitle(), null);
+        Assert.assertNull(desc.getSubtitle());
         Assert.assertEquals(uri, desc.getIconUri());
         Assert.assertEquals(null, desc.getIconBitmap());
     }
@@ -612,7 +608,7 @@ public final class AvrcpItemTest {
         Assert.assertEquals(UUID, desc.getMediaId());
         Assert.assertEquals(null, desc.getMediaUri());
         Assert.assertEquals(title, desc.getTitle().toString());
-        Assert.assertEquals(desc.getSubtitle(), null);
+        Assert.assertNull(desc.getSubtitle());
         Assert.assertEquals(uri, desc.getIconUri());
         Assert.assertEquals(null, desc.getIconBitmap());
     }

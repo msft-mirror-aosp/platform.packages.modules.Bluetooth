@@ -14,20 +14,15 @@
  */
 package com.android.bluetooth.map;
 
-import android.bluetooth.BluetoothProfile;
-import android.bluetooth.BluetoothProtoEnums;
 import android.util.Log;
 
-import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.SignedLongLong;
-import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -92,16 +87,7 @@ public class BluetoothMapConvoContactElement
         this.mPresenceStatus = presenceStatus;
         this.mPriority = priority;
         if (btUid != null) {
-            try {
-                this.mBtUid = SignedLongLong.fromString(btUid);
-            } catch (UnsupportedEncodingException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONVO_CONTACT_ELEMENT,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        0);
-                Log.w(TAG, e);
-            }
+            this.mBtUid = SignedLongLong.fromString(btUid);
         }
     }
 
@@ -249,9 +235,6 @@ public class BluetoothMapConvoContactElement
      * Call this function to create a BluetoothMapConvoContactElement. Will consume the end-tag.
      *
      * @param parser must point into XML_TAG_CONVERSATION tag, hence attributes can be read.
-     * @return
-     * @throws IOException
-     * @throws XmlPullParserException
      */
     public static BluetoothMapConvoContactElement createFromXml(XmlPullParser parser)
             throws ParseException, XmlPullParserException, IOException {
@@ -296,13 +279,9 @@ public class BluetoothMapConvoContactElement
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
+        if (!(obj instanceof BluetoothMapConvoContactElement other)) {
             return false;
         }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        BluetoothMapConvoContactElement other = (BluetoothMapConvoContactElement) obj;
         /*      As we use equals only for test, we don't compare auto assigned values
         *      if (mBtUid == null) {
                    if (other.mBtUid != null) {

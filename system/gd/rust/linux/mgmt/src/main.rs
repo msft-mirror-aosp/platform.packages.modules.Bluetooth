@@ -10,6 +10,7 @@ use dbus_crossroads::Crossroads;
 use dbus_projection::DisconnectWatcher;
 use dbus_tokio::connection;
 use log::LevelFilter;
+use log_panics;
 use manager_service::bluetooth_manager::BluetoothManager;
 use manager_service::powerd_suspend_manager::PowerdSuspendManager;
 use manager_service::{bluetooth_experimental_dbus, iface_bluetooth_manager};
@@ -49,6 +50,8 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
             process: "btmanagerd".into(),
             pid: 0,
         };
+
+        log_panics::init();
 
         let logger = syslog::unix(formatter).expect("could not connect to syslog");
         let _ = log::set_boxed_logger(Box::new(BasicLogger::new(logger)))
@@ -105,13 +108,14 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // InterfaceAdded and InterfaceRemoved signals.
     cr.lock().unwrap().set_object_manager_support(Some(conn.clone()));
     let om = cr.lock().unwrap().object_manager();
-    cr.lock().unwrap().insert("/", &[om], {});
+    cr.lock().unwrap().insert("/", &[om], ());
 
     let bluetooth_manager = Arc::new(Mutex::new(Box::new(BluetoothManager::new(proxy))));
 
     // Set up the disconnect watcher to monitor client disconnects.
-    let disconnect_watcher = Arc::new(Mutex::new(DisconnectWatcher::new()));
-    disconnect_watcher.lock().unwrap().setup_watch(conn.clone()).await;
+    let mut disconnect_watcher = DisconnectWatcher::new();
+    disconnect_watcher.setup_watch(conn.clone()).await;
+    let disconnect_watcher = Arc::new(Mutex::new(disconnect_watcher));
 
     // We add the Crossroads instance to the connection so that incoming method calls will be
     // handled.

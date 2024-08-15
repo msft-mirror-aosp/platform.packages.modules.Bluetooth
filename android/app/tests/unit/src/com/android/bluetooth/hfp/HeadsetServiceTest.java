@@ -838,9 +838,6 @@ public class HeadsetServiceTest {
                         any(BluetoothDevice.class), eq(BluetoothProfile.HEADSET)))
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
         mCurrentDevice = TestUtils.getTestDevice(mAdapter, 0);
-        HeadsetCallState headsetCallState =
-                new HeadsetCallState(
-                        1, 0, HeadsetHalConstants.CALL_STATE_ALERTING, TEST_PHONE_NUMBER, 128, "");
         Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
         verify(mObjectsFactory)
                 .makeStateMachine(
@@ -1292,6 +1289,7 @@ public class HeadsetServiceTest {
                 mCurrentDevice,
                 BluetoothProfile.STATE_DISCONNECTED,
                 BluetoothProfile.STATE_CONNECTED);
+        mHeadsetService.setActiveDevice(mCurrentDevice);
 
         when(mStateMachines.get(mCurrentDevice).getHfpCallAudioPolicy())
                 .thenReturn(

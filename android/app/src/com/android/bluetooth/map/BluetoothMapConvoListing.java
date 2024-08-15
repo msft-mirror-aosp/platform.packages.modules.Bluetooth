@@ -30,7 +30,7 @@ import org.xmlpull.v1.XmlSerializer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -91,9 +91,8 @@ public class BluetoothMapConvoListing {
      * a trimmed byte array
      *
      * @return a reference to the encoded byte array.
-     * @throws UnsupportedEncodingException if UTF-8 encoding is unsupported on the platform.
      */
-    public byte[] encode() throws UnsupportedEncodingException {
+    public byte[] encode() {
         StringWriter sw = new StringWriter();
         XmlSerializer xmlConvoElement = Xml.newSerializer();
         try {
@@ -131,7 +130,7 @@ public class BluetoothMapConvoListing {
                     2);
             Log.w(TAG, e);
         }
-        return sw.toString().getBytes("UTF-8");
+        return sw.toString().getBytes(StandardCharsets.UTF_8);
     }
 
     public void sort() {
@@ -186,9 +185,6 @@ public class BluetoothMapConvoListing {
      * Parses folder elements, and add to mSubFolders.
      *
      * @param parser the Xml Parser currently pointing to an folder-listing tag.
-     * @throws XmlPullParserException
-     * @throws IOException
-     * @throws
      */
     private void readConversations(XmlPullParser parser)
             throws XmlPullParserException, IOException, ParseException {
@@ -218,13 +214,9 @@ public class BluetoothMapConvoListing {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
+        if (!(obj instanceof BluetoothMapConvoListing other)) {
             return false;
         }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        BluetoothMapConvoListing other = (BluetoothMapConvoListing) obj;
         if (mHasUnread != other.mHasUnread) {
             return false;
         }

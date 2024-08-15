@@ -9,13 +9,6 @@ flag {
 }
 
 flag {
-    name: "divide_long_single_gap_data"
-    namespace: "bluetooth"
-    description: "Divide long single gap data if length is longer than HCI data length limit"
-    bug: "310217895"
-}
-
-flag {
     name: "fix_nonconnectable_scannable_advertisement"
     namespace: "bluetooth"
     description: "Fix adv_scan_ind being reported as connectable"
@@ -34,13 +27,6 @@ flag {
     namespace: "bluetooth"
     description: "skip initial DB lookup when robust caching support is UNKNOWN"
     bug: "317128464"
-}
-
-flag {
-    name: "le_scan_parameters_fix"
-    namespace: "bluetooth"
-    description: "Fix LE scan parameters downgrade during inquiry"
-    bug: "316885813"
 }
 
 flag {
@@ -210,8 +196,65 @@ flag {
 flag {
     name: "le_scan_use_address_type"
     namespace: "bluetooth"
-    description: "Fix an issue that le scanner omits athe ddress type for MATCH_FIRST scan"
+    description: "Fix an issue that le scanner omits address type for MATCH_FIRST scan"
     bug: "342127181"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "gatt_client_dynamic_allocation"
+    namespace: "bluetooth"
+    description: "Allocate GATT clients in heap to unlimit the number of clients"
+    bug: "348559823"
+}
+
+flag {
+    name: "gatt_fix_multiple_direct_connect"
+    namespace: "bluetooth"
+    description: "Do not remove device when multiple clients attempt to connect"
+    bug: "349232327"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "pan_use_identity_address"
+    namespace: "bluetooth"
+    description: "Use identity address when communicate with native interface"
+    bug: "351961492"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "android_os_identifier"
+    namespace: "bluetooth"
+    description: "Add a custom service to provide Android OS identifier"
+    bug: "351860033"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "gatt_callback_on_failure"
+    namespace: "bluetooth"
+    description: "Invoke callbacks on early failure from the native stack"
+    bug: "356550596"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_inquiry_duration"
+    namespace: "bluetooth"
+    description: "Use the same duration for LE inquiry scan that classic discovery uses"
+    bug: "357894405"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
