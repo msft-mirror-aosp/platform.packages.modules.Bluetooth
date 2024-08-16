@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import android.annotation.SuppressLint;
 import android.util.Log;
 
 import com.google.common.base.Ascii;
@@ -143,27 +144,33 @@ public class BipTransformation {
 
     @Override
     public boolean equals(Object o) {
-        if (o == this) return true;
-        if (o == null && !supportsAny()) return true;
-        if (!(o instanceof BipTransformation)) return false;
+        if (o == this) {
+            return true;
+        }
+        if (o == null && !supportsAny()) {
+            return true;
+        }
+        if (!(o instanceof BipTransformation t)) {
+            return false;
+        }
 
-        BipTransformation t = (BipTransformation) o;
         return mSupportedTransformations.equals(t.mSupportedTransformations);
     }
 
     @Override
+    @SuppressLint("ToStringReturnsNull")
     public String toString() {
         if (!supportsAny()) return null;
-        String transformations = "";
+        StringBuilder transformations = new StringBuilder();
         if (isSupported(STRETCH)) {
-            transformations += "stretch ";
+            transformations.append("stretch ");
         }
         if (isSupported(FILL)) {
-            transformations += "fill ";
+            transformations.append("fill ");
         }
         if (isSupported(CROP)) {
-            transformations += "crop ";
+            transformations.append("crop ");
         }
-        return transformations.trim();
+        return transformations.toString().trim();
     }
 }

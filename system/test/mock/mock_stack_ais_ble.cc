@@ -14,28 +14,7 @@
  * limitations under the License.
  */
 
-#pragma once
+#include "stack/include/ais_api.h"
+#include "test/common/mock_functions.h"
 
-#include <string>
-#include <unordered_map>
-#include <vector>
-
-struct header {
-  uint8_t event;
-  uint8_t event_code;
-  uint8_t length;
-  uint8_t num_rsp;
-  uint8_t raw_address[6];
-  uint8_t scan_mode;
-  uint8_t reserved11;
-  uint8_t cod[3];
-  uint16_t clock_offset;
-  uint8_t rssi;
-  uint8_t eir_data[];
-} __attribute__((packed));
-
-constexpr size_t kEirOffset = sizeof(header);
-constexpr size_t kEirSize = 240U;
-
-extern std::unordered_map<std::string, const unsigned char*> selected_packets;
-extern std::vector<const unsigned char*> data_packets;
+void AIS_Init(void) { inc_func_call_count(__func__); }

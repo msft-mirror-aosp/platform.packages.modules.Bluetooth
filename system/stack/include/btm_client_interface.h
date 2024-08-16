@@ -96,7 +96,7 @@ struct btm_client_interface_t {
     [[nodiscard]] tBTM_STATUS (*BTM_BleGetEnergyInfo)(tBTM_BLE_ENERGY_INFO_CBACK* callback);
     [[nodiscard]] tBTM_STATUS (*BTM_BleObserve)(bool start, uint8_t duration,
                                                 tBTM_INQ_RESULTS_CB* p_results_cb,
-                                                tBTM_CMPL_CB* p_cmpl_cb, bool low_latency_scan);
+                                                tBTM_CMPL_CB* p_cmpl_cb);
     [[nodiscard]] tBTM_STATUS (*BTM_SetBleDataLength)(const RawAddress& bd_addr,
                                                       uint16_t tx_pdu_length);
     void (*BTM_BleReadControllerFeatures)(tBTM_BLE_CTRL_FEATURES_CBACK* p_vsc_cback);
@@ -117,6 +117,7 @@ struct btm_client_interface_t {
     [[nodiscard]] tBTM_STATUS (*BTM_RegForEScoEvts)(uint16_t sco_inx,
                                                     tBTM_ESCO_CBACK* p_esco_cback);
     [[nodiscard]] tBTM_STATUS (*BTM_RemoveSco)(uint16_t sco_inx);
+    void (*BTM_RemoveScoByBdaddr)(const RawAddress& bda);
     void (*BTM_WriteVoiceSettings)(uint16_t settings);
     void (*BTM_EScoConnRsp)(uint16_t sco_inx, tHCI_STATUS hci_status, enh_esco_params_t* p_parms);
     [[nodiscard]] uint8_t (*BTM_GetNumScoLinks)();
