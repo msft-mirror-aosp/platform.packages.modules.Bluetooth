@@ -2,11 +2,13 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "mfi_has_uuid"
-    is_exported: true
+    name: "override_context_to_specify_device_id"
     namespace: "bluetooth"
-    description: "Use MFi HAS uuid to judge if a device is hearing aid"
-    bug: "310543599"
+    description: "In Bluetooth Manager, override the context with createDeviceContext to pin a specific DeviceId"
+    bug: "349657939"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -41,10 +43,13 @@ flag {
 }
 
 flag {
-    name: "identity_address_null_if_unknown"
+    name: "identity_address_null_if_not_known"
     namespace: "bluetooth"
     description: "Return null for identity address if identity address is not known"
     bug: "317120534"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {

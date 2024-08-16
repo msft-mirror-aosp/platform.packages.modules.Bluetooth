@@ -19,6 +19,7 @@ import static com.android.bluetooth.BtRestrictedStatsLog.RESTRICTED_BLUETOOTH_DE
 
 import android.app.AlarmManager;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothProtoEnums;
 import android.content.Context;
 import android.os.Build;
 import android.os.SystemClock;
@@ -68,7 +69,7 @@ public class MetricsLogger {
 
     HashMap<Integer, Long> mCounters = new HashMap<>();
     private static volatile MetricsLogger sInstance = null;
-    private Context mContext = null;
+    private AdapterService mAdapterService = null;
     private AlarmManager mAlarmManager = null;
     private boolean mInitialized = false;
     private static final Object sLock = new Object();
@@ -149,12 +150,12 @@ public class MetricsLogger {
         mBloomFilter = bloomfilter;
     }
 
-    public boolean init(Context context) {
+    public boolean init(AdapterService adapterService) {
         if (mInitialized) {
             return false;
         }
         mInitialized = true;
-        mContext = context;
+        mAdapterService = adapterService;
         scheduleDrains();
         if (!initBloomFilter(BLOOMFILTER_FULL_PATH)) {
             Log.w(TAG, "MetricsLogger can't initialize the bloomfilter");
@@ -224,7 +225,7 @@ public class MetricsLogger {
     protected void scheduleDrains() {
         Log.i(TAG, "setCounterMetricsAlarm()");
         if (mAlarmManager == null) {
-            mAlarmManager = mContext.getSystemService(AlarmManager.class);
+            mAlarmManager = ((Context) mAdapterService).getSystemService(AlarmManager.class);
         }
         mAlarmManager.set(
                 AlarmManager.ELAPSED_REALTIME_WAKEUP,
@@ -266,7 +267,7 @@ public class MetricsLogger {
         cancelPendingDrain();
         drainBufferedCounters();
         mAlarmManager = null;
-        mContext = null;
+        mAdapterService = null;
         mInitialized = false;
         mBloomFilterInitialized = false;
         return true;
@@ -305,6 +306,9 @@ public class MetricsLogger {
      * @return A byte array containing the serialized remote device information.
      */
     public byte[] getRemoteDeviceInfoProto(BluetoothDevice device) {
+        if (!mInitialized) {
+            return null;
+        }
         ProtoOutputStream proto = new ProtoOutputStream();
 
         // write Allowlisted Device Name Hash
@@ -313,7 +317,7 @@ public class MetricsLogger {
                 ProtoOutputStream.FIELD_TYPE_STRING,
                 ProtoOutputStream.FIELD_COUNT_SINGLE,
                 BluetoothRemoteDeviceInformation.ALLOWLISTED_DEVICE_NAME_HASH_FIELD_NUMBER,
-                getAllowlistedDeviceNameHash(device.getName()));
+                getAllowlistedDeviceNameHash(mAdapterService.getRemoteName(device)));
 
         // write COD
         writeFieldIfNotNull(
@@ -321,9 +325,7 @@ public class MetricsLogger {
                 ProtoOutputStream.FIELD_TYPE_INT32,
                 ProtoOutputStream.FIELD_COUNT_SINGLE,
                 BluetoothRemoteDeviceInformation.CLASS_OF_DEVICE_FIELD_NUMBER,
-                device.getBluetoothClass() != null
-                        ? device.getBluetoothClass().getClassOfDevice()
-                        : null);
+                mAdapterService.getRemoteClass(device));
 
         // write OUI
         writeFieldIfNotNull(
@@ -333,7 +335,51 @@ public class MetricsLogger {
                 BluetoothRemoteDeviceInformation.OUI_FIELD_NUMBER,
                 getOui(device));
 
+        // write deviceTypeMetaData
+        writeFieldIfNotNull(
+                proto,
+                ProtoOutputStream.FIELD_TYPE_INT32,
+                ProtoOutputStream.FIELD_COUNT_SINGLE,
+                BluetoothRemoteDeviceInformation.DEVICE_TYPE_METADATA_FIELD_NUMBER,
+                getDeviceTypeMetaData(device));
+
         return proto.getBytes();
+    }
+
+    private int getDeviceTypeMetaData(BluetoothDevice device) {
+        byte[] deviceTypeMetaDataBytes =
+                mAdapterService.getMetadata(device, BluetoothDevice.METADATA_DEVICE_TYPE);
+
+        if (deviceTypeMetaDataBytes == null) {
+            return BluetoothProtoEnums.NOT_AVAILABLE;
+        }
+        String deviceTypeMetaData = new String(deviceTypeMetaDataBytes, StandardCharsets.UTF_8);
+
+        switch (deviceTypeMetaData) {
+            case "Watch":
+                return BluetoothProtoEnums.WATCH;
+
+            case "Untethered Headset":
+                return BluetoothProtoEnums.UNTETHERED_HEADSET;
+
+            case "Stylus":
+                return BluetoothProtoEnums.STYLUS;
+
+            case "Speaker":
+                return BluetoothProtoEnums.SPEAKER;
+
+            case "Headset":
+                return BluetoothProtoEnums.HEADSET;
+
+            case "Carkit":
+                return BluetoothProtoEnums.CARKIT;
+
+            case "Default":
+                return BluetoothProtoEnums.DEFAULT;
+
+            default:
+                return BluetoothProtoEnums.NOT_AVAILABLE;
+        }
     }
 
     private int getOui(BluetoothDevice device) {
@@ -389,6 +435,88 @@ public class MetricsLogger {
         return matchedString;
     }
 
+    /** Logs the app scan stats with app attribution when the app scan state changed. */
+    public void logAppScanStateChanged(
+            int[] uids,
+            String[] tags,
+            boolean enabled,
+            boolean isFilterScan,
+            boolean isCallbackScan,
+            int scanCallBackType,
+            int scanType,
+            int scanMode,
+            long reportDelayMillis,
+            long scanDurationMillis,
+            int numOngoingScan,
+            boolean isScreenOn,
+            boolean isAppDead) {
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.LE_APP_SCAN_STATE_CHANGED,
+                uids,
+                tags,
+                enabled,
+                isFilterScan,
+                isCallbackScan,
+                scanCallBackType,
+                scanType,
+                scanMode,
+                reportDelayMillis,
+                scanDurationMillis,
+                numOngoingScan,
+                isScreenOn,
+                isAppDead);
+    }
+
+    /** Logs the radio scan stats with app attribution when the radio scan stopped. */
+    public void logRadioScanStopped(
+            int[] uids,
+            String[] tags,
+            int scanType,
+            int scanMode,
+            long scanIntervalMillis,
+            long scanWindowMillis,
+            boolean isScreenOn,
+            long scanDurationMillis) {
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.LE_RADIO_SCAN_STOPPED,
+                uids,
+                tags,
+                scanType,
+                scanMode,
+                scanIntervalMillis,
+                scanWindowMillis,
+                isScreenOn,
+                scanDurationMillis);
+    }
+
+    /** Logs the advertise stats with app attribution when the advertise state changed. */
+    public void logAdvStateChanged(
+            int[] uids,
+            String[] tags,
+            boolean enabled,
+            int interval,
+            int txPowerLevel,
+            boolean isConnectable,
+            boolean isPeriodicAdvertisingEnabled,
+            boolean hasScanResponse,
+            boolean isExtendedAdv,
+            int instanceCount,
+            long advDurationMs) {
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.LE_ADV_STATE_CHANGED,
+                uids,
+                tags,
+                enabled,
+                interval,
+                txPowerLevel,
+                isConnectable,
+                isPeriodicAdvertisingEnabled,
+                hasScanResponse,
+                isExtendedAdv,
+                instanceCount,
+                advDurationMs);
+    }
+
     protected String getAllowlistedDeviceNameHash(String deviceName) {
         List<String> wordBreakdownList = getWordBreakdownList(deviceName);
         String matchedString = getMatchedString(wordBreakdownList);
@@ -418,6 +546,21 @@ public class MetricsLogger {
                 BluetoothStatsLog.BLUETOOTH_HASHED_DEVICE_NAME_REPORTED, metricId, sha256);
     }
 
+    public void logBluetoothEvent(BluetoothDevice device, int eventType, int state, int uid) {
+
+        if (mAdapterService.getMetricId(device) == 0 || !mInitialized) {
+            return;
+        }
+
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED,
+                eventType,
+                state,
+                uid,
+                mAdapterService.getMetricId(device),
+                getRemoteDeviceInfoProto(device));
+    }
+
     protected static String getSha256String(String name) {
         if (name.isEmpty()) {
             return "";
@@ -425,7 +568,7 @@ public class MetricsLogger {
         StringBuilder hexString = new StringBuilder();
         byte[] hashBytes = getSha256(name);
         for (byte b : hashBytes) {
-            hexString.append(String.format("%02x", b));
+            hexString.append(Utils.formatSimple("%02x", b));
         }
         return hexString.toString();
     }

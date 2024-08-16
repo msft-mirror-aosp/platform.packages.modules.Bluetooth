@@ -26,12 +26,10 @@ import android.bluetooth.BluetoothCodecConfig;
 import android.bluetooth.BluetoothCodecStatus;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
-import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.HandlerThread;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -56,7 +54,6 @@ import java.util.Arrays;
 @RunWith(AndroidJUnit4.class)
 public class A2dpStateMachineTest {
     private BluetoothAdapter mAdapter;
-    private Context mTargetContext;
     private HandlerThread mHandlerThread;
     private A2dpStateMachine mA2dpStateMachine;
     private BluetoothDevice mTestDevice;
@@ -76,7 +73,6 @@ public class A2dpStateMachineTest {
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
         doReturn(mActiveDeviceManager).when(mAdapterService).getActiveDeviceManager();
         doReturn(mSilenceDeviceManager).when(mAdapterService).getSilenceDeviceManager();
 
@@ -254,7 +250,7 @@ public class A2dpStateMachineTest {
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
-        verify(mA2dpService, timeout(A2dpStateMachine.sConnectTimeoutMs * 2).times(2))
+        verify(mA2dpService, timeout(A2dpStateMachine.sConnectTimeoutMs * 2L).times(2))
                 .sendBroadcast(intentArgument2.capture(), anyString(), any(Bundle.class));
         assertThat(intentArgument2.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1))
                 .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
@@ -291,7 +287,7 @@ public class A2dpStateMachineTest {
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
-        verify(mA2dpService, timeout(A2dpStateMachine.sConnectTimeoutMs * 2).times(2))
+        verify(mA2dpService, timeout(A2dpStateMachine.sConnectTimeoutMs * 2L).times(2))
                 .sendBroadcast(intentArgument2.capture(), anyString(), any(Bundle.class));
         assertThat(intentArgument2.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1))
                 .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);

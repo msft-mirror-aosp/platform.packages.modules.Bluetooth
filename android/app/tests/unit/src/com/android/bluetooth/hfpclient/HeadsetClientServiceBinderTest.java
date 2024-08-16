@@ -134,7 +134,6 @@ public class HeadsetClientServiceBinderTest {
 
     @Test
     public void getAudioRouteAllowed_callsServiceMethod() {
-        boolean allowed = true;
         mBinder.getAudioRouteAllowed(mRemoteDevice, null);
 
         verify(mService).getAudioRouteAllowed(mRemoteDevice);
@@ -204,13 +203,6 @@ public class HeadsetClientServiceBinderTest {
         mBinder.dial(mRemoteDevice, number, null);
 
         verify(mService).dial(mRemoteDevice, number);
-    }
-
-    @Test
-    public void getCurrentCalls_callsServiceMethod() {
-        mBinder.getCurrentCalls(mRemoteDevice, null);
-
-        verify(mService).getCurrentCalls(mRemoteDevice);
     }
 
     @Test

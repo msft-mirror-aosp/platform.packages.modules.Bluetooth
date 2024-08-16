@@ -34,6 +34,7 @@ package com.android.bluetooth.opp;
 
 import static android.view.WindowManager.LayoutParams.SYSTEM_FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothDevicePicker;
 import android.bluetooth.BluetoothProfile;
@@ -263,11 +264,7 @@ public class BluetoothOppLauncherActivity extends Activity {
         }
     }
 
-    /**
-     * Turns on Bluetooth if not already on, or launches device picker if Bluetooth is on
-     *
-     * @return
-     */
+    /** Turns on Bluetooth if not already on, or launches device picker if Bluetooth is on */
     @VisibleForTesting
     void launchDevicePicker() {
         // TODO: In the future, we may send intent to DevicePickerActivity
@@ -331,6 +328,7 @@ public class BluetoothOppLauncherActivity extends Activity {
     }
 
     @VisibleForTesting
+    @SuppressLint("AndroidFrameworkEfficientStrings") // Bluetooth min sdk 33 prevent StringBuilder
     Uri createFileForSharedContent(Context context, CharSequence shareContent) {
         if (shareContent == null) {
             return null;
@@ -345,6 +343,7 @@ public class BluetoothOppLauncherActivity extends Activity {
             /*
              * Convert the plain text to HTML
              */
+            // Not using StringBuilder since Matcher.appendReplacement & appendTail require API 34
             StringBuffer sb =
                     new StringBuffer(
                             "<html><head><meta http-equiv=\"Content-Type\""
@@ -394,7 +393,7 @@ public class BluetoothOppLauncherActivity extends Activity {
                     link = "tel:" + matchStr;
                 }
                 if (link != null) {
-                    String href = String.format("<a href=\"%s\">%s</a>", link, matchStr);
+                    String href = "<a href=\"" + link + "\">" + matchStr + "</a>";
                     m.appendReplacement(sb, href);
                 }
             }

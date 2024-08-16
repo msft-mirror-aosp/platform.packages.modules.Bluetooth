@@ -31,7 +31,7 @@ class HandleMap {
     public static final int TYPE_CHARACTERISTIC = 2;
     public static final int TYPE_DESCRIPTOR = 3;
 
-    class Entry {
+    static class Entry {
         public int serverIf = 0;
         public int type = TYPE_UNDEFINED;
         public int handle = 0;
@@ -189,23 +189,23 @@ class HandleMap {
 
     /** Logs debug information. */
     void dump(StringBuilder sb) {
-        sb.append("  Entries: " + mEntries.size() + "\n");
-        sb.append("  Requests: " + mRequestMap.size() + "\n");
+        sb.append("  Entries: ").append(mEntries.size()).append("\n");
+        sb.append("  Requests: ").append(mRequestMap.size()).append("\n");
 
         for (Entry entry : mEntries) {
-            sb.append("  " + entry.serverIf + ": [" + entry.handle + "] ");
+            sb.append("  ").append(entry.serverIf).append(": [").append(entry.handle).append("] ");
             switch (entry.type) {
                 case TYPE_SERVICE:
-                    sb.append("Service " + entry.uuid);
-                    sb.append(", started " + entry.started);
+                    sb.append("Service ").append(entry.uuid);
+                    sb.append(", started ").append(entry.started);
                     break;
 
                 case TYPE_CHARACTERISTIC:
-                    sb.append("  Characteristic " + entry.uuid);
+                    sb.append("  Characteristic ").append(entry.uuid);
                     break;
 
                 case TYPE_DESCRIPTOR:
-                    sb.append("    Descriptor " + entry.uuid);
+                    sb.append("    Descriptor ").append(entry.uuid);
                     break;
             }
 

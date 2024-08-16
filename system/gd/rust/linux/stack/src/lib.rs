@@ -46,7 +46,7 @@ use crate::dis::{DeviceInformation, ServiceCallbacks};
 use crate::socket_manager::{BluetoothSocketManager, SocketActions};
 use crate::suspend::Suspend;
 use bt_topshim::{
-    btif::{BaseCallbacks, BtTransport, RawAddress},
+    btif::{BaseCallbacks, BtAclState, BtBondState, BtTransport, RawAddress},
     profiles::{
         a2dp::A2dpCallbacks,
         avrcp::AvrcpCallbacks,
@@ -73,6 +73,8 @@ pub enum Message {
     AdapterShutdown,
     /// Clean up the adapter by calling btif cleanup.
     Cleanup,
+    /// Clean up the media by calling profile cleanup.
+    CleanupProfiles,
 
     // Adapter is enabled and ready.
     AdapterReady,
@@ -108,10 +110,10 @@ pub enum Message {
     TriggerUpdateConnectableMode,
     DelayedAdapterActions(DelayedActions),
 
-    // Follows IBluetooth's on_device_(dis)connected callback but doesn't require depending on
-    // Bluetooth.
-    OnAclConnected(BluetoothDevice, BtTransport),
-    OnAclDisconnected(BluetoothDevice),
+    // Follows IBluetooth's on_device_(dis)connected and bond_state callbacks
+    // but doesn't require depending on Bluetooth.
+    OnDeviceConnectionStateChanged(BluetoothDevice, BtAclState, BtBondState, BtTransport),
+    OnDeviceDisconnected(BluetoothDevice),
 
     // Suspend related
     SuspendCallbackRegistered(u32),
@@ -168,6 +170,9 @@ pub enum Message {
     // UHid callbacks
     UHidHfpOutputCallback(RawAddress, u8, u8),
     UHidTelephonyUseCallback(RawAddress, bool),
+
+    // GATT Callbacks
+    GattClientDisconnected(RawAddress),
 }
 
 pub enum BluetoothAPI {
@@ -245,6 +250,10 @@ impl Stack {
 
                 Message::Cleanup => {
                     bluetooth.lock().unwrap().cleanup();
+                }
+
+                Message::CleanupProfiles => {
+                    bluetooth_media.lock().unwrap().cleanup();
                 }
 
                 Message::AdapterReady => {
@@ -380,16 +389,20 @@ impl Stack {
                 // Any service needing an updated list of devices can have an
                 // update method triggered from here rather than needing a
                 // reference to Bluetooth.
-                Message::OnAclConnected(device, transport) => {
-                    battery_service
-                        .lock()
-                        .unwrap()
-                        .handle_action(BatteryServiceActions::Connect(device, transport));
+                Message::OnDeviceConnectionStateChanged(
+                    device,
+                    acl_state,
+                    bond_state,
+                    transport,
+                ) => {
+                    battery_service.lock().unwrap().handle_action(BatteryServiceActions::Connect(
+                        device, acl_state, bond_state, transport,
+                    ));
                 }
 
                 // For battery service, use this to clean up internal handles. GATT connection is
                 // already dropped if ACL disconnect has occurred.
-                Message::OnAclDisconnected(device) => {
+                Message::OnDeviceDisconnected(device) => {
                     battery_service
                         .lock()
                         .unwrap()
@@ -539,6 +552,13 @@ impl Stack {
                         .lock()
                         .unwrap()
                         .dispatch_uhid_telephony_use_callback(addr, state);
+                }
+
+                Message::GattClientDisconnected(address) => {
+                    bluetooth
+                        .lock()
+                        .unwrap()
+                        .disconnect_if_no_media_or_hid_profiles_connected(address);
                 }
             }
         }

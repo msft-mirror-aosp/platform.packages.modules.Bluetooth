@@ -29,7 +29,6 @@ import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -219,17 +218,7 @@ public class BluetoothMapConvoListingElement
     /* Get a valid UTF-8 string of maximum 256 bytes */
     private String getSummary() {
         if (mSummary != null) {
-            try {
-                return BluetoothMapUtils.truncateUtf8StringToString(mSummary, 256);
-            } catch (UnsupportedEncodingException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONVO_LISTING_ELEMENT,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        1);
-                // This cannot happen on an Android platform - UTF-8 is mandatory
-                Log.e(TAG, "Missing UTF-8 support on platform", e);
-            }
+            return BluetoothMapUtils.truncateUtf8StringToString(mSummary, 256);
         }
         return null;
     }
@@ -291,11 +280,6 @@ public class BluetoothMapConvoListingElement
     /**
      * Consumes a conversation tag. It is expected that the parser is beyond the start-tag event,
      * with the name "conversation".
-     *
-     * @param parser
-     * @return
-     * @throws XmlPullParserException
-     * @throws IOException
      */
     public static BluetoothMapConvoListingElement createFromXml(XmlPullParser parser)
             throws XmlPullParserException, IOException, ParseException {
@@ -351,13 +335,9 @@ public class BluetoothMapConvoListingElement
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
+        if (!(obj instanceof BluetoothMapConvoListingElement other)) {
             return false;
         }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        BluetoothMapConvoListingElement other = (BluetoothMapConvoListingElement) obj;
         if (mContacts == null) {
             if (other.mContacts != null) {
                 return false;
