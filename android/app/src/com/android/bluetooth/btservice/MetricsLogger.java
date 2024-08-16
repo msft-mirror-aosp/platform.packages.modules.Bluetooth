@@ -19,6 +19,7 @@ import static com.android.bluetooth.BtRestrictedStatsLog.RESTRICTED_BLUETOOTH_DE
 
 import android.app.AlarmManager;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothProtoEnums;
 import android.content.Context;
 import android.os.Build;
 import android.os.SystemClock;
@@ -334,7 +335,51 @@ public class MetricsLogger {
                 BluetoothRemoteDeviceInformation.OUI_FIELD_NUMBER,
                 getOui(device));
 
+        // write deviceTypeMetaData
+        writeFieldIfNotNull(
+                proto,
+                ProtoOutputStream.FIELD_TYPE_INT32,
+                ProtoOutputStream.FIELD_COUNT_SINGLE,
+                BluetoothRemoteDeviceInformation.DEVICE_TYPE_METADATA_FIELD_NUMBER,
+                getDeviceTypeMetaData(device));
+
         return proto.getBytes();
+    }
+
+    private int getDeviceTypeMetaData(BluetoothDevice device) {
+        byte[] deviceTypeMetaDataBytes =
+                mAdapterService.getMetadata(device, BluetoothDevice.METADATA_DEVICE_TYPE);
+
+        if (deviceTypeMetaDataBytes == null) {
+            return BluetoothProtoEnums.NOT_AVAILABLE;
+        }
+        String deviceTypeMetaData = new String(deviceTypeMetaDataBytes, StandardCharsets.UTF_8);
+
+        switch (deviceTypeMetaData) {
+            case "Watch":
+                return BluetoothProtoEnums.WATCH;
+
+            case "Untethered Headset":
+                return BluetoothProtoEnums.UNTETHERED_HEADSET;
+
+            case "Stylus":
+                return BluetoothProtoEnums.STYLUS;
+
+            case "Speaker":
+                return BluetoothProtoEnums.SPEAKER;
+
+            case "Headset":
+                return BluetoothProtoEnums.HEADSET;
+
+            case "Carkit":
+                return BluetoothProtoEnums.CARKIT;
+
+            case "Default":
+                return BluetoothProtoEnums.DEFAULT;
+
+            default:
+                return BluetoothProtoEnums.NOT_AVAILABLE;
+        }
     }
 
     private int getOui(BluetoothDevice device) {
@@ -501,6 +546,21 @@ public class MetricsLogger {
                 BluetoothStatsLog.BLUETOOTH_HASHED_DEVICE_NAME_REPORTED, metricId, sha256);
     }
 
+    public void logBluetoothEvent(BluetoothDevice device, int eventType, int state, int uid) {
+
+        if (mAdapterService.getMetricId(device) == 0 || !mInitialized) {
+            return;
+        }
+
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED,
+                eventType,
+                state,
+                uid,
+                mAdapterService.getMetricId(device),
+                getRemoteDeviceInfoProto(device));
+    }
+
     protected static String getSha256String(String name) {
         if (name.isEmpty()) {
             return "";
@@ -508,7 +568,7 @@ public class MetricsLogger {
         StringBuilder hexString = new StringBuilder();
         byte[] hashBytes = getSha256(name);
         for (byte b : hashBytes) {
-            hexString.append(String.format("%02x", b));
+            hexString.append(Utils.formatSimple("%02x", b));
         }
         return hexString.toString();
     }

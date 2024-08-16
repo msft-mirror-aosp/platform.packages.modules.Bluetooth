@@ -73,6 +73,8 @@ pub enum Message {
     AdapterShutdown,
     /// Clean up the adapter by calling btif cleanup.
     Cleanup,
+    /// Clean up the media by calling profile cleanup.
+    CleanupProfiles,
 
     // Adapter is enabled and ready.
     AdapterReady,
@@ -168,6 +170,9 @@ pub enum Message {
     // UHid callbacks
     UHidHfpOutputCallback(RawAddress, u8, u8),
     UHidTelephonyUseCallback(RawAddress, bool),
+
+    // GATT Callbacks
+    GattClientDisconnected(RawAddress),
 }
 
 pub enum BluetoothAPI {
@@ -245,6 +250,10 @@ impl Stack {
 
                 Message::Cleanup => {
                     bluetooth.lock().unwrap().cleanup();
+                }
+
+                Message::CleanupProfiles => {
+                    bluetooth_media.lock().unwrap().cleanup();
                 }
 
                 Message::AdapterReady => {
@@ -543,6 +552,13 @@ impl Stack {
                         .lock()
                         .unwrap()
                         .dispatch_uhid_telephony_use_callback(addr, state);
+                }
+
+                Message::GattClientDisconnected(address) => {
+                    bluetooth
+                        .lock()
+                        .unwrap()
+                        .disconnect_if_no_media_or_hid_profiles_connected(address);
                 }
             }
         }

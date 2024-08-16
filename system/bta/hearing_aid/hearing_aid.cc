@@ -43,12 +43,12 @@
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_sec.h"
-#include "stack/include/acl_api.h"        // BTM_ReadRSSI
 #include "stack/include/acl_api_types.h"  // tBTM_RSSI_RESULT
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/l2c_api.h"  // L2CAP_MIN_OFFSET
 #include "stack/include/main_thread.h"
 #include "types/bluetooth/uuid.h"
@@ -526,7 +526,10 @@ public:
 
     // Set data length
     // TODO(jpawlowski: for 16khz only 87 is required, optimize
-    BTM_SetBleDataLength(address, 167);
+    if (get_btm_client_interface().ble.BTM_SetBleDataLength(address, 167) !=
+        tBTM_STATUS::BTM_SUCCESS) {
+      log::warn("Unable to set BLE data length peer:{} size:{}", address, 167);
+    }
 
     if (BTM_SecIsSecurityPending(address)) {
       /* if security collision happened, wait for encryption done
@@ -1410,9 +1413,6 @@ public:
     }
 
     uint16_t l2cap_flush_threshold = 0;
-    if (com::android::bluetooth::flags::higher_l2cap_flush_threshold()) {
-      l2cap_flush_threshold = 1;
-    }
 
     // Skipping packets completely messes up the resampler context.
     // The condition for skipping packets seems to be easily triggered,
@@ -1973,7 +1973,10 @@ private:
       if (device->num_intervals_since_last_rssi_read >= PERIOD_TO_READ_RSSI_IN_INTERVALS) {
         device->num_intervals_since_last_rssi_read = 0;
         log::debug("bd_addr={}", device->address);
-        BTM_ReadRSSI(device->address, read_rssi_callback);
+        if (get_btm_client_interface().link_controller.BTM_ReadRSSI(
+                    device->address, read_rssi_callback) != tBTM_STATUS::BTM_CMD_STARTED) {
+          log::warn("Unable to read RSSI peer:{}", device->address);
+        }
       }
     }
   }
@@ -1986,7 +1989,7 @@ static void read_rssi_callback(void* p_void) {
     return;
   }
 
-  if ((instance) && (p_result->status == BTM_SUCCESS)) {
+  if ((instance) && (p_result->status == tBTM_STATUS::BTM_SUCCESS)) {
     instance->OnReadRssiComplete(p_result->rem_bda, p_result->rssi);
   }
 }
@@ -2057,14 +2060,14 @@ static void hearingaid_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) 
       if (!instance) {
         return;
       }
-      instance->OnServiceChangeEvent(p_data->remote_bda);
+      instance->OnServiceChangeEvent(p_data->service_changed.remote_bda);
       break;
 
     case BTA_GATTC_SRVC_DISC_DONE_EVT:
       if (!instance) {
         return;
       }
-      instance->OnServiceDiscDoneEvent(p_data->service_changed.remote_bda);
+      instance->OnServiceDiscDoneEvent(p_data->service_discovery_done.remote_bda);
       break;
     case BTA_GATTC_PHY_UPDATE_EVT: {
       if (!instance) {
@@ -2082,7 +2085,7 @@ static void hearingaid_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) 
 
 static void encryption_callback(RawAddress address, tBT_TRANSPORT, void*, tBTM_STATUS status) {
   if (instance) {
-    instance->OnEncryptionComplete(address, status == BTM_SUCCESS ? true : false);
+    instance->OnEncryptionComplete(address, status == tBTM_STATUS::BTM_SUCCESS ? true : false);
   }
 }
 

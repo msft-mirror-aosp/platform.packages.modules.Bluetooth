@@ -26,6 +26,8 @@
 #include <pthread.h>
 #include <stdint.h>
 
+#include <list>
+
 #include "bta/include/bta_hh_api.h"
 #include "macros.h"
 #include "osi/include/alarm.h"
@@ -64,10 +66,6 @@ typedef enum : unsigned {
   BTIF_HH_DISABLED = 0,
   BTIF_HH_ENABLED,
   BTIF_HH_DISABLING,
-  BTIF_HH_DEV_UNKNOWN,
-  BTIF_HH_DEV_CONNECTING,
-  BTIF_HH_DEV_CONNECTED,
-  BTIF_HH_DEV_DISCONNECTED
 } BTIF_HH_STATUS;
 
 inline std::string btif_hh_status_text(const BTIF_HH_STATUS& status) {
@@ -75,10 +73,6 @@ inline std::string btif_hh_status_text(const BTIF_HH_STATUS& status) {
     CASE_RETURN_TEXT(BTIF_HH_DISABLED);
     CASE_RETURN_TEXT(BTIF_HH_ENABLED);
     CASE_RETURN_TEXT(BTIF_HH_DISABLING);
-    CASE_RETURN_TEXT(BTIF_HH_DEV_UNKNOWN);
-    CASE_RETURN_TEXT(BTIF_HH_DEV_CONNECTING);
-    CASE_RETURN_TEXT(BTIF_HH_DEV_CONNECTED);
-    CASE_RETURN_TEXT(BTIF_HH_DEV_DISCONNECTED);
     default:
       return base::StringPrintf("UNKNOWN[%u]", status);
   }
@@ -88,6 +82,8 @@ inline std::string btif_hh_status_text(const BTIF_HH_STATUS& status) {
 typedef struct {
   int fd;                // for interfacing with uhid
   int internal_recv_fd;  // for receiving internal events in uhid thread
+  int internal_send_fd;  // for passing to other threads so they can send
+                         // internal events
   uint8_t dev_handle;
   tAclLinkSpec link_spec;
   uint8_t hh_keep_polling;  // Deprecated with the aflags hid_report_queuing.
@@ -98,6 +94,7 @@ typedef struct {
   fixed_queue_t* set_rpt_id_queue;
 #endif  // ENABLE_UHID_SET_REPORT
   fixed_queue_t* input_queue;  // to store the inputs before uhid is ready.
+  alarm_t* ready_timer;
 } btif_hh_uhid_t;
 
 /* Control block to maintain properties of devices */
@@ -134,7 +131,8 @@ typedef struct {
   uint32_t device_num;
   btif_hh_added_device_t added_devices[BTIF_HH_MAX_ADDED_DEV];
   bool service_dereg_active;
-  tAclLinkSpec pending_link_spec;
+
+  std::list<tAclLinkSpec> pending_connections;
 } btif_hh_cb_t;
 
 /*******************************************************************************
@@ -146,7 +144,6 @@ extern btif_hh_cb_t btif_hh_cb;
 btif_hh_device_t* btif_hh_find_connected_dev_by_handle(uint8_t handle);
 btif_hh_device_t* btif_hh_find_dev_by_handle(uint8_t handle);
 btif_hh_device_t* btif_hh_find_empty_dev(void);
-bt_status_t btif_hh_connect(const tAclLinkSpec& link_spec);
 bt_status_t btif_hh_virtual_unplug(const tAclLinkSpec& link_spec);
 void btif_hh_remove_device(const tAclLinkSpec& link_spec);
 void btif_hh_setreport(btif_hh_uhid_t* p_uhid, bthh_report_type_t r_type, uint16_t size,

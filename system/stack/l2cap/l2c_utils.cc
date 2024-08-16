@@ -24,7 +24,10 @@
 #define LOG_TAG "l2c_utils"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
+
+#include <algorithm>
 
 #include "hal/snoop_logger.h"
 #include "hci/controller_interface.h"
@@ -37,6 +40,7 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hcidefs.h"
 #include "stack/include/l2c_api.h"
@@ -71,7 +75,7 @@ tL2C_LCB* l2cu_allocate_lcb(const RawAddress& p_bd_addr, bool is_bonding, tBT_TR
     if (!p_lcb->in_use) {
       alarm_free(p_lcb->l2c_lcb_timer);
       alarm_free(p_lcb->info_resp_timer);
-      memset(p_lcb, 0, sizeof(tL2C_LCB));
+      *p_lcb = {};
 
       p_lcb->remote_bd_addr = p_bd_addr;
 
@@ -161,7 +165,7 @@ void l2cu_release_lcb(tL2C_LCB* p_lcb) {
   p_lcb->info_resp_timer = NULL;
 
   if (p_lcb->transport == BT_TRANSPORT_BR_EDR) { /* Release all SCO links */
-    BTM_RemoveSco(p_lcb->remote_bd_addr);
+    get_btm_client_interface().sco.BTM_RemoveScoByBdaddr(p_lcb->remote_bd_addr);
   }
 
   if (p_lcb->sent_not_acked > 0) {
@@ -215,6 +219,8 @@ void l2cu_release_lcb(tL2C_LCB* p_lcb) {
 
     l2c_link_adjust_allocation();
   }
+
+  p_lcb->suspended.clear();
 
   /* Check and release all the LE COC connections waiting for security */
   if (p_lcb->le_sec_pending_q) {
@@ -1624,6 +1630,37 @@ void l2cu_release_ccb(tL2C_CCB* p_ccb) {
   }
 }
 
+void l2cu_fixed_channel_restore(tL2C_LCB* p_lcb, uint16_t fixed_cid) {
+  if (!com::android::bluetooth::flags::transmit_smp_packets_before_release()) {
+    return;
+  }
+  auto it = p_lcb->suspended.begin();
+  while (it != p_lcb->suspended.end()) {
+    if (*it == fixed_cid) {
+      it = p_lcb->suspended.erase(it);
+    } else {
+      it++;
+    }
+  }
+}
+
+bool l2cu_fixed_channel_suspended(tL2C_LCB* p_lcb, uint16_t fixed_cid) {
+  if (!com::android::bluetooth::flags::transmit_smp_packets_before_release()) {
+    return false;
+  }
+  return std::find(p_lcb->suspended.begin(), p_lcb->suspended.end(), fixed_cid) !=
+         p_lcb->suspended.end();
+}
+
+void l2cu_fixed_channel_data_cb(tL2C_LCB* p_lcb, uint16_t fixed_cid, BT_HDR* p_buf) {
+  if (l2cu_fixed_channel_suspended(p_lcb, fixed_cid)) {
+    log::warn("Packet received for disconnecting fixed CID: 0x{:04x} BDA: {}", fixed_cid,
+              p_lcb->remote_bd_addr);
+  }
+  (*l2cb.fixed_reg[fixed_cid - L2CAP_FIRST_FIXED_CHNL].pL2CA_FixedData_Cb)(
+          fixed_cid, p_lcb->remote_bd_addr, p_buf);
+}
+
 /*******************************************************************************
  *
  * Function         l2cu_find_ccb_by_remote_cid
@@ -2101,7 +2138,7 @@ void l2cu_create_conn_br_edr(tL2C_LCB* p_lcb) {
     if (!p_lcb_cur->in_use) {
       continue;
     }
-    if (BTM_IsScoActiveByBdaddr(p_lcb_cur->remote_bd_addr)) {
+    if (get_btm_client_interface().sco.BTM_IsScoActiveByBdaddr(p_lcb_cur->remote_bd_addr)) {
       log::verbose("Central peripheral switch not allowed when SCO active");
       continue;
     }
@@ -2119,7 +2156,8 @@ void l2cu_create_conn_br_edr(tL2C_LCB* p_lcb) {
       p_lcb->link_state = LST_CONNECTING_WAIT_SWITCH;
       p_lcb->SetLinkRoleAsCentral();
 
-      if (BTM_SwitchRoleToCentral(p_lcb_cur->remote_bd_addr) == BTM_CMD_STARTED) {
+      if (get_btm_client_interface().link_policy.BTM_SwitchRoleToCentral(
+                  p_lcb_cur->remote_bd_addr) == tBTM_STATUS::BTM_CMD_STARTED) {
         alarm_set_on_mloop(p_lcb->l2c_lcb_timer, L2CAP_LINK_ROLE_SWITCH_TIMEOUT_MS,
                            l2c_lcb_timer_timeout, p_lcb);
         return;
@@ -2204,12 +2242,11 @@ tL2C_LCB* l2cu_find_lcb_by_state(tL2C_LINK_STATE state) {
  *
  ******************************************************************************/
 bool l2cu_lcb_disconnecting(void) {
-  tL2C_LCB* p_lcb;
   tL2C_CCB* p_ccb;
   uint16_t i;
   bool status = false;
 
-  p_lcb = &l2cb.lcb_pool[0];
+  tL2C_LCB* p_lcb = &l2cb.lcb_pool[0];
 
   for (i = 0; i < MAX_L2CAP_LINKS; i++, p_lcb++) {
     if (p_lcb->in_use) {
@@ -2356,12 +2393,10 @@ static void l2cu_set_acl_priority_unisoc(tL2C_LCB* p_lcb, tL2CAP_PRIORITY priori
 
 bool l2cu_set_acl_priority(const RawAddress& bd_addr, tL2CAP_PRIORITY priority,
                            bool reset_after_rs) {
-  tL2C_LCB* p_lcb;
-
   log::verbose("SET ACL PRIORITY {}", priority);
 
   /* Find the link control block for the acl channel */
-  p_lcb = l2cu_find_lcb_by_bd_addr(bd_addr, BT_TRANSPORT_BR_EDR);
+  tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(bd_addr, BT_TRANSPORT_BR_EDR);
   if (p_lcb == NULL) {
     log::warn("L2CAP - no LCB for L2CA_SetAclPriority");
     return false;
@@ -2550,7 +2585,6 @@ void l2cu_set_non_flushable_pbf(bool is_supported) {
  *
  ******************************************************************************/
 void l2cu_resubmit_pending_sec_req(const RawAddress* p_bda) {
-  tL2C_LCB* p_lcb;
   tL2C_CCB* p_ccb;
   tL2C_CCB* p_next_ccb;
   int xx;
@@ -2559,7 +2593,7 @@ void l2cu_resubmit_pending_sec_req(const RawAddress* p_bda) {
 
   /* If we are called with a BDA, only resubmit for that BDA */
   if (p_bda) {
-    p_lcb = l2cu_find_lcb_by_bd_addr(*p_bda, BT_TRANSPORT_BR_EDR);
+    tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(*p_bda, BT_TRANSPORT_BR_EDR);
 
     /* If we don't have one, this is an error */
     if (p_lcb) {
@@ -2573,6 +2607,7 @@ void l2cu_resubmit_pending_sec_req(const RawAddress* p_bda) {
     }
   } else {
     /* No BDA pasesed in, so check all links */
+    tL2C_LCB* p_lcb{nullptr};
     for (xx = 0, p_lcb = &l2cb.lcb_pool[0]; xx < MAX_L2CAP_LINKS; xx++, p_lcb++) {
       if (p_lcb->in_use) {
         /* For all channels, send the event through their FSMs */
@@ -2754,11 +2789,11 @@ void l2cu_no_dynamic_ccbs(tL2C_LCB* p_lcb) {
 
     rc = btm_sec_disconnect(p_lcb->Handle(), HCI_ERR_PEER_USER,
                             "stack::l2cap::l2c_utils::l2cu_no_dynamic_ccbs Idle timer popped");
-    if (rc == BTM_CMD_STARTED) {
+    if (rc == tBTM_STATUS::BTM_CMD_STARTED) {
       l2cu_process_fixed_disc_cback(p_lcb);
       p_lcb->link_state = LST_DISCONNECTING;
       timeout_ms = L2CAP_LINK_DISCONNECT_TIMEOUT_MS;
-    } else if (rc == BTM_SUCCESS) {
+    } else if (rc == tBTM_STATUS::BTM_SUCCESS) {
       l2cu_process_fixed_disc_cback(p_lcb);
       /* BTM SEC will make sure that link is release (probably after pairing is
        * done) */

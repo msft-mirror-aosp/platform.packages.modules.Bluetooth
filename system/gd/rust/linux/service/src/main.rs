@@ -49,6 +49,8 @@ const ADMIN_SETTINGS_FILE_PATH: &str = "/var/lib/bluetooth/admin_policy.json";
 const STACK_TURN_OFF_TIMEOUT_MS: Duration = Duration::from_millis(4000);
 // Time bt_stack_manager waits for cleanup
 const STACK_CLEANUP_TIMEOUT_MS: Duration = Duration::from_millis(1000);
+// Time bt_stack_manager waits for cleanup profiles
+const STACK_CLEANUP_PROFILES_TIMEOUT_MS: Duration = Duration::from_millis(100);
 
 const INIT_LOGGING_MAX_RETRY: u8 = 3;
 
@@ -118,9 +120,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             Err(_) => continue,
         }
     }
-
-    // Always treat discovery as classic only
-    init_flags.push(String::from("INIT_classic_discovery_only=true"));
 
     let (tx, rx) = Stack::create_channel();
     let (api_tx, api_rx) = interface_manager::InterfaceManager::create_channel();
@@ -262,15 +261,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 signal::SigSet::empty(),
             );
 
-            let sig_action_int = signal::SigAction::new(
-                signal::SigHandler::Handler(handle_sigint),
-                signal::SaFlags::empty(),
-                signal::SigSet::empty(),
-            );
-
             unsafe {
                 signal::sigaction(signal::SIGTERM, &sig_action_term).unwrap();
-                signal::sigaction(signal::SIGINT, &sig_action_int).unwrap();
             }
         }
 
@@ -290,7 +282,7 @@ extern "C" fn handle_sigterm(_signum: i32) {
     if let Some((tx, notifier)) = guard.as_ref() {
         log::debug!("Handling SIGTERM by disabling the adapter!");
         let txl = tx.clone();
-        tokio::spawn(async move {
+        topstack::get_runtime().spawn(async move {
             // Send the shutdown message here.
             let _ = txl.send(Message::InterfaceShutdown).await;
         });
@@ -303,8 +295,13 @@ extern "C" fn handle_sigterm(_signum: i32) {
 
         log::debug!("SIGTERM cleaning up the stack.");
         let txl = tx.clone();
-        tokio::spawn(async move {
-            // Send the cleanup message here.
+        topstack::get_runtime().spawn(async move {
+            // Clean up the profiles first as some of them might require main thread to clean up.
+            let _ = txl.send(Message::CleanupProfiles).await;
+            // Currently there is no good way to know when the profile is cleaned.
+            // Simply add a small delay here.
+            tokio::time::sleep(STACK_CLEANUP_PROFILES_TIMEOUT_MS).await;
+            // Send the cleanup message to clean up the main thread.
             let _ = txl.send(Message::Cleanup).await;
         });
 
@@ -316,12 +313,5 @@ extern "C" fn handle_sigterm(_signum: i32) {
     }
 
     log::debug!("Sigterm completed");
-    std::process::exit(0);
-}
-
-extern "C" fn handle_sigint(_signum: i32) {
-    // Assumed this is from HAL Host, which is likely caused by chipset error.
-    // In this case, don't crash the daemon and don't try to power off the adapter.
-    log::debug!("Sigint completed");
     std::process::exit(0);
 }

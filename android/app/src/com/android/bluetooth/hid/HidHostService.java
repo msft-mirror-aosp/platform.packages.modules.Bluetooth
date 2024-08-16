@@ -109,7 +109,6 @@ public class HidHostService extends ProfileService {
     private final HidHostNativeInterface mNativeInterface;
 
     private boolean mNativeAvailable;
-    private BluetoothDevice mTargetDevice = null;
 
     private static final int MESSAGE_CONNECT = 1;
     private static final int MESSAGE_DISCONNECT = 2;
@@ -189,7 +188,7 @@ public class HidHostService extends ProfileService {
     }
 
     private byte[] getIdentityAddress(BluetoothDevice device) {
-        if (Flags.identityAddressNullIfUnknown()) {
+        if (Flags.identityAddressNullIfNotKnown()) {
             return Utils.getByteBrEdrAddress(mAdapterService, device);
         } else {
             return mAdapterService.getByteIdentityAddress(device);
@@ -519,9 +518,15 @@ public class HidHostService extends ProfileService {
 
     private void handleMessageOnVirtualUnplug(Message msg) {
         BluetoothDevice device = mAdapterService.getDeviceFromByte((byte[]) msg.obj);
-        int transport = msg.arg1;
-        if (!checkTransport(device, transport, msg.what)) {
-            return;
+        if (Flags.removeInputDeviceOnVup()) {
+            updateConnectionState(
+                    device, getTransport(device), BluetoothProfile.STATE_DISCONNECTED);
+            mInputDevices.remove(device);
+        } else {
+            int transport = msg.arg1;
+            if (!checkTransport(device, transport, msg.what)) {
+                return;
+            }
         }
         int status = msg.arg2;
         broadcastVirtualUnplugStatus(device, status);
@@ -692,7 +697,6 @@ public class HidHostService extends ProfileService {
         if (Flags.allowSwitchingHidAndHogp() || connectionAllowed) {
             updateConnectionState(device, transport, reportedState);
         }
-        updateQuietMode(device, reportedState);
     }
 
     private void handleMessageDisconnect(Message msg) {
@@ -775,23 +779,6 @@ public class HidHostService extends ProfileService {
         return true;
     }
 
-    /**
-     * Disables the quiet mode if target device gets connected
-     *
-     * @param device remote device
-     * @param state connection state
-     */
-    private void updateQuietMode(BluetoothDevice device, int state) {
-        if (state == BluetoothProfile.STATE_CONNECTED
-                && mTargetDevice != null
-                && mTargetDevice.equals(device)) {
-            // Locally initiated connection, move out of quiet mode
-            Log.i(TAG, "updateQuietMode: Move out of quiet mode. device=" + device);
-            mTargetDevice = null;
-            mAdapterService.enable(false);
-        }
-    }
-
     @VisibleForTesting
     static class BluetoothHidHostBinder extends IBluetoothHidHost.Stub
             implements IProfileServiceBinder {
@@ -806,7 +793,7 @@ public class HidHostService extends ProfileService {
             mService = null;
         }
 
-        @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+        @RequiresPermission(BLUETOOTH_CONNECT)
         private HidHostService getService(AttributionSource source) {
             // Cache mService because it can change while getService is called
             HidHostService service = mService;
@@ -1476,7 +1463,7 @@ public class HidHostService extends ProfileService {
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public boolean okToConnect(BluetoothDevice device) {
         // Check if this is an incoming connection in Quiet mode.
-        if (mAdapterService.isQuietModeEnabled() && mTargetDevice == null) {
+        if (mAdapterService.isQuietModeEnabled()) {
             Log.w(TAG, "okToConnect: return false because of quiet mode enabled. device=" + device);
             return false;
         }
@@ -1504,9 +1491,8 @@ public class HidHostService extends ProfileService {
     @Override
     public void dump(StringBuilder sb) {
         super.dump(sb);
-        println(sb, "mTargetDevice: " + mTargetDevice);
         println(sb, "mInputDevices:");
         mInputDevices.forEach(
-                (k, v) -> sb.append(" " + k.getAddressForLogging() + " : " + v + "\n"));
+                (k, v) -> sb.append(" ").append(k).append(" : ").append(v).append("\n"));
     }
 }

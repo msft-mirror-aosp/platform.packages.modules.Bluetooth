@@ -985,8 +985,11 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
     // invoked and there are no current bluetooth connections no new profiles will be connected.
     private void processConnectOtherProfiles(BluetoothDevice device) {
         debugLog("processConnectOtherProfiles, device=" + device);
-        if (mAdapterService.getState() != BluetoothAdapter.STATE_ON) {
-            warnLog("processConnectOtherProfiles, adapter is not ON " + mAdapterService.getState());
+        int currentState = mAdapterService.getState();
+        if (currentState != BluetoothAdapter.STATE_ON) {
+            warnLog(
+                    "processConnectOtherProfiles: Bluetooth is "
+                            + BluetoothAdapter.nameForState(currentState));
             return;
         }
 
@@ -1122,9 +1125,19 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
      * @param uuids are the services supported by the remote device
      */
     void onUuidsDiscovered(BluetoothDevice device, ParcelUuid[] uuids) {
-        debugLog("onUuidsDiscovered: discovered services for device " + device);
+        int bondState = mAdapterService.getBondState(device);
+        debugLog(
+                "onUuidsDiscovered: discovered services for device "
+                        + device
+                        + " ("
+                        + BondStateMachine.bondStateToString(bondState)
+                        + ")");
         if (uuids != null) {
-            processInitProfilePriorities(device, uuids);
+            if (!Flags.unbondedProfileForbidFix() || bondState != BluetoothDevice.BOND_NONE) {
+                processInitProfilePriorities(device, uuids);
+            } else {
+                debugLog("Device in BOND_NONE state, won't connect profiles" + device);
+            }
         } else {
             warnLog("onUuidsDiscovered: uuids is null for device " + device);
         }

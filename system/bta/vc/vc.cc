@@ -37,6 +37,7 @@
 #include "osi/include/osi.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/btm_status.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
@@ -178,7 +179,7 @@ public:
     BTA_GATTC_CancelOpen(gatt_if_, address, false);
 
     if (device->IsEncryptionEnabled()) {
-      OnEncryptionComplete(address, BTM_SUCCESS);
+      OnEncryptionComplete(address, tBTM_STATUS::BTM_SUCCESS);
       return;
     }
 
@@ -188,15 +189,15 @@ public:
     }
   }
 
-  void OnEncryptionComplete(const RawAddress& address, uint8_t success) {
+  void OnEncryptionComplete(const RawAddress& address, tBTM_STATUS success) {
     VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
     if (!device) {
       log::error("Skipping unknown device {}", address);
       return;
     }
 
-    if (success != BTM_SUCCESS) {
-      log::error("encryption failed status: {}", int{success});
+    if (success != tBTM_STATUS::BTM_SUCCESS) {
+      log::error("encryption failed status: {}", btm_status_text(success));
       // If the encryption failed, do not remove the device.
       // Disconnect only, since the Android will try to re-enable encryption
       // after disconnection
@@ -366,14 +367,16 @@ public:
     auto csis_api = CsisClient::Get();
     if (!csis_api) {
       log::warn("Csis module is not available");
-      callbacks_->OnVolumeStateChanged(device->address, device->volume, device->mute, true);
+      callbacks_->OnVolumeStateChanged(device->address, device->volume, device->mute, device->flags,
+                                       true);
       return;
     }
 
     auto group_id = csis_api->GetGroupId(device->address, le_audio::uuid::kCapServiceUuid);
     if (group_id == bluetooth::groups::kGroupUnknown) {
       log::warn("No group for device {}", device->address);
-      callbacks_->OnVolumeStateChanged(device->address, device->volume, device->mute, true);
+      callbacks_->OnVolumeStateChanged(device->address, device->volume, device->mute, device->flags,
+                                       true);
       return;
     }
 
@@ -438,7 +441,8 @@ public:
 
     /* This is just a read, send single notification */
     if (!is_notification) {
-      callbacks_->OnVolumeStateChanged(device->address, device->volume, device->mute, false);
+      callbacks_->OnVolumeStateChanged(device->address, device->volume, device->mute, device->flags,
+                                       false);
       return;
     }
 
@@ -468,7 +472,8 @@ public:
     } else {
       /* op->is_autonomous_ will always be false,
          since we only make it true for group operations */
-      callbacks_->OnVolumeStateChanged(device->address, device->volume, device->mute, false);
+      callbacks_->OnVolumeStateChanged(device->address, device->volume, device->mute, device->flags,
+                                       false);
     }
 
     ongoing_operations_.erase(op);
@@ -1067,7 +1072,8 @@ private:
       callbacks_->OnConnectionState(ConnectionState::CONNECTED, device->address);
 
       // once profile connected we can notify current states
-      callbacks_->OnVolumeStateChanged(device->address, device->volume, device->mute, false);
+      callbacks_->OnVolumeStateChanged(device->address, device->volume, device->mute, device->flags,
+                                       true);
 
       for (auto const& offset : device->audio_offsets.volume_offsets) {
         callbacks_->OnExtAudioOutVolumeOffsetChanged(device->address, offset.id, offset.offset);
@@ -1153,9 +1159,9 @@ private:
       } break;
 
       case BTA_GATTC_ENC_CMPL_CB_EVT: {
-        uint8_t encryption_status;
+        tBTM_STATUS encryption_status;
         if (BTM_IsEncrypted(p_data->enc_cmpl.remote_bda, BT_TRANSPORT_LE)) {
-          encryption_status = BTM_SUCCESS;
+          encryption_status = tBTM_STATUS::BTM_SUCCESS;
         } else {
           encryption_status = BTM_FAILED_ON_SECURITY;
         }
@@ -1163,11 +1169,11 @@ private:
       } break;
 
       case BTA_GATTC_SRVC_CHG_EVT:
-        OnServiceChangeEvent(p_data->remote_bda);
+        OnServiceChangeEvent(p_data->service_changed.remote_bda);
         break;
 
       case BTA_GATTC_SRVC_DISC_DONE_EVT:
-        OnServiceDiscDoneEvent(p_data->remote_bda);
+        OnServiceDiscDoneEvent(p_data->service_discovery_done.remote_bda);
         break;
 
       default:

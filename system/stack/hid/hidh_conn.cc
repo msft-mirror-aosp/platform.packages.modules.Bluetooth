@@ -40,6 +40,7 @@
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
+#include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/stack_metrics_logging.h"
 #include "types/raw_address.h"
@@ -176,7 +177,7 @@ tHID_STATUS hidh_conn_disconnect(uint8_t dhandle) {
  *
  ******************************************************************************/
 static void hidh_l2cif_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid, uint16_t psm,
-                                   uint8_t l2cap_id) {
+                                   uint8_t /* l2cap_id */) {
   bool bAccept = true;
   uint8_t i = kHID_HOST_MAX_DEVICES;
 
@@ -401,7 +402,8 @@ static void hidh_l2cif_config_ind(uint16_t l2cap_cid, tL2CAP_CFG_INFO* p_cfg) {
  * Returns          void
  *
  ******************************************************************************/
-static void hidh_l2cif_config_cfm(uint16_t l2cap_cid, uint16_t initiator, tL2CAP_CFG_INFO* p_cfg) {
+static void hidh_l2cif_config_cfm(uint16_t l2cap_cid, uint16_t /* initiator */,
+                                  tL2CAP_CFG_INFO* p_cfg) {
   hidh_l2cif_config_ind(l2cap_cid, p_cfg);
 
   uint8_t dhandle;
@@ -724,7 +726,8 @@ tHID_STATUS hidh_conn_snd_data(uint8_t dhandle, uint8_t trans_type, uint8_t para
   uint8_t use_data = 0;
   bool blank_datc = false;
 
-  if (!BTM_IsAclConnectionUp(hh_cb.devices[dhandle].addr, BT_TRANSPORT_BR_EDR)) {
+  if (!get_btm_client_interface().peer.BTM_IsAclConnectionUp(hh_cb.devices[dhandle].addr,
+                                                             BT_TRANSPORT_BR_EDR)) {
     osi_free(buf);
     log_counter_metrics(
             android::bluetooth::CodePathCounterKeyEnum::HIDH_ERR_NO_CONNECTION_AT_SEND_DATA, 1);

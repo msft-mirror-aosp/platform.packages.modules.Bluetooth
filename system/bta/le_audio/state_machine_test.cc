@@ -29,7 +29,6 @@
 #include "bta_gatt_queue_mock.h"
 #include "btm_api_mock.h"
 #include "client_parser.h"
-#include "common/init_flags.h"
 #include "fake_osi.h"
 #include "hci/controller_interface_mock.h"
 #include "internal_include/stack_config.h"
@@ -573,7 +572,7 @@ protected:
             .WillByDefault(Invoke(
                     [](const bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements&
                                requirements,
-                       bluetooth::le_audio::CodecManager::UnicastConfigurationVerifier verifier) {
+                       bluetooth::le_audio::CodecManager::UnicastConfigurationProvider provider) {
                       auto configs = *bluetooth::le_audio::AudioSetConfigurationProvider::Get()
                                               ->GetConfigurations(requirements.audio_context_type);
                       // Note: This dual bidir SWB exclusion logic has to match the
@@ -591,18 +590,13 @@ protected:
                                 configs.end());
                       }
 
-                      auto cfg = verifier(requirements, &configs);
-                      if (cfg == nullptr) {
-                        return std::unique_ptr<
-                                bluetooth::le_audio::set_configurations::AudioSetConfiguration>(
-                                nullptr);
-                      }
-                      return std::make_unique<
-                              bluetooth::le_audio::set_configurations::AudioSetConfiguration>(*cfg);
+                      return provider(requirements, &configs);
                     }));
   }
 
   void TearDown() override {
+    com::android::bluetooth::flags::provider_->reset_flags();
+
     /* Clear the alarm on tear down in case test case ends when the
      * alarm is scheduled
      */
@@ -670,7 +664,7 @@ protected:
     le_audio_devices_.push_back(leAudioDevice);
     addresses_.push_back(leAudioDevice->address_);
 
-    return std::move(leAudioDevice);
+    return leAudioDevice;
   }
 
   LeAudioDeviceGroup* GroupTheDevice(int group_id,
@@ -1651,8 +1645,8 @@ TEST_F(StateMachineTest, testConfigureCodecSingleFb2) {
   ON_CALL(*mock_codec_manager_, GetCodecConfig)
           .WillByDefault(Invoke([&](const bluetooth::le_audio::CodecManager::
                                             UnicastConfigurationRequirements& requirements,
-                                    bluetooth::le_audio::CodecManager::UnicastConfigurationVerifier
-                                            verifier) {
+                                    bluetooth::le_audio::CodecManager::UnicastConfigurationProvider
+                                            provider) {
             auto configs =
                     *bluetooth::le_audio::AudioSetConfigurationProvider::Get()->GetConfigurations(
                             requirements.audio_context_type);
@@ -1670,12 +1664,11 @@ TEST_F(StateMachineTest, testConfigureCodecSingleFb2) {
                             configs.end());
             }
 
-            auto cfg = verifier(requirements, &configs);
+            auto cfg = provider(requirements, &configs);
             if (cfg == nullptr) {
               return std::unique_ptr<
                       bluetooth::le_audio::set_configurations::AudioSetConfiguration>(nullptr);
             }
-            auto config = *cfg;
 
             if (requirements.sink_pacs.has_value()) {
               for (auto const& rec : requirements.sink_pacs.value()) {
@@ -1684,7 +1677,7 @@ TEST_F(StateMachineTest, testConfigureCodecSingleFb2) {
                   if (caps.supported_max_codec_frames_per_sdu.value() ==
                       codec_frame_blocks_per_sdu_) {
                     // Scale by Codec Frames Per SDU = 2
-                    for (auto& entry : config.confs.sink) {
+                    for (auto& entry : cfg->confs.sink) {
                       entry.codec.params.Add(codec_spec_conf::kLeAudioLtvTypeCodecFrameBlocksPerSdu,
                                              (uint8_t)codec_frame_blocks_per_sdu_);
                       entry.qos.maxSdu *= codec_frame_blocks_per_sdu_;
@@ -1703,7 +1696,7 @@ TEST_F(StateMachineTest, testConfigureCodecSingleFb2) {
                   if (caps.supported_max_codec_frames_per_sdu.value() ==
                       codec_frame_blocks_per_sdu_) {
                     // Scale by Codec Frames Per SDU = 2
-                    for (auto& entry : config.confs.source) {
+                    for (auto& entry : cfg->confs.source) {
                       entry.codec.params.Add(codec_spec_conf::kLeAudioLtvTypeCodecFrameBlocksPerSdu,
                                              (uint8_t)codec_frame_blocks_per_sdu_);
                       entry.qos.maxSdu *= codec_frame_blocks_per_sdu_;
@@ -1716,8 +1709,7 @@ TEST_F(StateMachineTest, testConfigureCodecSingleFb2) {
               }
             }
 
-            return std::make_unique<bluetooth::le_audio::set_configurations::AudioSetConfiguration>(
-                    config);
+            return cfg;
           }));
 
   /* Device is banded headphones with 1x snk + 0x src ase

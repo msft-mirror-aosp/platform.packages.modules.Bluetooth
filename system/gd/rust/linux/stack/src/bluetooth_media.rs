@@ -92,6 +92,15 @@ const MEDIA_CLASSIC_AUDIO_PROFILES: &[Profile] =
 const MEDIA_LE_AUDIO_PROFILES: &[Profile] =
     &[Profile::LeAudio, Profile::VolumeControl, Profile::CoordinatedSet];
 
+const MEDIA_PROFILE_ENABLE_ORDER: &[Profile] = &[
+    Profile::A2dpSource,
+    Profile::AvrcpTarget,
+    Profile::Hfp,
+    Profile::LeAudio,
+    Profile::VolumeControl,
+    Profile::CoordinatedSet,
+];
+
 /// Group ID used to identify unknown/non-existent groups.
 pub const LEA_UNKNOWN_GROUP_ID: i32 = -1;
 
@@ -107,6 +116,9 @@ pub trait IBluetoothMedia {
 
     /// initializes media (both A2dp and AVRCP) stack
     fn initialize(&mut self) -> bool;
+
+    /// Get if the media stack is initialized.
+    fn is_initialized(&self) -> bool;
 
     /// clean up media stack
     fn cleanup(&mut self) -> bool;
@@ -567,6 +579,14 @@ impl BluetoothMedia {
         }
     }
 
+    pub fn cleanup(&mut self) -> bool {
+        for profile in MEDIA_PROFILE_ENABLE_ORDER.iter().rev() {
+            self.disable_profile(&profile);
+        }
+        self.initialized = false;
+        true
+    }
+
     fn is_profile_connected(&self, addr: &RawAddress, profile: &Profile) -> bool {
         self.is_any_profile_connected(addr, &[*profile])
     }
@@ -577,6 +597,10 @@ impl BluetoothMedia {
         }
 
         false
+    }
+
+    pub fn get_connected_profiles(&self, device: &BluetoothDevice) -> HashSet<Profile> {
+        self.connected_profiles.get(&device.address).unwrap_or(&HashSet::new()).clone()
     }
 
     fn add_connected_profile(&mut self, addr: RawAddress, profile: Profile) {
@@ -2313,7 +2337,16 @@ impl BluetoothMedia {
                 // Ignore unless all profiles are cleared, where we need to do some clean up.
                 if !is_profile_cleared {
                     // Unbonded device is special, we need to reject the connection from them.
-                    if !self.is_bonded(&addr) {
+                    // However, it's rather tricky to distinguish between these two cases:
+                    // (1) the unbonded device tries to reconnect some of the profiles.
+                    // (2) we just unbond a device, so now the profiles are disconnected one-by-one.
+                    // In case of (2), we should not send async_disconnect too soon because doing so
+                    // might prevent on_bluetooth_audio_device_removed() from firing, since the conn
+                    // state is already "Disconnecting" in notify_critical_profile_disconnected.
+                    // Therefore to prevent it, we also check the state is still FullyConnected.
+                    if !self.is_bonded(&addr)
+                        && states.get(&addr).unwrap() != &DeviceConnectionStates::FullyConnected
+                    {
                         let tasks = self.fallback_tasks.clone();
                         let states = self.device_states.clone();
                         let txl = self.tx.clone();
@@ -3189,15 +3222,7 @@ impl IBluetoothMedia for BluetoothMedia {
 
         // TODO(b/284811956) A2DP needs to be enabled before AVRCP otherwise AVRCP gets memset'd.
         // Iterate the delay_enable_profiles hashmap directly when this is fixed.
-        let profile_order = vec![
-            Profile::A2dpSource,
-            Profile::AvrcpTarget,
-            Profile::Hfp,
-            Profile::LeAudio,
-            Profile::VolumeControl,
-            Profile::CoordinatedSet,
-        ];
-        for profile in profile_order {
+        for profile in MEDIA_PROFILE_ENABLE_ORDER {
             if self.delay_enable_profiles.contains(&profile) {
                 self.enable_profile(&profile);
             }
@@ -3592,8 +3617,12 @@ impl IBluetoothMedia for BluetoothMedia {
         }
     }
 
+    fn is_initialized(&self) -> bool {
+        self.initialized
+    }
+
     fn cleanup(&mut self) -> bool {
-        true
+        self.cleanup()
     }
 
     // This may not disconnect all media profiles at once, but once the stack

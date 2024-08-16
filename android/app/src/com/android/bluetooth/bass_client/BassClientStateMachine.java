@@ -17,6 +17,7 @@
 package com.android.bluetooth.bass_client;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
@@ -170,7 +171,7 @@ public class BassClientStateMachine extends StateMachine {
             AdapterService adapterService,
             Looper looper,
             int connectTimeoutMs) {
-        super(TAG + "(" + device.toString() + ")", looper);
+        super(TAG + "(" + device + ")", looper);
         mDevice = device;
         mService = svc;
         mAdapterService = adapterService;
@@ -181,21 +182,24 @@ public class BassClientStateMachine extends StateMachine {
         addState(mConnectedProcessing);
         setInitialState(mDisconnected);
         mFirstTimeBisDiscoveryMap = new HashMap<Integer, Boolean>();
-        long token = Binder.clearCallingIdentity();
-        mIsAllowedList =
-                DeviceConfig.getBoolean(
-                        DeviceConfig.NAMESPACE_BLUETOOTH, "persist.vendor.service.bt.wl", true);
-        mDefNoPAS =
-                DeviceConfig.getBoolean(
-                        DeviceConfig.NAMESPACE_BLUETOOTH,
-                        "persist.vendor.service.bt.defNoPAS",
-                        false);
-        mForceSB =
-                DeviceConfig.getBoolean(
-                        DeviceConfig.NAMESPACE_BLUETOOTH,
-                        "persist.vendor.service.bt.forceSB",
-                        false);
-        Binder.restoreCallingIdentity(token);
+        final long token = Binder.clearCallingIdentity();
+        try {
+            mIsAllowedList =
+                    DeviceConfig.getBoolean(
+                            DeviceConfig.NAMESPACE_BLUETOOTH, "persist.vendor.service.bt.wl", true);
+            mDefNoPAS =
+                    DeviceConfig.getBoolean(
+                            DeviceConfig.NAMESPACE_BLUETOOTH,
+                            "persist.vendor.service.bt.defNoPAS",
+                            false);
+            mForceSB =
+                    DeviceConfig.getBoolean(
+                            DeviceConfig.NAMESPACE_BLUETOOTH,
+                            "persist.vendor.service.bt.forceSB",
+                            false);
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
     }
 
     static BassClientStateMachine make(
@@ -2354,8 +2358,10 @@ public class BassClientStateMachine extends StateMachine {
         intent.addFlags(
                 Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                         | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-        mService.sendBroadcast(
-                intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
+        mService.sendBroadcastMultiplePermissions(
+                intent,
+                new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+                Utils.getTempBroadcastOptions());
     }
 
     int getConnectionState() {

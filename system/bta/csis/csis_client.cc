@@ -36,7 +36,6 @@
 #include "bta_le_audio_uuids.h"
 #include "bta_sec_api.h"
 #include "btif/include/btif_storage.h"
-#include "common/init_flags.h"
 #include "crypto_toolbox/crypto_toolbox.h"
 #include "csis_types.h"
 #include "gap_api.h"
@@ -51,6 +50,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_sec_api.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_status.h"
 
 using base::Closure;
 using bluetooth::Uuid;
@@ -987,7 +987,7 @@ private:
                          CsisGroupLockStatus status) {
     log::debug("group id: {}, target state {}", csis_group->GetGroupId(), lock ? "lock" : "unlock");
 
-    NotifyGroupStatus(csis_group->GetGroupId(), lock, status, std::move(csis_group->GetLockCb()));
+    NotifyGroupStatus(csis_group->GetGroupId(), lock, status, csis_group->GetLockCb());
     csis_group->SetTargetLockState(CsisLockState::CSIS_STATE_UNSET);
   }
 
@@ -1280,7 +1280,7 @@ private:
       devices.push_back(std::move(bda));
     }
 
-    return std::move(devices);
+    return devices;
   }
 
   int GetNumOfKnownExpectedDevicesWaitingForBonding(int group_id) {
@@ -1396,7 +1396,7 @@ private:
 
       instance->OnActiveScanResult(&p_data->inq_res);
     });
-    BTA_DmBleScan(enable, bluetooth::csis::kDefaultScanDurationS, true);
+    BTA_DmBleScan(enable, bluetooth::csis::kDefaultScanDurationS);
 
     /* Need to call it by ourselfs */
     if (!enable) {
@@ -1430,10 +1430,6 @@ private:
   }
 
   void CsisActiveDiscovery(std::shared_ptr<CsisGroup> csis_group) {
-    if (bluetooth::common::InitFlags::UseRsiFromCachedInquiryResults()) {
-      CheckForGroupInInqDb(csis_group);
-    }
-
     if (csis_group->GetDiscoveryState() != CsisDiscoveryState::CSIS_DISCOVERY_IDLE) {
       log::error("Incorrect ase group: {}, state 0x{:02x}", csis_group->GetGroupId(),
                  static_cast<int>(csis_group->GetDiscoveryState()));
@@ -1848,9 +1844,9 @@ private:
         break;
 
       case BTA_GATTC_ENC_CMPL_CB_EVT: {
-        uint8_t encryption_status;
+        tBTM_STATUS encryption_status;
         if (BTM_IsEncrypted(p_data->enc_cmpl.remote_bda, BT_TRANSPORT_LE)) {
-          encryption_status = BTM_SUCCESS;
+          encryption_status = tBTM_STATUS::BTM_SUCCESS;
         } else {
           encryption_status = BTM_FAILED_ON_SECURITY;
         }
@@ -1858,11 +1854,11 @@ private:
       } break;
 
       case BTA_GATTC_SRVC_CHG_EVT:
-        OnGattServiceChangeEvent(p_data->remote_bda);
+        OnGattServiceChangeEvent(p_data->service_changed.remote_bda);
         break;
 
       case BTA_GATTC_SRVC_DISC_DONE_EVT:
-        OnGattServiceDiscoveryDoneEvent(p_data->remote_bda);
+        OnGattServiceDiscoveryDoneEvent(p_data->service_discovery_done.remote_bda);
         break;
 
       default:
@@ -1915,7 +1911,7 @@ private:
       return;
     }
 
-    int result =
+    tBTM_STATUS result =
             BTM_SetEncryption(device->addr, BT_TRANSPORT_LE, nullptr, nullptr, BTM_BLE_SEC_ENCRYPT);
 
     log::info("Encryption required for {}. Request result: 0x{:02x}", device->addr, result);
@@ -2053,7 +2049,7 @@ private:
     OnCsisNotification(evt.conn_id, evt.handle, evt.len, evt.value);
   }
 
-  void OnLeEncryptionComplete(const RawAddress& address, uint8_t status) {
+  void OnLeEncryptionComplete(const RawAddress& address, tBTM_STATUS status) {
     log::info("{}", address);
     auto device = FindDeviceByAddress(address);
     if (device == nullptr) {
@@ -2061,7 +2057,7 @@ private:
       return;
     }
 
-    if (status != BTM_SUCCESS) {
+    if (status != tBTM_STATUS::BTM_SUCCESS) {
       log::error("encryption failed. status: 0x{:02x}", status);
 
       BTA_GATTC_Close(device->conn_id);

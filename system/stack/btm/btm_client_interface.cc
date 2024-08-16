@@ -52,6 +52,8 @@ struct btm_client_interface_t btm_client_interface = {
                         .BTM_GetPeerSCA = ::BTM_GetPeerSCA,
                         .BTM_IsPhy2mSupported = ::BTM_IsPhy2mSupported,
                         .BTM_GetHCIConnHandle = ::BTM_GetHCIConnHandle,
+                        .BTM_IsAclConnectionUpAndHandleValid =
+                                ::BTM_IsAclConnectionUpAndHandleValid,
                 },
 
         .link_policy =
@@ -94,6 +96,7 @@ struct btm_client_interface_t btm_client_interface = {
                         .BTM_CreateSco = ::BTM_CreateSco,
                         .BTM_RegForEScoEvts = ::BTM_RegForEScoEvts,
                         .BTM_RemoveSco = ::BTM_RemoveSco,
+                        .BTM_RemoveScoByBdaddr = ::BTM_RemoveScoByBdaddr,
                         .BTM_WriteVoiceSettings = ::BTM_WriteVoiceSettings,
                         .BTM_EScoConnRsp = ::BTM_EScoConnRsp,
                         .BTM_GetNumScoLinks = ::BTM_GetNumScoLinks,

@@ -23,15 +23,20 @@
 
 #include <chrono>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <future>
 #include <map>
 #include <memory>
 #include <optional>
+#include <queue>
 #include <string>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "common/bind.h"
+#include "common/init_flags.h"
 #include "common/interfaces/ILoggable.h"
 #include "common/strings.h"
 #include "common/sync_map_count.h"
@@ -50,6 +55,7 @@
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
 #include "main/shim/stack.h"
+#include "metrics/bluetooth_event.h"
 #include "os/handler.h"
 #include "osi/include/allocator.h"
 #include "stack/acl/acl.h"
@@ -117,9 +123,7 @@ template <>
 struct formatter<ConnectAddressWithType> : formatter<std::string> {
   template <class Context>
   typename Context::iterator format(const ConnectAddressWithType& address, Context& ctx) const {
-    std::string repr = bluetooth::os::should_log_be_redacted()
-                               ? address.ToRedactedStringForLogging()
-                               : address.ToStringForLogging();
+    std::string repr = address.ToRedactedStringForLogging();
     return fmt::formatter<std::string>::format(repr, ctx);
   }
 };
@@ -160,7 +164,8 @@ inline bool IsRpa(const hci::AddressWithType address_with_type) {
 
 class ShadowAcceptlist {
 public:
-  ShadowAcceptlist(uint8_t max_acceptlist_size) : max_acceptlist_size_(max_acceptlist_size) {}
+  explicit ShadowAcceptlist(uint8_t max_acceptlist_size)
+      : max_acceptlist_size_(max_acceptlist_size) {}
 
   bool Add(const hci::AddressWithType& address_with_type) {
     if (acceptlist_set_.size() == max_acceptlist_size_) {
@@ -200,7 +205,7 @@ private:
 
 class ShadowAddressResolutionList {
 public:
-  ShadowAddressResolutionList(uint8_t max_address_resolution_size)
+  explicit ShadowAddressResolutionList(uint8_t max_address_resolution_size)
       : max_address_resolution_size_(max_address_resolution_size) {}
 
   bool Add(const hci::AddressWithType& address_with_type) {
@@ -971,9 +976,12 @@ struct shim::legacy::Acl::impl {
 
   void LeSubrateRequest(HciHandle handle, uint16_t subrate_min, uint16_t subrate_max,
                         uint16_t max_latency, uint16_t cont_num, uint16_t sup_tout) {
-    log::assert_that(IsLeAcl(handle), "handle {} is not a LE connection", handle);
-    handle_to_le_connection_map_[handle]->LeSubrateRequest(subrate_min, subrate_max, max_latency,
-                                                           cont_num, sup_tout);
+    if (IsLeAcl(handle)) {
+      handle_to_le_connection_map_[handle]->LeSubrateRequest(subrate_min, subrate_max, max_latency,
+                                                             cont_num, sup_tout);
+    } else {
+      log::info("handle {} is not a LE connection", handle);
+    }
   }
 
   void SetConnectionEncryption(HciHandle handle, hci::Enable enable) {
@@ -1492,6 +1500,7 @@ void shim::legacy::Acl::OnConnectSuccess(
                       locally_initiated);
   log::debug("Connection successful classic remote:{} handle:{} initiator:{}", remote_address,
              handle, (locally_initiated) ? "local" : "remote");
+  metrics::LogAclCompletionEvent(remote_address, hci::ErrorCode::SUCCESS, locally_initiated);
   BTM_LogHistory(kBtmLogTag, ToRawAddress(remote_address), "Connection successful",
                  (locally_initiated) ? "classic Local initiated" : "classic Remote initiated");
 }
@@ -1514,6 +1523,7 @@ void shim::legacy::Acl::OnConnectFail(hci::Address address, hci::ErrorCode reaso
   TRY_POSTING_ON_MAIN(acl_interface_.connection.classic.on_failed, bd_addr,
                       ToLegacyHciErrorCode(reason), locally_initiated);
   log::warn("Connection failed classic remote:{} reason:{}", address, hci::ErrorCodeText(reason));
+  metrics::LogAclCompletionEvent(address, reason, locally_initiated);
   BTM_LogHistory(kBtmLogTag, ToRawAddress(address), "Connection failed",
                  base::StringPrintf("classic reason:%s", hci::ErrorCodeText(reason).c_str()));
 }

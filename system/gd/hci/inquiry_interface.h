@@ -16,26 +16,20 @@
 
 #pragma once
 
-#include <vector>
-
+#include "hci/command_interface.h"
 #include "hci/hci_packets.h"
 
 namespace bluetooth {
-namespace discovery {
-namespace device {
+namespace hci {
 
-class DataParser {
-public:
-  DataParser(const std::vector<uint8_t>& data);
-
-  std::vector<hci::GapData> GetData() const;
-  std::vector<hci::GapDataType> GetDataTypes() const;
-  size_t GetNumGapData() const;
-
-protected:
-  std::vector<hci::GapData> gap_data_;
+constexpr hci::EventCode InquiryEvents[] = {
+        hci::EventCode::INQUIRY_COMPLETE,
+        hci::EventCode::INQUIRY_RESULT,
+        hci::EventCode::INQUIRY_RESULT_WITH_RSSI,
+        hci::EventCode::EXTENDED_INQUIRY_RESULT,
 };
 
-}  // namespace device
-}  // namespace discovery
+typedef CommandInterface<DiscoveryCommandBuilder> InquiryInterface;
+
+}  // namespace hci
 }  // namespace bluetooth

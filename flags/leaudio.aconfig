@@ -354,3 +354,40 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "leaudio_speed_up_reconfiguration_between_call"
+    namespace: "bluetooth"
+    description: "Fix reconfiguration time between call and media"
+    bug: "352686917"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_broadcast_volume_control_primary_group_only"
+    namespace: "bluetooth"
+    description: "Only control broadcast primary group volume"
+    bug: "354201794"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "unbonded_profile_forbid_fix"
+    namespace: "bluetooth"
+    description: "Do not mark profiles as forbidden for unbonded devices"
+    bug: "356325069"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_set_codec_config_preference"
+    namespace: "bluetooth"
+    description: "New apis to set codec config preference"
+    bug: "353909820"
+}

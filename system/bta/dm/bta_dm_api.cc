@@ -54,7 +54,7 @@ void BTA_dm_init() {
   /* if UUID list is not provided as static data */
   bta_sys_eir_register(bta_dm_eir_update_uuid);
   bta_sys_cust_eir_register(bta_dm_eir_update_cust_uuid);
-  BTM_SetConsolidationCallback(bta_dm_consolidate);
+  get_btm_client_interface().ble.BTM_SetConsolidationCallback(bta_dm_consolidate);
 }
 
 /** Enables bluetooth device under test mode */
@@ -121,7 +121,7 @@ void BTA_DmDiscover(const RawAddress& bd_addr, service_discovery_callbacks cback
  ******************************************************************************/
 bool BTA_DmGetConnectionState(const RawAddress& bd_addr) {
   tBTA_DM_PEER_DEVICE* p_dev = bta_dm_find_peer_device(bd_addr);
-  return p_dev && p_dev->conn_state == tBTA_DM_CONN_STATE::BTA_DM_CONNECTED;
+  return p_dev && p_dev->is_connected();
 }
 
 /*******************************************************************************
@@ -140,8 +140,8 @@ tBTA_STATUS BTA_DmSetLocalDiRecord(tSDP_DI_RECORD* p_device_info, uint32_t* p_ha
   tBTA_STATUS status = BTA_FAILURE;
 
   if (bta_dm_di_cb.di_num < BTA_DI_NUM_MAX) {
-    if (get_legacy_stack_sdp_api()->device_id.SDP_SetLocalDiRecord((tSDP_DI_RECORD*)p_device_info,
-                                                                   p_handle) == SDP_SUCCESS) {
+    if (get_legacy_stack_sdp_api()->device_id.SDP_SetLocalDiRecord(
+                (tSDP_DI_RECORD*)p_device_info, p_handle) == tSDP_STATUS::SDP_SUCCESS) {
       if (!p_device_info->primary_record) {
         bta_dm_di_cb.di_handle[bta_dm_di_cb.di_num] = *p_handle;
         bta_dm_di_cb.di_num++;
@@ -250,15 +250,13 @@ void BTA_DmBleRequestMaxTxDataLength(const RawAddress& remote_device) {
  * Parameters       start: start or stop the scan procedure,
  *                  duration_sec: Duration of the scan. Continuous scan if 0 is
  *                                passed,
- *                  low_latency_scan: whether this is an low latency scan,
- *                                    default is false.
  *
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmBleScan(bool start, uint8_t duration_sec, bool low_latency_scan) {
+void BTA_DmBleScan(bool start, uint8_t duration_sec) {
   log::verbose("start = {}", start);
-  do_in_main_thread(base::BindOnce(bta_dm_ble_scan, start, duration_sec, low_latency_scan));
+  do_in_main_thread(base::BindOnce(bta_dm_ble_scan, start, duration_sec));
 }
 
 /*******************************************************************************

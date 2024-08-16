@@ -112,21 +112,14 @@ typedef enum {
 
 inline std::string link_state_text(const tL2C_LINK_STATE& state) {
   switch (state) {
-    case LST_DISCONNECTED:
-      return std::string("LST_DISCONNECTED");
-    case LST_CONNECT_HOLDING:
-      return std::string("LST_CONNECT_HOLDING");
-    case LST_CONNECTING_WAIT_SWITCH:
-      return std::string("LST_CONNECTING_WAIT_SWITCH");
-    case LST_CONNECTING:
-      return std::string("LST_CONNECTING");
-    case LST_CONNECTED:
-      return std::string("LST_CONNECTED");
-    case LST_DISCONNECTING:
-      return std::string("LST_DISCONNECTING");
-    default:
-      return std::string("UNKNOWN");
+    CASE_RETURN_STRING(LST_DISCONNECTED);
+    CASE_RETURN_STRING(LST_CONNECT_HOLDING);
+    CASE_RETURN_STRING(LST_CONNECTING_WAIT_SWITCH);
+    CASE_RETURN_STRING(LST_CONNECTING);
+    CASE_RETURN_STRING(LST_CONNECTED);
+    CASE_RETURN_STRING(LST_DISCONNECTING);
   }
+  RETURN_UNKNOWN_TYPE_STRING(tL2C_LINK_STATE, state);
 }
 
 /* Define input events to the L2CAP link and channel state machines. The names
@@ -493,6 +486,8 @@ public:
   }
 
   tL2C_CCB* p_fixed_ccbs[L2CAP_NUM_FIXED_CHNLS];
+  std::vector<uint16_t> suspended; /* List of fixed channel CIDs which are suspended but not
+                                    * removed */
 
 private:
   tHCI_REASON disc_reason_{HCI_ERR_UNDEFINED};
@@ -700,6 +695,9 @@ void l2cu_change_pri_ccb(tL2C_CCB* p_ccb, tL2CAP_CHNL_PRIORITY priority);
 
 tL2C_CCB* l2cu_allocate_ccb(tL2C_LCB* p_lcb, uint16_t cid, bool is_eatt = false);
 void l2cu_release_ccb(tL2C_CCB* p_ccb);
+void l2cu_fixed_channel_restore(tL2C_LCB* p_lcb, uint16_t fixed_cid);
+bool l2cu_fixed_channel_suspended(tL2C_LCB* p_lcb, uint16_t fixed_cid);
+void l2cu_fixed_channel_data_cb(tL2C_LCB* p_lcb, uint16_t fixed_cid, BT_HDR* p_buf);
 tL2C_CCB* l2cu_find_ccb_by_cid(tL2C_LCB* p_lcb, uint16_t local_cid);
 tL2C_CCB* l2cu_find_ccb_by_remote_cid(tL2C_LCB* p_lcb, uint16_t remote_cid);
 bool l2c_is_cmd_rejected(uint8_t cmd_code, uint8_t id, tL2C_LCB* p_lcb);

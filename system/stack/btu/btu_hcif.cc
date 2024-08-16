@@ -35,29 +35,22 @@
 
 #include <cstdint>
 
-#include "common/init_flags.h"
 #include "common/metrics.h"
-#include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
-#include "internal_include/bt_trace.h"
-#include "main/shim/entry.h"
 #include "main/shim/hci_layer.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/acl_hci_link_interface.h"
-#include "stack/include/ble_acl_interface.h"
 #include "stack/include/ble_hci_link_interface.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_addr.h"
-#include "stack/include/btm_ble_api.h"
 #include "stack/include/btm_iso_api.h"
 #include "stack/include/btm_sec_api_types.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/dev_hci_link_interface.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hci_evt_length.h"
 #include "stack/include/inq_hci_link_interface.h"
-#include "stack/include/l2cap_hci_link_interface.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/sco_hci_link_interface.h"
 #include "stack/include/sec_hci_link_interface.h"
@@ -136,7 +129,6 @@ static void btu_hcif_log_event_metrics(uint8_t evt_code, const uint8_t* p_event)
       log_classic_pairing_event(bda, handle, cmd, evt_code, status, reason, value);
       break;
     case HCI_SIMPLE_PAIRING_COMPLETE_EVT:
-    case HCI_RMT_NAME_REQUEST_COMP_EVT:
       STREAM_TO_UINT8(status, p_event);
       STREAM_TO_BDADDR(bda, p_event);
       log_classic_pairing_event(bda, handle, cmd, evt_code, status, reason, value);
@@ -185,6 +177,7 @@ static void btu_hcif_log_event_metrics(uint8_t evt_code, const uint8_t* p_event)
     case HCI_CONNECTION_COMP_EVT:     // EventCode::CONNECTION_COMPLETE
     case HCI_CONNECTION_REQUEST_EVT:  // EventCode::CONNECTION_REQUEST
     case HCI_DISCONNECTION_COMP_EVT:  // EventCode::DISCONNECTION_COMPLETE
+    case HCI_RMT_NAME_REQUEST_COMP_EVT:  // EventCode::REMOTE_NAME_REQUEST_COMPLETE
     default:
       log::error(
               "Unexpectedly received event_code:0x{:02x} that should not be "
@@ -1228,7 +1221,7 @@ void btu_hcif_read_local_oob_complete(const uint8_t* p, uint16_t evt_len) {
   }
   STREAM_TO_UINT8(status, p);
   if (status == HCI_SUCCESS) {
-    evt_data.status = BTM_SUCCESS;
+    evt_data.status = tBTM_STATUS::BTM_SUCCESS;
   } else {
     evt_data.status = BTM_ERR_PROCESSING;
   }
@@ -1254,7 +1247,7 @@ void btu_hcif_read_local_oob_extended_complete(const uint8_t* p, uint16_t evt_le
   uint8_t status;
   STREAM_TO_UINT8(status, p);
   if (status == HCI_SUCCESS) {
-    evt_data.status = BTM_SUCCESS;
+    evt_data.status = tBTM_STATUS::BTM_SUCCESS;
   } else {
     evt_data.status = BTM_ERR_PROCESSING;
   }

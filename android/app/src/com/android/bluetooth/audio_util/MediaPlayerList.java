@@ -102,6 +102,7 @@ public class MediaPlayerList {
             Collections.synchronizedMap(new HashMap<Integer, MediaBrowserWrapper>());
     private int mActivePlayerId = NO_ACTIVE_PLAYER;
     private int mBrowsingPlayerId = NO_ACTIVE_PLAYER;
+    private int mAddressedPlayerId = NO_ACTIVE_PLAYER;
 
     private MediaUpdateCallback mCallback;
     private boolean mAudioPlaybackIsActive = false;
@@ -329,7 +330,9 @@ public class MediaPlayerList {
 
     /** returns the current player ID. */
     public int getCurrentPlayerId() {
-        if (Flags.browsingRefactor()) {
+        if (Flags.setAddressedPlayer()) {
+            return mAddressedPlayerId;
+        } else if (Flags.browsingRefactor()) {
             return mBrowsingPlayerId;
         } else {
             return BLUETOOTH_PLAYER_ID;
@@ -350,7 +353,16 @@ public class MediaPlayerList {
         return mMediaPlayers.get(mActivePlayerId);
     }
 
-    /** This is used to send passthrough command to media session */
+    /** Returns the {@link #MediaPlayerWrapper} with ID matching {@link #mAddressedPlayerId}. */
+    public MediaPlayerWrapper getAddressedPlayer() {
+        return mMediaPlayers.get(mAddressedPlayerId);
+    }
+
+    /**
+     * This is used to send passthrough command to media session
+     *
+     * <p>Note: This is used only by MCP, AVRCP uses AvrcpTargetService.
+     */
     public void sendMediaKeyEvent(int key, boolean pushed) {
         if (mMediaSessionManager == null) {
             Log.d(TAG, "Bluetooth is turning off, ignore it");
@@ -363,19 +375,20 @@ public class MediaPlayerList {
 
     public void getPlayerRoot(int playerId, GetPlayerRootCallback cb) {
         if (Flags.browsingRefactor()) {
-            mBrowsingPlayerId = playerId;
-            if (haveMediaBrowser(playerId)) {
-                MediaBrowserWrapper wrapper = mMediaBrowserWrappers.get(playerId);
-                wrapper.getRootId(
-                        (rootId) -> {
-                            wrapper.getFolderItems(
-                                    rootId,
-                                    (parentId, itemList) -> {
-                                        cb.run(playerId, true, rootId, itemList.size());
-                                    });
-                        });
-                sendFolderUpdate(false, true, false);
+            if (!haveMediaBrowser(playerId)) {
+                cb.run(playerId, false, "", 0);
+                return;
             }
+            mBrowsingPlayerId = playerId;
+            MediaBrowserWrapper wrapper = mMediaBrowserWrappers.get(playerId);
+            wrapper.getRootId(
+                    (rootId) -> {
+                        wrapper.getFolderItems(
+                                rootId,
+                                (parentId, itemList) -> {
+                                    cb.run(playerId, true, rootId, itemList.size());
+                                });
+                    });
         } else {
             // Fix PTS AVRCP/TG/MCN/CB/BI-02-C
             if (Utils.isPtsTestMode()) {
@@ -396,6 +409,18 @@ public class MediaPlayerList {
             }
             cb.run(playerId, playerId == BLUETOOTH_PLAYER_ID, "", mBrowsablePlayers.size());
         }
+    }
+
+    /** Sets which player the AV/C commands should be addressed to. */
+    public int setAddressedPlayer(int playerId) {
+        if (!Flags.setAddressedPlayer()) {
+            return BLUETOOTH_PLAYER_ID;
+        }
+        if (mMediaPlayerIds.containsValue(playerId)) {
+            mAddressedPlayerId = playerId;
+            sendFolderUpdate(false, true, false);
+        }
+        return mAddressedPlayerId;
     }
 
     /** Returns a list valid browsable players. */
@@ -564,8 +589,15 @@ public class MediaPlayerList {
         }
 
         long queueItemId = Long.parseLong(m.group(1));
-        if (getActivePlayer() != null) {
-            getActivePlayer().playItemFromQueue(queueItemId);
+
+        MediaPlayerWrapper player;
+        if (Flags.setAddressedPlayer()) {
+            player = getAddressedPlayer();
+        } else {
+            player = getActivePlayer();
+        }
+        if (player != null) {
+            player.playItemFromQueue(queueItemId);
         }
     }
 
@@ -629,7 +661,8 @@ public class MediaPlayerList {
                 int id = mMediaPlayerIds.get(browser.getPackageName());
 
                 Log.d(TAG, "getFolderItemsMediaPlayerList: Adding player " + displayName);
-                Folder playerFolder = new Folder(String.format("%02d", id), false, displayName);
+                Folder playerFolder =
+                        new Folder(Utils.formatSimple("%02d", id), false, displayName);
                 playerList.add(new ListItem(playerFolder));
             }
         } else {
@@ -639,7 +672,8 @@ public class MediaPlayerList {
                 int id = mMediaPlayerIds.get(player.getPackageName());
 
                 Log.d(TAG, "getFolderItemsMediaPlayerList: Adding player " + displayName);
-                Folder playerFolder = new Folder(String.format("%02d", id), false, displayName);
+                Folder playerFolder =
+                        new Folder(Utils.formatSimple("%02d", id), false, displayName);
                 playerList.add(new ListItem(playerFolder));
             }
         }
@@ -722,7 +756,7 @@ public class MediaPlayerList {
                                 return;
                             }
 
-                            String playerPrefix = String.format("%02d", playerIndex);
+                            String playerPrefix = Utils.formatSimple("%02d", playerIndex);
                             for (ListItem item : results) {
                                 if (item.isFolder) {
                                     item.folder.mediaId = playerPrefix.concat(item.folder.mediaId);
@@ -892,7 +926,11 @@ public class MediaPlayerList {
         // tells us otherwise
         if (playerId == mActivePlayerId && playerId != NO_ACTIVE_PLAYER) {
             getActivePlayer().unregisterCallback();
+            if (mAddressedPlayerId == mActivePlayerId) {
+                mAddressedPlayerId = NO_ACTIVE_PLAYER;
+            }
             mActivePlayerId = NO_ACTIVE_PLAYER;
+
             List<Metadata> queue = new ArrayList<Metadata>();
             queue.add(Util.empty_data());
             MediaData newData = new MediaData(Util.empty_data(), null, queue);
@@ -946,6 +984,13 @@ public class MediaPlayerList {
 
         if (Utils.isPtsTestMode()) {
             sendFolderUpdate(true, true, false);
+        } else if (Flags.setAddressedPlayer()) {
+            // If the new active player has been set by Addressed player key event
+            // We don't send an addressed player update.
+            if (mActivePlayerId != mAddressedPlayerId) {
+                mAddressedPlayerId = mActivePlayerId;
+                sendFolderUpdate(false, true, false);
+            }
         }
 
         MediaData data = getActivePlayer().getCurrentMediaData();
@@ -1338,25 +1383,29 @@ public class MediaPlayerList {
 
     /** Dumps all players and browsable players currently listed in this class. */
     public void dump(StringBuilder sb) {
-        sb.append("List of MediaControllers: size=" + mMediaPlayers.size() + "\n");
+        sb.append("List of MediaControllers: size=").append(mMediaPlayers.size()).append("\n");
         for (int id : mMediaPlayers.keySet()) {
             if (id == mActivePlayerId) {
                 sb.append("<Active> ");
             }
             MediaPlayerWrapper player = mMediaPlayers.get(id);
-            sb.append("  Media Player " + id + ": " + player.getPackageName() + "\n");
+            sb.append("  Media Player ")
+                    .append(id)
+                    .append(": ")
+                    .append(player.getPackageName())
+                    .append("\n");
             sb.append(player.toString().replaceAll("(?m)^", "  "));
             sb.append("\n");
         }
 
         if (Flags.browsingRefactor()) {
-            sb.append("List of Browsers: size=" + mMediaBrowserWrappers.size() + "\n");
+            sb.append("List of Browsers: size=").append(mMediaBrowserWrappers.size()).append("\n");
             for (MediaBrowserWrapper player : mMediaBrowserWrappers.values()) {
                 sb.append(player.toString().replaceAll("(?m)^", "  "));
                 sb.append("\n");
             }
         } else {
-            sb.append("List of Browsers: size=" + mBrowsablePlayers.size() + "\n");
+            sb.append("List of Browsers: size=").append(mBrowsablePlayers.size()).append("\n");
             for (BrowsedPlayerWrapper player : mBrowsablePlayers.values()) {
                 sb.append(player.toString().replaceAll("(?m)^", "  "));
                 sb.append("\n");

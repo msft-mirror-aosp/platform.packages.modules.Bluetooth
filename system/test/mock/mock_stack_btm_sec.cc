@@ -41,7 +41,6 @@ namespace stack_btm_sec {
 // Function state capture and return values, if needed
 struct BTM_CanReadDiscoverableCharacteristics BTM_CanReadDiscoverableCharacteristics;
 struct BTM_ConfirmReqReply BTM_ConfirmReqReply;
-struct BTM_GetPeerDeviceTypeFromFeatures BTM_GetPeerDeviceTypeFromFeatures;
 struct BTM_IsAuthenticated BTM_IsAuthenticated;
 struct BTM_IsEncrypted BTM_IsEncrypted;
 struct BTM_IsLinkKeyAuthed BTM_IsLinkKeyAuthed;
@@ -113,30 +112,29 @@ namespace mock {
 namespace stack_btm_sec {
 
 bool BTM_CanReadDiscoverableCharacteristics::return_value = false;
-tBT_DEVICE_TYPE BTM_GetPeerDeviceTypeFromFeatures::return_value = 0;
 bool BTM_IsAuthenticated::return_value = false;
 bool BTM_IsEncrypted::return_value = false;
 bool BTM_IsLinkKeyAuthed::return_value = false;
 bool BTM_IsLinkKeyKnown::return_value = false;
 bool BTM_PeerSupportsSecureConnections::return_value = false;
 bool BTM_SecAddRmtNameNotifyCallback::return_value = false;
-tBTM_STATUS BTM_SecBond::return_value = BTM_SUCCESS;
-tBTM_STATUS BTM_SecBondCancel::return_value = BTM_SUCCESS;
+tBTM_STATUS BTM_SecBond::return_value = tBTM_STATUS::BTM_SUCCESS;
+tBTM_STATUS BTM_SecBondCancel::return_value = tBTM_STATUS::BTM_SUCCESS;
 uint8_t BTM_SecClrService::return_value = 0;
 uint8_t BTM_SecClrServiceByPsm::return_value = 0;
 bool BTM_SecDeleteRmtNameNotifyCallback::return_value = false;
 tBTM_LINK_KEY_TYPE BTM_SecGetDeviceLinkKeyType::return_value = 0;
 bool BTM_SecIsSecurityPending::return_value = false;
 bool BTM_SecRegister::return_value = false;
-tBTM_STATUS BTM_SetEncryption::return_value = BTM_SUCCESS;
+tBTM_STATUS BTM_SetEncryption::return_value = tBTM_STATUS::BTM_SUCCESS;
 bool BTM_SetSecurityLevel::return_value = false;
 const DEV_CLASS btm_get_dev_class::return_value = kDevClassEmpty;
-tBTM_STATUS btm_sec_bond_by_transport::return_value = BTM_SUCCESS;
-tBTM_STATUS btm_sec_disconnect::return_value = BTM_SUCCESS;
+tBTM_STATUS btm_sec_bond_by_transport::return_value = tBTM_STATUS::BTM_SUCCESS;
+tBTM_STATUS btm_sec_disconnect::return_value = tBTM_STATUS::BTM_SUCCESS;
 bool btm_sec_is_a_bonded_dev::return_value = false;
-tBTM_STATUS btm_sec_l2cap_access_req::return_value = BTM_SUCCESS;
-tBTM_STATUS btm_sec_l2cap_access_req_by_requirement::return_value = BTM_SUCCESS;
-tBTM_STATUS btm_sec_mx_access_request::return_value = BTM_SUCCESS;
+tBTM_STATUS btm_sec_l2cap_access_req::return_value = tBTM_STATUS::BTM_SUCCESS;
+tBTM_STATUS btm_sec_l2cap_access_req_by_requirement::return_value = tBTM_STATUS::BTM_SUCCESS;
+tBTM_STATUS btm_sec_mx_access_request::return_value = tBTM_STATUS::BTM_SUCCESS;
 
 bool BTM_IsRemoteNameKnown::return_value = false;
 
@@ -152,10 +150,6 @@ bool BTM_CanReadDiscoverableCharacteristics(const RawAddress& bd_addr) {
 void BTM_ConfirmReqReply(tBTM_STATUS res, const RawAddress& bd_addr) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_sec::BTM_ConfirmReqReply(res, bd_addr);
-}
-tBT_DEVICE_TYPE BTM_GetPeerDeviceTypeFromFeatures(const RawAddress& bd_addr) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_btm_sec::BTM_GetPeerDeviceTypeFromFeatures(bd_addr);
 }
 bool BTM_IsAuthenticated(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   inc_func_call_count(__func__);

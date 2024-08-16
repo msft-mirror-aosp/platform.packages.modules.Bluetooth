@@ -31,9 +31,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#include "common/init_flags.h"
 #include "hal/snoop_logger_common.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace hal {
@@ -53,7 +51,7 @@ std::future<bool> SnoopLoggerSocketThread::Start() {
   listen_thread_ = std::make_unique<std::thread>(&SnoopLoggerSocketThread::Run, this,
                                                  std::move(thread_started));
   stop_thread_ = false;
-  return std::move(future);
+  return future;
 }
 
 void SnoopLoggerSocketThread::Stop() {
