@@ -34,7 +34,6 @@ cc_defaults {
         "-DEXPORT_SYMBOL=__attribute__((visibility(\"default\")))",
         "-DGOOGLE_PROTOBUF_NO_RTTI",
         "-DLOG_NDEBUG=0",
-        "-Wno-unused-result",
         "-fvisibility=hidden",
     ],
     header_libs: ["jni_headers"],
@@ -145,7 +144,6 @@ cc_defaults {
         ":BluetoothHalSources",
         ":BluetoothHciSources",
         ":BluetoothL2capSources",
-        ":BluetoothLogRedactionSources",
         ":BluetoothMetricsSources",
         ":BluetoothNeighborSources",
         ":BluetoothOsSources",
@@ -169,7 +167,6 @@ cc_defaults {
         "libflatbuffers-cpp",
     ],
     whole_static_libs: [
-        "bluetooth_flags_c_lib",
         "libbluetooth_hci_pdl",
         "libbluetooth_l2cap_pdl",
         "libbluetooth_ras_pdl",
@@ -211,7 +208,10 @@ cc_library {
         "com.android.btservices",
     ],
     min_sdk_version: "31",
-    static_libs: ["libchrome"],
+    static_libs: [
+        "bluetooth_flags_c_lib",
+        "libchrome",
+    ],
 }
 
 cc_library_static {
@@ -220,7 +220,6 @@ cc_library_static {
         "libbluetooth_gd_defaults",
     ],
     srcs: [
-        ":BluetoothDiscoverySources",
         ":BluetoothShimSources",
     ],
     include_dirs: [
@@ -230,7 +229,10 @@ cc_library_static {
         "com.android.btservices",
     ],
     min_sdk_version: "31",
-    static_libs: ["libchrome"],
+    static_libs: [
+        "bluetooth_flags_c_lib",
+        "libchrome",
+    ],
 }
 
 cc_library {
@@ -250,6 +252,7 @@ cc_library {
         "-Wno-unused-parameter",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbluetooth-types",
         "libbt-common",
         "libchrome",
@@ -272,6 +275,7 @@ cc_library {
         "-DUSE_FAKE_TIMERS",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
         "libbluetooth-types",
         "libbt-common",
         "libchrome",
@@ -295,7 +299,6 @@ cc_binary {
         ":BluetoothFacade_hci_layer",
         ":BluetoothFacade_l2cap_layer",
         ":BluetoothFacade_neighbor",
-        ":BluetoothFacade_security_layer",
         ":TestMockMainShimStack",
         "facade/facade_main.cc",
         "facade/grpc_root_server.cc",
@@ -314,6 +317,7 @@ cc_binary {
         "BlueberryFacadeGeneratedStub_cc",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "breakpad_client",
         "libPlatformProperties",
         "libbluetooth-dumpsys",
@@ -488,6 +492,7 @@ cc_test {
         "BluetoothGeneratedDumpsysTestData_h",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
         "libbase",
         "libbluetooth-protos",
         "libbluetooth-types",
@@ -509,12 +514,12 @@ cc_test {
         "libflatbuffers-cpp",
         "libgmock",
         "libosi",
+        "server_configurable_flags",
     ],
     shared_libs: [
         "libPlatformProperties",
         "libaconfig_storage_read_api_cc",
         "libcrypto",
-        "server_configurable_flags",
     ],
     sanitize: {
         address: true,
@@ -538,7 +543,6 @@ cc_test {
     ],
     host_supported: true,
     srcs: [
-        ":BluetoothDiscoveryTestSources",
         ":BluetoothDumpsysTestSources",
         ":BluetoothShimTestSources",
         ":TestCommonMockFunctions",
@@ -555,12 +559,12 @@ cc_test {
         "BluetoothGeneratedDumpsysTestData_h",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbase",
         "libbluetooth-dumpsys",
         "libbluetooth-dumpsys-test",
         "libbluetooth-dumpsys-unittest",
         "libbluetooth-gdx",
-        "libbluetooth-types",
         "libbluetooth_gd",
         "libbluetooth_log",
         "libbt-btu-main-thread",
@@ -575,9 +579,6 @@ cc_test {
         "liblog",
         "libosi",
         "server_configurable_flags",
-    ],
-    shared_libs: [
-        "libcrypto",
     ],
     sanitize: {
         address: true,
@@ -643,6 +644,7 @@ cc_defaults {
         ":BluetoothHciFuzzHelperSources",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbluetooth-protos",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",

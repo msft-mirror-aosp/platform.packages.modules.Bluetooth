@@ -68,7 +68,7 @@ void BTM_reset_complete();
  *
  * Description      This function is called to set the local device name.
  *
- * Returns          BTM_CMD_STARTED if successful, otherwise an error
+ * Returns          tBTM_STATUS::BTM_CMD_STARTED if successful, otherwise an error
  *
  ******************************************************************************/
 [[nodiscard]] tBTM_STATUS BTM_SetLocalDeviceName(const char* p_name);
@@ -79,7 +79,7 @@ void BTM_reset_complete();
  *
  * Description      This function is called to set the local device class
  *
- * Returns          BTM_SUCCESS if successful, otherwise an error
+ * Returns          tBTM_STATUS::BTM_SUCCESS if successful, otherwise an error
  *
  ******************************************************************************/
 [[nodiscard]] tBTM_STATUS BTM_SetDeviceClass(DEV_CLASS dev_class);
@@ -91,7 +91,7 @@ void BTM_reset_complete();
  * Description      This function is called to read the local device name.
  *
  * Returns          status of the operation
- *                  If success, BTM_SUCCESS is returned and p_name points stored
+ *                  If success, tBTM_STATUS::BTM_SUCCESS is returned and p_name points stored
  *                              local device name
  *                  If BTM doesn't store local device name, BTM_NO_RESOURCES is
  *                              is returned and p_name is set to NULL
@@ -106,11 +106,10 @@ void BTM_reset_complete();
  * Description      Get local device name from controller. Do not use cached
  *                  name (used to get chip-id prior to btm reset complete).
  *
- * Returns          BTM_CMD_STARTED if successful, otherwise an error
+ * Returns          tBTM_STATUS::BTM_CMD_STARTED if successful, otherwise an error
  *
  ******************************************************************************/
-[[nodiscard]] tBTM_STATUS BTM_ReadLocalDeviceNameFromController(
-    tBTM_CMPL_CB* p_rln_cmpl_cback);
+[[nodiscard]] tBTM_STATUS BTM_ReadLocalDeviceNameFromController(tBTM_CMPL_CB* p_rln_cmpl_cback);
 
 /*******************************************************************************
  *
@@ -130,8 +129,8 @@ void BTM_reset_complete();
  * Description      Send a vendor specific HCI command to the controller.
  *
  ******************************************************************************/
-void BTM_VendorSpecificCommand(uint16_t opcode, uint8_t param_len,
-                               uint8_t* p_param_buf, tBTM_VSC_CMPL_CB* p_cb);
+void BTM_VendorSpecificCommand(uint16_t opcode, uint8_t param_len, uint8_t* p_param_buf,
+                               tBTM_VSC_CMPL_CB* p_cb);
 
 /*******************************************************************************
  *
@@ -162,7 +161,7 @@ void BTM_WriteVoiceSettings(uint16_t settings);
  *                      resetting the controller.
  *
  * Returns
- *      BTM_SUCCESS         Command sent.
+ *      tBTM_STATUS::BTM_SUCCESS         Command sent.
  *      BTM_NO_RESOURCES    If out of resources to send the command.
  *
  *
@@ -179,14 +178,14 @@ void BTM_WriteVoiceSettings(uint16_t settings);
  *
  * Input Params:    remote_bda      - device address of name to retrieve
  *                  p_cb            - callback function called when
- *                                    BTM_CMD_STARTED is returned.
+ *                                    tBTM_STATUS::BTM_CMD_STARTED is returned.
  *                                    A pointer to tBTM_REMOTE_DEV_NAME is
  *                                    passed to the callback.
  *
  * Returns
- *                  BTM_CMD_STARTED is returned if the request was successfully
+ *                  tBTM_STATUS::BTM_CMD_STARTED is returned if the request was successfully
  *                                  sent to HCI.
- *                  BTM_BUSY if already in progress
+ *                  tBTM_STATUS::BTM_BUSY if already in progress
  *                  BTM_UNKNOWN_ADDR if device address is bad
  *                  BTM_NO_RESOURCES if resources could not be allocated to
  *                                   start the command
@@ -207,7 +206,7 @@ void BTM_WriteVoiceSettings(uint16_t settings);
  * Input Params:    None
  *
  * Returns
- *                  BTM_CMD_STARTED is returned if the request was successfully
+ *                  tBTM_STATUS::BTM_CMD_STARTED is returned if the request was successfully
  *                                  sent to HCI.
  *                  BTM_NO_RESOURCES if resources could not be allocated to
  *                                   start the command
@@ -235,10 +234,8 @@ void BTM_WriteVoiceSettings(uint16_t settings);
  * Returns          true if data valid, false otherwise
  *
  ******************************************************************************/
-[[nodiscard]] bool BTM_ReadRemoteVersion(const RawAddress& addr,
-                                         uint8_t* lmp_version,
-                                         uint16_t* manufacturer,
-                                         uint16_t* lmp_sub_version);
+[[nodiscard]] bool BTM_ReadRemoteVersion(const RawAddress& addr, uint8_t* lmp_version,
+                                         uint16_t* manufacturer, uint16_t* lmp_sub_version);
 
 /*******************************************************************************
  *
@@ -305,8 +302,8 @@ void BTM_WriteVoiceSettings(uint16_t settings);
  * Parameter        p_bda - (input) BD_ADDR ->  Address of device to clear
  *                                              (NULL clears all entries)
  *
- * Returns          BTM_BUSY if an inquiry, get remote name, or event filter
- *                          is active, otherwise BTM_SUCCESS
+ * Returns          tBTM_STATUS::BTM_BUSY if an inquiry, get remote name, or event filter
+ *                          is active, otherwise tBTM_STATUS::BTM_SUCCESS
  *
  ******************************************************************************/
 [[nodiscard]] tBTM_STATUS BTM_ClearInqDb(const RawAddress* p_bda);
@@ -323,19 +320,17 @@ void BTM_WriteVoiceSettings(uint16_t settings);
  *                  otherwise BTM will wait for the other side to connect.
  *
  * Returns          BTM_UNKNOWN_ADDR if the ACL connection is not up
- *                  BTM_BUSY         if another SCO being set up to
+ *                  tBTM_STATUS::BTM_BUSY         if another SCO being set up to
  *                                   the same BD address
  *                  BTM_NO_RESOURCES if the max SCO limit has been reached
- *                  BTM_CMD_STARTED  if the connection establishment is started.
+ *                  tBTM_STATUS::BTM_CMD_STARTED  if the connection establishment is started.
  *                                   In this case, "*p_sco_inx" is filled in
  *                                   with the sco index used for the connection.
  *
  ******************************************************************************/
-[[nodiscard]] tBTM_STATUS BTM_CreateSco(const RawAddress* remote_bda,
-                                        bool is_orig, uint16_t pkt_types,
-                                        uint16_t* p_sco_inx,
-                                        tBTM_SCO_CB* p_conn_cb,
-                                        tBTM_SCO_CB* p_disc_cb);
+[[nodiscard]] tBTM_STATUS BTM_CreateSco(const RawAddress* remote_bda, bool is_orig,
+                                        uint16_t pkt_types, uint16_t* p_sco_inx,
+                                        tBTM_SCO_CB* p_conn_cb, tBTM_SCO_CB* p_disc_cb);
 
 /*******************************************************************************
  *
@@ -343,11 +338,23 @@ void BTM_WriteVoiceSettings(uint16_t settings);
  *
  * Description      This function is called to remove a specific SCO connection.
  *
- * Returns          BTM_CMD_STARTED if successfully initiated, otherwise error
+ * Returns          tBTM_STATUS::BTM_CMD_STARTED if successfully initiated, otherwise error
  *
  ******************************************************************************/
 [[nodiscard]] tBTM_STATUS BTM_RemoveSco(uint16_t sco_inx);
-void BTM_RemoveSco(const RawAddress& bda);
+
+/*******************************************************************************
+ *
+ * Function         BTM_RemoveScoByBdaddr
+ *
+ * Description      This function is called to remove a specific SCO connection.
+ *                  but using the bluetooth device addess typically used
+ *                  for ACL termination.
+ *
+ * Returns         void
+ *
+ ******************************************************************************/
+void BTM_RemoveScoByBdaddr(const RawAddress& bda);
 
 /*******************************************************************************
  *
@@ -370,8 +377,8 @@ void BTM_RemoveSco(const RawAddress& bda);
  *                  BTM_CreateSco.  It can be called only when there are no
  *                  active (e)SCO links.
  *
- * Returns          BTM_SUCCESS if the successful.
- *                  BTM_BUSY if there are one or more active (e)SCO links.
+ * Returns          tBTM_STATUS::BTM_SUCCESS if the successful.
+ *                  tBTM_STATUS::BTM_BUSY if there are one or more active (e)SCO links.
  *
  ******************************************************************************/
 [[nodiscard]] tBTM_STATUS BTM_SetEScoMode(enh_esco_params_t* p_parms);
@@ -385,12 +392,11 @@ void BTM_RemoveSco(const RawAddress& bda);
  *                  connection indication events and change of link parameter
  *                  events.
  *
- * Returns          BTM_SUCCESS if the successful.
+ * Returns          tBTM_STATUS::BTM_SUCCESS if the successful.
  *                  BTM_ILLEGAL_VALUE if there is an illegal sco_inx
  *
  ******************************************************************************/
-[[nodiscard]] tBTM_STATUS BTM_RegForEScoEvts(uint16_t sco_inx,
-                                             tBTM_ESCO_CBACK* p_esco_cback);
+[[nodiscard]] tBTM_STATUS BTM_RegForEScoEvts(uint16_t sco_inx, tBTM_ESCO_CBACK* p_esco_cback);
 
 /*******************************************************************************
  *
@@ -410,8 +416,7 @@ void BTM_RemoveSco(const RawAddress& bda);
  * Returns          void
  *
  ******************************************************************************/
-void BTM_EScoConnRsp(uint16_t sco_inx, tHCI_STATUS hci_status,
-                     enh_esco_params_t* p_parms);
+void BTM_EScoConnRsp(uint16_t sco_inx, tHCI_STATUS hci_status, enh_esco_params_t* p_parms);
 
 /*******************************************************************************
  *
@@ -451,8 +456,7 @@ void BTM_EScoConnRsp(uint16_t sco_inx, tHCI_STATUS hci_status,
  *                  BT_DEVICE_TYPE_BLE if only BLE transport is supported.
  *
  ******************************************************************************/
-[[nodiscard]] tBT_DEVICE_TYPE BTM_GetPeerDeviceTypeFromFeatures(
-    const RawAddress& bd_addr);
+[[nodiscard]] tBT_DEVICE_TYPE BTM_GetPeerDeviceTypeFromFeatures(const RawAddress& bd_addr);
 
 /*******************************************************************************
  *
@@ -464,8 +468,7 @@ void BTM_EScoConnRsp(uint16_t sco_inx, tHCI_STATUS hci_status,
  * Returns          the handle of the connection, or 0xFFFF if none.
  *
  ******************************************************************************/
-[[nodiscard]] uint16_t BTM_GetHCIConnHandle(const RawAddress& remote_bda,
-                                            tBT_TRANSPORT transport);
+[[nodiscard]] uint16_t BTM_GetHCIConnHandle(const RawAddress& remote_bda, tBT_TRANSPORT transport);
 
 /*******************************************************************************
  *
@@ -476,8 +479,7 @@ void BTM_EScoConnRsp(uint16_t sco_inx, tHCI_STATUS hci_status,
  * Returns          True when PHY 2M supported false otherwise
  *
  ******************************************************************************/
-[[nodiscard]] bool BTM_IsPhy2mSupported(const RawAddress& remote_bda,
-                                        tBT_TRANSPORT transport);
+[[nodiscard]] bool BTM_IsPhy2mSupported(const RawAddress& remote_bda, tBT_TRANSPORT transport);
 
 /*******************************************************************************
  *
@@ -499,8 +501,7 @@ void BTM_RequestPeerSCA(const RawAddress& remote_bda, tBT_TRANSPORT transport);
  *                  is not supported by peer device or ACL does not exist
  *
  ******************************************************************************/
-[[nodiscard]] uint8_t BTM_GetPeerSCA(const RawAddress& remote_bda,
-                                     tBT_TRANSPORT transport);
+[[nodiscard]] uint8_t BTM_GetPeerSCA(const RawAddress& remote_bda, tBT_TRANSPORT transport);
 
 /*******************************************************************************
  *
@@ -511,7 +512,7 @@ void BTM_RequestPeerSCA(const RawAddress& remote_bda, tBT_TRANSPORT transport);
  * Parameters       p_buff - allocated HCI command buffer including extended
  *                           inquriry response
  *
- * Returns          BTM_SUCCESS  - if successful
+ * Returns          tBTM_STATUS::BTM_SUCCESS  - if successful
  *                  BTM_MODE_UNSUPPORTED - if local device cannot support it
  *
  ******************************************************************************/
@@ -530,8 +531,7 @@ void BTM_RequestPeerSCA(const RawAddress& remote_bda, tBT_TRANSPORT transport);
  *                  false - if not found
  *
  ******************************************************************************/
-[[nodiscard]] bool BTM_HasEirService(const uint32_t* p_eir_uuid,
-                                     uint16_t uuid16);
+[[nodiscard]] bool BTM_HasEirService(const uint32_t* p_eir_uuid, uint16_t uuid16);
 
 /*******************************************************************************
  *
@@ -579,10 +579,8 @@ void BTM_RemoveEirService(uint32_t* p_eir_uuid, uint16_t uuid16);
  *                  HCI_EIR_COMPLETE_16BITS_UUID_TYPE, otherwise
  *
  ******************************************************************************/
-[[nodiscard]] uint8_t BTM_GetEirSupportedServices(uint32_t* p_eir_uuid,
-                                                  uint8_t** p,
-                                                  uint8_t max_num_uuid16,
-                                                  uint8_t* p_num_uuid16);
+[[nodiscard]] uint8_t BTM_GetEirSupportedServices(uint32_t* p_eir_uuid, uint8_t** p,
+                                                  uint8_t max_num_uuid16, uint8_t* p_num_uuid16);
 
 /*******************************************************************************
  *
@@ -607,9 +605,8 @@ void BTM_RemoveEirService(uint32_t* p_eir_uuid, uint16_t uuid16);
  *                  HCI_EIR_MORE_128BITS_UUID_TYPE
  *
  ******************************************************************************/
-[[nodiscard]] uint8_t BTM_GetEirUuidList(const uint8_t* p_eir, size_t eir_len,
-                                         uint8_t uuid_size, uint8_t* p_num_uuid,
-                                         uint8_t* p_uuid_list,
+[[nodiscard]] uint8_t BTM_GetEirUuidList(const uint8_t* p_eir, size_t eir_len, uint8_t uuid_size,
+                                         uint8_t* p_num_uuid, uint8_t* p_uuid_list,
                                          uint8_t max_num_uuid);
 
 [[nodiscard]] bool BTM_IsScoActiveByBdaddr(const RawAddress& remote_bda);
@@ -617,8 +614,7 @@ void BTM_RemoveEirService(uint32_t* p_eir_uuid, uint16_t uuid16);
 /* Read maximum data packet that can be sent over current connection */
 [[nodiscard]] uint16_t BTM_GetMaxPacketSize(const RawAddress& addr);
 
-typedef void(BTM_CONSOLIDATION_CB)(const RawAddress& identity_addr,
-                                   const RawAddress& rpa);
+typedef void(BTM_CONSOLIDATION_CB)(const RawAddress& identity_addr, const RawAddress& rpa);
 void BTM_SetConsolidationCallback(BTM_CONSOLIDATION_CB* cb);
 
 #endif /* BTM_API_H */

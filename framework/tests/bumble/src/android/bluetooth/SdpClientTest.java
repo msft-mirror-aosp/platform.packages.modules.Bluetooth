@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package android.bluetooth;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -32,11 +31,16 @@ import com.android.compatibility.common.util.AdoptShellPermissionsRule;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import pandora.HostProto.ConnectRequest;
+
+import java.util.Arrays;
+import java.util.List;
 
 /** Test cases for {@link ServiceDiscoveryManager}. */
 @RunWith(AndroidJUnit4.class)
@@ -47,7 +51,7 @@ public class SdpClientTest {
     private final BluetoothManager mManager = mContext.getSystemService(BluetoothManager.class);
     private final BluetoothAdapter mAdapter = mManager.getAdapter();
 
-    private SettableFuture<ParcelUuid[]> mFutureIntent;
+    private SettableFuture<List<ParcelUuid>> mFutureIntent;
 
     @Rule public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
 
@@ -61,37 +65,46 @@ public class SdpClientTest {
                         ParcelUuid[] parcelUuids =
                                 intent.getParcelableArrayExtra(
                                         BluetoothDevice.EXTRA_UUID, ParcelUuid.class);
-                        mFutureIntent.set(parcelUuids);
+                        if (parcelUuids != null) {
+                            mFutureIntent.set(Arrays.asList(parcelUuids));
+                        }
                     }
                 }
             };
 
-    @Test
-    public void remoteConnectServiceDiscoveryTest() throws Exception {
+    @Before
+    public void setup() {
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_UUID);
         mContext.registerReceiver(mConnectionStateReceiver, filter);
+    }
 
+    @After
+    public void tearDown() {
+        mContext.unregisterReceiver(mConnectionStateReceiver);
+    }
+
+    @Test
+    public void remoteConnectServiceDiscoveryTest() throws Exception {
         mFutureIntent = SettableFuture.create();
 
         String local_addr = mAdapter.getAddress();
         byte[] local_bytes_addr = Utils.addressBytesFromString(local_addr);
 
-        // Initiate connect from remote
         mBumble.hostBlocking()
                 .connect(
                         ConnectRequest.newBuilder()
                                 .setAddress(ByteString.copyFrom(local_bytes_addr))
                                 .build());
 
-        // Get the remote device
         BluetoothDevice device = mBumble.getRemoteDevice();
 
-        // Execute service discovery procedure
         assertThat(device.fetchUuidsWithSdp()).isTrue();
 
-        ParcelUuid[] arr = mFutureIntent.get();
-        assertThat(arr).asList().contains(BluetoothUuid.HFP);
-
-        mContext.unregisterReceiver(mConnectionStateReceiver);
+        assertThat(mFutureIntent.get())
+                .containsAtLeast(
+                        BluetoothUuid.HFP,
+                        BluetoothUuid.A2DP_SOURCE,
+                        BluetoothUuid.A2DP_SINK,
+                        BluetoothUuid.AVRCP);
     }
 }

@@ -17,6 +17,7 @@
 
 package com.android.bluetooth.tbs;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothLeCall;
 import android.bluetooth.BluetoothLeCallControl;
@@ -33,6 +34,7 @@ import java.util.concurrent.Executor;
  * correct functioning of the BluetoothInCallService class, the final class must be put into a
  * container that can be mocked correctly.
  */
+@SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
 public class BluetoothLeCallControlProxy {
 
     private BluetoothLeCallControl mBluetoothLeCallControl;
@@ -69,10 +71,6 @@ public class BluetoothLeCallControlProxy {
 
     public void unregisterBearer() {
         mBluetoothLeCallControl.unregisterBearer();
-    }
-
-    public int getContentControlId() {
-        return mBluetoothLeCallControl.getContentControlId();
     }
 
     public void requestResult(int requestId, int result) {

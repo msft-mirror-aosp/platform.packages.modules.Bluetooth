@@ -20,6 +20,7 @@ java_defaults {
     static_libs: [
         "PlatformProperties",
         "bluetooth_flags_java_lib",
+        "modules-utils-build",
         "modules-utils-expresslog",
         "service-bluetooth-binder-aidl",
     ],
@@ -73,7 +74,7 @@ java_sdk_library {
         "//packages/modules/Bluetooth/service",
         "//packages/services/Car/car-builtin-lib",
         // TODO(240720385)
-        "//packages/services/Car/tests/carservice_unit_test",
+        "//packages/services/Car/tests/CarBuiltinLibUnitTest",
         ":__subpackages__",
     ],
 
@@ -86,10 +87,14 @@ java_sdk_library {
         "com.android.bluetooth.flags",
         "com.android.bluetooth.jarjar",
     ],
+    plugins: [
+        "error_prone_android_framework",
+    ],
     errorprone: {
         javacflags: [
             "-Xep:InlineMeSuggester:OFF", // The @InlineMe annotation is not available
 
+            "-Xep:AndroidFrameworkRequiresPermission:ERROR",
             "-Xep:BadImport:ERROR",
             "-Xep:CatchFail:ERROR",
             "-Xep:ClassCanBeStatic:ERROR",

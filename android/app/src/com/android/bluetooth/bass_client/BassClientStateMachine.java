@@ -17,8 +17,10 @@
 package com.android.bluetooth.bass_client;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -169,7 +171,7 @@ public class BassClientStateMachine extends StateMachine {
             AdapterService adapterService,
             Looper looper,
             int connectTimeoutMs) {
-        super(TAG + "(" + device.toString() + ")", looper);
+        super(TAG + "(" + device + ")", looper);
         mDevice = device;
         mService = svc;
         mAdapterService = adapterService;
@@ -180,21 +182,24 @@ public class BassClientStateMachine extends StateMachine {
         addState(mConnectedProcessing);
         setInitialState(mDisconnected);
         mFirstTimeBisDiscoveryMap = new HashMap<Integer, Boolean>();
-        long token = Binder.clearCallingIdentity();
-        mIsAllowedList =
-                DeviceConfig.getBoolean(
-                        DeviceConfig.NAMESPACE_BLUETOOTH, "persist.vendor.service.bt.wl", true);
-        mDefNoPAS =
-                DeviceConfig.getBoolean(
-                        DeviceConfig.NAMESPACE_BLUETOOTH,
-                        "persist.vendor.service.bt.defNoPAS",
-                        false);
-        mForceSB =
-                DeviceConfig.getBoolean(
-                        DeviceConfig.NAMESPACE_BLUETOOTH,
-                        "persist.vendor.service.bt.forceSB",
-                        false);
-        Binder.restoreCallingIdentity(token);
+        final long token = Binder.clearCallingIdentity();
+        try {
+            mIsAllowedList =
+                    DeviceConfig.getBoolean(
+                            DeviceConfig.NAMESPACE_BLUETOOTH, "persist.vendor.service.bt.wl", true);
+            mDefNoPAS =
+                    DeviceConfig.getBoolean(
+                            DeviceConfig.NAMESPACE_BLUETOOTH,
+                            "persist.vendor.service.bt.defNoPAS",
+                            false);
+            mForceSB =
+                    DeviceConfig.getBoolean(
+                            DeviceConfig.NAMESPACE_BLUETOOTH,
+                            "persist.vendor.service.bt.forceSB",
+                            false);
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
     }
 
     static BassClientStateMachine make(
@@ -267,6 +272,10 @@ public class BassClientStateMachine extends StateMachine {
             Log.d(TAG, "clearPendingSourceOperation: broadcast ID: " + broadcastId);
             mPendingMetadata = null;
         }
+    }
+
+    Boolean hasPendingSwitchingSourceOperation() {
+        return mPendingSourceToSwitch != null;
     }
 
     BluetoothLeBroadcastMetadata getCurrentBroadcastMetadata(Integer sourceId) {
@@ -995,7 +1004,6 @@ public class BassClientStateMachine extends StateMachine {
                         Message message = obtainMessage(ADD_BCAST_SOURCE);
                         message.obj = mPendingSourceToSwitch;
                         sendMessage(message);
-                        mPendingSourceToSwitch = null;
                     } else {
                         mService.getCallbacks()
                                 .notifySourceRemoved(
@@ -1329,6 +1337,7 @@ public class BassClientStateMachine extends StateMachine {
      * @return {@code true} if it successfully connects to the GATT server.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     public boolean connectGatt(Boolean autoConnect) {
         if (mGattCallback == null) {
             mGattCallback = new GattCallback();
@@ -2003,6 +2012,12 @@ public class BassClientStateMachine extends StateMachine {
                                 .notifySourceAddFailed(
                                         mDevice, metaData, BluetoothStatusCodes.ERROR_UNKNOWN);
                     }
+                    if (mPendingSourceToSwitch != null
+                            && mPendingSourceToSwitch.getBroadcastId()
+                                    == metaData.getBroadcastId()) {
+                        // Clear pending source to switch when starting to add this new source
+                        mPendingSourceToSwitch = null;
+                    }
                     break;
                 case UPDATE_BCAST_SOURCE:
                     metaData = (BluetoothLeBroadcastMetadata) message.obj;
@@ -2343,8 +2358,10 @@ public class BassClientStateMachine extends StateMachine {
         intent.addFlags(
                 Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                         | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-        mService.sendBroadcast(
-                intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
+        mService.sendBroadcastMultiplePermissions(
+                intent,
+                new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+                Utils.getTempBroadcastOptions());
     }
 
     int getConnectionState() {
@@ -2462,6 +2479,7 @@ public class BassClientStateMachine extends StateMachine {
 
     /** Mockable wrapper of {@link BluetoothGatt}. */
     @VisibleForTesting
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     public static class BluetoothGattTestableWrapper {
         public final BluetoothGatt mWrappedBluetoothGatt;
 

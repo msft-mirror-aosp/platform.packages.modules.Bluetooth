@@ -383,6 +383,7 @@ struct BluetoothDeviceContext {
     /// If supported UUIDs weren't available in EIR, wait for services to be
     /// resolved to connect.
     pub wait_to_connect: bool,
+    pub connected_hid_profile: Option<Profile>,
 }
 
 impl BluetoothDeviceContext {
@@ -404,6 +405,7 @@ impl BluetoothDeviceContext {
             properties: HashMap::new(),
             services_resolved: false,
             wait_to_connect: false,
+            connected_hid_profile: None,
         };
         device.update_properties(&properties);
         device
@@ -415,13 +417,28 @@ impl BluetoothDeviceContext {
             match &prop {
                 BluetoothProperty::BdAddr(bdaddr) => {
                     self.info.address = *bdaddr;
-                    self.properties.insert(prop.get_type(), prop.clone());
+                    self.properties.insert(BtPropertyType::BdAddr, prop.clone());
                 }
                 BluetoothProperty::BdName(bdname) => {
                     if !bdname.is_empty() {
                         self.info.name = bdname.clone();
-                        self.properties.insert(prop.get_type(), prop.clone());
+                        self.properties.insert(BtPropertyType::BdName, prop.clone());
                     }
+                }
+                BluetoothProperty::Uuids(new_uuids) => {
+                    // Merge the new and the old (if exist) UUIDs.
+                    self.properties
+                        .entry(BtPropertyType::Uuids)
+                        .and_modify(|old_prop| {
+                            if let BluetoothProperty::Uuids(old_uuids) = old_prop {
+                                for uuid in new_uuids {
+                                    if !old_uuids.contains(uuid) {
+                                        old_uuids.push(*uuid);
+                                    }
+                                }
+                            }
+                        })
+                        .or_insert(prop.clone());
                 }
                 _ => {
                     self.properties.insert(prop.get_type(), prop.clone());
@@ -1346,6 +1363,25 @@ impl Bluetooth {
             || self.active_pairing_address.is_some()
             || self.pending_create_bond.is_some()
     }
+
+    /// Disconnect the device if no HID or media profiles are enabled.
+    pub fn disconnect_if_no_media_or_hid_profiles_connected(&mut self, device_address: RawAddress) {
+        let context = match self.remote_devices.get(&device_address) {
+            Some(context) => context,
+            None => return,
+        };
+        let device = context.info.clone();
+
+        let mut connected_profiles =
+            self.bluetooth_media.lock().unwrap().get_connected_profiles(&device);
+        if let Some(profile) = context.connected_hid_profile {
+            connected_profiles.insert(profile);
+        }
+        if !connected_profiles.is_empty() {
+            return;
+        }
+        self.disconnect_all_enabled_profiles(device);
+    }
 }
 
 #[btif_callbacks_dispatcher(dispatch_base_callbacks, BaseCallbacks)]
@@ -1670,7 +1706,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
                 BtAclState::Disconnected,
                 device_info,
                 Instant::now(),
-                properties,
+                properties.clone(),
             ))
             .info
             .clone();
@@ -1678,6 +1714,17 @@ impl BtifBluetoothCallbacks for Bluetooth {
         self.callbacks.for_all_callbacks(|callback| {
             callback.on_device_found(device_info.clone());
         });
+
+        // In btif_dm, Floss intentionally reports the UUIDs in EIR on DeviceFound,
+        // thus we forward the properties changed event to the clients here.
+        if !properties.is_empty() {
+            self.callbacks.for_all_callbacks(|callback| {
+                callback.on_device_properties_changed(
+                    device_info.clone(),
+                    properties.clone().into_iter().map(|x| x.get_type()).collect(),
+                );
+            });
+        }
 
         self.bluetooth_admin.lock().unwrap().on_device_found(&device_info);
     }
@@ -3073,7 +3120,7 @@ impl BtifHHCallbacks for Bluetooth {
             BtDeviceType::Bredr => Profile::Hid,
             _ => {
                 if self
-                    .get_remote_uuids(device)
+                    .get_remote_uuids(device.clone())
                     .contains(UuidHelper::get_profile_uuid(&Profile::Hogp).unwrap())
                 {
                     Profile::Hogp
@@ -3087,9 +3134,19 @@ impl BtifHHCallbacks for Bluetooth {
             address,
             profile as u32,
             BtStatus::Success,
-            state as u32,
+            state.clone() as u32,
         );
 
+        match state {
+            BthhConnectionState::Connected => {
+                self.remote_devices.entry(device.address).and_modify(|context| {
+                    context.connected_hid_profile = Some(profile);
+                })
+            }
+            _ => self.remote_devices.entry(device.address).and_modify(|context| {
+                context.connected_hid_profile = None;
+            }),
+        };
         if BtBondState::Bonded != self.get_bond_state_by_addr(&address) {
             warn!(
                 "[{}]: Rejecting a unbonded device's attempt to connect to HID/HOG profiles",

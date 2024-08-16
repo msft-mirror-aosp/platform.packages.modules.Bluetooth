@@ -33,22 +33,21 @@ static const uint16_t kRasRangingDataReadyCharacteristic16bit = 0x7F78;
 static const uint16_t kRasRangingDataOverWrittenCharacteristic16bit = 0x7F77;
 static const uint16_t kClientCharacteristicConfiguration16bit = 0x2902;
 
-static const bluetooth::Uuid kRangingService =
-    bluetooth::Uuid::From16Bit(kRangingService16Bit);
+static const bluetooth::Uuid kRangingService = bluetooth::Uuid::From16Bit(kRangingService16Bit);
 static const bluetooth::Uuid kRasFeaturesCharacteristic =
-    bluetooth::Uuid::From16Bit(kRasFeaturesCharacteristic16bit);
+        bluetooth::Uuid::From16Bit(kRasFeaturesCharacteristic16bit);
 static const bluetooth::Uuid kRasRealTimeRangingDataCharacteristic =
-    bluetooth::Uuid::From16Bit(kRasRealTimeRangingDataCharacteristic16bit);
+        bluetooth::Uuid::From16Bit(kRasRealTimeRangingDataCharacteristic16bit);
 static const bluetooth::Uuid kRasOnDemandDataCharacteristic =
-    bluetooth::Uuid::From16Bit(kRasOnDemandDataCharacteristic16bit);
+        bluetooth::Uuid::From16Bit(kRasOnDemandDataCharacteristic16bit);
 static const bluetooth::Uuid kRasControlPointCharacteristic =
-    bluetooth::Uuid::From16Bit(kRasControlPointCharacteristic16bit);
+        bluetooth::Uuid::From16Bit(kRasControlPointCharacteristic16bit);
 static const bluetooth::Uuid kRasRangingDataReadyCharacteristic =
-    bluetooth::Uuid::From16Bit(kRasRangingDataReadyCharacteristic16bit);
+        bluetooth::Uuid::From16Bit(kRasRangingDataReadyCharacteristic16bit);
 static const bluetooth::Uuid kRasRangingDataOverWrittenCharacteristic =
-    bluetooth::Uuid::From16Bit(kRasRangingDataOverWrittenCharacteristic16bit);
+        bluetooth::Uuid::From16Bit(kRasRangingDataOverWrittenCharacteristic16bit);
 static const bluetooth::Uuid kClientCharacteristicConfiguration =
-    bluetooth::Uuid::From16Bit(kClientCharacteristicConfiguration16bit);
+        bluetooth::Uuid::From16Bit(kClientCharacteristicConfiguration16bit);
 
 std::string getUuidName(const bluetooth::Uuid& uuid);
 
@@ -59,7 +58,6 @@ static const uint32_t kRealTimeRangingData = 0x01;
 static const uint32_t kRetrieveLostRangingDataSegments = 0x02;
 static const uint32_t kAbortOperation = 0x04;
 static const uint32_t kFilterRangingData = 0x08;
-static const uint32_t kPctPhaseFormat = 0xA0;
 }  // namespace feature
 
 enum class Opcode : uint8_t {
@@ -68,7 +66,6 @@ enum class Opcode : uint8_t {
   RETRIEVE_LOST_RANGING_DATA_SEGMENTS = 0x02,
   ABORT_OPERATION = 0x03,
   FILTER = 0x04,
-  PCT_FORMAT = 0x05,
 };
 
 static const uint8_t OPERATOR_NULL = 0x00;
@@ -89,7 +86,7 @@ enum class ResponseCodeValue : uint8_t {
   PERSISTED = 0x04,
   ABORT_UNSUCCESSFUL = 0x05,
   PROCEDURE_NOT_COMPLETED = 0x06,
-  OPERAND_NOT_SUPPORTED = 0x07,
+  SERVER_BUSY = 0x07,
   NO_RECORDS_FOUND = 0x08,
 };
 
@@ -106,8 +103,7 @@ struct ControlPointResponse {
   uint8_t parameter_[4];
 };
 
-bool ParseControlPointCommand(ControlPointCommand* command,
-                              const uint8_t* value, uint16_t len);
+bool ParseControlPointCommand(ControlPointCommand* command, const uint8_t* value, uint16_t len);
 
 bool IsRangingServiceCharacteristic(const bluetooth::Uuid& uuid);
 

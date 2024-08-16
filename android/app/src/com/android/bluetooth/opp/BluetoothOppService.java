@@ -492,7 +492,7 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
                                                 BluetoothStatsLog
                                                         .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                                                 9);
-                                        Log.e(TAG, "close tranport error");
+                                        Log.e(TAG, "close transport error");
                                     }
                                     if (mServerSocket != null) {
                                         acceptNewConnections();
@@ -774,7 +774,7 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
                  * contains an entry that's not in the array, insert a new entry
                  * in the array, move to next cursor row and next array entry.
                  */
-                while (!isAfterLast || arrayPos < mShares.size() && mListenStarted) {
+                while (!isAfterLast || (arrayPos < mShares.size() && mListenStarted)) {
                     if (isAfterLast) {
                         // We're beyond the end of the cursor but there's still some
                         // stuff in the local array, which can only be junk
@@ -1378,9 +1378,9 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
                         + socket
                         + " \n :device :"
                         + BluetoothUtils.toAnonymizedAddress(
-                                Flags.identityAddressNullIfUnknown()
-                                        ? Utils.getBrEdrAddress(device)
-                                        : device.getIdentityAddress()));
+                                Flags.identityAddressNullIfNotKnown()
+                                        ? Utils.getBrEdrAddress(device, mAdapterService)
+                                        : mAdapterService.getIdentityAddress(device.getAddress())));
         if (!mAcceptNewConnections) {
             Log.d(TAG, " onConnect BluetoothSocket :" + socket + " rejected");
             return false;

@@ -219,8 +219,10 @@ public class BluetoothManagerServiceTest {
                         any(ServiceConnection.class),
                         anyInt(),
                         any(UserHandle.class));
+        doNothing().when(mContext).unbindService(any());
         mManagerService.enableBle("enable_bindFailure_removesTimeout", mBinder);
         syncHandler(MESSAGE_ENABLE);
+        verify(mContext).unbindService(any());
 
         // TODO(b/280518177): Failed to start should be noted / reported in metrics
         // Maybe show a popup or a crash notification
@@ -273,7 +275,7 @@ public class BluetoothManagerServiceTest {
         verify(mManagerCallback).onBluetoothServiceUp(any());
 
         IBluetoothCallback btCallback = captureBluetoothCallback(mAdapterBinder);
-        verify(mAdapterBinder).enable(anyBoolean(), any());
+        verify(mAdapterBinder).offToBleOn(anyBoolean(), any());
 
         // AdapterService is sending AdapterState.BLE_TURN_ON that will trigger this callback
         // and in parallel it call its `bringUpBle()`

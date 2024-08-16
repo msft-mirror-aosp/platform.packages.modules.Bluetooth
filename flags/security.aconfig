@@ -16,13 +16,6 @@ flag {
 }
 
 flag {
-    name: "bluffs_mitigation"
-    namespace: "bluetooth"
-    description: "Cache security values to mitigate BLUFFS"
-    bug: "314331379"
-}
-
-flag {
     name: "fix_le_pairing_passkey_entry_bypass"
     namespace: "bluetooth"
     description: "Fix the passkey entry bypassing bug in SMP"
@@ -34,6 +27,16 @@ flag {
   namespace: "bluetooth"
   description: "Use stream control block for bta_av_setconfig_rej instead of a possibly incorrect union type"
   bug: "341754333"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "btsec_check_valid_discovery_database"
+  namespace: "bluetooth"
+  description: "Check for a valid discovery database before using it, and don't set up a discovery database for a new HF client if one has already been defined for it"
+  bug: "356201480"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
