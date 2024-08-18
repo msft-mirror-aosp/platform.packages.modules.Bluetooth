@@ -987,7 +987,7 @@ private:
                          CsisGroupLockStatus status) {
     log::debug("group id: {}, target state {}", csis_group->GetGroupId(), lock ? "lock" : "unlock");
 
-    NotifyGroupStatus(csis_group->GetGroupId(), lock, status, std::move(csis_group->GetLockCb()));
+    NotifyGroupStatus(csis_group->GetGroupId(), lock, status, csis_group->GetLockCb());
     csis_group->SetTargetLockState(CsisLockState::CSIS_STATE_UNSET);
   }
 
@@ -1280,7 +1280,7 @@ private:
       devices.push_back(std::move(bda));
     }
 
-    return std::move(devices);
+    return devices;
   }
 
   int GetNumOfKnownExpectedDevicesWaitingForBonding(int group_id) {
@@ -1848,7 +1848,7 @@ private:
         if (BTM_IsEncrypted(p_data->enc_cmpl.remote_bda, BT_TRANSPORT_LE)) {
           encryption_status = tBTM_STATUS::BTM_SUCCESS;
         } else {
-          encryption_status = BTM_FAILED_ON_SECURITY;
+          encryption_status = tBTM_STATUS::BTM_FAILED_ON_SECURITY;
         }
         OnLeEncryptionComplete(p_data->enc_cmpl.remote_bda, encryption_status);
       } break;
@@ -1916,7 +1916,7 @@ private:
 
     log::info("Encryption required for {}. Request result: 0x{:02x}", device->addr, result);
 
-    if (result == BTM_ERR_KEY_MISSING) {
+    if (result == tBTM_STATUS::BTM_ERR_KEY_MISSING) {
       log::error("Link key unknown for {}, disconnect profile", device->addr);
       BTA_GATTC_Close(device->conn_id);
     }

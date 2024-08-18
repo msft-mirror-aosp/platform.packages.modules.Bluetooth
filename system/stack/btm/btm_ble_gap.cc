@@ -528,7 +528,7 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
                ll_scan_window);
 
   if (!bluetooth::shim::GetController()->SupportsBle()) {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   if (start) {
@@ -551,7 +551,7 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
                                     btm_cb.ble_ctr_cb.inq_var.scan_window == ll_scan_window;
       if (is_ongoing_low_latency) {
         log::warn("Observer was already active, is_low_latency: {}", is_ongoing_low_latency);
-        return BTM_CMD_STARTED;
+        return tBTM_STATUS::BTM_CMD_STARTED;
       }
       // stop any scan without low latency config
       btm_ble_stop_observe();
@@ -559,7 +559,7 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
 
     btm_cb.ble_ctr_cb.p_obs_results_cb = p_results_cb;
     btm_cb.ble_ctr_cb.p_obs_cmpl_cb = p_cmpl_cb;
-    status = BTM_CMD_STARTED;
+    status = tBTM_STATUS::BTM_CMD_STARTED;
 
     /* scan is not started */
     if (!btm_cb.ble_ctr_cb.is_ble_scan_active()) {
@@ -585,7 +585,7 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
     BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Le observe started",
                    "low latency scanning enabled");
 
-    if (status == BTM_CMD_STARTED) {
+    if (status == tBTM_STATUS::BTM_CMD_STARTED) {
       btm_cb.ble_ctr_cb.set_ble_observe_active();
       if (duration != 0) {
         /* start observer timer */
@@ -601,7 +601,7 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
                    base::StringPrintf("duration_s:%6.3f results:%-3lu",
                                       (double)duration_timestamp / 1000.0,
                                       btm_cb.neighbor.le_observe.results));
-    status = BTM_CMD_STARTED;
+    status = tBTM_STATUS::BTM_CMD_STARTED;
     btm_ble_stop_observe();
   } else {
     log::error("Observe not active");
@@ -1321,7 +1321,7 @@ tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode) {
 
   /*** Check mode parameter ***/
   if (mode > BTM_BLE_MAX_DISCOVERABLE) {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   btm_cb.ble_ctr_cb.inq_var.discoverable_mode = mode;
@@ -1408,7 +1408,7 @@ tBTM_STATUS btm_ble_set_connectability(uint16_t combined_mode) {
 
   /*** Check mode parameter ***/
   if (mode > BTM_BLE_MAX_CONNECTABLE) {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   btm_cb.ble_ctr_cb.inq_var.connectable_mode = mode;
@@ -1519,8 +1519,8 @@ static void btm_ble_scan_filt_param_cfg_evt(uint8_t /* avbl_space */,
  *                             le_inquiry_duration duration is a multiplier for
  *                             1.28 seconds.
  *
- * Returns          BTM_CMD_STARTED if successfully started
- *                  BTM_BUSY - if an inquiry is already active
+ * Returns          tBTM_STATUS::BTM_CMD_STARTED if successfully started
+ *                  tBTM_STATUS::BTM_BUSY - if an inquiry is already active
  *
  ******************************************************************************/
 tBTM_STATUS btm_ble_start_inquiry(uint8_t duration) {
@@ -1530,7 +1530,7 @@ tBTM_STATUS btm_ble_start_inquiry(uint8_t duration) {
    */
   if (btm_cb.ble_ctr_cb.is_ble_inquiry_active()) {
     log::error("LE Inquiry is active, can not start inquiry");
-    return BTM_BUSY;
+    return tBTM_STATUS::BTM_BUSY;
   }
 
   /* Cleanup anything remaining on index 0 */
@@ -1592,7 +1592,7 @@ tBTM_STATUS btm_ble_start_inquiry(uint8_t duration) {
   };
   BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Le inquiry started");
 
-  return BTM_CMD_STARTED;
+  return tBTM_STATUS::BTM_CMD_STARTED;
 }
 
 /*******************************************************************************
@@ -1632,24 +1632,24 @@ void btm_ble_read_remote_name_cmpl(bool status, const RawAddress& bda, uint16_t 
  ******************************************************************************/
 tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb) {
   if (!bluetooth::shim::GetController()->SupportsBle()) {
-    return BTM_ERR_PROCESSING;
+    return tBTM_STATUS::BTM_ERR_PROCESSING;
   }
 
   tINQ_DB_ENT* p_i = btm_inq_db_find(remote_bda);
   if (p_i && !ble_evt_type_is_connectable(p_i->inq_info.results.ble_evt_type)) {
     log::verbose("name request to non-connectable device failed.");
-    return BTM_ERR_PROCESSING;
+    return tBTM_STATUS::BTM_ERR_PROCESSING;
   }
 
   /* read remote device name using GATT procedure */
   if (btm_cb.rnr.remname_active) {
     log::warn("Unable to start GATT RNR procedure for peer:{} busy with peer:{}", remote_bda,
               btm_cb.rnr.remname_bda);
-    return BTM_BUSY;
+    return tBTM_STATUS::BTM_BUSY;
   }
 
   if (!GAP_BleReadPeerDevName(remote_bda, btm_ble_read_remote_name_cmpl)) {
-    return BTM_BUSY;
+    return tBTM_STATUS::BTM_BUSY;
   }
 
   btm_cb.rnr.p_remname_cmpl_cb = p_cb;
@@ -1660,7 +1660,7 @@ tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMP
   alarm_set_on_mloop(btm_cb.rnr.remote_name_timer, BTM_EXT_BLE_RMT_NAME_TIMEOUT_MS,
                      btm_inq_remote_name_timer_timeout, NULL);
 
-  return BTM_CMD_STARTED;
+  return tBTM_STATUS::BTM_CMD_STARTED;
 }
 
 /*******************************************************************************
