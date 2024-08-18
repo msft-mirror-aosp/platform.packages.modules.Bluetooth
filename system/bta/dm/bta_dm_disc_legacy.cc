@@ -33,7 +33,6 @@
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_sdp_api.h"
 #include "btif/include/btif_config.h"
-#include "com_android_bluetooth_flags.h"
 #include "common/circular_buffer.h"
 #include "common/strings.h"
 #include "device/include/interop.h"
@@ -196,6 +195,10 @@ void bta_dm_disc_disable_search_and_disc() { bta_dm_disable_search_and_disc(); }
 
 void bta_dm_disc_gatt_cancel_open(const RawAddress& bd_addr) {
   get_gatt_interface().BTA_GATTC_CancelOpen(0, bd_addr, false);
+  if (com::android::bluetooth::flags::cancel_open_discovery_client() &&
+      bta_dm_search_cb.client_if != BTA_GATTS_INVALID_IF) {
+    get_gatt_interface().BTA_GATTC_CancelOpen(bta_dm_search_cb.client_if, bd_addr, true);
+  }
 }
 
 void bta_dm_disc_gatt_refresh(const RawAddress& bd_addr) {
@@ -204,7 +207,7 @@ void bta_dm_disc_gatt_refresh(const RawAddress& bd_addr) {
 
 void bta_dm_disc_remove_device(const RawAddress& bd_addr) {
   if (bta_dm_search_cb.state == BTA_DM_DISCOVER_ACTIVE && bta_dm_search_cb.peer_bdaddr == bd_addr) {
-    log::info("Device removed while service discovery was pending, conclude the service disvovery");
+    log::info("Device removed while service discovery was pending, conclude the service discovery");
     bta_dm_gatt_disc_complete((uint16_t)GATT_INVALID_CONN_ID, (tGATT_STATUS)GATT_ERROR);
   }
 }
@@ -274,7 +277,7 @@ static void bta_dm_search_start(tBTA_DM_API_SEARCH& search) {
 
   const tBTM_STATUS btm_status = BTM_StartInquiry(bta_dm_inq_results_cb, bta_dm_inq_cmpl_cb);
   switch (btm_status) {
-    case BTM_CMD_STARTED:
+    case tBTM_STATUS::BTM_CMD_STARTED:
       // Completion callback will be executed when controller inquiry
       // timer pops or is cancelled by the user
       break;
@@ -306,7 +309,8 @@ static void bta_dm_search_cancel() {
   /* If no Service Search going on then issue cancel remote name in case it is
      active */
   else if (!bta_dm_search_cb.name_discover_done) {
-    if (get_btm_client_interface().peer.BTM_CancelRemoteDeviceName() != BTM_CMD_STARTED) {
+    if (get_btm_client_interface().peer.BTM_CancelRemoteDeviceName() !=
+        tBTM_STATUS::BTM_CMD_STARTED) {
       log::warn("Unable to cancel RNR");
     }
     /* bta_dm_search_cmpl is called when receiving the remote name cancel evt */
@@ -391,7 +395,7 @@ static bool bta_dm_read_remote_device_name(const RawAddress& bd_addr, tBT_TRANSP
   btm_status = get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(
           bta_dm_search_cb.peer_bdaddr, bta_dm_remname_cback, transport);
 
-  if (btm_status == BTM_CMD_STARTED) {
+  if (btm_status == tBTM_STATUS::BTM_CMD_STARTED) {
     log::verbose("BTM_ReadRemoteDeviceName is started");
 
     return true;
@@ -991,7 +995,8 @@ static void bta_dm_search_cancel_notify() {
     case BTA_DM_SEARCH_ACTIVE:
     case BTA_DM_SEARCH_CANCELLING:
       if (!bta_dm_search_cb.name_discover_done) {
-        if (get_btm_client_interface().peer.BTM_CancelRemoteDeviceName() != BTM_CMD_STARTED) {
+        if (get_btm_client_interface().peer.BTM_CancelRemoteDeviceName() !=
+            tBTM_STATUS::BTM_CMD_STARTED) {
           log::warn("Unable to cancel RNR");
         }
       }
@@ -1381,7 +1386,7 @@ static void bta_dm_service_search_remname_cback(const RawAddress& bd_addr, DEV_C
   if (bta_dm_search_cb.peer_bdaddr == bd_addr) {
     rem_name.bd_addr = bd_addr;
     bd_name_copy(rem_name.remote_bd_name, bd_name);
-    rem_name.status = tBTM_STATUS::BTM_SUCCESS;
+    rem_name.btm_status = tBTM_STATUS::BTM_SUCCESS;
     rem_name.hci_status = HCI_SUCCESS;
     bta_dm_remname_cback(&rem_name);
   } else {
@@ -1391,7 +1396,7 @@ static void bta_dm_service_search_remname_cback(const RawAddress& bd_addr, DEV_C
     if (btm_status == tBTM_STATUS::BTM_BUSY) {
       /* wait for next chance(notification of remote name discovery done) */
       log::verbose("BTM_ReadRemoteDeviceName is busy");
-    } else if (btm_status != BTM_CMD_STARTED) {
+    } else if (btm_status != tBTM_STATUS::BTM_CMD_STARTED) {
       /* if failed to start getting remote name then continue */
       log::warn("BTM_ReadRemoteDeviceName returns 0x{:02X}", btm_status);
 
@@ -1399,7 +1404,7 @@ static void bta_dm_service_search_remname_cback(const RawAddress& bd_addr, DEV_C
       // actual peer_bdaddr
       rem_name.bd_addr = bta_dm_search_cb.peer_bdaddr;
       rem_name.remote_bd_name[0] = 0;
-      rem_name.status = btm_status;
+      rem_name.btm_status = btm_status;
       rem_name.hci_status = HCI_SUCCESS;
       bta_dm_remname_cback(&rem_name);
     }
@@ -1420,7 +1425,7 @@ static void bta_dm_remname_cback(const tBTM_REMOTE_DEV_NAME* p_remote_name) {
 
   log::info(
           "Remote name request complete peer:{} btm_status:{} hci_status:{} name[0]:{:c} length:{}",
-          p_remote_name->bd_addr, btm_status_text(p_remote_name->status),
+          p_remote_name->bd_addr, btm_status_text(p_remote_name->btm_status),
           hci_error_code_text(p_remote_name->hci_status), p_remote_name->remote_bd_name[0],
           strnlen((const char*)p_remote_name->remote_bd_name, BD_NAME_LEN));
 
@@ -1563,9 +1568,12 @@ static void bta_dm_gatt_disc_complete(uint16_t conn_id, tGATT_STATUS status) {
       bta_dm_search_sm_execute(BTA_DM_DISC_CLOSE_TOUT_EVT, nullptr);
     }
   } else {
-    bta_dm_search_cb.conn_id = GATT_INVALID_CONN_ID;
-
     log::info("Discovery complete for invalid conn ID. Will pick up next job");
+    if (com::android::bluetooth::flags::cancel_open_discovery_client()) {
+      bta_dm_close_gatt_conn();
+    } else {
+      bta_dm_search_cb.conn_id = GATT_INVALID_CONN_ID;
+    }
     bta_dm_search_set_state(BTA_DM_SEARCH_IDLE);
     bta_dm_free_sdp_db();
     bta_dm_execute_queued_request();

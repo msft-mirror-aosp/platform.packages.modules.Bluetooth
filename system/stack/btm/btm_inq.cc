@@ -260,7 +260,7 @@ static bool is_inquery_by_rssi() { return osi_property_get_bool(PROPERTY_INQ_BY_
  * Returns          tBTM_STATUS::BTM_SUCCESS if successful
  *                  tBTM_STATUS::BTM_BUSY if a setting of the filter is already in progress
  *                  BTM_NO_RESOURCES if couldn't get a memory pool buffer
- *                  BTM_ILLEGAL_VALUE if a bad parameter was detected
+ *                  tBTM_STATUS::BTM_ILLEGAL_VALUE if a bad parameter was detected
  *                  BTM_WRONG_MODE if the device is not up.
  *
  ******************************************************************************/
@@ -284,7 +284,7 @@ tBTM_STATUS BTM_SetDiscoverability(uint16_t inq_mode) {
 
   /*** Check mode parameter ***/
   if (inq_mode > BTM_MAX_DISCOVERABLE) {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   /* If the window and/or interval is '0', set to default values */
@@ -403,7 +403,7 @@ void BTM_EnableInterlacedPageScan() {
  *
  * Returns          tBTM_STATUS::BTM_SUCCESS if successful
  *                  BTM_NO_RESOURCES if couldn't get a memory pool buffer
- *                  BTM_ILLEGAL_VALUE if a bad parameter was detected
+ *                  tBTM_STATUS::BTM_ILLEGAL_VALUE if a bad parameter was detected
  *                  BTM_WRONG_MODE if the device is not up.
  *
  ******************************************************************************/
@@ -420,7 +420,7 @@ tBTM_STATUS BTM_SetInquiryMode(uint8_t mode) {
       return BTM_MODE_UNSUPPORTED;
     }
   } else {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   if (!get_btm_client_interface().local.BTM_IsDeviceUp()) {
@@ -441,7 +441,7 @@ tBTM_STATUS BTM_SetInquiryMode(uint8_t mode) {
  *                  enabled.
  *
  * Returns          tBTM_STATUS::BTM_SUCCESS if successful
- *                  BTM_ILLEGAL_VALUE if a bad parameter is detected
+ *                  tBTM_STATUS::BTM_ILLEGAL_VALUE if a bad parameter is detected
  *                  BTM_NO_RESOURCES if could not allocate a message buffer
  *                  BTM_WRONG_MODE if the device is not up.
  *
@@ -460,7 +460,7 @@ tBTM_STATUS BTM_SetConnectability(uint16_t page_mode) {
 
   /*** Check mode parameter ***/
   if (page_mode != BTM_NON_CONNECTABLE && page_mode != BTM_CONNECTABLE) {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   /*** Only check window and duration if mode is connectable ***/
@@ -620,7 +620,7 @@ static tBTM_STATUS BTM_StartLeScan() {
 #else
   if (shim::GetController()->SupportsBle()) {
     btm_ble_start_inquiry(btm_cb.btm_inq_vars.inqparms.duration);
-    return BTM_CMD_STARTED;
+    return tBTM_STATUS::BTM_CMD_STARTED;
   }
   log::warn("Trying to do LE scan on a non-LE adapter");
   btm_cb.btm_inq_vars.inqparms.mode &= ~BTM_BLE_GENERAL_INQUIRY;
@@ -657,9 +657,9 @@ static tBTM_STATUS BTM_StartLeScan() {
  *                                NULL, the application is not notified when
  *                                completed.
  * Returns          tBTM_STATUS
- *                  BTM_CMD_STARTED if successfully initiated
+ *                  tBTM_STATUS::BTM_CMD_STARTED if successfully initiated
  *                  tBTM_STATUS::BTM_BUSY if already in progress
- *                  BTM_ILLEGAL_VALUE if parameter(s) are out of range
+ *                  tBTM_STATUS::BTM_ILLEGAL_VALUE if parameter(s) are out of range
  *                  BTM_NO_RESOURCES if could not allocate resources to start
  *                                   the command
  *                  BTM_WRONG_MODE if the device is not up.
@@ -771,7 +771,7 @@ tBTM_STATUS BTM_StartInquiry(tBTM_INQ_RESULTS_CB* p_results_cb, tBTM_CMPL_CB* p_
   }
 #endif
 
-  return BTM_CMD_STARTED;
+  return tBTM_STATUS::BTM_CMD_STARTED;
 }
 
 /*******************************************************************************
@@ -951,7 +951,7 @@ void btm_inq_db_reset(void) {
     btm_cb.rnr.remname_dev_type = BT_DEVICE_TYPE_UNKNOWN;
 
     if (btm_cb.rnr.p_remname_cmpl_cb) {
-      rem_name.status = BTM_DEV_RESET;
+      rem_name.btm_status = tBTM_STATUS::BTM_DEV_RESET;
       rem_name.hci_status = HCI_SUCCESS;
 
       (*btm_cb.rnr.p_remname_cmpl_cb)(&rem_name);
