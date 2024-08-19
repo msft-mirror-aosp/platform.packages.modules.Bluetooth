@@ -16,6 +16,10 @@
 
 package android.bluetooth;
 
+import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.Manifest.permission.BLUETOOTH_SCAN;
+
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -93,11 +97,6 @@ public final class BluetoothHearingAid implements BluetoothProfile {
          *
          * @hide
          */
-        @RequiresPermission(
-                allOf = {
-                    android.Manifest.permission.BLUETOOTH_SCAN,
-                    android.Manifest.permission.BLUETOOTH_PRIVILEGED,
-                })
         @SystemApi
         @DeviceMode
         public int getDeviceMode() {
@@ -115,11 +114,6 @@ public final class BluetoothHearingAid implements BluetoothProfile {
          *
          * @hide
          */
-        @RequiresPermission(
-                allOf = {
-                    android.Manifest.permission.BLUETOOTH_SCAN,
-                    android.Manifest.permission.BLUETOOTH_PRIVILEGED,
-                })
         @SystemApi
         @DeviceSide
         public int getDeviceSide() {
@@ -134,11 +128,6 @@ public final class BluetoothHearingAid implements BluetoothProfile {
          * @return {@code true} when CSIP is supported, {@code false} otherwise
          * @hide
          */
-        @RequiresPermission(
-                allOf = {
-                    android.Manifest.permission.BLUETOOTH_SCAN,
-                    android.Manifest.permission.BLUETOOTH_PRIVILEGED,
-                })
         @SystemApi
         public boolean isCsipSupported() {
             if (VDBG) Log.v(TAG, "isCsipSupported()");
@@ -150,11 +139,6 @@ public final class BluetoothHearingAid implements BluetoothProfile {
          *
          * @hide
          */
-        @RequiresPermission(
-                allOf = {
-                    android.Manifest.permission.BLUETOOTH_SCAN,
-                    android.Manifest.permission.BLUETOOTH_PRIVILEGED,
-                })
         @SystemApi
         public int getTruncatedHiSyncId() {
             if (VDBG) Log.v(TAG, "getTruncatedHiSyncId: " + mTruncatedHiSyncId);
@@ -170,11 +154,6 @@ public final class BluetoothHearingAid implements BluetoothProfile {
          * @return {@code true} if the devices are a likely pair, {@code false} otherwise
          * @hide
          */
-        @RequiresPermission(
-                allOf = {
-                    android.Manifest.permission.BLUETOOTH_SCAN,
-                    android.Manifest.permission.BLUETOOTH_PRIVILEGED,
-                })
         @SystemApi
         public boolean isInPairWith(@Nullable AdvertisementServiceData data) {
             if (VDBG) Log.v(TAG, "isInPairWith()");
@@ -233,7 +212,7 @@ public final class BluetoothHearingAid implements BluetoothProfile {
      */
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(BLUETOOTH_CONNECT)
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     public static final String ACTION_CONNECTION_STATE_CHANGED =
             "android.bluetooth.hearingaid.profile.action.CONNECTION_STATE_CHANGED";
@@ -253,7 +232,7 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     @SystemApi
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(BLUETOOTH_CONNECT)
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     @SuppressLint("ActionValue")
     public static final String ACTION_ACTIVE_DEVICE_CHANGED =
@@ -374,8 +353,8 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     public boolean connect(BluetoothDevice device) {
         if (DBG) Log.d(TAG, "connect(" + device + ")");
@@ -414,8 +393,8 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     public boolean disconnect(BluetoothDevice device) {
         if (DBG) Log.d(TAG, "disconnect(" + device + ")");
@@ -436,7 +415,7 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     /** {@inheritDoc} */
     @Override
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(BLUETOOTH_CONNECT)
     public @NonNull List<BluetoothDevice> getConnectedDevices() {
         if (VDBG) Log.v(TAG, "getConnectedDevices()");
         final IBluetoothHearingAid service = getService();
@@ -457,7 +436,7 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     /** {@inheritDoc} */
     @Override
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(BLUETOOTH_CONNECT)
     @NonNull
     public List<BluetoothDevice> getDevicesMatchingConnectionStates(@NonNull int[] states) {
         if (VDBG) Log.v(TAG, "getDevicesMatchingStates()");
@@ -480,7 +459,7 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     /** {@inheritDoc} */
     @Override
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(BLUETOOTH_CONNECT)
     @BluetoothProfile.BtProfileState
     public int getConnectionState(@NonNull BluetoothDevice device) {
         if (VDBG) Log.v(TAG, "getState(" + device + ")");
@@ -516,7 +495,7 @@ public final class BluetoothHearingAid implements BluetoothProfile {
      */
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(BLUETOOTH_CONNECT)
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public boolean setActiveDevice(@Nullable BluetoothDevice device) {
         if (DBG) Log.d(TAG, "setActiveDevice(" + device + ")");
@@ -545,7 +524,7 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(BLUETOOTH_CONNECT)
     public @NonNull List<BluetoothDevice> getActiveDevices() {
         if (VDBG) Log.v(TAG, "getActiveDevices()");
         final IBluetoothHearingAid service = getService();
@@ -579,8 +558,8 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     public boolean setConnectionPolicy(
             @NonNull BluetoothDevice device, @ConnectionPolicy int connectionPolicy) {
@@ -617,8 +596,8 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     public @ConnectionPolicy int getConnectionPolicy(@NonNull BluetoothDevice device) {
         if (VDBG) Log.v(TAG, "getConnectionPolicy(" + device + ")");
@@ -669,8 +648,8 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     public void setVolume(int volume) {
         if (DBG) Log.d(TAG, "setVolume(" + volume + ")");
@@ -701,8 +680,8 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     public long getHiSyncId(@NonNull BluetoothDevice device) {
         if (VDBG) Log.v(TAG, "getHiSyncId(" + device + ")");
@@ -732,7 +711,7 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     @SystemApi
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(BLUETOOTH_CONNECT)
     @DeviceSide
     public int getDeviceSide(@NonNull BluetoothDevice device) {
         if (VDBG) Log.v(TAG, "getDeviceSide(" + device + ")");
@@ -762,7 +741,7 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     @SystemApi
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(BLUETOOTH_CONNECT)
     @DeviceMode
     public int getDeviceMode(@NonNull BluetoothDevice device) {
         if (VDBG) Log.v(TAG, "getDeviceMode(" + device + ")");
@@ -791,8 +770,8 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     @SystemApi
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_SCAN,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_SCAN,
+                BLUETOOTH_PRIVILEGED,
             })
     public @Nullable AdvertisementServiceData getAdvertisementServiceData(
             @NonNull BluetoothDevice device) {

@@ -55,6 +55,17 @@ group("gd_default_deps") {
   ]
 }
 
+static_library("libbluetooth-gdx") {
+  include_dirs = [
+    "packages/modules/Bluetooth/system",
+  ]
+  configs += [ ":gd_defaults" ]
+  deps = [
+    "//bt/system/gd:gd_default_deps",
+    "//bt/system/gd/shim:BluetoothShimSources",
+  ]
+}
+
 static_library("libbluetooth_gd") {
   sources = [
     "module.cc",

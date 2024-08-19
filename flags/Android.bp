@@ -10,6 +10,7 @@ aconfig_declarations {
     // LINT.IfChange
     srcs: [
         "a2dp.aconfig",
+        "active_device_manager.aconfig",
         "asha.aconfig",
         "audio_routing.aconfig",
         "avrcp.aconfig",
@@ -20,12 +21,12 @@ aconfig_declarations {
         "connectivity.aconfig",
         "device_iot_config.aconfig",
         "did.aconfig",
-        "discovery_service.aconfig",
         "dumpsys.aconfig",
         "framework.aconfig",
         "gap.aconfig",
         "hal.aconfig",
         "hap.aconfig",
+        "hci.aconfig",
         "hfp.aconfig",
         "hid.aconfig",
         "l2cap.aconfig",
@@ -40,9 +41,9 @@ aconfig_declarations {
         "ranging.aconfig",
         "rfcomm.aconfig",
         "rnr.aconfig",
+        "sco.aconfig",
         "sdp.aconfig",
         "security.aconfig",
-        "sniff.aconfig",
         "sockets.aconfig",
         "system_service.aconfig",
         "vcp.aconfig",
@@ -91,6 +92,17 @@ cc_aconfig_library {
     ],
     apex_available: [
         "com.android.btservices",
+    ],
+    min_sdk_version: "Tiramisu",
+}
+
+cc_aconfig_library {
+    name: "bluetooth_flags_c_lib_for_test",
+    aconfig_declarations: "bluetooth_aconfig_flags",
+    mode: "test",
+    host_supported: true,
+    visibility: [
+        "//packages/modules/Bluetooth/system:__subpackages__",
     ],
     min_sdk_version: "Tiramisu",
 }

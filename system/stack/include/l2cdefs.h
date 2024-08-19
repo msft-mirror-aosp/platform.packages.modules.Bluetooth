@@ -28,7 +28,7 @@
 #include "macros.h"
 
 /* L2CAP command codes
-*/
+ */
 #define L2CAP_CMD_REJECT 0x01
 #define L2CAP_CMD_CONN_REQ 0x02
 #define L2CAP_CMD_CONN_RSP 0x03
@@ -54,7 +54,7 @@
 #define L2CAP_CMD_CREDIT_BASED_RECONFIG_RES 0x1A
 
 /* Define some packet and header lengths
-*/
+ */
 /* Length and CID                       */
 #define L2CAP_PKT_OVERHEAD 4
 /* Cmd code, Id and length              */
@@ -103,7 +103,7 @@
 #define L2CAP_CMD_CREDIT_BASED_RECONFIG_RES_LEN 2
 
 /* Define the packet boundary flags
-*/
+ */
 #define L2CAP_PKT_START_NON_FLUSHABLE 0
 #define L2CAP_PKT_START 2
 #define L2CAP_PKT_CONTINUE 1
@@ -114,54 +114,68 @@
 
 /* Define the LE L2CAP Connection Response Result codes
  */
-typedef enum : uint8_t {
-  L2CAP_LE_RESULT_CONN_OK = 0,
-  L2CAP_LE_RESULT_NO_PSM = 2,
-  L2CAP_LE_RESULT_NO_RESOURCES = 4,
-  L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION = 5,
-  L2CAP_LE_RESULT_INSUFFICIENT_AUTHORIZATION = 6,
-  L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP_KEY_SIZE = 7,
-  L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP = 8,
-  /* We don't like peer device response */
-  L2CAP_LE_RESULT_INVALID_SOURCE_CID = 9,
-  L2CAP_LE_RESULT_SOURCE_CID_ALREADY_ALLOCATED = 0x0A,
-  L2CAP_LE_RESULT_UNACCEPTABLE_PARAMETERS = 0x0B,
-  L2CAP_LE_RESULT_INVALID_PARAMETERS = 0x0C
-} tL2CAP_LE_RESULT_CODE;
+enum tL2CAP_LE_RESULT_CODE : uint16_t {
+  L2CAP_LE_RESULT_CONN_OK = 0x0000,
+  L2CAP_LE_RESULT_NO_PSM = 0x0002,
+  L2CAP_LE_RESULT_NO_RESOURCES = 0x0004,
+  L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION = 0x0005,
+  L2CAP_LE_RESULT_INSUFFICIENT_AUTHORIZATION = 0x0006,
+  L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP_KEY_SIZE = 0x0007,
+  L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP = 0x0008,
+  L2CAP_LE_RESULT_INVALID_SOURCE_CID = 0x0009,
+  L2CAP_LE_RESULT_SOURCE_CID_ALREADY_ALLOCATED = 0x000A,
+  L2CAP_LE_RESULT_UNACCEPTABLE_PARAMETERS = 0x000B,
+  L2CAP_LE_RESULT_INVALID_PARAMETERS = 0x000C,
+  L2CAP_LE_RESULT_CONN_PENDING = 0x000D,
+  L2CAP_LE_RESULT_CONN_PENDING_AUTHENTICATION = 0x000E,
+  L2CAP_LE_RESULT_CONN_PENDING_AUTHORIZATION = 0x000F,
+};
+
+inline std::string l2cap_le_result_code_text(const tL2CAP_LE_RESULT_CODE& code) {
+  switch (code) {
+    CASE_RETURN_STRING_HEX04(L2CAP_LE_RESULT_CONN_OK);
+    CASE_RETURN_STRING_HEX04(L2CAP_LE_RESULT_NO_PSM);
+    CASE_RETURN_STRING_HEX04(L2CAP_LE_RESULT_NO_RESOURCES);
+    CASE_RETURN_STRING_HEX04(L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION);
+    CASE_RETURN_STRING_HEX04(L2CAP_LE_RESULT_INSUFFICIENT_AUTHORIZATION);
+    CASE_RETURN_STRING_HEX04(L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP_KEY_SIZE);
+    CASE_RETURN_STRING_HEX04(L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP);
+    CASE_RETURN_STRING_HEX04(L2CAP_LE_RESULT_INVALID_SOURCE_CID);
+    CASE_RETURN_STRING_HEX04(L2CAP_LE_RESULT_SOURCE_CID_ALREADY_ALLOCATED);
+    CASE_RETURN_STRING_HEX04(L2CAP_LE_RESULT_UNACCEPTABLE_PARAMETERS);
+    CASE_RETURN_STRING_HEX04(L2CAP_LE_RESULT_INVALID_PARAMETERS);
+    CASE_RETURN_STRING_HEX04(L2CAP_LE_RESULT_CONN_PENDING);
+    CASE_RETURN_STRING_HEX04(L2CAP_LE_RESULT_CONN_PENDING_AUTHENTICATION);
+    CASE_RETURN_STRING_HEX04(L2CAP_LE_RESULT_CONN_PENDING_AUTHORIZATION);
+    break;
+  }
+  RETURN_UNKNOWN_TYPE_STRING(tL2CAP_LE_RESULT_CODE, code);
+}
 
 /* Define the L2CAP connection result codes */
-typedef enum : uint16_t {
-  L2CAP_CONN_OK = 0,
-  L2CAP_CONN_PENDING = 1,
-  L2CAP_CONN_NO_PSM = 2,
-  L2CAP_CONN_SECURITY_BLOCK = 3,
-  L2CAP_CONN_NO_RESOURCES = 4,
+enum tL2CAP_CONN : uint16_t {
+  L2CAP_CONN_OK = 0x0000,
+  L2CAP_CONN_PENDING = 0x0001,
+  L2CAP_CONN_NO_PSM = 0x0002,
+  L2CAP_CONN_SECURITY_BLOCK = 0x0003,
+  L2CAP_CONN_NO_RESOURCES = 0x0004,
   L2CAP_CONN_TIMEOUT = 0xEEEE,
   /* Generic L2CAP conn failure reasons */
-  L2CAP_CONN_OTHER_ERROR = L2CAP_CONN_INTERNAL_MASK,
-  L2CAP_CONN_ACL_CONNECTION_FAILED = L2CAP_CONN_INTERNAL_MASK + 1,
-  L2CAP_CONN_CLIENT_SECURITY_CLEARANCE_FAILED = L2CAP_CONN_INTERNAL_MASK + 2,
-  L2CAP_CONN_NO_LINK = L2CAP_CONN_INTERNAL_MASK + 3,
-  L2CAP_CONN_CANCEL =
-      L2CAP_CONN_INTERNAL_MASK + 4, /* L2CAP connection cancelled */
+  L2CAP_CONN_OTHER_ERROR = 0xF000,
+  L2CAP_CONN_ACL_CONNECTION_FAILED = 0xF001,
+  L2CAP_CONN_CLIENT_SECURITY_CLEARANCE_FAILED = 0xF002,
+  L2CAP_CONN_NO_LINK = 0xF003,
+  L2CAP_CONN_CANCEL = 0xF004, /* L2CAP connection cancelled */
   /* For LE result codes converted to L2CAP conn failure code */
-  L2CAP_CONN_INSUFFICIENT_AUTHENTICATION =
-      L2CAP_CONN_LE_MASK + L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION,
-  L2CAP_CONN_INSUFFICIENT_AUTHORIZATION =
-      L2CAP_CONN_LE_MASK + L2CAP_LE_RESULT_INSUFFICIENT_AUTHORIZATION,
-  L2CAP_CONN_INSUFFICIENT_ENCRYP_KEY_SIZE =
-      L2CAP_CONN_LE_MASK + L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP_KEY_SIZE,
-  L2CAP_CONN_INSUFFICIENT_ENCRYP =
-      L2CAP_CONN_LE_MASK + L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP,
-  L2CAP_CONN_INVALID_SOURCE_CID =
-      L2CAP_CONN_LE_MASK + L2CAP_LE_RESULT_INVALID_SOURCE_CID,
-  L2CAP_CONN_SOURCE_CID_ALREADY_ALLOCATED =
-      L2CAP_CONN_LE_MASK + L2CAP_LE_RESULT_SOURCE_CID_ALREADY_ALLOCATED,
-  L2CAP_CONN_UNACCEPTABLE_PARAMETERS =
-      L2CAP_CONN_LE_MASK + L2CAP_LE_RESULT_UNACCEPTABLE_PARAMETERS,
-  L2CAP_CONN_INVALID_PARAMETERS =
-      L2CAP_CONN_LE_MASK + L2CAP_LE_RESULT_INVALID_PARAMETERS,
-} tL2CAP_CONN;
+  L2CAP_CONN_INSUFFICIENT_AUTHENTICATION = 0xFF05,
+  L2CAP_CONN_INSUFFICIENT_AUTHORIZATION = 0xFF06,
+  L2CAP_CONN_INSUFFICIENT_ENCRYP_KEY_SIZE = 0xFF07,
+  L2CAP_CONN_INSUFFICIENT_ENCRYP = 0xFF08,
+  L2CAP_CONN_INVALID_SOURCE_CID = 0xFF09,
+  L2CAP_CONN_SOURCE_CID_ALREADY_ALLOCATED = 0xFF0A,
+  L2CAP_CONN_UNACCEPTABLE_PARAMETERS = 0xFF0B,
+  L2CAP_CONN_INVALID_PARAMETERS = 0xFF0C,
+};
 
 inline std::string l2cap_result_code_text(const tL2CAP_CONN& result) {
   switch (result) {
@@ -185,8 +199,7 @@ inline std::string l2cap_result_code_text(const tL2CAP_CONN& result) {
     CASE_RETURN_TEXT(L2CAP_CONN_UNACCEPTABLE_PARAMETERS);
     CASE_RETURN_TEXT(L2CAP_CONN_INVALID_PARAMETERS);
     default:
-      return std::string("UNKNOWN[") + std::to_string(result) +
-             std::string("]");
+      return std::string("UNKNOWN[") + std::to_string(result) + std::string("]");
   }
 }
 
@@ -215,41 +228,12 @@ static inline std::string l2cap_command_code_text(uint8_t cmd) {
     CASE_RETURN_TEXT(L2CAP_CMD_CREDIT_BASED_RECONFIG_REQ);
     CASE_RETURN_TEXT(L2CAP_CMD_CREDIT_BASED_RECONFIG_RES);
     default:
-      return std::string("UNKNOWN L2CAP CMD[") + std::to_string(cmd) +
-             std::string("]");
+      return std::string("UNKNOWN L2CAP CMD[") + std::to_string(cmd) + std::string("]");
   }
 }
 
 inline tL2CAP_CONN to_l2cap_result_code(uint16_t result) {
   return static_cast<tL2CAP_CONN>(result);
-}
-
-inline std::string l2cap_le_result_code_text(
-    const tL2CAP_LE_RESULT_CODE& code) {
-  switch (code) {
-    case L2CAP_LE_RESULT_CONN_OK:
-      return std::string("le connection success");
-    case L2CAP_LE_RESULT_NO_PSM:
-      return std::string("le no psm service");
-    case L2CAP_LE_RESULT_NO_RESOURCES:
-      return std::string("le no resources");
-    case L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION:
-      return std::string("le authentication failed");
-    case L2CAP_LE_RESULT_INSUFFICIENT_AUTHORIZATION:
-      return std::string("le authorization failed");
-    case L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP_KEY_SIZE:
-      return std::string("le encryption key size failed");
-    case L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP:
-      return std::string("le encryption failed");
-    case L2CAP_LE_RESULT_INVALID_SOURCE_CID:
-      return std::string("le invalid source channel identifier");
-    case L2CAP_LE_RESULT_SOURCE_CID_ALREADY_ALLOCATED:
-      return std::string("le source channel identifier busy");
-    case L2CAP_LE_RESULT_UNACCEPTABLE_PARAMETERS:
-      return std::string("le unacceptable parameters");
-    case L2CAP_LE_RESULT_INVALID_PARAMETERS:
-      return std::string("invalid parameters");
-  }
 }
 
 /* Credit based reconfig results code */
@@ -260,13 +244,13 @@ inline std::string l2cap_le_result_code_text(
 #define L2CAP_RECONFIG_UNACCAPTED_PARAM 4
 
 /* Define the L2CAP command reject reason codes
-*/
+ */
 #define L2CAP_CMD_REJ_NOT_UNDERSTOOD 0
 #define L2CAP_CMD_REJ_MTU_EXCEEDED 1
 #define L2CAP_CMD_REJ_INVALID_CID 2
 
 /* L2CAP Predefined CIDs
-*/
+ */
 enum tL2CAP_CID_FIXED : uint16_t {
   L2CAP_SIGNALLING_CID = 1,
   L2CAP_CONNECTIONLESS_CID = 2,
@@ -313,17 +297,17 @@ inline std::string l2cap_cid_fixed_text(const tL2CAP_CID_FIXED& cid) {
 #define L2CAP_FIXED_CHNL_SMP_BR_BIT (1 << L2CAP_SMP_BR_CID)
 
 /* Define the L2CAP configuration result codes
-*/
-typedef enum : uint16_t {
+ */
+enum tL2CAP_CFG_RESULT : uint16_t {
   L2CAP_CFG_OK = 0,
   L2CAP_CFG_UNACCEPTABLE_PARAMS = 1,
   L2CAP_CFG_FAILED_NO_REASON = 2,
   L2CAP_CFG_UNKNOWN_OPTIONS = 3,
   L2CAP_CFG_PENDING = 4,
-} tL2CAP_CFG_RESULT;
+};
 
 /* Define the L2CAP configuration option types
-*/
+ */
 #define L2CAP_CFG_TYPE_MTU 0x01
 #define L2CAP_CFG_TYPE_FLUSH_TOUT 0x02
 #define L2CAP_CFG_TYPE_QOS 0x03
@@ -340,17 +324,16 @@ typedef enum : uint16_t {
 #define L2CAP_CFG_OPTION_OVERHEAD 2      /* Type and length      */
 
 /* Configuration Cmd/Rsp Flags mask
-*/
+ */
 #define L2CAP_CFG_FLAGS_MASK_CONT 0x0001 /* Flags mask: Continuation */
 
 /* FCS Check Option values
-*/
+ */
 #define L2CAP_CFG_FCS_BYPASS 0 /* Bypass the FCS in streaming or ERTM modes */
-#define L2CAP_CFG_FCS_USE \
-  1 /* Use the FCS in streaming or ERTM modes [default] */
+#define L2CAP_CFG_FCS_USE 1    /* Use the FCS in streaming or ERTM modes [default] */
 
 /* Default values for configuration
-*/
+ */
 #define L2CAP_NO_AUTOMATIC_FLUSH 0xFFFF
 
 #define L2CAP_DEFAULT_MTU (672)
@@ -362,17 +345,17 @@ typedef enum : uint16_t {
 #define L2CAP_DEFAULT_DELAY 0xFFFFFFFF
 
 /* Define the L2CAP disconnect result codes
-*/
+ */
 #define L2CAP_DISC_OK 0
 #define L2CAP_DISC_TIMEOUT 0xEEEE
 
 /* Define the L2CAP info resp result codes
-*/
+ */
 #define L2CAP_INFO_RESP_RESULT_SUCCESS 0
 #define L2CAP_INFO_RESP_RESULT_NOT_SUPPORTED 1
 
 /* Define the info-type fields of information request & response
-*/
+ */
 #define L2CAP_CONNLESS_MTU_INFO_TYPE 0x0001
 /* Used in Information Req/Response */
 #define L2CAP_EXTENDED_FEATURES_INFO_TYPE 0x0002
@@ -387,7 +370,7 @@ typedef enum : uint16_t {
 #define L2CAP_FIXED_CHNL_ARRAY_SIZE 8
 
 /* Extended features mask bits
-*/
+ */
 /* Enhanced retransmission mode           */
 #define L2CAP_EXTFEA_ENH_RETRANS 0x00000008
 /* Streaming Mode                         */
@@ -426,9 +409,8 @@ typedef enum : uint16_t {
 #define L2CAP_SDU_LEN_OFFSET 2       /* SDU length offset is 2 bytes */
 #define L2CAP_EXT_CONTROL_OVERHEAD 4 /* Extended Control Field       */
 /* length(2), channel(2), control(4), SDU length(2) FCS(2) */
-#define L2CAP_MAX_HEADER_FCS                                                  \
-  (L2CAP_PKT_OVERHEAD + L2CAP_EXT_CONTROL_OVERHEAD + L2CAP_SDU_LEN_OVERHEAD + \
-   L2CAP_FCS_LEN)
+#define L2CAP_MAX_HEADER_FCS \
+  (L2CAP_PKT_OVERHEAD + L2CAP_EXT_CONTROL_OVERHEAD + L2CAP_SDU_LEN_OVERHEAD + L2CAP_FCS_LEN)
 
 /* TODO: This value can probably be optimized per transport, and per L2CAP
  * socket type, but this should not bring any big performance improvements. For
@@ -440,7 +422,7 @@ typedef enum : uint16_t {
 constexpr uint16_t L2CAP_SDU_LENGTH_LE_MAX = 0xffff;
 
 /* SAR bits in the control word
-*/
+ */
 /* Control word to begin with for unsegmented PDU*/
 #define L2CAP_FCR_UNSEG_SDU 0x0000
 /* ...for Starting PDU of a semented SDU */
@@ -501,6 +483,8 @@ template <>
 struct formatter<tL2CAP_CONN> : enum_formatter<tL2CAP_CONN> {};
 template <>
 struct formatter<tL2CAP_CID_FIXED> : enum_formatter<tL2CAP_CID_FIXED> {};
+template <>
+struct formatter<tL2CAP_LE_RESULT_CODE> : enum_formatter<tL2CAP_LE_RESULT_CODE> {};
 }  // namespace fmt
 
 #endif

@@ -53,6 +53,7 @@ source_set("nonstandard_codecs") {
 
 source_set("stack") {
   sources = [
+    "ais/ais_ble.cc",
     "a2dp/a2dp_api.cc",
     "a2dp/a2dp_codec_config.cc",
     "a2dp/a2dp_ext.cc",
@@ -163,6 +164,7 @@ source_set("stack") {
     "rfcomm/rfc_port_if.cc",
     "rfcomm/rfc_ts_frames.cc",
     "rfcomm/rfc_utils.cc",
+    "rnr/remote_name_request.cc",
     "sdp/sdp_api.cc",
     "sdp/sdp_db.cc",
     "sdp/sdp_discovery.cc",
@@ -186,6 +188,7 @@ source_set("stack") {
   include_dirs = [
     ".",
     "include",
+    "ais",
     "avct",
     "btm",
     "avrc",
