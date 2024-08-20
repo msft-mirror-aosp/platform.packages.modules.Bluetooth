@@ -2047,7 +2047,9 @@ public class LeAudioServiceTest {
                     public void onGroupStreamStatusChanged(int groupId, int groupStreamStatus) {}
                 };
 
-        mService.mLeAudioCallbacks.register(leAudioCallbacks);
+        synchronized (mService.mLeAudioCallbacks) {
+            mService.mLeAudioCallbacks.register(leAudioCallbacks);
+        }
 
         injectGroupStatusChange(groupId, groupStatus);
 
@@ -2055,7 +2057,9 @@ public class LeAudioServiceTest {
         assertThat(onGroupStatusCallbackCalled).isTrue();
 
         onGroupStatusCallbackCalled = false;
-        mService.mLeAudioCallbacks.unregister(leAudioCallbacks);
+        synchronized (mService.mLeAudioCallbacks) {
+            mService.mLeAudioCallbacks.unregister(leAudioCallbacks);
+        }
     }
 
     /** Test native interface group status message handling */
@@ -2101,7 +2105,9 @@ public class LeAudioServiceTest {
                     }
                 };
 
-        mService.mLeAudioCallbacks.register(leAudioCallbacks);
+        synchronized (mService.mLeAudioCallbacks) {
+            mService.mLeAudioCallbacks.register(leAudioCallbacks);
+        }
 
         injectGroupStreamStatusChange(groupId, groupStreamStatus);
 
@@ -2109,7 +2115,9 @@ public class LeAudioServiceTest {
         assertThat(onGroupStreamStatusCallbackCalled).isTrue();
 
         onGroupStreamStatusCallbackCalled = false;
-        mService.mLeAudioCallbacks.unregister(leAudioCallbacks);
+        synchronized (mService.mLeAudioCallbacks) {
+            mService.mLeAudioCallbacks.unregister(leAudioCallbacks);
+        }
     }
 
     /** Test native interface group stream status message handling */
@@ -2210,7 +2218,9 @@ public class LeAudioServiceTest {
                     public void onGroupStreamStatusChanged(int groupId, int groupStreamStatus) {}
                 };
 
-        mService.mLeAudioCallbacks.register(leAudioCallbacks);
+        synchronized (mService.mLeAudioCallbacks) {
+            mService.mLeAudioCallbacks.register(leAudioCallbacks);
+        }
 
         injectGroupSelectableCodecConfigChanged(
                 testGroupId, INPUT_SELECTABLE_CONFIG, OUTPUT_SELECTABLE_CONFIG);
@@ -2246,7 +2256,9 @@ public class LeAudioServiceTest {
                         any(), any(), any(BluetoothProfileConnectionInfo.class));
 
         onGroupCodecConfChangedCallbackCalled = false;
-        mService.mLeAudioCallbacks.unregister(leAudioCallbacks);
+        synchronized (mService.mLeAudioCallbacks) {
+            mService.mLeAudioCallbacks.unregister(leAudioCallbacks);
+        }
     }
 
     /** Test native interface group status message handling */
@@ -2290,7 +2302,7 @@ public class LeAudioServiceTest {
                     public void onGroupStreamStatusChanged(int groupId, int groupStreamStatus) {}
                 };
 
-        synchronized (this.mService.mLeAudioCallbacks) {
+        synchronized (mService.mLeAudioCallbacks) {
             mService.mLeAudioCallbacks.register(leAudioCallbacks);
         }
 
@@ -2335,7 +2347,7 @@ public class LeAudioServiceTest {
                 .handleBluetoothActiveDeviceChanged(
                         any(), any(), any(BluetoothProfileConnectionInfo.class));
 
-        synchronized (this.mService.mLeAudioCallbacks) {
+        synchronized (mService.mLeAudioCallbacks) {
             mService.mLeAudioCallbacks.unregister(leAudioCallbacks);
         }
 
@@ -2383,7 +2395,9 @@ public class LeAudioServiceTest {
                     public void onGroupStreamStatusChanged(int groupId, int groupStreamStatus) {}
                 };
 
-        mService.mLeAudioCallbacks.register(leAudioCallbacks);
+        synchronized (mService.mLeAudioCallbacks) {
+            mService.mLeAudioCallbacks.register(leAudioCallbacks);
+        }
 
         injectGroupSelectableCodecConfigChanged(
                 testGroupId, INPUT_EMPTY_CONFIG, OUTPUT_SELECTABLE_CONFIG);
@@ -2393,7 +2407,9 @@ public class LeAudioServiceTest {
         assertThat(onGroupCodecConfChangedCallbackCalled).isTrue();
 
         onGroupCodecConfChangedCallbackCalled = false;
-        mService.mLeAudioCallbacks.unregister(leAudioCallbacks);
+        synchronized (mService.mLeAudioCallbacks) {
+            mService.mLeAudioCallbacks.unregister(leAudioCallbacks);
+        }
 
         BluetoothLeAudioCodecStatus codecStatus = mService.getCodecStatus(testGroupId);
         assertThat(codecStatus.getInputCodecConfig()).isNull();

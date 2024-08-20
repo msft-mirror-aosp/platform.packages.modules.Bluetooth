@@ -28,6 +28,7 @@ import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
@@ -229,11 +230,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
     @SystemApi
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     public static final String ACTION_LE_AUDIO_ACTIVE_DEVICE_CHANGED =
             "android.bluetooth.action.LE_AUDIO_ACTIVE_DEVICE_CHANGED";
@@ -718,6 +715,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
     /** @hide */
     @Override
     @SuppressLint("AndroidFrameworkRequiresPermission") // Unexposed re-entrant callback
+    @RequiresNoPermission
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothLeAudio.Stub.asInterface(service);
         mCallbackWrapper.registerToNewService(mService);
@@ -725,6 +723,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -735,6 +734,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }
@@ -936,11 +936,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void registerCallback(
             @NonNull @CallbackExecutor Executor executor, @NonNull Callback callback) {
         // Enforcing permission in the framework is useless from security point of view.
@@ -969,11 +965,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void unregisterCallback(@NonNull Callback callback) {
         // Enforcing permission in the framework is useless from security point of view.
         // This is being done to help normal app developer to catch the missing permission, since
@@ -1160,9 +1152,9 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      *     AUDIO_LOCATION_INVALID.
      * @hide
      */
+    @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
-    @SystemApi
     public @AudioLocation int getAudioLocation(@NonNull BluetoothDevice device) {
         if (VDBG) log("getAudioLocation()");
         final IBluetoothLeAudio service = getService();
@@ -1187,8 +1179,9 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      * @return {@code true} if inband ringtone is enabled, {@code false} otherwise
      * @hide
      */
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @SystemApi
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean isInbandRingtoneEnabled(int groupId) {
         if (VDBG) {
             log("isInbandRingtoneEnabled(), groupId: " + groupId);
@@ -1224,11 +1217,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean setConnectionPolicy(
             @NonNull BluetoothDevice device, @ConnectionPolicy int connectionPolicy) {
         if (DBG) log("setConnectionPolicy(" + device + ", " + connectionPolicy + ")");
@@ -1319,10 +1308,9 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      * @hide
      */
     @SystemApi
-    @Nullable
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
-    public BluetoothLeAudioCodecStatus getCodecStatus(int groupId) {
+    public @Nullable BluetoothLeAudioCodecStatus getCodecStatus(int groupId) {
         if (DBG) {
             Log.d(TAG, "getCodecStatus(" + groupId + ")");
         }

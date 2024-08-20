@@ -427,6 +427,13 @@ static bool is_profile(const char* p1, const char* p2) {
  *
  ****************************************************************************/
 
+#ifdef TARGET_FLOSS
+static int global_hci_adapter = 0;
+
+static int set_adapter_index(int adapter) { global_hci_adapter = adapter; }
+int GetAdapterIndex() { return global_hci_adapter; }
+#endif
+
 static int init(bt_callbacks_t* callbacks, bool start_restricted, bool is_common_criteria_mode,
                 int config_compare_result, const char** init_flags, bool is_atv,
                 const char* user_data_directory) {
@@ -1224,6 +1231,9 @@ static void interop_database_add_remove_name(bool do_add, const char* feature_na
 
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
         sizeof(bluetoothInterface),
+#ifdef TARGET_FLOSS
+        .set_adapter_index = set_adapter_index,
+#endif
         .init = init,
         .enable = enable,
         .disable = disable,

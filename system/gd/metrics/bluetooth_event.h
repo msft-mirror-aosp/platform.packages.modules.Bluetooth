@@ -25,10 +25,15 @@
 namespace bluetooth {
 namespace metrics {
 
+void LogIncomingAclStartEvent(const hci::Address& address);
+
 void LogAclCompletionEvent(const hci::Address& address, hci::ErrorCode reason,
                            bool is_locally_initiated);
 
 void LogRemoteNameRequestCompletion(const RawAddress& raw_address, tHCI_STATUS hci_status);
+
+void LogAclDisconnectionEvent(const hci::Address& address, hci::ErrorCode reason,
+                              bool is_locally_initiated);
 
 void LogAclAfterRemoteNameRequest(const RawAddress& raw_address, tBTM_STATUS status);
 

@@ -469,7 +469,7 @@ void l2c_link_timeout(tL2C_LCB* p_lcb) {
       rc = btm_sec_disconnect(p_lcb->Handle(), HCI_ERR_PEER_USER,
                               "stack::l2cap::l2c_link::l2c_link_timeout All channels closed");
 
-      if (rc == BTM_CMD_STORED) {
+      if (rc == tBTM_STATUS::BTM_CMD_STORED) {
         /* Security Manager will take care of disconnecting, state will be
          * updated at that time */
         start_timeout = false;
@@ -1194,7 +1194,7 @@ tBTM_STATUS l2cu_ConnectAclForSecurity(const RawAddress& bd_addr) {
   /* Make sure an L2cap link control block is available */
   if (!p_lcb && (p_lcb = l2cu_allocate_lcb(bd_addr, true, BT_TRANSPORT_BR_EDR)) == NULL) {
     log::warn("failed allocate LCB for {}", bd_addr);
-    return BTM_NO_RESOURCES;
+    return tBTM_STATUS::BTM_NO_RESOURCES;
   }
 
   l2cu_create_conn_br_edr(p_lcb);

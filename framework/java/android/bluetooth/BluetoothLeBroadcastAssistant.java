@@ -25,6 +25,7 @@ import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SystemApi;
@@ -85,6 +86,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     private final IBluetoothLeBroadcastAssistantCallback mCallback =
             new IBluetoothLeBroadcastAssistantCallback.Stub() {
                 @Override
+                @RequiresNoPermission
                 public void onSearchStarted(int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -96,6 +98,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSearchStartFailed(int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -107,6 +110,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSearchStopped(int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -118,6 +122,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSearchStopFailed(int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -129,6 +134,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceFound(BluetoothLeBroadcastMetadata source) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -140,6 +146,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceAdded(BluetoothDevice sink, int sourceId, int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -151,6 +158,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceAddFailed(
                         BluetoothDevice sink, BluetoothLeBroadcastMetadata source, int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
@@ -163,6 +171,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceModified(BluetoothDevice sink, int sourceId, int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -174,6 +183,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceModifyFailed(BluetoothDevice sink, int sourceId, int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -186,6 +196,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceRemoved(BluetoothDevice sink, int sourceId, int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -197,6 +208,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceRemoveFailed(BluetoothDevice sink, int sourceId, int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -209,6 +221,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onReceiveStateChanged(
                         BluetoothDevice sink,
                         int sourceId,
@@ -224,6 +237,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceLost(int broadcastId) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -516,6 +530,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
 
     /** @hide */
     @Override
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothLeBroadcastAssistant.Stub.asInterface(service);
@@ -539,6 +554,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -549,6 +565,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mBluetoothAdapter;
     }
