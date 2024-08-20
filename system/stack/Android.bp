@@ -38,6 +38,7 @@ cc_library_static {
     name: "libbt-stack",
     defaults: ["fluoride_defaults"],
     local_include_dirs: [
+        "ais",
         "avct",
         "avdt",
         "avrc",
@@ -161,7 +162,6 @@ cc_library_static {
     ],
     host_supported: true,
     min_sdk_version: "Tiramisu",
-    cflags: ["-Wno-unused-parameter"],
 }
 
 filegroup {
@@ -180,6 +180,7 @@ cc_library_static {
     name: "libbt-stack-core",
     defaults: ["fluoride_defaults"],
     local_include_dirs: [
+        "ais",
         "avct",
         "avdt",
         "avrc",
@@ -213,6 +214,7 @@ cc_library_static {
         "acl/ble_acl.cc",
         "acl/btm_acl.cc",
         "acl/btm_pm.cc",
+        "ais/ais_ble.cc",
         "arbiter/acl_arbiter.cc",
         "btm/ble_scanner_hci_interface.cc",
         "btm/btm_ble.cc",
@@ -517,6 +519,7 @@ cc_fuzz {
         ":TestMockStackL2cap",
         ":TestMockStackMetrics",
         ":TestMockStackSdp",
+        "ais/*.cc",
         "eatt/*.cc",
         "fuzzers/gatt_fuzzer.cc",
         "gatt/*.cc",
@@ -1902,6 +1905,7 @@ cc_test {
         "test/stack_btu_test.cc",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
         "libbase",
         "libbluetooth-types",
         "libbluetooth_gd",
@@ -1916,6 +1920,7 @@ cc_test {
         "libgmock",
         "liblog",
         "libosi",
+        "server_configurable_flags",
     ],
     shared_libs: [
         "libbinder_ndk",
@@ -1973,6 +1978,7 @@ cc_test {
         ":TestMockStackL2cap",
         ":TestMockStackSdp",
         ":TestMockStackSmp",
+        "ais/ais_ble.cc",
         "arbiter/acl_arbiter.cc",
         "eatt/eatt.cc",
         "gatt/att_protocol.cc",

@@ -24,6 +24,7 @@
 #include <bluetooth/log.h>
 #include <statslog_bt.h>
 
+#include "a2dp_constants.h"
 #include "common/audit_log.h"
 #include "common/metric_id_manager.h"
 #include "common/strings.h"
@@ -48,6 +49,10 @@ struct formatter<android::bluetooth::DeviceInfoSrcEnum>
 template <>
 struct formatter<android::bluetooth::AddressTypeEnum>
     : enum_formatter<android::bluetooth::AddressTypeEnum> {};
+template <>
+struct formatter<android::bluetooth::EventType> : enum_formatter<android::bluetooth::EventType> {};
+template <>
+struct formatter<android::bluetooth::State> : enum_formatter<android::bluetooth::State> {};
 }  // namespace fmt
 
 namespace bluetooth {
@@ -159,37 +164,53 @@ void LogMetricA2dpPlaybackEvent(const Address& address, int playback_state, int 
   }
 }
 
-void LogMetricA2dpSessionMetricsEvent(
-        const hci::Address& /* address */, int64_t /* audio_duration_ms */,
-        int /* media_timer_min_ms */, int /* media_timer_max_ms */, int /* media_timer_avg_ms */,
-        int /* total_scheduling_count */, int /* buffer_overruns_max_count */,
-        int /* buffer_overruns_total */, float /* buffer_underruns_average */,
-        int /* buffer_underruns_count */, int64_t codec_index, bool /* is_a2dp_offload */) {
+void LogMetricA2dpSessionMetricsEvent(const hci::Address& /* address */, int64_t audio_duration_ms,
+                                      int media_timer_min_ms, int media_timer_max_ms,
+                                      int media_timer_avg_ms, int total_scheduling_count,
+                                      int buffer_overruns_max_count, int buffer_overruns_total,
+                                      float buffer_underruns_average, int buffer_underruns_count,
+                                      int64_t codec_index, bool is_a2dp_offload) {
   char const* metric_id = nullptr;
+  uint64_t codec_id = -1;
   switch (codec_index) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
       metric_id = "bluetooth.value_sbc_codec_usage_over_a2dp";
+      codec_id = A2DP_CODEC_ID_SBC;
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
       metric_id = "bluetooth.value_aac_codec_usage_over_a2dp";
+      codec_id = A2DP_CODEC_ID_AAC;
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX:
       metric_id = "bluetooth.value_aptx_codec_usage_over_a2dp";
+      codec_id = A2DP_CODEC_ID_APTX;
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD:
       metric_id = "bluetooth.value_aptx_hd_codec_usage_over_a2dp";
+      codec_id = A2DP_CODEC_ID_APTX_HD;
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
       metric_id = "bluetooth.value_ldac_codec_usage_over_a2dp";
+      codec_id = A2DP_CODEC_ID_LDAC;
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS:
       metric_id = "bluetooth.value_opus_codec_usage_over_a2dp";
+      codec_id = A2DP_CODEC_ID_OPUS;
       break;
     default:
       return;
   }
 
   android::expresslog::Counter::logIncrement(metric_id);
+
+  int ret = stats_write(A2DP_SESSION_REPORTED, audio_duration_ms, media_timer_min_ms,
+                        media_timer_max_ms, media_timer_avg_ms, total_scheduling_count,
+                        buffer_overruns_max_count, buffer_overruns_total, buffer_underruns_average,
+                        buffer_underruns_count, codec_id, is_a2dp_offload);
+
+  if (ret < 0) {
+    log::warn("failed to log a2dp_session_reported");
+  }
 }
 
 void LogMetricHfpPacketLossStats(const Address& /* address */, int /* num_decoded_frames */,
@@ -444,6 +465,20 @@ void LogMetricBluetoothLEConnection(os::LEConnectionSessionOptions session_optio
             session_options.remote_address,
             common::ToHexString(session_options.acl_connection_state),
             common::ToHexString(session_options.origin_type));
+  }
+}
+
+void LogMetricBluetoothEvent(const Address& address, android::bluetooth::EventType event_type,
+                             android::bluetooth::State state) {
+  if (address.IsEmpty()) {
+    log::warn("Failed BluetoothEvent Upload - Address is Empty");
+    return;
+  }
+  int metric_id = MetricIdManager::GetInstance().AllocateId(address);
+  int ret = stats_write(BLUETOOTH_CROSS_LAYER_EVENT_REPORTED, event_type, state, 0, metric_id, 0);
+  if (ret < 0) {
+    log::warn("Failed BluetoothEvent Upload - Address {}, Event_type {}, State {}", address,
+              event_type, state);
   }
 }
 

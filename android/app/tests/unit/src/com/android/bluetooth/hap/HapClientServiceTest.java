@@ -28,14 +28,15 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.hamcrest.core.AllOf.allOf;
 import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -50,13 +51,10 @@ import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.IBluetoothHapClientCallback;
-import android.content.AttributionSource;
 import android.os.Binder;
 import android.os.ParcelUuid;
-import android.os.RemoteException;
 
 import androidx.test.filters.MediumTest;
-import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -81,7 +79,6 @@ import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -89,17 +86,12 @@ import java.util.concurrent.TimeoutException;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
-public class HapClientTest {
-    private final String mFlagDexmarker = System.getProperty("dexmaker.share_classloader", "false");
-
+public class HapClientServiceTest {
     private static final int TIMEOUT_MS = 1000;
-    private BluetoothAdapter mAdapter;
-    private BluetoothDevice mDevice;
-    private BluetoothDevice mDevice2;
-    private BluetoothDevice mDevice3;
-    private HapClientService mService;
-    private HapClientService.BluetoothHapClientBinder mServiceBinder;
-    private AttributionSource mAttributionSource;
+    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final BluetoothDevice mDevice = TestUtils.getTestDevice(mAdapter, 0);
+    private final BluetoothDevice mDevice2 = TestUtils.getTestDevice(mAdapter, 1);
+    private final BluetoothDevice mDevice3 = TestUtils.getTestDevice(mAdapter, 2);
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
@@ -108,79 +100,44 @@ public class HapClientTest {
     @Mock private HapClientNativeInterface mNativeInterface;
     @Mock private ServiceFactory mServiceFactory;
     @Mock private CsipSetCoordinatorService mCsipService;
-    @Mock private IBluetoothHapClientCallback mCallback;
+    @Mock private IBluetoothHapClientCallback mFrameworkCallback;
     @Mock private Binder mBinder;
+
+    private HapClientService mService;
+    private HapClientNativeCallback mNativeCallback;
 
     @Before
     public void setUp() throws Exception {
-        if (!mFlagDexmarker.equals("true")) {
-            System.setProperty("dexmaker.share_classloader", "true");
-        }
-
         HapClientStateMachine.sConnectTimeoutMs = TIMEOUT_MS;
 
         doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
+        doReturn(mDevice).when(mAdapterService).getDeviceFromByte(eq(getByteAddress(mDevice)));
+        doReturn(mDevice2).when(mAdapterService).getDeviceFromByte(eq(getByteAddress(mDevice2)));
+        doReturn(mDevice3).when(mAdapterService).getDeviceFromByte(eq(getByteAddress(mDevice3)));
 
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mAttributionSource = mAdapter.getAttributionSource();
-
-        startService();
-        mService.mFactory = mServiceFactory;
         doReturn(mCsipService).when(mServiceFactory).getCsipSetCoordinatorService();
-        mServiceBinder = (HapClientService.BluetoothHapClientBinder) mService.initBinder();
 
-        when(mCallback.asBinder()).thenReturn(mBinder);
-        mService.mCallbacks.register(mCallback);
-
-        mDevice = TestUtils.getTestDevice(mAdapter, 0);
-        when(mNativeInterface.getDevice(getByteAddress(mDevice))).thenReturn(mDevice);
-        mDevice2 = TestUtils.getTestDevice(mAdapter, 1);
-        when(mNativeInterface.getDevice(getByteAddress(mDevice2))).thenReturn(mDevice2);
-        mDevice3 = TestUtils.getTestDevice(mAdapter, 2);
-        when(mNativeInterface.getDevice(getByteAddress(mDevice3))).thenReturn(mDevice3);
-
-        doCallRealMethod()
-                .when(mNativeInterface)
-                .sendMessageToService(any(HapClientStackEvent.class));
-        doCallRealMethod().when(mNativeInterface).onFeaturesUpdate(any(byte[].class), anyInt());
-        doCallRealMethod().when(mNativeInterface).onDeviceAvailable(any(byte[].class), anyInt());
-        doCallRealMethod()
-                .when(mNativeInterface)
-                .onActivePresetSelected(any(byte[].class), anyInt());
-        doCallRealMethod()
-                .when(mNativeInterface)
-                .onActivePresetSelectError(any(byte[].class), anyInt());
-        doCallRealMethod()
-                .when(mNativeInterface)
-                .onPresetNameSetError(any(byte[].class), anyInt(), anyInt());
-        doCallRealMethod()
-                .when(mNativeInterface)
-                .onPresetInfo(any(byte[].class), anyInt(), any(BluetoothHapPresetInfo[].class));
-        doCallRealMethod()
-                .when(mNativeInterface)
-                .onGroupPresetNameSetError(anyInt(), anyInt(), anyInt());
+        doReturn(mBinder).when(mFrameworkCallback).asBinder();
 
         /* Prepare CAS groups */
-        doReturn(Arrays.asList(0x02, 0x03)).when(mCsipService).getAllGroupIds(BluetoothUuid.CAP);
+        doReturn(List.of(0x02, 0x03)).when(mCsipService).getAllGroupIds(BluetoothUuid.CAP);
 
         int groupId2 = 0x02;
-        Map groups2 = new HashMap<Integer, ParcelUuid>();
-        groups2.put(groupId2, ParcelUuid.fromString("00001853-0000-1000-8000-00805F9B34FB"));
+        Map groups2 =
+                Map.of(groupId2, ParcelUuid.fromString("00001853-0000-1000-8000-00805F9B34FB"));
 
         int groupId3 = 0x03;
-        Map groups3 = new HashMap<Integer, ParcelUuid>();
-        groups3.put(groupId3, ParcelUuid.fromString("00001853-0000-1000-8000-00805F9B34FB"));
+        Map groups3 =
+                Map.of(groupId3, ParcelUuid.fromString("00001853-0000-1000-8000-00805F9B34FB"));
 
-        doReturn(Arrays.asList(mDevice, mDevice2))
-                .when(mCsipService)
-                .getGroupDevicesOrdered(groupId2);
+        doReturn(List.of(mDevice, mDevice2)).when(mCsipService).getGroupDevicesOrdered(groupId2);
         doReturn(groups2).when(mCsipService).getGroupUuidMapByDevice(mDevice);
         doReturn(groups2).when(mCsipService).getGroupUuidMapByDevice(mDevice2);
 
-        doReturn(Arrays.asList(mDevice3)).when(mCsipService).getGroupDevicesOrdered(0x03);
+        doReturn(List.of(mDevice3)).when(mCsipService).getGroupDevicesOrdered(groupId3);
         doReturn(groups3).when(mCsipService).getGroupUuidMapByDevice(mDevice3);
 
-        doReturn(Arrays.asList(mDevice)).when(mCsipService).getGroupDevicesOrdered(0x01);
+        doReturn(List.of(mDevice)).when(mCsipService).getGroupDevicesOrdered(0x01);
 
         doReturn(BluetoothDevice.BOND_BONDED)
                 .when(mAdapterService)
@@ -189,23 +146,22 @@ public class HapClientTest {
                 .when(mAdapterService)
                 .getRemoteUuids(any(BluetoothDevice.class));
         doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
+
+        startService();
+        mNativeCallback = new HapClientNativeCallback(mAdapterService, mService);
+        mService.mFactory = mServiceFactory;
+        mService.mCallbacks.register(mFrameworkCallback);
     }
 
     @After
     public void tearDown() throws Exception {
-        if (!mFlagDexmarker.equals("true")) {
-            System.setProperty("dexmaker.share_classloader", mFlagDexmarker);
-        }
-
         if (mService == null) {
             return;
         }
 
-        mService.mCallbacks.unregister(mCallback);
+        mService.mCallbacks.unregister(mFrameworkCallback);
 
         stopService();
-
-        mAdapter = null;
     }
 
     private void startService() throws TimeoutException {
@@ -220,22 +176,11 @@ public class HapClientTest {
         Assert.assertNull(mService);
     }
 
-    /** Test getting HA Service Client */
     @Test
     public void testGetHapService() {
         Assert.assertEquals(mService, HapClientService.getHapClientService());
     }
 
-    /** Test stop HA Service Client */
-    @Test
-    public void testStopHapService() {
-        Assert.assertEquals(mService, HapClientService.getHapClientService());
-
-        InstrumentationRegistry.getInstrumentation().runOnMainSync(mService::stop);
-        InstrumentationRegistry.getInstrumentation().runOnMainSync(mService::start);
-    }
-
-    /** Test get/set policy for BluetoothDevice */
     @Test
     public void testGetSetPolicy() throws Exception {
         when(mDatabaseManager.getProfileConnectionPolicy(mDevice, BluetoothProfile.HAP_CLIENT))
@@ -254,15 +199,13 @@ public class HapClientTest {
 
         when(mDatabaseManager.getProfileConnectionPolicy(mDevice, BluetoothProfile.HAP_CLIENT))
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
-        // call getConnectionPolicy via binder
-        int policy = mServiceBinder.getConnectionPolicy(mDevice, mAttributionSource);
+        int policy = mService.getConnectionPolicy(mDevice);
         Assert.assertEquals(
                 "Setting device policy to POLICY_ALLOWED",
                 BluetoothProfile.CONNECTION_POLICY_ALLOWED,
                 policy);
     }
 
-    /** Test if getProfileConnectionPolicy works after the service is stopped. */
     @Test
     public void testGetPolicyAfterStopped() {
         mService.stop();
@@ -274,7 +217,6 @@ public class HapClientTest {
                 mService.getConnectionPolicy(mDevice));
     }
 
-    /** Test okToConnect method using various test cases */
     @Test
     public void testOkToConnect() {
         int badPolicyValue = 1024;
@@ -336,7 +278,6 @@ public class HapClientTest {
         testOkToConnectCase(mDevice, badBondState, badPolicyValue, false);
     }
 
-    /** Test that an outgoing connection to device that does not have HAS UUID is rejected */
     @Test
     public void testOutgoingConnectMissingHasUuid() {
         // Update the device policy so okToConnect() returns true
@@ -354,7 +295,6 @@ public class HapClientTest {
         Assert.assertFalse("Connect expected to fail", mService.connect(mDevice));
     }
 
-    /** Test that an outgoing connection to device that have HAS UUID is successful */
     @Test
     public void testOutgoingConnectExistingHasUuid() {
         // Update the device policy so okToConnect() returns true
@@ -373,7 +313,6 @@ public class HapClientTest {
         verify(mAdapterService, timeout(TIMEOUT_MS)).sendBroadcastMultiplePermissions(any(), any());
     }
 
-    /** Test that an outgoing connection to device with POLICY_FORBIDDEN is rejected */
     @Test
     public void testOutgoingConnectPolicyForbidden() {
         doReturn(true).when(mNativeInterface).connectHapClient(any(BluetoothDevice.class));
@@ -387,7 +326,6 @@ public class HapClientTest {
         Assert.assertFalse("Connect expected to fail", mService.connect(mDevice));
     }
 
-    /** Test that an outgoing connection times out */
     @Test
     public void testOutgoingConnectTimeout() throws Exception {
         InOrder order = inOrder(mAdapterService);
@@ -415,7 +353,7 @@ public class HapClientTest {
                 BluetoothProfile.STATE_CONNECTING, mService.getConnectionState(mDevice));
 
         // Verify the connection state broadcast, and that we are in Disconnected state via binder
-        order.verify(mAdapterService, timeout(HapClientStateMachine.sConnectTimeoutMs * 2))
+        order.verify(mAdapterService, timeout(HapClientStateMachine.sConnectTimeoutMs * 2L))
                 .sendBroadcastMultiplePermissions(
                         argThat(
                                 allOf(
@@ -425,11 +363,10 @@ public class HapClientTest {
                                         hasExtra(EXTRA_PREVIOUS_STATE, STATE_CONNECTING))),
                         any());
 
-        int state = mServiceBinder.getConnectionState(mDevice, mAttributionSource);
+        int state = mService.getConnectionState(mDevice);
         Assert.assertEquals(BluetoothProfile.STATE_DISCONNECTED, state);
     }
 
-    /** Test that an outgoing connection to two device that have HAS UUID is successful */
     @Test
     public void testConnectTwo() throws Exception {
         InOrder order = inOrder(mAdapterService);
@@ -444,16 +381,12 @@ public class HapClientTest {
         BluetoothDevice Device2 = TestUtils.getTestDevice(mAdapter, 1);
         testConnectingDevice(order, Device2);
 
-        // indirect call of mService.getConnectedDevices to test BluetoothHearingAidBinder
-        List<BluetoothDevice> devices = mServiceBinder.getConnectedDevices(mAttributionSource);
+        List<BluetoothDevice> devices = mService.getConnectedDevices();
         Assert.assertTrue(devices.contains(mDevice));
         Assert.assertTrue(devices.contains(Device2));
         Assert.assertNotEquals(mDevice, Device2);
     }
 
-    /**
-     * Test that for the unknown device the API calls are not forwarded down the stack to native.
-     */
     @Test
     public void testCallsForNotConnectedDevice() {
         Assert.assertEquals(
@@ -461,7 +394,6 @@ public class HapClientTest {
                 mService.getActivePresetIndex(mDevice));
     }
 
-    /** Test getting HAS coordinated sets. */
     @Test
     public void testGetHapGroupCoordinatedOps() throws Exception {
         InOrder order = inOrder(mAdapterService);
@@ -472,27 +404,26 @@ public class HapClientTest {
         testConnectingDevice(order, mDevice2);
         testConnectingDevice(order, mDevice3);
 
-        mNativeInterface.onFeaturesUpdate(getByteAddress(mDevice), 0x04);
-        mNativeInterface.onFeaturesUpdate(getByteAddress(mDevice3), 0x04);
+        mNativeCallback.onFeaturesUpdate(getByteAddress(mDevice), 0x04);
+        mNativeCallback.onFeaturesUpdate(getByteAddress(mDevice3), 0x04);
 
         /* This one has no coordinated operation support but is part of a coordinated set with
          * mDevice, which supports it, thus mDevice will forward the operation to mDevice2.
          * This device should also be rocognised as grouped one.
          */
-        mNativeInterface.onFeaturesUpdate(getByteAddress(mDevice2), 0);
+        mNativeCallback.onFeaturesUpdate(getByteAddress(mDevice2), 0);
 
         /* Two devices support coordinated operations thus shall report valid group ID */
         Assert.assertEquals(2, mService.getHapGroup(mDevice));
         Assert.assertEquals(3, mService.getHapGroup(mDevice3));
 
         /* Third one has no coordinated operations support but is part of the group */
-        int hapGroup = mServiceBinder.getHapGroup(mDevice2, mAttributionSource);
+        int hapGroup = mService.getHapGroup(mDevice2);
         Assert.assertEquals(2, hapGroup);
     }
 
-    /** Test that selectPreset properly calls the native method. */
     @Test
-    public void testSelectPresetNative() {
+    public void testSelectPresetNative() throws Exception {
         InOrder order = inOrder(mAdapterService);
         doReturn(new ParcelUuid[] {BluetoothUuid.HAS})
                 .when(mAdapterService)
@@ -501,22 +432,17 @@ public class HapClientTest {
 
         // Verify Native Interface call
         mService.selectPreset(mDevice, 0x00);
-        verify(mNativeInterface, times(0)).selectActivePreset(eq(mDevice), eq(0x00));
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onPresetSelectionFailed(
-                            eq(mDevice), eq(BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX));
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        verify(mNativeInterface, never()).selectActivePreset(eq(mDevice), eq(0x00));
+        verify(mFrameworkCallback, after(TIMEOUT_MS))
+                .onPresetSelectionFailed(
+                        eq(mDevice), eq(BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX));
 
-        mServiceBinder.selectPreset(mDevice, 0x01, mAttributionSource);
-        verify(mNativeInterface, times(1)).selectActivePreset(eq(mDevice), eq(0x01));
+        mService.selectPreset(mDevice, 0x01);
+        verify(mNativeInterface).selectActivePreset(eq(mDevice), eq(0x01));
     }
 
-    /** Test that groupSelectActivePreset properly calls the native method. */
     @Test
-    public void testGroupSelectActivePresetNative() {
+    public void testGroupSelectActivePresetNative() throws Exception {
         InOrder order = inOrder(mAdapterService);
         doReturn(new ParcelUuid[] {BluetoothUuid.HAS})
                 .when(mAdapterService)
@@ -524,23 +450,18 @@ public class HapClientTest {
         testConnectingDevice(order, mDevice3);
 
         int flags = 0x01;
-        mNativeInterface.onFeaturesUpdate(getByteAddress(mDevice3), flags);
+        mNativeCallback.onFeaturesUpdate(getByteAddress(mDevice3), flags);
 
         // Verify Native Interface call
         mService.selectPresetForGroup(0x03, 0x00);
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onPresetSelectionForGroupFailed(
-                            eq(0x03), eq(BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX));
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        verify(mFrameworkCallback, after(TIMEOUT_MS))
+                .onPresetSelectionForGroupFailed(
+                        eq(0x03), eq(BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX));
 
-        mServiceBinder.selectPresetForGroup(0x03, 0x01, mAttributionSource);
-        verify(mNativeInterface, times(1)).groupSelectActivePreset(eq(0x03), eq(0x01));
+        mService.selectPresetForGroup(0x03, 0x01);
+        verify(mNativeInterface).groupSelectActivePreset(eq(0x03), eq(0x01));
     }
 
-    /** Test that nextActivePreset properly calls the native method. */
     @Test
     public void testSwitchToNextPreset() {
         InOrder order = inOrder(mAdapterService);
@@ -550,11 +471,10 @@ public class HapClientTest {
         testConnectingDevice(order, mDevice);
 
         // Verify Native Interface call
-        mServiceBinder.switchToNextPreset(mDevice, mAttributionSource);
-        verify(mNativeInterface, times(1)).nextActivePreset(eq(mDevice));
+        mService.switchToNextPreset(mDevice);
+        verify(mNativeInterface).nextActivePreset(eq(mDevice));
     }
 
-    /** Test that groupNextActivePreset properly calls the native method. */
     @Test
     public void testSwitchToNextPresetForGroup() {
         InOrder order = inOrder(mAdapterService);
@@ -563,14 +483,13 @@ public class HapClientTest {
                 .getRemoteUuids(any(BluetoothDevice.class));
         testConnectingDevice(order, mDevice3);
         int flags = 0x01;
-        mNativeInterface.onFeaturesUpdate(getByteAddress(mDevice3), flags);
+        mNativeCallback.onFeaturesUpdate(getByteAddress(mDevice3), flags);
 
         // Verify Native Interface call
-        mServiceBinder.switchToNextPresetForGroup(0x03, mAttributionSource);
-        verify(mNativeInterface, times(1)).groupNextActivePreset(eq(0x03));
+        mService.switchToNextPresetForGroup(0x03);
+        verify(mNativeInterface).groupNextActivePreset(eq(0x03));
     }
 
-    /** Test that previousActivePreset properly calls the native method. */
     @Test
     public void testSwitchToPreviousPreset() {
         InOrder order = inOrder(mAdapterService);
@@ -580,11 +499,10 @@ public class HapClientTest {
         testConnectingDevice(order, mDevice);
 
         // Verify Native Interface call
-        mServiceBinder.switchToPreviousPreset(mDevice, mAttributionSource);
-        verify(mNativeInterface, times(1)).previousActivePreset(eq(mDevice));
+        mService.switchToPreviousPreset(mDevice);
+        verify(mNativeInterface).previousActivePreset(eq(mDevice));
     }
 
-    /** Test that groupPreviousActivePreset properly calls the native method. */
     @Test
     public void testSwitchToPreviousPresetForGroup() {
         InOrder order = inOrder(mAdapterService);
@@ -595,14 +513,13 @@ public class HapClientTest {
         testConnectingDevice(order, mDevice2);
 
         int flags = 0x01;
-        mNativeInterface.onFeaturesUpdate(getByteAddress(mDevice), flags);
+        mNativeCallback.onFeaturesUpdate(getByteAddress(mDevice), flags);
 
         // Verify Native Interface call
-        mServiceBinder.switchToPreviousPresetForGroup(0x02, mAttributionSource);
-        verify(mNativeInterface, times(1)).groupPreviousActivePreset(eq(0x02));
+        mService.switchToPreviousPresetForGroup(0x02);
+        verify(mNativeInterface).groupPreviousActivePreset(eq(0x02));
     }
 
-    /** Test that getActivePresetIndex returns cached value. */
     @Test
     public void testGetActivePresetIndex() throws Exception {
         InOrder order = inOrder(mAdapterService);
@@ -613,11 +530,10 @@ public class HapClientTest {
         testOnPresetSelected(mDevice, 0x01);
 
         // Verify cached value via binder
-        int presetIndex = mServiceBinder.getActivePresetIndex(mDevice, mAttributionSource);
+        int presetIndex = mService.getActivePresetIndex(mDevice);
         Assert.assertEquals(0x01, presetIndex);
     }
 
-    /** Test that getActivePresetInfo returns cached value for valid parameters. */
     @Test
     public void testGetPresetInfoAndActivePresetInfo() throws Exception {
         InOrder order = inOrder(mAdapterService);
@@ -627,11 +543,9 @@ public class HapClientTest {
         testConnectingDevice(order, mDevice2);
 
         // Check when active preset is not known yet
-        List<BluetoothHapPresetInfo> presetList =
-                mServiceBinder.getAllPresetInfo(mDevice2, mAttributionSource);
+        List<BluetoothHapPresetInfo> presetList = mService.getAllPresetInfo(mDevice2);
 
-        BluetoothHapPresetInfo presetInfo =
-                mServiceBinder.getPresetInfo(mDevice2, 0x01, mAttributionSource);
+        BluetoothHapPresetInfo presetInfo = mService.getPresetInfo(mDevice2, 0x01);
         Assert.assertTrue(presetList.contains(presetInfo));
         Assert.assertEquals(0x01, presetInfo.getIndex());
 
@@ -645,152 +559,102 @@ public class HapClientTest {
 
         // Check when active preset is known
         Assert.assertEquals(0x01, mService.getActivePresetIndex(mDevice2));
-        BluetoothHapPresetInfo info =
-                mServiceBinder.getActivePresetInfo(mDevice2, mAttributionSource);
+        BluetoothHapPresetInfo info = mService.getActivePresetInfo(mDevice2);
         Assert.assertNotNull(info);
         Assert.assertEquals("One", info.getName());
     }
 
-    /** Test that setPresetName properly calls the native method for the valid parameters. */
     @Test
-    public void testSetPresetNameNative() {
+    public void testSetPresetNameNative() throws Exception {
         InOrder order = inOrder(mAdapterService);
         doReturn(new ParcelUuid[] {BluetoothUuid.HAS})
                 .when(mAdapterService)
                 .getRemoteUuids(any(BluetoothDevice.class));
         testConnectingDevice(order, mDevice);
 
-        mServiceBinder.setPresetName(mDevice, 0x00, "ExamplePresetName", mAttributionSource);
-        verify(mNativeInterface, times(0))
+        mService.setPresetName(mDevice, 0x00, "ExamplePresetName");
+        verify(mNativeInterface, never())
                 .setPresetName(eq(mDevice), eq(0x00), eq("ExamplePresetName"));
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onSetPresetNameFailed(
-                            eq(mDevice), eq(BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX));
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        verify(mFrameworkCallback)
+                .onSetPresetNameFailed(
+                        eq(mDevice), eq(BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX));
 
         // Verify Native Interface call
         mService.setPresetName(mDevice, 0x01, "ExamplePresetName");
-        verify(mNativeInterface, times(1))
-                .setPresetName(eq(mDevice), eq(0x01), eq("ExamplePresetName"));
+        verify(mNativeInterface).setPresetName(eq(mDevice), eq(0x01), eq("ExamplePresetName"));
     }
 
-    /**
-     * Test that setPresetNameForGroup properly calls the native method for the valid parameters.
-     */
     @Test
-    public void testSetPresetNameForGroup() {
+    public void testSetPresetNameForGroup() throws Exception {
         InOrder order = inOrder(mAdapterService);
         doReturn(new ParcelUuid[] {BluetoothUuid.HAS})
                 .when(mAdapterService)
                 .getRemoteUuids(any(BluetoothDevice.class));
         int test_group = 0x02;
-        for (BluetoothDevice device : mCsipService.getGroupDevicesOrdered(test_group)) {
-            testConnectingDevice(order, device);
-        }
+
+        testConnectingDevice(order, mDevice);
+        testConnectingDevice(order, mDevice2);
 
         int flags = 0x21;
-        mNativeInterface.onFeaturesUpdate(getByteAddress(mDevice), flags);
+        mNativeCallback.onFeaturesUpdate(getByteAddress(mDevice), flags);
 
-        mServiceBinder.setPresetNameForGroup(
-                test_group, 0x00, "ExamplePresetName", mAttributionSource);
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onSetPresetNameForGroupFailed(
-                            eq(test_group),
-                            eq(BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX));
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        mService.setPresetNameForGroup(test_group, 0x00, "ExamplePresetName");
+        verify(mFrameworkCallback, after(TIMEOUT_MS))
+                .onSetPresetNameForGroupFailed(
+                        eq(test_group), eq(BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX));
 
         mService.setPresetNameForGroup(-1, 0x01, "ExamplePresetName");
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onSetPresetNameForGroupFailed(
-                            eq(-1), eq(BluetoothStatusCodes.ERROR_CSIP_INVALID_GROUP_ID));
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        verify(mFrameworkCallback, after(TIMEOUT_MS))
+                .onSetPresetNameForGroupFailed(
+                        eq(-1), eq(BluetoothStatusCodes.ERROR_CSIP_INVALID_GROUP_ID));
 
         // Verify Native Interface call
         mService.setPresetNameForGroup(test_group, 0x01, "ExamplePresetName");
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .groupSetPresetName(eq(test_group), eq(0x01), eq("ExamplePresetName"));
     }
 
-    /** Test that native callback generates proper intent. */
     @Test
     public void testStackEventDeviceAvailable() {
-        doReturn(new ParcelUuid[] {BluetoothUuid.HAS})
-                .when(mAdapterService)
-                .getRemoteUuids(any(BluetoothDevice.class));
+        int features = 0x03;
 
-        doCallRealMethod().when(mNativeInterface).onDeviceAvailable(any(byte[].class), anyInt());
-        mNativeInterface.onDeviceAvailable(getByteAddress(mDevice), 0x03);
+        mNativeCallback.onDeviceAvailable(getByteAddress(mDevice), features);
 
-        verify(mAdapterService, timeout(TIMEOUT_MS))
+        verify(mAdapterService)
                 .sendBroadcastMultiplePermissions(
                         argThat(
                                 allOf(
                                         hasAction(ACTION_HAP_DEVICE_AVAILABLE),
                                         hasExtra(BluetoothDevice.EXTRA_DEVICE, mDevice),
-                                        hasExtra(BluetoothHapClient.EXTRA_HAP_FEATURES, 0x03))),
+                                        hasExtra(BluetoothHapClient.EXTRA_HAP_FEATURES, features))),
                         any());
     }
 
-    /** Test that native callback generates proper callback call. */
     @Test
-    public void testStackEventOnPresetSelected() {
-        doReturn(new ParcelUuid[] {BluetoothUuid.HAS})
-                .when(mAdapterService)
-                .getRemoteUuids(any(BluetoothDevice.class));
+    public void testStackEventOnPresetSelected() throws Exception {
+        int presetIndex = 0x01;
 
-        doCallRealMethod()
-                .when(mNativeInterface)
-                .onActivePresetSelected(any(byte[].class), anyInt());
-        mNativeInterface.onActivePresetSelected(getByteAddress(mDevice), 0x01);
+        mNativeCallback.onActivePresetSelected(getByteAddress(mDevice), presetIndex);
 
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onPresetSelected(
-                            eq(mDevice),
-                            eq(0x01),
-                            eq(BluetoothStatusCodes.REASON_LOCAL_STACK_REQUEST));
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
-
-        // Verify that getting current preset returns a proper value now
-        Assert.assertEquals(0x01, mService.getActivePresetIndex(mDevice));
+        verify(mFrameworkCallback)
+                .onPresetSelected(
+                        eq(mDevice),
+                        eq(presetIndex),
+                        eq(BluetoothStatusCodes.REASON_LOCAL_STACK_REQUEST));
+        assertThat(mService.getActivePresetIndex(mDevice)).isEqualTo(presetIndex);
     }
 
-    /** Test that native callback generates proper callback call. */
     @Test
-    public void testStackEventOnActivePresetSelectError() {
-        doReturn(new ParcelUuid[] {BluetoothUuid.HAS})
-                .when(mAdapterService)
-                .getRemoteUuids(any(BluetoothDevice.class));
+    public void testStackEventOnActivePresetSelectError() throws Exception {
+        mNativeCallback.onActivePresetSelectError(getByteAddress(mDevice), 0x05);
 
-        doCallRealMethod()
-                .when(mNativeInterface)
-                .onActivePresetSelectError(any(byte[].class), anyInt());
-        /* Send INVALID_PRESET_INDEX error */
-        mNativeInterface.onActivePresetSelectError(getByteAddress(mDevice), 0x05);
-
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onPresetSelectionFailed(
-                            eq(mDevice), eq(BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX));
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        verify(mFrameworkCallback)
+                .onPresetSelectionFailed(
+                        eq(mDevice), eq(BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX));
     }
 
-    /** Test that native callback generates proper callback call. */
     @Test
-    public void testStackEventOnPresetInfo() {
+    public void testStackEventOnPresetInfo() throws Exception {
         InOrder order = inOrder(mAdapterService);
         doReturn(new ParcelUuid[] {BluetoothUuid.HAS})
                 .when(mAdapterService)
@@ -799,7 +663,7 @@ public class HapClientTest {
         // Connect and inject initial presets
         testConnectingDevice(order, mDevice);
 
-        int info_reason = HapClientStackEvent.PRESET_INFO_REASON_PRESET_INFO_UPDATE;
+        int infoReason = HapClientStackEvent.PRESET_INFO_REASON_PRESET_INFO_UPDATE;
         BluetoothHapPresetInfo[] info = {
             new BluetoothHapPresetInfo.Builder(0x01, "OneChangedToUnavailable")
                     .setWritable(true)
@@ -807,20 +671,15 @@ public class HapClientTest {
                     .build()
         };
 
-        doCallRealMethod().when(mNativeInterface).onPresetInfo(any(byte[].class), anyInt(), any());
-        mNativeInterface.onPresetInfo(getByteAddress(mDevice), info_reason, info);
+        mNativeCallback.onPresetInfo(getByteAddress(mDevice), infoReason, info);
 
         ArgumentCaptor<List<BluetoothHapPresetInfo>> presetsCaptor =
                 ArgumentCaptor.forClass(List.class);
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onPresetInfoChanged(
-                            eq(mDevice),
-                            presetsCaptor.capture(),
-                            eq(BluetoothStatusCodes.REASON_REMOTE_REQUEST));
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        verify(mFrameworkCallback)
+                .onPresetInfoChanged(
+                        eq(mDevice),
+                        presetsCaptor.capture(),
+                        eq(BluetoothStatusCodes.REASON_REMOTE_REQUEST));
 
         List<BluetoothHapPresetInfo> presets = presetsCaptor.getValue();
         Assert.assertEquals(3, presets.size());
@@ -832,154 +691,96 @@ public class HapClientTest {
         Assert.assertTrue(preset.get().isWritable());
     }
 
-    /** Test that native callback generates proper callback call. */
     @Test
-    public void testStackEventOnPresetNameSetError() {
-        doReturn(new ParcelUuid[] {BluetoothUuid.HAS})
-                .when(mAdapterService)
-                .getRemoteUuids(any(BluetoothDevice.class));
-
-        doCallRealMethod()
-                .when(mNativeInterface)
-                .onPresetNameSetError(any(byte[].class), anyInt(), anyInt());
+    public void testStackEventOnPresetNameSetError() throws Exception {
         /* Not a valid name length */
-        mNativeInterface.onPresetNameSetError(
+        mNativeCallback.onPresetNameSetError(
                 getByteAddress(mDevice),
                 0x01,
                 HapClientStackEvent.STATUS_INVALID_PRESET_NAME_LENGTH);
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onSetPresetNameFailed(
-                            eq(mDevice), eq(BluetoothStatusCodes.ERROR_HAP_PRESET_NAME_TOO_LONG));
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        verify(mFrameworkCallback)
+                .onSetPresetNameFailed(
+                        eq(mDevice), eq(BluetoothStatusCodes.ERROR_HAP_PRESET_NAME_TOO_LONG));
 
         /* Invalid preset index provided */
-        mNativeInterface.onPresetNameSetError(
+        mNativeCallback.onPresetNameSetError(
                 getByteAddress(mDevice), 0x01, HapClientStackEvent.STATUS_INVALID_PRESET_INDEX);
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onSetPresetNameFailed(
-                            eq(mDevice), eq(BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX));
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        verify(mFrameworkCallback)
+                .onSetPresetNameFailed(
+                        eq(mDevice), eq(BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX));
 
         /* Not allowed on this particular preset */
-        mNativeInterface.onPresetNameSetError(
+        mNativeCallback.onPresetNameSetError(
                 getByteAddress(mDevice), 0x01, HapClientStackEvent.STATUS_SET_NAME_NOT_ALLOWED);
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onSetPresetNameFailed(
-                            eq(mDevice), eq(BluetoothStatusCodes.ERROR_REMOTE_OPERATION_REJECTED));
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        verify(mFrameworkCallback)
+                .onSetPresetNameFailed(
+                        eq(mDevice), eq(BluetoothStatusCodes.ERROR_REMOTE_OPERATION_REJECTED));
 
         /* Not allowed on this particular preset at this time, might be possible later on */
-        mNativeInterface.onPresetNameSetError(
+        mNativeCallback.onPresetNameSetError(
                 getByteAddress(mDevice), 0x01, HapClientStackEvent.STATUS_OPERATION_NOT_POSSIBLE);
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(2))
-                    .onSetPresetNameFailed(
-                            eq(mDevice), eq(BluetoothStatusCodes.ERROR_REMOTE_OPERATION_REJECTED));
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        verify(mFrameworkCallback, times(2))
+                .onSetPresetNameFailed(
+                        eq(mDevice), eq(BluetoothStatusCodes.ERROR_REMOTE_OPERATION_REJECTED));
 
         /* Not allowed on all presets - for example missing characteristic */
-        mNativeInterface.onPresetNameSetError(
+        mNativeCallback.onPresetNameSetError(
                 getByteAddress(mDevice), 0x01, HapClientStackEvent.STATUS_OPERATION_NOT_SUPPORTED);
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onSetPresetNameFailed(
-                            eq(mDevice),
-                            eq(BluetoothStatusCodes.ERROR_REMOTE_OPERATION_NOT_SUPPORTED));
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        verify(mFrameworkCallback)
+                .onSetPresetNameFailed(
+                        eq(mDevice), eq(BluetoothStatusCodes.ERROR_REMOTE_OPERATION_NOT_SUPPORTED));
     }
 
-    /** Test that native callback generates proper callback call. */
     @Test
-    public void testStackEventOnGroupPresetNameSetError() {
-        doReturn(new ParcelUuid[] {BluetoothUuid.HAS})
-                .when(mAdapterService)
-                .getRemoteUuids(any(BluetoothDevice.class));
-
-        doCallRealMethod()
-                .when(mNativeInterface)
-                .onGroupPresetNameSetError(anyInt(), anyInt(), anyInt());
-
+    public void testStackEventOnGroupPresetNameSetError() throws Exception {
+        int groupId = 0x01;
+        int presetIndex = 0x04;
         /* Not a valid name length */
-        mNativeInterface.onGroupPresetNameSetError(
-                0x01, 0x01, HapClientStackEvent.STATUS_INVALID_PRESET_NAME_LENGTH);
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onSetPresetNameForGroupFailed(
-                            0x01, BluetoothStatusCodes.ERROR_HAP_PRESET_NAME_TOO_LONG);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        mNativeCallback.onGroupPresetNameSetError(
+                groupId, presetIndex, HapClientStackEvent.STATUS_INVALID_PRESET_NAME_LENGTH);
+        verify(mFrameworkCallback)
+                .onSetPresetNameForGroupFailed(
+                        eq(groupId), eq(BluetoothStatusCodes.ERROR_HAP_PRESET_NAME_TOO_LONG));
 
         /* Invalid preset index provided */
-        mNativeInterface.onGroupPresetNameSetError(
-                0x01, 0x01, HapClientStackEvent.STATUS_INVALID_PRESET_INDEX);
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onSetPresetNameForGroupFailed(
-                            0x01, BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        mNativeCallback.onGroupPresetNameSetError(
+                groupId, presetIndex, HapClientStackEvent.STATUS_INVALID_PRESET_INDEX);
+        verify(mFrameworkCallback)
+                .onSetPresetNameForGroupFailed(
+                        eq(groupId), eq(BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX));
 
         /* Not allowed on this particular preset */
-        mNativeInterface.onGroupPresetNameSetError(
-                0x01, 0x01, HapClientStackEvent.STATUS_SET_NAME_NOT_ALLOWED);
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onSetPresetNameForGroupFailed(
-                            0x01, BluetoothStatusCodes.ERROR_REMOTE_OPERATION_REJECTED);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        mNativeCallback.onGroupPresetNameSetError(
+                groupId, presetIndex, HapClientStackEvent.STATUS_SET_NAME_NOT_ALLOWED);
+        verify(mFrameworkCallback)
+                .onSetPresetNameForGroupFailed(
+                        eq(groupId), eq(BluetoothStatusCodes.ERROR_REMOTE_OPERATION_REJECTED));
 
         /* Not allowed on this particular preset at this time, might be possible later on */
-        mNativeInterface.onGroupPresetNameSetError(
-                0x01, 0x01, HapClientStackEvent.STATUS_OPERATION_NOT_POSSIBLE);
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(2))
-                    .onSetPresetNameForGroupFailed(
-                            0x01, BluetoothStatusCodes.ERROR_REMOTE_OPERATION_REJECTED);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        mNativeCallback.onGroupPresetNameSetError(
+                groupId, presetIndex, HapClientStackEvent.STATUS_OPERATION_NOT_POSSIBLE);
+        verify(mFrameworkCallback, times(2))
+                .onSetPresetNameForGroupFailed(
+                        eq(groupId), eq(BluetoothStatusCodes.ERROR_REMOTE_OPERATION_REJECTED));
 
         /* Not allowed on all presets - for example if peer is missing optional CP characteristic */
-        mNativeInterface.onGroupPresetNameSetError(
-                0x01, 0x01, HapClientStackEvent.STATUS_OPERATION_NOT_SUPPORTED);
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onSetPresetNameForGroupFailed(
-                            0x01, BluetoothStatusCodes.ERROR_REMOTE_OPERATION_NOT_SUPPORTED);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        mNativeCallback.onGroupPresetNameSetError(
+                groupId, presetIndex, HapClientStackEvent.STATUS_OPERATION_NOT_SUPPORTED);
+        verify(mFrameworkCallback)
+                .onSetPresetNameForGroupFailed(
+                        eq(groupId), eq(BluetoothStatusCodes.ERROR_REMOTE_OPERATION_NOT_SUPPORTED));
     }
 
     @Test
     public void testServiceBinderGetDevicesMatchingConnectionStates() throws Exception {
-        List<BluetoothDevice> devices =
-                mServiceBinder.getDevicesMatchingConnectionStates(null, mAttributionSource);
+        List<BluetoothDevice> devices = mService.getDevicesMatchingConnectionStates(null);
         Assert.assertEquals(0, devices.size());
     }
 
     @Test
     public void testServiceBinderSetConnectionPolicy() throws Exception {
         Assert.assertTrue(
-                mServiceBinder.setConnectionPolicy(
-                        mDevice, BluetoothProfile.CONNECTION_POLICY_UNKNOWN, mAttributionSource));
+                mService.setConnectionPolicy(mDevice, BluetoothProfile.CONNECTION_POLICY_UNKNOWN));
         verify(mDatabaseManager)
                 .setProfileConnectionPolicy(
                         mDevice,
@@ -989,7 +790,7 @@ public class HapClientTest {
 
     @Test
     public void testServiceBinderGetFeatures() throws Exception {
-        int features = mServiceBinder.getFeatures(mDevice, mAttributionSource);
+        int features = mService.getFeatures(mDevice);
         Assert.assertEquals(0x00, features);
     }
 
@@ -1000,10 +801,10 @@ public class HapClientTest {
         when(callback.asBinder()).thenReturn(binder);
 
         int size = mService.mCallbacks.getRegisteredCallbackCount();
-        mServiceBinder.registerCallback(callback, mAttributionSource);
+        mService.registerCallback(callback);
         Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
 
-        mServiceBinder.unregisterCallback(callback, mAttributionSource);
+        mService.unregisterCallback(callback);
         Assert.assertEquals(size, mService.mCallbacks.getRegisteredCallbackCount());
     }
 
@@ -1030,7 +831,6 @@ public class HapClientTest {
     /** Helper function to test device connecting */
     private void prepareConnectingDevice(BluetoothDevice device) {
         // Prepare intent queue and all the mocks
-        when(mNativeInterface.getDevice(getByteAddress(device))).thenReturn(device);
         when(mDatabaseManager.getProfileConnectionPolicy(device, BluetoothProfile.HAP_CLIENT))
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
         doReturn(true).when(mNativeInterface).connectHapClient(any(BluetoothDevice.class));
@@ -1099,7 +899,7 @@ public class HapClientTest {
 
         // Inject some initial presets
         List<BluetoothHapPresetInfo> presets =
-                new ArrayList<BluetoothHapPresetInfo>(
+                new ArrayList<>(
                         Arrays.asList(
                                 new BluetoothHapPresetInfo.Builder(0x01, "One")
                                         .setAvailable(true)
@@ -1117,22 +917,18 @@ public class HapClientTest {
                 device, HapClientStackEvent.PRESET_INFO_REASON_ALL_PRESET_INFO, presets);
     }
 
-    private void testOnPresetSelected(BluetoothDevice device, int index) {
+    private void testOnPresetSelected(BluetoothDevice device, int index) throws Exception {
         HapClientStackEvent evt =
                 new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECTED);
         evt.device = device;
         evt.valueInt1 = index;
         mService.messageFromNative(evt);
 
-        try {
-            verify(mCallback, after(TIMEOUT_MS).times(1))
-                    .onPresetSelected(
-                            eq(device),
-                            eq(evt.valueInt1),
-                            eq(BluetoothStatusCodes.REASON_LOCAL_STACK_REQUEST));
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        verify(mFrameworkCallback, after(TIMEOUT_MS))
+                .onPresetSelected(
+                        eq(device),
+                        eq(evt.valueInt1),
+                        eq(BluetoothStatusCodes.REASON_LOCAL_STACK_REQUEST));
     }
 
     /** Helper function to test okToConnect() method */

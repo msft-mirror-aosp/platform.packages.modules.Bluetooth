@@ -87,6 +87,13 @@ flag {
 }
 
 flag {
+    name: "a2dp_variable_aac_capability"
+    namespace: "bluetooth"
+    description: "Enable AAC 48 kHz sampling rate for sink devices in the allow list"
+    bug: "38443632"
+}
+
+flag {
     name: "stop_on_offload_fail"
     namespace: "bluetooth"
     description: "Stop instead of disconnecting AVDT when offload fails"
@@ -131,6 +138,16 @@ flag {
     namespace: "bluetooth"
     description: "Reject remote peer HD codec configuration if mandatory codec is preferred in the stack"
     bug: "350427803"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "a2dp_broadcast_connection_state_when_turned_off"
+    namespace: "bluetooth"
+    description: "Broadcast CONNECTION_STATE_CHANGED when A2dpService is turned off while a device is connected"
+    bug: "360034472"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

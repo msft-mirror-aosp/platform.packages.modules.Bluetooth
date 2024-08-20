@@ -88,10 +88,20 @@ java_sdk_library {
         "com.android.bluetooth.flags",
         "com.android.bluetooth.jarjar",
     ],
+    plugins: [
+        "error_prone_android_framework",
+    ],
     errorprone: {
         javacflags: [
             "-Xep:InlineMeSuggester:OFF", // The @InlineMe annotation is not available
 
+            "-Xep:AndroidFrameworkCompatChange:ERROR",
+            "-Xep:AndroidFrameworkEfficientParcelable:ERROR",
+            "-Xep:AndroidFrameworkEfficientStrings:ERROR",
+            "-Xep:AndroidFrameworkRequiresPermission:ERROR",
+            "-Xep:AndroidFrameworkRethrowFromSystem:ERROR",
+            "-Xep:AndroidFrameworkTargetSdk:ERROR",
+            "-Xep:AndroidHideInComments:ERROR",
             "-Xep:BadImport:ERROR",
             "-Xep:CatchFail:ERROR",
             "-Xep:ClassCanBeStatic:ERROR",
@@ -111,8 +121,16 @@ java_sdk_library {
             "-Xep:StringCharset:ERROR",
             "-Xep:UnnecessaryAssignment:ERROR",
             "-Xep:UnnecessaryAsync:ERROR",
+            "-Xep:UnusedVariable:ERROR",
 
-            "-XepExcludedPaths:.*/srcjars/.*", // Exclude generated files
+            // After fixing this errorprone, we decided to not merge the change.
+            // It is not very readable and the benefits are minimal when looking
+            // at the size of the maps used in the Bluetooth application.
+            // See https://r.android.com/3200511
+            "-Xep:AndroidFrameworkEfficientCollections:OFF",
+
+            // Exclude generated files
+            "-XepExcludedPaths:.*/srcjars/.*",
         ],
         enabled: true,
     },

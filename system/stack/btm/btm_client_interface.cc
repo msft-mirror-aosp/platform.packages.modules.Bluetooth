@@ -20,7 +20,6 @@
 #include "security_client_callbacks.h"
 #include "stack/btm/btm_ble_int.h"
 #include "stack/include/acl_api.h"
-#include "stack/include/btm_api.h"
 #include "stack/include/btm_ble_api.h"
 
 struct btm_client_interface_t btm_client_interface = {
@@ -96,6 +95,7 @@ struct btm_client_interface_t btm_client_interface = {
                         .BTM_CreateSco = ::BTM_CreateSco,
                         .BTM_RegForEScoEvts = ::BTM_RegForEScoEvts,
                         .BTM_RemoveSco = ::BTM_RemoveSco,
+                        .BTM_RemoveScoByBdaddr = ::BTM_RemoveScoByBdaddr,
                         .BTM_WriteVoiceSettings = ::BTM_WriteVoiceSettings,
                         .BTM_EScoConnRsp = ::BTM_EScoConnRsp,
                         .BTM_GetNumScoLinks = ::BTM_GetNumScoLinks,

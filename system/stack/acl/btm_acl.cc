@@ -58,6 +58,7 @@
 #include "rust/src/core/ffi/types.h"
 #include "stack/acl/acl.h"
 #include "stack/acl/peer_packet_types.h"
+#include "stack/btm/btm_ble_int.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sco.h"
@@ -71,6 +72,7 @@
 #include "stack/include/btm_ble_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_iso_api.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hcimsgs.h"
 #include "stack/include/l2cap_acl_interface.h"
@@ -504,17 +506,17 @@ void btm_acl_device_down(void) {
 
 tBTM_STATUS BTM_GetRole(const RawAddress& remote_bd_addr, tHCI_ROLE* p_role) {
   if (p_role == nullptr) {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
   *p_role = HCI_ROLE_UNKNOWN;
 
   tACL_CONN* p_acl = internal_.btm_bda_to_acl(remote_bd_addr, BT_TRANSPORT_BR_EDR);
   if (p_acl == nullptr) {
     log::warn("Unable to find active acl");
-    return BTM_UNKNOWN_ADDR;
+    return tBTM_STATUS::BTM_UNKNOWN_ADDR;
   }
   *p_role = p_acl->link_role;
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 /*******************************************************************************
@@ -524,51 +526,51 @@ tBTM_STATUS BTM_GetRole(const RawAddress& remote_bd_addr, tHCI_ROLE* p_role) {
  * Description      This function is called to switch role between central and
  *                  peripheral.  If role is already set it will do nothing.
  *
- * Returns          BTM_SUCCESS if already in specified role.
- *                  BTM_CMD_STARTED if command issued to controller.
- *                  BTM_NO_RESOURCES if couldn't allocate memory to issue
+ * Returns          tBTM_STATUS::BTM_SUCCESS if already in specified role.
+ *                  tBTM_STATUS::BTM_CMD_STARTED if command issued to controller.
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if couldn't allocate memory to issue
  *                                   command
- *                  BTM_UNKNOWN_ADDR if no active link with bd addr specified
- *                  BTM_MODE_UNSUPPORTED if local device does not support role
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if no active link with bd addr specified
+ *                  tBTM_STATUS::BTM_MODE_UNSUPPORTED if local device does not support role
  *                                       switching
- *                  BTM_BUSY if the previous command is not completed
+ *                  tBTM_STATUS::BTM_BUSY if the previous command is not completed
  *
  ******************************************************************************/
 tBTM_STATUS BTM_SwitchRoleToCentral(const RawAddress& remote_bd_addr) {
   if (!bluetooth::shim::GetController()->SupportsRoleSwitch()) {
     log::info("Local controller does not support role switching");
-    return BTM_MODE_UNSUPPORTED;
+    return tBTM_STATUS::BTM_MODE_UNSUPPORTED;
   }
 
   tACL_CONN* p_acl = internal_.btm_bda_to_acl(remote_bd_addr, BT_TRANSPORT_BR_EDR);
   if (p_acl == nullptr) {
     log::warn("Unable to find active acl");
-    return BTM_UNKNOWN_ADDR;
+    return tBTM_STATUS::BTM_UNKNOWN_ADDR;
   }
 
   if (p_acl->link_role == HCI_ROLE_CENTRAL) {
     log::info("Requested role is already in effect");
-    return BTM_SUCCESS;
+    return tBTM_STATUS::BTM_SUCCESS;
   }
 
   if (interop_match_addr(INTEROP_DISABLE_ROLE_SWITCH, &remote_bd_addr)) {
     log::info("Remote device is on list preventing role switch");
-    return BTM_DEV_RESTRICT_LISTED;
+    return tBTM_STATUS::BTM_DEV_RESTRICT_LISTED;
   }
 
   if (get_btm_client_interface().sco.BTM_IsScoActiveByBdaddr(remote_bd_addr)) {
     log::info("An active SCO to device prevents role switch at this time");
-    return BTM_NO_RESOURCES;
+    return tBTM_STATUS::BTM_NO_RESOURCES;
   }
 
   if (!p_acl->is_switch_role_idle()) {
     log::info("Role switch is already progress");
-    return BTM_BUSY;
+    return tBTM_STATUS::BTM_BUSY;
   }
 
   if (interop_match_addr(INTEROP_DYNAMIC_ROLE_SWITCH, &remote_bd_addr)) {
     log::debug("Device restrict listed under INTEROP_DYNAMIC_ROLE_SWITCH");
-    return BTM_DEV_RESTRICT_LISTED;
+    return tBTM_STATUS::BTM_DEV_RESTRICT_LISTED;
   }
 
   tBTM_PM_MODE pwr_mode;
@@ -576,13 +578,13 @@ tBTM_STATUS BTM_SwitchRoleToCentral(const RawAddress& remote_bd_addr) {
     log::warn(
             "Unable to find device to read current power mode prior to role "
             "switch");
-    return BTM_UNKNOWN_ADDR;
+    return tBTM_STATUS::BTM_UNKNOWN_ADDR;
   };
 
   if (pwr_mode == BTM_PM_MD_PARK || pwr_mode == BTM_PM_MD_SNIFF) {
     if (!BTM_SetLinkPolicyActiveMode(p_acl->remote_addr)) {
       log::warn("Unable to set link policy active before attempting switch");
-      return BTM_WRONG_MODE;
+      return tBTM_STATUS::BTM_WRONG_MODE;
     }
     p_acl->set_switch_role_changing();
   }
@@ -597,7 +599,7 @@ tBTM_STATUS BTM_SwitchRoleToCentral(const RawAddress& remote_bd_addr) {
     }
   }
 
-  return BTM_CMD_STARTED;
+  return tBTM_STATUS::BTM_CMD_STARTED;
 }
 
 /*******************************************************************************
@@ -1002,6 +1004,8 @@ void StackAclBtmAcl::btm_establish_continue(tACL_CONN* p_acl) {
                  default_packet_type_mask, p_acl->RemoteAddress());
     }
     btm_set_link_policy(p_acl, btm_cb.acl_cb_.DefaultLinkPolicy());
+  } else if (p_acl->is_transport_ble()) {
+    btm_ble_connection_established(p_acl->remote_addr);
   }
   NotifyAclLinkUp(*p_acl);
 }
@@ -1029,10 +1033,10 @@ tBTM_STATUS BTM_GetLinkSuperTout(const RawAddress& remote_bda, uint16_t* p_timeo
   const tACL_CONN* p_acl = internal_.btm_bda_to_acl(remote_bda, BT_TRANSPORT_BR_EDR);
   if (p_acl == nullptr) {
     log::warn("Unable to find active acl");
-    return BTM_UNKNOWN_ADDR;
+    return tBTM_STATUS::BTM_UNKNOWN_ADDR;
   }
   *p_timeout = p_acl->link_super_tout;
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 /*******************************************************************************
@@ -1048,7 +1052,7 @@ tBTM_STATUS BTM_SetLinkSuperTout(const RawAddress& remote_bda, uint16_t timeout)
   tACL_CONN* p_acl = internal_.btm_bda_to_acl(remote_bda, BT_TRANSPORT_BR_EDR);
   if (p_acl == nullptr) {
     log::warn("Unable to find active acl");
-    return BTM_UNKNOWN_ADDR;
+    return tBTM_STATUS::BTM_UNKNOWN_ADDR;
   }
 
   /* Only send if current role is Central; 2.0 spec requires this */
@@ -1059,19 +1063,19 @@ tBTM_STATUS BTM_SetLinkSuperTout(const RawAddress& remote_bda, uint16_t timeout)
               "UNSUPPORTED by controller write link supervision timeout:{:.2f}ms "
               "bd_addr:{}",
               supervision_timeout_to_seconds(timeout), remote_bda);
-      return BTM_MODE_UNSUPPORTED;
+      return tBTM_STATUS::BTM_MODE_UNSUPPORTED;
     }
     p_acl->link_super_tout = timeout;
     btsnd_hcic_write_link_super_tout(p_acl->hci_handle, timeout);
     log::debug("Set supervision timeout:{:.2f}ms bd_addr:{}",
                supervision_timeout_to_seconds(timeout), remote_bda);
-    return BTM_CMD_STARTED;
+    return tBTM_STATUS::BTM_CMD_STARTED;
   } else {
     log::warn(
             "Role is peripheral so unable to set supervision timeout:{:.2f}ms "
             "bd_addr:{}",
             supervision_timeout_to_seconds(timeout), remote_bda);
-    return BTM_SUCCESS;
+    return tBTM_STATUS::BTM_SUCCESS;
   }
 }
 
@@ -1558,7 +1562,7 @@ uint8_t* BTM_ReadRemoteFeatures(const RawAddress& addr) {
  *                  callback.
  *                  (tBTM_RSSI_RESULT)
  *
- * Returns          BTM_CMD_STARTED if successfully initiated or error code
+ * Returns          tBTM_STATUS::BTM_CMD_STARTED if successfully initiated or error code
  *
  ******************************************************************************/
 tBTM_STATUS BTM_ReadRSSI(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb) {
@@ -1568,7 +1572,7 @@ tBTM_STATUS BTM_ReadRSSI(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb) {
 
   /* If someone already waiting on the version, do not allow another */
   if (btm_cb.devcb.p_rssi_cmpl_cb) {
-    return BTM_BUSY;
+    return tBTM_STATUS::BTM_BUSY;
   }
 
   get_btm_client_interface().peer.BTM_ReadDevInfo(remote_bda, &dev_type, &addr_type);
@@ -1587,12 +1591,12 @@ tBTM_STATUS BTM_ReadRSSI(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb) {
                        btm_read_rssi_timeout, NULL);
 
     btsnd_hcic_read_rssi(p->hci_handle);
-    return BTM_CMD_STARTED;
+    return tBTM_STATUS::BTM_CMD_STARTED;
   }
   log::warn("Unable to find active acl");
 
   /* If here, no BD Addr found */
-  return BTM_UNKNOWN_ADDR;
+  return tBTM_STATUS::BTM_UNKNOWN_ADDR;
 }
 
 /*******************************************************************************
@@ -1603,7 +1607,7 @@ tBTM_STATUS BTM_ReadRSSI(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb) {
  *                  The result is returned in the callback.
  *                  (tBTM_FAILED_CONTACT_COUNTER_RESULT)
  *
- * Returns          BTM_CMD_STARTED if successfully initiated or error code
+ * Returns          tBTM_STATUS::BTM_CMD_STARTED if successfully initiated or error code
  *
  ******************************************************************************/
 tBTM_STATUS BTM_ReadFailedContactCounter(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb) {
@@ -1614,7 +1618,7 @@ tBTM_STATUS BTM_ReadFailedContactCounter(const RawAddress& remote_bda, tBTM_CMPL
 
   /* If someone already waiting on the result, do not allow another */
   if (btm_cb.devcb.p_failed_contact_counter_cmpl_cb) {
-    return BTM_BUSY;
+    return tBTM_STATUS::BTM_BUSY;
   }
 
   get_btm_client_interface().peer.BTM_ReadDevInfo(remote_bda, &dev_type, &addr_type);
@@ -1629,12 +1633,12 @@ tBTM_STATUS BTM_ReadFailedContactCounter(const RawAddress& remote_bda, tBTM_CMPL
                        btm_read_failed_contact_counter_timeout, NULL);
 
     btsnd_hcic_read_failed_contact_counter(p->hci_handle);
-    return BTM_CMD_STARTED;
+    return tBTM_STATUS::BTM_CMD_STARTED;
   }
   log::warn("Unable to find active acl");
 
   /* If here, no BD Addr found */
-  return BTM_UNKNOWN_ADDR;
+  return tBTM_STATUS::BTM_UNKNOWN_ADDR;
 }
 
 /*******************************************************************************
@@ -1646,7 +1650,7 @@ tBTM_STATUS BTM_ReadFailedContactCounter(const RawAddress& remote_bda, tBTM_CMPL
  *                  are returned in the callback.
  *                  (tBTM_RSSI_RESULT)
  *
- * Returns          BTM_CMD_STARTED if successfully initiated or error code
+ * Returns          tBTM_STATUS::BTM_CMD_STARTED if successfully initiated or error code
  *
  ******************************************************************************/
 tBTM_STATUS BTM_ReadTxPower(const RawAddress& remote_bda, tBT_TRANSPORT transport,
@@ -1659,7 +1663,7 @@ tBTM_STATUS BTM_ReadTxPower(const RawAddress& remote_bda, tBT_TRANSPORT transpor
 
   /* If someone already waiting on the version, do not allow another */
   if (btm_cb.devcb.p_tx_power_cmpl_cb) {
-    return BTM_BUSY;
+    return tBTM_STATUS::BTM_BUSY;
   }
 
   p = internal_.btm_bda_to_acl(remote_bda, transport);
@@ -1675,13 +1679,13 @@ tBTM_STATUS BTM_ReadTxPower(const RawAddress& remote_bda, tBT_TRANSPORT transpor
       btsnd_hcic_read_tx_power(p->hci_handle, BTM_READ_RSSI_TYPE_CUR);
     }
 
-    return BTM_CMD_STARTED;
+    return tBTM_STATUS::BTM_CMD_STARTED;
   }
 
   log::warn("Unable to find active acl");
 
   /* If here, no BD Addr found */
-  return BTM_UNKNOWN_ADDR;
+  return tBTM_STATUS::BTM_UNKNOWN_ADDR;
 }
 
 /*******************************************************************************
@@ -1727,7 +1731,7 @@ void btm_read_tx_power_complete(uint8_t* p, uint16_t evt_len, bool is_ble) {
     STREAM_TO_UINT8(result.hci_status, p);
 
     if (result.hci_status == HCI_SUCCESS) {
-      result.status = BTM_SUCCESS;
+      result.status = tBTM_STATUS::BTM_SUCCESS;
 
       if (!is_ble) {
         uint16_t handle;
@@ -1754,7 +1758,7 @@ void btm_read_tx_power_complete(uint8_t* p, uint16_t evt_len, bool is_ble) {
       log::debug("Transmit power complete: tx_power:{} hci status:{}", result.tx_power,
                  hci_error_code_text(static_cast<tHCI_STATUS>(result.hci_status)));
     } else {
-      result.status = BTM_ERR_PROCESSING;
+      result.status = tBTM_STATUS::BTM_ERR_PROCESSING;
     }
 
     (*p_cb)(&result);
@@ -1779,7 +1783,7 @@ void btm_read_rssi_timeout(void* /* data */) {
   tBTM_RSSI_RESULT result;
   tBTM_CMPL_CB* p_cb = btm_cb.devcb.p_rssi_cmpl_cb;
   btm_cb.devcb.p_rssi_cmpl_cb = NULL;
-  result.status = BTM_DEVICE_TIMEOUT;
+  result.status = tBTM_STATUS::BTM_DEVICE_TIMEOUT;
   if (p_cb) {
     (*p_cb)(&result);
   }
@@ -1809,7 +1813,7 @@ void btm_read_rssi_complete(uint8_t* p, uint16_t evt_len) {
     }
 
     STREAM_TO_UINT8(result.hci_status, p);
-    result.status = BTM_ERR_PROCESSING;
+    result.status = tBTM_STATUS::BTM_ERR_PROCESSING;
 
     if (result.hci_status == HCI_SUCCESS) {
       uint16_t handle;
@@ -1826,7 +1830,7 @@ void btm_read_rssi_complete(uint8_t* p, uint16_t evt_len) {
       tACL_CONN* p_acl_cb = internal_.acl_get_connection_from_handle(handle);
       if (p_acl_cb != nullptr) {
         result.rem_bda = p_acl_cb->remote_addr;
-        result.status = BTM_SUCCESS;
+        result.status = tBTM_STATUS::BTM_SUCCESS;
       }
     }
     (*p_cb)(&result);
@@ -1851,7 +1855,7 @@ void btm_read_failed_contact_counter_timeout(void* /* data */) {
   tBTM_FAILED_CONTACT_COUNTER_RESULT result;
   tBTM_CMPL_CB* p_cb = btm_cb.devcb.p_failed_contact_counter_cmpl_cb;
   btm_cb.devcb.p_failed_contact_counter_cmpl_cb = NULL;
-  result.status = BTM_DEVICE_TIMEOUT;
+  result.status = tBTM_STATUS::BTM_DEVICE_TIMEOUT;
   if (p_cb) {
     (*p_cb)(&result);
   }
@@ -1881,7 +1885,7 @@ void btm_read_failed_contact_counter_complete(uint8_t* p) {
     STREAM_TO_UINT8(result.hci_status, p);
 
     if (result.hci_status == HCI_SUCCESS) {
-      result.status = BTM_SUCCESS;
+      result.status = tBTM_STATUS::BTM_SUCCESS;
 
       STREAM_TO_UINT16(handle, p);
 
@@ -1895,7 +1899,7 @@ void btm_read_failed_contact_counter_complete(uint8_t* p) {
         result.rem_bda = p_acl_cb->remote_addr;
       }
     } else {
-      result.status = BTM_ERR_PROCESSING;
+      result.status = tBTM_STATUS::BTM_ERR_PROCESSING;
     }
 
     (*p_cb)(&result);
@@ -1924,10 +1928,10 @@ void btm_read_automatic_flush_timeout_complete(uint8_t* p) {
   if (p_cb) {
     uint16_t handle;
     STREAM_TO_UINT8(result.hci_status, p);
-    result.status = BTM_ERR_PROCESSING;
+    result.status = tBTM_STATUS::BTM_ERR_PROCESSING;
 
     if (result.hci_status == HCI_SUCCESS) {
-      result.status = BTM_SUCCESS;
+      result.status = tBTM_STATUS::BTM_SUCCESS;
 
       STREAM_TO_UINT16(handle, p);
       STREAM_TO_UINT16(result.automatic_flush_timeout, p);
@@ -1950,21 +1954,21 @@ void btm_read_automatic_flush_timeout_complete(uint8_t* p) {
  *
  * Description      This function is called to disconnect an ACL connection
  *
- * Returns          BTM_SUCCESS if successfully initiated, otherwise
- *                  BTM_UNKNOWN_ADDR.
+ * Returns          tBTM_STATUS::BTM_SUCCESS if successfully initiated, otherwise
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR.
  *
  ******************************************************************************/
 tBTM_STATUS btm_remove_acl(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   tACL_CONN* p_acl = internal_.btm_bda_to_acl(bd_addr, transport);
   if (p_acl == nullptr) {
     log::warn("Unable to find active acl");
-    return BTM_UNKNOWN_ADDR;
+    return tBTM_STATUS::BTM_UNKNOWN_ADDR;
   }
 
   if (p_acl->Handle() == HCI_INVALID_HANDLE) {
     log::warn("Cannot remove unknown acl bd_addr:{} transport:{}", bd_addr,
               bt_transport_text(transport));
-    return BTM_UNKNOWN_ADDR;
+    return tBTM_STATUS::BTM_UNKNOWN_ADDR;
   }
 
   if (p_acl->rs_disc_pending == BTM_SEC_RS_PENDING) {
@@ -1973,11 +1977,11 @@ tBTM_STATUS btm_remove_acl(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
             "transport:{}",
             bd_addr, bt_transport_text(transport));
     p_acl->rs_disc_pending = BTM_SEC_DISC_PENDING;
-    return BTM_SUCCESS;
+    return tBTM_STATUS::BTM_SUCCESS;
   }
 
   disconnect_acl(*p_acl, HCI_ERR_PEER_USER, "stack::acl::btm_acl::btm_remove_acl");
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 void btm_cont_rswitch_from_handle(uint16_t hci_handle) {

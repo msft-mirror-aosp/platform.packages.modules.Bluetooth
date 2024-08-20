@@ -19,11 +19,11 @@
 #include <cstdint>
 
 #include "device/include/esco_parameters.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/btm/neighbor_inquiry.h"
 #include "stack/btm/power_mode.h"
 #include "stack/include/acl_client_callbacks.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/btm_api.h"
 #include "stack/include/btm_api_types.h"
 #include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_status.h"
@@ -117,6 +117,7 @@ struct btm_client_interface_t {
     [[nodiscard]] tBTM_STATUS (*BTM_RegForEScoEvts)(uint16_t sco_inx,
                                                     tBTM_ESCO_CBACK* p_esco_cback);
     [[nodiscard]] tBTM_STATUS (*BTM_RemoveSco)(uint16_t sco_inx);
+    void (*BTM_RemoveScoByBdaddr)(const RawAddress& bda);
     void (*BTM_WriteVoiceSettings)(uint16_t settings);
     void (*BTM_EScoConnRsp)(uint16_t sco_inx, tHCI_STATUS hci_status, enh_esco_params_t* p_parms);
     [[nodiscard]] uint8_t (*BTM_GetNumScoLinks)();

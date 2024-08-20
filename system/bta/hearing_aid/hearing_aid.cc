@@ -48,6 +48,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/l2c_api.h"  // L2CAP_MIN_OFFSET
 #include "stack/include/main_thread.h"
 #include "types/bluetooth/uuid.h"
@@ -525,7 +526,10 @@ public:
 
     // Set data length
     // TODO(jpawlowski: for 16khz only 87 is required, optimize
-    BTM_SetBleDataLength(address, 167);
+    if (get_btm_client_interface().ble.BTM_SetBleDataLength(address, 167) !=
+        tBTM_STATUS::BTM_SUCCESS) {
+      log::warn("Unable to set BLE data length peer:{} size:{}", address, 167);
+    }
 
     if (BTM_SecIsSecurityPending(address)) {
       /* if security collision happened, wait for encryption done
@@ -1409,9 +1413,6 @@ public:
     }
 
     uint16_t l2cap_flush_threshold = 0;
-    if (com::android::bluetooth::flags::higher_l2cap_flush_threshold()) {
-      l2cap_flush_threshold = 1;
-    }
 
     // Skipping packets completely messes up the resampler context.
     // The condition for skipping packets seems to be easily triggered,
@@ -1973,7 +1974,7 @@ private:
         device->num_intervals_since_last_rssi_read = 0;
         log::debug("bd_addr={}", device->address);
         if (get_btm_client_interface().link_controller.BTM_ReadRSSI(
-                    device->address, read_rssi_callback) != BTM_SUCCESS) {
+                    device->address, read_rssi_callback) != tBTM_STATUS::BTM_CMD_STARTED) {
           log::warn("Unable to read RSSI peer:{}", device->address);
         }
       }
@@ -1988,7 +1989,7 @@ static void read_rssi_callback(void* p_void) {
     return;
   }
 
-  if ((instance) && (p_result->status == BTM_SUCCESS)) {
+  if ((instance) && (p_result->status == tBTM_STATUS::BTM_SUCCESS)) {
     instance->OnReadRssiComplete(p_result->rem_bda, p_result->rssi);
   }
 }
@@ -2084,7 +2085,7 @@ static void hearingaid_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) 
 
 static void encryption_callback(RawAddress address, tBT_TRANSPORT, void*, tBTM_STATUS status) {
   if (instance) {
-    instance->OnEncryptionComplete(address, status == BTM_SUCCESS ? true : false);
+    instance->OnEncryptionComplete(address, status == tBTM_STATUS::BTM_SUCCESS ? true : false);
   }
 }
 

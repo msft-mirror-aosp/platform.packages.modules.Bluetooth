@@ -27,6 +27,7 @@ import static java.util.Objects.requireNonNull;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadset;
@@ -361,8 +362,7 @@ public class HeadsetService extends ProfileService {
      * @param stackEvent event from native stack
      */
     void messageFromNative(HeadsetStackEvent stackEvent) {
-        Objects.requireNonNull(
-                stackEvent.device, "Device should never be null, event: " + stackEvent);
+        requireNonNull(stackEvent.device);
         synchronized (mStateMachines) {
             HeadsetStateMachine stateMachine = mStateMachines.get(stackEvent.device);
             if (stackEvent.type == HeadsetStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED) {
@@ -582,6 +582,7 @@ public class HeadsetService extends ProfileService {
         }
 
         @Override
+        @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/356478621 - remove
         public boolean setConnectionPolicy(
                 BluetoothDevice device, int connectionPolicy, AttributionSource source) {
             HeadsetService service = getService(source);
@@ -589,7 +590,8 @@ public class HeadsetService extends ProfileService {
                 return false;
             }
 
-            service.enforceCallingOrSelfPermission(MODIFY_PHONE_STATE, null);
+            // TODO: b/356478621 - put back the permission check
+            // service.enforceCallingOrSelfPermission(MODIFY_PHONE_STATE, null);
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
             return service.setConnectionPolicy(device, connectionPolicy);
         }
@@ -633,7 +635,8 @@ public class HeadsetService extends ProfileService {
                 return false;
             }
 
-            service.enforceCallingOrSelfPermission(MODIFY_PHONE_STATE, null);
+            requireNonNull(device);
+
             return service.startVoiceRecognition(device);
         }
 
@@ -1104,10 +1107,6 @@ public class HeadsetService extends ProfileService {
                                 + mActiveDevice);
                 return false;
             }
-            if (device == null) {
-                Log.i(TAG, "device is null, use active device " + mActiveDevice + " instead");
-                device = mActiveDevice;
-            }
             boolean pendingRequestByHeadset = false;
             if (mVoiceRecognitionTimeoutEvent != null) {
                 if (!mVoiceRecognitionTimeoutEvent.mVoiceRecognitionDevice.equals(device)) {
@@ -1128,7 +1127,7 @@ public class HeadsetService extends ProfileService {
                 }
                 pendingRequestByHeadset = true;
             }
-            if (!Objects.equals(device, mActiveDevice) && !setActiveDevice(device)) {
+            if (!device.equals(mActiveDevice) && !setActiveDevice(device)) {
                 Log.w(TAG, "startVoiceRecognition: failed to set " + device + " as active");
                 return false;
             }
@@ -1452,12 +1451,8 @@ public class HeadsetService extends ProfileService {
                                     + previousActiveDevice
                                     + " with status code "
                                     + disconnectStatus);
-                    if (previousActiveDevice == null) {
-                        removeActiveDevice();
-                    } else {
-                        mActiveDevice = previousActiveDevice;
-                        mNativeInterface.setActiveDevice(previousActiveDevice);
-                    }
+                    mActiveDevice = previousActiveDevice;
+                    mNativeInterface.setActiveDevice(previousActiveDevice);
                     return false;
                 }
                 if (Utils.isScoManagedByAudioEnabled()) {
