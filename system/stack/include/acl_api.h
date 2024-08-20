@@ -89,7 +89,7 @@ bool BTM_IsAclConnectionUpAndHandleValid(const RawAddress& remote_bda, tBT_TRANS
  *                  for the ACL connection with the specified remote device
  *
  * Returns          tBTM_STATUS::BTM_SUCCESS if connection exists.
- *                  BTM_UNKNOWN_ADDR if no active link with bd addr specified
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if no active link with bd addr specified
  *
  ******************************************************************************/
 tBTM_STATUS BTM_GetRole(const RawAddress& remote_bd_addr, tHCI_ROLE* p_role);
@@ -103,10 +103,10 @@ tBTM_STATUS BTM_GetRole(const RawAddress& remote_bd_addr, tHCI_ROLE* p_role);
  *
  * Returns          tBTM_STATUS::BTM_SUCCESS if already in specified role.
  *                  tBTM_STATUS::BTM_CMD_STARTED if command issued to controller.
- *                  BTM_NO_RESOURCES if memory couldn't be allocated to issue
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if memory couldn't be allocated to issue
  *                                   the command
- *                  BTM_UNKNOWN_ADDR if no active link with bd addr specified
- *                  BTM_MODE_UNSUPPORTED if the local device does not support
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if no active link with bd addr specified
+ *                  tBTM_STATUS::BTM_MODE_UNSUPPORTED if the local device does not support
  *                                       role switching
  *
  ******************************************************************************/
@@ -121,11 +121,10 @@ tBTM_STATUS BTM_SwitchRoleToCentral(const RawAddress& remote_bd_addr);
  *                  callback. (tBTM_RSSI_RESULT)
  *
  * Returns          tBTM_STATUS::BTM_CMD_STARTED if command issued to controller.
- *                  BTM_NO_RESOURCES if memory couldn't be allocated to issue
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if memory couldn't be allocated to issue
  *                                   the command
- *                  BTM_UNKNOWN_ADDR if no active link with bd addr specified
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if no active link with bd addr specified
  *                  tBTM_STATUS::BTM_BUSY if command is already in progress
- *                  BTM_UNKNOWN_ADDR if no active link with bd addr specified
  *
  ******************************************************************************/
 tBTM_STATUS BTM_ReadRSSI(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb);
@@ -139,11 +138,11 @@ tBTM_STATUS BTM_ReadRSSI(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb);
  *                  (tBTM_FAILED_CONTACT_COUNTER_RESULT)
  *
  * Returns          tBTM_STATUS::BTM_CMD_STARTED if command issued to controller.
- *                  BTM_NO_RESOURCES if memory couldn't be allocated to issue
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if memory couldn't be allocated to issue
  *                                   the command
  *                  BTM_UNKNOWN_ADDR if no active link with bd addr specified
  *                  tBTM_STATUS::BTM_BUSY if command is already in progress
- *                  BTM_UNKNOWN_ADDR if no active link with bd addr specified
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if no active link with bd addr specified
  *
  ******************************************************************************/
 tBTM_STATUS BTM_ReadFailedContactCounter(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb);
@@ -158,9 +157,9 @@ tBTM_STATUS BTM_ReadFailedContactCounter(const RawAddress& remote_bda, tBTM_CMPL
  *                  (tBTM_RSSI_RESULT)
  *
  * Returns          tBTM_STATUS::BTM_CMD_STARTED if command issued to controller.
- *                  BTM_NO_RESOURCES if memory couldn't be allocated to issue
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if memory couldn't be allocated to issue
  *                                   the command
- *                  BTM_UNKNOWN_ADDR if no active link with bd addr specified
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if no active link with bd addr specified
  *                  tBTM_STATUS::BTM_BUSY if command is already in progress
  *
  ******************************************************************************/
