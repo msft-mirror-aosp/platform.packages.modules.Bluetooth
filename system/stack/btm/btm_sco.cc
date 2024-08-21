@@ -1066,6 +1066,40 @@ void btm_sco_connected(const RawAddress& bda, uint16_t hci_handle, tBTM_ESCO_DAT
 
 /*******************************************************************************
  *
+ * Function         btm_sco_create_command_status_failed
+ *
+ * Description      This function is called by HCI when an (e)SCO connection
+ *                  command status is failed.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btm_sco_create_command_status_failed(tHCI_STATUS hci_status) {
+  for (uint16_t idx = 0; idx < BTM_MAX_SCO_LINKS; idx++) {
+    tSCO_CONN* p = &btm_cb.sco_cb.sco_db[idx];
+    if (p->state == SCO_ST_CONNECTING && p->is_orig) {
+      log::info("SCO Connection failed to {}, reason: {}", p->esco.data.bd_addr, hci_status);
+      p->state = SCO_ST_UNUSED;
+      (*p->p_disc_cb)(idx);
+
+      BTM_LogHistory(kBtmLogTag, p->esco.data.bd_addr, "Connection failed",
+                     base::StringPrintf(
+                             "locally_initiated reason:%s",
+                             hci_reason_code_text(static_cast<tHCI_REASON>(hci_status)).c_str()));
+      return;
+    }
+  }
+
+  log::warn("No context found for the SCO connection failed");
+
+  BTM_LogHistory(
+          kBtmLogTag, RawAddress::kEmpty, "Connection failed",
+          base::StringPrintf("locally_initiated reason:%s",
+                             hci_reason_code_text(static_cast<tHCI_REASON>(hci_status)).c_str()));
+}
+
+/*******************************************************************************
+ *
  * Function         btm_sco_connection_failed
  *
  * Description      This function is called by BTIF when an (e)SCO connection

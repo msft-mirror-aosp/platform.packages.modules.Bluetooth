@@ -309,9 +309,9 @@ TEST_F(BtaDmTest, bta_dm_remname_cback__typical) {
   search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
-          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .bd_addr = kRawAddress,
           .remote_bd_name = {},
+          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .hci_status = HCI_SUCCESS,
   };
   bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);
@@ -330,9 +330,9 @@ TEST_F(BtaDmTest, bta_dm_remname_cback__wrong_address) {
   search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
-          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .bd_addr = kRawAddress2,
           .remote_bd_name = {},
+          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .hci_status = HCI_SUCCESS,
   };
   bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);
@@ -348,9 +348,9 @@ TEST_F(BtaDmTest, bta_dm_remname_cback__HCI_ERR_CONNECTION_EXISTS) {
   search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
-          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .bd_addr = RawAddress::kEmpty,
           .remote_bd_name = {},
+          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .hci_status = HCI_ERR_CONNECTION_EXISTS,
   };
   bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);

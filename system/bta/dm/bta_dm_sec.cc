@@ -32,6 +32,7 @@
 #include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/gatt_api.h"
+#include "stack/include/rnr_interface.h"
 #include "stack/include/security_client_callbacks.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
@@ -265,8 +266,8 @@ static tBTM_STATUS bta_dm_pin_cback(const RawAddress& bd_addr, DEV_CLASS dev_cla
     bta_dm_sec_cb.pin_evt = BTA_DM_PIN_REQ_EVT;
     bta_dm_sec_cb.pin_bd_addr = bd_addr;
     bta_dm_sec_cb.pin_dev_class = dev_class;
-    if ((get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(bd_addr, bta_dm_pinname_cback,
-                                                                  BT_TRANSPORT_BR_EDR)) ==
+    if ((get_stack_rnr_interface().BTM_ReadRemoteDeviceName(bd_addr, bta_dm_pinname_cback,
+                                                            BT_TRANSPORT_BR_EDR)) ==
         tBTM_STATUS::BTM_CMD_STARTED) {
       return tBTM_STATUS::BTM_CMD_STARTED;
     }
@@ -454,7 +455,7 @@ static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data) 
           log::info("CoD: bta_dm_sec_cb.pin_dev_class = {}",
                     dev_class_text(bta_dm_sec_cb.pin_dev_class));
           {
-            const tBTM_STATUS btm_status = get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(
+            const tBTM_STATUS btm_status = get_stack_rnr_interface().BTM_ReadRemoteDeviceName(
                     p_data->cfm_req.bd_addr, bta_dm_pinname_cback, BT_TRANSPORT_BR_EDR);
             switch (btm_status) {
               case tBTM_STATUS::BTM_CMD_STARTED:
@@ -475,7 +476,7 @@ static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data) 
           bta_dm_sec_cb.pin_evt = pin_evt;
           bta_dm_sec_cb.pin_bd_addr = p_data->key_notif.bd_addr;
           bta_dm_sec_cb.pin_dev_class = p_data->key_notif.dev_class;
-          if ((get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(
+          if ((get_stack_rnr_interface().BTM_ReadRemoteDeviceName(
                       p_data->key_notif.bd_addr, bta_dm_pinname_cback, BT_TRANSPORT_BR_EDR)) ==
               tBTM_STATUS::BTM_CMD_STARTED) {
             return tBTM_STATUS::BTM_CMD_STARTED;

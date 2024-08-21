@@ -41,8 +41,6 @@ void DumpsysAcl(int /* fd */) { inc_func_call_count(__func__); }
 
 void DumpsysBtm(int /* fd */) { inc_func_call_count(__func__); }
 
-void DumpsysRecord(int /* fd */) { inc_func_call_count(__func__); }
-
 void DumpsysNeighbor(int /* fd */) { inc_func_call_count(__func__); }
 
 void shim::Acl::Dump(int /* fd */) const { inc_func_call_count(__func__); }

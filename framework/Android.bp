@@ -94,6 +94,7 @@ java_sdk_library {
         javacflags: [
             "-Xep:InlineMeSuggester:OFF", // The @InlineMe annotation is not available
 
+            "-Xep:AndroidFrameworkBluetoothPermission:ERROR",
             "-Xep:AndroidFrameworkCompatChange:ERROR",
             "-Xep:AndroidFrameworkEfficientParcelable:ERROR",
             "-Xep:AndroidFrameworkEfficientStrings:ERROR",

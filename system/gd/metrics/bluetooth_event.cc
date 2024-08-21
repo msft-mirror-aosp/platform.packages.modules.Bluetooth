@@ -43,6 +43,7 @@ State MapErrorCodeToState(ErrorCode reason) {
       return State::TRANSACTION_RESPONSE_TIMEOUT;
     case ErrorCode::AUTHENTICATION_FAILURE:
       return State::AUTH_FAILURE;
+    case ErrorCode::REMOTE_USER_TERMINATED_CONNECTION:
     case ErrorCode::REMOTE_DEVICE_TERMINATED_CONNECTION_LOW_RESOURCES:
     case ErrorCode::REMOTE_DEVICE_TERMINATED_CONNECTION_POWER_OFF:
       return State::REMOTE_USER_TERMINATED_CONNECTION;
@@ -110,6 +111,15 @@ void LogRemoteNameRequestCompletion(const RawAddress& raw_address, tHCI_STATUS h
   bluetooth::os::LogMetricBluetoothEvent(
           address, EventType::REMOTE_NAME_REQUEST,
           MapHCIStatusToState(hci_status));
+}
+
+void LogAclDisconnectionEvent(const hci::Address& address, ErrorCode reason,
+                              bool is_locally_initiated) {
+  bluetooth::os::LogMetricBluetoothEvent(address,
+                                         is_locally_initiated
+                                                 ? EventType::ACL_DISCONNECTION_INITIATOR
+                                                 : EventType::ACL_DISCONNECTION_RESPONDER,
+                                         MapErrorCodeToState(reason));
 }
 
 void LogAclAfterRemoteNameRequest(const RawAddress& raw_address, tBTM_STATUS status) {

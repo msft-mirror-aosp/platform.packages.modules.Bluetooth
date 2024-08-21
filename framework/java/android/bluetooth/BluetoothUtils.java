@@ -18,6 +18,7 @@ package android.bluetooth;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.os.Parcel;
 import android.os.UserHandle;
 import android.util.Log;
@@ -46,10 +47,12 @@ public final class BluetoothUtils {
             mValue = value;
         }
 
+        @RequiresNoPermission
         public int getType() {
             return mType;
         }
 
+        @RequiresNoPermission
         public byte[] getValue() {
             return mValue;
         }
