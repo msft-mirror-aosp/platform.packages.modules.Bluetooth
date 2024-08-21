@@ -23,8 +23,10 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
+import android.bluetooth.annotations.RequiresBluetoothConnectPermission;
 import android.content.AttributionSource;
 import android.content.Context;
 import android.os.Binder;
@@ -396,12 +398,14 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothLeCallControl.Stub.asInterface(service);
     }
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -412,6 +416,7 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }
@@ -422,6 +427,7 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
      * @throws UnsupportedOperationException on every call
      */
     @Override
+    @RequiresNoPermission
     public int getConnectionState(@Nullable BluetoothDevice device) {
         throw new UnsupportedOperationException("not supported");
     }
@@ -432,6 +438,7 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
      * @throws UnsupportedOperationException on every call
      */
     @Override
+    @RequiresNoPermission
     public @NonNull List<BluetoothDevice> getConnectedDevices() {
         throw new UnsupportedOperationException("not supported");
     }
@@ -442,6 +449,7 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
      * @throws UnsupportedOperationException on every call
      */
     @Override
+    @RequiresNoPermission
     @NonNull
     public List<BluetoothDevice> getDevicesMatchingConnectionStates(@NonNull int[] states) {
         throw new UnsupportedOperationException("not supported");
@@ -477,6 +485,7 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
      * @hide
      */
     @SuppressLint("ExecutorRegistration")
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean registerBearer(
             @Nullable String uci,
@@ -540,6 +549,7 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
      *
      * @hide
      */
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void unregisterBearer() {
         Log.d(TAG, "unregisterBearer");
@@ -573,6 +583,7 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
      * @param call Newly added call
      * @hide
      */
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void onCallAdded(@NonNull BluetoothLeCall call) {
         Log.d(TAG, "onCallAdded: call=" + call);
@@ -604,6 +615,7 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
      * @param reason Call termination reason
      * @hide
      */
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void onCallRemoved(@NonNull UUID callId, @TerminationReason int reason) {
         Log.d(TAG, "callRemoved: callId=" + callId);
@@ -634,6 +646,7 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
      * @param state Call state
      * @hide
      */
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void onCallStateChanged(@NonNull UUID callId, @BluetoothLeCall.State int state) {
         Log.d(TAG, "callStateChanged: callId=" + callId + " state=" + state);
@@ -662,6 +675,7 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
      * @param calls current calls list
      * @hide
      */
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void currentCallsList(@NonNull List<BluetoothLeCall> calls) {
         final IBluetoothLeCallControl service = getService();
@@ -681,8 +695,6 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
      * Provide the network current status
      *
      * <p>This function must be invoked on change of network state.
-     *
-     * <p>Requires {@link android.Manifest.permission#BLUETOOTH} permission.
      * <!-- The Technology is an integer value. The possible values are defined at
      * https://www.bluetooth.com/specifications/assigned-numbers (login required).
      * -->
@@ -691,6 +703,7 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
      * @param technology Network technology
      * @hide
      */
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void networkStateChanged(@NonNull String provider, int technology) {
         Log.d(TAG, "networkStateChanged: provider=" + provider + ", technology=" + technology);
@@ -729,6 +742,7 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
      * @param requestId The ID of the request that was received with the callback
      * @param result The result of the request to be sent to the remote devices
      */
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void requestResult(int requestId, @Result int result) {
         Log.d(TAG, "requestResult: requestId=" + requestId + " result=" + result);

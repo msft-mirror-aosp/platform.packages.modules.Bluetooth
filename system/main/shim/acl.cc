@@ -1225,26 +1225,6 @@ void DumpsysBtm(int fd) {
 }
 #undef DUMPSYS_TAG
 
-#define DUMPSYS_TAG "shim::record"
-void DumpsysRecord(int fd) {
-  LOG_DUMPSYS_TITLE(fd, DUMPSYS_TAG);
-
-  if (btm_sec_cb.sec_dev_rec == nullptr) {
-    LOG_DUMPSYS(fd, "Record is empty - no devices");
-    return;
-  }
-
-  unsigned cnt = 0;
-  list_node_t* end = list_end(btm_sec_cb.sec_dev_rec);
-  for (list_node_t* node = list_begin(btm_sec_cb.sec_dev_rec); node != end;
-       node = list_next(node)) {
-    tBTM_SEC_DEV_REC* p_dev_rec = static_cast<tBTM_SEC_DEV_REC*>(list_node(node));
-    // TODO: handle in tBTM_SEC_DEV_REC.ToString
-    LOG_DUMPSYS(fd, "%03u %s", ++cnt, p_dev_rec->ToString().c_str());
-  }
-}
-#undef DUMPSYS_TAG
-
 #define DUMPSYS_TAG "shim::stack"
 void DumpsysNeighbor(int fd) {
   LOG_DUMPSYS(fd, "Stack information %lc%lc", kRunicBjarkan, kRunicHagall);
@@ -1283,7 +1263,6 @@ void DumpsysNeighbor(int fd) {
 #undef DUMPSYS_TAG
 
 void shim::Acl::Dump(int fd) const {
-  DumpsysRecord(fd);
   DumpsysNeighbor(fd);
   DumpsysAcl(fd);
   L2CA_Dumpsys(fd);
@@ -1396,6 +1375,8 @@ void shim::Acl::OnClassicLinkDisconnected(HciHandle handle, hci::ErrorCode reaso
           pimpl_->handle_to_classic_connection_map_[handle]->IsLocallyInitiated();
 
   TeardownTime teardown_time = std::chrono::system_clock::now();
+
+  bluetooth::metrics::LogAclDisconnectionEvent(remote_address, reason, is_locally_initiated);
 
   pimpl_->handle_to_classic_connection_map_.erase(handle);
   TRY_POSTING_ON_MAIN(acl_interface_.connection.classic.on_disconnected,

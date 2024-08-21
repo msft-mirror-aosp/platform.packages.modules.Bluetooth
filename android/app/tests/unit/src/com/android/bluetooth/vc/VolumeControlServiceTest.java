@@ -1201,12 +1201,14 @@ public class VolumeControlServiceTest {
         Binder binder = Mockito.mock(Binder.class);
         when(callback.asBinder()).thenReturn(binder);
 
-        int size = mService.mCallbacks.getRegisteredCallbackCount();
-        mServiceBinder.registerCallback(callback, mAttributionSource);
-        Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+        synchronized (mService.mCallbacks) {
+            int size = mService.mCallbacks.getRegisteredCallbackCount();
+            mService.registerCallback(callback);
+            Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
 
-        mServiceBinder.unregisterCallback(callback, mAttributionSource);
-        Assert.assertEquals(size, mService.mCallbacks.getRegisteredCallbackCount());
+            mService.unregisterCallback(callback);
+            Assert.assertEquals(size, mService.mCallbacks.getRegisteredCallbackCount());
+        }
     }
 
     @Test
@@ -1269,9 +1271,11 @@ public class VolumeControlServiceTest {
         Binder binder = Mockito.mock(Binder.class);
         when(callback.asBinder()).thenReturn(binder);
 
-        int size = mService.mCallbacks.getRegisteredCallbackCount();
-        mServiceBinder.registerCallback(callback, mAttributionSource);
-        Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+        synchronized (mService.mCallbacks) {
+            int size = mService.mCallbacks.getRegisteredCallbackCount();
+            mService.registerCallback(callback);
+            Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+        }
 
         verify(callback).onVolumeOffsetChanged(eq(mDevice), eq(1), eq(100));
         verify(callback).onVolumeOffsetAudioLocationChanged(eq(mDevice), eq(1), eq(1));
@@ -1344,9 +1348,11 @@ public class VolumeControlServiceTest {
         Binder binder = Mockito.mock(Binder.class);
         when(callback.asBinder()).thenReturn(binder);
 
-        int size = mService.mCallbacks.getRegisteredCallbackCount();
-        mServiceBinder.registerCallback(callback, mAttributionSource);
-        Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+        synchronized (mService.mCallbacks) {
+            int size = mService.mCallbacks.getRegisteredCallbackCount();
+            mService.registerCallback(callback);
+            Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+        }
 
         verify(callback, times(1)).onDeviceVolumeChanged(eq(mDevice), eq(deviceOneVolume));
         verify(callback, times(1)).onDeviceVolumeChanged(eq(mDeviceTwo), eq(deviceTwoVolume));
@@ -1396,9 +1402,12 @@ public class VolumeControlServiceTest {
         Binder binder = Mockito.mock(Binder.class);
         when(callback.asBinder()).thenReturn(binder);
 
-        int size = mService.mCallbacks.getRegisteredCallbackCount();
-        mServiceBinder.registerCallback(callback, mAttributionSource);
-        Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+        int size;
+        synchronized (mService.mCallbacks) {
+            size = mService.mCallbacks.getRegisteredCallbackCount();
+            mService.registerCallback(callback);
+            Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+        }
 
         IBluetoothVolumeControlCallback callback_new_client =
                 Mockito.mock(IBluetoothVolumeControlCallback.class);
@@ -1406,13 +1415,15 @@ public class VolumeControlServiceTest {
         when(callback_new_client.asBinder()).thenReturn(binder_new_client);
 
         mServiceBinder.notifyNewRegisteredCallback(callback_new_client, mAttributionSource);
-        Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+        synchronized (mService.mCallbacks) {
+            Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+        }
 
-        // This shall be done only once after mServiceBinder.registerCallback
+        // This shall be done only once after mService.registerCallback
         verify(callback, times(1)).onDeviceVolumeChanged(eq(mDevice), eq(deviceOneVolume));
         verify(callback, times(1)).onDeviceVolumeChanged(eq(mDeviceTwo), eq(deviceTwoVolume));
 
-        // This shall be done only once after mServiceBinder.updateNewRegistedCallback
+        // This shall be done only once after mServiceBinder.updateNewRegisteredCallback
         verify(callback_new_client, times(1))
                 .onDeviceVolumeChanged(eq(mDevice), eq(deviceOneVolume));
         verify(callback_new_client, times(1))
@@ -1510,9 +1521,11 @@ public class VolumeControlServiceTest {
         Binder binder = Mockito.mock(Binder.class);
         when(callback.asBinder()).thenReturn(binder);
 
-        int size = mService.mCallbacks.getRegisteredCallbackCount();
-        mServiceBinder.registerCallback(callback, mAttributionSource);
-        Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+        synchronized (mService.mCallbacks) {
+            int size = mService.mCallbacks.getRegisteredCallbackCount();
+            mService.registerCallback(callback);
+            Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+        }
 
         when(mLeAudioService.getGroupDevices(groupId))
                 .thenReturn(Arrays.asList(mDevice, mDeviceTwo));

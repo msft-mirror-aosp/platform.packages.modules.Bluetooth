@@ -16,8 +16,10 @@
 package android.bluetooth
 
 import android.Manifest
+import android.bluetooth.test_utils.EnableBluetoothRule
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.compatibility.common.util.AdoptShellPermissionsRule
 import com.google.common.truth.Truth
@@ -29,24 +31,22 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import org.junit.After
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.junit.runners.JUnit4
 import pandora.RfcommProto
 import pandora.RfcommProto.ServerId
 import pandora.RfcommProto.StartServerRequest
 
-@RunWith(JUnit4::class)
-@kotlinx.coroutines.ExperimentalCoroutinesApi
+@RunWith(AndroidJUnit4::class)
+@ExperimentalCoroutinesApi
 class RfcommTest {
     private val mContext = ApplicationProvider.getApplicationContext<Context>()
     private val mManager = mContext.getSystemService(BluetoothManager::class.java)
     private val mAdapter = mManager!!.adapter
 
     // Gives shell permissions during the test.
-    @Rule
+    @Rule(order = 0)
     @JvmField
     val mPermissionsRule =
         AdoptShellPermissionsRule(
@@ -56,7 +56,9 @@ class RfcommTest {
         )
 
     // Set up a Bumble Pandora device for the duration of the test.
-    @Rule @JvmField val mBumble = PandoraDevice()
+    @Rule(order = 1) @JvmField val mBumble = PandoraDevice()
+
+    @Rule(order = 2) @JvmField val EnableBluetoothRule = EnableBluetoothRule(false, true)
 
     private lateinit var mBumbleDevice: BluetoothDevice
     private lateinit var host: Host
@@ -78,19 +80,16 @@ class RfcommTest {
     }
 
     @Test
-    @Ignore("b/355328584")
     fun clientConnectToOpenServerSocketBondedInsecure() {
         startServer { serverId -> createConnectAcceptSocket(isSecure = false, serverId) }
     }
 
     @Test
-    @Ignore("b/355328584")
     fun clientConnectToOpenServerSocketBondedSecure() {
         startServer { serverId -> createConnectAcceptSocket(isSecure = true, serverId) }
     }
 
     @Test
-    @Ignore("b/355328584")
     fun clientSendDataOverInsecureSocket() {
         startServer { serverId ->
             val (insecureSocket, connection) = createConnectAcceptSocket(isSecure = false, serverId)
@@ -108,7 +107,6 @@ class RfcommTest {
     }
 
     @Test
-    @Ignore("b/355328584")
     fun clientSendDataOverSecureSocket() {
         startServer { serverId ->
             val (secureSocket, connection) = createConnectAcceptSocket(isSecure = true, serverId)
@@ -126,7 +124,6 @@ class RfcommTest {
     }
 
     @Test
-    @Ignore("b/355328584")
     fun clientReceiveDataOverInsecureSocket() {
         startServer { serverId ->
             val (insecureSocket, connection) = createConnectAcceptSocket(isSecure = false, serverId)
@@ -145,7 +142,6 @@ class RfcommTest {
     }
 
     @Test
-    @Ignore("b/355328584")
     fun clientReceiveDataOverSecureSocket() {
         startServer { serverId ->
             val (secureSocket, connection) = createConnectAcceptSocket(isSecure = true, serverId)
