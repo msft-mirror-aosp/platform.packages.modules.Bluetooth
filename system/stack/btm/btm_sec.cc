@@ -71,6 +71,7 @@
 #include "stack/include/l2cap_security_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/main_thread.h"
+#include "stack/include/rnr_interface.h"
 #include "stack/include/smp_api.h"
 #include "stack/include/stack_metrics_logging.h"
 #include "types/bt_transport.h"
@@ -768,8 +769,8 @@ tBTM_STATUS btm_sec_bond_by_transport(const RawAddress& bd_addr, tBLE_ADDR_TYPE 
        * -> RNR (to learn if peer is 2.1)
        * RNR when no ACL causes HCI_RMT_HOST_SUP_FEAT_NOTIFY_EVT */
       btm_sec_cb.change_pairing_state(BTM_PAIR_STATE_GET_REM_NAME);
-      status = get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(bd_addr, NULL,
-                                                                        BT_TRANSPORT_BR_EDR);
+      status = get_stack_rnr_interface().BTM_ReadRemoteDeviceName(bd_addr, NULL,
+                                                                  BT_TRANSPORT_BR_EDR);
     } else {
       /* We are accepting connection request from peer */
       btm_sec_cb.change_pairing_state(BTM_PAIR_STATE_WAIT_PIN_REQ);
@@ -897,8 +898,7 @@ tBTM_STATUS BTM_SecBondCancel(const RawAddress& bd_addr) {
         return tBTM_STATUS::BTM_CMD_STARTED;
       }
       if (btm_sec_cb.pairing_state == BTM_PAIR_STATE_GET_REM_NAME) {
-        if (get_btm_client_interface().peer.BTM_CancelRemoteDeviceName() !=
-            tBTM_STATUS::BTM_SUCCESS) {
+        if (get_stack_rnr_interface().BTM_CancelRemoteDeviceName() != tBTM_STATUS::BTM_SUCCESS) {
           log::warn("Unable to cancel RNR");
         }
         btm_sec_cb.pairing_flags |= BTM_PAIR_FLAGS_WE_CANCEL_DD;
@@ -2263,7 +2263,7 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr, const uint8_
   if (btm_sec_cb.pairing_state == BTM_PAIR_STATE_GET_REM_NAME) {
     if (btm_sec_cb.pairing_bda != bd_addr) {
       log::warn("wrong BDA, retry with pairing BDA");
-      tBTM_STATUS btm_status = get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(
+      tBTM_STATUS btm_status = get_stack_rnr_interface().BTM_ReadRemoteDeviceName(
               btm_sec_cb.pairing_bda, NULL, BT_TRANSPORT_BR_EDR);
       if (btm_status != tBTM_STATUS::BTM_CMD_STARTED) {
         log::warn("failed ({}) to restart remote name request for pairing, must be already queued",
@@ -3525,8 +3525,8 @@ void btm_sec_connected(const RawAddress& bda, uint16_t handle, tHCI_STATUS statu
             /* remote device name is unknowm, start getting remote name first */
 
             btm_sec_cb.change_pairing_state(BTM_PAIR_STATE_GET_REM_NAME);
-            if (get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(p_dev_rec->bd_addr, NULL,
-                                                                         BT_TRANSPORT_BR_EDR) !=
+            if (get_stack_rnr_interface().BTM_ReadRemoteDeviceName(p_dev_rec->bd_addr, NULL,
+                                                                   BT_TRANSPORT_BR_EDR) !=
                 tBTM_STATUS::BTM_CMD_STARTED) {
               log::error("cannot read remote name");
               btm_sec_cb.change_pairing_state(BTM_PAIR_STATE_IDLE);
@@ -3560,8 +3560,8 @@ void btm_sec_connected(const RawAddress& bda, uint16_t handle, tHCI_STATUS statu
       if (BTM_SEC_IS_SM4_UNKNOWN(p_dev_rec->sm4)) {
         /* Try again: RNR when no ACL causes HCI_RMT_HOST_SUP_FEAT_NOTIFY_EVT */
         btm_sec_cb.change_pairing_state(BTM_PAIR_STATE_GET_REM_NAME);
-        if (get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(
-                    bda, NULL, BT_TRANSPORT_BR_EDR) != tBTM_STATUS::BTM_CMD_STARTED) {
+        if (get_stack_rnr_interface().BTM_ReadRemoteDeviceName(bda, NULL, BT_TRANSPORT_BR_EDR) !=
+            tBTM_STATUS::BTM_CMD_STARTED) {
           log::error("cannot read remote name");
           btm_sec_cb.change_pairing_state(BTM_PAIR_STATE_IDLE);
         }

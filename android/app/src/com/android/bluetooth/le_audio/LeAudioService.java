@@ -4333,7 +4333,7 @@ public class LeAudioService extends ProfileService {
 
             BassClientService bassClientService = getBassClientService();
             if (bassClientService != null) {
-                activeBroadcastSinks = bassClientService.getActiveBroadcastSinks();
+                activeBroadcastSinks = bassClientService.getSyncedBroadcastSinks();
             }
 
             if (activeBroadcastSinks.isEmpty()) {
