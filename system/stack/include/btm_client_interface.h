@@ -19,11 +19,11 @@
 #include <cstdint>
 
 #include "device/include/esco_parameters.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/btm/neighbor_inquiry.h"
 #include "stack/btm/power_mode.h"
 #include "stack/include/acl_client_callbacks.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/btm_api.h"
 #include "stack/include/btm_api_types.h"
 #include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_status.h"
@@ -49,10 +49,6 @@ struct btm_client_interface_t {
     [[nodiscard]] bool (*BTM_IsAclConnectionUp)(const RawAddress& bd_addr, tBT_TRANSPORT transport);
     [[nodiscard]] bool (*BTM_ReadConnectedTransportAddress)(RawAddress* bd_addr,
                                                             tBT_TRANSPORT transport);
-    [[nodiscard]] tBTM_STATUS (*BTM_CancelRemoteDeviceName)(void);
-    [[nodiscard]] tBTM_STATUS (*BTM_ReadRemoteDeviceName)(const RawAddress& bd_addr,
-                                                          tBTM_NAME_CMPL_CB* p_cb,
-                                                          tBT_TRANSPORT transport);
     [[nodiscard]] uint8_t* (*BTM_ReadRemoteFeatures)(const RawAddress&);
     void (*BTM_ReadDevInfo)(const RawAddress& bd_addr, tBT_DEVICE_TYPE* p_dev_type,
                             tBLE_ADDR_TYPE* p_addr_type);

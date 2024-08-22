@@ -23,6 +23,7 @@ import static android.Manifest.permission.MODIFY_PHONE_STATE;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
@@ -376,12 +377,14 @@ public final class BluetoothHeadset implements BluetoothProfile {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothHeadset.Stub.asInterface(service);
     }
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -392,6 +395,7 @@ public final class BluetoothHeadset implements BluetoothProfile {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }
@@ -701,11 +705,7 @@ public final class BluetoothHeadset implements BluetoothProfile {
      */
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                MODIFY_PHONE_STATE,
-            })
+    @RequiresPermission(BLUETOOTH_CONNECT)
     public boolean startVoiceRecognition(BluetoothDevice device) {
         if (DBG) log("startVoiceRecognition()");
         final IBluetoothHeadset service = getService();

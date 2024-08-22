@@ -312,6 +312,12 @@ static void l2c_csm_closed(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
           case L2CAP_LE_RESULT_INVALID_SOURCE_CID:
           case L2CAP_LE_RESULT_SOURCE_CID_ALREADY_ALLOCATED:
             break;
+          case L2CAP_LE_RESULT_CONN_PENDING:
+          case L2CAP_LE_RESULT_CONN_PENDING_AUTHENTICATION:
+          case L2CAP_LE_RESULT_CONN_PENDING_AUTHORIZATION:
+            log::warn("Received unexpected connection request return code:{}",
+                      l2cap_le_result_code_text(result));
+            break;
         }
       } else {
         if (!BTM_SetLinkPolicyActiveMode(p_ccb->p_lcb->remote_bd_addr)) {
@@ -531,7 +537,8 @@ static void l2c_csm_term_w4_sec_comp(tL2C_CCB* p_ccb, tL2CEVT event, void* p_dat
       break;
 
     case L2CEVT_SEC_COMP_NEG:
-      if (((tL2C_CONN_INFO*)p_data)->hci_status == static_cast<tHCI_STATUS>(BTM_DELAY_CHECK)) {
+      if (((tL2C_CONN_INFO*)p_data)->hci_status ==
+          static_cast<tHCI_STATUS>(tBTM_STATUS::BTM_DELAY_CHECK)) {
         /* start a timer - encryption change not received before L2CAP connect
          * req */
         alarm_set_on_mloop(p_ccb->l2c_ccb_timer, L2CAP_DELAY_CHECK_SM4_TIMEOUT_MS,

@@ -521,6 +521,7 @@ public final class BluetoothGattServer implements BluetoothProfile {
      *
      * @hide
      */
+    @RequiresNoPermission
     public int getServerIf() {
         return mServerIf;
     }
@@ -561,14 +562,17 @@ public final class BluetoothGattServer implements BluetoothProfile {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceConnected(IBinder service) {}
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {}
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }

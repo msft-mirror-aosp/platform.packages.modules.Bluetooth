@@ -191,6 +191,7 @@ cc_defaults {
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system/include",
+        "packages/modules/Bluetooth/system/stack/include",
         "packages/modules/Bluetooth/system/types",
     ],
     export_static_lib_headers: ["libbluetooth_rust_interop"],
@@ -309,9 +310,6 @@ cc_binary {
         "BlueberryFacadeGeneratedStub_h",
         "BluetoothGeneratedBundlerSchema_h_bfbs",
         "BluetoothGeneratedDumpsysDataSchema_h",
-        // Needed here to guarantee that generated zip file is created before
-        // bluetooth_cert_tests.zip is packaged
-        "BlueberryFacadeAndCertGeneratedStub_py",
     ],
     generated_sources: [
         "BlueberryFacadeGeneratedStub_cc",
