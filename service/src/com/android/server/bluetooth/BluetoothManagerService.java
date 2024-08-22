@@ -248,7 +248,7 @@ class BluetoothManagerService {
         }
     }
 
-    boolean onFactoryReset() {
+    boolean onFactoryResetFromBinder() {
         // Wait for stable state if bluetooth is temporary state.
         int state = getState();
         if (state == STATE_BLE_TURNING_ON
@@ -258,10 +258,13 @@ class BluetoothManagerService {
                 return false;
             }
         }
+        return postAndWait(() -> onFactoryReset());
+    }
 
+    boolean onFactoryReset() {
         // Clear registered LE apps to force shut-off Bluetooth
         clearBleApps();
-        state = getState();
+        int state = getState();
         mAdapterLock.readLock().lock();
         try {
             if (mAdapter == null) {
