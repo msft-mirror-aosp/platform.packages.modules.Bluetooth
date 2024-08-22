@@ -232,7 +232,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
-        return mBluetoothManagerService.onFactoryReset();
+        return mBluetoothManagerService.onFactoryResetFromBinder();
     }
 
     @Override

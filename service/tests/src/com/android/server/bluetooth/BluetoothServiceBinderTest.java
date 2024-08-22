@@ -288,7 +288,7 @@ public class BluetoothServiceBinderTest {
                 .adoptShellPermissionIdentity(BLUETOOTH_PRIVILEGED, BLUETOOTH_CONNECT);
 
         assertThat(mBinder.onFactoryReset(mSource)).isFalse();
-        verify(mManagerService).onFactoryReset();
+        verify(mManagerService).onFactoryResetFromBinder();
         verifyMock();
     }
 
