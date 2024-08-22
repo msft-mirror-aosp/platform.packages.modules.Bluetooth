@@ -30,9 +30,8 @@
 
 #include <cerrno>
 
+#include "common/init_flags.h"
 #include "os/log.h"
-
-extern int GetAdapterIndex();
 
 namespace bluetooth {
 namespace hal {
@@ -83,7 +82,7 @@ static int btsocket_open_mgmt(uint16_t hci) {
  * be HCI_OP_NOP (0x0000).
  */
 uint16_t Mgmt::get_vs_opcode(uint16_t vendor_specification) {
-  int hci = GetAdapterIndex();
+  int hci = bluetooth::common::InitFlags::GetAdapterIndex();
   int fd = btsocket_open_mgmt(hci);
   uint16_t ret_opcode = HCI_OP_NOP;
 

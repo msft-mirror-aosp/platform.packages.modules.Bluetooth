@@ -31,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+#include "common/init_flags.h"
 #include "hal/hci_hal.h"
 #include "hal/link_clocker.h"
 #include "hal/mgmt.h"
@@ -39,8 +40,6 @@
 #include "os/log.h"
 #include "os/reactor.h"
 #include "os/thread.h"
-
-extern int GetAdapterIndex();
 
 namespace {
 constexpr int INVALID_FD = -1;
@@ -207,7 +206,7 @@ int ConnectToSocket() {
   }
 
   // Determine which hci index we should connect to.
-  int hci_interface = GetAdapterIndex();
+  int hci_interface = bluetooth::common::InitFlags::GetAdapterIndex();
 
   if (waitHciDev(hci_interface) != 0) {
     ::close(socket_fd);

@@ -21,6 +21,7 @@
 
 #include <vector>
 
+#include "common/init_flags.h"
 #include "hci/controller_interface.h"
 #include "main/shim/entry.h"
 #include "os/log.h"
@@ -28,8 +29,6 @@
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/include/hcimsgs.h"
 #include "stack/include/sdpdefs.h"
-
-extern int GetAdapterIndex();
 
 using bluetooth::legacy::hci::GetInterface;
 
@@ -280,7 +279,7 @@ int mgmt_notify_sco_connection_change(int fd, int hci, RawAddress device, bool i
 }  // namespace
 
 void init() {
-  int hci = GetAdapterIndex();
+  int hci = bluetooth::common::InitFlags::GetAdapterIndex();
   int fd = btsocket_open_mgmt(hci);
   if (fd < 0) {
     bluetooth::log::error("Failed to open mgmt channel, error= {}.", fd);
@@ -444,7 +443,7 @@ size_t get_packet_size(int codec) {
 }
 
 void notify_sco_connection_change(RawAddress device, bool is_connected, int codec) {
-  int hci = GetAdapterIndex();
+  int hci = bluetooth::common::InitFlags::GetAdapterIndex();
   int fd = btsocket_open_mgmt(hci);
   if (fd < 0) {
     bluetooth::log::error("Failed to open mgmt channel, error= {}.", fd);

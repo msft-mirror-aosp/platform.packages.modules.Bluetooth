@@ -2677,16 +2677,16 @@ public class LeAudioServiceTest {
                         eq(null), any(), any(BluetoothProfileConnectionInfo.class));
         TestUtils.waitForLooperToFinishScheduledTask(mService.getMainLooper());
 
-        // Verify setGroupVolume will not be called if no active sinks
-        doReturn(new ArrayList<>()).when(mBassClientService).getActiveBroadcastSinks();
+        // Verify setGroupVolume will not be called if no synced sinks
+        doReturn(new ArrayList<>()).when(mBassClientService).getSyncedBroadcastSinks();
         mService.setVolume(newVolume);
         verify(mVolumeControlService, never()).setGroupVolume(groupId, newVolume);
 
         mService.mUnicastGroupIdDeactivatedForBroadcastTransition = groupId;
-        // Verify setGroupVolume will be called if active sinks
+        // Verify setGroupVolume will be called if synced sinks
         doReturn(List.of(mLeftDevice, mRightDevice, mSingleDevice))
                 .when(mBassClientService)
-                .getActiveBroadcastSinks();
+                .getSyncedBroadcastSinks();
         mService.setVolume(newVolume);
 
         // Verify set volume only on primary group

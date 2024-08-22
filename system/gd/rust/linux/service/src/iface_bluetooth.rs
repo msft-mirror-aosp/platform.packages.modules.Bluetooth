@@ -499,7 +499,7 @@ impl IBluetooth for IBluetoothDBus {
     }
 
     // Not exposed over D-Bus. The stack is automatically initialized when the daemon starts.
-    fn init(&mut self, _init_flags: Vec<String>, _hci_index: i32) -> bool {
+    fn init(&mut self, _init_flags: Vec<String>) -> bool {
         dbus_generated!()
     }
 

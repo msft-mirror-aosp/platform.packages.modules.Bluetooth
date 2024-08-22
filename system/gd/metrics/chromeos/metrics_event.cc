@@ -25,14 +25,13 @@
 #include <map>
 #include <utility>
 
+#include "common/init_flags.h"
 #include "hci/hci_packets.h"
 #include "include/hardware/bluetooth.h"
 #include "include/hardware/bt_av.h"
 #include "include/hardware/bt_hf.h"
 #include "include/hardware/bt_hh.h"
 #include "stack/include/hci_error_code.h"
-
-extern int GetAdapterIndex();
 
 namespace bluetooth {
 namespace metrics {
@@ -674,7 +673,7 @@ static int64_t GetChipsetInfoId(const char* path, const char* file) {
 
 static std::string GetChipsetInfoModuleName() {
   std::string module;
-  int adapter_index = GetAdapterIndex();
+  int adapter_index = bluetooth::common::InitFlags::GetAdapterIndex();
   std::string path = base::StringPrintf(kChipsetInfoModaliasPath, adapter_index);
 
   if (base::ReadFileToString(base::FilePath(path), &module)) {
@@ -687,7 +686,7 @@ static MetricTransportType GetChipsetInfoTransport(void) {
   MetricTransportType transport = MetricTransportType::TRANSPORT_TYPE_UNKNOWN;
   base::FilePath module_realpath;
   std::string module_name;
-  int adapter_index = GetAdapterIndex();
+  int adapter_index = bluetooth::common::InitFlags::GetAdapterIndex();
   std::string path = base::StringPrintf(kChipInfoModuleDirPath, adapter_index);
 
   // examples of module_realpath: /sys/module/btusb and /sys/module/hci_uart

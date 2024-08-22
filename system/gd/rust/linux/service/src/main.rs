@@ -104,6 +104,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         None => vec![],
     };
 
+    // Forward --hci to Fluoride.
+    init_flags.push(format!("--hci={}", hci_index));
+
     let logging = Arc::new(Mutex::new(Box::new(BluetoothLogging::new(
         is_debug,
         is_verbose_debug,
@@ -243,7 +246,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             bluetooth_admin.lock().unwrap().set_adapter(adapter.clone());
 
             let mut bluetooth = bluetooth.lock().unwrap();
-            bluetooth.init(init_flags, hci_index);
+            bluetooth.init(init_flags);
             bluetooth.enable();
 
             bluetooth_gatt.lock().unwrap().init_profiles(tx.clone(), api_tx.clone());
