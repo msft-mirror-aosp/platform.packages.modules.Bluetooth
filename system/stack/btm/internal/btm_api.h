@@ -101,18 +101,6 @@ void BTM_reset_complete();
 
 /*******************************************************************************
  *
- * Function         BTM_ReadLocalDeviceNameFromController
- *
- * Description      Get local device name from controller. Do not use cached
- *                  name (used to get chip-id prior to btm reset complete).
- *
- * Returns          tBTM_STATUS::BTM_CMD_STARTED if successful, otherwise an error
- *
- ******************************************************************************/
-[[nodiscard]] tBTM_STATUS BTM_ReadLocalDeviceNameFromController(tBTM_CMPL_CB* p_rln_cmpl_cback);
-
-/*******************************************************************************
- *
  * Function         BTM_ReadDeviceClass
  *
  * Description      This function is called to read the local device class
