@@ -60,10 +60,8 @@
 #include "osi/include/allocator.h"
 #include "stack/acl/acl.h"
 #include "stack/btm/btm_int_types.h"
-#include "stack/btm/btm_sec_cb.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_log_history.h"
-#include "stack/include/l2cap_module.h"
 #include "stack/include/main_thread.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
@@ -1265,7 +1263,6 @@ void DumpsysNeighbor(int fd) {
 void shim::Acl::Dump(int fd) const {
   DumpsysNeighbor(fd);
   DumpsysAcl(fd);
-  L2CA_Dumpsys(fd);
   DumpsysBtm(fd);
 }
 

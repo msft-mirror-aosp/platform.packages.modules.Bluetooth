@@ -222,8 +222,6 @@ struct btm_client_interface_t default_btm_client_interface = {
                 .BTM_ReadLocalDeviceName = [](const char** /* p_name */) -> tBTM_STATUS {
                   return tBTM_STATUS::BTM_SUCCESS;
                 },
-                .BTM_ReadLocalDeviceNameFromController = [](tBTM_CMPL_CB* /* p_rln_cmpl_cback */)
-                        -> tBTM_STATUS { return tBTM_STATUS::BTM_SUCCESS; },
                 .BTM_SetLocalDeviceName = [](const char* /* p_name */) -> tBTM_STATUS {
                   return tBTM_STATUS::BTM_SUCCESS;
                 },
