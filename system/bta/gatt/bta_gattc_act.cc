@@ -1450,11 +1450,11 @@ static void bta_gattc_conn_cback(tGATT_IF gattc_if, const RawAddress& bdaddr, ui
   if (connected) {
     log::info("Connected client_if:{} addr:{}, transport:{} reason:{}", gattc_if, bdaddr,
               bt_transport_text(transport), gatt_disconnection_reason_text(reason));
-    btif_debug_conn_state(bdaddr, BTIF_DEBUG_CONNECTED, GATT_CONN_OK);
+    btif_debug_conn_state(bdaddr, BTIF_DEBUG_CONNECTED, reason);
   } else {
     log::info("Disconnected att_id:{} addr:{}, transport:{} reason:{}", gattc_if, bdaddr,
               bt_transport_text(transport), gatt_disconnection_reason_text(reason));
-    btif_debug_conn_state(bdaddr, BTIF_DEBUG_DISCONNECTED, GATT_CONN_OK);
+    btif_debug_conn_state(bdaddr, BTIF_DEBUG_DISCONNECTED, reason);
   }
 
   tBTA_GATTC_DATA* p_buf = (tBTA_GATTC_DATA*)osi_calloc(sizeof(tBTA_GATTC_DATA));

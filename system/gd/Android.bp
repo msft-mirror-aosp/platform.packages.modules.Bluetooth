@@ -310,9 +310,6 @@ cc_binary {
         "BlueberryFacadeGeneratedStub_h",
         "BluetoothGeneratedBundlerSchema_h_bfbs",
         "BluetoothGeneratedDumpsysDataSchema_h",
-        // Needed here to guarantee that generated zip file is created before
-        // bluetooth_cert_tests.zip is packaged
-        "BlueberryFacadeAndCertGeneratedStub_py",
     ],
     generated_sources: [
         "BlueberryFacadeGeneratedStub_cc",

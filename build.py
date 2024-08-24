@@ -380,7 +380,7 @@ class HostBuild():
             'enable_exceptions': os.environ.get('CXXEXCEPTIONS', 0) == '1',
             'external_cflags': [],
             'external_cxxflags': ["-DNDEBUG"],
-            'enable_werror': False,
+            'enable_werror': True,
         }
 
         if clang:

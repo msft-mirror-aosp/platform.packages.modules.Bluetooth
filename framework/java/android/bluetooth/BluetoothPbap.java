@@ -20,6 +20,7 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
 import android.annotation.NonNull;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SuppressLint;
@@ -122,12 +123,14 @@ public class BluetoothPbap implements BluetoothProfile {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothPbap.Stub.asInterface(service);
     }
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -138,6 +141,7 @@ public class BluetoothPbap implements BluetoothProfile {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }

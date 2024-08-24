@@ -44,6 +44,7 @@ aconfig_declarations {
         "sco.aconfig",
         "sdp.aconfig",
         "security.aconfig",
+        "service_discovery.aconfig",
         "sockets.aconfig",
         "system_service.aconfig",
         "vcp.aconfig",
