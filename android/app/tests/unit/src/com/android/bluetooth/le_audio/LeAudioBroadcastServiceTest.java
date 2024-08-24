@@ -45,6 +45,7 @@ import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.ServiceFactory;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.tbs.TbsService;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -88,6 +89,7 @@ public class LeAudioBroadcastServiceTest {
     @Mock private LeAudioNativeInterface mLeAudioNativeInterface;
     @Mock private LeAudioTmapGattServer mTmapGattServer;
     @Mock private BassClientService mBassClientService;
+    @Mock private TbsService mTbsService;
     @Spy private LeAudioObjectsFactory mObjectsFactory = LeAudioObjectsFactory.getInstance();
     @Spy private ServiceFactory mServiceFactory = new ServiceFactory();
 
@@ -215,6 +217,7 @@ public class LeAudioBroadcastServiceTest {
 
         mService.mAudioManager = mAudioManager;
         mService.mServiceFactory = mServiceFactory;
+        mService.mTbsService = mTbsService;
         when(mServiceFactory.getBassClientService()).thenReturn(mBassClientService);
         // Set up the State Changed receiver
         IntentFilter filter = new IntentFilter();
@@ -346,7 +349,9 @@ public class LeAudioBroadcastServiceTest {
         int broadcastId = 243;
         byte[] code = {0x00, 0x01, 0x00, 0x02};
 
-        mService.mBroadcastCallbacks.register(mCallbacks);
+        synchronized (mService.mBroadcastCallbacks) {
+            mService.mBroadcastCallbacks.register(mCallbacks);
+        }
 
         BluetoothLeAudioContentMetadata.Builder meta_builder =
                 new BluetoothLeAudioContentMetadata.Builder();
@@ -362,7 +367,9 @@ public class LeAudioBroadcastServiceTest {
         int broadcastId = 243;
         byte[] code = {0x00, 0x01, 0x00, 0x02};
 
-        mService.mBroadcastCallbacks.register(mCallbacks);
+        synchronized (mService.mBroadcastCallbacks) {
+            mService.mBroadcastCallbacks.register(mCallbacks);
+        }
 
         BluetoothLeAudioContentMetadata.Builder meta_builder =
                 new BluetoothLeAudioContentMetadata.Builder();
@@ -378,7 +385,9 @@ public class LeAudioBroadcastServiceTest {
         int broadcastId = 243;
         byte[] code = {0x00, 0x01, 0x00, 0x02};
 
-        mService.mBroadcastCallbacks.register(mCallbacks);
+        synchronized (mService.mBroadcastCallbacks) {
+            mService.mBroadcastCallbacks.register(mCallbacks);
+        }
 
         BluetoothLeAudioContentMetadata.Builder meta_builder =
                 new BluetoothLeAudioContentMetadata.Builder();
@@ -422,7 +431,9 @@ public class LeAudioBroadcastServiceTest {
         int broadcastId = 243;
         byte[] code = {0x00, 0x01, 0x00, 0x02};
 
-        mService.mBroadcastCallbacks.register(mCallbacks);
+        synchronized (mService.mBroadcastCallbacks) {
+            mService.mBroadcastCallbacks.register(mCallbacks);
+        }
 
         BluetoothLeAudioContentMetadata.Builder meta_builder =
                 new BluetoothLeAudioContentMetadata.Builder();
@@ -478,7 +489,9 @@ public class LeAudioBroadcastServiceTest {
         int groupId = 1;
         prepareConnectedUnicastDevice(groupId);
 
-        mService.mBroadcastCallbacks.register(mCallbacks);
+        synchronized (mService.mBroadcastCallbacks) {
+            mService.mBroadcastCallbacks.register(mCallbacks);
+        }
 
         BluetoothLeAudioContentMetadata.Builder meta_builder =
                 new BluetoothLeAudioContentMetadata.Builder();
@@ -515,7 +528,9 @@ public class LeAudioBroadcastServiceTest {
         int broadcastId = 243;
         byte[] code = {0x00, 0x01, 0x00, 0x02};
 
-        mService.mBroadcastCallbacks.register(mCallbacks);
+        synchronized (mService.mBroadcastCallbacks) {
+            mService.mBroadcastCallbacks.register(mCallbacks);
+        }
 
         BluetoothLeAudioContentMetadata.Builder meta_builder =
                 new BluetoothLeAudioContentMetadata.Builder();
@@ -531,7 +546,9 @@ public class LeAudioBroadcastServiceTest {
     public void testBroadcastInvalidBroadcastIdRequest() {
         int broadcastId = 243;
 
-        mService.mBroadcastCallbacks.register(mCallbacks);
+        synchronized (mService.mBroadcastCallbacks) {
+            mService.mBroadcastCallbacks.register(mCallbacks);
+        }
 
         // Stop non-existing broadcast
         mService.stopBroadcast(broadcastId);
@@ -711,7 +728,7 @@ public class LeAudioBroadcastServiceTest {
         int direction = 3;
         int snkAudioLocation = 3;
         int srcAudioLocation = 4;
-        int availableContexts = 5;
+        int availableContexts = 5 + BluetoothLeAudio.CONTEXT_TYPE_RINGTONE;
 
         /* Initialize native */
         LeAudioStackEvent stackEvent =
@@ -837,7 +854,9 @@ public class LeAudioBroadcastServiceTest {
         int broadcastId = 243;
         byte[] code = {0x00, 0x01, 0x00, 0x02};
 
-        mService.mBroadcastCallbacks.register(mCallbacks);
+        synchronized (mService.mBroadcastCallbacks) {
+            mService.mBroadcastCallbacks.register(mCallbacks);
+        }
 
         BluetoothLeAudioContentMetadata.Builder meta_builder =
                 new BluetoothLeAudioContentMetadata.Builder();
@@ -868,7 +887,9 @@ public class LeAudioBroadcastServiceTest {
         mSetFlagsRule.enableFlags(Flags.FLAG_AUDIO_ROUTING_CENTRALIZATION);
         mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_BROADCAST_AUDIO_HANDOVER_POLICIES);
 
-        mService.mBroadcastCallbacks.register(mCallbacks);
+        synchronized (mService.mBroadcastCallbacks) {
+            mService.mBroadcastCallbacks.register(mCallbacks);
+        }
 
         prepareConnectedUnicastDevice(groupId);
 
@@ -877,6 +898,8 @@ public class LeAudioBroadcastServiceTest {
         create_event.valueInt1 = groupId;
         create_event.valueInt2 = LeAudioStackEvent.GROUP_STATUS_ACTIVE;
         mService.messageFromNative(create_event);
+
+        verify(mTbsService, times(1)).setInbandRingtoneSupport(eq(mDevice));
 
         /* Verify Unicast input and output devices changed from null to mDevice */
         verify(mAudioManager, times(2))
@@ -953,6 +976,8 @@ public class LeAudioBroadcastServiceTest {
         create_event.valueInt1 = broadcastId;
         create_event.valueInt2 = LeAudioStackEvent.BROADCAST_STATE_STREAMING;
         mService.messageFromNative(create_event);
+
+        verify(mTbsService, times(0)).clearInbandRingtoneSupport(eq(mDevice));
     }
 
     @Test

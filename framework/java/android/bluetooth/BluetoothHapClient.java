@@ -27,6 +27,7 @@ import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SuppressLint;
@@ -491,6 +492,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothHapClient.Stub.asInterface(service);
         mCallbackWrapper.registerToNewService(mService);
@@ -498,6 +500,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -508,6 +511,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }

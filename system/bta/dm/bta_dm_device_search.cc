@@ -45,7 +45,7 @@
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
-#include "stack/rnr/remote_name_request.h"
+#include "stack/include/rnr_interface.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -148,8 +148,7 @@ static void bta_dm_search_cancel() {
   /* If no Service Search going on then issue cancel remote name in case it is
      active */
   else if (!bta_dm_search_cb.name_discover_done) {
-    if (get_btm_client_interface().peer.BTM_CancelRemoteDeviceName() !=
-        tBTM_STATUS::BTM_CMD_STARTED) {
+    if (get_stack_rnr_interface().BTM_CancelRemoteDeviceName() != tBTM_STATUS::BTM_CMD_STARTED) {
       log::warn("Unable to cancel RNR");
     }
     /* bta_dm_search_cmpl is called when receiving the remote name cancel evt */
@@ -297,8 +296,8 @@ static bool bta_dm_read_remote_device_name(const RawAddress& bd_addr, tBT_TRANSP
   bta_dm_search_cb.peer_bdaddr = bd_addr;
   bta_dm_search_cb.peer_name[0] = 0;
 
-  btm_status = get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(
-          bta_dm_search_cb.peer_bdaddr, bta_dm_remname_cback, transport);
+  btm_status = get_stack_rnr_interface().BTM_ReadRemoteDeviceName(bta_dm_search_cb.peer_bdaddr,
+                                                                  bta_dm_remname_cback, transport);
 
   if (btm_status == tBTM_STATUS::BTM_CMD_STARTED) {
     log::verbose("BTM_ReadRemoteDeviceName is started");
@@ -435,7 +434,7 @@ static void bta_dm_search_cancel_notify() {
     case BTA_DM_SEARCH_ACTIVE:
     case BTA_DM_SEARCH_CANCELLING:
       if (!bta_dm_search_cb.name_discover_done) {
-        if (get_btm_client_interface().peer.BTM_CancelRemoteDeviceName() !=
+        if (get_stack_rnr_interface().BTM_CancelRemoteDeviceName() !=
             tBTM_STATUS::BTM_CMD_STARTED) {
           log::warn("Unable to cancel RNR");
         }
@@ -514,7 +513,7 @@ static void bta_dm_discover_name(const RawAddress& remote_bd_addr) {
     bta_dm_search_cb.name_discover_done = true;
   }
   // If we already have the name we can skip getting the name
-  if (BTM_IsRemoteNameKnown(remote_bd_addr, transport)) {
+  if (get_stack_rnr_interface().BTM_IsRemoteNameKnown(remote_bd_addr, transport)) {
     log::debug("Security record already known skipping read remote name peer:{}", remote_bd_addr);
     bta_dm_search_cb.name_discover_done = true;
   }

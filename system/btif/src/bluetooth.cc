@@ -96,6 +96,7 @@
 #include "osi/include/allocator.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "osi/include/wakelock.h"
+#include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/gatt/connection_manager.h"
 #include "stack/include/a2dp_api.h"
@@ -107,6 +108,7 @@
 #include "stack/include/hfp_msbc_decoder.h"
 #include "stack/include/hfp_msbc_encoder.h"
 #include "stack/include/hidh_api.h"
+#include "stack/include/l2cap_module.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/pan_api.h"
 #include "stack/include/sdp_api.h"
@@ -426,6 +428,15 @@ static bool is_profile(const char* p1, const char* p2) {
  *   BLUETOOTH HAL INTERFACE FUNCTIONS
  *
  ****************************************************************************/
+
+#ifdef TARGET_FLOSS
+static int global_hci_adapter = 0;
+
+static void set_adapter_index(int adapter) { global_hci_adapter = adapter; }
+int GetAdapterIndex() { return global_hci_adapter; }
+#else
+int GetAdapterIndex() { return 0; }  // Unsupported outside of FLOSS
+#endif
 
 static int init(bt_callbacks_t* callbacks, bool start_restricted, bool is_common_criteria_mode,
                 int config_compare_result, const char** init_flags, bool is_atv,
@@ -895,6 +906,9 @@ static void dump(int fd, const char** arguments) {
   DumpsysHid(fd);
   DumpsysBtaDm(fd);
   SDP_Dumpsys(fd);
+  DumpsysRecord(fd);
+  L2CA_Dumpsys(fd);
+  DumpsysBtm(fd);
   bluetooth::shim::Dump(fd, arguments);
   power_telemetry::GetInstance().Dumpsys(fd);
   log::debug("Finished bluetooth dumpsys");
@@ -1224,6 +1238,9 @@ static void interop_database_add_remove_name(bool do_add, const char* feature_na
 
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
         sizeof(bluetoothInterface),
+#ifdef TARGET_FLOSS
+        .set_adapter_index = set_adapter_index,
+#endif
         .init = init,
         .enable = enable,
         .disable = disable,

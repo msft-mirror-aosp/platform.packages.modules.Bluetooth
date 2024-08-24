@@ -23,6 +23,7 @@ import static android.Manifest.permission.SEND_SMS;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
@@ -192,9 +193,6 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
      */
     public static final int RESULT_CANCELED = 2;
 
-    /** @hide */
-    private static final int UPLOADING_FEATURE_BITMASK = 0x08;
-
     /*
      * UNREAD, READ, UNDELETED, DELETED are passed as parameters
      * to setMessageStatus to indicate the messages new state.
@@ -254,12 +252,14 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothMapClient.Stub.asInterface(service);
     }
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -270,6 +270,7 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }

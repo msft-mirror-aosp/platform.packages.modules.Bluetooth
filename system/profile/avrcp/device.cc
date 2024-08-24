@@ -902,6 +902,7 @@ void Device::HandlePlayItem(uint8_t label, std::shared_ptr<PlayItemRequest> pkt)
 void Device::HandleSetAddressedPlayer(uint8_t label, std::shared_ptr<SetAddressedPlayerRequest> pkt,
                                       uint16_t curr_player) {
   log::verbose("PlayerId={}", pkt->GetPlayerId());
+  log::verbose("curr_player={}", curr_player);
 
   if (curr_player != pkt->GetPlayerId()) {
     log::verbose("Reject invalid addressed player ID");
