@@ -54,6 +54,7 @@ class Gatt(private val context: Context) : GATTImplBase(), Closeable {
     private val serverManager by lazy { GattServerManager(mBluetoothManager, context, mScope) }
 
     private val flow: Flow<Intent>
+
     init {
         val intentFilter = IntentFilter()
         intentFilter.addAction(BluetoothDevice.ACTION_UUID)
@@ -128,7 +129,7 @@ class Gatt(private val context: Context) : GATTImplBase(), Closeable {
             // we need to wait until the service discovery is finished to be able to discover again.
             // This takes between 20s and 28s, and there is no way to know if the service is busy or
             // not.
-            // Delay was originally 30s, but due to flakyness increased to 32s.
+            // Delay was originally 30s, but due to flakiness increased to 32s.
             delay(32000L)
             check(gattInstance.mGatt.discoverServiceByUuid(UUID.fromString(request.uuid)))
             // BluetoothGatt#discoverServiceByUuid does not trigger any callback and does not return

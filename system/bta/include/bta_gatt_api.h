@@ -810,7 +810,7 @@ void BTA_GATTC_ExecuteWrite(uint16_t conn_id, bool is_execute);
  * Description      This function is called to read multiple characteristic or
  *                  characteristic descriptors.
  *
- * Parameters       conn_id - connectino ID.
+ * Parameters       conn_id - connection ID.
  *                  p_read_multi - read multiple parameters.
  *                  variable_len - whether "read multi variable length" variant
  *                                 shall be used.
