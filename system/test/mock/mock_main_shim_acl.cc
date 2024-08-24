@@ -39,8 +39,6 @@ void DumpsysL2cap(int /* fd */) { inc_func_call_count(__func__); }
 
 void DumpsysAcl(int /* fd */) { inc_func_call_count(__func__); }
 
-void DumpsysBtm(int /* fd */) { inc_func_call_count(__func__); }
-
 void DumpsysNeighbor(int /* fd */) { inc_func_call_count(__func__); }
 
 void shim::Acl::Dump(int /* fd */) const { inc_func_call_count(__func__); }
@@ -101,7 +99,6 @@ bluetooth::hci::AddressWithType shim::Acl::GetConnectionPeerAddress(uint16_t /* 
 std::optional<uint8_t> shim::Acl::GetAdvertisingSetConnectedTo(const RawAddress& /* remote_bda */) {
   inc_func_call_count(__func__);
   return std::nullopt;
-  ;
 }
 
 void shim::Acl::OnLeLinkDisconnected(HciHandle /* handle */, hci::ErrorCode /* reason */) {
