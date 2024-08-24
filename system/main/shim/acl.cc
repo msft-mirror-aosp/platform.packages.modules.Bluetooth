@@ -1203,26 +1203,6 @@ void DumpsysAcl(int fd) {
 }
 #undef DUMPSYS_TAG
 
-using Record = common::TimestampedEntry<std::string>;
-const std::string kTimeFormat("%Y-%m-%d %H:%M:%S");
-
-#define DUMPSYS_TAG "shim::btm"
-void DumpsysBtm(int fd) {
-  LOG_DUMPSYS_TITLE(fd, DUMPSYS_TAG);
-  if (btm_cb.history_ != nullptr) {
-    std::vector<Record> history = btm_cb.history_->Pull();
-    for (auto& record : history) {
-      time_t then = record.timestamp / 1000;
-      struct tm tm;
-      localtime_r(&then, &tm);
-      auto s2 = common::StringFormatTime(kTimeFormat, tm);
-      LOG_DUMPSYS(fd, " %s.%03u %s", s2.c_str(), static_cast<unsigned int>(record.timestamp % 1000),
-                  record.entry.c_str());
-    }
-  }
-}
-#undef DUMPSYS_TAG
-
 #define DUMPSYS_TAG "shim::stack"
 void DumpsysNeighbor(int fd) {
   LOG_DUMPSYS(fd, "Stack information %lc%lc", kRunicBjarkan, kRunicHagall);
@@ -1263,7 +1243,6 @@ void DumpsysNeighbor(int fd) {
 void shim::Acl::Dump(int fd) const {
   DumpsysNeighbor(fd);
   DumpsysAcl(fd);
-  DumpsysBtm(fd);
 }
 
 shim::Acl::Acl(os::Handler* handler, const acl_interface_t& acl_interface,

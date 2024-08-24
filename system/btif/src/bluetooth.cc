@@ -435,7 +435,7 @@ static int global_hci_adapter = 0;
 static int set_adapter_index(int adapter) { global_hci_adapter = adapter; }
 int GetAdapterIndex() { return global_hci_adapter; }
 #else
-int GetAdapterIndex() { return 0; } // Unsupported outside of FLOSS
+int GetAdapterIndex() { return 0; }  // Unsupported outside of FLOSS
 #endif
 
 static int init(bt_callbacks_t* callbacks, bool start_restricted, bool is_common_criteria_mode,
@@ -908,6 +908,7 @@ static void dump(int fd, const char** arguments) {
   SDP_Dumpsys(fd);
   DumpsysRecord(fd);
   L2CA_Dumpsys(fd);
+  DumpsysBtm(fd);
   bluetooth::shim::Dump(fd, arguments);
   power_telemetry::GetInstance().Dumpsys(fd);
   log::debug("Finished bluetooth dumpsys");
