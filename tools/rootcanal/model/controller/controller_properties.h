@@ -112,7 +112,9 @@ public:
   uint64_t le_features{0};
 
   // Buffer Size (Vol 4, Part E § 7.4.5).
-  uint16_t acl_data_packet_length{1024};
+  // Note: The blueZ HCI user socket limits the ACL Data Packet length to 1023
+  // bytes (see HCI_MAX_FRAME_SIZE).
+  uint16_t acl_data_packet_length{1023};
   uint8_t sco_data_packet_length{255};
   uint16_t total_num_acl_data_packets{10};
   uint16_t total_num_sco_data_packets{10};

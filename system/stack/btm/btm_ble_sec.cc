@@ -48,7 +48,6 @@
 #include "stack/include/bt_name.h"
 #include "stack/include/bt_octets.h"
 #include "stack/include/bt_types.h"
-#include "stack/include/btm_api.h"
 #include "stack/include/btm_ble_addr.h"
 #include "stack/include/btm_ble_privacy.h"
 #include "stack/include/btm_ble_sec_api.h"
@@ -572,7 +571,7 @@ bool BTM_ReadConnectedTransportAddress(RawAddress* remote_bda, tBT_TRANSPORT tra
 tBTM_STATUS BTM_SetBleDataLength(const RawAddress& bd_addr, uint16_t tx_pdu_length) {
   if (!bluetooth::shim::GetController()->SupportsBleDataPacketLengthExtension()) {
     log::info("Local controller does not support le packet extension");
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   log::info("bd_addr:{}, tx_pdu_length:{}", bd_addr, tx_pdu_length);
@@ -580,7 +579,7 @@ tBTM_STATUS BTM_SetBleDataLength(const RawAddress& bd_addr, uint16_t tx_pdu_leng
   auto p_dev_rec = btm_find_dev(bd_addr);
   if (p_dev_rec == NULL) {
     log::error("Device {} not found", bd_addr);
-    return BTM_UNKNOWN_ADDR;
+    return tBTM_STATUS::BTM_UNKNOWN_ADDR;
   }
 
   if (tx_pdu_length > BTM_BLE_DATA_SIZE_MAX) {
@@ -604,7 +603,7 @@ tBTM_STATUS BTM_SetBleDataLength(const RawAddress& bd_addr, uint16_t tx_pdu_leng
 
   if (!get_btm_client_interface().peer.BTM_IsAclConnectionUp(bd_addr, BT_TRANSPORT_LE)) {
     log::info("Unable to set data length because no le acl link connected to device");
-    return BTM_WRONG_MODE;
+    return tBTM_STATUS::BTM_WRONG_MODE;
   }
 
   uint16_t hci_handle =
@@ -612,7 +611,7 @@ tBTM_STATUS BTM_SetBleDataLength(const RawAddress& bd_addr, uint16_t tx_pdu_leng
 
   if (!acl_peer_supports_ble_packet_extension(hci_handle)) {
     log::info("Remote device unable to support le packet extension");
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   tx_pdu_length = std::min<uint16_t>(
@@ -730,8 +729,8 @@ tBTM_STATUS btm_ble_start_sec_check(const RawAddress& bd_addr, uint16_t psm, boo
    */
   if (!p_serv_rec) {
     log::warn("PSM: {} no application registered", psm);
-    (*p_callback)(bd_addr, BT_TRANSPORT_LE, p_ref_data, BTM_MODE_UNSUPPORTED);
-    return BTM_ILLEGAL_VALUE;
+    (*p_callback)(bd_addr, BT_TRANSPORT_LE, p_ref_data, tBTM_STATUS::BTM_MODE_UNSUPPORTED);
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   bool is_encrypted = BTM_IsEncrypted(bd_addr, BT_TRANSPORT_LE);
@@ -741,12 +740,12 @@ tBTM_STATUS btm_ble_start_sec_check(const RawAddress& bd_addr, uint16_t psm, boo
   if (!is_originator) {
     if ((p_serv_rec->security_flags & BTM_SEC_IN_ENCRYPT) && !is_encrypted) {
       log::error("BTM_NOT_ENCRYPTED. service security_flags=0x{:x}", p_serv_rec->security_flags);
-      return BTM_NOT_ENCRYPTED;
+      return tBTM_STATUS::BTM_NOT_ENCRYPTED;
     } else if ((p_serv_rec->security_flags & BTM_SEC_IN_AUTHENTICATE) &&
                !(is_link_key_authed || is_authenticated)) {
-      log::error("BTM_NOT_AUTHENTICATED. service security_flags=0x{:x}",
+      log::error("tBTM_STATUS::BTM_NOT_AUTHENTICATED. service security_flags=0x{:x}",
                  p_serv_rec->security_flags);
-      return BTM_NOT_AUTHENTICATED;
+      return tBTM_STATUS::BTM_NOT_AUTHENTICATED;
     }
     /* TODO: When security is required, then must check that the key size of our
        service is equal or smaller than the incoming connection key size. */
@@ -1114,14 +1113,14 @@ void btm_ble_link_sec_check(const RawAddress& bd_addr, tBTM_LE_AUTH_REQ auth_req
  ******************************************************************************/
 tBTM_STATUS btm_ble_set_encryption(const RawAddress& bd_addr, tBTM_BLE_SEC_ACT sec_act,
                                    uint8_t link_role) {
-  tBTM_STATUS cmd = BTM_NO_RESOURCES;
+  tBTM_STATUS cmd = tBTM_STATUS::BTM_NO_RESOURCES;
   tBTM_SEC_DEV_REC* p_rec = btm_find_dev(bd_addr);
   tBTM_BLE_SEC_REQ_ACT sec_req_act;
   tBTM_LE_AUTH_REQ auth_req;
 
   if (p_rec == NULL) {
     log::warn("NULL device record!! sec_act=0x{:x}", sec_act);
-    return BTM_WRONG_MODE;
+    return tBTM_STATUS::BTM_WRONG_MODE;
   }
 
   log::verbose("sec_act=0x{:x} role_central={}", sec_act, p_rec->role_central);
@@ -1164,7 +1163,7 @@ tBTM_STATUS btm_ble_set_encryption(const RawAddress& bd_addr, tBTM_BLE_SEC_ACT s
       break;
 
     default:
-      cmd = BTM_WRONG_MODE;
+      cmd = tBTM_STATUS::BTM_WRONG_MODE;
       break;
   }
   return cmd;
@@ -1210,7 +1209,7 @@ tBTM_STATUS btm_ble_start_encrypt(const RawAddress& bda, bool use_stk, Octet16* 
 
   if (!p_rec) {
     log::error("Link is not active, can not encrypt!");
-    return BTM_WRONG_MODE;
+    return tBTM_STATUS::BTM_WRONG_MODE;
   }
 
   if (p_rec->sec_rec.is_security_state_le_encrypting()) {
@@ -1235,7 +1234,7 @@ tBTM_STATUS btm_ble_start_encrypt(const RawAddress& bda, bool use_stk, Octet16* 
                              p_rec->sec_rec.ble_keys.ediv, p_rec->sec_rec.ble_keys.pltk);
   } else {
     log::error("No key available to encrypt the link");
-    return BTM_ERR_KEY_MISSING;
+    return tBTM_STATUS::BTM_ERR_KEY_MISSING;
   }
 
   if (p_rec->sec_rec.le_link == tSECURITY_STATE::IDLE) {
@@ -1315,11 +1314,11 @@ void btm_ble_link_encrypted(const RawAddress& bd_addr, uint8_t encr_enable) {
     }
     /* LTK missing on peripheral */
     else if (p_dev_rec->role_central && (p_dev_rec->sec_rec.sec_status == HCI_ERR_KEY_MISSING)) {
-      btm_sec_dev_rec_cback_event(p_dev_rec, BTM_ERR_KEY_MISSING, true);
+      btm_sec_dev_rec_cback_event(p_dev_rec, tBTM_STATUS::BTM_ERR_KEY_MISSING, true);
     } else if (!(p_dev_rec->sec_rec.sec_flags & BTM_SEC_LE_LINK_KEY_KNOWN)) {
-      btm_sec_dev_rec_cback_event(p_dev_rec, BTM_FAILED_ON_SECURITY, true);
+      btm_sec_dev_rec_cback_event(p_dev_rec, tBTM_STATUS::BTM_FAILED_ON_SECURITY, true);
     } else if (p_dev_rec->role_central) {
-      btm_sec_dev_rec_cback_event(p_dev_rec, BTM_ERR_PROCESSING, true);
+      btm_sec_dev_rec_cback_event(p_dev_rec, tBTM_STATUS::BTM_ERR_PROCESSING, true);
     }
   }
 
@@ -1405,7 +1404,7 @@ void btm_ble_ltk_request_reply(const RawAddress& bda, bool use_stk, const Octet1
  ******************************************************************************/
 static tBTM_STATUS btm_ble_io_capabilities_req(tBTM_SEC_DEV_REC* p_dev_rec,
                                                tBTM_LE_IO_REQ* p_data) {
-  tBTM_STATUS callback_rc = BTM_SUCCESS;
+  tBTM_STATUS callback_rc = tBTM_STATUS::BTM_SUCCESS;
   log::verbose("p_dev_rec->bd_addr:{}", p_dev_rec->bd_addr);
   if (btm_sec_cb.api.p_le_callback) {
     /* the callback function implementation may change the IO capability... */
@@ -1615,7 +1614,7 @@ tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
                        p_dev_rec->sec_rec.sec_flags);
 
           res = (p_data->cmplt.reason == SMP_SUCCESS) ? tBTM_STATUS::BTM_SUCCESS
-                                                      : BTM_ERR_PROCESSING;
+                                                      : tBTM_STATUS::BTM_ERR_PROCESSING;
 
           log::verbose("after update result={} sec_level=0x{:x} sec_flags=0x{:x}", res,
                        p_data->cmplt.sec_level, p_dev_rec->sec_rec.sec_flags);

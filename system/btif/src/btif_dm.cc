@@ -74,6 +74,7 @@
 #include "main/shim/helpers.h"
 #include "main/shim/le_advertising_manager.h"
 #include "main_thread.h"
+#include "metrics/bluetooth_event.h"
 #include "os/logging/log_adapter.h"
 #include "osi/include/properties.h"
 #include "osi/include/stack_power_telemetry.h"
@@ -1590,6 +1591,7 @@ static void btif_on_service_discovery_results(RawAddress bd_addr,
     if (pairing_cb.sdp_attempts) {
       log::warn("SDP failed after bonding re-attempting for {}", bd_addr);
       pairing_cb.sdp_attempts++;
+      bluetooth::metrics::LogSDPComplete(bd_addr, result);
       btif_dm_get_remote_services(bd_addr, BT_TRANSPORT_BR_EDR);
     } else {
       log::warn("SDP triggered by someone failed when bonding");
@@ -1598,6 +1600,8 @@ static void btif_on_service_discovery_results(RawAddress bd_addr,
   }
 
   if (results_for_bonding_device) {
+    // success for SDP
+    bluetooth::metrics::LogSDPComplete(bd_addr, tBTA_STATUS::BTA_SUCCESS);
     log::info("SDP finished for {}:", bd_addr);
     pairing_cb.sdp_over_classic = btif_dm_pairing_cb_t::ServiceDiscoveryState::FINISHED;
   }
@@ -3614,7 +3618,7 @@ static void btif_dm_ble_oob_req_evt(tBTA_DM_SP_RMT_OOB* req_oob_type) {
   pairing_cb.is_le_only = true;
   pairing_cb.is_le_nc = false;
 
-  BTM_BleOobDataReply(req_oob_type->bd_addr, BTM_SUCCESS, 16, oob_cb.p192_data.sm_tk);
+  BTM_BleOobDataReply(req_oob_type->bd_addr, tBTM_STATUS::BTM_SUCCESS, 16, oob_cb.p192_data.sm_tk);
 }
 
 static void btif_dm_ble_sc_oob_req_evt(tBTA_DM_SP_RMT_OOB* req_oob_type) {

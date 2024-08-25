@@ -161,7 +161,7 @@ public:
                     kMaxInquiryScanHistory);
   } neighbor;
 
-  bluetooth::rnr::RemoteNameRequest rnr;
+  bluetooth::stack::rnr::RemoteNameRequest rnr;
 
   void Init() {
     memset(&devcb, 0, sizeof(devcb));

@@ -232,7 +232,7 @@ TEST_F(BtaDmTest, bta_dm_set_encryption) {
           [](const RawAddress& bd_addr, tBT_TRANSPORT transport, tBTM_SEC_CALLBACK* p_callback,
              void* p_ref_data, tBTM_BLE_SEC_ACT sec_act) -> tBTM_STATUS {
     inc_func_call_count("BTM_SetEncryption");
-    return BTM_MODE_UNSUPPORTED;
+    return tBTM_STATUS::BTM_MODE_UNSUPPORTED;
   };
 
   bta_dm_set_encryption(kRawAddress, transport, BTA_DM_ENCRYPT_CBACK, sec_act);
@@ -276,13 +276,13 @@ TEST_F(BtaDmTest, bta_dm_encrypt_cback) {
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
   bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_SUCCESS);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_WRONG_MODE);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_WRONG_MODE);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_NO_RESOURCES);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_NO_RESOURCES);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
   bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_BUSY);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_ILLEGAL_VALUE);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_ILLEGAL_VALUE);
 
   ASSERT_EQ(5UL, BTA_DM_ENCRYPT_CBACK_queue.size());
 
@@ -309,9 +309,9 @@ TEST_F(BtaDmTest, bta_dm_remname_cback__typical) {
   search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
-          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .bd_addr = kRawAddress,
           .remote_bd_name = {},
+          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .hci_status = HCI_SUCCESS,
   };
   bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);
@@ -330,9 +330,9 @@ TEST_F(BtaDmTest, bta_dm_remname_cback__wrong_address) {
   search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
-          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .bd_addr = kRawAddress2,
           .remote_bd_name = {},
+          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .hci_status = HCI_SUCCESS,
   };
   bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);
@@ -348,9 +348,9 @@ TEST_F(BtaDmTest, bta_dm_remname_cback__HCI_ERR_CONNECTION_EXISTS) {
   search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
-          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .bd_addr = RawAddress::kEmpty,
           .remote_bd_name = {},
+          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .hci_status = HCI_ERR_CONNECTION_EXISTS,
   };
   bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);

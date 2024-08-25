@@ -291,6 +291,7 @@ public final class BluetoothLeAdvertiser {
      *     Advertising feature is made when it's not supported by the controller.
      */
     @RequiresLegacyBluetoothAdminPermission
+    @RequiresBluetoothAdvertisePermission
     @RequiresPermission(
             allOf = {BLUETOOTH_ADVERTISE, BLUETOOTH_PRIVILEGED},
             conditional = true)
