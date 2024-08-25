@@ -192,3 +192,14 @@ std::vector<tBTM_SEC_DEV_REC*> btm_get_sec_dev_rec();
 
 bool BTM_Sec_AddressKnown(const RawAddress& address);
 const tBLE_BD_ADDR BTM_Sec_GetAddressWithType(const RawAddress& bd_addr);
+
+/*******************************************************************************
+ *
+ * Function         DumpsysRecord
+ *
+ * Description      Provides dumpsys access to device records.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void DumpsysRecord(int fd);

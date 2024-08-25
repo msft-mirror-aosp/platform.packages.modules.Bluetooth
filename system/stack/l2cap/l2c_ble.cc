@@ -1324,14 +1324,14 @@ tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr, uint16_t p
 
   if (!p_lcb) {
     log::error("Security check for unknown device");
-    p_callback(bd_addr, BT_TRANSPORT_LE, p_ref_data, BTM_UNKNOWN_ADDR);
+    p_callback(bd_addr, BT_TRANSPORT_LE, p_ref_data, tBTM_STATUS::BTM_UNKNOWN_ADDR);
     return L2CAP_LE_RESULT_NO_RESOURCES;
   }
 
   tL2CAP_SEC_DATA* p_buf = (tL2CAP_SEC_DATA*)osi_malloc((uint16_t)sizeof(tL2CAP_SEC_DATA));
   if (!p_buf) {
     log::error("No resources for connection");
-    p_callback(bd_addr, BT_TRANSPORT_LE, p_ref_data, BTM_NO_RESOURCES);
+    p_callback(bd_addr, BT_TRANSPORT_LE, p_ref_data, tBTM_STATUS::BTM_NO_RESOURCES);
     return L2CAP_LE_RESULT_NO_RESOURCES;
   }
 
@@ -1348,11 +1348,11 @@ tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr, uint16_t p
       return L2CAP_LE_RESULT_CONN_OK;
     case tBTM_STATUS::BTM_ILLEGAL_VALUE:
       return L2CAP_LE_RESULT_NO_PSM;
-    case BTM_NOT_AUTHENTICATED:
+    case tBTM_STATUS::BTM_NOT_AUTHENTICATED:
       return L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION;
-    case BTM_NOT_ENCRYPTED:
+    case tBTM_STATUS::BTM_NOT_ENCRYPTED:
       return L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP;
-    case BTM_NOT_AUTHORIZED:
+    case tBTM_STATUS::BTM_NOT_AUTHORIZED:
       return L2CAP_LE_RESULT_INSUFFICIENT_AUTHORIZATION;
     case tBTM_STATUS::BTM_INSUFFICIENT_ENCRYPT_KEY_SIZE:
       return L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP_KEY_SIZE;

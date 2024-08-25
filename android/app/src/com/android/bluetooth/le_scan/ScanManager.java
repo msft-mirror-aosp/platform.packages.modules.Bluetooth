@@ -847,11 +847,16 @@ public class ScanManager {
             if ((client.stats == null) || mAdapterService.getScanDowngradeDurationMillis() == 0) {
                 return false;
             }
-            int scanMode = client.settings.getScanMode();
-            int maxScanMode = SCAN_MODE_MAX_IN_CONCURRENCY;
-            if (client.updateScanMode(getMinScanMode(scanMode, maxScanMode))) {
+            int updatedScanMode =
+                    getMinScanMode(client.settings.getScanMode(), SCAN_MODE_MAX_IN_CONCURRENCY);
+            if (client.updateScanMode(updatedScanMode)) {
                 client.stats.setScanDowngrade(client.scannerId, true);
-                Log.d(TAG, "downgradeScanModeFromMaxDuty() for " + client);
+                Log.d(
+                        TAG,
+                        "downgradeScanModeFromMaxDuty() to "
+                                + getScanModeString(updatedScanMode)
+                                + " for "
+                                + client);
                 return true;
             }
             return false;

@@ -30,6 +30,7 @@ java_defaults {
             "-Xep:EmptyCatch:ERROR",
             "-Xep:EqualsIncompatibleType:ERROR",
             "-Xep:FutureReturnValueIgnored:ERROR",
+            "-Xep:InlineFormatString:ERROR",
             "-Xep:InlineMeInliner:ERROR",
             "-Xep:InvalidBlockTag:ERROR",
             "-Xep:InvalidInlineTag:ERROR",

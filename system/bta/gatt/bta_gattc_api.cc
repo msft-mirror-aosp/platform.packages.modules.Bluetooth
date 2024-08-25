@@ -442,7 +442,7 @@ void BTA_GATTC_ReadCharDescr(uint16_t conn_id, uint16_t handle, tGATT_AUTH_REQ a
  * Description      This function is called to read multiple characteristic or
  *                  characteristic descriptors.
  *
- * Parameters       conn_id - connectino ID.
+ * Parameters       conn_id - connection ID.
  *                  p_read_multi - pointer to the read multiple parameter.
  *                  variable_len - whether "read multi variable length" variant
  *                                 shall be used.
