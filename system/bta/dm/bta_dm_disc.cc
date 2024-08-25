@@ -249,9 +249,11 @@ void bta_dm_sdp_finished(RawAddress bda, tBTA_STATUS result, std::vector<bluetoo
 
 /* Callback from sdp with discovery status */
 void bta_dm_sdp_callback(const RawAddress& /* bd_addr */, tSDP_STATUS sdp_status) {
-  log::info("{}", bta_dm_state_text(bta_dm_discovery_get_state()));
+  bool sdp_pending = bta_dm_discovery_cb.transports & BT_TRANSPORT_BR_EDR;
+  log::info("{}, sdp_pending: {}", bta_dm_state_text(bta_dm_discovery_get_state()), sdp_pending);
 
-  if (bta_dm_discovery_get_state() == BTA_DM_DISCOVER_IDLE) {
+  if (bta_dm_discovery_get_state() == BTA_DM_DISCOVER_IDLE || !sdp_pending ||
+      !bta_dm_discovery_cb.sdp_state) {
     return;
   }
 
@@ -585,7 +587,13 @@ static void bta_dm_gatt_disc_complete(uint16_t conn_id, tGATT_STATUS status) {
     } else {
       bta_dm_discovery_cb.conn_id = GATT_INVALID_CONN_ID;
     }
-    bta_dm_discovery_set_state(BTA_DM_DISCOVER_IDLE);
+    if (com::android::bluetooth::flags::fix_le_evt_cancelling_sdp_discovery() &&
+        (bta_dm_discovery_cb.transports & BT_TRANSPORT_BR_EDR)) {
+      log::info("classic discovery still pending {}", bta_dm_discovery_cb.peer_bdaddr);
+      return;
+    } else {
+      bta_dm_discovery_set_state(BTA_DM_DISCOVER_IDLE);
+    }
     bta_dm_execute_queued_discovery_request();
   }
 }
