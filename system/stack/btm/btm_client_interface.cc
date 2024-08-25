@@ -40,8 +40,6 @@ struct btm_client_interface_t btm_client_interface = {
                 {
                         .BTM_IsAclConnectionUp = ::BTM_IsAclConnectionUp,
                         .BTM_ReadConnectedTransportAddress = ::BTM_ReadConnectedTransportAddress,
-                        .BTM_CancelRemoteDeviceName = ::BTM_CancelRemoteDeviceName,
-                        .BTM_ReadRemoteDeviceName = ::BTM_ReadRemoteDeviceName,
                         .BTM_ReadRemoteFeatures = ::BTM_ReadRemoteFeatures,
                         .BTM_ReadDevInfo = ::BTM_ReadDevInfo,
                         .BTM_GetMaxPacketSize = ::BTM_GetMaxPacketSize,
@@ -107,8 +105,6 @@ struct btm_client_interface_t btm_client_interface = {
         .local =
                 {
                         .BTM_ReadLocalDeviceName = ::BTM_ReadLocalDeviceName,
-                        .BTM_ReadLocalDeviceNameFromController =
-                                ::BTM_ReadLocalDeviceNameFromController,
                         .BTM_SetLocalDeviceName = ::BTM_SetLocalDeviceName,
                         .BTM_SetDeviceClass = ::BTM_SetDeviceClass,
                         .BTM_IsDeviceUp = ::BTM_IsDeviceUp,

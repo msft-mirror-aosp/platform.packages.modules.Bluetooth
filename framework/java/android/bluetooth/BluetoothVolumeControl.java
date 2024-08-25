@@ -25,6 +25,7 @@ import android.annotation.FlaggedApi;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
@@ -287,6 +288,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     @SuppressLint("AndroidFrameworkRequiresPermission") // Unexposed re-entrant callback
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothVolumeControl.Stub.asInterface(service);
@@ -305,6 +307,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -315,6 +318,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }

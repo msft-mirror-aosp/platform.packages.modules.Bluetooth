@@ -49,10 +49,6 @@ struct btm_client_interface_t {
     [[nodiscard]] bool (*BTM_IsAclConnectionUp)(const RawAddress& bd_addr, tBT_TRANSPORT transport);
     [[nodiscard]] bool (*BTM_ReadConnectedTransportAddress)(RawAddress* bd_addr,
                                                             tBT_TRANSPORT transport);
-    [[nodiscard]] tBTM_STATUS (*BTM_CancelRemoteDeviceName)(void);
-    [[nodiscard]] tBTM_STATUS (*BTM_ReadRemoteDeviceName)(const RawAddress& bd_addr,
-                                                          tBTM_NAME_CMPL_CB* p_cb,
-                                                          tBT_TRANSPORT transport);
     [[nodiscard]] uint8_t* (*BTM_ReadRemoteFeatures)(const RawAddress&);
     void (*BTM_ReadDevInfo)(const RawAddress& bd_addr, tBT_DEVICE_TYPE* p_dev_type,
                             tBLE_ADDR_TYPE* p_addr_type);
@@ -128,8 +124,6 @@ struct btm_client_interface_t {
 
   struct {
     [[nodiscard]] tBTM_STATUS (*BTM_ReadLocalDeviceName)(const char** p_name);
-    [[nodiscard]] tBTM_STATUS (*BTM_ReadLocalDeviceNameFromController)(
-            tBTM_CMPL_CB* p_rln_cmpl_cback);
     [[nodiscard]] tBTM_STATUS (*BTM_SetLocalDeviceName)(const char* p_name);
     [[nodiscard]] tBTM_STATUS (*BTM_SetDeviceClass)(DEV_CLASS dev_class);
     [[nodiscard]] bool (*BTM_IsDeviceUp)();
@@ -162,3 +156,5 @@ struct btm_client_interface_t {
 };
 
 struct btm_client_interface_t& get_btm_client_interface();
+
+void DumpsysBtm(int fd);

@@ -150,7 +150,9 @@ public class HapClientServiceTest {
         startService();
         mNativeCallback = new HapClientNativeCallback(mAdapterService, mService);
         mService.mFactory = mServiceFactory;
-        mService.mCallbacks.register(mFrameworkCallback);
+        synchronized (mService.mCallbacks) {
+            mService.mCallbacks.register(mFrameworkCallback);
+        }
     }
 
     @After
@@ -159,7 +161,9 @@ public class HapClientServiceTest {
             return;
         }
 
-        mService.mCallbacks.unregister(mFrameworkCallback);
+        synchronized (mService.mCallbacks) {
+            mService.mCallbacks.unregister(mFrameworkCallback);
+        }
 
         stopService();
     }
@@ -800,12 +804,14 @@ public class HapClientServiceTest {
         Binder binder = Mockito.mock(Binder.class);
         when(callback.asBinder()).thenReturn(binder);
 
-        int size = mService.mCallbacks.getRegisteredCallbackCount();
-        mService.registerCallback(callback);
-        Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
+        synchronized (mService.mCallbacks) {
+            int size = mService.mCallbacks.getRegisteredCallbackCount();
+            mService.registerCallback(callback);
+            Assert.assertEquals(size + 1, mService.mCallbacks.getRegisteredCallbackCount());
 
-        mService.unregisterCallback(callback);
-        Assert.assertEquals(size, mService.mCallbacks.getRegisteredCallbackCount());
+            mService.unregisterCallback(callback);
+            Assert.assertEquals(size, mService.mCallbacks.getRegisteredCallbackCount());
+        }
     }
 
     @Test

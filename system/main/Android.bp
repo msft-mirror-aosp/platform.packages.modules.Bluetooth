@@ -287,6 +287,7 @@ cc_test {
         ":TestMockLegacyHciCommands",
         ":TestMockLegacyHciInterface",
         ":TestMockStack",
+        ":TestMockStackRnr",
         "test/main_shim_stack_dumpsys_test.cc",
     ],
     static_libs: [

@@ -101,18 +101,6 @@ void BTM_reset_complete();
 
 /*******************************************************************************
  *
- * Function         BTM_ReadLocalDeviceNameFromController
- *
- * Description      Get local device name from controller. Do not use cached
- *                  name (used to get chip-id prior to btm reset complete).
- *
- * Returns          tBTM_STATUS::BTM_CMD_STARTED if successful, otherwise an error
- *
- ******************************************************************************/
-[[nodiscard]] tBTM_STATUS BTM_ReadLocalDeviceNameFromController(tBTM_CMPL_CB* p_rln_cmpl_cback);
-
-/*******************************************************************************
- *
  * Function         BTM_ReadDeviceClass
  *
  * Description      This function is called to read the local device class
@@ -167,53 +155,6 @@ void BTM_WriteVoiceSettings(uint16_t settings);
  *
  ******************************************************************************/
 [[nodiscard]] tBTM_STATUS BTM_EnableTestMode(void);
-
-/*******************************************************************************
- *
- * Function         BTM_ReadRemoteDeviceName
- *
- * Description      This function initiates a remote device HCI command to the
- *                  controller and calls the callback when the process has
- *                  completed.
- *
- * Input Params:    remote_bda      - device address of name to retrieve
- *                  p_cb            - callback function called when
- *                                    tBTM_STATUS::BTM_CMD_STARTED is returned.
- *                                    A pointer to tBTM_REMOTE_DEV_NAME is
- *                                    passed to the callback.
- *
- * Returns
- *                  tBTM_STATUS::BTM_CMD_STARTED is returned if the request was successfully
- *                                  sent to HCI.
- *                  tBTM_STATUS::BTM_BUSY if already in progress
- *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if device address is bad
- *                  tBTM_STATUS::BTM_NO_RESOURCES if resources could not be allocated to
- *                                   start the command
- *                  tBTM_STATUS::BTM_WRONG_MODE if the device is not up.
- *
- ******************************************************************************/
-[[nodiscard]] tBTM_STATUS BTM_ReadRemoteDeviceName(const RawAddress& remote_bda,
-                                                   tBTM_NAME_CMPL_CB* p_cb,
-                                                   tBT_TRANSPORT transport);
-
-/*******************************************************************************
- *
- * Function         BTM_CancelRemoteDeviceName
- *
- * Description      This function initiates the cancel request for the specified
- *                  remote device.
- *
- * Input Params:    None
- *
- * Returns
- *                  tBTM_STATUS::BTM_CMD_STARTED is returned if the request was successfully
- *                                  sent to HCI.
- *                  tBTM_STATUS::BTM_NO_RESOURCES if resources could not be allocated to
- *                                   start the command
- *                  tBTM_STATUS::BTM_WRONG_MODE if there is no active remote name request.
- *
- ******************************************************************************/
-[[nodiscard]] tBTM_STATUS BTM_CancelRemoteDeviceName(void);
 
 /*******************************************************************************
  *
