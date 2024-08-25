@@ -74,6 +74,9 @@ void btm_sco_connection_failed(tHCI_STATUS /* hci_status */, const RawAddress& /
                                uint16_t /* hci_handle */, tBTM_ESCO_DATA* /* p_esco_data */) {
   inc_func_call_count(__func__);
 }
+void btm_sco_create_command_status_failed(tHCI_STATUS /* hci_status */) {
+  inc_func_call_count(__func__);
+}
 void btm_sco_disc_chk_pend_for_modechange(uint16_t /* hci_handle */) {
   inc_func_call_count(__func__);
 }

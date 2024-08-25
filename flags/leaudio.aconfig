@@ -391,3 +391,18 @@ flag {
     description: "New apis to set codec config preference"
     bug: "353909820"
 }
+
+flag {
+    name: "leaudio_add_aics_support"
+    namespace: "bluetooth"
+    description: "Add AICS support"
+    bug: "361263965"
+}
+
+flag {
+    name: "leaudio_gmap_client"
+    namespace: "bluetooth"
+    description: "enable Gaming Audio Profile"
+    bug: "353978074"
+}
+

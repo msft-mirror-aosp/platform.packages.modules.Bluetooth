@@ -97,7 +97,7 @@ pub trait IBluetooth {
     fn unregister_connection_callback(&mut self, callback_id: u32) -> bool;
 
     /// Inits the bluetooth interface. Should always be called before enable.
-    fn init(&mut self, init_flags: Vec<String>) -> bool;
+    fn init(&mut self, init_flags: Vec<String>, hci_index: i32) -> bool;
 
     /// Enables the adapter.
     ///
@@ -2202,8 +2202,12 @@ impl IBluetooth for Bluetooth {
         self.connection_callbacks.remove_callback(callback_id)
     }
 
-    fn init(&mut self, init_flags: Vec<String>) -> bool {
-        self.intf.lock().unwrap().initialize(get_bt_dispatcher(self.tx.clone()), init_flags)
+    fn init(&mut self, init_flags: Vec<String>, hci_index: i32) -> bool {
+        self.intf.lock().unwrap().initialize(
+            get_bt_dispatcher(self.tx.clone()),
+            init_flags,
+            hci_index,
+        )
     }
 
     fn enable(&mut self) -> bool {
@@ -2247,6 +2251,9 @@ impl IBluetooth for Bluetooth {
     }
 
     fn set_name(&self, name: String) -> bool {
+        if self.get_name() == name {
+            return true;
+        }
         self.intf.lock().unwrap().set_adapter_property(BluetoothProperty::BdName(name)) == 0
     }
 

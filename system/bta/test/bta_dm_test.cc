@@ -32,9 +32,12 @@
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/include/bta_api.h"
 #include "bta/test/bta_test_fixtures.h"
+#include "hci/controller_interface_mock.h"
+#include "hci/le_rand_callback.h"
 #include "stack/include/btm_status.h"
 #include "test/common/main_handler.h"
 #include "test/common/mock_functions.h"
+#include "test/mock/mock_main_shim_entry.h"
 #include "test/mock/mock_osi_alarm.h"
 #include "test/mock/mock_osi_allocator.h"
 #include "test/mock/mock_osi_properties.h"
@@ -68,6 +71,10 @@ class BtaDmTest : public BtaWithContextTest {
 protected:
   void SetUp() override {
     BtaWithContextTest::SetUp();
+    ON_CALL(controller_, LeRand).WillByDefault([](bluetooth::hci::LeRandCallback cb) {
+      cb(0x1234);
+    });
+    bluetooth::hci::testing::mock_controller_ = &controller_;
 
     BTA_dm_init();
     bluetooth::legacy::testing::bta_dm_init_cb();
@@ -81,7 +88,9 @@ protected:
   void TearDown() override {
     bluetooth::legacy::testing::bta_dm_deinit_cb();
     BtaWithContextTest::TearDown();
+    bluetooth::hci::testing::mock_controller_ = nullptr;
   }
+  bluetooth::hci::testing::MockControllerInterface controller_;
 };
 
 class BtaDmCustomAlarmTest : public BtaDmTest {
@@ -232,7 +241,7 @@ TEST_F(BtaDmTest, bta_dm_set_encryption) {
           [](const RawAddress& bd_addr, tBT_TRANSPORT transport, tBTM_SEC_CALLBACK* p_callback,
              void* p_ref_data, tBTM_BLE_SEC_ACT sec_act) -> tBTM_STATUS {
     inc_func_call_count("BTM_SetEncryption");
-    return BTM_MODE_UNSUPPORTED;
+    return tBTM_STATUS::BTM_MODE_UNSUPPORTED;
   };
 
   bta_dm_set_encryption(kRawAddress, transport, BTA_DM_ENCRYPT_CBACK, sec_act);
@@ -276,9 +285,9 @@ TEST_F(BtaDmTest, bta_dm_encrypt_cback) {
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
   bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_SUCCESS);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_WRONG_MODE);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_WRONG_MODE);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_NO_RESOURCES);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_NO_RESOURCES);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
   bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_BUSY);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
@@ -309,9 +318,9 @@ TEST_F(BtaDmTest, bta_dm_remname_cback__typical) {
   search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
-          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .bd_addr = kRawAddress,
           .remote_bd_name = {},
+          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .hci_status = HCI_SUCCESS,
   };
   bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);
@@ -330,9 +339,9 @@ TEST_F(BtaDmTest, bta_dm_remname_cback__wrong_address) {
   search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
-          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .bd_addr = kRawAddress2,
           .remote_bd_name = {},
+          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .hci_status = HCI_SUCCESS,
   };
   bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);
@@ -348,9 +357,9 @@ TEST_F(BtaDmTest, bta_dm_remname_cback__HCI_ERR_CONNECTION_EXISTS) {
   search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
-          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .bd_addr = RawAddress::kEmpty,
           .remote_bd_name = {},
+          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .hci_status = HCI_ERR_CONNECTION_EXISTS,
   };
   bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);

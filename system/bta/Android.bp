@@ -270,6 +270,7 @@ cc_test {
         ":TestMockStackMetrics",
         ":TestMockStackPan",
         ":TestMockStackRfcomm",
+        ":TestMockStackRnr",
         "test/bta_ag_sco_test.cc",
         "test/bta_ag_test.cc",
         "test/bta_api_test.cc",

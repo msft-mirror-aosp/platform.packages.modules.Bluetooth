@@ -99,13 +99,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let hci_index = matches.value_of("hci").map_or(0, |idx| idx.parse::<i32>().unwrap_or(0));
 
     // The remaining flags are passed down to Fluoride as is.
-    let mut init_flags: Vec<String> = match matches.values_of("init-flags") {
+    let init_flags: Vec<String> = match matches.values_of("init-flags") {
         Some(args) => args.map(String::from).collect(),
         None => vec![],
     };
-
-    // Forward --hci to Fluoride.
-    init_flags.push(format!("--hci={}", hci_index));
 
     let logging = Arc::new(Mutex::new(Box::new(BluetoothLogging::new(
         is_debug,
@@ -246,7 +243,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             bluetooth_admin.lock().unwrap().set_adapter(adapter.clone());
 
             let mut bluetooth = bluetooth.lock().unwrap();
-            bluetooth.init(init_flags);
+            bluetooth.init(init_flags, hci_index);
             bluetooth.enable();
 
             bluetooth_gatt.lock().unwrap().init_profiles(tx.clone(), api_tx.clone());
