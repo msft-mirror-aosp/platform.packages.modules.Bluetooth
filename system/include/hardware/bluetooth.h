@@ -665,7 +665,7 @@ typedef struct {
   size_t size;
 #ifdef TARGET_FLOSS
   /** set index of the adapter to use */
-  int (*set_adapter_index)(int adapter_index);
+  void (*set_adapter_index)(int adapter_index);
 #endif
 
   /**
