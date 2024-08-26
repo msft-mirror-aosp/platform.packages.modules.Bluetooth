@@ -18,3 +18,4 @@ TestBeds:
       AndroidDevice: '*'
       BumbleDevice:
           - transport: 'pyusb:8087:0036'
+          - transport: 'pyusb:8087:0036'
