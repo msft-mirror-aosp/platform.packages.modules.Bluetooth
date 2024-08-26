@@ -432,7 +432,7 @@ static bool is_profile(const char* p1, const char* p2) {
 #ifdef TARGET_FLOSS
 static int global_hci_adapter = 0;
 
-static int set_adapter_index(int adapter) { global_hci_adapter = adapter; }
+static void set_adapter_index(int adapter) { global_hci_adapter = adapter; }
 int GetAdapterIndex() { return global_hci_adapter; }
 #else
 int GetAdapterIndex() { return 0; }  // Unsupported outside of FLOSS
