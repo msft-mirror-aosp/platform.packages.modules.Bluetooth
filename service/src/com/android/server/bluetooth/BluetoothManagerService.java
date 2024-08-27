@@ -780,16 +780,6 @@ class BluetoothManagerService {
     IBluetooth registerAdapter(IBluetoothManagerCallback callback) {
         synchronized (mCallbacks) {
             mCallbacks.register(callback);
-            if (Flags.broadcastAdapterStateWithCallback()) {
-                try {
-                    callback.onBluetoothAdapterStateChange(getState());
-                } catch (RemoteException e) {
-                    Log.e(
-                            TAG,
-                            "registerAdapter: Unable to call onBluetoothAdapterStateChange()",
-                            e);
-                }
-            }
         }
         return mAdapter != null ? mAdapter.getAdapterBinder() : null;
     }
@@ -1388,27 +1378,6 @@ class BluetoothManagerService {
                         mCallbacks.getBroadcastItem(i).onBluetoothServiceDown();
                     } catch (RemoteException e) {
                         Log.e(TAG, "Unable to call onBluetoothServiceDown() on callback #" + i, e);
-                    }
-                }
-            } finally {
-                mCallbacks.finishBroadcast();
-            }
-        }
-    }
-
-    private void sendBluetoothAdapterStateChangeCallback(int newState) {
-        if (!Flags.broadcastAdapterStateWithCallback()) {
-            return;
-        }
-        synchronized (mCallbacks) {
-            try {
-                int n = mCallbacks.beginBroadcast();
-                Log.d(TAG, "sendBluetoothAdapterStateChangeCallback(): to " + n + " receivers");
-                for (int i = 0; i < n; i++) {
-                    try {
-                        mCallbacks.getBroadcastItem(i).onBluetoothAdapterStateChange(newState);
-                    } catch (RemoteException e) {
-                        Log.e(TAG, "onBluetoothAdapterStateChange: failed for callback #" + i, e);
                     }
                 }
             } finally {
@@ -2099,7 +2068,6 @@ class BluetoothManagerService {
             return;
         }
         mState.set(newState);
-        sendBluetoothAdapterStateChangeCallback(newState);
 
         if (prevState == STATE_ON) {
             autoOnSetupTimer();
