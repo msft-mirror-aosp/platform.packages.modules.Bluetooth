@@ -310,9 +310,6 @@ cc_binary {
         "BlueberryFacadeGeneratedStub_h",
         "BluetoothGeneratedBundlerSchema_h_bfbs",
         "BluetoothGeneratedDumpsysDataSchema_h",
-        // Needed here to guarantee that generated zip file is created before
-        // bluetooth_cert_tests.zip is packaged
-        "BlueberryFacadeAndCertGeneratedStub_py",
     ],
     generated_sources: [
         "BlueberryFacadeGeneratedStub_cc",
@@ -410,9 +407,11 @@ cc_test {
         ":BluetoothOsTestSources_timerfd",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
         "libbluetooth_log",
         "libchrome",
         "libgmock",
+        "server_configurable_flags",
     ],
     shared_libs: [
         "libbase",
@@ -736,6 +735,7 @@ cc_fuzz {
 cc_benchmark {
     name: "bluetooth_benchmark_gd",
     defaults: [
+        "aconfig_lib_cc_shared_link.defaults",
         "gd_defaults",
     ],
     host_supported: true,
@@ -744,12 +744,14 @@ cc_benchmark {
         "benchmark.cc",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbase",
         "libbluetooth_gd",
         "libbluetooth_log",
         "libbt_shim_bridge",
         "libchrome",
         "liblog",
+        "server_configurable_flags",
     ],
 }
 

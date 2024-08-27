@@ -19,6 +19,8 @@
 
 #include "bta/dm/bta_dm_disc_int.h"
 #include "bta/test/bta_test_fixtures.h"
+#include "hci/controller_interface_mock.h"
+#include "test/mock/mock_main_shim_entry.h"
 
 void BTA_dm_on_hw_on();
 void BTA_dm_on_hw_off();
@@ -40,9 +42,19 @@ void bta_dm_sdp_result(tSDP_STATUS sdp_status, tBTA_DM_SDP_STATE* state);
 
 class BtaSdpTest : public BtaWithHwOnTest {
 protected:
-  void SetUp() override { BtaWithHwOnTest::SetUp(); }
+  void SetUp() override {
+    BtaWithHwOnTest::SetUp();
+    ON_CALL(controller_, LeRand).WillByDefault([](bluetooth::hci::LeRandCallback cb) {
+      cb(0x1234);
+    });
+    bluetooth::hci::testing::mock_controller_ = &controller_;
+  }
 
-  void TearDown() override { BtaWithHwOnTest::TearDown(); }
+  void TearDown() override {
+    BtaWithHwOnTest::TearDown();
+    bluetooth::hci::testing::mock_controller_ = nullptr;
+  }
+  bluetooth::hci::testing::MockControllerInterface controller_;
 };
 
 class BtaSdpRegisteredTest : public BtaSdpTest {

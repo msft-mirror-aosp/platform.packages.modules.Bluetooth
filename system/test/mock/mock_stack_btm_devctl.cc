@@ -55,6 +55,3 @@ void btm_delete_stored_link_key_complete(uint8_t* /* p */, uint16_t /* evt_len *
 }
 void btm_dev_free() { inc_func_call_count(__func__); }
 void btm_dev_init() { inc_func_call_count(__func__); }
-void btm_read_local_name_complete(uint8_t* /* p */, uint16_t /* evt_len */) {
-  inc_func_call_count(__func__);
-}

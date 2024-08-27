@@ -302,6 +302,12 @@ bool gatt_disconnect(tGATT_TCB* p_tcb) {
 
   if (p_tcb->att_lcid == L2CAP_ATT_CID) {
     if (ch_state == GATT_CH_OPEN) {
+      if (com::android::bluetooth::flags::gatt_disconnect_fix() && p_tcb->eatt) {
+        /* ATT is fixed channel and it is expected to drop ACL.
+         * Make sure all EATT channels are disconnected before doing that.
+         */
+        EattExtension::GetInstance()->Disconnect(p_tcb->peer_bda);
+      }
       if (!L2CA_RemoveFixedChnl(L2CAP_ATT_CID, p_tcb->peer_bda)) {
         log::warn("Unable to remove L2CAP ATT fixed channel peer:{}", p_tcb->peer_bda);
       }

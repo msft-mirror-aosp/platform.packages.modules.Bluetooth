@@ -113,7 +113,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
-        return mBluetoothManagerService.enableFromBinder(source.getPackageName());
+        return mBluetoothManagerService.enable(source.getPackageName());
     }
 
     @Override
@@ -138,7 +138,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             throw new SecurityException("No permission to enable Bluetooth quietly");
         }
 
-        return mBluetoothManagerService.enableNoAutoConnectFromBinder(source.getPackageName());
+        return mBluetoothManagerService.enableNoAutoConnect(source.getPackageName());
     }
 
     @Override
@@ -163,7 +163,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
-        return mBluetoothManagerService.disableFromBinder(source.getPackageName(), persist);
+        return mBluetoothManagerService.disable(source.getPackageName(), persist);
     }
 
     @Override
@@ -232,7 +232,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
-        return mBluetoothManagerService.onFactoryReset();
+        return mBluetoothManagerService.onFactoryResetFromBinder();
     }
 
     @Override
@@ -260,7 +260,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
-        return mBluetoothManagerService.enableBleFromBinder(source.getPackageName(), token);
+        return mBluetoothManagerService.enableBle(source.getPackageName(), token);
     }
 
     @Override
@@ -283,7 +283,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
-        return mBluetoothManagerService.disableBleFromBinder(source.getPackageName(), token);
+        return mBluetoothManagerService.disableBle(source.getPackageName(), token);
     }
 
     @Override

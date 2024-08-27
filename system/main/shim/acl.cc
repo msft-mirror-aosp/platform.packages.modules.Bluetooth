@@ -60,10 +60,8 @@
 #include "osi/include/allocator.h"
 #include "stack/acl/acl.h"
 #include "stack/btm/btm_int_types.h"
-#include "stack/btm/btm_sec_cb.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_log_history.h"
-#include "stack/include/l2cap_module.h"
 #include "stack/include/main_thread.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
@@ -1205,46 +1203,6 @@ void DumpsysAcl(int fd) {
 }
 #undef DUMPSYS_TAG
 
-using Record = common::TimestampedEntry<std::string>;
-const std::string kTimeFormat("%Y-%m-%d %H:%M:%S");
-
-#define DUMPSYS_TAG "shim::btm"
-void DumpsysBtm(int fd) {
-  LOG_DUMPSYS_TITLE(fd, DUMPSYS_TAG);
-  if (btm_cb.history_ != nullptr) {
-    std::vector<Record> history = btm_cb.history_->Pull();
-    for (auto& record : history) {
-      time_t then = record.timestamp / 1000;
-      struct tm tm;
-      localtime_r(&then, &tm);
-      auto s2 = common::StringFormatTime(kTimeFormat, tm);
-      LOG_DUMPSYS(fd, " %s.%03u %s", s2.c_str(), static_cast<unsigned int>(record.timestamp % 1000),
-                  record.entry.c_str());
-    }
-  }
-}
-#undef DUMPSYS_TAG
-
-#define DUMPSYS_TAG "shim::record"
-void DumpsysRecord(int fd) {
-  LOG_DUMPSYS_TITLE(fd, DUMPSYS_TAG);
-
-  if (btm_sec_cb.sec_dev_rec == nullptr) {
-    LOG_DUMPSYS(fd, "Record is empty - no devices");
-    return;
-  }
-
-  unsigned cnt = 0;
-  list_node_t* end = list_end(btm_sec_cb.sec_dev_rec);
-  for (list_node_t* node = list_begin(btm_sec_cb.sec_dev_rec); node != end;
-       node = list_next(node)) {
-    tBTM_SEC_DEV_REC* p_dev_rec = static_cast<tBTM_SEC_DEV_REC*>(list_node(node));
-    // TODO: handle in tBTM_SEC_DEV_REC.ToString
-    LOG_DUMPSYS(fd, "%03u %s", ++cnt, p_dev_rec->ToString().c_str());
-  }
-}
-#undef DUMPSYS_TAG
-
 #define DUMPSYS_TAG "shim::stack"
 void DumpsysNeighbor(int fd) {
   LOG_DUMPSYS(fd, "Stack information %lc%lc", kRunicBjarkan, kRunicHagall);
@@ -1283,11 +1241,8 @@ void DumpsysNeighbor(int fd) {
 #undef DUMPSYS_TAG
 
 void shim::Acl::Dump(int fd) const {
-  DumpsysRecord(fd);
   DumpsysNeighbor(fd);
   DumpsysAcl(fd);
-  L2CA_Dumpsys(fd);
-  DumpsysBtm(fd);
 }
 
 shim::Acl::Acl(os::Handler* handler, const acl_interface_t& acl_interface,
@@ -1396,6 +1351,8 @@ void shim::Acl::OnClassicLinkDisconnected(HciHandle handle, hci::ErrorCode reaso
           pimpl_->handle_to_classic_connection_map_[handle]->IsLocallyInitiated();
 
   TeardownTime teardown_time = std::chrono::system_clock::now();
+
+  bluetooth::metrics::LogAclDisconnectionEvent(remote_address, reason, is_locally_initiated);
 
   pimpl_->handle_to_classic_connection_map_.erase(handle);
   TRY_POSTING_ON_MAIN(acl_interface_.connection.classic.on_disconnected,

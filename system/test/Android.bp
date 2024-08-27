@@ -277,9 +277,23 @@ filegroup {
 }
 
 filegroup {
+    name: "TestMockStackL2capInterface",
+    srcs: [
+        "mock/mock_stack_l2cap_interface.cc",
+    ],
+}
+
+filegroup {
     name: "TestMockStackRfcomm",
     srcs: [
         "mock/mock_stack_rfcomm*.cc",
+    ],
+}
+
+filegroup {
+    name: "TestMockStackRnr",
+    srcs: [
+        "mock/mock_stack_rnr_interface.cc",
     ],
 }
 

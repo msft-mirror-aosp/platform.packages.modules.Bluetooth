@@ -124,12 +124,14 @@ public final class BluetoothMap implements BluetoothProfile, AutoCloseable {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothMap.Stub.asInterface(service);
     }
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -140,6 +142,7 @@ public final class BluetoothMap implements BluetoothProfile, AutoCloseable {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }
@@ -346,6 +349,7 @@ public final class BluetoothMap implements BluetoothProfile, AutoCloseable {
     ;
 
     /** @hide */
+    @RequiresNoPermission
     public void disableBluetoothGetConnectionStateCache() {
         sBluetoothConnectionCache.disableForCurrentProcess();
     }

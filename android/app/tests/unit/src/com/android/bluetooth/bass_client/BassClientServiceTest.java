@@ -4047,7 +4047,7 @@ public class BassClientServiceTest {
         // Verify isAnyReceiverReceivingBroadcast returns false if no BIS synced
         assertThat(mBassClientService.isAnyReceiverReceivingBroadcast(devices)).isFalse();
 
-        // Update receiver state with lost BIS sync
+        // Update receiver state with BIS sync
         for (BassClientStateMachine sm : mStateMachines.values()) {
             if (sm.getDevice().equals(mCurrentDevice)) {
                 injectRemoteSourceStateChanged(
@@ -4084,12 +4084,28 @@ public class BassClientServiceTest {
     }
 
     @Test
-    public void testGetActiveBroadcastSinks() {
+    public void testGetSyncedBroadcastSinks() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
         onScanResult(mSourceDevice, TEST_BROADCAST_ID);
         onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
         BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        BluetoothLeBroadcastMetadata.Builder builder =
+                new BluetoothLeBroadcastMetadata.Builder()
+                        .setEncrypted(false)
+                        .setSourceDevice(
+                                mBluetoothAdapter.getRemoteLeDevice(
+                                        "00:00:00:00:00:00", BluetoothDevice.ADDRESS_TYPE_RANDOM),
+                                BluetoothDevice.ADDRESS_TYPE_RANDOM)
+                        .setSourceAdvertisingSid(TEST_ADVERTISER_SID)
+                        .setBroadcastId(0)
+                        .setBroadcastCode(null)
+                        .setPaSyncInterval(TEST_PA_SYNC_INTERVAL)
+                        .setPresentationDelayMicros(TEST_PRESENTATION_DELAY_MS);
+        // builder expect at least one subgroup
+        builder.addSubgroup(createBroadcastSubgroup());
+        BluetoothLeBroadcastMetadata metaNoBroadcast = builder.build();
+
         verifyAddSourceForGroup(meta);
         for (BassClientStateMachine sm : mStateMachines.values()) {
             if (sm.getDevice().equals(mCurrentDevice)) {
@@ -4105,7 +4121,7 @@ public class BassClientServiceTest {
                         null);
                 injectRemoteSourceStateChanged(
                         sm,
-                        meta,
+                        metaNoBroadcast,
                         TEST_SOURCE_ID,
                         BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCHRONIZED,
                         meta.isEncrypted()
@@ -4127,6 +4143,38 @@ public class BassClientServiceTest {
                         null);
                 injectRemoteSourceStateChanged(
                         sm,
+                        metaNoBroadcast,
+                        TEST_SOURCE_ID + 1,
+                        BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCHRONIZED,
+                        meta.isEncrypted()
+                                ? BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_DECRYPTING
+                                : BluetoothLeBroadcastReceiveState
+                                        .BIG_ENCRYPTION_STATE_NOT_ENCRYPTED,
+                        null,
+                        (long) 0x00000000);
+            }
+        }
+
+        // Verify getSyncedBroadcastSinks returns empty device list if no broadcst ID
+        assertThat(mBassClientService.getSyncedBroadcastSinks().isEmpty()).isTrue();
+
+        // Update receiver state with broadcast ID
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            if (sm.getDevice().equals(mCurrentDevice)) {
+                injectRemoteSourceStateChanged(
+                        sm,
+                        meta,
+                        TEST_SOURCE_ID,
+                        BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCHRONIZED,
+                        meta.isEncrypted()
+                                ? BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_DECRYPTING
+                                : BluetoothLeBroadcastReceiveState
+                                        .BIG_ENCRYPTION_STATE_NOT_ENCRYPTED,
+                        null,
+                        (long) 0x00000000);
+            } else if (sm.getDevice().equals(mCurrentDevice1)) {
+                injectRemoteSourceStateChanged(
+                        sm,
                         meta,
                         TEST_SOURCE_ID + 1,
                         BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCHRONIZED,
@@ -4139,10 +4187,18 @@ public class BassClientServiceTest {
             }
         }
 
-        // Verify isAnyReceiverReceivingBroadcast returns empty device list if no BIS synced
-        assertThat(mBassClientService.getActiveBroadcastSinks().isEmpty()).isTrue();
+        List<BluetoothDevice> activeSinks = mBassClientService.getSyncedBroadcastSinks();
+        if (Flags.leaudioBigDependsOnAudioState()) {
+            // Verify getSyncedBroadcastSinks returns correct device list if no BIS synced
+            assertThat(activeSinks.size()).isEqualTo(2);
+            assertThat(activeSinks.contains(mCurrentDevice)).isTrue();
+            assertThat(activeSinks.contains(mCurrentDevice1)).isTrue();
+        } else {
+            // Verify getSyncedBroadcastSinks returns empty device list if no BIS synced
+            assertThat(mBassClientService.getSyncedBroadcastSinks().isEmpty()).isTrue();
+        }
 
-        // Update receiver state with lost BIS sync
+        // Update receiver state with BIS sync
         for (BassClientStateMachine sm : mStateMachines.values()) {
             if (sm.getDevice().equals(mCurrentDevice)) {
                 injectRemoteSourceStateChanged(
@@ -4170,9 +4226,9 @@ public class BassClientServiceTest {
                         (long) 0x00000002);
             }
         }
-        List<BluetoothDevice> activeSinks = mBassClientService.getActiveBroadcastSinks();
 
-        // Verify isAnyReceiverReceivingBroadcast returns correct device list if BIS synced
+        // Verify getSyncedBroadcastSinks returns correct device list if BIS synced
+        activeSinks = mBassClientService.getSyncedBroadcastSinks();
         assertThat(activeSinks.size()).isEqualTo(2);
         assertThat(activeSinks.contains(mCurrentDevice)).isTrue();
         assertThat(activeSinks.contains(mCurrentDevice1)).isTrue();

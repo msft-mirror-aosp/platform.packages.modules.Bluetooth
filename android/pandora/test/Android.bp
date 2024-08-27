@@ -14,6 +14,7 @@
 
 package {
     default_applicable_licenses: ["Android-Apache-2.0"],
+    default_team: "trendy_team_bluetooth",
 }
 
 python_test_host {
@@ -22,6 +23,35 @@ python_test_host {
     srcs: [
         "**/*.py",
     ],
+    version: {
+        py3: {
+            embedded_launcher: false,
+        },
+    },
+    libs: [
+        "bumble_services_experimental-python",
+        "libavatar",
+    ],
+    required: [
+        "aapt",
+    ],
+    test_suites: ["general-tests"],
+    test_options: {
+        unit_test: false,
+    },
+    data: [
+        ":PandoraServer",
+        "config.yml",
+    ],
+}
+
+python_test_host {
+    name: "avatar_phy",
+    main: "main.py",
+    srcs: [
+        "**/*.py",
+    ],
+    test_config: "AndroidPhyTest.xml",
     version: {
         py3: {
             embedded_launcher: false,

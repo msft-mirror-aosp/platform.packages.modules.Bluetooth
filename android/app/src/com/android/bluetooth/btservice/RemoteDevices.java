@@ -117,6 +117,7 @@ public class RemoteDevices {
                 case MESSAGE_UUID_INTENT:
                     BluetoothDevice device = (BluetoothDevice) msg.obj;
                     if (device != null) {
+                        debugLog("MESSAGE_UUID_INTENT: " + device);
                         // SDP Sending delayed SDP UUID intent
                         MetricsLogger.getInstance()
                                 .cacheCount(BluetoothProtoEnums.SDP_SENDING_DELAYED_UUID, 1);
@@ -736,7 +737,19 @@ public class RemoteDevices {
 
         // SDP Sent UUID Intent here
         MetricsLogger.getInstance().cacheCount(BluetoothProtoEnums.SDP_SENT_UUID, 1);
+
         // Remove the outstanding UUID request
+        if (Flags.preventDuplicateUuidIntent()) {
+            // Handler.removeMessages() compares the object pointer so we cannot use the device
+            // directly. So we have to extract original BluetoothDevice object from mSdpTracker.
+            int index = mSdpTracker.indexOf(device);
+            if (index >= 0) {
+                BluetoothDevice originalDevice = mSdpTracker.get(index);
+                if (originalDevice != null) {
+                    mHandler.removeMessages(MESSAGE_UUID_INTENT, originalDevice);
+                }
+            }
+        }
         mSdpTracker.remove(device);
     }
 
