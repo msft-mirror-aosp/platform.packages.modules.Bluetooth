@@ -21,6 +21,7 @@ aconfig_declarations {
         "connectivity.aconfig",
         "device_iot_config.aconfig",
         "did.aconfig",
+        "dis.aconfig",
         "dumpsys.aconfig",
         "framework.aconfig",
         "gap.aconfig",
