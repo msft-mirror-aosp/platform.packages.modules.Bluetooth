@@ -27,9 +27,9 @@
 #include <memory>
 #include <string>
 
-#include "btm_int_types.h"
-#include "internal_include/bt_target.h"
-#include "os/log.h"
+#include "common/strings.h"
+#include "main/shim/dumpsys.h"
+#include "stack/btm/btm_int_types.h"
 #include "stack/include/security_client_callbacks.h"
 #include "types/raw_address.h"
 
@@ -96,3 +96,23 @@ void BTM_LogHistory(const std::string& tag, const tBLE_BD_ADDR& ble_bd_addr,
 }
 
 bluetooth::common::TimestamperInMilliseconds timestamper_in_milliseconds;
+
+using Record = common::TimestampedEntry<std::string>;
+const std::string kTimeFormat("%Y-%m-%d %H:%M:%S");
+
+#define DUMPSYS_TAG "shim::btm"
+void DumpsysBtm(int fd) {
+  LOG_DUMPSYS_TITLE(fd, DUMPSYS_TAG);
+  if (btm_cb.history_ != nullptr) {
+    std::vector<Record> history = btm_cb.history_->Pull();
+    for (auto& record : history) {
+      time_t then = record.timestamp / 1000;
+      struct tm tm;
+      localtime_r(&then, &tm);
+      auto s2 = common::StringFormatTime(kTimeFormat, tm);
+      LOG_DUMPSYS(fd, " %s.%03u %s", s2.c_str(), static_cast<unsigned int>(record.timestamp % 1000),
+                  record.entry.c_str());
+    }
+  }
+}
+#undef DUMPSYS_TAG

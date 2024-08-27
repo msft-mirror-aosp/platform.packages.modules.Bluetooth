@@ -51,6 +51,8 @@ const STACK_TURN_OFF_TIMEOUT_MS: Duration = Duration::from_millis(4000);
 const STACK_CLEANUP_TIMEOUT_MS: Duration = Duration::from_millis(1000);
 // Time bt_stack_manager waits for cleanup profiles
 const STACK_CLEANUP_PROFILES_TIMEOUT_MS: Duration = Duration::from_millis(100);
+// Extra time to wait before terminating the process
+const EXTRA_WAIT_BEFORE_KILL_MS: Duration = Duration::from_millis(1000);
 
 const INIT_LOGGING_MAX_RETRY: u8 = 3;
 
@@ -99,13 +101,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let hci_index = matches.value_of("hci").map_or(0, |idx| idx.parse::<i32>().unwrap_or(0));
 
     // The remaining flags are passed down to Fluoride as is.
-    let mut init_flags: Vec<String> = match matches.values_of("init-flags") {
+    let init_flags: Vec<String> = match matches.values_of("init-flags") {
         Some(args) => args.map(String::from).collect(),
         None => vec![],
     };
-
-    // Forward --hci to Fluoride.
-    init_flags.push(format!("--hci={}", hci_index));
 
     let logging = Arc::new(Mutex::new(Box::new(BluetoothLogging::new(
         is_debug,
@@ -246,7 +245,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             bluetooth_admin.lock().unwrap().set_adapter(adapter.clone());
 
             let mut bluetooth = bluetooth.lock().unwrap();
-            bluetooth.init(init_flags);
+            bluetooth.init(init_flags, hci_index);
             bluetooth.enable();
 
             bluetooth_gatt.lock().unwrap().init_profiles(tx.clone(), api_tx.clone());
@@ -310,6 +309,10 @@ extern "C" fn handle_sigterm(_signum: i32) {
             log::debug!("Waiting for stack to clean up for {:?}", STACK_CLEANUP_TIMEOUT_MS);
             let _ = notifier.thread_notify.wait_timeout(guard, STACK_CLEANUP_TIMEOUT_MS);
         }
+
+        // Extra delay to give the rest of the cleanup processes some time to finish after
+        // finishing btif cleanup.
+        std::thread::sleep(EXTRA_WAIT_BEFORE_KILL_MS);
     }
 
     log::debug!("Sigterm completed");

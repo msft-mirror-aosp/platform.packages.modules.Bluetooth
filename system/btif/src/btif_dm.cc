@@ -94,6 +94,7 @@
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_sec_api_types.h"
+#include "stack/include/rnr_interface.h"
 #include "stack/include/smp_api.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
 #include "storage/config_keys.h"
@@ -807,9 +808,9 @@ static void btif_dm_cb_create_bond(const RawAddress bd_addr, tBT_TRANSPORT trans
     BTA_DmAddBleDevice(bd_addr, addr_type, static_cast<tBT_DEVICE_TYPE>(device_type));
   }
 
-  BTA_DmBond(bd_addr, addr_type, transport, device_type);
-  /*  Track  originator of bond creation  */
+  /*  Track originator of bond creation  */
   pairing_cb.is_local_initiated = true;
+  BTA_DmBond(bd_addr, addr_type, transport, device_type);
 }
 
 /*******************************************************************************
@@ -1973,7 +1974,7 @@ void BTIF_dm_enable() {
   BTA_DmBleConfigLocalPrivacy(ble_privacy_enabled);
 
   if (com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    get_security_client_interface().BTM_SecAddRmtNameNotifyCallback(btif_on_name_read_from_btm);
+    get_stack_rnr_interface().BTM_SecAddRmtNameNotifyCallback(btif_on_name_read_from_btm);
   }
 
   /* for each of the enabled services in the mask, trigger the profile
@@ -2001,7 +2002,7 @@ void BTIF_dm_enable() {
 
 void BTIF_dm_disable() {
   if (com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    get_security_client_interface().BTM_SecDeleteRmtNameNotifyCallback(&btif_on_name_read_from_btm);
+    get_stack_rnr_interface().BTM_SecDeleteRmtNameNotifyCallback(&btif_on_name_read_from_btm);
   }
 
   /* for each of the enabled services in the mask, trigger the profile

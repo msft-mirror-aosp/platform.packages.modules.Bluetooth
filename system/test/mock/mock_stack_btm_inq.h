@@ -212,24 +212,6 @@ struct btm_inq_find_bdaddr {
 };
 extern struct btm_inq_find_bdaddr btm_inq_find_bdaddr;
 
-// Name: btm_inq_remote_name_timer_timeout
-// Params:  void* data
-// Return: void
-struct btm_inq_remote_name_timer_timeout {
-  std::function<void(void* data)> body{[](void* /* data */) {}};
-  void operator()(void* data) { body(data); }
-};
-extern struct btm_inq_remote_name_timer_timeout btm_inq_remote_name_timer_timeout;
-
-// Name: btm_inq_rmt_name_failed_cancelled
-// Params: void
-// Return: void
-struct btm_inq_rmt_name_failed_cancelled {
-  std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); }
-};
-extern struct btm_inq_rmt_name_failed_cancelled btm_inq_rmt_name_failed_cancelled;
-
 // Name: btm_process_inq_complete
 // Params: tHCI_STATUS status, uint8_t mode
 // Return: void
@@ -239,21 +221,6 @@ struct btm_process_inq_complete {
   void operator()(tHCI_STATUS status, uint8_t mode) { body(status, mode); }
 };
 extern struct btm_process_inq_complete btm_process_inq_complete;
-
-// Name: btm_process_remote_name
-// Params: const RawAddress* bda, const BD_NAME bdn, uint16_t evt_len,
-// tHCI_STATUS hci_status Return: void
-struct btm_process_remote_name {
-  std::function<void(const RawAddress* bda, const BD_NAME bdn, uint16_t evt_len,
-                     tHCI_STATUS hci_status)>
-          body{[](const RawAddress* /* bda */, const BD_NAME /* bdn */, uint16_t /* evt_len */,
-                  tHCI_STATUS /* hci_status */) {}};
-  void operator()(const RawAddress* bda, const BD_NAME bdn, uint16_t evt_len,
-                  tHCI_STATUS hci_status) {
-    body(bda, bdn, evt_len, hci_status);
-  }
-};
-extern struct btm_process_remote_name btm_process_remote_name;
 
 // Name: btm_set_eir_uuid
 // Params: const uint8_t* p_eir, tBTM_INQ_RESULTS* p_results

@@ -16,6 +16,7 @@
  */
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -32,6 +33,7 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/l2cdefs.h"
+#include "test/common/fake_osi.h"
 #include "test/mock/mock_main_shim_entry.h"
 #include "types/raw_address.h"
 
@@ -51,6 +53,8 @@ using namespace bluetooth;
 
 #define BLE_GATT_SVR_SUP_FEAT_EATT_BITMASK 0x01
 
+extern struct fake_osi_alarm_set_on_mloop fake_osi_alarm_set_on_mloop_;
+
 /* Needed for testing context */
 static tGATT_TCB test_tcb;
 void btif_storage_add_eatt_supported(const RawAddress& addr) { return; }
@@ -63,6 +67,7 @@ tGATT_TCB* gatt_find_tcb_by_addr(const RawAddress& bda, tBT_TRANSPORT transport)
 
 namespace {
 const RawAddress test_address({0x11, 0x11, 0x11, 0x11, 0x11, 0x11});
+std::vector<uint16_t> test_local_cids{61, 62, 63, 64, 65};
 
 class EattTest : public testing::Test {
 protected:
@@ -77,7 +82,6 @@ protected:
       return true;
     });
 
-    std::vector<uint16_t> test_local_cids{61, 62, 63, 64, 65};
     EXPECT_CALL(l2cap_interface_, ConnectCreditBasedReq(BT_PSM_EATT, test_address, _))
             .WillOnce(Return(test_local_cids));
 
@@ -230,6 +234,8 @@ protected:
   }
 
   void TearDown() override {
+    com::android::bluetooth::flags::provider_->reset_flags();
+
     EXPECT_CALL(l2cap_interface_, DeregisterLECoc(BT_PSM_EATT)).Times(1);
 
     eatt_instance_->Stop();
@@ -617,6 +623,16 @@ TEST_F(EattTest, ChannelUnavailableWhileReconfiguring) {
   // assert
   ASSERT_EQ(available_channel_for_request, nullptr);
   ASSERT_EQ(available_channel_for_indication, nullptr);
+}
+
+TEST_F(EattTest, DisconnectChannelOnIndicationConfirmationTimeout) {
+  com::android::bluetooth::flags::provider_->gatt_disconnect_fix(true);
+  ConnectDeviceEattSupported(1);
+
+  eatt_instance_->StartIndicationConfirmationTimer(test_address, test_local_cids[0]);
+
+  EXPECT_CALL(l2cap_interface_, DisconnectRequest(test_local_cids[0])).Times(1);
+  fake_osi_alarm_set_on_mloop_.cb(fake_osi_alarm_set_on_mloop_.data);
 }
 
 }  // namespace

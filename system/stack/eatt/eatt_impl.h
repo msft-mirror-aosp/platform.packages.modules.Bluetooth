@@ -16,6 +16,7 @@
  */
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <map>
 #include <vector>
@@ -710,8 +711,12 @@ struct eatt_impl {
     EattChannel* channel = (EattChannel*)data;
     tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(channel->bda_, BT_TRANSPORT_LE);
 
-    log::warn("disconnecting...");
-    gatt_disconnect(p_tcb);
+    log::warn("disconnecting channel {:#x} for {}", channel->cid_, channel->bda_);
+    if (com::android::bluetooth::flags::gatt_disconnect_fix()) {
+      EattExtension::GetInstance()->Disconnect(channel->bda_, channel->cid_);
+    } else {
+      gatt_disconnect(p_tcb);
+    }
   }
 
   void start_indication_confirm_timer(const RawAddress& bd_addr, uint16_t cid) {

@@ -405,8 +405,7 @@ static bool bta_dm_read_remote_device_name(const RawAddress& bd_addr, tBT_TRANSP
      * "bta_dm_remname_cback" */
     /* adding callback to get notified that current reading remote name done */
 
-    get_btm_client_interface().security.BTM_SecAddRmtNameNotifyCallback(
-            &bta_dm_service_search_remname_cback);
+    get_stack_rnr_interface().BTM_SecAddRmtNameNotifyCallback(&bta_dm_service_search_remname_cback);
 
     return true;
   } else {
@@ -697,7 +696,7 @@ static void bta_dm_sdp_result(tBTA_DM_SDP_RESULT& sdp_event) {
       /* callbacks */
       /* start next bd_addr if necessary */
 
-      get_btm_client_interface().security.BTM_SecDeleteRmtNameNotifyCallback(
+      get_stack_rnr_interface().BTM_SecDeleteRmtNameNotifyCallback(
               &bta_dm_service_search_remname_cback);
 
       BTM_LogHistory(
@@ -753,7 +752,7 @@ static void bta_dm_sdp_result(tBTA_DM_SDP_RESULT& sdp_event) {
       osi_free_and_reset((void**)&bta_dm_search_cb.p_sdp_db);
     }
 
-    get_btm_client_interface().security.BTM_SecDeleteRmtNameNotifyCallback(
+    get_stack_rnr_interface().BTM_SecDeleteRmtNameNotifyCallback(
             &bta_dm_service_search_remname_cback);
 
     auto msg = std::make_unique<tBTA_DM_MSG>(tBTA_DM_SVC_RES{});
@@ -1160,7 +1159,7 @@ static void bta_dm_discover_name(const RawAddress& remote_bd_addr) {
     bta_dm_search_cb.name_discover_done = true;
   }
   // If we already have the name we can skip getting the name
-  if (BTM_IsRemoteNameKnown(remote_bd_addr, transport)) {
+  if (get_stack_rnr_interface().BTM_IsRemoteNameKnown(remote_bd_addr, transport)) {
     log::debug("Security record already known skipping read remote name peer:{}", remote_bd_addr);
     bta_dm_search_cb.name_discover_done = true;
   }
@@ -1429,14 +1428,14 @@ static void bta_dm_remname_cback(const tBTM_REMOTE_DEV_NAME* p_remote_name) {
           strnlen((const char*)p_remote_name->remote_bd_name, BD_NAME_LEN));
 
   if (bta_dm_search_cb.peer_bdaddr == p_remote_name->bd_addr) {
-    get_btm_client_interface().security.BTM_SecDeleteRmtNameNotifyCallback(
+    get_stack_rnr_interface().BTM_SecDeleteRmtNameNotifyCallback(
             &bta_dm_service_search_remname_cback);
   } else {
     // if we got a different response, maybe ignore it
     // we will have made a request directly from BTM_ReadRemoteDeviceName so we
     // expect a dedicated response for us
     if (p_remote_name->hci_status == HCI_ERR_CONNECTION_EXISTS) {
-      get_btm_client_interface().security.BTM_SecDeleteRmtNameNotifyCallback(
+      get_stack_rnr_interface().BTM_SecDeleteRmtNameNotifyCallback(
               &bta_dm_service_search_remname_cback);
       log::info("Assume command failed due to disconnection hci_status:{} peer:{}",
                 hci_error_code_text(p_remote_name->hci_status), p_remote_name->bd_addr);
