@@ -51,6 +51,8 @@ const STACK_TURN_OFF_TIMEOUT_MS: Duration = Duration::from_millis(4000);
 const STACK_CLEANUP_TIMEOUT_MS: Duration = Duration::from_millis(1000);
 // Time bt_stack_manager waits for cleanup profiles
 const STACK_CLEANUP_PROFILES_TIMEOUT_MS: Duration = Duration::from_millis(100);
+// Extra time to wait before terminating the process
+const EXTRA_WAIT_BEFORE_KILL_MS: Duration = Duration::from_millis(1000);
 
 const INIT_LOGGING_MAX_RETRY: u8 = 3;
 
@@ -307,6 +309,10 @@ extern "C" fn handle_sigterm(_signum: i32) {
             log::debug!("Waiting for stack to clean up for {:?}", STACK_CLEANUP_TIMEOUT_MS);
             let _ = notifier.thread_notify.wait_timeout(guard, STACK_CLEANUP_TIMEOUT_MS);
         }
+
+        // Extra delay to give the rest of the cleanup processes some time to finish after
+        // finishing btif cleanup.
+        std::thread::sleep(EXTRA_WAIT_BEFORE_KILL_MS);
     }
 
     log::debug!("Sigterm completed");
