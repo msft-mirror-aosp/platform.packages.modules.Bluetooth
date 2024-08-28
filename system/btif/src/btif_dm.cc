@@ -808,9 +808,9 @@ static void btif_dm_cb_create_bond(const RawAddress bd_addr, tBT_TRANSPORT trans
     BTA_DmAddBleDevice(bd_addr, addr_type, static_cast<tBT_DEVICE_TYPE>(device_type));
   }
 
-  BTA_DmBond(bd_addr, addr_type, transport, device_type);
-  /*  Track  originator of bond creation  */
+  /*  Track originator of bond creation  */
   pairing_cb.is_local_initiated = true;
+  BTA_DmBond(bd_addr, addr_type, transport, device_type);
 }
 
 /*******************************************************************************

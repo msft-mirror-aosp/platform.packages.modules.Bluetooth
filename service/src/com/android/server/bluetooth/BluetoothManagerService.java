@@ -950,10 +950,6 @@ class BluetoothManagerService {
         return appCount;
     }
 
-    boolean enableBleFromBinder(String packageName, IBinder token) {
-        return postAndWait(() -> enableBle(packageName, token));
-    }
-
     boolean enableBle(String packageName, IBinder token) {
         Log.i(
                 TAG,
@@ -984,6 +980,7 @@ class BluetoothManagerService {
             return false;
         }
 
+        // TODO(b/262605980): enableBle/disableBle should be on handler thread
         updateBleAppCount(token, true, packageName);
 
         if (mState.oneOf(
@@ -996,13 +993,10 @@ class BluetoothManagerService {
             return true;
         }
         synchronized (mReceiver) {
+            // waive WRITE_SECURE_SETTINGS permission check
             sendEnableMsg(false, ENABLE_DISABLE_REASON_APPLICATION_REQUEST, packageName, true);
         }
         return true;
-    }
-
-    boolean disableBleFromBinder(String packageName, IBinder token) {
-        return postAndWait(() -> disableBle(packageName, token));
     }
 
     boolean disableBle(String packageName, IBinder token) {
@@ -1023,6 +1017,7 @@ class BluetoothManagerService {
             Log.i(TAG, "disableBle: Already disabled");
             return false;
         }
+        // TODO(b/262605980): enableBle/disableBle should be on handler thread
         updateBleAppCount(token, false, packageName);
 
         if (mState.oneOf(STATE_BLE_ON) && !isBleAppPresent()) {
@@ -1120,10 +1115,6 @@ class BluetoothManagerService {
         return Unit.INSTANCE;
     }
 
-    boolean enableNoAutoConnectFromBinder(String packageName) {
-        return postAndWait(() -> enableNoAutoConnect(packageName));
-    }
-
     boolean enableNoAutoConnect(String packageName) {
         if (isSatelliteModeOn()) {
             Log.d(TAG, "enableNoAutoConnect(" + packageName + "): Blocked by satellite mode");
@@ -1136,10 +1127,6 @@ class BluetoothManagerService {
             sendEnableMsg(true, ENABLE_DISABLE_REASON_APPLICATION_REQUEST, packageName);
         }
         return true;
-    }
-
-    boolean enableFromBinder(String packageName) {
-        return postAndWait(() -> enable(packageName));
     }
 
     boolean enable(String packageName) {
@@ -1158,15 +1145,17 @@ class BluetoothManagerService {
         synchronized (mReceiver) {
             mQuietEnableExternal = false;
             mEnableExternal = true;
-            AirplaneModeListener.notifyUserToggledBluetooth(
-                    mContentResolver, mCurrentUserContext, true);
+            // TODO(b/288450479): Remove clearCallingIdentity when threading is fixed
+            final long callingIdentity = Binder.clearCallingIdentity();
+            try {
+                AirplaneModeListener.notifyUserToggledBluetooth(
+                        mContentResolver, mCurrentUserContext, true);
+            } finally {
+                Binder.restoreCallingIdentity(callingIdentity);
+            }
             sendEnableMsg(false, ENABLE_DISABLE_REASON_APPLICATION_REQUEST, packageName);
         }
         return true;
-    }
-
-    boolean disableFromBinder(String packageName, boolean persist) {
-        return postAndWait(() -> disable(packageName, persist));
     }
 
     boolean disable(String packageName, boolean persist) {
@@ -1178,8 +1167,14 @@ class BluetoothManagerService {
                         + (" mState=" + mState));
 
         synchronized (mReceiver) {
-            AirplaneModeListener.notifyUserToggledBluetooth(
-                    mContentResolver, mCurrentUserContext, false);
+            // TODO(b/288450479): Remove clearCallingIdentity when threading is fixed
+            final long callingIdentity = Binder.clearCallingIdentity();
+            try {
+                AirplaneModeListener.notifyUserToggledBluetooth(
+                        mContentResolver, mCurrentUserContext, false);
+            } finally {
+                Binder.restoreCallingIdentity(callingIdentity);
+            }
 
             if (persist) {
                 setBluetoothPersistedState(BLUETOOTH_OFF);
