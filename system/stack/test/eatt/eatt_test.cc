@@ -22,18 +22,17 @@
 
 #include <vector>
 
-#include "bind_helpers.h"
+#include "bta/test/common/fake_osi.h"
 #include "hci/controller_interface_mock.h"
-#include "l2c_api.h"
-#include "mock_btif_storage.h"
-#include "mock_btm_api_layer.h"
-#include "mock_eatt.h"
-#include "mock_gatt_layer.h"
-#include "mock_l2cap_layer.h"
+#include "include/bind_helpers.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/l2cdefs.h"
-#include "test/common/fake_osi.h"
+#include "stack/test/common/mock_btif_storage.h"
+#include "stack/test/common/mock_btm_api_layer.h"
+#include "stack/test/common/mock_eatt.h"
+#include "stack/test/common/mock_gatt_layer.h"
+#include "stack/test/common/mock_l2cap_layer.h"
 #include "test/mock/mock_main_shim_entry.h"
 #include "types/raw_address.h"
 
@@ -447,7 +446,7 @@ TEST_F(EattTest, ReconfigAllSucceed) {
 
   ASSERT_TRUE(cids.size() == connected_cids_.size());
 
-  tL2CAP_LE_CFG_INFO cfg = {.result = L2CAP_CFG_OK, .mtu = new_mtu};
+  tL2CAP_LE_CFG_INFO cfg = {.result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK, .mtu = new_mtu};
 
   for (uint16_t cid : cids) {
     l2cap_app_info_.pL2CA_CreditBasedReconfigCompleted_Cb(test_address, cid, true, &cfg);
@@ -472,7 +471,8 @@ TEST_F(EattTest, ReconfigAllFailed) {
 
   ASSERT_TRUE(cids.size() == connected_cids_.size());
 
-  tL2CAP_LE_CFG_INFO cfg = {.result = L2CAP_CFG_FAILED_NO_REASON, .mtu = new_mtu};
+  tL2CAP_LE_CFG_INFO cfg = {.result = tL2CAP_CFG_RESULT::L2CAP_CFG_FAILED_NO_REASON,
+                            .mtu = new_mtu};
 
   for (uint16_t cid : cids) {
     l2cap_app_info_.pL2CA_CreditBasedReconfigCompleted_Cb(test_address, cid, true, &cfg);
@@ -497,7 +497,7 @@ TEST_F(EattTest, ReconfigSingleSucceed) {
 
   ASSERT_TRUE(cids.size() == 1);
 
-  tL2CAP_LE_CFG_INFO cfg = {.result = L2CAP_CFG_OK, .mtu = new_mtu};
+  tL2CAP_LE_CFG_INFO cfg = {.result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK, .mtu = new_mtu};
 
   auto it = std::find(connected_cids_.begin(), connected_cids_.end(), cids[0]);
   ASSERT_TRUE(it != connected_cids_.end());
@@ -522,7 +522,8 @@ TEST_F(EattTest, ReconfigSingleFailed) {
 
   ASSERT_TRUE(cids.size() == connected_cids_.size());
 
-  tL2CAP_LE_CFG_INFO cfg = {.result = L2CAP_CFG_FAILED_NO_REASON, .mtu = new_mtu};
+  tL2CAP_LE_CFG_INFO cfg = {.result = tL2CAP_CFG_RESULT::L2CAP_CFG_FAILED_NO_REASON,
+                            .mtu = new_mtu};
 
   auto it = std::find(connected_cids_.begin(), connected_cids_.end(), cids[0]);
   ASSERT_TRUE(it != connected_cids_.end());
@@ -539,7 +540,7 @@ TEST_F(EattTest, ReconfigPeerSucceed) {
   ConnectDeviceEattSupported(3);
 
   uint16_t new_mtu = 300;
-  tL2CAP_LE_CFG_INFO cfg = {.result = L2CAP_CFG_OK, .mtu = new_mtu};
+  tL2CAP_LE_CFG_INFO cfg = {.result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK, .mtu = new_mtu};
 
   for (uint16_t cid : connected_cids_) {
     l2cap_app_info_.pL2CA_CreditBasedReconfigCompleted_Cb(test_address, cid, false, &cfg);
@@ -556,7 +557,8 @@ TEST_F(EattTest, ReconfigPeerFailed) {
   ConnectDeviceEattSupported(2);
 
   uint16_t new_mtu = 300;
-  tL2CAP_LE_CFG_INFO cfg = {.result = L2CAP_CFG_FAILED_NO_REASON, .mtu = new_mtu};
+  tL2CAP_LE_CFG_INFO cfg = {.result = tL2CAP_CFG_RESULT::L2CAP_CFG_FAILED_NO_REASON,
+                            .mtu = new_mtu};
 
   for (uint16_t cid : connected_cids_) {
     l2cap_app_info_.pL2CA_CreditBasedReconfigCompleted_Cb(test_address, cid, false, &cfg);

@@ -21,18 +21,17 @@
 #include <gtest/gtest.h>
 
 #include "internal_include/bt_target.h"
-#include "mock_btm_layer.h"
-#include "mock_l2cap_layer.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/btm_status.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/port_api.h"
 #include "stack/include/rfcdefs.h"
-#include "stack_rfcomm_test_utils.h"
-#include "stack_test_packet_utils.h"
+#include "stack/test/common/mock_btm_layer.h"
+#include "stack/test/common/mock_l2cap_layer.h"
+#include "stack/test/common/stack_test_packet_utils.h"
+#include "stack/test/rfcomm/stack_rfcomm_test_utils.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -153,7 +152,8 @@ public:
     log::verbose("Step 2");
     // MTU configuration is done
     cfg_req.mtu_present = false;
-    l2cap_appl_info_.pL2CA_ConfigCfm_Cb(lcid, L2CAP_CFG_OK, {});
+    l2cap_appl_info_.pL2CA_ConfigCfm_Cb(lcid,
+                                        static_cast<uint16_t>(tL2CAP_CFG_RESULT::L2CAP_CFG_OK), {});
 
     log::verbose("Step 3");
     // Remote device also ask to configure MTU size
@@ -276,7 +276,8 @@ public:
     log::verbose("Step 2");
     // Remote device confirms our configuration request
     cfg_req.mtu_present = false;
-    l2cap_appl_info_.pL2CA_ConfigCfm_Cb(lcid, L2CAP_CFG_OK, {});
+    l2cap_appl_info_.pL2CA_ConfigCfm_Cb(lcid,
+                                        static_cast<uint16_t>(tL2CAP_CFG_RESULT::L2CAP_CFG_OK), {});
 
     log::verbose("Step 3");
     // Remote device also asks to configure MTU
@@ -680,14 +681,16 @@ TEST_F(StackRfcommTest, DISABLED_TestConnectionCollision) {
   // Remote device also ask to configure MTU size as well
   tL2CAP_CFG_INFO peer_cfg_req = {.mtu_present = true, .mtu = test_mtu};
   // We responded by saying OK
-  tL2CAP_CFG_INFO our_cfg_rsp = {.result = L2CAP_CFG_OK, .mtu = peer_cfg_req.mtu};
+  tL2CAP_CFG_INFO our_cfg_rsp = {.result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK,
+                                 .mtu = peer_cfg_req.mtu};
   EXPECT_CALL(l2cap_interface_, ConfigResponse(new_lcid, PointerMemoryEqual(&our_cfg_rsp)))
           .WillOnce(Return(true));
   l2cap_appl_info_.pL2CA_ConfigInd_Cb(new_lcid, &peer_cfg_req);
 
   log::verbose("Step 6");
   // Remote device accepted our MTU size
-  l2cap_appl_info_.pL2CA_ConfigCfm_Cb(new_lcid, L2CAP_CFG_OK, {});
+  l2cap_appl_info_.pL2CA_ConfigCfm_Cb(new_lcid,
+                                      static_cast<uint16_t>(tL2CAP_CFG_RESULT::L2CAP_CFG_OK), {});
 
   // L2CAP collision and connection setup done
 

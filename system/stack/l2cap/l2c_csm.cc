@@ -81,7 +81,7 @@ static void l2c_csm_send_config_req(tL2C_CCB* p_ccb) {
 // Send a config response with result OK and adjust the state machine
 static void l2c_csm_send_config_rsp_ok(tL2C_CCB* p_ccb, bool cbit) {
   tL2CAP_CFG_INFO config{};
-  config.result = L2CAP_CFG_OK;
+  config.result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK;
   if (cbit) {
     config.flags = L2CAP_CFG_FLAGS_MASK_CONT;
   }
@@ -951,11 +951,13 @@ static void l2c_csm_config(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
                    p_cfg->flags & L2CAP_CFG_FLAGS_MASK_CONT);
         l2c_csm_send_config_rsp_ok(p_ccb, p_cfg->flags & L2CAP_CFG_FLAGS_MASK_CONT);
         if (p_ccb->config_done & OB_CFG_DONE) {
-          if (p_ccb->remote_config_rsp_result == L2CAP_CFG_OK) {
+          if (p_ccb->remote_config_rsp_result == tL2CAP_CFG_RESULT::L2CAP_CFG_OK) {
             l2c_csm_indicate_connection_open(p_ccb);
           } else {
             if (p_ccb->connection_initiator == L2CAP_INITIATOR_LOCAL) {
-              (*p_ccb->p_rcb->api.pL2CA_Error_Cb)(p_ccb->local_cid, L2CAP_CFG_FAILED_NO_REASON);
+              (*p_ccb->p_rcb->api.pL2CA_Error_Cb)(
+                      p_ccb->local_cid,
+                      static_cast<uint16_t>(tL2CAP_CFG_RESULT::L2CAP_CFG_FAILED_NO_REASON));
               bluetooth::shim::CountCounterMetrics(
                       android::bluetooth::CodePathCounterKeyEnum::L2CAP_CONFIG_REQ_FAILURE, 1);
             }
@@ -1055,10 +1057,12 @@ static void l2c_csm_config(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
 
       /* If failure was channel mode try to renegotiate */
       if (!l2c_fcr_renegotiate_chan(p_ccb, p_cfg)) {
-        log::debug("Calling Config_Rsp_Cb(), CID: 0x{:04x}, Failure: {}", p_ccb->local_cid,
-                   p_cfg->result);
+        log::debug("Calling Config_Rsp_Cb(), CID: 0x{:04x}, cfg_result:{}", p_ccb->local_cid,
+                   l2cap_cfg_result_text(p_cfg->result));
         if (p_ccb->connection_initiator == L2CAP_INITIATOR_LOCAL) {
-          (*p_ccb->p_rcb->api.pL2CA_Error_Cb)(p_ccb->local_cid, L2CAP_CFG_FAILED_NO_REASON);
+          (*p_ccb->p_rcb->api.pL2CA_Error_Cb)(
+                  p_ccb->local_cid,
+                  static_cast<uint16_t>(tL2CAP_CFG_RESULT::L2CAP_CFG_FAILED_NO_REASON));
           bluetooth::shim::CountCounterMetrics(
                   android::bluetooth::CodePathCounterKeyEnum::L2CAP_CONFIG_RSP_NEG, 1);
         }
