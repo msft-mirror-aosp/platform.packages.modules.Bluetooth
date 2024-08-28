@@ -175,6 +175,49 @@ pub enum Message {
     GattClientDisconnected(RawAddress),
 }
 
+/// Returns a callable object that dispatches a BTIF callback to Message
+///
+/// The returned object would make sure the order of how the callbacks arrive the same as how they
+/// goes to Message.
+///
+/// Example
+/// ```ignore
+/// // Create a dispatcher in btstack
+/// let gatt_client_callbacks_dispatcher = topshim::gatt::GattClientCallbacksDispatcher {
+///     dispatch: make_message_dispatcher(tx.clone(), Message::GattClient),
+/// };
+///
+/// // Register the dispatcher to topshim
+/// bt_topshim::topstack::get_dispatchers()
+///     .lock()
+///     .unwrap()
+///     .set::<topshim::gatt::GattClientCb>(Arc::new(Mutex::new(gatt_client_callbacks_dispatcher)))
+/// ```
+pub(crate) fn make_message_dispatcher<F, Cb>(tx: Sender<Message>, f: F) -> Box<dyn Fn(Cb) + Send>
+where
+    Cb: Send + 'static,
+    F: Fn(Cb) -> Message + Send + Copy + 'static,
+{
+    let async_mutex = Arc::new(tokio::sync::Mutex::new(()));
+    let dispatch_queue = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+
+    Box::new(move |cb| {
+        let tx = tx.clone();
+        let async_mutex = async_mutex.clone();
+        let dispatch_queue = dispatch_queue.clone();
+        // Enqueue the callbacks at the synchronized block to ensure the order.
+        dispatch_queue.lock().unwrap().push_back(cb);
+        bt_topshim::topstack::get_runtime().spawn(async move {
+            // Acquire the lock first to ensure |pop_front| and |tx.send| not
+            // interrupted by the other async threads.
+            let _guard = async_mutex.lock().await;
+            // Consume exactly one callback.
+            let cb = dispatch_queue.lock().unwrap().pop_front().unwrap();
+            let _ = tx.send(f(cb)).await;
+        });
+    })
+}
+
 pub enum BluetoothAPI {
     Adapter,
     Battery,

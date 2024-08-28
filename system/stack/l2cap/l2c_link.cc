@@ -855,7 +855,11 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, uint16_t local_cid, BT_HDR* p_buf
     }
 
     p_buf->layer_specific = 0;
-    list_append(p_lcb->link_xmit_data_q, p_buf);
+    if (p_lcb->link_xmit_data_q != NULL) {
+      list_append(p_lcb->link_xmit_data_q, p_buf);
+    } else {
+      log::warn("Unable to queue packet as L2cap module transmit data queue is null");
+    }
 
     if (p_lcb->link_xmit_quota == 0) {
       if (p_lcb->transport == BT_TRANSPORT_LE) {

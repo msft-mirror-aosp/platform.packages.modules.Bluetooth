@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 /*
  * Generated mock file from original source file
  *   Functions generated:33
