@@ -20,10 +20,10 @@
 #include <gtest/gtest.h>
 #include <sys/socket.h>
 
-#include "bt_psm_types.h"
 #include "hci/controller_interface_mock.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_int_types.h"
+#include "stack/include/bt_psm_types.h"
 #include "stack/include/l2cap_controller_interface.h"
 #include "stack/include/l2cap_hci_link_interface.h"
 #include "stack/include/l2cap_module.h"
@@ -100,7 +100,7 @@ protected:
           .local_conn_cfg =
                   {
                           // tL2CAP_LE_CFG_INFO
-                          .result = 0,
+                          .result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK,
                           .mtu = 100,
                           .mps = 100,
                           .credits = L2CA_LeCreditDefault(),
@@ -109,7 +109,7 @@ protected:
           .peer_conn_cfg =
                   {
                           // tL2CAP_LE_CFG_INFO
-                          .result = 0,
+                          .result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK,
                           .mtu = 100,
                           .mps = 100,
                           .credits = L2CA_LeCreditDefault(),
@@ -123,12 +123,13 @@ protected:
           .p_lcb = nullptr,       // struct t_l2c_linkcb* Link this CCB is assigned to
           .local_cid = 40,
           .remote_cid = 80,
-          .l2c_ccb_timer = nullptr,       // alarm_t* CCB Timer Entry
-          .p_rcb = nullptr,               // tL2C_RCB* Registration CB for this Channel
-          .config_done = 0,               // Configuration flag word
-          .remote_config_rsp_result = 0,  // The config rsp result from remote
-          .local_id = 12,                 // Transaction ID for local trans
-          .remote_id = 22,                // Transaction ID for local
+          .l2c_ccb_timer = nullptr,  // alarm_t* CCB Timer Entry
+          .p_rcb = nullptr,          // tL2C_RCB* Registration CB for this Channel
+          .config_done = 0,          // Configuration flag word
+          .remote_config_rsp_result =
+                  tL2CAP_CFG_RESULT::L2CAP_CFG_OK,  // The config rsp result from remote
+          .local_id = 12,                           // Transaction ID for local trans
+          .remote_id = 22,                          // Transaction ID for local
           .flags = 0,
           .connection_initiator = false,
           .our_cfg = {},           // tL2CAP_CFG_INFO Our saved configuration options

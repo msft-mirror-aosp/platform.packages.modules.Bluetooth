@@ -2013,7 +2013,7 @@ void BTIF_dm_disable() {
       btif_in_execute_service_request(i, false);
     }
   }
-  bluetooth::bqr::EnableBtQualityReport(nullptr);
+  bluetooth::bqr::DisableBtQualityReport();
   log::info("Stack device manager shutdown finished");
   future_ready(stack_manager_get_hack_future(), FUTURE_SUCCESS);
 }

@@ -317,9 +317,9 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
              * 1.25) - 1)) ||*/
             timeout < BTM_BLE_CONN_SUP_TOUT_MIN || timeout > BTM_BLE_CONN_SUP_TOUT_MAX ||
             max_interval < min_interval) {
-          l2cu_send_peer_ble_par_rsp(p_lcb, L2CAP_CFG_UNACCEPTABLE_PARAMS, id);
+          l2cu_send_peer_ble_par_rsp(p_lcb, tL2CAP_CFG_RESULT::L2CAP_CFG_UNACCEPTABLE_PARAMS, id);
         } else {
-          l2cu_send_peer_ble_par_rsp(p_lcb, L2CAP_CFG_OK, id);
+          l2cu_send_peer_ble_par_rsp(p_lcb, tL2CAP_CFG_RESULT::L2CAP_CFG_OK, id);
 
           p_lcb->min_interval = min_interval;
           p_lcb->max_interval = max_interval;
@@ -585,7 +585,8 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
     } break;
     case L2CAP_CMD_CREDIT_BASED_RECONFIG_REQ: {
       if (p + 6 > p_pkt_end) {
-        l2cu_send_ble_reconfig_rsp(p_lcb, id, L2CAP_RECONFIG_UNACCAPTED_PARAM);
+        l2cu_send_ble_reconfig_rsp(p_lcb, id,
+                                   tL2CAP_RECONFIG_RESULT::L2CAP_RECONFIG_UNACCAPTED_PARAM);
         return;
       }
 
@@ -596,7 +597,8 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       if (mtu < L2CAP_CREDIT_BASED_MIN_MTU || mps < L2CAP_CREDIT_BASED_MIN_MPS ||
           mps > L2CAP_LE_MAX_MPS) {
         log::error("L2CAP - invalid params");
-        l2cu_send_ble_reconfig_rsp(p_lcb, id, L2CAP_RECONFIG_UNACCAPTED_PARAM);
+        l2cu_send_ble_reconfig_rsp(p_lcb, id,
+                                   tL2CAP_RECONFIG_RESULT::L2CAP_RECONFIG_UNACCAPTED_PARAM);
         return;
       }
 
@@ -614,21 +616,24 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         p_ccb = l2cu_find_ccb_by_remote_cid(p_lcb, rcid);
         if (!p_ccb) {
           log::warn("L2CAP - rcvd config req for non existing cid: 0x{:04x}", rcid);
-          l2cu_send_ble_reconfig_rsp(p_lcb, id, L2CAP_RECONFIG_INVALID_DCID);
+          l2cu_send_ble_reconfig_rsp(p_lcb, id,
+                                     tL2CAP_RECONFIG_RESULT::L2CAP_RECONFIG_INVALID_DCID);
           return;
         }
 
         if (p_ccb->peer_conn_cfg.mtu > mtu) {
           log::warn("L2CAP - rcvd config req mtu reduction new mtu < mtu ({} < {})", mtu,
                     p_ccb->peer_conn_cfg.mtu);
-          l2cu_send_ble_reconfig_rsp(p_lcb, id, L2CAP_RECONFIG_REDUCTION_MTU_NO_ALLOWED);
+          l2cu_send_ble_reconfig_rsp(
+                  p_lcb, id, tL2CAP_RECONFIG_RESULT::L2CAP_RECONFIG_REDUCTION_MTU_NO_ALLOWED);
           return;
         }
 
         if (p_ccb->peer_conn_cfg.mps > mps && num_of_channels > 1) {
           log::warn("L2CAP - rcvd config req mps reduction new mps < mps ({} < {})", mtu,
                     p_ccb->peer_conn_cfg.mtu);
-          l2cu_send_ble_reconfig_rsp(p_lcb, id, L2CAP_RECONFIG_REDUCTION_MPS_NO_ALLOWED);
+          l2cu_send_ble_reconfig_rsp(
+                  p_lcb, id, tL2CAP_RECONFIG_RESULT::L2CAP_RECONFIG_REDUCTION_MPS_NO_ALLOWED);
           return;
         }
       }
@@ -649,20 +654,22 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         l2c_csm_execute(p_ccb, L2CEVT_L2CAP_CREDIT_BASED_RECONFIG_REQ, &le_cfg);
       }
 
-      l2cu_send_ble_reconfig_rsp(p_lcb, id, L2CAP_RECONFIG_SUCCEED);
+      l2cu_send_ble_reconfig_rsp(p_lcb, id, tL2CAP_RECONFIG_RESULT::L2CAP_RECONFIG_SUCCEED);
 
       break;
     }
 
     case L2CAP_CMD_CREDIT_BASED_RECONFIG_RES: {
-      uint16_t result;
-      if (p + sizeof(uint16_t) > p_pkt_end) {
+      uint16_t result_u16;
+      if (p + sizeof(tL2CAP_CFG_RESULT) > p_pkt_end) {
         log::error("invalid read");
         return;
       }
-      STREAM_TO_UINT16(result, p);
+      STREAM_TO_UINT16(result_u16, p);
+      tL2CAP_CFG_RESULT result = static_cast<tL2CAP_CFG_RESULT>(result_u16);
 
-      log::verbose("Recv L2CAP_CMD_CREDIT_BASED_RECONFIG_RES for result = 0x{:04x}", result);
+      log::verbose("Recv L2CAP_CMD_CREDIT_BASED_RECONFIG_RES for result:{}",
+                   l2cap_cfg_result_text(result));
 
       p_lcb->pending_ecoc_reconfig_cfg.result = result;
 
@@ -676,7 +683,7 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
                           &p_lcb->pending_ecoc_reconfig_cfg);
 
           temp_p_ccb->reconfig_started = false;
-          if (result == L2CAP_CFG_OK) {
+          if (result == tL2CAP_CFG_RESULT::L2CAP_CFG_OK) {
             temp_p_ccb->local_conn_cfg = p_lcb->pending_ecoc_reconfig_cfg;
           }
         }
@@ -977,16 +984,14 @@ void l2c_ble_link_adjust_allocation(void) {
   if (num_lowpri_links > low_quota) {
     l2cb.ble_round_robin_quota = low_quota;
     qq = qq_remainder = 0;
-  }
-  /* If each low priority link can have at least one buffer */
-  else if (num_lowpri_links > 0) {
+  } else if (num_lowpri_links > 0) {
+    /* If each low priority link can have at least one buffer */
     l2cb.ble_round_robin_quota = 0;
     l2cb.ble_round_robin_unacked = 0;
     qq = low_quota / num_lowpri_links;
     qq_remainder = low_quota % num_lowpri_links;
-  }
-  /* If no low priority link */
-  else {
+  } else {
+    /* If no low priority link */
     l2cb.ble_round_robin_quota = 0;
     l2cb.ble_round_robin_unacked = 0;
     qq = qq_remainder = 0;

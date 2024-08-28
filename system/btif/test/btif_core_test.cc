@@ -847,7 +847,7 @@ protected:
                 EnqueueCommand(_, Matcher<ContextualOnceCallback<void(CommandCompleteView)>>(_)))
             .WillOnce(Invoke(set_promise))
             .RetiresOnSaturation();
-    do_in_main_thread(BindOnce([]() { bluetooth::bqr::EnableBtQualityReport(nullptr); }));
+    do_in_main_thread(BindOnce([]() { bluetooth::bqr::DisableBtQualityReport(); }));
     ASSERT_EQ(std::future_status::ready, disable_future.wait_for(std::chrono::seconds(1)));
 
     bluetooth::hci::testing::mock_hci_layer_ = nullptr;
