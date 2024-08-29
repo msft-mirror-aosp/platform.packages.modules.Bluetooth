@@ -19,12 +19,7 @@
 #include <vector>
 
 #include "base/functional/callback.h"
-#include "device/include/esco_parameters.h"
-#include "hci/le_rand_callback.h"
-#include "stack/btm/neighbor_inquiry.h"
-#include "stack/include/btm_api_types.h"
-#include "stack/include/btm_ble_api_types.h"
-#include "types/hci_role.h"
+#include "stack/include/btm_status.h"
 #include "types/raw_address.h"
 
 namespace bluetooth {

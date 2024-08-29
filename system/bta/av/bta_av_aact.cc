@@ -1176,7 +1176,8 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
   /* Set the media channel as high priority */
   if (!L2CA_SetTxPriority(p_scb->l2c_cid, L2CAP_CHNL_PRIORITY_HIGH)) {
-    log::warn("Unable to set L2CAP flush peer:{} cid:{}", p_scb->PeerAddress(), p_scb->l2c_cid);
+    log::warn("Unable to set L2CAP Tx priority peer:{} cid:{}", p_scb->PeerAddress(),
+              p_scb->l2c_cid);
   }
   if (!L2CA_SetChnlFlushability(p_scb->l2c_cid, true)) {
     log::warn("Unable to set L2CAP flush peer:{} cid:{}", p_scb->PeerAddress(), p_scb->l2c_cid);
@@ -2582,6 +2583,20 @@ void bta_av_rcfg_str_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     p_scb->stream_mtu = p_data->str_msg.msg.open_ind.peer_mtu - AVDT_MEDIA_HDR_SIZE;
     log::verbose("l2c_cid: 0x{:x} stream_mtu: {}", p_scb->l2c_cid, p_scb->stream_mtu);
     p_scb->p_cos->update_mtu(p_scb->hndl, p_scb->PeerAddress(), p_scb->stream_mtu);
+  }
+
+  if (com::android::bluetooth::flags::fix_avdt_rconfig_not_setting_l2cap()) {
+    /* Set the media channel as high priority */
+    if (!L2CA_SetTxPriority(p_scb->l2c_cid, L2CAP_CHNL_PRIORITY_HIGH)) {
+      log::warn("Unable to set L2CAP Tx priority peer:{} cid:{}", p_scb->PeerAddress(),
+                p_scb->l2c_cid);
+    }
+
+    if (!L2CA_SetChnlFlushability(p_scb->l2c_cid, true)) {
+      log::warn("Unable to set L2CAP flush peer:{} cid:{}", p_scb->PeerAddress(), p_scb->l2c_cid);
+    }
+
+    L2CA_SetMediaStreamChannel(p_scb->l2c_cid, true);
   }
 
   /* rc listen */

@@ -15,8 +15,7 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-#ifndef BTM_INT_TYPES_H
-#define BTM_INT_TYPES_H
+#pragma once
 
 #include <bluetooth/log.h>
 
@@ -65,7 +64,6 @@ public:
 /* Define the Device Management control structure
  */
 typedef struct tBTM_DEVCB {
-  alarm_t* read_local_name_timer; /* Read local name timer */
   tBTM_CMPL_CB* p_rln_cmpl_cb;    /* Callback function to be called when  */
                                   /* read local name function complete    */
 
@@ -94,7 +92,6 @@ typedef struct tBTM_DEVCB {
   RawAddress read_tx_pwr_addr; /* read TX power target address     */
 
   void Init() {
-    read_local_name_timer = alarm_new("btm.read_local_name_timer");
     read_rssi_timer = alarm_new("btm.read_rssi_timer");
     read_failed_contact_counter_timer = alarm_new("btm.read_failed_contact_counter_timer");
     read_automatic_flush_timeout_timer = alarm_new("btm.read_automatic_flush_timeout_timer");
@@ -102,7 +99,6 @@ typedef struct tBTM_DEVCB {
   }
 
   void Free() {
-    alarm_free(read_local_name_timer);
     alarm_free(read_rssi_timer);
     alarm_free(read_failed_contact_counter_timer);
     alarm_free(read_automatic_flush_timeout_timer);
@@ -161,7 +157,7 @@ public:
                     kMaxInquiryScanHistory);
   } neighbor;
 
-  bluetooth::rnr::RemoteNameRequest rnr;
+  bluetooth::stack::rnr::RemoteNameRequest rnr;
 
   void Init() {
     memset(&devcb, 0, sizeof(devcb));
@@ -194,5 +190,3 @@ public:
     btm_inq_vars.Free();
   }
 } tBTM_CB;
-
-#endif  // BTM_INT_TYPES_H

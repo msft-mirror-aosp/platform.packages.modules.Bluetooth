@@ -55,6 +55,9 @@
 using bluetooth::eatt::EattExtension;
 using namespace bluetooth;
 
+bluetooth::common::TimestampedCircularBuffer<tTCB_STATE_HISTORY> tcb_state_history_(
+        100 /*history size*/);
+
 /******************************************************************************/
 /*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
 /******************************************************************************/
@@ -299,6 +302,12 @@ bool gatt_disconnect(tGATT_TCB* p_tcb) {
 
   if (p_tcb->att_lcid == L2CAP_ATT_CID) {
     if (ch_state == GATT_CH_OPEN) {
+      if (com::android::bluetooth::flags::gatt_disconnect_fix() && p_tcb->eatt) {
+        /* ATT is fixed channel and it is expected to drop ACL.
+         * Make sure all EATT channels are disconnected before doing that.
+         */
+        EattExtension::GetInstance()->Disconnect(p_tcb->peer_bda);
+      }
       if (!L2CA_RemoveFixedChnl(L2CAP_ATT_CID, p_tcb->peer_bda)) {
         log::warn("Unable to remove L2CAP ATT fixed channel peer:{}", p_tcb->peer_bda);
       }
@@ -338,6 +347,12 @@ static bool gatt_update_app_hold_link_status(tGATT_IF gatt_if, tGATT_TCB* p_tcb,
     } else {
       log::warn("attempt to add already existing gatt_if={}", gatt_if);
     }
+
+    auto holders_string = gatt_tcb_get_holders_info_string(p_tcb);
+    tcb_state_history_.Push({.address = p_tcb->peer_bda,
+                             .transport = p_tcb->transport,
+                             .state = p_tcb->ch_state,
+                             .holders_info = holders_string});
     return true;
   }
 
@@ -348,6 +363,12 @@ static bool gatt_update_app_hold_link_status(tGATT_IF gatt_if, tGATT_TCB* p_tcb,
   }
 
   log::info("removed gatt_if={}", gatt_if);
+
+  auto holders_string = gatt_tcb_get_holders_info_string(p_tcb);
+  tcb_state_history_.Push({.address = p_tcb->peer_bda,
+                           .transport = p_tcb->transport,
+                           .state = p_tcb->ch_state,
+                           .holders_info = holders_string});
   return true;
 }
 
@@ -416,7 +437,13 @@ void gatt_update_app_use_link_flag(tGATT_IF gatt_if, tGATT_TCB* p_tcb, bool is_a
         gatt_disconnect(p_tcb);
       }
     } else {
-      log::info("is_add=false, but some app is still using the ACL link");
+      auto holders = gatt_tcb_get_holders_info_string(p_tcb);
+      log::info("is_add=false, but some app is still using the ACL link. {}", holders);
+
+      tcb_state_history_.Push({.address = p_tcb->peer_bda,
+                               .transport = p_tcb->transport,
+                               .state = p_tcb->ch_state,
+                               .holders_info = holders});
     }
   }
 }
@@ -1261,7 +1288,16 @@ void gatt_set_ch_state(tGATT_TCB* p_tcb, tGATT_CH_STATE ch_state) {
     return;
   }
 
-  log::verbose("old={} new=0x{:x}", p_tcb->ch_state, static_cast<uint8_t>(ch_state));
+  std::string holders_string = gatt_tcb_get_holders_info_string(p_tcb);
+  log::verbose("{}, transport: {}, state: {} -> {}, {}", p_tcb->peer_bda,
+               bt_transport_text(p_tcb->transport), gatt_channel_state_text(p_tcb->ch_state),
+               gatt_channel_state_text(ch_state), holders_string);
+
+  tcb_state_history_.Push({.address = p_tcb->peer_bda,
+                           .transport = p_tcb->transport,
+                           .state = ch_state,
+                           .holders_info = holders_string});
+
   p_tcb->ch_state = ch_state;
 }
 
@@ -1271,6 +1307,7 @@ tGATT_CH_STATE gatt_get_ch_state(tGATT_TCB* p_tcb) {
     return GATT_CH_CLOSE;
   }
 
-  log::verbose("gatt_get_ch_state: ch_state={}", p_tcb->ch_state);
+  log::verbose("{}, transport {},  ch_state={}", p_tcb->peer_bda,
+               bt_transport_text(p_tcb->transport), gatt_channel_state_text(p_tcb->ch_state));
   return p_tcb->ch_state;
 }

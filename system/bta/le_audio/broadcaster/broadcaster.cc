@@ -1307,6 +1307,13 @@ private:
       if (com::android::bluetooth::flags::leaudio_big_depends_on_audio_state()) {
         instance->UpdateAudioActiveStateInPublicAnnouncement();
         instance->setBroadcastTimers();
+
+        for (auto& broadcast_pair : instance->broadcasts_) {
+          auto& broadcast = broadcast_pair.second;
+          if (broadcast->GetState() == BroadcastStateMachine::State::CONFIGURED) {
+            broadcast->ProcessMessage(BroadcastStateMachine::Message::SUSPEND, nullptr);
+          }
+        }
       }
     }
 

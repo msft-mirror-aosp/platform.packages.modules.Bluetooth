@@ -36,6 +36,9 @@ interface IBluetoothManager
     boolean enableNoAutoConnect(in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED}, conditional=true)")
     boolean disable(in AttributionSource attributionSource, boolean persist);
+
+    const String GET_SYSTEM_STATE_API = "BluetoothAdapter_getSystemState";
+
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
     int getState();
 

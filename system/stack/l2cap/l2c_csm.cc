@@ -81,7 +81,7 @@ static void l2c_csm_send_config_req(tL2C_CCB* p_ccb) {
 // Send a config response with result OK and adjust the state machine
 static void l2c_csm_send_config_rsp_ok(tL2C_CCB* p_ccb, bool cbit) {
   tL2CAP_CFG_INFO config{};
-  config.result = L2CAP_CFG_OK;
+  config.result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK;
   if (cbit) {
     config.flags = L2CAP_CFG_FLAGS_MASK_CONT;
   }
@@ -312,6 +312,12 @@ static void l2c_csm_closed(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
           case L2CAP_LE_RESULT_INVALID_SOURCE_CID:
           case L2CAP_LE_RESULT_SOURCE_CID_ALREADY_ALLOCATED:
             break;
+          case L2CAP_LE_RESULT_CONN_PENDING:
+          case L2CAP_LE_RESULT_CONN_PENDING_AUTHENTICATION:
+          case L2CAP_LE_RESULT_CONN_PENDING_AUTHORIZATION:
+            log::warn("Received unexpected connection request return code:{}",
+                      l2cap_le_result_code_text(result));
+            break;
         }
       } else {
         if (!BTM_SetLinkPolicyActiveMode(p_ccb->p_lcb->remote_bd_addr)) {
@@ -531,7 +537,8 @@ static void l2c_csm_term_w4_sec_comp(tL2C_CCB* p_ccb, tL2CEVT event, void* p_dat
       break;
 
     case L2CEVT_SEC_COMP_NEG:
-      if (((tL2C_CONN_INFO*)p_data)->hci_status == static_cast<tHCI_STATUS>(BTM_DELAY_CHECK)) {
+      if (((tL2C_CONN_INFO*)p_data)->hci_status ==
+          static_cast<tHCI_STATUS>(tBTM_STATUS::BTM_DELAY_CHECK)) {
         /* start a timer - encryption change not received before L2CAP connect
          * req */
         alarm_set_on_mloop(p_ccb->l2c_ccb_timer, L2CAP_DELAY_CHECK_SM4_TIMEOUT_MS,
@@ -944,11 +951,13 @@ static void l2c_csm_config(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
                    p_cfg->flags & L2CAP_CFG_FLAGS_MASK_CONT);
         l2c_csm_send_config_rsp_ok(p_ccb, p_cfg->flags & L2CAP_CFG_FLAGS_MASK_CONT);
         if (p_ccb->config_done & OB_CFG_DONE) {
-          if (p_ccb->remote_config_rsp_result == L2CAP_CFG_OK) {
+          if (p_ccb->remote_config_rsp_result == tL2CAP_CFG_RESULT::L2CAP_CFG_OK) {
             l2c_csm_indicate_connection_open(p_ccb);
           } else {
             if (p_ccb->connection_initiator == L2CAP_INITIATOR_LOCAL) {
-              (*p_ccb->p_rcb->api.pL2CA_Error_Cb)(p_ccb->local_cid, L2CAP_CFG_FAILED_NO_REASON);
+              (*p_ccb->p_rcb->api.pL2CA_Error_Cb)(
+                      p_ccb->local_cid,
+                      static_cast<uint16_t>(tL2CAP_CFG_RESULT::L2CAP_CFG_FAILED_NO_REASON));
               bluetooth::shim::CountCounterMetrics(
                       android::bluetooth::CodePathCounterKeyEnum::L2CAP_CONFIG_REQ_FAILURE, 1);
             }
@@ -1048,10 +1057,12 @@ static void l2c_csm_config(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
 
       /* If failure was channel mode try to renegotiate */
       if (!l2c_fcr_renegotiate_chan(p_ccb, p_cfg)) {
-        log::debug("Calling Config_Rsp_Cb(), CID: 0x{:04x}, Failure: {}", p_ccb->local_cid,
-                   p_cfg->result);
+        log::debug("Calling Config_Rsp_Cb(), CID: 0x{:04x}, cfg_result:{}", p_ccb->local_cid,
+                   l2cap_cfg_result_text(p_cfg->result));
         if (p_ccb->connection_initiator == L2CAP_INITIATOR_LOCAL) {
-          (*p_ccb->p_rcb->api.pL2CA_Error_Cb)(p_ccb->local_cid, L2CAP_CFG_FAILED_NO_REASON);
+          (*p_ccb->p_rcb->api.pL2CA_Error_Cb)(
+                  p_ccb->local_cid,
+                  static_cast<uint16_t>(tL2CAP_CFG_RESULT::L2CAP_CFG_FAILED_NO_REASON));
           bluetooth::shim::CountCounterMetrics(
                   android::bluetooth::CodePathCounterKeyEnum::L2CAP_CONFIG_RSP_NEG, 1);
         }

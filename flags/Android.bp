@@ -21,6 +21,7 @@ aconfig_declarations {
         "connectivity.aconfig",
         "device_iot_config.aconfig",
         "did.aconfig",
+        "dis.aconfig",
         "dumpsys.aconfig",
         "framework.aconfig",
         "gap.aconfig",
@@ -44,6 +45,7 @@ aconfig_declarations {
         "sco.aconfig",
         "sdp.aconfig",
         "security.aconfig",
+        "service_discovery.aconfig",
         "sockets.aconfig",
         "system_service.aconfig",
         "vcp.aconfig",
@@ -105,4 +107,18 @@ cc_aconfig_library {
         "//packages/modules/Bluetooth/system:__subpackages__",
     ],
     min_sdk_version: "Tiramisu",
+}
+
+rust_aconfig_library {
+    name: "libbluetooth_aconfig_flags_rust",
+    host_supported: true,
+    crate_name: "bluetooth_aconfig_flags_rust",
+    aconfig_declarations: "bluetooth_aconfig_flags",
+    apex_available: [
+        "com.android.btservices",
+    ],
+    min_sdk_version: "Tiramisu",
+    visibility: [
+        "//packages/modules/Bluetooth/system:__subpackages__",
+    ],
 }

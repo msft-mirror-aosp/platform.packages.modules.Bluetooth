@@ -248,6 +248,10 @@ public class CompanionManager {
             new BluetoothAdapter.OnMetadataChangedListener() {
                 @Override
                 public void onMetadataChanged(BluetoothDevice device, int key, byte[] value) {
+                    if (value == null) {
+                        Log.d(TAG, "onMetadataChanged(device, " + key + ", null)");
+                        return;
+                    }
                     String valueStr = new String(value);
                     Log.d(TAG, "Metadata updated in " + device + ": " + key + "=" + valueStr);
                     if (key == BluetoothDevice.METADATA_SOFTWARE_VERSION

@@ -782,7 +782,12 @@ public class ScanManager {
             if (upgradeScanModeByOneLevel(client)) {
                 Message msg = obtainMessage(MSG_REVERT_SCAN_MODE_UPGRADE);
                 msg.obj = client;
-                Log.d(TAG, "scanMode is upgraded for " + client);
+                Log.d(
+                        TAG,
+                        "scanMode is upgraded to "
+                                + getScanModeString(client.settings.getScanMode())
+                                + " for "
+                                + client);
                 sendMessageDelayed(msg, mAdapterService.getScanUpgradeDurationMillis());
                 return true;
             }
@@ -809,7 +814,12 @@ public class ScanManager {
                 return;
             }
             if (client.updateScanMode(client.scanModeApp)) {
-                Log.d(TAG, "scanMode upgrade is reverted for " + client);
+                Log.d(
+                        TAG,
+                        "scanMode upgrade is reverted to "
+                                + getScanModeString(client.scanModeApp)
+                                + " for "
+                                + client);
                 mScanNative.configureRegularScanParams();
             }
         }
@@ -837,11 +847,16 @@ public class ScanManager {
             if ((client.stats == null) || mAdapterService.getScanDowngradeDurationMillis() == 0) {
                 return false;
             }
-            int scanMode = client.settings.getScanMode();
-            int maxScanMode = SCAN_MODE_MAX_IN_CONCURRENCY;
-            if (client.updateScanMode(getMinScanMode(scanMode, maxScanMode))) {
+            int updatedScanMode =
+                    getMinScanMode(client.settings.getScanMode(), SCAN_MODE_MAX_IN_CONCURRENCY);
+            if (client.updateScanMode(updatedScanMode)) {
                 client.stats.setScanDowngrade(client.scannerId, true);
-                Log.d(TAG, "downgradeScanModeFromMaxDuty() for " + client);
+                Log.d(
+                        TAG,
+                        "downgradeScanModeFromMaxDuty() to "
+                                + getScanModeString(updatedScanMode)
+                                + " for "
+                                + client);
                 return true;
             }
             return false;

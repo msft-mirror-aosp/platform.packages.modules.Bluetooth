@@ -228,7 +228,7 @@ void l2cu_release_lcb(tL2C_LCB* p_lcb) {
       tL2CAP_SEC_DATA* p_buf = (tL2CAP_SEC_DATA*)fixed_queue_try_dequeue(p_lcb->le_sec_pending_q);
       if (p_buf->p_callback) {
         p_buf->p_callback(p_lcb->remote_bd_addr, p_lcb->transport, p_buf->p_ref_data,
-                          BTM_DEV_RESET);
+                          tBTM_STATUS::BTM_DEV_RESET);
       }
       osi_free(p_buf);
     }
@@ -705,7 +705,7 @@ void l2cu_send_peer_config_rsp(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg) {
 
   UINT16_TO_STREAM(p, p_ccb->remote_cid);
   UINT16_TO_STREAM(p, p_cfg->flags); /* Flags (continuation) Must match request */
-  UINT16_TO_STREAM(p, p_cfg->result);
+  UINT16_TO_STREAM(p, static_cast<uint16_t>(p_cfg->result));
 
   /* Now, put the options */
   if (p_cfg->mtu_present) {
@@ -808,7 +808,7 @@ void l2cu_send_peer_config_rej(tL2C_CCB* p_ccb, uint8_t* p_data, uint16_t data_l
 
   UINT16_TO_STREAM(p, p_ccb->remote_cid);
   UINT16_TO_STREAM(p, 0); /* Flags = 0 (no continuation) */
-  UINT16_TO_STREAM(p, L2CAP_CFG_UNKNOWN_OPTIONS);
+  UINT16_TO_STREAM(p, static_cast<uint16_t>(tL2CAP_CFG_RESULT::L2CAP_CFG_UNKNOWN_OPTIONS));
 
   buf_space = rej_len;
 
@@ -845,9 +845,8 @@ void l2cu_send_peer_config_rej(tL2C_CCB* p_ccb, uint8_t* p_data, uint16_t data_l
             }
           }
           p_data += cfg_len + L2CAP_CFG_OPTION_OVERHEAD;
-        }
-        /* bad length; force loop exit */
-        else {
+        } else {
+          /* bad length; force loop exit */
           p_data = p_data_end;
         }
         break;
@@ -1901,9 +1900,8 @@ uint8_t l2cu_process_peer_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg) {
       p_cfg->mtu = required_remote_mtu;
       mtu_ok = false;
     }
-  }
-  /* Reload mtu from a previously accepted config request */
-  else if (p_ccb->peer_cfg.mtu_present && !(p_ccb->config_done & IB_CFG_DONE)) {
+  } else if (p_ccb->peer_cfg.mtu_present && !(p_ccb->config_done & IB_CFG_DONE)) {
+    /* Reload mtu from a previously accepted config request */
     p_cfg->mtu_present = true;
     p_cfg->mtu = p_ccb->peer_cfg.mtu;
   }
@@ -1918,9 +1916,8 @@ uint8_t l2cu_process_peer_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg) {
       p_ccb->peer_cfg.flush_to_present = true;
       p_ccb->peer_cfg.flush_to = p_cfg->flush_to;
     }
-  }
-  /* Reload flush_to from a previously accepted config request */
-  else if (p_ccb->peer_cfg.flush_to_present && !(p_ccb->config_done & IB_CFG_DONE)) {
+  } else if (p_ccb->peer_cfg.flush_to_present && !(p_ccb->config_done & IB_CFG_DONE)) {
+    /* Reload flush_to from a previously accepted config request */
     p_cfg->flush_to_present = true;
     p_cfg->flush_to = p_ccb->peer_cfg.flush_to;
   }
@@ -1933,14 +1930,13 @@ uint8_t l2cu_process_peer_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg) {
     if (p_cfg->qos.service_type <= SVC_TYPE_GUARANTEED) {
       p_ccb->peer_cfg.qos = p_cfg->qos;
       p_ccb->peer_cfg.qos_present = true;
-    } else /* Illegal service type value */
-    {
+    } else {
+      /* Illegal service type value */
       p_cfg->qos.service_type = SVC_TYPE_BEST_EFFORT;
       qos_type_ok = false;
     }
-  }
-  /* Reload QOS from a previously accepted config request */
-  else if (p_ccb->peer_cfg.qos_present && !(p_ccb->config_done & IB_CFG_DONE)) {
+  } else if (p_ccb->peer_cfg.qos_present && !(p_ccb->config_done & IB_CFG_DONE)) {
+    /* Reload QOS from a previously accepted config request */
     p_cfg->qos_present = true;
     p_cfg->qos = p_ccb->peer_cfg.qos;
   }
@@ -1948,7 +1944,7 @@ uint8_t l2cu_process_peer_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg) {
   fcr_status = l2c_fcr_process_peer_cfg_req(p_ccb, p_cfg);
   if (fcr_status == L2CAP_PEER_CFG_DISCONNECT) {
     /* Notify caller to disconnect the channel (incompatible modes) */
-    p_cfg->result = L2CAP_CFG_FAILED_NO_REASON;
+    p_cfg->result = tL2CAP_CFG_RESULT::L2CAP_CFG_FAILED_NO_REASON;
     p_cfg->mtu_present = p_cfg->qos_present = p_cfg->flush_to_present = 0;
 
     return L2CAP_PEER_CFG_DISCONNECT;
@@ -1961,7 +1957,7 @@ uint8_t l2cu_process_peer_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg) {
     l2cu_adjust_out_mps(p_ccb);
     return L2CAP_PEER_CFG_OK;
   } else {
-    p_cfg->result = L2CAP_CFG_UNACCEPTABLE_PARAMS;
+    p_cfg->result = tL2CAP_CFG_RESULT::L2CAP_CFG_UNACCEPTABLE_PARAMS;
 
     if (mtu_ok) {
       p_cfg->mtu_present = false;
@@ -2254,9 +2250,8 @@ bool l2cu_lcb_disconnecting(void) {
       if ((!p_lcb->ccb_queue.p_first_ccb) || (p_lcb->link_state == LST_DISCONNECTING)) {
         status = true;
         break;
-      }
-      /* only one ccb left on lcb */
-      else if (p_lcb->ccb_queue.p_first_ccb == p_lcb->ccb_queue.p_last_ccb) {
+      } else if (p_lcb->ccb_queue.p_first_ccb == p_lcb->ccb_queue.p_last_ccb) {
+        /* only one ccb left on lcb */
         p_ccb = p_lcb->ccb_queue.p_first_ccb;
 
         if ((p_ccb->in_use) && ((p_ccb->chnl_state == CST_W4_L2CAP_DISCONNECT_RSP) ||
@@ -2962,7 +2957,7 @@ void l2cu_send_peer_ble_par_req(tL2C_LCB* p_lcb, uint16_t min_int, uint16_t max_
  * Returns          void
  *
  ******************************************************************************/
-void l2cu_send_peer_ble_par_rsp(tL2C_LCB* p_lcb, uint16_t reason, uint8_t rem_id) {
+void l2cu_send_peer_ble_par_rsp(tL2C_LCB* p_lcb, tL2CAP_CFG_RESULT reason, uint8_t rem_id) {
   BT_HDR* p_buf;
   uint8_t* p;
 
@@ -2975,7 +2970,7 @@ void l2cu_send_peer_ble_par_rsp(tL2C_LCB* p_lcb, uint16_t reason, uint8_t rem_id
   p = (uint8_t*)(p_buf + 1) + L2CAP_SEND_CMD_OFFSET + HCI_DATA_PREAMBLE_SIZE + L2CAP_PKT_OVERHEAD +
       L2CAP_CMD_OVERHEAD;
 
-  UINT16_TO_STREAM(p, reason);
+  UINT16_TO_STREAM(p, static_cast<uint16_t>(reason));
 
   l2c_link_check_send_pkts(p_lcb, 0, p_buf);
 }
@@ -3267,11 +3262,11 @@ void l2cu_reject_ble_connection(tL2C_CCB* p_ccb, uint8_t rem_id, uint16_t result
  *
  ******************************************************************************/
 
-void l2cu_send_ble_reconfig_rsp(tL2C_LCB* p_lcb, uint8_t rem_id, uint16_t result) {
+void l2cu_send_ble_reconfig_rsp(tL2C_LCB* p_lcb, uint8_t rem_id, tL2CAP_RECONFIG_RESULT result) {
   BT_HDR* p_buf;
   uint8_t* p;
 
-  log::verbose("l2cu_send_ble_reconfig_rsp result 0x04{:x}", result);
+  log::verbose("l2cu_send_ble_reconfig_rsp result:{}", l2cap_reconfig_result_text(result));
 
   p_buf = l2cu_build_header(p_lcb, L2CAP_CMD_CREDIT_BASED_RECONFIG_RES_LEN,
                             L2CAP_CMD_CREDIT_BASED_RECONFIG_RES, rem_id);
@@ -3284,7 +3279,7 @@ void l2cu_send_ble_reconfig_rsp(tL2C_LCB* p_lcb, uint8_t rem_id, uint16_t result
       L2CAP_CMD_OVERHEAD;
 
   memset(p, 0, L2CAP_CMD_CREDIT_BASED_RECONFIG_RES_LEN);
-  UINT16_TO_STREAM(p, result);
+  UINT16_TO_STREAM(p, static_cast<uint16_t>(result));
 
   l2c_link_check_send_pkts(p_lcb, 0, p_buf);
 }
@@ -3461,9 +3456,8 @@ tL2C_CCB* l2cu_find_ccb_by_cid(tL2C_LCB* p_lcb, uint16_t local_cid) {
     /* make sure the CCB is in use */
     if (!p_ccb->in_use) {
       p_ccb = NULL;
-    }
-    /* make sure it's for the same LCB */
-    else if (p_lcb && p_lcb != p_ccb->p_lcb) {
+    } else if (p_lcb && p_lcb != p_ccb->p_lcb) {
+      /* make sure it's for the same LCB */
       p_ccb = NULL;
     }
   }
