@@ -60,10 +60,14 @@ public:
   }
 
   void StartDistanceMeasurement(RawAddress identity_addr, uint16_t interval, uint8_t method) {
+    DistanceMeasurementMethod distance_measurement_method =
+            static_cast<DistanceMeasurementMethod>(method);
     bluetooth::shim::GetDistanceMeasurementManager()->StartDistanceMeasurement(
             bluetooth::ToGdAddress(identity_addr), GetConnectionHandle(identity_addr), interval,
-            static_cast<DistanceMeasurementMethod>(method));
-    bluetooth::ras::GetRasClient()->Connect(identity_addr);
+            distance_measurement_method);
+    if (distance_measurement_method == DistanceMeasurementMethod::METHOD_CS) {
+      bluetooth::ras::GetRasClient()->Connect(identity_addr);
+    }
   }
 
   void StopDistanceMeasurement(RawAddress identity_addr, uint8_t method) {

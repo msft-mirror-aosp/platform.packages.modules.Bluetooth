@@ -736,6 +736,7 @@ public class TransitionalScanHelper {
                     sendResultsByPendingIntent(
                             app.mInfo, permittedResults, ScanSettings.CALLBACK_TYPE_ALL_MATCHES);
                 } catch (PendingIntent.CanceledException e) {
+                    Log.d(TAG, "Exception while sending result", e);
                 }
             }
         } else {
