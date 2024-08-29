@@ -164,7 +164,7 @@ void l2cu_release_lcb(tL2C_LCB* /* p_lcb */) { inc_func_call_count(__func__); }
 void l2cu_release_rcb(tL2C_RCB* /* p_rcb */) { inc_func_call_count(__func__); }
 void l2cu_resubmit_pending_sec_req(const RawAddress* /* p_bda */) { inc_func_call_count(__func__); }
 void l2cu_send_ble_reconfig_rsp(tL2C_LCB* /* p_lcb */, uint8_t /* rem_id */,
-                                uint16_t /* result */) {
+                                tL2CAP_RECONFIG_RESULT /* result */) {
   inc_func_call_count(__func__);
 }
 void l2cu_send_credit_based_reconfig_req(tL2C_CCB* /* p_ccb */, tL2CAP_LE_CFG_INFO* /* p_cfg */) {
@@ -187,7 +187,7 @@ void l2cu_send_peer_ble_par_req(tL2C_LCB* /* p_lcb */, uint16_t /* min_int */,
                                 uint16_t /* timeout */) {
   inc_func_call_count(__func__);
 }
-void l2cu_send_peer_ble_par_rsp(tL2C_LCB* /* p_lcb */, uint16_t /* reason */,
+void l2cu_send_peer_ble_par_rsp(tL2C_LCB* /* p_lcb */, tL2CAP_CFG_RESULT /* reason */,
                                 uint8_t /* rem_id */) {
   inc_func_call_count(__func__);
 }

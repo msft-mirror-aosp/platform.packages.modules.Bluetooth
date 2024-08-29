@@ -116,7 +116,7 @@ typedef struct {
  * use to signify its presence or absence.
  */
 typedef struct {
-  uint16_t result; /* Only used in confirm messages */
+  tL2CAP_CFG_RESULT result; /* Only used in confirm messages */
   bool mtu_present;
   uint16_t mtu;
   bool qos_present;
@@ -150,7 +150,7 @@ uint16_t L2CA_LeCreditThreshold();
 constexpr uint8_t L2CAP_CREDIT_BASED_MAX_CIDS = 5;
 
 struct tL2CAP_LE_CFG_INFO {
-  uint16_t result{L2CAP_LE_RESULT_CONN_OK}; /* Only used in confirm messages */
+  tL2CAP_CFG_RESULT result{tL2CAP_CFG_RESULT::L2CAP_CFG_OK}; /* Only used in confirm messages */
   uint16_t mtu{kDefaultL2capMtu};
   uint16_t mps{kDefaultL2capMps};
   uint16_t credits{L2CA_LeCreditDefault()};

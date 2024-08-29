@@ -19,6 +19,8 @@
 #include <com_android_bluetooth_flags.h>
 
 #include <map>
+#include <memory>
+#include <utility>
 #include <vector>
 
 #include "bind_helpers.h"
@@ -157,13 +159,15 @@ struct eatt_impl {
     uint16_t max_mps = shim::GetController()->GetLeBufferSize().le_data_packet_length_;
 
     tL2CAP_LE_CFG_INFO local_coc_cfg = {
-            .result = L2CAP_LE_RESULT_CONN_OK,
+            .result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK,
             .mtu = eatt_dev->rx_mtu_,
             .mps = eatt_dev->rx_mps_ < max_mps ? eatt_dev->rx_mps_ : max_mps,
             .credits = L2CA_LeCreditDefault(),
     };
 
-    if (!L2CA_ConnectCreditBasedRsp(bda, identifier, lcids, L2CAP_CONN_OK, &local_coc_cfg)) {
+    if (!L2CA_ConnectCreditBasedRsp(bda, identifier, lcids,
+                                    tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK,
+                                    &local_coc_cfg)) {
       log::warn("Unable to respond L2CAP le_coc credit indication peer:{}", bda);
       return false;
     }
@@ -415,8 +419,9 @@ struct eatt_impl {
     // regardless of success result, we have finished reconfiguration
     channel->EattChannelSetState(EattChannelState::EATT_CHANNEL_OPENED);
 
-    if (p_cfg->result != L2CAP_CFG_OK) {
-      log::info("reconfig failed lcid: 0x{:x} result: 0x{:x}", lcid, p_cfg->result);
+    if (p_cfg->result != tL2CAP_CFG_RESULT::L2CAP_CFG_OK) {
+      log::info("reconfig failed lcid: 0x{:x} result:{}", lcid,
+                l2cap_cfg_result_text(p_cfg->result));
       return;
     }
 
@@ -541,7 +546,7 @@ struct eatt_impl {
     }
 
     tL2CAP_LE_CFG_INFO local_coc_cfg = {
-            .result = L2CAP_LE_RESULT_CONN_OK,
+            .result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK,
             .mtu = eatt_dev->rx_mtu_,
             .mps = eatt_dev->rx_mps_,
             .credits = L2CA_LeCreditDefault(),
@@ -782,7 +787,10 @@ struct eatt_impl {
     std::vector<uint16_t> cids = {cid};
 
     tL2CAP_LE_CFG_INFO cfg = {
-            .result = L2CAP_LE_RESULT_CONN_OK, .mtu = new_mtu, .mps = eatt_dev->rx_mps_};
+            .result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK,
+            .mtu = new_mtu,
+            .mps = eatt_dev->rx_mps_,
+    };
 
     if (!L2CA_ReconfigCreditBasedConnsReq(eatt_dev->bda_, cids, &cfg)) {
       log::error("Could not start reconfig cid: 0x{:x} or device {}", cid, bd_addr);
@@ -821,7 +829,7 @@ struct eatt_impl {
     }
 
     tL2CAP_LE_CFG_INFO cfg = {
-            .result = L2CAP_LE_RESULT_CONN_OK, .mtu = new_mtu, .mps = eatt_dev->rx_mps_};
+            .result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK, .mtu = new_mtu, .mps = eatt_dev->rx_mps_};
 
     if (!L2CA_ReconfigCreditBasedConnsReq(eatt_dev->bda_, cids, &cfg)) {
       log::error("Could not start reconfig for device {}", bd_addr);

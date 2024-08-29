@@ -63,7 +63,7 @@ use crate::bluetooth::{Bluetooth, BluetoothDevice, IBluetooth};
 use crate::callbacks::Callbacks;
 use crate::uuid;
 use crate::uuid::{Profile, UuidHelper};
-use crate::{Message, RPCProxy};
+use crate::{make_message_dispatcher, Message, RPCProxy};
 
 use num_derive::FromPrimitive;
 
@@ -3110,69 +3110,31 @@ impl BluetoothMedia {
 }
 
 fn get_a2dp_dispatcher(tx: Sender<Message>) -> A2dpCallbacksDispatcher {
-    A2dpCallbacksDispatcher {
-        dispatch: Box::new(move |cb| {
-            let txl = tx.clone();
-            topstack::get_runtime().spawn(async move {
-                let _ = txl.send(Message::A2dp(cb)).await;
-            });
-        }),
-    }
+    A2dpCallbacksDispatcher { dispatch: make_message_dispatcher(tx, Message::A2dp) }
 }
 
 fn get_avrcp_dispatcher(tx: Sender<Message>) -> AvrcpCallbacksDispatcher {
-    AvrcpCallbacksDispatcher {
-        dispatch: Box::new(move |cb| {
-            let txl = tx.clone();
-            topstack::get_runtime().spawn(async move {
-                let _ = txl.send(Message::Avrcp(cb)).await;
-            });
-        }),
-    }
+    AvrcpCallbacksDispatcher { dispatch: make_message_dispatcher(tx, Message::Avrcp) }
 }
 
 fn get_hfp_dispatcher(tx: Sender<Message>) -> HfpCallbacksDispatcher {
-    HfpCallbacksDispatcher {
-        dispatch: Box::new(move |cb| {
-            let txl = tx.clone();
-            topstack::get_runtime().spawn(async move {
-                let _ = txl.send(Message::Hfp(cb)).await;
-            });
-        }),
-    }
+    HfpCallbacksDispatcher { dispatch: make_message_dispatcher(tx, Message::Hfp) }
 }
 
 fn get_le_audio_dispatcher(tx: Sender<Message>) -> LeAudioClientCallbacksDispatcher {
     LeAudioClientCallbacksDispatcher {
-        dispatch: Box::new(move |cb| {
-            let txl = tx.clone();
-            topstack::get_runtime().spawn(async move {
-                let _ = txl.send(Message::LeAudioClient(cb)).await;
-            });
-        }),
+        dispatch: make_message_dispatcher(tx, Message::LeAudioClient),
     }
 }
 
 fn get_vc_dispatcher(tx: Sender<Message>) -> VolumeControlCallbacksDispatcher {
     VolumeControlCallbacksDispatcher {
-        dispatch: Box::new(move |cb| {
-            let txl = tx.clone();
-            topstack::get_runtime().spawn(async move {
-                let _ = txl.send(Message::VolumeControl(cb)).await;
-            });
-        }),
+        dispatch: make_message_dispatcher(tx, Message::VolumeControl),
     }
 }
 
 fn get_csis_dispatcher(tx: Sender<Message>) -> CsisClientCallbacksDispatcher {
-    CsisClientCallbacksDispatcher {
-        dispatch: Box::new(move |cb| {
-            let txl = tx.clone();
-            topstack::get_runtime().spawn(async move {
-                let _ = txl.send(Message::CsisClient(cb)).await;
-            });
-        }),
-    }
+    CsisClientCallbacksDispatcher { dispatch: make_message_dispatcher(tx, Message::CsisClient) }
 }
 
 impl IBluetoothMedia for BluetoothMedia {
