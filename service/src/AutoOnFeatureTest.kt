@@ -56,6 +56,9 @@ import org.robolectric.Shadows.shadowOf
 @RunWith(RobolectricTestRunner::class)
 @kotlinx.coroutines.ExperimentalCoroutinesApi
 class AutoOnFeatureTest {
+    @get:Rule val testName = TestName()
+    @get:Rule val expect = Expect.create()
+
     private val looper = Looper.getMainLooper()
     private val state = BluetoothAdapterState()
     private val context = ApplicationProvider.getApplicationContext<Context>()
@@ -64,9 +67,6 @@ class AutoOnFeatureTest {
     private val timerTarget = LocalDateTime.of(now.toLocalDate(), LocalTime.of(5, 0)).plusDays(1)
 
     private var callback_count = 0
-
-    @JvmField @Rule val testName = TestName()
-    @JvmField @Rule val expect = Expect.create()
 
     @Before
     fun setUp() {
