@@ -470,7 +470,8 @@ public:
    **
    ******************************************************************************/
   virtual bool L2CA_ConnectCreditBasedRsp(const RawAddress& p_bd_addr, uint8_t id,
-                                          std::vector<uint16_t>& accepted_lcids, uint16_t result,
+                                          std::vector<uint16_t>& accepted_lcids,
+                                          tL2CAP_LE_RESULT_CODE result,
                                           tL2CAP_LE_CFG_INFO* p_cfg) = 0;
 
   /*******************************************************************************
