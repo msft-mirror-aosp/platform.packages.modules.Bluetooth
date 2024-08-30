@@ -418,7 +418,8 @@ void L2CA_DeregisterLECoc(uint16_t psm);
 
 [[nodiscard]] bool L2CA_ConnectCreditBasedRsp(const RawAddress& p_bd_addr, uint8_t id,
                                               std::vector<uint16_t>& accepted_lcids,
-                                              uint16_t result, tL2CAP_LE_CFG_INFO* p_cfg);
+                                              tL2CAP_LE_RESULT_CODE result,
+                                              tL2CAP_LE_CFG_INFO* p_cfg);
 /*******************************************************************************
  *
  * Function         L2CA_DisconnectReq
@@ -852,7 +853,7 @@ public:
           uint16_t psm, const RawAddress& bd_addr, tL2CAP_LE_CFG_INFO* p_cfg) override;
   [[nodiscard]] bool L2CA_ConnectCreditBasedRsp(const RawAddress& bd_addr, uint8_t id,
                                                 std::vector<uint16_t>& accepted_lcids,
-                                                uint16_t result,
+                                                tL2CAP_LE_RESULT_CODE result,
                                                 tL2CAP_LE_CFG_INFO* p_cfg) override;
   [[nodiscard]] uint16_t L2CA_GetPeerLECocCredit(const RawAddress& bd_addr, uint16_t lcid) override;
   [[nodiscard]] bool L2CA_ReconfigCreditBasedConnsReq(const RawAddress& bd_addr,

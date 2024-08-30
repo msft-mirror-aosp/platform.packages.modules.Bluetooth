@@ -21,14 +21,14 @@
  *  This file contains L2CAP internal definitions
  *
  ******************************************************************************/
-#ifndef L2C_INT_H
-#define L2C_INT_H
+#pragma once
 
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <stdbool.h>
 
 #include <string>
+#include <vector>
 
 #include "include/macros.h"
 #include "internal_include/bt_target.h"
@@ -269,8 +269,8 @@ struct tL2C_CCB {
   tL2C_CHNL_STATE chnl_state;        /* Channel state */
   tL2CAP_LE_CFG_INFO local_conn_cfg; /* Our config for ble conn oriented channel */
   tL2CAP_LE_CFG_INFO peer_conn_cfg;  /* Peer device config ble conn oriented channel */
-  bool is_first_seg;                 /* Dtermine whether the received packet is the first
-                                        segment or not */
+  bool is_first_seg;                 // Dtermine whether the received packet is the first
+                                     //   segment or not
   BT_HDR* ble_sdu;                   /* Buffer for storing unassembled sdu*/
   uint16_t ble_sdu_length;           /* Length of unassembled sdu length*/
   tL2C_CCB* p_next_ccb;              /* Next CCB in the chain */
@@ -317,8 +317,7 @@ struct tL2C_CCB {
   uint16_t max_rx_mtu;
   uint8_t fcr_cfg_tries;          /* Max number of negotiation attempts */
   bool peer_cfg_already_rejected; /* If mode rejected once, set to true */
-  bool out_cfg_fcr_present;       /* true if cfg response should include fcr options
-                                   */
+  bool out_cfg_fcr_present;       // true if cfg response should include fcr options
 
   bool is_flushable; /* true if channel is flushable */
 
@@ -548,7 +547,7 @@ public:
   uint8_t pending_ecoc_conn_cnt;
 
   uint16_t pending_lead_cid;
-  uint16_t pending_l2cap_result;
+  tL2CAP_CONN pending_l2cap_result;
 
   unsigned number_of_active_dynamic_channels() const {
     unsigned cnt = 0;
@@ -597,8 +596,8 @@ struct tL2C_CB {
   tL2C_LCB* p_cur_hcit_lcb; /* Current HCI Transport buffer */
   uint16_t num_used_lcbs;   /* Number of active link control blocks */
 
-  uint16_t non_flushable_pbf; /* L2CAP_PKT_START_NON_FLUSHABLE if controller
-                                 supports */
+  uint16_t non_flushable_pbf;  // L2CAP_PKT_START_NON_FLUSHABLE if controller
+                               //   supports
   /* Otherwise, L2CAP_PKT_START */
 
 #if (L2CAP_CONFORMANCE_TESTING == TRUE)
@@ -639,7 +638,7 @@ struct tL2C_CONN_INFO {
   RawAddress bd_addr;          /* Remote BD address */
   tHCI_STATUS hci_status;      /* Connection status */
   uint16_t psm;                /* PSM of the connection */
-  uint16_t l2cap_result;       /* L2CAP result */
+  tL2CAP_CONN l2cap_result;    /* L2CAP result */
   uint16_t l2cap_status;       /* L2CAP status */
   uint16_t remote_cid;         /* Remote CID */
   std::vector<uint16_t> lcids; /* Used when credit based is used*/
@@ -728,13 +727,13 @@ void l2cu_tx_complete(tL2C_TX_COMPLETE_CB_INFO* p_cbi);
 void l2cu_send_peer_ble_par_req(tL2C_LCB* p_lcb, uint16_t min_int, uint16_t max_int,
                                 uint16_t latency, uint16_t timeout);
 void l2cu_send_peer_ble_par_rsp(tL2C_LCB* p_lcb, tL2CAP_CFG_RESULT reason, uint8_t rem_id);
-void l2cu_reject_ble_connection(tL2C_CCB* p_ccb, uint8_t rem_id, uint16_t result);
+void l2cu_reject_ble_connection(tL2C_CCB* p_ccb, uint8_t rem_id, tL2CAP_LE_RESULT_CODE result);
 void l2cu_reject_credit_based_conn_req(tL2C_LCB* p_lcb, uint8_t rem_id, uint8_t num_of_channels,
-                                       uint16_t result);
-void l2cu_reject_ble_coc_connection(tL2C_LCB* p_lcb, uint8_t rem_id, uint16_t result);
-void l2cu_send_peer_ble_credit_based_conn_res(tL2C_CCB* p_ccb, uint16_t result);
+                                       tL2CAP_LE_RESULT_CODE result);
+void l2cu_reject_ble_coc_connection(tL2C_LCB* p_lcb, uint8_t rem_id, tL2CAP_LE_RESULT_CODE result);
+void l2cu_send_peer_ble_credit_based_conn_res(tL2C_CCB* p_ccb, tL2CAP_LE_RESULT_CODE result);
 void l2cu_send_peer_credit_based_conn_res(tL2C_CCB* p_ccb, std::vector<uint16_t>& accepted_lcids,
-                                          uint16_t result);
+                                          tL2CAP_LE_RESULT_CODE result);
 
 void l2cu_send_peer_ble_credit_based_conn_req(tL2C_CCB* p_ccb);
 void l2cu_send_peer_credit_based_conn_req(tL2C_CCB* p_ccb);
@@ -749,7 +748,7 @@ bool l2cu_initialize_fixed_ccb(tL2C_LCB* p_lcb, uint16_t fixed_cid);
 void l2cu_no_dynamic_ccbs(tL2C_LCB* p_lcb);
 void l2cu_process_fixed_chnl_resp(tL2C_LCB* p_lcb);
 bool l2cu_is_ccb_active(tL2C_CCB* p_ccb);
-uint16_t le_result_to_l2c_conn(uint16_t result);
+tL2CAP_CONN le_result_to_l2c_conn(tL2CAP_LE_RESULT_CODE result);
 
 /* Functions provided for Broadcom Aware
  ***************************************
@@ -831,7 +830,7 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len);
 void l2c_ble_link_adjust_allocation(void);
 
 void l2cble_credit_based_conn_req(tL2C_CCB* p_ccb);
-void l2cble_credit_based_conn_res(tL2C_CCB* p_ccb, uint16_t result);
+void l2cble_credit_based_conn_res(tL2C_CCB* p_ccb, tL2CAP_LE_RESULT_CODE result);
 void l2cble_send_peer_disc_req(tL2C_CCB* p_ccb);
 void l2cble_send_flow_control_credit(tL2C_CCB* p_ccb, uint16_t credit_value);
 tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr, uint16_t psm,
@@ -854,5 +853,3 @@ struct formatter<tL2CEVT> : enum_formatter<tL2CEVT> {};
 template <>
 struct formatter<tL2C_CHNL_STATE> : enum_formatter<tL2C_CHNL_STATE> {};
 }  // namespace fmt
-
-#endif

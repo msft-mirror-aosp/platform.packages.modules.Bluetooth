@@ -33,6 +33,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "hal/snoop_logger.h"
 #include "hci/controller_interface.h"
@@ -650,7 +651,7 @@ uint16_t L2CA_GetPeerLECocCredit(const RawAddress& bd_addr, uint16_t lcid) {
  *
  ******************************************************************************/
 bool L2CA_ConnectCreditBasedRsp(const RawAddress& p_bd_addr, uint8_t id,
-                                std::vector<uint16_t>& accepted_lcids, uint16_t result,
+                                std::vector<uint16_t>& accepted_lcids, tL2CAP_LE_RESULT_CODE result,
                                 tL2CAP_LE_CFG_INFO* p_cfg) {
   log::verbose("BDA: {} num of cids: {} Result: {}", p_bd_addr, int(accepted_lcids.size()), result);
 
@@ -694,7 +695,7 @@ bool L2CA_ConnectCreditBasedRsp(const RawAddress& p_bd_addr, uint8_t id,
           .bd_addr = p_bd_addr,
           .hci_status{},
           .psm{},
-          .l2cap_result = result,
+          .l2cap_result = static_cast<tL2CAP_CONN>(result),
           .l2cap_status{},
           .remote_cid{},
           .lcids = accepted_lcids,

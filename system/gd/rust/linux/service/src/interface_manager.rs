@@ -191,12 +191,6 @@ impl InterfaceManager {
                         );
 
                         cr.lock().unwrap().insert(
-                            Self::make_object_name(virt_index, "admin"),
-                            &[admin_iface],
-                            bluetooth_admin.clone(),
-                        );
-
-                        cr.lock().unwrap().insert(
                             Self::make_object_name(virt_index, "logging"),
                             &[logging_iface],
                             logging.clone(),
@@ -220,6 +214,13 @@ impl InterfaceManager {
                                 .unwrap()
                                 .init_adv_manager(bt_clone, is_le_ext_adv_supported);
                         });
+                    }
+                    BluetoothAPI::Admin => {
+                        cr.lock().unwrap().insert(
+                            Self::make_object_name(virt_index, "admin"),
+                            &[admin_iface],
+                            bluetooth_admin.clone(),
+                        );
                     }
                     BluetoothAPI::Gatt => {
                         cr.lock().unwrap().insert(

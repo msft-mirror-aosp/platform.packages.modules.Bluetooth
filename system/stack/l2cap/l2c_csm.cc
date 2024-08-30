@@ -297,24 +297,24 @@ static void l2c_csm_closed(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
                 p_ccb->p_lcb->remote_bd_addr, p_ccb->p_rcb->psm, false, &l2c_link_sec_comp, p_ccb);
 
         switch (result) {
-          case L2CAP_LE_RESULT_INSUFFICIENT_AUTHORIZATION:
-          case L2CAP_LE_RESULT_UNACCEPTABLE_PARAMETERS:
-          case L2CAP_LE_RESULT_INVALID_PARAMETERS:
-          case L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION:
-          case L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP_KEY_SIZE:
-          case L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP:
+          case tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_AUTHORIZATION:
+          case tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_UNACCEPTABLE_PARAMETERS:
+          case tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INVALID_PARAMETERS:
+          case tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION:
+          case tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP_KEY_SIZE:
+          case tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP:
             l2cu_reject_ble_connection(p_ccb, p_ccb->remote_id, result);
             l2cu_release_ccb(p_ccb);
             break;
-          case L2CAP_LE_RESULT_CONN_OK:
-          case L2CAP_LE_RESULT_NO_PSM:
-          case L2CAP_LE_RESULT_NO_RESOURCES:
-          case L2CAP_LE_RESULT_INVALID_SOURCE_CID:
-          case L2CAP_LE_RESULT_SOURCE_CID_ALREADY_ALLOCATED:
+          case tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK:
+          case tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_PSM:
+          case tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_RESOURCES:
+          case tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INVALID_SOURCE_CID:
+          case tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_SOURCE_CID_ALREADY_ALLOCATED:
             break;
-          case L2CAP_LE_RESULT_CONN_PENDING:
-          case L2CAP_LE_RESULT_CONN_PENDING_AUTHENTICATION:
-          case L2CAP_LE_RESULT_CONN_PENDING_AUTHORIZATION:
+          case tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_PENDING:
+          case tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_PENDING_AUTHENTICATION:
+          case tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_PENDING_AUTHORIZATION:
             log::warn("Received unexpected connection request return code:{}",
                       l2cap_le_result_code_text(result));
             break;
@@ -545,8 +545,9 @@ static void l2c_csm_term_w4_sec_comp(tL2C_CCB* p_ccb, tL2CEVT event, void* p_dat
                            l2c_ccb_timer_timeout, p_ccb);
       } else {
         if (p_ccb->p_lcb->transport == BT_TRANSPORT_LE) {
-          l2cu_reject_ble_connection(p_ccb, p_ccb->remote_id,
-                                     L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION);
+          l2cu_reject_ble_connection(
+                  p_ccb, p_ccb->remote_id,
+                  tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION);
         } else {
           l2cu_send_peer_connect_rsp(p_ccb, L2CAP_CONN_SECURITY_BLOCK, 0);
         }
@@ -677,7 +678,7 @@ static void l2c_csm_w4_l2cap_connect_rsp(tL2C_CCB* p_ccb, tL2CEVT event, void* p
                 p_ci->l2cap_result);
       l2cu_release_ccb(p_ccb);
       if (p_lcb->transport == BT_TRANSPORT_LE) {
-        (*p_ccb->p_rcb->api.pL2CA_Error_Cb)(local_cid, le_result_to_l2c_conn(p_ci->l2cap_result));
+        (*p_ccb->p_rcb->api.pL2CA_Error_Cb)(local_cid, p_ci->l2cap_result);
       } else {
         (*p_ccb->p_rcb->api.pL2CA_Error_Cb)(local_cid, L2CAP_CONN_OTHER_ERROR);
       }
@@ -787,7 +788,8 @@ static void l2c_csm_w4_l2ca_connect_rsp(tL2C_CCB* p_ccb, tL2CEVT event, void* p_
         log::warn("LE link doesn't exist");
         return;
       }
-      l2cu_send_peer_credit_based_conn_res(p_ccb, p_ci->lcids, p_ci->l2cap_result);
+      l2cu_send_peer_credit_based_conn_res(p_ccb, p_ci->lcids,
+                                           static_cast<tL2CAP_LE_RESULT_CODE>(p_ci->l2cap_result));
       alarm_cancel(p_ccb->l2c_ccb_timer);
 
       for (int i = 0; i < p_lcb->pending_ecoc_conn_cnt; i++) {
@@ -818,11 +820,12 @@ static void l2c_csm_w4_l2ca_connect_rsp(tL2C_CCB* p_ccb, tL2CEVT event, void* p_
       if (p_ccb->p_lcb->transport == BT_TRANSPORT_LE) {
         /* Result should be OK or Reject */
         if ((!p_ci) || (p_ci->l2cap_result == L2CAP_CONN_OK)) {
-          l2cble_credit_based_conn_res(p_ccb, L2CAP_CONN_OK);
+          l2cble_credit_based_conn_res(p_ccb, tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK);
           p_ccb->chnl_state = CST_OPEN;
           alarm_cancel(p_ccb->l2c_ccb_timer);
         } else {
-          l2cble_credit_based_conn_res(p_ccb, p_ci->l2cap_result);
+          l2cble_credit_based_conn_res(p_ccb,
+                                       static_cast<tL2CAP_LE_RESULT_CODE>(p_ci->l2cap_result));
           l2cu_release_ccb(p_ccb);
         }
       } else {
@@ -849,7 +852,8 @@ static void l2c_csm_w4_l2ca_connect_rsp(tL2C_CCB* p_ccb, tL2CEVT event, void* p_
       alarm_cancel(p_ccb->l2c_ccb_timer);
       if (p_lcb != nullptr) {
         if (p_lcb->transport == BT_TRANSPORT_LE) {
-          l2cu_send_peer_credit_based_conn_res(p_ccb, p_ci->lcids, p_ci->l2cap_result);
+          l2cu_send_peer_credit_based_conn_res(
+                  p_ccb, p_ci->lcids, static_cast<tL2CAP_LE_RESULT_CODE>(p_ci->l2cap_result));
         }
         for (int i = 0; i < p_lcb->pending_ecoc_conn_cnt; i++) {
           uint16_t cid = p_lcb->pending_ecoc_connection_cids[i];
@@ -864,7 +868,7 @@ static void l2c_csm_w4_l2ca_connect_rsp(tL2C_CCB* p_ccb, tL2CEVT event, void* p_
     case L2CEVT_L2CA_CONNECT_RSP_NEG:
       p_ci = (tL2C_CONN_INFO*)p_data;
       if (p_ccb->p_lcb->transport == BT_TRANSPORT_LE) {
-        l2cble_credit_based_conn_res(p_ccb, p_ci->l2cap_result);
+        l2cble_credit_based_conn_res(p_ccb, static_cast<tL2CAP_LE_RESULT_CODE>(p_ci->l2cap_result));
       } else {
         l2cu_send_peer_connect_rsp(p_ccb, p_ci->l2cap_result, p_ci->l2cap_status);
       }
@@ -1262,16 +1266,14 @@ static void l2c_csm_open(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
       if (cfg_result == L2CAP_PEER_CFG_OK) {
         (*p_ccb->p_rcb->api.pL2CA_ConfigInd_Cb)(p_ccb->local_cid, p_cfg);
         l2c_csm_send_config_rsp_ok(p_ccb, p_cfg->flags & L2CAP_CFG_FLAGS_MASK_CONT);
-      }
-
-      /* Error in config parameters: reset state and config flag */
-      else if (cfg_result == L2CAP_PEER_CFG_UNACCEPTABLE) {
+      } else if (cfg_result == L2CAP_PEER_CFG_UNACCEPTABLE) {
+        /* Error in config parameters: reset state and config flag */
         alarm_cancel(p_ccb->l2c_ccb_timer);
         p_ccb->chnl_state = tempstate;
         p_ccb->config_done = tempcfgdone;
         l2cu_send_peer_config_rsp(p_ccb, p_cfg);
-      } else /* L2CAP_PEER_CFG_DISCONNECT */
-      {
+      } else {
+        /* L2CAP_PEER_CFG_DISCONNECT */
         /* Disconnect if channels are incompatible
          * Note this should not occur if reconfigure
          * since this should have never passed original config.

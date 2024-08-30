@@ -263,8 +263,9 @@ struct eatt_impl {
       if (key_size < min_key_size) {
         std::vector<uint16_t> empty;
         log::error("Insufficient key size ({}<{}) for device {}", key_size, min_key_size, bda);
-        if (!L2CA_ConnectCreditBasedRsp(bda, identifier, empty,
-                                        L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP_KEY_SIZE, nullptr)) {
+        if (!L2CA_ConnectCreditBasedRsp(
+                    bda, identifier, empty,
+                    tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP_KEY_SIZE, nullptr)) {
           log::warn("Unable to respond L2CAP le_coc credit indication peer:{}", bda);
         }
         return;
@@ -303,9 +304,10 @@ struct eatt_impl {
         !BTM_IsEncrypted(bda, BT_TRANSPORT_LE)) {
       /* If Link is not encrypted, we shall not accept EATT channel creation. */
       std::vector<uint16_t> empty;
-      uint16_t result = L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION;
+      tL2CAP_LE_RESULT_CODE result =
+              tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION;
       if (BTM_IsLinkKeyKnown(bda, BT_TRANSPORT_LE)) {
-        result = L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP;
+        result = tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP;
       }
       log::error("ACL to device {} is unencrypted.", bda);
       if (!L2CA_ConnectCreditBasedRsp(bda, identifier, empty, result, nullptr)) {
