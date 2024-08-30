@@ -92,7 +92,7 @@ void bluetooth::stack::l2cap::Impl::L2CA_DeregisterLECoc(uint16_t psm) {
 
 [[nodiscard]] bool bluetooth::stack::l2cap::Impl::L2CA_ConnectCreditBasedRsp(
         const RawAddress& p_bd_addr, uint8_t id, std::vector<uint16_t>& accepted_lcids,
-        uint16_t result, tL2CAP_LE_CFG_INFO* p_cfg) {
+        tL2CAP_LE_RESULT_CODE result, tL2CAP_LE_CFG_INFO* p_cfg) {
   return ::L2CA_ConnectCreditBasedRsp(p_bd_addr, id, accepted_lcids, result, p_cfg);
 }
 

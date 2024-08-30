@@ -35,13 +35,13 @@ use crate::bluetooth::{
     dispatch_base_callbacks, dispatch_hid_host_callbacks, dispatch_sdp_callbacks, Bluetooth,
     BluetoothDevice, DelayedActions, IBluetooth,
 };
-use crate::bluetooth_admin::{BluetoothAdmin, IBluetoothAdmin};
+use crate::bluetooth_admin::{AdminActions, BluetoothAdmin, IBluetoothAdmin};
 use crate::bluetooth_adv::{dispatch_le_adv_callbacks, AdvertiserActions};
 use crate::bluetooth_gatt::{
     dispatch_gatt_client_callbacks, dispatch_gatt_server_callbacks, dispatch_le_scanner_callbacks,
     dispatch_le_scanner_inband_callbacks, BluetoothGatt, GattActions,
 };
-use crate::bluetooth_media::{BluetoothMedia, MediaActions};
+use crate::bluetooth_media::{BluetoothMedia, IBluetoothMedia, MediaActions};
 use crate::dis::{DeviceInformation, ServiceCallbacks};
 use crate::socket_manager::{BluetoothSocketManager, SocketActions};
 use crate::suspend::Suspend;
@@ -146,8 +146,8 @@ pub enum Message {
 
     // Admin policy related
     AdminCallbackDisconnected(u32),
+    AdminActions(AdminActions),
     HidHostEnable,
-    AdminPolicyChanged,
 
     // Dis callbacks
     Dis(ServiceCallbacks),
@@ -170,9 +170,6 @@ pub enum Message {
     // UHid callbacks
     UHidHfpOutputCallback(RawAddress, u8, u8),
     UHidTelephonyUseCallback(RawAddress, bool),
-
-    // GATT Callbacks
-    GattClientDisconnected(RawAddress),
 }
 
 /// Returns a callable object that dispatches a BTIF callback to Message
@@ -220,6 +217,7 @@ where
 
 pub enum BluetoothAPI {
     Adapter,
+    Admin,
     Battery,
     Media,
     Gatt,
@@ -303,8 +301,13 @@ impl Stack {
                     // Initialize objects that need the adapter to be fully
                     // enabled before running.
 
+                    // Init Media and pass it to Bluetooth.
+                    bluetooth_media.lock().unwrap().initialize();
+                    bluetooth.lock().unwrap().set_media(bluetooth_media.clone());
                     // Register device information service.
                     bluetooth_dis.lock().unwrap().initialize();
+                    // Initialize Admin. This toggles the enabled profiles.
+                    bluetooth_admin.lock().unwrap().initialize(api_tx.clone());
                 }
 
                 Message::A2dp(a) => {
@@ -523,11 +526,11 @@ impl Stack {
                 Message::AdminCallbackDisconnected(id) => {
                     bluetooth_admin.lock().unwrap().unregister_admin_policy_callback(id);
                 }
+                Message::AdminActions(action) => {
+                    bluetooth_admin.lock().unwrap().handle_action(action);
+                }
                 Message::HidHostEnable => {
                     bluetooth.lock().unwrap().enable_hidhost();
-                }
-                Message::AdminPolicyChanged => {
-                    bluetooth_socketmgr.lock().unwrap().handle_admin_policy_changed();
                 }
                 Message::Dis(callback) => {
                     bluetooth_dis.lock().unwrap().handle_callbacks(&callback);
@@ -595,13 +598,6 @@ impl Stack {
                         .lock()
                         .unwrap()
                         .dispatch_uhid_telephony_use_callback(addr, state);
-                }
-
-                Message::GattClientDisconnected(address) => {
-                    bluetooth
-                        .lock()
-                        .unwrap()
-                        .disconnect_if_no_media_or_hid_profiles_connected(address);
                 }
             }
         }

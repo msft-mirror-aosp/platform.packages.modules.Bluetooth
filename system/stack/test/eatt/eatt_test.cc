@@ -146,7 +146,8 @@ protected:
 
     // Let the remote connect while we are trying to connect
     EXPECT_CALL(l2cap_interface_,
-                ConnectCreditBasedRsp(test_address, 1, incoming_cids, L2CAP_CONN_OK, _))
+                ConnectCreditBasedRsp(test_address, 1, incoming_cids,
+                                      tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK, _))
             .WillOnce(Return(true));
     l2cap_app_info_.pL2CA_CreditBasedConnectInd_Cb(test_address, incoming_cids, BT_PSM_EATT,
                                                    EATT_MIN_MTU_MPS, 1);
@@ -275,7 +276,8 @@ TEST_F(EattTest, IncomingEattConnectionByUnknownDevice) {
   ON_CALL(btm_api_interface_, IsEncrypted)
           .WillByDefault([](const RawAddress& addr, tBT_TRANSPORT transport) { return true; });
   EXPECT_CALL(l2cap_interface_,
-              ConnectCreditBasedRsp(test_address, 1, incoming_cids, L2CAP_CONN_OK, _))
+              ConnectCreditBasedRsp(test_address, 1, incoming_cids,
+                                    tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK, _))
           .WillOnce(Return(true));
 
   l2cap_app_info_.pL2CA_CreditBasedConnectInd_Cb(test_address, incoming_cids, BT_PSM_EATT,
@@ -302,7 +304,8 @@ TEST_F(EattTest, IncomingEattConnectionByKnownDevice) {
   std::vector<uint16_t> incoming_cids{71, 72, 73, 74, 75};
 
   EXPECT_CALL(l2cap_interface_,
-              ConnectCreditBasedRsp(test_address, 1, incoming_cids, L2CAP_CONN_OK, _))
+              ConnectCreditBasedRsp(test_address, 1, incoming_cids,
+                                    tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK, _))
           .WillOnce(Return(true));
 
   l2cap_app_info_.pL2CA_CreditBasedConnectInd_Cb(test_address, incoming_cids, BT_PSM_EATT,
@@ -333,7 +336,8 @@ TEST_F(EattTest, IncomingEattConnectionByKnownDeviceEncryptionOff) {
   std::vector<uint16_t> incoming_cids{71, 72, 73, 74, 75};
 
   EXPECT_CALL(l2cap_interface_,
-              ConnectCreditBasedRsp(test_address, 1, _, L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP, _))
+              ConnectCreditBasedRsp(test_address, 1, _,
+                                    tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP, _))
           .WillOnce(Return(true));
 
   l2cap_app_info_.pL2CA_CreditBasedConnectInd_Cb(test_address, incoming_cids, BT_PSM_EATT,
@@ -349,9 +353,10 @@ TEST_F(EattTest, IncomingEattConnectionByUnknownDeviceEncryptionOff) {
           .WillByDefault([](const RawAddress& addr, tBT_TRANSPORT transport) { return false; });
   ON_CALL(btm_api_interface_, IsLinkKeyKnown)
           .WillByDefault([](const RawAddress& addr, tBT_TRANSPORT transport) { return false; });
-  EXPECT_CALL(
-          l2cap_interface_,
-          ConnectCreditBasedRsp(test_address, 1, _, L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION, _))
+  EXPECT_CALL(l2cap_interface_,
+              ConnectCreditBasedRsp(
+                      test_address, 1, _,
+                      tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION, _))
           .WillOnce(Return(true));
 
   l2cap_app_info_.pL2CA_CreditBasedConnectInd_Cb(test_address, incoming_cids, BT_PSM_EATT,
@@ -367,7 +372,8 @@ TEST_F(EattTest, ReconnectInitiatedByRemoteSucceed) {
           .WillByDefault([](const RawAddress& addr, tBT_TRANSPORT transport) { return true; });
 
   EXPECT_CALL(l2cap_interface_,
-              ConnectCreditBasedRsp(test_address, 1, incoming_cids, L2CAP_CONN_OK, _))
+              ConnectCreditBasedRsp(test_address, 1, incoming_cids,
+                                    tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK, _))
           .WillOnce(Return(true));
 
   l2cap_app_info_.pL2CA_CreditBasedConnectInd_Cb(test_address, incoming_cids, BT_PSM_EATT,

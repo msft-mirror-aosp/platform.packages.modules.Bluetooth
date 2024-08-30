@@ -221,6 +221,7 @@ android_robolectric_test {
         "mockito-robolectric-prebuilt",
         "modules-utils-expresslog",
         "platform-test-annotations",
+        "service-bluetooth-binder-aidl",
         "testng",
         "truth",
     ],

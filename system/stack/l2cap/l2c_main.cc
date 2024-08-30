@@ -28,13 +28,13 @@
 #include <string.h>
 
 #include "hal/snoop_logger.h"
-#include "hcimsgs.h"  // HCID_GET_
 #include "internal_include/bt_target.h"
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/hcimsgs.h"  // HCID_GET_
 #include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_hci_link_interface.h"
 #include "stack/include/l2cdefs.h"
@@ -335,10 +335,8 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
             log::warn("Remote CID is invalid, treat as disconnected");
             l2c_csm_execute(p_ccb, L2CEVT_LP_DISCONNECT_IND, NULL);
           }
-        }
-
-        /* SonyEricsson Info request Bug workaround (Continue connection) */
-        else if (rej_reason == L2CAP_CMD_REJ_NOT_UNDERSTOOD && p_lcb->w4_info_rsp) {
+        } else if (rej_reason == L2CAP_CMD_REJ_NOT_UNDERSTOOD && p_lcb->w4_info_rsp) {
+          /* SonyEricsson Info request Bug workaround (Continue connection) */
           alarm_cancel(p_lcb->info_resp_timer);
 
           p_lcb->w4_info_rsp = false;
@@ -413,7 +411,9 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         }
         STREAM_TO_UINT16(con_info.remote_cid, p);
         STREAM_TO_UINT16(lcid, p);
-        STREAM_TO_UINT16(con_info.l2cap_result, p);
+        uint16_t result_u16;
+        STREAM_TO_UINT16(result_u16, p);
+        con_info.l2cap_result = static_cast<tL2CAP_CONN>(result_u16);
         STREAM_TO_UINT16(con_info.l2cap_status, p);
 
         tL2C_CCB* p_ccb = l2cu_find_ccb_by_cid(p_lcb, lcid);
