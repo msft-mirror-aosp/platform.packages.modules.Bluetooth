@@ -85,7 +85,7 @@ public:
               (uint16_t psm, const RawAddress& bd_addr, tL2CAP_LE_CFG_INFO* p_cfg));
   MOCK_METHOD(bool, L2CA_ConnectCreditBasedRsp,
               (const RawAddress& bd_addr, uint8_t id, std::vector<uint16_t>& accepted_lcids,
-               uint16_t result, tL2CAP_LE_CFG_INFO* p_cfg));
+               tL2CAP_LE_RESULT_CODE result, tL2CAP_LE_CFG_INFO* p_cfg));
   MOCK_METHOD(uint16_t, L2CA_GetPeerLECocCredit, (const RawAddress& bd_addr, uint16_t lcid));
 
   MOCK_METHOD(bool, L2CA_ReconfigCreditBasedConnsReq,
