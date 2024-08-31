@@ -44,7 +44,7 @@ using namespace bluetooth;
  * Define Callback functions to be called by L2CAP
  */
 static void RFCOMM_ConnectInd(const RawAddress& bd_addr, uint16_t lcid, uint16_t psm, uint8_t id);
-static void RFCOMM_ConnectCnf(uint16_t lcid, uint16_t err);
+static void RFCOMM_ConnectCnf(uint16_t lcid, tL2CAP_CONN err);
 static void RFCOMM_ConfigInd(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg);
 static void RFCOMM_ConfigCnf(uint16_t lcid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
 static void RFCOMM_DisconnectInd(uint16_t lcid, bool is_clear);
@@ -137,7 +137,7 @@ void RFCOMM_ConnectInd(const RawAddress& bd_addr, uint16_t lcid, uint16_t /* psm
  *                  event to the FSM.
  *
  ******************************************************************************/
-void RFCOMM_ConnectCnf(uint16_t lcid, uint16_t result) {
+void RFCOMM_ConnectCnf(uint16_t lcid, tL2CAP_CONN result) {
   tRFC_MCB* p_mcb = rfc_find_lcid_mcb(lcid);
 
   if (!p_mcb) {
@@ -148,7 +148,7 @@ void RFCOMM_ConnectCnf(uint16_t lcid, uint16_t result) {
   if (p_mcb->pending_lcid) {
     /* if peer rejects our connect request but peer's connect request is pending
      */
-    if (result != L2CAP_CONN_OK) {
+    if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
       return;
     } else {
       log::verbose("RFCOMM_ConnectCnf peer gave up pending LCID(0x{:x})", p_mcb->pending_lcid);
@@ -221,7 +221,7 @@ void RFCOMM_ConfigCnf(uint16_t lcid, uint16_t /* initiator */, tL2CAP_CFG_INFO* 
     log::error("RFCOMM_ConfigCnf no MCB LCID:0x{:x}", lcid);
     return;
   }
-  uintptr_t result_as_ptr = L2CAP_CFG_OK;
+  uintptr_t result_as_ptr = static_cast<unsigned>(tL2CAP_CFG_RESULT::L2CAP_CFG_OK);
   rfc_mx_sm_execute(p_mcb, RFC_MX_EVENT_CONF_CNF, (void*)result_as_ptr);
 }
 

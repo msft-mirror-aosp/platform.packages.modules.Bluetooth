@@ -1906,6 +1906,12 @@ bool bta_ag_is_sco_open_allowed(tBTA_AG_SCB* p_scb, const std::string event) {
     }
   }
 #endif
+#ifdef TARGET_FLOSS
+  if (event == "BTA_AG_LOCAL_EVT_BCC") {
+    return false;
+  }
+#endif
+
   return true;
 }
 

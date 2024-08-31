@@ -138,9 +138,8 @@ void btif_dm_ssp_reply(const RawAddress /* bd_addr */, bt_ssp_variant_t /* varia
   inc_func_call_count(__func__);
 }
 void btif_dm_start_discovery(void) { inc_func_call_count(__func__); }
-void btif_dm_update_ble_remote_properties(const RawAddress& /* bd_addr */, BD_NAME /* bd_name */,
-                                          DEV_CLASS /* dev_class */,
-                                          tBT_DEVICE_TYPE /* dev_type */) {
+void btif_update_remote_properties(const RawAddress& /* bd_addr */, BD_NAME /* bd_name */,
+                                   DEV_CLASS /* dev_class */, tBT_DEVICE_TYPE /* dev_type */) {
   inc_func_call_count(__func__);
 }
 

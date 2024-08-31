@@ -360,3 +360,29 @@ cc_test {
         "-DBUILDCFG",
     ],
 }
+
+// HFP client interface library unit tests
+cc_test {
+    name: "bluetooth-test-audio-hal-hfp-client-interface",
+    host_supported: true,
+    defaults: [
+        "libbt_audio_hal_interface_test_defaults",
+    ],
+    include_dirs: [
+        "packages/modules/Bluetooth/system/audio_hal_interface",
+        "packages/modules/Bluetooth/system/audio_hal_interface/aidl",
+        "packages/modules/Bluetooth/system/bta",
+    ],
+    srcs: [
+        "hfp_client_interface.cc",
+        "hfp_client_interface_unittest.cc",
+    ],
+    static_libs: [
+        "server_configurable_flags",
+    ],
+    header_libs: ["libbluetooth_headers"],
+    cflags: [
+        "-DBUILDCFG",
+        "-Wno-unused-parameter",
+    ],
+}

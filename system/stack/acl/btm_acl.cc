@@ -85,6 +85,10 @@
 #define PROPERTY_LINK_SUPERVISION_TIMEOUT "bluetooth.core.acl.link_supervision_timeout"
 #endif
 
+#ifndef PROPERTY_AUTO_FLUSH_TIMEOUT
+#define PROPERTY_AUTO_FLUSH_TIMEOUT "bluetooth.core.classic.auto_flush_timeout"
+#endif
+
 using namespace bluetooth;
 using bluetooth::legacy::hci::GetInterface;
 
@@ -185,6 +189,10 @@ void NotifyAclRoleSwitchComplete(const RawAddress& bda, tHCI_ROLE new_role,
 void NotifyAclFeaturesReadComplete(tACL_CONN& p_acl, uint8_t max_page_number) {
   btm_process_remote_ext_features(&p_acl, max_page_number);
   btm_set_link_policy(&p_acl, btm_cb.acl_cb_.DefaultLinkPolicy());
+  int32_t flush_timeout = osi_property_get_int32(PROPERTY_AUTO_FLUSH_TIMEOUT, 0);
+  if (flush_timeout != 0) {
+    acl_write_automatic_flush_timeout(p_acl.remote_addr, static_cast<uint16_t>(flush_timeout));
+  }
   BTA_dm_notify_remote_features_complete(p_acl.remote_addr);
 }
 

@@ -17,6 +17,7 @@ package android.bluetooth;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.bluetooth.test_utils.EnableBluetoothRule;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -53,9 +54,14 @@ public class SdpClientTest {
 
     private SettableFuture<List<ParcelUuid>> mFutureIntent;
 
-    @Rule public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
+    @Rule(order = 0)
+    public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
 
-    @Rule public final PandoraDevice mBumble = new PandoraDevice();
+    @Rule(order = 1)
+    public final PandoraDevice mBumble = new PandoraDevice();
+
+    @Rule(order = 2)
+    public final EnableBluetoothRule enableBluetoothRule = new EnableBluetoothRule(false, true);
 
     private BroadcastReceiver mConnectionStateReceiver =
             new BroadcastReceiver() {

@@ -137,3 +137,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "read_le_appearance"
+    namespace: "bluetooth"
+    description: "Read GATT Appearance characteristic on new LE connections"
+    bug: "362367900"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

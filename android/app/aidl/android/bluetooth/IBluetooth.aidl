@@ -46,7 +46,6 @@ import android.os.ResultReceiver;
  */
 interface IBluetooth
 {
-    // TODO: b/357645528 - delete aidl method
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
     int getState();
 
