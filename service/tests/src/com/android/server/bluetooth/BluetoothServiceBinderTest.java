@@ -146,10 +146,10 @@ public class BluetoothServiceBinderTest {
 
         checkDisabled(() -> mBinder.enable(mSource));
         checkHardDenied(() -> mBinder.enable(mSource), true);
-        doReturn(true).when(mManagerService).enableFromBinder(any());
+        doReturn(true).when(mManagerService).enable(any());
         checkGranted(() -> mBinder.enable(mSource), true);
         verify(mUserManager).getProfileParent(any());
-        verify(mManagerService).enableFromBinder(eq(TAG));
+        verify(mManagerService).enable(eq(TAG));
         verifyMock();
     }
 
@@ -193,10 +193,10 @@ public class BluetoothServiceBinderTest {
 
         checkDisabled(() -> mBinder.disable(mSource, true));
         checkHardDenied(() -> mBinder.disable(mSource, true), true);
-        doReturn(true).when(mManagerService).disableFromBinder(any(), anyBoolean());
+        doReturn(true).when(mManagerService).disable(any(), anyBoolean());
         checkGranted(() -> mBinder.disable(mSource, true), true);
         verify(mUserManager).getProfileParent(any());
-        verify(mManagerService).disableFromBinder(eq(TAG), anyBoolean());
+        verify(mManagerService).disable(eq(TAG), anyBoolean());
         verifyMock();
     }
 
@@ -308,9 +308,9 @@ public class BluetoothServiceBinderTest {
 
         checkDisabled(() -> mBinder.enableBle(mSource, token));
         checkHardDenied(() -> mBinder.enableBle(mSource, token), false);
-        doReturn(true).when(mManagerService).enableBleFromBinder(eq(TAG), eq(token));
+        doReturn(true).when(mManagerService).enableBle(eq(TAG), eq(token));
         checkGranted(() -> mBinder.enableBle(mSource, token), true);
-        verify(mManagerService).enableBleFromBinder(eq(TAG), eq(token));
+        verify(mManagerService).enableBle(eq(TAG), eq(token));
         verifyMock();
     }
 
@@ -322,9 +322,9 @@ public class BluetoothServiceBinderTest {
 
         checkDisabled(() -> mBinder.disableBle(mSource, token));
         checkHardDenied(() -> mBinder.disableBle(mSource, token), false);
-        doReturn(true).when(mManagerService).disableBleFromBinder(eq(TAG), eq(token));
+        doReturn(true).when(mManagerService).disableBle(eq(TAG), eq(token));
         checkGranted(() -> mBinder.disableBle(mSource, token), true);
-        verify(mManagerService).disableBleFromBinder(eq(TAG), eq(token));
+        verify(mManagerService).disableBle(eq(TAG), eq(token));
         verifyMock();
     }
 

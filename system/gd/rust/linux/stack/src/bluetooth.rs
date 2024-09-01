@@ -52,7 +52,7 @@ use crate::bluetooth_media::{BluetoothMedia, IBluetoothMedia, MediaActions, LEA_
 use crate::callbacks::Callbacks;
 use crate::socket_manager::SocketActions;
 use crate::uuid::{Profile, UuidHelper};
-use crate::{APIMessage, BluetoothAPI, Message, RPCProxy, SuspendMode};
+use crate::{make_message_dispatcher, APIMessage, BluetoothAPI, Message, RPCProxy, SuspendMode};
 
 pub(crate) const FLOSS_VER: u16 = 0x0001;
 const DEFAULT_DISCOVERY_TIMEOUT_MS: u64 = 12800;
@@ -97,7 +97,7 @@ pub trait IBluetooth {
     fn unregister_connection_callback(&mut self, callback_id: u32) -> bool;
 
     /// Inits the bluetooth interface. Should always be called before enable.
-    fn init(&mut self, init_flags: Vec<String>) -> bool;
+    fn init(&mut self, init_flags: Vec<String>, hci_index: i32) -> bool;
 
     /// Enables the adapter.
     ///
@@ -858,26 +858,14 @@ impl Bluetooth {
     pub fn init_profiles(&mut self) {
         self.bluetooth_gatt.lock().unwrap().enable(true);
 
-        let sdptx = self.tx.clone();
         self.sdp = Some(Sdp::new(&self.intf.lock().unwrap()));
         self.sdp.as_mut().unwrap().initialize(SdpCallbacksDispatcher {
-            dispatch: Box::new(move |cb| {
-                let txl = sdptx.clone();
-                topstack::get_runtime().spawn(async move {
-                    let _ = txl.send(Message::Sdp(cb)).await;
-                });
-            }),
+            dispatch: make_message_dispatcher(self.tx.clone(), Message::Sdp),
         });
 
-        let hhtx = self.tx.clone();
         self.hh = Some(HidHost::new(&self.intf.lock().unwrap()));
         self.hh.as_mut().unwrap().initialize(HHCallbacksDispatcher {
-            dispatch: Box::new(move |cb| {
-                let txl = hhtx.clone();
-                topstack::get_runtime().spawn(async move {
-                    let _ = txl.send(Message::HidHost(cb)).await;
-                });
-            }),
+            dispatch: make_message_dispatcher(self.tx.clone(), Message::HidHost),
         });
 
         let allowed_profiles = self.bluetooth_admin.lock().unwrap().get_allowed_services();
@@ -1533,14 +1521,7 @@ pub(crate) trait BtifSdpCallbacks {
 }
 
 pub fn get_bt_dispatcher(tx: Sender<Message>) -> BaseCallbacksDispatcher {
-    BaseCallbacksDispatcher {
-        dispatch: Box::new(move |cb| {
-            let txl = tx.clone();
-            topstack::get_runtime().spawn(async move {
-                let _ = txl.send(Message::Base(cb)).await;
-            });
-        }),
-    }
+    BaseCallbacksDispatcher { dispatch: make_message_dispatcher(tx, Message::Base) }
 }
 
 impl BtifBluetoothCallbacks for Bluetooth {
@@ -2202,8 +2183,12 @@ impl IBluetooth for Bluetooth {
         self.connection_callbacks.remove_callback(callback_id)
     }
 
-    fn init(&mut self, init_flags: Vec<String>) -> bool {
-        self.intf.lock().unwrap().initialize(get_bt_dispatcher(self.tx.clone()), init_flags)
+    fn init(&mut self, init_flags: Vec<String>, hci_index: i32) -> bool {
+        self.intf.lock().unwrap().initialize(
+            get_bt_dispatcher(self.tx.clone()),
+            init_flags,
+            hci_index,
+        )
     }
 
     fn enable(&mut self) -> bool {

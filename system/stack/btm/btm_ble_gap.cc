@@ -1604,7 +1604,7 @@ void btm_ble_read_remote_name_cmpl(bool status, const RawAddress& bda, uint16_t 
     hci_status = HCI_ERR_HOST_TIMEOUT;
   }
 
-  btm_process_remote_name(&bda, bd_name, length + 1, hci_status);
+  get_stack_rnr_interface().btm_process_remote_name(&bda, bd_name, length + 1, hci_status);
   btm_sec_rmt_name_request_complete(&bda, (const uint8_t*)p_name, hci_status);
 }
 

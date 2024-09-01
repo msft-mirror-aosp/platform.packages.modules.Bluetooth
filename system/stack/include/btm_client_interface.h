@@ -124,8 +124,6 @@ struct btm_client_interface_t {
 
   struct {
     [[nodiscard]] tBTM_STATUS (*BTM_ReadLocalDeviceName)(const char** p_name);
-    [[nodiscard]] tBTM_STATUS (*BTM_ReadLocalDeviceNameFromController)(
-            tBTM_CMPL_CB* p_rln_cmpl_cback);
     [[nodiscard]] tBTM_STATUS (*BTM_SetLocalDeviceName)(const char* p_name);
     [[nodiscard]] tBTM_STATUS (*BTM_SetDeviceClass)(DEV_CLASS dev_class);
     [[nodiscard]] bool (*BTM_IsDeviceUp)();
@@ -158,3 +156,5 @@ struct btm_client_interface_t {
 };
 
 struct btm_client_interface_t& get_btm_client_interface();
+
+void DumpsysBtm(int fd);

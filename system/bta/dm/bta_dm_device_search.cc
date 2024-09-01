@@ -46,7 +46,6 @@
 #include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/rnr_interface.h"
-#include "stack/rnr/remote_name_request.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -514,7 +513,7 @@ static void bta_dm_discover_name(const RawAddress& remote_bd_addr) {
     bta_dm_search_cb.name_discover_done = true;
   }
   // If we already have the name we can skip getting the name
-  if (BTM_IsRemoteNameKnown(remote_bd_addr, transport)) {
+  if (get_stack_rnr_interface().BTM_IsRemoteNameKnown(remote_bd_addr, transport)) {
     log::debug("Security record already known skipping read remote name peer:{}", remote_bd_addr);
     bta_dm_search_cb.name_discover_done = true;
   }

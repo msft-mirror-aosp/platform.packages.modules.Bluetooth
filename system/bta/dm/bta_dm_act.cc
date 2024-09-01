@@ -74,7 +74,6 @@ void BTIF_dm_disable();
 void BTIF_dm_enable();
 void btm_ble_scanner_init(void);
 
-static void bta_dm_local_name_cback(void* p_name);
 static void bta_dm_check_av();
 
 void BTA_dm_update_policy(tBTA_SYS_CONN_STATUS status, uint8_t id, uint8_t app_id,
@@ -271,20 +270,8 @@ void BTA_dm_on_hw_on() {
 
   btm_ble_scanner_init();
 
-  /* Earlier, we used to invoke BTM_ReadLocalAddr which was just copying the
-     bd_addr
-     from the control block and invoking the callback which was sending the
-     DM_ENABLE_EVT.
-     But then we have a few HCI commands being invoked above which were still
-     in progress
-     when the ENABLE_EVT was sent. So modified this to fetch the local name
-     which forces
-     the DM_ENABLE_EVT to be sent only after all the init steps are complete
-     */
-  if (get_btm_client_interface().local.BTM_ReadLocalDeviceNameFromController(
-              bta_dm_local_name_cback) != tBTM_STATUS::BTM_CMD_STARTED) {
-    log::warn("Unable to read local device name from controller");
-  }
+  // Synchronize with the controller before continuing
+  bta_dm_le_rand(get_main_thread()->BindOnce([](uint64_t /*value*/) { BTIF_dm_enable(); }));
 
   bta_sys_rm_register(bta_dm_rm_cback);
 
@@ -684,18 +671,6 @@ bool bta_dm_removal_pending(const RawAddress& bd_addr) {
 
   return false;
 }
-
-/*******************************************************************************
- *
- * Function         bta_dm_local_name_cback
- *
- * Description      Callback from btm after local name is read
- *
- *
- * Returns          void
- *
- ******************************************************************************/
-static void bta_dm_local_name_cback(void* /* p_name */) { BTIF_dm_enable(); }
 
 static void handle_role_change(const RawAddress& bd_addr, tHCI_ROLE new_role,
                                tHCI_STATUS hci_status) {
