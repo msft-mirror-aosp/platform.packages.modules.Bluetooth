@@ -2913,7 +2913,7 @@ public class GattService extends ProfileService {
             return;
         }
 
-        mHandleMap.addRequest(transId, handle);
+        mHandleMap.addRequest(connId, transId, handle);
 
         ContextMap<IBluetoothGattServerCallback>.App app = mServerMap.getById(entry.serverIf);
         if (app == null) {
@@ -2944,7 +2944,7 @@ public class GattService extends ProfileService {
             return;
         }
 
-        mHandleMap.addRequest(transId, handle);
+        mHandleMap.addRequest(connId, transId, handle);
 
         ContextMap<IBluetoothGattServerCallback>.App app = mServerMap.getById(entry.serverIf);
         if (app == null) {
@@ -2985,7 +2985,7 @@ public class GattService extends ProfileService {
             return;
         }
 
-        mHandleMap.addRequest(transId, handle);
+        mHandleMap.addRequest(connId, transId, handle);
 
         ContextMap<IBluetoothGattServerCallback>.App app = mServerMap.getById(entry.serverIf);
         if (app == null) {
@@ -3027,7 +3027,7 @@ public class GattService extends ProfileService {
             return;
         }
 
-        mHandleMap.addRequest(transId, handle);
+        mHandleMap.addRequest(connId, transId, handle);
 
         ContextMap<IBluetoothGattServerCallback>.App app = mServerMap.getById(entry.serverIf);
         if (app == null) {
@@ -3311,15 +3311,26 @@ public class GattService extends ProfileService {
             return;
         }
 
-        Log.v(TAG, "sendResponse() - address=" + address);
+        Log.v(TAG, "sendResponse() - address=" + address + ", requestId=" + requestId);
 
         int handle = 0;
-        HandleMap.Entry entry = mHandleMap.getByRequestId(requestId);
-        if (entry != null) {
-            handle = entry.handle;
-        }
+        Integer connId = 0;
 
-        Integer connId = mServerMap.connIdByAddress(serverIf, address);
+        if (!Flags.gattServerRequestsFix()) {
+            HandleMap.Entry entry = mHandleMap.getByRequestId(requestId);
+            if (entry != null) {
+                handle = entry.handle;
+            }
+            connId = mServerMap.connIdByAddress(serverIf, address);
+        } else {
+            HandleMap.RequestData requestData = mHandleMap.getRequestDataByRequestId(requestId);
+            if (requestData != null) {
+                handle = requestData.mHandle;
+                connId = requestData.mConnId;
+            } else {
+                connId = mServerMap.connIdByAddress(serverIf, address);
+            }
+        }
         mNativeInterface.gattServerSendResponse(
                 serverIf,
                 connId != null ? connId : 0,

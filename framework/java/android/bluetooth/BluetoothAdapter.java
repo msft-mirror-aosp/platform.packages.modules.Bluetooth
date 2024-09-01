@@ -96,12 +96,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -877,9 +873,6 @@ public final class BluetoothAdapter {
     @GuardedBy("mServiceLock")
     private IBluetooth mService;
 
-    private static CompletableFuture<Void> sAdapterStateFuture = null;
-    private static int sAdapterState = BluetoothAdapter.STATE_OFF;
-
     private final ReentrantReadWriteLock mServiceLock = new ReentrantReadWriteLock();
 
     @GuardedBy("sServiceLock")
@@ -1178,20 +1171,6 @@ public final class BluetoothAdapter {
                 new CallbackWrapper(
                         registerBluetoothConnectionCallbackConsumer,
                         unregisterBluetoothConnectionCallbackConsumer);
-
-        if (!Flags.broadcastAdapterStateWithCallback()) {
-            return;
-        }
-        // Make sure that we are waiting on the state callback prior to returning from constructor
-        CompletableFuture<Void> futureState = sAdapterStateFuture;
-        if (futureState != null) {
-            try {
-                futureState.get(1_000, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            }
-        }
-        Log.i(TAG, "Adapter created with state: " + nameForState(sAdapterState));
     }
 
     /**
@@ -1489,7 +1468,6 @@ public final class BluetoothAdapter {
             super(8, IpcDataCache.MODULE_BLUETOOTH, api, api, query);
         }
     }
-    ;
 
     /**
      * Invalidate a bluetooth cache. This method is just a short-hand wrapper that enforces the
@@ -1513,26 +1491,59 @@ public final class BluetoothAdapter {
                 }
             };
 
+    private static final IpcDataCache.QueryHandler<IBluetoothManager, Integer>
+            sBluetoothGetSystemStateQuery =
+                    new IpcDataCache.QueryHandler<>() {
+                        @RequiresNoPermission
+                        @Override
+                        public @InternalAdapterState Integer apply(IBluetoothManager serviceQuery) {
+                            try {
+                                return serviceQuery.getState();
+                            } catch (RemoteException e) {
+                                throw e.rethrowAsRuntimeException();
+                            }
+                        }
+                    };
+
     private static final String GET_STATE_API = "BluetoothAdapter_getState";
+
+    /** @hide */
+    public static final String GET_SYSTEM_STATE_API = IBluetoothManager.GET_SYSTEM_STATE_API;
 
     private static final IpcDataCache<IBluetooth, Integer> sBluetoothGetStateCache =
             new BluetoothCache<>(GET_STATE_API, sBluetoothGetStateQuery);
 
+    private static final IpcDataCache<IBluetoothManager, Integer> sBluetoothGetSystemStateCache =
+            new BluetoothCache<>(GET_SYSTEM_STATE_API, sBluetoothGetSystemStateQuery);
+
     /** @hide */
     @RequiresNoPermission
     public void disableBluetoothGetStateCache() {
+        if (Flags.getStateFromSystemServer()) {
+            throw new IllegalStateException("getStateFromSystemServer is enabled");
+        }
         sBluetoothGetStateCache.disableForCurrentProcess();
     }
 
     /** @hide */
     public static void invalidateBluetoothGetStateCache() {
+        if (Flags.getStateFromSystemServer()) {
+            throw new IllegalStateException("getStateFromSystemServer is enabled");
+        }
         invalidateCache(GET_STATE_API);
     }
 
     /** Fetch the current bluetooth state. If the service is down, return OFF. */
     private @InternalAdapterState int getStateInternal() {
-        if (Flags.broadcastAdapterStateWithCallback()) {
-            return sAdapterState;
+        if (Flags.getStateFromSystemServer()) {
+            try {
+                return sBluetoothGetSystemStateCache.query(mManagerService);
+            } catch (RuntimeException runtime) {
+                if (runtime.getCause() instanceof RemoteException e) {
+                    throw e.rethrowFromSystemServer();
+                }
+                throw runtime;
+            }
         }
         mServiceLock.readLock().lock();
         try {
@@ -3800,17 +3811,6 @@ public final class BluetoothAdapter {
                         }
                     }
                 }
-
-                @RequiresNoPermission
-                public void onBluetoothAdapterStateChange(int newState) {
-                    Log.v(TAG, "onBluetoothAdapterStateChange(" + nameForState(newState) + ")");
-                    CompletableFuture<Void> future = sAdapterStateFuture;
-                    sAdapterStateFuture = null;
-                    if (future != null) {
-                        future.complete(null);
-                    }
-                    sAdapterState = newState;
-                }
             };
 
     private final IBluetoothManagerCallback mManagerCallback =
@@ -3907,11 +3907,6 @@ public final class BluetoothAdapter {
                                             }
                                         });
                             });
-                }
-
-                @RequiresNoPermission
-                public void onBluetoothAdapterStateChange(int newState) {
-                    // Nothing to do, this is entirely handled by sManagerCallback.
                 }
             };
 
@@ -4243,11 +4238,6 @@ public final class BluetoothAdapter {
             return;
         }
         if (wantRegistered) {
-            if (Flags.broadcastAdapterStateWithCallback()
-                    && sAdapterState == BluetoothAdapter.STATE_OFF
-                    && sAdapterStateFuture == null) {
-                sAdapterStateFuture = new CompletableFuture<>();
-            }
             try {
                 sService =
                         IBluetooth.Stub.asInterface(
@@ -4261,9 +4251,6 @@ public final class BluetoothAdapter {
                 sService = null;
             } catch (RemoteException e) {
                 throw e.rethrowAsRuntimeException();
-            }
-            if (Flags.broadcastAdapterStateWithCallback()) {
-                sAdapterState = BluetoothAdapter.STATE_OFF;
             }
         }
         sServiceRegistered = wantRegistered;

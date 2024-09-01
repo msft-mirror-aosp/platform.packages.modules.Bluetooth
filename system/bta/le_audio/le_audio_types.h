@@ -73,6 +73,8 @@ static const bluetooth::Uuid kAudioStreamControlServiceUuid = bluetooth::Uuid::F
 
 static const bluetooth::Uuid kTelephonyMediaAudioServiceUuid = bluetooth::Uuid::From16Bit(0x1855);
 
+static const bluetooth::Uuid kGamingAudioServiceUuid = bluetooth::Uuid::From16Bit(0x1858);
+
 /* Published Audio Capabilities Service Characteristics */
 static const bluetooth::Uuid kSinkPublishedAudioCapabilityCharacteristicUuid =
         bluetooth::Uuid::From16Bit(0x2BC9);
@@ -98,6 +100,11 @@ static const bluetooth::Uuid kAudioStreamEndpointControlPointCharacteristicUuid 
 /* Telephony and Media Audio Service Characteristics */
 static const bluetooth::Uuid kTelephonyMediaAudioProfileRoleCharacteristicUuid =
         bluetooth::Uuid::From16Bit(0x2B51);
+
+/* Gaming Audio Service Characteristics */
+static const bluetooth::Uuid kRoleCharacteristicUuid = bluetooth::Uuid::From16Bit(0x2C00);
+static const bluetooth::Uuid kUnicastGameTerminalCharacteristicUuid =
+        bluetooth::Uuid::From16Bit(0x2C02);
 }  // namespace uuid
 
 namespace codec_spec_conf {
