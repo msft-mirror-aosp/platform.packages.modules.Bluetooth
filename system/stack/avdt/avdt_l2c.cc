@@ -32,7 +32,6 @@
 #include "l2c_api.h"
 #include "l2cdefs.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_status.h"
@@ -42,7 +41,7 @@ using namespace bluetooth;
 
 /* callback function declarations */
 void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16_t psm, uint8_t id);
-void avdt_l2c_connect_cfm_cback(uint16_t lcid, uint16_t result);
+void avdt_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result);
 void avdt_l2c_config_cfm_cback(uint16_t lcid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
 void avdt_l2c_config_ind_cback(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg);
 void avdt_l2c_disconnect_ind_cback(uint16_t lcid, bool ack_needed);
@@ -142,7 +141,7 @@ void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16
                                 uint8_t /* id */) {
   AvdtpCcb* p_ccb;
   AvdtpTransportChannel* p_tbl = NULL;
-  uint16_t result;
+  tL2CAP_CONN result;
 
   /* do we already have a control channel for this peer? */
   p_ccb = avdt_ccb_by_bd(bd_addr);
@@ -157,7 +156,7 @@ void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16
     }
     if (p_ccb == NULL) {
       /* no ccb available, reject L2CAP connection */
-      result = L2CAP_CONN_NO_RESOURCES;
+      result = tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES;
     } else {
       /* allocate and set up entry; first channel is always signaling */
       p_tbl = avdt_ad_tc_tbl_alloc(p_ccb);
@@ -182,7 +181,7 @@ void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16
     p_tbl = avdt_ad_tc_tbl_by_st(AVDT_CHAN_SIG, p_ccb, AVDT_AD_ST_CONN);
     if (p_tbl != NULL) {
       /* reject their connection */
-      result = L2CAP_CONN_NO_RESOURCES;
+      result = tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES;
     } else {
       /* This must be a traffic channel; are we accepting a traffic channel
        * for this ccb?
@@ -190,7 +189,7 @@ void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16
       p_tbl = avdt_ad_tc_tbl_by_st(AVDT_CHAN_MEDIA, p_ccb, AVDT_AD_ST_ACP);
       if (p_tbl != NULL) {
         /* yes; proceed with connection */
-        result = L2CAP_CONN_OK;
+        result = tL2CAP_CONN::L2CAP_CONN_OK;
       } else {
         /* this must be a reporting channel; are we accepting a reporting
          * channel for this ccb?
@@ -198,17 +197,17 @@ void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16
         p_tbl = avdt_ad_tc_tbl_by_st(AVDT_CHAN_REPORT, p_ccb, AVDT_AD_ST_ACP);
         if (p_tbl != NULL) {
           /* yes; proceed with connection */
-          result = L2CAP_CONN_OK;
+          result = tL2CAP_CONN::L2CAP_CONN_OK;
         } else {
           /* else we're not listening for traffic channel; reject */
-          result = L2CAP_CONN_NO_PSM;
+          result = tL2CAP_CONN::L2CAP_CONN_NO_PSM;
         }
       }
     }
   }
 
   /* If we reject the connection, send DisconnectReq */
-  if (result != L2CAP_CONN_OK) {
+  if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
     if (!L2CA_DisconnectReq(lcid)) {
       log::warn("Unable to disconnect L2CAP cid:{}", lcid);
     }
@@ -236,25 +235,26 @@ static void avdt_on_l2cap_error(uint16_t lcid, uint16_t /* result */) { avdt_l2c
  * Returns          void
  *
  ******************************************************************************/
-void avdt_l2c_connect_cfm_cback(uint16_t lcid, uint16_t result) {
+void avdt_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
   AvdtpTransportChannel* p_tbl;
   AvdtpCcb* p_ccb;
 
-  log::verbose("avdt_l2c_connect_cfm_cback lcid: {}, result: {}", lcid, result);
+  log::verbose("avdt_l2c_connect_cfm_cback lcid: {}, result: {}", lcid,
+               l2cap_result_code_text(result));
   /* look up info for this channel */
   p_tbl = avdt_ad_tc_tbl_by_lcid(lcid);
   if (p_tbl != NULL) {
     /* if in correct state */
     if (p_tbl->state == AVDT_AD_ST_CONN) {
       /* if result successful */
-      if (result == L2CAP_CONN_OK) {
+      if (result == tL2CAP_CONN::L2CAP_CONN_OK) {
         if (p_tbl->tcid != AVDT_CHAN_SIG) {
           /* set channel state */
           p_tbl->state = AVDT_AD_ST_CFG;
         } else {
           p_ccb = avdt_ccb_by_idx(p_tbl->ccb_idx);
           if (p_ccb == NULL) {
-            result = L2CAP_CONN_NO_RESOURCES;
+            result = tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES;
           } else {
             /* set channel state */
             p_tbl->state = AVDT_AD_ST_SEC_INT;
@@ -277,7 +277,7 @@ void avdt_l2c_connect_cfm_cback(uint16_t lcid, uint16_t result) {
       }
 
       /* failure; notify adaption that channel closed */
-      if (result != L2CAP_CONN_OK) {
+      if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
         log::error("invoked with non OK status");
       }
     }

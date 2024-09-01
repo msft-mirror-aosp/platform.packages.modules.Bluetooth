@@ -162,3 +162,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "fix_avdt_rconfig_not_setting_l2cap"
+    namespace: "bluetooth"
+    description: "Set L2CAP flushable and high priority after A2DP reconfigure"
+    bug: "361717220"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

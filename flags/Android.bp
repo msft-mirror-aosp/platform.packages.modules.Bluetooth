@@ -108,3 +108,17 @@ cc_aconfig_library {
     ],
     min_sdk_version: "Tiramisu",
 }
+
+rust_aconfig_library {
+    name: "libbluetooth_aconfig_flags_rust",
+    host_supported: true,
+    crate_name: "bluetooth_aconfig_flags_rust",
+    aconfig_declarations: "bluetooth_aconfig_flags",
+    apex_available: [
+        "com.android.btservices",
+    ],
+    min_sdk_version: "Tiramisu",
+    visibility: [
+        "//packages/modules/Bluetooth/system:__subpackages__",
+    ],
+}

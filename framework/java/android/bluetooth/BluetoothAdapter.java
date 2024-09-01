@@ -1468,7 +1468,6 @@ public final class BluetoothAdapter {
             super(8, IpcDataCache.MODULE_BLUETOOTH, api, api, query);
         }
     }
-    ;
 
     /**
      * Invalidate a bluetooth cache. This method is just a short-hand wrapper that enforces the
@@ -1492,24 +1491,60 @@ public final class BluetoothAdapter {
                 }
             };
 
+    private static final IpcDataCache.QueryHandler<IBluetoothManager, Integer>
+            sBluetoothGetSystemStateQuery =
+                    new IpcDataCache.QueryHandler<>() {
+                        @RequiresNoPermission
+                        @Override
+                        public @InternalAdapterState Integer apply(IBluetoothManager serviceQuery) {
+                            try {
+                                return serviceQuery.getState();
+                            } catch (RemoteException e) {
+                                throw e.rethrowAsRuntimeException();
+                            }
+                        }
+                    };
+
     private static final String GET_STATE_API = "BluetoothAdapter_getState";
+
+    /** @hide */
+    public static final String GET_SYSTEM_STATE_API = IBluetoothManager.GET_SYSTEM_STATE_API;
 
     private static final IpcDataCache<IBluetooth, Integer> sBluetoothGetStateCache =
             new BluetoothCache<>(GET_STATE_API, sBluetoothGetStateQuery);
 
+    private static final IpcDataCache<IBluetoothManager, Integer> sBluetoothGetSystemStateCache =
+            new BluetoothCache<>(GET_SYSTEM_STATE_API, sBluetoothGetSystemStateQuery);
+
     /** @hide */
     @RequiresNoPermission
     public void disableBluetoothGetStateCache() {
+        if (Flags.getStateFromSystemServer()) {
+            throw new IllegalStateException("getStateFromSystemServer is enabled");
+        }
         sBluetoothGetStateCache.disableForCurrentProcess();
     }
 
     /** @hide */
     public static void invalidateBluetoothGetStateCache() {
+        if (Flags.getStateFromSystemServer()) {
+            throw new IllegalStateException("getStateFromSystemServer is enabled");
+        }
         invalidateCache(GET_STATE_API);
     }
 
     /** Fetch the current bluetooth state. If the service is down, return OFF. */
     private @InternalAdapterState int getStateInternal() {
+        if (Flags.getStateFromSystemServer()) {
+            try {
+                return sBluetoothGetSystemStateCache.query(mManagerService);
+            } catch (RuntimeException runtime) {
+                if (runtime.getCause() instanceof RemoteException e) {
+                    throw e.rethrowFromSystemServer();
+                }
+                throw runtime;
+            }
+        }
         mServiceLock.readLock().lock();
         try {
             if (mService != null) {

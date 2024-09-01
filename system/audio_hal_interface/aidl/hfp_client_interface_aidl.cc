@@ -169,7 +169,7 @@ bool HfpTransport::GetPresentationPosition(uint64_t* remote_delay_report_ns,
 
 // Source / sink functions
 HfpDecodingTransport::HfpDecodingTransport(SessionType session_type)
-    : IBluetoothSinkTransportInstance(session_type, (AudioConfiguration){}) {
+    : IBluetoothSourceTransportInstance(session_type, (AudioConfiguration){}) {
   transport_ = new HfpTransport();
 }
 
@@ -204,7 +204,7 @@ void HfpDecodingTransport::SinkMetadataChanged(const sink_metadata_v7_t& sink_me
 
 void HfpDecodingTransport::ResetPresentationPosition() { transport_->ResetPresentationPosition(); }
 
-void HfpDecodingTransport::LogBytesRead(size_t bytes_written) {
+void HfpDecodingTransport::LogBytesWritten(size_t bytes_written) {
   transport_->LogBytesProcessed(bytes_written);
 }
 
@@ -215,7 +215,7 @@ void HfpDecodingTransport::ResetPendingCmd() { transport_->ResetPendingCmd(); }
 void HfpDecodingTransport::StopRequest() { transport_->StopRequest(); }
 
 HfpEncodingTransport::HfpEncodingTransport(SessionType session_type)
-    : IBluetoothSourceTransportInstance(session_type, (AudioConfiguration){}) {
+    : IBluetoothSinkTransportInstance(session_type, (AudioConfiguration){}) {
   transport_ = new HfpTransport();
 }
 
@@ -252,7 +252,7 @@ void HfpEncodingTransport::SinkMetadataChanged(const sink_metadata_v7_t& sink_me
 
 void HfpEncodingTransport::ResetPresentationPosition() { transport_->ResetPresentationPosition(); }
 
-void HfpEncodingTransport::LogBytesWritten(size_t bytes_written) {
+void HfpEncodingTransport::LogBytesRead(size_t bytes_written) {
   transport_->LogBytesProcessed(bytes_written);
 }
 

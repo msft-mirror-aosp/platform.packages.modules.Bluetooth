@@ -37,6 +37,16 @@ flag {
 }
 
 flag {
+    name: "get_state_from_system_server"
+    namespace: "bluetooth"
+    description: "Get Bluetooth state from system server instead of from Bluetooth app"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+    bug: "362569584"
+}
+
+flag {
     name: "kill_instead_of_exit"
     namespace: "bluetooth"
     description: "There is no value in pretending we are exiting properly. This is a kill and we should express it this way when finishing the process"

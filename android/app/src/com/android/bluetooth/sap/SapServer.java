@@ -520,6 +520,7 @@ public class SapServer extends Thread implements Handler.Callback {
                     mHandlerThread.join(HANDLER_THREAD_JOIN_TIMEOUT_MS);
                     mHandlerThread = null;
                 } catch (InterruptedException e) {
+                    Log.d(TAG, "Interrupted while joining", e);
                 }
             }
             if (mRilBtReceiver != null) {
@@ -533,6 +534,7 @@ public class SapServer extends Thread implements Handler.Callback {
                     mRfcommIn.close();
                     mRfcommIn = null;
                 } catch (IOException e) {
+                    Log.d(TAG, "Exception while closing rfcommIn", e);
                 }
             }
 
@@ -542,6 +544,7 @@ public class SapServer extends Thread implements Handler.Callback {
                     mRfcommOut.close();
                     mRfcommOut = null;
                 } catch (IOException e) {
+                    Log.d(TAG, "Exception while closing rfcommOut", e);
                 }
             }
 
@@ -733,12 +736,14 @@ public class SapServer extends Thread implements Handler.Callback {
                 mRfcommOut.close();
             }
         } catch (IOException e) {
+            Log.d(TAG, "Exception while closing rfcommOut", e);
         }
         try {
             if (mRfcommIn != null) {
                 mRfcommIn.close();
             }
         } catch (IOException e) {
+            Log.d(TAG, "Exception while closing rfcommIn", e);
         }
         mRfcommIn = null;
         mRfcommOut = null;
