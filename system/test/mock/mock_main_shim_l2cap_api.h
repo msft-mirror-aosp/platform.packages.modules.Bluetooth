@@ -21,8 +21,11 @@
  *  mockcify.pl ver 0.2
  */
 
+#pragma once
+
 #include <cstdint>
 #include <functional>
+#include <vector>
 
 // Original included files, if any
 #include "stack/include/bt_hdr.h"
@@ -149,11 +152,11 @@ extern struct L2CA_ConnectCreditBasedReq L2CA_ConnectCreditBasedReq;
 // accepted_lcids, uint16_t result, tL2CAP_LE_CFG_INFO* p_cfg Returns: bool
 struct L2CA_ConnectCreditBasedRsp {
   std::function<bool(const RawAddress& bd_addr, uint8_t id, std::vector<uint16_t>& accepted_lcids,
-                     uint16_t result, tL2CAP_LE_CFG_INFO* p_cfg)>
+                     tL2CAP_LE_RESULT_CODE result, tL2CAP_LE_CFG_INFO* p_cfg)>
           body{[](const RawAddress& bd_addr, uint8_t id, std::vector<uint16_t>& accepted_lcids,
-                  uint16_t result, tL2CAP_LE_CFG_INFO* p_cfg) { return false; }};
+                  tL2CAP_LE_RESULT_CODE result, tL2CAP_LE_CFG_INFO* p_cfg) { return false; }};
   bool operator()(const RawAddress& bd_addr, uint8_t id, std::vector<uint16_t>& accepted_lcids,
-                  uint16_t result, tL2CAP_LE_CFG_INFO* p_cfg) {
+                  tL2CAP_LE_RESULT_CODE result, tL2CAP_LE_CFG_INFO* p_cfg) {
     return body(bd_addr, id, accepted_lcids, result, p_cfg);
   }
 };
