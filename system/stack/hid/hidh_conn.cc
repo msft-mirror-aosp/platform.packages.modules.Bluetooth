@@ -60,7 +60,7 @@ static void hidh_conn_retry(uint8_t dhandle);
 /******************************************************************************/
 static void hidh_l2cif_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid, uint16_t psm,
                                    uint8_t l2cap_id);
-static void hidh_l2cif_connect_cfm(uint16_t l2cap_cid, uint16_t result);
+static void hidh_l2cif_connect_cfm(uint16_t l2cap_cid, tL2CAP_CONN result);
 static void hidh_l2cif_config_ind(uint16_t l2cap_cid, tL2CAP_CFG_INFO* p_cfg);
 static void hidh_l2cif_config_cfm(uint16_t l2cap_cid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
 static void hidh_l2cif_disconnect_ind(uint16_t l2cap_cid, bool ack_needed);
@@ -314,7 +314,7 @@ static void hidh_on_l2cap_error(uint16_t l2cap_cid, uint16_t result) {
  * Returns          void
  *
  ******************************************************************************/
-static void hidh_l2cif_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
+static void hidh_l2cif_connect_cfm(uint16_t l2cap_cid, tL2CAP_CONN result) {
   uint8_t dhandle;
   tHID_CONN* p_hcon = NULL;
 
@@ -333,7 +333,7 @@ static void hidh_l2cif_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
     return;
   }
 
-  if (result != L2CAP_CONN_OK) {
+  if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
     // TODO: We need to provide the real HCI status if we want to retry.
     log::error("invoked with non OK status");
     return;

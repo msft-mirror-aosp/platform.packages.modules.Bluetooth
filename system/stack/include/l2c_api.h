@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "l2cdefs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cap_interface.h"
 #include "types/bt_transport.h"
@@ -127,7 +128,7 @@ typedef void(tL2CA_CONNECT_IND_CB)(const RawAddress&, uint16_t, uint16_t, uint8_
  *              Result - 0 = connected
  *              If there is an error, tL2CA_ERROR_CB is invoked
  */
-typedef void(tL2CA_CONNECT_CFM_CB)(uint16_t, uint16_t);
+typedef void(tL2CA_CONNECT_CFM_CB)(uint16_t, tL2CAP_CONN);
 
 /* Configuration indication callback prototype. Parameters are
  *              Local CID assigned to the connection
@@ -215,7 +216,7 @@ typedef void(tL2CA_CREDIT_BASED_COLLISION_IND_CB)(const RawAddress& bdaddr);
  *              Result - 0 = connected, non-zero means CID is not connected
  */
 typedef void(tL2CA_CREDIT_BASED_CONNECT_CFM_CB)(const RawAddress& bdaddr, uint16_t lcid,
-                                                uint16_t peer_mtu, uint16_t result);
+                                                uint16_t peer_mtu, tL2CAP_LE_RESULT_CODE result);
 
 /* Credit based reconfiguration confirm callback prototype. Parameters are
  *              BD Address of remote

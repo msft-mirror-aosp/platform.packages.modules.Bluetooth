@@ -1535,13 +1535,22 @@ void btm_ble_connected(const RawAddress& bda, uint16_t handle, uint8_t /* enc_mo
  *
  ******************************************************************************/
 void btm_ble_connection_established(const RawAddress& bda) {
-  if (!com::android::bluetooth::flags::name_discovery_for_le_pairing()) {
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bda);
+  if (p_dev_rec == nullptr) {
+    log::warn("No security record for {}", bda);
     return;
   }
 
+  // Encrypt the link if device is bonded
+  if (com::android::bluetooth::flags::le_enc_on_reconnection() &&
+      p_dev_rec->sec_rec.is_le_link_key_known()) {
+    btm_ble_set_encryption(bda, BTM_BLE_SEC_ENCRYPT,
+                           p_dev_rec->role_central ? HCI_ROLE_CENTRAL : HCI_ROLE_PERIPHERAL);
+  }
+
   // Read device name if it is not known already, we may need it for pairing
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bda);
-  if (p_dev_rec != nullptr && !p_dev_rec->sec_rec.is_name_known()) {
+  if (com::android::bluetooth::flags::name_discovery_for_le_pairing() &&
+      !p_dev_rec->sec_rec.is_name_known()) {
     btm_ble_read_remote_name(bda, nullptr);
   }
 }

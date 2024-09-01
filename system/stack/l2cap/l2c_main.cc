@@ -370,19 +370,19 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         p_rcb = l2cu_find_rcb_by_psm(con_info.psm);
         if (!p_rcb) {
           log::warn("Rcvd conn req for unknown PSM: {}", con_info.psm);
-          l2cu_reject_connection(p_lcb, rcid, id, L2CAP_CONN_NO_PSM);
+          l2cu_reject_connection(p_lcb, rcid, id, tL2CAP_CONN::L2CAP_CONN_NO_PSM);
           break;
         } else {
           if (!p_rcb->api.pL2CA_ConnectInd_Cb) {
             log::warn("Rcvd conn req for outgoing-only connection PSM: {}", con_info.psm);
-            l2cu_reject_connection(p_lcb, rcid, id, L2CAP_CONN_NO_PSM);
+            l2cu_reject_connection(p_lcb, rcid, id, tL2CAP_CONN::L2CAP_CONN_NO_PSM);
             break;
           }
         }
         tL2C_CCB* p_ccb = l2cu_allocate_ccb(p_lcb, 0);
         if (p_ccb == nullptr) {
           log::error("Unable to allocate CCB");
-          l2cu_reject_connection(p_lcb, rcid, id, L2CAP_CONN_NO_RESOURCES);
+          l2cu_reject_connection(p_lcb, rcid, id, tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES);
           break;
         }
         p_ccb->remote_id = id;
@@ -426,9 +426,9 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
           break;
         }
 
-        if (con_info.l2cap_result == L2CAP_CONN_OK) {
+        if (con_info.l2cap_result == tL2CAP_CONN::L2CAP_CONN_OK) {
           l2c_csm_execute(p_ccb, L2CEVT_L2CAP_CONNECT_RSP, &con_info);
-        } else if (con_info.l2cap_result == L2CAP_CONN_PENDING) {
+        } else if (con_info.l2cap_result == tL2CAP_CONN::L2CAP_CONN_PENDING) {
           l2c_csm_execute(p_ccb, L2CEVT_L2CAP_CONNECT_RSP_PND, &con_info);
         } else {
           l2c_csm_execute(p_ccb, L2CEVT_L2CAP_CONNECT_RSP_NEG, &con_info);

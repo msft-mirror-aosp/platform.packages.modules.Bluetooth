@@ -444,8 +444,8 @@ void l2cu_send_peer_connect_req(tL2C_CCB* p_ccb) {
  * Returns          void
  *
  ******************************************************************************/
-void l2cu_send_peer_connect_rsp(tL2C_CCB* p_ccb, uint16_t result, uint16_t status) {
-  if (result == L2CAP_CONN_PENDING) {
+void l2cu_send_peer_connect_rsp(tL2C_CCB* p_ccb, tL2CAP_CONN result, uint16_t status) {
+  if (result == tL2CAP_CONN::L2CAP_CONN_PENDING) {
     /* if we already sent pending response */
     if (p_ccb->flags & CCB_FLAG_SENT_PENDING) {
       log::debug("Already sent connection pending, not sending again");
@@ -467,7 +467,7 @@ void l2cu_send_peer_connect_rsp(tL2C_CCB* p_ccb, uint16_t result, uint16_t statu
 
   UINT16_TO_STREAM(p, p_ccb->local_cid);
   UINT16_TO_STREAM(p, p_ccb->remote_cid);
-  UINT16_TO_STREAM(p, result);
+  UINT16_TO_STREAM(p, static_cast<uint16_t>(result));
   UINT16_TO_STREAM(p, status);
 
   l2c_link_check_send_pkts(p_ccb->p_lcb, 0, p_buf);
@@ -484,7 +484,8 @@ void l2cu_send_peer_connect_rsp(tL2C_CCB* p_ccb, uint16_t result, uint16_t statu
  * Returns          void
  *
  ******************************************************************************/
-void l2cu_reject_connection(tL2C_LCB* p_lcb, uint16_t remote_cid, uint8_t rem_id, uint16_t result) {
+void l2cu_reject_connection(tL2C_LCB* p_lcb, uint16_t remote_cid, uint8_t rem_id,
+                            tL2CAP_CONN result) {
   BT_HDR* p_buf;
   uint8_t* p;
 
@@ -499,7 +500,7 @@ void l2cu_reject_connection(tL2C_LCB* p_lcb, uint16_t remote_cid, uint8_t rem_id
 
   UINT16_TO_STREAM(p, 0); /* Local CID of 0   */
   UINT16_TO_STREAM(p, remote_cid);
-  UINT16_TO_STREAM(p, result);
+  UINT16_TO_STREAM(p, static_cast<uint16_t>(result));
   UINT16_TO_STREAM(p, 0); /* Status of 0      */
 
   l2c_link_check_send_pkts(p_lcb, 0, p_buf);
@@ -3617,7 +3618,7 @@ tL2CAP_CONN le_result_to_l2c_conn(tL2CAP_LE_RESULT_CODE result) {
       if (static_cast<uint16_t>(result) < L2CAP_CONN_LE_MASK) {
         return static_cast<tL2CAP_CONN>(L2CAP_CONN_LE_MASK | static_cast<uint16_t>(code));
       }
-      return L2CAP_CONN_OTHER_ERROR;
+      return tL2CAP_CONN::L2CAP_CONN_OTHER_ERROR;
   }
 }
 

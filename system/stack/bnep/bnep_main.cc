@@ -56,7 +56,7 @@ const uint16_t bnep_frame_hdr_sizes[] = {14, 1, 2, 8, 8};
 /******************************************************************************/
 static void bnep_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid, uint16_t psm,
                              uint8_t l2cap_id);
-static void bnep_connect_cfm(uint16_t l2cap_cid, uint16_t result);
+static void bnep_connect_cfm(uint16_t l2cap_cid, tL2CAP_CONN result);
 static void bnep_config_cfm(uint16_t l2cap_cid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
 static void bnep_disconnect_ind(uint16_t l2cap_cid, bool ack_needed);
 static void bnep_data_ind(uint16_t l2cap_cid, BT_HDR* p_msg);
@@ -163,7 +163,7 @@ static void bnep_on_l2cap_error(uint16_t l2cap_cid, uint16_t /* result */) {
  * Returns          void
  *
  ******************************************************************************/
-static void bnep_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
+static void bnep_connect_cfm(uint16_t l2cap_cid, tL2CAP_CONN result) {
   tBNEP_CONN* p_bcb;
 
   /* Find CCB based on CID */
@@ -175,7 +175,7 @@ static void bnep_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
 
   /* If the connection response contains success status, then */
   /* Transition to the next state and startup the timer.      */
-  if ((result == L2CAP_CONN_OK) && (p_bcb->con_state == BNEP_STATE_CONN_START)) {
+  if ((result == tL2CAP_CONN::L2CAP_CONN_OK) && (p_bcb->con_state == BNEP_STATE_CONN_START)) {
     p_bcb->con_state = BNEP_STATE_CFG_SETUP;
 
     /* Start timer waiting for config results */
