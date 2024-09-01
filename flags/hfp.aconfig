@@ -147,6 +147,16 @@ flag {
 }
 
 flag {
+    name: "hfp_allow_volume_change_without_sco"
+    namespace: "bluetooth"
+    description: "Allow Audio Fwk to change SCO volume when HFP profile is connected and SCO not connected"
+    bug: "362313390"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
     name: "choose_wrong_hfp_codec_in_specific_config"
     namespace: "bluetooth"
     description: "Flag to fix codec selection in nego when the peer device only support NB and SWB."

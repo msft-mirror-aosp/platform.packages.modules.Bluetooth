@@ -821,11 +821,17 @@ public final class Utils {
             UserHandle uh = um.getProfileParent(callingUser);
             int parentUser = (uh != null) ? uh.getIdentifier() : USER_HANDLE_NULL.getIdentifier();
 
+            // In HSUM mode, UserHandle.SYSTEM is only for System and the human users will use other
+            // ids
+            boolean isSystemUserInHsumMode =
+                    um.isHeadlessSystemUserMode() && callingUser.equals(UserHandle.SYSTEM);
+
             // Always allow SystemUI/System access.
             return (sForegroundUserId == callingUser.getIdentifier())
                     || (sForegroundUserId == parentUser)
                     || (UserHandle.getAppId(sSystemUiUid) == UserHandle.getAppId(callingUid))
-                    || (UserHandle.getAppId(Process.SYSTEM_UID) == UserHandle.getAppId(callingUid));
+                    || (UserHandle.getAppId(Process.SYSTEM_UID) == UserHandle.getAppId(callingUid))
+                    || (isSystemUserInHsumMode);
         } catch (Exception ex) {
             Log.e(TAG, "checkCallerAllowManagedProfiles: Exception ex=" + ex);
             return false;

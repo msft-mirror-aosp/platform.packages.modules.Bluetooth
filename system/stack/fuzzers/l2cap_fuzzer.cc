@@ -177,7 +177,7 @@ static void Fuzz(const uint8_t* data, size_t size) {
 
   tL2CAP_APPL_INFO appl_info = {
           .pL2CA_ConnectInd_Cb = [](const RawAddress&, uint16_t, uint16_t, uint8_t) {},
-          .pL2CA_ConnectCfm_Cb = [](uint16_t, uint16_t) {},
+          .pL2CA_ConnectCfm_Cb = [](uint16_t, tL2CAP_CONN) {},
           .pL2CA_ConfigInd_Cb = [](uint16_t, tL2CAP_CFG_INFO*) {},
           .pL2CA_ConfigCfm_Cb = [](uint16_t, uint16_t, tL2CAP_CFG_INFO*) {},
           .pL2CA_DisconnectInd_Cb = [](uint16_t, bool) {},
@@ -191,7 +191,8 @@ static void Fuzz(const uint8_t* data, size_t size) {
           .pL2CA_Error_Cb = [](uint16_t, uint16_t) {},
           .pL2CA_CreditBasedConnectInd_Cb = [](const RawAddress&, std::vector<uint16_t>&, uint16_t,
                                                uint16_t, uint8_t) {},
-          .pL2CA_CreditBasedConnectCfm_Cb = [](const RawAddress&, uint16_t, uint16_t, uint16_t) {},
+          .pL2CA_CreditBasedConnectCfm_Cb = [](const RawAddress&, uint16_t, uint16_t,
+                                               tL2CAP_LE_RESULT_CODE) {},
           .pL2CA_CreditBasedReconfigCompleted_Cb = [](const RawAddress&, uint16_t, bool,
                                                       tL2CAP_LE_CFG_INFO*) {},
           .pL2CA_CreditBasedCollisionInd_Cb = [](const RawAddress&) {},

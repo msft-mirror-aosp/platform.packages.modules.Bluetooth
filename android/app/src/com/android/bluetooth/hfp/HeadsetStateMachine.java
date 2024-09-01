@@ -1124,6 +1124,12 @@ class HeadsetStateMachine extends StateMachine {
                         }
                     }
                     break;
+                case INTENT_SCO_VOLUME_CHANGED:
+                    if (Flags.hfpAllowVolumeChangeWithoutSco()) {
+                        // when flag is removed, remove INTENT_SCO_VOLUME_CHANGED case in AudioOn
+                        processIntentScoVolume((Intent) message.obj, mDevice);
+                    }
+                    break;
                 case INTENT_CONNECTION_ACCESS_REPLY:
                     handleAccessPermissionResult((Intent) message.obj);
                     break;
@@ -1245,6 +1251,20 @@ class HeadsetStateMachine extends StateMachine {
          * @param state audio state
          */
         public abstract void processAudioEvent(int state);
+
+        void processIntentScoVolume(Intent intent, BluetoothDevice device) {
+            int volumeValue = intent.getIntExtra(AudioManager.EXTRA_VOLUME_STREAM_VALUE, 0);
+            stateLogD(
+                    "processIntentScoVolume: mSpeakerVolume="
+                            + mSpeakerVolume
+                            + ", volumeValue="
+                            + volumeValue);
+            if (mSpeakerVolume != volumeValue) {
+                mSpeakerVolume = volumeValue;
+                mNativeInterface.setVolume(
+                        device, HeadsetHalConstants.VOLUME_TYPE_SPK, mSpeakerVolume);
+            }
+        }
     }
 
     class Connected extends ConnectedBase {
@@ -1613,6 +1633,8 @@ class HeadsetStateMachine extends StateMachine {
                         break;
                     }
                 case INTENT_SCO_VOLUME_CHANGED:
+                    // TODO: b/362313390 Remove this case once the fix is in place because this
+                    // message will be handled by the ConnectedBase state.
                     processIntentScoVolume((Intent) message.obj, mDevice);
                     break;
                 case STACK_EVENT:
@@ -1658,20 +1680,6 @@ class HeadsetStateMachine extends StateMachine {
                 default:
                     stateLogE("processAudioEvent: bad state: " + state);
                     break;
-            }
-        }
-
-        private void processIntentScoVolume(Intent intent, BluetoothDevice device) {
-            int volumeValue = intent.getIntExtra(AudioManager.EXTRA_VOLUME_STREAM_VALUE, 0);
-            stateLogD(
-                    "processIntentScoVolume: mSpeakerVolume="
-                            + mSpeakerVolume
-                            + ", volumeValue="
-                            + volumeValue);
-            if (mSpeakerVolume != volumeValue) {
-                mSpeakerVolume = volumeValue;
-                mNativeInterface.setVolume(
-                        device, HeadsetHalConstants.VOLUME_TYPE_SPK, mSpeakerVolume);
             }
         }
     }

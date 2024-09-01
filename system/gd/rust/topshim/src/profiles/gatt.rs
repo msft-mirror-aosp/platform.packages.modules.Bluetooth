@@ -1474,7 +1474,7 @@ impl BleScanner {
     }
 
     pub fn register_scanner(&mut self, app_uuid: Uuid) {
-        mutcxxcall!(self, RegisterScanner, app_uuid.into());
+        mutcxxcall!(self, RegisterScanner, app_uuid);
     }
 
     pub fn unregister(&mut self, scanner_id: u8) {
@@ -1733,11 +1733,11 @@ pub struct Gatt {
 }
 
 impl Gatt {
-    pub fn new(intf: &BluetoothInterface) -> Option<Gatt> {
+    pub fn new(intf: &BluetoothInterface) -> Gatt {
         let r = intf.get_profile_interface(SupportedProfiles::Gatt);
 
-        if r == std::ptr::null() {
-            return None;
+        if r.is_null() {
+            panic!("Failed to get GATT interface");
         }
 
         let gatt_client_intf = unsafe { ffi::GetGattClientProfile(r as *const u8) };
@@ -1745,24 +1745,18 @@ impl Gatt {
         let gatt_scanner_intf = unsafe { ffi::GetBleScannerIntf(r as *const u8) };
         let gatt_advertiser_intf = unsafe { ffi::GetBleAdvertiserIntf(r as *const u8) };
 
-        Some(Gatt {
+        Gatt {
             internal: RawGattWrapper { raw: r as *const btgatt_interface_t },
             is_init: false,
             client: GattClient {
                 internal: RawGattClientWrapper {
-                    raw: unsafe {
-                        (*(r as *const btgatt_interface_t)).client
-                            as *const btgatt_client_interface_t
-                    },
+                    raw: unsafe { (*(r as *const btgatt_interface_t)).client },
                 },
                 internal_cxx: gatt_client_intf,
             },
             server: GattServer {
                 internal: RawGattServerWrapper {
-                    raw: unsafe {
-                        (*(r as *const btgatt_interface_t)).server
-                            as *const btgatt_server_interface_t
-                    },
+                    raw: unsafe { (*(r as *const btgatt_interface_t)).server },
                 },
                 internal_cxx: gatt_server_intf,
             },
@@ -1772,7 +1766,7 @@ impl Gatt {
             gatt_client_callbacks: None,
             gatt_server_callbacks: None,
             gatt_scanner_callbacks: None,
-        })
+        }
     }
 
     pub fn is_initialized(&self) -> bool {
