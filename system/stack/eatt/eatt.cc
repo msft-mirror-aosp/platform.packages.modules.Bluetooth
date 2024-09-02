@@ -18,6 +18,7 @@
 #include <bluetooth/log.h>
 
 #include "eatt_impl.h"
+#include "l2cdefs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "types/raw_address.h"
@@ -79,7 +80,7 @@ struct EattExtension::impl {
   }
 
   static void eatt_connect_cfm(const RawAddress& bda, uint16_t lcid, uint16_t peer_mtu,
-                               uint16_t result) {
+                               tL2CAP_LE_RESULT_CODE result) {
     auto p_eatt_impl = GetImplInstance();
     if (p_eatt_impl) {
       p_eatt_impl->eatt_l2cap_connect_cfm(bda, lcid, peer_mtu, result);

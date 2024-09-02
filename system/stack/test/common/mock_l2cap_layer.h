@@ -34,7 +34,7 @@ public:
                             tL2CAP_ERTM_INFO* p_ertm_info) = 0;
   virtual uint16_t ConnectRequest(uint16_t psm, const RawAddress& bd_addr) = 0;
   virtual bool ConnectResponse(const RawAddress& bd_addr, uint8_t id, uint16_t lcid,
-                               uint16_t result, uint16_t status) = 0;
+                               tL2CAP_CONN result, uint16_t status) = 0;
   virtual bool DisconnectRequest(uint16_t cid) = 0;
   virtual bool DisconnectResponse(uint16_t cid) = 0;
   virtual bool ConfigRequest(uint16_t cid, tL2CAP_CFG_INFO* p_cfg) = 0;
@@ -61,7 +61,7 @@ public:
                                   bool enable_snoop, tL2CAP_ERTM_INFO* p_ertm_info));
   MOCK_METHOD2(ConnectRequest, uint16_t(uint16_t psm, const RawAddress& bd_addr));
   MOCK_METHOD5(ConnectResponse, bool(const RawAddress& bd_addr, uint8_t id, uint16_t lcid,
-                                     uint16_t result, uint16_t status));
+                                     tL2CAP_CONN result, uint16_t status));
   MOCK_METHOD1(DisconnectRequest, bool(uint16_t cid));
   MOCK_METHOD1(DisconnectResponse, bool(uint16_t cid));
   MOCK_METHOD2(ConfigRequest, bool(uint16_t cid, tL2CAP_CFG_INFO* p_cfg));

@@ -151,7 +151,7 @@ void l2cu_reject_ble_connection(tL2C_CCB* /* p_ccb */, uint8_t /* rem_id */,
   inc_func_call_count(__func__);
 }
 void l2cu_reject_connection(tL2C_LCB* /* p_lcb */, uint16_t /* remote_cid */, uint8_t /* rem_id */,
-                            uint16_t /* result */) {
+                            tL2CAP_CONN /* result */) {
   inc_func_call_count(__func__);
 }
 void l2cu_reject_credit_based_conn_req(tL2C_LCB* /* p_lcb */, uint8_t /* rem_id */,

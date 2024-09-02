@@ -367,7 +367,7 @@ struct eatt_impl {
   }
 
   void eatt_l2cap_connect_cfm(const RawAddress& bda, uint16_t lcid, uint16_t peer_mtu,
-                              uint16_t result) {
+                              tL2CAP_LE_RESULT_CODE result) {
     log::info("bda: {} cid: {}peer mtu: {} result {}", bda, lcid, peer_mtu, result);
 
     eatt_device* eatt_dev = find_device_by_address(bda);
@@ -382,7 +382,7 @@ struct eatt_impl {
       return;
     }
 
-    if (result != L2CAP_CONN_OK) {
+    if (result != tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK) {
       log::error("Could not connect CoC result: 0x{:x}", result);
       remove_channel_by_cid(eatt_dev, lcid);
 

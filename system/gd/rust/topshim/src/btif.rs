@@ -1488,22 +1488,19 @@ pub trait ToggleableProfile {
     fn disable(&mut self) -> bool;
 }
 
-pub fn get_btinterface() -> Option<BluetoothInterface> {
-    let mut ret: Option<BluetoothInterface> = None;
+pub fn get_btinterface() -> BluetoothInterface {
     let mut ifptr: *const bindings::bt_interface_t = std::ptr::null();
 
-    unsafe {
-        if bindings::hal_util_load_bt_library(&mut ifptr) == 0 {
-            ret = Some(BluetoothInterface {
-                internal: RawInterfaceWrapper { raw: ifptr },
-                is_init: false,
-                callbacks: None,
-                os_callouts: None,
-            });
+    if unsafe { bindings::hal_util_load_bt_library(&mut ifptr) } == 0 {
+        BluetoothInterface {
+            internal: RawInterfaceWrapper { raw: ifptr },
+            is_init: false,
+            callbacks: None,
+            os_callouts: None,
         }
+    } else {
+        panic!("Failed to get BluetoothInterface");
     }
-
-    ret
 }
 
 // Turns C-array T[] to Vec<U>.

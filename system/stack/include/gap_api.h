@@ -79,7 +79,7 @@ struct tGAP_L2CAP_CIDS {
 
 union tGAP_CB_DATA {
   tGAP_COC_CREDITS coc_credits;
-  uint16_t l2cap_result;
+  tL2CAP_CONN l2cap_result;
   tGAP_L2CAP_CIDS l2cap_cids;
 };
 
