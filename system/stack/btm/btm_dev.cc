@@ -31,13 +31,14 @@
 
 #include <string>
 
-#include "btm_api.h"
+#include "btif/include/btif_storage.h"
 #include "btm_int_types.h"
 #include "btm_sec_api.h"
 #include "btm_sec_cb.h"
 #include "common/init_flags.h"
 #include "internal_include/bt_target.h"
 #include "l2c_api.h"
+#include "main/shim/dumpsys.h"
 #include "osi/include/allocator.h"
 #include "rust/src/connection/ffi/connection_shim.h"
 #include "stack/btm/btm_sec.h"
@@ -83,6 +84,7 @@ static void wipe_secrets_and_remove(tBTM_SEC_DEV_REC* p_dev_rec) {
 void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class, LinkKey link_key,
                       uint8_t key_type, uint8_t pin_length) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
+
   if (!p_dev_rec) {
     p_dev_rec = btm_sec_allocate_dev_rec();
     log::info(
@@ -97,6 +99,12 @@ void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class, LinkKey li
     /* use default value for background connection params */
     /* update conn params, use default value for background connection params */
     memset(&p_dev_rec->conn_params, 0xff, sizeof(tBTM_LE_CONN_PRAMS));
+
+    if (com::android::bluetooth::flags::name_discovery_for_le_pairing() &&
+        btif_storage_get_stored_remote_name(bd_addr,
+                                            reinterpret_cast<char*>(&p_dev_rec->sec_bd_name))) {
+      p_dev_rec->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
+    }
   } else {
     log::info(
             "Caching existing record from config file device: {}, dev_class: "
@@ -119,7 +127,9 @@ void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class, LinkKey li
     p_dev_rec->dev_class = dev_class;
   }
 
-  memset(p_dev_rec->sec_bd_name, 0, sizeof(BD_NAME));
+  if (!com::android::bluetooth::flags::name_discovery_for_le_pairing()) {
+    bd_name_clear(p_dev_rec->sec_bd_name);
+  }
 
   p_dev_rec->sec_rec.sec_flags |= BTM_SEC_LINK_KEY_KNOWN;
   p_dev_rec->sec_rec.link_key = link_key;
@@ -768,6 +778,26 @@ const tBLE_BD_ADDR BTM_Sec_GetAddressWithType(const RawAddress& bd_addr) {
     return p_dev_rec->ble.identity_address_with_type;
   }
 }
+
+#define DUMPSYS_TAG "shim::record"
+void DumpsysRecord(int fd) {
+  LOG_DUMPSYS_TITLE(fd, DUMPSYS_TAG);
+
+  if (btm_sec_cb.sec_dev_rec == nullptr) {
+    LOG_DUMPSYS(fd, "Record is empty - no devices");
+    return;
+  }
+
+  unsigned cnt = 0;
+  list_node_t* end = list_end(btm_sec_cb.sec_dev_rec);
+  for (list_node_t* node = list_begin(btm_sec_cb.sec_dev_rec); node != end;
+       node = list_next(node)) {
+    tBTM_SEC_DEV_REC* p_dev_rec = static_cast<tBTM_SEC_DEV_REC*>(list_node(node));
+    // TODO: handle in tBTM_SEC_DEV_REC.ToString
+    LOG_DUMPSYS(fd, "%03u %s", ++cnt, p_dev_rec->ToString().c_str());
+  }
+}
+#undef DUMPSYS_TAG
 
 namespace bluetooth {
 namespace testing {

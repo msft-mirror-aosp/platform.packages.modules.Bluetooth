@@ -52,7 +52,7 @@ public:
     void UpdateAudioConfigToHal(const ::hfp::offload_config& config) override;
     void ConfirmStreamingRequest() override;
     void CancelStreamingRequest() override;
-    size_t Read(uint8_t* p_buf, uint32_t len);
+    size_t Write(const uint8_t* p_buf, uint32_t len);
   };
 
   class Encode : public IClientInterfaceEndpoint {
@@ -65,7 +65,7 @@ public:
     void UpdateAudioConfigToHal(const ::hfp::offload_config& config) override;
     void ConfirmStreamingRequest() override;
     void CancelStreamingRequest() override;
-    size_t Write(const uint8_t* p_buf, uint32_t len);
+    size_t Read(uint8_t* p_buf, uint32_t len);
   };
 
   class Offload : public IClientInterfaceEndpoint {

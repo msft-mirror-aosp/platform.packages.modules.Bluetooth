@@ -39,6 +39,7 @@
 #include "stack/include/a2dp_codec_api.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
+#include <com_android_bluetooth_flags.h>
 
 using namespace bluetooth;
 
@@ -97,9 +98,13 @@ void avdt_scb_transport_channel_timer_timeout(void* data) {
  *
  ******************************************************************************/
 void AVDT_Register(AvdtpRcb* p_reg, tAVDT_CTRL_CBACK* p_cback) {
+  uint16_t sec = BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT;
+  if (!com::android::bluetooth::flags::use_encrypt_req_for_av()) {
+    sec = BTA_SEC_AUTHENTICATE;
+  }
   /* register PSM with L2CAP */
   if (!L2CA_RegisterWithSecurity(AVDT_PSM, avdt_l2c_appl, true /* enable_snoop */, nullptr,
-                                 kAvdtpMtu, 0, BTA_SEC_AUTHENTICATE)) {
+                                 kAvdtpMtu, 0, sec)) {
     log::error("Unable to register with L2CAP profile AVDT psm:AVDT_PSM[0x0019]");
   }
 

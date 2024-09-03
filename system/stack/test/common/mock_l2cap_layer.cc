@@ -15,7 +15,7 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-#include "mock_l2cap_layer.h"
+#include "stack/test/common/mock_l2cap_layer.h"
 
 #include <bluetooth/log.h>
 
@@ -75,7 +75,7 @@ std::vector<uint16_t> L2CA_ConnectCreditBasedReq(uint16_t psm, const RawAddress&
 }
 
 bool L2CA_ConnectCreditBasedRsp(const RawAddress& bd_addr, uint8_t id, std::vector<uint16_t>& lcids,
-                                uint16_t result, tL2CAP_LE_CFG_INFO* p_cfg) {
+                                tL2CAP_LE_RESULT_CODE result, tL2CAP_LE_CFG_INFO* p_cfg) {
   return l2cap_interface->ConnectCreditBasedRsp(bd_addr, id, lcids, result, p_cfg);
 }
 

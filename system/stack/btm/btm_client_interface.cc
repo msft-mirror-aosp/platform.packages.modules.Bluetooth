@@ -20,7 +20,6 @@
 #include "security_client_callbacks.h"
 #include "stack/btm/btm_ble_int.h"
 #include "stack/include/acl_api.h"
-#include "stack/include/btm_api.h"
 #include "stack/include/btm_ble_api.h"
 
 struct btm_client_interface_t btm_client_interface = {
@@ -41,8 +40,6 @@ struct btm_client_interface_t btm_client_interface = {
                 {
                         .BTM_IsAclConnectionUp = ::BTM_IsAclConnectionUp,
                         .BTM_ReadConnectedTransportAddress = ::BTM_ReadConnectedTransportAddress,
-                        .BTM_CancelRemoteDeviceName = ::BTM_CancelRemoteDeviceName,
-                        .BTM_ReadRemoteDeviceName = ::BTM_ReadRemoteDeviceName,
                         .BTM_ReadRemoteFeatures = ::BTM_ReadRemoteFeatures,
                         .BTM_ReadDevInfo = ::BTM_ReadDevInfo,
                         .BTM_GetMaxPacketSize = ::BTM_GetMaxPacketSize,
@@ -96,6 +93,7 @@ struct btm_client_interface_t btm_client_interface = {
                         .BTM_CreateSco = ::BTM_CreateSco,
                         .BTM_RegForEScoEvts = ::BTM_RegForEScoEvts,
                         .BTM_RemoveSco = ::BTM_RemoveSco,
+                        .BTM_RemoveScoByBdaddr = ::BTM_RemoveScoByBdaddr,
                         .BTM_WriteVoiceSettings = ::BTM_WriteVoiceSettings,
                         .BTM_EScoConnRsp = ::BTM_EScoConnRsp,
                         .BTM_GetNumScoLinks = ::BTM_GetNumScoLinks,
@@ -107,8 +105,6 @@ struct btm_client_interface_t btm_client_interface = {
         .local =
                 {
                         .BTM_ReadLocalDeviceName = ::BTM_ReadLocalDeviceName,
-                        .BTM_ReadLocalDeviceNameFromController =
-                                ::BTM_ReadLocalDeviceNameFromController,
                         .BTM_SetLocalDeviceName = ::BTM_SetLocalDeviceName,
                         .BTM_SetDeviceClass = ::BTM_SetDeviceClass,
                         .BTM_IsDeviceUp = ::BTM_IsDeviceUp,

@@ -20,6 +20,7 @@
 
 #include "test/common/mock_functions.h"
 #include "test/fake/fake_osi.h"
+#include "test/mock/mock_stack_rnr_interface.h"
 
 class BtmWithFakesTest : public testing::Test {
 protected:
@@ -35,7 +36,10 @@ protected:
   void SetUp() override {
     BtmWithFakesTest::SetUp();
     reset_mock_function_count_map();
+    bluetooth::testing::stack::rnr::set_interface(&mock_stack_rnr_interface_);
   }
 
   void TearDown() override { BtmWithFakesTest::TearDown(); }
+
+  bluetooth::testing::stack::rnr::Mock mock_stack_rnr_interface_;
 };

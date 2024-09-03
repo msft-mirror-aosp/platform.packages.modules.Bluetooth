@@ -546,6 +546,21 @@ public class MetricsLogger {
                 BluetoothStatsLog.BLUETOOTH_HASHED_DEVICE_NAME_REPORTED, metricId, sha256);
     }
 
+    public void logBluetoothEvent(BluetoothDevice device, int eventType, int state, int uid) {
+
+        if (mAdapterService.getMetricId(device) == 0 || !mInitialized) {
+            return;
+        }
+
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED,
+                eventType,
+                state,
+                uid,
+                mAdapterService.getMetricId(device),
+                getRemoteDeviceInfoProto(device));
+    }
+
     protected static String getSha256String(String name) {
         if (name.isEmpty()) {
             return "";
@@ -553,7 +568,7 @@ public class MetricsLogger {
         StringBuilder hexString = new StringBuilder();
         byte[] hashBytes = getSha256(name);
         for (byte b : hashBytes) {
-            hexString.append(String.format("%02x", b));
+            hexString.append(Utils.formatSimple("%02x", b));
         }
         return hexString.toString();
     }

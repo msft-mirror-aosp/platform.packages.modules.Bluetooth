@@ -27,25 +27,11 @@ macro_rules! default_value {
     };
 }
 
-macro_rules! test_value {
-    () => {
-        true
-    };
-    ($type:ty) => {
-        <$type>::default()
-    };
-}
-
 #[cfg(test)]
 macro_rules! call_getter_fn {
     ($flag:ident) => {
         paste! {
             [<$flag _is_enabled>]()
-        }
-    };
-    ($flag:ident $type:ty) => {
-        paste! {
-            [<get_ $flag>]()
         }
     };
 }
@@ -55,14 +41,6 @@ macro_rules! create_getter_fn {
         paste! {
             #[doc = concat!(" Return true if ", stringify!($flag), " is enabled")]
             pub fn [<$flag _is_enabled>]() -> bool {
-                FLAGS.lock().unwrap().$flag
-            }
-        }
-    };
-    ($flag:ident $type:ty) => {
-        paste! {
-            #[doc = concat!(" Return the flag value of ", stringify!($flag))]
-            pub fn [<get_ $flag>]() -> $type {
                 FLAGS.lock().unwrap().$flag
             }
         }
@@ -94,8 +72,7 @@ trait FlagHolder: Default {
 macro_rules! init_flags_struct {
     (
      name: $name:ident
-     flags: { $($flag:ident $(: $type:ty)? $(= $default:tt)?,)* }
-     extra_parsed_flags: { $($extra_flag:tt => $extra_flag_fn:ident(_, _ $(,$extra_args:tt)*),)*}) => {
+     flags: { $($flag:ident $(: $type:ty)? $(= $default:tt)?,)* }) => {
 
         struct $name {
             $($flag : type_expand!($($type)?),)*
@@ -112,7 +89,7 @@ macro_rules! init_flags_struct {
         impl FlagHolder for $name {
             fn get_defaults_for_test() -> Self {
                 Self {
-                    $($flag: test_value!($($type)?),)*
+                    $($flag: true,)*
                 }
             }
 
@@ -137,7 +114,6 @@ macro_rules! init_flags_struct {
                             init_flags.$flag = values[1].parse().unwrap_or_else(|e| {
                                 error!("Parse failure on '{}': {}", flag, e);
                                 default_value!($($type)? $(= $default)?)}),)*
-                        $($extra_flag => $extra_flag_fn(&mut init_flags, values $(, $extra_args)*),)*
                         _ => error!("Unsaved flag: {} = {}", values[0], values[1])
                     }
                 }
@@ -158,9 +134,7 @@ macro_rules! init_flags_struct {
 }
 
 macro_rules! init_flags_getters {
-    (
-     flags: { $($flag:ident $(: $type:ty)? $(= $default:tt)?,)* }
-     extra_parsed_flags: { $($extra_flag:tt => $extra_flag_fn:ident(_, _ $(,$extra_args:tt)*),)*}) => {
+    (flags: { $($flag:ident $(: $type:ty)? $(= $default:tt)?,)* }) => {
 
         $(create_getter_fn!($flag $($type)?);)*
 
@@ -172,11 +146,11 @@ macro_rules! init_flags_getters {
                 pub fn [<test_get_ $flag>]() {
                     let _guard = tests::ASYNC_LOCK.lock().unwrap();
                     tests::test_load(vec![
-                        &*format!(concat!(concat!("INIT_", stringify!($flag)), "={}"), test_value!($($type)?))
+                        &*format!(concat!(concat!("INIT_", stringify!($flag)), "={}"), true)
                     ]);
-                    let get_value = call_getter_fn!($flag $($type)?);
+                    let get_value = call_getter_fn!($flag);
                     drop(_guard); // Prevent poisonning other tests if a panic occurs
-                    assert_eq!(get_value, test_value!($($type)?));
+                    assert_eq!(get_value, true);
                 }
             })*
         }
@@ -194,10 +168,6 @@ impl fmt::Display for ExplicitTagSettings {
     }
 }
 
-fn parse_hci_adapter(flags: &mut InitFlags, values: Vec<&str>) {
-    flags.hci_adapter = values[1].parse().unwrap_or(0);
-}
-
 /// Sets all bool flags to true
 /// Set all other flags and extra fields to their default type value
 pub fn set_all_for_testing() {
@@ -207,12 +177,7 @@ pub fn set_all_for_testing() {
 init_flags!(
     name: InitFlags
     flags: {
-        classic_discovery_only,
-        hci_adapter: i32,
         use_unified_connection_manager,
-    }
-    extra_parsed_flags: {
-        "--hci" => parse_hci_adapter(_, _),
     }
 );
 
@@ -253,19 +218,11 @@ mod tests {
         load(raw_flags);
     }
 
-    #[test]
-    fn int_flag() {
-        let _guard = ASYNC_LOCK.lock().unwrap();
-        test_load(vec!["--hci=2"]);
-        assert_eq!(get_hci_adapter(), 2);
-    }
-
     init_flags_struct!(
         name: InitFlagsForTest
         flags: {
             cat,
         }
-        extra_parsed_flags: {}
     );
 
     #[test]

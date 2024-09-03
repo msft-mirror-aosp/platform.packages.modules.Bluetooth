@@ -59,6 +59,7 @@ import android.os.Build;
 import android.os.ParcelUuid;
 import android.os.PowerExemptionManager;
 import android.os.Process;
+import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -92,6 +93,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 public final class Utils {
     private static final String TAG = "BluetoothUtils";
@@ -333,7 +335,7 @@ public final class Utils {
             if (idx != 0) {
                 sb.append(" ");
             }
-            sb.append(String.format("%02x", valueBuf[idx]));
+            sb.append(formatSimple("%02x", valueBuf[idx]));
         }
         return sb.toString();
     }
@@ -819,11 +821,17 @@ public final class Utils {
             UserHandle uh = um.getProfileParent(callingUser);
             int parentUser = (uh != null) ? uh.getIdentifier() : USER_HANDLE_NULL.getIdentifier();
 
+            // In HSUM mode, UserHandle.SYSTEM is only for System and the human users will use other
+            // ids
+            boolean isSystemUserInHsumMode =
+                    um.isHeadlessSystemUserMode() && callingUser.equals(UserHandle.SYSTEM);
+
             // Always allow SystemUI/System access.
             return (sForegroundUserId == callingUser.getIdentifier())
                     || (sForegroundUserId == parentUser)
                     || (UserHandle.getAppId(sSystemUiUid) == UserHandle.getAppId(callingUid))
-                    || (UserHandle.getAppId(Process.SYSTEM_UID) == UserHandle.getAppId(callingUid));
+                    || (UserHandle.getAppId(Process.SYSTEM_UID) == UserHandle.getAppId(callingUid))
+                    || (isSystemUserInHsumMode);
         } catch (Exception ex) {
             Log.e(TAG, "checkCallerAllowManagedProfiles: Exception ex=" + ex);
             return false;
@@ -1204,20 +1212,20 @@ public final class Utils {
      * @return String value representing CCC state
      */
     public static String cccIntToStr(Short cccValue) {
-        String string = "";
-
         if (cccValue == 0) {
-            return string += "NO SUBSCRIPTION";
+            return "NO SUBSCRIPTION";
         }
 
+        if (BigInteger.valueOf(cccValue).testBit(0) && BigInteger.valueOf(cccValue).testBit(1)) {
+            return "NOTIFICATION|INDICATION";
+        }
         if (BigInteger.valueOf(cccValue).testBit(0)) {
-            string += "NOTIFICATION";
+            return "NOTIFICATION";
         }
         if (BigInteger.valueOf(cccValue).testBit(1)) {
-            string += string.isEmpty() ? "INDICATION" : "|INDICATION";
+            return "INDICATION";
         }
-
-        return string;
+        return "";
     }
 
     /**
@@ -1258,6 +1266,23 @@ public final class Utils {
                 || pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK);
     }
 
+    /** A {@link Consumer} that automatically ignores any {@link RemoteException}s. */
+    @FunctionalInterface
+    @SuppressWarnings("FunctionalInterfaceMethodChanged")
+    public interface RemoteExceptionIgnoringConsumer<T> extends Consumer<T> {
+        /** Called by {@code accept}. */
+        void acceptOrThrow(T t) throws RemoteException;
+
+        @Override
+        default void accept(T t) {
+            try {
+                acceptOrThrow(t);
+            } catch (RemoteException ex) {
+                // Ignore RemoteException
+            }
+        }
+    }
+
     /**
      * Returns the longest prefix of a string for which the UTF-8 encoding fits into the given
      * number of bytes, with the additional guarantee that the string is not truncated in the middle
@@ -1268,6 +1293,8 @@ public final class Utils {
      * by the UTF-8 implementation.
      *
      * <p>(copied from framework/base/core/java/android/text/TextUtils.java)
+     *
+     * <p>(See {@code android.text.TextUtils.truncateStringForUtf8Storage}
      *
      * @param str a string
      * @param maxbytes the maximum number of UTF-8 encoded bytes
@@ -1299,5 +1326,12 @@ public final class Utils {
             }
         }
         return str;
+    }
+
+    /**
+     * @see android.bluetooth.BluetoothUtils.formatSimple
+     */
+    public static @NonNull String formatSimple(@NonNull String format, Object... args) {
+        return android.bluetooth.BluetoothUtils.formatSimple(format, args);
     }
 }

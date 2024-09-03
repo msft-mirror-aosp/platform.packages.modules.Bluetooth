@@ -18,6 +18,7 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.Manifest.permission.LOCAL_MAC_ADDRESS;
 
 import android.annotation.FlaggedApi;
 import android.annotation.RequiresNoPermission;
@@ -193,6 +194,7 @@ public final class BluetoothSocket implements Closeable {
      * @param uuid SDP uuid
      * @throws IOException On error, for example Bluetooth not available, or insufficient privileges
      */
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, LOCAL_MAC_ADDRESS})
     /*package*/ BluetoothSocket(
             int type,
             boolean auth,
@@ -217,6 +219,7 @@ public final class BluetoothSocket implements Closeable {
      * @param min16DigitPin enforce a minimum length of 16 digits for a sec mode 2 connection
      * @throws IOException On error, for example Bluetooth not available, or insufficient privileges
      */
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, LOCAL_MAC_ADDRESS})
     /*package*/ BluetoothSocket(
             int type,
             boolean auth,
@@ -529,6 +532,7 @@ public final class BluetoothSocket implements Closeable {
      * Currently returns unix errno instead of throwing IOException, so that BluetoothAdapter can
      * check the error code for EADDRINUSE
      */
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(BLUETOOTH_CONNECT)
     /*package*/ int bindListen() {
         int ret;
@@ -851,11 +855,8 @@ public final class BluetoothSocket implements Closeable {
      */
     @SystemApi
     @FlaggedApi(Flags.FLAG_BT_SOCKET_API_L2CAP_CID)
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public int getL2capLocalChannelId() throws IOException {
         if (mType != TYPE_L2CAP_LE) {
             throw new BluetoothSocketException(BluetoothSocketException.L2CAP_UNKNOWN);
@@ -895,11 +896,8 @@ public final class BluetoothSocket implements Closeable {
      */
     @SystemApi
     @FlaggedApi(Flags.FLAG_BT_SOCKET_API_L2CAP_CID)
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public int getL2capRemoteChannelId() throws IOException {
         if (mType != TYPE_L2CAP_LE) {
             throw new BluetoothSocketException(BluetoothSocketException.L2CAP_UNKNOWN);
@@ -931,6 +929,7 @@ public final class BluetoothSocket implements Closeable {
     }
 
     /** @hide */
+    @RequiresNoPermission
     public ParcelFileDescriptor getParcelFileDescriptor() {
         return mPfd;
     }

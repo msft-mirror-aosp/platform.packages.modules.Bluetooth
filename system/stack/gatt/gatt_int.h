@@ -28,10 +28,13 @@
 #include <unordered_set>
 #include <vector>
 
+#include "common/circular_buffer.h"
 #include "common/init_flags.h"
+#include "common/strings.h"
 #include "gatt_api.h"
 #include "internal_include/bt_target.h"
 #include "macros.h"
+#include "main/shim/dumpsys.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "types/bluetooth/uuid.h"
@@ -43,6 +46,7 @@
 #define GATT_GET_GATT_IF(conn_id) ((tGATT_IF)((uint8_t)(conn_id)))
 
 #define GATT_TRANS_ID_MAX 0x0fffffff /* 4 MSB is reserved */
+#define GATT_CL_RCB_MAX 255          /* Maximum number of cl_rcb */
 
 /* security action for GATT write and read request */
 typedef enum : uint8_t {
@@ -228,6 +232,7 @@ typedef struct {
   uint8_t op_code;
   uint8_t status;
   uint8_t cback_cnt[GATT_MAX_APPS];
+  std::unordered_map<tGATT_IF, uint8_t> cback_cnt_map;
   uint16_t cid;
 } tGATT_SR_CMD;
 
@@ -315,6 +320,7 @@ typedef struct {
   alarm_t* conf_timer; /* peer confirm to indication timer */
 
   uint8_t prep_cnt[GATT_MAX_APPS];
+  std::unordered_map<tGATT_IF, uint8_t> prep_cnt_map;
   uint8_t ind_count;
 
   std::deque<tGATT_CMD_Q> cl_cmd_q;
@@ -414,6 +420,9 @@ typedef struct {
   fixed_queue_t* srv_chg_clt_q; /* service change clients queue */
   tGATT_REG cl_rcb[GATT_MAX_APPS];
 
+  tGATT_IF next_gatt_if; /* potential next gatt if, should be greater than 0 */
+  std::unordered_map<tGATT_IF, std::unique_ptr<tGATT_REG>> cl_rcb_map;
+
   /* list of connection link control blocks.
    * Since clcbs are also keep in the channels (ATT and EATT) queues while
    * processing, we want to make sure that references to elements are not
@@ -459,8 +468,37 @@ extern tGATT_CB gatt_cb;
 void gatt_set_err_rsp(bool enable, uint8_t req_op_code, uint8_t err_status);
 #endif
 
+namespace {
+constexpr char kTimeFormatString[] = "%Y-%m-%d %H:%M:%S";
+
+constexpr unsigned MillisPerSecond = 1000;
+inline std::string EpochMillisToString(long long time_ms) {
+  time_t time_sec = time_ms / MillisPerSecond;
+  struct tm tm;
+  localtime_r(&time_sec, &tm);
+  std::string s = bluetooth::common::StringFormatTime(kTimeFormatString, tm);
+  return base::StringPrintf("%s.%03u", s.c_str(),
+                            static_cast<unsigned int>(time_ms % MillisPerSecond));
+}
+}  // namespace
+
+struct tTCB_STATE_HISTORY {
+  RawAddress address;
+  tBT_TRANSPORT transport;
+  tGATT_CH_STATE state;
+  std::string holders_info;
+  std::string ToString() const {
+    return base::StringPrintf("%s, %s, state: %s, %s", ADDRESS_TO_LOGGABLE_CSTR(address),
+                              bt_transport_text(transport).c_str(),
+                              gatt_channel_state_text(state).c_str(), holders_info.c_str());
+  }
+};
+
+extern bluetooth::common::TimestampedCircularBuffer<tTCB_STATE_HISTORY> tcb_state_history_;
+
 /* from gatt_main.cc */
 bool gatt_disconnect(tGATT_TCB* p_tcb);
+void gatt_cancel_connect(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBT_TRANSPORT transport,
                       int8_t initiating_phys);
 bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
@@ -577,6 +615,7 @@ bool gatt_tcb_get_cid_available_for_indication(tGATT_TCB* p_tcb, bool eatt_suppo
 bool gatt_tcb_find_indicate_handle(tGATT_TCB& tcb, uint16_t cid, uint16_t* indicated_handle_p);
 uint16_t gatt_tcb_get_att_cid(tGATT_TCB& tcb, bool eatt_support);
 uint16_t gatt_tcb_get_payload_size(tGATT_TCB& tcb, uint16_t cid);
+std::string gatt_tcb_get_holders_info_string(const tGATT_TCB* p_tcb);
 void gatt_clcb_invalidate(tGATT_TCB* p_tcb, const tGATT_CLCB* p_clcb);
 uint16_t gatt_get_mtu(const RawAddress& bda, tBT_TRANSPORT transport);
 bool gatt_is_pending_mtu_exchange(tGATT_TCB* p_tcb);

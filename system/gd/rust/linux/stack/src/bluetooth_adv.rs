@@ -547,8 +547,9 @@ impl AdvertiseManager {
         &mut self,
         gatt: Arc<Mutex<Gatt>>,
         adapter: Arc<Mutex<Box<Bluetooth>>>,
-        is_le_ext_adv_supported: bool,
     ) {
+        let is_le_ext_adv_supported =
+            adapter.lock().unwrap().is_le_extended_advertising_supported();
         self.adv_manager_impl = if is_le_ext_adv_supported {
             info!("AdvertiseManager: Selected extended advertising stack");
             Some(Box::new(AdvertiseManagerImpl::new(self.tx.clone(), gatt, adapter)))
