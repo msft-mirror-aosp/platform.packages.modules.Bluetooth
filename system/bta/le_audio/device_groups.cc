@@ -1065,8 +1065,15 @@ bool LeAudioDeviceGroup::IsStreaming(void) const {
 }
 
 bool LeAudioDeviceGroup::IsReleasingOrIdle(void) const {
-  return (target_state_ == AseState::BTA_LE_AUDIO_ASE_STATE_IDLE) ||
-         (current_state_ == AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
+  /* If target state is IDLE then for sure group is either releasing or idle.
+   * Otherwise, we have "idle states" - Idle or Configured when caching is
+   * supported on the remote side. In both cases to check it is to make sure
+   * group is not in transition.
+   */
+  return target_state_ == AseState::BTA_LE_AUDIO_ASE_STATE_IDLE ||
+         ((current_state_ == AseState::BTA_LE_AUDIO_ASE_STATE_IDLE ||
+           current_state_ == AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED) &&
+          !in_transition_);
 }
 
 bool LeAudioDeviceGroup::IsGroupStreamReady(void) const {
