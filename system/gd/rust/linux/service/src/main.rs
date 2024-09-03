@@ -166,21 +166,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
 
         // Construct btstack profiles.
-        let intf = Arc::new(Mutex::new(get_btinterface().unwrap()));
-        let bluetooth_gatt =
-            Arc::new(Mutex::new(Box::new(BluetoothGatt::new(intf.clone(), tx.clone()))));
-        let battery_provider_manager =
-            Arc::new(Mutex::new(Box::new(BatteryProviderManager::new(tx.clone()))));
-        let battery_service = Arc::new(Mutex::new(Box::new(BatteryService::new(
-            bluetooth_gatt.clone(),
-            battery_provider_manager.clone(),
-            tx.clone(),
-            api_tx.clone(),
-        ))));
-        let battery_manager = Arc::new(Mutex::new(Box::new(BatteryManager::new(
-            battery_provider_manager.clone(),
-            tx.clone(),
-        ))));
+        let intf = Arc::new(Mutex::new(get_btinterface()));
         let bluetooth = Arc::new(Mutex::new(Box::new(Bluetooth::new(
             virt_index,
             hci_index,
@@ -188,18 +174,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             api_tx.clone(),
             sig_notifier.clone(),
             intf.clone(),
-            bluetooth_gatt.clone(),
         ))));
         let bluetooth_qa = Arc::new(Mutex::new(Box::new(BluetoothQA::new(tx.clone()))));
-        let dis = Arc::new(Mutex::new(Box::new(DeviceInformation::new(
-            bluetooth_gatt.clone(),
-            tx.clone(),
-        ))));
+        let battery_provider_manager =
+            Arc::new(Mutex::new(Box::new(BatteryProviderManager::new(tx.clone()))));
 
         bluetooth.lock().unwrap().init(init_flags, hci_index);
         bluetooth.lock().unwrap().enable();
-
-        bluetooth_gatt.lock().unwrap().init_profiles(tx.clone(), api_tx.clone());
 
         // These constructions require |intf| to be already init-ed.
         let bt_sock_mgr = Arc::new(Mutex::new(Box::new(BluetoothSocketManager::new(
@@ -214,6 +195,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             bluetooth.clone(),
             battery_provider_manager.clone(),
         ))));
+        let bluetooth_gatt =
+            Arc::new(Mutex::new(Box::new(BluetoothGatt::new(intf.clone(), tx.clone()))));
 
         // These constructions don't need |intf| to be init-ed, but just depend on those who need.
         let bluetooth_admin = Arc::new(Mutex::new(Box::new(BluetoothAdmin::new(
@@ -228,6 +211,20 @@ fn main() -> Result<(), Box<dyn Error>> {
             intf.clone(),
             bluetooth_gatt.clone(),
             bluetooth_media.clone(),
+            tx.clone(),
+        ))));
+        let battery_service = Arc::new(Mutex::new(Box::new(BatteryService::new(
+            bluetooth_gatt.clone(),
+            battery_provider_manager.clone(),
+            tx.clone(),
+            api_tx.clone(),
+        ))));
+        let battery_manager = Arc::new(Mutex::new(Box::new(BatteryManager::new(
+            battery_provider_manager.clone(),
+            tx.clone(),
+        ))));
+        let dis = Arc::new(Mutex::new(Box::new(DeviceInformation::new(
+            bluetooth_gatt.clone(),
             tx.clone(),
         ))));
 
@@ -264,7 +261,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             bluetooth.clone(),
             bluetooth_admin.clone(),
             bluetooth_gatt.clone(),
-            battery_service.clone(),
             battery_manager.clone(),
             battery_provider_manager.clone(),
             bluetooth_media.clone(),

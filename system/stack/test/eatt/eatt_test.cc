@@ -103,14 +103,16 @@ protected:
       ASSERT_TRUE(channel->state_ == EattChannelState::EATT_CHANNEL_PENDING);
 
       if (i < num_of_accepted_connections) {
-        l2cap_app_info_.pL2CA_CreditBasedConnectCfm_Cb(test_address, cid, EATT_MIN_MTU_MPS,
-                                                       L2CAP_CONN_OK);
+        l2cap_app_info_.pL2CA_CreditBasedConnectCfm_Cb(
+                test_address, cid, EATT_MIN_MTU_MPS,
+                tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK);
         connected_cids_.push_back(cid);
 
         ASSERT_TRUE(channel->state_ == EattChannelState::EATT_CHANNEL_OPENED);
         ASSERT_TRUE(channel->tx_mtu_ == EATT_MIN_MTU_MPS);
       } else {
-        l2cap_app_info_.pL2CA_Error_Cb(cid, L2CAP_CONN_NO_RESOURCES);
+        l2cap_app_info_.pL2CA_Error_Cb(cid,
+                                       static_cast<uint16_t>(tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES));
 
         EattChannel* channel = eatt_instance_->FindEattChannelByCid(test_address, cid);
         ASSERT_TRUE(channel == nullptr);
@@ -165,14 +167,16 @@ protected:
       ASSERT_TRUE(channel->state_ == EattChannelState::EATT_CHANNEL_PENDING);
 
       if (i < num_of_accepted_connections) {
-        l2cap_app_info_.pL2CA_CreditBasedConnectCfm_Cb(test_address, cid, EATT_MIN_MTU_MPS,
-                                                       L2CAP_CONN_OK);
+        l2cap_app_info_.pL2CA_CreditBasedConnectCfm_Cb(
+                test_address, cid, EATT_MIN_MTU_MPS,
+                tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK);
         connected_cids_.push_back(cid);
 
         ASSERT_TRUE(channel->state_ == EattChannelState::EATT_CHANNEL_OPENED);
         ASSERT_TRUE(channel->tx_mtu_ == EATT_MIN_MTU_MPS);
       } else {
-        l2cap_app_info_.pL2CA_Error_Cb(cid, L2CAP_CONN_NO_RESOURCES);
+        l2cap_app_info_.pL2CA_Error_Cb(cid,
+                                       static_cast<uint16_t>(tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES));
 
         EattChannel* channel = eatt_instance_->FindEattChannelByCid(test_address, cid);
         ASSERT_TRUE(channel == nullptr);

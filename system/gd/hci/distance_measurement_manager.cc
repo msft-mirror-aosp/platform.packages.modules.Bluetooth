@@ -330,9 +330,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
           log::warn("Can't find CS tracker for {}", address);
         } else {
           cs_trackers_[connection_handle].repeating_alarm->Cancel();
-          cs_trackers_[connection_handle].repeating_alarm.reset();
           send_le_cs_procedure_enable(connection_handle, Enable::DISABLED);
-          cs_trackers_.erase(connection_handle);
         }
       } break;
     }
@@ -362,6 +360,23 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       return;
     }
     start_distance_measurement_with_cs(tracker.address, connection_handle);
+  }
+
+  void handle_ras_disconnected_event(const Address address) {
+    log::info("address:{}", address);
+    for (auto it = cs_trackers_.begin(); it != cs_trackers_.end();) {
+      if (it->second.address == address) {
+        if (it->second.repeating_alarm != nullptr) {
+          it->second.repeating_alarm->Cancel();
+          it->second.repeating_alarm.reset();
+        }
+        distance_measurement_callbacks_->OnDistanceMeasurementStopped(
+                address, REASON_NO_LE_CONNECTION, METHOD_CS);
+        it = cs_trackers_.erase(it);  // erase and get the next iterator
+      } else {
+        ++it;
+      }
+    }
   }
 
   void handle_vendor_specific_reply(
@@ -1493,6 +1508,10 @@ void DistanceMeasurementManager::HandleRasConnectedEvent(
         const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data) {
   CallOn(pimpl_.get(), &impl::handle_ras_connected_event, address, connection_handle, att_handle,
          vendor_specific_data);
+}
+
+void DistanceMeasurementManager::HandleRasDisconnectedEvent(const Address& address) {
+  CallOn(pimpl_.get(), &impl::handle_ras_disconnected_event, address);
 }
 
 void DistanceMeasurementManager::HandleVendorSpecificReply(
