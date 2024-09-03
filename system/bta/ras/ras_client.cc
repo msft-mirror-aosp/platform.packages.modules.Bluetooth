@@ -217,6 +217,7 @@ public:
       BTA_GATTC_Close(evt.conn_id);
       return;
     }
+    callbacks_->OnDisconnected(tracker->address_for_cs_);
     trackers_.remove(tracker);
   }
 
