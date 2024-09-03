@@ -25,6 +25,7 @@
 #include "avct_api.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include "avct_int.h"
@@ -35,7 +36,6 @@
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
-#include <com_android_bluetooth_flags.h>
 
 using namespace bluetooth;
 

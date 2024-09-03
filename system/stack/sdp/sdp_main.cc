@@ -93,7 +93,7 @@ static void sdp_on_l2cap_error(uint16_t l2cap_cid, uint16_t /* result */) {
  * Returns          void
  *
  ******************************************************************************/
-static void sdp_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
+static void sdp_connect_cfm(uint16_t l2cap_cid, tL2CAP_CONN result) {
   /* Find CCB based on CID */
   tCONN_CB* p_ccb = sdpu_find_ccb_by_cid(l2cap_cid);
   if (p_ccb == NULL) {
@@ -104,7 +104,7 @@ static void sdp_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
 
   /* If the connection response contains success status, then */
   /* Transition to the next state and startup the timer.      */
-  if ((result == L2CAP_CONN_OK) && (p_ccb->con_state == tSDP_STATE::CONN_SETUP)) {
+  if ((result == tL2CAP_CONN::L2CAP_CONN_OK) && (p_ccb->con_state == tSDP_STATE::CONN_SETUP)) {
     p_ccb->con_state = tSDP_STATE::CFG_SETUP;
   } else {
     log::error("invoked with non OK status");

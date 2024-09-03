@@ -143,7 +143,8 @@ public:
     log::verbose("Step 1");
     // Remote device connect to this channel, we shall accept
     static const uint8_t cmd_id = 0x07;
-    EXPECT_CALL(l2cap_interface_, ConnectResponse(peer_addr, cmd_id, lcid, L2CAP_CONN_OK, 0));
+    EXPECT_CALL(l2cap_interface_,
+                ConnectResponse(peer_addr, cmd_id, lcid, tL2CAP_CONN::L2CAP_CONN_OK, 0));
     tL2CAP_CFG_INFO cfg_req = {.mtu_present = true, .mtu = L2CAP_MTU_SIZE};
     EXPECT_CALL(l2cap_interface_, ConfigRequest(lcid, PointerMemoryEqual(&cfg_req)))
             .WillOnce(Return(true));
@@ -271,7 +272,7 @@ public:
     tL2CAP_CFG_INFO cfg_req = {.mtu_present = true, .mtu = L2CAP_MTU_SIZE};
     EXPECT_CALL(l2cap_interface_, ConfigRequest(lcid, PointerMemoryEqual(&cfg_req)))
             .WillOnce(Return(true));
-    l2cap_appl_info_.pL2CA_ConnectCfm_Cb(lcid, L2CAP_CONN_OK);
+    l2cap_appl_info_.pL2CA_ConnectCfm_Cb(lcid, tL2CAP_CONN::L2CAP_CONN_OK);
 
     log::verbose("Step 2");
     // Remote device confirms our configuration request
@@ -668,14 +669,14 @@ TEST_F(StackRfcommTest, DISABLED_TestConnectionCollision) {
   log::verbose("Step 4");
   // Remote reject our connection request saying PSM not allowed
   // This should trigger RFCOMM to accept remote L2CAP connection at new_lcid
-  EXPECT_CALL(l2cap_interface_,
-              ConnectResponse(test_address, pending_cmd_id, new_lcid, L2CAP_CONN_OK, 0))
+  EXPECT_CALL(l2cap_interface_, ConnectResponse(test_address, pending_cmd_id, new_lcid,
+                                                tL2CAP_CONN::L2CAP_CONN_OK, 0))
           .WillOnce(Return(true));
   // Followed by configure request for MTU size
   tL2CAP_CFG_INFO our_cfg_req = {.mtu_present = true, .mtu = L2CAP_MTU_SIZE};
   EXPECT_CALL(l2cap_interface_, ConfigRequest(new_lcid, PointerMemoryEqual(&our_cfg_req)))
           .WillOnce(Return(true));
-  l2cap_appl_info_.pL2CA_ConnectCfm_Cb(old_lcid, L2CAP_CONN_NO_PSM);
+  l2cap_appl_info_.pL2CA_ConnectCfm_Cb(old_lcid, tL2CAP_CONN::L2CAP_CONN_NO_PSM);
 
   log::verbose("Step 5");
   // Remote device also ask to configure MTU size as well
