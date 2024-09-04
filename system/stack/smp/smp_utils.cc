@@ -971,7 +971,7 @@ void smp_proc_pairing_cmpl(tSMP_CB* p_cb) {
   tSMP_CALLBACK* p_callback = p_cb->p_callback;
   const RawAddress pairing_bda = p_cb->pairing_bda;
 
-  const tSMP_EVT_DATA evt_data = {
+  tSMP_EVT_DATA evt_data = {
           .cmplt =
                   {
                           .reason = p_cb->status,

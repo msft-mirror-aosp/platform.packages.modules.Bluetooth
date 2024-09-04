@@ -156,10 +156,7 @@ void read_phy_cb(base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t sta
  * Description      To read the current PHYs for specified LE connection
  *
  *
- * Returns          BTM_SUCCESS if command successfully sent to controller,
- *                  BTM_MODE_UNSUPPORTED if local controller doesn't support LE
- *                  2M or LE Coded PHY,
- *                  BTM_WRONG_MODE if Device in wrong mode for request.
+ * Returns          void
  *
  ******************************************************************************/
 void BTM_BleReadPhy(const RawAddress& bd_addr,
@@ -170,11 +167,11 @@ void BTM_BleReadPhy(const RawAddress& bd_addr,
     return;
   }
 
-  // checking if local controller supports it!
+  // The connection PHY is always LE_1M when the controller supports
+  // neither LE_2M nor LE_CODED PHYs.
   if (!bluetooth::shim::GetController()->SupportsBle2mPhy() &&
       !bluetooth::shim::GetController()->SupportsBleCodedPhy()) {
-    log::error("request not supported in local controller!");
-    cb.Run(0, 0, GATT_REQ_NOT_SUPPORTED);
+    cb.Run(1, 1, HCI_SUCCESS);
     return;
   }
 

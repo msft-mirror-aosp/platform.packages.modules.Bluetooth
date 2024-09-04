@@ -24,6 +24,7 @@ import android.os.Looper
 import android.os.UserHandle
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.FlagsParameterization
 import android.platform.test.flag.junit.SetFlagsRule
 import android.provider.Settings
 import androidx.test.core.app.ApplicationProvider
@@ -54,13 +55,22 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestName
 import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
+import org.robolectric.ParameterizedRobolectricTestRunner
+import org.robolectric.ParameterizedRobolectricTestRunner.Parameters
 import org.robolectric.shadows.ShadowToast
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(ParameterizedRobolectricTestRunner::class)
 @kotlin.time.ExperimentalTime
-class ModeListenerTest {
+class ModeListenerTest(flags: FlagsParameterization) {
     companion object {
+        @JvmStatic
+        @Parameters(name = "{0}")
+        fun getParams() =
+            FlagsParameterization.allCombinationsOf(
+                Flags.FLAG_AIRPLANE_MODE_X_BLE_ON,
+                Flags.FLAG_GET_STATE_FROM_SYSTEM_SERVER
+            )
+
         internal fun setupAirplaneModeToOn(
             resolver: ContentResolver,
             looper: Looper,
@@ -94,13 +104,17 @@ class ModeListenerTest {
         }
     }
 
+    @get:Rule val testName = TestName()
+    @get:Rule val setFlagsRule = SetFlagsRule()
+
+    init {
+        setFlagsRule.setFlagsParameterization(flags)
+    }
+
     private val looper: Looper = Looper.getMainLooper()
     private val state = BluetoothAdapterState()
     private val mContext = ApplicationProvider.getApplicationContext<Context>()
     private val resolver: ContentResolver = mContext.contentResolver
-
-    @JvmField @Rule val testName = TestName()
-    @JvmField @Rule val setFlagsRule = SetFlagsRule(SetFlagsRule.DefaultInitValueType.NULL_DEFAULT)
 
     private val userContext =
         mContext.createContextAsUser(UserHandle.of(ActivityManager.getCurrentUser()), 0)

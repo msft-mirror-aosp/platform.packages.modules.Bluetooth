@@ -22,8 +22,9 @@
 #include "bta/dm/bta_dm_int.h"
 #include "bta/include/bta_api.h"
 #include "bta/sys/bta_sys.h"
-#include "btm_client_interface.h"
 #include "osi/include/allocator.h"
+#include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
 #include "test/common/main_handler.h"
 #include "test/common/mock_functions.h"
@@ -31,6 +32,7 @@
 #include "test/mock/mock_main_shim_entry.h"
 #include "test/mock/mock_stack_btm_interface.h"
 #include "test/mock/mock_stack_gatt_api.h"
+#include "test/mock/mock_stack_rnr_interface.h"
 
 constexpr tGATT_IF kGattRegisteredIf = 5;
 
@@ -40,7 +42,7 @@ void BTA_dm_on_hw_off();
 extern tBTA_DM_CB bta_dm_cb;
 
 // Set up base mocks and fakes
-class BtaWithFakesTest : public testing::Test {
+class BtaWithFakesTest : public ::testing::Test {
 protected:
   void SetUp() override {
     bta_dm_cb = {};
@@ -62,6 +64,8 @@ protected:
     ASSERT_NE(get_btm_client_interface().lifecycle.btm_free, nullptr);
 
     bluetooth::hci::testing::mock_controller_ = &mock_controller_;
+    bluetooth::testing::stack::rnr::set_interface(&mock_stack_rnr_interface_);
+
     test::mock::stack_gatt_api::GATT_Register.body =
             [](const bluetooth::Uuid& p_app_uuid128, const std::string name, tGATT_CBACK* p_cb_info,
                bool eatt_support) -> tGATT_IF { return kGattRegisteredIf; };
@@ -70,10 +74,8 @@ protected:
                uint8_t* p_num_uuid16) -> uint8_t { return 0; };
     mock_btm_client_interface.eir.BTM_WriteEIR = [](BT_HDR* p_buf) -> tBTM_STATUS {
       osi_free(p_buf);
-      return BTM_SUCCESS;
+      return tBTM_STATUS::BTM_SUCCESS;
     };
-    mock_btm_client_interface.local.BTM_ReadLocalDeviceNameFromController =
-            [](tBTM_CMPL_CB* cb) -> tBTM_STATUS { return BTM_CMD_STARTED; };
     mock_btm_client_interface.security.BTM_SecRegister =
             [](const tBTM_APPL_INFO* p_cb_info) -> bool { return true; };
   }
@@ -83,14 +85,15 @@ protected:
 
     mock_btm_client_interface.eir.BTM_GetEirSupportedServices = {};
     mock_btm_client_interface.eir.BTM_WriteEIR = {};
-    mock_btm_client_interface.local.BTM_ReadLocalDeviceNameFromController = {};
 
+    bluetooth::testing::stack::rnr::reset_interface();
     bluetooth::hci::testing::mock_controller_ = nullptr;
 
     BtaWithFakesTest::TearDown();
   }
 
   bluetooth::hci::testing::MockControllerInterface mock_controller_;
+  bluetooth::testing::stack::rnr::Mock mock_stack_rnr_interface_;
 };
 
 class BtaWithContextTest : public BtaWithMocksTest {

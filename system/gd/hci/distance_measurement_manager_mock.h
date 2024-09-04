@@ -43,7 +43,8 @@ class MockDistanceMeasurementCallbacks : public DistanceMeasurementCallbacks {
 class MockDistanceMeasurementManager : public DistanceMeasurementManager {
 public:
   MOCK_METHOD(void, RegisterDistanceMeasurementCallbacks, (DistanceMeasurementCallbacks*));
-  MOCK_METHOD(void, StartDistanceMeasurement, (Address, uint16_t, DistanceMeasurementMethod));
+  MOCK_METHOD(void, StartDistanceMeasurement,
+              (Address, uint16_t, uint16_t, DistanceMeasurementMethod));
 };
 
 }  // namespace testing

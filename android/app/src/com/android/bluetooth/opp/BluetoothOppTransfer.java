@@ -446,6 +446,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                         mContext.getContentResolver(), contentUri, updateValues, null, null);
     }
 
+    @SuppressLint("WaitNotInLoop")
     private void markBatchFailed(int failReason) {
         synchronized (this) {
             try {
@@ -1020,7 +1021,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
     }
 
     private String getBrEdrAddress(BluetoothDevice device) {
-        if (Flags.identityAddressNullIfUnknown()) {
+        if (Flags.identityAddressNullIfNotKnown()) {
             return Utils.getBrEdrAddress(device);
         }
         return device.getIdentityAddress();

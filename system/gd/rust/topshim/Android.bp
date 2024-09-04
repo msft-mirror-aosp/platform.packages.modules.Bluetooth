@@ -150,6 +150,9 @@ rust_bindgen {
     shared_libs: [
         "libc++",
     ],
+    cflags: [
+        "-DTARGET_FLOSS",
+    ],
     static_libs: [
         "libbluetooth_log",
     ],

@@ -185,17 +185,6 @@ struct BTM_RemoteOobDataReply {
 };
 extern struct BTM_RemoteOobDataReply BTM_RemoteOobDataReply;
 
-// Name: BTM_SecAddRmtNameNotifyCallback
-// Params: tBTM_RMT_NAME_CALLBACK* p_callback
-// Return: bool
-struct BTM_SecAddRmtNameNotifyCallback {
-  static bool return_value;
-  std::function<bool(tBTM_RMT_NAME_CALLBACK* p_callback)> body{
-          [](tBTM_RMT_NAME_CALLBACK* /* p_callback */) { return return_value; }};
-  bool operator()(tBTM_RMT_NAME_CALLBACK* p_callback) { return body(p_callback); }
-};
-extern struct BTM_SecAddRmtNameNotifyCallback BTM_SecAddRmtNameNotifyCallback;
-
 // Name: BTM_SecBond
 // Params: const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type, tBT_TRANSPORT
 // transport, tBT_DEVICE_TYPE device_type, uint8_t pin_len, uint8_t* p_pin
@@ -245,17 +234,6 @@ struct BTM_SecClrServiceByPsm {
   uint8_t operator()(uint16_t psm) { return body(psm); }
 };
 extern struct BTM_SecClrServiceByPsm BTM_SecClrServiceByPsm;
-
-// Name: BTM_SecDeleteRmtNameNotifyCallback
-// Params: tBTM_RMT_NAME_CALLBACK* p_callback
-// Return: bool
-struct BTM_SecDeleteRmtNameNotifyCallback {
-  static bool return_value;
-  std::function<bool(tBTM_RMT_NAME_CALLBACK* p_callback)> body{
-          [](tBTM_RMT_NAME_CALLBACK* /* p_callback */) { return return_value; }};
-  bool operator()(tBTM_RMT_NAME_CALLBACK* p_callback) { return body(p_callback); }
-};
-extern struct BTM_SecDeleteRmtNameNotifyCallback BTM_SecDeleteRmtNameNotifyCallback;
 
 // Name: BTM_SecGetDeviceLinkKeyType
 // Params: const RawAddress& bd_addr

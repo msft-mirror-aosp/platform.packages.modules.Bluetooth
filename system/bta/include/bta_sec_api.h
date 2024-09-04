@@ -76,6 +76,7 @@ typedef struct {
   RawAddress bd_addr;  /* BD address peer device. */
   DEV_CLASS dev_class; /* Class of Device */
   BD_NAME bd_name;     /* Name of peer device. */
+
   bool min_16_digit;   /* true if the pin returned must be at least 16 digits */
 } tBTA_DM_PIN_REQ;
 
@@ -121,7 +122,10 @@ enum class tBTA_DM_BLE_SEC_GRANT {
 
 /* Structure associated with BTA_DM_BLE_SEC_REQ_EVT */
 typedef struct {
+  /* Note: First 3 data members must be, bd_addr, dev_class, and bd_name in
+   * order */
   RawAddress bd_addr; /* peer address */
+  DEV_CLASS dev_class;
   BD_NAME bd_name;    /* peer device name */
 } tBTA_DM_BLE_SEC_REQ;
 
@@ -169,6 +173,7 @@ typedef struct {
   RawAddress bd_addr;         /* peer address */
   DEV_CLASS dev_class;        /* peer CoD */
   BD_NAME bd_name;            /* peer device name */
+
   uint32_t num_val;           /* the numeric value for comparison. If just_works, do not
                                  show this number to UI */
   bool just_works;            /* true, if "Just Works" association model */
@@ -185,6 +190,7 @@ typedef struct {
   RawAddress bd_addr;  /* peer address */
   DEV_CLASS dev_class; /* peer CoD */
   BD_NAME bd_name;     /* peer device name */
+
   uint32_t passkey;    /* the numeric value for comparison. If just_works, do not
                           show this number to UI */
 } tBTA_DM_SP_KEY_NOTIF;

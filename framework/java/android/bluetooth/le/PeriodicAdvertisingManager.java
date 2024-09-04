@@ -222,6 +222,8 @@ public final class PeriodicAdvertisingManager {
      *
      * @hide
      */
+    @RequiresBluetoothScanPermission
+    @RequiresPermission(BLUETOOTH_SCAN)
     public void transferSync(BluetoothDevice bda, int serviceData, int syncHandle) {
         if (Flags.scanManagerRefactor()) {
             IBluetoothScan scan = mBluetoothAdapter.getBluetoothScan();
@@ -247,6 +249,8 @@ public final class PeriodicAdvertisingManager {
      *
      * @hide
      */
+    @RequiresBluetoothScanPermission
+    @RequiresPermission(BLUETOOTH_SCAN)
     public void transferSetInfo(
             BluetoothDevice bda,
             int serviceData,
@@ -260,6 +264,8 @@ public final class PeriodicAdvertisingManager {
      *
      * @hide
      */
+    @RequiresBluetoothScanPermission
+    @RequiresPermission(BLUETOOTH_SCAN)
     public void transferSetInfo(
             BluetoothDevice bda,
             int serviceData,

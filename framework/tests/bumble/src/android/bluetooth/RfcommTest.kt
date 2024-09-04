@@ -16,6 +16,7 @@
 package android.bluetooth
 
 import android.Manifest
+import android.bluetooth.test_utils.EnableBluetoothRule
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -38,14 +39,14 @@ import pandora.RfcommProto.ServerId
 import pandora.RfcommProto.StartServerRequest
 
 @RunWith(AndroidJUnit4::class)
-@kotlinx.coroutines.ExperimentalCoroutinesApi
+@ExperimentalCoroutinesApi
 class RfcommTest {
     private val mContext = ApplicationProvider.getApplicationContext<Context>()
     private val mManager = mContext.getSystemService(BluetoothManager::class.java)
     private val mAdapter = mManager!!.adapter
 
     // Gives shell permissions during the test.
-    @Rule
+    @Rule(order = 0)
     @JvmField
     val mPermissionsRule =
         AdoptShellPermissionsRule(
@@ -55,7 +56,9 @@ class RfcommTest {
         )
 
     // Set up a Bumble Pandora device for the duration of the test.
-    @Rule @JvmField val mBumble = PandoraDevice()
+    @Rule(order = 1) @JvmField val mBumble = PandoraDevice()
+
+    @Rule(order = 2) @JvmField val enableBluetoothRule = EnableBluetoothRule(false, true)
 
     private lateinit var mBumbleDevice: BluetoothDevice
     private lateinit var host: Host
