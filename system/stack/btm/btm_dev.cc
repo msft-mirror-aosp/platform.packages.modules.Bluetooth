@@ -250,6 +250,25 @@ const char* BTM_SecReadDevName(const RawAddress& bd_addr) {
 
 /*******************************************************************************
  *
+ * Function         BTM_SecReadDevClass
+ *
+ * Description      Looks for the class of device in the security database for
+ *                  the specified BD address.
+ *
+ * Returns          Class of device or kDevClassEmpty
+ *
+ ******************************************************************************/
+DEV_CLASS BTM_SecReadDevClass(const RawAddress& bd_addr) {
+  tBTM_SEC_DEV_REC* p_srec = btm_find_dev(bd_addr);
+  if (p_srec != nullptr) {
+    return p_srec->dev_class;
+  }
+
+  return kDevClassEmpty;
+}
+
+/*******************************************************************************
+ *
  * Function         btm_sec_alloc_dev
  *
  * Description      Allocate a security device record with specified address,

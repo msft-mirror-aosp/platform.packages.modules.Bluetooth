@@ -28,6 +28,7 @@
 #define LOG_TAG "bluetooth"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include "avct_api.h"
@@ -40,7 +41,6 @@
 #include "stack/avct/avct_defs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
-#include <com_android_bluetooth_flags.h>
 
 using namespace bluetooth;
 

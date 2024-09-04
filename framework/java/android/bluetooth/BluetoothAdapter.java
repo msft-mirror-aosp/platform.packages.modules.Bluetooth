@@ -1514,7 +1514,12 @@ public final class BluetoothAdapter {
             new BluetoothCache<>(GET_STATE_API, sBluetoothGetStateQuery);
 
     private static final IpcDataCache<IBluetoothManager, Integer> sBluetoothGetSystemStateCache =
-            new BluetoothCache<>(GET_SYSTEM_STATE_API, sBluetoothGetSystemStateQuery);
+            new IpcDataCache<>(
+                    8,
+                    IBluetoothManager.IPC_CACHE_MODULE_SYSTEM,
+                    GET_SYSTEM_STATE_API,
+                    GET_SYSTEM_STATE_API,
+                    sBluetoothGetSystemStateQuery);
 
     /** @hide */
     @RequiresNoPermission

@@ -275,7 +275,7 @@ static btif_dm_metadata_cb_t metadata_cb{.le_audio_cache{40}};
 static void btif_dm_cb_create_bond(const RawAddress bd_addr, tBT_TRANSPORT transport);
 static void btif_dm_cb_create_bond_le(const RawAddress bd_addr, tBLE_ADDR_TYPE addr_type);
 static btif_dm_local_key_cb_t ble_local_key_cb;
-static void btif_dm_ble_key_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif);
+static void btif_dm_ble_passkey_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif);
 static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl);
 static void btif_dm_ble_passkey_req_evt(tBTA_DM_PIN_REQ* p_pin_req);
 static void btif_dm_ble_key_nc_req_evt(tBTA_DM_SP_KEY_NOTIF* p_notif_req);
@@ -484,18 +484,12 @@ static bool get_cached_remote_name(const RawAddress& bd_addr, uint8_t* p_remote_
 }
 
 static uint32_t get_cod(const RawAddress* remote_bdaddr) {
-  uint32_t remote_cod;
-  bt_property_t prop_name;
-
-  /* check if we already have it in our btif_storage cache */
-  BTIF_STORAGE_FILL_PROPERTY(&prop_name, BT_PROPERTY_CLASS_OF_DEVICE, sizeof(uint32_t),
-                             &remote_cod);
-  if (btif_storage_get_remote_device_property((RawAddress*)remote_bdaddr, &prop_name) ==
-      BT_STATUS_SUCCESS) {
-    return remote_cod;
+  uint32_t remote_cod = 0;
+  if (!btif_storage_get_cod(*remote_bdaddr, &remote_cod)) {
+    remote_cod = 0;
   }
 
-  return 0;
+  return remote_cod;
 }
 
 bool check_cod(const RawAddress* remote_bdaddr, uint32_t cod) {
@@ -2132,7 +2126,7 @@ void btif_dm_sec_evt(tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
       break;
     case BTA_DM_BLE_PASSKEY_NOTIF_EVT:
       log::verbose("BTA_DM_BLE_PASSKEY_NOTIF_EVT");
-      btif_dm_ble_key_notif_evt(&p_data->key_notif);
+      btif_dm_ble_passkey_notif_evt(&p_data->key_notif);
       break;
     case BTA_DM_BLE_PASSKEY_REQ_EVT:
       log::verbose("BTA_DM_BLE_PASSKEY_REQ_EVT");
@@ -3229,7 +3223,7 @@ bool btif_dm_proc_rmt_oob(const RawAddress& bd_addr, Octet16* p_c, Octet16* p_r)
   return true;
 }
 
-static void btif_dm_ble_key_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif) {
+static void btif_dm_ble_passkey_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif) {
   RawAddress bd_addr;
   int dev_type;
 
@@ -3239,8 +3233,8 @@ static void btif_dm_ble_key_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif) {
   if (!btif_get_device_type(p_ssp_key_notif->bd_addr, &dev_type)) {
     dev_type = BT_DEVICE_TYPE_BLE;
   }
-  btif_update_remote_properties(p_ssp_key_notif->bd_addr, p_ssp_key_notif->bd_name, kDevClassEmpty,
-                                (tBT_DEVICE_TYPE)dev_type);
+  btif_update_remote_properties(p_ssp_key_notif->bd_addr, p_ssp_key_notif->bd_name,
+                                p_ssp_key_notif->dev_class, (tBT_DEVICE_TYPE)dev_type);
   bd_addr = p_ssp_key_notif->bd_addr;
 
   bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
@@ -3516,7 +3510,7 @@ static void btif_dm_ble_sec_req_evt(tBTA_DM_BLE_SEC_REQ* p_ble_req, bool is_cons
   if (!btif_get_device_type(p_ble_req->bd_addr, &dev_type)) {
     dev_type = BT_DEVICE_TYPE_BLE;
   }
-  btif_update_remote_properties(p_ble_req->bd_addr, p_ble_req->bd_name, kDevClassEmpty,
+  btif_update_remote_properties(p_ble_req->bd_addr, p_ble_req->bd_name, p_ble_req->dev_class,
                                 (tBT_DEVICE_TYPE)dev_type);
 
   RawAddress bd_addr = p_ble_req->bd_addr;
@@ -3552,7 +3546,7 @@ static void btif_dm_ble_passkey_req_evt(tBTA_DM_PIN_REQ* p_pin_req) {
   if (!btif_get_device_type(p_pin_req->bd_addr, &dev_type)) {
     dev_type = BT_DEVICE_TYPE_BLE;
   }
-  btif_update_remote_properties(p_pin_req->bd_addr, p_pin_req->bd_name, kDevClassEmpty,
+  btif_update_remote_properties(p_pin_req->bd_addr, p_pin_req->bd_name, p_pin_req->dev_class,
                                 (tBT_DEVICE_TYPE)dev_type);
 
   RawAddress bd_addr = p_pin_req->bd_addr;
@@ -3575,7 +3569,7 @@ static void btif_dm_ble_key_nc_req_evt(tBTA_DM_SP_KEY_NOTIF* p_notif_req) {
   log::verbose("addr:{}", bd_addr);
 
   /* Remote name update */
-  btif_update_remote_properties(p_notif_req->bd_addr, p_notif_req->bd_name, kDevClassEmpty,
+  btif_update_remote_properties(p_notif_req->bd_addr, p_notif_req->bd_name, p_notif_req->dev_class,
                                 BT_DEVICE_TYPE_BLE);
 
   bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
@@ -3609,8 +3603,8 @@ static void btif_dm_ble_oob_req_evt(tBTA_DM_SP_RMT_OOB* req_oob_type) {
   }
 
   /* Remote name update */
-  btif_update_remote_properties(req_oob_type->bd_addr, req_oob_type->bd_name, kDevClassEmpty,
-                                BT_DEVICE_TYPE_BLE);
+  btif_update_remote_properties(req_oob_type->bd_addr, req_oob_type->bd_name,
+                                req_oob_type->dev_class, BT_DEVICE_TYPE_BLE);
 
   bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
   pairing_cb.is_ssp = false;
@@ -3660,8 +3654,8 @@ static void btif_dm_ble_sc_oob_req_evt(tBTA_DM_SP_RMT_OOB* req_oob_type) {
   }
 
   /* Remote name update */
-  btif_update_remote_properties(req_oob_type->bd_addr, oob_data_to_use.device_name, kDevClassEmpty,
-                                BT_DEVICE_TYPE_BLE);
+  btif_update_remote_properties(req_oob_type->bd_addr, oob_data_to_use.device_name,
+                                req_oob_type->dev_class, BT_DEVICE_TYPE_BLE);
 
   bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
   pairing_cb.is_ssp = false;

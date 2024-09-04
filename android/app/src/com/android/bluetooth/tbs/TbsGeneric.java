@@ -367,11 +367,11 @@ public class TbsGeneric {
         }
 
         if (callback != null) {
+            Log.d(TAG, "ccid=" + bearer.ccid);
             try {
-                Log.d(TAG, "ccid=" + bearer.ccid);
                 callback.onBearerRegistered(bearer.ccid);
             } catch (RemoteException e) {
-                e.printStackTrace();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
 
@@ -791,7 +791,7 @@ public class TbsGeneric {
             try {
                 bearer.callback.onPlaceCall(requestId, new ParcelUuid(callId), uri);
             } catch (RemoteException e) {
-                e.printStackTrace();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                 return TbsGatt.CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;
             }
 
@@ -915,7 +915,11 @@ public class TbsGeneric {
                                                     requestId, new ParcelUuid(callId));
                                         }
                                     } catch (RemoteException e) {
-                                        e.printStackTrace();
+                                        Log.e(
+                                                TAG,
+                                                e.toString()
+                                                        + "\n"
+                                                        + Log.getStackTraceString(new Throwable()));
                                         result =
                                                 TbsGatt
                                                         .CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;
@@ -986,7 +990,11 @@ public class TbsGeneric {
                                     try {
                                         bearer.callback.onJoinCalls(requestId, parcelUuids);
                                     } catch (RemoteException e) {
-                                        e.printStackTrace();
+                                        Log.e(
+                                                TAG,
+                                                e.toString()
+                                                        + "\n"
+                                                        + Log.getStackTraceString(new Throwable()));
                                         result =
                                                 TbsGatt
                                                         .CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;
@@ -1006,7 +1014,7 @@ public class TbsGeneric {
                         }
 
                         if (result == TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS) {
-                            // return here and wait for the request completition from application
+                            // return here and wait for the request completion from application
                             return;
                         }
 

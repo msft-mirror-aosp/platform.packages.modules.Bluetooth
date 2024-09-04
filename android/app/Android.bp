@@ -329,6 +329,7 @@ android_app {
             "-Xep:AndroidFrameworkEfficientStrings:ERROR",
             "-Xep:AndroidFrameworkRequiresPermission:ERROR",
             "-Xep:BadImport:ERROR",
+            "-Xep:CatchAndPrintStackTrace:ERROR",
             "-Xep:ClassCanBeStatic:ERROR",
             "-Xep:DateFormatConstant:ERROR",
             "-Xep:EmptyBlockTag:ERROR",

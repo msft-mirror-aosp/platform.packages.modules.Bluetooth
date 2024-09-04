@@ -4789,9 +4789,7 @@ void btm_sec_cr_loc_oob_data_cback_event(const RawAddress& address,
   tBTM_LE_EVT_DATA evt_data = {
           .local_oob_data = loc_oob_data,
   };
-  if (btm_sec_cb.api.p_le_callback) {
-    (*btm_sec_cb.api.p_le_callback)(BTM_LE_SC_LOC_OOB_EVT, address, &evt_data);
-  }
+  BTM_BLE_SEC_CALLBACK(BTM_LE_SC_LOC_OOB_EVT, address, &evt_data);
 }
 
 /*******************************************************************************
