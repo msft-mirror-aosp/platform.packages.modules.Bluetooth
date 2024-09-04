@@ -21,12 +21,14 @@
 
 #include "bta/dm/bta_dm_sec_int.h"
 #include "bta/test/bta_test_fixtures.h"
-#include "btm_status.h"
-#include "test/mock/mock_stack_btm_inq.h"
+#include "stack/include/btm_status.h"
 #include "test/mock/mock_stack_btm_interface.h"
+#include "test/mock/mock_stack_rnr_interface.h"
 #include "types/raw_address.h"
 
+using ::testing::_;
 using ::testing::ElementsAre;
+using ::testing::Return;
 
 namespace {
 const RawAddress kRawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
@@ -50,17 +52,22 @@ tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data);
 
 class BtaSecTest : public BtaWithHwOnTest {
 protected:
-  void SetUp() override { BtaWithHwOnTest::SetUp(); }
+  void SetUp() override {
+    BtaWithHwOnTest::SetUp();
+    bluetooth::testing::stack::rnr::set_interface(&mock_stack_rnr_interface_);
+  }
 
-  void TearDown() override { BtaWithHwOnTest::TearDown(); }
+  void TearDown() override {
+    bluetooth::testing::stack::rnr::reset_interface();
+    BtaWithHwOnTest::TearDown();
+  }
+
+  bluetooth::testing::stack::rnr::Mock mock_stack_rnr_interface_;
 };
 
 TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithName) {
   constexpr uint32_t kNumVal = 1234;
   static bool callback_sent = false;
-  mock_btm_client_interface.peer.BTM_ReadRemoteDeviceName =
-          [](const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb,
-             tBT_TRANSPORT transport) -> tBTM_STATUS { return BTM_CMD_STARTED; };
 
   static tBTA_DM_SP_CFM_REQ cfm_req{};
   bta_dm_sec_enable([](tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
@@ -87,7 +94,7 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithName) {
   bd_name_from_char_pointer(data.cfm_req.bd_name, kRemoteName);
 
   ASSERT_EQ(
-          btm_status_text(BTM_CMD_STARTED),
+          btm_status_text(tBTM_STATUS::BTM_CMD_STARTED),
           btm_status_text(bluetooth::legacy::testing::bta_dm_sp_cback(BTM_SP_CFM_REQ_EVT, &data)));
   ASSERT_EQ(kNumVal, bta_dm_sec_cb.num_val);
   ASSERT_TRUE(callback_sent);
@@ -107,9 +114,9 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithoutName_RNRSuccess) {
   constexpr uint32_t kNumVal = 1234;
   static bool callback_sent = false;
   reset_mock_btm_client_interface();
-  mock_btm_client_interface.peer.BTM_ReadRemoteDeviceName =
-          [](const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb,
-             tBT_TRANSPORT transport) -> tBTM_STATUS { return BTM_CMD_STARTED; };
+
+  EXPECT_CALL(mock_stack_rnr_interface_, BTM_ReadRemoteDeviceName(_, _, _))
+          .WillOnce(Return(tBTM_STATUS::BTM_CMD_STARTED));
 
   static tBTA_DM_SP_CFM_REQ cfm_req{};
   bta_dm_sec_enable([](tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
@@ -135,7 +142,7 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithoutName_RNRSuccess) {
   data.cfm_req.dev_class = kDeviceClass;
 
   ASSERT_EQ(
-          btm_status_text(BTM_CMD_STARTED),
+          btm_status_text(tBTM_STATUS::BTM_CMD_STARTED),
           btm_status_text(bluetooth::legacy::testing::bta_dm_sp_cback(BTM_SP_CFM_REQ_EVT, &data)));
   ASSERT_EQ(kNumVal, bta_dm_sec_cb.num_val);
   ASSERT_FALSE(callback_sent);
@@ -144,9 +151,9 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithoutName_RNRSuccess) {
 TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithoutName_RNRFail) {
   constexpr uint32_t kNumVal = 1234;
   static bool callback_sent = false;
-  mock_btm_client_interface.peer.BTM_ReadRemoteDeviceName =
-          [](const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb,
-             tBT_TRANSPORT transport) -> tBTM_STATUS { return BTM_SUCCESS; };
+
+  EXPECT_CALL(mock_stack_rnr_interface_, BTM_ReadRemoteDeviceName(_, _, _))
+          .WillOnce(Return(tBTM_STATUS::BTM_SUCCESS));
 
   static tBTA_DM_SP_CFM_REQ cfm_req{};
   bta_dm_sec_enable([](tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
@@ -172,7 +179,7 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithoutName_RNRFail) {
   data.cfm_req.dev_class = kDeviceClass;
 
   ASSERT_EQ(
-          btm_status_text(BTM_CMD_STARTED),
+          btm_status_text(tBTM_STATUS::BTM_CMD_STARTED),
           btm_status_text(bluetooth::legacy::testing::bta_dm_sp_cback(BTM_SP_CFM_REQ_EVT, &data)));
   ASSERT_EQ(kNumVal, bta_dm_sec_cb.num_val);
   ASSERT_TRUE(callback_sent);
@@ -190,9 +197,9 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithoutName_RNRFail) {
 TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_KEY_NOTIF_EVT) {
   constexpr uint32_t kPassKey = 1234;
   static bool callback_sent = false;
-  mock_btm_client_interface.peer.BTM_ReadRemoteDeviceName =
-          [](const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb,
-             tBT_TRANSPORT transport) -> tBTM_STATUS { return BTM_CMD_STARTED; };
+
+  ON_CALL(mock_stack_rnr_interface_, BTM_ReadRemoteDeviceName(_, _, _))
+          .WillByDefault(Return(tBTM_STATUS::BTM_CMD_STARTED));
 
   static tBTA_DM_SP_KEY_NOTIF key_notif{};
   bta_dm_sec_enable([](tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
@@ -213,7 +220,7 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_KEY_NOTIF_EVT) {
   data.key_notif.dev_class = kDeviceClass;
   bd_name_from_char_pointer(data.key_notif.bd_name, kRemoteName);
 
-  ASSERT_EQ(btm_status_text(BTM_CMD_STARTED),
+  ASSERT_EQ(btm_status_text(tBTM_STATUS::BTM_CMD_STARTED),
             btm_status_text(
                     bluetooth::legacy::testing::bta_dm_sp_cback(BTM_SP_KEY_NOTIF_EVT, &data)));
   ASSERT_EQ(kPassKey, bta_dm_sec_cb.num_val);

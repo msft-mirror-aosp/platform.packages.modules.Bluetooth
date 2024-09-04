@@ -61,6 +61,7 @@
 #include "stack/include/btm_ble_addr.h"
 #include "stack/include/btm_ble_privacy.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/gap_api.h"
 #include "stack/include/gattdefs.h"
 #include "stack/include/hci_error_code.h"
@@ -287,6 +288,7 @@ static void btm_ble_start_slow_adv(void);
 static void btm_ble_inquiry_timer_gap_limited_discovery_timeout(void* data);
 static void btm_ble_inquiry_timer_timeout(void* data);
 static void btm_ble_observer_timer_timeout(void* data);
+static DEV_CLASS btm_ble_appearance_to_cod(uint16_t appearance);
 
 enum : uint8_t {
   BTM_BLE_NOT_SCANNING = 0x00,
@@ -515,7 +517,7 @@ std::pair<uint16_t /* interval */, uint16_t /* window */> get_low_latency_scan_p
  ******************************************************************************/
 tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_results_cb,
                            tBTM_CMPL_CB* p_cmpl_cb) {
-  tBTM_STATUS status = BTM_WRONG_MODE;
+  tBTM_STATUS status = tBTM_STATUS::BTM_WRONG_MODE;
   uint8_t scan_phy = !btm_cb.ble_ctr_cb.inq_var.scan_phy ? BTM_BLE_DEFAULT_PHYS
                                                          : btm_cb.ble_ctr_cb.inq_var.scan_phy;
 
@@ -527,7 +529,7 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
                ll_scan_window);
 
   if (!bluetooth::shim::GetController()->SupportsBle()) {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   if (start) {
@@ -550,7 +552,7 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
                                     btm_cb.ble_ctr_cb.inq_var.scan_window == ll_scan_window;
       if (is_ongoing_low_latency) {
         log::warn("Observer was already active, is_low_latency: {}", is_ongoing_low_latency);
-        return BTM_CMD_STARTED;
+        return tBTM_STATUS::BTM_CMD_STARTED;
       }
       // stop any scan without low latency config
       btm_ble_stop_observe();
@@ -558,7 +560,7 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
 
     btm_cb.ble_ctr_cb.p_obs_results_cb = p_results_cb;
     btm_cb.ble_ctr_cb.p_obs_cmpl_cb = p_cmpl_cb;
-    status = BTM_CMD_STARTED;
+    status = tBTM_STATUS::BTM_CMD_STARTED;
 
     /* scan is not started */
     if (!btm_cb.ble_ctr_cb.is_ble_scan_active()) {
@@ -569,7 +571,7 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
                       ? BTM_BLE_SCAN_MODE_ACTI
                       : btm_cb.ble_ctr_cb.inq_var.scan_type;
       btm_send_hci_set_scan_params(btm_cb.ble_ctr_cb.inq_var.scan_type, (uint16_t)ll_scan_interval,
-                                   (uint8_t)scan_phy, (uint16_t)ll_scan_window,
+                                   (uint8_t)ll_scan_window, (uint16_t)scan_phy,
                                    btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type,
                                    BTM_BLE_DEFAULT_SFP);
 
@@ -584,7 +586,7 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
     BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Le observe started",
                    "low latency scanning enabled");
 
-    if (status == BTM_CMD_STARTED) {
+    if (status == tBTM_STATUS::BTM_CMD_STARTED) {
       btm_cb.ble_ctr_cb.set_ble_observe_active();
       if (duration != 0) {
         /* start observer timer */
@@ -600,7 +602,7 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
                    base::StringPrintf("duration_s:%6.3f results:%-3lu",
                                       (double)duration_timestamp / 1000.0,
                                       btm_cb.neighbor.le_observe.results));
-    status = BTM_CMD_STARTED;
+    status = tBTM_STATUS::BTM_CMD_STARTED;
     btm_ble_stop_observe();
   } else {
     log::error("Observe not active");
@@ -1005,7 +1007,7 @@ void btm_ble_periodic_adv_sync_established(uint8_t status, uint16_t sync_handle,
   /*if (param_len != ADV_SYNC_ESTB_EVT_LEN) {
     log::error("[PSync]Invalid event length");
     STREAM_TO_UINT8(status, param);
-    if (status == BTM_SUCCESS) {
+    if (status == tBTM_STATUS::BTM_SUCCESS) {
       STREAM_TO_UINT16(sync_handle, param);
       //btsnd_hcic_ble_terminate_periodic_sync(sync_handle);
       if (BleScanningManager::IsInitialized()) {
@@ -1025,7 +1027,7 @@ void btm_ble_periodic_adv_sync_established(uint8_t status, uint16_t sync_handle,
   int index = btm_ble_get_psync_index(adv_sid, bda);
   if (index == MAX_SYNC_TRANSACTION) {
     log::warn("[PSync]: Invalid index for sync established");
-    if (status == BTM_SUCCESS) {
+    if (status == 0) {
       log::warn("Terminate sync");
       if (BleScanningManager::IsInitialized()) {
         BleScanningManager::Get()->PeriodicScanTerminate(sync_handle);
@@ -1303,7 +1305,7 @@ void btm_ble_set_adv_flag(uint16_t connect_mode, uint16_t disc_mode) {
  *
  * Parameters:      combined_mode: discoverability mode.
  *
- * Returns          BTM_SUCCESS is status set successfully; otherwise failure.
+ * Returns          tBTM_STATUS::BTM_SUCCESS is status set successfully; otherwise failure.
  *
  ******************************************************************************/
 tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode) {
@@ -1311,7 +1313,7 @@ tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode) {
   uint16_t mode = (combined_mode & BTM_BLE_DISCOVERABLE_MASK);
   uint8_t new_mode = BTM_BLE_ADV_ENABLE;
   uint8_t evt_type;
-  tBTM_STATUS status = BTM_SUCCESS;
+  tBTM_STATUS status = tBTM_STATUS::BTM_SUCCESS;
   RawAddress address = RawAddress::kEmpty;
   tBLE_ADDR_TYPE init_addr_type = BLE_ADDR_PUBLIC, own_addr_type = p_addr_cb->own_addr_type;
   uint16_t adv_int_min, adv_int_max;
@@ -1320,7 +1322,7 @@ tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode) {
 
   /*** Check mode parameter ***/
   if (mode > BTM_BLE_MAX_DISCOVERABLE) {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   btm_cb.ble_ctr_cb.inq_var.discoverable_mode = mode;
@@ -1357,7 +1359,7 @@ tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode) {
     }
   }
 
-  if (status == BTM_SUCCESS && btm_cb.ble_ctr_cb.inq_var.adv_mode != new_mode) {
+  if (status == tBTM_STATUS::BTM_SUCCESS && btm_cb.ble_ctr_cb.inq_var.adv_mode != new_mode) {
     if (new_mode == BTM_BLE_ADV_ENABLE) {
       status = btm_ble_start_adv();
     } else {
@@ -1373,7 +1375,7 @@ tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode) {
   }
 
   /* set up stop advertising timer */
-  if (status == BTM_SUCCESS && mode == BTM_BLE_LIMITED_DISCOVERABLE) {
+  if (status == tBTM_STATUS::BTM_SUCCESS && mode == BTM_BLE_LIMITED_DISCOVERABLE) {
     log::verbose("start timer for limited disc mode duration={} ms", BTM_BLE_GAP_LIM_TIMEOUT_MS);
     /* start Tgap(lim_timeout) */
     alarm_set_on_mloop(btm_cb.ble_ctr_cb.inq_var.inquiry_timer, BTM_BLE_GAP_LIM_TIMEOUT_MS,
@@ -1390,7 +1392,7 @@ tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode) {
  *
  * Parameters:      combined_mode: connectability mode.
  *
- * Returns          BTM_SUCCESS is status set successfully; otherwise failure.
+ * Returns          tBTM_STATUS::BTM_SUCCESS is status set successfully; otherwise failure.
  *
  ******************************************************************************/
 tBTM_STATUS btm_ble_set_connectability(uint16_t combined_mode) {
@@ -1398,7 +1400,7 @@ tBTM_STATUS btm_ble_set_connectability(uint16_t combined_mode) {
   uint16_t mode = (combined_mode & BTM_BLE_CONNECTABLE_MASK);
   uint8_t new_mode = BTM_BLE_ADV_ENABLE;
   uint8_t evt_type;
-  tBTM_STATUS status = BTM_SUCCESS;
+  tBTM_STATUS status = tBTM_STATUS::BTM_SUCCESS;
   RawAddress address = RawAddress::kEmpty;
   tBLE_ADDR_TYPE peer_addr_type = BLE_ADDR_PUBLIC, own_addr_type = p_addr_cb->own_addr_type;
   uint16_t adv_int_min, adv_int_max;
@@ -1407,7 +1409,7 @@ tBTM_STATUS btm_ble_set_connectability(uint16_t combined_mode) {
 
   /*** Check mode parameter ***/
   if (mode > BTM_BLE_MAX_CONNECTABLE) {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   btm_cb.ble_ctr_cb.inq_var.connectable_mode = mode;
@@ -1439,7 +1441,7 @@ tBTM_STATUS btm_ble_set_connectability(uint16_t combined_mode) {
   }
 
   /* update advertising mode */
-  if (status == BTM_SUCCESS && new_mode != btm_cb.ble_ctr_cb.inq_var.adv_mode) {
+  if (status == tBTM_STATUS::BTM_SUCCESS && new_mode != btm_cb.ble_ctr_cb.inq_var.adv_mode) {
     if (new_mode == BTM_BLE_ADV_ENABLE) {
       status = btm_ble_start_adv();
     } else {
@@ -1468,15 +1470,25 @@ void btm_send_hci_set_scan_params(uint8_t scan_type, uint16_t scan_int, uint16_t
                                   uint8_t scan_phy, tBLE_ADDR_TYPE addr_type_own,
                                   uint8_t scan_filter_policy) {
   if (bluetooth::shim::GetController()->SupportsBleExtendedAdvertising()) {
-    scanning_phy_cfg phy_cfg;
-    phy_cfg.scan_type = scan_type;
-    phy_cfg.scan_int = scan_int;
-    phy_cfg.scan_win = scan_win;
-
     if (com::android::bluetooth::flags::phy_to_native()) {
+      int phy_cnt = std::bitset<std::numeric_limits<uint8_t>::digits>(scan_phy).count();
+
+      scanning_phy_cfg phy_cfgs[phy_cnt];
+
+      for (int i = 0; i < phy_cnt; i++) {
+        phy_cfgs[i].scan_type = scan_type;
+        phy_cfgs[i].scan_int = scan_int;
+        phy_cfgs[i].scan_win = scan_win;
+      }
+
       btsnd_hcic_ble_set_extended_scan_params(addr_type_own, scan_filter_policy, scan_phy,
-                                              &phy_cfg);
+                                              phy_cfgs);
     } else {
+      scanning_phy_cfg phy_cfg;
+      phy_cfg.scan_type = scan_type;
+      phy_cfg.scan_int = scan_int;
+      phy_cfg.scan_win = scan_win;
+
       btsnd_hcic_ble_set_extended_scan_params(addr_type_own, scan_filter_policy, 1, &phy_cfg);
     }
   } else {
@@ -1489,8 +1501,8 @@ void btm_send_hci_set_scan_params(uint8_t scan_type, uint16_t scan_int, uint16_t
 static void btm_ble_scan_filt_param_cfg_evt(uint8_t /* avbl_space */,
                                             tBTM_BLE_SCAN_COND_OP /* action_type */,
                                             tBTM_STATUS btm_status) {
-  if (btm_status != btm_status_value(BTM_SUCCESS)) {
-    log::error("{}", btm_status);
+  if (btm_status != tBTM_STATUS::BTM_SUCCESS) {
+    log::error("{}", btm_status_text(btm_status));
   } else {
     log::verbose("");
   }
@@ -1504,10 +1516,12 @@ static void btm_ble_scan_filt_param_cfg_evt(uint8_t /* avbl_space */,
  *                  If the duration is zero, the periodic inquiry mode is
  *                  cancelled.
  *
- * Parameters:      duration - Duration of inquiry in seconds
+ * Parameters:      duration - Duration of inquiry in seconds. With flag
+ *                             le_inquiry_duration duration is a multiplier for
+ *                             1.28 seconds.
  *
- * Returns          BTM_CMD_STARTED if successfully started
- *                  BTM_BUSY - if an inquiry is already active
+ * Returns          tBTM_STATUS::BTM_CMD_STARTED if successfully started
+ *                  tBTM_STATUS::BTM_BUSY - if an inquiry is already active
  *
  ******************************************************************************/
 tBTM_STATUS btm_ble_start_inquiry(uint8_t duration) {
@@ -1517,7 +1531,7 @@ tBTM_STATUS btm_ble_start_inquiry(uint8_t duration) {
    */
   if (btm_cb.ble_ctr_cb.is_ble_inquiry_active()) {
     log::error("LE Inquiry is active, can not start inquiry");
-    return BTM_BUSY;
+    return tBTM_STATUS::BTM_BUSY;
   }
 
   /* Cleanup anything remaining on index 0 */
@@ -1550,8 +1564,10 @@ tBTM_STATUS btm_ble_start_inquiry(uint8_t duration) {
   } else if ((btm_cb.ble_ctr_cb.inq_var.scan_interval != scan_interval) ||
              (btm_cb.ble_ctr_cb.inq_var.scan_window != scan_window)) {
     log::verbose("restart LE scan with low latency scan params");
-    btm_cb.ble_ctr_cb.inq_var.scan_interval = scan_interval;
-    btm_cb.ble_ctr_cb.inq_var.scan_window = scan_window;
+    if (!com::android::bluetooth::flags::le_inquiry_duration()) {
+      btm_cb.ble_ctr_cb.inq_var.scan_interval = scan_interval;
+      btm_cb.ble_ctr_cb.inq_var.scan_window = scan_window;
+    }
     btm_send_hci_scan_enable(BTM_BLE_SCAN_DISABLE, BTM_BLE_DUPLICATE_ENABLE);
     btm_send_hci_set_scan_params(BTM_BLE_SCAN_MODE_ACTI, scan_interval, scan_window, scan_phy,
                                  btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type, SP_ADV_ALL);
@@ -1565,7 +1581,8 @@ tBTM_STATUS btm_ble_start_inquiry(uint8_t duration) {
 
   if (duration != 0) {
     /* start inquiry timer */
-    uint64_t duration_ms = duration * 1000;
+    uint64_t duration_ms =
+            duration * (com::android::bluetooth::flags::le_inquiry_duration() ? 1280 : 1000);
     alarm_set_on_mloop(btm_cb.ble_ctr_cb.inq_var.inquiry_timer, duration_ms,
                        btm_ble_inquiry_timer_timeout, NULL);
   }
@@ -1576,7 +1593,7 @@ tBTM_STATUS btm_ble_start_inquiry(uint8_t duration) {
   };
   BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Le inquiry started");
 
-  return BTM_CMD_STARTED;
+  return tBTM_STATUS::BTM_CMD_STARTED;
 }
 
 /*******************************************************************************
@@ -1598,7 +1615,7 @@ void btm_ble_read_remote_name_cmpl(bool status, const RawAddress& bda, uint16_t 
     hci_status = HCI_ERR_HOST_TIMEOUT;
   }
 
-  btm_process_remote_name(&bda, bd_name, length + 1, hci_status);
+  get_stack_rnr_interface().btm_process_remote_name(&bda, bd_name, length + 1, hci_status);
   btm_sec_rmt_name_request_complete(&bda, (const uint8_t*)p_name, hci_status);
 }
 
@@ -1616,24 +1633,24 @@ void btm_ble_read_remote_name_cmpl(bool status, const RawAddress& bda, uint16_t 
  ******************************************************************************/
 tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb) {
   if (!bluetooth::shim::GetController()->SupportsBle()) {
-    return BTM_ERR_PROCESSING;
+    return tBTM_STATUS::BTM_ERR_PROCESSING;
   }
 
   tINQ_DB_ENT* p_i = btm_inq_db_find(remote_bda);
   if (p_i && !ble_evt_type_is_connectable(p_i->inq_info.results.ble_evt_type)) {
     log::verbose("name request to non-connectable device failed.");
-    return BTM_ERR_PROCESSING;
+    return tBTM_STATUS::BTM_ERR_PROCESSING;
   }
 
   /* read remote device name using GATT procedure */
   if (btm_cb.rnr.remname_active) {
     log::warn("Unable to start GATT RNR procedure for peer:{} busy with peer:{}", remote_bda,
               btm_cb.rnr.remname_bda);
-    return BTM_BUSY;
+    return tBTM_STATUS::BTM_BUSY;
   }
 
   if (!GAP_BleReadPeerDevName(remote_bda, btm_ble_read_remote_name_cmpl)) {
-    return BTM_BUSY;
+    return tBTM_STATUS::BTM_BUSY;
   }
 
   btm_cb.rnr.p_remname_cmpl_cb = p_cb;
@@ -1644,7 +1661,62 @@ tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMP
   alarm_set_on_mloop(btm_cb.rnr.remote_name_timer, BTM_EXT_BLE_RMT_NAME_TIMEOUT_MS,
                      btm_inq_remote_name_timer_timeout, NULL);
 
-  return BTM_CMD_STARTED;
+  return tBTM_STATUS::BTM_CMD_STARTED;
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_ble_read_remote_appearance_cmpl
+ *
+ * Description      This function is called when peer's appearance value is received.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+static void btm_ble_read_remote_appearance_cmpl(bool status, const RawAddress& bda, uint16_t length,
+                                                char* data) {
+  if (!status) {
+    log::error("Failed to read appearance of {}", bda);
+    return;
+  }
+  if (length != 2 || data == nullptr) {
+    log::error("Invalid appearance value size {} for {}", length, bda);
+    return;
+  }
+
+  uint16_t appearance = data[0] + (data[1] << 8);
+  DEV_CLASS cod = btm_ble_appearance_to_cod(appearance);
+  log::info("Appearance 0x{:04x}, Class of Device {} found for {}", appearance, dev_class_text(cod),
+            bda);
+
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bda);
+  if (p_dev_rec != nullptr) {
+    p_dev_rec->dev_class = cod;
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_ble_read_remote_cod
+ *
+ * Description      Finds Class of Device by reading GATT appearance characteristic
+ *
+ * Parameters:      Device address
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+tBTM_STATUS btm_ble_read_remote_cod(const RawAddress& remote_bda) {
+  if (!bluetooth::shim::GetController()->SupportsBle()) {
+    return tBTM_STATUS::BTM_ERR_PROCESSING;
+  }
+
+  if (!GAP_BleReadPeerAppearance(remote_bda, btm_ble_read_remote_appearance_cmpl)) {
+    return tBTM_STATUS::BTM_BUSY;
+  }
+
+  log::verbose("Reading appearance characteristic {}", remote_bda);
+  return tBTM_STATUS::BTM_CMD_STARTED;
 }
 
 /*******************************************************************************
@@ -2491,7 +2563,7 @@ static bool btm_ble_adv_states_operation(BTM_TOPOLOGY_FUNC_PTR* p_handler, uint8
  ******************************************************************************/
 static tBTM_STATUS btm_ble_start_adv(void) {
   if (!btm_ble_adv_states_operation(btm_ble_topology_check, btm_cb.ble_ctr_cb.inq_var.evt_type)) {
-    return BTM_WRONG_MODE;
+    return tBTM_STATUS::BTM_WRONG_MODE;
   }
 
   btsnd_hcic_ble_set_adv_enable(BTM_BLE_ADV_ENABLE);
@@ -2499,7 +2571,7 @@ static tBTM_STATUS btm_ble_start_adv(void) {
   btm_ble_adv_states_operation(btm_ble_set_topology_mask, btm_cb.ble_ctr_cb.inq_var.evt_type);
   power_telemetry::GetInstance().LogBleAdvStarted();
 
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 /*******************************************************************************
@@ -2521,7 +2593,7 @@ static tBTM_STATUS btm_ble_stop_adv(void) {
     btm_ble_clear_topology_mask(BTM_BLE_STATE_ALL_ADV_MASK);
     power_telemetry::GetInstance().LogBleAdvStopped();
   }
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 static void btm_ble_fast_adv_timer_timeout(void* /* data */) {

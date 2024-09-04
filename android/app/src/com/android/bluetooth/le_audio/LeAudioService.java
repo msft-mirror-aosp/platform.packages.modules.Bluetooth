@@ -2273,7 +2273,7 @@ public class LeAudioService extends ProfileService {
             /* Make sure active group is already exposed to audio framework.
              * If not, lets wait for it and don't sent additional intent.
              */
-            if (groupDescriptor.mCurrentLeadDevice == mExposedActiveDevice) {
+            if (Objects.equals(groupDescriptor.mCurrentLeadDevice, mExposedActiveDevice)) {
                 Log.w(
                         TAG,
                         "group is already active: device="
@@ -2568,6 +2568,7 @@ public class LeAudioService extends ProfileService {
                     groupDescriptor.mInactivatedDueToContextType = true;
                     setActiveGroupWithDevice(null, false);
                 }
+                break;
             default:
                 break;
         }
@@ -2831,7 +2832,12 @@ public class LeAudioService extends ProfileService {
                             + " ringtone supported: "
                             + ringtoneContextAvailable);
 
-            boolean isRingtoneEnabled = (groupDescriptor.isActive() && ringtoneContextAvailable);
+            /* Enable ringtone for active Unciast group or in broadcast handover mode */
+            boolean isRingtoneEnabled =
+                    ((groupDescriptor.isActive()
+                                    || isPrimaryGroup(groupId)
+                                    || isBroadcastReadyToBeReActivated())
+                            && ringtoneContextAvailable);
 
             Log.d(
                     TAG,
@@ -4302,8 +4308,8 @@ public class LeAudioService extends ProfileService {
      */
     public void setCcidInformation(ParcelUuid userUuid, int ccid, int contextType) {
         /* for the moment we care only for GMCS and GTBS */
-        if (userUuid != BluetoothUuid.GENERIC_MEDIA_CONTROL
-                && userUuid.getUuid() != TbsGatt.UUID_GTBS) {
+        if (!BluetoothUuid.GENERIC_MEDIA_CONTROL.equals(userUuid)
+                && !TbsGatt.UUID_GTBS.equals(userUuid.getUuid())) {
             return;
         }
         if (!mLeAudioNativeIsInitialized) {
@@ -4332,7 +4338,7 @@ public class LeAudioService extends ProfileService {
 
             BassClientService bassClientService = getBassClientService();
             if (bassClientService != null) {
-                activeBroadcastSinks = bassClientService.getActiveBroadcastSinks();
+                activeBroadcastSinks = bassClientService.getSyncedBroadcastSinks();
             }
 
             if (activeBroadcastSinks.isEmpty()) {

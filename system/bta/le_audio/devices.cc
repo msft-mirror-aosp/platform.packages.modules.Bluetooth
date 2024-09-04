@@ -486,6 +486,9 @@ void LeAudioDevice::ParseHeadtrackingCodec(const struct types::acs_ac_record& pa
       return;
     }
 
+    // Valid headtracker codec metadata available, so it must support reduced sdu size
+    dsa_.reduced_sdu = true;
+
     uint8_t supported_transports = ltv[6];
     DsaModes dsa_modes = {DsaMode::DISABLED};
 
@@ -1157,7 +1160,7 @@ std::vector<uint8_t> LeAudioDevice::GetMetadata(AudioContexts context_type,
   AppendMetadataLtvEntryForStreamingContext(metadata, context_type);
   AppendMetadataLtvEntryForCcidList(metadata, ccid_list);
 
-  return std::move(metadata);
+  return metadata;
 }
 
 bool LeAudioDevice::IsMetadataChanged(const BidirectionalPair<AudioContexts>& context_types,
@@ -1204,6 +1207,8 @@ void LeAudioDevice::UpdateDeviceAllowlistFlag(void) {
 }
 
 DsaModes LeAudioDevice::GetDsaModes(void) { return dsa_.modes; }
+
+bool LeAudioDevice::DsaReducedSduSizeSupported() { return dsa_.reduced_sdu; }
 
 types::DataPathState LeAudioDevice::GetDsaDataPathState(void) { return dsa_.state; }
 

@@ -766,7 +766,7 @@ impl IBluetooth for BluetoothDBus {
         dbus_generated!()
     }
 
-    fn init(&mut self, _init_flags: Vec<String>) -> bool {
+    fn init(&mut self, _init_flags: Vec<String>, _hci_index: i32) -> bool {
         // Not implemented by server
         true
     }
@@ -2649,6 +2649,11 @@ impl IBluetoothMedia for BluetoothMediaDBus {
 
     #[dbus_method("Initialize")]
     fn initialize(&mut self) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("IsInitialized")]
+    fn is_initialized(&self) -> bool {
         dbus_generated!()
     }
 

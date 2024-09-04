@@ -17,6 +17,7 @@
 #include "os/alarm.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <sys/timerfd.h>
 #include <unistd.h>
 
@@ -38,7 +39,11 @@ namespace os {
 using common::Closure;
 using common::OnceClosure;
 
-Alarm::Alarm(Handler* handler) : handler_(handler), fd_(TIMERFD_CREATE(ALARM_CLOCK, 0)) {
+Alarm::Alarm(Handler* handler) : handler_(handler) {
+  int timerfd_flag =
+          com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation() ? TFD_NONBLOCK : 0;
+  fd_ = TIMERFD_CREATE(ALARM_CLOCK, timerfd_flag);
+
   log::assert_that(fd_ != -1, "cannot create timerfd: {}", strerror(errno));
 
   token_ = handler_->thread_->GetReactor()->Register(
@@ -77,6 +82,15 @@ void Alarm::on_fire() {
   uint64_t times_invoked;
   auto bytes_read = read(fd_, &times_invoked, sizeof(uint64_t));
   lock.unlock();
+
+  if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation() && bytes_read == -1) {
+    log::info("No data to read.");
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      log::info("Alarm is already canceled or rescheduled.");
+      return;
+    }
+  }
+
   log::assert_that(bytes_read == static_cast<ssize_t>(sizeof(uint64_t)),
                    "assert failed: bytes_read == static_cast<ssize_t>(sizeof(uint64_t))");
   log::assert_that(times_invoked == static_cast<uint64_t>(1), "Invoked number of times:{} fd:{}",

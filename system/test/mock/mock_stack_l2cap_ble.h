@@ -21,6 +21,8 @@
  *  mockcify.pl ver 0.2
  */
 
+#pragma once
+
 #include <cstdint>
 #include <functional>
 
@@ -203,9 +205,9 @@ extern struct l2cble_credit_based_conn_req l2cble_credit_based_conn_req;
 // Params: tL2C_CCB* p_ccb, uint16_t result
 // Returns: void
 struct l2cble_credit_based_conn_res {
-  std::function<void(tL2C_CCB* p_ccb, uint16_t result)> body{
-          [](tL2C_CCB* /* p_ccb */, uint16_t /* result */) {}};
-  void operator()(tL2C_CCB* p_ccb, uint16_t result) { body(p_ccb, result); }
+  std::function<void(tL2C_CCB* p_ccb, tL2CAP_LE_RESULT_CODE result)> body{
+          [](tL2C_CCB* /* p_ccb */, tL2CAP_LE_RESULT_CODE /* result */) {}};
+  void operator()(tL2C_CCB* p_ccb, tL2CAP_LE_RESULT_CODE result) { body(p_ccb, result); }
 };
 extern struct l2cble_credit_based_conn_res l2cble_credit_based_conn_res;
 // Name: l2cble_send_flow_control_credit
@@ -246,8 +248,9 @@ struct l2ble_sec_access_req {
   std::function<tL2CAP_LE_RESULT_CODE(const RawAddress& bd_addr, uint16_t psm, bool is_originator,
                                       tBTM_SEC_CALLBACK* p_callback, void* p_ref_data)>
           body{[](const RawAddress& /* bd_addr */, uint16_t /* psm */, bool /* is_originator */,
-                  tBTM_SEC_CALLBACK* /* p_callback */,
-                  void* /* p_ref_data */) { return L2CAP_LE_RESULT_CONN_OK; }};
+                  tBTM_SEC_CALLBACK* /* p_callback */, void* /* p_ref_data */) {
+            return tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK;
+          }};
   tL2CAP_LE_RESULT_CODE operator()(const RawAddress& bd_addr, uint16_t psm, bool is_originator,
                                    tBTM_SEC_CALLBACK* p_callback, void* p_ref_data) {
     return body(bd_addr, psm, is_originator, p_callback, p_ref_data);

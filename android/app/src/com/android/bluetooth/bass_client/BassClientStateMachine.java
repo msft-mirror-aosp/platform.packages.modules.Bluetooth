@@ -19,6 +19,8 @@ package com.android.bluetooth.bass_client;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
+import static com.android.bluetooth.flags.Flags.leaudioBigDependsOnAudioState;
+
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
@@ -171,7 +173,7 @@ public class BassClientStateMachine extends StateMachine {
             AdapterService adapterService,
             Looper looper,
             int connectTimeoutMs) {
-        super(TAG + "(" + device.toString() + ")", looper);
+        super(TAG + "(" + device + ")", looper);
         mDevice = device;
         mService = svc;
         mAdapterService = adapterService;
@@ -182,21 +184,24 @@ public class BassClientStateMachine extends StateMachine {
         addState(mConnectedProcessing);
         setInitialState(mDisconnected);
         mFirstTimeBisDiscoveryMap = new HashMap<Integer, Boolean>();
-        long token = Binder.clearCallingIdentity();
-        mIsAllowedList =
-                DeviceConfig.getBoolean(
-                        DeviceConfig.NAMESPACE_BLUETOOTH, "persist.vendor.service.bt.wl", true);
-        mDefNoPAS =
-                DeviceConfig.getBoolean(
-                        DeviceConfig.NAMESPACE_BLUETOOTH,
-                        "persist.vendor.service.bt.defNoPAS",
-                        false);
-        mForceSB =
-                DeviceConfig.getBoolean(
-                        DeviceConfig.NAMESPACE_BLUETOOTH,
-                        "persist.vendor.service.bt.forceSB",
-                        false);
-        Binder.restoreCallingIdentity(token);
+        final long token = Binder.clearCallingIdentity();
+        try {
+            mIsAllowedList =
+                    DeviceConfig.getBoolean(
+                            DeviceConfig.NAMESPACE_BLUETOOTH, "persist.vendor.service.bt.wl", true);
+            mDefNoPAS =
+                    DeviceConfig.getBoolean(
+                            DeviceConfig.NAMESPACE_BLUETOOTH,
+                            "persist.vendor.service.bt.defNoPAS",
+                            false);
+            mForceSB =
+                    DeviceConfig.getBoolean(
+                            DeviceConfig.NAMESPACE_BLUETOOTH,
+                            "persist.vendor.service.bt.forceSB",
+                            false);
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
     }
 
     static BassClientStateMachine make(
@@ -782,11 +787,11 @@ public class BassClientStateMachine extends StateMachine {
 
     private void checkAndUpdateBroadcastCode(BluetoothLeBroadcastReceiveState recvState) {
         log("checkAndUpdateBroadcastCode");
-        // non colocated case, Broadcast PIN should have been updated from lyaer
-        // If there is pending one process it Now
+        // Whenever receive state indicated code requested, assistant should set the broadcast code
+        // Valid code will be checked later in convertRecvStateToSetBroadcastCodeByteArray
         if (recvState.getBigEncryptionState()
                         == BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_CODE_REQUIRED
-                && mSetBroadcastCodePending) {
+                && (leaudioBigDependsOnAudioState() || mSetBroadcastCodePending)) {
             log("Update the Broadcast now");
             if (mSetBroadcastPINMetadata != null) {
                 setCurrentBroadcastMetadata(recvState.getSourceId(), mSetBroadcastPINMetadata);

@@ -56,7 +56,7 @@ const uint16_t bnep_frame_hdr_sizes[] = {14, 1, 2, 8, 8};
 /******************************************************************************/
 static void bnep_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid, uint16_t psm,
                              uint8_t l2cap_id);
-static void bnep_connect_cfm(uint16_t l2cap_cid, uint16_t result);
+static void bnep_connect_cfm(uint16_t l2cap_cid, tL2CAP_CONN result);
 static void bnep_config_cfm(uint16_t l2cap_cid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
 static void bnep_disconnect_ind(uint16_t l2cap_cid, bool ack_needed);
 static void bnep_data_ind(uint16_t l2cap_cid, BT_HDR* p_msg);
@@ -110,7 +110,7 @@ tBNEP_RESULT bnep_register_with_l2cap(void) {
  *
  ******************************************************************************/
 static void bnep_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid, uint16_t /* psm */,
-                             uint8_t l2cap_id) {
+                             uint8_t /* l2cap_id */) {
   tBNEP_CONN* p_bcb = bnepu_find_bcb_by_bd_addr(bd_addr);
 
   /* If we are not acting as server, or already have a connection, or have */
@@ -134,7 +134,7 @@ static void bnep_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid, uint
   log::debug("BNEP - Rcvd L2CAP conn ind, CID: 0x{:x}", p_bcb->l2cap_cid);
 }
 
-static void bnep_on_l2cap_error(uint16_t l2cap_cid, uint16_t result) {
+static void bnep_on_l2cap_error(uint16_t l2cap_cid, uint16_t /* result */) {
   tBNEP_CONN* p_bcb = bnepu_find_bcb_by_cid(l2cap_cid);
   if (p_bcb == nullptr) {
     return;
@@ -163,7 +163,7 @@ static void bnep_on_l2cap_error(uint16_t l2cap_cid, uint16_t result) {
  * Returns          void
  *
  ******************************************************************************/
-static void bnep_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
+static void bnep_connect_cfm(uint16_t l2cap_cid, tL2CAP_CONN result) {
   tBNEP_CONN* p_bcb;
 
   /* Find CCB based on CID */
@@ -175,7 +175,7 @@ static void bnep_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
 
   /* If the connection response contains success status, then */
   /* Transition to the next state and startup the timer.      */
-  if ((result == L2CAP_CONN_OK) && (p_bcb->con_state == BNEP_STATE_CONN_START)) {
+  if ((result == tL2CAP_CONN::L2CAP_CONN_OK) && (p_bcb->con_state == BNEP_STATE_CONN_START)) {
     p_bcb->con_state = BNEP_STATE_CFG_SETUP;
 
     /* Start timer waiting for config results */
@@ -197,7 +197,8 @@ static void bnep_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
  * Returns          void
  *
  ******************************************************************************/
-static void bnep_config_cfm(uint16_t l2cap_cid, uint16_t initiator, tL2CAP_CFG_INFO* p_cfg) {
+static void bnep_config_cfm(uint16_t l2cap_cid, uint16_t /* initiator */,
+                            tL2CAP_CFG_INFO* /* p_cfg */) {
   tBNEP_CONN* p_bcb;
 
   log::debug("BNEP - Rcvd cfg cfm, CID: 0x{:x}", l2cap_cid);
@@ -230,7 +231,7 @@ static void bnep_config_cfm(uint16_t l2cap_cid, uint16_t initiator, tL2CAP_CFG_I
  * Returns          void
  *
  ******************************************************************************/
-static void bnep_disconnect_ind(uint16_t l2cap_cid, bool ack_needed) {
+static void bnep_disconnect_ind(uint16_t l2cap_cid, bool /* ack_needed */) {
   tBNEP_CONN* p_bcb;
 
   /* Find CCB based on CID */

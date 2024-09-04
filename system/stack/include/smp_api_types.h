@@ -223,7 +223,7 @@ typedef struct {
 /* Security Manager events - Called by the stack when Security Manager related
  * events occur.*/
 typedef tBTM_STATUS(tSMP_CALLBACK)(tSMP_EVT event, const RawAddress& bd_addr,
-                                   const tSMP_EVT_DATA* p_data);
+                                   tSMP_EVT_DATA* p_data);
 /* Security Manager SIRK verification event - Called by the stack when Security
  * Manager requires verification from CSIP.*/
 typedef tBTM_STATUS(tSMP_SIRK_CALLBACK)(const RawAddress& bd_addr);
