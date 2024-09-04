@@ -384,3 +384,34 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "leaudio_set_codec_config_preference"
+    namespace: "bluetooth"
+    description: "New apis to set codec config preference"
+    bug: "353909820"
+}
+
+flag {
+    name: "leaudio_add_aics_support"
+    namespace: "bluetooth"
+    description: "Add AICS support"
+    bug: "361263965"
+}
+
+flag {
+    name: "leaudio_gmap_client"
+    namespace: "bluetooth"
+    description: "enable Gaming Audio Profile"
+    bug: "353978074"
+}
+
+flag {
+    name: "leaudio_broadcast_resync_helper"
+    namespace: "bluetooth"
+    description: "Helps sinks to resync to external broadcast when BIS or PA unsynced"
+    bug: "363168099"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

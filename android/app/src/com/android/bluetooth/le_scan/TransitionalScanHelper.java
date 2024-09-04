@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.le_scan;
 
-import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
 import static android.Manifest.permission.UPDATE_DEVICE_STATS;
@@ -452,6 +451,7 @@ public class TransitionalScanHelper {
                 if (app.mCallback != null) {
                     app.mCallback.onScanResult(result);
                 } else {
+                    Log.v(TAG, "Callback is null, sending scan results by pendingIntent");
                     // Send the PendingIntent
                     ArrayList<ScanResult> results = new ArrayList<>();
                     results.add(result);
@@ -736,6 +736,7 @@ public class TransitionalScanHelper {
                     sendResultsByPendingIntent(
                             app.mInfo, permittedResults, ScanSettings.CALLBACK_TYPE_ALL_MATCHES);
                 } catch (PendingIntent.CanceledException e) {
+                    Log.d(TAG, "Exception while sending result", e);
                 }
             }
         } else {
@@ -1434,9 +1435,9 @@ public class TransitionalScanHelper {
         mPeriodicScanManager.transferSetInfo(bda, serviceData, advHandle, callback);
     }
 
-    @RequiresPermission(BLUETOOTH_CONNECT)
+    @RequiresPermission(BLUETOOTH_SCAN)
     public int numHwTrackFiltersAvailable(AttributionSource attributionSource) {
-        if (!Utils.checkConnectPermissionForDataDelivery(
+        if (!Utils.checkScanPermissionForDataDelivery(
                 mContext, attributionSource, "ScanHelper numHwTrackFiltersAvailable")) {
             return 0;
         }

@@ -32,13 +32,14 @@
 #include "bta/test/bta_test_fixtures.h"
 #include "bta_api_data_types.h"
 #include "stack/btm/neighbor_inquiry.h"
-#include "stack/include/gatt_api.h"
-#include "test/common/main_handler.h"
 #include "types/bt_transport.h"
 
 #define TEST_BT com::android::bluetooth::flags
 
 using namespace bluetooth;
+
+using ::testing::_;
+using ::testing::Return;
 
 namespace {
 const RawAddress kRawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
@@ -153,6 +154,9 @@ TEST_F(BtaInitializedTest, bta_dm_queue_search) {
 }
 
 TEST_F(BtaInitializedTest, bta_dm_read_remote_device_name) {
+  EXPECT_CALL(mock_stack_rnr_interface_, BTM_ReadRemoteDeviceName(_, _, _))
+          .WillOnce(Return(tBTM_STATUS::BTM_CMD_STARTED));
+
   bluetooth::legacy::testing::bta_dm_read_remote_device_name(kRawAddress, BT_TRANSPORT_BR_EDR);
 }
 

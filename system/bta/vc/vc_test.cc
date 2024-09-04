@@ -29,10 +29,12 @@
 #include "mock_csis_client.h"
 #include "osi/test/alarm_mock.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/btm_status.h"
 #include "test/common/mock_functions.h"
 #include "types.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
+
 void btif_storage_add_volume_control(const RawAddress& addr, bool auto_conn) {}
 
 struct alarm_t {
@@ -82,7 +84,8 @@ public:
   MOCK_METHOD((void), OnDeviceAvailable, (const RawAddress& address, uint8_t num_offset),
               (override));
   MOCK_METHOD((void), OnVolumeStateChanged,
-              (const RawAddress& address, uint8_t volume, bool mute, bool isAutonomous),
+              (const RawAddress& address, uint8_t volume, bool mute, uint8_t flags,
+               bool isAutonomous),
               (override));
   MOCK_METHOD((void), OnGroupVolumeStateChanged,
               (int group_id, uint8_t volume, bool mute, bool isAutonomous), (override));
@@ -481,10 +484,11 @@ protected:
                                             tBTM_BLE_SEC_ACT sec_act) -> tBTM_STATUS {
                       if (p_callback) {
                         p_callback(bd_addr, transport, p_ref_data,
-                                   success ? BTM_SUCCESS : BTM_FAILED_ON_SECURITY);
+                                   success ? tBTM_STATUS::BTM_SUCCESS
+                                           : tBTM_STATUS::BTM_FAILED_ON_SECURITY);
                       }
                       GetEncryptionCompleteEvt(bd_addr);
-                      return BTM_SUCCESS;
+                      return tBTM_STATUS::BTM_SUCCESS;
                     }));
     EXPECT_CALL(btm_interface, SetEncryption(address, _, _, _, BTM_BLE_SEC_ENCRYPT)).Times(1);
   }
@@ -769,7 +773,7 @@ TEST_F(VolumeControlTest, test_disconnect_when_link_key_gone) {
 
   ON_CALL(btm_interface, BTM_IsEncrypted(test_address, _)).WillByDefault(DoAll(Return(false)));
   ON_CALL(btm_interface, SetEncryption(test_address, _, _, _, BTM_BLE_SEC_ENCRYPT))
-          .WillByDefault(Return(BTM_ERR_KEY_MISSING));
+          .WillByDefault(Return(tBTM_STATUS::BTM_ERR_KEY_MISSING));
 
   // autoconnect - don't indicate disconnection
   EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(0);
@@ -802,7 +806,7 @@ TEST_F(VolumeControlTest, test_service_discovery_completed_before_encryption) {
   ON_CALL(btm_interface, BTM_IsEncrypted(test_address, _)).WillByDefault(DoAll(Return(false)));
   ON_CALL(btm_interface, IsLinkKeyKnown(test_address, _)).WillByDefault(DoAll(Return(true)));
   ON_CALL(btm_interface, SetEncryption(test_address, _, _, _, _))
-          .WillByDefault(Return(BTM_SUCCESS));
+          .WillByDefault(Return(tBTM_STATUS::BTM_SUCCESS));
 
   EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(0);
   uint16_t conn_id = 1;
@@ -885,7 +889,7 @@ TEST_F(VolumeControlTest, test_subscribe_vocs_output_description) {
 
 TEST_F(VolumeControlTest, test_read_vcs_volume_state) {
   const RawAddress test_address = GetTestAddress(0);
-  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address, _, _, false));
+  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address, _, _, _, true)).Times(1);
   std::vector<uint16_t> handles({0x0021});
   TestReadCharacteristic(test_address, 1, handles);
 }
@@ -960,7 +964,7 @@ TEST_F(VolumeControlTest, test_discovery_vocs_broken) {
 
 TEST_F(VolumeControlTest, test_read_vcs_database_out_of_sync) {
   const RawAddress test_address = GetTestAddress(0);
-  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address, _, _, false));
+  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address, _, _, _, true));
   std::vector<uint16_t> handles({0x0021});
   uint16_t conn_id = 1;
 
@@ -1033,12 +1037,12 @@ protected:
 
 TEST_F(VolumeControlCallbackTest, test_volume_state_changed_stress) {
   std::vector<uint8_t> value({0x03, 0x01, 0x02});
-  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address, 0x03, true, true));
+  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address, 0x03, true, _, true));
   GetNotificationEvent(0x0021, value);
 }
 
 TEST_F(VolumeControlCallbackTest, test_volume_state_changed_malformed) {
-  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address, _, _, _)).Times(0);
+  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address, _, _, _, _)).Times(0);
   std::vector<uint8_t> too_short({0x03, 0x01});
   GetNotificationEvent(0x0021, too_short);
   std::vector<uint8_t> too_long({0x03, 0x01, 0x02, 0x03});
@@ -1527,6 +1531,8 @@ TEST_F(VolumeControlCsis, test_set_volume) {
   VolumeControl::Get()->SetVolume(test_address_1, 20);
   VolumeControl::Get()->SetVolume(test_address_2, 20);
 
+  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address_1, 20, false, _, false));
+  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address_2, 20, false, _, false));
   std::vector<uint8_t> value2({20, 0x00, 0x03});
   GetNotificationEvent(conn_id_1, test_address_1, 0x0021, value2);
   GetNotificationEvent(conn_id_2, test_address_2, 0x0021, value2);

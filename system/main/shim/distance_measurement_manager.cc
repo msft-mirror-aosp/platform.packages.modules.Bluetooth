@@ -21,9 +21,12 @@
 #include "hci/distance_measurement_manager.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
+#include "stack/include/acl_api.h"
 
 using bluetooth::hci::DistanceMeasurementErrorCode;
 using bluetooth::hci::DistanceMeasurementMethod;
+
+extern tBTM_SEC_DEV_REC* btm_find_dev(const RawAddress& bd_addr);
 
 class DistanceMeasurementInterfaceImpl : public DistanceMeasurementInterface,
                                          public bluetooth::hci::DistanceMeasurementCallbacks,
@@ -39,20 +42,38 @@ public:
     bluetooth::ras::GetRasClient()->RegisterCallbacks(this);
   }
 
+  /**
+   * Gets the BLE connection handle
+   * @param bd_addr could be random, rpa or identity address.
+   * @return BLE ACL handle
+   */
+  uint16_t GetConnectionHandle(const RawAddress& bd_addr) {
+    tBTM_SEC_DEV_REC* p_sec_dev_rec = btm_find_dev(bd_addr);
+    if (p_sec_dev_rec != nullptr) {
+      return p_sec_dev_rec->get_ble_hci_handle();
+    }
+    return kIllegalConnectionHandle;
+  }
+
   void RegisterDistanceMeasurementCallbacks(::DistanceMeasurementCallbacks* callbacks) {
     distance_measurement_callbacks_ = callbacks;
   }
 
-  void StartDistanceMeasurement(RawAddress raw_address, uint16_t interval, uint8_t method) {
+  void StartDistanceMeasurement(RawAddress identity_addr, uint16_t interval, uint8_t method) {
+    DistanceMeasurementMethod distance_measurement_method =
+            static_cast<DistanceMeasurementMethod>(method);
     bluetooth::shim::GetDistanceMeasurementManager()->StartDistanceMeasurement(
-            bluetooth::ToGdAddress(raw_address), interval,
-            static_cast<DistanceMeasurementMethod>(method));
-    bluetooth::ras::GetRasClient()->Connect(raw_address);
+            bluetooth::ToGdAddress(identity_addr), GetConnectionHandle(identity_addr), interval,
+            distance_measurement_method);
+    if (distance_measurement_method == DistanceMeasurementMethod::METHOD_CS) {
+      bluetooth::ras::GetRasClient()->Connect(identity_addr);
+    }
   }
 
-  void StopDistanceMeasurement(RawAddress raw_address, uint8_t method) {
+  void StopDistanceMeasurement(RawAddress identity_addr, uint8_t method) {
     bluetooth::shim::GetDistanceMeasurementManager()->StopDistanceMeasurement(
-            bluetooth::ToGdAddress(raw_address), static_cast<DistanceMeasurementMethod>(method));
+            bluetooth::ToGdAddress(identity_addr), GetConnectionHandle(identity_addr),
+            static_cast<DistanceMeasurementMethod>(method));
   }
 
   // Callbacks of bluetooth::hci::DistanceMeasurementCallbacks
@@ -147,7 +168,8 @@ public:
       hal_vendor_specific_characteristics.emplace_back(vendor_specific_characteristic);
     }
     bluetooth::shim::GetDistanceMeasurementManager()->HandleVendorSpecificReply(
-            bluetooth::ToGdAddress(address), hal_vendor_specific_characteristics);
+            bluetooth::ToGdAddress(address), GetConnectionHandle(address),
+            hal_vendor_specific_characteristics);
   }
 
   // Callbacks of bluetooth::ras::RasClientCallbacks
@@ -164,21 +186,28 @@ public:
     }
 
     bluetooth::shim::GetDistanceMeasurementManager()->HandleRasConnectedEvent(
-            bluetooth::ToGdAddress(address), att_handle, hal_vendor_specific_characteristics);
+            bluetooth::ToGdAddress(address), GetConnectionHandle(address), att_handle,
+            hal_vendor_specific_characteristics);
+  }
+
+  void OnDisconnected(const RawAddress& address) {
+    bluetooth::shim::GetDistanceMeasurementManager()->HandleRasDisconnectedEvent(
+            bluetooth::ToGdAddress(address));
   }
 
   void OnWriteVendorSpecificReplyComplete(const RawAddress& address, bool success) {
     bluetooth::shim::GetDistanceMeasurementManager()->HandleVendorSpecificReplyComplete(
-            bluetooth::ToGdAddress(address), success);
+            bluetooth::ToGdAddress(address), GetConnectionHandle(address), success);
   }
 
   void OnRemoteData(const RawAddress& address, const std::vector<uint8_t>& data) {
     bluetooth::shim::GetDistanceMeasurementManager()->HandleRemoteData(
-            bluetooth::ToGdAddress(address), data);
+            bluetooth::ToGdAddress(address), GetConnectionHandle(address), data);
   }
 
 private:
   ::DistanceMeasurementCallbacks* distance_measurement_callbacks_;
+  static constexpr uint16_t kIllegalConnectionHandle = 0xffff;
 };
 
 DistanceMeasurementInterfaceImpl* distance_measurement_instance = nullptr;

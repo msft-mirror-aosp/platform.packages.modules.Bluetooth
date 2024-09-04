@@ -147,12 +147,14 @@ public final class BluetoothSap implements BluetoothProfile, AutoCloseable {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothSap.Stub.asInterface(service);
     }
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -163,6 +165,7 @@ public final class BluetoothSap implements BluetoothProfile, AutoCloseable {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }
@@ -343,6 +346,7 @@ public final class BluetoothSap implements BluetoothProfile, AutoCloseable {
     ;
 
     /** @hide */
+    @RequiresNoPermission
     public void disableBluetoothGetConnectionStateCache() {
         sBluetoothConnectionCache.disableForCurrentProcess();
     }
@@ -401,6 +405,7 @@ public final class BluetoothSap implements BluetoothProfile, AutoCloseable {
      */
     @RequiresBluetoothConnectPermission
     @RequiresPermission(BLUETOOTH_CONNECT)
+    @SuppressLint("AndroidFrameworkRequiresPermission") // IpcDataCache prevent lint enforcement
     public int getConnectionState(BluetoothDevice device) {
         if (DBG) log("getConnectionState(" + device + ")");
         final IBluetoothSap service = getService();

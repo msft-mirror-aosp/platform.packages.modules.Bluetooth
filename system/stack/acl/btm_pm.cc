@@ -120,33 +120,33 @@ static tBTM_STATUS btm_pm_snd_md_req(uint16_t handle, uint8_t pm_id, int link_in
  *
  * Description      register or deregister with power manager
  *
- * Returns          BTM_SUCCESS if successful,
- *                  BTM_NO_RESOURCES if no room to hold registration
- *                  BTM_ILLEGAL_VALUE
+ * Returns          tBTM_STATUS::BTM_SUCCESS if successful,
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if no room to hold registration
+ *                  tBTM_STATUS::BTM_ILLEGAL_VALUE
  *
  ******************************************************************************/
 tBTM_STATUS BTM_PmRegister(uint8_t mask, uint8_t* p_pm_id, tBTM_PM_STATUS_CBACK* p_cb) {
   /* de-register */
   if (mask & BTM_PM_DEREG) {
     if (*p_pm_id >= BTM_MAX_PM_RECORDS) {
-      return BTM_ILLEGAL_VALUE;
+      return tBTM_STATUS::BTM_ILLEGAL_VALUE;
     }
     pm_reg_db.mask = BTM_PM_REC_NOT_USED;
-    return BTM_SUCCESS;
+    return tBTM_STATUS::BTM_SUCCESS;
   }
 
   if (pm_reg_db.mask == BTM_PM_REC_NOT_USED) {
     /* if register for notification, should provide callback routine */
     if (p_cb == NULL) {
-      return BTM_ILLEGAL_VALUE;
+      return tBTM_STATUS::BTM_ILLEGAL_VALUE;
     }
     pm_reg_db.cback = p_cb;
     pm_reg_db.mask = mask;
     *p_pm_id = 0;
-    return BTM_SUCCESS;
+    return tBTM_STATUS::BTM_SUCCESS;
   }
 
-  return BTM_NO_RESOURCES;
+  return tBTM_STATUS::BTM_NO_RESOURCES;
 }
 
 void BTM_PM_OnConnected(uint16_t handle, const RawAddress& remote_bda) {
@@ -174,8 +174,8 @@ void BTM_PM_OnDisconnected(uint16_t handle) {
  * Description      store the mode in control block or
  *                  alter ACL connection behavior.
  *
- * Returns          BTM_SUCCESS if successful,
- *                  BTM_UNKNOWN_ADDR if bd addr is not active or bad
+ * Returns          tBTM_STATUS::BTM_SUCCESS if successful,
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if bd addr is not active or bad
  *
  ******************************************************************************/
 tBTM_STATUS BTM_SetPowerMode(uint8_t pm_id, const RawAddress& remote_bda,
@@ -186,21 +186,21 @@ tBTM_STATUS BTM_SetPowerMode(uint8_t pm_id, const RawAddress& remote_bda,
 
   if (!p_mode) {
     log::error("pm_id: {}, p_mode is null for {}", unsigned(pm_id), remote_bda);
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   // per ACL link
   auto* p_cb = btm_pm_get_power_manager_from_address(remote_bda);
   if (p_cb == nullptr) {
     log::warn("Unable to find power manager for peer: {}", remote_bda);
-    return BTM_UNKNOWN_ADDR;
+    return tBTM_STATUS::BTM_UNKNOWN_ADDR;
   }
   uint16_t handle = p_cb->handle_;
 
   tBTM_PM_MODE mode = p_mode->mode;
   if (!is_legal_power_mode(mode)) {
     log::error("Unable to set illegal power mode value:0x{:02x}", mode);
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   if (p_mode->mode & BTM_PM_MD_FORCE) {
@@ -216,7 +216,7 @@ tBTM_STATUS BTM_SetPowerMode(uint8_t pm_id, const RawAddress& remote_bda,
         (mode == BTM_PM_MD_PARK && !controller->SupportsParkMode()) ||
         interop_match_addr(INTEROP_DISABLE_SNIFF, &remote_bda)) {
       log::error("pm_id {} mode {} is not supported for {}", pm_id, mode, remote_bda);
-      return BTM_MODE_UNSUPPORTED;
+      return tBTM_STATUS::BTM_MODE_UNSUPPORTED;
     }
   }
 
@@ -231,7 +231,7 @@ tBTM_STATUS BTM_SetPowerMode(uint8_t pm_id, const RawAddress& remote_bda,
               "Device is already in requested mode {}, interval: {}, max: {}, min: "
               "{}",
               p_mode->mode, p_cb->interval, p_mode->max, p_mode->min);
-      return BTM_SUCCESS;
+      return tBTM_STATUS::BTM_SUCCESS;
     }
   }
 
@@ -256,7 +256,7 @@ tBTM_STATUS BTM_SetPowerMode(uint8_t pm_id, const RawAddress& remote_bda,
       p_cb->state |= BTM_PM_STORED_MASK;
       log::info("Setting stored bitmask for peer:{}", remote_bda);
     }
-    return BTM_CMD_STORED;
+    return tBTM_STATUS::BTM_CMD_STORED;
   }
 
   log::info("Setting power mode for peer:{} current_mode:{}[{}] new_mode:{}[{}]", remote_bda,
@@ -272,8 +272,8 @@ bool BTM_SetLinkPolicyActiveMode(const RawAddress& remote_bda) {
   settings.mode = BTM_PM_MD_ACTIVE;
 
   switch (BTM_SetPowerMode(BTM_PM_SET_ONLY_ID, remote_bda, &settings)) {
-    case BTM_CMD_STORED:
-    case BTM_SUCCESS:
+    case tBTM_STATUS::BTM_CMD_STORED:
+    case tBTM_STATUS::BTM_SUCCESS:
       return true;
     default:
       return false;
@@ -307,9 +307,9 @@ bool BTM_ReadPowerMode(const RawAddress& remote_bda, tBTM_PM_MODE* p_mode) {
  *                  min_loc_to - minimum local timeout
  *
  *
- * Returns          BTM_SUCCESS if the HCI command is issued successful,
- *                  BTM_UNKNOWN_ADDR if bd addr is not active or bad
- *                  BTM_CMD_STORED if the command is stored
+ * Returns          tBTM_STATUS::BTM_SUCCESS if the HCI command is issued successful,
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if bd addr is not active or bad
+ *                  tBTM_STATUS::BTM_CMD_STORED if the command is stored
  *
  ******************************************************************************/
 tBTM_STATUS BTM_SetSsrParams(const RawAddress& remote_bda, uint16_t max_lat, uint16_t min_rmt_to,
@@ -317,12 +317,12 @@ tBTM_STATUS BTM_SetSsrParams(const RawAddress& remote_bda, uint16_t max_lat, uin
   tBTM_PM_MCB* p_cb = btm_pm_get_power_manager_from_address(remote_bda);
   if (p_cb == nullptr) {
     log::warn("Unable to find power manager for peer:{}", remote_bda);
-    return BTM_UNKNOWN_ADDR;
+    return tBTM_STATUS::BTM_UNKNOWN_ADDR;
   }
 
   if (!bluetooth::shim::GetController()->SupportsSniffSubrating()) {
     log::info("No controller support for sniff subrating");
-    return BTM_SUCCESS;
+    return tBTM_STATUS::BTM_SUCCESS;
   }
 
   if (p_cb->state == BTM_PM_ST_ACTIVE || p_cb->state == BTM_PM_ST_SNIFF) {
@@ -331,13 +331,13 @@ tBTM_STATUS BTM_SetSsrParams(const RawAddress& remote_bda, uint16_t max_lat, uin
             "min_remote_timeout:0x{:04x} min_local_timeout:0x{:04x}",
             power_mode_state_text(p_cb->state), p_cb->state, max_lat, min_rmt_to, min_loc_to);
     send_sniff_subrating(p_cb->handle_, remote_bda, max_lat, min_rmt_to, min_loc_to);
-    return BTM_SUCCESS;
+    return tBTM_STATUS::BTM_SUCCESS;
   }
   log::info("pm_mode_db state: {}", p_cb->state);
   p_cb->max_lat = max_lat;
   p_cb->min_rmt_to = min_rmt_to;
   p_cb->min_loc_to = min_loc_to;
-  return BTM_CMD_STORED;
+  return tBTM_STATUS::BTM_CMD_STORED;
 }
 
 /*******************************************************************************
@@ -361,7 +361,8 @@ void btm_pm_reset(void) {
 
   if (cb != NULL && pm_pend_link != 0) {
     const RawAddress raw_address = pm_mode_db[pm_pend_link].bda_;
-    (*cb)(raw_address, BTM_PM_STS_ERROR, BTM_DEV_RESET, HCI_SUCCESS);
+    (*cb)(raw_address, BTM_PM_STS_ERROR, static_cast<uint16_t>(tBTM_STATUS::BTM_DEV_RESET),
+          HCI_SUCCESS);
   }
   /* no command pending */
   pm_pend_link = 0;
@@ -522,7 +523,7 @@ static tBTM_STATUS btm_pm_snd_md_req(uint16_t handle, uint8_t pm_id, int link_in
     if ((mode == BTM_PM_MD_ACTIVE) ||
         ((md_res.max >= p_cb->interval) && (md_res.min <= p_cb->interval))) {
       log::debug("Storing command");
-      return BTM_CMD_STORED;
+      return tBTM_STATUS::BTM_CMD_STORED;
     }
     log::debug("Need to wake then sleep");
     chg_ind = true;
@@ -597,10 +598,10 @@ static tBTM_STATUS btm_pm_snd_md_req(uint16_t handle, uint8_t pm_id, int link_in
   if (pm_pend_link == 0) {
     /* the command was not sent */
     log::error("pm_pending_link maxed out");
-    return BTM_NO_RESOURCES;
+    return tBTM_STATUS::BTM_NO_RESOURCES;
   }
 
-  return BTM_CMD_STARTED;
+  return tBTM_STATUS::BTM_CMD_STARTED;
 }
 
 static void btm_pm_continue_pending_mode_changes() {

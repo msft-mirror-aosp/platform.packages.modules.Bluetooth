@@ -3363,25 +3363,30 @@ public class BassClientService extends ProfileService {
         return isReceivingExternalBroadcast;
     }
 
-    /** Get the active broadcast sink devices receiving broadcast stream */
-    public List<BluetoothDevice> getActiveBroadcastSinks() {
+    /** Get sink devices synced to the broadcasts */
+    public List<BluetoothDevice> getSyncedBroadcastSinks() {
         List<BluetoothDevice> activeSinks = new ArrayList<>();
 
         for (BluetoothDevice device : getConnectedDevices()) {
-            // Check if any device's source in active sync state
-            if (getAllSources(device).stream()
-                    .anyMatch(
-                            receiveState ->
-                                    (receiveState.getBisSyncState().stream()
-                                            .anyMatch(
-                                                    syncState ->
-                                                            syncState
-                                                                            != BassConstants
-                                                                                    .BIS_SYNC_NOT_SYNC_TO_BIS
-                                                                    && syncState
-                                                                            != BassConstants
-                                                                                    .BIS_SYNC_FAILED_SYNC_TO_BIG)))) {
-                activeSinks.add(device);
+            if (leaudioBigDependsOnAudioState()) {
+                if (!getAllSources(device).isEmpty()) {
+                    activeSinks.add(device);
+                }
+            } else {
+                if (getAllSources(device).stream()
+                        .anyMatch(
+                                receiveState ->
+                                        (receiveState.getBisSyncState().stream()
+                                                .anyMatch(
+                                                        syncState ->
+                                                                syncState
+                                                                                != BassConstants
+                                                                                        .BIS_SYNC_NOT_SYNC_TO_BIS
+                                                                        && syncState
+                                                                                != BassConstants
+                                                                                        .BIS_SYNC_FAILED_SYNC_TO_BIG)))) {
+                    activeSinks.add(device);
+                }
             }
         }
         return activeSinks;

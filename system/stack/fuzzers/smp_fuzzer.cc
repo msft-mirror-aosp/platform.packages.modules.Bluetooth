@@ -23,6 +23,7 @@
 #include "common/message_loop_thread.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/smp_api.h"
 #include "stack/smp/smp_int.h"
 #include "test/fake/fake_osi.h"
@@ -137,7 +138,7 @@ uint8_t oob_data[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
                       0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00};
 tSMP_IO_REQ io_req = {};
 
-tBTM_STATUS smp_callback(tSMP_EVT event, const RawAddress& bd_addr, const tSMP_EVT_DATA* p_data) {
+tBTM_STATUS smp_callback(tSMP_EVT event, const RawAddress& bd_addr, tSMP_EVT_DATA* p_data) {
   switch (event) {
     case SMP_IO_CAP_REQ_EVT:
     case SMP_BR_KEYS_REQ_EVT: {
@@ -167,7 +168,7 @@ tBTM_STATUS smp_callback(tSMP_EVT event, const RawAddress& bd_addr, const tSMP_E
     default:
       break;
   }
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 void Fuzz(const uint8_t* data, size_t size) {
