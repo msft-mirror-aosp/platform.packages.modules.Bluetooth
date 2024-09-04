@@ -83,7 +83,7 @@ async fn async_main(rt: Arc<Runtime>, mut sigint: mpsc::UnboundedReceiver<()>) {
     let _rootcanal_port = matches.get_one::<u16>("rootcanal-port").cloned();
     let env = Arc::new(Environment::new(2));
 
-    let btif_intf = Arc::new(Mutex::new(btif::get_btinterface().unwrap()));
+    let btif_intf = Arc::new(Mutex::new(btif::get_btinterface()));
 
     // AdapterServiceImpl::create initializes the stack; not the best practice because the side effect is hidden
     let adapter_service_impl =

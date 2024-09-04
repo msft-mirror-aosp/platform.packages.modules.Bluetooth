@@ -53,6 +53,7 @@ source_set("nonstandard_codecs") {
 
 source_set("stack") {
   sources = [
+    "ais/ais_ble.cc",
     "a2dp/a2dp_api.cc",
     "a2dp/a2dp_codec_config.cc",
     "a2dp/a2dp_ext.cc",
@@ -150,6 +151,7 @@ source_set("stack") {
     "l2cap/l2c_link.cc",
     "l2cap/l2c_main.cc",
     "l2cap/l2c_utils.cc",
+    "l2cap/l2cap_api.cc",
     "metrics/stack_metrics_logging.cc",
     "pan/pan_api.cc",
     "pan/pan_main.cc",
@@ -187,6 +189,7 @@ source_set("stack") {
   include_dirs = [
     ".",
     "include",
+    "ais",
     "avct",
     "btm",
     "avrc",

@@ -94,6 +94,7 @@ impl AdapterServiceImpl {
         btif_intf.lock().unwrap().initialize(
             get_bt_dispatcher(btif_intf.clone(), event_tx.clone()),
             vec!["INIT_gd_hci=true".to_string()],
+            0,
         );
         create_adapter_service(Self {
             rt,

@@ -174,33 +174,33 @@ static void bta_jv_free_sec_id(uint8_t* p_sec_id) {
  *             or BTA_JV_L2CAP_REASON_UNKNOWN if reason isn't defined yet.
  *
  ******************************************************************************/
-static tBTA_JV_L2CAP_REASON bta_jv_from_gap_l2cap_err(uint16_t l2cap_result) {
+static tBTA_JV_L2CAP_REASON bta_jv_from_gap_l2cap_err(const tL2CAP_CONN& l2cap_result) {
   switch (l2cap_result) {
-    case L2CAP_CONN_ACL_CONNECTION_FAILED:
+    case tL2CAP_CONN::L2CAP_CONN_ACL_CONNECTION_FAILED:
       return BTA_JV_L2CAP_REASON_ACL_FAILURE;
-    case L2CAP_CONN_CLIENT_SECURITY_CLEARANCE_FAILED:
+    case tL2CAP_CONN::L2CAP_CONN_CLIENT_SECURITY_CLEARANCE_FAILED:
       return BTA_JV_L2CAP_REASON_CL_SEC_FAILURE;
-    case L2CAP_CONN_INSUFFICIENT_AUTHENTICATION:
+    case tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_AUTHENTICATION:
       return BTA_JV_L2CAP_REASON_INSUFFICIENT_AUTHENTICATION;
-    case L2CAP_CONN_INSUFFICIENT_AUTHORIZATION:
+    case tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_AUTHORIZATION:
       return BTA_JV_L2CAP_REASON_INSUFFICIENT_AUTHORIZATION;
-    case L2CAP_CONN_INSUFFICIENT_ENCRYP_KEY_SIZE:
+    case tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_ENCRYP_KEY_SIZE:
       return BTA_JV_L2CAP_REASON_INSUFFICIENT_ENCRYP_KEY_SIZE;
-    case L2CAP_CONN_INSUFFICIENT_ENCRYP:
+    case tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_ENCRYP:
       return BTA_JV_L2CAP_REASON_INSUFFICIENT_ENCRYP;
-    case L2CAP_CONN_INVALID_SOURCE_CID:
+    case tL2CAP_CONN::L2CAP_CONN_INVALID_SOURCE_CID:
       return BTA_JV_L2CAP_REASON_INVALID_SOURCE_CID;
-    case L2CAP_CONN_SOURCE_CID_ALREADY_ALLOCATED:
+    case tL2CAP_CONN::L2CAP_CONN_SOURCE_CID_ALREADY_ALLOCATED:
       return BTA_JV_L2CAP_REASON_SOURCE_CID_ALREADY_ALLOCATED;
-    case L2CAP_CONN_UNACCEPTABLE_PARAMETERS:
+    case tL2CAP_CONN::L2CAP_CONN_UNACCEPTABLE_PARAMETERS:
       return BTA_JV_L2CAP_REASON_UNACCEPTABLE_PARAMETERS;
-    case L2CAP_CONN_INVALID_PARAMETERS:
+    case tL2CAP_CONN::L2CAP_CONN_INVALID_PARAMETERS:
       return BTA_JV_L2CAP_REASON_INVALID_PARAMETERS;
-    case L2CAP_CONN_NO_RESOURCES:
+    case tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES:
       return BTA_JV_L2CAP_REASON_NO_RESOURCES;
-    case L2CAP_CONN_NO_PSM:
+    case tL2CAP_CONN::L2CAP_CONN_NO_PSM:
       return BTA_JV_L2CAP_REASON_NO_PSM;
-    case L2CAP_CONN_TIMEOUT:
+    case tL2CAP_CONN::L2CAP_CONN_TIMEOUT:
       return BTA_JV_L2CAP_REASON_TIMEOUT;
     default:
       return BTA_JV_L2CAP_REASON_UNKNOWN;
@@ -820,7 +820,7 @@ static void bta_jv_start_discovery_cback(uint32_t rfcomm_slot_id, const RawAddre
                             .scn = 0,
                     },
     };
-    if (result == SDP_SUCCESS || result == SDP_DB_FULL) {
+    if (result == tSDP_STATUS::SDP_SUCCESS || result == tSDP_STATUS::SDP_DB_FULL) {
       log::info("Received service discovery callback success bd_addr:{} result:{}", bd_addr,
                 sdp_result_text(result));
       tSDP_PROTOCOL_ELEM pe;

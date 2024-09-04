@@ -24,10 +24,12 @@ import android.annotation.CallbackExecutor;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
 import android.annotation.SystemApi;
+import android.bluetooth.annotations.RequiresBluetoothConnectPermission;
 import android.content.AttributionSource;
 import android.content.Context;
 import android.os.IBinder;
@@ -101,6 +103,7 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
         }
 
         @Override
+        @RequiresNoPermission
         public void onGroupLockSet(int groupId, int opStatus, boolean isLocked) {
             mExecutor.execute(() -> mCallback.onGroupLockSet(groupId, opStatus, isLocked));
         }
@@ -235,12 +238,14 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothCsipSetCoordinator.Stub.asInterface(service);
     }
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -251,6 +256,7 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }
@@ -268,7 +274,8 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
      * @hide
      */
     @SystemApi
-    @RequiresPermission(BLUETOOTH_PRIVILEGED)
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @Nullable UUID lockGroup(
             int groupId,
             @NonNull @CallbackExecutor Executor executor,
@@ -302,7 +309,8 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
      * @hide
      */
     @SystemApi
-    @RequiresPermission(BLUETOOTH_PRIVILEGED)
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean unlockGroup(@NonNull UUID lockUuid) {
         if (VDBG) log("unlockGroup()");
         Objects.requireNonNull(lockUuid, "lockUuid cannot be null");
@@ -329,7 +337,8 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
      * @hide
      */
     @SystemApi
-    @RequiresPermission(BLUETOOTH_PRIVILEGED)
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @NonNull
     public Map<Integer, ParcelUuid> getGroupUuidMapByDevice(@Nullable BluetoothDevice device) {
         if (VDBG) log("getGroupUuidMapByDevice()");
@@ -354,7 +363,8 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
      * @hide
      */
     @SystemApi
-    @RequiresPermission(BLUETOOTH_PRIVILEGED)
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @NonNull List<Integer> getAllGroupIds(@Nullable ParcelUuid uuid) {
         if (VDBG) log("getAllGroupIds()");
         final IBluetoothCsipSetCoordinator service = getService();
@@ -373,6 +383,8 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
 
     /** {@inheritDoc} */
     @Override
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @NonNull List<BluetoothDevice> getConnectedDevices() {
         if (VDBG) log("getConnectedDevices()");
         final IBluetoothCsipSetCoordinator service = getService();
@@ -391,6 +403,8 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
 
     /** {@inheritDoc} */
     @Override
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @NonNull
     public List<BluetoothDevice> getDevicesMatchingConnectionStates(@NonNull int[] states) {
         if (VDBG) log("getDevicesMatchingStates(states=" + Arrays.toString(states) + ")");
@@ -410,6 +424,8 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
 
     /** {@inheritDoc} */
     @Override
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @BluetoothProfile.BtProfileState
     public int getConnectionState(@Nullable BluetoothDevice device) {
         if (VDBG) log("getState(" + device + ")");
@@ -440,7 +456,8 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
      * @hide
      */
     @SystemApi
-    @RequiresPermission(BLUETOOTH_PRIVILEGED)
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean setConnectionPolicy(
             @Nullable BluetoothDevice device, @ConnectionPolicy int connectionPolicy) {
         if (DBG) log("setConnectionPolicy(" + device + ", " + connectionPolicy + ")");
@@ -472,7 +489,8 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
      * @hide
      */
     @SystemApi
-    @RequiresPermission(BLUETOOTH_PRIVILEGED)
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @ConnectionPolicy int getConnectionPolicy(@Nullable BluetoothDevice device) {
         if (VDBG) log("getConnectionPolicy(" + device + ")");
         final IBluetoothCsipSetCoordinator service = getService();

@@ -55,6 +55,9 @@
 using bluetooth::eatt::EattExtension;
 using namespace bluetooth;
 
+bluetooth::common::TimestampedCircularBuffer<tTCB_STATE_HISTORY> tcb_state_history_(
+        100 /*history size*/);
+
 /******************************************************************************/
 /*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
 /******************************************************************************/
@@ -65,7 +68,7 @@ static void gatt_le_cong_cback(const RawAddress& remote_bda, bool congest);
 
 static void gatt_l2cif_connect_ind_cback(const RawAddress& bd_addr, uint16_t l2cap_cid,
                                          uint16_t psm, uint8_t l2cap_id);
-static void gatt_l2cif_connect_cfm_cback(uint16_t l2cap_cid, uint16_t result);
+static void gatt_l2cif_connect_cfm_cback(uint16_t l2cap_cid, tL2CAP_CONN result);
 static void gatt_l2cif_config_ind_cback(uint16_t l2cap_cid, tL2CAP_CFG_INFO* p_cfg);
 static void gatt_l2cif_config_cfm_cback(uint16_t lcid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
 static void gatt_l2cif_disconnect_ind_cback(uint16_t l2cap_cid, bool ack_needed);
@@ -294,12 +297,17 @@ bool gatt_disconnect(tGATT_TCB* p_tcb) {
   tGATT_CH_STATE ch_state = gatt_get_ch_state(p_tcb);
   if (ch_state == GATT_CH_CLOSING) {
     log::debug("Device already in closing state peer:{}", p_tcb->peer_bda);
-    log::verbose("already in closing state");
     return true;
   }
 
   if (p_tcb->att_lcid == L2CAP_ATT_CID) {
     if (ch_state == GATT_CH_OPEN) {
+      if (com::android::bluetooth::flags::gatt_disconnect_fix() && p_tcb->eatt) {
+        /* ATT is fixed channel and it is expected to drop ACL.
+         * Make sure all EATT channels are disconnected before doing that.
+         */
+        EattExtension::GetInstance()->Disconnect(p_tcb->peer_bda);
+      }
       if (!L2CA_RemoveFixedChnl(L2CAP_ATT_CID, p_tcb->peer_bda)) {
         log::warn("Unable to remove L2CAP ATT fixed channel peer:{}", p_tcb->peer_bda);
       }
@@ -339,6 +347,12 @@ static bool gatt_update_app_hold_link_status(tGATT_IF gatt_if, tGATT_TCB* p_tcb,
     } else {
       log::warn("attempt to add already existing gatt_if={}", gatt_if);
     }
+
+    auto holders_string = gatt_tcb_get_holders_info_string(p_tcb);
+    tcb_state_history_.Push({.address = p_tcb->peer_bda,
+                             .transport = p_tcb->transport,
+                             .state = p_tcb->ch_state,
+                             .holders_info = holders_string});
     return true;
   }
 
@@ -349,6 +363,12 @@ static bool gatt_update_app_hold_link_status(tGATT_IF gatt_if, tGATT_TCB* p_tcb,
   }
 
   log::info("removed gatt_if={}", gatt_if);
+
+  auto holders_string = gatt_tcb_get_holders_info_string(p_tcb);
+  tcb_state_history_.Push({.address = p_tcb->peer_bda,
+                           .transport = p_tcb->transport,
+                           .state = p_tcb->ch_state,
+                           .holders_info = holders_string});
   return true;
 }
 
@@ -417,7 +437,13 @@ void gatt_update_app_use_link_flag(tGATT_IF gatt_if, tGATT_TCB* p_tcb, bool is_a
         gatt_disconnect(p_tcb);
       }
     } else {
-      log::info("is_add=false, but some app is still using the ACL link");
+      auto holders = gatt_tcb_get_holders_info_string(p_tcb);
+      log::info("is_add=false, but some app is still using the ACL link. {}", holders);
+
+      tcb_state_history_.Push({.address = p_tcb->peer_bda,
+                               .transport = p_tcb->transport,
+                               .state = p_tcb->ch_state,
+                               .holders_info = holders});
     }
   }
 }
@@ -801,7 +827,7 @@ static void gatt_le_data_ind(uint16_t /* chan */, const RawAddress& bd_addr, BT_
  ******************************************************************************/
 static void gatt_l2cif_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid,
                                          uint16_t /* psm */, uint8_t /* id */) {
-  uint8_t result = L2CAP_CONN_OK;
+  tL2CAP_CONN result = tL2CAP_CONN::L2CAP_CONN_OK;
   log::info("Connection indication cid = {}", lcid);
 
   /* new connection ? */
@@ -811,18 +837,18 @@ static void gatt_l2cif_connect_ind_cback(const RawAddress& bd_addr, uint16_t lci
     p_tcb = gatt_allocate_tcb_by_bdaddr(bd_addr, BT_TRANSPORT_BR_EDR);
     if (p_tcb == NULL) {
       /* no tcb available, reject L2CAP connection */
-      result = L2CAP_CONN_NO_RESOURCES;
+      result = tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES;
     } else {
       p_tcb->att_lcid = lcid;
     }
 
   } else /* existing connection , reject it */
   {
-    result = L2CAP_CONN_NO_RESOURCES;
+    result = tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES;
   }
 
   /* If we reject the connection, send DisconnectReq */
-  if (result != L2CAP_CONN_OK) {
+  if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
     if (!L2CA_DisconnectReq(lcid)) {
       log::warn("Unable to disconnect L2CAP peer:{} cid:{}", bd_addr, lcid);
     }
@@ -846,7 +872,7 @@ static void gatt_on_l2cap_error(uint16_t lcid, uint16_t /* result */) {
 }
 
 /** This is the L2CAP connect confirm callback function */
-static void gatt_l2cif_connect_cfm_cback(uint16_t lcid, uint16_t result) {
+static void gatt_l2cif_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
   tGATT_TCB* p_tcb;
 
   /* look up clcb for this channel */
@@ -858,10 +884,10 @@ static void gatt_l2cif_connect_cfm_cback(uint16_t lcid, uint16_t result) {
   log::verbose("result: {} ch_state: {}, lcid:0x{:x}", result, gatt_get_ch_state(p_tcb),
                p_tcb->att_lcid);
 
-  if (gatt_get_ch_state(p_tcb) == GATT_CH_CONN && result == L2CAP_CONN_OK) {
+  if (gatt_get_ch_state(p_tcb) == GATT_CH_CONN && result == tL2CAP_CONN::L2CAP_CONN_OK) {
     gatt_set_ch_state(p_tcb, GATT_CH_CFG);
   } else {
-    gatt_on_l2cap_error(lcid, result);
+    gatt_on_l2cap_error(lcid, static_cast<uint16_t>(result));
   }
 }
 
@@ -1262,7 +1288,16 @@ void gatt_set_ch_state(tGATT_TCB* p_tcb, tGATT_CH_STATE ch_state) {
     return;
   }
 
-  log::verbose("old={} new=0x{:x}", p_tcb->ch_state, static_cast<uint8_t>(ch_state));
+  std::string holders_string = gatt_tcb_get_holders_info_string(p_tcb);
+  log::verbose("{}, transport: {}, state: {} -> {}, {}", p_tcb->peer_bda,
+               bt_transport_text(p_tcb->transport), gatt_channel_state_text(p_tcb->ch_state),
+               gatt_channel_state_text(ch_state), holders_string);
+
+  tcb_state_history_.Push({.address = p_tcb->peer_bda,
+                           .transport = p_tcb->transport,
+                           .state = ch_state,
+                           .holders_info = holders_string});
+
   p_tcb->ch_state = ch_state;
 }
 
@@ -1272,6 +1307,7 @@ tGATT_CH_STATE gatt_get_ch_state(tGATT_TCB* p_tcb) {
     return GATT_CH_CLOSE;
   }
 
-  log::verbose("gatt_get_ch_state: ch_state={}", p_tcb->ch_state);
+  log::verbose("{}, transport {},  ch_state={}", p_tcb->peer_bda,
+               bt_transport_text(p_tcb->transport), gatt_channel_state_text(p_tcb->ch_state));
   return p_tcb->ch_state;
 }

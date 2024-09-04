@@ -179,6 +179,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -1152,6 +1153,10 @@ public class AdapterService extends Service {
     }
 
     private void invalidateBluetoothGetStateCache() {
+        if (Flags.getStateFromSystemServer()) {
+            // State is managed by the system server
+            return;
+        }
         BluetoothAdapter.invalidateBluetoothGetStateCache();
     }
 
@@ -1261,7 +1266,7 @@ public class AdapterService extends Service {
                             .orElse(BluetoothProperties.snoop_log_filter_profile_map_values.EMPTY);
 
             if (!(sSnoopLogSettingAtEnable == snoopLogSetting)
-                    || !(sDefaultSnoopLogSettingAtEnable == snoopDefaultModeSetting)
+                    || !(Objects.equals(sDefaultSnoopLogSettingAtEnable, snoopDefaultModeSetting))
                     || !(sSnoopLogFilterHeadersSettingAtEnable
                             == snoopLogFilterHeadersSettingAtEnable)
                     || !(sSnoopLogFilterProfileA2dpSettingAtEnable
@@ -1481,7 +1486,9 @@ public class AdapterService extends Service {
         BluetoothAdapter.invalidateGetProfileConnectionStateCache();
         BluetoothAdapter.invalidateIsOffloadedFilteringSupportedCache();
         BluetoothDevice.invalidateBluetoothGetBondStateCache();
-        BluetoothAdapter.invalidateBluetoothGetStateCache();
+        if (!Flags.getStateFromSystemServer()) {
+            BluetoothAdapter.invalidateBluetoothGetStateCache();
+        }
         BluetoothAdapter.invalidateGetAdapterConnectionStateCache();
         BluetoothMap.invalidateBluetoothGetConnectionStateCache();
         BluetoothSap.invalidateBluetoothGetConnectionStateCache();
@@ -2239,6 +2246,9 @@ public class AdapterService extends Service {
 
         AdapterServiceBinder(AdapterService svc) {
             mService = svc;
+            if (Flags.getStateFromSystemServer()) {
+                return;
+            }
             mService.invalidateBluetoothGetStateCache();
             BluetoothAdapter.getDefaultAdapter().disableBluetoothGetStateCache();
         }
@@ -2280,7 +2290,7 @@ public class AdapterService extends Service {
 
             try {
                 // Wait for Bluetooth to be killed from its main thread
-                Thread.sleep(950); // SystemServer is waiting 1000 ms, we need to wait less here
+                Thread.sleep(1_000); // SystemServer is waiting 2000 ms, we need to wait less here
             } catch (InterruptedException e) {
                 Log.e(TAG, "killBluetoothProcess: Interrupted while waiting for kill");
             }
@@ -2294,29 +2304,29 @@ public class AdapterService extends Service {
         }
 
         @Override
-        public void enable(boolean quietMode, AttributionSource source) {
+        public void offToBleOn(boolean quietMode, AttributionSource source) {
             AdapterService service = getService();
             if (service == null
-                    || !callerIsSystemOrActiveOrManagedUser(service, TAG, "enable")
-                    || !Utils.checkConnectPermissionForDataDelivery(
-                            service, source, "AdapterService enable")) {
+                    || !callerIsSystemOrActiveOrManagedUser(service, TAG, "offToBleOn")) {
                 return;
             }
 
-            service.enable(quietMode);
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+
+            service.offToBleOn(quietMode);
         }
 
         @Override
-        public void disable(AttributionSource source) {
+        public void onToBleOn(AttributionSource source) {
             AdapterService service = getService();
             if (service == null
-                    || !callerIsSystemOrActiveOrManagedUser(service, TAG, "disable")
-                    || !Utils.checkConnectPermissionForDataDelivery(
-                            service, source, "AdapterService disable")) {
+                    || !callerIsSystemOrActiveOrManagedUser(service, TAG, "onToBleOn")) {
                 return;
             }
 
-            service.disable();
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+
+            service.onToBleOn();
         }
 
         @Override
@@ -2849,7 +2859,7 @@ public class AdapterService extends Service {
         @Override
         public int connectAllEnabledProfiles(BluetoothDevice device, AttributionSource source) {
             AdapterService service = getService();
-            if (service == null) {
+            if (service == null || !service.isEnabled()) {
                 return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
             }
             if (!callerIsSystemOrActiveOrManagedUser(service, TAG, "connectAllEnabledProfiles")) {
@@ -2874,6 +2884,13 @@ public class AdapterService extends Service {
                             + device
                             + ", from "
                             + Utils.getUidPidString());
+            MetricsLogger.getInstance()
+                    .logBluetoothEvent(
+                            device,
+                            BluetoothStatsLog
+                                    .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__INITIATOR_CONNECTION,
+                            BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__START,
+                            source.getUid());
 
             try {
                 return service.connectAllEnabledProfiles(device);
@@ -3729,7 +3746,7 @@ public class AdapterService extends Service {
 
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
 
-            return service.mDatabaseManager.getCustomMeta(device, key);
+            return service.getMetadata(device, key);
         }
 
         @Override
@@ -3790,31 +3807,29 @@ public class AdapterService extends Service {
         }
 
         @Override
-        public void startBrEdr(AttributionSource source) {
+        public void bleOnToOn(AttributionSource source) {
             AdapterService service = getService();
             if (service == null
-                    || !callerIsSystemOrActiveOrManagedUser(service, TAG, "startBrEdr")
-                    || !Utils.checkConnectPermissionForDataDelivery(service, source, TAG)) {
+                    || !callerIsSystemOrActiveOrManagedUser(service, TAG, "bleOnToOn")) {
                 return;
             }
 
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
 
-            service.startBrEdr();
+            service.bleOnToOn();
         }
 
         @Override
-        public void stopBle(AttributionSource source) {
+        public void bleOnToOff(AttributionSource source) {
             AdapterService service = getService();
             if (service == null
-                    || !callerIsSystemOrActiveOrManagedUser(service, TAG, "stopBle")
-                    || !Utils.checkConnectPermissionForDataDelivery(service, source, TAG)) {
+                    || !callerIsSystemOrActiveOrManagedUser(service, TAG, "bleOnToOff")) {
                 return;
             }
 
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
 
-            service.stopBle();
+            service.bleOnToOff();
         }
 
         @Override
@@ -4601,11 +4616,11 @@ public class AdapterService extends Service {
         return BluetoothAdapter.STATE_OFF;
     }
 
-    public synchronized void enable(boolean quietMode) {
+    public synchronized void offToBleOn(boolean quietMode) {
         // Enforce the user restriction for disallowing Bluetooth if it was set.
         if (mUserManager.hasUserRestrictionForUser(
                 UserManager.DISALLOW_BLUETOOTH, UserHandle.SYSTEM)) {
-            Log.d(TAG, "enable() called when Bluetooth was disallowed");
+            Log.d(TAG, "offToBleOn() called when Bluetooth was disallowed");
             return;
         }
         if (Flags.fastBindToApp()) {
@@ -4613,13 +4628,13 @@ public class AdapterService extends Service {
             mHandler.post(() -> init());
         }
 
-        Log.i(TAG, "enable() - Enable called with quiet mode status =  " + quietMode);
+        Log.i(TAG, "offToBleOn() - Enable called with quiet mode status =  " + quietMode);
         mQuietmode = quietMode;
         mAdapterStateMachine.sendMessage(AdapterState.BLE_TURN_ON);
     }
 
-    void disable() {
-        Log.d(TAG, "disable() called with mRunningProfiles.size() = " + mRunningProfiles.size());
+    void onToBleOn() {
+        Log.d(TAG, "onToBleOn() called with mRunningProfiles.size() = " + mRunningProfiles.size());
         mAdapterStateMachine.sendMessage(AdapterState.USER_TURN_OFF);
     }
 
@@ -4699,7 +4714,7 @@ public class AdapterService extends Service {
             return Utils.getBytesFromAddress(deviceProp.getIdentityAddress());
         }
 
-        if (Flags.identityAddressNullIfUnknown()) {
+        if (Flags.identityAddressNullIfNotKnown()) {
             // Return null if identity address unknown
             return null;
         } else {
@@ -4722,7 +4737,7 @@ public class AdapterService extends Service {
         if (deviceProp != null && deviceProp.getIdentityAddress() != null) {
             return deviceProp.getIdentityAddress();
         } else {
-            if (Flags.identityAddressNullIfUnknown()) {
+            if (Flags.identityAddressNullIfNotKnown()) {
                 // Return null if identity address unknown
                 return null;
             } else {
@@ -4784,6 +4799,14 @@ public class AdapterService extends Service {
         }
         if (setData) {
             msg.setData(remoteOobDatasBundle);
+        } else {
+            MetricsLogger.getInstance()
+                    .logBluetoothEvent(
+                            device,
+                            BluetoothStatsLog
+                                    .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__BONDING,
+                            BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__START,
+                            Binder.getCallingUid());
         }
         mBondStateMachine.sendMessage(msg);
         return true;
@@ -5752,12 +5775,12 @@ public class AdapterService extends Service {
     }
 
     @VisibleForTesting
-    void startBrEdr() {
+    void bleOnToOn() {
         mAdapterStateMachine.sendMessage(AdapterState.USER_TURN_ON);
     }
 
     @VisibleForTesting
-    void stopBle() {
+    void bleOnToOff() {
         mAdapterStateMachine.sendMessage(AdapterState.BLE_TURN_OFF);
     }
 

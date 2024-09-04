@@ -41,3 +41,4 @@ void BTM_LogHistory(const std::string& /* tag */, const tBLE_BD_ADDR& /* ble_bd_
                     const std::string& /* msg */, const std::string& /* extra */) {
   inc_func_call_count(__func__);
 }
+void DumpsysBtm(int /* fd */) { inc_func_call_count(__func__); }

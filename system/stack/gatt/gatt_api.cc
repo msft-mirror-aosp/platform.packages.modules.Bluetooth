@@ -41,8 +41,10 @@
 #include "stack/btm/btm_dev.h"
 #include "stack/gatt/connection_manager.h"
 #include "stack/gatt/gatt_int.h"
+#include "stack/include/ais_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/btm_client_interface.h"
 #include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/sdp_api.h"
@@ -323,8 +325,10 @@ tGATT_STATUS GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service, in
     Uuid* p_uuid = gatts_get_service_uuid(elem.p_db);
     if (*p_uuid != Uuid::From16Bit(UUID_SERVCLASS_GMCS_SERVER) &&
         *p_uuid != Uuid::From16Bit(UUID_SERVCLASS_GTBS_SERVER)) {
-      if (com::android::bluetooth::flags::channel_sounding_in_stack() &&
-          *p_uuid == Uuid::From16Bit(UUID_SERVCLASS_RAS)) {
+      if ((com::android::bluetooth::flags::channel_sounding_in_stack() &&
+           *p_uuid == Uuid::From16Bit(UUID_SERVCLASS_RAS)) ||
+          (com::android::bluetooth::flags::android_os_identifier() &&
+           *p_uuid == ANDROID_INFORMATION_SERVICE_UUID)) {
         elem.sdp_handle = 0;
       } else {
         elem.sdp_handle = gatt_add_sdp_record(*p_uuid, elem.s_hdl, elem.e_hdl);
@@ -840,7 +844,10 @@ void GATTC_UpdateUserAttMtuIfNeeded(const RawAddress& remote_bda, tBT_TRANSPORT 
   }
 
   p_tcb->max_user_mtu = user_mtu;
-  BTM_SetBleDataLength(remote_bda, user_mtu);
+  if (get_btm_client_interface().ble.BTM_SetBleDataLength(remote_bda, user_mtu) !=
+      tBTM_STATUS::BTM_SUCCESS) {
+    log::warn("Unable to set ble data length peer:{} mtu:{}", remote_bda, user_mtu);
+  }
 }
 
 std::list<uint16_t> GATTC_GetAndRemoveListOfConnIdsWaitingForMtuRequest(

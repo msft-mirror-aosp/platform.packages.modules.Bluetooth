@@ -39,6 +39,7 @@
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/l2c_api.h"  // L2CA_
 #include "stack/include/main_thread.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
@@ -964,7 +965,7 @@ static void bta_hh_le_encrypt_cback(RawAddress bd_addr, tBT_TRANSPORT transport,
   }
 
   // TODO Collapse the duplicated status values
-  p_dev_cb->status = (result == BTM_SUCCESS) ? BTA_HH_OK : BTA_HH_ERR_SEC;
+  p_dev_cb->status = (result == tBTM_STATUS::BTM_SUCCESS) ? BTA_HH_OK : BTA_HH_ERR_SEC;
   p_dev_cb->btm_status = result;
 
   bta_hh_sm_execute(p_dev_cb, BTA_HH_ENC_CMPL_EVT, NULL);
@@ -1010,7 +1011,7 @@ void bta_hh_security_cmpl(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */)
       log::verbose("Starting service discovery");
       bta_hh_le_pri_service_discovery(p_cb);
     }
-  } else if (p_cb->btm_status == BTM_ERR_KEY_MISSING) {
+  } else if (p_cb->btm_status == tBTM_STATUS::BTM_ERR_KEY_MISSING) {
     log::error("Received encryption failed status:{} btm_status:{}",
                bta_hh_status_text(p_cb->status), btm_status_text(p_cb->btm_status));
     bta_hh_le_api_disc_act(p_cb);
@@ -1018,8 +1019,9 @@ void bta_hh_security_cmpl(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */)
     log::error("Encryption failed status:{} btm_status:{}", bta_hh_status_text(p_cb->status),
                btm_status_text(p_cb->btm_status));
     if (!(p_cb->status == BTA_HH_ERR_SEC &&
-          (p_cb->btm_status == BTM_ERR_PROCESSING || p_cb->btm_status == BTM_FAILED_ON_SECURITY ||
-           p_cb->btm_status == BTM_WRONG_MODE))) {
+          (p_cb->btm_status == tBTM_STATUS::BTM_ERR_PROCESSING ||
+           p_cb->btm_status == tBTM_STATUS::BTM_FAILED_ON_SECURITY ||
+           p_cb->btm_status == tBTM_STATUS::BTM_WRONG_MODE))) {
       bta_hh_le_api_disc_act(p_cb);
     }
   }
@@ -1074,11 +1076,6 @@ static void bta_hh_clear_service_cache(tBTA_HH_DEV_CB* p_cb) {
  ******************************************************************************/
 void bta_hh_start_security(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */) {
   log::verbose("addr:{}", p_cb->link_spec.addrt.bda);
-  if (BTM_SecIsSecurityPending(p_cb->link_spec.addrt.bda)) {
-    /* if security collision happened, wait for encryption done */
-    p_cb->security_pending = true;
-    return;
-  }
 
   /* if link has been encrypted */
   if (BTM_IsEncrypted(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE)) {
@@ -1092,9 +1089,12 @@ void bta_hh_start_security(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */
     p_cb->status = BTA_HH_ERR_AUTH_FAILED;
     BTM_SetEncryption(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE, bta_hh_le_encrypt_cback, NULL,
                       BTM_BLE_SEC_ENCRYPT);
-  }
-  /* unbonded device, report security error here */
-  else {
+  } else if (BTM_SecIsSecurityPending(p_cb->link_spec.addrt.bda)) {
+    /* if security collision happened, wait for encryption done */
+    log::debug("addr:{} security collision", p_cb->link_spec.addrt.bda);
+    p_cb->security_pending = true;
+  } else {
+    /* unbonded device, report security error here */
     log::debug("addr:{} not bonded", p_cb->link_spec.addrt.bda);
     p_cb->status = BTA_HH_ERR_AUTH_FAILED;
     bta_hh_clear_service_cache(p_cb);

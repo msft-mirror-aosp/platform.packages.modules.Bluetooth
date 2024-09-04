@@ -453,6 +453,21 @@ tGATT_TCB* gatt_find_tcb_by_addr(const RawAddress& bda, tBT_TRANSPORT transport)
   return p_tcb;
 }
 
+std::string gatt_tcb_get_holders_info_string(const tGATT_TCB* p_tcb) {
+  std::stringstream stream;
+
+  if (p_tcb->app_hold_link.size() == 0) {
+    stream << "No ACL holders";
+  } else {
+    stream << "ACL holders gatt_if:";
+
+    for (auto gatt_if : p_tcb->app_hold_link) {
+      stream << static_cast<int>(gatt_if) << ",";
+    }
+  }
+  return stream.str();
+}
+
 /*******************************************************************************
  *
  * Function     gatt_tcb_dump
@@ -462,9 +477,17 @@ tGATT_TCB* gatt_find_tcb_by_addr(const RawAddress& bda, tBT_TRANSPORT transport)
  * Returns      void
  *
  ******************************************************************************/
+#define DUMPSYS_TAG "stack::gatt"
 void gatt_tcb_dump(int fd) {
   std::stringstream stream;
   int in_use_cnt = 0;
+
+  auto copy = tcb_state_history_.Pull();
+  LOG_DUMPSYS(fd, "   last %zu tcb state transitions:", copy.size());
+  for (const auto& it : copy) {
+    LOG_DUMPSYS(fd, "   %s %s", EpochMillisToString(it.timestamp).c_str(),
+                it.entry.ToString().c_str());
+  }
 
   for (int i = 0; i < gatt_get_max_phy_channel(); i++) {
     tGATT_TCB* p_tcb = &gatt_cb.tcb[i];
@@ -474,14 +497,15 @@ void gatt_tcb_dump(int fd) {
       stream << "  id: " << +p_tcb->tcb_idx
              << "  address: " << ADDRESS_TO_LOGGABLE_STR(p_tcb->peer_bda)
              << "  transport: " << bt_transport_text(p_tcb->transport)
-             << "  ch_state: " << gatt_channel_state_text(p_tcb->ch_state);
-      stream << "\n";
+             << "  ch_state: " << gatt_channel_state_text(p_tcb->ch_state) << ", "
+             << gatt_tcb_get_holders_info_string(p_tcb) << "\n";
     }
   }
 
   dprintf(fd, "TCB (GATT_MAX_PHY_CHANNEL: %d) in_use: %d\n%s\n", gatt_get_max_phy_channel(),
           in_use_cnt, stream.str().c_str());
 }
+#undef DUMPSYS_TAG
 
 /*******************************************************************************
  *
@@ -758,10 +782,10 @@ void gatt_rsp_timeout(void* data) {
   auto eatt_channel =
           EattExtension::GetInstance()->FindEattChannelByCid(p_clcb->p_tcb->peer_bda, p_clcb->cid);
   if (eatt_channel) {
-    log::warn("disconnecting EATT cid: {}", p_clcb->cid);
+    log::warn("conn_id: 0x{:04x} disconnecting EATT cid: {}", p_clcb->conn_id, p_clcb->cid);
     EattExtension::GetInstance()->Disconnect(p_clcb->p_tcb->peer_bda, p_clcb->cid);
   } else {
-    log::warn("disconnecting GATT...");
+    log::warn("conn_id: 0x{:04x} disconnecting GATT...", p_clcb->conn_id);
     gatt_disconnect(p_clcb->p_tcb);
   }
 }
@@ -801,7 +825,7 @@ void gatt_indication_confirmation_timeout(void* data) {
     return;
   }
 
-  log::warn("disconnecting...");
+  log::warn("disconnecting... bda:{} transport:{}", p_tcb->peer_bda, p_tcb->transport);
   gatt_disconnect(p_tcb);
 }
 
