@@ -568,11 +568,11 @@ void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb, uint8_t ro
  *
  ******************************************************************************/
 void avdt_ad_close_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb) {
-  uint8_t tcid;
+  uint16_t lcid;
   AvdtpTransportChannel* p_tbl;
 
   p_tbl = avdt_ad_tc_tbl_by_type(type, p_ccb, p_scb);
-  log::verbose("avdt_ad_close_req state: {}", p_tbl->state);
+  log::verbose("state: {}", p_tbl->state);
 
   switch (p_tbl->state) {
     case AVDT_AD_ST_UNUSED:
@@ -583,10 +583,11 @@ void avdt_ad_close_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb) {
       avdt_ad_tc_close_ind(p_tbl);
       break;
     default:
-      /* get tcid from type, scb */
-      tcid = avdt_ad_type_to_tcid(type, p_scb);
-
+      lcid = p_tbl->lcid;
       /* call l2cap disconnect req */
-      avdt_l2c_disconnect(avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][tcid].lcid);
+      if (!L2CA_DisconnectReq(lcid)) {
+        log::warn("Unable to disconnect L2CAP lcid: 0x{:04x}", lcid);
+      }
+      avdt_ad_tc_close_ind(p_tbl);
   }
 }

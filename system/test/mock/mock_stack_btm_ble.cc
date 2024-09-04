@@ -280,8 +280,7 @@ bool btm_get_local_div(const RawAddress& bd_addr, uint16_t* p_div) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_ble::btm_get_local_div(bd_addr, p_div);
 }
-tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
-                               const tSMP_EVT_DATA* p_data) {
+tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr, tSMP_EVT_DATA* p_data) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_ble::btm_proc_smp_cback(event, bd_addr, p_data);
 }

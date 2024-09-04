@@ -658,7 +658,7 @@ static void ble_io_req(const RawAddress& bd_addr, tBTM_IO_CAP* p_io_cap, tBTM_OO
 static tBTM_STATUS bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
                                         tBTM_LE_EVT_DATA* p_data) {
   tBTM_STATUS status = tBTM_STATUS::BTM_SUCCESS;
-  tBTA_DM_SEC sec_event;
+  tBTA_DM_SEC sec_event = {};
 
   log::debug("addr:{},event:{}", bda, ble_evt_to_text(event));
 
@@ -666,7 +666,6 @@ static tBTM_STATUS bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda
     return tBTM_STATUS::BTM_NOT_AUTHORIZED;
   }
 
-  memset(&sec_event, 0, sizeof(tBTA_DM_SEC));
   switch (event) {
     case BTM_LE_IO_REQ_EVT:
       ble_io_req(bda, &p_data->io_req.io_cap, &p_data->io_req.oob_data, &p_data->io_req.auth_req,
