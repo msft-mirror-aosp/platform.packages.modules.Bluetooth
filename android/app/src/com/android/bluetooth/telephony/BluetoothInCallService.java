@@ -622,10 +622,11 @@ public class BluetoothInCallService extends InCallService {
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
     public void onCallAdded(BluetoothCall call) {
         if (call.isExternalCall()) {
+            Log.d(TAG, "onCallAdded: external call");
             return;
         }
         if (!mBluetoothCallHashMap.containsKey(call.getId())) {
-            Log.d(TAG, "onCallAdded");
+            Log.i(TAG, "onCallAdded");
             CallStateCallback callback = new CallStateCallback(call.getState());
             mCallbacks.put(call.getId(), callback);
             call.registerCallback(callback);
@@ -640,6 +641,8 @@ public class BluetoothInCallService extends InCallService {
             if (mBluetoothLeCallControl != null && tbsCall != null) {
                 mBluetoothLeCallControl.onCallAdded(tbsCall);
             }
+        } else {
+            Log.i(TAG, "onCallAdded: call already exists");
         }
     }
 
@@ -688,7 +691,7 @@ public class BluetoothInCallService extends InCallService {
      */
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
     public void onCallRemoved(BluetoothCall call, boolean forceRemoveCallback) {
-        Log.d(TAG, "onCallRemoved");
+        Log.i(TAG, "onCallRemoved, forceRemoveCallback=" + forceRemoveCallback);
         CallStateCallback callback = getCallback(call);
         if (callback != null && (forceRemoveCallback || !call.isExternalCall())) {
             call.unregisterCallback(callback);
@@ -943,7 +946,7 @@ public class BluetoothInCallService extends InCallService {
     /** Sends a single clcc (C* List Current Calls) event for the specified call. */
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
     private void sendClccForCall(BluetoothCall call, boolean shouldLog) {
-        boolean isForeground = mCallInfo.getForegroundCall() == call;
+        boolean isForeground = call.equals(mCallInfo.getForegroundCall());
         int state = getBtCallState(call, isForeground);
         boolean isPartOfConference = false;
         boolean isConferenceWithNoChildren = isConferenceWithNoChildren(call);
@@ -979,7 +982,7 @@ public class BluetoothInCallService extends InCallService {
 
                     if (shouldReevaluateState) {
                         isPartOfConference = false;
-                        if (call == activeChild) {
+                        if (call.equals(activeChild)) {
                             state = CALL_STATE_ACTIVE;
                         } else {
                             // At this point we know there is an "active" child and we know that it
@@ -1267,7 +1270,8 @@ public class BluetoothInCallService extends InCallService {
                                         || bluetoothCallState != mBluetoothCallState
                                         || !TextUtils.equals(ringingAddress, mRingingAddress)
                                         || ringingAddressType != mRingingAddressType
-                                        || (heldCall != mOldHeldCall && !ignoreHeldCallChange))))) {
+                                        || (!Objects.equals(heldCall, mOldHeldCall)
+                                                && !ignoreHeldCallChange))))) {
 
             // If the BluetoothCall is transitioning into the alerting state, send DIALING first.
             // Some devices expect to see a DIALING state prior to seeing an ALERTING state
@@ -1333,6 +1337,8 @@ public class BluetoothInCallService extends InCallService {
                     ringingName);
 
             mHeadsetUpdatedRecently = true;
+        } else {
+            Log.i(TAG, "updateHeadsetWithCallState skipped");
         }
     }
 
@@ -1665,7 +1671,7 @@ public class BluetoothInCallService extends InCallService {
                                         && !conferenceCall.wasConferencePreviouslyMerged());
 
                 if (shouldReevaluateState) {
-                    if (call == activeChild) {
+                    if (call.equals(activeChild)) {
                         state = BluetoothLeCall.STATE_ACTIVE;
                     } else {
                         // At this point we know there is an "active" child and we know that it is

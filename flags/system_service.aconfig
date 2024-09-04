@@ -30,20 +30,20 @@ flag {
 }
 
 flag {
-    name: "explicit_kill_from_system_server"
-    namespace: "bluetooth"
-    description: "Explicit kill and wait of Bluetooth AdapterService when turning Bluetooth OFF"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-    bug: "339548431"
-}
-
-flag {
     name: "fast_bind_to_app"
     namespace: "bluetooth"
     description: "Remove complexity and non necessary initialization when simply binding"
     bug: "328698375"
+}
+
+flag {
+    name: "get_state_from_system_server"
+    namespace: "bluetooth"
+    description: "Get Bluetooth state from system server instead of from Bluetooth app"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+    bug: "362569584"
 }
 
 flag {

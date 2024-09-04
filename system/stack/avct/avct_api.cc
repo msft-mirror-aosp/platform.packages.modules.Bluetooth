@@ -25,6 +25,7 @@
 #include "avct_api.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include "avct_int.h"
@@ -61,9 +62,14 @@ void AVCT_Register() {
   /* initialize AVCTP data structures */
   memset(&avct_cb, 0, sizeof(tAVCT_CB));
 
+  uint16_t sec = BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT;
+  if (!com::android::bluetooth::flags::use_encrypt_req_for_av()) {
+    sec = BTA_SEC_AUTHENTICATE;
+  }
+
   /* register PSM with L2CAP */
   if (!L2CA_RegisterWithSecurity(AVCT_PSM, avct_l2c_appl, true /* enable_snoop */, nullptr,
-                                 kAvrcMtu, 0, BTA_SEC_AUTHENTICATE)) {
+                                 kAvrcMtu, 0, sec)) {
     log::error("Unable to register with L2CAP AVCT profile psm:AVCT_PSM[0x0017]");
   }
 
@@ -72,7 +78,7 @@ void AVCT_Register() {
   ertm_info.preferred_mode = L2CAP_FCR_ERTM_MODE;
 
   if (!L2CA_RegisterWithSecurity(AVCT_BR_PSM, avct_l2c_br_appl, true /*enable_snoop*/, &ertm_info,
-                                 kAvrcBrMtu, AVCT_MIN_BROWSE_MTU, BTA_SEC_AUTHENTICATE)) {
+                                 kAvrcBrMtu, AVCT_MIN_BROWSE_MTU, sec)) {
     log::error(
             "Unable to register with L2CAP AVCT_BR profile "
             "psm:AVCT_BR_PSM[0x001b]");

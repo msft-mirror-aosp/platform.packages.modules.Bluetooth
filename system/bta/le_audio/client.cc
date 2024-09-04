@@ -47,6 +47,7 @@
 #include "gatt_api.h"
 #include "hci/controller_interface.h"
 #include "internal_include/stack_config.h"
+#include "le_audio/device_groups.h"
 #include "le_audio_health_status.h"
 #include "le_audio_set_configuration_provider.h"
 #include "le_audio_types.h"
@@ -59,6 +60,7 @@
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
 #include "state_machine.h"
 #include "storage_helper.h"
@@ -237,6 +239,7 @@ public:
         callbacks_(callbacks_),
         active_group_id_(bluetooth::groups::kGroupUnknown),
         configuration_context_type_(LeAudioContextType::UNINITIALIZED),
+        in_call_metadata_context_types_({.sink = AudioContexts(), .source = AudioContexts()}),
         local_metadata_context_types_({.sink = AudioContexts(), .source = AudioContexts()}),
         stream_setup_start_timestamp_(0),
         stream_setup_end_timestamp_(0),
@@ -952,17 +955,6 @@ public:
       return;
     }
 
-    if (group->GetState() == AseState::BTA_LE_AUDIO_ASE_STATE_IDLE) {
-      if (group->GetTargetState() != AseState::BTA_LE_AUDIO_ASE_STATE_IDLE) {
-        log::warn("group {} was about to stream, but got canceled: {}", group_id,
-                  ToString(group->GetTargetState()));
-        group->SetTargetState(AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
-      } else {
-        log::warn(", group {} already stopped: {}", group_id, ToString(group->GetState()));
-      }
-      return;
-    }
-
     groupStateMachine_->StopStream(group);
   }
 
@@ -986,7 +978,45 @@ public:
   void SetCodecConfigPreference(
           int group_id, bluetooth::le_audio::btle_audio_codec_config_t input_codec_config,
           bluetooth::le_audio::btle_audio_codec_config_t output_codec_config) override {
-    // TODO Implement
+    if (!com::android::bluetooth::flags::leaudio_set_codec_config_preference()) {
+      log::debug("leaudio_set_codec_config_preference flag is not enabled");
+      return;
+    }
+
+    LeAudioDeviceGroup* group = aseGroups_.FindById(group_id);
+
+    if (!group) {
+      log::error("Unknown group id: %d", group_id);
+    }
+
+    if (group->SetPreferredAudioSetConfiguration(input_codec_config, output_codec_config)) {
+      log::info("group id: {}, setting preferred codec is successful.", group_id);
+    } else {
+      log::warn("group id: {}, setting preferred codec is failed.", group_id);
+      return;
+    }
+
+    if (group_id != active_group_id_) {
+      log::warn("Selected group is not active.");
+      return;
+    }
+
+    if (SetConfigurationAndStopStreamWhenNeeded(group, group->GetConfigurationContextType())) {
+      log::debug("Group id {} do the reconfiguration based on preferred codec config", group_id);
+    } else {
+      log::debug("Group id {} preferred codec config is not changed", group_id);
+    }
+  }
+
+  bool IsUsingPreferredCodecConfig(int group_id, int context_type) {
+    LeAudioDeviceGroup* group = aseGroups_.FindById(group_id);
+    if (!group) {
+      log::error("Unknown group id: %d", group_id);
+      return false;
+    }
+
+    return group->IsUsingPreferredAudioSetConfiguration(
+            static_cast<LeAudioContextType>(context_type));
   }
 
   void SetCcidInformation(int ccid, int context_type) override {
@@ -1006,6 +1036,11 @@ public:
 
   void SetInCall(bool in_call) override {
     log::debug("in_call: {}", in_call);
+    if (in_call == in_call_) {
+      log::verbose("no state change {}", in_call);
+      return;
+    }
+
     in_call_ = in_call;
 
     if (!com::android::bluetooth::flags::leaudio_speed_up_reconfiguration_between_call()) {
@@ -1014,17 +1049,25 @@ public:
     }
 
     if (active_group_id_ == bluetooth::groups::kGroupUnknown) {
+      log::debug("There is no active group");
       return;
     }
 
     LeAudioDeviceGroup* group = aseGroups_.FindById(active_group_id_);
     if (!group || !group->IsStreaming()) {
+      log::debug("{} is not streaming", active_group_id_);
       return;
     }
 
     bool reconfigure = false;
 
     if (in_call_) {
+      in_call_metadata_context_types_ = local_metadata_context_types_;
+
+      log::debug("in_call_metadata_context_types_ sink: {}  source: {}",
+                 in_call_metadata_context_types_.sink.to_string(),
+                 in_call_metadata_context_types_.source.to_string());
+
       auto audio_set_conf = group->GetConfiguration(LeAudioContextType::CONVERSATIONAL);
       if (audio_set_conf && group->IsGroupConfiguredTo(*audio_set_conf)) {
         log::info("Call is coming, but CIG already set for a call");
@@ -1035,14 +1078,18 @@ public:
     } else {
       if (configuration_context_type_ == LeAudioContextType::CONVERSATIONAL) {
         log::info("Call is ended, speed up reconfiguration for media");
-        local_metadata_context_types_.sink.unset(LeAudioContextType::CONVERSATIONAL);
-        local_metadata_context_types_.source.unset(LeAudioContextType::CONVERSATIONAL);
+        local_metadata_context_types_ = in_call_metadata_context_types_;
+        log::debug("restored local_metadata_context_types_ sink: {}  source: {}",
+                   local_metadata_context_types_.sink.to_string(),
+                   local_metadata_context_types_.source.to_string());
+        in_call_metadata_context_types_.sink.clear();
+        in_call_metadata_context_types_.source.clear();
         reconfigure = true;
       }
     }
 
     if (reconfigure) {
-      initReconfiguration(group, configuration_context_type_);
+      ReconfigureOrUpdateRemote(group, bluetooth::le_audio::types::kLeAudioDirectionSink);
     }
   }
 
@@ -2093,15 +2140,16 @@ public:
     /* verify bond */
     if (BTM_IsEncrypted(address, BT_TRANSPORT_LE)) {
       /* if link has been encrypted */
-      OnEncryptionComplete(address, BTM_SUCCESS);
+      OnEncryptionComplete(address, tBTM_STATUS::BTM_SUCCESS);
       return;
     }
 
-    int result = BTM_SetEncryption(address, BT_TRANSPORT_LE, nullptr, nullptr, BTM_BLE_SEC_ENCRYPT);
+    tBTM_STATUS result =
+            BTM_SetEncryption(address, BT_TRANSPORT_LE, nullptr, nullptr, BTM_BLE_SEC_ENCRYPT);
 
     log::info("Encryption required for {}. Request result: 0x{:02x}", address, result);
 
-    if (result == BTM_ERR_KEY_MISSING) {
+    if (result == tBTM_STATUS::BTM_ERR_KEY_MISSING) {
       log::error("Link key unknown for {}, disconnect profile", address);
       bluetooth::le_audio::MetricsCollector::Get()->OnConnectionStateChanged(
               leAudioDevice->group_id_, address, ConnectionState::CONNECTED,
@@ -2174,7 +2222,7 @@ public:
     }
   }
 
-  void OnEncryptionComplete(const RawAddress& address, uint8_t status) {
+  void OnEncryptionComplete(const RawAddress& address, tBTM_STATUS status) {
     log::info("{} status 0x{:02x}", address, status);
     LeAudioDevice* leAudioDevice = leAudioDevices_.FindByAddress(address);
     if (leAudioDevice == NULL || (leAudioDevice->conn_id_ == GATT_INVALID_CONN_ID)) {
@@ -2183,8 +2231,8 @@ public:
       return;
     }
 
-    if (status != BTM_SUCCESS) {
-      log::error("Encryption failed status: {}", int{status});
+    if (status != tBTM_STATUS::BTM_SUCCESS) {
+      log::error("Encryption failed status: {}", btm_status_text(status));
       if (leAudioDevice->GetConnectionState() ==
           DeviceConnectState::CONNECTED_BY_USER_GETTING_READY) {
         callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
@@ -4152,7 +4200,10 @@ public:
 
   inline bool IsDirectionAvailableForCurrentConfiguration(const LeAudioDeviceGroup* group,
                                                           uint8_t direction) const {
-    auto current_config = group->GetCachedConfiguration(configuration_context_type_);
+    auto current_config =
+            group->IsUsingPreferredAudioSetConfiguration(configuration_context_type_)
+                    ? group->GetCachedPreferredConfiguration(configuration_context_type_)
+                    : group->GetCachedConfiguration(configuration_context_type_);
     if (current_config) {
       return current_config->confs.get(direction).size() != 0;
     }
@@ -4752,28 +4803,33 @@ public:
     return remote_metadata;
   }
 
+  bool ReconfigureOrUpdateRemoteForPTS(LeAudioDeviceGroup* group, int remote_direction) {
+    log::info("{}", group->group_id_);
+    // Use common audio stream contexts exposed by the PTS
+    auto override_contexts = AudioContexts(0xFFFF);
+    for (auto device = group->GetFirstDevice(); device != nullptr;
+         device = group->GetNextDevice(device)) {
+      override_contexts &= device->GetAvailableContexts();
+    }
+    if (override_contexts.value() == 0xFFFF) {
+      override_contexts = AudioContexts(LeAudioContextType::UNSPECIFIED);
+    }
+    log::warn("Overriding local_metadata_context_types_: {} with: {}",
+              local_metadata_context_types_.source.to_string(), override_contexts.to_string());
+
+    /* Choose the right configuration context */
+    auto new_configuration_context = ChooseConfigurationContextType(override_contexts);
+
+    log::debug("new_configuration_context= {}.", ToString(new_configuration_context));
+    BidirectionalPair<AudioContexts> remote_contexts = {.sink = override_contexts,
+                                                        .source = override_contexts};
+    return GroupStream(active_group_id_, new_configuration_context, remote_contexts);
+  }
+
   /* Return true if stream is started */
   bool ReconfigureOrUpdateRemote(LeAudioDeviceGroup* group, int remote_direction) {
     if (stack_config_get_interface()->get_pts_force_le_audio_multiple_contexts_metadata()) {
-      // Use common audio stream contexts exposed by the PTS
-      auto override_contexts = AudioContexts(0xFFFF);
-      for (auto device = group->GetFirstDevice(); device != nullptr;
-           device = group->GetNextDevice(device)) {
-        override_contexts &= device->GetAvailableContexts();
-      }
-      if (override_contexts.value() == 0xFFFF) {
-        override_contexts = AudioContexts(LeAudioContextType::UNSPECIFIED);
-      }
-      log::warn("Overriding local_metadata_context_types_: {} with: {}",
-                local_metadata_context_types_.source.to_string(), override_contexts.to_string());
-
-      /* Choose the right configuration context */
-      auto new_configuration_context = ChooseConfigurationContextType(override_contexts);
-
-      log::debug("new_configuration_context= {}.", ToString(new_configuration_context));
-      BidirectionalPair<AudioContexts> remote_contexts = {.sink = override_contexts,
-                                                          .source = override_contexts};
-      return GroupStream(active_group_id_, new_configuration_context, remote_contexts);
+      return ReconfigureOrUpdateRemoteForPTS(group, remote_direction);
     }
 
     /* When the local sink and source update their metadata, we need to come up
@@ -4803,7 +4859,7 @@ public:
             LeAudioContextType::NOTIFICATIONS | LeAudioContextType::SOUNDEFFECTS |
             LeAudioContextType::INSTRUCTIONAL | LeAudioContextType::ALERTS |
             LeAudioContextType::EMERGENCYALARM | LeAudioContextType::UNSPECIFIED;
-    if (group->IsStreaming() && config_context_candids.any() &&
+    if (group->IsStreaming() && !group->IsReleasingOrIdle() && config_context_candids.any() &&
         (config_context_candids & ~no_reconfigure_contexts).none() &&
         (configuration_context_type_ != LeAudioContextType::UNINITIALIZED) &&
         (configuration_context_type_ != LeAudioContextType::UNSPECIFIED) &&
@@ -5507,6 +5563,7 @@ private:
   LeAudioContextType configuration_context_type_;
   static constexpr char kAllowMultipleContextsInMetadata[] =
           "persist.bluetooth.leaudio.allow.multiple.contexts";
+  BidirectionalPair<AudioContexts> in_call_metadata_context_types_;
   BidirectionalPair<AudioContexts> local_metadata_context_types_;
   uint64_t stream_setup_start_timestamp_;
   uint64_t stream_setup_end_timestamp_;
@@ -5739,11 +5796,11 @@ void le_audio_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
       break;
 
     case BTA_GATTC_ENC_CMPL_CB_EVT: {
-      uint8_t encryption_status;
+      tBTM_STATUS encryption_status;
       if (BTM_IsEncrypted(p_data->enc_cmpl.remote_bda, BT_TRANSPORT_LE)) {
-        encryption_status = BTM_SUCCESS;
+        encryption_status = tBTM_STATUS::BTM_SUCCESS;
       } else {
-        encryption_status = BTM_FAILED_ON_SECURITY;
+        encryption_status = tBTM_STATUS::BTM_FAILED_ON_SECURITY;
       }
       instance->OnEncryptionComplete(p_data->enc_cmpl.remote_bda, encryption_status);
     } break;

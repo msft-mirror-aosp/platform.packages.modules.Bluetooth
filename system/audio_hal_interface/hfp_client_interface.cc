@@ -40,11 +40,11 @@ namespace audio {
 namespace hfp {
 
 // Helper functions
-aidl::BluetoothAudioSinkClientInterface* get_decode_client_interface() {
+aidl::BluetoothAudioSourceClientInterface* get_decode_client_interface() {
   return HfpDecodingTransport::active_hal_interface;
 }
 
-aidl::BluetoothAudioSourceClientInterface* get_encode_client_interface() {
+aidl::BluetoothAudioSinkClientInterface* get_encode_client_interface() {
   return HfpEncodingTransport::active_hal_interface;
 }
 
@@ -172,13 +172,13 @@ void HfpClientInterface::Decode::UpdateAudioConfigToHal(
   return;
 }
 
-size_t HfpClientInterface::Decode::Read(uint8_t* p_buf, uint32_t len) {
+size_t HfpClientInterface::Decode::Write(const uint8_t* p_buf, uint32_t len) {
   if (!is_aidl_support_hfp()) {
     log::warn("Unsupported HIDL or AIDL version");
     return 0;
   }
   log::info("decode");
-  return get_decode_client_interface()->ReadAudioData(p_buf, len);
+  return get_decode_client_interface()->WriteAudioData(p_buf, len);
 }
 
 void HfpClientInterface::Decode::ConfirmStreamingRequest() {
@@ -240,7 +240,7 @@ HfpClientInterface::Decode* HfpClientInterface::GetDecode(
   HfpDecodingTransport::instance_ =
           new HfpDecodingTransport(aidl::SessionType::HFP_SOFTWARE_DECODING_DATAPATH);
   HfpDecodingTransport::software_hal_interface =
-          new aidl::BluetoothAudioSinkClientInterface(HfpDecodingTransport::instance_);
+          new aidl::BluetoothAudioSourceClientInterface(HfpDecodingTransport::instance_);
   if (!HfpDecodingTransport::software_hal_interface->IsValid()) {
     log::warn("BluetoothAudio HAL for HFP is invalid");
     delete HfpDecodingTransport::software_hal_interface;
@@ -323,13 +323,13 @@ void HfpClientInterface::Encode::UpdateAudioConfigToHal(
   return;
 }
 
-size_t HfpClientInterface::Encode::Write(const uint8_t* p_buf, uint32_t len) {
+size_t HfpClientInterface::Encode::Read(uint8_t* p_buf, uint32_t len) {
   if (!is_aidl_support_hfp()) {
     log::warn("Unsupported HIDL or AIDL version");
     return 0;
   }
   log::info("encode");
-  return get_encode_client_interface()->WriteAudioData(p_buf, len);
+  return get_encode_client_interface()->ReadAudioData(p_buf, len);
 }
 
 void HfpClientInterface::Encode::ConfirmStreamingRequest() {
@@ -391,7 +391,7 @@ HfpClientInterface::Encode* HfpClientInterface::GetEncode(
   HfpEncodingTransport::instance_ =
           new HfpEncodingTransport(aidl::SessionType::HFP_SOFTWARE_ENCODING_DATAPATH);
   HfpEncodingTransport::software_hal_interface =
-          new aidl::BluetoothAudioSourceClientInterface(HfpEncodingTransport::instance_);
+          new aidl::BluetoothAudioSinkClientInterface(HfpEncodingTransport::instance_);
   if (!HfpEncodingTransport::software_hal_interface->IsValid()) {
     log::warn("BluetoothAudio HAL for HFP is invalid");
     delete HfpEncodingTransport::software_hal_interface;
@@ -541,7 +541,7 @@ HfpClientInterface::Offload* HfpClientInterface::GetOffload(
     HfpEncodingTransport::instance_ =
             new HfpEncodingTransport(aidl::SessionType::HFP_HARDWARE_OFFLOAD_DATAPATH);
     HfpEncodingTransport::offloading_hal_interface =
-            new aidl::BluetoothAudioSourceClientInterface(HfpEncodingTransport::instance_);
+            new aidl::BluetoothAudioSinkClientInterface(HfpEncodingTransport::instance_);
     if (!HfpEncodingTransport::offloading_hal_interface->IsValid()) {
       log::fatal("BluetoothAudio HAL for HFP offloading is invalid");
       delete HfpEncodingTransport::offloading_hal_interface;
