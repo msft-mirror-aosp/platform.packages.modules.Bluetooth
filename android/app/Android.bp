@@ -134,6 +134,7 @@ cc_library_shared {
         "libcutils",
         "libevent",
         "libexpresslog",
+        "libflags_rust_cpp_bridge",
         "libflatbuffers-cpp",
         "libfmq",
         "libg722codec",
@@ -329,9 +330,11 @@ android_app {
             "-Xep:AndroidFrameworkEfficientStrings:ERROR",
             "-Xep:AndroidFrameworkRequiresPermission:ERROR",
             "-Xep:BadImport:ERROR",
+            "-Xep:CatchAndPrintStackTrace:ERROR",
             "-Xep:ClassCanBeStatic:ERROR",
             "-Xep:DateFormatConstant:ERROR",
             "-Xep:EmptyBlockTag:ERROR",
+            "-Xep:EmptyCatch:ERROR",
             "-Xep:EqualsGetClass:ERROR",
             "-Xep:FallThrough:ERROR",
             "-Xep:HidingField:ERROR",
@@ -366,6 +369,9 @@ android_app {
             // at the size of the maps used in the Bluetooth application.
             // See https://r.android.com/3200511
             "-Xep:AndroidFrameworkEfficientCollections:OFF",
+
+            // Does not look pertinent in our situation
+            "-Xep:AndroidFrameworkEfficientXml:OFF",
 
             // Exclude generated files
             "-XepExcludedPaths:.*/srcjars/.*",

@@ -40,7 +40,7 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_status.h"
-#include "stack/include/l2c_api.h"  // L2CA_
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
 #include "types/bluetooth/uuid.h"
@@ -1011,7 +1011,7 @@ void bta_hh_security_cmpl(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */)
       log::verbose("Starting service discovery");
       bta_hh_le_pri_service_discovery(p_cb);
     }
-  } else if (p_cb->btm_status == BTM_ERR_KEY_MISSING) {
+  } else if (p_cb->btm_status == tBTM_STATUS::BTM_ERR_KEY_MISSING) {
     log::error("Received encryption failed status:{} btm_status:{}",
                bta_hh_status_text(p_cb->status), btm_status_text(p_cb->btm_status));
     bta_hh_le_api_disc_act(p_cb);
@@ -1019,8 +1019,9 @@ void bta_hh_security_cmpl(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */)
     log::error("Encryption failed status:{} btm_status:{}", bta_hh_status_text(p_cb->status),
                btm_status_text(p_cb->btm_status));
     if (!(p_cb->status == BTA_HH_ERR_SEC &&
-          (p_cb->btm_status == BTM_ERR_PROCESSING || p_cb->btm_status == BTM_FAILED_ON_SECURITY ||
-           p_cb->btm_status == BTM_WRONG_MODE))) {
+          (p_cb->btm_status == tBTM_STATUS::BTM_ERR_PROCESSING ||
+           p_cb->btm_status == tBTM_STATUS::BTM_FAILED_ON_SECURITY ||
+           p_cb->btm_status == tBTM_STATUS::BTM_WRONG_MODE))) {
       bta_hh_le_api_disc_act(p_cb);
     }
   }
@@ -1354,7 +1355,8 @@ static void read_pref_conn_params_cb(uint16_t conn_id, tGATT_STATUS status, uint
 
   // Make sure both min, and max are bigger than 11.25ms, lower values can
   // introduce audio issues if A2DP is also active.
-  L2CA_AdjustConnectionIntervals(&min_interval, &max_interval, BTM_BLE_CONN_INT_MIN_LIMIT);
+  stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(&min_interval, &max_interval,
+                                                               BTM_BLE_CONN_INT_MIN_LIMIT);
 
   // If the device has no preferred connection timeout, use the default.
   if (timeout == BTM_BLE_CONN_PARAM_UNDEF) {
@@ -1386,8 +1388,8 @@ static void read_pref_conn_params_cb(uint16_t conn_id, tGATT_STATUS status, uint
 
   get_btm_client_interface().ble.BTM_BleSetPrefConnParams(
           p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency, timeout);
-  if (!L2CA_UpdateBleConnParams(p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency,
-                                timeout, 0, 0)) {
+  if (!stack::l2cap::get_interface().L2CA_UpdateBleConnParams(
+              p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency, timeout, 0, 0)) {
     log::warn("Unable to update L2CAP ble connection params peer:{}",
               p_dev_cb->link_spec.addrt.bda);
   }

@@ -844,7 +844,8 @@ void GATTC_UpdateUserAttMtuIfNeeded(const RawAddress& remote_bda, tBT_TRANSPORT 
   }
 
   p_tcb->max_user_mtu = user_mtu;
-  if (get_btm_client_interface().ble.BTM_SetBleDataLength(remote_bda, user_mtu) != BTM_SUCCESS) {
+  if (get_btm_client_interface().ble.BTM_SetBleDataLength(remote_bda, user_mtu) !=
+      tBTM_STATUS::BTM_SUCCESS) {
     log::warn("Unable to set ble data length peer:{} mtu:{}", remote_bda, user_mtu);
   }
 }
@@ -1373,7 +1374,7 @@ void GATT_Deregister(tGATT_IF gatt_if) {
     }
   }
 
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     bluetooth::connection::GetConnectionManager().remove_client(gatt_if);
   } else {
     connection_manager::on_app_deregistered(gatt_if);
@@ -1504,7 +1505,7 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
       ret = false;
     } else {
       log::debug("Adding to background connect to device:{}", bd_addr);
-      if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+      if (com::android::bluetooth::flags::unified_connection_manager()) {
         if (connection_type == BTM_BLE_BKG_CONNECT_ALLOW_LIST) {
           bluetooth::connection::GetConnectionManager().add_background_connection(
                   gatt_if, bluetooth::connection::ResolveRawAddress(bd_addr));
@@ -1598,7 +1599,7 @@ bool GATT_CancelConnect(tGATT_IF gatt_if, const RawAddress& bd_addr, bool is_dir
     }
   }
 
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     bluetooth::connection::GetConnectionManager().stop_all_connections_to_device(
             bluetooth::connection::ResolveRawAddress(bd_addr));
   } else {

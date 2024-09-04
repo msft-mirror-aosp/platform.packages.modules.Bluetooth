@@ -1191,6 +1191,11 @@ protected:
 
               // Inject the state
               group->SetTargetState(types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
+
+              if (block_qos_config) {
+                return true;
+              }
+
               group->SetState(types::AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED);
               streaming_groups[group->group_id_] = group;
 
@@ -1432,6 +1437,7 @@ protected:
     SetUpMockCodecManager(codec_location);
 
     block_streaming_state_callback = false;
+    block_qos_config = false;
 
     available_snk_context_types_ = 0xffff;
     available_src_context_types_ = 0xffff;
@@ -2654,6 +2660,7 @@ protected:
   bluetooth::le_audio::LeAudioGroupStateMachine::Callbacks* state_machine_callbacks_;
   std::map<int, LeAudioDeviceGroup*> streaming_groups;
   bool block_streaming_state_callback = false;
+  bool block_qos_config = false;
 
   bool attach_to_stream_scheduled = false;
 
@@ -3365,7 +3372,7 @@ TEST_F(UnicastTest, DisconnectWhenLinkKeyIsGone) {
           .WillByDefault(DoAll(Return(false)));
 
   ON_CALL(mock_btm_interface_, SetEncryption(test_address0, _, _, _, _))
-          .WillByDefault(Return(BTM_ERR_KEY_MISSING));
+          .WillByDefault(Return(tBTM_STATUS::BTM_ERR_KEY_MISSING));
 
   EXPECT_CALL(mock_gatt_interface_, Close(conn_id)).Times(1);
   do_in_main_thread(base::BindOnce(&LeAudioClient::Connect, base::Unretained(LeAudioClient::Get()),
@@ -4786,6 +4793,50 @@ TEST_F(UnicastTest, GroupSetActive_SourcePacksEmpty) {
   SyncOnMainLoop();
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
   Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
+}
+
+TEST_F(UnicastTest, GroupSetActive_and_InactiveDuringStreamConfiguration) {
+  const RawAddress test_address0 = GetTestAddress(0);
+  int group_id = bluetooth::groups::kGroupUnknown;
+  empty_source_pack_ = true;
+
+  /**
+   * In this test we want to make sure that StopStream is called when group is set to inactive
+   * while being between IDLE and CONFIGURED state
+   */
+
+  default_channel_cnt = 1;
+
+  SetSampleDatabaseEarbudsValid(
+          1, test_address0, codec_spec_conf::kLeAudioLocationStereo,
+          codec_spec_conf::kLeAudioLocationStereo, default_channel_cnt, default_channel_cnt, 0x0004,
+          /* source sample freq 16khz */ false /*add_csis*/, true /*add_cas*/, true /*add_pacs*/,
+          default_ase_cnt /*add_ascs_cnt*/, 1 /*set_size*/, 0 /*rank*/);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnConnectionState(ConnectionState::CONNECTED, test_address0))
+          .Times(1);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnGroupNodeStatus(test_address0, _, GroupNodeStatus::ADDED))
+          .WillOnce(DoAll(SaveArg<1>(&group_id)));
+
+  ConnectLeAudio(test_address0);
+  ASSERT_NE(group_id, bluetooth::groups::kGroupUnknown);
+
+  EXPECT_CALL(mock_state_machine_, StartStream(_, _, _, _)).Times(1);
+
+  block_qos_config = true;
+
+  LeAudioClient::Get()->GroupSetActive(group_id);
+  StartStreaming(AUDIO_USAGE_MEDIA, AUDIO_CONTENT_TYPE_MUSIC, group_id, AUDIO_SOURCE_INVALID, false,
+                 false);
+
+  SyncOnMainLoop();
+
+  EXPECT_CALL(mock_state_machine_, StopStream(_)).Times(1);
+  LeAudioClient::Get()->GroupSetActive(bluetooth::groups::kGroupUnknown);
+
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_state_machine_);
 }
 
 TEST_F(UnicastTest, ChangeAvailableContextTypeWhenInCodecConfigured) {

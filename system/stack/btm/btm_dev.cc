@@ -32,13 +32,12 @@
 #include <string>
 
 #include "btif/include/btif_storage.h"
-#include "btm_api.h"
 #include "btm_int_types.h"
 #include "btm_sec_api.h"
 #include "btm_sec_cb.h"
-#include "common/init_flags.h"
 #include "internal_include/bt_target.h"
 #include "l2c_api.h"
+#include "main/shim/dumpsys.h"
 #include "osi/include/allocator.h"
 #include "rust/src/connection/ffi/connection_shim.h"
 #include "stack/btm/btm_sec.h"
@@ -182,7 +181,7 @@ bool BTM_SecDeleteDevice(const RawAddress& bd_addr) {
   RawAddress bda = p_dev_rec->bd_addr;
 
   log::info("Remove device {} from filter accept list before delete record", bd_addr);
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     bluetooth::connection::GetConnectionManager().stop_all_connections_to_device(
             bluetooth::connection::ResolveRawAddress(p_dev_rec->bd_addr));
   } else {
@@ -246,6 +245,25 @@ const char* BTM_SecReadDevName(const RawAddress& bd_addr) {
   }
 
   return p_name;
+}
+
+/*******************************************************************************
+ *
+ * Function         BTM_SecReadDevClass
+ *
+ * Description      Looks for the class of device in the security database for
+ *                  the specified BD address.
+ *
+ * Returns          Class of device or kDevClassEmpty
+ *
+ ******************************************************************************/
+DEV_CLASS BTM_SecReadDevClass(const RawAddress& bd_addr) {
+  tBTM_SEC_DEV_REC* p_srec = btm_find_dev(bd_addr);
+  if (p_srec != nullptr) {
+    return p_srec->dev_class;
+  }
+
+  return kDevClassEmpty;
 }
 
 /*******************************************************************************
@@ -778,6 +796,26 @@ const tBLE_BD_ADDR BTM_Sec_GetAddressWithType(const RawAddress& bd_addr) {
     return p_dev_rec->ble.identity_address_with_type;
   }
 }
+
+#define DUMPSYS_TAG "shim::record"
+void DumpsysRecord(int fd) {
+  LOG_DUMPSYS_TITLE(fd, DUMPSYS_TAG);
+
+  if (btm_sec_cb.sec_dev_rec == nullptr) {
+    LOG_DUMPSYS(fd, "Record is empty - no devices");
+    return;
+  }
+
+  unsigned cnt = 0;
+  list_node_t* end = list_end(btm_sec_cb.sec_dev_rec);
+  for (list_node_t* node = list_begin(btm_sec_cb.sec_dev_rec); node != end;
+       node = list_next(node)) {
+    tBTM_SEC_DEV_REC* p_dev_rec = static_cast<tBTM_SEC_DEV_REC*>(list_node(node));
+    // TODO: handle in tBTM_SEC_DEV_REC.ToString
+    LOG_DUMPSYS(fd, "%03u %s", ++cnt, p_dev_rec->ToString().c_str());
+  }
+}
+#undef DUMPSYS_TAG
 
 namespace bluetooth {
 namespace testing {

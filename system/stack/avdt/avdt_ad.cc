@@ -35,6 +35,7 @@
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_sec_api_types.h"
+#include <com_android_bluetooth_flags.h>
 
 using namespace bluetooth;
 
@@ -532,7 +533,13 @@ void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb, uint8_t ro
     p_tbl->state = AVDT_AD_ST_CONN;
 
     /* call l2cap connect req */
-    lcid = L2CA_ConnectReqWithSecurity(AVDT_PSM, p_ccb->peer_addr, BTM_SEC_OUT_AUTHENTICATE);
+    if (com::android::bluetooth::flags::use_encrypt_req_for_av()) {
+      lcid = L2CA_ConnectReqWithSecurity(AVDT_PSM, p_ccb->peer_addr,
+               BTM_SEC_OUT_AUTHENTICATE | BTM_SEC_OUT_ENCRYPT);
+    } else {
+      lcid = L2CA_ConnectReqWithSecurity(AVDT_PSM, p_ccb->peer_addr,
+               BTM_SEC_OUT_AUTHENTICATE);
+    }
     if (lcid != 0) {
       /* if connect req ok, store tcid in lcid table  */
       avdtp_cb.ad.lcid_tbl[lcid] = avdt_ad_tc_tbl_to_idx(p_tbl);
@@ -561,11 +568,11 @@ void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb, uint8_t ro
  *
  ******************************************************************************/
 void avdt_ad_close_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb) {
-  uint8_t tcid;
+  uint16_t lcid;
   AvdtpTransportChannel* p_tbl;
 
   p_tbl = avdt_ad_tc_tbl_by_type(type, p_ccb, p_scb);
-  log::verbose("avdt_ad_close_req state: {}", p_tbl->state);
+  log::verbose("state: {}", p_tbl->state);
 
   switch (p_tbl->state) {
     case AVDT_AD_ST_UNUSED:
@@ -576,10 +583,11 @@ void avdt_ad_close_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb) {
       avdt_ad_tc_close_ind(p_tbl);
       break;
     default:
-      /* get tcid from type, scb */
-      tcid = avdt_ad_type_to_tcid(type, p_scb);
-
+      lcid = p_tbl->lcid;
       /* call l2cap disconnect req */
-      avdt_l2c_disconnect(avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][tcid].lcid);
+      if (!L2CA_DisconnectReq(lcid)) {
+        log::warn("Unable to disconnect L2CAP lcid: 0x{:04x}", lcid);
+      }
+      avdt_ad_tc_close_ind(p_tbl);
   }
 }

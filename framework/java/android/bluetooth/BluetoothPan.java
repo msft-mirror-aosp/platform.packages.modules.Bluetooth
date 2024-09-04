@@ -24,6 +24,7 @@ import static android.annotation.SystemApi.Client.MODULE_LIBRARIES;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
@@ -195,13 +196,9 @@ public final class BluetoothPan implements BluetoothProfile {
         }
 
         /** Called when the Tethering interface has been released. */
-        @RequiresPermission(
-                allOf = {
-                    BLUETOOTH_CONNECT,
-                    BLUETOOTH_PRIVILEGED,
-                    TETHER_PRIVILEGED,
-                })
         @Override
+        @RequiresBluetoothConnectPermission
+        @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED, TETHER_PRIVILEGED})
         public void release() {
             if (mService == null) {
                 throw new IllegalStateException(
@@ -251,12 +248,14 @@ public final class BluetoothPan implements BluetoothProfile {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothPan.Stub.asInterface(service);
     }
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -267,6 +266,7 @@ public final class BluetoothPan implements BluetoothProfile {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }
@@ -550,11 +550,13 @@ public final class BluetoothPan implements BluetoothProfile {
             final IBluetoothPanCallback panCallback =
                     new IBluetoothPanCallback.Stub() {
                         @Override
+                        @RequiresNoPermission
                         public void onAvailable(String iface) {
                             executor.execute(() -> callback.onAvailable(iface));
                         }
 
                         @Override
+                        @RequiresNoPermission
                         public void onUnavailable() {
                             executor.execute(() -> callback.onUnavailable());
                         }
