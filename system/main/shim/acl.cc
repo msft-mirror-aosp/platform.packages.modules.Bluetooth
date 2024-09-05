@@ -60,10 +60,8 @@
 #include "osi/include/allocator.h"
 #include "stack/acl/acl.h"
 #include "stack/btm/btm_int_types.h"
-#include "stack/btm/btm_sec_cb.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_log_history.h"
-#include "stack/include/l2cap_module.h"
 #include "stack/include/main_thread.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
@@ -1205,26 +1203,6 @@ void DumpsysAcl(int fd) {
 }
 #undef DUMPSYS_TAG
 
-using Record = common::TimestampedEntry<std::string>;
-const std::string kTimeFormat("%Y-%m-%d %H:%M:%S");
-
-#define DUMPSYS_TAG "shim::btm"
-void DumpsysBtm(int fd) {
-  LOG_DUMPSYS_TITLE(fd, DUMPSYS_TAG);
-  if (btm_cb.history_ != nullptr) {
-    std::vector<Record> history = btm_cb.history_->Pull();
-    for (auto& record : history) {
-      time_t then = record.timestamp / 1000;
-      struct tm tm;
-      localtime_r(&then, &tm);
-      auto s2 = common::StringFormatTime(kTimeFormat, tm);
-      LOG_DUMPSYS(fd, " %s.%03u %s", s2.c_str(), static_cast<unsigned int>(record.timestamp % 1000),
-                  record.entry.c_str());
-    }
-  }
-}
-#undef DUMPSYS_TAG
-
 #define DUMPSYS_TAG "shim::stack"
 void DumpsysNeighbor(int fd) {
   LOG_DUMPSYS(fd, "Stack information %lc%lc", kRunicBjarkan, kRunicHagall);
@@ -1265,8 +1243,6 @@ void DumpsysNeighbor(int fd) {
 void shim::Acl::Dump(int fd) const {
   DumpsysNeighbor(fd);
   DumpsysAcl(fd);
-  L2CA_Dumpsys(fd);
-  DumpsysBtm(fd);
 }
 
 shim::Acl::Acl(os::Handler* handler, const acl_interface_t& acl_interface,

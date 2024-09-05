@@ -31,8 +31,7 @@
 
 #include "./com_android_bluetooth.h"
 #include "hardware/bt_sock.h"
-#include "os/logging/log_adapter.h"
-#include "utils/misc.h"
+#include "types/bt_transport.h"
 
 using bluetooth::Uuid;
 extern bt_interface_t bluetoothInterface;
@@ -53,12 +52,25 @@ static Uuid from_java_uuid(jlong uuid_msb, jlong uuid_lsb) {
   return Uuid::From128BitBE(uu);
 }
 
-namespace android {
-// Both
+namespace {
+tBT_TRANSPORT to_bt_transport(jint val) {
+  switch (val) {
+    case 0:
+      return BT_TRANSPORT_AUTO;
+    case 1:
+      return BT_TRANSPORT_BR_EDR;
+    case 2:
+      return BT_TRANSPORT_LE;
+    default:
+      break;
+  }
+  log::warn("Passed unexpected transport value:{}", val);
+  return BT_TRANSPORT_AUTO;
+}
 
-#define TRANSPORT_AUTO 0
-#define TRANSPORT_BREDR 1
-#define TRANSPORT_LE 2
+}  // namespace
+
+namespace android {
 
 #define BLE_ADDR_PUBLIC 0x00
 #define BLE_ADDR_RANDOM 0x01
@@ -655,12 +667,12 @@ static void generate_local_oob_data_callback(tBT_TRANSPORT transport, bt_oob_dat
     return;
   }
 
-  if (transport == TRANSPORT_BREDR) {
+  if (transport == BT_TRANSPORT_BR_EDR) {
     sCallbackEnv->CallVoidMethod(
             sJniCallbacksObj, method_oobDataReceivedCallback, (jint)transport,
             ((oob_data.is_valid) ? createClassicOobDataObject(sCallbackEnv.get(), oob_data)
                                  : nullptr));
-  } else if (transport == TRANSPORT_LE) {
+  } else if (transport == BT_TRANSPORT_LE) {
     sCallbackEnv->CallVoidMethod(
             sJniCallbacksObj, method_oobDataReceivedCallback, (jint)transport,
             ((oob_data.is_valid) ? createLeOobDataObject(sCallbackEnv.get(), oob_data) : nullptr));
@@ -1251,7 +1263,7 @@ static jboolean set_data(JNIEnv* env, jobject oobData, jint transport, bt_oob_da
   }
 
   // Transport specific data fetching/setting
-  if (transport == TRANSPORT_BREDR) {
+  if (transport == BT_TRANSPORT_BR_EDR) {
     // Classic
     // Not optional
     jbyteArray oobDataLength =
@@ -1282,7 +1294,7 @@ static jboolean set_data(JNIEnv* env, jobject oobData, jint transport, bt_oob_da
       memcpy(oob_data->class_of_device, classOfDeviceBytes, OOB_COD_SIZE);
       env->ReleaseByteArrayElements(classOfDevice, classOfDeviceBytes, 0);
     }
-  } else if (transport == TRANSPORT_LE) {
+  } else if (transport == BT_TRANSPORT_LE) {
     // LE
     jbyteArray temporaryKey =
             callByteArrayGetter(env, oobData, "android/bluetooth/OobData", "getLeTemporaryKey");
@@ -1330,12 +1342,14 @@ static void generateLocalOobDataNative(JNIEnv* /* env */, jobject /* obj */, jin
     return;
   }
 
-  if (sBluetoothInterface->generate_local_oob_data(transport) != BT_STATUS_SUCCESS) {
+  tBT_TRANSPORT bt_transport = to_bt_transport(transport);
+
+  if (sBluetoothInterface->generate_local_oob_data(bt_transport) != BT_STATUS_SUCCESS) {
     log::error("Call to generate_local_oob_data failed!");
     bt_oob_data_t oob_data = {
             .is_valid = false,
     };
-    generate_local_oob_data_callback(transport, oob_data);
+    generate_local_oob_data_callback(bt_transport, oob_data);
   }
 }  // namespace android
 

@@ -58,7 +58,7 @@ class RfcommTest {
     // Set up a Bumble Pandora device for the duration of the test.
     @Rule(order = 1) @JvmField val mBumble = PandoraDevice()
 
-    @Rule(order = 2) @JvmField val EnableBluetoothRule = EnableBluetoothRule(false, true)
+    @Rule(order = 2) @JvmField val enableBluetoothRule = EnableBluetoothRule(false, true)
 
     private lateinit var mBumbleDevice: BluetoothDevice
     private lateinit var host: Host

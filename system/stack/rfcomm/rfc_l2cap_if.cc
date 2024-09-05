@@ -221,7 +221,7 @@ void RFCOMM_ConfigCnf(uint16_t lcid, uint16_t /* initiator */, tL2CAP_CFG_INFO* 
     log::error("RFCOMM_ConfigCnf no MCB LCID:0x{:x}", lcid);
     return;
   }
-  uintptr_t result_as_ptr = L2CAP_CFG_OK;
+  uintptr_t result_as_ptr = static_cast<unsigned>(tL2CAP_CFG_RESULT::L2CAP_CFG_OK);
   rfc_mx_sm_execute(p_mcb, RFC_MX_EVENT_CONF_CNF, (void*)result_as_ptr);
 }
 

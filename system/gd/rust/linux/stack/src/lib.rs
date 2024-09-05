@@ -35,13 +35,13 @@ use crate::bluetooth::{
     dispatch_base_callbacks, dispatch_hid_host_callbacks, dispatch_sdp_callbacks, Bluetooth,
     BluetoothDevice, DelayedActions, IBluetooth,
 };
-use crate::bluetooth_admin::{BluetoothAdmin, IBluetoothAdmin};
+use crate::bluetooth_admin::{AdminActions, BluetoothAdmin, IBluetoothAdmin};
 use crate::bluetooth_adv::{dispatch_le_adv_callbacks, AdvertiserActions};
 use crate::bluetooth_gatt::{
     dispatch_gatt_client_callbacks, dispatch_gatt_server_callbacks, dispatch_le_scanner_callbacks,
     dispatch_le_scanner_inband_callbacks, BluetoothGatt, GattActions,
 };
-use crate::bluetooth_media::{BluetoothMedia, MediaActions};
+use crate::bluetooth_media::{BluetoothMedia, IBluetoothMedia, MediaActions};
 use crate::dis::{DeviceInformation, ServiceCallbacks};
 use crate::socket_manager::{BluetoothSocketManager, SocketActions};
 use crate::suspend::Suspend;
@@ -146,8 +146,8 @@ pub enum Message {
 
     // Admin policy related
     AdminCallbackDisconnected(u32),
+    AdminActions(AdminActions),
     HidHostEnable,
-    AdminPolicyChanged,
 
     // Dis callbacks
     Dis(ServiceCallbacks),
@@ -175,8 +175,52 @@ pub enum Message {
     GattClientDisconnected(RawAddress),
 }
 
+/// Returns a callable object that dispatches a BTIF callback to Message
+///
+/// The returned object would make sure the order of how the callbacks arrive the same as how they
+/// goes to Message.
+///
+/// Example
+/// ```ignore
+/// // Create a dispatcher in btstack
+/// let gatt_client_callbacks_dispatcher = topshim::gatt::GattClientCallbacksDispatcher {
+///     dispatch: make_message_dispatcher(tx.clone(), Message::GattClient),
+/// };
+///
+/// // Register the dispatcher to topshim
+/// bt_topshim::topstack::get_dispatchers()
+///     .lock()
+///     .unwrap()
+///     .set::<topshim::gatt::GattClientCb>(Arc::new(Mutex::new(gatt_client_callbacks_dispatcher)))
+/// ```
+pub(crate) fn make_message_dispatcher<F, Cb>(tx: Sender<Message>, f: F) -> Box<dyn Fn(Cb) + Send>
+where
+    Cb: Send + 'static,
+    F: Fn(Cb) -> Message + Send + Copy + 'static,
+{
+    let async_mutex = Arc::new(tokio::sync::Mutex::new(()));
+    let dispatch_queue = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+
+    Box::new(move |cb| {
+        let tx = tx.clone();
+        let async_mutex = async_mutex.clone();
+        let dispatch_queue = dispatch_queue.clone();
+        // Enqueue the callbacks at the synchronized block to ensure the order.
+        dispatch_queue.lock().unwrap().push_back(cb);
+        bt_topshim::topstack::get_runtime().spawn(async move {
+            // Acquire the lock first to ensure |pop_front| and |tx.send| not
+            // interrupted by the other async threads.
+            let _guard = async_mutex.lock().await;
+            // Consume exactly one callback.
+            let cb = dispatch_queue.lock().unwrap().pop_front().unwrap();
+            let _ = tx.send(f(cb)).await;
+        });
+    })
+}
+
 pub enum BluetoothAPI {
     Adapter,
+    Admin,
     Battery,
     Media,
     Gatt,
@@ -260,8 +304,13 @@ impl Stack {
                     // Initialize objects that need the adapter to be fully
                     // enabled before running.
 
+                    // Init Media and pass it to Bluetooth.
+                    bluetooth_media.lock().unwrap().initialize();
+                    bluetooth.lock().unwrap().set_media(bluetooth_media.clone());
                     // Register device information service.
                     bluetooth_dis.lock().unwrap().initialize();
+                    // Initialize Admin. This toggles the enabled profiles.
+                    bluetooth_admin.lock().unwrap().initialize(api_tx.clone());
                 }
 
                 Message::A2dp(a) => {
@@ -480,11 +529,11 @@ impl Stack {
                 Message::AdminCallbackDisconnected(id) => {
                     bluetooth_admin.lock().unwrap().unregister_admin_policy_callback(id);
                 }
+                Message::AdminActions(action) => {
+                    bluetooth_admin.lock().unwrap().handle_action(action);
+                }
                 Message::HidHostEnable => {
                     bluetooth.lock().unwrap().enable_hidhost();
-                }
-                Message::AdminPolicyChanged => {
-                    bluetooth_socketmgr.lock().unwrap().handle_admin_policy_changed();
                 }
                 Message::Dis(callback) => {
                     bluetooth_dis.lock().unwrap().handle_callbacks(&callback);

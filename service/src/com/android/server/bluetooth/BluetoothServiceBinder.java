@@ -47,6 +47,8 @@ import android.permission.PermissionManager;
 
 import androidx.annotation.RequiresApi;
 
+import com.android.bluetooth.flags.Flags;
+
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 
@@ -113,7 +115,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
-        return mBluetoothManagerService.enableFromBinder(source.getPackageName());
+        return mBluetoothManagerService.enable(source.getPackageName());
     }
 
     @Override
@@ -138,7 +140,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             throw new SecurityException("No permission to enable Bluetooth quietly");
         }
 
-        return mBluetoothManagerService.enableNoAutoConnectFromBinder(source.getPackageName());
+        return mBluetoothManagerService.enableNoAutoConnect(source.getPackageName());
     }
 
     @Override
@@ -163,11 +165,14 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
-        return mBluetoothManagerService.disableFromBinder(source.getPackageName(), persist);
+        return mBluetoothManagerService.disable(source.getPackageName(), persist);
     }
 
     @Override
     public int getState() {
+        if (Flags.getStateFromSystemServer()) {
+            return mBluetoothManagerService.getState();
+        }
         if (!isCallerSystem(getCallingAppId())
                 && !mPermissionUtils.checkIfCallerIsForegroundUser(mUserManager)) {
             Log.w(TAG, "getState(): UNAUTHORIZED. Report OFF for non-active and non system user");
@@ -260,7 +265,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
-        return mBluetoothManagerService.enableBleFromBinder(source.getPackageName(), token);
+        return mBluetoothManagerService.enableBle(source.getPackageName(), token);
     }
 
     @Override
@@ -283,7 +288,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
-        return mBluetoothManagerService.disableBleFromBinder(source.getPackageName(), token);
+        return mBluetoothManagerService.disableBle(source.getPackageName(), token);
     }
 
     @Override

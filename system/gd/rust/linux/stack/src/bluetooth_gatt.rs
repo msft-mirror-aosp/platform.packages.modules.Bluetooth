@@ -14,7 +14,6 @@ use bt_topshim::profiles::gatt::{
     GattStatus, LePhy, MsftAdvMonitor, MsftAdvMonitorAddress, MsftAdvMonitorPattern,
 };
 use bt_topshim::sysprop;
-use bt_topshim::topstack;
 use bt_utils::adv_parser;
 use bt_utils::array_utils;
 
@@ -25,13 +24,13 @@ use crate::bluetooth_adv::{
     BtifGattAdvCallbacks, IAdvertisingSetCallback, PeriodicAdvertisingParameters,
 };
 use crate::callbacks::Callbacks;
-use crate::{APIMessage, BluetoothAPI, Message, RPCProxy, SuspendMode};
+use crate::{make_message_dispatcher, APIMessage, BluetoothAPI, Message, RPCProxy, SuspendMode};
 use log::{info, warn};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::cast::{FromPrimitive, ToPrimitive};
 use rand::rngs::SmallRng;
 use rand::{RngCore, SeedableRng};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::convert::{TryFrom, TryInto};
 use std::sync::{Arc, Mutex, MutexGuard};
 use tokio::sync::mpsc::Sender;
@@ -1490,76 +1489,23 @@ impl BluetoothGatt {
     pub fn init_profiles(&mut self, tx: Sender<Message>, api_tx: Sender<APIMessage>) {
         self.gatt = Gatt::new(&self.intf.lock().unwrap()).map(|gatt| Arc::new(Mutex::new(gatt)));
 
-        // TODO(b/353643607): Make this dispatch_queue design more general for all profiles.
-        let tx_clone = tx.clone();
-        let async_mutex = Arc::new(tokio::sync::Mutex::new(()));
-        let dispatch_queue = Arc::new(Mutex::new(VecDeque::new()));
         let gatt_client_callbacks_dispatcher = GattClientCallbacksDispatcher {
-            dispatch: Box::new(move |cb| {
-                let tx_clone = tx_clone.clone();
-                let async_mutex = async_mutex.clone();
-                let dispatch_queue = dispatch_queue.clone();
-                // Enqueue the callbacks at the synchronized block to ensure the order.
-                dispatch_queue.lock().unwrap().push_back(cb);
-                topstack::get_runtime().spawn(async move {
-                    // Acquire the lock first to ensure |pop_front| and |tx_clone.send| not
-                    // interrupted by the other async threads.
-                    let _guard = async_mutex.lock().await;
-                    // Consume exactly one callback.
-                    let cb = dispatch_queue.lock().unwrap().pop_front().unwrap();
-                    let _ = tx_clone.send(Message::GattClient(cb)).await;
-                });
-            }),
+            dispatch: make_message_dispatcher(tx.clone(), Message::GattClient),
         };
-
-        let tx_clone = tx.clone();
         let gatt_server_callbacks_dispatcher = GattServerCallbacksDispatcher {
-            dispatch: Box::new(move |cb| {
-                let tx_clone = tx_clone.clone();
-                topstack::get_runtime().spawn(async move {
-                    let _ = tx_clone.send(Message::GattServer(cb)).await;
-                });
-            }),
+            dispatch: make_message_dispatcher(tx.clone(), Message::GattServer),
         };
-
-        let tx_clone = tx.clone();
         let gatt_scanner_callbacks_dispatcher = GattScannerCallbacksDispatcher {
-            dispatch: Box::new(move |cb| {
-                let tx_clone = tx_clone.clone();
-                topstack::get_runtime().spawn(async move {
-                    let _ = tx_clone.send(Message::LeScanner(cb)).await;
-                });
-            }),
+            dispatch: make_message_dispatcher(tx.clone(), Message::LeScanner),
         };
-
-        let tx_clone = tx.clone();
         let gatt_scanner_inband_callbacks_dispatcher = GattScannerInbandCallbacksDispatcher {
-            dispatch: Box::new(move |cb| {
-                let tx_clone = tx_clone.clone();
-                topstack::get_runtime().spawn(async move {
-                    let _ = tx_clone.send(Message::LeScannerInband(cb)).await;
-                });
-            }),
+            dispatch: make_message_dispatcher(tx.clone(), Message::LeScannerInband),
         };
-
-        let tx_clone = tx.clone();
         let gatt_adv_inband_callbacks_dispatcher = GattAdvInbandCallbacksDispatcher {
-            dispatch: Box::new(move |cb| {
-                let tx_clone = tx_clone.clone();
-                topstack::get_runtime().spawn(async move {
-                    let _ = tx_clone.send(Message::LeAdvInband(cb)).await;
-                });
-            }),
+            dispatch: make_message_dispatcher(tx.clone(), Message::LeAdvInband),
         };
-
-        let tx_clone = tx.clone();
         let gatt_adv_callbacks_dispatcher = GattAdvCallbacksDispatcher {
-            dispatch: Box::new(move |cb| {
-                let tx_clone = tx_clone.clone();
-                topstack::get_runtime().spawn(async move {
-                    let _ = tx_clone.send(Message::LeAdv(cb)).await;
-                });
-            }),
+            dispatch: make_message_dispatcher(tx.clone(), Message::LeAdv),
         };
 
         self.gatt.as_ref().unwrap().lock().unwrap().initialize(

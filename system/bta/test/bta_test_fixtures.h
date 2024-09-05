@@ -20,8 +20,10 @@
 #include <gmock/gmock.h>
 
 #include "bta/dm/bta_dm_int.h"
-#include "btm_client_interface.h"
+#include "bta/include/bta_api.h"
+#include "bta/sys/bta_sys.h"
 #include "osi/include/allocator.h"
+#include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
 #include "test/common/main_handler.h"
@@ -74,8 +76,6 @@ protected:
       osi_free(p_buf);
       return tBTM_STATUS::BTM_SUCCESS;
     };
-    mock_btm_client_interface.local.BTM_ReadLocalDeviceNameFromController =
-            [](tBTM_CMPL_CB* cb) -> tBTM_STATUS { return tBTM_STATUS::BTM_CMD_STARTED; };
     mock_btm_client_interface.security.BTM_SecRegister =
             [](const tBTM_APPL_INFO* p_cb_info) -> bool { return true; };
   }
@@ -85,7 +85,6 @@ protected:
 
     mock_btm_client_interface.eir.BTM_GetEirSupportedServices = {};
     mock_btm_client_interface.eir.BTM_WriteEIR = {};
-    mock_btm_client_interface.local.BTM_ReadLocalDeviceNameFromController = {};
 
     bluetooth::testing::stack::rnr::reset_interface();
     bluetooth::hci::testing::mock_controller_ = nullptr;

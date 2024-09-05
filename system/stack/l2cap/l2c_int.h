@@ -30,16 +30,16 @@
 
 #include <string>
 
+#include "include/macros.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
-#include "l2cdefs.h"
-#include "macros.h"
 #include "osi/include/alarm.h"
 #include "osi/include/fixed_queue.h"
 #include "osi/include/list.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/hci_error_code.h"
+#include "stack/include/l2c_api.h"
+#include "stack/include/l2cdefs.h"
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
@@ -169,8 +169,7 @@ typedef enum : uint16_t {
 
   L2CEVT_ACK_TIMEOUT = 34, /* RR delay timeout */
 
-  L2CEVT_L2CA_SEND_FLOW_CONTROL_CREDIT = 35, /* Upper layer credit packet \
-                                              */
+  L2CEVT_L2CA_SEND_FLOW_CONTROL_CREDIT = 35,  // Upper layer credit packet
   /* Peer credit based connection */
   L2CEVT_L2CAP_RECV_FLOW_CONTROL_CREDIT = 36,     /* credit packet */
   L2CEVT_L2CAP_CREDIT_BASED_CONNECT_REQ = 37,     /* credit based connection request */
@@ -290,7 +289,7 @@ struct tL2C_CCB {
 #define RECONFIG_FLAG 0x04 /* True after initial configuration */
 
   uint8_t config_done;               /* Configuration flag word */
-  uint16_t remote_config_rsp_result; /* The config rsp result from remote */
+  tL2CAP_CFG_RESULT remote_config_rsp_result; /* The config rsp result from remote */
   uint8_t local_id;                  /* Transaction ID for local trans */
   uint8_t remote_id;                 /* Transaction ID for local */
 
@@ -426,6 +425,7 @@ public:
 
 private:
   tHCI_ROLE link_role_{HCI_ROLE_CENTRAL}; /* Central or peripheral */
+
 public:
   tHCI_ROLE LinkRole() const { return link_role_; }
   bool IsLinkRoleCentral() const { return link_role_ == HCI_ROLE_CENTRAL; }
@@ -436,8 +436,10 @@ public:
   uint8_t signal_id;     /* Signalling channel id */
   uint8_t cur_echo_id;   /* Current id value for echo request */
   uint16_t idle_timeout; /* Idle timeout */
+
 private:
   bool is_bonding_{false}; /* True - link active only for bonding */
+
 public:
   bool IsBonding() const { return is_bonding_; }
   void SetBonding() { is_bonding_ = true; }
@@ -486,8 +488,8 @@ public:
   }
 
   tL2C_CCB* p_fixed_ccbs[L2CAP_NUM_FIXED_CHNLS];
-  std::vector<uint16_t> suspended; /* List of fixed channel CIDs which are suspended but not
-                                    * removed */
+  std::vector<uint16_t> suspended;  // List of fixed channel CIDs which are suspended but not
+                                    //  removed
 
 private:
   tHCI_REASON disc_reason_{HCI_ERR_UNDEFINED};
@@ -501,8 +503,8 @@ public:
   bool is_transport_ble() const { return transport == BT_TRANSPORT_LE; }
 
   uint16_t tx_data_len;            /* tx data length used in data length extension */
-  fixed_queue_t* le_sec_pending_q; /* LE coc channels waiting for security check
-                                      completion */
+  fixed_queue_t* le_sec_pending_q;  // LE coc channels waiting for security check
+                                    //   completion
   uint8_t sec_act;
 
   uint8_t conn_update_mask;
@@ -725,7 +727,7 @@ void l2cu_tx_complete(tL2C_TX_COMPLETE_CB_INFO* p_cbi);
 
 void l2cu_send_peer_ble_par_req(tL2C_LCB* p_lcb, uint16_t min_int, uint16_t max_int,
                                 uint16_t latency, uint16_t timeout);
-void l2cu_send_peer_ble_par_rsp(tL2C_LCB* p_lcb, uint16_t reason, uint8_t rem_id);
+void l2cu_send_peer_ble_par_rsp(tL2C_LCB* p_lcb, tL2CAP_CFG_RESULT reason, uint8_t rem_id);
 void l2cu_reject_ble_connection(tL2C_CCB* p_ccb, uint8_t rem_id, uint16_t result);
 void l2cu_reject_credit_based_conn_req(tL2C_LCB* p_lcb, uint8_t rem_id, uint8_t num_of_channels,
                                        uint16_t result);
@@ -737,7 +739,7 @@ void l2cu_send_peer_credit_based_conn_res(tL2C_CCB* p_ccb, std::vector<uint16_t>
 void l2cu_send_peer_ble_credit_based_conn_req(tL2C_CCB* p_ccb);
 void l2cu_send_peer_credit_based_conn_req(tL2C_CCB* p_ccb);
 
-void l2cu_send_ble_reconfig_rsp(tL2C_LCB* p_lcb, uint8_t rem_id, uint16_t result);
+void l2cu_send_ble_reconfig_rsp(tL2C_LCB* p_lcb, uint8_t rem_id, tL2CAP_RECONFIG_RESULT result);
 void l2cu_send_credit_based_reconfig_req(tL2C_CCB* p_ccb, tL2CAP_LE_CFG_INFO* p_data);
 
 void l2cu_send_peer_ble_flow_control_credit(tL2C_CCB* p_ccb, uint16_t credit_value);
