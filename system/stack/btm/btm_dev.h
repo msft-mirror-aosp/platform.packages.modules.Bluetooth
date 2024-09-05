@@ -58,6 +58,18 @@ const char* BTM_SecReadDevName(const RawAddress& bd_addr);
 
 /*******************************************************************************
  *
+ * Function         BTM_SecReadDevName
+ *
+ * Description      Looks for the device name in the security database for the
+ *                  specified BD address.
+ *
+ * Returns          Pointer to the name or NULL
+ *
+ ******************************************************************************/
+DEV_CLASS BTM_SecReadDevClass(const RawAddress& bd_addr);
+
+/*******************************************************************************
+ *
  * Function         btm_sec_alloc_dev
  *
  * Description      Allocate a record in the device database

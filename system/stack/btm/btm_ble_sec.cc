@@ -66,6 +66,7 @@ extern tBTM_CB btm_cb;
 
 bool btm_ble_init_pseudo_addr(tBTM_SEC_DEV_REC* p_dev_rec, const RawAddress& new_pseudo_addr);
 tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb);
+tBTM_STATUS btm_ble_read_remote_cod(const RawAddress& remote_bda);
 
 namespace {
 constexpr char kBtmLogTag[] = "SEC";
@@ -104,6 +105,16 @@ void BTM_SecAddBleDevice(const RawAddress& bd_addr, tBT_DEVICE_TYPE dev_type,
         btif_storage_get_stored_remote_name(bd_addr,
                                             reinterpret_cast<char*>(&p_dev_rec->sec_bd_name))) {
       p_dev_rec->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
+    }
+
+    uint32_t cod = 0;
+    if (com::android::bluetooth::flags::read_le_appearance() &&
+        btif_storage_get_cod(bd_addr, &cod)) {
+      DEV_CLASS dev_class = {};
+      dev_class[2] = (uint8_t)cod;
+      dev_class[1] = (uint8_t)(cod >> 8);
+      dev_class[0] = (uint8_t)(cod >> 16);
+      p_dev_rec->dev_class = dev_class;
     }
   }
 
@@ -1558,6 +1569,15 @@ void btm_ble_connection_established(const RawAddress& bda) {
       !p_dev_rec->sec_rec.is_name_known()) {
     btm_ble_read_remote_name(bda, nullptr);
   }
+
+  if (com::android::bluetooth::flags::read_le_appearance() && p_dev_rec != nullptr &&
+      !p_dev_rec->sec_rec.is_le_link_key_known()) {
+    // Unknown device
+    if (p_dev_rec->dev_class == kDevClassEmpty || p_dev_rec->dev_class == kDevClassUnclassified) {
+      // Class of device not known, read appearance characteristic
+      btm_ble_read_remote_cod(bda);
+    }
+  }
 }
 
 static void btm_ble_user_confirmation_req(const RawAddress& bd_addr, tBTM_SEC_DEV_REC* p_dev_rec,
@@ -1615,8 +1635,7 @@ static void btm_ble_complete_evt(const RawAddress& bd_addr, tBTM_SEC_DEV_REC* p_
           "pin_code_len={:x}",
           btm_sec_cb.pairing_state, btm_sec_cb.pairing_flags, btm_sec_cb.pin_code_len);
 
-  /* Reset btm state only if the callback address matches pairing
-   * address*/
+  /* Reset btm state only if the callback address matches pairing address */
   if (bd_addr == btm_sec_cb.pairing_bda) {
     btm_sec_cb.pairing_bda = RawAddress::kAny;
     btm_sec_cb.pairing_state = BTM_PAIR_STATE_IDLE;
@@ -1678,6 +1697,13 @@ tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr, tSMP_E
 
   if (p_dev_rec == nullptr) {
     log::warn("Unexpected event '{}' for unknown device.", smp_evt_to_text(event));
+    if (com::android::bluetooth::flags::clear_pairing_state_when_no_devrec() &&
+                bd_addr == btm_sec_cb.pairing_bda &&
+                event == SMP_COMPLT_EVT) {
+        btm_sec_cb.pairing_bda = RawAddress::kAny;
+        btm_sec_cb.pairing_state = BTM_PAIR_STATE_IDLE;
+        btm_sec_cb.pairing_flags = 0;
+    }
     return tBTM_STATUS::BTM_UNKNOWN_ADDR;
   }
 
