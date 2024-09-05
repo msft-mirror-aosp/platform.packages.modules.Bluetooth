@@ -169,7 +169,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                             BluetoothStatsLog
                                     .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                             2);
-                    e.printStackTrace();
+                    Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                 }
             } else if (action.equals(BluetoothDevice.ACTION_SDP_RECORD)) {
                 ParcelUuid uuid = intent.getParcelableExtra(BluetoothDevice.EXTRA_UUID);
@@ -358,8 +358,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                                 BluetoothStatsLog
                                         .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                                 6);
-                        Log.e(TAG, "Exception while handling MSG_SESSION_ERROR");
-                        e.printStackTrace();
+                        Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                     }
                     break;
 
@@ -1014,8 +1013,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                         BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
                         BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                         23);
-                Log.e(TAG, "Exception:unregisterReceiver");
-                e.printStackTrace();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }

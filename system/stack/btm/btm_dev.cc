@@ -35,7 +35,6 @@
 #include "btm_int_types.h"
 #include "btm_sec_api.h"
 #include "btm_sec_cb.h"
-#include "common/init_flags.h"
 #include "internal_include/bt_target.h"
 #include "l2c_api.h"
 #include "main/shim/dumpsys.h"
@@ -182,7 +181,7 @@ bool BTM_SecDeleteDevice(const RawAddress& bd_addr) {
   RawAddress bda = p_dev_rec->bd_addr;
 
   log::info("Remove device {} from filter accept list before delete record", bd_addr);
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     bluetooth::connection::GetConnectionManager().stop_all_connections_to_device(
             bluetooth::connection::ResolveRawAddress(p_dev_rec->bd_addr));
   } else {
@@ -246,6 +245,25 @@ const char* BTM_SecReadDevName(const RawAddress& bd_addr) {
   }
 
   return p_name;
+}
+
+/*******************************************************************************
+ *
+ * Function         BTM_SecReadDevClass
+ *
+ * Description      Looks for the class of device in the security database for
+ *                  the specified BD address.
+ *
+ * Returns          Class of device or kDevClassEmpty
+ *
+ ******************************************************************************/
+DEV_CLASS BTM_SecReadDevClass(const RawAddress& bd_addr) {
+  tBTM_SEC_DEV_REC* p_srec = btm_find_dev(bd_addr);
+  if (p_srec != nullptr) {
+    return p_srec->dev_class;
+  }
+
+  return kDevClassEmpty;
 }
 
 /*******************************************************************************

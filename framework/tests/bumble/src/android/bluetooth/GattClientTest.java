@@ -33,6 +33,7 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.test_utils.EnableBluetoothRule;
 import android.content.Context;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
@@ -88,14 +89,17 @@ public class GattClientTest {
     private static final UUID TEST_CHARACTERISTIC_UUID =
             UUID.fromString("00010001-0000-0000-0000-000000000000");
 
-    @Rule(order = 2)
-    public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
+    @Rule(order = 0)
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     @Rule(order = 1)
     public final PandoraDevice mBumble = new PandoraDevice();
 
-    @Rule(order = 0)
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+    @Rule(order = 2)
+    public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
+
+    @Rule(order = 3)
+    public final EnableBluetoothRule mEnableBluetoothRule = new EnableBluetoothRule(false, true);
 
     private final Context mContext = ApplicationProvider.getApplicationContext();
     private final BluetoothManager mManager = mContext.getSystemService(BluetoothManager.class);
