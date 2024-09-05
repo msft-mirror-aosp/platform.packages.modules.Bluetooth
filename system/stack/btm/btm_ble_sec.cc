@@ -66,6 +66,7 @@ extern tBTM_CB btm_cb;
 
 bool btm_ble_init_pseudo_addr(tBTM_SEC_DEV_REC* p_dev_rec, const RawAddress& new_pseudo_addr);
 tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb);
+tBTM_STATUS btm_ble_read_remote_cod(const RawAddress& remote_bda);
 
 namespace {
 constexpr char kBtmLogTag[] = "SEC";
@@ -104,6 +105,16 @@ void BTM_SecAddBleDevice(const RawAddress& bd_addr, tBT_DEVICE_TYPE dev_type,
         btif_storage_get_stored_remote_name(bd_addr,
                                             reinterpret_cast<char*>(&p_dev_rec->sec_bd_name))) {
       p_dev_rec->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
+    }
+
+    uint32_t cod = 0;
+    if (com::android::bluetooth::flags::read_le_appearance() &&
+        btif_storage_get_cod(bd_addr, &cod)) {
+      DEV_CLASS dev_class = {};
+      dev_class[2] = (uint8_t)cod;
+      dev_class[1] = (uint8_t)(cod >> 8);
+      dev_class[0] = (uint8_t)(cod >> 16);
+      p_dev_rec->dev_class = dev_class;
     }
   }
 
@@ -589,7 +600,7 @@ tBTM_STATUS BTM_SetBleDataLength(const RawAddress& bd_addr, uint16_t tx_pdu_leng
   }
 
   if (p_dev_rec->get_suggested_tx_octets() >= tx_pdu_length) {
-    log::info("Suggested TX octect already set to controller {} >= {}",
+    log::info("Suggested TX octet already set to controller {} >= {}",
               p_dev_rec->get_suggested_tx_octets(), tx_pdu_length);
     return tBTM_STATUS::BTM_SUCCESS;
   }
@@ -778,7 +789,7 @@ tBTM_STATUS btm_ble_start_sec_check(const RawAddress& bd_addr, uint16_t psm, boo
       break;
 
     case BTM_SEC_ENC_PENDING:
-      log::debug("Ecryption pending");
+      log::debug("Encryption pending");
       break;
   }
 
@@ -841,7 +852,7 @@ bool btm_ble_get_enc_key_type(const RawAddress& bd_addr, uint8_t* p_key_types) {
  *
  * Description      This function is called to read the local DIV
  *
- * Returns          TRUE - if a valid DIV is availavle
+ * Returns          TRUE - if a valid DIV is available
  ******************************************************************************/
 bool btm_get_local_div(const RawAddress& bd_addr, uint16_t* p_div) {
   tBTM_SEC_DEV_REC* p_dev_rec;
@@ -997,7 +1008,7 @@ void btm_sec_save_le_key(const RawAddress& bd_addr, tBTM_LE_KEY_TYPE key_type,
  *
  * Function         btm_ble_update_sec_key_size
  *
- * Description      update the current lin kencryption key size
+ * Description      update the current link encryption key size
  *
  * Returns          void
  *
@@ -1017,7 +1028,7 @@ void btm_ble_update_sec_key_size(const RawAddress& bd_addr, uint8_t enc_key_size
  *
  * Function         btm_ble_read_sec_key_size
  *
- * Description      update the current lin kencryption key size
+ * Description      update the current link encryption key size
  *
  * Returns          void
  *
@@ -1067,7 +1078,7 @@ void btm_ble_link_sec_check(const RawAddress& bd_addr, tBTM_LE_AUTH_REQ auth_req
 
     log::verbose("dev_rec sec_flags=0x{:x}", p_dev_rec->sec_rec.sec_flags);
 
-    /* currently encrpted  */
+    /* currently encrypted  */
     if (p_dev_rec->sec_rec.sec_flags & BTM_SEC_LE_ENCRYPTED) {
       if (p_dev_rec->sec_rec.sec_flags & BTM_SEC_LE_AUTHENTICATED) {
         cur_sec_level = SMP_SEC_AUTHENTICATED;
@@ -1089,7 +1100,7 @@ void btm_ble_link_sec_check(const RawAddress& bd_addr, tBTM_LE_AUTH_REQ auth_req
        * encryption */
       *p_sec_req_act = BTM_BLE_SEC_REQ_ACT_ENCRYPT;
     } else {
-      /* start the pariring process to upgrade the keys*/
+      /* start the pairing process to upgrade the keys*/
       *p_sec_req_act = BTM_BLE_SEC_REQ_ACT_PAIR;
     }
   }
@@ -1280,7 +1291,7 @@ static void btm_ble_notify_enc_cmpl(const RawAddress& bd_addr, bool encr_enable)
  *
  * Function         btm_ble_link_encrypted
  *
- * Description      This function is called when LE link encrption status is
+ * Description      This function is called when LE link encryption status is
  *                  changed.
  *
  * Returns          void
@@ -1387,7 +1398,7 @@ void btm_ble_ltk_request_reply(const RawAddress& bda, bool use_stk, const Octet1
    * race conditions. */
 
   log::assert_that(p_rec->sec_rec.ble_keys.key_type & BTM_LE_KEY_LENC,
-                   "local enccryption key not present");
+                   "local encryption key not present");
   p_cb->key_size = p_rec->sec_rec.ble_keys.key_size;
   btsnd_hcic_ble_ltk_req_reply(btm_sec_cb.enc_handle, p_rec->sec_rec.ble_keys.lltk);
 }
@@ -1549,6 +1560,15 @@ void btm_ble_connection_established(const RawAddress& bda) {
   if (p_dev_rec != nullptr && !p_dev_rec->sec_rec.is_name_known()) {
     btm_ble_read_remote_name(bda, nullptr);
   }
+
+  if (com::android::bluetooth::flags::read_le_appearance() && p_dev_rec != nullptr &&
+      !p_dev_rec->sec_rec.is_le_link_key_known()) {
+    // Unknown device
+    if (p_dev_rec->dev_class == kDevClassEmpty || p_dev_rec->dev_class == kDevClassUnclassified) {
+      // Class of device not known, read appearance characteristic
+      btm_ble_read_remote_cod(bda);
+    }
+  }
 }
 
 static void btm_ble_user_confirmation_req(const RawAddress& bd_addr, tBTM_SEC_DEV_REC* p_dev_rec,
@@ -1606,8 +1626,7 @@ static void btm_ble_complete_evt(const RawAddress& bd_addr, tBTM_SEC_DEV_REC* p_
           "pin_code_len={:x}",
           btm_sec_cb.pairing_state, btm_sec_cb.pairing_flags, btm_sec_cb.pin_code_len);
 
-  /* Reset btm state only if the callback address matches pairing
-   * address*/
+  /* Reset btm state only if the callback address matches pairing address */
   if (bd_addr == btm_sec_cb.pairing_bda) {
     btm_sec_cb.pairing_bda = RawAddress::kAny;
     btm_sec_cb.pairing_state = BTM_PAIR_STATE_IDLE;
@@ -1669,6 +1688,13 @@ tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr, tSMP_E
 
   if (p_dev_rec == nullptr) {
     log::warn("Unexpected event '{}' for unknown device.", smp_evt_to_text(event));
+    if (com::android::bluetooth::flags::clear_pairing_state_when_no_devrec() &&
+                bd_addr == btm_sec_cb.pairing_bda &&
+                event == SMP_COMPLT_EVT) {
+        btm_sec_cb.pairing_bda = RawAddress::kAny;
+        btm_sec_cb.pairing_state = BTM_PAIR_STATE_IDLE;
+        btm_sec_cb.pairing_flags = 0;
+    }
     return tBTM_STATUS::BTM_UNKNOWN_ADDR;
   }
 
@@ -1733,7 +1759,7 @@ tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr, tSMP_E
  *                  signature: output parameter where data signature is going to
  *                             be stored.
  *
- * Returns          true if signing sucessul, otherwise false.
+ * Returns          true if signing successful, otherwise false.
  *
  ******************************************************************************/
 bool BTM_BleDataSignature(const RawAddress& bd_addr, uint8_t* p_text, uint16_t len,

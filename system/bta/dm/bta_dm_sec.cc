@@ -666,6 +666,11 @@ static tBTM_STATUS bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda
     return tBTM_STATUS::BTM_NOT_AUTHORIZED;
   }
 
+  DEV_CLASS dev_class = get_btm_client_interface().security.BTM_SecReadDevClass(bda);
+  if (!com::android::bluetooth::flags::read_le_appearance()) {
+    dev_class = kDevClassEmpty;
+  }
+
   switch (event) {
     case BTM_LE_IO_REQ_EVT:
       ble_io_req(bda, &p_data->io_req.io_cap, &p_data->io_req.oob_data, &p_data->io_req.auth_req,
@@ -678,6 +683,7 @@ static tBTM_STATUS bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda
       sec_event.ble_req.bd_addr = bda;
       bd_name_from_char_pointer(sec_event.ble_req.bd_name,
                                 get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      sec_event.ble_req.dev_class = dev_class;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_BLE_CONSENT_REQ_EVT, &sec_event);
       break;
 
@@ -685,6 +691,7 @@ static tBTM_STATUS bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda
       sec_event.ble_req.bd_addr = bda;
       bd_name_from_char_pointer(sec_event.ble_req.bd_name,
                                 get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      sec_event.ble_req.dev_class = dev_class;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_BLE_SEC_REQ_EVT, &sec_event);
       break;
 
@@ -692,29 +699,38 @@ static tBTM_STATUS bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda
       sec_event.key_notif.bd_addr = bda;
       bd_name_from_char_pointer(sec_event.key_notif.bd_name,
                                 get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      sec_event.key_notif.dev_class = dev_class;
       sec_event.key_notif.passkey = p_data->key_notif;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_BLE_PASSKEY_NOTIF_EVT, &sec_event);
       break;
 
     case BTM_LE_KEY_REQ_EVT:
-      sec_event.ble_req.bd_addr = bda;
+      sec_event.pin_req.bd_addr = bda;
+      bd_name_from_char_pointer(sec_event.pin_req.bd_name,
+                                get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      sec_event.pin_req.dev_class = dev_class;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_BLE_PASSKEY_REQ_EVT, &sec_event);
       break;
 
     case BTM_LE_OOB_REQ_EVT:
-      sec_event.ble_req.bd_addr = bda;
+      sec_event.rmt_oob.bd_addr = bda;
+      bd_name_from_char_pointer(sec_event.rmt_oob.bd_name,
+                                get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      sec_event.rmt_oob.dev_class = dev_class;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_BLE_OOB_REQ_EVT, &sec_event);
       break;
 
     case BTM_LE_NC_REQ_EVT:
       sec_event.key_notif.bd_addr = bda;
-      bd_name_clear(sec_event.key_notif.bd_name);
+      bd_name_from_char_pointer(sec_event.key_notif.bd_name,
+                                get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      sec_event.key_notif.dev_class = dev_class;
       sec_event.key_notif.passkey = p_data->key_notif;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_BLE_NC_REQ_EVT, &sec_event);
       break;
 
     case BTM_LE_SC_OOB_REQ_EVT:
-      sec_event.ble_req.bd_addr = bda;
+      sec_event.rmt_oob.bd_addr = bda;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_BLE_SC_OOB_REQ_EVT, &sec_event);
       break;
 
