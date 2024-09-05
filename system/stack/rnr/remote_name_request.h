@@ -20,20 +20,12 @@
 #include "stack/include/bt_name.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
+#include "stack/include/rnr_interface.h"
 #include "stack/include/security_client_callbacks.h"
 #include "types/raw_address.h"
 
-/* Structure returned with remote name  request */
-struct tBTM_REMOTE_DEV_NAME {
-  tBTM_STATUS btm_status;
-  RawAddress bd_addr;
-  BD_NAME remote_bd_name;
-  tHCI_STATUS hci_status;
-};
-
-typedef void(tBTM_NAME_CMPL_CB)(const tBTM_REMOTE_DEV_NAME*);
-
 namespace bluetooth {
+namespace stack {
 namespace rnr {
 
 class RemoteNameRequest {
@@ -49,6 +41,7 @@ public:
 };
 
 }  // namespace rnr
+}  // namespace stack
 }  // namespace bluetooth
 
 /*******************************************************************************
@@ -157,3 +150,26 @@ tBTM_STATUS BTM_CancelRemoteDeviceName(void);
  ******************************************************************************/
 void btm_process_remote_name(const RawAddress* bda, const BD_NAME bdn, uint16_t /* evt_len */,
                              tHCI_STATUS hci_status);
+
+namespace bluetooth {
+namespace stack {
+namespace rnr {
+
+class Impl : public bluetooth::stack::rnr::Interface {
+public:
+  Impl() = default;
+
+  [[nodiscard]] bool BTM_SecAddRmtNameNotifyCallback(tBTM_RMT_NAME_CALLBACK* p_callback) override;
+  [[nodiscard]] bool BTM_SecDeleteRmtNameNotifyCallback(tBTM_RMT_NAME_CALLBACK* p_callback);
+  [[nodiscard]] bool BTM_IsRemoteNameKnown(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+  [[nodiscard]] tBTM_STATUS BTM_ReadRemoteDeviceName(const RawAddress& remote_bda,
+                                                     tBTM_NAME_CMPL_CB* p_cb,
+                                                     tBT_TRANSPORT transport);
+  [[nodiscard]] tBTM_STATUS BTM_CancelRemoteDeviceName(void);
+  void btm_process_remote_name(const RawAddress* bda, const BD_NAME bdn, uint16_t /* evt_len */,
+                               tHCI_STATUS hci_status);
+};
+
+}  // namespace rnr
+}  // namespace stack
+}  // namespace bluetooth

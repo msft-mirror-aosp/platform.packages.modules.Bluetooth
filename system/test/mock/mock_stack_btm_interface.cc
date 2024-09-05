@@ -54,14 +54,6 @@ struct btm_client_interface_t default_btm_client_interface = {
                                                         tBT_TRANSPORT /* transport */) -> bool {
                   return false;
                 },
-                .BTM_CancelRemoteDeviceName = []() -> tBTM_STATUS {
-                  return tBTM_STATUS::BTM_SUCCESS;
-                },
-                .BTM_ReadRemoteDeviceName = [](const RawAddress& /* remote_bda */,
-                                               tBTM_NAME_CMPL_CB* /* p_cb */,
-                                               tBT_TRANSPORT /* transport */) -> tBTM_STATUS {
-                  return tBTM_STATUS::BTM_SUCCESS;
-                },
                 .BTM_ReadRemoteFeatures = [](const RawAddress& /* addr */) -> uint8_t* {
                   return hci_feature_bytes_per_page;
                 },
@@ -170,10 +162,9 @@ struct btm_client_interface_t default_btm_client_interface = {
                 .BTM_SecReadDevName = [](const RawAddress& /* bd_addr */) -> const char* {
                   return nullptr;
                 },
-                .BTM_SecAddRmtNameNotifyCallback =
-                        [](tBTM_RMT_NAME_CALLBACK* /* p_callback */) -> bool { return false; },
-                .BTM_SecDeleteRmtNameNotifyCallback =
-                        [](tBTM_RMT_NAME_CALLBACK* /* p_callback */) -> bool { return false; },
+                .BTM_SecReadDevClass = [](const RawAddress& /* bd_addr */) -> DEV_CLASS {
+                  return kDevClassEmpty;
+                },
         },
         .ble = {
                 .BTM_BleGetEnergyInfo = [](tBTM_BLE_ENERGY_INFO_CBACK* /* p_ener_cback */)
@@ -230,8 +221,6 @@ struct btm_client_interface_t default_btm_client_interface = {
                 .BTM_ReadLocalDeviceName = [](const char** /* p_name */) -> tBTM_STATUS {
                   return tBTM_STATUS::BTM_SUCCESS;
                 },
-                .BTM_ReadLocalDeviceNameFromController = [](tBTM_CMPL_CB* /* p_rln_cmpl_cback */)
-                        -> tBTM_STATUS { return tBTM_STATUS::BTM_SUCCESS; },
                 .BTM_SetLocalDeviceName = [](const char* /* p_name */) -> tBTM_STATUS {
                   return tBTM_STATUS::BTM_SUCCESS;
                 },

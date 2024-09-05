@@ -92,3 +92,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "close_hid_if_uhid_ready_too_slow"
+    namespace: "bluetooth"
+    description: "Close HID if UHID takes too long to be ready"
+    bug: "362665394"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

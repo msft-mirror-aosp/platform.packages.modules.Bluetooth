@@ -186,7 +186,7 @@ cc_test {
         ":TestMockStack",
         "shim/acl.cc",
         "shim/acl_api.cc",
-        "shim/acl_legacy_interface.cc",
+        "shim/acl_interface.cc",
         "shim/btm_api.cc",
         "shim/config.cc",
         "shim/distance_measurement_manager.cc",
@@ -287,6 +287,7 @@ cc_test {
         ":TestMockLegacyHciCommands",
         ":TestMockLegacyHciInterface",
         ":TestMockStack",
+        ":TestMockStackRnr",
         "test/main_shim_stack_dumpsys_test.cc",
     ],
     static_libs: [

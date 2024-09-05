@@ -47,8 +47,6 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
-using bluetooth::ToGdAddress;
-using bluetooth::ToRawAddress;
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
@@ -122,8 +120,8 @@ void btm_ble_process_adv_pkt_cont_for_inquiry(uint16_t event_type, tBLE_ADDR_TYP
                                               uint16_t periodic_adv_int,
                                               std::vector<uint8_t> advertising_data);
 
-extern void btif_dm_update_ble_remote_properties(const RawAddress& bd_addr, BD_NAME bd_name,
-                                                 DEV_CLASS dev_class, tBT_DEVICE_TYPE dev_type);
+extern void btif_update_remote_properties(const RawAddress& bd_addr, BD_NAME bd_name,
+                                          DEV_CLASS dev_class, tBT_DEVICE_TYPE dev_type);
 
 void btm_ble_process_adv_addr(RawAddress& raw_address, tBLE_ADDR_TYPE* address_type);
 
@@ -411,7 +409,8 @@ void BleScannerInterfaceImpl::TransferSync(RawAddress address, uint16_t service_
   if (p_acl == NULL ||
       !HCI_LE_PERIODIC_ADVERTISING_SYNC_TRANSFER_RECIPIENT(p_acl->peer_le_features)) {
     log::error("[PAST] Remote doesn't support PAST");
-    scanning_callbacks_->OnPeriodicSyncTransferred(pa_source, BTM_MODE_UNSUPPORTED, address);
+    scanning_callbacks_->OnPeriodicSyncTransferred(
+            pa_source, static_cast<uint8_t>(tBTM_STATUS::BTM_MODE_UNSUPPORTED), address);
     return;
   }
 
@@ -426,7 +425,8 @@ void BleScannerInterfaceImpl::TransferSetInfo(RawAddress address, uint16_t servi
   if (p_acl == NULL ||
       !HCI_LE_PERIODIC_ADVERTISING_SYNC_TRANSFER_RECIPIENT(p_acl->peer_le_features)) {
     log::error("[PAST] Remote doesn't support PAST");
-    scanning_callbacks_->OnPeriodicSyncTransferred(pa_source, BTM_MODE_UNSUPPORTED, address);
+    scanning_callbacks_->OnPeriodicSyncTransferred(
+            pa_source, static_cast<uint8_t>(tBTM_STATUS::BTM_MODE_UNSUPPORTED), address);
     return;
   }
 
@@ -708,13 +708,13 @@ void BleScannerInterfaceImpl::handle_remote_properties(RawAddress bd_addr, tBLE_
       if (remote_name_len < BD_NAME_LEN + 1) {
         bdname.name[remote_name_len] = '\0';
       }
-      btif_dm_update_ble_remote_properties(bd_addr, bdname.name, kDevClassEmpty, device_type);
+      btif_update_remote_properties(bd_addr, bdname.name, kDevClassEmpty, device_type);
     }
   }
 
   DEV_CLASS dev_class = btm_ble_get_appearance_as_cod(advertising_data);
   if (dev_class != kDevClassUnclassified) {
-    btif_dm_update_ble_remote_properties(bd_addr, bdname.name, dev_class, device_type);
+    btif_update_remote_properties(bd_addr, bdname.name, dev_class, device_type);
   }
 
   auto* storage_module = bluetooth::shim::GetStorage();

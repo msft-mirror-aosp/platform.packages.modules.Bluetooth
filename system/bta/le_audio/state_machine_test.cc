@@ -8474,5 +8474,60 @@ TEST_F(StateMachineTest, testAutonomousDisable_GoToIdle) {
   testing::Mock::VerifyAndClearExpectations(&mock_callbacks_);
 }
 
+TEST_F(StateMachineTest, testStopStreamBeforeCodecConfigureIsArrived) {
+  /* Device is banded headphones with 1x snk + 0x src ase
+   * (1xunidirectional CIS with channel count 2 for stereo)
+   */
+  const auto context_type = kContextTypeRingtone;
+  const int leaudio_group_id = 4;
+  channel_count_ = kLeAudioCodecChannelCountSingleChannel | kLeAudioCodecChannelCountTwoChannel;
+
+  // Prepare fake connected device group
+  auto* group = PrepareSingleTestDeviceGroup(leaudio_group_id, context_type);
+
+  auto* leAudioDevice = group->GetFirstDevice();
+
+  /*
+   * 1 - Configure ASE
+   * 2 - Release ASE
+   */
+  EXPECT_CALL(gatt_queue,
+              WriteCharacteristic(1, leAudioDevice->ctp_hdls_.val_hdl, _, GATT_WRITE_NO_RSP, _, _))
+          .Times(2);
+
+  EXPECT_CALL(*mock_iso_manager_, CreateCig(_, _)).Times(0);
+  EXPECT_CALL(*mock_iso_manager_, EstablishCis(_)).Times(0);
+  EXPECT_CALL(*mock_iso_manager_, SetupIsoDataPath(_, _)).Times(0);
+  EXPECT_CALL(*mock_iso_manager_, RemoveIsoDataPath(_, _)).Times(0);
+  EXPECT_CALL(*mock_iso_manager_, DisconnectCis(_, _)).Times(0);
+  EXPECT_CALL(*mock_iso_manager_, RemoveCig(_, _)).Times(0);
+
+  InjectInitialIdleNotification(group);
+
+  // Validate GroupStreamStatus
+  EXPECT_CALL(mock_callbacks_,
+              StatusReportCb(leaudio_group_id, bluetooth::le_audio::GroupStreamStatus::RELEASING));
+  EXPECT_CALL(mock_callbacks_,
+              StatusReportCb(leaudio_group_id, bluetooth::le_audio::GroupStreamStatus::IDLE));
+
+  // Start the configuration and stream Media content
+  ASSERT_TRUE(LeAudioGroupStateMachine::Get()->StartStream(
+          group, context_type,
+          {.sink = types::AudioContexts(context_type),
+           .source = types::AudioContexts(context_type)}));
+
+  // Stop the stream before Codec Configured arrived
+  LeAudioGroupStateMachine::Get()->StopStream(group);
+
+  testing::Mock::VerifyAndClearExpectations(&gatt_queue);
+
+  InjectCachedConfigurationForActiveAses(group, leAudioDevice);
+  InjectReleaseAndIdleStateForAGroup(group);
+
+  // Check if group has transitioned to a proper state
+  ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
+  ASSERT_EQ(2, get_func_call_count("alarm_cancel"));
+}
+
 }  // namespace internal
 }  // namespace bluetooth::le_audio

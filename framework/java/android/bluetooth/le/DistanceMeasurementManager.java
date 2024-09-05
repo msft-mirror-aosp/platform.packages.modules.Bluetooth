@@ -28,6 +28,7 @@ import android.annotation.SystemApi;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.IBluetoothGatt;
+import android.bluetooth.annotations.RequiresBluetoothConnectPermission;
 import android.bluetooth.le.ChannelSoundingParams.CsSecurityLevel;
 import android.content.AttributionSource;
 import android.os.CancellationSignal;
@@ -84,11 +85,8 @@ public final class DistanceMeasurementManager {
      * @hide
      */
     @SystemApi
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @NonNull List<DistanceMeasurementMethod> getSupportedMethods() {
         final List<DistanceMeasurementMethod> supportedMethods = new ArrayList<>();
         try {
@@ -125,13 +123,9 @@ public final class DistanceMeasurementManager {
      * @hide
      */
     @SystemApi
-    @Nullable
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
-    public CancellationSignal startMeasurementSession(
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    public @Nullable CancellationSignal startMeasurementSession(
             @NonNull DistanceMeasurementParams params,
             @NonNull Executor executor,
             @NonNull DistanceMeasurementSession.Callback callback) {
@@ -176,12 +170,9 @@ public final class DistanceMeasurementManager {
      */
     @FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING)
     @SystemApi
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @CsSecurityLevel
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
     public int getChannelSoundingMaxSupportedSecurityLevel(@NonNull BluetoothDevice remoteDevice) {
         Objects.requireNonNull(remoteDevice, "remote device is null");
         final int defaultValue = ChannelSoundingParams.CS_SECURITY_LEVEL_UNKNOWN;
@@ -210,13 +201,9 @@ public final class DistanceMeasurementManager {
      */
     @FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING)
     @SystemApi
-    @CsSecurityLevel
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
-    public int getLocalChannelSoundingMaxSupportedSecurityLevel() {
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    public @CsSecurityLevel int getLocalChannelSoundingMaxSupportedSecurityLevel() {
         final int defaultValue = ChannelSoundingParams.CS_SECURITY_LEVEL_UNKNOWN;
         try {
             IBluetoothGatt gatt = mBluetoothAdapter.getBluetoothGatt();

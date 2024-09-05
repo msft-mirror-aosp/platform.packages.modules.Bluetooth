@@ -22,8 +22,6 @@
 #include "stack/include/hci_error_code.h"
 #include "test/common/mock_functions.h"
 #include "test/mock/mock_stack_l2cap_api.h"
-#include "types/bt_transport.h"
-#include "types/raw_address.h"
 
 bluetooth::common::MessageLoopThread* get_main_thread() { return nullptr; }
 tHCI_REASON btm_get_acl_disc_reason_code(void) { return HCI_SUCCESS; }
@@ -62,7 +60,7 @@ TEST_F(StackHidTest, disconnect_bad_cid) {
   tHID_STATUS status = hidh_conn_reg();
   ASSERT_EQ(HID_SUCCESS, status);
 
-  l2cap_callbacks.pL2CA_Error_Cb(123, 456);
+  l2cap_callbacks.pL2CA_Error_Cb(123, static_cast<uint16_t>(tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES));
 }
 
 }  // namespace

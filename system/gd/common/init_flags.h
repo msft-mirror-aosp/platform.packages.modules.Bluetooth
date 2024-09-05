@@ -31,8 +31,6 @@ public:
     }
     init_flags::load(std::move(rusted_flags));
   }
-
-  inline static int GetAdapterIndex() { return init_flags::get_hci_adapter(); }
 };
 
 }  // namespace common

@@ -645,6 +645,7 @@ static tGATT_STATUS gatt_build_find_info_rsp(tGATT_SRV_LIST_ELEM& el, BT_HDR* p_
 
   uint8_t* p = (uint8_t*)(p_msg + 1) + L2CAP_MIN_OFFSET + p_msg->len;
 
+  tGATT_STATUS status = GATT_NOT_FOUND;
   for (auto& attr : el.p_db->attr_list) {
     if (attr.handle > e_hdl) {
       break;
@@ -680,10 +681,10 @@ static tGATT_STATUS gatt_build_find_info_rsp(tGATT_SRV_LIST_ELEM& el, BT_HDR* p_
     }
     p_msg->len += info_pair_len[p_msg->offset - 1];
     len -= info_pair_len[p_msg->offset - 1];
-    return GATT_SUCCESS;
+    status = GATT_SUCCESS;
   }
 
-  return GATT_NOT_FOUND;
+  return status;
 }
 
 static tGATT_STATUS read_handles(uint16_t& len, uint8_t*& p, uint16_t& s_hdl, uint16_t& e_hdl) {
@@ -878,7 +879,7 @@ static void gatts_process_mtu_req(tGATT_TCB& tcb, uint16_t cid, uint16_t len, ui
             tcb.payload_size);
 
   if (get_btm_client_interface().ble.BTM_SetBleDataLength(
-              tcb.peer_bda, tcb.payload_size + L2CAP_PKT_OVERHEAD) != BTM_SUCCESS) {
+              tcb.peer_bda, tcb.payload_size + L2CAP_PKT_OVERHEAD) != tBTM_STATUS::BTM_SUCCESS) {
     log::warn("Unable to set BLE data length peer:{} mtu:{}", tcb.peer_bda,
               tcb.payload_size + L2CAP_PKT_OVERHEAD);
   }
