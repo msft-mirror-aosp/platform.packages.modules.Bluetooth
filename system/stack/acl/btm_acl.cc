@@ -34,12 +34,12 @@
 #define LOG_TAG "btm_acl"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
 #include "bta/include/bta_dm_acl.h"
 #include "bta/sys/bta_sys.h"
-#include "common/init_flags.h"
 #include "common/metrics.h"
 #include "device/include/device_iot_config.h"
 #include "device/include/interop.h"
@@ -2481,7 +2481,7 @@ bool acl_create_le_connection_with_id(uint8_t id, const RawAddress& bd_addr,
     return false;
   }
 
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     bluetooth::connection::GetConnectionManager().start_direct_connection(
             id, bluetooth::core::ToRustAddress(address_with_type));
   } else {

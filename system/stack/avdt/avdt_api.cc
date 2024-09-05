@@ -28,6 +28,7 @@
 #include "avdt_api.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include "avdt_int.h"
@@ -39,7 +40,6 @@
 #include "stack/include/a2dp_codec_api.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
-#include <com_android_bluetooth_flags.h>
 
 using namespace bluetooth;
 

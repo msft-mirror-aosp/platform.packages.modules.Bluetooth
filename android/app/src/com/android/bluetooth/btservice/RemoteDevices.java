@@ -42,7 +42,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.ParcelUuid;
-import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.util.Log;
 
@@ -1177,17 +1176,19 @@ public class RemoteDevices {
             return;
         }
 
-        BluetoothDevice device = getDevice(address);
-
-        if (device == null) {
-            warnLog(
-                    "aclStateChangeCallback: device is NULL, address="
-                            + Utils.getRedactedAddressStringFromByte(address)
-                            + ", newState="
-                            + newState);
-            addDeviceProperties(address);
-            device = Objects.requireNonNull(getDevice(address));
-        }
+        final BluetoothDevice device =
+                Objects.requireNonNullElseGet(
+                        getDevice(address),
+                        () -> {
+                            Log.w(
+                                    TAG,
+                                    "aclStateChangeCallback: device is NULL"
+                                            + ("address="
+                                                    + Utils.getRedactedAddressStringFromByte(
+                                                            address))
+                                            + (" newState=" + newState));
+                            return addDeviceProperties(address).getDevice();
+                        });
 
         DeviceProperties deviceProperties = getDeviceProperties(device);
 
@@ -1297,22 +1298,18 @@ public class RemoteDevices {
         mAdapterService.sendBroadcast(
                 intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
 
-        synchronized (mAdapterService.getBluetoothConnectionCallbacks()) {
-            Set<IBluetoothConnectionCallback> bluetoothConnectionCallbacks =
-                    mAdapterService.getBluetoothConnectionCallbacks();
-            for (IBluetoothConnectionCallback callback : bluetoothConnectionCallbacks) {
-                try {
-                    if (connectionState == BluetoothAdapter.STATE_CONNECTED) {
-                        callback.onDeviceConnected(device);
-                    } else {
-                        callback.onDeviceDisconnected(
-                                device, AdapterService.hciToAndroidDisconnectReason(hciReason));
-                    }
-                } catch (RemoteException ex) {
-                    Log.e(TAG, "RemoteException in calling IBluetoothConnectionCallback");
-                }
-            }
+        Utils.RemoteExceptionIgnoringConsumer<IBluetoothConnectionCallback>
+                connectionChangeConsumer;
+        if (connectionState == BluetoothAdapter.STATE_CONNECTED) {
+            connectionChangeConsumer = cb -> cb.onDeviceConnected(device);
+        } else {
+            connectionChangeConsumer =
+                    cb ->
+                            cb.onDeviceDisconnected(
+                                    device, AdapterService.hciToAndroidDisconnectReason(hciReason));
         }
+
+        mAdapterService.aclStateChangeBroadcastCallback(connectionChangeConsumer);
     }
 
     @NonNull

@@ -61,6 +61,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "state_machine.h"
 #include "storage_helper.h"
@@ -1223,7 +1224,7 @@ public:
       log::assert_that(true, "Both configs are invalid");
     }
 
-    L2CA_SetEcosystemBaseInterval(frame_duration_us / 1250);
+    stack::l2cap::get_interface().L2CA_SetEcosystemBaseInterval(frame_duration_us / 1250);
 
     // Scale by the codec frame blocks per SDU if set
     uint8_t codec_frame_blocks_per_sdu =
@@ -3191,7 +3192,8 @@ public:
     log::debug("{},  {}", leAudioDevice->address_,
                bluetooth::common::ToString(leAudioDevice->GetConnectionState()));
 
-    L2CA_LockBleConnParamsForProfileConnection(leAudioDevice->address_, false);
+    stack::l2cap::get_interface().L2CA_LockBleConnParamsForProfileConnection(
+            leAudioDevice->address_, false);
 
     if (leAudioDevice->GetConnectionState() ==
                 DeviceConnectState::CONNECTED_BY_USER_GETTING_READY &&
@@ -3731,7 +3733,7 @@ public:
 
   void StopAudio(void) {
     SuspendAudio();
-    L2CA_SetEcosystemBaseInterval(0 /* clear recommendation */);
+    stack::l2cap::get_interface().L2CA_SetEcosystemBaseInterval(0 /* clear recommendation */);
   }
 
   void printCurrentStreamConfiguration(int fd) {
