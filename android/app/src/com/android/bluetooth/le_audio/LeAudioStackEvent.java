@@ -77,8 +77,10 @@ public class LeAudioStackEvent {
     static final int BROADCAST_STATE_STOPPED = 0;
     static final int BROADCAST_STATE_CONFIGURING = 1;
     static final int BROADCAST_STATE_PAUSED = 2;
-    static final int BROADCAST_STATE_STOPPING = 3;
-    static final int BROADCAST_STATE_STREAMING = 4;
+    static final int BROADCAST_STATE_ENABLING = 3;
+    static final int BROADCAST_STATE_DISABLING = 4;
+    static final int BROADCAST_STATE_STOPPING = 5;
+    static final int BROADCAST_STATE_STREAMING = 6;
 
     // Do not modify without updating the HAL bt_le_audio.h files.
     // Match up with UnicastMonitorModeStatus enum of bt_le_audio.h
@@ -435,6 +437,10 @@ public class LeAudioStackEvent {
                 return "BROADCAST_STATE_CONFIGURING";
             case BROADCAST_STATE_PAUSED:
                 return "BROADCAST_STATE_PAUSED";
+            case BROADCAST_STATE_ENABLING:
+                return "BROADCAST_STATE_ENABLING";
+            case BROADCAST_STATE_DISABLING:
+                return "BROADCAST_STATE_DISABLING";
             case BROADCAST_STATE_STOPPING:
                 return "BROADCAST_STATE_STOPPING";
             case BROADCAST_STATE_STREAMING:

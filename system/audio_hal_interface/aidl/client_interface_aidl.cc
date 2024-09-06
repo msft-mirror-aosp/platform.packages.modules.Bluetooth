@@ -195,9 +195,9 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
     auto aidl_retval =
             provider_factory->getProviderCapabilities(transport_->GetSessionType(), &capabilities_);
     if (!aidl_retval.isOk()) {
-      log::fatal("BluetoothAudioHal::getProviderCapabilities failure: {}",
-                 aidl_retval.getDescription());
-      return;
+      log::error("BluetoothAudioHal::getProviderCapabilities failure: {}, retry number {}",
+                 aidl_retval.getDescription(), retry_no + 1);
+      continue;
     }
     if (capabilities_.empty()) {
       log::warn("SessionType={} Not supported by BluetoothAudioHal",
@@ -216,6 +216,7 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
       break;
     }
   }
+  log::assert_that(provider_factory_ != nullptr, "assert failed: provider_factory_ != nullptr");
   log::assert_that(provider_ != nullptr, "assert failed: provider_ != nullptr");
 
   binder_status_t binder_status =

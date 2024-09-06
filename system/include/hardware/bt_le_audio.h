@@ -407,6 +407,8 @@ enum class BroadcastState {
   STOPPED = 0,
   CONFIGURING,
   CONFIGURED,
+  ENABLING,
+  DISABLING,
   STOPPING,
   STREAMING,
 };
