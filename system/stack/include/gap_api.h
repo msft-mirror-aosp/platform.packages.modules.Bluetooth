@@ -276,6 +276,17 @@ bool GAP_BleReadPeerDevName(const RawAddress& peer_bda, tGAP_BLE_CMPL_CBACK* p_c
 
 /*******************************************************************************
  *
+ * Function         GAP_BleReadPeerAppearance
+ *
+ * Description      Start a process to read a connected peripheral's appearance.
+ *
+ * Returns          true if request accepted
+ *
+ ******************************************************************************/
+bool GAP_BleReadPeerAppearance(const RawAddress& peer_bda, tGAP_BLE_CMPL_CBACK* p_cback);
+
+/*******************************************************************************
+ *
  * Function         GAP_BleCancelReadPeerDevName
  *
  * Description      Cancel reading a peripheral's device name.

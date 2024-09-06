@@ -157,6 +157,7 @@ macro_rules! init_flags_getters {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Default)]
 struct ExplicitTagSettings {
     map: HashMap<String, i32>,

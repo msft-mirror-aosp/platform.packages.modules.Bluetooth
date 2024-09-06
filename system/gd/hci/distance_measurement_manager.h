@@ -86,6 +86,7 @@ public:
   void HandleRasConnectedEvent(
           const Address& address, uint16_t connection_handle, uint16_t att_handle,
           const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data);
+  void HandleRasDisconnectedEvent(const Address& address);
   void HandleVendorSpecificReply(
           const Address& address, uint16_t connection_handle,
           const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_reply);

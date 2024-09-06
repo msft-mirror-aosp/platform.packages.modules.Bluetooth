@@ -162,6 +162,9 @@ struct btm_client_interface_t default_btm_client_interface = {
                 .BTM_SecReadDevName = [](const RawAddress& /* bd_addr */) -> const char* {
                   return nullptr;
                 },
+                .BTM_SecReadDevClass = [](const RawAddress& /* bd_addr */) -> DEV_CLASS {
+                  return kDevClassEmpty;
+                },
         },
         .ble = {
                 .BTM_BleGetEnergyInfo = [](tBTM_BLE_ENERGY_INFO_CBACK* /* p_ener_cback */)
