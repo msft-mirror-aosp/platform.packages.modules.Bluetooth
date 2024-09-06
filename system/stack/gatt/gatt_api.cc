@@ -1468,6 +1468,11 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
     return false;
   }
 
+  if (bd_addr == RawAddress::kEmpty) {
+    log::error("Unsupported empty address, gatt_if={}", gatt_if);
+    return false;
+  }
+
   if (opportunistic) {
     log::info("Registered for opportunistic connection gatt_if={}", gatt_if);
     return true;

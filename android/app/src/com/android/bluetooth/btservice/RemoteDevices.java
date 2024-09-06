@@ -79,6 +79,8 @@ public class RemoteDevices {
 
     private static final int UUID_INTENT_DELAY = 6000;
     private static final int MESSAGE_UUID_INTENT = 1;
+    private static final int MESSAGE_UUID_STATUS_SUCCESS = 0;
+    private static final int MESSAGE_UUID_STATUS_TIMEOUT = 1;
     private static final String LOG_SOURCE_DIS = "DIS";
 
     private final HashMap<String, DeviceProperties> mDevices;
@@ -119,12 +121,13 @@ public class RemoteDevices {
                 case MESSAGE_UUID_INTENT:
                     BluetoothDevice device = (BluetoothDevice) msg.obj;
                     if (device != null) {
+                        boolean success = (msg.arg1 == MESSAGE_UUID_STATUS_SUCCESS);
                         debugLog("MESSAGE_UUID_INTENT: " + device);
                         // SDP Sending delayed SDP UUID intent
                         MetricsLogger.getInstance()
                                 .cacheCount(BluetoothProtoEnums.SDP_SENDING_DELAYED_UUID, 1);
                         DeviceProperties prop = getDeviceProperties(device);
-                        sendUuidIntent(device, prop);
+                        sendUuidIntent(device, prop, success);
                     } else {
                         // SDP Not sending delayed SDP UUID intent b/c device is not there
                         MetricsLogger.getInstance()
@@ -726,10 +729,13 @@ public class RemoteDevices {
         }
     }
 
-    private void sendUuidIntent(BluetoothDevice device, DeviceProperties prop) {
+    private void sendUuidIntent(BluetoothDevice device, DeviceProperties prop, boolean success) {
         // Send uuids within the stack before the broadcast is sent out
         ParcelUuid[] uuids = prop == null ? null : prop.getUuids();
-        mAdapterService.sendUuidsInternal(device, uuids);
+
+        if (!Flags.preventDuplicateUuidIntent() || success) {
+            mAdapterService.sendUuidsInternal(device, uuids);
+        }
 
         Intent intent = new Intent(BluetoothDevice.ACTION_UUID);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
@@ -1001,7 +1007,7 @@ public class RemoteDevices {
                                         .cacheCount(
                                                 BluetoothProtoEnums.SDP_ADD_UUID_WITH_INTENT, 1);
                                 mAdapterService.deviceUuidUpdated(bdDevice);
-                                sendUuidIntent(bdDevice, deviceProperties);
+                                sendUuidIntent(bdDevice, deviceProperties, true);
                             } else if (mAdapterService.getState()
                                     == BluetoothAdapter.STATE_BLE_ON) {
                                 // SDP Adding UUIDs to property cache but with no intent
@@ -1438,6 +1444,7 @@ public class RemoteDevices {
 
         Message message = mHandler.obtainMessage(MESSAGE_UUID_INTENT);
         message.obj = device;
+        message.arg1 = MESSAGE_UUID_STATUS_TIMEOUT;
         mHandler.sendMessageDelayed(message, UUID_INTENT_DELAY);
 
         // Uses cached UUIDs if we are bonding. If not, we fetch the UUIDs with SDP.
@@ -1457,6 +1464,7 @@ public class RemoteDevices {
     void updateUuids(BluetoothDevice device) {
         Message message = mHandler.obtainMessage(MESSAGE_UUID_INTENT);
         message.obj = device;
+        message.arg1 = MESSAGE_UUID_STATUS_SUCCESS;
         mHandler.sendMessage(message);
     }
 
