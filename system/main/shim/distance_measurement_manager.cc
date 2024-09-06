@@ -190,6 +190,11 @@ public:
             hal_vendor_specific_characteristics);
   }
 
+  void OnDisconnected(const RawAddress& address) {
+    bluetooth::shim::GetDistanceMeasurementManager()->HandleRasDisconnectedEvent(
+            bluetooth::ToGdAddress(address));
+  }
+
   void OnWriteVendorSpecificReplyComplete(const RawAddress& address, bool success) {
     bluetooth::shim::GetDistanceMeasurementManager()->HandleVendorSpecificReplyComplete(
             bluetooth::ToGdAddress(address), GetConnectionHandle(address), success);

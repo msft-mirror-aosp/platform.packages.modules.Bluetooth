@@ -33,6 +33,7 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.test_utils.EnableBluetoothRule;
 import android.content.Context;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
@@ -49,10 +50,10 @@ import com.google.testing.junit.testparameterinjector.TestParameter;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.AdditionalMatchers;
 import org.mockito.InOrder;
 import org.mockito.invocation.Invocation;
 
@@ -88,14 +89,17 @@ public class GattClientTest {
     private static final UUID TEST_CHARACTERISTIC_UUID =
             UUID.fromString("00010001-0000-0000-0000-000000000000");
 
-    @Rule(order = 2)
-    public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
+    @Rule(order = 0)
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     @Rule(order = 1)
     public final PandoraDevice mBumble = new PandoraDevice();
 
-    @Rule(order = 0)
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+    @Rule(order = 2)
+    public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
+
+    @Rule(order = 3)
+    public final EnableBluetoothRule mEnableBluetoothRule = new EnableBluetoothRule(false, true);
 
     private final Context mContext = ApplicationProvider.getApplicationContext();
     private final BluetoothManager mManager = mContext.getSystemService(BluetoothManager.class);
@@ -483,30 +487,19 @@ public class GattClientTest {
     }
 
     @Test
-    @Ignore("b/307981748: requestMTU should return a direct error")
-    public void requestMtu_notConnected_isFalse() {
-        advertiseWithBumble();
-
-        BluetoothDevice device =
-                mAdapter.getRemoteLeDevice(
-                        Utils.BUMBLE_RANDOM_ADDRESS, BluetoothDevice.ADDRESS_TYPE_RANDOM);
-        BluetoothGattCallback gattCallback = mock(BluetoothGattCallback.class);
-
-        BluetoothGatt gatt = device.connectGatt(mContext, false, gattCallback);
-        // Do not wait for connection state change callback and ask MTU directly
-        assertThat(gatt.requestMtu(MTU_REQUESTED)).isFalse();
-    }
-
-    @Test
-    @Ignore("b/307981748: requestMTU should return a direct error or a error on the callback")
-    public void requestMtu_invalidParamer_isFalse() {
+    @RequiresFlagsEnabled(Flags.FLAG_GATT_CALLBACK_ON_FAILURE)
+    public void requestMtu_invalidParameter_isFalse() {
         BluetoothGattCallback gattCallback = mock(BluetoothGattCallback.class);
         BluetoothGatt gatt = connectGattAndWaitConnection(gattCallback);
 
         try {
             assertThat(gatt.requestMtu(1024)).isTrue();
-            // verify(gattCallback, timeout(5000).atLeast(1)).onMtuChanged(eq(gatt),
-            // eq(ANDROID_MTU), eq(BluetoothGatt.GATT_FAILURE));
+            // status should be 0x87 (GATT_ILLEGAL_PARAMETER) but not defined.
+            verify(gattCallback, timeout(5000).atLeast(1))
+                    .onMtuChanged(
+                            eq(gatt),
+                            anyInt(),
+                            AdditionalMatchers.not(eq(BluetoothGatt.GATT_SUCCESS)));
         } finally {
             disconnectAndWaitDisconnection(gatt, gattCallback);
         }
