@@ -61,6 +61,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "state_machine.h"
 #include "storage_helper.h"
@@ -955,17 +956,6 @@ public:
       return;
     }
 
-    if (group->GetState() == AseState::BTA_LE_AUDIO_ASE_STATE_IDLE) {
-      if (group->GetTargetState() != AseState::BTA_LE_AUDIO_ASE_STATE_IDLE) {
-        log::warn("group {} was about to stream, but got canceled: {}", group_id,
-                  ToString(group->GetTargetState()));
-        group->SetTargetState(AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
-      } else {
-        log::warn(", group {} already stopped: {}", group_id, ToString(group->GetState()));
-      }
-      return;
-    }
-
     groupStateMachine_->StopStream(group);
   }
 
@@ -1234,7 +1224,7 @@ public:
       log::assert_that(true, "Both configs are invalid");
     }
 
-    L2CA_SetEcosystemBaseInterval(frame_duration_us / 1250);
+    stack::l2cap::get_interface().L2CA_SetEcosystemBaseInterval(frame_duration_us / 1250);
 
     // Scale by the codec frame blocks per SDU if set
     uint8_t codec_frame_blocks_per_sdu =
@@ -2160,7 +2150,7 @@ public:
 
     log::info("Encryption required for {}. Request result: 0x{:02x}", address, result);
 
-    if (result == BTM_ERR_KEY_MISSING) {
+    if (result == tBTM_STATUS::BTM_ERR_KEY_MISSING) {
       log::error("Link key unknown for {}, disconnect profile", address);
       bluetooth::le_audio::MetricsCollector::Get()->OnConnectionStateChanged(
               leAudioDevice->group_id_, address, ConnectionState::CONNECTED,
@@ -3202,7 +3192,8 @@ public:
     log::debug("{},  {}", leAudioDevice->address_,
                bluetooth::common::ToString(leAudioDevice->GetConnectionState()));
 
-    L2CA_LockBleConnParamsForProfileConnection(leAudioDevice->address_, false);
+    stack::l2cap::get_interface().L2CA_LockBleConnParamsForProfileConnection(
+            leAudioDevice->address_, false);
 
     if (leAudioDevice->GetConnectionState() ==
                 DeviceConnectState::CONNECTED_BY_USER_GETTING_READY &&
@@ -3742,7 +3733,7 @@ public:
 
   void StopAudio(void) {
     SuspendAudio();
-    L2CA_SetEcosystemBaseInterval(0 /* clear recommendation */);
+    stack::l2cap::get_interface().L2CA_SetEcosystemBaseInterval(0 /* clear recommendation */);
   }
 
   void printCurrentStreamConfiguration(int fd) {
@@ -5811,7 +5802,7 @@ void le_audio_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
       if (BTM_IsEncrypted(p_data->enc_cmpl.remote_bda, BT_TRANSPORT_LE)) {
         encryption_status = tBTM_STATUS::BTM_SUCCESS;
       } else {
-        encryption_status = BTM_FAILED_ON_SECURITY;
+        encryption_status = tBTM_STATUS::BTM_FAILED_ON_SECURITY;
       }
       instance->OnEncryptionComplete(p_data->enc_cmpl.remote_bda, encryption_status);
     } break;

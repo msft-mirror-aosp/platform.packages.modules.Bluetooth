@@ -49,7 +49,7 @@ impl GattServiceImpl {
         let me = Self {
             rt,
             btif_intf,
-            gatt: Arc::new(Mutex::new(Gatt::new(&btif_clone.lock().unwrap()).unwrap())),
+            gatt: Arc::new(Mutex::new(Gatt::new(&btif_clone.lock().unwrap()))),
             event_rx: Arc::new(TokioMutex::new(rx)),
             event_tx,
         };

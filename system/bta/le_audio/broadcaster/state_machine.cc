@@ -282,7 +282,14 @@ private:
           /* in CONFIGURING state */
           [](const void*) { /* Do nothing */ },
           /* in CONFIGURED state */
-          [](const void*) { /* Already suspended */ },
+          [this](const void*) {
+            suspending_ = true;
+
+            /* Terminate BIG if suspend happens before setting STREAMING state */
+            if (active_config_ != std::nullopt) {
+              TerminateBig();
+            }
+          },
           /* in STOPPING state */
           [](const void*) { /* Do nothing */ },
           /* in STREAMING state */
@@ -530,8 +537,14 @@ private:
                   .iso_interval = evt->iso_interval,
                   .connection_handles = evt->conn_handles,
           };
-          callbacks_->OnBigCreated(evt->conn_handles);
-          TriggerIsoDatapathSetup(evt->conn_handles[0]);
+
+          if (suspending_) {
+            log::info("Terminating BIG due to stream suspending, big_id={}", evt->big_id);
+            TerminateBig();
+          } else {
+            callbacks_->OnBigCreated(evt->conn_handles);
+            TriggerIsoDatapathSetup(evt->conn_handles[0]);
+          }
         } else {
           log::error("State={} Event={}. Unable to create big, big_id={}, status={}",
                      ToString(GetState()), event, evt->big_id, evt->status);

@@ -32,6 +32,7 @@
 #include <base/functional/bind.h>
 #include <base/location.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
@@ -861,10 +862,6 @@ static void btu_hcif_hdl_command_complete(uint16_t opcode, uint8_t* p, uint16_t 
       btm_delete_stored_link_key_complete(p, evt_len);
       break;
 
-    case HCI_READ_LOCAL_NAME:
-      btm_read_local_name_complete(p, evt_len);
-      break;
-
     case HCI_READ_RSSI:
       btm_read_rssi_complete(p, evt_len);
       break;
@@ -1040,9 +1037,15 @@ static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status, const u
     case HCI_SETUP_ESCO_CONNECTION:
     case HCI_ENH_SETUP_ESCO_CONNECTION:
       if (status != HCI_SUCCESS) {
-        STREAM_TO_UINT16(handle, p_cmd);
-        RawAddress addr(RawAddress::kEmpty);
-        btm_sco_connection_failed(hci_status, addr, handle, nullptr);
+        if (com::android::bluetooth::flags::fix_sco_command_status_handling()) {
+          log::debug("flag: fix_sco_command_status_handling is enabled");
+          btm_sco_create_command_status_failed(hci_status);
+        } else {
+          log::debug("flag: fix_sco_command_status_handling is disabled");
+          STREAM_TO_UINT16(handle, p_cmd);
+          RawAddress addr(RawAddress::kEmpty);
+          btm_sco_connection_failed(hci_status, addr, handle, nullptr);
+        }
       }
       break;
 
@@ -1090,6 +1093,11 @@ static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status, const u
 void bluetooth::legacy::testing::btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status,
                                                              const uint8_t* p_cmd) {
   ::btu_hcif_hdl_command_status(opcode, status, p_cmd);
+}
+
+void bluetooth::legacy::testing::btu_hcif_process_event(uint8_t controller_id,
+                                                        const BT_HDR* p_msg) {
+  ::btu_hcif_process_event(controller_id, p_msg);
 }
 
 /*******************************************************************************
@@ -1223,7 +1231,7 @@ void btu_hcif_read_local_oob_complete(const uint8_t* p, uint16_t evt_len) {
   if (status == HCI_SUCCESS) {
     evt_data.status = tBTM_STATUS::BTM_SUCCESS;
   } else {
-    evt_data.status = BTM_ERR_PROCESSING;
+    evt_data.status = tBTM_STATUS::BTM_ERR_PROCESSING;
   }
   if (evt_len < 32 + 1) {
     goto err_out;
@@ -1249,7 +1257,7 @@ void btu_hcif_read_local_oob_extended_complete(const uint8_t* p, uint16_t evt_le
   if (status == HCI_SUCCESS) {
     evt_data.status = tBTM_STATUS::BTM_SUCCESS;
   } else {
-    evt_data.status = BTM_ERR_PROCESSING;
+    evt_data.status = tBTM_STATUS::BTM_ERR_PROCESSING;
   }
 
   STREAM_TO_ARRAY16(evt_data.c_192.data(), p);

@@ -761,7 +761,7 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
             ApplicationInfo info = pm.getApplicationInfo(player.getPackageName(), 0);
             player_name = info.loadLabel(pm).toString();
         } catch (PackageManager.NameNotFoundException e) {
-            e.printStackTrace();
+            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
         }
         return player_name;
     }

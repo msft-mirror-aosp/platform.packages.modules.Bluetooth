@@ -90,7 +90,7 @@ tGAP_CONN conn;
 /******************************************************************************/
 static void gap_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid, uint16_t psm,
                             uint8_t l2cap_id);
-static void gap_connect_cfm(uint16_t l2cap_cid, uint16_t result);
+static void gap_connect_cfm(uint16_t l2cap_cid, tL2CAP_CONN result);
 static void gap_config_ind(uint16_t l2cap_cid, tL2CAP_CFG_INFO* p_cfg);
 static void gap_config_cfm(uint16_t l2cap_cid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
 static void gap_disconnect_ind(uint16_t l2cap_cid, bool ack_needed);
@@ -711,7 +711,7 @@ static void gap_on_l2cap_error(uint16_t l2cap_cid, uint16_t result) {
 
   /* Propagate the l2cap result upward */
   tGAP_CB_DATA cb_data;
-  cb_data.l2cap_result = result;
+  cb_data.l2cap_result = to_l2cap_result_code(result);
 
   /* Tell the user if there is a callback */
   if (p_ccb->p_callback) {
@@ -732,7 +732,7 @@ static void gap_on_l2cap_error(uint16_t l2cap_cid, uint16_t result) {
  * Returns          void
  *
  ******************************************************************************/
-static void gap_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
+static void gap_connect_cfm(uint16_t l2cap_cid, tL2CAP_CONN result) {
   tGAP_CCB* p_ccb;
 
   /* Find CCB based on CID */
@@ -749,7 +749,7 @@ static void gap_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
 
   /* If the connection response contains success status, then */
   /* Transition to the next state and startup the timer.      */
-  if ((result == L2CAP_CONN_OK) && (p_ccb->con_state == GAP_CCB_STATE_CONN_SETUP)) {
+  if ((result == tL2CAP_CONN::L2CAP_CONN_OK) && (p_ccb->con_state == GAP_CCB_STATE_CONN_SETUP)) {
     if (p_ccb->transport == BT_TRANSPORT_BR_EDR) {
       p_ccb->con_state = GAP_CCB_STATE_CFG_SETUP;
     }

@@ -363,7 +363,7 @@ public class BluetoothInCallService extends InCallService {
 
     private BluetoothInCallService(CallInfo callInfo) {
         Log.i(TAG, "BluetoothInCallService is created");
-        mCallInfo = Objects.requireNonNullElse(callInfo, new CallInfo());
+        mCallInfo = Objects.requireNonNullElseGet(callInfo, () -> new CallInfo());
         sInstance = this;
         mExecutor = Executors.newSingleThreadExecutor();
     }
@@ -622,10 +622,11 @@ public class BluetoothInCallService extends InCallService {
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
     public void onCallAdded(BluetoothCall call) {
         if (call.isExternalCall()) {
+            Log.d(TAG, "onCallAdded: external call");
             return;
         }
         if (!mBluetoothCallHashMap.containsKey(call.getId())) {
-            Log.d(TAG, "onCallAdded");
+            Log.i(TAG, "onCallAdded");
             CallStateCallback callback = new CallStateCallback(call.getState());
             mCallbacks.put(call.getId(), callback);
             call.registerCallback(callback);
@@ -640,6 +641,8 @@ public class BluetoothInCallService extends InCallService {
             if (mBluetoothLeCallControl != null && tbsCall != null) {
                 mBluetoothLeCallControl.onCallAdded(tbsCall);
             }
+        } else {
+            Log.i(TAG, "onCallAdded: call already exists");
         }
     }
 
@@ -688,7 +691,7 @@ public class BluetoothInCallService extends InCallService {
      */
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
     public void onCallRemoved(BluetoothCall call, boolean forceRemoveCallback) {
-        Log.d(TAG, "onCallRemoved");
+        Log.i(TAG, "onCallRemoved, forceRemoveCallback=" + forceRemoveCallback);
         CallStateCallback callback = getCallback(call);
         if (callback != null && (forceRemoveCallback || !call.isExternalCall())) {
             call.unregisterCallback(callback);
@@ -1334,6 +1337,8 @@ public class BluetoothInCallService extends InCallService {
                     ringingName);
 
             mHeadsetUpdatedRecently = true;
+        } else {
+            Log.i(TAG, "updateHeadsetWithCallState skipped");
         }
     }
 

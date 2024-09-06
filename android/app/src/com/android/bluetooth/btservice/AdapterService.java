@@ -186,6 +186,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -257,6 +258,8 @@ public class AdapterService extends Service {
             mBluetoothQualityReportReadyCallbacks = new RemoteCallbackList<>();
     private final RemoteCallbackList<IBluetoothCallback> mRemoteCallbacks =
             new RemoteCallbackList<>();
+    private final RemoteCallbackList<IBluetoothConnectionCallback> mBluetoothConnectionCallbacks =
+            new RemoteCallbackList<>();
 
     private final EvictingQueue<String> mScanModeChanges = EvictingQueue.create(10);
 
@@ -283,7 +286,6 @@ public class AdapterService extends Service {
 
     private boolean mNativeAvailable;
     private boolean mCleaningUp;
-    private Set<IBluetoothConnectionCallback> mBluetoothConnectionCallbacks = new HashSet<>();
     private boolean mQuietmode = false;
     private Map<String, CallerInfo> mBondAttemptCallerInfo = new HashMap<>();
 
@@ -1153,9 +1155,11 @@ public class AdapterService extends Service {
     }
 
     private void invalidateBluetoothGetStateCache() {
-        if (!Flags.broadcastAdapterStateWithCallback()) {
-            BluetoothAdapter.invalidateBluetoothGetStateCache();
+        if (Flags.getStateFromSystemServer()) {
+            // State is managed by the system server
+            return;
         }
+        BluetoothAdapter.invalidateBluetoothGetStateCache();
     }
 
     void updateLeAudioProfileServiceState() {
@@ -1186,9 +1190,7 @@ public class AdapterService extends Service {
 
     void updateAdapterState(int prevState, int newState) {
         mAdapterProperties.setState(newState);
-        if (!Flags.broadcastAdapterStateWithCallback()) {
-            invalidateBluetoothGetStateCache();
-        }
+        invalidateBluetoothGetStateCache();
 
         // Only BluetoothManagerService should be registered
         int n = mRemoteCallbacks.beginBroadcast();
@@ -1486,7 +1488,7 @@ public class AdapterService extends Service {
         BluetoothAdapter.invalidateGetProfileConnectionStateCache();
         BluetoothAdapter.invalidateIsOffloadedFilteringSupportedCache();
         BluetoothDevice.invalidateBluetoothGetBondStateCache();
-        if (!Flags.broadcastAdapterStateWithCallback()) {
+        if (!Flags.getStateFromSystemServer()) {
             BluetoothAdapter.invalidateBluetoothGetStateCache();
         }
         BluetoothAdapter.invalidateGetAdapterConnectionStateCache();
@@ -2246,9 +2248,10 @@ public class AdapterService extends Service {
 
         AdapterServiceBinder(AdapterService svc) {
             mService = svc;
-            if (!Flags.broadcastAdapterStateWithCallback()) {
-                mService.invalidateBluetoothGetStateCache();
+            if (Flags.getStateFromSystemServer()) {
+                return;
             }
+            mService.invalidateBluetoothGetStateCache();
             BluetoothAdapter.getDefaultAdapter().disableBluetoothGetStateCache();
         }
 
@@ -2259,7 +2262,6 @@ public class AdapterService extends Service {
             return mService;
         }
 
-        // TODO: b/357645528 - delete getState method
         @Override
         public int getState() {
             AdapterService service = getService();
@@ -2290,7 +2292,7 @@ public class AdapterService extends Service {
 
             try {
                 // Wait for Bluetooth to be killed from its main thread
-                Thread.sleep(950); // SystemServer is waiting 1000 ms, we need to wait less here
+                Thread.sleep(1_000); // SystemServer is waiting 2000 ms, we need to wait less here
             } catch (InterruptedException e) {
                 Log.e(TAG, "killBluetoothProcess: Interrupted while waiting for kill");
             }
@@ -2884,6 +2886,13 @@ public class AdapterService extends Service {
                             + device
                             + ", from "
                             + Utils.getUidPidString());
+            MetricsLogger.getInstance()
+                    .logBluetoothEvent(
+                            device,
+                            BluetoothStatsLog
+                                    .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__INITIATOR_CONNECTION,
+                            BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__START,
+                            source.getUid());
 
             try {
                 return service.connectAllEnabledProfiles(device);
@@ -3445,7 +3454,7 @@ public class AdapterService extends Service {
                 return;
             }
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
-            service.mBluetoothConnectionCallbacks.add(callback);
+            service.mBluetoothConnectionCallbacks.register(callback);
         }
 
         @Override
@@ -3459,7 +3468,7 @@ public class AdapterService extends Service {
                 return;
             }
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
-            service.mBluetoothConnectionCallbacks.remove(callback);
+            service.mBluetoothConnectionCallbacks.unregister(callback);
         }
 
         @Override
@@ -3800,17 +3809,16 @@ public class AdapterService extends Service {
         }
 
         @Override
-        public void startBrEdr(AttributionSource source) {
+        public void bleOnToOn(AttributionSource source) {
             AdapterService service = getService();
             if (service == null
-                    || !callerIsSystemOrActiveOrManagedUser(service, TAG, "startBrEdr")
-                    || !Utils.checkConnectPermissionForDataDelivery(service, source, TAG)) {
+                    || !callerIsSystemOrActiveOrManagedUser(service, TAG, "bleOnToOn")) {
                 return;
             }
 
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
 
-            service.startBrEdr();
+            service.bleOnToOn();
         }
 
         @Override
@@ -4793,6 +4801,14 @@ public class AdapterService extends Service {
         }
         if (setData) {
             msg.setData(remoteOobDatasBundle);
+        } else {
+            MetricsLogger.getInstance()
+                    .logBluetoothEvent(
+                            device,
+                            BluetoothStatsLog
+                                    .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__BONDING,
+                            BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__START,
+                            Binder.getCallingUid());
         }
         mBondStateMachine.sendMessage(msg);
         return true;
@@ -5503,8 +5519,13 @@ public class AdapterService extends Service {
         return mRemoteDevices.getUuids(device);
     }
 
-    public Set<IBluetoothConnectionCallback> getBluetoothConnectionCallbacks() {
-        return mBluetoothConnectionCallbacks;
+    void aclStateChangeBroadcastCallback(Consumer<IBluetoothConnectionCallback> cb) {
+        int n = mBluetoothConnectionCallbacks.beginBroadcast();
+        Log.d(TAG, "aclStateChangeBroadcastCallback() - Broadcasting to " + n + " receivers.");
+        for (int i = 0; i < n; i++) {
+            cb.accept(mBluetoothConnectionCallbacks.getBroadcastItem(i));
+        }
+        mRemoteCallbacks.finishBroadcast();
     }
 
     /**
@@ -5761,7 +5782,7 @@ public class AdapterService extends Service {
     }
 
     @VisibleForTesting
-    void startBrEdr() {
+    void bleOnToOn() {
         mAdapterStateMachine.sendMessage(AdapterState.USER_TURN_ON);
     }
 

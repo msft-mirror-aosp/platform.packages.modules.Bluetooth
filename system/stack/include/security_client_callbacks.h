@@ -141,8 +141,7 @@ typedef struct {
   // remote name request related APIs
   // TODO: remove them from this structure
   const char* (*BTM_SecReadDevName)(const RawAddress& bd_addr);
-  bool (*BTM_SecAddRmtNameNotifyCallback)(tBTM_RMT_NAME_CALLBACK* p_callback);
-  bool (*BTM_SecDeleteRmtNameNotifyCallback)(tBTM_RMT_NAME_CALLBACK* p_callback);
+  DEV_CLASS (*BTM_SecReadDevClass)(const RawAddress& bd_addr);
 } SecurityClientInterface;
 
 const SecurityClientInterface& get_security_client_interface();

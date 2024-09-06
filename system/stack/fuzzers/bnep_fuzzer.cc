@@ -135,7 +135,7 @@ static void Fuzz(const uint8_t* data, size_t size) {
                  Uuid::From128BitBE(kDummyDstUuid), &handle, 0);
 
     // Simulating outbound connection confirm event
-    appl_info.pL2CA_ConnectCfm_Cb(kDummyCid, L2CAP_CONN_OK);
+    appl_info.pL2CA_ConnectCfm_Cb(kDummyCid, tL2CAP_CONN::L2CAP_CONN_OK);
   }
 
   // Simulating configuration confirmation event

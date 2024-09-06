@@ -855,7 +855,11 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, uint16_t local_cid, BT_HDR* p_buf
     }
 
     p_buf->layer_specific = 0;
-    list_append(p_lcb->link_xmit_data_q, p_buf);
+    if (p_lcb->link_xmit_data_q != NULL) {
+      list_append(p_lcb->link_xmit_data_q, p_buf);
+    } else {
+      log::warn("Unable to queue packet as L2cap module transmit data queue is null");
+    }
 
     if (p_lcb->link_xmit_quota == 0) {
       if (p_lcb->transport == BT_TRANSPORT_LE) {
@@ -1194,7 +1198,7 @@ tBTM_STATUS l2cu_ConnectAclForSecurity(const RawAddress& bd_addr) {
   /* Make sure an L2cap link control block is available */
   if (!p_lcb && (p_lcb = l2cu_allocate_lcb(bd_addr, true, BT_TRANSPORT_BR_EDR)) == NULL) {
     log::warn("failed allocate LCB for {}", bd_addr);
-    return BTM_NO_RESOURCES;
+    return tBTM_STATUS::BTM_NO_RESOURCES;
   }
 
   l2cu_create_conn_br_edr(p_lcb);
