@@ -774,16 +774,6 @@ void BTM_default_unblock_role_switch() {
 
 extern void bta_gattc_continue_discovery_if_needed(const RawAddress& bd_addr, uint16_t acl_handle);
 
-/*******************************************************************************
- *
- * Function         btm_read_remote_version_complete
- *
- * Description      This function is called when the command complete message
- *                  is received from the HCI for the remote version info.
- *
- * Returns          void
- *
- ******************************************************************************/
 static void maybe_chain_more_commands_after_read_remote_version_complete(uint8_t /* status */,
                                                                          uint16_t handle) {
   tACL_CONN* p_acl_cb = internal_.acl_get_connection_from_handle(handle);
@@ -837,6 +827,16 @@ void btm_process_remote_version_complete(uint8_t status, uint16_t handle, uint8_
   }
 }
 
+/*******************************************************************************
+ *
+ * Function         btm_read_remote_version_complete
+ *
+ * Description      This function is called when the command complete message
+ *                  is received from the HCI for the remote version info.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
 void btm_read_remote_version_complete(tHCI_STATUS status, uint16_t handle, uint8_t lmp_version,
                                       uint16_t manufacturer, uint16_t lmp_subversion) {
   btm_process_remote_version_complete(status, handle, lmp_version, manufacturer, lmp_subversion);
