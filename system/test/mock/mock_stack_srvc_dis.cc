@@ -39,14 +39,6 @@ bool dis_valid_handle_range(uint16_t /* handle */) {
   inc_func_call_count(__func__);
   return false;
 }
-tDIS_STATUS DIS_SrInit(tDIS_ATTR_MASK /* dis_attr_mask */) {
-  inc_func_call_count(__func__);
-  return 0;
-}
-tDIS_STATUS DIS_SrUpdate(tDIS_ATTR_BIT /* dis_attr_bit */, tDIS_ATTR* /* p_info */) {
-  inc_func_call_count(__func__);
-  return 0;
-}
 uint8_t dis_read_attr_value(uint8_t /* clcb_idx */, uint16_t /* handle */,
                             tGATT_VALUE* /* p_value */, bool /* is_long */,
                             tGATT_STATUS* /* p_status */) {

@@ -1974,16 +1974,6 @@ public:
         return;
       }
 
-      if (leAudioDevice->HaveActiveAse()) {
-        /* Do nothing, device is streaming */
-        return;
-      }
-
-      if (leAudioDevice->GetConnectionState() != DeviceConnectState::CONNECTED) {
-        /* Do nothing, wait until device is connected */
-        return;
-      }
-
       AttachToStreamingGroupIfNeeded(leAudioDevice);
 
     } else if (hdl == leAudioDevice->audio_supp_cont_hdls_.val_hdl) {
@@ -3071,6 +3061,12 @@ public:
   void AttachToStreamingGroupIfNeeded(LeAudioDevice* leAudioDevice) {
     if (leAudioDevice->group_id_ != active_group_id_) {
       log::info("group  {} is not streaming. Nothing to do", leAudioDevice->group_id_);
+      return;
+    }
+
+    if (leAudioDevice->GetConnectionState() != DeviceConnectState::CONNECTED) {
+      /* Do nothing, wait until device is connected */
+      log::debug("{} is not yet connected", leAudioDevice->address_);
       return;
     }
 

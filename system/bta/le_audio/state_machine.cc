@@ -816,11 +816,17 @@ public:
         SendStreamingStatusCbIfNeeded(group);
         return;
       }
+
+      if (!group->IsInTransitionTo(AseState::BTA_LE_AUDIO_ASE_STATE_IDLE)) {
+        /* do nothing if not transitioning to IDLE */
+        return;
+      }
     }
 
     /* Group is not connected and all the CISes are down.
      * Clean states and destroy HCI group
      */
+    log::debug("Clearing inactive group");
     ClearGroup(group, true);
   }
 

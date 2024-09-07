@@ -21,7 +21,7 @@
 
 #include <shared_mutex>
 
-#include "com_android_bluetooth.h"
+#include "./com_android_bluetooth.h"
 #include "hardware/bt_vc.h"
 
 using bluetooth::vc::ConnectionState;
@@ -47,7 +47,7 @@ class VolumeControlCallbacksImpl : public VolumeControlCallbacks {
 public:
   ~VolumeControlCallbacksImpl() = default;
   void OnConnectionState(ConnectionState state, const RawAddress& bd_addr) override {
-    log::info("state:{}, addr: {}", int(state), bd_addr.ToRedactedStringForLogging());
+    log::info("state:{}, addr: {}", static_cast<int>(state), bd_addr.ToRedactedStringForLogging());
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
     CallbackEnv sCallbackEnv(__func__);
@@ -62,7 +62,8 @@ public:
       return;
     }
 
-    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress), (jbyte*)&bd_addr);
+    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
+                                     reinterpret_cast<const jbyte*>(&bd_addr));
     sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onConnectionStateChanged, (jint)state,
                                  addr.get());
   }
@@ -84,7 +85,8 @@ public:
       return;
     }
 
-    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress), (jbyte*)&bd_addr);
+    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
+                                     reinterpret_cast<const jbyte*>(&bd_addr));
     sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onVolumeStateChanged, (jint)volume,
                                  (jboolean)mute, (jint)flags, addr.get(), (jboolean)isAutonomous);
   }
@@ -115,11 +117,12 @@ public:
     ScopedLocalRef<jbyteArray> addr(sCallbackEnv.get(),
                                     sCallbackEnv->NewByteArray(sizeof(RawAddress)));
     if (!addr.get()) {
-      log::error("Failed to new jbyteArray bd addr for onDeviceAvailable");
+      log::error("Failed to get addr for {}", bd_addr);
       return;
     }
 
-    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress), (jbyte*)&bd_addr);
+    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
+                                     reinterpret_cast<const jbyte*>(&bd_addr));
     sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onDeviceAvailable, (jint)num_offsets,
                                  addr.get());
   }
@@ -143,7 +146,8 @@ public:
       return;
     }
 
-    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress), (jbyte*)&bd_addr);
+    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
+                                     reinterpret_cast<const jbyte*>(&bd_addr));
     sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onExtAudioOutVolumeOffsetChanged,
                                  (jint)ext_output_id, (jint)offset, addr.get());
   }
@@ -165,7 +169,8 @@ public:
       return;
     }
 
-    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress), (jbyte*)&bd_addr);
+    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
+                                     reinterpret_cast<const jbyte*>(&bd_addr));
     sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onExtAudioOutLocationChanged,
                                  (jint)ext_output_id, (jint)location, addr.get());
   }
@@ -189,7 +194,8 @@ public:
       return;
     }
 
-    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress), (jbyte*)&bd_addr);
+    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
+                                     reinterpret_cast<const jbyte*>(&bd_addr));
     jstring description = sCallbackEnv->NewStringUTF(descr.c_str());
     sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onExtAudioOutDescriptionChanged,
                                  (jint)ext_output_id, description, addr.get());
@@ -225,7 +231,10 @@ static void initNative(JNIEnv* env, jobject object) {
     return;
   }
 
-  sVolumeControlInterface = (VolumeControlInterface*)btInf->get_profile_interface(BT_PROFILE_VC_ID);
+  sVolumeControlInterface =
+          const_cast<VolumeControlInterface*>(reinterpret_cast<const VolumeControlInterface*>(
+                  btInf->get_profile_interface(BT_PROFILE_VC_ID)));
+
   if (sVolumeControlInterface == nullptr) {
     log::error("Failed to get Bluetooth Volume Control Interface");
     return;
@@ -270,7 +279,7 @@ static jboolean connectVolumeControlNative(JNIEnv* env, jobject /* object */, jb
     return JNI_FALSE;
   }
 
-  RawAddress* tmpraw = (RawAddress*)addr;
+  RawAddress* tmpraw = reinterpret_cast<RawAddress*>(addr);
   sVolumeControlInterface->Connect(*tmpraw);
   env->ReleaseByteArrayElements(address, addr, 0);
   return JNI_TRUE;
@@ -292,7 +301,7 @@ static jboolean disconnectVolumeControlNative(JNIEnv* env, jobject /* object */,
     return JNI_FALSE;
   }
 
-  RawAddress* tmpraw = (RawAddress*)addr;
+  RawAddress* tmpraw = reinterpret_cast<RawAddress*>(addr);
   sVolumeControlInterface->Disconnect(*tmpraw);
   env->ReleaseByteArrayElements(address, addr, 0);
   return JNI_TRUE;
@@ -310,7 +319,7 @@ static void setVolumeNative(JNIEnv* env, jobject /* object */, jbyteArray addres
     return;
   }
 
-  RawAddress* tmpraw = (RawAddress*)addr;
+  RawAddress* tmpraw = reinterpret_cast<RawAddress*>(addr);
   sVolumeControlInterface->SetVolume(*tmpraw, volume);
   env->ReleaseByteArrayElements(address, addr, 0);
 }
@@ -337,7 +346,7 @@ static void muteNative(JNIEnv* env, jobject /* object */, jbyteArray address) {
     return;
   }
 
-  RawAddress* tmpraw = (RawAddress*)addr;
+  RawAddress* tmpraw = reinterpret_cast<RawAddress*>(addr);
   sVolumeControlInterface->Mute(*tmpraw);
   env->ReleaseByteArrayElements(address, addr, 0);
 }
@@ -362,7 +371,7 @@ static void unmuteNative(JNIEnv* env, jobject /* object */, jbyteArray address) 
     return;
   }
 
-  RawAddress* tmpraw = (RawAddress*)addr;
+  RawAddress* tmpraw = reinterpret_cast<RawAddress*>(addr);
   sVolumeControlInterface->Unmute(*tmpraw);
   env->ReleaseByteArrayElements(address, addr, 0);
 }
@@ -390,7 +399,7 @@ static jboolean getExtAudioOutVolumeOffsetNative(JNIEnv* env, jobject /* object 
     return JNI_FALSE;
   }
 
-  RawAddress* tmpraw = (RawAddress*)addr;
+  RawAddress* tmpraw = reinterpret_cast<RawAddress*>(addr);
   sVolumeControlInterface->GetExtAudioOutVolumeOffset(*tmpraw, ext_output_id);
   env->ReleaseByteArrayElements(address, addr, 0);
   return JNI_TRUE;
@@ -411,7 +420,7 @@ static jboolean setExtAudioOutVolumeOffsetNative(JNIEnv* env, jobject /* object 
     return JNI_FALSE;
   }
 
-  RawAddress* tmpraw = (RawAddress*)addr;
+  RawAddress* tmpraw = reinterpret_cast<RawAddress*>(addr);
   sVolumeControlInterface->SetExtAudioOutVolumeOffset(*tmpraw, ext_output_id, offset);
   env->ReleaseByteArrayElements(address, addr, 0);
   return JNI_TRUE;
@@ -431,7 +440,7 @@ static jboolean getExtAudioOutLocationNative(JNIEnv* env, jobject /* object */, 
     return JNI_FALSE;
   }
 
-  RawAddress* tmpraw = (RawAddress*)addr;
+  RawAddress* tmpraw = reinterpret_cast<RawAddress*>(addr);
   sVolumeControlInterface->GetExtAudioOutLocation(*tmpraw, ext_output_id);
   env->ReleaseByteArrayElements(address, addr, 0);
   return JNI_TRUE;
@@ -451,7 +460,7 @@ static jboolean setExtAudioOutLocationNative(JNIEnv* env, jobject /* object */, 
     return JNI_FALSE;
   }
 
-  RawAddress* tmpraw = (RawAddress*)addr;
+  RawAddress* tmpraw = reinterpret_cast<RawAddress*>(addr);
   sVolumeControlInterface->SetExtAudioOutLocation(*tmpraw, ext_output_id, location);
   env->ReleaseByteArrayElements(address, addr, 0);
   return JNI_TRUE;
@@ -471,7 +480,7 @@ static jboolean getExtAudioOutDescriptionNative(JNIEnv* env, jobject /* object *
     return JNI_FALSE;
   }
 
-  RawAddress* tmpraw = (RawAddress*)addr;
+  RawAddress* tmpraw = reinterpret_cast<RawAddress*>(addr);
   sVolumeControlInterface->GetExtAudioOutDescription(*tmpraw, ext_output_id);
   env->ReleaseByteArrayElements(address, addr, 0);
   return JNI_TRUE;
@@ -499,7 +508,7 @@ static jboolean setExtAudioOutDescriptionNative(JNIEnv* env, jobject /* object *
     env->ReleaseStringUTFChars(descr, value);
   }
 
-  RawAddress* tmpraw = (RawAddress*)addr;
+  RawAddress* tmpraw = reinterpret_cast<RawAddress*>(addr);
   sVolumeControlInterface->SetExtAudioOutDescription(*tmpraw, ext_output_id, description);
   env->ReleaseByteArrayElements(address, addr, 0);
   return JNI_TRUE;
@@ -507,23 +516,30 @@ static jboolean setExtAudioOutDescriptionNative(JNIEnv* env, jobject /* object *
 
 int register_com_android_bluetooth_vc(JNIEnv* env) {
   const JNINativeMethod methods[] = {
-          {"initNative", "()V", (void*)initNative},
-          {"cleanupNative", "()V", (void*)cleanupNative},
-          {"connectVolumeControlNative", "([B)Z", (void*)connectVolumeControlNative},
-          {"disconnectVolumeControlNative", "([B)Z", (void*)disconnectVolumeControlNative},
-          {"setVolumeNative", "([BI)V", (void*)setVolumeNative},
-          {"setGroupVolumeNative", "(II)V", (void*)setGroupVolumeNative},
-          {"muteNative", "([B)V", (void*)muteNative},
-          {"muteGroupNative", "(I)V", (void*)muteGroupNative},
-          {"unmuteNative", "([B)V", (void*)unmuteNative},
-          {"unmuteGroupNative", "(I)V", (void*)unmuteGroupNative},
-          {"getExtAudioOutVolumeOffsetNative", "([BI)Z", (void*)getExtAudioOutVolumeOffsetNative},
-          {"setExtAudioOutVolumeOffsetNative", "([BII)Z", (void*)setExtAudioOutVolumeOffsetNative},
-          {"getExtAudioOutLocationNative", "([BI)Z", (void*)getExtAudioOutLocationNative},
-          {"setExtAudioOutLocationNative", "([BII)Z", (void*)setExtAudioOutLocationNative},
-          {"getExtAudioOutDescriptionNative", "([BI)Z", (void*)getExtAudioOutDescriptionNative},
+          {"initNative", "()V", reinterpret_cast<void*>(initNative)},
+          {"cleanupNative", "()V", reinterpret_cast<void*>(cleanupNative)},
+          {"connectVolumeControlNative", "([B)Z",
+           reinterpret_cast<void*>(connectVolumeControlNative)},
+          {"disconnectVolumeControlNative", "([B)Z",
+           reinterpret_cast<void*>(disconnectVolumeControlNative)},
+          {"setVolumeNative", "([BI)V", reinterpret_cast<void*>(setVolumeNative)},
+          {"setGroupVolumeNative", "(II)V", reinterpret_cast<void*>(setGroupVolumeNative)},
+          {"muteNative", "([B)V", reinterpret_cast<void*>(muteNative)},
+          {"muteGroupNative", "(I)V", reinterpret_cast<void*>(muteGroupNative)},
+          {"unmuteNative", "([B)V", reinterpret_cast<void*>(unmuteNative)},
+          {"unmuteGroupNative", "(I)V", reinterpret_cast<void*>(unmuteGroupNative)},
+          {"getExtAudioOutVolumeOffsetNative", "([BI)Z",
+           reinterpret_cast<void*>(getExtAudioOutVolumeOffsetNative)},
+          {"setExtAudioOutVolumeOffsetNative", "([BII)Z",
+           reinterpret_cast<void*>(setExtAudioOutVolumeOffsetNative)},
+          {"getExtAudioOutLocationNative", "([BI)Z",
+           reinterpret_cast<void*>(getExtAudioOutLocationNative)},
+          {"setExtAudioOutLocationNative", "([BII)Z",
+           reinterpret_cast<void*>(setExtAudioOutLocationNative)},
+          {"getExtAudioOutDescriptionNative", "([BI)Z",
+           reinterpret_cast<void*>(getExtAudioOutDescriptionNative)},
           {"setExtAudioOutDescriptionNative", "([BILjava/lang/String;)Z",
-           (void*)setExtAudioOutDescriptionNative},
+           reinterpret_cast<void*>(setExtAudioOutDescriptionNative)},
   };
   const int result = REGISTER_NATIVE_METHODS(
           env, "com/android/bluetooth/vc/VolumeControlNativeInterface", methods);
