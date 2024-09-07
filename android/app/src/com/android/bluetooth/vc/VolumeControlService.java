@@ -87,109 +87,6 @@ public class VolumeControlService extends ProfileService {
     final RemoteCallbackList<IBluetoothVolumeControlCallback> mCallbacks =
             new RemoteCallbackList<>();
 
-    @VisibleForTesting
-    static class VolumeControlOffsetDescriptor {
-        Map<Integer, Descriptor> mVolumeOffsets;
-
-        private static class Descriptor {
-            Descriptor() {
-                mValue = 0;
-                mLocation = 0;
-                mDescription = null;
-            }
-
-            int mValue;
-            int mLocation;
-            String mDescription;
-        }
-        ;
-
-        VolumeControlOffsetDescriptor() {
-            mVolumeOffsets = new HashMap<>();
-        }
-
-        int size() {
-            return mVolumeOffsets.size();
-        }
-
-        void add(int id) {
-            Descriptor d = mVolumeOffsets.get(id);
-            if (d == null) {
-                mVolumeOffsets.put(id, new Descriptor());
-            }
-        }
-
-        boolean setValue(int id, int value) {
-            Descriptor d = mVolumeOffsets.get(id);
-            if (d == null) {
-                return false;
-            }
-            d.mValue = value;
-            return true;
-        }
-
-        int getValue(int id) {
-            Descriptor d = mVolumeOffsets.get(id);
-            if (d == null) {
-                return 0;
-            }
-            return d.mValue;
-        }
-
-        boolean setDescription(int id, String desc) {
-            Descriptor d = mVolumeOffsets.get(id);
-            if (d == null) {
-                return false;
-            }
-            d.mDescription = desc;
-            return true;
-        }
-
-        String getDescription(int id) {
-            Descriptor d = mVolumeOffsets.get(id);
-            if (d == null) {
-                return null;
-            }
-            return d.mDescription;
-        }
-
-        boolean setLocation(int id, int location) {
-            Descriptor d = mVolumeOffsets.get(id);
-            if (d == null) {
-                return false;
-            }
-            d.mLocation = location;
-            return true;
-        }
-
-        int getLocation(int id) {
-            Descriptor d = mVolumeOffsets.get(id);
-            if (d == null) {
-                return 0;
-            }
-            return d.mLocation;
-        }
-
-        void remove(int id) {
-            mVolumeOffsets.remove(id);
-        }
-
-        void clear() {
-            mVolumeOffsets.clear();
-        }
-
-        void dump(StringBuilder sb) {
-            for (Map.Entry<Integer, Descriptor> entry : mVolumeOffsets.entrySet()) {
-                Descriptor descriptor = entry.getValue();
-                Integer id = entry.getKey();
-                ProfileService.println(sb, "        Id: " + id);
-                ProfileService.println(sb, "        value: " + descriptor.mValue);
-                ProfileService.println(sb, "        location: " + descriptor.mLocation);
-                ProfileService.println(sb, "        description: " + descriptor.mDescription);
-            }
-        }
-    }
-
     VolumeControlNativeInterface mVolumeControlNativeInterface;
     @VisibleForTesting AudioManager mAudioManager;
 
@@ -1059,9 +956,6 @@ public class VolumeControlService extends ProfileService {
          * Offset ids a countinous from 1 to number_of_ext_outputs*/
         for (int i = 1; i <= numberOfExternalOutputs; i++) {
             offsets.add(i);
-            mVolumeControlNativeInterface.getExtAudioOutVolumeOffset(device, i);
-            mVolumeControlNativeInterface.getExtAudioOutLocation(device, i);
-            mVolumeControlNativeInterface.getExtAudioOutDescription(device, i);
         }
     }
 

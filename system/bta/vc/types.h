@@ -17,13 +17,17 @@
 
 #pragma once
 
+#include <hardware/bt_vc.h>
+
+#include <algorithm>
 #include <queue>
+#include <string>
 #include <vector>
 
 #include "bta/include/bta_groups.h"
 #include "osi/include/alarm.h"
-#include "raw_address.h"
 #include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace vc {
@@ -129,7 +133,7 @@ struct VolumeOffset {
   bool audio_location_writable;
   bool audio_descr_writable;
 
-  VolumeOffset(uint16_t service_handle)
+  explicit VolumeOffset(uint16_t service_handle)
       : id(0),
         change_counter(0),
         offset(0),
@@ -148,8 +152,8 @@ struct VolumeOffset {
 
 class VolumeOffsets {
 public:
-  void Add(VolumeOffset& offset) {
-    offset.id = (uint8_t)Size() + 1;
+  void Add(VolumeOffset offset) {
+    offset.id = static_cast<uint8_t>(Size()) + 1;
     volume_offsets.push_back(offset);
   }
 
