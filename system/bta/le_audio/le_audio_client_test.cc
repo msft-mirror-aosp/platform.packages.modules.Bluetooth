@@ -8437,6 +8437,67 @@ TEST_F(UnicastTest, LateStreamConnectBasedOnContextType) {
   SyncOnMainLoop();
 }
 
+TEST_F(UnicastTest, LateStreamConnectBasedOnContextTypeNotFullyConnected) {
+  uint8_t group_size = 2;
+  int group_id = 2;
+
+  /* Scenario
+   * 1. Device A is connected
+   * 2. Stream creation to Device A has been started
+   * 3. Stream is stopped
+   * 4. Device B is connected but has ongoing operations of available context types read.
+   * 5. Device B sends available context type  read response
+   * 6. Make sure AttachToStream was NOT called for Device B since it is not in a CONNECTED state
+   * yet
+   */
+
+  // Report working CSIS
+  ON_CALL(mock_csis_client_module_, IsCsisClientRunning()).WillByDefault(Return(true));
+
+  ON_CALL(mock_csis_client_module_, GetDesiredSize(group_id))
+          .WillByDefault(Invoke([&](int group_id) { return group_size; }));
+
+  const RawAddress test_address0 = GetTestAddress(0);
+  const RawAddress test_address1 = GetTestAddress(1);
+
+  // First earbud connects
+  ConnectCsisDevice(test_address0, 1 /*conn_id*/, codec_spec_conf::kLeAudioLocationFrontLeft,
+                    codec_spec_conf::kLeAudioLocationFrontLeft, group_size, group_id, 1 /* rank*/);
+  // Start streaming
+  EXPECT_CALL(*mock_le_audio_source_hal_client_, Start(_, _, _)).Times(1);
+  EXPECT_CALL(*mock_le_audio_sink_hal_client_, Start(_, _, _)).Times(1);
+  LeAudioClient::Get()->GroupSetActive(group_id);
+  SyncOnMainLoop();
+
+  StartStreaming(AUDIO_USAGE_MEDIA, AUDIO_CONTENT_TYPE_MUSIC, group_id);
+  auto group = streaming_groups.at(group_id);
+
+  // Stop streaming - simulate suspend timeout passed, alarm executing
+  StopStreaming(group_id);
+  fake_osi_alarm_set_on_mloop_.cb(fake_osi_alarm_set_on_mloop_.data);
+  SyncOnMainLoop();
+
+  // Second earbud connects and is set to Getting Ready state
+  ConnectCsisDevice(test_address1, 2 /*conn_id*/, codec_spec_conf::kLeAudioLocationFrontRight,
+                    codec_spec_conf::kLeAudioLocationFrontRight, group_size, group_id, 2 /* rank*/,
+                    true /*connect_through_csis*/);
+  auto device1 = group->GetNextDevice(group->GetFirstDevice());
+  device1->SetConnectionState(DeviceConnectState::CONNECTED_AUTOCONNECT_GETTING_READY);
+
+  // Resume but block the final streaming state - keep the group in transition
+  block_streaming_state_callback = true;
+  UpdateLocalSourceMetadata(AUDIO_USAGE_MEDIA, AUDIO_CONTENT_TYPE_MUSIC);
+  LocalAudioSourceResume(false);
+
+  // Do not expect to attach the device on context update as it is not fully connected
+  EXPECT_CALL(mock_state_machine_, AttachToStream(_, _, _)).Times(0);
+  InjectAvailableContextTypes(test_address1, 2, types::kLeAudioContextAllRemoteSinkOnly,
+                              types::AudioContexts(0), false);
+
+  Mock::VerifyAndClearExpectations(&mock_state_machine_);
+  SyncOnMainLoop();
+}
+
 TEST_F(UnicastTest, CheckDeviceIsNotAttachedToStreamWhenNotNeeded) {
   uint8_t group_size = 2;
   int group_id = 2;
