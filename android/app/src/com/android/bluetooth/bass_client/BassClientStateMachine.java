@@ -885,7 +885,7 @@ public class BassClientStateMachine extends StateMachine {
                     new ArrayList<BluetoothLeAudioContentMetadata>();
             ArrayList<Long> bisSyncState = new ArrayList<Long>();
             for (int i = 0; i < numSubGroups; i++) {
-                byte[] bisSyncIndex = new byte[BassConstants.BCAST_RCVR_STATE_BIS_SYNC_SIZE];
+                byte[] bisSyncIndex = new byte[Long.BYTES];
                 System.arraycopy(
                         receiverState,
                         offset,
@@ -893,7 +893,7 @@ public class BassClientStateMachine extends StateMachine {
                         0,
                         BassConstants.BCAST_RCVR_STATE_BIS_SYNC_SIZE);
                 offset += BassConstants.BCAST_RCVR_STATE_BIS_SYNC_SIZE;
-                bisSyncState.add((long) Utils.byteArrayToInt(bisSyncIndex));
+                bisSyncState.add((long) Utils.byteArrayToLong(bisSyncIndex));
 
                 int metaDataLength = receiverState[offset++] & 0xFF;
                 if (metaDataLength > 0) {

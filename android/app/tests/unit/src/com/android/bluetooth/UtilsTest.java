@@ -71,6 +71,17 @@ public class UtilsTest {
     }
 
     @Test
+    public void byteArrayToLong() {
+        byte[] valueBuf =
+                new byte[] {
+                    (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
+                    (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08
+                };
+        long s = Utils.byteArrayToLong(valueBuf);
+        assertThat(s).isEqualTo(0x0807060504030201L);
+    }
+
+    @Test
     public void byteArrayToString() {
         byte[] valueBuf = new byte[] {0x01, 0x02};
         String str = Utils.byteArrayToString(valueBuf);
