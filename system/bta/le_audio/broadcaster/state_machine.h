@@ -64,12 +64,7 @@ private:
  *              over the air from the Broadcast Source in this state. The
  *              periodic advertising trains do not carry the BIGInfo data
  *              required to synchronize to broadcast Audio Streams.
- * Enabling   - Controller configuration is in progress (create BIG, setup data path). Target state
- *              for this intermediate state is Streaming.
- * Disabling  - Controller deconfiguration is in progress (terminate BIG, remove data path). Target
- *              state for this intermediate state is Configured.
- * Stopping   - Broadcast Audio stream and advertisements are being stopped. Target state for this
- *              intermediate state is Stopped.
+ * Stopping   - Broadcast Audio stream and advertisements are being stopped.
  * Streaming  - The broadcast Audio Stream is enabled on the Broadcast Source,
  *              allowing audio packets to be transmitted. The Broadcast Source
  *              transmits extended advertisements that contain Broadcast Audio
@@ -113,7 +108,7 @@ struct BroadcastStateMachineConfig {
   std::optional<bluetooth::le_audio::BroadcastCode> broadcast_code;
 };
 
-class BroadcastStateMachine : public StateMachine<7> {
+class BroadcastStateMachine : public StateMachine<5> {
 public:
   static constexpr uint8_t kAdvSidUndefined = 0xFF;
   static constexpr uint8_t kPaIntervalMax = 0xA0; /* 160 * 0.625 = 100ms */
@@ -142,8 +137,6 @@ public:
     STOPPED = 0,
     CONFIGURING,
     CONFIGURED,
-    ENABLING,
-    DISABLING,
     STOPPING,
     STREAMING,
   };

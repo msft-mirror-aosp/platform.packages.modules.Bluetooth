@@ -1656,6 +1656,13 @@ class BluetoothManagerService {
                     if (!mEnable) {
                         waitForState(STATE_ON);
                         onToBleOn();
+                        waitForState(
+                                STATE_OFF,
+                                STATE_TURNING_ON,
+                                STATE_TURNING_OFF,
+                                STATE_BLE_TURNING_ON,
+                                STATE_BLE_ON,
+                                STATE_BLE_TURNING_OFF);
                     }
                     break;
 
@@ -2008,7 +2015,6 @@ class BluetoothManagerService {
         } catch (RemoteException e) {
             Log.e(TAG, "Unable to call offToBleOn()", e);
         }
-        bluetoothStateChangeHandler(STATE_OFF, STATE_BLE_TURNING_ON);
     }
 
     private void onToBleOn() {
@@ -2022,7 +2028,6 @@ class BluetoothManagerService {
         } catch (RemoteException e) {
             Log.e(TAG, "Unable to call onToBleOn()", e);
         }
-        bluetoothStateChangeHandler(STATE_ON, STATE_TURNING_OFF);
     }
 
     private void bleOnToOn() {
@@ -2036,7 +2041,6 @@ class BluetoothManagerService {
         } catch (RemoteException e) {
             Log.e(TAG, "Unable to call bleOnToOn()", e);
         }
-        bluetoothStateChangeHandler(STATE_BLE_ON, STATE_TURNING_ON);
     }
 
     private void bleOnToOff() {
@@ -2050,7 +2054,6 @@ class BluetoothManagerService {
         } catch (RemoteException e) {
             Log.e(TAG, "Unable to call bleOnToOff()", e);
         }
-        bluetoothStateChangeHandler(STATE_BLE_ON, STATE_BLE_TURNING_OFF);
     }
 
     private void broadcastIntentStateChange(String action, int prevState, int newState) {
@@ -2080,26 +2083,10 @@ class BluetoothManagerService {
     }
 
     private void bluetoothStateChangeHandler(int prevState, int newState) {
-        if (mState.oneOf(newState)) { // Already in correct state
-            Log.d(TAG, "bluetoothStateChangeHandler: Already in state " + mState);
+        if (prevState == newState) { // No change. Nothing to do.
             return;
         }
         mState.set(newState);
-
-        broadcastIntentStateChange(BluetoothAdapter.ACTION_BLE_STATE_CHANGED, prevState, newState);
-
-        // BLE state are shown as STATE_OFF for BrEdr users
-        final int prevBrEdrState = isBleState(prevState) ? STATE_OFF : prevState;
-        final int newBrEdrState = isBleState(newState) ? STATE_OFF : newState;
-
-        if (prevBrEdrState != newBrEdrState) { // Only broadcast when there is a BrEdr state change.
-            if (newBrEdrState == STATE_OFF) {
-                sendBluetoothOffCallback();
-                sendBrEdrDownCallback();
-            }
-            broadcastIntentStateChange(
-                    BluetoothAdapter.ACTION_STATE_CHANGED, prevBrEdrState, newBrEdrState);
-        }
 
         if (prevState == STATE_ON) {
             autoOnSetupTimer();
@@ -2119,6 +2106,21 @@ class BluetoothManagerService {
         } else if (newState == STATE_BLE_ON && prevState == STATE_BLE_TURNING_ON) {
             continueFromBleOnState();
         } // Nothing specific to do for STATE_TURNING_<X>
+
+        broadcastIntentStateChange(BluetoothAdapter.ACTION_BLE_STATE_CHANGED, prevState, newState);
+
+        // BLE state are shown as STATE_OFF for BrEdr users
+        final int prevBrEdrState = isBleState(prevState) ? STATE_OFF : prevState;
+        final int newBrEdrState = isBleState(newState) ? STATE_OFF : newState;
+
+        if (prevBrEdrState != newBrEdrState) { // Only broadcast when there is a BrEdr state change.
+            if (newBrEdrState == STATE_OFF) {
+                sendBluetoothOffCallback();
+                sendBrEdrDownCallback();
+            }
+            broadcastIntentStateChange(
+                    BluetoothAdapter.ACTION_STATE_CHANGED, prevBrEdrState, newBrEdrState);
+        }
     }
 
     boolean waitForManagerState(int state) {

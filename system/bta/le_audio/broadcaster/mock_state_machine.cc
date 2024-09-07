@@ -47,7 +47,7 @@ std::ostream& operator<<(std::ostream& os, const BroadcastStateMachine::Message&
 
 std::ostream& operator<<(std::ostream& os, const BroadcastStateMachine::State& state) {
   static const char* char_value_[BroadcastStateMachine::STATE_COUNT] = {
-          "STOPPED", "CONFIGURING", "CONFIGURED", "ENABLING", "DISABLING", "STOPPING", "STREAMING"};
+          "STOPPED", "CONFIGURING", "CONFIGURED", "STOPPING", "STREAMING"};
   os << char_value_[static_cast<uint8_t>(state)];
   return os;
 }

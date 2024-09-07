@@ -33,7 +33,6 @@
 #include "l2cdefs.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -138,7 +137,7 @@ void avct_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16
 
   /* If we reject the connection, send DisconnectReq */
   if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
-    if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
+    if (!L2CA_DisconnectReq(lcid)) {
       log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}", bd_addr, lcid);
     }
   }
@@ -187,7 +186,7 @@ static void avct_on_l2cap_error(uint16_t lcid, uint16_t result) {
     p_lcb->ch_result = result;
 
     /* Send L2CAP disconnect req */
-    if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
+    if (!L2CA_DisconnectReq(lcid)) {
       log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}", p_lcb->peer_addr, lcid);
     }
   }
@@ -231,7 +230,7 @@ void avct_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
       if (result == tL2CAP_CONN::L2CAP_CONN_OK) {
         /* just in case the peer also accepts our connection - Send L2CAP
          * disconnect req */
-        if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
+        if (!L2CA_DisconnectReq(lcid)) {
           log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}", p_lcb->peer_addr,
                     lcid);
         }
@@ -322,7 +321,7 @@ void avct_l2c_disconnect_ind_cback(uint16_t lcid, bool /* ack_needed */) {
 }
 
 void avct_l2c_disconnect(uint16_t lcid, uint16_t result) {
-  if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
+  if (!L2CA_DisconnectReq(lcid)) {
     log::warn("Unable to send L2CAP disconnect request cid:{}", lcid);
   }
 

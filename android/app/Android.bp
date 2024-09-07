@@ -134,7 +134,6 @@ cc_library_shared {
         "libcutils",
         "libevent",
         "libexpresslog",
-        "libflags_rust_cpp_bridge",
         "libflatbuffers-cpp",
         "libfmq",
         "libg722codec",

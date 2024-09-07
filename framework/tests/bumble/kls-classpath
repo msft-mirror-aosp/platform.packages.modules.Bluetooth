@@ -36,6 +36,5 @@ CLASSPATH+=":${OUT}external/protobuf/libprotobuf-java-micro/android_common/turbi
 CLASSPATH+=":${OUT}cts/common/device-side/util-axt/compatibility-device-util-axt/android_common/combined/compatibility-device-util-axt.jar"
 CLASSPATH+=":${OUT}external/TestParameterInjector/TestParameterInjector/android_common/combined/TestParameterInjector.jar"
 CLASSPATH+=":${OUT}external/grpc-grpc-java/grpc-java-okhttp-client-lite/android_common/combined/grpc-java-okhttp-client-lite.jar"
-CLASSPATH+=":${OUT}external/mockito-kotlin/mockito-kotlin2/android_common/combined/mockito-kotlin2.jar"
 
 echo "$CLASSPATH"

@@ -363,7 +363,7 @@ public class BluetoothInCallService extends InCallService {
 
     private BluetoothInCallService(CallInfo callInfo) {
         Log.i(TAG, "BluetoothInCallService is created");
-        mCallInfo = Objects.requireNonNullElseGet(callInfo, () -> new CallInfo());
+        mCallInfo = Objects.requireNonNullElse(callInfo, new CallInfo());
         sInstance = this;
         mExecutor = Executors.newSingleThreadExecutor();
     }

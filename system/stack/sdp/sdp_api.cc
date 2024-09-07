@@ -31,12 +31,12 @@
 #include <string.h>
 
 #include <cstdint>
-#include <utility>
 
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/sdp_api.h"
 #include "stack/include/sdpdefs.h"
 #include "stack/sdp/internal/sdp_api.h"
 #include "stack/sdp/sdpint.h"
@@ -86,7 +86,7 @@ bool SDP_InitDiscoveryDb(tSDP_DISCOVERY_DB* p_db, uint32_t len, uint16_t num_uui
     return false;
   }
 
-  memset(p_db, 0, static_cast<size_t>(len));
+  memset(p_db, 0, (size_t)len);
 
   p_db->mem_size = len - sizeof(tSDP_DISCOVERY_DB);
   p_db->mem_free = p_db->mem_size;
@@ -145,8 +145,6 @@ bool SDP_ServiceSearchRequest(const RawAddress& bd_addr, tSDP_DISCOVERY_DB* p_db
   /* Specific BD address */
   tCONN_CB* p_ccb = sdp_conn_originate(bd_addr);
   if (!p_ccb) {
-    log::warn("no spare CCB for peer:{} max:{}", bd_addr, kMaxSdpConnections);
-    sdpu_dump_all_ccb();
     return false;
   }
 
@@ -176,8 +174,6 @@ bool SDP_ServiceSearchAttributeRequest(const RawAddress& bd_addr, tSDP_DISCOVERY
   /* Specific BD address */
   tCONN_CB* p_ccb = sdp_conn_originate(bd_addr);
   if (!p_ccb) {
-    log::warn("no spare CCB for peer:{} max:{}", bd_addr, kMaxSdpConnections);
-    sdpu_dump_all_ccb();
     return false;
   }
 
@@ -209,8 +205,6 @@ bool SDP_ServiceSearchAttributeRequest2(
   /* Specific BD address */
   tCONN_CB* p_ccb = sdp_conn_originate(bd_addr);
   if (!p_ccb) {
-    log::warn("no spare CCB for peer:{} max:{}", bd_addr, kMaxSdpConnections);
-    sdpu_dump_all_ccb();
     return false;
   }
 
@@ -281,11 +275,13 @@ bool SDP_FindServiceUUIDInRec(const tSDP_DISC_REC* p_rec, Uuid* p_uuid) {
           }
 
           return true;
-        } else {
-          /* Checking for Toyota G Block Car Kit:
-           **  This car kit puts an extra data element sequence
-           **  where the UUID is suppose to be!!!
-           */
+        }
+
+        /* Checking for Toyota G Block Car Kit:
+        **  This car kit puts an extra data element sequence
+        **  where the UUID is suppose to be!!!
+        */
+        else {
           if (SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type) == DATA_ELE_SEQ_DESC_TYPE) {
             /* Look through data element sequence until no more UUIDs */
             for (p_extra_sattr = p_sattr->attr_value.v.p_sub_attr; p_extra_sattr;
@@ -408,14 +404,17 @@ tSDP_DISC_REC* SDP_FindServiceInDb(const tSDP_DISCOVERY_DB* p_db, uint16_t servi
 
           if (SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type) == UUID_DESC_TYPE &&
               (service_uuid == 0 || (SDP_DISC_ATTR_LEN(p_sattr->attr_len_type) == 2 &&
-                                     p_sattr->attr_value.v.u16 == service_uuid))) {
-            /* for a specific uuid, or any one */
+                                     p_sattr->attr_value.v.u16 == service_uuid)))
+          /* for a specific uuid, or any one */
+          {
             return p_rec;
-          } else {
-            /* Checking for Toyota G Block Car Kit:
-             **  This car kit puts an extra data element sequence
-             **  where the UUID is suppose to be!!!
-             */
+          }
+
+          /* Checking for Toyota G Block Car Kit:
+          **  This car kit puts an extra data element sequence
+          **  where the UUID is suppose to be!!!
+          */
+          else {
             if (SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type) == DATA_ELE_SEQ_DESC_TYPE) {
               /* Look through data element sequence until no more UUIDs */
               for (p_extra_sattr = p_sattr->attr_value.v.p_sub_attr; p_extra_sattr;
@@ -706,8 +705,8 @@ bool SDP_FindProfileVersionInRec(const tSDP_DISC_REC* p_rec, uint16_t profile_uu
 
               return true;
             } else {
-              return false;  // The type and/or size was not valid for the
-                             //   profile list version
+              return false; /* The type and/or size was not valid for the
+                               profile list version */
             }
           }
         }

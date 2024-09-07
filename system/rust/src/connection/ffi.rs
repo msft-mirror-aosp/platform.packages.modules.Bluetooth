@@ -2,6 +2,7 @@
 
 use std::{fmt::Debug, pin::Pin};
 
+use bt_common::init_flags;
 use cxx::UniquePtr;
 pub use inner::*;
 use log::warn;
@@ -23,7 +24,6 @@ unsafe impl Send for LeAclManagerShim {}
 
 #[cxx::bridge]
 #[allow(clippy::needless_lifetimes)]
-#[allow(clippy::needless_maybe_sized)]
 #[allow(clippy::too_many_arguments)]
 #[allow(missing_docs)]
 #[allow(unsafe_op_in_unsafe_fn)]
@@ -146,7 +146,7 @@ impl InactiveLeAclManager for LeAclManagerImpl {
         let (tx, mut rx) = unbounded_channel();
 
         // only register callbacks if the feature is enabled
-        if bluetooth_aconfig_flags_rust::unified_connection_manager() {
+        if init_flags::use_unified_connection_manager_is_enabled() {
             self.0.pin_mut().register_rust_callbacks(Box::new(LeAclManagerCallbackShim(tx)));
         }
 

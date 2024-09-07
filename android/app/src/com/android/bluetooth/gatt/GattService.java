@@ -322,13 +322,15 @@ public class GattService extends ProfileService {
                             }
                         };
             }
-            if (enableTestMode == isTestModeEnabled()) {
-                return;
+            if (enableTestMode && !isTestModeEnabled()) {
+                super.setTestModeEnabled(true);
+                mTestModeHandler.removeMessages(0);
+                mTestModeHandler.sendEmptyMessageDelayed(0, DateUtils.SECOND_IN_MILLIS);
+            } else if (!enableTestMode && isTestModeEnabled()) {
+                super.setTestModeEnabled(false);
+                mTestModeHandler.removeMessages(0);
+                mTestModeHandler.sendEmptyMessage(0);
             }
-            super.setTestModeEnabled(enableTestMode);
-            mTestModeHandler.removeMessages(0);
-            mTestModeHandler.sendEmptyMessageDelayed(
-                0, enableTestMode ? DateUtils.SECOND_IN_MILLIS : 0);
         }
     }
 

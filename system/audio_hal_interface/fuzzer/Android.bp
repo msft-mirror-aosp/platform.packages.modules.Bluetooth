@@ -88,7 +88,6 @@ cc_defaults {
         "libcutils",
         "libevent",
         "libexpresslog",
-        "libflags_rust_cpp_bridge",
         "libg722codec",
         "libhidlbase",
         "libjsoncpp",

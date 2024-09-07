@@ -59,7 +59,6 @@ cc_defaults {
         "libbtif",
         "libbtif-core",
         "libexpresslog",
-        "libflags_rust_cpp_bridge",
         "libg722codec",
         "liblc3",
         "libopus",

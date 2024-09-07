@@ -73,7 +73,6 @@ rust_library {
     crate_name: "bluetooth_core_rs_for_facade",
     defaults: ["libbluetooth_core_rs_defaults"],
     rustlibs: [
-        "libbluetooth_aconfig_flags_rust",
         "libtokio",
     ],
     host_supported: true,
@@ -84,7 +83,6 @@ rust_ffi_static {
     crate_name: "bluetooth_core",
     defaults: ["libbluetooth_core_rs_defaults"],
     rustlibs: [
-        "libbluetooth_aconfig_flags_rust",
         "libtokio",
     ],
     target: {
@@ -101,7 +99,6 @@ rust_test_host {
     name: "libbluetooth_core_rs_test",
     defaults: ["libbluetooth_core_rs_defaults"],
     rustlibs: [
-        "libbluetooth_aconfig_flags_rust",
         "libtokio_for_test",
         "libtokio_test",
     ],

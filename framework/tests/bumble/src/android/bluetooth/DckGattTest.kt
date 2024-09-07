@@ -20,7 +20,6 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
-import android.bluetooth.test_utils.EnableBluetoothRule
 import android.content.Context
 import android.os.ParcelUuid
 import androidx.test.core.app.ApplicationProvider
@@ -70,13 +69,11 @@ public class DckGattTest() {
 
     // A Rule live from a test setup through it's teardown.
     // Gives shell permissions during the test.
-    @Rule(order = 0) @JvmField val mPermissionRule = AdoptShellPermissionsRule()
+    @Rule @JvmField val mPermissionRule = AdoptShellPermissionsRule()
 
     // Setup a Bumble Pandora device for the duration of the test.
     // Acting as a Pandora client, it can be interacted with through the Pandora APIs.
-    @Rule(order = 1) @JvmField val mBumble = PandoraDevice()
-
-    @Rule(order = 2) @JvmField val enableBluetoothRule = EnableBluetoothRule(false, true)
+    @Rule @JvmField val mBumble = PandoraDevice()
 
     @Before
     fun setUp() {

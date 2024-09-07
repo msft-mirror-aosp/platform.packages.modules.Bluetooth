@@ -1265,28 +1265,25 @@ static void bta_gattc_exec_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_OP_CMP
 
 /** configure MTU operation complete */
 static void bta_gattc_cfg_mtu_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_OP_CMPL* p_data) {
+  GATT_CONFIGURE_MTU_OP_CB cb = p_clcb->p_q_cmd->api_mtu.mtu_cb;
+  void* my_cb_data = p_clcb->p_q_cmd->api_mtu.mtu_cb_data;
   tBTA_GATTC cb_data;
 
-  p_clcb->status = p_data->status;
-  if (p_clcb->p_q_cmd) {
-    GATT_CONFIGURE_MTU_OP_CB cb = p_clcb->p_q_cmd->api_mtu.mtu_cb;
-    void* my_cb_data = p_clcb->p_q_cmd->api_mtu.mtu_cb_data;
+  osi_free_and_reset((void**)&p_clcb->p_q_cmd);
 
-    osi_free_and_reset((void**)&p_clcb->p_q_cmd);
-
-    if (p_data->p_cmpl && p_data->status == GATT_SUCCESS) {
-      p_clcb->p_srcb->mtu = p_data->p_cmpl->mtu;
-    }
-
-    if (cb) {
-      cb(p_clcb->bta_conn_id, p_data->status, my_cb_data);
-    }
+  if (p_data->p_cmpl && p_data->status == GATT_SUCCESS) {
+    p_clcb->p_srcb->mtu = p_data->p_cmpl->mtu;
   }
 
   /* configure MTU complete, callback */
+  p_clcb->status = p_data->status;
   cb_data.cfg_mtu.conn_id = p_clcb->bta_conn_id;
   cb_data.cfg_mtu.status = p_data->status;
   cb_data.cfg_mtu.mtu = p_clcb->p_srcb->mtu;
+
+  if (cb) {
+    cb(p_clcb->bta_conn_id, p_data->status, my_cb_data);
+  }
 
   (*p_clcb->p_rcb->p_cback)(BTA_GATTC_CFG_MTU_EVT, &cb_data);
 }
@@ -1294,14 +1291,10 @@ static void bta_gattc_cfg_mtu_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_OP_
 /** operation completed */
 void bta_gattc_op_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
   if (p_clcb->p_q_cmd == NULL) {
-    if (com::android::bluetooth::flags::gatt_callback_on_failure() &&
-        p_data->op_cmpl.op_code == GATTC_OPTYPE_CONFIG) {
-      bta_gattc_cfg_mtu_cmpl(p_clcb, &p_data->op_cmpl);
-      return;
-    }
     log::error("No pending command gatt client command");
     return;
   }
+
   const tGATTC_OPTYPE op = p_data->op_cmpl.op_code;
   switch (op) {
     case GATTC_OPTYPE_READ:
@@ -1356,6 +1349,7 @@ void bta_gattc_op_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
     /* If there are more clients waiting for the MTU results on the same device,
      * lets trigger them now.
      */
+
     auto outstanding_conn_ids = GATTC_GetAndRemoveListOfConnIdsWaitingForMtuRequest(p_clcb->bda);
     for (auto conn_id : outstanding_conn_ids) {
       tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);

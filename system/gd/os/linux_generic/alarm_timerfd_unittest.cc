@@ -45,13 +45,12 @@ using std::chrono::seconds;
 static constexpr seconds kForever = seconds(1);
 static constexpr milliseconds kShortWait = milliseconds(10);
 
-class AlarmOnTimerFdTest : public ::testing::TestWithParam<bool> {
+class AlarmOnTimerFdTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    bool isWakeAlarm = GetParam();
     thread_ = new Thread("test_thread", Thread::Priority::NORMAL);
     handler_ = new Handler(thread_);
-    alarm_ = std::make_shared<Alarm>(handler_, isWakeAlarm);
+    alarm_ = std::make_shared<Alarm>(handler_);
   }
 
   void TearDown() override {
@@ -61,7 +60,7 @@ protected:
     delete thread_;
   }
 
-  std::shared_ptr<Alarm> get_new_alarm() { return std::make_shared<Alarm>(handler_, GetParam()); }
+  std::shared_ptr<Alarm> get_new_alarm() { return std::make_shared<Alarm>(handler_); }
 
   std::shared_ptr<Alarm> alarm_;
 
@@ -70,16 +69,16 @@ private:
   Thread* thread_;
 };
 
-TEST_P(AlarmOnTimerFdTest, cancel_while_not_armed) { alarm_->Cancel(); }
+TEST_F(AlarmOnTimerFdTest, cancel_while_not_armed) { alarm_->Cancel(); }
 
-TEST_P(AlarmOnTimerFdTest, schedule) {
+TEST_F(AlarmOnTimerFdTest, schedule) {
   auto promise = std::make_unique<std::promise<void>>();
   auto future = promise->get_future();
   alarm_->Schedule(BindOnce(&std::promise<void>::set_value, std::move(promise)), kShortWait);
   ASSERT_EQ(std::future_status::ready, future.wait_for(kForever));
 }
 
-TEST_P(AlarmOnTimerFdTest, cancel_alarm) {
+TEST_F(AlarmOnTimerFdTest, cancel_alarm) {
   auto promise = std::make_unique<std::promise<void>>();
   auto future = promise->get_future();
   alarm_->Schedule(BindOnce([]() { FAIL(); }), kForever);
@@ -87,7 +86,7 @@ TEST_P(AlarmOnTimerFdTest, cancel_alarm) {
   ASSERT_NE(std::future_status::ready, future.wait_for(kShortWait));
 }
 
-TEST_P(AlarmOnTimerFdTest, cancel_alarm_from_callback) {
+TEST_F(AlarmOnTimerFdTest, cancel_alarm_from_callback) {
   auto promise = std::promise<void>();
   auto future = promise.get_future();
   alarm_->Schedule(BindOnce(
@@ -101,7 +100,7 @@ TEST_P(AlarmOnTimerFdTest, cancel_alarm_from_callback) {
   ASSERT_EQ(std::future_status::ready, future.wait_for(kForever));
 }
 
-TEST_P(AlarmOnTimerFdTest, schedule_while_alarm_armed) {
+TEST_F(AlarmOnTimerFdTest, schedule_while_alarm_armed) {
   auto promise = std::make_unique<std::promise<void>>();
   auto future = promise->get_future();
   alarm_->Schedule(BindOnce([]() { FAIL(); }), kForever);
@@ -109,7 +108,7 @@ TEST_P(AlarmOnTimerFdTest, schedule_while_alarm_armed) {
   ASSERT_EQ(std::future_status::ready, future.wait_for(kForever));
 }
 
-TEST_P(AlarmOnTimerFdTest, delete_while_alarm_armed) {
+TEST_F(AlarmOnTimerFdTest, delete_while_alarm_armed) {
   auto promise = std::make_unique<std::promise<void>>();
   auto future = promise->get_future();
   alarm_->Schedule(BindOnce([]() { FAIL(); }), kForever);
@@ -132,7 +131,7 @@ protected:
   std::shared_ptr<Alarm> alarm2;
 };
 
-TEST_P(TwoAlarmOnTimerFdTest, schedule_from_alarm) {
+TEST_F(TwoAlarmOnTimerFdTest, schedule_from_alarm) {
   auto promise = std::make_unique<std::promise<void>>();
   auto future = promise->get_future();
   alarm_->Schedule(
@@ -145,11 +144,5 @@ TEST_P(TwoAlarmOnTimerFdTest, schedule_from_alarm) {
           kShortWait);
   EXPECT_EQ(std::future_status::ready, future.wait_for(kForever));
 }
-
-INSTANTIATE_TEST_SUITE_P(
-        /* no label */, AlarmOnTimerFdTest, ::testing::Bool());
-
-INSTANTIATE_TEST_SUITE_P(
-        /* no label */, TwoAlarmOnTimerFdTest, ::testing::Bool());
 
 }  // namespace bluetooth::os

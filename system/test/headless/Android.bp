@@ -112,7 +112,6 @@ cc_binary {
         "libbtif-core",
         "libchrome",
         "libevent",
-        "libflags_rust_cpp_bridge",
         "libflatbuffers-cpp",
         "libfmq",
         "libg722codec",

@@ -52,7 +52,6 @@ public class AvrcpTargetServiceTest {
         assertThat(AvrcpTargetService.isQueueUpdated(firstQueue, secondQueue)).isTrue();
 
         firstQueue.add(createEmptyMetadata());
-        firstQueue.get(1).album = TEST_DATA;
         firstQueue.get(1).genre = TEST_DATA;
         firstQueue.get(1).mediaId = TEST_DATA;
         firstQueue.get(1).trackNum = TEST_DATA;
@@ -68,6 +67,10 @@ public class AvrcpTargetServiceTest {
 
         secondQueue.set(1, createEmptyMetadata());
         secondQueue.get(1).artist = TEST_DATA;
+        assertThat(AvrcpTargetService.isQueueUpdated(firstQueue, secondQueue)).isTrue();
+
+        secondQueue.set(1, createEmptyMetadata());
+        secondQueue.get(1).album = TEST_DATA;
         assertThat(AvrcpTargetService.isQueueUpdated(firstQueue, secondQueue)).isTrue();
     }
 

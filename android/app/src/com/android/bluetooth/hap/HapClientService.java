@@ -21,7 +21,7 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
 import static java.util.Objects.requireNonNull;
-import static java.util.Objects.requireNonNullElseGet;
+import static java.util.Objects.requireNonNullElse;
 
 import android.bluetooth.BluetoothCsipSetCoordinator;
 import android.bluetooth.BluetoothDevice;
@@ -122,11 +122,10 @@ public class HapClientService extends ProfileService {
         super(adapterService);
         mAdapterService = requireNonNull(adapterService);
         mHapClientNativeInterface =
-                requireNonNullElseGet(
+                requireNonNullElse(
                         nativeInterface,
-                        () ->
-                                new HapClientNativeInterface(
-                                        new HapClientNativeCallback(adapterService, this)));
+                        new HapClientNativeInterface(
+                                new HapClientNativeCallback(adapterService, this)));
         mDatabaseManager = requireNonNull(mAdapterService.getDatabase());
 
         // Start handler thread for state machines

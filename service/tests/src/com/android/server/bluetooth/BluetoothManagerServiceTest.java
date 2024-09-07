@@ -289,6 +289,11 @@ public class BluetoothManagerServiceTest {
         // trigger the stateChangeCallback from native
         btCallback.onBluetoothStateChange(STATE_BLE_TURNING_ON, STATE_BLE_ON);
         syncHandler(MESSAGE_BLUETOOTH_STATE_CHANGE);
+        assertThat(mManagerService.getState()).isEqualTo(STATE_BLE_ON);
+
+        // Check that we sent 2 intent, one for BLE_TURNING_ON, one for BLE_ON
+        // TODO(b/280518177): assert the intent are the correct one
+        verify(mContext, times(2)).sendBroadcastAsUser(any(), any(), any(), any());
         return btCallback;
     }
 
@@ -317,10 +322,6 @@ public class BluetoothManagerServiceTest {
         syncHandler(MESSAGE_ENABLE);
 
         transition_offToBleOn();
-
-        // Check that we sent 2 intent, one for BLE_TURNING_ON, one for BLE_ON
-        // TODO(b/280518177): assert the intent are the correct one
-        verify(mContext, times(2)).sendBroadcastAsUser(any(), any(), any(), any());
 
         // Check that there was no transition to STATE_ON
         verify(mAdapterBinder, times(0)).bleOnToOn(any());
