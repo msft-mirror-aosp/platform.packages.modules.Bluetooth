@@ -111,6 +111,11 @@ class LeAudioBroadcasterInterfaceImpl : public LeAudioBroadcasterInterface,
                           Unretained(callbacks_), broadcast_id, broadcast_metadata));
   }
 
+  void OnBroadcastAudioSessionCreated(bool success) override {
+    do_in_jni_thread(Bind(&LeAudioBroadcasterCallbacks::OnBroadcastAudioSessionCreated,
+                          Unretained(callbacks_), success));
+  }
+
   void Stop(void) override { do_in_main_thread(Bind(&LeAudioBroadcaster::Stop)); }
 
   void Cleanup(void) override { do_in_main_thread(Bind(&LeAudioBroadcaster::Cleanup)); }

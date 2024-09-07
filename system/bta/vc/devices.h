@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -79,9 +80,6 @@ public:
 
   ~VolumeControlDevice() = default;
 
-  // TODO: remove
-  inline std::string ToString() { return address.ToString(); }
-
   std::string ToStringForLogging() const override { return address.ToStringForLogging(); }
 
   std::string ToRedactedStringForLogging() const override {
@@ -127,7 +125,7 @@ public:
   void SetExtAudioOutLocation(uint8_t ext_output_id, uint32_t location);
   void GetExtAudioOutLocation(uint8_t ext_output_id, GATT_READ_OP_CB cb, void* cb_data);
   void GetExtAudioOutDescription(uint8_t ext_output_id, GATT_READ_OP_CB cb, void* cb_data);
-  void SetExtAudioOutDescription(uint8_t ext_output_id, std::string& descr);
+  void SetExtAudioOutDescription(uint8_t ext_output_id, const std::string& descr);
   void ExtAudioOutControlPointOperation(uint8_t ext_output_id, uint8_t opcode,
                                         const std::vector<uint8_t>* arg, GATT_WRITE_OP_CB cb,
                                         void* cb_data);
@@ -138,6 +136,7 @@ public:
   bool EnqueueInitialRequests(tGATT_IF gatt_if, GATT_READ_OP_CB chrc_read_cb,
                               GATT_WRITE_OP_CB cccd_write_cb);
   void EnqueueRemainingRequests(tGATT_IF gatt_if, GATT_READ_OP_CB chrc_read_cb,
+                                GATT_READ_MULTI_OP_CB chrc_multi_read,
                                 GATT_WRITE_OP_CB cccd_write_cb);
   bool VerifyReady(uint16_t handle);
   bool IsReady() { return device_ready; }
@@ -215,7 +214,7 @@ public:
     }
   }
 
-  void ControlPointOperation(std::vector<RawAddress>& devices, uint8_t opcode,
+  void ControlPointOperation(const std::vector<RawAddress>& devices, uint8_t opcode,
                              const std::vector<uint8_t>* arg, GATT_WRITE_OP_CB cb, void* cb_data) {
     for (auto& addr : devices) {
       VolumeControlDevice* device = FindByAddress(addr);
