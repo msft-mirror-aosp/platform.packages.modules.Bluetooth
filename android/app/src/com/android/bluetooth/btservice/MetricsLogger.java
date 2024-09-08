@@ -28,6 +28,7 @@ import android.util.proto.ProtoOutputStream;
 
 import androidx.annotation.RequiresApi;
 
+import com.android.bluetooth.bass_client.BassConstants;
 import com.android.bluetooth.BluetoothMetricsProto.BluetoothLog;
 import com.android.bluetooth.BluetoothMetricsProto.BluetoothRemoteDeviceInformation;
 import com.android.bluetooth.BluetoothMetricsProto.ProfileConnectionStats;
@@ -582,5 +583,54 @@ public class MetricsLogger {
             return null;
         }
         return digest.digest(name.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** Logs LE Audio Broadcast audio session. */
+    public void logLeAudioBroadcastAudioSession(
+            int broadcastId,
+            int[] audioQuality,
+            int groupSize,
+            long sessionDurationMs,
+            long latencySessionConfiguredMs,
+            long latencySessionStreamingMs,
+            int sessionStatus) {
+        if (!mInitialized) {
+            return;
+        }
+
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.BROADCAST_AUDIO_SESSION_REPORTED,
+                broadcastId,
+                audioQuality.length,
+                audioQuality,
+                groupSize,
+                sessionDurationMs,
+                latencySessionConfiguredMs,
+                latencySessionStreamingMs,
+                sessionStatus);
+    }
+
+    /** Logs LE Audio Broadcast audio sync. */
+    public void logLeAudioBroadcastAudioSync(
+            BluetoothDevice device,
+            int broadcastId,
+            boolean isLocalBroadcast,
+            long syncDurationMs,
+            long latencyPaSyncMs,
+            long latencyBisSyncMs,
+            int syncStatus) {
+        if (!mInitialized) {
+            return;
+        }
+
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.BROADCAST_AUDIO_SYNC_REPORTED,
+                isLocalBroadcast ? broadcastId : BassConstants.INVALID_BROADCAST_ID,
+                isLocalBroadcast,
+                syncDurationMs,
+                latencyPaSyncMs,
+                latencyBisSyncMs,
+                syncStatus,
+                getRemoteDeviceInfoProto(device));
     }
 }

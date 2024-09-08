@@ -20,7 +20,7 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 use tokio::time;
 
-use crate::bluetooth::BluetoothDevice;
+use crate::bluetooth::{Bluetooth, BluetoothDevice};
 use crate::bluetooth_admin::BluetoothAdminPolicyHelper;
 use crate::callbacks::Callbacks;
 use crate::Message;
@@ -516,6 +516,9 @@ pub struct BluetoothSocketManager {
     /// Channel TX for the mainloop for topstack.
     tx: Sender<Message>,
 
+    /// The adapter API. Used for configuring the scan mode for listening socket.
+    adapter: Arc<Mutex<Box<Bluetooth>>>,
+
     /// Admin helper
     admin_helper: BluetoothAdminPolicyHelper,
 }
@@ -526,6 +529,7 @@ impl BluetoothSocketManager {
         tx: Sender<Message>,
         runtime: Arc<Runtime>,
         intf: Arc<Mutex<BluetoothInterface>>,
+        adapter: Arc<Mutex<Box<Bluetooth>>>,
     ) -> Self {
         let callbacks = Callbacks::new(tx.clone(), Message::SocketManagerCallbackDisconnected);
         let socket_counter: u64 = 1000;
@@ -540,21 +544,14 @@ impl BluetoothSocketManager {
             sock: socket::BtSocket::new(&intf.lock().unwrap()),
             socket_counter,
             tx,
+            adapter,
             admin_helper: Default::default(),
         }
     }
 
     /// Check if there is any listening socket.
-    pub fn is_listening(&self) -> bool {
+    fn is_listening(&self) -> bool {
         self.listening.values().any(|vs| !vs.is_empty())
-    }
-
-    /// Trigger adapter to update connectable mode.
-    fn trigger_update_connectable_mode(&self) {
-        let txl = self.tx.clone();
-        tokio::spawn(async move {
-            let _ = txl.send(Message::TriggerUpdateConnectableMode).await;
-        });
     }
 
     // TODO(abps) - We need to save information about who the caller is so that
@@ -652,7 +649,7 @@ impl BluetoothSocketManager {
                     .push(InternalListeningSocket::new(cbid, id, runner_tx, uuid, joinhandle));
 
                 // Update the connectable mode since the list of listening socket has changed.
-                self.trigger_update_connectable_mode();
+                self.adapter.lock().unwrap().set_socket_listening(true);
 
                 SocketResult::new(status, id)
             }
@@ -1153,10 +1150,12 @@ impl BluetoothSocketManager {
                     self.listening
                         .entry(cbid)
                         .and_modify(|v| v.retain(|s| s.socket_id != socket_id));
-                }
 
-                // Update the connectable mode since the list of listening socket has changed.
-                self.trigger_update_connectable_mode();
+                    if !self.is_listening() {
+                        // Update the connectable mode since the list of listening socket has changed.
+                        self.adapter.lock().unwrap().set_socket_listening(false);
+                    }
+                }
             }
 
             SocketActions::OnHandleIncomingConnection(cbid, socket_id, socket) => {
@@ -1229,8 +1228,10 @@ impl BluetoothSocketManager {
             }
         });
 
-        // Update the connectable mode since the list of listening socket has changed.
-        self.trigger_update_connectable_mode();
+        if !self.is_listening() {
+            // Update the connectable mode since the list of listening socket has changed.
+            self.adapter.lock().unwrap().set_socket_listening(false);
+        }
 
         self.callbacks.remove_callback(callback);
     }
