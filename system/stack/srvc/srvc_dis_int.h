@@ -19,35 +19,27 @@
 #ifndef SRVC_DIS_INT_H
 #define SRVC_DIS_INT_H
 
+#include <queue>
+
 #include "gatt_api.h"
 #include "internal_include/bt_target.h"
 #include "srvc_api.h"
 #include "srvc_eng_int.h"
 
-#define DIS_MAX_CHAR_NUM 9
-
-typedef struct {
-  uint16_t uuid;
-  uint16_t handle;
-} tDIS_DB_ENTRY;
-
 #define DIS_SYSTEM_ID_SIZE 8
 #define DIS_PNP_ID_SIZE 7
 
 typedef struct {
-  tDIS_DB_ENTRY dis_attr[DIS_MAX_CHAR_NUM];
-  tDIS_VALUE dis_value;
-
   tDIS_READ_CBACK* p_read_dis_cback;
+  tDIS_ATTR_MASK mask;
+  RawAddress addr;
+} tDIS_REQ;
 
-  uint16_t service_handle;
-  uint16_t max_handle;
-
-  bool enabled;
-
+typedef struct {
+  tDIS_READ_CBACK* p_read_dis_cback;
   uint8_t dis_read_uuid_idx;
-
   tDIS_ATTR_MASK request_mask;
+  std::queue<tDIS_REQ> pend_reqs;
 } tDIS_CB;
 
 /* Global GATT data */

@@ -53,6 +53,10 @@ bool BTM_BleLocalPrivacyEnabled(void) {
   inc_func_call_count(__func__);
   return false;
 }
+bool btm_ble_read_remote_cod(const RawAddress& /* remote_bda */) {
+  inc_func_call_count(__func__);
+  return false;
+}
 bool btm_ble_cancel_remote_name(const RawAddress& /* remote_bda */) {
   inc_func_call_count(__func__);
   return false;

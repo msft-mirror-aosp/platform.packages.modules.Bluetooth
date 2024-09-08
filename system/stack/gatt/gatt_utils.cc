@@ -32,7 +32,7 @@
 
 #include "hardware/bt_gatt_types.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
+#include "main/shim/dumpsys.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "rust/src/connection/ffi/connection_shim.h"
@@ -1661,7 +1661,7 @@ bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda) {
     gatt_disconnect(p_tcb);
   }
 
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     bluetooth::connection::GetConnectionManager().stop_direct_connection(
             gatt_if, bluetooth::connection::ResolveRawAddress(bda));
   } else {
@@ -1988,7 +1988,7 @@ bool gatt_auto_connect_dev_remove(tGATT_IF gatt_if, const RawAddress& bd_addr) {
   if (p_tcb) {
     gatt_update_app_use_link_flag(gatt_if, p_tcb, false, false);
   }
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     bluetooth::connection::GetConnectionManager().remove_background_connection(
             gatt_if, bluetooth::connection::ResolveRawAddress(bd_addr));
     // TODO(aryarahul): handle failure case

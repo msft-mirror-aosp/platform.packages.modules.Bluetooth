@@ -33,6 +33,11 @@ bool GAP_BleReadPeerDevName(const RawAddress& /* peer_bda */, tGAP_BLE_CMPL_CBAC
   inc_func_call_count(__func__);
   return false;
 }
+bool GAP_BleReadPeerAppearance(const RawAddress& /* peer_bda */,
+                               tGAP_BLE_CMPL_CBACK* /* p_cback */) {
+  inc_func_call_count(__func__);
+  return false;
+}
 bool GAP_BleReadPeerPrefConnParams(const RawAddress& /* peer_bda */) {
   inc_func_call_count(__func__);
   return false;

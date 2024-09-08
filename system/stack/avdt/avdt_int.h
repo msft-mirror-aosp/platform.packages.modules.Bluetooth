@@ -34,6 +34,7 @@
 #include "osi/include/alarm.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
 #ifndef AVDT_DEBUG
@@ -949,8 +950,6 @@ extern const tL2CAP_APPL_INFO avdt_l2c_appl;
 
 /* reject message event lookup table */
 extern const uint8_t avdt_msg_rej_2_evt[];
-
-void avdt_l2c_disconnect(uint16_t lcid);
 
 constexpr uint16_t kAvdtpMtu = 1024;
 

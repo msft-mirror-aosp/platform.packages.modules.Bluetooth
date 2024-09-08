@@ -59,7 +59,8 @@ static void sdp_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid, uint1
                             uint8_t /* l2cap_id */) {
   tCONN_CB* p_ccb = sdpu_allocate_ccb();
   if (p_ccb == NULL) {
-    log::warn("no spare CCB for peer:{} cid:{}", bd_addr, l2cap_cid);
+    log::warn("no spare CCB for peer:{} max:{} cid:{}", bd_addr,
+              static_cast<size_t>(SDP_MAX_CONNECTIONS), l2cap_cid);
     sdpu_dump_all_ccb();
     return;
   }
@@ -268,7 +269,6 @@ tCONN_CB* sdp_conn_originate(const RawAddress& bd_addr) {
   /* Allocate a new CCB. Return if none available. */
   tCONN_CB* p_ccb = sdpu_allocate_ccb();
   if (p_ccb == NULL) {
-    log::warn("no spare CCB for peer {}", bd_addr);
     return NULL;
   }
 
@@ -376,7 +376,7 @@ static void sdp_disconnect_cfm(uint16_t l2cap_cid, uint16_t /* result */) {
  *
  ******************************************************************************/
 void sdp_conn_timer_timeout(void* data) {
-  tCONN_CB& ccb = *(tCONN_CB*)data;
+  tCONN_CB& ccb = *(static_cast<tCONN_CB*>(data));
 
   log::verbose("SDP - CCB timeout in state: {}  CID: 0x{:x}", sdp_state_text(ccb.con_state),
                ccb.connection_id);

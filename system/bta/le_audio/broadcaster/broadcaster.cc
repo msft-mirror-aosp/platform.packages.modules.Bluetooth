@@ -646,6 +646,19 @@ public:
       msg.public_announcement = preparePublicAnnouncement(public_features, public_ltv);
     }
 
+    /* Prepare Broadcast audio session */
+    if (com::android::bluetooth::flags::leaudio_big_depends_on_audio_state()) {
+      const auto& broadcast_config = msg.config;
+      auto is_started = instance->le_audio_source_hal_client_->Start(
+              broadcast_config.GetAudioHalClientConfig(), &audio_receiver_);
+      callbacks_->OnBroadcastAudioSessionCreated(is_started);
+      if (!is_started) {
+        log::error("Broadcast audio session can't be started");
+        callbacks_->OnBroadcastCreated(broadcast_id, false);
+        return;
+      }
+    }
+
     // If there is ongoing ISO traffic, it might be a unicast stream
     if (is_iso_running_) {
       log::info("Iso is still active. Queueing broadcast creation for later.");
@@ -760,6 +773,10 @@ public:
   void DestroyAudioBroadcast(uint32_t broadcast_id) override {
     log::info("Destroying broadcast_id={}", broadcast_id);
     broadcasts_.erase(broadcast_id);
+
+    if (le_audio_source_hal_client_) {
+      le_audio_source_hal_client_->Stop();
+    }
 
     if (broadcasts_.empty() && le_audio_source_hal_client_) {
       auto result = CodecManager::GetInstance()->UpdateActiveBroadcastAudioHalClient(
@@ -1037,6 +1054,10 @@ private:
             instance->UpdateAudioActiveStateInPublicAnnouncement();
           }
           break;
+        case BroadcastStateMachine::State::ENABLING:
+          break;
+        case BroadcastStateMachine::State::DISABLING:
+          break;
         case BroadcastStateMachine::State::STOPPING:
           break;
         case BroadcastStateMachine::State::STREAMING:
@@ -1051,9 +1072,9 @@ private:
               audio_receiver_.CheckAndReconfigureEncoders(broadcast_config);
 
               broadcast->SetMuted(false);
-              auto is_started = instance->le_audio_source_hal_client_->Start(
-                      broadcast_config.GetAudioHalClientConfig(), &audio_receiver_);
               if (!com::android::bluetooth::flags::leaudio_big_depends_on_audio_state()) {
+                auto is_started = instance->le_audio_source_hal_client_->Start(
+                        broadcast_config.GetAudioHalClientConfig(), &audio_receiver_);
                 if (!is_started) {
                   /* Audio Source setup failed - stop the broadcast */
                   instance->StopAudioBroadcast(broadcast_id);
@@ -1307,13 +1328,6 @@ private:
       if (com::android::bluetooth::flags::leaudio_big_depends_on_audio_state()) {
         instance->UpdateAudioActiveStateInPublicAnnouncement();
         instance->setBroadcastTimers();
-
-        for (auto& broadcast_pair : instance->broadcasts_) {
-          auto& broadcast = broadcast_pair.second;
-          if (broadcast->GetState() == BroadcastStateMachine::State::CONFIGURED) {
-            broadcast->ProcessMessage(BroadcastStateMachine::Message::SUSPEND, nullptr);
-          }
-        }
       }
     }
 

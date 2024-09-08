@@ -33,11 +33,15 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.annotation.Nullable;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothLeAudio;
 import android.bluetooth.BluetoothLeAudioCodecConfig;
 import android.bluetooth.BluetoothLeAudioCodecStatus;
+import android.bluetooth.BluetoothLeAudioContentMetadata;
+import android.bluetooth.BluetoothLeBroadcastSettings;
+import android.bluetooth.BluetoothLeBroadcastSubgroupSettings;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
@@ -102,6 +106,7 @@ public class LeAudioServiceTest {
     private static final int AUDIO_MANAGER_DEVICE_ADD_TIMEOUT_MS = 3000;
     private static final int MAX_LE_AUDIO_CONNECTIONS = 5;
     private static final int LE_AUDIO_GROUP_ID_INVALID = -1;
+    private static final String TEST_BROADCAST_NAME = "Name Test";
 
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
@@ -130,6 +135,7 @@ public class LeAudioServiceTest {
     @Mock private ActiveDeviceManager mActiveDeviceManager;
     @Mock private AudioManager mAudioManager;
     @Mock private DatabaseManager mDatabaseManager;
+    @Mock private LeAudioBroadcasterNativeInterface mLeAudioBroadcasterNativeInterface;
     @Mock private LeAudioNativeInterface mNativeInterface;
     @Mock private LeAudioTmapGattServer mTmapGattServer;
     @Mock private McpService mMcpService;
@@ -195,6 +201,11 @@ public class LeAudioServiceTest {
 
         TestUtils.setAdapterService(mAdapterService);
         doReturn(MAX_LE_AUDIO_CONNECTIONS).when(mAdapterService).getMaxConnectedAudioDevices();
+        doReturn(
+                        (long) (1 << BluetoothProfile.LE_AUDIO_BROADCAST)
+                                | (1 << BluetoothProfile.LE_AUDIO))
+                .when(mAdapterService)
+                .getSupportedProfilesBitMask();
         doReturn(new ParcelUuid[] {BluetoothUuid.LE_AUDIO})
                 .when(mAdapterService)
                 .getRemoteUuids(any(BluetoothDevice.class));
@@ -209,6 +220,7 @@ public class LeAudioServiceTest {
                 .when(mAdapterService)
                 .getBondedDevices();
 
+        LeAudioBroadcasterNativeInterface.setInstance(mLeAudioBroadcasterNativeInterface);
         LeAudioNativeInterface.setInstance(mNativeInterface);
         startService();
 
@@ -1645,6 +1657,33 @@ public class LeAudioServiceTest {
         verify(mTbsService, times(0)).clearInbandRingtoneSupport(mSingleDevice);
     }
 
+    private BluetoothLeBroadcastSettings buildBroadcastSettingsFromMetadata(
+            BluetoothLeAudioContentMetadata contentMetadata,
+            @Nullable byte[] broadcastCode,
+            int numOfGroups) {
+        BluetoothLeAudioContentMetadata.Builder publicMetaBuilder =
+                new BluetoothLeAudioContentMetadata.Builder();
+        publicMetaBuilder.setProgramInfo("Public broadcast info");
+
+        BluetoothLeBroadcastSubgroupSettings.Builder subgroupBuilder =
+                new BluetoothLeBroadcastSubgroupSettings.Builder()
+                        .setContentMetadata(contentMetadata)
+                        .setPreferredQuality(BluetoothLeBroadcastSubgroupSettings.QUALITY_HIGH);
+
+        BluetoothLeBroadcastSettings.Builder builder =
+                new BluetoothLeBroadcastSettings.Builder()
+                        .setPublicBroadcast(true)
+                        .setBroadcastName(TEST_BROADCAST_NAME)
+                        .setBroadcastCode(broadcastCode)
+                        .setPublicBroadcastMetadata(publicMetaBuilder.build());
+        // builder expect at least one subgroup setting
+        for (int i = 0; i < numOfGroups; i++) {
+            // add subgroup settings with the same content
+            builder.addSubgroupSettings(subgroupBuilder.build());
+        }
+        return builder.build();
+    }
+
     /** Test update unicast fallback active group when broadcast is ongoing */
     @Test
     public void testUpdateUnicastFallbackActiveDeviceGroupDuringBroadcast() {
@@ -1655,6 +1694,8 @@ public class LeAudioServiceTest {
         int snkAudioLocation = 3;
         int srcAudioLocation = 4;
         int availableContexts = 5 + BluetoothLeAudio.CONTEXT_TYPE_RINGTONE;
+        int broadcastId = 243;
+        byte[] code = {0x00, 0x01, 0x00, 0x02};
 
         // Not connected device
         assertThat(mService.setActiveDevice(mSingleDevice)).isFalse();
@@ -1665,10 +1706,18 @@ public class LeAudioServiceTest {
 
         mService.mUnicastGroupIdDeactivatedForBroadcastTransition = preGroupId;
         // mock create broadcast and currentlyActiveGroupId remains LE_AUDIO_GROUP_ID_INVALID
+        BluetoothLeAudioContentMetadata.Builder meta_builder =
+                new BluetoothLeAudioContentMetadata.Builder();
+        meta_builder.setLanguage("deu");
+        meta_builder.setProgramInfo("Public broadcast info");
+        BluetoothLeAudioContentMetadata meta = meta_builder.build();
+        BluetoothLeBroadcastSettings settings = buildBroadcastSettingsFromMetadata(meta, code, 1);
+        mService.createBroadcast(settings);
+
         LeAudioStackEvent broadcastCreatedEvent =
                 new LeAudioStackEvent(LeAudioStackEvent.EVENT_TYPE_BROADCAST_CREATED);
         broadcastCreatedEvent.device = mSingleDevice;
-        broadcastCreatedEvent.valueInt1 = 1;
+        broadcastCreatedEvent.valueInt1 = broadcastId;
         broadcastCreatedEvent.valueBool1 = true;
         mService.messageFromNative(broadcastCreatedEvent);
 

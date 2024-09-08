@@ -73,6 +73,7 @@ static SecurityClientInterface security = {
         .BTM_GetSecurityMode = BTM_GetSecurityMode,
 
         .BTM_SecReadDevName = BTM_SecReadDevName,
+        .BTM_SecReadDevClass = BTM_SecReadDevClass,
 };
 
 const SecurityClientInterface& get_security_client_interface() { return security; }
