@@ -30,10 +30,10 @@
 #include "internal_include/bt_target.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/l2cap_interface.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
@@ -408,7 +408,8 @@ void bnepu_check_send_packet(tBNEP_CONN* p_bcb, BT_HDR* p_buf) {
       fixed_queue_enqueue(p_bcb->xmit_q, p_buf);
     }
   } else {
-    if (L2CA_DataWrite(p_bcb->l2cap_cid, p_buf) != tL2CAP_DW_RESULT::SUCCESS) {
+    if (stack::l2cap::get_interface().L2CA_DataWrite(p_bcb->l2cap_cid, p_buf) !=
+        tL2CAP_DW_RESULT::SUCCESS) {
       log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_bcb->rem_bda,
                 p_bcb->l2cap_cid, p_buf->len);
     }
@@ -673,7 +674,7 @@ void bnep_process_setup_conn_response(tBNEP_CONN* p_bcb, uint8_t* p_setup) {
     } else {
       log::error("BNEP - setup response {} is not OK", resp_code);
 
-      if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+      if (!stack::l2cap::get_interface().L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
         log::warn("Unable to request L2CAP disconnect peer:{} cid:{}", p_bcb->rem_bda,
                   p_bcb->l2cap_cid);
       }

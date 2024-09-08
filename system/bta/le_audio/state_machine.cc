@@ -314,7 +314,8 @@ public:
 
   void StopStream(LeAudioDeviceGroup* group) override {
     if (group->IsReleasingOrIdle()) {
-      log::info("group: {} already in releasing process", group->group_id_);
+      log::info("group: {} in_transition: {}, current_state {}", group->group_id_,
+                group->IsInTransition(), ToString(group->GetState()));
       return;
     }
 
@@ -815,11 +816,17 @@ public:
         SendStreamingStatusCbIfNeeded(group);
         return;
       }
+
+      if (!group->IsInTransitionTo(AseState::BTA_LE_AUDIO_ASE_STATE_IDLE)) {
+        /* do nothing if not transitioning to IDLE */
+        return;
+      }
     }
 
     /* Group is not connected and all the CISes are down.
      * Clean states and destroy HCI group
      */
+    log::debug("Clearing inactive group");
     ClearGroup(group, true);
   }
 

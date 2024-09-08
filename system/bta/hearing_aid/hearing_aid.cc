@@ -49,7 +49,7 @@
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
-#include "stack/include/l2c_api.h"  // L2CAP_MIN_OFFSET
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "types/bluetooth/uuid.h"
 #include "types/bt_transport.h"
@@ -420,8 +420,9 @@ public:
 
     log::info("L2CA_UpdateBleConnParams for device {} min_ce_len:{} max_ce_len:{}", address,
               min_ce_len, max_ce_len);
-    if (!L2CA_UpdateBleConnParams(address, connection_interval, connection_interval, 0x000A,
-                                  0x0064 /*1s*/, min_ce_len, max_ce_len)) {
+    if (!stack::l2cap::get_interface().L2CA_UpdateBleConnParams(
+                address, connection_interval, connection_interval, 0x000A, 0x0064 /*1s*/,
+                min_ce_len, max_ce_len)) {
       log::warn("Unable to update L2CAP ble connection parameters peer:{}", address);
     }
     return connection_interval;
@@ -1318,14 +1319,14 @@ public:
 
     uint16_t diff_credit = 0;
 
-    uint16_t target_current_credit = L2CA_GetPeerLECocCredit(
+    uint16_t target_current_credit = stack::l2cap::get_interface().L2CA_GetPeerLECocCredit(
             target_side->address, GAP_ConnGetL2CAPCid(target_side->gap_handle));
     if (target_current_credit == L2CAP_LE_CREDIT_MAX) {
       log::error("Get target side credit value fail.");
       return true;
     }
 
-    uint16_t other_current_credit = L2CA_GetPeerLECocCredit(
+    uint16_t other_current_credit = stack::l2cap::get_interface().L2CA_GetPeerLECocCredit(
             other_side->address, GAP_ConnGetL2CAPCid(other_side->gap_handle));
     if (other_current_credit == L2CAP_LE_CREDIT_MAX) {
       log::error("Get other side credit value fail.");
@@ -1444,7 +1445,8 @@ public:
       encoded_data_left.resize(encoded_size);
 
       uint16_t cid = GAP_ConnGetL2CAPCid(left->gap_handle);
-      uint16_t packets_in_chans = L2CA_FlushChannel(cid, L2CAP_FLUSH_CHANS_GET);
+      uint16_t packets_in_chans =
+              stack::l2cap::get_interface().L2CA_FlushChannel(cid, L2CAP_FLUSH_CHANS_GET);
       if (packets_in_chans > l2cap_flush_threshold) {
         // Compare the two sides LE CoC credit value to confirm need to drop or
         // skip audio packet.
@@ -1456,7 +1458,8 @@ public:
           log::info("{} skipping {} packets", left->address, packets_in_chans);
           left->audio_stats.packet_flush_count += packets_in_chans;
           left->audio_stats.frame_flush_count++;
-          const uint16_t buffers_left = L2CA_FlushChannel(cid, L2CAP_FLUSH_CHANS_ALL);
+          const uint16_t buffers_left =
+                  stack::l2cap::get_interface().L2CA_FlushChannel(cid, L2CAP_FLUSH_CHANS_ALL);
           if (buffers_left) {
             log::warn("Unable to flush L2CAP ALL (left HA) channel peer:{} cid:{} buffers_left:{}",
                       left->address, cid, buffers_left);
@@ -1477,7 +1480,8 @@ public:
       encoded_data_right.resize(encoded_size);
 
       uint16_t cid = GAP_ConnGetL2CAPCid(right->gap_handle);
-      uint16_t packets_in_chans = L2CA_FlushChannel(cid, L2CAP_FLUSH_CHANS_GET);
+      uint16_t packets_in_chans =
+              stack::l2cap::get_interface().L2CA_FlushChannel(cid, L2CAP_FLUSH_CHANS_GET);
       if (packets_in_chans > l2cap_flush_threshold) {
         // Compare the two sides LE CoC credit value to confirm need to drop or
         // skip audio packet.
@@ -1490,7 +1494,8 @@ public:
           log::info("{} skipping {} packets", right->address, packets_in_chans);
           right->audio_stats.packet_flush_count += packets_in_chans;
           right->audio_stats.frame_flush_count++;
-          const uint16_t buffers_left = L2CA_FlushChannel(cid, L2CAP_FLUSH_CHANS_ALL);
+          const uint16_t buffers_left =
+                  stack::l2cap::get_interface().L2CA_FlushChannel(cid, L2CAP_FLUSH_CHANS_ALL);
           if (buffers_left) {
             log::warn("Unable to flush L2CAP ALL (right HA) channel peer:{} cid:{} buffers_left:{}",
                       right->address, cid, buffers_left);
@@ -1569,7 +1574,8 @@ public:
         RawAddress address = *GAP_ConnGetRemoteAddr(gap_handle);
         uint16_t tx_mtu = GAP_ConnGetRemMtuSize(gap_handle);
 
-        init_credit = L2CA_GetPeerLECocCredit(address, GAP_ConnGetL2CAPCid(gap_handle));
+        init_credit = stack::l2cap::get_interface().L2CA_GetPeerLECocCredit(
+                address, GAP_ConnGetL2CAPCid(gap_handle));
 
         log::info("GAP_EVT_CONN_OPENED: bd_addr={} tx_mtu={} init_credit={}", address, tx_mtu,
                   init_credit);

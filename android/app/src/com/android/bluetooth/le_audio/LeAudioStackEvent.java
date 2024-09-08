@@ -51,6 +51,7 @@ public class LeAudioStackEvent {
     public static final int EVENT_TYPE_BROADCAST_DESTROYED = EVENT_TYPE_UNICAST_MAX + 2;
     public static final int EVENT_TYPE_BROADCAST_STATE = EVENT_TYPE_UNICAST_MAX + 3;
     public static final int EVENT_TYPE_BROADCAST_METADATA_CHANGED = EVENT_TYPE_UNICAST_MAX + 4;
+    public static final int EVENT_TYPE_BROADCAST_AUDIO_SESSION_CREATED = EVENT_TYPE_UNICAST_MAX + 5;
 
     // Do not modify without updating the HAL bt_le_audio.h files.
     // Match up with GroupStatus enum of bt_le_audio.h
@@ -77,8 +78,10 @@ public class LeAudioStackEvent {
     static final int BROADCAST_STATE_STOPPED = 0;
     static final int BROADCAST_STATE_CONFIGURING = 1;
     static final int BROADCAST_STATE_PAUSED = 2;
-    static final int BROADCAST_STATE_STOPPING = 3;
-    static final int BROADCAST_STATE_STREAMING = 4;
+    static final int BROADCAST_STATE_ENABLING = 3;
+    static final int BROADCAST_STATE_DISABLING = 4;
+    static final int BROADCAST_STATE_STOPPING = 5;
+    static final int BROADCAST_STATE_STREAMING = 6;
 
     // Do not modify without updating the HAL bt_le_audio.h files.
     // Match up with UnicastMonitorModeStatus enum of bt_le_audio.h
@@ -176,6 +179,8 @@ public class LeAudioStackEvent {
                 return "EVENT_TYPE_BROADCAST_STATE";
             case EVENT_TYPE_BROADCAST_METADATA_CHANGED:
                 return "EVENT_TYPE_BROADCAST_METADATA_CHANGED";
+            case EVENT_TYPE_BROADCAST_AUDIO_SESSION_CREATED:
+                return "EVENT_TYPE_BROADCAST_AUDIO_SESSION_CREATED";
             case EVENT_TYPE_AUDIO_LOCAL_CODEC_CONFIG_CAPA_CHANGED:
                 return "EVENT_TYPE_AUDIO_LOCAL_CODEC_CONFIG_CAPA_CHANGED";
             case EVENT_TYPE_AUDIO_GROUP_CURRENT_CODEC_CONFIG_CHANGED:
@@ -362,6 +367,8 @@ public class LeAudioStackEvent {
 
     private static String eventTypeValueBool1ToString(int type, boolean value) {
         switch (type) {
+            case EVENT_TYPE_BROADCAST_AUDIO_SESSION_CREATED:
+                // same as EVENT_TYPE_BROADCAST_CREATED
             case EVENT_TYPE_BROADCAST_CREATED:
                 return "{success:" + value + "}";
             default:
@@ -435,6 +442,10 @@ public class LeAudioStackEvent {
                 return "BROADCAST_STATE_CONFIGURING";
             case BROADCAST_STATE_PAUSED:
                 return "BROADCAST_STATE_PAUSED";
+            case BROADCAST_STATE_ENABLING:
+                return "BROADCAST_STATE_ENABLING";
+            case BROADCAST_STATE_DISABLING:
+                return "BROADCAST_STATE_DISABLING";
             case BROADCAST_STATE_STOPPING:
                 return "BROADCAST_STATE_STOPPING";
             case BROADCAST_STATE_STREAMING:

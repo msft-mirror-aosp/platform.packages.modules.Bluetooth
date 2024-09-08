@@ -382,6 +382,14 @@ void client_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
     case GATT_UUID_GAP_CENTRAL_ADDR_RESOL:
       cl_op_cmpl(*p_clcb, true, 1, pp);
       break;
+
+    case GATT_UUID_GAP_ICON:
+      cl_op_cmpl(*p_clcb, true, p_data->att_value.len, pp);
+      break;
+
+    default:
+      log::error("Unexpected operation {}", op);
+      break;
   }
 }
 
@@ -557,6 +565,19 @@ bool GAP_BleReadPeerPrefConnParams(const RawAddress& peer_bda) {
  ******************************************************************************/
 bool GAP_BleReadPeerDevName(const RawAddress& peer_bda, tGAP_BLE_CMPL_CBACK* p_cback) {
   return accept_client_operation(peer_bda, GATT_UUID_GAP_DEVICE_NAME, p_cback);
+}
+
+/*******************************************************************************
+ *
+ * Function         GAP_BleReadPeerAppearance
+ *
+ * Description      Start a process to read a connected peripheral's appearance.
+ *
+ * Returns          true if request accepted
+ *
+ ******************************************************************************/
+bool GAP_BleReadPeerAppearance(const RawAddress& peer_bda, tGAP_BLE_CMPL_CBACK* p_cback) {
+  return accept_client_operation(peer_bda, GATT_UUID_GAP_ICON, p_cback);
 }
 
 /*******************************************************************************

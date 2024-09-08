@@ -317,6 +317,10 @@ public final class Utils {
         return byteArrayToInt(valueBuf, 0);
     }
 
+    public static long byteArrayToLong(byte[] valueBuf) {
+        return byteArrayToLong(valueBuf, 0);
+    }
+
     public static short byteArrayToShort(byte[] valueBuf) {
         ByteBuffer converter = ByteBuffer.wrap(valueBuf);
         converter.order(ByteOrder.nativeOrder());
@@ -327,6 +331,12 @@ public final class Utils {
         ByteBuffer converter = ByteBuffer.wrap(valueBuf);
         converter.order(ByteOrder.nativeOrder());
         return converter.getInt(offset);
+    }
+
+    public static long byteArrayToLong(byte[] valueBuf, int offset) {
+        ByteBuffer converter = ByteBuffer.wrap(valueBuf);
+        converter.order(ByteOrder.nativeOrder());
+        return converter.getLong(offset);
     }
 
     public static String byteArrayToString(byte[] valueBuf) {

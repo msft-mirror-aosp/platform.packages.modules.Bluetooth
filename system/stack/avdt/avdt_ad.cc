@@ -25,6 +25,7 @@
 #define LOG_TAG "bluetooth-a2dp"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include "avdt_api.h"
@@ -35,7 +36,7 @@
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_sec_api_types.h"
-#include <com_android_bluetooth_flags.h>
+#include "stack/include/l2cap_interface.h"
 
 using namespace bluetooth;
 
@@ -349,8 +350,8 @@ void avdt_ad_tc_open_ind(AvdtpTransportChannel* p_tbl) {
   /* if signaling channel, notify ccb that channel open */
   if (p_tbl->tcid == 0) {
     /* set the signal channel to use high priority within the ACL link */
-    if (!L2CA_SetTxPriority(avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][AVDT_CHAN_SIG].lcid,
-                            L2CAP_CHNL_PRIORITY_HIGH)) {
+    if (!stack::l2cap::get_interface().L2CA_SetTxPriority(
+                avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][AVDT_CHAN_SIG].lcid, L2CAP_CHNL_PRIORITY_HIGH)) {
       log::warn("Unable to set L2CAP transmit high priority cid:{}",
                 avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][AVDT_CHAN_SIG].lcid);
     }
@@ -479,7 +480,8 @@ tL2CAP_DW_RESULT avdt_ad_write_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_sc
   /* get tcid from type, scb */
   tcid = avdt_ad_type_to_tcid(type, p_scb);
 
-  return L2CA_DataWrite(avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][tcid].lcid, p_buf);
+  return stack::l2cap::get_interface().L2CA_DataWrite(
+          avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][tcid].lcid, p_buf);
 }
 
 /*******************************************************************************
@@ -534,11 +536,11 @@ void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb, uint8_t ro
 
     /* call l2cap connect req */
     if (com::android::bluetooth::flags::use_encrypt_req_for_av()) {
-      lcid = L2CA_ConnectReqWithSecurity(AVDT_PSM, p_ccb->peer_addr,
-               BTM_SEC_OUT_AUTHENTICATE | BTM_SEC_OUT_ENCRYPT);
+      lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+              AVDT_PSM, p_ccb->peer_addr, BTM_SEC_OUT_AUTHENTICATE | BTM_SEC_OUT_ENCRYPT);
     } else {
-      lcid = L2CA_ConnectReqWithSecurity(AVDT_PSM, p_ccb->peer_addr,
-               BTM_SEC_OUT_AUTHENTICATE);
+      lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(AVDT_PSM, p_ccb->peer_addr,
+                                                                       BTM_SEC_OUT_AUTHENTICATE);
     }
     if (lcid != 0) {
       /* if connect req ok, store tcid in lcid table  */
@@ -568,11 +570,11 @@ void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb, uint8_t ro
  *
  ******************************************************************************/
 void avdt_ad_close_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb) {
-  uint8_t tcid;
+  uint16_t lcid;
   AvdtpTransportChannel* p_tbl;
 
   p_tbl = avdt_ad_tc_tbl_by_type(type, p_ccb, p_scb);
-  log::verbose("avdt_ad_close_req state: {}", p_tbl->state);
+  log::verbose("state: {}", p_tbl->state);
 
   switch (p_tbl->state) {
     case AVDT_AD_ST_UNUSED:
@@ -583,10 +585,11 @@ void avdt_ad_close_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb) {
       avdt_ad_tc_close_ind(p_tbl);
       break;
     default:
-      /* get tcid from type, scb */
-      tcid = avdt_ad_type_to_tcid(type, p_scb);
-
+      lcid = p_tbl->lcid;
       /* call l2cap disconnect req */
-      avdt_l2c_disconnect(avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][tcid].lcid);
+      if (!L2CA_DisconnectReq(lcid)) {
+        log::warn("Unable to disconnect L2CAP lcid: 0x{:04x}", lcid);
+      }
+      avdt_ad_tc_close_ind(p_tbl);
   }
 }
