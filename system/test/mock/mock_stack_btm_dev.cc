@@ -60,6 +60,10 @@ const char* BTM_SecReadDevName(const RawAddress& /* bd_addr */) {
   inc_func_call_count(__func__);
   return nullptr;
 }
+DEV_CLASS BTM_SecReadDevClass(const RawAddress& /* bd_addr */) {
+  inc_func_call_count(__func__);
+  return kDevClassEmpty;
+}
 tBTM_SEC_DEV_REC* btm_find_dev(const RawAddress& bd_addr) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_dev::btm_find_dev.body(bd_addr);

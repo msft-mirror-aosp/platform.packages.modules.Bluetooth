@@ -19,6 +19,7 @@
 #include <base/location.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <time.h>
 
 #include <chrono>
@@ -36,7 +37,6 @@
 #include <vector>
 
 #include "common/bind.h"
-#include "common/init_flags.h"
 #include "common/interfaces/ILoggable.h"
 #include "common/strings.h"
 #include "common/sync_map_count.h"
@@ -1006,7 +1006,7 @@ struct shim::Acl::impl {
     auto connection = handle_to_le_connection_map_.find(handle);
     if (connection != handle_to_le_connection_map_.end()) {
       auto remote_address_with_type = connection->second->GetRemoteAddressWithType();
-      if (!common::init_flags::use_unified_connection_manager_is_enabled()) {
+      if (!com::android::bluetooth::flags::unified_connection_manager()) {
         GetAclManager()->RemoveFromBackgroundList(remote_address_with_type);
       }
       connection->second->InitiateDisconnect(ToDisconnectReasonFromLegacy(reason));

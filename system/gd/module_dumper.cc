@@ -19,7 +19,6 @@
 
 #include <sstream>
 
-#include "common/init_flags.h"
 #include "dumpsys_data_generated.h"
 #include "module.h"
 #include "os/wakelock_manager.h"
@@ -33,17 +32,6 @@ void ModuleDumper::DumpState(std::string* output, std::ostringstream& /*oss*/) c
 
   flatbuffers::FlatBufferBuilder builder(1024);
   auto title = builder.CreateString(title_);
-
-  common::InitFlagsDataBuilder init_flags_builder(builder);
-  init_flags_builder.add_title(builder.CreateString("----- Init Flags -----"));
-  std::vector<flatbuffers::Offset<common::InitFlagValue>> flags;
-  for (const auto& flag : common::init_flags::dump()) {
-    flags.push_back(common::CreateInitFlagValue(builder,
-                                                builder.CreateString(std::string(flag.flag)),
-                                                builder.CreateString(std::string(flag.value))));
-  }
-  init_flags_builder.add_values(builder.CreateVector(flags));
-  auto init_flags_offset = init_flags_builder.Finish();
 
   auto wakelock_offset = WakelockManager::Get().GetDumpsysData(&builder);
 
@@ -60,7 +48,6 @@ void ModuleDumper::DumpState(std::string* output, std::ostringstream& /*oss*/) c
 
   DumpsysDataBuilder data_builder(builder);
   data_builder.add_title(title);
-  data_builder.add_init_flags(init_flags_offset);
   data_builder.add_wakelock_manager_data(wakelock_offset);
 
   while (!queue.empty()) {

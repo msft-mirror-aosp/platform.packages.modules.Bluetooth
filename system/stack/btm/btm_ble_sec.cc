@@ -66,6 +66,7 @@ extern tBTM_CB btm_cb;
 
 bool btm_ble_init_pseudo_addr(tBTM_SEC_DEV_REC* p_dev_rec, const RawAddress& new_pseudo_addr);
 tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb);
+tBTM_STATUS btm_ble_read_remote_cod(const RawAddress& remote_bda);
 
 namespace {
 constexpr char kBtmLogTag[] = "SEC";
@@ -104,6 +105,16 @@ void BTM_SecAddBleDevice(const RawAddress& bd_addr, tBT_DEVICE_TYPE dev_type,
         btif_storage_get_stored_remote_name(bd_addr,
                                             reinterpret_cast<char*>(&p_dev_rec->sec_bd_name))) {
       p_dev_rec->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
+    }
+
+    uint32_t cod = 0;
+    if (com::android::bluetooth::flags::read_le_appearance() &&
+        btif_storage_get_cod(bd_addr, &cod)) {
+      DEV_CLASS dev_class = {};
+      dev_class[2] = (uint8_t)cod;
+      dev_class[1] = (uint8_t)(cod >> 8);
+      dev_class[0] = (uint8_t)(cod >> 16);
+      p_dev_rec->dev_class = dev_class;
     }
   }
 
@@ -589,7 +600,7 @@ tBTM_STATUS BTM_SetBleDataLength(const RawAddress& bd_addr, uint16_t tx_pdu_leng
   }
 
   if (p_dev_rec->get_suggested_tx_octets() >= tx_pdu_length) {
-    log::info("Suggested TX octect already set to controller {} >= {}",
+    log::info("Suggested TX octet already set to controller {} >= {}",
               p_dev_rec->get_suggested_tx_octets(), tx_pdu_length);
     return tBTM_STATUS::BTM_SUCCESS;
   }
@@ -778,7 +789,7 @@ tBTM_STATUS btm_ble_start_sec_check(const RawAddress& bd_addr, uint16_t psm, boo
       break;
 
     case BTM_SEC_ENC_PENDING:
-      log::debug("Ecryption pending");
+      log::debug("Encryption pending");
       break;
   }
 
@@ -841,7 +852,7 @@ bool btm_ble_get_enc_key_type(const RawAddress& bd_addr, uint8_t* p_key_types) {
  *
  * Description      This function is called to read the local DIV
  *
- * Returns          TRUE - if a valid DIV is availavle
+ * Returns          TRUE - if a valid DIV is available
  ******************************************************************************/
 bool btm_get_local_div(const RawAddress& bd_addr, uint16_t* p_div) {
   tBTM_SEC_DEV_REC* p_dev_rec;
@@ -875,7 +886,6 @@ bool btm_get_local_div(const RawAddress& bd_addr, uint16_t* p_div) {
 void btm_sec_save_le_key(const RawAddress& bd_addr, tBTM_LE_KEY_TYPE key_type,
                          tBTM_LE_KEY_VALUE* p_keys, bool pass_to_application) {
   tBTM_SEC_DEV_REC* p_rec;
-  tBTM_LE_EVT_DATA cb_data;
 
   log::verbose("key_type=0x{:x} pass_to_application={}", key_type, pass_to_application);
   /* Store the updated key in the device database */
@@ -977,11 +987,12 @@ void btm_sec_save_le_key(const RawAddress& bd_addr, tBTM_LE_KEY_TYPE key_type,
 
     /* Notify the application that one of the BLE keys has been updated
        If link key is in progress, it will get sent later.*/
-    if (pass_to_application && btm_sec_cb.api.p_le_callback) {
+    if (pass_to_application) {
+      tBTM_LE_EVT_DATA cb_data = {};
       cb_data.key.p_key_value = p_keys;
       cb_data.key.key_type = key_type;
 
-      (*btm_sec_cb.api.p_le_callback)(BTM_LE_KEY_EVT, bd_addr, &cb_data);
+      BTM_BLE_SEC_CALLBACK(BTM_LE_KEY_EVT, bd_addr, &cb_data);
     }
     return;
   }
@@ -997,7 +1008,7 @@ void btm_sec_save_le_key(const RawAddress& bd_addr, tBTM_LE_KEY_TYPE key_type,
  *
  * Function         btm_ble_update_sec_key_size
  *
- * Description      update the current lin kencryption key size
+ * Description      update the current link encryption key size
  *
  * Returns          void
  *
@@ -1017,7 +1028,7 @@ void btm_ble_update_sec_key_size(const RawAddress& bd_addr, uint8_t enc_key_size
  *
  * Function         btm_ble_read_sec_key_size
  *
- * Description      update the current lin kencryption key size
+ * Description      update the current link encryption key size
  *
  * Returns          void
  *
@@ -1067,7 +1078,7 @@ void btm_ble_link_sec_check(const RawAddress& bd_addr, tBTM_LE_AUTH_REQ auth_req
 
     log::verbose("dev_rec sec_flags=0x{:x}", p_dev_rec->sec_rec.sec_flags);
 
-    /* currently encrpted  */
+    /* currently encrypted  */
     if (p_dev_rec->sec_rec.sec_flags & BTM_SEC_LE_ENCRYPTED) {
       if (p_dev_rec->sec_rec.sec_flags & BTM_SEC_LE_AUTHENTICATED) {
         cur_sec_level = SMP_SEC_AUTHENTICATED;
@@ -1089,7 +1100,7 @@ void btm_ble_link_sec_check(const RawAddress& bd_addr, tBTM_LE_AUTH_REQ auth_req
        * encryption */
       *p_sec_req_act = BTM_BLE_SEC_REQ_ACT_ENCRYPT;
     } else {
-      /* start the pariring process to upgrade the keys*/
+      /* start the pairing process to upgrade the keys*/
       *p_sec_req_act = BTM_BLE_SEC_REQ_ACT_PAIR;
     }
   }
@@ -1280,7 +1291,7 @@ static void btm_ble_notify_enc_cmpl(const RawAddress& bd_addr, bool encr_enable)
  *
  * Function         btm_ble_link_encrypted
  *
- * Description      This function is called when LE link encrption status is
+ * Description      This function is called when LE link encryption status is
  *                  changed.
  *
  * Returns          void
@@ -1387,7 +1398,7 @@ void btm_ble_ltk_request_reply(const RawAddress& bda, bool use_stk, const Octet1
    * race conditions. */
 
   log::assert_that(p_rec->sec_rec.ble_keys.key_type & BTM_LE_KEY_LENC,
-                   "local enccryption key not present");
+                   "local encryption key not present");
   p_cb->key_size = p_rec->sec_rec.ble_keys.key_size;
   btsnd_hcic_ble_ltk_req_reply(btm_sec_cb.enc_handle, p_rec->sec_rec.ble_keys.lltk);
 }
@@ -1404,56 +1415,61 @@ void btm_ble_ltk_request_reply(const RawAddress& bda, bool use_stk, const Octet1
  ******************************************************************************/
 static tBTM_STATUS btm_ble_io_capabilities_req(tBTM_SEC_DEV_REC* p_dev_rec,
                                                tBTM_LE_IO_REQ* p_data) {
-  tBTM_STATUS callback_rc = tBTM_STATUS::BTM_SUCCESS;
   log::verbose("p_dev_rec->bd_addr:{}", p_dev_rec->bd_addr);
   if (btm_sec_cb.api.p_le_callback) {
-    /* the callback function implementation may change the IO capability... */
-    callback_rc = (*btm_sec_cb.api.p_le_callback)(BTM_LE_IO_REQ_EVT, p_dev_rec->bd_addr,
-                                                  (tBTM_LE_EVT_DATA*)p_data);
+    tBTM_STATUS status = (*btm_sec_cb.api.p_le_callback)(BTM_LE_IO_REQ_EVT, p_dev_rec->bd_addr,
+                                                         (tBTM_LE_EVT_DATA*)p_data);
+    if (status != tBTM_STATUS::BTM_SUCCESS) {
+      log::warn("Security callback failed {} for {}", btm_status_text(status), p_dev_rec->bd_addr);
+      return status;
+    }
   }
-  if ((callback_rc == tBTM_STATUS::BTM_SUCCESS) || (BTM_OOB_UNKNOWN != p_data->oob_data)) {
-    p_data->auth_req &= BTM_LE_AUTH_REQ_MASK;
 
-    log::verbose("1:p_dev_rec->sec_rec.security_required={}, auth_req:{}",
-                 p_dev_rec->sec_rec.security_required, p_data->auth_req);
-    log::verbose("2:i_keys=0x{:x} r_keys=0x{:x} (bit 0-LTK 1-IRK 2-CSRK)", p_data->init_keys,
-                 p_data->resp_keys);
-
-    /* if authentication requires MITM protection, put on the mask */
-    if (p_dev_rec->sec_rec.security_required & BTM_SEC_IN_MITM) {
-      p_data->auth_req |= BTM_LE_AUTH_REQ_MITM;
-    }
-
-    if (!(p_data->auth_req & SMP_AUTH_BOND)) {
-      log::verbose("Non bonding: No keys should be exchanged");
-      p_data->init_keys = 0;
-      p_data->resp_keys = 0;
-    }
-
-    log::verbose("3:auth_req:{}", p_data->auth_req);
-    log::verbose("4:i_keys=0x{:x} r_keys=0x{:x}", p_data->init_keys, p_data->resp_keys);
-
-    log::verbose("5:p_data->io_cap={} auth_req:{}", p_data->io_cap, p_data->auth_req);
-
-    /* remove MITM protection requirement if IO cap does not allow it */
-    if ((p_data->io_cap == BTM_IO_CAP_NONE) && p_data->oob_data == SMP_OOB_NONE) {
-      p_data->auth_req &= ~BTM_LE_AUTH_REQ_MITM;
-    }
-
-    if (!(p_data->auth_req & SMP_SC_SUPPORT_BIT)) {
-      /* if Secure Connections are not supported then remove LK derivation,
-      ** and keypress notifications.
-      */
-      log::verbose("SC not supported -> No LK derivation, no keypress notifications");
-      p_data->auth_req &= ~SMP_KP_SUPPORT_BIT;
-      p_data->init_keys &= ~SMP_SEC_KEY_TYPE_LK;
-      p_data->resp_keys &= ~SMP_SEC_KEY_TYPE_LK;
-    }
-
-    log::verbose("6:IO_CAP:{} oob_data:{} auth_req:0x{:02x}", p_data->io_cap, p_data->oob_data,
-                 p_data->auth_req);
+  if (BTM_OOB_UNKNOWN == p_data->oob_data) {
+    return tBTM_STATUS::BTM_SUCCESS;
   }
-  return callback_rc;
+
+  p_data->auth_req &= BTM_LE_AUTH_REQ_MASK;
+  log::verbose("1:p_dev_rec->sec_rec.security_required={}, auth_req:{}",
+               p_dev_rec->sec_rec.security_required, p_data->auth_req);
+  log::verbose("2:i_keys=0x{:x} r_keys=0x{:x} (bit 0-LTK 1-IRK 2-CSRK)", p_data->init_keys,
+               p_data->resp_keys);
+
+  /* if authentication requires MITM protection, put on the mask */
+  if (p_dev_rec->sec_rec.security_required & BTM_SEC_IN_MITM) {
+    p_data->auth_req |= BTM_LE_AUTH_REQ_MITM;
+  }
+
+  if (!(p_data->auth_req & SMP_AUTH_BOND)) {
+    log::verbose("Non bonding: No keys should be exchanged");
+    p_data->init_keys = 0;
+    p_data->resp_keys = 0;
+  }
+
+  log::verbose("3:auth_req:{}", p_data->auth_req);
+  log::verbose("4:i_keys=0x{:x} r_keys=0x{:x}", p_data->init_keys, p_data->resp_keys);
+
+  log::verbose("5:p_data->io_cap={} auth_req:{}", p_data->io_cap, p_data->auth_req);
+
+  /* remove MITM protection requirement if IO cap does not allow it */
+  if ((p_data->io_cap == BTM_IO_CAP_NONE) && p_data->oob_data == SMP_OOB_NONE) {
+    p_data->auth_req &= ~BTM_LE_AUTH_REQ_MITM;
+  }
+
+  if (!(p_data->auth_req & SMP_SC_SUPPORT_BIT)) {
+    /* if Secure Connections are not supported then remove LK derivation,
+    ** and keypress notifications.
+    */
+    log::verbose("SC not supported -> No LK derivation, no keypress notifications");
+    p_data->auth_req &= ~SMP_KP_SUPPORT_BIT;
+    p_data->init_keys &= ~SMP_SEC_KEY_TYPE_LK;
+    p_data->resp_keys &= ~SMP_SEC_KEY_TYPE_LK;
+  }
+
+  log::verbose("6:IO_CAP:{} oob_data:{} auth_req:0x{:02x}", p_data->io_cap, p_data->oob_data,
+               p_data->auth_req);
+
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 /*******************************************************************************
@@ -1553,6 +1569,114 @@ void btm_ble_connection_established(const RawAddress& bda) {
       !p_dev_rec->sec_rec.is_name_known()) {
     btm_ble_read_remote_name(bda, nullptr);
   }
+
+  if (com::android::bluetooth::flags::read_le_appearance() && p_dev_rec != nullptr &&
+      !p_dev_rec->sec_rec.is_le_link_key_known()) {
+    // Unknown device
+    if (p_dev_rec->dev_class == kDevClassEmpty || p_dev_rec->dev_class == kDevClassUnclassified) {
+      // Class of device not known, read appearance characteristic
+      btm_ble_read_remote_cod(bda);
+    }
+  }
+}
+
+static void btm_ble_user_confirmation_req(const RawAddress& bd_addr, tBTM_SEC_DEV_REC* p_dev_rec,
+                                          tBTM_LE_EVT event, tBTM_LE_EVT_DATA* p_data) {
+  p_dev_rec->sec_rec.sec_flags |= BTM_SEC_LE_AUTHENTICATED;
+  p_dev_rec->sec_rec.le_link = tSECURITY_STATE::AUTHENTICATING;
+  btm_sec_cb.pairing_bda = bd_addr;
+  btm_sec_cb.pairing_flags |= BTM_PAIR_FLAGS_LE_ACTIVE;
+  BTM_BLE_SEC_CALLBACK(event, bd_addr, p_data);
+}
+
+static void btm_ble_sec_req(const RawAddress& bd_addr, tBTM_SEC_DEV_REC* p_dev_rec,
+                            tBTM_LE_EVT_DATA* p_data) {
+  if (btm_sec_cb.pairing_state != BTM_PAIR_STATE_IDLE) {
+    log::warn("Ignoring SMP Security request");
+    return;
+  }
+  btm_sec_cb.pairing_bda = bd_addr;
+  p_dev_rec->sec_rec.le_link = tSECURITY_STATE::AUTHENTICATING;
+  btm_sec_cb.pairing_flags |= BTM_PAIR_FLAGS_LE_ACTIVE;
+  BTM_BLE_SEC_CALLBACK(BTM_LE_SEC_REQUEST_EVT, bd_addr, p_data);
+}
+
+static void btm_ble_consent_req(const RawAddress& bd_addr, tBTM_LE_EVT_DATA* p_data) {
+  btm_sec_cb.pairing_bda = bd_addr;
+  btm_sec_cb.pairing_flags |= BTM_PAIR_FLAGS_LE_ACTIVE;
+  BTM_BLE_SEC_CALLBACK(BTM_LE_CONSENT_REQ_EVT, bd_addr, p_data);
+}
+
+static void btm_ble_complete_evt(const RawAddress& bd_addr, tBTM_SEC_DEV_REC* p_dev_rec,
+                                 tBTM_LE_EVT_DATA* p_data) {
+  BTM_BLE_SEC_CALLBACK(BTM_LE_COMPLT_EVT, bd_addr, p_data);
+
+  log::verbose("before update sec_level=0x{:x} sec_flags=0x{:x}", p_data->complt.sec_level,
+               p_dev_rec->sec_rec.sec_flags);
+
+  tBTM_STATUS res = (p_data->complt.reason == SMP_SUCCESS) ? tBTM_STATUS::BTM_SUCCESS
+                                                           : tBTM_STATUS::BTM_ERR_PROCESSING;
+
+  log::verbose("after update result={} sec_level=0x{:x} sec_flags=0x{:x}", res,
+               p_data->complt.sec_level, p_dev_rec->sec_rec.sec_flags);
+
+  if (p_data->complt.is_pair_cancel && btm_sec_cb.api.p_bond_cancel_cmpl_callback) {
+    log::verbose("Pairing Cancel completed");
+    (*btm_sec_cb.api.p_bond_cancel_cmpl_callback)(tBTM_STATUS::BTM_SUCCESS);
+  }
+
+  if (res != tBTM_STATUS::BTM_SUCCESS && p_data->complt.reason != SMP_CONN_TOUT) {
+    log::verbose("Pairing failed - prepare to remove ACL");
+    l2cu_start_post_bond_timer(p_dev_rec->ble_hci_handle);
+  }
+
+  log::verbose(
+          "btm_sec_cb.pairing_state={:x} pairing_flags={:x} "
+          "pin_code_len={:x}",
+          btm_sec_cb.pairing_state, btm_sec_cb.pairing_flags, btm_sec_cb.pin_code_len);
+
+  /* Reset btm state only if the callback address matches pairing address */
+  if (bd_addr == btm_sec_cb.pairing_bda) {
+    btm_sec_cb.pairing_bda = RawAddress::kAny;
+    btm_sec_cb.pairing_state = BTM_PAIR_STATE_IDLE;
+    btm_sec_cb.pairing_flags = 0;
+  }
+
+  if (res == tBTM_STATUS::BTM_SUCCESS) {
+    p_dev_rec->sec_rec.le_link = tSECURITY_STATE::IDLE;
+
+    if (p_dev_rec->sec_rec.bond_type != BOND_TYPE_TEMPORARY) {
+      // Add all bonded device into resolving list if IRK is available.
+      btm_ble_resolving_list_load_dev(*p_dev_rec);
+    } else if (p_dev_rec->ble_hci_handle == HCI_INVALID_HANDLE) {
+      // At this point LTK should have been dropped by btif.
+      // Reset the flags here if LE is not connected (over BR),
+      // otherwise they would be reset on disconnected.
+      log::debug(
+              "SMP over BR triggered by temporary bond has completed, "
+              "resetting the LK flags");
+      p_dev_rec->sec_rec.sec_flags &= ~(BTM_SEC_LE_LINK_KEY_KNOWN);
+      p_dev_rec->sec_rec.ble_keys.key_type = BTM_LE_KEY_NONE;
+    }
+  }
+  BD_NAME remote_name = {};
+  if (BTM_GetRemoteDeviceName(p_dev_rec->ble.pseudo_addr, remote_name) &&
+      interop_match_name(INTEROP_SUSPEND_ATT_TRAFFIC_DURING_PAIRING, (const char*)remote_name)) {
+    log::debug("Notifying encryption cmpl delayed due to IOP match");
+    btm_ble_notify_enc_cmpl(p_dev_rec->ble.pseudo_addr, true);
+  }
+
+  btm_sec_dev_rec_cback_event(p_dev_rec, res, true);
+}
+
+static tBTM_STATUS btm_ble_sirk_verification_req(const RawAddress& bd_addr) {
+  tBTM_STATUS res = (*btm_sec_cb.api.p_sirk_verification_callback)(bd_addr);
+  if (res == tBTM_STATUS::BTM_CMD_STARTED) {
+    res = tBTM_STATUS::BTM_SUCCESS;
+  } else {
+    log::warn("SMP SIRK verification status:{}", btm_status_text(res));
+  }
+  return res;
 }
 
 /*****************************************************************************
@@ -1561,8 +1685,7 @@ void btm_ble_connection_established(const RawAddress& bda) {
  *  Description     This function is the SMP callback handler.
  *
  *****************************************************************************/
-tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
-                               const tSMP_EVT_DATA* p_data) {
+tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr, tSMP_EVT_DATA* p_data) {
   log::verbose("bd_addr:{}, event={}", bd_addr, smp_evt_to_text(event));
 
   if (event == SMP_SC_LOC_OOB_DATA_UP_EVT) {
@@ -1571,141 +1694,65 @@ tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
   }
 
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
-  tBTM_STATUS res = tBTM_STATUS::BTM_SUCCESS;
 
-  if (p_dev_rec != NULL) {
-    switch (event) {
-      case SMP_IO_CAP_REQ_EVT:
-        btm_ble_io_capabilities_req(p_dev_rec, (tBTM_LE_IO_REQ*)&p_data->io_req);
-        break;
-
-      case SMP_BR_KEYS_REQ_EVT:
-        btm_ble_br_keys_req(p_dev_rec, (tBTM_LE_IO_REQ*)&p_data->io_req);
-        break;
-
-      case SMP_PASSKEY_REQ_EVT:
-      case SMP_PASSKEY_NOTIF_EVT:
-      case SMP_OOB_REQ_EVT:
-      case SMP_NC_REQ_EVT:
-      case SMP_SC_OOB_REQ_EVT:
-        p_dev_rec->sec_rec.sec_flags |= BTM_SEC_LE_AUTHENTICATED;
-        FALLTHROUGH_INTENDED; /* FALLTHROUGH */
-
-      case SMP_CONSENT_REQ_EVT:
-      case SMP_SEC_REQUEST_EVT:
-        if (event == SMP_SEC_REQUEST_EVT && btm_sec_cb.pairing_state != BTM_PAIR_STATE_IDLE) {
-          log::verbose("Ignoring SMP Security request");
-          break;
-        }
-        btm_sec_cb.pairing_bda = bd_addr;
-        if (event != SMP_CONSENT_REQ_EVT) {
-          p_dev_rec->sec_rec.le_link = tSECURITY_STATE::AUTHENTICATING;
-        }
-        btm_sec_cb.pairing_flags |= BTM_PAIR_FLAGS_LE_ACTIVE;
-        FALLTHROUGH_INTENDED; /* FALLTHROUGH */
-
-      case SMP_COMPLT_EVT:
-        if (btm_sec_cb.api.p_le_callback) {
-          /* the callback function implementation may change the IO
-           * capability... */
-          log::verbose("btm_sec_cb.api.p_le_callback=0x{}", fmt::ptr(btm_sec_cb.api.p_le_callback));
-          (*btm_sec_cb.api.p_le_callback)(static_cast<tBTM_LE_EVT>(event), bd_addr,
-                                          (tBTM_LE_EVT_DATA*)p_data);
-        }
-
-        if (event == SMP_COMPLT_EVT) {
-          p_dev_rec = btm_find_dev(bd_addr);
-          if (p_dev_rec == NULL) {
-            log::error("p_dev_rec is NULL");
-            return tBTM_STATUS::BTM_SUCCESS;
-          }
-          log::verbose("before update sec_level=0x{:x} sec_flags=0x{:x}", p_data->cmplt.sec_level,
-                       p_dev_rec->sec_rec.sec_flags);
-
-          res = (p_data->cmplt.reason == SMP_SUCCESS) ? tBTM_STATUS::BTM_SUCCESS
-                                                      : tBTM_STATUS::BTM_ERR_PROCESSING;
-
-          log::verbose("after update result={} sec_level=0x{:x} sec_flags=0x{:x}", res,
-                       p_data->cmplt.sec_level, p_dev_rec->sec_rec.sec_flags);
-
-          if (p_data->cmplt.is_pair_cancel && btm_sec_cb.api.p_bond_cancel_cmpl_callback) {
-            log::verbose("Pairing Cancel completed");
-            (*btm_sec_cb.api.p_bond_cancel_cmpl_callback)(tBTM_STATUS::BTM_SUCCESS);
-          }
-
-          if (res != tBTM_STATUS::BTM_SUCCESS && p_data->cmplt.reason != SMP_CONN_TOUT) {
-            log::verbose("Pairing failed - prepare to remove ACL");
-            l2cu_start_post_bond_timer(p_dev_rec->ble_hci_handle);
-          }
-
-          log::verbose(
-                  "btm_sec_cb.pairing_state={:x} pairing_flags={:x} "
-                  "pin_code_len={:x}",
-                  btm_sec_cb.pairing_state, btm_sec_cb.pairing_flags, btm_sec_cb.pin_code_len);
-
-          /* Reset btm state only if the callback address matches pairing
-           * address*/
-          if (bd_addr == btm_sec_cb.pairing_bda) {
-            btm_sec_cb.pairing_bda = RawAddress::kAny;
-            btm_sec_cb.pairing_state = BTM_PAIR_STATE_IDLE;
-            btm_sec_cb.pairing_flags = 0;
-          }
-
-          if (res == tBTM_STATUS::BTM_SUCCESS) {
-            p_dev_rec->sec_rec.le_link = tSECURITY_STATE::IDLE;
-
-            if (p_dev_rec->sec_rec.bond_type != BOND_TYPE_TEMPORARY) {
-              // Add all bonded device into resolving list if IRK is available.
-              btm_ble_resolving_list_load_dev(*p_dev_rec);
-            } else if (p_dev_rec->ble_hci_handle == HCI_INVALID_HANDLE) {
-              // At this point LTK should have been dropped by btif.
-              // Reset the flags here if LE is not connected (over BR),
-              // otherwise they would be reset on disconnected.
-              log::debug(
-                      "SMP over BR triggered by temporary bond has completed, "
-                      "resetting the LK flags");
-              p_dev_rec->sec_rec.sec_flags &= ~(BTM_SEC_LE_LINK_KEY_KNOWN);
-              p_dev_rec->sec_rec.ble_keys.key_type = BTM_LE_KEY_NONE;
-            }
-          }
-          BD_NAME remote_name = {};
-          if (BTM_GetRemoteDeviceName(p_dev_rec->ble.pseudo_addr, remote_name) &&
-              interop_match_name(INTEROP_SUSPEND_ATT_TRAFFIC_DURING_PAIRING,
-                                 (const char*)remote_name)) {
-            log::debug("Notifying encryption cmpl delayed due to IOP match");
-            btm_ble_notify_enc_cmpl(p_dev_rec->ble.pseudo_addr, true);
-          }
-
-          btm_sec_dev_rec_cback_event(p_dev_rec, res, true);
-        }
-        break;
-
-      case SMP_LE_ADDR_ASSOC_EVT:
-        if (btm_sec_cb.api.p_le_callback) {
-          log::verbose("btm_sec_cb.api.p_le_callback=0x{}", fmt::ptr(btm_sec_cb.api.p_le_callback));
-          (*btm_sec_cb.api.p_le_callback)(static_cast<tBTM_LE_EVT>(event), bd_addr,
-                                          (tBTM_LE_EVT_DATA*)p_data);
-        }
-        break;
-
-      case SMP_SIRK_VERIFICATION_REQ_EVT:
-        res = (*btm_sec_cb.api.p_sirk_verification_callback)(bd_addr);
-        log::debug("SMP SIRK verification result:{}", btm_status_text(res));
-        if (res != tBTM_STATUS::BTM_CMD_STARTED) {
-          return res;
-        }
-
-        break;
-
-      default:
-        log::verbose("unknown event={}", smp_evt_to_text(event));
-        break;
-    }
-  } else {
+  if (p_dev_rec == nullptr) {
     log::warn("Unexpected event '{}' for unknown device.", smp_evt_to_text(event));
+    if (com::android::bluetooth::flags::clear_pairing_state_when_no_devrec() &&
+                bd_addr == btm_sec_cb.pairing_bda &&
+                event == SMP_COMPLT_EVT) {
+        btm_sec_cb.pairing_bda = RawAddress::kAny;
+        btm_sec_cb.pairing_state = BTM_PAIR_STATE_IDLE;
+        btm_sec_cb.pairing_flags = 0;
+    }
+    return tBTM_STATUS::BTM_UNKNOWN_ADDR;
   }
 
-  return tBTM_STATUS::BTM_SUCCESS;
+  tBTM_STATUS status = tBTM_STATUS::BTM_SUCCESS;
+  switch (event) {
+    case SMP_IO_CAP_REQ_EVT:
+      btm_ble_io_capabilities_req(p_dev_rec, reinterpret_cast<tBTM_LE_IO_REQ*>(&p_data->io_req));
+      break;
+
+    case SMP_BR_KEYS_REQ_EVT:
+      btm_ble_br_keys_req(p_dev_rec, reinterpret_cast<tBTM_LE_IO_REQ*>(&p_data->io_req));
+      break;
+
+    case SMP_PASSKEY_REQ_EVT:
+    case SMP_PASSKEY_NOTIF_EVT:
+    case SMP_OOB_REQ_EVT:
+    case SMP_NC_REQ_EVT:
+    case SMP_SC_OOB_REQ_EVT:
+      btm_ble_user_confirmation_req(bd_addr, p_dev_rec, static_cast<tBTM_LE_EVT>(event),
+                                    reinterpret_cast<tBTM_LE_EVT_DATA*>(p_data));
+      break;
+
+    case SMP_SEC_REQUEST_EVT:
+      btm_ble_sec_req(bd_addr, p_dev_rec, reinterpret_cast<tBTM_LE_EVT_DATA*>(p_data));
+      break;
+
+    case SMP_CONSENT_REQ_EVT:
+      btm_ble_consent_req(bd_addr, reinterpret_cast<tBTM_LE_EVT_DATA*>(p_data));
+      break;
+
+    case SMP_COMPLT_EVT:
+      btm_ble_complete_evt(bd_addr, p_dev_rec, reinterpret_cast<tBTM_LE_EVT_DATA*>(p_data));
+      break;
+
+    case SMP_LE_ADDR_ASSOC_EVT:
+      BTM_BLE_SEC_CALLBACK(static_cast<tBTM_LE_EVT>(event), bd_addr,
+                           reinterpret_cast<tBTM_LE_EVT_DATA*>(p_data));
+      break;
+
+    case SMP_SIRK_VERIFICATION_REQ_EVT:
+      status = btm_ble_sirk_verification_req(bd_addr);
+      break;
+
+    default:
+      log::verbose("unknown event={}", smp_evt_to_text(event));
+      break;
+  }
+
+  return status;
 }
 
 /*******************************************************************************
@@ -1721,7 +1768,7 @@ tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
  *                  signature: output parameter where data signature is going to
  *                             be stored.
  *
- * Returns          true if signing sucessul, otherwise false.
+ * Returns          true if signing successful, otherwise false.
  *
  ******************************************************************************/
 bool BTM_BleDataSignature(const RawAddress& bd_addr, uint8_t* p_text, uint16_t len,
