@@ -131,6 +131,7 @@ cc_test {
         "libbt_shim_bridge",
         "libchrome",
         "libevent",
+        "libflags_rust_cpp_bridge",
         "libprotobuf-cpp-lite",
     ],
     shared_libs: [

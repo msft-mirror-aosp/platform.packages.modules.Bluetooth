@@ -7637,6 +7637,60 @@ TEST_F(StateMachineTest, StreamClearAfterReleaseAndConnectionTimeout) {
   testing::Mock::VerifyAndClearExpectations(mock_iso_manager_);
 }
 
+TEST_F(StateMachineTest, DisconnectGroupMemberWhileEnablingStream) {
+  auto context_type = kContextTypeMedia;
+  const auto leaudio_group_id = 4;
+  const auto num_devices = 2;
+
+  /* Scenario
+  1. Initiate streaming to 1 device but stay in QOS_CONFIGURED due to started enabling ASEs
+  2. Second device is attached and immediately disconnected
+  4. Groups should not go to IDLE as the first device is about to stream
+  5. Continue streaming with the first device
+  */
+
+  // Prepare multiple fake connected devices in a group
+  auto* group = PrepareSingleTestDeviceGroup(leaudio_group_id, context_type, num_devices,
+                                             kContextTypeConversational | kContextTypeMedia);
+  ASSERT_EQ(group->Size(), num_devices);
+
+  PrepareConfigureCodecHandler(group);
+  PrepareConfigureQosHandler(group);
+
+  auto* leAudioDevice = group->GetFirstDevice();
+  auto* firstDevice = leAudioDevice;
+  auto* lastDevice = leAudioDevice;
+
+  while (leAudioDevice) {
+    lastDevice = leAudioDevice;
+    leAudioDevice = group->GetNextDevice(leAudioDevice);
+  }
+
+  InjectInitialIdleNotification(group);
+
+  // Start the configuration up to the ENABLING state
+  ASSERT_TRUE(LeAudioGroupStateMachine::Get()->StartStream(
+          group, context_type,
+          {.sink = types::AudioContexts(context_type),
+           .source = types::AudioContexts(context_type)}));
+  ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED);
+
+  ASSERT_EQ(group->NumOfConnected(), 2);
+
+  // Inject second device disconnection
+  InjectAclDisconnected(group, lastDevice);
+
+  // Expect the group to not go to IDLE, as the first device is enabling
+  ASSERT_NE(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
+
+  // Resume the interrupted enabling process
+  InjectEnablingStateFroActiveAses(group, firstDevice);
+  InjectStreamingStateFroActiveAses(group, firstDevice);
+
+  // Verify we go to STREAMING
+  ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
+}
+
 TEST_F(StateMachineTest, VerifyThereIsNoDoubleDataPathRemoval) {
   auto context_type = kContextTypeConversational;
   const auto leaudio_group_id = 4;

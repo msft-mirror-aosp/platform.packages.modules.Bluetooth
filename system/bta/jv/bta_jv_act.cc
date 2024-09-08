@@ -35,8 +35,6 @@
 #include "bta/jv/bta_jv_int.h"
 #include "bta/sys/bta_sys.h"
 #include "internal_include/bt_target.h"
-#include "internal_include/bt_trace.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_sec.h"
@@ -48,6 +46,7 @@
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/gap_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/port_api.h"
 #include "stack/include/rfcdefs.h"
@@ -755,7 +754,7 @@ void bta_jv_get_channel_id(tBTA_JV_CONN_TYPE type /* One of BTA_JV_CONN_TYPE_ */
       }
       break;
     case tBTA_JV_CONN_TYPE::L2CAP_LE:
-      psm = L2CA_AllocateLePSM();
+      psm = stack::l2cap::get_interface().L2CA_AllocateLePSM();
       if (psm == 0) {
         log::error("Error: No free LE PSM available");
       }
@@ -782,7 +781,7 @@ void bta_jv_free_scn(tBTA_JV_CONN_TYPE type /* One of BTA_JV_CONN_TYPE_ */, uint
       break;
     case tBTA_JV_CONN_TYPE::L2CAP_LE:
       log::verbose("type=BTA_JV_CONN_TYPE::L2CAP_LE. psm={}", scn);
-      L2CA_FreeLePSM(scn);
+      stack::l2cap::get_interface().L2CA_FreeLePSM(scn);
       break;
     default:
       break;

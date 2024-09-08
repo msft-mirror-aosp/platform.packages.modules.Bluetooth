@@ -147,3 +147,23 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "clear_pairing_state_when_no_devrec"
+    namespace: "bluetooth"
+    description: "Clear pairing state on early bond failure due to connection timeout and devrec is not created"
+    bug: "364321751"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "donot_validate_bond_state_from_profiles"
+    namespace: "bluetooth"
+    description: "do not validate bond state from profiles for incoming connections as stack already ensures secure service access"
+    bug: "353738134"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

@@ -27,3 +27,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "rnr_directly_call_gap_over_le"
+    namespace: "bluetooth"
+    description: "Directly call GAP for remote name request over LE"
+    bug: "363052833"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
