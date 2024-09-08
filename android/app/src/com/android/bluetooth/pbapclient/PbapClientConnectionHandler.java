@@ -240,7 +240,9 @@ class PbapClientConnectionHandler extends Handler {
                 if (DBG) {
                     Log.d(TAG, "Completing Disconnect");
                 }
-                removeAccount();
+                if (mAccountCreated) {
+                    removeAccount();
+                }
                 removeCallLog();
 
                 mPbapClientStateMachine.sendMessage(PbapClientStateMachine.MSG_CONNECTION_CLOSED);
