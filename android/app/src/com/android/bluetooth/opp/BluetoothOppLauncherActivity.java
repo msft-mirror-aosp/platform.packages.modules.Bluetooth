@@ -416,8 +416,7 @@ public class BluetoothOppLauncherActivity extends Activity {
                     BluetoothProtoEnums.BLUETOOTH_OPP_LAUNCHER_ACTIVITY,
                     BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                     6);
-            Log.e(TAG, "FileNotFoundException: " + e.toString());
-            e.printStackTrace();
+            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
         } catch (IOException e) {
             ContentProfileErrorReportUtils.report(
                     BluetoothProfile.OPP,
@@ -443,7 +442,7 @@ public class BluetoothOppLauncherActivity extends Activity {
                         BluetoothProtoEnums.BLUETOOTH_OPP_LAUNCHER_ACTIVITY,
                         BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                         9);
-                e.printStackTrace();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return fileUri;

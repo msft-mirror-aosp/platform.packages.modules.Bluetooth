@@ -400,6 +400,17 @@ bool btif_storage_get_stored_remote_name(const RawAddress& bd_addr, char* name);
 
 /*******************************************************************************
  *
+ * Function         btif_storage_get_cod
+ *
+ * Description      Retrieves the stored class of device.
+ *
+ * Returns          true if successful, otherwise false
+ *
+ ******************************************************************************/
+bool btif_storage_get_cod(const RawAddress& bd_addr, uint32_t* cod);
+
+/*******************************************************************************
+ *
  * Function         btif_storage_set_hid_connection_policy
  *
  * Description      Stores connection policy info in nvram.

@@ -562,13 +562,13 @@ void rfc_mx_sm_state_disc_wait_ua(tRFC_MCB* p_mcb, tRFC_MX_EVENT event, void* p_
                rfcomm_mx_state_text(p_mcb->state));
 }
 
-void rfc_on_l2cap_error(uint16_t lcid, uint16_t /* tL2CAP_CONN */ result) {
+void rfc_on_l2cap_error(uint16_t lcid, uint16_t result) {
   tRFC_MCB* p_mcb = rfc_find_lcid_mcb(lcid);
   if (p_mcb == nullptr) {
     return;
   }
 
-  if (result & L2CAP_CONN_INTERNAL_MASK) {
+  if (static_cast<uint16_t>(result) & L2CAP_CONN_INTERNAL_MASK) {
     /* if peer rejects our connect request but peer's connect request is pending
      */
     if (p_mcb->pending_lcid) {
@@ -600,7 +600,7 @@ void rfc_on_l2cap_error(uint16_t lcid, uint16_t /* tL2CAP_CONN */ result) {
       if (p_mcb->pending_configure_complete) {
         log::info("Configuration of the pending connection was completed");
         p_mcb->pending_configure_complete = false;
-        uintptr_t result_as_ptr = L2CAP_CONN_OK;
+        uintptr_t result_as_ptr = static_cast<uint16_t>(tL2CAP_CONN::L2CAP_CONN_OK);
         rfc_mx_sm_execute(p_mcb, RFC_MX_EVENT_CONF_IND, &p_mcb->pending_cfg_info);
         rfc_mx_sm_execute(p_mcb, RFC_MX_EVENT_CONF_CNF, (void*)result_as_ptr);
       }
@@ -613,7 +613,7 @@ void rfc_on_l2cap_error(uint16_t lcid, uint16_t /* tL2CAP_CONN */ result) {
     log::error("failed to configure L2CAP for {}", p_mcb->bd_addr);
     if (p_mcb->is_initiator) {
       log::error("disconnect L2CAP due to config failure for {}", p_mcb->bd_addr);
-      PORT_StartCnf(p_mcb, result);
+      PORT_StartCnf(p_mcb, static_cast<uint16_t>(result));
       if (!L2CA_DisconnectReq(p_mcb->lcid)) {
         log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}", p_mcb->bd_addr,
                   p_mcb->lcid);

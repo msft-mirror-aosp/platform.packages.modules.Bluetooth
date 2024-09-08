@@ -35,15 +35,13 @@
 #include "btif/include/btif_debug_conn.h"
 #include "hardware/bt_gatt_types.h"
 #include "hci/controller_interface.h"
-#include "internal_include/bt_trace.h"
 #include "main/shim/entry.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_sec_api.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -871,7 +869,8 @@ void bta_gattc_cfg_mtu(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
 
 void bta_gattc_start_discover_internal(tBTA_GATTC_CLCB* p_clcb) {
   if (p_clcb->transport == BT_TRANSPORT_LE) {
-    L2CA_LockBleConnParamsForServiceDiscovery(p_clcb->p_srcb->server_bda, true);
+    bluetooth::stack::l2cap::get_interface().L2CA_LockBleConnParamsForServiceDiscovery(
+            p_clcb->p_srcb->server_bda, true);
   }
 
   bta_gattc_init_cache(p_clcb->p_srcb);
@@ -995,7 +994,8 @@ void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* /* p_da
   log::verbose("conn_id=0x{:x}", p_clcb->bta_conn_id);
 
   if (p_clcb->transport == BT_TRANSPORT_LE) {
-    L2CA_LockBleConnParamsForServiceDiscovery(p_clcb->p_srcb->server_bda, false);
+    bluetooth::stack::l2cap::get_interface().L2CA_LockBleConnParamsForServiceDiscovery(
+            p_clcb->p_srcb->server_bda, false);
   }
   p_clcb->p_srcb->state = BTA_GATTC_SERV_IDLE;
   p_clcb->disc_active = false;
@@ -1023,7 +1023,8 @@ void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* /* p_da
   else if (p_q_cmd != NULL) {
     p_clcb->p_q_cmd = NULL;
     /* execute pending operation of link block still present */
-    if (L2CA_IsLinkEstablished(p_clcb->p_srcb->server_bda, p_clcb->transport)) {
+    if (bluetooth::stack::l2cap::get_interface().L2CA_IsLinkEstablished(p_clcb->p_srcb->server_bda,
+                                                                        p_clcb->transport)) {
       bta_gattc_sm_execute(p_clcb, p_q_cmd->hdr.event, p_q_cmd);
     }
     /* if the command executed requeued the cmd, we don't
@@ -1461,7 +1462,7 @@ static void bta_gattc_conn_cback(tGATT_IF gattc_if, const RawAddress& bdaddr, ui
   p_buf->int_conn.hdr.event = connected ? BTA_GATTC_INT_CONN_EVT : BTA_GATTC_INT_DISCONN_EVT;
   p_buf->int_conn.hdr.layer_specific = conn_id;
   p_buf->int_conn.client_if = gattc_if;
-  p_buf->int_conn.role = L2CA_GetBleConnRole(bdaddr);
+  p_buf->int_conn.role = bluetooth::stack::l2cap::get_interface().L2CA_GetBleConnRole(bdaddr);
   p_buf->int_conn.reason = reason;
   p_buf->int_conn.transport = transport;
   p_buf->int_conn.remote_bda = bdaddr;

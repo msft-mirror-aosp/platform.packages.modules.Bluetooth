@@ -3241,8 +3241,9 @@ void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_en
     }
   }
 
-  const bool is_encrypted =
-          p_dev_rec->sec_rec.is_le_device_encrypted() || p_dev_rec->sec_rec.is_device_encrypted();
+  const bool is_encrypted = (transport == BT_TRANSPORT_LE)
+                                    ? p_dev_rec->sec_rec.is_le_device_encrypted()
+                                    : p_dev_rec->sec_rec.is_device_encrypted();
   BTM_LogHistory(
           kBtmLogTag,
           (transport == BT_TRANSPORT_LE) ? p_dev_rec->ble.pseudo_addr : p_dev_rec->bd_addr,
@@ -4789,9 +4790,7 @@ void btm_sec_cr_loc_oob_data_cback_event(const RawAddress& address,
   tBTM_LE_EVT_DATA evt_data = {
           .local_oob_data = loc_oob_data,
   };
-  if (btm_sec_cb.api.p_le_callback) {
-    (*btm_sec_cb.api.p_le_callback)(BTM_LE_SC_LOC_OOB_EVT, address, &evt_data);
-  }
+  BTM_BLE_SEC_CALLBACK(BTM_LE_SC_LOC_OOB_EVT, address, &evt_data);
 }
 
 /*******************************************************************************

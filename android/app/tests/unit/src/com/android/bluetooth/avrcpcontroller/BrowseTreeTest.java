@@ -187,11 +187,9 @@ public class BrowseTreeTest {
     @Test
     public void notifyImageDownload() {
         BrowseTree browseTree = new BrowseTree(null);
-        String testDeviceId = BrowseTree.PLAYER_PREFIX + mTestDevice.getAddress();
 
         browseTree.onConnected(mTestDevice);
-        browseTree.indicateCoverArtUsed(TEST_NODE_ID, TEST_HANDLE);
-        browseTree.indicateCoverArtUsed(testDeviceId, TEST_HANDLE);
+        browseTree.indicateCoverArtUsed(browseTree.mRootNode.getChild(0).getID(), TEST_HANDLE);
         Set<BrowseTree.BrowseNode> parents = browseTree.notifyImageDownload(TEST_HANDLE, null);
 
         assertThat(parents.contains(browseTree.mRootNode)).isTrue();

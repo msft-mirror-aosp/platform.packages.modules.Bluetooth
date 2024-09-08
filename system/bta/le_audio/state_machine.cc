@@ -314,7 +314,8 @@ public:
 
   void StopStream(LeAudioDeviceGroup* group) override {
     if (group->IsReleasingOrIdle()) {
-      log::info("group: {} already in releasing process", group->group_id_);
+      log::info("group: {} in_transition: {}, current_state {}", group->group_id_,
+                group->IsInTransition(), ToString(group->GetState()));
       return;
     }
 

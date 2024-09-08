@@ -57,6 +57,7 @@
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "storage/config_keys.h"
 #include "types/hci_role.h"
 #include "types/raw_address.h"
@@ -1175,11 +1176,11 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   log::verbose("l2c_cid: 0x{:x} stream_mtu: {}", p_scb->l2c_cid, p_scb->stream_mtu);
 
   /* Set the media channel as high priority */
-  if (!L2CA_SetTxPriority(p_scb->l2c_cid, L2CAP_CHNL_PRIORITY_HIGH)) {
+  if (!stack::l2cap::get_interface().L2CA_SetTxPriority(p_scb->l2c_cid, L2CAP_CHNL_PRIORITY_HIGH)) {
     log::warn("Unable to set L2CAP Tx priority peer:{} cid:{}", p_scb->PeerAddress(),
               p_scb->l2c_cid);
   }
-  if (!L2CA_SetChnlFlushability(p_scb->l2c_cid, true)) {
+  if (!stack::l2cap::get_interface().L2CA_SetChnlFlushability(p_scb->l2c_cid, true)) {
     log::warn("Unable to set L2CAP flush peer:{} cid:{}", p_scb->PeerAddress(), p_scb->l2c_cid);
   }
 
@@ -1210,7 +1211,7 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
             .sep = AVDT_TSEP_INVALID,
     };
 
-    L2CA_SetMediaStreamChannel(p_scb->l2c_cid, true);
+    stack::l2cap::get_interface().L2CA_SetMediaStreamChannel(p_scb->l2c_cid, true);
 
     p = get_btm_client_interface().peer.BTM_ReadRemoteFeatures(p_scb->PeerAddress());
     if (p != NULL) {
@@ -1327,7 +1328,8 @@ void bta_av_do_close(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
   p_scb->use_rtp_header_marker_bit = false;
 
   /* drop the buffers queued in L2CAP */
-  const uint16_t buffers_left = L2CA_FlushChannel(p_scb->l2c_cid, L2CAP_FLUSH_CHANS_ALL);
+  const uint16_t buffers_left =
+          stack::l2cap::get_interface().L2CA_FlushChannel(p_scb->l2c_cid, L2CAP_FLUSH_CHANS_ALL);
   if (buffers_left) {
     log::warn("Unable to flush L2CAP ALL channel peer:{} cid:{} buffers_left:{}",
               p_scb->PeerAddress(), p_scb->l2c_cid, buffers_left);
@@ -1933,7 +1935,8 @@ void bta_av_str_stopped(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
     /* drop the audio buffers queued in L2CAP */
     if (p_data && p_data->api_stop.flush) {
-      const uint16_t buffers_left = L2CA_FlushChannel(p_scb->l2c_cid, L2CAP_FLUSH_CHANS_ALL);
+      const uint16_t buffers_left = stack::l2cap::get_interface().L2CA_FlushChannel(
+              p_scb->l2c_cid, L2CAP_FLUSH_CHANS_ALL);
 
       if (buffers_left) {
         log::warn("Unable to flush all L2CAP ALL channel peer:{} cid:{} buffers_left:{}",
@@ -2061,7 +2064,8 @@ void bta_av_reconfig(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       bta_av_str_stopped(p_scb, NULL);
     }
     // Drop the buffers queued in L2CAP
-    const uint16_t buffers_left = L2CA_FlushChannel(p_scb->l2c_cid, L2CAP_FLUSH_CHANS_ALL);
+    const uint16_t buffers_left =
+            stack::l2cap::get_interface().L2CA_FlushChannel(p_scb->l2c_cid, L2CAP_FLUSH_CHANS_ALL);
     if (buffers_left) {
       log::warn("Unable to flush all L2CAP ALL channel peer:{} cid:{} buffers_left:{}",
                 p_scb->PeerAddress(), p_scb->l2c_cid, buffers_left);
@@ -2099,7 +2103,8 @@ void bta_av_data_path(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
   }
 
   // Always get the current number of bufs que'd up
-  p_scb->l2c_bufs = (uint8_t)L2CA_FlushChannel(p_scb->l2c_cid, L2CAP_FLUSH_CHANS_GET);
+  p_scb->l2c_bufs = (uint8_t)stack::l2cap::get_interface().L2CA_FlushChannel(p_scb->l2c_cid,
+                                                                             L2CAP_FLUSH_CHANS_GET);
 
   if (!list_is_empty(p_scb->a2dp_list)) {
     p_buf = (BT_HDR*)list_front(p_scb->a2dp_list);
@@ -2434,7 +2439,7 @@ void bta_av_str_closed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     get_btm_client_interface().link_policy.BTM_default_unblock_role_switch();
   }
 
-  L2CA_SetMediaStreamChannel(p_scb->l2c_cid, false);
+  stack::l2cap::get_interface().L2CA_SetMediaStreamChannel(p_scb->l2c_cid, false);
 
   if (p_scb->open_status != BTA_AV_SUCCESS) {
     /* must be failure when opening the stream */
@@ -2751,7 +2756,8 @@ void bta_av_suspend_cont(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       bta_av_ssm_execute(p_scb, BTA_AV_STR_DISC_FAIL_EVT, NULL);
     } else {
       /* drop the buffers queued in L2CAP */
-      const uint16_t buffers_left = L2CA_FlushChannel(p_scb->l2c_cid, L2CAP_FLUSH_CHANS_ALL);
+      const uint16_t buffers_left = stack::l2cap::get_interface().L2CA_FlushChannel(
+              p_scb->l2c_cid, L2CAP_FLUSH_CHANS_ALL);
       if (buffers_left) {
         log::error("suspend rejected, closing peer:{} cid:{} buffers_left:{}", p_scb->PeerAddress(),
                    p_scb->l2c_cid, buffers_left);
@@ -2806,7 +2812,8 @@ void bta_av_rcfg_cfm(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     }
     /* started flag is false when reconfigure command is sent */
     /* drop the buffers queued in L2CAP */
-    const uint16_t buffers_left = L2CA_FlushChannel(p_scb->l2c_cid, L2CAP_FLUSH_CHANS_ALL);
+    const uint16_t buffers_left =
+            stack::l2cap::get_interface().L2CA_FlushChannel(p_scb->l2c_cid, L2CAP_FLUSH_CHANS_ALL);
     if (buffers_left) {
       log::error("reconfig rejected, closing queued  peer:{} cid:{} buffers_left:{}",
                  p_scb->PeerAddress(), p_scb->l2c_cid, buffers_left);
@@ -3071,7 +3078,8 @@ void bta_av_vendor_offload_start_v2(tBTA_AV_SCB* p_scb, A2dpCodecConfigExt* offl
   if (mtu > MAX_3MBPS_AVDTP_MTU) {
     mtu = MAX_3MBPS_AVDTP_MTU;
   }
-  if (L2CA_GetRemoteChannelId(p_scb->l2c_cid, &l2cap_channel_handle) == false) {
+  if (stack::l2cap::get_interface().L2CA_GetRemoteChannelId(p_scb->l2c_cid,
+                                                            &l2cap_channel_handle) == false) {
     log::error("Failed to fetch l2c rcid");
   }
 
@@ -3122,7 +3130,8 @@ void bta_av_vendor_offload_stop() {
             p_scb->PeerAddress(), BT_TRANSPORT_BR_EDR);
     uint16_t l2cap_channel_handle = 0;
 
-    if (L2CA_GetRemoteChannelId(p_scb->l2c_cid, &l2cap_channel_handle) == false) {
+    if (stack::l2cap::get_interface().L2CA_GetRemoteChannelId(p_scb->l2c_cid,
+                                                              &l2cap_channel_handle) == false) {
       log::error("Failed to fetch l2c rcid");
     }
 
@@ -3304,7 +3313,8 @@ static void bta_av_offload_codec_builder(tBTA_AV_SCB* p_scb, tBT_A2DP_OFFLOAD* p
       p_a2dp_offload->sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_96000;
       break;
   }
-  if (L2CA_GetRemoteChannelId(p_scb->l2c_cid, &p_a2dp_offload->l2c_rcid) == false) {
+  if (stack::l2cap::get_interface().L2CA_GetRemoteChannelId(p_scb->l2c_cid,
+                                                            &p_a2dp_offload->l2c_rcid) == false) {
     log::error("Failed to fetch l2c rcid");
     return;
   }
