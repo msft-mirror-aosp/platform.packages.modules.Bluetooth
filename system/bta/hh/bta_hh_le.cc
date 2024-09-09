@@ -911,6 +911,14 @@ static void bta_hh_le_dis_cback(const RawAddress& addr, tDIS_VALUE* p_dis_value)
     p_cb->dscp_info.vendor_id = p_dis_value->pnp_id.vendor_id;
     p_cb->dscp_info.version = p_dis_value->pnp_id.product_version;
   }
+
+#if TARGET_FLOSS
+  /* serialize HoGP and DIS for floss */
+  Uuid pri_srvc = Uuid::From16Bit(UUID_SERVCLASS_LE_HID);
+  BTA_GATTC_ServiceSearchRequest(p_cb->conn_id, pri_srvc);
+  return;
+#endif
+
   bta_hh_le_open_cmpl(p_cb);
 }
 
@@ -933,6 +941,11 @@ static void bta_hh_le_pri_service_discovery(tBTA_HH_DEV_CB* p_cb) {
   if (!DIS_ReadDISInfo(p_cb->link_spec.addrt.bda, bta_hh_le_dis_cback, DIS_ATTR_PNP_ID_BIT)) {
     log::error("read DIS failed");
     p_cb->disc_active &= ~BTA_HH_LE_DISC_DIS;
+  } else {
+#if TARGET_FLOSS
+    /* serialize HoGP and DIS for floss */
+    return;
+#endif
   }
 
   /* in parallel */
