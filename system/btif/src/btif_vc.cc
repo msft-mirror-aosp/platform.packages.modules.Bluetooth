@@ -23,9 +23,9 @@
 #include <hardware/bluetooth.h>
 #include <hardware/bt_vc.h>
 
-#include "bta_vc_api.h"
-#include "btif_common.h"
-#include "btif_profile_storage.h"
+#include "bta/include/bta_vc_api.h"
+#include "btif/include/btif_common.h"
+#include "btif/include/btif_profile_storage.h"
 #include "stack/include/main_thread.h"
 #include "types/raw_address.h"
 
@@ -34,7 +34,6 @@ using base::Unretained;
 using bluetooth::vc::ConnectionState;
 using bluetooth::vc::VolumeControlCallbacks;
 using bluetooth::vc::VolumeControlInterface;
-using namespace bluetooth;
 
 namespace {
 std::unique_ptr<VolumeControlInterface> vc_instance;
@@ -100,7 +99,7 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
 
   void Connect(const RawAddress& address) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
-      log::verbose(
+      bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
               "being not read");
       return;
@@ -111,7 +110,7 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
 
   void Disconnect(const RawAddress& address) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
-      log::verbose(
+      bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
               "being not read");
       return;
@@ -121,7 +120,7 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
 
   void SetVolume(std::variant<RawAddress, int> addr_or_group_id, uint8_t volume) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
-      log::verbose(
+      bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
               "being not read");
       return;
@@ -133,7 +132,7 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
 
   void Mute(std::variant<RawAddress, int> addr_or_group_id) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
-      log::verbose(
+      bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
               "being not read");
       return;
@@ -145,7 +144,7 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
 
   void Unmute(std::variant<RawAddress, int> addr_or_group_id) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
-      log::verbose(
+      bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
               "being not read");
       return;
@@ -157,7 +156,7 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
 
   void RemoveDevice(const RawAddress& address) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
-      log::verbose(
+      bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
               "being not read");
       return;
@@ -171,7 +170,7 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
 
   void GetExtAudioOutVolumeOffset(const RawAddress& address, uint8_t ext_output_id) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
-      log::verbose(
+      bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
               "being not read");
       return;
@@ -184,7 +183,7 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
   void SetExtAudioOutVolumeOffset(const RawAddress& address, uint8_t ext_output_id,
                                   int16_t offset_val) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
-      log::verbose(
+      bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
               "being not read");
       return;
@@ -196,7 +195,7 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
 
   void GetExtAudioOutLocation(const RawAddress& address, uint8_t ext_output_id) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
-      log::verbose(
+      bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
               "being not read");
       return;
@@ -209,7 +208,7 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
   void SetExtAudioOutLocation(const RawAddress& address, uint8_t ext_output_id,
                               uint32_t location) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
-      log::verbose(
+      bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
               "being not read");
       return;
@@ -221,7 +220,7 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
 
   void GetExtAudioOutDescription(const RawAddress& address, uint8_t ext_output_id) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
-      log::verbose(
+      bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
               "being not read");
       return;
@@ -234,7 +233,7 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
   void SetExtAudioOutDescription(const RawAddress& address, uint8_t ext_output_id,
                                  std::string descr) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
-      log::verbose(
+      bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
               "being not read");
       return;
@@ -246,7 +245,7 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
 
   void Cleanup(void) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
-      log::verbose(
+      bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
               "being not read");
       return;

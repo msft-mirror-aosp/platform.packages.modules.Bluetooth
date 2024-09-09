@@ -607,8 +607,7 @@ public class AvrcpTargetService extends ProfileService {
             Metadata newMetadata = newQueue.get(index);
 
             if (!Objects.equals(currentMetadata.title, newMetadata.title)
-                    || !Objects.equals(currentMetadata.artist, newMetadata.artist)
-                    || !Objects.equals(currentMetadata.album, newMetadata.album)) {
+                    || !Objects.equals(currentMetadata.artist, newMetadata.artist)) {
                 return true;
             }
         }

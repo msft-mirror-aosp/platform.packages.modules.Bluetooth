@@ -28,7 +28,7 @@
 #include "macros.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/hiddefs.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_types.h"
 #include "types/ble_address_with_type.h"
 #include "types/bluetooth/uuid.h"
 

@@ -21,7 +21,6 @@
 #include <shared_mutex>
 
 #include "com_android_bluetooth.h"
-#include "common/init_flags.h"
 #include "hardware/bt_bqr.h"
 
 using bluetooth::bqr::BluetoothQualityReportCallbacks;

@@ -69,7 +69,7 @@ java_aconfig_library {
     apex_available: [
         "com.android.btservices",
     ],
-    libs: ["framework-configinfrastructure"],
+    libs: ["framework-configinfrastructure.stubs.module_lib"],
     sdk_version: "module_current",
     min_sdk_version: "Tiramisu",
 }

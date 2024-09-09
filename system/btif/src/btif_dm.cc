@@ -94,6 +94,7 @@
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_sec_api_types.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/rnr_interface.h"
 #include "stack/include/smp_api.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
@@ -1735,13 +1736,14 @@ void btif_on_gatt_results(RawAddress bd_addr, BD_NAME bd_name,
         /* LE Audio profile should relax parameters when it connects. If
          * profile is not enabled, relax parameters after timeout. */
         log::debug("Scheduling conn params unlock for {}", bd_addr);
-        do_in_main_thread_delayed(base::BindOnce(
-                                          [](RawAddress bd_addr) {
-                                            L2CA_LockBleConnParamsForProfileConnection(bd_addr,
-                                                                                       false);
-                                          },
-                                          bd_addr),
-                                  std::chrono::seconds(15));
+        do_in_main_thread_delayed(
+                base::BindOnce(
+                        [](RawAddress bd_addr) {
+                          stack::l2cap::get_interface().L2CA_LockBleConnParamsForProfileConnection(
+                                  bd_addr, false);
+                        },
+                        bd_addr),
+                std::chrono::seconds(15));
       }
     }
   } else {
@@ -2220,7 +2222,7 @@ void btif_dm_acl_evt(tBTA_DM_ACL_EVT event, tBTA_DM_ACL* p_data) {
 
       if (p_data->link_up.transport_link_type == BT_TRANSPORT_LE && pairing_cb.bd_addr == bd_addr &&
           is_device_le_audio_capable(bd_addr)) {
-        L2CA_LockBleConnParamsForProfileConnection(bd_addr, true);
+        stack::l2cap::get_interface().L2CA_LockBleConnParamsForProfileConnection(bd_addr, true);
       }
       break;
 
