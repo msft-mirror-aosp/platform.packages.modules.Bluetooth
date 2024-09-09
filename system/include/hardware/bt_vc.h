@@ -20,6 +20,7 @@
 #include <hardware/bluetooth.h>
 #include <raw_address.h>
 
+#include <string>
 #include <variant>
 
 namespace bluetooth {

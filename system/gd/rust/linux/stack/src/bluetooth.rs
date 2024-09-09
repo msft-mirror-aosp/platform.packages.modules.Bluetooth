@@ -322,10 +322,6 @@ pub enum DelayedActions {
     /// Scanner for BLE discovery is reporting a result.
     BleDiscoveryScannerResult(ScanResult),
 
-    /// Update the connectable mode to allow or disallow classic reconnect.
-    /// Parameter: Whether or not there are Classic listening sockets
-    UpdateConnectableMode(bool),
-
     /// Reset the discoverable mode to BtDiscMode::NonDiscoverable.
     ResetDiscoverable,
 
@@ -597,6 +593,7 @@ pub struct Bluetooth {
     discovering_started: Instant,
     hh: Option<HidHost>,
     is_connectable: bool,
+    is_socket_listening: bool,
     discoverable_mode: BtDiscMode,
     // This refers to the suspend mode of the functionality related to Classic scan mode,
     // i.e., page scan and inquiry scan; Also known as connectable and discoverable.
@@ -612,6 +609,7 @@ pub struct Bluetooth {
     freshness_check: Option<JoinHandle<()>>,
     sdp: Option<Sdp>,
     state: BtState,
+    disabling: bool,
     tx: Sender<Message>,
     api_tx: Sender<APIMessage>,
     // Internal API members
@@ -656,6 +654,7 @@ impl Bluetooth {
             discovering_started: Instant::now(),
             intf,
             is_connectable: false,
+            is_socket_listening: false,
             discoverable_mode: BtDiscMode::NonDiscoverable,
             scan_suspend_mode: SuspendMode::Normal,
             is_discovering: false,
@@ -669,6 +668,7 @@ impl Bluetooth {
             freshness_check: None,
             sdp: None,
             state: BtState::Off,
+            disabling: false,
             tx,
             api_tx,
             // Internal API members
@@ -701,12 +701,19 @@ impl Bluetooth {
         self.ble_scanner_uuid = Some(bluetooth_gatt.lock().unwrap().register_scanner(callback_id));
     }
 
-    fn update_connectable_mode(&mut self, is_sock_listening: bool) {
+    fn update_connectable_mode(&mut self) {
+        // Don't bother if we are disabling. See b/361510982
+        if self.disabling {
+            return;
+        }
+        if self.get_scan_suspend_mode() != SuspendMode::Normal {
+            return;
+        }
         // Set connectable if
         // - there is bredr socket listening, or
         // - there is a classic device bonded and not connected
         self.set_connectable_internal(
-            is_sock_listening
+            self.is_socket_listening
                 || self.remote_devices.values().any(|ctx| {
                     ctx.bond_state == BtBondState::Bonded
                         && ctx.bredr_acl_state == BtAclState::Disconnected
@@ -724,14 +731,12 @@ impl Bluetooth {
         );
     }
 
-    fn trigger_update_connectable_mode(&self) {
-        if self.get_scan_suspend_mode() != SuspendMode::Normal {
+    pub(crate) fn set_socket_listening(&mut self, is_listening: bool) {
+        if self.is_socket_listening == is_listening {
             return;
         }
-        let txl = self.tx.clone();
-        tokio::spawn(async move {
-            let _ = txl.send(Message::TriggerUpdateConnectableMode).await;
-        });
+        self.is_socket_listening = is_listening;
+        self.update_connectable_mode();
     }
 
     pub(crate) fn get_hci_index(&self) -> u16 {
@@ -916,7 +921,7 @@ impl Bluetooth {
         self.set_scan_suspend_mode(SuspendMode::Normal);
 
         // Update is only available after SuspendMode::Normal
-        self.trigger_update_connectable_mode();
+        self.update_connectable_mode();
 
         BtStatus::Success
     }
@@ -1148,10 +1153,6 @@ impl Bluetooth {
                         Instant::now(),
                         properties,
                     ));
-            }
-
-            DelayedActions::UpdateConnectableMode(is_sock_listening) => {
-                self.update_connectable_mode(is_sock_listening);
             }
 
             DelayedActions::ResetDiscoverable => {
@@ -1476,7 +1477,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
                 self.le_local_supported_features = controller.get_ble_local_supported_features();
 
                 // Update connectable mode so that disconnected bonded classic device can reconnect
-                self.trigger_update_connectable_mode();
+                self.update_connectable_mode();
 
                 // Spawn a freshness check job in the background.
                 if let Some(h) = self.freshness_check.take() {
@@ -1555,7 +1556,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
                     }
 
                     // Update the connectable mode since bonded device list might be updated.
-                    self.trigger_update_connectable_mode();
+                    self.update_connectable_mode();
                 }
                 BluetoothProperty::BdName(bdname) => {
                     self.callbacks.for_all_callbacks(|callback| {
@@ -1752,7 +1753,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
                         self.clear_uhid();
                     }
                     // Update the connectable mode since bonded list is changed.
-                    self.trigger_update_connectable_mode();
+                    self.update_connectable_mode();
                 }
                 BtBondState::Bonded => {
                     let device = entry.or_insert(BluetoothDeviceContext::new(
@@ -1774,7 +1775,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
                         self.create_uhid_for_suspend_wakesource();
                     }
                     // Update the connectable mode since bonded list is changed.
-                    self.trigger_update_connectable_mode();
+                    self.update_connectable_mode();
 
                     let transport = match self.get_remote_type(device_info.clone()) {
                         BtDeviceType::Bredr => BtTransport::Bredr,
@@ -1887,7 +1888,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
             })
         {
             // Update the connectable mode since the device type is changed.
-            self.trigger_update_connectable_mode();
+            self.update_connectable_mode();
         }
     }
 
@@ -1991,7 +1992,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
         // scan, it makes sense to extend it to all BT controllers here.
         if Some(addr) != self.active_pairing_address {
             // Update the connectable since the connected state could be changed.
-            self.trigger_update_connectable_mode();
+            self.update_connectable_mode();
         }
     }
 
@@ -2086,10 +2087,18 @@ impl IBluetooth for Bluetooth {
     }
 
     fn enable(&mut self) -> bool {
+        self.disabling = false;
         self.intf.lock().unwrap().enable() == 0
     }
 
     fn disable(&mut self) -> bool {
+        self.disabling = true;
+        if !self.set_discoverable(BtDiscMode::NonDiscoverable, 0) {
+            warn!("set_discoverable failed on disabling");
+        }
+        if !self.set_connectable_internal(false) {
+            warn!("set_connectable_internal failed on disabling");
+        }
         self.intf.lock().unwrap().disable() == 0
     }
 
