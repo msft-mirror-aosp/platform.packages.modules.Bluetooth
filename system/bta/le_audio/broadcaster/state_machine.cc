@@ -58,7 +58,7 @@ const int kAdvertisingChannelAll =
 class BroadcastStateMachineImpl : public BroadcastStateMachine {
 public:
   BroadcastStateMachineImpl(BroadcastStateMachineConfig msg)
-      : active_config_(std::nullopt), sm_config_(std::move(msg)), suspending_(false) {}
+      : active_config_(std::nullopt), sm_config_(std::move(msg)) {}
 
   ~BroadcastStateMachineImpl() {
     if (GetState() == State::STREAMING) {
@@ -233,7 +233,6 @@ public:
 private:
   std::optional<BigConfig> active_config_;
   BroadcastStateMachineConfig sm_config_;
-  bool suspending_;
 
   /* Message handlers for each possible state */
   typedef std::function<void(const void*)> msg_handler_t;
@@ -247,7 +246,14 @@ private:
           /* in CONFIGURING state */
           [](const void*) { /* Do nothing */ },
           /* in CONFIGURED state */
-          [this](const void*) { CreateBig(); },
+          [this](const void*) {
+            SetState(State::ENABLING);
+            CreateBig();
+          },
+          /* in ENABLING state */
+          [](const void*) { /* Do nothing */ },
+          /* in DISABLING state */
+          [this](const void*) { SetState(State::ENABLING); },
           /* in STOPPING state */
           [](const void*) { /* Do nothing */ },
           /* in STREAMING state */
@@ -264,16 +270,17 @@ private:
             callbacks_->OnStateMachineEvent(GetBroadcastId(), GetState());
             DisableAnnouncement();
           },
+          /* in ENABLING state */
+          [](const void*) { /* Do nothing */ },
+          /* in DISABLING state */
+          [](const void*) { /* Do nothing */ },
           /* in STOPPING state */
           [](const void*) { /* Do nothing */ },
           /* in STREAMING state */
           [this](const void*) {
-            if ((active_config_ != std::nullopt) && !suspending_) {
-              suspending_ = false;
-              SetState(State::STOPPING);
-              callbacks_->OnStateMachineEvent(GetBroadcastId(), GetState());
-              TriggerIsoDatapathTeardown(active_config_->connection_handles[0]);
-            }
+            SetState(State::STOPPING);
+            callbacks_->OnStateMachineEvent(GetBroadcastId(), GetState());
+            TriggerIsoDatapathTeardown(active_config_->connection_handles[0]);
           }};
 
   const std::array<msg_handler_t, BroadcastStateMachine::STATE_COUNT> suspend_msg_handlers{
@@ -282,22 +289,23 @@ private:
           /* in CONFIGURING state */
           [](const void*) { /* Do nothing */ },
           /* in CONFIGURED state */
+          [](const void*) { /* Already suspended */ },
+          /* in ENABLING state */
           [this](const void*) {
-            suspending_ = true;
+            SetState(State::DISABLING);
 
-            /* Terminate BIG if suspend happens before setting STREAMING state */
             if (active_config_ != std::nullopt) {
               TerminateBig();
             }
           },
+          /* in DISABLING state */
+          [](const void*) { /* Do nothing */ },
           /* in STOPPING state */
           [](const void*) { /* Do nothing */ },
           /* in STREAMING state */
           [this](const void*) {
-            if ((active_config_ != std::nullopt) && !suspending_) {
-              suspending_ = true;
-              TriggerIsoDatapathTeardown(active_config_->connection_handles[0]);
-            }
+            SetState(State::DISABLING);
+            TriggerIsoDatapathTeardown(active_config_->connection_handles[0]);
           }};
 
   const std::array<msg_handler_t, BroadcastStateMachine::STATE_COUNT> resume_msg_handlers{
@@ -306,7 +314,14 @@ private:
           /* in CONFIGURING state */
           [](const void*) { /* Do nothing */ },
           /* in CONFIGURED state */
-          [this](const void*) { CreateBig(); },
+          [this](const void*) {
+            SetState(State::ENABLING);
+            CreateBig();
+          },
+          /* in ENABLING state */
+          [](const void*) { /* Do nothing */ },
+          /* in DISABLING state */
+          [](const void*) { /* Do nothing */ },
           /* in STOPPING state */
           [](const void*) { /* Do nothing */ },
           /* in STREAMING state */
@@ -406,7 +421,7 @@ private:
   }
 
   void TerminateBig() {
-    log::info("suspending={}", suspending_);
+    log::info("disabling={}", GetState() == BroadcastStateMachine::State::DISABLING);
     /* Terminate with reason: Connection Terminated By Local Host */
     IsoManager::GetInstance()->TerminateBig(GetAdvertisingSid(), 0x16);
   }
@@ -417,7 +432,7 @@ private:
 
     if (status != 0) {
       log::error("Failure creating data path. Tearing down the BIG now.");
-      suspending_ = true;
+      SetState(State::DISABLING);
       TerminateBig();
       return;
     }
@@ -538,7 +553,7 @@ private:
                   .connection_handles = evt->conn_handles,
           };
 
-          if (suspending_) {
+          if (GetState() == BroadcastStateMachine::State::DISABLING) {
             log::info("Terminating BIG due to stream suspending, big_id={}", evt->big_id);
             TerminateBig();
           } else {
@@ -562,14 +577,14 @@ private:
         }
 
         active_config_ = std::nullopt;
+        bool disabling = GetState() == BroadcastStateMachine::State::DISABLING;
 
         /* Go back to configured if BIG is inactive (we are still announcing) */
         SetState(State::CONFIGURED);
 
         /* Check if we got this HCI event due to STOP or SUSPEND message. */
-        if (suspending_) {
+        if (disabling) {
           callbacks_->OnStateMachineEvent(GetBroadcastId(), GetState(), evt);
-          suspending_ = false;
         } else {
           DisableAnnouncement();
         }
@@ -617,7 +632,7 @@ std::ostream& operator<<(std::ostream& os, const BroadcastStateMachine::Message&
 
 std::ostream& operator<<(std::ostream& os, const BroadcastStateMachine::State& state) {
   static const char* char_value_[BroadcastStateMachine::STATE_COUNT] = {
-          "STOPPED", "CONFIGURING", "CONFIGURED", "STOPPING", "STREAMING"};
+          "STOPPED", "CONFIGURING", "CONFIGURED", "ENABLING", "DISABLING", "STOPPING", "STREAMING"};
   os << char_value_[static_cast<uint8_t>(state)];
   return os;
 }

@@ -32,11 +32,6 @@
 #include "stack/btm/btm_sco.h"
 #include "udrv/include/uipc.h"
 
-#define SCO_DATA_READ_POLL_MS 10
-#define SCO_HOST_DATA_PATH "/var/run/bluetooth/audio/.sco_data"
-// TODO(b/198260375): Make SCO data owner group configurable.
-#define SCO_HOST_DATA_GROUP "bluetooth-audio"
-
 /* Per Bluetooth Core v5.0 and HFP 1.9 specification. */
 #define BTM_MSBC_H2_HEADER_0 0x01
 #define BTM_MSBC_H2_HEADER_LEN 2
@@ -65,6 +60,13 @@
 #define BTM_LC3_PKT_LEN 60
 #define BTM_LC3_FS 240 /* Frame Size */
 
+#if TARGET_FLOSS
+
+#define SCO_DATA_READ_POLL_MS 10
+#define SCO_HOST_DATA_PATH "/var/run/bluetooth/audio/.sco_data"
+// TODO(b/198260375): Make SCO data owner group configurable.
+#define SCO_HOST_DATA_GROUP "bluetooth-audio"
+
 namespace {
 
 std::unique_ptr<tUIPC_STATE> sco_uipc = nullptr;
@@ -86,11 +88,13 @@ void sco_data_cb(tUIPC_CH_ID, tUIPC_EVENT event) {
 }
 
 }  // namespace
+#endif
 
 namespace bluetooth {
 namespace audio {
 namespace sco {
 
+#if TARGET_FLOSS
 void open() {
   if (sco_uipc != nullptr) {
     log::warn("Re-opening UIPC that is already running");
@@ -136,6 +140,22 @@ size_t write(const uint8_t* p_buf, uint32_t len) {
   }
   return UIPC_Send(*sco_uipc, UIPC_CH_ID_AV_AUDIO, 0, p_buf, len) ? len : 0;
 }
+#else
+void open() {}
+void cleanup() {}
+
+size_t read(uint8_t* p_buf, uint32_t len) {
+  (void)p_buf;
+  (void)len;
+  return 0;
+}
+
+size_t write(const uint8_t* p_buf, uint32_t len) {
+  (void)p_buf;
+  (void)len;
+  return 0;
+}
+#endif
 
 enum decode_buf_state {
   DECODE_BUF_EMPTY,

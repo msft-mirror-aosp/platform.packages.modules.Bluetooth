@@ -2312,8 +2312,7 @@ void btm_ble_process_adv_pkt_cont_for_inquiry(uint16_t evt_type, tBLE_ADDR_TYPE 
     if (p_i && (!(p_i->inq_info.results.device_type & BT_DEVICE_TYPE_BLE) ||
                 /* scan response to be updated */
                 (!p_i->scan_rsp) || (!p_i->inq_info.results.include_rsi && include_rsi) ||
-                (com::android::bluetooth::flags::update_inquiry_result_on_flag_change() &&
-                 !p_i->inq_info.results.flag && p_flag && *p_flag))) {
+                (!p_i->inq_info.results.flag && p_flag && *p_flag))) {
       update = true;
     } else if (btm_cb.ble_ctr_cb.is_ble_observe_active()) {
       btm_cb.neighbor.le_observe.results++;

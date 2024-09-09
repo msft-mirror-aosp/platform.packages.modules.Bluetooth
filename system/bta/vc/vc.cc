@@ -26,12 +26,12 @@
 #include <string>
 #include <vector>
 
+#include "bta/include/bta_csis_api.h"
+#include "bta/include/bta_gatt_api.h"
+#include "bta/include/bta_gatt_queue.h"
+#include "bta/include/bta_vc_api.h"
 #include "bta/le_audio/le_audio_types.h"
-#include "bta_csis_api.h"
-#include "bta_gatt_api.h"
-#include "bta_gatt_queue.h"
-#include "bta_vc_api.h"
-#include "devices.h"
+#include "bta/vc/devices.h"
 #include "internal_include/bt_trace.h"
 #include "os/log.h"
 #include "osi/include/osi.h"
@@ -45,8 +45,17 @@ using base::Closure;
 using bluetooth::Uuid;
 using bluetooth::csis::CsisClient;
 using bluetooth::vc::ConnectionState;
-using namespace bluetooth::vc::internal;
-using namespace bluetooth;
+using bluetooth::vc::internal::kControlPointOpcodeMute;
+using bluetooth::vc::internal::kControlPointOpcodeSetAbsoluteVolume;
+using bluetooth::vc::internal::kControlPointOpcodeUnmute;
+using bluetooth::vc::internal::kControlPointOpcodeVolumeDown;
+using bluetooth::vc::internal::kControlPointOpcodeVolumeUp;
+using bluetooth::vc::internal::kVolumeControlUuid;
+using bluetooth::vc::internal::kVolumeOffsetControlPointOpcodeSet;
+using bluetooth::vc::internal::VolumeControlDevice;
+using bluetooth::vc::internal::VolumeControlDevices;
+using bluetooth::vc::internal::VolumeOffset;
+using bluetooth::vc::internal::VolumeOperation;
 
 namespace {
 class VolumeControlImpl;
@@ -90,7 +99,7 @@ public:
             base::Bind(
                     [](const base::Closure& initCb, uint8_t client_id, uint8_t status) {
                       if (status != GATT_SUCCESS) {
-                        log::error(
+                        bluetooth::log::error(
                                 "Can't start Volume Control profile - no gatt clients "
                                 "left!");
                         return;
@@ -106,17 +115,17 @@ public:
     /* Oportunistic works only for direct connect,
      * but in fact this is background connect
      */
-    log::info(": {}", address);
+    bluetooth::log::info(": {}", address);
     BTA_GATTC_Open(gatt_if_, address, BTM_BLE_DIRECT_CONNECTION, true);
   }
 
   void Connect(const RawAddress& address) override {
-    log::info(": {}", address);
+    bluetooth::log::info(": {}", address);
 
     auto device = volume_control_devices_.FindByAddress(address);
     if (!device) {
       if (!BTM_IsLinkKeyKnown(address, BT_TRANSPORT_LE)) {
-        log::error("Connecting  {} when not bonded", address);
+        bluetooth::log::error("Connecting  {} when not bonded", address);
         callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
         return;
       }
@@ -125,8 +134,8 @@ public:
       device->connecting_actively = true;
 
       if (device->IsConnected()) {
-        log::warn("address={}, connection_id={} already connected.", address,
-                  device->connection_id);
+        bluetooth::log::warn("address={}, connection_id={} already connected.", address,
+                             device->connection_id);
 
         if (device->IsReady()) {
           callbacks_->OnConnectionState(ConnectionState::CONNECTED, device->address);
@@ -142,30 +151,32 @@ public:
   }
 
   void AddFromStorage(const RawAddress& address) {
-    log::info("{}", address);
+    bluetooth::log::info("{}", address);
     volume_control_devices_.Add(address, false);
     StartOpportunisticConnect(address);
   }
 
   void OnGattConnected(tGATT_STATUS status, uint16_t connection_id, tGATT_IF /*client_if*/,
                        RawAddress address, tBT_TRANSPORT transport, uint16_t /*mtu*/) {
-    log::info("{}, conn_id=0x{:04x}, transport={}, status={}(0x{:02x})", address, connection_id,
-              bt_transport_text(transport), gatt_status_text(status), status);
+    bluetooth::log::info("{}, conn_id=0x{:04x}, transport={}, status={}(0x{:02x})", address,
+                         connection_id, bt_transport_text(transport), gatt_status_text(status),
+                         status);
 
     if (transport != BT_TRANSPORT_LE) {
-      log::warn("Only LE connection is allowed (transport {})", bt_transport_text(transport));
+      bluetooth::log::warn("Only LE connection is allowed (transport {})",
+                           bt_transport_text(transport));
       BTA_GATTC_Close(connection_id);
       return;
     }
 
     VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
     if (!device) {
-      log::error("Skipping unknown device, address={}", address);
+      bluetooth::log::error("Skipping unknown device, address={}", address);
       return;
     }
 
     if (status != GATT_SUCCESS) {
-      log::info("Failed to connect to Volume Control device");
+      bluetooth::log::info("Failed to connect to Volume Control device");
       device_cleanup_helper(device, device->connecting_actively);
       StartOpportunisticConnect(address);
       return;
@@ -184,7 +195,7 @@ public:
     }
 
     if (!device->EnableEncryption()) {
-      log::error("Link key is not known for {}, disconnect profile", address);
+      bluetooth::log::error("Link key is not known for {}, disconnect profile", address);
       device->Disconnect(gatt_if_);
     }
   }
@@ -192,12 +203,12 @@ public:
   void OnEncryptionComplete(const RawAddress& address, tBTM_STATUS success) {
     VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
     if (!device) {
-      log::error("Skipping unknown device {}", address);
+      bluetooth::log::error("Skipping unknown device {}", address);
       return;
     }
 
     if (success != tBTM_STATUS::BTM_SUCCESS) {
-      log::error("encryption failed status: {}", btm_status_text(success));
+      bluetooth::log::error("encryption failed status: {}", btm_status_text(success));
       // If the encryption failed, do not remove the device.
       // Disconnect only, since the Android will try to re-enable encryption
       // after disconnection
@@ -205,7 +216,7 @@ public:
       return;
     }
 
-    log::info("{} status: {}", address, success);
+    bluetooth::log::info("{} status: {}", address, success);
 
     if (device->HasHandles()) {
       device->EnqueueInitialRequests(gatt_if_, chrc_read_callback_static, OnGattWriteCccStatic);
@@ -217,13 +228,13 @@ public:
 
   void ClearDeviceInformationAndStartSearch(VolumeControlDevice* device) {
     if (!device) {
-      log::error("Device is null");
+      bluetooth::log::error("Device is null");
       return;
     }
 
-    log::info("address={}", device->address);
+    bluetooth::log::info("address={}", device->address);
     if (device->known_service_handles_ == false) {
-      log::info("Device already is waiting for new services");
+      bluetooth::log::info("Device already is waiting for new services");
       return;
     }
 
@@ -238,7 +249,7 @@ public:
   void OnServiceChangeEvent(const RawAddress& address) {
     VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
     if (!device) {
-      log::error("Skipping unknown device {}", address);
+      bluetooth::log::error("Skipping unknown device {}", address);
       return;
     }
 
@@ -248,7 +259,7 @@ public:
   void OnServiceDiscDoneEvent(const RawAddress& address) {
     VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
     if (!device) {
-      log::error("Skipping unknown device {}", address);
+      bluetooth::log::error("Skipping unknown device {}", address);
       return;
     }
 
@@ -260,7 +271,7 @@ public:
   void OnServiceSearchComplete(uint16_t connection_id, tGATT_STATUS status) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
-      log::error("Skipping unknown device, connection_id=0x{:x}", connection_id);
+      bluetooth::log::error("Skipping unknown device, connection_id={:#x}", connection_id);
       return;
     }
 
@@ -271,19 +282,19 @@ public:
 
     if (status != GATT_SUCCESS) {
       /* close connection and report service discovery complete with error */
-      log::error("Service discovery failed");
+      bluetooth::log::error("Service discovery failed");
       device_cleanup_helper(device, device->connecting_actively);
       return;
     }
 
     if (!device->IsEncryptionEnabled()) {
-      log::warn("Device not yet bonded - waiting for encryption");
+      bluetooth::log::warn("Device not yet bonded - waiting for encryption");
       return;
     }
 
     bool success = device->UpdateHandles();
     if (!success) {
-      log::error("Incomplete service database");
+      bluetooth::log::error("Incomplete service database");
       device_cleanup_helper(device, device->connecting_actively);
       return;
     }
@@ -296,14 +307,14 @@ public:
                                     bool is_notification) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(conn_id);
     if (!device) {
-      log::info("unknown conn_id=0x{:x}", conn_id);
+      bluetooth::log::error("unknown conn_id={:#x}", conn_id);
       return;
     }
 
     if (status != GATT_SUCCESS) {
-      log::info("status=0x{:02x}", static_cast<int>(status));
+      bluetooth::log::info("status=0x{:02x}", static_cast<int>(status));
       if (status == GATT_DATABASE_OUT_OF_SYNC) {
-        log::info("Database out of sync for {}", device->address);
+        bluetooth::log::info("Database out of sync for {}", device->address);
         ClearDeviceInformationAndStartSearch(device);
       }
       return;
@@ -334,7 +345,7 @@ public:
       } else if (handle == offset->audio_descr_handle) {
         OnOffsetOutputDescChanged(device, offset, len, value);
       } else {
-        log::error("unknown offset handle=0x{:x}", handle);
+        bluetooth::log::error("{} unknown offset handle={:#x}", device->address, handle);
         return;
       }
 
@@ -342,11 +353,11 @@ public:
       return;
     }
 
-    log::error("unknown handle=0x{:x}", handle);
+    bluetooth::log::error("{}, unknown handle={:#x}", device->address, handle);
   }
 
   void OnNotificationEvent(uint16_t conn_id, uint16_t handle, uint16_t len, uint8_t* value) {
-    log::info("handle=0x{:x}", handle);
+    bluetooth::log::info("connection_id={:#x}, handle={:#x}", conn_id, handle);
     OnCharacteristicValueChanged(conn_id, GATT_SUCCESS, handle, len, value, nullptr, true);
   }
 
@@ -356,25 +367,26 @@ public:
 
   void HandleAutonomusVolumeChange(VolumeControlDevice* device, bool is_volume_change,
                                    bool is_mute_change) {
-    log::debug("{}, is volume change: {}, is mute change: {}", device->address, is_volume_change,
-               is_mute_change);
+    bluetooth::log::debug("{}, is volume change: {}, is mute change: {}", device->address,
+                          is_volume_change, is_mute_change);
 
     if (!is_volume_change && !is_mute_change) {
-      log::error("Autonomous change but volume and mute did not changed.");
+      bluetooth::log::error("Autonomous change but volume and mute did not changed.");
       return;
     }
 
     auto csis_api = CsisClient::Get();
     if (!csis_api) {
-      log::warn("Csis module is not available");
+      bluetooth::log::warn("Csis module is not available");
       callbacks_->OnVolumeStateChanged(device->address, device->volume, device->mute, device->flags,
                                        true);
       return;
     }
 
-    auto group_id = csis_api->GetGroupId(device->address, le_audio::uuid::kCapServiceUuid);
+    auto group_id =
+            csis_api->GetGroupId(device->address, bluetooth::le_audio::uuid::kCapServiceUuid);
     if (group_id == bluetooth::groups::kGroupUnknown) {
-      log::warn("No group for device {}", device->address);
+      bluetooth::log::warn("No group for device {}", device->address);
       callbacks_->OnVolumeStateChanged(device->address, device->volume, device->mute, device->flags,
                                        true);
       return;
@@ -391,7 +403,7 @@ public:
     }
 
     if (devices.empty() && (is_volume_change || is_mute_change)) {
-      log::info("No more devices in the group right now");
+      bluetooth::log::info("No more devices in the group right now");
       callbacks_->OnGroupVolumeStateChanged(group_id, device->volume, device->mute, true);
       return;
     }
@@ -414,7 +426,7 @@ public:
   void OnVolumeControlStateReadOrNotified(VolumeControlDevice* device, uint16_t len, uint8_t* value,
                                           bool is_notification) {
     if (len != 3) {
-      log::info("malformed len=0x{:x}", len);
+      bluetooth::log::error("{}, malformed len={:#x}", device->address, len);
       return;
     }
 
@@ -431,11 +443,11 @@ public:
     bool is_mute_change = (device->mute != mute);
     device->mute = mute;
 
-    log::info("volume 0x{:x} mute 0x{:x} change_counter 0x{:x}", device->volume, device->mute,
-              device->change_counter);
+    bluetooth::log::info("{}, volume {:#x} mute {:#x} change_counter {:#x}", device->address,
+                         device->volume, device->mute, device->change_counter);
 
     if (!device->IsReady()) {
-      log::info("Device: {} is not ready yet.", device->address);
+      bluetooth::log::info("Device: {} is not ready yet.", device->address);
       return;
     }
 
@@ -453,7 +465,8 @@ public:
                         return it != operation.devices_.end();
                       });
     if (op == ongoing_operations_.end()) {
-      log::debug("Could not find operation id for device: {}. Autonomus change", device->address);
+      bluetooth::log::debug("Could not find operation id for device: {}. Autonomus change",
+                            device->address);
       HandleAutonomusVolumeChange(device, is_volume_change, is_mute_change);
       return;
     }
@@ -462,7 +475,7 @@ public:
     auto it = find(op->devices_.begin(), op->devices_.end(), device->address);
     op->devices_.erase(it);
     if (!op->devices_.empty()) {
-      log::debug("wait for more responses for operation_id: {}", op->operation_id_);
+      bluetooth::log::debug("wait for more responses for operation_id: {}", op->operation_id_);
       return;
     }
 
@@ -483,13 +496,13 @@ public:
   void OnVolumeControlFlagsChanged(VolumeControlDevice* device, uint16_t len, uint8_t* value) {
     device->flags = *value;
 
-    log::info("flags 0x{:x}", device->flags);
+    bluetooth::log::info("{}, flags {:#x}", device->address, device->flags);
   }
 
   void OnExtAudioOutStateChanged(VolumeControlDevice* device, VolumeOffset* offset, uint16_t len,
                                  uint8_t* value) {
     if (len != 3) {
-      log::info("malformed len=0x{:x}", len);
+      bluetooth::log::error("{}, id={:#x}, malformed len={:#x}", device->address, offset->id, len);
       return;
     }
 
@@ -497,12 +510,12 @@ public:
     STREAM_TO_UINT16(offset->offset, pp);
     STREAM_TO_UINT8(offset->change_counter, pp);
 
-    log::info("{}", base::HexEncode(value, len));
-    log::info("id: 0x{:x} offset: 0x{:x} counter: 0x{:x}", offset->id, offset->offset,
-              offset->change_counter);
+    bluetooth::log::verbose("{}, len:{}", device->address, base::HexEncode(value, len));
+    bluetooth::log::info("{} id={:#x} offset: {:#x} counter: {:#x}", device->address, offset->id,
+                         offset->offset, offset->change_counter);
 
     if (!device->IsReady()) {
-      log::info("Device: {} is not ready yet.", device->address);
+      bluetooth::log::info("Device: {} is not ready yet.", device->address);
       return;
     }
 
@@ -512,18 +525,19 @@ public:
   void OnExtAudioOutLocationChanged(VolumeControlDevice* device, VolumeOffset* offset, uint16_t len,
                                     uint8_t* value) {
     if (len != 4) {
-      log::info("malformed len=0x{:x}", len);
+      bluetooth::log::error("{}, id={:#x}, malformed len={:#x}", device->address, offset->id, len);
       return;
     }
 
     uint8_t* pp = value;
     STREAM_TO_UINT32(offset->location, pp);
 
-    log::info("{}", base::HexEncode(value, len));
-    log::info("id 0x{:x}location 0x{:x}", offset->id, offset->location);
+    bluetooth::log::verbose("{}, data :{}", device->address, base::HexEncode(value, len));
+    bluetooth::log::info("{} id={:#x}, location={:#x}", device->address, offset->id,
+                         offset->location);
 
     if (!device->IsReady()) {
-      log::info("Device: {} is not ready yet.", device->address);
+      bluetooth::log::info("Device: {} is not ready yet.", device->address);
       return;
     }
 
@@ -534,12 +548,13 @@ public:
                             void* /*data*/) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
-      log::error("Skipping unknown device disconnect, connection_id=0x{:x}", connection_id);
+      bluetooth::log::error("Skipping unknown device disconnect, connection_id={:#x}",
+                            connection_id);
       return;
     }
 
-    log::info("Offset Control Point write response handle0x{:x} status: 0x{:x}", handle,
-              (int)(status));
+    bluetooth::log::info("Offset Control Point write response handle{:#x} status: {:#x}", handle,
+                         static_cast<int>(status));
 
     /* TODO Design callback API to notify about changes */
   }
@@ -551,39 +566,40 @@ public:
       description = "<invalid utf8 string>";
     }
 
-    log::info("{}", description);
+    bluetooth::log::info("{}, {}", device->address, description);
 
     if (!device->IsReady()) {
-      log::info("Device: {} is not ready yet.", device->address);
+      bluetooth::log::info("Device: {} is not ready yet.", device->address);
       return;
     }
 
-    callbacks_->OnExtAudioOutDescriptionChanged(device->address, offset->id,
-                                                std::move(description));
+    callbacks_->OnExtAudioOutDescriptionChanged(device->address, offset->id, description);
   }
 
   void OnGattWriteCcc(uint16_t connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                       const uint8_t* value, void* /*data*/) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
-      log::info("unknown connection_id=0x{:x}", connection_id);
+      bluetooth::log::error("unknown connection_id={:#x}", connection_id);
       BtaGattQueue::Clean(connection_id);
       return;
     }
 
     if (status != GATT_SUCCESS) {
       if (status == GATT_DATABASE_OUT_OF_SYNC) {
-        log::info("Database out of sync for {}, conn_id: 0x{:04x}", device->address, connection_id);
+        bluetooth::log::info("Database out of sync for {}, conn_id: 0x{:04x}", device->address,
+                             connection_id);
         ClearDeviceInformationAndStartSearch(device);
       } else {
-        log::error("Failed to register for notification: 0x{:04x}, status 0x{:02x}", handle,
-                   status);
+        bluetooth::log::error("Failed to register for notification: 0x{:04x}, status 0x{:02x}",
+                              handle, status);
         device_cleanup_helper(device, true);
       }
       return;
     }
 
-    log::info("Successfully registered on ccc: 0x{:04x}, device: {}", handle, device->address);
+    bluetooth::log::info("Successfully registered on ccc: 0x{:04x}, device: {}", handle,
+                         device->address);
 
     verify_device_ready(device, handle);
   }
@@ -591,7 +607,8 @@ public:
   static void OnGattWriteCccStatic(uint16_t connection_id, tGATT_STATUS status, uint16_t handle,
                                    uint16_t len, const uint8_t* value, void* data) {
     if (!instance) {
-      log::error("No instance={}", handle);
+      bluetooth::log::error("connection_id={:#x}, no instance. Handle to write={:#x}",
+                            connection_id, handle);
       return;
     }
 
@@ -604,22 +621,22 @@ public:
   }
 
   void Disconnect(const RawAddress& address) override {
-    log::info("{}", address);
+    bluetooth::log::info("{}", address);
 
     VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
     if (!device) {
-      log::warn("Device not connected to profile {}", address);
+      bluetooth::log::warn("Device not connected to profile {}", address);
       callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
       return;
     }
 
-    log::info("GAP_EVT_CONN_CLOSED: {}", device->address);
+    bluetooth::log::info("GAP_EVT_CONN_CLOSED: {}", device->address);
     device->connecting_actively = false;
     device_cleanup_helper(device, true);
   }
 
   void Remove(const RawAddress& address) override {
-    log::info("{}", address);
+    bluetooth::log::info("{}", address);
 
     /* Removes all registrations for connection. */
     BTA_GATTC_CancelOpen(gatt_if_, address, false);
@@ -632,19 +649,20 @@ public:
                           tGATT_DISCONN_REASON reason) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
-      log::error("Skipping unknown device disconnect, connection_id=0x{:x}", connection_id);
+      bluetooth::log::error("Skipping unknown device disconnect, connection_id={:#x}",
+                            connection_id);
       return;
     }
 
     if (!device->IsConnected()) {
-      log::error(
+      bluetooth::log::error(
               "Skipping disconnect of the already disconnected device, "
-              "connection_id=0x{:x}",
+              "connection_id={:#x}",
               connection_id);
       return;
     }
 
-    log::info("{}", remote_bda);
+    bluetooth::log::info("{}", remote_bda);
 
     bool notify = device->IsReady() || device->connecting_actively;
     device_cleanup_helper(device, notify);
@@ -684,7 +702,7 @@ public:
             [operation_id](auto& operation) { return operation.operation_id_ == operation_id; });
 
     if (op == ongoing_operations_.end()) {
-      log::error("Could not find operation id: {}", operation_id);
+      bluetooth::log::error("Could not find operation id: {}", operation_id);
       return;
     }
 
@@ -699,8 +717,8 @@ public:
     }
   }
 
-  void RemovePendingVolumeControlOperations(std::vector<RawAddress>& devices, int group_id) {
-    log::debug("");
+  void RemovePendingVolumeControlOperations(const std::vector<RawAddress>& devices, int group_id) {
+    bluetooth::log::debug("");
     for (auto op = ongoing_operations_.begin(); op != ongoing_operations_.end();) {
       // We only remove operations that don't affect the mute field.
       if (op->IsStarted() || (op->opcode_ != kControlPointOpcodeSetAbsoluteVolume &&
@@ -710,20 +728,20 @@ public:
         continue;
       }
       if (group_id != bluetooth::groups::kGroupUnknown && op->group_id_ == group_id) {
-        log::debug("Removing operation {}", op->operation_id_);
+        bluetooth::log::debug("Removing operation {}", op->operation_id_);
         op = ongoing_operations_.erase(op);
         continue;
       }
       for (auto const& addr : devices) {
         auto it = find(op->devices_.begin(), op->devices_.end(), addr);
         if (it != op->devices_.end()) {
-          log::debug("Removing {} from operation", *it);
+          bluetooth::log::debug("Removing {} from operation", *it);
           op->devices_.erase(it);
         }
       }
       if (op->devices_.empty()) {
         op = ongoing_operations_.erase(op);
-        log::debug("Removing operation {}", op->operation_id_);
+        bluetooth::log::debug("Removing operation {}", op->operation_id_);
       } else {
         op++;
       }
@@ -734,11 +752,13 @@ public:
                               void* data) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
-      log::error("Skipping unknown device disconnect, connection_id=0x{:x}", connection_id);
+      bluetooth::log::error("Skipping unknown device disconnect, connection_id={:#x}",
+                            connection_id);
       return;
     }
 
-    log::info("Write response handle: 0x{:x} status: 0x{:x}", handle, (int)(status));
+    bluetooth::log::info("Write response handle: {:#x} status: {:#x}", handle,
+                         static_cast<int>(status));
 
     if (status == GATT_SUCCESS) {
       return;
@@ -748,14 +768,14 @@ public:
     RemoveDeviceFromOperationList(device->address, PTR_TO_INT(data));
 
     if (status == GATT_DATABASE_OUT_OF_SYNC) {
-      log::info("Database out of sync for {}", device->address);
+      bluetooth::log::info("Database out of sync for {}", device->address);
       ClearDeviceInformationAndStartSearch(device);
     }
   }
 
   static void operation_timeout_callback(void* data) {
     if (!instance) {
-      log::warn("There is no instance.");
+      bluetooth::log::warn("There is no instance.");
       return;
     }
     instance->OperationMonitorTimeoutFired(PTR_TO_INT(data));
@@ -766,30 +786,30 @@ public:
                       [operation_id](auto& it) { return it.operation_id_ == operation_id; });
 
     if (op == ongoing_operations_.end()) {
-      log::error("Could not find operation_id: {}", operation_id);
+      bluetooth::log::error("Could not find operation_id: {}", operation_id);
       return;
     }
 
-    log::warn("Operation {} is taking too long for devices:", operation_id);
+    bluetooth::log::warn("Operation {} is taking too long for devices:", operation_id);
     for (const auto& addr : op->devices_) {
-      log::warn("{},", addr);
+      bluetooth::log::warn("{},", addr);
     }
     alarm_set_on_mloop(op->operation_timeout_, kOperationMonitorTimeoutMs,
                        operation_timeout_callback, INT_TO_PTR(operation_id));
   }
 
   void StartQueueOperation(void) {
-    log::info("");
+    bluetooth::log::info("");
     if (ongoing_operations_.empty()) {
       return;
-    };
+    }
 
     auto op = &ongoing_operations_.front();
 
-    log::info("Current operation_id: {}", op->operation_id_);
+    bluetooth::log::info("Current operation_id: {}", op->operation_id_);
 
     if (op->IsStarted()) {
-      log::info("Operation {} is started, wait until it is complete", op->operation_id_);
+      bluetooth::log::info("Operation {} is started, wait until it is complete", op->operation_id_);
       return;
     }
 
@@ -804,8 +824,8 @@ public:
 
   void PrepareVolumeControlOperation(std::vector<RawAddress> devices, int group_id,
                                      bool is_autonomous, uint8_t opcode,
-                                     std::vector<uint8_t>& arguments) {
-    log::debug(
+                                     const std::vector<uint8_t>& arguments) {
+    bluetooth::log::debug(
             "num of devices: {}, group_id: {}, is_autonomous: {}  opcode: {}, arg "
             "size: {}",
             devices.size(), group_id, is_autonomous, opcode, arguments.size());
@@ -843,7 +863,7 @@ public:
       VolumeControlDevice* dev =
               volume_control_devices_.FindByAddress(std::get<RawAddress>(addr_or_group_id));
       if (dev != nullptr) {
-        log::debug("Address: {}: isReady: {}", dev->address, dev->IsReady());
+        bluetooth::log::debug("Address: {}: isReady: {}", dev->address, dev->IsReady());
         if (dev->IsReady() && (dev->mute != mute)) {
           std::vector<RawAddress> devices = {dev->address};
           PrepareVolumeControlOperation(devices, bluetooth::groups::kGroupUnknown, false, opcode,
@@ -853,16 +873,16 @@ public:
     } else {
       /* Handle group change */
       auto group_id = std::get<int>(addr_or_group_id);
-      log::debug("group: {}", group_id);
+      bluetooth::log::debug("group: {}", group_id);
       auto csis_api = CsisClient::Get();
       if (!csis_api) {
-        log::error("Csis is not there");
+        bluetooth::log::error("Csis is not there");
         return;
       }
 
       auto devices = csis_api->GetDeviceList(group_id);
       if (devices.empty()) {
-        log::error("group id: {} has no devices", group_id);
+        bluetooth::log::error("group id: {} has no devices", group_id);
         return;
       }
 
@@ -886,7 +906,7 @@ public:
       }
 
       if (devices.empty()) {
-        log::debug(
+        bluetooth::log::debug(
                 "No need to update mute for group id: {} . muteNotChanged: {}, "
                 "deviceNotReady: {}",
                 group_id, muteNotChanged, deviceNotReady);
@@ -900,12 +920,12 @@ public:
   }
 
   void Mute(std::variant<RawAddress, int> addr_or_group_id) override {
-    log::debug("");
+    bluetooth::log::debug("");
     MuteUnmute(addr_or_group_id, true /* mute */);
   }
 
   void UnMute(std::variant<RawAddress, int> addr_or_group_id) override {
-    log::debug("");
+    bluetooth::log::debug("");
     MuteUnmute(addr_or_group_id, false /* mute */);
   }
 
@@ -914,11 +934,11 @@ public:
     uint8_t opcode = kControlPointOpcodeSetAbsoluteVolume;
 
     if (std::holds_alternative<RawAddress>(addr_or_group_id)) {
-      log::debug("Address: {}:", std::get<RawAddress>(addr_or_group_id));
+      bluetooth::log::debug("Address: {}:", std::get<RawAddress>(addr_or_group_id));
       VolumeControlDevice* dev =
               volume_control_devices_.FindByAddress(std::get<RawAddress>(addr_or_group_id));
       if (dev != nullptr) {
-        log::debug("Address: {}: isReady: {}", dev->address, dev->IsReady());
+        bluetooth::log::debug("Address: {}: isReady: {}", dev->address, dev->IsReady());
         if (dev->IsReady() && (dev->volume != volume)) {
           std::vector<RawAddress> devices = {dev->address};
           RemovePendingVolumeControlOperations(devices, bluetooth::groups::kGroupUnknown);
@@ -929,16 +949,16 @@ public:
     } else {
       /* Handle group change */
       auto group_id = std::get<int>(addr_or_group_id);
-      log::debug("group_id: {}, vol: {}", group_id, volume);
+      bluetooth::log::debug("group_id: {}, vol: {}", group_id, volume);
       auto csis_api = CsisClient::Get();
       if (!csis_api) {
-        log::error("Csis is not there");
+        bluetooth::log::error("Csis is not there");
         return;
       }
 
       auto devices = csis_api->GetDeviceList(group_id);
       if (devices.empty()) {
-        log::error("group id: {} has no devices", group_id);
+        bluetooth::log::error("group id: {} has no devices", group_id);
         return;
       }
 
@@ -963,7 +983,7 @@ public:
       }
 
       if (devices.empty()) {
-        log::debug(
+        bluetooth::log::debug(
                 "No need to update volume for group id: {} . volumeNotChanged: {}, "
                 "deviceNotReady: {}",
                 group_id, volumeNotChanged, deviceNotReady);
@@ -981,7 +1001,7 @@ public:
   void GetExtAudioOutVolumeOffset(const RawAddress& address, uint8_t ext_output_id) override {
     VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
     if (!device) {
-      log::error("no such device!");
+      bluetooth::log::error("no such device!");
       return;
     }
 
@@ -1000,7 +1020,7 @@ public:
   void GetExtAudioOutLocation(const RawAddress& address, uint8_t ext_output_id) override {
     VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
     if (!device) {
-      log::error("no such device!");
+      bluetooth::log::error("no such device!");
       return;
     }
 
@@ -1011,7 +1031,7 @@ public:
                               uint32_t location) override {
     VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
     if (!device) {
-      log::error("no such device!");
+      bluetooth::log::error("no such device!");
       return;
     }
 
@@ -1021,7 +1041,7 @@ public:
   void GetExtAudioOutDescription(const RawAddress& address, uint8_t ext_output_id) override {
     VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
     if (!device) {
-      log::error("no such device!");
+      bluetooth::log::error("no such device!");
       return;
     }
 
@@ -1032,7 +1052,7 @@ public:
                                  std::string descr) override {
     VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
     if (!device) {
-      log::error("no such device!");
+      bluetooth::log::error("no such device!");
       return;
     }
 
@@ -1040,7 +1060,7 @@ public:
   }
 
   void CleanUp() {
-    log::info("");
+    bluetooth::log::info("");
     volume_control_devices_.Disconnect(gatt_if_);
     volume_control_devices_.Clear();
     ongoing_operations_.clear();
@@ -1059,6 +1079,7 @@ private:
   static constexpr uint64_t kOperationMonitorTimeoutMs = 3000;
 
   void verify_device_ready(VolumeControlDevice* device, uint16_t handle) {
+    bluetooth::log::debug("{}, isReady {}", device->address, device->IsReady());
     if (device->IsReady()) {
       return;
     }
@@ -1066,7 +1087,7 @@ private:
     // VerifyReady sets the device_ready flag if all remaining GATT operations
     // are completed
     if (device->VerifyReady(handle)) {
-      log::info("Outstanding reads completed.");
+      bluetooth::log::info("Outstanding reads completed.");
 
       callbacks_->OnDeviceAvailable(device->address, device->audio_offsets.Size());
       callbacks_->OnConnectionState(ConnectionState::CONNECTED, device->address);
@@ -1075,11 +1096,8 @@ private:
       callbacks_->OnVolumeStateChanged(device->address, device->volume, device->mute, device->flags,
                                        true);
 
-      for (auto const& offset : device->audio_offsets.volume_offsets) {
-        callbacks_->OnExtAudioOutVolumeOffsetChanged(device->address, offset.id, offset.offset);
-      }
-
-      device->EnqueueRemainingRequests(gatt_if_, chrc_read_callback_static, OnGattWriteCccStatic);
+      device->EnqueueRemainingRequests(gatt_if_, chrc_read_callback_static,
+                                       chrc_multi_read_callback_static, OnGattWriteCccStatic);
     }
   }
 
@@ -1093,7 +1111,7 @@ private:
     }
   }
 
-  void devices_control_point_helper(std::vector<RawAddress>& devices, uint8_t opcode,
+  void devices_control_point_helper(const std::vector<RawAddress>& devices, uint8_t opcode,
                                     const std::vector<uint8_t>* arg, int operation_id = -1) {
     volume_control_devices_.ControlPointOperation(
             devices, opcode, arg,
@@ -1108,10 +1126,10 @@ private:
 
   void ext_audio_out_control_point_helper(const RawAddress& address, uint8_t ext_output_id,
                                           uint8_t opcode, const std::vector<uint8_t>* arg) {
-    log::info("{} id=0x{:x} op=0x{:x}", address, ext_output_id, opcode);
+    bluetooth::log::info("{} id={:#x} op={:#x}", address, ext_output_id, opcode);
     VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
     if (!device) {
-      log::error("no such device!");
+      bluetooth::log::error("no such device!");
       return;
     }
     device->ExtAudioOutControlPointOperation(
@@ -1126,7 +1144,7 @@ private:
   }
 
   void gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
-    log::info("event = {}", static_cast<int>(event));
+    bluetooth::log::info("event = {}", static_cast<int>(event));
 
     if (p_data == nullptr) {
       return;
@@ -1136,7 +1154,6 @@ private:
       case BTA_GATTC_OPEN_EVT: {
         tBTA_GATTC_OPEN& o = p_data->open;
         OnGattConnected(o.status, o.conn_id, o.client_if, o.remote_bda, o.transport, o.mtu);
-
       } break;
 
       case BTA_GATTC_CLOSE_EVT: {
@@ -1151,8 +1168,8 @@ private:
       case BTA_GATTC_NOTIF_EVT: {
         tBTA_GATTC_NOTIFY& n = p_data->notify;
         if (!n.is_notify || n.len > GATT_MAX_ATTR_LEN) {
-          log::error("rejected BTA_GATTC_NOTIF_EVT. is_notify={}, len={}", n.is_notify,
-                     static_cast<int>(n.len));
+          bluetooth::log::error("rejected BTA_GATTC_NOTIF_EVT. is_notify={}, len={}", n.is_notify,
+                                static_cast<int>(n.len));
           break;
         }
         OnNotificationEvent(n.conn_id, n.handle, n.len, n.value);
@@ -1193,6 +1210,49 @@ private:
       instance->OnCharacteristicValueChanged(conn_id, status, handle, len, value, data, false);
     }
   }
+
+  static void chrc_multi_read_callback_static(uint16_t conn_id, tGATT_STATUS status,
+                                              tBTA_GATTC_MULTI& handles, uint16_t total_len,
+                                              uint8_t* value, void* data) {
+    if (!instance) {
+      return;
+    }
+
+    if (status != GATT_SUCCESS) {
+      bluetooth::log::error("conn_id={:#} multi read failed {:#x}", conn_id, status);
+      instance->OnCharacteristicValueChanged(conn_id, status, 0, 0, nullptr, nullptr, false);
+      return;
+    }
+
+    size_t position = 0;
+    int index = 0;
+    while (position != total_len) {
+      uint8_t* ptr = value + position;
+      uint16_t len;
+      STREAM_TO_UINT16(len, ptr);
+      uint16_t hdl = handles.handles[index];
+
+      if (position + len >= total_len) {
+        bluetooth::log::warn(
+                "Multi read was too long, value truncated conn_id: {:#x} handle: {:#x}, possition: "
+                "{:#x}, len: {:#x}, total_len: {:#x}, data: {}",
+                conn_id, hdl, position, len, total_len, base::HexEncode(value, total_len));
+        break;
+      }
+
+      instance->OnCharacteristicValueChanged(conn_id, status, hdl, len, ptr,
+                                             ((index == (handles.num_attr - 1)) ? data : nullptr),
+                                             false);
+
+      position += len + 2; /* skip the length of data */
+      index++;
+    }
+
+    if (handles.num_attr - 1 != index) {
+      bluetooth::log::warn("Attempted to read {} handles, but received just {} values",
+                           +handles.num_attr, index + 1);
+    }
+  }
 };
 }  // namespace
 
@@ -1200,7 +1260,7 @@ void VolumeControl::Initialize(bluetooth::vc::VolumeControlCallbacks* callbacks,
                                const base::Closure& initCb) {
   std::scoped_lock<std::mutex> lock(instance_mutex);
   if (instance) {
-    log::error("Already initialized!");
+    bluetooth::log::error("Already initialized!");
     return;
   }
 
@@ -1210,13 +1270,13 @@ void VolumeControl::Initialize(bluetooth::vc::VolumeControlCallbacks* callbacks,
 bool VolumeControl::IsVolumeControlRunning() { return instance; }
 
 VolumeControl* VolumeControl::Get(void) {
-  log::assert_that(instance != nullptr, "assert failed: instance != nullptr");
+  bluetooth::log::assert_that(instance != nullptr, "assert failed: instance != nullptr");
   return instance;
 }
 
 void VolumeControl::AddFromStorage(const RawAddress& address) {
   if (!instance) {
-    log::error("Not initialized yet");
+    bluetooth::log::error("Not initialized yet");
     return;
   }
 
@@ -1226,7 +1286,7 @@ void VolumeControl::AddFromStorage(const RawAddress& address) {
 void VolumeControl::CleanUp() {
   std::scoped_lock<std::mutex> lock(instance_mutex);
   if (!instance) {
-    log::error("Not initialized!");
+    bluetooth::log::error("Not initialized!");
     return;
   }
 

@@ -15,16 +15,19 @@
  * limitations under the License.
  */
 
-#include "devices.h"
+#include "bta/vc/devices.h"
 
+#include <com_android_bluetooth_flags.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <log/log.h>
 
+#include <list>
 #include <map>
 
-#include "bta_gatt_api_mock.h"
-#include "bta_gatt_queue_mock.h"
-#include "btm_api_mock.h"
+#include "bta/test/common/bta_gatt_api_mock.h"
+#include "bta/test/common/bta_gatt_queue_mock.h"
+#include "bta/test/common/btm_api_mock.h"
 #include "gatt/database_builder.h"
 #include "stack/include/bt_uuid16.h"
 #include "types/bluetooth/uuid.h"
@@ -39,6 +42,7 @@ using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Mock;
 using ::testing::Return;
+using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::Test;
 
@@ -51,12 +55,15 @@ RawAddress GetTestAddress(int index) {
 class VolumeControlDevicesTest : public ::testing::Test {
 protected:
   void SetUp() override {
+    __android_log_set_minimum_priority(ANDROID_LOG_VERBOSE);
     devices_ = new VolumeControlDevices();
     gatt::SetMockBtaGattInterface(&gatt_interface);
     gatt::SetMockBtaGattQueue(&gatt_queue);
   }
 
   void TearDown() override {
+    com::android::bluetooth::flags::provider_->reset_flags();
+
     gatt::SetMockBtaGattQueue(nullptr);
     gatt::SetMockBtaGattInterface(nullptr);
     delete devices_;
@@ -210,6 +217,7 @@ TEST_F(VolumeControlDevicesTest, test_control_point_skip_not_connected) {
 class VolumeControlDeviceTest : public ::testing::Test {
 protected:
   void SetUp() override {
+    __android_log_set_minimum_priority(ANDROID_LOG_VERBOSE);
     device = new VolumeControlDevice(GetTestAddress(1), true);
     gatt::SetMockBtaGattInterface(&gatt_interface);
     gatt::SetMockBtaGattQueue(&gatt_queue);
@@ -241,9 +249,13 @@ protected:
             }));
 
     ON_CALL(gatt_interface, GetServices(_)).WillByDefault(Return(&services));
+
+    ON_CALL(gatt_interface, RegisterForNotifications(_, _, _))
+            .WillByDefault(DoAll(Return(GATT_SUCCESS)));
   }
 
   void TearDown() override {
+    com::android::bluetooth::flags::provider_->reset_flags();
     bluetooth::manager::SetMockBtmInterface(nullptr);
     gatt::SetMockBtaGattQueue(nullptr);
     gatt::SetMockBtaGattInterface(nullptr);
@@ -253,14 +265,18 @@ protected:
   /* sample database 1xVCS, 2xAICS, 2xVOCS */
   void SetSampleDatabase1(void) {
     gatt::DatabaseBuilder builder;
-    builder.AddService(0x0001, 0x0016, kVolumeControlUuid, true);
+    builder.AddService(0x0001, 0x0017, kVolumeControlUuid, true);
     builder.AddIncludedService(0x0004, kVolumeOffsetUuid, 0x0060, 0x0069);
     builder.AddIncludedService(0x0005, kVolumeOffsetUuid, 0x0080, 0x008b);
     builder.AddCharacteristic(0x0010, 0x0011, kVolumeControlStateUuid,
                               GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
     builder.AddDescriptor(0x0012, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
     builder.AddCharacteristic(0x0013, 0x0014, kVolumeControlPointUuid, GATT_CHAR_PROP_BIT_WRITE);
-    builder.AddCharacteristic(0x0015, 0x0016, kVolumeFlagsUuid, GATT_CHAR_PROP_BIT_READ);
+    builder.AddCharacteristic(0x0015, 0x0016, kVolumeFlagsUuid,
+                              GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
+    builder.AddDescriptor(0x0017, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+
+    // First VOCS
     builder.AddService(0x0060, 0x0069, kVolumeOffsetUuid, false);
     builder.AddCharacteristic(0x0061, 0x0062, kVolumeOffsetStateUuid,
                               GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
@@ -270,6 +286,8 @@ protected:
                               GATT_CHAR_PROP_BIT_WRITE);
     builder.AddCharacteristic(0x0068, 0x0069, kVolumeOffsetOutputDescriptionUuid,
                               GATT_CHAR_PROP_BIT_READ);
+
+    // Second VOCS
     builder.AddService(0x0080, 0x008b, kVolumeOffsetUuid, false);
     builder.AddCharacteristic(0x0081, 0x0082, kVolumeOffsetStateUuid,
                               GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
@@ -431,12 +449,18 @@ TEST_F(VolumeControlDeviceTest, test_enqueue_initial_requests) {
   tGATT_IF gatt_if = 0x0001;
   std::vector<uint8_t> register_for_notification_data({0x01, 0x00});
 
-  std::map<uint16_t, uint16_t> expected_to_read_write{{0x0011, 0x0012} /* volume control state */,
-                                                      {0x0062, 0x0063} /* volume offset state 1 */,
-                                                      {0x0082, 0x0083} /* volume offset state 2 */};
+  std::map<uint16_t, uint16_t> expected_subscribtions{
+          {0x0011, 0x0012} /* volume control state */,
+          {0x0016, 0x0017} /* volume control flags */,
+          {0x0062, 0x0063} /* volume offset state 1 */,
+          {0x0082, 0x0083} /* volume offset state 2 */,
+          {0x0085, 0x0086} /* volume offset location 2 */,
+          {0x008a, 0x008b} /* volume offset description 2 */};
+  // Expected read for state and flags  Volume State
+  EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x0011, _, _));
+  EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x0016, _, _));
 
-  for (auto const& handle_pair : expected_to_read_write) {
-    EXPECT_CALL(gatt_queue, ReadCharacteristic(_, handle_pair.first, _, _));
+  for (auto const& handle_pair : expected_subscribtions) {
     EXPECT_CALL(gatt_queue, WriteDescriptor(_, handle_pair.second, register_for_notification_data,
                                             GATT_WRITE, _, _));
     EXPECT_CALL(gatt_interface, RegisterForNotifications(gatt_if, _, handle_pair.first));
@@ -447,6 +471,8 @@ TEST_F(VolumeControlDeviceTest, test_enqueue_initial_requests) {
   auto cccd_write_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                           const uint8_t* value, void* data) {};
   ASSERT_EQ(true, device->EnqueueInitialRequests(gatt_if, chrc_read_cb, cccd_write_cb));
+  Mock::VerifyAndClearExpectations(&gatt_queue);
+  Mock::VerifyAndClearExpectations(&gatt_interface);
 }
 
 TEST_F(VolumeControlDeviceTest, test_device_ready) {
@@ -486,36 +512,72 @@ TEST_F(VolumeControlDeviceTest, test_device_ready) {
 }
 
 TEST_F(VolumeControlDeviceTest, test_enqueue_remaining_requests) {
+  com::android::bluetooth::flags::provider_->le_ase_read_multiple_variable(false);
+
   SetSampleDatabase1();
 
   tGATT_IF gatt_if = 0x0001;
-  std::vector<uint8_t> register_for_notification_data({0x01, 0x00});
 
-  std::vector<uint16_t> expected_to_read{0x0016 /* volume flags */, 0x0065 /* audio location 1 */,
-                                         0x0069 /* audio output description 1 */,
-                                         0x0085 /* audio location 1 */,
-                                         0x008a /* audio output description 1 */};
-
-  std::map<uint16_t, uint16_t> expected_to_write_value_ccc_handle_map{
-          {0x0085, 0x0086} /* audio location ccc 2 */,
-          {0x008a, 0x008b} /* audio output description ccc */
-  };
+  std::vector<uint16_t> expected_to_read{
+          0x0062 /* audio output state 1 */,       0x0065 /* audio output location 1 */,
+          0x0069 /* audio output description 1 */, 0x0082 /* audio output state 1 */,
+          0x0085 /* audio output location 1 */,    0x008a /* audio output description 1 */};
 
   for (uint16_t handle : expected_to_read) {
     EXPECT_CALL(gatt_queue, ReadCharacteristic(_, handle, _, _));
   }
 
-  for (auto const& handle_pair : expected_to_write_value_ccc_handle_map) {
-    EXPECT_CALL(gatt_queue, WriteDescriptor(_, handle_pair.second, register_for_notification_data,
-                                            GATT_WRITE, _, _));
-    EXPECT_CALL(gatt_interface, RegisterForNotifications(gatt_if, _, handle_pair.first));
-  }
+  EXPECT_CALL(gatt_queue, WriteDescriptor(_, _, _, GATT_WRITE, _, _)).Times(0);
+  EXPECT_CALL(gatt_interface, RegisterForNotifications(_, _, _)).Times(0);
 
   auto chrc_read_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                          uint8_t* value, void* data) {};
+  auto chrc_multi_read_cb = [](uint16_t conn_id, tGATT_STATUS status, tBTA_GATTC_MULTI& handles,
+                               uint16_t len, uint8_t* value, void* data) {};
   auto cccd_write_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                           const uint8_t* value, void* data) {};
-  device->EnqueueRemainingRequests(gatt_if, chrc_read_cb, cccd_write_cb);
+  device->EnqueueRemainingRequests(gatt_if, chrc_read_cb, chrc_multi_read_cb, cccd_write_cb);
+  Mock::VerifyAndClearExpectations(&gatt_queue);
+  Mock::VerifyAndClearExpectations(&gatt_interface);
+}
+
+TEST_F(VolumeControlDeviceTest, test_enqueue_remaining_requests_multiread) {
+  com::android::bluetooth::flags::provider_->le_ase_read_multiple_variable(true);
+
+  SetSampleDatabase1();
+
+  tGATT_IF gatt_if = 0x0001;
+  std::vector<uint8_t> register_for_notification_data({0x01, 0x00});
+
+  tBTA_GATTC_MULTI expected_to_read_part_1 = {
+          .num_attr = 6,
+          .handles = {0x0062 /* audio output state 1 */, 0x0065 /* audio output location 1 */,
+                      0x0069 /* audio output description 1 */, 0x0082 /* audio output state 1 */,
+                      0x0085 /* audio output location 1 */,
+                      0x008a /* audio output description 1 */},
+  };
+
+  tBTA_GATTC_MULTI received_to_read_part_1{};
+
+  EXPECT_CALL(gatt_queue, ReadMultiCharacteristic(_, _, _, _))
+          .WillOnce(SaveArg<1>(&received_to_read_part_1));
+
+  EXPECT_CALL(gatt_queue, WriteDescriptor(_, _, _, GATT_WRITE, _, _)).Times(0);
+  EXPECT_CALL(gatt_interface, RegisterForNotifications(_, _, _)).Times(0);
+
+  auto chrc_read_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+                         uint8_t* value, void* data) {};
+  auto chrc_multi_read_cb = [](uint16_t conn_id, tGATT_STATUS status, tBTA_GATTC_MULTI& handles,
+                               uint16_t len, uint8_t* value, void* data) {};
+  auto cccd_write_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+                          const uint8_t* value, void* data) {};
+
+  device->EnqueueRemainingRequests(gatt_if, chrc_read_cb, chrc_multi_read_cb, cccd_write_cb);
+
+  Mock::VerifyAndClearExpectations(&gatt_queue);
+  Mock::VerifyAndClearExpectations(&gatt_interface);
+
+  ASSERT_EQ(expected_to_read_part_1.num_attr, received_to_read_part_1.num_attr);
 }
 
 TEST_F(VolumeControlDeviceTest, test_check_link_encrypted) {
