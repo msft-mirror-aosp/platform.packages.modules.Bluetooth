@@ -134,6 +134,7 @@ cc_library_shared {
         "libcutils",
         "libevent",
         "libexpresslog",
+        "libflags_rust_cpp_bridge",
         "libflatbuffers-cpp",
         "libfmq",
         "libg722codec",
@@ -245,16 +246,16 @@ android_app {
         "error_prone_annotations",
         "framework-annotations-lib",
         "framework-bluetooth-pre-jarjar",
-        "framework-configinfrastructure",
+        "framework-configinfrastructure.stubs.module_lib",
         "framework-connectivity.stubs.module_lib",
         "framework-location.stubs.module_lib",
-        "framework-mediaprovider",
+        "framework-mediaprovider.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
         "framework-tethering.stubs.module_lib",
         "unsupportedappusage",
 
         // Need to link the class at runtime
-        "framework-bluetooth",
+        "framework-bluetooth.stubs.module_lib",
     ],
     static_libs: [
         "BluetoothApiShims",

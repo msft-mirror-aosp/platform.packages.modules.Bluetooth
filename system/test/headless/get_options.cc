@@ -55,7 +55,6 @@ void bluetooth::test::headless::GetOpt::Usage() const {
   fprintf(stdout, "%s: Usage:\n", name_);
   fprintf(stdout, "%s  -c  Clear logcat logs\n", name_);
   fprintf(stdout, "%s  --device=<device,>  Comma separated list of remote devices\n", name_);
-  fprintf(stdout, "%s  --flags=<flags,>  Comma separated list of gd init flags\n", name_);
   fprintf(stdout, "%s  --uuid=<uuid,>      Comma separated list of uuids\n", name_);
   fprintf(stdout, "%s  --loop=<loop>       Number of loops\n", name_);
   fprintf(stdout, "%s  --msleep=<msecs>    Sleep msec between loops\n", name_);
@@ -130,15 +129,6 @@ void bluetooth::test::headless::GetOpt::ProcessOption(int option_index, char* op
     case kOptionStdErr:
       close_stderr_ = false;
       break;
-    case kOptionFlags:
-      if (!optarg) {
-        return;
-      }
-      ParseValue(optarg, string_list);
-      for (auto& flag : string_list) {
-        init_flags_.push_back(flag);
-      }
-      break;
     case kOptionClear:
       clear_logcat_ = true;
       break;
@@ -149,23 +139,6 @@ void bluetooth::test::headless::GetOpt::ProcessOption(int option_index, char* op
       break;
   }
 }
-
-void bluetooth::test::headless::GetOpt::ParseStackInitFlags() {
-  if (init_flags_.size() == 0) {
-    return;
-  }
-
-  log::assert_that(stack_init_flags_ == nullptr, "assert failed: stack_init_flags_ == nullptr");
-
-  unsigned idx = 0;
-  stack_init_flags_ = (const char**)calloc(sizeof(char*), init_flags_.size());
-  for (const std::string& flag : init_flags_) {
-    stack_init_flags_[idx++] = flag.c_str();
-  }
-  stack_init_flags_[idx] = nullptr;
-}
-
-const char** bluetooth::test::headless::GetOpt::StackInitFlags() const { return stack_init_flags_; }
 
 bluetooth::test::headless::GetOpt::GetOpt(int argc, char** argv) : name_(argv[0]) {
   while (1) {
@@ -192,9 +165,7 @@ bluetooth::test::headless::GetOpt::GetOpt(int argc, char** argv) : name_(argv[0]
     non_options_.push_back(argv[optind++]);
   }
 
-  ParseStackInitFlags();
-
   fflush(nullptr);
 }
 
-bluetooth::test::headless::GetOpt::~GetOpt() { free(stack_init_flags_); }
+bluetooth::test::headless::GetOpt::~GetOpt() {}

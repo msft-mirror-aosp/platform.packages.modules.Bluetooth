@@ -3241,8 +3241,9 @@ void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_en
     }
   }
 
-  const bool is_encrypted =
-          p_dev_rec->sec_rec.is_le_device_encrypted() || p_dev_rec->sec_rec.is_device_encrypted();
+  const bool is_encrypted = (transport == BT_TRANSPORT_LE)
+                                    ? p_dev_rec->sec_rec.is_le_device_encrypted()
+                                    : p_dev_rec->sec_rec.is_device_encrypted();
   BTM_LogHistory(
           kBtmLogTag,
           (transport == BT_TRANSPORT_LE) ? p_dev_rec->ble.pseudo_addr : p_dev_rec->bd_addr,
