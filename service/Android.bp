@@ -94,7 +94,7 @@ java_library {
     libs: [
         "framework-annotations-lib",
         "framework-bluetooth-pre-jarjar",
-        "framework-configinfrastructure",
+        "framework-configinfrastructure.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
         "service-bluetooth-binder-aidl",
         "service-bluetooth.change-ids",
@@ -138,7 +138,7 @@ java_library {
     },
 
     libs: [
-        "framework-bluetooth",
+        "framework-bluetooth.impl",
     ],
 
     sdk_version: "system_server_current",

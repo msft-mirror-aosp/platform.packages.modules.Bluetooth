@@ -18,6 +18,7 @@
 package com.android.bluetooth.le_audio;
 
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
+import static com.android.bluetooth.bass_client.BassConstants.INVALID_BROADCAST_ID;
 
 import static org.mockito.Mockito.*;
 
@@ -42,6 +43,7 @@ import com.android.bluetooth.Utils;
 import com.android.bluetooth.bass_client.BassClientService;
 import com.android.bluetooth.btservice.ActiveDeviceManager;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.btservice.ServiceFactory;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
@@ -90,6 +92,7 @@ public class LeAudioBroadcastServiceTest {
     @Mock private LeAudioTmapGattServer mTmapGattServer;
     @Mock private BassClientService mBassClientService;
     @Mock private TbsService mTbsService;
+    @Mock private MetricsLogger mMetricsLogger;
     @Spy private LeAudioObjectsFactory mObjectsFactory = LeAudioObjectsFactory.getInstance();
     @Spy private ServiceFactory mServiceFactory = new ServiceFactory();
 
@@ -210,6 +213,8 @@ public class LeAudioBroadcastServiceTest {
         doReturn(mActiveDeviceManager).when(mAdapterService).getActiveDeviceManager();
 
         mAdapter = BluetoothAdapter.getDefaultAdapter();
+        MetricsLogger.getInstance();
+        MetricsLogger.setInstanceForTesting(mMetricsLogger);
 
         LeAudioBroadcasterNativeInterface.setInstance(mLeAudioBroadcasterNativeInterface);
         LeAudioNativeInterface.setInstance(mLeAudioNativeInterface);
@@ -247,6 +252,7 @@ public class LeAudioBroadcastServiceTest {
         stopService();
         LeAudioBroadcasterNativeInterface.setInstance(null);
         LeAudioNativeInterface.setInstance(null);
+        MetricsLogger.setInstanceForTesting(null);
         TestUtils.clearAdapterService(mAdapterService);
         reset(mAudioManager);
     }
@@ -322,6 +328,8 @@ public class LeAudioBroadcastServiceTest {
     }
 
     void verifyBroadcastStopped(int broadcastId) {
+        Mockito.clearInvocations(mMetricsLogger);
+
         mService.stopBroadcast(broadcastId);
         verify(mLeAudioBroadcasterNativeInterface, times(1)).stopBroadcast(eq(broadcastId));
 
@@ -340,6 +348,16 @@ public class LeAudioBroadcastServiceTest {
 
         TestUtils.waitForLooperToFinishScheduledTask(mService.getMainLooper());
 
+        // Verify broadcast audio session is logged when session stopped
+        verify(mMetricsLogger, times(1))
+                .logLeAudioBroadcastAudioSession(
+                        eq(broadcastId),
+                        eq(new int[] {0x2}), // STATS_SESSION_AUDIO_QUALITY_HIGH
+                        eq(0),
+                        anyLong(),
+                        anyLong(),
+                        anyLong(),
+                        eq(0x3)); // STATS_SESSION_SETUP_STATUS_STREAMING
         Assert.assertTrue(mOnBroadcastStoppedCalled);
         Assert.assertFalse(mOnBroadcastStopFailedCalled);
     }
@@ -388,6 +406,7 @@ public class LeAudioBroadcastServiceTest {
         synchronized (mService.mBroadcastCallbacks) {
             mService.mBroadcastCallbacks.register(mCallbacks);
         }
+        Mockito.clearInvocations(mMetricsLogger);
 
         BluetoothLeAudioContentMetadata.Builder meta_builder =
                 new BluetoothLeAudioContentMetadata.Builder();
@@ -420,6 +439,17 @@ public class LeAudioBroadcastServiceTest {
 
         TestUtils.waitForLooperToFinishScheduledTask(mService.getMainLooper());
 
+        // Verify broadcast audio session is logged when session failed to create
+        verify(mMetricsLogger, times(1))
+                .logLeAudioBroadcastAudioSession(
+                        eq(INVALID_BROADCAST_ID),
+                        eq(new int[] {0x2}), // STATS_SESSION_AUDIO_QUALITY_HIGH
+                        eq(0),
+                        eq(0L),
+                        eq(0L),
+                        eq(0L),
+                        eq(0x4)); // STATS_SESSION_SETUP_STATUS_CREATED_FAILED
+
         Assert.assertFalse(mOnBroadcastStartedCalled);
         Assert.assertTrue(mOnBroadcastStartFailedCalled);
     }
@@ -434,6 +464,7 @@ public class LeAudioBroadcastServiceTest {
         synchronized (mService.mBroadcastCallbacks) {
             mService.mBroadcastCallbacks.register(mCallbacks);
         }
+        Mockito.clearInvocations(mMetricsLogger);
 
         BluetoothLeAudioContentMetadata.Builder meta_builder =
                 new BluetoothLeAudioContentMetadata.Builder();
@@ -481,6 +512,21 @@ public class LeAudioBroadcastServiceTest {
         // Check if broadcast is destroyed after timeout
         verify(mLeAudioBroadcasterNativeInterface, timeout(CREATE_BROADCAST_TIMEOUT_MS).times(1))
                 .destroyBroadcast(eq(broadcastId));
+
+        state_event = new LeAudioStackEvent(LeAudioStackEvent.EVENT_TYPE_BROADCAST_DESTROYED);
+        state_event.valueInt1 = broadcastId;
+        mService.messageFromNative(state_event);
+
+        // Verify broadcast audio session is logged when session failed to stream
+        verify(mMetricsLogger, times(1))
+                .logLeAudioBroadcastAudioSession(
+                        eq(broadcastId),
+                        eq(new int[] {0x2}), // STATS_SESSION_AUDIO_QUALITY_HIGH
+                        eq(0),
+                        anyLong(),
+                        anyLong(),
+                        eq(0L),
+                        eq(0x5)); // STATS_SESSION_SETUP_STATUS_STREAMING_FAILED
     }
 
     @Test

@@ -21,6 +21,7 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 
+import static com.android.bluetooth.bass_client.BassConstants.INVALID_BROADCAST_ID;
 import static com.android.bluetooth.flags.Flags.leaudioAllowedContextMask;
 import static com.android.bluetooth.flags.Flags.leaudioBigDependsOnAudioState;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastAssistantPeripheralEntrustment;
@@ -69,12 +70,14 @@ import android.os.Parcel;
 import android.os.ParcelUuid;
 import android.os.RemoteCallbackList;
 import android.os.RemoteException;
+import android.os.SystemClock;
 import android.os.UserHandle;
 import android.provider.Settings;
 import android.sysprop.BluetoothProperties;
 import android.util.Log;
 import android.util.Pair;
 
+import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.bass_client.BassClientService;
 import com.android.bluetooth.btservice.AdapterService;
@@ -366,6 +369,113 @@ public class LeAudioService extends ProfileService {
         public Boolean mRequestedForDetails;
     }
 
+    private static class LeAudioBroadcastSessionStats {
+        private int[] mAudioQuality;
+        private long mSessionRequestTime;
+        private long mSessionCreatedTime;
+        private long mSessionStreamingTime;
+        private int mSessionGroupSize;
+        private int mSessionStatus;
+
+        LeAudioBroadcastSessionStats(
+                BluetoothLeBroadcastSettings broadcastSettings, long startTime) {
+            this.mAudioQuality =
+                    broadcastSettings.getSubgroupSettings().stream()
+                            .mapToInt(s -> convertToStatsAudioQuality(s.getPreferredQuality()))
+                            .toArray();
+            this.mSessionRequestTime = startTime;
+            this.mSessionCreatedTime = 0;
+            this.mSessionStreamingTime = 0;
+            this.mSessionGroupSize = 0;
+            this.mSessionStatus =
+                    BluetoothStatsLog
+                            .BROADCAST_AUDIO_SESSION_REPORTED__SESSION_SETUP_STATUS__SETUP_STATUS_REQUESTED;
+        }
+
+        public void updateSessionCreatedTime(long createdTime) {
+            if (mSessionCreatedTime == 0) {
+                mSessionCreatedTime = createdTime;
+            }
+        }
+
+        public void updateSessionStreamingTime(long streamingTime) {
+            if (mSessionStreamingTime == 0) {
+                // Only record the 1st STREAMING EVENT
+                mSessionStreamingTime = streamingTime;
+            }
+        }
+
+        public void updateGroupSize(int groupSize) {
+            mSessionGroupSize = groupSize;
+        }
+
+        public void updateSessionStatus(int status) {
+            if (mSessionStatus
+                    != BluetoothStatsLog
+                            .BROADCAST_AUDIO_SESSION_REPORTED__SESSION_SETUP_STATUS__SETUP_STATUS_STREAMING) {
+                Log.d(
+                        TAG,
+                        "logBroadcastSessionMetrics: updating from state: "
+                                + mSessionStatus
+                                + " to "
+                                + status);
+                mSessionStatus = status;
+            }
+        }
+
+        public void logBroadcastSessionMetrics(int broadcastId, long sessionStopTime) {
+            long sessionDurationMs =
+                    (mSessionCreatedTime > 0) ? (sessionStopTime - mSessionCreatedTime) : 0;
+            long latencySessionConfiguredMs =
+                    (mSessionCreatedTime > 0) ? (mSessionCreatedTime - mSessionRequestTime) : 0;
+            long latencySessionStreamingMs =
+                    (mSessionCreatedTime > 0 && mSessionStreamingTime > 0)
+                            ? (mSessionStreamingTime - mSessionCreatedTime)
+                            : 0;
+
+            Log.d(
+                    TAG,
+                    "logBroadcastSessionMetrics: broadcastId: "
+                            + broadcastId
+                            + ", audioQuality: "
+                            + Arrays.toString(mAudioQuality)
+                            + ", sessionGroupSize: "
+                            + mSessionGroupSize
+                            + ", sessionDurationMs: "
+                            + sessionDurationMs
+                            + ", latencySessionConfiguredMs: "
+                            + latencySessionConfiguredMs
+                            + ", latencySessionStreamingMs: "
+                            + latencySessionStreamingMs
+                            + ", sessionStatus: "
+                            + mSessionStatus);
+
+            MetricsLogger.getInstance()
+                    .logLeAudioBroadcastAudioSession(
+                            broadcastId,
+                            mAudioQuality,
+                            mSessionGroupSize,
+                            sessionDurationMs,
+                            latencySessionConfiguredMs,
+                            latencySessionStreamingMs,
+                            mSessionStatus);
+        }
+
+        private int convertToStatsAudioQuality(int audioQuality) {
+            switch (audioQuality) {
+                case BluetoothLeBroadcastSubgroupSettings.QUALITY_STANDARD:
+                    return BluetoothStatsLog
+                            .BROADCAST_AUDIO_SESSION_REPORTED__AUDIO_QUALITY__QUALITY_STANDARD;
+                case BluetoothLeBroadcastSubgroupSettings.QUALITY_HIGH:
+                    return BluetoothStatsLog
+                            .BROADCAST_AUDIO_SESSION_REPORTED__AUDIO_QUALITY__QUALITY_HIGH;
+                default:
+                    return BluetoothStatsLog
+                            .BROADCAST_AUDIO_SESSION_REPORTED__AUDIO_QUALITY__QUALITY_UNKNOWN;
+            }
+        }
+    }
+
     List<BluetoothLeAudioCodecConfig> mInputLocalCodecCapabilities = new ArrayList<>();
     List<BluetoothLeAudioCodecConfig> mOutputLocalCodecCapabilities = new ArrayList<>();
 
@@ -379,6 +489,8 @@ public class LeAudioService extends ProfileService {
     private final Map<BluetoothDevice, LeAudioDeviceDescriptor> mDeviceDescriptors =
             new LinkedHashMap<>();
     private final Map<Integer, LeAudioBroadcastDescriptor> mBroadcastDescriptors =
+            new LinkedHashMap<>();
+    private final Map<Integer, LeAudioBroadcastSessionStats> mBroadcastSessionStats =
             new LinkedHashMap<>();
 
     private Handler mHandler = new Handler(Looper.getMainLooper());
@@ -442,6 +554,7 @@ public class LeAudioService extends ProfileService {
         mStateMachinesThread.start();
 
         mBroadcastDescriptors.clear();
+        mBroadcastSessionStats.clear();
 
         mGroupWriteLock.lock();
         try {
@@ -617,6 +730,7 @@ public class LeAudioService extends ProfileService {
         }
 
         mBroadcastDescriptors.clear();
+        logAllBroadcastSessionStatsAndCleanup();
 
         if (mLeAudioBroadcasterNativeInterface != null) {
             mLeAudioBroadcasterNativeInterface.cleanup();
@@ -1087,6 +1201,9 @@ public class LeAudioService extends ProfileService {
             Log.d(TAG, "subgroup settings is not valid value");
             return;
         }
+        mBroadcastSessionStats.put(
+                INVALID_BROADCAST_ID,
+                new LeAudioBroadcastSessionStats(broadcastSettings, SystemClock.elapsedRealtime()));
 
         BluetoothLeAudioContentMetadata publicMetadata =
                 broadcastSettings.getPublicBroadcastMetadata();
@@ -1274,6 +1391,14 @@ public class LeAudioService extends ProfileService {
         }
 
         Log.d(TAG, "stopBroadcast");
+
+        // log group size before stop
+        LeAudioBroadcastSessionStats sessionStats = mBroadcastSessionStats.get(broadcastId);
+        BassClientService bassClientService = getBassClientService();
+        if (bassClientService != null && sessionStats != null) {
+            sessionStats.updateGroupSize(bassClientService.getSyncedBroadcastSinks().size());
+        }
+
         mLeAudioBroadcasterNativeInterface.stopBroadcast(broadcastId);
     }
 
@@ -3548,6 +3673,17 @@ public class LeAudioService extends ProfileService {
                                 notifyBroadcastStarted(
                                         broadcastId,
                                         BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST));
+
+                LeAudioBroadcastSessionStats sessionStats =
+                        mBroadcastSessionStats.remove(INVALID_BROADCAST_ID);
+                if (sessionStats != null) {
+                    sessionStats.updateSessionStatus(
+                            BluetoothStatsLog
+                                    .BROADCAST_AUDIO_SESSION_REPORTED__SESSION_SETUP_STATUS__SETUP_STATUS_CREATED);
+                    sessionStats.updateSessionCreatedTime(SystemClock.elapsedRealtime());
+                    mBroadcastSessionStats.put(broadcastId, sessionStats);
+                }
+
                 // Start sending the actual stream
                 startBroadcast(broadcastId);
 
@@ -3568,6 +3704,10 @@ public class LeAudioService extends ProfileService {
                 }
 
                 mHandler.post(() -> notifyBroadcastStartFailed(BluetoothStatusCodes.ERROR_UNKNOWN));
+                logBroadcastSessionStatsWithStatus(
+                        INVALID_BROADCAST_ID,
+                        BluetoothStatsLog
+                                .BROADCAST_AUDIO_SESSION_REPORTED__SESSION_SETUP_STATUS__SETUP_STATUS_CREATE_FAILED);
             }
 
             mAwaitingBroadcastCreateResponse = false;
@@ -3599,6 +3739,10 @@ public class LeAudioService extends ProfileService {
             if (bassClientService != null) {
                 bassClientService.stopReceiversSourceSynchronization(broadcastId);
             }
+            logBroadcastSessionStatsWithStatus(
+                    broadcastId,
+                    BluetoothStatsLog
+                            .BROADCAST_AUDIO_SESSION_REPORTED__SESSION_SETUP_STATUS__SETUP_STATUS_UNKNOWN);
         } else if (stackEvent.type == LeAudioStackEvent.EVENT_TYPE_BROADCAST_STATE) {
             int broadcastId = stackEvent.valueInt1;
             int state = stackEvent.valueInt2;
@@ -3683,6 +3827,16 @@ public class LeAudioService extends ProfileService {
                                     notifyPlaybackStarted(
                                             broadcastId,
                                             BluetoothStatusCodes.REASON_LOCAL_STACK_REQUEST));
+
+                    // Log streaming start timestamp
+                    LeAudioBroadcastSessionStats sessionStats =
+                            mBroadcastSessionStats.get(broadcastId);
+                    if (sessionStats != null) {
+                        sessionStats.updateSessionStatus(
+                                BluetoothStatsLog
+                                        .BROADCAST_AUDIO_SESSION_REPORTED__SESSION_SETUP_STATUS__SETUP_STATUS_STREAMING);
+                        sessionStats.updateSessionStreamingTime(SystemClock.elapsedRealtime());
+                    }
 
                     clearBroadcastTimeoutCallback();
 
@@ -4888,6 +5042,28 @@ public class LeAudioService extends ProfileService {
         }
     }
 
+    private void logBroadcastSessionStatsWithStatus(int broadcastId, int status) {
+        LeAudioBroadcastSessionStats sessionStats = mBroadcastSessionStats.remove(broadcastId);
+        if (sessionStats != null) {
+            if (status
+                    != BluetoothStatsLog
+                            .BROADCAST_AUDIO_SESSION_REPORTED__SESSION_SETUP_STATUS__SETUP_STATUS_UNKNOWN) {
+                sessionStats.updateSessionStatus(status);
+            }
+            sessionStats.logBroadcastSessionMetrics(broadcastId, SystemClock.elapsedRealtime());
+        }
+    }
+
+    private void logAllBroadcastSessionStatsAndCleanup() {
+        for (Map.Entry<Integer, LeAudioBroadcastSessionStats> entry :
+                mBroadcastSessionStats.entrySet()) {
+            LeAudioBroadcastSessionStats sessionStats = entry.getValue();
+            Integer broadcastId = entry.getKey();
+            sessionStats.logBroadcastSessionMetrics(broadcastId, SystemClock.elapsedRealtime());
+        }
+        mBroadcastSessionStats.clear();
+    }
+
     /**
      * Gets the current codec status (configuration and capability).
      *
@@ -5084,6 +5260,14 @@ public class LeAudioService extends ProfileService {
             }
 
             if (Flags.leaudioBroadcastDestroyAfterTimeout()) {
+                LeAudioBroadcastSessionStats sessionStats =
+                        mBroadcastSessionStats.get(mBroadcastId);
+                if (sessionStats != null) {
+                    sessionStats.updateSessionStatus(
+                            BluetoothStatsLog
+                                    .BROADCAST_AUDIO_SESSION_REPORTED__SESSION_SETUP_STATUS__SETUP_STATUS_STREAMING_FAILED);
+                    // log once destroyed
+                }
                 transitionFromBroadcastToUnicast();
                 destroyBroadcast(mBroadcastId);
             } else {
@@ -5092,6 +5276,10 @@ public class LeAudioService extends ProfileService {
                 }
 
                 mHandler.post(() -> notifyBroadcastStartFailed(BluetoothStatusCodes.ERROR_TIMEOUT));
+                logBroadcastSessionStatsWithStatus(
+                        mBroadcastId,
+                        BluetoothStatsLog
+                                .BROADCAST_AUDIO_SESSION_REPORTED__SESSION_SETUP_STATUS__SETUP_STATUS_STREAMING_FAILED);
             }
         }
     }
