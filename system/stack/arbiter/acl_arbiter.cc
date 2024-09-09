@@ -23,7 +23,7 @@
 
 #include "osi/include/allocator.h"
 #include "stack/gatt/gatt_int.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/main_thread.h"
 
@@ -112,8 +112,8 @@ void AclArbiter::SendPacketToPeer(uint8_t tcb_idx, ::rust::Vec<uint8_t> buffer) 
     std::copy(buffer.begin(), buffer.end(), p);
     p_buf->offset = L2CAP_MIN_OFFSET;
     p_buf->len = buffer.size();
-    if (L2CA_SendFixedChnlData(L2CAP_ATT_CID, p_tcb->peer_bda, p_buf) !=
-        tL2CAP_DW_RESULT::SUCCESS) {
+    if (stack::l2cap::get_interface().L2CA_SendFixedChnlData(L2CAP_ATT_CID, p_tcb->peer_bda,
+                                                             p_buf) != tL2CAP_DW_RESULT::SUCCESS) {
       log::warn("Unable to send L2CAP data peer:{} fixed_cid:{} len:{}", p_tcb->peer_bda,
                 L2CAP_ATT_CID, p_buf->len);
     }
