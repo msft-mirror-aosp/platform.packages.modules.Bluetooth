@@ -328,18 +328,10 @@ bool btif_a2dp_sink_restart_session(const RawAddress& old_peer_address,
   if (!old_peer_address.IsEmpty()) {
     btif_a2dp_sink_end_session(old_peer_address);
   }
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    if (!bta_av_co_set_active_sink_peer(new_peer_address)) {
-      log::error("Cannot stream audio: cannot set active peer to {}", new_peer_address);
-      peer_ready_promise.set_value();
-      return false;
-    }
-  } else {
-    if (!bta_av_co_set_active_peer(new_peer_address)) {
-      log::error("Cannot stream audio: cannot set active peer to {}", new_peer_address);
-      peer_ready_promise.set_value();
-      return false;
-    }
+  if (!bta_av_co_set_active_sink_peer(new_peer_address)) {
+    log::error("Cannot stream audio: cannot set active peer to {}", new_peer_address);
+    peer_ready_promise.set_value();
+    return false;
   }
 
   if (old_peer_address.IsEmpty()) {

@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.gatt;
 
-
 import android.bluetooth.le.AdvertiseCallback;
 import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertisingSetParameters;

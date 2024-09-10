@@ -37,6 +37,7 @@
 #include "stack/include/hcimsgs.h"  // HCID_GET_
 #include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_hci_link_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/l2cap/l2c_int.h"
 
@@ -185,7 +186,7 @@ void l2c_rcv_acl_data(BT_HDR* p_msg) {
     --p_ccb->remote_credit_count;
 
     /* If the credits left on the remote device are getting low, send some */
-    if (p_ccb->remote_credit_count <= L2CA_LeCreditThreshold()) {
+    if (p_ccb->remote_credit_count <= ::L2CA_LeCreditThreshold()) {
       uint16_t credits = L2CA_LeCreditDefault() - p_ccb->remote_credit_count;
       p_ccb->remote_credit_count = L2CA_LeCreditDefault();
 
