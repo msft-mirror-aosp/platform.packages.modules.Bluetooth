@@ -45,13 +45,21 @@ using base::Closure;
 using bluetooth::Uuid;
 using bluetooth::csis::CsisClient;
 using bluetooth::vc::ConnectionState;
+using bluetooth::vc::VolumeInputStatus;
+using bluetooth::vc::VolumeInputType;
 using bluetooth::vc::internal::kControlPointOpcodeMute;
 using bluetooth::vc::internal::kControlPointOpcodeSetAbsoluteVolume;
 using bluetooth::vc::internal::kControlPointOpcodeUnmute;
 using bluetooth::vc::internal::kControlPointOpcodeVolumeDown;
 using bluetooth::vc::internal::kControlPointOpcodeVolumeUp;
 using bluetooth::vc::internal::kVolumeControlUuid;
+using bluetooth::vc::internal::kVolumeInputControlPointOpcodeMute;
+using bluetooth::vc::internal::kVolumeInputControlPointOpcodeSetAutoGainMode;
+using bluetooth::vc::internal::kVolumeInputControlPointOpcodeSetGain;
+using bluetooth::vc::internal::kVolumeInputControlPointOpcodeSetManualGainMode;
+using bluetooth::vc::internal::kVolumeInputControlPointOpcodeUnmute;
 using bluetooth::vc::internal::kVolumeOffsetControlPointOpcodeSet;
+using bluetooth::vc::internal::VolumeAudioInput;
 using bluetooth::vc::internal::VolumeControlDevice;
 using bluetooth::vc::internal::VolumeControlDevices;
 using bluetooth::vc::internal::VolumeOffset;
@@ -336,6 +344,27 @@ public:
       return;
     }
 
+    VolumeAudioInput* input = device->audio_inputs.FindByServiceHandle(service->handle);
+    if (input != nullptr) {
+      if (handle == input->state_handle) {
+        OnExtAudioInputStateChanged(device, input, len, value);
+      } else if (handle == input->type_handle) {
+        OnExtAudioInTypeChanged(device, input, len, value);
+      } else if (handle == input->status_handle) {
+        OnExtAudioInputStatusChanged(device, input, len, value);
+      } else if (handle == input->description_handle) {
+        OnExtAudioInDescChanged(device, input, len, value);
+      } else if (handle == input->gain_setting_handle) {
+        OnExtAudioInGainSettingChanged(device, input, len, value);
+      } else {
+        bluetooth::log::error("{} unknown input handle={:#x}", device->address, handle);
+        return;
+      }
+
+      verify_device_ready(device, handle);
+      return;
+    }
+
     VolumeOffset* offset = device->audio_offsets.FindByServiceHandle(service->handle);
     if (offset != nullptr) {
       if (handle == offset->state_handle) {
@@ -544,6 +573,138 @@ public:
     callbacks_->OnExtAudioOutLocationChanged(device->address, offset->id, offset->location);
   }
 
+  void OnExtAudioInputStateChanged(VolumeControlDevice* device, VolumeAudioInput* input,
+                                   uint16_t len, uint8_t* value) {
+    if (len != 4) {
+      bluetooth::log::error("{}, id={}, malformed len={:#x}", device->address, input->id, len);
+      return;
+    }
+
+    uint8_t* pp = value;
+    STREAM_TO_INT8(input->gain_value, pp);
+    STREAM_TO_UINT8(input->mute, pp);
+    STREAM_TO_UINT8(input->mode, pp);
+    STREAM_TO_UINT8(input->change_counter, pp);
+
+    bluetooth::log::verbose("{}, data:{}", device->address, base::HexEncode(value, len));
+    bluetooth::log::info(
+            "{} id={:#x}gain_value {:#x}, mute: {:#x}, mode: {:#x}, "
+            "change_counter: {}",
+            device->address, input->id, input->gain_value, input->mute, input->mode,
+            input->change_counter);
+
+    if (!device->device_ready) {
+      return;
+    }
+
+    callbacks_->OnExtAudioInStateChanged(device->address, input->id, input->gain_value, input->mode,
+                                         input->mute);
+  }
+
+  void OnExtAudioInTypeChanged(VolumeControlDevice* device, VolumeAudioInput* input, uint16_t len,
+                               uint8_t* value) {
+    if (len != 1) {
+      bluetooth::log::error("{}, id={}, malformed len={:#x}", device->address, input->id, len);
+      return;
+    }
+
+    if (*value >= static_cast<uint8_t>(VolumeInputType::RFU)) {
+      bluetooth::log::error("Invalid type {} for {} id={}", device->address, *value, input->id);
+      return;
+    }
+
+    input->type = static_cast<VolumeInputType>(*value);
+
+    bluetooth::log::info("{}, id={:#x} type={}", device->address, input->id, input->type);
+
+    if (!device->device_ready) {
+      return;
+    }
+
+    callbacks_->OnExtAudioInTypeChanged(device->address, input->id, input->type);
+  }
+
+  void OnExtAudioInputStatusChanged(VolumeControlDevice* device, VolumeAudioInput* input,
+                                    uint16_t len, uint8_t* value) {
+    if (len != 1) {
+      bluetooth::log::error("{}, id={}, malformed len={:#x}", device->address, input->id, len);
+      return;
+    }
+
+    if (*value >= static_cast<uint8_t>(VolumeInputStatus::RFU)) {
+      bluetooth::log::error("Invalid status {:#x} received from {} on id={:#x}", *value,
+                            device->address, input->id);
+      return;
+    }
+
+    input->status = static_cast<VolumeInputStatus>(*value);
+
+    bluetooth::log::info("{}, id={:#x} status {}", device->address, input->id, input->status);
+
+    if (!device->device_ready) {
+      return;
+    }
+
+    callbacks_->OnExtAudioInStatusChanged(device->address, input->id, input->status);
+  }
+
+  void OnExtAudioInDescChanged(VolumeControlDevice* device, VolumeAudioInput* input, uint16_t len,
+                               uint8_t* value) {
+    std::string description = std::string(value, value + len);
+    if (!base::IsStringUTF8(description)) {
+      bluetooth::log::error("Received description is no utf8 string for {}, input id={:#x}",
+                            device->address, input->id);
+    } else {
+      input->description = description;
+    }
+
+    bluetooth::log::info("{}, id={:#x}, descriptor: {}", device->address, input->id,
+                         input->description);
+
+    if (!device->device_ready) {
+      return;
+    }
+
+    callbacks_->OnExtAudioInDescriptionChanged(device->address, input->id, input->description);
+  }
+
+  void OnExtAudioInCPWrite(uint16_t connection_id, tGATT_STATUS status, uint16_t handle) {
+    VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
+    if (!device) {
+      bluetooth::log::info("Skipping unknown device disconnect, connection_id={:#x}",
+                           connection_id);
+      return;
+    }
+
+    bluetooth::log::info("{}, Input Control Point write response handle {:#x}, status {:#x}",
+                         device->address, handle, status);
+  }
+
+  void OnExtAudioInGainSettingChanged(VolumeControlDevice* device, VolumeAudioInput* input,
+                                      uint16_t len, uint8_t* value) {
+    if (len != 3) {
+      bluetooth::log::error("{}, id={}, malformed len={:#x}", device->address, input->id, len);
+      return;
+    }
+
+    uint8_t* pp = value;
+    STREAM_TO_UINT8(input->gain_settings.unit, pp);
+    STREAM_TO_INT8(input->gain_settings.min, pp);
+    STREAM_TO_INT8(input->gain_settings.max, pp);
+
+    bluetooth::log::verbose("{}, len:{}", device->address, base::HexEncode(value, len));
+    bluetooth::log::info("{}, id={:#x} gain unit {:#x} gain min {:#x} gain max {:#x}",
+                         device->address, input->id, input->gain_settings.unit,
+                         input->gain_settings.min, input->gain_settings.max);
+
+    if (!device->device_ready) {
+      return;
+    }
+
+    callbacks_->OnExtAudioInGainPropsChanged(device->address, input->id, input->gain_settings.unit,
+                                             input->gain_settings.min, input->gain_settings.max);
+  }
+
   void OnExtAudioOutCPWrite(uint16_t connection_id, tGATT_STATUS status, uint16_t handle,
                             void* /*data*/) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
@@ -563,7 +724,10 @@ public:
                                  uint8_t* value) {
     std::string description = std::string(value, value + len);
     if (!base::IsStringUTF8(description)) {
-      description = "<invalid utf8 string>";
+      bluetooth::log::error(" Received description is no utf8 string for {}, offset id={:#x}",
+                            device->address, offset->id);
+    } else {
+      offset->description = description;
     }
 
     bluetooth::log::info("{}, {}", device->address, description);
@@ -573,7 +737,7 @@ public:
       return;
     }
 
-    callbacks_->OnExtAudioOutDescriptionChanged(device->address, offset->id, description);
+    callbacks_->OnExtAudioOutDescriptionChanged(device->address, offset->id, offset->description);
   }
 
   void OnGattWriteCcc(uint16_t connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
@@ -1059,6 +1223,90 @@ public:
     device->SetExtAudioOutDescription(ext_output_id, descr);
   }
 
+  /* Methods to operate on Audio Input Service (AIS) */
+  void GetExtAudioInState(const RawAddress& address, uint8_t ext_input_id) override {
+    VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
+    if (!device) {
+      bluetooth::log::error("{}, no such device!", address);
+      return;
+    }
+
+    device->GetExtAudioInState(ext_input_id, chrc_read_callback_static, nullptr);
+  }
+
+  void GetExtAudioInStatus(const RawAddress& address, uint8_t ext_input_id) override {
+    VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
+    if (!device) {
+      bluetooth::log::error("{}, no such device!", address);
+      return;
+    }
+
+    device->GetExtAudioInStatus(ext_input_id, chrc_read_callback_static, nullptr);
+  }
+
+  void GetExtAudioInType(const RawAddress& address, uint8_t ext_input_id) override {
+    VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
+    if (!device) {
+      bluetooth::log::error("{}, no such device!", address);
+      return;
+    }
+
+    device->GetExtAudioInType(ext_input_id, chrc_read_callback_static, nullptr);
+  }
+
+  void GetExtAudioInGainProps(const RawAddress& address, uint8_t ext_input_id) override {
+    VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
+    if (!device) {
+      bluetooth::log::error("{}, no such device!", address);
+      return;
+    }
+
+    device->GetExtAudioInGainProps(ext_input_id, chrc_read_callback_static, nullptr);
+  }
+
+  void GetExtAudioInDescription(const RawAddress& address, uint8_t ext_input_id) override {
+    VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
+    if (!device) {
+      bluetooth::log::error("{}, no such device!", address);
+      return;
+    }
+
+    device->GetExtAudioInDescription(ext_input_id, chrc_read_callback_static, nullptr);
+  }
+
+  void SetExtAudioInDescription(const RawAddress& address, uint8_t ext_input_id,
+                                std::string descr) override {
+    VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
+    if (!device) {
+      bluetooth::log::error("{}, no such device!", address);
+      return;
+    }
+
+    device->SetExtAudioInDescription(ext_input_id, descr);
+  }
+
+  void SetExtAudioInGainValue(const RawAddress& address, uint8_t ext_input_id,
+                              int8_t value) override {
+    std::vector<uint8_t> arg({(uint8_t)value});
+    ext_audio_in_control_point_helper(address, ext_input_id, kVolumeInputControlPointOpcodeSetGain,
+                                      &arg);
+  }
+
+  void SetExtAudioInGainMode(const RawAddress& address, uint8_t ext_input_id,
+                             bool automatic) override {
+    ext_audio_in_control_point_helper(address, ext_input_id,
+                                      automatic ? kVolumeInputControlPointOpcodeSetAutoGainMode
+                                                : kVolumeInputControlPointOpcodeSetManualGainMode,
+                                      nullptr);
+  }
+
+  void SetExtAudioInGainMute(const RawAddress& address, uint8_t ext_input_id, bool mute) override {
+    ext_audio_in_control_point_helper(
+            address, ext_input_id,
+            mute ? kVolumeInputControlPointOpcodeMute : kVolumeInputControlPointOpcodeUnmute,
+            nullptr);
+  }
+
   void CleanUp() {
     bluetooth::log::info("");
     volume_control_devices_.Disconnect(gatt_if_);
@@ -1089,7 +1337,8 @@ private:
     if (device->VerifyReady(handle)) {
       bluetooth::log::info("Outstanding reads completed.");
 
-      callbacks_->OnDeviceAvailable(device->address, device->audio_offsets.Size());
+      callbacks_->OnDeviceAvailable(device->address, device->audio_offsets.Size(),
+                                    device->audio_inputs.Size());
       callbacks_->OnConnectionState(ConnectionState::CONNECTED, device->address);
 
       // once profile connected we can notify current states
@@ -1122,6 +1371,27 @@ private:
               }
             },
             INT_TO_PTR(operation_id));
+  }
+
+  void ext_audio_in_control_point_helper(const RawAddress& address, uint8_t ext_input_id,
+                                         uint8_t opcode, const std::vector<uint8_t>* arg) {
+    bluetooth::log::info("{}, input_id={:#x}, opcode {:#x}", address, ext_input_id, opcode);
+
+    VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
+    if (!device) {
+      bluetooth::log::error("{}, no such device!", address);
+      return;
+    }
+
+    device->ExtAudioInControlPointOperation(
+            ext_input_id, opcode, arg,
+            [](uint16_t connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+               const uint8_t* value, void* data) {
+              if (instance) {
+                instance->OnExtAudioInCPWrite(connection_id, status, handle);
+              }
+            },
+            nullptr);
   }
 
   void ext_audio_out_control_point_helper(const RawAddress& address, uint8_t ext_output_id,

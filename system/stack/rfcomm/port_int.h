@@ -31,7 +31,7 @@
 #include "internal_include/bt_target.h"
 #include "osi/include/alarm.h"
 #include "osi/include/fixed_queue.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_types.h"
 #include "stack/include/port_api.h"
 #include "stack/include/rfcdefs.h"
 #include "stack/rfcomm/rfc_state.h"
