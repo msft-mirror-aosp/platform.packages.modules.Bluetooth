@@ -1373,11 +1373,8 @@ static void btif_dm_search_devices_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH*
              don't want this to replace the existing value below when we call
              btif_storage_add_remote_device */
           uint32_t old_cod = get_cod(&bdaddr);
-          if (com::android::bluetooth::flags::
-                      do_not_replace_existing_cod_with_uncategorized_cod()) {
-            if (cod == COD_UNCLASSIFIED && old_cod != 0) {
-              cod = old_cod;
-            }
+          if (cod == COD_UNCLASSIFIED && old_cod != 0) {
+            cod = old_cod;
           }
 
           if (old_cod != cod) {

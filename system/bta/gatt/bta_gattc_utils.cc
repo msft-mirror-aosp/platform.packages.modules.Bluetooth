@@ -652,7 +652,7 @@ bool bta_gattc_mark_bg_conn(tGATT_IF client_if, const RawAddress& remote_bda_ptr
         }
         /* no BG connection for this device, make it available */
         if (p_bg_tck->cif_mask == 0) {
-          memset(p_bg_tck, 0, sizeof(tBTA_GATTC_BG_TCK));
+          *p_bg_tck = tBTA_GATTC_BG_TCK{};
         }
       }
       return true;
@@ -661,8 +661,7 @@ bool bta_gattc_mark_bg_conn(tGATT_IF client_if, const RawAddress& remote_bda_ptr
   if (!add) {
     log::error("unable to find the bg connection mask for bd_addr={}", remote_bda_ptr);
     return false;
-  } else /* adding a new device mask */
-  {
+  } else { /* adding a new device mask */
     for (i = 0, p_bg_tck = &bta_gattc_cb.bg_track[0]; i < ble_acceptlist_size(); i++, p_bg_tck++) {
       if (!p_bg_tck->in_use) {
         p_bg_tck->in_use = true;

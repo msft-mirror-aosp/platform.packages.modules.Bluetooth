@@ -847,14 +847,8 @@ class BluetoothManagerService {
     }
 
     boolean isBleScanAvailable() {
-        if (Flags.airplaneModeXBleOn()) {
-            if (AirplaneModeListener.isOn() && !mEnable) {
-                return false;
-            }
-        } else {
-            if (AirplaneModeListener.isOnOverrode() && !mEnable) {
-                return false;
-            }
+        if (AirplaneModeListener.isOn() && !mEnable) {
+            return false;
         }
         if (Flags.respectBleScanSetting()) {
             if (SatelliteModeListener.isOn()) {
@@ -967,16 +961,9 @@ class BluetoothManagerService {
                         + (" isBinding=" + isBinding())
                         + (" mState=" + mState));
 
-        if (Flags.airplaneModeXBleOn()) {
-            if (AirplaneModeListener.isOn() && !mEnable) {
-                Log.d(TAG, "enableBle: not enabling - Airplane mode is ON on system");
-                return false;
-            }
-        } else {
-            if (AirplaneModeListener.isOnOverrode()) {
-                Log.d(TAG, "enableBle: not enabling - Airplane mode is ON");
-                return false;
-            }
+        if (AirplaneModeListener.isOn() && !mEnable) {
+            Log.d(TAG, "enableBle: not enabling - Airplane mode is ON on system");
+            return false;
         }
 
         if (isSatelliteModeOn()) {
@@ -1096,11 +1083,9 @@ class BluetoothManagerService {
                 Log.w(TAG, "sendBrEdrDownCallback: mAdapter is null");
                 return;
             }
-            boolean airplaneDoesNotAllowBleOn =
-                    Flags.airplaneModeXBleOn() && AirplaneModeListener.isOn();
             boolean scanIsAllowed =
                     !Flags.respectBleScanSetting() || BleScanSettingListener.isScanAllowed();
-            if (!airplaneDoesNotAllowBleOn && isBleAppPresent() && scanIsAllowed) {
+            if (!AirplaneModeListener.isOn() && isBleAppPresent() && scanIsAllowed) {
                 // Need to stay at BLE ON. Disconnect all Gatt connections
                 Log.i(TAG, "sendBrEdrDownCallback: Staying in BLE_ON");
                 mAdapter.unregAllGattClient(mContext.getAttributionSource());

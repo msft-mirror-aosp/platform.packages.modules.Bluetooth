@@ -588,6 +588,7 @@ pub struct BtLePcmConfigDBus {
     channels_count: u8,
 }
 
+#[allow(dead_code)]
 struct IBluetoothCallbackDBus {}
 
 impl RPCProxy for IBluetoothCallbackDBus {}
@@ -658,6 +659,7 @@ impl IBluetoothCallback for IBluetoothCallbackDBus {
     fn on_sdp_record_created(&mut self, record: BtSdpRecord, handle: i32) {}
 }
 
+#[allow(dead_code)]
 struct IBluetoothConnectionCallbackDBus {}
 
 impl RPCProxy for IBluetoothConnectionCallbackDBus {}
@@ -674,6 +676,7 @@ impl IBluetoothConnectionCallback for IBluetoothConnectionCallbackDBus {
     fn on_device_disconnected(&mut self, remote_device: BluetoothDevice) {}
 }
 
+#[allow(dead_code)]
 struct IScannerCallbackDBus {}
 
 impl RPCProxy for IScannerCallbackDBus {}
@@ -1203,6 +1206,7 @@ impl IBluetoothManager for BluetoothManagerDBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBluetoothManagerCallbackDBus {}
 
 impl RPCProxy for IBluetoothManagerCallbackDBus {}
@@ -1400,6 +1404,7 @@ pub struct PolicyEffectDBus {
     pub affected: bool,
 }
 
+#[allow(dead_code)]
 struct IBluetoothAdminPolicyCallbackDBus {}
 
 impl RPCProxy for IBluetoothAdminPolicyCallbackDBus {}
@@ -1861,6 +1866,7 @@ impl IBluetoothGatt for BluetoothGattDBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBluetoothGattCallbackDBus {}
 
 impl RPCProxy for IBluetoothGattCallbackDBus {}
@@ -2269,6 +2275,7 @@ impl IBluetoothSocketManager for BluetoothSocketManagerDBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBluetoothSocketManagerCallbacksDBus {}
 
 impl RPCProxy for IBluetoothSocketManagerCallbacksDBus {}
@@ -2348,6 +2355,7 @@ impl ISuspend for SuspendDBus {
     }
 }
 
+#[allow(dead_code)]
 struct ISuspendCallbackDBus {}
 
 impl RPCProxy for ISuspendCallbackDBus {}
@@ -2475,6 +2483,7 @@ impl IBluetoothTelephony for BluetoothTelephonyDBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBluetoothTelephonyCallbackDBus {}
 
 impl RPCProxy for IBluetoothTelephonyCallbackDBus {}
@@ -2570,6 +2579,7 @@ impl IBluetoothQA for BluetoothQADBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBluetoothQACallbackDBus {}
 
 impl RPCProxy for IBluetoothQACallbackDBus {}
@@ -2897,6 +2907,7 @@ impl IBluetoothMedia for BluetoothMediaDBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBluetoothMediaCallbackDBus {}
 
 impl RPCProxy for IBluetoothMediaCallbackDBus {}
@@ -3050,6 +3061,7 @@ pub struct BatteryDBus {
     variant: String,
 }
 
+#[allow(dead_code)]
 struct IBatteryManagerCallbackDBus {}
 
 impl RPCProxy for IBatteryManagerCallbackDBus {}
