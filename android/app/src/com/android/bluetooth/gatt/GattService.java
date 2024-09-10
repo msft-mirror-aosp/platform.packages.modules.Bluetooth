@@ -98,6 +98,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Provides Bluetooth Gatt profile, as a service in the Bluetooth application. */
 public class GattService extends ProfileService {
@@ -322,15 +324,13 @@ public class GattService extends ProfileService {
                             }
                         };
             }
-            if (enableTestMode && !isTestModeEnabled()) {
-                super.setTestModeEnabled(true);
-                mTestModeHandler.removeMessages(0);
-                mTestModeHandler.sendEmptyMessageDelayed(0, DateUtils.SECOND_IN_MILLIS);
-            } else if (!enableTestMode && isTestModeEnabled()) {
-                super.setTestModeEnabled(false);
-                mTestModeHandler.removeMessages(0);
-                mTestModeHandler.sendEmptyMessage(0);
+            if (enableTestMode == isTestModeEnabled()) {
+                return;
             }
+            super.setTestModeEnabled(enableTestMode);
+            mTestModeHandler.removeMessages(0);
+            mTestModeHandler.sendEmptyMessageDelayed(
+                    0, enableTestMode ? DateUtils.SECOND_IN_MILLIS : 0);
         }
     }
 
@@ -1874,18 +1874,10 @@ public class GattService extends ProfileService {
         }
 
         // Create matching device sub-set
-
-        List<BluetoothDevice> deviceList = new ArrayList<>();
-
-        for (Map.Entry<BluetoothDevice, Integer> entry : deviceStates.entrySet()) {
-            for (int state : states) {
-                if (entry.getValue() == state) {
-                    deviceList.add(entry.getKey());
-                }
-            }
-        }
-
-        return deviceList;
+        return deviceStates.entrySet().stream()
+                .filter(e -> Arrays.stream(states).anyMatch(s -> s == e.getValue()))
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
     }
 
     @RequiresPermission(BLUETOOTH_CONNECT)
@@ -2215,11 +2207,9 @@ public class GattService extends ProfileService {
                 this, attributionSource, "GattService getRegisteredServiceUuids")) {
             return Collections.emptyList();
         }
-        List<ParcelUuid> serviceUuids = new ArrayList<>();
-        for (HandleMap.Entry entry : mHandleMap.getEntries()) {
-            serviceUuids.add(new ParcelUuid(entry.uuid));
-        }
-        return serviceUuids;
+        return mHandleMap.getEntries().stream()
+                .map(entry -> new ParcelUuid(entry.uuid))
+                .collect(Collectors.toList());
     }
 
     @RequiresPermission(BLUETOOTH_CONNECT)
@@ -2229,11 +2219,11 @@ public class GattService extends ProfileService {
             return Collections.emptyList();
         }
 
-        Set<String> connectedDevAddress = new HashSet<>();
-        connectedDevAddress.addAll(mClientMap.getConnectedDevices());
-        connectedDevAddress.addAll(mServerMap.getConnectedDevices());
-        List<String> connectedDeviceList = new ArrayList<>(connectedDevAddress);
-        return connectedDeviceList;
+        return Stream.concat(
+                        mClientMap.getConnectedDevices().stream(),
+                        mServerMap.getConnectedDevices().stream())
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     @RequiresPermission(BLUETOOTH_CONNECT)

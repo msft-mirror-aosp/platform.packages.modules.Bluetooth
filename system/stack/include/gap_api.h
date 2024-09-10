@@ -25,6 +25,7 @@
 #include "l2cdefs.h"
 #include "profiles_api.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/l2cap_types.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 

@@ -82,7 +82,6 @@
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
 #include "common/address_obfuscator.h"
-#include "common/init_flags.h"
 #include "common/metrics.h"
 #include "common/os_utils.h"
 #include "device/include/device_iot_config.h"
@@ -439,15 +438,13 @@ int GetAdapterIndex() { return 0; }  // Unsupported outside of FLOSS
 #endif
 
 static int init(bt_callbacks_t* callbacks, bool start_restricted, bool is_common_criteria_mode,
-                int config_compare_result, const char** init_flags, bool is_atv,
+                int config_compare_result, const char** /* init_flags */, bool is_atv,
                 const char* user_data_directory) {
   (void)user_data_directory;
   log::info(
           "start restricted = {} ; common criteria mode = {}, config compare "
           "result = {}",
           start_restricted, is_common_criteria_mode, config_compare_result);
-
-  bluetooth::common::InitFlags::Load(init_flags);
 
   if (interface_ready()) {
     return BT_STATUS_DONE;

@@ -676,6 +676,7 @@ cc_test {
         "liblog",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
@@ -686,6 +687,7 @@ cc_test {
         "libbt_shim_ffi",
         "libchrome",
         "libgmock",
+        "server_configurable_flags",
     ],
     sanitize: {
         cfi: false,

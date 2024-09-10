@@ -261,7 +261,7 @@ void avdt_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
   }
 
   if (p_tbl->state != AVDT_AD_ST_CONN) {
-    log::warn("Incorrect state: {}", p_tbl->state);
+    log::warn("Incorrect state: {}", tc_state_text(p_tbl->state));
     return;
   }
 

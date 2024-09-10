@@ -34,14 +34,12 @@ package com.android.bluetooth.opp;
 
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothProtoEnums;
-import android.content.ContentProvider;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.net.Uri;
-import android.os.UserHandle;
 import android.provider.OpenableColumns;
 import android.util.EventLog;
 import android.util.Log;
@@ -60,7 +58,7 @@ import java.io.IOException;
  * This class stores information about a single sending file It will only be used for outbound
  * share.
  */
-// Next tag value for ContentProfileErrorReportUtils.report(): 16
+// Next tag value for ContentProfileErrorReportUtils.report(): 15
 public class BluetoothOppSendFileInfo {
     private static final String TAG = "BluetoothOppSendFileInfo";
 
@@ -123,23 +121,6 @@ public class BluetoothOppSendFileInfo {
                         BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
                         BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
                         0);
-                return SEND_FILE_INFO_ERROR;
-            }
-
-            try {
-                // Use module-visible API to confirm that content uri is valid for the current user.
-                // Content uris for a different user are invalid.
-                // Uris pointing either implicitly or explicitly to content for the current user
-                // will be valid.
-                ContentProvider.createContentUriForUser(
-                        uri, UserHandle.getUserHandleForUid(UserHandle.myUserId()));
-            } catch (IllegalArgumentException e) {
-                Log.e(TAG, "Uri: " + uri + " is invalid for user " + UserHandle.myUserId(), e);
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.OPP,
-                        BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
-                        15);
                 return SEND_FILE_INFO_ERROR;
             }
 

@@ -167,3 +167,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "save_peer_csrk_after_ltk_gen"
+    namespace: "bluetooth"
+    description: "save peer csrk after ltk generated so that right security level is marked as part of peer csrk"
+    bug: "365567905"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
