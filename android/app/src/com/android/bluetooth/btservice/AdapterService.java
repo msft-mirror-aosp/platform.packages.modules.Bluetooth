@@ -1108,6 +1108,7 @@ public class AdapterService extends Service {
     }
 
     private void startGattProfileService() {
+        Log.d(TAG, "startGattProfileService() called");
         mGattService = new GattService(this);
 
         mStartedProfiles.put(BluetoothProfile.GATT, mGattService);
@@ -1118,11 +1119,13 @@ public class AdapterService extends Service {
     }
 
     private void startScanController() {
+        Log.d(TAG, "startScanController() called");
         mScanController = new ScanController(this);
         mNativeInterface.enable();
     }
 
     private void stopGattProfileService() {
+        Log.d(TAG, "stopGattProfileService() called");
         setScanMode(SCAN_MODE_NONE, "stopGattProfileService");
 
         if (mRunningProfiles.size() == 0) {
@@ -1143,6 +1146,7 @@ public class AdapterService extends Service {
     }
 
     private void stopScanController() {
+        Log.d(TAG, "stopScanController() called");
         setScanMode(SCAN_MODE_NONE, "stopScanController");
 
         if (mScanController == null) {
@@ -1480,6 +1484,8 @@ public class AdapterService extends Service {
         mPreferredAudioProfilesCallbacks.kill();
 
         mBluetoothQualityReportReadyCallbacks.kill();
+
+        mBluetoothConnectionCallbacks.kill();
 
         mRemoteCallbacks.kill();
     }
@@ -6282,6 +6288,9 @@ public class AdapterService extends Service {
             final boolean testModeEnabled = "enabled".equalsIgnoreCase(args[1]);
             for (ProfileService profile : mRunningProfiles) {
                 profile.setTestModeEnabled(testModeEnabled);
+            }
+            if (Flags.scanManagerRefactor() && mScanController != null) {
+                mScanController.setTestModeEnabled(testModeEnabled);
             }
             mTestModeEnabled = testModeEnabled;
             return;

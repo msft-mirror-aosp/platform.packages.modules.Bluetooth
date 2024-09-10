@@ -34,7 +34,7 @@
 #include "internal_include/bt_target.h"
 #include "osi/include/alarm.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/sdp_callback.h"
 #include "stack/sdp/sdp_discovery_db.h"
 #include "types/bluetooth/uuid.h"
@@ -244,7 +244,7 @@ void sdp_disconnect(tCONN_CB* p_ccb, tSDP_REASON reason);
 
 void sdp_conn_timer_timeout(void* data);
 
-tCONN_CB* sdp_conn_originate(const RawAddress& bd_addr);
+[[nodiscard]] tCONN_CB* sdp_conn_originate(const RawAddress& bd_addr);
 
 /* Functions provided by sdp_utils.cc
  */

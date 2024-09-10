@@ -23,7 +23,7 @@
 
 #include "stack/include/bt_hdr.h"
 
-static const std::vector<const btav_a2dp_codec_index_t> CODEC_INDEX_ENUM_VALS = {
+static const std::vector<btav_a2dp_codec_index_t> CODEC_INDEX_ENUM_VALS = {
         BTAV_A2DP_CODEC_INDEX_SOURCE_MIN,
         BTAV_A2DP_CODEC_INDEX_SOURCE_SBC,
         BTAV_A2DP_CODEC_INDEX_SOURCE_AAC,
@@ -39,22 +39,22 @@ static const std::vector<const btav_a2dp_codec_index_t> CODEC_INDEX_ENUM_VALS = 
         BTAV_A2DP_CODEC_INDEX_MIN,
         BTAV_A2DP_CODEC_INDEX_MAX};
 
-static const std::vector<const btav_a2dp_codec_priority_t> CODEC_PRIORITY_ENUM_VALS = {
+static const std::vector<btav_a2dp_codec_priority_t> CODEC_PRIORITY_ENUM_VALS = {
         BTAV_A2DP_CODEC_PRIORITY_DISABLED, BTAV_A2DP_CODEC_PRIORITY_DEFAULT,
         BTAV_A2DP_CODEC_PRIORITY_HIGHEST};
 
-static const std::vector<const btav_a2dp_codec_sample_rate_t> CODEC_SAMPLERATE_ENUM_VALS = {
+static const std::vector<btav_a2dp_codec_sample_rate_t> CODEC_SAMPLERATE_ENUM_VALS = {
         BTAV_A2DP_CODEC_SAMPLE_RATE_NONE,   BTAV_A2DP_CODEC_SAMPLE_RATE_44100,
         BTAV_A2DP_CODEC_SAMPLE_RATE_48000,  BTAV_A2DP_CODEC_SAMPLE_RATE_88200,
         BTAV_A2DP_CODEC_SAMPLE_RATE_96000,  BTAV_A2DP_CODEC_SAMPLE_RATE_176400,
         BTAV_A2DP_CODEC_SAMPLE_RATE_192000, BTAV_A2DP_CODEC_SAMPLE_RATE_16000,
         BTAV_A2DP_CODEC_SAMPLE_RATE_24000};
 
-static const std::vector<const btav_a2dp_codec_bits_per_sample_t> CODEC_BPS_ENUM_VALS = {
+static const std::vector<btav_a2dp_codec_bits_per_sample_t> CODEC_BPS_ENUM_VALS = {
         BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE, BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16,
         BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24, BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32};
 
-static const std::vector<const btav_a2dp_codec_channel_mode_t> CODEC_CHANNELMODE_ENUM_VALS = {
+static const std::vector<btav_a2dp_codec_channel_mode_t> CODEC_CHANNELMODE_ENUM_VALS = {
         BTAV_A2DP_CODEC_CHANNEL_MODE_NONE, BTAV_A2DP_CODEC_CHANNEL_MODE_MONO,
         BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO};
 

@@ -117,13 +117,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Izbriši s popisa"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Brisanje"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Upravo svira"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"Spremi"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"Odustani"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"Odaberite račune koje želite dijeliti putem Bluetootha. I dalje morate prihvatiti svako pristupanje računima prilikom povezivanja."</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"Preostala mjesta:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Ikona aplikacije"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"Postavke dijeljenja poruka putem Bluetootha"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"Račun nije moguće odabrati. Nema više nijednog mjesta"</string>
     <string name="bluetooth_connected" msgid="5687474377090799447">"Bluetooth Audio povezan"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Veza Bluetooth Audija prekinuta"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Bluetooth Audio"</string>
@@ -135,8 +129,7 @@
     <string name="bluetooth_stays_on_message" msgid="3669663452593157737">"Uređaj će zapamtiti da Bluetooth treba ostati uključen u načinu rada u zrakoplovu. Isključite Bluetooth ako ne želite da ostane uključen."</string>
     <string name="bluetooth_and_wifi_stays_on_title" msgid="5821932798860821244">"Wi-Fi i Bluetooth ostat će uključeni"</string>
     <string name="bluetooth_and_wifi_stays_on_message" msgid="7848565203843882558">"Uređaj će zapamtiti da Wi‑Fi i Bluetooth trebaju ostati uključeni u načinu rada u zrakoplovu. Isključite Wi-Fi i Bluetooth ako ne želite da ostanu uključeni."</string>
-    <string name="bluetooth_enabled_auto_on_title" msgid="1799541656310353393">"Bluetooth je automatski omogućen"</string>
-    <string name="bluetooth_enabled_auto_on_message" msgid="1070556457440100730">"Automatsko ponovno pokretanje može se uključiti u postavkama Bluetootha."</string>
-    <string name="bluetooth_disable_auto_on" msgid="1085026923461565937">"Isključi"</string>
+    <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"Bluetooth je ponovo uključen"</string>
+    <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"To uvijek možete promijeniti u postavkama"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"Automatska promjena stanja Bluetootha"</string>
 </resources>

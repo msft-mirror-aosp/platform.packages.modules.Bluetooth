@@ -29,12 +29,10 @@
 #include <vector>
 
 #include "common/circular_buffer.h"
-#include "common/init_flags.h"
 #include "common/strings.h"
 #include "gatt_api.h"
 #include "internal_include/bt_target.h"
 #include "macros.h"
-#include "main/shim/dumpsys.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "types/bluetooth/uuid.h"

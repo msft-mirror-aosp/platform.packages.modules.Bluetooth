@@ -48,6 +48,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
 #include "types/raw_address.h"
@@ -131,15 +132,15 @@ void gatt_init(void) {
   // clients exist
   fixed_reg.default_idle_tout = L2CAP_NO_IDLE_TIMEOUT;
 
-  if (!L2CA_RegisterFixedChannel(L2CAP_ATT_CID, &fixed_reg)) {
+  if (!stack::l2cap::get_interface().L2CA_RegisterFixedChannel(L2CAP_ATT_CID, &fixed_reg)) {
     log::error("Unable to register L2CAP ATT fixed channel");
   }
 
   gatt_cb.over_br_enabled = osi_property_get_bool("bluetooth.gatt.over_bredr.enabled", true);
   /* Now, register with L2CAP for ATT PSM over BR/EDR */
-  if (gatt_cb.over_br_enabled &&
-      !L2CA_RegisterWithSecurity(BT_PSM_ATT, dyn_info, false /* enable_snoop */, nullptr,
-                                 GATT_MAX_MTU_SIZE, 0, BTM_SEC_NONE)) {
+  if (gatt_cb.over_br_enabled && !stack::l2cap::get_interface().L2CA_RegisterWithSecurity(
+                                         BT_PSM_ATT, dyn_info, false /* enable_snoop */, nullptr,
+                                         GATT_MAX_MTU_SIZE, 0, BTM_SEC_NONE)) {
     log::error("ATT Dynamic Registration failed");
   }
 
@@ -223,7 +224,8 @@ bool gatt_connect(const RawAddress& rem_bda, tBLE_ADDR_TYPE addr_type, tGATT_TCB
   }
 
   if (transport != BT_TRANSPORT_LE) {
-    p_tcb->att_lcid = L2CA_ConnectReqWithSecurity(BT_PSM_ATT, rem_bda, BTM_SEC_NONE);
+    p_tcb->att_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(BT_PSM_ATT, rem_bda,
+                                                                                BTM_SEC_NONE);
     return p_tcb->att_lcid != 0;
   }
 
@@ -308,7 +310,7 @@ bool gatt_disconnect(tGATT_TCB* p_tcb) {
          */
         EattExtension::GetInstance()->Disconnect(p_tcb->peer_bda);
       }
-      if (!L2CA_RemoveFixedChnl(L2CAP_ATT_CID, p_tcb->peer_bda)) {
+      if (!stack::l2cap::get_interface().L2CA_RemoveFixedChnl(L2CAP_ATT_CID, p_tcb->peer_bda)) {
         log::warn("Unable to remove L2CAP ATT fixed channel peer:{}", p_tcb->peer_bda);
       }
       gatt_set_ch_state(p_tcb, GATT_CH_CLOSING);
@@ -849,7 +851,7 @@ static void gatt_l2cif_connect_ind_cback(const RawAddress& bd_addr, uint16_t lci
 
   /* If we reject the connection, send DisconnectReq */
   if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
-    if (!L2CA_DisconnectReq(lcid)) {
+    if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
       log::warn("Unable to disconnect L2CAP peer:{} cid:{}", bd_addr, lcid);
     }
     return;
@@ -955,7 +957,7 @@ void gatt_l2cif_disconnect_ind_cback(uint16_t lcid, bool /* ack_needed */) {
 }
 
 static void gatt_l2cif_disconnect(uint16_t lcid) {
-  if (!L2CA_DisconnectReq(lcid)) {
+  if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
     log::warn("Unable to disconnect L2CAP cid:{}", lcid);
   }
 

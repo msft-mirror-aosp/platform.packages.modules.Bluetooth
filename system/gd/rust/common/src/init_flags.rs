@@ -1,8 +1,8 @@
-use lazy_static::lazy_static;
 use log::{error, info};
 use paste::paste;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
+use std::sync::LazyLock;
 use std::sync::Mutex;
 
 // Fallback to bool when type is not specified
@@ -78,11 +78,17 @@ macro_rules! init_flags_struct {
             $($flag : type_expand!($($type)?),)*
         }
 
-        impl Default for $name {
-            fn default() -> Self {
+        impl $name {
+            pub const fn new() -> Self {
                 Self {
                     $($flag : default_value!($($type)? $(= $default)?),)*
                 }
+            }
+        }
+
+        impl Default for $name {
+            fn default() -> Self {
+                Self::new()
             }
         }
 
@@ -157,6 +163,7 @@ macro_rules! init_flags_getters {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Default)]
 struct ExplicitTagSettings {
     map: HashMap<String, i32>,
@@ -181,14 +188,12 @@ init_flags!(
     }
 );
 
-lazy_static! {
-    /// Store some flag values
-    static ref FLAGS: Mutex<InitFlags> = Mutex::new(InitFlags::default());
-    /// Store the uid of bluetooth
-    pub static ref AID_BLUETOOTH: Mutex<u32> = Mutex::new(1002);
-    /// Store the prefix for file system
-    pub static ref MISC: Mutex<String> = Mutex::new("/data/misc/".to_string());
-}
+/// Store some flag values
+static FLAGS: Mutex<InitFlags> = Mutex::new(InitFlags::new());
+/// Store the uid of bluetooth
+pub static AID_BLUETOOTH: Mutex<u32> = Mutex::new(1002);
+/// Store the prefix for file system
+pub static MISC: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new("/data/misc/".to_string()));
 
 /// Loads the flag values from the passed-in vector of string values
 pub fn load(raw_flags: Vec<String>) {
@@ -207,11 +212,10 @@ pub fn dump() -> BTreeMap<&'static str, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    lazy_static! {
-        /// do not run concurrent tests as they all use the same global init_flag struct and
-        /// accessor
-        pub(super) static ref ASYNC_LOCK: Mutex<bool> = Mutex::new(false);
-    }
+
+    /// do not run concurrent tests as they all use the same global init_flag struct and
+    /// accessor
+    pub(super) static ASYNC_LOCK: Mutex<bool> = Mutex::new(false);
 
     pub(super) fn test_load(raw_flags: Vec<&str>) {
         let raw_flags = raw_flags.into_iter().map(|x| x.to_string()).collect();

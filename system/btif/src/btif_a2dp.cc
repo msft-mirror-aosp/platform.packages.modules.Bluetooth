@@ -42,18 +42,6 @@ using bluetooth::audio::a2dp::BluetoothAudioStatus;
 void btif_a2dp_on_idle(const RawAddress& peer_addr, const A2dpType local_a2dp_type) {
   log::verbose("Peer stream endpoint type:{}",
                peer_stream_endpoint_text(btif_av_get_peer_sep(local_a2dp_type)));
-  if (!com::android::bluetooth::flags::a2dp_concurrent_source_sink() &&
-      btif_av_src_sink_coexist_enabled()) {
-    bool is_sink = btif_av_peer_is_sink(peer_addr);
-    bool is_source = btif_av_peer_is_source(peer_addr);
-    log::info("## ON A2DP IDLE ## is_sink:{} is_source:{}", is_sink, is_source);
-    if (is_sink) {
-      btif_a2dp_source_on_idle();
-    } else if (is_source) {
-      btif_a2dp_sink_on_idle();
-    }
-    return;
-  }
   if (btif_av_get_peer_sep(local_a2dp_type) == AVDT_TSEP_SNK) {
     btif_a2dp_source_on_idle();
   } else if (btif_av_get_peer_sep(local_a2dp_type) == AVDT_TSEP_SRC) {
@@ -113,12 +101,7 @@ void btif_a2dp_on_stopped(tBTA_AV_SUSPEND* p_av_suspend, const A2dpType local_a2
     btif_a2dp_sink_on_stopped(p_av_suspend);
     return;
   }
-  if (!com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    if (bluetooth::audio::a2dp::is_hal_enabled() || !btif_av_is_a2dp_offload_running()) {
-      btif_a2dp_source_on_stopped(p_av_suspend);
-      return;
-    }
-  } else if (peer_type_sep == AVDT_TSEP_SNK) {
+  if (peer_type_sep == AVDT_TSEP_SNK) {
     if (bluetooth::audio::a2dp::is_hal_enabled() || !btif_av_is_a2dp_offload_running()) {
       btif_a2dp_source_on_stopped(p_av_suspend);
       return;
@@ -133,12 +116,7 @@ void btif_a2dp_on_suspended(tBTA_AV_SUSPEND* p_av_suspend, const A2dpType local_
     btif_a2dp_sink_on_suspended(p_av_suspend);
     return;
   }
-  if (!com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    if (bluetooth::audio::a2dp::is_hal_enabled() || !btif_av_is_a2dp_offload_running()) {
-      btif_a2dp_source_on_suspended(p_av_suspend);
-      return;
-    }
-  } else if (peer_type_sep == AVDT_TSEP_SNK) {
+  if (peer_type_sep == AVDT_TSEP_SNK) {
     if (bluetooth::audio::a2dp::is_hal_enabled() || !btif_av_is_a2dp_offload_running()) {
       btif_a2dp_source_on_suspended(p_av_suspend);
       return;

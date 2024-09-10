@@ -22,6 +22,7 @@ import androidx.test.core.app.ApplicationProvider;
 
 import com.google.protobuf.Empty;
 
+import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -34,9 +35,13 @@ import pandora.GATTGrpc;
 import pandora.HIDGrpc;
 import pandora.HostGrpc;
 import pandora.HostProto;
+import pandora.HostProto.AdvertiseRequest;
+import pandora.HostProto.OwnAddressType;
 import pandora.RFCOMMGrpc;
 import pandora.SecurityGrpc;
+import pandora.l2cap.L2CAPGrpc;
 
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 public final class PandoraDevice extends ExternalResource {
@@ -109,6 +114,55 @@ public final class PandoraDevice extends ExternalResource {
                 .getRemoteDevice(mPublicBluetoothAddress);
     }
 
+    /**
+     * Start advertising with Random address type
+     *
+     * @return Context.CancellableContext
+     */
+    public Context.CancellableContext advertise() {
+        return advertise(OwnAddressType.RANDOM, null, true, true);
+    }
+
+    /**
+     * Start advertising.
+     *
+     * @return a Context.CancellableContext to cancel the advertising
+     */
+    public Context.CancellableContext advertise(OwnAddressType ownAddressType) {
+        return advertise(ownAddressType, null, true, true);
+    }
+
+    /**
+     * Start advertising.
+     *
+     * @return a Context.CancellableContext to cancel the advertising
+     */
+    public Context.CancellableContext advertise(
+            OwnAddressType ownAddressType, UUID serviceUuid, boolean legacy, boolean connectable) {
+        AdvertiseRequest.Builder requestBuilder =
+                AdvertiseRequest.newBuilder()
+                        .setLegacy(legacy)
+                        .setConnectable(connectable)
+                        .setOwnAddressType(ownAddressType);
+
+        if (serviceUuid != null) {
+            requestBuilder.setData(
+                    HostProto.DataTypes.newBuilder()
+                            .addCompleteServiceClassUuids128(serviceUuid.toString())
+                            .build());
+        }
+
+        Context.CancellableContext cancellableContext = Context.current().withCancellation();
+        cancellableContext.run(
+                new Runnable() {
+                    public void run() {
+                        hostBlocking().advertise(requestBuilder.build());
+                    }
+                });
+
+        return cancellableContext;
+    }
+
     /** Get Pandora Host service */
     public HostGrpc.HostStub host() {
         return HostGrpc.newStub(mChannel);
@@ -162,5 +216,15 @@ public final class PandoraDevice extends ExternalResource {
     /** Get Pandora RFCOMM blocking service */
     public RFCOMMGrpc.RFCOMMBlockingStub rfcommBlocking() {
         return RFCOMMGrpc.newBlockingStub(mChannel);
+    }
+
+    /** Get Pandora L2CAP service */
+    public L2CAPGrpc.L2CAPStub l2cap() {
+        return L2CAPGrpc.newStub(mChannel);
+    }
+
+    /** Get Pandora L2CAP blocking service */
+    public L2CAPGrpc.L2CAPBlockingStub l2capBlocking() {
+        return L2CAPGrpc.newBlockingStub(mChannel);
     }
 }

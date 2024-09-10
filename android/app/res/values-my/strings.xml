@@ -117,13 +117,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"စာရင်းမှ ရှင်းပစ်မည်"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"ရှင်းရန်"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Now Playing"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"သိမ်းရန်"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"မလုပ်တော့"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"ဘလူးတုသ်မှ မျှဝေလိုသော အကောင့်များကို ရွေးပါ။ ချိတ်ဆက်သည့်အခါ အကောင့်များအား ဝင်ခွင့်ပြုဖို့ လက်ခံပေးရပါလိမ့်ဦးမည်။"</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"ကျန်နေသည့် အပေါက်များ:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"အပလီကေးရှင်း သင်္ကေတ"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"ဘလူးတုသ် စာ မျှဝေရေး ဆက်တင်များ"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"ရွေးထားသည့် အကောင့်ကို မရွေးနိုင်ပါ။ သုည အပေါက်များ ကျန်နေ"</string>
     <string name="bluetooth_connected" msgid="5687474377090799447">"ဘလူးတုသ်အသံ ချိတ်ဆက်ပြီးပါပြီ"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"ဘလူးတုသ်အသံ မချိတ်ဆက်ထားပါ"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"ဘလူးတုသ် အသံ"</string>
@@ -135,8 +129,7 @@
     <string name="bluetooth_stays_on_message" msgid="3669663452593157737">"လေယာဉ်ပျံမုဒ်သုံးစဉ် ဘလူးတုသ် ဆက်ဖွင့်ထားရန် သင့်စက်က မှတ်မိသည်။ ဘလူးတုသ် ဆက်ဖွင့်မထားလိုပါက ပိတ်နိုင်သည်။"</string>
     <string name="bluetooth_and_wifi_stays_on_title" msgid="5821932798860821244">"Wi-Fi နှင့် ဘလူးတုသ် ဆက်ဖွင့်ထားသည်"</string>
     <string name="bluetooth_and_wifi_stays_on_message" msgid="7848565203843882558">"လေယာဉ်ပျံမုဒ်သုံးစဉ် Wi-Fi နှင့် ဘလူးတုသ် ဆက်ဖွင့်ထားရန် သင့်စက်က မှတ်မိသည်။ Wi-Fi နှင့် ဘလူးတုသ် ဆက်ဖွင့်မထားလိုပါက ပိတ်နိုင်သည်။"</string>
-    <string name="bluetooth_enabled_auto_on_title" msgid="1799541656310353393">"ဘလူးတုသ်ကို အလိုအလျောက်ဖွင့်ထားသည်"</string>
-    <string name="bluetooth_enabled_auto_on_message" msgid="1070556457440100730">"အလိုအလျောက်ပြန်စခြင်းကို ဘလူးတုသ်ဆက်တင်များတွင် ပြောင်းနိုင်သည်။"</string>
-    <string name="bluetooth_disable_auto_on" msgid="1085026923461565937">"ပိတ်ရန်"</string>
+    <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"ဘလူးတုသ် ပြန်ဖွင့်ထားသည်"</string>
+    <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"၎င်းကို ဆက်တင်များတွင် အချိန်မရွေး ပြောင်းနိုင်သည်"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"အလိုအလျောက် ဘလူးတုသ်အခြေအနေ ပြောင်းလဲမှု"</string>
 </resources>

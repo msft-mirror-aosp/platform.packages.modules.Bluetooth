@@ -100,6 +100,7 @@ import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /** Broadcast Assistant Scan Service */
 public class BassClientService extends ProfileService {
@@ -117,8 +118,10 @@ public class BassClientService extends ProfileService {
     private static final int BROADCAST_STATE_STOPPED = 0;
     private static final int BROADCAST_STATE_CONFIGURING = 1;
     private static final int BROADCAST_STATE_PAUSED = 2;
-    private static final int BROADCAST_STATE_STOPPING = 3;
-    private static final int BROADCAST_STATE_STREAMING = 4;
+    private static final int BROADCAST_STATE_ENABLING = 3;
+    private static final int BROADCAST_STATE_DISABLING = 4;
+    private static final int BROADCAST_STATE_STOPPING = 5;
+    private static final int BROADCAST_STATE_STREAMING = 6;
 
     @VisibleForTesting static final int MESSAGE_SYNC_TIMEOUT = 1;
     @VisibleForTesting static final int MESSAGE_BIG_CHECK_START = 2;
@@ -3057,14 +3060,9 @@ public class BassClientService extends ProfileService {
                 log("stateMachine is null");
                 return Collections.emptyList();
             }
-            List<BluetoothLeBroadcastReceiveState> recvStates =
-                    new ArrayList<BluetoothLeBroadcastReceiveState>();
-            for (BluetoothLeBroadcastReceiveState rs : stateMachine.getAllSources()) {
-                if (!isEmptyBluetoothDevice(rs.getSourceDevice())) {
-                    recvStates.add(rs);
-                }
-            }
-            return recvStates;
+            return stateMachine.getAllSources().stream()
+                    .filter(rs -> !isEmptyBluetoothDevice(rs.getSourceDevice()))
+                    .collect(Collectors.toList());
         }
     }
 
@@ -3774,6 +3772,8 @@ public class BassClientService extends ProfileService {
                 break;
             case BROADCAST_STATE_CONFIGURING:
             case BROADCAST_STATE_PAUSED:
+            case BROADCAST_STATE_ENABLING:
+            case BROADCAST_STATE_DISABLING:
             case BROADCAST_STATE_STOPPING:
             case BROADCAST_STATE_STREAMING:
             default:
