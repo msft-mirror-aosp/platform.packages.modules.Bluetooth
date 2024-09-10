@@ -22,7 +22,6 @@ rust_library_host_rlib {
         "libcxx",
         "libfutures",
         "libgrpcio",
-        "liblazy_static",
         "liblog_rust",
         "libnix",
         "libnum_traits",
