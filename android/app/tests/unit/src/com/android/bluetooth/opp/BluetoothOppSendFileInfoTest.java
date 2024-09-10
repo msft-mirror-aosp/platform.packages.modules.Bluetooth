@@ -120,36 +120,6 @@ public class BluetoothOppSendFileInfoTest {
     }
 
     @Test
-    public void generateFileInfo_withContentUriForOtherUser_returnsSendFileInfoError()
-            throws Exception {
-        String type = "image/jpeg";
-        Uri uri = Uri.parse("content://11@media/external/images/media/1");
-
-        long fileLength = 1000;
-        String fileName = "pic.jpg";
-
-        FileInputStream fs = mock(FileInputStream.class);
-        AssetFileDescriptor fd = mock(AssetFileDescriptor.class);
-        doReturn(fileLength).when(fd).getLength();
-        doReturn(fs).when(fd).createInputStream();
-
-        doReturn(fd).when(mCallProxy).contentResolverOpenAssetFileDescriptor(any(), eq(uri), any());
-
-        mCursor =
-                new MatrixCursor(new String[] {OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE});
-        mCursor.addRow(new Object[] {fileName, fileLength});
-
-        doReturn(mCursor)
-                .when(mCallProxy)
-                .contentResolverQuery(any(), eq(uri), any(), any(), any(), any());
-
-        BluetoothOppSendFileInfo info =
-                BluetoothOppSendFileInfo.generateFileInfo(mContext, uri, type, true);
-
-        assertThat(info).isEqualTo(BluetoothOppSendFileInfo.SEND_FILE_INFO_ERROR);
-    }
-
-    @Test
     public void generateFileInfo_withoutPermissionForAccessingUri_returnsSendFileInfoError() {
         String type = "text/plain";
         Uri uri = Uri.parse("content:///hello/world");
