@@ -261,8 +261,7 @@ public final class BluetoothUuid {
      *
      * @hide
      */
-    @NonNull
-    @SystemApi
+    @NonNull @SystemApi
     public static final ParcelUuid MFI_HAS =
             ParcelUuid.fromString("7D74F4BD-C74A-4431-862C-CCE884371592");
 

@@ -246,7 +246,6 @@ public class PairingTest {
                 hasAction(BluetoothDevice.ACTION_ACL_CONNECTED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
 
-
         assertThat(mBumbleDevice.createBond()).isTrue();
         verifyIntentReceived(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
