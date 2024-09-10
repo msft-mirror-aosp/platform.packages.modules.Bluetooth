@@ -24,6 +24,7 @@
 
 #include <cstdint>
 
+#include "stack/include/btm_status.h"
 #include "test/common/mock_functions.h"
 
 // Original usings
@@ -44,7 +45,6 @@ struct BTM_SetConnectability BTM_SetConnectability;
 struct BTM_SetDiscoverability BTM_SetDiscoverability;
 struct BTM_SetInquiryMode BTM_SetInquiryMode;
 struct BTM_StartInquiry BTM_StartInquiry;
-struct BTM_WriteEIR BTM_WriteEIR;
 struct btm_clear_all_pending_le_entry btm_clear_all_pending_le_entry;
 struct btm_clr_inq_db btm_clr_inq_db;
 struct btm_clr_inq_result_flt btm_clr_inq_result_flt;
@@ -52,10 +52,7 @@ struct btm_inq_db_find btm_inq_db_find;
 struct btm_inq_db_new btm_inq_db_new;
 struct btm_inq_db_reset btm_inq_db_reset;
 struct btm_inq_find_bdaddr btm_inq_find_bdaddr;
-struct btm_inq_remote_name_timer_timeout btm_inq_remote_name_timer_timeout;
-struct btm_inq_rmt_name_failed_cancelled btm_inq_rmt_name_failed_cancelled;
 struct btm_process_inq_complete btm_process_inq_complete;
-struct btm_process_remote_name btm_process_remote_name;
 struct btm_set_eir_uuid btm_set_eir_uuid;
 struct btm_sort_inq_result btm_sort_inq_result;
 
@@ -70,11 +67,10 @@ namespace stack_btm_inq {
 
 bool BTM_HasEirService::return_value = false;
 uint16_t BTM_IsInquiryActive::return_value = 0;
-tBTM_STATUS BTM_SetConnectability::return_value = BTM_SUCCESS;
-tBTM_STATUS BTM_SetDiscoverability::return_value = BTM_SUCCESS;
-tBTM_STATUS BTM_SetInquiryMode::return_value = BTM_SUCCESS;
-tBTM_STATUS BTM_StartInquiry::return_value = BTM_SUCCESS;
-tBTM_STATUS BTM_WriteEIR::return_value = BTM_SUCCESS;
+tBTM_STATUS BTM_SetConnectability::return_value = tBTM_STATUS::BTM_SUCCESS;
+tBTM_STATUS BTM_SetDiscoverability::return_value = tBTM_STATUS::BTM_SUCCESS;
+tBTM_STATUS BTM_SetInquiryMode::return_value = tBTM_STATUS::BTM_SUCCESS;
+tBTM_STATUS BTM_StartInquiry::return_value = tBTM_STATUS::BTM_SUCCESS;
 tINQ_DB_ENT* btm_inq_db_find::return_value = nullptr;
 tINQ_DB_ENT* btm_inq_db_new::return_value = nullptr;
 bool btm_inq_find_bdaddr::return_value = false;
@@ -120,10 +116,6 @@ tBTM_STATUS BTM_StartInquiry(tBTM_INQ_RESULTS_CB* p_results_cb, tBTM_CMPL_CB* p_
   inc_func_call_count(__func__);
   return test::mock::stack_btm_inq::BTM_StartInquiry(p_results_cb, p_cmpl_cb);
 }
-tBTM_STATUS BTM_WriteEIR(BT_HDR* p_buff) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_btm_inq::BTM_WriteEIR(p_buff);
-}
 void btm_clear_all_pending_le_entry(void) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_inq::btm_clear_all_pending_le_entry();
@@ -152,22 +144,9 @@ bool btm_inq_find_bdaddr(const RawAddress& p_bda) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_inq::btm_inq_find_bdaddr(p_bda);
 }
-void btm_inq_remote_name_timer_timeout(void* data) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_inq::btm_inq_remote_name_timer_timeout(data);
-}
-void btm_inq_rmt_name_failed_cancelled(void) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_inq::btm_inq_rmt_name_failed_cancelled();
-}
 void btm_process_inq_complete(tHCI_STATUS status, uint8_t mode) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_inq::btm_process_inq_complete(status, mode);
-}
-void btm_process_remote_name(const RawAddress* bda, const BD_NAME bdn, uint16_t evt_len,
-                             tHCI_STATUS hci_status) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_inq::btm_process_remote_name(bda, bdn, evt_len, hci_status);
 }
 void btm_set_eir_uuid(const uint8_t* p_eir, tBTM_INQ_RESULTS* p_results) {
   inc_func_call_count(__func__);

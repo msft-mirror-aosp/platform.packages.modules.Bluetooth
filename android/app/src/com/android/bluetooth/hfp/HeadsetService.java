@@ -632,7 +632,8 @@ public class HeadsetService extends ProfileService {
                 return false;
             }
 
-            service.enforceCallingOrSelfPermission(MODIFY_PHONE_STATE, null);
+            requireNonNull(device);
+
             return service.startVoiceRecognition(device);
         }
 
@@ -1103,10 +1104,6 @@ public class HeadsetService extends ProfileService {
                                 + mActiveDevice);
                 return false;
             }
-            if (device == null) {
-                Log.i(TAG, "device is null, use active device " + mActiveDevice + " instead");
-                device = mActiveDevice;
-            }
             boolean pendingRequestByHeadset = false;
             if (mVoiceRecognitionTimeoutEvent != null) {
                 if (!mVoiceRecognitionTimeoutEvent.mVoiceRecognitionDevice.equals(device)) {
@@ -1127,7 +1124,7 @@ public class HeadsetService extends ProfileService {
                 }
                 pendingRequestByHeadset = true;
             }
-            if (!Objects.equals(device, mActiveDevice) && !setActiveDevice(device)) {
+            if (!device.equals(mActiveDevice) && !setActiveDevice(device)) {
                 Log.w(TAG, "startVoiceRecognition: failed to set " + device + " as active");
                 return false;
             }
@@ -1451,12 +1448,8 @@ public class HeadsetService extends ProfileService {
                                     + previousActiveDevice
                                     + " with status code "
                                     + disconnectStatus);
-                    if (previousActiveDevice == null) {
-                        removeActiveDevice();
-                    } else {
-                        mActiveDevice = previousActiveDevice;
-                        mNativeInterface.setActiveDevice(previousActiveDevice);
-                    }
+                    mActiveDevice = previousActiveDevice;
+                    mNativeInterface.setActiveDevice(previousActiveDevice);
                     return false;
                 }
                 if (Utils.isScoManagedByAudioEnabled()) {
@@ -2433,14 +2426,17 @@ public class HeadsetService extends ProfileService {
         }
         // Check connection policy and accept or reject the connection.
         int connectionPolicy = getConnectionPolicy(device);
-        int bondState = mAdapterService.getBondState(device);
-        // Allow this connection only if the device is bonded. Any attempt to connect while
-        // bonding would potentially lead to an unauthorized connection.
-        if (bondState != BluetoothDevice.BOND_BONDED) {
-            Log.w(TAG, "okToAcceptConnection: return false, bondState=" + bondState);
-            return false;
-        } else if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
-                && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (!Flags.donotValidateBondStateFromProfiles()) {
+            int bondState = mAdapterService.getBondState(device);
+            // Allow this connection only if the device is bonded. Any attempt to connect while
+            // bonding would potentially lead to an unauthorized connection.
+            if (bondState != BluetoothDevice.BOND_BONDED) {
+                Log.w(TAG, "okToAcceptConnection: return false, bondState=" + bondState);
+                return false;
+            }
+        }
+        if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
+            && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
             // Otherwise, reject the connection if connection policy is not valid.
             if (!isOutgoingRequest) {
                 A2dpService a2dpService = A2dpService.getA2dpService();

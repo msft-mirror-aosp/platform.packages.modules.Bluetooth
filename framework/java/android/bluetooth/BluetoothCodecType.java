@@ -38,7 +38,11 @@ public final class BluetoothCodecType implements Parcelable {
 
     private BluetoothCodecType(Parcel in) {
         mNativeCodecType = in.readInt();
-        mCodecId = in.readLong();
+        if (Flags.a2dpFixCodecTypeInJava()) {
+            mCodecId = in.readLong() & 0xFFFFFFFFL;
+        } else {
+            mCodecId = in.readLong();
+        }
         mCodecName = in.readString();
     }
 
@@ -68,7 +72,11 @@ public final class BluetoothCodecType implements Parcelable {
      */
     private BluetoothCodecType(@BluetoothCodecConfig.SourceCodecType int codecType, long codecId) {
         mNativeCodecType = codecType;
-        mCodecId = codecId;
+        if (Flags.a2dpFixCodecTypeInJava()) {
+            mCodecId = codecId & 0xFFFFFFFFL;
+        } else {
+            mCodecId = codecId;
+        }
         mCodecName = BluetoothCodecConfig.getCodecName(codecType);
     }
 
@@ -83,7 +91,11 @@ public final class BluetoothCodecType implements Parcelable {
     @SystemApi
     public BluetoothCodecType(int codecType, long codecId, @NonNull String codecName) {
         mNativeCodecType = codecType;
-        mCodecId = codecId;
+        if (Flags.a2dpFixCodecTypeInJava()) {
+            mCodecId = codecId & 0xFFFFFFFFL;
+        } else {
+            mCodecId = codecId;
+        }
         mCodecName = codecName;
     }
 
@@ -160,7 +172,7 @@ public final class BluetoothCodecType implements Parcelable {
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeInt(mNativeCodecType);
         dest.writeLong(mCodecId);
-        dest.writeString(mCodecName);
+        BluetoothUtils.writeStringToParcel(dest, mCodecName);
     }
 
     /**

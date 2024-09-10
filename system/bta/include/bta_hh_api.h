@@ -28,7 +28,7 @@
 #include "macros.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/hiddefs.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_types.h"
 #include "types/ble_address_with_type.h"
 #include "types/bluetooth/uuid.h"
 
@@ -550,6 +550,17 @@ void BTA_HhAddDev(const tAclLinkSpec& link_spec, tBTA_HH_ATTR_MASK attr_mask, ui
  *
  ******************************************************************************/
 void BTA_HhRemoveDev(uint8_t dev_handle);
+
+/*******************************************************************************
+ *
+ * Function         BTA_HhDump
+ *
+ * Description      Dump BTA HH control block
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_HhDump(int fd);
 
 namespace fmt {
 template <>

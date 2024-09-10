@@ -270,6 +270,7 @@ cc_test {
         ":TestMockStackMetrics",
         ":TestMockStackPan",
         ":TestMockStackRfcomm",
+        ":TestMockStackRnr",
         "test/bta_ag_sco_test.cc",
         "test/bta_ag_test.cc",
         "test/bta_api_test.cc",
@@ -675,6 +676,7 @@ cc_test {
         "liblog",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
@@ -685,6 +687,7 @@ cc_test {
         "libbt_shim_ffi",
         "libchrome",
         "libgmock",
+        "server_configurable_flags",
     ],
     sanitize: {
         cfi: false,

@@ -209,9 +209,9 @@ inline void set_le_scan_mode_to_ctrl_state(uint32_t duty_cycle, tBTM_CONTRL_STAT
  *
  * Description      register or deregister with power manager
  *
- * Returns          BTM_SUCCESS if successful,
- *                  BTM_NO_RESOURCES if no room to hold registration
- *                  BTM_ILLEGAL_VALUE
+ * Returns          tBTM_STATUS::BTM_SUCCESS if successful,
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if no room to hold registration
+ *                  tBTM_STATUS::BTM_ILLEGAL_VALUE
  *
  ******************************************************************************/
 tBTM_STATUS BTM_PmRegister(uint8_t mask, uint8_t* p_pm_id, tBTM_PM_STATUS_CBACK* p_cb);
@@ -229,8 +229,8 @@ void BTM_PM_OnDisconnected(uint16_t handle);
  * Description      store the mode in control block or
  *                  alter ACL connection behavior.
  *
- * Returns          BTM_SUCCESS if successful,
- *                  BTM_UNKNOWN_ADDR if bd addr is not active or bad
+ * Returns          tBTM_STATUS::BTM_SUCCESS if successful,
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if bd addr is not active or bad
  *
  ******************************************************************************/
 tBTM_STATUS BTM_SetPowerMode(uint8_t pm_id, const RawAddress& remote_bda,
@@ -250,9 +250,9 @@ bool BTM_SetLinkPolicyActiveMode(const RawAddress& remote_bda);
  *                  min_loc_to - minimum local timeout
  *
  *
- * Returns          BTM_SUCCESS if the HCI command is issued successful,
- *                  BTM_UNKNOWN_ADDR if bd addr is not active or bad
- *                  BTM_CMD_STORED if the command is stored
+ * Returns          tBTM_STATUS::BTM_SUCCESS if the HCI command is issued successful,
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if bd addr is not active or bad
+ *                  tBTM_STATUS::BTM_CMD_STORED if the command is stored
  *
  ******************************************************************************/
 tBTM_STATUS BTM_SetSsrParams(const RawAddress& remote_bda, uint16_t max_lat, uint16_t min_rmt_to,

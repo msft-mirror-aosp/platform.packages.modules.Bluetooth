@@ -82,7 +82,6 @@
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
 #include "common/address_obfuscator.h"
-#include "common/init_flags.h"
 #include "common/metrics.h"
 #include "common/os_utils.h"
 #include "device/include/device_iot_config.h"
@@ -96,16 +95,19 @@
 #include "osi/include/allocator.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "osi/include/wakelock.h"
+#include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/gatt/connection_manager.h"
 #include "stack/include/a2dp_api.h"
 #include "stack/include/avdt_api.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/hfp_lc3_decoder.h"
 #include "stack/include/hfp_lc3_encoder.h"
 #include "stack/include/hfp_msbc_decoder.h"
 #include "stack/include/hfp_msbc_encoder.h"
 #include "stack/include/hidh_api.h"
+#include "stack/include/l2cap_module.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/pan_api.h"
 #include "stack/include/sdp_api.h"
@@ -426,16 +428,23 @@ static bool is_profile(const char* p1, const char* p2) {
  *
  ****************************************************************************/
 
+#ifdef TARGET_FLOSS
+static int global_hci_adapter = 0;
+
+static void set_adapter_index(int adapter) { global_hci_adapter = adapter; }
+int GetAdapterIndex() { return global_hci_adapter; }
+#else
+int GetAdapterIndex() { return 0; }  // Unsupported outside of FLOSS
+#endif
+
 static int init(bt_callbacks_t* callbacks, bool start_restricted, bool is_common_criteria_mode,
-                int config_compare_result, const char** init_flags, bool is_atv,
+                int config_compare_result, const char** /* init_flags */, bool is_atv,
                 const char* user_data_directory) {
   (void)user_data_directory;
   log::info(
           "start restricted = {} ; common criteria mode = {}, config compare "
           "result = {}",
           start_restricted, is_common_criteria_mode, config_compare_result);
-
-  bluetooth::common::InitFlags::Load(init_flags);
 
   if (interface_ready()) {
     return BT_STATUS_DONE;
@@ -894,6 +903,9 @@ static void dump(int fd, const char** arguments) {
   DumpsysHid(fd);
   DumpsysBtaDm(fd);
   SDP_Dumpsys(fd);
+  DumpsysRecord(fd);
+  L2CA_Dumpsys(fd);
+  DumpsysBtm(fd);
   bluetooth::shim::Dump(fd, arguments);
   power_telemetry::GetInstance().Dumpsys(fd);
   log::debug("Finished bluetooth dumpsys");
@@ -1223,6 +1235,9 @@ static void interop_database_add_remove_name(bool do_add, const char* feature_na
 
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
         sizeof(bluetoothInterface),
+#ifdef TARGET_FLOSS
+        .set_adapter_index = set_adapter_index,
+#endif
         .init = init,
         .enable = enable,
         .disable = disable,
@@ -1396,7 +1411,8 @@ void invoke_oob_data_request_cb(tBT_TRANSPORT t, bool valid, Octet16 c, Octet16 
   log::info("");
   bt_oob_data_t oob_data = {};
   const char* local_name;
-  if (get_btm_client_interface().local.BTM_ReadLocalDeviceName(&local_name) != BTM_SUCCESS) {
+  if (get_btm_client_interface().local.BTM_ReadLocalDeviceName(&local_name) !=
+      tBTM_STATUS::BTM_SUCCESS) {
     log::warn("Unable to read local device name");
   }
   for (int i = 0; i < BD_NAME_LEN; i++) {

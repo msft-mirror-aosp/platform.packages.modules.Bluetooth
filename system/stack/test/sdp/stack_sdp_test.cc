@@ -30,49 +30,50 @@
 #include "stack/sdp/sdpint.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_osi_allocator.h"
-#include "test/mock/mock_stack_l2cap_api.h"
+#include "test/mock/mock_stack_l2cap_interface.h"
 
 #ifndef BT_DEFAULT_BUFFER_SIZE
 #define BT_DEFAULT_BUFFER_SIZE (4096 + 16)
 #endif
 
+using ::testing::_;
+using ::testing::DoAll;
+using ::testing::Invoke;
+using ::testing::NotNull;
+using ::testing::Pointee;
+using ::testing::Return;
+using ::testing::ReturnArg;
+using ::testing::SaveArg;
+using ::testing::SaveArgPointee;
+using ::testing::StrEq;
+using ::testing::StrictMock;
+using ::testing::Test;
+
 namespace {
 constexpr uint8_t kSDP_MAX_CONNECTIONS = static_cast<uint8_t>(SDP_MAX_CONNECTIONS);
 
 RawAddress addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});
-int L2CA_ConnectReqWithSecurity_cid = 0x42;
+int L2CA_ConnectReqWithSecurity_cid = 42;
 tSDP_DISCOVERY_DB* sdp_db = nullptr;
 
 class StackSdpWithMocksTest : public ::testing::Test {
 protected:
   void SetUp() override {
     fake_osi_ = std::make_unique<test::fake::FakeOsi>();
+    bluetooth::testing::stack::l2cap::set_interface(&mock_stack_l2cap_interface_);
 
-    test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity.body =
-            [](uint16_t /* psm */, const RawAddress& /* p_bd_addr */, uint16_t /* sec_level */) {
-              return ++L2CA_ConnectReqWithSecurity_cid;
-            };
-    test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t /* cid */,
-                                                          BT_HDR* p_data) -> tL2CAP_DW_RESULT {
-      osi_free_and_reset((void**)&p_data);
-      return tL2CAP_DW_RESULT::FAILED;
-    };
-    test::mock::stack_l2cap_api::L2CA_DisconnectReq.body = [](uint16_t /* cid */) { return true; };
-    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity.body =
-            [](uint16_t psm, const tL2CAP_APPL_INFO& /* p_cb_info */, bool /* enable_snoop */,
-               tL2CAP_ERTM_INFO* /* p_ertm_info */, uint16_t /* my_mtu */,
-               uint16_t /* required_remote_mtu */, uint16_t /* sec_level */) { return psm; };
+    tL2CAP_APPL_INFO l2cap_callbacks{};
+    EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_RegisterWithSecurity(_, _, _, _, _, _, _))
+            .WillOnce(DoAll(SaveArg<1>(&l2cap_callbacks), ::testing::ReturnArg<0>()));
+    EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_Deregister(_));
   }
 
   void TearDown() override {
-    test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity = {};
-    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity = {};
-    test::mock::stack_l2cap_api::L2CA_DataWrite = {};
-    test::mock::stack_l2cap_api::L2CA_DisconnectReq = {};
-
+    bluetooth::testing::stack::l2cap::reset_interface();
     fake_osi_.reset();
   }
 
+  bluetooth::testing::stack::l2cap::Mock mock_stack_l2cap_interface_;
   std::unique_ptr<test::fake::FakeOsi> fake_osi_;
 };
 
@@ -96,6 +97,19 @@ protected:
 TEST_F(StackSdpInitTest, nop) {}
 
 TEST_F(StackSdpInitTest, sdp_service_search_request) {
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_ConnectReqWithSecurity(_, _, _))
+          .WillOnce(Invoke([](uint16_t /* psm */, const RawAddress& /* p_bd_addr */,
+                              uint16_t /* sec_level */) -> uint16_t {
+            return L2CA_ConnectReqWithSecurity_cid;
+          }));
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_DisconnectReq(_)).WillOnce(Return(true));
+
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_DataWrite(_, _))
+          .WillOnce(Invoke([](uint16_t /* cid */, BT_HDR* p_data) -> tL2CAP_DW_RESULT {
+            osi_free_and_reset((void**)&p_data);
+            return tL2CAP_DW_RESULT::SUCCESS;
+          }));
+
   ASSERT_TRUE(SDP_ServiceSearchRequest(addr, sdp_db, nullptr));
   int cid = L2CA_ConnectReqWithSecurity_cid;
   tCONN_CB* p_ccb = sdpu_find_ccb_by_cid(cid);
@@ -107,7 +121,7 @@ TEST_F(StackSdpInitTest, sdp_service_search_request) {
 
   ASSERT_EQ(p_ccb->con_state, tSDP_STATE::CONNECTED);
 
-  sdp_disconnect(p_ccb, SDP_SUCCESS);
+  sdp_disconnect(p_ccb, tSDP_STATUS::SDP_SUCCESS);
   sdp_cb.reg_info.pL2CA_DisconnectCfm_Cb(p_ccb->connection_id, 0);
 
   ASSERT_EQ(p_ccb->con_state, tSDP_STATE::IDLE);
@@ -127,6 +141,19 @@ tCONN_CB* find_ccb(uint16_t cid, tSDP_STATE state) {
 }
 
 TEST_F(StackSdpInitTest, sdp_service_search_request_queuing) {
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_ConnectReqWithSecurity(_, _, _))
+          .WillOnce(Invoke([](uint16_t /* psm */, const RawAddress& /* p_bd_addr */,
+                              uint16_t /* sec_level */) -> uint16_t {
+            return L2CA_ConnectReqWithSecurity_cid;
+          }));
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_DataWrite(_, _))
+          .WillRepeatedly(Invoke([](uint16_t /* cid */, BT_HDR* data) -> tL2CAP_DW_RESULT {
+            osi_free(data);
+            return tL2CAP_DW_RESULT::SUCCESS;
+          }));
+
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_DisconnectReq(_)).WillOnce(Return(true));
+
   ASSERT_TRUE(SDP_ServiceSearchRequest(addr, sdp_db, nullptr));
   const int cid = L2CA_ConnectReqWithSecurity_cid;
   tCONN_CB* p_ccb1 = find_ccb(cid, tSDP_STATE::CONN_SETUP);
@@ -145,13 +172,13 @@ TEST_F(StackSdpInitTest, sdp_service_search_request_queuing) {
   ASSERT_EQ(p_ccb1->con_state, tSDP_STATE::CONNECTED);
   ASSERT_EQ(p_ccb2->con_state, tSDP_STATE::CONN_PEND);
 
-  p_ccb1->disconnect_reason = SDP_SUCCESS;
-  sdp_disconnect(p_ccb1, SDP_SUCCESS);
+  p_ccb1->disconnect_reason = tSDP_STATUS::SDP_SUCCESS;
+  sdp_disconnect(p_ccb1, tSDP_STATUS::SDP_SUCCESS);
 
   ASSERT_EQ(p_ccb1->con_state, tSDP_STATE::IDLE);
   ASSERT_EQ(p_ccb2->con_state, tSDP_STATE::CONNECTED);
 
-  sdp_disconnect(p_ccb2, SDP_SUCCESS);
+  sdp_disconnect(p_ccb2, tSDP_STATUS::SDP_SUCCESS);
   sdp_cb.reg_info.pL2CA_DisconnectCfm_Cb(p_ccb2->connection_id, 0);
 
   ASSERT_EQ(p_ccb1->con_state, tSDP_STATE::IDLE);
@@ -159,15 +186,27 @@ TEST_F(StackSdpInitTest, sdp_service_search_request_queuing) {
 }
 
 void sdp_callback(const RawAddress& /* bd_addr */, tSDP_RESULT result) {
-  if (result == SDP_SUCCESS) {
+  if (result == tSDP_STATUS::SDP_SUCCESS) {
     ASSERT_TRUE(SDP_ServiceSearchRequest(addr, sdp_db, nullptr));
   }
 }
 
 TEST_F(StackSdpInitTest, sdp_service_search_request_queuing_race_condition) {
+  uint16_t cid = L2CA_ConnectReqWithSecurity_cid;
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_ConnectReqWithSecurity(_, _, _))
+          .WillRepeatedly(Invoke([&cid](uint16_t /* psm */, const RawAddress& /* p_bd_addr */,
+                                        uint16_t /* sec_level */) -> uint16_t { return cid++; }));
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_DisconnectReq(_)).WillRepeatedly(Return(true));
+
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_DataWrite(_, _))
+          .WillOnce(Invoke([](uint16_t /* cid */, BT_HDR* p_data) -> tL2CAP_DW_RESULT {
+            osi_free_and_reset((void**)&p_data);
+            return tL2CAP_DW_RESULT::SUCCESS;
+          }));
+
   // start first request
   ASSERT_TRUE(SDP_ServiceSearchRequest(addr, sdp_db, sdp_callback));
-  const int cid1 = L2CA_ConnectReqWithSecurity_cid;
+  const uint16_t cid1 = L2CA_ConnectReqWithSecurity_cid;
   tCONN_CB* p_ccb1 = find_ccb(cid1, tSDP_STATE::CONN_SETUP);
   ASSERT_NE(p_ccb1, nullptr);
   ASSERT_EQ(p_ccb1->con_state, tSDP_STATE::CONN_SETUP);
@@ -177,17 +216,17 @@ TEST_F(StackSdpInitTest, sdp_service_search_request_queuing_race_condition) {
 
   ASSERT_EQ(p_ccb1->con_state, tSDP_STATE::CONNECTED);
 
-  sdp_disconnect(p_ccb1, SDP_SUCCESS);
+  sdp_disconnect(p_ccb1, tSDP_STATUS::SDP_SUCCESS);
   sdp_cb.reg_info.pL2CA_DisconnectCfm_Cb(p_ccb1->connection_id, 0);
 
-  const int cid2 = L2CA_ConnectReqWithSecurity_cid;
+  const uint16_t cid2 = L2CA_ConnectReqWithSecurity_cid + 1;
   ASSERT_NE(cid1, cid2);  // The callback a queued a new request
   tCONN_CB* p_ccb2 = find_ccb(cid2, tSDP_STATE::CONN_SETUP);
   ASSERT_NE(p_ccb2, nullptr);
   // If race condition, this will be stuck in PEND
   ASSERT_EQ(p_ccb2->con_state, tSDP_STATE::CONN_SETUP);
 
-  sdp_disconnect(p_ccb2, SDP_SUCCESS);
+  sdp_disconnect(p_ccb2, tSDP_STATUS::SDP_SUCCESS);
 }
 
 TEST_F(StackSdpInitTest, sdp_disc_wait_text) {
@@ -243,26 +282,32 @@ TEST_F(StackSdpInitTest, sdp_flags_text) {
 
 TEST_F(StackSdpInitTest, sdp_status_text) {
   std::vector<std::pair<tSDP_STATUS, std::string>> status = {
-          std::make_pair(SDP_SUCCESS, "SDP_SUCCESS"),
-          std::make_pair(SDP_INVALID_VERSION, "SDP_INVALID_VERSION"),
-          std::make_pair(SDP_INVALID_SERV_REC_HDL, "SDP_INVALID_SERV_REC_HDL"),
-          std::make_pair(SDP_INVALID_REQ_SYNTAX, "SDP_INVALID_REQ_SYNTAX"),
-          std::make_pair(SDP_INVALID_PDU_SIZE, "SDP_INVALID_PDU_SIZE"),
-          std::make_pair(SDP_INVALID_CONT_STATE, "SDP_INVALID_CONT_STATE"),
-          std::make_pair(SDP_NO_RESOURCES, "SDP_NO_RESOURCES"),
-          std::make_pair(SDP_DI_REG_FAILED, "SDP_DI_REG_FAILED"),
-          std::make_pair(SDP_DI_DISC_FAILED, "SDP_DI_DISC_FAILED"),
-          std::make_pair(SDP_NO_DI_RECORD_FOUND, "SDP_NO_DI_RECORD_FOUND"),
-          std::make_pair(SDP_ERR_ATTR_NOT_PRESENT, "SDP_ERR_ATTR_NOT_PRESENT"),
-          std::make_pair(SDP_ILLEGAL_PARAMETER, "SDP_ILLEGAL_PARAMETER"),
-          std::make_pair(HID_SDP_NO_SERV_UUID, "HID_SDP_NO_SERV_UUID"),
-          std::make_pair(HID_SDP_MANDATORY_MISSING, "HID_SDP_MANDATORY_MISSING"),
-          std::make_pair(SDP_NO_RECS_MATCH, "SDP_NO_RECS_MATCH"),
-          std::make_pair(SDP_CONN_FAILED, "SDP_CONN_FAILED"),
-          std::make_pair(SDP_CFG_FAILED, "SDP_CFG_FAILED"),
-          std::make_pair(SDP_GENERIC_ERROR, "SDP_GENERIC_ERROR"),
-          std::make_pair(SDP_DB_FULL, "SDP_DB_FULL"),
-          std::make_pair(SDP_CANCEL, "SDP_CANCEL"),
+          std::make_pair(tSDP_STATUS::SDP_SUCCESS, "tSDP_STATUS::SDP_SUCCESS"),
+          std::make_pair(tSDP_STATUS::SDP_INVALID_VERSION, "tSDP_STATUS::SDP_INVALID_VERSION"),
+          std::make_pair(tSDP_STATUS::SDP_INVALID_SERV_REC_HDL,
+                         "tSDP_STATUS::SDP_INVALID_SERV_REC_HDL"),
+          std::make_pair(tSDP_STATUS::SDP_INVALID_REQ_SYNTAX,
+                         "tSDP_STATUS::SDP_INVALID_REQ_SYNTAX"),
+          std::make_pair(tSDP_STATUS::SDP_INVALID_PDU_SIZE, "tSDP_STATUS::SDP_INVALID_PDU_SIZE"),
+          std::make_pair(tSDP_STATUS::SDP_INVALID_CONT_STATE,
+                         "tSDP_STATUS::SDP_INVALID_CONT_STATE"),
+          std::make_pair(tSDP_STATUS::SDP_NO_RESOURCES, "tSDP_STATUS::SDP_NO_RESOURCES"),
+          std::make_pair(tSDP_STATUS::SDP_DI_REG_FAILED, "tSDP_STATUS::SDP_DI_REG_FAILED"),
+          std::make_pair(tSDP_STATUS::SDP_DI_DISC_FAILED, "tSDP_STATUS::SDP_DI_DISC_FAILED"),
+          std::make_pair(tSDP_STATUS::SDP_NO_DI_RECORD_FOUND,
+                         "tSDP_STATUS::SDP_NO_DI_RECORD_FOUND"),
+          std::make_pair(tSDP_STATUS::SDP_ERR_ATTR_NOT_PRESENT,
+                         "tSDP_STATUS::SDP_ERR_ATTR_NOT_PRESENT"),
+          std::make_pair(tSDP_STATUS::SDP_ILLEGAL_PARAMETER, "tSDP_STATUS::SDP_ILLEGAL_PARAMETER"),
+          std::make_pair(tSDP_STATUS::HID_SDP_NO_SERV_UUID, "tSDP_STATUS::HID_SDP_NO_SERV_UUID"),
+          std::make_pair(tSDP_STATUS::HID_SDP_MANDATORY_MISSING,
+                         "tSDP_STATUS::HID_SDP_MANDATORY_MISSING"),
+          std::make_pair(tSDP_STATUS::SDP_NO_RECS_MATCH, "tSDP_STATUS::SDP_NO_RECS_MATCH"),
+          std::make_pair(tSDP_STATUS::SDP_CONN_FAILED, "tSDP_STATUS::SDP_CONN_FAILED"),
+          std::make_pair(tSDP_STATUS::SDP_CFG_FAILED, "tSDP_STATUS::SDP_CFG_FAILED"),
+          std::make_pair(tSDP_STATUS::SDP_GENERIC_ERROR, "tSDP_STATUS::SDP_GENERIC_ERROR"),
+          std::make_pair(tSDP_STATUS::SDP_DB_FULL, "tSDP_STATUS::SDP_DB_FULL"),
+          std::make_pair(tSDP_STATUS::SDP_CANCEL, "tSDP_STATUS::SDP_CANCEL"),
   };
   for (const auto& stat : status) {
     ASSERT_STREQ(stat.second.c_str(), sdp_status_text(stat.first).c_str());
@@ -404,6 +449,10 @@ TEST_F(SDP_GetDiRecord_Tests, SDP_GetDiRecord_Regression_test0) {
 }
 
 TEST_F(StackSdpInitTest, sdpu_dump_all_ccb) {
+  uint16_t cid = L2CA_ConnectReqWithSecurity_cid;
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_ConnectReqWithSecurity(_, _, _))
+          .WillRepeatedly(Invoke([&cid](uint16_t /* psm */, const RawAddress& /* p_bd_addr */,
+                                        uint16_t /* sec_level */) -> uint16_t { return cid++; }));
   sdpu_dump_all_ccb();
 
   for (uint8_t i = 0; i < kSDP_MAX_CONNECTIONS; i++) {
@@ -419,6 +468,11 @@ TEST_F(StackSdpInitTest, sdpu_dump_all_ccb) {
 TEST_F(StackSdpInitTest, SDP_Dumpsys) { SDP_Dumpsys(1); }
 
 TEST_F(StackSdpInitTest, SDP_Dumpsys_ccb) {
+  uint16_t cid = L2CA_ConnectReqWithSecurity_cid;
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_ConnectReqWithSecurity(_, _, _))
+          .WillRepeatedly(Invoke([&cid](uint16_t /* psm */, const RawAddress& /* p_bd_addr */,
+                                        uint16_t /* sec_level */) -> uint16_t { return cid++; }));
+
   for (uint8_t i = 0; i < kSDP_MAX_CONNECTIONS; i++) {
     RawAddress bd_addr = RawAddress({0x11, 0x22, 0x33, 0x44, 0x55, i});
     ASSERT_NE(nullptr, sdp_conn_originate(bd_addr));

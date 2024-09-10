@@ -39,7 +39,8 @@
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
-#include "stack/include/l2c_api.h"  // L2CA_
+#include "stack/include/btm_status.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
 #include "types/bluetooth/uuid.h"
@@ -241,19 +242,16 @@ void bta_hh_le_deregister(void) { BTA_GATTC_AppDeregister(bta_hh_cb.gatt_if); }
  *
  ******************************************************************************/
 static uint8_t bta_hh_le_get_le_dev_hdl(uint8_t cb_index) {
-  uint8_t i;
-  for (i = 0; i < ARRAY_SIZE(bta_hh_cb.le_cb_index); i++) {
+  uint8_t available_handle = BTA_HH_IDX_INVALID;
+  for (uint8_t i = 0; i < ARRAY_SIZE(bta_hh_cb.le_cb_index); i++) {
     if (bta_hh_cb.le_cb_index[i] == cb_index) {
       return BTA_HH_GET_LE_DEV_HDL(i);
+    } else if (available_handle == BTA_HH_IDX_INVALID &&
+               bta_hh_cb.le_cb_index[i] == BTA_HH_IDX_INVALID) {
+      available_handle = BTA_HH_GET_LE_DEV_HDL(i);
     }
   }
-
-  for (i = 0; i < ARRAY_SIZE(bta_hh_cb.le_cb_index); i++) {
-    if (bta_hh_cb.le_cb_index[i] == BTA_HH_IDX_INVALID) {
-      return BTA_HH_GET_LE_DEV_HDL(i);
-    }
-  }
-  return BTA_HH_IDX_INVALID;
+  return available_handle;
 }
 
 /*******************************************************************************
@@ -265,21 +263,17 @@ static uint8_t bta_hh_le_get_le_dev_hdl(uint8_t cb_index) {
  * Parameters:
  *
  ******************************************************************************/
-void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb, const tAclLinkSpec& link_spec) {
-  tBTA_HH_STATUS status = BTA_HH_ERR_NO_RES;
-
-  /* update cb_index[] map */
+void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb) {
   p_cb->hid_handle = bta_hh_le_get_le_dev_hdl(p_cb->index);
   if (p_cb->hid_handle == BTA_HH_IDX_INVALID) {
+    tBTA_HH_STATUS status = BTA_HH_ERR_NO_RES;
     bta_hh_sm_execute(p_cb, BTA_HH_SDP_CMPL_EVT, (tBTA_HH_DATA*)&status);
     return;
   }
 
-  p_cb->link_spec = link_spec;
-  bta_hh_cb.le_cb_index[BTA_HH_GET_LE_CB_IDX(p_cb->hid_handle)] = p_cb->index;
-  p_cb->in_use = true;
+  bta_hh_cb.le_cb_index[BTA_HH_GET_LE_CB_IDX(p_cb->hid_handle)] = p_cb->index;  // Update index map
 
-  BTA_GATTC_Open(bta_hh_cb.gatt_if, link_spec.addrt.bda, BTM_BLE_DIRECT_CONNECTION, false);
+  BTA_GATTC_Open(bta_hh_cb.gatt_if, p_cb->link_spec.addrt.bda, BTM_BLE_DIRECT_CONNECTION, false);
 }
 
 /*******************************************************************************
@@ -291,15 +285,13 @@ void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb, const tAclLinkSpec& link_spec) {
  *
  ******************************************************************************/
 static tBTA_HH_DEV_CB* bta_hh_le_find_dev_cb_by_conn_id(uint16_t conn_id) {
-  uint8_t i;
-  tBTA_HH_DEV_CB* p_dev_cb = &bta_hh_cb.kdev[0];
-
-  for (i = 0; i < BTA_HH_MAX_DEVICE; i++, p_dev_cb++) {
+  for (uint8_t i = 0; i < BTA_HH_MAX_DEVICE; i++) {
+    tBTA_HH_DEV_CB* p_dev_cb = &bta_hh_cb.kdev[i];
     if (p_dev_cb->in_use && p_dev_cb->conn_id == conn_id) {
       return p_dev_cb;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 /*******************************************************************************
@@ -311,16 +303,14 @@ static tBTA_HH_DEV_CB* bta_hh_le_find_dev_cb_by_conn_id(uint16_t conn_id) {
  *
  ******************************************************************************/
 static tBTA_HH_DEV_CB* bta_hh_le_find_dev_cb_by_bda(const tAclLinkSpec& link_spec) {
-  uint8_t i;
-  tBTA_HH_DEV_CB* p_dev_cb = &bta_hh_cb.kdev[0];
-
-  for (i = 0; i < BTA_HH_MAX_DEVICE; i++, p_dev_cb++) {
+  for (uint8_t i = 0; i < BTA_HH_MAX_DEVICE; i++) {
+    tBTA_HH_DEV_CB* p_dev_cb = &bta_hh_cb.kdev[i];
     if (p_dev_cb->in_use && p_dev_cb->link_spec.addrt.bda == link_spec.addrt.bda &&
         p_dev_cb->link_spec.transport == BT_TRANSPORT_LE) {
       return p_dev_cb;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 /*******************************************************************************
@@ -921,6 +911,14 @@ static void bta_hh_le_dis_cback(const RawAddress& addr, tDIS_VALUE* p_dis_value)
     p_cb->dscp_info.vendor_id = p_dis_value->pnp_id.vendor_id;
     p_cb->dscp_info.version = p_dis_value->pnp_id.product_version;
   }
+
+#if TARGET_FLOSS
+  /* serialize HoGP and DIS for floss */
+  Uuid pri_srvc = Uuid::From16Bit(UUID_SERVCLASS_LE_HID);
+  BTA_GATTC_ServiceSearchRequest(p_cb->conn_id, pri_srvc);
+  return;
+#endif
+
   bta_hh_le_open_cmpl(p_cb);
 }
 
@@ -943,6 +941,11 @@ static void bta_hh_le_pri_service_discovery(tBTA_HH_DEV_CB* p_cb) {
   if (!DIS_ReadDISInfo(p_cb->link_spec.addrt.bda, bta_hh_le_dis_cback, DIS_ATTR_PNP_ID_BIT)) {
     log::error("read DIS failed");
     p_cb->disc_active &= ~BTA_HH_LE_DISC_DIS;
+  } else {
+#if TARGET_FLOSS
+    /* serialize HoGP and DIS for floss */
+    return;
+#endif
   }
 
   /* in parallel */
@@ -968,14 +971,14 @@ static void bta_hh_le_encrypt_cback(RawAddress bd_addr, tBT_TRANSPORT transport,
           .transport = transport,
   };
 
-  tBTA_HH_DEV_CB* p_dev_cb = bta_hh_get_cb(link_spec);
+  tBTA_HH_DEV_CB* p_dev_cb = bta_hh_find_cb(link_spec);
   if (p_dev_cb == nullptr) {
-    log::error("unexpected encryption callback, ignore");
+    log::error("Unexpected encryption callback for {}", bd_addr);
     return;
   }
 
   // TODO Collapse the duplicated status values
-  p_dev_cb->status = (result == BTM_SUCCESS) ? BTA_HH_OK : BTA_HH_ERR_SEC;
+  p_dev_cb->status = (result == tBTM_STATUS::BTM_SUCCESS) ? BTA_HH_OK : BTA_HH_ERR_SEC;
   p_dev_cb->btm_status = result;
 
   bta_hh_sm_execute(p_dev_cb, BTA_HH_ENC_CMPL_EVT, NULL);
@@ -1021,7 +1024,7 @@ void bta_hh_security_cmpl(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */)
       log::verbose("Starting service discovery");
       bta_hh_le_pri_service_discovery(p_cb);
     }
-  } else if (p_cb->btm_status == BTM_ERR_KEY_MISSING) {
+  } else if (p_cb->btm_status == tBTM_STATUS::BTM_ERR_KEY_MISSING) {
     log::error("Received encryption failed status:{} btm_status:{}",
                bta_hh_status_text(p_cb->status), btm_status_text(p_cb->btm_status));
     bta_hh_le_api_disc_act(p_cb);
@@ -1029,8 +1032,9 @@ void bta_hh_security_cmpl(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */)
     log::error("Encryption failed status:{} btm_status:{}", bta_hh_status_text(p_cb->status),
                btm_status_text(p_cb->btm_status));
     if (!(p_cb->status == BTA_HH_ERR_SEC &&
-          (p_cb->btm_status == BTM_ERR_PROCESSING || p_cb->btm_status == BTM_FAILED_ON_SECURITY ||
-           p_cb->btm_status == BTM_WRONG_MODE))) {
+          (p_cb->btm_status == tBTM_STATUS::BTM_ERR_PROCESSING ||
+           p_cb->btm_status == tBTM_STATUS::BTM_FAILED_ON_SECURITY ||
+           p_cb->btm_status == tBTM_STATUS::BTM_WRONG_MODE))) {
       bta_hh_le_api_disc_act(p_cb);
     }
   }
@@ -1085,11 +1089,6 @@ static void bta_hh_clear_service_cache(tBTA_HH_DEV_CB* p_cb) {
  ******************************************************************************/
 void bta_hh_start_security(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */) {
   log::verbose("addr:{}", p_cb->link_spec.addrt.bda);
-  if (BTM_SecIsSecurityPending(p_cb->link_spec.addrt.bda)) {
-    /* if security collision happened, wait for encryption done */
-    p_cb->security_pending = true;
-    return;
-  }
 
   /* if link has been encrypted */
   if (BTM_IsEncrypted(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE)) {
@@ -1103,9 +1102,12 @@ void bta_hh_start_security(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */
     p_cb->status = BTA_HH_ERR_AUTH_FAILED;
     BTM_SetEncryption(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE, bta_hh_le_encrypt_cback, NULL,
                       BTM_BLE_SEC_ENCRYPT);
-  }
-  /* unbonded device, report security error here */
-  else {
+  } else if (BTM_SecIsSecurityPending(p_cb->link_spec.addrt.bda)) {
+    /* if security collision happened, wait for encryption done */
+    log::debug("addr:{} security collision", p_cb->link_spec.addrt.bda);
+    p_cb->security_pending = true;
+  } else {
+    /* unbonded device, report security error here */
     log::debug("addr:{} not bonded", p_cb->link_spec.addrt.bda);
     p_cb->status = BTA_HH_ERR_AUTH_FAILED;
     bta_hh_clear_service_cache(p_cb);
@@ -1366,7 +1368,8 @@ static void read_pref_conn_params_cb(uint16_t conn_id, tGATT_STATUS status, uint
 
   // Make sure both min, and max are bigger than 11.25ms, lower values can
   // introduce audio issues if A2DP is also active.
-  L2CA_AdjustConnectionIntervals(&min_interval, &max_interval, BTM_BLE_CONN_INT_MIN_LIMIT);
+  stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(&min_interval, &max_interval,
+                                                               BTM_BLE_CONN_INT_MIN_LIMIT);
 
   // If the device has no preferred connection timeout, use the default.
   if (timeout == BTM_BLE_CONN_PARAM_UNDEF) {
@@ -1398,8 +1401,8 @@ static void read_pref_conn_params_cb(uint16_t conn_id, tGATT_STATUS status, uint
 
   get_btm_client_interface().ble.BTM_BleSetPrefConnParams(
           p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency, timeout);
-  if (!L2CA_UpdateBleConnParams(p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency,
-                                timeout, 0, 0)) {
+  if (!stack::l2cap::get_interface().L2CA_UpdateBleConnParams(
+              p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency, timeout, 0, 0)) {
     log::warn("Unable to update L2CAP ble connection params peer:{}",
               p_dev_cb->link_spec.addrt.bda);
   }

@@ -47,7 +47,8 @@ import java.util.Objects;
 public class AppScanStats {
     private static final String TAG = AppScanStats.class.getSimpleName();
 
-    static final DateFormat DATE_FORMAT = new SimpleDateFormat("MM-dd HH:mm:ss");
+    private static final ThreadLocal<DateFormat> DATE_FORMAT =
+            ThreadLocal.withInitial(() -> new SimpleDateFormat("MM-dd HH:mm:ss"));
 
     // Weight is the duty cycle of the scan mode
     static final int OPPORTUNISTIC_WEIGHT = 0;
@@ -618,8 +619,8 @@ public class AppScanStats {
 
         if (Flags.bleScanAdvMetricsRedesign()) {
             logger.logRadioScanStopped(
-                    sRadioScanWorkSourceUtil.getUids(),
-                    sRadioScanWorkSourceUtil.getTags(),
+                    getRadioScanUids(),
+                    getRadioScanTags(),
                     sRadioScanType,
                     convertScanMode(sRadioScanMode),
                     sRadioScanIntervalMs,
@@ -640,6 +641,22 @@ public class AppScanStats {
                         BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR_SCREEN_OFF,
                         weightedDuration);
             }
+        }
+    }
+
+    private static int[] getRadioScanUids() {
+        synchronized (sLock) {
+            return sRadioScanWorkSourceUtil != null
+                    ? sRadioScanWorkSourceUtil.getUids()
+                    : new int[] {0};
+        }
+    }
+
+    private static String[] getRadioScanTags() {
+        synchronized (sLock) {
+            return sRadioScanWorkSourceUtil != null
+                    ? sRadioScanWorkSourceUtil.getTags()
+                    : new String[] {""};
         }
     }
 
@@ -679,8 +696,8 @@ public class AppScanStats {
             if (Flags.bleScanAdvMetricsRedesign()) {
                 BluetoothStatsLog.write(
                         BluetoothStatsLog.LE_SCAN_RESULT_RECEIVED,
-                        sRadioScanWorkSourceUtil.getUids(),
-                        sRadioScanWorkSourceUtil.getTags(),
+                        getRadioScanUids(),
+                        getRadioScanTags(),
                         1 /* num_results */,
                         BluetoothStatsLog.LE_SCAN_RESULT_RECEIVED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR,
                         sIsScreenOn);
@@ -703,8 +720,8 @@ public class AppScanStats {
         if (Flags.bleScanAdvMetricsRedesign()) {
             BluetoothStatsLog.write(
                     BluetoothStatsLog.LE_SCAN_RESULT_RECEIVED,
-                    sRadioScanWorkSourceUtil.getUids(),
-                    sRadioScanWorkSourceUtil.getTags(),
+                    getRadioScanUids(),
+                    getRadioScanTags(),
                     numRecords,
                     BluetoothStatsLog.LE_SCAN_RESULT_RECEIVED__LE_SCAN_TYPE__SCAN_TYPE_BATCH,
                     sIsScreenOn);
@@ -1031,7 +1048,7 @@ public class AppScanStats {
             for (int i = 0; i < mLastScans.size(); i++) {
                 LastScan scan = mLastScans.get(i);
                 Date timestamp = new Date(currentTime - currTime + scan.timestamp);
-                sb.append("\n    ").append(DATE_FORMAT.format(timestamp)).append(" - ");
+                sb.append("\n    ").append(DATE_FORMAT.get().format(timestamp)).append(" - ");
                 sb.append(scan.duration).append("ms ");
                 if (scan.isOpportunisticScan) {
                     sb.append("Opp ");
@@ -1084,7 +1101,7 @@ public class AppScanStats {
             for (Integer key : mOngoingScans.keySet()) {
                 LastScan scan = mOngoingScans.get(key);
                 Date timestamp = new Date(currentTime - currTime + scan.timestamp);
-                sb.append("\n    ").append(DATE_FORMAT.format(timestamp)).append(" - ");
+                sb.append("\n    ").append(DATE_FORMAT.get().format(timestamp)).append(" - ");
                 sb.append((currTime - scan.timestamp)).append("ms ");
                 if (scan.isOpportunisticScan) {
                     sb.append("Opp ");

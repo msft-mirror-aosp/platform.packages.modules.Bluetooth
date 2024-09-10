@@ -26,10 +26,9 @@
 #include <string.h>
 
 #include "gatt_int.h"
-#include "l2c_api.h"
-#include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/l2cap_types.h"
 #include "types/bluetooth/uuid.h"
 
 using bluetooth::Uuid;

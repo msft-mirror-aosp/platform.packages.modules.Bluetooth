@@ -30,10 +30,12 @@ java_defaults {
             "-Xep:EmptyCatch:ERROR",
             "-Xep:EqualsIncompatibleType:ERROR",
             "-Xep:FutureReturnValueIgnored:ERROR",
+            "-Xep:InlineFormatString:ERROR",
             "-Xep:InlineMeInliner:ERROR",
             "-Xep:InvalidBlockTag:ERROR",
             "-Xep:InvalidInlineTag:ERROR",
             "-Xep:InvalidParam:ERROR",
+            "-Xep:LongFloatConversion:ERROR",
             "-Xep:MockNotUsedInProduction:ERROR",
             "-Xep:NonApiType:ERROR",
             "-Xep:NonCanonicalType:ERROR",
@@ -92,7 +94,7 @@ java_library {
     libs: [
         "framework-annotations-lib",
         "framework-bluetooth-pre-jarjar",
-        "framework-configinfrastructure",
+        "framework-configinfrastructure.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
         "service-bluetooth-binder-aidl",
         "service-bluetooth.change-ids",
@@ -108,10 +110,6 @@ java_library {
         "modules-utils-build_system",
         "modules-utils-shell-command-handler",
     ],
-
-    lint: {
-        baseline_filename: "lint-baseline.xml",
-    },
 
     optimize: {
         enabled: true,
@@ -140,7 +138,7 @@ java_library {
     },
 
     libs: [
-        "framework-bluetooth",
+        "framework-bluetooth.impl",
     ],
 
     sdk_version: "system_server_current",
@@ -223,6 +221,7 @@ android_robolectric_test {
         "mockito-robolectric-prebuilt",
         "modules-utils-expresslog",
         "platform-test-annotations",
+        "service-bluetooth-binder-aidl",
         "testng",
         "truth",
     ],

@@ -170,6 +170,8 @@ public class BluetoothMediaBrowserService extends MediaBrowserServiceCompat {
         super.onDestroy();
         unregisterReceiver(mReceiver);
         mReceiver = null;
+        mSession.release();
+        mSession = null;
         setInstance(null);
     }
 
@@ -559,7 +561,7 @@ public class BluetoothMediaBrowserService extends MediaBrowserServiceCompat {
                 sb.append(", album=")
                         .append(metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM));
                 sb.append(", duration=")
-                        .append(metadata.getString(MediaMetadataCompat.METADATA_KEY_DURATION));
+                        .append(metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
                 sb.append(", track_number=")
                         .append(metadata.getLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER));
                 sb.append(", total_tracks=")

@@ -35,6 +35,7 @@ import com.android.bluetooth.BluetoothMetricsProto.ProfileId;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.BtRestrictedStatsLog;
 import com.android.bluetooth.Utils;
+import com.android.bluetooth.bass_client.BassConstants;
 import com.android.modules.utils.build.SdkLevel;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -410,7 +411,8 @@ public class MetricsLogger {
             }
         }
 
-        return wordBreakdownList;
+        // Prevent returning a mutable list
+        return Collections.unmodifiableList(wordBreakdownList);
     }
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
@@ -546,6 +548,21 @@ public class MetricsLogger {
                 BluetoothStatsLog.BLUETOOTH_HASHED_DEVICE_NAME_REPORTED, metricId, sha256);
     }
 
+    public void logBluetoothEvent(BluetoothDevice device, int eventType, int state, int uid) {
+
+        if (mAdapterService.getMetricId(device) == 0 || !mInitialized) {
+            return;
+        }
+
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED,
+                eventType,
+                state,
+                uid,
+                mAdapterService.getMetricId(device),
+                getRemoteDeviceInfoProto(device));
+    }
+
     protected static String getSha256String(String name) {
         if (name.isEmpty()) {
             return "";
@@ -567,5 +584,54 @@ public class MetricsLogger {
             return null;
         }
         return digest.digest(name.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** Logs LE Audio Broadcast audio session. */
+    public void logLeAudioBroadcastAudioSession(
+            int broadcastId,
+            int[] audioQuality,
+            int groupSize,
+            long sessionDurationMs,
+            long latencySessionConfiguredMs,
+            long latencySessionStreamingMs,
+            int sessionStatus) {
+        if (!mInitialized) {
+            return;
+        }
+
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.BROADCAST_AUDIO_SESSION_REPORTED,
+                broadcastId,
+                audioQuality.length,
+                audioQuality,
+                groupSize,
+                sessionDurationMs,
+                latencySessionConfiguredMs,
+                latencySessionStreamingMs,
+                sessionStatus);
+    }
+
+    /** Logs LE Audio Broadcast audio sync. */
+    public void logLeAudioBroadcastAudioSync(
+            BluetoothDevice device,
+            int broadcastId,
+            boolean isLocalBroadcast,
+            long syncDurationMs,
+            long latencyPaSyncMs,
+            long latencyBisSyncMs,
+            int syncStatus) {
+        if (!mInitialized) {
+            return;
+        }
+
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.BROADCAST_AUDIO_SYNC_REPORTED,
+                isLocalBroadcast ? broadcastId : BassConstants.INVALID_BROADCAST_ID,
+                isLocalBroadcast,
+                syncDurationMs,
+                latencyPaSyncMs,
+                latencyBisSyncMs,
+                syncStatus,
+                getRemoteDeviceInfoProto(device));
     }
 }

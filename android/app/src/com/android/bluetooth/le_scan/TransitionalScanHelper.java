@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.le_scan;
 
-import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
 import static android.Manifest.permission.UPDATE_DEVICE_STATS;
@@ -74,6 +73,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * A helper class which contains all scan related functions extracted from {@link
@@ -452,6 +452,7 @@ public class TransitionalScanHelper {
                 if (app.mCallback != null) {
                     app.mCallback.onScanResult(result);
                 } else {
+                    Log.v(TAG, "Callback is null, sending scan results by pendingIntent");
                     // Send the PendingIntent
                     ArrayList<ScanResult> results = new ArrayList<>();
                     results.add(result);
@@ -736,6 +737,7 @@ public class TransitionalScanHelper {
                     sendResultsByPendingIntent(
                             app.mInfo, permittedResults, ScanSettings.CALLBACK_TYPE_ALL_MATCHES);
                 } catch (PendingIntent.CanceledException e) {
+                    Log.d(TAG, "Exception while sending result", e);
                 }
             }
         } else {
@@ -1106,17 +1108,17 @@ public class TransitionalScanHelper {
             return Collections.emptyList();
         }
 
-        List<String> macAddresses = new ArrayList();
-
         final long identity = Binder.clearCallingIdentity();
         try {
-            for (AssociationInfo info : mCompanionManager.getAllAssociations()) {
-                if (info.getPackageName().equals(callingPackage)
-                        && !info.isSelfManaged()
-                        && info.getDeviceMacAddress() != null) {
-                    macAddresses.add(info.getDeviceMacAddress().toString());
-                }
-            }
+            return mCompanionManager.getAllAssociations().stream()
+                    .filter(
+                            info ->
+                                    info.getPackageName().equals(callingPackage)
+                                            && !info.isSelfManaged()
+                                            && info.getDeviceMacAddress() != null)
+                    .map(AssociationInfo::getDeviceMacAddress)
+                    .map(MacAddress::toString)
+                    .collect(Collectors.toList());
         } catch (SecurityException se) {
             // Not an app with associated devices
         } catch (Exception e) {
@@ -1124,7 +1126,7 @@ public class TransitionalScanHelper {
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
-        return macAddresses;
+        return Collections.emptyList();
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
@@ -1434,9 +1436,9 @@ public class TransitionalScanHelper {
         mPeriodicScanManager.transferSetInfo(bda, serviceData, advHandle, callback);
     }
 
-    @RequiresPermission(BLUETOOTH_CONNECT)
+    @RequiresPermission(BLUETOOTH_SCAN)
     public int numHwTrackFiltersAvailable(AttributionSource attributionSource) {
-        if (!Utils.checkConnectPermissionForDataDelivery(
+        if (!Utils.checkScanPermissionForDataDelivery(
                 mContext, attributionSource, "ScanHelper numHwTrackFiltersAvailable")) {
             return 0;
         }
