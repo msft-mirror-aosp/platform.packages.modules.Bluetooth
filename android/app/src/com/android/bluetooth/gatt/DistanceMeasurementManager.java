@@ -497,7 +497,7 @@ public class DistanceMeasurementManager {
         }
         for (DistanceMeasurementTracker tracker : set) {
             if (!tracker.mStarted) {
-                    continue;
+                continue;
             }
             try {
                 tracker.mCallback.onResult(tracker.mDevice, result);

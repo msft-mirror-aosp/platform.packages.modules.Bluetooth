@@ -46,6 +46,7 @@
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/sdp_api.h"
 #include "types/bluetooth/uuid.h"
@@ -1190,15 +1191,15 @@ void GATT_SetIdleTimeout(const RawAddress& bd_addr, uint16_t idle_tout, tBT_TRAN
 
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, transport);
   if (p_tcb != nullptr) {
-    status = L2CA_SetLeGattTimeout(bd_addr, idle_tout);
+    status = stack::l2cap::get_interface().L2CA_SetLeGattTimeout(bd_addr, idle_tout);
 
     if (is_active) {
-      status &= L2CA_MarkLeLinkAsActive(bd_addr);
+      status &= stack::l2cap::get_interface().L2CA_MarkLeLinkAsActive(bd_addr);
     }
 
     if (idle_tout == GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP) {
-      if (!L2CA_SetIdleTimeoutByBdAddr(p_tcb->peer_bda, GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP,
-                                       BT_TRANSPORT_LE)) {
+      if (!stack::l2cap::get_interface().L2CA_SetIdleTimeoutByBdAddr(
+                  p_tcb->peer_bda, GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP, BT_TRANSPORT_LE)) {
         log::warn("Unable to set L2CAP link idle timeout peer:{} transport:{}", p_tcb->peer_bda,
                   bt_transport_text(transport));
       }

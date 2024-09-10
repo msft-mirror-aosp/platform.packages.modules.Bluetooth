@@ -185,7 +185,6 @@ public class NotificationHelperService extends Service {
                     return false;
                 }
             }
-
         }
 
         Settings.Secure.putInt(getContentResolver(), countKey, Math.min(3, countShown + 1));

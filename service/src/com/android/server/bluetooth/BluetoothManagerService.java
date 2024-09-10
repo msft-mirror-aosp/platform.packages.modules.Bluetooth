@@ -2429,7 +2429,6 @@ class BluetoothManagerService {
         proto.flush();
     }
 
-
     static @NonNull Bundle getTempAllowlistBroadcastOptions() {
         final long duration = 10_000;
         final BroadcastOptions bOptions = BroadcastOptions.makeBasic();

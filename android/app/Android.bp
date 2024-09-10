@@ -343,6 +343,7 @@ android_app {
             "-Xep:InvalidParam:ERROR",
             "-Xep:LoopOverCharArray:ERROR",
             "-Xep:MissingCasesInEnumSwitch:ERROR",
+            "-Xep:MixedMutabilityReturnType:ERROR",
             "-Xep:MockNotUsedInProduction:ERROR",
             "-Xep:ModifyCollectionInEnhancedForLoop:ERROR",
             "-Xep:NarrowCalculation:ERROR",

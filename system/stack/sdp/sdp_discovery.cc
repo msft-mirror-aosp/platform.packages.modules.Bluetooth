@@ -176,7 +176,8 @@ static void sdp_snd_service_search_req(tCONN_CB* p_ccb, uint8_t cont_len, uint8_
   /* Set the length of the SDP data in the buffer */
   p_cmd->len = (uint16_t)(p - p_start);
 
-  if (L2CA_DataWrite(p_ccb->connection_id, p_cmd) != tL2CAP_DW_RESULT::SUCCESS) {
+  if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_cmd) !=
+      tL2CAP_DW_RESULT::SUCCESS) {
     log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_ccb->device_address,
               p_ccb->connection_id, p_cmd->len);
   }
@@ -693,7 +694,8 @@ static void process_service_search_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
     /* Set the length of the SDP data in the buffer */
     p_msg->len = p - p_start;
 
-    if (L2CA_DataWrite(p_ccb->connection_id, p_msg) != tL2CAP_DW_RESULT::SUCCESS) {
+    if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_msg) !=
+        tL2CAP_DW_RESULT::SUCCESS) {
       log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_ccb->device_address,
                 p_ccb->connection_id, p_msg->len);
     }
@@ -861,7 +863,8 @@ static void process_service_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply, uint8_t*
     /* Set the length of the SDP data in the buffer */
     p_msg->len = (uint16_t)(p - p_start);
 
-    if (L2CA_DataWrite(p_ccb->connection_id, p_msg) != tL2CAP_DW_RESULT::SUCCESS) {
+    if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_msg) !=
+        tL2CAP_DW_RESULT::SUCCESS) {
       log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_ccb->device_address,
                 p_ccb->connection_id, p_msg->len);
     }

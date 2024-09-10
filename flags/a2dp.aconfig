@@ -10,13 +10,6 @@ flag {
 }
 
 flag {
-    name: "a2dp_concurrent_source_sink"
-    namespace: "bluetooth"
-    description: "Support for concurrent A2DP source and sink"
-    bug : "321806163"
-}
-
-flag {
     name: "a2dp_service_looper"
     namespace: "bluetooth"
     description: "Inject looper into A2dpService"

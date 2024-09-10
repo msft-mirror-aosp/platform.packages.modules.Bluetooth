@@ -28,7 +28,6 @@ import android.util.proto.ProtoOutputStream;
 
 import androidx.annotation.RequiresApi;
 
-import com.android.bluetooth.bass_client.BassConstants;
 import com.android.bluetooth.BluetoothMetricsProto.BluetoothLog;
 import com.android.bluetooth.BluetoothMetricsProto.BluetoothRemoteDeviceInformation;
 import com.android.bluetooth.BluetoothMetricsProto.ProfileConnectionStats;
@@ -36,6 +35,7 @@ import com.android.bluetooth.BluetoothMetricsProto.ProfileId;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.BtRestrictedStatsLog;
 import com.android.bluetooth.Utils;
+import com.android.bluetooth.bass_client.BassConstants;
 import com.android.modules.utils.build.SdkLevel;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -411,7 +411,8 @@ public class MetricsLogger {
             }
         }
 
-        return wordBreakdownList;
+        // Prevent returning a mutable list
+        return Collections.unmodifiableList(wordBreakdownList);
     }
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
