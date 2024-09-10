@@ -22,24 +22,20 @@
  *  This is mainly dealing with client requests
  *
  ******************************************************************************/
-#define LOG_TAG "sdp_server"
+#define LOG_TAG "stack::sdp"
 
 #include <bluetooth/log.h>
 #include <string.h>  // memcpy
 
 #include <cstdint>
 
-#include "btif/include/btif_profile_storage.h"
 #include "btif/include/btif_storage.h"
-#include "common/init_flags.h"
 #include "device/include/interop.h"
 #include "device/include/interop_config.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
-#include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
-#include "stack/btm/btm_sec.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
@@ -68,13 +64,13 @@
 using namespace bluetooth;
 
 /* Used to set PBAP local SDP device record for PBAP 1.2 upgrade */
-typedef struct {
+struct tSDP_PSE_LOCAL_RECORD {
   int32_t rfcomm_channel_number;
   int32_t l2cap_psm;
   int32_t profile_version;
   uint32_t supported_features;
   uint32_t supported_repositories;
-} tSDP_PSE_LOCAL_RECORD;
+};
 
 static tSDP_PSE_LOCAL_RECORD sdpPseLocalRecord;
 
@@ -195,13 +191,14 @@ static void process_service_search(tCONN_CB* p_ccb, uint16_t trans_num, uint16_t
   p_req = sdpu_extract_uid_seq(p_req, param_len, &uid_seq);
 
   if ((!p_req) || (!uid_seq.num_uids)) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX, SDP_TEXT_BAD_UUID_LIST);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_REQ_SYNTAX,
+                            SDP_TEXT_BAD_UUID_LIST);
     return;
   }
 
   /* Get the max replies we can send. Cap it at our max anyways. */
   if (p_req + sizeof(max_replies) + sizeof(uint8_t) > p_req_end) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_REQ_SYNTAX,
                             SDP_TEXT_BAD_MAX_RECORDS_LIST);
     return;
   }
@@ -224,18 +221,21 @@ static void process_service_search(tCONN_CB* p_ccb, uint16_t trans_num, uint16_t
 
   /* Check if this is a continuation request */
   if (p_req + 1 > p_req_end) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE, SDP_TEXT_BAD_CONT_LEN);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_CONT_STATE,
+                            SDP_TEXT_BAD_CONT_LEN);
     return;
   }
   if (*p_req) {
     if (*p_req++ != SDP_CONTINUATION_LEN || (p_req + sizeof(cont_offset) > p_req_end)) {
-      sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE, SDP_TEXT_BAD_CONT_LEN);
+      sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_CONT_STATE,
+                              SDP_TEXT_BAD_CONT_LEN);
       return;
     }
     BE_STREAM_TO_UINT16(cont_offset, p_req);
 
     if (cont_offset != p_ccb->cont_offset || num_rsp_handles < cont_offset) {
-      sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE, SDP_TEXT_BAD_CONT_INX);
+      sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_CONT_STATE,
+                              SDP_TEXT_BAD_CONT_INX);
       return;
     }
 
@@ -297,120 +297,11 @@ static void process_service_search(tCONN_CB* p_ccb, uint16_t trans_num, uint16_t
   p_buf->len = p_rsp - p_rsp_start;
 
   /* Send the buffer through L2CAP */
-  if (L2CA_DataWrite(p_ccb->connection_id, p_buf) != tL2CAP_DW_RESULT::SUCCESS) {
+  if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_buf) !=
+      tL2CAP_DW_RESULT::SUCCESS) {
     log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_ccb->device_address,
               p_ccb->connection_id, p_buf->len);
   }
-}
-
-/*************************************************************************************
-**
-** Function        is_device_in_allowlist_for_pbap
-**
-** Description     Checks if given PBAP device is in allowlist for PBAP PSE.
-**
-** Returns         BOOLEAN
-**
-***************************************************************************************/
-static bool is_device_in_allowlist_for_pbap(RawAddress remote_address, bool check_for_1_2) {
-  if (!check_for_1_2 && interop_match_addr_or_name(INTEROP_ADV_PBAP_VER_1_1, &remote_address,
-                                                   &btif_storage_get_remote_device_property)) {
-    log::verbose("device is in allowlist for pbap version < 1.2");
-    return true;
-  }
-  if (check_for_1_2) {
-    if (btm_sec_is_a_bonded_dev(remote_address)) {
-      if (interop_match_addr_or_name(INTEROP_ADV_PBAP_VER_1_2, &remote_address,
-                                     &btif_storage_get_remote_device_property)) {
-        log::verbose("device is in allowlist for pbap version 1.2");
-        return true;
-      }
-    } else {
-      const char* p_name = BTM_SecReadDevName(remote_address);
-      if ((p_name != NULL) && interop_match_name(INTEROP_ADV_PBAP_VER_1_2, p_name)) {
-        log::verbose("device is not paired & in allowlist for pbap version 1.2");
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-/*************************************************************************************
-**
-** Function        sdp_upgrade_pbap_pse_record
-**
-** Description     updates pbap record to pbap 1.2 record if remote supports
-*pbap 1.2
-**
-** Returns         the address of updated record
-**
-***************************************************************************************/
-static const tSDP_RECORD* sdp_upgrade_pse_record(const tSDP_RECORD* p_rec,
-                                                 RawAddress remote_address) {
-  static bool is_pbap_102_supported = FALSE;
-  tSDP_ATTRIBUTE attr = p_rec->attribute[1];
-  if (!((attr.id == ATTR_ID_SERVICE_CLASS_ID_LIST) &&
-        (((attr.value_ptr[1] << 8) | (attr.value_ptr[2])) == UUID_SERVCLASS_PBAP_PSE))) {
-    // Not a PBAP PSE Record
-    return p_rec;
-  }
-
-  /* Check if remote supports PBAP 1.2 */
-  is_pbap_102_supported = btif_storage_is_pce_version_102(remote_address);
-  bool is_pbap_101_allowlisted = is_device_in_allowlist_for_pbap(remote_address, false);
-  bool is_pbap_102_allowlisted = is_device_in_allowlist_for_pbap(remote_address, true);
-  bool running_pts = osi_property_get_bool(SDP_ENABLE_PTS_PBAP, false);
-
-  log::verbose(
-          "remote BD Addr : {} is_pbap_102_supported : {} is_pbap_101_allowlisted "
-          "= {} is_pbap_102_allowlisted = {} running_pts = {}",
-          remote_address, is_pbap_102_supported, is_pbap_101_allowlisted, is_pbap_102_allowlisted,
-          running_pts);
-
-  if (is_pbap_101_allowlisted ||
-      (!is_pbap_102_supported && !is_pbap_102_allowlisted && !running_pts)) {
-    // Send 1.1 SDP Record
-    return p_rec;
-  }
-
-  static tSDP_RECORD pbap_102_sdp_rec = {};
-  const tSDP_ATTRIBUTE* p_attr = &p_rec->attribute[0];
-  uint8_t temp[4], j;
-  uint8_t* p_temp = temp;
-  bool status = true;
-
-  /* Copying contents of the PBAP 1.1 PSE record to a new 1.2 record */
-  for (j = 0; j < p_rec->num_attributes; j++, p_attr++) {
-    SDP_AddAttributeToRecord(&pbap_102_sdp_rec, p_attr->id, p_attr->type, p_attr->len,
-                             p_attr->value_ptr);
-  }
-
-  /* Add supported repositories 1 byte */
-  status &= SDP_AddAttributeToRecord(&pbap_102_sdp_rec, ATTR_ID_SUPPORTED_REPOSITORIES,
-                                     UINT_DESC_TYPE, (uint32_t)1,
-                                     (uint8_t*)&sdpPseLocalRecord.supported_repositories);
-
-  /* Add in the Bluetooth Profile Descriptor List */
-  status &= SDP_AddProfileDescriptorListToRecord(&pbap_102_sdp_rec, UUID_SERVCLASS_PHONE_ACCESS,
-                                                 sdpPseLocalRecord.profile_version);
-
-  /* Add PBAP 1.2 supported features 4 */
-  UINT32_TO_BE_STREAM(p_temp, sdpPseLocalRecord.supported_features);
-  status &= SDP_AddAttributeToRecord(&pbap_102_sdp_rec, ATTR_ID_PBAP_SUPPORTED_FEATURES,
-                                     UINT_DESC_TYPE, (uint32_t)4, temp);
-
-  /* Add the L2CAP PSM */
-  p_temp = temp;  // The macro modifies p_temp, hence rewind.
-  UINT16_TO_BE_STREAM(p_temp, sdpPseLocalRecord.l2cap_psm);
-  status &= SDP_AddAttributeToRecord(&pbap_102_sdp_rec, ATTR_ID_GOEP_L2CAP_PSM, UINT_DESC_TYPE,
-                                     (uint32_t)2, temp);
-
-  if (!status) {
-    log::error("FAILED");
-    return p_rec;
-  }
-  return &pbap_102_sdp_rec;
 }
 
 /*******************************************************************************
@@ -439,7 +330,8 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num, uint16
   uint16_t attr_len;
 
   if (p_req + sizeof(rec_handle) + sizeof(max_list_len) > p_req_end) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_SERV_REC_HDL, SDP_TEXT_BAD_HANDLE);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_SERV_REC_HDL,
+                            SDP_TEXT_BAD_HANDLE);
     return;
   }
 
@@ -458,7 +350,8 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num, uint16
   p_req = sdpu_extract_attr_seq(p_req, param_len, &attr_seq);
 
   if ((!p_req) || (!attr_seq.num_attr) || (p_req + sizeof(uint8_t) > p_req_end)) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX, SDP_TEXT_BAD_ATTR_LIST);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_REQ_SYNTAX,
+                            SDP_TEXT_BAD_ATTR_LIST);
     return;
   }
 
@@ -467,19 +360,14 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num, uint16
   /* Find a record with the record handle */
   p_rec = sdp_db_find_record(rec_handle);
   if (!p_rec) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_SERV_REC_HDL, SDP_TEXT_BAD_HANDLE);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_SERV_REC_HDL,
+                            SDP_TEXT_BAD_HANDLE);
     return;
   }
 
   if (max_list_len < 4) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_ILLEGAL_PARAMETER, NULL);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_ILLEGAL_PARAMETER, NULL);
     return;
-  }
-
-  if (bluetooth::common::init_flags::pbap_pse_dynamic_version_upgrade_is_enabled()) {
-    p_rec = sdp_upgrade_pse_record(p_rec, p_ccb->device_address);
-  } else {
-    log::warn("PBAP PSE dynamic version upgrade is not enabled");
   }
 
   /* Free and reallocate buffer */
@@ -488,18 +376,21 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num, uint16
 
   /* Check if this is a continuation request */
   if (p_req + 1 > p_req_end) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE, SDP_TEXT_BAD_CONT_LEN);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_CONT_STATE,
+                            SDP_TEXT_BAD_CONT_LEN);
     return;
   }
   if (*p_req) {
     if (*p_req++ != SDP_CONTINUATION_LEN || (p_req + sizeof(cont_offset) > p_req_end)) {
-      sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE, SDP_TEXT_BAD_CONT_LEN);
+      sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_CONT_STATE,
+                              SDP_TEXT_BAD_CONT_LEN);
       return;
     }
     BE_STREAM_TO_UINT16(cont_offset, p_req);
 
     if (cont_offset != p_ccb->cont_offset) {
-      sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE, SDP_TEXT_BAD_CONT_INX);
+      sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_CONT_STATE,
+                              SDP_TEXT_BAD_CONT_INX);
       return;
     }
     is_cont = true;
@@ -536,16 +427,13 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num, uint16
     if (p_attr) {
       if (is_service_avrc_target) {
         sdpu_set_avrc_target_version(p_attr, &(p_ccb->device_address));
-        if (p_attr->id == ATTR_ID_SUPPORTED_FEATURES &&
-            bluetooth::common::init_flags::dynamic_avrcp_version_enhancement_is_enabled()) {
+        if (p_attr->id == ATTR_ID_SUPPORTED_FEATURES) {
           avrc_sdp_version = sdpu_is_avrcp_profile_description_list(p_attr_profile_desc_list_id);
           log::error("avrc_sdp_version in SDP records {:x}", avrc_sdp_version);
           sdpu_set_avrc_target_features(p_attr, &(p_ccb->device_address), avrc_sdp_version);
         }
       }
-      if (bluetooth::common::init_flags::hfp_dynamic_version_is_enabled()) {
-        is_hfp_fallback = sdp_dynamic_change_hfp_version(p_attr, p_ccb->device_address);
-      }
+      is_hfp_fallback = sdp_dynamic_change_hfp_version(p_attr, p_ccb->device_address);
       /* Check if attribute fits. Assume 3-byte value type/length */
       rem_len = max_list_len - (int16_t)(p_rsp - &p_ccb->rsp_list[0]);
 
@@ -561,7 +449,8 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num, uint16
       if (p_ccb->cont_info.attr_offset) {
         if (attr_len < p_ccb->cont_info.attr_offset) {
           log::error("offset is bigger than attribute length");
-          sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE, SDP_TEXT_BAD_CONT_LEN);
+          sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_CONT_STATE,
+                                  SDP_TEXT_BAD_CONT_LEN);
           return;
         }
         p_rsp = sdpu_build_partial_attrib_entry(p_rsp, p_attr, rem_len,
@@ -577,7 +466,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num, uint16
       {
         if (attr_len >= SDP_MAX_ATTR_LEN) {
           log::error("SDP attr too big: max_list_len={},attr_len={}", max_list_len, attr_len);
-          sdpu_build_n_send_error(p_ccb, trans_num, SDP_NO_RESOURCES, NULL);
+          sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_NO_RESOURCES, NULL);
           return;
         }
 
@@ -672,98 +561,11 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num, uint16
   p_buf->len = p_rsp - p_rsp_start;
 
   /* Send the buffer through L2CAP */
-  if (L2CA_DataWrite(p_ccb->connection_id, p_buf) != tL2CAP_DW_RESULT::SUCCESS) {
+  if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_buf) !=
+      tL2CAP_DW_RESULT::SUCCESS) {
     log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_ccb->device_address,
               p_ccb->connection_id, p_buf->len);
   }
-}
-
-/*************************************************************************************
-**
-** Function        sdp_pbap_pse_dynamic_attributes_len_update
-**
-** Description      length of the attributes need to be added in final sdp
-*response len
-**
-** Returns         returns the length of denylisted attributes.
-**
-***************************************************************************************/
-static uint16_t sdp_pbap_pse_dynamic_attributes_len_update(tCONN_CB* p_ccb, tSDP_ATTR_SEQ* attr_seq,
-                                                           tSDP_UUID_SEQ* uid_seq) {
-  if (!p_ccb || !attr_seq || !uid_seq) {
-    return 0;
-  }
-  const tSDP_RECORD* p_rec;
-
-  p_ccb->pse_dynamic_attributes_len = 0;
-
-  // Check to validate if 1.2 record is getting sent
-  bool is_pbap_102_supported = btif_storage_is_pce_version_102(p_ccb->device_address);
-  bool is_pbap_101_allowlisted = is_device_in_allowlist_for_pbap(p_ccb->device_address, false);
-  bool is_pbap_102_allowlisted = is_device_in_allowlist_for_pbap(p_ccb->device_address, true);
-  bool running_pts = osi_property_get_bool(SDP_ENABLE_PTS_PBAP, false);
-
-  log::verbose(
-          "remote BD Addr : {} is_pbap_102_supported = {} is_pbap_101_allowlisted "
-          "= {} is_pbap_102_allowlisted = {} running_pts = {}",
-          p_ccb->device_address, is_pbap_102_supported, is_pbap_101_allowlisted,
-          is_pbap_102_allowlisted, running_pts);
-
-  if (is_pbap_101_allowlisted ||
-      (!is_pbap_102_supported && !is_pbap_102_allowlisted && !running_pts)) {
-    // Send Length without any update
-    return p_ccb->pse_dynamic_attributes_len;
-  }
-
-  int xx;
-  tSDP_ATTRIBUTE attr;
-  for (p_rec = (tSDP_RECORD*)sdp_db_service_search(NULL, uid_seq); p_rec;
-       p_rec = (tSDP_RECORD*)sdp_db_service_search(p_rec, uid_seq)) {
-    attr = p_rec->attribute[1];
-    if ((attr.id == ATTR_ID_SERVICE_CLASS_ID_LIST) &&
-        (((attr.value_ptr[1] << 8) | (attr.value_ptr[2])) == UUID_SERVCLASS_PBAP_PSE)) {
-      // PBAP PSE Record
-      p_rec = sdp_upgrade_pse_record(p_rec, p_ccb->device_address);
-      log::verbose("response has PBAP PSE record for allowlist device");
-
-      int att_index;
-      bool l2cap_psm_len_included = false, supp_attr_len_included = false;
-      for (xx = p_ccb->cont_info.next_attr_index; xx < attr_seq->num_attr; xx++) {
-        log::verbose(
-                "xx = {} attr_seq->num_attr = {}, attr_seq->attr_entry[xx].start = "
-                "{} , attr_seq->attr_entry[xx].end = {}",
-                xx, attr_seq->num_attr, attr_seq->attr_entry[xx].start,
-                attr_seq->attr_entry[xx].end);
-
-        for (att_index = 0; att_index < p_rec->num_attributes; att_index++) {
-          tSDP_ATTRIBUTE cur_attr = p_rec->attribute[att_index];
-          if (cur_attr.id == ATTR_ID_GOEP_L2CAP_PSM && !l2cap_psm_len_included &&
-              cur_attr.id >= attr_seq->attr_entry[xx].start &&
-              cur_attr.id <= attr_seq->attr_entry[xx].end) {
-            l2cap_psm_len_included = true;
-            p_ccb->pse_dynamic_attributes_len += PBAP_GOEP_L2CAP_PSM_LEN;
-            log::error("ATTR_ID_GOEP_L2CAP_PSM requested, need to change length by {}",
-                       p_ccb->pse_dynamic_attributes_len);
-          } else if (cur_attr.id == ATTR_ID_PBAP_SUPPORTED_FEATURES && !supp_attr_len_included &&
-                     cur_attr.id >= attr_seq->attr_entry[xx].start &&
-                     cur_attr.id <= attr_seq->attr_entry[xx].end) {
-            supp_attr_len_included = true;
-            p_ccb->pse_dynamic_attributes_len += PBAP_SUPP_FEA_LEN;
-            log::verbose(
-                    "ATTR_ID_PBAP_SUPPORTED_FEATURES requested, need to change "
-                    "length by {}",
-                    p_ccb->pse_dynamic_attributes_len);
-          }
-        }
-        if (p_ccb->pse_dynamic_attributes_len == PBAP_1_2_BL_LEN) {
-          break;
-        }
-      }
-      break;
-    }
-  }
-  log::verbose("pse_dynamic_attributes_len = {}", p_ccb->pse_dynamic_attributes_len);
-  return p_ccb->pse_dynamic_attributes_len;
 }
 
 /*******************************************************************************
@@ -799,7 +601,8 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   p_req = sdpu_extract_uid_seq(p_req, param_len, &uid_seq);
 
   if ((!p_req) || (!uid_seq.num_uids) || (p_req + sizeof(uint16_t) > p_req_end)) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX, SDP_TEXT_BAD_UUID_LIST);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_REQ_SYNTAX,
+                            SDP_TEXT_BAD_UUID_LIST);
     return;
   }
 
@@ -814,14 +617,15 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   p_req = sdpu_extract_attr_seq(p_req, param_len, &attr_seq);
 
   if ((!p_req) || (!attr_seq.num_attr) || (p_req + sizeof(uint8_t) > p_req_end)) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX, SDP_TEXT_BAD_ATTR_LIST);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_REQ_SYNTAX,
+                            SDP_TEXT_BAD_ATTR_LIST);
     return;
   }
 
   memcpy(&attr_seq_sav, &attr_seq, sizeof(tSDP_ATTR_SEQ));
 
   if (max_list_len < 4) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_ILLEGAL_PARAMETER, NULL);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_ILLEGAL_PARAMETER, NULL);
     return;
   }
 
@@ -831,18 +635,21 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
   /* Check if this is a continuation request */
   if (p_req + 1 > p_req_end) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE, SDP_TEXT_BAD_CONT_LEN);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_CONT_STATE,
+                            SDP_TEXT_BAD_CONT_LEN);
     return;
   }
   if (*p_req) {
     if (*p_req++ != SDP_CONTINUATION_LEN || (p_req + sizeof(uint16_t) > p_req_end)) {
-      sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE, SDP_TEXT_BAD_CONT_LEN);
+      sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_CONT_STATE,
+                              SDP_TEXT_BAD_CONT_LEN);
       return;
     }
     BE_STREAM_TO_UINT16(cont_offset, p_req);
 
     if (cont_offset != p_ccb->cont_offset) {
-      sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE, SDP_TEXT_BAD_CONT_INX);
+      sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_CONT_STATE,
+                              SDP_TEXT_BAD_CONT_INX);
       return;
     }
     is_cont = true;
@@ -867,11 +674,6 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
        p_rec = sdp_db_service_search(p_rec, &uid_seq)) {
     /* Store the actual record pointer which would be reused later */
     p_prev_rec = (tSDP_RECORD*)p_rec;
-    if (bluetooth::common::init_flags::pbap_pse_dynamic_version_upgrade_is_enabled()) {
-      p_rec = sdp_upgrade_pse_record(p_rec, p_ccb->device_address);
-    } else {
-      log::warn("PBAP PSE dynamic version upgrade is not enabled");
-    }
     /* Allow space for attribute sequence type and length */
     p_seq_start = p_rsp;
     if (!p_ccb->cont_info.last_attr_seq_desc_sent) {
@@ -906,17 +708,13 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
       if (p_attr) {
         if (is_service_avrc_target) {
           sdpu_set_avrc_target_version(p_attr, &(p_ccb->device_address));
-          if (p_attr->id == ATTR_ID_SUPPORTED_FEATURES &&
-              bluetooth::common::init_flags::dynamic_avrcp_version_enhancement_is_enabled() &&
-              p_attr_profile_desc_list_id != nullptr) {
+          if (p_attr->id == ATTR_ID_SUPPORTED_FEATURES && p_attr_profile_desc_list_id != nullptr) {
             avrc_sdp_version = sdpu_is_avrcp_profile_description_list(p_attr_profile_desc_list_id);
             log::error("avrc_sdp_version in SDP records {:x}", avrc_sdp_version);
             sdpu_set_avrc_target_features(p_attr, &(p_ccb->device_address), avrc_sdp_version);
           }
         }
-        if (bluetooth::common::init_flags::hfp_dynamic_version_is_enabled()) {
-          is_hfp_fallback = sdp_dynamic_change_hfp_version(p_attr, p_ccb->device_address);
-        }
+        is_hfp_fallback = sdp_dynamic_change_hfp_version(p_attr, p_ccb->device_address);
         /* Check if attribute fits. Assume 3-byte value type/length */
         rem_len = max_list_len - (int16_t)(p_rsp - &p_ccb->rsp_list[0]);
 
@@ -933,7 +731,7 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
         if (p_ccb->cont_info.attr_offset) {
           if (attr_len < p_ccb->cont_info.attr_offset) {
             log::error("offset is bigger than attribute length");
-            sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE,
+            sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_CONT_STATE,
                                     SDP_TEXT_BAD_CONT_LEN);
             return;
           }
@@ -951,7 +749,7 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
         {
           if (attr_len >= SDP_MAX_ATTR_LEN) {
             log::error("SDP attr too big: max_list_len={},attr_len={}", max_list_len, attr_len);
-            sdpu_build_n_send_error(p_ccb, trans_num, SDP_NO_RESOURCES, NULL);
+            sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_NO_RESOURCES, NULL);
             return;
           }
 
@@ -1040,7 +838,7 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   //
   // TODO(sharvil): rewrite SDP server.
   if (is_cont && len_to_send == 0) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE, NULL);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_CONT_STATE, NULL);
     return;
   }
 
@@ -1051,13 +849,7 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
     /* Get the length of denylisted attributes to be updated if device is
      * denylisted */
-    if (bluetooth::common::init_flags::pbap_pse_dynamic_version_upgrade_is_enabled()) {
-      p_ccb->pse_dynamic_attributes_len =
-              sdp_pbap_pse_dynamic_attributes_len_update(p_ccb, &attr_seq_sav, &uid_seq);
-    } else {
-      log::warn("PBAP PSE dynamic version upgrade is not enabled");
-      p_ccb->pse_dynamic_attributes_len = 0;
-    }
+    p_ccb->pse_dynamic_attributes_len = 0;
 
     log::verbose("p_ccb->list_len = {} pse_dynamic_attributes_len = {}", p_ccb->list_len,
                  p_ccb->pse_dynamic_attributes_len);
@@ -1126,7 +918,8 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   p_buf->len = p_rsp - p_rsp_start;
 
   /* Send the buffer through L2CAP */
-  if (L2CA_DataWrite(p_ccb->connection_id, p_buf) != tL2CAP_DW_RESULT::SUCCESS) {
+  if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_buf) !=
+      tL2CAP_DW_RESULT::SUCCESS) {
     log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_ccb->device_address,
               p_ccb->connection_id, p_buf->len);
   }
@@ -1154,7 +947,8 @@ void sdp_server_handle_client_req(tCONN_CB* p_ccb, BT_HDR* p_msg) {
 
   if (p_req + sizeof(pdu_id) + sizeof(trans_num) > p_req_end) {
     trans_num = 0;
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX, SDP_TEXT_BAD_HEADER);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_REQ_SYNTAX,
+                            SDP_TEXT_BAD_HEADER);
     return;
   }
 
@@ -1165,14 +959,16 @@ void sdp_server_handle_client_req(tCONN_CB* p_ccb, BT_HDR* p_msg) {
   BE_STREAM_TO_UINT16(trans_num, p_req);
 
   if (p_req + sizeof(param_len) > p_req_end) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX, SDP_TEXT_BAD_HEADER);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_REQ_SYNTAX,
+                            SDP_TEXT_BAD_HEADER);
     return;
   }
 
   BE_STREAM_TO_UINT16(param_len, p_req);
 
   if ((p_req + param_len) != p_req_end) {
-    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_PDU_SIZE, SDP_TEXT_BAD_HEADER);
+    sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_PDU_SIZE,
+                            SDP_TEXT_BAD_HEADER);
     return;
   }
 
@@ -1190,7 +986,8 @@ void sdp_server_handle_client_req(tCONN_CB* p_ccb, BT_HDR* p_msg) {
       break;
 
     default:
-      sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX, SDP_TEXT_BAD_PDU);
+      sdpu_build_n_send_error(p_ccb, trans_num, tSDP_STATUS::SDP_INVALID_REQ_SYNTAX,
+                              SDP_TEXT_BAD_PDU);
       log::warn("SDP - server got unknown PDU: 0x{:x}", pdu_id);
       break;
   }

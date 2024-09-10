@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 /*
  * Generated mock file from original source file
  *   Functions generated:33
@@ -30,6 +32,7 @@
 
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2c_api.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 // Mocked compile conditionals, if any
@@ -42,7 +45,8 @@ namespace stack_l2cap_api {
 // Params: uint16_t fixed_cid
 // Returns: tBT_TRANSPORT
 struct l2c_get_transport_from_fixed_cid {
-  std::function<tBT_TRANSPORT(uint16_t fixed_cid)> body{[](uint16_t /* fixed_cid */) { return 0; }};
+  std::function<tBT_TRANSPORT(uint16_t fixed_cid)> body{
+          [](uint16_t /* fixed_cid */) { return BT_TRANSPORT_AUTO; }};
   tBT_TRANSPORT operator()(uint16_t fixed_cid) { return body(fixed_cid); }
 };
 extern struct l2c_get_transport_from_fixed_cid l2c_get_transport_from_fixed_cid;
@@ -180,12 +184,12 @@ extern struct L2CA_GetPeerLECocConfig L2CA_GetPeerLECocConfig;
 // accepted_lcids, uint16_t result, tL2CAP_LE_CFG_INFO* p_cfg Returns: bool
 struct L2CA_ConnectCreditBasedRsp {
   std::function<bool(const RawAddress& p_bd_addr, uint8_t id, std::vector<uint16_t>& accepted_lcids,
-                     uint16_t result, tL2CAP_LE_CFG_INFO* p_cfg)>
+                     tL2CAP_LE_RESULT_CODE result, tL2CAP_LE_CFG_INFO* p_cfg)>
           body{[](const RawAddress& /* p_bd_addr */, uint8_t /* id */,
-                  std::vector<uint16_t>& /* accepted_lcids */, uint16_t /* result */,
+                  std::vector<uint16_t>& /* accepted_lcids */, tL2CAP_LE_RESULT_CODE /* result */,
                   tL2CAP_LE_CFG_INFO* /* p_cfg */) { return false; }};
   bool operator()(const RawAddress& p_bd_addr, uint8_t id, std::vector<uint16_t>& accepted_lcids,
-                  uint16_t result, tL2CAP_LE_CFG_INFO* p_cfg) {
+                  tL2CAP_LE_RESULT_CODE result, tL2CAP_LE_CFG_INFO* p_cfg) {
     return body(p_bd_addr, id, accepted_lcids, result, p_cfg);
   }
 };

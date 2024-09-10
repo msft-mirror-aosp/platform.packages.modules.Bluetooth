@@ -27,7 +27,6 @@ rust_defaults {
         "libclap",
         "libfutures",
         "libgrpcio",
-        "liblazy_static",
         "liblog_rust",
         "libnix",
         "libnum_traits",

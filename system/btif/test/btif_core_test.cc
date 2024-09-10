@@ -18,7 +18,7 @@
 #include <gtest/gtest.h>
 #include <sys/socket.h>
 
-#include <future>
+#include <future>  // NOLINT
 #include <map>
 #include <memory>
 #include <string>
@@ -30,30 +30,31 @@
 #include "bta/include/bta_hh_api.h"
 #include "btcore/include/module.h"
 #include "btif/include/btif_api.h"
+#include "btif/include/btif_bqr.h"
 #include "btif/include/btif_common.h"
+#include "btif/include/btif_jni_task.h"
+#include "btif/include/btif_sock.h"
 #include "btif/include/btif_util.h"
-#include "btif_bqr.h"
-#include "btif_jni_task.h"
-#include "btm_api_types.h"
 #include "common/bind.h"
 #include "common/contextual_callback.h"
 #include "common/postable_context.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 #include "hci/controller_interface_mock.h"
 #include "hci/hci_layer_mock.h"
 #include "include/hardware/bluetooth.h"
 #include "include/hardware/bt_av.h"
-#include "main/shim/entry.h"
-#include "main_thread.h"
 #include "packet/base_packet_builder.h"
 #include "packet/bit_inserter.h"
 #include "packet/packet_view.h"
 #include "packet/raw_builder.h"
+#include "stack/include/bt_uuid16.h"
+#include "stack/include/main_thread.h"
 #include "test/common/core_interface.h"
+#include "test/fake/fake_osi.h"
 #include "test/mock/mock_main_shim_entry.h"
 #include "test/mock/mock_osi_properties.h"
+#include "test/mock/mock_osi_thread.h"
 #include "test/mock/mock_stack_btm_sec.h"
+#include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
 namespace bluetooth::testing {
@@ -67,6 +68,7 @@ void bta_dm_acl_up(const RawAddress& bd_addr, tBT_TRANSPORT transport, uint16_t 
 
 const tBTA_AG_RES_DATA tBTA_AG_RES_DATA::kEmpty = {};
 
+using bluetooth::Uuid;
 using bluetooth::common::BindOnce;
 using bluetooth::common::ContextualCallback;
 using bluetooth::common::ContextualOnceCallback;
@@ -661,6 +663,8 @@ TEST_F(BtifCoreWithConnectionTest, btif_dm_get_connection_state__connected_no_en
   test::mock::stack_btm_sec::BTM_IsEncrypted.body = [](const RawAddress& /* bd_addr */,
                                                        tBT_TRANSPORT transport) {
     switch (transport) {
+      case BT_TRANSPORT_AUTO:
+        return false;
       case BT_TRANSPORT_BR_EDR:
         return false;
       case BT_TRANSPORT_LE:
@@ -676,6 +680,8 @@ TEST_F(BtifCoreWithConnectionTest, btif_dm_get_connection_state__connected_class
   test::mock::stack_btm_sec::BTM_IsEncrypted.body = [](const RawAddress& /* bd_addr */,
                                                        tBT_TRANSPORT transport) {
     switch (transport) {
+      case BT_TRANSPORT_AUTO:
+        return false;
       case BT_TRANSPORT_BR_EDR:
         return true;
       case BT_TRANSPORT_LE:
@@ -692,6 +698,8 @@ TEST_F(BtifCoreWithConnectionTest, btif_dm_get_connection_state__connected_le_en
   test::mock::stack_btm_sec::BTM_IsEncrypted.body = [](const RawAddress& /* bd_addr */,
                                                        tBT_TRANSPORT transport) {
     switch (transport) {
+      case BT_TRANSPORT_AUTO:
+        return false;
       case BT_TRANSPORT_BR_EDR:
         return false;
       case BT_TRANSPORT_LE:
@@ -707,6 +715,8 @@ TEST_F(BtifCoreWithConnectionTest, btif_dm_get_connection_state__connected_both_
   test::mock::stack_btm_sec::BTM_IsEncrypted.body = [](const RawAddress& /* bd_addr */,
                                                        tBT_TRANSPORT transport) {
     switch (transport) {
+      case BT_TRANSPORT_AUTO:
+        return false;
       case BT_TRANSPORT_BR_EDR:
         return true;
       case BT_TRANSPORT_LE:
@@ -722,6 +732,8 @@ TEST_F(BtifCoreWithConnectionTest, btif_dm_get_connection_state_sync) {
   test::mock::stack_btm_sec::BTM_IsEncrypted.body = [](const RawAddress& /* bd_addr */,
                                                        tBT_TRANSPORT transport) {
     switch (transport) {
+      case BT_TRANSPORT_AUTO:
+        return false;
       case BT_TRANSPORT_BR_EDR:
         return true;
       case BT_TRANSPORT_LE:
@@ -764,18 +776,16 @@ TEST_F(BtifCoreWithControllerTest, debug_dump_unconfigured) {
   auto reading_promise = std::make_unique<std::promise<void>>();
   auto reading_done = reading_promise->get_future();
 
-  do_in_main_thread(FROM_HERE, BindOnce([]() { bluetooth::bqr::DebugDump(write_fd); }));
-  do_in_main_thread(FROM_HERE, BindOnce(
-                                       [](std::unique_ptr<std::promise<void>> done_promise) {
-                                         char line_buf[1024] = "";
-                                         int bytes_read = read(read_fd, line_buf, 1024);
-                                         EXPECT_GT(bytes_read, 0);
-                                         EXPECT_NE(
-                                                 std::string(line_buf).find("Event queue is empty"),
-                                                 std::string::npos);
-                                         done_promise->set_value();
-                                       },
-                                       std::move(reading_promise)));
+  do_in_main_thread(BindOnce([]() { bluetooth::bqr::DebugDump(write_fd); }));
+  do_in_main_thread(BindOnce(
+          [](std::unique_ptr<std::promise<void>> done_promise) {
+            char line_buf[1024] = "";
+            int bytes_read = read(read_fd, line_buf, 1024);
+            EXPECT_GT(bytes_read, 0);
+            EXPECT_NE(std::string(line_buf).find("Event queue is empty"), std::string::npos);
+            done_promise->set_value();
+          },
+          std::move(reading_promise)));
   EXPECT_EQ(std::future_status::ready, reading_done.wait_for(std::chrono::seconds(1)));
   close(write_fd);
   close(read_fd);
@@ -824,8 +834,7 @@ protected:
             .RetiresOnSaturation();
     EXPECT_CALL(hci_, RegisterVendorSpecificEventHandler(VseSubeventCode::BQR_EVENT, _))
             .WillOnce(SaveArg<1>(&this->vse_callback_));
-    do_in_main_thread(FROM_HERE,
-                      BindOnce([]() { bluetooth::bqr::EnableBtQualityReport(get_main()); }));
+    do_in_main_thread(BindOnce([]() { bluetooth::bqr::EnableBtQualityReport(get_main()); }));
     ASSERT_EQ(std::future_status::ready, configuration_done.wait_for(std::chrono::seconds(1)));
   }
 
@@ -838,8 +847,7 @@ protected:
                 EnqueueCommand(_, Matcher<ContextualOnceCallback<void(CommandCompleteView)>>(_)))
             .WillOnce(Invoke(set_promise))
             .RetiresOnSaturation();
-    do_in_main_thread(FROM_HERE,
-                      BindOnce([]() { bluetooth::bqr::EnableBtQualityReport(nullptr); }));
+    do_in_main_thread(BindOnce([]() { bluetooth::bqr::DisableBtQualityReport(); }));
     ASSERT_EQ(std::future_status::ready, disable_future.wait_for(std::chrono::seconds(1)));
 
     bluetooth::hci::testing::mock_hci_layer_ = nullptr;
@@ -847,7 +855,6 @@ protected:
   }
   bluetooth::hci::testing::MockHciLayer hci_;
   ContextualCallback<void(VendorSpecificEventView)> vse_callback_;
-  PostableContext* context;
 };
 
 TEST_F(BtifCoreWithVendorSupportTest, configure_bqr_test) {}
@@ -901,18 +908,16 @@ TEST_F(BtifCoreVseWithSocketTest, debug_dump_empty) {
   auto reading_promise = std::make_unique<std::promise<void>>();
   auto reading_done = reading_promise->get_future();
 
-  do_in_main_thread(FROM_HERE, BindOnce([]() { bluetooth::bqr::DebugDump(write_fd); }));
-  do_in_main_thread(FROM_HERE, BindOnce(
-                                       [](std::unique_ptr<std::promise<void>> done_promise) {
-                                         char line_buf[1024] = "";
-                                         int bytes_read = read(read_fd, line_buf, 1024);
-                                         EXPECT_GT(bytes_read, 0);
-                                         EXPECT_NE(
-                                                 std::string(line_buf).find("Event queue is empty"),
-                                                 std::string::npos);
-                                         done_promise->set_value();
-                                       },
-                                       std::move(reading_promise)));
+  do_in_main_thread(BindOnce([]() { bluetooth::bqr::DebugDump(write_fd); }));
+  do_in_main_thread(BindOnce(
+          [](std::unique_ptr<std::promise<void>> done_promise) {
+            char line_buf[1024] = "";
+            int bytes_read = read(read_fd, line_buf, 1024);
+            EXPECT_GT(bytes_read, 0);
+            EXPECT_NE(std::string(line_buf).find("Event queue is empty"), std::string::npos);
+            done_promise->set_value();
+          },
+          std::move(reading_promise)));
   EXPECT_EQ(std::future_status::ready, reading_done.wait_for(std::chrono::seconds(1)));
 }
 
@@ -932,22 +937,21 @@ TEST_F(BtifCoreVseWithSocketTest, send_lmp_ll_msg) {
   auto reading_done = reading_promise->get_future();
 
   static int write_fd = write_fd_;
-  do_in_main_thread(FROM_HERE,
-                    BindOnce([]() { bluetooth::bqr::testing::set_lmp_trace_log_fd(write_fd); }));
+  do_in_main_thread(BindOnce([]() { bluetooth::bqr::testing::set_lmp_trace_log_fd(write_fd); }));
   vse_callback_(view);
 
-  do_in_main_thread(FROM_HERE, BindOnce(
-                                       [](std::unique_ptr<std::promise<void>> done_promise) {
-                                         char line_buf[1024] = "";
-                                         std::string line;
-                                         int bytes_read = read(read_fd, line_buf, 1024);
-                                         EXPECT_GT(bytes_read, 0);
-                                         line = std::string(line_buf);
-                                         EXPECT_NE(line.find("Handle: 0x0123"), std::string::npos);
-                                         EXPECT_NE(line.find("data"), std::string::npos);
-                                         done_promise->set_value();
-                                       },
-                                       std::move(reading_promise)));
+  do_in_main_thread(BindOnce(
+          [](std::unique_ptr<std::promise<void>> done_promise) {
+            char line_buf[1024] = "";
+            std::string line;
+            int bytes_read = read(read_fd, line_buf, 1024);
+            EXPECT_GT(bytes_read, 0);
+            line = std::string(line_buf);
+            EXPECT_NE(line.find("Handle: 0x0123"), std::string::npos);
+            EXPECT_NE(line.find("data"), std::string::npos);
+            done_promise->set_value();
+          },
+          std::move(reading_promise)));
   EXPECT_EQ(std::future_status::ready, reading_done.wait_for(std::chrono::seconds(1)));
 }
 
@@ -966,22 +970,21 @@ TEST_F(BtifCoreVseWithSocketTest, debug_dump_a2dp_choppy_no_payload) {
   auto reading_promise = std::make_unique<std::promise<void>>();
   auto reading_done = reading_promise->get_future();
 
-  do_in_main_thread(FROM_HERE, BindOnce([]() { bluetooth::bqr::DebugDump(write_fd); }));
-  do_in_main_thread(FROM_HERE, BindOnce(
-                                       [](std::unique_ptr<std::promise<void>> done_promise) {
-                                         char line_buf[1024] = "";
-                                         std::string line;
-                                         int bytes_read = read(read_fd, line_buf, 1024);
-                                         EXPECT_GT(bytes_read, 0);
-                                         line = std::string(line_buf);
-                                         EXPECT_EQ(line.find("Event queue is empty"),
-                                                   std::string::npos);
-                                         EXPECT_NE(line.find("Handle: 0x0123"), std::string::npos);
-                                         EXPECT_NE(line.find("UndFlow: 15"), std::string::npos);
-                                         EXPECT_NE(line.find("A2DP Choppy"), std::string::npos);
-                                         done_promise->set_value();
-                                       },
-                                       std::move(reading_promise)));
+  do_in_main_thread(BindOnce([]() { bluetooth::bqr::DebugDump(write_fd); }));
+  do_in_main_thread(BindOnce(
+          [](std::unique_ptr<std::promise<void>> done_promise) {
+            char line_buf[1024] = "";
+            std::string line;
+            int bytes_read = read(read_fd, line_buf, 1024);
+            EXPECT_GT(bytes_read, 0);
+            line = std::string(line_buf);
+            EXPECT_EQ(line.find("Event queue is empty"), std::string::npos);
+            EXPECT_NE(line.find("Handle: 0x0123"), std::string::npos);
+            EXPECT_NE(line.find("UndFlow: 15"), std::string::npos);
+            EXPECT_NE(line.find("A2DP Choppy"), std::string::npos);
+            done_promise->set_value();
+          },
+          std::move(reading_promise)));
   EXPECT_EQ(std::future_status::ready, reading_done.wait_for(std::chrono::seconds(1)));
 }
 
@@ -1000,21 +1003,101 @@ TEST_F(BtifCoreVseWithSocketTest, debug_dump_a2dp_choppy) {
   auto reading_promise = std::make_unique<std::promise<void>>();
   auto reading_done = reading_promise->get_future();
 
-  do_in_main_thread(FROM_HERE, BindOnce([]() { bluetooth::bqr::DebugDump(write_fd); }));
-  do_in_main_thread(FROM_HERE, BindOnce(
-                                       [](std::unique_ptr<std::promise<void>> done_promise) {
-                                         char line_buf[1024] = "";
-                                         std::string line;
-                                         int bytes_read = read(read_fd, line_buf, 1024);
-                                         EXPECT_GT(bytes_read, 0);
-                                         line = std::string(line_buf);
-                                         EXPECT_EQ(line.find("Event queue is empty"),
-                                                   std::string::npos);
-                                         EXPECT_NE(line.find("Handle: 0x0123"), std::string::npos);
-                                         EXPECT_NE(line.find("UndFlow: 15"), std::string::npos);
-                                         EXPECT_NE(line.find("A2DP Choppy"), std::string::npos);
-                                         done_promise->set_value();
-                                       },
-                                       std::move(reading_promise)));
+  do_in_main_thread(BindOnce([]() { bluetooth::bqr::DebugDump(write_fd); }));
+  do_in_main_thread(BindOnce(
+          [](std::unique_ptr<std::promise<void>> done_promise) {
+            char line_buf[1024] = "";
+            std::string line;
+            int bytes_read = read(read_fd, line_buf, 1024);
+            EXPECT_GT(bytes_read, 0);
+            line = std::string(line_buf);
+            EXPECT_EQ(line.find("Event queue is empty"), std::string::npos);
+            EXPECT_NE(line.find("Handle: 0x0123"), std::string::npos);
+            EXPECT_NE(line.find("UndFlow: 15"), std::string::npos);
+            EXPECT_NE(line.find("A2DP Choppy"), std::string::npos);
+            done_promise->set_value();
+          },
+          std::move(reading_promise)));
   EXPECT_EQ(std::future_status::ready, reading_done.wait_for(std::chrono::seconds(1)));
+}
+
+class BtifCoreSocketTest : public BtifCoreWithControllerTest {
+protected:
+  void SetUp() override {
+    BtifCoreWithControllerTest::SetUp();
+    fake_osi_ = std::make_unique<test::fake::FakeOsi>();
+    uid_set = uid_set_create();
+    thread_t* kThreadPtr = reinterpret_cast<thread_t*>(0xbadbadbad);
+    test::mock::osi_thread::thread_new.body = [kThreadPtr](const char* name) -> thread_t* {
+      bluetooth::log::info("Explicitly not starting thread {}", name);
+      return kThreadPtr;
+    };
+    test::mock::osi_thread::thread_free.body = [kThreadPtr](thread_t* ptr_to_free) {
+      ASSERT_EQ(ptr_to_free, kThreadPtr);
+    };
+    btif_sock_init(uid_set);
+  }
+
+  void TearDown() override {
+    test::mock::osi_thread::thread_new = {};
+    test::mock::osi_thread::thread_free = {};
+    btif_sock_cleanup();
+    uid_set_destroy(uid_set);
+    BtifCoreWithControllerTest::TearDown();
+  }
+
+  std::unique_ptr<test::fake::FakeOsi> fake_osi_;
+  uid_set_t* uid_set;
+};
+
+TEST_F(BtifCoreSocketTest, empty_test) {}
+
+TEST_F(BtifCoreSocketTest, CreateRfcommServerSocket) {
+  static constexpr int kChannelOne = 1;
+  static constexpr int kFlags = 2;
+  static constexpr int kAppUid = 3;
+  const Uuid server_uuid = Uuid::From16Bit(UUID_SERVCLASS_SERIAL_PORT);
+  int socket_number = 0;
+  ASSERT_EQ(BT_STATUS_SUCCESS,
+            btif_sock_get_interface()->listen(BTSOCK_RFCOMM, "TestService", &server_uuid,
+                                              kChannelOne, &socket_number, kFlags, kAppUid));
+}
+
+TEST_F(BtifCoreSocketTest, CreateTwoRfcommServerSockets) {
+  static constexpr int kChannelOne = 1;
+  static constexpr int kFlags = 2;
+  static constexpr int kAppUid = 3;
+  const Uuid server_uuid = Uuid::From16Bit(UUID_SERVCLASS_SERIAL_PORT);
+  int socket_number = 0;
+  ASSERT_EQ(BT_STATUS_SUCCESS,
+            btif_sock_get_interface()->listen(BTSOCK_RFCOMM, "TestService", &server_uuid,
+                                              kChannelOne, &socket_number, kFlags, kAppUid));
+  static constexpr int kChannelTwo = 2;
+  static constexpr int kFlagsTwo = 4;
+  static constexpr int kAppUidTwo = 6;
+  const Uuid server_uuid_two = Uuid::FromString("12345678-1234-2345-3456-456789123456");
+  int socket_number_two = 1;
+  ASSERT_EQ(BT_STATUS_SUCCESS, btif_sock_get_interface()->listen(
+                                       BTSOCK_RFCOMM, "ServiceTwo", &server_uuid_two, kChannelTwo,
+                                       &socket_number_two, kFlagsTwo, kAppUidTwo));
+}
+
+TEST_F(BtifCoreSocketTest, CreateManyRfcommServerSockets) {
+  char server_uuid_str[] = "____5678-1234-2345-3456-456789123456";
+  int number_of_sockets = 20;
+  for (int i = 0; i < number_of_sockets; i++) {
+    int channel = 11;
+    int flags = 0;
+    int app_uuid = i + 3;
+    int socket_number = 0;
+    server_uuid_str[3] = i % 10 + '0';
+    server_uuid_str[2] = (i / 10) % 10 + '0';
+    server_uuid_str[1] = (i / 100) % 10 + '0';
+    server_uuid_str[0] = (i / 1000) % 10 + '0';
+    Uuid server_uuid = Uuid::FromString(server_uuid_str);
+    ASSERT_EQ(BT_STATUS_SUCCESS,
+              btif_sock_get_interface()->listen(BTSOCK_RFCOMM, "TestService", &server_uuid, channel,
+                                                &socket_number, flags, app_uuid));
+    ASSERT_EQ(0, close(socket_number));
+  }
 }

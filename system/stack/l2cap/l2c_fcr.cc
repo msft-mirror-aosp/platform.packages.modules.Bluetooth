@@ -28,7 +28,6 @@
 #include <string.h>
 
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
@@ -1220,8 +1219,7 @@ static bool do_sar_reassembly(tL2C_CCB* p_ccb, BT_HDR* p_buf, uint16_t ctrl_word
     if (p_ccb->local_cid < L2CAP_BASE_APPL_CID &&
         (p_ccb->local_cid >= L2CAP_FIRST_FIXED_CHNL && p_ccb->local_cid <= L2CAP_LAST_FIXED_CHNL)) {
       if (l2cb.fixed_reg[p_ccb->local_cid - L2CAP_FIRST_FIXED_CHNL].pL2CA_FixedData_Cb) {
-        (*l2cb.fixed_reg[p_ccb->local_cid - L2CAP_FIRST_FIXED_CHNL].pL2CA_FixedData_Cb)(
-                p_ccb->local_cid, p_ccb->p_lcb->remote_bd_addr, p_buf);
+        l2cu_fixed_channel_data_cb(p_ccb->p_lcb, p_ccb->local_cid, p_buf);
       }
     } else {
       l2c_csm_execute(p_ccb, L2CEVT_L2CAP_DATA, p_buf);
@@ -1419,8 +1417,8 @@ BT_HDR* l2c_fcr_get_next_xmit_sdu_seg(tL2C_CCB* p_ccb, uint16_t max_packet_lengt
       log::error("L2CAP - cannot get buffer for segmentation, max_pdu: {}", max_pdu);
       return NULL;
     }
-  } else /* Use the original buffer if no segmentation, or the last segment */
-  {
+  } else {
+    /* Use the original buffer if no segmentation, or the last segment */
     p_xmit = (BT_HDR*)fixed_queue_try_dequeue(p_ccb->xmit_hold_q);
 
     if (p_xmit->event != 0) {
@@ -1682,12 +1680,12 @@ bool l2c_fcr_renegotiate_chan(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg) {
   }
 
   /* Only retry if there are more channel options to try */
-  if (p_cfg->result == L2CAP_CFG_UNACCEPTABLE_PARAMS) {
+  if (p_cfg->result == tL2CAP_CFG_RESULT::L2CAP_CFG_UNACCEPTABLE_PARAMS) {
     peer_mode = (p_cfg->fcr_present) ? p_cfg->fcr.mode : L2CAP_FCR_BASIC_MODE;
 
     if (p_ccb->our_cfg.fcr.mode != peer_mode) {
       if ((--p_ccb->fcr_cfg_tries) == 0) {
-        p_cfg->result = L2CAP_CFG_FAILED_NO_REASON;
+        p_cfg->result = tL2CAP_CFG_RESULT::L2CAP_CFG_FAILED_NO_REASON;
         log::warn("l2c_fcr_renegotiate_chan (Max retries exceeded)");
       }
 

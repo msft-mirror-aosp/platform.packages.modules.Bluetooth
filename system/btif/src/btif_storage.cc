@@ -46,7 +46,6 @@
 #include "btif/include/btif_util.h"
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
-#include "common/init_flags.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/entry.h"
@@ -797,12 +796,6 @@ bt_status_t btif_storage_remove_bonded_device(const RawAddress* remote_bd_addr) 
 
   btif_config_remove_device(bdstr);
 
-  /* Check the length of the paired devices, and if 0 then reset IRK */
-  auto paired_devices = btif_config_get_paired_devices();
-  if (paired_devices.empty() && bluetooth::common::init_flags::irk_rotation_is_enabled()) {
-    log::info("Last paired device removed, resetting IRK");
-    BTA_DmBleResetId();
-  }
   return BT_STATUS_SUCCESS;
 }
 
@@ -1306,6 +1299,16 @@ bool btif_storage_get_stored_remote_name(const RawAddress& bd_addr, char* name) 
   property.type = BT_PROPERTY_BDNAME;
   property.len = BD_NAME_LEN;
   property.val = name;
+
+  return btif_storage_get_remote_device_property(&bd_addr, &property) == BT_STATUS_SUCCESS;
+}
+
+// Get the Class of Device.
+bool btif_storage_get_cod(const RawAddress& bd_addr, uint32_t* cod) {
+  bt_property_t property;
+  property.type = BT_PROPERTY_CLASS_OF_DEVICE;
+  property.len = sizeof(*cod);
+  property.val = cod;
 
   return btif_storage_get_remote_device_property(&bd_addr, &property) == BT_STATUS_SUCCESS;
 }

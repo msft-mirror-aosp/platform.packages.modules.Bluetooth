@@ -27,6 +27,7 @@
 #include "aidl/audio_ctrl_ack.h"
 #include "aidl/le_audio_software_aidl.h"
 #include "audio_hal_interface/hal_version_manager.h"
+#include "bta/le_audio/mock_codec_manager.h"
 #include "gmock/gmock.h"
 #include "hidl/le_audio_software_hidl.h"
 
@@ -486,14 +487,6 @@ namespace bluetooth::le_audio::broadcaster {
 std::ostream& operator<<(std::ostream& os, const BroadcastConfiguration&) { return os; }
 }  // namespace bluetooth::le_audio::broadcaster
 
-namespace server_configurable_flags {
-std::string GetServerConfigurableFlag(const std::string& /* experiment_category_name */,
-                                      const std::string& /* experiment_flag_name */,
-                                      const std::string& /* default_value */) {
-  return "";
-}
-}  // namespace server_configurable_flags
-
 namespace {
 
 bluetooth::common::MessageLoopThread message_loop_thread("test message loop");
@@ -548,12 +541,11 @@ protected:
 
     sink_ = LeAudioClientInterface::Get()->GetSink(*unicast_sink_stream_cb_, &message_loop_thread,
                                                    is_broadcast_);
-    source_ = LeAudioClientInterface::Get()->GetSource(*unicast_source_stream_cb_,
-                                                       &message_loop_thread);
-
     if (is_broadcast_) {
       ASSERT_TRUE(LeAudioClientInterface::Get()->IsBroadcastSinkAcquired());
     } else {
+      source_ = LeAudioClientInterface::Get()->GetSource(*unicast_source_stream_cb_,
+                                                         &message_loop_thread);
       ASSERT_TRUE(LeAudioClientInterface::Get()->IsSourceAcquired());
       ASSERT_TRUE(LeAudioClientInterface::Get()->IsUnicastSinkAcquired());
     }
@@ -562,10 +554,10 @@ protected:
   virtual void TearDown() override {
     if (LeAudioClientInterface::Get()->IsUnicastSinkAcquired() ||
         LeAudioClientInterface::Get()->IsBroadcastSinkAcquired()) {
+      LeAudioClientInterface::Get()->ReleaseSink(sink_);
       if (is_broadcast_) {
         ASSERT_FALSE(LeAudioClientInterface::Get()->IsBroadcastSinkAcquired());
       } else {
-        LeAudioClientInterface::Get()->ReleaseSink(sink_);
         ASSERT_FALSE(LeAudioClientInterface::Get()->IsUnicastSinkAcquired());
       }
     }
@@ -599,7 +591,19 @@ protected:
 
 class LeAudioSoftwareUnicastTestAidl : public LeAudioSoftwareUnicastTest {
 protected:
+  void SetUpMockCodecManager(bluetooth::le_audio::types::CodecLocation location) {
+    codec_manager_ = bluetooth::le_audio::CodecManager::GetInstance();
+    ASSERT_NE(codec_manager_, nullptr);
+    std::vector<bluetooth::le_audio::btle_audio_codec_config_t> mock_offloading_preference(0);
+    codec_manager_->Start(mock_offloading_preference);
+    mock_codec_manager_ = MockCodecManager::GetInstance();
+    ASSERT_NE((void*)mock_codec_manager_, (void*)codec_manager_);
+    ASSERT_NE(mock_codec_manager_, nullptr);
+    ON_CALL(*mock_codec_manager_, GetCodecLocation()).WillByDefault(Return(location));
+  }
+
   virtual void SetUp() override {
+    SetUpMockCodecManager(::bluetooth::le_audio::types::CodecLocation::ADSP);
     ON_CALL(hal_version_manager_, GetHalTransport)
             .WillByDefault(Return(bluetooth::audio::BluetoothAudioHalTransport::AIDL));
 
@@ -610,6 +614,8 @@ protected:
   }
 
   MockBluetoothAudioClientInterfaceAidl audio_client_interface_;
+  bluetooth::le_audio::CodecManager* codec_manager_;
+  MockCodecManager* mock_codec_manager_;
 };
 
 TEST_F(LeAudioSoftwareUnicastTestAidl, AcquireAndRelease) {
@@ -636,4 +642,27 @@ TEST_F(LeAudioSoftwareUnicastTestHidl, AcquireAndRelease) {
   ASSERT_NE(nullptr, sink_);
   ASSERT_NE(nullptr, source_);
 }
+
+class LeAudioSoftwareBroadcastTestAidl : public LeAudioSoftwareUnicastTestAidl {
+protected:
+  virtual void SetUp() override {
+    is_broadcast_ = true;
+    LeAudioSoftwareUnicastTestAidl::SetUp();
+  }
+};
+
+TEST_F(LeAudioSoftwareBroadcastTestAidl, AcquireAndRelease) {
+  ASSERT_NE(nullptr, sink_);
+  ASSERT_EQ(nullptr, source_);
+  ASSERT_NE(::bluetooth::audio::aidl::le_audio::LeAudioSinkTransport::interface_broadcast_,
+            nullptr);
+  ASSERT_EQ(::bluetooth::audio::aidl::le_audio::LeAudioSinkTransport::interface_unicast_, nullptr);
+  ASSERT_EQ(::bluetooth::audio::aidl::le_audio::LeAudioSourceTransport::interface, nullptr);
+}
+
+TEST_F(LeAudioSoftwareBroadcastTestAidl, GetBroadcastConfig) {
+  ASSERT_NE(nullptr, sink_);
+  ASSERT_NE(sink_->GetBroadcastConfig({}, std::nullopt), std::nullopt);
+}
+
 }  // namespace

@@ -16,7 +16,7 @@
  *
  ******************************************************************************/
 
-#include "metrics.h"
+#include "common/metrics.h"
 
 #include <base/base64.h>
 #include <bluetooth/log.h>
@@ -26,24 +26,21 @@
 #include <unistd.h>
 
 #include <algorithm>
-#include <array>
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
 #include <memory>
-#include <mutex>
+#include <mutex>  // NOLINT
+#include <utility>
 
-#include "address_obfuscator.h"
 #include "bluetooth/metrics/bluetooth.pb.h"
+#include "common/address_obfuscator.h"
+#include "common/leaky_bonded_queue.h"
+#include "common/time_util.h"
 #include "hci/address.h"
-#include "internal_include/bt_trace.h"
-#include "leaky_bonded_queue.h"
 #include "main/shim/metric_id_api.h"
-#include "metric_id_allocator.h"
 #include "metrics/metrics_state.h"
-#include "os/metrics.h"
 #include "osi/include/osi.h"
-#include "time_util.h"
 #include "types/raw_address.h"
 
 namespace fmt {
@@ -391,7 +388,7 @@ void BluetoothMetricsLogger::LogBluetoothSessionDeviceInfo(uint32_t device_class
   }
   DeviceInfo* info = pimpl_->bluetooth_session_->mutable_device_connected_to();
   info->set_device_class(device_class);
-  info->set_device_type(DeviceInfo::DEVICE_TYPE_BREDR);
+  info->set_device_type(get_device_type(device_type));
 }
 
 void BluetoothMetricsLogger::LogA2dpSession(const A2dpSessionMetrics& a2dp_session_metrics) {
@@ -551,7 +548,7 @@ void LogLinkLayerConnectionEvent(const RawAddress* address, uint32_t connection_
   int metric_id = 0;
   if (address != nullptr) {
     obfuscated_id = AddressObfuscator::GetInstance()->Obfuscate(*address);
-    metric_id = MetricIdAllocator::GetInstance().AllocateId(*address);
+    metric_id = bluetooth::shim::AllocateIdFromMetricIdAllocator(*address);
   }
   // nullptr and size 0 represent missing value for obfuscated_id
   BytesField bytes_field(address != nullptr ? obfuscated_id.c_str() : nullptr,
@@ -593,7 +590,7 @@ void LogA2dpAudioUnderrunEvent(const RawAddress& address, uint64_t encoding_inte
   int metric_id = 0;
   if (!address.IsEmpty()) {
     obfuscated_id = AddressObfuscator::GetInstance()->Obfuscate(address);
-    metric_id = MetricIdAllocator::GetInstance().AllocateId(address);
+    metric_id = bluetooth::shim::AllocateIdFromMetricIdAllocator(address);
   }
   // nullptr and size 0 represent missing value for obfuscated_id
   BytesField bytes_field(address.IsEmpty() ? nullptr : obfuscated_id.c_str(),
@@ -616,7 +613,7 @@ void LogA2dpAudioOverrunEvent(const RawAddress& address, uint64_t encoding_inter
   int metric_id = 0;
   if (!address.IsEmpty()) {
     obfuscated_id = AddressObfuscator::GetInstance()->Obfuscate(address);
-    metric_id = MetricIdAllocator::GetInstance().AllocateId(address);
+    metric_id = bluetooth::shim::AllocateIdFromMetricIdAllocator(address);
   }
   // nullptr and size 0 represent missing value for obfuscated_id
   BytesField bytes_field(address.IsEmpty() ? nullptr : obfuscated_id.c_str(),
@@ -640,7 +637,7 @@ void LogA2dpPlaybackEvent(const RawAddress& address, int playback_state, int aud
   int metric_id = 0;
   if (!address.IsEmpty()) {
     obfuscated_id = AddressObfuscator::GetInstance()->Obfuscate(address);
-    metric_id = MetricIdAllocator::GetInstance().AllocateId(address);
+    metric_id = bluetooth::shim::AllocateIdFromMetricIdAllocator(address);
   }
   // nullptr and size 0 represent missing value for obfuscated_id
   BytesField bytes_field(address.IsEmpty() ? nullptr : obfuscated_id.c_str(),
@@ -661,7 +658,7 @@ void LogReadRssiResult(const RawAddress& address, uint16_t handle, uint32_t cmd_
   int metric_id = 0;
   if (!address.IsEmpty()) {
     obfuscated_id = AddressObfuscator::GetInstance()->Obfuscate(address);
-    metric_id = MetricIdAllocator::GetInstance().AllocateId(address);
+    metric_id = bluetooth::shim::AllocateIdFromMetricIdAllocator(address);
   }
   // nullptr and size 0 represent missing value for obfuscated_id
   BytesField bytes_field(address.IsEmpty() ? nullptr : obfuscated_id.c_str(),
@@ -680,7 +677,7 @@ void LogReadFailedContactCounterResult(const RawAddress& address, uint16_t handl
   int metric_id = 0;
   if (!address.IsEmpty()) {
     obfuscated_id = AddressObfuscator::GetInstance()->Obfuscate(address);
-    metric_id = MetricIdAllocator::GetInstance().AllocateId(address);
+    metric_id = bluetooth::shim::AllocateIdFromMetricIdAllocator(address);
   }
   // nullptr and size 0 represent missing value for obfuscated_id
   BytesField bytes_field(address.IsEmpty() ? nullptr : obfuscated_id.c_str(),
@@ -701,7 +698,7 @@ void LogReadTxPowerLevelResult(const RawAddress& address, uint16_t handle, uint3
   int metric_id = 0;
   if (!address.IsEmpty()) {
     obfuscated_id = AddressObfuscator::GetInstance()->Obfuscate(address);
-    metric_id = MetricIdAllocator::GetInstance().AllocateId(address);
+    metric_id = bluetooth::shim::AllocateIdFromMetricIdAllocator(address);
   }
   // nullptr and size 0 represent missing value for obfuscated_id
   BytesField bytes_field(address.IsEmpty() ? nullptr : obfuscated_id.c_str(),
@@ -722,7 +719,7 @@ void LogSmpPairingEvent(const RawAddress& address, uint8_t smp_cmd,
   int metric_id = 0;
   if (!address.IsEmpty()) {
     obfuscated_id = AddressObfuscator::GetInstance()->Obfuscate(address);
-    metric_id = MetricIdAllocator::GetInstance().AllocateId(address);
+    metric_id = bluetooth::shim::AllocateIdFromMetricIdAllocator(address);
   }
   // nullptr and size 0 represent missing value for obfuscated_id
   BytesField obfuscated_id_field(address.IsEmpty() ? nullptr : obfuscated_id.c_str(),
@@ -744,7 +741,7 @@ void LogClassicPairingEvent(const RawAddress& address, uint16_t handle, uint32_t
   int metric_id = 0;
   if (!address.IsEmpty()) {
     obfuscated_id = AddressObfuscator::GetInstance()->Obfuscate(address);
-    metric_id = MetricIdAllocator::GetInstance().AllocateId(address);
+    metric_id = bluetooth::shim::AllocateIdFromMetricIdAllocator(address);
   }
   // nullptr and size 0 represent missing value for obfuscated_id
   BytesField obfuscated_id_field(address.IsEmpty() ? nullptr : obfuscated_id.c_str(),
@@ -765,7 +762,7 @@ void LogSdpAttribute(const RawAddress& address, uint16_t protocol_uuid, uint16_t
   int metric_id = 0;
   if (!address.IsEmpty()) {
     obfuscated_id = AddressObfuscator::GetInstance()->Obfuscate(address);
-    metric_id = MetricIdAllocator::GetInstance().AllocateId(address);
+    metric_id = bluetooth::shim::AllocateIdFromMetricIdAllocator(address);
   }
   // nullptr and size 0 represent missing value for obfuscated_id
   BytesField obfuscated_id_field(address.IsEmpty() ? nullptr : obfuscated_id.c_str(),
@@ -787,7 +784,7 @@ void LogSocketConnectionState(const RawAddress& address, int port, int type,
   int metric_id = 0;
   if (!address.IsEmpty()) {
     obfuscated_id = AddressObfuscator::GetInstance()->Obfuscate(address);
-    metric_id = MetricIdAllocator::GetInstance().AllocateId(address);
+    metric_id = bluetooth::shim::AllocateIdFromMetricIdAllocator(address);
   }
   // nullptr and size 0 represent missing value for obfuscated_id
   BytesField obfuscated_id_field(address.IsEmpty() ? nullptr : obfuscated_id.c_str(),
@@ -814,7 +811,7 @@ void LogManufacturerInfo(const RawAddress& address,
   int metric_id = 0;
   if (!address.IsEmpty()) {
     obfuscated_id = AddressObfuscator::GetInstance()->Obfuscate(address);
-    metric_id = MetricIdAllocator::GetInstance().AllocateId(address);
+    metric_id = bluetooth::shim::AllocateIdFromMetricIdAllocator(address);
   }
   // nullptr and size 0 represent missing value for obfuscated_id
   BytesField obfuscated_id_field(address.IsEmpty() ? nullptr : obfuscated_id.c_str(),
@@ -851,17 +848,17 @@ void LogBluetoothHalCrashReason(const RawAddress& address, uint32_t error_code,
   }
 }
 
-void LogLeAudioConnectionSessionReported(int32_t group_size, int32_t group_metric_id,
-                                         int64_t connection_duration_nanos,
-                                         std::vector<int64_t>& device_connecting_offset_nanos,
-                                         std::vector<int64_t>& device_connected_offset_nanos,
-                                         std::vector<int64_t>& device_connection_duration_nanos,
-                                         std::vector<int32_t>& device_connection_status,
-                                         std::vector<int32_t>& device_disconnection_status,
-                                         std::vector<RawAddress>& device_address,
-                                         std::vector<int64_t>& streaming_offset_nanos,
-                                         std::vector<int64_t>& streaming_duration_nanos,
-                                         std::vector<int32_t>& streaming_context_type) {
+void LogLeAudioConnectionSessionReported(
+        int32_t group_size, int32_t group_metric_id, int64_t connection_duration_nanos,
+        const std::vector<int64_t>& device_connecting_offset_nanos,
+        const std::vector<int64_t>& device_connected_offset_nanos,
+        const std::vector<int64_t>& device_connection_duration_nanos,
+        const std::vector<int32_t>& device_connection_status,
+        const std::vector<int32_t>& device_disconnection_status,
+        const std::vector<RawAddress>& device_address,
+        const std::vector<int64_t>& streaming_offset_nanos,
+        const std::vector<int64_t>& streaming_duration_nanos,
+        const std::vector<int32_t>& streaming_context_type) {
   std::vector<int32_t> device_metric_id(device_address.size());
   for (uint64_t i = 0; i < device_address.size(); i++) {
     if (!device_address[i].IsEmpty()) {

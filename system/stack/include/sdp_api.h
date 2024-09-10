@@ -500,12 +500,12 @@ struct tSdpApi {
       Parameters:      info         - (input) device identification record
                        p_handle     - (output) handle of record if successful
 
-      Returns          Returns SDP_SUCCESS if record added successfully, else
+      Returns          Returns tSDP_STATUS::SDP_SUCCESS if record added successfully, else
                        error
 
      ******************************************************************************/
-    [[nodiscard]] uint16_t (*SDP_SetLocalDiRecord)(const tSDP_DI_RECORD* device_info,
-                                                   uint32_t* p_handle);
+    [[nodiscard]] tSDP_STATUS (*SDP_SetLocalDiRecord)(const tSDP_DI_RECORD* device_info,
+                                                      uint32_t* p_handle);
 
     /*******************************************************************************
 
@@ -521,7 +521,7 @@ struct tSdpApi {
                        len          - (input ) data base length
                        p_cb         - (input) callback when complete
 
-      Returns          SDP_SUCCESS if query started successfully, else error
+      Returns          tSDP_STATUS::SDP_SUCCESS if query started successfully, else error
 
      ******************************************************************************/
     [[nodiscard]] tSDP_STATUS (*SDP_DiDiscover)(const RawAddress& remote_device,
@@ -556,12 +556,12 @@ struct tSdpApi {
                        device_info  - (input) dicovery database
                        p_cb         - (input) callback when complete
 
-      Returns          SDP_SUCCESS if record retrieved, else error
+      Returns          tSDP_STATUS::SDP_SUCCESS if record retrieved, else error
 
      ******************************************************************************/
-    [[nodiscard]] uint16_t (*SDP_GetDiRecord)(uint8_t getRecordIndex,
-                                              tSDP_DI_GET_RECORD* device_info,
-                                              const tSDP_DISCOVERY_DB* p_db);
+    [[nodiscard]] tSDP_STATUS (*SDP_GetDiRecord)(uint8_t getRecordIndex,
+                                                 tSDP_DI_GET_RECORD* device_info,
+                                                 const tSDP_DISCOVERY_DB* p_db);
 
   } device_id;
 };
@@ -577,3 +577,16 @@ struct tLegacyStackSdbCallback {
 }  // namespace stack
 }  // namespace legacy
 }  // namespace bluetooth
+
+/*******************************************************************************
+ *
+ * Function         SDP_Dumpsys
+ *
+ * Description      Dumps readable content of the module to the filedescriptor
+ *
+ * Parameters:      fd        - Valid file descriptor
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+void SDP_Dumpsys(int fd);

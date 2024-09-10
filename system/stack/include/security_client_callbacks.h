@@ -23,6 +23,7 @@
 #include "stack/include/bt_name.h"
 #include "stack/include/bt_octets.h"
 #include "stack/include/btm_ble_sec_api_types.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
@@ -33,7 +34,7 @@
 /* Authorize device for service.  Parameters are
  *              Service Id (NULL - unknown service or unused)
  */
-typedef uint8_t(tBTM_AUTHORIZE_CALLBACK)(uint8_t service_id);
+typedef tBTM_STATUS(tBTM_AUTHORIZE_CALLBACK)(uint8_t service_id);
 
 /* Get PIN for the connection.  Parameters are
  *              BD Address of remote
@@ -41,17 +42,17 @@ typedef uint8_t(tBTM_AUTHORIZE_CALLBACK)(uint8_t service_id);
  *              BD Name of remote
  *              Flag indicating the minimum pin code length to be 16 digits
  */
-typedef uint8_t(tBTM_PIN_CALLBACK)(const RawAddress& bd_addr, DEV_CLASS dev_class,
-                                   const BD_NAME bd_name, bool min_16_digit);
+typedef tBTM_STATUS(tBTM_PIN_CALLBACK)(const RawAddress& bd_addr, DEV_CLASS dev_class,
+                                       const BD_NAME bd_name, bool min_16_digit);
 
 /* New Link Key for the connection.  Parameters are
  *              BD Address of remote
  *              Link Key
  *              Key Type: Combination, Local Unit, or Remote Unit
  */
-typedef uint8_t(tBTM_LINK_KEY_CALLBACK)(const RawAddress& bd_addr, DEV_CLASS dev_class,
-                                        BD_NAME bd_name, const LinkKey& key, uint8_t key_type,
-                                        bool is_ctkd);
+typedef tBTM_STATUS(tBTM_LINK_KEY_CALLBACK)(const RawAddress& bd_addr, DEV_CLASS dev_class,
+                                            BD_NAME bd_name, const LinkKey& key, uint8_t key_type,
+                                            bool is_ctkd);
 
 /* Remote Name Resolved.  Parameters are
  *              BD Address of remote
@@ -71,7 +72,7 @@ typedef void(tBTM_AUTH_COMPLETE_CALLBACK)(const RawAddress& bd_addr, DEV_CLASS d
 /* Request SIRK verification for found member. Parameters are
  *              BD Address of remote
  */
-typedef uint8_t(tBTM_SIRK_VERIFICATION_CALLBACK)(const RawAddress& bd_addr);
+typedef tBTM_STATUS(tBTM_SIRK_VERIFICATION_CALLBACK)(const RawAddress& bd_addr);
 
 struct tBTM_APPL_INFO {
   tBTM_PIN_CALLBACK* p_pin_callback{nullptr};
@@ -130,9 +131,9 @@ typedef struct {
                            uint8_t* p_pin);
   void (*BTM_SecConfirmReqReply)(tBTM_STATUS res, tBT_TRANSPORT transport,
                                  const RawAddress bd_addr);
-  void (*BTM_BleSirkConfirmDeviceReply)(const RawAddress& bd_addr, uint8_t res);
+  void (*BTM_BleSirkConfirmDeviceReply)(const RawAddress& bd_addr, tBTM_STATUS res);
 
-  void (*BTM_BlePasskeyReply)(const RawAddress& bd_addr, uint8_t res, uint32_t passkey);
+  void (*BTM_BlePasskeyReply)(const RawAddress& bd_addr, tBTM_STATUS res, uint32_t passkey);
 
   // other misc APIs
   uint8_t (*BTM_GetSecurityMode)();
@@ -140,8 +141,7 @@ typedef struct {
   // remote name request related APIs
   // TODO: remove them from this structure
   const char* (*BTM_SecReadDevName)(const RawAddress& bd_addr);
-  bool (*BTM_SecAddRmtNameNotifyCallback)(tBTM_RMT_NAME_CALLBACK* p_callback);
-  bool (*BTM_SecDeleteRmtNameNotifyCallback)(tBTM_RMT_NAME_CALLBACK* p_callback);
+  DEV_CLASS (*BTM_SecReadDevClass)(const RawAddress& bd_addr);
 } SecurityClientInterface;
 
 const SecurityClientInterface& get_security_client_interface();

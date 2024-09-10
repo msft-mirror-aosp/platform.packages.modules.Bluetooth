@@ -22,7 +22,6 @@
 #include <optional>
 
 #include "bt_octets.h"
-#include "btm_api.h"
 #include "stack/include/btm_ble_sec_api.h"
 #include "test/mock/mock_stack_btm_interface.h"
 #include "types/raw_address.h"
@@ -49,6 +48,14 @@ void bluetooth::manager::SetMockBtmInterface(MockBtmInterface* mock_btm_interfac
                                                          tBT_TRANSPORT transport) {
     btm_interface->RequestPeerSCA(bd_addr, transport);
   };
+  mock_btm_client_interface.ble.BTM_BleSetPhy = [](const RawAddress& bd_addr, uint8_t tx_phys,
+                                                   uint8_t rx_phys, uint16_t phy_options) {
+    btm_interface->BleSetPhy(bd_addr, tx_phys, rx_phys, phy_options);
+  };
+  mock_btm_client_interface.peer.BTM_IsAclConnectionUp = [](const RawAddress& remote_bda,
+                                                            tBT_TRANSPORT transport) {
+    return btm_interface->BTM_IsAclConnectionUp(remote_bda, transport);
+  };
 }
 
 bool BTM_IsLinkKeyKnown(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
@@ -64,12 +71,6 @@ tBTM_STATUS BTM_SetEncryption(const RawAddress& bd_addr, tBT_TRANSPORT transport
                               tBTM_SEC_CALLBACK* p_callback, void* p_ref_data,
                               tBTM_BLE_SEC_ACT sec_act) {
   return btm_interface->SetEncryption(bd_addr, transport, p_callback, p_ref_data, sec_act);
-}
-
-void BTM_BleSetPhy(const RawAddress& bd_addr, uint8_t tx_phys, uint8_t rx_phys,
-                   uint16_t phy_options) {
-  log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
-  btm_interface->BleSetPhy(bd_addr, tx_phys, rx_phys, phy_options);
 }
 
 bool BTM_SecIsSecurityPending(const RawAddress& bd_addr) {
@@ -109,11 +110,6 @@ std::optional<Octet16> BTM_BleGetPeerIRK(const RawAddress address) {
 bool BTM_BleIsLinkKeyKnown(const RawAddress address) {
   log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
   return btm_interface->BTM_BleIsLinkKeyKnown(address);
-}
-
-bool BTM_IsAclConnectionUp(const RawAddress& remote_bda, tBT_TRANSPORT transport) {
-  log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
-  return btm_interface->BTM_IsAclConnectionUp(remote_bda, transport);
 }
 
 std::optional<tBLE_BD_ADDR> BTM_BleGetIdentityAddress(const RawAddress address) {

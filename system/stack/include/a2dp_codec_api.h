@@ -77,7 +77,7 @@ public:
   //      set to 0, if octet 0 is not 0xFF.
   //  - Bits 24-39: Vendor-defined codec ID,
   //      set to 0, if octet 0 is not 0xFF.
-  uint64_t codecId() const { return codec_id_; }
+  tA2DP_CODEC_ID codecId() const { return codec_id_; }
 
   // Gets the codec name.
   const std::string& name() const { return name_; }
@@ -163,9 +163,9 @@ protected:
   // The result codec configuration is stored in |p_result_codec_config|.
   // See |A2dpCodecs.setCodecConfig| for detailed description of
   // the actual mechanism used to compute the configuration.
-  // Returns true on success, othewise false.
-  virtual bool setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
-                              uint8_t* p_result_codec_config) = 0;
+  // Returns A2DP_SUCCESS on success, a descriptive error code otherwise.
+  virtual tA2DP_STATUS setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
+                                      uint8_t* p_result_codec_config) = 0;
 
   // Sets the user prefered codec configuration.
   // |codec_user_config| contains the preferred codec user configuration.
@@ -183,12 +183,12 @@ protected:
   // If there is any change in the codec configuration, flag |p_config_updated|
   // is set to true.
   // Returns true on success, otherwise false.
-  bool setCodecUserConfig(const btav_a2dp_codec_config_t& codec_user_config,
-                          const btav_a2dp_codec_config_t& codec_audio_config,
-                          const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
-                          const uint8_t* p_peer_codec_info, bool is_capability,
-                          uint8_t* p_result_codec_config, bool* p_restart_input,
-                          bool* p_restart_output, bool* p_config_updated);
+  tA2DP_STATUS setCodecUserConfig(const btav_a2dp_codec_config_t& codec_user_config,
+                                  const btav_a2dp_codec_config_t& codec_audio_config,
+                                  const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
+                                  const uint8_t* p_peer_codec_info, bool is_capability,
+                                  uint8_t* p_result_codec_config, bool* p_restart_input,
+                                  bool* p_restart_output, bool* p_config_updated);
 
   // Sets the codec capabilities for a peer.
   // |p_peer_codec_capabiltities| is the peer codec capabilities to set.
@@ -200,15 +200,12 @@ protected:
   // The default codec priority is |codec_priority|. If the value is
   // |BTAV_A2DP_CODEC_PRIORITY_DEFAULT|, the codec priority is computed
   // internally.
-  A2dpCodecConfig(btav_a2dp_codec_index_t codec_index, uint64_t codec_id, const std::string& name,
-                  btav_a2dp_codec_priority_t codec_priority);
+  A2dpCodecConfig(btav_a2dp_codec_index_t codec_index, tA2DP_CODEC_ID codec_id,
+                  const std::string& name, btav_a2dp_codec_priority_t codec_priority);
 
   // Initializes the codec entry.
   // Returns true on success, otherwise false.
   virtual bool init() = 0;
-
-  // Checks whether the internal state is valid
-  virtual bool isValid() const;
 
   // Checks whether the A2DP Codec Configuration is valid.
   // Returns true if A2DP Codec Configuration stored in |codec_config|
@@ -246,7 +243,7 @@ protected:
 
   std::recursive_mutex codec_mutex_;
   const btav_a2dp_codec_index_t codec_index_;  // The unique codec index
-  const uint64_t codec_id_;                    // The standardized codec id
+  const tA2DP_CODEC_ID codec_id_;              // The standardized codec id
   const std::string name_;                     // The codec name
   btav_a2dp_codec_priority_t codec_priority_;  // Codec priority: must be unique
   btav_a2dp_codec_priority_t default_codec_priority_;
@@ -413,10 +410,10 @@ public:
   // If there is any change in the codec configuration, flag |p_config_updated|
   // is set to true.
   // Returns true on success, otherwise false.
-  bool setCodecOtaConfig(const uint8_t* p_ota_codec_config,
-                         const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
-                         uint8_t* p_result_codec_config, bool* p_restart_input,
-                         bool* p_restart_output, bool* p_config_updated);
+  tA2DP_STATUS setCodecOtaConfig(const uint8_t* p_ota_codec_config,
+                                 const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
+                                 uint8_t* p_result_codec_config, bool* p_restart_input,
+                                 bool* p_restart_output, bool* p_config_updated);
 
   // Sets the codec capabilities for a Sink peer.
   // |p_peer_codec_capabiltities| is the peer codec capabilities to set.
@@ -565,17 +562,14 @@ typedef struct {
 // |p_codec_info| contains information about the codec capabilities.
 tA2DP_CODEC_TYPE A2DP_GetCodecType(const uint8_t* p_codec_info);
 
+// Check whether the codec type is valid.
+bool A2DP_IsCodecTypeValid(tA2DP_CODEC_TYPE);
+
 // Checks whether the codec capabilities contain a valid A2DP Source codec.
 // NOTE: only codecs that are implemented are considered valid.
 // Returns true if |p_codec_info| contains information about a valid codec,
 // otherwise false.
 bool A2DP_IsSourceCodecValid(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid A2DP Sink codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid codec,
-// otherwise false.
-bool A2DP_IsSinkCodecValid(const uint8_t* p_codec_info);
 
 // Checks whether the codec capabilities contain a valid peer A2DP Source
 // codec.
@@ -586,25 +580,19 @@ bool A2DP_IsPeerSourceCodecValid(const uint8_t* p_codec_info);
 
 // Checks whether the codec capabilities contain a valid peer A2DP Sink codec.
 // NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid codec,
-// otherwise false.
+// Returns true if the A2DP Sink codec is valid, otherwise false.
 bool A2DP_IsPeerSinkCodecValid(const uint8_t* p_codec_info);
 
 // Checks whether an A2DP Sink codec is supported.
 // |p_codec_info| contains information about the codec capabilities.
-// Returns true if the A2DP Sink codec is supported, otherwise false.
-bool A2DP_IsSinkCodecSupported(const uint8_t* p_codec_info);
+// Returns A2DP_SUCCESS if |p_codec_info| contains information about a valid
+// codec with features compatible with the local capabilities,
+// otherwise an appropriate error code.
+tA2DP_STATUS A2DP_IsSinkCodecSupported(const uint8_t* p_codec_info);
 
 // Gets peer sink endpoint codec type.
 // |p_codec_info| contains information about the codec capabilities.
 int A2DP_IotGetPeerSinkCodecType(const uint8_t* p_codec_info);
-
-// Checks whether an A2DP Source codec for a peer Source device is supported.
-// |p_codec_info| contains information about the codec capabilities of the
-// peer device.
-// Returns true if the A2DP Source codec for a peer Source device is supported,
-// otherwise false.
-bool A2DP_IsPeerSourceCodecSupported(const uint8_t* p_codec_info);
 
 // Initialize state with the default A2DP codec.
 // The initialized state with the codec capabilities is stored in

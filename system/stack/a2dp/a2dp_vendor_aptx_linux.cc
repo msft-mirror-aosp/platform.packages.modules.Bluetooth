@@ -22,6 +22,16 @@
 
 bool A2DP_IsCodecValidAptx(const uint8_t* p_codec_info) { return false; }
 
+bool A2DP_VendorUsesRtpHeaderAptx(bool content_protection_enabled, const uint8_t* p_codec_info) {
+  return false;
+}
+
+const char* A2DP_VendorCodecNameAptx(const uint8_t* p_codec_info) { return "Aptx"; }
+
+bool A2DP_VendorCodecTypeEqualsAptx(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b) {
+  return false;
+}
+
 bool A2DP_VendorCodecEqualsAptx(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b) {
   return false;
 }
@@ -88,9 +98,10 @@ bool A2dpCodecConfigAptx::useRtpHeaderMarkerBit() const { return false; }
 
 void A2dpCodecConfigAptx::debug_codec_dump(int fd) {}
 
-bool A2dpCodecConfigAptx::setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
-                                         uint8_t* p_result_codec_config) {
-  return false;
+tA2DP_STATUS A2dpCodecConfigAptx::setCodecConfig(const uint8_t* p_peer_codec_info,
+                                                 bool is_capability,
+                                                 uint8_t* p_result_codec_config) {
+  return AVDTP_UNSUPPORTED_CONFIGURATION;
 }
 
 bool A2dpCodecConfigAptx::setPeerCodecCapabilities(const uint8_t* p_peer_codec_capabilities) {

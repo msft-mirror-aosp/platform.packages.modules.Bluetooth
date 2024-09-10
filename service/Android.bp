@@ -30,10 +30,12 @@ java_defaults {
             "-Xep:EmptyCatch:ERROR",
             "-Xep:EqualsIncompatibleType:ERROR",
             "-Xep:FutureReturnValueIgnored:ERROR",
+            "-Xep:InlineFormatString:ERROR",
             "-Xep:InlineMeInliner:ERROR",
             "-Xep:InvalidBlockTag:ERROR",
             "-Xep:InvalidInlineTag:ERROR",
             "-Xep:InvalidParam:ERROR",
+            "-Xep:LongFloatConversion:ERROR",
             "-Xep:MockNotUsedInProduction:ERROR",
             "-Xep:NonApiType:ERROR",
             "-Xep:NonCanonicalType:ERROR",
@@ -77,6 +79,7 @@ java_library {
     srcs: [
         ":statslog-bluetooth-java-gen",
         "src/**/*.java",
+        "src/ActiveLog.kt",
         "src/AdapterBinder.kt",
         "src/AdapterState.kt",
         "src/AutoOnFeature.kt",
@@ -91,7 +94,7 @@ java_library {
     libs: [
         "framework-annotations-lib",
         "framework-bluetooth-pre-jarjar",
-        "framework-configinfrastructure",
+        "framework-configinfrastructure.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
         "service-bluetooth-binder-aidl",
         "service-bluetooth.change-ids",
@@ -107,10 +110,6 @@ java_library {
         "modules-utils-build_system",
         "modules-utils-shell-command-handler",
     ],
-
-    lint: {
-        baseline_filename: "lint-baseline.xml",
-    },
 
     optimize: {
         enabled: true,
@@ -139,7 +138,7 @@ java_library {
     },
 
     libs: [
-        "framework-bluetooth",
+        "framework-bluetooth.impl",
     ],
 
     sdk_version: "system_server_current",
@@ -188,6 +187,8 @@ android_robolectric_test {
 
     srcs: [
         ":statslog-bluetooth-java-gen",
+        "src/ActiveLog.kt",
+        "src/ActiveLogTest.kt",
         "src/AdapterState.kt",
         "src/AdapterStateTest.kt",
         "src/AutoOnFeature.kt",
@@ -209,6 +210,9 @@ android_robolectric_test {
     static_libs: [
         "androidx.test.core",
         "androidx.test.ext.truth",
+        "bluetooth-manager-service-proto-java-gen",
+        "bluetooth-nano-protos",
+        "bluetooth-proto-enums-java-gen",
         "bluetooth_flags_java_lib",
         "flag-junit",
         "kotlin-test",
@@ -217,6 +221,7 @@ android_robolectric_test {
         "mockito-robolectric-prebuilt",
         "modules-utils-expresslog",
         "platform-test-annotations",
+        "service-bluetooth-binder-aidl",
         "testng",
         "truth",
     ],

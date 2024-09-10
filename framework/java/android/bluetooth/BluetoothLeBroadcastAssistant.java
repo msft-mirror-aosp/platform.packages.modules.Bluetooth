@@ -16,11 +16,16 @@
 
 package android.bluetooth;
 
+import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.Manifest.permission.BLUETOOTH_SCAN;
+
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SystemApi;
@@ -29,6 +34,7 @@ import android.bluetooth.annotations.RequiresBluetoothLocationPermission;
 import android.bluetooth.annotations.RequiresBluetoothScanPermission;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanSettings;
+import android.content.AttributionSource;
 import android.content.Context;
 import android.os.IBinder;
 import android.os.RemoteException;
@@ -80,6 +86,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     private final IBluetoothLeBroadcastAssistantCallback mCallback =
             new IBluetoothLeBroadcastAssistantCallback.Stub() {
                 @Override
+                @RequiresNoPermission
                 public void onSearchStarted(int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -91,6 +98,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSearchStartFailed(int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -102,6 +110,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSearchStopped(int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -113,6 +122,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSearchStopFailed(int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -124,6 +134,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceFound(BluetoothLeBroadcastMetadata source) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -135,6 +146,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceAdded(BluetoothDevice sink, int sourceId, int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -146,6 +158,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceAddFailed(
                         BluetoothDevice sink, BluetoothLeBroadcastMetadata source, int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
@@ -158,6 +171,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceModified(BluetoothDevice sink, int sourceId, int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -169,6 +183,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceModifyFailed(BluetoothDevice sink, int sourceId, int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -181,6 +196,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceRemoved(BluetoothDevice sink, int sourceId, int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -192,6 +208,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceRemoveFailed(BluetoothDevice sink, int sourceId, int reason) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -204,6 +221,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onReceiveStateChanged(
                         BluetoothDevice sink,
                         int sourceId,
@@ -219,6 +237,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onSourceLost(int broadcastId) {
                     for (Map.Entry<BluetoothLeBroadcastAssistant.Callback, Executor>
                             callbackExecutorEntry : mCallbackExecutorMap.entrySet()) {
@@ -467,15 +486,16 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     @SdkConstant(SdkConstant.SdkConstantType.BROADCAST_INTENT_ACTION)
     public static final String ACTION_CONNECTION_STATE_CHANGED =
             "android.bluetooth.action.CONNECTION_STATE_CHANGED";
 
     private CloseGuard mCloseGuard;
-    private BluetoothAdapter mBluetoothAdapter;
+    private final BluetoothAdapter mBluetoothAdapter;
+    private final AttributionSource mAttributionSource;
 
     private IBluetoothLeBroadcastAssistant mService;
 
@@ -487,6 +507,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     /*package*/ BluetoothLeBroadcastAssistant(
             @NonNull Context context, @NonNull BluetoothAdapter bluetoothAdapter) {
         mBluetoothAdapter = bluetoothAdapter;
+        mAttributionSource = bluetoothAdapter.getAttributionSource();
         mService = null;
         mCloseGuard = new CloseGuard();
         mCloseGuard.open("close");
@@ -509,6 +530,8 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
 
     /** @hide */
     @Override
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothLeBroadcastAssistant.Stub.asInterface(service);
         // re-register the service-to-app callback
@@ -518,7 +541,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 return;
             }
             try {
-                mService.registerCallback(mCallback);
+                mService.registerCallback(mCallback, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(
                         TAG,
@@ -531,6 +554,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -541,6 +565,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mBluetoothAdapter;
     }
@@ -554,8 +579,8 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     @Override
     @BluetoothProfile.BtProfileState
@@ -569,7 +594,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled() && isValidDevice(sink)) {
             try {
-                return service.getConnectionState(sink);
+                return service.getConnectionState(sink, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
@@ -586,8 +611,8 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     @Override
     @NonNull
@@ -601,7 +626,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled()) {
             try {
-                return service.getDevicesMatchingConnectionStates(states);
+                return service.getDevicesMatchingConnectionStates(states, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
@@ -618,8 +643,8 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     @Override
     public @NonNull List<BluetoothDevice> getConnectedDevices() {
@@ -631,7 +656,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled()) {
             try {
-                return service.getConnectedDevices();
+                return service.getConnectedDevices(mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
@@ -656,8 +681,8 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     public boolean setConnectionPolicy(
             @NonNull BluetoothDevice device, @ConnectionPolicy int connectionPolicy) {
@@ -673,7 +698,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 && (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
                         || connectionPolicy == BluetoothProfile.CONNECTION_POLICY_ALLOWED)) {
             try {
-                return service.setConnectionPolicy(device, connectionPolicy);
+                return service.setConnectionPolicy(device, connectionPolicy, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
@@ -696,8 +721,8 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     public @ConnectionPolicy int getConnectionPolicy(@NonNull BluetoothDevice device) {
         log("getConnectionPolicy()");
@@ -709,7 +734,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled() && isValidDevice(device)) {
             try {
-                return service.getConnectionPolicy(device);
+                return service.getConnectionPolicy(device, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
@@ -735,8 +760,8 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     public void registerCallback(
             @NonNull @CallbackExecutor Executor executor, @NonNull Callback callback) {
@@ -757,7 +782,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 try {
                     final IBluetoothLeBroadcastAssistant service = getService();
                     if (service != null) {
-                        service.registerCallback(mCallback);
+                        service.registerCallback(mCallback, mAttributionSource);
                     }
                 } catch (RemoteException e) {
                     throw e.rethrowAsRuntimeException();
@@ -789,8 +814,8 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     public void unregisterCallback(@NonNull Callback callback) {
         Objects.requireNonNull(callback, "callback cannot be null");
@@ -806,7 +831,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 try {
                     final IBluetoothLeBroadcastAssistant service = getService();
                     if (service != null) {
-                        service.unregisterCallback(mCallback);
+                        service.unregisterCallback(mCallback, mAttributionSource);
                     }
                 } catch (RemoteException e) {
                     throw e.rethrowAsRuntimeException();
@@ -850,8 +875,8 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     @RequiresBluetoothLocationPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_SCAN,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_SCAN,
+                BLUETOOTH_PRIVILEGED,
             })
     public void startSearchingForSources(@NonNull List<ScanFilter> filters) {
         log("searchForBroadcastSources");
@@ -872,7 +897,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled()) {
             try {
-                service.startSearchingForSources(filters);
+                service.startSearchingForSources(filters, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
@@ -890,11 +915,11 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
      * @hide
      */
     @SystemApi
-    @RequiresBluetoothConnectPermission
+    @RequiresBluetoothScanPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_SCAN,
+                BLUETOOTH_PRIVILEGED,
             })
     public void stopSearchingForSources() {
         log("stopSearchingForSources:");
@@ -914,7 +939,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled()) {
             try {
-                service.stopSearchingForSources();
+                service.stopSearchingForSources(mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
@@ -928,11 +953,11 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
      * @hide
      */
     @SystemApi
-    @RequiresBluetoothConnectPermission
+    @RequiresBluetoothScanPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_SCAN,
+                BLUETOOTH_PRIVILEGED,
             })
     public boolean isSearchInProgress() {
         log("stopSearchingForSources:");
@@ -943,7 +968,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled()) {
             try {
-                return service.isSearchInProgress();
+                return service.isSearchInProgress(mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
@@ -1012,8 +1037,8 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     public void addSource(
             @NonNull BluetoothDevice sink,
@@ -1038,7 +1063,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled() && isValidDevice(sink)) {
             try {
-                service.addSource(sink, sourceMetadata, isGroupOp);
+                service.addSource(sink, sourceMetadata, isGroupOp, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
@@ -1092,8 +1117,8 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     public void modifySource(
             @NonNull BluetoothDevice sink,
@@ -1118,7 +1143,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled() && isValidDevice(sink)) {
             try {
-                service.modifySource(sink, sourceId, updatedMetadata);
+                service.modifySource(sink, sourceId, updatedMetadata, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
@@ -1151,8 +1176,8 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     public void removeSource(@NonNull BluetoothDevice sink, int sourceId) {
         log("removeBroadcastSource: " + sourceId + " from " + sink);
@@ -1173,7 +1198,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled() && isValidDevice(sink)) {
             try {
-                service.removeSource(sink, sourceId);
+                service.removeSource(sink, sourceId, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
@@ -1193,8 +1218,8 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
             })
     @NonNull
     public List<BluetoothLeBroadcastReceiveState> getAllSources(@NonNull BluetoothDevice sink) {
@@ -1208,7 +1233,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled()) {
             try {
-                return service.getAllSources(sink);
+                return service.getAllSources(sink, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
@@ -1225,6 +1250,12 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
      * @hide
      */
     @SystemApi
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(
+            allOf = {
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED,
+            })
     public int getMaximumSourceCapacity(@NonNull BluetoothDevice sink) {
         Objects.requireNonNull(sink, "sink cannot be null");
         final IBluetoothLeBroadcastAssistant service = getService();
@@ -1234,7 +1265,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled() && isValidDevice(sink)) {
             try {
-                return service.getMaximumSourceCapacity(sink);
+                return service.getMaximumSourceCapacity(sink, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }

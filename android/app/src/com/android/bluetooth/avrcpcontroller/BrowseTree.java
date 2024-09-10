@@ -182,12 +182,13 @@ public class BrowseTree {
         }
 
         BrowseNode(BluetoothDevice device) {
-            mIsPlayer = true;
-            String playerKey = PLAYER_PREFIX + device.getAddress().toString();
-
             AvrcpItem.Builder aid = new AvrcpItem.Builder();
             aid.setDevice(device);
-            aid.setUuid(playerKey);
+            if (Flags.randomizeDeviceLevelMediaIds()) {
+                aid.setUuid(ROOT + device.getAddress().toString() + UUID.randomUUID().toString());
+            } else {
+                aid.setUuid(PLAYER_PREFIX + device.getAddress().toString());
+            }
             aid.setDisplayableName(Utils.getName(device));
             aid.setTitle(Utils.getName(device));
             aid.setBrowsable(true);
@@ -304,10 +305,13 @@ public class BrowseTree {
         }
 
         synchronized void setCached(boolean cached) {
-            Log.d(TAG, "Set Cache" + cached + "Node" + toString());
+            Log.d(TAG, "Set cached=" + cached + ", node=" + toString());
             mCached = cached;
             if (!cached) {
                 for (BrowseNode child : mChildren) {
+                    if (Flags.uncachePlayerWhenBrowsedPlayerChanges()) {
+                        child.setCached(false);
+                    }
                     mBrowseMap.remove(child.getID());
                     indicateCoverArtUnused(child.getID(), child.getCoverArtUuid());
                 }
@@ -365,7 +369,7 @@ public class BrowseTree {
             for (int i = 0; i <= depth; i++) {
                 sb.append("  ");
             }
-            sb.append(toString() + "\n");
+            sb.append(toString()).append("\n");
             for (BrowseNode node : mChildren) {
                 node.toTreeString(depth + 1, sb);
             }
@@ -373,11 +377,13 @@ public class BrowseTree {
 
         @Override
         public synchronized String toString() {
-            return "[Id: "
+            return "[id="
                     + getID()
-                    + " Name: "
+                    + ", name="
                     + getMediaItem().getDescription().getTitle()
-                    + " Size: "
+                    + ", cached="
+                    + isCached()
+                    + ", size="
                     + mChildren.size()
                     + "]";
         }
@@ -520,9 +526,9 @@ public class BrowseTree {
     /** Dump the state of the AVRCP browse tree */
     public void dump(StringBuilder sb) {
         mRootNode.toTreeString(0, sb);
-        sb.append("\n  Image handles in use (" + mCoverArtMap.size() + "):");
+        sb.append("\n  Image handles in use (").append(mCoverArtMap.size()).append("):");
         for (String handle : mCoverArtMap.keySet()) {
-            sb.append("\n    " + handle);
+            sb.append("\n    ").append(handle);
         }
         sb.append("\n");
     }

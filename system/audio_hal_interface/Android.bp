@@ -28,6 +28,7 @@ cc_library_static {
         "libutils",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbluetooth_log",
         "libbt-common",
         "libbt_shim_bridge",
@@ -249,8 +250,6 @@ cc_defaults {
         "libbte",
         "libbtif",
         "libbtif-core",
-        "libcgrouprc",
-        "libcgrouprc_format",
         "libchrome",
         "libcutils",
         "libevent",
@@ -302,6 +301,7 @@ cc_test {
         "libfmq",
         "liblog",
         "libstatslog",
+        "libcutils",
         "libutils",
         "server_configurable_flags",
     ],
@@ -318,6 +318,7 @@ cc_test {
         "libchrome",
         "libevent",
         "libgmock",
+        "server_configurable_flags",
     ],
     cflags: [
         "-DBUILDCFG",
@@ -350,10 +351,38 @@ cc_test {
     static_libs: [
         "libbt-bta",
         "libbt-platform-protos-lite",
+        "libcutils",
         "libgmock",
+        "server_configurable_flags",
     ],
     header_libs: ["libbluetooth_headers"],
     cflags: [
         "-DBUILDCFG",
+    ],
+}
+
+// HFP client interface library unit tests
+cc_test {
+    name: "bluetooth-test-audio-hal-hfp-client-interface",
+    host_supported: true,
+    defaults: [
+        "libbt_audio_hal_interface_test_defaults",
+    ],
+    include_dirs: [
+        "packages/modules/Bluetooth/system/audio_hal_interface",
+        "packages/modules/Bluetooth/system/audio_hal_interface/aidl",
+        "packages/modules/Bluetooth/system/bta",
+    ],
+    srcs: [
+        "hfp_client_interface.cc",
+        "hfp_client_interface_unittest.cc",
+    ],
+    static_libs: [
+        "server_configurable_flags",
+    ],
+    header_libs: ["libbluetooth_headers"],
+    cflags: [
+        "-DBUILDCFG",
+        "-Wno-unused-parameter",
     ],
 }

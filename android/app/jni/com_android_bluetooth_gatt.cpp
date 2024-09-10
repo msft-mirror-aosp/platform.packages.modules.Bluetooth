@@ -26,7 +26,6 @@
 
 #include "com_android_bluetooth.h"
 #include "com_android_bluetooth_flags.h"
-#include "common/init_flags.h"
 #include "hardware/bt_gatt.h"
 #include "hardware/bt_gatt_types.h"
 #include "main/shim/le_scanning_manager.h"

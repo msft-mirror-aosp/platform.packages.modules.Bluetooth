@@ -219,8 +219,10 @@ public class BluetoothManagerServiceTest {
                         any(ServiceConnection.class),
                         anyInt(),
                         any(UserHandle.class));
+        doNothing().when(mContext).unbindService(any());
         mManagerService.enableBle("enable_bindFailure_removesTimeout", mBinder);
         syncHandler(MESSAGE_ENABLE);
+        verify(mContext).unbindService(any());
 
         // TODO(b/280518177): Failed to start should be noted / reported in metrics
         // Maybe show a popup or a crash notification
@@ -273,7 +275,7 @@ public class BluetoothManagerServiceTest {
         verify(mManagerCallback).onBluetoothServiceUp(any());
 
         IBluetoothCallback btCallback = captureBluetoothCallback(mAdapterBinder);
-        verify(mAdapterBinder).enable(anyBoolean(), any());
+        verify(mAdapterBinder).offToBleOn(anyBoolean(), any());
 
         // AdapterService is sending AdapterState.BLE_TURN_ON that will trigger this callback
         // and in parallel it call its `bringUpBle()`
@@ -287,17 +289,12 @@ public class BluetoothManagerServiceTest {
         // trigger the stateChangeCallback from native
         btCallback.onBluetoothStateChange(STATE_BLE_TURNING_ON, STATE_BLE_ON);
         syncHandler(MESSAGE_BLUETOOTH_STATE_CHANGE);
-        assertThat(mManagerService.getState()).isEqualTo(STATE_BLE_ON);
-
-        // Check that we sent 2 intent, one for BLE_TURNING_ON, one for BLE_ON
-        // TODO(b/280518177): assert the intent are the correct one
-        verify(mContext, times(2)).sendBroadcastAsUser(any(), any(), any(), any());
         return btCallback;
     }
 
     private IBluetoothCallback transition_offToOn() throws Exception {
         IBluetoothCallback btCallback = transition_offToBleOn();
-        verify(mAdapterBinder, times(1)).startBrEdr(any());
+        verify(mAdapterBinder, times(1)).bleOnToOn(any());
 
         // AdapterService go to turning_on and start all profile on its own
         btCallback.onBluetoothStateChange(STATE_BLE_ON, STATE_TURNING_ON);
@@ -321,8 +318,12 @@ public class BluetoothManagerServiceTest {
 
         transition_offToBleOn();
 
+        // Check that we sent 2 intent, one for BLE_TURNING_ON, one for BLE_ON
+        // TODO(b/280518177): assert the intent are the correct one
+        verify(mContext, times(2)).sendBroadcastAsUser(any(), any(), any(), any());
+
         // Check that there was no transition to STATE_ON
-        verify(mAdapterBinder, times(0)).startBrEdr(any());
+        verify(mAdapterBinder, times(0)).bleOnToOn(any());
         assertThat(mManagerService.getState()).isEqualTo(STATE_BLE_ON);
     }
 

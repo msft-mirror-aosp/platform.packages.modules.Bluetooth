@@ -17,6 +17,7 @@ package com.android.bluetooth.pbapclient;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.bluetooth.BluetoothUuid;
@@ -280,6 +281,7 @@ class PbapClientConnectionHandler extends Handler {
     /* Utilize SDP, if available, to create a socket connection over L2CAP, RFCOMM specified
      * channel, or RFCOMM default channel. */
     @VisibleForTesting
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     synchronized boolean connectSocket() {
         try {
             /* Use BluetoothSocket to connect */
@@ -408,7 +410,7 @@ class PbapClientConnectionHandler extends Handler {
                                 startOffset);
                 request.execute(mObexSession);
                 List<VCardEntry> vcards = request.getList();
-                if (path == FAV_PATH) {
+                if (FAV_PATH.equals(path)) {
                     // mark each vcard as a favorite
                     for (VCardEntry v : vcards) {
                         v.setStarred(true);

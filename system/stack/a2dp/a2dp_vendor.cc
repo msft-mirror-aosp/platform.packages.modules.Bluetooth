@@ -60,26 +60,6 @@ bool A2DP_IsVendorSourceCodecValid(const uint8_t* p_codec_info) {
   return false;
 }
 
-bool A2DP_IsVendorSinkCodecValid(const uint8_t* p_codec_info) {
-  uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
-  uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
-
-  // Add checks based on <vendor_id, codec_id>
-  // NOTE: Should be done only for local Sink codecs.
-
-  // Check for LDAC
-  if (vendor_id == A2DP_LDAC_VENDOR_ID && codec_id == A2DP_LDAC_CODEC_ID) {
-    return A2DP_IsCodecValidLdac(p_codec_info);
-  }
-
-  // Check for Opus
-  if (vendor_id == A2DP_OPUS_VENDOR_ID && codec_id == A2DP_OPUS_CODEC_ID) {
-    return A2DP_IsCodecValidOpus(p_codec_info);
-  }
-
-  return false;
-}
-
 bool A2DP_IsVendorPeerSourceCodecValid(const uint8_t* p_codec_info) {
   uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
   uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
@@ -131,7 +111,7 @@ bool A2DP_IsVendorPeerSinkCodecValid(const uint8_t* p_codec_info) {
   return false;
 }
 
-bool A2DP_IsVendorSinkCodecSupported(const uint8_t* p_codec_info) {
+tA2DP_STATUS A2DP_IsVendorSinkCodecSupported(const uint8_t* p_codec_info) {
   uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
   uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
 
@@ -148,27 +128,7 @@ bool A2DP_IsVendorSinkCodecSupported(const uint8_t* p_codec_info) {
     return A2DP_IsVendorSinkCodecSupportedOpus(p_codec_info);
   }
 
-  return false;
-}
-
-bool A2DP_IsVendorPeerSourceCodecSupported(const uint8_t* p_codec_info) {
-  uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
-  uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
-
-  // Add checks based on <vendor_id, codec_id> and peer codec capabilities
-  // NOTE: Should be done only for local Sink codecs.
-
-  // Check for LDAC
-  if (vendor_id == A2DP_LDAC_VENDOR_ID && codec_id == A2DP_LDAC_CODEC_ID) {
-    return A2DP_IsPeerSourceCodecSupportedLdac(p_codec_info);
-  }
-
-  // Check for Opus
-  if (vendor_id == A2DP_OPUS_VENDOR_ID && codec_id == A2DP_OPUS_CODEC_ID) {
-    return A2DP_IsPeerSourceCodecSupportedOpus(p_codec_info);
-  }
-
-  return false;
+  return A2DP_NOT_SUPPORTED_CODEC_TYPE;
 }
 
 uint32_t A2DP_VendorCodecGetVendorId(const uint8_t* p_codec_info) {

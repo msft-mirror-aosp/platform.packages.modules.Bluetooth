@@ -314,7 +314,8 @@ public:
 
   void StopStream(LeAudioDeviceGroup* group) override {
     if (group->IsReleasingOrIdle()) {
-      log::info("group: {} already in releasing process", group->group_id_);
+      log::info("group: {} in_transition: {}, current_state {}", group->group_id_,
+                group->IsInTransition(), ToString(group->GetState()));
       return;
     }
 
@@ -716,6 +717,26 @@ public:
     group->ClearAllCises();
   }
 
+  void SendStreamingStatusCbIfNeeded(LeAudioDeviceGroup* group) {
+    /* This function should be called when some of the set members got disconnected but there are
+     * still other CISes connected. When state machine is in STREAMING state, status will be sent up
+     * to the user, so it can update encoder or offloader.
+     */
+    log::info("group_id: {}", group->group_id_);
+    if (group->HaveAllCisesDisconnected()) {
+      log::info("All cises disconnected;");
+      return;
+    }
+
+    if ((group->GetState() == AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING) &&
+        (group->GetTargetState() == AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING)) {
+      state_machine_callbacks_->StatusReportCb(group->group_id_, GroupStreamStatus::STREAMING);
+    } else {
+      log::warn("group_id {} not in streaming, CISes are still there", group->group_id_);
+      group->PrintDebugState();
+    }
+  }
+
   void RemoveCigForGroup(LeAudioDeviceGroup* group) {
     log::debug("Group: {}, id: {} cig state: {}", fmt::ptr(group), group->group_id_,
                ToString(group->cig.GetState()));
@@ -792,18 +813,12 @@ public:
        */
       if (!group->HaveAllCisesDisconnected()) {
         /* some CISes are connected */
+        SendStreamingStatusCbIfNeeded(group);
+        return;
+      }
 
-        if ((group->GetState() == AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING) &&
-            (group->GetTargetState() == AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING)) {
-          /* We keep streaming but want others to let know user that it might
-           * be need to update CodecManager with new CIS configuration
-           */
-          state_machine_callbacks_->StatusReportCb(group->group_id_, GroupStreamStatus::STREAMING);
-        } else {
-          log::warn("group_id {} not in streaming, CISes are still there", group->group_id_);
-          group->PrintDebugState();
-        }
-
+      if (!group->IsInTransitionTo(AseState::BTA_LE_AUDIO_ASE_STATE_IDLE)) {
+        /* do nothing if not transitioning to IDLE */
         return;
       }
     }
@@ -811,6 +826,7 @@ public:
     /* Group is not connected and all the CISes are down.
      * Clean states and destroy HCI group
      */
+    log::debug("Clearing inactive group");
     ClearGroup(group, true);
   }
 
@@ -1101,6 +1117,7 @@ public:
          */
         if (!group->HaveAllCisesDisconnected()) {
           /* There is ASE streaming for some device. Continue streaming. */
+          SendStreamingStatusCbIfNeeded(group);
           log::warn("Group member disconnected during streaming. Cis handle 0x{:04x}",
                     event->cis_conn_hdl);
           return;
@@ -1388,9 +1405,15 @@ private:
                 param.max_trans_lat_stom =
                         bluetooth::le_audio::types::kLeAudioHeadtrackerMaxTransLat;
                 it->max_sdu_size_stom = bluetooth::le_audio::types::kLeAudioHeadtrackerMaxSduSize;
+
+                // Early draft of DSA 2.0 spec mentioned allocating 15 bytes for headtracker data
                 if (!com::android::bluetooth::flags::headtracker_sdu_size()) {
                   it->max_sdu_size_stom = 15;
+                } else if (!group->DsaReducedSduSizeSupported()) {
+                  log::verbose("Device does not support reduced headtracker SDU");
+                  it->max_sdu_size_stom = 15;
                 }
+
                 it->rtn_stom = bluetooth::le_audio::types::kLeAudioHeadtrackerRtn;
 
                 it++;

@@ -22,20 +22,21 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "sdp_api"
+#define LOG_TAG "stack::sdp"
 
 #include "stack/include/sdp_api.h"
 
+#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <string.h>
 
 #include <cstdint>
+#include <utility>
 
 #include "internal_include/bt_target.h"
-#include "os/log.h"
+#include "main/shim/dumpsys.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
-#include "stack/include/sdp_api.h"
 #include "stack/include/sdpdefs.h"
 #include "stack/sdp/internal/sdp_api.h"
 #include "stack/sdp/sdpint.h"
@@ -44,6 +45,11 @@
 
 using bluetooth::Uuid;
 using namespace bluetooth;
+
+namespace {
+constexpr unsigned kMaxSdpConnections = static_cast<unsigned>(SDP_MAX_CONNECTIONS);
+constexpr unsigned kMaxSdpRecords = static_cast<unsigned>(SDP_MAX_DISC_SERVER_RECS);
+}  // namespace
 
 /*******************************************************************************
  *
@@ -80,7 +86,7 @@ bool SDP_InitDiscoveryDb(tSDP_DISCOVERY_DB* p_db, uint32_t len, uint16_t num_uui
     return false;
   }
 
-  memset(p_db, 0, (size_t)len);
+  memset(p_db, 0, static_cast<size_t>(len));
 
   p_db->mem_size = len - sizeof(tSDP_DISCOVERY_DB);
   p_db->mem_free = p_db->mem_size;
@@ -120,7 +126,7 @@ bool SDP_CancelServiceSearch(const tSDP_DISCOVERY_DB* p_db) {
     return false;
   }
 
-  sdp_disconnect(p_ccb, SDP_CANCEL);
+  sdp_disconnect(p_ccb, tSDP_STATUS::SDP_CANCEL);
   p_ccb->disc_state = SDP_DISC_WAIT_CANCEL;
   return true;
 }
@@ -136,12 +142,11 @@ bool SDP_CancelServiceSearch(const tSDP_DISCOVERY_DB* p_db) {
  ******************************************************************************/
 bool SDP_ServiceSearchRequest(const RawAddress& bd_addr, tSDP_DISCOVERY_DB* p_db,
                               tSDP_DISC_CMPL_CB* p_cb) {
-  tCONN_CB* p_ccb;
-
   /* Specific BD address */
-  p_ccb = sdp_conn_originate(bd_addr);
-
+  tCONN_CB* p_ccb = sdp_conn_originate(bd_addr);
   if (!p_ccb) {
+    log::warn("no spare CCB for peer:{} max:{}", bd_addr, kMaxSdpConnections);
+    sdpu_dump_all_ccb();
     return false;
   }
 
@@ -168,12 +173,11 @@ bool SDP_ServiceSearchRequest(const RawAddress& bd_addr, tSDP_DISCOVERY_DB* p_db
  ******************************************************************************/
 bool SDP_ServiceSearchAttributeRequest(const RawAddress& bd_addr, tSDP_DISCOVERY_DB* p_db,
                                        tSDP_DISC_CMPL_CB* p_cb) {
-  tCONN_CB* p_ccb;
-
   /* Specific BD address */
-  p_ccb = sdp_conn_originate(bd_addr);
-
+  tCONN_CB* p_ccb = sdp_conn_originate(bd_addr);
   if (!p_ccb) {
+    log::warn("no spare CCB for peer:{} max:{}", bd_addr, kMaxSdpConnections);
+    sdpu_dump_all_ccb();
     return false;
   }
 
@@ -202,12 +206,11 @@ bool SDP_ServiceSearchAttributeRequest(const RawAddress& bd_addr, tSDP_DISCOVERY
 bool SDP_ServiceSearchAttributeRequest2(
         const RawAddress& bd_addr, tSDP_DISCOVERY_DB* p_db,
         base::RepeatingCallback<tSDP_DISC_CMPL_CB> complete_callback) {
-  tCONN_CB* p_ccb;
-
   /* Specific BD address */
-  p_ccb = sdp_conn_originate(bd_addr);
-
+  tCONN_CB* p_ccb = sdp_conn_originate(bd_addr);
   if (!p_ccb) {
+    log::warn("no spare CCB for peer:{} max:{}", bd_addr, kMaxSdpConnections);
+    sdpu_dump_all_ccb();
     return false;
   }
 
@@ -278,13 +281,11 @@ bool SDP_FindServiceUUIDInRec(const tSDP_DISC_REC* p_rec, Uuid* p_uuid) {
           }
 
           return true;
-        }
-
-        /* Checking for Toyota G Block Car Kit:
-        **  This car kit puts an extra data element sequence
-        **  where the UUID is suppose to be!!!
-        */
-        else {
+        } else {
+          /* Checking for Toyota G Block Car Kit:
+           **  This car kit puts an extra data element sequence
+           **  where the UUID is suppose to be!!!
+           */
           if (SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type) == DATA_ELE_SEQ_DESC_TYPE) {
             /* Look through data element sequence until no more UUIDs */
             for (p_extra_sattr = p_sattr->attr_value.v.p_sub_attr; p_extra_sattr;
@@ -407,17 +408,14 @@ tSDP_DISC_REC* SDP_FindServiceInDb(const tSDP_DISCOVERY_DB* p_db, uint16_t servi
 
           if (SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type) == UUID_DESC_TYPE &&
               (service_uuid == 0 || (SDP_DISC_ATTR_LEN(p_sattr->attr_len_type) == 2 &&
-                                     p_sattr->attr_value.v.u16 == service_uuid)))
-          /* for a specific uuid, or any one */
-          {
+                                     p_sattr->attr_value.v.u16 == service_uuid))) {
+            /* for a specific uuid, or any one */
             return p_rec;
-          }
-
-          /* Checking for Toyota G Block Car Kit:
-          **  This car kit puts an extra data element sequence
-          **  where the UUID is suppose to be!!!
-          */
-          else {
+          } else {
+            /* Checking for Toyota G Block Car Kit:
+             **  This car kit puts an extra data element sequence
+             **  where the UUID is suppose to be!!!
+             */
             if (SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type) == DATA_ELE_SEQ_DESC_TYPE) {
               /* Look through data element sequence until no more UUIDs */
               for (p_extra_sattr = p_sattr->attr_value.v.p_sub_attr; p_extra_sattr;
@@ -708,8 +706,8 @@ bool SDP_FindProfileVersionInRec(const tSDP_DISC_REC* p_rec, uint16_t profile_uu
 
               return true;
             } else {
-              return false; /* The type and/or size was not valid for the
-                               profile list version */
+              return false;  // The type and/or size was not valid for the
+                             //   profile list version
             }
           }
         }
@@ -734,12 +732,12 @@ bool SDP_FindProfileVersionInRec(const tSDP_DISC_REC* p_rec, uint16_t profile_uu
  *
  * Description      This function queries a remote device for DI information.
  *
- * Returns          SDP_SUCCESS if query started successfully, else error
+ * Returns          tSDP_STATUS::SDP_SUCCESS if query started successfully, else error
  *
  ******************************************************************************/
 tSDP_STATUS SDP_DiDiscover(const RawAddress& remote_device, tSDP_DISCOVERY_DB* p_db, uint32_t len,
                            tSDP_DISC_CMPL_CB* p_cb) {
-  tSDP_STATUS result = SDP_DI_DISC_FAILED;
+  tSDP_STATUS result = tSDP_STATUS::SDP_DI_DISC_FAILED;
   uint16_t num_uuids = 1;
   uint16_t di_uuid = UUID_SERVCLASS_PNP_INFORMATION;
 
@@ -748,7 +746,7 @@ tSDP_STATUS SDP_DiDiscover(const RawAddress& remote_device, tSDP_DISCOVERY_DB* p
 
   if (SDP_InitDiscoveryDb(p_db, len, num_uuids, &init_uuid, 0, NULL)) {
     if (SDP_ServiceSearchRequest(remote_device, p_db, p_cb)) {
-      result = SDP_SUCCESS;
+      result = tSDP_STATUS::SDP_SUCCESS;
     }
   }
 
@@ -821,12 +819,12 @@ static void SDP_AttrStringCopy(char* dst, const tSDP_DISC_ATTR* p_attr, uint16_t
  * Description      This function retrieves a remote device's DI record from
  *                  the specified database.
  *
- * Returns          SDP_SUCCESS if record retrieved, else error
+ * Returns          tSDP_STATUS::SDP_SUCCESS if record retrieved, else error
  *
  ******************************************************************************/
-uint16_t SDP_GetDiRecord(uint8_t get_record_index, tSDP_DI_GET_RECORD* p_device_info,
-                         const tSDP_DISCOVERY_DB* p_db) {
-  uint16_t result = SDP_NO_DI_RECORD_FOUND;
+tSDP_STATUS SDP_GetDiRecord(uint8_t get_record_index, tSDP_DI_GET_RECORD* p_device_info,
+                            const tSDP_DISCOVERY_DB* p_db) {
+  tSDP_STATUS result = tSDP_STATUS::SDP_NO_DI_RECORD_FOUND;
   uint8_t curr_record_index = 1;
 
   tSDP_DISC_REC* p_curr_record = NULL;
@@ -836,13 +834,13 @@ uint16_t SDP_GetDiRecord(uint8_t get_record_index, tSDP_DI_GET_RECORD* p_device_
     p_curr_record = SDP_FindServiceInDb(p_db, UUID_SERVCLASS_PNP_INFORMATION, p_curr_record);
     if (p_curr_record) {
       if (curr_record_index++ == get_record_index) {
-        result = SDP_SUCCESS;
+        result = tSDP_STATUS::SDP_SUCCESS;
         break;
       }
     }
   } while (p_curr_record);
 
-  if (result == SDP_SUCCESS) {
+  if (result == tSDP_STATUS::SDP_SUCCESS) {
     /* copy the information from the SDP record to the DI record */
     tSDP_DISC_ATTR* p_curr_attr = NULL;
 
@@ -867,7 +865,7 @@ uint16_t SDP_GetDiRecord(uint8_t get_record_index, tSDP_DI_GET_RECORD* p_device_
         SDP_DISC_ATTR_LEN(p_curr_attr->attr_len_type) >= 2) {
       p_device_info->spec_id = p_curr_attr->attr_value.v.u16;
     } else {
-      result = SDP_ERR_ATTR_NOT_PRESENT;
+      result = tSDP_STATUS::SDP_ERR_ATTR_NOT_PRESENT;
     }
 
     p_curr_attr = SDP_FindAttributeInRec(p_curr_record, ATTR_ID_VENDOR_ID);
@@ -875,7 +873,7 @@ uint16_t SDP_GetDiRecord(uint8_t get_record_index, tSDP_DI_GET_RECORD* p_device_
         SDP_DISC_ATTR_LEN(p_curr_attr->attr_len_type) >= 2) {
       p_device_info->rec.vendor = p_curr_attr->attr_value.v.u16;
     } else {
-      result = SDP_ERR_ATTR_NOT_PRESENT;
+      result = tSDP_STATUS::SDP_ERR_ATTR_NOT_PRESENT;
     }
 
     p_curr_attr = SDP_FindAttributeInRec(p_curr_record, ATTR_ID_VENDOR_ID_SOURCE);
@@ -883,7 +881,7 @@ uint16_t SDP_GetDiRecord(uint8_t get_record_index, tSDP_DI_GET_RECORD* p_device_
         SDP_DISC_ATTR_LEN(p_curr_attr->attr_len_type) >= 2) {
       p_device_info->rec.vendor_id_source = p_curr_attr->attr_value.v.u16;
     } else {
-      result = SDP_ERR_ATTR_NOT_PRESENT;
+      result = tSDP_STATUS::SDP_ERR_ATTR_NOT_PRESENT;
     }
 
     p_curr_attr = SDP_FindAttributeInRec(p_curr_record, ATTR_ID_PRODUCT_ID);
@@ -891,7 +889,7 @@ uint16_t SDP_GetDiRecord(uint8_t get_record_index, tSDP_DI_GET_RECORD* p_device_
         SDP_DISC_ATTR_LEN(p_curr_attr->attr_len_type) >= 2) {
       p_device_info->rec.product = p_curr_attr->attr_value.v.u16;
     } else {
-      result = SDP_ERR_ATTR_NOT_PRESENT;
+      result = tSDP_STATUS::SDP_ERR_ATTR_NOT_PRESENT;
     }
 
     p_curr_attr = SDP_FindAttributeInRec(p_curr_record, ATTR_ID_PRODUCT_VERSION);
@@ -899,7 +897,7 @@ uint16_t SDP_GetDiRecord(uint8_t get_record_index, tSDP_DI_GET_RECORD* p_device_
         SDP_DISC_ATTR_LEN(p_curr_attr->attr_len_type) >= 2) {
       p_device_info->rec.version = p_curr_attr->attr_value.v.u16;
     } else {
-      result = SDP_ERR_ATTR_NOT_PRESENT;
+      result = tSDP_STATUS::SDP_ERR_ATTR_NOT_PRESENT;
     }
 
     p_curr_attr = SDP_FindAttributeInRec(p_curr_record, ATTR_ID_PRIMARY_RECORD);
@@ -907,7 +905,7 @@ uint16_t SDP_GetDiRecord(uint8_t get_record_index, tSDP_DI_GET_RECORD* p_device_
         SDP_DISC_ATTR_LEN(p_curr_attr->attr_len_type) >= 1) {
       p_device_info->rec.primary_record = (bool)p_curr_attr->attr_value.v.u8;
     } else {
-      result = SDP_ERR_ATTR_NOT_PRESENT;
+      result = tSDP_STATUS::SDP_ERR_ATTR_NOT_PRESENT;
     }
   }
 
@@ -926,11 +924,11 @@ uint16_t SDP_GetDiRecord(uint8_t get_record_index, tSDP_DI_GET_RECORD* p_device_
  *
  *
  *
- * Returns          Returns SDP_SUCCESS if record added successfully, else error
+ * Returns          Returns tSDP_STATUS::SDP_SUCCESS if record added successfully, else error
  *
  ******************************************************************************/
-uint16_t SDP_SetLocalDiRecord(const tSDP_DI_RECORD* p_device_info, uint32_t* p_handle) {
-  uint16_t result = SDP_SUCCESS;
+tSDP_STATUS SDP_SetLocalDiRecord(const tSDP_DI_RECORD* p_device_info, uint32_t* p_handle) {
+  tSDP_STATUS result = tSDP_STATUS::SDP_SUCCESS;
   uint32_t handle;
   uint16_t di_uuid = UUID_SERVCLASS_PNP_INFORMATION;
   uint16_t di_specid = BLUETOOTH_DI_SPECIFICATION;
@@ -940,7 +938,7 @@ uint16_t SDP_SetLocalDiRecord(const tSDP_DI_RECORD* p_device_info, uint32_t* p_h
 
   *p_handle = 0;
   if (p_device_info == NULL) {
-    return SDP_ILLEGAL_PARAMETER;
+    return tSDP_STATUS::SDP_ILLEGAL_PARAMETER;
   }
 
   /* if record is to be primary record, get handle to replace old primary */
@@ -949,7 +947,7 @@ uint16_t SDP_SetLocalDiRecord(const tSDP_DI_RECORD* p_device_info, uint32_t* p_h
   } else {
     handle = SDP_CreateRecord();
     if (handle == 0) {
-      return SDP_NO_RESOURCES;
+      return tSDP_STATUS::SDP_NO_RESOURCES;
     }
   }
 
@@ -958,104 +956,104 @@ uint16_t SDP_SetLocalDiRecord(const tSDP_DI_RECORD* p_device_info, uint32_t* p_h
   /* build the SDP entry */
   /* Add the UUID to the Service Class ID List */
   if (!(SDP_AddServiceClassIdList(handle, 1, &di_uuid))) {
-    result = SDP_DI_REG_FAILED;
+    result = tSDP_STATUS::SDP_DI_REG_FAILED;
   }
 
   /* mandatory */
-  if (result == SDP_SUCCESS) {
+  if (result == tSDP_STATUS::SDP_SUCCESS) {
     p_temp = temp_u16;
     UINT16_TO_BE_STREAM(p_temp, di_specid);
     if (!(SDP_AddAttribute(handle, ATTR_ID_SPECIFICATION_ID, UINT_DESC_TYPE, sizeof(di_specid),
                            temp_u16))) {
-      result = SDP_DI_REG_FAILED;
+      result = tSDP_STATUS::SDP_DI_REG_FAILED;
     }
   }
 
   /* optional - if string is null, do not add attribute */
-  if (result == SDP_SUCCESS) {
+  if (result == tSDP_STATUS::SDP_SUCCESS) {
     if (p_device_info->client_executable_url[0] != '\0') {
       if (!((strlen(p_device_info->client_executable_url) + 1 <= SDP_MAX_ATTR_LEN) &&
             SDP_AddAttribute(handle, ATTR_ID_CLIENT_EXE_URL, URL_DESC_TYPE,
                              (uint32_t)(strlen(p_device_info->client_executable_url) + 1),
                              (uint8_t*)p_device_info->client_executable_url))) {
-        result = SDP_DI_REG_FAILED;
+        result = tSDP_STATUS::SDP_DI_REG_FAILED;
       }
     }
   }
 
   /* optional - if string is null, do not add attribute */
-  if (result == SDP_SUCCESS) {
+  if (result == tSDP_STATUS::SDP_SUCCESS) {
     if (p_device_info->service_description[0] != '\0') {
       if (!((strlen(p_device_info->service_description) + 1 <= SDP_MAX_ATTR_LEN) &&
             SDP_AddAttribute(handle, ATTR_ID_SERVICE_DESCRIPTION, TEXT_STR_DESC_TYPE,
                              (uint32_t)(strlen(p_device_info->service_description) + 1),
                              (uint8_t*)p_device_info->service_description))) {
-        result = SDP_DI_REG_FAILED;
+        result = tSDP_STATUS::SDP_DI_REG_FAILED;
       }
     }
   }
 
   /* optional - if string is null, do not add attribute */
-  if (result == SDP_SUCCESS) {
+  if (result == tSDP_STATUS::SDP_SUCCESS) {
     if (p_device_info->documentation_url[0] != '\0') {
       if (!((strlen(p_device_info->documentation_url) + 1 <= SDP_MAX_ATTR_LEN) &&
             SDP_AddAttribute(handle, ATTR_ID_DOCUMENTATION_URL, URL_DESC_TYPE,
                              (uint32_t)(strlen(p_device_info->documentation_url) + 1),
                              (uint8_t*)p_device_info->documentation_url))) {
-        result = SDP_DI_REG_FAILED;
+        result = tSDP_STATUS::SDP_DI_REG_FAILED;
       }
     }
   }
 
   /* mandatory */
-  if (result == SDP_SUCCESS) {
+  if (result == tSDP_STATUS::SDP_SUCCESS) {
     p_temp = temp_u16;
     UINT16_TO_BE_STREAM(p_temp, p_device_info->vendor);
     if (!(SDP_AddAttribute(handle, ATTR_ID_VENDOR_ID, UINT_DESC_TYPE, sizeof(p_device_info->vendor),
                            temp_u16))) {
-      result = SDP_DI_REG_FAILED;
+      result = tSDP_STATUS::SDP_DI_REG_FAILED;
     }
   }
 
   /* mandatory */
-  if (result == SDP_SUCCESS) {
+  if (result == tSDP_STATUS::SDP_SUCCESS) {
     p_temp = temp_u16;
     UINT16_TO_BE_STREAM(p_temp, p_device_info->product);
     if (!(SDP_AddAttribute(handle, ATTR_ID_PRODUCT_ID, UINT_DESC_TYPE,
                            sizeof(p_device_info->product), temp_u16))) {
-      result = SDP_DI_REG_FAILED;
+      result = tSDP_STATUS::SDP_DI_REG_FAILED;
     }
   }
 
   /* mandatory */
-  if (result == SDP_SUCCESS) {
+  if (result == tSDP_STATUS::SDP_SUCCESS) {
     p_temp = temp_u16;
     UINT16_TO_BE_STREAM(p_temp, p_device_info->version);
     if (!(SDP_AddAttribute(handle, ATTR_ID_PRODUCT_VERSION, UINT_DESC_TYPE,
                            sizeof(p_device_info->version), temp_u16))) {
-      result = SDP_DI_REG_FAILED;
+      result = tSDP_STATUS::SDP_DI_REG_FAILED;
     }
   }
 
   /* mandatory */
-  if (result == SDP_SUCCESS) {
+  if (result == tSDP_STATUS::SDP_SUCCESS) {
     u8 = (uint8_t)p_device_info->primary_record;
     if (!(SDP_AddAttribute(handle, ATTR_ID_PRIMARY_RECORD, BOOLEAN_DESC_TYPE, 1, &u8))) {
-      result = SDP_DI_REG_FAILED;
+      result = tSDP_STATUS::SDP_DI_REG_FAILED;
     }
   }
 
   /* mandatory */
-  if (result == SDP_SUCCESS) {
+  if (result == tSDP_STATUS::SDP_SUCCESS) {
     p_temp = temp_u16;
     UINT16_TO_BE_STREAM(p_temp, p_device_info->vendor_id_source);
     if (!(SDP_AddAttribute(handle, ATTR_ID_VENDOR_ID_SOURCE, UINT_DESC_TYPE,
                            sizeof(p_device_info->vendor_id_source), temp_u16))) {
-      result = SDP_DI_REG_FAILED;
+      result = tSDP_STATUS::SDP_DI_REG_FAILED;
     }
   }
 
-  if (result != SDP_SUCCESS) {
+  if (result != tSDP_STATUS::SDP_SUCCESS) {
     SDP_DeleteRecord(handle);
   } else if (p_device_info->primary_record) {
     sdp_cb.server_db.di_primary_handle = handle;
@@ -1115,3 +1113,45 @@ const bluetooth::legacy::stack::sdp::tSdpApi*
 bluetooth::legacy::stack::sdp::get_legacy_stack_sdp_api() {
   return &api_;
 }
+
+extern void BTA_SdpDumpsys(int fd);
+
+#define DUMPSYS_TAG "shim::legacy::sdp"
+
+namespace {
+
+void SDP_DumpConnectionControlBlock(int fd, const tCONN_CB& conn_cb) {
+  if (conn_cb.device_address == RawAddress::kEmpty) {
+    return;
+  }
+  LOG_DUMPSYS(fd, "peer:%s discovery_state:%s", fmt::format("{}", conn_cb.device_address).c_str(),
+              sdp_disc_wait_text(conn_cb.disc_state).c_str());
+  LOG_DUMPSYS(fd, "  connection_state:%s connection_flags:0x%02x mtu:%hu l2cap_cid:%hu",
+              sdp_state_text(conn_cb.con_state).c_str(), conn_cb.con_flags, conn_cb.rem_mtu_size,
+              conn_cb.connection_id);
+
+  const uint64_t remaining_ms = alarm_get_remaining_ms(conn_cb.sdp_conn_timer);
+  if (remaining_ms) {
+    LOG_DUMPSYS(fd, "  timer_set:%Lu ms", static_cast<long long>(remaining_ms));
+  }
+  if (conn_cb.num_handles >= kMaxSdpRecords) {
+    LOG_DUMPSYS(fd, "  WARNING - Number handles:%hu exceeds max handles:%u", conn_cb.num_handles,
+                kMaxSdpRecords);
+  } else {
+    for (int i = 0; i < conn_cb.num_handles; i++) {
+      LOG_DUMPSYS(fd, "  handle:%u", conn_cb.handles[i]);
+    }
+  }
+}
+
+}  // namespace
+
+void SDP_Dumpsys(int fd) {
+  LOG_DUMPSYS_TITLE(fd, DUMPSYS_TAG);
+  LOG_DUMPSYS(fd, "max_attribute_list_size:%hu max_records_per_search:%hu",
+              sdp_cb.max_attr_list_size, sdp_cb.max_recs_per_search);
+  for (unsigned i = 0; i < kMaxSdpConnections; i++) {
+    SDP_DumpConnectionControlBlock(fd, sdp_cb.ccb[i]);
+  }
+}
+#undef DUMPSYS_TAG

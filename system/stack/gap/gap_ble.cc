@@ -22,14 +22,13 @@
 #include <array>
 #include <queue>
 
-#include "common/init_flags.h"
 #include "gap_api.h"
 #include "gatt_api.h"
 #include "hardware/bt_gatt_types.h"
-#include "os/log.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_status.h"
 #include "types/bluetooth/uuid.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
@@ -145,7 +144,7 @@ tGATT_STATUS read_attr_value(uint16_t handle, tGATT_VALUE* p_value, bool is_long
       switch (db_attr.uuid) {
         case GATT_UUID_GAP_DEVICE_NAME:
           if (get_btm_client_interface().local.BTM_ReadLocalDeviceName((const char**)&p_dev_name) !=
-              BTM_SUCCESS) {
+              tBTM_STATUS::BTM_SUCCESS) {
             log::warn("Unable to read local device name");
           };
           if (strlen((char*)p_dev_name) > GATT_MAX_ATTR_LEN) {
@@ -367,7 +366,7 @@ void client_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
       STREAM_TO_UINT16(latency, pp);
       STREAM_TO_UINT16(tout, pp);
 
-      BTM_BleSetPrefConnParams(p_clcb->bda, min, max, latency, tout);
+      get_btm_client_interface().ble.BTM_BleSetPrefConnParams(p_clcb->bda, min, max, latency, tout);
       /* release the connection here */
       cl_op_cmpl(*p_clcb, true, 0, NULL);
       break;
@@ -382,6 +381,14 @@ void client_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
 
     case GATT_UUID_GAP_CENTRAL_ADDR_RESOL:
       cl_op_cmpl(*p_clcb, true, 1, pp);
+      break;
+
+    case GATT_UUID_GAP_ICON:
+      cl_op_cmpl(*p_clcb, true, p_data->att_value.len, pp);
+      break;
+
+    default:
+      log::error("Unexpected operation {}", op);
       break;
   }
 }
@@ -516,7 +523,7 @@ void GAP_BleAttrDBUpdate(uint16_t attr_uuid, tGAP_BLE_ATTR_VALUE* p_value) {
 
         case GATT_UUID_GAP_DEVICE_NAME:
           if (get_btm_client_interface().local.BTM_SetLocalDeviceName(
-                      (const char*)p_value->p_dev_name) != BTM_SUCCESS) {
+                      (const char*)p_value->p_dev_name) != tBTM_STATUS::BTM_SUCCESS) {
             log::warn("Unable to set local name");
           }
           break;
@@ -558,6 +565,19 @@ bool GAP_BleReadPeerPrefConnParams(const RawAddress& peer_bda) {
  ******************************************************************************/
 bool GAP_BleReadPeerDevName(const RawAddress& peer_bda, tGAP_BLE_CMPL_CBACK* p_cback) {
   return accept_client_operation(peer_bda, GATT_UUID_GAP_DEVICE_NAME, p_cback);
+}
+
+/*******************************************************************************
+ *
+ * Function         GAP_BleReadPeerAppearance
+ *
+ * Description      Start a process to read a connected peripheral's appearance.
+ *
+ * Returns          true if request accepted
+ *
+ ******************************************************************************/
+bool GAP_BleReadPeerAppearance(const RawAddress& peer_bda, tGAP_BLE_CMPL_CBACK* p_cback) {
+  return accept_client_operation(peer_bda, GATT_UUID_GAP_ICON, p_cback);
 }
 
 /*******************************************************************************

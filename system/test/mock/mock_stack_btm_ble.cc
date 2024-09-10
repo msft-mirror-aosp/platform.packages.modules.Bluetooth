@@ -46,23 +46,18 @@ struct BTM_BlePasskeyReply BTM_BlePasskeyReply;
 struct BTM_BleReadPhy BTM_BleReadPhy;
 struct BTM_BleReceiverTest BTM_BleReceiverTest;
 struct BTM_BleSecureConnectionOobDataReply BTM_BleSecureConnectionOobDataReply;
-struct BTM_BleSetPhy BTM_BleSetPhy;
-struct BTM_BleSetPrefConnParams BTM_BleSetPrefConnParams;
 struct BTM_BleTestEnd BTM_BleTestEnd;
 struct BTM_BleTransmitterTest BTM_BleTransmitterTest;
 struct BTM_BleVerifySignature BTM_BleVerifySignature;
 struct BTM_GetDeviceDHK BTM_GetDeviceDHK;
 struct BTM_GetDeviceEncRoot BTM_GetDeviceEncRoot;
 struct BTM_GetDeviceIDRoot BTM_GetDeviceIDRoot;
-struct BTM_ReadConnectedTransportAddress BTM_ReadConnectedTransportAddress;
-struct BTM_ReadDevInfo BTM_ReadDevInfo;
 struct BTM_GetRemoteDeviceName BTM_GetRemoteDeviceName;
 struct BTM_SecAddBleDevice BTM_SecAddBleDevice;
 struct BTM_SecAddBleKey BTM_SecAddBleKey;
 struct BTM_SecurityGrant BTM_SecurityGrant;
-struct BTM_SetBleDataLength BTM_SetBleDataLength;
-struct BTM_UseLeLink BTM_UseLeLink;
 struct btm_ble_connected btm_ble_connected;
+struct btm_ble_connection_established btm_ble_connection_established;
 struct btm_ble_get_acl_remote_addr btm_ble_get_acl_remote_addr;
 struct btm_ble_get_enc_key_type btm_ble_get_enc_key_type;
 struct btm_ble_link_encrypted btm_ble_link_encrypted;
@@ -104,24 +99,21 @@ const Octet16 BTM_GetDeviceEncRoot::return_value{0xd5, 0xcb, 0x84, 0x54, 0xd1, 0
                                                  0xff, 0xff, 0xb2, 0xec, 0x71, 0x2b, 0xae, 0xab};
 const Octet16 BTM_GetDeviceIDRoot::return_value{0xd5, 0xcb, 0x84, 0x54, 0xd1, 0x77, 0x73, 0x3e,
                                                 0xff, 0xff, 0xb2, 0xec, 0x71, 0x2b, 0xae, 0xab};
-bool BTM_ReadConnectedTransportAddress::return_value = false;
-tBTM_STATUS BTM_SetBleDataLength::return_value = 0;
-bool BTM_UseLeLink::return_value = false;
 bool btm_ble_get_acl_remote_addr::return_value = false;
 bool btm_ble_get_enc_key_type::return_value = false;
 uint8_t btm_ble_read_sec_key_size::return_value = 0;
-tBTM_STATUS btm_ble_set_encryption::return_value = 0;
-tBTM_STATUS btm_ble_start_encrypt::return_value = 0;
-tBTM_STATUS btm_ble_start_sec_check::return_value = BTM_SUCCESS;
+tBTM_STATUS btm_ble_set_encryption::return_value = tBTM_STATUS::BTM_SUCCESS;
+tBTM_STATUS btm_ble_start_encrypt::return_value = tBTM_STATUS::BTM_SUCCESS;
+tBTM_STATUS btm_ble_start_sec_check::return_value = tBTM_STATUS::BTM_SUCCESS;
 bool btm_get_local_div::return_value = false;
-tBTM_STATUS btm_proc_smp_cback::return_value = 0;
+tBTM_STATUS btm_proc_smp_cback::return_value = tBTM_STATUS::BTM_SUCCESS;
 
 }  // namespace stack_btm_ble
 }  // namespace mock
 }  // namespace test
 
 // Mocked functions, if any
-void BTM_BleConfirmReply(const RawAddress& bd_addr, uint8_t res) {
+void BTM_BleConfirmReply(const RawAddress& bd_addr, tBTM_STATUS res) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_ble::BTM_BleConfirmReply(bd_addr, res);
 }
@@ -134,11 +126,11 @@ void BTM_BleLoadLocalKeys(uint8_t key_type, tBTM_BLE_LOCAL_KEYS* p_key) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_ble::BTM_BleLoadLocalKeys(key_type, p_key);
 }
-void BTM_BleOobDataReply(const RawAddress& bd_addr, uint8_t res, uint8_t len, uint8_t* p_data) {
+void BTM_BleOobDataReply(const RawAddress& bd_addr, tBTM_STATUS res, uint8_t len, uint8_t* p_data) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_ble::BTM_BleOobDataReply(bd_addr, res, len, p_data);
 }
-void BTM_BlePasskeyReply(const RawAddress& bd_addr, uint8_t res, uint32_t passkey) {
+void BTM_BlePasskeyReply(const RawAddress& bd_addr, tBTM_STATUS res, uint32_t passkey) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_ble::BTM_BlePasskeyReply(bd_addr, res, passkey);
 }
@@ -154,18 +146,6 @@ void BTM_BleReceiverTest(uint8_t rx_freq, tBTM_CMPL_CB* p_cmd_cmpl_cback) {
 void BTM_BleSecureConnectionOobDataReply(const RawAddress& bd_addr, uint8_t* p_c, uint8_t* p_r) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_ble::BTM_BleSecureConnectionOobDataReply(bd_addr, p_c, p_r);
-}
-void BTM_BleSetPhy(const RawAddress& bd_addr, uint8_t tx_phys, uint8_t rx_phys,
-                   uint16_t phy_options) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_ble::BTM_BleSetPhy(bd_addr, tx_phys, rx_phys, phy_options);
-}
-void BTM_BleSetPrefConnParams(const RawAddress& bd_addr, uint16_t min_conn_int,
-                              uint16_t max_conn_int, uint16_t peripheral_latency,
-                              uint16_t supervision_tout) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_ble::BTM_BleSetPrefConnParams(bd_addr, min_conn_int, max_conn_int,
-                                                      peripheral_latency, supervision_tout);
 }
 void BTM_BleTestEnd(tBTM_CMPL_CB* p_cmd_cmpl_cback) {
   inc_func_call_count(__func__);
@@ -194,15 +174,6 @@ const Octet16& BTM_GetDeviceIDRoot() {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_ble::BTM_GetDeviceIDRoot();
 }
-bool BTM_ReadConnectedTransportAddress(RawAddress* remote_bda, tBT_TRANSPORT transport) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_btm_ble::BTM_ReadConnectedTransportAddress(remote_bda, transport);
-}
-void BTM_ReadDevInfo(const RawAddress& remote_bda, tBT_DEVICE_TYPE* p_dev_type,
-                     tBLE_ADDR_TYPE* p_addr_type) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_ble::BTM_ReadDevInfo(remote_bda, p_dev_type, p_addr_type);
-}
 bool BTM_GetRemoteDeviceName(const RawAddress& bd_addr, BD_NAME bd_name) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_ble::BTM_GetRemoteDeviceName(bd_addr, bd_name);
@@ -217,17 +188,9 @@ void BTM_SecAddBleKey(const RawAddress& bd_addr, tBTM_LE_KEY_VALUE* p_le_key,
   inc_func_call_count(__func__);
   test::mock::stack_btm_ble::BTM_SecAddBleKey(bd_addr, p_le_key, key_type);
 }
-void BTM_SecurityGrant(const RawAddress& bd_addr, uint8_t res) {
+void BTM_SecurityGrant(const RawAddress& bd_addr, tBTM_STATUS res) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_ble::BTM_SecurityGrant(bd_addr, res);
-}
-tBTM_STATUS BTM_SetBleDataLength(const RawAddress& bd_addr, uint16_t tx_pdu_length) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_btm_ble::BTM_SetBleDataLength(bd_addr, tx_pdu_length);
-}
-bool BTM_UseLeLink(const RawAddress& bd_addr) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_btm_ble::BTM_UseLeLink(bd_addr);
 }
 void btm_ble_connected(const RawAddress& bda, uint16_t handle, uint8_t enc_mode, uint8_t role,
                        tBLE_ADDR_TYPE addr_type, bool addr_matched,
@@ -235,6 +198,10 @@ void btm_ble_connected(const RawAddress& bda, uint16_t handle, uint8_t enc_mode,
   inc_func_call_count(__func__);
   test::mock::stack_btm_ble::btm_ble_connected(bda, handle, enc_mode, role, addr_type, addr_matched,
                                                can_read_discoverable_characteristics);
+}
+void btm_ble_connection_established(const RawAddress& bda) {
+  inc_func_call_count(__func__);
+  test::mock::stack_btm_ble::btm_ble_connection_established(bda);
 }
 bool btm_ble_get_acl_remote_addr(uint16_t hci_handle, RawAddress& conn_addr,
                                  tBLE_ADDR_TYPE* p_addr_type) {
@@ -313,8 +280,7 @@ bool btm_get_local_div(const RawAddress& bd_addr, uint16_t* p_div) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_ble::btm_get_local_div(bd_addr, p_div);
 }
-tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
-                               const tSMP_EVT_DATA* p_data) {
+tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr, tSMP_EVT_DATA* p_data) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_ble::btm_proc_smp_cback(event, bd_addr, p_data);
 }

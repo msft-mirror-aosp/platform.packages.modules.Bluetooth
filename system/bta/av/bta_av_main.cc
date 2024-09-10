@@ -25,6 +25,7 @@
 #define LOG_TAG "bluetooth-a2dp"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
@@ -38,12 +39,12 @@
 #include "btif/include/btif_av_co.h"
 #include "btif/include/btif_config.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/properties.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/sdp_api.h"
 #include "storage/config_keys.h"
@@ -72,30 +73,6 @@ using namespace bluetooth;
 /* the delay time in milliseconds to retry role switch */
 #ifndef BTA_AV_RS_TIME_VAL
 #define BTA_AV_RS_TIME_VAL 1000
-#endif
-
-#ifndef AVRCP_VERSION_PROPERTY
-#define AVRCP_VERSION_PROPERTY "persist.bluetooth.avrcpversion"
-#endif
-
-#ifndef AVRCP_1_6_STRING
-#define AVRCP_1_6_STRING "avrcp16"
-#endif
-
-#ifndef AVRCP_1_5_STRING
-#define AVRCP_1_5_STRING "avrcp15"
-#endif
-
-#ifndef AVRCP_1_4_STRING
-#define AVRCP_1_4_STRING "avrcp14"
-#endif
-
-#ifndef AVRCP_1_3_STRING
-#define AVRCP_1_3_STRING "avrcp13"
-#endif
-
-#ifndef AVRCP_DEFAULT_VERSION
-#define AVRCP_DEFAULT_VERSION AVRCP_1_5_STRING
 #endif
 
 /* state machine states */
@@ -175,9 +152,10 @@ static void bta_av_api_enable(tBTA_AV_DATA* p_data) {
     // deregister from AVDT
     bta_ar_dereg_avdt();
 
-    // deregister from AVCT
+    // deregister from AVRC
     bta_ar_dereg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL);
     bta_ar_dereg_avrc(UUID_SERVCLASS_AV_REM_CTRL_TARGET);
+    // deregister from AVCT
     bta_ar_dereg_avct();
   }
 
@@ -465,17 +443,15 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
   reg_data.app_id = p_data->api_reg.app_id;
   reg_data.chnl = (tBTA_AV_CHNL)p_data->hdr.layer_specific;
 
-  char avrcp_version[PROPERTY_VALUE_MAX] = {0};
-  osi_property_get(AVRCP_VERSION_PROPERTY, avrcp_version, AVRCP_DEFAULT_VERSION);
-  log::info("AVRCP version used for sdp: \"{}\"", avrcp_version);
-
+  const uint16_t avrcp_version = AVRC_GetProfileVersion();
+  log::info("AVRCP version used for sdp: 0x{:x}", avrcp_version);
   uint16_t profile_initialized = p_data->api_reg.service_uuid;
   if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
     p_bta_av_cfg = get_bta_avk_cfg();
   } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
     p_bta_av_cfg = &bta_av_cfg;
 
-    if (!strncmp(AVRCP_1_3_STRING, avrcp_version, sizeof(AVRCP_1_3_STRING))) {
+    if (avrcp_version == AVRC_REV_1_3) {
       log::info("AVRCP 1.3 capabilites used");
       p_bta_av_cfg = &bta_av_cfg_compatibility;
     }
@@ -523,35 +499,37 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
          */
         bta_ar_reg_avct();
 
-        /* For the Audio Sink role we support additional TG to support
-         * absolute volume.
-         */
-        if (is_new_avrcp_enabled()) {
-          log::verbose(
-                  "newavrcp is the owner of the AVRCP Target SDP record. Don't "
-                  "create the SDP record");
-        } else {
-          log::verbose("newavrcp is not enabled. Create SDP record");
-
-          uint16_t profile_version = AVRC_REV_1_0;
-          if (!strncmp(AVRCP_1_6_STRING, avrcp_version, sizeof(AVRCP_1_6_STRING))) {
-            profile_version = AVRC_REV_1_6;
-          } else if (!strncmp(AVRCP_1_5_STRING, avrcp_version, sizeof(AVRCP_1_5_STRING))) {
-            profile_version = AVRC_REV_1_5;
-          } else if (!strncmp(AVRCP_1_3_STRING, avrcp_version, sizeof(AVRCP_1_3_STRING))) {
-            profile_version = AVRC_REV_1_3;
-          } else {
-            profile_version = AVRC_REV_1_4;
-          }
-          if (btif_av_src_sink_coexist_enabled()) {
-            bta_ar_reg_avrc_for_src_sink_coexist(
-                    UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
-                    p_bta_av_cfg->avrc_tg_cat, static_cast<tBTA_SYS_ID>(BTA_ID_AV + local_role),
-                    (bta_av_cb.features & BTA_AV_FEAT_BROWSE), profile_version);
-          } else {
-            bta_ar_reg_avrc(UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
+        if (com::android::bluetooth::flags::avrcp_sdp_records()) {
+          // Add target record for
+          // a) A2DP sink profile. or
+          // b) A2DP source profile only if new avrcp service is disabled.
+          if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK ||
+              (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE && !is_new_avrcp_enabled())) {
+            bta_ar_reg_avrc(UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", "",
                             p_bta_av_cfg->avrc_tg_cat, (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                            profile_version);
+                            avrcp_version);
+          }
+        } else {
+          /* For the Audio Sink role we support additional TG to support
+           * absolute volume.
+           */
+          if (is_new_avrcp_enabled()) {
+            log::verbose(
+                    "newavrcp is the owner of the AVRCP Target SDP record. Don't "
+                    "create the SDP record");
+          } else {
+            log::verbose("newavrcp is not enabled. Create SDP record");
+
+            if (btif_av_src_sink_coexist_enabled()) {
+              bta_ar_reg_avrc_for_src_sink_coexist(
+                      UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
+                      p_bta_av_cfg->avrc_tg_cat, static_cast<tBTA_SYS_ID>(BTA_ID_AV + local_role),
+                      (bta_av_cb.features & BTA_AV_FEAT_BROWSE), avrcp_version);
+            } else {
+              bta_ar_reg_avrc(UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
+                              p_bta_av_cfg->avrc_tg_cat, (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
+                              avrcp_version);
+            }
           }
         }
       }
@@ -682,30 +660,55 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
           bta_ar_reg_avct();
           bta_av_rc_create(&bta_av_cb, AVCT_ACP, 0, BTA_AV_NUM_LINKS + 1);
         }
-        /* create an SDP record as AVRC CT. We create 1.3 for SOURCE
-         * because we rely on feature bits being scanned by external
-         * devices more than the profile version itself.
-         *
-         * We create 1.4 for SINK since we support browsing.
-         */
-        if (btif_av_src_sink_coexist_enabled()) {
-          if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
-            bta_ar_reg_avrc_for_src_sink_coexist(
-                    UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL, p_bta_av_cfg->avrc_ct_cat,
-                    BTA_ID_AV, (bta_av_cb.features & BTA_AV_FEAT_BROWSE), AVRC_REV_1_5);
-          } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
-            bta_ar_reg_avrc_for_src_sink_coexist(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
-                                                 p_bta_av_cfg->avrc_ct_cat, BTA_ID_AVK,
-                                                 (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                                                 AVRC_GetControlProfileVersion());
+        if (com::android::bluetooth::flags::avrcp_sdp_records()) {
+          // Add control record for sink profile.
+          // Also adds control record for source profile when new avrcp service is not enabled.
+          if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK ||
+              (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE && !is_new_avrcp_enabled())) {
+            uint16_t control_version = AVRC_GetControlProfileVersion();
+            /* Create an SDP record as AVRC CT. We create 1.3 for SOURCE
+             * because we rely on feature bits being scanned by external
+             * devices more than the profile version itself.
+             */
+            if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE && !is_new_avrcp_enabled()) {
+              control_version = AVRC_REV_1_3;
+            }
+            if (!btif_av_src_sink_coexist_enabled() &&
+                profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
+              control_version = AVRC_REV_1_6;
+            }
+            bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, "AV Remote Control", "",
+                            p_bta_av_cfg->avrc_ct_cat, (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
+                            control_version);
           }
         } else {
-          if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE && !is_new_avrcp_enabled()) {
-            bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL, p_bta_av_cfg->avrc_ct_cat,
-                            (bta_av_cb.features & BTA_AV_FEAT_BROWSE), AVRC_REV_1_3);
-          } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
-            bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL, p_bta_av_cfg->avrc_ct_cat,
-                            (bta_av_cb.features & BTA_AV_FEAT_BROWSE), AVRC_REV_1_6);
+          /* create an SDP record as AVRC CT. We create 1.3 for SOURCE
+           * because we rely on feature bits being scanned by external
+           * devices more than the profile version itself.
+           *
+           * We create 1.4 for SINK since we support browsing.
+           */
+          if (btif_av_src_sink_coexist_enabled()) {
+            if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
+              bta_ar_reg_avrc_for_src_sink_coexist(
+                      UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL, p_bta_av_cfg->avrc_ct_cat,
+                      BTA_ID_AV, (bta_av_cb.features & BTA_AV_FEAT_BROWSE), AVRC_REV_1_5);
+            } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
+              bta_ar_reg_avrc_for_src_sink_coexist(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
+                                                   p_bta_av_cfg->avrc_ct_cat, BTA_ID_AVK,
+                                                   (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
+                                                   AVRC_GetControlProfileVersion());
+            }
+          } else {
+            if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE && !is_new_avrcp_enabled()) {
+              bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
+                              p_bta_av_cfg->avrc_ct_cat, (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
+                              AVRC_REV_1_3);
+            } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
+              bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
+                              p_bta_av_cfg->avrc_ct_cat, (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
+                              AVRC_REV_1_6);
+            }
           }
         }
       }
@@ -724,8 +727,7 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
         (bta_av_cb.reg_role & (1 << AVDT_TSEP_SRC))) {
       p_bta_av_cfg = &bta_av_cfg;
 
-      if (!strncmp(AVRCP_1_3_STRING, avrcp_version,
-                   sizeof(AVRCP_1_3_STRING))) {  // ver if need
+      if (avrcp_version == AVRC_REV_1_3) {  // ver if need
         log::verbose("AVRCP 1.3 capabilites used");
         p_bta_av_cfg = &bta_av_cfg_compatibility;
       }
@@ -872,7 +874,8 @@ void bta_av_restore_switch(void) {
     mask = BTA_AV_HNDL_TO_MSK(i);
     if (p_cb->conn_audio == mask) {
       if (p_cb->p_scb[i]) {
-        BTM_unblock_role_switch_for(p_cb->p_scb[i]->PeerAddress());
+        get_btm_client_interface().link_policy.BTM_unblock_role_switch_for(
+                p_cb->p_scb[i]->PeerAddress());
       }
       break;
     }
@@ -918,9 +921,11 @@ static void bta_av_sys_rs_cback(tBTA_SYS_CONN_STATUS /* status */, tHCI_ROLE new
   }
 
   /* restore role switch policy, if role switch failed */
-  if ((HCI_SUCCESS != hci_status) && (BTM_GetRole(peer_addr, &cur_role) == BTM_SUCCESS) &&
+  if ((HCI_SUCCESS != hci_status) &&
+      (get_btm_client_interface().link_policy.BTM_GetRole(peer_addr, &cur_role) ==
+       tBTM_STATUS::BTM_SUCCESS) &&
       (cur_role == HCI_ROLE_PERIPHERAL)) {
-    BTM_unblock_role_switch_for(peer_addr);
+    get_btm_client_interface().link_policy.BTM_unblock_role_switch_for(peer_addr);
   }
 
   /* if BTA_AvOpen() was called for other device, which caused the role switch
@@ -1038,12 +1043,12 @@ bool bta_av_switch_if_needed(tBTA_AV_SCB* p_scb) {
     if (p_scbi && (p_scb->hdi != i) &&   /* not the original channel */
         ((bta_av_cb.conn_audio & mask))) /* connected audio */
     {
-      BTM_GetRole(p_scbi->PeerAddress(), &role);
+      get_btm_client_interface().link_policy.BTM_GetRole(p_scbi->PeerAddress(), &role);
       /* this channel is open - clear the role switch link policy for this link
        */
       if (HCI_ROLE_CENTRAL != role) {
         if (bta_av_cb.features & BTA_AV_FEAT_CENTRAL)
-          BTM_block_role_switch_for(p_scbi->PeerAddress());
+          get_btm_client_interface().link_policy.BTM_block_role_switch_for(p_scbi->PeerAddress());
         if (BTM_CMD_STARTED !=
             BTM_SwitchRole(p_scbi->PeerAddress(), HCI_ROLE_CENTRAL)) {
           /* can not switch role on SCBI
@@ -1075,7 +1080,8 @@ bool bta_av_switch_if_needed(tBTA_AV_SCB* p_scb) {
  ******************************************************************************/
 bool bta_av_link_role_ok(tBTA_AV_SCB* p_scb, uint8_t bits) {
   tHCI_ROLE role;
-  if (BTM_GetRole(p_scb->PeerAddress(), &role) != BTM_SUCCESS) {
+  if (get_btm_client_interface().link_policy.BTM_GetRole(p_scb->PeerAddress(), &role) !=
+      tBTM_STATUS::BTM_SUCCESS) {
     log::warn("Unable to find link role for device:{}", p_scb->PeerAddress());
     return true;
   }
@@ -1086,12 +1092,13 @@ bool bta_av_link_role_ok(tBTA_AV_SCB* p_scb, uint8_t bits) {
             "conn_audio:0x{:x} bits:{} features:0x{:x}",
             p_scb->PeerAddress(), p_scb->hndl, RoleText(role), bta_av_cb.conn_audio, bits,
             bta_av_cb.features);
-    const tBTM_STATUS status = BTM_SwitchRoleToCentral(p_scb->PeerAddress());
+    const tBTM_STATUS status =
+            get_btm_client_interface().link_policy.BTM_SwitchRoleToCentral(p_scb->PeerAddress());
     switch (status) {
-      case BTM_CMD_STARTED:
+      case tBTM_STATUS::BTM_CMD_STARTED:
         break;
-      case BTM_MODE_UNSUPPORTED:
-      case BTM_DEV_RESTRICT_LISTED:
+      case tBTM_STATUS::BTM_MODE_UNSUPPORTED:
+      case tBTM_STATUS::BTM_DEV_RESTRICT_LISTED:
         // Role switch can never happen, but indicate to caller
         // a result such that a timer will not start to repeatedly
         // try something not possible.

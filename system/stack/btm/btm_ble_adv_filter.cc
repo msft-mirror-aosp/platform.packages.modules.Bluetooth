@@ -22,11 +22,11 @@
 #include <bluetooth/log.h>
 
 #include "btm_ble_api.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_ble_int.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/btu_hcif.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -140,7 +140,8 @@ static void btm_flt_update_cb(uint8_t expected_ocf, tBTM_BLE_PF_CFG_CBACK cb, ui
     return;
   }
 
-  tBTM_STATUS btm_status = (status == 0) ? BTM_SUCCESS : BTM_ERR_PROCESSING;
+  tBTM_STATUS btm_status =
+          (status == 0) ? tBTM_STATUS::BTM_SUCCESS : tBTM_STATUS::BTM_ERR_PROCESSING;
 
   if (op_subcode == BTM_BLE_META_PF_FEAT_SEL) {
     cb.Run(num_avail, static_cast<tBTM_BLE_SCAN_COND_OP>(action), btm_status);
@@ -326,7 +327,7 @@ void BTM_BleAdvFilterParamSetup(tBTM_BLE_SCAN_COND_OP action, tBTM_BLE_PF_FILT_I
   uint8_t param[len], *p;
 
   if (!is_filtering_supported()) {
-    cb.Run(0, BTM_BLE_PF_ENABLE, btm_status_value(BTM_MODE_UNSUPPORTED));
+    cb.Run(0, BTM_BLE_PF_ENABLE, tBTM_STATUS::BTM_MODE_UNSUPPORTED);
     return;
   }
 
@@ -338,7 +339,7 @@ void BTM_BleAdvFilterParamSetup(tBTM_BLE_SCAN_COND_OP action, tBTM_BLE_PF_FILT_I
     p_bda_filter = btm_ble_find_addr_filter_counter(nullptr);
     if (NULL == p_bda_filter) {
       log::error("BD Address not found!");
-      cb.Run(0, BTM_BLE_PF_ENABLE, btm_status_value(BTM_UNKNOWN_ADDR));
+      cb.Run(0, BTM_BLE_PF_ENABLE, tBTM_STATUS::BTM_UNKNOWN_ADDR);
       return;
     }
 

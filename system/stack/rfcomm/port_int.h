@@ -31,7 +31,7 @@
 #include "internal_include/bt_target.h"
 #include "osi/include/alarm.h"
 #include "osi/include/fixed_queue.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_types.h"
 #include "stack/include/port_api.h"
 #include "stack/include/rfcdefs.h"
 #include "stack/rfcomm/rfc_state.h"
@@ -107,7 +107,7 @@ typedef struct {
  * RFCOMM Port Connection Control Block
  */
 typedef struct {
-  uint8_t state; /* Current state of the connection */
+  tRFC_PORT_STATE state; /* Current state of the connection */
 
 #define RFC_RSP_PN 0x01
 #define RFC_RSP_RPN_REPLY 0x02

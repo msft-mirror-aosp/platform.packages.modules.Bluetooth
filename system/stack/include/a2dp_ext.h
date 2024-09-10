@@ -33,15 +33,15 @@ public:
 
   bool init() override { return false; }
   bool useRtpHeaderMarkerBit() const override { return false; }
-  bool setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
-                      uint8_t* p_result_codec_config) override;
+  tA2DP_STATUS setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
+                              uint8_t* p_result_codec_config) override;
   bool setPeerCodecCapabilities(const uint8_t* p_peer_codec_capabilities) override;
 
   const std::vector<uint8_t>& getVendorCodecParameters() const {
     return vendor_specific_parameters_;
   }
 
-  void setVendorSpecificParameters(std::vector<uint8_t> const& parameters) {}
+  void setVendorSpecificParameters(std::vector<uint8_t> const& /* parameters */) {}
 
   void setCodecConfig(btav_a2dp_codec_config_t codec_parameters,
                       uint8_t const codec_config[AVDT_CODEC_SIZE],

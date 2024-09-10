@@ -41,6 +41,7 @@ using bluetooth::hci::IsoManager;
 using bluetooth::le_audio::BasicAudioAnnouncementData;
 using testing::_;
 using testing::Mock;
+using testing::Return;
 using testing::SaveArg;
 using testing::Test;
 
@@ -118,13 +119,13 @@ protected:
 
     ON_CALL(*mock_ble_advertising_manager_, StartAdvertisingSet)
             .WillByDefault([this](uint8_t client_id, int reg_id,
-                                  BleAdvertiserInterface::IdTxPowerStatusCallback register_cb,
-                                  AdvertiseParameters params, std::vector<uint8_t> advertise_data,
+                                  ::BleAdvertiserInterface::IdTxPowerStatusCallback register_cb,
+                                  ::AdvertiseParameters params, std::vector<uint8_t> advertise_data,
                                   std::vector<uint8_t> scan_response_data,
-                                  PeriodicAdvertisingParameters periodic_params,
+                                  ::PeriodicAdvertisingParameters periodic_params,
                                   std::vector<uint8_t> periodic_data, uint16_t duration,
                                   uint8_t maxExtAdvEvents,
-                                  BleAdvertiserInterface::IdStatusCallback timeout_cb) {
+                                  ::BleAdvertiserInterface::IdStatusCallback timeout_cb) {
               static uint8_t advertiser_id = 1;
               uint8_t tx_power = 32;
               uint8_t status = 0;
@@ -135,15 +136,15 @@ protected:
 
     ON_CALL(*mock_ble_advertising_manager_, Enable)
             .WillByDefault([this](uint8_t advertiser_id, bool enable,
-                                  BleAdvertiserInterface::StatusCallback cb, uint16_t duration,
+                                  ::BleAdvertiserInterface::StatusCallback cb, uint16_t duration,
                                   uint8_t maxExtAdvEvents,
-                                  BleAdvertiserInterface::StatusCallback timeout_cb) {
+                                  ::BleAdvertiserInterface::StatusCallback timeout_cb) {
               uint8_t status = 0;
               this->adv_callbacks_->OnAdvertisingEnabled(advertiser_id, enable, status);
             });
 
     ON_CALL(*mock_ble_advertising_manager_, GetOwnAddress)
-            .WillByDefault([](uint8_t inst_id, BleAdvertiserInterface::GetAddressCallback cb) {
+            .WillByDefault([](uint8_t inst_id, ::BleAdvertiserInterface::GetAddressCallback cb) {
               uint8_t address_type = 0x02;
               RawAddress address;
               const uint8_t addr[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
@@ -153,14 +154,14 @@ protected:
 
     ON_CALL(*mock_ble_advertising_manager_, SetData)
             .WillByDefault([this](int advertiser_id, bool set_scan_rsp, std::vector<uint8_t> data,
-                                  BleAdvertiserInterface::StatusCallback cb) {
+                                  ::BleAdvertiserInterface::StatusCallback cb) {
               uint8_t status = 0;
               this->adv_callbacks_->OnAdvertisingDataSet(advertiser_id, status);
             });
 
     ON_CALL(*mock_ble_advertising_manager_, SetPeriodicAdvertisingData)
             .WillByDefault([this](int advertiser_id, std::vector<uint8_t> data,
-                                  BleAdvertiserInterface::StatusCallback cb) {
+                                  ::BleAdvertiserInterface::StatusCallback cb) {
               uint8_t status = 0;
               this->adv_callbacks_->OnPeriodicAdvertisingDataSet(advertiser_id, status);
             });
@@ -307,6 +308,7 @@ protected:
   }
 
   void TearDown() override {
+    com::android::bluetooth::flags::provider_->reset_flags();
     iso_manager_->Stop();
     mock_iso_manager_ = nullptr;
     Mock::VerifyAndClearExpectations(sm_callbacks_.get());
@@ -362,13 +364,13 @@ protected:
 TEST_F(StateMachineTest, CreateInstanceFailed) {
   EXPECT_CALL(*mock_ble_advertising_manager_, StartAdvertisingSet)
           .WillOnce([this](uint8_t client_id, int reg_id,
-                           BleAdvertiserInterface::IdTxPowerStatusCallback register_cb,
-                           AdvertiseParameters params, std::vector<uint8_t> advertise_data,
+                           ::BleAdvertiserInterface::IdTxPowerStatusCallback register_cb,
+                           ::AdvertiseParameters params, std::vector<uint8_t> advertise_data,
                            std::vector<uint8_t> scan_response_data,
-                           PeriodicAdvertisingParameters periodic_params,
+                           ::PeriodicAdvertisingParameters periodic_params,
                            std::vector<uint8_t> periodic_data, uint16_t duration,
                            uint8_t maxExtAdvEvents,
-                           BleAdvertiserInterface::IdStatusCallback timeout_cb) {
+                           ::BleAdvertiserInterface::IdStatusCallback timeout_cb) {
             uint8_t advertiser_id = 1;
             uint8_t tx_power = 0;
             uint8_t status = 1;
@@ -512,9 +514,9 @@ TEST_F(StateMachineTest, UpdateAnnouncement) {
   ASSERT_EQ(first_len + types::LeAudioLtvMap(metadata).RawPacketSize(), second_len);
 }
 
-TEST_F_WITH_FLAGS(
-        StateMachineTest, UpdateBroadcastAnnouncementWithCallback,
-        REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, leaudio_broadcast_update_metadata_callback))) {
+TEST_F(StateMachineTest, UpdateBroadcastAnnouncementWithCallback) {
+  com::android::bluetooth::flags::provider_->leaudio_broadcast_update_metadata_callback(true);
+
   EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineCreateStatus(_, true)).Times(1);
 
   auto broadcast_id = InstantiateStateMachine();
@@ -534,9 +536,9 @@ TEST_F_WITH_FLAGS(
   ASSERT_EQ(announcement, broadcasts_[broadcast_id]->GetBroadcastAnnouncement());
 }
 
-TEST_F_WITH_FLAGS(
-        StateMachineTest, UpdatePublicBroadcastAnnouncementWithCallback,
-        REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, leaudio_broadcast_update_metadata_callback))) {
+TEST_F(StateMachineTest, UpdatePublicBroadcastAnnouncementWithCallback) {
+  com::android::bluetooth::flags::provider_->leaudio_broadcast_update_metadata_callback(true);
+
   EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineCreateStatus(_, true)).Times(1);
 
   auto broadcast_id = InstantiateStateMachine();
@@ -641,6 +643,98 @@ TEST_F(StateMachineTest, ProcessMessageSuspendWhenConfigured) {
   broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::SUSPEND);
   // There shall be no change in state
   ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::CONFIGURED);
+}
+
+TEST_F(StateMachineTest, ProcessMessageSuspendWhenConfiguredLateBigCreateCompleteEvent) {
+  EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineCreateStatus(_, true)).Times(1);
+
+  auto broadcast_id =
+          InstantiateStateMachine(bluetooth::le_audio::types::LeAudioContextType::MEDIA);
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::CONFIGURED);
+
+  /* Hold start process on BIG create */
+  EXPECT_CALL(*mock_iso_manager_, CreateBig(_, _)).WillOnce(Return());
+  broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::START);
+
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::ENABLING);
+
+  EXPECT_CALL(*mock_iso_manager_, TerminateBig(_, _)).Times(1);
+  broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::SUSPEND);
+
+  /* Inject late BIG create complete event */
+  big_create_cmpl_evt evt;
+  evt.big_id = broadcasts_[broadcast_id]->GetAdvertisingSid();
+  broadcasts_[broadcast_id]->HandleHciEvent(HCI_BLE_CREATE_BIG_CPL_EVT, &evt);
+
+  EXPECT_CALL(*mock_iso_manager_, SetupIsoDataPath).Times(0);
+  EXPECT_CALL(*mock_iso_manager_, RemoveIsoDataPath).Times(0);
+  EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineEvent(broadcast_id, _, _)).Times(0);
+  // There shall be no change in state
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::CONFIGURED);
+}
+
+TEST_F(StateMachineTest, ProcessMessageSuspendWhenConfiguredLateIsoDataPathSetUp) {
+  EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineCreateStatus(_, true)).Times(1);
+
+  auto broadcast_id =
+          InstantiateStateMachine(bluetooth::le_audio::types::LeAudioContextType::MEDIA);
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::CONFIGURED);
+
+  /* Hold start process on Setup Iso Data Path BIG create */
+  EXPECT_CALL(*mock_iso_manager_, SetupIsoDataPath(_, _)).WillOnce(Return());
+  broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::START);
+
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::ENABLING);
+
+  EXPECT_CALL(*mock_iso_manager_, TerminateBig(_, _)).Times(1);
+  broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::SUSPEND);
+
+  EXPECT_CALL(*mock_iso_manager_, SetupIsoDataPath).Times(0);
+  EXPECT_CALL(*mock_iso_manager_, RemoveIsoDataPath).Times(0);
+  EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineEvent(broadcast_id, _, _)).Times(0);
+  // There shall be no change in state
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::CONFIGURED);
+}
+
+TEST_F(StateMachineTest, ProcessMessageDoubleResumeWhenConfiguredLateBigCreateCompleteEvent) {
+  EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineCreateStatus(_, true)).Times(1);
+
+  auto broadcast_id =
+          InstantiateStateMachine(bluetooth::le_audio::types::LeAudioContextType::MEDIA);
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::CONFIGURED);
+
+  /* Hold start process on BIG create */
+  EXPECT_CALL(*mock_iso_manager_, CreateBig(_, _)).WillOnce(Return());
+  broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::START);
+
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::ENABLING);
+
+  EXPECT_CALL(*mock_iso_manager_, TerminateBig(_, _)).Times(0);
+  broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::SUSPEND);
+
+  /* Broadcast is resumed again before getting BIG created event */
+  EXPECT_CALL(*(sm_callbacks_.get()),
+              OnStateMachineEvent(broadcast_id, BroadcastStateMachine::State::STREAMING, _))
+          .Times(1);
+  broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::START);
+
+  /* Inject late BIG create complete event */
+  // For test convenience lets encode big_id into conn_hdl MSB.
+  // NOTE: In current implementation big_id is equal to advertising SID.
+  //       This is an important detail exploited by the IsoManager mock
+  static uint8_t conn_lsb = 1;
+  uint16_t conn_msb = ((uint16_t)broadcasts_[broadcast_id]->GetAdvertisingSid()) << 8;
+
+  big_create_cmpl_evt evt;
+  evt.big_id = broadcasts_[broadcast_id]->GetAdvertisingSid();
+  evt.conn_handles.push_back(conn_msb | conn_lsb++);
+  broadcasts_[broadcast_id]->HandleHciEvent(HCI_BLE_CREATE_BIG_CPL_EVT, &evt);
+
+  EXPECT_CALL(*mock_iso_manager_, SetupIsoDataPath).Times(0);
+  EXPECT_CALL(*mock_iso_manager_, RemoveIsoDataPath).Times(0);
+  EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineEvent(broadcast_id, _, _)).Times(0);
+
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::STREAMING);
 }
 
 TEST_F(StateMachineTest, ProcessMessageStartWhenStreaming) {
@@ -924,20 +1018,20 @@ TEST_F(StateMachineTest, GetPublicBroadcastAnnouncement) {
 }
 
 TEST_F(StateMachineTest, AnnouncementTest) {
-  AdvertiseParameters adv_params;
+  ::AdvertiseParameters adv_params;
   std::vector<uint8_t> a_data;
   std::vector<uint8_t> p_data;
 
   EXPECT_CALL(*mock_ble_advertising_manager_, StartAdvertisingSet)
           .WillOnce([this, &p_data, &a_data, &adv_params](
                             uint8_t client_id, int reg_id,
-                            BleAdvertiserInterface::IdTxPowerStatusCallback register_cb,
-                            AdvertiseParameters params, std::vector<uint8_t> advertise_data,
+                            ::BleAdvertiserInterface::IdTxPowerStatusCallback register_cb,
+                            ::AdvertiseParameters params, std::vector<uint8_t> advertise_data,
                             std::vector<uint8_t> scan_response_data,
-                            PeriodicAdvertisingParameters periodic_params,
+                            ::PeriodicAdvertisingParameters periodic_params,
                             std::vector<uint8_t> periodic_data, uint16_t duration,
                             uint8_t maxExtAdvEvents,
-                            BleAdvertiserInterface::IdStatusCallback timeout_cb) {
+                            ::BleAdvertiserInterface::IdStatusCallback timeout_cb) {
             uint8_t advertiser_id = 1;
             uint8_t tx_power = 0;
             uint8_t status = 0;
@@ -985,7 +1079,7 @@ TEST_F(StateMachineTest, AnnouncementTest) {
 TEST_F(StateMachineTest, GetMetadataBeforeGettingAddress) {
   unsigned int broadcast_id = 0;
 
-  BleAdvertiserInterface::GetAddressCallback cb;
+  ::BleAdvertiserInterface::GetAddressCallback cb;
 
   /* Address should be already known after notifying callback recipients */
   EXPECT_CALL(*(sm_callbacks_.get()),

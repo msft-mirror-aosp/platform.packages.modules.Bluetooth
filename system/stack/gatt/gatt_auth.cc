@@ -23,6 +23,7 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include "gatt_api.h"
@@ -35,6 +36,7 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_sec_api.h"
+#include "stack/include/btm_status.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -174,7 +176,7 @@ static void gatt_enc_cmpl_cback(RawAddress bd_addr, tBT_TRANSPORT transport, voi
 
   if (p_clcb != NULL) {
     bool status = false;
-    if (result == BTM_SUCCESS) {
+    if (result == tBTM_STATUS::BTM_SUCCESS) {
       if (gatt_get_sec_act(p_tcb) == GATT_SEC_ENCRYPT_MITM) {
         status = BTM_IsLinkKeyAuthed(bd_addr, transport);
       } else {
@@ -214,9 +216,17 @@ void gatt_notify_enc_cmpl(const RawAddress& bd_addr) {
     return;
   }
 
-  for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
-    if (gatt_cb.cl_rcb[i].in_use && gatt_cb.cl_rcb[i].app_cb.p_enc_cmpl_cb) {
-      (*gatt_cb.cl_rcb[i].app_cb.p_enc_cmpl_cb)(gatt_cb.cl_rcb[i].gatt_if, bd_addr);
+  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+    for (auto& [i, p_rcb] : gatt_cb.cl_rcb_map) {
+      if (p_rcb->app_cb.p_enc_cmpl_cb) {
+        (*p_rcb->app_cb.p_enc_cmpl_cb)(p_rcb->gatt_if, bd_addr);
+      }
+    }
+  } else {
+    for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
+      if (gatt_cb.cl_rcb[i].in_use && gatt_cb.cl_rcb[i].app_cb.p_enc_cmpl_cb) {
+        (*gatt_cb.cl_rcb[i].app_cb.p_enc_cmpl_cb)(gatt_cb.cl_rcb[i].gatt_if, bd_addr);
+      }
     }
   }
 
@@ -423,7 +433,8 @@ bool gatt_security_check_start(tGATT_CLCB* p_clcb) {
         gatt_convert_sec_action(gatt_sec_act, &btm_ble_sec_act);
         tBTM_STATUS btm_status = BTM_SetEncryption(p_tcb->peer_bda, p_tcb->transport,
                                                    gatt_enc_cmpl_cback, NULL, btm_ble_sec_act);
-        if ((btm_status != BTM_SUCCESS) && (btm_status != BTM_CMD_STARTED)) {
+        if ((btm_status != tBTM_STATUS::BTM_SUCCESS) &&
+            (btm_status != tBTM_STATUS::BTM_CMD_STARTED)) {
           log::error("BTM_SetEncryption failed btm_status={}", btm_status);
           gatt_set_sec_act(p_tcb, GATT_SEC_NONE);
           gatt_set_ch_state(p_tcb, GATT_CH_OPEN);

@@ -24,7 +24,6 @@
 
 #include <string>
 
-#include "common/init_flags.h"
 #include "common/strings.h"
 #include "hal/hci_hal.h"
 #include "hci/acl_manager.h"
@@ -40,14 +39,13 @@
 #endif
 #include "hci/remote_name_request.h"
 #include "main/shim/acl.h"
-#include "main/shim/acl_legacy_interface.h"
+#include "main/shim/acl_interface.h"
 #include "main/shim/distance_measurement_manager.h"
 #include "main/shim/entry.h"
 #include "main/shim/hci_layer.h"
 #include "main/shim/le_advertising_manager.h"
 #include "main/shim/le_scanning_manager.h"
 #include "metrics/counter_metrics.h"
-#include "os/log.h"
 #include "shim/dumpsys.h"
 #include "storage/storage_module.h"
 #if TARGET_FLOSS
@@ -57,11 +55,10 @@
 namespace bluetooth {
 namespace shim {
 
-using ::bluetooth::common::InitFlags;
 using ::bluetooth::common::StringFormat;
 
 struct Stack::impl {
-  legacy::Acl* acl_ = nullptr;
+  Acl* acl_ = nullptr;
 };
 
 Stack::Stack() { pimpl_ = std::make_shared<Stack::impl>(); }
@@ -77,14 +74,14 @@ void Stack::StartEverything() {
   log::info("Starting Gd stack");
   ModuleList modules;
 
+#if TARGET_FLOSS
+  modules.add<sysprops::SyspropsModule>();
+#endif
   modules.add<metrics::CounterMetrics>();
   modules.add<hal::HciHal>();
   modules.add<hci::HciLayer>();
   modules.add<storage::StorageModule>();
   modules.add<shim::Dumpsys>();
-#if TARGET_FLOSS
-  modules.add<sysprops::SyspropsModule>();
-#endif
 
   modules.add<hci::Controller>();
   modules.add<hci::acl_manager::AclScheduler>();
@@ -105,9 +102,9 @@ void Stack::StartEverything() {
   log::assert_that(stack_manager_.GetInstance<shim::Dumpsys>() != nullptr,
                    "assert failed: stack_manager_.GetInstance<shim::Dumpsys>() != nullptr");
   if (stack_manager_.IsStarted<hci::Controller>()) {
-    pimpl_->acl_ = new legacy::Acl(stack_handler_, legacy::GetAclInterface(),
-                                   GetController()->GetLeFilterAcceptListSize(),
-                                   GetController()->GetLeResolvingListSize());
+    pimpl_->acl_ =
+            new Acl(stack_handler_, GetAclInterface(), GetController()->GetLeFilterAcceptListSize(),
+                    GetController()->GetLeResolvingListSize());
   } else {
     log::error("Unable to create shim ACL layer as Controller has not started");
   }
@@ -188,7 +185,7 @@ const StackManager* Stack::GetStackManager() const {
   return &stack_manager_;
 }
 
-legacy::Acl* Stack::GetAcl() {
+Acl* Stack::GetAcl() {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   log::assert_that(is_running_, "assert failed: is_running_");
   log::assert_that(pimpl_->acl_ != nullptr, "Acl shim layer has not been created");

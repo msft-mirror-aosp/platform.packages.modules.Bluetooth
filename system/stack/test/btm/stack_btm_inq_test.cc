@@ -27,14 +27,13 @@
 #include "hci/hci_packets.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/include/btm_inq.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/inq_hci_link_interface.h"
 #include "stack/include/main_thread.h"
 #include "stack/test/btm/btm_test_fixtures.h"
-#include "test/fake/fake_looper.h"
+#include "test/common/mock_functions.h"
 #include "test/mock/mock_main_shim_entry.h"
-#include "test/mock/mock_osi_allocator.h"
-#include "test/mock/mock_osi_thread.h"
 #include "types/raw_address.h"
 
 extern tBTM_CB btm_cb;
@@ -110,78 +109,6 @@ protected:
   void TearDown() override { BtmInqTest::TearDown(); }
 };
 
-TEST_F(BtmInqActiveTest, btm_process_remote_name__typical) {
-  btm_process_remote_name(&kRawAddress, kBdName, 0, HCI_SUCCESS);
-  ASSERT_FALSE(btm_cb.rnr.p_remname_cmpl_cb);
-  ASSERT_FALSE(btm_cb.rnr.remname_active);
-  ASSERT_EQ(btm_cb.rnr.remname_bda, RawAddress::kEmpty);
-  ASSERT_EQ(btm_cb.rnr.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
-
-  ASSERT_TRUE(gBTM_REMOTE_DEV_NAME_sent);
-  ASSERT_EQ(BTM_SUCCESS, gBTM_REMOTE_DEV_NAME.status);
-  ASSERT_EQ(HCI_SUCCESS, gBTM_REMOTE_DEV_NAME.hci_status);
-  ASSERT_EQ(kRawAddress, gBTM_REMOTE_DEV_NAME.bd_addr);
-  ASSERT_STREQ((char*)kBdName, (char*)gBTM_REMOTE_DEV_NAME.remote_bd_name);
-}
-
-TEST_F(BtmInqActiveTest, btm_process_remote_name__no_name) {
-  btm_process_remote_name(&kRawAddress, nullptr, 0, HCI_SUCCESS);
-  ASSERT_FALSE(btm_cb.rnr.p_remname_cmpl_cb);
-  ASSERT_FALSE(btm_cb.rnr.remname_active);
-  ASSERT_EQ(btm_cb.rnr.remname_bda, RawAddress::kEmpty);
-  ASSERT_EQ(btm_cb.rnr.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
-
-  ASSERT_TRUE(gBTM_REMOTE_DEV_NAME_sent);
-  ASSERT_EQ(BTM_SUCCESS, gBTM_REMOTE_DEV_NAME.status);
-  ASSERT_EQ(HCI_SUCCESS, gBTM_REMOTE_DEV_NAME.hci_status);
-  ASSERT_EQ(kRawAddress, gBTM_REMOTE_DEV_NAME.bd_addr);
-  ASSERT_STREQ((char*)kEmptyName, (char*)gBTM_REMOTE_DEV_NAME.remote_bd_name);
-}
-
-TEST_F(BtmInqActiveTest, btm_process_remote_name__bad_status) {
-  btm_process_remote_name(&kRawAddress, kBdName, 0, HCI_ERR_PAGE_TIMEOUT);
-  ASSERT_FALSE(btm_cb.rnr.p_remname_cmpl_cb);
-  ASSERT_FALSE(btm_cb.rnr.remname_active);
-  ASSERT_EQ(btm_cb.rnr.remname_bda, RawAddress::kEmpty);
-  ASSERT_EQ(btm_cb.rnr.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
-
-  ASSERT_TRUE(gBTM_REMOTE_DEV_NAME_sent);
-  ASSERT_EQ(BTM_BAD_VALUE_RET, gBTM_REMOTE_DEV_NAME.status);
-  ASSERT_EQ(HCI_ERR_PAGE_TIMEOUT, gBTM_REMOTE_DEV_NAME.hci_status);
-  ASSERT_EQ(kRawAddress, gBTM_REMOTE_DEV_NAME.bd_addr);
-  ASSERT_STREQ((char*)kEmptyName, (char*)gBTM_REMOTE_DEV_NAME.remote_bd_name);
-}
-
-TEST_F(BtmInqActiveTest, btm_process_remote_name__no_address) {
-  btm_process_remote_name(nullptr, kBdName, 0, HCI_SUCCESS);
-  ASSERT_FALSE(btm_cb.rnr.p_remname_cmpl_cb);
-  ASSERT_FALSE(btm_cb.rnr.remname_active);
-  ASSERT_EQ(btm_cb.rnr.remname_bda, RawAddress::kEmpty);
-  ASSERT_EQ(btm_cb.rnr.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
-
-  ASSERT_TRUE(gBTM_REMOTE_DEV_NAME_sent);
-  ASSERT_EQ(BTM_SUCCESS, gBTM_REMOTE_DEV_NAME.status);
-  ASSERT_EQ(HCI_SUCCESS, gBTM_REMOTE_DEV_NAME.hci_status);
-  ASSERT_EQ(RawAddress::kEmpty, gBTM_REMOTE_DEV_NAME.bd_addr);
-  ASSERT_STREQ((char*)kBdName, (char*)gBTM_REMOTE_DEV_NAME.remote_bd_name);
-}
-
-TEST_F(BtmInqActiveTest, btm_process_remote_name__different_address) {
-  btm_cb.rnr.remname_bda = kRawAddress2;
-  btm_process_remote_name(&kRawAddress, kBdName, 0, HCI_SUCCESS);
-  ASSERT_TRUE(btm_cb.rnr.p_remname_cmpl_cb);
-  ASSERT_TRUE(btm_cb.rnr.remname_active);
-  ASSERT_NE(btm_cb.rnr.remname_bda, RawAddress::kEmpty);
-  ASSERT_NE(btm_cb.rnr.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(0, get_func_call_count("alarm_cancel"));
-
-  ASSERT_FALSE(gBTM_REMOTE_DEV_NAME_sent);
-}
-
 class BtmInquiryCallbacks {
 public:
   virtual ~BtmInquiryCallbacks() = default;
@@ -216,7 +143,7 @@ protected:
     bluetooth::hci::testing::mock_hci_layer_ = &hci_layer_;
 
     // Start Inquiry
-    EXPECT_EQ(BTM_CMD_STARTED, BTM_StartInquiry(btm_inq_results_cb, btm_inq_cmpl_cb));
+    EXPECT_EQ(tBTM_STATUS::BTM_CMD_STARTED, BTM_StartInquiry(btm_inq_results_cb, btm_inq_cmpl_cb));
     auto view = hci_layer_.GetCommand(OpCode::INQUIRY);
     hci_layer_.IncomingEvent(
             InquiryStatusBuilder::Create(bluetooth::hci::ErrorCode::SUCCESS, kNumCommandPackets));

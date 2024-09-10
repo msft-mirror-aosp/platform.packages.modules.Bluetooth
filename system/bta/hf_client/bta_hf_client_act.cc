@@ -24,10 +24,11 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/include/bta_dm_api.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/port_api.h"
 #include "stack/include/sdp_status.h"
 #include "types/bt_transport.h"
@@ -61,7 +62,8 @@ void bta_hf_client_start_close(tBTA_HF_CLIENT_DATA* p_data) {
 
   /* Take the link out of sniff and set L2C idle time to 0 */
   bta_dm_pm_active(client_cb->peer_addr);
-  if (!L2CA_SetIdleTimeoutByBdAddr(client_cb->peer_addr, 0, BT_TRANSPORT_BR_EDR)) {
+  if (!stack::l2cap::get_interface().L2CA_SetIdleTimeoutByBdAddr(client_cb->peer_addr, 0,
+                                                                 BT_TRANSPORT_BR_EDR)) {
     log::warn("Unable to set L2CAP idle timeout peer:{} transport:{} timeout:{}",
               client_cb->peer_addr, bt_transport_text(BT_TRANSPORT_BR_EDR), 0);
   }
@@ -100,13 +102,22 @@ void bta_hf_client_start_open(tBTA_HF_CLIENT_DATA* p_data) {
   }
 
   /* Check if RFCOMM has any incoming connection to avoid collision. */
-  RawAddress pending_bd_addr = RawAddress::kEmpty;
-  if (PORT_IsOpening(&pending_bd_addr)) {
-    /* Let the incoming connection goes through.                        */
-    /* Issue collision for now.                                         */
-    /* We will decide what to do when we find incoming connection later.*/
-    bta_hf_client_collision_cback(BTA_SYS_CONN_OPEN, BTA_ID_HS, 0, client_cb->peer_addr);
-    return;
+  if (com::android::bluetooth::flags::rfcomm_prevent_unnecessary_collisions()) {
+    if (PORT_IsCollisionDetected(client_cb->peer_addr)) {
+      /* Let the incoming connection go through.                          */
+      /* Issue collision for now.                                         */
+      /* We will decide what to do when we find incoming connection later.*/
+      bta_hf_client_collision_cback(BTA_SYS_CONN_OPEN, BTA_ID_HS, 0, client_cb->peer_addr);
+    }
+  } else {
+    RawAddress pending_bd_addr = RawAddress::kEmpty;
+    if (PORT_IsOpening(&pending_bd_addr)) {
+      /* Let the incoming connection go through.                          */
+      /* Issue collision for now.                                         */
+      /* We will decide what to do when we find incoming connection later.*/
+      bta_hf_client_collision_cback(BTA_SYS_CONN_OPEN, BTA_ID_HS, 0, client_cb->peer_addr);
+      return;
+    }
   }
 
   /* set role */
@@ -320,7 +331,8 @@ void bta_hf_client_disc_int_res(tBTA_HF_CLIENT_DATA* p_data) {
   }
 
   /* if found service */
-  if (p_data->disc_result.status == SDP_SUCCESS || p_data->disc_result.status == SDP_DB_FULL) {
+  if (p_data->disc_result.status == tSDP_STATUS::SDP_SUCCESS ||
+      p_data->disc_result.status == tSDP_STATUS::SDP_DB_FULL) {
     /* get attributes */
     if (bta_hf_client_sdp_find_attr(client_cb)) {
       event = BTA_HF_CLIENT_DISC_OK_EVT;
@@ -352,7 +364,8 @@ void bta_hf_client_disc_acp_res(tBTA_HF_CLIENT_DATA* p_data) {
   }
 
   /* if found service */
-  if (p_data->disc_result.status == SDP_SUCCESS || p_data->disc_result.status == SDP_DB_FULL) {
+  if (p_data->disc_result.status == tSDP_STATUS::SDP_SUCCESS ||
+      p_data->disc_result.status == tSDP_STATUS::SDP_DB_FULL) {
     /* get attributes */
     bta_hf_client_sdp_find_attr(client_cb);
   }

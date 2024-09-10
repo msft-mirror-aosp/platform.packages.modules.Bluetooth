@@ -124,11 +124,10 @@ static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityOpus(const tA2DP_OPUS_CIE* p_
 // |p_ie| is a pointer to the Opus Codec Information Element information.
 // The result is stored in |p_result|. Returns A2DP_SUCCESS on success,
 // otherwise the corresponding A2DP error status code.
-static tA2DP_STATUS A2DP_BuildInfoOpus(uint8_t media_type, const tA2DP_OPUS_CIE* p_ie,
-                                       uint8_t* p_result) {
+static bool A2DP_BuildInfoOpus(uint8_t media_type, const tA2DP_OPUS_CIE* p_ie, uint8_t* p_result) {
   if (p_ie == NULL || p_result == NULL) {
     log::error("invalid information element");
-    return A2DP_INVALID_PARAMS;
+    return false;
   }
 
   *p_result++ = A2DP_OPUS_CODEC_LEN;
@@ -147,24 +146,24 @@ static tA2DP_STATUS A2DP_BuildInfoOpus(uint8_t media_type, const tA2DP_OPUS_CIE*
   *p_result |= (uint8_t)(p_ie->channelMode) & A2DP_OPUS_CHANNEL_MODE_MASK;
   if ((*p_result & A2DP_OPUS_CHANNEL_MODE_MASK) == 0) {
     log::error("channelmode 0x{:X} setting failed", p_ie->channelMode);
-    return A2DP_INVALID_PARAMS;
+    return false;
   }
 
   *p_result |= ((uint8_t)(p_ie->future1) & A2DP_OPUS_FRAMESIZE_MASK);
   if ((*p_result & A2DP_OPUS_FRAMESIZE_MASK) == 0) {
     log::error("frameSize 0x{:X} setting failed", p_ie->future1);
-    return A2DP_INVALID_PARAMS;
+    return false;
   }
 
   *p_result |= ((uint8_t)(p_ie->sampleRate) & A2DP_OPUS_SAMPLING_FREQ_MASK);
   if ((*p_result & A2DP_OPUS_SAMPLING_FREQ_MASK) == 0) {
     log::error("samplerate 0x{:X} setting failed", p_ie->sampleRate);
-    return A2DP_INVALID_PARAMS;
+    return false;
   }
 
   p_result++;
 
-  return A2DP_SUCCESS;
+  return true;
 }
 
 // Parses the Opus Media Codec Capabilities byte sequence beginning from the
@@ -181,22 +180,22 @@ static tA2DP_STATUS A2DP_ParseInfoOpus(tA2DP_OPUS_CIE* p_ie, const uint8_t* p_co
 
   if (p_ie == NULL || p_codec_info == NULL) {
     log::error("unable to parse information element");
-    return A2DP_INVALID_PARAMS;
+    return AVDTP_UNSUPPORTED_CONFIGURATION;
   }
 
   // Check the codec capability length
   losc = *p_codec_info++;
   if (losc != A2DP_OPUS_CODEC_LEN) {
     log::error("invalid codec ie length {}", losc);
-    return A2DP_WRONG_CODEC;
+    return AVDTP_UNSUPPORTED_CONFIGURATION;
   }
 
   media_type = (*p_codec_info++) >> 4;
-  codec_type = *p_codec_info++;
+  codec_type = static_cast<tA2DP_CODEC_TYPE>(*p_codec_info++);
   /* Check the Media Type and Media Codec Type */
   if (media_type != AVDT_MEDIA_TYPE_AUDIO || codec_type != A2DP_MEDIA_CT_NON_A2DP) {
     log::error("invalid codec");
-    return A2DP_WRONG_CODEC;
+    return AVDTP_UNSUPPORTED_CONFIGURATION;
   }
 
   // Check the Vendor ID and Codec ID */
@@ -208,7 +207,7 @@ static tA2DP_STATUS A2DP_ParseInfoOpus(tA2DP_OPUS_CIE* p_ie, const uint8_t* p_co
   p_codec_info += 2;
   if (p_ie->vendorId != A2DP_OPUS_VENDOR_ID || p_ie->codecId != A2DP_OPUS_CODEC_ID) {
     log::error("wrong vendor or codec id");
-    return A2DP_WRONG_CODEC;
+    return AVDTP_UNSUPPORTED_CONFIGURATION;
   }
 
   p_ie->channelMode = *p_codec_info & A2DP_OPUS_CHANNEL_MODE_MASK;
@@ -221,11 +220,11 @@ static tA2DP_STATUS A2DP_ParseInfoOpus(tA2DP_OPUS_CIE* p_ie, const uint8_t* p_co
     // pedantic checks specific to the SRC or SNK as specified in the spec.
     if (A2DP_BitsSet(p_ie->sampleRate) == A2DP_SET_ZERO_BIT) {
       log::error("invalid sample rate 0x{:X}", p_ie->sampleRate);
-      return A2DP_BAD_SAMP_FREQ;
+      return A2DP_INVALID_SAMPLING_FREQUENCY;
     }
     if (A2DP_BitsSet(p_ie->channelMode) == A2DP_SET_ZERO_BIT) {
       log::error("invalid channel mode");
-      return A2DP_BAD_CH_MODE;
+      return A2DP_INVALID_CHANNEL_MODE;
     }
 
     return A2DP_SUCCESS;
@@ -233,11 +232,11 @@ static tA2DP_STATUS A2DP_ParseInfoOpus(tA2DP_OPUS_CIE* p_ie, const uint8_t* p_co
 
   if (A2DP_BitsSet(p_ie->sampleRate) != A2DP_SET_ONE_BIT) {
     log::error("invalid sampling frequency 0x{:X}", p_ie->sampleRate);
-    return A2DP_BAD_SAMP_FREQ;
+    return A2DP_INVALID_SAMPLING_FREQUENCY;
   }
   if (A2DP_BitsSet(p_ie->channelMode) != A2DP_SET_ONE_BIT) {
     log::error("invalid channel mode.");
-    return A2DP_BAD_CH_MODE;
+    return A2DP_INVALID_CHANNEL_MODE;
   }
 
   return A2DP_SUCCESS;
@@ -277,13 +276,8 @@ bool A2DP_IsCodecValidOpus(const uint8_t* p_codec_info) {
          (A2DP_ParseInfoOpus(&cfg_cie, p_codec_info, true) == A2DP_SUCCESS);
 }
 
-bool A2DP_IsVendorSinkCodecSupportedOpus(const uint8_t* p_codec_info) {
-  return A2DP_CodecInfoMatchesCapabilityOpus(&a2dp_opus_sink_caps, p_codec_info, false) ==
-         A2DP_SUCCESS;
-}
-bool A2DP_IsPeerSourceCodecSupportedOpus(const uint8_t* p_codec_info) {
-  return A2DP_CodecInfoMatchesCapabilityOpus(&a2dp_opus_sink_caps, p_codec_info, true) ==
-         A2DP_SUCCESS;
+tA2DP_STATUS A2DP_IsVendorSinkCodecSupportedOpus(const uint8_t* p_codec_info) {
+  return A2DP_CodecInfoMatchesCapabilityOpus(&a2dp_opus_sink_caps, p_codec_info, false);
 }
 
 // Checks whether A2DP Opus codec configuration matches with a device's codec
@@ -317,17 +311,17 @@ static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityOpus(const tA2DP_OPUS_CIE* p_
 
   /* sampling frequency */
   if ((cfg_cie.sampleRate & p_cap->sampleRate) == 0) {
-    return A2DP_NS_SAMP_FREQ;
+    return A2DP_NOT_SUPPORTED_SAMPLING_FREQUENCY;
   }
 
   /* channel mode */
   if ((cfg_cie.channelMode & p_cap->channelMode) == 0) {
-    return A2DP_NS_CH_MODE;
+    return A2DP_NOT_SUPPORTED_CHANNEL_MODE;
   }
 
   /* frameSize */
   if ((cfg_cie.future1 & p_cap->future1) == 0) {
-    return A2DP_NS_FRAMESIZE;
+    return A2DP_INVALID_CODEC_PARAMETER;
   }
 
   return A2DP_SUCCESS;
@@ -629,40 +623,11 @@ const char* A2DP_VendorCodecIndexStrOpus(void) { return "Opus"; }
 const char* A2DP_VendorCodecIndexStrOpusSink(void) { return "Opus SINK"; }
 
 bool A2DP_VendorInitCodecConfigOpus(AvdtpSepConfig* p_cfg) {
-  if (A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &a2dp_opus_source_caps, p_cfg->codec_info) !=
-      A2DP_SUCCESS) {
-    return false;
-  }
-
-  return true;
+  return A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &a2dp_opus_source_caps, p_cfg->codec_info);
 }
 
 bool A2DP_VendorInitCodecConfigOpusSink(AvdtpSepConfig* p_cfg) {
-  return A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &a2dp_opus_sink_caps, p_cfg->codec_info) ==
-         A2DP_SUCCESS;
-}
-
-UNUSED_ATTR static void build_codec_config(const tA2DP_OPUS_CIE& config_cie,
-                                           btav_a2dp_codec_config_t* result) {
-  if (config_cie.sampleRate & A2DP_OPUS_SAMPLING_FREQ_48000) {
-    result->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-  }
-
-  result->bits_per_sample = config_cie.bits_per_sample;
-
-  if (config_cie.channelMode & A2DP_OPUS_CHANNEL_MODE_MONO) {
-    result->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
-  }
-  if (config_cie.channelMode & A2DP_OPUS_CHANNEL_MODE_STEREO) {
-    result->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  }
-
-  if (config_cie.future1 & A2DP_OPUS_20MS_FRAMESIZE) {
-    result->codec_specific_1 |= BTAV_A2DP_CODEC_FRAME_SIZE_20MS;
-  }
-  if (config_cie.future1 & A2DP_OPUS_10MS_FRAMESIZE) {
-    result->codec_specific_1 |= BTAV_A2DP_CODEC_FRAME_SIZE_10MS;
-  }
+  return A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &a2dp_opus_sink_caps, p_cfg->codec_info);
 }
 
 A2dpCodecConfigOpusSource::A2dpCodecConfigOpusSource(btav_a2dp_codec_priority_t codec_priority)
@@ -684,10 +649,6 @@ A2dpCodecConfigOpusSource::A2dpCodecConfigOpusSource(btav_a2dp_codec_priority_t 
 A2dpCodecConfigOpusSource::~A2dpCodecConfigOpusSource() {}
 
 bool A2dpCodecConfigOpusSource::init() {
-  if (!isValid()) {
-    return false;
-  }
-
   return true;
 }
 
@@ -855,8 +816,9 @@ static bool select_audio_channel_mode(const btav_a2dp_codec_config_t* p_codec_au
   return false;
 }
 
-bool A2dpCodecConfigOpusBase::setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
-                                             uint8_t* p_result_codec_config) {
+tA2DP_STATUS A2dpCodecConfigOpusBase::setCodecConfig(const uint8_t* p_peer_codec_info,
+                                                     bool is_capability,
+                                                     uint8_t* p_result_codec_config) {
   std::lock_guard<std::recursive_mutex> lock(codec_mutex_);
   tA2DP_OPUS_CIE peer_info_cie;
   tA2DP_OPUS_CIE result_config_cie;
@@ -963,6 +925,7 @@ bool A2dpCodecConfigOpusBase::setCodecConfig(const uint8_t* p_peer_codec_info, b
   if (codec_config_.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_NONE) {
     log::error("cannot match sample frequency: local caps = 0x{:x} peer info = 0x{:x}",
                p_a2dp_opus_caps->sampleRate, peer_info_cie.sampleRate);
+    status = A2DP_NOT_SUPPORTED_SAMPLING_FREQUENCY;
     goto fail;
   }
 
@@ -1037,6 +1000,7 @@ bool A2dpCodecConfigOpusBase::setCodecConfig(const uint8_t* p_peer_codec_info, b
             "cannot match bits per sample: default = 0x{:x} user preference = "
             "0x{:x}",
             a2dp_opus_default_config.bits_per_sample, codec_user_config_.bits_per_sample);
+    status = A2DP_NOT_SUPPORTED_BIT_RATE;
     goto fail;
   }
 
@@ -1108,6 +1072,7 @@ bool A2dpCodecConfigOpusBase::setCodecConfig(const uint8_t* p_peer_codec_info, b
   if (codec_config_.channel_mode == BTAV_A2DP_CODEC_CHANNEL_MODE_NONE) {
     log::error("cannot match channel mode: local caps = 0x{:x} peer info = 0x{:x}",
                p_a2dp_opus_caps->channelMode, peer_info_cie.channelMode);
+    status = A2DP_NOT_SUPPORTED_CHANNEL_MODE;
     goto fail;
   }
 
@@ -1145,12 +1110,13 @@ bool A2dpCodecConfigOpusBase::setCodecConfig(const uint8_t* p_peer_codec_info, b
   if (codec_config_.codec_specific_1 == BTAV_A2DP_CODEC_FRAME_SIZE_NONE) {
     log::error("cannot match frame size: local caps = 0x{:x} peer info = 0x{:x}",
                p_a2dp_opus_caps->future1, peer_info_cie.future1);
+    status = A2DP_NOT_SUPPORTED_CODEC_PARAMETER;
     goto fail;
   }
 
-  if (A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, p_result_codec_config) !=
-      A2DP_SUCCESS) {
+  if (!A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, p_result_codec_config)) {
     log::error("failed to BuildInfoOpus for result_config_cie");
+    status = AVDTP_UNSUPPORTED_CONFIGURATION;
     goto fail;
   }
 
@@ -1173,15 +1139,18 @@ bool A2dpCodecConfigOpusBase::setCodecConfig(const uint8_t* p_peer_codec_info, b
   // Create a local copy of the peer codec capability, and the
   // result codec config.
   if (is_capability) {
-    status = A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_capability_);
+    log::assert_that(
+            A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_capability_),
+            "failed to build media codec capabilities");
   } else {
-    status = A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_config_);
+    log::assert_that(
+            A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_config_),
+            "failed to build media codec capabilities");
   }
-  log::assert_that(status == A2DP_SUCCESS, "assert failed: status == A2DP_SUCCESS");
 
-  status = A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, ota_codec_config_);
-  log::assert_that(status == A2DP_SUCCESS, "assert failed: status == A2DP_SUCCESS");
-  return true;
+  log::assert_that(A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, ota_codec_config_),
+                   "failed to build media codec capabilities");
+  return A2DP_SUCCESS;
 
 fail:
   // Restore the internal state
@@ -1194,7 +1163,7 @@ fail:
   memcpy(ota_codec_peer_capability_, saved_ota_codec_peer_capability,
          sizeof(ota_codec_peer_capability_));
   memcpy(ota_codec_peer_config_, saved_ota_codec_peer_config, sizeof(ota_codec_peer_config_));
-  return false;
+  return status;
 }
 
 bool A2dpCodecConfigOpusBase::setPeerCodecCapabilities(const uint8_t* p_peer_codec_capabilities) {
@@ -1236,8 +1205,9 @@ bool A2dpCodecConfigOpusBase::setPeerCodecCapabilities(const uint8_t* p_peer_cod
   }
 
   log::info("BuildInfoOpus for peer info cie for ota caps");
-  status = A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_capability_);
-  log::assert_that(status == A2DP_SUCCESS, "assert failed: status == A2DP_SUCCESS");
+  log::assert_that(
+          A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_capability_),
+          "failed to build media codec capabilities");
   return true;
 
 fail:
@@ -1255,10 +1225,6 @@ A2dpCodecConfigOpusSink::A2dpCodecConfigOpusSink(btav_a2dp_codec_priority_t code
 A2dpCodecConfigOpusSink::~A2dpCodecConfigOpusSink() {}
 
 bool A2dpCodecConfigOpusSink::init() {
-  if (!isValid()) {
-    return false;
-  }
-
   return true;
 }
 

@@ -17,6 +17,7 @@
 #include <base/location.h>
 #include <bluetooth/log.h>
 #include <fuzzer/FuzzedDataProvider.h>
+#include <gmock/gmock.h>
 
 #include <cstdint>
 #include <iostream>
@@ -103,6 +104,15 @@ public:
   FakeBtStack fake_stack;
 };
 
+class Mocks {
+public:
+  ::testing::NiceMock<bluetooth::rfcomm::MockRfcommCallback> mock_rfcomm_callback;
+
+  Mocks() { rfcomm_callback = &mock_rfcomm_callback; }
+
+  ~Mocks() { rfcomm_callback = nullptr; }
+};
+
 }  // namespace
 
 static int Cleanup(uint16_t* server_handle) { return RFCOMM_RemoveServer(*server_handle); }
@@ -176,7 +186,7 @@ static void FuzzAsClient(FuzzedDataProvider* fdp) {
   }
 
   // Simulating outbound connection confirm event
-  appl_info.pL2CA_ConnectCfm_Cb(kDummyCID, L2CAP_CONN_OK);
+  appl_info.pL2CA_ConnectCfm_Cb(kDummyCID, tL2CAP_CONN::L2CAP_CONN_OK);
 
   // Simulating configuration confirmation event
   tL2CAP_CFG_INFO cfg = {};
@@ -198,6 +208,7 @@ static void FuzzAsClient(FuzzedDataProvider* fdp) {
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   auto fakes = std::make_unique<Fakes>();
+  auto mocks = std::make_unique<Mocks>();
 
   FuzzedDataProvider fdp(data, size);
 

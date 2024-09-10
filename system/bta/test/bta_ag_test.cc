@@ -29,6 +29,7 @@
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_ag_swb_aptx.h"
 #include "hci/controller_interface_mock.h"
+#include "stack/include/btm_status.h"
 #include "test/common/main_handler.h"
 #include "test/common/mock_functions.h"
 #include "test/fake/fake_osi.h"
@@ -272,9 +273,17 @@ TEST_F_WITH_FLAGS(BtaAgCmdTest, at_hfp_cback__qcs_ev_codec_disabled,
 TEST_F_WITH_FLAGS(BtaAgCmdTest, at_hfp_cback__qcs_ev_codec_q0_enabled,
                   REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, hfp_codec_aptx_voice))) {
   reset_mock_btm_client_interface();
-  mock_btm_client_interface.sco.BTM_SetEScoMode = [](enh_esco_params_t* p_parms) -> tBTM_STATUS {
+  mock_btm_client_interface.sco.BTM_SetEScoMode =
+          [](enh_esco_params_t* /* p_parms */) -> tBTM_STATUS {
     inc_func_call_count("BTM_SetEScoMode");
-    return BTM_SUCCESS;
+    return tBTM_STATUS::BTM_SUCCESS;
+  };
+  mock_btm_client_interface.sco.BTM_CreateSco =
+          [](const RawAddress* /* remote_bda */, bool /* is_orig */, uint16_t /* pkt_types */,
+             uint16_t* /* p_sco_inx */, tBTM_SCO_CB* /* p_conn_cb */,
+             tBTM_SCO_CB* /* p_disc_cb */) -> tBTM_STATUS {
+    inc_func_call_count("BTM_CreateSco");
+    return tBTM_STATUS::BTM_CMD_STARTED;
   };
 
   tBTA_AG_SCB p_scb = {.peer_addr = addr,
@@ -307,7 +316,14 @@ TEST_F_WITH_FLAGS(BtaAgCmdTest, handle_swb_at_event__qcs_ev_codec_q1_fallback_to
   reset_mock_btm_client_interface();
   mock_btm_client_interface.sco.BTM_SetEScoMode = [](enh_esco_params_t* p_parms) -> tBTM_STATUS {
     inc_func_call_count("BTM_SetEScoMode");
-    return BTM_SUCCESS;
+    return tBTM_STATUS::BTM_SUCCESS;
+  };
+  mock_btm_client_interface.sco.BTM_CreateSco =
+          [](const RawAddress* /* remote_bda */, bool /* is_orig */, uint16_t /* pkt_types */,
+             uint16_t* /* p_sco_inx */, tBTM_SCO_CB* /* p_conn_cb */,
+             tBTM_SCO_CB* /* p_disc_cb */) -> tBTM_STATUS {
+    inc_func_call_count("BTM_CreateSco");
+    return tBTM_STATUS::BTM_CMD_STARTED;
   };
 
   tBTA_AG_SCB p_scb = {.peer_addr = addr,
@@ -336,17 +352,24 @@ TEST_F_WITH_FLAGS(BtaAgCmdTest, handle_swb_at_event__qcs_ev_codec_q1_fallback_to
   ASSERT_TRUE(enable_aptx_voice_property(false));
 }
 
+namespace {
+uint8_t data[3] = {1, 2, 3};
+}  // namespace
+
 class BtaAgScoTest : public BtaAgTest {
 protected:
   void SetUp() override {
     BtaAgTest::SetUp();
-    test::mock::stack_acl::BTM_ReadRemoteFeatures.body = [this](const RawAddress& addr) {
-      return this->data;
+    reset_mock_btm_client_interface();
+    mock_btm_client_interface.peer.BTM_ReadRemoteFeatures = [](const RawAddress& addr) {
+      inc_func_call_count("BTM_ReadRemoteFeatures");
+      return data;
     };
   }
-  void TearDown() override { BtaAgTest::TearDown(); }
-
-  uint8_t data[3] = {1, 2, 3};
+  void TearDown() override {
+    reset_mock_btm_client_interface();
+    BtaAgTest::TearDown();
+  }
 };
 
 TEST_F_WITH_FLAGS(BtaAgScoTest, codec_negotiate__aptx_state_on,

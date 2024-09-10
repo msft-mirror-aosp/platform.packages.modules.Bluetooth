@@ -37,6 +37,13 @@ flag {
 }
 
 flag {
+    name: "hfp_software_datapath"
+    namespace: "bluetooth"
+    description: "enable HFP software decode/encode data path"
+    bug: "362865563"
+}
+
+flag {
     name: "bta_ag_cmd_brsf_allow_uint32"
     namespace: "bluetooth"
     description: "Allow and ignore the RFU bits set to 0b1 rather than responding ERROR"
@@ -121,6 +128,46 @@ flag {
     namespace: "bluetooth"
     description: "Flag to ignore connect state notification from Native to Java layer when already connected"
     bug: "346679106"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "update_sco_state_correctly_on_rfcomm_disconnect_during_codec_nego"
+    namespace: "bluetooth"
+    description: "Flag to set the SCO state correctly on RFCOMM disconnection during Codec Negotiation"
+    bug: "351778741"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "update_active_device_in_band_ringtone"
+    namespace: "bluetooth"
+    description: "Active device update the in band ringtone, but how ringtone is played is still decided by the headset"
+    bug: "349318724"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "hfp_allow_volume_change_without_sco"
+    namespace: "bluetooth"
+    description: "Allow Audio Fwk to change SCO volume when HFP profile is connected and SCO not connected"
+    bug: "362313390"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "choose_wrong_hfp_codec_in_specific_config"
+    namespace: "bluetooth"
+    description: "Flag to fix codec selection in nego when the peer device only support NB and SWB."
+    bug: "354070098"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

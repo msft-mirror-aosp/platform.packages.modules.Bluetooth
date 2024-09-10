@@ -21,6 +21,7 @@
 #include <flag_macros.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <log/log.h>
 
 #include <algorithm>
 #include <chrono>
@@ -165,6 +166,7 @@ protected:
 class LeAdvertisingManagerTest : public ::testing::Test {
 protected:
   void SetUp() override {
+    __android_log_set_minimum_priority(ANDROID_LOG_VERBOSE);
     test_hci_layer_ = new HciLayerFake;  // Ownership is transferred to registry
     test_controller_ = new TestController;
     test_acl_manager_ = new TestAclManager;
@@ -182,6 +184,8 @@ protected:
   }
 
   void TearDown() override {
+    TEST_BT::provider_->reset_flags();
+
     sync_client_handler();
     fake_registry_.SynchronizeModuleHandler(&LeAdvertisingManager::Factory,
                                             std::chrono::milliseconds(20));
@@ -1620,10 +1624,10 @@ TEST_F(LeExtendedAdvertisingAPITest, trigger_advertiser_callbacks_if_started_whi
   auto test_le_address_manager = (TestLeAddressManager*)test_acl_manager_->GetLeAddressManager();
   auto id_promise = std::promise<uint8_t>{};
   auto id_future = id_promise.get_future();
-  le_advertising_manager_->RegisterAdvertiser(
-          client_handler_->BindOnce([](std::promise<uint8_t> promise, uint8_t id,
-                                       uint8_t /* _status */) { promise.set_value(id); },
-                                    std::move(id_promise)));
+  le_advertising_manager_->RegisterAdvertiser(client_handler_->BindOnce(
+          [](std::promise<uint8_t> promise, uint8_t id,
+             AdvertisingCallback::AdvertisingStatus /* _status */) { promise.set_value(id); },
+          std::move(id_promise)));
   sync_client_handler();
   auto set_id = id_future.get();
 
@@ -1833,9 +1837,9 @@ TEST_F(LeExtendedAdvertisingManagerTest, use_public_address_type_if_public_addre
   EXPECT_EQ(set_parameters_command.GetOwnAddressType(), OwnAddressType::PUBLIC_DEVICE_ADDRESS);
 }
 
-TEST_F_WITH_FLAGS(LeExtendedAdvertisingManagerTest,
-                  use_nrpa_if_public_address_policy_non_connectable,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, nrpa_non_connectable_adv))) {
+TEST_F(LeExtendedAdvertisingManagerTest, use_nrpa_if_public_address_policy_non_connectable) {
+  TEST_BT::provider_->nrpa_non_connectable_adv(true);
+
   // arrange: use PUBLIC address policy
   test_acl_manager_->SetAddressPolicy(LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS);
 
@@ -1867,9 +1871,9 @@ TEST_F_WITH_FLAGS(LeExtendedAdvertisingManagerTest,
   EXPECT_EQ(address.data()[5] >> 6, 0b00);
 }
 
-TEST_F_WITH_FLAGS(LeExtendedAdvertisingManagerTest,
-                  use_public_if_requested_with_public_address_policy_non_connectable,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, nrpa_non_connectable_adv))) {
+TEST_F(LeExtendedAdvertisingManagerTest,
+       use_public_if_requested_with_public_address_policy_non_connectable) {
+  TEST_BT::provider_->nrpa_non_connectable_adv(true);
   // arrange: use PUBLIC address policy
   test_acl_manager_->SetAddressPolicy(LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS);
 

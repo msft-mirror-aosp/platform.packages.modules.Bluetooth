@@ -138,7 +138,7 @@ bool L2CA_GetPeerLECocConfig(uint16_t lcid, tL2CAP_LE_CFG_INFO* peer_cfg) {
   return test::mock::stack_l2cap_api::L2CA_GetPeerLECocConfig(lcid, peer_cfg);
 }
 bool L2CA_ConnectCreditBasedRsp(const RawAddress& p_bd_addr, uint8_t id,
-                                std::vector<uint16_t>& accepted_lcids, uint16_t result,
+                                std::vector<uint16_t>& accepted_lcids, tL2CAP_LE_RESULT_CODE result,
                                 tL2CAP_LE_CFG_INFO* p_cfg) {
   inc_func_call_count(__func__);
   return test::mock::stack_l2cap_api::L2CA_ConnectCreditBasedRsp(p_bd_addr, id, accepted_lcids,

@@ -20,20 +20,17 @@
 
 #include <bluetooth/log.h>
 
-#include "common/init_flags.h"
-#include "main/shim/entry.h"
 #include "main/shim/hci_layer.h"
 #include "main/shim/stack.h"
-#include "os/log.h"
 #include "stack/include/main_thread.h"
 
 static const hci_t* hci;
 
 void btu_hci_msg_process(BT_HDR* p_msg);
 
-static void post_to_main_message_loop(const base::Location& from_here, BT_HDR* p_msg) {
-  if (do_in_main_thread(from_here, base::Bind(&btu_hci_msg_process, p_msg)) != BT_STATUS_SUCCESS) {
-    bluetooth::log::error(": do_in_main_thread failed from {}", from_here.ToString());
+static void post_to_main_message_loop(BT_HDR* p_msg) {
+  if (do_in_main_thread(base::Bind(&btu_hci_msg_process, p_msg)) != BT_STATUS_SUCCESS) {
+    bluetooth::log::error("do_in_main_thread failed");
   }
 }
 
@@ -65,8 +62,4 @@ bool bluetooth::shim::is_gd_stack_started_up() {
 
 bool bluetooth::shim::is_gd_dumpsys_module_started() {
   return bluetooth::shim::Stack::GetInstance()->IsDumpsysModuleStarted();
-}
-
-bool bluetooth::shim::is_classic_discovery_only_enabled() {
-  return bluetooth::common::init_flags::classic_discovery_only_is_enabled();
 }

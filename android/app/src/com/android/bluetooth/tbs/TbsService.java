@@ -17,8 +17,10 @@
 
 package com.android.bluetooth.tbs;
 
-import static com.android.bluetooth.Utils.enforceBluetoothPrivilegedPermission;
+import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
+import android.annotation.RequiresPermission;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothLeCall;
 import android.bluetooth.BluetoothProfile;
@@ -230,6 +232,7 @@ public class TbsService extends ProfileService {
             mService = null;
         }
 
+        @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
         private TbsService getService(AttributionSource source) {
             // Cache mService because it can change while getService is called
             TbsService service = mService;
@@ -240,7 +243,7 @@ public class TbsService extends ProfileService {
                 return null;
             }
 
-            enforceBluetoothPrivilegedPermission(service);
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
             return service;
         }
 
@@ -345,7 +348,7 @@ public class TbsService extends ProfileService {
                                 },
                                 0);
             } catch (RemoteException e) {
-                e.printStackTrace();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
 
@@ -424,7 +427,10 @@ public class TbsService extends ProfileService {
             } else {
                 accessString = "ACCESS_UNKNOWN";
             }
-            sb.append("\n\tDevice: " + entry.getKey() + ", access: " + accessString);
+            sb.append("\n\tDevice: ")
+                    .append(entry.getKey())
+                    .append(", access: ")
+                    .append(accessString);
         }
     }
 }
