@@ -155,6 +155,7 @@ public class BluetoothMapConvoContactElement
         this.mChatState = Integer.valueOf(chatState);
     }
 
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public String getLastActivityString() {
         SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
         Date date = new Date(mLastActivity);
@@ -165,6 +166,7 @@ public class BluetoothMapConvoContactElement
         this.mLastActivity = dateTime;
     }
 
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public void setLastActivity(String lastActivity) throws ParseException {
         SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
         Date date = format.parse(lastActivity);

@@ -347,11 +347,6 @@ public:
   // Reset and configure the ASHA resampling context using the input device
   // devices as reference for the BT clock estimation.
   void ConfigureAsrc() {
-    if (!com::android::bluetooth::flags::asha_asrc()) {
-      log::info("Asha resampling disabled: feature flag off");
-      return;
-    }
-
     // Create a new ASRC context if required.
     if (asrc == nullptr) {
       log::info("Configuring Asha resampler");
@@ -1413,19 +1408,11 @@ public:
       }
     }
 
-    uint16_t l2cap_flush_threshold = 0;
-
     // Skipping packets completely messes up the resampler context.
-    // The condition for skipping packets seems to be easily triggered,
-    // causing dropouts that could have been avoided.
-    //
-    // When the resampler is enabled, the flush threshold is set
-    // to the number of credits specified for the ASHA l2cap streaming
-    // channel. This will ensure it is only triggered in case of
-    // critical failure.
-    if (com::android::bluetooth::flags::asha_asrc()) {
-      l2cap_flush_threshold = 8;
-    }
+    // The flush threshold is set to the number of credits specified for the
+    // ASHA l2cap streaming channel. This will ensure it is only triggered in
+    // case of critical failure.
+    uint16_t l2cap_flush_threshold = 8;
 
     // TODO: monural, binarual check
 

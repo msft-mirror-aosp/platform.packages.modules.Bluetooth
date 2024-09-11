@@ -235,16 +235,6 @@ public class Config {
             }
         }
 
-        // TODO: b/321806163 Cleanup post the flag cleanup.
-        // Disable A2DP source profile for automotive devices only if sink is enabled and
-        // concurrent support is not enabled.
-        if (!Flags.a2dpConcurrentSourceSink()
-                && Utils.isAutomotive(ctx)
-                && A2dpSinkService.isEnabled()) {
-            setProfileEnabled(BluetoothProfile.A2DP, false);
-            setProfileEnabled(BluetoothProfile.AVRCP, false);
-        }
-
         // Disable ASHA if BLE is not supported on this platform even if the platform enabled ASHA
         // accidentally
         if (!Utils.isBleSupported(ctx)) {

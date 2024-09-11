@@ -79,7 +79,6 @@ public class BluetoothMapService extends ProfileService {
      */
 
     /** The component names for the owned provider and activity */
-
     private static final String MAP_FILE_PROVIDER = MmsFileProvider.class.getCanonicalName();
 
     /** Intent indicating timeout for user confirmation, which is sent to BluetoothMapActivity */

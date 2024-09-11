@@ -67,7 +67,7 @@
 #include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cap_security_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/main_thread.h"
@@ -1054,7 +1054,8 @@ tBTM_STATUS BTM_SetEncryption(const RawAddress& bd_addr, tBT_TRANSPORT transport
   switch (transport) {
     case BT_TRANSPORT_LE:
       if (get_btm_client_interface().peer.BTM_IsAclConnectionUp(bd_addr, BT_TRANSPORT_LE)) {
-        rc = btm_ble_set_encryption(bd_addr, sec_act, L2CA_GetBleConnRole(bd_addr));
+        rc = btm_ble_set_encryption(bd_addr, sec_act,
+                                    stack::l2cap::get_interface().L2CA_GetBleConnRole(bd_addr));
       } else {
         rc = tBTM_STATUS::BTM_WRONG_MODE;
         log::warn("cannot call btm_ble_set_encryption, p is NULL");
@@ -4996,7 +4997,8 @@ static bool btm_sec_use_smp_br_chnl(tBTM_SEC_DEV_REC* p_dev_rec) {
     return false;
   }
 
-  if (!L2CA_GetPeerFeatures(p_dev_rec->bd_addr, &ext_feat, chnl_mask)) {
+  if (!stack::l2cap::get_interface().L2CA_GetPeerFeatures(p_dev_rec->bd_addr, &ext_feat,
+                                                          chnl_mask)) {
     return false;
   }
 

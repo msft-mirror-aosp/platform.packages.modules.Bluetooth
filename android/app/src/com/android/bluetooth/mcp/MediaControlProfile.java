@@ -291,7 +291,6 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
         } else {
             mMediaPlayerList = new MediaPlayerList(Looper.myLooper(), mContext);
         }
-
     }
 
     @Override

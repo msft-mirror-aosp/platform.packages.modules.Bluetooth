@@ -806,6 +806,7 @@ pub struct SocketResultDBus {
     id: u64,
 }
 
+#[allow(dead_code)]
 struct IBluetoothSocketManagerCallbacksDBus {}
 
 #[dbus_proxy_obj(BluetoothSocketCallback, "org.chromium.bluetooth.SocketManagerCallback")]
@@ -840,6 +841,7 @@ impl IBluetoothSocketManagerCallbacks for IBluetoothSocketManagerCallbacksDBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBluetoothSocketManagerDBus {}
 
 #[generate_dbus_exporter(

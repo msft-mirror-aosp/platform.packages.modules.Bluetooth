@@ -1426,9 +1426,9 @@ public class ScanManagerTest {
                             true,
                             false,
                             BluetoothStatsLog
-                                .LE_APP_SCAN_STATE_CHANGED__SCAN_CALLBACK_TYPE__TYPE_ALL_MATCHES,
+                                    .LE_APP_SCAN_STATE_CHANGED__SCAN_CALLBACK_TYPE__TYPE_ALL_MATCHES,
                             BluetoothStatsLog
-                                .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR,
+                                    .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR,
                             loggedScanMode,
                             DEFAULT_REGULAR_SCAN_REPORT_DELAY_MS,
                             0,
@@ -1448,10 +1448,12 @@ public class ScanManagerTest {
                             eq(false),
                             eq(true),
                             eq(false),
-                            eq(BluetoothStatsLog
-                                .LE_APP_SCAN_STATE_CHANGED__SCAN_CALLBACK_TYPE__TYPE_ALL_MATCHES),
-                            eq(BluetoothStatsLog
-                                .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                            eq(
+                                    BluetoothStatsLog
+                                            .LE_APP_SCAN_STATE_CHANGED__SCAN_CALLBACK_TYPE__TYPE_ALL_MATCHES),
+                            eq(
+                                    BluetoothStatsLog
+                                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
                             eq(loggedScanMode),
                             eq((long) DEFAULT_REGULAR_SCAN_REPORT_DELAY_MS),
                             mScanDurationCaptor.capture(),
@@ -1511,10 +1513,12 @@ public class ScanManagerTest {
                 .logRadioScanStopped(
                         eq(new int[] {UID_1}),
                         eq(new String[] {PACKAGE_NAME_1}),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_POWER),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_POWER),
                         eq((long) ScanManager.SCAN_MODE_LOW_POWER_INTERVAL_MS),
                         eq((long) ScanManager.SCAN_MODE_LOW_POWER_WINDOW_MS),
                         eq(true),
@@ -1544,10 +1548,12 @@ public class ScanManagerTest {
                 .logRadioScanStopped(
                         eq(new int[] {UID_2}),
                         eq(new String[] {PACKAGE_NAME_2}),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_BALANCED),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_BALANCED),
                         eq((long) ScanManager.SCAN_MODE_BALANCED_INTERVAL_MS),
                         eq((long) ScanManager.SCAN_MODE_BALANCED_WINDOW_MS),
                         eq(true),
@@ -1600,10 +1606,12 @@ public class ScanManagerTest {
                 .logRadioScanStopped(
                         eq(new int[] {UID_3}),
                         eq(new String[] {PACKAGE_NAME_3}),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_LATENCY),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_LATENCY),
                         eq((long) ScanManager.SCAN_MODE_LOW_LATENCY_INTERVAL_MS),
                         eq((long) ScanManager.SCAN_MODE_LOW_LATENCY_WINDOW_MS),
                         eq(true),
@@ -1634,8 +1642,9 @@ public class ScanManagerTest {
                 .logRadioScanStopped(
                         eq(new int[] {mostAggressiveClient.appUid}),
                         eq(new String[] {TEST_PACKAGE_NAME + mostAggressiveClient.appUid}),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
                         eq(AppScanStats.convertScanMode(mostAggressiveClient.scanModeApp)),
                         eq((long) SCAN_MODE_SCREEN_OFF_LOW_POWER_INTERVAL_MS),
                         eq((long) SCAN_MODE_SCREEN_OFF_LOW_POWER_WINDOW_MS),
@@ -1674,10 +1683,12 @@ public class ScanManagerTest {
                 .logRadioScanStopped(
                         eq(new int[] {UID_3}),
                         eq(new String[] {PACKAGE_NAME_3}),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_LATENCY),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_LATENCY),
                         eq((long) ScanManager.SCAN_MODE_LOW_LATENCY_INTERVAL_MS),
                         eq((long) ScanManager.SCAN_MODE_LOW_LATENCY_WINDOW_MS),
                         eq(true),
@@ -1696,10 +1707,12 @@ public class ScanManagerTest {
                 .logRadioScanStopped(
                         eq(new int[] {UID_2}),
                         eq(new String[] {PACKAGE_NAME_2}),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_BALANCED),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_BALANCED),
                         eq((long) ScanManager.SCAN_MODE_BALANCED_INTERVAL_MS),
                         eq((long) ScanManager.SCAN_MODE_BALANCED_WINDOW_MS),
                         eq(true),
@@ -1718,10 +1731,12 @@ public class ScanManagerTest {
                 .logRadioScanStopped(
                         eq(new int[] {UID_1}),
                         eq(new String[] {PACKAGE_NAME_1}),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_POWER),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_POWER),
                         eq((long) ScanManager.SCAN_MODE_LOW_POWER_INTERVAL_MS),
                         eq((long) ScanManager.SCAN_MODE_LOW_POWER_WINDOW_MS),
                         eq(true),

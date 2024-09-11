@@ -539,7 +539,6 @@ public class VolumeControlServiceTest {
         Assert.assertFalse(mService.getDevices().contains(mDevice));
     }
 
-
     /** Test that various Volume Control stack events will broadcast related states. */
     @Test
     public void testVolumeControlStackEvents() {
