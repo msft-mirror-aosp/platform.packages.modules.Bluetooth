@@ -877,6 +877,7 @@ cc_test {
         ":TestMockMainShim",
         ":TestMockMainShimEntry",
         ":TestMockStackBtm",
+        ":TestMockStackL2capInterface",
         ":TestMockStackMetrics",
         "rfcomm/port_api.cc",
         "rfcomm/port_rfc.cc",
@@ -2095,6 +2096,7 @@ cc_test {
         "l2cap/l2c_link.cc",
         "l2cap/l2c_main.cc",
         "l2cap/l2c_utils.cc",
+        "l2cap/l2cap_api.cc",
         "test/stack_l2cap_test.cc",
     ],
     static_libs: [
