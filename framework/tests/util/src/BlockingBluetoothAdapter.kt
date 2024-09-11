@@ -75,11 +75,11 @@ object BlockingBluetoothAdapter {
         if (toggleScanSetting) {
             Log.d(TAG, "Allowing the scan to be perform while Bluetooth is OFF")
             Settings.Global.putInt(context.contentResolver, BLE_SCAN_ALWAYS_AVAILABLE, 1)
-            for (i in 1..5) {
+            for (i in 1..10) {
                 if (adapter.isBleScanAlwaysAvailable()) {
                     break
                 }
-                Log.d(TAG, "Ble scan not yet available... Sleeping 50 ms $i/5")
+                Log.d(TAG, "Ble scan not yet available... Sleeping 50 ms $i/10")
                 Thread.sleep(50)
             }
             if (!adapter.isBleScanAlwaysAvailable()) {
