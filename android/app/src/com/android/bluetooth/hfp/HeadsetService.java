@@ -258,7 +258,11 @@ public class HeadsetService extends ProfileService {
                 mStateMachinesThreadHandler.removeCallbacks(mVoiceRecognitionTimeoutEvent);
                 mVoiceRecognitionTimeoutEvent = null;
                 if (mSystemInterface.getVoiceRecognitionWakeLock().isHeld()) {
-                    mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    try {
+                        mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    } catch (RuntimeException e) {
+                        Log.d(TAG, "non properly release getVoiceRecognitionWakeLock", e);
+                    }
                 }
             }
             // Step 5: Destroy state machines
@@ -1120,7 +1124,11 @@ public class HeadsetService extends ProfileService {
                 mStateMachinesThreadHandler.removeCallbacks(mVoiceRecognitionTimeoutEvent);
                 mVoiceRecognitionTimeoutEvent = null;
                 if (mSystemInterface.getVoiceRecognitionWakeLock().isHeld()) {
-                    mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    try {
+                        mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    } catch (RuntimeException e) {
+                        Log.d(TAG, "non properly release getVoiceRecognitionWakeLock", e);
+                    }
                 }
                 pendingRequestByHeadset = true;
             }
@@ -1795,7 +1803,11 @@ public class HeadsetService extends ProfileService {
         public void run() {
             synchronized (mStateMachines) {
                 if (mSystemInterface.getVoiceRecognitionWakeLock().isHeld()) {
-                    mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    try {
+                        mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    } catch (RuntimeException e) {
+                        Log.d(TAG, "non properly release getVoiceRecognitionWakeLock", e);
+                    }
                 }
                 mVoiceRecognitionTimeoutEvent = null;
                 doForStateMachine(
@@ -1918,7 +1930,11 @@ public class HeadsetService extends ProfileService {
             }
             if (mVoiceRecognitionTimeoutEvent != null) {
                 if (mSystemInterface.getVoiceRecognitionWakeLock().isHeld()) {
-                    mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    try {
+                        mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    } catch (RuntimeException e) {
+                        Log.d(TAG, "non properly release getVoiceRecognitionWakeLock", e);
+                    }
                 }
                 mStateMachinesThreadHandler.removeCallbacks(mVoiceRecognitionTimeoutEvent);
 
