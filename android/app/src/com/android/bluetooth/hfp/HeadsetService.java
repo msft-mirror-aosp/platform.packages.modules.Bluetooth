@@ -258,7 +258,11 @@ public class HeadsetService extends ProfileService {
                 mStateMachinesThreadHandler.removeCallbacks(mVoiceRecognitionTimeoutEvent);
                 mVoiceRecognitionTimeoutEvent = null;
                 if (mSystemInterface.getVoiceRecognitionWakeLock().isHeld()) {
-                    mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    try {
+                        mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    } catch (RuntimeException e) {
+                        Log.d(TAG, "non properly release getVoiceRecognitionWakeLock", e);
+                    }
                 }
             }
             // Step 5: Destroy state machines
@@ -1120,7 +1124,11 @@ public class HeadsetService extends ProfileService {
                 mStateMachinesThreadHandler.removeCallbacks(mVoiceRecognitionTimeoutEvent);
                 mVoiceRecognitionTimeoutEvent = null;
                 if (mSystemInterface.getVoiceRecognitionWakeLock().isHeld()) {
-                    mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    try {
+                        mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    } catch (RuntimeException e) {
+                        Log.d(TAG, "non properly release getVoiceRecognitionWakeLock", e);
+                    }
                 }
                 pendingRequestByHeadset = true;
             }
@@ -1795,7 +1803,11 @@ public class HeadsetService extends ProfileService {
         public void run() {
             synchronized (mStateMachines) {
                 if (mSystemInterface.getVoiceRecognitionWakeLock().isHeld()) {
-                    mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    try {
+                        mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    } catch (RuntimeException e) {
+                        Log.d(TAG, "non properly release getVoiceRecognitionWakeLock", e);
+                    }
                 }
                 mVoiceRecognitionTimeoutEvent = null;
                 doForStateMachine(
@@ -1918,7 +1930,11 @@ public class HeadsetService extends ProfileService {
             }
             if (mVoiceRecognitionTimeoutEvent != null) {
                 if (mSystemInterface.getVoiceRecognitionWakeLock().isHeld()) {
-                    mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    try {
+                        mSystemInterface.getVoiceRecognitionWakeLock().release();
+                    } catch (RuntimeException e) {
+                        Log.d(TAG, "non properly release getVoiceRecognitionWakeLock", e);
+                    }
                 }
                 mStateMachinesThreadHandler.removeCallbacks(mVoiceRecognitionTimeoutEvent);
 
@@ -2426,14 +2442,17 @@ public class HeadsetService extends ProfileService {
         }
         // Check connection policy and accept or reject the connection.
         int connectionPolicy = getConnectionPolicy(device);
-        int bondState = mAdapterService.getBondState(device);
-        // Allow this connection only if the device is bonded. Any attempt to connect while
-        // bonding would potentially lead to an unauthorized connection.
-        if (bondState != BluetoothDevice.BOND_BONDED) {
-            Log.w(TAG, "okToAcceptConnection: return false, bondState=" + bondState);
-            return false;
-        } else if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
-                && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (!Flags.donotValidateBondStateFromProfiles()) {
+            int bondState = mAdapterService.getBondState(device);
+            // Allow this connection only if the device is bonded. Any attempt to connect while
+            // bonding would potentially lead to an unauthorized connection.
+            if (bondState != BluetoothDevice.BOND_BONDED) {
+                Log.w(TAG, "okToAcceptConnection: return false, bondState=" + bondState);
+                return false;
+            }
+        }
+        if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
+            && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
             // Otherwise, reject the connection if connection policy is not valid.
             if (!isOutgoingRequest) {
                 A2dpService a2dpService = A2dpService.getA2dpService();

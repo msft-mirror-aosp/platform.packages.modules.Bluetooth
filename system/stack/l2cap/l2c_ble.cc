@@ -52,6 +52,7 @@
 #include "stack/include/btm_status.h"
 #include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/main_thread.h"
 #include "stack/l2cap/l2c_int.h"
@@ -305,7 +306,7 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       STREAM_TO_UINT16(timeout, p);      /* 0x000A - 0x0C80 */
       /* If we are a central, the peripheral wants to update the parameters */
       if (p_lcb->IsLinkRoleCentral()) {
-        L2CA_AdjustConnectionIntervals(
+        stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(
                 &min_interval, &max_interval,
                 osi_property_get_int32("bluetooth.core.le.min_connection_interval",
                                        BTM_BLE_CONN_INT_MIN_LIMIT));

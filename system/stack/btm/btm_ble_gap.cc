@@ -304,10 +304,6 @@ static bool ble_evt_type_is_scannable(uint16_t evt_type) {
   return evt_type & (1 << BLE_EVT_SCANNABLE_BIT);
 }
 
-static bool ble_evt_type_is_directed(uint16_t evt_type) {
-  return evt_type & (1 << BLE_EVT_DIRECTED_BIT);
-}
-
 static bool ble_evt_type_is_scan_resp(uint16_t evt_type) {
   return evt_type & (1 << BLE_EVT_SCAN_RESPONSE_BIT);
 }
@@ -2063,37 +2059,16 @@ static void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
         break;
       }
     }
-    if (com::android::bluetooth::flags::ensure_valid_adv_flag()) {
-      // Non-connectable packets may omit flags entirely, in which case nothing
-      // should be assumed about their values (CSSv10, 1.3.1). Thus, do not
-      // interpret the device type unless this packet has the flags set or is
-      // connectable.
-      if (ble_evt_type_is_connectable(evt_type) && !has_advertising_flags) {
-        // Assume that all-zero flags were received
-        has_advertising_flags = true;
-        local_flag = 0;
-      }
-      if (has_advertising_flags && (local_flag & BTM_BLE_BREDR_NOT_SPT) == 0) {
-        if (p_cur->ble_addr_type != BLE_ADDR_RANDOM) {
-          log::verbose("NOT_BR_EDR support bit not set, treat device as DUMO");
-          p_cur->device_type |= BT_DEVICE_TYPE_DUMO;
-        } else {
-          log::verbose("Random address, treat device as LE only");
-        }
-      } else {
-        log::verbose("NOT_BR/EDR support bit set, treat device as LE only");
-      }
-    }
-  }
-
-  if (!com::android::bluetooth::flags::ensure_valid_adv_flag()) {
     // Non-connectable packets may omit flags entirely, in which case nothing
     // should be assumed about their values (CSSv10, 1.3.1). Thus, do not
     // interpret the device type unless this packet has the flags set or is
     // connectable.
-    bool should_process_flags = has_advertising_flags || ble_evt_type_is_connectable(evt_type);
-    if (should_process_flags && (p_cur->flag & BTM_BLE_BREDR_NOT_SPT) == 0 &&
-        !ble_evt_type_is_directed(evt_type)) {
+    if (ble_evt_type_is_connectable(evt_type) && !has_advertising_flags) {
+      // Assume that all-zero flags were received
+      has_advertising_flags = true;
+      local_flag = 0;
+    }
+    if (has_advertising_flags && (local_flag & BTM_BLE_BREDR_NOT_SPT) == 0) {
       if (p_cur->ble_addr_type != BLE_ADDR_RANDOM) {
         log::verbose("NOT_BR_EDR support bit not set, treat device as DUMO");
         p_cur->device_type |= BT_DEVICE_TYPE_DUMO;

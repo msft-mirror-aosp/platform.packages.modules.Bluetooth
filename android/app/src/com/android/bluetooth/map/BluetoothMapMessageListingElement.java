@@ -75,6 +75,7 @@ public class BluetoothMapMessageListingElement
         return mDateTime;
     }
 
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public String getDateTimeString() {
         /* TODO: if the feature bit mask of the client supports it, add the time-zone
          *       (as for MSETime) */

@@ -32,17 +32,18 @@
 
 package com.android.bluetooth.opp;
 
+import static android.os.UserHandle.myUserId;
+
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothProtoEnums;
-import android.content.ContentProvider;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.net.Uri;
-import android.os.UserHandle;
 import android.provider.OpenableColumns;
+import android.text.TextUtils;
 import android.util.EventLog;
 import android.util.Log;
 
@@ -55,6 +56,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * This class stores information about a single sending file It will only be used for outbound
@@ -126,15 +128,8 @@ public class BluetoothOppSendFileInfo {
                 return SEND_FILE_INFO_ERROR;
             }
 
-            try {
-                // Use module-visible API to confirm that content uri is valid for the current user.
-                // Content uris for a different user are invalid.
-                // Uris pointing either implicitly or explicitly to content for the current user
-                // will be valid.
-                ContentProvider.createContentUriForUser(
-                        uri, UserHandle.getUserHandleForUid(UserHandle.myUserId()));
-            } catch (IllegalArgumentException e) {
-                Log.e(TAG, "Uri: " + uri + " is invalid for user " + UserHandle.myUserId(), e);
+            if (isContentUriForOtherUser(uri)) {
+                Log.e(TAG, "Uri: " + uri + " is invalid for user " + myUserId());
                 ContentProfileErrorReportUtils.report(
                         BluetoothProfile.OPP,
                         BluetoothProtoEnums.BLUETOOTH_OPP_SEND_FILE_INFO,
@@ -370,6 +365,12 @@ public class BluetoothOppSendFileInfo {
         }
 
         return new BluetoothOppSendFileInfo(fileName, contentType, length, is, 0);
+    }
+
+    private static boolean isContentUriForOtherUser(Uri uri) {
+        String uriUserId = uri.getUserInfo();
+        return !TextUtils.isEmpty(uriUserId)
+                && !Objects.equals(uriUserId, String.valueOf(myUserId()));
     }
 
     private static long getStreamSize(FileInputStream is) throws IOException {

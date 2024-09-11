@@ -47,6 +47,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -133,6 +134,7 @@ public class DckL2capClientTest() : Closeable {
     }
 
     @Test
+    @Ignore("b/365168533")
     fun testReceive() {
         Log.d(TAG, "testReceive")
         val remoteDevice =

@@ -32,6 +32,7 @@
 #include "l2cdefs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cap_interface.h"
+#include "stack/include/l2cap_types.h"
 #include "types/bt_transport.h"
 #include "types/hci_role.h"
 #include "types/raw_address.h"
@@ -97,12 +98,6 @@ typedef uint8_t tL2CAP_CHNL_DATA_RATE;
 #define SVC_TYPE_BEST_EFFORT 1
 #define SVC_TYPE_GUARANTEED 2
 
-/* Define a structure to hold the configuration parameters. Since the
- * parameters are optional, for each parameter there is a boolean to
- * use to signify its presence or absence.
- */
-constexpr uint16_t L2CAP_LE_CREDIT_THRESHOLD = 64;
-
 // This is initial amout of credits we send, and amount to which we increase
 // credits once they fall below threshold
 uint16_t L2CA_LeCreditDefault();
@@ -136,8 +131,6 @@ typedef void(tL2CA_CONNECT_CFM_CB)(uint16_t, tL2CAP_CONN);
  */
 typedef void(tL2CA_CONFIG_IND_CB)(uint16_t, tL2CAP_CFG_INFO*);
 
-constexpr uint16_t L2CAP_INITIATOR_LOCAL = 1;
-constexpr uint16_t L2CAP_INITIATOR_REMOTE = 0;
 /* Configuration confirm callback prototype. Parameters are
  *              Local CID assigned to the connection
  *              Initiator (1 for local, 0 for remote)
