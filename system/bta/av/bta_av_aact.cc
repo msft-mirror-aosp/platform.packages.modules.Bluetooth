@@ -56,7 +56,6 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_status.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_interface.h"
 #include "storage/config_keys.h"
 #include "types/hci_role.h"
@@ -2592,16 +2591,17 @@ void bta_av_rcfg_str_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
   if (com::android::bluetooth::flags::fix_avdt_rconfig_not_setting_l2cap()) {
     /* Set the media channel as high priority */
-    if (!L2CA_SetTxPriority(p_scb->l2c_cid, L2CAP_CHNL_PRIORITY_HIGH)) {
+    if (!stack::l2cap::get_interface().L2CA_SetTxPriority(p_scb->l2c_cid,
+                                                          L2CAP_CHNL_PRIORITY_HIGH)) {
       log::warn("Unable to set L2CAP Tx priority peer:{} cid:{}", p_scb->PeerAddress(),
                 p_scb->l2c_cid);
     }
 
-    if (!L2CA_SetChnlFlushability(p_scb->l2c_cid, true)) {
+    if (!stack::l2cap::get_interface().L2CA_SetChnlFlushability(p_scb->l2c_cid, true)) {
       log::warn("Unable to set L2CAP flush peer:{} cid:{}", p_scb->PeerAddress(), p_scb->l2c_cid);
     }
 
-    L2CA_SetMediaStreamChannel(p_scb->l2c_cid, true);
+    stack::l2cap::get_interface().L2CA_SetMediaStreamChannel(p_scb->l2c_cid, true);
   }
 
   /* rc listen */

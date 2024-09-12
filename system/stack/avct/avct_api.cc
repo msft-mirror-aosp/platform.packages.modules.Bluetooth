@@ -31,8 +31,6 @@
 #include "avct_int.h"
 #include "bta/include/bta_sec_api.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
-#include "l2cdefs.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cap_interface.h"
@@ -106,6 +104,9 @@ void AVCT_Deregister(void) {
 
   /* deregister PSM with L2CAP */
   stack::l2cap::get_interface().L2CA_Deregister(AVCT_PSM);
+
+  /* deregister AVCT_BR_PSM with L2CAP */
+  stack::l2cap::get_interface().L2CA_Deregister(AVCT_BR_PSM);
 }
 
 /*******************************************************************************

@@ -23,8 +23,6 @@
 #include "gap_api.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
-#include "l2cdefs.h"
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"

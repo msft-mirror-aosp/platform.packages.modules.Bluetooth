@@ -37,6 +37,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.ParcelUuid;
+import android.os.UserHandle;
 import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
@@ -662,7 +663,7 @@ public class HearingAidService extends ProfileService {
         intent.addFlags(
                 Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                         | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-        sendBroadcast(intent, BLUETOOTH_CONNECT);
+        sendBroadcastAsUser(intent, UserHandle.ALL, BLUETOOTH_CONNECT);
     }
 
     /* Notifications of audio device disconnection events. */
