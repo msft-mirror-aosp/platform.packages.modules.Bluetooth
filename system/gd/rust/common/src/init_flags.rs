@@ -207,18 +207,9 @@ pub fn set_all_for_testing() {
 init_flags!(
     name: InitFlags
     flags: {
-        asha_packet_drop_frequency_threshold: i32 = 60,
-        asha_phy_update_retry_limit: i32 = 5,
-        always_send_services_if_gatt_disc_done = true,
-        always_use_private_gatt_for_debugging,
-        bluetooth_power_telemetry = false,
-        btm_dm_flush_discovery_queue_on_search_cancel,
         classic_discovery_only,
         dynamic_avrcp_version_enhancement = true,
-        gatt_robust_caching_server,
         hci_adapter: i32,
-        hfp_dynamic_version = true,
-        irk_rotation,
         leaudio_targeted_announcement_reconnection_mode = true,
         pbap_pse_dynamic_version_upgrade = false,
         redact_log = true,
@@ -231,7 +222,6 @@ init_flags!(
         sdp_return_classic_services_when_le_discovery_fails = true,
         use_rsi_from_cached_inqiry_results = false,
         att_mtu_default: i32 = 517,
-        encryption_in_busy_state = true,
     }
     extra_parsed_flags: {
         "--hci" => parse_hci_adapter(_, _),
@@ -275,22 +265,6 @@ mod tests {
         load(raw_flags);
     }
 
-    #[test]
-    fn simple_flag() {
-        let _guard = ASYNC_LOCK.lock().unwrap();
-        test_load(vec!["INIT_gatt_robust_caching_server=true"]);
-        assert!(gatt_robust_caching_server_is_enabled());
-    }
-    #[test]
-    fn parsing_failure() {
-        let _guard = ASYNC_LOCK.lock().unwrap();
-        test_load(vec![
-            "foo=bar=?",                                // vec length
-            "foo=bar",                                  // flag not save
-            "INIT_gatt_robust_caching_server=not_true", // parse error
-        ]);
-        assert!(!gatt_robust_caching_server_is_enabled());
-    }
     #[test]
     fn int_flag() {
         let _guard = ASYNC_LOCK.lock().unwrap();

@@ -31,7 +31,7 @@ use num_traits::cast::ToPrimitive;
 use num_traits::pow;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::hash::Hash;
 use std::io::Write;
 use std::os::fd::AsRawFd;
@@ -39,7 +39,6 @@ use std::process;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 use std::time::Instant;
-use tempfile::NamedTempFile;
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
 use tokio::time;
@@ -69,6 +68,8 @@ const FOUND_DEVICE_FRESHNESS: Duration = Duration::from_secs(30);
 const BTM_SUCCESS: i32 = 0;
 
 const PID_DIR: &str = "/var/run/bluetooth";
+
+const DUMPSYS_LOG: &str = "/tmp/dumpsys.log";
 
 /// Represents various roles the adapter supports.
 #[derive(Debug, FromPrimitive, ToPrimitive)]
@@ -806,8 +807,8 @@ impl Bluetooth {
         for profile in UuidHelper::get_ordered_supported_profiles() {
             // Only toggle initializable profiles.
             if let Some(enabled) = self.is_profile_enabled(&profile) {
-                let allowed = allowed_services.len() == 0
-                    || allowed_services.contains(&UuidHelper::get_profile_uuid(&profile).unwrap());
+                let allowed = allowed_services.is_empty()
+                    || allowed_services.contains(UuidHelper::get_profile_uuid(&profile).unwrap());
 
                 if allowed && !enabled {
                     debug!("Enabling profile {}", &profile);
@@ -913,15 +914,7 @@ impl Bluetooth {
 
     /// Returns whether the adapter is connectable.
     pub(crate) fn get_connectable_internal(&self) -> bool {
-        self.properties.get(&BtPropertyType::AdapterScanMode).map_or(false, |prop| match prop {
-            BluetoothProperty::AdapterScanMode(mode) => match *mode {
-                BtScanMode::Connectable
-                | BtScanMode::ConnectableDiscoverable
-                | BtScanMode::ConnectableLimitedDiscoverable => true,
-                BtScanMode::None_ => false,
-            },
-            _ => false,
-        })
+        self.discoverable_mode != BtDiscMode::NonDiscoverable || self.is_connectable
     }
 
     /// Sets the adapter's connectable mode for classic connections.
@@ -939,33 +932,18 @@ impl Bluetooth {
             self.is_connectable = mode;
             return true;
         }
-        let status =
-            self.intf.lock().unwrap().set_adapter_property(BluetoothProperty::AdapterScanMode(
-                if mode { BtScanMode::Connectable } else { BtScanMode::None_ },
-            ));
-        let status = BtStatus::from(status as u32);
-        if status != BtStatus::Success {
-            warn!("Failed to set connectable mode: {:?}", status);
-            return false;
-        }
+        self.intf.lock().unwrap().set_scan_mode(if mode {
+            BtScanMode::Connectable
+        } else {
+            BtScanMode::None_
+        });
         self.is_connectable = mode;
-        return true;
+        true
     }
 
     /// Returns adapter's discoverable mode.
     pub(crate) fn get_discoverable_mode_internal(&self) -> BtDiscMode {
-        let off_mode = BtDiscMode::NonDiscoverable;
-
-        self.properties.get(&BtPropertyType::AdapterScanMode).map_or(off_mode.clone(), |prop| {
-            match prop {
-                BluetoothProperty::AdapterScanMode(mode) => match *mode {
-                    BtScanMode::ConnectableDiscoverable => BtDiscMode::GeneralDiscoverable,
-                    BtScanMode::ConnectableLimitedDiscoverable => BtDiscMode::LimitedDiscoverable,
-                    BtScanMode::Connectable | BtScanMode::None_ => off_mode,
-                },
-                _ => off_mode,
-            }
-        })
+        self.discoverable_mode.clone()
     }
 
     /// Set the suspend mode for scan mode (connectable/discoverable mode).
@@ -987,19 +965,11 @@ impl Bluetooth {
         }
         self.set_scan_suspend_mode(SuspendMode::Suspending);
 
-        if self
-            .intf
-            .lock()
-            .unwrap()
-            .set_adapter_property(BluetoothProperty::AdapterScanMode(BtScanMode::None_))
-            != 0
-        {
-            warn!("scan_mode_enter_suspend: Failed to set BtScanMode::None_");
-        }
+        self.intf.lock().unwrap().set_scan_mode(BtScanMode::None_);
 
         self.set_scan_suspend_mode(SuspendMode::Suspended);
 
-        return BtStatus::Success;
+        BtStatus::Success
     }
 
     /// Exits the suspend mode for scan mode (connectable/discoverable mode).
@@ -1017,22 +987,14 @@ impl Bluetooth {
                 false => BtScanMode::None_,
             },
         };
-        if self
-            .intf
-            .lock()
-            .unwrap()
-            .set_adapter_property(BluetoothProperty::AdapterScanMode(mode.clone()))
-            != 0
-        {
-            warn!("scan_mode_exit_suspend: Failed to restore scan mode {:?}", mode);
-        }
+        self.intf.lock().unwrap().set_scan_mode(mode);
 
         self.set_scan_suspend_mode(SuspendMode::Normal);
 
         // Update is only available after SuspendMode::Normal
         self.trigger_update_connectable_mode();
 
-        return BtStatus::Success;
+        BtStatus::Success
     }
 
     /// Returns adapter's alias.
@@ -1169,9 +1131,9 @@ impl Bluetooth {
         for prop in device.properties.values() {
             match prop {
                 BluetoothProperty::TypeOfDevice(p) => device_type = p.clone(),
-                BluetoothProperty::ClassOfDevice(p) => class_of_device = p.clone(),
-                BluetoothProperty::Appearance(p) => appearance = p.clone(),
-                BluetoothProperty::VendorProductInfo(p) => vpi = p.clone(),
+                BluetoothProperty::ClassOfDevice(p) => class_of_device = *p,
+                BluetoothProperty::Appearance(p) => appearance = *p,
+                BluetoothProperty::VendorProductInfo(p) => vpi = *p,
                 _ => (),
             }
         }
@@ -1217,10 +1179,10 @@ impl Bluetooth {
                     let mut props = vec![];
                     props.push(BluetoothProperty::BdName(result.name.clone()));
                     props.push(BluetoothProperty::BdAddr(result.address));
-                    if result.service_uuids.len() > 0 {
+                    if !result.service_uuids.is_empty() {
                         props.push(BluetoothProperty::Uuids(result.service_uuids.clone()));
                     }
-                    if result.service_data.len() > 0 {
+                    if !result.service_data.is_empty() {
                         props.push(BluetoothProperty::Uuids(
                             result
                                 .service_data
@@ -1274,7 +1236,7 @@ impl Bluetooth {
     /// Creates a file to notify btmanagerd the adapter is enabled.
     fn create_pid_file(&self) -> std::io::Result<()> {
         let file_name = format!("{}/bluetooth{}.pid", PID_DIR, self.virt_index);
-        let mut f = File::create(&file_name)?;
+        let mut f = File::create(file_name)?;
         f.write_all(process::id().to_string().as_bytes())?;
         Ok(())
     }
@@ -1282,7 +1244,7 @@ impl Bluetooth {
     /// Removes the file to notify btmanagerd the adapter is disabled.
     fn remove_pid_file(&self) -> std::io::Result<()> {
         let file_name = format!("{}/bluetooth{}.pid", PID_DIR, self.virt_index);
-        std::fs::remove_file(&file_name)?;
+        std::fs::remove_file(file_name)?;
         Ok(())
     }
 
@@ -1311,7 +1273,7 @@ impl Bluetooth {
         }
         self.set_discovery_suspend_mode(SuspendMode::Suspended);
 
-        return BtStatus::Success;
+        BtStatus::Success
     }
 
     /// Exits the suspend mode for discovery.
@@ -1327,7 +1289,7 @@ impl Bluetooth {
         }
         self.set_discovery_suspend_mode(SuspendMode::Normal);
 
-        return BtStatus::Success;
+        BtStatus::Success
     }
 
     /// Temporarily stop the discovery process and mark it as paused so that clients cannot restart
@@ -1594,14 +1556,13 @@ impl BtifBluetoothCallbacks for Bluetooth {
                 self.ble_scanner_uuid =
                     Some(self.bluetooth_gatt.lock().unwrap().register_scanner(callback_id));
 
-                // LibBluetooth saves and restores the discoverable mode on the previous run.
-                // But on Floss we always want non-discoverable mode on start.
-                self.set_discoverable(BtDiscMode::NonDiscoverable, 0);
                 // Update connectable mode so that disconnected bonded classic device can reconnect
                 self.trigger_update_connectable_mode();
 
                 // Spawn a freshness check job in the background.
-                self.freshness_check.take().map(|h| h.abort());
+                if let Some(h) = self.freshness_check.take() {
+                    h.abort()
+                }
                 let txl = self.tx.clone();
                 self.freshness_check = Some(tokio::spawn(async move {
                     loop {
@@ -1684,12 +1645,6 @@ impl BtifBluetoothCallbacks for Bluetooth {
                         callback.on_name_changed(bdname.clone());
                     });
                 }
-                BluetoothProperty::AdapterScanMode(mode) => {
-                    self.callbacks.for_all_callbacks(|callback| {
-                        callback
-                            .on_discoverable_changed(*mode == BtScanMode::ConnectableDiscoverable);
-                    });
-                }
                 _ => {}
             }
 
@@ -1764,15 +1719,12 @@ impl BtifBluetoothCallbacks for Bluetooth {
             }
         }
 
-        if !self.is_discovering {
-            if self.pending_create_bond.is_some() {
-                debug!("Invoking delayed CreateBond");
-                let tx = self.tx.clone();
-                tokio::spawn(async move {
-                    let _ =
-                        tx.send(Message::DelayedAdapterActions(DelayedActions::CreateBond)).await;
-                });
-            }
+        if !self.is_discovering && self.pending_create_bond.is_some() {
+            debug!("Invoking delayed CreateBond");
+            let tx = self.tx.clone();
+            tokio::spawn(async move {
+                let _ = tx.send(Message::DelayedAdapterActions(DelayedActions::CreateBond)).await;
+            });
         }
     }
 
@@ -1884,16 +1836,36 @@ impl BtifBluetoothCallbacks for Bluetooth {
                         Instant::now(),
                         vec![],
                     ));
+                    let acl_reported_transport = device.acl_reported_transport.clone();
+                    let acl_state = device.ble_acl_state.clone();
                     let device_info = device.info.clone();
 
                     // Since this is a newly bonded device, we also need to trigger SDP on it.
                     device.services_resolved = false;
-                    self.fetch_remote_uuids(device_info);
+                    self.fetch_remote_uuids(device_info.clone());
                     if self.get_wake_allowed_device_bonded() {
                         self.create_uhid_for_suspend_wakesource();
                     }
                     // Update the connectable mode since bonded list is changed.
                     self.trigger_update_connectable_mode();
+
+                    let transport = match self.get_remote_type(device_info.clone()) {
+                        BtDeviceType::Bredr => BtTransport::Bredr,
+                        BtDeviceType::Ble => BtTransport::Le,
+                        _ => acl_reported_transport,
+                    };
+
+                    let tx = self.tx.clone();
+                    tokio::spawn(async move {
+                        let _ = tx
+                            .send(Message::OnDeviceConnectionStateChanged(
+                                device_info.clone(),
+                                acl_state,
+                                BtBondState::Bonded,
+                                transport,
+                            ))
+                            .await;
+                    });
                 }
                 BtBondState::Bonding => {}
             }
@@ -1950,7 +1922,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
 
         if !device.services_resolved {
             let has_uuids = properties.iter().any(|prop| match prop {
-                BluetoothProperty::Uuids(uu) => uu.len() > 0,
+                BluetoothProperty::Uuids(uu) => !uu.is_empty(),
                 _ => false,
             });
 
@@ -2046,6 +2018,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
 
         let info = device.info.clone();
         device.acl_reported_transport = link_type;
+        let bond_state = device.bond_state.clone();
 
         metrics::acl_connection_state_changed(
             addr,
@@ -2058,7 +2031,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
 
         match state {
             BtAclState::Connected => {
-                let acl_reported_transport = device.acl_reported_transport.clone();
+                let acl_reported_transport = device.acl_reported_transport;
                 Bluetooth::send_metrics_remote_device_info(device);
                 self.connection_callbacks.for_all_callbacks(|callback| {
                     callback.on_device_connected(info.clone());
@@ -2069,7 +2042,14 @@ impl BtifBluetoothCallbacks for Bluetooth {
                     _ => acl_reported_transport,
                 };
                 tokio::spawn(async move {
-                    let _ = txl.send(Message::OnAclConnected(info, transport)).await;
+                    let _ = txl
+                        .send(Message::OnDeviceConnectionStateChanged(
+                            info,
+                            BtAclState::Connected,
+                            bond_state,
+                            transport,
+                        ))
+                        .await;
                 });
             }
             BtAclState::Disconnected => {
@@ -2079,7 +2059,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
                     });
                 }
                 tokio::spawn(async move {
-                    let _ = txl.send(Message::OnAclDisconnected(info)).await;
+                    let _ = txl.send(Message::OnDeviceDisconnected(info)).await;
                 });
             }
         };
@@ -2226,7 +2206,7 @@ impl IBluetooth for Bluetooth {
     fn get_bluetooth_class(&self) -> u32 {
         match self.properties.get(&BtPropertyType::ClassOfDevice) {
             Some(prop) => match prop {
-                BluetoothProperty::ClassOfDevice(cod) => cod.clone(),
+                BluetoothProperty::ClassOfDevice(cod) => *cod,
                 _ => 0,
             },
             _ => 0,
@@ -2244,7 +2224,7 @@ impl IBluetooth for Bluetooth {
     fn get_discoverable_timeout(&self) -> u32 {
         match self.properties.get(&BtPropertyType::AdapterDiscoverableTimeout) {
             Some(prop) => match prop {
-                BluetoothProperty::AdapterDiscoverableTimeout(timeout) => timeout.clone(),
+                BluetoothProperty::AdapterDiscoverableTimeout(timeout) => *timeout,
                 _ => 0,
             },
             _ => 0,
@@ -2274,12 +2254,15 @@ impl IBluetooth for Bluetooth {
             };
             if intf.set_adapter_property(BluetoothProperty::AdapterDiscoverableTimeout(duration))
                 != 0
-                || intf.set_adapter_property(BluetoothProperty::AdapterScanMode(scan_mode)) != 0
             {
                 return false;
             }
+            intf.set_scan_mode(scan_mode);
         }
 
+        self.callbacks.for_all_callbacks(|callback| {
+            callback.on_discoverable_changed(mode == BtDiscMode::GeneralDiscoverable);
+        });
         self.discoverable_mode = mode.clone();
 
         // The old timer should be overwritten regardless of what the new mode is.
@@ -2449,7 +2432,7 @@ impl IBluetooth for Bluetooth {
             metrics::acl_connect_attempt(address, BtAclState::Connected);
         }
 
-        return BtStatus::Success;
+        BtStatus::Success
     }
 
     fn cancel_bond_process(&mut self, device: BluetoothDevice) -> bool {
@@ -2484,7 +2467,7 @@ impl IBluetooth for Bluetooth {
             metrics::acl_connect_attempt(address, BtAclState::Disconnected);
         }
 
-        return true;
+        true
     }
 
     fn get_bonded_devices(&self) -> Vec<BluetoothDevice> {
@@ -2549,21 +2532,21 @@ impl IBluetooth for Bluetooth {
 
     fn get_remote_name(&self, device: BluetoothDevice) -> String {
         match self.get_remote_device_property(&device, &BtPropertyType::BdName) {
-            Some(BluetoothProperty::BdName(name)) => return name.clone(),
-            _ => return "".to_string(),
+            Some(BluetoothProperty::BdName(name)) => name.clone(),
+            _ => "".to_string(),
         }
     }
 
     fn get_remote_type(&self, device: BluetoothDevice) -> BtDeviceType {
         match self.get_remote_device_property(&device, &BtPropertyType::TypeOfDevice) {
-            Some(BluetoothProperty::TypeOfDevice(device_type)) => return device_type,
-            _ => return BtDeviceType::Unknown,
+            Some(BluetoothProperty::TypeOfDevice(device_type)) => device_type,
+            _ => BtDeviceType::Unknown,
         }
     }
 
     fn get_remote_alias(&self, device: BluetoothDevice) -> String {
         match self.get_remote_device_property(&device, &BtPropertyType::RemoteFriendlyName) {
-            Some(BluetoothProperty::RemoteFriendlyName(name)) => return name.clone(),
+            Some(BluetoothProperty::RemoteFriendlyName(name)) => name.clone(),
             _ => "".to_string(),
         }
     }
@@ -2578,7 +2561,7 @@ impl IBluetooth for Bluetooth {
 
     fn get_remote_class(&self, device: BluetoothDevice) -> u32 {
         match self.get_remote_device_property(&device, &BtPropertyType::ClassOfDevice) {
-            Some(BluetoothProperty::ClassOfDevice(class)) => return class,
+            Some(BluetoothProperty::ClassOfDevice(class)) => class,
             _ => 0,
         }
     }
@@ -2610,7 +2593,7 @@ impl IBluetooth for Bluetooth {
 
     fn get_remote_vendor_product_info(&self, device: BluetoothDevice) -> BtVendorProductInfo {
         match self.get_remote_device_property(&device, &BtPropertyType::VendorProductInfo) {
-            Some(BluetoothProperty::VendorProductInfo(p)) => p.clone(),
+            Some(BluetoothProperty::VendorProductInfo(p)) => p,
             _ => BtVendorProductInfo { vendor_id_src: 0, vendor_id: 0, product_id: 0, version: 0 },
         }
     }
@@ -2791,21 +2774,27 @@ impl IBluetooth for Bluetooth {
                             Profile::Bas => {
                                 has_supported_profile = true;
                                 let tx = self.tx.clone();
-                                let transport = match self.remote_devices.get(&addr) {
-                                    Some(context) => context.acl_reported_transport,
+                                let device_context = match self.remote_devices.get(&addr) {
+                                    Some(context) => context,
                                     None => return BtStatus::RemoteDeviceDown,
                                 };
+
+                                let acl_state = device_context.ble_acl_state.clone();
+                                let bond_state = device_context.bond_state.clone();
                                 let device_to_send = device.clone();
+
                                 let transport = match self.get_remote_type(device.clone()) {
                                     BtDeviceType::Bredr => BtTransport::Bredr,
                                     BtDeviceType::Ble => BtTransport::Le,
-                                    _ => transport,
+                                    _ => device_context.acl_reported_transport.clone(),
                                 };
                                 topstack::get_runtime().spawn(async move {
                                     let _ = tx
                                         .send(Message::BatteryService(
                                             BatteryServiceActions::Connect(
                                                 device_to_send,
+                                                acl_state,
+                                                bond_state,
                                                 transport,
                                             ),
                                         ))
@@ -2828,7 +2817,7 @@ impl IBluetooth for Bluetooth {
         if !has_enabled_uuids {
             warn!("[{}] SDP hasn't completed for device, wait to connect.", DisplayAddress(&addr));
             if let Some(d) = self.remote_devices.get_mut(&addr) {
-                if uuids.len() == 0 || !d.services_resolved {
+                if uuids.is_empty() || !d.services_resolved {
                     d.wait_to_connect = true;
                 }
             }
@@ -2841,7 +2830,7 @@ impl IBluetooth for Bluetooth {
             self.resume_discovery();
         }
 
-        return BtStatus::Success;
+        BtStatus::Success
     }
 
     fn disconnect_all_enabled_profiles(&mut self, device: BluetoothDevice) -> bool {
@@ -2943,7 +2932,7 @@ impl IBluetooth for Bluetooth {
             let _ = txl.send(Message::GattActions(GattActions::Disconnect(device))).await;
         });
 
-        return true;
+        true
     }
 
     fn is_wbs_supported(&self) -> bool {
@@ -3005,11 +2994,15 @@ impl IBluetooth for Bluetooth {
     }
 
     fn get_dumpsys(&self) -> String {
-        NamedTempFile::new()
+        OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(DUMPSYS_LOG)
             .and_then(|file| {
                 let fd = file.as_raw_fd();
                 self.intf.lock().unwrap().dump(fd);
-                std::fs::read_to_string(file.path())
+                Ok(format!("dump to {}", DUMPSYS_LOG))
             })
             .unwrap_or_default()
     }
@@ -3081,7 +3074,7 @@ impl BtifHHCallbacks for Bluetooth {
             _ => {
                 if self
                     .get_remote_uuids(device)
-                    .contains(&UuidHelper::get_profile_uuid(&Profile::Hogp).unwrap())
+                    .contains(UuidHelper::get_profile_uuid(&Profile::Hogp).unwrap())
                 {
                     Profile::Hogp
                 } else {
