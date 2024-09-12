@@ -19,7 +19,6 @@
  *   Functions generated:23
  */
 
-#include "l2c_api.h"
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cap_interface.h"

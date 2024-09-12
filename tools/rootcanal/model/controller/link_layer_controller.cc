@@ -83,8 +83,16 @@ AddressWithType PeerIdentityAddress(Address address, PeerAddressType peer_addres
 }
 
 bool LinkLayerController::IsEventUnmasked(EventCode event) const {
-  uint64_t bit = UINT64_C(1) << (static_cast<uint8_t>(event) - 1);
-  return (event_mask_ & bit) != 0;
+  uint8_t evt = static_cast<uint8_t>(event);
+
+  if (evt <= 64) {
+    uint64_t bit = UINT64_C(1) << (evt - 1);
+    return (event_mask_ & bit) != 0;
+  } else {
+    evt -= 64;
+    uint64_t bit = UINT64_C(1) << (evt - 1);
+    return (event_mask_page_2_ & bit) != 0;
+  }
 }
 
 bool LinkLayerController::IsLeEventUnmasked(SubeventCode subevent) const {
@@ -5638,7 +5646,11 @@ ErrorCode LinkLayerController::LeLongTermKeyRequestReply(uint16_t handle,
     }
   } else {
     connections_.Encrypt(handle);
-    if (IsEventUnmasked(EventCode::ENCRYPTION_CHANGE)) {
+    if (IsEventUnmasked(EventCode::ENCRYPTION_CHANGE_V2)) {
+      send_event_(bluetooth::hci::EncryptionChangeV2Builder::Create(
+              ErrorCode::SUCCESS, handle, bluetooth::hci::EncryptionEnabled::ON,
+              0x10 /* key_size */));
+    } else if (IsEventUnmasked(EventCode::ENCRYPTION_CHANGE)) {
       send_event_(bluetooth::hci::EncryptionChangeBuilder::Create(
               ErrorCode::SUCCESS, handle, bluetooth::hci::EncryptionEnabled::ON));
     }

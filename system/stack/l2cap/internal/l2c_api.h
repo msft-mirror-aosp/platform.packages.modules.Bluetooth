@@ -40,11 +40,6 @@
  *  Constants
  ****************************************************************************/
 
-/* Define the minimum offset that L2CAP needs in a buffer. This is made up of
- * HCI type(1), len(2), handle(2), L2CAP len(2) and CID(2) => 9
- */
-#define L2CAP_MIN_OFFSET 13 /* plus control(2), SDU length(2) */
-
 #define L2CAP_LCC_SDU_LENGTH 2
 #define L2CAP_LCC_OFFSET (L2CAP_MIN_OFFSET + L2CAP_LCC_SDU_LENGTH) /* plus SDU length(2) */
 
@@ -410,10 +405,11 @@ void L2CA_DeregisterLECoc(uint16_t psm);
  *  Return value: true if peer is connected
  *
  ******************************************************************************/
-
 [[nodiscard]] bool L2CA_ConnectCreditBasedRsp(const RawAddress& p_bd_addr, uint8_t id,
                                               std::vector<uint16_t>& accepted_lcids,
-                                              uint16_t result, tL2CAP_LE_CFG_INFO* p_cfg);
+                                              tL2CAP_LE_RESULT_CODE result,
+                                              tL2CAP_LE_CFG_INFO* p_cfg);
+
 /*******************************************************************************
  *
  * Function         L2CA_DisconnectReq
