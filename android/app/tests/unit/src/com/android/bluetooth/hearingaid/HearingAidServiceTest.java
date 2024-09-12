@@ -43,6 +43,7 @@ import android.media.AudioManager;
 import android.media.BluetoothProfileConnectionInfo;
 import android.os.Looper;
 import android.os.ParcelUuid;
+import android.os.UserHandle;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.MediumTest;
@@ -166,7 +167,11 @@ public class HearingAidServiceTest {
     @SafeVarargs
     private void verifyIntentSent(Matcher<Intent>... matchers) {
         mInOrder.verify(mContext, timeout(TIMEOUT.toMillis() * 2))
-                .sendBroadcast(MockitoHamcrest.argThat(AllOf.allOf(matchers)), any(), any());
+                .sendBroadcastAsUser(
+                        MockitoHamcrest.argThat(AllOf.allOf(matchers)),
+                        eq(UserHandle.ALL),
+                        any(),
+                        any());
     }
 
     private void verifyConnectionStateIntent(BluetoothDevice device, int newState, int prevState) {
@@ -1253,9 +1258,10 @@ public class HearingAidServiceTest {
         mService.messageFromNative(stackEvent);
         // Verify the connection state broadcast
         mInOrder.verify(mContext, times(0))
-                .sendBroadcast(
+                .sendBroadcastAsUser(
                         MockitoHamcrest.argThat(
                                 hasAction(BluetoothHearingAid.ACTION_CONNECTION_STATE_CHANGED)),
+                        eq(UserHandle.ALL),
                         any(),
                         any());
     }

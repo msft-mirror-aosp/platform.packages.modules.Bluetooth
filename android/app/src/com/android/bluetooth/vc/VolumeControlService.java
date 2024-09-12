@@ -805,24 +805,27 @@ public class VolumeControlService extends ProfileService {
                             + (", mute: " + mute)
                             + (", flags: " + flags));
             /* We are here, because system has just started and LeAudio device is connected. If
-             * remote device has User Persistent flag set or the volume != 0, Android sets the
-             * volume to local cache and to the audio system. If Reset Flag is set and remote has
-             * volume set to 0, then Android sets to remote devices either cached volume volume
-             * taken from audio manager. Note, to match BR/EDR behavior, don't show volume change in
-             * UI here
+             * remote device has User Persistent flag set, Android sets the volume to local cache
+             * and to the audio system.
+             * If Reset Flag is set, then Android sets to remote devices either cached volume volume
+             * taken from audio manager.
+             * Note, to match BR/EDR behavior, don't show volume change in UI here
              */
-            if ((flags & VOLUME_FLAGS_PERSISTED_USER_SET_VOLUME_MASK) == 0x01 || (volume != 0)) {
+            if ((flags & VOLUME_FLAGS_PERSISTED_USER_SET_VOLUME_MASK) == 0x01) {
                 updateGroupCacheAndAudioSystem(groupId, volume, mute, false);
-            } else {
-                if (groupVolume != IBluetoothVolumeControl.VOLUME_CONTROL_UNKNOWN_VOLUME) {
-                    Log.i(TAG, "Setting volume: " + groupVolume + " to the group: " + groupId);
-                    setGroupVolume(groupId, groupVolume);
-                } else {
-                    int vol = getBleVolumeFromCurrentStream();
-                    Log.i(TAG, "Setting system volume: " + vol + " to the group: " + groupId);
-                    setGroupVolume(groupId, getBleVolumeFromCurrentStream());
-                }
+                return;
             }
+
+            // Reset flag is used
+            if (groupVolume != IBluetoothVolumeControl.VOLUME_CONTROL_UNKNOWN_VOLUME) {
+                Log.i(TAG, "Setting volume: " + groupVolume + " to the group: " + groupId);
+                setGroupVolume(groupId, groupVolume);
+            } else {
+                int vol = getBleVolumeFromCurrentStream();
+                Log.i(TAG, "Setting system volume: " + vol + " to the group: " + groupId);
+                setGroupVolume(groupId, getBleVolumeFromCurrentStream());
+            }
+
             return;
         }
 
