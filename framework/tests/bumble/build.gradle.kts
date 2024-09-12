@@ -69,5 +69,7 @@ dependencies {
     implementation(files("$out/external/truth/truth-java8-extension/android_common/combined/truth-java8-extension.jar"))
     // OkHttp
     implementation(files("$out/external/grpc-grpc-java/grpc-java-okhttp-client-lite/android_common/combined/grpc-java-okhttp-client-lite.jar"))
+    // Mockito
+    implementation(files("$out/external/mockito-kotlin/mockito-kotlin2/android_common/combined/mockito-kotlin2.jar"))
 }
 

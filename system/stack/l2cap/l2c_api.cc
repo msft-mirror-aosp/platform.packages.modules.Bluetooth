@@ -24,7 +24,7 @@
 
 #define LOG_TAG "bt_l2cap"
 
-#include "stack/include/l2c_api.h"
+#include "stack/l2cap/internal/l2c_api.h"
 
 #include <base/location.h>
 #include <base/strings/stringprintf.h>
@@ -33,6 +33,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "hal/snoop_logger.h"
 #include "hci/controller_interface.h"
@@ -44,7 +45,6 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/btm_client_interface.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/main_thread.h"
 #include "stack/l2cap/l2c_int.h"
 #include "types/raw_address.h"
@@ -53,6 +53,8 @@ using namespace bluetooth;
 
 extern fixed_queue_t* btu_general_alarm_queue;
 tL2C_AVDT_CHANNEL_INFO av_media_channels[MAX_ACTIVE_AVDT_CONN];
+
+constexpr uint16_t L2CAP_LE_CREDIT_THRESHOLD = 64;
 
 tBT_TRANSPORT l2c_get_transport_from_fixed_cid(uint16_t fixed_cid) {
   if (fixed_cid >= L2CAP_ATT_CID && fixed_cid <= L2CAP_SMP_CID) {
@@ -650,7 +652,7 @@ uint16_t L2CA_GetPeerLECocCredit(const RawAddress& bd_addr, uint16_t lcid) {
  *
  ******************************************************************************/
 bool L2CA_ConnectCreditBasedRsp(const RawAddress& p_bd_addr, uint8_t id,
-                                std::vector<uint16_t>& accepted_lcids, uint16_t result,
+                                std::vector<uint16_t>& accepted_lcids, tL2CAP_LE_RESULT_CODE result,
                                 tL2CAP_LE_CFG_INFO* p_cfg) {
   log::verbose("BDA: {} num of cids: {} Result: {}", p_bd_addr, int(accepted_lcids.size()), result);
 
@@ -694,7 +696,7 @@ bool L2CA_ConnectCreditBasedRsp(const RawAddress& p_bd_addr, uint8_t id,
           .bd_addr = p_bd_addr,
           .hci_status{},
           .psm{},
-          .l2cap_result = result,
+          .l2cap_result = static_cast<tL2CAP_CONN>(result),
           .l2cap_status{},
           .remote_cid{},
           .lcids = accepted_lcids,

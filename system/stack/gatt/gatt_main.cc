@@ -32,7 +32,6 @@
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/stack_config.h"
-#include "l2c_api.h"
 #include "main/shim/acl_api.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
@@ -48,6 +47,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
 #include "types/raw_address.h"
@@ -68,7 +68,7 @@ static void gatt_le_cong_cback(const RawAddress& remote_bda, bool congest);
 
 static void gatt_l2cif_connect_ind_cback(const RawAddress& bd_addr, uint16_t l2cap_cid,
                                          uint16_t psm, uint8_t l2cap_id);
-static void gatt_l2cif_connect_cfm_cback(uint16_t l2cap_cid, uint16_t result);
+static void gatt_l2cif_connect_cfm_cback(uint16_t l2cap_cid, tL2CAP_CONN result);
 static void gatt_l2cif_config_ind_cback(uint16_t l2cap_cid, tL2CAP_CFG_INFO* p_cfg);
 static void gatt_l2cif_config_cfm_cback(uint16_t lcid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
 static void gatt_l2cif_disconnect_ind_cback(uint16_t l2cap_cid, bool ack_needed);
@@ -131,15 +131,15 @@ void gatt_init(void) {
   // clients exist
   fixed_reg.default_idle_tout = L2CAP_NO_IDLE_TIMEOUT;
 
-  if (!L2CA_RegisterFixedChannel(L2CAP_ATT_CID, &fixed_reg)) {
+  if (!stack::l2cap::get_interface().L2CA_RegisterFixedChannel(L2CAP_ATT_CID, &fixed_reg)) {
     log::error("Unable to register L2CAP ATT fixed channel");
   }
 
   gatt_cb.over_br_enabled = osi_property_get_bool("bluetooth.gatt.over_bredr.enabled", true);
   /* Now, register with L2CAP for ATT PSM over BR/EDR */
-  if (gatt_cb.over_br_enabled &&
-      !L2CA_RegisterWithSecurity(BT_PSM_ATT, dyn_info, false /* enable_snoop */, nullptr,
-                                 GATT_MAX_MTU_SIZE, 0, BTM_SEC_NONE)) {
+  if (gatt_cb.over_br_enabled && !stack::l2cap::get_interface().L2CA_RegisterWithSecurity(
+                                         BT_PSM_ATT, dyn_info, false /* enable_snoop */, nullptr,
+                                         GATT_MAX_MTU_SIZE, 0, BTM_SEC_NONE)) {
     log::error("ATT Dynamic Registration failed");
   }
 
@@ -223,7 +223,8 @@ bool gatt_connect(const RawAddress& rem_bda, tBLE_ADDR_TYPE addr_type, tGATT_TCB
   }
 
   if (transport != BT_TRANSPORT_LE) {
-    p_tcb->att_lcid = L2CA_ConnectReqWithSecurity(BT_PSM_ATT, rem_bda, BTM_SEC_NONE);
+    p_tcb->att_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(BT_PSM_ATT, rem_bda,
+                                                                                BTM_SEC_NONE);
     return p_tcb->att_lcid != 0;
   }
 
@@ -257,7 +258,7 @@ void gatt_cancel_connect(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   /* This shall be call only when device is not connected */
   log::debug("{}, transport {}", bd_addr, transport);
 
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     // TODO(aryarahul): this might not be necessary now that the connection
     // manager handles GATT client closure correctly in GATT_Deregister
     bluetooth::connection::GetConnectionManager().stop_all_connections_to_device(
@@ -308,7 +309,7 @@ bool gatt_disconnect(tGATT_TCB* p_tcb) {
          */
         EattExtension::GetInstance()->Disconnect(p_tcb->peer_bda);
       }
-      if (!L2CA_RemoveFixedChnl(L2CAP_ATT_CID, p_tcb->peer_bda)) {
+      if (!stack::l2cap::get_interface().L2CA_RemoveFixedChnl(L2CAP_ATT_CID, p_tcb->peer_bda)) {
         log::warn("Unable to remove L2CAP ATT fixed channel peer:{}", p_tcb->peer_bda);
       }
       gatt_set_ch_state(p_tcb, GATT_CH_CLOSING);
@@ -827,7 +828,7 @@ static void gatt_le_data_ind(uint16_t /* chan */, const RawAddress& bd_addr, BT_
  ******************************************************************************/
 static void gatt_l2cif_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid,
                                          uint16_t /* psm */, uint8_t /* id */) {
-  uint8_t result = L2CAP_CONN_OK;
+  tL2CAP_CONN result = tL2CAP_CONN::L2CAP_CONN_OK;
   log::info("Connection indication cid = {}", lcid);
 
   /* new connection ? */
@@ -837,19 +838,19 @@ static void gatt_l2cif_connect_ind_cback(const RawAddress& bd_addr, uint16_t lci
     p_tcb = gatt_allocate_tcb_by_bdaddr(bd_addr, BT_TRANSPORT_BR_EDR);
     if (p_tcb == NULL) {
       /* no tcb available, reject L2CAP connection */
-      result = L2CAP_CONN_NO_RESOURCES;
+      result = tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES;
     } else {
       p_tcb->att_lcid = lcid;
     }
 
   } else /* existing connection , reject it */
   {
-    result = L2CAP_CONN_NO_RESOURCES;
+    result = tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES;
   }
 
   /* If we reject the connection, send DisconnectReq */
-  if (result != L2CAP_CONN_OK) {
-    if (!L2CA_DisconnectReq(lcid)) {
+  if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
+    if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
       log::warn("Unable to disconnect L2CAP peer:{} cid:{}", bd_addr, lcid);
     }
     return;
@@ -872,7 +873,7 @@ static void gatt_on_l2cap_error(uint16_t lcid, uint16_t /* result */) {
 }
 
 /** This is the L2CAP connect confirm callback function */
-static void gatt_l2cif_connect_cfm_cback(uint16_t lcid, uint16_t result) {
+static void gatt_l2cif_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
   tGATT_TCB* p_tcb;
 
   /* look up clcb for this channel */
@@ -884,10 +885,10 @@ static void gatt_l2cif_connect_cfm_cback(uint16_t lcid, uint16_t result) {
   log::verbose("result: {} ch_state: {}, lcid:0x{:x}", result, gatt_get_ch_state(p_tcb),
                p_tcb->att_lcid);
 
-  if (gatt_get_ch_state(p_tcb) == GATT_CH_CONN && result == L2CAP_CONN_OK) {
+  if (gatt_get_ch_state(p_tcb) == GATT_CH_CONN && result == tL2CAP_CONN::L2CAP_CONN_OK) {
     gatt_set_ch_state(p_tcb, GATT_CH_CFG);
   } else {
-    gatt_on_l2cap_error(lcid, result);
+    gatt_on_l2cap_error(lcid, static_cast<uint16_t>(result));
   }
 }
 
@@ -955,7 +956,7 @@ void gatt_l2cif_disconnect_ind_cback(uint16_t lcid, bool /* ack_needed */) {
 }
 
 static void gatt_l2cif_disconnect(uint16_t lcid) {
-  if (!L2CA_DisconnectReq(lcid)) {
+  if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
     log::warn("Unable to disconnect L2CAP cid:{}", lcid);
   }
 
@@ -1003,7 +1004,7 @@ static void gatt_send_conn_cback(tGATT_TCB* p_tcb) {
   uint16_t conn_id;
 
   std::set<tGATT_IF> apps = {};
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     // TODO(aryarahul): this should be done via callbacks passed into the
     // connection manager
     apps = {};
@@ -1066,7 +1067,7 @@ static void gatt_send_conn_cback(tGATT_TCB* p_tcb) {
   }
 
   /* Remove the direct connection */
-  if (!bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (!com::android::bluetooth::flags::unified_connection_manager()) {
     connection_manager::on_connection_complete(p_tcb->peer_bda);
   }
 

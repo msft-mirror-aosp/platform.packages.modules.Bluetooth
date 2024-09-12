@@ -40,7 +40,7 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_status.h"
-#include "stack/include/l2c_api.h"  // L2CA_
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
 #include "types/bluetooth/uuid.h"
@@ -911,6 +911,14 @@ static void bta_hh_le_dis_cback(const RawAddress& addr, tDIS_VALUE* p_dis_value)
     p_cb->dscp_info.vendor_id = p_dis_value->pnp_id.vendor_id;
     p_cb->dscp_info.version = p_dis_value->pnp_id.product_version;
   }
+
+#if TARGET_FLOSS
+  /* serialize HoGP and DIS for floss */
+  Uuid pri_srvc = Uuid::From16Bit(UUID_SERVCLASS_LE_HID);
+  BTA_GATTC_ServiceSearchRequest(p_cb->conn_id, pri_srvc);
+  return;
+#endif
+
   bta_hh_le_open_cmpl(p_cb);
 }
 
@@ -933,6 +941,11 @@ static void bta_hh_le_pri_service_discovery(tBTA_HH_DEV_CB* p_cb) {
   if (!DIS_ReadDISInfo(p_cb->link_spec.addrt.bda, bta_hh_le_dis_cback, DIS_ATTR_PNP_ID_BIT)) {
     log::error("read DIS failed");
     p_cb->disc_active &= ~BTA_HH_LE_DISC_DIS;
+  } else {
+#if TARGET_FLOSS
+    /* serialize HoGP and DIS for floss */
+    return;
+#endif
   }
 
   /* in parallel */
@@ -1355,7 +1368,8 @@ static void read_pref_conn_params_cb(uint16_t conn_id, tGATT_STATUS status, uint
 
   // Make sure both min, and max are bigger than 11.25ms, lower values can
   // introduce audio issues if A2DP is also active.
-  L2CA_AdjustConnectionIntervals(&min_interval, &max_interval, BTM_BLE_CONN_INT_MIN_LIMIT);
+  stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(&min_interval, &max_interval,
+                                                               BTM_BLE_CONN_INT_MIN_LIMIT);
 
   // If the device has no preferred connection timeout, use the default.
   if (timeout == BTM_BLE_CONN_PARAM_UNDEF) {
@@ -1387,8 +1401,8 @@ static void read_pref_conn_params_cb(uint16_t conn_id, tGATT_STATUS status, uint
 
   get_btm_client_interface().ble.BTM_BleSetPrefConnParams(
           p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency, timeout);
-  if (!L2CA_UpdateBleConnParams(p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency,
-                                timeout, 0, 0)) {
+  if (!stack::l2cap::get_interface().L2CA_UpdateBleConnParams(
+              p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency, timeout, 0, 0)) {
     log::warn("Unable to update L2CAP ble connection params peer:{}",
               p_dev_cb->link_spec.addrt.bda);
   }

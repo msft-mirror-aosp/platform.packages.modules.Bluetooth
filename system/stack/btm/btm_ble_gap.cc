@@ -288,6 +288,7 @@ static void btm_ble_start_slow_adv(void);
 static void btm_ble_inquiry_timer_gap_limited_discovery_timeout(void* data);
 static void btm_ble_inquiry_timer_timeout(void* data);
 static void btm_ble_observer_timer_timeout(void* data);
+static DEV_CLASS btm_ble_appearance_to_cod(uint16_t appearance);
 
 enum : uint8_t {
   BTM_BLE_NOT_SCANNING = 0x00,
@@ -301,10 +302,6 @@ static bool ble_evt_type_is_connectable(uint16_t evt_type) {
 
 static bool ble_evt_type_is_scannable(uint16_t evt_type) {
   return evt_type & (1 << BLE_EVT_SCANNABLE_BIT);
-}
-
-static bool ble_evt_type_is_directed(uint16_t evt_type) {
-  return evt_type & (1 << BLE_EVT_DIRECTED_BIT);
 }
 
 static bool ble_evt_type_is_scan_resp(uint16_t evt_type) {
@@ -1655,6 +1652,61 @@ tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMP
 
 /*******************************************************************************
  *
+ * Function         btm_ble_read_remote_appearance_cmpl
+ *
+ * Description      This function is called when peer's appearance value is received.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+static void btm_ble_read_remote_appearance_cmpl(bool status, const RawAddress& bda, uint16_t length,
+                                                char* data) {
+  if (!status) {
+    log::error("Failed to read appearance of {}", bda);
+    return;
+  }
+  if (length != 2 || data == nullptr) {
+    log::error("Invalid appearance value size {} for {}", length, bda);
+    return;
+  }
+
+  uint16_t appearance = data[0] + (data[1] << 8);
+  DEV_CLASS cod = btm_ble_appearance_to_cod(appearance);
+  log::info("Appearance 0x{:04x}, Class of Device {} found for {}", appearance, dev_class_text(cod),
+            bda);
+
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bda);
+  if (p_dev_rec != nullptr) {
+    p_dev_rec->dev_class = cod;
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_ble_read_remote_cod
+ *
+ * Description      Finds Class of Device by reading GATT appearance characteristic
+ *
+ * Parameters:      Device address
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+tBTM_STATUS btm_ble_read_remote_cod(const RawAddress& remote_bda) {
+  if (!bluetooth::shim::GetController()->SupportsBle()) {
+    return tBTM_STATUS::BTM_ERR_PROCESSING;
+  }
+
+  if (!GAP_BleReadPeerAppearance(remote_bda, btm_ble_read_remote_appearance_cmpl)) {
+    return tBTM_STATUS::BTM_BUSY;
+  }
+
+  log::verbose("Reading appearance characteristic {}", remote_bda);
+  return tBTM_STATUS::BTM_CMD_STARTED;
+}
+
+/*******************************************************************************
+ *
  * Function         btm_ble_cancel_remote_name
  *
  * Description      This function cancel read remote LE device name.
@@ -1997,37 +2049,16 @@ static void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
         break;
       }
     }
-    if (com::android::bluetooth::flags::ensure_valid_adv_flag()) {
-      // Non-connectable packets may omit flags entirely, in which case nothing
-      // should be assumed about their values (CSSv10, 1.3.1). Thus, do not
-      // interpret the device type unless this packet has the flags set or is
-      // connectable.
-      if (ble_evt_type_is_connectable(evt_type) && !has_advertising_flags) {
-        // Assume that all-zero flags were received
-        has_advertising_flags = true;
-        local_flag = 0;
-      }
-      if (has_advertising_flags && (local_flag & BTM_BLE_BREDR_NOT_SPT) == 0) {
-        if (p_cur->ble_addr_type != BLE_ADDR_RANDOM) {
-          log::verbose("NOT_BR_EDR support bit not set, treat device as DUMO");
-          p_cur->device_type |= BT_DEVICE_TYPE_DUMO;
-        } else {
-          log::verbose("Random address, treat device as LE only");
-        }
-      } else {
-        log::verbose("NOT_BR/EDR support bit set, treat device as LE only");
-      }
-    }
-  }
-
-  if (!com::android::bluetooth::flags::ensure_valid_adv_flag()) {
     // Non-connectable packets may omit flags entirely, in which case nothing
     // should be assumed about their values (CSSv10, 1.3.1). Thus, do not
     // interpret the device type unless this packet has the flags set or is
     // connectable.
-    bool should_process_flags = has_advertising_flags || ble_evt_type_is_connectable(evt_type);
-    if (should_process_flags && (p_cur->flag & BTM_BLE_BREDR_NOT_SPT) == 0 &&
-        !ble_evt_type_is_directed(evt_type)) {
+    if (ble_evt_type_is_connectable(evt_type) && !has_advertising_flags) {
+      // Assume that all-zero flags were received
+      has_advertising_flags = true;
+      local_flag = 0;
+    }
+    if (has_advertising_flags && (local_flag & BTM_BLE_BREDR_NOT_SPT) == 0) {
       if (p_cur->ble_addr_type != BLE_ADDR_RANDOM) {
         log::verbose("NOT_BR_EDR support bit not set, treat device as DUMO");
         p_cur->device_type |= BT_DEVICE_TYPE_DUMO;
@@ -2246,8 +2277,7 @@ void btm_ble_process_adv_pkt_cont_for_inquiry(uint16_t evt_type, tBLE_ADDR_TYPE 
     if (p_i && (!(p_i->inq_info.results.device_type & BT_DEVICE_TYPE_BLE) ||
                 /* scan response to be updated */
                 (!p_i->scan_rsp) || (!p_i->inq_info.results.include_rsi && include_rsi) ||
-                (com::android::bluetooth::flags::update_inquiry_result_on_flag_change() &&
-                 !p_i->inq_info.results.flag && p_flag && *p_flag))) {
+                (!p_i->inq_info.results.flag && p_flag && *p_flag))) {
       update = true;
     } else if (btm_cb.ble_ctr_cb.is_ble_observe_active()) {
       btm_cb.neighbor.le_observe.results++;

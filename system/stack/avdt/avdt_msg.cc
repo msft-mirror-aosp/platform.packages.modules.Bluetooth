@@ -1479,7 +1479,7 @@ void avdt_msg_send_grej(AvdtpCcb* p_ccb, uint8_t sig_id, tAVDT_MSG* p_params) {
  *
  * Function         avdt_msg_ind
  *
- * Description      This function is called by the adaption layer when an
+ * Description      This function is called by the adaptation layer when an
  *                  incoming message is received on the signaling channel.
  *                  It parses the message and sends an event to the appropriate
  *                  SCB or CCB for the message.

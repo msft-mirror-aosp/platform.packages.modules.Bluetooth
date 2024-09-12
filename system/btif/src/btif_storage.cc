@@ -1303,6 +1303,16 @@ bool btif_storage_get_stored_remote_name(const RawAddress& bd_addr, char* name) 
   return btif_storage_get_remote_device_property(&bd_addr, &property) == BT_STATUS_SUCCESS;
 }
 
+// Get the Class of Device.
+bool btif_storage_get_cod(const RawAddress& bd_addr, uint32_t* cod) {
+  bt_property_t property;
+  property.type = BT_PROPERTY_CLASS_OF_DEVICE;
+  property.len = sizeof(*cod);
+  property.val = cod;
+
+  return btif_storage_get_remote_device_property(&bd_addr, &property) == BT_STATUS_SUCCESS;
+}
+
 /** Stores information about GATT Client supported features support */
 void btif_storage_set_gatt_cl_supp_feat(const RawAddress& bd_addr, uint8_t feat) {
   do_in_jni_thread(Bind(

@@ -86,10 +86,6 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         panic!("Lost connection to D-Bus: {}", err);
     });
 
-    // Let's request a name on the bus, so that clients can find us.
-    conn.request_name("org.chromium.bluetooth.Manager", false, true, false).await?;
-    log::debug!("D-Bus name: {}", conn.unique_name());
-
     // Create a new crossroads instance.
     // The instance is configured so that introspection and properties interfaces
     // are added by default on object path additions.
@@ -153,6 +149,9 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     cr.lock().unwrap().insert("/org/chromium/bluetooth/Manager", &[iface, iface_exp], mixin);
+    // Let's request a name on the bus, so that clients can find us.
+    conn.request_name("org.chromium.bluetooth.Manager", false, true, false).await?;
+    log::debug!("D-Bus name: {}", conn.unique_name());
 
     let mut powerd_suspend_manager = PowerdSuspendManager::new(conn.clone(), cr);
 

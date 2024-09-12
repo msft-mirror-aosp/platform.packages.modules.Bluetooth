@@ -28,15 +28,15 @@
 #include <string.h>
 
 #include "hal/snoop_logger.h"
-#include "hcimsgs.h"  // HCID_GET_
 #include "internal_include/bt_target.h"
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/hcimsgs.h"  // HCID_GET_
 #include "stack/include/l2cap_hci_link_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/l2cap/l2c_int.h"
 
@@ -185,7 +185,7 @@ void l2c_rcv_acl_data(BT_HDR* p_msg) {
     --p_ccb->remote_credit_count;
 
     /* If the credits left on the remote device are getting low, send some */
-    if (p_ccb->remote_credit_count <= L2CA_LeCreditThreshold()) {
+    if (p_ccb->remote_credit_count <= ::L2CA_LeCreditThreshold()) {
       uint16_t credits = L2CA_LeCreditDefault() - p_ccb->remote_credit_count;
       p_ccb->remote_credit_count = L2CA_LeCreditDefault();
 
@@ -335,10 +335,8 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
             log::warn("Remote CID is invalid, treat as disconnected");
             l2c_csm_execute(p_ccb, L2CEVT_LP_DISCONNECT_IND, NULL);
           }
-        }
-
-        /* SonyEricsson Info request Bug workaround (Continue connection) */
-        else if (rej_reason == L2CAP_CMD_REJ_NOT_UNDERSTOOD && p_lcb->w4_info_rsp) {
+        } else if (rej_reason == L2CAP_CMD_REJ_NOT_UNDERSTOOD && p_lcb->w4_info_rsp) {
+          /* SonyEricsson Info request Bug workaround (Continue connection) */
           alarm_cancel(p_lcb->info_resp_timer);
 
           p_lcb->w4_info_rsp = false;
@@ -372,19 +370,19 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         p_rcb = l2cu_find_rcb_by_psm(con_info.psm);
         if (!p_rcb) {
           log::warn("Rcvd conn req for unknown PSM: {}", con_info.psm);
-          l2cu_reject_connection(p_lcb, rcid, id, L2CAP_CONN_NO_PSM);
+          l2cu_reject_connection(p_lcb, rcid, id, tL2CAP_CONN::L2CAP_CONN_NO_PSM);
           break;
         } else {
           if (!p_rcb->api.pL2CA_ConnectInd_Cb) {
             log::warn("Rcvd conn req for outgoing-only connection PSM: {}", con_info.psm);
-            l2cu_reject_connection(p_lcb, rcid, id, L2CAP_CONN_NO_PSM);
+            l2cu_reject_connection(p_lcb, rcid, id, tL2CAP_CONN::L2CAP_CONN_NO_PSM);
             break;
           }
         }
         tL2C_CCB* p_ccb = l2cu_allocate_ccb(p_lcb, 0);
         if (p_ccb == nullptr) {
           log::error("Unable to allocate CCB");
-          l2cu_reject_connection(p_lcb, rcid, id, L2CAP_CONN_NO_RESOURCES);
+          l2cu_reject_connection(p_lcb, rcid, id, tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES);
           break;
         }
         p_ccb->remote_id = id;
@@ -413,7 +411,9 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         }
         STREAM_TO_UINT16(con_info.remote_cid, p);
         STREAM_TO_UINT16(lcid, p);
-        STREAM_TO_UINT16(con_info.l2cap_result, p);
+        uint16_t result_u16;
+        STREAM_TO_UINT16(result_u16, p);
+        con_info.l2cap_result = static_cast<tL2CAP_CONN>(result_u16);
         STREAM_TO_UINT16(con_info.l2cap_status, p);
 
         tL2C_CCB* p_ccb = l2cu_find_ccb_by_cid(p_lcb, lcid);
@@ -426,9 +426,9 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
           break;
         }
 
-        if (con_info.l2cap_result == L2CAP_CONN_OK) {
+        if (con_info.l2cap_result == tL2CAP_CONN::L2CAP_CONN_OK) {
           l2c_csm_execute(p_ccb, L2CEVT_L2CAP_CONNECT_RSP, &con_info);
-        } else if (con_info.l2cap_result == L2CAP_CONN_PENDING) {
+        } else if (con_info.l2cap_result == tL2CAP_CONN::L2CAP_CONN_PENDING) {
           l2c_csm_execute(p_ccb, L2CEVT_L2CAP_CONNECT_RSP_PND, &con_info);
         } else {
           l2c_csm_execute(p_ccb, L2CEVT_L2CAP_CONNECT_RSP_NEG, &con_info);

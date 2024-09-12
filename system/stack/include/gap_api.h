@@ -21,10 +21,9 @@
 
 #include <cstdint>
 
-#include "l2c_api.h"
-#include "l2cdefs.h"
 #include "profiles_api.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/l2cap_types.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
@@ -79,7 +78,7 @@ struct tGAP_L2CAP_CIDS {
 
 union tGAP_CB_DATA {
   tGAP_COC_CREDITS coc_credits;
-  uint16_t l2cap_result;
+  tL2CAP_CONN l2cap_result;
   tGAP_L2CAP_CIDS l2cap_cids;
 };
 
@@ -273,6 +272,17 @@ bool GAP_BleReadPeerPrefConnParams(const RawAddress& peer_bda);
  *
  ******************************************************************************/
 bool GAP_BleReadPeerDevName(const RawAddress& peer_bda, tGAP_BLE_CMPL_CBACK* p_cback);
+
+/*******************************************************************************
+ *
+ * Function         GAP_BleReadPeerAppearance
+ *
+ * Description      Start a process to read a connected peripheral's appearance.
+ *
+ * Returns          true if request accepted
+ *
+ ******************************************************************************/
+bool GAP_BleReadPeerAppearance(const RawAddress& peer_bda, tGAP_BLE_CMPL_CBACK* p_cback);
 
 /*******************************************************************************
  *

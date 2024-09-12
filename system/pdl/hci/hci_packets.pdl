@@ -862,6 +862,7 @@ enum EventCode : 8 {
   LE_META_EVENT = 0x3e,
   NUMBER_OF_COMPLETED_DATA_BLOCKS = 0x48,
   AUTHENTICATED_PAYLOAD_TIMEOUT_EXPIRED = 0x57,
+  ENCRYPTION_CHANGE_V2 = 0x59,
   VENDOR_SPECIFIC = 0xFF,
 }
 
@@ -6325,6 +6326,14 @@ packet NumberOfCompletedDataBlocks : Event (event_code = NUMBER_OF_COMPLETED_DAT
 packet AuthenticatedPayloadTimeoutExpired : Event (event_code = AUTHENTICATED_PAYLOAD_TIMEOUT_EXPIRED) {
   connection_handle : 12,
   _reserved_ : 4,
+}
+
+packet EncryptionChangeV2 : Event (event_code = ENCRYPTION_CHANGE_V2) {
+  status : ErrorCode,
+  connection_handle : 12,
+  _reserved_ : 4,
+  encryption_enabled : EncryptionEnabled,
+  key_size : 8,
 }
 
 // LE Events

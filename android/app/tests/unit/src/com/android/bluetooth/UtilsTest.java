@@ -71,6 +71,17 @@ public class UtilsTest {
     }
 
     @Test
+    public void byteArrayToLong() {
+        byte[] valueBuf =
+                new byte[] {
+                    (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
+                    (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08
+                };
+        long s = Utils.byteArrayToLong(valueBuf);
+        assertThat(s).isEqualTo(0x0807060504030201L);
+    }
+
+    @Test
     public void byteArrayToString() {
         byte[] valueBuf = new byte[] {0x01, 0x02};
         String str = Utils.byteArrayToString(valueBuf);
@@ -127,10 +138,13 @@ public class UtilsTest {
         boolean enabledStatus = locationManager.isLocationEnabledForUser(userHandle);
 
         locationManager.setLocationEnabledForUser(false, userHandle);
-        assertThat(Utils.checkCallerHasCoarseLocation(context, null, userHandle)).isFalse();
+        assertThat(
+                        Utils.checkCallerHasCoarseLocation(
+                                context, context.getAttributionSource(), userHandle))
+                .isFalse();
 
         locationManager.setLocationEnabledForUser(true, userHandle);
-        Utils.checkCallerHasCoarseLocation(context, null, userHandle);
+        Utils.checkCallerHasCoarseLocation(context, context.getAttributionSource(), userHandle);
         if (!enabledStatus) {
             locationManager.setLocationEnabledForUser(false, userHandle);
         }
@@ -144,10 +158,14 @@ public class UtilsTest {
         boolean enabledStatus = locationManager.isLocationEnabledForUser(userHandle);
 
         locationManager.setLocationEnabledForUser(false, userHandle);
-        assertThat(Utils.checkCallerHasCoarseOrFineLocation(context, null, userHandle)).isFalse();
+        assertThat(
+                        Utils.checkCallerHasCoarseOrFineLocation(
+                                context, context.getAttributionSource(), userHandle))
+                .isFalse();
 
         locationManager.setLocationEnabledForUser(true, userHandle);
-        Utils.checkCallerHasCoarseOrFineLocation(context, null, userHandle);
+        Utils.checkCallerHasCoarseOrFineLocation(
+                context, context.getAttributionSource(), userHandle);
         if (!enabledStatus) {
             locationManager.setLocationEnabledForUser(false, userHandle);
         }

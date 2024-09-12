@@ -33,7 +33,6 @@
 
 #include "internal_include/bt_target.h"
 #include "internal_include/stack_config.h"
-#include "l2c_api.h"
 #include "os/system_properties.h"
 #include "osi/include/allocator.h"
 #include "rust/src/connection/ffi/connection_shim.h"
@@ -46,6 +45,7 @@
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/sdp_api.h"
 #include "types/bluetooth/uuid.h"
@@ -1190,15 +1190,15 @@ void GATT_SetIdleTimeout(const RawAddress& bd_addr, uint16_t idle_tout, tBT_TRAN
 
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, transport);
   if (p_tcb != nullptr) {
-    status = L2CA_SetLeGattTimeout(bd_addr, idle_tout);
+    status = stack::l2cap::get_interface().L2CA_SetLeGattTimeout(bd_addr, idle_tout);
 
     if (is_active) {
-      status &= L2CA_MarkLeLinkAsActive(bd_addr);
+      status &= stack::l2cap::get_interface().L2CA_MarkLeLinkAsActive(bd_addr);
     }
 
     if (idle_tout == GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP) {
-      if (!L2CA_SetIdleTimeoutByBdAddr(p_tcb->peer_bda, GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP,
-                                       BT_TRANSPORT_LE)) {
+      if (!stack::l2cap::get_interface().L2CA_SetIdleTimeoutByBdAddr(
+                  p_tcb->peer_bda, GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP, BT_TRANSPORT_LE)) {
         log::warn("Unable to set L2CAP link idle timeout peer:{} transport:{}", p_tcb->peer_bda,
                   bt_transport_text(transport));
       }
@@ -1374,7 +1374,7 @@ void GATT_Deregister(tGATT_IF gatt_if) {
     }
   }
 
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     bluetooth::connection::GetConnectionManager().remove_client(gatt_if);
   } else {
     connection_manager::on_app_deregistered(gatt_if);
@@ -1468,6 +1468,11 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
     return false;
   }
 
+  if (bd_addr == RawAddress::kEmpty) {
+    log::error("Unsupported empty address, gatt_if={}", gatt_if);
+    return false;
+  }
+
   if (opportunistic) {
     log::info("Registered for opportunistic connection gatt_if={}", gatt_if);
     return true;
@@ -1505,7 +1510,7 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
       ret = false;
     } else {
       log::debug("Adding to background connect to device:{}", bd_addr);
-      if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+      if (com::android::bluetooth::flags::unified_connection_manager()) {
         if (connection_type == BTM_BLE_BKG_CONNECT_ALLOW_LIST) {
           bluetooth::connection::GetConnectionManager().add_background_connection(
                   gatt_if, bluetooth::connection::ResolveRawAddress(bd_addr));
@@ -1599,7 +1604,7 @@ bool GATT_CancelConnect(tGATT_IF gatt_if, const RawAddress& bd_addr, bool is_dir
     }
   }
 
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     bluetooth::connection::GetConnectionManager().stop_all_connections_to_device(
             bluetooth::connection::ResolveRawAddress(bd_addr));
   } else {

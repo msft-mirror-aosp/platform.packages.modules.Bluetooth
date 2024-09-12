@@ -26,10 +26,10 @@
 
 #include "gatt_int.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "types/bluetooth/uuid.h"
 
@@ -202,7 +202,8 @@ static BT_HDR* attp_build_read_by_type_value_cmd(uint16_t payload_size,
 static BT_HDR* attp_build_read_multi_cmd(uint8_t op_code, uint16_t payload_size,
                                          uint16_t num_handle,
                                          uint16_t* p_handle) {
-  uint8_t *p, i = 0;
+  uint8_t* p;
+  uint16_t i = 0;
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(sizeof(BT_HDR) + num_handle * 2 + 1 +
                                       L2CAP_MIN_OFFSET);
 
@@ -369,10 +370,10 @@ tGATT_STATUS attp_send_msg_to_l2cap(tGATT_TCB& tcb, uint16_t lcid, BT_HDR* p_toL
 
   if (lcid == L2CAP_ATT_CID) {
     log::debug("Sending ATT message on att fixed channel");
-    l2cap_ret = L2CA_SendFixedChnlData(lcid, tcb.peer_bda, p_toL2CAP);
+    l2cap_ret = stack::l2cap::get_interface().L2CA_SendFixedChnlData(lcid, tcb.peer_bda, p_toL2CAP);
   } else {
     log::debug("Sending ATT message on lcid:{}", lcid);
-    l2cap_ret = L2CA_DataWrite(lcid, p_toL2CAP);
+    l2cap_ret = stack::l2cap::get_interface().L2CA_DataWrite(lcid, p_toL2CAP);
   }
 
   if (l2cap_ret == tL2CAP_DW_RESULT::FAILED) {

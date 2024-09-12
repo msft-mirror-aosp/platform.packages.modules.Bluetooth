@@ -107,7 +107,6 @@ pub enum Message {
     ConnectionCallbackDisconnected(u32),
 
     // Some delayed actions for the adapter.
-    TriggerUpdateConnectableMode,
     DelayedAdapterActions(DelayedActions),
 
     // Follows IBluetooth's on_device_(dis)connected and bond_state callbacks
@@ -170,9 +169,6 @@ pub enum Message {
     // UHid callbacks
     UHidHfpOutputCallback(RawAddress, u8, u8),
     UHidTelephonyUseCallback(RawAddress, bool),
-
-    // GATT Callbacks
-    GattClientDisconnected(RawAddress),
 }
 
 /// Returns a callable object that dispatches a BTIF callback to Message
@@ -289,6 +285,7 @@ impl Stack {
                 }
 
                 Message::AdapterShutdown => {
+                    bluetooth_gatt.lock().unwrap().enable(false);
                     bluetooth.lock().unwrap().disable();
                 }
 
@@ -307,8 +304,17 @@ impl Stack {
                     // Init Media and pass it to Bluetooth.
                     bluetooth_media.lock().unwrap().initialize();
                     bluetooth.lock().unwrap().set_media(bluetooth_media.clone());
-                    // Register device information service.
+                    // Init Gatt and pass it to Bluetooth.
+                    bluetooth_gatt.lock().unwrap().init_profiles(tx.clone(), api_tx.clone());
+                    bluetooth_gatt.lock().unwrap().enable(true);
+                    bluetooth.lock().unwrap().set_gatt_and_init_scanner(bluetooth_gatt.clone());
+                    // Init AdvertiseManager. It selects the stack per is_le_ext_adv_supported
+                    // so it can only be done after Adapter is ready.
+                    bluetooth_gatt.lock().unwrap().init_adv_manager(bluetooth.clone());
+                    // Battery service and device information service are on top of Gatt.
+                    // Only initialize them after GATT is ready.
                     bluetooth_dis.lock().unwrap().initialize();
+                    battery_service.lock().unwrap().init();
                     // Initialize Admin. This toggles the enabled profiles.
                     bluetooth_admin.lock().unwrap().initialize(api_tx.clone());
                 }
@@ -422,13 +428,6 @@ impl Stack {
 
                 Message::ConnectionCallbackDisconnected(id) => {
                     bluetooth.lock().unwrap().connection_callback_disconnected(id);
-                }
-
-                Message::TriggerUpdateConnectableMode => {
-                    let is_listening = bluetooth_socketmgr.lock().unwrap().is_listening();
-                    bluetooth.lock().unwrap().handle_delayed_actions(
-                        DelayedActions::UpdateConnectableMode(is_listening),
-                    );
                 }
 
                 Message::DelayedAdapterActions(action) => {
@@ -601,13 +600,6 @@ impl Stack {
                         .lock()
                         .unwrap()
                         .dispatch_uhid_telephony_use_callback(addr, state);
-                }
-
-                Message::GattClientDisconnected(address) => {
-                    bluetooth
-                        .lock()
-                        .unwrap()
-                        .disconnect_if_no_media_or_hid_profiles_connected(address);
                 }
             }
         }

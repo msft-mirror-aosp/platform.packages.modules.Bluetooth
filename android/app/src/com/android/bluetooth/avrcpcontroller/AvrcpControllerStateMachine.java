@@ -41,6 +41,7 @@ import com.android.bluetooth.a2dpsink.A2dpSinkService;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.btservice.ProfileService;
+import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
@@ -262,6 +263,7 @@ class AvrcpControllerStateMachine extends StateMachine {
                         + (mCoverArtManager.getState(mDevice) == BluetoothProfile.STATE_CONNECTED));
 
         ProfileService.println(sb, "Addressed Player ID: " + mAddressedPlayerId);
+        ProfileService.println(sb, "Browsed Player ID: " + mBrowseTree.getCurrentBrowsedPlayer());
         ProfileService.println(sb, "Available Players (" + mAvailablePlayerList.size() + "): ");
         for (int i = 0; i < mAvailablePlayerList.size(); i++) {
             AvrcpPlayer player = mAvailablePlayerList.valueAt(i);
@@ -1119,11 +1121,34 @@ class AvrcpControllerStateMachine extends StateMachine {
                 fetchContents(mNextStep);
             } else if (mNextStep.isPlayer()) {
                 debug("GetFolderList: NAVIGATING Player " + mNextStep.toString());
+                BrowseTree.BrowseNode currentBrowsedPlayer = mBrowseTree.getCurrentBrowsedPlayer();
+                if (Flags.uncachePlayerWhenBrowsedPlayerChanges()) {
+                    if (currentBrowsedPlayer != null) {
+                        debug(
+                                "GetFolderList: Uncache current browsed player, player="
+                                        + currentBrowsedPlayer);
+                        mBrowseTree.getCurrentBrowsedPlayer().setCached(false);
+                    } else {
+                        debug(
+                                "GetFolderList: Browsed player unset, no need to uncache the"
+                                        + " previous player");
+                    }
+                } else {
+                    debug(
+                            "GetFolderList: Feature not available: uncache current browsed player"
+                                    + " on switch");
+                }
+
                 if (mNextStep.isBrowsable()) {
+                    debug(
+                            "GetFolderList: Set browsed player, old="
+                                    + currentBrowsedPlayer
+                                    + ", new="
+                                    + mNextStep);
                     mNativeInterface.setBrowsedPlayer(
                             mDeviceAddress, (int) mNextStep.getBluetoothID());
                 } else {
-                    debug("GetFolderList: Player doesn't support browsing");
+                    debug("GetFolderList: Target player doesn't support browsing");
                     mNextStep.setCached(true);
                     transitionTo(mConnected);
                 }

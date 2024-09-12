@@ -186,6 +186,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -257,6 +258,8 @@ public class AdapterService extends Service {
             mBluetoothQualityReportReadyCallbacks = new RemoteCallbackList<>();
     private final RemoteCallbackList<IBluetoothCallback> mRemoteCallbacks =
             new RemoteCallbackList<>();
+    private final RemoteCallbackList<IBluetoothConnectionCallback> mBluetoothConnectionCallbacks =
+            new RemoteCallbackList<>();
 
     private final EvictingQueue<String> mScanModeChanges = EvictingQueue.create(10);
 
@@ -283,7 +286,6 @@ public class AdapterService extends Service {
 
     private boolean mNativeAvailable;
     private boolean mCleaningUp;
-    private Set<IBluetoothConnectionCallback> mBluetoothConnectionCallbacks = new HashSet<>();
     private boolean mQuietmode = false;
     private Map<String, CallerInfo> mBondAttemptCallerInfo = new HashMap<>();
 
@@ -1106,6 +1108,7 @@ public class AdapterService extends Service {
     }
 
     private void startGattProfileService() {
+        Log.d(TAG, "startGattProfileService() called");
         mGattService = new GattService(this);
 
         mStartedProfiles.put(BluetoothProfile.GATT, mGattService);
@@ -1116,11 +1119,13 @@ public class AdapterService extends Service {
     }
 
     private void startScanController() {
+        Log.d(TAG, "startScanController() called");
         mScanController = new ScanController(this);
         mNativeInterface.enable();
     }
 
     private void stopGattProfileService() {
+        Log.d(TAG, "stopGattProfileService() called");
         setScanMode(SCAN_MODE_NONE, "stopGattProfileService");
 
         if (mRunningProfiles.size() == 0) {
@@ -1141,6 +1146,7 @@ public class AdapterService extends Service {
     }
 
     private void stopScanController() {
+        Log.d(TAG, "stopScanController() called");
         setScanMode(SCAN_MODE_NONE, "stopScanController");
 
         if (mScanController == null) {
@@ -1478,6 +1484,8 @@ public class AdapterService extends Service {
         mPreferredAudioProfilesCallbacks.kill();
 
         mBluetoothQualityReportReadyCallbacks.kill();
+
+        mBluetoothConnectionCallbacks.kill();
 
         mRemoteCallbacks.kill();
     }
@@ -3452,7 +3460,7 @@ public class AdapterService extends Service {
                 return;
             }
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
-            service.mBluetoothConnectionCallbacks.add(callback);
+            service.mBluetoothConnectionCallbacks.register(callback);
         }
 
         @Override
@@ -3466,7 +3474,7 @@ public class AdapterService extends Service {
                 return;
             }
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
-            service.mBluetoothConnectionCallbacks.remove(callback);
+            service.mBluetoothConnectionCallbacks.unregister(callback);
         }
 
         @Override
@@ -5517,8 +5525,13 @@ public class AdapterService extends Service {
         return mRemoteDevices.getUuids(device);
     }
 
-    public Set<IBluetoothConnectionCallback> getBluetoothConnectionCallbacks() {
-        return mBluetoothConnectionCallbacks;
+    void aclStateChangeBroadcastCallback(Consumer<IBluetoothConnectionCallback> cb) {
+        int n = mBluetoothConnectionCallbacks.beginBroadcast();
+        Log.d(TAG, "aclStateChangeBroadcastCallback() - Broadcasting to " + n + " receivers.");
+        for (int i = 0; i < n; i++) {
+            cb.accept(mBluetoothConnectionCallbacks.getBroadcastItem(i));
+        }
+        mRemoteCallbacks.finishBroadcast();
     }
 
     /**
@@ -6275,6 +6288,9 @@ public class AdapterService extends Service {
             final boolean testModeEnabled = "enabled".equalsIgnoreCase(args[1]);
             for (ProfileService profile : mRunningProfiles) {
                 profile.setTestModeEnabled(testModeEnabled);
+            }
+            if (Flags.scanManagerRefactor() && mScanController != null) {
+                mScanController.setTestModeEnabled(testModeEnabled);
             }
             mTestModeEnabled = testModeEnabled;
             return;
