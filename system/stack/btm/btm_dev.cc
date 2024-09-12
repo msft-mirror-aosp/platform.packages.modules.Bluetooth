@@ -36,7 +36,6 @@
 #include "btm_sec_api.h"
 #include "btm_sec_cb.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
 #include "main/shim/dumpsys.h"
 #include "osi/include/allocator.h"
 #include "rust/src/connection/ffi/connection_shim.h"

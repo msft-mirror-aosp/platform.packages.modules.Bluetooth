@@ -31,8 +31,6 @@
 #include "avdt_api.h"
 #include "avdt_int.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
-#include "l2cdefs.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_sec_api_types.h"
@@ -587,7 +585,7 @@ void avdt_ad_close_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb) {
     default:
       lcid = p_tbl->lcid;
       /* call l2cap disconnect req */
-      if (!L2CA_DisconnectReq(lcid)) {
+      if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
         log::warn("Unable to disconnect L2CAP lcid: 0x{:04x}", lcid);
       }
       avdt_ad_tc_close_ind(p_tbl);

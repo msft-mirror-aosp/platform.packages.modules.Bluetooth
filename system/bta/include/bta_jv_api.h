@@ -32,7 +32,6 @@
 #include "include/macros.h"
 #include "internal_include/bt_target.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/rfcdefs.h"
 #include "types/bluetooth/uuid.h"
