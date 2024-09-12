@@ -37,6 +37,7 @@ import pandora.HostGrpc;
 import pandora.HostProto;
 import pandora.HostProto.AdvertiseRequest;
 import pandora.HostProto.OwnAddressType;
+import pandora.OOBGrpc;
 import pandora.RFCOMMGrpc;
 import pandora.SecurityGrpc;
 import pandora.l2cap.L2CAPGrpc;
@@ -196,6 +197,11 @@ public final class PandoraDevice extends ExternalResource {
     /** Get Pandora Security service */
     public SecurityGrpc.SecurityStub security() {
         return SecurityGrpc.newStub(mChannel);
+    }
+
+    /** Get Pandora OOB blocking service */
+    public OOBGrpc.OOBBlockingStub oobBlocking() {
+        return OOBGrpc.newBlockingStub(mChannel);
     }
 
     /** Get Pandora GATT service */

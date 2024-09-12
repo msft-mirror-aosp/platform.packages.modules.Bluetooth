@@ -19,7 +19,6 @@
  *   Functions generated:9
  */
 
-#include "l2c_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/l2cap/l2c_int.h"
 #include "test/common/mock_functions.h"
