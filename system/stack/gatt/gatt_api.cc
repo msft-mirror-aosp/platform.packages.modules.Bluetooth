@@ -33,7 +33,6 @@
 
 #include "internal_include/bt_target.h"
 #include "internal_include/stack_config.h"
-#include "l2c_api.h"
 #include "os/system_properties.h"
 #include "osi/include/allocator.h"
 #include "rust/src/connection/ffi/connection_shim.h"
@@ -41,9 +40,12 @@
 #include "stack/btm/btm_dev.h"
 #include "stack/gatt/connection_manager.h"
 #include "stack/gatt/gatt_int.h"
+#include "stack/include/ais_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/btm_client_interface.h"
 #include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/sdp_api.h"
 #include "types/bluetooth/uuid.h"
@@ -71,6 +73,9 @@ tGATT_HDL_LIST_ELEM& gatt_add_an_item_to_list(uint16_t s_handle) {
   auto rit = lst_ptr->emplace(it);
   return *rit;
 }
+
+static tGATT_IF GATT_Register_Dynamic(const Uuid& app_uuid128, const std::string& name,
+                                      tGATT_CBACK* p_cb_info, bool eatt_support);
 
 /*****************************************************************************
  *
@@ -320,7 +325,14 @@ tGATT_STATUS GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service, in
     Uuid* p_uuid = gatts_get_service_uuid(elem.p_db);
     if (*p_uuid != Uuid::From16Bit(UUID_SERVCLASS_GMCS_SERVER) &&
         *p_uuid != Uuid::From16Bit(UUID_SERVCLASS_GTBS_SERVER)) {
-      elem.sdp_handle = gatt_add_sdp_record(*p_uuid, elem.s_hdl, elem.e_hdl);
+      if ((com::android::bluetooth::flags::channel_sounding_in_stack() &&
+           *p_uuid == Uuid::From16Bit(UUID_SERVCLASS_RAS)) ||
+          (com::android::bluetooth::flags::android_os_identifier() &&
+           *p_uuid == ANDROID_INFORMATION_SERVICE_UUID)) {
+        elem.sdp_handle = 0;
+      } else {
+        elem.sdp_handle = gatt_add_sdp_record(*p_uuid, elem.s_hdl, elem.e_hdl);
+      }
     } else {
       elem.sdp_handle = 0;
     }
@@ -832,7 +844,10 @@ void GATTC_UpdateUserAttMtuIfNeeded(const RawAddress& remote_bda, tBT_TRANSPORT 
   }
 
   p_tcb->max_user_mtu = user_mtu;
-  BTM_SetBleDataLength(remote_bda, user_mtu);
+  if (get_btm_client_interface().ble.BTM_SetBleDataLength(remote_bda, user_mtu) !=
+      tBTM_STATUS::BTM_SUCCESS) {
+    log::warn("Unable to set ble data length peer:{} mtu:{}", remote_bda, user_mtu);
+  }
 }
 
 std::list<uint16_t> GATTC_GetAndRemoveListOfConnIdsWaitingForMtuRequest(
@@ -1175,15 +1190,15 @@ void GATT_SetIdleTimeout(const RawAddress& bd_addr, uint16_t idle_tout, tBT_TRAN
 
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, transport);
   if (p_tcb != nullptr) {
-    status = L2CA_SetLeGattTimeout(bd_addr, idle_tout);
+    status = stack::l2cap::get_interface().L2CA_SetLeGattTimeout(bd_addr, idle_tout);
 
     if (is_active) {
-      status &= L2CA_MarkLeLinkAsActive(bd_addr);
+      status &= stack::l2cap::get_interface().L2CA_MarkLeLinkAsActive(bd_addr);
     }
 
     if (idle_tout == GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP) {
-      if (!L2CA_SetIdleTimeoutByBdAddr(p_tcb->peer_bda, GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP,
-                                       BT_TRANSPORT_LE)) {
+      if (!stack::l2cap::get_interface().L2CA_SetIdleTimeoutByBdAddr(
+                  p_tcb->peer_bda, GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP, BT_TRANSPORT_LE)) {
         log::warn("Unable to set L2CAP link idle timeout peer:{} transport:{}", p_tcb->peer_bda,
                   bt_transport_text(transport));
       }
@@ -1211,6 +1226,9 @@ void GATT_SetIdleTimeout(const RawAddress& bd_addr, uint16_t idle_tout, tBT_TRAN
  ******************************************************************************/
 tGATT_IF GATT_Register(const Uuid& app_uuid128, const std::string& name, tGATT_CBACK* p_cb_info,
                        bool eatt_support) {
+  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+    return GATT_Register_Dynamic(app_uuid128, name, p_cb_info, eatt_support);
+  }
   tGATT_REG* p_reg;
   uint8_t i_gatt_if = 0;
   tGATT_IF gatt_if = 0;
@@ -1244,6 +1262,55 @@ tGATT_IF GATT_Register(const Uuid& app_uuid128, const std::string& name, tGATT_C
   }
 
   log::error("Unable to register GATT client, MAX client reached: {}", GATT_MAX_APPS);
+  return 0;
+}
+
+static tGATT_IF GATT_Register_Dynamic(const Uuid& app_uuid128, const std::string& name,
+                                      tGATT_CBACK* p_cb_info, bool eatt_support) {
+  for (auto& [gatt_if, p_reg] : gatt_cb.cl_rcb_map) {
+    if (p_reg->app_uuid128 == app_uuid128) {
+      log::error("Application already registered, uuid={}", app_uuid128.ToString());
+      return 0;
+    }
+  }
+
+  if (stack_config_get_interface()->get_pts_use_eatt_for_all_services()) {
+    log::info("PTS: Force to use EATT for servers");
+    eatt_support = true;
+  }
+
+  if (gatt_cb.cl_rcb_map.size() >= GATT_CL_RCB_MAX) {
+    log::error("Unable to register GATT client, MAX client reached: {}", gatt_cb.cl_rcb_map.size());
+    return 0;
+  }
+
+  uint8_t i_gatt_if = gatt_cb.next_gatt_if;
+  for (int i = 0; i < GATT_CL_RCB_MAX; i++) {
+    if (gatt_cb.cl_rcb_map.find(static_cast<tGATT_IF>(i_gatt_if)) == gatt_cb.cl_rcb_map.end()) {
+      gatt_cb.cl_rcb_map.emplace(i_gatt_if, std::make_unique<tGATT_REG>());
+      tGATT_REG* p_reg = gatt_cb.cl_rcb_map[i_gatt_if].get();
+      p_reg->app_uuid128 = app_uuid128;
+      p_reg->gatt_if = (tGATT_IF)i_gatt_if;
+      p_reg->app_cb = *p_cb_info;
+      p_reg->in_use = true;
+      p_reg->eatt_support = eatt_support;
+      p_reg->name = name;
+      log::info("Allocated name:{} uuid:{} gatt_if:{} eatt_support:{}", name,
+                app_uuid128.ToString(), p_reg->gatt_if, eatt_support);
+
+      gatt_cb.next_gatt_if = (tGATT_IF)(i_gatt_if + 1);
+      if (gatt_cb.next_gatt_if == 0) {
+        gatt_cb.next_gatt_if = 1;
+      }
+      return p_reg->gatt_if;
+    }
+    i_gatt_if++;
+    if (i_gatt_if == 0) {
+      i_gatt_if = 1;
+    }
+  }
+
+  log::error("Unable to register GATT client, MAX client reached: {}", gatt_cb.cl_rcb_map.size());
   return 0;
 }
 
@@ -1308,13 +1375,17 @@ void GATT_Deregister(tGATT_IF gatt_if) {
     }
   }
 
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     bluetooth::connection::GetConnectionManager().remove_client(gatt_if);
   } else {
     connection_manager::on_app_deregistered(gatt_if);
   }
 
-  *p_reg = {};
+  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+    gatt_cb.cl_rcb_map.erase(gatt_if);
+  } else {
+    *p_reg = {};
+  }
 }
 
 /*******************************************************************************
@@ -1398,6 +1469,11 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
     return false;
   }
 
+  if (bd_addr == RawAddress::kEmpty) {
+    log::error("Unsupported empty address, gatt_if={}", gatt_if);
+    return false;
+  }
+
   if (opportunistic) {
     log::info("Registered for opportunistic connection gatt_if={}", gatt_if);
     return true;
@@ -1435,7 +1511,7 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
       ret = false;
     } else {
       log::debug("Adding to background connect to device:{}", bd_addr);
-      if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+      if (com::android::bluetooth::flags::unified_connection_manager()) {
         if (connection_type == BTM_BLE_BKG_CONNECT_ALLOW_LIST) {
           bluetooth::connection::GetConnectionManager().add_background_connection(
                   gatt_if, bluetooth::connection::ResolveRawAddress(bd_addr));
@@ -1529,7 +1605,7 @@ bool GATT_CancelConnect(tGATT_IF gatt_if, const RawAddress& bd_addr, bool is_dir
     }
   }
 
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     bluetooth::connection::GetConnectionManager().stop_all_connections_to_device(
             bluetooth::connection::ResolveRawAddress(bd_addr));
   } else {

@@ -30,9 +30,7 @@
 #include <vector>
 
 #include "bta/dm/bta_dm_device_search_int.h"
-#include "bta/dm/bta_dm_disc_legacy.h"
 #include "common/circular_buffer.h"
-#include "common/init_flags.h"
 #include "common/strings.h"
 #include "device/include/interop.h"
 #include "main/shim/dumpsys.h"
@@ -44,8 +42,9 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_inq.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
-#include "stack/rnr/remote_name_request.h"
+#include "stack/include/rnr_interface.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -67,7 +66,6 @@ static bool bta_dm_read_remote_device_name(const RawAddress& bd_addr, tBT_TRANSP
 static void bta_dm_discover_name(const RawAddress& remote_bd_addr);
 static void bta_dm_execute_queued_search_request();
 static void bta_dm_search_cancel_notify();
-static void bta_dm_disable_search();
 
 static void bta_dm_search_sm_execute(tBTA_DM_DEV_SEARCH_EVT event,
                                      std::unique_ptr<tBTA_DM_SEARCH_MSG> msg);
@@ -89,14 +87,6 @@ static void post_search_evt(tBTA_DM_DEV_SEARCH_EVT event, std::unique_ptr<tBTA_D
   }
 }
 
-void bta_dm_disc_disable_search() {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    log::info("no-op when flag is disabled");
-    return;
-  }
-  bta_dm_disable_search();
-}
-
 /*******************************************************************************
  *
  * Function         bta_dm_search_start
@@ -108,7 +98,7 @@ void bta_dm_disc_disable_search() {
  *
  ******************************************************************************/
 static void bta_dm_search_start(tBTA_DM_API_SEARCH& search) {
-  if (get_btm_client_interface().db.BTM_ClearInqDb(nullptr) != BTM_SUCCESS) {
+  if (get_btm_client_interface().db.BTM_ClearInqDb(nullptr) != tBTM_STATUS::BTM_SUCCESS) {
     log::warn("Unable to clear inquiry database for device discovery");
   }
   /* save search params */
@@ -116,7 +106,7 @@ static void bta_dm_search_start(tBTA_DM_API_SEARCH& search) {
 
   const tBTM_STATUS btm_status = BTM_StartInquiry(bta_dm_inq_results_cb, bta_dm_inq_cmpl_cb);
   switch (btm_status) {
-    case BTM_CMD_STARTED:
+    case tBTM_STATUS::BTM_CMD_STARTED:
       // Completion callback will be executed when controller inquiry
       // timer pops or is cancelled by the user
       break;
@@ -148,7 +138,7 @@ static void bta_dm_search_cancel() {
   /* If no Service Search going on then issue cancel remote name in case it is
      active */
   else if (!bta_dm_search_cb.name_discover_done) {
-    if (get_btm_client_interface().peer.BTM_CancelRemoteDeviceName() != BTM_CMD_STARTED) {
+    if (get_stack_rnr_interface().BTM_CancelRemoteDeviceName() != tBTM_STATUS::BTM_CMD_STARTED) {
       log::warn("Unable to cancel RNR");
     }
     /* bta_dm_search_cmpl is called when receiving the remote name cancel evt */
@@ -248,7 +238,7 @@ static void bta_dm_remname_cback(const tBTM_REMOTE_DEV_NAME* p_remote_name) {
   log::info(
           "Remote name request complete peer:{} btm_status:{} hci_status:{} "
           "name[0]:{:c} length:{}",
-          p_remote_name->bd_addr, btm_status_text(p_remote_name->status),
+          p_remote_name->bd_addr, btm_status_text(p_remote_name->btm_status),
           hci_error_code_text(p_remote_name->hci_status), p_remote_name->remote_bd_name[0],
           strnlen((const char*)p_remote_name->remote_bd_name, BD_NAME_LEN));
 
@@ -296,14 +286,14 @@ static bool bta_dm_read_remote_device_name(const RawAddress& bd_addr, tBT_TRANSP
   bta_dm_search_cb.peer_bdaddr = bd_addr;
   bta_dm_search_cb.peer_name[0] = 0;
 
-  btm_status = get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(
-          bta_dm_search_cb.peer_bdaddr, bta_dm_remname_cback, transport);
+  btm_status = get_stack_rnr_interface().BTM_ReadRemoteDeviceName(bta_dm_search_cb.peer_bdaddr,
+                                                                  bta_dm_remname_cback, transport);
 
-  if (btm_status == BTM_CMD_STARTED) {
+  if (btm_status == tBTM_STATUS::BTM_CMD_STARTED) {
     log::verbose("BTM_ReadRemoteDeviceName is started");
 
     return true;
-  } else if (btm_status == BTM_BUSY) {
+  } else if (btm_status == tBTM_STATUS::BTM_BUSY) {
     log::verbose("BTM_ReadRemoteDeviceName is busy");
 
     return true;
@@ -434,7 +424,8 @@ static void bta_dm_search_cancel_notify() {
     case BTA_DM_SEARCH_ACTIVE:
     case BTA_DM_SEARCH_CANCELLING:
       if (!bta_dm_search_cb.name_discover_done) {
-        if (get_btm_client_interface().peer.BTM_CancelRemoteDeviceName() != BTM_CMD_STARTED) {
+        if (get_stack_rnr_interface().BTM_CancelRemoteDeviceName() !=
+            tBTM_STATUS::BTM_CMD_STARTED) {
           log::warn("Unable to cancel RNR");
         }
       }
@@ -512,8 +503,7 @@ static void bta_dm_discover_name(const RawAddress& remote_bd_addr) {
     bta_dm_search_cb.name_discover_done = true;
   }
   // If we already have the name we can skip getting the name
-  if (BTM_IsRemoteNameKnown(remote_bd_addr, transport) &&
-      bluetooth::common::init_flags::sdp_skip_rnr_if_known_is_enabled()) {
+  if (get_stack_rnr_interface().BTM_IsRemoteNameKnown(remote_bd_addr, transport)) {
     log::debug("Security record already known skipping read remote name peer:{}", remote_bd_addr);
     bta_dm_search_cb.name_discover_done = true;
   }
@@ -559,12 +549,7 @@ static void bta_dm_discover_name(const RawAddress& remote_bd_addr) {
  * Returns          bool
  *
  ******************************************************************************/
-bool bta_dm_is_search_request_queued() {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    return bta_dm_disc_legacy::bta_dm_is_search_request_queued();
-  }
-  return bta_dm_search_cb.p_pending_search != NULL;
-}
+bool bta_dm_is_search_request_queued() { return bta_dm_search_cb.p_pending_search != NULL; }
 
 /*******************************************************************************
  *
@@ -705,11 +690,11 @@ static void bta_dm_observe_cmpl_cb(void* p_result) {
   }
 }
 
-static void bta_dm_start_scan(uint8_t duration_sec, bool low_latency_scan = false) {
+static void bta_dm_start_scan(uint8_t duration_sec) {
   tBTM_STATUS status = get_btm_client_interface().ble.BTM_BleObserve(
-          true, duration_sec, bta_dm_observe_results_cb, bta_dm_observe_cmpl_cb, low_latency_scan);
+          true, duration_sec, bta_dm_observe_results_cb, bta_dm_observe_cmpl_cb);
 
-  if (status != BTM_CMD_STARTED) {
+  if (status != tBTM_STATUS::BTM_CMD_STARTED) {
     log::warn("BTM_BleObserve  failed. status {}", status);
     if (bta_dm_search_cb.p_csis_scan_cback) {
       tBTA_DM_SEARCH data{.observe_cmpl = {.num_resps = 0}};
@@ -718,16 +703,16 @@ static void bta_dm_start_scan(uint8_t duration_sec, bool low_latency_scan = fals
   }
 }
 
-void bta_dm_ble_scan(bool start, uint8_t duration_sec, bool low_latency_scan = false) {
+void bta_dm_ble_scan(bool start, uint8_t duration_sec) {
   if (!start) {
-    if (get_btm_client_interface().ble.BTM_BleObserve(false, 0, NULL, NULL, false) !=
-        BTM_CMD_STARTED) {
+    if (get_btm_client_interface().ble.BTM_BleObserve(false, 0, NULL, NULL) !=
+        tBTM_STATUS::BTM_CMD_STARTED) {
       log::warn("Unable to start ble observe");
     }
     return;
   }
 
-  bta_dm_start_scan(duration_sec, low_latency_scan);
+  bta_dm_start_scan(duration_sec);
 }
 
 void bta_dm_ble_csis_observe(bool observe, tBTA_DM_SEARCH_CBACK* p_cback) {
@@ -869,7 +854,7 @@ static void bta_dm_search_sm_execute(tBTA_DM_DEV_SEARCH_EVT event,
   }
 }
 
-static void bta_dm_disable_search(void) {
+void bta_dm_disc_disable_search(void) {
   switch (bta_dm_search_get_state()) {
     case BTA_DM_SEARCH_IDLE:
       break;
@@ -885,19 +870,11 @@ static void bta_dm_disable_search(void) {
 }
 
 void bta_dm_disc_start_device_discovery(tBTA_DM_SEARCH_CBACK* p_cback) {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_legacy::bta_dm_disc_start_device_discovery(p_cback);
-    return;
-  }
   bta_dm_search_sm_execute(BTA_DM_API_SEARCH_EVT, std::make_unique<tBTA_DM_SEARCH_MSG>(
                                                           tBTA_DM_API_SEARCH{.p_cback = p_cback}));
 }
 
 void bta_dm_disc_stop_device_discovery() {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_legacy::bta_dm_disc_stop_device_discovery();
-    return;
-  }
   bta_dm_search_sm_execute(BTA_DM_API_SEARCH_CANCEL_EVT, nullptr);
 }
 
@@ -911,28 +888,12 @@ static void bta_dm_search_reset() {
   bta_dm_disc_init_search_cb(::bta_dm_search_cb);
 }
 
-void bta_dm_search_stop() {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    log::info("no-op when flag is disabled");
-    return;
-  }
-  bta_dm_search_reset();
-}
+void bta_dm_search_stop() { bta_dm_search_reset(); }
 
-void bta_dm_disc_discover_next_device() {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_legacy::bta_dm_disc_discover_next_device();
-    return;
-  }
-  bta_dm_discover_next_device();
-}
+void bta_dm_disc_discover_next_device() { bta_dm_discover_next_device(); }
 
 #define DUMPSYS_TAG "shim::legacy::bta::dm"
 void DumpsysBtaDmSearch(int fd) {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    log::info("no-op when flag is disabled");
-    return;
-  }
   auto copy = search_state_history_.Pull();
   LOG_DUMPSYS(fd, " last %zu search state transitions", copy.size());
   for (const auto& it : copy) {
@@ -975,9 +936,7 @@ void bta_dm_opportunistic_observe_results_cb(tBTM_INQ_RESULTS* p_inq, const uint
 }
 void bta_dm_queue_search(tBTA_DM_API_SEARCH& search) { ::bta_dm_queue_search(search); }
 
-void bta_dm_start_scan(uint8_t duration_sec, bool low_latency_scan = false) {
-  ::bta_dm_start_scan(duration_sec, low_latency_scan);
-}
+void bta_dm_start_scan(uint8_t duration_sec) { ::bta_dm_start_scan(duration_sec); }
 
 }  // namespace testing
 }  // namespace legacy

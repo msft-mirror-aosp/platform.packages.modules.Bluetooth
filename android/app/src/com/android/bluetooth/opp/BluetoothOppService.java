@@ -314,6 +314,7 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
     }
 
     @Override
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public void dump(StringBuilder sb) {
         super.dump(sb);
         if (mShares.size() > 0) {
@@ -774,7 +775,7 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
                  * contains an entry that's not in the array, insert a new entry
                  * in the array, move to next cursor row and next array entry.
                  */
-                while (!isAfterLast || arrayPos < mShares.size() && mListenStarted) {
+                while (!isAfterLast || (arrayPos < mShares.size() && mListenStarted)) {
                     if (isAfterLast) {
                         // We're beyond the end of the cursor but there's still some
                         // stuff in the local array, which can only be junk
@@ -1378,7 +1379,7 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
                         + socket
                         + " \n :device :"
                         + BluetoothUtils.toAnonymizedAddress(
-                                Flags.identityAddressNullIfUnknown()
+                                Flags.identityAddressNullIfNotKnown()
                                         ? Utils.getBrEdrAddress(device, mAdapterService)
                                         : mAdapterService.getIdentityAddress(device.getAddress())));
         if (!mAcceptNewConnections) {

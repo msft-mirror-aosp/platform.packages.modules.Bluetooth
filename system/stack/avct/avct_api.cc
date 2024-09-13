@@ -25,15 +25,15 @@
 #include "avct_api.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include "avct_int.h"
 #include "bta/include/bta_sec_api.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
-#include "l2cdefs.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -61,9 +61,14 @@ void AVCT_Register() {
   /* initialize AVCTP data structures */
   memset(&avct_cb, 0, sizeof(tAVCT_CB));
 
+  uint16_t sec = BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT;
+  if (!com::android::bluetooth::flags::use_encrypt_req_for_av()) {
+    sec = BTA_SEC_AUTHENTICATE;
+  }
+
   /* register PSM with L2CAP */
-  if (!L2CA_RegisterWithSecurity(AVCT_PSM, avct_l2c_appl, true /* enable_snoop */, nullptr,
-                                 kAvrcMtu, 0, BTA_SEC_AUTHENTICATE)) {
+  if (!stack::l2cap::get_interface().L2CA_RegisterWithSecurity(
+              AVCT_PSM, avct_l2c_appl, true /* enable_snoop */, nullptr, kAvrcMtu, 0, sec)) {
     log::error("Unable to register with L2CAP AVCT profile psm:AVCT_PSM[0x0017]");
   }
 
@@ -71,8 +76,9 @@ void AVCT_Register() {
   tL2CAP_ERTM_INFO ertm_info;
   ertm_info.preferred_mode = L2CAP_FCR_ERTM_MODE;
 
-  if (!L2CA_RegisterWithSecurity(AVCT_BR_PSM, avct_l2c_br_appl, true /*enable_snoop*/, &ertm_info,
-                                 kAvrcBrMtu, AVCT_MIN_BROWSE_MTU, BTA_SEC_AUTHENTICATE)) {
+  if (!stack::l2cap::get_interface().L2CA_RegisterWithSecurity(
+              AVCT_BR_PSM, avct_l2c_br_appl, true /*enable_snoop*/, &ertm_info, kAvrcBrMtu,
+              AVCT_MIN_BROWSE_MTU, sec)) {
     log::error(
             "Unable to register with L2CAP AVCT_BR profile "
             "psm:AVCT_BR_PSM[0x001b]");
@@ -97,7 +103,10 @@ void AVCT_Deregister(void) {
   log::verbose("AVCT_Deregister");
 
   /* deregister PSM with L2CAP */
-  L2CA_Deregister(AVCT_PSM);
+  stack::l2cap::get_interface().L2CA_Deregister(AVCT_PSM);
+
+  /* deregister AVCT_BR_PSM with L2CAP */
+  stack::l2cap::get_interface().L2CA_Deregister(AVCT_BR_PSM);
 }
 
 /*******************************************************************************

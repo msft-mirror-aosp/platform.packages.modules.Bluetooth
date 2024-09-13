@@ -229,7 +229,7 @@ public class PanService extends ProfileService {
                         case MESSAGE_CONNECT:
                             BluetoothDevice connectDevice = (BluetoothDevice) msg.obj;
                             if (!mNativeInterface.connect(
-                                    Flags.identityAddressNullIfUnknown()
+                                    Flags.identityAddressNullIfNotKnown()
                                             ? Utils.getByteBrEdrAddress(connectDevice)
                                             : mAdapterService.getByteIdentityAddress(
                                                     connectDevice))) {
@@ -250,7 +250,7 @@ public class PanService extends ProfileService {
                         case MESSAGE_DISCONNECT:
                             BluetoothDevice disconnectDevice = (BluetoothDevice) msg.obj;
                             if (!mNativeInterface.disconnect(
-                                    Flags.identityAddressNullIfUnknown()
+                                    Flags.identityAddressNullIfNotKnown()
                                             ? Utils.getByteBrEdrAddress(disconnectDevice)
                                             : mAdapterService.getByteIdentityAddress(
                                                     disconnectDevice))) {
@@ -309,7 +309,7 @@ public class PanService extends ProfileService {
             mService = null;
         }
 
-        @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+        @RequiresPermission(BLUETOOTH_CONNECT)
         private PanService getService(AttributionSource source) {
             if (Utils.isInstrumentationTestMode()) {
                 return mService;

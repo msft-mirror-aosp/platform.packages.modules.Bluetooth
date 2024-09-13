@@ -28,7 +28,7 @@
 
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/include/bta_dm_api.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/port_api.h"
 #include "stack/include/sdp_status.h"
 #include "types/bt_transport.h"
@@ -62,7 +62,8 @@ void bta_hf_client_start_close(tBTA_HF_CLIENT_DATA* p_data) {
 
   /* Take the link out of sniff and set L2C idle time to 0 */
   bta_dm_pm_active(client_cb->peer_addr);
-  if (!L2CA_SetIdleTimeoutByBdAddr(client_cb->peer_addr, 0, BT_TRANSPORT_BR_EDR)) {
+  if (!stack::l2cap::get_interface().L2CA_SetIdleTimeoutByBdAddr(client_cb->peer_addr, 0,
+                                                                 BT_TRANSPORT_BR_EDR)) {
     log::warn("Unable to set L2CAP idle timeout peer:{} transport:{} timeout:{}",
               client_cb->peer_addr, bt_transport_text(BT_TRANSPORT_BR_EDR), 0);
   }
@@ -330,7 +331,8 @@ void bta_hf_client_disc_int_res(tBTA_HF_CLIENT_DATA* p_data) {
   }
 
   /* if found service */
-  if (p_data->disc_result.status == SDP_SUCCESS || p_data->disc_result.status == SDP_DB_FULL) {
+  if (p_data->disc_result.status == tSDP_STATUS::SDP_SUCCESS ||
+      p_data->disc_result.status == tSDP_STATUS::SDP_DB_FULL) {
     /* get attributes */
     if (bta_hf_client_sdp_find_attr(client_cb)) {
       event = BTA_HF_CLIENT_DISC_OK_EVT;
@@ -362,7 +364,8 @@ void bta_hf_client_disc_acp_res(tBTA_HF_CLIENT_DATA* p_data) {
   }
 
   /* if found service */
-  if (p_data->disc_result.status == SDP_SUCCESS || p_data->disc_result.status == SDP_DB_FULL) {
+  if (p_data->disc_result.status == tSDP_STATUS::SDP_SUCCESS ||
+      p_data->disc_result.status == tSDP_STATUS::SDP_DB_FULL) {
     /* get attributes */
     bta_hf_client_sdp_find_attr(client_cb);
   }

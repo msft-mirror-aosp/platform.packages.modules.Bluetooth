@@ -31,6 +31,8 @@ void btm_sco_conn_req(const RawAddress& bda, const DEV_CLASS& dev_class, uint8_t
 void btm_sco_connected(const RawAddress& bda, uint16_t hci_handle, tBTM_ESCO_DATA* p_esco_data);
 void btm_sco_connection_failed(tHCI_STATUS hci_status, const RawAddress& bda, uint16_t hci_handle,
                                tBTM_ESCO_DATA* p_esco_data);
+void btm_sco_create_command_status_failed(tHCI_STATUS hci_status);
+
 bool btm_sco_removed(uint16_t hci_handle, tHCI_REASON reason);
 
 void btm_sco_on_disconnected(uint16_t hci_handle, tHCI_REASON reason);

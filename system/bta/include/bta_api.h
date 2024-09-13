@@ -272,22 +272,15 @@ typedef union {
 /* Search callback */
 typedef void(tBTA_DM_SEARCH_CBACK)(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH* p_data);
 
-// TODO: delete bd_name parameter after separate_service_and_device_discovery
-// rolls out
-typedef void(tBTA_DM_GATT_DISC_CBACK)(RawAddress bd_addr, BD_NAME bd_name,
-                                      std::vector<bluetooth::Uuid>& services, bool transport_le);
+typedef void(tBTA_DM_GATT_DISC_CBACK)(RawAddress bd_addr, std::vector<bluetooth::Uuid>& services,
+                                      bool transport_le);
 typedef void(tBTA_DM_DID_RES_CBACK)(RawAddress bd_addr, uint8_t vendor_id_src, uint16_t vendor_id,
                                     uint16_t product_id, uint16_t version);
-// TODO: delete after separate_service_and_device_discovery rolls out
-typedef void(tBTA_DM_NAME_READ_CBACK)(RawAddress bd_addr, tHCI_ERROR_CODE hci_status,
-                                      const BD_NAME bd_name);
 typedef void(tBTA_DM_DISC_CBACK)(RawAddress bd_addr, const std::vector<bluetooth::Uuid>& uuids,
                                  tBTA_STATUS result);
 struct service_discovery_callbacks {
   tBTA_DM_GATT_DISC_CBACK* on_gatt_results;
   tBTA_DM_DID_RES_CBACK* on_did_received;
-  // TODO: delete after separate_service_and_device_discovery rolls out
-  tBTA_DM_NAME_READ_CBACK* on_name_read;
   tBTA_DM_DISC_CBACK* on_service_discovery_results;
 };
 
@@ -608,13 +601,11 @@ void BTA_DmSetBlePrefConnParams(const RawAddress& bd_addr, uint16_t min_conn_int
  * Parameters       start: start or stop the scan procedure,
  *                  duration_sec: Duration of the scan. Continuous scan if 0 is
  *                                passed,
- *                  low_latency_scan: whether this is a low latency scan,
- *                                    default is false,
  *
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmBleScan(bool start, uint8_t duration, bool low_latency_scan = false);
+void BTA_DmBleScan(bool start, uint8_t duration);
 
 /*******************************************************************************
  *

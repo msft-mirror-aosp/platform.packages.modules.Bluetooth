@@ -32,9 +32,12 @@
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/include/bta_api.h"
 #include "bta/test/bta_test_fixtures.h"
+#include "hci/controller_interface_mock.h"
+#include "hci/le_rand_callback.h"
 #include "stack/include/btm_status.h"
 #include "test/common/main_handler.h"
 #include "test/common/mock_functions.h"
+#include "test/mock/mock_main_shim_entry.h"
 #include "test/mock/mock_osi_alarm.h"
 #include "test/mock/mock_osi_allocator.h"
 #include "test/mock/mock_osi_properties.h"
@@ -68,6 +71,10 @@ class BtaDmTest : public BtaWithContextTest {
 protected:
   void SetUp() override {
     BtaWithContextTest::SetUp();
+    ON_CALL(controller_, LeRand).WillByDefault([](bluetooth::hci::LeRandCallback cb) {
+      cb(0x1234);
+    });
+    bluetooth::hci::testing::mock_controller_ = &controller_;
 
     BTA_dm_init();
     bluetooth::legacy::testing::bta_dm_init_cb();
@@ -81,7 +88,9 @@ protected:
   void TearDown() override {
     bluetooth::legacy::testing::bta_dm_deinit_cb();
     BtaWithContextTest::TearDown();
+    bluetooth::hci::testing::mock_controller_ = nullptr;
   }
+  bluetooth::hci::testing::MockControllerInterface controller_;
 };
 
 class BtaDmCustomAlarmTest : public BtaDmTest {
@@ -214,7 +223,6 @@ TEST_F(BtaDmTest, bta_dm_set_encryption) {
   tBTA_DM_PEER_DEVICE* device =
           bluetooth::legacy::testing::allocate_device_for(kRawAddress, transport);
   ASSERT_TRUE(device != nullptr);
-  device->conn_state = tBTA_DM_CONN_STATE::BTA_DM_CONNECTED;
   device->p_encrypt_cback = nullptr;
 
   // Setup a device that is busy with another encryption
@@ -233,7 +241,7 @@ TEST_F(BtaDmTest, bta_dm_set_encryption) {
           [](const RawAddress& bd_addr, tBT_TRANSPORT transport, tBTM_SEC_CALLBACK* p_callback,
              void* p_ref_data, tBTM_BLE_SEC_ACT sec_act) -> tBTM_STATUS {
     inc_func_call_count("BTM_SetEncryption");
-    return BTM_MODE_UNSUPPORTED;
+    return tBTM_STATUS::BTM_MODE_UNSUPPORTED;
   };
 
   bta_dm_set_encryption(kRawAddress, transport, BTA_DM_ENCRYPT_CBACK, sec_act);
@@ -246,7 +254,7 @@ TEST_F(BtaDmTest, bta_dm_set_encryption) {
           [](const RawAddress& bd_addr, tBT_TRANSPORT transport, tBTM_SEC_CALLBACK* p_callback,
              void* p_ref_data, tBTM_BLE_SEC_ACT sec_act) -> tBTM_STATUS {
     inc_func_call_count("BTM_SetEncryption");
-    return BTM_CMD_STARTED;
+    return tBTM_STATUS::BTM_CMD_STARTED;
   };
 
   bta_dm_set_encryption(kRawAddress, transport, BTA_DM_ENCRYPT_CBACK, sec_act);
@@ -267,24 +275,23 @@ TEST_F(BtaDmTest, bta_dm_encrypt_cback) {
   tBTA_DM_PEER_DEVICE* device =
           bluetooth::legacy::testing::allocate_device_for(kRawAddress, transport);
   ASSERT_TRUE(device != nullptr);
-  device->conn_state = tBTA_DM_CONN_STATE::BTA_DM_CONNECTED;
 
   // Encryption with no callback set
   device->p_encrypt_cback = nullptr;
-  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_SUCCESS);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_SUCCESS);
   ASSERT_EQ(0UL, BTA_DM_ENCRYPT_CBACK_queue.size());
 
   // Encryption with callback
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_SUCCESS);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_SUCCESS);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_WRONG_MODE);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_WRONG_MODE);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_NO_RESOURCES);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_NO_RESOURCES);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_BUSY);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_BUSY);
   device->p_encrypt_cback = BTA_DM_ENCRYPT_CBACK;
-  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, BTM_ILLEGAL_VALUE);
+  bta_dm_encrypt_cback(kRawAddress, transport, nullptr, tBTM_STATUS::BTM_ILLEGAL_VALUE);
 
   ASSERT_EQ(5UL, BTA_DM_ENCRYPT_CBACK_queue.size());
 
@@ -311,9 +318,9 @@ TEST_F(BtaDmTest, bta_dm_remname_cback__typical) {
   search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
-          .status = BTM_SUCCESS,
           .bd_addr = kRawAddress,
           .remote_bd_name = {},
+          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .hci_status = HCI_SUCCESS,
   };
   bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);
@@ -332,9 +339,9 @@ TEST_F(BtaDmTest, bta_dm_remname_cback__wrong_address) {
   search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
-          .status = BTM_SUCCESS,
           .bd_addr = kRawAddress2,
           .remote_bd_name = {},
+          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .hci_status = HCI_SUCCESS,
   };
   bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);
@@ -350,9 +357,9 @@ TEST_F(BtaDmTest, bta_dm_remname_cback__HCI_ERR_CONNECTION_EXISTS) {
   search_cb.name_discover_done = false;
 
   tBTM_REMOTE_DEV_NAME name = {
-          .status = BTM_SUCCESS,
           .bd_addr = RawAddress::kEmpty,
           .remote_bd_name = {},
+          .btm_status = tBTM_STATUS::BTM_SUCCESS,
           .hci_status = HCI_ERR_CONNECTION_EXISTS,
   };
   bd_name_from_char_pointer(name.remote_bd_name, kRemoteName);
@@ -463,40 +470,26 @@ TEST_F(BtaDmCustomAlarmTest, bta_dm_sniff_cback) {
   ASSERT_EQ(2, get_func_call_count("alarm_set_on_mloop"));
 }
 
-TEST_F_WITH_FLAGS(BtaDmCustomAlarmTest, sniff_offload_feature__enable_flag,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, enable_sniff_offload))) {
+TEST_F(BtaDmCustomAlarmTest, sniff_offload_feature__test_sysprop) {
   bool is_property_enabled = true;
   test::mock::osi_properties::osi_property_get_bool.body =
           [&](const char* key, bool default_value) -> int { return is_property_enabled; };
 
-  // Expect not to trigger bta_dm_init_pm due to both flag and prop are enabled
+  // Expect not to trigger bta_dm_init_pm due to sysprop enabled
   // and reset the value of .srvc_id.
   is_property_enabled = true;
   bluetooth::legacy::testing::BTA_dm_on_hw_on();
   ASSERT_EQ(0, bta_dm_cb.pm_timer[0].srvc_id[0]);
 
   // Expect to trigger bta_dm_init_pm and init the value of .srvc_id to
-  // BTA_ID_MAX.
+  // BTA_ID_MAX due to sysprop disabled.
   is_property_enabled = false;
   bluetooth::legacy::testing::BTA_dm_on_hw_on();
   ASSERT_EQ((uint8_t)BTA_ID_MAX, bta_dm_cb.pm_timer[0].srvc_id[0]);
-}
 
-TEST_F_WITH_FLAGS(BtaDmCustomAlarmTest, sniff_offload_feature__disable_flag,
-                  REQUIRES_FLAGS_DISABLED(ACONFIG_FLAG(TEST_BT, enable_sniff_offload))) {
-  bool is_property_enabled = true;
-  test::mock::osi_properties::osi_property_get_bool.body =
-          [&](const char* key, bool default_value) -> int { return is_property_enabled; };
-
-  // Expect to trigger bta_dm_init_pm and init the value of .srvc_id to
-  // BTA_ID_MAX.
-  is_property_enabled = true;
-  bluetooth::legacy::testing::BTA_dm_on_hw_on();
-  ASSERT_EQ((uint8_t)BTA_ID_MAX, bta_dm_cb.pm_timer[0].srvc_id[0]);
-
-  // Expect to trigger bta_dm_init_pm and init the value of .srvc_id to
-  // BTA_ID_MAX.
-  is_property_enabled = false;
-  bluetooth::legacy::testing::BTA_dm_on_hw_on();
-  ASSERT_EQ((uint8_t)BTA_ID_MAX, bta_dm_cb.pm_timer[0].srvc_id[0]);
+  // Shouldn't crash even there's no active timer when calling
+  // bta_dm_disable_pm.
+  bta_dm_cb.pm_timer[0].in_use = false;
+  bta_dm_cb.pm_timer[0].srvc_id[0] = kUnusedTimer;
+  bta_dm_disable_pm();
 }

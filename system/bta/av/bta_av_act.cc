@@ -43,8 +43,10 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/btm_client_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/sdp_api.h"
+#include "stack/include/sdp_status.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth::legacy::stack::sdp;
@@ -198,7 +200,7 @@ static void bta_av_del_sdp_rec(uint32_t* p_sdp_handle) {
  * Returns          void
  *
  ******************************************************************************/
-static void bta_av_avrc_sdp_cback(uint16_t /* status */) {
+static void bta_av_avrc_sdp_cback(tSDP_STATUS /* status */) {
   BT_HDR_RIGID* p_msg = (BT_HDR_RIGID*)osi_malloc(sizeof(BT_HDR_RIGID));
 
   p_msg->event = BTA_AV_SDP_AVRC_DISC_EVT;
@@ -1188,12 +1190,14 @@ void bta_av_stream_chg(tBTA_AV_SCB* p_scb, bool started) {
 
   if (started) {
     /* Let L2CAP know this channel is processed with high priority */
-    if (!L2CA_SetAclPriority(p_scb->PeerAddress(), L2CAP_PRIORITY_HIGH)) {
+    if (!stack::l2cap::get_interface().L2CA_SetAclPriority(p_scb->PeerAddress(),
+                                                           L2CAP_PRIORITY_HIGH)) {
       log::warn("Unable to set L2CAP acl high priority peer:{}", p_scb->PeerAddress());
     }
   } else {
     /* Let L2CAP know this channel is processed with low priority */
-    if (!L2CA_SetAclPriority(p_scb->PeerAddress(), L2CAP_PRIORITY_NORMAL)) {
+    if (!stack::l2cap::get_interface().L2CA_SetAclPriority(p_scb->PeerAddress(),
+                                                           L2CAP_PRIORITY_NORMAL)) {
       log::warn("Unable to set L2CAP acl normal priority peer:{}", p_scb->PeerAddress());
     }
   }
@@ -1349,7 +1353,7 @@ void bta_av_conn_chg(tBTA_AV_DATA* p_data) {
     if (p_cb->audio_open_cnt == 1) {
       /* one audio channel goes down and there's one audio channel remains open.
        * restore the switch role in default link policy */
-      BTM_default_unblock_role_switch();
+      get_btm_client_interface().link_policy.BTM_default_unblock_role_switch();
       bta_av_restore_switch();
     }
     if (p_cb->audio_open_cnt) {
@@ -1434,7 +1438,7 @@ void bta_av_api_disconnect(tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_av_set_use_latency_mode(tBTA_AV_SCB* p_scb, bool use_latency_mode) {
-  if (!L2CA_UseLatencyMode(p_scb->PeerAddress(), use_latency_mode)) {
+  if (!stack::l2cap::get_interface().L2CA_UseLatencyMode(p_scb->PeerAddress(), use_latency_mode)) {
     log::warn("Unable to set L2CAP latenty mode peer:{} use_latency_mode:{}", p_scb->PeerAddress(),
               use_latency_mode);
   }
@@ -1454,7 +1458,7 @@ void bta_av_api_set_latency(tBTA_AV_DATA* p_data) {
 
   tL2CAP_LATENCY latency =
           p_data->api_set_latency.is_low_latency ? L2CAP_LATENCY_LOW : L2CAP_LATENCY_NORMAL;
-  if (!L2CA_SetAclLatency(p_scb->PeerAddress(), latency)) {
+  if (!stack::l2cap::get_interface().L2CA_SetAclLatency(p_scb->PeerAddress(), latency)) {
     log::warn("Unable to set L2CAP latenty mode peer:{} use_latency_mode:{}", p_scb->PeerAddress(),
               latency);
   }

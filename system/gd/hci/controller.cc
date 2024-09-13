@@ -24,15 +24,14 @@
 #include <string>
 #include <utility>
 
-#include "common/init_flags.h"
 #include "dumpsys_data_generated.h"
 #include "hci/controller_interface.h"
 #include "hci/event_checkers.h"
 #include "hci/hci_layer.h"
 #include "hci_controller_generated.h"
-#include "os/log.h"
 #include "os/metrics.h"
 #include "os/system_properties.h"
+#include "stack/include/hcidefs.h"
 #if TARGET_FLOSS
 #include "sysprops/sysprops_module.h"
 #endif
@@ -58,6 +57,10 @@ struct Controller::impl {
                                handler->BindOn(this, &Controller::impl::NumberOfCompletedPackets));
 
     set_event_mask(kDefaultEventMask);
+    if (com::android::bluetooth::flags::encryption_change_v2()) {
+      set_event_mask_page_2(kDefaultEventMaskPage2);
+    }
+
     write_le_host_support(Enable::ENABLED, Enable::DISABLED);
     hci_->EnqueueCommand(
             ReadLocalNameBuilder::Create(),
@@ -103,8 +106,7 @@ struct Controller::impl {
             ReadBufferSizeBuilder::Create(),
             handler->BindOnceOn(this, &Controller::impl::read_buffer_size_complete_handler));
 
-    if (common::init_flags::set_min_encryption_is_enabled() &&
-        is_supported(OpCode::SET_MIN_ENCRYPTION_KEY_SIZE)) {
+    if (is_supported(OpCode::SET_MIN_ENCRYPTION_KEY_SIZE)) {
       hci_->EnqueueCommand(
               SetMinEncryptionKeySizeBuilder::Create(kMinEncryptionKeySize),
               handler->BindOnceOn(this, &Controller::impl::set_min_encryption_key_size_handler));
@@ -213,8 +215,7 @@ struct Controller::impl {
               handler->BindOnceOn(this, &Controller::impl::le_set_host_feature_handler));
     }
 
-    if (common::init_flags::subrating_is_enabled() && is_supported(OpCode::LE_SET_HOST_FEATURE) &&
-        module_.SupportsBleConnectionSubrating()) {
+    if (is_supported(OpCode::LE_SET_HOST_FEATURE) && module_.SupportsBleConnectionSubrating()) {
       hci_->EnqueueCommand(
               LeSetHostFeatureBuilder::Create(LeHostFeatureBits::CONNECTION_SUBRATING_HOST_SUPPORT,
                                               Enable::ENABLED),
@@ -360,6 +361,13 @@ struct Controller::impl {
     log::assert_that(status == ErrorCode::SUCCESS, "Status {}", ErrorCodeText(status));
     uint8_t page_number = complete_view.GetPageNumber();
     extended_lmp_features_array_.push_back(complete_view.GetExtendedLmpFeatures());
+    if (page_number == 0 && local_version_information_.manufacturer_name_ == LMP_COMPID_INTEL &&
+        local_version_information_.lmp_version_ == LmpVersion::V_4_2 &&
+        local_version_information_.lmp_subversion_ == LMP_SUBVERSION_INTEL_AC7265) {
+      // Override the packet boundary feature bit on Intel AC7265 because it don't support well.
+      extended_lmp_features_array_.back() &=
+              ~static_cast<uint64_t>(LMPFeaturesPage0Bits::NON_FLUSHABLE_PACKET_BOUNDARY_FLAG);
+    }
     bluetooth::os::LogMetricBluetoothLocalSupportedFeatures(page_number,
                                                             complete_view.GetExtendedLmpFeatures());
     // Query all extended features
@@ -768,6 +776,13 @@ struct Controller::impl {
     std::unique_ptr<SetEventMaskBuilder> packet = SetEventMaskBuilder::Create(event_mask);
     hci_->EnqueueCommand(std::move(packet),
                          module_.GetHandler()->BindOnce(check_complete<SetEventMaskCompleteView>));
+  }
+
+  void set_event_mask_page_2(uint64_t event_mask_page_2) {
+    std::unique_ptr<SetEventMaskPage2Builder> packet =
+            SetEventMaskPage2Builder::Create(event_mask_page_2);
+    hci_->EnqueueCommand(std::move(packet), module_.GetHandler()->BindOnce(
+                                                    check_complete<SetEventMaskPage2CompleteView>));
   }
 
   void write_le_host_support(Enable enable, Enable deprecated_host_bit) {
@@ -1518,9 +1533,6 @@ bool Controller::IsSupported(bluetooth::hci::OpCode op_code) const {
 }
 
 uint64_t Controller::MaskLeEventMask(HciVersion version, uint64_t mask) {
-  if (!common::init_flags::subrating_is_enabled()) {
-    mask = mask & ~(static_cast<uint64_t>(LLFeaturesBits::CONNECTION_SUBRATING_HOST_SUPPORT));
-  }
   if (version >= HciVersion::V_5_3) {
     return mask;
   } else if (version >= HciVersion::V_5_2) {

@@ -253,7 +253,9 @@ tHID_STATUS HID_DevAddRecord(uint32_t handle, char* p_name, char* p_description,
     {
       static uint8_t cdt = 0x22;
       uint8_t* p_buf;
-      uint8_t seq_len = 4 + desc_len;
+
+      uint16_t seq_len = ((desc_len > 255) ? 5 : 4) + desc_len;
+      uint16_t buf_len = seq_len + 3;
 
       if (desc_len > HIDD_APP_DESCRIPTOR_LEN) {
         log::error("descriptor length = {}, larger than max {}", desc_len, HIDD_APP_DESCRIPTOR_LEN);
@@ -263,10 +265,10 @@ tHID_STATUS HID_DevAddRecord(uint32_t handle, char* p_name, char* p_description,
         return HID_ERR_NOT_REGISTERED;
       };
 
-      p_buf = (uint8_t*)osi_malloc(HIDD_APP_DESCRIPTOR_LEN + 6);
+      p_buf = (uint8_t*)osi_malloc(buf_len);
 
       if (p_buf == NULL) {
-        log::error("Buffer allocation failure for size = 2048");
+        log::error("Buffer allocation failure for size = {}", buf_len);
         log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::
                                     HIDD_ERR_NOT_REGISTERED_DUE_TO_BUFFER_ALLOCATION,
                             1);
@@ -275,15 +277,22 @@ tHID_STATUS HID_DevAddRecord(uint32_t handle, char* p_name, char* p_description,
 
       p = p_buf;
 
-      UINT8_TO_BE_STREAM(p, (DATA_ELE_SEQ_DESC_TYPE << 3) | SIZE_IN_NEXT_BYTE);
+      UINT8_TO_BE_STREAM(p, (DATA_ELE_SEQ_DESC_TYPE << 3) | SIZE_IN_NEXT_WORD);
 
-      UINT8_TO_BE_STREAM(p, seq_len);
+      UINT16_TO_BE_STREAM(p, seq_len);
 
       UINT8_TO_BE_STREAM(p, (UINT_DESC_TYPE << 3) | SIZE_ONE_BYTE);
       UINT8_TO_BE_STREAM(p, cdt);
 
-      UINT8_TO_BE_STREAM(p, (TEXT_STR_DESC_TYPE << 3) | SIZE_IN_NEXT_BYTE);
-      UINT8_TO_BE_STREAM(p, desc_len);
+      // small descriptors should be written with SIZE_IN_NEXT_BYTE to preserve compatibility
+      if (desc_len > 255) {
+        UINT8_TO_BE_STREAM(p, (TEXT_STR_DESC_TYPE << 3) | SIZE_IN_NEXT_WORD);
+        UINT16_TO_BE_STREAM(p, desc_len);
+      } else {
+        UINT8_TO_BE_STREAM(p, (TEXT_STR_DESC_TYPE << 3) | SIZE_IN_NEXT_BYTE);
+        UINT8_TO_BE_STREAM(p, desc_len);
+      }
+
       ARRAY_TO_BE_STREAM(p, p_desc_data, (int)desc_len);
 
       result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(

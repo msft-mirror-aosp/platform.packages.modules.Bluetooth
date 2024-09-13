@@ -380,6 +380,7 @@ public class BluetoothMapSmsPdu {
             Log.v(TAG, "userDataMsgOffset:" + mUserDataMsgOffset);
         }
 
+        @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
         private void gsmWriteDate(ByteArrayOutputStream header, long time) {
             SimpleDateFormat format = new SimpleDateFormat("yyMMddHHmmss");
             Date date = new Date(time);
@@ -438,7 +439,7 @@ public class BluetoothMapSmsPdu {
                                 | TP_MMS_NO_MORE
                                 | TP_RP_NO_REPLY_PATH
                                 | TP_SRI_NO_REPORT
-                                | (mData[0] & 0xff) & TP_UDHI_MASK);
+                                | ((mData[0] & 0xff) & TP_UDHI_MASK));
                 encodedAddress =
                         PhoneNumberUtils.networkPortionToCalledPartyBCDWithLength(originator);
                 if (encodedAddress != null) {
@@ -855,14 +856,5 @@ public class BluetoothMapSmsPdu {
 
         /** This value is not defined in global standard. Only in Korea, this is used. */
         public static final int ENCODING_KSC5601 = 4;
-
-        /** SMS Class enumeration. See TS 23.038. */
-        public enum MessageClass {
-            UNKNOWN,
-            CLASS_0,
-            CLASS_1,
-            CLASS_2,
-            CLASS_3;
-        }
     }
 }

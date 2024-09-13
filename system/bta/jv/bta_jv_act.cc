@@ -35,8 +35,6 @@
 #include "bta/jv/bta_jv_int.h"
 #include "bta/sys/bta_sys.h"
 #include "internal_include/bt_target.h"
-#include "internal_include/bt_trace.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_sec.h"
@@ -48,8 +46,10 @@
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/gap_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/port_api.h"
+#include "stack/include/rfcdefs.h"
 #include "stack/include/sdp_api.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -173,33 +173,33 @@ static void bta_jv_free_sec_id(uint8_t* p_sec_id) {
  *             or BTA_JV_L2CAP_REASON_UNKNOWN if reason isn't defined yet.
  *
  ******************************************************************************/
-static tBTA_JV_L2CAP_REASON bta_jv_from_gap_l2cap_err(uint16_t l2cap_result) {
+static tBTA_JV_L2CAP_REASON bta_jv_from_gap_l2cap_err(const tL2CAP_CONN& l2cap_result) {
   switch (l2cap_result) {
-    case L2CAP_CONN_ACL_CONNECTION_FAILED:
+    case tL2CAP_CONN::L2CAP_CONN_ACL_CONNECTION_FAILED:
       return BTA_JV_L2CAP_REASON_ACL_FAILURE;
-    case L2CAP_CONN_CLIENT_SECURITY_CLEARANCE_FAILED:
+    case tL2CAP_CONN::L2CAP_CONN_CLIENT_SECURITY_CLEARANCE_FAILED:
       return BTA_JV_L2CAP_REASON_CL_SEC_FAILURE;
-    case L2CAP_CONN_INSUFFICIENT_AUTHENTICATION:
+    case tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_AUTHENTICATION:
       return BTA_JV_L2CAP_REASON_INSUFFICIENT_AUTHENTICATION;
-    case L2CAP_CONN_INSUFFICIENT_AUTHORIZATION:
+    case tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_AUTHORIZATION:
       return BTA_JV_L2CAP_REASON_INSUFFICIENT_AUTHORIZATION;
-    case L2CAP_CONN_INSUFFICIENT_ENCRYP_KEY_SIZE:
+    case tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_ENCRYP_KEY_SIZE:
       return BTA_JV_L2CAP_REASON_INSUFFICIENT_ENCRYP_KEY_SIZE;
-    case L2CAP_CONN_INSUFFICIENT_ENCRYP:
+    case tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_ENCRYP:
       return BTA_JV_L2CAP_REASON_INSUFFICIENT_ENCRYP;
-    case L2CAP_CONN_INVALID_SOURCE_CID:
+    case tL2CAP_CONN::L2CAP_CONN_INVALID_SOURCE_CID:
       return BTA_JV_L2CAP_REASON_INVALID_SOURCE_CID;
-    case L2CAP_CONN_SOURCE_CID_ALREADY_ALLOCATED:
+    case tL2CAP_CONN::L2CAP_CONN_SOURCE_CID_ALREADY_ALLOCATED:
       return BTA_JV_L2CAP_REASON_SOURCE_CID_ALREADY_ALLOCATED;
-    case L2CAP_CONN_UNACCEPTABLE_PARAMETERS:
+    case tL2CAP_CONN::L2CAP_CONN_UNACCEPTABLE_PARAMETERS:
       return BTA_JV_L2CAP_REASON_UNACCEPTABLE_PARAMETERS;
-    case L2CAP_CONN_INVALID_PARAMETERS:
+    case tL2CAP_CONN::L2CAP_CONN_INVALID_PARAMETERS:
       return BTA_JV_L2CAP_REASON_INVALID_PARAMETERS;
-    case L2CAP_CONN_NO_RESOURCES:
+    case tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES:
       return BTA_JV_L2CAP_REASON_NO_RESOURCES;
-    case L2CAP_CONN_NO_PSM:
+    case tL2CAP_CONN::L2CAP_CONN_NO_PSM:
       return BTA_JV_L2CAP_REASON_NO_PSM;
-    case L2CAP_CONN_TIMEOUT:
+    case tL2CAP_CONN::L2CAP_CONN_TIMEOUT:
       return BTA_JV_L2CAP_REASON_TIMEOUT;
     default:
       return BTA_JV_L2CAP_REASON_UNKNOWN;
@@ -754,7 +754,7 @@ void bta_jv_get_channel_id(tBTA_JV_CONN_TYPE type /* One of BTA_JV_CONN_TYPE_ */
       }
       break;
     case tBTA_JV_CONN_TYPE::L2CAP_LE:
-      psm = L2CA_AllocateLePSM();
+      psm = stack::l2cap::get_interface().L2CA_AllocateLePSM();
       if (psm == 0) {
         log::error("Error: No free LE PSM available");
       }
@@ -781,7 +781,7 @@ void bta_jv_free_scn(tBTA_JV_CONN_TYPE type /* One of BTA_JV_CONN_TYPE_ */, uint
       break;
     case tBTA_JV_CONN_TYPE::L2CAP_LE:
       log::verbose("type=BTA_JV_CONN_TYPE::L2CAP_LE. psm={}", scn);
-      L2CA_FreeLePSM(scn);
+      stack::l2cap::get_interface().L2CA_FreeLePSM(scn);
       break;
     default:
       break;
@@ -819,7 +819,7 @@ static void bta_jv_start_discovery_cback(uint32_t rfcomm_slot_id, const RawAddre
                             .scn = 0,
                     },
     };
-    if (result == SDP_SUCCESS || result == SDP_DB_FULL) {
+    if (result == tSDP_STATUS::SDP_SUCCESS || result == tSDP_STATUS::SDP_DB_FULL) {
       log::info("Received service discovery callback success bd_addr:{} result:{}", bd_addr,
                 sdp_result_text(result));
       tSDP_PROTOCOL_ELEM pe;
@@ -1737,6 +1737,7 @@ static tBTA_JV_PCB* bta_jv_add_rfc_port(tBTA_JV_RFC_CB* p_cb, tBTA_JV_PCB* p_pcb
         port_state.fc_type = (PORT_FC_CTS_ON_INPUT | PORT_FC_CTS_ON_OUTPUT);
 
         if (PORT_SetState(p_pcb->port_handle, &port_state) != PORT_SUCCESS) {
+          log::warn("Unable to set RFCOMM server state handle:{}", p_pcb->port_handle);
         }
         p_pcb->handle = BTA_JV_RFC_H_S_TO_HDL(p_cb->handle, si);
         log::verbose("p_pcb->handle=0x{:x}, curr_sess={}", p_pcb->handle, p_cb->curr_sess);
@@ -1804,7 +1805,7 @@ void bta_jv_rfcomm_start_server(tBTA_SEC sec_mask, uint8_t local_scn, uint8_t ma
 
     if (PORT_SetState(handle, &port_state) != PORT_SUCCESS) {
       log::warn("Unable to set RFCOMM port state handle:{}", handle);
-    };
+    }
   } while (0);
 
   tBTA_JV bta_jv;
@@ -1890,8 +1891,7 @@ void bta_jv_set_pm_profile(uint32_t handle, tBTA_JV_PM_ID app_id, tBTA_JV_CONN_S
     if (status != tBTA_JV_STATUS::SUCCESS) {
       log::warn("free pm cb failed: reason={}", bta_jv_status_text(status));
     }
-  } else /* set PM control block */
-  {
+  } else { /* set PM control block */
     p_cb = bta_jv_alloc_set_pm_profile_cb(handle, app_id);
 
     if (NULL != p_cb) {

@@ -40,7 +40,6 @@
 #include <hardware/bt_hearing_aid.h>
 #include <hardware/bt_le_audio.h>
 #include <hardware/bt_vc.h>
-#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -62,10 +61,8 @@
 #include "btif_config.h"
 #include "btif_dm.h"
 #include "btif_metrics_logging.h"
-#include "btif_profile_storage.h"
 #include "btif_storage.h"
 #include "btif_util.h"
-#include "common/init_flags.h"
 #include "common/lru_cache.h"
 #include "common/metrics.h"
 #include "device/include/interop.h"
@@ -77,9 +74,8 @@
 #include "main/shim/helpers.h"
 #include "main/shim/le_advertising_manager.h"
 #include "main_thread.h"
-#include "os/log.h"
+#include "metrics/bluetooth_event.h"
 #include "os/logging/log_adapter.h"
-#include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "stack/btm/btm_dev.h"
@@ -98,9 +94,10 @@
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_sec_api_types.h"
+#include "stack/include/l2cap_interface.h"
+#include "stack/include/rnr_interface.h"
 #include "stack/include/smp_api.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
-#include "stack/sdp/sdpint.h"
 #include "storage/config_keys.h"
 #include "types/raw_address.h"
 
@@ -278,10 +275,8 @@ static btif_dm_oob_cb_t oob_cb;
 static btif_dm_metadata_cb_t metadata_cb{.le_audio_cache{40}};
 static void btif_dm_cb_create_bond(const RawAddress bd_addr, tBT_TRANSPORT transport);
 static void btif_dm_cb_create_bond_le(const RawAddress bd_addr, tBLE_ADDR_TYPE addr_type);
-static void btif_update_remote_properties(const RawAddress& bd_addr, BD_NAME bd_name,
-                                          DEV_CLASS dev_class, tBT_DEVICE_TYPE dev_type);
 static btif_dm_local_key_cb_t ble_local_key_cb;
-static void btif_dm_ble_key_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif);
+static void btif_dm_ble_passkey_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif);
 static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl);
 static void btif_dm_ble_passkey_req_evt(tBTA_DM_PIN_REQ* p_pin_req);
 static void btif_dm_ble_key_nc_req_evt(tBTA_DM_SP_KEY_NOTIF* p_notif_req);
@@ -490,18 +485,12 @@ static bool get_cached_remote_name(const RawAddress& bd_addr, uint8_t* p_remote_
 }
 
 static uint32_t get_cod(const RawAddress* remote_bdaddr) {
-  uint32_t remote_cod;
-  bt_property_t prop_name;
-
-  /* check if we already have it in our btif_storage cache */
-  BTIF_STORAGE_FILL_PROPERTY(&prop_name, BT_PROPERTY_CLASS_OF_DEVICE, sizeof(uint32_t),
-                             &remote_cod);
-  if (btif_storage_get_remote_device_property((RawAddress*)remote_bdaddr, &prop_name) ==
-      BT_STATUS_SUCCESS) {
-    return remote_cod;
+  uint32_t remote_cod = 0;
+  if (!btif_storage_get_cod(*remote_bdaddr, &remote_cod)) {
+    remote_cod = 0;
   }
 
-  return 0;
+  return remote_cod;
 }
 
 bool check_cod(const RawAddress* remote_bdaddr, uint32_t cod) {
@@ -595,12 +584,6 @@ static void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
     if (com::android::bluetooth::flags::bond_transport_after_bond_cancel_fix()) {
       btif_config_remove_device(bd_addr.ToString());
     }
-
-    if (bluetooth::common::init_flags::pbap_pse_dynamic_version_upgrade_is_enabled()) {
-      if (btif_storage_is_pce_version_102(bd_addr)) {
-        update_pce_entry_to_interop_database(bd_addr);
-      }
-    }
   } else if (state == BT_BOND_STATE_BONDED) {
     allocate_metric_id_from_metric_id_allocator(bd_addr);
     if (!save_metric_id_from_metric_id_allocator(bd_addr)) {
@@ -665,8 +648,8 @@ static void btif_update_remote_version_property(RawAddress* p_bd) {
   }
 }
 
-static void btif_update_remote_properties(const RawAddress& bdaddr, BD_NAME bd_name,
-                                          DEV_CLASS dev_class, tBT_DEVICE_TYPE device_type) {
+void btif_update_remote_properties(const RawAddress& bdaddr, BD_NAME bd_name, DEV_CLASS dev_class,
+                                   tBT_DEVICE_TYPE device_type) {
   std::vector<bt_property_t> properties;
   bt_status_t status = BT_STATUS_UNHANDLED;
   uint32_t cod;
@@ -743,7 +726,7 @@ bool is_device_le_audio_capable(const RawAddress bd_addr) {
 
   tBT_DEVICE_TYPE tmp_dev_type;
   tBLE_ADDR_TYPE addr_type = BLE_ADDR_PUBLIC;
-  BTM_ReadDevInfo(bd_addr, &tmp_dev_type, &addr_type);
+  get_btm_client_interface().peer.BTM_ReadDevInfo(bd_addr, &tmp_dev_type, &addr_type);
   if (tmp_dev_type & BT_DEVICE_TYPE_BLE) {
     /* LE Audio capable device is discoverable over both LE and Classic using
      * same address. Prefer to use LE transport, as we don't know if it can do
@@ -785,7 +768,6 @@ bool is_le_audio_capable_during_service_discovery(const RawAddress& bd_addr) {
  *
  ******************************************************************************/
 static void btif_dm_cb_create_bond(const RawAddress bd_addr, tBT_TRANSPORT transport) {
-  bool is_hid = check_cod_hid_major(bd_addr, COD_HID_POINTING);
   bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
 
   if (transport == BT_TRANSPORT_AUTO && is_device_le_audio_capable(bd_addr)) {
@@ -806,7 +788,7 @@ static void btif_dm_cb_create_bond(const RawAddress bd_addr, tBT_TRANSPORT trans
       // didn't store it, it defaults to BLE_ADDR_PUBLIC
       uint8_t tmp_dev_type;
       tBLE_ADDR_TYPE tmp_addr_type = BLE_ADDR_PUBLIC;
-      BTM_ReadDevInfo(bd_addr, &tmp_dev_type, &tmp_addr_type);
+      get_btm_client_interface().peer.BTM_ReadDevInfo(bd_addr, &tmp_dev_type, &tmp_addr_type);
       addr_type = tmp_addr_type;
 
       btif_storage_set_remote_addr_type(&bd_addr, addr_type);
@@ -819,9 +801,9 @@ static void btif_dm_cb_create_bond(const RawAddress bd_addr, tBT_TRANSPORT trans
     BTA_DmAddBleDevice(bd_addr, addr_type, static_cast<tBT_DEVICE_TYPE>(device_type));
   }
 
-  BTA_DmBond(bd_addr, addr_type, transport, device_type);
-  /*  Track  originator of bond creation  */
+  /*  Track originator of bond creation  */
   pairing_cb.is_local_initiated = true;
+  BTA_DmBond(bd_addr, addr_type, transport, device_type);
 }
 
 /*******************************************************************************
@@ -1339,7 +1321,7 @@ static void btif_dm_search_devices_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH*
     case BTA_DM_INQ_RES_EVT: {
       /* inquiry result */
       bt_bdname_t bdname;
-      uint8_t remote_name_len;
+      uint8_t remote_name_len = 0;
       uint8_t num_uuids = 0, max_num_uuid = 32;
       uint8_t uuid_list[32 * Uuid::kNumBytes16];
 
@@ -1368,7 +1350,6 @@ static void btif_dm_search_devices_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH*
       {
         std::vector<bt_property_t> bt_properties;
         uint32_t dev_type;
-        uint32_t num_properties = 0;
         bt_status_t status;
         tBLE_ADDR_TYPE addr_type = BLE_ADDR_PUBLIC;
 
@@ -1392,11 +1373,8 @@ static void btif_dm_search_devices_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH*
              don't want this to replace the existing value below when we call
              btif_storage_add_remote_device */
           uint32_t old_cod = get_cod(&bdaddr);
-          if (com::android::bluetooth::flags::
-                      do_not_replace_existing_cod_with_uncategorized_cod()) {
-            if (cod == COD_UNCLASSIFIED && old_cod != 0) {
-              cod = old_cod;
-            }
+          if (cod == COD_UNCLASSIFIED && old_cod != 0) {
+            cod = old_cod;
           }
 
           if (old_cod != cod) {
@@ -1555,7 +1533,7 @@ static bool btif_is_interesting_le_service(bluetooth::Uuid uuid) {
 
 static bt_status_t btif_get_existing_uuids(RawAddress* bd_addr, Uuid* existing_uuids) {
   bt_property_t tmp_prop;
-  BTIF_STORAGE_FILL_PROPERTY(&tmp_prop, BT_PROPERTY_UUIDS, sizeof(existing_uuids), existing_uuids);
+  BTIF_STORAGE_FILL_PROPERTY(&tmp_prop, BT_PROPERTY_UUIDS, sizeof(*existing_uuids), existing_uuids);
 
   return btif_storage_get_remote_device_property(bd_addr, &tmp_prop);
 }
@@ -1604,6 +1582,7 @@ static void btif_on_service_discovery_results(RawAddress bd_addr,
     if (pairing_cb.sdp_attempts) {
       log::warn("SDP failed after bonding re-attempting for {}", bd_addr);
       pairing_cb.sdp_attempts++;
+      bluetooth::metrics::LogSDPComplete(bd_addr, result);
       btif_dm_get_remote_services(bd_addr, BT_TRANSPORT_BR_EDR);
     } else {
       log::warn("SDP triggered by someone failed when bonding");
@@ -1612,6 +1591,8 @@ static void btif_on_service_discovery_results(RawAddress bd_addr,
   }
 
   if (results_for_bonding_device) {
+    // success for SDP
+    bluetooth::metrics::LogSDPComplete(bd_addr, tBTA_STATUS::BTA_SUCCESS);
     log::info("SDP finished for {}:", bd_addr);
     pairing_cb.sdp_over_classic = btif_dm_pairing_cb_t::ServiceDiscoveryState::FINISHED;
   }
@@ -1727,15 +1708,15 @@ static void btif_on_service_discovery_results(RawAddress bd_addr,
   }
 }
 
-void btif_on_gatt_results(RawAddress bd_addr, BD_NAME bd_name,
-                          std::vector<bluetooth::Uuid>& services, bool transport_le) {
+void btif_on_gatt_results(RawAddress bd_addr, std::vector<bluetooth::Uuid>& services,
+                          bool is_transport_le) {
   std::vector<bt_property_t> prop;
   std::vector<uint8_t> property_value;
   std::set<Uuid> uuids;
   RawAddress static_addr_copy = pairing_cb.static_bdaddr;
   bool lea_supported = is_le_audio_capable_during_service_discovery(bd_addr);
 
-  if (transport_le) {
+  if (is_transport_le) {
     log::info("New GATT over LE UUIDs for {}:", bd_addr);
     BTM_LogHistory(kBtmLogTag, bd_addr, "Discovered GATT services using LE transport");
     if (btif_is_gatt_service_discovery_post_pairing(bd_addr)) {
@@ -1752,13 +1733,14 @@ void btif_on_gatt_results(RawAddress bd_addr, BD_NAME bd_name,
         /* LE Audio profile should relax parameters when it connects. If
          * profile is not enabled, relax parameters after timeout. */
         log::debug("Scheduling conn params unlock for {}", bd_addr);
-        do_in_main_thread_delayed(base::BindOnce(
-                                          [](RawAddress bd_addr) {
-                                            L2CA_LockBleConnParamsForProfileConnection(bd_addr,
-                                                                                       false);
-                                          },
-                                          bd_addr),
-                                  std::chrono::seconds(15));
+        do_in_main_thread_delayed(
+                base::BindOnce(
+                        [](RawAddress bd_addr) {
+                          stack::l2cap::get_interface().L2CA_LockBleConnParamsForProfileConnection(
+                                  bd_addr, false);
+                        },
+                        bd_addr),
+                std::chrono::seconds(15));
       }
     }
   } else {
@@ -1783,25 +1765,15 @@ void btif_on_gatt_results(RawAddress bd_addr, BD_NAME bd_name,
      * immediately send them with rest of SDP results in
      * on_service_discovery_results
      */
-    if (!transport_le) {
+    if (!is_transport_le) {
       return;
     }
 
-    if (lea_supported) {
-      if (bluetooth::common::init_flags::
-                  sdp_return_classic_services_when_le_discovery_fails_is_enabled()) {
-        log::info("Will return Classic SDP results, if done, to unblock bonding");
-      } else {
-        // LEA device w/o this flag
-        // TODO: we might want to remove bond or do some action on
-        // half-discovered device
-        log::warn("No GATT service found for the LE Audio device {}", bd_addr);
-        return;
-      }
-    } else {
+    if (!lea_supported) {
       log::info("LE audio not supported, no need to report any UUIDs");
       return;
     }
+    log::info("Will return Classic SDP results, if done, to unblock bonding");
   }
 
   Uuid existing_uuids[BT_MAX_NUM_UUIDS] = {};
@@ -1849,17 +1821,7 @@ void btif_on_gatt_results(RawAddress bd_addr, BD_NAME bd_name,
   bt_status_t ret = btif_storage_set_remote_device_property(&bd_addr, &prop[0]);
   ASSERTC(ret == BT_STATUS_SUCCESS, "storing remote services failed", ret);
 
-  /* Remote name update */
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery() &&
-      strnlen((const char*)bd_name, BD_NAME_LEN)) {
-    prop.push_back(bt_property_t{BT_PROPERTY_BDNAME,
-                                 static_cast<int>(strnlen((char*)bd_name, BD_NAME_LEN)), bd_name});
-
-    ret = btif_storage_set_remote_device_property(&bd_addr, &prop[1]);
-    ASSERTC(ret == BT_STATUS_SUCCESS, "failed to save remote device property", ret);
-  }
-
-  if (!transport_le) {
+  if (!is_transport_le) {
     /* If services were returned as part of SDP discovery, we will immediately
      * send them with rest of SDP results in on_service_discovery_results */
     return;
@@ -1880,14 +1842,6 @@ void btif_on_gatt_results(RawAddress bd_addr, BD_NAME bd_name,
 
 static void btif_on_name_read(RawAddress bd_addr, tHCI_ERROR_CODE hci_status, const BD_NAME bd_name,
                               bool during_device_search) {
-  // Differentiate between merged callbacks
-  if (!during_device_search
-      // New fix after refactor, this callback is needed for the fix to work
-      && !com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    log::info("Skipping name read event - called on bad callback.");
-    return;
-  }
-
   if (hci_status != HCI_SUCCESS) {
     log::warn("Received RNR event with bad status addr:{} hci_status:{}", bd_addr,
               hci_error_code_text(hci_status));
@@ -1992,9 +1946,7 @@ void BTIF_dm_enable() {
   log::info("Local BLE Privacy enabled:{}", ble_privacy_enabled);
   BTA_DmBleConfigLocalPrivacy(ble_privacy_enabled);
 
-  if (com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    BTM_SecAddRmtNameNotifyCallback(btif_on_name_read_from_btm);
-  }
+  get_stack_rnr_interface().BTM_SecAddRmtNameNotifyCallback(btif_on_name_read_from_btm);
 
   /* for each of the enabled services in the mask, trigger the profile
    * enable */
@@ -2020,9 +1972,7 @@ void BTIF_dm_enable() {
 }
 
 void BTIF_dm_disable() {
-  if (com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    BTM_SecDeleteRmtNameNotifyCallback(&btif_on_name_read_from_btm);
-  }
+  get_stack_rnr_interface().BTM_SecDeleteRmtNameNotifyCallback(&btif_on_name_read_from_btm);
 
   /* for each of the enabled services in the mask, trigger the profile
    * disable */
@@ -2032,7 +1982,7 @@ void BTIF_dm_disable() {
       btif_in_execute_service_request(i, false);
     }
   }
-  bluetooth::bqr::EnableBtQualityReport(nullptr);
+  bluetooth::bqr::DisableBtQualityReport();
   log::info("Stack device manager shutdown finished");
   future_ready(stack_manager_get_hack_future(), FUTURE_SUCCESS);
 }
@@ -2153,7 +2103,7 @@ void btif_dm_sec_evt(tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
       break;
     case BTA_DM_BLE_PASSKEY_NOTIF_EVT:
       log::verbose("BTA_DM_BLE_PASSKEY_NOTIF_EVT");
-      btif_dm_ble_key_notif_evt(&p_data->key_notif);
+      btif_dm_ble_passkey_notif_evt(&p_data->key_notif);
       break;
     case BTA_DM_BLE_PASSKEY_REQ_EVT:
       log::verbose("BTA_DM_BLE_PASSKEY_REQ_EVT");
@@ -2247,7 +2197,7 @@ void btif_dm_acl_evt(tBTA_DM_ACL_EVT event, tBTA_DM_ACL* p_data) {
 
       if (p_data->link_up.transport_link_type == BT_TRANSPORT_LE && pairing_cb.bd_addr == bd_addr &&
           is_device_le_audio_capable(bd_addr)) {
-        L2CA_LockBleConnParamsForProfileConnection(bd_addr, true);
+        stack::l2cap::get_interface().L2CA_LockBleConnParamsForProfileConnection(bd_addr, true);
       }
       break;
 
@@ -2389,7 +2339,7 @@ bool btif_dm_pairing_is_busy() { return pairing_cb.state != BT_BOND_STATE_NONE; 
  * Description      Initiate bonding with the specified device
  *
  ******************************************************************************/
-void btif_dm_create_bond(const RawAddress bd_addr, int transport) {
+void btif_dm_create_bond(const RawAddress bd_addr, tBT_TRANSPORT transport) {
   log::verbose("bd_addr={}, transport={}", bd_addr, transport);
 
   BTM_LogHistory(kBtmLogTag, bd_addr, "Create bond",
@@ -2547,7 +2497,7 @@ void btif_dm_cancel_bond(const RawAddress bd_addr) {
   if (is_bonding_or_sdp()) {
     if (pairing_cb.is_ssp) {
       if (pairing_cb.is_le_only) {
-        BTA_DmBleSecurityGrant(bd_addr, BTA_DM_SEC_PAIR_NOT_SPT);
+        BTA_DmBleSecurityGrant(bd_addr, tBTA_DM_BLE_SEC_GRANT::BTA_DM_SEC_PAIR_NOT_SPT);
       } else {
         BTA_DmConfirm(bd_addr, false);
         BTA_DmBondCancel(bd_addr);
@@ -2669,9 +2619,9 @@ void btif_dm_ssp_reply(const RawAddress bd_addr, bt_ssp_variant_t variant, uint8
       BTA_DmBleConfirmReply(bd_addr, accept);
     } else {
       if (accept) {
-        BTA_DmBleSecurityGrant(bd_addr, BTA_DM_SEC_GRANTED);
+        BTA_DmBleSecurityGrant(bd_addr, tBTA_DM_BLE_SEC_GRANT::BTA_DM_SEC_GRANTED);
       } else {
-        BTA_DmBleSecurityGrant(bd_addr, BTA_DM_SEC_PAIR_NOT_SPT);
+        BTA_DmBleSecurityGrant(bd_addr, tBTA_DM_BLE_SEC_GRANT::BTA_DM_SEC_PAIR_NOT_SPT);
       }
     }
   } else {
@@ -2833,11 +2783,6 @@ bt_status_t btif_dm_get_adapter_property(bt_property_t* prop) {
   return BT_STATUS_SUCCESS;
 }
 
-static void btif_on_name_read_legacy(RawAddress bd_addr, tHCI_ERROR_CODE hci_status,
-                                     const BD_NAME bd_name) {
-  btif_on_name_read(bd_addr, hci_status, bd_name, false /* during_device_search */);
-}
-
 /*******************************************************************************
  *
  * Function         btif_dm_get_remote_services
@@ -2847,7 +2792,7 @@ static void btif_on_name_read_legacy(RawAddress bd_addr, tHCI_ERROR_CODE hci_sta
  * Returns          bt_status_t
  *
  ******************************************************************************/
-void btif_dm_get_remote_services(RawAddress remote_addr, const int transport) {
+void btif_dm_get_remote_services(RawAddress remote_addr, const tBT_TRANSPORT transport) {
   log::verbose("transport={}, remote_addr={}", bt_transport_text(transport), remote_addr);
 
   BTM_LogHistory(kBtmLogTag, remote_addr, "Service discovery",
@@ -2857,7 +2802,6 @@ void btif_dm_get_remote_services(RawAddress remote_addr, const int transport) {
                  service_discovery_callbacks{
                          .on_gatt_results = btif_on_gatt_results,
                          .on_did_received = btif_on_did_received,
-                         .on_name_read = btif_on_name_read_legacy,
                          .on_service_discovery_results = btif_on_service_discovery_results},
                  transport);
 }
@@ -3250,7 +3194,7 @@ bool btif_dm_proc_rmt_oob(const RawAddress& bd_addr, Octet16* p_c, Octet16* p_r)
   return true;
 }
 
-static void btif_dm_ble_key_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif) {
+static void btif_dm_ble_passkey_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif) {
   RawAddress bd_addr;
   int dev_type;
 
@@ -3260,8 +3204,8 @@ static void btif_dm_ble_key_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif) {
   if (!btif_get_device_type(p_ssp_key_notif->bd_addr, &dev_type)) {
     dev_type = BT_DEVICE_TYPE_BLE;
   }
-  btif_dm_update_ble_remote_properties(p_ssp_key_notif->bd_addr, p_ssp_key_notif->bd_name,
-                                       kDevClassEmpty, (tBT_DEVICE_TYPE)dev_type);
+  btif_update_remote_properties(p_ssp_key_notif->bd_addr, p_ssp_key_notif->bd_name,
+                                p_ssp_key_notif->dev_class, (tBT_DEVICE_TYPE)dev_type);
   bd_addr = p_ssp_key_notif->bd_addr;
 
   bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
@@ -3366,7 +3310,8 @@ static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
 
       if (com::android::bluetooth::flags::read_model_num_fix() &&
           is_le_audio_capable_during_service_discovery(bd_addr) &&
-          !btif_model_name_known(bd_addr) && BTM_IsAclConnectionUp(bd_addr, BT_TRANSPORT_LE)) {
+          !btif_model_name_known(bd_addr) &&
+          get_btm_client_interface().peer.BTM_IsAclConnectionUp(bd_addr, BT_TRANSPORT_LE)) {
         log::info("Read model name for le audio capable device");
         if (!DIS_ReadDISInfo(bd_addr, read_dis_cback, DIS_ATTR_MODEL_NUM_BIT)) {
           log::warn("Read DIS failed");
@@ -3536,8 +3481,8 @@ static void btif_dm_ble_sec_req_evt(tBTA_DM_BLE_SEC_REQ* p_ble_req, bool is_cons
   if (!btif_get_device_type(p_ble_req->bd_addr, &dev_type)) {
     dev_type = BT_DEVICE_TYPE_BLE;
   }
-  btif_dm_update_ble_remote_properties(p_ble_req->bd_addr, p_ble_req->bd_name, kDevClassEmpty,
-                                       (tBT_DEVICE_TYPE)dev_type);
+  btif_update_remote_properties(p_ble_req->bd_addr, p_ble_req->bd_name, p_ble_req->dev_class,
+                                (tBT_DEVICE_TYPE)dev_type);
 
   RawAddress bd_addr = p_ble_req->bd_addr;
 
@@ -3572,8 +3517,8 @@ static void btif_dm_ble_passkey_req_evt(tBTA_DM_PIN_REQ* p_pin_req) {
   if (!btif_get_device_type(p_pin_req->bd_addr, &dev_type)) {
     dev_type = BT_DEVICE_TYPE_BLE;
   }
-  btif_dm_update_ble_remote_properties(p_pin_req->bd_addr, p_pin_req->bd_name, kDevClassEmpty,
-                                       (tBT_DEVICE_TYPE)dev_type);
+  btif_update_remote_properties(p_pin_req->bd_addr, p_pin_req->bd_name, p_pin_req->dev_class,
+                                (tBT_DEVICE_TYPE)dev_type);
 
   RawAddress bd_addr = p_pin_req->bd_addr;
   bd_name_copy(bd_name.name, p_pin_req->bd_name);
@@ -3595,7 +3540,7 @@ static void btif_dm_ble_key_nc_req_evt(tBTA_DM_SP_KEY_NOTIF* p_notif_req) {
   log::verbose("addr:{}", bd_addr);
 
   /* Remote name update */
-  btif_update_remote_properties(p_notif_req->bd_addr, p_notif_req->bd_name, kDevClassEmpty,
+  btif_update_remote_properties(p_notif_req->bd_addr, p_notif_req->bd_name, p_notif_req->dev_class,
                                 BT_DEVICE_TYPE_BLE);
 
   bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
@@ -3629,15 +3574,15 @@ static void btif_dm_ble_oob_req_evt(tBTA_DM_SP_RMT_OOB* req_oob_type) {
   }
 
   /* Remote name update */
-  btif_update_remote_properties(req_oob_type->bd_addr, req_oob_type->bd_name, kDevClassEmpty,
-                                BT_DEVICE_TYPE_BLE);
+  btif_update_remote_properties(req_oob_type->bd_addr, req_oob_type->bd_name,
+                                req_oob_type->dev_class, BT_DEVICE_TYPE_BLE);
 
   bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
   pairing_cb.is_ssp = false;
   pairing_cb.is_le_only = true;
   pairing_cb.is_le_nc = false;
 
-  BTM_BleOobDataReply(req_oob_type->bd_addr, 0, 16, oob_cb.p192_data.sm_tk);
+  BTM_BleOobDataReply(req_oob_type->bd_addr, tBTM_STATUS::BTM_SUCCESS, 16, oob_cb.p192_data.sm_tk);
 }
 
 static void btif_dm_ble_sc_oob_req_evt(tBTA_DM_SP_RMT_OOB* req_oob_type) {
@@ -3680,8 +3625,8 @@ static void btif_dm_ble_sc_oob_req_evt(tBTA_DM_SP_RMT_OOB* req_oob_type) {
   }
 
   /* Remote name update */
-  btif_update_remote_properties(req_oob_type->bd_addr, oob_data_to_use.device_name, kDevClassEmpty,
-                                BT_DEVICE_TYPE_BLE);
+  btif_update_remote_properties(req_oob_type->bd_addr, oob_data_to_use.device_name,
+                                req_oob_type->dev_class, BT_DEVICE_TYPE_BLE);
 
   bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
   pairing_cb.is_ssp = false;
@@ -3689,11 +3634,6 @@ static void btif_dm_ble_sc_oob_req_evt(tBTA_DM_SP_RMT_OOB* req_oob_type) {
   pairing_cb.is_le_only = true;
   pairing_cb.is_le_nc = false;
   BTM_BleSecureConnectionOobDataReply(req_oob_type->bd_addr, oob_data_to_use.c, oob_data_to_use.r);
-}
-
-void btif_dm_update_ble_remote_properties(const RawAddress& bd_addr, BD_NAME bd_name,
-                                          DEV_CLASS dev_class, tBT_DEVICE_TYPE dev_type) {
-  btif_update_remote_properties(bd_addr, bd_name, dev_class, dev_type);
 }
 
 static void btif_dm_ble_tx_test_cback(void* p) {
@@ -3961,7 +3901,7 @@ void btif_dm_metadata_changed(const RawAddress& remote_bd_addr, int key,
     // TODO(b/334067583): Remove this DIS read when b/334067583 is fixed
     if (com::android::bluetooth::flags::read_model_num_fix() &&
         !btif_model_name_known(remote_bd_addr) &&
-        BTM_IsAclConnectionUp(remote_bd_addr, BT_TRANSPORT_LE)) {
+        get_btm_client_interface().peer.BTM_IsAclConnectionUp(remote_bd_addr, BT_TRANSPORT_LE)) {
       log::info("Read model name for le audio capable device");
       if (!DIS_ReadDISInfo(remote_bd_addr, read_dis_cback, DIS_ATTR_MODEL_NUM_BIT)) {
         log::warn("Read DIS failed");

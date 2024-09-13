@@ -19,6 +19,7 @@ import static com.android.bluetooth.BtRestrictedStatsLog.RESTRICTED_BLUETOOTH_DE
 
 import android.app.AlarmManager;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothProtoEnums;
 import android.content.Context;
 import android.os.Build;
 import android.os.SystemClock;
@@ -34,6 +35,7 @@ import com.android.bluetooth.BluetoothMetricsProto.ProfileId;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.BtRestrictedStatsLog;
 import com.android.bluetooth.Utils;
+import com.android.bluetooth.bass_client.BassConstants;
 import com.android.modules.utils.build.SdkLevel;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -334,7 +336,51 @@ public class MetricsLogger {
                 BluetoothRemoteDeviceInformation.OUI_FIELD_NUMBER,
                 getOui(device));
 
+        // write deviceTypeMetaData
+        writeFieldIfNotNull(
+                proto,
+                ProtoOutputStream.FIELD_TYPE_INT32,
+                ProtoOutputStream.FIELD_COUNT_SINGLE,
+                BluetoothRemoteDeviceInformation.DEVICE_TYPE_METADATA_FIELD_NUMBER,
+                getDeviceTypeMetaData(device));
+
         return proto.getBytes();
+    }
+
+    private int getDeviceTypeMetaData(BluetoothDevice device) {
+        byte[] deviceTypeMetaDataBytes =
+                mAdapterService.getMetadata(device, BluetoothDevice.METADATA_DEVICE_TYPE);
+
+        if (deviceTypeMetaDataBytes == null) {
+            return BluetoothProtoEnums.NOT_AVAILABLE;
+        }
+        String deviceTypeMetaData = new String(deviceTypeMetaDataBytes, StandardCharsets.UTF_8);
+
+        switch (deviceTypeMetaData) {
+            case "Watch":
+                return BluetoothProtoEnums.WATCH;
+
+            case "Untethered Headset":
+                return BluetoothProtoEnums.UNTETHERED_HEADSET;
+
+            case "Stylus":
+                return BluetoothProtoEnums.STYLUS;
+
+            case "Speaker":
+                return BluetoothProtoEnums.SPEAKER;
+
+            case "Headset":
+                return BluetoothProtoEnums.HEADSET;
+
+            case "Carkit":
+                return BluetoothProtoEnums.CARKIT;
+
+            case "Default":
+                return BluetoothProtoEnums.DEFAULT;
+
+            default:
+                return BluetoothProtoEnums.NOT_AVAILABLE;
+        }
     }
 
     private int getOui(BluetoothDevice device) {
@@ -365,7 +411,8 @@ public class MetricsLogger {
             }
         }
 
-        return wordBreakdownList;
+        // Prevent returning a mutable list
+        return Collections.unmodifiableList(wordBreakdownList);
     }
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
@@ -501,6 +548,21 @@ public class MetricsLogger {
                 BluetoothStatsLog.BLUETOOTH_HASHED_DEVICE_NAME_REPORTED, metricId, sha256);
     }
 
+    public void logBluetoothEvent(BluetoothDevice device, int eventType, int state, int uid) {
+
+        if (mAdapterService.getMetricId(device) == 0 || !mInitialized) {
+            return;
+        }
+
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED,
+                eventType,
+                state,
+                uid,
+                mAdapterService.getMetricId(device),
+                getRemoteDeviceInfoProto(device));
+    }
+
     protected static String getSha256String(String name) {
         if (name.isEmpty()) {
             return "";
@@ -508,7 +570,7 @@ public class MetricsLogger {
         StringBuilder hexString = new StringBuilder();
         byte[] hashBytes = getSha256(name);
         for (byte b : hashBytes) {
-            hexString.append(String.format("%02x", b));
+            hexString.append(Utils.formatSimple("%02x", b));
         }
         return hexString.toString();
     }
@@ -522,5 +584,54 @@ public class MetricsLogger {
             return null;
         }
         return digest.digest(name.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** Logs LE Audio Broadcast audio session. */
+    public void logLeAudioBroadcastAudioSession(
+            int broadcastId,
+            int[] audioQuality,
+            int groupSize,
+            long sessionDurationMs,
+            long latencySessionConfiguredMs,
+            long latencySessionStreamingMs,
+            int sessionStatus) {
+        if (!mInitialized) {
+            return;
+        }
+
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.BROADCAST_AUDIO_SESSION_REPORTED,
+                broadcastId,
+                audioQuality.length,
+                audioQuality,
+                groupSize,
+                sessionDurationMs,
+                latencySessionConfiguredMs,
+                latencySessionStreamingMs,
+                sessionStatus);
+    }
+
+    /** Logs LE Audio Broadcast audio sync. */
+    public void logLeAudioBroadcastAudioSync(
+            BluetoothDevice device,
+            int broadcastId,
+            boolean isLocalBroadcast,
+            long syncDurationMs,
+            long latencyPaSyncMs,
+            long latencyBisSyncMs,
+            int syncStatus) {
+        if (!mInitialized) {
+            return;
+        }
+
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.BROADCAST_AUDIO_SYNC_REPORTED,
+                isLocalBroadcast ? broadcastId : BassConstants.INVALID_BROADCAST_ID,
+                isLocalBroadcast,
+                syncDurationMs,
+                latencyPaSyncMs,
+                latencyBisSyncMs,
+                syncStatus,
+                getRemoteDeviceInfoProto(device));
     }
 }

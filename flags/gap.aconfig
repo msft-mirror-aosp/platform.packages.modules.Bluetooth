@@ -114,26 +114,6 @@ flag {
 }
 
 flag {
-    name: "ensure_valid_adv_flag"
-    namespace: "bluetooth"
-    description: "Check ADV flag is valid before processing"
-    bug: "329888460"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "update_inquiry_result_on_flag_change"
-    namespace: "bluetooth"
-    description: "Update ADV flag in inquiry result as soon as updated flag received"
-    bug: "329872838"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "ble_gatt_server_use_address_type_in_connection"
     namespace: "bluetooth"
     description: "Use address type when initiating connection from BluetoothGattServer"
@@ -230,4 +210,66 @@ flag {
     }
 }
 
+flag {
+    name: "android_os_identifier"
+    namespace: "bluetooth"
+    description: "Add a custom service to provide Android OS identifier"
+    bug: "351860033"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
 
+flag {
+    name: "gatt_callback_on_failure"
+    namespace: "bluetooth"
+    description: "Invoke callbacks on early failure from the native stack"
+    bug: "356550596"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_inquiry_duration"
+    namespace: "bluetooth"
+    description: "Use the same duration for LE inquiry scan that classic discovery uses"
+    bug: "357894405"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "non_wake_alarm_for_rpa_rotation"
+    namespace: "bluetooth"
+    description: "Use non-wake alarm for LE RPA rotation. go/non-wake-alarm-for-rpa-rotation"
+    bug: "360743527"
+}
+
+flag {
+    name: "gatt_disconnect_fix"
+    namespace: "bluetooth"
+    description: "Fix GATT disconnect handling"
+    bug: "361538527"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "gatt_server_requests_fix"
+    namespace: "bluetooth"
+    description: "Fix GATT server handling"
+    bug: "361331170"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_scan_msft_support"
+    namespace: "bluetooth"
+    description: "Support MSFT HCI extension for LE Scanning. go/bt-msft-aosp-dd"
+    bug: "365787977"
+}

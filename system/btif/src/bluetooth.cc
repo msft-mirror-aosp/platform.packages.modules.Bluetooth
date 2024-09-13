@@ -61,30 +61,27 @@
 #include "bta/include/bta_le_audio_broadcaster_api.h"
 #include "bta/include/bta_vc_api.h"
 #include "btif/avrcp/avrcp_service.h"
+#include "btif/include/btif_a2dp.h"
+#include "btif/include/btif_api.h"
+#include "btif/include/btif_av.h"
+#include "btif/include/btif_bqr.h"
+#include "btif/include/btif_config.h"
+#include "btif/include/btif_debug_conn.h"
+#include "btif/include/btif_dm.h"
+#include "btif/include/btif_hd.h"
+#include "btif/include/btif_hf.h"
+#include "btif/include/btif_hh.h"
+#include "btif/include/btif_keystore.h"
+#include "btif/include/btif_metrics_logging.h"
+#include "btif/include/btif_pan.h"
+#include "btif/include/btif_profile_storage.h"
+#include "btif/include/btif_rc.h"
 #include "btif/include/btif_sock.h"
 #include "btif/include/btif_sock_logging.h"
+#include "btif/include/btif_storage.h"
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
-#include "btif_a2dp.h"
-#include "btif_api.h"
-#include "btif_av.h"
-#include "btif_bqr.h"
-#include "btif_config.h"
-#include "btif_debug_conn.h"
-#include "btif_dm.h"
-#include "btif_hd.h"
-#include "btif_hf.h"
-#include "btif_hh.h"
-#include "btif_keystore.h"
-#include "btif_metrics_logging.h"
-#include "btif_pan.h"
-#include "btif_profile_storage.h"
-#include "btif_rc.h"
-#include "btif_sock.h"
-#include "btif_sock_logging.h"
-#include "btif_storage.h"
 #include "common/address_obfuscator.h"
-#include "common/init_flags.h"
 #include "common/metrics.h"
 #include "common/os_utils.h"
 #include "device/include/device_iot_config.h"
@@ -98,20 +95,24 @@
 #include "osi/include/allocator.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "osi/include/wakelock.h"
+#include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/gatt/connection_manager.h"
 #include "stack/include/a2dp_api.h"
 #include "stack/include/avdt_api.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/hfp_lc3_decoder.h"
 #include "stack/include/hfp_lc3_encoder.h"
 #include "stack/include/hfp_msbc_decoder.h"
 #include "stack/include/hfp_msbc_encoder.h"
 #include "stack/include/hidh_api.h"
+#include "stack/include/l2cap_module.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/pan_api.h"
 #include "stack/include/sdp_api.h"
 #include "storage/config_keys.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 using bluetooth::csis::CsisClientInterface;
@@ -121,6 +122,24 @@ using bluetooth::le_audio::LeAudioBroadcasterInterface;
 using bluetooth::le_audio::LeAudioClientInterface;
 using bluetooth::vc::VolumeControlInterface;
 using namespace bluetooth;
+
+namespace {
+tBT_TRANSPORT to_bt_transport(int val) {
+  switch (val) {
+    case 0:
+      return BT_TRANSPORT_AUTO;
+    case 1:
+      return BT_TRANSPORT_BR_EDR;
+    case 2:
+      return BT_TRANSPORT_LE;
+    default:
+      break;
+  }
+  log::warn("Passed unexpected transport value:{}", val);
+  return BT_TRANSPORT_AUTO;
+}
+
+}  // namespace
 
 /*******************************************************************************
  *  Static variables
@@ -333,12 +352,8 @@ struct CoreInterfaceImpl : bluetooth::core::CoreInterface {
       return;
     }
 
-    if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-      btif_av_acl_disconnected(bd_addr, A2dpType::kSource);
-      btif_av_acl_disconnected(bd_addr, A2dpType::kSink);
-    } else {
-      btif_av_acl_disconnected(bd_addr, A2dpType::kUnknown);
-    }
+    btif_av_acl_disconnected(bd_addr, A2dpType::kSource);
+    btif_av_acl_disconnected(bd_addr, A2dpType::kSink);
   }
 };
 
@@ -364,7 +379,6 @@ static bluetooth::core::CoreInterface* CreateInterfaceToProfiles() {
   };
   static bluetooth::core::HACK_ProfileInterface profileInterface{
           // HID
-          .btif_hh_connect = btif_hh_connect,
           .btif_hh_virtual_unplug = btif_hh_virtual_unplug,
           .bta_hh_read_ssr_param = bta_hh_read_ssr_param,
 
@@ -410,16 +424,23 @@ static bool is_profile(const char* p1, const char* p2) {
  *
  ****************************************************************************/
 
+#ifdef TARGET_FLOSS
+static int global_hci_adapter = 0;
+
+static void set_adapter_index(int adapter) { global_hci_adapter = adapter; }
+int GetAdapterIndex() { return global_hci_adapter; }
+#else
+int GetAdapterIndex() { return 0; }  // Unsupported outside of FLOSS
+#endif
+
 static int init(bt_callbacks_t* callbacks, bool start_restricted, bool is_common_criteria_mode,
-                int config_compare_result, const char** init_flags, bool is_atv,
+                int config_compare_result, const char** /* init_flags */, bool is_atv,
                 const char* user_data_directory) {
   (void)user_data_directory;
   log::info(
           "start restricted = {} ; common criteria mode = {}, config compare "
           "result = {}",
           start_restricted, is_common_criteria_mode, config_compare_result);
-
-  bluetooth::common::InitFlags::Load(init_flags);
 
   if (interface_ready()) {
     return BT_STATUS_DONE;
@@ -592,7 +613,8 @@ int get_remote_services(RawAddress* remote_addr, int transport) {
     return BT_STATUS_NOT_READY;
   }
 
-  do_in_main_thread(base::BindOnce(btif_dm_get_remote_services, *remote_addr, transport));
+  do_in_main_thread(
+          base::BindOnce(btif_dm_get_remote_services, *remote_addr, to_bt_transport(transport)));
   return BT_STATUS_SUCCESS;
 }
 
@@ -622,7 +644,7 @@ static int create_bond(const RawAddress* bd_addr, int transport) {
     return BT_STATUS_BUSY;
   }
 
-  do_in_main_thread(base::BindOnce(btif_dm_create_bond, *bd_addr, transport));
+  do_in_main_thread(base::BindOnce(btif_dm_create_bond, *bd_addr, to_bt_transport(transport)));
   return BT_STATUS_SUCCESS;
 }
 
@@ -647,8 +669,8 @@ static int create_bond_out_of_band(const RawAddress* bd_addr, int transport,
     return BT_STATUS_BUSY;
   }
 
-  do_in_main_thread(base::BindOnce(btif_dm_create_bond_out_of_band, *bd_addr, transport, *p192_data,
-                                   *p256_data));
+  do_in_main_thread(base::BindOnce(btif_dm_create_bond_out_of_band, *bd_addr,
+                                   to_bt_transport(transport), *p192_data, *p256_data));
   return BT_STATUS_SUCCESS;
 }
 
@@ -877,6 +899,9 @@ static void dump(int fd, const char** arguments) {
   DumpsysHid(fd);
   DumpsysBtaDm(fd);
   SDP_Dumpsys(fd);
+  DumpsysRecord(fd);
+  L2CA_Dumpsys(fd);
+  DumpsysBtm(fd);
   bluetooth::shim::Dump(fd, arguments);
   power_telemetry::GetInstance().Dumpsys(fd);
   log::debug("Finished bluetooth dumpsys");
@@ -898,10 +923,7 @@ static int get_remote_pbap_pce_version(const RawAddress* bd_addr) {
 }
 
 static bool pbap_pse_dynamic_version_upgrade_is_enabled() {
-  if (bluetooth::common::init_flags::pbap_pse_dynamic_version_upgrade_is_enabled()) {
-    return true;
-  }
-  log::warn("PBAP PSE dynamic version upgrade is not enabled");
+  log::info("PBAP PSE dynamic version upgrade is not enabled");
   return false;
 }
 
@@ -1209,6 +1231,9 @@ static void interop_database_add_remove_name(bool do_add, const char* feature_na
 
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
         sizeof(bluetoothInterface),
+#ifdef TARGET_FLOSS
+        .set_adapter_index = set_adapter_index,
+#endif
         .init = init,
         .enable = enable,
         .disable = disable,
@@ -1382,7 +1407,8 @@ void invoke_oob_data_request_cb(tBT_TRANSPORT t, bool valid, Octet16 c, Octet16 
   log::info("");
   bt_oob_data_t oob_data = {};
   const char* local_name;
-  if (get_btm_client_interface().local.BTM_ReadLocalDeviceName(&local_name) != BTM_SUCCESS) {
+  if (get_btm_client_interface().local.BTM_ReadLocalDeviceName(&local_name) !=
+      tBTM_STATUS::BTM_SUCCESS) {
     log::warn("Unable to read local device name");
   }
   for (int i = 0; i < BD_NAME_LEN; i++) {

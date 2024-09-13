@@ -248,12 +248,12 @@ public class CompanionManager {
             new BluetoothAdapter.OnMetadataChangedListener() {
                 @Override
                 public void onMetadataChanged(BluetoothDevice device, int key, byte[] value) {
+                    if (value == null) {
+                        Log.d(TAG, "onMetadataChanged(device, " + key + ", null)");
+                        return;
+                    }
                     String valueStr = new String(value);
-                    Log.d(
-                            TAG,
-                            String.format(
-                                    "Metadata updated in Device %s: %d = %s.",
-                                    device, key, value == null ? null : valueStr));
+                    Log.d(TAG, "Metadata updated in " + device + ": " + key + "=" + valueStr);
                     if (key == BluetoothDevice.METADATA_SOFTWARE_VERSION
                             && (valueStr.equals(BluetoothDevice.COMPANION_TYPE_PRIMARY)
                                     || valueStr.equals(BluetoothDevice.COMPANION_TYPE_SECONDARY))) {

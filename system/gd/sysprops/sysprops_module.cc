@@ -92,6 +92,7 @@ void SyspropsModule::parse_config(std::string file_path) {
           "bluetooth.core.classic.sniff_min_intervals",
           "bluetooth.core.classic.sniff_attempts",
           "bluetooth.core.classic.sniff_timeouts",
+          "bluetooth.core.classic.auto_flush_timeout",
           // LE
           "bluetooth.core.le.min_connection_interval",
           "bluetooth.core.le.max_connection_interval",
@@ -120,7 +121,10 @@ void SyspropsModule::parse_config(std::string file_path) {
           "bluetooth.sco.disable_enhanced_connection",
           "bluetooth.sco.swb_supported",
           // Profile
+          "bluetooth.hid.wait_ms_after_uhid_open",
           "persist.bluetooth.avrcpcontrolversion",
+          // btsnoop logger
+          "persist.bluetooth.btsnooplogmode",
   };
 
   auto config = storage::LegacyConfigFile::FromPath(file_path).Read(kDefaultCapacity);

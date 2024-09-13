@@ -131,8 +131,8 @@ class MceStateMachine extends StateMachine {
     // URI Scheme for messages with email contact
     private static final String SCHEME_MAILTO = "mailto";
 
-    private static final String FETCH_MESSAGE_TYPE =
-            "persist.bluetooth.pts.mapclient.fetchmessagetype";
+    private static final String EXCLUDED_MESSAGE_TYPES =
+            "persist.bluetooth.pts.mapclient.excludedmessagetypes";
     private static final String SEND_MESSAGE_TYPE =
             "persist.bluetooth.pts.mapclient.sendmessagetype";
 
@@ -734,15 +734,14 @@ class MceStateMachine extends StateMachine {
                     // Get the 50 most recent messages from the last week
                     Calendar calendar = Calendar.getInstance();
                     calendar.add(Calendar.DATE, -7);
-                    byte messageType;
+                    // bit mask - excludedMessageType filters out unsupported message types
+                    byte excludedMessageTypes =
+                            MessagesFilter.MESSAGE_TYPE_EMAIL | MessagesFilter.MESSAGE_TYPE_IM;
                     if (Utils.isPtsTestMode()) {
-                        messageType =
+                        excludedMessageTypes =
                                 (byte)
                                         SystemProperties.getInt(
-                                                FETCH_MESSAGE_TYPE,
-                                                MessagesFilter.MESSAGE_TYPE_ALL);
-                    } else {
-                        messageType = MessagesFilter.MESSAGE_TYPE_ALL;
+                                                EXCLUDED_MESSAGE_TYPES, excludedMessageTypes);
                     }
 
                     mMasClient.makeRequest(
@@ -751,7 +750,7 @@ class MceStateMachine extends StateMachine {
                                     0,
                                     new MessagesFilter.Builder()
                                             .setPeriod(calendar.getTime(), null)
-                                            .setMessageType(messageType)
+                                            .setExcludedMessageTypes(excludedMessageTypes)
                                             .build(),
                                     0,
                                     50,
@@ -933,6 +932,7 @@ class MceStateMachine extends StateMachine {
          *
          * @param request - A request object that has been resolved and returned with a message list
          */
+        @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
         private void processMessageListing(RequestGetMessagesListing request) {
             Log.i(
                     TAG,
@@ -1161,6 +1161,9 @@ class MceStateMachine extends StateMachine {
                         if (smsReceiverPackageName != null && !smsReceiverPackageName.isEmpty()) {
                             // Clone intent and broadcast to SMS receiver package if one exists
                             Intent messageNotificationIntent = (Intent) intent.clone();
+                            // Repeat action for easier static analyze of the intent
+                            messageNotificationIntent.setAction(
+                                    BluetoothMapClient.ACTION_MESSAGE_RECEIVED);
                             messageNotificationIntent.setPackage(smsReceiverPackageName);
                             mService.sendBroadcast(messageNotificationIntent, RECEIVE_SMS);
                         }

@@ -76,6 +76,8 @@ void BtaAvCoState::clearCodecConfig() { memset(codec_config_, 0, AVDT_CODEC_SIZE
 
 void BtaAvCoState::Reset() {
   active_peer_ = nullptr;
+  // TODO: b/339264791. Remove the method & usage.
+  //  Pre-submit complains about codec_config not initialized.
   clearCodecConfig();
 }
 
@@ -101,7 +103,6 @@ void BtaAvCo::Init(const std::vector<btav_a2dp_codec_config_t>& codec_priorities
 }
 
 void BtaAvCo::Reset() {
-  bta_av_legacy_state_.Reset();
   bta_av_source_state_.Reset();
   bta_av_sink_state_.Reset();
   content_protect_flag_ = 0;
@@ -129,13 +130,7 @@ bool BtaAvCo::IsSupportedCodec(btav_a2dp_codec_index_t codec_index) {
 A2dpCodecConfig* BtaAvCo::GetActivePeerCurrentCodec() {
   std::lock_guard<std::recursive_mutex> lock(peer_cache_->codec_lock_);
 
-  BtaAvCoState* reference_state = nullptr;
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    reference_state = &bta_av_source_state_;
-  } else {
-    reference_state = &bta_av_legacy_state_;
-  }
-  BtaAvCoPeer* active_peer = reference_state->getActivePeer();
+  BtaAvCoPeer* active_peer = bta_av_source_state_.getActivePeer();
   if (active_peer == nullptr || active_peer->GetCodecs() == nullptr) {
     return nullptr;
   }
@@ -475,37 +470,25 @@ void BtaAvCo::ProcessSetConfig(tBTA_AV_HNDL bta_av_handle, const RawAddress& pee
   }
 
   if (status == A2DP_SUCCESS) {
-    bool codec_config_supported = false;
+    category = AVDT_ASC_CODEC;
 
     if (t_local_sep == AVDT_TSEP_SNK) {
       log::verbose("peer {} is A2DP Source", p_peer->addr);
-      codec_config_supported = A2DP_IsSinkCodecSupported(p_codec_info);
-      if (codec_config_supported) {
+      status = A2DP_IsSinkCodecSupported(p_codec_info);
+
+      if (status == A2DP_SUCCESS) {
         // If Peer is Source, and our config subset matches with what is
         // requested by peer, then just accept what peer wants.
         SaveNewCodecConfig(p_peer, p_codec_info, num_protect, p_protect_info, t_local_sep);
       }
-    }
-    if (t_local_sep == AVDT_TSEP_SRC) {
+    } else if (t_local_sep == AVDT_TSEP_SRC) {
       log::verbose("peer {} is A2DP SINK", p_peer->addr);
-      if ((p_peer->GetCodecs() == nullptr) ||
-          !SetCodecOtaConfig(p_peer, p_codec_info, num_protect, p_protect_info,
-                             t_local_sep)) {
-        log::error("cannot set source codec {} for peer {}", A2DP_CodecName(p_codec_info),
-                   p_peer->addr);
-      } else {
-        codec_config_supported = true;
-        // Check if reconfiguration is needed
-        if ((num_protect == 1) && !p_peer->ContentProtectActive()) {
-          reconfig_needed = true;
-        }
-      }
-    }
+      status = SetCodecOtaConfig(p_peer, p_codec_info, num_protect, p_protect_info, t_local_sep);
 
-    // Check if codec configuration is supported
-    if (!codec_config_supported) {
-      category = AVDT_ASC_CODEC;
-      status = AVDTP_UNSUPPORTED_CONFIGURATION;
+      // Check if reconfiguration is needed
+      if (status == A2DP_SUCCESS && num_protect == 1 && !p_peer->ContentProtectActive()) {
+        reconfig_needed = true;
+      }
     }
   }
 
@@ -628,13 +611,7 @@ BT_HDR* BtaAvCo::GetNextSourceDataPacket(const uint8_t* p_codec_info, uint32_t* 
     return nullptr;
   }
 
-  BtaAvCoState* reference_state = nullptr;
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    reference_state = &bta_av_source_state_;
-  } else {
-    reference_state = &bta_av_legacy_state_;
-  }
-  BtaAvCoPeer* active_peer = reference_state->getActivePeer();
+  BtaAvCoPeer* active_peer = bta_av_source_state_.getActivePeer();
   // if offset is 0, the decremental operation may result in
   // underflow and OOB access
   if (ContentProtectEnabled() && (active_peer != nullptr) && active_peer->ContentProtectActive() &&
@@ -686,7 +663,9 @@ bool BtaAvCo::SetActivePeer(const RawAddress& peer_address, const uint8_t t_loca
   if (peer_address.IsEmpty()) {
     // Reset the active peer;
     reference_state->setActivePeer(nullptr);
-    reference_state->clearCodecConfig();
+    if (!com::android::bluetooth::flags::bta_av_use_peer_codec()) {
+      reference_state->clearCodecConfig();
+    }
     return true;
   }
 
@@ -697,34 +676,39 @@ bool BtaAvCo::SetActivePeer(const RawAddress& peer_address, const uint8_t t_loca
   }
 
   reference_state->setActivePeer(p_peer);
-  reference_state->setCodecConfig(p_peer->codec_config);
-  log::info("codec = {}", A2DP_CodecInfoString(reference_state->getCodecConfig()));
+  if (com::android::bluetooth::flags::bta_av_use_peer_codec()) {
+    log::info("codec = {}", A2DP_CodecInfoString(p_peer->getCodecConfig()));
+  } else {
+    reference_state->setCodecConfig(p_peer->codec_config);
+    log::info("codec = {}", A2DP_CodecInfoString(reference_state->getCodecConfig()));
+  }
   // report the selected codec configuration of this new active peer.
   ReportSourceCodecState(p_peer);
   return true;
 }
 
 BtaAvCoState* BtaAvCo::getStateFromLocalProfile(const uint8_t t_local_sep) {
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    if (t_local_sep == AVDT_TSEP_SRC) {
-      return &bta_av_source_state_;
-    } else if (t_local_sep == AVDT_TSEP_SNK) {
-      return &bta_av_sink_state_;
-    } else {
-      log::warn("Invalid bta av state for local sep type {}", t_local_sep);
-      return nullptr;
-    }
+  if (t_local_sep == AVDT_TSEP_SRC) {
+    return &bta_av_source_state_;
+  } else if (t_local_sep == AVDT_TSEP_SNK) {
+    return &bta_av_sink_state_;
   } else {
-    return &bta_av_legacy_state_;
+    log::warn("Invalid bta av state for local sep type {}", t_local_sep);
+    return nullptr;
   }
 }
 
-void BtaAvCo::SaveCodec(const uint8_t* new_codec_config) {
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    bta_av_sink_state_.setCodecConfig(new_codec_config);
-  } else {
-    bta_av_legacy_state_.setCodecConfig(new_codec_config);
+void BtaAvCo::SaveCodec(const RawAddress& peer_address, const uint8_t* new_codec_config) {
+  if (com::android::bluetooth::flags::bta_av_use_peer_codec()) {
+    BtaAvCoPeer* p_peer = peer_cache_->FindPeer(peer_address);
+    if (p_peer != nullptr) {
+      p_peer->setCodecConfig(new_codec_config);
+    } else {
+      log::error("Unable to find the peer address {}", peer_address);
+    }
+    return;
   }
+  bta_av_sink_state_.setCodecConfig(new_codec_config);
 }
 
 void BtaAvCo::GetPeerEncoderParameters(const RawAddress& peer_address,
@@ -756,12 +740,18 @@ void BtaAvCo::GetPeerEncoderParameters(const RawAddress& peer_address,
                p_peer_params->peer_supports_3mbps);
 }
 
-const tA2DP_ENCODER_INTERFACE* BtaAvCo::GetSourceEncoderInterface() {
+const tA2DP_ENCODER_INTERFACE* BtaAvCo::GetSourceEncoderInterface(const RawAddress& peer_address) {
   std::lock_guard<std::recursive_mutex> lock(peer_cache_->codec_lock_);
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    return A2DP_GetEncoderInterface(bta_av_source_state_.getCodecConfig());
+  if (com::android::bluetooth::flags::bta_av_use_peer_codec()) {
+    BtaAvCoPeer* p_peer = peer_cache_->FindPeer(peer_address);
+    if (p_peer != nullptr) {
+      return A2DP_GetEncoderInterface(p_peer->getCodecConfig());
+    } else {
+      log::error("Unable to find the peer address {}", peer_address);
+    }
+    return nullptr;
   }
-  return A2DP_GetEncoderInterface(bta_av_legacy_state_.getCodecConfig());
+  return A2DP_GetEncoderInterface(bta_av_source_state_.getCodecConfig());
 }
 
 bool BtaAvCo::SetCodecUserConfig(const RawAddress& peer_address,
@@ -848,12 +838,7 @@ done:
   // and informing the Media Framework about the change.
 
   // Find the peer that is currently open
-  BtaAvCoPeer* active_peer;
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    active_peer = bta_av_source_state_.getActivePeer();
-  } else {
-    active_peer = bta_av_legacy_state_.getActivePeer();
-  }
+  BtaAvCoPeer* active_peer = bta_av_source_state_.getActivePeer();
   if (p_peer != nullptr && (!restart_output || !success || p_peer != active_peer)) {
     return ReportSourceCodecState(p_peer);
   }
@@ -869,12 +854,7 @@ bool BtaAvCo::SetCodecAudioConfig(const btav_a2dp_codec_config_t& codec_audio_co
   log::verbose("codec_audio_config: {}", codec_audio_config.ToString());
 
   // Find the peer that is currently open
-  BtaAvCoPeer* p_peer;
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    p_peer = bta_av_source_state_.getActivePeer();
-  } else {
-    p_peer = bta_av_legacy_state_.getActivePeer();
-  }
+  BtaAvCoPeer* p_peer = bta_av_source_state_.getActivePeer();
   if (p_peer == nullptr) {
     log::error("no active peer to configure");
     return false;
@@ -926,17 +906,29 @@ bool BtaAvCo::SetCodecAudioConfig(const btav_a2dp_codec_config_t& codec_audio_co
   return true;
 }
 
-int BtaAvCo::GetSourceEncoderEffectiveFrameSize() {
+int BtaAvCo::GetSourceEncoderEffectiveFrameSize(const RawAddress& peer_address) {
   std::lock_guard<std::recursive_mutex> lock(peer_cache_->codec_lock_);
 
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    return A2DP_GetEecoderEffectiveFrameSize(bta_av_source_state_.getCodecConfig());
+  if (com::android::bluetooth::flags::bta_av_use_peer_codec()) {
+    BtaAvCoPeer* p_peer = peer_cache_->FindPeer(peer_address);
+    if (p_peer != nullptr) {
+      return A2DP_GetEecoderEffectiveFrameSize(p_peer->getCodecConfig());
+    } else {
+      log::error("Unable to find the peer address {}", peer_address);
+    }
+    return 0;
   }
-  return A2DP_GetEecoderEffectiveFrameSize(bta_av_legacy_state_.getCodecConfig());
+  return A2DP_GetEecoderEffectiveFrameSize(bta_av_source_state_.getCodecConfig());
 }
 
 int BtaAvCo::GetSourceEncoderPreferredIntervalUs() {
-  const tA2DP_ENCODER_INTERFACE* encoder = GetSourceEncoderInterface();
+  const BtaAvCoPeer* active_peer = bta_av_source_state_.getActivePeer();
+  const tA2DP_ENCODER_INTERFACE* encoder;
+  if (active_peer != nullptr) {
+    encoder = GetSourceEncoderInterface(active_peer->addr);
+  } else {
+    encoder = nullptr;
+  }
   return encoder == nullptr ? 0 : encoder->get_encoder_interval_ms() * 1000;
 }
 
@@ -987,12 +979,6 @@ void BtaAvCo::DebugDump(int fd) {
   //
   // Active peer codec-specific stats
   //
-  if (bta_av_legacy_state_.getActivePeer() != nullptr) {
-    A2dpCodecs* a2dp_codecs = bta_av_legacy_state_.getActivePeer()->GetCodecs();
-    if (a2dp_codecs != nullptr) {
-      a2dp_codecs->debug_codec_dump(fd);
-    }
-  }
   if (bta_av_source_state_.getActivePeer() != nullptr) {
     A2dpCodecs* a2dp_codecs = bta_av_source_state_.getActivePeer()->GetCodecs();
     if (a2dp_codecs != nullptr) {
@@ -1007,10 +993,6 @@ void BtaAvCo::DebugDump(int fd) {
   }
 
   dprintf(fd, "\nA2DP Peers State:\n");
-  dprintf(fd, "  Active peer: %s\n",
-          (bta_av_legacy_state_.getActivePeer() != nullptr)
-                  ? ADDRESS_TO_LOGGABLE_CSTR(bta_av_legacy_state_.getActivePeer()->addr)
-                  : "null");
   dprintf(fd, "  Source: active peer: %s\n",
           (bta_av_source_state_.getActivePeer() != nullptr)
                   ? ADDRESS_TO_LOGGABLE_CSTR(bta_av_source_state_.getActivePeer()->addr)
@@ -1303,8 +1285,12 @@ void BtaAvCo::SaveNewCodecConfig(BtaAvCoPeer* p_peer, const uint8_t* new_codec_c
               t_local_sep);
     return;
   }
-  reference_state->setCodecConfig(new_codec_config);
-  memcpy(p_peer->codec_config, new_codec_config, AVDT_CODEC_SIZE);
+  if (com::android::bluetooth::flags::bta_av_use_peer_codec()) {
+    p_peer->setCodecConfig(new_codec_config);
+  } else {
+    reference_state->setCodecConfig(new_codec_config);
+    memcpy(p_peer->codec_config, new_codec_config, AVDT_CODEC_SIZE);
+  }
 
   if (ContentProtectEnabled()) {
     // Check if this Sink supports SCMS
@@ -1314,30 +1300,31 @@ void BtaAvCo::SaveNewCodecConfig(BtaAvCoPeer* p_peer, const uint8_t* new_codec_c
 }
 
 BtaAvCoState* BtaAvCo::getStateFromPeer(const BtaAvCoPeer* p_peer) {
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    if (p_peer->uuid_to_connect == UUID_SERVCLASS_AUDIO_SINK) {
-      return &bta_av_source_state_;
-    } else if (p_peer->uuid_to_connect == UUID_SERVCLASS_AUDIO_SOURCE) {
-      return &bta_av_sink_state_;
-    } else {
-      log::warn("Invalid bta av state for peer_address : {} with uuid as :{}", p_peer->addr,
-                p_peer->uuid_to_connect);
-      return nullptr;
-    }
+  if (p_peer->uuid_to_connect == UUID_SERVCLASS_AUDIO_SINK) {
+    return &bta_av_source_state_;
+  } else if (p_peer->uuid_to_connect == UUID_SERVCLASS_AUDIO_SOURCE) {
+    return &bta_av_sink_state_;
   } else {
-    return &bta_av_legacy_state_;
+    log::warn("Invalid bta av state for peer_address : {} with uuid as :{}", p_peer->addr,
+              p_peer->uuid_to_connect);
+    return nullptr;
   }
 }
 
-bool BtaAvCo::SetCodecOtaConfig(BtaAvCoPeer* p_peer, const uint8_t* p_ota_codec_config,
-                                uint8_t num_protect, const uint8_t* p_protect_info,
-                                const uint8_t t_local_sep) {
+tA2DP_STATUS BtaAvCo::SetCodecOtaConfig(BtaAvCoPeer* p_peer, const uint8_t* p_ota_codec_config,
+                                        uint8_t num_protect, const uint8_t* p_protect_info,
+                                        const uint8_t t_local_sep) {
   uint8_t result_codec_config[AVDT_CODEC_SIZE];
   bool restart_input = false;
   bool restart_output = false;
   bool config_updated = false;
 
   log::info("peer_address={}, codec: {}", p_peer->addr, A2DP_CodecInfoString(p_ota_codec_config));
+
+  if (p_peer->GetCodecs() == nullptr) {
+    log::error("peer codecs are not yet initialized");
+    return AVDTP_UNSUPPORTED_CONFIGURATION;
+  }
 
   // Find the peer SEP codec to use
   const BtaAvCoSep* p_sink = peer_cache_->FindPeerSink(
@@ -1347,15 +1334,17 @@ bool BtaAvCo::SetCodecOtaConfig(BtaAvCoPeer* p_peer, const uint8_t* p_ota_codec_
     // We have all the information we need from the peer, so we can
     // proceed with the OTA codec configuration.
     log::error("peer {} : cannot find peer SEP to configure", p_peer->addr);
-    return false;
+    return AVDTP_UNSUPPORTED_CONFIGURATION;
   }
 
   tA2DP_ENCODER_INIT_PEER_PARAMS peer_params;
   GetPeerEncoderParameters(p_peer->addr, &peer_params);
-  if (!p_peer->GetCodecs()->setCodecOtaConfig(p_ota_codec_config, &peer_params, result_codec_config,
-                                              &restart_input, &restart_output, &config_updated)) {
-    log::error("peer {} : cannot set OTA config", p_peer->addr);
-    return false;
+  auto status = p_peer->GetCodecs()->setCodecOtaConfig(p_ota_codec_config, &peer_params,
+                                                       result_codec_config, &restart_input,
+                                                       &restart_output, &config_updated);
+  if (status != A2DP_SUCCESS) {
+    log::error("peer {} : cannot set OTA config, status: 0x{:x}", p_peer->addr, status);
+    return status;
   }
 
   if (restart_output) {
@@ -1371,7 +1360,7 @@ bool BtaAvCo::SetCodecOtaConfig(BtaAvCoPeer* p_peer, const uint8_t* p_ota_codec_
     ReportSourceCodecState(p_peer);
   }
 
-  return true;
+  return A2DP_SUCCESS;
 }
 
 void bta_av_co_init(const std::vector<btav_a2dp_codec_config_t>& codec_priorities,
@@ -1537,8 +1526,8 @@ bool bta_av_co_set_active_source_peer(const RawAddress& peer_address) {
   return bta_av_co_cb.SetActivePeer(peer_address, AVDT_TSEP_SRC);
 }
 
-void bta_av_co_save_codec(const uint8_t* new_codec_config) {
-  return bta_av_co_cb.SaveCodec(new_codec_config);
+void bta_av_co_save_codec(const RawAddress& peer_address, const uint8_t* new_codec_config) {
+  return bta_av_co_cb.SaveCodec(peer_address, new_codec_config);
 }
 
 void bta_av_co_get_peer_params(const RawAddress& peer_address,
@@ -1546,8 +1535,8 @@ void bta_av_co_get_peer_params(const RawAddress& peer_address,
   bta_av_co_cb.GetPeerEncoderParameters(peer_address, p_peer_params);
 }
 
-const tA2DP_ENCODER_INTERFACE* bta_av_co_get_encoder_interface(void) {
-  return bta_av_co_cb.GetSourceEncoderInterface();
+const tA2DP_ENCODER_INTERFACE* bta_av_co_get_encoder_interface(const RawAddress& peer_address) {
+  return bta_av_co_cb.GetSourceEncoderInterface(peer_address);
 }
 
 bool bta_av_co_set_codec_user_config(const RawAddress& peer_address,
@@ -1560,8 +1549,8 @@ bool bta_av_co_set_codec_audio_config(const btav_a2dp_codec_config_t& codec_audi
   return bta_av_co_cb.SetCodecAudioConfig(codec_audio_config);
 }
 
-int bta_av_co_get_encoder_effective_frame_size() {
-  return bta_av_co_cb.GetSourceEncoderEffectiveFrameSize();
+int bta_av_co_get_encoder_effective_frame_size(const RawAddress& peer_address) {
+  return bta_av_co_cb.GetSourceEncoderEffectiveFrameSize(peer_address);
 }
 
 int bta_av_co_get_encoder_preferred_interval_us() {
@@ -1583,3 +1572,12 @@ btav_a2dp_scmst_info_t bta_av_co_get_scmst_info(const RawAddress& peer_address) 
 }
 
 void btif_a2dp_codec_debug_dump(int fd) { bta_av_co_cb.DebugDump(fd); }
+
+uint8_t* bta_av_co_get_codec_config(const RawAddress& peer_address) {
+  BtaAvCoPeer* p_peer = bta_av_co_cb.peer_cache_->FindPeer(peer_address);
+  if (p_peer != nullptr) {
+    return p_peer->getCodecConfig();
+  }
+  log::error("Unable to found the peer");
+  return nullptr;
+}

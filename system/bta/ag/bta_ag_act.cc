@@ -42,7 +42,7 @@
 #include "device/include/device_iot_config.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_sec_api_types.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/port_api.h"
 #include "stack/include/sdp_api.h"
 #include "storage/config_keys.h"
@@ -237,7 +237,8 @@ void bta_ag_disc_int_res(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
   log::verbose("bta_ag_disc_int_res: Status: {}", data.disc_result.status);
 
   /* if found service */
-  if (data.disc_result.status == SDP_SUCCESS || data.disc_result.status == SDP_DB_FULL) {
+  if (data.disc_result.status == tSDP_STATUS::SDP_SUCCESS ||
+      data.disc_result.status == tSDP_STATUS::SDP_DB_FULL) {
     /* get attributes */
     if (bta_ag_sdp_find_attr(p_scb, p_scb->open_services)) {
       /* set connected service */
@@ -256,8 +257,9 @@ void bta_ag_disc_int_res(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
 
   /* if service not found check if we should search for other service */
   if ((event == BTA_AG_DISC_FAIL_EVT) &&
-      (data.disc_result.status == SDP_SUCCESS || data.disc_result.status == SDP_DB_FULL ||
-       data.disc_result.status == SDP_NO_RECS_MATCH)) {
+      (data.disc_result.status == tSDP_STATUS::SDP_SUCCESS ||
+       data.disc_result.status == tSDP_STATUS::SDP_DB_FULL ||
+       data.disc_result.status == tSDP_STATUS::SDP_NO_RECS_MATCH)) {
     if ((p_scb->open_services & BTA_HFP_SERVICE_MASK) &&
         (p_scb->open_services & BTA_HSP_SERVICE_MASK)) {
       /* search for HSP */
@@ -290,7 +292,8 @@ void bta_ag_disc_int_res(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
  ******************************************************************************/
 void bta_ag_disc_acp_res(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
   /* if found service */
-  if (data.disc_result.status == SDP_SUCCESS || data.disc_result.status == SDP_DB_FULL) {
+  if (data.disc_result.status == tSDP_STATUS::SDP_SUCCESS ||
+      data.disc_result.status == tSDP_STATUS::SDP_DB_FULL) {
     /* get attributes */
     bta_ag_sdp_find_attr(p_scb, bta_ag_svc_mask[p_scb->conn_service]);
     DEVICE_IOT_CONFIG_ADDR_SET_HEX_IF_GREATER(p_scb->peer_addr, IOT_CONF_KEY_HFP_VERSION,
@@ -472,7 +475,7 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
     if (RFCOMM_RemoveServer(p_scb->conn_handle) != PORT_SUCCESS) {
       log::warn("Unable to remove RFCOMM server peer:{} handle:{}", p_scb->peer_addr,
                 p_scb->conn_handle);
-    };
+    }
     bta_ag_scb_dealloc(p_scb);
   }
 }
@@ -696,7 +699,8 @@ void bta_ag_rfc_data(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
 void bta_ag_start_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
   /* Take the link out of sniff and set L2C idle time to 0 */
   bta_dm_pm_active(p_scb->peer_addr);
-  if (!L2CA_SetIdleTimeoutByBdAddr(p_scb->peer_addr, 0, BT_TRANSPORT_BR_EDR)) {
+  if (!stack::l2cap::get_interface().L2CA_SetIdleTimeoutByBdAddr(p_scb->peer_addr, 0,
+                                                                 BT_TRANSPORT_BR_EDR)) {
     log::warn("Unable to set idle timeout peer:{}", p_scb->peer_addr);
   }
 

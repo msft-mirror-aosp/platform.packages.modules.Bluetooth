@@ -187,15 +187,13 @@ public class HeadsetServiceAndStateMachineTest {
         verify(mNativeInterface).init(MAX_HEADSET_CONNECTIONS + 1, true /* inband ringtone */);
 
         // Set up the Connection State Changed receiver
-        if (Flags.hfpCodecAptxVoice()) {
-            verify(mNativeInterface)
-                    .enableSwb(
-                            eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
-                            eq(
-                                    SystemProperties.getBoolean(
-                                            "bluetooth.hfp.codec_aptx_voice.enabled", false)),
-                            eq(mHeadsetService.getActiveDevice()));
-        }
+        verify(mNativeInterface)
+                .enableSwb(
+                        eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
+                        eq(
+                                SystemProperties.getBoolean(
+                                        "bluetooth.hfp.codec_aptx_voice.enabled", false)),
+                        eq(mHeadsetService.getActiveDevice()));
     }
 
     @After
@@ -743,13 +741,11 @@ public class HeadsetServiceAndStateMachineTest {
         verify(mNativeInterface, times(2))
                 .atResponseCode(device, HeadsetHalConstants.AT_RESPONSE_OK, 0);
         verify(mNativeInterface).disconnectAudio(device);
-        if (Flags.hfpCodecAptxVoice()) {
-            verify(mNativeInterface, atLeast(1))
-                    .enableSwb(
-                            eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
-                            anyBoolean(),
-                            eq(device));
-        }
+        verify(mNativeInterface, atLeast(1))
+                .enableSwb(
+                        eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
+                        anyBoolean(),
+                        eq(device));
         verifyNoMoreInteractions(mNativeInterface);
     }
 
@@ -783,7 +779,7 @@ public class HeadsetServiceAndStateMachineTest {
         mTestLooper.dispatchAll();
         verify(mSystemInterface).activateVoiceRecognition();
         verify(mNativeInterface).atResponseCode(device, HeadsetHalConstants.AT_RESPONSE_ERROR, 0);
-        verifyNoMoreInteractions(mNativeInterface);
+        verifyNoMoreInteractions(ignoreStubs(mNativeInterface));
         verifyZeroInteractions(mAudioManager);
     }
 
@@ -819,14 +815,12 @@ public class HeadsetServiceAndStateMachineTest {
         mTestLooper.dispatchAll();
         verify(mNativeInterface).atResponseCode(device, HeadsetHalConstants.AT_RESPONSE_ERROR, 0);
 
-        if (Flags.hfpCodecAptxVoice()) {
-            verify(mNativeInterface, atLeast(1))
-                    .enableSwb(
-                            eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
-                            anyBoolean(),
-                            eq(device));
-        }
-        verifyNoMoreInteractions(mNativeInterface);
+        verify(mNativeInterface, atLeast(1))
+                .enableSwb(
+                        eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
+                        anyBoolean(),
+                        eq(device));
+        verifyNoMoreInteractions(ignoreStubs(mNativeInterface));
         verifyZeroInteractions(mAudioManager);
     }
 
@@ -879,53 +873,6 @@ public class HeadsetServiceAndStateMachineTest {
     }
 
     /**
-     * Test to verify the following behavior regarding AG initiated voice recognition in the
-     * successful scenario 1. AG starts voice recognition and notify the Bluetooth stack via {@link
-     * BluetoothHeadset#startVoiceRecognition(BluetoothDevice)} to indicate that voice recognition
-     * has started, BluetoothDevice is null in this case 2. AG send +BVRA:1 to current active HF 3.
-     * AG start SCO connection if SCO has not been started
-     *
-     * <p>Reference: Section 4.25, Page 64/144 of HFP 1.7.1 specification
-     */
-    @Test
-    public void testVoiceRecognition_SingleAgInitiatedSuccessNullInput() {
-        // Connect HF
-        BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
-        connectTestDevice(device);
-        // Make device active
-        assertThat(mHeadsetService.setActiveDevice(device)).isTrue();
-        mTestLooper.dispatchAll();
-        verify(mNativeInterface).setActiveDevice(device);
-        assertThat(mHeadsetService.getActiveDevice()).isEqualTo(device);
-        // Start voice recognition on null argument should go to active device
-        assertThat(mHeadsetService.startVoiceRecognition(null)).isTrue();
-        mTestLooper.dispatchAll();
-        verify(mNativeInterface).startVoiceRecognition(device);
-    }
-
-    /**
-     * Test to verify the following behavior regarding AG initiated voice recognition in the
-     * successful scenario 1. AG starts voice recognition and notify the Bluetooth stack via {@link
-     * BluetoothHeadset#startVoiceRecognition(BluetoothDevice)} to indicate that voice recognition
-     * has started, BluetoothDevice is null and active device is null 2. The call should fail
-     *
-     * <p>Reference: Section 4.25, Page 64/144 of HFP 1.7.1 specification
-     */
-    @Test
-    public void testVoiceRecognition_SingleAgInitiatedFailNullActiveDevice() {
-        // Connect HF
-        BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
-        connectTestDevice(device);
-        // Make device active
-        assertThat(mHeadsetService.setActiveDevice(null)).isTrue();
-        mTestLooper.dispatchAll();
-        assertThat(mHeadsetService.getActiveDevice()).isNull();
-        // Start voice recognition on null argument should fail
-        assertThat(mHeadsetService.startVoiceRecognition(null)).isFalse();
-        mTestLooper.dispatchAll();
-    }
-
-    /**
      * Test to verify the following behavior regarding AG stops voice recognition in the successful
      * scenario 1. AG stops voice recognition and notify the Bluetooth stack via {@link
      * BluetoothHeadset#stopVoiceRecognition(BluetoothDevice)} to indicate that voice recognition
@@ -951,13 +898,11 @@ public class HeadsetServiceAndStateMachineTest {
         mTestLooper.dispatchAll();
         verify(mNativeInterface).stopVoiceRecognition(device);
         verify(mNativeInterface).disconnectAudio(device);
-        if (Flags.hfpCodecAptxVoice()) {
-            verify(mNativeInterface, atLeast(1))
-                    .enableSwb(
-                            eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
-                            anyBoolean(),
-                            eq(device));
-        }
+        verify(mNativeInterface, atLeast(1))
+                .enableSwb(
+                        eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
+                        anyBoolean(),
+                        eq(device));
         verifyNoMoreInteractions(mNativeInterface);
     }
 
@@ -996,9 +941,14 @@ public class HeadsetServiceAndStateMachineTest {
         BluetoothDevice deviceB = TestUtils.getTestDevice(mAdapter, 1);
         connectTestDevice(deviceB);
         InOrder inOrder = inOrder(mNativeInterface);
-        inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(true));
-        inOrder.verify(mNativeInterface).sendBsir(eq(deviceB), eq(false));
-        inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(false));
+        if (!Flags.updateActiveDeviceInBandRingtone()) {
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(true));
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceB), eq(false));
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(false));
+        } else {
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(false));
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceB), eq(false));
+        }
         // Set active device to device B
         assertThat(mHeadsetService.setActiveDevice(deviceB)).isTrue();
         mTestLooper.dispatchAll();
@@ -1032,14 +982,12 @@ public class HeadsetServiceAndStateMachineTest {
         verify(mAudioManager).setA2dpSuspended(true);
         verify(mAudioManager).setLeAudioSuspended(true);
         verify(mNativeInterface).connectAudio(deviceA);
-        if (Flags.hfpCodecAptxVoice()) {
-            verify(mNativeInterface, atLeast(1))
-                    .enableSwb(
-                            eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
-                            anyBoolean(),
-                            eq(deviceA));
-        }
-        verifyNoMoreInteractions(mNativeInterface);
+        verify(mNativeInterface, atLeast(1))
+                .enableSwb(
+                        eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
+                        anyBoolean(),
+                        eq(deviceA));
+        verifyNoMoreInteractions(ignoreStubs(mNativeInterface));
     }
 
     /**
@@ -1058,11 +1006,16 @@ public class HeadsetServiceAndStateMachineTest {
         InOrder inOrder = inOrder(mNativeInterface);
         BluetoothDevice deviceA = TestUtils.getTestDevice(mAdapter, 0);
         connectTestDevice(deviceA);
-        inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(true));
         BluetoothDevice deviceB = TestUtils.getTestDevice(mAdapter, 1);
         connectTestDevice(deviceB);
-        inOrder.verify(mNativeInterface).sendBsir(eq(deviceB), eq(false));
-        inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(false));
+        if (!Flags.updateActiveDeviceInBandRingtone()) {
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(true));
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceB), eq(false));
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(false));
+        } else {
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(false));
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceB), eq(false));
+        }
         // Set active device to device B
         assertThat(mHeadsetService.setActiveDevice(deviceB)).isTrue();
         mTestLooper.dispatchAll();
@@ -1097,14 +1050,12 @@ public class HeadsetServiceAndStateMachineTest {
         verify(mAudioManager).setA2dpSuspended(true);
         verify(mAudioManager).setLeAudioSuspended(true);
         verify(mNativeInterface).connectAudio(deviceA);
-        if (Flags.hfpCodecAptxVoice()) {
-            verify(mNativeInterface, atLeast(1))
-                    .enableSwb(
-                            eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
-                            anyBoolean(),
-                            eq(deviceA));
-        }
-        verifyNoMoreInteractions(mNativeInterface);
+        verify(mNativeInterface, atLeast(1))
+                .enableSwb(
+                        eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
+                        anyBoolean(),
+                        eq(deviceA));
+        verifyNoMoreInteractions(ignoreStubs(mNativeInterface));
     }
 
     /**
@@ -1124,9 +1075,14 @@ public class HeadsetServiceAndStateMachineTest {
         BluetoothDevice deviceB = TestUtils.getTestDevice(mAdapter, 1);
         connectTestDevice(deviceB);
         InOrder inOrder = inOrder(mNativeInterface);
-        inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(true));
-        inOrder.verify(mNativeInterface).sendBsir(eq(deviceB), eq(false));
-        inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(false));
+        if (!Flags.updateActiveDeviceInBandRingtone()) {
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(true));
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceB), eq(false));
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(false));
+        } else {
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(false));
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceB), eq(false));
+        }
         // Set active device to device B
         assertThat(mHeadsetService.setActiveDevice(deviceB)).isTrue();
         mTestLooper.dispatchAll();
@@ -1146,14 +1102,12 @@ public class HeadsetServiceAndStateMachineTest {
         verify(mNativeInterface).disconnectAudio(deviceB);
         // This request should still fail
         verify(mNativeInterface).atResponseCode(deviceA, HeadsetHalConstants.AT_RESPONSE_ERROR, 0);
-        if (Flags.hfpCodecAptxVoice()) {
-            verify(mNativeInterface, atLeast(1))
-                    .enableSwb(
-                            eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
-                            anyBoolean(),
-                            eq(deviceB));
-        }
-        verifyNoMoreInteractions(mNativeInterface);
+        verify(mNativeInterface, atLeast(1))
+                .enableSwb(
+                        eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
+                        anyBoolean(),
+                        eq(deviceB));
+        verifyNoMoreInteractions(ignoreStubs(mNativeInterface));
     }
 
     /**
@@ -1173,9 +1127,14 @@ public class HeadsetServiceAndStateMachineTest {
         BluetoothDevice deviceB = TestUtils.getTestDevice(mAdapter, 1);
         connectTestDevice(deviceB);
         InOrder inOrder = inOrder(mNativeInterface);
-        inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(true));
-        inOrder.verify(mNativeInterface).sendBsir(eq(deviceB), eq(false));
-        inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(false));
+        if (!Flags.updateActiveDeviceInBandRingtone()) {
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(true));
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceB), eq(false));
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(false));
+        } else {
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(false));
+            inOrder.verify(mNativeInterface).sendBsir(eq(deviceB), eq(false));
+        }
         // Set active device to device B
         assertThat(mHeadsetService.setActiveDevice(deviceB)).isTrue();
         mTestLooper.dispatchAll();
@@ -1204,14 +1163,12 @@ public class HeadsetServiceAndStateMachineTest {
                 deviceA,
                 BluetoothHeadset.STATE_AUDIO_CONNECTED,
                 BluetoothHeadset.STATE_AUDIO_CONNECTING);
-        if (Flags.hfpCodecAptxVoice()) {
-            verify(mNativeInterface, atLeast(1))
-                    .enableSwb(
-                            eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
-                            anyBoolean(),
-                            eq(deviceA));
-        }
-        verifyNoMoreInteractions(mNativeInterface);
+        verify(mNativeInterface, atLeast(1))
+                .enableSwb(
+                        eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
+                        anyBoolean(),
+                        eq(deviceA));
+        verifyNoMoreInteractions(ignoreStubs(mNativeInterface));
     }
 
     /**
@@ -1328,13 +1285,13 @@ public class HeadsetServiceAndStateMachineTest {
                 BluetoothHeadset.STATE_AUDIO_CONNECTING);
 
         // Check that AptX SWB disabled, LC3 SWB disabled
-        verifySetParametersToAudioSystemInvocation(false, false);
+        verifySetParametersToAudioSystemInvocation(false, true, false);
         verify(mNativeInterface, times(1)).connectAudio(eq(device));
         verify(mNativeInterface).sendBsir(eq(device), eq(true));
         verify(mNativeInterface, times(2))
                 .enableSwb(
                         eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX), eq(false), eq(device));
-        verifyNoMoreInteractions(mNativeInterface);
+        verifyNoMoreInteractions(ignoreStubs(mNativeInterface));
         configureHeadsetServiceForAptxVoice(false);
     }
 
@@ -1412,13 +1369,13 @@ public class HeadsetServiceAndStateMachineTest {
                 BluetoothHeadset.STATE_AUDIO_CONNECTING);
 
         // Check that AptX SWB enabled, LC3 SWB disabled
-        verifySetParametersToAudioSystemInvocation(false, true);
+        verifySetParametersToAudioSystemInvocation(false, true, true);
         verify(mNativeInterface, times(1)).connectAudio(eq(device));
         verify(mNativeInterface).sendBsir(eq(device), eq(true));
         verify(mNativeInterface, times(2))
                 .enableSwb(
                         eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX), eq(true), eq(device));
-        verifyNoMoreInteractions(mNativeInterface);
+        verifyNoMoreInteractions(ignoreStubs(mNativeInterface));
         configureHeadsetServiceForAptxVoice(false);
     }
 
@@ -1449,7 +1406,7 @@ public class HeadsetServiceAndStateMachineTest {
         // Start voice recognition
         startVoiceRecognitionFromHf(device);
         // Check that proper codecs were set
-        verifySetParametersToAudioSystemInvocation(true, false);
+        verifySetParametersToAudioSystemInvocation(true, true, false);
         configureHeadsetServiceForAptxVoice(false);
     }
 
@@ -1480,7 +1437,7 @@ public class HeadsetServiceAndStateMachineTest {
         // Start voice recognition
         startVoiceRecognitionFromHf(device);
         // Check that proper codecs were set
-        verifySetParametersToAudioSystemInvocation(true, false);
+        verifySetParametersToAudioSystemInvocation(true, false, false);
     }
 
     /**
@@ -1510,7 +1467,7 @@ public class HeadsetServiceAndStateMachineTest {
         // Start voice recognition
         startVoiceRecognitionFromHf(device);
         // Check that proper codecs were set
-        verifySetParametersToAudioSystemInvocation(false, true);
+        verifySetParametersToAudioSystemInvocation(false, true, true);
         configureHeadsetServiceForAptxVoice(false);
     }
 
@@ -1539,7 +1496,7 @@ public class HeadsetServiceAndStateMachineTest {
         // Start voice recognition
         startVoiceRecognitionFromHf(device);
         // Check that proper codecs were set
-        verifySetParametersToAudioSystemInvocation(false, false);
+        verifySetParametersToAudioSystemInvocation(false, true, false);
         configureHeadsetServiceForAptxVoice(false);
     }
 
@@ -1568,7 +1525,7 @@ public class HeadsetServiceAndStateMachineTest {
         // Start voice recognition
         startVoiceRecognitionFromHf(device);
         // Check that proper codecs were set
-        verifySetParametersToAudioSystemInvocation(false, false);
+        verifySetParametersToAudioSystemInvocation(false, false, false);
     }
 
     /**
@@ -1698,13 +1655,11 @@ public class HeadsetServiceAndStateMachineTest {
         verify(mAudioManager).setA2dpSuspended(true);
         verify(mAudioManager).setLeAudioSuspended(true);
         verify(mNativeInterface).connectAudio(device);
-        if (Flags.hfpCodecAptxVoice()) {
-            verify(mNativeInterface, atLeast(1))
-                    .enableSwb(
-                            eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
-                            anyBoolean(),
-                            eq(device));
-        }
+        verify(mNativeInterface, atLeast(1))
+                .enableSwb(
+                        eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
+                        anyBoolean(),
+                        eq(device));
         verifyAudioStateIntent(
                 device,
                 BluetoothHeadset.STATE_AUDIO_CONNECTING,
@@ -1719,7 +1674,7 @@ public class HeadsetServiceAndStateMachineTest {
                 device,
                 BluetoothHeadset.STATE_AUDIO_CONNECTED,
                 BluetoothHeadset.STATE_AUDIO_CONNECTING);
-        verifyNoMoreInteractions(mNativeInterface);
+        verifyNoMoreInteractions(ignoreStubs(mNativeInterface));
     }
 
     private void startVoiceRecognitionFromHf_ScoManagedByAudio(BluetoothDevice device) {
@@ -1753,13 +1708,11 @@ public class HeadsetServiceAndStateMachineTest {
         verify(mAudioManager).setA2dpSuspended(true);
         verify(mAudioManager).setLeAudioSuspended(true);
         verify(mNativeInterface).connectAudio(device);
-        if (Flags.hfpCodecAptxVoice()) {
-            verify(mNativeInterface, atLeast(1))
-                    .enableSwb(
-                            eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
-                            anyBoolean(),
-                            eq(device));
-        }
+        verify(mNativeInterface, atLeast(1))
+                .enableSwb(
+                        eq(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX),
+                        anyBoolean(),
+                        eq(device));
         verifyAudioStateIntent(
                 device,
                 BluetoothHeadset.STATE_AUDIO_CONNECTING,
@@ -1774,7 +1727,7 @@ public class HeadsetServiceAndStateMachineTest {
                 device,
                 BluetoothHeadset.STATE_AUDIO_CONNECTED,
                 BluetoothHeadset.STATE_AUDIO_CONNECTING);
-        verifyNoMoreInteractions(mNativeInterface);
+        verifyNoMoreInteractions(ignoreStubs(mNativeInterface));
     }
 
     private void startVoiceRecognitionFromAg_ScoManagedByAudio() {
@@ -1962,9 +1915,9 @@ public class HeadsetServiceAndStateMachineTest {
     }
 
     private void verifySetParametersToAudioSystemInvocation(
-            boolean lc3Enabled, boolean aptxEnabled) {
+            boolean lc3Enabled, boolean aptxSupported, boolean aptxEnabled) {
         verify(mAudioManager).setParameters(lc3Enabled ? "bt_lc3_swb=on" : "bt_lc3_swb=off");
-        if (Flags.hfpCodecAptxVoice()) {
+        if (aptxSupported) {
             verify(mAudioManager).setParameters(aptxEnabled ? "bt_swb=0" : "bt_swb=65535");
         }
     }
@@ -1985,13 +1938,6 @@ public class HeadsetServiceAndStateMachineTest {
     }
 
     private void configureHeadsetServiceForAptxVoice(boolean enable) {
-        if (enable) {
-            mSetFlagsRule.enableFlags(Flags.FLAG_HFP_CODEC_APTX_VOICE);
-            assertThat(Flags.hfpCodecAptxVoice()).isTrue();
-        } else {
-            mSetFlagsRule.disableFlags(Flags.FLAG_HFP_CODEC_APTX_VOICE);
-            assertThat(Flags.hfpCodecAptxVoice()).isFalse();
-        }
         setAptxVoiceSystemProperties(enable, enable);
         mHeadsetService.mIsAptXSwbEnabled = enable;
         assertThat(mHeadsetService.isAptXSwbEnabled()).isEqualTo(enable);

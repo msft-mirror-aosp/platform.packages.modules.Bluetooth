@@ -663,13 +663,18 @@ typedef struct {
 typedef struct {
   /** set to sizeof(bt_interface_t) */
   size_t size;
+#ifdef TARGET_FLOSS
+  /** set index of the adapter to use */
+  void (*set_adapter_index)(int adapter_index);
+#endif
+
   /**
    * Opens the interface and provides the callback routines
-   * to the implemenation of this interface.
+   * to the implementation of this interface.
    * The |start_restricted| flag inits the adapter in restricted mode. In
    * restricted mode, bonds that are created are marked as restricted in the
    * config file. These devices are deleted upon leaving restricted mode.
-   * The |is_common_criteria_mode| flag inits the adapter in commom criteria
+   * The |is_common_criteria_mode| flag inits the adapter in common criteria
    * mode. The |config_compare_result| flag show the config checksum check
    * result if is in common criteria mode. The |init_flags| are config flags
    * that cannot change during run. The |is_atv| flag indicates whether the

@@ -20,11 +20,10 @@
 #include <gtest/gtest.h>
 #include <sys/socket.h>
 
-#include "bt_psm_types.h"
-#include "common/init_flags.h"
 #include "hci/controller_interface_mock.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_int_types.h"
+#include "stack/include/bt_psm_types.h"
 #include "stack/include/l2cap_controller_interface.h"
 #include "stack/include/l2cap_hci_link_interface.h"
 #include "stack/include/l2cap_module.h"
@@ -50,7 +49,6 @@ constexpr uint16_t kAclBufferSizeBle = 45;
 class StackL2capTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    bluetooth::common::InitFlags::SetAllForTesting();
     bluetooth::hci::testing::mock_controller_ = &controller_interface_;
     ON_CALL(controller_interface_, GetNumAclPacketBuffers)
             .WillByDefault(Return(kAclBufferCountClassic));
@@ -102,7 +100,7 @@ protected:
           .local_conn_cfg =
                   {
                           // tL2CAP_LE_CFG_INFO
-                          .result = 0,
+                          .result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK,
                           .mtu = 100,
                           .mps = 100,
                           .credits = L2CA_LeCreditDefault(),
@@ -111,7 +109,7 @@ protected:
           .peer_conn_cfg =
                   {
                           // tL2CAP_LE_CFG_INFO
-                          .result = 0,
+                          .result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK,
                           .mtu = 100,
                           .mps = 100,
                           .credits = L2CA_LeCreditDefault(),
@@ -125,12 +123,13 @@ protected:
           .p_lcb = nullptr,       // struct t_l2c_linkcb* Link this CCB is assigned to
           .local_cid = 40,
           .remote_cid = 80,
-          .l2c_ccb_timer = nullptr,       // alarm_t* CCB Timer Entry
-          .p_rcb = nullptr,               // tL2C_RCB* Registration CB for this Channel
-          .config_done = 0,               // Configuration flag word
-          .remote_config_rsp_result = 0,  // The config rsp result from remote
-          .local_id = 12,                 // Transaction ID for local trans
-          .remote_id = 22,                // Transaction ID for local
+          .l2c_ccb_timer = nullptr,  // alarm_t* CCB Timer Entry
+          .p_rcb = nullptr,          // tL2C_RCB* Registration CB for this Channel
+          .config_done = 0,          // Configuration flag word
+          .remote_config_rsp_result =
+                  tL2CAP_CFG_RESULT::L2CAP_CFG_OK,  // The config rsp result from remote
+          .local_id = 12,                           // Transaction ID for local trans
+          .remote_id = 22,                          // Transaction ID for local
           .flags = 0,
           .connection_initiator = false,
           .our_cfg = {},           // tL2CAP_CFG_INFO Our saved configuration options
@@ -213,36 +212,50 @@ TEST_F(StackL2capChannelTest, l2c_link_init) {
 
 TEST_F(StackL2capTest, l2cap_result_code_text) {
   std::vector<std::pair<tL2CAP_CONN, std::string>> results = {
-          std::make_pair(L2CAP_CONN_OK, "L2CAP_CONN_OK"),
-          std::make_pair(L2CAP_CONN_PENDING, "L2CAP_CONN_PENDING"),
-          std::make_pair(L2CAP_CONN_NO_PSM, "L2CAP_CONN_NO_PSM"),
-          std::make_pair(L2CAP_CONN_SECURITY_BLOCK, "L2CAP_CONN_SECURITY_BLOCK"),
-          std::make_pair(L2CAP_CONN_NO_RESOURCES, "L2CAP_CONN_NO_RESOURCES"),
-          std::make_pair(L2CAP_CONN_TIMEOUT, "L2CAP_CONN_TIMEOUT"),
-          std::make_pair(L2CAP_CONN_OTHER_ERROR, "L2CAP_CONN_OTHER_ERROR"),
-          std::make_pair(L2CAP_CONN_ACL_CONNECTION_FAILED, "L2CAP_CONN_ACL_CONNECTION_FAILED"),
-          std::make_pair(L2CAP_CONN_CLIENT_SECURITY_CLEARANCE_FAILED,
-                         "L2CAP_CONN_CLIENT_SECURITY_CLEARANCE_FAILED"),
-          std::make_pair(L2CAP_CONN_NO_LINK, "L2CAP_CONN_NO_LINK"),
-          std::make_pair(L2CAP_CONN_CANCEL, "L2CAP_CONN_CANCEL"),
-          std::make_pair(L2CAP_CONN_INSUFFICIENT_AUTHENTICATION,
-                         "L2CAP_CONN_INSUFFICIENT_AUTHENTICATION"),
-          std::make_pair(L2CAP_CONN_INSUFFICIENT_AUTHORIZATION,
-                         "L2CAP_CONN_INSUFFICIENT_AUTHORIZATION"),
-          std::make_pair(L2CAP_CONN_INSUFFICIENT_ENCRYP_KEY_SIZE,
-                         "L2CAP_CONN_INSUFFICIENT_ENCRYP_KEY_SIZE"),
-          std::make_pair(L2CAP_CONN_INSUFFICIENT_ENCRYP, "L2CAP_CONN_INSUFFICIENT_ENCRYP"),
-          std::make_pair(L2CAP_CONN_INVALID_SOURCE_CID, "L2CAP_CONN_INVALID_SOURCE_CID"),
-          std::make_pair(L2CAP_CONN_SOURCE_CID_ALREADY_ALLOCATED,
-                         "L2CAP_CONN_SOURCE_CID_ALREADY_ALLOCATED"),
-          std::make_pair(L2CAP_CONN_UNACCEPTABLE_PARAMETERS, "L2CAP_CONN_UNACCEPTABLE_PARAMETERS"),
-          std::make_pair(L2CAP_CONN_INVALID_PARAMETERS, "L2CAP_CONN_INVALID_PARAMETERS"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_OK, "tL2CAP_CONN::L2CAP_CONN_OK(0x0000)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_PENDING,
+                         "tL2CAP_CONN::L2CAP_CONN_PENDING(0x0001)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_NO_PSM, "tL2CAP_CONN::L2CAP_CONN_NO_PSM(0x0002)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_SECURITY_BLOCK,
+                         "tL2CAP_CONN::L2CAP_CONN_SECURITY_BLOCK(0x0003)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES,
+                         "tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES(0x0004)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_TIMEOUT,
+                         "tL2CAP_CONN::L2CAP_CONN_TIMEOUT(0xeeee)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_OTHER_ERROR,
+                         "tL2CAP_CONN::L2CAP_CONN_OTHER_ERROR(0xf000)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_ACL_CONNECTION_FAILED,
+
+                         "tL2CAP_CONN::L2CAP_CONN_ACL_CONNECTION_FAILED(0xf001)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_CLIENT_SECURITY_CLEARANCE_FAILED,
+                         "tL2CAP_CONN::L2CAP_CONN_CLIENT_SECURITY_CLEARANCE_FAILED(0xf002)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_NO_LINK,
+                         "tL2CAP_CONN::L2CAP_CONN_NO_LINK(0xf003)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_CANCEL, "tL2CAP_CONN::L2CAP_CONN_CANCEL(0xf004)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_AUTHENTICATION,
+                         "tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_AUTHENTICATION(0xff05)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_AUTHORIZATION,
+                         "tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_AUTHORIZATION(0xff06)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_ENCRYP_KEY_SIZE,
+                         "tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_ENCRYP_KEY_SIZE(0xff07)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_ENCRYP,
+                         "tL2CAP_CONN::L2CAP_CONN_INSUFFICIENT_ENCRYP(0xff08)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_INVALID_SOURCE_CID,
+                         "tL2CAP_CONN::L2CAP_CONN_INVALID_SOURCE_CID(0xff09)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_SOURCE_CID_ALREADY_ALLOCATED,
+                         "tL2CAP_CONN::L2CAP_CONN_SOURCE_CID_ALREADY_ALLOCATED(0xff0a)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_UNACCEPTABLE_PARAMETERS,
+
+                         "tL2CAP_CONN::L2CAP_CONN_UNACCEPTABLE_PARAMETERS(0xff0b)"),
+          std::make_pair(tL2CAP_CONN::L2CAP_CONN_INVALID_PARAMETERS,
+                         "tL2CAP_CONN::L2CAP_CONN_INVALID_PARAMETERS(0xff0c)"),
   };
   for (const auto& result : results) {
     ASSERT_STREQ(result.second.c_str(), l2cap_result_code_text(result.first).c_str());
   }
   std::ostringstream oss;
-  oss << "UNKNOWN[" << std::numeric_limits<std::uint16_t>::max() << "]";
+  oss << "Unknown tL2CAP_CONN(" << std::hex << "0x" << std::numeric_limits<std::uint16_t>::max()
+      << ")";
   ASSERT_STREQ(oss.str().c_str(),
                l2cap_result_code_text(
                        static_cast<tL2CAP_CONN>(std::numeric_limits<std::uint16_t>::max()))

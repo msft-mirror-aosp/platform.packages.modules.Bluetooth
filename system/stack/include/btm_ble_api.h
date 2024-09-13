@@ -31,7 +31,6 @@
 #include <cstdint>
 #include <memory>
 
-#include "btm_api.h"
 #include "btm_ble_api_types.h"
 #include "stack/btm/neighbor_inquiry.h"
 #include "types/bt_transport.h"
@@ -81,14 +80,12 @@ void BTM_BleGetDynamicAudioBuffer(tBTM_BT_DYNAMIC_AUDIO_BUFFER_CB* p_dynamic_aud
  *                  duration: how long the scan should last, in seconds. 0 means
  *                  scan without timeout. Starting the scan second time without
  *                  timeout will disable the timer.
- *                  low_latency_scan: whether this is a low latency scan,
- *                                    default is false.
  *
  * Returns          void
  *
  ******************************************************************************/
 tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_results_cb,
-                           tBTM_CMPL_CB* p_cmpl_cb, bool low_latency_scan = false);
+                           tBTM_CMPL_CB* p_cmpl_cb);
 
 /*******************************************************************************
  *
@@ -311,7 +308,7 @@ tBTM_STATUS BTM_BleGetEnergyInfo(tBTM_BLE_ENERGY_INFO_CBACK* p_ener_cback);
  *
  * Description      Set the maximum BLE transmission packet size
  *
- * Returns          BTM_SUCCESS if success; otherwise failed.
+ * Returns          tBTM_STATUS::BTM_SUCCESS if success; otherwise failed.
  *
  ******************************************************************************/
 tBTM_STATUS BTM_SetBleDataLength(const RawAddress& bd_addr, uint16_t tx_pdu_length);
@@ -323,7 +320,7 @@ tBTM_STATUS BTM_SetBleDataLength(const RawAddress& bd_addr, uint16_t tx_pdu_leng
  * Description      To read the current PHYs for specified LE connection
  *
  *
- * Returns          BTM_SUCCESS if success; otherwise failed.
+ * Returns          tBTM_STATUS::BTM_SUCCESS if success; otherwise failed.
  *
  ******************************************************************************/
 void BTM_BleReadPhy(const RawAddress& bd_addr,
@@ -336,7 +333,7 @@ void BTM_BleReadPhy(const RawAddress& bd_addr,
  * Description      To set PHY preferences for specified LE connection
  *
  *
- * Returns          BTM_SUCCESS if success; otherwise failed.
+ * Returns          tBTM_STATUS::BTM_SUCCESS if success; otherwise failed.
  *
  ******************************************************************************/
 void BTM_BleSetPhy(const RawAddress& bd_addr, uint8_t tx_phys, uint8_t rx_phys,

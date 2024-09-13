@@ -14,6 +14,7 @@ use std::hash::{Hash, Hasher};
 use std::mem;
 use std::os::fd::RawFd;
 use std::os::raw::c_char;
+use std::ptr::NonNull;
 use std::sync::{Arc, Mutex};
 use std::vec::Vec;
 use topshim_macros::{cb_variant, gen_cxx_extern_trivial};
@@ -788,9 +789,12 @@ impl BluetoothProperty {
 // TODO(abps) - Check that sizes are correct when given a BtProperty
 impl From<bindings::bt_property_t> for BluetoothProperty {
     fn from(prop: bindings::bt_property_t) -> Self {
-        let slice: &[u8] =
-            unsafe { std::slice::from_raw_parts(prop.val as *mut u8, prop.len as usize) };
+        // Property values may be null, which isn't valid to pass for `slice::from_raw_parts`.
+        // Choose a dangling pointer in that case.
+        let prop_val_ptr =
+            NonNull::new(prop.val as *mut u8).unwrap_or(NonNull::dangling()).as_ptr();
         let len = prop.len as usize;
+        let slice: &[u8] = unsafe { std::slice::from_raw_parts(prop_val_ptr, len) };
 
         match BtPropertyType::from(prop.type_) {
             BtPropertyType::BdName => BluetoothProperty::BdName(ascii_to_string(slice, len)),
@@ -1209,10 +1213,12 @@ impl BluetoothInterface {
     ///
     /// * `callbacks` - Dispatcher struct that accepts [`BaseCallbacks`]
     /// * `init_flags` - List of flags sent to libbluetooth for init.
+    /// * `hci_index` - Index of the hci adapter in use
     pub fn initialize(
         &mut self,
         callbacks: BaseCallbacksDispatcher,
         init_flags: Vec<String>,
+        hci_index: i32,
     ) -> bool {
         // Init flags need to be converted from string to null terminated bytes
         let converted: cxx::UniquePtr<ffi::InitFlags> = ffi::ConvertFlags(init_flags);
@@ -1254,6 +1260,7 @@ impl BluetoothInterface {
         let (guest_mode, is_common_criteria_mode, config_compare_result, is_atv) =
             (false, false, 0, false);
 
+        ccall!(self, set_adapter_index, hci_index);
         let init = ccall!(
             self,
             init,
@@ -1485,22 +1492,19 @@ pub trait ToggleableProfile {
     fn disable(&mut self) -> bool;
 }
 
-pub fn get_btinterface() -> Option<BluetoothInterface> {
-    let mut ret: Option<BluetoothInterface> = None;
+pub fn get_btinterface() -> BluetoothInterface {
     let mut ifptr: *const bindings::bt_interface_t = std::ptr::null();
 
-    unsafe {
-        if bindings::hal_util_load_bt_library(&mut ifptr) == 0 {
-            ret = Some(BluetoothInterface {
-                internal: RawInterfaceWrapper { raw: ifptr },
-                is_init: false,
-                callbacks: None,
-                os_callouts: None,
-            });
+    if unsafe { bindings::hal_util_load_bt_library(&mut ifptr) } == 0 {
+        BluetoothInterface {
+            internal: RawInterfaceWrapper { raw: ifptr },
+            is_init: false,
+            callbacks: None,
+            os_callouts: None,
         }
+    } else {
+        panic!("Failed to get BluetoothInterface");
     }
-
-    ret
 }
 
 // Turns C-array T[] to Vec<U>.

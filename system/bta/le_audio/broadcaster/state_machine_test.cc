@@ -41,6 +41,7 @@ using bluetooth::hci::IsoManager;
 using bluetooth::le_audio::BasicAudioAnnouncementData;
 using testing::_;
 using testing::Mock;
+using testing::Return;
 using testing::SaveArg;
 using testing::Test;
 
@@ -307,6 +308,7 @@ protected:
   }
 
   void TearDown() override {
+    com::android::bluetooth::flags::provider_->reset_flags();
     iso_manager_->Stop();
     mock_iso_manager_ = nullptr;
     Mock::VerifyAndClearExpectations(sm_callbacks_.get());
@@ -512,9 +514,9 @@ TEST_F(StateMachineTest, UpdateAnnouncement) {
   ASSERT_EQ(first_len + types::LeAudioLtvMap(metadata).RawPacketSize(), second_len);
 }
 
-TEST_F_WITH_FLAGS(
-        StateMachineTest, UpdateBroadcastAnnouncementWithCallback,
-        REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, leaudio_broadcast_update_metadata_callback))) {
+TEST_F(StateMachineTest, UpdateBroadcastAnnouncementWithCallback) {
+  com::android::bluetooth::flags::provider_->leaudio_broadcast_update_metadata_callback(true);
+
   EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineCreateStatus(_, true)).Times(1);
 
   auto broadcast_id = InstantiateStateMachine();
@@ -534,9 +536,9 @@ TEST_F_WITH_FLAGS(
   ASSERT_EQ(announcement, broadcasts_[broadcast_id]->GetBroadcastAnnouncement());
 }
 
-TEST_F_WITH_FLAGS(
-        StateMachineTest, UpdatePublicBroadcastAnnouncementWithCallback,
-        REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, leaudio_broadcast_update_metadata_callback))) {
+TEST_F(StateMachineTest, UpdatePublicBroadcastAnnouncementWithCallback) {
+  com::android::bluetooth::flags::provider_->leaudio_broadcast_update_metadata_callback(true);
+
   EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineCreateStatus(_, true)).Times(1);
 
   auto broadcast_id = InstantiateStateMachine();
@@ -641,6 +643,98 @@ TEST_F(StateMachineTest, ProcessMessageSuspendWhenConfigured) {
   broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::SUSPEND);
   // There shall be no change in state
   ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::CONFIGURED);
+}
+
+TEST_F(StateMachineTest, ProcessMessageSuspendWhenConfiguredLateBigCreateCompleteEvent) {
+  EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineCreateStatus(_, true)).Times(1);
+
+  auto broadcast_id =
+          InstantiateStateMachine(bluetooth::le_audio::types::LeAudioContextType::MEDIA);
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::CONFIGURED);
+
+  /* Hold start process on BIG create */
+  EXPECT_CALL(*mock_iso_manager_, CreateBig(_, _)).WillOnce(Return());
+  broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::START);
+
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::ENABLING);
+
+  EXPECT_CALL(*mock_iso_manager_, TerminateBig(_, _)).Times(1);
+  broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::SUSPEND);
+
+  /* Inject late BIG create complete event */
+  big_create_cmpl_evt evt;
+  evt.big_id = broadcasts_[broadcast_id]->GetAdvertisingSid();
+  broadcasts_[broadcast_id]->HandleHciEvent(HCI_BLE_CREATE_BIG_CPL_EVT, &evt);
+
+  EXPECT_CALL(*mock_iso_manager_, SetupIsoDataPath).Times(0);
+  EXPECT_CALL(*mock_iso_manager_, RemoveIsoDataPath).Times(0);
+  EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineEvent(broadcast_id, _, _)).Times(0);
+  // There shall be no change in state
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::CONFIGURED);
+}
+
+TEST_F(StateMachineTest, ProcessMessageSuspendWhenConfiguredLateIsoDataPathSetUp) {
+  EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineCreateStatus(_, true)).Times(1);
+
+  auto broadcast_id =
+          InstantiateStateMachine(bluetooth::le_audio::types::LeAudioContextType::MEDIA);
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::CONFIGURED);
+
+  /* Hold start process on Setup Iso Data Path BIG create */
+  EXPECT_CALL(*mock_iso_manager_, SetupIsoDataPath(_, _)).WillOnce(Return());
+  broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::START);
+
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::ENABLING);
+
+  EXPECT_CALL(*mock_iso_manager_, TerminateBig(_, _)).Times(1);
+  broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::SUSPEND);
+
+  EXPECT_CALL(*mock_iso_manager_, SetupIsoDataPath).Times(0);
+  EXPECT_CALL(*mock_iso_manager_, RemoveIsoDataPath).Times(0);
+  EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineEvent(broadcast_id, _, _)).Times(0);
+  // There shall be no change in state
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::CONFIGURED);
+}
+
+TEST_F(StateMachineTest, ProcessMessageDoubleResumeWhenConfiguredLateBigCreateCompleteEvent) {
+  EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineCreateStatus(_, true)).Times(1);
+
+  auto broadcast_id =
+          InstantiateStateMachine(bluetooth::le_audio::types::LeAudioContextType::MEDIA);
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::CONFIGURED);
+
+  /* Hold start process on BIG create */
+  EXPECT_CALL(*mock_iso_manager_, CreateBig(_, _)).WillOnce(Return());
+  broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::START);
+
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::ENABLING);
+
+  EXPECT_CALL(*mock_iso_manager_, TerminateBig(_, _)).Times(0);
+  broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::SUSPEND);
+
+  /* Broadcast is resumed again before getting BIG created event */
+  EXPECT_CALL(*(sm_callbacks_.get()),
+              OnStateMachineEvent(broadcast_id, BroadcastStateMachine::State::STREAMING, _))
+          .Times(1);
+  broadcasts_[broadcast_id]->ProcessMessage(BroadcastStateMachine::Message::START);
+
+  /* Inject late BIG create complete event */
+  // For test convenience lets encode big_id into conn_hdl MSB.
+  // NOTE: In current implementation big_id is equal to advertising SID.
+  //       This is an important detail exploited by the IsoManager mock
+  static uint8_t conn_lsb = 1;
+  uint16_t conn_msb = ((uint16_t)broadcasts_[broadcast_id]->GetAdvertisingSid()) << 8;
+
+  big_create_cmpl_evt evt;
+  evt.big_id = broadcasts_[broadcast_id]->GetAdvertisingSid();
+  evt.conn_handles.push_back(conn_msb | conn_lsb++);
+  broadcasts_[broadcast_id]->HandleHciEvent(HCI_BLE_CREATE_BIG_CPL_EVT, &evt);
+
+  EXPECT_CALL(*mock_iso_manager_, SetupIsoDataPath).Times(0);
+  EXPECT_CALL(*mock_iso_manager_, RemoveIsoDataPath).Times(0);
+  EXPECT_CALL(*(sm_callbacks_.get()), OnStateMachineEvent(broadcast_id, _, _)).Times(0);
+
+  ASSERT_EQ(broadcasts_[broadcast_id]->GetState(), BroadcastStateMachine::State::STREAMING);
 }
 
 TEST_F(StateMachineTest, ProcessMessageStartWhenStreaming) {

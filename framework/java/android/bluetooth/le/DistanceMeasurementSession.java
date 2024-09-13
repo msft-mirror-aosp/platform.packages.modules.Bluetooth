@@ -16,6 +16,9 @@
 
 package android.bluetooth.le;
 
+import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.RequiresPermission;
@@ -23,6 +26,7 @@ import android.annotation.SystemApi;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.IBluetoothGatt;
+import android.bluetooth.annotations.RequiresBluetoothConnectPermission;
 import android.content.AttributionSource;
 import android.os.Binder;
 import android.os.ParcelUuid;
@@ -98,11 +102,8 @@ public final class DistanceMeasurementSession {
      * @hide
      */
     @SystemApi
-    @RequiresPermission(
-            allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @StopSessionReturnValues int stopSession() {
         try {
             return mGatt.stopDistanceMeasurement(

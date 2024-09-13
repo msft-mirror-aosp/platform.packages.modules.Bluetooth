@@ -238,9 +238,8 @@ public class SapServer extends Thread implements Handler.Callback {
         /* For PTS TC_SERVER_DCN_BV_03_I we need to expose the option to send immediate disconnect
          * without first sending a graceful disconnect.
          * To enable this option set
-         * bt.sap.pts="true" */
-        String ptsEnabled = SystemProperties.get("bt.sap.pts");
-        Boolean ptsTest = Boolean.parseBoolean(ptsEnabled);
+         * persist.bluetooth.pts="true" or bt.sap.pts="true" */
+        Boolean ptsTest = Utils.isPtsTestMode() || SystemProperties.getBoolean("bt.sap.pts", false);
 
         /* put notification up for the user to be able to disconnect from the client*/
         Intent sapDisconnectIntent = new Intent(SapServer.SAP_DISCONNECT_ACTION);
@@ -521,6 +520,7 @@ public class SapServer extends Thread implements Handler.Callback {
                     mHandlerThread.join(HANDLER_THREAD_JOIN_TIMEOUT_MS);
                     mHandlerThread = null;
                 } catch (InterruptedException e) {
+                    Log.d(TAG, "Interrupted while joining", e);
                 }
             }
             if (mRilBtReceiver != null) {
@@ -534,6 +534,7 @@ public class SapServer extends Thread implements Handler.Callback {
                     mRfcommIn.close();
                     mRfcommIn = null;
                 } catch (IOException e) {
+                    Log.d(TAG, "Exception while closing rfcommIn", e);
                 }
             }
 
@@ -543,6 +544,7 @@ public class SapServer extends Thread implements Handler.Callback {
                     mRfcommOut.close();
                     mRfcommOut = null;
                 } catch (IOException e) {
+                    Log.d(TAG, "Exception while closing rfcommOut", e);
                 }
             }
 
@@ -734,12 +736,14 @@ public class SapServer extends Thread implements Handler.Callback {
                 mRfcommOut.close();
             }
         } catch (IOException e) {
+            Log.d(TAG, "Exception while closing rfcommOut", e);
         }
         try {
             if (mRfcommIn != null) {
                 mRfcommIn.close();
             }
         } catch (IOException e) {
+            Log.d(TAG, "Exception while closing rfcommIn", e);
         }
         mRfcommIn = null;
         mRfcommOut = null;

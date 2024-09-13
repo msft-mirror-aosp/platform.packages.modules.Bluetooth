@@ -26,11 +26,11 @@
 #include <vector>
 
 #include "common/bind.h"
-#include "common/init_flags.h"
 #include "common/stop_watch.h"
 #include "hal/hci_hal.h"
 #include "hci/class_of_device.h"
 #include "hci/hci_metrics_logging.h"
+#include "hci/inquiry_interface.h"
 #include "os/alarm.h"
 #include "os/metrics.h"
 #include "os/queue.h"
@@ -465,10 +465,12 @@ struct HciLayer::impl {
     log::assert_that(event_view.IsValid(), "assert failed: event_view.IsValid()");
 #ifdef TARGET_FLOSS
     log::warn("Hardware Error Event with code 0x{:02x}", event_view.GetHardwareCode());
-    // Sending SIGINT to process the exception from BT controller.
+    // Sending SIGTERM to process the exception from BT controller.
     // The Floss daemon will be restarted. HCI reset during restart will clear the
     // error state of the BT controller.
-    kill(getpid(), SIGINT);
+    auto hal = module_.GetDependency<hal::HciHal>();
+    hal->markControllerBroken();
+    kill(getpid(), SIGTERM);
 #else
     log::fatal("Hardware Error Event with code 0x{:02x}", event_view.GetHardwareCode());
 #endif
@@ -792,6 +794,21 @@ DistanceMeasurementInterface* HciLayer::GetDistanceMeasurementInterface(
     RegisterLeEventHandler(subevent, event_handler);
   }
   return &distance_measurement_interface;
+}
+
+std::unique_ptr<InquiryInterface> HciLayer::GetInquiryInterface(
+        ContextualCallback<void(EventView)> event_handler) {
+  for (const auto event : InquiryEvents) {
+    RegisterEventHandler(event, event_handler);
+  }
+  auto cleanup = common::BindOnce(
+          [](HciLayer* hci) {
+            for (const auto event : InquiryEvents) {
+              hci->UnregisterEventHandler(event);
+            }
+          },
+          common::Unretained(this));
+  return std::make_unique<CommandInterfaceImpl<DiscoveryCommandBuilder>>(this, std::move(cleanup));
 }
 
 const ModuleFactory HciLayer::Factory = ModuleFactory([]() { return new HciLayer(); });

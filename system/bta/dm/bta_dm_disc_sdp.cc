@@ -29,7 +29,6 @@
 #include "bta/include/bta_sdp_api.h"
 #include "btif/include/btif_config.h"
 #include "com_android_bluetooth_flags.h"
-#include "common/init_flags.h"
 #include "common/strings.h"
 #include "internal_include/bt_target.h"
 #include "stack/include/bt_uuid16.h"
@@ -164,8 +163,8 @@ void bta_dm_sdp_result(tSDP_STATUS sdp_result, tBTA_DM_SDP_STATE* sdp_state) {
   std::vector<Uuid> uuid_list;
   tSDP_DISCOVERY_DB* p_sdp_db = (tSDP_DISCOVERY_DB*)sdp_state->sdp_db_buffer;
 
-  if ((sdp_result == SDP_SUCCESS) || (sdp_result == SDP_NO_RECS_MATCH) ||
-      (sdp_result == SDP_DB_FULL)) {
+  if ((sdp_result == tSDP_STATUS::SDP_SUCCESS) || (sdp_result == tSDP_STATUS::SDP_NO_RECS_MATCH) ||
+      (sdp_result == tSDP_STATUS::SDP_DB_FULL)) {
     log::verbose("sdp_result::0x{:x}", sdp_result);
     std::vector<Uuid> gatt_uuids;
     do {
@@ -235,15 +234,14 @@ void bta_dm_sdp_result(tSDP_STATUS sdp_result, tBTA_DM_SDP_STATE* sdp_state) {
       }
     } while (p_sdp_rec);
 
-    if (bluetooth::common::init_flags::dynamic_avrcp_version_enhancement_is_enabled() &&
-        sdp_state->services_to_search == 0) {
+    if (sdp_state->services_to_search == 0) {
       bta_dm_store_audio_profiles_version(p_sdp_db);
     }
 
 #if TARGET_FLOSS
     tSDP_DI_GET_RECORD di_record;
     if (get_legacy_stack_sdp_api()->device_id.SDP_GetDiRecord(1, &di_record, p_sdp_db) ==
-        SDP_SUCCESS) {
+        tSDP_STATUS::SDP_SUCCESS) {
       bta_dm_sdp_received_di(sdp_state->bd_addr, di_record);
     }
 #endif

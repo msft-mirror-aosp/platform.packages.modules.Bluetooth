@@ -25,6 +25,7 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
@@ -170,7 +171,7 @@ bool bta_hf_client_add_record(const char* p_service_name, uint8_t scn, tBTA_HF_C
 
   /* Support swb */
   if (features & BTA_HF_CLIENT_FEAT_SWB) {
-    features |= BTA_HF_CLIENT_FEAT_SWB_SUPPORT;
+    sdp_features |= BTA_HF_CLIENT_FEAT_SWB_SUPPORT;
   }
 
   UINT16_TO_BE_FIELD(buf, sdp_features);
@@ -344,6 +345,19 @@ void bta_hf_client_do_disc(tBTA_HF_CLIENT_CB* client_cb) {
     attr_list[2] = ATTR_ID_SUPPORTED_FEATURES;
     num_attr = 3;
     uuid_list[0] = Uuid::From16Bit(UUID_SERVCLASS_AG_HANDSFREE);
+  }
+
+  /* If we already have a non-null discovery database at this point, we can get
+   * into a race condition leading to UAF once this connection is closed.
+   * This should only happen with malicious modifications to a client. */
+  if (com::android::bluetooth::flags::btsec_check_valid_discovery_database() &&
+      client_cb->p_disc_db != NULL) {
+    log::error("Tried to set up a HF client with a preexisting discovery database.");
+    client_cb->p_disc_db = NULL;
+    // We manually set the state here because it's possible to call this from an
+    // OPEN state, in which case the discovery fail event will be ignored.
+    client_cb->state = 0;  // BTA_HF_CLIENT_INIT_ST
+    return;
   }
 
   /* allocate buffer for sdp database */

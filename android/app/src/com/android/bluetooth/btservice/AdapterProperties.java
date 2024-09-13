@@ -109,7 +109,7 @@ class AdapterProperties {
     private int mMaxConnectedAudioDevices = 1;
     private boolean mA2dpOffloadEnabled = false;
 
-    private AdapterService mService;
+    private final AdapterService mService;
     private boolean mDiscovering;
     private long mDiscoveryEndMs; // < Time (ms since epoch) that discovery ended or will end.
     private RemoteDevices mRemoteDevices;
@@ -281,7 +281,6 @@ class AdapterProperties {
             mService.unregisterReceiver(mReceiver);
             mReceiverRegistered = false;
         }
-        mService = null;
         mBondedDevices.clear();
         invalidateBluetoothCaches();
     }
@@ -618,7 +617,7 @@ class AdapterProperties {
     void cleanupPrevBondRecordsFor(BluetoothDevice device) {
         String address = device.getAddress();
         String identityAddress =
-                Flags.identityAddressNullIfUnknown()
+                Flags.identityAddressNullIfNotKnown()
                         ? Utils.getBrEdrAddress(device, mService)
                         : mService.getIdentityAddress(address);
         int deviceType = mRemoteDevices.getDeviceProperties(device).getDeviceType();
@@ -634,7 +633,7 @@ class AdapterProperties {
         for (BluetoothDevice existingDevice : mBondedDevices) {
             String existingAddress = existingDevice.getAddress();
             String existingIdentityAddress =
-                    Flags.identityAddressNullIfUnknown()
+                    Flags.identityAddressNullIfNotKnown()
                             ? Utils.getBrEdrAddress(existingDevice, mService)
                             : mService.getIdentityAddress(existingAddress);
             int existingDeviceType =
@@ -777,6 +776,7 @@ class AdapterProperties {
                                         BluetoothAdapter.EXTRA_PREVIOUS_CONNECTION_STATE,
                                         prevAdapterState)
                                 .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
+                logProfileConnectionStateChange(device, newState, prevState);
                 Log.d(TAG, "updateOnProfileConnectionChanged: " + logInfo);
                 mService.sendBroadcastAsUser(
                         intent,
@@ -784,6 +784,34 @@ class AdapterProperties {
                         BLUETOOTH_CONNECT,
                         Utils.getTempBroadcastOptions().toBundle());
             }
+        }
+    }
+
+    private void logProfileConnectionStateChange(BluetoothDevice device, int state, int prevState) {
+
+        switch (state) {
+            case BluetoothAdapter.STATE_CONNECTED:
+                MetricsLogger.getInstance()
+                        .logBluetoothEvent(
+                                device,
+                                BluetoothStatsLog
+                                        .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION,
+                                BluetoothStatsLog
+                                        .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__SUCCESS,
+                                0);
+                break;
+            case BluetoothAdapter.STATE_DISCONNECTED:
+                if (prevState == BluetoothAdapter.STATE_CONNECTING) {
+                    MetricsLogger.getInstance()
+                            .logBluetoothEvent(
+                                    device,
+                                    BluetoothStatsLog
+                                            .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION,
+                                    BluetoothStatsLog
+                                            .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__FAIL,
+                                    0);
+                }
+                break;
         }
     }
 
@@ -1186,7 +1214,7 @@ class AdapterProperties {
         for (BluetoothDevice device : mBondedDevices) {
             String address = device.getAddress();
             String brEdrAddress =
-                    Flags.identityAddressNullIfUnknown()
+                    Flags.identityAddressNullIfNotKnown()
                             ? Utils.getBrEdrAddress(device)
                             : mService.getIdentityAddress(address);
             if (brEdrAddress.equals(address)) {
@@ -1200,18 +1228,17 @@ class AdapterProperties {
                                 + " ] "
                                 + Utils.getName(device));
             } else {
-                sb.append(
-                        "    "
-                                + address
-                                + " => "
-                                + brEdrAddress
-                                + " ["
-                                + dumpDeviceType(mRemoteDevices.getType(device))
-                                + "][ 0x"
-                                + String.format("%06X", mRemoteDevices.getBluetoothClass(device))
-                                + " ] "
-                                + Utils.getName(device)
-                                + "\n");
+                sb.append("    ")
+                        .append(address)
+                        .append(" => ")
+                        .append(brEdrAddress)
+                        .append(" [")
+                        .append(dumpDeviceType(mRemoteDevices.getType(device)))
+                        .append("][ 0x")
+                        .append(String.format("%06X", mRemoteDevices.getBluetoothClass(device)))
+                        .append(" ] ")
+                        .append(Utils.getName(device))
+                        .append("\n");
             }
         }
         writer.println(sb.toString());

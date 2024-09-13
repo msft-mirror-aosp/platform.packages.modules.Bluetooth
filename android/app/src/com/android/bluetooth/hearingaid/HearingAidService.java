@@ -37,6 +37,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.ParcelUuid;
+import android.os.UserHandle;
 import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
@@ -368,13 +369,16 @@ public class HearingAidService extends ProfileService {
         }
         // Check connection policy and accept or reject the connection.
         int connectionPolicy = getConnectionPolicy(device);
-        int bondState = mAdapterService.getBondState(device);
-        // Allow this connection only if the device is bonded. Any attempt to connect while
-        // bonding would potentially lead to an unauthorized connection.
-        if (bondState != BluetoothDevice.BOND_BONDED) {
-            Log.w(TAG, "okToConnect: return false, bondState=" + bondState);
-            return false;
-        } else if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
+        if (!Flags.donotValidateBondStateFromProfiles()) {
+            int bondState = mAdapterService.getBondState(device);
+            // Allow this connection only if the device is bonded. Any attempt to connect while
+            // bonding would potentially lead to an unauthorized connection.
+            if (bondState != BluetoothDevice.BOND_BONDED) {
+                Log.w(TAG, "okToConnect: return false, bondState=" + bondState);
+                return false;
+            }
+        }
+        if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
                 && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
             // Otherwise, reject the connection if connectionPolicy is not valid.
             Log.w(TAG, "okToConnect: return false, connectionPolicy=" + connectionPolicy);
@@ -610,8 +614,7 @@ public class HearingAidService extends ProfileService {
     }
 
     void messageFromNative(HearingAidStackEvent stackEvent) {
-        Objects.requireNonNull(
-                stackEvent.device, "Device should never be null, event: " + stackEvent);
+        Objects.requireNonNull(stackEvent.device);
 
         if (stackEvent.type == HearingAidStackEvent.EVENT_TYPE_DEVICE_AVAILABLE) {
             BluetoothDevice device = stackEvent.device;
@@ -660,7 +663,7 @@ public class HearingAidService extends ProfileService {
         intent.addFlags(
                 Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                         | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-        sendBroadcast(intent, BLUETOOTH_CONNECT);
+        sendBroadcastAsUser(intent, UserHandle.ALL, BLUETOOTH_CONNECT);
     }
 
     /* Notifications of audio device disconnection events. */
@@ -911,7 +914,7 @@ public class HearingAidService extends ProfileService {
             mService = null;
         }
 
-        @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+        @RequiresPermission(BLUETOOTH_CONNECT)
         private HearingAidService getService(AttributionSource source) {
             // Cache mService because it can change while getService is called
             HearingAidService service = mService;

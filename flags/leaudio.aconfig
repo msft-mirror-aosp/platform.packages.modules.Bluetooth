@@ -354,3 +354,64 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "leaudio_speed_up_reconfiguration_between_call"
+    namespace: "bluetooth"
+    description: "Fix reconfiguration time between call and media"
+    bug: "352686917"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_broadcast_volume_control_primary_group_only"
+    namespace: "bluetooth"
+    description: "Only control broadcast primary group volume"
+    bug: "354201794"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "unbonded_profile_forbid_fix"
+    namespace: "bluetooth"
+    description: "Do not mark profiles as forbidden for unbonded devices"
+    bug: "356325069"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_set_codec_config_preference"
+    namespace: "bluetooth"
+    description: "New apis to set codec config preference"
+    bug: "353909820"
+}
+
+flag {
+    name: "leaudio_add_aics_support"
+    namespace: "bluetooth"
+    description: "Add AICS support"
+    bug: "361263965"
+}
+
+flag {
+    name: "leaudio_gmap_client"
+    namespace: "bluetooth"
+    description: "enable Gaming Audio Profile"
+    bug: "353978074"
+}
+
+flag {
+    name: "leaudio_broadcast_resync_helper"
+    namespace: "bluetooth"
+    description: "Helps sinks to resync to external broadcast when BIS or PA unsynced"
+    bug: "363168099"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

@@ -21,7 +21,6 @@
 #include <iostream>
 #include <sstream>
 
-#include "common/init_flags.h"
 #include "hci/controller_interface_mock.h"
 #include "hci/hci_layer_mock.h"
 #include "stack/btm/btm_dev.h"
@@ -39,12 +38,16 @@
 #include "test/mock/mock_main_shim_entry.h"
 #include "types/raw_address.h"
 
-using testing::Each;
-using testing::Eq;
+using ::testing::_;
+using ::testing::Each;
+using ::testing::Eq;
+using ::testing::Invoke;
 
 extern tBTM_CB btm_cb;
 
 tL2C_CB l2cb;
+
+void btm_inq_remote_name_timer_timeout(void*) {}
 
 const std::string kSmpOptions("mock smp options");
 const std::string kBroadcastAudioConfigOptions("mock broadcast audio config options");
@@ -81,6 +84,8 @@ protected:
     bluetooth::hci::testing::mock_hci_layer_ = &mock_hci_;
     bluetooth::hci::testing::mock_gd_shim_handler_ = up_handler_;
     bluetooth::legacy::hci::testing::SetMock(legacy_hci_mock_);
+    EXPECT_CALL(mock_hci_, RegisterForScoConnectionRequests(_));
+    EXPECT_CALL(mock_hci_, RegisterForDisconnects(_));
   }
   void TearDown() override {
     up_handler_->Clear();
@@ -106,7 +111,6 @@ protected:
   void SetUp() override {
     StackBtmWithQueuesTest::SetUp();
     EXPECT_CALL(mock_hci_, GetScoQueueEnd()).WillOnce(Return(sco_queue_.GetUpEnd()));
-
     btm_cb.Init();
     btm_sec_cb.Init(BTM_SEC_MODE_SC);
   }
@@ -136,7 +140,6 @@ TEST_F(StackBtmWithQueuesTest, InitFree) {
 
 TEST_F(StackBtmWithQueuesTest, tSCO_CB) {
   EXPECT_CALL(mock_hci_, GetScoQueueEnd()).WillOnce(Return(sco_queue_.GetUpEnd()));
-  bluetooth::common::InitFlags::SetAllForTesting();
   tSCO_CB* p_sco = &btm_cb.sco_cb;
   p_sco->Init();
   p_sco->Free();
@@ -219,15 +222,16 @@ struct {
   BD_NAME bd_name;
 } btm_test;
 
-TEST_F(StackBtmWithInitFreeTest, btm_sec_rmt_name_request_complete) {
-  bluetooth::common::InitFlags::SetAllForTesting();
+namespace {
+void BTM_RMT_NAME_CALLBACK(const RawAddress& bd_addr, DEV_CLASS dc, BD_NAME bd_name) {
+  btm_test.bd_addr = bd_addr;
+  btm_test.dc = dc;
+  memcpy(btm_test.bd_name, bd_name, BD_NAME_LEN);
+}
+}  // namespace
 
-  ASSERT_TRUE(BTM_SecAddRmtNameNotifyCallback(
-          [](const RawAddress& bd_addr, DEV_CLASS dc, BD_NAME bd_name) {
-            btm_test.bd_addr = bd_addr;
-            btm_test.dc = dc;
-            memcpy(btm_test.bd_name, bd_name, BD_NAME_LEN);
-          }));
+TEST_F(StackBtmWithInitFreeTest, btm_sec_rmt_name_request_complete) {
+  btm_cb.rnr.p_rmt_name_callback[0] = BTM_RMT_NAME_CALLBACK;
 
   RawAddress bd_addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});
   const uint8_t* p_bd_name = (const uint8_t*)"MyTestName";

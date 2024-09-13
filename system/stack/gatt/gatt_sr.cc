@@ -23,20 +23,22 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include <algorithm>
+#include <memory>
 
-#include "gatt_int.h"
 #include "hardware/bt_gatt_types.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
 #include "osi/include/allocator.h"
 #include "stack/arbiter/acl_arbiter.h"
 #include "stack/eatt/eatt.h"
+#include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
-#include "stack/include/l2cdefs.h"
+#include "stack/include/btm_client_interface.h"
+#include "stack/include/l2cap_types.h"
 #include "types/bluetooth/uuid.h"
 
 #define GATT_MTU_REQ_MIN_LEN 2
@@ -76,8 +78,7 @@ uint32_t gatt_sr_enqueue_cmd(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint
 
   p_cmd->cid = cid;
 
-  if ((p_cmd->op_code == 0) || (op_code == GATT_HANDLE_VALUE_CONF)) /* no pending request */
-  {
+  if ((p_cmd->op_code == 0) || (op_code == GATT_HANDLE_VALUE_CONF)) { /* no pending request */
     if (op_code == GATT_CMD_WRITE || op_code == GATT_SIGN_CMD_WRITE || op_code == GATT_REQ_MTU ||
         op_code == GATT_HANDLE_VALUE_CONF) {
       trans_id = ++tcb.trans_id;
@@ -152,7 +153,7 @@ void gatt_dequeue_sr_cmd(tGATT_TCB& tcb, uint16_t cid) {
     osi_free(fixed_queue_try_dequeue(p_cmd->multi_rsp_q));
   }
   fixed_queue_free(p_cmd->multi_rsp_q, NULL);
-  memset(p_cmd, 0, sizeof(tGATT_SR_CMD));
+  *p_cmd = tGATT_SR_CMD{};
 }
 
 static void build_read_multi_rsp(tGATT_SR_CMD* p_cmd, uint16_t mtu) {
@@ -215,7 +216,7 @@ static void build_read_multi_rsp(tGATT_SR_CMD* p_cmd, uint16_t mtu) {
 
       len = std::min((size_t)p_rsp->attr_value.len, mtu - total_len);
 
-      if (len == 0) {
+      if (total_len == mtu && p_rsp->attr_value.len > 0) {
         log::verbose("Buffer space not enough for this data item, skipping");
         break;
       }
@@ -246,7 +247,6 @@ static void build_read_multi_rsp(tGATT_SR_CMD* p_cmd, uint16_t mtu) {
       p_cmd->status = GATT_NOT_FOUND;
       break;
     }
-
   } /* loop through all handles*/
 
   /* Sanity check on the buffer length */
@@ -294,8 +294,7 @@ static bool process_read_multi_rsp(tGATT_SR_CMD* p_cmd, tGATT_STATUS status, tGA
       build_read_multi_rsp(p_cmd, mtu);
       return true;
     }
-  } else /* any handle read exception occurs, return error */
-  {
+  } else { /* any handle read exception occurs, return error */
     return true;
   }
 
@@ -408,18 +407,29 @@ void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, 
     trans_id = gatt_sr_enqueue_cmd(tcb, cid, op_code, 0);
     gatt_sr_copy_prep_cnt_to_cback_cnt(tcb);
 
-    for (i = 0; i < GATT_MAX_APPS; i++) {
-      if (tcb.prep_cnt[i]) {
-        gatt_if = (tGATT_IF)(i + 1);
+    if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+      auto prep_cnt_it = tcb.prep_cnt_map.begin();
+      while (prep_cnt_it != tcb.prep_cnt_map.end()) {
+        gatt_if = i;
         conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, gatt_if);
         tGATTS_DATA gatts_data;
         gatts_data.exec_write = flag;
         gatt_sr_send_req_callback(conn_id, trans_id, GATTS_REQ_TYPE_WRITE_EXEC, &gatts_data);
-        tcb.prep_cnt[i] = 0;
+        prep_cnt_it = tcb.prep_cnt_map.erase(prep_cnt_it);
+      }
+    } else {
+      for (i = 0; i < GATT_MAX_APPS; i++) {
+        if (tcb.prep_cnt[i]) {
+          gatt_if = (tGATT_IF)(i + 1);
+          conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, gatt_if);
+          tGATTS_DATA gatts_data;
+          gatts_data.exec_write = flag;
+          gatt_sr_send_req_callback(conn_id, trans_id, GATTS_REQ_TYPE_WRITE_EXEC, &gatts_data);
+          tcb.prep_cnt[i] = 0;
+        }
       }
     }
-  } else /* nothing needs to be executed , send response now */
-  {
+  } else { /* nothing needs to be executed , send response now */
     log::error("gatt_process_exec_write_req: no prepare write pending");
     gatt_send_error_rsp(tcb, cid, GATT_ERROR, GATT_REQ_EXEC_WRITE, 0, false);
   }
@@ -631,6 +641,7 @@ static tGATT_STATUS gatt_build_find_info_rsp(tGATT_SRV_LIST_ELEM& el, BT_HDR* p_
 
   uint8_t* p = (uint8_t*)(p_msg + 1) + L2CAP_MIN_OFFSET + p_msg->len;
 
+  tGATT_STATUS status = GATT_NOT_FOUND;
   for (auto& attr : el.p_db->attr_list) {
     if (attr.handle > e_hdl) {
       break;
@@ -666,10 +677,10 @@ static tGATT_STATUS gatt_build_find_info_rsp(tGATT_SRV_LIST_ELEM& el, BT_HDR* p_
     }
     p_msg->len += info_pair_len[p_msg->offset - 1];
     len -= info_pair_len[p_msg->offset - 1];
-    return GATT_SUCCESS;
+    status = GATT_SUCCESS;
   }
 
-  return GATT_NOT_FOUND;
+  return status;
 }
 
 static tGATT_STATUS read_handles(uint16_t& len, uint8_t*& p, uint16_t& s_hdl, uint16_t& e_hdl) {
@@ -863,7 +874,11 @@ static void gatts_process_mtu_req(tGATT_TCB& tcb, uint16_t cid, uint16_t len, ui
   log::info("MTU {} request from remote ({}), resulted MTU {}", mtu, tcb.peer_bda,
             tcb.payload_size);
 
-  BTM_SetBleDataLength(tcb.peer_bda, tcb.payload_size + L2CAP_PKT_OVERHEAD);
+  if (get_btm_client_interface().ble.BTM_SetBleDataLength(
+              tcb.peer_bda, tcb.payload_size + L2CAP_PKT_OVERHEAD) != tBTM_STATUS::BTM_SUCCESS) {
+    log::warn("Unable to set BLE data length peer:{} mtu:{}", tcb.peer_bda,
+              tcb.payload_size + L2CAP_PKT_OVERHEAD);
+  }
 
   BT_HDR* p_buf = attp_build_sr_msg(tcb, GATT_RSP_MTU, &gatt_sr_msg, GATT_DEF_BLE_MTU_SIZE);
   attp_send_sr_msg(tcb, cid, p_buf);
@@ -872,12 +887,21 @@ static void gatts_process_mtu_req(tGATT_TCB& tcb, uint16_t cid, uint16_t len, ui
 
   tGATTS_DATA gatts_data;
   gatts_data.mtu = tcb.payload_size;
-  /* Notify all registered application with new MTU size. Us a transaction ID */
-  /* of 0, as no response is allowed from application */
-  for (int i = 0; i < GATT_MAX_APPS; i++) {
-    if (gatt_cb.cl_rcb[i].in_use) {
-      uint16_t conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, gatt_cb.cl_rcb[i].gatt_if);
-      gatt_sr_send_req_callback(conn_id, 0, GATTS_REQ_TYPE_MTU, &gatts_data);
+  /* Notify all registered application with new MTU size. Use a transaction ID */
+  /* of 0, as no response is allowed from applications */
+  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+    for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
+      if (p_reg->in_use) {
+        uint16_t conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, p_reg->gatt_if);
+        gatt_sr_send_req_callback(conn_id, 0, GATTS_REQ_TYPE_MTU, &gatts_data);
+      }
+    }
+  } else {
+    for (int i = 0; i < GATT_MAX_APPS; i++) {
+      if (gatt_cb.cl_rcb[i].in_use) {
+        uint16_t conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, gatt_cb.cl_rcb[i].gatt_if);
+        gatt_sr_send_req_callback(conn_id, 0, GATTS_REQ_TYPE_MTU, &gatts_data);
+      }
     }
   }
 }
@@ -1317,7 +1341,6 @@ static bool gatts_process_db_out_of_sync(tGATT_TCB& tcb, uint16_t cid, uint8_t o
           (uuid == Uuid::From16Bit(GATT_UUID_DATABASE_HASH))) {
         should_ignore = false;
       }
-
     } break;
     case GATT_REQ_READ: {
       // Check if read database hash by handle
@@ -1335,7 +1358,6 @@ static bool gatts_process_db_out_of_sync(tGATT_TCB& tcb, uint16_t cid, uint8_t o
       if (status == GATT_SUCCESS && handle == gatt_cb.handle_of_database_hash) {
         should_ignore = false;
       }
-
     } break;
     case GATT_REQ_READ_BY_GRP_TYPE: /* discover primary services */
     case GATT_REQ_FIND_TYPE_VALUE:  /* discover service by UUID */

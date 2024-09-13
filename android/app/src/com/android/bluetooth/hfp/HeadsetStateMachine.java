@@ -512,9 +512,6 @@ class HeadsetStateMachine extends StateMachine {
         abstract int getAudioStateInt();
 
         protected void setAptxVoice(HeadsetCallState callState) {
-            if (!Flags.hfpCodecAptxVoice()) {
-                return;
-            }
             if (!mHeadsetService.isAptXSwbEnabled()) {
                 return;
             }
@@ -1124,6 +1121,12 @@ class HeadsetStateMachine extends StateMachine {
                         }
                     }
                     break;
+                case INTENT_SCO_VOLUME_CHANGED:
+                    if (Flags.hfpAllowVolumeChangeWithoutSco()) {
+                        // when flag is removed, remove INTENT_SCO_VOLUME_CHANGED case in AudioOn
+                        processIntentScoVolume((Intent) message.obj, mDevice);
+                    }
+                    break;
                 case INTENT_CONNECTION_ACCESS_REPLY:
                     handleAccessPermissionResult((Intent) message.obj);
                     break;
@@ -1245,6 +1248,20 @@ class HeadsetStateMachine extends StateMachine {
          * @param state audio state
          */
         public abstract void processAudioEvent(int state);
+
+        void processIntentScoVolume(Intent intent, BluetoothDevice device) {
+            int volumeValue = intent.getIntExtra(AudioManager.EXTRA_VOLUME_STREAM_VALUE, 0);
+            stateLogD(
+                    "processIntentScoVolume: mSpeakerVolume="
+                            + mSpeakerVolume
+                            + ", volumeValue="
+                            + volumeValue);
+            if (mSpeakerVolume != volumeValue) {
+                mSpeakerVolume = volumeValue;
+                mNativeInterface.setVolume(
+                        device, HeadsetHalConstants.VOLUME_TYPE_SPK, mSpeakerVolume);
+            }
+        }
     }
 
     class Connected extends ConnectedBase {
@@ -1319,8 +1336,7 @@ class HeadsetStateMachine extends StateMachine {
                         mSystemInterface.getAudioManager().setLeAudioSuspended(true);
                     }
 
-                    if (Flags.hfpCodecAptxVoice()
-                            && mHeadsetService.isAptXSwbEnabled()
+                    if (mHeadsetService.isAptXSwbEnabled()
                             && mHeadsetService.isAptXSwbPmEnabled()) {
                         if (!mHeadsetService.isVirtualCallStarted()
                                 && mSystemInterface.isHighDefCallInProgress()) {
@@ -1613,6 +1629,8 @@ class HeadsetStateMachine extends StateMachine {
                         break;
                     }
                 case INTENT_SCO_VOLUME_CHANGED:
+                    // TODO: b/362313390 Remove this case once the fix is in place because this
+                    // message will be handled by the ConnectedBase state.
                     processIntentScoVolume((Intent) message.obj, mDevice);
                     break;
                 case STACK_EVENT:
@@ -1658,20 +1676,6 @@ class HeadsetStateMachine extends StateMachine {
                 default:
                     stateLogE("processAudioEvent: bad state: " + state);
                     break;
-            }
-        }
-
-        private void processIntentScoVolume(Intent intent, BluetoothDevice device) {
-            int volumeValue = intent.getIntExtra(AudioManager.EXTRA_VOLUME_STREAM_VALUE, 0);
-            stateLogD(
-                    "processIntentScoVolume: mSpeakerVolume="
-                            + mSpeakerVolume
-                            + ", volumeValue="
-                            + volumeValue);
-            if (mSpeakerVolume != volumeValue) {
-                mSpeakerVolume = volumeValue;
-                mNativeInterface.setVolume(
-                        device, HeadsetHalConstants.VOLUME_TYPE_SPK, mSpeakerVolume);
             }
         }
     }
@@ -1872,7 +1876,7 @@ class HeadsetStateMachine extends StateMachine {
                         + (" hasSwbEnabled=" + mHasSwbLc3Enabled)
                         + (" hasAptXSwbEnabled=" + mHasSwbAptXEnabled));
         am.setParameters("bt_lc3_swb=" + (mHasSwbLc3Enabled ? "on" : "off"));
-        if (Flags.hfpCodecAptxVoice() && mHeadsetService.isAptXSwbEnabled()) {
+        if (mHeadsetService.isAptXSwbEnabled()) {
             /* AptX bt_swb: 0 -> on, 65535 -> off */
             am.setParameters("bt_swb=" + (mHasSwbAptXEnabled ? "0" : "65535"));
         }
@@ -1892,7 +1896,8 @@ class HeadsetStateMachine extends StateMachine {
                     atCommand.append('"');
                     break;
                 }
-                atCommand.append(atString.substring(i, j + 1));
+                String atSubString = atString.substring(i, j + 1);
+                atCommand.append(atSubString);
                 i = j;
             } else if (c != ' ') {
                 atCommand.append(Character.toUpperCase(c));
@@ -2021,7 +2026,7 @@ class HeadsetStateMachine extends StateMachine {
         switch (wbsConfig) {
             case HeadsetHalConstants.BTHF_WBS_YES:
                 mHasWbsEnabled = true;
-                if (Flags.hfpCodecAptxVoice() && mHeadsetService.isAptXSwbEnabled()) {
+                if (mHeadsetService.isAptXSwbEnabled()) {
                     mHasSwbAptXEnabled = false;
                 }
                 break;
@@ -2544,7 +2549,7 @@ class HeadsetStateMachine extends StateMachine {
     @VisibleForTesting
     void processAtCgmr(BluetoothDevice device) {
         mNativeInterface.atResponseString(
-                device, String.format("%s (%s)", Build.VERSION.RELEASE, Build.VERSION.INCREMENTAL));
+                device, Build.VERSION.RELEASE + " (" + Build.VERSION.INCREMENTAL + ")");
     }
 
     /**
@@ -2692,7 +2697,7 @@ class HeadsetStateMachine extends StateMachine {
     void processSendVendorSpecificResultCode(HeadsetVendorSpecificResultCode resultCode) {
         String stringToSend = resultCode.mCommand + ": ";
         if (resultCode.mArg != null) {
-            stringToSend += resultCode.mArg;
+            stringToSend = stringToSend + resultCode.mArg;
         }
         mNativeInterface.atResponseString(resultCode.mDevice, stringToSend);
     }

@@ -30,10 +30,10 @@
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/include/bt_psm_types.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cap_controller_interface.h"
 #include "stack/include/l2cap_hci_link_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cap_module.h"
 #include "stack/include/l2cdefs.h"
 #include "test/fake/fake_osi.h"
@@ -97,7 +97,6 @@ namespace {
 class FakeBtStack {
 public:
   FakeBtStack() {
-    test::mock::stack_btm_devctl::BTM_IsDeviceUp.body = []() { return true; };
     test::mock::stack_acl::acl_create_le_connection.body = [](const RawAddress& bd_addr) {
       return true;
     };
@@ -129,7 +128,6 @@ public:
   }
 
   ~FakeBtStack() {
-    test::mock::stack_btm_devctl::BTM_IsDeviceUp = {};
     test::mock::stack_acl::acl_create_le_connection = {};
     test::mock::stack_acl::acl_send_data_packet_br_edr = {};
     test::mock::stack_acl::acl_send_data_packet_ble = {};
@@ -179,7 +177,7 @@ static void Fuzz(const uint8_t* data, size_t size) {
 
   tL2CAP_APPL_INFO appl_info = {
           .pL2CA_ConnectInd_Cb = [](const RawAddress&, uint16_t, uint16_t, uint8_t) {},
-          .pL2CA_ConnectCfm_Cb = [](uint16_t, uint16_t) {},
+          .pL2CA_ConnectCfm_Cb = [](uint16_t, tL2CAP_CONN) {},
           .pL2CA_ConfigInd_Cb = [](uint16_t, tL2CAP_CFG_INFO*) {},
           .pL2CA_ConfigCfm_Cb = [](uint16_t, uint16_t, tL2CAP_CFG_INFO*) {},
           .pL2CA_DisconnectInd_Cb = [](uint16_t, bool) {},
@@ -193,39 +191,43 @@ static void Fuzz(const uint8_t* data, size_t size) {
           .pL2CA_Error_Cb = [](uint16_t, uint16_t) {},
           .pL2CA_CreditBasedConnectInd_Cb = [](const RawAddress&, std::vector<uint16_t>&, uint16_t,
                                                uint16_t, uint8_t) {},
-          .pL2CA_CreditBasedConnectCfm_Cb = [](const RawAddress&, uint16_t, uint16_t, uint16_t) {},
+          .pL2CA_CreditBasedConnectCfm_Cb = [](const RawAddress&, uint16_t, uint16_t,
+                                               tL2CAP_LE_RESULT_CODE) {},
           .pL2CA_CreditBasedReconfigCompleted_Cb = [](const RawAddress&, uint16_t, bool,
                                                       tL2CAP_LE_CFG_INFO*) {},
           .pL2CA_CreditBasedCollisionInd_Cb = [](const RawAddress&) {},
   };
-  log::assert_that(L2CA_RegisterWithSecurity(BT_PSM_ATT, appl_info, false, nullptr, L2CAP_MTU_SIZE,
-                                             0, BTM_SEC_NONE),
+  log::assert_that(stack::l2cap::get_interface().L2CA_RegisterWithSecurity(
+                           BT_PSM_ATT, appl_info, false, nullptr, L2CAP_MTU_SIZE, 0, BTM_SEC_NONE),
                    "assert failed: L2CA_RegisterWithSecurity(BT_PSM_ATT, appl_info, "
                    "false, nullptr, L2CAP_MTU_SIZE, 0, BTM_SEC_NONE)");
-  log::assert_that(L2CA_RegisterLECoc(BT_PSM_EATT, appl_info, BTM_SEC_NONE, {}),
+  log::assert_that(stack::l2cap::get_interface().L2CA_RegisterLECoc(BT_PSM_EATT, appl_info,
+                                                                    BTM_SEC_NONE, {}),
                    "assert failed: L2CA_RegisterLECoc(BT_PSM_EATT, appl_info, "
                    "BTM_SEC_NONE, {{}})");
 
-  log::assert_that(L2CA_RegisterFixedChannel(L2CAP_ATT_CID, &reg),
+  log::assert_that(stack::l2cap::get_interface().L2CA_RegisterFixedChannel(L2CAP_ATT_CID, &reg),
                    "assert failed: L2CA_RegisterFixedChannel(L2CAP_ATT_CID, &reg)");
-  log::assert_that(L2CA_ConnectFixedChnl(L2CAP_ATT_CID, kAttAddr),
+  log::assert_that(stack::l2cap::get_interface().L2CA_ConnectFixedChnl(L2CAP_ATT_CID, kAttAddr),
                    "assert failed: L2CA_ConnectFixedChnl(L2CAP_ATT_CID, kAttAddr)");
   log::assert_that(
           l2cble_conn_comp(kAttHndl, HCI_ROLE_CENTRAL, kAttAddr, BLE_ADDR_PUBLIC, 100, 100, 100),
           "assert failed: l2cble_conn_comp(kAttHndl, HCI_ROLE_CENTRAL, kAttAddr, "
           "BLE_ADDR_PUBLIC, 100, 100, 100)");
 
-  log::assert_that(L2CA_RegisterFixedChannel(L2CAP_SMP_BR_CID, &reg),
+  log::assert_that(stack::l2cap::get_interface().L2CA_RegisterFixedChannel(L2CAP_SMP_BR_CID, &reg),
                    "assert failed: L2CA_RegisterFixedChannel(L2CAP_SMP_BR_CID, &reg)");
-  log::assert_that(L2CA_ConnectFixedChnl(L2CAP_SMP_BR_CID, kSmpBrAddr),
-                   "assert failed: L2CA_ConnectFixedChnl(L2CAP_SMP_BR_CID, kSmpBrAddr)");
+  log::assert_that(
+          stack::l2cap::get_interface().L2CA_ConnectFixedChnl(L2CAP_SMP_BR_CID, kSmpBrAddr),
+          "assert failed: L2CA_ConnectFixedChnl(L2CAP_SMP_BR_CID, kSmpBrAddr)");
   l2c_link_hci_conn_comp(HCI_SUCCESS, kSmpBrHndl, kSmpBrAddr);
 
-  auto att_cid = L2CA_ConnectReq(BT_PSM_ATT, kAttAddr);
+  auto att_cid = stack::l2cap::get_interface().L2CA_ConnectReq(BT_PSM_ATT, kAttAddr);
   log::assert_that(att_cid != 0, "assert failed: att_cid != 0");
 
   tL2CAP_LE_CFG_INFO cfg;
-  auto eatt_cid = L2CA_ConnectLECocReq(BT_PSM_EATT, kEattAddr, &cfg, 0);
+  auto eatt_cid =
+          stack::l2cap::get_interface().L2CA_ConnectLECocReq(BT_PSM_EATT, kEattAddr, &cfg, 0);
   log::assert_that(eatt_cid != 0, "assert failed: eatt_cid != 0");
 
   FuzzedDataProvider fdp(data, size);
@@ -246,13 +248,13 @@ static void Fuzz(const uint8_t* data, size_t size) {
     l2c_rcv_acl_data(hdr);
   }
 
-  (void)L2CA_DisconnectReq(att_cid);
-  (void)L2CA_DisconnectLECocReq(eatt_cid);
+  (void)stack::l2cap::get_interface().L2CA_DisconnectReq(att_cid);
+  (void)stack::l2cap::get_interface().L2CA_DisconnectLECocReq(eatt_cid);
 
-  (void)L2CA_RemoveFixedChnl(L2CAP_SMP_BR_CID, kSmpBrAddr);
+  (void)stack::l2cap::get_interface().L2CA_RemoveFixedChnl(L2CAP_SMP_BR_CID, kSmpBrAddr);
   l2c_link_hci_disc_comp(kSmpBrHndl, HCI_SUCCESS);
 
-  (void)L2CA_RemoveFixedChnl(L2CAP_ATT_CID, kAttAddr);
+  (void)stack::l2cap::get_interface().L2CA_RemoveFixedChnl(L2CAP_ATT_CID, kAttAddr);
   l2c_link_hci_disc_comp(kAttHndl, HCI_SUCCESS);
 
   l2cu_device_reset();

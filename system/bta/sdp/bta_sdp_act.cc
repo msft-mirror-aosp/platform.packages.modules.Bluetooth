@@ -31,11 +31,7 @@
 #include "bta/sdp/bta_sdp_int.h"
 #include "btif/include/btif_profile_storage.h"
 #include "btif/include/btif_sock_sdp.h"
-#include "common/init_flags.h"
 #include "main/shim/metrics_api.h"
-#include "os/log.h"
-#include "osi/include/allocator.h"
-#include "osi/include/osi.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/sdp_api.h"
 #include "stack/include/sdpdefs.h"
@@ -536,7 +532,7 @@ static void bta_sdp_search_cback(Uuid uuid, const RawAddress& /* bd_addr */, tSD
   evt_data.remote_addr = bta_sdp_cb.remote_addr;
   evt_data.uuid = uuid;
 
-  if (result == SDP_SUCCESS || result == SDP_DB_FULL) {
+  if (result == tSDP_STATUS::SDP_SUCCESS || result == tSDP_STATUS::SDP_DB_FULL) {
     tSDP_DISC_REC* p_rec = NULL;
     do {
       p_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceUUIDInDb(p_bta_sdp_cfg->p_sdp_db, uuid,

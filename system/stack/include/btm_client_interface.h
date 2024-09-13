@@ -19,11 +19,11 @@
 #include <cstdint>
 
 #include "device/include/esco_parameters.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/btm/neighbor_inquiry.h"
 #include "stack/btm/power_mode.h"
 #include "stack/include/acl_client_callbacks.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/btm_api.h"
 #include "stack/include/btm_api_types.h"
 #include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_status.h"
@@ -49,10 +49,6 @@ struct btm_client_interface_t {
     [[nodiscard]] bool (*BTM_IsAclConnectionUp)(const RawAddress& bd_addr, tBT_TRANSPORT transport);
     [[nodiscard]] bool (*BTM_ReadConnectedTransportAddress)(RawAddress* bd_addr,
                                                             tBT_TRANSPORT transport);
-    [[nodiscard]] tBTM_STATUS (*BTM_CancelRemoteDeviceName)(void);
-    [[nodiscard]] tBTM_STATUS (*BTM_ReadRemoteDeviceName)(const RawAddress& bd_addr,
-                                                          tBTM_NAME_CMPL_CB* p_cb,
-                                                          tBT_TRANSPORT transport);
     [[nodiscard]] uint8_t* (*BTM_ReadRemoteFeatures)(const RawAddress&);
     void (*BTM_ReadDevInfo)(const RawAddress& bd_addr, tBT_DEVICE_TYPE* p_dev_type,
                             tBLE_ADDR_TYPE* p_addr_type);
@@ -66,6 +62,8 @@ struct btm_client_interface_t {
                                                tBT_TRANSPORT transport);
     [[nodiscard]] uint16_t (*BTM_GetHCIConnHandle)(const RawAddress& bd_addr,
                                                    tBT_TRANSPORT transport);
+    [[nodiscard]] bool (*BTM_IsAclConnectionUpAndHandleValid)(const RawAddress& remote_bda,
+                                                              tBT_TRANSPORT transport);
   } peer;
 
   struct {
@@ -94,7 +92,7 @@ struct btm_client_interface_t {
     [[nodiscard]] tBTM_STATUS (*BTM_BleGetEnergyInfo)(tBTM_BLE_ENERGY_INFO_CBACK* callback);
     [[nodiscard]] tBTM_STATUS (*BTM_BleObserve)(bool start, uint8_t duration,
                                                 tBTM_INQ_RESULTS_CB* p_results_cb,
-                                                tBTM_CMPL_CB* p_cmpl_cb, bool low_latency_scan);
+                                                tBTM_CMPL_CB* p_cmpl_cb);
     [[nodiscard]] tBTM_STATUS (*BTM_SetBleDataLength)(const RawAddress& bd_addr,
                                                       uint16_t tx_pdu_length);
     void (*BTM_BleReadControllerFeatures)(tBTM_BLE_CTRL_FEATURES_CBACK* p_vsc_cback);
@@ -115,6 +113,7 @@ struct btm_client_interface_t {
     [[nodiscard]] tBTM_STATUS (*BTM_RegForEScoEvts)(uint16_t sco_inx,
                                                     tBTM_ESCO_CBACK* p_esco_cback);
     [[nodiscard]] tBTM_STATUS (*BTM_RemoveSco)(uint16_t sco_inx);
+    void (*BTM_RemoveScoByBdaddr)(const RawAddress& bda);
     void (*BTM_WriteVoiceSettings)(uint16_t settings);
     void (*BTM_EScoConnRsp)(uint16_t sco_inx, tHCI_STATUS hci_status, enh_esco_params_t* p_parms);
     [[nodiscard]] uint8_t (*BTM_GetNumScoLinks)();
@@ -125,8 +124,6 @@ struct btm_client_interface_t {
 
   struct {
     [[nodiscard]] tBTM_STATUS (*BTM_ReadLocalDeviceName)(const char** p_name);
-    [[nodiscard]] tBTM_STATUS (*BTM_ReadLocalDeviceNameFromController)(
-            tBTM_CMPL_CB* p_rln_cmpl_cback);
     [[nodiscard]] tBTM_STATUS (*BTM_SetLocalDeviceName)(const char* p_name);
     [[nodiscard]] tBTM_STATUS (*BTM_SetDeviceClass)(DEV_CLASS dev_class);
     [[nodiscard]] bool (*BTM_IsDeviceUp)();
@@ -159,3 +156,5 @@ struct btm_client_interface_t {
 };
 
 struct btm_client_interface_t& get_btm_client_interface();
+
+void DumpsysBtm(int fd);

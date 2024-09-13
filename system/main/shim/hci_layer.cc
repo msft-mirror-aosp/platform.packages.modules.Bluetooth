@@ -25,7 +25,6 @@
 #include <cstdint>
 
 #include "common/bidi_queue.h"
-#include "common/init_flags.h"
 #include "hci/hci_interface.h"
 #include "hci/hci_packets.h"
 #include "hci/include/packet_fragmenter.h"
@@ -78,6 +77,7 @@ bool register_event_code(bluetooth::hci::EventCode event_code) {
     case bluetooth::hci::EventCode::USER_PASSKEY_NOTIFICATION:
     case bluetooth::hci::EventCode::USER_CONFIRMATION_REQUEST:
     case bluetooth::hci::EventCode::USER_PASSKEY_REQUEST:
+    case bluetooth::hci::EventCode::ENCRYPTION_CHANGE_V2:
       return true;
     default:
       return false;
