@@ -47,7 +47,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -115,7 +114,7 @@ public class DckL2capClientTest() : Closeable {
         val remoteDevice =
             bluetoothAdapter.getRemoteLeDevice(
                 Utils.BUMBLE_RANDOM_ADDRESS,
-                BluetoothDevice.ADDRESS_TYPE_RANDOM
+                BluetoothDevice.ADDRESS_TYPE_RANDOM,
             )
         val gatt = connectGatt(remoteDevice)
         readDckSpsm(gatt)
@@ -134,21 +133,26 @@ public class DckL2capClientTest() : Closeable {
     }
 
     @Test
-    @Ignore("b/365168533")
-    fun testReceive() {
-        Log.d(TAG, "testReceive")
+    fun testSend() {
+        Log.d(TAG, "testSend")
         val remoteDevice =
             bluetoothAdapter.getRemoteLeDevice(
                 Utils.BUMBLE_RANDOM_ADDRESS,
-                BluetoothDevice.ADDRESS_TYPE_RANDOM
+                BluetoothDevice.ADDRESS_TYPE_RANDOM,
             )
 
-        Log.d(TAG, "testReceive: Connect L2CAP")
+        Log.d(TAG, "testSend: Connect L2CAP")
         val bluetoothSocket = createSocket(dckSpsm, remoteDevice)
         runBlocking {
             val waitFlow = flow { emit(waitConnection(dckSpsm, remoteDevice)) }
-            scope.launch { bluetoothSocket.connect() }
+            val connectJob =
+                scope.launch {
+                    bluetoothSocket.connect()
+                    Log.d(TAG, "testSend: Bluetooth socket connected")
+                }
             connectionResponse = waitFlow.first()
+            // Wait for the connection to complete
+            connectJob.join()
         }
         assertThat(connectionResponse).isNotNull()
         assertThat(connectionResponse.hasChannel()).isTrue()
@@ -161,23 +165,23 @@ public class DckL2capClientTest() : Closeable {
             .l2cap()
             .receive(ReceiveRequest.newBuilder().setChannel(channel).build(), receiveObserver)
 
-        Log.d(TAG, "testReceive: Send data from Android to Bumble")
+        Log.d(TAG, "testSend: Send data from Android to Bumble")
         val outputStream = bluetoothSocket.outputStream
         outputStream.write(sampleData)
         outputStream.flush()
 
-        Log.d(TAG, "testReceive: waitReceive data on Bumble")
+        Log.d(TAG, "testSend: waitReceive data on Bumble")
         val receiveData = receiveObserver.iterator().next()
         assertThat(receiveData.data.toByteArray()).isEqualTo(sampleData)
 
         bluetoothSocket.close()
-        Log.d(TAG, "testReceive: waitDisconnection")
+        Log.d(TAG, "testSend: waitDisconnection")
         val waitDisconnectionRequest =
             WaitDisconnectionRequest.newBuilder().setChannel(channel).build()
         val disconnectionResponse =
             mBumble.l2capBlocking().waitDisconnection(waitDisconnectionRequest)
         assertThat(disconnectionResponse.hasSuccess()).isTrue()
-        Log.d(TAG, "testReceive: done")
+        Log.d(TAG, "testSend: done")
     }
 
     private fun readDckSpsm(gatt: BluetoothGatt) = runBlocking {
@@ -202,7 +206,7 @@ public class DckL2capClientTest() : Closeable {
 
     private suspend fun waitConnection(
         psm: Int,
-        remoteDevice: BluetoothDevice
+        remoteDevice: BluetoothDevice,
     ): WaitConnectionResponse {
         Log.d(TAG, "waitConnection")
         val connectionHandle = remoteDevice.getConnectionHandle(BluetoothDevice.TRANSPORT_LE)
@@ -228,7 +232,7 @@ public class DckL2capClientTest() : Closeable {
     private fun createSocket(
         psm: Int,
         remoteDevice: BluetoothDevice,
-        isSecure: Boolean = false
+        isSecure: Boolean = false,
     ): BluetoothSocket {
         var socket: BluetoothSocket
         var expectedType: Int
@@ -250,7 +254,7 @@ public class DckL2capClientTest() : Closeable {
                 override fun onConnectionStateChange(
                     gatt: BluetoothGatt,
                     status: Int,
-                    newState: Int
+                    newState: Int,
                 ) {
                     Log.i(TAG, "Connection state changed to $newState.")
                     connectionStateFlow.value = newState
@@ -269,7 +273,7 @@ public class DckL2capClientTest() : Closeable {
                     gatt: BluetoothGatt,
                     characteristic: BluetoothGattCharacteristic,
                     value: ByteArray,
-                    status: Int
+                    status: Int,
                 ) {
                     Log.i(TAG, "onCharacteristicRead, status: $status")
 

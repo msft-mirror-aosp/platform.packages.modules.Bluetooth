@@ -319,12 +319,9 @@ void bta_dm_disable() {
     bta_dm_disable_pm();
   }
 
-  if (com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_disable_search();
-    bta_dm_disc_disable_disc();
-  } else {
-    bta_dm_disc_disable_search_and_disc();
-  }
+  bta_dm_disc_disable_search();
+  bta_dm_disc_disable_disc();
+
   bta_dm_cb.disabling = true;
 
   connection_manager::reset(false);
@@ -574,6 +571,10 @@ void bta_dm_remove_device(const RawAddress& target) {
   RawAddress identity_addr = target;
   bool le_connected = get_btm_client_interface().peer.BTM_ReadConnectedTransportAddress(
           &pseudo_addr, BT_TRANSPORT_LE);
+  if (pseudo_addr.IsEmpty()) {
+    pseudo_addr = target;
+  }
+
   bool bredr_connected = get_btm_client_interface().peer.BTM_ReadConnectedTransportAddress(
           &identity_addr, BT_TRANSPORT_BR_EDR);
   /* If connection not found with identity address, check with pseudo address if different */
@@ -581,9 +582,6 @@ void bta_dm_remove_device(const RawAddress& target) {
     identity_addr = pseudo_addr;
     bredr_connected = get_btm_client_interface().peer.BTM_ReadConnectedTransportAddress(
             &identity_addr, BT_TRANSPORT_BR_EDR);
-  }
-  if (pseudo_addr.IsEmpty()) {
-    pseudo_addr = target;
   }
   if (identity_addr.IsEmpty()) {
     identity_addr = target;
@@ -889,8 +887,6 @@ static void bta_dm_acl_down_(const RawAddress& bd_addr, tBT_TRANSPORT transport)
     bta_dm_cb.device_list.le_count--;
   }
 
-  bta_dm_disc_acl_down(bd_addr, transport);
-
   if (bta_dm_cb.disabling) {
     if (!BTM_GetNumAclLinks()) {
       /*
@@ -952,7 +948,6 @@ static void bta_dm_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport) 
     bta_dm_cb.device_list.le_count--;
   }
 
-  bta_dm_disc_acl_down(bd_addr, transport);
   if (bta_dm_cb.disabling && !BTM_GetNumAclLinks()) {
     /*
      * Start a timer to make sure that the profiles

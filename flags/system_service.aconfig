@@ -2,14 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "auto_on_feature"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Turn bluetooth on next morning at 5 am"
-    bug: "323060869"
-}
-
-flag {
     name: "avoid_static_loading_of_native"
     namespace: "bluetooth"
     description: "Prevent loading native during static initialization and prefer doing it during init"
