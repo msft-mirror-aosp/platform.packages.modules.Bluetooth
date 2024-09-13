@@ -20,7 +20,6 @@ aconfig_declarations {
         "btm_ble.aconfig",
         "connectivity.aconfig",
         "device_iot_config.aconfig",
-        "did.aconfig",
         "dis.aconfig",
         "dumpsys.aconfig",
         "framework.aconfig",

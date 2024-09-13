@@ -323,6 +323,15 @@
     "GATT/SR/GAW/BI-13-C",
     "GATT/SR/UNS/BI-01-C",
     "GATT/SR/UNS/BI-02-C",
+    "HAP/HARC/CGGIT/CHA/BV-03-C",
+    "HAP/HARC/CGGIT/CHA/BV-04-C",
+    "HAP/HARC/CFG/BV-01-C",
+    "HAP/HARC/PRE/BV-11-C",
+    "HAP/HARC/PRE/BV-12-C",
+    "HAP/HARC/PRE/BV-14-C",
+    "HAP/HARC/PRE/BV-15-C",
+    "HAP/HARC/PRE/BV-16-C",
+    "HAP/HAUC/SGGIT/SER/BV-01-C",
     "HFP/AG/ACC/BV-09-I",
     "HFP/AG/ACC/BV-15-I",
     "HFP/AG/ACR/BV-01-I",
@@ -926,6 +935,33 @@
     "GATT/SR/GAW/BV-09-C",
     "GATT/SR/GAW/BV-10-C",
     "GATT/SR/GAW/BV-11-C",
+    "HAP/HARC/DISC/BV-01-C",
+    "HAP/HARC/DISC/BV-01-C_LT2",
+    "HAP/HARC/PRE/BV-02-C",
+    "HAP/HARC/PRE/BV-02-C_LT2",
+    "HAP/HARC/PRE/BV-03-C",
+    "HAP/HARC/PRE/BV-03-C_LT2",
+    "HAP/HARC/PRE/BV-04-C",
+    "HAP/HARC/PRE/BV-04-C_LT2",
+    "HAP/HARC/PRE/BV-05-C",
+    "HAP/HARC/PRE/BV-05-C_LT2",
+    "HAP/HARC/PRE/BV-06-C",
+    "HAP/HARC/PRE/BV-06-C_LT2",
+    "HAP/HARC/PRE/BV-07-C",
+    "HAP/HARC/PRE/BV-07-C_LT2",
+    "HAP/HARC/PRE/BV-08-C",
+    "HAP/HARC/PRE/BV-08-C_LT2",
+    "HAP/HARC/PRE/BV-09-C",
+    "HAP/HARC/PRE/BV-09-C_LT2",
+    "HAP/HARC/PRE/BV-10-C",
+    "HAP/HARC/PRE/BV-10-C_LT2",
+    "HAP/HARC/PRE/BV-13-C",
+    "HAP/HARC/PRE/BV-13-C_LT2",
+    "HAP/HARC/PRE/BV-18-C",
+    "HAP/HARC/PRE/BV-18-C_LT2",
+    "HAP/HAUC/DISC/BV-01-C",
+    "HAP/HAUC/DISC/BV-01-C_LT2",
+    "HAP/HAUC/STR/BV-01-C",
     "HFP/AG/ACC/BI-12-I",
     "HFP/AG/ACC/BI-13-I",
     "HFP/AG/ACC/BI-14-I",
@@ -2141,6 +2177,7 @@
     "TSPC_HAP_1_2": true,
     "TSPC_HAP_1_3": true,
     "TSPC_HAP_2_2": true,
+    "TSPC_HAP_17_1": false,
     "TSPC_HAP_40_1": true,
     "TSPC_HAP_43_1": true,
     "TSPC_HAP_43_2": true,
@@ -3095,6 +3132,7 @@
     "GATT": {},
     "GAVDP": {},
     "HCI": {},
+    "HAP": {},
     "HFP": {
       "TSPX_phone_number": "42",
       "TSPX_second_phone_number": "43"
@@ -3137,6 +3175,15 @@
             "A2DP/SNK/AVP",
             "A2DP/SRC/AVP"
          ]
+      },
+      {
+          "flags": [
+              "leaudio_allow_leaudio_only_devices",
+              "enable_hap_by_default"
+          ],
+          "tests":[
+              "HAP"
+          ]
       }
    ]
 }
