@@ -378,7 +378,7 @@ void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, 
   uint8_t *p = p_data, flag, i = 0;
   uint32_t trans_id = 0;
   tGATT_IF gatt_if;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
 
 #if (GATT_CONFORMANCE_TESTING == TRUE)
   if (gatt_cb.enable_err_rsp && gatt_cb.req_op_code == op_code) {
@@ -411,7 +411,7 @@ void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, 
       auto prep_cnt_it = tcb.prep_cnt_map.begin();
       while (prep_cnt_it != tcb.prep_cnt_map.end()) {
         gatt_if = i;
-        conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, gatt_if);
+        conn_id = gatt_create_conn_id(tcb.tcb_idx, gatt_if);
         tGATTS_DATA gatts_data;
         gatts_data.exec_write = flag;
         gatt_sr_send_req_callback(conn_id, trans_id, GATTS_REQ_TYPE_WRITE_EXEC, &gatts_data);
@@ -421,7 +421,7 @@ void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, 
       for (i = 0; i < GATT_MAX_APPS; i++) {
         if (tcb.prep_cnt[i]) {
           gatt_if = (tGATT_IF)(i + 1);
-          conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, gatt_if);
+          conn_id = gatt_create_conn_id(tcb.tcb_idx, gatt_if);
           tGATTS_DATA gatts_data;
           gatts_data.exec_write = flag;
           gatt_sr_send_req_callback(conn_id, trans_id, GATTS_REQ_TYPE_WRITE_EXEC, &gatts_data);
@@ -892,14 +892,14 @@ static void gatts_process_mtu_req(tGATT_TCB& tcb, uint16_t cid, uint16_t len, ui
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
       if (p_reg->in_use) {
-        uint16_t conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, p_reg->gatt_if);
+        tCONN_ID conn_id = gatt_create_conn_id(tcb.tcb_idx, p_reg->gatt_if);
         gatt_sr_send_req_callback(conn_id, 0, GATTS_REQ_TYPE_MTU, &gatts_data);
       }
     }
   } else {
     for (int i = 0; i < GATT_MAX_APPS; i++) {
       if (gatt_cb.cl_rcb[i].in_use) {
-        uint16_t conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, gatt_cb.cl_rcb[i].gatt_if);
+        tCONN_ID conn_id = gatt_create_conn_id(tcb.tcb_idx, gatt_cb.cl_rcb[i].gatt_if);
         gatt_sr_send_req_callback(conn_id, 0, GATTS_REQ_TYPE_MTU, &gatts_data);
       }
     }
@@ -1006,7 +1006,7 @@ static void gatts_process_write_req(tGATT_TCB& tcb, uint16_t cid, tGATT_SRV_LIST
   tGATT_STATUS status;
   tGATT_SEC_FLAG sec_flag;
   uint8_t key_size, *p = p_data;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
 
   memset(&sr_data, 0, sizeof(tGATTS_DATA));
 
@@ -1051,7 +1051,7 @@ static void gatts_process_write_req(tGATT_TCB& tcb, uint16_t cid, tGATT_SRV_LIST
   if (status == GATT_SUCCESS) {
     trans_id = gatt_sr_enqueue_cmd(tcb, cid, op_code, handle);
     if (trans_id != 0) {
-      conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, el.gatt_if);
+      conn_id = gatt_create_conn_id(tcb.tcb_idx, el.gatt_if);
 
       uint8_t opcode = 0;
       if (gatt_type == BTGATT_DB_DESCRIPTOR) {
@@ -1313,7 +1313,7 @@ void gatts_process_value_conf(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code) {
     for (auto& el : *gatt_cb.srv_list_info) {
       if (el.s_hdl <= handle && el.e_hdl >= handle) {
         uint32_t trans_id = gatt_sr_enqueue_cmd(tcb, cid, op_code, handle);
-        uint16_t conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, el.gatt_if);
+        tCONN_ID conn_id = gatt_create_conn_id(tcb.tcb_idx, el.gatt_if);
         gatt_sr_send_req_callback(conn_id, trans_id, GATTS_REQ_TYPE_CONF, &gatts_data);
       }
     }

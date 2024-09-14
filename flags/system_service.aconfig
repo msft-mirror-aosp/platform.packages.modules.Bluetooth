@@ -12,6 +12,16 @@ flag {
 }
 
 flag {
+    name: "enforce_resolve_system_service_behavior"
+    namespace: "bluetooth"
+    description: "Loudly crash when it is not possible to find a service to start bluetooth"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+    bug: "366273182"
+}
+
+flag {
     name: "fast_bind_to_app"
     namespace: "bluetooth"
     description: "Remove complexity and non necessary initialization when simply binding"

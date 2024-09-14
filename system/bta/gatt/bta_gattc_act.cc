@@ -53,20 +53,20 @@ using namespace bluetooth;
 /*****************************************************************************
  *  Constants
  ****************************************************************************/
-static void bta_gattc_conn_cback(tGATT_IF gattc_if, const RawAddress& bda, uint16_t conn_id,
+static void bta_gattc_conn_cback(tGATT_IF gattc_if, const RawAddress& bda, tCONN_ID conn_id,
                                  bool connected, tGATT_DISCONN_REASON reason,
                                  tBT_TRANSPORT transport);
 
-static void bta_gattc_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
+static void bta_gattc_cmpl_cback(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
                                  tGATT_CL_COMPLETE* p_data);
 static void bta_gattc_deregister_cmpl(tBTA_GATTC_RCB* p_clreg);
 static void bta_gattc_enc_cmpl_cback(tGATT_IF gattc_if, const RawAddress& bda);
-static void bta_gattc_cong_cback(uint16_t conn_id, bool congested);
-static void bta_gattc_phy_update_cback(tGATT_IF gatt_if, uint16_t conn_id, uint8_t tx_phy,
+static void bta_gattc_cong_cback(tCONN_ID conn_id, bool congested);
+static void bta_gattc_phy_update_cback(tGATT_IF gatt_if, tCONN_ID conn_id, uint8_t tx_phy,
                                        uint8_t rx_phy, tGATT_STATUS status);
-static void bta_gattc_conn_update_cback(tGATT_IF gatt_if, uint16_t conn_id, uint16_t interval,
+static void bta_gattc_conn_update_cback(tGATT_IF gatt_if, tCONN_ID conn_id, uint16_t interval,
                                         uint16_t latency, uint16_t timeout, tGATT_STATUS status);
-static void bta_gattc_subrate_chg_cback(tGATT_IF gatt_if, uint16_t conn_id, uint16_t subrate_factor,
+static void bta_gattc_subrate_chg_cback(tGATT_IF gatt_if, tCONN_ID conn_id, uint16_t subrate_factor,
                                         uint16_t latency, uint16_t cont_num, uint16_t timeout,
                                         tGATT_STATUS status);
 static void bta_gattc_init_bk_conn(const tBTA_GATTC_API_OPEN* p_data, tBTA_GATTC_RCB* p_clreg);
@@ -192,7 +192,7 @@ void bta_gattc_register(const Uuid& app_uuid, tBTA_GATTC_CBACK* p_cback, BtaAppR
   }
 
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    tGATT_IF client_if = GATT_Register(app_uuid, "GattClient", &bta_gattc_cl_cback, eatt_support);
+    client_if = GATT_Register(app_uuid, "GattClient", &bta_gattc_cl_cback, eatt_support);
     if (client_if == 0) {
       log::error("Register with GATT stack failed");
       status = GATT_ERROR;
@@ -303,7 +303,7 @@ void bta_gattc_deregister(tBTA_GATTC_RCB* p_clreg) {
               .hdr =
                       {
                               .event = BTA_GATTC_API_CLOSE_EVT,
-                              .layer_specific = p_clcb->bta_conn_id,
+                              .layer_specific = static_cast<uint16_t>(p_clcb->bta_conn_id),
                       },
       };
       bta_gattc_close(p_clcb.get(), &gattc_data);
@@ -318,7 +318,7 @@ void bta_gattc_deregister(tBTA_GATTC_RCB* p_clreg) {
 
       BT_HDR_RIGID buf;
       buf.event = BTA_GATTC_API_CLOSE_EVT;
-      buf.layer_specific = bta_gattc_cb.clcb[i].bta_conn_id;
+      buf.layer_specific = static_cast<uint16_t>(bta_gattc_cb.clcb[i].bta_conn_id);
       bta_gattc_close(&bta_gattc_cb.clcb[i], (tBTA_GATTC_DATA*)&buf);
     }
   }
@@ -462,7 +462,7 @@ void bta_gattc_open(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
   /* a connected remote device */
   if (GATT_GetConnIdIfConnected(p_clcb->p_rcb->client_if, p_data->api_conn.remote_bda,
                                 &p_clcb->bta_conn_id, p_data->api_conn.transport)) {
-    gattc_data.int_conn.hdr.layer_specific = p_clcb->bta_conn_id;
+    gattc_data.int_conn.hdr.layer_specific = static_cast<uint16_t>(p_clcb->bta_conn_id);
 
     bta_gattc_sm_execute(p_clcb, BTA_GATTC_INT_CONN_EVT, &gattc_data);
   }
@@ -487,7 +487,7 @@ static void bta_gattc_init_bk_conn(const tBTA_GATTC_API_OPEN* p_data, tBTA_GATTC
     return;
   }
 
-  uint16_t conn_id;
+  tCONN_ID conn_id;
   if (!GATT_GetConnIdIfConnected(p_data->client_if, p_data->remote_bda, &conn_id,
                                  p_data->transport)) {
     log::info("Not a connected remote device yet");
@@ -505,7 +505,7 @@ static void bta_gattc_init_bk_conn(const tBTA_GATTC_API_OPEN* p_data, tBTA_GATTC
   tBTA_GATTC_DATA gattc_data = {
           .hdr =
                   {
-                          .layer_specific = conn_id,
+                          .layer_specific = static_cast<uint16_t>(conn_id),
                   },
   };
 
@@ -567,10 +567,9 @@ void bta_gattc_conn(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
 
   if (p_data != NULL) {
     log::verbose("conn_id=0x{:x}", p_data->hdr.layer_specific);
-    p_clcb->bta_conn_id = p_data->int_conn.hdr.layer_specific;
+    p_clcb->bta_conn_id = static_cast<tCONN_ID>(p_data->int_conn.hdr.layer_specific);
 
-    if (!GATT_GetConnectionInfor(p_data->hdr.layer_specific, &gatt_if, p_clcb->bda,
-                                 &p_clcb->transport)) {
+    if (!GATT_GetConnectionInfor(p_clcb->bta_conn_id, &gatt_if, p_clcb->bda, &p_clcb->transport)) {
       log::warn("Unable to get GATT connection information peer:{}", p_clcb->bda);
     }
   }
@@ -664,7 +663,7 @@ void bta_gattc_close_fail(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data
   if (p_clcb->p_rcb->p_cback) {
     memset(&cb_data, 0, sizeof(tBTA_GATTC));
     cb_data.close.client_if = p_clcb->p_rcb->client_if;
-    cb_data.close.conn_id = p_data->hdr.layer_specific;
+    cb_data.close.conn_id = static_cast<tCONN_ID>(p_data->hdr.layer_specific);
     cb_data.close.remote_bda = p_clcb->bda;
     cb_data.close.reason = BTA_GATT_CONN_NONE;
     cb_data.close.status = GATT_ERROR;
@@ -716,7 +715,7 @@ void bta_gattc_close(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
   bta_gattc_clcb_dealloc(p_clcb);
 
   if (p_data->hdr.event == BTA_GATTC_API_CLOSE_EVT) {
-    cb_data.close.status = GATT_Disconnect(p_data->hdr.layer_specific);
+    cb_data.close.status = GATT_Disconnect(static_cast<tCONN_ID>(p_data->hdr.layer_specific));
     cb_data.close.reason = GATT_CONN_TERMINATE_LOCAL_HOST;
     log::debug("Local close event client_if:{} conn_id:{} reason:{}", cb_data.close.client_if,
                cb_data.close.conn_id,
@@ -946,7 +945,7 @@ void bta_gattc_continue_discovery_if_needed(const RawAddress& bd_addr, uint16_t 
     return;
   }
 
-  uint16_t conn_id = p_srcb->blocked_conn_id;
+  tCONN_ID conn_id = p_srcb->blocked_conn_id;
 
   p_srcb->disc_blocked_waiting_on_version = false;
   p_srcb->blocked_conn_id = 0;
@@ -1176,8 +1175,8 @@ void bta_gattc_execute(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
 /** send handle value confirmation */
 void bta_gattc_confirm(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
   uint16_t cid = p_data->api_confirm.cid;
-
-  if (GATTC_SendHandleValueConfirm(p_data->api_confirm.hdr.layer_specific, cid) != GATT_SUCCESS) {
+  auto conn_id = static_cast<tCONN_ID>(p_data->api_confirm.hdr.layer_specific);
+  if (GATTC_SendHandleValueConfirm(conn_id, cid) != GATT_SUCCESS) {
     log::error("to cid=0x{:x} failed", cid);
   } else {
     /* if over BR_EDR, inform PM for mode change */
@@ -1451,7 +1450,7 @@ static void bta_gattc_deregister_cmpl(tBTA_GATTC_RCB* p_clreg) {
 }
 
 /** callback functions to GATT client stack */
-static void bta_gattc_conn_cback(tGATT_IF gattc_if, const RawAddress& bdaddr, uint16_t conn_id,
+static void bta_gattc_conn_cback(tGATT_IF gattc_if, const RawAddress& bdaddr, tCONN_ID conn_id,
                                  bool connected, tGATT_DISCONN_REASON reason,
                                  tBT_TRANSPORT transport) {
   if (connected) {
@@ -1466,7 +1465,7 @@ static void bta_gattc_conn_cback(tGATT_IF gattc_if, const RawAddress& bdaddr, ui
 
   tBTA_GATTC_DATA* p_buf = (tBTA_GATTC_DATA*)osi_calloc(sizeof(tBTA_GATTC_DATA));
   p_buf->int_conn.hdr.event = connected ? BTA_GATTC_INT_CONN_EVT : BTA_GATTC_INT_DISCONN_EVT;
-  p_buf->int_conn.hdr.layer_specific = conn_id;
+  p_buf->int_conn.hdr.layer_specific = static_cast<uint16_t>(conn_id);
   p_buf->int_conn.client_if = gattc_if;
   p_buf->int_conn.role = bluetooth::stack::l2cap::get_interface().L2CA_GetBleConnRole(bdaddr);
   p_buf->int_conn.reason = reason;
@@ -1528,7 +1527,7 @@ void bta_gattc_process_api_refresh(const RawAddress& remote_bda) {
 }
 
 /** process service change indication */
-static bool bta_gattc_process_srvc_chg_ind(uint16_t conn_id, tBTA_GATTC_RCB* p_clrcb,
+static bool bta_gattc_process_srvc_chg_ind(tCONN_ID conn_id, tBTA_GATTC_RCB* p_clrcb,
                                            tBTA_GATTC_SERV* p_srcb, tBTA_GATTC_CLCB* p_clcb,
                                            tBTA_GATTC_NOTIFY* p_notify, tGATT_VALUE* att_value) {
   Uuid gattp_uuid = Uuid::From16Bit(UUID_SERVCLASS_GATT_SERVER);
@@ -1635,7 +1634,7 @@ static void bta_gattc_proc_other_indication(tBTA_GATTC_CLCB* p_clcb, uint8_t op,
 }
 
 /** process indication/notification */
-static void bta_gattc_process_indicate(uint16_t conn_id, tGATTC_OPTYPE op,
+static void bta_gattc_process_indicate(tCONN_ID conn_id, tGATTC_OPTYPE op,
                                        tGATT_CL_COMPLETE* p_data) {
   uint16_t handle = p_data->att_value.handle;
   tBTA_GATTC_NOTIFY notify;
@@ -1721,7 +1720,7 @@ static void bta_gattc_process_indicate(uint16_t conn_id, tGATTC_OPTYPE op,
 }
 
 /** client operation complete callback register with BTE GATT */
-static void bta_gattc_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
+static void bta_gattc_cmpl_cback(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
                                  tGATT_CL_COMPLETE* p_data) {
   log::verbose("conn_id:{} op:{} status:{}", conn_id, op, status);
 
@@ -1747,13 +1746,13 @@ static void bta_gattc_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATU
 }
 
 /** client operation complete send message */
-void bta_gattc_cmpl_sendmsg(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
+void bta_gattc_cmpl_sendmsg(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
                             tGATT_CL_COMPLETE* p_data) {
   const size_t len = sizeof(tBTA_GATTC_OP_CMPL) + sizeof(tGATT_CL_COMPLETE);
   tBTA_GATTC_OP_CMPL* p_buf = (tBTA_GATTC_OP_CMPL*)osi_calloc(len);
 
   p_buf->hdr.event = BTA_GATTC_OP_CMPL_EVT;
-  p_buf->hdr.layer_specific = conn_id;
+  p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
   p_buf->status = status;
   p_buf->op_code = op;
 
@@ -1766,7 +1765,7 @@ void bta_gattc_cmpl_sendmsg(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS sta
 }
 
 /** congestion callback for BTA GATT client */
-static void bta_gattc_cong_cback(uint16_t conn_id, bool congested) {
+static void bta_gattc_cong_cback(tCONN_ID conn_id, bool congested) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
   if (!p_clcb || !p_clcb->p_rcb->p_cback) {
     return;
@@ -1779,7 +1778,7 @@ static void bta_gattc_cong_cback(uint16_t conn_id, bool congested) {
   (*p_clcb->p_rcb->p_cback)(BTA_GATTC_CONGEST_EVT, &cb_data);
 }
 
-static void bta_gattc_phy_update_cback(tGATT_IF gatt_if, uint16_t conn_id, uint8_t tx_phy,
+static void bta_gattc_phy_update_cback(tGATT_IF gatt_if, tCONN_ID conn_id, uint8_t tx_phy,
                                        uint8_t rx_phy, tGATT_STATUS status) {
   tBTA_GATTC_RCB* p_clreg = bta_gattc_cl_get_regcb(gatt_if);
 
@@ -1797,7 +1796,7 @@ static void bta_gattc_phy_update_cback(tGATT_IF gatt_if, uint16_t conn_id, uint8
   (*p_clreg->p_cback)(BTA_GATTC_PHY_UPDATE_EVT, &cb_data);
 }
 
-static void bta_gattc_conn_update_cback(tGATT_IF gatt_if, uint16_t conn_id, uint16_t interval,
+static void bta_gattc_conn_update_cback(tGATT_IF gatt_if, tCONN_ID conn_id, uint16_t interval,
                                         uint16_t latency, uint16_t timeout, tGATT_STATUS status) {
   tBTA_GATTC_RCB* p_clreg = bta_gattc_cl_get_regcb(gatt_if);
 
@@ -1815,7 +1814,7 @@ static void bta_gattc_conn_update_cback(tGATT_IF gatt_if, uint16_t conn_id, uint
   (*p_clreg->p_cback)(BTA_GATTC_CONN_UPDATE_EVT, &cb_data);
 }
 
-static void bta_gattc_subrate_chg_cback(tGATT_IF gatt_if, uint16_t conn_id, uint16_t subrate_factor,
+static void bta_gattc_subrate_chg_cback(tGATT_IF gatt_if, tCONN_ID conn_id, uint16_t subrate_factor,
                                         uint16_t latency, uint16_t cont_num, uint16_t timeout,
                                         tGATT_STATUS status) {
   tBTA_GATTC_RCB* p_clreg = bta_gattc_cl_get_regcb(gatt_if);

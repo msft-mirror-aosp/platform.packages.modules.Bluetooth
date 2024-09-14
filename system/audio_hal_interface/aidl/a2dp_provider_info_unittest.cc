@@ -215,32 +215,13 @@ protected:
 };
 }  // namespace
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetProviderInfoFlagDisabled,
-                  REQUIRES_FLAGS_DISABLED(ACONFIG_FLAG(TEST_BT,
-                                                       a2dp_offload_codec_extensibility))) {
-  EXPECT_CALL(client_itf_mock,
-              GetProviderInfo(SessionType::A2DP_HARDWARE_OFFLOAD_ENCODING_DATAPATH, _))
-          .Times(0);
-  EXPECT_CALL(client_itf_mock,
-              GetProviderInfo(SessionType::A2DP_HARDWARE_OFFLOAD_DECODING_DATAPATH, _))
-          .Times(0);
-
-  provider_info = ProviderInfo::GetProviderInfo(true);
-  ASSERT_EQ(provider_info, nullptr);
-}
-
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetProviderInfoEmptyProviderInfo,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestGetProviderInfoEmptyProviderInfo) {
   GetProviderInfoForTesting(false, false);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetProviderInfo,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
-  GetProviderInfoForTesting(true, false);
-}
+TEST_F(ProviderInfoTest, TestGetProviderInfo) { GetProviderInfoForTesting(true, false); }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecSbc,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestGetCodecSbc) {
   GetProviderInfoForTesting(true, false);
 
   auto received_codec_info_sbc = provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SOURCE_SBC);
@@ -251,8 +232,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecSbc,
   ASSERT_EQ(*codec_info, test_source_provider_info.codecInfos[0]);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecAac,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestGetCodecAac) {
   GetProviderInfoForTesting(true, false);
 
   auto received_codec_info_aac = provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC);
@@ -263,8 +243,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecAac,
   ASSERT_EQ(*codec_info, test_source_provider_info.codecInfos[1]);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecOpus,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestGetCodecOpus) {
   GetProviderInfoForTesting(true, false);
 
   auto received_codec_info_opus = provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS);
@@ -275,8 +254,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecOpus,
   ASSERT_EQ(*codec_info, test_source_provider_info.codecInfos[2]);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecFoobar,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestGetCodecFoobar) {
   GetProviderInfoForTesting(true, false);
 
   auto received_codec_info_foobar = provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MIN);
@@ -287,8 +265,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecFoobar,
   ASSERT_EQ(*codec_info, test_source_provider_info.codecInfos[3]);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecNotSupported,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestGetCodecNotSupported) {
   GetProviderInfoForTesting(true, false);
 
   auto received_codec_info_not_supported_codec =
@@ -296,8 +273,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecNotSupported,
   ASSERT_FALSE(received_codec_info_not_supported_codec.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByCodecId,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSourceCodecIndexByCodecId) {
   GetProviderInfoForTesting(true, false);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
@@ -323,8 +299,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByCodecId,
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByVendorAndCodecId,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSourceCodecIndexByVendorAndCodecId) {
   GetProviderInfoForTesting(true, false);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
@@ -342,8 +317,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByVendorAndCodecId,
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByCapabilities,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSourceCodecIndexByCapabilities) {
   GetProviderInfoForTesting(true, false);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
@@ -369,8 +343,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByCapabilities,
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByCodecIdAssertNoSources,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSourceCodecIndexByCodecIdAssertNoSources) {
   GetProviderInfoForTesting(false, true);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
@@ -392,8 +365,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByCodecIdAssertNoSources
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByVendorAndCodecIdAssertNoSources,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSourceCodecIndexByVendorAndCodecIdAssertNoSources) {
   GetProviderInfoForTesting(false, true);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
@@ -419,8 +391,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByVendorAndCodecIdAssert
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSinkCodecIndexByCodecId,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSinkCodecIndexByCodecId) {
   GetProviderInfoForTesting(false, true);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
@@ -446,8 +417,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestSinkCodecIndexByCodecId,
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSinkCodecIndexByVendorAndCodecId,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSinkCodecIndexByVendorAndCodecId) {
   GetProviderInfoForTesting(false, true);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
@@ -467,8 +437,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestSinkCodecIndexByVendorAndCodecId,
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSinkCodecIndexByVendorAndCodecIdAssertNoSinks,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSinkCodecIndexByVendorAndCodecIdAssertNoSinks) {
   GetProviderInfoForTesting(true, false);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
@@ -495,8 +464,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestSinkCodecIndexByVendorAndCodecIdAssertNo
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecIndexStr,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestCodecIndexStr) {
   GetProviderInfoForTesting(true, false);
 
   auto codecInfoArray = test_source_provider_info.codecInfos;
@@ -512,8 +480,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecIndexStr,
             codecInfoArray[3].name);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSupportsCodec,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSupportsCodec) {
   GetProviderInfoForTesting(true, true);
 
   for (int i = static_cast<int>(BTAV_A2DP_CODEC_INDEX_SOURCE_MIN);
@@ -536,8 +503,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestSupportsCodec,
   }
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesSbc,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestBuildCodecCapabilitiesSbc) {
   GetProviderInfoForTesting(true, false);
 
   std::vector<uint8_t> sbc_caps = {0x3f, 0xff, 0x02, 0x25};
@@ -550,8 +516,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesSbc,
             0);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesAac,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestBuildCodecCapabilitiesAac) {
   GetProviderInfoForTesting(true, false);
   std::vector<uint8_t> aac_caps = {0x80, 0x01, 0x8c, 0x83, 0xe8, 0x00};
   uint8_t result_aac_codec_info[9];
@@ -563,8 +528,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesAac,
             0);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesOpus,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestBuildCodecCapabilitiesOpus) {
   std::vector<uint8_t> opus_caps = {0x3c};
   uint8_t result_opus_codec_info[10];
 
@@ -575,8 +539,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesOpus,
             0);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesFoobar,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestBuildCodecCapabilitiesFoobar) {
   std::vector<uint8_t> foobar_caps = {0x3c};
   uint8_t result_foobar_codec_info[10];
 
@@ -587,8 +550,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesFoobar,
             0);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesNotSupported,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestBuildCodecCapabilitiesNotSupported) {
   std::vector<uint8_t> foobar_caps = {0x3c};
   uint8_t result_foobar_codec_info[10];
 
@@ -596,8 +558,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesNotSupported,
                                                     result_foobar_codec_info));
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecCapabilitiesSbc,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestCodecCapabilitiesSbc) {
   GetProviderInfoForTesting(true, false);
 
   uint8_t result_codec_info[20];
@@ -618,8 +579,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecCapabilitiesSbc,
                BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32));
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecCapabilitiesAac,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestCodecCapabilitiesAac) {
   GetProviderInfoForTesting(true, false);
 
   uint8_t result_codec_info[20];
@@ -640,8 +600,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecCapabilitiesAac,
                BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32));
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecCapabilitiesOpus,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestCodecCapabilitiesOpus) {
   GetProviderInfoForTesting(true, false);
 
   uint8_t result_codec_info[20];
@@ -663,8 +622,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecCapabilitiesOpus,
                BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32));
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecCapabilitiesFoobar,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestCodecCapabilitiesFoobar) {
   GetProviderInfoForTesting(true, false);
 
   uint8_t result_codec_info[20];

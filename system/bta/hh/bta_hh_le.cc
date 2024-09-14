@@ -195,7 +195,7 @@ void bta_hh_le_enable(void) {
     bta_hh_cb.le_cb_index[xx] = BTA_HH_IDX_INVALID;
   }
 
-  BTA_GATTC_AppRegister(bta_hh_gattc_callback, base::Bind([](uint8_t client_id, uint8_t r_status) {
+  BTA_GATTC_AppRegister(bta_hh_gattc_callback, base::Bind([](tGATT_IF client_id, uint8_t r_status) {
                           tBTA_HH bta_hh;
                           bta_hh.status = BTA_HH_ERR;
 
@@ -284,7 +284,7 @@ void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb) {
  *                  ID.
  *
  ******************************************************************************/
-static tBTA_HH_DEV_CB* bta_hh_le_find_dev_cb_by_conn_id(uint16_t conn_id) {
+static tBTA_HH_DEV_CB* bta_hh_le_find_dev_cb_by_conn_id(tCONN_ID conn_id) {
   for (uint8_t i = 0; i < BTA_HH_MAX_DEVICE; i++) {
     tBTA_HH_DEV_CB* p_dev_cb = &bta_hh_cb.kdev[i];
     if (p_dev_cb->in_use && p_dev_cb->conn_id == conn_id) {
@@ -454,7 +454,7 @@ tBTA_HH_LE_RPT* bta_hh_le_find_alloc_report_entry(tBTA_HH_DEV_CB* p_cb, uint8_t 
   return NULL;
 }
 
-static const gatt::Descriptor* find_descriptor_by_short_uuid(uint16_t conn_id, uint16_t char_handle,
+static const gatt::Descriptor* find_descriptor_by_short_uuid(tCONN_ID conn_id, uint16_t char_handle,
                                                              uint16_t short_uuid) {
   const gatt::Characteristic* p_char = BTA_GATTC_GetCharacteristic(conn_id, char_handle);
 
@@ -655,7 +655,7 @@ static bool bta_hh_le_write_ccc(tBTA_HH_DEV_CB* p_cb, uint16_t char_handle, uint
 
 static bool bta_hh_le_write_rpt_clt_cfg(tBTA_HH_DEV_CB* p_cb);
 
-static void write_rpt_clt_cfg_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void write_rpt_clt_cfg_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                  uint16_t len, const uint8_t* value, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   const gatt::Characteristic* characteristic = BTA_GATTC_GetOwningCharacteristic(conn_id, handle);
@@ -756,7 +756,7 @@ void bta_hh_le_service_parsed(tBTA_HH_DEV_CB* p_dev_cb, tGATT_STATUS status) {
   }
 }
 
-static void write_proto_mode_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void write_proto_mode_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                 uint16_t len, const uint8_t* value, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   bta_hh_le_service_parsed(p_dev_cb, status);
@@ -813,7 +813,7 @@ static bool bta_hh_le_set_protocol_mode(tBTA_HH_DEV_CB* p_cb, tBTA_HH_PROTO_MODE
  *                  application with the protocol mode.
  *
  ******************************************************************************/
-static void get_protocol_mode_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void get_protocol_mode_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                  uint16_t len, uint8_t* value, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   tBTA_HH_HSDATA hs_data;
@@ -1237,7 +1237,7 @@ static void bta_hh_le_gatt_disc_cmpl(tBTA_HH_DEV_CB* p_cb, tBTA_HH_STATUS status
   }
 }
 
-static void read_hid_info_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+static void read_hid_info_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                              uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
@@ -1272,7 +1272,7 @@ void bta_hh_le_save_report_map(tBTA_HH_DEV_CB* p_dev_cb, uint16_t len, uint8_t* 
   }
 }
 
-static void read_hid_report_map_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_hid_report_map_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                    uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error reading characteristic:{}", status);
@@ -1283,7 +1283,7 @@ static void read_hid_report_map_cb(uint16_t conn_id, tGATT_STATUS status, uint16
   bta_hh_le_save_report_map(p_dev_cb, len, value);
 }
 
-static void read_ext_rpt_ref_desc_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_ext_rpt_ref_desc_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                      uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
@@ -1305,7 +1305,7 @@ static void read_ext_rpt_ref_desc_cb(uint16_t conn_id, tGATT_STATUS status, uint
   log::verbose("External Report Reference UUID 0x{:04x}", p_dev_cb->hid_srvc.ext_rpt_ref);
 }
 
-static void read_report_ref_desc_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_report_ref_desc_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                     uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
@@ -1345,7 +1345,7 @@ static void read_report_ref_desc_cb(uint16_t conn_id, tGATT_STATUS status, uint1
   bta_hh_le_save_report_ref(p_dev_cb, p_rpt, rpt_type, rpt_id);
 }
 
-static void read_pref_conn_params_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_pref_conn_params_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                      uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
@@ -1794,7 +1794,7 @@ void bta_hh_le_api_disc_act(tBTA_HH_DEV_CB* p_cb) {
  * Parameters:
  *
  ******************************************************************************/
-static void read_report_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+static void read_report_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                            uint8_t* value, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   if (p_dev_cb->w4_evt != BTA_HH_GET_RPT_EVT) {
@@ -1874,7 +1874,7 @@ static void bta_hh_le_get_rpt(tBTA_HH_DEV_CB* p_cb, tBTA_HH_RPT_TYPE r_type, uin
   BtaGattQueue::ReadCharacteristic(p_cb->conn_id, p_rpt->char_inst_id, read_report_cb, p_cb);
 }
 
-static void write_report_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+static void write_report_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                             const uint8_t* value, void* data) {
   tBTA_HH_CBDATA cback_data;
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
