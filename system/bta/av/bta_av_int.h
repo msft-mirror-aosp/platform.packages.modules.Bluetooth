@@ -411,7 +411,7 @@ typedef struct {
 } tBTA_AV_SEP;
 
 enum : uint8_t {
-  /* initiator/acceptor role for adaption */
+  /* initiator/acceptor role for adaptation */
   BTA_AV_ROLE_AD_INT = 0x00, /* initiator */
   BTA_AV_ROLE_AD_ACP = 0x01, /* acceptor */
 

@@ -549,7 +549,8 @@ void btm_sec_auth_complete(uint16_t handle, tHCI_STATUS status);
  * Returns          void
  *
  ******************************************************************************/
-void btm_sec_encryption_change_evt(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable);
+void btm_sec_encryption_change_evt(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable,
+                                   uint8_t key_size);
 
 /*******************************************************************************
  *
@@ -561,7 +562,8 @@ void btm_sec_encryption_change_evt(uint16_t handle, tHCI_STATUS status, uint8_t 
  * Returns          void
  *
  ******************************************************************************/
-void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable);
+void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable,
+                            uint8_t key_size, bool from_key_refresh);
 
 /*******************************************************************************
  *

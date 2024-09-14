@@ -31,8 +31,8 @@
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cdefs.h"
+#include "stack/l2cap/internal/l2c_api.h"
 #include "stack/l2cap/l2c_int.h"
 
 /* Flag passed to retransmit_i_frames() when all packets should be retransmitted

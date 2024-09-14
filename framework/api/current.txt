@@ -6,7 +6,7 @@ package android.bluetooth {
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public java.util.List<android.bluetooth.BluetoothDevice> getConnectedDevices();
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public int getConnectionState(android.bluetooth.BluetoothDevice);
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public java.util.List<android.bluetooth.BluetoothDevice> getDevicesMatchingConnectionStates(int[]);
-    method @FlaggedApi("com.android.bluetooth.flags.a2dp_offload_codec_extensibility") @NonNull @RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED) public java.util.Collection<android.bluetooth.BluetoothCodecType> getSupportedCodecTypes();
+    method @NonNull @RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED) public java.util.Collection<android.bluetooth.BluetoothCodecType> getSupportedCodecTypes();
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public boolean isA2dpPlaying(android.bluetooth.BluetoothDevice);
     field @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public static final String ACTION_CONNECTION_STATE_CHANGED = "android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED";
     field @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public static final String ACTION_PLAYING_STATE_CHANGED = "android.bluetooth.a2dp.profile.action.PLAYING_STATE_CHANGED";
@@ -431,7 +431,7 @@ package android.bluetooth {
     method public long getCodecSpecific3();
     method public long getCodecSpecific4();
     method @Deprecated public int getCodecType();
-    method @FlaggedApi("com.android.bluetooth.flags.a2dp_offload_codec_extensibility") @Nullable public android.bluetooth.BluetoothCodecType getExtendedCodecType();
+    method @Nullable public android.bluetooth.BluetoothCodecType getExtendedCodecType();
     method public int getSampleRate();
     method public boolean isMandatoryCodec();
     method public void writeToParcel(android.os.Parcel, int);
@@ -474,7 +474,7 @@ package android.bluetooth {
     method @NonNull public android.bluetooth.BluetoothCodecConfig.Builder setCodecSpecific3(long);
     method @NonNull public android.bluetooth.BluetoothCodecConfig.Builder setCodecSpecific4(long);
     method @Deprecated @NonNull public android.bluetooth.BluetoothCodecConfig.Builder setCodecType(int);
-    method @FlaggedApi("com.android.bluetooth.flags.a2dp_offload_codec_extensibility") @NonNull public android.bluetooth.BluetoothCodecConfig.Builder setExtendedCodecType(@Nullable android.bluetooth.BluetoothCodecType);
+    method @NonNull public android.bluetooth.BluetoothCodecConfig.Builder setExtendedCodecType(@Nullable android.bluetooth.BluetoothCodecType);
     method @NonNull public android.bluetooth.BluetoothCodecConfig.Builder setSampleRate(int);
   }
 
@@ -497,19 +497,19 @@ package android.bluetooth {
     method @NonNull public android.bluetooth.BluetoothCodecStatus.Builder setCodecsSelectableCapabilities(@NonNull java.util.List<android.bluetooth.BluetoothCodecConfig>);
   }
 
-  @FlaggedApi("com.android.bluetooth.flags.a2dp_offload_codec_extensibility") public final class BluetoothCodecType implements android.os.Parcelable {
-    method @FlaggedApi("com.android.bluetooth.flags.a2dp_offload_codec_extensibility") public int describeContents();
-    method @FlaggedApi("com.android.bluetooth.flags.a2dp_offload_codec_extensibility") public long getCodecId();
-    method @FlaggedApi("com.android.bluetooth.flags.a2dp_offload_codec_extensibility") @NonNull public String getCodecName();
-    method @FlaggedApi("com.android.bluetooth.flags.a2dp_offload_codec_extensibility") public boolean isMandatoryCodec();
-    method @FlaggedApi("com.android.bluetooth.flags.a2dp_offload_codec_extensibility") public void writeToParcel(@NonNull android.os.Parcel, int);
+  public final class BluetoothCodecType implements android.os.Parcelable {
+    method public int describeContents();
+    method public long getCodecId();
+    method @NonNull public String getCodecName();
+    method public boolean isMandatoryCodec();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
     field public static final long CODEC_ID_AAC = 2L; // 0x2L
     field public static final long CODEC_ID_APTX = 16797695L; // 0x1004fffL
     field public static final long CODEC_ID_APTX_HD = 604035071L; // 0x2400d7ffL
     field public static final long CODEC_ID_LDAC = -1442763265L; // 0xffffffffaa012dffL
     field public static final long CODEC_ID_OPUS = 16834815L; // 0x100e0ffL
     field public static final long CODEC_ID_SBC = 0L; // 0x0L
-    field @FlaggedApi("com.android.bluetooth.flags.a2dp_offload_codec_extensibility") @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.BluetoothCodecType> CREATOR;
+    field @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.BluetoothCodecType> CREATOR;
   }
 
   public final class BluetoothCsipSetCoordinator implements java.lang.AutoCloseable android.bluetooth.BluetoothProfile {

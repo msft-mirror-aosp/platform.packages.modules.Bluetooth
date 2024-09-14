@@ -75,7 +75,7 @@ public:
             [](uint16_t psm, const RawAddress& raw_address) { return kDummyCID; };
     test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity.body =
             [](uint16_t psm, const RawAddress& p_bd_addr, uint16_t sec_level) {
-              return L2CA_ConnectReq(psm, p_bd_addr);
+              return bluetooth::stack::l2cap::get_interface().L2CA_ConnectReq(psm, p_bd_addr);
             };
     test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t cid,
                                                           BT_HDR* p_data) -> tL2CAP_DW_RESULT {

@@ -60,10 +60,10 @@ using gatt::Descriptor;
 using gatt::IncludedService;
 using gatt::Service;
 
-static tGATT_STATUS bta_gattc_sdp_service_disc(uint16_t conn_id, tBTA_GATTC_SERV* p_server_cb);
+static tGATT_STATUS bta_gattc_sdp_service_disc(tCONN_ID conn_id, tBTA_GATTC_SERV* p_server_cb);
 const Descriptor* bta_gattc_get_descriptor_srcb(tBTA_GATTC_SERV* p_srcb, uint16_t handle);
 const Characteristic* bta_gattc_get_characteristic_srcb(tBTA_GATTC_SERV* p_srcb, uint16_t handle);
-static void bta_gattc_explore_srvc_finished(uint16_t conn_id, tBTA_GATTC_SERV* p_srvc_cb);
+static void bta_gattc_explore_srvc_finished(tCONN_ID conn_id, tBTA_GATTC_SERV* p_srvc_cb);
 
 static void bta_gattc_read_db_hash_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_OP_CMPL* p_data,
                                         bool is_svc_chg);
@@ -82,7 +82,7 @@ static void bta_gattc_read_ext_prop_desc_cmpl(tBTA_GATTC_CLCB* p_clcb,
 
 typedef struct {
   tSDP_DISCOVERY_DB* p_sdp_db;
-  uint16_t sdp_conn_id;
+  tCONN_ID sdp_conn_id;
 } tBTA_GATTC_CB_DATA;
 
 #if (BTA_GATT_DEBUG == TRUE)
@@ -199,7 +199,7 @@ RobustCachingSupport GetRobustCachingSupport(const tBTA_GATTC_CLCB* p_clcb,
 }
 
 /** Start primary service discovery */
-[[nodiscard]] tGATT_STATUS bta_gattc_discover_pri_service(uint16_t conn_id,
+[[nodiscard]] tGATT_STATUS bta_gattc_discover_pri_service(tCONN_ID conn_id,
                                                           tBTA_GATTC_SERV* p_server_cb,
                                                           tGATT_DISC_TYPE disc_type) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
@@ -217,7 +217,7 @@ RobustCachingSupport GetRobustCachingSupport(const tBTA_GATTC_CLCB* p_clcb,
 
 /** start exploring next service, or finish discovery if no more services left
  */
-static void bta_gattc_explore_next_service(uint16_t conn_id, tBTA_GATTC_SERV* p_srvc_cb) {
+static void bta_gattc_explore_next_service(tCONN_ID conn_id, tBTA_GATTC_SERV* p_srvc_cb) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
   if (!p_clcb) {
     log::error("unknown conn_id=0x{:x}", conn_id);
@@ -277,7 +277,7 @@ static void bta_gattc_explore_next_service(uint16_t conn_id, tBTA_GATTC_SERV* p_
   bta_gattc_explore_srvc_finished(conn_id, p_srvc_cb);
 }
 
-static void bta_gattc_explore_srvc_finished(uint16_t conn_id, tBTA_GATTC_SERV* p_srvc_cb) {
+static void bta_gattc_explore_srvc_finished(tCONN_ID conn_id, tBTA_GATTC_SERV* p_srvc_cb) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
   if (!p_clcb) {
     log::error("unknown conn_id=0x{:x}", conn_id);
@@ -314,7 +314,7 @@ static void bta_gattc_explore_srvc_finished(uint16_t conn_id, tBTA_GATTC_SERV* p
 }
 
 /** Start discovery for characteristic descriptor */
-void bta_gattc_start_disc_char_dscp(uint16_t conn_id, tBTA_GATTC_SERV* p_srvc_cb) {
+void bta_gattc_start_disc_char_dscp(tCONN_ID conn_id, tBTA_GATTC_SERV* p_srvc_cb) {
   log::verbose("starting discover characteristics descriptor");
 
   std::pair<uint16_t, uint16_t> range = p_srvc_cb->pending_discovery.NextDescriptorRangeToExplore();
@@ -403,7 +403,7 @@ void bta_gattc_sdp_callback(tBTA_GATTC_CB_DATA* cb_data, const RawAddress& /* bd
 }
 
 /* Start DSP Service Discovery */
-static tGATT_STATUS bta_gattc_sdp_service_disc(uint16_t conn_id, tBTA_GATTC_SERV* p_server_cb) {
+static tGATT_STATUS bta_gattc_sdp_service_disc(tCONN_ID conn_id, tBTA_GATTC_SERV* p_server_cb) {
   uint16_t num_attrs = 2;
   uint16_t attr_list[2];
 
@@ -460,7 +460,7 @@ void bta_gattc_op_cmpl_during_discovery(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATT
 }
 
 /** callback function to GATT client stack */
-void bta_gattc_disc_res_cback(uint16_t conn_id, tGATT_DISC_TYPE disc_type, tGATT_DISC_RES* p_data) {
+void bta_gattc_disc_res_cback(tCONN_ID conn_id, tGATT_DISC_TYPE disc_type, tGATT_DISC_RES* p_data) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
   tBTA_GATTC_SERV* p_srvc_cb = bta_gattc_find_scb_by_cid(conn_id);
 
@@ -498,7 +498,7 @@ void bta_gattc_disc_res_cback(uint16_t conn_id, tGATT_DISC_TYPE disc_type, tGATT
   }
 }
 
-void bta_gattc_disc_cmpl_cback(uint16_t conn_id, tGATT_DISC_TYPE disc_type, tGATT_STATUS status) {
+void bta_gattc_disc_cmpl_cback(tCONN_ID conn_id, tGATT_DISC_TYPE disc_type, tGATT_STATUS status) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
   tBTA_GATTC_SERV* p_srvc_cb = bta_gattc_find_scb_by_cid(conn_id);
 
@@ -597,7 +597,7 @@ const std::list<Service>* bta_gattc_get_services_srcb(tBTA_GATTC_SERV* p_srcb) {
   return &p_srcb->gatt_database.Services();
 }
 
-const std::list<Service>* bta_gattc_get_services(uint16_t conn_id) {
+const std::list<Service>* bta_gattc_get_services(tCONN_ID conn_id) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
 
   if (p_clcb == NULL) {
@@ -617,7 +617,7 @@ const Service* bta_gattc_get_service_for_handle_srcb(tBTA_GATTC_SERV* p_srcb, ui
   return bta_gattc_find_matching_service(*services, handle);
 }
 
-const Service* bta_gattc_get_service_for_handle(uint16_t conn_id, uint16_t handle) {
+const Service* bta_gattc_get_service_for_handle(tCONN_ID conn_id, uint16_t handle) {
   const std::list<Service>* services = bta_gattc_get_services(conn_id);
   if (services == NULL) {
     return NULL;
@@ -642,7 +642,7 @@ const Characteristic* bta_gattc_get_characteristic_srcb(tBTA_GATTC_SERV* p_srcb,
   return NULL;
 }
 
-const Characteristic* bta_gattc_get_characteristic(uint16_t conn_id, uint16_t handle) {
+const Characteristic* bta_gattc_get_characteristic(tCONN_ID conn_id, uint16_t handle) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
 
   if (p_clcb == NULL) {
@@ -671,7 +671,7 @@ const Descriptor* bta_gattc_get_descriptor_srcb(tBTA_GATTC_SERV* p_srcb, uint16_
   return NULL;
 }
 
-const Descriptor* bta_gattc_get_descriptor(uint16_t conn_id, uint16_t handle) {
+const Descriptor* bta_gattc_get_descriptor(tCONN_ID conn_id, uint16_t handle) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
 
   if (p_clcb == NULL) {
@@ -701,7 +701,7 @@ const Characteristic* bta_gattc_get_owning_characteristic_srcb(tBTA_GATTC_SERV* 
   return NULL;
 }
 
-const Characteristic* bta_gattc_get_owning_characteristic(uint16_t conn_id, uint16_t handle) {
+const Characteristic* bta_gattc_get_owning_characteristic(tCONN_ID conn_id, uint16_t handle) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
   if (!p_clcb) {
     return NULL;
@@ -1021,7 +1021,7 @@ static void bta_gattc_get_gatt_db_impl(tBTA_GATTC_SERV* p_srvc_cb, uint16_t star
  * Returns          None.
  *
  ******************************************************************************/
-void bta_gattc_get_gatt_db(uint16_t conn_id, uint16_t start_handle, uint16_t end_handle,
+void bta_gattc_get_gatt_db(tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
                            btgatt_db_element_t** db, int* count) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
 

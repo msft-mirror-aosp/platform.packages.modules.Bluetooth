@@ -352,12 +352,8 @@ struct CoreInterfaceImpl : bluetooth::core::CoreInterface {
       return;
     }
 
-    if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-      btif_av_acl_disconnected(bd_addr, A2dpType::kSource);
-      btif_av_acl_disconnected(bd_addr, A2dpType::kSink);
-    } else {
-      btif_av_acl_disconnected(bd_addr, A2dpType::kUnknown);
-    }
+    btif_av_acl_disconnected(bd_addr, A2dpType::kSource);
+    btif_av_acl_disconnected(bd_addr, A2dpType::kSink);
   }
 };
 

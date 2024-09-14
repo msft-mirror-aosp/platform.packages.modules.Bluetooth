@@ -392,21 +392,24 @@ public class A2dpService extends ProfileService {
         }
         // Check connectionPolicy and accept or reject the connection.
         int connectionPolicy = getConnectionPolicy(device);
-        int bondState = mAdapterService.getBondState(device);
-        // Allow this connection only if the device is bonded. Any attempt to connect while
-        // bonding would potentially lead to an unauthorized connection.
-        if (bondState != BluetoothDevice.BOND_BONDED) {
-            Log.w(TAG, "okToConnect: return false, bondState=" + bondState);
-            return false;
-        } else if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
-                && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (!Flags.donotValidateBondStateFromProfiles()) {
+            int bondState = mAdapterService.getBondState(device);
+            // Allow this connection only if the device is bonded. Any attempt to connect while
+            // bonding would potentially lead to an unauthorized connection.
+            if (bondState != BluetoothDevice.BOND_BONDED) {
+                Log.w(TAG, "okToConnect: return false, bondState=" + bondState);
+                return false;
+            }
+        }
+        if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
+            && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
             if (!isOutgoingRequest) {
                 HeadsetService headsetService = HeadsetService.getHeadsetService();
                 if (headsetService != null && headsetService.okToAcceptConnection(device, true)) {
                     Log.d(
-                            TAG,
-                            "okToConnect: return false,"
-                                    + " Fallback connection to allowed HFP profile");
+                        TAG,
+                        "okToConnect: return false,"
+                                + " Fallback connection to allowed HFP profile");
                     headsetService.connect(device);
                     return false;
                 }

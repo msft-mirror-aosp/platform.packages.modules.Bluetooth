@@ -139,7 +139,7 @@ tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_cif(uint8_t client_if, const RawAddress&
  * Returns          pointer to the clcb
  *
  ******************************************************************************/
-tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_conn_id(uint16_t conn_id) {
+tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_conn_id(tCONN_ID conn_id) {
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     for (auto& p_clcb : bta_gattc_cb.clcb_set) {
       if (p_clcb->bta_conn_id == conn_id) {
@@ -388,7 +388,7 @@ tBTA_GATTC_SERV* bta_gattc_find_srvr_cache(const RawAddress& bda) {
  * Returns          pointer to the server cache.
  *
  ******************************************************************************/
-tBTA_GATTC_SERV* bta_gattc_find_scb_by_cid(uint16_t conn_id) {
+tBTA_GATTC_SERV* bta_gattc_find_scb_by_cid(tCONN_ID conn_id) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
 
   if (p_clcb) {
@@ -574,7 +574,7 @@ bool bta_gattc_check_notif_registry(tBTA_GATTC_RCB* p_clreg, tBTA_GATTC_SERV* p_
  * Returns          None.
  *
  ******************************************************************************/
-void bta_gattc_clear_notif_registration(tBTA_GATTC_SERV* p_srcb, uint16_t conn_id,
+void bta_gattc_clear_notif_registration(tBTA_GATTC_SERV* p_srcb, tCONN_ID conn_id,
                                         uint16_t start_handle, uint16_t end_handle) {
   RawAddress remote_bda;
   tGATT_IF gatt_if;
@@ -652,7 +652,7 @@ bool bta_gattc_mark_bg_conn(tGATT_IF client_if, const RawAddress& remote_bda_ptr
         }
         /* no BG connection for this device, make it available */
         if (p_bg_tck->cif_mask == 0) {
-          memset(p_bg_tck, 0, sizeof(tBTA_GATTC_BG_TCK));
+          *p_bg_tck = tBTA_GATTC_BG_TCK{};
         }
       }
       return true;
@@ -661,8 +661,7 @@ bool bta_gattc_mark_bg_conn(tGATT_IF client_if, const RawAddress& remote_bda_ptr
   if (!add) {
     log::error("unable to find the bg connection mask for bd_addr={}", remote_bda_ptr);
     return false;
-  } else /* adding a new device mask */
-  {
+  } else { /* adding a new device mask */
     for (i = 0, p_bg_tck = &bta_gattc_cb.bg_track[0]; i < ble_acceptlist_size(); i++, p_bg_tck++) {
       if (!p_bg_tck->in_use) {
         p_bg_tck->in_use = true;
@@ -714,7 +713,7 @@ bool bta_gattc_check_bg_conn(tGATT_IF client_if, const RawAddress& remote_bda, u
  *
  ******************************************************************************/
 void bta_gattc_send_open_cback(tBTA_GATTC_RCB* p_clreg, tGATT_STATUS status,
-                               const RawAddress& remote_bda, uint16_t conn_id,
+                               const RawAddress& remote_bda, tCONN_ID conn_id,
                                tBT_TRANSPORT transport, uint16_t mtu) {
   tBTA_GATTC cb_data;
 
@@ -866,7 +865,8 @@ tBTA_GATTC_CLCB* bta_gattc_find_int_disconn_clcb(tBTA_GATTC_DATA* p_msg) {
   tBTA_GATTC_CLCB* p_clcb = NULL;
 
   bta_gattc_conn_dealloc(p_msg->int_conn.remote_bda);
-  p_clcb = bta_gattc_find_clcb_by_conn_id(p_msg->int_conn.hdr.layer_specific);
+  p_clcb =
+          bta_gattc_find_clcb_by_conn_id(static_cast<tCONN_ID>(p_msg->int_conn.hdr.layer_specific));
   if (p_clcb == NULL) {
     /* connection attempt failed, send connection callback event */
     p_clcb = bta_gattc_find_clcb_by_cif(p_msg->int_conn.client_if, p_msg->int_conn.remote_bda,

@@ -31,7 +31,6 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/btm_sec_api_types.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/sdp_status.h"
 #include "stack/sdp/sdpint.h"
@@ -286,7 +285,8 @@ tCONN_CB* sdp_conn_originate(const RawAddress& bd_addr) {
   /* Transition to the next appropriate state, waiting for connection confirm */
   if (cid == 0) {
     p_ccb->con_state = tSDP_STATE::CONN_SETUP;
-    cid = L2CA_ConnectReqWithSecurity(BT_PSM_SDP, bd_addr, BTM_SEC_NONE);
+    cid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(BT_PSM_SDP, bd_addr,
+                                                                    BTM_SEC_NONE);
   } else {
     p_ccb->con_state = tSDP_STATE::CONN_PEND;
     log::warn("SDP already active for peer {}. cid={:#0x}", bd_addr, cid);
@@ -323,7 +323,7 @@ void sdp_disconnect(tCONN_CB* p_ccb, tSDP_REASON reason) {
       sdpu_release_ccb(ccb);
       return;
     } else {
-      if (!L2CA_DisconnectReq(ccb.connection_id)) {
+      if (!stack::l2cap::get_interface().L2CA_DisconnectReq(ccb.connection_id)) {
         log::warn("Unable to disconnect L2CAP peer:{} cid:{}", ccb.device_address,
                   ccb.connection_id);
       }
@@ -381,7 +381,7 @@ void sdp_conn_timer_timeout(void* data) {
   log::verbose("SDP - CCB timeout in state: {}  CID: 0x{:x}", sdp_state_text(ccb.con_state),
                ccb.connection_id);
 
-  if (!L2CA_DisconnectReq(ccb.connection_id)) {
+  if (!stack::l2cap::get_interface().L2CA_DisconnectReq(ccb.connection_id)) {
     log::warn("Unable to disconnect L2CAP peer:{} cid:{}", ccb.device_address, ccb.connection_id);
   }
 
@@ -424,14 +424,15 @@ void sdp_init(void) {
   sdp_cb.reg_info.pL2CA_Error_Cb = sdp_on_l2cap_error;
 
   /* Now, register with L2CAP */
-  if (!L2CA_RegisterWithSecurity(BT_PSM_SDP, sdp_cb.reg_info, true /* enable_snoop */, nullptr,
-                                 SDP_MTU_SIZE, 0, BTM_SEC_NONE)) {
+  if (!stack::l2cap::get_interface().L2CA_RegisterWithSecurity(BT_PSM_SDP, sdp_cb.reg_info,
+                                                               true /* enable_snoop */, nullptr,
+                                                               SDP_MTU_SIZE, 0, BTM_SEC_NONE)) {
     log::error("SDP Registration failed");
   }
 }
 
 void sdp_free(void) {
-  L2CA_Deregister(BT_PSM_SDP);
+  stack::l2cap::get_interface().L2CA_Deregister(BT_PSM_SDP);
   for (int i = 0; i < SDP_MAX_CONNECTIONS; i++) {
     alarm_free(sdp_cb.ccb[i].sdp_conn_timer);
     sdp_cb.ccb[i].sdp_conn_timer = NULL;

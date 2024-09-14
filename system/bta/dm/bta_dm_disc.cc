@@ -30,7 +30,6 @@
 #include <vector>
 
 #include "bta/dm/bta_dm_disc_int.h"
-#include "bta/dm/bta_dm_disc_legacy.h"
 #include "bta/include/bta_gatt_api.h"
 #include "common/circular_buffer.h"
 #include "common/strings.h"
@@ -92,9 +91,7 @@ static void post_disc_evt(tBTA_DM_DISC_EVT event, std::unique_ptr<tBTA_DM_MSG> m
   }
 }
 
-static void bta_dm_gatt_disc_complete(uint16_t conn_id, tGATT_STATUS status);
-static void bta_dm_disable_disc(void);
-static void bta_dm_gattc_register(void);
+static void bta_dm_gatt_disc_complete(tCONN_ID conn_id, tGATT_STATUS status);
 static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data);
 static void bta_dm_execute_queued_discovery_request();
 static void bta_dm_close_gatt_conn();
@@ -104,12 +101,12 @@ namespace {
 struct gatt_interface_t {
   void (*BTA_GATTC_CancelOpen)(tGATT_IF client_if, const RawAddress& remote_bda, bool is_direct);
   void (*BTA_GATTC_Refresh)(const RawAddress& remote_bda);
-  void (*BTA_GATTC_GetGattDb)(uint16_t conn_id, uint16_t start_handle, uint16_t end_handle,
+  void (*BTA_GATTC_GetGattDb)(tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
                               btgatt_db_element_t** db, int* count);
   void (*BTA_GATTC_AppRegister)(tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
                                 bool eatt_support);
-  void (*BTA_GATTC_Close)(uint16_t conn_id);
-  void (*BTA_GATTC_ServiceSearchRequest)(uint16_t conn_id, const bluetooth::Uuid* p_srvc_uuid);
+  void (*BTA_GATTC_Close)(tCONN_ID conn_id);
+  void (*BTA_GATTC_ServiceSearchRequest)(tCONN_ID conn_id, const bluetooth::Uuid* p_srvc_uuid);
   void (*BTA_GATTC_Open)(tGATT_IF client_if, const RawAddress& remote_bda,
                          tBTM_BLE_CONN_TYPE connection_type, bool opportunistic);
 } default_gatt_interface = {
@@ -119,7 +116,7 @@ struct gatt_interface_t {
                 },
         .BTA_GATTC_Refresh = [](const RawAddress& remote_bda) { BTA_GATTC_Refresh(remote_bda); },
         .BTA_GATTC_GetGattDb =
-                [](uint16_t conn_id, uint16_t start_handle, uint16_t end_handle,
+                [](tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
                    btgatt_db_element_t** db, int* count) {
                   BTA_GATTC_GetGattDb(conn_id, start_handle, end_handle, db, count);
                 },
@@ -127,9 +124,9 @@ struct gatt_interface_t {
                 [](tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb, bool eatt_support) {
                   BTA_GATTC_AppRegister(p_client_cb, cb, eatt_support);
                 },
-        .BTA_GATTC_Close = [](uint16_t conn_id) { BTA_GATTC_Close(conn_id); },
+        .BTA_GATTC_Close = [](tCONN_ID conn_id) { BTA_GATTC_Close(conn_id); },
         .BTA_GATTC_ServiceSearchRequest =
-                [](uint16_t conn_id, const bluetooth::Uuid* p_srvc_uuid) {
+                [](tCONN_ID conn_id, const bluetooth::Uuid* p_srvc_uuid) {
                   if (p_srvc_uuid) {
                     BTA_GATTC_ServiceSearchRequest(conn_id, *p_srvc_uuid);
                   } else {
@@ -149,27 +146,7 @@ gatt_interface_t& get_gatt_interface() { return *gatt_interface; }
 
 }  // namespace
 
-void bta_dm_disc_disable_search_and_disc() {
-  if (com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    log::info("No one should be calling this when flag is enabled");
-    return;
-  }
-  bta_dm_disc_legacy::bta_dm_disc_disable_search_and_disc();
-}
-
-void bta_dm_disc_disable_disc() {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    log::info("no-op when flag is disabled");
-    return;
-  }
-  bta_dm_disable_disc();
-}
-
 void bta_dm_disc_gatt_cancel_open(const RawAddress& bd_addr) {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_legacy::bta_dm_disc_gatt_cancel_open(bd_addr);
-    return;
-  }
   get_gatt_interface().BTA_GATTC_CancelOpen(0, bd_addr, false);
   if (com::android::bluetooth::flags::cancel_open_discovery_client() &&
       bta_dm_discovery_cb.client_if != BTA_GATTS_INVALID_IF) {
@@ -178,31 +155,15 @@ void bta_dm_disc_gatt_cancel_open(const RawAddress& bd_addr) {
 }
 
 void bta_dm_disc_gatt_refresh(const RawAddress& bd_addr) {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_legacy::bta_dm_disc_gatt_refresh(bd_addr);
-    return;
-  }
   get_gatt_interface().BTA_GATTC_Refresh(bd_addr);
 }
 
 void bta_dm_disc_remove_device(const RawAddress& bd_addr) {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_legacy::bta_dm_disc_remove_device(bd_addr);
-    return;
-  }
   if (bta_dm_discovery_cb.service_discovery_state == BTA_DM_DISCOVER_ACTIVE &&
       bta_dm_discovery_cb.peer_bdaddr == bd_addr) {
     log::info("Device removed while service discovery was pending, conclude the service discovery");
-    bta_dm_gatt_disc_complete((uint16_t)GATT_INVALID_CONN_ID, (tGATT_STATUS)GATT_ERROR);
+    bta_dm_gatt_disc_complete(GATT_INVALID_CONN_ID, (tGATT_STATUS)GATT_ERROR);
   }
-}
-
-void bta_dm_disc_gattc_register() {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_legacy::bta_dm_disc_gattc_register();
-    return;
-  }
-  bta_dm_gattc_register();
 }
 
 static void bta_dm_discovery_set_state(tBTA_DM_SERVICE_DISCOVERY_STATE state) {
@@ -217,15 +178,14 @@ static void bta_dm_discovery_cancel() {}
 
 /*******************************************************************************
  *
- * Function         bta_dm_disable_search_and_disc
+ * Function         bta_dm_disc_disable_disc
  *
- * Description      Cancels an ongoing search or discovery for devices in case
- *                  of a Bluetooth disable
+ * Description      Cancels an ongoing discovery in case of a Bluetooth disable
  *
  * Returns          void
  *
  ******************************************************************************/
-static void bta_dm_disable_disc(void) {
+void bta_dm_disc_disable_disc(void) {
   switch (bta_dm_discovery_get_state()) {
     case BTA_DM_DISCOVER_IDLE:
       break;
@@ -305,7 +265,7 @@ static void bta_dm_disc_result(tBTA_DM_SVC_RES& disc_result) {
     if (!r.gatt_uuids.empty()) {
       log::info("Sending GATT services discovered using SDP");
       // send GATT result back to app, if any
-      bta_dm_discovery_cb.service_search_cbacks.on_gatt_results(r.bd_addr, BD_NAME{}, r.gatt_uuids,
+      bta_dm_discovery_cb.service_search_cbacks.on_gatt_results(r.bd_addr, r.gatt_uuids,
                                                                 /* transport_le */ false);
     }
     bta_dm_discovery_cb.service_search_cbacks.on_service_discovery_results(r.bd_addr, r.uuids,
@@ -315,7 +275,7 @@ static void bta_dm_disc_result(tBTA_DM_SVC_RES& disc_result) {
     GAP_BleReadPeerPrefConnParams(bta_dm_discovery_cb.peer_bdaddr);
 
     bta_dm_discovery_cb.service_search_cbacks.on_gatt_results(bta_dm_discovery_cb.peer_bdaddr,
-                                                              BD_NAME{}, disc_result.gatt_uuids,
+                                                              disc_result.gatt_uuids,
                                                               /* transport_le */ true);
   }
 
@@ -395,7 +355,7 @@ static tBT_TRANSPORT bta_dm_determine_discovery_transport(const RawAddress& remo
 
 /* Discovers services on a remote device */
 static void bta_dm_discover_services(tBTA_DM_API_DISCOVER& discover) {
-  bta_dm_gattc_register();
+  bta_dm_disc_gattc_register();
 
   RawAddress bd_addr = discover.bd_addr;
   tBT_TRANSPORT transport = (discover.transport == BT_TRANSPORT_AUTO)
@@ -478,7 +438,7 @@ void bta_dm_disc_override_gatt_performer_for_testing(
 
 /*******************************************************************************
  *
- * Function         bta_dm_gattc_register
+ * Function         bta_dm_disc_gattc_register
  *
  * Description      Register with GATTC in DM if BLE is needed.
  *
@@ -486,7 +446,7 @@ void bta_dm_disc_override_gatt_performer_for_testing(
  * Returns          void
  *
  ******************************************************************************/
-static void bta_dm_gattc_register(void) {
+void bta_dm_disc_gattc_register(void) {
   if (bta_dm_discovery_cb.client_if != BTA_GATTS_INVALID_IF) {
     // Already registered
     return;
@@ -531,7 +491,7 @@ void bta_dm_gatt_finished(RawAddress bda, tBTA_STATUS result,
  * Parameters:
  *
  ******************************************************************************/
-static void bta_dm_gatt_disc_complete(uint16_t conn_id, tGATT_STATUS status) {
+static void bta_dm_gatt_disc_complete(tCONN_ID conn_id, tGATT_STATUS status) {
   bool sdp_pending = bta_dm_discovery_cb.transports & BT_TRANSPORT_BR_EDR;
   bool le_pending = bta_dm_discovery_cb.transports & BT_TRANSPORT_LE;
 
@@ -712,7 +672,7 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
       if (bta_dm_discovery_get_state() == BTA_DM_DISCOVER_ACTIVE) {
         /* in case of disconnect before search is completed */
         if (p_data->close.remote_bda == bta_dm_discovery_cb.peer_bdaddr) {
-          bta_dm_gatt_disc_complete((uint16_t)GATT_INVALID_CONN_ID, (tGATT_STATUS)GATT_ERROR);
+          bta_dm_gatt_disc_complete(GATT_INVALID_CONN_ID, (tGATT_STATUS)GATT_ERROR);
         }
       }
       break;
@@ -847,37 +807,16 @@ static void bta_dm_disc_reset() {
 }
 
 void bta_dm_disc_start(bool delay_close_gatt) {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_legacy::bta_dm_disc_start(delay_close_gatt);
-    return;
-  }
   bta_dm_disc_reset();
   bta_dm_discovery_cb.gatt_close_timer =
           delay_close_gatt ? alarm_new("bta_dm_search.gatt_close_timer") : nullptr;
   bta_dm_discovery_cb.pending_discovery_queue = {};
 }
 
-void bta_dm_disc_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_legacy::bta_dm_disc_acl_down(bd_addr, transport);
-    return;
-  }
-}
-
-void bta_dm_disc_stop() {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_legacy::bta_dm_disc_stop();
-    return;
-  }
-  bta_dm_disc_reset();
-}
+void bta_dm_disc_stop() { bta_dm_disc_reset(); }
 
 void bta_dm_disc_start_service_discovery(service_discovery_callbacks cbacks,
                                          const RawAddress& bd_addr, tBT_TRANSPORT transport) {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_legacy::bta_dm_disc_start_service_discovery(cbacks, bd_addr, transport);
-    return;
-  }
   bta_dm_disc_sm_execute(BTA_DM_API_DISCOVER_EVT,
                          std::make_unique<tBTA_DM_MSG>(tBTA_DM_API_DISCOVER{
                                  .bd_addr = bd_addr, .cbacks = cbacks, .transport = transport}));
@@ -885,10 +824,6 @@ void bta_dm_disc_start_service_discovery(service_discovery_callbacks cbacks,
 
 #define DUMPSYS_TAG "shim::legacy::bta::dm"
 void DumpsysBtaDmDisc(int fd) {
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_legacy::DumpsysBtaDmDisc(fd);
-    return;
-  }
   auto copy = discovery_state_history_.Pull();
   LOG_DUMPSYS(fd, " last %zu discovery state transitions", copy.size());
   for (const auto& it : copy) {

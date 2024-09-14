@@ -117,7 +117,7 @@ inline const std::string peer_stream_endpoint_text(int type) {
   }
 }
 
-/* initiator/acceptor role for adaption */
+/* initiator/acceptor role for adaptation */
 #define AVDT_INT 0 /* initiator */
 #define AVDT_ACP 1 /* acceptor */
 
