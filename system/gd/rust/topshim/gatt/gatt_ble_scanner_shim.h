@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef GD_RUST_TOPSHIM_GATT_GATT_BLE_SCANNER_SHIM_H
-#define GD_RUST_TOPSHIM_GATT_GATT_BLE_SCANNER_SHIM_H
+#ifndef SYSTEM_GD_RUST_TOPSHIM_GATT_GATT_BLE_SCANNER_SHIM_H_
+#define SYSTEM_GD_RUST_TOPSHIM_GATT_GATT_BLE_SCANNER_SHIM_H_
 
 #include <memory>
+#include <vector>
 
 #include "include/hardware/ble_scanner.h"
 #include "rust/cxx.h"
@@ -30,7 +31,7 @@ struct RustMsftAdvMonitor;
 
 class BleScannerIntf : public ScanningCallbacks {
 public:
-  BleScannerIntf(BleScannerInterface* scanner_intf) : scanner_intf_(scanner_intf) {}
+  explicit BleScannerIntf(BleScannerInterface* scanner_intf) : scanner_intf_(scanner_intf) {}
   ~BleScannerIntf() = default;
 
   // ScanningCallbacks overrides
@@ -92,13 +93,13 @@ public:
   bool IsMsftSupported();
 
   // Adds an MSFT filter. Gets responses via |OnMsftAdvMonitorAddCallback|.
-  void MsftAdvMonitorAdd(uint32_t call_id, const RustMsftAdvMonitor& monitor);
+  void MsftAdvMonitorAdd(const RustMsftAdvMonitor& monitor);
 
   // Removes a previously added MSFT scan filter.
-  void MsftAdvMonitorRemove(uint32_t call_id, uint8_t monitor_handle);
+  void MsftAdvMonitorRemove(uint8_t monitor_handle);
 
   // Enables or disables MSFT advertisement monitor.
-  void MsftAdvMonitorEnable(uint32_t call_id, bool enable);
+  void MsftAdvMonitorEnable(bool enable);
 
   // Sets the LE scan interval and window in units of N * 0.625 msec. The result
   // of this action is returned via |OnStatusCallback|.
@@ -160,9 +161,9 @@ private:
   void OnFilterConfigCallback(uint8_t filt_index, uint8_t filt_type, uint8_t avbl_space,
                               uint8_t action, uint8_t btm_status);
 #if TARGET_FLOSS
-  void OnMsftAdvMonitorAddCallback(uint32_t call_id, uint8_t monitor_handle, uint8_t status);
-  void OnMsftAdvMonitorRemoveCallback(uint32_t call_id, uint8_t status);
-  void OnMsftAdvMonitorEnableCallback(uint32_t call_id, uint8_t status);
+  void OnMsftAdvMonitorAddCallback(uint8_t monitor_handle, uint8_t status);
+  void OnMsftAdvMonitorRemoveCallback(uint8_t status);
+  void OnMsftAdvMonitorEnableCallback(uint8_t status);
 #endif
 
   BleScannerInterface* scanner_intf_;
@@ -174,4 +175,4 @@ std::unique_ptr<BleScannerIntf> GetBleScannerIntf(const unsigned char* gatt_intf
 }  // namespace topshim
 }  // namespace bluetooth
 
-#endif  // GD_RUST_TOPSHIM_GATT_GATT_BLE_SCANNER_SHIM_H
+#endif  // SYSTEM_GD_RUST_TOPSHIM_GATT_GATT_BLE_SCANNER_SHIM_H_

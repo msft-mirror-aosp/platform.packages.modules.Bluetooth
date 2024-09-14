@@ -102,7 +102,7 @@ std::optional<IBluetoothAudioProviderFactory::ProviderInfo>
 BluetoothAudioClientInterface::GetProviderInfo(
         SessionType session_type,
         std::shared_ptr<IBluetoothAudioProviderFactory> provider_factory) {
-  if (!is_aidl_available() || !com::android::bluetooth::flags::a2dp_offload_codec_extensibility()) {
+  if (!is_aidl_available()) {
     return std::nullopt;
   }
 
@@ -130,7 +130,7 @@ BluetoothAudioClientInterface::GetProviderInfo(
 std::optional<A2dpConfiguration> BluetoothAudioClientInterface::GetA2dpConfiguration(
         std::vector<A2dpRemoteCapabilities> const& remote_capabilities,
         A2dpConfigurationHint const& hint) const {
-  if (!is_aidl_available() || !com::android::bluetooth::flags::a2dp_offload_codec_extensibility()) {
+  if (!is_aidl_available()) {
     return std::nullopt;
   }
 

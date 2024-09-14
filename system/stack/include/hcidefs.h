@@ -878,6 +878,7 @@ typedef struct {
 #define HCI_BRCM_ACL_HIGH_PRIORITY_LOW_LATENCY 0xF3
 
 #define LMP_COMPID_GOOGLE 0xE0
+#define LMP_COMPID_INTEL 0x02
 
 // TODO(zachoverflow): remove this once broadcom specific hacks are removed
 #define LMP_COMPID_BROADCOM 15
@@ -893,6 +894,8 @@ typedef struct {
 
 // TODO Remove this once all Mediatek specific hacks are removed.
 #define LMP_COMPID_MEDIATEK 0x0046
+
+#define LMP_SUBVERSION_INTEL_AC7265 0x1100
 
 /* Parameter information for HCI_SYNA_SET_ACL_PRIORITY */
 #define HCI_SYNA_ACL_PRIORITY_PARAM_SIZE 3
