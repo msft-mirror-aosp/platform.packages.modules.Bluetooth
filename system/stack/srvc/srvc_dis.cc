@@ -101,7 +101,7 @@ uint8_t dis_read_attr_value(uint8_t /* clcb_idx */, uint16_t /* handle */,
  * Returns          void
  *
  ******************************************************************************/
-static void dis_gatt_c_read_dis_value_cmpl(uint16_t conn_id) {
+static void dis_gatt_c_read_dis_value_cmpl(tCONN_ID conn_id) {
   tSRVC_CLCB* p_clcb = srvc_eng_find_clcb_by_conn_id(conn_id);
 
   dis_cb.dis_read_uuid_idx = 0xff;
@@ -143,7 +143,7 @@ static void dis_gatt_c_read_dis_value_cmpl(uint16_t conn_id) {
  * Returns          void
  *
  ******************************************************************************/
-bool dis_gatt_c_read_dis_req(uint16_t conn_id) {
+bool dis_gatt_c_read_dis_req(tCONN_ID conn_id) {
   tGATT_READ_PARAM param;
 
   memset(&param, 0, sizeof(tGATT_READ_PARAM));
@@ -184,7 +184,7 @@ void dis_c_cmpl_cback(tSRVC_CLCB* p_clcb, tGATTC_OPTYPE op, tGATT_STATUS status,
                       tGATT_CL_COMPLETE* p_data) {
   uint16_t read_type;
   uint8_t *pp = NULL, *p_str;
-  uint16_t conn_id = p_clcb->conn_id;
+  tCONN_ID conn_id = p_clcb->conn_id;
 
   if (dis_cb.dis_read_uuid_idx >= (sizeof(dis_attr_uuid) / sizeof(dis_attr_uuid[0]))) {
     log::error("invalid dis_cb.dis_read_uuid_idx");
@@ -260,7 +260,7 @@ void dis_c_cmpl_cback(tSRVC_CLCB* p_clcb, tGATTC_OPTYPE op, tGATT_STATUS status,
  *
  ******************************************************************************/
 bool DIS_ReadDISInfo(const RawAddress& peer_bda, tDIS_READ_CBACK* p_cback, tDIS_ATTR_MASK mask) {
-  uint16_t conn_id;
+  tCONN_ID conn_id;
 
   /* Initialize the DIS client if it hasn't been initialized already. */
   srvc_eng_init();

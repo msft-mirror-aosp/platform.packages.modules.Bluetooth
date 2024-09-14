@@ -50,13 +50,6 @@ using ::aidl::android::hardware::bluetooth::audio::SessionType;
  * extensibility is disabled.
  ***/
 std::unique_ptr<ProviderInfo> ProviderInfo::GetProviderInfo(bool supports_a2dp_hw_offload_v2) {
-  if (!com::android::bluetooth::flags::a2dp_offload_codec_extensibility()) {
-    log::info(
-            "a2dp offload codec extensibility is disabled,"
-            " not going to load the ProviderInfo");
-    return nullptr;
-  }
-
   if (!supports_a2dp_hw_offload_v2) {
     log::info(
             "a2dp hw offload v2 is not supported by the controller,"
