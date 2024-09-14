@@ -10,3 +10,10 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "encryption_change_v2"
+    namespace: "bluetooth"
+    description: "Enable encryption change V2 event"
+    bug: "366018699"
+}

@@ -91,7 +91,7 @@ public:
    */
   bool connecting_actively = false;
 
-  uint16_t conn_id = GATT_INVALID_CONN_ID;
+  tCONN_ID conn_id = GATT_INVALID_CONN_ID;
   uint16_t service_handle = GAP_INVALID_HANDLE;
   bool is_gatt_service_valid = false;
 
@@ -114,10 +114,10 @@ public:
 
   class MatchConnId {
   private:
-    uint16_t conn_id;
+    tCONN_ID conn_id;
 
   public:
-    MatchConnId(uint16_t conn_id) : conn_id(conn_id) {}
+    MatchConnId(tCONN_ID conn_id) : conn_id(conn_id) {}
     bool operator()(const std::shared_ptr<GattServiceDevice>& other) const {
       return conn_id == other->conn_id;
     }

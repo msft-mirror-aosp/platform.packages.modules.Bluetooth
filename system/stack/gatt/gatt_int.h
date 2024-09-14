@@ -38,11 +38,6 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
-#define GATT_CREATE_CONN_ID(tcb_idx, gatt_if) \
-  ((uint16_t)((((uint8_t)(tcb_idx)) << 8) | ((uint8_t)(gatt_if))))
-#define GATT_GET_TCB_IDX(conn_id) ((uint8_t)(((uint16_t)(conn_id)) >> 8))
-#define GATT_GET_GATT_IF(conn_id) ((tGATT_IF)((uint8_t)(conn_id)))
-
 #define GATT_TRANS_ID_MAX 0x0fffffff /* 4 MSB is reserved */
 #define GATT_CL_RCB_MAX 255          /* Maximum number of cl_rcb */
 
@@ -342,7 +337,7 @@ typedef struct {
 
   /* ATT Exchange MTU data */
   uint16_t pending_user_mtu_exchange_value;
-  std::list<uint16_t> conn_ids_waiting_for_mtu_exchange;
+  std::list<tCONN_ID> conn_ids_waiting_for_mtu_exchange;
   /* Used to set proper TX DATA LEN on the controller*/
   uint16_t max_user_mtu;
 
@@ -360,7 +355,7 @@ struct tGATT_CLCB {
   uint8_t sccb_idx;
   uint8_t* p_attr_buf; /* attribute buffer for read multiple, prepare write */
   bluetooth::Uuid uuid;
-  uint16_t conn_id;  /* connection handle */
+  tCONN_ID conn_id;  /* connection handle */
   uint16_t s_handle; /* starting handle of the active request */
   uint16_t e_handle; /* ending handle of the active request */
   uint16_t counter;  /* used as offset, attribute length, num of prepare write */
@@ -391,7 +386,7 @@ typedef struct {
 #define GATT_SVC_CHANGED_CONFIGURE_CCCD 5 /* config CCC */
 
 typedef struct {
-  uint16_t conn_id;
+  tCONN_ID conn_id;
   bool in_use;
   bool connected;
   RawAddress bda;
@@ -519,10 +514,10 @@ void gatt_chk_srv_chg(tGATTS_SRV_CHG* p_srv_chg_clt);
 void gatt_add_a_bonded_dev_for_srv_chg(const RawAddress& bda);
 
 /* from gatt_attr.cc */
-uint16_t gatt_profile_find_conn_id_by_bd_addr(const RawAddress& bda);
+tCONN_ID gatt_profile_find_conn_id_by_bd_addr(const RawAddress& bda);
 
 bool gatt_profile_get_eatt_support(const RawAddress& remote_bda);
-bool gatt_profile_get_eatt_support_by_conn_id(uint16_t conn_id);
+bool gatt_profile_get_eatt_support_by_conn_id(tCONN_ID conn_id);
 void gatt_cl_init_sr_status(tGATT_TCB& tcb);
 bool gatt_cl_read_sr_supp_feat_req(const RawAddress& peer_bda,
                                    base::OnceCallback<void(const RawAddress&, uint8_t)> cb);
@@ -576,6 +571,9 @@ void gatt_delete_dev_from_srv_chg_clt_list(const RawAddress& bd_addr);
 void gatt_add_pending_ind(tGATT_TCB* p_tcb, tGATT_VALUE* p_ind);
 void gatt_free_srvc_db_buffer_app_id(const bluetooth::Uuid& app_id);
 bool gatt_cl_send_next_cmd_inq(tGATT_TCB& tcb);
+tCONN_ID gatt_create_conn_id(tTCB_IDX tcb_idx, tGATT_IF gatt_if);
+tTCB_IDX gatt_get_tcb_idx(tCONN_ID conn_id);
+tGATT_IF gatt_get_gatt_if(tCONN_ID conn_id);
 
 /* reserved handle list */
 std::list<tGATT_HDL_LIST_ELEM>::iterator gatt_find_hdl_buffer_by_app_id(
@@ -593,7 +591,7 @@ tGATT_STATUS gatt_sr_process_app_rsp(tGATT_TCB& tcb, tGATT_IF gatt_if, uint32_t 
                                      tGATT_SR_CMD* sr_res_p);
 void gatt_server_handle_client_req(tGATT_TCB& p_tcb, uint16_t cid, uint8_t op_code, uint16_t len,
                                    uint8_t* p_data);
-void gatt_sr_send_req_callback(uint16_t conn_id, uint32_t trans_id, uint8_t op_code,
+void gatt_sr_send_req_callback(tCONN_ID conn_id, uint32_t trans_id, uint8_t op_code,
                                tGATTS_DATA* p_req_data);
 uint32_t gatt_sr_enqueue_cmd(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t handle);
 bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda);
@@ -605,8 +603,8 @@ void gatt_notify_subrate_change(uint16_t handle, uint16_t subrate_factor, uint16
 bool gatt_tcb_is_cid_busy(tGATT_TCB& tcb, uint16_t cid);
 
 tGATT_REG* gatt_get_regcb(tGATT_IF gatt_if);
-bool gatt_is_clcb_allocated(uint16_t conn_id);
-tGATT_CLCB* gatt_clcb_alloc(uint16_t conn_id);
+bool gatt_is_clcb_allocated(tCONN_ID conn_id);
+tGATT_CLCB* gatt_clcb_alloc(tCONN_ID conn_id);
 
 bool gatt_tcb_get_cid_available_for_indication(tGATT_TCB* p_tcb, bool eatt_support,
                                                uint16_t** indicate_handle_p, uint16_t* cid_p);
@@ -617,7 +615,7 @@ std::string gatt_tcb_get_holders_info_string(const tGATT_TCB* p_tcb);
 void gatt_clcb_invalidate(tGATT_TCB* p_tcb, const tGATT_CLCB* p_clcb);
 uint16_t gatt_get_mtu(const RawAddress& bda, tBT_TRANSPORT transport);
 bool gatt_is_pending_mtu_exchange(tGATT_TCB* p_tcb);
-void gatt_set_conn_id_waiting_for_mtu_exchange(tGATT_TCB* p_tcb, uint16_t conn_id);
+void gatt_set_conn_id_waiting_for_mtu_exchange(tGATT_TCB* p_tcb, tCONN_ID conn_id);
 
 void gatt_sr_copy_prep_cnt_to_cback_cnt(tGATT_TCB& p_tcb);
 bool gatt_sr_is_cback_cnt_zero(tGATT_TCB& p_tcb);

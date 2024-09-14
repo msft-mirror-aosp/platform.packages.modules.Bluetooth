@@ -32,7 +32,6 @@
 
 #include "device/include/device_iot_config.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/include/acl_api.h"

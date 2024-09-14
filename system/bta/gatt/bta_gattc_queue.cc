@@ -43,14 +43,14 @@ struct gatt_read_op_data {
   void* cb_data;
 };
 
-std::unordered_map<uint16_t, std::list<gatt_operation>> BtaGattQueue::gatt_op_queue;
-std::unordered_set<uint16_t> BtaGattQueue::gatt_op_queue_executing;
+std::unordered_map<tCONN_ID, std::list<gatt_operation>> BtaGattQueue::gatt_op_queue;
+std::unordered_set<tCONN_ID> BtaGattQueue::gatt_op_queue_executing;
 
-void BtaGattQueue::mark_as_not_executing(uint16_t conn_id) {
+void BtaGattQueue::mark_as_not_executing(tCONN_ID conn_id) {
   gatt_op_queue_executing.erase(conn_id);
 }
 
-void BtaGattQueue::gatt_read_op_finished(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+void BtaGattQueue::gatt_read_op_finished(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                          uint16_t len, uint8_t* value, void* data) {
   gatt_read_op_data* tmp = (gatt_read_op_data*)data;
   GATT_READ_OP_CB tmp_cb = tmp->cb;
@@ -72,7 +72,7 @@ struct gatt_write_op_data {
   void* cb_data;
 };
 
-void BtaGattQueue::gatt_write_op_finished(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+void BtaGattQueue::gatt_write_op_finished(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                           uint16_t len, const uint8_t* value, void* data) {
   gatt_write_op_data* tmp = (gatt_write_op_data*)data;
   GATT_WRITE_OP_CB tmp_cb = tmp->cb;
@@ -94,7 +94,7 @@ struct gatt_configure_mtu_op_data {
   void* cb_data;
 };
 
-void BtaGattQueue::gatt_configure_mtu_op_finished(uint16_t conn_id, tGATT_STATUS status,
+void BtaGattQueue::gatt_configure_mtu_op_finished(tCONN_ID conn_id, tGATT_STATUS status,
                                                   void* data) {
   gatt_configure_mtu_op_data* tmp = (gatt_configure_mtu_op_data*)data;
   GATT_CONFIGURE_MTU_OP_CB tmp_cb = tmp->cb;
@@ -128,7 +128,7 @@ struct gatt_read_multi_simulate_op_data {
   uint16_t values_end;
 };
 
-void BtaGattQueue::gatt_read_multi_op_finished(uint16_t conn_id, tGATT_STATUS status,
+void BtaGattQueue::gatt_read_multi_op_finished(tCONN_ID conn_id, tGATT_STATUS status,
                                                tBTA_GATTC_MULTI& handles, uint16_t len,
                                                uint8_t* value, void* data) {
   gatt_read_multi_op_data* tmp = (gatt_read_multi_op_data*)data;
@@ -146,7 +146,7 @@ void BtaGattQueue::gatt_read_multi_op_finished(uint16_t conn_id, tGATT_STATUS st
   }
 }
 
-void BtaGattQueue::gatt_read_multi_op_simulate(uint16_t conn_id, tGATT_STATUS status,
+void BtaGattQueue::gatt_read_multi_op_simulate(tCONN_ID conn_id, tGATT_STATUS status,
                                                uint16_t handle, uint16_t len, uint8_t* value,
                                                void* data_read) {
   gatt_read_multi_simulate_op_data* data = (gatt_read_multi_simulate_op_data*)data_read;
@@ -191,7 +191,7 @@ void BtaGattQueue::gatt_read_multi_op_simulate(uint16_t conn_id, tGATT_STATUS st
   }
 }
 
-void BtaGattQueue::gatt_execute_next_op(uint16_t conn_id) {
+void BtaGattQueue::gatt_execute_next_op(tCONN_ID conn_id) {
   log::verbose("conn_id=0x{:x}", conn_id);
   if (gatt_op_queue.empty()) {
     log::verbose("op queue is empty");
@@ -284,26 +284,26 @@ void BtaGattQueue::gatt_execute_next_op(uint16_t conn_id) {
   gatt_ops.pop_front();
 }
 
-void BtaGattQueue::Clean(uint16_t conn_id) {
+void BtaGattQueue::Clean(tCONN_ID conn_id) {
   gatt_op_queue.erase(conn_id);
   gatt_op_queue_executing.erase(conn_id);
 }
 
-void BtaGattQueue::ReadCharacteristic(uint16_t conn_id, uint16_t handle, GATT_READ_OP_CB cb,
+void BtaGattQueue::ReadCharacteristic(tCONN_ID conn_id, uint16_t handle, GATT_READ_OP_CB cb,
                                       void* cb_data) {
   gatt_op_queue[conn_id].push_back(
           {.type = GATT_READ_CHAR, .handle = handle, .read_cb = cb, .read_cb_data = cb_data});
   gatt_execute_next_op(conn_id);
 }
 
-void BtaGattQueue::ReadDescriptor(uint16_t conn_id, uint16_t handle, GATT_READ_OP_CB cb,
+void BtaGattQueue::ReadDescriptor(tCONN_ID conn_id, uint16_t handle, GATT_READ_OP_CB cb,
                                   void* cb_data) {
   gatt_op_queue[conn_id].push_back(
           {.type = GATT_READ_DESC, .handle = handle, .read_cb = cb, .read_cb_data = cb_data});
   gatt_execute_next_op(conn_id);
 }
 
-void BtaGattQueue::WriteCharacteristic(uint16_t conn_id, uint16_t handle,
+void BtaGattQueue::WriteCharacteristic(tCONN_ID conn_id, uint16_t handle,
                                        std::vector<uint8_t> value, tGATT_WRITE_TYPE write_type,
                                        GATT_WRITE_OP_CB cb, void* cb_data) {
   gatt_op_queue[conn_id].push_back({.type = GATT_WRITE_CHAR,
@@ -315,7 +315,7 @@ void BtaGattQueue::WriteCharacteristic(uint16_t conn_id, uint16_t handle,
   gatt_execute_next_op(conn_id);
 }
 
-void BtaGattQueue::WriteDescriptor(uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
+void BtaGattQueue::WriteDescriptor(tCONN_ID conn_id, uint16_t handle, std::vector<uint8_t> value,
                                    tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
                                    void* cb_data) {
   gatt_op_queue[conn_id].push_back({.type = GATT_WRITE_DESC,
@@ -327,14 +327,14 @@ void BtaGattQueue::WriteDescriptor(uint16_t conn_id, uint16_t handle, std::vecto
   gatt_execute_next_op(conn_id);
 }
 
-void BtaGattQueue::ConfigureMtu(uint16_t conn_id, uint16_t mtu) {
+void BtaGattQueue::ConfigureMtu(tCONN_ID conn_id, uint16_t mtu) {
   log::info("mtu: {}", static_cast<int>(mtu));
   std::vector<uint8_t> value = {static_cast<uint8_t>(mtu & 0xff), static_cast<uint8_t>(mtu >> 8)};
   gatt_op_queue[conn_id].push_back({.type = GATT_CONFIG_MTU, .value = std::move(value)});
   gatt_execute_next_op(conn_id);
 }
 
-void BtaGattQueue::ReadMultiCharacteristic(uint16_t conn_id, tBTA_GATTC_MULTI& handles,
+void BtaGattQueue::ReadMultiCharacteristic(tCONN_ID conn_id, tBTA_GATTC_MULTI& handles,
                                            GATT_READ_MULTI_OP_CB cb, void* cb_data) {
   gatt_op_queue[conn_id].push_back({.type = GATT_READ_MULTI,
                                     .handles = handles,

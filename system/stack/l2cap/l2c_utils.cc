@@ -43,9 +43,9 @@
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hcidefs.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cap_hci_link_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/l2cap/l2c_int.h"
 #include "types/raw_address.h"
@@ -1765,7 +1765,7 @@ void l2cu_release_rcb(tL2C_RCB* p_rcb) {
  *
  ******************************************************************************/
 void l2cu_release_ble_rcb(tL2C_RCB* p_rcb) {
-  L2CA_FreeLePSM(p_rcb->psm);
+  stack::l2cap::get_interface().L2CA_FreeLePSM(p_rcb->psm);
   p_rcb->in_use = false;
   p_rcb->psm = 0;
 }

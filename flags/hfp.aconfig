@@ -9,13 +9,6 @@ flag {
 }
 
 flag {
-    name: "hfp_codec_aptx_voice"
-    namespace: "bluetooth"
-    description: "AptX Voice codec support for HFP calls"
-    bug: "308497929"
-}
-
-flag {
     name: "is_sco_managed_by_audio"
     namespace: "bluetooth"
     description: "start and stop of the SCO is managed by Audio instead of Bluetooth"

@@ -811,8 +811,7 @@ public class LeAudioServiceTest {
 
         // stack event: CONNECTION_STATE_DISCONNECTED - state machine should not be created
         generateUnexpectedConnectionMessageFromNative(
-                mLeftDevice,
-                BluetoothProfile.STATE_DISCONNECTED);
+                mLeftDevice, BluetoothProfile.STATE_DISCONNECTED);
         assertThat(mService.getConnectionState(mLeftDevice))
                 .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
         assertThat(mService.getDevices().contains(mLeftDevice)).isFalse();
