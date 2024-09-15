@@ -22,8 +22,6 @@ import android.content.Context
 import android.content.res.Resources
 import android.os.Looper
 import android.os.UserHandle
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.FlagsParameterization
 import android.platform.test.flag.junit.SetFlagsRule
 import android.provider.Settings
@@ -66,10 +64,7 @@ class ModeListenerTest(flags: FlagsParameterization) {
         @JvmStatic
         @Parameters(name = "{0}")
         fun getParams() =
-            FlagsParameterization.allCombinationsOf(
-                Flags.FLAG_AIRPLANE_MODE_X_BLE_ON,
-                Flags.FLAG_GET_STATE_FROM_SYSTEM_SERVER
-            )
+            FlagsParameterization.allCombinationsOf(Flags.FLAG_GET_STATE_FROM_SYSTEM_SERVER)
 
         internal fun setupAirplaneModeToOn(
             resolver: ContentResolver,
@@ -282,7 +277,6 @@ class ModeListenerTest(flags: FlagsParameterization) {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_AIRPLANE_MODE_X_BLE_ON)
     fun disable_whenBluetoothOn_discardUpdate() {
         initializeAirplane()
         enableMode()
@@ -292,20 +286,6 @@ class ModeListenerTest(flags: FlagsParameterization) {
 
         assertThat(isOnOverrode).isFalse()
         assertThat(mode).containsExactly(true)
-    }
-
-    // Test to remove once AIRPLANE_MODE_X_BLE_ON has shipped
-    @Test
-    @DisableFlags(Flags.FLAG_AIRPLANE_MODE_X_BLE_ON)
-    fun disable_whenBluetoothOn_notDiscardUpdate() {
-        initializeAirplane()
-        enableMode()
-
-        state.set(BluetoothAdapter.STATE_ON)
-        disableMode()
-
-        assertThat(isOnOverrode).isFalse()
-        assertThat(mode).containsExactly(true, false)
     }
 
     @Test

@@ -56,7 +56,6 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_status.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_interface.h"
 #include "storage/config_keys.h"
 #include "types/hci_role.h"
@@ -360,7 +359,8 @@ void bta_av_proc_stream_evt(uint8_t handle, const RawAddress& bd_addr, uint8_t e
   }
 
   if (p_scb) {
-    tBTA_AV_STR_MSG* p_msg = (tBTA_AV_STR_MSG*)osi_malloc(sizeof(tBTA_AV_STR_MSG) + sec_len);
+    tBTA_AV_STR_MSG* p_msg =
+            reinterpret_cast<tBTA_AV_STR_MSG*>(osi_malloc(sizeof(tBTA_AV_STR_MSG) + sec_len));
 
     /* copy event data, bd addr, and handle to event message buffer */
     p_msg->hdr.offset = 0;
@@ -378,12 +378,12 @@ void bta_av_proc_stream_evt(uint8_t handle, const RawAddress& bd_addr, uint8_t e
           break;
 
         case AVDT_SECURITY_IND_EVT:
-          p_msg->msg.security_ind.p_data = (uint8_t*)(p_msg + 1);
+          p_msg->msg.security_ind.p_data = reinterpret_cast<uint8_t*>(p_msg + 1);
           memcpy(p_msg->msg.security_ind.p_data, p_data->security_ind.p_data, sec_len);
           break;
 
         case AVDT_SECURITY_CFM_EVT:
-          p_msg->msg.security_cfm.p_data = (uint8_t*)(p_msg + 1);
+          p_msg->msg.security_cfm.p_data = reinterpret_cast<uint8_t*>(p_msg + 1);
           if (p_data->hdr.err_code == 0) {
             memcpy(p_msg->msg.security_cfm.p_data, p_data->security_cfm.p_data, sec_len);
           }
@@ -446,8 +446,8 @@ void bta_av_sink_data_cback(uint8_t handle, BT_HDR* p_pkt, uint32_t time_stamp, 
   log::verbose(
           "avdt_handle: {} pkt_len=0x{:x}  offset = 0x{:x} number of frames 0x{:x} "
           "sequence number 0x{:x}",
-          handle, p_pkt->len, p_pkt->offset, *((uint8_t*)(p_pkt + 1) + p_pkt->offset),
-          p_pkt->layer_specific);
+          handle, p_pkt->len, p_pkt->offset,
+          *(reinterpret_cast<uint8_t*>(p_pkt + 1) + p_pkt->offset), p_pkt->layer_specific);
   /* Get SCB and correct sep type */
   for (index = 0; index < BTA_AV_NUM_STRS; index++) {
     p_scb = bta_av_cb.p_scb[index];
@@ -461,8 +461,9 @@ void bta_av_sink_data_cback(uint8_t handle, BT_HDR* p_pkt, uint32_t time_stamp, 
     return;
   }
   p_pkt->event = BTA_AV_SINK_MEDIA_DATA_EVT;
-  p_scb->seps[p_scb->sep_idx].p_app_sink_data_cback(
-          p_scb->PeerAddress(), BTA_AV_SINK_MEDIA_DATA_EVT, (tBTA_AV_MEDIA*)p_pkt);
+  p_scb->seps[p_scb->sep_idx].p_app_sink_data_cback(p_scb->PeerAddress(),
+                                                    BTA_AV_SINK_MEDIA_DATA_EVT,
+                                                    reinterpret_cast<tBTA_AV_MEDIA*>(p_pkt));
   /* Free the buffer: a copy of the packet has been delivered */
   osi_free(p_pkt);
 }
@@ -500,7 +501,7 @@ static void bta_av_a2dp_sdp_cback(bool found, tA2DP_Service* p_service,
   }
   log::verbose("peer {} found={}", p_scb->PeerAddress(), found);
 
-  tBTA_AV_SDP_RES* p_msg = (tBTA_AV_SDP_RES*)osi_malloc(sizeof(tBTA_AV_SDP_RES));
+  tBTA_AV_SDP_RES* p_msg = reinterpret_cast<tBTA_AV_SDP_RES*>(osi_malloc(sizeof(tBTA_AV_SDP_RES)));
   if (found) {
     p_msg->hdr.event = BTA_AV_SDP_DISC_OK_EVT;
   } else {
@@ -596,7 +597,7 @@ void bta_av_switch_role(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
     p_scb->wait &= ~BTA_AV_WAIT_ROLE_SW_RETRY;
     p_scb->q_tag = 0;
     p_buf->switch_res = switch_res;
-    bta_av_do_disc_a2dp(p_scb, (tBTA_AV_DATA*)p_buf);
+    bta_av_do_disc_a2dp(p_scb, reinterpret_cast<tBTA_AV_DATA*>(p_buf));
   }
 }
 
@@ -671,7 +672,7 @@ void bta_av_role_res(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       } else {
         /* Continue av open process */
         p_scb->q_info.open.switch_res = BTA_AV_RS_DONE;
-        bta_av_do_disc_a2dp(p_scb, (tBTA_AV_DATA*)&(p_scb->q_info.open));
+        bta_av_do_disc_a2dp(p_scb, reinterpret_cast<tBTA_AV_DATA*>(&(p_scb->q_info.open)));
       }
     } else {
       log::warn("peer {} unexpected role switch event: q_tag = {} wait = 0x{:x}",
@@ -739,7 +740,7 @@ void bta_av_do_disc_a2dp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       break;
 
     case BTA_AV_RS_OK:
-      p_data = (tBTA_AV_DATA*)&p_scb->q_info.open;
+      p_data = reinterpret_cast<tBTA_AV_DATA*>(&p_scb->q_info.open);
       /* continue to open if link role is ok */
       if (bta_av_link_role_ok(p_scb, A2DP_SET_MULTL_BIT)) {
         ok_continue = true;
@@ -864,12 +865,12 @@ void bta_av_cleanup(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
       p_scb->seps[i].av_handle = 0;
     }
 
-    bta_av_dereg_comp((tBTA_AV_DATA*)&msg);
+    bta_av_dereg_comp(reinterpret_cast<tBTA_AV_DATA*>(&msg));
   } else {
     /* report stream closed to main SM */
     msg.is_up = false;
     msg.peer_addr = p_scb->PeerAddress();
-    bta_av_conn_chg((tBTA_AV_DATA*)&msg);
+    bta_av_conn_chg(reinterpret_cast<tBTA_AV_DATA*>(&msg));
   }
 }
 
@@ -901,7 +902,7 @@ void bta_av_config_ind(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   const AvdtpSepConfig* p_evt_cfg = &p_data->str_msg.cfg;
   uint8_t psc_mask = (p_evt_cfg->psc_mask | p_scb->cfg.psc_mask);
   uint8_t local_sep; /* sep type of local handle on which connection was received */
-  tBTA_AV_STR_MSG* p_msg = (tBTA_AV_STR_MSG*)p_data;
+  tBTA_AV_STR_MSG* p_msg = reinterpret_cast<tBTA_AV_STR_MSG*>(p_data);
 
   local_sep = bta_av_get_scb_sep_type(p_scb, p_msg->handle);
   p_scb->avdt_label = p_data->str_msg.msg.hdr.label;
@@ -924,7 +925,8 @@ void bta_av_config_ind(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
        (psc_mask != (p_scb->cfg.psc_mask & ~AVDT_PSC_DELAY_RPT)))) {
     setconfig.hndl = p_scb->hndl; /* we may not need this */
     setconfig.err_code = AVDT_ERR_UNSUP_CFG;
-    bta_av_ssm_execute(p_scb, BTA_AV_CI_SETCONFIG_FAIL_EVT, (tBTA_AV_DATA*)&setconfig);
+    bta_av_ssm_execute(p_scb, BTA_AV_CI_SETCONFIG_FAIL_EVT,
+                       reinterpret_cast<tBTA_AV_DATA*>(&setconfig));
   } else {
     p_info = &p_scb->sep_info[0];
     p_info->in_use = 0;
@@ -1160,7 +1162,7 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   msg.is_up = true;
   msg.peer_addr = p_scb->PeerAddress();
   p_scb->l2c_cid = AVDT_GetL2CapChannel(p_scb->avdt_handle);
-  bta_av_conn_chg((tBTA_AV_DATA*)&msg);
+  bta_av_conn_chg(reinterpret_cast<tBTA_AV_DATA*>(&msg));
   /* set the congestion flag, so AV would not send media packets by accident */
   p_scb->cong = true;
   // Don't use AVDTP SUSPEND for restrict listed devices
@@ -1273,9 +1275,8 @@ void bta_av_security_ind(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
                     },
     };
     (*bta_av_cb.p_cback)(BTA_AV_PROTECT_REQ_EVT, &bta_av_data);
-  }
-  /* app doesn't support security indication; respond with failure */
-  else {
+  } else {
+    /* app doesn't support security indication; respond with failure */
     AVDT_SecurityRsp(p_scb->avdt_handle, p_scb->avdt_label, AVDT_ERR_NSC, NULL, 0);
   }
 }
@@ -1459,16 +1460,15 @@ void bta_av_disc_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   p_scb->num_disc_snks = num_snks;
   p_scb->num_disc_srcs = num_srcs;
 
-  /* if we got any */
   if (p_scb->num_seps > 0) {
+    /* if we got any */
     /* initialize index into discovery results */
     p_scb->sep_info_idx = 0;
 
     /* get the capabilities of the first available stream */
     bta_av_next_getcap(p_scb, p_data);
-  }
-  /* else we got discover response but with no streams; we're done */
-  else {
+  } else {
+    /* else we got discover response but with no streams; we're done */
     log::error("BTA_AV_STR_DISC_FAIL_EVT: peer_addr={}", p_scb->PeerAddress());
     bta_av_ssm_execute(p_scb, BTA_AV_STR_DISC_FAIL_EVT, p_data);
   }
@@ -1506,16 +1506,15 @@ void bta_av_disc_res_as_acp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   p_scb->num_disc_snks = num_snks;
   p_scb->num_disc_srcs = 0;
 
-  /* if we got any */
   if (p_scb->num_seps > 0) {
+    /* if we got any */
     /* initialize index into discovery results */
     p_scb->sep_info_idx = 0;
 
     /* get the capabilities of the first available stream */
     bta_av_next_getcap(p_scb, p_data);
-  }
-  /* else we got discover response but with no streams; we're done */
-  else {
+  } else {
+    /* else we got discover response but with no streams; we're done */
     log::error("BTA_AV_STR_DISC_FAIL_EVT: peer_addr={}", p_scb->PeerAddress());
     bta_av_ssm_execute(p_scb, BTA_AV_STR_DISC_FAIL_EVT, p_data);
   }
@@ -1928,7 +1927,7 @@ void bta_av_str_stopped(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   /* if q_info.a2dp_list is not empty, drop it now */
   if (BTA_AV_CHNL_AUDIO == p_scb->chnl) {
     while (!list_is_empty(p_scb->a2dp_list)) {
-      p_buf = (BT_HDR*)list_front(p_scb->a2dp_list);
+      p_buf = reinterpret_cast<BT_HDR*>(list_front(p_scb->a2dp_list));
       list_remove(p_scb->a2dp_list, p_buf);
       osi_free(p_buf);
     }
@@ -2034,7 +2033,7 @@ void bta_av_reconfig(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       stop.flush = false;
       stop.suspend = true;
       stop.reconfig_stop = false;
-      bta_av_str_stopped(p_scb, (tBTA_AV_DATA*)&stop);
+      bta_av_str_stopped(p_scb, reinterpret_cast<tBTA_AV_DATA*>(&stop));
     } else {
       // Reconfigure
       log::verbose("reconfig");
@@ -2054,7 +2053,7 @@ void bta_av_reconfig(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
         stop.flush = false;
         stop.suspend = false;
         stop.reconfig_stop = true;
-        bta_av_str_stopped(p_scb, (tBTA_AV_DATA*)&stop);
+        bta_av_str_stopped(p_scb, reinterpret_cast<tBTA_AV_DATA*>(&stop));
       } else {
         bta_av_str_stopped(p_scb, NULL);
       }
@@ -2107,10 +2106,10 @@ void bta_av_data_path(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
                                                                              L2CAP_FLUSH_CHANS_GET);
 
   if (!list_is_empty(p_scb->a2dp_list)) {
-    p_buf = (BT_HDR*)list_front(p_scb->a2dp_list);
+    p_buf = reinterpret_cast<BT_HDR*>(list_front(p_scb->a2dp_list));
     list_remove(p_scb->a2dp_list, p_buf);
     /* use q_info.a2dp data, read the timestamp */
-    timestamp = *(uint32_t*)(p_buf + 1);
+    timestamp = *reinterpret_cast<uint32_t*>(p_buf + 1);
   } else {
     new_buf = true;
     /* A2DP_list empty, call co_data, dup data to other channels */
@@ -2118,7 +2117,7 @@ void bta_av_data_path(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
 
     if (p_buf) {
       /* use the offset area for the time stamp */
-      *(uint32_t*)(p_buf + 1) = timestamp;
+      *reinterpret_cast<uint32_t*>(p_buf + 1) = timestamp;
 
       /* dup the data to other channels */
       bta_av_dup_audio_buf(p_scb, p_buf);
@@ -2150,8 +2149,8 @@ void bta_av_data_path(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
       std::vector<BT_HDR*> extra_fragments;
       extra_fragments.reserve(extra_fragments_n);
 
-      uint8_t* data_begin = (uint8_t*)(p_buf + 1) + p_buf->offset;
-      uint8_t* data_end = (uint8_t*)(p_buf + 1) + p_buf->offset + p_buf->len;
+      uint8_t* data_begin = reinterpret_cast<uint8_t*>(p_buf + 1) + p_buf->offset;
+      uint8_t* data_end = reinterpret_cast<uint8_t*>(p_buf + 1) + p_buf->offset + p_buf->len;
       while (extra_fragments_n-- > 0) {
         data_begin += p_scb->stream_mtu;
         size_t fragment_len = data_end - data_begin;
@@ -2159,11 +2158,11 @@ void bta_av_data_path(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
           fragment_len = p_scb->stream_mtu;
         }
 
-        BT_HDR* p_buf2 = (BT_HDR*)osi_malloc(BT_DEFAULT_BUFFER_SIZE);
+        BT_HDR* p_buf2 = reinterpret_cast<BT_HDR*>(osi_malloc(BT_DEFAULT_BUFFER_SIZE));
         p_buf2->offset = p_buf->offset;
         p_buf2->len = 0;
         p_buf2->layer_specific = 0;
-        uint8_t* packet2 = (uint8_t*)(p_buf2 + 1) + p_buf2->offset + p_buf2->len;
+        uint8_t* packet2 = reinterpret_cast<uint8_t*>(p_buf2 + 1) + p_buf2->offset + p_buf2->len;
         memcpy(packet2, data_begin, fragment_len);
         p_buf2->len += fragment_len;
         extra_fragments.push_back(p_buf2);
@@ -2253,7 +2252,7 @@ void bta_av_start_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     log::error("peer {} role switch failed: bta_handle:0x{:x} wait:0x{:x}, role:0x{:x}",
                p_scb->PeerAddress(), p_scb->hndl, p_scb->wait, p_scb->role);
     p_scb->wait &= ~BTA_AV_WAIT_ROLE_SW_FAILED;
-    p_data = (tBTA_AV_DATA*)&hdr;
+    p_data = reinterpret_cast<tBTA_AV_DATA*>(&hdr);
     hdr.offset = BTA_AV_RS_FAIL;
   }
   log::verbose("peer {} wait:0x{:x} use_rtp_header_marker_bit:{}", p_scb->PeerAddress(),
@@ -2390,7 +2389,7 @@ void bta_av_start_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
               .flush = false,
               .reconfig_stop = false,
       };
-      bta_av_ssm_execute(p_scb, BTA_AV_AP_STOP_EVT, (tBTA_AV_DATA*)&stop);
+      bta_av_ssm_execute(p_scb, BTA_AV_AP_STOP_EVT, reinterpret_cast<tBTA_AV_DATA*>(&stop));
     }
   }
 }
@@ -2592,16 +2591,17 @@ void bta_av_rcfg_str_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
   if (com::android::bluetooth::flags::fix_avdt_rconfig_not_setting_l2cap()) {
     /* Set the media channel as high priority */
-    if (!L2CA_SetTxPriority(p_scb->l2c_cid, L2CAP_CHNL_PRIORITY_HIGH)) {
+    if (!stack::l2cap::get_interface().L2CA_SetTxPriority(p_scb->l2c_cid,
+                                                          L2CAP_CHNL_PRIORITY_HIGH)) {
       log::warn("Unable to set L2CAP Tx priority peer:{} cid:{}", p_scb->PeerAddress(),
                 p_scb->l2c_cid);
     }
 
-    if (!L2CA_SetChnlFlushability(p_scb->l2c_cid, true)) {
+    if (!stack::l2cap::get_interface().L2CA_SetChnlFlushability(p_scb->l2c_cid, true)) {
       log::warn("Unable to set L2CAP flush peer:{} cid:{}", p_scb->PeerAddress(), p_scb->l2c_cid);
     }
 
-    L2CA_SetMediaStreamChannel(p_scb->l2c_cid, true);
+    stack::l2cap::get_interface().L2CA_SetMediaStreamChannel(p_scb->l2c_cid, true);
   }
 
   /* rc listen */
@@ -2991,7 +2991,8 @@ void bta_av_open_at_inc(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     p_scb->coll_mask = 0;
     bta_av_set_scb_sst_init(p_scb);
 
-    tBTA_AV_API_OPEN* p_buf = (tBTA_AV_API_OPEN*)osi_malloc(sizeof(tBTA_AV_API_OPEN));
+    tBTA_AV_API_OPEN* p_buf =
+            reinterpret_cast<tBTA_AV_API_OPEN*>(osi_malloc(sizeof(tBTA_AV_API_OPEN)));
     memcpy(p_buf, &(p_scb->open_api), sizeof(tBTA_AV_API_OPEN));
     bta_sys_sendmsg(p_buf);
   }

@@ -742,10 +742,7 @@ bool avct_msg_ind_for_src_sink_coexist(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data, 
   uint16_t pid, type;
 
   p = (uint8_t*)(p_data->p_buf + 1) + p_data->p_buf->offset;
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    AVCT_PARSE_HDR(p, label, type, cr_ipid);
-  }
-
+  AVCT_PARSE_HDR(p, label, type, cr_ipid);
   BE_STREAM_TO_UINT16(pid, p);
 
   p_ccb = &avct_cb.ccb[0];

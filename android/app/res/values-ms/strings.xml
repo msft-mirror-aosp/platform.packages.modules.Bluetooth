@@ -117,13 +117,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Padam bersih daripada senarai"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Padam bersih"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Now Playing"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"Simpan"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"Batal"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"Pilih akaun yang anda ingin kongsikan melalui Bluetooth. Anda masih perlu menerima sebarang akses kepada akaun semasa menyambung."</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"Slot yang tinggal:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Ikon Aplikasi"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"Tetapan Perkongsian Mesej Bluetooth"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"Tidak boleh memilih akaun. 0 slot yang tinggal"</string>
     <string name="bluetooth_connected" msgid="5687474377090799447">"Audio Bluetooth disambungkan"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Audio Bluetooth diputuskan sambungannya"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Audio Bluetooth"</string>
@@ -135,8 +129,7 @@
     <string name="bluetooth_stays_on_message" msgid="3669663452593157737">"Peranti anda diingatkan untuk terus menghidupkan Bluetooth dalam mod pesawat. Matikan Bluetooth jika anda tidak mahu Bluetooth sentiasa hidup."</string>
     <string name="bluetooth_and_wifi_stays_on_title" msgid="5821932798860821244">"Wi-Fi dan Bluetooth kekal dihidupkan"</string>
     <string name="bluetooth_and_wifi_stays_on_message" msgid="7848565203843882558">"Peranti anda diingatkan untuk terus menghidupkan Wi-Fi dan Bluetooth dalam mod pesawat. Matikan Wi-Fi dan Bluetooth jika anda tidak mahu Wi-Fi dan Bluetooth sentiasa hidup."</string>
-    <string name="bluetooth_enabled_auto_on_title" msgid="1799541656310353393">"Bluetooth telah didayakan secara automatik"</string>
-    <string name="bluetooth_enabled_auto_on_message" msgid="1070556457440100730">"Mulakan semula automatik boleh ditogol dalam Tetapan Bluetooth."</string>
-    <string name="bluetooth_disable_auto_on" msgid="1085026923461565937">"Matikan"</string>
+    <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"Bluetooth dihidupkan kembali"</string>
+    <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"Anda boleh menukar pilihan ini pada bila-bila masa dalam Tetapan"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"Perubahan keadaan automatik Bluetooth"</string>
 </resources>

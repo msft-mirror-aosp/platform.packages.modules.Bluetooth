@@ -41,7 +41,6 @@ filegroup {
         "dm/bta_dm_ci.cc",
         "dm/bta_dm_device_search.cc",
         "dm/bta_dm_disc.cc",
-        "dm/bta_dm_disc_legacy.cc",
         "dm/bta_dm_disc_sdp.cc",
         "dm/bta_dm_gatt_client.cc",
         "dm/bta_dm_main.cc",
@@ -676,6 +675,7 @@ cc_test {
         "liblog",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
@@ -686,6 +686,7 @@ cc_test {
         "libbt_shim_ffi",
         "libchrome",
         "libgmock",
+        "server_configurable_flags",
     ],
     sanitize: {
         cfi: false,

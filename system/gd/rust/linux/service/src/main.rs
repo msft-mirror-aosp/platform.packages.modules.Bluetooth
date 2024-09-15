@@ -2,7 +2,6 @@ use clap::{App, AppSettings, Arg};
 use dbus_projection::DisconnectWatcher;
 use dbus_tokio::connection;
 use futures::future;
-use lazy_static::lazy_static;
 use nix::sys::signal;
 use std::error::Error;
 use std::sync::{Arc, Condvar, Mutex};
@@ -187,6 +186,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             tx.clone(),
             bt_sock_mgr_runtime,
             intf.clone(),
+            bluetooth.clone(),
         ))));
         let bluetooth_media = Arc::new(Mutex::new(Box::new(BluetoothMedia::new(
             tx.clone(),
@@ -276,10 +276,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     })
 }
 
-lazy_static! {
-    /// Data needed for signal handling.
-    static ref SIG_DATA: Mutex<Option<(Sender<Message>, Arc<SigData>)>> = Mutex::new(None);
-}
+/// Data needed for signal handling.
+static SIG_DATA: Mutex<Option<(Sender<Message>, Arc<SigData>)>> = Mutex::new(None);
 
 extern "C" fn handle_sigterm(_signum: i32) {
     let guard = SIG_DATA.lock().unwrap();

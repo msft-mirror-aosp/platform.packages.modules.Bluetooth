@@ -938,6 +938,7 @@ public class AppScanStats {
         }
     }
 
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public synchronized void dumpToString(StringBuilder sb) {
         long currentTime = System.currentTimeMillis();
         long currTime = SystemClock.elapsedRealtime();
@@ -956,7 +957,7 @@ public class AppScanStats {
         int lowPowerScan = mLowPowerScan;
         int balancedScan = mBalancedScan;
         int lowLatencyScan = mLowLantencyScan;
-        int ambientDiscoveryScan = mAmbientDiscoveryScan;
+        long ambientDiscoveryScan = mAmbientDiscoveryScan;
 
         if (!mOngoingScans.isEmpty()) {
             for (Integer key : mOngoingScans.keySet()) {

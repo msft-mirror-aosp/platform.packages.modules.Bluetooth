@@ -319,12 +319,9 @@ void bta_dm_disable() {
     bta_dm_disable_pm();
   }
 
-  if (com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_disable_search();
-    bta_dm_disc_disable_disc();
-  } else {
-    bta_dm_disc_disable_search_and_disc();
-  }
+  bta_dm_disc_disable_search();
+  bta_dm_disc_disable_disc();
+
   bta_dm_cb.disabling = true;
 
   connection_manager::reset(false);
@@ -889,8 +886,6 @@ static void bta_dm_acl_down_(const RawAddress& bd_addr, tBT_TRANSPORT transport)
     bta_dm_cb.device_list.le_count--;
   }
 
-  bta_dm_disc_acl_down(bd_addr, transport);
-
   if (bta_dm_cb.disabling) {
     if (!BTM_GetNumAclLinks()) {
       /*
@@ -952,7 +947,6 @@ static void bta_dm_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport) 
     bta_dm_cb.device_list.le_count--;
   }
 
-  bta_dm_disc_acl_down(bd_addr, transport);
   if (bta_dm_cb.disabling && !BTM_GetNumAclLinks()) {
     /*
      * Start a timer to make sure that the profiles

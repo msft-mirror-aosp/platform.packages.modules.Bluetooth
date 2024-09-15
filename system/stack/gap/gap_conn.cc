@@ -23,8 +23,6 @@
 #include "gap_api.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
-#include "l2cdefs.h"
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
@@ -32,6 +30,8 @@
 #include "stack/btm/btm_sec.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/l2cap_interface.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -241,8 +241,9 @@ uint16_t GAP_ConnOpen(const char* /* p_serv_name */, uint8_t service_id, bool is
 
   /* Register the PSM with L2CAP */
   if (transport == BT_TRANSPORT_BR_EDR) {
-    p_ccb->psm = L2CA_RegisterWithSecurity(psm, conn.reg_info, false /* enable_snoop */,
-                                           &p_ccb->ertm_info, L2CAP_SDU_LENGTH_MAX, 0, security);
+    p_ccb->psm = stack::l2cap::get_interface().L2CA_RegisterWithSecurity(
+            psm, conn.reg_info, false /* enable_snoop */, &p_ccb->ertm_info, L2CAP_SDU_LENGTH_MAX,
+            0, security);
     if (p_ccb->psm == 0) {
       log::error("Failure registering PSM 0x{:04x}", psm);
       gap_release_ccb(p_ccb);
@@ -251,7 +252,8 @@ uint16_t GAP_ConnOpen(const char* /* p_serv_name */, uint8_t service_id, bool is
   }
 
   if (transport == BT_TRANSPORT_LE) {
-    p_ccb->psm = L2CA_RegisterLECoc(psm, conn.reg_info, security, p_ccb->local_coc_cfg);
+    p_ccb->psm = stack::l2cap::get_interface().L2CA_RegisterLECoc(psm, conn.reg_info, security,
+                                                                  p_ccb->local_coc_cfg);
     if (p_ccb->psm == 0) {
       log::error("Failure registering PSM 0x{:04x}", psm);
       gap_release_ccb(p_ccb);
@@ -278,19 +280,25 @@ uint16_t GAP_ConnOpen(const char* /* p_serv_name */, uint8_t service_id, bool is
 
     /* Check if L2CAP started the connection process */
     if (p_rem_bda && (transport == BT_TRANSPORT_BR_EDR)) {
-      cid = L2CA_ConnectReqWithSecurity(p_ccb->psm, *p_rem_bda, security);
+      cid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(p_ccb->psm, *p_rem_bda,
+                                                                      security);
       if (cid != 0) {
         p_ccb->connection_id = cid;
         return p_ccb->gap_handle;
       }
+      log::warn("Unable to initiate connection peer:{} psm:{} transport:{}", *p_rem_bda, p_ccb->psm,
+                bt_transport_text(BT_TRANSPORT_BR_EDR));
     }
 
     if (p_rem_bda && (transport == BT_TRANSPORT_LE)) {
-      cid = L2CA_ConnectLECocReq(p_ccb->psm, *p_rem_bda, &p_ccb->local_coc_cfg, security);
+      cid = stack::l2cap::get_interface().L2CA_ConnectLECocReq(p_ccb->psm, *p_rem_bda,
+                                                               &p_ccb->local_coc_cfg, security);
       if (cid != 0) {
         p_ccb->connection_id = cid;
         return p_ccb->gap_handle;
       }
+      log::warn("Unable to initiate connection peer:{} psm:{} transport:{}", *p_rem_bda, p_ccb->psm,
+                bt_transport_text(BT_TRANSPORT_LE));
     }
 
     gap_release_ccb(p_ccb);
@@ -313,28 +321,28 @@ uint16_t GAP_ConnOpen(const char* /* p_serv_name */, uint8_t service_id, bool is
 uint16_t GAP_ConnClose(uint16_t gap_handle) {
   tGAP_CCB* p_ccb = gap_find_ccb_by_handle(gap_handle);
 
-  if (p_ccb) {
-    /* Check if we have a connection ID */
-    if (p_ccb->con_state != GAP_CCB_STATE_LISTENING) {
-      if (p_ccb->transport == BT_TRANSPORT_LE) {
-        if (!L2CA_DisconnectLECocReq(p_ccb->connection_id)) {
-          log::warn("Unable to request L2CAP disconnect le_coc peer:{} cid:{}",
-                    p_ccb->rem_dev_address, p_ccb->connection_id);
-        }
-      } else {
-        if (!L2CA_DisconnectReq(p_ccb->connection_id)) {
-          log::warn("Unable to request L2CAP disconnect le_coc peer:{} cid:{}",
-                    p_ccb->rem_dev_address, p_ccb->connection_id);
-        }
-      }
-    }
-
-    gap_release_ccb(p_ccb);
-
-    return BT_PASS;
+  if (!p_ccb) {
+    return GAP_ERR_BAD_HANDLE;
   }
 
-  return GAP_ERR_BAD_HANDLE;
+  /* Check if we have a connection ID */
+  if (p_ccb->con_state != GAP_CCB_STATE_LISTENING) {
+    if (p_ccb->transport == BT_TRANSPORT_LE) {
+      if (!stack::l2cap::get_interface().L2CA_DisconnectLECocReq(p_ccb->connection_id)) {
+        log::warn("Unable to request L2CAP disconnect le_coc peer:{} cid:{}",
+                  p_ccb->rem_dev_address, p_ccb->connection_id);
+      }
+    } else {
+      if (!stack::l2cap::get_interface().L2CA_DisconnectReq(p_ccb->connection_id)) {
+        log::warn("Unable to request L2CAP disconnect peer:{} cid:{}", p_ccb->rem_dev_address,
+                  p_ccb->connection_id);
+      }
+    }
+  }
+
+  gap_release_ccb(p_ccb);
+
+  return BT_PASS;
 }
 
 /*******************************************************************************
@@ -442,9 +450,9 @@ static bool gap_try_write_queued_data(tGAP_CCB* p_ccb) {
   while ((p_buf = (BT_HDR*)fixed_queue_try_dequeue(p_ccb->tx_queue)) != NULL) {
     tL2CAP_DW_RESULT status;
     if (p_ccb->transport == BT_TRANSPORT_LE) {
-      status = L2CA_LECocDataWrite(p_ccb->connection_id, p_buf);
+      status = stack::l2cap::get_interface().L2CA_LECocDataWrite(p_ccb->connection_id, p_buf);
     } else {
-      status = L2CA_DataWrite(p_ccb->connection_id, p_buf);
+      status = stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_buf);
     }
 
     if (status == tL2CAP_DW_RESULT::CONGESTED) {
@@ -622,12 +630,12 @@ static void gap_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid, uint1
 
     /* Disconnect because it is an unexpected connection */
     if (get_btm_client_interface().ble.BTM_UseLeLink(bd_addr)) {
-      if (!L2CA_DisconnectLECocReq(l2cap_cid)) {
+      if (!stack::l2cap::get_interface().L2CA_DisconnectLECocReq(l2cap_cid)) {
         log::warn("Unable to request L2CAP disconnect le_coc peer:{} cid:{}", bd_addr, l2cap_cid);
       }
     } else {
-      if (!L2CA_DisconnectReq(l2cap_cid)) {
-        log::warn("Unable to request L2CAP disconnect le_coc peer:{} cid:{}", bd_addr, l2cap_cid);
+      if (!stack::l2cap::get_interface().L2CA_DisconnectReq(l2cap_cid)) {
+        log::warn("Unable to request L2CAP disconnect peer:{} cid:{}", bd_addr, l2cap_cid);
       }
     }
     return;
@@ -644,7 +652,7 @@ static void gap_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid, uint1
 
   if (p_ccb->transport == BT_TRANSPORT_LE) {
     /* get the remote coc configuration */
-    if (!L2CA_GetPeerLECocConfig(l2cap_cid, &p_ccb->peer_coc_cfg)) {
+    if (!stack::l2cap::get_interface().L2CA_GetPeerLECocConfig(l2cap_cid, &p_ccb->peer_coc_cfg)) {
       log::warn("Unable to get L2CAP peer le_coc config peer:{} cid:{}", p_ccb->rem_dev_address,
                 l2cap_cid);
     }
@@ -674,7 +682,8 @@ static void gap_checks_con_flags(tGAP_CCB* p_ccb) {
     tGAP_CB_DATA cb_data;
     uint16_t l2cap_remote_cid;
     if (com::android::bluetooth::flags::bt_socket_api_l2cap_cid() &&
-        L2CA_GetRemoteChannelId(p_ccb->connection_id, &l2cap_remote_cid)) {
+        stack::l2cap::get_interface().L2CA_GetRemoteChannelId(p_ccb->connection_id,
+                                                              &l2cap_remote_cid)) {
       cb_data.l2cap_cids.local_cid = p_ccb->connection_id;
       cb_data.l2cap_cids.remote_cid = l2cap_remote_cid;
       cb_data_ptr = &cb_data;
@@ -756,7 +765,7 @@ static void gap_connect_cfm(uint16_t l2cap_cid, tL2CAP_CONN result) {
 
     if (p_ccb->transport == BT_TRANSPORT_LE) {
       /* get the remote coc configuration */
-      if (!L2CA_GetPeerLECocConfig(l2cap_cid, &p_ccb->peer_coc_cfg)) {
+      if (!stack::l2cap::get_interface().L2CA_GetPeerLECocConfig(l2cap_cid, &p_ccb->peer_coc_cfg)) {
         log::warn("Unable to get L2CAP peer le_coc config peer:{} cid:{}", p_ccb->rem_dev_address,
                   l2cap_cid);
       }
@@ -1031,10 +1040,10 @@ static void gap_release_ccb(tGAP_CCB* p_ccb) {
   /* Free the security record for this PSM */
   BTM_SecClrServiceByPsm(p_ccb->psm);
   if (p_ccb->transport == BT_TRANSPORT_BR_EDR) {
-    L2CA_Deregister(p_ccb->psm);
+    stack::l2cap::get_interface().L2CA_Deregister(p_ccb->psm);
   }
   if (p_ccb->transport == BT_TRANSPORT_LE) {
-    L2CA_DeregisterLECoc(p_ccb->psm);
+    stack::l2cap::get_interface().L2CA_DeregisterLECoc(p_ccb->psm);
   }
 }
 

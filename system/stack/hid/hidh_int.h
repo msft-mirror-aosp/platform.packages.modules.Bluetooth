@@ -31,7 +31,7 @@
 #include "stack/hid/hid_conn.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/hidh_api.h"
-#include "stack/include/l2c_api.h"  // tL2CAP_CFG_INFO
+#include "stack/include/l2cap_types.h"
 #include "types/raw_address.h"
 
 enum { HID_DEV_NO_CONN, HID_DEV_CONNECTED };

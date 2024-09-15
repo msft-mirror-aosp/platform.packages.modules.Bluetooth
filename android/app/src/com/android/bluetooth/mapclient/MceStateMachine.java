@@ -932,6 +932,7 @@ class MceStateMachine extends StateMachine {
          *
          * @param request - A request object that has been resolved and returned with a message list
          */
+        @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
         private void processMessageListing(RequestGetMessagesListing request) {
             Log.i(
                     TAG,

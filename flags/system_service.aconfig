@@ -2,16 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "airplane_mode_x_ble_on"
-    namespace: "bluetooth"
-    description: "Airplane mode is not properly listen to when reaching BLE mode"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-    bug: "338079154"
-}
-
-flag {
     name: "auto_on_feature"
     is_exported: true
     namespace: "bluetooth"
