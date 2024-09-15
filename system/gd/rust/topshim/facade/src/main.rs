@@ -7,7 +7,6 @@ use futures::channel::mpsc;
 use futures::executor::block_on;
 use futures::stream::StreamExt;
 use grpcio::*;
-use lazy_static::lazy_static;
 use log::debug;
 use nix::sys::signal;
 use std::sync::{Arc, Mutex};
@@ -149,9 +148,7 @@ unsafe fn install_sigint() -> mpsc::UnboundedReceiver<()> {
     rx
 }
 
-lazy_static! {
-    static ref SIGINT_TX: Mutex<Option<mpsc::UnboundedSender<()>>> = Mutex::new(None);
-}
+static SIGINT_TX: Mutex<Option<mpsc::UnboundedSender<()>>> = Mutex::new(None);
 
 extern "C" fn handle_sigint(_: i32) {
     let mut sigint_tx = SIGINT_TX.lock().unwrap();

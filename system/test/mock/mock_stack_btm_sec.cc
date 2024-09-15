@@ -316,13 +316,16 @@ void btm_sec_disconnected(uint16_t handle, tHCI_REASON reason, std::string comme
   inc_func_call_count(__func__);
   test::mock::stack_btm_sec::btm_sec_disconnected(handle, reason, comment);
 }
-void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable) {
+void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable,
+                            uint8_t key_size, bool from_key_refresh) {
   inc_func_call_count(__func__);
-  test::mock::stack_btm_sec::btm_sec_encrypt_change(handle, status, encr_enable);
+  test::mock::stack_btm_sec::btm_sec_encrypt_change(handle, status, encr_enable, key_size,
+                                                    from_key_refresh);
 }
-void btm_sec_encryption_change_evt(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable) {
+void btm_sec_encryption_change_evt(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable,
+                                   uint8_t key_size) {
   inc_func_call_count(__func__);
-  test::mock::stack_btm_sec::btm_sec_encryption_change_evt(handle, status, encr_enable);
+  test::mock::stack_btm_sec::btm_sec_encryption_change_evt(handle, status, encr_enable, key_size);
 }
 bool btm_sec_is_a_bonded_dev(const RawAddress& bda) {
   inc_func_call_count(__func__);

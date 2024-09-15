@@ -24,13 +24,17 @@
 #ifndef AVDT_INT_H
 #define AVDT_INT_H
 
+#include <bluetooth/log.h>
+
+#include <cstdint>
+#include <string>
 #include <unordered_map>
 
 #include "avdt_api.h"
 #include "avdt_defs.h"
 #include "avdtc_api.h"
+#include "include/macros.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
 #include "osi/include/alarm.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
@@ -46,7 +50,7 @@
  ****************************************************************************/
 
 /* channel types */
-enum {
+enum tTRANSPORT_CHANNEL_TYPE : uint8_t {
   AVDT_CHAN_SIG,    /* signaling channel */
   AVDT_CHAN_MEDIA,  /* media channel */
   AVDT_CHAN_REPORT, /* reporting channel */
@@ -302,26 +306,62 @@ enum {
   AVDT_SCB_CC_CLOSE_EVT
 };
 
-/* adaption layer number of stream routing table entries */
+/* Adaptation layer number of stream routing table entries */
 /* 2 channels(1 media, 1 report) for each SEP and one for signalling */
 #define AVDT_NUM_RT_TBL (AVDT_NUM_SEPS * AVDT_CHAN_NUM_TYPES + 1)
 
-/* adaption layer number of transport channel table entries - moved to target.h
+/* Adaptation layer number of transport channel table entries - moved to target.h
 #define AVDT_NUM_TC_TBL     (AVDT_NUM_SEPS + AVDT_NUM_LINKS) */
-
-/* "states" used in transport channel table */
-#define AVDT_AD_ST_UNUSED 0  /* Unused - unallocated */
-#define AVDT_AD_ST_IDLE 1    /* No connection */
-#define AVDT_AD_ST_ACP 2     /* Waiting to accept a connection */
-#define AVDT_AD_ST_CONN 4    /* Waiting for connection confirm */
-#define AVDT_AD_ST_CFG 5     /* Waiting for configuration complete */
-#define AVDT_AD_ST_OPEN 6    /* Channel opened */
-#define AVDT_AD_ST_SEC_INT 7 /* Security process as INT */
-#define AVDT_AD_ST_SEC_ACP 8 /* Security process as ACP */
 
 /* Configuration flags. AvdtpTransportChannel.cfg_flags */
 #define AVDT_L2C_CFG_CONN_INT (1 << 2)
 #define AVDT_L2C_CFG_CONN_ACP (1 << 3)
+
+/* "states" used in transport channel table */
+enum tTRANSPORT_CHANNEL_STATE : uint8_t {
+  AVDT_AD_ST_UNUSED = 0,  /* Unused - unallocated */
+  AVDT_AD_ST_IDLE = 1,    /* No connection */
+  AVDT_AD_ST_ACP = 2,     /* Waiting to accept a connection */
+  AVDT_AD_ST_CONN = 4,    /* Waiting for connection confirm */
+  AVDT_AD_ST_CFG = 5,     /* Waiting for configuration complete */
+  AVDT_AD_ST_OPEN = 6,    /* Channel opened */
+  AVDT_AD_ST_SEC_INT = 7, /* Security process as INT */
+  AVDT_AD_ST_SEC_ACP = 8, /* Security process as ACP */
+};
+
+inline std::string tc_state_text(uint8_t state) {
+  tTRANSPORT_CHANNEL_STATE state_ = static_cast<tTRANSPORT_CHANNEL_STATE>(state);
+  switch (state_) {
+    CASE_RETURN_TEXT(AVDT_AD_ST_UNUSED);
+    CASE_RETURN_TEXT(AVDT_AD_ST_IDLE);
+    CASE_RETURN_TEXT(AVDT_AD_ST_ACP);
+    CASE_RETURN_TEXT(AVDT_AD_ST_CONN);
+    CASE_RETURN_TEXT(AVDT_AD_ST_CFG);
+    CASE_RETURN_TEXT(AVDT_AD_ST_OPEN);
+    CASE_RETURN_TEXT(AVDT_AD_ST_SEC_INT);
+    CASE_RETURN_TEXT(AVDT_AD_ST_SEC_ACP);
+    default:
+      RETURN_UNKNOWN_TYPE_STRING(tTRANSPORT_CHANNEL_STATE, state_);
+  }
+}
+
+inline std::string tc_type_text(uint8_t type) {
+  tTRANSPORT_CHANNEL_TYPE type_ = static_cast<tTRANSPORT_CHANNEL_TYPE>(type);
+  switch (type_) {
+    CASE_RETURN_TEXT(AVDT_CHAN_SIG);
+    CASE_RETURN_TEXT(AVDT_CHAN_MEDIA);
+    CASE_RETURN_TEXT(AVDT_CHAN_REPORT);
+    default:
+      RETURN_UNKNOWN_TYPE_STRING(tTRANSPORT_CHANNEL_TYPE, type_);
+  }
+}
+
+namespace fmt {
+template <>
+struct formatter<tTRANSPORT_CHANNEL_STATE> : enum_formatter<tTRANSPORT_CHANNEL_STATE> {};
+template <>
+struct formatter<tTRANSPORT_CHANNEL_TYPE> : enum_formatter<tTRANSPORT_CHANNEL_TYPE> {};
+}  // namespace fmt
 
 /*****************************************************************************
  * data types
@@ -664,7 +704,7 @@ public:
 
 /**
  * AVDTP stream routing entry.
- * Used in the routing table in the adaption layer.
+ * Used in the routing table in the Adaptation layer.
  */
 class AvdtpRoutingEntry {
 public:
@@ -680,7 +720,7 @@ public:
 };
 
 /**
- * AVDTP adaption layer control block.
+ * AVDTP Adaptation layer control block.
  */
 class AvdtpAdaptationLayer {
 public:
@@ -741,7 +781,7 @@ public:
 
   AvdtpRcb rcb;                       // Registration control block
   AvdtpCcb ccb[AVDT_NUM_LINKS];       // Channel control blocks
-  AvdtpAdaptationLayer ad;            // Adaption layer control block
+  AvdtpAdaptationLayer ad;            // Adaptation layer control block
   tAVDTC_CTRL_CBACK* p_conf_cback;    // Conformance callback function
   const tAVDT_CCB_ACTION* p_ccb_act;  // Pointer to CCB action functions
   const tAVDT_SCB_ACTION* p_scb_act;  // Pointer to SCB action functions
@@ -902,7 +942,7 @@ void avdt_msg_send_rej(AvdtpCcb* p_ccb, uint8_t sig_id, tAVDT_MSG* p_params);
 void avdt_msg_send_grej(AvdtpCcb* p_ccb, uint8_t sig_id, tAVDT_MSG* p_params);
 void avdt_msg_ind(AvdtpCcb* p_ccb, BT_HDR* p_buf);
 
-/* adaption layer function declarations */
+/* Adaptation layer function declarations */
 void avdt_ad_init(void);
 uint8_t avdt_ad_type_to_tcid(uint8_t type, AvdtpScb* p_scb);
 AvdtpTransportChannel* avdt_ad_tc_tbl_by_st(uint8_t type, AvdtpCcb* p_ccb, uint8_t state);

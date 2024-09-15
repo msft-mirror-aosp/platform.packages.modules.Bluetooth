@@ -26,10 +26,9 @@
 #include <string.h>
 
 #include "gatt_int.h"
-#include "l2c_api.h"
-#include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/l2cap_types.h"
 #include "types/bluetooth/uuid.h"
 
 using bluetooth::Uuid;
@@ -702,7 +701,7 @@ static tGATT_STATUS gatts_send_app_read_request(tGATT_TCB& tcb, uint16_t cid, ui
                                                 uint16_t handle, uint16_t offset, uint32_t trans_id,
                                                 bt_gatt_db_attribute_type_t gatt_type) {
   tGATT_SRV_LIST_ELEM& el = *gatt_sr_find_i_rcb_by_handle(handle);
-  uint16_t conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, el.gatt_if);
+  tCONN_ID conn_id = gatt_create_conn_id(tcb.tcb_idx, el.gatt_if);
 
   if (trans_id == 0) {
     trans_id = gatt_sr_enqueue_cmd(tcb, cid, op_code, handle);

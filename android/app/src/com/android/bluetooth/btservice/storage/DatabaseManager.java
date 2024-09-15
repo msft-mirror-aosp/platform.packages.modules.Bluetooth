@@ -590,6 +590,7 @@ public class DatabaseManager {
     }
 
     @GuardedBy("mMetadataCache")
+    @SuppressWarnings("LockOnNonEnclosingClassLiteral")
     private void setConnection(BluetoothDevice device, boolean isActiveA2dp, boolean isActiveHfp) {
         if (device == null) {
             Log.e(TAG, "setConnection: device is null");
@@ -868,6 +869,7 @@ public class DatabaseManager {
     /**
      * @param metadataList is the list of metadata
      */
+    @SuppressWarnings("LockOnNonEnclosingClassLiteral")
     private void compactLastConnectionTime(List<Metadata> metadataList) {
         Log.d(TAG, "compactLastConnectionTime: Compacting metadata after load");
         synchronized (MetadataDatabase.class) {

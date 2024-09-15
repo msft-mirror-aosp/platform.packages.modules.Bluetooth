@@ -18,7 +18,6 @@ package android.bluetooth;
 
 import static android.bluetooth.BluetoothUtils.formatSimple;
 
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -26,8 +25,6 @@ import android.annotation.SuppressLint;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Parcel;
 import android.os.Parcelable;
-
-import com.android.bluetooth.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -551,7 +548,6 @@ public final class BluetoothCodecConfig implements Parcelable {
     }
 
     /** Returns the source codec type of this config. */
-    @FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY)
     public @Nullable BluetoothCodecType getExtendedCodecType() {
         return mCodecType;
     }
@@ -861,7 +857,6 @@ public final class BluetoothCodecConfig implements Parcelable {
          * @param codecType of this codec
          * @return the same Builder instance
          */
-        @FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY)
         public @NonNull Builder setExtendedCodecType(@Nullable BluetoothCodecType codecType) {
             mCodecType = codecType;
             return this;

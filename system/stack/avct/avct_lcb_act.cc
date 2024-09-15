@@ -696,7 +696,7 @@ void avct_lcb_msg_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
 
   bool bind = false;
   if (btif_av_src_sink_coexist_enabled()) {
-    bind = avct_msg_ind_for_src_sink_coexist(p_lcb, p_data, label, cr_ipid);
+    bind = avct_msg_ind_for_src_sink_coexist(p_lcb, p_data, label, cr_ipid, pid);
     osi_free_and_reset((void**)&p_data->p_buf);
     if (bind) {
       return;
@@ -734,19 +734,10 @@ void avct_lcb_msg_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
 }
 
 bool avct_msg_ind_for_src_sink_coexist(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data, uint8_t label,
-                                       uint8_t cr_ipid) {
+                                       uint8_t cr_ipid, uint16_t pid) {
   bool bind = false;
   tAVCT_CCB* p_ccb;
   int p_buf_len;
-  uint8_t* p;
-  uint16_t pid, type;
-
-  p = (uint8_t*)(p_data->p_buf + 1) + p_data->p_buf->offset;
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    AVCT_PARSE_HDR(p, label, type, cr_ipid);
-  }
-
-  BE_STREAM_TO_UINT16(pid, p);
 
   p_ccb = &avct_cb.ccb[0];
   p_data->p_buf->offset += AVCT_HDR_LEN_SINGLE;

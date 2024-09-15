@@ -18,6 +18,7 @@
 package com.android.bluetooth.le_audio;
 
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
+
 import static com.android.bluetooth.bass_client.BassConstants.INVALID_BROADCAST_ID;
 
 import static org.mockito.Mockito.*;

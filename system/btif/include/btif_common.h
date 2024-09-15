@@ -129,8 +129,6 @@ void btif_adapter_properties_evt(bt_status_t status, uint32_t num_props, bt_prop
 void btif_remote_properties_evt(bt_status_t status, RawAddress* remote_addr, uint32_t num_props,
                                 bt_property_t* p_props);
 
-void bte_load_did_conf(const char* p_path);
-
 bt_status_t btif_transfer_context(tBTIF_CBACK* p_cback, uint16_t event, char* p_params,
                                   int param_len, tBTIF_COPY_CBACK* p_copy_cback);
 

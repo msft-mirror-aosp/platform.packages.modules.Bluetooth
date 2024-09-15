@@ -162,13 +162,9 @@ pub mod ffi {
         fn ScanFilterClear(self: Pin<&mut BleScannerIntf>, filter_index: u8);
         fn ScanFilterEnable(self: Pin<&mut BleScannerIntf>, enable: bool);
         fn IsMsftSupported(self: Pin<&mut BleScannerIntf>) -> bool;
-        fn MsftAdvMonitorAdd(
-            self: Pin<&mut BleScannerIntf>,
-            call_id: u32,
-            monitor: &RustMsftAdvMonitor,
-        );
-        fn MsftAdvMonitorRemove(self: Pin<&mut BleScannerIntf>, call_id: u32, monitor_handle: u8);
-        fn MsftAdvMonitorEnable(self: Pin<&mut BleScannerIntf>, call_id: u32, enable: bool);
+        fn MsftAdvMonitorAdd(self: Pin<&mut BleScannerIntf>, monitor: &RustMsftAdvMonitor);
+        fn MsftAdvMonitorRemove(self: Pin<&mut BleScannerIntf>, monitor_handle: u8);
+        fn MsftAdvMonitorEnable(self: Pin<&mut BleScannerIntf>, enable: bool);
         fn SetScanParameters(
             self: Pin<&mut BleScannerIntf>,
             scanner_id: u8,
@@ -276,13 +272,9 @@ pub mod ffi {
             action: u8,
             btm_status: u8,
         );
-        unsafe fn gdscan_msft_adv_monitor_add_callback(
-            call_id: u32,
-            monitor_handle: u8,
-            status: u8,
-        );
-        unsafe fn gdscan_msft_adv_monitor_remove_callback(call_id: u32, status: u8);
-        unsafe fn gdscan_msft_adv_monitor_enable_callback(call_id: u32, status: u8);
+        unsafe fn gdscan_msft_adv_monitor_add_callback(monitor_handle: u8, status: u8);
+        unsafe fn gdscan_msft_adv_monitor_remove_callback(status: u8);
+        unsafe fn gdscan_msft_adv_monitor_enable_callback(status: u8);
         unsafe fn gdscan_start_sync_callback(
             status: u8,
             sync_handle: u16,
@@ -966,14 +958,14 @@ pub enum GattScannerInbandCallbacks {
     /// Params: Filter Index, Filter Type, Available Space, Action, BTM Status
     FilterConfigCallback(u8, u8, u8, u8, u8),
 
-    /// Params: Call ID, Monitor Handle, Status
-    MsftAdvMonitorAddCallback(u32, u8, u8),
+    /// Params: Monitor Handle, Status
+    MsftAdvMonitorAddCallback(u8, u8),
 
-    /// Params: Call ID, Status
-    MsftAdvMonitorRemoveCallback(u32, u8),
+    /// Params: Status
+    MsftAdvMonitorRemoveCallback(u8),
 
-    /// Params: Call ID, Status
-    MsftAdvMonitorEnableCallback(u32, u8),
+    /// Params: Status
+    MsftAdvMonitorEnableCallback(u8),
 
     /// Params: Status, Sync Handle, Advertising Sid, Address Type, Address, Phy, Interval
     StartSyncCallback(u8, u16, u8, u8, RawAddress, u8, u16),
@@ -1010,13 +1002,13 @@ cb_variant!(GDScannerInbandCb,
     u8, u8, u8, u8, u8);
 cb_variant!(GDScannerInbandCb,
     gdscan_msft_adv_monitor_add_callback -> GattScannerInbandCallbacks::MsftAdvMonitorAddCallback,
-    u32, u8, u8);
+    u8, u8);
 cb_variant!(GDScannerInbandCb,
     gdscan_msft_adv_monitor_remove_callback -> GattScannerInbandCallbacks::MsftAdvMonitorRemoveCallback,
-    u32, u8);
+    u8);
 cb_variant!(GDScannerInbandCb,
     gdscan_msft_adv_monitor_enable_callback -> GattScannerInbandCallbacks::MsftAdvMonitorEnableCallback,
-    u32, u8);
+    u8);
 cb_variant!(GDScannerInbandCb,
 gdscan_start_sync_callback -> GattScannerInbandCallbacks::StartSyncCallback,
 u8, u16, u8, u8, *const RawAddress, u8, u16, {
@@ -1520,16 +1512,16 @@ impl BleScanner {
         mutcxxcall!(self, IsMsftSupported)
     }
 
-    pub fn msft_adv_monitor_add(&mut self, call_id: u32, monitor: &MsftAdvMonitor) {
-        mutcxxcall!(self, MsftAdvMonitorAdd, call_id, monitor);
+    pub fn msft_adv_monitor_add(&mut self, monitor: &MsftAdvMonitor) {
+        mutcxxcall!(self, MsftAdvMonitorAdd, monitor);
     }
 
-    pub fn msft_adv_monitor_remove(&mut self, call_id: u32, monitor_handle: u8) {
-        mutcxxcall!(self, MsftAdvMonitorRemove, call_id, monitor_handle);
+    pub fn msft_adv_monitor_remove(&mut self, monitor_handle: u8) {
+        mutcxxcall!(self, MsftAdvMonitorRemove, monitor_handle);
     }
 
-    pub fn msft_adv_monitor_enable(&mut self, call_id: u32, enable: bool) {
-        mutcxxcall!(self, MsftAdvMonitorEnable, call_id, enable);
+    pub fn msft_adv_monitor_enable(&mut self, enable: bool) {
+        mutcxxcall!(self, MsftAdvMonitorEnable, enable);
     }
 
     pub fn set_scan_parameters(

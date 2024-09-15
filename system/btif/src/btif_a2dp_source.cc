@@ -324,9 +324,7 @@ static void btif_a2dp_source_init_delayed(void) {
   // the provider needs to be initialized earlier in order to ensure
   // get_a2dp_configuration and parse_a2dp_configuration can be
   // invoked before the stream is started.
-  if (com::android::bluetooth::flags::a2dp_offload_codec_extensibility()) {
-    bluetooth::audio::a2dp::init(&btif_a2dp_source_thread);
-  }
+  bluetooth::audio::a2dp::init(&btif_a2dp_source_thread);
 }
 
 bool btif_a2dp_source_startup(void) {
@@ -527,16 +525,9 @@ static void btif_a2dp_source_setup_codec_delayed(const RawAddress& peer_address)
 
   tA2DP_ENCODER_INIT_PEER_PARAMS peer_params;
   bta_av_co_get_peer_params(peer_address, &peer_params);
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    if (!bta_av_co_set_active_source_peer(peer_address)) {
-      log::error("Cannot stream audio: cannot set active peer to {}", peer_address);
-      return;
-    }
-  } else {
-    if (!bta_av_co_set_active_peer(peer_address)) {
-      log::error("Cannot stream audio: cannot set active peer to {}", peer_address);
-      return;
-    }
+  if (!bta_av_co_set_active_source_peer(peer_address)) {
+    log::error("Cannot stream audio: cannot set active peer to {}", peer_address);
+    return;
   }
   btif_a2dp_source_cb.encoder_interface = bta_av_co_get_encoder_interface(peer_address);
   if (btif_a2dp_source_cb.encoder_interface == nullptr) {

@@ -82,6 +82,7 @@ public:
   bool receivedUserPasskeyRequest = false;
   bool receivedKeypressNotification = false;
   bool receivedUserConfirmationRequest = false;
+  bool receivedEncryptionChangeV2 = false;
 
   void OnReceive(hci::AddressWithType device, hci::ChangeConnectionLinkKeyCompleteView packet) {
     ASSERT_TRUE(packet.IsValid());
@@ -147,6 +148,10 @@ public:
     ASSERT_TRUE(packet.IsValid());
     receivedUserPasskeyRequest = true;
   }
+  void OnReceive(hci::AddressWithType device, hci::EncryptionChangeV2View packet) {
+    ASSERT_TRUE(packet.IsValid());
+    receivedEncryptionChangeV2 = true;
+  }
 
   void OnHciEventReceived(EventView packet) override {
     auto event = EventView::Create(packet);
@@ -200,6 +205,9 @@ public:
         break;
       case hci::EventCode::USER_PASSKEY_REQUEST:
         OnReceive(hci::AddressWithType(), hci::UserPasskeyRequestView::Create(event));
+        break;
+      case hci::EventCode::ENCRYPTION_CHANGE_V2:
+        OnReceive(hci::AddressWithType(), hci::EncryptionChangeV2View::Create(event));
         break;
       default:
         log::fatal("Cannot handle received packet: {}", hci::EventCodeText(code));
@@ -582,6 +590,14 @@ TEST_F(SecurityManagerChannelTest, recv_encryption_change) {
           hci::ErrorCode::SUCCESS, connection_handle, hci::EncryptionEnabled::ON));
   synchronize();
   ASSERT_TRUE(callback_->receivedEncryptionChange);
+}
+
+TEST_F(SecurityManagerChannelTest, recv_encryption_change_v2) {
+  uint16_t connection_handle = 0x0;
+  hci_layer_->IncomingEvent(hci::EncryptionChangeV2Builder::Create(
+          hci::ErrorCode::SUCCESS, connection_handle, hci::EncryptionEnabled::ON, 0x10));
+  synchronize();
+  ASSERT_TRUE(callback_->receivedEncryptionChangeV2);
 }
 
 TEST_F(SecurityManagerChannelTest, recv_encryption_key_refresh) {

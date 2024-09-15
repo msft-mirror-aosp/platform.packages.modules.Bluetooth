@@ -70,7 +70,9 @@ import pandora.HostProto.AdvertiseResponse;
 import pandora.HostProto.OwnAddressType;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 @RunWith(TestParameterInjector.class)
@@ -214,7 +216,7 @@ public class GattClientTest {
 
     @Test
     public void clientGattWriteCharacteristic() throws Exception {
-        registerWritableGattService();
+        registerGattService();
 
         BluetoothGattCallback gattCallback = mock(BluetoothGattCallback.class);
         BluetoothGatt gatt = connectGattAndWaitConnection(gattCallback);
@@ -306,7 +308,7 @@ public class GattClientTest {
     public void consecutiveWriteCharacteristicFails_thenSuccess() throws Exception {
         Assume.assumeTrue(Flags.gattFixDeviceBusy());
 
-        registerWritableGattService();
+        registerGattService();
 
         BluetoothGattCallback gattCallback = mock(BluetoothGattCallback.class);
         BluetoothGattCallback gattCallback2 = mock(BluetoothGattCallback.class);
@@ -384,10 +386,12 @@ public class GattClientTest {
         }
     }
 
-    private void registerWritableGattService() {
+    private void registerGattService() {
         GattCharacteristicParams characteristicParams =
                 GattCharacteristicParams.newBuilder()
-                        .setProperties(BluetoothGattCharacteristic.PROPERTY_WRITE)
+                        .setProperties(
+                                BluetoothGattCharacteristic.PROPERTY_READ
+                                        | BluetoothGattCharacteristic.PROPERTY_WRITE)
                         .setUuid(TEST_CHARACTERISTIC_UUID.toString())
                         .build();
 
@@ -563,6 +567,39 @@ public class GattClientTest {
             }
         } finally {
             disconnectAndWaitDisconnection(gatt, gattCallback);
+        }
+    }
+
+    // Check if we can have 100 simultaneous clients
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_GATT_CLIENT_DYNAMIC_ALLOCATION)
+    public void connectGatt_multipleClients() {
+        advertiseWithBumble();
+        registerGattService();
+
+        List<BluetoothGatt> gatts = new ArrayList<>();
+        final int repeatTimes = 100;
+
+        try {
+            for (int i = 0; i < repeatTimes; i++) {
+                BluetoothGattCallback gattCallback = mock(BluetoothGattCallback.class);
+                BluetoothGatt gatt = connectGattAndWaitConnection(gattCallback);
+                gatts.add(gatt);
+                gatt.discoverServices();
+                verify(gattCallback, timeout(10000)).onServicesDiscovered(any(), eq(GATT_SUCCESS));
+
+                BluetoothGattCharacteristic characteristic =
+                        gatt.getService(TEST_SERVICE_UUID)
+                                .getCharacteristic(TEST_CHARACTERISTIC_UUID);
+                gatt.readCharacteristic(characteristic);
+                verify(gattCallback, timeout(5000))
+                        .onCharacteristicRead(any(), any(), any(), anyInt());
+            }
+        } finally {
+            for (BluetoothGatt gatt : gatts) {
+                gatt.disconnect();
+                gatt.close();
+            }
         }
     }
 }
