@@ -1708,8 +1708,8 @@ static void btif_on_service_discovery_results(RawAddress bd_addr,
   }
 }
 
-void btif_on_gatt_results(RawAddress bd_addr, BD_NAME bd_name,
-                          std::vector<bluetooth::Uuid>& services, bool is_transport_le) {
+void btif_on_gatt_results(RawAddress bd_addr, std::vector<bluetooth::Uuid>& services,
+                          bool is_transport_le) {
   std::vector<bt_property_t> prop;
   std::vector<uint8_t> property_value;
   std::set<Uuid> uuids;
@@ -1821,16 +1821,6 @@ void btif_on_gatt_results(RawAddress bd_addr, BD_NAME bd_name,
   bt_status_t ret = btif_storage_set_remote_device_property(&bd_addr, &prop[0]);
   ASSERTC(ret == BT_STATUS_SUCCESS, "storing remote services failed", ret);
 
-  /* Remote name update */
-  if (!com::android::bluetooth::flags::separate_service_and_device_discovery() &&
-      strnlen((const char*)bd_name, BD_NAME_LEN)) {
-    prop.push_back(bt_property_t{BT_PROPERTY_BDNAME,
-                                 static_cast<int>(strnlen((char*)bd_name, BD_NAME_LEN)), bd_name});
-
-    ret = btif_storage_set_remote_device_property(&bd_addr, &prop[1]);
-    ASSERTC(ret == BT_STATUS_SUCCESS, "failed to save remote device property", ret);
-  }
-
   if (!is_transport_le) {
     /* If services were returned as part of SDP discovery, we will immediately
      * send them with rest of SDP results in on_service_discovery_results */
@@ -1852,14 +1842,6 @@ void btif_on_gatt_results(RawAddress bd_addr, BD_NAME bd_name,
 
 static void btif_on_name_read(RawAddress bd_addr, tHCI_ERROR_CODE hci_status, const BD_NAME bd_name,
                               bool during_device_search) {
-  // Differentiate between merged callbacks
-  if (!during_device_search
-      // New fix after refactor, this callback is needed for the fix to work
-      && !com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    log::info("Skipping name read event - called on bad callback.");
-    return;
-  }
-
   if (hci_status != HCI_SUCCESS) {
     log::warn("Received RNR event with bad status addr:{} hci_status:{}", bd_addr,
               hci_error_code_text(hci_status));
@@ -1964,9 +1946,7 @@ void BTIF_dm_enable() {
   log::info("Local BLE Privacy enabled:{}", ble_privacy_enabled);
   BTA_DmBleConfigLocalPrivacy(ble_privacy_enabled);
 
-  if (com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    get_stack_rnr_interface().BTM_SecAddRmtNameNotifyCallback(btif_on_name_read_from_btm);
-  }
+  get_stack_rnr_interface().BTM_SecAddRmtNameNotifyCallback(btif_on_name_read_from_btm);
 
   /* for each of the enabled services in the mask, trigger the profile
    * enable */
@@ -1992,9 +1972,7 @@ void BTIF_dm_enable() {
 }
 
 void BTIF_dm_disable() {
-  if (com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    get_stack_rnr_interface().BTM_SecDeleteRmtNameNotifyCallback(&btif_on_name_read_from_btm);
-  }
+  get_stack_rnr_interface().BTM_SecDeleteRmtNameNotifyCallback(&btif_on_name_read_from_btm);
 
   /* for each of the enabled services in the mask, trigger the profile
    * disable */
@@ -2805,11 +2783,6 @@ bt_status_t btif_dm_get_adapter_property(bt_property_t* prop) {
   return BT_STATUS_SUCCESS;
 }
 
-static void btif_on_name_read_legacy(RawAddress bd_addr, tHCI_ERROR_CODE hci_status,
-                                     const BD_NAME bd_name) {
-  btif_on_name_read(bd_addr, hci_status, bd_name, false /* during_device_search */);
-}
-
 /*******************************************************************************
  *
  * Function         btif_dm_get_remote_services
@@ -2829,7 +2802,6 @@ void btif_dm_get_remote_services(RawAddress remote_addr, const tBT_TRANSPORT tra
                  service_discovery_callbacks{
                          .on_gatt_results = btif_on_gatt_results,
                          .on_did_received = btif_on_did_received,
-                         .on_name_read = btif_on_name_read_legacy,
                          .on_service_discovery_results = btif_on_service_discovery_results},
                  transport);
 }

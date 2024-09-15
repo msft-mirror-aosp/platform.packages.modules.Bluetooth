@@ -20,7 +20,6 @@
  */
 
 #include "gap_api.h"
-#include "l2c_api.h"
 #include "stack/include/bt_hdr.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"

@@ -1715,12 +1715,11 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * overwrites the previously stored alias. The new alias is saved in local storage so that the
      * change is preserved over power cycles.
      *
-     * <p>This method requires the calling app to be associated with Companion Device Manager (see
-     * {@link android.companion.CompanionDeviceManager#associate(AssociationRequest,
-     * android.companion.CompanionDeviceManager.Callback, Handler)}) and have the {@link
-     * android.Manifest.permission#BLUETOOTH_CONNECT} permission. Alternatively, if the caller has
-     * the {@link android.Manifest.permission#BLUETOOTH_PRIVILEGED} permission, they can bypass the
-     * Companion Device Manager association requirement.
+     * <p>This method requires the calling app to have the {@link
+     * android.Manifest.permission#BLUETOOTH_CONNECT} permission. Additionally, an app must either
+     * have the {@link android.Manifest.permission#BLUETOOTH_PRIVILEGED} or be associated with the
+     * Companion Device manager (see {@link android.companion.CompanionDeviceManager#associate(
+     * AssociationRequest, android.companion.CompanionDeviceManager.Callback, Handler)})
      *
      * @param alias is the new locally modifiable name for the remote Bluetooth device which must be
      *     the empty string. If null, we clear the alias.

@@ -48,6 +48,12 @@ void VolumeControlDevice::DeregisterNotifications(tGATT_IF gatt_if) {
     BTA_GATTC_DeregisterForNotifications(gatt_if, address, of.audio_location_handle);
     BTA_GATTC_DeregisterForNotifications(gatt_if, address, of.state_handle);
   }
+
+  for (const VolumeAudioInput& in : audio_inputs.volume_audio_inputs) {
+    BTA_GATTC_DeregisterForNotifications(gatt_if, address, in.description_handle);
+    BTA_GATTC_DeregisterForNotifications(gatt_if, address, in.state_handle);
+    BTA_GATTC_DeregisterForNotifications(gatt_if, address, in.status_handle);
+  }
 }
 
 void VolumeControlDevice::Disconnect(tGATT_IF gatt_if) {
@@ -115,6 +121,56 @@ bool VolumeControlDevice::set_volume_control_service_handles(const gatt::Service
   }
 
   return false;
+}
+
+void VolumeControlDevice::set_audio_input_control_service_handles(const gatt::Service& service) {
+  VolumeAudioInput input = VolumeAudioInput(service.handle);
+  for (const gatt::Characteristic& chrc : service.characteristics) {
+    if (chrc.uuid == kVolumeAudioInputStateUuid) {
+      input.state_handle = chrc.value_handle;
+      input.state_ccc_handle = find_ccc_handle(chrc.value_handle);
+      log::debug("{}, input_state handle={:#x}, ccc {:#x}", address, input.state_handle,
+                 input.state_ccc_handle);
+
+    } else if (chrc.uuid == kVolumeAudioInputGainSettingUuid) {
+      input.gain_setting_handle = chrc.value_handle;
+
+    } else if (chrc.uuid == kVolumeAudioInputTypeUuid) {
+      input.type_handle = chrc.value_handle;
+
+    } else if (chrc.uuid == kVolumeAudioInputStatusUuid) {
+      input.status_handle = chrc.value_handle;
+      input.status_ccc_handle = find_ccc_handle(chrc.value_handle);
+      log::debug("{}, input_status handle={:#x}, ccc {:#x}", address, input.status_handle,
+                 input.status_ccc_handle);
+
+    } else if (chrc.uuid == kVolumeAudioInputControlPointUuid) {
+      input.control_point_handle = chrc.value_handle;
+
+    } else if (chrc.uuid == kVolumeAudioInputDescriptionUuid) {
+      input.description_handle = chrc.value_handle;
+      input.description_ccc_handle = find_ccc_handle(chrc.value_handle);
+      input.description_writable = chrc.properties & GATT_CHAR_PROP_BIT_WRITE_NR;
+      log::debug("{}, input_desc handle={:#x}, ccc {:#x}", address, input.description_handle,
+                 input.description_ccc_handle);
+
+    } else {
+      log::warn("unknown characteristic={}", chrc.uuid);
+    }
+  }
+
+  // Check if all mandatory attributes are present
+  if (GATT_HANDLE_IS_VALID(input.state_handle) && GATT_HANDLE_IS_VALID(input.state_ccc_handle) &&
+      GATT_HANDLE_IS_VALID(input.gain_setting_handle) && GATT_HANDLE_IS_VALID(input.type_handle) &&
+      GATT_HANDLE_IS_VALID(input.status_handle) && GATT_HANDLE_IS_VALID(input.status_ccc_handle) &&
+      GATT_HANDLE_IS_VALID(input.control_point_handle) &&
+      GATT_HANDLE_IS_VALID(input.description_handle)
+      /* description_ccc_handle is optional */) {
+    audio_inputs.Add(input);
+    log::info("{}, input added id={:#x}", address, input.id);
+  } else {
+    log::warn("{}, ignoring input handle={:#x}", address, service.handle);
+  }
 }
 
 void VolumeControlDevice::set_volume_offset_control_service_handles(const gatt::Service& service) {
@@ -193,6 +249,13 @@ bool VolumeControlDevice::UpdateHandles(void) {
           log::info("{}, found VOCS, handle={:#x}", address, service->handle);
           set_volume_offset_control_service_handles(*service);
 
+        } else if (included.uuid == kVolumeAudioInputUuid) {
+          log::info("{}, found AICS, handle={:#x}", address, service->handle);
+          if (com::android::bluetooth::flags::leaudio_add_aics_support()) {
+            set_audio_input_control_service_handles(*service);
+          } else {
+            log::info("Flag leaudio_add_aics_support is not enabled");
+          }
         } else {
           log::warn("{}, unknown service={}", address, service->uuid);
         }
@@ -218,6 +281,10 @@ void VolumeControlDevice::ResetHandles(void) {
 
   if (audio_offsets.Size() != 0) {
     audio_offsets.Clear();
+  }
+
+  if (audio_inputs.Size() != 0) {
+    audio_inputs.Clear();
   }
 }
 
@@ -281,6 +348,21 @@ bool VolumeControlDevice::EnqueueInitialRequests(tGATT_IF gatt_if, GATT_READ_OP_
     handles_pending.insert(volume_flags_ccc_handle);
   }
 
+  // Register for notifications
+  for (auto const& input : audio_inputs.volume_audio_inputs) {
+    // State is mandatory
+    hdls_to_subscribe[input.state_handle] = input.state_ccc_handle;
+    handles_pending.insert(input.state_ccc_handle);
+    // State is mandatory
+    hdls_to_subscribe[input.status_handle] = input.status_ccc_handle;
+    handles_pending.insert(input.status_ccc_handle);
+
+    if (GATT_HANDLE_IS_VALID(input.description_ccc_handle)) {
+      hdls_to_subscribe[input.description_handle] = input.description_ccc_handle;
+      handles_pending.insert(input.description_ccc_handle);
+    }
+  }
+
   for (auto const& offset : audio_offsets.volume_offsets) {
     hdls_to_subscribe[offset.state_handle] = offset.state_ccc_handle;
     handles_pending.insert(offset.state_ccc_handle);
@@ -321,6 +403,14 @@ void VolumeControlDevice::EnqueueRemainingRequests(tGATT_IF gatt_if, GATT_READ_O
                                                    GATT_READ_MULTI_OP_CB chrc_multi_read_cb,
                                                    GATT_WRITE_OP_CB cccd_write_cb) {
   std::vector<uint16_t> handles_to_read;
+
+  for (auto const& input : audio_inputs.volume_audio_inputs) {
+    handles_to_read.push_back(input.state_handle);
+    handles_to_read.push_back(input.gain_setting_handle);
+    handles_to_read.push_back(input.type_handle);
+    handles_to_read.push_back(input.status_handle);
+    handles_to_read.push_back(input.description_handle);
+  }
 
   for (auto const& offset : audio_offsets.volume_offsets) {
     handles_to_read.push_back(offset.state_handle);
@@ -451,6 +541,96 @@ void VolumeControlDevice::ExtAudioOutControlPointOperation(uint8_t ext_output_id
   }
 
   BtaGattQueue::WriteCharacteristic(connection_id, offset->control_point_handle, set_value,
+                                    GATT_WRITE, cb, cb_data);
+}
+
+void VolumeControlDevice::GetExtAudioInState(uint8_t ext_input_id, GATT_READ_OP_CB cb,
+                                             void* cb_data) {
+  VolumeAudioInput* input = audio_inputs.FindById(ext_input_id);
+  if (!input) {
+    log::error("{}, no such input={:#x}", address, ext_input_id);
+    return;
+  }
+
+  BtaGattQueue::ReadCharacteristic(connection_id, input->state_handle, cb, cb_data);
+}
+
+void VolumeControlDevice::GetExtAudioInStatus(uint8_t ext_input_id, GATT_READ_OP_CB cb,
+                                              void* cb_data) {
+  VolumeAudioInput* input = audio_inputs.FindById(ext_input_id);
+  if (!input) {
+    log::error("{}, no such input={:#x}", address, ext_input_id);
+    return;
+  }
+
+  BtaGattQueue::ReadCharacteristic(connection_id, input->status_handle, cb, cb_data);
+}
+
+void VolumeControlDevice::GetExtAudioInType(uint8_t ext_input_id, GATT_READ_OP_CB cb,
+                                            void* cb_data) {
+  VolumeAudioInput* input = audio_inputs.FindById(ext_input_id);
+  if (!input) {
+    log::error("{}, no such input={:#x}", address, ext_input_id);
+    return;
+  }
+
+  BtaGattQueue::ReadCharacteristic(connection_id, input->type_handle, cb, cb_data);
+}
+
+void VolumeControlDevice::GetExtAudioInGainProps(uint8_t ext_input_id, GATT_READ_OP_CB cb,
+                                                 void* cb_data) {
+  VolumeAudioInput* input = audio_inputs.FindById(ext_input_id);
+  if (!input) {
+    log::error("{}, no such input={:#x}", address, ext_input_id);
+    return;
+  }
+
+  BtaGattQueue::ReadCharacteristic(connection_id, input->gain_setting_handle, cb, cb_data);
+}
+
+void VolumeControlDevice::GetExtAudioInDescription(uint8_t ext_input_id, GATT_READ_OP_CB cb,
+                                                   void* cb_data) {
+  VolumeAudioInput* input = audio_inputs.FindById(ext_input_id);
+  if (!input) {
+    log::error("{}, no such input={:#x}", address, ext_input_id);
+    return;
+  }
+
+  BtaGattQueue::ReadCharacteristic(connection_id, input->description_handle, cb, cb_data);
+}
+
+void VolumeControlDevice::SetExtAudioInDescription(uint8_t ext_input_id, const std::string& descr) {
+  VolumeAudioInput* input = audio_inputs.FindById(ext_input_id);
+  if (!input) {
+    log::error("{}, no such input={:#x}", address, ext_input_id);
+    return;
+  }
+
+  if (!input->description_writable) {
+    log::warn("not writable");
+    return;
+  }
+
+  std::vector<uint8_t> value(descr.begin(), descr.end());
+  BtaGattQueue::WriteCharacteristic(connection_id, input->description_handle, value,
+                                    GATT_WRITE_NO_RSP, nullptr, nullptr);
+}
+
+void VolumeControlDevice::ExtAudioInControlPointOperation(uint8_t ext_input_id, uint8_t opcode,
+                                                          const std::vector<uint8_t>* arg,
+                                                          GATT_WRITE_OP_CB cb, void* cb_data) {
+  VolumeAudioInput* input = audio_inputs.FindById(ext_input_id);
+  if (!input) {
+    log::error("{}, no such input={:#x}", address, ext_input_id);
+    return;
+  }
+
+  std::vector<uint8_t> set_value({opcode, input->change_counter});
+  if (arg != nullptr) {
+    set_value.insert(set_value.end(), (*arg).begin(), (*arg).end());
+  }
+
+  BtaGattQueue::WriteCharacteristic(connection_id, input->control_point_handle, set_value,
                                     GATT_WRITE, cb, cb_data);
 }
 

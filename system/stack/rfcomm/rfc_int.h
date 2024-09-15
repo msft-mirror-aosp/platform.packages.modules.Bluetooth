@@ -31,10 +31,10 @@
 
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_status.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/rfcomm/port_int.h"
 #include "stack/rfcomm/rfc_event.h"
-#include "stack/rfcomm/rfc_state.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 /*

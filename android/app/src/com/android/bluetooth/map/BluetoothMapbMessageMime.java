@@ -213,6 +213,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
         return newPart;
     }
 
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public String getDateString() {
         SimpleDateFormat format = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US);
         Date dateObj = new Date(mDate);

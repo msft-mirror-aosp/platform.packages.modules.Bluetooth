@@ -354,7 +354,9 @@ typedef void(tBTM_BLE_ADV_DATA_CMPL_CBACK)(tBTM_STATUS status);
         than this number */
 #endif
 
+typedef uint16_t tCONN_ID;
 typedef uint8_t tGATT_IF;
+typedef uint8_t tTCB_IDX;
 
 typedef enum : uint8_t {
   BTM_BLE_DIRECT_CONNECTION = 0x00,
