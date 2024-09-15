@@ -1258,7 +1258,7 @@ std::shared_ptr<LeAudioDevice> LeAudioDevices::GetByAddress(const RawAddress& ad
   return (iter == leAudioDevices_.end()) ? nullptr : *iter;
 }
 
-LeAudioDevice* LeAudioDevices::FindByConnId(uint16_t conn_id) const {
+LeAudioDevice* LeAudioDevices::FindByConnId(tCONN_ID conn_id) const {
   auto iter = std::find_if(
           leAudioDevices_.begin(), leAudioDevices_.end(),
           [&conn_id](auto const& leAudioDevice) { return leAudioDevice->conn_id_ == conn_id; });

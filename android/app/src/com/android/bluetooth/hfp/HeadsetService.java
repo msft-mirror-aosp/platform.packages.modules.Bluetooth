@@ -196,25 +196,19 @@ public class HeadsetService extends ProfileService {
         // Step 3: Initialize system interface
         mSystemInterface = HeadsetObjectsFactory.getInstance().makeSystemInterface(this);
         // Step 4: Initialize native interface
-        if (Flags.hfpCodecAptxVoice()) {
-            mIsAptXSwbEnabled =
-                    SystemProperties.getBoolean("bluetooth.hfp.codec_aptx_voice.enabled", false);
-            Log.i(TAG, "mIsAptXSwbEnabled: " + mIsAptXSwbEnabled);
-            mIsAptXSwbPmEnabled =
-                    SystemProperties.getBoolean(
-                            "bluetooth.hfp.swb.aptx.power_management.enabled", false);
-            Log.i(TAG, "mIsAptXSwbPmEnabled: " + mIsAptXSwbPmEnabled);
-        }
+        mIsAptXSwbEnabled =
+                SystemProperties.getBoolean("bluetooth.hfp.codec_aptx_voice.enabled", false);
+        Log.i(TAG, "mIsAptXSwbEnabled: " + mIsAptXSwbEnabled);
+        mIsAptXSwbPmEnabled =
+                SystemProperties.getBoolean(
+                        "bluetooth.hfp.swb.aptx.power_management.enabled", false);
+        Log.i(TAG, "mIsAptXSwbPmEnabled: " + mIsAptXSwbPmEnabled);
         setHeadsetService(this);
         mMaxHeadsetConnections = mAdapterService.getMaxConnectedAudioDevices();
         // Add 1 to allow a pending device to be connecting or disconnecting
         mNativeInterface.init(mMaxHeadsetConnections + 1, isInbandRingingEnabled());
-        if (Flags.hfpCodecAptxVoice()) {
-            enableSwbCodec(
-                    HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX,
-                    mIsAptXSwbEnabled,
-                    mActiveDevice);
-        }
+        enableSwbCodec(
+                HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX, mIsAptXSwbEnabled, mActiveDevice);
         // Step 6: Setup broadcast receivers
         IntentFilter filter = new IntentFilter();
         filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
@@ -1185,9 +1179,7 @@ public class HeadsetService extends ProfileService {
             }
             stateMachine.sendMessage(HeadsetStateMachine.CONNECT_AUDIO, device);
         }
-        if (Flags.hfpCodecAptxVoice()) {
-            enableSwbCodec(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX, true, device);
-        }
+        enableSwbCodec(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX, true, device);
         return true;
     }
 
@@ -1227,9 +1219,7 @@ public class HeadsetService extends ProfileService {
             }
             stateMachine.sendMessage(HeadsetStateMachine.DISCONNECT_AUDIO, device);
         }
-        if (Flags.hfpCodecAptxVoice()) {
-            enableSwbCodec(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX, false, device);
-        }
+        enableSwbCodec(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX, false, device);
         return true;
     }
 
@@ -1902,9 +1892,7 @@ public class HeadsetService extends ProfileService {
             if (!mSystemInterface.getVoiceRecognitionWakeLock().isHeld()) {
                 mSystemInterface.getVoiceRecognitionWakeLock().acquire(sStartVrTimeoutMs);
             }
-            if (Flags.hfpCodecAptxVoice()) {
-                enableSwbCodec(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX, true, fromDevice);
-            }
+            enableSwbCodec(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX, true, fromDevice);
             return true;
         }
     }
@@ -1956,9 +1944,7 @@ public class HeadsetService extends ProfileService {
                 Log.w(TAG, "stopVoiceRecognitionByHeadset: failed request from " + fromDevice);
                 return false;
             }
-            if (Flags.hfpCodecAptxVoice()) {
-                enableSwbCodec(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX, false, fromDevice);
-            }
+            enableSwbCodec(HeadsetHalConstants.BTHF_SWB_CODEC_VENDOR_APTX, false, fromDevice);
             return true;
         }
     }

@@ -207,26 +207,21 @@ void btif_enable_bluetooth_evt() {
 
   GetInterfaceToProfiles()->onBluetoothEnabled();
 
-  if (!com::android::bluetooth::flags::load_did_config_from_sysprops()) {
-    bte_load_did_conf(BTE_DID_CONF_FILE);
-  } else {
-    tSDP_DI_RECORD record = {
-            .vendor =
-                    uint16_t(android::sysprop::bluetooth::DeviceIDProperties::vendor_id().value_or(
-                            LMP_COMPID_GOOGLE)),
-            .vendor_id_source = uint16_t(
-                    android::sysprop::bluetooth::DeviceIDProperties::vendor_id_source().value_or(
-                            DI_VENDOR_ID_SOURCE_BTSIG)),
-            .product = uint16_t(
-                    android::sysprop::bluetooth::DeviceIDProperties::product_id().value_or(0)),
-            .primary_record = true,
-    };
+  tSDP_DI_RECORD record = {
+          .vendor = uint16_t(android::sysprop::bluetooth::DeviceIDProperties::vendor_id().value_or(
+                  LMP_COMPID_GOOGLE)),
+          .vendor_id_source = uint16_t(
+                  android::sysprop::bluetooth::DeviceIDProperties::vendor_id_source().value_or(
+                          DI_VENDOR_ID_SOURCE_BTSIG)),
+          .product = uint16_t(
+                  android::sysprop::bluetooth::DeviceIDProperties::product_id().value_or(0)),
+          .primary_record = true,
+  };
 
-    uint32_t record_handle;
-    tBTA_STATUS status = BTA_DmSetLocalDiRecord(&record, &record_handle);
-    if (status != BTA_SUCCESS) {
-      log::error("unable to set device ID record error {}.", bta_status_text(status));
-    }
+  uint32_t record_handle;
+  tBTA_STATUS status = BTA_DmSetLocalDiRecord(&record, &record_handle);
+  if (status != BTA_SUCCESS) {
+    log::error("unable to set device ID record error {}.", bta_status_text(status));
   }
 
   btif_dm_load_local_oob();

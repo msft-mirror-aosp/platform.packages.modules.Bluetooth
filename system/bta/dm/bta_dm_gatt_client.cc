@@ -60,11 +60,11 @@ gatt_interface_t default_gatt_interface = {
                   BTA_GATTC_Refresh(remote_bda);
                 },
         .BTA_GATTC_GetGattDb =
-                [](uint16_t conn_id, uint16_t start_handle, uint16_t end_handle,
+                [](tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
                    btgatt_db_element_t** db, int* count) {
-                  gatt_history_.Push(
-                          base::StringPrintf("%-32s conn_id:%hu start_handle:%hu end:handle:%hu",
-                                             "GATTC_GetGattDb", conn_id, start_handle, end_handle));
+                  gatt_history_.Push(base::StringPrintf(
+                          "%-32s conn_id:%hu start_handle:%hu end:handle:%hu", "GATTC_GetGattDb",
+                          static_cast<uint16_t>(conn_id), start_handle, end_handle));
                   BTA_GATTC_GetGattDb(conn_id, start_handle, end_handle, db, count);
                 },
         .BTA_GATTC_AppRegister =
@@ -75,15 +75,16 @@ gatt_interface_t default_gatt_interface = {
                   BTA_GATTC_AppRegister(p_client_cb, cb, eatt_support);
                 },
         .BTA_GATTC_Close =
-                [](uint16_t conn_id) {
-                  gatt_history_.Push(
-                          base::StringPrintf("%-32s conn_id:%hu", "GATTC_Close", conn_id));
+                [](tCONN_ID conn_id) {
+                  gatt_history_.Push(base::StringPrintf("%-32s conn_id:%hu", "GATTC_Close",
+                                                        static_cast<uint16_t>(conn_id)));
                   BTA_GATTC_Close(conn_id);
                 },
         .BTA_GATTC_ServiceSearchRequest =
-                [](uint16_t conn_id, const bluetooth::Uuid* p_srvc_uuid) {
+                [](tCONN_ID conn_id, const bluetooth::Uuid* p_srvc_uuid) {
                   gatt_history_.Push(base::StringPrintf("%-32s conn_id:%hu",
-                                                        "GATTC_ServiceSearchRequest", conn_id));
+                                                        "GATTC_ServiceSearchRequest",
+                                                        static_cast<uint16_t>(conn_id)));
                   if (p_srvc_uuid) {
                     BTA_GATTC_ServiceSearchRequest(conn_id, *p_srvc_uuid);
                   } else {

@@ -3,7 +3,6 @@
 //! This crate provides the API implementation of the Fluoride/GD Bluetooth
 //! stack, independent of any RPC projection.
 
-pub mod async_helper;
 pub mod battery_manager;
 pub mod battery_provider_manager;
 pub mod battery_service;

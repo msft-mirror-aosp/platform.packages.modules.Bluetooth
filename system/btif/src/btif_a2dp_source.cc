@@ -324,9 +324,7 @@ static void btif_a2dp_source_init_delayed(void) {
   // the provider needs to be initialized earlier in order to ensure
   // get_a2dp_configuration and parse_a2dp_configuration can be
   // invoked before the stream is started.
-  if (com::android::bluetooth::flags::a2dp_offload_codec_extensibility()) {
-    bluetooth::audio::a2dp::init(&btif_a2dp_source_thread);
-  }
+  bluetooth::audio::a2dp::init(&btif_a2dp_source_thread);
 }
 
 bool btif_a2dp_source_startup(void) {

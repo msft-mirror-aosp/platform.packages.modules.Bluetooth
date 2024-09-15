@@ -553,25 +553,29 @@ struct btm_sec_disconnected {
 extern struct btm_sec_disconnected btm_sec_disconnected;
 
 // Name: btm_sec_encrypt_change
-// Params: uint16_t handle, tHCI_STATUS status, uint8_t encr_enable
-// Return: void
+// Params: uint16_t handle, tHCI_STATUS status, uint8_t encr_enable, uint8_t key_size, bool
+// from_key_refresh Return: void
 struct btm_sec_encrypt_change {
-  std::function<void(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable)> body{
-          [](uint16_t /* handle */, tHCI_STATUS /* status */, uint8_t /* encr_enable */) {}};
-  void operator()(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable) {
-    body(handle, status, encr_enable);
+  std::function<void(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable, uint8_t key_size,
+                     bool from_key_refresh)>
+          body{[](uint16_t /* handle */, tHCI_STATUS /* status */, uint8_t /* encr_enable */,
+                  uint8_t /* key_size */, bool /* from_key_refresh */) {}};
+  void operator()(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable, uint8_t key_size,
+                  bool from_key_refresh) {
+    body(handle, status, encr_enable, key_size, from_key_refresh);
   }
 };
 extern struct btm_sec_encrypt_change btm_sec_encrypt_change;
 
 // Name: btm_sec_encryption_change_evt
-// Params: uint16_t handle, tHCI_STATUS status, uint8_t encr_enable
+// Params: uint16_t handle, tHCI_STATUS status, uint8_t encr_enable, uint8_t key_size
 // Return: void
 struct btm_sec_encryption_change_evt {
-  std::function<void(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable)> body{
-          [](uint16_t /* handle */, tHCI_STATUS /* status */, uint8_t /* encr_enable */) {}};
-  void operator()(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable) {
-    body(handle, status, encr_enable);
+  std::function<void(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable, uint8_t key_size)>
+          body{[](uint16_t /* handle */, tHCI_STATUS /* status */, uint8_t /* encr_enable */,
+                  uint8_t /* key_size */) {}};
+  void operator()(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable, uint8_t key_size) {
+    body(handle, status, encr_enable, key_size);
   }
 };
 extern struct btm_sec_encryption_change_evt btm_sec_encryption_change_evt;

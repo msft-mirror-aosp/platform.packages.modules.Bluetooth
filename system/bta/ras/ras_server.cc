@@ -57,13 +57,13 @@ public:
   };
 
   struct PendingWriteResponse {
-    uint16_t conn_id_;
+    tCONN_ID conn_id_;
     uint32_t trans_id_;
     uint16_t write_req_handle_;
   };
 
   struct ClientTracker {
-    uint16_t conn_id_;
+    tCONN_ID conn_id_;
     std::unordered_map<Uuid, uint16_t> ccc_values_;
     std::vector<DataBuffer> buffers_;
     bool handling_control_point_command_ = false;
@@ -390,7 +390,7 @@ public:
   }
 
   void OnReadDescriptor(tBTA_GATTS* p_data) {
-    uint16_t conn_id = p_data->req_data.conn_id;
+    tCONN_ID conn_id = p_data->req_data.conn_id;
     uint16_t read_req_handle = p_data->req_data.p_data->read_req.handle;
     RawAddress remote_bda = p_data->req_data.remote_bda;
     log::info("conn_id:{}, read_req_handle:0x{:04x}", conn_id, read_req_handle);
@@ -419,7 +419,7 @@ public:
   }
 
   void OnWriteCharacteristic(tBTA_GATTS* p_data) {
-    uint16_t conn_id = p_data->req_data.conn_id;
+    tCONN_ID conn_id = p_data->req_data.conn_id;
     uint16_t write_req_handle = p_data->req_data.p_data->write_req.handle;
     uint16_t len = p_data->req_data.p_data->write_req.len;
     bool need_rsp = p_data->req_data.p_data->write_req.need_rsp;
@@ -510,7 +510,7 @@ public:
   }
 
   void OnWriteDescriptor(tBTA_GATTS* p_data) {
-    uint16_t conn_id = p_data->req_data.conn_id;
+    tCONN_ID conn_id = p_data->req_data.conn_id;
     uint16_t write_req_handle = p_data->req_data.p_data->write_req.handle;
     uint16_t len = p_data->req_data.p_data->write_req.len;
     RawAddress remote_bda = p_data->req_data.remote_bda;
