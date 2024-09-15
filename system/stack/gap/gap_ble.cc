@@ -256,7 +256,7 @@ void server_attr_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_T
 }
 
 /**
- * utility function to send a read request for a GAP charactersitic.
+ * Utility function to send a read request for GAP characteristics.
  * Returns true if read started, else false if GAP is busy.
  */
 bool send_cl_read_request(tGAP_CLCB& clcb) {
@@ -426,9 +426,9 @@ bool accept_client_operation(const RawAddress& peer_bda, uint16_t uuid,
 
 /*******************************************************************************
  *
- * Function         btm_ble_att_db_init
+ * Function         gap_attr_db_init
  *
- * Description      GAP ATT database initalization.
+ * Description      GAP ATT database initialization.
  *
  * Returns          void.
  *

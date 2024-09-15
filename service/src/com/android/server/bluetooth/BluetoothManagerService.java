@@ -742,18 +742,14 @@ class BluetoothManagerService {
 
     // Called from unsafe binder thread
     IBluetooth registerAdapter(IBluetoothManagerCallback callback) {
-        synchronized (mCallbacks) {
-            mCallbacks.register(callback);
-        }
+        mCallbacks.register(callback);
         // Copy to local variable to avoid race condition when checking for null
         AdapterBinder adapter = mAdapter;
         return adapter != null ? adapter.getAdapterBinder() : null;
     }
 
     void unregisterAdapter(IBluetoothManagerCallback callback) {
-        synchronized (mCallbacks) {
-            mCallbacks.unregister(callback);
-        }
+        mCallbacks.unregister(callback);
     }
 
     boolean isEnabled() {
@@ -1248,74 +1244,43 @@ class BluetoothManagerService {
         mHandler.obtainMessage(MESSAGE_USER_UNLOCKED, userHandle).sendToTarget();
     }
 
-    private void sendBluetoothOnCallback() {
-        synchronized (mCallbacks) {
+    @FunctionalInterface
+    public interface RemoteExceptionConsumer<T> {
+        void accept(T t) throws RemoteException;
+    }
+
+    private void broadcastToAdapters(
+            String logAction, RemoteExceptionConsumer<IBluetoothManagerCallback> action) {
+        final int itemCount = mCallbacks.beginBroadcast();
+        Log.d(TAG, "Broadcasting " + logAction + "() to " + itemCount + " receivers.");
+        for (int i = 0; i < itemCount; i++) {
             try {
-                int n = mCallbacks.beginBroadcast();
-                Log.d(TAG, "Broadcasting onBluetoothOn() to " + n + " receivers.");
-                for (int i = 0; i < n; i++) {
-                    try {
-                        mCallbacks.getBroadcastItem(i).onBluetoothOn();
-                    } catch (RemoteException e) {
-                        Log.e(TAG, "Unable to call onBluetoothOn() on callback #" + i, e);
-                    }
-                }
-            } finally {
-                mCallbacks.finishBroadcast();
+                action.accept(mCallbacks.getBroadcastItem(i));
+            } catch (RemoteException e) {
+                Log.e(TAG, "RemoteException while calling " + logAction + "()#" + i, e);
             }
         }
+        mCallbacks.finishBroadcast();
+    }
+
+    private void sendBluetoothOnCallback() {
+        broadcastToAdapters("sendBluetoothOnCallback", IBluetoothManagerCallback::onBluetoothOn);
     }
 
     private void sendBluetoothOffCallback() {
-        synchronized (mCallbacks) {
-            try {
-                int n = mCallbacks.beginBroadcast();
-                Log.d(TAG, "Broadcasting onBluetoothOff() to " + n + " receivers.");
-                for (int i = 0; i < n; i++) {
-                    try {
-                        mCallbacks.getBroadcastItem(i).onBluetoothOff();
-                    } catch (RemoteException e) {
-                        Log.e(TAG, "Unable to call onBluetoothOff() on callback #" + i, e);
-                    }
-                }
-            } finally {
-                mCallbacks.finishBroadcast();
-            }
-        }
+        broadcastToAdapters("sendBluetoothOffCallback", IBluetoothManagerCallback::onBluetoothOff);
     }
 
-    /** Inform BluetoothAdapter instances that Adapter service is up */
     private void sendBluetoothServiceUpCallback() {
-        synchronized (mCallbacks) {
-            int n = mCallbacks.beginBroadcast();
-            Log.d(TAG, "sendBluetoothServiceUpCallback(): to " + n + " receivers");
-            for (int i = 0; i < n; i++) {
-                try {
-                    mCallbacks
-                            .getBroadcastItem(i)
-                            .onBluetoothServiceUp(mAdapter.getAdapterBinder().asBinder());
-                } catch (RemoteException e) {
-                    Log.e(TAG, "Unable to call onBluetoothServiceUp() on callback #" + i, e);
-                }
-            }
-            mCallbacks.finishBroadcast();
-        }
+        broadcastToAdapters(
+                "sendBluetoothServiceUpCallback",
+                (item) -> item.onBluetoothServiceUp(mAdapter.getAdapterBinder().asBinder()));
     }
 
-    /** Inform BluetoothAdapter instances that Adapter service is down */
     private void sendBluetoothServiceDownCallback() {
-        synchronized (mCallbacks) {
-            int n = mCallbacks.beginBroadcast();
-            Log.d(TAG, "sendBluetoothServiceDownCallback(): to " + n + " receivers");
-            for (int i = 0; i < n; i++) {
-                try {
-                    mCallbacks.getBroadcastItem(i).onBluetoothServiceDown();
-                } catch (RemoteException e) {
-                    Log.e(TAG, "Unable to call onBluetoothServiceDown() on callback #" + i, e);
-                }
-            }
-            mCallbacks.finishBroadcast();
-        }
+        broadcastToAdapters(
+                "sendBluetoothServiceDownCallback",
+                IBluetoothManagerCallback::onBluetoothServiceDown);
     }
 
     // Called from unsafe binder thread
