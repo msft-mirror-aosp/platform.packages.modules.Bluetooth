@@ -5531,7 +5531,7 @@ public class AdapterService extends Service {
         for (int i = 0; i < n; i++) {
             cb.accept(mBluetoothConnectionCallbacks.getBroadcastItem(i));
         }
-        mRemoteCallbacks.finishBroadcast();
+        mBluetoothConnectionCallbacks.finishBroadcast();
     }
 
     /**

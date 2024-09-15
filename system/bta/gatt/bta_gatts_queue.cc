@@ -31,15 +31,15 @@ using namespace bluetooth;
 
 constexpr uint8_t GATT_NOTIFY = 1;
 
-std::unordered_map<uint16_t, std::list<gatts_operation>> BtaGattServerQueue::gatts_op_queue;
-std::unordered_set<uint16_t> BtaGattServerQueue::gatts_op_queue_executing;
-std::unordered_map<uint16_t, bool> BtaGattServerQueue::congestion_queue;
+std::unordered_map<tCONN_ID, std::list<gatts_operation>> BtaGattServerQueue::gatts_op_queue;
+std::unordered_set<tCONN_ID> BtaGattServerQueue::gatts_op_queue_executing;
+std::unordered_map<tCONN_ID, bool> BtaGattServerQueue::congestion_queue;
 
-void BtaGattServerQueue::mark_as_not_executing(uint16_t conn_id) {
+void BtaGattServerQueue::mark_as_not_executing(tCONN_ID conn_id) {
   gatts_op_queue_executing.erase(conn_id);
 }
 
-void BtaGattServerQueue::gatts_execute_next_op(uint16_t conn_id) {
+void BtaGattServerQueue::gatts_execute_next_op(tCONN_ID conn_id) {
   log::verbose("conn_id=0x{:x}", conn_id);
 
   if (gatts_op_queue.empty()) {
@@ -84,21 +84,21 @@ void BtaGattServerQueue::gatts_execute_next_op(uint16_t conn_id) {
   }
 }
 
-void BtaGattServerQueue::Clean(uint16_t conn_id) {
+void BtaGattServerQueue::Clean(tCONN_ID conn_id) {
   log::verbose("conn_id=0x{:x}", conn_id);
 
   gatts_op_queue.erase(conn_id);
   gatts_op_queue_executing.erase(conn_id);
 }
 
-void BtaGattServerQueue::SendNotification(uint16_t conn_id, uint16_t handle,
+void BtaGattServerQueue::SendNotification(tCONN_ID conn_id, uint16_t handle,
                                           std::vector<uint8_t> value, bool need_confirm) {
   gatts_op_queue[conn_id].emplace_back(gatts_operation{
           .type = GATT_NOTIFY, .attr_id = handle, .value = value, .need_confirm = need_confirm});
   gatts_execute_next_op(conn_id);
 }
 
-void BtaGattServerQueue::NotificationCallback(uint16_t conn_id) {
+void BtaGattServerQueue::NotificationCallback(tCONN_ID conn_id) {
   auto map_ptr = gatts_op_queue.find(conn_id);
   if (map_ptr == gatts_op_queue.end() || map_ptr->second.empty()) {
     log::verbose("no more operations queued for conn_id {}", conn_id);
@@ -111,7 +111,7 @@ void BtaGattServerQueue::NotificationCallback(uint16_t conn_id) {
   gatts_execute_next_op(conn_id);
 }
 
-void BtaGattServerQueue::CongestionCallback(uint16_t conn_id, bool congested) {
+void BtaGattServerQueue::CongestionCallback(tCONN_ID conn_id, bool congested) {
   log::verbose("conn_id: {}, congested: {}", conn_id, congested);
 
   congestion_queue[conn_id] = congested;

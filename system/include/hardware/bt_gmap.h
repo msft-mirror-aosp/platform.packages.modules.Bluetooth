@@ -21,10 +21,10 @@ namespace bluetooth {
 namespace gmap {
 
 enum class RolesBitMask : uint8_t {
-  UGG = 1<<0, // Unicast Game Gateway (UGG)
-  UGT = 1<<1, // Unicast Game Terminal (UGT)
-  BGS = 1<<2, // Broadcast Game Sender (BGS)
-  BGR = 1<<3, // Broadcast Game Receiver (BGR)
+  UGG = 1 << 0,  // Unicast Game Gateway (UGG)
+  UGT = 1 << 1,  // Unicast Game Terminal (UGT)
+  BGS = 1 << 2,  // Broadcast Game Sender (BGS)
+  BGR = 1 << 3,  // Broadcast Game Receiver (BGR)
 };
 
 enum class UGTFeatureBitMask : uint8_t {
@@ -46,7 +46,7 @@ enum class UGGFeatureBitMask : uint8_t {
 
 namespace fmt {
 template <>
-struct formatter<bluetooth::gmap::Roles> : enum_formatter<bluetooth::gmap::Roles> {};
+struct formatter<bluetooth::gmap::RolesBitMask> : enum_formatter<bluetooth::gmap::RolesBitMask> {};
 template <>
 struct formatter<bluetooth::gmap::UGTFeatureBitMask>
     : enum_formatter<bluetooth::gmap::UGTFeatureBitMask> {};

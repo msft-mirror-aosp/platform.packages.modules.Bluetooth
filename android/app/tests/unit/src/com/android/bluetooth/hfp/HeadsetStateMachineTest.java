@@ -2105,10 +2105,8 @@ public class HeadsetStateMachineTest {
         verify(mAudioManager, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
                 .setParameters(lc3Enabled ? "bt_lc3_swb=on" : "bt_lc3_swb=off");
 
-        if (Flags.hfpCodecAptxVoice()) {
-            verify(mAudioManager, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
-                    .setParameters(aptxEnabled ? "bt_swb=0" : "bt_swb=65535");
-        }
+        verify(mAudioManager, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
+                .setParameters(aptxEnabled ? "bt_swb=0" : "bt_swb=65535");
     }
 
     /**
@@ -2296,11 +2294,6 @@ public class HeadsetStateMachineTest {
     private void configureHeadsetServiceForAptxVoice(boolean enable) {
         if (enable) {
             when(mHeadsetService.isAptXSwbEnabled()).thenReturn(true);
-            mSetFlagsRule.enableFlags(Flags.FLAG_HFP_CODEC_APTX_VOICE);
-            Assert.assertTrue(Flags.hfpCodecAptxVoice());
-        } else {
-            mSetFlagsRule.disableFlags(Flags.FLAG_HFP_CODEC_APTX_VOICE);
-            Assert.assertFalse(Flags.hfpCodecAptxVoice());
         }
     }
 }

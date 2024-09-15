@@ -213,6 +213,7 @@ public class BluetoothPbapSimVcardManager {
     }
 
     @Override
+    @SuppressWarnings("Finalize") // TODO: b/366307571 remove override
     public void finalize() {
         if (!mTerminateIsCalled) {
             terminate();

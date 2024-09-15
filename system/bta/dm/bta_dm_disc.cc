@@ -91,7 +91,7 @@ static void post_disc_evt(tBTA_DM_DISC_EVT event, std::unique_ptr<tBTA_DM_MSG> m
   }
 }
 
-static void bta_dm_gatt_disc_complete(uint16_t conn_id, tGATT_STATUS status);
+static void bta_dm_gatt_disc_complete(tCONN_ID conn_id, tGATT_STATUS status);
 static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data);
 static void bta_dm_execute_queued_discovery_request();
 static void bta_dm_close_gatt_conn();
@@ -101,12 +101,12 @@ namespace {
 struct gatt_interface_t {
   void (*BTA_GATTC_CancelOpen)(tGATT_IF client_if, const RawAddress& remote_bda, bool is_direct);
   void (*BTA_GATTC_Refresh)(const RawAddress& remote_bda);
-  void (*BTA_GATTC_GetGattDb)(uint16_t conn_id, uint16_t start_handle, uint16_t end_handle,
+  void (*BTA_GATTC_GetGattDb)(tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
                               btgatt_db_element_t** db, int* count);
   void (*BTA_GATTC_AppRegister)(tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
                                 bool eatt_support);
-  void (*BTA_GATTC_Close)(uint16_t conn_id);
-  void (*BTA_GATTC_ServiceSearchRequest)(uint16_t conn_id, const bluetooth::Uuid* p_srvc_uuid);
+  void (*BTA_GATTC_Close)(tCONN_ID conn_id);
+  void (*BTA_GATTC_ServiceSearchRequest)(tCONN_ID conn_id, const bluetooth::Uuid* p_srvc_uuid);
   void (*BTA_GATTC_Open)(tGATT_IF client_if, const RawAddress& remote_bda,
                          tBTM_BLE_CONN_TYPE connection_type, bool opportunistic);
 } default_gatt_interface = {
@@ -116,7 +116,7 @@ struct gatt_interface_t {
                 },
         .BTA_GATTC_Refresh = [](const RawAddress& remote_bda) { BTA_GATTC_Refresh(remote_bda); },
         .BTA_GATTC_GetGattDb =
-                [](uint16_t conn_id, uint16_t start_handle, uint16_t end_handle,
+                [](tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
                    btgatt_db_element_t** db, int* count) {
                   BTA_GATTC_GetGattDb(conn_id, start_handle, end_handle, db, count);
                 },
@@ -124,9 +124,9 @@ struct gatt_interface_t {
                 [](tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb, bool eatt_support) {
                   BTA_GATTC_AppRegister(p_client_cb, cb, eatt_support);
                 },
-        .BTA_GATTC_Close = [](uint16_t conn_id) { BTA_GATTC_Close(conn_id); },
+        .BTA_GATTC_Close = [](tCONN_ID conn_id) { BTA_GATTC_Close(conn_id); },
         .BTA_GATTC_ServiceSearchRequest =
-                [](uint16_t conn_id, const bluetooth::Uuid* p_srvc_uuid) {
+                [](tCONN_ID conn_id, const bluetooth::Uuid* p_srvc_uuid) {
                   if (p_srvc_uuid) {
                     BTA_GATTC_ServiceSearchRequest(conn_id, *p_srvc_uuid);
                   } else {
@@ -162,7 +162,7 @@ void bta_dm_disc_remove_device(const RawAddress& bd_addr) {
   if (bta_dm_discovery_cb.service_discovery_state == BTA_DM_DISCOVER_ACTIVE &&
       bta_dm_discovery_cb.peer_bdaddr == bd_addr) {
     log::info("Device removed while service discovery was pending, conclude the service discovery");
-    bta_dm_gatt_disc_complete((uint16_t)GATT_INVALID_CONN_ID, (tGATT_STATUS)GATT_ERROR);
+    bta_dm_gatt_disc_complete(GATT_INVALID_CONN_ID, (tGATT_STATUS)GATT_ERROR);
   }
 }
 
@@ -491,7 +491,7 @@ void bta_dm_gatt_finished(RawAddress bda, tBTA_STATUS result,
  * Parameters:
  *
  ******************************************************************************/
-static void bta_dm_gatt_disc_complete(uint16_t conn_id, tGATT_STATUS status) {
+static void bta_dm_gatt_disc_complete(tCONN_ID conn_id, tGATT_STATUS status) {
   bool sdp_pending = bta_dm_discovery_cb.transports & BT_TRANSPORT_BR_EDR;
   bool le_pending = bta_dm_discovery_cb.transports & BT_TRANSPORT_LE;
 
@@ -672,7 +672,7 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
       if (bta_dm_discovery_get_state() == BTA_DM_DISCOVER_ACTIVE) {
         /* in case of disconnect before search is completed */
         if (p_data->close.remote_bda == bta_dm_discovery_cb.peer_bdaddr) {
-          bta_dm_gatt_disc_complete((uint16_t)GATT_INVALID_CONN_ID, (tGATT_STATUS)GATT_ERROR);
+          bta_dm_gatt_disc_complete(GATT_INVALID_CONN_ID, (tGATT_STATUS)GATT_ERROR);
         }
       }
       break;

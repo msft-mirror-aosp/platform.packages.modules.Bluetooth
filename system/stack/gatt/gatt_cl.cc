@@ -623,7 +623,7 @@ void gatt_process_notification(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, ui
                                uint8_t* p_data) {
   tGATT_VALUE value = {};
   tGATT_REG* p_reg;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
   tGATT_STATUS encrypt_status = {};
   uint8_t* p = p_data;
   uint8_t i;
@@ -728,14 +728,14 @@ void gatt_process_notification(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, ui
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
       if (p_reg->in_use && p_reg->app_cb.p_cmpl_cb) {
-        conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, p_reg->gatt_if);
+        conn_id = gatt_create_conn_id(tcb.tcb_idx, p_reg->gatt_if);
         (*p_reg->app_cb.p_cmpl_cb)(conn_id, event, encrypt_status, &gatt_cl_complete);
       }
     }
   } else {
     for (i = 0, p_reg = gatt_cb.cl_rcb; i < GATT_MAX_APPS; i++, p_reg++) {
       if (p_reg->in_use && p_reg->app_cb.p_cmpl_cb) {
-        conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, p_reg->gatt_if);
+        conn_id = gatt_create_conn_id(tcb.tcb_idx, p_reg->gatt_if);
         (*p_reg->app_cb.p_cmpl_cb)(conn_id, event, encrypt_status, &gatt_cl_complete);
       }
     }
@@ -778,14 +778,14 @@ void gatt_process_notification(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, ui
     if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
       for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
         if (p_reg->in_use && p_reg->app_cb.p_cmpl_cb) {
-          conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, p_reg->gatt_if);
+          conn_id = gatt_create_conn_id(tcb.tcb_idx, p_reg->gatt_if);
           (*p_reg->app_cb.p_cmpl_cb)(conn_id, event, encrypt_status, &gatt_cl_complete);
         }
       }
     } else {
       for (i = 0, p_reg = gatt_cb.cl_rcb; i < GATT_MAX_APPS; i++, p_reg++) {
         if (p_reg->in_use && p_reg->app_cb.p_cmpl_cb) {
-          conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, p_reg->gatt_if);
+          conn_id = gatt_create_conn_id(tcb.tcb_idx, p_reg->gatt_if);
           (*p_reg->app_cb.p_cmpl_cb)(conn_id, event, encrypt_status, &gatt_cl_complete);
         }
       }

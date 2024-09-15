@@ -164,7 +164,7 @@ public:
     StartOpportunisticConnect(address);
   }
 
-  void OnGattConnected(tGATT_STATUS status, uint16_t connection_id, tGATT_IF /*client_if*/,
+  void OnGattConnected(tGATT_STATUS status, tCONN_ID connection_id, tGATT_IF /*client_if*/,
                        RawAddress address, tBT_TRANSPORT transport, uint16_t /*mtu*/) {
     bluetooth::log::info("{}, conn_id=0x{:04x}, transport={}, status={}(0x{:02x})", address,
                          connection_id, bt_transport_text(transport), gatt_status_text(status),
@@ -276,7 +276,7 @@ public:
     }
   }
 
-  void OnServiceSearchComplete(uint16_t connection_id, tGATT_STATUS status) {
+  void OnServiceSearchComplete(tCONN_ID connection_id, tGATT_STATUS status) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
       bluetooth::log::error("Skipping unknown device, connection_id={:#x}", connection_id);
@@ -310,7 +310,7 @@ public:
     device->EnqueueInitialRequests(gatt_if_, chrc_read_callback_static, OnGattWriteCccStatic);
   }
 
-  void OnCharacteristicValueChanged(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+  void OnCharacteristicValueChanged(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                     uint16_t len, uint8_t* value, void* data,
                                     bool is_notification) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(conn_id);
@@ -385,12 +385,12 @@ public:
     bluetooth::log::error("{}, unknown handle={:#x}", device->address, handle);
   }
 
-  void OnNotificationEvent(uint16_t conn_id, uint16_t handle, uint16_t len, uint8_t* value) {
+  void OnNotificationEvent(tCONN_ID conn_id, uint16_t handle, uint16_t len, uint8_t* value) {
     bluetooth::log::info("connection_id={:#x}, handle={:#x}", conn_id, handle);
     OnCharacteristicValueChanged(conn_id, GATT_SUCCESS, handle, len, value, nullptr, true);
   }
 
-  void VolumeControlReadCommon(uint16_t conn_id, uint16_t handle) {
+  void VolumeControlReadCommon(tCONN_ID conn_id, uint16_t handle) {
     BtaGattQueue::ReadCharacteristic(conn_id, handle, chrc_read_callback_static, nullptr);
   }
 
@@ -705,7 +705,7 @@ public:
                                              input->gain_settings.min, input->gain_settings.max);
   }
 
-  void OnExtAudioOutCPWrite(uint16_t connection_id, tGATT_STATUS status, uint16_t handle,
+  void OnExtAudioOutCPWrite(tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle,
                             void* /*data*/) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
@@ -740,7 +740,7 @@ public:
     callbacks_->OnExtAudioOutDescriptionChanged(device->address, offset->id, offset->description);
   }
 
-  void OnGattWriteCcc(uint16_t connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+  void OnGattWriteCcc(tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                       const uint8_t* value, void* /*data*/) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
@@ -768,7 +768,7 @@ public:
     verify_device_ready(device, handle);
   }
 
-  static void OnGattWriteCccStatic(uint16_t connection_id, tGATT_STATUS status, uint16_t handle,
+  static void OnGattWriteCccStatic(tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle,
                                    uint16_t len, const uint8_t* value, void* data) {
     if (!instance) {
       bluetooth::log::error("connection_id={:#x}, no instance. Handle to write={:#x}",
@@ -809,7 +809,7 @@ public:
     volume_control_devices_.Remove(address);
   }
 
-  void OnGattDisconnected(uint16_t connection_id, tGATT_IF /*client_if*/, RawAddress remote_bda,
+  void OnGattDisconnected(tCONN_ID connection_id, tGATT_IF /*client_if*/, RawAddress remote_bda,
                           tGATT_DISCONN_REASON reason) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
@@ -912,7 +912,7 @@ public:
     }
   }
 
-  void OnWriteControlResponse(uint16_t connection_id, tGATT_STATUS status, uint16_t handle,
+  void OnWriteControlResponse(tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle,
                               void* data) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
@@ -1364,7 +1364,7 @@ private:
                                     const std::vector<uint8_t>* arg, int operation_id = -1) {
     volume_control_devices_.ControlPointOperation(
             devices, opcode, arg,
-            [](uint16_t connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+            [](tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                const uint8_t* value, void* data) {
               if (instance) {
                 instance->OnWriteControlResponse(connection_id, status, handle, data);
@@ -1404,7 +1404,7 @@ private:
     }
     device->ExtAudioOutControlPointOperation(
             ext_output_id, opcode, arg,
-            [](uint16_t connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+            [](tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                const uint8_t* value, void* data) {
               if (instance) {
                 instance->OnExtAudioOutCPWrite(connection_id, status, handle, data);
@@ -1474,7 +1474,7 @@ private:
     }
   }
 
-  static void chrc_read_callback_static(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+  static void chrc_read_callback_static(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                         uint16_t len, uint8_t* value, void* data) {
     if (instance) {
       instance->OnCharacteristicValueChanged(conn_id, status, handle, len, value, data, false);
