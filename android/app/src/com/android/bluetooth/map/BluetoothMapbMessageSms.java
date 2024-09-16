@@ -89,7 +89,8 @@ public class BluetoothMapbMessageSms extends BluetoothMapbMessage {
                     mSmsBody.replaceAll(
                             "END:MSG",
                             "/END\\:MSG"); // Replace any occurrences of END:MSG with \END:MSG
-            String remoteAddress = BluetoothMapService.getRemoteDevice().getAddress();
+            String remoteAddress =
+                    BluetoothMapService.getBluetoothMapService().getRemoteDevice().getAddress();
             /* Fix IOT issue with PCM carkit where carkit is unable to parse
             message if carriage return is present in it */
             if (DeviceWorkArounds.addressStartsWith(remoteAddress, DeviceWorkArounds.PCM_CARKIT)) {
