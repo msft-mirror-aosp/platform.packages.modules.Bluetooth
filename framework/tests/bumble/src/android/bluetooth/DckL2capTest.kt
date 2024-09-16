@@ -51,17 +51,21 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import pandora.HostProto.Connection
+import pandora.l2cap.L2CAPProto.ConnectRequest
+import pandora.l2cap.L2CAPProto.ConnectResponse
 import pandora.l2cap.L2CAPProto.CreditBasedChannelRequest
+import pandora.l2cap.L2CAPProto.DisconnectRequest
 import pandora.l2cap.L2CAPProto.ReceiveRequest
 import pandora.l2cap.L2CAPProto.ReceiveResponse
+import pandora.l2cap.L2CAPProto.SendRequest
 import pandora.l2cap.L2CAPProto.WaitConnectionRequest
 import pandora.l2cap.L2CAPProto.WaitConnectionResponse
 import pandora.l2cap.L2CAPProto.WaitDisconnectionRequest
 
-/** DCK L2CAP Client Tests */
+/** DCK L2CAP Tests */
 @RunWith(TestParameterInjector::class)
 @kotlinx.coroutines.ExperimentalCoroutinesApi
-public class DckL2capClientTest() : Closeable {
+public class DckL2capTest() : Closeable {
 
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default)
     private val context: Context = ApplicationProvider.getApplicationContext()
@@ -184,6 +188,68 @@ public class DckL2capClientTest() : Closeable {
         Log.d(TAG, "testSend: done")
     }
 
+    @Test
+    fun testReceive() {
+        Log.d(TAG, "testReceive: Connect L2CAP")
+        var bluetoothSocket: BluetoothSocket?
+        val l2capServer = bluetoothAdapter.listenUsingInsecureL2capChannel()
+        val socketFlow = flow { emit(l2capServer.accept()) }
+        val connectResponse = createAndConnectL2capChannelWithBumble(l2capServer.psm)
+        runBlocking {
+            bluetoothSocket = socketFlow.first()
+            assertThat(connectResponse.hasChannel()).isTrue()
+        }
+
+        val inputStream = bluetoothSocket!!.inputStream
+        val sampleData: ByteString = ByteString.copyFromUtf8("cafe-baguette")
+        val buffer = ByteArray(sampleData.size())
+
+        val sendRequest =
+            SendRequest.newBuilder().setChannel(connectResponse.channel).setData(sampleData).build()
+        Log.d(TAG, "testReceive: Send data from Bumble to Android")
+        mBumble.l2capBlocking().send(sendRequest)
+
+        Log.d(TAG, "testReceive: Receive data on Android")
+        val read = inputStream.read(buffer)
+        assertThat(ByteString.copyFrom(buffer).substring(0, read)).isEqualTo(sampleData)
+
+        Log.d(TAG, "testReceive: disconnect")
+        val disconnectRequest =
+            DisconnectRequest.newBuilder().setChannel(connectResponse.channel).build()
+        val disconnectResponse = mBumble.l2capBlocking().disconnect(disconnectRequest)
+        assertThat(disconnectResponse.hasSuccess()).isTrue()
+        inputStream.close()
+        bluetoothSocket?.close()
+        l2capServer.close()
+        Log.d(TAG, "testReceive: done")
+    }
+
+    private fun createAndConnectL2capChannelWithBumble(psm: Int): ConnectResponse {
+        Log.d(TAG, "createAndConnectL2capChannelWithBumble")
+        val remoteDevice =
+            bluetoothAdapter.getRemoteLeDevice(
+                Utils.BUMBLE_RANDOM_ADDRESS,
+                BluetoothDevice.ADDRESS_TYPE_RANDOM,
+            )
+        val connectionHandle = remoteDevice.getConnectionHandle(BluetoothDevice.TRANSPORT_LE)
+        val handle = intToByteArray(connectionHandle, ByteOrder.BIG_ENDIAN)
+        val cookie = Any.newBuilder().setValue(ByteString.copyFrom(handle)).build()
+        val connection = Connection.newBuilder().setCookie(cookie).build()
+        val leCreditBased =
+            CreditBasedChannelRequest.newBuilder()
+                .setSpsm(psm)
+                .setInitialCredit(INITIAL_CREDITS)
+                .setMtu(MTU)
+                .setMps(MPS)
+                .build()
+        val connectRequest =
+            ConnectRequest.newBuilder()
+                .setConnection(connection)
+                .setLeCreditBased(leCreditBased)
+                .build()
+        return mBumble.l2capBlocking().connect(connectRequest)
+    }
+
     private fun readDckSpsm(gatt: BluetoothGatt) = runBlocking {
         Log.d(TAG, "readDckSpsm")
         launch {
@@ -302,7 +368,7 @@ public class DckL2capClientTest() : Closeable {
     }
 
     companion object {
-        private const val TAG = "DckL2capClientTest"
+        private const val TAG = "DckL2capTest"
         private const val INITIAL_CREDITS = 256
         private const val MTU = 2048 // Default Maximum Transmission Unit.
         private const val MPS = 2048 // Default Maximum payload size.

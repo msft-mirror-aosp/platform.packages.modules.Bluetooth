@@ -325,6 +325,7 @@ static void event_start_up_stack(bluetooth::core::CoreInterface* interface,
   }
 
   if (!com::android::bluetooth::flags::scan_manager_refactor()) {
+    info("Starting rust module");
     module_start_up(get_local_module(RUST_MODULE));
   }
   if (com::android::bluetooth::flags::channel_sounding_in_stack()) {
@@ -350,6 +351,7 @@ static void event_shut_down_stack(ProfileStopCallback stopProfiles) {
   stack_is_running = false;
 
   if (!com::android::bluetooth::flags::scan_manager_refactor()) {
+    info("Stopping rust module");
     module_shut_down(get_local_module(RUST_MODULE));
   }
 
