@@ -792,6 +792,7 @@ cc_test {
         "android.hardware.common.fmq-V1-ndk",
         "android.system.suspend-V1-ndk",
         "android.system.suspend.control-V1-ndk",
+        "bluetooth_flags_c_lib",
         "libFraunhoferAAC",
         "libbase",
         "libbluetooth-dumpsys",

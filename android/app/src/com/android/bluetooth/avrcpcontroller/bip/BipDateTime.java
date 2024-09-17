@@ -127,6 +127,11 @@ public class BipDateTime {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hash(isUtc(), getTime());
+    }
+
+    @Override
     @SuppressLint("ToStringReturnsNull")
     public String toString() {
         Date d = getTime();

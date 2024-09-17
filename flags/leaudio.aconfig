@@ -415,3 +415,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "leaudio_unicast_no_available_contexts"
+    namespace: "bluetooth"
+    description: "Fix handling initial zero available contexts"
+    bug: "367325041"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

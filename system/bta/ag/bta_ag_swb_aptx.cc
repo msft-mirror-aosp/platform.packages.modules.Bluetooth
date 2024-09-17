@@ -30,8 +30,7 @@
 using namespace bluetooth;
 
 bool is_hfp_aptx_voice_enabled() {
-  return com::android::bluetooth::flags::hfp_codec_aptx_voice() &&
-         android::sysprop::bluetooth::Hfp::codec_aptx_voice().value_or(false);
+  return android::sysprop::bluetooth::Hfp::codec_aptx_voice().value_or(false);
 }
 
 static bool aptx_swb_codec_status;

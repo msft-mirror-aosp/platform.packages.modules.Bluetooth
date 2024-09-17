@@ -29,7 +29,6 @@ import static java.util.Objects.requireNonNull;
 
 import android.annotation.BroadcastBehavior;
 import android.annotation.CallbackExecutor;
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -753,7 +752,6 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_AUTO_ON_FEATURE)
     @RequiresPermission(BLUETOOTH_PRIVILEGED)
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     @BroadcastBehavior(registeredOnly = true, protectedBroadcast = true)
@@ -768,7 +766,6 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_AUTO_ON_FEATURE)
     public static final String EXTRA_AUTO_ON_STATE = "android.bluetooth.extra.AUTO_ON_STATE";
 
     /**
@@ -777,7 +774,6 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_AUTO_ON_FEATURE)
     public static final int AUTO_ON_STATE_DISABLED = 1;
 
     /**
@@ -786,7 +782,6 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_AUTO_ON_FEATURE)
     public static final int AUTO_ON_STATE_ENABLED = 2;
 
     /**
@@ -921,10 +916,10 @@ public final class BluetoothAdapter {
     /**
      * Bluetooth metadata listener. Overrides the default BluetoothMetadataListener implementation.
      */
-    @SuppressLint("AndroidFrameworkBluetoothPermission")
     private final IBluetoothMetadataListener mBluetoothMetadataListener =
             new IBluetoothMetadataListener.Stub() {
                 @Override
+                @RequiresNoPermission
                 public void onMetadataChanged(BluetoothDevice device, int key, byte[] value) {
                     Attributable.setAttributionSource(device, mAttributionSource);
                     synchronized (mMetadataListeners) {
@@ -4565,26 +4560,15 @@ public final class BluetoothAdapter {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean addOnMetadataChangedListener(
             @NonNull BluetoothDevice device,
             @NonNull Executor executor,
             @NonNull OnMetadataChangedListener listener) {
         if (DBG) Log.d(TAG, "addOnMetadataChangedListener()");
-
-        if (listener == null) {
-            throw new NullPointerException("listener is null");
-        }
-        if (device == null) {
-            throw new NullPointerException("device is null");
-        }
-        if (executor == null) {
-            throw new NullPointerException("executor is null");
-        }
+        requireNonNull(device);
+        requireNonNull(executor);
+        requireNonNull(listener);
 
         mServiceLock.readLock().lock();
         try {
@@ -4604,7 +4588,7 @@ public final class BluetoothAdapter {
                     // Check whether this device is already registered by the listener
                     if (listenerList.stream().anyMatch((pair) -> (pair.first.equals(listener)))) {
                         throw new IllegalArgumentException(
-                                "listener was already registered" + " for the device");
+                                "listener already registered for " + device);
                     }
                 }
 
@@ -4653,20 +4637,12 @@ public final class BluetoothAdapter {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean removeOnMetadataChangedListener(
             @NonNull BluetoothDevice device, @NonNull OnMetadataChangedListener listener) {
         if (DBG) Log.d(TAG, "removeOnMetadataChangedListener()");
-        if (device == null) {
-            throw new NullPointerException("device is null");
-        }
-        if (listener == null) {
-            throw new NullPointerException("listener is null");
-        }
+        requireNonNull(device);
+        requireNonNull(listener);
 
         synchronized (mMetadataListeners) {
             if (!mMetadataListeners.containsKey(device)) {
@@ -4682,7 +4658,8 @@ public final class BluetoothAdapter {
                 mServiceLock.readLock().lock();
                 try {
                     if (mService != null) {
-                        return mService.unregisterMetadataListener(device, mAttributionSource);
+                        return mService.unregisterMetadataListener(
+                                mBluetoothMetadataListener, device, mAttributionSource);
                     }
                 } catch (RemoteException e) {
                     Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
@@ -5436,7 +5413,6 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_AUTO_ON_FEATURE)
     @RequiresPermission(BLUETOOTH_PRIVILEGED)
     public boolean isAutoOnSupported() {
         try {
@@ -5454,7 +5430,6 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_AUTO_ON_FEATURE)
     @RequiresPermission(BLUETOOTH_PRIVILEGED)
     public boolean isAutoOnEnabled() {
         try {
@@ -5473,7 +5448,6 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_AUTO_ON_FEATURE)
     @RequiresPermission(BLUETOOTH_PRIVILEGED)
     public void setAutoOnEnabled(boolean status) {
         try {

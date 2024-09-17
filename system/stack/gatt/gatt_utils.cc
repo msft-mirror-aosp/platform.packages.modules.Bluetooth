@@ -422,7 +422,7 @@ uint8_t gatt_find_i_tcb_by_addr(const RawAddress& bda, tBT_TRANSPORT transport) 
  * Returns           NULL if not found. Otherwise index to the tcb.
  *
  ******************************************************************************/
-tGATT_TCB* gatt_get_tcb_by_idx(uint8_t tcb_idx) {
+tGATT_TCB* gatt_get_tcb_by_idx(tTCB_IDX tcb_idx) {
   tGATT_TCB* p_tcb = NULL;
 
   if ((tcb_idx < gatt_get_max_phy_channel()) && gatt_cb.tcb[tcb_idx].in_use) {
@@ -541,7 +541,7 @@ tGATT_TCB* gatt_allocate_tcb_by_bdaddr(const RawAddress& bda, tBT_TRANSPORT tran
     p_tcb->peer_bda = bda;
     p_tcb->eatt = 0;
     p_tcb->pending_user_mtu_exchange_value = 0;
-    p_tcb->conn_ids_waiting_for_mtu_exchange = std::list<uint16_t>();
+    p_tcb->conn_ids_waiting_for_mtu_exchange = std::list<tCONN_ID>();
     p_tcb->max_user_mtu = 0;
     gatt_sr_init_cl_status(*p_tcb);
     gatt_cl_init_sr_status(*p_tcb);
@@ -565,7 +565,7 @@ bool gatt_is_pending_mtu_exchange(tGATT_TCB* p_tcb) {
   return p_tcb->pending_user_mtu_exchange_value != 0;
 }
 
-void gatt_set_conn_id_waiting_for_mtu_exchange(tGATT_TCB* p_tcb, uint16_t conn_id) {
+void gatt_set_conn_id_waiting_for_mtu_exchange(tGATT_TCB* p_tcb, tCONN_ID conn_id) {
   auto it = std::find(p_tcb->conn_ids_waiting_for_mtu_exchange.begin(),
                       p_tcb->conn_ids_waiting_for_mtu_exchange.end(), conn_id);
   if (it == p_tcb->conn_ids_waiting_for_mtu_exchange.end()) {
@@ -900,9 +900,9 @@ void gatt_sr_get_sec_info(const RawAddress& rem_bda, tBT_TRANSPORT transport,
  * Returns          void
  *
  ******************************************************************************/
-void gatt_sr_send_req_callback(uint16_t conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
+void gatt_sr_send_req_callback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
                                tGATTS_DATA* p_data) {
-  tGATT_IF gatt_if = GATT_GET_GATT_IF(conn_id);
+  tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
 
   if (!p_reg) {
@@ -1115,10 +1115,10 @@ bool gatt_tcb_is_cid_busy(tGATT_TCB& tcb, uint16_t cid) {
  *                  block.
  *
  ******************************************************************************/
-tGATT_CLCB* gatt_clcb_alloc(uint16_t conn_id) {
+tGATT_CLCB* gatt_clcb_alloc(tCONN_ID conn_id) {
   tGATT_CLCB clcb = {};
-  tGATT_IF gatt_if = GATT_GET_GATT_IF(conn_id);
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+  tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
+  tTCB_IDX tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
 
@@ -1790,7 +1790,7 @@ void gatt_end_operation(tGATT_CLCB* p_clcb, tGATT_STATUS status, void* p_data) {
   tGATT_DISC_TYPE disc_type = GATT_DISC_MAX;
   tGATT_DISC_CMPL_CB* p_disc_cmpl_cb =
           (p_clcb->p_reg) ? p_clcb->p_reg->app_cb.p_disc_cmpl_cb : NULL;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
   uint8_t operation;
 
   log::verbose("status={} op={} subtype={}", status, p_clcb->operation, p_clcb->op_subtype);
@@ -1858,8 +1858,8 @@ static void gatt_le_disconnect_complete_notify_user(const RawAddress& bda,
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
       if (p_reg->in_use && p_reg->app_cb.p_conn_cb) {
-        uint16_t conn_id =
-                p_tcb ? GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if) : GATT_INVALID_CONN_ID;
+        tCONN_ID conn_id =
+                p_tcb ? gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if) : GATT_INVALID_CONN_ID;
         (*p_reg->app_cb.p_conn_cb)(p_reg->gatt_if, bda, conn_id, kGattDisconnected, reason,
                                    transport);
       }
@@ -1876,8 +1876,8 @@ static void gatt_le_disconnect_complete_notify_user(const RawAddress& bda,
     for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
       tGATT_REG* p_reg = &gatt_cb.cl_rcb[i];
       if (p_reg->in_use && p_reg->app_cb.p_conn_cb) {
-        uint16_t conn_id =
-                p_tcb ? GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if) : GATT_INVALID_CONN_ID;
+        tCONN_ID conn_id =
+                p_tcb ? gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if) : GATT_INVALID_CONN_ID;
         (*p_reg->app_cb.p_conn_cb)(p_reg->gatt_if, bda, conn_id, kGattDisconnected, reason,
                                    transport);
       }
@@ -1997,3 +1997,11 @@ bool gatt_auto_connect_dev_remove(tGATT_IF gatt_if, const RawAddress& bd_addr) {
     return connection_manager::background_connect_remove(gatt_if, bd_addr);
   }
 }
+
+tCONN_ID gatt_create_conn_id(tTCB_IDX tcb_idx, tGATT_IF gatt_if) {
+  return (tcb_idx << 8) | gatt_if;
+}
+
+tTCB_IDX gatt_get_tcb_idx(tCONN_ID conn_id) { return (uint8_t)(conn_id >> 8); }
+
+tGATT_IF gatt_get_gatt_if(tCONN_ID conn_id) { return (tGATT_IF)conn_id; }

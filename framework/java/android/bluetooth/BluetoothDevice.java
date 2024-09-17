@@ -1363,7 +1363,6 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     public static final int ADDRESS_TYPE_UNKNOWN = 0xFFFF;
 
     /** Address type used to indicate an anonymous advertisement. */
-    @FlaggedApi(Flags.FLAG_GET_ADDRESS_TYPE_API)
     public static final int ADDRESS_TYPE_ANONYMOUS = 0xFF;
 
     /**
@@ -1561,7 +1560,6 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *
      * @return Bluetooth address type
      */
-    @FlaggedApi(Flags.FLAG_GET_ADDRESS_TYPE_API)
     public @AddressType int getAddressType() {
         if (DBG) Log.d(TAG, "mAddressType: " + mAddressType);
         return mAddressType;
@@ -1715,12 +1713,11 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * overwrites the previously stored alias. The new alias is saved in local storage so that the
      * change is preserved over power cycles.
      *
-     * <p>This method requires the calling app to be associated with Companion Device Manager (see
-     * {@link android.companion.CompanionDeviceManager#associate(AssociationRequest,
-     * android.companion.CompanionDeviceManager.Callback, Handler)}) and have the {@link
-     * android.Manifest.permission#BLUETOOTH_CONNECT} permission. Alternatively, if the caller has
-     * the {@link android.Manifest.permission#BLUETOOTH_PRIVILEGED} permission, they can bypass the
-     * Companion Device Manager association requirement.
+     * <p>This method requires the calling app to have the {@link
+     * android.Manifest.permission#BLUETOOTH_CONNECT} permission. Additionally, an app must either
+     * have the {@link android.Manifest.permission#BLUETOOTH_PRIVILEGED} or be associated with the
+     * Companion Device manager (see {@link android.companion.CompanionDeviceManager#associate(
+     * AssociationRequest, android.companion.CompanionDeviceManager.Callback, Handler)})
      *
      * @param alias is the new locally modifiable name for the remote Bluetooth device which must be
      *     the empty string. If null, we clear the alias.

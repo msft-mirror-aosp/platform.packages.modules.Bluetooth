@@ -20,6 +20,7 @@
 #include <sstream>
 #include <vector>
 
+#include "a2dp_codec_api.h"
 #include "a2dp_constants.h"
 #include "avdt_api.h"
 #include "common/message_loop_thread.h"
@@ -56,7 +57,8 @@ bool init(bluetooth::common::MessageLoopThread* message_loop);
 void cleanup();
 
 // Set up the codec into BluetoothAudio HAL
-bool setup_codec();
+bool setup_codec(A2dpCodecConfig* a2dp_config, uint16_t peer_mtu,
+                 int preferred_encoding_interval_us);
 
 // Set low latency buffer mode allowed or disallowed
 void set_audio_low_latency_mode_allowed(bool allowed);

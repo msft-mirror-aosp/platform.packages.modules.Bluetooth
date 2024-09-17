@@ -59,7 +59,3 @@ EXPORT_SYMBOL extern const module_t gd_shim_module = {.name = GD_SHIM_MODULE,
 bool bluetooth::shim::is_gd_stack_started_up() {
   return bluetooth::shim::Stack::GetInstance()->IsRunning();
 }
-
-bool bluetooth::shim::is_gd_dumpsys_module_started() {
-  return bluetooth::shim::Stack::GetInstance()->IsDumpsysModuleStarted();
-}

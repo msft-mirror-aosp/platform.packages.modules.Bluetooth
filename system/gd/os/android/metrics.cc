@@ -30,7 +30,6 @@
 #include "common/strings.h"
 #include "hardware/bt_av.h"
 #include "hci/hci_packets.h"
-#include "metrics/metrics_state.h"
 #include "os/log.h"
 
 namespace fmt {
@@ -435,15 +434,6 @@ void LogMetricBluetoothCodePathCounterMetrics(int32_t key, int64_t count) {
   if (ret < 0) {
     log::warn("Failed counter metrics for {}, count {}, error {}", key, count, ret);
   }
-}
-
-void LogMetricBluetoothLEConnectionMetricEvent(
-        const Address& address, android::bluetooth::le::LeConnectionOriginType origin_type,
-        android::bluetooth::le::LeConnectionType connection_type,
-        android::bluetooth::le::LeConnectionState transaction_state,
-        std::vector<std::pair<os::ArgumentType, int>>& argument_list) {
-  bluetooth::metrics::MetricsCollector::GetLEConnectionMetricsCollector()->AddStateChangedEvent(
-          address, origin_type, connection_type, transaction_state, argument_list);
 }
 
 void LogMetricBluetoothLEConnection(os::LEConnectionSessionOptions session_options) {
