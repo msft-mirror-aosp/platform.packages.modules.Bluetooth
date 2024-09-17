@@ -361,6 +361,7 @@ android_app {
             "-Xep:OperatorPrecedence:ERROR",
             "-Xep:ReferenceEquality:ERROR",
             "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
+            "-Xep:StaticAssignmentInConstructor:ERROR",
             "-Xep:StaticGuardedByInstance:ERROR",
             "-Xep:StringCaseLocaleUsage:ERROR",
             "-Xep:StringCharset:ERROR",
