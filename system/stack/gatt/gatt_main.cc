@@ -582,9 +582,7 @@ static void gatt_le_connect_cback(uint16_t /* chan */, const RawAddress& bd_addr
     bluetooth::shim::arbiter::GetArbiter().OnLeConnect(p_tcb->tcb_idx, advertising_set.value());
   }
 
-  bool device_le_audio_capable = com::android::bluetooth::flags::read_model_num_fix()
-                                         ? is_le_audio_capable_during_service_discovery(bd_addr)
-                                         : is_device_le_audio_capable(bd_addr);
+  bool device_le_audio_capable = is_le_audio_capable_during_service_discovery(bd_addr);
   if (device_le_audio_capable) {
     log::info("Read model name for le audio capable device");
     if (!check_cached_model_name(bd_addr)) {

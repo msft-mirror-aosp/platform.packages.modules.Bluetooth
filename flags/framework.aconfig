@@ -53,14 +53,6 @@ flag {
 }
 
 flag {
-    name: "get_address_type_api"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Change visibility of BluetoothDevice#getAddressType API to public"
-    bug: "321120941"
-}
-
-flag {
     name: "remove_address_map_on_unbond"
     namespace: "bluetooth"
     description: "Removes the address map when the bond is removed"

@@ -33,6 +33,7 @@ cc_defaults {
         "android.hardware.common.fmq-V1-ndk",
         "android.system.suspend-V1-ndk",
         "android.system.suspend.control-V1-ndk",
+        "bluetooth_flags_c_lib",
         "libFraunhoferAAC",
         "libbluetooth-dumpsys",
         "libbluetooth-gdx",

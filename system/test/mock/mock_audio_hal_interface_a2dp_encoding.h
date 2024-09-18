@@ -226,8 +226,9 @@ extern struct set_remote_delay set_remote_delay;
 // Return: bool
 struct setup_codec {
   static bool return_value;
-  std::function<bool()> body{[]() { return return_value; }};
-  bool operator()() { return body(); }
+  std::function<bool(A2dpCodecConfig* a2dp_config)> body{
+          [](A2dpCodecConfig* /* a2dp_config */) { return return_value; }};
+  bool operator()(A2dpCodecConfig* a2dp_config) { return body(a2dp_config); }
 };
 extern struct setup_codec setup_codec;
 
