@@ -61,6 +61,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -964,6 +965,11 @@ public class ScanManager {
             return scanMode == other.scanMode
                     && fullScanscannerId == other.fullScanscannerId
                     && truncatedScanscannerId == other.truncatedScanscannerId;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(scanMode, fullScanscannerId, truncatedScanscannerId);
         }
     }
 
