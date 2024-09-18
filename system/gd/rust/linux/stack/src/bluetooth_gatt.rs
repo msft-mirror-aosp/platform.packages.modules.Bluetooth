@@ -540,7 +540,7 @@ pub trait IBluetoothGatt {
 
     /// Writes a remote characteristic.
     fn write_characteristic(
-        &self,
+        &mut self,
         client_id: i32,
         addr: RawAddress,
         handle: i32,
@@ -1339,6 +1339,7 @@ pub struct BluetoothGatt {
     context_map: ContextMap,
     server_context_map: ServerContextMap,
     reliable_queue: HashSet<RawAddress>,
+    write_characteristic_permits: HashMap<RawAddress, Option<i32>>,
     scanner_callbacks: Callbacks<dyn IScannerCallback + Send>,
     scanners: HashMap<Uuid, ScannerInfo>,
 
@@ -1372,6 +1373,7 @@ impl BluetoothGatt {
             context_map: ContextMap::new(tx.clone()),
             server_context_map: ServerContextMap::new(tx.clone()),
             reliable_queue: HashSet::new(),
+            write_characteristic_permits: HashMap::new(),
             scanner_callbacks: Callbacks::new(tx.clone(), Message::ScannerCallbackDisconnected),
             scanners: HashMap::new(),
             controller_scan_type: ControllerScanType::NotScanning,
@@ -2352,7 +2354,7 @@ impl IBluetoothGatt for BluetoothGatt {
     }
 
     fn write_characteristic(
-        &self,
+        &mut self,
         client_id: i32,
         addr: RawAddress,
         handle: i32,
@@ -2370,17 +2372,21 @@ impl IBluetoothGatt for BluetoothGatt {
 
         // TODO(b/200065274): Perform check on restricted handles.
 
-        // TODO(b/200070162): Handle concurrent write characteristic.
-
-        self.gatt.lock().unwrap().client.write_characteristic(
-            conn_id,
-            handle as u16,
-            write_type.to_i32().unwrap(),
-            auth_req,
-            &value,
-        );
-
-        GattWriteRequestStatus::Success
+        let permit = self.write_characteristic_permits.entry(addr).or_insert(None);
+        if permit.is_none() {
+            // Acquire the permit and pass it to BTIF.
+            *permit = Some(conn_id);
+            self.gatt.lock().unwrap().client.write_characteristic(
+                conn_id,
+                handle as u16,
+                write_type.to_i32().unwrap(),
+                auth_req,
+                &value,
+            );
+            GattWriteRequestStatus::Success
+        } else {
+            GattWriteRequestStatus::Busy
+        }
     }
 
     fn read_descriptor(&self, client_id: i32, addr: RawAddress, handle: i32, auth_req: i32) {
@@ -2809,6 +2815,18 @@ impl BtifGattClientCallbacks for BluetoothGatt {
             cb.on_client_connection_state(status, client_id, false, addr);
         }
         self.context_map.remove_connection(client_id, conn_id);
+
+        if self.context_map.get_client_ids_from_address(&addr).is_empty() {
+            // Cleaning up as no client connects to this address.
+            self.write_characteristic_permits.remove(&addr);
+        } else {
+            // If the permit is held by this |conn_id|, reset it.
+            if let Some(permit) = self.write_characteristic_permits.get_mut(&addr) {
+                if *permit == Some(conn_id) {
+                    *permit = None;
+                }
+            }
+        }
     }
 
     fn search_complete_cb(&mut self, conn_id: i32, _status: GattStatus) {
@@ -2854,11 +2872,11 @@ impl BtifGattClientCallbacks for BluetoothGatt {
         _len: u16,
         _value: *const u8,
     ) {
-        // TODO(b/200070162): Design how to handle concurrent write characteristic to the same
-        // peer.
-
         let Some(addr) = self.context_map.get_address_by_conn_id(conn_id) else { return };
         let Some(client) = self.context_map.get_client_by_conn_id_mut(conn_id) else { return };
+
+        // Reset the permit.
+        self.write_characteristic_permits.insert(addr, None);
 
         if client.is_congested {
             if status == GattStatus::Congested {
