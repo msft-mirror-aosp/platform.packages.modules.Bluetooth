@@ -77,7 +77,7 @@ public class BluetoothPbapVcardManager {
 
     static final int CONTACTS_NAME_COLUMN_INDEX = 1;
 
-    static long sLastFetchedTimeStamp;
+    private long mLastFetchedTimeStamp;
 
     // call histories use dynamic handles, and handles should order by date; the
     // most recently one should be the first handle. In table "calls", _id and
@@ -90,7 +90,7 @@ public class BluetoothPbapVcardManager {
     public BluetoothPbapVcardManager(final Context context) {
         mContext = context;
         mResolver = mContext.getContentResolver();
-        sLastFetchedTimeStamp = System.currentTimeMillis();
+        mLastFetchedTimeStamp = System.currentTimeMillis();
     }
 
     /** Create an owner vcard from the configured profile */
@@ -528,9 +528,9 @@ public class BluetoothPbapVcardManager {
     byte[] getCallHistoryPrimaryFolderVersion(final int type) {
         final Uri myUri = CallLog.Calls.CONTENT_URI;
         String selection = BluetoothPbapObexServer.createSelectionPara(type);
-        selection = selection + " AND date >= " + sLastFetchedTimeStamp;
+        selection = selection + " AND date >= " + mLastFetchedTimeStamp;
 
-        Log.d(TAG, "LAST_FETCHED_TIME_STAMP is " + sLastFetchedTimeStamp);
+        Log.d(TAG, "LAST_FETCHED_TIME_STAMP is " + mLastFetchedTimeStamp);
         Cursor callCursor = null;
         long count = 0;
         long primaryVcMsb = 0;
@@ -555,7 +555,7 @@ public class BluetoothPbapVcardManager {
             }
         }
 
-        sLastFetchedTimeStamp = System.currentTimeMillis();
+        mLastFetchedTimeStamp = System.currentTimeMillis();
         Log.d(TAG, "getCallHistoryPrimaryFolderVersion count is " + count + " type is " + type);
         ByteBuffer pvc = ByteBuffer.allocate(16);
         pvc.putLong(primaryVcMsb);

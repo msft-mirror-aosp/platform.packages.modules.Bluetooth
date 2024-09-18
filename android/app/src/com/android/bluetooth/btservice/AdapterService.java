@@ -240,8 +240,8 @@ public class AdapterService extends Service {
 
     private final AdapterNativeInterface mNativeInterface = AdapterNativeInterface.getInstance();
 
-    private final Map<BluetoothDevice, List<IBluetoothMetadataListener>> mMetadataListeners =
-            new HashMap<>();
+    private final Map<BluetoothDevice, RemoteCallbackList<IBluetoothMetadataListener>>
+            mMetadataListeners = new HashMap<>();
 
     // Map<groupId, PendingAudioProfilePreferenceRequest>
     @GuardedBy("mCsipGroupsPendingAudioProfileChanges")
@@ -1488,6 +1488,8 @@ public class AdapterService extends Service {
         mBluetoothConnectionCallbacks.kill();
 
         mRemoteCallbacks.kill();
+
+        mMetadataListeners.values().forEach(v -> v.kill());
     }
 
     private void invalidateBluetoothCaches() {
@@ -3690,6 +3692,8 @@ public class AdapterService extends Service {
                 IBluetoothMetadataListener listener,
                 BluetoothDevice device,
                 AttributionSource source) {
+            requireNonNull(device);
+            requireNonNull(listener);
             AdapterService service = getService();
             if (service == null
                     || !callerIsSystemOrActiveOrManagedUser(
@@ -3700,21 +3704,22 @@ public class AdapterService extends Service {
 
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
 
-            List<IBluetoothMetadataListener> list = service.mMetadataListeners.get(device);
-            if (list == null) {
-                list = new ArrayList<>();
-            } else if (list.contains(listener)) {
-                // The device is already registered with this listener
-                return true;
-            }
-            list.add(listener);
-            service.mMetadataListeners.put(device, list);
+            service.mHandler.post(
+                    () ->
+                            service.mMetadataListeners
+                                    .computeIfAbsent(device, k -> new RemoteCallbackList())
+                                    .register(listener));
+
             return true;
         }
 
         @Override
         public boolean unregisterMetadataListener(
-                BluetoothDevice device, AttributionSource source) {
+                IBluetoothMetadataListener listener,
+                BluetoothDevice device,
+                AttributionSource source) {
+            requireNonNull(device);
+            requireNonNull(listener);
             AdapterService service = getService();
             if (service == null
                     || !callerIsSystemOrActiveOrManagedUser(
@@ -3725,7 +3730,17 @@ public class AdapterService extends Service {
 
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
 
-            service.mMetadataListeners.remove(device);
+            service.mHandler.post(
+                    () ->
+                            service.mMetadataListeners.computeIfPresent(
+                                    device,
+                                    (k, v) -> {
+                                        v.unregister(listener);
+                                        if (v.getRegisteredCallbackCount() == 0) {
+                                            return null;
+                                        }
+                                        return v;
+                                    }));
             return true;
         }
 
@@ -6231,16 +6246,19 @@ public class AdapterService extends Service {
             mNativeInterface.metadataChanged(Utils.getBytesFromAddress(address), key, value);
         }
 
-        if (mMetadataListeners.containsKey(device)) {
-            List<IBluetoothMetadataListener> list = mMetadataListeners.get(device);
-            for (IBluetoothMetadataListener listener : list) {
-                try {
-                    listener.onMetadataChanged(device, key, value);
-                } catch (RemoteException e) {
-                    Log.w(TAG, "RemoteException when onMetadataChanged");
-                }
+        RemoteCallbackList<IBluetoothMetadataListener> list = mMetadataListeners.get(device);
+        if (list == null) {
+            return;
+        }
+        int n = list.beginBroadcast();
+        for (int i = 0; i < n; i++) {
+            try {
+                list.getBroadcastItem(i).onMetadataChanged(device, key, value);
+            } catch (RemoteException e) {
+                Log.d(TAG, "metadataChanged() - Callback #" + i + " failed (" + e + ")");
             }
         }
+        list.finishBroadcast();
     }
 
     private int getIdleCurrentMa() {

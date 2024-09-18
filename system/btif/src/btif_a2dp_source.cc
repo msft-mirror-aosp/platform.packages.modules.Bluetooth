@@ -46,6 +46,7 @@
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
 #include "osi/include/wakelock.h"
+#include "stack/include/a2dp_sbc_constants.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/acl_api_types.h"
 #include "stack/include/bt_hdr.h"
@@ -520,6 +521,41 @@ static void btif_a2dp_source_setup_codec(const RawAddress& peer_address) {
           FROM_HERE, base::BindOnce(&btif_a2dp_source_setup_codec_delayed, peer_address));
 }
 
+/// Return the MTU for the active peer audio connection.
+static uint16_t btif_a2dp_get_peer_mtu(A2dpCodecConfig* a2dp_config) {
+  uint8_t codec_info[AVDT_CODEC_SIZE];
+  a2dp_config->copyOutOtaCodecConfig(codec_info);
+
+  RawAddress peer_addr = btif_av_source_active_peer();
+  tA2DP_ENCODER_INIT_PEER_PARAMS peer_params;
+  bta_av_co_get_peer_params(peer_addr, &peer_params);
+  uint16_t peer_mtu = peer_params.peer_mtu;
+  uint16_t effective_mtu = bta_av_co_get_encoder_effective_frame_size(peer_addr);
+
+  if (effective_mtu > 0 && effective_mtu < peer_mtu) {
+    peer_mtu = effective_mtu;
+  }
+
+  // b/188020925
+  // When SBC headsets report middle quality bitpool under a larger MTU, we
+  // reduce the packet size to prevent the hardware encoder from putting too
+  // many frames in one packet.
+  if (a2dp_config->codecIndex() == BTAV_A2DP_CODEC_INDEX_SOURCE_SBC &&
+      codec_info[2] /* maxBitpool */ <= A2DP_SBC_BITPOOL_MIDDLE_QUALITY) {
+    peer_mtu = MAX_2MBPS_AVDTP_MTU;
+  }
+
+  // b/177205770
+  // Fix the MTU value not to be greater than an AVDTP packet, so the data
+  // encoded by A2DP hardware encoder can be fitted into one AVDTP packet
+  // without fragmented
+  if (peer_mtu > MAX_3MBPS_AVDTP_MTU) {
+    peer_mtu = MAX_3MBPS_AVDTP_MTU;
+  }
+
+  return peer_mtu;
+}
+
 static void btif_a2dp_source_setup_codec_delayed(const RawAddress& peer_address) {
   log::info("peer_address={} state={}", peer_address, btif_a2dp_source_cb.StateStr());
 
@@ -550,7 +586,9 @@ static void btif_a2dp_source_setup_codec_delayed(const RawAddress& peer_address)
           btif_a2dp_source_cb.encoder_interface->get_encoder_interval_ms();
 
   if (bluetooth::audio::a2dp::is_hal_enabled()) {
-    bluetooth::audio::a2dp::setup_codec();
+    bluetooth::audio::a2dp::setup_codec(a2dp_codec_config,
+                                        btif_a2dp_get_peer_mtu(a2dp_codec_config),
+                                        bta_av_co_get_encoder_preferred_interval_us());
   }
 }
 
