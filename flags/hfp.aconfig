@@ -23,13 +23,6 @@ flag {
 }
 
 flag {
-    name: "pretend_network_service"
-    namespace: "bluetooth"
-    description: "during ongoing call, pretend network service in +CIND when network is unavailable"
-    bug: "317307596"
-}
-
-flag {
     name: "hfp_software_datapath"
     namespace: "bluetooth"
     description: "enable HFP software decode/encode data path"
@@ -61,16 +54,6 @@ flag {
     namespace: "bluetooth"
     description: "If sink audio policy makes device active for call, then resume past active device"
     bug: "333562819"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "keep_hfp_active_during_leaudio_handover"
-    namespace: "bluetooth"
-    description: "During LE audio to HFP handover, keep HFP active throughout SCO retry"
-    bug: "339528451"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

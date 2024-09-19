@@ -280,11 +280,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      */
     @SuppressLint("ActionValue")
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     @SystemApi
     public static final String ACTION_SWITCH_BUFFER_SIZE =
@@ -308,11 +304,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      */
     @FlaggedApi(Flags.FLAG_KEY_MISSING_BROADCAST)
     @SuppressLint("ActionValue")
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     @SystemApi
     @BroadcastBehavior(includeBackground = true, protectedBroadcast = true)
@@ -1590,11 +1582,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @Nullable String getIdentityAddress() {
         if (DBG) log("getIdentityAddress()");
         final IBluetooth service = getService();
@@ -1743,7 +1731,6 @@ public final class BluetoothDevice implements Parcelable, Attributable {
                 return service.setRemoteAlias(this, alias, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, "", e);
-                throw e.rethrowAsRuntimeException();
             }
         }
         return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
@@ -2062,11 +2049,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @SystemApi
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean canBondWithoutDialog() {
         if (DBG) log("canBondWithoutDialog, device: " + this);
         final IBluetooth service = getService();
@@ -2091,13 +2074,8 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @SystemApi
-    @Nullable
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
-    public String getPackageNameOfBondingApplication() {
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    public @Nullable String getPackageNameOfBondingApplication() {
         if (DBG) log("getPackageNameOfBondingApplication()");
         final IBluetooth service = getService();
         if (service == null || !isBluetoothEnabled()) {
@@ -2140,12 +2118,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-                MODIFY_PHONE_STATE,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED, MODIFY_PHONE_STATE})
     public @ConnectionReturnValues int connect() {
         if (DBG) log("connect()");
         if (!BluetoothAdapter.checkBluetoothAddress(getAddress())) {
@@ -2160,7 +2133,6 @@ public final class BluetoothDevice implements Parcelable, Attributable {
                 return service.connectAllEnabledProfiles(this, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, "", e);
-                throw e.rethrowAsRuntimeException();
             }
         }
         return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
@@ -2183,11 +2155,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @ConnectionReturnValues int disconnect() {
         if (DBG) log("disconnect()");
         if (!BluetoothAdapter.checkBluetoothAddress(getAddress())) {
@@ -2202,7 +2170,6 @@ public final class BluetoothDevice implements Parcelable, Attributable {
                 return service.disconnectAllEnabledProfiles(this, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, "", e);
-                throw e.rethrowAsRuntimeException();
             }
         }
         return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
@@ -2249,11 +2216,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @SystemApi
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public int getConnectionHandle(@Transport int transport) {
         if (DBG) {
             log("getConnectionHandle()");
@@ -2404,10 +2367,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      */
     @SystemApi
     @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            },
+            allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
             conditional = true)
     public boolean fetchUuidsWithSdp(@Transport int transport) {
         if (DBG) log("fetchUuidsWithSdp()");
@@ -2508,11 +2468,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *
      * @return true confirmation has been sent out false for error
      */
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean setPairingConfirmation(boolean confirm) {
         if (DBG) log("setPairingConfirmation()");
         final IBluetooth service = getService();
@@ -2585,11 +2541,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @SystemApi
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean setSilenceMode(boolean silence) {
         if (DBG) log("setSilenceMode()");
         final IBluetooth service = getService();
@@ -2613,11 +2565,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @SystemApi
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean isInSilenceMode() {
         if (DBG) log("isInSilenceMode()");
         final IBluetooth service = getService();
@@ -2642,11 +2590,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @SystemApi
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean setPhonebookAccessPermission(@AccessPermission int value) {
         if (DBG) log("setPhonebookAccessPermission()");
         final IBluetooth service = getService();
@@ -2699,11 +2643,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @SystemApi
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean setMessageAccessPermission(@AccessPermission int value) {
         // Validates param value is one of the accepted constants
         if (value != ACCESS_ALLOWED && value != ACCESS_REJECTED && value != ACCESS_UNKNOWN) {
@@ -2760,11 +2700,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @SystemApi
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean setSimAccessPermission(int value) {
         if (DBG) log("setSimAccessPermission()");
         final IBluetooth service = getService();
@@ -3270,11 +3206,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @SystemApi
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean setMetadata(@MetadataKey int key, @NonNull byte[] value) {
         if (DBG) log("setMetadata()");
         final IBluetooth service = getService();
@@ -3302,13 +3234,8 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @SystemApi
-    @Nullable
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
-    public byte[] getMetadata(@MetadataKey int key) {
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    public @Nullable byte[] getMetadata(@MetadataKey int key) {
         if (DBG) log("getMetadata()");
         final IBluetooth service = getService();
         if (service == null || !isBluetoothEnabled()) {
@@ -3378,11 +3305,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @AudioPolicyRemoteSupport int isRequestAudioPolicyAsSinkSupported() {
         if (DBG) log("isRequestAudioPolicyAsSinkSupported()");
         final IBluetooth service = getService();
@@ -3394,7 +3317,6 @@ public final class BluetoothDevice implements Parcelable, Attributable {
                 return service.isRequestAudioPolicyAsSinkSupported(this, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, "", e);
-                throw e.rethrowAsRuntimeException();
             }
         }
         return BluetoothStatusCodes.FEATURE_NOT_CONFIGURED;
@@ -3417,11 +3339,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @AudioPolicyReturnValues int requestAudioPolicyAsSink(
             @NonNull BluetoothSinkAudioPolicy policies) {
         if (DBG) log("requestAudioPolicyAsSink");
@@ -3459,11 +3377,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @Nullable BluetoothSinkAudioPolicy getRequestedAudioPolicyAsSink() {
         if (DBG) log("getRequestedAudioPolicyAsSink");
         final IBluetooth service = getService();
@@ -3490,11 +3404,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean setLowLatencyAudioAllowed(boolean allowed) {
         if (DBG) log("setLowLatencyAudioAllowed(" + allowed + ")");
         final IBluetooth service = getService();
@@ -3554,11 +3464,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     @FlaggedApi(Flags.FLAG_METADATA_API_INACTIVE_AUDIO_DEVICE_UPON_CONNECTION)
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @SetActiveAudioDevicePolicyReturnValues int setActiveAudioDevicePolicy(
             @ActiveAudioDevicePolicy int activeAudioDevicePolicy) {
         if (DBG) log("setActiveAudioDevicePolicy(" + activeAudioDevicePolicy + ")");
@@ -3576,7 +3482,6 @@ public final class BluetoothDevice implements Parcelable, Attributable {
                         this, activeAudioDevicePolicy, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, "", e);
-                throw e.rethrowAsRuntimeException();
             }
         }
         return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
@@ -3591,11 +3496,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     @FlaggedApi(Flags.FLAG_METADATA_API_INACTIVE_AUDIO_DEVICE_UPON_CONNECTION)
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @ActiveAudioDevicePolicy int getActiveAudioDevicePolicy() {
         if (DBG) log("getActiveAudioDevicePolicy");
         final IBluetooth service = getService();
@@ -3607,7 +3508,6 @@ public final class BluetoothDevice implements Parcelable, Attributable {
                 return service.getActiveAudioDevicePolicy(this, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, "", e);
-                throw e.rethrowAsRuntimeException();
             }
         }
         return ACTIVE_AUDIO_DEVICE_POLICY_DEFAULT;

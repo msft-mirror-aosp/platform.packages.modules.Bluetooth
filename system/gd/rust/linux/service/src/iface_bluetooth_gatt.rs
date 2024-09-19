@@ -814,7 +814,7 @@ impl IBluetoothGatt for IBluetoothGattDBus {
 
     #[dbus_method("WriteCharacteristic", DBusLog::Disable)]
     fn write_characteristic(
-        &self,
+        &mut self,
         client_id: i32,
         addr: RawAddress,
         handle: i32,

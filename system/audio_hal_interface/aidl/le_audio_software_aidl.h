@@ -71,7 +71,6 @@ public:
   ~LeAudioTransport();
 
   BluetoothAudioCtrlAck StartRequest(bool is_low_latency);
-  BluetoothAudioCtrlAck StartRequestV2(bool is_low_latency);
 
   BluetoothAudioCtrlAck SuspendRequest();
 
@@ -129,8 +128,7 @@ public:
 
   ~LeAudioSinkTransport();
 
-  BluetoothAudioCtrlAck StartRequest(bool is_low_latency) override;
-  BluetoothAudioCtrlAck StartRequestV2(bool is_low_latency);
+  BluetoothAudioCtrlAck StartRequest(bool is_low_latency);
 
   BluetoothAudioCtrlAck SuspendRequest() override;
 
@@ -183,8 +181,7 @@ public:
 
   ~LeAudioSourceTransport();
 
-  BluetoothAudioCtrlAck StartRequest(bool is_low_latency) override;
-  BluetoothAudioCtrlAck StartRequestV2(bool is_low_latency);
+  BluetoothAudioCtrlAck StartRequest(bool is_low_latency);
 
   BluetoothAudioCtrlAck SuspendRequest() override;
 

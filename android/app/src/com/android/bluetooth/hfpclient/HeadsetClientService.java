@@ -860,16 +860,20 @@ public class HeadsetClientService extends ProfileService {
                         + allowed
                         + ", "
                         + Utils.getUidPidString());
-        HeadsetClientStateMachine sm = mStateMachineMap.get(device);
-        if (sm != null) {
-            sm.setAudioRouteAllowed(allowed);
+        synchronized (mStateMachineMap) {
+            HeadsetClientStateMachine sm = mStateMachineMap.get(device);
+            if (sm != null) {
+                sm.setAudioRouteAllowed(allowed);
+            }
         }
     }
 
     public boolean getAudioRouteAllowed(BluetoothDevice device) {
-        HeadsetClientStateMachine sm = mStateMachineMap.get(device);
-        if (sm != null) {
-            return sm.getAudioRouteAllowed();
+        synchronized (mStateMachineMap) {
+            HeadsetClientStateMachine sm = mStateMachineMap.get(device);
+            if (sm != null) {
+                return sm.getAudioRouteAllowed();
+            }
         }
         return false;
     }
