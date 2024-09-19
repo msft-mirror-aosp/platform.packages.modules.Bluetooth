@@ -653,13 +653,11 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
                     csipSetCoordinatorService.getGroupDevicesOrdered(
                             csipSetCoordinatorService.getGroupId(device, BluetoothUuid.CAP));
 
-            if (Flags.leaudioQuickLeaudioToggleSwitchFix()) {
-                for (BluetoothDevice dev : groupDevices) {
-                    if (leAudioService.getConnectionPolicy(dev)
-                            == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
-                        isAnyOtherGroupMemberAlreadyAllowed = true;
-                        break;
-                    }
+            for (BluetoothDevice dev : groupDevices) {
+                if (leAudioService.getConnectionPolicy(dev)
+                        == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+                    isAnyOtherGroupMemberAlreadyAllowed = true;
+                    break;
                 }
             }
         }

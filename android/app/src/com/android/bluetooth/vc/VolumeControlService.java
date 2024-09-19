@@ -41,6 +41,7 @@ import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
+import com.android.bluetooth.bass_client.BassClientService;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.ServiceFactory;
@@ -212,8 +213,10 @@ public class VolumeControlService extends ProfileService {
         mVolumeControlNativeInterface = null;
         mAdapterService = null;
 
-        if (mCallbacks != null) {
-            mCallbacks.kill();
+        synchronized (mCallbacks) {
+            if (mCallbacks != null) {
+                mCallbacks.kill();
+            }
         }
     }
 
@@ -740,11 +743,27 @@ public class VolumeControlService extends ProfileService {
                 int currentlyActiveGroupId = leAudioService.getActiveGroupId();
                 if (currentlyActiveGroupId == IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID
                         || groupId != currentlyActiveGroupId) {
-                    Log.i(
-                            TAG,
-                            "Skip updating to audio system if not updating volume for current"
-                                    + " active group");
-                    return;
+                    if (!Flags.leaudioBroadcastVolumeControlPrimaryGroupOnly()) {
+                        Log.i(
+                                TAG,
+                                "Skip updating to audio system if not updating volume for current"
+                                        + " active group");
+                        return;
+                    }
+                    BassClientService bassClientService = mFactory.getBassClientService();
+                    if (bassClientService == null
+                            || bassClientService.getSyncedBroadcastSinks().stream()
+                                    .map(dev -> leAudioService.getGroupId(dev))
+                                    .noneMatch(
+                                            id ->
+                                                    id == groupId
+                                                            && leAudioService.isPrimaryGroup(id))) {
+                        Log.i(
+                                TAG,
+                                "Skip updating to audio system if not updating volume for current"
+                                        + " active group in unicast or primary group in broadcast");
+                        return;
+                    }
                 }
             } else {
                 Log.w(TAG, "leAudioService not available");
@@ -835,16 +854,21 @@ public class VolumeControlService extends ProfileService {
                 // notify group devices volume changed
                 LeAudioService leAudioService = mFactory.getLeAudioService();
                 if (leAudioService != null) {
-                    notifyDevicesVolumeChanged(
-                            mCallbacks,
-                            leAudioService.getGroupDevices(groupId),
-                            Optional.of(volume));
+                    synchronized (mCallbacks) {
+                        notifyDevicesVolumeChanged(
+                                mCallbacks,
+                                leAudioService.getGroupDevices(groupId),
+                                Optional.of(volume));
+                    }
                 } else {
                     Log.w(TAG, "leAudioService not available");
                 }
             } else {
                 // notify device volume changed
-                notifyDevicesVolumeChanged(mCallbacks, Arrays.asList(device), Optional.of(volume));
+                synchronized (mCallbacks) {
+                    notifyDevicesVolumeChanged(
+                            mCallbacks, Arrays.asList(device), Optional.of(volume));
+                }
             }
         }
 

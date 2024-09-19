@@ -175,8 +175,6 @@ void LeAudioClientInterface::Sink::StartSession() {}
 void LeAudioClientInterface::Sink::StopSession() {}
 void LeAudioClientInterface::Sink::ConfirmStreamingRequest() {}
 void LeAudioClientInterface::Sink::CancelStreamingRequest() {}
-void LeAudioClientInterface::Sink::ConfirmStreamingRequestV2() {}
-void LeAudioClientInterface::Sink::CancelStreamingRequestV2() {}
 void LeAudioClientInterface::Sink::UpdateAudioConfigToHal(
         const ::bluetooth::le_audio::offload_config& config) {}
 void LeAudioClientInterface::Sink::UpdateBroadcastAudioConfigToHal(
@@ -203,8 +201,6 @@ void LeAudioClientInterface::Source::StartSession() {}
 void LeAudioClientInterface::Source::StopSession() {}
 void LeAudioClientInterface::Source::ConfirmStreamingRequest() {}
 void LeAudioClientInterface::Source::CancelStreamingRequest() {}
-void LeAudioClientInterface::Source::ConfirmStreamingRequestV2() {}
-void LeAudioClientInterface::Source::CancelStreamingRequestV2() {}
 void LeAudioClientInterface::Source::UpdateAudioConfigToHal(
         const ::bluetooth::le_audio::offload_config& config) {}
 void LeAudioClientInterface::Source::SuspendedForReconfiguration() {}

@@ -59,7 +59,6 @@ public:
   LeAudioTransport(void (*flush)(void), StreamCallbacks stream_cb, PcmParameters pcm_config);
 
   BluetoothAudioCtrlAck StartRequest();
-  BluetoothAudioCtrlAck StartRequestV2();
 
   BluetoothAudioCtrlAck SuspendRequest();
 
@@ -107,7 +106,6 @@ public:
   ~LeAudioSinkTransport();
 
   BluetoothAudioCtrlAck StartRequest() override;
-  BluetoothAudioCtrlAck StartRequestV2();
 
   BluetoothAudioCtrlAck SuspendRequest() override;
 

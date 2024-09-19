@@ -4243,14 +4243,14 @@ public final class BluetoothAdapter {
                         IBluetooth.Stub.asInterface(
                                 mManagerService.registerAdapter(sManagerCallback));
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                throw e.rethrowFromSystemServer();
             }
         } else {
             try {
                 mManagerService.unregisterAdapter(sManagerCallback);
                 sService = null;
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                throw e.rethrowFromSystemServer();
             }
         }
         sServiceRegistered = wantRegistered;

@@ -23,7 +23,6 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.CallbackExecutor;
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
@@ -43,8 +42,6 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.util.CloseGuard;
 import android.util.Log;
-
-import com.android.bluetooth.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -145,7 +142,6 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
          * @param groupStreamStatus streaming or idle state.
          * @hide
          */
-        @FlaggedApi(Flags.FLAG_LEAUDIO_CALLBACK_ON_GROUP_STREAM_STATUS)
         @SystemApi
         default void onGroupStreamStatusChanged(
                 int groupId, @GroupStreamStatus int groupStreamStatus) {
@@ -184,10 +180,8 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
 
         @Override
         public void onGroupStreamStatusChanged(int groupId, int groupStreamStatus) {
-            if (Flags.leaudioCallbackOnGroupStreamStatus()) {
-                mCallbackWrapper.forEach(
-                        (cb) -> cb.onGroupStreamStatusChanged(groupId, groupStreamStatus));
-            }
+            mCallbackWrapper.forEach(
+                    (cb) -> cb.onGroupStreamStatusChanged(groupId, groupStreamStatus));
         }
     }
 
@@ -657,7 +651,6 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_LEAUDIO_CALLBACK_ON_GROUP_STREAM_STATUS)
     @SystemApi
     public static final int GROUP_STREAM_STATUS_IDLE = IBluetoothLeAudio.GROUP_STREAM_STATUS_IDLE;
 
@@ -666,7 +659,6 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_LEAUDIO_CALLBACK_ON_GROUP_STREAM_STATUS)
     @SystemApi
     public static final int GROUP_STREAM_STATUS_STREAMING =
             IBluetoothLeAudio.GROUP_STREAM_STATUS_STREAMING;
@@ -1197,7 +1189,6 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                 return service.isInbandRingtoneEnabled(mAttributionSource, groupId);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
         return false;
@@ -1325,7 +1316,6 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                 return service.getCodecStatus(groupId, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
         return null;
@@ -1365,7 +1355,6 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                         groupId, inputCodecConfig, outputCodecConfig, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
     }

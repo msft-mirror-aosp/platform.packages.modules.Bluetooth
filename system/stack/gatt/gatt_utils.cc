@@ -1625,26 +1625,21 @@ static bool gatt_is_anybody_interested_in_connection(const RawAddress& bda) {
 bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda) {
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bda, BT_TRANSPORT_LE);
   if (!p_tcb) {
-    if (com::android::bluetooth::flags::gatt_reconnect_on_bt_on_fix()) {
-      /* TCB is not allocated when trying to connect under this flag.
-       * but device address is storred in the tGATT_REG. Make sure to remove
-       * the address from the list when cancel is called.
-       */
+    /* TCB is not allocated when trying to connect under this flag.
+     * but device address is storred in the tGATT_REG. Make sure to remove
+     * the address from the list when cancel is called.
+     */
 
-      tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
-      if (!p_reg) {
-        log::error("Unable to find registered app gatt_if={}", gatt_if);
-      } else {
-        log::info("Removing {} from direct list", bda);
-        p_reg->direct_connect_request.erase(bda);
-      }
-      if (!gatt_is_anybody_interested_in_connection(bda)) {
-        gatt_cancel_connect(bda, static_cast<tBT_TRANSPORT>(BT_TRANSPORT_LE));
-      }
-      return true;
+    tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
+    if (!p_reg) {
+      log::error("Unable to find registered app gatt_if={}", gatt_if);
+    } else {
+      log::info("Removing {} from direct list", bda);
+      p_reg->direct_connect_request.erase(bda);
     }
-
-    log::warn("Unable to cancel open for unknown connection gatt_if:{} peer:{}", gatt_if, bda);
+    if (!gatt_is_anybody_interested_in_connection(bda)) {
+      gatt_cancel_connect(bda, static_cast<tBT_TRANSPORT>(BT_TRANSPORT_LE));
+    }
     return true;
   }
 
@@ -1864,12 +1859,10 @@ static void gatt_le_disconnect_complete_notify_user(const RawAddress& bda,
                                    transport);
       }
 
-      if (com::android::bluetooth::flags::gatt_reconnect_on_bt_on_fix()) {
-        if (p_reg->direct_connect_request.count(bda) > 0) {
-          log::info("Removing device {} from the direct connect list of gatt_if {}", bda,
-                    p_reg->gatt_if);
-          p_reg->direct_connect_request.erase(bda);
-        }
+      if (p_reg->direct_connect_request.count(bda) > 0) {
+        log::info("Removing device {} from the direct connect list of gatt_if {}", bda,
+                  p_reg->gatt_if);
+        p_reg->direct_connect_request.erase(bda);
       }
     }
   } else {
@@ -1882,12 +1875,10 @@ static void gatt_le_disconnect_complete_notify_user(const RawAddress& bda,
                                    transport);
       }
 
-      if (com::android::bluetooth::flags::gatt_reconnect_on_bt_on_fix()) {
-        if (p_reg->direct_connect_request.count(bda) > 0) {
-          log::info("Removing device {} from the direct connect list of gatt_if {}", bda,
-                    p_reg->gatt_if);
-          p_reg->direct_connect_request.erase(bda);
-        }
+      if (p_reg->direct_connect_request.count(bda) > 0) {
+        log::info("Removing device {} from the direct connect list of gatt_if {}", bda,
+                  p_reg->gatt_if);
+        p_reg->direct_connect_request.erase(bda);
       }
     }
   }
@@ -1900,12 +1891,6 @@ void gatt_cleanup_upon_disc(const RawAddress& bda, tGATT_DISCONN_REASON reason,
 
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bda, transport);
   if (!p_tcb) {
-    if (!com::android::bluetooth::flags::gatt_reconnect_on_bt_on_fix()) {
-      log::error("Disconnect for unknown connection bd_addr:{} reason:{} transport:{}", bda,
-                 gatt_disconnection_reason_text(reason), bt_transport_text(transport));
-      return;
-    }
-
     log::info("Connection timeout bd_addr:{} reason:{} transport:{}", bda,
               gatt_disconnection_reason_text(reason), bt_transport_text(transport));
 

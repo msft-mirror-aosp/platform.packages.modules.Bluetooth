@@ -139,8 +139,6 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
               vendor_specific_reply.size());
     if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
       log::error("Can't find CS tracker for connection_handle {}", connection_handle);
-      distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
-              cs_trackers_[connection_handle].address, REASON_INTERNAL_ERROR, METHOD_CS);
       return;
     }
 
@@ -157,6 +155,10 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
 
   void OnOpenFailed(uint16_t connection_handle) {
     log::info("connection_handle:0x{:04x}", connection_handle);
+    if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
+      log::error("Can't find CS tracker for connection_handle {}", connection_handle);
+      return;
+    }
     distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
             cs_trackers_[connection_handle].address, REASON_INTERNAL_ERROR, METHOD_CS);
   }
@@ -165,8 +167,6 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     log::info("connection_handle:0x{:04x}, success:{}", connection_handle, success);
     if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
       log::error("Can't find CS tracker for connection_handle {}", connection_handle);
-      distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
-              cs_trackers_[connection_handle].address, REASON_INTERNAL_ERROR, METHOD_CS);
       return;
     }
     distance_measurement_callbacks_->OnHandleVendorSpecificReplyComplete(
