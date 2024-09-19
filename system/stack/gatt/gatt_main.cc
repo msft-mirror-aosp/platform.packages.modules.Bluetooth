@@ -554,13 +554,10 @@ static void gatt_le_connect_cback(uint16_t /* chan */, const RawAddress& bd_addr
   else {
     p_tcb = gatt_allocate_tcb_by_bdaddr(bd_addr, BT_TRANSPORT_LE);
     if (!p_tcb) {
-      log::error("CCB max out, no resources");
-      if (com::android::bluetooth::flags::gatt_drop_acl_on_out_of_resources_fix()) {
-        log::error("Disconnecting address:{} due to out of resources.", bd_addr);
-        // When single FIXED channel cannot be created, there is no reason to
-        // keep the link
-        btm_remove_acl(bd_addr, transport);
-      }
+      log::error("Disconnecting address:{} due to out of resources.", bd_addr);
+      // When single FIXED channel cannot be created, there is no reason to
+      // keep the link
+      btm_remove_acl(bd_addr, transport);
       return;
     }
 
@@ -1022,13 +1019,11 @@ static void gatt_send_conn_cback(tGATT_TCB* p_tcb) {
         gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, true);
       }
 
-      if (com::android::bluetooth::flags::gatt_reconnect_on_bt_on_fix()) {
-        if (p_reg->direct_connect_request.count(p_tcb->peer_bda) > 0) {
-          gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, true);
-          log::info("Removing device {} from the direct connect list of gatt_if {}",
-                    p_tcb->peer_bda, p_reg->gatt_if);
-          p_reg->direct_connect_request.erase(p_tcb->peer_bda);
-        }
+      if (p_reg->direct_connect_request.count(p_tcb->peer_bda) > 0) {
+        gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, true);
+        log::info("Removing device {} from the direct connect list of gatt_if {}", p_tcb->peer_bda,
+                  p_reg->gatt_if);
+        p_reg->direct_connect_request.erase(p_tcb->peer_bda);
       }
 
       if (p_reg->app_cb.p_conn_cb) {
@@ -1047,13 +1042,11 @@ static void gatt_send_conn_cback(tGATT_TCB* p_tcb) {
         gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, true);
       }
 
-      if (com::android::bluetooth::flags::gatt_reconnect_on_bt_on_fix()) {
-        if (p_reg->direct_connect_request.count(p_tcb->peer_bda) > 0) {
-          gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, true);
-          log::info("Removing device {} from the direct connect list of gatt_if {}",
-                    p_tcb->peer_bda, p_reg->gatt_if);
-          p_reg->direct_connect_request.erase(p_tcb->peer_bda);
-        }
+      if (p_reg->direct_connect_request.count(p_tcb->peer_bda) > 0) {
+        gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, true);
+        log::info("Removing device {} from the direct connect list of gatt_if {}", p_tcb->peer_bda,
+                  p_reg->gatt_if);
+        p_reg->direct_connect_request.erase(p_tcb->peer_bda);
       }
 
       if (p_reg->app_cb.p_conn_cb) {

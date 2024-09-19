@@ -2359,24 +2359,15 @@ public class HeadsetService extends ProfileService {
                 // co-existence see {@link LeAudioService#setInactiveForHfpHandover}
                 if (Flags.leaudioResumeActiveAfterHfpHandover()) {
                     LeAudioService leAudioService = mFactory.getLeAudioService();
-                    if (!Flags.keepHfpActiveDuringLeaudioHandover()
-                            && leAudioService != null
+                    boolean isLeAudioConnectedDeviceNotActive = leAudioService != null
                             && !leAudioService.getConnectedDevices().isEmpty()
-                            && leAudioService.getActiveDevices().get(0) == null) {
-                        leAudioService.setActiveAfterHfpHandover();
-                    }
-
+                            && leAudioService.getActiveDevices().get(0) == null;
                     // usually controller limitation cause CONNECTING -> DISCONNECTED, so only
                     // resume LE audio active device if it is HFP audio only and SCO disconnected
-                    if (Flags.keepHfpActiveDuringLeaudioHandover()
-                            && fromState != BluetoothHeadset.STATE_AUDIO_CONNECTING
-                            && isHFPAudioOnly(device)) {
-
-                        if (leAudioService != null
-                                && !leAudioService.getConnectedDevices().isEmpty()
-                                && leAudioService.getActiveDevices().get(0) == null) {
-                            leAudioService.setActiveAfterHfpHandover();
-                        }
+                    if (fromState != BluetoothHeadset.STATE_AUDIO_CONNECTING
+                            && isHFPAudioOnly(device)
+                            && isLeAudioConnectedDeviceNotActive) {
+                        leAudioService.setActiveAfterHfpHandover();
                     }
                 }
 

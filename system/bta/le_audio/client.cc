@@ -386,7 +386,8 @@ public:
       multi_read.handles[i % GATT_MAX_READ_MULTI_HANDLES] = leAudioDevice->ases_[i].hdls.val_hdl;
     }
 
-    if (ases_num % GATT_MAX_READ_MULTI_HANDLES != 0) {
+    if (com::android::bluetooth::flags::le_ase_read_multiple_variable() &&
+        (ases_num % GATT_MAX_READ_MULTI_HANDLES != 0)) {
       multi_read.num_attr = ases_num % GATT_MAX_READ_MULTI_HANDLES;
       BtaGattQueue::ReadMultiCharacteristic(leAudioDevice->conn_id_, multi_read,
                                             OnGattReadMultiRspStatic, notify_flag_ptr);
@@ -5296,10 +5297,6 @@ public:
   }
 
   void notifyGroupStreamStatus(int group_id, GroupStreamStatus groupStreamStatus) {
-    if (!com::android::bluetooth::flags::leaudio_callback_on_group_stream_status()) {
-      return;
-    }
-
     GroupStreamStatus newGroupStreamStatus = GroupStreamStatus::IDLE;
     if (groupStreamStatus == GroupStreamStatus::STREAMING) {
       newGroupStreamStatus = GroupStreamStatus::STREAMING;

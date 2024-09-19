@@ -80,11 +80,7 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
     @SystemApi
     @SuppressLint("ActionValue")
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     public static final String ACTION_CONNECTION_STATE_CHANGED =
             "android.bluetooth.mapmce.profile.action.CONNECTION_STATE_CHANGED";
@@ -281,11 +277,7 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
      * @hide
      */
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean connect(BluetoothDevice device) {
         if (DBG) Log.d(TAG, "connect(" + device + ")" + "for MAPS MCE");
         final IBluetoothMapClient service = getService();
@@ -310,11 +302,7 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
      * @hide
      */
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean disconnect(BluetoothDevice device) {
         if (DBG) Log.d(TAG, "disconnect(" + device + ")");
         final IBluetoothMapClient service = getService();
@@ -339,11 +327,7 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
     @SystemApi
     @Override
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @NonNull List<BluetoothDevice> getConnectedDevices() {
         if (DBG) Log.d(TAG, "getConnectedDevices()");
         final IBluetoothMapClient service = getService();
@@ -356,7 +340,6 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
                         service.getConnectedDevices(mAttributionSource), mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
         return Collections.emptyList();
@@ -370,11 +353,7 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
     @SystemApi
     @Override
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @NonNull
     public List<BluetoothDevice> getDevicesMatchingConnectionStates(@NonNull int[] states) {
         if (DBG) Log.d(TAG, "getDevicesMatchingStates()");
@@ -389,7 +368,6 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
                         mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
         return Collections.emptyList();
@@ -403,11 +381,7 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
     @SystemApi
     @Override
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @BtProfileState int getConnectionState(@NonNull BluetoothDevice device) {
         if (DBG) Log.d(TAG, "getConnectionState(" + device + ")");
         final IBluetoothMapClient service = getService();
@@ -419,7 +393,6 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
                 return service.getConnectionState(device, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
         return BluetoothProfile.STATE_DISCONNECTED;
@@ -436,11 +409,7 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
      * @hide
      */
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean setPriority(BluetoothDevice device, int priority) {
         if (DBG) Log.d(TAG, "setPriority(" + device + ", " + priority + ")");
         return setConnectionPolicy(device, BluetoothAdapter.priorityToConnectionPolicy(priority));
@@ -460,11 +429,7 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean setConnectionPolicy(
             @NonNull BluetoothDevice device, @ConnectionPolicy int connectionPolicy) {
         if (DBG) Log.d(TAG, "setConnectionPolicy(" + device + ", " + connectionPolicy + ")");
@@ -480,7 +445,6 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
                 return service.setConnectionPolicy(device, connectionPolicy, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
         return false;
@@ -497,11 +461,7 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
      * @hide
      */
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public int getPriority(BluetoothDevice device) {
         if (VDBG) Log.d(TAG, "getPriority(" + device + ")");
         return BluetoothAdapter.connectionPolicyToPriority(getConnectionPolicy(device));
@@ -519,11 +479,7 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @ConnectionPolicy int getConnectionPolicy(@NonNull BluetoothDevice device) {
         if (VDBG) Log.d(TAG, "getConnectionPolicy(" + device + ")");
         final IBluetoothMapClient service = getService();
@@ -535,7 +491,6 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
                 return service.getConnectionPolicy(device, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
         return BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
@@ -557,11 +512,7 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                SEND_SMS,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, SEND_SMS})
     public boolean sendMessage(
             @NonNull BluetoothDevice device,
             @NonNull Collection<Uri> contacts,
@@ -592,11 +543,7 @@ public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                SEND_SMS,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, SEND_SMS})
     public boolean sendMessage(
             BluetoothDevice device,
             Uri[] contacts,

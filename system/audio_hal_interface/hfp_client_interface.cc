@@ -97,8 +97,6 @@ AudioConfiguration offload_config_to_hal_audio_config(const ::hfp::offload_confi
   return AudioConfiguration(hfp_config);
 }
 
-bool is_hal_enabled() { return !osi_property_get_bool(BLUETOOTH_AUDIO_HAL_PROP_DISABLED, false); }
-
 bool is_aidl_support_hfp() {
   return HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::AIDL &&
          HalVersionManager::GetHalVersion() >= BluetoothAudioHalVersion::VERSION_AIDL_V4;
@@ -107,10 +105,6 @@ bool is_aidl_support_hfp() {
 // Parent client implementation
 HfpClientInterface* HfpClientInterface::interface = nullptr;
 HfpClientInterface* HfpClientInterface::Get() {
-  if (!is_hal_enabled()) {
-    log::error("BluetoothAudio HAL is disabled");
-    return nullptr;
-  }
   if (!is_aidl_support_hfp()) {
     log::warn("Unsupported HIDL or AIDL version");
     return nullptr;
