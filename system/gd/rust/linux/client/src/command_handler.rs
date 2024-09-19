@@ -1262,7 +1262,7 @@ impl CommandHandler {
 
                 self.lock_context()
                     .gatt_dbus
-                    .as_ref()
+                    .as_mut()
                     .unwrap()
                     .write_characteristic(client_id, addr, handle, write_type, auth_req, value);
             }
