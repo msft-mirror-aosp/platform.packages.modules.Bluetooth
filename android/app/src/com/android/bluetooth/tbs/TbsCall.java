@@ -109,6 +109,11 @@ public class TbsCall {
         return mState == that.mState;
     }
 
+    @Override
+    public int hashCode() {
+        return mState;
+    }
+
     public int getState() {
         return mState;
     }

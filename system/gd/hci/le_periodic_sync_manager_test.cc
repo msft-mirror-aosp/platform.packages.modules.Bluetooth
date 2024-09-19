@@ -605,10 +605,8 @@ TEST_F_WITH_FLAGS(PeriodicSyncManagerTest, handle_advertising_sync_established_a
   sync_handler();
 }
 
-TEST_F_WITH_FLAGS(PeriodicSyncManagerTest,
-                  handle_advertising_sync_established_after_create_command_error_test,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                          TEST_BT, leaudio_broadcast_assistant_handle_command_statuses))) {
+TEST_F(PeriodicSyncManagerTest,
+       handle_advertising_sync_established_after_create_command_error_test) {
   uint16_t sync_handle = 0x12;
   Address address;
   Address::FromString("00:11:22:33:44:55", address);
@@ -674,10 +672,8 @@ TEST_F_WITH_FLAGS(PeriodicSyncManagerTest,
   sync_handler();
 }
 
-TEST_F_WITH_FLAGS(PeriodicSyncManagerTest,
-                  handle_advertising_sync_established_after_cancel_command_error_test,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                          TEST_BT, leaudio_broadcast_assistant_handle_command_statuses))) {
+TEST_F(PeriodicSyncManagerTest,
+       handle_advertising_sync_established_after_cancel_command_error_test) {
   uint16_t sync_handle = 0x12;
   Address address;
   Address::FromString("00:11:22:33:44:55", address);

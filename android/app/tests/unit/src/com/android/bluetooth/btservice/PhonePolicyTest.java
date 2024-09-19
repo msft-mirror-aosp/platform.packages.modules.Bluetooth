@@ -502,7 +502,6 @@ public class PhonePolicyTest {
      */
     @Test
     public void testLateConnectOfLeAudioEnabled_DualModeBud() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_QUICK_LEAUDIO_TOGGLE_SWITCH_FIX);
         Utils.setDualModeAudioStateForTesting(false);
         mPhonePolicy.mLeAudioEnabledByDefault = true;
         mPhonePolicy.mAutoConnectProfilesSupported = true;
@@ -624,7 +623,6 @@ public class PhonePolicyTest {
 
     @Test
     public void testLateConnectOfLeAudioEnabled_AshaAndLeAudioBud() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_QUICK_LEAUDIO_TOGGLE_SWITCH_FIX);
         Utils.setDualModeAudioStateForTesting(false);
         mPhonePolicy.mLeAudioEnabledByDefault = true;
         mPhonePolicy.mAutoConnectProfilesSupported = true;

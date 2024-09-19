@@ -334,13 +334,6 @@ struct LEConnectionSessionOptions {
   bool is_cancelled = false;
 };
 
-// Argument Type
-enum ArgumentType { GATT_IF, L2CAP_PSM, L2CAP_CID, APP_UID, ACL_STATUS_CODE };
-void LogMetricBluetoothLEConnectionMetricEvent(
-        const hci::Address& address, LeConnectionOriginType origin_type,
-        LeConnectionType connection_type, LeConnectionState transaction_state,
-        std::vector<std::pair<os::ArgumentType, int>>& argument_list);
-
 // Upload LE Session
 void LogMetricBluetoothLEConnection(os::LEConnectionSessionOptions session_options);
 

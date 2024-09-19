@@ -52,8 +52,8 @@ bool bta_hh_co_open(uint8_t /* dev_handle */, uint8_t /* sub_class */,
 }
 void bta_hh_co_send_hid_info(btif_hh_device_t* /* p_dev */, const char* /* dev_name */,
                              uint16_t /* vendor_id */, uint16_t /* product_id */,
-                             uint16_t /* version */, uint8_t /* ctry_code */, int /* dscp_len */,
-                             uint8_t* /* p_dscp */) {
+                             uint16_t /* version */, uint8_t /* ctry_code */,
+                             uint16_t /* dscp_len */, uint8_t* /* p_dscp */) {
   inc_func_call_count(__func__);
 }
 void bta_hh_co_set_rpt_rsp(uint8_t /* dev_handle */, uint8_t /* status */) {

@@ -22,9 +22,11 @@
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
 #include "stack/include/acl_api.h"
+#include "stack/include/main_thread.h"
 
 using bluetooth::hci::DistanceMeasurementErrorCode;
 using bluetooth::hci::DistanceMeasurementMethod;
+using namespace bluetooth;
 
 extern tBTM_SEC_DEV_REC* btm_find_dev(const RawAddress& bd_addr);
 
@@ -43,7 +45,7 @@ public:
   }
 
   /**
-   * Gets the BLE connection handle
+   * Gets the BLE connection handle, must be called from main_thread.
    * @param bd_addr could be random, rpa or identity address.
    * @return BLE ACL handle
    */
@@ -60,6 +62,11 @@ public:
   }
 
   void StartDistanceMeasurement(RawAddress identity_addr, uint16_t interval, uint8_t method) {
+    do_in_main_thread(base::BindOnce(&DistanceMeasurementInterfaceImpl::DoStartDistanceMeasurement,
+                                     base::Unretained(this), identity_addr, interval, method));
+  }
+
+  void DoStartDistanceMeasurement(RawAddress identity_addr, uint16_t interval, uint8_t method) {
     DistanceMeasurementMethod distance_measurement_method =
             static_cast<DistanceMeasurementMethod>(method);
     bluetooth::shim::GetDistanceMeasurementManager()->StartDistanceMeasurement(
@@ -71,6 +78,11 @@ public:
   }
 
   void StopDistanceMeasurement(RawAddress identity_addr, uint8_t method) {
+    do_in_main_thread(base::BindOnce(&DistanceMeasurementInterfaceImpl::DoStopDistanceMeasurement,
+                                     base::Unretained(this), identity_addr, method));
+  }
+
+  void DoStopDistanceMeasurement(RawAddress identity_addr, uint8_t method) {
     bluetooth::shim::GetDistanceMeasurementManager()->StopDistanceMeasurement(
             bluetooth::ToGdAddress(identity_addr), GetConnectionHandle(identity_addr),
             static_cast<DistanceMeasurementMethod>(method));
@@ -155,6 +167,7 @@ public:
             bluetooth::ToRawAddress(address), success);
   }
 
+  // Must be called from main_thread
   // Callbacks of bluetooth::ras::RasServerCallbacks
   void OnVendorSpecificReply(
           const RawAddress& address,
@@ -172,6 +185,7 @@ public:
             hal_vendor_specific_characteristics);
   }
 
+  // Must be called from main_thread
   // Callbacks of bluetooth::ras::RasClientCallbacks
   void OnConnected(const RawAddress& address, uint16_t att_handle,
                    const std::vector<bluetooth::ras::VendorSpecificCharacteristic>&
@@ -195,11 +209,13 @@ public:
             bluetooth::ToGdAddress(address));
   }
 
+  // Must be called from main_thread
   void OnWriteVendorSpecificReplyComplete(const RawAddress& address, bool success) {
     bluetooth::shim::GetDistanceMeasurementManager()->HandleVendorSpecificReplyComplete(
             bluetooth::ToGdAddress(address), GetConnectionHandle(address), success);
   }
 
+  // Must be called from main_thread
   void OnRemoteData(const RawAddress& address, const std::vector<uint8_t>& data) {
     bluetooth::shim::GetDistanceMeasurementManager()->HandleRemoteData(
             bluetooth::ToGdAddress(address), GetConnectionHandle(address), data);

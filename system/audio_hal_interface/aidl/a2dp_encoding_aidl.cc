@@ -237,8 +237,6 @@ std::unique_ptr<::bluetooth::audio::aidl::a2dp::ProviderInfo> provider_info;
 // initialized
 uint16_t remote_delay = 0;
 
-bool btaudio_a2dp_disabled = false;
-bool is_configured = false;
 bool is_low_latency_mode_allowed = false;
 
 static BluetoothAudioCtrlAck a2dp_ack_to_bt_audio_ctrl_ack(BluetoothAudioStatus ack) {
@@ -256,44 +254,8 @@ static BluetoothAudioCtrlAck a2dp_ack_to_bt_audio_ctrl_ack(BluetoothAudioStatus 
   }
 }
 
-/// Return the MTU for the active peer audio connection.
-static uint16_t a2dp_get_peer_mtu(btav_a2dp_codec_index_t codec_index, uint8_t const* codec_info) {
-  RawAddress peer_addr = btif_av_source_active_peer();
-  tA2DP_ENCODER_INIT_PEER_PARAMS peer_params;
-  bta_av_co_get_peer_params(peer_addr, &peer_params);
-  uint16_t peer_mtu = peer_params.peer_mtu;
-  uint16_t effective_mtu = bta_av_co_get_encoder_effective_frame_size(peer_addr);
-
-  if (effective_mtu > 0 && effective_mtu < peer_mtu) {
-    peer_mtu = effective_mtu;
-  }
-
-  // b/188020925
-  // When SBC headsets report middle quality bitpool under a larger MTU, we
-  // reduce the packet size to prevent the hardware encoder from putting too
-  // many frames in one packet.
-  if (codec_index == BTAV_A2DP_CODEC_INDEX_SOURCE_SBC &&
-      codec_info[2] /* maxBitpool */ <= A2DP_SBC_BITPOOL_MIDDLE_QUALITY) {
-    peer_mtu = MAX_2MBPS_AVDTP_MTU;
-  }
-
-  // b/177205770
-  // Fix the MTU value not to be greater than an AVDTP packet, so the data
-  // encoded by A2DP hardware encoder can be fitted into one AVDTP packet
-  // without fragmented
-  if (peer_mtu > MAX_3MBPS_AVDTP_MTU) {
-    peer_mtu = MAX_3MBPS_AVDTP_MTU;
-  }
-
-  return peer_mtu;
-}
-
-bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
-  A2dpCodecConfig* a2dp_config = bta_av_get_a2dp_current_codec();
-  if (a2dp_config == nullptr) {
-    log::warn("failure to get A2DP codec config");
-    return false;
-  }
+bool a2dp_get_selected_hal_codec_config(A2dpCodecConfig* a2dp_config, uint16_t peer_mtu,
+                                        CodecConfiguration* codec_config) {
   btav_a2dp_codec_config_t current_codec = a2dp_config->getCodecConfig();
   switch (current_codec.codec_type) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
@@ -339,35 +301,15 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
       return false;
   }
   codec_config->encodedAudioBitrate = a2dp_config->getTrackBitRate();
-  // Obtain the MTU
-  RawAddress peer_addr = btif_av_source_active_peer();
-  tA2DP_ENCODER_INIT_PEER_PARAMS peer_param;
-  bta_av_co_get_peer_params(peer_addr, &peer_param);
-  int effectiveMtu = bta_av_co_get_encoder_effective_frame_size(peer_addr);
-  if (effectiveMtu > 0 && effectiveMtu < peer_param.peer_mtu) {
-    codec_config->peerMtu = effectiveMtu;
-  } else {
-    codec_config->peerMtu = peer_param.peer_mtu;
-  }
-  if (current_codec.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_SBC &&
-      codec_config->config.get<CodecConfiguration::CodecSpecific::sbcConfig>().maxBitpool <=
-              A2DP_SBC_BITPOOL_MIDDLE_QUALITY) {
-    codec_config->peerMtu = MAX_2MBPS_AVDTP_MTU;
-  } else if (codec_config->peerMtu > MAX_3MBPS_AVDTP_MTU) {
-    codec_config->peerMtu = MAX_3MBPS_AVDTP_MTU;
-  }
+  codec_config->peerMtu = peer_mtu;
   log::info("CodecConfiguration={}", codec_config->toString());
   return true;
 }
 
-bool a2dp_get_selected_hal_pcm_config(PcmConfiguration* pcm_config) {
+static bool a2dp_get_selected_hal_pcm_config(A2dpCodecConfig* a2dp_codec_configs,
+                                             int preferred_encoding_interval_us,
+                                             PcmConfiguration* pcm_config) {
   if (pcm_config == nullptr) {
-    return false;
-  }
-  A2dpCodecConfig* a2dp_codec_configs = bta_av_get_a2dp_current_codec();
-  if (a2dp_codec_configs == nullptr) {
-    log::warn("failure to get A2DP codec config");
-    *pcm_config = BluetoothAudioSinkClientInterface::kInvalidPcmConfiguration;
     return false;
   }
 
@@ -377,20 +319,11 @@ bool a2dp_get_selected_hal_pcm_config(PcmConfiguration* pcm_config) {
   pcm_config->channelMode = A2dpCodecToHalChannelMode(current_codec);
 
   if (com::android::bluetooth::flags::a2dp_aidl_encoding_interval()) {
-    pcm_config->dataIntervalUs = bta_av_co_get_encoder_preferred_interval_us();
+    pcm_config->dataIntervalUs = preferred_encoding_interval_us;
   }
 
   return pcm_config->sampleRateHz > 0 && pcm_config->bitsPerSample > 0 &&
          pcm_config->channelMode != ChannelMode::UNKNOWN;
-}
-
-// Checking if new bluetooth_audio is supported
-bool is_hal_force_disabled() {
-  if (!is_configured) {
-    btaudio_a2dp_disabled = osi_property_get_bool(BLUETOOTH_AUDIO_HAL_PROP_DISABLED, false);
-    is_configured = true;
-  }
-  return btaudio_a2dp_disabled;
 }
 
 }  // namespace
@@ -448,11 +381,6 @@ bool init(bluetooth::common::MessageLoopThread* /*message_loop*/) {
 
   if (software_hal_interface != nullptr) {
     return true;
-  }
-
-  if (is_hal_force_disabled()) {
-    log::error("BluetoothAudio HAL is disabled");
-    return false;
   }
 
   if (!BluetoothAudioClientInterface::is_aidl_available()) {
@@ -514,15 +442,12 @@ void cleanup() {
 }
 
 // Set up the codec into BluetoothAudio HAL
-bool setup_codec() {
+bool setup_codec(A2dpCodecConfig* a2dp_config, uint16_t peer_mtu,
+                 int preferred_encoding_interval_us) {
+  log::assert_that(a2dp_config != nullptr, "received invalid codec configuration");
+
   if (!is_hal_enabled()) {
     log::error("BluetoothAudio HAL is not enabled");
-    return false;
-  }
-
-  A2dpCodecConfig* a2dp_config = bta_av_get_a2dp_current_codec();
-  if (a2dp_config == nullptr) {
-    log::error("the current codec is not configured");
     return false;
   }
 
@@ -535,7 +460,7 @@ bool setup_codec() {
     A2dpStreamConfiguration a2dp_stream_configuration;
 
     a2dp_config->copyOutOtaCodecConfig(codec_info);
-    a2dp_stream_configuration.peerMtu = a2dp_get_peer_mtu(a2dp_config->codecIndex(), codec_info);
+    a2dp_stream_configuration.peerMtu = peer_mtu;
     a2dp_stream_configuration.codecId =
             provider_info->GetCodec(a2dp_config->codecIndex()).value()->id;
 
@@ -569,7 +494,7 @@ bool setup_codec() {
   // Fallback to legacy offloading path.
   CodecConfiguration codec_config{};
 
-  if (!a2dp_get_selected_hal_codec_config(&codec_config)) {
+  if (!a2dp_get_selected_hal_codec_config(a2dp_config, peer_mtu, &codec_config)) {
     log::error("Failed to get CodecConfiguration");
     return false;
   }
@@ -592,7 +517,8 @@ bool setup_codec() {
     audio_config.set<AudioConfiguration::a2dpConfig>(codec_config);
   } else {
     PcmConfiguration pcm_config{};
-    if (!a2dp_get_selected_hal_pcm_config(&pcm_config)) {
+    if (!a2dp_get_selected_hal_pcm_config(a2dp_config, preferred_encoding_interval_us,
+                                          &pcm_config)) {
       log::error("Failed to get PcmConfiguration");
       return false;
     }

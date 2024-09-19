@@ -671,7 +671,7 @@ public:
       if (group->dsa_.active && leAudioDevice->GetDsaDataPathState() == DataPathState::REMOVING) {
         log::info("DSA data path removed");
         leAudioDevice->SetDsaDataPathState(DataPathState::IDLE);
-        leAudioDevice->SetDsaCisHandle(GATT_INVALID_CONN_ID);
+        leAudioDevice->SetDsaCisHandle(LE_AUDIO_INVALID_CIS_HANDLE);
       }
     }
 
@@ -709,7 +709,7 @@ public:
     while (leAudioDevice != nullptr) {
       for (auto& ase : leAudioDevice->ases_) {
         ase.cis_id = bluetooth::le_audio::kInvalidCisId;
-        ase.cis_conn_hdl = 0;
+        ase.cis_conn_hdl = bluetooth::le_audio::kInvalidCisConnHandle;
       }
       leAudioDevice = group->GetNextDevice(leAudioDevice);
     }
