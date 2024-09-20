@@ -66,6 +66,7 @@ import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSinkAudioPolicy;
 import android.bluetooth.BluetoothSocket;
 import android.bluetooth.BluetoothStatusCodes;
+import android.bluetooth.BluetoothUtils;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.BufferConstraints;
 import android.bluetooth.IBluetooth;
@@ -1190,6 +1191,32 @@ public class AdapterService extends Service {
                 setProfileServiceState(profileId, BluetoothAdapter.STATE_OFF);
             }
         }
+    }
+
+    void updateAdapterName(String name) {
+        int n = mRemoteCallbacks.beginBroadcast();
+        Log.d(TAG, "updateAdapterName(" + name + ")");
+        for (int i = 0; i < n; i++) {
+            try {
+                mRemoteCallbacks.getBroadcastItem(i).onAdapterNameChange(name);
+            } catch (RemoteException e) {
+                Log.d(TAG, "updateAdapterName() - Callback #" + i + " failed (" + e + ")");
+            }
+        }
+        mRemoteCallbacks.finishBroadcast();
+    }
+
+    void updateAdapterAddress(String address) {
+        int n = mRemoteCallbacks.beginBroadcast();
+        Log.d(TAG, "updateAdapterAddress(" + BluetoothUtils.toAnonymizedAddress(address) + ")");
+        for (int i = 0; i < n; i++) {
+            try {
+                mRemoteCallbacks.getBroadcastItem(i).onAdapterAddressChange(address);
+            } catch (RemoteException e) {
+                Log.d(TAG, "updateAdapterAddress() - Callback #" + i + " failed (" + e + ")");
+            }
+        }
+        mRemoteCallbacks.finishBroadcast();
     }
 
     void updateAdapterState(int prevState, int newState) {

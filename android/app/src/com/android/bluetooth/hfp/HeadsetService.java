@@ -1429,9 +1429,7 @@ public class HeadsetService extends ProfileService {
              */
             if (mSystemInterface.isInCall() || mSystemInterface.isRinging()) {
                 LeAudioService leAudioService = mFactory.getLeAudioService();
-                if (leAudioService != null
-                        && !leAudioService.getConnectedDevices().isEmpty()
-                        && Flags.leaudioResumeActiveAfterHfpHandover()) {
+                if (leAudioService != null && !leAudioService.getConnectedDevices().isEmpty()) {
                     Log.i(TAG, "Make sure no le audio device active for HFP handover.");
                     leAudioService.setInactiveForHfpHandover(mActiveDevice);
                 }
@@ -1464,15 +1462,6 @@ public class HeadsetService extends ProfileService {
                     updateInbandRinging(device, true);
                 }
             } else if (shouldPersistAudio()) {
-                /* If HFP is getting active for a phonecall and there is LeAudio device active,
-                 * Lets inactive LeAudio device as soon as possible so there is no CISes connected
-                 * when SCO is created
-                 */
-                LeAudioService leAudioService = mFactory.getLeAudioService();
-                if (leAudioService != null && !Flags.leaudioResumeActiveAfterHfpHandover()) {
-                    Log.i(TAG, "Make sure there is no le audio device active.");
-                    leAudioService.setInactiveForHfpHandover(mActiveDevice);
-                }
                 if (Utils.isScoManagedByAudioEnabled()) {
                     // tell Audio Framework that active device changed
                     mSystemInterface
@@ -2357,18 +2346,16 @@ public class HeadsetService extends ProfileService {
                 // Resumes LE audio previous active device if HFP handover happened before.
                 // Do it here because some controllers cannot handle SCO and CIS
                 // co-existence see {@link LeAudioService#setInactiveForHfpHandover}
-                if (Flags.leaudioResumeActiveAfterHfpHandover()) {
-                    LeAudioService leAudioService = mFactory.getLeAudioService();
-                    boolean isLeAudioConnectedDeviceNotActive = leAudioService != null
-                            && !leAudioService.getConnectedDevices().isEmpty()
-                            && leAudioService.getActiveDevices().get(0) == null;
-                    // usually controller limitation cause CONNECTING -> DISCONNECTED, so only
-                    // resume LE audio active device if it is HFP audio only and SCO disconnected
-                    if (fromState != BluetoothHeadset.STATE_AUDIO_CONNECTING
-                            && isHFPAudioOnly(device)
-                            && isLeAudioConnectedDeviceNotActive) {
-                        leAudioService.setActiveAfterHfpHandover();
-                    }
+                LeAudioService leAudioService = mFactory.getLeAudioService();
+                boolean isLeAudioConnectedDeviceNotActive = leAudioService != null
+                        && !leAudioService.getConnectedDevices().isEmpty()
+                        && leAudioService.getActiveDevices().get(0) == null;
+                // usually controller limitation cause CONNECTING -> DISCONNECTED, so only
+                // resume LE audio active device if it is HFP audio only and SCO disconnected
+                if (fromState != BluetoothHeadset.STATE_AUDIO_CONNECTING
+                        && isHFPAudioOnly(device)
+                        && isLeAudioConnectedDeviceNotActive) {
+                    leAudioService.setActiveAfterHfpHandover();
                 }
 
                 // Unsuspend A2DP when SCO connection is gone and call state is idle
