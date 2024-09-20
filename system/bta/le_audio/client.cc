@@ -1468,10 +1468,14 @@ public:
         /* Device is disconnecting, just mark it shall be removed after all. */
         leAudioDevice->SetConnectionState(DeviceConnectState::REMOVING);
         return;
+      case DeviceConnectState::CONNECTING_AUTOCONNECT:
+        /* Fallthrough as for AUTOCONNECT it might be that device is doing direct connect
+         * in case of previous connection timeout.
+         */
       case DeviceConnectState::CONNECTING_BY_USER:
         BTA_GATTC_CancelOpen(gatt_if_, address, true);
-        [[fallthrough]];
-      case DeviceConnectState::CONNECTING_AUTOCONNECT:
+        leAudioDevice->SetConnectionState(DeviceConnectState::DISCONNECTED);
+        break;
       case DeviceConnectState::DISCONNECTED:
         /* Do nothing, just remove device  */
         break;

@@ -4344,10 +4344,8 @@ public class LeAudioService extends ProfileService {
         }
         if (getActiveGroupId() != LE_AUDIO_GROUP_ID_INVALID) {
             mHfpHandoverDevice = hfpHandoverDevice;
-            if (Flags.leaudioResumeActiveAfterHfpHandover()) {
-                // record the lead device
-                mLeAudioDeviceInactivatedForHfpHandover = mExposedActiveDevice;
-            }
+            // record the lead device
+            mLeAudioDeviceInactivatedForHfpHandover = mExposedActiveDevice;
             removeActiveDevice(true);
         }
     }

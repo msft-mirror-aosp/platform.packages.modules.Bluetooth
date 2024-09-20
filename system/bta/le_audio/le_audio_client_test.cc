@@ -1397,7 +1397,7 @@ protected:
           ase.active = false;
           ase.state = types::AseState::BTA_LE_AUDIO_ASE_STATE_IDLE;
           ase.cis_id = 0;
-          ase.cis_conn_hdl = 0;
+          ase.cis_conn_hdl = bluetooth::le_audio::kInvalidCisConnHandle;
         }
       }
 
@@ -5378,7 +5378,7 @@ TEST_F(UnicastTest, RemoveDeviceWhenConnected) {
   Mock::VerifyAndClearExpectations(&mock_gatt_interface_);
 }
 
-TEST_F(UnicastTest, RemoveDeviceWhenConnecting) {
+TEST_F(UnicastTest, RemoveDeviceWhenUserConnecting) {
   const RawAddress test_address0 = GetTestAddress(0);
   uint16_t conn_id = 1;
 
@@ -5408,6 +5408,103 @@ TEST_F(UnicastTest, RemoveDeviceWhenConnecting) {
    * of operations and to avoid races we put the test command on main_loop as
    * well.
    */
+  do_in_main_thread(base::BindOnce(
+          [](LeAudioClient* client, const RawAddress& test_address0) {
+            client->RemoveDevice(test_address0);
+          },
+          LeAudioClient::Get(), test_address0));
+
+  SyncOnMainLoop();
+
+  Mock::VerifyAndClearExpectations(&mock_gatt_interface_);
+}
+
+TEST_F(UnicastTest, RemoveDeviceWhenAutoConnectingWithTargetedAnnouncements) {
+  const RawAddress test_address0 = GetTestAddress(0);
+  uint16_t conn_id = 1;
+
+  /* Scenario
+   * 1. Connect device
+   * 2. Disconnect by remote device -> this shall start Reconnection Using TA
+   * 3. Remove device
+   */
+  SetSampleDatabaseEarbudsValid(
+          conn_id, test_address0, codec_spec_conf::kLeAudioLocationStereo,
+          codec_spec_conf::kLeAudioLocationStereo, default_channel_cnt, default_channel_cnt, 0x0004,
+          /* source sample freq 16khz */ false /*add_csis*/, true /*add_cas*/, true /*add_pacs*/,
+          default_ase_cnt /*add_ascs_cnt*/, 1 /*set_size*/, 0 /*rank*/);
+
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnConnectionState(ConnectionState::CONNECTED, test_address0))
+          .Times(1);
+  ConnectLeAudio(test_address0, true);
+
+  Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
+  Mock::VerifyAndClearExpectations(&mock_gatt_interface_);
+
+  EXPECT_CALL(mock_gatt_interface_,
+              Open(gatt_if, test_address0, BTM_BLE_BKG_CONNECT_TARGETED_ANNOUNCEMENTS, _))
+          .Times(1);
+
+  // Inject disconnected event, Reconnect with TA shall start
+  InjectDisconnectedEvent(conn_id);
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_gatt_interface_);
+
+  // Remove device when being in auto connect state.
+  EXPECT_CALL(mock_gatt_interface_, CancelOpen(gatt_if, test_address0, true)).Times(1);
+  EXPECT_CALL(mock_gatt_interface_, CancelOpen(gatt_if, test_address0, false)).Times(1);
+  EXPECT_CALL(mock_gatt_interface_, Open(gatt_if, test_address0, _, _)).Times(0);
+
+  do_in_main_thread(base::BindOnce(
+          [](LeAudioClient* client, const RawAddress& test_address0) {
+            client->RemoveDevice(test_address0);
+          },
+          LeAudioClient::Get(), test_address0));
+
+  SyncOnMainLoop();
+
+  Mock::VerifyAndClearExpectations(&mock_gatt_interface_);
+}
+
+TEST_F(UnicastTest, RemoveDeviceWhenAutoConnectingAfterConnectionTimeout) {
+  const RawAddress test_address0 = GetTestAddress(0);
+  uint16_t conn_id = 1;
+
+  /* Scenario
+   * 1. Connect device
+   * 2. Disconnect remote device with connection timeout -> this shall start direct connect
+   * 3. Remove device
+   */
+  SetSampleDatabaseEarbudsValid(
+          conn_id, test_address0, codec_spec_conf::kLeAudioLocationStereo,
+          codec_spec_conf::kLeAudioLocationStereo, default_channel_cnt, default_channel_cnt, 0x0004,
+          /* source sample freq 16khz */ false /*add_csis*/, true /*add_cas*/, true /*add_pacs*/,
+          default_ase_cnt /*add_ascs_cnt*/, 1 /*set_size*/, 0 /*rank*/);
+
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnConnectionState(ConnectionState::CONNECTED, test_address0))
+          .Times(1);
+  ConnectLeAudio(test_address0, true);
+
+  Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
+  Mock::VerifyAndClearExpectations(&mock_gatt_interface_);
+
+  // Prepare mock for direct connect and inject connection timeout
+  ON_CALL(mock_gatt_interface_, Open(_, _, BTM_BLE_DIRECT_CONNECTION, _))
+          .WillByDefault(DoAll(Return()));
+  EXPECT_CALL(mock_gatt_interface_, Open(gatt_if, test_address0, BTM_BLE_DIRECT_CONNECTION, _))
+          .Times(1);
+
+  InjectDisconnectedEvent(conn_id, GATT_CONN_TIMEOUT);
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_gatt_interface_);
+
+  // Remove device when being in auto connect state after connection timeout
+  EXPECT_CALL(mock_gatt_interface_, CancelOpen(gatt_if, test_address0, true)).Times(1);
+  EXPECT_CALL(mock_gatt_interface_, CancelOpen(gatt_if, test_address0, false)).Times(1);
+  EXPECT_CALL(mock_gatt_interface_, Open(gatt_if, test_address0, _, _)).Times(0);
+
   do_in_main_thread(base::BindOnce(
           [](LeAudioClient* client, const RawAddress& test_address0) {
             client->RemoveDevice(test_address0);

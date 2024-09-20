@@ -1129,7 +1129,7 @@ protected:
     for (const auto& ase : device->ases_) {
       ASSERT_FALSE(ase.active);
       ASSERT_TRUE(ase.cis_id == ::bluetooth::le_audio::kInvalidCisId);
-      ASSERT_TRUE(ase.cis_conn_hdl == 0);
+      ASSERT_TRUE(ase.cis_conn_hdl == ::bluetooth::le_audio::kInvalidCisConnHandle);
     }
   }
 
