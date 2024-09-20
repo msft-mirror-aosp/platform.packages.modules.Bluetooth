@@ -140,6 +140,10 @@ cc_library_static {
             shared_libs: ["libaaudio"],
         },
         host: {
+            include_dirs: [
+                "bionic/libc/kernel/android/uapi/",
+                "bionic/libc/kernel/uapi",
+            ],
             srcs: [
                 "src/btif_avrcp_audio_track_linux.cc",
                 "src/btif_leaudio_hal_version_host.cc",

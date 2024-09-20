@@ -709,7 +709,7 @@ public:
     while (leAudioDevice != nullptr) {
       for (auto& ase : leAudioDevice->ases_) {
         ase.cis_id = bluetooth::le_audio::kInvalidCisId;
-        ase.cis_conn_hdl = 0;
+        ase.cis_conn_hdl = bluetooth::le_audio::kInvalidCisConnHandle;
       }
       leAudioDevice = group->GetNextDevice(leAudioDevice);
     }

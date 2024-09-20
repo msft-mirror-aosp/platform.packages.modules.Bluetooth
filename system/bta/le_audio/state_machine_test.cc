@@ -404,6 +404,8 @@ protected:
                                   bluetooth::hci::iso_manager::iso_data_path_params p) {
               log::debug("SetupIsoDataPath");
 
+              ASSERT_NE(conn_handle, kInvalidCisConnHandle);
+
               auto dev_it = std::find_if(le_audio_devices_.begin(), le_audio_devices_.end(),
                                          [&conn_handle](auto& dev) {
                                            auto ases = dev->GetAsesByCisConnHdl(conn_handle);
@@ -427,6 +429,8 @@ protected:
     ON_CALL(*mock_iso_manager_, RemoveIsoDataPath)
             .WillByDefault([this](uint16_t conn_handle, uint8_t iso_direction) {
               log::debug("RemoveIsoDataPath");
+
+              ASSERT_NE(conn_handle, kInvalidCisConnHandle);
 
               auto dev_it = std::find_if(le_audio_devices_.begin(), le_audio_devices_.end(),
                                          [&conn_handle](auto& dev) {
@@ -452,12 +456,14 @@ protected:
             .WillByDefault([this](bluetooth::hci::iso_manager::cis_establish_params conn_params) {
               log::debug("EstablishCis");
 
-              if (do_not_send_cis_establish_event_) {
-                log::debug("Don't send cis establish event");
-                return;
-              }
-
               for (auto& pair : conn_params.conn_pairs) {
+                ASSERT_NE(pair.cis_conn_handle, kInvalidCisConnHandle);
+
+                if (do_not_send_cis_establish_event_) {
+                  log::debug("Don't send cis establish event");
+                  continue;
+                }
+
                 auto dev_it = std::find_if(
                         le_audio_devices_.begin(), le_audio_devices_.end(), [&pair](auto& dev) {
                           auto ases = dev->GetAsesByCisConnHdl(pair.cis_conn_handle);
@@ -519,6 +525,8 @@ protected:
     ON_CALL(*mock_iso_manager_, DisconnectCis)
             .WillByDefault([this](uint16_t cis_handle, uint8_t reason) {
               log::debug("DisconnectCis");
+
+              ASSERT_NE(cis_handle, kInvalidCisConnHandle);
 
               auto dev_it = std::find_if(le_audio_devices_.begin(), le_audio_devices_.end(),
                                          [&cis_handle](auto& dev) {
@@ -1731,7 +1739,8 @@ TEST_F(StateMachineTest, testConfigureCodecSingleFb2) {
   /* Start the configuration and stream Media content.
    * Expect 2 times: for Codec Configure & QoS Configure */
   EXPECT_CALL(gatt_queue,
-              WriteCharacteristic(1, leAudioDevice->ctp_hdls_.val_hdl, _, GATT_WRITE_NO_RSP, _, _))
+              WriteCharacteristic(leAudioDevice->conn_id_, leAudioDevice->ctp_hdls_.val_hdl, _,
+                                  GATT_WRITE_NO_RSP, _, _))
           .Times(2);
 
   InjectInitialIdleNotification(group);
@@ -5022,7 +5031,8 @@ TEST_F(StateMachineTest, testQoSConfigureWhileStreaming) {
    */
   auto* leAudioDevice = group->GetFirstDevice();
   EXPECT_CALL(gatt_queue,
-              WriteCharacteristic(1, leAudioDevice->ctp_hdls_.val_hdl, _, GATT_WRITE_NO_RSP, _, _))
+              WriteCharacteristic(leAudioDevice->conn_id_, leAudioDevice->ctp_hdls_.val_hdl, _,
+                                  GATT_WRITE_NO_RSP, _, _))
           .Times(4);
 
   EXPECT_CALL(*mock_iso_manager_, CreateCig(_, _)).Times(1);

@@ -1558,7 +1558,6 @@ public class HeadsetServiceAndStateMachineTest {
     @Test
     public void testHfpOnlyHandoverToLeAudioAfterScoDisconnect() {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_RESUME_ACTIVE_AFTER_HFP_HANDOVER);
 
         assertThat(mHeadsetService.mFactory).isNotNull();
         mHeadsetService.mFactory = mServiceFactory;
