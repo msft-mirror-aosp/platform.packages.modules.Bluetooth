@@ -62,7 +62,7 @@ void LeAudioDeviceGroup::RemoveNode(const std::shared_ptr<LeAudioDevice>& leAudi
   leAudioDevice->group_id_ = bluetooth::groups::kGroupUnknown;
   for (auto ase : leAudioDevice->ases_) {
     ase.active = false;
-    ase.cis_conn_hdl = 0;
+    ase.cis_conn_hdl = kInvalidCisConnHandle;
   }
 
   leAudioDevices_.erase(

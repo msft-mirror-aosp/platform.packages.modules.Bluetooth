@@ -16,6 +16,7 @@
 
 package android.bluetooth
 
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -40,6 +41,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 
+@SuppressLint("MissingPermission")
 @kotlinx.coroutines.ExperimentalCoroutinesApi
 public class Host(context: Context) : Closeable {
     private val TAG = "PandoraHost"
@@ -54,6 +56,7 @@ public class Host(context: Context) : Closeable {
         val intentFilter = IntentFilter()
         intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
         intentFilter.addAction(BluetoothDevice.ACTION_PAIRING_REQUEST)
+        intentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
 
         flow = intentFlow(context, intentFilter, scope).shareIn(scope, SharingStarted.Eagerly)
     }
@@ -113,7 +116,28 @@ public class Host(context: Context) : Closeable {
                         it.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothAdapter.ERROR) ==
                             BluetoothDevice.BOND_NONE
                     }
+                    .first()
                 Log.d(TAG, "removeBondAndVerify: done")
+            }
+        }
+    }
+
+    fun disconnectAndVerify(remoteDevice: BluetoothDevice) {
+        Log.d(TAG, "disconnectAndVerify: $remoteDevice")
+        runBlocking(scope.coroutineContext) {
+            withTimeout(TIMEOUT) {
+                assertThat(remoteDevice.disconnect()).isEqualTo(BluetoothStatusCodes.SUCCESS)
+                flow
+                    .filter { it.getAction() == BluetoothDevice.ACTION_ACL_DISCONNECTED }
+                    .filter {
+                        it.getIntExtra(
+                            BluetoothDevice.EXTRA_TRANSPORT,
+                            BluetoothDevice.TRANSPORT_AUTO,
+                        ) == BluetoothDevice.TRANSPORT_BREDR
+                    }
+                    .filter { it.getBluetoothDeviceExtra() == remoteDevice }
+                    .first()
+                Log.d(TAG, "disconnectAndVerify: done")
             }
         }
     }

@@ -183,7 +183,7 @@ cc_test {
         "android.hardware.bluetooth@1.1",
         "android.hardware.common-V2-ndk",
         "android.hardware.common.fmq-V1-ndk",
-        "bluetooth_flags_c_lib",
+        "bluetooth_flags_c_lib_for_test",
         "libbase",
         "libbluetooth-types",
         "libbluetooth_log",
@@ -308,7 +308,7 @@ cc_test {
     static_libs: [
         "android.hardware.common-V2-ndk",
         "android.hardware.common.fmq-V1-ndk",
-        "bluetooth_flags_c_lib",
+        "bluetooth_flags_c_lib_for_test",
         "libbluetooth-types",
         "libbluetooth_log",
         "libbt-bta",
@@ -349,7 +349,7 @@ cc_test {
         "le_audio_software_unittest.cc",
     ],
     static_libs: [
-        "bluetooth_flags_c_lib",
+        "bluetooth_flags_c_lib_for_test",
         "libbt-bta",
         "libbt-platform-protos-lite",
         "libcutils",
