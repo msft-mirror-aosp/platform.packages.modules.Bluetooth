@@ -16,6 +16,8 @@
 
 #include "avrcp_packet.h"
 
+#include <base/sys_byteorder.h>
+
 #include <iomanip>
 #include <sstream>
 #include <type_traits>

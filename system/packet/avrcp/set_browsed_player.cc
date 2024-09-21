@@ -16,6 +16,8 @@
 
 #include "set_browsed_player.h"
 
+#include <base/sys_byteorder.h>
+
 #include "internal_include/bt_trace.h"
 
 namespace bluetooth {

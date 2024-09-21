@@ -284,7 +284,7 @@ public final class OobData implements Parcelable {
             this.mConfirmationHash = confirmationHash;
             if (deviceAddressWithType.length != OobData.DEVICE_ADDRESS_OCTETS) {
                 throw new IllegalArgumentException(
-                        "confirmationHash must be "
+                        "deviceAddressWithType must be "
                                 + OobData.DEVICE_ADDRESS_OCTETS
                                 + " octets in length.");
             }

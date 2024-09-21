@@ -323,9 +323,7 @@ tBTM_STATUS BTM_CancelRemoteDeviceName(void) {
     btm_inq_rmt_name_failed_cancelled();
   } else {
     bluetooth::shim::ACL_CancelRemoteNameRequest(btm_cb.rnr.remname_bda);
-    if (com::android::bluetooth::flags::rnr_reset_state_at_cancel()) {
-      btm_process_remote_name(&btm_cb.rnr.remname_bda, nullptr, 0, HCI_ERR_UNSPECIFIED);
-    }
+    btm_process_remote_name(&btm_cb.rnr.remname_bda, nullptr, 0, HCI_ERR_UNSPECIFIED);
   }
   return tBTM_STATUS::BTM_CMD_STARTED;
 }

@@ -16,6 +16,7 @@
 package android.bluetooth
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.test_utils.EnableBluetoothRule
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
@@ -34,10 +35,16 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.timeout
+import org.mockito.kotlin.verify
 import pandora.RfcommProto
 import pandora.RfcommProto.ServerId
 import pandora.RfcommProto.StartServerRequest
 
+@SuppressLint("MissingPermission")
 @RunWith(AndroidJUnit4::class)
 @ExperimentalCoroutinesApi
 class RfcommTest {
@@ -52,7 +59,8 @@ class RfcommTest {
         AdoptShellPermissionsRule(
             InstrumentationRegistry.getInstrumentation().getUiAutomation(),
             Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_PRIVILEGED
+            Manifest.permission.BLUETOOTH_PRIVILEGED,
+            Manifest.permission.MODIFY_PHONE_STATE,
         )
 
     // Set up a Bumble Pandora device for the duration of the test.
@@ -60,21 +68,41 @@ class RfcommTest {
 
     @Rule(order = 2) @JvmField val enableBluetoothRule = EnableBluetoothRule(false, true)
 
-    private lateinit var mBumbleDevice: BluetoothDevice
+    private lateinit var mRemoteDevice: BluetoothDevice
     private lateinit var host: Host
     private var mConnectionCounter = 1
+    private var mProfileServiceListener = mock<BluetoothProfile.ServiceListener>()
 
     @Before
     fun setUp() {
-        mBumbleDevice = mBumble.remoteDevice
+        mRemoteDevice = mBumble.remoteDevice
         host = Host(mContext)
-        host.createBondAndVerify(mBumbleDevice)
+        val bluetoothA2dp = getProfileProxy(mContext, BluetoothProfile.A2DP) as BluetoothA2dp
+        bluetoothA2dp.setConnectionPolicy(
+            mRemoteDevice,
+            BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
+        )
+        val bluetoothHfp = getProfileProxy(mContext, BluetoothProfile.HEADSET) as BluetoothHeadset
+        bluetoothHfp.setConnectionPolicy(
+            mRemoteDevice,
+            BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
+        )
+        val bluetoothHidHost =
+            getProfileProxy(mContext, BluetoothProfile.HID_HOST) as BluetoothHidHost
+        bluetoothHidHost.setConnectionPolicy(
+            mRemoteDevice,
+            BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
+        )
+        host.createBondAndVerify(mRemoteDevice)
+        if (mRemoteDevice.isConnected) {
+            host.disconnectAndVerify(mRemoteDevice)
+        }
     }
 
     @After
     fun tearDown() {
-        if (mAdapter.bondedDevices.contains(mBumbleDevice)) {
-            host.removeBondAndVerify(mBumbleDevice)
+        if (mAdapter.bondedDevices.contains(mRemoteDevice)) {
+            host.removeBondAndVerify(mRemoteDevice)
         }
         host.close()
     }
@@ -159,12 +187,104 @@ class RfcommTest {
         }
     }
 
+    @Test
+    fun connectTwoInsecureClientsSimultaneously() {
+        startServer("ServerPort1", TEST_UUID) { serverId1 ->
+            startServer("ServerPort2", SERIAL_PORT_UUID) { serverId2 ->
+                val socket1 = createSocket(mRemoteDevice, isSecure = false, TEST_UUID)
+                val socket2 = createSocket(mRemoteDevice, isSecure = false, SERIAL_PORT_UUID)
+
+                acceptSocket(serverId1)
+                Truth.assertThat(socket1.isConnected).isTrue()
+
+                acceptSocket(serverId2)
+                Truth.assertThat(socket2.isConnected).isTrue()
+            }
+        }
+    }
+
+    @Test
+    fun connectTwoInsecureClientsSequentially() {
+        startServer("ServerPort1", TEST_UUID) { serverId1 ->
+            startServer("ServerPort2", SERIAL_PORT_UUID) { serverId2 ->
+                val socket1 = createSocket(mRemoteDevice, isSecure = false, TEST_UUID)
+                acceptSocket(serverId1)
+                Truth.assertThat(socket1.isConnected).isTrue()
+
+                val socket2 = createSocket(mRemoteDevice, isSecure = false, SERIAL_PORT_UUID)
+                acceptSocket(serverId2)
+                Truth.assertThat(socket2.isConnected).isTrue()
+            }
+        }
+    }
+
+    @Test
+    fun connectTwoSecureClientsSimultaneously() {
+        startServer("ServerPort1", TEST_UUID) { serverId1 ->
+            startServer("ServerPort2", SERIAL_PORT_UUID) { serverId2 ->
+                val socket2 = createSocket(mRemoteDevice, isSecure = true, SERIAL_PORT_UUID)
+                val socket1 = createSocket(mRemoteDevice, isSecure = true, TEST_UUID)
+
+                acceptSocket(serverId1)
+                Truth.assertThat(socket1.isConnected).isTrue()
+
+                acceptSocket(serverId2)
+                Truth.assertThat(socket2.isConnected).isTrue()
+            }
+        }
+    }
+
+    @Test
+    fun connectTwoSecureClientsSequentially() {
+        startServer("ServerPort1", TEST_UUID) { serverId1 ->
+            startServer("ServerPort2", SERIAL_PORT_UUID) { serverId2 ->
+                val socket1 = createSocket(mRemoteDevice, isSecure = true, TEST_UUID)
+                acceptSocket(serverId1)
+                Truth.assertThat(socket1.isConnected).isTrue()
+
+                val socket2 = createSocket(mRemoteDevice, isSecure = true, SERIAL_PORT_UUID)
+                acceptSocket(serverId2)
+                Truth.assertThat(socket2.isConnected).isTrue()
+            }
+        }
+    }
+
+    @Test
+    fun connectTwoMixedClientsInsecureThenSecure() {
+        startServer("ServerPort1", TEST_UUID) { serverId1 ->
+            startServer("ServerPort2", SERIAL_PORT_UUID) { serverId2 ->
+                val socket2 = createSocket(mRemoteDevice, isSecure = false, SERIAL_PORT_UUID)
+                acceptSocket(serverId2)
+                Truth.assertThat(socket2.isConnected).isTrue()
+
+                val socket1 = createSocket(mRemoteDevice, isSecure = true, TEST_UUID)
+                acceptSocket(serverId1)
+                Truth.assertThat(socket1.isConnected).isTrue()
+            }
+        }
+    }
+
+    @Test
+    fun connectTwoMixedClientsSecureThenInsecure() {
+        startServer("ServerPort1", TEST_UUID) { serverId1 ->
+            startServer("ServerPort2", SERIAL_PORT_UUID) { serverId2 ->
+                val socket2 = createSocket(mRemoteDevice, isSecure = true, SERIAL_PORT_UUID)
+                acceptSocket(serverId2)
+                Truth.assertThat(socket2.isConnected).isTrue()
+
+                val socket1 = createSocket(mRemoteDevice, isSecure = false, TEST_UUID)
+                acceptSocket(serverId1)
+                Truth.assertThat(socket1.isConnected).isTrue()
+            }
+        }
+    }
+
     private fun createConnectAcceptSocket(
         isSecure: Boolean,
         server: ServerId,
-        uuid: String = TEST_UUID
+        uuid: String = TEST_UUID,
     ): Pair<BluetoothSocket, RfcommProto.RfcommConnection> {
-        val socket = createSocket(mBumbleDevice, isSecure, uuid)
+        val socket = createSocket(mRemoteDevice, isSecure, uuid)
 
         val connection = acceptSocket(server)
         Truth.assertThat(socket.isConnected).isTrue()
@@ -175,7 +295,7 @@ class RfcommTest {
     private fun createSocket(
         device: BluetoothDevice,
         isSecure: Boolean,
-        uuid: String
+        uuid: String,
     ): BluetoothSocket {
         val socket =
             if (isSecure) {
@@ -204,7 +324,7 @@ class RfcommTest {
     private fun startServer(
         name: String = TEST_SERVER_NAME,
         uuid: String = TEST_UUID,
-        block: (ServerId) -> Unit
+        block: (ServerId) -> Unit,
     ) {
         val request = StartServerRequest.newBuilder().setName(name).setUuid(uuid).build()
         val response = mBumble.rfcommBlocking().startServer(request)
@@ -219,6 +339,14 @@ class RfcommTest {
                     RfcommProto.StopServerRequest.newBuilder().setServer(response.server).build()
                 )
         }
+    }
+
+    private fun getProfileProxy(context: Context, profile: Int): BluetoothProfile {
+        mAdapter.getProfileProxy(context, mProfileServiceListener, profile)
+        val proxyCaptor = argumentCaptor<BluetoothProfile>()
+        verify(mProfileServiceListener, timeout(GRPC_TIMEOUT.toMillis()))
+            .onServiceConnected(eq(profile), proxyCaptor.capture())
+        return proxyCaptor.lastValue
     }
 
     companion object {

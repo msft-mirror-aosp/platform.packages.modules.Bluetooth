@@ -210,6 +210,7 @@ constexpr uint16_t kLeAudioCodecFrameLen120 = 120;
 }  // namespace codec_spec_conf
 
 constexpr uint8_t kInvalidCisId = 0xFF;
+constexpr uint16_t kInvalidCisConnHandle = 0xFFFF;
 
 namespace codec_spec_caps {
 uint16_t constexpr SamplingFreqConfig2Capability(uint8_t conf) {
@@ -1120,7 +1121,7 @@ struct ase {
   uint8_t cis_id;
   const uint8_t direction;
   uint8_t target_latency;
-  uint16_t cis_conn_hdl = 0;
+  uint16_t cis_conn_hdl = kInvalidCisConnHandle;
 
   bool active;
   bool reconfigure;

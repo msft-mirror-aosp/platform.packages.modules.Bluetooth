@@ -679,12 +679,8 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
                         && mAdapterService.isAllSupportedClassicAudioProfilesActive(device)) {
                     setLeAudioActiveDevice(device);
                 } else {
-                    if (Flags.leaudioResumeActiveAfterHfpHandover()) {
-                        if (device != null) {
-                            // remove LE audio active device when it is not null, and not dual mode
-                            setLeAudioActiveDevice(null, true);
-                        }
-                    } else {
+                    if (device != null) {
+                        // remove LE audio active device when it is not null, and not dual mode
                         setLeAudioActiveDevice(null, true);
                     }
                 }
@@ -1200,22 +1196,30 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
 
     @VisibleForTesting
     BluetoothDevice getA2dpActiveDevice() {
-        return mA2dpActiveDevice;
+        synchronized (mLock) {
+            return mA2dpActiveDevice;
+        }
     }
 
     @VisibleForTesting
     BluetoothDevice getHfpActiveDevice() {
-        return mHfpActiveDevice;
+        synchronized (mLock) {
+            return mHfpActiveDevice;
+        }
     }
 
     @VisibleForTesting
     Set<BluetoothDevice> getHearingAidActiveDevices() {
-        return mHearingAidActiveDevices;
+        synchronized (mLock) {
+            return mHearingAidActiveDevices;
+        }
     }
 
     @VisibleForTesting
     BluetoothDevice getLeAudioActiveDevice() {
-        return mLeAudioActiveDevice;
+        synchronized (mLock) {
+            return mLeAudioActiveDevice;
+        }
     }
 
     @GuardedBy("mLock")
