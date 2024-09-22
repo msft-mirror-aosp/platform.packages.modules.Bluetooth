@@ -98,6 +98,7 @@ cc_library_shared {
         "android.system.suspend-V1-ndk",
         "android.system.suspend.control-V1-ndk",
         "avrcp-target-service",
+        "bluetooth_flags_c_lib",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libFraunhoferAAC",
@@ -219,6 +220,7 @@ cc_library {
 
 android_app {
     name: "Bluetooth",
+    defaults: ["bluetooth_framework_errorprone_rules"],
 
     srcs: [
         ":statslog-bluetooth-java-gen",
@@ -321,74 +323,6 @@ android_app {
     apex_available: [
         "com.android.btservices",
     ],
-    errorprone: {
-        enabled: true,
-        javacflags: [
-            "-Xep:AlmostJavadoc:ERROR",
-            "-Xep:AlreadyChecked:ERROR",
-            "-Xep:AndroidFrameworkBinderIdentity:ERROR",
-            "-Xep:AndroidFrameworkEfficientParcelable:ERROR",
-            "-Xep:AndroidFrameworkEfficientStrings:ERROR",
-            "-Xep:AndroidFrameworkRequiresPermission:ERROR",
-            "-Xep:BadImport:ERROR",
-            "-Xep:CatchAndPrintStackTrace:ERROR",
-            "-Xep:ClassCanBeStatic:ERROR",
-            "-Xep:DateFormatConstant:ERROR",
-            "-Xep:EmptyBlockTag:ERROR",
-            "-Xep:EmptyCatch:ERROR",
-            "-Xep:EqualsGetClass:ERROR",
-            "-Xep:FallThrough:ERROR",
-            "-Xep:Finalize:ERROR",
-            "-Xep:HidingField:ERROR",
-            "-Xep:InlineMeInliner:ERROR",
-            "-Xep:InvalidBlockTag:ERROR",
-            "-Xep:InvalidParam:ERROR",
-            "-Xep:JavaUtilDate:ERROR",
-            "-Xep:JdkObsolete:ERROR",
-            "-Xep:LockOnNonEnclosingClassLiteral:ERROR",
-            "-Xep:LoopOverCharArray:ERROR",
-            "-Xep:MissingCasesInEnumSwitch:ERROR",
-            "-Xep:MixedMutabilityReturnType:ERROR",
-            "-Xep:MockNotUsedInProduction:ERROR",
-            "-Xep:ModifyCollectionInEnhancedForLoop:ERROR",
-            "-Xep:NarrowCalculation:ERROR",
-            "-Xep:NarrowingCompoundAssignment:ERROR",
-            "-Xep:NonApiType:ERROR",
-            "-Xep:NonAtomicVolatileUpdate:ERROR",
-            "-Xep:NonCanonicalType:ERROR",
-            "-Xep:NotJavadoc:ERROR",
-            "-Xep:ObjectEqualsForPrimitives:ERROR",
-            "-Xep:OperatorPrecedence:ERROR",
-            "-Xep:ReferenceEquality:ERROR",
-            "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
-            "-Xep:StaticAssignmentInConstructor:ERROR",
-            "-Xep:StaticGuardedByInstance:ERROR",
-            "-Xep:StringCaseLocaleUsage:ERROR",
-            "-Xep:StringCharset:ERROR",
-            "-Xep:SynchronizeOnNonFinalField:ERROR",
-            "-Xep:ToStringReturnsNull:ERROR",
-            "-Xep:UndefinedEquals:ERROR",
-            "-Xep:UnnecessaryStringBuilder:ERROR",
-            "-Xep:UnrecognisedJavadocTag:ERROR",
-            "-Xep:UnusedMethod:ERROR",
-            "-Xep:UnusedNestedClass:ERROR",
-            "-Xep:UnusedVariable:ERROR",
-            "-Xep:WaitNotInLoop:ERROR",
-            "-Xep:WakelockReleasedDangerously:ERROR",
-
-            // After fixing this errorprone, we decided to not merge the change.
-            // It is not very readable and the benefits are minimal when looking
-            // at the size of the maps used in the Bluetooth application.
-            // See https://r.android.com/3200511
-            "-Xep:AndroidFrameworkEfficientCollections:OFF",
-
-            // Does not look pertinent in our situation
-            "-Xep:AndroidFrameworkEfficientXml:OFF",
-
-            // Exclude generated files
-            "-XepExcludedPaths:.*/srcjars/.*",
-        ],
-    },
     min_sdk_version: "Tiramisu",
     sdk_version: "module_current",
 }

@@ -121,13 +121,6 @@ void LogMetricBluetoothRemoteSupportedFeatures(const Address& /* address */, uin
 
 void LogMetricBluetoothCodePathCounterMetrics(int32_t /* key */, int64_t /* count */) {}
 
-void LogMetricBluetoothLEConnectionMetricEvent(
-        const Address& /* address */,
-        android::bluetooth::le::LeConnectionOriginType /* origin_type */,
-        android::bluetooth::le::LeConnectionType /* connection_type */,
-        android::bluetooth::le::LeConnectionState /* transaction_state */,
-        std::vector<std::pair<os::ArgumentType, int>>& /* argument_list */) {}
-
 void LogMetricBluetoothLEConnection(os::LEConnectionSessionOptions /* session_options */) {}
 
 void LogMetricBluetoothEvent(const Address& /* address */,

@@ -428,6 +428,22 @@ pub type BtPinCode = bindings::bt_pin_code_t;
 pub type BtRemoteVersion = bindings::bt_remote_version_t;
 pub type BtVendorProductInfo = bindings::bt_vendor_product_info_t;
 
+impl ToString for BtVendorProductInfo {
+    fn to_string(&self) -> String {
+        format!(
+            "{}:v{:04X}p{:04X}d{:04X}",
+            match self.vendor_id_src {
+                1 => "bluetooth",
+                2 => "usb",
+                default => "unknown",
+            },
+            self.vendor_id,
+            self.product_id,
+            self.version
+        )
+    }
+}
+
 impl TryFrom<Uuid> for Vec<u8> {
     type Error = &'static str;
 

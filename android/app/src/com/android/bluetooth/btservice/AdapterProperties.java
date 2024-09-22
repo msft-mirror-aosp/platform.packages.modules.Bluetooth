@@ -65,6 +65,7 @@ import com.android.modules.utils.build.SdkLevel;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -968,7 +969,15 @@ class AdapterProperties {
             synchronized (mObject) {
                 switch (type) {
                     case AbstractionLayer.BT_PROPERTY_BDNAME:
-                        mName = new String(val);
+                        String name = new String(val);
+                        if (Flags.getNameAndAddressAsCallback() && name.equals(mName)) {
+                            debugLog("Name already set: " + mName);
+                            break;
+                        }
+                        mName = name;
+                        if (Flags.getNameAndAddressAsCallback()) {
+                            mService.updateAdapterName(mName);
+                        }
                         intent = new Intent(BluetoothAdapter.ACTION_LOCAL_NAME_CHANGED);
                         intent.putExtra(BluetoothAdapter.EXTRA_LOCAL_NAME, mName);
                         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
@@ -980,8 +989,17 @@ class AdapterProperties {
                         debugLog("Name is: " + mName);
                         break;
                     case AbstractionLayer.BT_PROPERTY_BDADDR:
+                        if (Flags.getNameAndAddressAsCallback() && Arrays.equals(mAddress, val)) {
+                            debugLog("Address already set");
+                            break;
+                        }
                         mAddress = val;
                         String address = Utils.getAddressStringFromByte(mAddress);
+                        if (Flags.getNameAndAddressAsCallback()) {
+                            mService.updateAdapterAddress(address);
+                            // ACTION_BLUETOOTH_ADDRESS_CHANGED is redundant
+                            break;
+                        }
                         intent = new Intent(BluetoothAdapter.ACTION_BLUETOOTH_ADDRESS_CHANGED);
                         intent.putExtra(BluetoothAdapter.EXTRA_BLUETOOTH_ADDRESS, address);
                         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);

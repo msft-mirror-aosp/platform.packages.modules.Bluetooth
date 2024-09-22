@@ -16,13 +16,6 @@ flag {
 }
 
 flag {
-    name: "continue_service_discovery_when_cancel_device_discovery"
-    namespace: "bluetooth"
-    description: "Continue service discovery when API cancel device discovery called"
-    bug: "329642681"
-}
-
-flag {
     name: "bta_dm_discover_both"
     namespace: "bluetooth"
     description: "perform both LE and Classic service discovery simulteanously on capable devices"
