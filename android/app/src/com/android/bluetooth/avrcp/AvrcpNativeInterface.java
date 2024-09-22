@@ -59,9 +59,9 @@ public class AvrcpNativeInterface {
             if (sInstance == null) {
                 sInstance = new AvrcpNativeInterface();
             }
-        }
 
-        return sInstance;
+            return sInstance;
+        }
     }
 
     /** Set singleton instance. */

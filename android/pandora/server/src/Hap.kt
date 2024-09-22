@@ -16,6 +16,7 @@
 
 package com.android.pandora
 
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothDevice.TRANSPORT_LE
 import android.bluetooth.BluetoothHapClient
@@ -24,7 +25,9 @@ import android.bluetooth.BluetoothHapPresetInfo
 import android.bluetooth.BluetoothLeAudio
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED
 import android.content.Context
+import android.content.IntentFilter
 import android.media.AudioManager
 import android.media.AudioTrack
 import android.util.Log
@@ -39,8 +42,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import pandora.HAPGrpc.HAPImplBase
 import pandora.HapProto.*
 import pandora.HostProto.Connection
@@ -61,12 +68,22 @@ class Hap(val context: Context) : HAPImplBase(), Closeable {
     private val bluetoothLeAudio =
         getProfileProxy<BluetoothLeAudio>(context, BluetoothProfile.LE_AUDIO)
 
+    private val flow =
+        intentFlow(
+                context,
+                IntentFilter().apply {
+                    addAction(BluetoothHapClient.ACTION_HAP_CONNECTION_STATE_CHANGED)
+                },
+                scope,
+            )
+            .shareIn(scope, SharingStarted.Eagerly)
+
     private var audioTrack: AudioTrack? = null
 
     private class PresetInfoChanged(
         var connection: Connection,
         var presetInfoList: List<BluetoothHapPresetInfo>,
-        var reason: Int
+        var reason: Int,
     ) {}
 
     private val mPresetChanged = callbackFlow {
@@ -75,7 +92,7 @@ class Hap(val context: Context) : HAPImplBase(), Closeable {
                 override fun onPresetSelected(
                     device: BluetoothDevice,
                     presetIndex: Int,
-                    reason: Int
+                    reason: Int,
                 ) {
                     Log.i(TAG, "$device preset info changed")
                 }
@@ -91,7 +108,7 @@ class Hap(val context: Context) : HAPImplBase(), Closeable {
                 override fun onPresetInfoChanged(
                     device: BluetoothDevice,
                     presetInfoList: List<BluetoothHapPresetInfo>,
-                    reason: Int
+                    reason: Int,
                 ) {
                     Log.i(TAG, "$device preset info changed")
 
@@ -120,9 +137,22 @@ class Hap(val context: Context) : HAPImplBase(), Closeable {
         scope.cancel()
     }
 
+    override fun getFeatures(
+        request: GetFeaturesRequest,
+        responseObserver: StreamObserver<GetFeaturesResponse>,
+    ) {
+        grpcUnary<GetFeaturesResponse>(scope, responseObserver) {
+            val device = request.connection.toBluetoothDevice(bluetoothAdapter)
+            Log.i(TAG, "getFeatures(${device})")
+            GetFeaturesResponse.newBuilder()
+                .setFeatures(bluetoothHapClient.getFeatures(device))
+                .build()
+        }
+    }
+
     override fun getPresetRecord(
         request: GetPresetRecordRequest,
-        responseObserver: StreamObserver<GetPresetRecordResponse>
+        responseObserver: StreamObserver<GetPresetRecordResponse>,
     ) {
         grpcUnary<GetPresetRecordResponse>(scope, responseObserver) {
             val device = request.connection.toBluetoothDevice(bluetoothAdapter)
@@ -150,34 +180,34 @@ class Hap(val context: Context) : HAPImplBase(), Closeable {
 
     override fun getAllPresetRecords(
         request: GetAllPresetRecordsRequest,
-        responseObserver: StreamObserver<GetAllPresetRecordsResponse>
+        responseObserver: StreamObserver<GetAllPresetRecordsResponse>,
     ) {
         grpcUnary<GetAllPresetRecordsResponse>(scope, responseObserver) {
             val device = request.connection.toBluetoothDevice(bluetoothAdapter)
+            Log.i(TAG, "getAllPresetRecords(${device})")
 
-            Log.i(TAG, "getAllPresetRecords")
-
-            val presetRecordList = arrayListOf<PresetRecord>()
-            val receivedPresetInfoList = bluetoothHapClient.getAllPresetInfo(device)
-
-            for (presetInfo in receivedPresetInfoList) {
-                presetRecordList.add(
-                    PresetRecord.newBuilder()
-                        .setIndex(presetInfo.getIndex())
-                        .setName(presetInfo.getName())
-                        .setIsWritable(presetInfo.isWritable())
-                        .setIsAvailable(presetInfo.isAvailable())
-                        .build()
+            GetAllPresetRecordsResponse.newBuilder()
+                .addAllPresetRecordList(
+                    bluetoothHapClient
+                        .getAllPresetInfo(device)
+                        .stream()
+                        .map { it: BluetoothHapPresetInfo ->
+                            PresetRecord.newBuilder()
+                                .setIndex(it.getIndex())
+                                .setName(it.getName())
+                                .setIsWritable(it.isWritable())
+                                .setIsAvailable(it.isAvailable())
+                                .build()
+                        }
+                        .toList()
                 )
-            }
-
-            GetAllPresetRecordsResponse.newBuilder().addAllPresetRecordList(presetRecordList).build()
+                .build()
         }
     }
 
     override fun writePresetName(
         request: WritePresetNameRequest,
-        responseObserver: StreamObserver<Empty>
+        responseObserver: StreamObserver<Empty>,
     ) {
         grpcUnary<Empty>(scope, responseObserver) {
             val device = request.connection.toBluetoothDevice(bluetoothAdapter)
@@ -192,7 +222,7 @@ class Hap(val context: Context) : HAPImplBase(), Closeable {
 
     override fun setActivePreset(
         request: SetActivePresetRequest,
-        responseObserver: StreamObserver<Empty>
+        responseObserver: StreamObserver<Empty>,
     ) {
         grpcUnary<Empty>(scope, responseObserver) {
             val device = request.connection.toBluetoothDevice(bluetoothAdapter)
@@ -207,7 +237,7 @@ class Hap(val context: Context) : HAPImplBase(), Closeable {
 
     override fun setNextPreset(
         request: SetNextPresetRequest,
-        responseObserver: StreamObserver<Empty>
+        responseObserver: StreamObserver<Empty>,
     ) {
         grpcUnary<Empty>(scope, responseObserver) {
             val device = request.connection.toBluetoothDevice(bluetoothAdapter)
@@ -222,7 +252,7 @@ class Hap(val context: Context) : HAPImplBase(), Closeable {
 
     override fun setPreviousPreset(
         request: SetPreviousPresetRequest,
-        responseObserver: StreamObserver<Empty>
+        responseObserver: StreamObserver<Empty>,
     ) {
         grpcUnary<Empty>(scope, responseObserver) {
             val device = request.connection.toBluetoothDevice(bluetoothAdapter)
@@ -264,7 +294,7 @@ class Hap(val context: Context) : HAPImplBase(), Closeable {
                 audioManager.setStreamVolume(
                     AudioManager.STREAM_MUSIC,
                     maxVolume,
-                    AudioManager.FLAG_SHOW_UI
+                    AudioManager.FLAG_SHOW_UI,
                 )
             }
         }
@@ -298,7 +328,7 @@ class Hap(val context: Context) : HAPImplBase(), Closeable {
 
     override fun waitPresetChanged(
         request: Empty,
-        responseObserver: StreamObserver<WaitPresetChangedResponse>
+        responseObserver: StreamObserver<WaitPresetChangedResponse>,
     ) {
         grpcUnary<WaitPresetChangedResponse>(scope, responseObserver) {
             val presetChangedReceived = mPresetChanged.first()!!
@@ -320,6 +350,28 @@ class Hap(val context: Context) : HAPImplBase(), Closeable {
                 .addAllPresetRecordList(presetRecordList)
                 .setReason(presetChangedReceived.reason)
                 .build()
+        }
+    }
+
+    override fun waitPeripheral(
+        request: WaitPeripheralRequest,
+        responseObserver: StreamObserver<Empty>,
+    ) {
+        grpcUnary<Empty>(scope, responseObserver) {
+            val device = request.connection.toBluetoothDevice(bluetoothAdapter)
+            Log.i(TAG, "waitPeripheral(${device}")
+            if (bluetoothHapClient.getConnectionState(device) != BluetoothProfile.STATE_CONNECTED) {
+                Log.d(TAG, "Manual call to setConnectionPolicy")
+                bluetoothHapClient.setConnectionPolicy(device, CONNECTION_POLICY_ALLOWED)
+                Log.d(TAG, "now waiting for bluetoothHapClient profile connection")
+                flow
+                    .filter { it.getBluetoothDeviceExtra() == device }
+                    .map { it.getIntExtra(BluetoothProfile.EXTRA_STATE, BluetoothAdapter.ERROR) }
+                    .filter { it == BluetoothProfile.STATE_CONNECTED }
+                    .first()
+            }
+
+            Empty.getDefaultInstance()
         }
     }
 }

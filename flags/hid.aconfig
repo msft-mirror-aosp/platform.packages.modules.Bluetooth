@@ -102,3 +102,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "serialize_hogp_and_dis"
+    namespace: "bluetooth"
+    description: "start HOGP service discovery only after DIS discovery is finished"
+    bug: "367910199"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

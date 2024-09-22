@@ -595,6 +595,7 @@ pub struct Bluetooth {
     is_connectable: bool,
     is_socket_listening: bool,
     discoverable_mode: BtDiscMode,
+    discoverable_duration: u32,
     // This refers to the suspend mode of the functionality related to Classic scan mode,
     // i.e., page scan and inquiry scan; Also known as connectable and discoverable.
     scan_suspend_mode: SuspendMode,
@@ -656,6 +657,7 @@ impl Bluetooth {
             is_connectable: false,
             is_socket_listening: false,
             discoverable_mode: BtDiscMode::NonDiscoverable,
+            discoverable_duration: 0,
             scan_suspend_mode: SuspendMode::Normal,
             is_discovering: false,
             is_discovering_before_suspend: false,
@@ -2156,13 +2158,7 @@ impl IBluetooth for Bluetooth {
     }
 
     fn get_discoverable_timeout(&self) -> u32 {
-        match self.properties.get(&BtPropertyType::AdapterDiscoverableTimeout) {
-            Some(prop) => match prop {
-                BluetoothProperty::AdapterDiscoverableTimeout(timeout) => *timeout,
-                _ => 0,
-            },
-            _ => 0,
-        }
+        self.discoverable_duration
     }
 
     fn set_discoverable(&mut self, mode: BtDiscMode, duration: u32) -> bool {
@@ -2186,11 +2182,6 @@ impl IBluetooth for Bluetooth {
                     false => BtScanMode::None_,
                 },
             };
-            if intf.set_adapter_property(BluetoothProperty::AdapterDiscoverableTimeout(duration))
-                != 0
-            {
-                return false;
-            }
             intf.set_scan_mode(scan_mode);
         }
 
@@ -2198,6 +2189,7 @@ impl IBluetooth for Bluetooth {
             callback.on_discoverable_changed(mode == BtDiscMode::GeneralDiscoverable);
         });
         self.discoverable_mode = mode.clone();
+        self.discoverable_duration = duration;
 
         // The old timer should be overwritten regardless of what the new mode is.
         if let Some(handle) = self.discoverable_timeout.take() {

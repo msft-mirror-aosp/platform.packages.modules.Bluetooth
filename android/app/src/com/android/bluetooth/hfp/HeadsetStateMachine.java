@@ -2129,28 +2129,28 @@ class HeadsetStateMachine extends StateMachine {
             callSetup = phoneState.getNumHeldCall();
         }
 
-        if (Flags.pretendNetworkService()) {
-            logd("processAtCind: pretendNetworkService enabled");
-            boolean isCallOngoing =
-                    (phoneState.getNumActiveCall() > 0)
-                            || (phoneState.getNumHeldCall() > 0)
-                            || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_ALERTING
-                            || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_DIALING
-                            || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_INCOMING;
-            if ((isCallOngoing
-                    && (!mHeadsetService.isVirtualCallStarted())
-                    && (phoneState.getCindService()
-                            == HeadsetHalConstants.NETWORK_STATE_NOT_AVAILABLE))) {
-                logi(
-                        "processAtCind: If regular call is in progress/active/held while no network"
+        // During wifi call, a regular call in progress while no network service,
+        // pretend service availability and signal strength.
+        boolean isCallOngoing =
+                (phoneState.getNumActiveCall() > 0)
+                        || (phoneState.getNumHeldCall() > 0)
+                        || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_ALERTING
+                        || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_DIALING
+                        || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_INCOMING;
+        if ((isCallOngoing
+                && (!mHeadsetService.isVirtualCallStarted())
+                && (phoneState.getCindService()
+                        == HeadsetHalConstants.NETWORK_STATE_NOT_AVAILABLE))) {
+            logi(
+                    "processAtCind: If regular call is in progress/active/held while no network"
                             + " during BT-ON, pretend service availability and signal strength");
-                service = HeadsetHalConstants.NETWORK_STATE_AVAILABLE;
-                signal = 3;
-            } else {
-                service = phoneState.getCindService();
-                signal = phoneState.getCindSignal();
-            }
+            service = HeadsetHalConstants.NETWORK_STATE_AVAILABLE;
+            signal = 3; // use a non-zero signal strength
+        } else {
+            service = phoneState.getCindService();
+            signal = phoneState.getCindSignal();
         }
+
         mNativeInterface.cindResponse(
                 device,
                 service,
