@@ -102,61 +102,6 @@
 
     <issue
         id="FlaggedApi"
-        message="Field `ADDRESS_TYPE_ANONYMOUS` is a flagged API and should be inside an `if (Flags.getAddressTypeApi())` check (or annotate the surrounding method `BluetoothDevice` with `@FlaggedApi(Flags.FLAG_GET_ADDRESS_TYPE_API) to transfer requirement to caller`)"
-        errorLine1="                &amp;&amp; addressType != ADDRESS_TYPE_ANONYMOUS) {"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothDevice.java"
-            line="1426"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Field `ADDRESS_TYPE_ANONYMOUS` is a flagged API and should be inside an `if (Flags.getAddressTypeApi())` check (or annotate the surrounding method `BluetoothDevice` with `@FlaggedApi(Flags.FLAG_GET_ADDRESS_TYPE_API) to transfer requirement to caller`)"
-        errorLine1="        if (addressType == ADDRESS_TYPE_ANONYMOUS &amp;&amp; !NULL_MAC_ADDRESS.equals(address)) {"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothDevice.java"
-            line="1430"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `getAddressType()` is a flagged API and should be inside an `if (Flags.getAddressTypeApi())` check (or annotate the surrounding method `onClientRegistered` with `@FlaggedApi(Flags.FLAG_GET_ADDRESS_TYPE_API) to transfer requirement to caller`)"
-        errorLine1="                                mDevice.getAddressType(),"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothGatt.java"
-            line="279"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `getAddressType()` is a flagged API and should be inside an `if (Flags.getAddressTypeApi())` check (or annotate the surrounding method `connect` with `@FlaggedApi(Flags.FLAG_GET_ADDRESS_TYPE_API) to transfer requirement to caller`)"
-        errorLine1="                    mDevice.getAddressType(),"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothGatt.java"
-            line="1227"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `getAddressType()` is a flagged API and should be inside an `if (Flags.getAddressTypeApi())` check (or annotate the surrounding method `connect` with `@FlaggedApi(Flags.FLAG_GET_ADDRESS_TYPE_API) to transfer requirement to caller`)"
-        errorLine1="                    device.getAddressType(),"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothGattServer.java"
-            line="728"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
         message="Field `PRESET_INDEX_UNAVAILABLE` is a flagged API and should be inside an `if (Flags.settingsCanControlHapPreset())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_SETTINGS_CAN_CONTROL_HAP_PRESET) to transfer requirement to caller`)"
         errorLine1="        private int mPresetIndex = BluetoothHapClient.PRESET_INDEX_UNAVAILABLE;"
         errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -582,61 +527,6 @@
             file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothDevice.java"
             line="815"
             column="49"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Field `ADDRESS_TYPE_ANONYMOUS` is a flagged API and should be inside an `if (Flags.getAddressTypeApi())` check (or annotate the surrounding method `BluetoothDevice` with `@FlaggedApi(Flags.FLAG_GET_ADDRESS_TYPE_API) to transfer requirement to caller`)"
-        errorLine1="                &amp;&amp; addressType != ADDRESS_TYPE_ANONYMOUS) {"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothDevice.java"
-            line="1426"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Field `ADDRESS_TYPE_ANONYMOUS` is a flagged API and should be inside an `if (Flags.getAddressTypeApi())` check (or annotate the surrounding method `BluetoothDevice` with `@FlaggedApi(Flags.FLAG_GET_ADDRESS_TYPE_API) to transfer requirement to caller`)"
-        errorLine1="        if (addressType == ADDRESS_TYPE_ANONYMOUS &amp;&amp; !NULL_MAC_ADDRESS.equals(address)) {"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothDevice.java"
-            line="1430"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `getAddressType()` is a flagged API and should be inside an `if (Flags.getAddressTypeApi())` check (or annotate the surrounding method `onClientRegistered` with `@FlaggedApi(Flags.FLAG_GET_ADDRESS_TYPE_API) to transfer requirement to caller`)"
-        errorLine1="                                mDevice.getAddressType(),"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothGatt.java"
-            line="279"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `getAddressType()` is a flagged API and should be inside an `if (Flags.getAddressTypeApi())` check (or annotate the surrounding method `connect` with `@FlaggedApi(Flags.FLAG_GET_ADDRESS_TYPE_API) to transfer requirement to caller`)"
-        errorLine1="                    mDevice.getAddressType(),"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothGatt.java"
-            line="1227"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `getAddressType()` is a flagged API and should be inside an `if (Flags.getAddressTypeApi())` check (or annotate the surrounding method `connect` with `@FlaggedApi(Flags.FLAG_GET_ADDRESS_TYPE_API) to transfer requirement to caller`)"
-        errorLine1="                    device.getAddressType(),"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothGattServer.java"
-            line="728"
-            column="21"/>
     </issue>
 
     <issue

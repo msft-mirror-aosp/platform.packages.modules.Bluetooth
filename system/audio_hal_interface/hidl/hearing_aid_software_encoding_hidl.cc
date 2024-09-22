@@ -157,20 +157,10 @@ HearingAidTransport* hearing_aid_sink = nullptr;
 // Common interface to call-out into Bluetooth Audio Hal
 bluetooth::audio::hidl::BluetoothAudioSinkClientInterface* hearing_aid_hal_clientinterface =
         nullptr;
-bool btaudio_hearing_aid_disabled = false;
-bool is_configured = false;
 
 // Save the value if the remote reports its delay before hearing_aid_sink is
 // initialized
 uint16_t remote_delay_ms = 0;
-
-bool is_hal_2_0_force_disabled() {
-  if (!is_configured) {
-    btaudio_hearing_aid_disabled = osi_property_get_bool(BLUETOOTH_AUDIO_HAL_PROP_DISABLED, false);
-    is_configured = true;
-  }
-  return btaudio_hearing_aid_disabled;
-}
 
 }  // namespace
 
@@ -183,11 +173,6 @@ bool is_hal_2_0_enabled() { return hearing_aid_hal_clientinterface != nullptr; }
 
 bool init(StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* message_loop) {
   log::info("");
-
-  if (is_hal_2_0_force_disabled()) {
-    log::error("BluetoothAudio HAL is disabled");
-    return false;
-  }
 
   hearing_aid_sink = new HearingAidTransport(std::move(stream_cb));
   hearing_aid_hal_clientinterface = new bluetooth::audio::hidl::BluetoothAudioSinkClientInterface(

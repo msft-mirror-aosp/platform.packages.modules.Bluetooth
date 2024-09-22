@@ -566,6 +566,11 @@ void bta_dm_remove_device(const RawAddress& target) {
     return;
   }
 
+  if (bta_dm_removal_pending(target)) {
+    log::warn("{} already getting removed", target);
+    return;
+  }
+
   // Find all aliases and connection status on all transports
   RawAddress pseudo_addr = target;
   RawAddress identity_addr = target;

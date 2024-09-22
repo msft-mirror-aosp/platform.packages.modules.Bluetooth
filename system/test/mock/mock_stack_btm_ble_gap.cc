@@ -19,6 +19,8 @@
  *   Functions generated:47
  */
 
+#include <base/functional/callback.h>
+
 #include <cstdint>
 #include <vector>
 

@@ -29,7 +29,10 @@ std::mutex properties_mutex;
 // Properties set along with some default values for Floss.
 std::unordered_map<std::string, std::string> properties = {
         {"bluetooth.profile.avrcp.target.enabled", "true"},
-        {"bluetooth.gd.start_timeout", "12000"}};
+        {"bluetooth.gd.start_timeout", "12000"},
+        {"bluetooth.gd.stop_timeout", "12000"},
+        /* HCI Reset timeout: 10s + Default cleanup timeout: 1s = 11s */
+        {"bluetooth.cleanup_timeout", "11000"}};
 }  // namespace
 
 std::optional<std::string> GetSystemProperty(const std::string& property) {

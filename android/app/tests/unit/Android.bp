@@ -4,7 +4,10 @@ package {
 
 java_defaults {
     name: "BluetoothInstrumentationTestsDefaults",
-    defaults: ["framework-bluetooth-tests-defaults"],
+    defaults: [
+        "bluetooth_errorprone_rules",
+        "framework-bluetooth-tests-defaults",
+    ],
 
     min_sdk_version: "Tiramisu",
     target_sdk_version: "current",
@@ -53,44 +56,6 @@ java_defaults {
         "general-tests",
         "mts-bluetooth",
     ],
-
-    errorprone: {
-        enabled: true,
-        javacflags: [
-            "-Xep:AlmostJavadoc:ERROR",
-            "-Xep:BadImport:ERROR",
-            "-Xep:CatchAndPrintStackTrace:ERROR",
-            "-Xep:CatchFail:ERROR",
-            "-Xep:ClassCanBeStatic:ERROR",
-            "-Xep:DirectInvocationOnMock:ERROR",
-            "-Xep:EmptyBlockTag:ERROR",
-            "-Xep:EmptyCatch:ERROR",
-            "-Xep:EqualsIncompatibleType:ERROR",
-            "-Xep:FutureReturnValueIgnored:ERROR",
-            "-Xep:GuardedBy:ERROR",
-            "-Xep:InlineMeInliner:ERROR",
-            "-Xep:InvalidBlockTag:ERROR",
-            "-Xep:InvalidInlineTag:ERROR",
-            "-Xep:InvalidParam:ERROR",
-            "-Xep:JavaUtilDate:ERROR",
-            "-Xep:MockNotUsedInProduction:ERROR",
-            "-Xep:ModifiedButNotUsed:ERROR",
-            "-Xep:NarrowCalculation:ERROR",
-            "-Xep:NonApiType:ERROR",
-            "-Xep:NonCanonicalType:ERROR",
-            "-Xep:NotJavadoc:ERROR",
-            "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
-            "-Xep:StringCaseLocaleUsage:ERROR",
-            "-Xep:StringCharset:ERROR",
-            "-Xep:TruthConstantAsserts:ERROR",
-            "-Xep:TruthIncompatibleType:ERROR",
-            "-Xep:UndefinedEquals:ERROR",
-            "-Xep:UnnecessaryAssignment:ERROR",
-            "-Xep:UnnecessaryAsync:ERROR",
-            "-Xep:UnusedMethod:ERROR",
-            "-Xep:UnusedVariable:ERROR",
-        ],
-    },
 
     instrumentation_for: "Bluetooth",
 }

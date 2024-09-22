@@ -20,6 +20,7 @@
  */
 
 #include <base/functional/bind.h>
+#include <base/functional/callback.h>
 
 #include <memory>
 

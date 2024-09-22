@@ -26,6 +26,7 @@
 
 #include <chrono>  // NOLINT
 #include <csignal>
+#include <cstdint>
 #include <mutex>  // NOLINT
 #include <queue>
 #include <utility>
@@ -369,7 +370,11 @@ protected:
       std::lock_guard<std::mutex> incoming_packet_callback_lock(incoming_packet_callback_mutex_);
       incoming_packet_callback_ = nullptr;
     }
+    auto start = std::chrono::high_resolution_clock::now();
     ::close(sock_fd_);
+    auto end = std::chrono::high_resolution_clock::now();
+    int64_t duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    log::info("Spent {} milliseconds on closing socket", duration);
     sock_fd_ = INVALID_FD;
     log::info("HAL is closed");
   }
