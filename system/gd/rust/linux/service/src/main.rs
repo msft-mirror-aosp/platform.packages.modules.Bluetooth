@@ -48,7 +48,7 @@ const ADMIN_SETTINGS_FILE_PATH: &str = "/var/lib/bluetooth/admin_policy.json";
 // and BTA_DM_DISABLE_TIMER_RETRIAL_MS
 const STACK_TURN_OFF_TIMEOUT_MS: Duration = Duration::from_millis(4000);
 // Time bt_stack_manager waits for cleanup
-const STACK_CLEANUP_TIMEOUT_MS: Duration = Duration::from_millis(1000);
+const STACK_CLEANUP_TIMEOUT_MS: Duration = Duration::from_millis(11000);
 // Time bt_stack_manager waits for cleanup profiles
 const STACK_CLEANUP_PROFILES_TIMEOUT_MS: Duration = Duration::from_millis(100);
 // Extra time to wait before terminating the process

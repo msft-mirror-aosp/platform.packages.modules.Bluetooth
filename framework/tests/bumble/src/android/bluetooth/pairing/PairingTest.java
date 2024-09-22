@@ -459,7 +459,7 @@ public class PairingTest {
 
         // Wait for GATT service discovery to complete on Android
         // so that ACTION_UUID is received here.
-        verifyIntentReceived(
+        verifyIntentReceivedUnordered(
                 hasAction(BluetoothDevice.ACTION_UUID),
                 hasExtra(BluetoothDevice.EXTRA_UUID, Matchers.hasItemInArray(BATTERY_UUID)));
 

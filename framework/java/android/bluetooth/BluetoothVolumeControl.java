@@ -464,7 +464,6 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
             } catch (RemoteException e) {
                 mCallbackExecutorMap.remove(callback);
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
     }
@@ -507,10 +506,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
             if (service != null) {
                 service.unregisterCallback(mCallback, mAttributionSource);
             }
-        } catch (RemoteException e) {
-            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            throw e.rethrowAsRuntimeException();
-        } catch (IllegalStateException e) {
+        } catch (IllegalStateException | RemoteException e) {
             Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
         }
     }

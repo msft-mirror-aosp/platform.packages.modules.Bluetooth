@@ -140,6 +140,10 @@ cc_library_static {
             shared_libs: ["libaaudio"],
         },
         host: {
+            include_dirs: [
+                "bionic/libc/kernel/android/uapi/",
+                "bionic/libc/kernel/uapi",
+            ],
             srcs: [
                 "src/btif_avrcp_audio_track_linux.cc",
                 "src/btif_leaudio_hal_version_host.cc",
@@ -230,6 +234,7 @@ cc_library_static {
         },
     },
     static_libs: [
+        "bluetooth_flags_c_lib",
         "lib-bt-packets",
         "lib-bt-packets-base",
         "libbluetooth_crypto_toolbox",
@@ -243,9 +248,6 @@ cc_library_static {
         "libcom.android.sysprop.bluetooth.wrapped",
         "libflatbuffers-cpp",
         "libstatslog_bt",
-    ],
-    whole_static_libs: [
-        "bluetooth_flags_c_lib",
     ],
     shared_libs: [
         "libcrypto",
@@ -296,6 +298,7 @@ cc_test {
         "android.hardware.audio.common@5.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
+        "bluetooth_flags_c_lib",
         "libFraunhoferAAC",
         "libbase",
         "libbluetooth-dumpsys",

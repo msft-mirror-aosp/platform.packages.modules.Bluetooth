@@ -78,6 +78,7 @@ cc_binary {
         "android.hardware.common-V2-ndk",
         "android.hardware.common.fmq-V1-ndk",
         "avrcp-target-service",
+        "bluetooth_flags_c_lib",
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",

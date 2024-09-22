@@ -199,9 +199,7 @@ public class SapServer extends Thread implements Handler.Callback {
             /* Handle local disconnect procedures */
             if (discType == SapMessage.DISC_GRACEFULL) {
                 /* Update the notification to allow the user to initiate a force disconnect */
-                setNotification(
-                        SapMessage.DISC_IMMEDIATE,
-                        PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                setNotification(SapMessage.DISC_IMMEDIATE, PendingIntent.FLAG_CANCEL_CURRENT);
 
             } else if (discType == SapMessage.DISC_IMMEDIATE) {
                 /* Request an immediate disconnect, but start a timer to force disconnect if the
@@ -233,7 +231,6 @@ public class SapServer extends Thread implements Handler.Callback {
                         mContext.getString(R.string.bluetooth_sap_notif_title),
                         NotificationManager.IMPORTANCE_HIGH);
         notificationManager.createNotificationChannel(notificationChannel);
-        flags |= PendingIntent.FLAG_IMMUTABLE;
         Log.v(TAG, "setNotification type: " + type);
         /* For PTS TC_SERVER_DCN_BV_03_I we need to expose the option to send immediate disconnect
          * without first sending a graceful disconnect.
@@ -257,7 +254,11 @@ public class SapServer extends Thread implements Handler.Callback {
         if (!ptsTest) {
             sapDisconnectIntent.putExtra(SapServer.SAP_DISCONNECT_TYPE_EXTRA, type);
             PendingIntent pIntentDisconnect =
-                    PendingIntent.getBroadcast(mContext, type, sapDisconnectIntent, flags);
+                    PendingIntent.getBroadcast(
+                            mContext,
+                            type,
+                            sapDisconnectIntent,
+                            flags | PendingIntent.FLAG_IMMUTABLE);
             Notification.Action actionDisconnect =
                     new Notification.Action.Builder(
                                     Icon.createWithResource(
@@ -285,10 +286,16 @@ public class SapServer extends Thread implements Handler.Callback {
                     SapServer.SAP_DISCONNECT_TYPE_EXTRA, SapMessage.DISC_IMMEDIATE);
             PendingIntent pIntentDisconnect =
                     PendingIntent.getBroadcast(
-                            mContext, SapMessage.DISC_GRACEFULL, sapDisconnectIntent, flags);
+                            mContext,
+                            SapMessage.DISC_GRACEFULL,
+                            sapDisconnectIntent,
+                            flags | PendingIntent.FLAG_IMMUTABLE);
             PendingIntent pIntentForceDisconnect =
                     PendingIntent.getBroadcast(
-                            mContext, SapMessage.DISC_IMMEDIATE, sapForceDisconnectIntent, flags);
+                            mContext,
+                            SapMessage.DISC_IMMEDIATE,
+                            sapForceDisconnectIntent,
+                            flags | PendingIntent.FLAG_IMMUTABLE);
             Notification.Action actionDisconnect =
                     new Notification.Action.Builder(
                                     Icon.createWithResource(

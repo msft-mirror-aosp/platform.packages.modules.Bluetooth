@@ -1700,7 +1700,7 @@ impl IBluetoothGatt for BluetoothGattDBus {
 
     #[dbus_method("WriteCharacteristic")]
     fn write_characteristic(
-        &self,
+        &mut self,
         client_id: i32,
         addr: RawAddress,
         handle: i32,

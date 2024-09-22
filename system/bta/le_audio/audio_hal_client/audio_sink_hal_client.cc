@@ -252,13 +252,8 @@ void SinkImpl::ConfirmStreamingRequest() {
     log::error("Audio HAL Audio source was not started!");
     return;
   }
-
   log::info("");
-  if (com::android::bluetooth::flags::leaudio_start_stream_race_fix()) {
-    halSourceInterface_->ConfirmStreamingRequestV2();
-  } else {
-    halSourceInterface_->ConfirmStreamingRequest();
-  }
+  halSourceInterface_->ConfirmStreamingRequest();
 }
 
 void SinkImpl::SuspendedForReconfiguration() {
@@ -288,11 +283,7 @@ void SinkImpl::CancelStreamingRequest() {
   }
 
   log::info("");
-  if (com::android::bluetooth::flags::leaudio_start_stream_race_fix()) {
-    halSourceInterface_->CancelStreamingRequestV2();
-  } else {
-    halSourceInterface_->CancelStreamingRequest();
-  }
+  halSourceInterface_->CancelStreamingRequest();
 }
 
 void SinkImpl::UpdateRemoteDelay(uint16_t remote_delay_ms) {
