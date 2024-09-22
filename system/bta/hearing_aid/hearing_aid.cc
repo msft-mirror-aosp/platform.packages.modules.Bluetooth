@@ -105,6 +105,8 @@ constexpr uint8_t OTHER_SIDE_IS_STREAMING = 0x01;
 // connnection intervals.
 constexpr uint16_t ADD_RENDER_DELAY_INTERVALS = 4;
 
+constexpr tCONN_ID INVALID_CONN_ID = 0;
+
 namespace {
 
 // clang-format off
@@ -169,13 +171,14 @@ public:
 
   HearingDevice* FindOtherConnectedDeviceFromSet(const HearingDevice& device) {
     auto iter = std::find_if(devices.begin(), devices.end(), [&device](const HearingDevice& other) {
-      return &device != &other && device.hi_sync_id == other.hi_sync_id && other.conn_id != 0;
+      return &device != &other && device.hi_sync_id == other.hi_sync_id &&
+             other.conn_id != INVALID_CONN_ID;
     });
 
     return (iter == devices.end()) ? nullptr : &(*iter);
   }
 
-  HearingDevice* FindByConnId(uint16_t conn_id) {
+  HearingDevice* FindByConnId(tCONN_ID conn_id) {
     auto iter = std::find_if(
             devices.begin(), devices.end(),
             [&conn_id](const HearingDevice& device) { return device.conn_id == conn_id; });
@@ -220,7 +223,7 @@ public:
   std::vector<HearingDevice> devices;
 };
 
-static void write_rpt_ctl_cfg_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void write_rpt_ctl_cfg_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                  uint16_t len, const uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("handle= {}, conn_id={}, status= 0x{:x}, length={}", handle, conn_id,
@@ -336,7 +339,7 @@ public:
 
     if (needs_parameter_update) {
       for (auto& device : hearingDevices.devices) {
-        if (device.conn_id != 0) {
+        if (device.conn_id != INVALID_CONN_ID) {
           device.connection_update_status = STARTED;
           device.requested_connection_interval = UpdateBleConnParams(device.address);
         }
@@ -462,7 +465,7 @@ public:
 
   int GetDeviceCount() { return hearingDevices.size(); }
 
-  void OnGattConnected(tGATT_STATUS status, uint16_t conn_id, tGATT_IF client_if,
+  void OnGattConnected(tGATT_STATUS status, tCONN_ID conn_id, tGATT_IF client_if,
                        RawAddress address, tBT_TRANSPORT transport, uint16_t mtu) {
     HearingDevice* hearingDevice = hearingDevices.FindByAddress(address);
     if (!hearingDevice) {
@@ -502,7 +505,8 @@ public:
     // it to a direct connection to scan more aggressively for it
     if (hi_sync_id != 0) {
       for (auto& device : hearingDevices.devices) {
-        if (device.hi_sync_id == hi_sync_id && device.conn_id == 0 && !device.connecting_actively) {
+        if (device.hi_sync_id == hi_sync_id && device.conn_id == INVALID_CONN_ID &&
+            !device.connecting_actively) {
           log::info("Promoting device from the set from background to direct connection, bda={}",
                     device.address);
           device.connecting_actively = true;
@@ -551,7 +555,7 @@ public:
     OnEncryptionComplete(address, true);
   }
 
-  void OnConnectionUpdateComplete(uint16_t conn_id, tBTA_GATTC* p_data) {
+  void OnConnectionUpdateComplete(tCONN_ID conn_id, tBTA_GATTC* p_data) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -621,7 +625,7 @@ public:
     }
 
     for (auto& device : hearingDevices.devices) {
-      if (device.conn_id && (device.connection_update_status == AWAITING)) {
+      if (device.conn_id != INVALID_CONN_ID && (device.connection_update_status == AWAITING)) {
         device.connection_update_status = STARTED;
         device.requested_connection_interval = UpdateBleConnParams(device.address);
         return;
@@ -687,7 +691,7 @@ public:
   }
 
   // Just take care phy update successful case to avoid loop executing.
-  void OnPhyUpdateEvent(uint16_t conn_id, uint8_t tx_phys, uint8_t rx_phys, tGATT_STATUS status) {
+  void OnPhyUpdateEvent(tCONN_ID conn_id, uint8_t tx_phys, uint8_t rx_phys, tGATT_STATUS status) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -757,7 +761,7 @@ public:
     }
   }
 
-  void OnServiceSearchComplete(uint16_t conn_id, tGATT_STATUS status) {
+  void OnServiceSearchComplete(tCONN_ID conn_id, tGATT_STATUS status) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -850,7 +854,7 @@ public:
     }
   }
 
-  void OnNotificationEvent(uint16_t conn_id, uint16_t handle, uint16_t len, uint8_t* value) {
+  void OnNotificationEvent(tCONN_ID conn_id, uint16_t handle, uint16_t len, uint8_t* value) {
     HearingDevice* device = hearingDevices.FindByConnId(conn_id);
     if (!device) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -878,7 +882,7 @@ public:
     device->command_acked = true;
   }
 
-  void OnReadOnlyPropertiesRead(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+  void OnReadOnlyPropertiesRead(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                 uint16_t len, uint8_t* value, void* data) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
@@ -985,12 +989,12 @@ public:
     }
   }
 
-  void OnAudioStatus(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+  void OnAudioStatus(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                      uint8_t* value, void* data) {
     log::info("{}", base::HexEncode(value, len));
   }
 
-  void OnPsmRead(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+  void OnPsmRead(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                  uint8_t* value, void* data) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
@@ -1051,21 +1055,21 @@ public:
     }
   }
 
-  static void OnReadOnlyPropertiesReadStatic(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+  static void OnReadOnlyPropertiesReadStatic(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                              uint16_t len, uint8_t* value, void* data) {
     if (instance) {
       instance->OnReadOnlyPropertiesRead(conn_id, status, handle, len, value, data);
     }
   }
 
-  static void OnAudioStatusStatic(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+  static void OnAudioStatusStatic(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                   uint16_t len, uint8_t* value, void* data) {
     if (instance) {
       instance->OnAudioStatus(conn_id, status, handle, len, value, data);
     }
   }
 
-  static void OnPsmReadStatic(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+  static void OnPsmReadStatic(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                               uint8_t* value, void* data) {
     if (instance) {
       instance->OnPsmRead(conn_id, status, handle, len, value, data);
@@ -1221,7 +1225,7 @@ public:
           (device.hi_sync_id != this_side_device->hi_sync_id)) {
         continue;
       }
-      if (audio_running && (device.conn_id != 0)) {
+      if (audio_running && (device.conn_id != INVALID_CONN_ID)) {
         return OTHER_SIDE_IS_STREAMING;
       } else {
         return OTHER_SIDE_NOT_STREAMING;
@@ -1273,7 +1277,7 @@ public:
     }
   }
 
-  static void StartAudioCtrlCallbackStatic(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+  static void StartAudioCtrlCallbackStatic(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                            uint16_t len, const uint8_t* value, void* data) {
     if (status != GATT_SUCCESS) {
       log::error("handle={}, conn_id={}, status=0x{:x}", handle, conn_id,
@@ -1287,7 +1291,7 @@ public:
     instance->StartAudioCtrlCallback(conn_id);
   }
 
-  void StartAudioCtrlCallback(uint16_t conn_id) {
+  void StartAudioCtrlCallback(tCONN_ID conn_id) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("Skipping unknown device, conn_id=0x{:x}", conn_id);
@@ -1764,7 +1768,7 @@ public:
     DoDisconnectAudioStop();
   }
 
-  void OnGattDisconnected(uint16_t conn_id, tGATT_IF client_if, RawAddress remote_bda) {
+  void OnGattDisconnected(tCONN_ID conn_id, tGATT_IF client_if, RawAddress remote_bda) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x} bd_addr={}", conn_id, remote_bda);
@@ -1828,10 +1832,10 @@ public:
     hearingDevice->connection_update_status = NONE;
     hearingDevice->gap_opened = false;
 
-    if (hearingDevice->conn_id) {
+    if (hearingDevice->conn_id != INVALID_CONN_ID) {
       BtaGattQueue::Clean(hearingDevice->conn_id);
       BTA_GATTC_Close(hearingDevice->conn_id);
-      hearingDevice->conn_id = 0;
+      hearingDevice->conn_id = INVALID_CONN_ID;
     }
 
     if (hearingDevice->gap_handle != GAP_INVALID_HANDLE) {
@@ -1895,7 +1899,7 @@ private:
 
   HearingDevices hearingDevices;
 
-  void find_server_changed_ccc_handle(uint16_t conn_id, const gatt::Service* service) {
+  void find_server_changed_ccc_handle(tCONN_ID conn_id, const gatt::Service* service) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -1919,7 +1923,7 @@ private:
 
   // Find the handle for the client characteristics configuration of a given
   // characteristics
-  uint16_t find_ccc_handle(uint16_t conn_id, uint16_t char_handle) {
+  uint16_t find_ccc_handle(tCONN_ID conn_id, uint16_t char_handle) {
     const gatt::Characteristic* p_char = BTA_GATTC_GetCharacteristic(conn_id, char_handle);
 
     if (!p_char) {
@@ -1937,7 +1941,7 @@ private:
   }
 
   void send_state_change(HearingDevice* device, std::vector<uint8_t> payload) {
-    if (device->conn_id != 0) {
+    if (device->conn_id != INVALID_CONN_ID) {
       if (device->service_changed_rcvd) {
         log::info("service discover is in progress, skip send State Change cmd.");
         return;

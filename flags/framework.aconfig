@@ -36,13 +36,6 @@ flag {
 }
 
 flag {
-    name: "keep_stopped_media_browser_service"
-    namespace: "bluetooth"
-    description: "Do not start stopped media browser services"
-    bug: "314855224"
-}
-
-flag {
     name: "identity_address_null_if_not_known"
     namespace: "bluetooth"
     description: "Return null for identity address if identity address is not known"
@@ -50,14 +43,6 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
-}
-
-flag {
-    name: "get_address_type_api"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Change visibility of BluetoothDevice#getAddressType API to public"
-    bug: "321120941"
 }
 
 flag {

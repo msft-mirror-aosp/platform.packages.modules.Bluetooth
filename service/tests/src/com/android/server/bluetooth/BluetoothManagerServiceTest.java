@@ -41,8 +41,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.validateMockitoUsage;
 import static org.mockito.Mockito.verify;
 
+import android.app.PropertyInvalidatedCache;
 import android.bluetooth.IBluetooth;
 import android.bluetooth.IBluetoothCallback;
+import android.bluetooth.IBluetoothManager;
 import android.bluetooth.IBluetoothManagerCallback;
 import android.bluetooth.IBluetoothStateChangeCallback;
 import android.content.ComponentName;
@@ -95,6 +97,19 @@ public class BluetoothManagerServiceTest {
 
     TestLooper mLooper;
 
+    private static class ServerQuery
+            extends PropertyInvalidatedCache.QueryHandler<IBluetoothManager, Integer> {
+        @Override
+        public Integer apply(IBluetoothManager x) {
+            return -1;
+        }
+
+        @Override
+        public boolean shouldBypassCache(IBluetoothManager x) {
+            return true;
+        }
+    }
+
     static {
         // Required for reading DeviceConfig.
         InstrumentationRegistry.getInstrumentation()
@@ -107,6 +122,15 @@ public class BluetoothManagerServiceTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
 
+        PropertyInvalidatedCache<IBluetoothManager, Integer> testCache =
+                new PropertyInvalidatedCache<>(
+                        8,
+                        IBluetoothManager.IPC_CACHE_MODULE_SYSTEM,
+                        IBluetoothManager.GET_SYSTEM_STATE_API,
+                        IBluetoothManager.GET_SYSTEM_STATE_API,
+                        new ServerQuery());
+        PropertyInvalidatedCache.setTestMode(true);
+        testCache.testPropertyName();
         // Mock these functions so security errors won't throw
         doReturn("name")
                 .when(mBluetoothServerProxy)
@@ -162,6 +186,7 @@ public class BluetoothManagerServiceTest {
 
     @After
     public void tearDown() {
+        PropertyInvalidatedCache.setTestMode(false);
         if (mManagerService != null) {
             mManagerService.unregisterAdapter(mManagerCallback);
             mManagerService = null;

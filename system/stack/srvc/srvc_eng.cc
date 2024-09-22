@@ -30,12 +30,12 @@
 using base::StringPrintf;
 using namespace bluetooth;
 
-static void srvc_eng_s_request_cback(uint16_t conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
+static void srvc_eng_s_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
                                      tGATTS_DATA* p_data);
-static void srvc_eng_connect_cback(tGATT_IF /* gatt_if */, const RawAddress& bda, uint16_t conn_id,
+static void srvc_eng_connect_cback(tGATT_IF /* gatt_if */, const RawAddress& bda, tCONN_ID conn_id,
                                    bool connected, tGATT_DISCONN_REASON reason,
                                    tBT_TRANSPORT transport);
-static void srvc_eng_c_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
+static void srvc_eng_c_cmpl_cback(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
                                   tGATT_CL_COMPLETE* p_data);
 
 static tGATT_CBACK srvc_gatt_cback = {
@@ -91,7 +91,7 @@ static tSRVC_CLCB* srvc_eng_find_clcb_by_bd_addr(const RawAddress& bda) {
  * Returns          Pointer to the found link conenction control block.
  *
  ******************************************************************************/
-tSRVC_CLCB* srvc_eng_find_clcb_by_conn_id(uint16_t conn_id) {
+tSRVC_CLCB* srvc_eng_find_clcb_by_conn_id(tCONN_ID conn_id) {
   uint8_t i_clcb;
   tSRVC_CLCB* p_clcb = NULL;
 
@@ -112,7 +112,7 @@ tSRVC_CLCB* srvc_eng_find_clcb_by_conn_id(uint16_t conn_id) {
  * Returns          Pointer to the found link conenction control block.
  *
  ******************************************************************************/
-static uint8_t srvc_eng_find_clcb_idx_by_conn_id(uint16_t conn_id) {
+static uint8_t srvc_eng_find_clcb_idx_by_conn_id(tCONN_ID conn_id) {
   uint8_t i_clcb;
   tSRVC_CLCB* p_clcb = NULL;
 
@@ -134,7 +134,7 @@ static uint8_t srvc_eng_find_clcb_idx_by_conn_id(uint16_t conn_id) {
  *                  block.
  *
  ******************************************************************************/
-static tSRVC_CLCB* srvc_eng_clcb_alloc(uint16_t conn_id, const RawAddress& bda) {
+static tSRVC_CLCB* srvc_eng_clcb_alloc(tCONN_ID conn_id, const RawAddress& bda) {
   uint8_t i_clcb = 0;
   tSRVC_CLCB* p_clcb = NULL;
 
@@ -158,7 +158,7 @@ static tSRVC_CLCB* srvc_eng_clcb_alloc(uint16_t conn_id, const RawAddress& bda) 
  * Returns          True the deallocation is successful
  *
  ******************************************************************************/
-static bool srvc_eng_clcb_dealloc(uint16_t conn_id) {
+static bool srvc_eng_clcb_dealloc(tCONN_ID conn_id) {
   uint8_t i_clcb = 0;
   tSRVC_CLCB* p_clcb = NULL;
 
@@ -222,7 +222,7 @@ static uint8_t srvc_eng_process_write_req(uint8_t /* clcb_idx */, tGATT_WRITE_RE
  * Returns          void.
  *
  ******************************************************************************/
-static void srvc_eng_s_request_cback(uint16_t conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
+static void srvc_eng_s_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
                                      tGATTS_DATA* p_data) {
   tGATT_STATUS status = GATT_INVALID_PDU;
   tGATTS_RSP rsp_msg;
@@ -284,7 +284,7 @@ static void srvc_eng_s_request_cback(uint16_t conn_id, uint32_t trans_id, tGATTS
  * Returns          void
  *
  ******************************************************************************/
-static void srvc_eng_c_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
+static void srvc_eng_c_cmpl_cback(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
                                   tGATT_CL_COMPLETE* p_data) {
   tSRVC_CLCB* p_clcb = srvc_eng_find_clcb_by_conn_id(conn_id);
 
@@ -309,7 +309,7 @@ static void srvc_eng_c_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STAT
  * Returns          void
  *
  ******************************************************************************/
-static void srvc_eng_connect_cback(tGATT_IF /* gatt_if */, const RawAddress& bda, uint16_t conn_id,
+static void srvc_eng_connect_cback(tGATT_IF /* gatt_if */, const RawAddress& bda, tCONN_ID conn_id,
                                    bool connected, tGATT_DISCONN_REASON /* reason */,
                                    tBT_TRANSPORT /* transport */) {
   log::verbose("from {} connected:{} conn_id={}", bda, connected, conn_id);
@@ -357,7 +357,7 @@ bool srvc_eng_request_channel(const RawAddress& remote_bda, uint8_t srvc_id) {
  * Returns          void
  *
  ******************************************************************************/
-void srvc_eng_release_channel(uint16_t conn_id) {
+void srvc_eng_release_channel(tCONN_ID conn_id) {
   tSRVC_CLCB* p_clcb = srvc_eng_find_clcb_by_conn_id(conn_id);
 
   if (p_clcb == NULL) {
