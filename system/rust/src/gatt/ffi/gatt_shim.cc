@@ -15,6 +15,7 @@
 #include "gatt_shim.h"
 
 #include <base/functional/bind.h>
+#include <base/functional/callback.h>
 #include <base/location.h>
 #include <bluetooth/log.h>
 

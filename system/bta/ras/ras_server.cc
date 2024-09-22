@@ -15,6 +15,7 @@
  */
 
 #include <base/functional/bind.h>
+#include <base/functional/callback.h>
 #include <bluetooth/log.h>
 
 #include <unordered_map>

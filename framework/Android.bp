@@ -55,6 +55,7 @@ java_library {
 java_sdk_library {
     name: "framework-bluetooth",
     defaults: [
+        "bluetooth_framework_errorprone_rules",
         "framework-bluetooth-defaults",
         "framework-module-defaults",
     ],
@@ -90,50 +91,6 @@ java_sdk_library {
     plugins: [
         "error_prone_android_framework",
     ],
-    errorprone: {
-        javacflags: [
-            "-Xep:InlineMeSuggester:OFF", // The @InlineMe annotation is not available
-
-            "-Xep:AndroidFrameworkBluetoothPermission:ERROR",
-            "-Xep:AndroidFrameworkCompatChange:ERROR",
-            "-Xep:AndroidFrameworkEfficientParcelable:ERROR",
-            "-Xep:AndroidFrameworkEfficientStrings:ERROR",
-            "-Xep:AndroidFrameworkRequiresPermission:ERROR",
-            "-Xep:AndroidFrameworkRethrowFromSystem:ERROR",
-            "-Xep:AndroidFrameworkTargetSdk:ERROR",
-            "-Xep:AndroidHideInComments:ERROR",
-            "-Xep:BadImport:ERROR",
-            "-Xep:CatchFail:ERROR",
-            "-Xep:ClassCanBeStatic:ERROR",
-            "-Xep:EmptyBlockTag:ERROR",
-            "-Xep:EmptyCatch:ERROR",
-            "-Xep:FutureReturnValueIgnored:ERROR",
-            "-Xep:InlineMeInliner:ERROR",
-            "-Xep:InvalidBlockTag:ERROR",
-            "-Xep:InvalidInlineTag:ERROR",
-            "-Xep:InvalidParam:ERROR",
-            "-Xep:MockNotUsedInProduction:ERROR",
-            "-Xep:NonApiType:ERROR",
-            "-Xep:NonCanonicalType:ERROR",
-            "-Xep:NotJavadoc:ERROR",
-            "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
-            "-Xep:StringCaseLocaleUsage:ERROR",
-            "-Xep:StringCharset:ERROR",
-            "-Xep:UnnecessaryAssignment:ERROR",
-            "-Xep:UnnecessaryAsync:ERROR",
-            "-Xep:UnusedVariable:ERROR",
-
-            // After fixing this errorprone, we decided to not merge the change.
-            // It is not very readable and the benefits are minimal when looking
-            // at the size of the maps used in the Bluetooth application.
-            // See https://r.android.com/3200511
-            "-Xep:AndroidFrameworkEfficientCollections:OFF",
-
-            // Exclude generated files
-            "-XepExcludedPaths:.*/srcjars/.*",
-        ],
-        enabled: true,
-    },
     lint: {
         strict_updatability_linting: true,
         baseline_filename: "lint-baseline.xml",

@@ -16,6 +16,8 @@
 
 #include "change_path.h"
 
+#include <base/sys_byteorder.h>
+
 namespace bluetooth {
 namespace avrcp {
 

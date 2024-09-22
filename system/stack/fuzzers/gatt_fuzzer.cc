@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <base/functional/callback.h>
 #include <base/location.h>
 #include <bluetooth/log.h>
 #include <fuzzer/FuzzedDataProvider.h>
