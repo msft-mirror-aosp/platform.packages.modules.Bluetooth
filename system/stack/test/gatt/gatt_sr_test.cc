@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
+#include <com_android_bluetooth_flags.h>
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <memory>
 
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_hdr.h"
@@ -142,10 +144,25 @@ protected:
     tcb_.trans_id = 0x12345677;
     tcb_.att_lcid = L2CAP_ATT_CID;
     el_.gatt_if = 1;
-    gatt_cb.cl_rcb[el_.gatt_if - 1].in_use = true;
-    gatt_cb.cl_rcb[el_.gatt_if - 1].app_cb.p_req_cb = ApplicationRequestCallback;
+
+    if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+      gatt_cb.cl_rcb_map.emplace(el_.gatt_if, std::make_unique<tGATT_REG>());
+      tGATT_REG* p_reg = gatt_cb.cl_rcb_map[el_.gatt_if].get();
+      p_reg->in_use = true;
+      p_reg->gatt_if = el_.gatt_if;
+      p_reg->app_cb.p_req_cb = ApplicationRequestCallback;
+    } else {
+      gatt_cb.cl_rcb[el_.gatt_if - 1].in_use = true;
+      gatt_cb.cl_rcb[el_.gatt_if - 1].app_cb.p_req_cb = ApplicationRequestCallback;
+    }
 
     test_state_ = TestMutables();
+  }
+
+  void TearDown() override {
+    if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+      gatt_cb.cl_rcb_map.erase(el_.gatt_if);
+    }
   }
 
   tGATT_TCB tcb_;
