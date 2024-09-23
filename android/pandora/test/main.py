@@ -23,6 +23,7 @@ import avatar.cases.le_host_test
 import avatar.cases.le_security_test
 import avatar.cases.security_test
 import gatt_test
+import hap_test
 import hfpclient_test
 from pairing import _test_class_list as _pairing_test_class_list
 import sdp_test
@@ -36,6 +37,7 @@ _TEST_CLASSES_LIST = [
     aics_test.AicsTest,
     sdp_test.SdpTest,
     gatt_test.GattTest,
+    hap_test.HapTest,
     asha_test.AshaTest,
     hfpclient_test.HfpClientTest,
 ] + _pairing_test_class_list

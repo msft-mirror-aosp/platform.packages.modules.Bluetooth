@@ -22,6 +22,8 @@
  *  mockcify.pl ver 0.5.0
  */
 
+#include <base/functional/callback.h>
+
 #include <cstdint>
 #include <functional>
 #include <optional>

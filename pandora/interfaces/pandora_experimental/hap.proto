@@ -18,6 +18,8 @@ option java_outer_classname = "HapProto";
 import "google/protobuf/empty.proto";
 
 service HAP {
+  // get the Hearing aid features
+  rpc GetFeatures(GetFeaturesRequest) returns (GetFeaturesResponse);
   // Set active preset by index
   rpc SetActivePreset(SetActivePresetRequest) returns (google.protobuf.Empty);
   // Set next preset
@@ -34,6 +36,16 @@ service HAP {
   rpc GetAllPresetRecords(GetAllPresetRecordsRequest) returns (GetAllPresetRecordsResponse);
   // Wait for Preset Changed event
   rpc WaitPresetChanged(google.protobuf.Empty) returns (WaitPresetChangedResponse);
+  // Wait for HAP device to be connected.
+  rpc WaitPeripheral(WaitPeripheralRequest) returns (google.protobuf.Empty);
+}
+
+message GetFeaturesRequest{
+  Connection connection = 1;
+}
+
+message GetFeaturesResponse{
+    int32 features = 1;
 }
 
 // Request of the `PlaybackAudio` method.
@@ -123,3 +135,8 @@ message WaitPresetChangedResponse {
   // Reason why the presets were changed
   uint32 reason = 3;
 }
+
+message WaitPeripheralRequest {
+  Connection connection = 1;
+}
+
