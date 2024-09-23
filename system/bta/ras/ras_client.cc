@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include <base/functional/bind.h>
+#include <base/functional/callback.h>
 
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_ras_api.h"
@@ -266,8 +268,7 @@ public:
                 tracker->conn_id_, characteristic->value_handle, GATT_AUTH_REQ_NO_MITM,
                 [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                    uint8_t* value, void* data) {
-                  instance->OnReadCharacteristicCallback(conn_id, status, handle, len, value,
-                                                         data);
+                  instance->OnReadCharacteristicCallback(conn_id, status, handle, len, value, data);
                 },
                 nullptr);
       }

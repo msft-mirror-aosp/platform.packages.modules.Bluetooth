@@ -16,6 +16,7 @@
 
 #include "vendor_packet.h"
 
+#include <base/sys_byteorder.h>
 #include <bluetooth/log.h>
 
 #include "internal_include/bt_trace.h"
