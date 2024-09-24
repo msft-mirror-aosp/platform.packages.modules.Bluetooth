@@ -1590,7 +1590,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
                 BtAclState::Disconnected,
                 device_info,
                 Instant::now(),
-                properties.clone(),
+                properties,
             ))
             .info
             .clone();
@@ -1598,17 +1598,6 @@ impl BtifBluetoothCallbacks for Bluetooth {
         self.callbacks.for_all_callbacks(|callback| {
             callback.on_device_found(device_info.clone());
         });
-
-        // In btif_dm, Floss intentionally reports the UUIDs in EIR on DeviceFound,
-        // thus we forward the properties changed event to the clients here.
-        if !properties.is_empty() {
-            self.callbacks.for_all_callbacks(|callback| {
-                callback.on_device_properties_changed(
-                    device_info.clone(),
-                    properties.clone().into_iter().map(|x| x.get_type()).collect(),
-                );
-            });
-        }
     }
 
     fn discovery_state(&mut self, state: BtDiscoveryState) {
