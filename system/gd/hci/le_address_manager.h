@@ -38,6 +38,11 @@ public:
   virtual void NotifyOnIRKChange() {}
 };
 
+struct PrivateAddressIntervalRange {
+  std::chrono::milliseconds min;
+  std::chrono::milliseconds max;
+};
+
 class LeAddressManager {
 public:
   LeAddressManager(common::Callback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
@@ -93,6 +98,7 @@ public:
   void ClearResolvingList();
   void OnCommandComplete(CommandCompleteView view);
   std::chrono::milliseconds GetNextPrivateAddressIntervalMs();
+  PrivateAddressIntervalRange GetNextPrivateAddressIntervalRange();
 
   // Unsynchronized check for testing purposes
   size_t NumberCachedCommands() const { return cached_commands_.size(); }
@@ -164,7 +170,8 @@ private:
   AddressWithType le_address_;
   AddressWithType cached_address_;
   Address public_address_;
-  std::unique_ptr<os::Alarm> address_rotation_alarm_;
+  std::unique_ptr<os::Alarm> address_rotation_wake_alarm_;
+  std::unique_ptr<os::Alarm> address_rotation_non_wake_alarm_;
   Octet16 rotation_irk_;
   uint8_t accept_list_size_;
   uint8_t resolving_list_size_;

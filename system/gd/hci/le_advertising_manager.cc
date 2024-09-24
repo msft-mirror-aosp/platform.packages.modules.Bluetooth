@@ -83,7 +83,8 @@ struct Advertiser {
   bool directed = false;
   bool in_use = false;
   bool is_periodic = false;
-  std::unique_ptr<os::Alarm> address_rotation_alarm;
+  std::unique_ptr<os::Alarm> address_rotation_wake_alarm_;
+  std::unique_ptr<os::Alarm> address_rotation_non_wake_alarm_;
 };
 
 /**
@@ -305,11 +306,16 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
     uint8_t advertiser_id = event_view.GetAdvertisingHandle();
 
     bool was_rotating_address = false;
-    if (advertising_sets_[advertiser_id].address_rotation_alarm != nullptr) {
+    if (advertising_sets_[advertiser_id].address_rotation_wake_alarm_ != nullptr) {
       was_rotating_address = true;
-      advertising_sets_[advertiser_id].address_rotation_alarm->Cancel();
-      advertising_sets_[advertiser_id].address_rotation_alarm.reset();
+      advertising_sets_[advertiser_id].address_rotation_wake_alarm_->Cancel();
+      advertising_sets_[advertiser_id].address_rotation_wake_alarm_.reset();
     }
+    if (advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_ != nullptr) {
+      advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_->Cancel();
+      advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_.reset();
+    }
+
     enabled_sets_[advertiser_id].advertising_handle_ = kInvalidHandle;
 
     AddressWithType advertiser_address =
@@ -343,12 +349,32 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
           advertising_sets_[advertiser_id].max_extended_advertising_events == 0) {
         log::info("Reenable advertising");
         if (was_rotating_address) {
-          advertising_sets_[advertiser_id].address_rotation_alarm =
-                  std::make_unique<os::Alarm>(module_handler_);
-          advertising_sets_[advertiser_id].address_rotation_alarm->Schedule(
-                  common::BindOnce(&impl::set_advertising_set_random_address_on_timer,
-                                   common::Unretained(this), advertiser_id),
-                  le_address_manager_->GetNextPrivateAddressIntervalMs());
+          log::info("Scheduling address rotation for advertiser_id={}", advertiser_id);
+          if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
+            advertising_sets_[advertiser_id].address_rotation_wake_alarm_ =
+                    std::make_unique<os::Alarm>(module_handler_, true);
+            advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_ =
+                    std::make_unique<os::Alarm>(module_handler_, false);
+
+            auto privateAddressIntervalRange =
+                    le_address_manager_->GetNextPrivateAddressIntervalRange();
+
+            advertising_sets_[advertiser_id].address_rotation_wake_alarm_->Schedule(
+                    common::BindOnce(
+                            []() { log::info("deadline wakeup in handle_set_terminated"); }),
+                    privateAddressIntervalRange.max);
+            advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_->Schedule(
+                    common::BindOnce(&impl::set_advertising_set_random_address_on_timer,
+                                     common::Unretained(this), advertiser_id),
+                    privateAddressIntervalRange.min);
+          } else {
+            advertising_sets_[advertiser_id].address_rotation_wake_alarm_ =
+                    std::make_unique<os::Alarm>(module_handler_);
+            advertising_sets_[advertiser_id].address_rotation_wake_alarm_->Schedule(
+                    common::BindOnce(&impl::set_advertising_set_random_address_on_timer,
+                                     common::Unretained(this), advertiser_id),
+                    le_address_manager_->GetNextPrivateAddressIntervalMs());
+          }
         }
         enable_advertiser(advertiser_id, true, 0, 0);
       }
@@ -380,9 +406,13 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
               hci::LeRemoveAdvertisingSetBuilder::Create(advertiser_id),
               module_handler_->BindOnce(check_complete<LeRemoveAdvertisingSetCompleteView>));
 
-      if (advertising_sets_[advertiser_id].address_rotation_alarm != nullptr) {
-        advertising_sets_[advertiser_id].address_rotation_alarm->Cancel();
-        advertising_sets_[advertiser_id].address_rotation_alarm.reset();
+      if (advertising_sets_[advertiser_id].address_rotation_wake_alarm_ != nullptr) {
+        advertising_sets_[advertiser_id].address_rotation_wake_alarm_->Cancel();
+        advertising_sets_[advertiser_id].address_rotation_wake_alarm_.reset();
+      }
+      if (advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_ != nullptr) {
+        advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_->Cancel();
+        advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_.reset();
       }
     }
     advertising_sets_.erase(advertiser_id);
@@ -603,11 +633,33 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
       if (advertising_sets_[id].address_type != AdvertiserAddressType::PUBLIC &&
           !leaudio_requested_nrpa) {
         // start timer for random address
-        advertising_sets_[id].address_rotation_alarm = std::make_unique<os::Alarm>(module_handler_);
-        advertising_sets_[id].address_rotation_alarm->Schedule(
-                common::BindOnce(&impl::set_advertising_set_random_address_on_timer,
-                                 common::Unretained(this), id),
-                le_address_manager_->GetNextPrivateAddressIntervalMs());
+        log::info("Scheduling address rotation for advertiser_id={}", id);
+        if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
+          advertising_sets_[id].address_rotation_wake_alarm_ =
+                  std::make_unique<os::Alarm>(module_handler_, true);
+          advertising_sets_[id].address_rotation_non_wake_alarm_ =
+                  std::make_unique<os::Alarm>(module_handler_, false);
+
+          auto privateAddressIntervalRange =
+                  le_address_manager_->GetNextPrivateAddressIntervalRange();
+
+          advertising_sets_[id].address_rotation_wake_alarm_->Schedule(
+                  common::BindOnce([]() {
+                    log::info("deadline wakeup in create_extended_advertiser_with_id");
+                  }),
+                  privateAddressIntervalRange.max);
+          advertising_sets_[id].address_rotation_non_wake_alarm_->Schedule(
+                  common::BindOnce(&impl::set_advertising_set_random_address_on_timer,
+                                   common::Unretained(this), id),
+                  privateAddressIntervalRange.min);
+        } else {
+          advertising_sets_[id].address_rotation_wake_alarm_ =
+                  std::make_unique<os::Alarm>(module_handler_);
+          advertising_sets_[id].address_rotation_wake_alarm_->Schedule(
+                  common::BindOnce(&impl::set_advertising_set_random_address_on_timer,
+                                   common::Unretained(this), id),
+                  le_address_manager_->GetNextPrivateAddressIntervalMs());
+        }
       }
     }
     if (config.advertising_type == AdvertisingType::ADV_IND ||
@@ -699,9 +751,13 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
   void set_advertising_set_random_address_on_timer(AdvertiserId advertiser_id) {
     // This function should only be trigger by enabled advertising set or IRK rotation
     if (enabled_sets_[advertiser_id].advertising_handle_ == kInvalidHandle) {
-      if (advertising_sets_[advertiser_id].address_rotation_alarm != nullptr) {
-        advertising_sets_[advertiser_id].address_rotation_alarm->Cancel();
-        advertising_sets_[advertiser_id].address_rotation_alarm.reset();
+      if (advertising_sets_[advertiser_id].address_rotation_wake_alarm_ != nullptr) {
+        advertising_sets_[advertiser_id].address_rotation_wake_alarm_->Cancel();
+        advertising_sets_[advertiser_id].address_rotation_wake_alarm_.reset();
+      }
+      if (advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_ != nullptr) {
+        advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_->Cancel();
+        advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_.reset();
       }
       return;
     }
@@ -735,10 +791,24 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
                       check_complete<LeSetExtendedAdvertisingEnableCompleteView>));
     }
 
-    advertising_sets_[advertiser_id].address_rotation_alarm->Schedule(
-            common::BindOnce(&impl::set_advertising_set_random_address_on_timer,
-                             common::Unretained(this), advertiser_id),
-            le_address_manager_->GetNextPrivateAddressIntervalMs());
+    log::info("Scheduling address rotation for advertiser_id={}", advertiser_id);
+    if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
+      auto privateAddressIntervalRange = le_address_manager_->GetNextPrivateAddressIntervalRange();
+      advertising_sets_[advertiser_id].address_rotation_wake_alarm_->Schedule(
+              common::BindOnce([]() {
+                log::info("deadline wakeup in set_advertising_set_random_address_on_timer");
+              }),
+              privateAddressIntervalRange.max);
+      advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_->Schedule(
+              common::BindOnce(&impl::set_advertising_set_random_address_on_timer,
+                               common::Unretained(this), advertiser_id),
+              privateAddressIntervalRange.min);
+    } else {
+      advertising_sets_[advertiser_id].address_rotation_wake_alarm_->Schedule(
+              common::BindOnce(&impl::set_advertising_set_random_address_on_timer,
+                               common::Unretained(this), advertiser_id),
+              le_address_manager_->GetNextPrivateAddressIntervalMs());
+    }
   }
 
   void register_advertiser(
@@ -1149,9 +1219,13 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
               max_extended_advertising_events;
     } else {
       enabled_sets_[advertiser_id].advertising_handle_ = kInvalidHandle;
-      if (advertising_sets_[advertiser_id].address_rotation_alarm != nullptr) {
-        advertising_sets_[advertiser_id].address_rotation_alarm->Cancel();
-        advertising_sets_[advertiser_id].address_rotation_alarm.reset();
+      if (advertising_sets_[advertiser_id].address_rotation_wake_alarm_ != nullptr) {
+        advertising_sets_[advertiser_id].address_rotation_wake_alarm_->Cancel();
+        advertising_sets_[advertiser_id].address_rotation_wake_alarm_.reset();
+      }
+      if (advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_ != nullptr) {
+        advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_->Cancel();
+        advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_.reset();
       }
     }
   }
