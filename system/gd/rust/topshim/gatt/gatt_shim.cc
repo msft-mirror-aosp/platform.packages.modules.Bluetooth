@@ -16,7 +16,9 @@
 
 #include "rust/topshim/gatt/gatt_shim.h"
 
-#include "base/functional/bind.h"
+#include <base/functional/bind.h>
+#include <base/functional/callback.h>
+
 #include "src/profiles/gatt.rs.h"
 
 namespace bluetooth {

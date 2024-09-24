@@ -54,3 +54,10 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "support_bluetooth_quality_report_v6"
+    namespace: "bluetooth"
+    description: "Enhanced Bluetooth Framework Support for Accessing Bluetooth Quality Report v6 Information"
+    bug: "364517559"
+}

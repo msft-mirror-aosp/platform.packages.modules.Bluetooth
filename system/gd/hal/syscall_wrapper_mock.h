@@ -53,15 +53,7 @@ public:
 
   MOCK_METHOD(int, GetErrno, (), (const));
 
-  MOCK_METHOD(void, FDSet, (int, fd_set*));
-
-  MOCK_METHOD(void, FDClr, (int, fd_set*));
-
-  MOCK_METHOD(bool, FDIsSet, (int, fd_set*));
-
-  MOCK_METHOD(void, FDZero, (fd_set*));
-
-  MOCK_METHOD(int, Select, (int, fd_set*, fd_set*, fd_set*, struct timeval*));
+  MOCK_METHOD(int, Poll, (struct pollfd * fds, nfds_t nfds, int timeout));
 };
 
 }  // namespace hal

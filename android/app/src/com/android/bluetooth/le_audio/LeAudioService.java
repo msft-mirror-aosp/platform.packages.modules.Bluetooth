@@ -1677,9 +1677,10 @@ public class LeAudioService extends ProfileService {
         }
 
         if (device != null && mActiveAudioInDevice != null) {
-            LeAudioDeviceDescriptor deviceDescriptor = getDeviceDescriptor(device);
+            LeAudioDeviceDescriptor deviceDescriptor = getDeviceDescriptor(mActiveAudioInDevice);
             if (deviceDescriptor == null) {
-                Log.e(TAG, "updateActiveInDevice: No valid descriptor for device: " + device);
+                Log.e(TAG, "updateActiveInDevice: No valid descriptor for device: "
+                        + mActiveAudioInDevice);
                 return false;
             }
 
@@ -1744,9 +1745,10 @@ public class LeAudioService extends ProfileService {
         }
 
         if (device != null && mActiveAudioOutDevice != null) {
-            LeAudioDeviceDescriptor deviceDescriptor = getDeviceDescriptor(device);
+            LeAudioDeviceDescriptor deviceDescriptor = getDeviceDescriptor(mActiveAudioOutDevice);
             if (deviceDescriptor == null) {
-                Log.e(TAG, "updateActiveOutDevice: No valid descriptor for device: " + device);
+                Log.e(TAG, "updateActiveOutDevice: No valid descriptor for device: "
+                        + mActiveAudioOutDevice);
                 return false;
             }
 
@@ -2375,30 +2377,45 @@ public class LeAudioService extends ProfileService {
                         + ", mExposedActiveDevice: "
                         + mExposedActiveDevice);
 
-        LeAudioGroupDescriptor groupDescriptor = getGroupDescriptor(currentlyActiveGroupId);
         if (isBroadcastActive()
                 && currentlyActiveGroupId == LE_AUDIO_GROUP_ID_INVALID
                 && mUnicastGroupIdDeactivatedForBroadcastTransition != LE_AUDIO_GROUP_ID_INVALID) {
+
+            LeAudioGroupDescriptor fallbackGroupDescriptor = getGroupDescriptor(groupId);
+
             // If broadcast is ongoing and need to update unicast fallback active group
             // we need to update the cached group id and skip changing the active device
             updateFallbackUnicastGroupIdForBroadcast(groupId);
 
-            /* In case of removing fallback unicast group, monitoring input device should be
-             * removed from active devices.
-             */
-            if (groupDescriptor != null && groupId == LE_AUDIO_GROUP_ID_INVALID) {
-                updateActiveDevices(
-                        groupId,
-                        groupDescriptor.mDirection,
-                        AUDIO_DIRECTION_NONE,
-                        false,
-                        groupDescriptor.mHasFallbackDeviceWhenGettingInactive,
-                        false);
+            if (fallbackGroupDescriptor != null) {
+                if (groupId == LE_AUDIO_GROUP_ID_INVALID) {
+                    /* In case of removing fallback unicast group, monitoring input device should be
+                     * removed from active devices.
+                     */
+                    updateActiveDevices(
+                            groupId,
+                            fallbackGroupDescriptor.mDirection,
+                            AUDIO_DIRECTION_NONE,
+                            false,
+                            fallbackGroupDescriptor.mHasFallbackDeviceWhenGettingInactive,
+                            false);
+                } else {
+                    if (mActiveAudioInDevice != null) {
+                        updateActiveDevices(
+                                groupId,
+                                fallbackGroupDescriptor.mDirection,
+                                AUDIO_DIRECTION_INPUT_BIT,
+                                false,
+                                fallbackGroupDescriptor.mHasFallbackDeviceWhenGettingInactive,
+                                true);
+                    }
+                }
             }
 
             return true;
         }
 
+        LeAudioGroupDescriptor groupDescriptor = getGroupDescriptor(currentlyActiveGroupId);
         if (groupDescriptor != null && groupId == currentlyActiveGroupId) {
             /* Make sure active group is already exposed to audio framework.
              * If not, lets wait for it and don't sent additional intent.
@@ -4344,10 +4361,8 @@ public class LeAudioService extends ProfileService {
         }
         if (getActiveGroupId() != LE_AUDIO_GROUP_ID_INVALID) {
             mHfpHandoverDevice = hfpHandoverDevice;
-            if (Flags.leaudioResumeActiveAfterHfpHandover()) {
-                // record the lead device
-                mLeAudioDeviceInactivatedForHfpHandover = mExposedActiveDevice;
-            }
+            // record the lead device
+            mLeAudioDeviceInactivatedForHfpHandover = mExposedActiveDevice;
             removeActiveDevice(true);
         }
     }
