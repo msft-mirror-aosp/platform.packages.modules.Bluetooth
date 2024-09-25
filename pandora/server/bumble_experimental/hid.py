@@ -4,6 +4,7 @@ import grpc
 import grpc.aio
 import logging
 import struct
+import sys
 
 from bumble.device import Device
 from google.protobuf import empty_pb2  # pytype: disable=pyi-error
@@ -674,7 +675,7 @@ def on_set_report_cb(report_id: int, report_type: int, report_size: int, data: b
 
 def on_get_protocol_cb():
     retValue = hid_device.GetSetStatus()
-    retValue.data = protocol_mode.to_bytes(length=1)
+    retValue.data = protocol_mode.to_bytes(length=1, byteorder=sys.byteorder)
     retValue.status = hid_device.GetSetReturn.SUCCESS
     return retValue
 

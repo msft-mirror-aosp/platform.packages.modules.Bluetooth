@@ -2143,6 +2143,73 @@ static jint getSocketL2capRemoteChannelIdNative(JNIEnv* /* env */, jobject /* ob
   return (jint)cid;
 }
 
+static jboolean setDefaultEventMaskExceptNative(JNIEnv* /* env */, jobject /* obj */, jlong mask,
+                                                jlong le_mask) {
+  log::verbose("");
+
+  if (!sBluetoothInterface) {
+    return JNI_FALSE;
+  }
+
+  int ret = sBluetoothInterface->set_default_event_mask_except(mask, le_mask);
+  return (ret == BT_STATUS_SUCCESS) ? JNI_TRUE : JNI_FALSE;
+}
+
+static jboolean clearEventFilterNative(JNIEnv* /* env */, jobject /* obj */) {
+  log::verbose("");
+
+  if (!sBluetoothInterface) {
+    return JNI_FALSE;
+  }
+
+  int ret = sBluetoothInterface->clear_event_filter();
+  return (ret == BT_STATUS_SUCCESS) ? JNI_TRUE : JNI_FALSE;
+}
+
+static jboolean clearFilterAcceptListNative(JNIEnv* /* env */, jobject /* obj */) {
+  log::verbose("");
+
+  if (!sBluetoothInterface) {
+    return JNI_FALSE;
+  }
+
+  int ret = sBluetoothInterface->clear_filter_accept_list();
+  return (ret == BT_STATUS_SUCCESS) ? JNI_TRUE : JNI_FALSE;
+}
+
+static jboolean disconnectAllAclsNative(JNIEnv* /* env */, jobject /* obj */) {
+  log::verbose("");
+
+  if (!sBluetoothInterface) {
+    return JNI_FALSE;
+  }
+
+  int ret = sBluetoothInterface->disconnect_all_acls();
+  return (ret == BT_STATUS_SUCCESS) ? JNI_TRUE : JNI_FALSE;
+}
+
+static jboolean allowWakeByHidNative(JNIEnv* /* env */, jobject /* obj */) {
+  log::verbose("");
+
+  if (!sBluetoothInterface) {
+    return JNI_FALSE;
+  }
+
+  int ret = sBluetoothInterface->allow_wake_by_hid();
+  return (ret == BT_STATUS_SUCCESS) ? JNI_TRUE : JNI_FALSE;
+}
+
+static jboolean restoreFilterAcceptListNative(JNIEnv* /* env */, jobject /* obj */) {
+  log::verbose("");
+
+  if (!sBluetoothInterface) {
+    return JNI_FALSE;
+  }
+
+  int ret = sBluetoothInterface->restore_filter_accept_list();
+  return (ret == BT_STATUS_SUCCESS) ? JNI_TRUE : JNI_FALSE;
+}
+
 int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
   const JNINativeMethod methods[] = {
           {"initNative", "(ZZI[Ljava/lang/String;ZLjava/lang/String;)Z",
@@ -2207,6 +2274,16 @@ int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
            reinterpret_cast<void*>(getSocketL2capLocalChannelIdNative)},
           {"getSocketL2capRemoteChannelIdNative", "(JJ)I",
            reinterpret_cast<void*>(getSocketL2capRemoteChannelIdNative)},
+          {"setDefaultEventMaskExceptNative", "(JJ)Z",
+           reinterpret_cast<void*>(setDefaultEventMaskExceptNative)},
+          {"clearEventFilterNative", "()Z", reinterpret_cast<void*>(clearEventFilterNative)},
+          {"clearFilterAcceptListNative", "()Z",
+           reinterpret_cast<void*>(clearFilterAcceptListNative)},
+          {"disconnectAllAclsNative", "()Z", reinterpret_cast<void*>(disconnectAllAclsNative)},
+          {"allowWakeByHidNative", "()Z", reinterpret_cast<void*>(allowWakeByHidNative)},
+          {"restoreFilterAcceptListNative", "()Z",
+           reinterpret_cast<void*>(restoreFilterAcceptListNative)},
+
   };
   const int result = REGISTER_NATIVE_METHODS(
           env, "com/android/bluetooth/btservice/AdapterNativeInterface", methods);
