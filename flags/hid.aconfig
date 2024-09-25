@@ -112,3 +112,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "dont_send_hid_set_idle"
+    namespace: "bluetooth"
+    description: "Don't send the SET IDLE HID message"
+    bug: "369310847"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
