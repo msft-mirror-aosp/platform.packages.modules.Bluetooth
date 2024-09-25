@@ -68,8 +68,9 @@ typedef enum : uint8_t {
   HCI_ERR_ADVERTISING_TIMEOUT = 0x3C,        // stack/btm/btm_ble
   HCI_ERR_CONN_FAILED_ESTABLISHMENT = 0x3E,  // GATT_CONN_FAIL_ESTABLISH
   HCI_ERR_LIMIT_REACHED = 0x43,              // stack/btm/btm_ble_multi_adv.cc
+  HCI_ERR_CANCELLED_BY_LOCAL_HOST = 0x44,    // stack/btm/btm_iso_impl.h
 
-  _HCI_ERR_MAX_ERR = 0x43,
+  _HCI_ERR_MAX_ERR = 0x44,
   HCI_ERR_UNDEFINED = 0xff,
 } tHCI_ERROR_CODE;
 
@@ -117,6 +118,7 @@ inline std::string hci_error_code_text(const tHCI_ERROR_CODE& error_code) {
     CASE_RETURN_TEXT(HCI_ERR_ADVERTISING_TIMEOUT);
     CASE_RETURN_TEXT(HCI_ERR_CONN_FAILED_ESTABLISHMENT);
     CASE_RETURN_TEXT(HCI_ERR_LIMIT_REACHED);
+    CASE_RETURN_TEXT(HCI_ERR_CANCELLED_BY_LOCAL_HOST);
     default:
       return base::StringPrintf("UNKNOWN[0x%02hx]", error_code);
   }
