@@ -26,6 +26,9 @@
 #include "os/log.h"
 #include "stack/include/bt_types.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::le_audio::types::hdl_pair;
 
 namespace bluetooth::le_audio {

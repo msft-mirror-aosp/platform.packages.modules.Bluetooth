@@ -41,6 +41,9 @@
 #include "storage/config_keys.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 const char* dev_path = "/dev/uhid";
 
 #include "btif_config.h"

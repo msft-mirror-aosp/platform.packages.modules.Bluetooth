@@ -18,6 +18,7 @@
 #include "hfp_client_interface_aidl.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <map>
 
@@ -30,6 +31,9 @@
 #include "hardware/bluetooth_headset_interface.h"
 #include "provider_info.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 namespace bluetooth {
 namespace audio {
@@ -70,11 +74,19 @@ std::unordered_map<tBTA_AG_UUID_CODEC, ::hfp::sco_config> HfpTransport::GetHfpSc
   return providerInfo->GetHfpScoConfig();
 }
 
-HfpTransport::HfpTransport() { hfp_pending_cmd_ = HFP_CTRL_CMD_NONE; }
+bool HfpTransport::IsStreamActive() { return is_stream_active; }
+
+void HfpTransport::SetStreamActive(bool active) { is_stream_active = active; }
+
+HfpTransport::HfpTransport() {
+  hfp_pending_cmd_ = HFP_CTRL_CMD_NONE;
+  is_stream_active = false;
+}
 
 BluetoothAudioCtrlAck HfpTransport::StartRequest() {
   if (hfp_pending_cmd_ == HFP_CTRL_CMD_START) {
     log::info("HFP_CTRL_CMD_START in progress");
+    is_stream_active = true;
     return BluetoothAudioCtrlAck::PENDING;
   } else if (hfp_pending_cmd_ != HFP_CTRL_CMD_NONE) {
     log::warn("busy in pending_cmd={}", hfp_pending_cmd_);
@@ -88,6 +100,7 @@ BluetoothAudioCtrlAck HfpTransport::StartRequest() {
 
   if (bta_ag_sco_is_open(cb)) {
     // Already started, ACK back immediately.
+    is_stream_active = true;
     return BluetoothAudioCtrlAck::SUCCESS_FINISHED;
   }
 
@@ -105,11 +118,15 @@ BluetoothAudioCtrlAck HfpTransport::StartRequest() {
   if (ctrl_ack->second != BluetoothAudioCtrlAck::SUCCESS_FINISHED) {
     return ctrl_ack->second;
   }
+  is_stream_active = true;
   return BluetoothAudioCtrlAck::PENDING;
 }
 
 void HfpTransport::StopRequest() {
   log::info("handling");
+
+  is_stream_active = false;
+
   RawAddress addr = bta_ag_get_active_device();
   if (addr.IsEmpty()) {
     log::error("No active device found");
@@ -180,6 +197,13 @@ BluetoothAudioCtrlAck HfpDecodingTransport::StartRequest(bool is_low_latency) {
 }
 
 BluetoothAudioCtrlAck HfpDecodingTransport::SuspendRequest() {
+  transport_->SetStreamActive(false);
+
+  if (HfpEncodingTransport::instance_ && HfpEncodingTransport::instance_->IsStreamActive()) {
+    log::info("SCO will suspend when encoding transport suspends.");
+    return BluetoothAudioCtrlAck::SUCCESS_FINISHED;
+  }
+
   return transport_->SuspendRequest();
 }
 
@@ -212,6 +236,8 @@ uint8_t HfpDecodingTransport::GetPendingCmd() const { return transport_->GetPend
 
 void HfpDecodingTransport::ResetPendingCmd() { transport_->ResetPendingCmd(); }
 
+bool HfpDecodingTransport::IsStreamActive() { return transport_->IsStreamActive(); }
+
 void HfpDecodingTransport::StopRequest() { transport_->StopRequest(); }
 
 HfpEncodingTransport::HfpEncodingTransport(SessionType session_type)
@@ -226,6 +252,13 @@ BluetoothAudioCtrlAck HfpEncodingTransport::StartRequest(bool is_low_latency) {
 }
 
 BluetoothAudioCtrlAck HfpEncodingTransport::SuspendRequest() {
+  transport_->SetStreamActive(false);
+
+  if (HfpDecodingTransport::instance_ && HfpDecodingTransport::instance_->IsStreamActive()) {
+    log::info("SCO will suspend when decoding transport suspends.");
+    return BluetoothAudioCtrlAck::SUCCESS_FINISHED;
+  }
+
   return transport_->SuspendRequest();
 }
 
@@ -259,6 +292,8 @@ void HfpEncodingTransport::LogBytesRead(size_t bytes_written) {
 uint8_t HfpEncodingTransport::GetPendingCmd() const { return transport_->GetPendingCmd(); }
 
 void HfpEncodingTransport::ResetPendingCmd() { transport_->ResetPendingCmd(); }
+
+bool HfpEncodingTransport::IsStreamActive() { return transport_->IsStreamActive(); }
 
 }  // namespace hfp
 }  // namespace aidl

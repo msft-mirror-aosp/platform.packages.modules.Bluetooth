@@ -26,6 +26,9 @@
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 // Test accessible feature page
 uint8_t hci_feature_bytes_per_page[HCI_FEATURE_BYTES_PER_PAGE] = {};
 

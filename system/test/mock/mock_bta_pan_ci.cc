@@ -23,6 +23,9 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 BT_HDR* bta_pan_ci_readbuf(uint16_t /* handle */, RawAddress& /* src */, RawAddress& /* dst */,
                            uint16_t* /* p_protocol */, bool* /* p_ext */, bool* /* p_forward */) {
   inc_func_call_count(__func__);

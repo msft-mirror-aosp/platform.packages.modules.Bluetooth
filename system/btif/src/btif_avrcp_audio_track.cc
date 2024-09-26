@@ -32,6 +32,9 @@
 
 #include "internal_include/bt_target.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace android;
 using namespace bluetooth;
 

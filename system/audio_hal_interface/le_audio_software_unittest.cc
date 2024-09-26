@@ -31,6 +31,10 @@
 #include "gmock/gmock.h"
 #include "hidl/le_audio_software_hidl.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#pragma GCC diagnostic ignored "-Wunused-private-field"
+
 using testing::Return;
 using testing::Test;
 

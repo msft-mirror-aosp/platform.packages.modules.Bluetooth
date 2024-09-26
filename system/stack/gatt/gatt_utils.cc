@@ -49,6 +49,9 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 uint8_t btm_ble_read_sec_key_size(const RawAddress& bd_addr);
 
 using namespace bluetooth::legacy::stack::sdp;

@@ -89,6 +89,9 @@
 #define PROPERTY_AUTO_FLUSH_TIMEOUT "bluetooth.core.classic.auto_flush_timeout"
 #endif
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 using bluetooth::legacy::hci::GetInterface;
 

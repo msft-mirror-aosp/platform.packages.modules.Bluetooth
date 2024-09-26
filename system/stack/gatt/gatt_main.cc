@@ -52,6 +52,9 @@
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::eatt::EattExtension;
 using namespace bluetooth;
 
