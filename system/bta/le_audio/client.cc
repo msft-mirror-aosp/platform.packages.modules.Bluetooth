@@ -233,11 +233,11 @@ public:
     alarm_free(suspend_timeout_);
   }
 
-  LeAudioClientImpl(bluetooth::le_audio::LeAudioClientCallbacks* callbacks_,
-                    LeAudioGroupStateMachine::Callbacks* state_machine_callbacks_,
+  LeAudioClientImpl(bluetooth::le_audio::LeAudioClientCallbacks* callbacks,
+                    LeAudioGroupStateMachine::Callbacks* state_machine_callbacks,
                     base::Closure initCb)
       : gatt_if_(0),
-        callbacks_(callbacks_),
+        callbacks_(callbacks),
         active_group_id_(bluetooth::groups::kGroupUnknown),
         configuration_context_type_(LeAudioContextType::UNINITIALIZED),
         in_call_metadata_context_types_({.sink = AudioContexts(), .source = AudioContexts()}),
@@ -256,7 +256,7 @@ public:
         close_vbc_timeout_(alarm_new("LeAudioCloseVbcTimeout")),
         suspend_timeout_(alarm_new("LeAudioSuspendTimeout")),
         disable_timer_(alarm_new("LeAudioDisableTimer")) {
-    LeAudioGroupStateMachine::Initialize(state_machine_callbacks_);
+    LeAudioGroupStateMachine::Initialize(state_machine_callbacks);
     groupStateMachine_ = LeAudioGroupStateMachine::Get();
 
     log::info("Reconnection mode: TARGETED_ANNOUNCEMENTS");

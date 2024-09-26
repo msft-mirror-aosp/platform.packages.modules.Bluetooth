@@ -48,6 +48,9 @@ HfpClientInterface::Offload::GetHfpScoConfig() {
   return std::unordered_map<tBTA_AG_UUID_CODEC, ::hfp::sco_config>();
 }
 
+size_t HfpClientInterface::Encode::Read(uint8_t* p_buf, uint32_t len) { return 0; }
+
+size_t HfpClientInterface::Decode::Write(const uint8_t* p_buf, uint32_t len) { return 0; }
 }  // namespace hfp
 }  // namespace audio
 }  // namespace bluetooth
