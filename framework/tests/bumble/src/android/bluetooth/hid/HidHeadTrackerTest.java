@@ -16,6 +16,7 @@
 
 package android.bluetooth.hid;
 
+import static android.bluetooth.BluetoothDevice.TRANSPORT_BREDR;
 import static android.bluetooth.BluetoothDevice.TRANSPORT_LE;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
@@ -28,6 +29,7 @@ import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.oneOf;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
@@ -39,6 +41,7 @@ import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothHeadset;
 import android.bluetooth.BluetoothHidHost;
 import android.bluetooth.BluetoothManager;
@@ -63,6 +66,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.android.bluetooth.flags.Flags;
 import com.android.compatibility.common.util.AdoptShellPermissionsRule;
 
+import org.hamcrest.CustomTypeSafeMatcher;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.hamcrest.core.AllOf;
@@ -78,6 +82,10 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.hamcrest.MockitoHamcrest;
 
 import pandora.GattProto;
+import pandora.GattProto.GattCharacteristicParams;
+import pandora.HIDGrpc;
+import pandora.HidProto.HidServiceType;
+import pandora.HidProto.ServiceRequest;
 import pandora.HostProto.AdvertiseRequest;
 import pandora.HostProto.DiscoverabilityMode;
 import pandora.HostProto.OwnAddressType;
@@ -100,11 +108,18 @@ public class HidHeadTrackerTest {
     private CompletableFuture<BluetoothDevice> mDeviceFound;
     private static final ParcelUuid HEADTRACKER_UUID =
             ParcelUuid.fromString("109b862f-50e3-45cc-8ea1-ac62de4846d1");
+    private static final ParcelUuid HEADTRACKER_VERSION_CHARACTERISTIC_UUID =
+            ParcelUuid.fromString("b4eb9919-a910-46a2-a9dd-fec2525196fd");
+    private static final ParcelUuid HEADTRACKER_CONTROL_CHARACTERISTIC_UUID =
+            ParcelUuid.fromString("8584cbb5-2d58-45a3-ab9d-583e0958b067");
+    private static final ParcelUuid HEADTRACKER_REPORT_CHARACTERISTIC_UUID =
+            ParcelUuid.fromString("e66dd173-b2ae-4f5a-ae16-0162af8038ae");
 
     private static final Context sTargetContext =
             InstrumentationRegistry.getInstrumentation().getTargetContext();
     private static final BluetoothAdapter sAdapter =
             sTargetContext.getSystemService(BluetoothManager.class).getAdapter();
+    private HIDGrpc.HIDBlockingStub mHidBlockingStub;
 
     @Rule(order = 0)
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
@@ -132,6 +147,7 @@ public class HidHeadTrackerTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        mHidBlockingStub = mBumble.hidBlocking();
 
         doAnswer(
                         inv -> {
@@ -160,7 +176,9 @@ public class HidHeadTrackerTest {
                                                 + " with name: "
                                                 + deviceName);
                                 if (deviceName != null && BUMBLE_DEVICE_NAME.equals(deviceName)) {
-                                    mDeviceFound.complete(device);
+                                    if (mDeviceFound != null) {
+                                        mDeviceFound.complete(device);
+                                    }
                                 }
                             } else if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(
                                     intent.getAction())) {
@@ -238,7 +256,8 @@ public class HidHeadTrackerTest {
 
     @After
     public void tearDown() throws Exception {
-        if (mBumbleDevice.getBondState() == BluetoothDevice.BOND_BONDED) {
+        if ((mBumbleDevice != null)
+                && mBumbleDevice.getBondState() == BluetoothDevice.BOND_BONDED) {
             mHost.removeBondAndVerify(mBumbleDevice);
         }
         mHost.close();
@@ -344,13 +363,96 @@ public class HidHeadTrackerTest {
                 BluetoothDevice.ACTION_FOUND);
     }
 
+    /**
+     * Ensure that successful HID connection over BREDR Transport.
+     *
+     * <p>Prerequisites:
+     *
+     * <ol>
+     *   <li>Bumble has Android Headtracker Service
+     *   <li>Bumble supports only HID but not HOGP
+     *   <li>Bummble is connectable over LE
+     * </ol>
+     *
+     * <p>Steps:
+     *
+     * <ol>
+     *   <li>Android pairs with Bumble
+     *   <li>Android Bluetooth reports HID host connection
+     *   <li>Change the preferred transport to LE
+     *   <li>Android Bluetooth reports HID host connection over LE
+     * </ol>
+     *
+     * Expectation: successful HID connection over BREDR Transport and Preferred transport selection
+     * success
+     */
+    @SuppressLint("MissingPermission")
+    @Test
+    @RequiresFlagsEnabled({
+        Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP,
+        Flags.FLAG_SAVE_INITIAL_HID_CONNECTION_POLICY
+    })
+    public void connectWithHidServiceTest() {
+
+        registerIntentActions(
+                BluetoothDevice.ACTION_ACL_CONNECTED,
+                BluetoothDevice.ACTION_UUID,
+                BluetoothHidHost.ACTION_CONNECTION_STATE_CHANGED,
+                BluetoothDevice.ACTION_FOUND);
+        mHidBlockingStub.registerService(
+                ServiceRequest.newBuilder()
+                        .setServiceType(HidServiceType.SERVICE_TYPE_HID)
+                        .build());
+        pairAndConnect();
+
+        verifyIntentReceived(
+                hasAction(BluetoothDevice.ACTION_UUID),
+                hasExtra(BluetoothDevice.EXTRA_UUID, Matchers.hasItemInArray(HEADTRACKER_UUID)));
+
+        verifyConnectionState(mBumbleDevice, equalTo(TRANSPORT_BREDR), equalTo(STATE_CONNECTED));
+        // Switch to LE Transport
+        mHidService.setPreferredTransport(mBumbleDevice, TRANSPORT_LE);
+        verifyTransportSwitch(mBumbleDevice, TRANSPORT_BREDR, TRANSPORT_LE);
+
+        unregisterIntentActions(
+                BluetoothDevice.ACTION_UUID,
+                BluetoothDevice.ACTION_ACL_CONNECTED,
+                BluetoothDevice.ACTION_FOUND);
+    }
+
     private void pairAndConnect() {
+
         // Register Head tracker services on Bumble
+        GattCharacteristicParams characteristicVersion =
+                GattCharacteristicParams.newBuilder()
+                        .setProperties(
+                                BluetoothGattCharacteristic.PROPERTY_READ
+                                        | BluetoothGattCharacteristic.PROPERTY_WRITE)
+                        .setUuid(HEADTRACKER_VERSION_CHARACTERISTIC_UUID.toString())
+                        .build();
+
+        GattCharacteristicParams characteristicControl =
+                GattCharacteristicParams.newBuilder()
+                        .setProperties(
+                                BluetoothGattCharacteristic.PROPERTY_READ
+                                        | BluetoothGattCharacteristic.PROPERTY_WRITE)
+                        .setUuid(HEADTRACKER_CONTROL_CHARACTERISTIC_UUID.toString())
+                        .build();
+        GattCharacteristicParams characteristicReport =
+                GattCharacteristicParams.newBuilder()
+                        .setProperties(
+                                BluetoothGattCharacteristic.PROPERTY_READ
+                                        | BluetoothGattCharacteristic.PROPERTY_WRITE)
+                        .setUuid(HEADTRACKER_REPORT_CHARACTERISTIC_UUID.toString())
+                        .build();
         mBumble.gattBlocking()
                 .registerService(
                         GattProto.RegisterServiceRequest.newBuilder()
                                 .setService(
                                         GattProto.GattServiceParams.newBuilder()
+                                                .addCharacteristics(characteristicVersion)
+                                                .addCharacteristics(characteristicControl)
+                                                .addCharacteristics(characteristicReport)
                                                 .setUuid(HEADTRACKER_UUID.toString())
                                                 .build())
                                 .build());
@@ -379,6 +481,74 @@ public class HidHeadTrackerTest {
         assertThat(sAdapter.cancelDiscovery()).isTrue();
         // Create Bond
         mHost.createBondAndVerify(mBumbleDevice);
+    }
+
+    /**
+     * CONNECTING and DISCONNECTING intents can go out of order, hence need a special function to
+     * verify transport switches if we want to verify connecting and disconnected states
+     *
+     * <p>Four intents are expected: 1. fromTransport DISCONNECTING 2. toTransport CONNECTING 3.
+     * fromTransport DISCONNECTED 4. toTransport CONNECTED
+     *
+     * <p>Currently, the order of 2 and 3 is unstable and hence we need this method to work with
+     * both 2 -> 3 AND 3 -> 2
+     *
+     * <p>This function is complicated because we cannot mix ordered verification and unordered
+     * verification if the same set of argument will appear more than once.
+     *
+     * @param device target dual mode HID device
+     * @param fromTransport from which transport
+     * @param toTransport to which transport
+     */
+    private void verifyTransportSwitch(BluetoothDevice device, int fromTransport, int toTransport) {
+        assertThat(fromTransport).isNotEqualTo(toTransport);
+        verifyConnectionState(mBumbleDevice, equalTo(fromTransport), equalTo(STATE_DISCONNECTING));
+
+        // Capture the next intent with filter
+        // Filter is necessary as otherwise it will corrupt all other unordered verifications
+        final Intent[] savedIntent = {null};
+        verifyIntentReceived(
+                new CustomTypeSafeMatcher<>("Intent Matcher") {
+                    public boolean matchesSafely(Intent intent) {
+                        savedIntent[0] = intent;
+                        return AllOf.allOf(
+                                        hasAction(BluetoothHidHost.ACTION_CONNECTION_STATE_CHANGED),
+                                        hasExtra(BluetoothDevice.EXTRA_DEVICE, device),
+                                        hasExtra(
+                                                BluetoothDevice.EXTRA_TRANSPORT,
+                                                oneOf(fromTransport, toTransport)),
+                                        hasExtra(
+                                                BluetoothProfile.EXTRA_STATE,
+                                                oneOf(STATE_CONNECTING, STATE_DISCONNECTED)))
+                                .matches(intent);
+                    }
+                });
+
+        // Verify saved intent is correct
+        assertThat(savedIntent[0]).isNotNull();
+        Intent intent = savedIntent[0];
+        assertThat(intent.getAction()).isNotNull();
+        assertThat(intent.getAction()).isEqualTo(BluetoothHidHost.ACTION_CONNECTION_STATE_CHANGED);
+        assertThat(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class))
+                .isEqualTo(device);
+        assertThat(intent.hasExtra(BluetoothProfile.EXTRA_STATE)).isTrue();
+        int state = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, STATE_CONNECTED);
+        assertThat(state).isAnyOf(STATE_CONNECTING, STATE_DISCONNECTED);
+        assertThat(intent.hasExtra(BluetoothDevice.EXTRA_TRANSPORT)).isTrue();
+        int transport =
+                intent.getIntExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_AUTO);
+        assertThat(transport).isAnyOf(TRANSPORT_BREDR, TRANSPORT_LE);
+
+        // Conditionally verify the next intent
+        if (transport == fromTransport) {
+            assertThat(state).isEqualTo(STATE_DISCONNECTED);
+            verifyConnectionState(mBumbleDevice, equalTo(toTransport), equalTo(STATE_CONNECTING));
+        } else {
+            assertThat(state).isEqualTo(STATE_CONNECTING);
+            verifyConnectionState(
+                    mBumbleDevice, equalTo(fromTransport), equalTo(STATE_DISCONNECTED));
+        }
+        verifyConnectionState(mBumbleDevice, equalTo(toTransport), equalTo(STATE_CONNECTED));
     }
 
     @SafeVarargs
