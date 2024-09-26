@@ -38,6 +38,9 @@
 #include "test/mock/mock_stack_l2cap_ble.h"
 #include "test/rfcomm/stack_rfcomm_test_utils.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace bluetooth {
 namespace hal {
 class SnoopLogger;

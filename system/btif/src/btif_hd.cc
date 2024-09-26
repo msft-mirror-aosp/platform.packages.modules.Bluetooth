@@ -55,6 +55,9 @@
 #define COD_HID_COMBO 0x05C0
 #define COD_HID_MAJOR 0x0500
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 bool bta_dm_check_if_only_hd_connected(const RawAddress& peer_addr);

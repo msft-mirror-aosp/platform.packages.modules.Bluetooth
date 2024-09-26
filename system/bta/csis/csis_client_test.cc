@@ -36,6 +36,9 @@
 #include "stack/include/bt_uuid16.h"
 #include "test/common/mock_functions.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 bool gatt_cl_read_sirk_req(const RawAddress& peer_bda,
                            base::OnceCallback<void(tGATT_STATUS status, const RawAddress&,
                                                    uint8_t sirk_type, Octet16& sirk)>

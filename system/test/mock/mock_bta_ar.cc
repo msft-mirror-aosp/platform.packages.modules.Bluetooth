@@ -26,6 +26,9 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 void bta_ar_avdt_conn(tBTA_SYS_ID /* sys_id */, const RawAddress& /* bd_addr */,
                       uint8_t /* scb_index */) {
   inc_func_call_count(__func__);

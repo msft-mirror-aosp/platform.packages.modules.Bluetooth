@@ -49,6 +49,9 @@
 #include "stack/include/l2cap_controller_interface.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace ::bluetooth;
 
 extern tBTM_CB btm_cb;

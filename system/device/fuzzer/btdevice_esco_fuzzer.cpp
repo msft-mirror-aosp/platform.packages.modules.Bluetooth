@@ -23,6 +23,9 @@
 #include "interop.h"
 #include "interop_config.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace std;
 constexpr size_t kNumAddressOctets = 6;
 constexpr size_t kMaxStringLength = 10;
