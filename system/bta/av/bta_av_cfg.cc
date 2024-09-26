@@ -39,6 +39,9 @@
 #define BTA_AV_RC_PASS_RSP_CODE AVRC_RSP_NOT_IMPL
 #endif
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 const uint32_t bta_av_meta_caps_co_ids[] = {AVRC_CO_METADATA, AVRC_CO_BROADCOM};

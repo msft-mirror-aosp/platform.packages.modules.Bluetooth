@@ -27,6 +27,9 @@
 
 #include "./com_android_bluetooth.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::avrcp::Attribute;
 using bluetooth::avrcp::AttributeEntry;
 using bluetooth::avrcp::FolderInfo;

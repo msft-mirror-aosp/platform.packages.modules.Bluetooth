@@ -26,6 +26,9 @@
 #include "btif_profile_storage.h"
 #include "stack/include/main_thread.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using base::Bind;
 using base::Unretained;
 using bluetooth::le_audio::btle_audio_codec_config_t;

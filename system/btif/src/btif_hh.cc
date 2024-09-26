@@ -66,6 +66,9 @@
 #define LOGITECH_KB_MX5500_VENDOR_ID 0x046D
 #define LOGITECH_KB_MX5500_PRODUCT_ID 0xB30B
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 static int btif_hh_keylockstates = 0;  // The current key state of each key

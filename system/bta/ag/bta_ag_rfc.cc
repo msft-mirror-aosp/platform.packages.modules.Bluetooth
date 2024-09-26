@@ -36,6 +36,9 @@
 /* Event mask for RfCOMM port callback */
 #define BTA_AG_PORT_EV_MASK PORT_EV_RXCHAR
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 /* each scb has its own rfcomm callbacks */

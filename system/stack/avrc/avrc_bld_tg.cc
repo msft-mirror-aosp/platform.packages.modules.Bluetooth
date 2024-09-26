@@ -31,6 +31,9 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 /*****************************************************************************

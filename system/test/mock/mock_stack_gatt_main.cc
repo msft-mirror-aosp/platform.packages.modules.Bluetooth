@@ -25,6 +25,9 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 void gatt_init(void) { inc_func_call_count(__func__); }
 bool gatt_act_connect(tGATT_REG* /* p_reg */, const RawAddress& /* bd_addr */,
                       tBLE_ADDR_TYPE /* addr_type */, tBT_TRANSPORT /* transport */,

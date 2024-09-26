@@ -22,6 +22,9 @@
 #include "stack/include/rfcdefs.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 static bluetooth::manager::MockBtmSecurityInternalInterface* btm_security_internal_interface =
         nullptr;
 
