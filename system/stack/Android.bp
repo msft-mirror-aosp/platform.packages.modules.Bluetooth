@@ -203,6 +203,7 @@ cc_library_static {
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
+        "packages/modules/Bluetooth/system/bta/ag",
         "packages/modules/Bluetooth/system/bta/include",
         "packages/modules/Bluetooth/system/bta/sys",
         "packages/modules/Bluetooth/system/gd",
@@ -326,15 +327,12 @@ cc_library_static {
 cc_defaults {
     name: "btstack_fuzzer_default",
     host_supported: true,
-    cflags: [
-        "-Wall",
-        "-Werror",
-        "-Wextra",
-        // Mocked components have too many unused parameters
-        "-Wno-unused-parameter",
-    ],
     defaults: [
+        "bluetooth_cflags",
         "bluetooth_flatbuffer_bundler_defaults",
+    ],
+    cflags: [
+        "-Wno-unused-parameter",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",

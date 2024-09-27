@@ -16,6 +16,8 @@
 
 #include "get_total_number_of_items.h"
 
+#include <base/sys_byteorder.h>
+
 namespace bluetooth {
 namespace avrcp {
 

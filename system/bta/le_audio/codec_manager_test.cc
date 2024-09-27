@@ -30,6 +30,9 @@
 #include "test/mock/mock_legacy_hci_interface.h"
 #include "test/mock/mock_main_shim_entry.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using ::testing::_;
 using ::testing::Mock;
 using ::testing::NiceMock;

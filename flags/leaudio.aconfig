@@ -96,16 +96,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_resume_active_after_hfp_handover"
-    namespace: "bluetooth"
-    description: "Fix for if HFP- LE Audio handover happened, LE audio resume active after the call"
-    bug: "331468678"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "leaudio_allow_leaudio_only_devices"
     namespace: "bluetooth"
     description: "Enable Le Audio for LeAudio only devices"
@@ -375,6 +365,16 @@ flag {
     namespace: "bluetooth"
     description: "Fix handling initial zero available contexts"
     bug: "367325041"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_improve_switch_during_phone_call"
+    namespace: "bluetooth"
+    description: "Fix audio slip to speaker while switching bt audio device during phonecall"
+    bug: "369322905"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

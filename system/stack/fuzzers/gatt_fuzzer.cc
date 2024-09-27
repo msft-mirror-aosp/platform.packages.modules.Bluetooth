@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <base/functional/callback.h>
 #include <base/location.h>
 #include <bluetooth/log.h>
 #include <fuzzer/FuzzedDataProvider.h>
@@ -31,6 +32,9 @@
 #include "test/mock/mock_stack_btm_dev.h"
 #include "test/mock/mock_stack_l2cap_api.h"
 #include "test/mock/mock_stack_l2cap_ble.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::Uuid;
 bt_status_t do_in_main_thread(base::OnceCallback<void()>) {

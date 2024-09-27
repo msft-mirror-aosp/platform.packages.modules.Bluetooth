@@ -27,6 +27,9 @@
 #include "os/log.h"
 #include "osi/include/properties.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using ::bluetooth::audio::aidl::hfp::HfpDecodingTransport;
 using ::bluetooth::audio::aidl::hfp::HfpEncodingTransport;
 using AudioConfiguration = ::aidl::android::hardware::bluetooth::audio::AudioConfiguration;
@@ -97,6 +100,12 @@ AudioConfiguration offload_config_to_hal_audio_config(const ::hfp::offload_confi
   return AudioConfiguration(hfp_config);
 }
 
+AudioConfiguration pcm_config_to_hal_audio_config(const ::hfp::pcm_config& pcm_config) {
+  PcmConfiguration config = get_default_pcm_configuration();
+  config.sampleRateHz = pcm_config.sample_rate_hz;
+  return AudioConfiguration(config);
+}
+
 bool is_aidl_support_hfp() {
   return HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::AIDL &&
          HalVersionManager::GetHalVersion() >= BluetoothAudioHalVersion::VERSION_AIDL_V4;
@@ -157,13 +166,23 @@ void HfpClientInterface::Decode::StopSession() {
 
 void HfpClientInterface::Decode::UpdateAudioConfigToHal(
         const ::hfp::offload_config& offload_config) {
+  log::warn(
+          "'UpdateAudioConfigToHal(offload_config)' should not be called on "
+          "HfpClientInterface::Decode");
+}
+
+void HfpClientInterface::Decode::UpdateAudioConfigToHal(const ::hfp::pcm_config& pcm_config) {
   if (!is_aidl_support_hfp()) {
     log::warn("Unsupported HIDL or AIDL version");
     return;
   }
 
-  log::warn("decode - Unsupported update audio config for software session");
-  return;
+  log::info("decode");
+  if (!get_decode_client_interface()->UpdateAudioConfig(
+              pcm_config_to_hal_audio_config(pcm_config))) {
+    log::error("cannot update audio config to HAL");
+    return;
+  }
 }
 
 size_t HfpClientInterface::Decode::Write(const uint8_t* p_buf, uint32_t len) {
@@ -171,21 +190,27 @@ size_t HfpClientInterface::Decode::Write(const uint8_t* p_buf, uint32_t len) {
     log::warn("Unsupported HIDL or AIDL version");
     return 0;
   }
-  log::info("decode");
-  return get_decode_client_interface()->WriteAudioData(p_buf, len);
+  log::verbose("decode");
+
+  auto instance = aidl::hfp::HfpDecodingTransport::instance_;
+  if (instance->IsStreamActive()) {
+    return get_decode_client_interface()->WriteAudioData(p_buf, len);
+  }
+
+  return len;
 }
 
 void HfpClientInterface::Decode::ConfirmStreamingRequest() {
   auto instance = aidl::hfp::HfpDecodingTransport::instance_;
   auto pending_cmd = instance->GetPendingCmd();
   switch (pending_cmd) {
+    case aidl::hfp::HFP_CTRL_CMD_NONE:
+      log::warn("no pending start stream request");
+      FALLTHROUGH_INTENDED;
     case aidl::hfp::HFP_CTRL_CMD_START:
       aidl::hfp::HfpDecodingTransport::software_hal_interface->StreamStarted(
               aidl::BluetoothAudioCtrlAck::SUCCESS_FINISHED);
       instance->ResetPendingCmd();
-      return;
-    case aidl::hfp::HFP_CTRL_CMD_NONE:
-      log::warn("no pending start stream request");
       return;
     default:
       log::warn("Invalid state, {}", pending_cmd);
@@ -203,10 +228,10 @@ void HfpClientInterface::Decode::CancelStreamingRequest() {
       return;
     case aidl::hfp::HFP_CTRL_CMD_NONE:
       log::warn("no pending start stream request");
-      return;
+      FALLTHROUGH_INTENDED;
     case aidl::hfp::HFP_CTRL_CMD_SUSPEND:
       log::info("suspends");
-      aidl::hfp::HfpEncodingTransport::software_hal_interface->StreamSuspended(
+      aidl::hfp::HfpDecodingTransport::software_hal_interface->StreamSuspended(
               aidl::BluetoothAudioCtrlAck::SUCCESS_FINISHED);
       instance->ResetPendingCmd();
       return;
@@ -308,13 +333,23 @@ void HfpClientInterface::Encode::StopSession() {
 
 void HfpClientInterface::Encode::UpdateAudioConfigToHal(
         const ::hfp::offload_config& offload_config) {
+  log::warn(
+          "'UpdateAudioConfigToHal(offload_config)' should not be called on "
+          "HfpClientInterface::Encode");
+}
+
+void HfpClientInterface::Encode::UpdateAudioConfigToHal(const ::hfp::pcm_config& pcm_config) {
   if (!is_aidl_support_hfp()) {
     log::warn("Unsupported HIDL or AIDL version");
     return;
   }
 
-  log::warn("encode - Unsupported update audio config for software session");
-  return;
+  log::info("encode");
+  if (!get_encode_client_interface()->UpdateAudioConfig(
+              pcm_config_to_hal_audio_config(pcm_config))) {
+    log::error("cannot update audio config to HAL");
+    return;
+  }
 }
 
 size_t HfpClientInterface::Encode::Read(uint8_t* p_buf, uint32_t len) {
@@ -322,21 +357,29 @@ size_t HfpClientInterface::Encode::Read(uint8_t* p_buf, uint32_t len) {
     log::warn("Unsupported HIDL or AIDL version");
     return 0;
   }
-  log::info("encode");
-  return get_encode_client_interface()->ReadAudioData(p_buf, len);
+  log::verbose("encode");
+
+  auto instance = aidl::hfp::HfpEncodingTransport::instance_;
+  if (instance->IsStreamActive()) {
+    return get_encode_client_interface()->ReadAudioData(p_buf, len);
+  }
+
+  memset(p_buf, 0x00, len);
+
+  return len;
 }
 
 void HfpClientInterface::Encode::ConfirmStreamingRequest() {
   auto instance = aidl::hfp::HfpEncodingTransport::instance_;
   auto pending_cmd = instance->GetPendingCmd();
   switch (pending_cmd) {
+    case aidl::hfp::HFP_CTRL_CMD_NONE:
+      log::warn("no pending start stream request");
+      FALLTHROUGH_INTENDED;
     case aidl::hfp::HFP_CTRL_CMD_START:
       aidl::hfp::HfpEncodingTransport::software_hal_interface->StreamStarted(
               aidl::BluetoothAudioCtrlAck::SUCCESS_FINISHED);
       instance->ResetPendingCmd();
-      return;
-    case aidl::hfp::HFP_CTRL_CMD_NONE:
-      log::warn("no pending start stream request");
       return;
     default:
       log::warn("Invalid state, {}", pending_cmd);
@@ -354,7 +397,7 @@ void HfpClientInterface::Encode::CancelStreamingRequest() {
       return;
     case aidl::hfp::HFP_CTRL_CMD_NONE:
       log::warn("no pending start stream request");
-      return;
+      FALLTHROUGH_INTENDED;
     case aidl::hfp::HFP_CTRL_CMD_SUSPEND:
       log::info("suspends");
       aidl::hfp::HfpEncodingTransport::software_hal_interface->StreamSuspended(
@@ -467,6 +510,12 @@ void HfpClientInterface::Offload::UpdateAudioConfigToHal(
   log::info("offload");
   get_encode_client_interface()->UpdateAudioConfig(
           offload_config_to_hal_audio_config(offload_config));
+}
+
+void HfpClientInterface::Offload::UpdateAudioConfigToHal(const ::hfp::pcm_config& pcm_config) {
+  log::warn(
+          "'UpdateAudioConfigToHal(pcm_config)' should not be called on "
+          "HfpClientInterface::Offload");
 }
 
 void HfpClientInterface::Offload::ConfirmStreamingRequest() {

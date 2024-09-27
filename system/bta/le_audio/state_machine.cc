@@ -133,8 +133,8 @@ LeAudioGroupStateMachineImpl* instance;
 
 class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
 public:
-  LeAudioGroupStateMachineImpl(Callbacks* state_machine_callbacks_)
-      : state_machine_callbacks_(state_machine_callbacks_),
+  LeAudioGroupStateMachineImpl(Callbacks* state_machine_callbacks)
+      : state_machine_callbacks_(state_machine_callbacks),
         watchdog_(alarm_new("LeAudioStateMachineTimer")) {
     log_history_ = LeAudioLogHistory::Get();
   }

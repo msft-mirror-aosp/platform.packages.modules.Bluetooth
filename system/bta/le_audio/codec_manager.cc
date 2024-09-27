@@ -926,7 +926,6 @@ private:
                      conf.codec.id.coding_format, conf.codec.GetSamplingFrequencyHz(),
                      conf.codec.GetDataIntervalUs(), conf.codec.GetChannelCountPerIsoStream());
 
-          /* TODO: How to get bits_per_sample ? */
           btle_audio_codec_config_t capa_to_add = {
                   .codec_type =
                           (conf.codec.id.coding_format == types::kLeAudioCodingFormatLC3)
@@ -934,7 +933,8 @@ private:
                                   : btle_audio_codec_index_t::LE_AUDIO_CODEC_INDEX_SOURCE_INVALID,
                   .sample_rate = utils::translateToBtLeAudioCodecConfigSampleRate(
                           conf.codec.GetSamplingFrequencyHz()),
-                  .bits_per_sample = utils::translateToBtLeAudioCodecConfigBitPerSample(16),
+                  .bits_per_sample = utils::translateToBtLeAudioCodecConfigBitPerSample(
+                          conf.codec.GetBitsPerSample()),
                   .channel_count = utils::translateToBtLeAudioCodecConfigChannelCount(
                           conf.codec.GetChannelCountPerIsoStream()),
                   .frame_duration = utils::translateToBtLeAudioCodecConfigFrameDuration(

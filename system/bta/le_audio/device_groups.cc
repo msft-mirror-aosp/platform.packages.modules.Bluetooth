@@ -37,6 +37,9 @@
 #include "metrics_collector.h"
 #include "stack/include/btm_client_interface.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace bluetooth::le_audio {
 
 using bluetooth::le_audio::types::ase;

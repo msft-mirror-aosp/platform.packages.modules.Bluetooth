@@ -23,6 +23,9 @@
 #include "include/macros.h"
 #include "os/rand.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace bluetooth {
 namespace hci {
 
@@ -67,9 +70,13 @@ LeAddressManager::LeAddressManager(
       resolving_list_size_(resolving_list_size) {}
 
 LeAddressManager::~LeAddressManager() {
-  if (address_rotation_alarm_ != nullptr) {
-    address_rotation_alarm_->Cancel();
-    address_rotation_alarm_.reset();
+  if (address_rotation_wake_alarm_ != nullptr) {
+    address_rotation_wake_alarm_->Cancel();
+    address_rotation_wake_alarm_.reset();
+  }
+  if (address_rotation_non_wake_alarm_ != nullptr) {
+    address_rotation_non_wake_alarm_->Cancel();
+    address_rotation_non_wake_alarm_.reset();
   }
 }
 
@@ -102,6 +109,8 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddress(
   if (com::android::bluetooth::flags::nrpa_non_connectable_adv()) {
     minimum_rotation_time_ = minimum_rotation_time;
     maximum_rotation_time_ = maximum_rotation_time;
+    log::info("minimum_rotation_time_={}ms, maximum_rotation_time_={}ms",
+              minimum_rotation_time_.count(), maximum_rotation_time_.count());
   }
 
   switch (address_policy_) {
@@ -133,8 +142,15 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddress(
       if (!com::android::bluetooth::flags::nrpa_non_connectable_adv()) {
         minimum_rotation_time_ = minimum_rotation_time;
         maximum_rotation_time_ = maximum_rotation_time;
+        log::info("minimum_rotation_time_={}ms, maximum_rotation_time_={}ms",
+                  minimum_rotation_time_.count(), maximum_rotation_time_.count());
       }
-      address_rotation_alarm_ = std::make_unique<os::Alarm>(handler_);
+      if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
+        address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_, true);
+        address_rotation_non_wake_alarm_ = std::make_unique<os::Alarm>(handler_, false);
+      } else {
+        address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_);
+      }
       set_random_address();
       break;
     case AddressPolicy::POLICY_NOT_SET:
@@ -179,7 +195,14 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddressForTest(
       rotation_irk_ = rotation_irk;
       minimum_rotation_time_ = minimum_rotation_time;
       maximum_rotation_time_ = maximum_rotation_time;
-      address_rotation_alarm_ = std::make_unique<os::Alarm>(handler_);
+      log::info("minimum_rotation_time_={}ms, maximum_rotation_time_={}ms",
+                minimum_rotation_time_.count(), maximum_rotation_time_.count());
+      if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
+        address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_, true);
+        address_rotation_non_wake_alarm_ = std::make_unique<os::Alarm>(handler_, false);
+      } else {
+        address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_);
+      }
       set_random_address();
       break;
     case AddressPolicy::POLICY_NOT_SET:
@@ -227,8 +250,13 @@ void LeAddressManager::unregister_client(LeAddressManagerCallback* callback) {
     registered_clients_.erase(callback);
     log::info("Client unregistered");
   }
-  if (registered_clients_.empty() && address_rotation_alarm_ != nullptr) {
-    address_rotation_alarm_->Cancel();
+  if (registered_clients_.empty()) {
+    if (address_rotation_wake_alarm_ != nullptr) {
+      address_rotation_wake_alarm_->Cancel();
+    }
+    if (address_rotation_non_wake_alarm_ != nullptr) {
+      address_rotation_non_wake_alarm_->Cancel();
+    }
     log::info("Cancelled address rotation alarm");
   }
 }
@@ -353,9 +381,20 @@ void LeAddressManager::prepare_to_rotate() {
 }
 
 void LeAddressManager::schedule_rotate_random_address() {
-  address_rotation_alarm_->Schedule(
-          common::BindOnce(&LeAddressManager::prepare_to_rotate, common::Unretained(this)),
-          GetNextPrivateAddressIntervalMs());
+  if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
+    auto privateAddressIntervalRange = GetNextPrivateAddressIntervalRange();
+    address_rotation_wake_alarm_->Schedule(
+            common::BindOnce(
+                    []() { log::info("deadline wakeup in schedule_rotate_random_address"); }),
+            privateAddressIntervalRange.max);
+    address_rotation_non_wake_alarm_->Schedule(
+            common::BindOnce(&LeAddressManager::prepare_to_rotate, common::Unretained(this)),
+            privateAddressIntervalRange.min);
+  } else {
+    address_rotation_wake_alarm_->Schedule(
+            common::BindOnce(&LeAddressManager::prepare_to_rotate, common::Unretained(this)),
+            GetNextPrivateAddressIntervalMs());
+  }
 }
 
 void LeAddressManager::set_random_address() {
@@ -401,6 +440,8 @@ void LeAddressManager::update_irk(UpdateIRKCommand command) {
   rotation_irk_ = command.rotation_irk;
   minimum_rotation_time_ = command.minimum_rotation_time;
   maximum_rotation_time_ = command.maximum_rotation_time;
+  log::info("minimum_rotation_time_={}ms, maximum_rotation_time_={}ms",
+            minimum_rotation_time_.count(), maximum_rotation_time_.count());
   set_random_address();
   for (auto& client : registered_clients_) {
     client.first->NotifyOnIRKChange();
@@ -466,9 +507,37 @@ hci::Address LeAddressManager::generate_nrpa() {
 }
 
 std::chrono::milliseconds LeAddressManager::GetNextPrivateAddressIntervalMs() {
-  auto interval_random_part_max_ms = maximum_rotation_time_ - minimum_rotation_time_;
-  auto random_ms = std::chrono::milliseconds(os::GenerateRandom()) % (interval_random_part_max_ms);
+  auto interval_random_part_wake_delay = maximum_rotation_time_ - minimum_rotation_time_;
+  auto random_ms =
+          std::chrono::milliseconds(os::GenerateRandom()) % (interval_random_part_wake_delay);
   return minimum_rotation_time_ + random_ms;
+}
+
+PrivateAddressIntervalRange LeAddressManager::GetNextPrivateAddressIntervalRange() {
+  // Get both alarms' delays as following:
+  // - Non-wake  : Random between [minimum_rotation_time_, (minimum_rotation_time_ + 2 min)]
+  // - Wake      : Random between [(maximum_rotation_time_ - 2 min), maximum_rotation_time_]
+  // - Ensure that delays are in the given range [minimum_rotation_time_, maximum_rotation_time_]
+  // - Ensure that the non-wake alarm's delay is not greater than wake alarm's delay.
+  auto random_part_max_length = std::chrono::minutes(2);
+
+  auto nonwake_delay = minimum_rotation_time_ +
+                       (std::chrono::milliseconds(os::GenerateRandom()) % random_part_max_length);
+  nonwake_delay = min(nonwake_delay, maximum_rotation_time_);
+
+  auto wake_delay = maximum_rotation_time_ -
+                    (std::chrono::milliseconds(os::GenerateRandom()) % random_part_max_length);
+  wake_delay = max(nonwake_delay, max(wake_delay, minimum_rotation_time_));
+
+  // For readable logging, the durations are rounded down to integer seconds.
+  auto min_minutes = std::chrono::duration_cast<std::chrono::minutes>(nonwake_delay);
+  auto min_seconds = std::chrono::duration_cast<std::chrono::seconds>(nonwake_delay - min_minutes);
+  auto max_minutes = std::chrono::duration_cast<std::chrono::minutes>(wake_delay);
+  auto max_seconds = std::chrono::duration_cast<std::chrono::seconds>(wake_delay - max_minutes);
+  log::info("nonwake={}m{}s, wake={}m{}s", min_minutes.count(), min_seconds.count(),
+            max_minutes.count(), max_seconds.count());
+
+  return PrivateAddressIntervalRange{nonwake_delay, wake_delay};
 }
 
 uint8_t LeAddressManager::GetFilterAcceptListSize() { return accept_list_size_; }

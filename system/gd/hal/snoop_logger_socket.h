@@ -66,21 +66,27 @@ private:
   int socket_port_;
 
   // A pair of FD to send information to the listen thread.
-  int notification_listen_fd_;
-  int notification_write_fd_;
+  int notification_listen_fd_{-1};
+  int notification_write_fd_{-1};
 
   // Server socket
-  int listen_socket_;
-
-  // Socket FDs for listening for connections
-  // and for communitcation with listener thread.
-  fd_set save_sock_fds_;
-  int fd_max_;
+  int listen_socket_{-1};
 
   // Reference to connected client socket.
   std::mutex client_socket_mutex_;
-  int client_socket_;
   std::condition_variable client_socket_cv_;
+  int client_socket_{-1};
+
+  enum PollFd {
+    kNotificationFd,
+    kSocketFd,
+    kNumPollFd,
+  };
+
+  // Array of FDs for polling.
+  struct pollfd poll_fds_[kNumPollFd];
+
+  void ResetPollFds();
 };
 
 }  // namespace hal

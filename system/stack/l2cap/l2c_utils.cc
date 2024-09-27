@@ -50,6 +50,9 @@
 #include "stack/l2cap/l2c_int.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 tL2C_CCB* l2cu_get_next_channel_in_rr(tL2C_LCB* p_lcb);  // TODO Move

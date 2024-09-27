@@ -21,6 +21,7 @@
  ******************************************************************************/
 
 #include <base/functional/bind.h>
+#include <base/functional/callback.h>
 #include <bluetooth/log.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 #include <hardware/bt_sdp.h>
@@ -37,6 +38,9 @@
 #include "stack/include/sdpdefs.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;

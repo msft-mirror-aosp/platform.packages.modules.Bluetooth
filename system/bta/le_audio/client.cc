@@ -66,6 +66,9 @@
 #include "state_machine.h"
 #include "storage_helper.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using base::Closure;
 using bluetooth::Uuid;
 using bluetooth::common::ToString;
@@ -233,11 +236,11 @@ public:
     alarm_free(suspend_timeout_);
   }
 
-  LeAudioClientImpl(bluetooth::le_audio::LeAudioClientCallbacks* callbacks_,
-                    LeAudioGroupStateMachine::Callbacks* state_machine_callbacks_,
+  LeAudioClientImpl(bluetooth::le_audio::LeAudioClientCallbacks* callbacks,
+                    LeAudioGroupStateMachine::Callbacks* state_machine_callbacks,
                     base::Closure initCb)
       : gatt_if_(0),
-        callbacks_(callbacks_),
+        callbacks_(callbacks),
         active_group_id_(bluetooth::groups::kGroupUnknown),
         configuration_context_type_(LeAudioContextType::UNINITIALIZED),
         in_call_metadata_context_types_({.sink = AudioContexts(), .source = AudioContexts()}),
@@ -256,7 +259,7 @@ public:
         close_vbc_timeout_(alarm_new("LeAudioCloseVbcTimeout")),
         suspend_timeout_(alarm_new("LeAudioSuspendTimeout")),
         disable_timer_(alarm_new("LeAudioDisableTimer")) {
-    LeAudioGroupStateMachine::Initialize(state_machine_callbacks_);
+    LeAudioGroupStateMachine::Initialize(state_machine_callbacks);
     groupStateMachine_ = LeAudioGroupStateMachine::Get();
 
     log::info("Reconnection mode: TARGETED_ANNOUNCEMENTS");
@@ -1812,6 +1815,24 @@ public:
     }
   }
 
+  void handleInitialCtpCccRead(LeAudioDevice* leAudioDevice, uint16_t len, uint8_t* value) {
+    if (len != 2) {
+      log::error("Could not read CCC for {}, disconnecting", leAudioDevice->address_);
+      instance->Disconnect(leAudioDevice->address_);
+      return;
+    }
+
+    uint16_t val = *(uint16_t*)value;
+    if (val == 0) {
+      log::warn("{} forgot CCC values. Re-subscribing", leAudioDevice->address_);
+      RegisterKnownNotifications(leAudioDevice, false, true);
+      return;
+    }
+
+    log::verbose("{}, ASCS ctp ccc: {:#x}", leAudioDevice->address_, val);
+    connectionReady(leAudioDevice);
+  }
+
   /* This is a generic read/notify/indicate handler for gatt. Here messages
    * are dispatched to correct elements e.g. ASEs, PACs, audio locations etc.
    */
@@ -1826,11 +1847,15 @@ public:
     }
 
     ase = leAudioDevice->GetAseByValHandle(hdl);
-
     LeAudioDeviceGroup* group = aseGroups_.FindById(leAudioDevice->group_id_);
     if (ase) {
       groupStateMachine_->ProcessGattNotifEvent(value, len, ase, leAudioDevice, group);
+      return;
+    }
 
+    /* Initial CCC read to check if remote device properly keeps CCC values */
+    if (hdl == leAudioDevice->ctp_hdls_.ccc_hdl) {
+      handleInitialCtpCccRead(leAudioDevice, len, value);
       return;
     }
 
@@ -2218,6 +2243,32 @@ public:
     }
   }
 
+  void ReadMustHaveAttributesOnReconnect(LeAudioDevice* leAudioDevice) {
+    log::verbose("{}", leAudioDevice->address_);
+    /* Here we read
+     * 1) ASCS Control Point CCC descriptor in order to validate proper
+     *    behavior of remote device which should store CCC values for bonded device.
+     * 2) Available Context Types which normally should be notified by the server,
+     *    but since it is crucial for proper streaming experiance, and in the same time
+     *    it can change very often which, as we observed, might lead to not being sent by
+     *    remote devices
+     */
+    if (!com::android::bluetooth::flags::le_ase_read_multiple_variable()) {
+      BtaGattQueue::ReadCharacteristic(leAudioDevice->conn_id_,
+                                       leAudioDevice->audio_avail_hdls_.val_hdl,
+                                       OnGattReadRspStatic, NULL);
+      BtaGattQueue::ReadCharacteristic(leAudioDevice->conn_id_, leAudioDevice->ctp_hdls_.ccc_hdl,
+                                       OnGattReadRspStatic, NULL);
+    } else {
+      tBTA_GATTC_MULTI multi_read = {.num_attr = 2,
+                                     .handles = {leAudioDevice->audio_avail_hdls_.val_hdl,
+                                                 leAudioDevice->ctp_hdls_.ccc_hdl}};
+
+      BtaGattQueue::ReadMultiCharacteristic(leAudioDevice->conn_id_, multi_read,
+                                            OnGattReadMultiRspStatic, NULL);
+    }
+  }
+
   void OnEncryptionComplete(const RawAddress& address, tBTM_STATUS status) {
     log::info("{} status 0x{:02x}", address, status);
     LeAudioDevice* leAudioDevice = leAudioDevices_.FindByAddress(address);
@@ -2268,13 +2319,7 @@ public:
        * assume remote device keeps bonded CCC values.
        */
       RegisterKnownNotifications(leAudioDevice, true, false);
-
-      /* Make sure remote keeps CCC values as per specification.
-       * We read only ctp_ccc value. If that one is good, we assume
-       * remote keeps CCC values correctly.
-       */
-      BtaGattQueue::ReadCharacteristic(leAudioDevice->conn_id_, leAudioDevice->ctp_hdls_.ccc_hdl,
-                                       OnGattCtpCccReadRspStatic, NULL);
+      ReadMustHaveAttributesOnReconnect(leAudioDevice);
     }
 
     /* If we know services and read is not ongoing, this is reconnection and
@@ -2423,13 +2468,17 @@ public:
     leAudioDevice->encrypted_ = false;
     leAudioDevice->acl_phy_update_done_ = false;
 
+    auto connection_state = leAudioDevice->GetConnectionState();
+
+    leAudioDevice->SetConnectionState(DeviceConnectState::DISCONNECTED);
+
     groupStateMachine_->ProcessHciNotifAclDisconnected(group, leAudioDevice);
 
     bluetooth::le_audio::MetricsCollector::Get()->OnConnectionStateChanged(
             leAudioDevice->group_id_, address, ConnectionState::DISCONNECTED,
             bluetooth::le_audio::ConnectionStatus::SUCCESS);
 
-    if (leAudioDevice->GetConnectionState() == DeviceConnectState::REMOVING) {
+    if (connection_state == DeviceConnectState::REMOVING) {
       if (leAudioDevice->group_id_ != bluetooth::groups::kGroupUnknown) {
         auto group = aseGroups_.FindById(leAudioDevice->group_id_);
         group_remove_node(group, address, true);
@@ -2438,7 +2487,6 @@ public:
       return;
     }
 
-    auto connection_state = leAudioDevice->GetConnectionState();
     log::info("{}, autoconnect {}, reason 0x{:02x}, connection state {}", leAudioDevice->address_,
               leAudioDevice->autoconnect_flag_, reason,
               bluetooth::common::ToString(connection_state));
@@ -2453,8 +2501,6 @@ public:
       scheduleRecoveryReconnect(address);
       return;
     }
-
-    leAudioDevice->SetConnectionState(DeviceConnectState::DISCONNECTED);
 
     /* Attempt background re-connect if disconnect was not initiated locally
      * or if autoconnect is set and device got disconnected because of some
@@ -4958,42 +5004,6 @@ public:
       return GroupStream(group->group_id_, configuration_context_type_, remote_contexts);
     }
     return false;
-  }
-
-  static void OnGattCtpCccReadRspStatic(tCONN_ID conn_id, tGATT_STATUS status, uint16_t hdl,
-                                        uint16_t len, uint8_t* value, void* data) {
-    if (!instance) {
-      return;
-    }
-
-    log::debug("conn_id: 0x{:04x}, status: 0x{:02x}", conn_id, status);
-
-    LeAudioDevice* leAudioDevice = instance->leAudioDevices_.FindByConnId(conn_id);
-
-    if (!leAudioDevice) {
-      log::error("LeAudioDevice not found");
-      return;
-    }
-
-    if (status == GATT_DATABASE_OUT_OF_SYNC) {
-      log::info("Database out of sync for {}, re-discovering", leAudioDevice->address_);
-      instance->ClearDeviceInformationAndStartSearch(leAudioDevice);
-      return;
-    }
-
-    if (status != GATT_SUCCESS || len != 2) {
-      log::error("Could not read CCC for {}, disconnecting", leAudioDevice->address_);
-      instance->Disconnect(leAudioDevice->address_);
-      return;
-    }
-
-    uint16_t val = *(uint16_t*)value;
-    if (val == 0) {
-      log::info("{} forgot CCC values. Re-subscribing", leAudioDevice->address_);
-      instance->RegisterKnownNotifications(leAudioDevice, false, true);
-    } else {
-      instance->connectionReady(leAudioDevice);
-    }
   }
 
   static void OnGattReadRspStatic(tCONN_ID conn_id, tGATT_STATUS status, uint16_t hdl, uint16_t len,
