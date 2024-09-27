@@ -31,6 +31,9 @@
 #include "le_audio_utils.h"
 #include "stack/include/bt_types.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace bluetooth::le_audio {
 using types::acs_ac_record;
 using types::LeAudioContextType;

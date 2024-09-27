@@ -26,6 +26,9 @@
 #include "test/mock/mock_stack_btm_interface.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 static bluetooth::manager::MockBtmInterface* btm_interface = nullptr;

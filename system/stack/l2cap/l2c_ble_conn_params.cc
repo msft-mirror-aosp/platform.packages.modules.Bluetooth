@@ -43,6 +43,9 @@
 #include "stack/l2cap/l2c_int.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 void l2cble_start_conn_update(tL2C_LCB* p_lcb);

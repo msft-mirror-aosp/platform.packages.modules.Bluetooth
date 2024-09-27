@@ -66,6 +66,9 @@
 #include "state_machine.h"
 #include "storage_helper.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using base::Closure;
 using bluetooth::Uuid;
 using bluetooth::common::ToString;

@@ -31,6 +31,9 @@
 #include "hardware/bluetooth.h"
 #include "osi/include/wakelock.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using ::testing::_;
 using ::testing::Assign;
 using ::testing::AtLeast;

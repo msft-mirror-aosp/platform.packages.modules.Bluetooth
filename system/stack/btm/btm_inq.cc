@@ -85,6 +85,9 @@
     ((uint32_t)1 << (((uint32_t)(service)) % BTM_EIR_ARRAY_BITS))) >> \
    (((uint32_t)(service)) % BTM_EIR_ARRAY_BITS))
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace {
 constexpr char kBtmLogTag[] = "SCAN";
 

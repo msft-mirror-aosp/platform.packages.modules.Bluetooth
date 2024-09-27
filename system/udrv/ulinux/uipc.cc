@@ -48,6 +48,9 @@
 #include "osi/include/osi.h"
 #include "osi/include/socket_utils/sockets.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 /*****************************************************************************
