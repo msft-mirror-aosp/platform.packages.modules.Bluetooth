@@ -26,6 +26,9 @@
 #include "test/common/mock_functions.h"
 #include "types/bluetooth/uuid.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 tGATT_HDL_LIST_ELEM elem;  // gatt_add_an_item_to_list

@@ -42,6 +42,9 @@
 /* timeout (in milliseconds) for AT hold timer */
 #define BTA_HF_CLIENT_AT_HOLD_TIMEOUT 41
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 static constexpr char kPropertyEnhancedDrivingIndicatorEnabled[] =

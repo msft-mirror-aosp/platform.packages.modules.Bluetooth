@@ -15,6 +15,10 @@ cc_defaults {
         "latest_android_hardware_bluetooth_audio_ndk_static",
         "latest_android_media_audio_common_types_ndk_static",
     ],
+    cflags: [
+        // Fuzzers are hopeless..
+        "-Wno-missing-prototypes",
+    ],
     include_dirs: [
         "packages/modules/Bluetooth/system/",
         "packages/modules/Bluetooth/system/gd/",

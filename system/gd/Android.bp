@@ -287,6 +287,10 @@ cc_binary {
     defaults: [
         "gd_defaults",
     ],
+    cflags: [
+        // The generated gRPC code triggers these warnings.
+        "-Wno-missing-prototypes",
+    ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/include",

@@ -66,6 +66,7 @@ cc_defaults {
         "-Wall",
         "-Werror",
         "-Wextra",
+        "-Wmissing-prototypes",
         // Override global.go that demote the error to a warning
         "-Werror=format",
         "-Werror=reorder-init-list",
