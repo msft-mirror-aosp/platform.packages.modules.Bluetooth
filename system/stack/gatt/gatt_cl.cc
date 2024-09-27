@@ -51,6 +51,9 @@
 
 #define L2CAP_PKT_OVERHEAD 4
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 using bluetooth::Uuid;
 using bluetooth::eatt::EattChannel;

@@ -42,6 +42,9 @@
 #include "test/common/mock_functions.h"
 #include "types/bt_transport.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 bool gatt_profile_get_eatt_support(const RawAddress& addr) { return true; }
 void osi_property_set_bool(const char* key, bool value);
 

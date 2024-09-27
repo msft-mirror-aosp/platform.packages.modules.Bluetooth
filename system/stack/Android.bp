@@ -327,15 +327,12 @@ cc_library_static {
 cc_defaults {
     name: "btstack_fuzzer_default",
     host_supported: true,
-    cflags: [
-        "-Wall",
-        "-Werror",
-        "-Wextra",
-        // Mocked components have too many unused parameters
-        "-Wno-unused-parameter",
-    ],
     defaults: [
+        "bluetooth_cflags",
         "bluetooth_flatbuffer_bundler_defaults",
+    ],
+    cflags: [
+        "-Wno-unused-parameter",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",

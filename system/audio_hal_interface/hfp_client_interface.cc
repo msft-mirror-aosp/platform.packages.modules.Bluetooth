@@ -27,6 +27,9 @@
 #include "os/log.h"
 #include "osi/include/properties.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using ::bluetooth::audio::aidl::hfp::HfpDecodingTransport;
 using ::bluetooth::audio::aidl::hfp::HfpEncodingTransport;
 using AudioConfiguration = ::aidl::android::hardware::bluetooth::audio::AudioConfiguration;
@@ -145,6 +148,8 @@ void HfpClientInterface::Decode::StartSession() {
     log::error("cannot update audio config to HAL");
     return;
   }
+  auto instance = aidl::hfp::HfpEncodingTransport::instance_;
+  instance->ResetPendingCmd();
   get_decode_client_interface()->StartSession();
 }
 
@@ -187,8 +192,14 @@ size_t HfpClientInterface::Decode::Write(const uint8_t* p_buf, uint32_t len) {
     log::warn("Unsupported HIDL or AIDL version");
     return 0;
   }
-  log::info("decode");
-  return get_decode_client_interface()->WriteAudioData(p_buf, len);
+  log::verbose("decode");
+
+  auto instance = aidl::hfp::HfpDecodingTransport::instance_;
+  if (instance->IsStreamActive()) {
+    return get_decode_client_interface()->WriteAudioData(p_buf, len);
+  }
+
+  return len;
 }
 
 void HfpClientInterface::Decode::ConfirmStreamingRequest() {
@@ -348,8 +359,16 @@ size_t HfpClientInterface::Encode::Read(uint8_t* p_buf, uint32_t len) {
     log::warn("Unsupported HIDL or AIDL version");
     return 0;
   }
-  log::info("encode");
-  return get_encode_client_interface()->ReadAudioData(p_buf, len);
+  log::verbose("encode");
+
+  auto instance = aidl::hfp::HfpEncodingTransport::instance_;
+  if (instance->IsStreamActive()) {
+    return get_encode_client_interface()->ReadAudioData(p_buf, len);
+  }
+
+  memset(p_buf, 0x00, len);
+
+  return len;
 }
 
 void HfpClientInterface::Encode::ConfirmStreamingRequest() {
@@ -467,7 +486,11 @@ void HfpClientInterface::Offload::StartSession() {
     log::error("cannot update audio config to HAL");
     return;
   }
-  get_encode_client_interface()->StartSession();
+  if (get_encode_client_interface()->StartSession() == 0) {
+    log::info("session started");
+  } else {
+    log::warn("session not started");
+  }
 }
 
 void HfpClientInterface::Offload::StopSession() {
@@ -528,8 +551,8 @@ void HfpClientInterface::Offload::CancelStreamingRequest() {
       instance->ResetPendingCmd();
       return;
     case aidl::hfp::HFP_CTRL_CMD_NONE:
-      log::warn("no pending start stream request");
-      return;
+      log::info("no pending start stream request");
+      [[fallthrough]];
     case aidl::hfp::HFP_CTRL_CMD_SUSPEND:
       log::info("suspends");
       aidl::hfp::HfpEncodingTransport::offloading_hal_interface->StreamSuspended(

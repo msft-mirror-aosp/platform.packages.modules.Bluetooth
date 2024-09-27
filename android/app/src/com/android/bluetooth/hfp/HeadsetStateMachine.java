@@ -1795,11 +1795,12 @@ class HeadsetStateMachine extends StateMachine {
      *     BluetoothHeadset#STATE_AUDIO_CONNECTING}, or {@link
      *     BluetoothHeadset#STATE_AUDIO_CONNECTED}
      */
-    public synchronized int getAudioState() {
-        if (mCurrentState == null) {
+    public int getAudioState() {
+        HeadsetStateBase state = mCurrentState;
+        if (state == null) {
             return BluetoothHeadset.STATE_AUDIO_DISCONNECTED;
         }
-        return mCurrentState.getAudioStateInt();
+        return state.getAudioStateInt();
     }
 
     public long getConnectingTimestampMs() {
