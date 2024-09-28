@@ -110,6 +110,14 @@ void bta_dm_sec_enable(tBTA_DM_SEC_CBACK* p_sec_cback) {
   }
 }
 
+void bta_dm_on_encryption_change(bt_encryption_change_evt encryption_change) {
+  if (bta_dm_sec_cb.p_sec_cback) {
+    tBTA_DM_SEC sec_event;
+    sec_event.encryption_change = encryption_change;
+    bta_dm_sec_cb.p_sec_cback(BTA_DM_ENCRYPTION_CHANGE_EVT, &sec_event);
+  }
+}
+
 void bta_dm_remote_key_missing(const RawAddress bd_addr) {
   if (bta_dm_sec_cb.p_sec_cback) {
     tBTA_DM_SEC sec_event;
