@@ -100,6 +100,7 @@ static jmethodID method_acquireWakeLock;
 static jmethodID method_releaseWakeLock;
 static jmethodID method_energyInfo;
 static jmethodID method_keyMissingCallback;
+static jmethodID method_encryptionChangeCallback;
 
 static struct {
   jclass clazz;
@@ -776,6 +777,34 @@ static void key_missing_callback(const RawAddress bd_addr) {
   sCallbackEnv->CallVoidMethod(sJniCallbacksObj, method_keyMissingCallback, addr.get());
 }
 
+static void encryption_change_callback(const bt_encryption_change_evt encryption_change) {
+  std::shared_lock<std::shared_timed_mutex> lock(jniObjMutex);
+  if (!sJniCallbacksObj) {
+    log::error("JNI obj is null. Failed to call JNI callback");
+    return;
+  }
+
+  CallbackEnv sCallbackEnv(__func__);
+  if (!sCallbackEnv.valid()) {
+    return;
+  }
+
+  ScopedLocalRef<jbyteArray> addr(sCallbackEnv.get(),
+                                  sCallbackEnv->NewByteArray(sizeof(RawAddress)));
+  if (!addr.get()) {
+    log::error("Address allocation failed");
+    return;
+  }
+  sCallbackEnv->SetByteArrayRegion(
+          addr.get(), 0, sizeof(RawAddress),
+          reinterpret_cast<jbyte*>(const_cast<RawAddress*>(&encryption_change.bd_addr)));
+
+  sCallbackEnv->CallVoidMethod(sJniCallbacksObj, method_encryptionChangeCallback, addr.get(),
+                               encryption_change.status, encryption_change.encr_enable,
+                               encryption_change.transport, encryption_change.secure_connections,
+                               encryption_change.key_size);
+}
+
 static void callback_thread_event(bt_cb_thread_evt event) {
   if (event == ASSOCIATE_JVM) {
     JavaVMAttachArgs args;
@@ -864,6 +893,7 @@ static bt_callbacks_t sBluetoothCallbacks = {
         switch_codec_callback,
         le_rand_callback,
         key_missing_callback,
+        encryption_change_callback,
 };
 
 class JNIThreadAttacher {
@@ -2321,6 +2351,7 @@ int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
           {"releaseWakeLock", "(Ljava/lang/String;)Z", &method_releaseWakeLock},
           {"energyInfoCallback", "(IIJJJJ[Landroid/bluetooth/UidTraffic;)V", &method_energyInfo},
           {"keyMissingCallback", "([B)V", &method_keyMissingCallback},
+          {"encryptionChangeCallback", "([BIZIZI)V", &method_encryptionChangeCallback},
   };
   GET_JAVA_METHODS(env, "com/android/bluetooth/btservice/JniCallbacks", javaMethods);
 

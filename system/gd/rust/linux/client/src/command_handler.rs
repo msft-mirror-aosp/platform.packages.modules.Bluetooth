@@ -16,12 +16,14 @@ use bt_topshim::profiles::gatt::{GattStatus, LePhy};
 use bt_topshim::profiles::hid_host::BthhReportType;
 use bt_topshim::profiles::sdp::{BtSdpMpsRecord, BtSdpRecord};
 use bt_topshim::profiles::ProfileConnectionState;
+use bt_topshim::syslog::Level;
 use btstack::battery_manager::IBatteryManager;
 use btstack::bluetooth::{BluetoothDevice, IBluetooth};
 use btstack::bluetooth_gatt::{
     BluetoothGattCharacteristic, BluetoothGattDescriptor, BluetoothGattService, GattDbElementType,
     GattWriteType, IBluetoothGatt,
 };
+use btstack::bluetooth_logging::IBluetoothLogging;
 use btstack::bluetooth_media::{IBluetoothMedia, IBluetoothTelephony};
 use btstack::bluetooth_qa::IBluetoothQA;
 use btstack::socket_manager::{IBluetoothSocketManager, SocketResult};
@@ -395,6 +397,17 @@ fn build_commands() -> HashMap<String, CommandOption> {
             rules: vec![String::from("dumpsys")],
             description: String::from("Get diagnostic output."),
             function_pointer: CommandHandler::cmd_dumpsys,
+        },
+    );
+    command_options.insert(
+        String::from("log"),
+        CommandOption {
+            rules: vec![
+                String::from("log set-level <info|debug|verbose>"),
+                String::from("log get-level"),
+            ],
+            description: String::from("Get/set log level"),
+            function_pointer: CommandHandler::cmd_log,
         },
     );
     command_options
@@ -2355,6 +2368,40 @@ impl CommandHandler {
 
         let contents = self.lock_context().adapter_dbus.as_mut().unwrap().get_dumpsys();
         println!("{}", contents);
+
+        Ok(())
+    }
+
+    fn cmd_log(&mut self, args: &[String]) -> CommandResult {
+        if !self.lock_context().adapter_ready {
+            return Err(self.adapter_not_ready());
+        }
+
+        let command = get_arg(args, 0)?;
+
+        match &command[..] {
+            "set-level" => {
+                let level = match &get_arg(args, 1)?[..] {
+                    "info" => Level::Info,
+                    "debug" => Level::Debug,
+                    "verbose" => Level::Verbose,
+                    _ => {
+                        return Err("Failed to parse log level".into());
+                    }
+                };
+                self.lock_context().logging_dbus.as_mut().unwrap().set_log_level(level);
+            }
+
+            "get-level" => {
+                let level = self.lock_context().logging_dbus.as_ref().unwrap().get_log_level();
+
+                print_info!("log level: {:?}", level);
+            }
+
+            other => {
+                return Err(format!("Invalid argument '{}'", other).into());
+            }
+        }
 
         Ok(())
     }

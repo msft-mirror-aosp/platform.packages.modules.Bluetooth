@@ -64,13 +64,16 @@ public class ContextMap<C> {
     /** Application entry mapping UUIDs to appIDs and callbacks. */
     public class App {
         /** The UUID of the application */
-        public UUID uuid;
+        public final UUID uuid;
 
         /** The id of the application */
         public int id;
 
+        /** The uid of the application */
+        public final int appUid;
+
         /** The package name of the application */
-        public String name;
+        public final String name;
 
         /** Application callbacks */
         public C callback;
@@ -85,9 +88,10 @@ public class ContextMap<C> {
         private List<CallbackInfo> mCongestionQueue = new ArrayList<>();
 
         /** Creates a new app context. */
-        App(UUID uuid, C callback, String name) {
+        App(UUID uuid, C callback, int appUid, String name) {
             this.uuid = uuid;
             this.callback = callback;
+            this.appUid = appUid;
             this.name = name;
         }
 
@@ -150,7 +154,7 @@ public class ContextMap<C> {
             appName = "Unknown App (UID: " + appUid + ")";
         }
         synchronized (mAppsLock) {
-            App app = new App(uuid, callback, appName);
+            App app = new App(uuid, callback, appUid, appName);
             mApps.add(app);
             return app;
         }
@@ -332,6 +336,13 @@ public class ContextMap<C> {
             }
         }
         return currentConnections;
+    }
+
+    /** Counts the number of applications that have a given app UID. */
+    public int countByAppUid(int appUid) {
+        synchronized (mAppsLock) {
+            return (int) (mApps.stream().filter(app -> app.appUid == appUid).count());
+        }
     }
 
     /** Erases all application context entries. */

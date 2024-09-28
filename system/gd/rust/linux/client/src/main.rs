@@ -20,9 +20,9 @@ use crate::callbacks::{
 };
 use crate::command_handler::{CommandHandler, SocketSchedule};
 use crate::dbus_iface::{
-    BatteryManagerDBus, BluetoothAdminDBus, BluetoothDBus, BluetoothGattDBus, BluetoothManagerDBus,
-    BluetoothMediaDBus, BluetoothQADBus, BluetoothQALegacyDBus, BluetoothSocketManagerDBus,
-    BluetoothTelephonyDBus, SuspendDBus,
+    BatteryManagerDBus, BluetoothAdminDBus, BluetoothDBus, BluetoothGattDBus, BluetoothLoggingDBus,
+    BluetoothManagerDBus, BluetoothMediaDBus, BluetoothQADBus, BluetoothQALegacyDBus,
+    BluetoothSocketManagerDBus, BluetoothTelephonyDBus, SuspendDBus,
 };
 use crate::editor::AsyncEditor;
 use bt_topshim::{btif::RawAddress, topstack};
@@ -112,6 +112,9 @@ pub(crate) struct ClientContext {
 
     /// Proxy for battery manager interface.
     pub(crate) battery_manager_dbus: Option<BatteryManagerDBus>,
+
+    /// Proxy for logging interface.
+    pub(crate) logging_dbus: Option<BluetoothLoggingDBus>,
 
     /// Channel to send actions to take in the foreground
     fg: mpsc::Sender<ForegroundActions>,
@@ -205,6 +208,7 @@ impl ClientContext {
             telephony_dbus: None,
             media_dbus: None,
             battery_manager_dbus: None,
+            logging_dbus: None,
             fg: tx,
             dbus_connection,
             dbus_crossroads,
@@ -273,6 +277,8 @@ impl ClientContext {
         self.media_dbus = Some(BluetoothMediaDBus::new(conn.clone(), idx));
 
         self.battery_manager_dbus = Some(BatteryManagerDBus::new(conn.clone(), idx));
+
+        self.logging_dbus = Some(BluetoothLoggingDBus::new(conn.clone(), idx));
 
         // Trigger callback registration in the foreground
         let fg = self.fg.clone();

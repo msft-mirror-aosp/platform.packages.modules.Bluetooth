@@ -148,6 +148,8 @@ void HfpClientInterface::Decode::StartSession() {
     log::error("cannot update audio config to HAL");
     return;
   }
+  auto instance = aidl::hfp::HfpEncodingTransport::instance_;
+  instance->ResetPendingCmd();
   get_decode_client_interface()->StartSession();
 }
 
@@ -484,7 +486,11 @@ void HfpClientInterface::Offload::StartSession() {
     log::error("cannot update audio config to HAL");
     return;
   }
-  get_encode_client_interface()->StartSession();
+  if (get_encode_client_interface()->StartSession() == 0) {
+    log::info("session started");
+  } else {
+    log::warn("session not started");
+  }
 }
 
 void HfpClientInterface::Offload::StopSession() {
@@ -545,8 +551,8 @@ void HfpClientInterface::Offload::CancelStreamingRequest() {
       instance->ResetPendingCmd();
       return;
     case aidl::hfp::HFP_CTRL_CMD_NONE:
-      log::warn("no pending start stream request");
-      return;
+      log::info("no pending start stream request");
+      [[fallthrough]];
     case aidl::hfp::HFP_CTRL_CMD_SUSPEND:
       log::info("suspends");
       aidl::hfp::HfpEncodingTransport::offloading_hal_interface->StreamSuspended(

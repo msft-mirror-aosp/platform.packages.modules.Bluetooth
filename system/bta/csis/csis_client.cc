@@ -2327,7 +2327,9 @@ void CsisClient::Initialize(bluetooth::csis::CsisClientCallbacks* callbacks, Clo
 bool CsisClient::IsCsisClientRunning() { return instance; }
 
 CsisClient* CsisClient::Get(void) {
-  log::assert_that(instance != nullptr, "assert failed: instance != nullptr");
+  if (instance == nullptr) {
+    log::error("instance not available");
+  }
   return instance;
 }
 
