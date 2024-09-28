@@ -477,6 +477,15 @@ typedef enum {
   BT_SSP_VARIANT_PASSKEY_NOTIFICATION
 } bt_ssp_variant_t;
 
+typedef struct {
+  RawAddress bd_addr;
+  uint8_t status; /* bt_hci_error_code_t */
+  bool encr_enable;
+  uint8_t key_size;
+  tBT_TRANSPORT transport;
+  bool secure_connections;
+} bt_encryption_change_evt;
+
 #define BT_MAX_NUM_UUIDS 32
 
 /** Bluetooth Interface callbacks */
@@ -594,6 +603,8 @@ typedef void (*generate_local_oob_data_callback)(tBT_TRANSPORT transport, bt_oob
 
 typedef void (*key_missing_callback)(const RawAddress bd_addr);
 
+typedef void (*encryption_change_callback)(const bt_encryption_change_evt encryption_change);
+
 /** TODO: Add callbacks for Link Up/Down and other generic
  *  notifications/callbacks */
 
@@ -622,6 +633,7 @@ typedef struct {
   switch_codec_callback switch_codec_cb;
   le_rand_callback le_rand_cb;
   key_missing_callback key_missing_cb;
+  encryption_change_callback encryption_change_cb;
 } bt_callbacks_t;
 
 typedef int (*acquire_wake_lock_callout)(const char* lock_name);

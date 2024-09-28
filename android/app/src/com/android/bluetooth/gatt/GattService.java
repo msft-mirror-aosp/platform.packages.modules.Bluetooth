@@ -60,6 +60,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.PackageManager.PackageInfoFlags;
 import android.content.res.Resources;
+import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -141,6 +142,12 @@ public class GattService extends ProfileService {
                 "0201060303AAFE1116AAFE20000BF017000008874803FB93540916802069080EFE13551109426C7565436861726D5F313639363835000000000000000000",
                 "0201061AFF4C000215426C7565436861726D426561636F6E730EFE1355C509168020691E0EFE13551109426C7565436861726D5F31363936383500000000",
             };
+
+    private static final Integer GATT_MTU_MAX = 517;
+    private static final Map<String, Integer> EARLY_MTU_EXCHANGE_PACKAGES =
+            Map.of("com.teslamotors.tesla", GATT_MTU_MAX);
+
+    @VisibleForTesting static final int GATT_CLIENT_LIMIT_PER_APP = 32;
 
     public final TransitionalScanHelper mTransitionalScanHelper =
             new TransitionalScanHelper(this, this::isTestModeEnabled);
@@ -2083,6 +2090,16 @@ public class GattService extends ProfileService {
                 this, attributionSource, "GattService registerClient")) {
             return;
         }
+        if (Flags.gattClientDynamicAllocation()
+                && mClientMap.countByAppUid(Binder.getCallingUid()) >= GATT_CLIENT_LIMIT_PER_APP) {
+            Log.w(TAG, "registerClient() - failed due to too many clients");
+            try {
+                callback.onClientRegistered(BluetoothGatt.GATT_FAILURE, 0);
+            } catch (RemoteException e) {
+                // do nothing
+            }
+            return;
+        }
 
         Log.d(TAG, "registerClient() - UUID=" + uuid);
         mClientMap.add(uuid, callback, this);
@@ -2139,8 +2156,23 @@ public class GattService extends ProfileService {
                 clientIf,
                 BluetoothProtoEnums.CONNECTION_STATE_CONNECTING,
                 -1);
+
+        int preferredMtu = 0;
+
+        // Some applications expect MTU to be exchanged immediately on connections
+        String packageName = attributionSource.getPackageName();
+        if (packageName != null && EARLY_MTU_EXCHANGE_PACKAGES.containsKey(packageName)) {
+            preferredMtu = EARLY_MTU_EXCHANGE_PACKAGES.get(packageName);
+            Log.i(
+                    TAG,
+                    "Early MTU exchange preference ("
+                            + preferredMtu
+                            + ") requested for "
+                            + packageName);
+        }
+
         mNativeInterface.gattClientConnect(
-                clientIf, address, addressType, isDirect, transport, opportunistic, phy);
+                clientIf, address, addressType, isDirect, transport, opportunistic, phy, preferredMtu);
     }
 
     @RequiresPermission(BLUETOOTH_CONNECT)

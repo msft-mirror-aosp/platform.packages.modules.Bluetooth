@@ -53,7 +53,7 @@ typedef struct {
   union {
     uhid_event uhid;
   };
-} tBTA_HH_TO_UHID_EVT;
+} __attribute__((__packed__)) tBTA_HH_TO_UHID_EVT;
 
 /*******************************************************************************
  *

@@ -67,7 +67,7 @@ static const bthh_report_type_t map_rtype_uhid_hh[] = {BTHH_FEATURE_REPORT, BTHH
                                                        BTHH_INPUT_REPORT};
 
 static void* btif_hh_poll_event_thread(void* arg);
-static bool to_uhid_thread(int fd, const tBTA_HH_TO_UHID_EVT* ev);
+static bool to_uhid_thread(int fd, const tBTA_HH_TO_UHID_EVT* ev, size_t data_len);
 
 void uhid_set_non_blocking(int fd) {
   int opts = fcntl(fd, F_GETFL);
@@ -136,17 +136,51 @@ static bool uhid_set_report_req_handler(btif_hh_uhid_t* p_uhid, struct uhid_set_
 }
 #endif  // ENABLE_UHID_SET_REPORT
 
+/* Calculate the minimum length required to send message to UHID */
+static size_t uhid_calc_msg_len(const struct uhid_event* ev, size_t var_len) {
+  switch (ev->type) {
+    // these messages don't have data following them, so just 4 bytes of type.
+    case UHID_DESTROY:
+    case UHID_STOP:
+    case UHID_OPEN:
+    case UHID_CLOSE:
+      return sizeof(ev->type);
+    // these messages has static length of data.
+    case UHID_START:
+      return sizeof(ev->type) + sizeof(ev->u.start);
+    case UHID_OUTPUT:
+      return sizeof(ev->type) + sizeof(ev->u.output);
+    case UHID_GET_REPORT:
+      return sizeof(ev->type) + sizeof(ev->u.get_report);
+    case UHID_SET_REPORT_REPLY:
+      return sizeof(ev->type) + sizeof(ev->u.set_report_reply);
+    // these messages has variable amount of data. We only need to write the
+    // necessary length.
+    case UHID_CREATE2:
+      return sizeof(ev->type) + sizeof(ev->u.create2) - HID_MAX_DESCRIPTOR_SIZE + var_len;
+    case UHID_INPUT2:
+      return sizeof(ev->type) + sizeof(ev->u.input2) - UHID_DATA_MAX + var_len;
+    case UHID_GET_REPORT_REPLY:
+      return sizeof(ev->type) + sizeof(ev->u.get_report_reply) - UHID_DATA_MAX + var_len;
+    case UHID_SET_REPORT:
+      return sizeof(ev->type) + sizeof(ev->u.set_report) - UHID_DATA_MAX + var_len;
+    default:
+      log::error("unknown uhid event type {}", ev->type);
+      return 0;
+  }
+}
+
 /*Internal function to perform UHID write and error checking*/
-static int uhid_write(int fd, const struct uhid_event* ev) {
+static int uhid_write(int fd, const struct uhid_event* ev, size_t len) {
   ssize_t ret;
-  OSI_NO_INTR(ret = write(fd, ev, sizeof(*ev)));
+  OSI_NO_INTR(ret = write(fd, ev, len));
 
   if (ret < 0) {
     int rtn = -errno;
     log::error("Cannot write to uhid:{}", strerror(errno));
     return rtn;
-  } else if (ret != (ssize_t)sizeof(*ev)) {
-    log::error("Wrong size written to uhid: {} != {}", ret, sizeof(*ev));
+  } else if (ret != (ssize_t)len) {
+    log::error("Wrong size written to uhid: {} != {}", ret, len);
     return -EFAULT;
   }
 
@@ -160,7 +194,7 @@ static void uhid_flush_input_queue(btif_hh_uhid_t* p_uhid) {
     if (p_ev == nullptr) {
       break;
     }
-    uhid_write(p_uhid->fd, p_ev);
+    uhid_write(p_uhid->fd, p_ev, uhid_calc_msg_len(p_ev, p_ev->u.input2.size));
     osi_free(p_ev);
   }
 }
@@ -181,7 +215,7 @@ static void uhid_open_timeout(void* data) {
   // Notify the UHID thread that the timer has expired.
   log::verbose("UHID Open timeout evt");
   ev.type = BTA_HH_UHID_INBOUND_OPEN_TIMEOUT_EVT;
-  to_uhid_thread(send_fd, &ev);
+  to_uhid_thread(send_fd, &ev, 0);
 }
 
 static void uhid_on_open(btif_hh_uhid_t* p_uhid) {
@@ -202,13 +236,13 @@ static void uhid_on_open(btif_hh_uhid_t* p_uhid) {
                      INT_TO_PTR(p_uhid->internal_send_fd));
 }
 
-static void uhid_queue_input(btif_hh_uhid_t* p_uhid, struct uhid_event* ev) {
-  struct uhid_event* p_ev = (struct uhid_event*)osi_malloc(sizeof(*ev));
+static void uhid_queue_input(btif_hh_uhid_t* p_uhid, struct uhid_event* ev, size_t len) {
+  struct uhid_event* p_ev = (struct uhid_event*)osi_malloc(len);
   if (!p_ev) {
     log::error("allocate uhid_event failed");
     return;
   }
-  memcpy(p_ev, ev, sizeof(*p_ev));
+  memcpy(p_ev, ev, len);
 
   if (!fixed_queue_try_enqueue(p_uhid->input_queue, (void*)p_ev)) {
     osi_free(p_ev);
@@ -341,9 +375,9 @@ static int uhid_read_inbound_event(btif_hh_uhid_t* p_uhid) {
   switch (ev.type) {
     case BTA_HH_UHID_INBOUND_INPUT_EVT:
       if (p_uhid->ready_for_data) {
-        res = uhid_write(p_uhid->fd, &ev.uhid);
+        res = uhid_write(p_uhid->fd, &ev.uhid, ret - 1);
       } else {
-        uhid_queue_input(p_uhid, &ev.uhid);
+        uhid_queue_input(p_uhid, &ev.uhid, ret - 1);
       }
       break;
     case BTA_HH_UHID_INBOUND_OPEN_TIMEOUT_EVT:
@@ -353,7 +387,7 @@ static int uhid_read_inbound_event(btif_hh_uhid_t* p_uhid) {
       res = 1;  // any positive value indicates a normal close event
       break;
     case BTA_HH_UHID_INBOUND_DSCP_EVT:
-      res = uhid_write(p_uhid->fd, &ev.uhid);
+      res = uhid_write(p_uhid->fd, &ev.uhid, ret - 1);
       break;
     case BTA_HH_UHID_INBOUND_GET_REPORT_EVT:
       context = (uint32_t*)fixed_queue_try_dequeue(p_uhid->get_rpt_id_queue);
@@ -362,7 +396,7 @@ static int uhid_read_inbound_event(btif_hh_uhid_t* p_uhid) {
         break;
       }
       ev.uhid.u.get_report_reply.id = *context;
-      res = uhid_write(p_uhid->fd, &ev.uhid);
+      res = uhid_write(p_uhid->fd, &ev.uhid, ret - 1);
       osi_free(context);
       break;
 #if ENABLE_UHID_SET_REPORT
@@ -373,7 +407,7 @@ static int uhid_read_inbound_event(btif_hh_uhid_t* p_uhid) {
         break;
       }
       ev.uhid.u.set_report_reply.id = *context;
-      res = uhid_write(p_uhid->fd, &ev.uhid);
+      res = uhid_write(p_uhid->fd, &ev.uhid, ret - 1);
       osi_free(context);
       break;
 #endif  // ENABLE_UHID_SET_REPORT
@@ -413,7 +447,7 @@ static void uhid_fd_close(btif_hh_uhid_t* p_uhid) {
   if (p_uhid->fd >= 0) {
     struct uhid_event ev = {};
     ev.type = UHID_DESTROY;
-    uhid_write(p_uhid->fd, &ev);
+    uhid_write(p_uhid->fd, &ev, uhid_calc_msg_len(&ev, 0));
     log::debug("Closing fd={}, addr:{}", p_uhid->fd, p_uhid->link_spec);
     close(p_uhid->fd);
     p_uhid->fd = -1;
@@ -652,20 +686,21 @@ static void* btif_hh_poll_event_thread(void* arg) {
 }
 
 /* Pass messages to be handled by uhid_read_inbound_event in the UHID thread */
-static bool to_uhid_thread(int fd, const tBTA_HH_TO_UHID_EVT* ev) {
+static bool to_uhid_thread(int fd, const tBTA_HH_TO_UHID_EVT* ev, size_t data_len) {
   if (fd < 0) {
     log::error("Cannot write to uhid thread: invalid fd");
     return false;
   }
 
+  size_t len = data_len + sizeof(ev->type);
   ssize_t ret;
-  OSI_NO_INTR(ret = write(fd, ev, sizeof(*ev)));
+  OSI_NO_INTR(ret = write(fd, ev, len));
 
   if (ret < 0) {
     log::error("Cannot write to uhid thread: {}", strerror(errno));
     return false;
-  } else if (ret != (ssize_t)sizeof(*ev)) {
-    log::error("Wrong size written to uhid thread: {} != {}", ret, sizeof(*ev));
+  } else if (ret != (ssize_t)len) {
+    log::error("Wrong size written to uhid thread: {} != {}", ret, len);
     return false;
   }
 
@@ -685,12 +720,13 @@ int bta_hh_co_write(int fd, uint8_t* rpt, uint16_t len) {
   }
   memcpy(ev.u.input2.data, rpt, len);
 
+  size_t mlen = uhid_calc_msg_len(&ev, len);
   if (!com::android::bluetooth::flags::hid_report_queuing()) {
-    return uhid_write(fd, &ev);
+    return uhid_write(fd, &ev, mlen);
   }
 
   to_uhid.type = BTA_HH_UHID_INBOUND_INPUT_EVT;
-  return to_uhid_thread(fd, &to_uhid) ? 0 : -1;
+  return to_uhid_thread(fd, &to_uhid, mlen) ? 0 : -1;
 }
 
 /*******************************************************************************
@@ -814,7 +850,7 @@ void bta_hh_co_close(btif_hh_device_t* p_dev) {
   if (p_dev->internal_send_fd >= 0) {
     tBTA_HH_TO_UHID_EVT to_uhid = {};
     to_uhid.type = BTA_HH_UHID_INBOUND_CLOSE_EVT;
-    to_uhid_thread(p_dev->internal_send_fd, &to_uhid);
+    to_uhid_thread(p_dev->internal_send_fd, &to_uhid, 0);
     pthread_join(p_dev->hh_poll_thread_id, NULL);
     p_dev->hh_poll_thread_id = -1;
 
@@ -930,8 +966,9 @@ void bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name, uint
   ev.u.create2.version = version;
   ev.u.create2.country = ctry_code;
 
+  size_t mlen = uhid_calc_msg_len(&ev, dscp_len);
   if (!com::android::bluetooth::flags::hid_report_queuing()) {
-    result = uhid_write(p_dev->uhid.fd, &ev);
+    result = uhid_write(p_dev->uhid.fd, &ev, mlen);
 
     log::warn("wrote descriptor to fd = {}, dscp_len = {}, result = {}", p_dev->uhid.fd, dscp_len,
               result);
@@ -948,7 +985,7 @@ void bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name, uint
   }
 
   to_uhid.type = BTA_HH_UHID_INBOUND_DSCP_EVT;
-  if (!to_uhid_thread(p_dev->internal_send_fd, &to_uhid)) {
+  if (!to_uhid_thread(p_dev->internal_send_fd, &to_uhid, mlen)) {
     log::warn("Error: failed to send DSCP");
     if (p_dev->internal_send_fd >= 0) {
       // Detach the uhid thread. It will exit by itself upon receiving hangup.
@@ -988,7 +1025,7 @@ void bta_hh_co_set_rpt_rsp(uint8_t dev_handle, uint8_t status) {
     to_uhid.uhid.type = UHID_SET_REPORT_REPLY;
     to_uhid.uhid.u.set_report_reply.err = status;
 
-    to_uhid_thread(p_dev->internal_send_fd, &to_uhid);
+    to_uhid_thread(p_dev->internal_send_fd, &to_uhid, uhid_calc_msg_len(&to_uhid.uhid, 0));
     return;
   }
 
@@ -1021,7 +1058,7 @@ void bta_hh_co_set_rpt_rsp(uint8_t dev_handle, uint8_t status) {
                                   },
                   },
   };
-  uhid_write(p_dev->uhid.fd, &ev);
+  uhid_write(p_dev->uhid.fd, &ev, uhid_calc_msg_len(&ev, 0));
   osi_free(context);
 
 #else
@@ -1063,7 +1100,7 @@ void bta_hh_co_get_rpt_rsp(uint8_t dev_handle, uint8_t status, const uint8_t* p_
     to_uhid.uhid.u.get_report_reply.size = len;
     memcpy(to_uhid.uhid.u.get_report_reply.data, p_rpt, len);
 
-    to_uhid_thread(p_dev->internal_send_fd, &to_uhid);
+    to_uhid_thread(p_dev->internal_send_fd, &to_uhid, uhid_calc_msg_len(&to_uhid.uhid, len));
     return;
   }
 
@@ -1099,7 +1136,7 @@ void bta_hh_co_get_rpt_rsp(uint8_t dev_handle, uint8_t status, const uint8_t* p_
   };
   memcpy(ev.u.get_report_reply.data, p_rpt, len);
 
-  uhid_write(p_dev->uhid.fd, &ev);
+  uhid_write(p_dev->uhid.fd, &ev, uhid_calc_msg_len(&ev, len));
   osi_free(context);
 }
 

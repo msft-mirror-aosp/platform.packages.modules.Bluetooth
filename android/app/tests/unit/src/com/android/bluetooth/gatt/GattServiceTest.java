@@ -265,7 +265,7 @@ public class GattServiceTest {
 
         verify(mNativeInterface)
                 .gattClientConnect(
-                        clientIf, address, addressType, isDirect, transport, opportunistic, phy);
+                        clientIf, address, addressType, isDirect, transport, opportunistic, phy, 0);
     }
 
     @Test
@@ -364,6 +364,18 @@ public class GattServiceTest {
         verify(mNativeInterface)
                 .gattClientRegisterApp(
                         uuid.getLeastSignificantBits(), uuid.getMostSignificantBits(), eattSupport);
+    }
+
+    @Test
+    public void registerClient_checkLimitPerApp() {
+        mSetFlagsRule.enableFlags(Flags.FLAG_GATT_CLIENT_DYNAMIC_ALLOCATION);
+        doReturn(GattService.GATT_CLIENT_LIMIT_PER_APP).when(mClientMap).countByAppUid(anyInt());
+        UUID uuid = UUID.randomUUID();
+        IBluetoothGattCallback callback = mock(IBluetoothGattCallback.class);
+
+        mService.registerClient(uuid, callback, /* eattSupport= */ true, mAttributionSource);
+        verify(mClientMap, never()).add(any(), any(), any());
+        verify(mNativeInterface, never()).gattClientRegisterApp(anyLong(), anyLong(), anyBoolean());
     }
 
     @Test

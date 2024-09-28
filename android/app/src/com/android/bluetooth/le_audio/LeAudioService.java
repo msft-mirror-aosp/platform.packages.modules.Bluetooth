@@ -4671,9 +4671,12 @@ public class LeAudioService extends ProfileService {
                 return;
             }
             for (BluetoothDevice device : mDeviceDescriptors.keySet()) {
-                if (getConnectionPolicy(device) != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+                int connection_policy = getConnectionPolicy(device);
+                if (connection_policy != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
                     setAuthorizationForRelatedProfiles(device, true);
                 }
+                setEnabledState(
+                        device, connection_policy != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
             }
         } finally {
             mGroupReadLock.unlock();
