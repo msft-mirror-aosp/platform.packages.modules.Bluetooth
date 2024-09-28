@@ -72,8 +72,10 @@ import com.android.bluetooth.btservice.ServiceFactory;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.csip.CsipSetCoordinatorService;
 import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.gatt.GattService;
 import com.android.bluetooth.hap.HapClientService;
 import com.android.bluetooth.hfp.HeadsetService;
+import com.android.bluetooth.le_scan.TransitionalScanHelper;
 import com.android.bluetooth.mcp.McpService;
 import com.android.bluetooth.tbs.TbsService;
 import com.android.bluetooth.vc.VolumeControlService;
@@ -133,6 +135,8 @@ public class LeAudioServiceTest {
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private AdapterService mAdapterService;
+    @Mock private GattService mGattService;
+    @Mock private TransitionalScanHelper mTransitionalScanHelper;
     @Mock private ActiveDeviceManager mActiveDeviceManager;
     @Mock private AudioManager mAudioManager;
     @Mock private DatabaseManager mDatabaseManager;
@@ -220,6 +224,8 @@ public class LeAudioServiceTest {
         doAnswer(invocation -> mBondedDevices.toArray(new BluetoothDevice[] {}))
                 .when(mAdapterService)
                 .getBondedDevices();
+        doReturn(mGattService).when(mAdapterService).getBluetoothGattService();
+        doReturn(mTransitionalScanHelper).when(mGattService).getTransitionalScanHelper();
 
         LeAudioBroadcasterNativeInterface.setInstance(mLeAudioBroadcasterNativeInterface);
         LeAudioNativeInterface.setInstance(mNativeInterface);
@@ -384,6 +390,26 @@ public class LeAudioServiceTest {
     @Test
     public void testGetLeAudioService() {
         assertThat(mService).isEqualTo(LeAudioService.getLeAudioService());
+    }
+
+    /** Test enabling disabling device autoconnections when connection policy is set */
+    @Test
+    public void testEnableDisableProfile() {
+        // Make sure the device is known to the service and is not forbidden to connect
+        mService.createDeviceDescriptor(mSingleDevice, true);
+        when(mDatabaseManager.getProfileConnectionPolicy(mSingleDevice, BluetoothProfile.LE_AUDIO))
+                .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+
+        // Verify the device is enabled in the service when policy is not FORBIDDEN during BT Enable
+        mService.handleBluetoothEnabled();
+        verify(mNativeInterface).setEnableState(eq(mSingleDevice), eq(true));
+
+        // Verify the device is disabled in the service when policy is set to FORBIDDEN
+        when(mDatabaseManager.setProfileConnectionPolicy(
+                        eq(mSingleDevice), eq(BluetoothProfile.LE_AUDIO), anyInt()))
+                .thenReturn(true);
+        mService.setConnectionPolicy(mSingleDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+        verify(mNativeInterface).setEnableState(eq(mSingleDevice), eq(false));
     }
 
     /** Test stop LeAudio Service */

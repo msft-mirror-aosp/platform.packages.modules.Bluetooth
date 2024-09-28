@@ -73,6 +73,7 @@ struct bta_dm_pin_reply bta_dm_pin_reply;
 struct bta_dm_process_remove_device bta_dm_process_remove_device;
 struct bta_dm_remove_device bta_dm_remove_device;
 struct bta_dm_remote_key_missing bta_dm_remote_key_missing;
+struct bta_dm_on_encryption_change bta_dm_on_encryption_change;
 struct bta_dm_rm_cback bta_dm_rm_cback;
 struct bta_dm_set_dev_name bta_dm_set_dev_name;
 struct bta_dm_set_encryption bta_dm_set_encryption;
@@ -230,6 +231,10 @@ void bta_dm_remove_device(const RawAddress& bd_addr) {
 void bta_dm_remote_key_missing(const RawAddress bd_addr) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_act::bta_dm_remote_key_missing(bd_addr);
+}
+void bta_dm_on_encryption_change(bt_encryption_change_evt encryption_change) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_on_encryption_change(encryption_change);
 }
 void bta_dm_rm_cback(tBTA_SYS_CONN_STATUS status, uint8_t id, uint8_t app_id,
                      const RawAddress& peer_addr) {

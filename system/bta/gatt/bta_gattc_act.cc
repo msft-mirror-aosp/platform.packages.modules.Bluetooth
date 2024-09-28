@@ -311,6 +311,8 @@ void bta_gattc_deregister(tBTA_GATTC_RCB* p_clreg) {
       };
       bta_gattc_close(p_clcb.get(), &gattc_data);
     }
+    // deallocated clcbs will not be accessed. Let them be claened up.
+    bta_gattc_cleanup_clcb();
   } else {
     for (size_t i = 0; i < BTA_GATTC_CLCB_MAX; i++) {
       if (!bta_gattc_cb.clcb[i].in_use || (bta_gattc_cb.clcb[i].p_rcb != p_clreg)) {

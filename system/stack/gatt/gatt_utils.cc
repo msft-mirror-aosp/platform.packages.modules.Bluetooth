@@ -1848,9 +1848,8 @@ void gatt_end_operation(tGATT_CLCB* p_clcb, tGATT_STATUS status, void* p_data) {
   }
 }
 
-static void gatt_le_disconnect_complete_notify_user(const RawAddress& bda,
-                                                    tGATT_DISCONN_REASON reason,
-                                                    tBT_TRANSPORT transport) {
+static void gatt_disconnect_complete_notify_user(const RawAddress& bda, tGATT_DISCONN_REASON reason,
+                                                 tBT_TRANSPORT transport) {
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bda, transport);
 
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
@@ -1898,14 +1897,16 @@ void gatt_cleanup_upon_disc(const RawAddress& bda, tGATT_DISCONN_REASON reason,
               gatt_disconnection_reason_text(reason), bt_transport_text(transport));
 
     /* Notify about timeout on direct connect */
-    gatt_le_disconnect_complete_notify_user(bda, reason, transport);
+    gatt_disconnect_complete_notify_user(bda, reason, transport);
     return;
   }
 
   gatt_set_ch_state(p_tcb, GATT_CH_CLOSE);
 
-  /* Notify EATT about disconnection. */
-  EattExtension::GetInstance()->Disconnect(p_tcb->peer_bda);
+  if (transport == BT_TRANSPORT_LE) {
+    /* Notify EATT about disconnection. */
+    EattExtension::GetInstance()->Disconnect(p_tcb->peer_bda);
+  }
 
   for (auto clcb_it = gatt_cb.clcb_queue.begin(); clcb_it != gatt_cb.clcb_queue.end();) {
     if (clcb_it->p_tcb != p_tcb) {
@@ -1936,7 +1937,7 @@ void gatt_cleanup_upon_disc(const RawAddress& bda, tGATT_DISCONN_REASON reason,
   fixed_queue_free(p_tcb->sr_cmd.multi_rsp_q, NULL);
   p_tcb->sr_cmd.multi_rsp_q = NULL;
 
-  gatt_le_disconnect_complete_notify_user(bda, reason, transport);
+  gatt_disconnect_complete_notify_user(bda, reason, transport);
 
   *p_tcb = tGATT_TCB();
   log::verbose("exit");
