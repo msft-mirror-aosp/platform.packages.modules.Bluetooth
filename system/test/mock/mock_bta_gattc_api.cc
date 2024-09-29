@@ -102,14 +102,9 @@ void BTA_GATTC_Open(tGATT_IF /* client_if */, const RawAddress& /* remote_bda */
   inc_func_call_count(__func__);
 }
 void BTA_GATTC_Open(tGATT_IF /* client_if */, const RawAddress& /* remote_bda */,
-                    tBTM_BLE_CONN_TYPE /* connection_type */, tBT_TRANSPORT /* transport */,
-                    bool /* opportunistic */, uint8_t /* initiating_phys */) {
-  inc_func_call_count(__func__);
-}
-void BTA_GATTC_Open(tGATT_IF /* client_if */, const RawAddress& /* remote_bda */,
                     tBLE_ADDR_TYPE /* addr_type */, tBTM_BLE_CONN_TYPE /* connection_type */,
                     tBT_TRANSPORT /* transport */, bool /* opportunistic */,
-                    uint8_t /* initiating_phys */) {
+                    uint8_t /* initiating_phys */, uint16_t /* preferred_mtu */) {
   inc_func_call_count(__func__);
 }
 void BTA_GATTC_PrepareWrite(uint16_t /* conn_id */, uint16_t /* handle */, uint16_t /* offset */,
