@@ -53,6 +53,7 @@ static constexpr uint8_t kStateFlagIsConnecting = 0x01;
 static constexpr uint8_t kStateFlagIsConnected = 0x02;
 static constexpr uint8_t kStateFlagHasDataPathSet = 0x04;
 static constexpr uint8_t kStateFlagIsBroadcast = 0x10;
+static constexpr uint8_t kStateFlagIsCancelled = 0x20;
 
 constexpr char kBtmLogTag[] = "ISO";
 
@@ -282,8 +283,9 @@ struct iso_impl {
     for (auto& el : conn_params.conn_pairs) {
       auto cis = GetCisIfKnown(el.cis_conn_handle);
       log::assert_that(cis, "No such cis: {}", el.cis_conn_handle);
-      log::assert_that(!(cis->state_flags & (kStateFlagIsConnected | kStateFlagIsConnecting)),
-                       "cis: {} is already connected or connecting flags: {}, "
+      log::assert_that(!(cis->state_flags &
+                         (kStateFlagIsConnected | kStateFlagIsConnecting | kStateFlagIsCancelled)),
+                       "cis: {} is already connected/connecting/cancelled flags: {}, "
                        "num of cis params: {}",
                        el.cis_conn_handle, cis->state_flags, conn_params.conn_pairs.size());
 
@@ -307,6 +309,12 @@ struct iso_impl {
     log::assert_that(
             cis->state_flags & kStateFlagIsConnected || cis->state_flags & kStateFlagIsConnecting,
             "Not connected");
+
+    if (cis->state_flags & kStateFlagIsConnecting) {
+      cis->state_flags &= ~kStateFlagIsConnecting;
+      cis->state_flags |= kStateFlagIsCancelled;
+    }
+
     bluetooth::legacy::hci::GetInterface().Disconnect(cis_handle, static_cast<tHCI_STATUS>(reason));
 
     BTM_LogHistory(kBtmLogTag, cis_hdl_to_addr[cis_handle], "Disconnect CIS ",
@@ -603,7 +611,7 @@ struct iso_impl {
                                       hci_error_code_text((tHCI_REASON)(reason)).c_str()));
     cis_hdl_to_addr.erase(handle);
 
-    if (cis->state_flags & kStateFlagIsConnected) {
+    if (cis->state_flags & kStateFlagIsConnected || cis->state_flags & kStateFlagIsCancelled) {
       cis_disconnected_evt evt = {
               .reason = reason,
               .cig_id = cis->cig_id,
@@ -612,6 +620,7 @@ struct iso_impl {
 
       cig_callbacks_->OnCisEvent(kIsoEventCisDisconnected, &evt);
       cis->state_flags &= ~kStateFlagIsConnected;
+      cis->state_flags &= ~kStateFlagIsCancelled;
 
       /* return used credits */
       iso_credits_ += cis->used_credits;

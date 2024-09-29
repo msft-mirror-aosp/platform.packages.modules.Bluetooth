@@ -51,10 +51,7 @@ protected:
     ON_CALL(mock, Bind(Eq(fd), _, _)).WillByDefault(Return(0));
     ON_CALL(mock, Listen(Eq(fd), _)).WillByDefault(Return(0));
 
-    EXPECT_CALL(mock, FDZero);
     EXPECT_CALL(mock, Pipe2(_, _));
-    EXPECT_CALL(mock, FDSet(Eq(listen_fd), _));
-    EXPECT_CALL(mock, FDSet(Eq(fd), _));
     EXPECT_CALL(mock, Socket);
     EXPECT_CALL(mock, Setsockopt);
     EXPECT_CALL(mock, Bind);
@@ -64,11 +61,8 @@ protected:
 
     // will be called in destructor
     EXPECT_CALL(mock, Close(Eq(fd)));
-    EXPECT_CALL(mock, FDClr(Eq(fd), _));
     EXPECT_CALL(mock, Close(Eq(listen_fd)));
-    EXPECT_CALL(mock, FDClr(Eq(listen_fd), _));
     EXPECT_CALL(mock, Close(Eq(write_fd)));
-    EXPECT_CALL(mock, FDClr(Eq(write_fd), _));
   }
 
   void TearDown() override {}
@@ -104,8 +98,6 @@ TEST_F(SnoopLoggerSocketModuleTest, test_CreateSocket_fail_on_Setsockopt) {
   EXPECT_CALL(mock, Socket);
   EXPECT_CALL(mock, Setsockopt);
   EXPECT_CALL(mock, Close);
-  EXPECT_CALL(mock, FDClr(Eq(fd), _));
-  EXPECT_CALL(mock, FDSet(Eq(fd), _));
   EXPECT_CALL(mock, GetErrno);
   ASSERT_EQ(sls.CreateSocket(), INVALID_FD);
 }
@@ -119,8 +111,6 @@ TEST_F(SnoopLoggerSocketModuleTest, test_CreateSocket_fail_on_Bind) {
   EXPECT_CALL(mock, Setsockopt);
   EXPECT_CALL(mock, Bind);
   EXPECT_CALL(mock, Close);
-  EXPECT_CALL(mock, FDSet(Eq(fd), _));
-  EXPECT_CALL(mock, FDClr(Eq(fd), _));
   EXPECT_CALL(mock, GetErrno);
   ASSERT_EQ(sls.CreateSocket(), INVALID_FD);
 }
@@ -136,8 +126,6 @@ TEST_F(SnoopLoggerSocketModuleTest, test_CreateSocket_fail_on_Listen) {
   EXPECT_CALL(mock, Bind);
   EXPECT_CALL(mock, Listen);
   EXPECT_CALL(mock, Close);
-  EXPECT_CALL(mock, FDSet(Eq(fd), _));
-  EXPECT_CALL(mock, FDClr(Eq(fd), _));
   EXPECT_CALL(mock, GetErrno);
   ASSERT_EQ(sls.CreateSocket(), INVALID_FD);
 }
@@ -152,7 +140,6 @@ TEST_F(SnoopLoggerSocketModuleTest, test_CreateSocket_success) {
   EXPECT_CALL(mock, Setsockopt);
   EXPECT_CALL(mock, Bind);
   EXPECT_CALL(mock, Listen);
-  EXPECT_CALL(mock, FDSet(Eq(fd), _));
   ASSERT_EQ(sls.CreateSocket(), fd);
 }
 
@@ -170,7 +157,6 @@ TEST_F(SnoopLoggerSocketModuleTest, test_Write_fd_fail_on_Send_ECONNRESET) {
 
   EXPECT_CALL(mock, Send(Eq(fd), Eq(data), Eq(sizeof(data)), _));
   EXPECT_CALL(mock, Close(Eq(fd)));
-  EXPECT_CALL(mock, FDClr(Eq(fd), _));
   EXPECT_CALL(mock, GetErrno);
 
   sls.Write(fd, data, sizeof(data));
@@ -213,7 +199,6 @@ TEST_F(SnoopLoggerSocketModuleTest, test_Write_success) {
   sls.ClientSocketConnected(client_fd);
 
   sls.Write(data, sizeof(data));
-  EXPECT_CALL(mock, FDClr(Eq(client_fd), _));
 }
 
 TEST_F(SnoopLoggerSocketModuleTest, test_Write_fd_fail_on_Send_EINTR) {
@@ -242,8 +227,6 @@ TEST_F(SnoopLoggerSocketModuleTest, test_ClientSocketConnected) {
 
   EXPECT_CALL(mock, Close(Eq(fd))).Times(1);
   EXPECT_CALL(mock, Close(Eq(fd + 1))).Times(1);
-  EXPECT_CALL(mock, FDClr(Eq(fd), _));
-  EXPECT_CALL(mock, FDClr(Eq(fd + 1), _));
 
   sls.ClientSocketConnected(fd);
 
@@ -264,7 +247,6 @@ TEST_F(SnoopLoggerSocketModuleTest, test_WaitForClientSocketConnected) {
   ASSERT_TRUE(sls.WaitForClientSocketConnected());
 
   EXPECT_CALL(mock, Close(Eq(fd)));
-  EXPECT_CALL(mock, FDClr(Eq(fd), _));
 }
 
 TEST_F(SnoopLoggerSocketModuleTest, test_InitializeClientSocket) {
@@ -347,7 +329,6 @@ TEST_F(SnoopLoggerSocketModuleTest, test_InitializeCommunications_fail_on_Pipe2)
   int ret = -9;
 
   ON_CALL(mock, Pipe2(_, _)).WillByDefault(Invoke([ret](int* /* fds */, int) { return ret; }));
-  EXPECT_CALL(mock, FDZero);
   EXPECT_CALL(mock, Pipe2(_, _));
 
   ASSERT_EQ(sls.InitializeCommunications(), ret);
@@ -363,16 +344,12 @@ TEST_F(SnoopLoggerSocketModuleTest, test_InitializeCommunications_fail_on_Create
     return 0;
   }));
 
-  EXPECT_CALL(mock, FDZero);
   EXPECT_CALL(mock, Pipe2(_, _));
-  EXPECT_CALL(mock, FDSet(listen_fd, _));
   EXPECT_CALL(mock, Socket);
   EXPECT_CALL(mock, GetErrno);
 
   EXPECT_CALL(mock, Close(Eq(listen_fd)));
-  EXPECT_CALL(mock, FDClr(Eq(listen_fd), _));
   EXPECT_CALL(mock, Close(Eq(write_fd)));
-  EXPECT_CALL(mock, FDClr(Eq(write_fd), _));
 
   ASSERT_EQ(sls.InitializeCommunications(), -1);
 }
@@ -381,54 +358,49 @@ TEST_F(SnoopLoggerSocketModuleTest, test_InitializeCommunications_success) {
   ASSERT_NO_FATAL_FAILURE(InitializeCommunicationsSuccess(sls, mock));
 }
 
-TEST_F(SnoopLoggerSocketModuleTest, test_ProcessIncomingRequest_fail_on_Select_EINTR) {
-  ON_CALL(mock, Select).WillByDefault(Return(-1));
+TEST_F(SnoopLoggerSocketModuleTest, test_ProcessIncomingRequest_fail_on_Poll_EINTR) {
+  ON_CALL(mock, Poll).WillByDefault(Return(-1));
   ON_CALL(mock, GetErrno()).WillByDefault(Return(EINTR));
 
-  EXPECT_CALL(mock, Select);
+  EXPECT_CALL(mock, Poll);
   EXPECT_CALL(mock, GetErrno).Times(2);
   ASSERT_TRUE(sls.ProcessIncomingRequest());
 }
 
-TEST_F(SnoopLoggerSocketModuleTest, test_ProcessIncomingRequest_fail_on_Select_EINVAL) {
-  ON_CALL(mock, Select).WillByDefault(Return(-1));
+TEST_F(SnoopLoggerSocketModuleTest, test_ProcessIncomingRequest_fail_on_Poll_EINVAL) {
+  ON_CALL(mock, Poll).WillByDefault(Return(-1));
   ON_CALL(mock, GetErrno()).WillByDefault(Return(EINVAL));
 
-  EXPECT_CALL(mock, Select);
+  EXPECT_CALL(mock, Poll);
   EXPECT_CALL(mock, GetErrno).Times(2);
   ASSERT_FALSE(sls.ProcessIncomingRequest());
 }
 
-TEST_F(SnoopLoggerSocketModuleTest, test_ProcessIncomingRequest_no_fds) {
-  ON_CALL(mock, Select).WillByDefault(Return(0));
-
-  EXPECT_CALL(mock, Select);
-  ASSERT_TRUE(sls.ProcessIncomingRequest());
-}
-
-TEST_F(SnoopLoggerSocketModuleTest, test_ProcessIncomingRequest_FDIsSet_false) {
+TEST_F(SnoopLoggerSocketModuleTest, test_ProcessIncomingRequest_spurious) {
   ASSERT_NO_FATAL_FAILURE(InitializeCommunicationsSuccess(sls, mock));
 
-  ON_CALL(mock, Select).WillByDefault(Return(0));
-  ON_CALL(mock, FDIsSet(fd, _)).WillByDefault(Return(false));
-  ON_CALL(mock, FDIsSet(listen_fd, _)).WillByDefault(Return(false));
+  ON_CALL(mock, Poll)
+          .WillByDefault(Invoke([](struct pollfd* fds, nfds_t /*nfds*/, int /*timeout*/) {
+            fds[0].revents = 0;
+            fds[1].revents = 0;
+            return 0;
+          }));
 
-  EXPECT_CALL(mock, Select);
-  EXPECT_CALL(mock, FDIsSet(Eq(fd), _));
-  EXPECT_CALL(mock, FDIsSet(Eq(listen_fd), _));
+  EXPECT_CALL(mock, Poll);
   ASSERT_TRUE(sls.ProcessIncomingRequest());
 }
 
 TEST_F(SnoopLoggerSocketModuleTest, test_ProcessIncomingRequest_signal_close) {
   ASSERT_NO_FATAL_FAILURE(InitializeCommunicationsSuccess(sls, mock));
 
-  ON_CALL(mock, Select).WillByDefault(Return(0));
-  ON_CALL(mock, FDIsSet(fd, _)).WillByDefault(Return(false));
-  ON_CALL(mock, FDIsSet(listen_fd, _)).WillByDefault(Return(true));
+  ON_CALL(mock, Poll)
+          .WillByDefault(Invoke([](struct pollfd* fds, nfds_t /*nfds*/, int /*timeout*/) {
+            fds[0].revents = POLLIN;
+            fds[1].revents = 0;
+            return 0;
+          }));
 
-  EXPECT_CALL(mock, Select);
-  EXPECT_CALL(mock, FDIsSet(Eq(fd), _));
-  EXPECT_CALL(mock, FDIsSet(Eq(listen_fd), _));
+  EXPECT_CALL(mock, Poll);
   ASSERT_FALSE(sls.ProcessIncomingRequest());
 }
 
@@ -436,15 +408,17 @@ TEST_F(SnoopLoggerSocketModuleTest,
        test_ProcessIncomingRequest_signal_incoming_connection_fail_on_accept_exit) {
   ASSERT_NO_FATAL_FAILURE(InitializeCommunicationsSuccess(sls, mock));
 
-  ON_CALL(mock, Select).WillByDefault(Return(0));
-  ON_CALL(mock, FDIsSet(fd, _)).WillByDefault(Return(true));
-  ON_CALL(mock, FDIsSet(listen_fd, _)).WillByDefault(Return(false));
+  ON_CALL(mock, Poll)
+          .WillByDefault(Invoke([](struct pollfd* fds, nfds_t /*nfds*/, int /*timeout*/) {
+            fds[0].revents = 0;
+            fds[1].revents = POLLIN;
+            return 0;
+          }));
 
   ON_CALL(mock, Accept(fd, _, _, _)).WillByDefault(Return(INVALID_FD));
   ON_CALL(mock, GetErrno()).WillByDefault(Return(EINVAL));
 
-  EXPECT_CALL(mock, Select);
-  EXPECT_CALL(mock, FDIsSet(Eq(fd), _));
+  EXPECT_CALL(mock, Poll);
   EXPECT_CALL(mock, Accept(Eq(fd), _, _, _));
   EXPECT_CALL(mock, GetErrno);
   ASSERT_FALSE(sls.ProcessIncomingRequest());
@@ -454,15 +428,17 @@ TEST_F(SnoopLoggerSocketModuleTest,
        test_ProcessIncomingRequest_signal_incoming_connection_fail_on_accept_continue) {
   ASSERT_NO_FATAL_FAILURE(InitializeCommunicationsSuccess(sls, mock));
 
-  ON_CALL(mock, Select).WillByDefault(Return(0));
-  ON_CALL(mock, FDIsSet(fd, _)).WillByDefault(Return(true));
-  ON_CALL(mock, FDIsSet(listen_fd, _)).WillByDefault(Return(false));
+  ON_CALL(mock, Poll)
+          .WillByDefault(Invoke([](struct pollfd* fds, nfds_t /*nfds*/, int /*timeout*/) {
+            fds[0].revents = 0;
+            fds[1].revents = POLLIN;
+            return 0;
+          }));
 
   ON_CALL(mock, Accept(fd, _, _, _)).WillByDefault(Return(INVALID_FD));
   ON_CALL(mock, GetErrno()).WillByDefault(Return(ENOMEM));
 
-  EXPECT_CALL(mock, Select);
-  EXPECT_CALL(mock, FDIsSet(Eq(fd), _));
+  EXPECT_CALL(mock, Poll);
   EXPECT_CALL(mock, Accept(Eq(fd), _, _, _));
   EXPECT_CALL(mock, GetErrno);
   ASSERT_TRUE(sls.ProcessIncomingRequest());
@@ -474,22 +450,23 @@ TEST_F(SnoopLoggerSocketModuleTest,
 
   int client_fd = 23;
 
-  ON_CALL(mock, Select).WillByDefault(Return(0));
-  ON_CALL(mock, FDIsSet(fd, _)).WillByDefault(Return(true));
-  ON_CALL(mock, FDIsSet(listen_fd, _)).WillByDefault(Return(false));
+  ON_CALL(mock, Poll)
+          .WillByDefault(Invoke([](struct pollfd* fds, nfds_t /*nfds*/, int /*timeout*/) {
+            fds[0].revents = 0;
+            fds[1].revents = POLLIN;
+            return 0;
+          }));
 
   ON_CALL(mock, Accept(fd, _, _, _)).WillByDefault(Return(client_fd));
   ON_CALL(mock, GetErrno()).WillByDefault(Return(0));
 
   EXPECT_CALL(mock, Send(client_fd, _, _, _)).Times(1);
 
-  EXPECT_CALL(mock, Select);
-  EXPECT_CALL(mock, FDIsSet(Eq(fd), _));
+  EXPECT_CALL(mock, Poll);
   EXPECT_CALL(mock, Accept(Eq(fd), _, _, _));
   ASSERT_TRUE(sls.ProcessIncomingRequest());
 
   EXPECT_CALL(mock, Close(Eq(client_fd)));
-  EXPECT_CALL(mock, FDClr(Eq(client_fd), _));
 }
 
 TEST_F(SnoopLoggerSocketModuleTest, test_NotifySocketListener_no_fd) {

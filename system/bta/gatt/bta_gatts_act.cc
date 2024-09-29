@@ -38,6 +38,9 @@
 #include "stack/include/gatt_api.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 static void bta_gatts_nv_save_cback(bool is_saved, tGATTS_HNDL_RANGE* p_hndl_range);
@@ -416,7 +419,7 @@ void bta_gatts_open(tBTA_GATTS_CB* /* p_cb */, tBTA_GATTS_DATA* p_msg) {
     if (com::android::bluetooth::flags::ble_gatt_server_use_address_type_in_connection()) {
       success = GATT_Connect(p_rcb->gatt_if, p_msg->api_open.remote_bda,
                              p_msg->api_open.remote_addr_type, p_msg->api_open.connection_type,
-                             p_msg->api_open.transport, false);
+                             p_msg->api_open.transport, false, LE_PHY_1M, 0);
     } else {
       success = GATT_Connect(p_rcb->gatt_if, p_msg->api_open.remote_bda,
                              p_msg->api_open.connection_type, p_msg->api_open.transport, false);

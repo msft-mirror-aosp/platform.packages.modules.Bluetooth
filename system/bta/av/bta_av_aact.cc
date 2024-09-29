@@ -61,6 +61,9 @@
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 namespace {
@@ -1766,9 +1769,11 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     err_code = AVDT_ERR_UNSUP_CFG;
   }
 
-  // The error code must be set by the caller, otherwise
-  // AVDT_ConfigRsp will interpret the event as RSP instead of REJ.
-  log::assert_that(err_code != 0, "err_code != 0");
+  // The error code might not be set when the configuration is rejected
+  // based on the current AVDTP state.
+  if (err_code == AVDT_SUCCESS) {
+    err_code = AVDT_ERR_UNSUP_CFG;
+  }
 
   AVDT_ConfigRsp(avdt_handle, p_scb->avdt_label, err_code, 0);
 

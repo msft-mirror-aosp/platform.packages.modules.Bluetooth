@@ -18,6 +18,9 @@
 
 #include <gtest/gtest.h>
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::le_audio::LeAudioDevice;
 
 namespace bluetooth::le_audio {

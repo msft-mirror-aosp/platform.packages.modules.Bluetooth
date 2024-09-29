@@ -249,9 +249,6 @@ public class TbsGatt {
                         AdapterService.getAdapterService(),
                         "AdapterService shouldn't be null when creating TbsGatt");
 
-        mAdapterService.registerBluetoothStateCallback(
-                mContext.getMainExecutor(), mBluetoothStateChangeCallback);
-
         mBearerProviderNameCharacteristic =
                 new GattCharacteristic(
                         UUID_BEARER_PROVIDER_NAME,
@@ -377,9 +374,15 @@ public class TbsGatt {
         mEventLogger =
                 new BluetoothEventLogger(
                         LOG_NB_EVENTS, TAG + " instance (CCID= " + ccid + ") event log");
-        mEventLogger.add("Initializing");
+        if (!mBluetoothGattServer.addService(gattService)) {
+            mEventLogger.add("Initialization failed");
+            return false;
+        }
 
-        return mBluetoothGattServer.addService(gattService);
+        mEventLogger.add("Initialized");
+        mAdapterService.registerBluetoothStateCallback(
+                mContext.getMainExecutor(), mBluetoothStateChangeCallback);
+        return true;
     }
 
     public void cleanup() {

@@ -66,6 +66,9 @@
 #include "state_machine.h"
 #include "storage_helper.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using base::Closure;
 using bluetooth::Uuid;
 using bluetooth::common::ToString;
@@ -233,11 +236,11 @@ public:
     alarm_free(suspend_timeout_);
   }
 
-  LeAudioClientImpl(bluetooth::le_audio::LeAudioClientCallbacks* callbacks_,
-                    LeAudioGroupStateMachine::Callbacks* state_machine_callbacks_,
+  LeAudioClientImpl(bluetooth::le_audio::LeAudioClientCallbacks* callbacks,
+                    LeAudioGroupStateMachine::Callbacks* state_machine_callbacks,
                     base::Closure initCb)
       : gatt_if_(0),
-        callbacks_(callbacks_),
+        callbacks_(callbacks),
         active_group_id_(bluetooth::groups::kGroupUnknown),
         configuration_context_type_(LeAudioContextType::UNINITIALIZED),
         in_call_metadata_context_types_({.sink = AudioContexts(), .source = AudioContexts()}),
@@ -256,7 +259,7 @@ public:
         close_vbc_timeout_(alarm_new("LeAudioCloseVbcTimeout")),
         suspend_timeout_(alarm_new("LeAudioSuspendTimeout")),
         disable_timer_(alarm_new("LeAudioDisableTimer")) {
-    LeAudioGroupStateMachine::Initialize(state_machine_callbacks_);
+    LeAudioGroupStateMachine::Initialize(state_machine_callbacks);
     groupStateMachine_ = LeAudioGroupStateMachine::Get();
 
     log::info("Reconnection mode: TARGETED_ANNOUNCEMENTS");
@@ -1299,6 +1302,35 @@ public:
     active_group_id_ = bluetooth::groups::kGroupUnknown;
   }
 
+  void PrepareStreamForAConversational(LeAudioDeviceGroup* group) {
+    if (!com::android::bluetooth::flags::leaudio_improve_switch_during_phone_call()) {
+      log::info("Flag leaudio_improve_switch_during_phone_call is not enabled");
+      return;
+    }
+
+    log::debug("group_id: {}", group->group_id_);
+
+    auto remote_direction = bluetooth::le_audio::types::kLeAudioDirectionSink;
+    ReconfigureOrUpdateRemote(group, remote_direction);
+
+    if (configuration_context_type_ != LeAudioContextType::CONVERSATIONAL) {
+      log::error("Something went wrong {} != {} ", ToString(configuration_context_type_),
+                 ToString(LeAudioContextType::CONVERSATIONAL));
+      return;
+    }
+
+    BidirectionalPair<std::vector<uint8_t>> ccids = {
+            .sink = ContentControlIdKeeper::GetInstance()->GetAllCcids(
+                    local_metadata_context_types_.sink),
+            .source = ContentControlIdKeeper::GetInstance()->GetAllCcids(
+                    local_metadata_context_types_.source)};
+    if (!groupStateMachine_->ConfigureStream(group, configuration_context_type_,
+                                             local_metadata_context_types_, ccids, true)) {
+      log::info("Reconfiguration is needed for group {}", group->group_id_);
+      initReconfiguration(group, LeAudioContextType::UNSPECIFIED);
+    }
+  }
+
   void GroupSetActive(const int group_id) override {
     log::info("group_id: {}", group_id);
 
@@ -1414,6 +1446,13 @@ public:
     } else {
       callbacks_->OnGroupStatus(active_group_id_, GroupStatus::ACTIVE);
       SendAudioGroupSelectableCodecConfigChanged(group);
+    }
+
+    /* If group become active while phone call, let's configure it right away,
+     * so when audio framework resumes the stream, it will be almost there.
+     */
+    if (IsInCall()) {
+      PrepareStreamForAConversational(group);
     }
   }
 
@@ -4570,8 +4609,6 @@ public:
     /* Set the remote sink metadata context from the playback tracks metadata */
     local_metadata_context_types_.source = GetAudioContextsFromSourceMetadata(source_metadata);
 
-    local_metadata_context_types_.sink =
-            ChooseMetadataContextType(local_metadata_context_types_.sink);
     local_metadata_context_types_.source =
             ChooseMetadataContextType(local_metadata_context_types_.source);
 

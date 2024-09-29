@@ -52,6 +52,9 @@
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::eatt::EattExtension;
 using namespace bluetooth;
 
@@ -594,6 +597,15 @@ static void gatt_le_connect_cback(uint16_t /* chan */, const RawAddress& bd_addr
   if (stack_config_get_interface()->get_pts_connect_eatt_before_encryption()) {
     log::info("Start EATT before encryption");
     EattExtension::GetInstance()->Connect(bd_addr);
+  }
+
+  /* TODO: This preference should be used to exchange MTU with the peer device before the apps are
+   * notified of the connection. */
+  uint16_t app_mtu_pref = gatt_get_apps_preferred_mtu(bd_addr);
+  gatt_remove_apps_mtu_prefs(bd_addr);
+  p_tcb->app_mtu_pref = app_mtu_pref;
+  if (app_mtu_pref > GATT_DEF_BLE_MTU_SIZE) {
+    log::verbose("Combined app MTU prefs for {}: {}", bd_addr, app_mtu_pref);
   }
 }
 

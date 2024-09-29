@@ -110,6 +110,7 @@ typedef struct {
   uint8_t initiating_phys;
   bool opportunistic;
   tBT_DEVICE_TYPE remote_addr_type;
+  uint16_t preferred_mtu;
 } tBTA_GATTC_API_OPEN;
 
 typedef struct {
@@ -349,6 +350,9 @@ typedef struct {
 
   tBTA_GATTC_CLCB clcb[BTA_GATTC_CLCB_MAX];
   std::unordered_set<std::unique_ptr<tBTA_GATTC_CLCB>> clcb_set;
+  // A set of clcbs that are pending to be deallocated. see bta_gattc_clcb_dealloc
+  std::unordered_set<tBTA_GATTC_CLCB*> clcb_pending_dealloc;
+
   tBTA_GATTC_SERV known_server[BTA_GATTC_KNOWN_SR_MAX];
 } tBTA_GATTC_CB;
 
@@ -420,6 +424,7 @@ tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_conn_id(tCONN_ID conn_id);
 tBTA_GATTC_CLCB* bta_gattc_clcb_alloc(tGATT_IF client_if, const RawAddress& remote_bda,
                                       tBT_TRANSPORT transport);
 void bta_gattc_clcb_dealloc(tBTA_GATTC_CLCB* p_clcb);
+void bta_gattc_cleanup_clcb();
 void bta_gattc_server_disconnected(tBTA_GATTC_SERV* p_srcb);
 tBTA_GATTC_CLCB* bta_gattc_find_alloc_clcb(tGATT_IF client_if, const RawAddress& remote_bda,
                                            tBT_TRANSPORT transport);

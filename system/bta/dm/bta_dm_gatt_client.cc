@@ -31,6 +31,9 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace {
 TimestampedStringCircularBuffer gatt_history_{50};
 constexpr char kTimeFormatString[] = "%Y-%m-%d %H:%M:%S";
@@ -95,12 +98,13 @@ gatt_interface_t default_gatt_interface = {
                 },
         .BTA_GATTC_Open =
                 [](tGATT_IF client_if, const RawAddress& remote_bda,
-                   tBTM_BLE_CONN_TYPE connection_type, bool opportunistic) {
+                   tBTM_BLE_CONN_TYPE connection_type, bool opportunistic, uint16_t preferred_mtu) {
                   gatt_history_.Push(base::StringPrintf(
                           "%-32s bd_addr:%s client_if:%hu type:0x%x opportunistic:%c", "GATTC_Open",
                           ADDRESS_TO_LOGGABLE_CSTR(remote_bda), client_if, connection_type,
                           (opportunistic) ? 'T' : 'F'));
-                  BTA_GATTC_Open(client_if, remote_bda, connection_type, opportunistic);
+                  BTA_GATTC_Open(client_if, remote_bda, BLE_ADDR_PUBLIC, connection_type,
+                                 BT_TRANSPORT_LE, opportunistic, LE_PHY_1M, preferred_mtu);
                 },
 };
 
