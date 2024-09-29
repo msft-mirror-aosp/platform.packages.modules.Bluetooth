@@ -61,6 +61,9 @@
 #define PBAP_1_2 0x0102
 #define PBAP_1_2_BL_LEN 14
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 /* Used to set PBAP local SDP device record for PBAP 1.2 upgrade */

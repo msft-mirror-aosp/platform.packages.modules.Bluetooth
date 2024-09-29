@@ -33,6 +33,9 @@
 #include "test/headless/messenger.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 //
 // Aggregate disparate variables from callback API into unified single structure
 //

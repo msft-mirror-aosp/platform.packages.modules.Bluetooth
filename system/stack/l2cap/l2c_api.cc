@@ -49,6 +49,9 @@
 #include "stack/l2cap/l2c_int.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 extern fixed_queue_t* btu_general_alarm_queue;

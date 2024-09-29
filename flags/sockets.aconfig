@@ -26,3 +26,12 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "bt_offload_socket_api"
+    namespace: "bluetooth"
+    description: "New socket API to create offload socket"
+    bug: "367419086"
+    is_exported: true
+}
+

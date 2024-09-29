@@ -25,6 +25,9 @@
 #include "com_android_bluetooth.h"
 #include "hardware/bt_le_audio.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::le_audio::BroadcastId;
 using bluetooth::le_audio::BroadcastState;
 using bluetooth::le_audio::btle_audio_bits_per_sample_index_t;

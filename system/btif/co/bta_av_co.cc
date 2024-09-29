@@ -53,6 +53,9 @@
 #include "stack/include/bt_uuid16.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 // SCMS-T protect info

@@ -298,6 +298,16 @@ inline std::string gatt_disconnection_reason_text(const tGATT_DISCONN_REASON& re
   }
 }
 
+/* LE PHY bits */
+constexpr uint8_t LE_PHY_1M_BIT = 0;
+constexpr uint8_t LE_PHY_2M_BIT = 1;
+constexpr uint8_t LE_PHY_CODED_BIT = 2;
+
+/* LE PHY bit mask values */
+constexpr uint8_t LE_PHY_1M = (1 << LE_PHY_1M_BIT);
+constexpr uint8_t LE_PHY_2M = (1 << LE_PHY_2M_BIT);
+constexpr uint8_t LE_PHY_CODED = (1 << LE_PHY_CODED_BIT);
+
 /* MAX GATT MTU size
  */
 #ifndef GATT_MAX_MTU_SIZE
@@ -1166,18 +1176,12 @@ void GATT_StartIf(tGATT_IF gatt_if);
  *
  ******************************************************************************/
 [[nodiscard]] bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
-                                tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport,
-                                bool opportunistic);
-[[nodiscard]] bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
-                                tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport,
-                                bool opportunistic, uint8_t initiating_phys);
-[[nodiscard]] bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
-                                tBLE_ADDR_TYPE addr_type, tBTM_BLE_CONN_TYPE connection_type,
-                                tBT_TRANSPORT transport, bool opportunistic);
-[[nodiscard]] bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
                                 tBLE_ADDR_TYPE addr_type, tBTM_BLE_CONN_TYPE connection_type,
                                 tBT_TRANSPORT transport, bool opportunistic,
-                                uint8_t initiating_phys);
+                                uint8_t initiating_phys, uint16_t preferred_transport);
+[[nodiscard]] bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
+                                tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport,
+                                bool opportunistic);
 
 /*******************************************************************************
  *
