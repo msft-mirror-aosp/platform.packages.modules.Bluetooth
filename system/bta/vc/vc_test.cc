@@ -37,6 +37,9 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 void btif_storage_add_volume_control(const RawAddress& addr, bool auto_conn) {}
 
 struct alarm_t {

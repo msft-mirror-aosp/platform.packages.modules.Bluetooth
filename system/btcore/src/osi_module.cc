@@ -27,6 +27,9 @@
 #include "osi/include/osi.h"
 #include "osi/include/wakelock.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 future_t* osi_init(void) { return future_new_immediate(FUTURE_SUCCESS); }
 
 future_t* osi_clean_up(void) {

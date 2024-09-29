@@ -25,6 +25,7 @@
 
 #include <deque>
 #include <list>
+#include <map>
 #include <unordered_set>
 #include <vector>
 
@@ -194,6 +195,7 @@ typedef struct {
   bool eatt_support{false};
   std::string name;
   std::set<RawAddress> direct_connect_request;
+  std::map<RawAddress, uint16_t> mtu_prefs;
 } tGATT_REG;
 
 struct tGATT_CLCB;
@@ -340,7 +342,7 @@ typedef struct {
   std::list<tCONN_ID> conn_ids_waiting_for_mtu_exchange;
   /* Used to set proper TX DATA LEN on the controller*/
   uint16_t max_user_mtu;
-
+  uint16_t app_mtu_pref;  // Holds consolidated MTU preference from apps at the time of connection
 } tGATT_TCB;
 
 /* logic channel */
@@ -634,6 +636,9 @@ tGATT_TCB* gatt_allocate_tcb_by_bdaddr(const RawAddress& bda, tBT_TRANSPORT tran
 tGATT_TCB* gatt_get_tcb_by_idx(uint8_t tcb_idx);
 tGATT_TCB* gatt_find_tcb_by_addr(const RawAddress& bda, tBT_TRANSPORT transport);
 bool gatt_send_ble_burst_data(const RawAddress& remote_bda, BT_HDR* p_buf);
+uint16_t gatt_get_mtu_pref(const tGATT_REG* p_reg, const RawAddress& bda);
+uint16_t gatt_get_apps_preferred_mtu(const RawAddress& bda);
+void gatt_remove_apps_mtu_prefs(const RawAddress& bda);
 
 /* GATT client functions */
 void gatt_dequeue_sr_cmd(tGATT_TCB& tcb, uint16_t cid);

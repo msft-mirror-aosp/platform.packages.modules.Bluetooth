@@ -39,6 +39,9 @@
 #include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 /* This table is used to lookup the callback event that matches a particular

@@ -366,7 +366,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       case METHOD_CS: {
         if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
           log::warn("Can't find CS tracker for {}", address);
-        } else {
+        } else if (cs_trackers_[connection_handle].measurement_ongoing) {
           cs_trackers_[connection_handle].repeating_alarm->Cancel();
           send_le_cs_procedure_enable(connection_handle, Enable::DISABLED);
         }

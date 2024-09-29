@@ -105,6 +105,9 @@
 #include <android/sysprop/BluetoothProperties.sysprop.h>
 #endif
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 bool btif_get_address_type(const RawAddress& bda, tBLE_ADDR_TYPE* p_addr_type);
 bool btif_get_device_type(const RawAddress& bda, int* p_device_type);
 
@@ -2167,6 +2170,10 @@ void btif_dm_sec_evt(tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
 
     case BTA_DM_KEY_MISSING_EVT:
       GetInterfaceToProfiles()->events->invoke_key_missing_cb(p_data->key_missing.bd_addr);
+      break;
+
+    case BTA_DM_ENCRYPTION_CHANGE_EVT:
+      GetInterfaceToProfiles()->events->invoke_encryption_change_cb(p_data->encryption_change);
       break;
 
     default:

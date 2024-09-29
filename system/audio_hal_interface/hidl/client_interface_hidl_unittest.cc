@@ -24,6 +24,9 @@
 
 #include "codec_status_hidl.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace {
 
 using ::android::hardware::bluetooth::audio::V2_0::AacObjectType;

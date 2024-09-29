@@ -133,16 +133,9 @@ void BTA_GATTC_AppDeregister(tGATT_IF client_if) {
  *                  opportunistic, and don't impact the disconnection timer
  *
  ******************************************************************************/
-void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda,
-                    tBTM_BLE_CONN_TYPE connection_type, bool opportunistic) {
-  constexpr uint8_t kPhyLe1M = 0x01;  // From the old controller shim.
-  uint8_t phy = kPhyLe1M;
-  BTA_GATTC_Open(client_if, remote_bda, connection_type, BT_TRANSPORT_LE, opportunistic, phy);
-}
-
 void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda, tBLE_ADDR_TYPE addr_type,
                     tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic,
-                    uint8_t initiating_phys) {
+                    uint8_t initiating_phys, uint16_t preferred_mtu) {
   tBTA_GATTC_DATA data = {
           .api_conn =
                   {
@@ -157,6 +150,7 @@ void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda, tBLE_ADDR_
                           .initiating_phys = initiating_phys,
                           .opportunistic = opportunistic,
                           .remote_addr_type = addr_type,
+                          .preferred_mtu = preferred_mtu,
                   },
   };
 
@@ -164,10 +158,9 @@ void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda, tBLE_ADDR_
 }
 
 void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda,
-                    tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic,
-                    uint8_t initiating_phys) {
+                    tBTM_BLE_CONN_TYPE connection_type, bool opportunistic) {
   BTA_GATTC_Open(client_if, remote_bda, BLE_ADDR_PUBLIC, connection_type, BT_TRANSPORT_LE,
-                 opportunistic, initiating_phys);
+                 opportunistic, LE_PHY_1M, 0);
 }
 
 /*******************************************************************************

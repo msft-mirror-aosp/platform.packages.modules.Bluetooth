@@ -39,6 +39,9 @@
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 static uint8_t ble_acceptlist_size() {
@@ -172,6 +175,7 @@ tBTA_GATTC_CLCB* bta_gattc_clcb_alloc(tGATT_IF client_if, const RawAddress& remo
   tBTA_GATTC_CLCB* p_clcb = NULL;
 
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+    bta_gattc_cleanup_clcb();
     auto [p_clcb_i, b] = bta_gattc_cb.clcb_set.emplace(std::make_unique<tBTA_GATTC_CLCB>());
     p_clcb = p_clcb_i->get();
 
@@ -316,26 +320,46 @@ void bta_gattc_clcb_dealloc(tBTA_GATTC_CLCB* p_clcb) {
 
   /* Clear p_clcb. Some of the fields are already reset e.g. p_q_cmd_queue and
    * p_q_cmd. */
+  p_clcb->bta_conn_id = 0;
+  p_clcb->bda = {};
+  p_clcb->transport = BT_TRANSPORT_AUTO;
+  p_clcb->p_rcb = NULL;
+  p_clcb->p_srcb = NULL;
+  p_clcb->request_during_discovery = 0;
+  p_clcb->auto_update = 0;
+  p_clcb->disc_active = 0;
+  p_clcb->in_use = 0;
+  p_clcb->state = BTA_GATTC_IDLE_ST;
+  p_clcb->status = GATT_SUCCESS;
+  // in bta_gattc_sm_execute(), p_clcb is accessed again so we dealloc clcb later.
+  // it will be claned up when the client is deregistered or a new clcb is allocated.
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    for (auto& p_clcb_i : bta_gattc_cb.clcb_set) {
-      if (p_clcb_i.get() == p_clcb) {
-        bta_gattc_cb.clcb_set.erase(p_clcb_i);
-        break;
-      }
-    }
-  } else {
-    p_clcb->bta_conn_id = 0;
-    p_clcb->bda = {};
-    p_clcb->transport = BT_TRANSPORT_AUTO;
-    p_clcb->p_rcb = NULL;
-    p_clcb->p_srcb = NULL;
-    p_clcb->request_during_discovery = 0;
-    p_clcb->auto_update = 0;
-    p_clcb->disc_active = 0;
-    p_clcb->in_use = 0;
-    p_clcb->state = BTA_GATTC_IDLE_ST;
-    p_clcb->status = GATT_SUCCESS;
+    bta_gattc_cb.clcb_pending_dealloc.insert(p_clcb);
   }
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_gattc_cleanup_clcb
+ *
+ * Description      cleans up resources from deallocated clcb
+ *
+ * Returns          none
+ *
+ ******************************************************************************/
+void bta_gattc_cleanup_clcb() {
+  if (bta_gattc_cb.clcb_pending_dealloc.empty()) {
+    return;
+  }
+  auto it = bta_gattc_cb.clcb_set.begin();
+  while (it != bta_gattc_cb.clcb_set.end()) {
+    if (bta_gattc_cb.clcb_pending_dealloc.contains(it->get())) {
+      it = bta_gattc_cb.clcb_set.erase(it);
+    } else {
+      it++;
+    }
+  }
+  bta_gattc_cb.clcb_pending_dealloc.clear();
 }
 
 /*******************************************************************************

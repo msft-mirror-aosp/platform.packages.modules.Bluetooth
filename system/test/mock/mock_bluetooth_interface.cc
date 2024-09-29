@@ -21,6 +21,9 @@
 #include "stack/include/bt_octets.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 void invoke_adapter_state_changed_cb(bt_state_t /* state */) {}
 void invoke_adapter_properties_cb(bt_status_t /* status */, int /* num_properties */,
                                   bt_property_t* /* properties */) {}
@@ -57,6 +60,7 @@ void invoke_link_quality_report_cb(uint64_t /* timestamp */, int /* report_id */
                                    int /* packets_not_receive_count */,
                                    int /* negative_acknowledgement_count */) {}
 void invoke_key_missing_cb(const RawAddress /* bd_addr */) {}
+void invoke_encryption_change_cb(bt_encryption_change_evt /* bd_addr */) {}
 
 static void init_stack(bluetooth::core::CoreInterface* /* interface */) {}
 
