@@ -133,8 +133,8 @@ LeAudioGroupStateMachineImpl* instance;
 
 class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
 public:
-  LeAudioGroupStateMachineImpl(Callbacks* state_machine_callbacks_)
-      : state_machine_callbacks_(state_machine_callbacks_),
+  LeAudioGroupStateMachineImpl(Callbacks* state_machine_callbacks)
+      : state_machine_callbacks_(state_machine_callbacks),
         watchdog_(alarm_new("LeAudioStateMachineTimer")) {
     log_history_ = LeAudioLogHistory::Get();
   }
@@ -709,7 +709,7 @@ public:
     while (leAudioDevice != nullptr) {
       for (auto& ase : leAudioDevice->ases_) {
         ase.cis_id = bluetooth::le_audio::kInvalidCisId;
-        ase.cis_conn_hdl = 0;
+        ase.cis_conn_hdl = bluetooth::le_audio::kInvalidCisConnHandle;
       }
       leAudioDevice = group->GetNextDevice(leAudioDevice);
     }

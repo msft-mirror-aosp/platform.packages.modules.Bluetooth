@@ -66,6 +66,7 @@ import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSinkAudioPolicy;
 import android.bluetooth.BluetoothSocket;
 import android.bluetooth.BluetoothStatusCodes;
+import android.bluetooth.BluetoothUtils;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.BufferConstraints;
 import android.bluetooth.IBluetooth;
@@ -87,6 +88,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.hardware.display.DisplayManager;
 import android.os.AsyncTask;
 import android.os.BatteryStatsManager;
 import android.os.Binder;
@@ -280,6 +282,7 @@ public class AdapterService extends Service {
     private AdapterState mAdapterStateMachine;
     private BondStateMachine mBondStateMachine;
     private RemoteDevices mRemoteDevices;
+    private AdapterSuspend mAdapterSuspend;
 
     /* TODO: Consider to remove the search API from this class, if changed to use call-back */
     private SdpManager mSdpManager = null;
@@ -754,6 +757,12 @@ public class AdapterService extends Service {
 
         mBluetoothSocketManagerBinder = new BluetoothSocketManagerBinder(this);
 
+        if (Flags.adapterSuspendMgmt()) {
+            mAdapterSuspend =
+                    new AdapterSuspend(
+                            mNativeInterface, mLooper, getSystemService(DisplayManager.class));
+        }
+
         if (!Flags.fastBindToApp()) {
             setAdapterService(this);
         }
@@ -1192,6 +1201,32 @@ public class AdapterService extends Service {
         }
     }
 
+    void updateAdapterName(String name) {
+        int n = mRemoteCallbacks.beginBroadcast();
+        Log.d(TAG, "updateAdapterName(" + name + ")");
+        for (int i = 0; i < n; i++) {
+            try {
+                mRemoteCallbacks.getBroadcastItem(i).onAdapterNameChange(name);
+            } catch (RemoteException e) {
+                Log.d(TAG, "updateAdapterName() - Callback #" + i + " failed (" + e + ")");
+            }
+        }
+        mRemoteCallbacks.finishBroadcast();
+    }
+
+    void updateAdapterAddress(String address) {
+        int n = mRemoteCallbacks.beginBroadcast();
+        Log.d(TAG, "updateAdapterAddress(" + BluetoothUtils.toAnonymizedAddress(address) + ")");
+        for (int i = 0; i < n; i++) {
+            try {
+                mRemoteCallbacks.getBroadcastItem(i).onAdapterAddressChange(address);
+            } catch (RemoteException e) {
+                Log.d(TAG, "updateAdapterAddress() - Callback #" + i + " failed (" + e + ")");
+            }
+        }
+        mRemoteCallbacks.finishBroadcast();
+    }
+
     void updateAdapterState(int prevState, int newState) {
         mAdapterProperties.setState(newState);
         invalidateBluetoothGetStateCache();
@@ -1479,6 +1514,11 @@ public class AdapterService extends Service {
         if (mBluetoothSocketManagerBinder != null) {
             mBluetoothSocketManagerBinder.cleanUp();
             mBluetoothSocketManagerBinder = null;
+        }
+
+        if (mAdapterSuspend != null) {
+            mAdapterSuspend.cleanup();
+            mAdapterSuspend = null;
         }
 
         mPreferredAudioProfilesCallbacks.kill();

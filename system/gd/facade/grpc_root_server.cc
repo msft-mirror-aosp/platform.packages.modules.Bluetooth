@@ -29,8 +29,6 @@
 #include "hci/facade/le_advertising_manager_facade.h"
 #include "hci/facade/le_initiator_address_facade.h"
 #include "hci/facade/le_scanning_manager_facade.h"
-#include "l2cap/classic/facade.h"
-#include "l2cap/le/facade.h"
 #include "neighbor/facade/facade.h"
 #include "os/log.h"
 #include "os/thread.h"
@@ -76,26 +74,6 @@ public:
         modules.add<::bluetooth::hci::facade::LeInitiatorAddressFacadeModule>();
         modules.add<::bluetooth::hci::facade::LeScanningManagerFacadeModule>();
         modules.add<::bluetooth::neighbor::facade::NeighborFacadeModule>();
-        break;
-      case BluetoothModule::L2CAP:
-        modules.add<::bluetooth::hci::facade::ControllerFacadeModule>();
-        modules.add<::bluetooth::hci::facade::LeAdvertisingManagerFacadeModule>();
-        modules.add<::bluetooth::hci::facade::LeInitiatorAddressFacadeModule>();
-        modules.add<::bluetooth::neighbor::facade::NeighborFacadeModule>();
-        modules.add<::bluetooth::facade::ReadOnlyPropertyServerModule>();
-        modules.add<::bluetooth::l2cap::classic::L2capClassicModuleFacadeModule>();
-        modules.add<::bluetooth::l2cap::le::L2capLeModuleFacadeModule>();
-        modules.add<::bluetooth::hci::facade::HciFacadeModule>();
-        break;
-      case BluetoothModule::SECURITY:
-        modules.add<::bluetooth::facade::ReadOnlyPropertyServerModule>();
-        modules.add<::bluetooth::hci::facade::ControllerFacadeModule>();
-        modules.add<::bluetooth::neighbor::facade::NeighborFacadeModule>();
-        modules.add<::bluetooth::l2cap::classic::L2capClassicModuleFacadeModule>();
-        modules.add<::bluetooth::hci::facade::HciFacadeModule>();
-        modules.add<::bluetooth::hci::facade::ControllerFacadeModule>();
-        modules.add<::bluetooth::hci::facade::LeAdvertisingManagerFacadeModule>();
-        modules.add<::bluetooth::hci::facade::LeScanningManagerFacadeModule>();
         break;
       default:
         return ::grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "invalid module under test");

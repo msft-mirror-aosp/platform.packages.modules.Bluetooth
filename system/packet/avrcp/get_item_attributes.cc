@@ -16,6 +16,8 @@
 
 #include "get_item_attributes.h"
 
+#include <base/sys_byteorder.h>
+
 namespace bluetooth {
 namespace avrcp {
 

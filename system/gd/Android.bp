@@ -143,12 +143,10 @@ cc_defaults {
         ":BluetoothDumpsysSources",
         ":BluetoothHalSources",
         ":BluetoothHciSources",
-        ":BluetoothL2capSources",
         ":BluetoothMetricsSources",
         ":BluetoothNeighborSources",
         ":BluetoothOsSources",
         ":BluetoothPacketSources",
-        ":BluetoothSecuritySources",
         ":BluetoothStorageSources",
         "module.cc",
         "module_dumper.cc",
@@ -289,6 +287,10 @@ cc_binary {
     defaults: [
         "gd_defaults",
     ],
+    cflags: [
+        // The generated gRPC code triggers these warnings.
+        "-Wno-missing-prototypes",
+    ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/include",
@@ -298,7 +300,6 @@ cc_binary {
     srcs: [
         ":BluetoothFacade_hci_hal",
         ":BluetoothFacade_hci_layer",
-        ":BluetoothFacade_l2cap_layer",
         ":BluetoothFacade_neighbor",
         ":TestMockMainShimStack",
         "facade/facade_main.cc",
@@ -476,11 +477,9 @@ cc_test {
         ":BluetoothCryptoToolboxTestSources",
         ":BluetoothHalTestSources",
         ":BluetoothHciUnitTestSources",
-        ":BluetoothL2capUnitTestSources",
         ":BluetoothMetricsTestSources",
         ":BluetoothOsTestSources",
         ":BluetoothPacketTestSources",
-        ":BluetoothSecurityUnitTestSources",
         ":BluetoothStorageUnitTestSources",
         "module_unittest.cc",
         "stack_manager_unittest.cc",
@@ -699,7 +698,6 @@ cc_fuzz {
     defaults: ["gd_fuzz_defaults"],
     srcs: [
         ":BluetoothHciFuzzTestSources",
-        ":BluetoothL2capFuzzTestSources",
         "fuzz_test.cc",
     ],
     fuzz_config: {
@@ -767,7 +765,6 @@ genrule {
         "dumpsys_data.fbs",
         "hci/hci_acl_manager.fbs",
         "hci/hci_controller.fbs",
-        "l2cap/classic/l2cap_classic_module.fbs",
         "module_unittest.fbs",
         "os/wakelock_manager.fbs",
         "shim/dumpsys.fbs",
@@ -778,7 +775,6 @@ genrule {
         "hci_acl_manager.bfbs",
         "hci_controller.bfbs",
         "init_flags.bfbs",
-        "l2cap_classic_module.bfbs",
         "wakelock_manager.bfbs",
     ],
 }
@@ -794,7 +790,6 @@ genrule {
         "dumpsys_data.fbs",
         "hci/hci_acl_manager.fbs",
         "hci/hci_controller.fbs",
-        "l2cap/classic/l2cap_classic_module.fbs",
         "module_unittest.fbs",
         "os/wakelock_manager.fbs",
         "shim/dumpsys.fbs",
@@ -805,7 +800,6 @@ genrule {
         "hci_acl_manager_generated.h",
         "hci_controller_generated.h",
         "init_flags_generated.h",
-        "l2cap_classic_module_generated.h",
         "wakelock_manager_generated.h",
     ],
 }

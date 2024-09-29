@@ -16,6 +16,8 @@
 
 #include "bta/dm/bta_dm_gatt_client.h"
 
+#include <base/functional/bind.h>
+#include <base/functional/callback.h>
 #include <base/strings/stringprintf.h>
 
 #include <cstdint>
@@ -28,6 +30,9 @@
 #include "stack/btm/btm_int_types.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 namespace {
 TimestampedStringCircularBuffer gatt_history_{50};

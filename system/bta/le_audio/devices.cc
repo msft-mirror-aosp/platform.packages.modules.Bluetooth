@@ -35,6 +35,9 @@
 #include "osi/include/properties.h"
 #include "stack/include/btm_client_interface.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::hci::kIsoCigPhy1M;
 using bluetooth::hci::kIsoCigPhy2M;
 using bluetooth::le_audio::DeviceConnectState;
@@ -1149,7 +1152,7 @@ void LeAudioDevice::DeactivateAllAses(void) {
     ase.active = false;
     ase.reconfigure = 0;
     ase.cis_id = bluetooth::le_audio::kInvalidCisId;
-    ase.cis_conn_hdl = 0;
+    ase.cis_conn_hdl = bluetooth::le_audio::kInvalidCisConnHandle;
   }
 }
 

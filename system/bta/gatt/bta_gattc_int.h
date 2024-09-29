@@ -28,6 +28,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "bta/gatt/database.h"

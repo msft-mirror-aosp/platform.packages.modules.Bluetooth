@@ -886,6 +886,7 @@ impl CommandHandler {
                     addr_type,
                     class,
                     appearance,
+                    modalias,
                     bonded,
                     connection_state,
                     uuids,
@@ -901,6 +902,8 @@ impl CommandHandler {
                     let alias = adapter.get_remote_alias(device.clone());
                     let class = adapter.get_remote_class(device.clone());
                     let appearance = adapter.get_remote_appearance(device.clone());
+                    let modalias =
+                        adapter.get_remote_vendor_product_info(device.clone()).to_string();
                     let bonded = adapter.get_bond_state(device.clone());
                     let connection_state = match adapter.get_connection_state(device.clone()) {
                         BtConnectionState::NotConnected => "Not Connected",
@@ -918,6 +921,7 @@ impl CommandHandler {
                         addr_type,
                         class,
                         appearance,
+                        modalias,
                         bonded,
                         connection_state,
                         uuids,
@@ -933,6 +937,7 @@ impl CommandHandler {
                 print_info!("Address Type: {:?}", addr_type);
                 print_info!("Class: {}", class);
                 print_info!("Appearance: {}", appearance);
+                print_info!("Modalias: {}", modalias);
                 print_info!("Wake Allowed: {}", wake_allowed);
                 print_info!("Bond State: {:?}", bonded);
                 print_info!("Connection State: {}", connection_state);

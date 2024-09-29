@@ -25,6 +25,9 @@
  * Need to consider more sophisticated existing methods.
  */
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 static std::vector<uint8_t> _rsp_sig_ids{};
 
 void avdt_msg_send_rsp(AvdtpCcb* p_ccb, uint8_t sig_id, tAVDT_MSG* p_params) {

@@ -26,6 +26,10 @@
 #include "aidl/transport_instance.h"
 #include "audio_hal_interface/hal_version_manager.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#pragma GCC diagnostic ignored "-Wunused-private-field"
+
 using testing::Test;
 
 using bluetooth::audio::hfp::HfpClientInterface;

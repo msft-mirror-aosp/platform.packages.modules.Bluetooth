@@ -36,6 +36,9 @@
 #include "stack/btm/btm_int_types.h"
 #include "test/mock/mock_main_shim_entry.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 tACL_CONN* btm_bda_to_acl(const RawAddress& bda, tBT_TRANSPORT transport) { return nullptr; }
 
 namespace bluetooth {
@@ -1129,7 +1132,7 @@ protected:
     for (const auto& ase : device->ases_) {
       ASSERT_FALSE(ase.active);
       ASSERT_TRUE(ase.cis_id == ::bluetooth::le_audio::kInvalidCisId);
-      ASSERT_TRUE(ase.cis_conn_hdl == 0);
+      ASSERT_TRUE(ase.cis_conn_hdl == ::bluetooth::le_audio::kInvalidCisConnHandle);
     }
   }
 

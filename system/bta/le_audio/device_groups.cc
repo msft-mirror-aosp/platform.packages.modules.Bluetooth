@@ -37,6 +37,9 @@
 #include "metrics_collector.h"
 #include "stack/include/btm_client_interface.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace bluetooth::le_audio {
 
 using bluetooth::le_audio::types::ase;
@@ -62,7 +65,7 @@ void LeAudioDeviceGroup::RemoveNode(const std::shared_ptr<LeAudioDevice>& leAudi
   leAudioDevice->group_id_ = bluetooth::groups::kGroupUnknown;
   for (auto ase : leAudioDevice->ases_) {
     ase.active = false;
-    ase.cis_conn_hdl = 0;
+    ase.cis_conn_hdl = kInvalidCisConnHandle;
   }
 
   leAudioDevices_.erase(
