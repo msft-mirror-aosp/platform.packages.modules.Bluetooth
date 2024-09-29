@@ -41,6 +41,9 @@
 #include "test/mock/mock_stack_acl.h"
 #include "test/mock/mock_stack_btm_devctl.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::Uuid;
 using testing::Return;
 using namespace bluetooth;

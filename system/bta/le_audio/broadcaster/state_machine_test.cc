@@ -35,6 +35,9 @@
 
 #define TEST_BT com::android::bluetooth::flags
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth::hci::iso_manager;
 
 using bluetooth::hci::IsoManager;

@@ -35,9 +35,6 @@ cc_binary {
         "latest_android_media_audio_common_types_ndk_static",
     ],
     cflags: [
-        "-Wall",
-        "-Werror",
-        "-Wextra",
         "-Wno-date-time",
     ],
     generated_headers: [

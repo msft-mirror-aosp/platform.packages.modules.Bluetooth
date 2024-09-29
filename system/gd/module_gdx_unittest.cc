@@ -32,6 +32,9 @@
 #include "module.h"
 #include "os/handler.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 namespace {

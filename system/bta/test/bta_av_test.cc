@@ -24,6 +24,9 @@
 #include "test/mock/mock_osi_alarm.h"
 #include "test/mock/mock_stack_acl.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace std::chrono_literals;
 
 bool btif_av_both_enable(void) { return true; }

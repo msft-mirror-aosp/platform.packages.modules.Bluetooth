@@ -422,8 +422,8 @@ private:
 
   void TerminateBig() {
     log::info("disabling={}", GetState() == BroadcastStateMachine::State::DISABLING);
-    /* Terminate with reason: Connection Terminated By Local Host */
-    IsoManager::GetInstance()->TerminateBig(GetAdvertisingSid(), 0x16);
+    /* Terminate with reason: Remote User Terminated Connection */
+    IsoManager::GetInstance()->TerminateBig(GetAdvertisingSid(), 0x13);
   }
 
   void OnSetupIsoDataPath(uint8_t status, uint16_t conn_hdl) override {

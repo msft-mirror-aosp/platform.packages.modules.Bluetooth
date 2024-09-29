@@ -499,12 +499,9 @@ void BTA_GATTC_AppDeregister(tGATT_IF client_if);
  ******************************************************************************/
 void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda,
                     tBTM_BLE_CONN_TYPE connection_type, bool opportunistic);
-void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda,
-                    tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic,
-                    uint8_t initiating_phys);
 void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda, tBLE_ADDR_TYPE addr_type,
                     tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic,
-                    uint8_t initiating_phys);
+                    uint8_t initiating_phys, uint16_t preferred_mtu);
 
 /*******************************************************************************
  *

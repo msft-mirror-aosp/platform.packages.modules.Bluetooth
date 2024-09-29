@@ -27,6 +27,9 @@
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 void acl_ble_connection_fail(const tBLE_BD_ADDR& /* address_with_type */, uint16_t /* handle */,
                              bool /* enhanced */, tHCI_STATUS /* status */) {
   inc_func_call_count(__func__);

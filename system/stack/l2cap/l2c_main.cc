@@ -40,6 +40,9 @@
 #include "stack/include/l2cdefs.h"
 #include "stack/l2cap/l2c_int.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 /******************************************************************************/

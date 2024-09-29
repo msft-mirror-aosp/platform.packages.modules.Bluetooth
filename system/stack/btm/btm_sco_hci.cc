@@ -25,6 +25,7 @@
 #include <cfloat>
 #include <memory>
 
+#include "bta/ag/bta_ag_int.h"
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
 #include "os/log.h"
@@ -144,17 +145,9 @@ size_t write(const uint8_t* p_buf, uint32_t len) {
 void open() {}
 void cleanup() {}
 
-size_t read(uint8_t* p_buf, uint32_t len) {
-  (void)p_buf;
-  (void)len;
-  return 0;
-}
+size_t read(uint8_t* p_buf, uint32_t len) { return bta_ag_sco_read(p_buf, len); }
 
-size_t write(const uint8_t* p_buf, uint32_t len) {
-  (void)p_buf;
-  (void)len;
-  return 0;
-}
+size_t write(const uint8_t* p_buf, uint32_t len) { return bta_ag_sco_write(p_buf, len); }
 #endif
 
 enum decode_buf_state {
