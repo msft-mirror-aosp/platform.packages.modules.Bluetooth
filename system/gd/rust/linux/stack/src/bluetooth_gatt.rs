@@ -2272,6 +2272,7 @@ impl IBluetoothGatt for BluetoothGatt {
             transport.into(),
             opportunistic,
             phy.into(),
+            0,
         );
     }
 

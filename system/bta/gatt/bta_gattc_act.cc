@@ -449,7 +449,7 @@ void bta_gattc_open(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
   if (!GATT_Connect(p_clcb->p_rcb->client_if, p_data->api_conn.remote_bda,
                     p_data->api_conn.remote_addr_type, BTM_BLE_DIRECT_CONNECTION,
                     p_data->api_conn.transport, p_data->api_conn.opportunistic,
-                    p_data->api_conn.initiating_phys)) {
+                    p_data->api_conn.initiating_phys, p_data->api_conn.preferred_mtu)) {
     log::error("Connection open failure");
     bta_gattc_sm_execute(p_clcb, BTA_GATTC_INT_OPEN_FAIL_EVT, p_data);
     return;
@@ -484,8 +484,8 @@ static void bta_gattc_init_bk_conn(const tBTA_GATTC_API_OPEN* p_data, tBTA_GATTC
   }
 
   /* always call open to hold a connection */
-  if (!GATT_Connect(p_data->client_if, p_data->remote_bda, p_data->connection_type,
-                    p_data->transport, false)) {
+  if (!GATT_Connect(p_data->client_if, p_data->remote_bda, BLE_ADDR_PUBLIC, p_data->connection_type,
+                    p_data->transport, false, LE_PHY_1M, p_data->preferred_mtu)) {
     log::error("Unable to connect to remote bd_addr={}", p_data->remote_bda);
     bta_gattc_send_open_cback(p_clreg, GATT_ILLEGAL_PARAMETER, p_data->remote_bda,
                               GATT_INVALID_CONN_ID, BT_TRANSPORT_LE, 0);

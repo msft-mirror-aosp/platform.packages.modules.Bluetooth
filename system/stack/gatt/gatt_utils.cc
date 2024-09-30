@@ -1994,3 +1994,52 @@ tCONN_ID gatt_create_conn_id(tTCB_IDX tcb_idx, tGATT_IF gatt_if) {
 tTCB_IDX gatt_get_tcb_idx(tCONN_ID conn_id) { return (uint8_t)(conn_id >> 8); }
 
 tGATT_IF gatt_get_gatt_if(tCONN_ID conn_id) { return (tGATT_IF)conn_id; }
+
+uint16_t gatt_get_mtu_pref(const tGATT_REG* p_reg, const RawAddress& bda) {
+  auto mtu_pref = p_reg->mtu_prefs.find(bda);
+  if (mtu_pref != p_reg->mtu_prefs.cend()) {
+    return mtu_pref->second;
+  }
+  return 0;
+}
+
+uint16_t gatt_get_apps_preferred_mtu(const RawAddress& bda) {
+  uint16_t preferred_mtu = 0;
+  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+    for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
+      if (!p_reg->in_use) {
+        continue;
+      }
+
+      preferred_mtu = std::max(preferred_mtu, gatt_get_mtu_pref(p_reg.get(), bda));
+    }
+  } else {
+    for (auto& reg : gatt_cb.cl_rcb) {
+      if (!reg.in_use) {
+        continue;
+      }
+
+      preferred_mtu = std::max(preferred_mtu, gatt_get_mtu_pref(&reg, bda));
+    }
+  }
+
+  return preferred_mtu;
+}
+
+void gatt_remove_apps_mtu_prefs(const RawAddress& bda) {
+  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+    for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
+      if (!p_reg->in_use) {
+        continue;
+      }
+      p_reg.get()->mtu_prefs.erase(bda);
+    }
+  } else {
+    for (auto& reg : gatt_cb.cl_rcb) {
+      if (!reg.in_use) {
+        continue;
+      }
+      reg.mtu_prefs.erase(bda);
+    }
+  }
+}
