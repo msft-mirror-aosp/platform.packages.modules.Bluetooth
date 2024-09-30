@@ -265,7 +265,7 @@ public class GattServiceTest {
 
         verify(mNativeInterface)
                 .gattClientConnect(
-                        clientIf, address, addressType, isDirect, transport, opportunistic, phy);
+                        clientIf, address, addressType, isDirect, transport, opportunistic, phy, 0);
     }
 
     @Test
