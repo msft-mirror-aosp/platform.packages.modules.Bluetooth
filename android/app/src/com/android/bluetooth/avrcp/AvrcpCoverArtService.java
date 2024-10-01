@@ -62,8 +62,9 @@ public class AvrcpCoverArtService {
     // Native interface
     private AvrcpNativeInterface mNativeInterface;
 
-    public AvrcpCoverArtService() {
-        mNativeInterface = AvrcpNativeInterface.getInstance();
+    // The native interface must be a parameter here in order to be able to mock AvrcpTargetService
+    public AvrcpCoverArtService(AvrcpNativeInterface nativeInterface) {
+        mNativeInterface = nativeInterface;
         mAcceptThread = new SocketAcceptor();
         mStorage = new AvrcpCoverArtStorage(COVER_ART_STORAGE_MAX_ITEMS);
     }

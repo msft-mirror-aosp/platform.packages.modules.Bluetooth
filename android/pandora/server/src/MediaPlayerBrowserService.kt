@@ -185,6 +185,16 @@ class MediaPlayerBrowserService : MediaBrowserServiceCompat() {
         mediaSession.setQueue(queue)
     }
 
+    fun resetQueue() {
+        if (metadataItems.contains("" + NEW_QUEUE_ITEM_INDEX)) {
+            metadataItems.remove("" + NEW_QUEUE_ITEM_INDEX)
+            queue.removeLast()
+            mediaSession.setQueue(queue)
+            stop()
+            currentTrack = QUEUE_START_INDEX
+        }
+    }
+
     fun getShuffleMode(): Int {
         val controller = mediaSession.getController()
         return controller.getShuffleMode()

@@ -118,6 +118,13 @@ class MediaPlayer(val context: Context) : MediaPlayerImplBase(), Closeable {
         }
     }
 
+    override fun resetQueue(request: Empty, responseObserver: StreamObserver<Empty>) {
+        grpcUnary<Empty>(scope, responseObserver) {
+            MediaPlayerBrowserService.instance.resetQueue()
+            Empty.getDefaultInstance()
+        }
+    }
+
     override fun getShuffleMode(
         request: Empty,
         responseObserver: StreamObserver<GetShuffleModeResponse>

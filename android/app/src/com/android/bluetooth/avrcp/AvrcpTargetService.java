@@ -37,6 +37,7 @@ import android.view.KeyEvent;
 import com.android.bluetooth.BluetoothEventLogger;
 import com.android.bluetooth.BluetoothMetricsProto;
 import com.android.bluetooth.a2dp.A2dpService;
+import com.android.bluetooth.audio_util.ListItem;
 import com.android.bluetooth.audio_util.MediaData;
 import com.android.bluetooth.audio_util.MediaPlayerList;
 import com.android.bluetooth.audio_util.MediaPlayerWrapper;
@@ -97,6 +98,8 @@ public class AvrcpTargetService extends ProfileService {
 
     private static AvrcpTargetService sInstance = null;
 
+    private final boolean mIsVfsCoverArtEnabled;
+
     public AvrcpTargetService(AdapterService adapterService) {
         this(
                 requireNonNull(adapterService),
@@ -145,7 +148,7 @@ public class AvrcpTargetService extends ProfileService {
             Log.e(TAG, "Please use AVRCP version 1.6 to enable cover art");
             mAvrcpCoverArtService = null;
         } else {
-            AvrcpCoverArtService coverArtService = new AvrcpCoverArtService();
+            AvrcpCoverArtService coverArtService = new AvrcpCoverArtService(mNativeInterface);
             if (coverArtService.start()) {
                 mAvrcpCoverArtService = coverArtService;
             } else {
@@ -153,6 +156,8 @@ public class AvrcpTargetService extends ProfileService {
                 mAvrcpCoverArtService = null;
             }
         }
+
+        mIsVfsCoverArtEnabled = mMediaPlayerList.isVfsCoverArtEnabled();
 
         mReceiver = new AvrcpBroadcastReceiver();
         IntentFilter filter = new IntentFilter();
@@ -396,8 +401,7 @@ public class AvrcpTargetService extends ProfileService {
     Metadata getCurrentSongInfo() {
         Metadata metadata = mMediaPlayerList.getCurrentSongInfo();
         if (mAvrcpCoverArtService != null && metadata.image != null) {
-            String imageHandle = mAvrcpCoverArtService.storeImage(metadata.image);
-            if (imageHandle != null) metadata.image.setImageHandle(imageHandle);
+            metadata.image.setImageHandle(mAvrcpCoverArtService.storeImage(metadata.image));
         }
         return metadata;
     }
@@ -430,26 +434,20 @@ public class AvrcpTargetService extends ProfileService {
     List<Metadata> getNowPlayingList() {
         String currentMediaId = getCurrentMediaId();
         Metadata currentTrack = null;
-        String imageHandle = null;
         List<Metadata> nowPlayingList = mMediaPlayerList.getNowPlayingList();
         if (mAvrcpCoverArtService != null) {
             for (Metadata metadata : nowPlayingList) {
                 if (TextUtils.equals(metadata.mediaId, currentMediaId)) {
                     currentTrack = metadata;
                 } else if (metadata.image != null) {
-                    imageHandle = mAvrcpCoverArtService.storeImage(metadata.image);
-                    if (imageHandle != null) {
-                        metadata.image.setImageHandle(imageHandle);
-                    }
+                    metadata.image.setImageHandle(mAvrcpCoverArtService.storeImage(metadata.image));
                 }
             }
 
             // Always store the current item from the queue last so we know the image is in storage
             if (currentTrack != null) {
-                imageHandle = mAvrcpCoverArtService.storeImage(currentTrack.image);
-                if (imageHandle != null) {
-                    currentTrack.image.setImageHandle(imageHandle);
-                }
+                currentTrack.image.setImageHandle(
+                        mAvrcpCoverArtService.storeImage(currentTrack.image));
             }
         }
         return nowPlayingList;
@@ -488,7 +486,20 @@ public class AvrcpTargetService extends ProfileService {
 
     /** See {@link MediaPlayerList#getFolderItems}. */
     void getFolderItems(int playerId, String mediaId, MediaPlayerList.GetFolderItemsCallback cb) {
-        mMediaPlayerList.getFolderItems(playerId, mediaId, cb);
+        mMediaPlayerList.getFolderItems(
+                playerId,
+                mediaId,
+                (id, results) -> {
+                    if (mIsVfsCoverArtEnabled && mAvrcpCoverArtService != null) {
+                        for (ListItem item : results) {
+                            if (item != null && item.song != null && item.song.image != null) {
+                                item.song.image.setImageHandle(
+                                        mAvrcpCoverArtService.storeImage(item.song.image));
+                            }
+                        }
+                    }
+                    cb.run(id, results);
+                });
     }
 
     /** See {@link MediaPlayerList#playItem}. */

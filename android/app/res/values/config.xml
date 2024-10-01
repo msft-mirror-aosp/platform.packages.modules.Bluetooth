@@ -138,9 +138,6 @@
     <integer name="a2dp_source_codec_priority_lc3">6001</integer>
     <integer name="a2dp_source_codec_priority_opus">7001</integer>
 
-    <!-- Enable support for URI based images. Off by default due to increased memory usage -->
-    <bool name="avrcp_target_cover_art_uri_images">false</bool>
-
     <!-- Package that is responsible for user interaction on pairing request,
          success or cancel.
          Receives:
