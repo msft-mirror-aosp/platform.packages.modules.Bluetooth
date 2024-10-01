@@ -16,7 +16,6 @@
 source_set("BluetoothShimSources") {
   sources = [
     "dumpsys.cc",
-    "dumpsys_args.cc",
   ]
 
   deps = [
