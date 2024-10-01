@@ -293,42 +293,6 @@ TEST_F(BtifCoreTest, test_post_on_bt_jni_simple3) {
   ASSERT_EQ(val, future.get());
 }
 
-extern const char* dump_av_sm_event_name(int event);
-TEST_F(BtifUtilsTest, dump_av_sm_event_name) {
-  std::vector<std::pair<int, std::string>> events = {
-          std::make_pair(BTA_AV_ENABLE_EVT, "BTA_AV_ENABLE_EVT"),
-          std::make_pair(BTA_AV_REGISTER_EVT, "BTA_AV_REGISTER_EVT"),
-          std::make_pair(BTA_AV_OPEN_EVT, "BTA_AV_OPEN_EVT"),
-          std::make_pair(BTA_AV_CLOSE_EVT, "BTA_AV_CLOSE_EVT"),
-          std::make_pair(BTA_AV_START_EVT, "BTA_AV_START_EVT"),
-          std::make_pair(BTA_AV_STOP_EVT, "BTA_AV_STOP_EVT"),
-          std::make_pair(BTA_AV_PROTECT_REQ_EVT, "BTA_AV_PROTECT_REQ_EVT"),
-          std::make_pair(BTA_AV_PROTECT_RSP_EVT, "BTA_AV_PROTECT_RSP_EVT"),
-          std::make_pair(BTA_AV_RC_OPEN_EVT, "BTA_AV_RC_OPEN_EVT"),
-          std::make_pair(BTA_AV_RC_CLOSE_EVT, "BTA_AV_RC_CLOSE_EVT"),
-          std::make_pair(BTA_AV_RC_BROWSE_OPEN_EVT, "BTA_AV_RC_BROWSE_OPEN_EVT"),
-          std::make_pair(BTA_AV_RC_BROWSE_CLOSE_EVT, "BTA_AV_RC_BROWSE_CLOSE_EVT"),
-          std::make_pair(BTA_AV_REMOTE_CMD_EVT, "BTA_AV_REMOTE_CMD_EVT"),
-          std::make_pair(BTA_AV_REMOTE_RSP_EVT, "BTA_AV_REMOTE_RSP_EVT"),
-          std::make_pair(BTA_AV_VENDOR_CMD_EVT, "BTA_AV_VENDOR_CMD_EVT"),
-          std::make_pair(BTA_AV_VENDOR_RSP_EVT, "BTA_AV_VENDOR_RSP_EVT"),
-          std::make_pair(BTA_AV_RECONFIG_EVT, "BTA_AV_RECONFIG_EVT"),
-          std::make_pair(BTA_AV_SUSPEND_EVT, "BTA_AV_SUSPEND_EVT"),
-          std::make_pair(BTA_AV_PENDING_EVT, "BTA_AV_PENDING_EVT"),
-          std::make_pair(BTA_AV_META_MSG_EVT, "BTA_AV_META_MSG_EVT"),
-          std::make_pair(BTA_AV_REJECT_EVT, "BTA_AV_REJECT_EVT"),
-          std::make_pair(BTA_AV_RC_FEAT_EVT, "BTA_AV_RC_FEAT_EVT"),
-          std::make_pair(BTA_AV_RC_PSM_EVT, "BTA_AV_RC_PSM_EVT"),
-          std::make_pair(BTA_AV_OFFLOAD_START_RSP_EVT, "BTA_AV_OFFLOAD_START_RSP_EVT"),
-  };
-  for (const auto& event : events) {
-    ASSERT_EQ(event.second, dump_av_sm_event_name(event.first));
-  }
-  std::ostringstream oss;
-  oss << "UNKNOWN_EVENT";
-  ASSERT_EQ(oss.str(), dump_av_sm_event_name(std::numeric_limits<int>::max()));
-}
-
 TEST_F(BtifUtilsTest, dump_dm_search_event) {
   std::vector<std::pair<uint16_t, std::string>> events = {
           std::make_pair(BTA_DM_INQ_RES_EVT, "BTA_DM_INQ_RES_EVT"),

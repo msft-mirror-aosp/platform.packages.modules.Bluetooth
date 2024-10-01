@@ -31,9 +31,6 @@
 #include "hal_version_manager.h"
 #include "os/log.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace bluetooth {
 namespace audio {
 namespace aidl {
@@ -587,8 +584,8 @@ bool hal_ucast_capability_to_stack_format(const UnicastCapability& hal_capabilit
   return true;
 }
 
-bool hal_bcast_capability_to_stack_format(const BroadcastCapability& hal_bcast_capability,
-                                          CodecConfigSetting& stack_capability) {
+static bool hal_bcast_capability_to_stack_format(const BroadcastCapability& hal_bcast_capability,
+                                                 CodecConfigSetting& stack_capability) {
   if (hal_bcast_capability.codecType != CodecType::LC3) {
     log::warn("Unsupported codecType: {}", toString(hal_bcast_capability.codecType));
     return false;
