@@ -640,10 +640,14 @@ static void hh_open_handler(tBTA_HH_CONN& conn) {
     p_dev->dev_status = BTHH_CONN_STATE_CONNECTED;
   }
   hh_connect_complete(conn, BTHH_CONN_STATE_CONNECTED);
-  // Send set_idle if the peer_device is a keyboard
-  if (check_cod_hid_major(conn.link_spec.addrt.bda, COD_HID_KEYBOARD) ||
-      check_cod_hid_major(conn.link_spec.addrt.bda, COD_HID_COMBO)) {
-    BTA_HhSetIdle(conn.handle, 0);
+
+  if (!com::android::bluetooth::flags::dont_send_hid_set_idle()) {
+    // Send set_idle if the peer_device is a keyboard
+    // TODO (b/307923455): clean this, set idle is deprecated in HID spec v1.1.1
+    if (check_cod_hid_major(conn.link_spec.addrt.bda, COD_HID_KEYBOARD) ||
+        check_cod_hid_major(conn.link_spec.addrt.bda, COD_HID_COMBO)) {
+      BTA_HhSetIdle(conn.handle, 0);
+    }
   }
   BTA_HhGetDscpInfo(conn.handle);
 }

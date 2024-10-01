@@ -19,6 +19,8 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <ctime>
+
 #include "hci/octets.h"
 #include "include/macros.h"
 #include "os/rand.h"
@@ -77,6 +79,12 @@ LeAddressManager::~LeAddressManager() {
   if (address_rotation_non_wake_alarm_ != nullptr) {
     address_rotation_non_wake_alarm_->Cancel();
     address_rotation_non_wake_alarm_.reset();
+  }
+  if (address_rotation_interval_min.has_value()) {
+    address_rotation_interval_min.reset();
+  }
+  if (address_rotation_interval_max.has_value()) {
+    address_rotation_interval_max.reset();
   }
 }
 
@@ -382,7 +390,8 @@ void LeAddressManager::prepare_to_rotate() {
 
 void LeAddressManager::schedule_rotate_random_address() {
   if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
-    auto privateAddressIntervalRange = GetNextPrivateAddressIntervalRange();
+    std::string client_name = "LeAddressManager";
+    auto privateAddressIntervalRange = GetNextPrivateAddressIntervalRange(client_name);
     address_rotation_wake_alarm_->Schedule(
             common::BindOnce(
                     []() { log::info("deadline wakeup in schedule_rotate_random_address"); }),
@@ -390,6 +399,16 @@ void LeAddressManager::schedule_rotate_random_address() {
     address_rotation_non_wake_alarm_->Schedule(
             common::BindOnce(&LeAddressManager::prepare_to_rotate, common::Unretained(this)),
             privateAddressIntervalRange.min);
+
+    auto now = std::chrono::system_clock::now();
+    if (address_rotation_interval_min.has_value()) {
+      CheckAddressRotationHappenedInExpectedTimeInterval(
+              *address_rotation_interval_min, *address_rotation_interval_max, now, client_name);
+    }
+
+    // Update the expected range here.
+    address_rotation_interval_min.emplace(now + privateAddressIntervalRange.min);
+    address_rotation_interval_max.emplace(now + privateAddressIntervalRange.max);
   } else {
     address_rotation_wake_alarm_->Schedule(
             common::BindOnce(&LeAddressManager::prepare_to_rotate, common::Unretained(this)),
@@ -513,7 +532,8 @@ std::chrono::milliseconds LeAddressManager::GetNextPrivateAddressIntervalMs() {
   return minimum_rotation_time_ + random_ms;
 }
 
-PrivateAddressIntervalRange LeAddressManager::GetNextPrivateAddressIntervalRange() {
+PrivateAddressIntervalRange LeAddressManager::GetNextPrivateAddressIntervalRange(
+        const std::string& client_name) {
   // Get both alarms' delays as following:
   // - Non-wake  : Random between [minimum_rotation_time_, (minimum_rotation_time_ + 2 min)]
   // - Wake      : Random between [(maximum_rotation_time_ - 2 min), maximum_rotation_time_]
@@ -534,10 +554,30 @@ PrivateAddressIntervalRange LeAddressManager::GetNextPrivateAddressIntervalRange
   auto min_seconds = std::chrono::duration_cast<std::chrono::seconds>(nonwake_delay - min_minutes);
   auto max_minutes = std::chrono::duration_cast<std::chrono::minutes>(wake_delay);
   auto max_seconds = std::chrono::duration_cast<std::chrono::seconds>(wake_delay - max_minutes);
-  log::info("nonwake={}m{}s, wake={}m{}s", min_minutes.count(), min_seconds.count(),
-            max_minutes.count(), max_seconds.count());
+  log::info("client={}, nonwake={}m{}s, wake={}m{}s", client_name, min_minutes.count(),
+            min_seconds.count(), max_minutes.count(), max_seconds.count());
 
   return PrivateAddressIntervalRange{nonwake_delay, wake_delay};
+}
+
+void LeAddressManager::CheckAddressRotationHappenedInExpectedTimeInterval(
+        const std::chrono::time_point<std::chrono::system_clock>& interval_min,
+        const std::chrono::time_point<std::chrono::system_clock>& interval_max,
+        const std::chrono::time_point<std::chrono::system_clock>& event_time,
+        const std::string& client_name) {
+  // Give some tolerance to upper limit since alarms may ring a little bit late.
+  auto upper_limit_tolerance = std::chrono::seconds(5);
+
+  if (event_time < interval_min || event_time > interval_max + upper_limit_tolerance) {
+    log::warn("RPA rotation happened outside expected time interval. client={}", client_name);
+
+    auto tt_interval_min = std::chrono::system_clock::to_time_t(interval_min);
+    auto tt_interval_max = std::chrono::system_clock::to_time_t(interval_max);
+    auto tt_event_time = std::chrono::system_clock::to_time_t(event_time);
+    log::warn("interval_min={}", ctime(&tt_interval_min));
+    log::warn("interval_max={}", ctime(&tt_interval_max));
+    log::warn("event_time=  {}", ctime(&tt_event_time));
+  }
 }
 
 uint8_t LeAddressManager::GetFilterAcceptListSize() { return accept_list_size_; }

@@ -61,9 +61,6 @@
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 namespace {
@@ -1769,9 +1766,11 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     err_code = AVDT_ERR_UNSUP_CFG;
   }
 
-  // The error code must be set by the caller, otherwise
-  // AVDT_ConfigRsp will interpret the event as RSP instead of REJ.
-  log::assert_that(err_code != 0, "err_code != 0");
+  // The error code might not be set when the configuration is rejected
+  // based on the current AVDTP state.
+  if (err_code == AVDT_SUCCESS) {
+    err_code = AVDT_ERR_UNSUP_CFG;
+  }
 
   AVDT_ConfigRsp(avdt_handle, p_scb->avdt_label, err_code, 0);
 
@@ -3001,7 +3000,7 @@ void bta_av_open_at_inc(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   }
 }
 
-void offload_vendor_callback(tBTM_VSC_CMPL* param) {
+static void offload_vendor_callback(tBTM_VSC_CMPL* param) {
   tBTA_AV value{0};
   uint8_t sub_opcode = 0;
   if (param->param_len) {
@@ -3039,7 +3038,7 @@ void offload_vendor_callback(tBTM_VSC_CMPL* param) {
   }
 }
 
-void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb, tBT_A2DP_OFFLOAD* offload_start) {
+static void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb, tBT_A2DP_OFFLOAD* offload_start) {
   uint8_t param[sizeof(tBT_A2DP_OFFLOAD)];
   log::verbose("");
 
@@ -3070,7 +3069,7 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb, tBT_A2DP_OFFLOAD* offload_s
                                                               param, offload_vendor_callback);
 }
 
-void bta_av_vendor_offload_start_v2(tBTA_AV_SCB* p_scb, A2dpCodecConfigExt* offload_codec) {
+static void bta_av_vendor_offload_start_v2(tBTA_AV_SCB* p_scb, A2dpCodecConfigExt* offload_codec) {
   log::verbose("");
 
   uint16_t connection_handle = get_btm_client_interface().peer.BTM_GetHCIConnHandle(

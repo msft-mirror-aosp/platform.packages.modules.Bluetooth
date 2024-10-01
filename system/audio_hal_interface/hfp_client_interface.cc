@@ -27,9 +27,6 @@
 #include "os/log.h"
 #include "osi/include/properties.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using ::bluetooth::audio::aidl::hfp::HfpDecodingTransport;
 using ::bluetooth::audio::aidl::hfp::HfpEncodingTransport;
 using AudioConfiguration = ::aidl::android::hardware::bluetooth::audio::AudioConfiguration;
@@ -42,20 +39,23 @@ namespace bluetooth {
 namespace audio {
 namespace hfp {
 
-// Helper functions
-aidl::BluetoothAudioSourceClientInterface* get_decode_client_interface() {
+static aidl::BluetoothAudioSourceClientInterface* get_decode_client_interface() {
   return HfpDecodingTransport::active_hal_interface;
 }
 
-aidl::BluetoothAudioSinkClientInterface* get_encode_client_interface() {
+static aidl::BluetoothAudioSinkClientInterface* get_encode_client_interface() {
   return HfpEncodingTransport::active_hal_interface;
 }
 
-HfpDecodingTransport* get_decode_transport_instance() { return HfpDecodingTransport::instance_; }
+static HfpDecodingTransport* get_decode_transport_instance() {
+  return HfpDecodingTransport::instance_;
+}
 
-HfpDecodingTransport* get_encode_transport_instance() { return HfpDecodingTransport::instance_; }
+static HfpDecodingTransport* get_encode_transport_instance() {
+  return HfpDecodingTransport::instance_;
+}
 
-PcmConfiguration get_default_pcm_configuration() {
+static PcmConfiguration get_default_pcm_configuration() {
   PcmConfiguration pcm_config{
           .sampleRateHz = 8000,
           .channelMode = ChannelMode::MONO,
@@ -65,7 +65,7 @@ PcmConfiguration get_default_pcm_configuration() {
   return pcm_config;
 }
 
-HfpConfiguration get_default_hfp_configuration() {
+static HfpConfiguration get_default_hfp_configuration() {
   HfpConfiguration hfp_config{
           .codecId = CodecId::Core::CVSD,
           .connectionHandle = 6,
@@ -75,7 +75,7 @@ HfpConfiguration get_default_hfp_configuration() {
   return hfp_config;
 }
 
-CodecId sco_codec_to_hal_codec(tBTA_AG_UUID_CODEC sco_codec) {
+static CodecId sco_codec_to_hal_codec(tBTA_AG_UUID_CODEC sco_codec) {
   switch (sco_codec) {
     case tBTA_AG_UUID_CODEC::UUID_CODEC_LC3:
       return CodecId::Core::LC3;
@@ -90,7 +90,8 @@ CodecId sco_codec_to_hal_codec(tBTA_AG_UUID_CODEC sco_codec) {
   }
 }
 
-AudioConfiguration offload_config_to_hal_audio_config(const ::hfp::offload_config& offload_config) {
+static AudioConfiguration offload_config_to_hal_audio_config(
+        const ::hfp::offload_config& offload_config) {
   HfpConfiguration hfp_config{
           .codecId = sco_codec_to_hal_codec(offload_config.sco_codec),
           .connectionHandle = offload_config.connection_handle,
@@ -100,13 +101,13 @@ AudioConfiguration offload_config_to_hal_audio_config(const ::hfp::offload_confi
   return AudioConfiguration(hfp_config);
 }
 
-AudioConfiguration pcm_config_to_hal_audio_config(const ::hfp::pcm_config& pcm_config) {
+static AudioConfiguration pcm_config_to_hal_audio_config(const ::hfp::pcm_config& pcm_config) {
   PcmConfiguration config = get_default_pcm_configuration();
   config.sampleRateHz = pcm_config.sample_rate_hz;
   return AudioConfiguration(config);
 }
 
-bool is_aidl_support_hfp() {
+static bool is_aidl_support_hfp() {
   return HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::AIDL &&
          HalVersionManager::GetHalVersion() >= BluetoothAudioHalVersion::VERSION_AIDL_V4;
 }
@@ -148,6 +149,8 @@ void HfpClientInterface::Decode::StartSession() {
     log::error("cannot update audio config to HAL");
     return;
   }
+  auto instance = aidl::hfp::HfpEncodingTransport::instance_;
+  instance->ResetPendingCmd();
   get_decode_client_interface()->StartSession();
 }
 
@@ -190,8 +193,14 @@ size_t HfpClientInterface::Decode::Write(const uint8_t* p_buf, uint32_t len) {
     log::warn("Unsupported HIDL or AIDL version");
     return 0;
   }
-  log::info("decode");
-  return get_decode_client_interface()->WriteAudioData(p_buf, len);
+  log::verbose("decode");
+
+  auto instance = aidl::hfp::HfpDecodingTransport::instance_;
+  if (instance->IsStreamActive()) {
+    return get_decode_client_interface()->WriteAudioData(p_buf, len);
+  }
+
+  return len;
 }
 
 void HfpClientInterface::Decode::ConfirmStreamingRequest() {
@@ -351,8 +360,16 @@ size_t HfpClientInterface::Encode::Read(uint8_t* p_buf, uint32_t len) {
     log::warn("Unsupported HIDL or AIDL version");
     return 0;
   }
-  log::info("encode");
-  return get_encode_client_interface()->ReadAudioData(p_buf, len);
+  log::verbose("encode");
+
+  auto instance = aidl::hfp::HfpEncodingTransport::instance_;
+  if (instance->IsStreamActive()) {
+    return get_encode_client_interface()->ReadAudioData(p_buf, len);
+  }
+
+  memset(p_buf, 0x00, len);
+
+  return len;
 }
 
 void HfpClientInterface::Encode::ConfirmStreamingRequest() {
@@ -470,7 +487,11 @@ void HfpClientInterface::Offload::StartSession() {
     log::error("cannot update audio config to HAL");
     return;
   }
-  get_encode_client_interface()->StartSession();
+  if (get_encode_client_interface()->StartSession() == 0) {
+    log::info("session started");
+  } else {
+    log::warn("session not started");
+  }
 }
 
 void HfpClientInterface::Offload::StopSession() {
@@ -531,8 +552,8 @@ void HfpClientInterface::Offload::CancelStreamingRequest() {
       instance->ResetPendingCmd();
       return;
     case aidl::hfp::HFP_CTRL_CMD_NONE:
-      log::warn("no pending start stream request");
-      return;
+      log::info("no pending start stream request");
+      [[fallthrough]];
     case aidl::hfp::HFP_CTRL_CMD_SUSPEND:
       log::info("suspends");
       aidl::hfp::HfpEncodingTransport::offloading_hal_interface->StreamSuspended(

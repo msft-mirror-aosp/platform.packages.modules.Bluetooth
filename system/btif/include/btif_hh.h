@@ -94,7 +94,8 @@ typedef struct {
   fixed_queue_t* set_rpt_id_queue;
 #endif  // ENABLE_UHID_SET_REPORT
   fixed_queue_t* input_queue;  // to store the inputs before uhid is ready.
-  alarm_t* ready_timer;
+  alarm_t* delayed_ready_timer;  // to delay marking a device as ready, give input chance to listen.
+  alarm_t* ready_disconn_timer;  // to disconnect device if still not ready after some time.
 } btif_hh_uhid_t;
 
 /* Control block to maintain properties of devices */

@@ -465,7 +465,12 @@ void LogMetricBluetoothEvent(const Address& address, android::bluetooth::EventTy
     return;
   }
   int metric_id = MetricIdManager::GetInstance().AllocateId(address);
-  int ret = stats_write(BLUETOOTH_CROSS_LAYER_EVENT_REPORTED, event_type, state, 0, metric_id, 0);
+  int ret = stats_write(BLUETOOTH_CROSS_LAYER_EVENT_REPORTED,
+                        event_type,
+                        state,
+                        0,
+                        metric_id,
+                        BytesField(nullptr, 0));
   if (ret < 0) {
     log::warn("Failed BluetoothEvent Upload - Address {}, Event_type {}, State {}", address,
               event_type, state);

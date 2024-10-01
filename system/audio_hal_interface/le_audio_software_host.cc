@@ -33,9 +33,6 @@
 // TODO(b/198260375): Make LEA data owner group configurable.
 #define LEA_HOST_DATA_GROUP "bluetooth-audio"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 namespace {
@@ -193,8 +190,6 @@ OffloadCapabilities get_offload_capabilities() {
   return {std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>(0),
           std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>(0)};
 }
-
-int GetAidlInterfaceVersion() { return 0; }
 
 void LeAudioClientInterface::Sink::Cleanup() {
   log::info("");
