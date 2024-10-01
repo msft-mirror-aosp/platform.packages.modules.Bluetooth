@@ -772,7 +772,7 @@ impl IBluetooth for BluetoothDBus {
         dbus_generated!()
     }
 
-    fn init(&mut self, _init_flags: Vec<String>, _hci_index: i32) -> bool {
+    fn init(&mut self, _hci_index: i32) -> bool {
         // Not implemented by server
         true
     }

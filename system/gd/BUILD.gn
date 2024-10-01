@@ -94,7 +94,6 @@ static_library("libbluetooth_gd") {
 
 flatbuffer("BluetoothGeneratedDumpsysDataSchema_h") {
   sources = [
-    "common/init_flags.fbs",
     "dumpsys_data.fbs",
     "hci/hci_acl_manager.fbs",
     "hci/hci_controller.fbs",
@@ -105,7 +104,6 @@ flatbuffer("BluetoothGeneratedDumpsysDataSchema_h") {
 
 bt_flatc_binary_schema("BluetoothGeneratedDumpsysBinarySchema_bfbs") {
   sources = [
-    "common/init_flags.fbs",
     "dumpsys_data.fbs",
     "hci/hci_acl_manager.fbs",
     "hci/hci_controller.fbs",

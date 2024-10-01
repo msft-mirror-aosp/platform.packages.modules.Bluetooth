@@ -41,9 +41,6 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 /*****************************************************************************
@@ -1176,7 +1173,7 @@ bool avdt_msg_send(AvdtpCcb* p_ccb, BT_HDR* p_msg) {
  *                  available.
  *
  ******************************************************************************/
-BT_HDR* avdt_msg_asmbl(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
+static BT_HDR* avdt_msg_asmbl(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
   uint8_t* p;
   uint8_t pkt_type;
   BT_HDR* p_ret;

@@ -33,7 +33,6 @@
 #include "os/log.h"
 #include "os/system_properties.h"
 #include "shim/dumpsys.h"
-#include "shim/dumpsys_args.h"
 
 namespace bluetooth {
 namespace shim {
@@ -133,8 +132,7 @@ std::string Dumpsys::impl::PrintAsJson(std::string* dumpsys_data) const {
   return jsongen;
 }
 
-void Dumpsys::impl::DumpWithArgsAsync(int fd, const char** args) const {
-  ParsedDumpsysArgs parsed_dumpsys_args(args);
+void Dumpsys::impl::DumpWithArgsAsync(int fd, const char** /*args*/) const {
   const auto registry = dumpsys_module_.GetModuleRegistry();
 
   ModuleDumper dumper(fd, *registry, kDumpsysTitle);
@@ -170,8 +168,6 @@ void Dumpsys::Dump(int fd, const char** args, std::promise<void> promise) {
   }
   CallOn(pimpl_.get(), &Dumpsys::impl::DumpWithArgsSync, fd, args, std::move(promise));
 }
-
-os::Handler* Dumpsys::GetGdShimHandler() { return GetHandler(); }
 
 /**
  * Module methods

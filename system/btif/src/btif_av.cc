@@ -67,9 +67,6 @@
 #include <android/sysprop/BluetoothProperties.sysprop.h>
 #endif
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 /*****************************************************************************
@@ -885,7 +882,7 @@ const RawAddress& btif_av_find_by_handle(tBTA_AV_HNDL bta_handle) {
  * Local helper functions
  *****************************************************************************/
 
-const char* dump_av_sm_event_name(btif_av_sm_event_t event) {
+static const char* dump_av_sm_event_name(btif_av_sm_event_t event) {
   switch (static_cast<int>(event)) {
     CASE_RETURN_STR(BTA_AV_ENABLE_EVT)
     CASE_RETURN_STR(BTA_AV_REGISTER_EVT)
@@ -929,10 +926,6 @@ const char* dump_av_sm_event_name(btif_av_sm_event_t event) {
   }
 }
 
-const char* dump_av_sm_event_name(int event) {
-  return dump_av_sm_event_name(static_cast<btif_av_sm_event_t>(event));
-}
-
 BtifAvEvent::BtifAvEvent(uint32_t event, const void* p_data, size_t data_length)
     : event_(event), data_(nullptr), data_length_(0) {
   DeepCopy(event, p_data, data_length);
@@ -953,7 +946,7 @@ BtifAvEvent::~BtifAvEvent() { DeepFree(); }
 std::string BtifAvEvent::ToString() const { return BtifAvEvent::EventName(event_); }
 
 std::string BtifAvEvent::EventName(uint32_t event) {
-  std::string name = dump_av_sm_event_name((btif_av_sm_event_t)event);
+  std::string name = dump_av_sm_event_name(static_cast<btif_av_sm_event_t>(event));
   std::stringstream ss_value;
   ss_value << "(0x" << std::hex << event << ")";
   return name + ss_value.str();
@@ -3298,7 +3291,7 @@ static void btif_av_handle_bta_av_event(uint8_t peer_sep, const BtifAvEvent& bti
 
 bool btif_av_both_enable(void) { return btif_av_sink.Enabled() && btif_av_source.Enabled(); }
 
-bool is_a2dp_source_property_enabled(void) {
+static bool is_a2dp_source_property_enabled(void) {
 #ifdef __ANDROID__
   return android::sysprop::BluetoothProperties::isProfileA2dpSourceEnabled().value_or(false);
 #else
@@ -3306,7 +3299,7 @@ bool is_a2dp_source_property_enabled(void) {
 #endif
 }
 
-bool is_a2dp_sink_property_enabled(void) {
+static bool is_a2dp_sink_property_enabled(void) {
 #ifdef __ANDROID__
   return android::sysprop::BluetoothProperties::isProfileA2dpSinkEnabled().value_or(false);
 #else

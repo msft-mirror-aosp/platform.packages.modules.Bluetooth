@@ -54,9 +54,6 @@
 #include "stack/include/btm_status.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using bluetooth::audio::a2dp::BluetoothAudioStatus;
 using bluetooth::common::A2dpSessionMetrics;
 using bluetooth::common::BluetoothMetricsLogger;
@@ -269,7 +266,8 @@ static void btm_read_rssi_cb(void* data);
 static void btm_read_failed_contact_counter_cb(void* data);
 static void btm_read_tx_power_cb(void* data);
 
-void btif_a2dp_source_accumulate_scheduling_stats(SchedulingStats* src, SchedulingStats* dst) {
+static void btif_a2dp_source_accumulate_scheduling_stats(SchedulingStats* src,
+                                                         SchedulingStats* dst) {
   dst->total_updates += src->total_updates;
   dst->last_update_us = src->last_update_us;
   dst->overdue_scheduling_count += src->overdue_scheduling_count;
@@ -284,7 +282,7 @@ void btif_a2dp_source_accumulate_scheduling_stats(SchedulingStats* src, Scheduli
   dst->total_scheduling_time_us += src->total_scheduling_time_us;
 }
 
-void btif_a2dp_source_accumulate_stats(BtifMediaStats* src, BtifMediaStats* dst) {
+static void btif_a2dp_source_accumulate_stats(BtifMediaStats* src, BtifMediaStats* dst) {
   dst->tx_queue_total_frames += src->tx_queue_total_frames;
   dst->tx_queue_max_frames_per_packet =
           std::max(dst->tx_queue_max_frames_per_packet, src->tx_queue_max_frames_per_packet);
