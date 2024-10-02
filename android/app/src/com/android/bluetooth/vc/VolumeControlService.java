@@ -635,10 +635,8 @@ public class VolumeControlService extends ProfileService {
                                 + (", description: " + description));
                 try {
                     callback.onVolumeOffsetChanged(device, id, offset);
-                    if (Flags.leaudioMultipleVocsInstancesApi()) {
-                        callback.onVolumeOffsetAudioLocationChanged(device, id, location);
-                        callback.onVolumeOffsetAudioDescriptionChanged(device, id, description);
-                    }
+                    callback.onVolumeOffsetAudioLocationChanged(device, id, location);
+                    callback.onVolumeOffsetAudioDescriptionChanged(device, id, description);
                 } catch (RemoteException e) {
                     // Dead client -- continue
                 }
@@ -1048,20 +1046,18 @@ public class VolumeControlService extends ProfileService {
         }
         offsets.setLocation(id, location);
 
-        if (Flags.leaudioMultipleVocsInstancesApi()) {
-            synchronized (mCallbacks) {
-                int n = mCallbacks.beginBroadcast();
-                for (int i = 0; i < n; i++) {
-                    try {
-                        mCallbacks
-                                .getBroadcastItem(i)
-                                .onVolumeOffsetAudioLocationChanged(device, id, location);
-                    } catch (RemoteException e) {
-                        continue;
-                    }
+        synchronized (mCallbacks) {
+            int n = mCallbacks.beginBroadcast();
+            for (int i = 0; i < n; i++) {
+                try {
+                    mCallbacks
+                            .getBroadcastItem(i)
+                            .onVolumeOffsetAudioLocationChanged(device, id, location);
+                } catch (RemoteException e) {
+                    continue;
                 }
-                mCallbacks.finishBroadcast();
             }
+            mCallbacks.finishBroadcast();
         }
     }
 
@@ -1076,20 +1072,18 @@ public class VolumeControlService extends ProfileService {
         }
         offsets.setDescription(id, description);
 
-        if (Flags.leaudioMultipleVocsInstancesApi()) {
-            synchronized (mCallbacks) {
-                int n = mCallbacks.beginBroadcast();
-                for (int i = 0; i < n; i++) {
-                    try {
-                        mCallbacks
-                                .getBroadcastItem(i)
-                                .onVolumeOffsetAudioDescriptionChanged(device, id, description);
-                    } catch (RemoteException e) {
-                        continue;
-                    }
+        synchronized (mCallbacks) {
+            int n = mCallbacks.beginBroadcast();
+            for (int i = 0; i < n; i++) {
+                try {
+                    mCallbacks
+                            .getBroadcastItem(i)
+                            .onVolumeOffsetAudioDescriptionChanged(device, id, description);
+                } catch (RemoteException e) {
+                    continue;
                 }
-                mCallbacks.finishBroadcast();
             }
+            mCallbacks.finishBroadcast();
         }
     }
 

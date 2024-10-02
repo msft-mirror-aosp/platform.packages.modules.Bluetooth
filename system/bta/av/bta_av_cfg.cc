@@ -27,6 +27,7 @@
 
 #include <cstdint>
 
+#include "bta/av/bta_av_int.h"
 #include "bta/include/bta_av_api.h"
 #include "internal_include/bt_target.h"
 #include "stack/include/avrc_api.h"
@@ -38,9 +39,6 @@
 #ifndef BTA_AV_RC_PASS_RSP_CODE
 #define BTA_AV_RC_PASS_RSP_CODE AVRC_RSP_NOT_IMPL
 #endif
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -97,7 +95,7 @@ const uint8_t bta_av_meta_caps_evt_ids[] = {
   (sizeof(bta_av_meta_caps_evt_ids) / sizeof(bta_av_meta_caps_evt_ids[0]))
 #endif /* BTA_AV_NUM_RC_EVT_IDS */
 
-const uint8_t* get_bta_avk_meta_caps_evt_ids() {
+static const uint8_t* get_bta_avk_meta_caps_evt_ids() {
   if (avrcp_absolute_volume_is_enabled()) {
     static const uint8_t bta_avk_meta_caps_evt_ids[] = {
             AVRC_EVT_VOLUME_CHANGE,

@@ -25,15 +25,12 @@
 
 #include "client_interface_aidl.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace bluetooth::audio::aidl {
 using ::aidl::android::hardware::bluetooth::audio::CodecId;
 using ::aidl::android::hardware::bluetooth::audio::CodecInfo;
 using ::aidl::android::hardware::bluetooth::audio::SessionType;
 
-::hfp::sco_config recordHfpCodecInfo(CodecInfo codecInfo) {
+static ::hfp::sco_config recordHfpCodecInfo(CodecInfo codecInfo) {
   auto hfp_transport = codecInfo.transport.get<CodecInfo::Transport::hfp>();
   ::hfp::sco_config config{
           .inputDataPath = hfp_transport.inputDataPath,

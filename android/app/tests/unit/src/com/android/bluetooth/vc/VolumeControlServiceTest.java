@@ -1177,8 +1177,6 @@ public class VolumeControlServiceTest {
 
     @Test
     public void testServiceBinderRegisterCallbackWhenDeviceAlreadyConnected() throws Exception {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API);
-
         int groupId = 1;
         int groupVolume = 56;
 

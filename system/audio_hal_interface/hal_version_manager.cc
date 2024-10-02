@@ -26,9 +26,6 @@
 #include "aidl/audio_aidl_interfaces.h"
 #include "os/log.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace bluetooth {
 namespace audio {
 

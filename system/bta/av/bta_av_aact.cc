@@ -61,9 +61,6 @@
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 namespace {
@@ -3015,7 +3012,7 @@ void bta_av_open_at_inc(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   }
 }
 
-void offload_vendor_callback(tBTM_VSC_CMPL* param) {
+static void offload_vendor_callback(tBTM_VSC_CMPL* param) {
   tBTA_AV value{0};
   uint8_t sub_opcode = 0;
   if (param->param_len) {
@@ -3053,7 +3050,7 @@ void offload_vendor_callback(tBTM_VSC_CMPL* param) {
   }
 }
 
-void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb, tBT_A2DP_OFFLOAD* offload_start) {
+static void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb, tBT_A2DP_OFFLOAD* offload_start) {
   uint8_t param[sizeof(tBT_A2DP_OFFLOAD)];
   log::verbose("");
 
@@ -3084,7 +3081,7 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb, tBT_A2DP_OFFLOAD* offload_s
                                                               param, offload_vendor_callback);
 }
 
-void bta_av_vendor_offload_start_v2(tBTA_AV_SCB* p_scb, A2dpCodecConfigExt* offload_codec) {
+static void bta_av_vendor_offload_start_v2(tBTA_AV_SCB* p_scb, A2dpCodecConfigExt* offload_codec) {
   log::verbose("");
 
   uint16_t connection_handle = get_btm_client_interface().peer.BTM_GetHCIConnHandle(
