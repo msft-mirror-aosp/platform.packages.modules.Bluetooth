@@ -45,7 +45,6 @@ cc_library_static {
     srcs: [
         "btav/btav_shim.cc",
         "btav_sink/btav_sink_shim.cc",
-        "btif/btif_shim.cc",
         "controller/controller_shim.cc",
         "csis/csis_shim.cc",
         "gatt/gatt_ble_advertiser_shim.cc",
@@ -83,7 +82,6 @@ gensrcs {
     tools: ["cxxbridge"],
     cmd: "$(location cxxbridge) $(in) --header > $(out)",
     srcs: [
-        "src/btif.rs",
         "src/controller.rs",
         "src/profiles/a2dp.rs",
         "src/profiles/avrcp.rs",
@@ -102,7 +100,6 @@ gensrcs {
     tools: ["cxxbridge"],
     cmd: "$(location cxxbridge) $(in) > $(out)",
     srcs: [
-        "src/btif.rs",
         "src/controller.rs",
         "src/profiles/a2dp.rs",
         "src/profiles/avrcp.rs",

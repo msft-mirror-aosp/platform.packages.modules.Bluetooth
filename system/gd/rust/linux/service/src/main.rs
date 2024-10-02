@@ -59,7 +59,6 @@ const INIT_LOGGING_MAX_RETRY: u8 = 3;
 /// Runs the Bluetooth daemon serving D-Bus IPC.
 fn main() -> Result<(), Box<dyn Error>> {
     let matches = App::new("Bluetooth Adapter Daemon")
-        // Allows multiple INIT_ flags to be given at the end of the arguments.
         .setting(AppSettings::TrailingVarArg)
         .arg(
             Arg::with_name("hci")
@@ -82,7 +81,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .short("v")
                 .help("Enables VERBOSE and additional tags for debug logging. Use with --debug."),
         )
-        .arg(Arg::from_usage("[init-flags] 'Fluoride INIT_ flags'").multiple(true))
         .arg(
             Arg::with_name("log-output")
                 .long("log-output")
@@ -99,12 +97,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let virt_index = matches.value_of("index").map_or(0, |idx| idx.parse::<i32>().unwrap_or(0));
     let hci_index = matches.value_of("hci").map_or(0, |idx| idx.parse::<i32>().unwrap_or(0));
-
-    // The remaining flags are passed down to Fluoride as is.
-    let init_flags: Vec<String> = match matches.values_of("init-flags") {
-        Some(args) => args.map(String::from).collect(),
-        None => vec![],
-    };
 
     let logging = Arc::new(Mutex::new(Box::new(BluetoothLogging::new(
         is_debug,
@@ -178,7 +170,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let battery_provider_manager =
             Arc::new(Mutex::new(Box::new(BatteryProviderManager::new(tx.clone()))));
 
-        bluetooth.lock().unwrap().init(init_flags, hci_index);
+        bluetooth.lock().unwrap().init(hci_index);
         bluetooth.lock().unwrap().enable();
 
         // These constructions require |intf| to be already init-ed.

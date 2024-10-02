@@ -73,7 +73,18 @@ public:
   static A2dpCodecConfig* mCodec;
 };
 
+class TestAudioPort : public bluetooth::audio::a2dp::BluetoothAudioPort {
+  BluetoothAudioStatus StartStream(bool /*low_latency*/) const override {
+    return BluetoothAudioStatus::PENDING;
+  }
+  BluetoothAudioStatus SuspendStream() const override { return BluetoothAudioStatus::PENDING; }
+  BluetoothAudioStatus SetLatencyMode(bool /*low_latency*/) const override {
+    return BluetoothAudioStatus::SUCCESS;
+  }
+};
+
 A2dpCodecConfig* A2dpEncodingFuzzer::mCodec{nullptr};
+const TestAudioPort test_audio_port;
 
 void A2dpEncodingFuzzer::process(const uint8_t* data, size_t size) {
   FuzzedDataProvider fdp(data, size);
@@ -81,9 +92,7 @@ void A2dpEncodingFuzzer::process(const uint8_t* data, size_t size) {
     mCodec = A2dpCodecConfig::createCodec(fdp.PickValueInArray(kCodecIndices));
   }
 
-  osi_property_set("persist.bluetooth.a2dp_offload.disabled",
-                   fdp.PickValueInArray({"true", "false"}));
-
+  bool offload_enabled = fdp.ConsumeBool();
   std::string name = fdp.ConsumeRandomLengthString(kRandomStringLength);
   uint16_t peer_mtu = fdp.ConsumeIntegral<uint16_t>();
   int preferred_encoding_interval_us = fdp.ConsumeIntegral<int>();
@@ -95,7 +104,7 @@ void A2dpEncodingFuzzer::process(const uint8_t* data, size_t size) {
   uint16_t delayReport = fdp.ConsumeIntegral<uint16_t>();
   bluetooth::audio::a2dp::set_remote_delay(delayReport);
 
-  if (!bluetooth::audio::a2dp::init(&messageLoopThread)) {
+  if (!bluetooth::audio::a2dp::init(&messageLoopThread, &test_audio_port, offload_enabled)) {
     return;
   }
 

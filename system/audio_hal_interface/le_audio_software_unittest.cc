@@ -31,8 +31,6 @@
 #include "gmock/gmock.h"
 #include "hidl/le_audio_software_hidl.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 #pragma GCC diagnostic ignored "-Wunused-private-field"
 
 using testing::Return;
@@ -40,11 +38,6 @@ using testing::Test;
 
 using bluetooth::audio::le_audio::LeAudioClientInterface;
 using bluetooth::audio::le_audio::StreamCallbacks;
-
-extern "C" {
-struct android_namespace_t* android_get_exported_namespace(const char*) { return nullptr; }
-void* android_load_sphal_library(const char* /*name*/, int /*flag*/) { return nullptr; }
-}
 
 // MOCKS
 namespace {

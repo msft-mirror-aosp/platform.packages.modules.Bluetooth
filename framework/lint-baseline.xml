@@ -278,28 +278,6 @@
 
     <issue
         id="FlaggedApi"
-        message="Method `onVolumeOffsetAudioLocationChanged()` is a flagged API and should be inside an `if (Flags.leaudioMultipleVocsInstancesApi())` check (or annotate the surrounding method `onVolumeOffsetAudioLocationChanged` with `@FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API) to transfer requirement to caller`)"
-        errorLine1="                            cb.onVolumeOffsetAudioLocationChanged("
-        errorLine2="                            ^">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothVolumeControl.java"
-            line="200"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `onVolumeOffsetAudioDescriptionChanged()` is a flagged API and should be inside an `if (Flags.leaudioMultipleVocsInstancesApi())` check (or annotate the surrounding method `onVolumeOffsetAudioDescriptionChanged` with `@FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API) to transfer requirement to caller`)"
-        errorLine1="                            cb.onVolumeOffsetAudioDescriptionChanged("
-        errorLine2="                            ^">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothVolumeControl.java"
-            line="210"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
         message="Method `onDeviceVolumeChanged()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastVolumeControlForConnectedDevices())` check (or annotate the surrounding method `onDeviceVolumeChanged` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_VOLUME_CONTROL_FOR_CONNECTED_DEVICES) to transfer requirement to caller`)"
         errorLine1="            forEach((cb) -> cb.onDeviceVolumeChanged(device, volume));"
         errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -703,28 +681,6 @@
             file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothSocketException.java"
             line="233"
             column="18"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `onVolumeOffsetAudioLocationChanged()` is a flagged API and should be inside an `if (Flags.leaudioMultipleVocsInstancesApi())` check (or annotate the surrounding method `onVolumeOffsetAudioLocationChanged` with `@FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API) to transfer requirement to caller`)"
-        errorLine1="                            cb.onVolumeOffsetAudioLocationChanged("
-        errorLine2="                            ^">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothVolumeControl.java"
-            line="200"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `onVolumeOffsetAudioDescriptionChanged()` is a flagged API and should be inside an `if (Flags.leaudioMultipleVocsInstancesApi())` check (or annotate the surrounding method `onVolumeOffsetAudioDescriptionChanged` with `@FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API) to transfer requirement to caller`)"
-        errorLine1="                            cb.onVolumeOffsetAudioDescriptionChanged("
-        errorLine2="                            ^">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothVolumeControl.java"
-            line="210"
-            column="29"/>
     </issue>
 
     <issue
