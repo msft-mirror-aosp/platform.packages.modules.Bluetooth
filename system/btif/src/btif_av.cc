@@ -538,18 +538,6 @@ public:
     return true;
   }
 
-  void DeleteActivePeer(void) {
-    log::info("active_peer={}", active_peer_);
-
-    std::promise<void> shutdown_complete_promise;
-    if (!bta_av_co_set_active_source_peer(RawAddress::kEmpty)) {
-      log::warn("unable to set active peer to empty in BtaAvCo");
-    }
-    btif_a2dp_source_end_session(active_peer_);
-    btif_a2dp_source_shutdown(std::move(shutdown_complete_promise));
-    active_peer_ = RawAddress::kEmpty;
-  }
-
   /**
    * Update source codec configuration for a peer.
    *
@@ -720,18 +708,6 @@ public:
     log::info("Setting the active peer to peer address {}", peer_address);
     active_peer_ = peer_address;
     return true;
-  }
-
-  void DeleteActivePeer(void) {
-    log::info("active_peer={}", active_peer_);
-
-    if (!bta_av_co_set_active_sink_peer(RawAddress::kEmpty)) {
-      log::warn("unable to set active peer to empty in BtaAvCo");
-    }
-
-    btif_a2dp_sink_end_session(active_peer_);
-    btif_a2dp_sink_shutdown();
-    active_peer_ = RawAddress::kEmpty;
   }
 
   /**
