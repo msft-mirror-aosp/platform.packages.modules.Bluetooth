@@ -122,3 +122,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "forward_get_set_report_failure_to_uhid"
+    namespace: "bluetooth"
+    description: "Forward GET/SET REPORT reply to UHID even when the request fails"
+    bug: "369748430"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

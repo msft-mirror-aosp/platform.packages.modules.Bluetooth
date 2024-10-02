@@ -22,9 +22,6 @@
 
 #include "hardware/bt_le_audio.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace bluetooth {
 namespace audio {
 namespace aidl {
@@ -81,7 +78,7 @@ namespace aidl {
   return codec;
 }
 
-std::vector<::aidl::android::hardware::bluetooth::audio::CodecSpecificCapabilitiesLtv>
+static std::vector<::aidl::android::hardware::bluetooth::audio::CodecSpecificCapabilitiesLtv>
 GetAidlCodecCapabilitiesFromStack(const ::bluetooth::le_audio::types::LeAudioLtvMap& in) {
   std::vector<::aidl::android::hardware::bluetooth::audio::CodecSpecificCapabilitiesLtv> ltvs;
   auto stack_caps = in.GetAsCoreCodecCapabilities();
@@ -409,7 +406,7 @@ GetStackBroadcastConfigurationFromAidlFormat(
   return std::move(cfg);
 }
 
-::bluetooth::le_audio::set_configurations::QosConfigSetting GetStackQosConfigSettingFromAidl(
+static ::bluetooth::le_audio::set_configurations::QosConfigSetting GetStackQosConfigSettingFromAidl(
         const std::optional<::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
                                     LeAudioAseQosConfiguration>& aidl_qos,
         ::aidl::android::hardware::bluetooth::audio::LeAudioAseConfiguration::TargetLatency
@@ -426,7 +423,7 @@ GetStackBroadcastConfigurationFromAidlFormat(
   return config;
 }
 
-::bluetooth::le_audio::set_configurations::CodecConfigSetting GetCodecConfigSettingFromAidl(
+static ::bluetooth::le_audio::set_configurations::CodecConfigSetting GetCodecConfigSettingFromAidl(
         const std::optional<::aidl::android::hardware::bluetooth::audio::LeAudioAseConfiguration>&
                 ase_config) {
   auto stack_config = ::bluetooth::le_audio::set_configurations::CodecConfigSetting();
@@ -496,7 +493,7 @@ GetStackBroadcastConfigurationFromAidlFormat(
 
 // The number of source entries is the total count of ASEs within the group to
 // be configured
-::bluetooth::le_audio::set_configurations::AseConfiguration GetStackAseConfigurationFromAidl(
+static ::bluetooth::le_audio::set_configurations::AseConfiguration GetStackAseConfigurationFromAidl(
         const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
                 LeAudioAseConfigurationSetting::AseDirectionConfiguration& source) {
   auto stack_qos = GetStackQosConfigSettingFromAidl(source.qosConfiguration,
@@ -510,7 +507,8 @@ GetStackBroadcastConfigurationFromAidlFormat(
   return config;
 }
 
-::bluetooth::le_audio::set_configurations::AudioSetConfiguration GetStackConfigSettingFromAidl(
+static ::bluetooth::le_audio::set_configurations::AudioSetConfiguration
+GetStackConfigSettingFromAidl(
         ::bluetooth::le_audio::types::LeAudioContextType ctx_type,
         const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
                 LeAudioAseConfigurationSetting& aidl_ase_config) {

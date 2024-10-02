@@ -344,6 +344,7 @@ cc_test {
         android: {
             shared_libs: [
                 "libPlatformProperties",
+                "libaaudio",
                 "libbinder_ndk",
                 "libstatssocket",
             ],
@@ -354,7 +355,9 @@ cc_test {
                 "android.hardware.common.fmq-V1-ndk",
                 "android.system.suspend-V1-ndk",
                 "android.system.suspend.control-V1-ndk",
-                "libaaudio",
+                "libexpresslog",
+                "libstatslog_express",
+                "libtextclassifier_hash_static",
             ],
         },
         host: {
@@ -696,6 +699,7 @@ cc_test {
         ":TestMockBtaVc",
         ":TestMockBtcore",
         ":TestMockBtu",
+        ":TestMockFrameworks",
         ":TestMockHci",
         ":TestMockMainShim",
         ":TestMockMainShimDumpsys",

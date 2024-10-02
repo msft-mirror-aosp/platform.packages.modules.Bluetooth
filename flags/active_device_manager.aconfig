@@ -20,3 +20,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "adm_verify_active_fallback_device"
+    namespace: "bluetooth"
+    description: "Verify if device selected for fallback is different then last one"
+    bug: "369799111"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

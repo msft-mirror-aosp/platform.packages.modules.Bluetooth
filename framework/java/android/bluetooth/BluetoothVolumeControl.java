@@ -108,7 +108,6 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
          * @param volumeOffset latest volume offset for this VOCS instance
          * @hide
          */
-        @FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API)
         @SystemApi
         default void onVolumeOffsetChanged(
                 @NonNull BluetoothDevice device,
@@ -128,7 +127,6 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
          * @param audioLocation latest audio location for this VOCS instance
          * @hide
          */
-        @FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API)
         @SystemApi
         default void onVolumeOffsetAudioLocationChanged(
                 @NonNull BluetoothDevice device,
@@ -144,7 +142,6 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
          * @param audioDescription latest audio description for this VOCS instance
          * @hide
          */
-        @FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API)
         @SystemApi
         default void onVolumeOffsetAudioDescriptionChanged(
                 @NonNull BluetoothDevice device,
@@ -189,9 +186,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
         public void onVolumeOffsetChanged(
                 @NonNull BluetoothDevice device, int instanceId, int volumeOffset) {
             Attributable.setAttributionSource(device, mAttributionSource);
-            if (Flags.leaudioMultipleVocsInstancesApi()) {
-                forEach((cb) -> cb.onVolumeOffsetChanged(device, instanceId, volumeOffset));
-            }
+            forEach((cb) -> cb.onVolumeOffsetChanged(device, instanceId, volumeOffset));
         }
 
         @Override
@@ -547,7 +542,6 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
      * @param volumeOffset volume offset to be set on VOCS instance
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API)
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
@@ -650,7 +644,6 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
      * @return number of VOCS instances. When Bluetooth is off, the return value is 0.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API)
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
