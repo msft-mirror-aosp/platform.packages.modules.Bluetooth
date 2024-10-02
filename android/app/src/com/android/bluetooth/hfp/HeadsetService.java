@@ -2046,18 +2046,17 @@ public class HeadsetService extends ProfileService {
                      * it to set fallback device be active.
                      */
                     removeActiveDevice();
-                    if (Flags.sinkAudioPolicyHandover()) {
-                        BluetoothDevice fallbackDevice = getFallbackDevice();
-                        if (fallbackDevice != null
-                                && getConnectionState(fallbackDevice)
-                                        == BluetoothProfile.STATE_CONNECTED) {
-                            Log.d(
-                                    TAG,
-                                    "BluetoothSinkAudioPolicy set fallbackDevice="
-                                            + fallbackDevice
-                                            + " active");
-                            setActiveDevice(fallbackDevice);
-                        }
+
+                    BluetoothDevice fallbackDevice = getFallbackDevice();
+                    if (fallbackDevice != null
+                            && getConnectionState(fallbackDevice)
+                                    == BluetoothProfile.STATE_CONNECTED) {
+                        Log.d(
+                                TAG,
+                                "BluetoothSinkAudioPolicy set fallbackDevice="
+                                        + fallbackDevice
+                                        + " active");
+                        setActiveDevice(fallbackDevice);
                     }
                 }
             }

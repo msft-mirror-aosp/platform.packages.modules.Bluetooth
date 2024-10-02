@@ -249,7 +249,7 @@ void gatt_act_write(tGATT_CLCB* p_clcb, uint8_t sec_act) {
     }
 
     case GATT_WRITE: {
-      if (attr.len <= (payload_size - GATT_HDR_SIZE)) {
+      if ((attr.len + GATT_HDR_SIZE) <= payload_size) {
         p_clcb->s_handle = attr.handle;
 
         tGATT_STATUS rt = gatt_send_write_msg(tcb, p_clcb, GATT_REQ_WRITE, attr.handle, attr.len, 0,
@@ -346,7 +346,14 @@ void gatt_send_prepare_write(tGATT_TCB& tcb, tGATT_CLCB* p_clcb) {
   uint16_t to_send = p_attr->len - p_attr->offset;
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, p_clcb->cid);
-  if (to_send > (payload_size - GATT_WRITE_LONG_HDR_SIZE)) { /* 2 = uint16_t offset bytes  */
+
+  if (payload_size <= GATT_WRITE_LONG_HDR_SIZE) {
+    log::error("too small mtu size {}, possibly due to disconnection", payload_size);
+    gatt_end_operation(p_clcb, GATT_ERROR, NULL);
+    return;
+  }
+
+  if (to_send > (payload_size - GATT_WRITE_LONG_HDR_SIZE)) {
     to_send = payload_size - GATT_WRITE_LONG_HDR_SIZE;
   }
 

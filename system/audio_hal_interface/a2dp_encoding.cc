@@ -53,11 +53,12 @@ bool is_hal_offloading() {
 }
 
 // Initialize BluetoothAudio HAL: openProvider
-bool init(bluetooth::common::MessageLoopThread* message_loop) {
+bool init(bluetooth::common::MessageLoopThread* message_loop,
+          bluetooth::audio::a2dp::BluetoothAudioPort const* audio_port, bool offload_enabled) {
   if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
-    return hidl::a2dp::init(message_loop);
+    return hidl::a2dp::init(message_loop, audio_port, offload_enabled);
   }
-  return aidl::a2dp::init(message_loop);
+  return aidl::a2dp::init(message_loop, audio_port, offload_enabled);
 }
 
 // Clean up BluetoothAudio HAL

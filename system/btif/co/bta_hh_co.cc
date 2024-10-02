@@ -58,6 +58,9 @@ static tBTA_HH_RPT_CACHE_ENTRY sReportCache[BTA_HH_NV_LOAD_MAX];
 #define BTA_HH_UHID_POLL_PERIOD2_MS -1
 /* Max number of polling interrupt allowed */
 #define BTA_HH_UHID_INTERRUPT_COUNT_MAX 100
+/* Disconnect if UHID isn't ready after this many milliseconds. */
+#define BTA_HH_UHID_READY_DISCONN_TIMEOUT_MS 10000
+#define BTA_HH_UHID_READY_SHORT_DISCONN_TIMEOUT_MS 2000
 
 using namespace bluetooth;
 
@@ -208,19 +211,33 @@ static void uhid_set_ready(btif_hh_uhid_t* p_uhid) {
 }
 
 // This runs on main thread.
-static void uhid_open_timeout(void* data) {
+static void uhid_delayed_ready_cback(void* data) {
   int send_fd = PTR_TO_INT(data);
   tBTA_HH_TO_UHID_EVT ev = {};
 
   // Notify the UHID thread that the timer has expired.
-  log::verbose("UHID Open timeout evt");
-  ev.type = BTA_HH_UHID_INBOUND_OPEN_TIMEOUT_EVT;
+  log::verbose("UHID delayed ready evt");
+  ev.type = BTA_HH_UHID_INBOUND_READY_EVT;
   to_uhid_thread(send_fd, &ev, 0);
 }
 
+// This runs on main thread.
+static void uhid_ready_disconn_timeout(void* data) {
+  int dev_handle = PTR_TO_INT(data);
+
+  log::verbose("UHID ready disconn timeout evt");
+  BTA_HhClose(dev_handle);
+}
+
 static void uhid_on_open(btif_hh_uhid_t* p_uhid) {
-  if (p_uhid->ready_for_data || alarm_is_scheduled(p_uhid->ready_timer)) {
+  if (p_uhid->ready_for_data || alarm_is_scheduled(p_uhid->delayed_ready_timer)) {
     return;
+  }
+
+  if (com::android::bluetooth::flags::close_hid_if_uhid_ready_too_slow()) {
+    if (alarm_is_scheduled(p_uhid->ready_disconn_timer)) {
+      alarm_cancel(p_uhid->ready_disconn_timer);
+    }
   }
 
   // On some platforms delay is required, because even though UHID has indicated
@@ -232,7 +249,7 @@ static void uhid_on_open(btif_hh_uhid_t* p_uhid) {
     return;
   }
 
-  alarm_set_on_mloop(p_uhid->ready_timer, ready_delay_ms, uhid_open_timeout,
+  alarm_set_on_mloop(p_uhid->delayed_ready_timer, ready_delay_ms, uhid_delayed_ready_cback,
                      INT_TO_PTR(p_uhid->internal_send_fd));
 }
 
@@ -293,8 +310,18 @@ static int uhid_read_outbound_event(btif_hh_uhid_t* p_uhid) {
       log::verbose("UHID_CLOSE from uhid-dev\n");
       p_uhid->ready_for_data = false;
       if (com::android::bluetooth::flags::hid_report_queuing()) {
-        if (alarm_is_scheduled(p_uhid->ready_timer)) {
-          alarm_cancel(p_uhid->ready_timer);
+        if (alarm_is_scheduled(p_uhid->delayed_ready_timer)) {
+          alarm_cancel(p_uhid->delayed_ready_timer);
+        }
+        if (com::android::bluetooth::flags::close_hid_if_uhid_ready_too_slow()) {
+          // It's possible to get OPEN->CLOSE->OPEN sequence from UHID. Therefore, instead of
+          // immediately disconnecting when receiving CLOSE, here we wait a while and will
+          // disconnect if we don't receive OPEN before it times out.
+          if (!alarm_is_scheduled(p_uhid->ready_disconn_timer)) {
+            alarm_set_on_mloop(p_uhid->ready_disconn_timer,
+                               BTA_HH_UHID_READY_SHORT_DISCONN_TIMEOUT_MS,
+                               uhid_ready_disconn_timeout, INT_TO_PTR(p_uhid->dev_handle));
+          }
         }
       }
       break;
@@ -380,7 +407,7 @@ static int uhid_read_inbound_event(btif_hh_uhid_t* p_uhid) {
         uhid_queue_input(p_uhid, &ev.uhid, ret - 1);
       }
       break;
-    case BTA_HH_UHID_INBOUND_OPEN_TIMEOUT_EVT:
+    case BTA_HH_UHID_INBOUND_READY_EVT:
       uhid_set_ready(p_uhid);
       break;
     case BTA_HH_UHID_INBOUND_CLOSE_EVT:
@@ -471,7 +498,8 @@ static void uhid_fd_close(btif_hh_uhid_t* p_uhid) {
     fixed_queue_free(p_uhid->input_queue, nullptr);
     p_uhid->input_queue = nullptr;
 
-    alarm_free(p_uhid->ready_timer);
+    alarm_free(p_uhid->delayed_ready_timer);
+    alarm_free(p_uhid->ready_disconn_timer);
     osi_free(p_uhid);
   }
 }
@@ -660,7 +688,12 @@ static void* btif_hh_poll_event_thread(void* arg) {
       return 0;
     }
     p_uhid->ready_for_data = false;
-    p_uhid->ready_timer = alarm_new("uhid_ready_timer");
+    p_uhid->delayed_ready_timer = alarm_new("uhid_delayed_ready_timer");
+    p_uhid->ready_disconn_timer = alarm_new("uhid_ready_disconn_timer");
+    if (com::android::bluetooth::flags::close_hid_if_uhid_ready_too_slow()) {
+      alarm_set_on_mloop(p_uhid->ready_disconn_timer, BTA_HH_UHID_READY_DISCONN_TIMEOUT_MS,
+                         uhid_ready_disconn_timeout, INT_TO_PTR(p_uhid->dev_handle));
+    }
 
     p_uhid->get_rpt_id_queue = fixed_queue_new(SIZE_MAX);
     log::assert_that(p_uhid->get_rpt_id_queue, "assert failed: p_uhid->get_rpt_id_queue");
