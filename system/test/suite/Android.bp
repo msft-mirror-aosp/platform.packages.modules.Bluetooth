@@ -120,7 +120,7 @@ cc_test {
         "gatt/gatt_unittest.cc",
     ],
     static_libs: [
-        "bluetooth_flags_c_lib",
+        "bluetooth_flags_c_lib_for_test",
         "libbluetooth-gdx",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",

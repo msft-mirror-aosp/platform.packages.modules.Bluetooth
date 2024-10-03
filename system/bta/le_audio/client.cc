@@ -895,8 +895,7 @@ public:
     /* If assistant have some connected delegators that needs to be informed
      * when there would be request to stream unicast.
      */
-    if (com::android::bluetooth::flags::leaudio_broadcast_audio_handover_policies() &&
-        !sink_monitor_mode_ && source_monitor_mode_ && !group_is_streaming) {
+    if (!sink_monitor_mode_ && source_monitor_mode_ && !group_is_streaming) {
       callbacks_->OnUnicastMonitorModeStatus(bluetooth::le_audio::types::kLeAudioDirectionSource,
                                              UnicastMonitorModeStatus::STREAMING_REQUESTED);
     }
@@ -1113,11 +1112,6 @@ public:
   }
 
   void SetUnicastMonitorMode(uint8_t direction, bool enable) override {
-    if (!com::android::bluetooth::flags::leaudio_broadcast_audio_handover_policies()) {
-      log::warn("Monitor mode is disabled, Set Unicast Monitor mode is ignored");
-      return;
-    }
-
     if (direction == bluetooth::le_audio::types::kLeAudioDirectionSink) {
       /* Cleanup Sink HAL client interface if listening mode is toggled off
        * before group activation (active group context would take care of

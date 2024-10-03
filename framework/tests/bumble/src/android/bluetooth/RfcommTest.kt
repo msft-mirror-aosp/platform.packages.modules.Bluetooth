@@ -73,6 +73,13 @@ class RfcommTest {
     private var mConnectionCounter = 1
     private var mProfileServiceListener = mock<BluetoothProfile.ServiceListener>()
 
+    /*
+        Setup:
+        1. Initialize host and mRemoteDevice
+        2. Disable A2DP, HFP, and HID profiles
+        3. Bond devices
+        4. Disconnect devices
+    */
     @Before
     fun setUp() {
         mRemoteDevice = mBumble.remoteDevice
@@ -99,6 +106,11 @@ class RfcommTest {
         }
     }
 
+    /*
+        TearDown:
+        1. unbond
+        2. shutdown host
+    */
     @After
     fun tearDown() {
         if (mAdapter.bondedDevices.contains(mRemoteDevice)) {
@@ -107,16 +119,36 @@ class RfcommTest {
         host.close()
     }
 
+    /*
+       Test Steps:
+       1. Create an insecure socket
+       2. Connect to the socket
+       3. Verify that devices are connected.
+    */
     @Test
     fun clientConnectToOpenServerSocketBondedInsecure() {
         startServer { serverId -> createConnectAcceptSocket(isSecure = false, serverId) }
     }
 
+    /*
+       Test Steps:
+       1. Create an secure socket
+       2. Connect to the socket
+       3. Verify that devices are connected.
+    */
     @Test
     fun clientConnectToOpenServerSocketBondedSecure() {
         startServer { serverId -> createConnectAcceptSocket(isSecure = true, serverId) }
     }
 
+    /*
+        Test Steps:
+        1. Create an insecure socket
+        2. Connect to the socket
+        3. Verify that devices are connected
+        4. Write data to socket output stream
+        5. Verify bumble received that data
+    */
     @Test
     fun clientSendDataOverInsecureSocket() {
         startServer { serverId ->
@@ -134,6 +166,14 @@ class RfcommTest {
         }
     }
 
+    /*
+        Test Steps:
+        1. Create a secure socket
+        2. Connect to the socket
+        3. Verify that devices are connected
+        4. Write data to socket output stream
+        5. Verify remote device received that data
+    */
     @Test
     fun clientSendDataOverSecureSocket() {
         startServer { serverId ->
@@ -151,6 +191,14 @@ class RfcommTest {
         }
     }
 
+    /*
+        Test Steps:
+        1. Create an insecure socket
+        2. Connect to the socket
+        3. Verify that devices are connected
+        4. Send data from remote device
+        5. Read and verify data from socket input stream
+    */
     @Test
     fun clientReceiveDataOverInsecureSocket() {
         startServer { serverId ->
@@ -169,6 +217,14 @@ class RfcommTest {
         }
     }
 
+    /*
+        Test Steps:
+        1. Create a secure socket
+        2. Connect to the socket
+        3. Verify that devices are connected
+        4. Send data from remote device
+        5. Read and verify data from socket input stream
+    */
     @Test
     fun clientReceiveDataOverSecureSocket() {
         startServer { serverId ->
@@ -187,6 +243,15 @@ class RfcommTest {
         }
     }
 
+    /*
+        Test Steps:
+        1. Create insecure socket 1
+        2. Create insecure socket 2
+        3. Remote device initiates connection to socket 1
+        4. Remote device initiates connection to socket 2
+        5. Accept socket 1 and verify connection
+        6. Accept socket 2 and verify connection
+    */
     @Test
     fun connectTwoInsecureClientsSimultaneously() {
         startServer("ServerPort1", TEST_UUID) { serverId1 ->
@@ -203,6 +268,13 @@ class RfcommTest {
         }
     }
 
+    /*
+        Test Steps:
+        1. Create insecure socket 1
+        2. Remote device initiates connection to socket 1
+        3. Accept socket 1 and verify connection
+        4. Repeat for socket 2
+    */
     @Test
     fun connectTwoInsecureClientsSequentially() {
         startServer("ServerPort1", TEST_UUID) { serverId1 ->
@@ -218,6 +290,15 @@ class RfcommTest {
         }
     }
 
+    /*
+        Test Steps:
+        1. Create secure socket 1
+        2. Create secure socket 2
+        3. Remote device initiates connection to socket 1
+        4. Remote device initiates connection to socket 2
+        5. Accept socket 1 and verify connection
+        6. Accept socket 2 and verify connection
+    */
     @Test
     fun connectTwoSecureClientsSimultaneously() {
         startServer("ServerPort1", TEST_UUID) { serverId1 ->
@@ -234,6 +315,13 @@ class RfcommTest {
         }
     }
 
+    /*
+        Test Steps:
+        1. Create insecure socket 1
+        2. Remote device initiates connection to socket 1
+        3. Accept socket 1 and verify connection
+        4. Repeat for socket 2
+    */
     @Test
     fun connectTwoSecureClientsSequentially() {
         startServer("ServerPort1", TEST_UUID) { serverId1 ->
@@ -249,6 +337,13 @@ class RfcommTest {
         }
     }
 
+    /*
+        Test Steps:
+        1. Create insecure socket 1
+        2. Remote device initiates connection to socket 1
+        3. Accept socket 1 and verify connection
+        4. Repeat for secure socket 2
+    */
     @Test
     fun connectTwoMixedClientsInsecureThenSecure() {
         startServer("ServerPort1", TEST_UUID) { serverId1 ->
@@ -264,6 +359,13 @@ class RfcommTest {
         }
     }
 
+    /*
+        Test Steps:
+        1. Create secure socket 2
+        2. Remote device initiates connection to socket 2
+        3. Accept socket 2 and verify connection
+        4. Repeat for insecure socket 1
+    */
     @Test
     fun connectTwoMixedClientsSecureThenInsecure() {
         startServer("ServerPort1", TEST_UUID) { serverId1 ->
