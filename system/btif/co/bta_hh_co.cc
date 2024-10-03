@@ -31,6 +31,7 @@
 #include <cerrno>
 
 #include "bta_hh_api.h"
+#include "btif_config.h"
 #include "btif_hh.h"
 #include "hci/controller_interface.h"
 #include "main/shim/entry.h"
@@ -40,13 +41,6 @@
 #include "osi/include/properties.h"
 #include "storage/config_keys.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
-const char* dev_path = "/dev/uhid";
-
-#include "btif_config.h"
 #define BTA_HH_NV_LOAD_MAX 16
 static tBTA_HH_RPT_CACHE_ENTRY sReportCache[BTA_HH_NV_LOAD_MAX];
 #define BTA_HH_CACHE_REPORT_VERSION 1
@@ -64,15 +58,16 @@ static tBTA_HH_RPT_CACHE_ENTRY sReportCache[BTA_HH_NV_LOAD_MAX];
 
 using namespace bluetooth;
 
-static const char kPropertyWaitMsAfterUhidOpen[] = "bluetooth.hid.wait_ms_after_uhid_open";
+static constexpr char kDevPath[] = "/dev/uhid";
+static constexpr char kPropertyWaitMsAfterUhidOpen[] = "bluetooth.hid.wait_ms_after_uhid_open";
 
-static const bthh_report_type_t map_rtype_uhid_hh[] = {BTHH_FEATURE_REPORT, BTHH_OUTPUT_REPORT,
-                                                       BTHH_INPUT_REPORT};
+static constexpr bthh_report_type_t map_rtype_uhid_hh[] = {BTHH_FEATURE_REPORT, BTHH_OUTPUT_REPORT,
+                                                           BTHH_INPUT_REPORT};
 
 static void* btif_hh_poll_event_thread(void* arg);
 static bool to_uhid_thread(int fd, const tBTA_HH_TO_UHID_EVT* ev, size_t data_len);
 
-void uhid_set_non_blocking(int fd) {
+static void uhid_set_non_blocking(int fd) {
   int opts = fcntl(fd, F_GETFL);
   if (opts < 0) {
     log::error("Getting flags failed ({})", strerror(errno));
@@ -508,7 +503,7 @@ static void uhid_fd_close(btif_hh_uhid_t* p_uhid) {
 static bool uhid_fd_open(btif_hh_device_t* p_dev) {
   if (!com::android::bluetooth::flags::hid_report_queuing()) {
     if (p_dev->uhid.fd < 0) {
-      p_dev->uhid.fd = open(dev_path, O_RDWR | O_CLOEXEC);
+      p_dev->uhid.fd = open(kDevPath, O_RDWR | O_CLOEXEC);
       if (p_dev->uhid.fd < 0) {
         log::error("Failed to open uhid, err:{}", strerror(errno));
         return false;
@@ -680,7 +675,7 @@ static void* btif_hh_poll_event_thread(void* arg) {
   btif_hh_uhid_t* p_uhid = (btif_hh_uhid_t*)arg;
 
   if (com::android::bluetooth::flags::hid_report_queuing()) {
-    p_uhid->fd = open(dev_path, O_RDWR | O_CLOEXEC);
+    p_uhid->fd = open(kDevPath, O_RDWR | O_CLOEXEC);
     if (p_uhid->fd < 0) {
       log::error("Failed to open uhid, err:{}", strerror(errno));
       close(p_uhid->internal_recv_fd);
