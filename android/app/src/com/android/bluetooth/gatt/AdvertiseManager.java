@@ -31,9 +31,9 @@ import android.os.RemoteException;
 import android.util.Log;
 
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -47,8 +47,11 @@ public class AdvertiseManager {
     private final GattService mService;
     private final AdvertiseManagerNativeInterface mNativeInterface;
     private final AdvertiserMap mAdvertiserMap;
+
+    @GuardedBy("itself")
+    private final Map<IBinder, AdvertiserInfo> mAdvertisers = new HashMap<>();
+
     private Handler mHandler;
-    Map<IBinder, AdvertiserInfo> mAdvertisers = Collections.synchronizedMap(new HashMap<>());
     static int sTempRegistrationId = -1;
 
     AdvertiseManager(GattService service) {
@@ -81,7 +84,9 @@ public class AdvertiseManager {
     void cleanup() {
         Log.d(TAG, "cleanup()");
         mNativeInterface.cleanup();
-        mAdvertisers.clear();
+        synchronized (mAdvertisers) {
+            mAdvertisers.clear();
+        }
         sTempRegistrationId = -1;
 
         if (mHandler != null) {
@@ -138,10 +143,12 @@ public class AdvertiseManager {
 
     Map.Entry<IBinder, AdvertiserInfo> findAdvertiser(int advertiserId) {
         Map.Entry<IBinder, AdvertiserInfo> entry = null;
-        for (Map.Entry<IBinder, AdvertiserInfo> e : mAdvertisers.entrySet()) {
-            if (e.getValue().id == advertiserId) {
-                entry = e;
-                break;
+        synchronized (mAdvertisers) {
+            for (Map.Entry<IBinder, AdvertiserInfo> e : mAdvertisers.entrySet()) {
+                if (e.getValue().id == advertiserId) {
+                    entry = e;
+                    break;
+                }
             }
         }
         return entry;
@@ -176,11 +183,17 @@ public class AdvertiseManager {
         } else {
             IBinder binder = entry.getKey();
             binder.unlinkToDeath(entry.getValue().deathRecipient, 0);
-            mAdvertisers.remove(binder);
+            synchronized (mAdvertisers) {
+                mAdvertisers.remove(binder);
+            }
 
             AppAdvertiseStats stats = mAdvertiserMap.getAppAdvertiseStatsById(regId);
             if (stats != null) {
-                stats.recordAdvertiseStop(mAdvertisers.size());
+                int instanceCount;
+                synchronized (mAdvertisers) {
+                    instanceCount = mAdvertisers.size();
+                }
+                stats.recordAdvertiseStop(instanceCount);
                 stats.recordAdvertiseErrorCount(status);
             }
             mAdvertiserMap.removeAppAdvertiseStats(regId);
@@ -215,7 +228,11 @@ public class AdvertiseManager {
         if (!enable && status != 0) {
             AppAdvertiseStats stats = mAdvertiserMap.getAppAdvertiseStatsById(advertiserId);
             if (stats != null) {
-                stats.recordAdvertiseStop(mAdvertisers.size());
+                int instanceCount;
+                synchronized (mAdvertisers) {
+                    instanceCount = mAdvertisers.size();
+                }
+                stats.recordAdvertiseStop(instanceCount);
             }
         }
     }
@@ -271,7 +288,9 @@ public class AdvertiseManager {
                     AdvertiseHelper.advertiseDataToBytes(periodicData, deviceName);
 
             int cbId = --sTempRegistrationId;
-            mAdvertisers.put(binder, new AdvertiserInfo(cbId, deathRecipient, callback));
+            synchronized (mAdvertisers) {
+                mAdvertisers.put(binder, new AdvertiserInfo(cbId, deathRecipient, callback));
+            }
 
             Log.d(TAG, "startAdvertisingSet() - reg_id=" + cbId + ", callback: " + binder);
 
@@ -336,7 +355,10 @@ public class AdvertiseManager {
         IBinder binder = toBinder(callback);
         Log.d(TAG, "stopAdvertisingSet() " + binder);
 
-        AdvertiserInfo adv = mAdvertisers.remove(binder);
+        AdvertiserInfo adv;
+        synchronized (mAdvertisers) {
+            adv = mAdvertisers.remove(binder);
+        }
         if (adv == null) {
             Log.e(TAG, "stopAdvertisingSet() - no client found for callback");
             return;

@@ -322,6 +322,8 @@ static void btif_gatts_open_impl(int server_if, const RawAddress& address, bool 
 
       default:
         log::error("Unknown device type {}", DeviceTypeText(device_type));
+        // transport must not be AUTO for finding control blocks. Use LE for backward compatibility.
+        transport = BT_TRANSPORT_LE;
         break;
     }
   }
@@ -355,6 +357,8 @@ static void btif_gatts_open_impl_use_address_type(int server_if, const RawAddres
 
       default:
         log::error("Unknown device type {}", DeviceTypeText(device_type));
+        // transport must not be AUTO for finding control blocks. Use LE for backward compatibility.
+        transport = BT_TRANSPORT_LE;
         break;
     }
   }

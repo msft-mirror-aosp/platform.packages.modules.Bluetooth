@@ -24,9 +24,7 @@ import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 import static com.android.bluetooth.flags.Flags.leaudioAllowedContextMask;
 import static com.android.bluetooth.flags.Flags.leaudioBigDependsOnAudioState;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastAssistantPeripheralEntrustment;
-import static com.android.bluetooth.flags.Flags.leaudioBroadcastAudioHandoverPolicies;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastExtractPeriodicScannerFromStateMachine;
-import static com.android.bluetooth.flags.Flags.leaudioBroadcastFeatureSupport;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastMonitorSourceSyncStatus;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastResyncHelper;
 
@@ -278,8 +276,7 @@ public class BassClientService extends ProfileService {
     }
 
     public static boolean isEnabled() {
-        return leaudioBroadcastFeatureSupport()
-                && BluetoothProperties.isProfileBapBroadcastAssistEnabled().orElse(false);
+        return BluetoothProperties.isProfileBapBroadcastAssistEnabled().orElse(false);
     }
 
     private static class SourceSyncRequest {
@@ -3247,27 +3244,22 @@ public class BassClientService extends ProfileService {
     }
 
     private boolean isAllowedToAddSource() {
-        if (leaudioBroadcastAudioHandoverPolicies()) {
-            /* Check if should wait for status update */
-            if (mUnicastSourceStreamStatus.isEmpty()) {
-                /* Assistant was not active, inform about activation */
-                if (!mIsAssistantActive) {
-                    mIsAssistantActive = true;
+        /* Check if should wait for status update */
+        if (mUnicastSourceStreamStatus.isEmpty()) {
+            /* Assistant was not active, inform about activation */
+            if (!mIsAssistantActive) {
+                mIsAssistantActive = true;
 
-                    LeAudioService leAudioService = mServiceFactory.getLeAudioService();
-                    if (leAudioService != null) {
-                        leAudioService.activeBroadcastAssistantNotification(true);
-                    }
+                LeAudioService leAudioService = mServiceFactory.getLeAudioService();
+                if (leAudioService != null) {
+                    leAudioService.activeBroadcastAssistantNotification(true);
                 }
-
-                return false;
             }
 
-            return mUnicastSourceStreamStatus.get() == STATUS_LOCAL_STREAM_SUSPENDED;
+            return false;
         }
 
-        /* Don't block if this is not a handover case */
-        return true;
+        return mUnicastSourceStreamStatus.get() == STATUS_LOCAL_STREAM_SUSPENDED;
     }
 
     /** Return true if there is any non primary device receiving broadcast */

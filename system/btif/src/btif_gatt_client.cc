@@ -349,6 +349,8 @@ void btif_gattc_open_impl(int client_if, RawAddress address, tBLE_ADDR_TYPE addr
 
       default:
         log::error("Unknown device type {}", DeviceTypeText(device_type));
+        // transport must not be AUTO for finding control blocks. Use LE for backward compatibility.
+        transport = BT_TRANSPORT_LE;
         break;
     }
   }

@@ -37,9 +37,11 @@
 #include "audio_hal_interface/a2dp_encoding.h"
 #include "bta/include/bta_av_api.h"
 #include "bta/include/bta_av_ci.h"
+#include "bta/include/bta_av_co.h"
 #include "btif/include/bta_av_co_peer.h"
 #include "btif/include/btif_a2dp_source.h"
 #include "btif/include/btif_av.h"
+#include "btif/include/btif_av_co.h"
 #include "device/include/device_iot_config.h"
 #include "include/hardware/bt_av.h"
 #include "internal_include/bt_trace.h"
@@ -52,9 +54,6 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
