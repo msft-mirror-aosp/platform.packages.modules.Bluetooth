@@ -298,7 +298,7 @@ cc_test {
         "android.hardware.audio.common@5.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
-        "bluetooth_flags_c_lib",
+        "bluetooth_flags_c_lib_for_test",
         "libFraunhoferAAC",
         "libbase",
         "libbluetooth-dumpsys",
