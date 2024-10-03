@@ -27,7 +27,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "codec_status_aidl.h"
 #include "hal_version_manager.h"
 #include "os/log.h"
 

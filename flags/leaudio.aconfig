@@ -18,13 +18,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_broadcast_audio_handover_policies"
-    namespace: "bluetooth"
-    description: "Support le audio broadcast audio routing policies"
-    bug: "308171251"
-}
-
-flag {
     name: "leaudio_multicodec_aidl_support"
     namespace: "bluetooth"
     description: "Enables support for the multicodec AIDL"
@@ -50,13 +43,6 @@ flag {
     namespace: "bluetooth"
     description: "Sync audio stream with the bluetooth link clock"
     bug: "312273987"
-}
-
-flag {
-    name: "leaudio_broadcast_feature_support"
-    namespace: "bluetooth"
-    description: "Le audio broadcast feature roll-out control flag"
-    bug: "316005152"
 }
 
 flag {
@@ -375,6 +361,16 @@ flag {
     namespace: "bluetooth"
     description: "Fix audio slip to speaker while switching bt audio device during phonecall"
     bug: "369322905"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_sort_scans_to_sync_by_fails"
+    namespace: "bluetooth"
+    description: "Sort scan results for source sync by fails counter"
+    bug: "370639684"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

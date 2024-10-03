@@ -479,7 +479,7 @@ package android.bluetooth {
     field public static final int AUDIO_LOCATION_FRONT_RIGHT = 2; // 0x2
     field public static final int AUDIO_LOCATION_FRONT_RIGHT_OF_CENTER = 128; // 0x80
     field public static final int AUDIO_LOCATION_FRONT_RIGHT_WIDE = 33554432; // 0x2000000
-    field public static final int AUDIO_LOCATION_INVALID = 0; // 0x0
+    field @Deprecated @FlaggedApi("com.android.bluetooth.flags.leaudio_mono_location_errata") public static final int AUDIO_LOCATION_INVALID = 0; // 0x0
     field public static final int AUDIO_LOCATION_LEFT_SURROUND = 67108864; // 0x4000000
     field public static final int AUDIO_LOCATION_LOW_FREQ_EFFECTS_ONE = 8; // 0x8
     field public static final int AUDIO_LOCATION_LOW_FREQ_EFFECTS_TWO = 512; // 0x200
@@ -1294,7 +1294,8 @@ package android.bluetooth.le {
 
   public final class DistanceMeasurementMethod implements android.os.Parcelable {
     method public int describeContents();
-    method public double getId();
+    method @Deprecated @FlaggedApi("com.android.bluetooth.flags.channel_sounding_25q2_apis") public double getId();
+    method @FlaggedApi("com.android.bluetooth.flags.channel_sounding_25q2_apis") public int getMethodId();
     method public boolean isAltitudeAngleSupported();
     method public boolean isAzimuthAngleSupported();
     method public void writeToParcel(android.os.Parcel, int);
@@ -1346,6 +1347,7 @@ package android.bluetooth.le {
     method public double getErrorAltitudeAngle();
     method public double getErrorAzimuthAngle();
     method @FloatRange(from=0.0) public double getErrorMeters();
+    method @FlaggedApi("com.android.bluetooth.flags.channel_sounding_25q2_apis") public long getMeasurementTimestampNanos();
     method public double getResultMeters();
     method @FlaggedApi("com.android.bluetooth.flags.channel_sounding") public double getVelocityMetersPerSecond();
     method public void writeToParcel(android.os.Parcel, int);
@@ -1370,6 +1372,7 @@ package android.bluetooth.le {
     method @FlaggedApi("com.android.bluetooth.flags.channel_sounding") @NonNull public android.bluetooth.le.DistanceMeasurementResult.Builder setDetectedAttackLevel(int);
     method @NonNull public android.bluetooth.le.DistanceMeasurementResult.Builder setErrorAltitudeAngle(@FloatRange(from=0.0, to=180.0) double);
     method @NonNull public android.bluetooth.le.DistanceMeasurementResult.Builder setErrorAzimuthAngle(@FloatRange(from=0.0, to=360.0) double);
+    method @FlaggedApi("com.android.bluetooth.flags.channel_sounding_25q2_apis") @NonNull public android.bluetooth.le.DistanceMeasurementResult.Builder setMeasurementTimestampNanos(long);
     method @FlaggedApi("com.android.bluetooth.flags.channel_sounding") @NonNull public android.bluetooth.le.DistanceMeasurementResult.Builder setVelocityMetersPerSecond(double);
   }
 

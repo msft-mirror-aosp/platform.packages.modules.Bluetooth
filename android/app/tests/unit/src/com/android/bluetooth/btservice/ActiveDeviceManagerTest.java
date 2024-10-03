@@ -1353,7 +1353,6 @@ public class ActiveDeviceManagerTest {
      */
     @Test
     public void a2dpConnectedWhenBroadcasting_notSetA2dpActive() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_BROADCAST_AUDIO_HANDOVER_POLICIES);
         final List<BluetoothLeBroadcastMetadata> metadataList = mock(List.class);
         when(mLeAudioService.getAllBroadcastMetadata()).thenReturn(metadataList);
         a2dpConnected(mA2dpDevice, false);
@@ -1370,7 +1369,6 @@ public class ActiveDeviceManagerTest {
      */
     @Test
     public void headsetConnectedWhenBroadcasting_notSetHeadsetActive() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_BROADCAST_AUDIO_HANDOVER_POLICIES);
         final List<BluetoothLeBroadcastMetadata> metadataList = mock(List.class);
         when(mLeAudioService.getAllBroadcastMetadata()).thenReturn(metadataList);
         headsetConnected(mHeadsetDevice, false);
@@ -1387,7 +1385,6 @@ public class ActiveDeviceManagerTest {
      */
     @Test
     public void hearingAidConnectedWhenBroadcasting_notSetHearingAidActive() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_BROADCAST_AUDIO_HANDOVER_POLICIES);
         final List<BluetoothLeBroadcastMetadata> metadataList = mock(List.class);
         when(mLeAudioService.getAllBroadcastMetadata()).thenReturn(metadataList);
         hearingAidConnected(mHearingAidDevice);
@@ -1401,7 +1398,6 @@ public class ActiveDeviceManagerTest {
      */
     @Test
     public void leHearingAidConnectedWhenBroadcasting_notSetLeHearingAidActive() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_BROADCAST_AUDIO_HANDOVER_POLICIES);
         final List<BluetoothLeBroadcastMetadata> metadataList = mock(List.class);
         when(mLeAudioService.getAllBroadcastMetadata()).thenReturn(metadataList);
         leHearingAidConnected(mLeHearingAidDevice);
