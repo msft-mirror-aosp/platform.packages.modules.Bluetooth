@@ -96,8 +96,8 @@ void BluetoothTest::TearDown() {
 }
 
 void BluetoothTest::ClearSemaphore(btsemaphore& sem) {
-  while (sem.try_wait())
-    ;
+  while (sem.try_wait()) {
+  }
 }
 
 const bt_interface_t* BluetoothTest::bt_interface() { return &bluetoothInterface; }

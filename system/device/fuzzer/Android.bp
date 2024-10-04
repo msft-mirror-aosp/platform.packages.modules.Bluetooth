@@ -49,8 +49,6 @@ cc_fuzz {
         "libbluetooth_gd",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libbtcore",
         "libbtdevice",
         "libchrome",

@@ -2372,6 +2372,106 @@ public class BassClientStateMachineTest {
         assertThat(mBassClientStateMachine.hasPendingSourceOperation(metadata.getBroadcastId()))
                 .isTrue();
 
+        assertThat(mBassClientStateMachine.mMsgWhats).contains(CANCEL_PENDING_SOURCE_OPERATION);
+        assertThat(mBassClientStateMachine.mMsgAgr1).isEqualTo(TEST_BROADCAST_ID);
+
+        /* Inject a cancel pending source operation event */
+        Message msg = mBassClientStateMachine.obtainMessage(CANCEL_PENDING_SOURCE_OPERATION);
+        msg.arg1 = metadata.getBroadcastId();
+        mBassClientStateMachine.sendMessage(msg);
+
+        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+
+        /* Verify if pending add source operation is canceled */
+        assertThat(mBassClientStateMachine.hasPendingSourceOperation(metadata.getBroadcastId()))
+                .isFalse();
+    }
+
+    @Test
+    public void cancelPendingUpdateBcastSourceMessage_inConnectedState() {
+        initToConnectedState();
+        mBassClientStateMachine.connectGatt(true);
+        mBassClientStateMachine.mNumOfBroadcastReceiverStates = 2;
+
+        // Prepare mBluetoothLeBroadcastReceiveStates for test
+        BassClientService.Callbacks callbacks = Mockito.mock(BassClientService.Callbacks.class);
+        when(mBassClientService.getCallbacks()).thenReturn(callbacks);
+        int sourceId = 1;
+        int paSync = BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_IDLE;
+        byte[] value =
+                new byte[] {
+                    (byte) sourceId, // sourceId
+                    (byte) (mSourceTestDevice.getAddressType() & 0xFF), // sourceAddressType
+                    Utils.getByteAddress(mSourceTestDevice)[5],
+                    Utils.getByteAddress(mSourceTestDevice)[4],
+                    Utils.getByteAddress(mSourceTestDevice)[3],
+                    Utils.getByteAddress(mSourceTestDevice)[2],
+                    Utils.getByteAddress(mSourceTestDevice)[1],
+                    Utils.getByteAddress(mSourceTestDevice)[0], // sourceAddress
+                    0x00, // sourceAdvSid
+                    0x00,
+                    0x00,
+                    0x00, // broadcastIdBytes
+                    (byte) paSync,
+                    (byte) BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_BAD_CODE,
+                    // 16 bytes badBroadcastCode
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x01, // numSubGroups
+                    // SubGroup #1
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00, // audioSyncIndex
+                    0x02, // metaDataLength
+                    0x00,
+                    0x00, // metadata
+                };
+        BluetoothGattCharacteristic characteristic =
+                Mockito.mock(BluetoothGattCharacteristic.class);
+        when(characteristic.getValue()).thenReturn(value);
+        when(characteristic.getInstanceId()).thenReturn(sourceId);
+        when(characteristic.getUuid()).thenReturn(BassConstants.BASS_BCAST_RECEIVER_STATE);
+        mBassClientStateMachine.mGattCallback.onCharacteristicRead(
+                null, characteristic, GATT_SUCCESS);
+        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+
+        BluetoothLeBroadcastMetadata metadata = createBroadcastMetadata();
+        BassClientStateMachine.BluetoothGattTestableWrapper btGatt =
+                Mockito.mock(BassClientStateMachine.BluetoothGattTestableWrapper.class);
+        mBassClientStateMachine.mBluetoothGatt = btGatt;
+        BluetoothGattCharacteristic scanControlPoint =
+                Mockito.mock(BluetoothGattCharacteristic.class);
+        mBassClientStateMachine.mBroadcastScanControlPoint = scanControlPoint;
+
+        sendMessageAndVerifyTransition(
+                mBassClientStateMachine.obtainMessage(
+                        UPDATE_BCAST_SOURCE, sourceId, paSync, metadata),
+                BassClientStateMachine.ConnectedProcessing.class);
+        verify(scanControlPoint).setValue(any(byte[].class));
+        verify(btGatt).writeCharacteristic(any());
+
+        /* Verify if there is pending add source operation */
+        assertThat(mBassClientStateMachine.hasPendingSourceOperation(metadata.getBroadcastId()))
+                .isTrue();
+
+        assertThat(mBassClientStateMachine.mMsgWhats).contains(CANCEL_PENDING_SOURCE_OPERATION);
+        assertThat(mBassClientStateMachine.mMsgAgr1).isEqualTo(TEST_BROADCAST_ID);
+
         /* Inject a cancel pending source operation event */
         Message msg = mBassClientStateMachine.obtainMessage(CANCEL_PENDING_SOURCE_OPERATION);
         msg.arg1 = metadata.getBroadcastId();
@@ -2798,6 +2898,7 @@ public class BassClientStateMachineTest {
         int mMsgAgr1;
         int mMsgArg2;
         Object mMsgObj;
+        long mMsgDelay;
 
         StubBassClientStateMachine(
                 BluetoothDevice device,
@@ -2823,6 +2924,28 @@ public class BassClientStateMachineTest {
             mMsgObj = msg.obj;
             if (mShouldHandleMessage) {
                 super.sendMessage(msg);
+            }
+        }
+
+        @Override
+        public void sendMessageDelayed(int what, Object obj, long delayMillis) {
+            mMsgWhats.add(what);
+            mMsgWhat = what;
+            mMsgObj = obj;
+            mMsgDelay = delayMillis;
+            if (mShouldHandleMessage) {
+                super.sendMessageDelayed(what, obj, delayMillis);
+            }
+        }
+
+        @Override
+        public void sendMessageDelayed(int what, int arg1, long delayMillis) {
+            mMsgWhats.add(what);
+            mMsgWhat = what;
+            mMsgAgr1 = arg1;
+            mMsgDelay = delayMillis;
+            if (mShouldHandleMessage) {
+                super.sendMessageDelayed(what, arg1, delayMillis);
             }
         }
 

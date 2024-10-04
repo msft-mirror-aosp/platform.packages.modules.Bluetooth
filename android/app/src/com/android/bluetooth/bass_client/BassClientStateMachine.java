@@ -2210,7 +2210,7 @@ public class BassClientStateMachine extends StateMachine {
                                 BassConstants.GATT_TXN_TIMEOUT_MS);
                         sendMessageDelayed(
                                 CANCEL_PENDING_SOURCE_OPERATION,
-                                metaData.getBroadcastCode(),
+                                metaData.getBroadcastId(),
                                 BassConstants.SOURCE_OPERATION_TIMEOUT_MS);
                     } else {
                         Log.e(TAG, "ADD_BCAST_SOURCE: no Bluetooth Gatt handle, Fatal");
@@ -2255,7 +2255,7 @@ public class BassClientStateMachine extends StateMachine {
                                 BassConstants.GATT_TXN_TIMEOUT_MS);
                         sendMessageDelayed(
                                 CANCEL_PENDING_SOURCE_OPERATION,
-                                metaData.getBroadcastCode(),
+                                metaData.getBroadcastId(),
                                 BassConstants.SOURCE_OPERATION_TIMEOUT_MS);
                     } else {
                         Log.e(TAG, "UPDATE_BCAST_SOURCE: no Bluetooth Gatt handle, Fatal");
