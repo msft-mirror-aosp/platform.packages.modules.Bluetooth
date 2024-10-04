@@ -74,7 +74,9 @@ static void rfc_set_port_settings(PortSettings* port_settings, MX_FRAME* p_frame
  *
  ******************************************************************************/
 void rfc_port_sm_execute(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
-  log::assert_that(p_port != nullptr, "NULL port event {}", event);
+  log::assert_that(p_port != nullptr, "NULL port, event {}", event);
+
+  p_port->rfc.sm_cb.last_event = event;
 
   // logs for state RFC_STATE_OPENED handled in rfc_port_sm_opened()
   if (p_port->rfc.sm_cb.state != RFC_STATE_OPENED) {
@@ -122,7 +124,7 @@ void rfc_port_sm_execute(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
 void rfc_port_sm_state_closed(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
   switch (event) {
     case RFC_PORT_EVENT_OPEN:
-      p_port->rfc.sm_cb.state = RFC_STATE_ORIG_WAIT_SEC_CHECK;
+      rfc_set_state(RFC_STATE_ORIG_WAIT_SEC_CHECK, p_port);
       btm_sec_mx_access_request(p_port->rfc.p_mcb->bd_addr, true, p_port->sec_mask,
                                 &rfc_sec_check_complete, p_port);
       return;
@@ -143,7 +145,7 @@ void rfc_port_sm_state_closed(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data
       rfc_timer_stop(p_port->rfc.p_mcb);
 
       /* Open will be continued after security checks are passed */
-      p_port->rfc.sm_cb.state = RFC_STATE_TERM_WAIT_SEC_CHECK;
+      rfc_set_state(RFC_STATE_TERM_WAIT_SEC_CHECK, p_port);
       btm_sec_mx_access_request(p_port->rfc.p_mcb->bd_addr, false, p_port->sec_mask,
                                 &rfc_sec_check_complete, p_port);
       return;
@@ -199,7 +201,7 @@ void rfc_port_sm_sabme_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event, void* p_dat
       rfc_port_timer_start(p_port, RFC_DISC_TIMEOUT);
       rfc_send_disc(p_port->rfc.p_mcb, p_port->dlci);
       p_port->rfc.expected_rsp = 0;
-      p_port->rfc.sm_cb.state = RFC_STATE_DISC_WAIT_UA;
+      rfc_set_state(RFC_STATE_DISC_WAIT_UA, p_port);
       return;
 
     case RFC_PORT_EVENT_CLEAR:
@@ -213,7 +215,7 @@ void rfc_port_sm_sabme_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event, void* p_dat
 
     case RFC_PORT_EVENT_UA:
       rfc_port_timer_stop(p_port);
-      p_port->rfc.sm_cb.state = RFC_STATE_OPENED;
+      rfc_set_state(RFC_STATE_OPENED, p_port);
 
       if (uuid_logging_acceptlist.find(p_port->uuid) != uuid_logging_acceptlist.end()) {
         // Find Channel Control Block by Channel ID
@@ -267,7 +269,7 @@ void rfc_port_sm_sabme_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event, void* p_dat
       return;
 
     case RFC_PORT_EVENT_TIMEOUT:
-      p_port->rfc.sm_cb.state = RFC_STATE_CLOSED;
+      rfc_set_state(RFC_STATE_CLOSED, p_port);
       PORT_DlcEstablishCnf(p_port->rfc.p_mcb, p_port->dlci, p_port->rfc.p_mcb->peer_l2cap_mtu,
                            RFCOMM_ERROR);
       return;
@@ -334,7 +336,7 @@ void rfc_port_sm_term_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event, void*
 
     case RFC_PORT_EVENT_DISC:
       btm_sec_abort_access_req(p_port->rfc.p_mcb->bd_addr);
-      p_port->rfc.sm_cb.state = RFC_STATE_CLOSED;
+      rfc_set_state(RFC_STATE_CLOSED, p_port);
       rfc_send_ua(p_port->rfc.p_mcb, p_port->dlci);
 
       PORT_DlcReleaseInd(p_port->rfc.p_mcb, p_port->dlci);
@@ -351,7 +353,7 @@ void rfc_port_sm_term_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event, void*
         }
       } else {
         rfc_send_ua(p_port->rfc.p_mcb, p_port->dlci);
-        p_port->rfc.sm_cb.state = RFC_STATE_OPENED;
+        rfc_set_state(RFC_STATE_OPENED, p_port);
 
         if (uuid_logging_acceptlist.find(p_port->uuid) != uuid_logging_acceptlist.end()) {
           // Find Channel Control Block by Channel ID
@@ -409,7 +411,7 @@ void rfc_port_sm_orig_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event, void*
                    rfcomm_port_state_text(p_port->rfc.sm_cb.state), p_port->handle);
         rfc_send_sabme(p_port->rfc.p_mcb, p_port->dlci);
         rfc_port_timer_start(p_port, RFC_PORT_T1_TIMEOUT);
-        p_port->rfc.sm_cb.state = RFC_STATE_SABME_WAIT_UA;
+        rfc_set_state(RFC_STATE_SABME_WAIT_UA, p_port);
       }
       return;
 
@@ -462,7 +464,7 @@ void rfc_port_sm_opened(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
       rfc_port_timer_start(p_port, RFC_DISC_TIMEOUT);
       rfc_send_disc(p_port->rfc.p_mcb, p_port->dlci);
       p_port->rfc.expected_rsp = 0;
-      p_port->rfc.sm_cb.state = RFC_STATE_DISC_WAIT_UA;
+      rfc_set_state(RFC_STATE_DISC_WAIT_UA, p_port);
       return;
 
     case RFC_PORT_EVENT_CLEAR:
@@ -510,7 +512,7 @@ void rfc_port_sm_opened(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
     case RFC_PORT_EVENT_DISC:
       log::info("RFC_PORT_EVENT_DISC bd_addr:{} port_handle:{} dlci:{} scn:{}", p_port->bd_addr,
                 p_port->handle, p_port->dlci, p_port->scn);
-      p_port->rfc.sm_cb.state = RFC_STATE_CLOSED;
+      rfc_set_state(RFC_STATE_CLOSED, p_port);
       rfc_send_ua(p_port->rfc.p_mcb, p_port->dlci);
       if (!fixed_queue_is_empty(p_port->rx.queue)) {
         /* give a chance to upper stack to close port properly */

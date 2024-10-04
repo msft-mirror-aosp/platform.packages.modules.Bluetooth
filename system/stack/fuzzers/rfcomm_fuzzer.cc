@@ -52,10 +52,6 @@ void SnoopLogger::AcceptlistRfcommDlci(uint16_t, uint16_t, uint8_t) {}
 void SnoopLogger::SetRfcommPortOpen(uint16_t, uint16_t, uint8_t, uint16_t, bool) {}
 void SnoopLogger::SetRfcommPortClose(uint16_t, uint16_t, uint8_t, uint16_t) {}
 }  // namespace hal
-
-namespace common {
-uint64_t time_get_os_boottime_ms() { return 0; }
-}  // namespace common
 }  // namespace bluetooth
 
 namespace {
