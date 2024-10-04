@@ -38,17 +38,11 @@ public:
                          const std::shared_ptr<IBluetoothAudioProvider>& provider);
 
   ndk::ScopedAStatus startStream(bool is_low_latency) override;
-
   ndk::ScopedAStatus suspendStream() override;
-
   ndk::ScopedAStatus stopStream() override;
-
   ndk::ScopedAStatus getPresentationPosition(PresentationPosition* _aidl_return) override;
-
   ndk::ScopedAStatus updateSourceMetadata(const SourceMetadata& source_metadata) override;
-
   ndk::ScopedAStatus updateSinkMetadata(const SinkMetadata& sink_metadata) override;
-
   ndk::ScopedAStatus setLatencyMode(LatencyMode latency_mode) override;
 
 protected:
@@ -60,7 +54,6 @@ protected:
 
 private:
   ndk::ScopedAStatus switchCodec(bool isLowLatency);
-
   ndk::SpAIBinder createBinder() override;
 };
 

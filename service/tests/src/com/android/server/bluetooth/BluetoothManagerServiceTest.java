@@ -59,13 +59,17 @@ import android.os.Message;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.test.TestLooper;
+import android.platform.test.flag.junit.FlagsParameterization;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
 
 import androidx.test.platform.app.InstrumentationRegistry;
-import androidx.test.runner.AndroidJUnit4;
+
+import com.android.bluetooth.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -73,11 +77,29 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
+import platform.test.runner.parameterized.Parameters;
+
+import java.util.List;
 import java.util.stream.IntStream;
 
-@RunWith(AndroidJUnit4.class)
+@RunWith(ParameterizedAndroidJunit4.class)
 public class BluetoothManagerServiceTest {
-    private static final String TAG = BluetoothManagerServiceTest.class.getSimpleName();
+
+    @Rule public final SetFlagsRule mSetFlagsRule;
+
+    @Parameters(name = "{0}")
+    public static List<FlagsParameterization> getParams() {
+        return FlagsParameterization.allCombinationsOf(
+                Flags.FLAG_GET_NAME_AND_ADDRESS_AS_CALLBACK,
+                Flags.FLAG_ENFORCE_RESOLVE_SYSTEM_SERVICE_BEHAVIOR,
+                Flags.FLAG_REMOVE_ONE_TIME_GET_NAME_AND_ADDRESS);
+    }
+
+    public BluetoothManagerServiceTest(FlagsParameterization flags) {
+        mSetFlagsRule = new SetFlagsRule(flags);
+    }
+
     private static final int STATE_BLE_TURNING_ON = 14; // can't find the symbol because hidden api
 
     BluetoothManagerService mManagerService;

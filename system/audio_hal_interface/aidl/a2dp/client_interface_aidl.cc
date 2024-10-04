@@ -37,25 +37,6 @@ namespace audio {
 namespace aidl {
 namespace a2dp {
 
-std::ostream& operator<<(std::ostream& os, const BluetoothAudioCtrlAck& ack) {
-  switch (ack) {
-    case BluetoothAudioCtrlAck::SUCCESS_FINISHED:
-      return os << "SUCCESS_FINISHED";
-    case BluetoothAudioCtrlAck::PENDING:
-      return os << "PENDING";
-    case BluetoothAudioCtrlAck::FAILURE_UNSUPPORTED:
-      return os << "FAILURE_UNSUPPORTED";
-    case BluetoothAudioCtrlAck::FAILURE_BUSY:
-      return os << "FAILURE_BUSY";
-    case BluetoothAudioCtrlAck::FAILURE_DISCONNECTING:
-      return os << "FAILURE_DISCONNECTING";
-    case BluetoothAudioCtrlAck::FAILURE:
-      return os << "FAILURE";
-    default:
-      return os << "UNDEFINED " << static_cast<int8_t>(ack);
-  }
-}
-
 BluetoothAudioClientInterface::BluetoothAudioClientInterface(IBluetoothTransportInstance* instance)
     : provider_(nullptr),
       provider_factory_(nullptr),
@@ -65,6 +46,13 @@ BluetoothAudioClientInterface::BluetoothAudioClientInterface(IBluetoothTransport
       latency_modes_({LatencyMode::FREE}) {
   death_recipient_ =
           ::ndk::ScopedAIBinder_DeathRecipient(AIBinder_DeathRecipient_new(binderDiedCallbackAidl));
+  FetchAudioProvider();
+}
+
+BluetoothAudioClientInterface::~BluetoothAudioClientInterface() {
+  if (provider_factory_ != nullptr) {
+    AIBinder_unlinkToDeath(provider_factory_->asBinder().get(), death_recipient_.get(), nullptr);
+  }
 }
 
 bool BluetoothAudioClientInterface::IsValid() const { return provider_ != nullptr; }
@@ -228,30 +216,6 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
 
   log::info("IBluetoothAudioProvidersFactory::openProvider() returned {}{}",
             fmt::ptr(provider_.get()), (provider_->isRemote() ? " (remote)" : " (local)"));
-}
-
-BluetoothAudioSinkClientInterface::BluetoothAudioSinkClientInterface(
-        IBluetoothSinkTransportInstance* sink)
-    : BluetoothAudioClientInterface{sink}, sink_(sink) {
-  FetchAudioProvider();
-}
-
-BluetoothAudioSinkClientInterface::~BluetoothAudioSinkClientInterface() {
-  if (provider_factory_ != nullptr) {
-    AIBinder_unlinkToDeath(provider_factory_->asBinder().get(), death_recipient_.get(), nullptr);
-  }
-}
-
-BluetoothAudioSourceClientInterface::BluetoothAudioSourceClientInterface(
-        IBluetoothSourceTransportInstance* source)
-    : BluetoothAudioClientInterface{source}, source_(source) {
-  FetchAudioProvider();
-}
-
-BluetoothAudioSourceClientInterface::~BluetoothAudioSourceClientInterface() {
-  if (provider_factory_ != nullptr) {
-    AIBinder_unlinkToDeath(provider_factory_->asBinder().get(), death_recipient_.get(), nullptr);
-  }
 }
 
 void BluetoothAudioClientInterface::binderDiedCallbackAidl(void* ptr) {
@@ -431,17 +395,17 @@ int BluetoothAudioClientInterface::StartSession() {
   }
 }
 
-void BluetoothAudioClientInterface::StreamStarted(const BluetoothAudioCtrlAck& ack) {
+void BluetoothAudioClientInterface::StreamStarted(const BluetoothAudioStatus& ack) {
   if (provider_ == nullptr) {
     log::error("BluetoothAudioHal nullptr");
     return;
   }
-  if (ack == BluetoothAudioCtrlAck::PENDING) {
+  if (ack == BluetoothAudioStatus::PENDING) {
     log::info("{} ignored", ack);
     return;
   }
 
-  auto status = BluetoothAudioCtrlAckToHalStatus(ack);
+  auto status = BluetoothAudioStatusToHalStatus(ack);
   auto aidl_retval = provider_->streamStarted(status);
 
   if (!aidl_retval.isOk()) {
@@ -449,17 +413,17 @@ void BluetoothAudioClientInterface::StreamStarted(const BluetoothAudioCtrlAck& a
   }
 }
 
-void BluetoothAudioClientInterface::StreamSuspended(const BluetoothAudioCtrlAck& ack) {
+void BluetoothAudioClientInterface::StreamSuspended(const BluetoothAudioStatus& ack) {
   if (provider_ == nullptr) {
     log::error("BluetoothAudioHal nullptr");
     return;
   }
-  if (ack == BluetoothAudioCtrlAck::PENDING) {
+  if (ack == BluetoothAudioStatus::PENDING) {
     log::info("{} ignored", ack);
     return;
   }
 
-  auto status = BluetoothAudioCtrlAckToHalStatus(ack);
+  auto status = BluetoothAudioStatusToHalStatus(ack);
   auto aidl_retval = provider_->streamSuspended(status);
 
   if (!aidl_retval.isOk()) {
@@ -490,33 +454,7 @@ int BluetoothAudioClientInterface::EndSession() {
   return 0;
 }
 
-void BluetoothAudioClientInterface::FlushAudioData() {
-  if (transport_->GetSessionType() == SessionType::LE_AUDIO_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
-      transport_->GetSessionType() == SessionType::LE_AUDIO_HARDWARE_OFFLOAD_DECODING_DATAPATH ||
-      transport_->GetSessionType() ==
-              SessionType::LE_AUDIO_BROADCAST_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
-      (bta_ag_is_sco_managed_by_audio() &&
-       transport_->GetSessionType() == SessionType::HFP_HARDWARE_OFFLOAD_DATAPATH)) {
-    return;
-  }
-
-  if (data_mq_ == nullptr || !data_mq_->isValid()) {
-    log::warn("data_mq_ invalid");
-    return;
-  }
-  size_t size = data_mq_->availableToRead();
-  if (size == 0) {
-    return;
-  }
-
-  std::vector<MqDataType> buffer(size);
-
-  if (data_mq_->read(buffer.data(), size) != size) {
-    log::warn("failed to flush data queue!");
-  }
-}
-
-size_t BluetoothAudioSinkClientInterface::ReadAudioData(uint8_t* p_buf, uint32_t len) {
+size_t BluetoothAudioClientInterface::ReadAudioData(uint8_t* p_buf, uint32_t len) {
   if (!IsValid()) {
     log::error("BluetoothAudioHal is not valid");
     return 0;
@@ -563,7 +501,7 @@ size_t BluetoothAudioSinkClientInterface::ReadAudioData(uint8_t* p_buf, uint32_t
     log::verbose("{} -> {} read", len, total_read);
   }
 
-  sink_->LogBytesRead(total_read);
+  transport_->LogBytesRead(total_read);
   return total_read;
 }
 
@@ -578,155 +516,6 @@ void BluetoothAudioClientInterface::RenewAudioProviderAndSession() {
 
     StartSession();
   }
-}
-
-size_t BluetoothAudioSourceClientInterface::WriteAudioData(const uint8_t* p_buf, uint32_t len) {
-  if (!IsValid()) {
-    log::error("BluetoothAudioHal is not valid");
-    return 0;
-  }
-  if (p_buf == nullptr || len == 0) {
-    return 0;
-  }
-
-  std::lock_guard<std::mutex> guard(internal_mutex_);
-
-  size_t total_written = 0;
-  int timeout_ms = kDefaultDataWriteTimeoutMs;
-  do {
-    if (data_mq_ == nullptr || !data_mq_->isValid()) {
-      break;
-    }
-
-    size_t avail_to_write = data_mq_->availableToWrite();
-    if (avail_to_write) {
-      if (avail_to_write > len - total_written) {
-        avail_to_write = len - total_written;
-      }
-      if (data_mq_->write((const MqDataType*)p_buf + total_written, avail_to_write) == 0) {
-        log::warn("len={} total_written={} failed", len, total_written);
-        break;
-      }
-      total_written += avail_to_write;
-    } else if (timeout_ms >= kDefaultDataWritePollIntervalMs) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(kDefaultDataWritePollIntervalMs));
-      timeout_ms -= kDefaultDataWritePollIntervalMs;
-      continue;
-    } else {
-      log::warn("{}/{} no data {} ms", len - total_written, len,
-                kDefaultDataWriteTimeoutMs - timeout_ms);
-      break;
-    }
-  } while (total_written < len);
-
-  if (timeout_ms < (kDefaultDataWriteTimeoutMs - kDefaultDataWritePollIntervalMs) &&
-      timeout_ms >= kDefaultDataWritePollIntervalMs) {
-    log::verbose("underflow {} -> {} read {} ms", len, total_written,
-                 kDefaultDataWriteTimeoutMs - timeout_ms);
-  } else {
-    log::verbose("{} -> {} written", len, total_written);
-  }
-
-  source_->LogBytesWritten(total_written);
-  return total_written;
-}
-
-void BluetoothAudioClientInterface::SetCodecPriority(CodecId codec_id, int32_t priority) {
-  log::assert_that(provider_ != nullptr, "assert failed: provider_ != nullptr");
-  auto aidl_retval = provider_->setCodecPriority(codec_id, priority);
-  if (!aidl_retval.isOk()) {
-    log::error("BluetoothAudioHal::setCodecPriority failure: {}", aidl_retval.getDescription());
-  }
-}
-
-std::vector<IBluetoothAudioProvider::LeAudioAseConfigurationSetting>
-BluetoothAudioClientInterface::GetLeAudioAseConfiguration(
-        std::optional<
-                std::vector<std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
-                remoteSinkAudioCapabilities,
-        std::optional<
-                std::vector<std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
-                remoteSourceAudioCapabilities,
-        std::vector<IBluetoothAudioProvider::LeAudioConfigurationRequirement>& requirements) {
-  log::assert_that(provider_ != nullptr, "assert failed: provider_ != nullptr");
-
-  std::vector<IBluetoothAudioProvider::LeAudioAseConfigurationSetting> configurations;
-  auto aidl_retval = provider_->getLeAudioAseConfiguration(remoteSinkAudioCapabilities,
-                                                           remoteSourceAudioCapabilities,
-                                                           requirements, &configurations);
-
-  if (!aidl_retval.isOk()) {
-    log::error("BluetoothAudioHal::getLeAudioAseConfiguration failure: {}",
-               aidl_retval.getDescription());
-  } else {
-    log::info(
-            "BluetoothAudioHal::getLeAudioAseConfiguration returned {} "
-            "configurations.",
-            configurations.size());
-  }
-
-  return configurations;
-}
-
-IBluetoothAudioProvider::LeAudioAseQosConfigurationPair
-BluetoothAudioClientInterface::getLeAudioAseQosConfiguration(
-        IBluetoothAudioProvider::LeAudioAseQosConfigurationRequirement& qosRequirement) {
-  log::assert_that(provider_ != nullptr, "assert failed: provider_ != nullptr");
-
-  IBluetoothAudioProvider::LeAudioAseQosConfigurationPair qos_configuration;
-  auto aidl_retval = provider_->getLeAudioAseQosConfiguration(qosRequirement, &qos_configuration);
-
-  if (!aidl_retval.isOk()) {
-    log::error("BluetoothAudioHal::getLeAudioAseQosConfiguration failure: {}",
-               aidl_retval.getDescription());
-  }
-  return qos_configuration;
-}
-
-void BluetoothAudioClientInterface::onSinkAseMetadataChanged(
-        IBluetoothAudioProvider::AseState state, int32_t cigId, int32_t cisId,
-        std::optional<std::vector<std::optional<MetadataLtv>>>& metadata) {
-  log::assert_that(provider_ != nullptr, "assert failed: provider_ != nullptr");
-
-  auto aidl_retval = provider_->onSinkAseMetadataChanged(state, cigId, cisId, metadata);
-
-  if (!aidl_retval.isOk()) {
-    log::error("BluetoothAudioHal::onSinkAseMetadataChanged failure: {}",
-               aidl_retval.getDescription());
-  }
-}
-
-void BluetoothAudioClientInterface::onSourceAseMetadataChanged(
-        IBluetoothAudioProvider::AseState state, int32_t cigId, int32_t cisId,
-        std::optional<std::vector<std::optional<MetadataLtv>>>& metadata) {
-  log::assert_that(provider_ != nullptr, "assert failed: provider_ != nullptr");
-
-  auto aidl_retval = provider_->onSourceAseMetadataChanged(state, cigId, cisId, metadata);
-
-  if (!aidl_retval.isOk()) {
-    log::error("BluetoothAudioHal::onSourceAseMetadataChanged failure: {}",
-               aidl_retval.getDescription());
-  }
-}
-
-IBluetoothAudioProvider::LeAudioBroadcastConfigurationSetting
-BluetoothAudioClientInterface::getLeAudioBroadcastConfiguration(
-        const std::optional<
-                std::vector<std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
-                remoteSinkAudioCapabilities,
-        const IBluetoothAudioProvider::LeAudioBroadcastConfigurationRequirement& requirement) {
-  log::assert_that(provider_ != nullptr, "assert failed: provider_ != nullptr");
-
-  IBluetoothAudioProvider::LeAudioBroadcastConfigurationSetting setting;
-  auto aidl_retval = provider_->getLeAudioBroadcastConfiguration(remoteSinkAudioCapabilities,
-                                                                 requirement, &setting);
-
-  if (!aidl_retval.isOk()) {
-    log::error("BluetoothAudioHal::getLeAudioBroadcastConfiguration failure: {}",
-               aidl_retval.getDescription());
-  }
-
-  return setting;
 }
 
 }  // namespace a2dp
