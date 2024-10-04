@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright 2019 The Android Open Source Project
+ *  Copyright 2024 Google, LLC.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,4 +16,10 @@
  *
  ******************************************************************************/
 
-#include <gtest/gtest.h>
+#pragma once
+
+#include <hardware/bluetooth.h>
+#include <hardware/bt_hf_client.h>
+
+const bthf_client_interface_t* btif_hf_client_get_interface();
+bt_status_t btif_hf_client_execute_service(bool b_enable);

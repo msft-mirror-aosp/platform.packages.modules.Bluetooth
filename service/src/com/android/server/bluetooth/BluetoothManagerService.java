@@ -654,9 +654,14 @@ class BluetoothManagerService {
                 mHandler);
 
         if (Flags.getNameAndAddressAsCallback()) {
-            mName = Settings.Secure.getString(mContentResolver, Settings.Secure.BLUETOOTH_NAME);
+            mName =
+                    BluetoothServerProxy.getInstance()
+                            .settingsSecureGetString(
+                                    mContentResolver, Settings.Secure.BLUETOOTH_NAME);
             mAddress =
-                    Settings.Secure.getString(mContentResolver, Settings.Secure.BLUETOOTH_ADDRESS);
+                    BluetoothServerProxy.getInstance()
+                            .settingsSecureGetString(
+                                    mContentResolver, Settings.Secure.BLUETOOTH_ADDRESS);
 
             Log.d(TAG, "Local adapter: Name=" + mName + ", Address=" + logAddress(mAddress));
         } else {

@@ -375,7 +375,6 @@ static const uint8_t media_attr_list_no_cover_art_size =
 /*****************************************************************************
  *  Externs
  *****************************************************************************/
-bool check_cod(const RawAddress& remote_bdaddr, uint32_t cod);
 
 void btif_rc_get_addr_by_handle(uint8_t handle, RawAddress& rc_addr) {
   log::verbose("handle: 0x{:x}", handle);
