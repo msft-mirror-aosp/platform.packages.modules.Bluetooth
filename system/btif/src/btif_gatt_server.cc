@@ -38,6 +38,7 @@
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_sec_api.h"
 #include "btif/include/btif_common.h"
+#include "btif/include/btif_dm.h"
 #include "btif/include/btif_gatt.h"
 #include "btif/include/btif_gatt_util.h"
 #include "osi/include/allocator.h"
@@ -48,9 +49,6 @@
 #include "types/bluetooth/uuid.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
-
-bool btif_get_address_type(const RawAddress& bda, tBLE_ADDR_TYPE* p_addr_type);
-bool btif_get_device_type(const RawAddress& bda, int* p_device_type);
 
 using base::Bind;
 using bluetooth::Uuid;
@@ -322,6 +320,8 @@ static void btif_gatts_open_impl(int server_if, const RawAddress& address, bool 
 
       default:
         log::error("Unknown device type {}", DeviceTypeText(device_type));
+        // transport must not be AUTO for finding control blocks. Use LE for backward compatibility.
+        transport = BT_TRANSPORT_LE;
         break;
     }
   }
@@ -355,6 +355,8 @@ static void btif_gatts_open_impl_use_address_type(int server_if, const RawAddres
 
       default:
         log::error("Unknown device type {}", DeviceTypeText(device_type));
+        // transport must not be AUTO for finding control blocks. Use LE for backward compatibility.
+        transport = BT_TRANSPORT_LE;
         break;
     }
   }

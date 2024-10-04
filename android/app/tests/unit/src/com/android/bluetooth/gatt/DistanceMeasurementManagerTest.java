@@ -196,6 +196,7 @@ public class DistanceMeasurementManagerTest {
                 -1,
                 -1,
                 -1,
+                1000L,
                 DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI);
         ArgumentCaptor<DistanceMeasurementResult> result =
                 ArgumentCaptor.forClass(DistanceMeasurementResult.class);
@@ -206,6 +207,7 @@ public class DistanceMeasurementManagerTest {
         assertThat(result.getValue().getErrorAzimuthAngle()).isEqualTo(Double.NaN);
         assertThat(result.getValue().getAltitudeAngle()).isEqualTo(Double.NaN);
         assertThat(result.getValue().getErrorAltitudeAngle()).isEqualTo(Double.NaN);
+        assertThat(result.getValue().getMeasurementTimestampNanos()).isEqualTo(1000L);
     }
 
     @Test
@@ -232,6 +234,7 @@ public class DistanceMeasurementManagerTest {
                 -1,
                 -1,
                 -1,
+                1000L,
                 DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI);
         DistanceMeasurementResult result =
                 new DistanceMeasurementResult.Builder(1.00, 1.00).build();

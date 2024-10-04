@@ -9,10 +9,6 @@ use std::time::Duration;
 use tokio::runtime::Builder;
 use tokio::sync::mpsc::Sender;
 
-// Necessary to link right entries.
-#[allow(clippy::single_component_path_imports, unused_imports)]
-use bt_shim;
-
 use bt_topshim::{btif::get_btinterface, topstack};
 use btstack::{
     battery_manager::BatteryManager,

@@ -1395,6 +1395,17 @@ public class HeadsetService extends ProfileService {
                                     + disconnectStatus);
                 }
             }
+
+            // Make sure the Audio Manager knows the previous active device is no longer active.
+            if (Utils.isScoManagedByAudioEnabled()) {
+                mSystemInterface
+                    .getAudioManager()
+                    .handleBluetoothActiveDeviceChanged(
+                        null,
+                        mActiveDevice,
+                        BluetoothProfileConnectionInfo.createHfpInfo());
+            }
+
             mActiveDevice = null;
             mNativeInterface.setActiveDevice(null);
             broadcastActiveDevice(null);
