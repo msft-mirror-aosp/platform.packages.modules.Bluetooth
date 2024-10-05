@@ -34,6 +34,7 @@
 namespace bluetooth {
 namespace audio {
 namespace aidl {
+namespace a2dp {
 namespace codec {
 
 using ::aidl::android::hardware::bluetooth::audio::AacCapabilities;
@@ -58,7 +59,7 @@ using ::aidl::android::hardware::bluetooth::audio::SbcConfiguration;
 
 namespace {
 
-// capabilities from BluetoothAudioSinkClientInterface::GetAudioCapabilities()
+// capabilities from BluetoothAudioClientInterface::GetAudioCapabilities()
 std::vector<AudioCapabilities> audio_hal_capabilities(0);
 // capabilities that audio HAL supports and frameworks / Bluetooth SoC / runtime
 // preference would like to use.
@@ -474,7 +475,7 @@ bool A2dpOpusToHalConfig(CodecConfiguration* codec_config, A2dpCodecConfig* a2dp
 
 bool UpdateOffloadingCapabilities(
         const std::vector<btav_a2dp_codec_config_t>& framework_preference) {
-  audio_hal_capabilities = BluetoothAudioSinkClientInterface::GetAudioCapabilities(
+  audio_hal_capabilities = BluetoothAudioClientInterface::GetAudioCapabilities(
           SessionType::A2DP_HARDWARE_OFFLOAD_ENCODING_DATAPATH);
   std::unordered_set<CodecType> codec_type_set;
   for (auto preference : framework_preference) {
@@ -588,6 +589,7 @@ bool IsCodecOffloadingEnabled(const CodecConfiguration& codec_config) {
 }
 
 }  // namespace codec
+}  // namespace a2dp
 }  // namespace aidl
 }  // namespace audio
 }  // namespace bluetooth

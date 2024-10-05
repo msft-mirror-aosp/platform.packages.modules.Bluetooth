@@ -1215,7 +1215,6 @@ impl BluetoothInterface {
     /// # Arguments
     ///
     /// * `callbacks` - Dispatcher struct that accepts [`BaseCallbacks`]
-    /// * `init_flags` - List of flags sent to libbluetooth for init.
     /// * `hci_index` - Index of the hci adapter in use
     pub fn initialize(&mut self, callbacks: BaseCallbacksDispatcher, hci_index: i32) -> bool {
         if get_dispatchers().lock().unwrap().set::<BaseCb>(Arc::new(Mutex::new(callbacks))) {

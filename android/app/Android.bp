@@ -125,7 +125,6 @@ cc_library_shared {
         "libbt-sbc-encoder",
         "libbt-stack",
         "libbt-stack-core",
-        "libbt_shim_bridge",
         "libbtcore",
         "libbtdevice",
         "libbte",
@@ -322,6 +321,7 @@ android_app {
     ],
     min_sdk_version: "Tiramisu",
     sdk_version: "module_current",
+    updatable: true,
 }
 
 java_library {

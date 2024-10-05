@@ -57,7 +57,6 @@ cc_library_static {
         "libbluetooth_crypto_toolbox",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
     ],
 }
 
@@ -107,7 +106,6 @@ cc_test {
         "libbluetooth_log",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
         "libchrome",
         "libevent",
         "libgmock",

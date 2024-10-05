@@ -103,6 +103,8 @@ static const bluetooth::Uuid kTelephonyMediaAudioProfileRoleCharacteristicUuid =
 
 /* Gaming Audio Service Characteristics */
 static const bluetooth::Uuid kRoleCharacteristicUuid = bluetooth::Uuid::From16Bit(0x2C00);
+static const bluetooth::Uuid kUnicastGameGatewayCharacteristicUuid =
+        bluetooth::Uuid::From16Bit(0x2C01);
 static const bluetooth::Uuid kUnicastGameTerminalCharacteristicUuid =
         bluetooth::Uuid::From16Bit(0x2C02);
 }  // namespace uuid
