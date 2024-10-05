@@ -2619,6 +2619,39 @@ public class BassClientStateMachineTest {
                         eq(0x3)); // STATS_SYNC_AUDIO_SYNC_SUCCESS
     }
 
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void sinkConnected_queueAddingSourceForReceiveStateReady() {
+        mBassClientStateMachine.connectGatt(true);
+        BluetoothGattCallback cb = mBassClientStateMachine.mGattCallback;
+        cb.onMtuChanged(null, 23, GATT_SUCCESS);
+        initToConnectedState();
+
+        mBassClientStateMachine.mNumOfBroadcastReceiverStates = 1;
+        BassClientService.Callbacks callbacks = Mockito.mock(BassClientService.Callbacks.class);
+        when(mBassClientService.getCallbacks()).thenReturn(callbacks);
+
+        BassClientStateMachine.BluetoothGattTestableWrapper btGatt =
+                Mockito.mock(BassClientStateMachine.BluetoothGattTestableWrapper.class);
+        mBassClientStateMachine.mBluetoothGatt = btGatt;
+        BluetoothGattCharacteristic scanControlPoint =
+                Mockito.mock(BluetoothGattCharacteristic.class);
+        mBassClientStateMachine.mBroadcastScanControlPoint = scanControlPoint;
+
+        // Initial receive state with empty source device
+        generateBroadcastReceiveStatesAndVerify(
+                mEmptyTestDevice,
+                TEST_SOURCE_ID,
+                BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_IDLE,
+                BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_NOT_ENCRYPTED,
+                0x0L);
+        // Verify notifyBassStateReady is called
+        verify(callbacks).notifyBassStateReady(eq(mTestDevice));
+    }
+
     private void initToConnectingState() {
         allowConnection(true);
         allowConnectGatt(true);
@@ -2727,6 +2760,7 @@ public class BassClientStateMachineTest {
     private void prepareInitialReceiveStateForGatt() {
         initToConnectedState();
         mBassClientStateMachine.connectGatt(true);
+
         mBassClientStateMachine.mNumOfBroadcastReceiverStates = 2;
         BassClientService.Callbacks callbacks = Mockito.mock(BassClientService.Callbacks.class);
         when(mBassClientService.getCallbacks()).thenReturn(callbacks);
