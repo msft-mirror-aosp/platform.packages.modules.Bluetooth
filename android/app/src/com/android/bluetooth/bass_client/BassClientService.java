@@ -3378,6 +3378,34 @@ public class BassClientService extends ProfileService {
         }
     }
 
+    /** Handle device newly connected and its peer device still has active source */
+    private void checkAndResumeBroadcast(BluetoothDevice sink) {
+        BluetoothLeBroadcastMetadata metadata = mBroadcastMetadataMap.get(sink);
+        if (metadata == null) {
+            Log.d(TAG, "checkAndResumeBroadcast: no metadata available");
+            return;
+        }
+        for (BluetoothDevice groupDevice : getTargetDeviceList(sink, true)) {
+            if (groupDevice.equals(sink)) {
+                continue;
+            }
+            // Check peer device
+            Optional<BluetoothLeBroadcastReceiveState> receiver =
+                    getOrCreateStateMachine(groupDevice).getAllSources().stream()
+                            .filter(e -> e.getBroadcastId() == metadata.getBroadcastId())
+                            .findAny();
+            if (receiver.isPresent()
+                    && !getAllSources(sink).stream()
+                            .anyMatch(
+                                    rs ->
+                                            (rs.getBroadcastId()
+                                                    == receiver.get().getBroadcastId()))) {
+                Log.d(TAG, "checkAndResumeBroadcast: restore the source for device: " + sink);
+                addSource(sink, metadata, false);
+            }
+        }
+    }
+
     private void logPausedBroadcastsAndSinks() {
         log(
                 "mPausedBroadcastIds: "
@@ -3788,6 +3816,7 @@ public class BassClientService extends ProfileService {
         private static final int MSG_SOURCE_REMOVED_FAILED = 11;
         private static final int MSG_RECEIVESTATE_CHANGED = 12;
         private static final int MSG_SOURCE_LOST = 13;
+        private static final int MSG_BASS_STATE_READY = 14;
 
         @GuardedBy("mCallbacksList")
         private final RemoteCallbackList<IBluetoothLeBroadcastAssistantCallback> mCallbacksList =
@@ -3840,8 +3869,33 @@ public class BassClientService extends ProfileService {
             }
         }
 
+        private boolean handleServiceInternalMessage(Message msg) {
+            boolean isMsgHandled = false;
+            if (sService == null) {
+                Log.e(TAG, "Service is null");
+                return isMsgHandled;
+            }
+            BluetoothDevice sink;
+
+            switch (msg.what) {
+                case MSG_BASS_STATE_READY:
+                    sink = (BluetoothDevice) msg.obj;
+                    sService.checkAndResumeBroadcast(sink);
+                    isMsgHandled = true;
+                    break;
+                default:
+                    break;
+            }
+            return isMsgHandled;
+        }
+
         @Override
         public void handleMessage(Message msg) {
+            if (handleServiceInternalMessage(msg)) {
+                log("Handled internal message: " + msg.what);
+                return;
+            }
+
             checkForPendingGroupOpRequest(msg);
 
             synchronized (mCallbacksList) {
@@ -4099,6 +4153,11 @@ public class BassClientService extends ProfileService {
         void notifySourceLost(int broadcastId) {
             sEventLogger.logd(TAG, "notifySourceLost: broadcastId: " + broadcastId);
             obtainMessage(MSG_SOURCE_LOST, 0, broadcastId).sendToTarget();
+        }
+
+        void notifyBassStateReady(BluetoothDevice sink) {
+            sEventLogger.logd(TAG, "notifyBassStateReady: sink: " + sink);
+            obtainMessage(MSG_BASS_STATE_READY, sink).sendToTarget();
         }
     }
 
