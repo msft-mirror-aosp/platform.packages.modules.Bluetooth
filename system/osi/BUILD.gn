@@ -56,7 +56,6 @@ static_library("osi") {
   deps = [
     "//bt/flags:bluetooth_flags_c_lib",
     "//bt/system/common",
-    "//bt/system/gd/rust/shim:init_flags_bridge_header",
   ]
 
   configs += [

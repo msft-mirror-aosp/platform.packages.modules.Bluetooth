@@ -61,6 +61,7 @@
 #include "btif_config.h"
 #include "btif_dm.h"
 #include "btif_metrics_logging.h"
+#include "btif_sdp.h"
 #include "btif_storage.h"
 #include "btif_util.h"
 #include "common/lru_cache.h"
@@ -104,12 +105,6 @@
 #ifdef __ANDROID__
 #include <android/sysprop/BluetoothProperties.sysprop.h>
 #endif
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
-bool btif_get_address_type(const RawAddress& bda, tBLE_ADDR_TYPE* p_addr_type);
-bool btif_get_device_type(const RawAddress& bda, int* p_device_type);
 
 using bluetooth::Uuid;
 using namespace bluetooth;
@@ -297,7 +292,6 @@ static void btif_on_name_read(RawAddress bd_addr, tHCI_ERROR_CODE hci_status, co
 /******************************************************************************
  *  Externs
  *****************************************************************************/
-bt_status_t btif_sdp_execute_service(bool b_enable);
 void btif_iot_update_remote_info(tBTA_DM_AUTH_CMPL* p_auth_cmpl, bool is_ble, bool is_ssp);
 
 /******************************************************************************
@@ -323,7 +317,7 @@ void btif_dm_cleanup(void) {
   }
 }
 
-bt_status_t btif_in_execute_service_request(tBTA_SERVICE_ID service_id, bool b_enable) {
+static bt_status_t btif_in_execute_service_request(tBTA_SERVICE_ID service_id, bool b_enable) {
   log::verbose("service_id:{}", service_id);
 
   if (service_id == BTA_SDP_SERVICE_ID) {
@@ -496,12 +490,8 @@ static uint32_t get_cod(const RawAddress* remote_bdaddr) {
   return remote_cod;
 }
 
-bool check_cod(const RawAddress* remote_bdaddr, uint32_t cod) {
+static bool check_cod(const RawAddress* remote_bdaddr, uint32_t cod) {
   return (get_cod(remote_bdaddr) & COD_DEVICE_MASK) == cod;
-}
-
-bool check_cod_hid(const RawAddress* remote_bdaddr) {
-  return (get_cod(remote_bdaddr) & COD_HID_MASK) == COD_HID_MAJOR;
 }
 
 bool check_cod_hid(const RawAddress& bd_addr) {
@@ -514,9 +504,10 @@ bool check_cod_hid_major(const RawAddress& bd_addr, uint32_t cod) {
          (remote_cod & COD_HID_SUB_MAJOR) == (cod & COD_HID_SUB_MAJOR);
 }
 
-bool check_cod_le_audio(const RawAddress& bd_addr) {
+static bool check_cod_le_audio(const RawAddress& bd_addr) {
   return (get_cod(&bd_addr) & COD_CLASS_LE_AUDIO) == COD_CLASS_LE_AUDIO;
 }
+
 /*****************************************************************************
  *
  * Function        check_sdp_bl
@@ -1183,7 +1174,7 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
     state = BT_BOND_STATE_BONDED;
     bd_addr = p_auth_cmpl->bd_addr;
 
-    if (check_sdp_bl(&bd_addr) && check_cod_hid(&bd_addr)) {
+    if (check_sdp_bl(&bd_addr) && check_cod_hid(bd_addr)) {
       log::warn("skip SDP");
       skip_sdp = true;
     }
@@ -1717,8 +1708,8 @@ static void btif_on_service_discovery_results(RawAddress bd_addr,
   }
 }
 
-void btif_on_gatt_results(RawAddress bd_addr, std::vector<bluetooth::Uuid>& services,
-                          bool is_transport_le) {
+static void btif_on_gatt_results(RawAddress bd_addr, std::vector<bluetooth::Uuid>& services,
+                                 bool is_transport_le) {
   std::vector<bt_property_t> prop;
   std::vector<uint8_t> property_value;
   std::set<Uuid> uuids;
@@ -1892,13 +1883,14 @@ static void btif_on_name_read(RawAddress bd_addr, tHCI_ERROR_CODE hci_status, co
   }
 }
 
-void btif_on_name_read_from_btm(const RawAddress& bd_addr, DEV_CLASS /* dc */, BD_NAME bd_name) {
+static void btif_on_name_read_from_btm(const RawAddress& bd_addr, DEV_CLASS /* dc */,
+                                       BD_NAME bd_name) {
   log::info("{} {}", bd_addr, reinterpret_cast<char const*>(bd_name));
   btif_on_name_read(bd_addr, HCI_SUCCESS, bd_name, false /* during_device_search */);
 }
 
-void btif_on_did_received(RawAddress bd_addr, uint8_t vendor_id_src, uint16_t vendor_id,
-                          uint16_t product_id, uint16_t version) {
+static void btif_on_did_received(RawAddress bd_addr, uint8_t vendor_id_src, uint16_t vendor_id,
+                                 uint16_t product_id, uint16_t version) {
   bt_vendor_product_info_t vp_info{
           .vendor_id_src = vendor_id_src,
           .vendor_id = vendor_id,

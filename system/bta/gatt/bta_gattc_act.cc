@@ -297,7 +297,7 @@ void bta_gattc_deregister(tBTA_GATTC_RCB* p_clreg) {
   /* close all CLCB related to this app */
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     for (auto& p_clcb : bta_gattc_cb.clcb_set) {
-      if (p_clcb->p_rcb != p_clreg) {
+      if (!p_clcb->in_use || p_clcb->p_rcb != p_clreg) {
         continue;
       }
       p_clreg->dereg_pending = true;
@@ -1504,7 +1504,8 @@ void bta_gattc_process_api_refresh(const RawAddress& remote_bda) {
       tBTA_GATTC_CLCB* p_clcb = &bta_gattc_cb.clcb[0];
       if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
         for (auto& p_clcb_i : bta_gattc_cb.clcb_set) {
-          if (p_clcb_i->p_srcb == p_srvc_cb) {
+          if (p_clcb_i->in_use && p_clcb_i->p_srcb == p_srvc_cb) {
+            p_clcb = p_clcb_i.get();
             found = true;
             break;
           }
@@ -1576,7 +1577,7 @@ static bool bta_gattc_process_srvc_chg_ind(tCONN_ID conn_id, tBTA_GATTC_RCB* p_c
     if (p_clcb == NULL || (p_clcb && p_clcb->p_q_cmd != NULL)) {
       if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
         for (auto& p_clcb_i : bta_gattc_cb.clcb_set) {
-          if (p_clcb_i->p_srcb == p_srcb && p_clcb_i->p_q_cmd == NULL) {
+          if (p_clcb_i->in_use && p_clcb_i->p_srcb == p_srcb && p_clcb_i->p_q_cmd == NULL) {
             p_clcb = p_clcb_i.get();
             break;
           }

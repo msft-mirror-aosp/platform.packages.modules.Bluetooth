@@ -1263,11 +1263,6 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
      * @return {@code true} if is broadcasting audio, {@code false} otherwise
      */
     private boolean isBroadcastingAudio() {
-        if (!Flags.leaudioBroadcastAudioHandoverPolicies()) {
-            // disable this if feature flag is false
-            return false;
-        }
-
         final LeAudioService leAudioService = mFactory.getLeAudioService();
         return leAudioService != null && !leAudioService.getAllBroadcastMetadata().isEmpty();
     }
