@@ -20,7 +20,6 @@ import static android.bluetooth.BluetoothGatt.GATT_SUCCESS;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.common.truth.Truth8.assertThat;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
@@ -636,5 +635,33 @@ public class GattClientTest {
         }
         // We should fail because we reached the limit.
         assertThat(failed).isTrue();
+    }
+
+    @Test
+    public void writeCharacteristic_disconnected_shouldNotCrash() {
+        registerGattService();
+
+        BluetoothGattCallback gattCallback = mock(BluetoothGattCallback.class);
+
+        BluetoothGatt gatt = connectGattAndWaitConnection(gattCallback);
+
+        try {
+            gatt.discoverServices();
+            verify(gattCallback, timeout(10000)).onServicesDiscovered(any(), eq(GATT_SUCCESS));
+
+            BluetoothGattCharacteristic characteristic =
+                    gatt.getService(TEST_SERVICE_UUID).getCharacteristic(TEST_CHARACTERISTIC_UUID);
+
+            byte[] newValue = new byte[] {13};
+
+            gatt.writeCharacteristic(
+                    characteristic, newValue, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+            // TODO(b/370607862): disconnect from the remote
+            gatt.disconnect();
+            gatt.close();
+        } finally {
+            // it's okay to close twice.
+            gatt.close();
+        }
     }
 }

@@ -227,12 +227,17 @@ bool is_hal_enabled() { return true; }
 // Check if new bluetooth_audio is running with offloading encoders
 bool is_hal_offloading() { return false; }
 
+static BluetoothAudioPort null_audio_port;
+static BluetoothAudioPort const* bluetooth_audio_port = &null_audio_port;
+
 // Initialize BluetoothAudio HAL: openProvider
-bool init(bluetooth::common::MessageLoopThread* message_loop) {
+bool init(bluetooth::common::MessageLoopThread* message_loop, BluetoothAudioPort const* audio_port,
+          bool /*offload_enabled*/) {
   a2dp_uipc = UIPC_Init();
   total_bytes_read_ = 0;
   data_position_ = {};
   remote_delay_report_ = 0;
+  bluetooth_audio_port = audio_port;
 
   return true;
 }
@@ -240,6 +245,7 @@ bool init(bluetooth::common::MessageLoopThread* message_loop) {
 // Clean up BluetoothAudio HAL
 void cleanup() {
   end_session();
+  bluetooth_audio_port = &null_audio_port;
 
   if (a2dp_uipc != nullptr) {
     UIPC_Close(*a2dp_uipc, UIPC_CH_ID_ALL);

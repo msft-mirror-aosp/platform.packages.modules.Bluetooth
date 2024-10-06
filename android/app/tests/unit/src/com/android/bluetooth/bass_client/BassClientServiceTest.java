@@ -1394,11 +1394,9 @@ public class BassClientServiceTest {
     }
 
     private void handleHandoverSupport() {
-        if (Flags.leaudioBroadcastAudioHandoverPolicies()) {
-            /* Unicast finished streaming */
-            mBassClientService.handleUnicastSourceStreamStatusChange(
-                    2 /* STATUS_LOCAL_STREAM_SUSPENDED */);
-        }
+        /* Unicast finished streaming */
+        mBassClientService.handleUnicastSourceStreamStatusChange(
+                2 /* STATUS_LOCAL_STREAM_SUSPENDED */);
     }
 
     private void verifyAddSourceForGroup(BluetoothLeBroadcastMetadata meta) {
@@ -6660,5 +6658,59 @@ public class BassClientServiceTest {
                 .verify(mMethodProxy)
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
+    }
+
+    /**
+     * Test add source will be triggered if new device connected and its peer is synced to broadcast
+     * source
+     */
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void sinkBassStateReady_addSourceIfPeerDeviceSynced() {
+        // Imitate broadcast being active
+        doReturn(true).when(mLeAudioService).isPlaying(TEST_BROADCAST_ID);
+        prepareTwoSynchronizedDevicesForLocalBroadcast();
+
+        mBassClientService.getCallbacks().notifyBassStateReady(mCurrentDevice);
+        TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
+
+        assertThat(mStateMachines.size()).isEqualTo(2);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            // No adding source if device remain synced
+            verify(sm, never()).sendMessage(any());
+        }
+
+        // Remove source on the mCurrentDevice
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            if (sm.getDevice().equals(mCurrentDevice)) {
+                injectRemoteSourceStateRemoval(sm, TEST_SOURCE_ID);
+            }
+        }
+
+        mBassClientService.getCallbacks().notifyBassStateReady(mCurrentDevice);
+        TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
+
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            // Verify mCurrentDevice is resuming the broadcast
+            if (sm.getDevice().equals(mCurrentDevice1)) {
+                verify(sm, never()).sendMessage(any());
+            } else if (sm.getDevice().equals(mCurrentDevice)) {
+                ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+                verify(sm, atLeast(1)).sendMessage(messageCaptor.capture());
+
+                Message msg =
+                        messageCaptor.getAllValues().stream()
+                                .filter(m -> (m.what == BassClientStateMachine.ADD_BCAST_SOURCE))
+                                .findFirst()
+                                .orElse(null);
+                assertThat(msg).isNotNull();
+                clearInvocations(sm);
+            } else {
+                throw new AssertionError("Unexpected device");
+            }
+        }
     }
 }

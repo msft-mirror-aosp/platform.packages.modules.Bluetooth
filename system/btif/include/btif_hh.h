@@ -94,7 +94,8 @@ typedef struct {
   fixed_queue_t* set_rpt_id_queue;
 #endif  // ENABLE_UHID_SET_REPORT
   fixed_queue_t* input_queue;  // to store the inputs before uhid is ready.
-  alarm_t* ready_timer;
+  alarm_t* delayed_ready_timer;  // to delay marking a device as ready, give input chance to listen.
+  alarm_t* ready_disconn_timer;  // to disconnect device if still not ready after some time.
 } btif_hh_uhid_t;
 
 /* Control block to maintain properties of devices */
@@ -156,6 +157,12 @@ void btif_hh_service_registration(bool enable);
 void btif_hh_load_bonded_dev(const tAclLinkSpec& link_spec, tBTA_HH_ATTR_MASK attr_mask,
                              uint8_t sub_class, uint8_t app_id, tBTA_HH_DEV_DSCP_INFO dscp_info,
                              bool reconnect_allowed);
+
+int bta_hh_co_write(int fd, uint8_t* rpt, uint16_t len);
+void bta_hh_co_close(btif_hh_device_t* p_dev);
+void bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name, uint16_t vendor_id,
+                             uint16_t product_id, uint16_t version, uint8_t ctry_code,
+                             uint16_t dscp_len, uint8_t* p_dscp);
 
 void DumpsysHid(int fd);
 

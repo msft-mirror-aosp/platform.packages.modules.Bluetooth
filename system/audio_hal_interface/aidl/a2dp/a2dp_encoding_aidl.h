@@ -20,10 +20,6 @@
 
 #include "a2dp_encoding.h"
 #include "a2dp_sbc_constants.h"
-#include "btif/include/btif_a2dp_source.h"
-#include "btif/include/btif_av.h"
-#include "btif/include/btif_av_co.h"
-#include "btif/include/btif_hf.h"
 #include "common/message_loop_thread.h"
 #include "hardware/bt_av.h"
 #include "os/log.h"
@@ -52,7 +48,8 @@ bool is_hal_offloading();
 /***
  * Initialize BluetoothAudio HAL: openProvider
  ***/
-bool init(bluetooth::common::MessageLoopThread* message_loop);
+bool init(bluetooth::common::MessageLoopThread* message_loop,
+          bluetooth::audio::a2dp::BluetoothAudioPort const* audio_port, bool offload_enabled);
 
 /***
  * Clean up BluetoothAudio HAL
