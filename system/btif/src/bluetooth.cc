@@ -70,6 +70,7 @@
 #include "btif/include/btif_dm.h"
 #include "btif/include/btif_hd.h"
 #include "btif/include/btif_hf.h"
+#include "btif/include/btif_hf_client.h"
 #include "btif/include/btif_hh.h"
 #include "btif/include/btif_keystore.h"
 #include "btif/include/btif_metrics_logging.h"
@@ -161,8 +162,6 @@ bool is_local_device_atv = false;
 
 /* list all extended interfaces here */
 
-/* handsfree profile - client */
-extern const bthf_client_interface_t* btif_hf_client_get_interface();
 /*rfc l2cap*/
 extern const btsock_interface_t* btif_sock_get_interface();
 /* hid host profile */
@@ -194,8 +193,6 @@ extern VolumeControlInterface* btif_volume_control_get_interface();
 
 bt_status_t btif_av_sink_execute_service(bool b_enable);
 bt_status_t btif_hh_execute_service(bool b_enable);
-bt_status_t btif_hf_client_execute_service(bool b_enable);
-bt_status_t btif_sdp_execute_service(bool b_enable);
 bt_status_t btif_hd_execute_service(bool b_enable);
 
 extern void gatt_tcb_dump(int fd);

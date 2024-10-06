@@ -21,7 +21,6 @@ rust_defaults {
     rustlibs: [
         "libbluetooth_core_rs_for_facade",
         "libbt_common",
-        "libbt_shim",
         "libbt_topshim",
         "libbt_topshim_facade_protobuf",
         "libclap",
@@ -56,7 +55,6 @@ rust_defaults {
         "libbt-sbc-encoder",
         "libbt-stack",
         "libbt-stack-core",
-        "libbt_shim_bridge",
         "libbt_topshim_cxx",
         "libbtcore",
         "libbtdevice",

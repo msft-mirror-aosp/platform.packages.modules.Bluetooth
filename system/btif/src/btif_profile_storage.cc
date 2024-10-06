@@ -385,8 +385,6 @@ static bool btif_device_supports_classic_hid(const std::string& device) {
  *
  ******************************************************************************/
 
-bool btif_get_address_type(const RawAddress& bda, tBLE_ADDR_TYPE* p_addr_type);
-
 std::vector<std::pair<RawAddress, uint8_t>> btif_storage_get_le_hid_devices(void) {
   std::vector<std::pair<RawAddress, uint8_t>> hid_addresses;
   for (const auto& bd_addr : btif_config_get_paired_devices()) {

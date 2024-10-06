@@ -529,9 +529,7 @@ TEST_F(PeriodicSyncManagerTest, handle_sync_lost_test) {
   sync_handler();
 }
 
-TEST_F_WITH_FLAGS(PeriodicSyncManagerTest, handle_advertising_sync_established_after_error_test,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      leaudio_broadcast_feature_support))) {
+TEST_F(PeriodicSyncManagerTest, handle_advertising_sync_established_after_error_test) {
   uint16_t sync_handle = 0x12;
   uint8_t advertiser_sid = 0x02;
   // start scan

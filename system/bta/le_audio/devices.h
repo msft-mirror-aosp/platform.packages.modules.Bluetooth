@@ -113,9 +113,9 @@ public:
   alarm_t* link_quality_timer;
   uint16_t link_quality_timer_data;
 
-  LeAudioDevice(const RawAddress& address_, DeviceConnectState state,
+  LeAudioDevice(const RawAddress& address, DeviceConnectState state,
                 int group_id = bluetooth::groups::kGroupUnknown)
-      : address_(address_),
+      : address_(address),
         connection_state_(state),
         known_service_handles_(false),
         notify_connected_after_read_(false),

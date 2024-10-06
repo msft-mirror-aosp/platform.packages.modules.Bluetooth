@@ -172,7 +172,6 @@ static_library("bta") {
     "//bt/system/bta:install_audio_set_scenarios_bfbs",
     "//bt/system/bta:install_audio_set_configurations_bfbs",
     "//bt/system:libbt-platform-protos-lite",
-    "//bt/system/gd/rust/shim:init_flags_bridge_header",
   ]
 
   libs = [

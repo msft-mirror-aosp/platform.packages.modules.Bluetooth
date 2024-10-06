@@ -700,7 +700,6 @@ public class AdapterService extends Service {
                 mUserManager.isGuestUser(),
                 isCommonCriteriaMode,
                 configCompareResult,
-                getInitFlags(),
                 isAtvDevice,
                 getApplicationInfo().dataDir);
         mNativeAvailable = true;
@@ -6439,18 +6438,6 @@ public class AdapterService extends Service {
         if (remoteP192Data != null || remoteP256Data != null) {
             this.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
         }
-    }
-
-    private String[] getInitFlags() {
-        final DeviceConfig.Properties properties =
-                DeviceConfig.getProperties(DeviceConfig.NAMESPACE_BLUETOOTH);
-        ArrayList<String> initFlags = new ArrayList<>();
-        for (String property : properties.getKeyset()) {
-            if (property.startsWith("INIT_")) {
-                initFlags.add(property + "=" + properties.getString(property, null));
-            }
-        }
-        return initFlags.toArray(new String[0]);
     }
 
     private final Object mDeviceConfigLock = new Object();

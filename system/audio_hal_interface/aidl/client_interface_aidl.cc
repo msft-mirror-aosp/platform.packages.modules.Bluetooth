@@ -127,50 +127,6 @@ BluetoothAudioClientInterface::GetProviderInfo(
   return provider_info;
 }
 
-std::optional<A2dpConfiguration> BluetoothAudioClientInterface::GetA2dpConfiguration(
-        std::vector<A2dpRemoteCapabilities> const& remote_capabilities,
-        A2dpConfigurationHint const& hint) const {
-  if (!is_aidl_available()) {
-    return std::nullopt;
-  }
-
-  if (provider_ == nullptr) {
-    log::error("can't get a2dp configuration from unknown provider");
-    return std::nullopt;
-  }
-
-  std::optional<A2dpConfiguration> configuration = std::nullopt;
-  auto aidl_retval = provider_->getA2dpConfiguration(remote_capabilities, hint, &configuration);
-
-  if (!aidl_retval.isOk()) {
-    log::error("getA2dpConfiguration failure: {}", aidl_retval.getDescription());
-    return std::nullopt;
-  }
-
-  return configuration;
-}
-
-std::optional<A2dpStatus> BluetoothAudioClientInterface::ParseA2dpConfiguration(
-        const CodecId& codec_id, const std::vector<uint8_t>& configuration,
-        CodecParameters* codec_parameters) const {
-  A2dpStatus a2dp_status;
-
-  if (provider_ == nullptr) {
-    log::error("can not parse A2DP configuration because of unknown provider");
-    return std::nullopt;
-  }
-
-  auto aidl_retval = provider_->parseA2dpConfiguration(codec_id, configuration, codec_parameters,
-                                                       &a2dp_status);
-
-  if (!aidl_retval.isOk()) {
-    log::error("parseA2dpConfiguration failure: {}", aidl_retval.getDescription());
-    return std::nullopt;
-  }
-
-  return std::make_optional(a2dp_status);
-}
-
 void BluetoothAudioClientInterface::FetchAudioProvider() {
   if (!is_aidl_available()) {
     log::error("aidl is not supported on this platform.");

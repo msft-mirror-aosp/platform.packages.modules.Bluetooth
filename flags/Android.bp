@@ -11,6 +11,7 @@ aconfig_declarations {
     srcs: [
         "a2dp.aconfig",
         "active_device_manager.aconfig",
+        "adapter.aconfig",
         "asha.aconfig",
         "audio_routing.aconfig",
         "avrcp.aconfig",

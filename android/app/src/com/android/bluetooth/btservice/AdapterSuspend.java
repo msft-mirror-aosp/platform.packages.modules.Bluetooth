@@ -27,6 +27,8 @@ import android.os.Looper;
 import android.util.Log;
 import android.view.Display;
 
+import com.android.internal.annotations.VisibleForTesting;
+
 import java.util.Arrays;
 
 public class AdapterSuspend {
@@ -75,12 +77,18 @@ public class AdapterSuspend {
         mDisplayManager.unregisterDisplayListener(mDisplayListener);
     }
 
+    @VisibleForTesting
+    boolean isSuspended() {
+        return mSuspended;
+    }
+
     private boolean isScreenOn() {
         return Arrays.stream(mDisplayManager.getDisplays())
                 .anyMatch(display -> display.getState() == Display.STATE_ON);
     }
 
-    private void handleSuspend() {
+    @VisibleForTesting
+    void handleSuspend() {
         if (mSuspended) {
             return;
         }
@@ -102,7 +110,8 @@ public class AdapterSuspend {
         Log.i(TAG, "ready to suspend");
     }
 
-    private void handleResume() {
+    @VisibleForTesting
+    void handleResume() {
         if (!mSuspended) {
             return;
         }

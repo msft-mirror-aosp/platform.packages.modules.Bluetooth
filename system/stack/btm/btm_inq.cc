@@ -35,7 +35,7 @@
 
 #include <mutex>
 
-#include "btif/include/btif_acl.h"
+#include "btif/include/btif_dm.h"
 #include "common/time_util.h"
 #include "hci/controller_interface.h"
 #include "hci/event_checkers.h"
