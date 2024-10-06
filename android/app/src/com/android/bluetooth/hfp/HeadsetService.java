@@ -1395,6 +1395,17 @@ public class HeadsetService extends ProfileService {
                                     + disconnectStatus);
                 }
             }
+
+            // Make sure the Audio Manager knows the previous active device is no longer active.
+            if (Utils.isScoManagedByAudioEnabled()) {
+                mSystemInterface
+                    .getAudioManager()
+                    .handleBluetoothActiveDeviceChanged(
+                        null,
+                        mActiveDevice,
+                        BluetoothProfileConnectionInfo.createHfpInfo());
+            }
+
             mActiveDevice = null;
             mNativeInterface.setActiveDevice(null);
             broadcastActiveDevice(null);
@@ -2046,18 +2057,17 @@ public class HeadsetService extends ProfileService {
                      * it to set fallback device be active.
                      */
                     removeActiveDevice();
-                    if (Flags.sinkAudioPolicyHandover()) {
-                        BluetoothDevice fallbackDevice = getFallbackDevice();
-                        if (fallbackDevice != null
-                                && getConnectionState(fallbackDevice)
-                                        == BluetoothProfile.STATE_CONNECTED) {
-                            Log.d(
-                                    TAG,
-                                    "BluetoothSinkAudioPolicy set fallbackDevice="
-                                            + fallbackDevice
-                                            + " active");
-                            setActiveDevice(fallbackDevice);
-                        }
+
+                    BluetoothDevice fallbackDevice = getFallbackDevice();
+                    if (fallbackDevice != null
+                            && getConnectionState(fallbackDevice)
+                                    == BluetoothProfile.STATE_CONNECTED) {
+                        Log.d(
+                                TAG,
+                                "BluetoothSinkAudioPolicy set fallbackDevice="
+                                        + fallbackDevice
+                                        + " active");
+                        setActiveDevice(fallbackDevice);
                     }
                 }
             }

@@ -893,6 +893,7 @@ public final class BluetoothAdapter {
             mListener = listener;
         }
 
+        @GuardedBy("BluetoothAdapter.sProfileLock")
         void connect(BluetoothProfile proxy, IBinder binder) {
             Log.d(TAG, BluetoothProfile.getProfileName(mProfile) + " connected");
             mConnected = true;
@@ -900,6 +901,7 @@ public final class BluetoothAdapter {
             mListener.onServiceConnected(mProfile, proxy);
         }
 
+        @GuardedBy("BluetoothAdapter.sProfileLock")
         void disconnect(BluetoothProfile proxy) {
             Log.d(TAG, BluetoothProfile.getProfileName(mProfile) + " disconnected");
             mConnected = false;
@@ -908,6 +910,9 @@ public final class BluetoothAdapter {
         }
     }
 
+    private static final Object sProfileLock = new Object();
+
+    @GuardedBy("sProfileLock")
     private final Map<BluetoothProfile, ProfileConnection> mProfileConnections =
             new ConcurrentHashMap<>();
 
@@ -3651,16 +3656,25 @@ public final class BluetoothAdapter {
         BluetoothProfile profileProxy = constructor.apply(context, this);
         ProfileConnection connection = new ProfileConnection(profile, listener);
 
-        mMainHandler.post(
+        Runnable connectAction =
                 () -> {
-                    mProfileConnections.put(profileProxy, connection);
+                    synchronized (sProfileLock) {
+                        // Synchronize with the binder callback to prevent performing the
+                        // connection.connect
+                        // concurrently
+                        mProfileConnections.put(profileProxy, connection);
 
-                    IBinder binder = getProfile(profile);
-                    if (binder != null) {
-                        connection.connect(profileProxy, binder);
+                        IBinder binder = getProfile(profile);
+                        if (binder != null) {
+                            connection.connect(profileProxy, binder);
+                        }
                     }
-                });
-
+                };
+        if (Flags.getProfileUseLock()) {
+            connectAction.run();
+            return true;
+        }
+        mMainHandler.post(connectAction);
         return true;
     }
 
@@ -3697,13 +3711,15 @@ public final class BluetoothAdapter {
             return;
         }
 
-        ProfileConnection connection = mProfileConnections.remove(proxy);
-        if (connection != null) {
-            if (proxy instanceof BluetoothLeCallControl callControl) {
-                callControl.unregisterBearer();
-            }
+        synchronized (sProfileLock) {
+            ProfileConnection connection = mProfileConnections.remove(proxy);
+            if (connection != null) {
+                if (proxy instanceof BluetoothLeCallControl callControl) {
+                    callControl.unregisterBearer();
+                }
 
-            connection.disconnect(proxy);
+                connection.disconnect(proxy);
+            }
         }
     }
 
@@ -3876,37 +3892,50 @@ public final class BluetoothAdapter {
 
                 @RequiresNoPermission
                 public void onBluetoothOn() {
-                    mMainHandler.post(
+                    Runnable btOnAction =
                             () -> {
-                                mProfileConnections.forEach(
-                                        (proxy, connection) -> {
-                                            if (connection.mConnected) return;
+                                synchronized (sProfileLock) {
+                                    mProfileConnections.forEach(
+                                            (proxy, connection) -> {
+                                                if (connection.mConnected) return;
 
-                                            IBinder binder = getProfile(connection.mProfile);
-                                            if (binder != null) {
-                                                connection.connect(proxy, binder);
-                                            } else {
-                                                Log.e(
-                                                        TAG,
-                                                        "onBluetoothOn: Binder null for "
-                                                                + BluetoothProfile.getProfileName(
-                                                                        connection.mProfile));
-                                            }
-                                        });
-                            });
+                                                IBinder binder = getProfile(connection.mProfile);
+                                                if (binder != null) {
+                                                    connection.connect(proxy, binder);
+                                                } else {
+                                                    Log.e(
+                                                            TAG,
+                                                            "onBluetoothOn: Binder null for "
+                                                                    + BluetoothProfile.getProfileName(connection.mProfile));
+                                                }
+                                            });
+                                }
+                            };
+                    if (Flags.getProfileUseLock()) {
+                        btOnAction.run();
+                        return;
+                    }
+                    mMainHandler.post(btOnAction);
                 }
 
                 @RequiresNoPermission
                 public void onBluetoothOff() {
-                    mMainHandler.post(
+                    Runnable btOffAction =
                             () -> {
-                                mProfileConnections.forEach(
-                                        (proxy, connection) -> {
-                                            if (connection.mConnected) {
-                                                connection.disconnect(proxy);
-                                            }
-                                        });
-                            });
+                                synchronized (sProfileLock) {
+                                    mProfileConnections.forEach(
+                                            (proxy, connection) -> {
+                                                if (connection.mConnected) {
+                                                    connection.disconnect(proxy);
+                                                }
+                                            });
+                                }
+                            };
+                    if (Flags.getProfileUseLock()) {
+                        btOffAction.run();
+                        return;
+                    }
+                    mMainHandler.post(btOffAction);
                 }
             };
 
@@ -4203,6 +4232,7 @@ public final class BluetoothAdapter {
     }
 
     /** Return a binder to a Profile service */
+    @GuardedBy("sProfileLock")
     private @Nullable IBinder getProfile(int profile) {
         mServiceLock.readLock().lock();
         try {

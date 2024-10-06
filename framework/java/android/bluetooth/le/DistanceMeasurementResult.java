@@ -16,6 +16,7 @@
 
 package android.bluetooth.le;
 
+import android.annotation.ElapsedRealtimeLong;
 import android.annotation.FlaggedApi;
 import android.annotation.FloatRange;
 import android.annotation.IntDef;
@@ -140,6 +141,7 @@ public final class DistanceMeasurementResult implements Parcelable {
     private final double mConfidenceLevel;
     private final int mDetectedAttackLevel;
     private final double mVelocityMetersPerSecond;
+    private final @ElapsedRealtimeLong long mMeasurementTimestampNanos;
 
     private DistanceMeasurementResult(
             double meters,
@@ -151,7 +153,8 @@ public final class DistanceMeasurementResult implements Parcelable {
             double delaySpreadMeters,
             double confidenceLevel,
             @Nadm int detectedAttackLevel,
-            double velocityMetersPerSecond) {
+            double velocityMetersPerSecond,
+            @ElapsedRealtimeLong long measurementTimestampNanos) {
         mMeters = meters;
         mErrorMeters = errorMeters;
         mAzimuthAngle = azimuthAngle;
@@ -162,6 +165,7 @@ public final class DistanceMeasurementResult implements Parcelable {
         mConfidenceLevel = confidenceLevel;
         mDetectedAttackLevel = detectedAttackLevel;
         mVelocityMetersPerSecond = velocityMetersPerSecond;
+        mMeasurementTimestampNanos = measurementTimestampNanos;
     }
 
     /**
@@ -313,6 +317,19 @@ public final class DistanceMeasurementResult implements Parcelable {
     }
 
     /**
+     * Timestamp of this distance measurement in time since boot nanos in the same namespace as
+     * {@link SystemClock#elapsedRealtimeNanos()}
+     *
+     * @return timestamp of ranging measurement in nanoseconds
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING_25Q2_APIS)
+    @SystemApi
+    public @ElapsedRealtimeLong long getMeasurementTimestampNanos() {
+        return mMeasurementTimestampNanos;
+    }
+
+    /**
      * {@inheritDoc}
      *
      * @hide
@@ -339,6 +356,7 @@ public final class DistanceMeasurementResult implements Parcelable {
         out.writeDouble(mConfidenceLevel);
         out.writeInt(mDetectedAttackLevel);
         out.writeDouble(mVelocityMetersPerSecond);
+        out.writeLong(mMeasurementTimestampNanos);
     }
 
     /**
@@ -367,6 +385,8 @@ public final class DistanceMeasurementResult implements Parcelable {
                 + mDetectedAttackLevel
                 + ", velocityMetersPerSecond: "
                 + mVelocityMetersPerSecond
+                + ", elapsedRealtimeNanos"
+                + mMeasurementTimestampNanos
                 + "]";
     }
 
@@ -384,6 +404,7 @@ public final class DistanceMeasurementResult implements Parcelable {
                             .setConfidenceLevel(in.readDouble())
                             .setDetectedAttackLevel(in.readInt())
                             .setVelocityMetersPerSecond(in.readDouble())
+                            .setMeasurementTimestampNanos(in.readLong())
                             .build();
                 }
 
@@ -410,6 +431,7 @@ public final class DistanceMeasurementResult implements Parcelable {
         private double mConfidenceLevel = Double.NaN;
         private int mDetectedAttackLevel = NADM_UNKNOWN;
         private double mVelocityMetersPerSecond = Double.NaN;
+        private @ElapsedRealtimeLong long mMeasurementTimestampNanos = -1L;
 
         /**
          * Constructor of the Builder.
@@ -588,6 +610,21 @@ public final class DistanceMeasurementResult implements Parcelable {
         }
 
         /**
+         * Set the elapsed realtime in nanoseconds when the distance measurement occurred
+         *
+         * @param measurementTimestampNanos time the distance measurement occurred
+         * @hide
+         */
+        @FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING_25Q2_APIS)
+        @SystemApi
+        @NonNull
+        public Builder setMeasurementTimestampNanos(
+                @ElapsedRealtimeLong long measurementTimestampNanos) {
+            mMeasurementTimestampNanos = measurementTimestampNanos;
+            return this;
+        }
+
+        /**
          * Builds the {@link DistanceMeasurementResult} object.
          *
          * @throws IllegalStateException if meters, error, or confidence are not set
@@ -606,7 +643,8 @@ public final class DistanceMeasurementResult implements Parcelable {
                     mDelaySpreadMeters,
                     mConfidenceLevel,
                     mDetectedAttackLevel,
-                    mVelocityMetersPerSecond);
+                    mVelocityMetersPerSecond,
+                    mMeasurementTimestampNanos);
         }
     }
 }

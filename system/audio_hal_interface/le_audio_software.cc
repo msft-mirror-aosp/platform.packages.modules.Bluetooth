@@ -34,9 +34,6 @@
 #include "os/log.h"
 #include "osi/include/properties.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace bluetooth {
 namespace audio {
 
@@ -70,7 +67,7 @@ OffloadCapabilities get_offload_capabilities() {
   return aidl::le_audio::get_offload_capabilities();
 }
 
-aidl::BluetoothAudioSinkClientInterface* get_aidl_client_interface(bool is_broadcaster) {
+static aidl::BluetoothAudioSinkClientInterface* get_aidl_client_interface(bool is_broadcaster) {
   if (is_broadcaster) {
     return aidl::le_audio::LeAudioSinkTransport::interface_broadcast_;
   }
@@ -78,7 +75,7 @@ aidl::BluetoothAudioSinkClientInterface* get_aidl_client_interface(bool is_broad
   return aidl::le_audio::LeAudioSinkTransport::interface_unicast_;
 }
 
-aidl::le_audio::LeAudioSinkTransport* get_aidl_transport_instance(bool is_broadcaster) {
+static aidl::le_audio::LeAudioSinkTransport* get_aidl_transport_instance(bool is_broadcaster) {
   if (is_broadcaster) {
     return aidl::le_audio::LeAudioSinkTransport::instance_broadcast_;
   }
@@ -86,7 +83,7 @@ aidl::le_audio::LeAudioSinkTransport* get_aidl_transport_instance(bool is_broadc
   return aidl::le_audio::LeAudioSinkTransport::instance_unicast_;
 }
 
-bool is_aidl_offload_encoding_session(bool is_broadcaster) {
+static bool is_aidl_offload_encoding_session(bool is_broadcaster) {
   return get_aidl_client_interface(is_broadcaster)->GetTransportInstance()->GetSessionType() ==
                  aidl::SessionType::LE_AUDIO_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
          get_aidl_client_interface(is_broadcaster)->GetTransportInstance()->GetSessionType() ==

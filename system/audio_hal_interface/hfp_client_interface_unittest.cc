@@ -26,18 +26,11 @@
 #include "aidl/transport_instance.h"
 #include "audio_hal_interface/hal_version_manager.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 #pragma GCC diagnostic ignored "-Wunused-private-field"
 
 using testing::Test;
 
 using bluetooth::audio::hfp::HfpClientInterface;
-
-extern "C" {
-struct android_namespace_t* android_get_exported_namespace(const char*) { return nullptr; }
-void* android_load_sphal_library(const char* /*name*/, int /*flag*/) { return nullptr; }
-}
 
 // Mock
 bool bta_ag_get_sco_offload_enabled() { return true; }

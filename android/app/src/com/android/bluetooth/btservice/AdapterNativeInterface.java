@@ -64,7 +64,6 @@ public class AdapterNativeInterface {
             boolean startRestricted,
             boolean isCommonCriteriaMode,
             int configCompareResult,
-            String[] initFlags,
             boolean isAtvDevice,
             String userDataDirectory) {
         mJniCallbacks = new JniCallbacks(service, adapterProperties);
@@ -72,7 +71,6 @@ public class AdapterNativeInterface {
                 startRestricted,
                 isCommonCriteriaMode,
                 configCompareResult,
-                initFlags,
                 isAtvDevice,
                 userDataDirectory);
     }
@@ -297,7 +295,6 @@ public class AdapterNativeInterface {
             boolean startRestricted,
             boolean isCommonCriteriaMode,
             int configCompareResult,
-            String[] initFlags,
             boolean isAtvDevice,
             String userDataDirectory);
 

@@ -38,7 +38,10 @@
 #include "btif_a2dp_source.h"
 #include "btif_av.h"
 #include "btif_av_co.h"
+#include "btif_common.h"
+#include "btif_hf.h"
 #include "btif_metrics_logging.h"
+#include "btm_iso_api.h"
 #include "common/message_loop_thread.h"
 #include "common/metrics.h"
 #include "common/repeating_timer.h"
@@ -53,9 +56,6 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::audio::a2dp::BluetoothAudioStatus;
 using bluetooth::common::A2dpSessionMetrics;
@@ -269,7 +269,8 @@ static void btm_read_rssi_cb(void* data);
 static void btm_read_failed_contact_counter_cb(void* data);
 static void btm_read_tx_power_cb(void* data);
 
-void btif_a2dp_source_accumulate_scheduling_stats(SchedulingStats* src, SchedulingStats* dst) {
+static void btif_a2dp_source_accumulate_scheduling_stats(SchedulingStats* src,
+                                                         SchedulingStats* dst) {
   dst->total_updates += src->total_updates;
   dst->last_update_us = src->last_update_us;
   dst->overdue_scheduling_count += src->overdue_scheduling_count;
@@ -284,7 +285,7 @@ void btif_a2dp_source_accumulate_scheduling_stats(SchedulingStats* src, Scheduli
   dst->total_scheduling_time_us += src->total_scheduling_time_us;
 }
 
-void btif_a2dp_source_accumulate_stats(BtifMediaStats* src, BtifMediaStats* dst) {
+static void btif_a2dp_source_accumulate_stats(BtifMediaStats* src, BtifMediaStats* dst) {
   dst->tx_queue_total_frames += src->tx_queue_total_frames;
   dst->tx_queue_max_frames_per_packet =
           std::max(dst->tx_queue_max_frames_per_packet, src->tx_queue_max_frames_per_packet);
@@ -322,13 +323,70 @@ bool btif_a2dp_source_init(void) {
   return true;
 }
 
+class A2dpAudioPort : public bluetooth::audio::a2dp::BluetoothAudioPort {
+  BluetoothAudioStatus StartStream(bool low_latency) const override {
+    // Check if a phone call is currently active.
+    if (!bluetooth::headset::IsCallIdle()) {
+      log::error("unable to start stream: call is active");
+      return BluetoothAudioStatus::FAILURE;
+    }
+
+    // Check if LE Audio is currently active.
+    if (com::android::bluetooth::flags::a2dp_check_lea_iso_channel() &&
+        hci::IsoManager::GetInstance()->GetNumberOfActiveIso() > 0) {
+      log::error("unable to start stream: LEA is active");
+      return BluetoothAudioStatus::FAILURE;
+    }
+
+    // Check if the stream has already been started.
+    if (btif_av_stream_started_ready(A2dpType::kSource)) {
+      return BluetoothAudioStatus::SUCCESS;
+    }
+
+    // Check if the stream is ready to start.
+    if (!btif_av_stream_ready(A2dpType::kSource)) {
+      log::error("unable to start stream: not ready");
+      return BluetoothAudioStatus::FAILURE;
+    }
+
+    // Check if codec needs to be switched prior to stream start.
+    invoke_switch_codec_cb(low_latency);
+
+    // Post start event. The start request is pending, completion will be
+    // notified to bluetooth::audio::a2dp::ack_stream_started.
+    btif_av_stream_start_with_latency(low_latency);
+    return BluetoothAudioStatus::PENDING;
+  }
+
+  BluetoothAudioStatus SuspendStream() const override {
+    // Check if the stream is already suspended.
+    if (!btif_av_stream_started_ready(A2dpType::kSource)) {
+      btif_av_clear_remote_suspend_flag(A2dpType::kSource);
+      return BluetoothAudioStatus::SUCCESS;
+    }
+
+    // Post suspend event. The suspend request is pending, completion will
+    // be notified to bluetooth::audio::a2dp::ack_stream_suspended.
+    btif_av_stream_suspend();
+    return BluetoothAudioStatus::PENDING;
+  }
+
+  BluetoothAudioStatus SetLatencyMode(bool low_latency) const override {
+    btif_av_set_low_latency(low_latency);
+    return BluetoothAudioStatus::SUCCESS;
+  }
+};
+
+static const A2dpAudioPort a2dp_audio_port;
+
 static void btif_a2dp_source_init_delayed(void) {
   log::info("");
   // When codec extensibility is enabled in the audio HAL interface,
   // the provider needs to be initialized earlier in order to ensure
   // get_a2dp_configuration and parse_a2dp_configuration can be
   // invoked before the stream is started.
-  bluetooth::audio::a2dp::init(&btif_a2dp_source_thread);
+  bluetooth::audio::a2dp::init(&btif_a2dp_source_thread, &a2dp_audio_port,
+                               btif_av_is_a2dp_offload_enabled());
 }
 
 bool btif_a2dp_source_startup(void) {
@@ -356,7 +414,8 @@ static void btif_a2dp_source_startup_delayed() {
     log::fatal("unable to enable real time scheduling");
 #endif
   }
-  if (!bluetooth::audio::a2dp::init(&btif_a2dp_source_thread)) {
+  if (!bluetooth::audio::a2dp::init(&btif_a2dp_source_thread, &a2dp_audio_port,
+                                    btif_av_is_a2dp_offload_enabled())) {
     log::warn("Failed to setup the bluetooth audio HAL");
   }
   btif_a2dp_source_cb.SetState(BtifA2dpSource::kStateRunning);
@@ -954,18 +1013,10 @@ static bool btif_a2dp_source_enqueue_callback(BT_HDR* p_buf, size_t frames_n,
       log::warn("Cannot read RSSI: status {}", status);
     }
 
-    // Intel controllers don't handle ReadFailedContactCounter very well, it
-    // sends back Hardware Error event which will crash the daemon. So
-    // temporarily disable this for Floss.
-    // TODO(b/249876976): Intel controllers to handle this command correctly.
-    // And if the need for disabling metrics-related HCI call grows, consider
-    // creating a framework to avoid ifdefs.
-#ifndef TARGET_FLOSS
     status = BTM_ReadFailedContactCounter(peer_bda, btm_read_failed_contact_counter_cb);
     if (status != tBTM_STATUS::BTM_CMD_STARTED) {
       log::warn("Cannot read Failed Contact Counter: status {}", status);
     }
-#endif
 
     status = BTM_ReadTxPower(peer_bda, BT_TRANSPORT_BR_EDR, btm_read_tx_power_cb);
     if (status != tBTM_STATUS::BTM_CMD_STARTED) {

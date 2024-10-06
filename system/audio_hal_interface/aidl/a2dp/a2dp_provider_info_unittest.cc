@@ -35,10 +35,10 @@
 using aidl::android::hardware::bluetooth::audio::ChannelMode;
 using aidl::android::hardware::bluetooth::audio::CodecId;
 using aidl::android::hardware::bluetooth::audio::CodecInfo;
-using bluetooth::audio::aidl::BluetoothAudioClientInterface;
-using bluetooth::audio::aidl::IBluetoothAudioProviderFactory;
-using bluetooth::audio::aidl::SessionType;
+using bluetooth::audio::aidl::a2dp::BluetoothAudioClientInterface;
+using bluetooth::audio::aidl::a2dp::IBluetoothAudioProviderFactory;
 using bluetooth::audio::aidl::a2dp::ProviderInfo;
+using bluetooth::audio::aidl::a2dp::SessionType;
 using ::testing::_;
 using ::testing::Return;
 using ::testing::Test;
