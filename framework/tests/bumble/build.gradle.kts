@@ -65,8 +65,8 @@ dependencies {
     implementation(files("$out/cts/common/device-side/util-axt/compatibility-device-util-axt/android_common/combined/compatibility-device-util-axt.jar"))
     // Test Parameter Injector
     implementation(files("$out/external/TestParameterInjector/TestParameterInjector/android_common/combined/TestParameterInjector.jar"))
-    // TruthJava8
-    implementation(files("$out/external/truth/truth-java8-extension/android_common/combined/truth-java8-extension.jar"))
+    // Truth
+    implementation(files("$out/external/truth/truth/android_common/combined/truth.jar"))
     // OkHttp
     implementation(files("$out/external/grpc-grpc-java/grpc-java-okhttp-client-lite/android_common/combined/grpc-java-okhttp-client-lite.jar"))
     // Mockito

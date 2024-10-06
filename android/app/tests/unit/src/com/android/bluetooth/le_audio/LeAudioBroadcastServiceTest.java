@@ -952,7 +952,6 @@ public class LeAudioBroadcastServiceTest {
 
     private void prepareHandoverStreamingBroadcast(int groupId, int broadcastId, byte[] code) {
         mSetFlagsRule.enableFlags(Flags.FLAG_AUDIO_ROUTING_CENTRALIZATION);
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_BROADCAST_AUDIO_HANDOVER_POLICIES);
         mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_BIG_DEPENDS_ON_AUDIO_STATE);
 
         synchronized (mService.mBroadcastCallbacks) {

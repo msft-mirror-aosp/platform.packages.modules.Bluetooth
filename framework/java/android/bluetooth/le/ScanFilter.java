@@ -303,11 +303,9 @@ public final class ScanFilter implements Parcelable {
                     // Advertising data type
                     int advertisingDataType = in.readInt();
                     if (in.readInt() == 1) {
-                        byte[] advertisingData = null;
-                        byte[] advertisingDataMask = null;
-
                         int advertisingDataLength = in.readInt();
-                        advertisingData = new byte[advertisingDataLength];
+                        byte[] advertisingData = new byte[advertisingDataLength];
+                        byte[] advertisingDataMask = null;
                         in.readByteArray(advertisingData);
                         if (in.readInt() == 1) {
                             int advertisingDataMaskLength = in.readInt();

@@ -310,7 +310,6 @@ TEST_F(StackAvdtpTest, test_SDES_reporting_handler) {
   ASSERT_EQ(get_func_call_count("AvdtReportCallback"), 1);
 }
 
-void avdt_scb_hdl_pkt_no_frag(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 // regression tests for b/258057241 (CVE-2022-40503)
 // The regression tests are divided into 2 tests:
 // avdt_scb_hdl_pkt_no_frag_regression_test1 verifies that

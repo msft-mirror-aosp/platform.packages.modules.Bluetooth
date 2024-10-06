@@ -37,10 +37,10 @@ namespace a2dp {
 
 namespace {
 
-using ::bluetooth::audio::aidl::LatencyMode;
+using ::bluetooth::audio::aidl::a2dp::LatencyMode;
 
 // Provide call-in APIs for the Bluetooth Audio HAL
-class A2dpTransport : public ::bluetooth::audio::aidl::IBluetoothSinkTransportInstance {
+class A2dpTransport : public ::bluetooth::audio::aidl::a2dp::IBluetoothSinkTransportInstance {
 public:
   A2dpTransport(SessionType sessionType);
 

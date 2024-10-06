@@ -39,9 +39,6 @@
 #include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 /* This table is used to lookup the callback event that matches a particular
@@ -309,7 +306,7 @@ length_error:
  * Returns          Nothing.
  *
  ******************************************************************************/
-uint8_t* avdt_scb_hdl_report(AvdtpScb* p_scb, uint8_t* p, uint16_t len) {
+static uint8_t* avdt_scb_hdl_report(AvdtpScb* p_scb, uint8_t* p, uint16_t len) {
   uint16_t result = AVDT_SUCCESS;
   uint8_t* p_start = p;
   uint32_t ssrc;

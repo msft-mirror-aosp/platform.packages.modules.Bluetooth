@@ -26,18 +26,11 @@
 #include "aidl/transport_instance.h"
 #include "audio_hal_interface/hal_version_manager.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 #pragma GCC diagnostic ignored "-Wunused-private-field"
 
 using testing::Test;
 
 using bluetooth::audio::hfp::HfpClientInterface;
-
-extern "C" {
-struct android_namespace_t* android_get_exported_namespace(const char*) { return nullptr; }
-void* android_load_sphal_library(const char* /*name*/, int /*flag*/) { return nullptr; }
-}
 
 // Mock
 bool bta_ag_get_sco_offload_enabled() { return true; }
@@ -135,6 +128,9 @@ std::ostream& operator<<(std::ostream& os, const BluetoothAudioCtrlAck& ack) { r
 
 namespace hfp {
 
+static bool encoding_transport_is_stream_active_ret;
+static bool decoding_transport_is_stream_active_ret;
+
 HfpTransport::HfpTransport() {}
 BluetoothAudioCtrlAck HfpTransport::StartRequest() {
   return BluetoothAudioCtrlAck::SUCCESS_FINISHED;
@@ -184,6 +180,7 @@ void HfpDecodingTransport::LogBytesWritten(size_t bytes_written) {}
 uint8_t HfpDecodingTransport::GetPendingCmd() const { return HFP_CTRL_CMD_NONE; }
 void HfpDecodingTransport::ResetPendingCmd() {}
 void HfpDecodingTransport::StopRequest() {}
+bool HfpDecodingTransport::IsStreamActive() { return decoding_transport_is_stream_active_ret; }
 
 HfpEncodingTransport::HfpEncodingTransport(SessionType session_type)
     : IBluetoothSinkTransportInstance(session_type, (AudioConfiguration){}) {}
@@ -208,6 +205,7 @@ void HfpEncodingTransport::ResetPresentationPosition() {}
 void HfpEncodingTransport::LogBytesRead(size_t bytes_written) {}
 uint8_t HfpEncodingTransport::GetPendingCmd() const { return HFP_CTRL_CMD_NONE; }
 void HfpEncodingTransport::ResetPendingCmd() {}
+bool HfpEncodingTransport::IsStreamActive() { return encoding_transport_is_stream_active_ret; }
 
 }  // namespace hfp
 }  // namespace aidl
@@ -245,6 +243,8 @@ protected:
     init_message_loop_thread();
     sink_client_read_called = false;
     source_client_write_called = false;
+    bluetooth::audio::aidl::hfp::encoding_transport_is_stream_active_ret = true;
+    bluetooth::audio::aidl::hfp::decoding_transport_is_stream_active_ret = true;
   }
 
   virtual void TearDown() override { cleanup_message_loop_thread(); }
@@ -263,6 +263,24 @@ TEST_F(HfpClientInterfaceTest, InitEncodeInterfaceAndRead) {
   HfpClientInterface::Get()->ReleaseEncode(encode_);
 }
 
+TEST_F(HfpClientInterfaceTest, InitEncodeInterfaceAndReadWhenStreamInactive) {
+  uint8_t data[48];
+  data[0] = 0xab;
+
+  HfpClientInterface::Encode* encode_ = nullptr;
+
+  bluetooth::audio::aidl::hfp::encoding_transport_is_stream_active_ret = false;
+
+  encode_ = HfpClientInterface::Get()->GetEncode(&message_loop_thread);
+  ASSERT_NE(nullptr, encode_);
+
+  encode_->Read(data, 48);
+  ASSERT_EQ(0, sink_client_read_called);
+  ASSERT_EQ(0x00, data[0]);
+
+  HfpClientInterface::Get()->ReleaseEncode(encode_);
+}
+
 TEST_F(HfpClientInterfaceTest, InitDecodeInterfaceAndWrite) {
   uint8_t data[48];
   HfpClientInterface::Decode* decode_ = nullptr;
@@ -276,4 +294,19 @@ TEST_F(HfpClientInterfaceTest, InitDecodeInterfaceAndWrite) {
   HfpClientInterface::Get()->ReleaseDecode(decode_);
 }
 
+TEST_F(HfpClientInterfaceTest, InitDecodeInterfaceAndWriteWhenStreamInactive) {
+  uint8_t data[48];
+
+  HfpClientInterface::Decode* decode_ = nullptr;
+
+  bluetooth::audio::aidl::hfp::decoding_transport_is_stream_active_ret = false;
+
+  decode_ = HfpClientInterface::Get()->GetDecode(&message_loop_thread);
+  ASSERT_NE(nullptr, decode_);
+
+  decode_->Write(data, 48);
+  ASSERT_EQ(0, source_client_write_called);
+
+  HfpClientInterface::Get()->ReleaseDecode(decode_);
+}
 }  // namespace

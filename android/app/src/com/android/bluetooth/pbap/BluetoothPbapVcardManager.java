@@ -1103,13 +1103,11 @@ public class BluetoothPbapVcardManager {
             boolean vCardSelct) {
         long timestamp = System.currentTimeMillis();
 
-        BluetoothPbapCallLogComposer composer = null;
         HandlerForStringBuffer buffer = null;
 
-        try {
+        try (BluetoothPbapCallLogComposer composer = new BluetoothPbapCallLogComposer(mContext)) {
             VCardFilter vcardfilter = new VCardFilter(ignorefilter ? null : filter);
             PropertySelector vcardselector = new PropertySelector(selector);
-            composer = new BluetoothPbapCallLogComposer(mContext);
             buffer = new HandlerForStringBuffer(op, ownerVCard);
             if (!composer.init(CallLog.Calls.CONTENT_URI, selection, null, CALLLOG_SORT_ORDER)
                     || !buffer.init()) {
@@ -1182,9 +1180,6 @@ public class BluetoothPbapVcardManager {
                 return pbSize;
             }
         } finally {
-            if (composer != null) {
-                composer.terminate();
-            }
             if (buffer != null) {
                 buffer.terminate();
             }
