@@ -19,6 +19,7 @@
 #define LOG_TAG "bt_srvc"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include "gatt_api.h"
 #include "hardware/bt_gatt_types.h"
@@ -32,30 +33,12 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
-using base::StringPrintf;
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
-#define DIS_MAX_NUM_INC_SVR 0
-#define DIS_MAX_CHAR_NUM 9
-#define DIS_MAX_ATTR_NUM (DIS_MAX_CHAR_NUM * 2 + DIS_MAX_NUM_INC_SVR + 1)
-
-#ifndef DIS_ATTR_DB_SIZE
-#define DIS_ATTR_DB_SIZE GATT_DB_MEM_SIZE(DIS_MAX_NUM_INC_SVR, DIS_MAX_CHAR_NUM, 0)
-#endif
-
-#define uint64_t_TO_STREAM(p, u64)   \
-  {                                  \
-    *(p)++ = (uint8_t)(u64);         \
-    *(p)++ = (uint8_t)((u64) >> 8);  \
-    *(p)++ = (uint8_t)((u64) >> 16); \
-    *(p)++ = (uint8_t)((u64) >> 24); \
-    *(p)++ = (uint8_t)((u64) >> 32); \
-    *(p)++ = (uint8_t)((u64) >> 40); \
-    *(p)++ = (uint8_t)((u64) >> 48); \
-    *(p)++ = (uint8_t)((u64) >> 56); \
-  }
-
-static const uint16_t dis_attr_uuid[DIS_MAX_CHAR_NUM] = {
+static const uint16_t dis_attr_uuid[] = {
         GATT_UUID_SYSTEM_ID,      GATT_UUID_MODEL_NUMBER_STR, GATT_UUID_SERIAL_NUMBER_STR,
         GATT_UUID_FW_VERSION_STR, GATT_UUID_HW_VERSION_STR,   GATT_UUID_SW_VERSION_STR,
         GATT_UUID_MANU_NAME,      GATT_UUID_IEEE_DATA,        GATT_UUID_PNP_ID};
@@ -92,13 +75,7 @@ static tDIS_ATTR_MASK dis_uuid_to_attr(uint16_t uuid) {
  *
  *   validate a handle to be a DIS attribute handle or not.
  ******************************************************************************/
-bool dis_valid_handle_range(uint16_t handle) {
-  if (handle >= dis_cb.service_handle && handle <= dis_cb.max_handle) {
-    return true;
-  } else {
-    return false;
-  }
-}
+bool dis_valid_handle_range(uint16_t /* handle */) { return false; }
 /*******************************************************************************
  *   dis_write_attr_value
  *
@@ -111,71 +88,11 @@ uint8_t dis_write_attr_value(tGATT_WRITE_REQ* /* p_data */, tGATT_STATUS* p_stat
 /*******************************************************************************
  *   DIS Attributes Database Server Request callback
  ******************************************************************************/
-uint8_t dis_read_attr_value(uint8_t /* clcb_idx */, uint16_t handle, tGATT_VALUE* p_value,
-                            bool is_long, tGATT_STATUS* p_status) {
-  tDIS_DB_ENTRY* p_db_attr = dis_cb.dis_attr;
-  uint8_t *p = p_value->value, i, *pp;
-  uint16_t offset = p_value->offset;
-  uint8_t act = SRVC_ACT_RSP;
-  tGATT_STATUS st = GATT_NOT_FOUND;
-
-  for (i = 0; i < DIS_MAX_CHAR_NUM; i++, p_db_attr++) {
-    if (handle == p_db_attr->handle) {
-      if ((p_db_attr->uuid == GATT_UUID_PNP_ID || p_db_attr->uuid == GATT_UUID_SYSTEM_ID) &&
-          is_long) {
-        st = GATT_NOT_LONG;
-        break;
-      }
-      st = GATT_SUCCESS;
-
-      switch (p_db_attr->uuid) {
-        case GATT_UUID_MANU_NAME:
-        case GATT_UUID_MODEL_NUMBER_STR:
-        case GATT_UUID_SERIAL_NUMBER_STR:
-        case GATT_UUID_FW_VERSION_STR:
-        case GATT_UUID_HW_VERSION_STR:
-        case GATT_UUID_SW_VERSION_STR:
-        case GATT_UUID_IEEE_DATA:
-          pp = dis_cb.dis_value.data_string[p_db_attr->uuid - GATT_UUID_MODEL_NUMBER_STR];
-          if (pp != NULL) {
-            if (strlen((char*)pp) > GATT_MAX_ATTR_LEN) {
-              p_value->len = GATT_MAX_ATTR_LEN;
-            } else {
-              p_value->len = (uint16_t)strlen((char*)pp);
-            }
-          } else {
-            p_value->len = 0;
-          }
-
-          if (offset > p_value->len) {
-            st = GATT_INVALID_OFFSET;
-            break;
-          } else {
-            p_value->len -= offset;
-            pp += offset;
-            ARRAY_TO_STREAM(p, pp, p_value->len);
-            log::verbose("GATT_UUID_MANU_NAME len=0x{:x}", p_value->len);
-          }
-          break;
-
-        case GATT_UUID_SYSTEM_ID:
-          uint64_t_TO_STREAM(p, dis_cb.dis_value.system_id); /* int_min */
-          p_value->len = DIS_SYSTEM_ID_SIZE;
-          break;
-
-        case GATT_UUID_PNP_ID:
-          UINT8_TO_STREAM(p, dis_cb.dis_value.pnp_id.vendor_id_src);
-          UINT16_TO_STREAM(p, dis_cb.dis_value.pnp_id.vendor_id);
-          UINT16_TO_STREAM(p, dis_cb.dis_value.pnp_id.product_id);
-          UINT16_TO_STREAM(p, dis_cb.dis_value.pnp_id.product_version);
-          p_value->len = DIS_PNP_ID_SIZE;
-          break;
-      }
-      break;
-    }
-  }
-  *p_status = st;
-  return act;
+uint8_t dis_read_attr_value(uint8_t /* clcb_idx */, uint16_t /* handle */,
+                            tGATT_VALUE* /* p_value */, bool /* is_long */,
+                            tGATT_STATUS* p_status) {
+  *p_status = GATT_NOT_FOUND;
+  return SRVC_ACT_RSP;
 }
 
 /*******************************************************************************
@@ -187,7 +104,7 @@ uint8_t dis_read_attr_value(uint8_t /* clcb_idx */, uint16_t handle, tGATT_VALUE
  * Returns          void
  *
  ******************************************************************************/
-static void dis_gatt_c_read_dis_value_cmpl(uint16_t conn_id) {
+static void dis_gatt_c_read_dis_value_cmpl(tCONN_ID conn_id) {
   tSRVC_CLCB* p_clcb = srvc_eng_find_clcb_by_conn_id(conn_id);
 
   dis_cb.dis_read_uuid_idx = 0xff;
@@ -200,6 +117,24 @@ static void dis_gatt_c_read_dis_value_cmpl(uint16_t conn_id) {
     (*dis_cb.p_read_dis_cback)(p_clcb->bda, &p_clcb->dis_value);
     dis_cb.p_read_dis_cback = NULL;
   }
+
+  if (com::android::bluetooth::flags::queue_dis_requests()) {
+    while (!dis_cb.pend_reqs.empty()) {
+      tDIS_REQ req = dis_cb.pend_reqs.front();
+      dis_cb.pend_reqs.pop();
+      log::info("Dequeue pending DIS request. Address:{}, mask:0x{:04x}", req.addr, req.mask);
+
+      /* only process the pending DIS if the device is connected */
+      uint16_t _conn_id;
+      if (GATT_GetConnIdIfConnected(srvc_eng_cb.gatt_if, req.addr, &_conn_id, BT_TRANSPORT_LE) &&
+          DIS_ReadDISInfo(req.addr, req.p_read_dis_cback, req.mask)) {
+        break;
+      } else if (req.p_read_dis_cback) {
+        tDIS_VALUE empty = {};
+        req.p_read_dis_cback(req.addr, &empty);
+      }
+    }
+  }
 }
 
 /*******************************************************************************
@@ -211,7 +146,7 @@ static void dis_gatt_c_read_dis_value_cmpl(uint16_t conn_id) {
  * Returns          void
  *
  ******************************************************************************/
-bool dis_gatt_c_read_dis_req(uint16_t conn_id) {
+bool dis_gatt_c_read_dis_req(tCONN_ID conn_id) {
   tGATT_READ_PARAM param;
 
   memset(&param, 0, sizeof(tGATT_READ_PARAM));
@@ -220,7 +155,7 @@ bool dis_gatt_c_read_dis_req(uint16_t conn_id) {
   param.service.e_handle = 0xFFFF;
   param.service.auth_req = 0;
 
-  while (dis_cb.dis_read_uuid_idx < DIS_MAX_CHAR_NUM) {
+  while (dis_cb.dis_read_uuid_idx < (sizeof(dis_attr_uuid) / sizeof(dis_attr_uuid[0]))) {
     if (dis_uuid_to_attr(dis_attr_uuid[dis_cb.dis_read_uuid_idx]) & dis_cb.request_mask) {
       param.service.uuid = bluetooth::Uuid::From16Bit(dis_attr_uuid[dis_cb.dis_read_uuid_idx]);
 
@@ -252,7 +187,7 @@ void dis_c_cmpl_cback(tSRVC_CLCB* p_clcb, tGATTC_OPTYPE op, tGATT_STATUS status,
                       tGATT_CL_COMPLETE* p_data) {
   uint16_t read_type;
   uint8_t *pp = NULL, *p_str;
-  uint16_t conn_id = p_clcb->conn_id;
+  tCONN_ID conn_id = p_clcb->conn_id;
 
   if (dis_cb.dis_read_uuid_idx >= (sizeof(dis_attr_uuid) / sizeof(dis_attr_uuid[0]))) {
     log::error("invalid dis_cb.dis_read_uuid_idx");
@@ -320,100 +255,6 @@ void dis_c_cmpl_cback(tSRVC_CLCB* p_clcb, tGATTC_OPTYPE op, tGATT_STATUS status,
 
 /*******************************************************************************
  *
- * Function         DIS_SrInit
- *
- * Description      Initialize the Device Information Service Server.
- *
- ******************************************************************************/
-tDIS_STATUS DIS_SrInit(tDIS_ATTR_MASK dis_attr_mask) {
-  tGATT_STATUS status;
-
-  if (dis_cb.enabled) {
-    log::error("DIS already initialized");
-    return DIS_SUCCESS;
-  }
-
-  memset(&dis_cb, 0, sizeof(tDIS_CB));
-
-  btgatt_db_element_t service[DIS_MAX_ATTR_NUM] = {};
-
-  bluetooth::Uuid svc_uuid = bluetooth::Uuid::From16Bit(UUID_SERVCLASS_DEVICE_INFO);
-  service[0].type = BTGATT_DB_PRIMARY_SERVICE;
-  service[0].uuid = svc_uuid;
-
-  for (int i = 0; dis_attr_mask != 0 && i < DIS_MAX_CHAR_NUM; i++) {
-    dis_cb.dis_attr[i].uuid = dis_attr_uuid[i];
-
-    bluetooth::Uuid char_uuid = bluetooth::Uuid::From16Bit(dis_cb.dis_attr[i].uuid);
-    /* index 0 is service, so characteristics start from 1 */
-    service[i + 1].type = BTGATT_DB_CHARACTERISTIC;
-    service[i + 1].uuid = char_uuid;
-    service[i + 1].properties = GATT_CHAR_PROP_BIT_READ;
-    service[i + 1].permissions = GATT_PERM_READ;
-
-    dis_attr_mask >>= 1;
-  }
-
-  /* Add a GAP service */
-  status = GATTS_AddService(srvc_eng_cb.gatt_if, service,
-                            sizeof(service) / sizeof(btgatt_db_element_t));
-  if (status != GATT_SERVICE_STARTED) {
-    log::error("Can not create service, DIS_Init failed!");
-    return GATT_ERROR;
-  }
-
-  dis_cb.service_handle = service[0].attribute_handle;
-  dis_cb.max_handle = dis_cb.service_handle + DIS_MAX_ATTR_NUM;
-
-  for (int i = 0; i < DIS_MAX_CHAR_NUM; i++) {
-    dis_cb.dis_attr[i].handle = service[i + 1].attribute_handle;
-
-    log::verbose("handle of new attribute 0x{:04x} = {}", dis_cb.dis_attr[i].uuid,
-                 dis_cb.dis_attr[i].handle);
-  }
-
-  dis_cb.enabled = true;
-  return (tDIS_STATUS)status;
-}
-/*******************************************************************************
- *
- * Function         DIS_SrUpdate
- *
- * Description      Update the DIS server attribute values
- *
- ******************************************************************************/
-tDIS_STATUS DIS_SrUpdate(tDIS_ATTR_BIT dis_attr_bit, tDIS_ATTR* p_info) {
-  uint8_t i = 1;
-  tDIS_STATUS st = DIS_SUCCESS;
-
-  if (dis_attr_bit & DIS_ATTR_SYS_ID_BIT) {
-    dis_cb.dis_value.system_id = p_info->system_id;
-  } else if (dis_attr_bit & DIS_ATTR_PNP_ID_BIT) {
-    dis_cb.dis_value.pnp_id.vendor_id = p_info->pnp_id.vendor_id;
-    dis_cb.dis_value.pnp_id.vendor_id_src = p_info->pnp_id.vendor_id_src;
-    dis_cb.dis_value.pnp_id.product_id = p_info->pnp_id.product_id;
-    dis_cb.dis_value.pnp_id.product_version = p_info->pnp_id.product_version;
-  } else {
-    st = DIS_ILLEGAL_PARAM;
-
-    while (dis_attr_bit && i < (DIS_MAX_CHAR_NUM - 1)) {
-      if (dis_attr_bit & (uint16_t)(1 << i)) {
-        osi_free(dis_cb.dis_value.data_string[i - 1]);
-        dis_cb.dis_value.data_string[i - 1] = (uint8_t*)osi_malloc(p_info->data_str.len + 1);
-        memcpy(dis_cb.dis_value.data_string[i - 1], p_info->data_str.p_data, p_info->data_str.len);
-        dis_cb.dis_value.data_string[i - 1][p_info->data_str.len] =
-                0; /* make sure null terminate */
-        st = DIS_SUCCESS;
-
-        break;
-      }
-      i++;
-    }
-  }
-  return st;
-}
-/*******************************************************************************
- *
  * Function         DIS_ReadDISInfo
  *
  * Description      Read remote device DIS information.
@@ -422,18 +263,37 @@ tDIS_STATUS DIS_SrUpdate(tDIS_ATTR_BIT dis_attr_bit, tDIS_ATTR* p_info) {
  *
  ******************************************************************************/
 bool DIS_ReadDISInfo(const RawAddress& peer_bda, tDIS_READ_CBACK* p_cback, tDIS_ATTR_MASK mask) {
-  uint16_t conn_id;
+  tCONN_ID conn_id;
 
   /* Initialize the DIS client if it hasn't been initialized already. */
   srvc_eng_init();
 
-  /* For now we only handle one at a time */
-  if (dis_cb.dis_read_uuid_idx != 0xff) {
+  if (p_cback == NULL) {
     return false;
   }
 
-  if (p_cback == NULL) {
-    return false;
+  if (dis_cb.dis_read_uuid_idx != 0xff) {
+    if (!com::android::bluetooth::flags::queue_dis_requests()) {
+      /* For now we only handle one at a time */
+      return false;
+    }
+    /* GATT is busy, so let's queue the request */
+    tDIS_REQ req = {
+            .p_read_dis_cback = p_cback,
+            .mask = mask,
+            .addr = peer_bda,
+    };
+    dis_cb.pend_reqs.push(req);
+
+    return true;
+  }
+
+  if (com::android::bluetooth::flags::queue_dis_requests()) {
+    /* For now, we don't serve the request if GATT isn't connected.
+     * We need to call GATT_Connect and implement the handler for both success and failure case. */
+    if (!GATT_GetConnIdIfConnected(srvc_eng_cb.gatt_if, peer_bda, &conn_id, BT_TRANSPORT_LE)) {
+      return false;
+    }
   }
 
   dis_cb.p_read_dis_cback = p_cback;
@@ -444,16 +304,18 @@ bool DIS_ReadDISInfo(const RawAddress& peer_bda, tDIS_READ_CBACK* p_cback, tDIS_
 
   log::verbose("BDA: {} cl_read_uuid: 0x{:04x}", peer_bda, dis_attr_uuid[dis_cb.dis_read_uuid_idx]);
 
-  if (!GATT_GetConnIdIfConnected(srvc_eng_cb.gatt_if, peer_bda, &conn_id, BT_TRANSPORT_LE)) {
-    conn_id = GATT_INVALID_CONN_ID;
-  }
-
   /* need to enhance it as multiple service is needed */
   srvc_eng_request_channel(peer_bda, SRVC_ID_DIS);
 
-  if (conn_id == GATT_INVALID_CONN_ID) {
-    return GATT_Connect(srvc_eng_cb.gatt_if, peer_bda, BTM_BLE_DIRECT_CONNECTION, BT_TRANSPORT_LE,
-                        false);
+  if (!com::android::bluetooth::flags::queue_dis_requests()) {
+    if (!GATT_GetConnIdIfConnected(srvc_eng_cb.gatt_if, peer_bda, &conn_id, BT_TRANSPORT_LE)) {
+      conn_id = GATT_INVALID_CONN_ID;
+    }
+
+    if (conn_id == GATT_INVALID_CONN_ID) {
+      return GATT_Connect(srvc_eng_cb.gatt_if, peer_bda, BTM_BLE_DIRECT_CONNECTION, BT_TRANSPORT_LE,
+                          false);
+    }
   }
 
   return dis_gatt_c_read_dis_req(conn_id);

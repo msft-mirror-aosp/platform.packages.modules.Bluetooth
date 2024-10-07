@@ -38,6 +38,9 @@
 #include "test/mock/mock_stack_l2cap_ble.h"
 #include "test/rfcomm/stack_rfcomm_test_utils.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace bluetooth {
 namespace hal {
 class SnoopLogger;
@@ -186,7 +189,7 @@ static void FuzzAsClient(FuzzedDataProvider* fdp) {
   }
 
   // Simulating outbound connection confirm event
-  appl_info.pL2CA_ConnectCfm_Cb(kDummyCID, L2CAP_CONN_OK);
+  appl_info.pL2CA_ConnectCfm_Cb(kDummyCID, tL2CAP_CONN::L2CAP_CONN_OK);
 
   // Simulating configuration confirmation event
   tL2CAP_CFG_INFO cfg = {};

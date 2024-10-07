@@ -32,7 +32,6 @@
 #include "osi/include/osi.h"  // INVALID_FD
 #include "osi/include/socket.h"
 #include "osi/include/thread.h"
-#include "stack/include/btm_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
 #include "types/raw_address.h"
@@ -54,6 +53,9 @@
 //   connect_completed_cb()    - connection successfully established
 //   socket_read_ready_cb()    - local host closed SCO socket
 //   disconnect_completed_cb() - connection terminated
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 

@@ -30,6 +30,9 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 bool btm_sco_removed(uint16_t /* hci_handle */, tHCI_REASON /* reason */) {
   inc_func_call_count(__func__);
   return false;
@@ -72,6 +75,9 @@ void btm_sco_connected(const RawAddress& /* bda */, uint16_t /* hci_handle */,
 }
 void btm_sco_connection_failed(tHCI_STATUS /* hci_status */, const RawAddress& /* bda */,
                                uint16_t /* hci_handle */, tBTM_ESCO_DATA* /* p_esco_data */) {
+  inc_func_call_count(__func__);
+}
+void btm_sco_create_command_status_failed(tHCI_STATUS /* hci_status */) {
   inc_func_call_count(__func__);
 }
 void btm_sco_disc_chk_pend_for_modechange(uint16_t /* hci_handle */) {

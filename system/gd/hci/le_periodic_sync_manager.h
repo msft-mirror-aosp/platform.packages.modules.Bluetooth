@@ -203,9 +203,6 @@ public:
 
   template <class View>
   void HandlePeriodicAdvertisingCreateSyncStatus(CommandStatusView view) {
-    if (!com::android::bluetooth::flags::leaudio_broadcast_assistant_handle_command_statuses()) {
-      return;
-    }
     log::assert_that(view.IsValid(), "assert failed: view.IsValid()");
     auto status_view = View::Create(view);
     log::assert_that(status_view.IsValid(), "assert failed: status_view.IsValid()");
@@ -238,9 +235,6 @@ public:
 
   template <class View>
   void HandlePeriodicAdvertisingCreateSyncCancelStatus(CommandCompleteView view) {
-    if (!com::android::bluetooth::flags::leaudio_broadcast_assistant_handle_command_statuses()) {
-      return;
-    }
     log::assert_that(view.IsValid(), "assert failed: view.IsValid()");
     auto status_view = View::Create(view);
     log::assert_that(status_view.IsValid(), "assert failed: status_view.IsValid()");
@@ -345,10 +339,8 @@ public:
                                         address_with_type, (uint16_t)event_view.GetAdvertiserPhy(),
                                         event_view.GetPeriodicAdvertisingInterval());
 
-      if (com::android::bluetooth::flags::leaudio_broadcast_feature_support()) {
-        if (event_view.GetStatus() != ErrorCode::SUCCESS) {
-          periodic_syncs_.erase(periodic_sync);
-        }
+      if (event_view.GetStatus() != ErrorCode::SUCCESS) {
+        periodic_syncs_.erase(periodic_sync);
       }
     } else {
       log::debug("[PSync]: Wrong sync state={}", (uint8_t)(periodic_sync->sync_state));
@@ -373,12 +365,8 @@ public:
       return;
     }
 
-    auto complete_advertising_data =
-            com::android::bluetooth::flags::le_periodic_scanning_reassembler()
-                    ? scanning_reassembler_.ProcessPeriodicAdvertisingReport(
-                              sync_handle, DataStatus(event_view.GetDataStatus()),
-                              event_view.GetData())
-                    : event_view.GetData();
+    auto complete_advertising_data = scanning_reassembler_.ProcessPeriodicAdvertisingReport(
+            sync_handle, DataStatus(event_view.GetDataStatus()), event_view.GetData());
     if (!complete_advertising_data.has_value()) {
       return;
     }

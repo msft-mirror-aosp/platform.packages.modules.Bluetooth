@@ -42,7 +42,7 @@
 #include "device/include/device_iot_config.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_sec_api_types.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/port_api.h"
 #include "stack/include/sdp_api.h"
 #include "storage/config_keys.h"
@@ -475,7 +475,7 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
     if (RFCOMM_RemoveServer(p_scb->conn_handle) != PORT_SUCCESS) {
       log::warn("Unable to remove RFCOMM server peer:{} handle:{}", p_scb->peer_addr,
                 p_scb->conn_handle);
-    };
+    }
     bta_ag_scb_dealloc(p_scb);
   }
 }
@@ -594,7 +594,7 @@ void bta_ag_rfc_acp_open(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
           log::warn("RFCOMM_RemoveConnection failed for {}, handle {}, error {}", dev_addr,
                     ag_scb.conn_handle, status);
         }
-      } else if (com::android::bluetooth::flags::reset_after_collision()) {
+      } else {
         // As no existing outgoing rfcomm connection, then manual reset current
         // state, and use the incoming one
         bta_ag_rfc_fail(&ag_scb, tBTA_AG_DATA::kEmpty);
@@ -699,7 +699,8 @@ void bta_ag_rfc_data(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
 void bta_ag_start_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
   /* Take the link out of sniff and set L2C idle time to 0 */
   bta_dm_pm_active(p_scb->peer_addr);
-  if (!L2CA_SetIdleTimeoutByBdAddr(p_scb->peer_addr, 0, BT_TRANSPORT_BR_EDR)) {
+  if (!stack::l2cap::get_interface().L2CA_SetIdleTimeoutByBdAddr(p_scb->peer_addr, 0,
+                                                                 BT_TRANSPORT_BR_EDR)) {
     log::warn("Unable to set idle timeout peer:{}", p_scb->peer_addr);
   }
 

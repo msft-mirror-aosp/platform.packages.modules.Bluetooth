@@ -170,6 +170,8 @@ public class BluetoothMediaBrowserService extends MediaBrowserServiceCompat {
         super.onDestroy();
         unregisterReceiver(mReceiver);
         mReceiver = null;
+        mSession.release();
+        mSession = null;
         setInstance(null);
     }
 
@@ -244,9 +246,12 @@ public class BluetoothMediaBrowserService extends MediaBrowserServiceCompat {
         Intent launchIntent = new Intent();
         launchIntent.setAction(BluetoothPrefs.BLUETOOTH_SETTING_ACTION);
         launchIntent.addCategory(BluetoothPrefs.BLUETOOTH_SETTING_CATEGORY);
-        int flags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
         PendingIntent pendingIntent =
-                PendingIntent.getActivity(getApplicationContext(), 0, launchIntent, flags);
+                PendingIntent.getActivity(
+                        getApplicationContext(),
+                        0,
+                        launchIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         extras.putParcelable(ERROR_RESOLUTION_ACTION_INTENT, pendingIntent);
         PlaybackStateCompat errorState =
                 new PlaybackStateCompat.Builder()
@@ -559,7 +564,7 @@ public class BluetoothMediaBrowserService extends MediaBrowserServiceCompat {
                 sb.append(", album=")
                         .append(metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM));
                 sb.append(", duration=")
-                        .append(metadata.getString(MediaMetadataCompat.METADATA_KEY_DURATION));
+                        .append(metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
                 sb.append(", track_number=")
                         .append(metadata.getLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER));
                 sb.append(", total_tracks=")

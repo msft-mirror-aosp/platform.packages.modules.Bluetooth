@@ -120,6 +120,7 @@ cc_test {
         "gatt/gatt_unittest.cc",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
         "libbluetooth-gdx",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
@@ -128,9 +129,9 @@ cc_test {
         "libbt-btu-main-thread",
         "libbt-jni-thread",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
         "libchrome",
         "libevent",
+        "libflags_rust_cpp_bridge",
         "libprotobuf-cpp-lite",
     ],
     shared_libs: [

@@ -34,6 +34,9 @@
 
 // Mocked internal structures, if any
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace test {
 namespace mock {
 namespace stack_btm_sec {
@@ -50,12 +53,10 @@ struct BTM_PasskeyReqReply BTM_PasskeyReqReply;
 struct BTM_PeerSupportsSecureConnections BTM_PeerSupportsSecureConnections;
 struct BTM_ReadLocalOobData BTM_ReadLocalOobData;
 struct BTM_RemoteOobDataReply BTM_RemoteOobDataReply;
-struct BTM_SecAddRmtNameNotifyCallback BTM_SecAddRmtNameNotifyCallback;
 struct BTM_SecBond BTM_SecBond;
 struct BTM_SecBondCancel BTM_SecBondCancel;
 struct BTM_SecClrService BTM_SecClrService;
 struct BTM_SecClrServiceByPsm BTM_SecClrServiceByPsm;
-struct BTM_SecDeleteRmtNameNotifyCallback BTM_SecDeleteRmtNameNotifyCallback;
 struct BTM_SecGetDeviceLinkKeyType BTM_SecGetDeviceLinkKeyType;
 struct BTM_SecIsSecurityPending BTM_SecIsSecurityPending;
 struct BTM_SecRegister BTM_SecRegister;
@@ -100,8 +101,6 @@ struct btm_sec_set_peer_sec_caps btm_sec_set_peer_sec_caps;
 struct btm_sec_update_clock_offset btm_sec_update_clock_offset;
 struct btm_simple_pair_complete btm_simple_pair_complete;
 
-struct BTM_IsRemoteNameKnown BTM_IsRemoteNameKnown;
-
 }  // namespace stack_btm_sec
 }  // namespace mock
 }  // namespace test
@@ -117,12 +116,10 @@ bool BTM_IsEncrypted::return_value = false;
 bool BTM_IsLinkKeyAuthed::return_value = false;
 bool BTM_IsLinkKeyKnown::return_value = false;
 bool BTM_PeerSupportsSecureConnections::return_value = false;
-bool BTM_SecAddRmtNameNotifyCallback::return_value = false;
 tBTM_STATUS BTM_SecBond::return_value = tBTM_STATUS::BTM_SUCCESS;
 tBTM_STATUS BTM_SecBondCancel::return_value = tBTM_STATUS::BTM_SUCCESS;
 uint8_t BTM_SecClrService::return_value = 0;
 uint8_t BTM_SecClrServiceByPsm::return_value = 0;
-bool BTM_SecDeleteRmtNameNotifyCallback::return_value = false;
 tBTM_LINK_KEY_TYPE BTM_SecGetDeviceLinkKeyType::return_value = 0;
 bool BTM_SecIsSecurityPending::return_value = false;
 bool BTM_SecRegister::return_value = false;
@@ -135,8 +132,6 @@ bool btm_sec_is_a_bonded_dev::return_value = false;
 tBTM_STATUS btm_sec_l2cap_access_req::return_value = tBTM_STATUS::BTM_SUCCESS;
 tBTM_STATUS btm_sec_l2cap_access_req_by_requirement::return_value = tBTM_STATUS::BTM_SUCCESS;
 tBTM_STATUS btm_sec_mx_access_request::return_value = tBTM_STATUS::BTM_SUCCESS;
-
-bool BTM_IsRemoteNameKnown::return_value = false;
 
 }  // namespace stack_btm_sec
 }  // namespace mock
@@ -188,10 +183,6 @@ void BTM_RemoteOobDataReply(tBTM_STATUS res, const RawAddress& bd_addr, const Oc
   inc_func_call_count(__func__);
   test::mock::stack_btm_sec::BTM_RemoteOobDataReply(res, bd_addr, c, r);
 }
-bool BTM_SecAddRmtNameNotifyCallback(tBTM_RMT_NAME_CALLBACK* p_callback) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_btm_sec::BTM_SecAddRmtNameNotifyCallback(p_callback);
-}
 tBTM_STATUS BTM_SecBond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
                         tBT_TRANSPORT transport, tBT_DEVICE_TYPE device_type) {
   inc_func_call_count(__func__);
@@ -208,10 +199,6 @@ uint8_t BTM_SecClrService(uint8_t service_id) {
 uint8_t BTM_SecClrServiceByPsm(uint16_t psm) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_sec::BTM_SecClrServiceByPsm(psm);
-}
-bool BTM_SecDeleteRmtNameNotifyCallback(tBTM_RMT_NAME_CALLBACK* p_callback) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_btm_sec::BTM_SecDeleteRmtNameNotifyCallback(p_callback);
 }
 tBTM_LINK_KEY_TYPE BTM_SecGetDeviceLinkKeyType(const RawAddress& bd_addr) {
   inc_func_call_count(__func__);
@@ -332,13 +319,16 @@ void btm_sec_disconnected(uint16_t handle, tHCI_REASON reason, std::string comme
   inc_func_call_count(__func__);
   test::mock::stack_btm_sec::btm_sec_disconnected(handle, reason, comment);
 }
-void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable) {
+void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable,
+                            uint8_t key_size, bool from_key_refresh) {
   inc_func_call_count(__func__);
-  test::mock::stack_btm_sec::btm_sec_encrypt_change(handle, status, encr_enable);
+  test::mock::stack_btm_sec::btm_sec_encrypt_change(handle, status, encr_enable, key_size,
+                                                    from_key_refresh);
 }
-void btm_sec_encryption_change_evt(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable) {
+void btm_sec_encryption_change_evt(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable,
+                                   uint8_t key_size) {
   inc_func_call_count(__func__);
-  test::mock::stack_btm_sec::btm_sec_encryption_change_evt(handle, status, encr_enable);
+  test::mock::stack_btm_sec::btm_sec_encryption_change_evt(handle, status, encr_enable, key_size);
 }
 bool btm_sec_is_a_bonded_dev(const RawAddress& bda) {
   inc_func_call_count(__func__);
@@ -410,10 +400,6 @@ void btm_sec_update_clock_offset(uint16_t handle, uint16_t clock_offset) {
 void btm_simple_pair_complete(const RawAddress bd_addr, uint8_t status) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_sec::btm_simple_pair_complete(bd_addr, status);
-}
-bool BTM_IsRemoteNameKnown(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_btm_sec::BTM_IsRemoteNameKnown(bd_addr, transport);
 }
 bool BTM_BleIsLinkKeyKnown(const RawAddress /* address */) {
   inc_func_call_count(__func__);

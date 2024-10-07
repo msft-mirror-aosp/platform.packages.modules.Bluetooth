@@ -37,6 +37,9 @@
 #include "stack/include/hcimsgs.h"
 #include "stack/include/main_thread.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 /**
@@ -77,6 +80,7 @@ bool register_event_code(bluetooth::hci::EventCode event_code) {
     case bluetooth::hci::EventCode::USER_PASSKEY_NOTIFICATION:
     case bluetooth::hci::EventCode::USER_CONFIRMATION_REQUEST:
     case bluetooth::hci::EventCode::USER_PASSKEY_REQUEST:
+    case bluetooth::hci::EventCode::ENCRYPTION_CHANGE_V2:
       return true;
     default:
       return false;

@@ -17,11 +17,10 @@
 #define LOG_TAG "acl"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
-#include "common/init_flags.h"
-#include "os/log.h"
 #include "stack/btm/btm_ble_int.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_int_types.h"
@@ -32,6 +31,9 @@
 #include "stack/include/btm_ble_privacy.h"
 #include "stack/include/l2cap_hci_link_interface.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -50,7 +52,7 @@ static bool acl_ble_common_connection(const tBLE_BD_ADDR& address_with_type, uin
   }
 
   // Inform any applications that a connection has completed.
-  if (!bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (!com::android::bluetooth::flags::unified_connection_manager()) {
     connection_manager::on_connection_complete(address_with_type.bda);
   }
 
@@ -109,7 +111,7 @@ void acl_ble_enhanced_connection_complete_from_shim(
         uint16_t conn_interval, uint16_t conn_latency, uint16_t conn_timeout,
         const RawAddress& local_rpa, const RawAddress& peer_rpa, tBLE_ADDR_TYPE peer_addr_type,
         bool can_read_discoverable_characteristics) {
-  if (!bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (!com::android::bluetooth::flags::unified_connection_manager()) {
     connection_manager::on_connection_complete(address_with_type.bda);
   }
 
@@ -137,7 +139,7 @@ void acl_ble_connection_fail(const tBLE_BD_ADDR& address_with_type, uint16_t /* 
     btm_ble_clear_topology_mask(BTM_BLE_STATE_INIT_BIT);
     tBLE_BD_ADDR resolved_address_with_type;
     maybe_resolve_received_address(address_with_type, &resolved_address_with_type);
-    if (!bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+    if (!com::android::bluetooth::flags::unified_connection_manager()) {
       connection_manager::on_connection_timed_out_from_shim(resolved_address_with_type.bda);
     }
     log::warn("LE connection fail peer:{} bd_addr:{} hci_status:{}", address_with_type,

@@ -31,6 +31,7 @@
 #include <cerrno>
 
 #include "bta_hh_api.h"
+#include "btif_config.h"
 #include "btif_hh.h"
 #include "hci/controller_interface.h"
 #include "main/shim/entry.h"
@@ -40,10 +41,6 @@
 #include "osi/include/properties.h"
 #include "storage/config_keys.h"
 #include "types/raw_address.h"
-
-const char* dev_path = "/dev/uhid";
-
-#include "btif_config.h"
 #define BTA_HH_NV_LOAD_MAX 16
 static tBTA_HH_RPT_CACHE_ENTRY sReportCache[BTA_HH_NV_LOAD_MAX];
 #define BTA_HH_CACHE_REPORT_VERSION 1
@@ -55,18 +52,22 @@ static tBTA_HH_RPT_CACHE_ENTRY sReportCache[BTA_HH_NV_LOAD_MAX];
 #define BTA_HH_UHID_POLL_PERIOD2_MS -1
 /* Max number of polling interrupt allowed */
 #define BTA_HH_UHID_INTERRUPT_COUNT_MAX 100
+/* Disconnect if UHID isn't ready after this many milliseconds. */
+#define BTA_HH_UHID_READY_DISCONN_TIMEOUT_MS 10000
+#define BTA_HH_UHID_READY_SHORT_DISCONN_TIMEOUT_MS 2000
 
 using namespace bluetooth;
 
-static const char kPropertyWaitMsAfterUhidOpen[] = "bluetooth.hid.wait_ms_after_uhid_open";
+static constexpr char kDevPath[] = "/dev/uhid";
+static constexpr char kPropertyWaitMsAfterUhidOpen[] = "bluetooth.hid.wait_ms_after_uhid_open";
 
-static const bthh_report_type_t map_rtype_uhid_hh[] = {BTHH_FEATURE_REPORT, BTHH_OUTPUT_REPORT,
-                                                       BTHH_INPUT_REPORT};
+static constexpr bthh_report_type_t map_rtype_uhid_hh[] = {BTHH_FEATURE_REPORT, BTHH_OUTPUT_REPORT,
+                                                           BTHH_INPUT_REPORT};
 
 static void* btif_hh_poll_event_thread(void* arg);
-static bool to_uhid_thread(int fd, const tBTA_HH_TO_UHID_EVT* ev);
+static bool to_uhid_thread(int fd, const tBTA_HH_TO_UHID_EVT* ev, size_t data_len);
 
-void uhid_set_non_blocking(int fd) {
+static void uhid_set_non_blocking(int fd) {
   int opts = fcntl(fd, F_GETFL);
   if (opts < 0) {
     log::error("Getting flags failed ({})", strerror(errno));
@@ -79,7 +80,7 @@ void uhid_set_non_blocking(int fd) {
   }
 }
 
-static bool uhid_feature_req_handler(btif_hh_uhid_t* p_uhid, struct uhid_feature_req& req) {
+static bool uhid_get_report_req_handler(btif_hh_uhid_t* p_uhid, struct uhid_get_report_req& req) {
   log::debug("Report type = {}, id = {}", req.rtype, req.rnum);
 
   if (req.rtype > UHID_INPUT_REPORT) {
@@ -133,17 +134,51 @@ static bool uhid_set_report_req_handler(btif_hh_uhid_t* p_uhid, struct uhid_set_
 }
 #endif  // ENABLE_UHID_SET_REPORT
 
+/* Calculate the minimum length required to send message to UHID */
+static size_t uhid_calc_msg_len(const struct uhid_event* ev, size_t var_len) {
+  switch (ev->type) {
+    // these messages don't have data following them, so just 4 bytes of type.
+    case UHID_DESTROY:
+    case UHID_STOP:
+    case UHID_OPEN:
+    case UHID_CLOSE:
+      return sizeof(ev->type);
+    // these messages has static length of data.
+    case UHID_START:
+      return sizeof(ev->type) + sizeof(ev->u.start);
+    case UHID_OUTPUT:
+      return sizeof(ev->type) + sizeof(ev->u.output);
+    case UHID_GET_REPORT:
+      return sizeof(ev->type) + sizeof(ev->u.get_report);
+    case UHID_SET_REPORT_REPLY:
+      return sizeof(ev->type) + sizeof(ev->u.set_report_reply);
+    // these messages has variable amount of data. We only need to write the
+    // necessary length.
+    case UHID_CREATE2:
+      return sizeof(ev->type) + sizeof(ev->u.create2) - HID_MAX_DESCRIPTOR_SIZE + var_len;
+    case UHID_INPUT2:
+      return sizeof(ev->type) + sizeof(ev->u.input2) - UHID_DATA_MAX + var_len;
+    case UHID_GET_REPORT_REPLY:
+      return sizeof(ev->type) + sizeof(ev->u.get_report_reply) - UHID_DATA_MAX + var_len;
+    case UHID_SET_REPORT:
+      return sizeof(ev->type) + sizeof(ev->u.set_report) - UHID_DATA_MAX + var_len;
+    default:
+      log::error("unknown uhid event type {}", ev->type);
+      return 0;
+  }
+}
+
 /*Internal function to perform UHID write and error checking*/
-static int uhid_write(int fd, const struct uhid_event* ev) {
+static int uhid_write(int fd, const struct uhid_event* ev, size_t len) {
   ssize_t ret;
-  OSI_NO_INTR(ret = write(fd, ev, sizeof(*ev)));
+  OSI_NO_INTR(ret = write(fd, ev, len));
 
   if (ret < 0) {
     int rtn = -errno;
     log::error("Cannot write to uhid:{}", strerror(errno));
     return rtn;
-  } else if (ret != (ssize_t)sizeof(*ev)) {
-    log::error("Wrong size written to uhid: {} != {}", ret, sizeof(*ev));
+  } else if (ret != (ssize_t)len) {
+    log::error("Wrong size written to uhid: {} != {}", ret, len);
     return -EFAULT;
   }
 
@@ -157,7 +192,7 @@ static void uhid_flush_input_queue(btif_hh_uhid_t* p_uhid) {
     if (p_ev == nullptr) {
       break;
     }
-    uhid_write(p_uhid->fd, p_ev);
+    uhid_write(p_uhid->fd, p_ev, uhid_calc_msg_len(p_ev, p_ev->u.input2.size));
     osi_free(p_ev);
   }
 }
@@ -171,19 +206,33 @@ static void uhid_set_ready(btif_hh_uhid_t* p_uhid) {
 }
 
 // This runs on main thread.
-static void uhid_open_timeout(void* data) {
+static void uhid_delayed_ready_cback(void* data) {
   int send_fd = PTR_TO_INT(data);
   tBTA_HH_TO_UHID_EVT ev = {};
 
   // Notify the UHID thread that the timer has expired.
-  log::verbose("UHID Open timeout evt");
-  ev.type = BTA_HH_UHID_INBOUND_OPEN_TIMEOUT_EVT;
-  to_uhid_thread(send_fd, &ev);
+  log::verbose("UHID delayed ready evt");
+  ev.type = BTA_HH_UHID_INBOUND_READY_EVT;
+  to_uhid_thread(send_fd, &ev, 0);
+}
+
+// This runs on main thread.
+static void uhid_ready_disconn_timeout(void* data) {
+  int dev_handle = PTR_TO_INT(data);
+
+  log::verbose("UHID ready disconn timeout evt");
+  BTA_HhClose(dev_handle);
 }
 
 static void uhid_on_open(btif_hh_uhid_t* p_uhid) {
-  if (p_uhid->ready_for_data || alarm_is_scheduled(p_uhid->ready_timer)) {
+  if (p_uhid->ready_for_data || alarm_is_scheduled(p_uhid->delayed_ready_timer)) {
     return;
+  }
+
+  if (com::android::bluetooth::flags::close_hid_if_uhid_ready_too_slow()) {
+    if (alarm_is_scheduled(p_uhid->ready_disconn_timer)) {
+      alarm_cancel(p_uhid->ready_disconn_timer);
+    }
   }
 
   // On some platforms delay is required, because even though UHID has indicated
@@ -195,17 +244,17 @@ static void uhid_on_open(btif_hh_uhid_t* p_uhid) {
     return;
   }
 
-  alarm_set_on_mloop(p_uhid->ready_timer, ready_delay_ms, uhid_open_timeout,
+  alarm_set_on_mloop(p_uhid->delayed_ready_timer, ready_delay_ms, uhid_delayed_ready_cback,
                      INT_TO_PTR(p_uhid->internal_send_fd));
 }
 
-static void uhid_queue_input(btif_hh_uhid_t* p_uhid, struct uhid_event* ev) {
-  struct uhid_event* p_ev = (struct uhid_event*)osi_malloc(sizeof(*ev));
+static void uhid_queue_input(btif_hh_uhid_t* p_uhid, struct uhid_event* ev, size_t len) {
+  struct uhid_event* p_ev = (struct uhid_event*)osi_malloc(len);
   if (!p_ev) {
     log::error("allocate uhid_event failed");
     return;
   }
-  memcpy(p_ev, ev, sizeof(*p_ev));
+  memcpy(p_ev, ev, len);
 
   if (!fixed_queue_try_enqueue(p_uhid->input_queue, (void*)p_ev)) {
     osi_free(p_ev);
@@ -256,8 +305,18 @@ static int uhid_read_outbound_event(btif_hh_uhid_t* p_uhid) {
       log::verbose("UHID_CLOSE from uhid-dev\n");
       p_uhid->ready_for_data = false;
       if (com::android::bluetooth::flags::hid_report_queuing()) {
-        if (alarm_is_scheduled(p_uhid->ready_timer)) {
-          alarm_cancel(p_uhid->ready_timer);
+        if (alarm_is_scheduled(p_uhid->delayed_ready_timer)) {
+          alarm_cancel(p_uhid->delayed_ready_timer);
+        }
+        if (com::android::bluetooth::flags::close_hid_if_uhid_ready_too_slow()) {
+          // It's possible to get OPEN->CLOSE->OPEN sequence from UHID. Therefore, instead of
+          // immediately disconnecting when receiving CLOSE, here we wait a while and will
+          // disconnect if we don't receive OPEN before it times out.
+          if (!alarm_is_scheduled(p_uhid->ready_disconn_timer)) {
+            alarm_set_on_mloop(p_uhid->ready_disconn_timer,
+                               BTA_HH_UHID_READY_SHORT_DISCONN_TIMEOUT_MS,
+                               uhid_ready_disconn_timeout, INT_TO_PTR(p_uhid->dev_handle));
+          }
         }
       }
       break;
@@ -280,23 +339,15 @@ static int uhid_read_outbound_event(btif_hh_uhid_t* p_uhid) {
         log::error("UHID_OUTPUT: Invalid report type = {}", ev.u.output.rtype);
       }
       break;
-    case UHID_OUTPUT_EV:
-      if (ret < (ssize_t)(sizeof(ev.type) + sizeof(ev.u.output_ev))) {
-        log::error("Invalid size read from uhid-dev: {} < {}", ret,
-                   sizeof(ev.type) + sizeof(ev.u.output_ev));
-        return -EFAULT;
-      }
-      log::verbose("UHID_OUTPUT_EV from uhid-dev\n");
-      break;
 
-    case UHID_FEATURE:  // UHID_GET_REPORT
-      if (ret < (ssize_t)(sizeof(ev.type) + sizeof(ev.u.feature))) {
+    case UHID_GET_REPORT:
+      if (ret < (ssize_t)(sizeof(ev.type) + sizeof(ev.u.get_report))) {
         log::error("UHID_GET_REPORT: Invalid size read from uhid-dev: {} < {}", ret,
-                   sizeof(ev.type) + sizeof(ev.u.feature));
+                   sizeof(ev.type) + sizeof(ev.u.get_report));
         return -EFAULT;
       }
 
-      if (!uhid_feature_req_handler(p_uhid, ev.u.feature)) {
+      if (!uhid_get_report_req_handler(p_uhid, ev.u.get_report)) {
         return -EFAULT;
       }
 
@@ -346,20 +397,19 @@ static int uhid_read_inbound_event(btif_hh_uhid_t* p_uhid) {
   switch (ev.type) {
     case BTA_HH_UHID_INBOUND_INPUT_EVT:
       if (p_uhid->ready_for_data) {
-        res = uhid_write(p_uhid->fd, &ev.uhid);
+        res = uhid_write(p_uhid->fd, &ev.uhid, ret - 1);
       } else {
-        uhid_queue_input(p_uhid, &ev.uhid);
+        uhid_queue_input(p_uhid, &ev.uhid, ret - 1);
       }
       break;
-    case BTA_HH_UHID_INBOUND_OPEN_TIMEOUT_EVT:
+    case BTA_HH_UHID_INBOUND_READY_EVT:
       uhid_set_ready(p_uhid);
       break;
     case BTA_HH_UHID_INBOUND_CLOSE_EVT:
       res = 1;  // any positive value indicates a normal close event
       break;
     case BTA_HH_UHID_INBOUND_DSCP_EVT:
-      res = uhid_write(p_uhid->fd, &ev.uhid);
-      osi_free(ev.uhid.u.create.rd_data);
+      res = uhid_write(p_uhid->fd, &ev.uhid, ret - 1);
       break;
     case BTA_HH_UHID_INBOUND_GET_REPORT_EVT:
       context = (uint32_t*)fixed_queue_try_dequeue(p_uhid->get_rpt_id_queue);
@@ -367,8 +417,8 @@ static int uhid_read_inbound_event(btif_hh_uhid_t* p_uhid) {
         log::warn("No pending UHID_GET_REPORT");
         break;
       }
-      ev.uhid.u.feature_answer.id = *context;
-      res = uhid_write(p_uhid->fd, &ev.uhid);
+      ev.uhid.u.get_report_reply.id = *context;
+      res = uhid_write(p_uhid->fd, &ev.uhid, ret - 1);
       osi_free(context);
       break;
 #if ENABLE_UHID_SET_REPORT
@@ -379,7 +429,7 @@ static int uhid_read_inbound_event(btif_hh_uhid_t* p_uhid) {
         break;
       }
       ev.uhid.u.set_report_reply.id = *context;
-      res = uhid_write(p_uhid->fd, &ev.uhid);
+      res = uhid_write(p_uhid->fd, &ev.uhid, ret - 1);
       osi_free(context);
       break;
 #endif  // ENABLE_UHID_SET_REPORT
@@ -419,7 +469,7 @@ static void uhid_fd_close(btif_hh_uhid_t* p_uhid) {
   if (p_uhid->fd >= 0) {
     struct uhid_event ev = {};
     ev.type = UHID_DESTROY;
-    uhid_write(p_uhid->fd, &ev);
+    uhid_write(p_uhid->fd, &ev, uhid_calc_msg_len(&ev, 0));
     log::debug("Closing fd={}, addr:{}", p_uhid->fd, p_uhid->link_spec);
     close(p_uhid->fd);
     p_uhid->fd = -1;
@@ -443,7 +493,8 @@ static void uhid_fd_close(btif_hh_uhid_t* p_uhid) {
     fixed_queue_free(p_uhid->input_queue, nullptr);
     p_uhid->input_queue = nullptr;
 
-    alarm_free(p_uhid->ready_timer);
+    alarm_free(p_uhid->delayed_ready_timer);
+    alarm_free(p_uhid->ready_disconn_timer);
     osi_free(p_uhid);
   }
 }
@@ -452,7 +503,7 @@ static void uhid_fd_close(btif_hh_uhid_t* p_uhid) {
 static bool uhid_fd_open(btif_hh_device_t* p_dev) {
   if (!com::android::bluetooth::flags::hid_report_queuing()) {
     if (p_dev->uhid.fd < 0) {
-      p_dev->uhid.fd = open(dev_path, O_RDWR | O_CLOEXEC);
+      p_dev->uhid.fd = open(kDevPath, O_RDWR | O_CLOEXEC);
       if (p_dev->uhid.fd < 0) {
         log::error("Failed to open uhid, err:{}", strerror(errno));
         return false;
@@ -624,7 +675,7 @@ static void* btif_hh_poll_event_thread(void* arg) {
   btif_hh_uhid_t* p_uhid = (btif_hh_uhid_t*)arg;
 
   if (com::android::bluetooth::flags::hid_report_queuing()) {
-    p_uhid->fd = open(dev_path, O_RDWR | O_CLOEXEC);
+    p_uhid->fd = open(kDevPath, O_RDWR | O_CLOEXEC);
     if (p_uhid->fd < 0) {
       log::error("Failed to open uhid, err:{}", strerror(errno));
       close(p_uhid->internal_recv_fd);
@@ -632,7 +683,12 @@ static void* btif_hh_poll_event_thread(void* arg) {
       return 0;
     }
     p_uhid->ready_for_data = false;
-    p_uhid->ready_timer = alarm_new("uhid_ready_timer");
+    p_uhid->delayed_ready_timer = alarm_new("uhid_delayed_ready_timer");
+    p_uhid->ready_disconn_timer = alarm_new("uhid_ready_disconn_timer");
+    if (com::android::bluetooth::flags::close_hid_if_uhid_ready_too_slow()) {
+      alarm_set_on_mloop(p_uhid->ready_disconn_timer, BTA_HH_UHID_READY_DISCONN_TIMEOUT_MS,
+                         uhid_ready_disconn_timeout, INT_TO_PTR(p_uhid->dev_handle));
+    }
 
     p_uhid->get_rpt_id_queue = fixed_queue_new(SIZE_MAX);
     log::assert_that(p_uhid->get_rpt_id_queue, "assert failed: p_uhid->get_rpt_id_queue");
@@ -658,20 +714,21 @@ static void* btif_hh_poll_event_thread(void* arg) {
 }
 
 /* Pass messages to be handled by uhid_read_inbound_event in the UHID thread */
-static bool to_uhid_thread(int fd, const tBTA_HH_TO_UHID_EVT* ev) {
+static bool to_uhid_thread(int fd, const tBTA_HH_TO_UHID_EVT* ev, size_t data_len) {
   if (fd < 0) {
     log::error("Cannot write to uhid thread: invalid fd");
     return false;
   }
 
+  size_t len = data_len + sizeof(ev->type);
   ssize_t ret;
-  OSI_NO_INTR(ret = write(fd, ev, sizeof(*ev)));
+  OSI_NO_INTR(ret = write(fd, ev, len));
 
   if (ret < 0) {
     log::error("Cannot write to uhid thread: {}", strerror(errno));
     return false;
-  } else if (ret != (ssize_t)sizeof(*ev)) {
-    log::error("Wrong size written to uhid thread: {} != {}", ret, sizeof(*ev));
+  } else if (ret != (ssize_t)len) {
+    log::error("Wrong size written to uhid thread: {} != {}", ret, len);
     return false;
   }
 
@@ -683,20 +740,21 @@ int bta_hh_co_write(int fd, uint8_t* rpt, uint16_t len) {
 
   tBTA_HH_TO_UHID_EVT to_uhid = {};
   struct uhid_event& ev = to_uhid.uhid;
-  ev.type = UHID_INPUT;
-  ev.u.input.size = len;
-  if (len > sizeof(ev.u.input.data)) {
+  ev.type = UHID_INPUT2;
+  ev.u.input2.size = len;
+  if (len > sizeof(ev.u.input2.data)) {
     log::warn("Report size greater than allowed size");
     return -1;
   }
-  memcpy(ev.u.input.data, rpt, len);
+  memcpy(ev.u.input2.data, rpt, len);
 
+  size_t mlen = uhid_calc_msg_len(&ev, len);
   if (!com::android::bluetooth::flags::hid_report_queuing()) {
-    return uhid_write(fd, &ev);
+    return uhid_write(fd, &ev, mlen);
   }
 
   to_uhid.type = BTA_HH_UHID_INBOUND_INPUT_EVT;
-  return to_uhid_thread(fd, &to_uhid) ? 0 : -1;
+  return to_uhid_thread(fd, &to_uhid, mlen) ? 0 : -1;
 }
 
 /*******************************************************************************
@@ -820,7 +878,7 @@ void bta_hh_co_close(btif_hh_device_t* p_dev) {
   if (p_dev->internal_send_fd >= 0) {
     tBTA_HH_TO_UHID_EVT to_uhid = {};
     to_uhid.type = BTA_HH_UHID_INBOUND_CLOSE_EVT;
-    to_uhid_thread(p_dev->internal_send_fd, &to_uhid);
+    to_uhid_thread(p_dev->internal_send_fd, &to_uhid, 0);
     pthread_join(p_dev->hh_poll_thread_id, NULL);
     p_dev->hh_poll_thread_id = -1;
 
@@ -890,8 +948,8 @@ void bta_hh_co_data(uint8_t dev_handle, uint8_t* p_rpt, uint16_t len) {
  * Returns          void
  ******************************************************************************/
 void bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name, uint16_t vendor_id,
-                             uint16_t product_id, uint16_t version, uint8_t ctry_code, int dscp_len,
-                             uint8_t* p_dscp) {
+                             uint16_t product_id, uint16_t version, uint8_t ctry_code,
+                             uint16_t dscp_len, uint8_t* p_dscp) {
   int result;
   tBTA_HH_TO_UHID_EVT to_uhid = {};
   struct uhid_event& ev = to_uhid.uhid;
@@ -904,35 +962,41 @@ void bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name, uint
 
     log::warn("fd = {}, name = [{}], dscp_len = {}", p_dev->uhid.fd, dev_name, dscp_len);
   }
+  if (dscp_len > sizeof(ev.u.create2.rd_data)) {
+    log::error("HID descriptor is too long: {}", dscp_len);
+    return;
+  }
+
   log::info(
           "vendor_id = 0x{:04x}, product_id = 0x{:04x}, version= "
           "0x{:04x},ctry_code=0x{:02x}",
           vendor_id, product_id, version, ctry_code);
 
   // Create and send hid descriptor to kernel
-  ev.type = UHID_CREATE;
-  strlcpy((char*)ev.u.create.name, dev_name, sizeof(ev.u.create.name));
+  ev.type = UHID_CREATE2;
+  strlcpy((char*)ev.u.create2.name, dev_name, sizeof(ev.u.create2.name));
   // TODO (b/258090765) fix: ToString -> ToColonSepHexString
-  snprintf((char*)ev.u.create.uniq, sizeof(ev.u.create.uniq), "%s",
+  snprintf((char*)ev.u.create2.uniq, sizeof(ev.u.create2.uniq), "%s",
            p_dev->link_spec.addrt.bda.ToString().c_str());
 
   // Write controller address to phys field to correlate the hid device with a
   // specific bluetooth controller.
   auto controller = bluetooth::shim::GetController();
   // TODO (b/258090765) fix: ToString -> ToColonSepHexString
-  snprintf((char*)ev.u.create.phys, sizeof(ev.u.create.phys), "%s",
+  snprintf((char*)ev.u.create2.phys, sizeof(ev.u.create2.phys), "%s",
            controller->GetMacAddress().ToString().c_str());
 
-  ev.u.create.rd_size = dscp_len;
-  ev.u.create.rd_data = p_dscp;
-  ev.u.create.bus = BUS_BLUETOOTH;
-  ev.u.create.vendor = vendor_id;
-  ev.u.create.product = product_id;
-  ev.u.create.version = version;
-  ev.u.create.country = ctry_code;
+  ev.u.create2.rd_size = dscp_len;
+  memcpy(ev.u.create2.rd_data, p_dscp, dscp_len);
+  ev.u.create2.bus = BUS_BLUETOOTH;
+  ev.u.create2.vendor = vendor_id;
+  ev.u.create2.product = product_id;
+  ev.u.create2.version = version;
+  ev.u.create2.country = ctry_code;
 
+  size_t mlen = uhid_calc_msg_len(&ev, dscp_len);
   if (!com::android::bluetooth::flags::hid_report_queuing()) {
-    result = uhid_write(p_dev->uhid.fd, &ev);
+    result = uhid_write(p_dev->uhid.fd, &ev, mlen);
 
     log::warn("wrote descriptor to fd = {}, dscp_len = {}, result = {}", p_dev->uhid.fd, dscp_len,
               result);
@@ -949,10 +1013,7 @@ void bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name, uint
   }
 
   to_uhid.type = BTA_HH_UHID_INBOUND_DSCP_EVT;
-  ev.u.create.rd_data = (uint8_t*)osi_malloc(ev.u.create.rd_size);
-  memcpy(ev.u.create.rd_data, p_dscp, ev.u.create.rd_size);
-
-  if (!to_uhid_thread(p_dev->internal_send_fd, &to_uhid)) {
+  if (!to_uhid_thread(p_dev->internal_send_fd, &to_uhid, mlen)) {
     log::warn("Error: failed to send DSCP");
     if (p_dev->internal_send_fd >= 0) {
       // Detach the uhid thread. It will exit by itself upon receiving hangup.
@@ -992,7 +1053,7 @@ void bta_hh_co_set_rpt_rsp(uint8_t dev_handle, uint8_t status) {
     to_uhid.uhid.type = UHID_SET_REPORT_REPLY;
     to_uhid.uhid.u.set_report_reply.err = status;
 
-    to_uhid_thread(p_dev->internal_send_fd, &to_uhid);
+    to_uhid_thread(p_dev->internal_send_fd, &to_uhid, uhid_calc_msg_len(&to_uhid.uhid, 0));
     return;
   }
 
@@ -1025,7 +1086,7 @@ void bta_hh_co_set_rpt_rsp(uint8_t dev_handle, uint8_t status) {
                                   },
                   },
   };
-  uhid_write(p_dev->uhid.fd, &ev);
+  uhid_write(p_dev->uhid.fd, &ev, uhid_calc_msg_len(&ev, 0));
   osi_free(context);
 
 #else
@@ -1062,12 +1123,12 @@ void bta_hh_co_get_rpt_rsp(uint8_t dev_handle, uint8_t status, const uint8_t* p_
   if (com::android::bluetooth::flags::hid_report_queuing()) {
     tBTA_HH_TO_UHID_EVT to_uhid = {};
     to_uhid.type = BTA_HH_UHID_INBOUND_GET_REPORT_EVT;
-    to_uhid.uhid.type = UHID_FEATURE_ANSWER;
-    to_uhid.uhid.u.feature_answer.err = status;
-    to_uhid.uhid.u.feature_answer.size = len;
-    memcpy(to_uhid.uhid.u.feature_answer.data, p_rpt, len);
+    to_uhid.uhid.type = UHID_GET_REPORT_REPLY;
+    to_uhid.uhid.u.get_report_reply.err = status;
+    to_uhid.uhid.u.get_report_reply.size = len;
+    memcpy(to_uhid.uhid.u.get_report_reply.data, p_rpt, len);
 
-    to_uhid_thread(p_dev->internal_send_fd, &to_uhid);
+    to_uhid_thread(p_dev->internal_send_fd, &to_uhid, uhid_calc_msg_len(&to_uhid.uhid, len));
     return;
   }
 
@@ -1090,10 +1151,10 @@ void bta_hh_co_get_rpt_rsp(uint8_t dev_handle, uint8_t status, const uint8_t* p_
   }
 
   struct uhid_event ev = {
-          .type = UHID_FEATURE_ANSWER,
+          .type = UHID_GET_REPORT_REPLY,
           .u =
                   {
-                          .feature_answer =
+                          .get_report_reply =
                                   {
                                           .id = *context,
                                           .err = status,
@@ -1101,9 +1162,9 @@ void bta_hh_co_get_rpt_rsp(uint8_t dev_handle, uint8_t status, const uint8_t* p_
                                   },
                   },
   };
-  memcpy(ev.u.feature_answer.data, p_rpt, len);
+  memcpy(ev.u.get_report_reply.data, p_rpt, len);
 
-  uhid_write(p_dev->uhid.fd, &ev);
+  uhid_write(p_dev->uhid.fd, &ev, uhid_calc_msg_len(&ev, len));
   osi_free(context);
 }
 

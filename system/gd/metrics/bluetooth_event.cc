@@ -20,6 +20,9 @@
 #include "main/shim/helpers.h"
 #include "os/metrics.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace bluetooth {
 namespace metrics {
 
@@ -43,6 +46,7 @@ State MapErrorCodeToState(ErrorCode reason) {
       return State::TRANSACTION_RESPONSE_TIMEOUT;
     case ErrorCode::AUTHENTICATION_FAILURE:
       return State::AUTH_FAILURE;
+    case ErrorCode::REMOTE_USER_TERMINATED_CONNECTION:
     case ErrorCode::REMOTE_DEVICE_TERMINATED_CONNECTION_LOW_RESOURCES:
     case ErrorCode::REMOTE_DEVICE_TERMINATED_CONNECTION_POWER_OFF:
       return State::REMOTE_USER_TERMINATED_CONNECTION;
@@ -92,6 +96,11 @@ State MapHCIStatusToState(tHCI_STATUS status) {
   }
 }
 
+void LogIncomingAclStartEvent(const hci::Address& address) {
+  bluetooth::os::LogMetricBluetoothEvent(address, EventType::ACL_CONNECTION_RESPONDER,
+                                         State::START);
+}
+
 void LogAclCompletionEvent(const hci::Address& address, ErrorCode reason,
                            bool is_locally_initiated) {
   bluetooth::os::LogMetricBluetoothEvent(address,
@@ -107,15 +116,24 @@ void LogRemoteNameRequestCompletion(const RawAddress& raw_address, tHCI_STATUS h
           MapHCIStatusToState(hci_status));
 }
 
+void LogAclDisconnectionEvent(const hci::Address& address, ErrorCode reason,
+                              bool is_locally_initiated) {
+  bluetooth::os::LogMetricBluetoothEvent(address,
+                                         is_locally_initiated
+                                                 ? EventType::ACL_DISCONNECTION_INITIATOR
+                                                 : EventType::ACL_DISCONNECTION_RESPONDER,
+                                         MapErrorCodeToState(reason));
+}
+
 void LogAclAfterRemoteNameRequest(const RawAddress& raw_address, tBTM_STATUS status) {
   hci::Address address = bluetooth::ToGdAddress(raw_address);
 
   switch (status) {
-    case BTM_SUCCESS:
+    case tBTM_STATUS::BTM_SUCCESS:
       bluetooth::os::LogMetricBluetoothEvent(address, EventType::ACL_CONNECTION_INITIATOR,
                                              State::ALREADY_CONNECTED);
       break;
-    case BTM_NO_RESOURCES:
+    case tBTM_STATUS::BTM_NO_RESOURCES:
       bluetooth::os::LogMetricBluetoothEvent(
               address, EventType::ACL_CONNECTION_INITIATOR,
               MapErrorCodeToState(ErrorCode::CONNECTION_REJECTED_LIMITED_RESOURCES));
@@ -137,6 +155,13 @@ void LogAuthenticationComplete(const RawAddress& raw_address, tHCI_STATUS hci_st
                                                  ? EventType::AUTHENTICATION_COMPLETE
                                                  : EventType::AUTHENTICATION_COMPLETE_FAIL,
                                          MapHCIStatusToState(hci_status));
+}
+
+void LogSDPComplete(const RawAddress& raw_address, tBTA_STATUS status) {
+  hci::Address address = bluetooth::ToGdAddress(raw_address);
+  bluetooth::os::LogMetricBluetoothEvent(
+          address, EventType::SERVICE_DISCOVERY,
+          status == tBTA_STATUS::BTA_SUCCESS ? State::SUCCESS : State::FAIL);
 }
 
 }  // namespace metrics

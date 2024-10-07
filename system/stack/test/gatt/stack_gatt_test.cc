@@ -30,7 +30,7 @@
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/gatt_api.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_types.h"
 #include "stack/sdp/internal/sdp_api.h"
 #include "test/mock/mock_stack_sdp_legacy_api.h"
 #include "types/bluetooth/uuid.h"
@@ -122,6 +122,7 @@ TEST_F(StackGattTest, lifecycle_tGATT_REG) {
     // Restore the complex structure after memset
     memset(&reg1.name, 0, sizeof(std::string));
     memset(&reg1.direct_connect_request, 0, sizeof(std::set<RawAddress>));
+    memset(&reg1.mtu_prefs, 0, sizeof(std::map<RawAddress, uint16_t>));
     reg1 = {};
     ASSERT_EQ(0, memcmp(reg0.get(), &reg1, actual_sizeof_tGATT_REG()));
   }

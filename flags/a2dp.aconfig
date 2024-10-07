@@ -2,21 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "a2dp_offload_codec_extensibility"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Enable a2dp offload codec extensibility"
-    bug: "308686081"
-}
-
-flag {
-    name: "a2dp_concurrent_source_sink"
-    namespace: "bluetooth"
-    description: "Support for concurrent A2DP source and sink"
-    bug : "321806163"
-}
-
-flag {
     name: "a2dp_service_looper"
     namespace: "bluetooth"
     description: "Inject looper into A2dpService"
@@ -148,6 +133,26 @@ flag {
     namespace: "bluetooth"
     description: "Broadcast CONNECTION_STATE_CHANGED when A2dpService is turned off while a device is connected"
     bug: "360034472"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "a2dp_fix_codec_type_in_java"
+    namespace: "bluetooth"
+    description: "Mask out codec IDs such that they properly reflect unsigned value"
+    bug: "361742051"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_avdt_rconfig_not_setting_l2cap"
+    namespace: "bluetooth"
+    description: "Set L2CAP flushable and high priority after A2DP reconfigure"
+    bug: "361717220"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

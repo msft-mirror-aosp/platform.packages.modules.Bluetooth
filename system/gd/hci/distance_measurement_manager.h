@@ -59,7 +59,7 @@ public:
   virtual void OnDistanceMeasurementResult(Address address, uint32_t centimeter,
                                            uint32_t error_centimeter, int azimuth_angle,
                                            int error_azimuth_angle, int altitude_angle,
-                                           int error_altitude_angle,
+                                           int error_altitude_angle, long elapsedRealtimeNanos,
                                            DistanceMeasurementMethod method) = 0;
   virtual void OnRasFragmentReady(Address address, uint16_t procedure_counter, bool is_last,
                                   std::vector<uint8_t> raw_data) = 0;
@@ -79,17 +79,21 @@ public:
   DistanceMeasurementManager& operator=(const DistanceMeasurementManager&) = delete;
 
   void RegisterDistanceMeasurementCallbacks(DistanceMeasurementCallbacks* callbacks);
-  void StartDistanceMeasurement(const Address&, uint16_t interval,
+  void StartDistanceMeasurement(const Address&, uint16_t connection_handle, uint16_t interval,
                                 DistanceMeasurementMethod method);
-  void StopDistanceMeasurement(const Address& address, DistanceMeasurementMethod method);
+  void StopDistanceMeasurement(const Address& address, uint16_t connection_handle,
+                               DistanceMeasurementMethod method);
   void HandleRasConnectedEvent(
-          const Address& address, uint16_t att_handle,
+          const Address& address, uint16_t connection_handle, uint16_t att_handle,
           const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data);
+  void HandleRasDisconnectedEvent(const Address& address);
   void HandleVendorSpecificReply(
-          const Address& address,
+          const Address& address, uint16_t connection_handle,
           const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_reply);
-  void HandleVendorSpecificReplyComplete(const Address& address, bool success);
-  void HandleRemoteData(const Address& address, const std::vector<uint8_t>& raw_data);
+  void HandleVendorSpecificReplyComplete(const Address& address, uint16_t connection_handle,
+                                         bool success);
+  void HandleRemoteData(const Address& address, uint16_t connection_handle,
+                        const std::vector<uint8_t>& raw_data);
 
   static const ModuleFactory Factory;
 

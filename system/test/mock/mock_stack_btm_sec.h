@@ -185,17 +185,6 @@ struct BTM_RemoteOobDataReply {
 };
 extern struct BTM_RemoteOobDataReply BTM_RemoteOobDataReply;
 
-// Name: BTM_SecAddRmtNameNotifyCallback
-// Params: tBTM_RMT_NAME_CALLBACK* p_callback
-// Return: bool
-struct BTM_SecAddRmtNameNotifyCallback {
-  static bool return_value;
-  std::function<bool(tBTM_RMT_NAME_CALLBACK* p_callback)> body{
-          [](tBTM_RMT_NAME_CALLBACK* /* p_callback */) { return return_value; }};
-  bool operator()(tBTM_RMT_NAME_CALLBACK* p_callback) { return body(p_callback); }
-};
-extern struct BTM_SecAddRmtNameNotifyCallback BTM_SecAddRmtNameNotifyCallback;
-
 // Name: BTM_SecBond
 // Params: const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type, tBT_TRANSPORT
 // transport, tBT_DEVICE_TYPE device_type, uint8_t pin_len, uint8_t* p_pin
@@ -245,17 +234,6 @@ struct BTM_SecClrServiceByPsm {
   uint8_t operator()(uint16_t psm) { return body(psm); }
 };
 extern struct BTM_SecClrServiceByPsm BTM_SecClrServiceByPsm;
-
-// Name: BTM_SecDeleteRmtNameNotifyCallback
-// Params: tBTM_RMT_NAME_CALLBACK* p_callback
-// Return: bool
-struct BTM_SecDeleteRmtNameNotifyCallback {
-  static bool return_value;
-  std::function<bool(tBTM_RMT_NAME_CALLBACK* p_callback)> body{
-          [](tBTM_RMT_NAME_CALLBACK* /* p_callback */) { return return_value; }};
-  bool operator()(tBTM_RMT_NAME_CALLBACK* p_callback) { return body(p_callback); }
-};
-extern struct BTM_SecDeleteRmtNameNotifyCallback BTM_SecDeleteRmtNameNotifyCallback;
 
 // Name: BTM_SecGetDeviceLinkKeyType
 // Params: const RawAddress& bd_addr
@@ -575,25 +553,29 @@ struct btm_sec_disconnected {
 extern struct btm_sec_disconnected btm_sec_disconnected;
 
 // Name: btm_sec_encrypt_change
-// Params: uint16_t handle, tHCI_STATUS status, uint8_t encr_enable
-// Return: void
+// Params: uint16_t handle, tHCI_STATUS status, uint8_t encr_enable, uint8_t key_size, bool
+// from_key_refresh Return: void
 struct btm_sec_encrypt_change {
-  std::function<void(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable)> body{
-          [](uint16_t /* handle */, tHCI_STATUS /* status */, uint8_t /* encr_enable */) {}};
-  void operator()(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable) {
-    body(handle, status, encr_enable);
+  std::function<void(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable, uint8_t key_size,
+                     bool from_key_refresh)>
+          body{[](uint16_t /* handle */, tHCI_STATUS /* status */, uint8_t /* encr_enable */,
+                  uint8_t /* key_size */, bool /* from_key_refresh */) {}};
+  void operator()(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable, uint8_t key_size,
+                  bool from_key_refresh) {
+    body(handle, status, encr_enable, key_size, from_key_refresh);
   }
 };
 extern struct btm_sec_encrypt_change btm_sec_encrypt_change;
 
 // Name: btm_sec_encryption_change_evt
-// Params: uint16_t handle, tHCI_STATUS status, uint8_t encr_enable
+// Params: uint16_t handle, tHCI_STATUS status, uint8_t encr_enable, uint8_t key_size
 // Return: void
 struct btm_sec_encryption_change_evt {
-  std::function<void(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable)> body{
-          [](uint16_t /* handle */, tHCI_STATUS /* status */, uint8_t /* encr_enable */) {}};
-  void operator()(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable) {
-    body(handle, status, encr_enable);
+  std::function<void(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable, uint8_t key_size)>
+          body{[](uint16_t /* handle */, tHCI_STATUS /* status */, uint8_t /* encr_enable */,
+                  uint8_t /* key_size */) {}};
+  void operator()(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable, uint8_t key_size) {
+    body(handle, status, encr_enable, key_size);
   }
 };
 extern struct btm_sec_encryption_change_evt btm_sec_encryption_change_evt;

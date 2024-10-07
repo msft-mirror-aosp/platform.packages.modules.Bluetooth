@@ -36,6 +36,9 @@
 #include "stack/include/bt_uuid16.h"
 #include "test/common/mock_functions.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 bool gatt_cl_read_sirk_req(const RawAddress& peer_bda,
                            base::OnceCallback<void(tGATT_STATUS status, const RawAddress&,
                                                    uint8_t sirk_type, Octet16& sirk)>
@@ -627,7 +630,7 @@ protected:
   const RawAddress test_address2 = GetTestAddress(1);
 };
 
-TEST_F(CsisClientTest, test_get_uninitialized) { ASSERT_DEATH(CsisClient::Get(), ""); }
+TEST_F(CsisClientTest, test_get_uninitialized) { ASSERT_EQ(CsisClient::Get(), nullptr); }
 
 TEST_F(CsisClientTest, test_initialize) {
   CsisClient::Initialize(callbacks.get(), base::DoNothing());
@@ -879,7 +882,7 @@ TEST_F(CsisClientTest, test_disconnect_when_link_key_is_gone) {
 
   ON_CALL(btm_interface, BTM_IsEncrypted(test_address, _)).WillByDefault(DoAll(Return(false)));
   ON_CALL(btm_interface, SetEncryption(test_address, _, _, _, _))
-          .WillByDefault(Return(BTM_ERR_KEY_MISSING));
+          .WillByDefault(Return(tBTM_STATUS::BTM_ERR_KEY_MISSING));
 
   EXPECT_CALL(gatt_interface, Close(1));
 

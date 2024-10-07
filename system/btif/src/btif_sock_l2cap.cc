@@ -20,6 +20,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <cstring>
@@ -40,6 +41,9 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cdefs.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -646,9 +650,18 @@ static void on_l2cap_close(tBTA_JV_L2CAP_CLOSE* p_close, uint32_t id) {
                               SOCKET_CONNECTION_STATE_DISCONNECTING,
                               sock->server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION,
                               sock->app_uid, sock->channel, 0, 0, sock->name);
-
-  if (!send_app_err_code(sock, p_close->reason)) {
-    log::error("Unable to send l2cap socket to application socket_id:{}", sock->id);
+  if (com::android::bluetooth::flags::donot_push_error_code_to_app_when_connected()) {
+    if (!sock->connected) {
+      if (!send_app_err_code(sock, p_close->reason)) {
+        log::error("Unable to send l2cap socket to application socket_id:{}", sock->id);
+      }
+    } else {
+      log::info("Don't push error for already connected socket:{}", sock->id);
+    }
+  } else {
+    if (!send_app_err_code(sock, p_close->reason)) {
+      log::error("Unable to send l2cap socket to application socket_id:{}", sock->id);
+    }
   }
   // TODO: This does not seem to be called...
   // I'm not sure if this will be called for non-server sockets?

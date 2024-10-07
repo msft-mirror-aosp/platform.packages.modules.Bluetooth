@@ -16,13 +16,6 @@ flag {
 }
 
 flag {
-    name: "fix_le_pairing_passkey_entry_bypass"
-    namespace: "bluetooth"
-    description: "Fix the passkey entry bypassing bug in SMP"
-    bug: "321300737"
-}
-
-flag {
   name: "bta_av_setconfig_rej_type_confusion"
   namespace: "bluetooth"
   description: "Use stream control block for bta_av_setconfig_rej instead of a possibly incorrect union type"
@@ -42,3 +35,12 @@ flag {
   }
 }
 
+flag {
+  name: "le_enc_on_reconnection"
+  namespace: "bluetooth"
+  description: "Encrypt LE link on reconnection with bonded devices"
+  bug: "356201480"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

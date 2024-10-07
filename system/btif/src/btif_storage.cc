@@ -60,6 +60,9 @@
 /* This is a local property to add a device found */
 #define BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP 0xFF
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using base::Bind;
 using bluetooth::Uuid;
 using namespace bluetooth;
@@ -1299,6 +1302,16 @@ bool btif_storage_get_stored_remote_name(const RawAddress& bd_addr, char* name) 
   property.type = BT_PROPERTY_BDNAME;
   property.len = BD_NAME_LEN;
   property.val = name;
+
+  return btif_storage_get_remote_device_property(&bd_addr, &property) == BT_STATUS_SUCCESS;
+}
+
+// Get the Class of Device.
+bool btif_storage_get_cod(const RawAddress& bd_addr, uint32_t* cod) {
+  bt_property_t property;
+  property.type = BT_PROPERTY_CLASS_OF_DEVICE;
+  property.len = sizeof(*cod);
+  property.val = cod;
 
   return btif_storage_get_remote_device_property(&bd_addr, &property) == BT_STATUS_SUCCESS;
 }

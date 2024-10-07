@@ -69,6 +69,9 @@
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
@@ -288,6 +291,7 @@ static void btm_ble_start_slow_adv(void);
 static void btm_ble_inquiry_timer_gap_limited_discovery_timeout(void* data);
 static void btm_ble_inquiry_timer_timeout(void* data);
 static void btm_ble_observer_timer_timeout(void* data);
+static DEV_CLASS btm_ble_appearance_to_cod(uint16_t appearance);
 
 enum : uint8_t {
   BTM_BLE_NOT_SCANNING = 0x00,
@@ -301,10 +305,6 @@ static bool ble_evt_type_is_connectable(uint16_t evt_type) {
 
 static bool ble_evt_type_is_scannable(uint16_t evt_type) {
   return evt_type & (1 << BLE_EVT_SCANNABLE_BIT);
-}
-
-static bool ble_evt_type_is_directed(uint16_t evt_type) {
-  return evt_type & (1 << BLE_EVT_DIRECTED_BIT);
 }
 
 static bool ble_evt_type_is_scan_resp(uint16_t evt_type) {
@@ -516,7 +516,7 @@ std::pair<uint16_t /* interval */, uint16_t /* window */> get_low_latency_scan_p
  ******************************************************************************/
 tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_results_cb,
                            tBTM_CMPL_CB* p_cmpl_cb) {
-  tBTM_STATUS status = BTM_WRONG_MODE;
+  tBTM_STATUS status = tBTM_STATUS::BTM_WRONG_MODE;
   uint8_t scan_phy = !btm_cb.ble_ctr_cb.inq_var.scan_phy ? BTM_BLE_DEFAULT_PHYS
                                                          : btm_cb.ble_ctr_cb.inq_var.scan_phy;
 
@@ -528,7 +528,7 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
                ll_scan_window);
 
   if (!bluetooth::shim::GetController()->SupportsBle()) {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   if (start) {
@@ -1026,7 +1026,7 @@ void btm_ble_periodic_adv_sync_established(uint8_t status, uint16_t sync_handle,
   int index = btm_ble_get_psync_index(adv_sid, bda);
   if (index == MAX_SYNC_TRANSACTION) {
     log::warn("[PSync]: Invalid index for sync established");
-    if (status == BTM_SUCCESS) {
+    if (status == 0) {
       log::warn("Terminate sync");
       if (BleScanningManager::IsInitialized()) {
         BleScanningManager::Get()->PeriodicScanTerminate(sync_handle);
@@ -1321,7 +1321,7 @@ tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode) {
 
   /*** Check mode parameter ***/
   if (mode > BTM_BLE_MAX_DISCOVERABLE) {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   btm_cb.ble_ctr_cb.inq_var.discoverable_mode = mode;
@@ -1408,7 +1408,7 @@ tBTM_STATUS btm_ble_set_connectability(uint16_t combined_mode) {
 
   /*** Check mode parameter ***/
   if (mode > BTM_BLE_MAX_CONNECTABLE) {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   btm_cb.ble_ctr_cb.inq_var.connectable_mode = mode;
@@ -1614,7 +1614,7 @@ void btm_ble_read_remote_name_cmpl(bool status, const RawAddress& bda, uint16_t 
     hci_status = HCI_ERR_HOST_TIMEOUT;
   }
 
-  btm_process_remote_name(&bda, bd_name, length + 1, hci_status);
+  get_stack_rnr_interface().btm_process_remote_name(&bda, bd_name, length + 1, hci_status);
   btm_sec_rmt_name_request_complete(&bda, (const uint8_t*)p_name, hci_status);
 }
 
@@ -1632,13 +1632,13 @@ void btm_ble_read_remote_name_cmpl(bool status, const RawAddress& bda, uint16_t 
  ******************************************************************************/
 tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb) {
   if (!bluetooth::shim::GetController()->SupportsBle()) {
-    return BTM_ERR_PROCESSING;
+    return tBTM_STATUS::BTM_ERR_PROCESSING;
   }
 
   tINQ_DB_ENT* p_i = btm_inq_db_find(remote_bda);
   if (p_i && !ble_evt_type_is_connectable(p_i->inq_info.results.ble_evt_type)) {
     log::verbose("name request to non-connectable device failed.");
-    return BTM_ERR_PROCESSING;
+    return tBTM_STATUS::BTM_ERR_PROCESSING;
   }
 
   /* read remote device name using GATT procedure */
@@ -1660,6 +1660,61 @@ tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMP
   alarm_set_on_mloop(btm_cb.rnr.remote_name_timer, BTM_EXT_BLE_RMT_NAME_TIMEOUT_MS,
                      btm_inq_remote_name_timer_timeout, NULL);
 
+  return tBTM_STATUS::BTM_CMD_STARTED;
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_ble_read_remote_appearance_cmpl
+ *
+ * Description      This function is called when peer's appearance value is received.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+static void btm_ble_read_remote_appearance_cmpl(bool status, const RawAddress& bda, uint16_t length,
+                                                char* data) {
+  if (!status) {
+    log::error("Failed to read appearance of {}", bda);
+    return;
+  }
+  if (length != 2 || data == nullptr) {
+    log::error("Invalid appearance value size {} for {}", length, bda);
+    return;
+  }
+
+  uint16_t appearance = data[0] + (data[1] << 8);
+  DEV_CLASS cod = btm_ble_appearance_to_cod(appearance);
+  log::info("Appearance 0x{:04x}, Class of Device {} found for {}", appearance, dev_class_text(cod),
+            bda);
+
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bda);
+  if (p_dev_rec != nullptr) {
+    p_dev_rec->dev_class = cod;
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_ble_read_remote_cod
+ *
+ * Description      Finds Class of Device by reading GATT appearance characteristic
+ *
+ * Parameters:      Device address
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+tBTM_STATUS btm_ble_read_remote_cod(const RawAddress& remote_bda) {
+  if (!bluetooth::shim::GetController()->SupportsBle()) {
+    return tBTM_STATUS::BTM_ERR_PROCESSING;
+  }
+
+  if (!GAP_BleReadPeerAppearance(remote_bda, btm_ble_read_remote_appearance_cmpl)) {
+    return tBTM_STATUS::BTM_BUSY;
+  }
+
+  log::verbose("Reading appearance characteristic {}", remote_bda);
   return tBTM_STATUS::BTM_CMD_STARTED;
 }
 
@@ -2007,37 +2062,16 @@ static void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
         break;
       }
     }
-    if (com::android::bluetooth::flags::ensure_valid_adv_flag()) {
-      // Non-connectable packets may omit flags entirely, in which case nothing
-      // should be assumed about their values (CSSv10, 1.3.1). Thus, do not
-      // interpret the device type unless this packet has the flags set or is
-      // connectable.
-      if (ble_evt_type_is_connectable(evt_type) && !has_advertising_flags) {
-        // Assume that all-zero flags were received
-        has_advertising_flags = true;
-        local_flag = 0;
-      }
-      if (has_advertising_flags && (local_flag & BTM_BLE_BREDR_NOT_SPT) == 0) {
-        if (p_cur->ble_addr_type != BLE_ADDR_RANDOM) {
-          log::verbose("NOT_BR_EDR support bit not set, treat device as DUMO");
-          p_cur->device_type |= BT_DEVICE_TYPE_DUMO;
-        } else {
-          log::verbose("Random address, treat device as LE only");
-        }
-      } else {
-        log::verbose("NOT_BR/EDR support bit set, treat device as LE only");
-      }
-    }
-  }
-
-  if (!com::android::bluetooth::flags::ensure_valid_adv_flag()) {
     // Non-connectable packets may omit flags entirely, in which case nothing
     // should be assumed about their values (CSSv10, 1.3.1). Thus, do not
     // interpret the device type unless this packet has the flags set or is
     // connectable.
-    bool should_process_flags = has_advertising_flags || ble_evt_type_is_connectable(evt_type);
-    if (should_process_flags && (p_cur->flag & BTM_BLE_BREDR_NOT_SPT) == 0 &&
-        !ble_evt_type_is_directed(evt_type)) {
+    if (ble_evt_type_is_connectable(evt_type) && !has_advertising_flags) {
+      // Assume that all-zero flags were received
+      has_advertising_flags = true;
+      local_flag = 0;
+    }
+    if (has_advertising_flags && (local_flag & BTM_BLE_BREDR_NOT_SPT) == 0) {
       if (p_cur->ble_addr_type != BLE_ADDR_RANDOM) {
         log::verbose("NOT_BR_EDR support bit not set, treat device as DUMO");
         p_cur->device_type |= BT_DEVICE_TYPE_DUMO;
@@ -2256,8 +2290,7 @@ void btm_ble_process_adv_pkt_cont_for_inquiry(uint16_t evt_type, tBLE_ADDR_TYPE 
     if (p_i && (!(p_i->inq_info.results.device_type & BT_DEVICE_TYPE_BLE) ||
                 /* scan response to be updated */
                 (!p_i->scan_rsp) || (!p_i->inq_info.results.include_rsi && include_rsi) ||
-                (com::android::bluetooth::flags::update_inquiry_result_on_flag_change() &&
-                 !p_i->inq_info.results.flag && p_flag && *p_flag))) {
+                (!p_i->inq_info.results.flag && p_flag && *p_flag))) {
       update = true;
     } else if (btm_cb.ble_ctr_cb.is_ble_observe_active()) {
       btm_cb.neighbor.le_observe.results++;
@@ -2507,7 +2540,7 @@ static bool btm_ble_adv_states_operation(BTM_TOPOLOGY_FUNC_PTR* p_handler, uint8
  ******************************************************************************/
 static tBTM_STATUS btm_ble_start_adv(void) {
   if (!btm_ble_adv_states_operation(btm_ble_topology_check, btm_cb.ble_ctr_cb.inq_var.evt_type)) {
-    return BTM_WRONG_MODE;
+    return tBTM_STATUS::BTM_WRONG_MODE;
   }
 
   btsnd_hcic_ble_set_adv_enable(BTM_BLE_ADV_ENABLE);

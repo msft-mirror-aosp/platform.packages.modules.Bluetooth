@@ -38,10 +38,13 @@
 #include "stack/include/acl_api.h"
 #include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_client_interface.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "stack/l2cap/l2c_int.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -222,7 +225,8 @@ void l2cble_start_conn_update(tL2C_LCB* p_lcb) {
       /* use 7.5 ms as fast connection parameter, 0 peripheral latency */
       min_conn_int = max_conn_int = BTM_BLE_CONN_INT_MIN;
 
-      L2CA_AdjustConnectionIntervals(&min_conn_int, &max_conn_int, BTM_BLE_CONN_INT_MIN);
+      stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(&min_conn_int, &max_conn_int,
+                                                                   BTM_BLE_CONN_INT_MIN);
 
       peripheral_latency = BTM_BLE_CONN_PERIPHERAL_LATENCY_DEF;
       supervision_tout = BTM_BLE_CONN_TIMEOUT_DEF;

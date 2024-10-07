@@ -28,13 +28,17 @@ import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
+import android.app.compat.CompatChanges;
 import android.bluetooth.annotations.RequiresBluetoothConnectPermission;
 import android.bluetooth.annotations.RequiresLegacyBluetoothPermission;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.EnabledSince;
 import android.content.AttributionSource;
 import android.content.Context;
 import android.os.IBinder;
@@ -144,7 +148,6 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
          * @param groupStreamStatus streaming or idle state.
          * @hide
          */
-        @FlaggedApi(Flags.FLAG_LEAUDIO_CALLBACK_ON_GROUP_STREAM_STATUS)
         @SystemApi
         default void onGroupStreamStatusChanged(
                 int groupId, @GroupStreamStatus int groupStreamStatus) {
@@ -183,10 +186,8 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
 
         @Override
         public void onGroupStreamStatusChanged(int groupId, int groupStreamStatus) {
-            if (Flags.leaudioCallbackOnGroupStreamStatus()) {
-                mCallbackWrapper.forEach(
-                        (cb) -> cb.onGroupStreamStatusChanged(groupId, groupStreamStatus));
-            }
+            mCallbackWrapper.forEach(
+                    (cb) -> cb.onGroupStreamStatusChanged(groupId, groupStreamStatus));
         }
     }
 
@@ -229,11 +230,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
     @SystemApi
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     public static final String ACTION_LE_AUDIO_ACTIVE_DEVICE_CHANGED =
             "android.bluetooth.action.LE_AUDIO_ACTIVE_DEVICE_CHANGED";
@@ -356,11 +353,42 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
     public static final int GROUP_ID_INVALID = IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 
     /**
+     * This ChangeId allows to use new Mono audio location as per
+     * https://www.bluetooth.com/specifications/assigned-numbers/ 6.12.1 Audio Location Definitions
+     */
+    @ChangeId
+    @EnabledSince(targetSdkVersion = android.os.Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    static final long LEAUDIO_MONO_LOCATION_ERRATA = 330847930L;
+
+    /**
      * This represents an invalid audio location.
+     *
+     * @deprecated As per Bluetooth Assigned Numbers, previously location invalid is now replaced
+     *     with a meaning MONO.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_LEAUDIO_MONO_LOCATION_ERRATA)
+    @Deprecated
+    @SystemApi
+    public static final int AUDIO_LOCATION_INVALID = 0;
+
+    /**
+     * This represents an Mono audio location.
      *
      * @hide
      */
-    @SystemApi public static final int AUDIO_LOCATION_INVALID = 0;
+    @FlaggedApi(Flags.FLAG_LEAUDIO_MONO_LOCATION_ERRATA)
+    @SystemApi
+    public static final int AUDIO_LOCATION_MONO = 0;
+
+    /**
+     * This represents an Unknown audio location which will be returned only when Bluetooth is OFF.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_LEAUDIO_MONO_LOCATION_ERRATA)
+    @SystemApi
+    public static final int AUDIO_LOCATION_UNKNOWN = 0x01 << 31;
 
     /**
      * This represents an audio location front left.
@@ -559,11 +587,13 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
     @SystemApi public static final int AUDIO_LOCATION_RIGHT_SURROUND = 0x01 << 27;
 
     /** @hide */
+    @SuppressLint("UniqueConstants")
     @IntDef(
             flag = true,
             prefix = "AUDIO_LOCATION_",
             value = {
                 AUDIO_LOCATION_INVALID,
+                AUDIO_LOCATION_MONO,
                 AUDIO_LOCATION_FRONT_LEFT,
                 AUDIO_LOCATION_FRONT_RIGHT,
                 AUDIO_LOCATION_FRONT_CENTER,
@@ -592,6 +622,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                 AUDIO_LOCATION_FRONT_RIGHT_WIDE,
                 AUDIO_LOCATION_LEFT_SURROUND,
                 AUDIO_LOCATION_RIGHT_SURROUND,
+                AUDIO_LOCATION_UNKNOWN,
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface AudioLocation {}
@@ -660,7 +691,6 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_LEAUDIO_CALLBACK_ON_GROUP_STREAM_STATUS)
     @SystemApi
     public static final int GROUP_STREAM_STATUS_IDLE = IBluetoothLeAudio.GROUP_STREAM_STATUS_IDLE;
 
@@ -669,7 +699,6 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_LEAUDIO_CALLBACK_ON_GROUP_STREAM_STATUS)
     @SystemApi
     public static final int GROUP_STREAM_STATUS_STREAMING =
             IBluetoothLeAudio.GROUP_STREAM_STATUS_STREAMING;
@@ -718,6 +747,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
     /** @hide */
     @Override
     @SuppressLint("AndroidFrameworkRequiresPermission") // Unexposed re-entrant callback
+    @RequiresNoPermission
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothLeAudio.Stub.asInterface(service);
         mCallbackWrapper.registerToNewService(mService);
@@ -725,6 +755,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -735,6 +766,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }
@@ -936,11 +968,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void registerCallback(
             @NonNull @CallbackExecutor Executor executor, @NonNull Callback callback) {
         // Enforcing permission in the framework is useless from security point of view.
@@ -969,11 +997,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void unregisterCallback(@NonNull Callback callback) {
         // Enforcing permission in the framework is useless from security point of view.
         // This is being done to help normal app developer to catch the missing permission, since
@@ -1156,13 +1180,12 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      * Front Left: 0x00000001 Front Right: 0x00000002 Front Left | Front Right: 0x00000003
      *
      * @param device the bluetooth device
-     * @return The bit field of audio location for the device, if bluetooth is off, return
-     *     AUDIO_LOCATION_INVALID.
+     * @return The bit field of audio location for the device.
      * @hide
      */
+    @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
-    @SystemApi
     public @AudioLocation int getAudioLocation(@NonNull BluetoothDevice device) {
         if (VDBG) log("getAudioLocation()");
         final IBluetoothLeAudio service = getService();
@@ -1176,6 +1199,12 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
+
+        if (Flags.leaudioMonoLocationErrata()
+                && CompatChanges.isChangeEnabled(LEAUDIO_MONO_LOCATION_ERRATA)) {
+            return AUDIO_LOCATION_UNKNOWN;
+        }
+
         return AUDIO_LOCATION_INVALID;
     }
 
@@ -1187,8 +1216,9 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      * @return {@code true} if inband ringtone is enabled, {@code false} otherwise
      * @hide
      */
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @SystemApi
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean isInbandRingtoneEnabled(int groupId) {
         if (VDBG) {
             log("isInbandRingtoneEnabled(), groupId: " + groupId);
@@ -1204,7 +1234,6 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                 return service.isInbandRingtoneEnabled(mAttributionSource, groupId);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
         return false;
@@ -1224,11 +1253,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean setConnectionPolicy(
             @NonNull BluetoothDevice device, @ConnectionPolicy int connectionPolicy) {
         if (DBG) log("setConnectionPolicy(" + device + ", " + connectionPolicy + ")");
@@ -1319,10 +1344,9 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      * @hide
      */
     @SystemApi
-    @Nullable
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
-    public BluetoothLeAudioCodecStatus getCodecStatus(int groupId) {
+    public @Nullable BluetoothLeAudioCodecStatus getCodecStatus(int groupId) {
         if (DBG) {
             Log.d(TAG, "getCodecStatus(" + groupId + ")");
         }
@@ -1337,7 +1361,6 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                 return service.getCodecStatus(groupId, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
         return null;
@@ -1377,7 +1400,6 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                         groupId, inputCodecConfig, outputCodecConfig, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
     }

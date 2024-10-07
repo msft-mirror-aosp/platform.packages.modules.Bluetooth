@@ -392,21 +392,24 @@ public class A2dpService extends ProfileService {
         }
         // Check connectionPolicy and accept or reject the connection.
         int connectionPolicy = getConnectionPolicy(device);
-        int bondState = mAdapterService.getBondState(device);
-        // Allow this connection only if the device is bonded. Any attempt to connect while
-        // bonding would potentially lead to an unauthorized connection.
-        if (bondState != BluetoothDevice.BOND_BONDED) {
-            Log.w(TAG, "okToConnect: return false, bondState=" + bondState);
-            return false;
-        } else if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
-                && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (!Flags.donotValidateBondStateFromProfiles()) {
+            int bondState = mAdapterService.getBondState(device);
+            // Allow this connection only if the device is bonded. Any attempt to connect while
+            // bonding would potentially lead to an unauthorized connection.
+            if (bondState != BluetoothDevice.BOND_BONDED) {
+                Log.w(TAG, "okToConnect: return false, bondState=" + bondState);
+                return false;
+            }
+        }
+        if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
+            && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
             if (!isOutgoingRequest) {
                 HeadsetService headsetService = HeadsetService.getHeadsetService();
                 if (headsetService != null && headsetService.okToAcceptConnection(device, true)) {
                     Log.d(
-                            TAG,
-                            "okToConnect: return false,"
-                                    + " Fallback connection to allowed HFP profile");
+                        TAG,
+                        "okToConnect: return false,"
+                                + " Fallback connection to allowed HFP profile");
                     headsetService.connect(device);
                     return false;
                 }
@@ -521,11 +524,13 @@ public class A2dpService extends ProfileService {
     @VisibleForTesting
     public boolean setSilenceMode(@NonNull BluetoothDevice device, boolean silence) {
         Log.d(TAG, "setSilenceMode(" + device + "): " + silence);
-        if (silence && Objects.equals(mActiveDevice, device)) {
-            removeActiveDevice(true);
-        } else if (!silence && mActiveDevice == null) {
-            // Set the device as the active device if currently no active device.
-            setActiveDevice(device);
+        synchronized (mStateMachines) {
+            if (silence && Objects.equals(mActiveDevice, device)) {
+                removeActiveDevice(true);
+            } else if (!silence && mActiveDevice == null) {
+                // Set the device as the active device if currently no active device.
+                setActiveDevice(device);
+            }
         }
         if (!mNativeInterface.setSilenceDevice(device, silence)) {
             Log.e(TAG, "Cannot set " + device + " silence mode " + silence + " in native layer");
@@ -749,7 +754,9 @@ public class A2dpService extends ProfileService {
     public void setCodecConfigPreference(BluetoothDevice device, BluetoothCodecConfig codecConfig) {
         Log.d(TAG, "setCodecConfigPreference(" + device + "): " + Objects.toString(codecConfig));
         if (device == null) {
-            device = mActiveDevice;
+            synchronized (mStateMachines) {
+                device = mActiveDevice;
+            }
         }
         if (device == null) {
             Log.e(TAG, "setCodecConfigPreference: Invalid device");
@@ -776,7 +783,9 @@ public class A2dpService extends ProfileService {
     public void enableOptionalCodecs(BluetoothDevice device) {
         Log.d(TAG, "enableOptionalCodecs(" + device + ")");
         if (device == null) {
-            device = mActiveDevice;
+            synchronized (mStateMachines) {
+                device = mActiveDevice;
+            }
         }
         if (device == null) {
             Log.e(TAG, "enableOptionalCodecs: Invalid device");
@@ -804,7 +813,9 @@ public class A2dpService extends ProfileService {
     public void disableOptionalCodecs(BluetoothDevice device) {
         Log.d(TAG, "disableOptionalCodecs(" + device + ")");
         if (device == null) {
-            device = mActiveDevice;
+            synchronized (mStateMachines) {
+                device = mActiveDevice;
+            }
         }
         if (device == null) {
             Log.e(TAG, "disableOptionalCodecs: Invalid device");
@@ -1682,7 +1693,9 @@ public class A2dpService extends ProfileService {
     @Override
     public void dump(StringBuilder sb) {
         super.dump(sb);
-        ProfileService.println(sb, "mActiveDevice: " + mActiveDevice);
+        synchronized (mStateMachines) {
+            ProfileService.println(sb, "mActiveDevice: " + mActiveDevice);
+        }
         ProfileService.println(sb, "mMaxConnectedAudioDevices: " + mMaxConnectedAudioDevices);
         if (mA2dpCodecConfig != null) {
             ProfileService.println(sb, "codecConfigPriorities:");

@@ -100,7 +100,9 @@ public class BluetoothMapMessageListing {
         } else {
             isBenzCarkit =
                     DeviceWorkArounds.addressStartsWith(
-                            BluetoothMapService.getRemoteDevice().getAddress(),
+                            BluetoothMapService.getBluetoothMapService()
+                                    .getRemoteDevice()
+                                    .getAddress(),
                             DeviceWorkArounds.MERCEDES_BENZ_CARKIT);
         }
         try {
@@ -147,7 +149,7 @@ public class BluetoothMapMessageListing {
         /* Fix IOT issue to replace '&amp;' by '&', &lt; by < and '&gt; by '>' in MessageListing */
         if (!Utils.isInstrumentationTestMode()
                 && DeviceWorkArounds.addressStartsWith(
-                        BluetoothMapService.getRemoteDevice().getAddress(),
+                        BluetoothMapService.getBluetoothMapService().getRemoteDevice().getAddress(),
                         DeviceWorkArounds.BREZZA_ZDI_CARKIT)) {
             return sw.toString()
                     .replaceAll("&amp;", "&")

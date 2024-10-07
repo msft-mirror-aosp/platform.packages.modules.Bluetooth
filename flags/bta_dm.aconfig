@@ -16,20 +16,6 @@ flag {
 }
 
 flag {
-    name: "continue_service_discovery_when_cancel_device_discovery"
-    namespace: "bluetooth"
-    description: "Continue service discovery when API cancel device discovery called"
-    bug: "329642681"
-}
-
-flag {
-    name: "separate_service_and_device_discovery"
-    namespace: "bluetooth"
-    description: "Separate service and device discovery state machines such that one does not block on another"
-    bug: "335732980"
-}
-
-flag {
     name: "bta_dm_discover_both"
     namespace: "bluetooth"
     description: "perform both LE and Classic service discovery simulteanously on capable devices"
@@ -41,6 +27,16 @@ flag {
     namespace: "bluetooth"
     description: "Cancel connection from discovery client correctly"
     bug: "356168480"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_le_evt_cancelling_sdp_discovery"
+    namespace: "bluetooth"
+    description: "Fix LE service discovery cancelling SDP discovery"
+    bug: "360936118"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

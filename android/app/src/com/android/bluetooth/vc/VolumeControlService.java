@@ -41,6 +41,7 @@ import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
+import com.android.bluetooth.bass_client.BassClientService;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.ServiceFactory;
@@ -87,115 +88,13 @@ public class VolumeControlService extends ProfileService {
     final RemoteCallbackList<IBluetoothVolumeControlCallback> mCallbacks =
             new RemoteCallbackList<>();
 
-    @VisibleForTesting
-    static class VolumeControlOffsetDescriptor {
-        Map<Integer, Descriptor> mVolumeOffsets;
-
-        private static class Descriptor {
-            Descriptor() {
-                mValue = 0;
-                mLocation = 0;
-                mDescription = null;
-            }
-
-            int mValue;
-            int mLocation;
-            String mDescription;
-        }
-        ;
-
-        VolumeControlOffsetDescriptor() {
-            mVolumeOffsets = new HashMap<>();
-        }
-
-        int size() {
-            return mVolumeOffsets.size();
-        }
-
-        void add(int id) {
-            Descriptor d = mVolumeOffsets.get(id);
-            if (d == null) {
-                mVolumeOffsets.put(id, new Descriptor());
-            }
-        }
-
-        boolean setValue(int id, int value) {
-            Descriptor d = mVolumeOffsets.get(id);
-            if (d == null) {
-                return false;
-            }
-            d.mValue = value;
-            return true;
-        }
-
-        int getValue(int id) {
-            Descriptor d = mVolumeOffsets.get(id);
-            if (d == null) {
-                return 0;
-            }
-            return d.mValue;
-        }
-
-        boolean setDescription(int id, String desc) {
-            Descriptor d = mVolumeOffsets.get(id);
-            if (d == null) {
-                return false;
-            }
-            d.mDescription = desc;
-            return true;
-        }
-
-        String getDescription(int id) {
-            Descriptor d = mVolumeOffsets.get(id);
-            if (d == null) {
-                return null;
-            }
-            return d.mDescription;
-        }
-
-        boolean setLocation(int id, int location) {
-            Descriptor d = mVolumeOffsets.get(id);
-            if (d == null) {
-                return false;
-            }
-            d.mLocation = location;
-            return true;
-        }
-
-        int getLocation(int id) {
-            Descriptor d = mVolumeOffsets.get(id);
-            if (d == null) {
-                return 0;
-            }
-            return d.mLocation;
-        }
-
-        void remove(int id) {
-            mVolumeOffsets.remove(id);
-        }
-
-        void clear() {
-            mVolumeOffsets.clear();
-        }
-
-        void dump(StringBuilder sb) {
-            for (Map.Entry<Integer, Descriptor> entry : mVolumeOffsets.entrySet()) {
-                Descriptor descriptor = entry.getValue();
-                Integer id = entry.getKey();
-                ProfileService.println(sb, "        Id: " + id);
-                ProfileService.println(sb, "        value: " + descriptor.mValue);
-                ProfileService.println(sb, "        location: " + descriptor.mLocation);
-                ProfileService.println(sb, "        description: " + descriptor.mDescription);
-            }
-        }
-    }
-
     VolumeControlNativeInterface mVolumeControlNativeInterface;
     @VisibleForTesting AudioManager mAudioManager;
 
     private final Map<BluetoothDevice, VolumeControlStateMachine> mStateMachines = new HashMap<>();
     private final Map<BluetoothDevice, VolumeControlOffsetDescriptor> mAudioOffsets =
             new HashMap<>();
+    private final Map<BluetoothDevice, VolumeControlInputDescriptor> mAudioInputs = new HashMap<>();
     private final Map<Integer, Integer> mGroupVolumeCache = new HashMap<>();
     private final Map<Integer, Boolean> mGroupMuteCache = new HashMap<>();
     private final Map<BluetoothDevice, Integer> mDeviceVolumeCache = new HashMap<>();
@@ -314,8 +213,10 @@ public class VolumeControlService extends ProfileService {
         mVolumeControlNativeInterface = null;
         mAdapterService = null;
 
-        if (mCallbacks != null) {
-            mCallbacks.kill();
+        synchronized (mCallbacks) {
+            if (mCallbacks != null) {
+                mCallbacks.kill();
+            }
         }
     }
 
@@ -734,10 +635,8 @@ public class VolumeControlService extends ProfileService {
                                 + (", description: " + description));
                 try {
                     callback.onVolumeOffsetChanged(device, id, offset);
-                    if (Flags.leaudioMultipleVocsInstancesApi()) {
-                        callback.onVolumeOffsetAudioLocationChanged(device, id, location);
-                        callback.onVolumeOffsetAudioDescriptionChanged(device, id, description);
-                    }
+                    callback.onVolumeOffsetAudioLocationChanged(device, id, location);
+                    callback.onVolumeOffsetAudioDescriptionChanged(device, id, description);
                 } catch (RemoteException e) {
                     // Dead client -- continue
                 }
@@ -842,11 +741,27 @@ public class VolumeControlService extends ProfileService {
                 int currentlyActiveGroupId = leAudioService.getActiveGroupId();
                 if (currentlyActiveGroupId == IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID
                         || groupId != currentlyActiveGroupId) {
-                    Log.i(
-                            TAG,
-                            "Skip updating to audio system if not updating volume for current"
-                                    + " active group");
-                    return;
+                    if (!Flags.leaudioBroadcastVolumeControlPrimaryGroupOnly()) {
+                        Log.i(
+                                TAG,
+                                "Skip updating to audio system if not updating volume for current"
+                                        + " active group");
+                        return;
+                    }
+                    BassClientService bassClientService = mFactory.getBassClientService();
+                    if (bassClientService == null
+                            || bassClientService.getSyncedBroadcastSinks().stream()
+                                    .map(dev -> leAudioService.getGroupId(dev))
+                                    .noneMatch(
+                                            id ->
+                                                    id == groupId
+                                                            && leAudioService.isPrimaryGroup(id))) {
+                        Log.i(
+                                TAG,
+                                "Skip updating to audio system if not updating volume for current"
+                                        + " active group in unicast or primary group in broadcast");
+                        return;
+                    }
                 }
             } else {
                 Log.w(TAG, "leAudioService not available");
@@ -907,24 +822,27 @@ public class VolumeControlService extends ProfileService {
                             + (", mute: " + mute)
                             + (", flags: " + flags));
             /* We are here, because system has just started and LeAudio device is connected. If
-             * remote device has User Persistent flag set or the volume != 0, Android sets the
-             * volume to local cache and to the audio system. If Reset Flag is set and remote has
-             * volume set to 0, then Android sets to remote devices either cached volume volume
-             * taken from audio manager. Note, to match BR/EDR behavior, don't show volume change in
-             * UI here
+             * remote device has User Persistent flag set, Android sets the volume to local cache
+             * and to the audio system.
+             * If Reset Flag is set, then Android sets to remote devices either cached volume volume
+             * taken from audio manager.
+             * Note, to match BR/EDR behavior, don't show volume change in UI here
              */
-            if ((flags & VOLUME_FLAGS_PERSISTED_USER_SET_VOLUME_MASK) == 0x01 || (volume != 0)) {
+            if ((flags & VOLUME_FLAGS_PERSISTED_USER_SET_VOLUME_MASK) == 0x01) {
                 updateGroupCacheAndAudioSystem(groupId, volume, mute, false);
-            } else {
-                if (groupVolume != IBluetoothVolumeControl.VOLUME_CONTROL_UNKNOWN_VOLUME) {
-                    Log.i(TAG, "Setting volume: " + groupVolume + " to the group: " + groupId);
-                    setGroupVolume(groupId, groupVolume);
-                } else {
-                    int vol = getBleVolumeFromCurrentStream();
-                    Log.i(TAG, "Setting system volume: " + vol + " to the group: " + groupId);
-                    setGroupVolume(groupId, getBleVolumeFromCurrentStream());
-                }
+                return;
             }
+
+            // Reset flag is used
+            if (groupVolume != IBluetoothVolumeControl.VOLUME_CONTROL_UNKNOWN_VOLUME) {
+                Log.i(TAG, "Setting volume: " + groupVolume + " to the group: " + groupId);
+                setGroupVolume(groupId, groupVolume);
+            } else {
+                int vol = getBleVolumeFromCurrentStream();
+                Log.i(TAG, "Setting system volume: " + vol + " to the group: " + groupId);
+                setGroupVolume(groupId, getBleVolumeFromCurrentStream());
+            }
+
             return;
         }
 
@@ -934,16 +852,21 @@ public class VolumeControlService extends ProfileService {
                 // notify group devices volume changed
                 LeAudioService leAudioService = mFactory.getLeAudioService();
                 if (leAudioService != null) {
-                    notifyDevicesVolumeChanged(
-                            mCallbacks,
-                            leAudioService.getGroupDevices(groupId),
-                            Optional.of(volume));
+                    synchronized (mCallbacks) {
+                        notifyDevicesVolumeChanged(
+                                mCallbacks,
+                                leAudioService.getGroupDevices(groupId),
+                                Optional.of(volume));
+                    }
                 } else {
                     Log.w(TAG, "leAudioService not available");
                 }
             } else {
                 // notify device volume changed
-                notifyDevicesVolumeChanged(mCallbacks, Arrays.asList(device), Optional.of(volume));
+                synchronized (mCallbacks) {
+                    notifyDevicesVolumeChanged(
+                            mCallbacks, Arrays.asList(device), Optional.of(volume));
+                }
             }
         }
 
@@ -1040,7 +963,7 @@ public class VolumeControlService extends ProfileService {
         return AudioManager.STREAM_MUSIC;
     }
 
-    void handleDeviceAvailable(BluetoothDevice device, int numberOfExternalOutputs) {
+    void handleExternalOutputs(BluetoothDevice device, int numberOfExternalOutputs) {
         if (numberOfExternalOutputs == 0) {
             Log.i(TAG, "Volume offset not available");
             return;
@@ -1059,10 +982,36 @@ public class VolumeControlService extends ProfileService {
          * Offset ids a countinous from 1 to number_of_ext_outputs*/
         for (int i = 1; i <= numberOfExternalOutputs; i++) {
             offsets.add(i);
-            mVolumeControlNativeInterface.getExtAudioOutVolumeOffset(device, i);
-            mVolumeControlNativeInterface.getExtAudioOutLocation(device, i);
-            mVolumeControlNativeInterface.getExtAudioOutDescription(device, i);
+            /* Native stack is doing required reads under the hood */
         }
+    }
+
+    void handleExternalInputs(BluetoothDevice device, int numberOfExternalInputs) {
+        if (numberOfExternalInputs == 0) {
+            Log.i(TAG, "Volume offset not available");
+            return;
+        }
+
+        VolumeControlInputDescriptor inputs = mAudioInputs.get(device);
+        if (inputs == null) {
+            inputs = new VolumeControlInputDescriptor();
+            mAudioInputs.put(device, inputs);
+        } else if (inputs.size() != numberOfExternalInputs) {
+            Log.i(TAG, "Number of inputs changed: ");
+            inputs.clear();
+        }
+
+        /* Stack delivers us number of audio inputs.
+         * Offset ids a countinous from 1 to numberOfExternalInputs*/
+        for (int i = 1; i <= numberOfExternalInputs; i++) {
+            inputs.add(i);
+        }
+    }
+
+    void handleDeviceAvailable(
+            BluetoothDevice device, int numberOfExternalOutputs, int numberOfExternaInputs) {
+        handleExternalOutputs(device, numberOfExternalOutputs);
+        handleExternalInputs(device, numberOfExternaInputs);
     }
 
     void handleDeviceExtAudioOffsetChanged(BluetoothDevice device, int id, int value) {
@@ -1097,20 +1046,18 @@ public class VolumeControlService extends ProfileService {
         }
         offsets.setLocation(id, location);
 
-        if (Flags.leaudioMultipleVocsInstancesApi()) {
-            synchronized (mCallbacks) {
-                int n = mCallbacks.beginBroadcast();
-                for (int i = 0; i < n; i++) {
-                    try {
-                        mCallbacks
-                                .getBroadcastItem(i)
-                                .onVolumeOffsetAudioLocationChanged(device, id, location);
-                    } catch (RemoteException e) {
-                        continue;
-                    }
+        synchronized (mCallbacks) {
+            int n = mCallbacks.beginBroadcast();
+            for (int i = 0; i < n; i++) {
+                try {
+                    mCallbacks
+                            .getBroadcastItem(i)
+                            .onVolumeOffsetAudioLocationChanged(device, id, location);
+                } catch (RemoteException e) {
+                    continue;
                 }
-                mCallbacks.finishBroadcast();
             }
+            mCallbacks.finishBroadcast();
         }
     }
 
@@ -1125,20 +1072,149 @@ public class VolumeControlService extends ProfileService {
         }
         offsets.setDescription(id, description);
 
-        if (Flags.leaudioMultipleVocsInstancesApi()) {
-            synchronized (mCallbacks) {
-                int n = mCallbacks.beginBroadcast();
-                for (int i = 0; i < n; i++) {
-                    try {
-                        mCallbacks
-                                .getBroadcastItem(i)
-                                .onVolumeOffsetAudioDescriptionChanged(device, id, description);
-                    } catch (RemoteException e) {
-                        continue;
-                    }
+        synchronized (mCallbacks) {
+            int n = mCallbacks.beginBroadcast();
+            for (int i = 0; i < n; i++) {
+                try {
+                    mCallbacks
+                            .getBroadcastItem(i)
+                            .onVolumeOffsetAudioDescriptionChanged(device, id, description);
+                } catch (RemoteException e) {
+                    continue;
                 }
-                mCallbacks.finishBroadcast();
             }
+            mCallbacks.finishBroadcast();
+        }
+    }
+
+    void handleDeviceExtInputStateChanged(
+            BluetoothDevice device, int id, int gainValue, int gainMode, boolean mute) {
+        Log.d(
+                TAG,
+                ("handleDeviceExtInputStateChanged, device: " + device)
+                        + (" inputId: " + id)
+                        + (" gainValue: " + gainValue)
+                        + (" gainMode: " + gainMode)
+                        + (" mute: " + mute));
+
+        VolumeControlInputDescriptor input = mAudioInputs.get(device);
+        if (input == null) {
+            Log.e(
+                    TAG,
+                    ("handleDeviceExtInputStateChanged, inputId: " + id)
+                            + (" not found for device: " + device));
+            return;
+        }
+        if (!input.setState(id, gainValue, gainMode, mute)) {
+            Log.e(
+                    TAG,
+                    ("handleDeviceExtInputStateChanged, error while setting inputId: " + id)
+                            + ("for: " + device));
+        }
+    }
+
+    void handleDeviceExtInputStatusChanged(BluetoothDevice device, int id, int status) {
+        Log.d(TAG, " device: " + device + " inputId: " + id + " status: " + status);
+
+        VolumeControlInputDescriptor input = mAudioInputs.get(device);
+        if (input == null) {
+            Log.e(TAG, " inputId: " + id + " not found for device: " + device);
+            return;
+        }
+
+        /*
+         * As per ACIS 1.0. Status
+         * Inactive: 0x00
+         * Active: 0x01
+         */
+        if (status > 1 || status < 0) {
+            Log.e(
+                    TAG,
+                    ("handleDeviceExtInputStatusChanged, invalid status: " + status)
+                            + (" for: " + device));
+            return;
+        }
+
+        boolean active = (status == 0x01);
+        if (!input.setActive(id, active)) {
+            Log.e(
+                    TAG,
+                    ("handleDeviceExtInputStatusChanged, error while setting inputId: " + id)
+                            + ("for: " + device));
+        }
+    }
+
+    void handleDeviceExtInputTypeChanged(BluetoothDevice device, int id, int type) {
+        Log.d(
+                TAG,
+                ("handleDeviceExtInputTypeChanged, device: " + device)
+                        + (" inputId: " + id)
+                        + (" type: " + type));
+
+        VolumeControlInputDescriptor input = mAudioInputs.get(device);
+        if (input == null) {
+            Log.e(
+                    TAG,
+                    ("handleDeviceExtInputTypeChanged, inputId: " + id)
+                            + (" not found for device: " + device));
+            return;
+        }
+
+        if (!input.setType(id, type)) {
+            Log.e(
+                    TAG,
+                    ("handleDeviceExtInputTypeChanged, error while setting inputId: " + id)
+                            + ("for: " + device));
+        }
+    }
+
+    void handleDeviceExtInputDescriptionChanged(
+            BluetoothDevice device, int id, String description) {
+        Log.d(
+                TAG,
+                ("handleDeviceExtInputDescriptionChanged, device: " + device)
+                        + (" inputId: " + id)
+                        + (" description: " + description));
+
+        VolumeControlInputDescriptor input = mAudioInputs.get(device);
+        if (input == null) {
+            Log.e(
+                    TAG,
+                    ("handleDeviceExtInputDescriptionChanged, inputId: " + id)
+                            + (" not found for device: " + device));
+            return;
+        }
+
+        if (!input.setDescription(id, description)) {
+            Log.e(
+                    TAG,
+                    ("handleDeviceExtInputDescriptionChanged, error while setting inputId: " + id)
+                            + ("for: " + device));
+        }
+    }
+
+    void handleDeviceExtInputGainPropsChanged(
+            BluetoothDevice device, int id, int unit, int min, int max) {
+        Log.d(
+                TAG,
+                ("handleDeviceExtInputGainPropsChanged, device: " + device)
+                        + (" inputId: " + id)
+                        + (" unit: " + unit + " min" + min + " max:" + max));
+
+        VolumeControlInputDescriptor input = mAudioInputs.get(device);
+        if (input == null) {
+            Log.e(
+                    TAG,
+                    ("handleDeviceExtInputGainPropsChanged, inputId: " + id)
+                            + (" not found for device: " + device));
+            return;
+        }
+
+        if (!input.setPropSettings(id, unit, min, max)) {
+            Log.e(
+                    TAG,
+                    ("handleDeviceExtInputGainPropsChanged, error while setting inputId: " + id)
+                            + ("for: " + device));
         }
     }
 
@@ -1160,7 +1236,7 @@ public class VolumeControlService extends ProfileService {
 
         BluetoothDevice device = stackEvent.device;
         if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_DEVICE_AVAILABLE) {
-            handleDeviceAvailable(device, stackEvent.valueInt1);
+            handleDeviceAvailable(device, stackEvent.valueInt1, stackEvent.valueInt2);
             return;
         }
 
@@ -1179,6 +1255,42 @@ public class VolumeControlService extends ProfileService {
                 == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED) {
             handleDeviceExtAudioDescriptionChanged(
                     device, stackEvent.valueInt1, stackEvent.valueString1);
+            return;
+        }
+
+        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED) {
+            handleDeviceExtInputStateChanged(
+                    device,
+                    stackEvent.valueInt1,
+                    stackEvent.valueInt2,
+                    stackEvent.valueInt3,
+                    stackEvent.valueBool1);
+            return;
+        }
+
+        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_STATUS_CHANGED) {
+            handleDeviceExtInputStatusChanged(device, stackEvent.valueInt1, stackEvent.valueInt2);
+            return;
+        }
+
+        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_TYPE_CHANGED) {
+            handleDeviceExtInputTypeChanged(device, stackEvent.valueInt1, stackEvent.valueInt2);
+            return;
+        }
+
+        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_DESCR_CHANGED) {
+            handleDeviceExtInputDescriptionChanged(
+                    device, stackEvent.valueInt1, stackEvent.valueString1);
+            return;
+        }
+
+        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_GAIN_PROPS_CHANGED) {
+            handleDeviceExtInputGainPropsChanged(
+                    device,
+                    stackEvent.valueInt1,
+                    stackEvent.valueInt2,
+                    stackEvent.valueInt3,
+                    stackEvent.valueInt4);
             return;
         }
 
@@ -1725,6 +1837,16 @@ public class VolumeControlService extends ProfileService {
             ProfileService.println(sb, "    Volume offset cnt: " + descriptor.size());
             descriptor.dump(sb);
         }
+
+        for (Map.Entry<BluetoothDevice, VolumeControlInputDescriptor> entry :
+                mAudioInputs.entrySet()) {
+            VolumeControlInputDescriptor descriptor = entry.getValue();
+            BluetoothDevice device = entry.getKey();
+            ProfileService.println(sb, "    Device: " + device);
+            ProfileService.println(sb, "    Volume input cnt: " + descriptor.size());
+            descriptor.dump(sb);
+        }
+
         for (Map.Entry<Integer, Integer> entry : mGroupVolumeCache.entrySet()) {
             Boolean isMute = mGroupMuteCache.getOrDefault(entry.getKey(), false);
             ProfileService.println(

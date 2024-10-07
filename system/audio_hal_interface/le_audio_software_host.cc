@@ -191,8 +191,6 @@ OffloadCapabilities get_offload_capabilities() {
           std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>(0)};
 }
 
-int GetAidlInterfaceVersion() { return 0; }
-
 void LeAudioClientInterface::Sink::Cleanup() {
   log::info("");
 
@@ -275,8 +273,6 @@ void LeAudioClientInterface::Sink::ConfirmStreamingRequest() {
   }
 }
 
-void LeAudioClientInterface::Sink::ConfirmStreamingRequestV2() { ConfirmStreamingRequest(); }
-
 void LeAudioClientInterface::Sink::CancelStreamingRequest() {
   if (!host::le_audio::LeAudioSinkTransport::instance) {
     log::warn("instance is null");
@@ -307,8 +303,6 @@ void LeAudioClientInterface::Sink::CancelStreamingRequest() {
       break;
   }
 }
-
-void LeAudioClientInterface::Sink::CancelStreamingRequestV2() { CancelStreamingRequest(); }
 
 void LeAudioClientInterface::Sink::UpdateAudioConfigToHal(
         const ::le_audio::offload_config& offload_config) {}
@@ -430,8 +424,6 @@ void LeAudioClientInterface::Source::ConfirmStreamingRequest() {
   }
 }
 
-void LeAudioClientInterface::Source::ConfirmStreamingRequestV2() { ConfirmStreamingRequest(); }
-
 void LeAudioClientInterface::Source::CancelStreamingRequest() {
   if (!host::le_audio::LeAudioSourceTransport::instance) {
     log::warn("instance is null");
@@ -462,8 +454,6 @@ void LeAudioClientInterface::Source::CancelStreamingRequest() {
       break;
   }
 }
-
-void LeAudioClientInterface::Source::CancelStreamingRequestV2() { CancelStreamingRequest(); }
 
 void LeAudioClientInterface::Source::UpdateAudioConfigToHal(
         const ::le_audio::offload_config& offload_config) {}

@@ -35,7 +35,7 @@
 
 #include <mutex>
 
-#include "btif/include/btif_acl.h"
+#include "btif/include/btif_dm.h"
 #include "common/time_util.h"
 #include "hci/controller_interface.h"
 #include "hci/event_checkers.h"
@@ -84,6 +84,9 @@
   ((((uint32_t*)(p))[(((uint32_t)(service)) / BTM_EIR_ARRAY_BITS)] &  \
     ((uint32_t)1 << (((uint32_t)(service)) % BTM_EIR_ARRAY_BITS))) >> \
    (((uint32_t)(service)) % BTM_EIR_ARRAY_BITS))
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 namespace {
 constexpr char kBtmLogTag[] = "SCAN";
@@ -259,9 +262,9 @@ static bool is_inquery_by_rssi() { return osi_property_get_bool(PROPERTY_INQ_BY_
  *
  * Returns          tBTM_STATUS::BTM_SUCCESS if successful
  *                  tBTM_STATUS::BTM_BUSY if a setting of the filter is already in progress
- *                  BTM_NO_RESOURCES if couldn't get a memory pool buffer
- *                  BTM_ILLEGAL_VALUE if a bad parameter was detected
- *                  BTM_WRONG_MODE if the device is not up.
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if couldn't get a memory pool buffer
+ *                  tBTM_STATUS::BTM_ILLEGAL_VALUE if a bad parameter was detected
+ *                  tBTM_STATUS::BTM_WRONG_MODE if the device is not up.
  *
  ******************************************************************************/
 tBTM_STATUS BTM_SetDiscoverability(uint16_t inq_mode) {
@@ -284,7 +287,7 @@ tBTM_STATUS BTM_SetDiscoverability(uint16_t inq_mode) {
 
   /*** Check mode parameter ***/
   if (inq_mode > BTM_MAX_DISCOVERABLE) {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   /* If the window and/or interval is '0', set to default values */
@@ -402,9 +405,9 @@ void BTM_EnableInterlacedPageScan() {
  * Output Params:   mode - standard, with RSSI, extended
  *
  * Returns          tBTM_STATUS::BTM_SUCCESS if successful
- *                  BTM_NO_RESOURCES if couldn't get a memory pool buffer
- *                  BTM_ILLEGAL_VALUE if a bad parameter was detected
- *                  BTM_WRONG_MODE if the device is not up.
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if couldn't get a memory pool buffer
+ *                  tBTM_STATUS::BTM_ILLEGAL_VALUE if a bad parameter was detected
+ *                  tBTM_STATUS::BTM_WRONG_MODE if the device is not up.
  *
  ******************************************************************************/
 tBTM_STATUS BTM_SetInquiryMode(uint8_t mode) {
@@ -413,18 +416,18 @@ tBTM_STATUS BTM_SetInquiryMode(uint8_t mode) {
     /* mandatory mode */
   } else if (mode == BTM_INQ_RESULT_WITH_RSSI) {
     if (!bluetooth::shim::GetController()->SupportsRssiWithInquiryResults()) {
-      return BTM_MODE_UNSUPPORTED;
+      return tBTM_STATUS::BTM_MODE_UNSUPPORTED;
     }
   } else if (mode == BTM_INQ_RESULT_EXTENDED) {
     if (!bluetooth::shim::GetController()->SupportsExtendedInquiryResponse()) {
-      return BTM_MODE_UNSUPPORTED;
+      return tBTM_STATUS::BTM_MODE_UNSUPPORTED;
     }
   } else {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   if (!get_btm_client_interface().local.BTM_IsDeviceUp()) {
-    return BTM_WRONG_MODE;
+    return tBTM_STATUS::BTM_WRONG_MODE;
   }
 
   btsnd_hcic_write_inquiry_mode(mode);
@@ -441,9 +444,9 @@ tBTM_STATUS BTM_SetInquiryMode(uint8_t mode) {
  *                  enabled.
  *
  * Returns          tBTM_STATUS::BTM_SUCCESS if successful
- *                  BTM_ILLEGAL_VALUE if a bad parameter is detected
- *                  BTM_NO_RESOURCES if could not allocate a message buffer
- *                  BTM_WRONG_MODE if the device is not up.
+ *                  tBTM_STATUS::BTM_ILLEGAL_VALUE if a bad parameter is detected
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if could not allocate a message buffer
+ *                  tBTM_STATUS::BTM_WRONG_MODE if the device is not up.
  *
  ******************************************************************************/
 tBTM_STATUS BTM_SetConnectability(uint16_t page_mode) {
@@ -451,7 +454,7 @@ tBTM_STATUS BTM_SetConnectability(uint16_t page_mode) {
 
   if (bluetooth::shim::GetController()->SupportsBle()) {
     if (btm_ble_set_connectability(page_mode) != tBTM_STATUS::BTM_SUCCESS) {
-      return BTM_NO_RESOURCES;
+      return tBTM_STATUS::BTM_NO_RESOURCES;
     }
     btm_cb.btm_inq_vars.connectable_mode &= (~BTM_BLE_CONNECTABLE_MASK);
     btm_cb.btm_inq_vars.connectable_mode |= (page_mode & BTM_BLE_CONNECTABLE_MASK);
@@ -460,7 +463,7 @@ tBTM_STATUS BTM_SetConnectability(uint16_t page_mode) {
 
   /*** Check mode parameter ***/
   if (page_mode != BTM_NON_CONNECTABLE && page_mode != BTM_CONNECTABLE) {
-    return BTM_ILLEGAL_VALUE;
+    return tBTM_STATUS::BTM_ILLEGAL_VALUE;
   }
 
   /*** Only check window and duration if mode is connectable ***/
@@ -616,7 +619,7 @@ static void btm_classic_inquiry_timeout(void* /* data */) {
 static tBTM_STATUS BTM_StartLeScan() {
 #if TARGET_FLOSS
   log::info("Skipping because FLOSS doesn't use this API for LE scans");
-  return BTM_WRONG_MODE;
+  return tBTM_STATUS::BTM_WRONG_MODE;
 #else
   if (shim::GetController()->SupportsBle()) {
     btm_ble_start_inquiry(btm_cb.btm_inq_vars.inqparms.duration);
@@ -624,7 +627,7 @@ static tBTM_STATUS BTM_StartLeScan() {
   }
   log::warn("Trying to do LE scan on a non-LE adapter");
   btm_cb.btm_inq_vars.inqparms.mode &= ~BTM_BLE_GENERAL_INQUIRY;
-  return BTM_WRONG_MODE;
+  return tBTM_STATUS::BTM_WRONG_MODE;
 #endif
 }
 
@@ -659,10 +662,10 @@ static tBTM_STATUS BTM_StartLeScan() {
  * Returns          tBTM_STATUS
  *                  tBTM_STATUS::BTM_CMD_STARTED if successfully initiated
  *                  tBTM_STATUS::BTM_BUSY if already in progress
- *                  BTM_ILLEGAL_VALUE if parameter(s) are out of range
- *                  BTM_NO_RESOURCES if could not allocate resources to start
+ *                  tBTM_STATUS::BTM_ILLEGAL_VALUE if parameter(s) are out of range
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if could not allocate resources to start
  *                                   the command
- *                  BTM_WRONG_MODE if the device is not up.
+ *                  tBTM_STATUS::BTM_WRONG_MODE if the device is not up.
  *
  ******************************************************************************/
 tBTM_STATUS BTM_StartInquiry(tBTM_INQ_RESULTS_CB* p_results_cb, tBTM_CMPL_CB* p_cmpl_cb) {
@@ -703,7 +706,7 @@ tBTM_STATUS BTM_StartInquiry(tBTM_INQ_RESULTS_CB* p_results_cb, tBTM_CMPL_CB* p_
     btm_cb.neighbor.inquiry_history_->Push({
             .status = tBTM_INQUIRY_CMPL::NOT_STARTED,
     });
-    return BTM_WRONG_MODE;
+    return tBTM_STATUS::BTM_WRONG_MODE;
   }
 
   BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Classic inquiry started",
@@ -951,7 +954,7 @@ void btm_inq_db_reset(void) {
     btm_cb.rnr.remname_dev_type = BT_DEVICE_TYPE_UNKNOWN;
 
     if (btm_cb.rnr.p_remname_cmpl_cb) {
-      rem_name.btm_status = BTM_DEV_RESET;
+      rem_name.btm_status = tBTM_STATUS::BTM_DEV_RESET;
       rem_name.hci_status = HCI_SUCCESS;
 
       (*btm_cb.rnr.p_remname_cmpl_cb)(&rem_name);
@@ -1740,7 +1743,7 @@ static void btm_process_cancel_complete(tHCI_STATUS status, uint8_t mode) {
  *                           inquriry response
  *
  * Returns          tBTM_STATUS::BTM_SUCCESS  - if successful
- *                  BTM_MODE_UNSUPPORTED - if local device cannot support it
+ *                  tBTM_STATUS::BTM_MODE_UNSUPPORTED - if local device cannot support it
  *
  ******************************************************************************/
 tBTM_STATUS BTM_WriteEIR(BT_HDR* p_buff) {
@@ -1750,7 +1753,7 @@ tBTM_STATUS BTM_WriteEIR(BT_HDR* p_buff) {
     return tBTM_STATUS::BTM_SUCCESS;
   } else {
     osi_free(p_buff);
-    return BTM_MODE_UNSUPPORTED;
+    return tBTM_STATUS::BTM_MODE_UNSUPPORTED;
   }
 }
 

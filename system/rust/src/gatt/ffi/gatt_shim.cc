@@ -15,6 +15,7 @@
 #include "gatt_shim.h"
 
 #include <base/functional/bind.h>
+#include <base/functional/callback.h>
 #include <base/location.h>
 #include <bluetooth/log.h>
 
@@ -38,7 +39,8 @@ std::optional<RawAddress> AddressOfConnection(uint16_t conn_id) {
   tGATT_IF gatt_if;
   RawAddress remote_bda;
   tBT_TRANSPORT transport;
-  auto valid = GATT_GetConnectionInfor(conn_id, &gatt_if, remote_bda, &transport);
+  auto valid =
+          GATT_GetConnectionInfor(static_cast<tCONN_ID>(conn_id), &gatt_if, remote_bda, &transport);
   if (!valid) {
     return std::nullopt;
   }

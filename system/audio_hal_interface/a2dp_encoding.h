@@ -20,6 +20,7 @@
 #include <sstream>
 #include <vector>
 
+#include "a2dp_codec_api.h"
 #include "a2dp_constants.h"
 #include "avdt_api.h"
 #include "common/message_loop_thread.h"
@@ -30,13 +31,31 @@ namespace audio {
 namespace a2dp {
 
 /// Loosely copied after the definition from the Bluetooth Audio interface:
-/// hardware/interfaces/bluetooth/audio/aidl/android/hardware/bluetooth/audio/BluetoothAudioStatus.aidl
+/// audio/aidl/android/hardware/bluetooth/audio/BluetoothAudioStatus.aidl
 enum class BluetoothAudioStatus {
   SUCCESS = 0,
   UNKNOWN,
   UNSUPPORTED_CODEC_CONFIGURATION,
   FAILURE,
   PENDING,
+};
+
+/// Loosely copied after the definition from the Bluetooth Audio interface:
+/// audio/aidl/android/hardware/bluetooth/audio/IBluetoothAudioPort.aidl
+///
+/// Implements callbacks for the BT Audio HAL to start, suspend and configure
+/// the audio stream. Completion of the requested operation is indicated
+/// by the methods ack_stream_started, ack_stream_suspended.
+class BluetoothAudioPort {
+public:
+  virtual ~BluetoothAudioPort() {}
+  virtual BluetoothAudioStatus StartStream(bool /*low_latency*/) const {
+    return BluetoothAudioStatus::FAILURE;
+  }
+  virtual BluetoothAudioStatus SuspendStream() const { return BluetoothAudioStatus::FAILURE; }
+  virtual BluetoothAudioStatus SetLatencyMode(bool /*low_latency*/) const {
+    return BluetoothAudioStatus::FAILURE;
+  }
 };
 
 bool update_codec_offloading_capabilities(
@@ -50,13 +69,15 @@ bool is_hal_enabled();
 bool is_hal_offloading();
 
 // Initialize BluetoothAudio HAL: openProvider
-bool init(bluetooth::common::MessageLoopThread* message_loop);
+bool init(bluetooth::common::MessageLoopThread* message_loop, BluetoothAudioPort const* audio_port,
+          bool offload_enabled);
 
 // Clean up BluetoothAudio HAL
 void cleanup();
 
 // Set up the codec into BluetoothAudio HAL
-bool setup_codec();
+bool setup_codec(A2dpCodecConfig* a2dp_config, uint16_t peer_mtu,
+                 int preferred_encoding_interval_us);
 
 // Set low latency buffer mode allowed or disallowed
 void set_audio_low_latency_mode_allowed(bool allowed);

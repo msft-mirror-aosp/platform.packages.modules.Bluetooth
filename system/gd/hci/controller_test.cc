@@ -33,6 +33,9 @@
 #include "os/thread.h"
 #include "packet/raw_builder.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 using namespace std::chrono_literals;
 
@@ -552,11 +555,7 @@ TEST_F(Controller103Test, set_dynamic_audio_buffer_time) {
 
 TEST_F(Controller104Test, feature_spec_version_104_test) {
   ASSERT_EQ(controller_->GetVendorCapabilities().version_supported_, 0x100 + 4);
-  if (com::android::bluetooth::flags::a2dp_offload_codec_extensibility()) {
-    ASSERT_TRUE(controller_->GetVendorCapabilities().a2dp_offload_v2_support_);
-  } else {
-    ASSERT_FALSE(controller_->GetVendorCapabilities().a2dp_offload_v2_support_);
-  }
+  ASSERT_TRUE(controller_->GetVendorCapabilities().a2dp_offload_v2_support_);
   ASSERT_TRUE(controller_->IsSupported(OpCode::LE_MULTI_ADVT));
   ASSERT_TRUE(controller_->IsSupported(OpCode::CONTROLLER_DEBUG_INFO));
   ASSERT_TRUE(controller_->IsSupported(OpCode::CONTROLLER_A2DP_OPCODE));

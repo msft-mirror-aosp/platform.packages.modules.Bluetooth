@@ -18,9 +18,12 @@ package android.bluetooth;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
@@ -80,11 +83,7 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
     @SuppressLint("ActionValue")
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     public static final String ACTION_CONNECTION_STATE_CHANGED =
             "android.bluetooth.headsetclient.profile.action.CONNECTION_STATE_CHANGED";
@@ -629,12 +628,14 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothHeadsetClient.Stub.asInterface(service);
     }
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -645,6 +646,7 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }
@@ -724,11 +726,7 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
     @SystemApi
     @Override
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @NonNull List<BluetoothDevice> getConnectedDevices() {
         if (VDBG) log("getConnectedDevices()");
         final IBluetoothHeadsetClient service = getService();
@@ -741,7 +739,6 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
                         service.getConnectedDevices(mAttributionSource), mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
         return Collections.emptyList();
@@ -755,11 +752,7 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
     @SystemApi
     @Override
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @NonNull
     public List<BluetoothDevice> getDevicesMatchingConnectionStates(@NonNull int[] states) {
         if (VDBG) log("getDevicesMatchingStates()");
@@ -774,7 +767,6 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
                         mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
         return Collections.emptyList();
@@ -788,11 +780,7 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
     @SystemApi
     @Override
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @BtProfileState int getConnectionState(@NonNull BluetoothDevice device) {
         if (VDBG) log("getConnectionState(" + device + ")");
         final IBluetoothHeadsetClient service = getService();
@@ -804,7 +792,6 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
                 return service.getConnectionState(device, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
         return BluetoothProfile.STATE_DISCONNECTED;
@@ -824,11 +811,7 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean setConnectionPolicy(
             @NonNull BluetoothDevice device, @ConnectionPolicy int connectionPolicy) {
         if (DBG) log("setConnectionPolicy(" + device + ", " + connectionPolicy + ")");
@@ -844,7 +827,6 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
                 return service.setConnectionPolicy(device, connectionPolicy, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
         return false;
@@ -863,11 +845,7 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
     @SystemApi
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @ConnectionPolicy int getConnectionPolicy(@NonNull BluetoothDevice device) {
         if (VDBG) log("getConnectionPolicy(" + device + ")");
         final IBluetoothHeadsetClient service = getService();
@@ -879,7 +857,6 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
                 return service.getConnectionPolicy(device, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
         return BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
@@ -1491,7 +1468,7 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
                 String operatorName,
                 int signalStrength,
                 boolean isRoaming) {
-            mDevice = device;
+            mDevice = requireNonNull(device);
             mIsServiceAvailable = isServiceAvailable;
             mOperatorName = operatorName;
             mSignalStrength = signalStrength;
@@ -1569,7 +1546,7 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
                 new Parcelable.Creator<NetworkServiceState>() {
                     public NetworkServiceState createFromParcel(Parcel in) {
                         return new NetworkServiceState(
-                                (BluetoothDevice) in.readParcelable(null),
+                                BluetoothDevice.CREATOR.createFromParcel(in),
                                 in.readInt() == 1,
                                 in.readString(),
                                 in.readInt(),
@@ -1584,9 +1561,9 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
         /** @hide */
         @Override
         public void writeToParcel(@NonNull Parcel out, int flags) {
-            out.writeParcelable(mDevice, 0);
+            mDevice.writeToParcel(out, flags);
             out.writeInt(mIsServiceAvailable ? 1 : 0);
-            out.writeString(mOperatorName);
+            BluetoothUtils.writeStringToParcel(out, mOperatorName);
             out.writeInt(mSignalStrength);
             out.writeInt(mIsRoaming ? 1 : 0);
         }
@@ -1613,11 +1590,7 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
     @SuppressLint("ActionValue")
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     public static final String ACTION_NETWORK_SERVICE_STATE_CHANGED =
             "android.bluetooth.headsetclient.profile.action.NETWORK_SERVICE_STATE_CHANGED";
@@ -1644,11 +1617,7 @@ public final class BluetoothHeadsetClient implements BluetoothProfile, AutoClose
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @Nullable NetworkServiceState getNetworkServiceState(@NonNull BluetoothDevice device) {
         if (device == null) {
             return null;

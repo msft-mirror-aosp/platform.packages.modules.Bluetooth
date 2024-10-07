@@ -25,6 +25,9 @@
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 void BTM_LogHistory(const std::string& /* tag */, const RawAddress& /* bd_addr */,
                     const std::string& /* msg */) {
   inc_func_call_count(__func__);
@@ -41,3 +44,4 @@ void BTM_LogHistory(const std::string& /* tag */, const tBLE_BD_ADDR& /* ble_bd_
                     const std::string& /* msg */, const std::string& /* extra */) {
   inc_func_call_count(__func__);
 }
+void DumpsysBtm(int /* fd */) { inc_func_call_count(__func__); }

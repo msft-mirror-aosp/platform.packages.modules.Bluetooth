@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include <base/functional/bind.h>
+#include <base/functional/callback.h>
 
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_ras_api.h"
@@ -35,17 +37,29 @@ class RasClientImpl;
 RasClientImpl* instance;
 
 enum CallbackDataType { VENDOR_SPECIFIC_REPLY };
+static constexpr uint16_t kCachedDataSize = 10;
+static constexpr uint16_t kInvalidGattHandle = 0x0000;
 
 class RasClientImpl : public bluetooth::ras::RasClient {
 public:
+  struct GattReadCallbackData {
+    const bool is_last_;
+  };
+
   struct GattWriteCallbackData {
     const CallbackDataType type_;
+  };
+
+  struct CachedRasData {
+    uint8_t id_ = 0;
+    uint32_t remote_supported_features_;
+    std::unordered_map<bluetooth::Uuid, std::vector<uint8_t>> vendor_specific_data_;
   };
 
   struct RasTracker {
     RasTracker(const RawAddress& address, const RawAddress& address_for_cs)
         : address_(address), address_for_cs_(address_for_cs) {}
-    uint16_t conn_id_;
+    tCONN_ID conn_id_;
     RawAddress address_;
     RawAddress address_for_cs_;
     const gatt::Service* service_ = nullptr;
@@ -55,8 +69,8 @@ public:
     bool is_connected_ = false;
     bool service_search_complete_ = false;
     std::vector<VendorSpecificCharacteristic> vendor_specific_characteristics_;
-    uint8_t writeReplyCounter_ = 0;
-    uint8_t writeReplySuccessCounter_ = 0;
+    uint8_t write_reply_counter_ = 0;
+    uint8_t write_reply_success_counter_ = 0;
 
     const gatt::Characteristic* FindCharacteristicByUuid(Uuid uuid) {
       for (auto& characteristic : service_->characteristics) {
@@ -115,9 +129,12 @@ public:
       trackers_.emplace_back(std::make_shared<RasTracker>(ble_bd_addr.bda, address));
     } else if (tracker->is_connected_) {
       log::info("Already connected");
-      uint16_t att_handle = tracker->FindCharacteristicByUuid(kRasRealTimeRangingDataCharacteristic)
-                                    ->value_handle;
-      callbacks_->OnConnected(address, att_handle, tracker->vendor_specific_characteristics_);
+      auto characteristic =
+              tracker->FindCharacteristicByUuid(kRasRealTimeRangingDataCharacteristic);
+      uint16_t real_time_att_handle =
+              characteristic == nullptr ? kInvalidGattHandle : characteristic->value_handle;
+      callbacks_->OnConnected(address, real_time_att_handle,
+                              tracker->vendor_specific_characteristics_);
       return;
     }
     BTA_GATTC_Open(gatt_if_, ble_bd_addr.bda, BTM_BLE_DIRECT_CONNECTION, true);
@@ -206,6 +223,7 @@ public:
       BTA_GATTC_Close(evt.conn_id);
       return;
     }
+    callbacks_->OnDisconnected(tracker->address_for_cs_);
     trackers_.remove(tracker);
   }
 
@@ -239,40 +257,65 @@ public:
       ListCharacteristic(tracker);
     }
 
-    // Read Vendor Specific Uuid
-    if (!tracker->vendor_specific_characteristics_.empty()) {
+    if (UseCachedData(tracker)) {
+      log::info("Use cached data for Ras features and vendor specific characteristic");
+      SubscribeCharacteristic(tracker, kRasControlPointCharacteristic);
+      AllCharacteristicsReadComplete(tracker);
+    } else {
+      // Read Vendor Specific Uuid
       for (auto& vendor_specific_characteristic : tracker->vendor_specific_characteristics_) {
         log::debug("Read vendor specific characteristic uuid {}",
                    vendor_specific_characteristic.characteristicUuid_);
         auto characteristic = tracker->FindCharacteristicByUuid(
                 vendor_specific_characteristic.characteristicUuid_);
-
         BTA_GATTC_ReadCharacteristic(
                 tracker->conn_id_, characteristic->value_handle, GATT_AUTH_REQ_NO_MITM,
-                [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+                [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                    uint8_t* value, void* data) {
                   instance->OnReadCharacteristicCallback(conn_id, status, handle, len, value, data);
                 },
                 nullptr);
       }
+
+      // Read Ras Features
+      log::info("Read Ras Features");
+      auto characteristic = tracker->FindCharacteristicByUuid(kRasFeaturesCharacteristic);
+      if (characteristic == nullptr) {
+        log::error("Can not find Characteristic for Ras Features");
+        return;
+      }
+      BTA_GATTC_ReadCharacteristic(
+              tracker->conn_id_, characteristic->value_handle, GATT_AUTH_REQ_NO_MITM,
+              [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+                 uint8_t* value, void* data) {
+                instance->OnReadCharacteristicCallback(conn_id, status, handle, len, value, data);
+              },
+              &gatt_read_callback_data_);
+
+      SubscribeCharacteristic(tracker, kRasControlPointCharacteristic);
+    }
+  }
+
+  bool UseCachedData(std::shared_ptr<RasTracker> tracker) {
+    auto cached_data = cached_data_.find(tracker->address_);
+    if (cached_data == cached_data_.end()) {
+      return false;
     }
 
-    // Read Ras Features
-    log::info("Read Ras Features");
-    auto characteristic = tracker->FindCharacteristicByUuid(kRasFeaturesCharacteristic);
-    if (characteristic == nullptr) {
-      log::error("Can not find Characteristic for Ras Features");
-      return;
+    // Check if everything is cached
+    auto cached_vendor_specific_data = cached_data->second.vendor_specific_data_;
+    for (auto& vendor_specific_characteristic : tracker->vendor_specific_characteristics_) {
+      auto uuid = vendor_specific_characteristic.characteristicUuid_;
+      if (cached_vendor_specific_data.find(uuid) != cached_vendor_specific_data.end()) {
+        vendor_specific_characteristic.value_ = cached_vendor_specific_data[uuid];
+      } else {
+        return false;
+      }
     }
-    BTA_GATTC_ReadCharacteristic(
-            tracker->conn_id_, characteristic->value_handle, GATT_AUTH_REQ_NO_MITM,
-            [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len, uint8_t* value,
-               void* data) {
-              instance->OnReadCharacteristicCallback(conn_id, status, handle, len, value, data);
-            },
-            nullptr);
 
-    SubscribeCharacteristic(tracker, kRasControlPointCharacteristic);
+    // Update remote supported features
+    tracker->remote_supported_features_ = cached_data->second.remote_supported_features_;
+    return true;
   }
 
   void OnGattNotification(const tBTA_GATTC_NOTIFY& evt) {
@@ -387,7 +430,7 @@ public:
     }
   }
 
-  void GattWriteCallbackForVendorSpecificData(uint16_t conn_id, tGATT_STATUS status,
+  void GattWriteCallbackForVendorSpecificData(tCONN_ID conn_id, tGATT_STATUS status,
                                               uint16_t handle, const uint8_t* value,
                                               GattWriteCallbackData* data) {
     if (data != nullptr) {
@@ -395,9 +438,9 @@ public:
       if (structPtr->type_ == CallbackDataType::VENDOR_SPECIFIC_REPLY) {
         log::info("Write vendor specific reply complete");
         auto tracker = FindTrackerByHandle(conn_id);
-        tracker->writeReplyCounter_++;
+        tracker->write_reply_counter_++;
         if (status == GATT_SUCCESS) {
-          tracker->writeReplySuccessCounter_++;
+          tracker->write_reply_success_counter_++;
         } else {
           log::error(
                   "Fail to write vendor specific reply conn_id {}, status {}, "
@@ -405,16 +448,16 @@ public:
                   conn_id, gatt_status_text(status), handle);
         }
         // All reply complete
-        if (tracker->writeReplyCounter_ == tracker->vendor_specific_characteristics_.size()) {
+        if (tracker->write_reply_counter_ == tracker->vendor_specific_characteristics_.size()) {
           log::info(
                   "All vendor specific reply write complete, size {} "
                   "successCounter {}",
                   tracker->vendor_specific_characteristics_.size(),
-                  tracker->writeReplySuccessCounter_);
-          bool success = tracker->writeReplySuccessCounter_ ==
+                  tracker->write_reply_success_counter_);
+          bool success = tracker->write_reply_success_counter_ ==
                          tracker->vendor_specific_characteristics_.size();
-          tracker->writeReplyCounter_ = 0;
-          tracker->writeReplySuccessCounter_ = 0;
+          tracker->write_reply_counter_ = 0;
+          tracker->write_reply_success_counter_ = 0;
           callbacks_->OnWriteVendorSpecificReplyComplete(tracker->address_for_cs_, success);
         }
         return;
@@ -422,7 +465,7 @@ public:
     }
   }
 
-  void GattWriteCallback(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+  void GattWriteCallback(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                          const uint8_t* value) {
     if (status != GATT_SUCCESS) {
       log::error("Fail to write conn_id {}, status {}, handle {}", conn_id,
@@ -446,7 +489,7 @@ public:
     }
   }
 
-  static void GattWriteCallback(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+  static void GattWriteCallback(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                 uint16_t len, const uint8_t* value, void* data) {
     if (instance != nullptr) {
       if (data != nullptr) {
@@ -490,7 +533,7 @@ public:
     }
     BTA_GATTC_WriteCharDescr(
             tracker->conn_id_, ccc_handle, value, GATT_AUTH_REQ_NONE,
-            [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                const uint8_t* value, void* data) {
               if (instance) {
                 instance->OnDescriptorWrite(conn_id, status, handle, len, value, data);
@@ -499,7 +542,7 @@ public:
             nullptr);
   }
 
-  void OnDescriptorWrite(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+  void OnDescriptorWrite(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                          const uint8_t* value, void* data) {
     log::info("conn_id:{}, handle:{}, status:{}", conn_id, handle, gatt_status_text(status));
   }
@@ -533,7 +576,7 @@ public:
     maybe_resolve_address(&ble_bd_addr.bda, &ble_bd_addr.type);
   }
 
-  void OnReadCharacteristicCallback(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+  void OnReadCharacteristicCallback(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                     uint16_t len, uint8_t* value, void* data) {
     log::info("conn_id: {}, handle: {}, len: {}", conn_id, handle, len);
     if (status != GATT_SUCCESS) {
@@ -573,28 +616,69 @@ public:
         }
         STREAM_TO_UINT32(tracker->remote_supported_features_, value);
         log::info("Remote supported features : {}",
-                  getFeaturesString(tracker->remote_supported_features_));
-        if (tracker->remote_supported_features_ & feature::kRealTimeRangingData) {
-          log::info("Subscribe Real-time Ranging Data");
-          SubscribeCharacteristic(tracker, kRasRealTimeRangingDataCharacteristic);
-        } else {
-          log::info("Subscribe On-demand Ranging Data");
-          SubscribeCharacteristic(tracker, kRasOnDemandDataCharacteristic);
-          SubscribeCharacteristic(tracker, kRasRangingDataReadyCharacteristic);
-          SubscribeCharacteristic(tracker, kRasRangingDataOverWrittenCharacteristic);
-        }
-        uint16_t att_handle =
-                tracker->FindCharacteristicByUuid(kRasRealTimeRangingDataCharacteristic)
-                        ->value_handle;
-        callbacks_->OnConnected(tracker->address_for_cs_, att_handle,
-                                tracker->vendor_specific_characteristics_);
+                  GetFeaturesString(tracker->remote_supported_features_));
       } break;
       default:
         log::warn("Unexpected UUID");
     }
+
+    // Check is last read reply or not
+    GattReadCallbackData* cb_data = static_cast<GattReadCallbackData*>(data);
+    if (cb_data != nullptr) {
+      StoreCachedData(tracker);
+      AllCharacteristicsReadComplete(tracker);
+    }
   }
 
-  std::string getFeaturesString(uint32_t value) {
+  void AllCharacteristicsReadComplete(std::shared_ptr<RasTracker> tracker) {
+    if (tracker->remote_supported_features_ & feature::kRealTimeRangingData) {
+      log::info("Subscribe Real-time Ranging Data");
+      SubscribeCharacteristic(tracker, kRasRealTimeRangingDataCharacteristic);
+    } else {
+      log::info("Subscribe On-demand Ranging Data");
+      SubscribeCharacteristic(tracker, kRasOnDemandDataCharacteristic);
+      SubscribeCharacteristic(tracker, kRasRangingDataReadyCharacteristic);
+      SubscribeCharacteristic(tracker, kRasRangingDataOverWrittenCharacteristic);
+    }
+    auto characteristic = tracker->FindCharacteristicByUuid(kRasRealTimeRangingDataCharacteristic);
+    uint16_t real_time_att_handle =
+            characteristic == nullptr ? kInvalidGattHandle : characteristic->value_handle;
+    callbacks_->OnConnected(tracker->address_for_cs_, real_time_att_handle,
+                            tracker->vendor_specific_characteristics_);
+  }
+
+  void StoreCachedData(std::shared_ptr<RasTracker> tracker) {
+    auto address = tracker->address_;
+    auto cached_data = cached_data_.find(address);
+    if (cached_data == cached_data_.end()) {
+      uint8_t next_id = cached_data_.size();
+      // Remove oldest cached data
+      if (cached_data_.size() >= kCachedDataSize) {
+        auto oldest_cached_data = std::min_element(
+                cached_data_.begin(), cached_data_.end(),
+                [](const auto& a, const auto& b) { return a.second.id_ < b.second.id_; });
+        next_id = oldest_cached_data->second.id_ + kCachedDataSize;
+        cached_data_.erase(oldest_cached_data);
+      }
+
+      // Create new cached data
+      log::debug("Create new cached data {}", address);
+      cached_data_[address].id_ = next_id;
+      cached_data_[address].remote_supported_features_ = tracker->remote_supported_features_;
+      for (auto data : tracker->vendor_specific_characteristics_) {
+        cached_data_[address].vendor_specific_data_[data.characteristicUuid_] = data.value_;
+      }
+
+      // Check if the id will outside the valid range for the next data entry
+      if (cached_data_[address].id_ == 255) {
+        for (auto& [key, value] : cached_data_) {
+          value.id_ %= (256 - kCachedDataSize);
+        }
+      }
+    }
+  }
+
+  std::string GetFeaturesString(uint32_t value) {
     std::stringstream ss;
     ss << value;
     if (value == 0) {
@@ -625,7 +709,7 @@ public:
     return GAP_INVALID_HANDLE;
   }
 
-  std::shared_ptr<RasTracker> FindTrackerByHandle(uint16_t conn_id) const {
+  std::shared_ptr<RasTracker> FindTrackerByHandle(tCONN_ID conn_id) const {
     for (auto tracker : trackers_) {
       if (tracker->conn_id_ == conn_id) {
         return tracker;
@@ -647,6 +731,8 @@ private:
   uint16_t gatt_if_;
   std::list<std::shared_ptr<RasTracker>> trackers_;
   bluetooth::ras::RasClientCallbacks* callbacks_;
+  std::unordered_map<RawAddress, CachedRasData> cached_data_;
+  GattReadCallbackData gatt_read_callback_data_{true};
   GattWriteCallbackData gatt_write_callback_data_{CallbackDataType::VENDOR_SPECIFIC_REPLY};
 };
 

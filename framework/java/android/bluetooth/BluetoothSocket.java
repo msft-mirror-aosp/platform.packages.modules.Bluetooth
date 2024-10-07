@@ -532,6 +532,7 @@ public final class BluetoothSocket implements Closeable {
      * Currently returns unix errno instead of throwing IOException, so that BluetoothAdapter can
      * check the error code for EADDRINUSE
      */
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(BLUETOOTH_CONNECT)
     /*package*/ int bindListen() {
         int ret;
@@ -854,11 +855,8 @@ public final class BluetoothSocket implements Closeable {
      */
     @SystemApi
     @FlaggedApi(Flags.FLAG_BT_SOCKET_API_L2CAP_CID)
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public int getL2capLocalChannelId() throws IOException {
         if (mType != TYPE_L2CAP_LE) {
             throw new BluetoothSocketException(BluetoothSocketException.L2CAP_UNKNOWN);
@@ -898,11 +896,8 @@ public final class BluetoothSocket implements Closeable {
      */
     @SystemApi
     @FlaggedApi(Flags.FLAG_BT_SOCKET_API_L2CAP_CID)
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public int getL2capRemoteChannelId() throws IOException {
         if (mType != TYPE_L2CAP_LE) {
             throw new BluetoothSocketException(BluetoothSocketException.L2CAP_UNKNOWN);
@@ -934,6 +929,7 @@ public final class BluetoothSocket implements Closeable {
     }
 
     /** @hide */
+    @RequiresNoPermission
     public ParcelFileDescriptor getParcelFileDescriptor() {
         return mPfd;
     }

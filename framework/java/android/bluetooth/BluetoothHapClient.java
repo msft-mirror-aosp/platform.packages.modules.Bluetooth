@@ -27,6 +27,7 @@ import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SuppressLint;
@@ -491,6 +492,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothHapClient.Stub.asInterface(service);
         mCallbackWrapper.registerToNewService(mService);
@@ -498,6 +500,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -508,6 +511,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }
@@ -585,7 +589,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 return service.setConnectionPolicy(device, connectionPolicy, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return false;
@@ -613,7 +617,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 return service.getConnectionPolicy(device, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
@@ -637,7 +641,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
                 return Attributable.setAttributionSource(
                         service.getConnectedDevices(mAttributionSource), mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return Collections.emptyList();
@@ -663,7 +667,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
                         service.getDevicesMatchingConnectionStates(states, mAttributionSource),
                         mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return Collections.emptyList();
@@ -687,7 +691,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 return service.getConnectionState(device, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return BluetoothProfile.STATE_DISCONNECTED;
@@ -723,7 +727,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 return service.getHapGroup(device, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return BluetoothCsipSetCoordinator.GROUP_ID_INVALID;
@@ -748,7 +752,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 return service.getActivePresetIndex(device, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return PRESET_INDEX_UNAVAILABLE;
@@ -773,7 +777,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 return service.getActivePresetInfo(device, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
 
@@ -802,7 +806,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 service.selectPreset(device, presetIndex, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }
@@ -833,7 +837,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 service.selectPresetForGroup(groupId, presetIndex, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }
@@ -859,7 +863,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 service.switchToNextPreset(device, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }
@@ -888,7 +892,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 service.switchToNextPresetForGroup(groupId, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }
@@ -914,7 +918,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 service.switchToPreviousPreset(device, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }
@@ -943,7 +947,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 service.switchToPreviousPresetForGroup(groupId, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }
@@ -969,7 +973,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 return service.getPresetInfo(device, presetIndex, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return null;
@@ -993,7 +997,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 return service.getAllPresetInfo(device, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return Collections.emptyList();
@@ -1016,7 +1020,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 return service.getFeatures(device, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return 0x00;
@@ -1122,7 +1126,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 service.setPresetName(device, presetIndex, name, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }
@@ -1153,7 +1157,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
             try {
                 service.setPresetNameForGroup(groupId, presetIndex, name, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }

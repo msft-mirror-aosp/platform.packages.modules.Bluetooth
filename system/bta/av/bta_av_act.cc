@@ -33,6 +33,7 @@
 #include "bta/include/bta_ar_api.h"
 #include "bta/include/utl.h"
 #include "btif/avrcp/avrcp_service.h"
+#include "btif/include/btif_av.h"
 #include "device/include/device_iot_config.h"
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
@@ -44,7 +45,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/sdp_api.h"
 #include "stack/include/sdp_status.h"
 #include "types/raw_address.h"
@@ -71,13 +72,6 @@ static void bta_av_accept_signalling_timer_cback(void* data);
 #ifndef AVRC_MIN_META_CMD_LEN
 #define AVRC_MIN_META_CMD_LEN 20
 #endif
-
-extern bool btif_av_is_source_enabled(void);
-extern bool btif_av_both_enable(void);
-extern bool btif_av_src_sink_coexist_enabled(void);
-extern bool btif_av_is_sink_enabled(void);
-extern bool btif_av_peer_is_connected_sink(const RawAddress& peer_address);
-extern const RawAddress& btif_av_find_by_handle(tBTA_AV_HNDL bta_handle);
 
 /*******************************************************************************
  *
@@ -825,7 +819,7 @@ static tAVRC_STS bta_av_chk_notif_evt_id(tAVRC_MSG_VENDOR* p_vendor) {
   return status;
 }
 
-void bta_av_proc_rsp(tAVRC_RESPONSE* p_rc_rsp) {
+static void bta_av_proc_rsp(tAVRC_RESPONSE* p_rc_rsp) {
   uint16_t rc_ver = 0x105;
   const tBTA_AV_CFG* p_src_cfg = NULL;
   if (rc_ver != 0x103) {
@@ -859,8 +853,8 @@ void bta_av_proc_rsp(tAVRC_RESPONSE* p_rc_rsp) {
  * Returns          true to respond immediately
  *
  ******************************************************************************/
-tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE* p_rc_rsp, tBTA_AV_RC_MSG* p_msg,
-                                 uint8_t* p_ctype) {
+static tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE* p_rc_rsp, tBTA_AV_RC_MSG* p_msg,
+                                        uint8_t* p_ctype) {
   tBTA_AV_EVT evt = BTA_AV_META_MSG_EVT;
   uint8_t u8, pdu, *p;
   uint16_t u16;
@@ -1190,12 +1184,14 @@ void bta_av_stream_chg(tBTA_AV_SCB* p_scb, bool started) {
 
   if (started) {
     /* Let L2CAP know this channel is processed with high priority */
-    if (!L2CA_SetAclPriority(p_scb->PeerAddress(), L2CAP_PRIORITY_HIGH)) {
+    if (!stack::l2cap::get_interface().L2CA_SetAclPriority(p_scb->PeerAddress(),
+                                                           L2CAP_PRIORITY_HIGH)) {
       log::warn("Unable to set L2CAP acl high priority peer:{}", p_scb->PeerAddress());
     }
   } else {
     /* Let L2CAP know this channel is processed with low priority */
-    if (!L2CA_SetAclPriority(p_scb->PeerAddress(), L2CAP_PRIORITY_NORMAL)) {
+    if (!stack::l2cap::get_interface().L2CA_SetAclPriority(p_scb->PeerAddress(),
+                                                           L2CAP_PRIORITY_NORMAL)) {
       log::warn("Unable to set L2CAP acl normal priority peer:{}", p_scb->PeerAddress());
     }
   }
@@ -1436,7 +1432,7 @@ void bta_av_api_disconnect(tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_av_set_use_latency_mode(tBTA_AV_SCB* p_scb, bool use_latency_mode) {
-  if (!L2CA_UseLatencyMode(p_scb->PeerAddress(), use_latency_mode)) {
+  if (!stack::l2cap::get_interface().L2CA_UseLatencyMode(p_scb->PeerAddress(), use_latency_mode)) {
     log::warn("Unable to set L2CAP latenty mode peer:{} use_latency_mode:{}", p_scb->PeerAddress(),
               use_latency_mode);
   }
@@ -1456,7 +1452,7 @@ void bta_av_api_set_latency(tBTA_AV_DATA* p_data) {
 
   tL2CAP_LATENCY latency =
           p_data->api_set_latency.is_low_latency ? L2CAP_LATENCY_LOW : L2CAP_LATENCY_NORMAL;
-  if (!L2CA_SetAclLatency(p_scb->PeerAddress(), latency)) {
+  if (!stack::l2cap::get_interface().L2CA_SetAclLatency(p_scb->PeerAddress(), latency)) {
     log::warn("Unable to set L2CAP latenty mode peer:{} use_latency_mode:{}", p_scb->PeerAddress(),
               latency);
   }
@@ -1780,7 +1776,7 @@ static void bta_av_store_peer_rc_version() {
  * Returns          tBTA_AV_FEAT peer device feature mask
  *
  ******************************************************************************/
-tBTA_AV_FEAT bta_av_check_peer_features(uint16_t service_uuid) {
+static tBTA_AV_FEAT bta_av_check_peer_features(uint16_t service_uuid) {
   tBTA_AV_FEAT peer_features = 0;
   tBTA_AV_CB* p_cb = &bta_av_cb;
   tSDP_DISC_REC* p_rec = NULL;
@@ -1855,7 +1851,7 @@ tBTA_AV_FEAT bta_av_check_peer_features(uint16_t service_uuid) {
  * Returns          tBTA_AV_FEAT peer device feature mask
  *
  ******************************************************************************/
-tBTA_AV_FEAT bta_avk_check_peer_features(uint16_t service_uuid) {
+static tBTA_AV_FEAT bta_avk_check_peer_features(uint16_t service_uuid) {
   tBTA_AV_FEAT peer_features = 0;
   tBTA_AV_CB* p_cb = &bta_av_cb;
 
@@ -1944,7 +1940,7 @@ tBTA_AV_FEAT bta_avk_check_peer_features(uint16_t service_uuid) {
  *                  one does not exist.
  *
  *****************************************************************************/
-uint16_t bta_avk_get_cover_art_psm() {
+static uint16_t bta_avk_get_cover_art_psm() {
   log::verbose("searching for cover art psm");
   /* Cover Art L2CAP PSM is only available on a target device */
   tBTA_AV_CB* p_cb = &bta_av_cb;
@@ -2026,7 +2022,7 @@ uint16_t bta_avk_get_cover_art_psm() {
   return 0x0000;
 }
 
-void bta_av_rc_disc_done_all(tBTA_AV_DATA* /* p_data */) {
+static void bta_av_rc_disc_done_all(tBTA_AV_DATA* /* p_data */) {
   tBTA_AV_CB* p_cb = &bta_av_cb;
   tBTA_AV_SCB* p_scb = NULL;
   tBTA_AV_LCB* p_lcb;

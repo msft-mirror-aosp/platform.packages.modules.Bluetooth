@@ -26,6 +26,9 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 BT_HDR* l2cu_build_header(tL2C_LCB* /* p_lcb */, uint16_t /* len */, uint8_t /* cmd */,
                           uint8_t /* signal_id */) {
   inc_func_call_count(__func__);
@@ -143,19 +146,20 @@ void l2cu_process_peer_cfg_rsp(tL2C_CCB* /* p_ccb */, tL2CAP_CFG_INFO* /* p_cfg 
   inc_func_call_count(__func__);
 }
 void l2cu_reject_ble_coc_connection(tL2C_LCB* /* p_lcb */, uint8_t /* rem_id */,
-                                    uint16_t /* result */) {
+                                    tL2CAP_LE_RESULT_CODE /* result */) {
   inc_func_call_count(__func__);
 }
 void l2cu_reject_ble_connection(tL2C_CCB* /* p_ccb */, uint8_t /* rem_id */,
-                                uint16_t /* result */) {
+                                tL2CAP_LE_RESULT_CODE /* result */) {
   inc_func_call_count(__func__);
 }
 void l2cu_reject_connection(tL2C_LCB* /* p_lcb */, uint16_t /* remote_cid */, uint8_t /* rem_id */,
-                            uint16_t /* result */) {
+                            tL2CAP_CONN /* result */) {
   inc_func_call_count(__func__);
 }
 void l2cu_reject_credit_based_conn_req(tL2C_LCB* /* p_lcb */, uint8_t /* rem_id */,
-                                       uint8_t /* num_of_channels */, uint16_t /* result */) {
+                                       uint8_t /* num_of_channels */,
+                                       tL2CAP_LE_RESULT_CODE /* result */) {
   inc_func_call_count(__func__);
 }
 void l2cu_release_ble_rcb(tL2C_RCB* /* p_rcb */) { inc_func_call_count(__func__); }
@@ -164,7 +168,7 @@ void l2cu_release_lcb(tL2C_LCB* /* p_lcb */) { inc_func_call_count(__func__); }
 void l2cu_release_rcb(tL2C_RCB* /* p_rcb */) { inc_func_call_count(__func__); }
 void l2cu_resubmit_pending_sec_req(const RawAddress* /* p_bda */) { inc_func_call_count(__func__); }
 void l2cu_send_ble_reconfig_rsp(tL2C_LCB* /* p_lcb */, uint8_t /* rem_id */,
-                                uint16_t /* result */) {
+                                tL2CAP_RECONFIG_RESULT /* result */) {
   inc_func_call_count(__func__);
 }
 void l2cu_send_credit_based_reconfig_req(tL2C_CCB* /* p_ccb */, tL2CAP_LE_CFG_INFO* /* p_cfg */) {
@@ -173,7 +177,8 @@ void l2cu_send_credit_based_reconfig_req(tL2C_CCB* /* p_ccb */, tL2CAP_LE_CFG_IN
 void l2cu_send_peer_ble_credit_based_conn_req(tL2C_CCB* /* p_ccb */) {
   inc_func_call_count(__func__);
 }
-void l2cu_send_peer_ble_credit_based_conn_res(tL2C_CCB* /* p_ccb */, uint16_t /* result */) {
+void l2cu_send_peer_ble_credit_based_conn_res(tL2C_CCB* /* p_ccb */,
+                                              tL2CAP_LE_RESULT_CODE /* result */) {
   inc_func_call_count(__func__);
 }
 void l2cu_send_peer_ble_credit_based_disconn_req(tL2C_CCB* /* p_ccb */) {
@@ -187,7 +192,7 @@ void l2cu_send_peer_ble_par_req(tL2C_LCB* /* p_lcb */, uint16_t /* min_int */,
                                 uint16_t /* timeout */) {
   inc_func_call_count(__func__);
 }
-void l2cu_send_peer_ble_par_rsp(tL2C_LCB* /* p_lcb */, uint16_t /* reason */,
+void l2cu_send_peer_ble_par_rsp(tL2C_LCB* /* p_lcb */, tL2CAP_CFG_RESULT /* reason */,
                                 uint8_t /* rem_id */) {
   inc_func_call_count(__func__);
 }
@@ -213,7 +218,7 @@ void l2cu_send_peer_connect_rsp(tL2C_CCB* /* p_ccb */, uint16_t /* result */,
 void l2cu_send_peer_credit_based_conn_req(tL2C_CCB* /* p_ccb */) { inc_func_call_count(__func__); }
 void l2cu_send_peer_credit_based_conn_res(tL2C_CCB* /* p_ccb */,
                                           std::vector<uint16_t>& /* accepted_cids */,
-                                          uint16_t /* result */) {
+                                          tL2CAP_LE_RESULT_CODE /* result */) {
   inc_func_call_count(__func__);
 }
 void l2cu_send_peer_disc_req(tL2C_CCB* /* p_ccb */) { inc_func_call_count(__func__); }

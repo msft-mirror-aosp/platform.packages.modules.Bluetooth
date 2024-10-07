@@ -24,9 +24,13 @@
 #include "stack/include/bt_name.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/rnr_interface.h"
 #include "test/headless/get_options.h"
 #include "test/headless/headless.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 std::promise<tBTM_REMOTE_DEV_NAME> promise_;
 
@@ -51,7 +55,7 @@ int bluetooth::test::headless::Name::Run() {
 
     auto future = promise_.get_future();
 
-    tBTM_STATUS status = get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(
+    tBTM_STATUS status = get_stack_rnr_interface().BTM_ReadRemoteDeviceName(
             raw_address, &RemoteNameCallback, BT_TRANSPORT_BR_EDR);
     if (status != tBTM_STATUS::BTM_CMD_STARTED) {
       fprintf(stdout, "Failure to start read remote device\n");

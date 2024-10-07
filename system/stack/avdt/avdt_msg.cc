@@ -1173,7 +1173,7 @@ bool avdt_msg_send(AvdtpCcb* p_ccb, BT_HDR* p_msg) {
  *                  available.
  *
  ******************************************************************************/
-BT_HDR* avdt_msg_asmbl(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
+static BT_HDR* avdt_msg_asmbl(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
   uint8_t* p;
   uint8_t pkt_type;
   BT_HDR* p_ret;
@@ -1479,7 +1479,7 @@ void avdt_msg_send_grej(AvdtpCcb* p_ccb, uint8_t sig_id, tAVDT_MSG* p_params) {
  *
  * Function         avdt_msg_ind
  *
- * Description      This function is called by the adaption layer when an
+ * Description      This function is called by the adaptation layer when an
  *                  incoming message is received on the signaling channel.
  *                  It parses the message and sends an event to the appropriate
  *                  SCB or CCB for the message.

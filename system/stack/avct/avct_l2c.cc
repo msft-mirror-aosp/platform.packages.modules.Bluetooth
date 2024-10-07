@@ -29,18 +29,16 @@
 #include "avct_int.h"
 #include "btif/include/btif_av.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
-#include "l2cdefs.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
 
 /* callback function declarations */
 void avct_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16_t psm, uint8_t id);
-void avct_l2c_connect_cfm_cback(uint16_t lcid, uint16_t result);
+void avct_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result);
 void avct_l2c_config_cfm_cback(uint16_t lcid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
 void avct_l2c_config_ind_cback(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg);
 void avct_l2c_disconnect_ind_cback(uint16_t lcid, bool ack_needed);
@@ -106,7 +104,7 @@ static bool avct_l2c_is_passive(tAVCT_LCB* p_lcb) {
 void avct_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16_t /* psm */,
                                 uint8_t /* id */) {
   tAVCT_LCB* p_lcb;
-  uint16_t result = L2CAP_CONN_OK;
+  tL2CAP_CONN result = tL2CAP_CONN::L2CAP_CONN_OK;
 
   /* do we already have a channel for this peer? */
   p_lcb = avct_lcb_by_bd(bd_addr);
@@ -115,14 +113,14 @@ void avct_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16
     p_lcb = avct_lcb_alloc(bd_addr);
     if (p_lcb == NULL) {
       /* no ccb available, reject L2CAP connection */
-      result = L2CAP_CONN_NO_RESOURCES;
+      result = tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES;
     }
   }
   /* else we already have a channel for this peer */
   else {
     if (!avct_l2c_is_passive(p_lcb) || (p_lcb->ch_state == AVCT_CH_OPEN)) {
       /* this LCB included CT role - reject */
-      result = L2CAP_CONN_NO_RESOURCES;
+      result = tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES;
     } else {
       /* TG role only - accept the connection from CT. move the channel ID to
        * the conflict list */
@@ -137,14 +135,14 @@ void avct_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16
   }
 
   /* If we reject the connection, send DisconnectReq */
-  if (result != L2CAP_CONN_OK) {
-    if (!L2CA_DisconnectReq(lcid)) {
+  if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
+    if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
       log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}", bd_addr, lcid);
     }
   }
 
   /* if result ok, proceed with connection */
-  if (result == L2CAP_CONN_OK) {
+  if (result == tL2CAP_CONN::L2CAP_CONN_OK) {
     if (btif_av_src_sink_coexist_enabled()) {
       tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
       for (int i = 0; i < AVCT_NUM_CONN; i++, p_ccb++) {
@@ -187,7 +185,7 @@ static void avct_on_l2cap_error(uint16_t lcid, uint16_t result) {
     p_lcb->ch_result = result;
 
     /* Send L2CAP disconnect req */
-    if (!L2CA_DisconnectReq(lcid)) {
+    if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
       log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}", p_lcb->peer_addr, lcid);
     }
   }
@@ -203,7 +201,7 @@ static void avct_on_l2cap_error(uint16_t lcid, uint16_t result) {
  * Returns          void
  *
  ******************************************************************************/
-void avct_l2c_connect_cfm_cback(uint16_t lcid, uint16_t result) {
+void avct_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
   tAVCT_LCB* p_lcb;
 
   /* look up lcb for this channel */
@@ -216,7 +214,7 @@ void avct_l2c_connect_cfm_cback(uint16_t lcid, uint16_t result) {
     /* if in correct state */
     if (p_lcb->ch_state == AVCT_CH_CONN) {
       /* if result successful */
-      if (result == L2CAP_CONN_OK) {
+      if (result == tL2CAP_CONN::L2CAP_CONN_OK) {
         /* set channel state */
         p_lcb->ch_state = AVCT_CH_CFG;
       }
@@ -228,10 +226,10 @@ void avct_l2c_connect_cfm_cback(uint16_t lcid, uint16_t result) {
       /* we must be in AVCT_CH_CFG state for the ch_lcid channel */
       log::verbose("avct_l2c_connect_cfm_cback ch_state: {}, conflict_lcid:0x{:x}", p_lcb->ch_state,
                    p_lcb->conflict_lcid);
-      if (result == L2CAP_CONN_OK) {
+      if (result == tL2CAP_CONN::L2CAP_CONN_OK) {
         /* just in case the peer also accepts our connection - Send L2CAP
          * disconnect req */
-        if (!L2CA_DisconnectReq(lcid)) {
+        if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
           log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}", p_lcb->peer_addr,
                     lcid);
         }
@@ -322,7 +320,7 @@ void avct_l2c_disconnect_ind_cback(uint16_t lcid, bool /* ack_needed */) {
 }
 
 void avct_l2c_disconnect(uint16_t lcid, uint16_t result) {
-  if (!L2CA_DisconnectReq(lcid)) {
+  if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
     log::warn("Unable to send L2CAP disconnect request cid:{}", lcid);
   }
 

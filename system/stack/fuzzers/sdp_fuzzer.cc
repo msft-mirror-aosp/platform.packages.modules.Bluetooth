@@ -31,6 +31,9 @@
 #include "test/mock/mock_stack_l2cap_api.h"
 #include "types/bluetooth/uuid.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace {
 
 #define SDP_DB_SIZE 0x10000
@@ -44,7 +47,7 @@ constexpr uint8_t kDummyAddr[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
 tL2CAP_APPL_INFO cb_info = {
         .pL2CA_ConnectInd_Cb = [](const RawAddress& bd_addr, uint16_t lcid, uint16_t psm,
                                   uint8_t id) {},                            // tL2CA_CONNECT_IND_CB
-        .pL2CA_ConnectCfm_Cb = [](uint16_t lcid, uint16_t result) {},        // tL2CA_CONNECT_CFM_CB
+        .pL2CA_ConnectCfm_Cb = [](uint16_t lcid, tL2CAP_CONN result) {},     // tL2CA_CONNECT_CFM_CB
         .pL2CA_ConfigInd_Cb = [](uint16_t lcid, tL2CAP_CFG_INFO* p_cfg) {},  // tL2CA_CONFIG_IND_CB
         .pL2CA_ConfigCfm_Cb = [](uint16_t lcid, uint16_t initiator,
                                  tL2CAP_CFG_INFO* p_cfg) {},              // tL2CA_CONFIG_CFM_CB
@@ -59,8 +62,8 @@ tL2CAP_APPL_INFO cb_info = {
                 [](const RawAddress& bdaddr, std::vector<uint16_t>& lcids, uint16_t psm,
                    uint16_t peer_mtu, uint8_t identifier) {},  // tL2CA_CREDIT_BASED_CONNECT_IND_CB
         .pL2CA_CreditBasedConnectCfm_Cb =
-                [](const RawAddress& bdaddr, uint16_t lcid, uint16_t peer_mtu, uint16_t result) {
-                },  // tL2CA_CREDIT_BASED_CONNECT_CFM_CB
+                [](const RawAddress& bdaddr, uint16_t lcid, uint16_t peer_mtu,
+                   tL2CAP_LE_RESULT_CODE result) {},  // tL2CA_CREDIT_BASED_CONNECT_CFM_CB
         .pL2CA_CreditBasedReconfigCompleted_Cb =
                 [](const RawAddress& bdaddr, uint16_t lcid, bool is_local_cfg,
                    tL2CAP_LE_CFG_INFO* p_cfg) {},  // tL2CA_CREDIT_BASED_RECONFIG_COMPLETED_CB
@@ -75,7 +78,7 @@ public:
             [](uint16_t psm, const RawAddress& raw_address) { return kDummyCID; };
     test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity.body =
             [](uint16_t psm, const RawAddress& p_bd_addr, uint16_t sec_level) {
-              return L2CA_ConnectReq(psm, p_bd_addr);
+              return bluetooth::stack::l2cap::get_interface().L2CA_ConnectReq(psm, p_bd_addr);
             };
     test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t cid,
                                                           BT_HDR* p_data) -> tL2CAP_DW_RESULT {
@@ -207,7 +210,7 @@ static void FuzzAsClient(FuzzedDataProvider& fdp) {
     SDP_ServiceSearchAttributeRequest(kDummyAddr, p_db.get(),
                                       [](const RawAddress& bd_addr, tSDP_RESULT result) {});
   }
-  cb_info.pL2CA_ConnectCfm_Cb(kDummyCID, L2CAP_CONN_OK);
+  cb_info.pL2CA_ConnectCfm_Cb(kDummyCID, tL2CAP_CONN::L2CAP_CONN_OK);
 
   tL2CAP_CFG_INFO cfg = {};
   cb_info.pL2CA_ConfigCfm_Cb(kDummyCID, 0, &cfg);

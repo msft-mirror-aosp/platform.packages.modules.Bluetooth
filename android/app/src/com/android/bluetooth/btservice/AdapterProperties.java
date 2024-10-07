@@ -65,6 +65,7 @@ import com.android.modules.utils.build.SdkLevel;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -776,6 +777,7 @@ class AdapterProperties {
                                         BluetoothAdapter.EXTRA_PREVIOUS_CONNECTION_STATE,
                                         prevAdapterState)
                                 .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
+                logProfileConnectionStateChange(device, newState, prevState);
                 Log.d(TAG, "updateOnProfileConnectionChanged: " + logInfo);
                 mService.sendBroadcastAsUser(
                         intent,
@@ -783,6 +785,34 @@ class AdapterProperties {
                         BLUETOOTH_CONNECT,
                         Utils.getTempBroadcastOptions().toBundle());
             }
+        }
+    }
+
+    private void logProfileConnectionStateChange(BluetoothDevice device, int state, int prevState) {
+
+        switch (state) {
+            case BluetoothAdapter.STATE_CONNECTED:
+                MetricsLogger.getInstance()
+                        .logBluetoothEvent(
+                                device,
+                                BluetoothStatsLog
+                                        .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION,
+                                BluetoothStatsLog
+                                        .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__SUCCESS,
+                                0);
+                break;
+            case BluetoothAdapter.STATE_DISCONNECTED:
+                if (prevState == BluetoothAdapter.STATE_CONNECTING) {
+                    MetricsLogger.getInstance()
+                            .logBluetoothEvent(
+                                    device,
+                                    BluetoothStatsLog
+                                            .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION,
+                                    BluetoothStatsLog
+                                            .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__FAIL,
+                                    0);
+                }
+                break;
         }
     }
 
@@ -939,7 +969,15 @@ class AdapterProperties {
             synchronized (mObject) {
                 switch (type) {
                     case AbstractionLayer.BT_PROPERTY_BDNAME:
-                        mName = new String(val);
+                        String name = new String(val);
+                        if (Flags.getNameAndAddressAsCallback() && name.equals(mName)) {
+                            debugLog("Name already set: " + mName);
+                            break;
+                        }
+                        mName = name;
+                        if (Flags.getNameAndAddressAsCallback()) {
+                            mService.updateAdapterName(mName);
+                        }
                         intent = new Intent(BluetoothAdapter.ACTION_LOCAL_NAME_CHANGED);
                         intent.putExtra(BluetoothAdapter.EXTRA_LOCAL_NAME, mName);
                         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
@@ -951,8 +989,17 @@ class AdapterProperties {
                         debugLog("Name is: " + mName);
                         break;
                     case AbstractionLayer.BT_PROPERTY_BDADDR:
+                        if (Flags.getNameAndAddressAsCallback() && Arrays.equals(mAddress, val)) {
+                            debugLog("Address already set");
+                            break;
+                        }
                         mAddress = val;
                         String address = Utils.getAddressStringFromByte(mAddress);
+                        if (Flags.getNameAndAddressAsCallback()) {
+                            mService.updateAdapterAddress(address);
+                            // ACTION_BLUETOOTH_ADDRESS_CHANGED is redundant
+                            break;
+                        }
                         intent = new Intent(BluetoothAdapter.ACTION_BLUETOOTH_ADDRESS_CHANGED);
                         intent.putExtra(BluetoothAdapter.EXTRA_BLUETOOTH_ADDRESS, address);
                         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);

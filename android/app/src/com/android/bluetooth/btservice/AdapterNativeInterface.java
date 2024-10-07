@@ -64,7 +64,6 @@ public class AdapterNativeInterface {
             boolean startRestricted,
             boolean isCommonCriteriaMode,
             int configCompareResult,
-            String[] initFlags,
             boolean isAtvDevice,
             String userDataDirectory) {
         mJniCallbacks = new JniCallbacks(service, adapterProperties);
@@ -72,7 +71,6 @@ public class AdapterNativeInterface {
                 startRestricted,
                 isCommonCriteriaMode,
                 configCompareResult,
-                initFlags,
                 isAtvDevice,
                 userDataDirectory);
     }
@@ -259,6 +257,30 @@ public class AdapterNativeInterface {
                 connectionUuid.getUuid().getMostSignificantBits());
     }
 
+    boolean setDefaultEventMaskExcept(long mask, long leMask) {
+        return setDefaultEventMaskExceptNative(mask, leMask);
+    }
+
+    boolean clearEventFilter() {
+        return clearEventFilterNative();
+    }
+
+    boolean clearFilterAcceptList() {
+        return clearFilterAcceptListNative();
+    }
+
+    boolean disconnectAllAcls() {
+        return disconnectAllAclsNative();
+    }
+
+    boolean allowWakeByHid() {
+        return allowWakeByHidNative();
+    }
+
+    boolean restoreFilterAcceptList() {
+        return restoreFilterAcceptListNative();
+    }
+
     /**********************************************************************************************/
     /*********************************** callbacks from native ************************************/
     /**********************************************************************************************/
@@ -273,7 +295,6 @@ public class AdapterNativeInterface {
             boolean startRestricted,
             boolean isCommonCriteriaMode,
             int configCompareResult,
-            String[] initFlags,
             boolean isAtvDevice,
             String userDataDirectory);
 
@@ -371,4 +392,16 @@ public class AdapterNativeInterface {
 
     private native int getSocketL2capRemoteChannelIdNative(
             long connectionUuidLsb, long connectionUuidMsb);
+
+    private native boolean setDefaultEventMaskExceptNative(long mask, long leMask);
+
+    private native boolean clearEventFilterNative();
+
+    private native boolean clearFilterAcceptListNative();
+
+    private native boolean disconnectAllAclsNative();
+
+    private native boolean allowWakeByHidNative();
+
+    private native boolean restoreFilterAcceptListNative();
 }

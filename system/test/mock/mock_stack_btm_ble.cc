@@ -33,6 +33,9 @@
 
 // Mocked internal structures, if any
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace test {
 namespace mock {
 namespace stack_btm_ble {
@@ -280,8 +283,7 @@ bool btm_get_local_div(const RawAddress& bd_addr, uint16_t* p_div) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_ble::btm_get_local_div(bd_addr, p_div);
 }
-tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
-                               const tSMP_EVT_DATA* p_data) {
+tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr, tSMP_EVT_DATA* p_data) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_ble::btm_proc_smp_cback(event, bd_addr, p_data);
 }
@@ -303,3 +305,7 @@ void read_phy_cb(base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t sta
 // END mockcify generation
 
 std::optional<Octet16> BTM_BleGetPeerLTK(const RawAddress /* address */) { return std::nullopt; }
+
+std::optional<tBLE_BD_ADDR> BTM_BleGetIdentityAddress(const RawAddress /* address */) {
+  return std::nullopt;
+}

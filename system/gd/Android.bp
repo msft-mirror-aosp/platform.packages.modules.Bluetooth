@@ -143,12 +143,10 @@ cc_defaults {
         ":BluetoothDumpsysSources",
         ":BluetoothHalSources",
         ":BluetoothHciSources",
-        ":BluetoothL2capSources",
         ":BluetoothMetricsSources",
         ":BluetoothNeighborSources",
         ":BluetoothOsSources",
         ":BluetoothPacketSources",
-        ":BluetoothSecuritySources",
         ":BluetoothStorageSources",
         "module.cc",
         "module_dumper.cc",
@@ -180,20 +178,17 @@ cc_defaults {
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_log",
-        "libbluetooth_rust_interop",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libosi",
         "server_configurable_flags",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system/include",
+        "packages/modules/Bluetooth/system/stack/include",
         "packages/modules/Bluetooth/system/types",
     ],
-    export_static_lib_headers: ["libbluetooth_rust_interop"],
 }
 
 cc_library {
@@ -288,6 +283,10 @@ cc_binary {
     defaults: [
         "gd_defaults",
     ],
+    cflags: [
+        // The generated gRPC code triggers these warnings.
+        "-Wno-missing-prototypes",
+    ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/include",
@@ -297,7 +296,6 @@ cc_binary {
     srcs: [
         ":BluetoothFacade_hci_hal",
         ":BluetoothFacade_hci_layer",
-        ":BluetoothFacade_l2cap_layer",
         ":BluetoothFacade_neighbor",
         ":TestMockMainShimStack",
         "facade/facade_main.cc",
@@ -309,9 +307,6 @@ cc_binary {
         "BlueberryFacadeGeneratedStub_h",
         "BluetoothGeneratedBundlerSchema_h_bfbs",
         "BluetoothGeneratedDumpsysDataSchema_h",
-        // Needed here to guarantee that generated zip file is created before
-        // bluetooth_cert_tests.zip is packaged
-        "BlueberryFacadeAndCertGeneratedStub_py",
     ],
     generated_sources: [
         "BlueberryFacadeGeneratedStub_cc",
@@ -330,11 +325,8 @@ cc_binary {
         "libbluetooth_l2cap_pdl",
         "libbluetooth_log",
         "libbluetooth_ras_pdl",
-        "libbluetooth_rust_interop",
         "libbluetooth_smp_pdl",
         "libbt-common",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libflatbuffers-cpp",
@@ -409,9 +401,11 @@ cc_test {
         ":BluetoothOsTestSources_timerfd",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
         "libbluetooth_log",
         "libchrome",
         "libgmock",
+        "server_configurable_flags",
     ],
     shared_libs: [
         "libbase",
@@ -476,11 +470,9 @@ cc_test {
         ":BluetoothCryptoToolboxTestSources",
         ":BluetoothHalTestSources",
         ":BluetoothHciUnitTestSources",
-        ":BluetoothL2capUnitTestSources",
         ":BluetoothMetricsTestSources",
         ":BluetoothOsTestSources",
         ":BluetoothPacketTestSources",
-        ":BluetoothSecurityUnitTestSources",
         ":BluetoothStorageUnitTestSources",
         "module_unittest.cc",
         "stack_manager_unittest.cc",
@@ -502,12 +494,9 @@ cc_test {
         "libbluetooth_l2cap_pdl",
         "libbluetooth_log",
         "libbluetooth_ras_pdl",
-        "libbluetooth_rust_interop",
         "libbluetooth_smp_pdl",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libflagtest",
@@ -559,7 +548,7 @@ cc_test {
         "BluetoothGeneratedDumpsysTestData_h",
     ],
     static_libs: [
-        "bluetooth_flags_c_lib",
+        "bluetooth_flags_c_lib_for_test",
         "libbase",
         "libbluetooth-dumpsys",
         "libbluetooth-dumpsys-test",
@@ -570,8 +559,6 @@ cc_test {
         "libbt-btu-main-thread",
         "libbt-common",
         "libbt-jni-thread",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libevent",
         "libflatbuffers-cpp",
@@ -612,9 +599,6 @@ cc_test {
     static_libs: [
         "libbase",
         "libbluetooth_log",
-        "libbluetooth_rust_interop",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "liblog",
     ],
     target: {
@@ -650,10 +634,7 @@ cc_defaults {
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd_fuzzing",
         "libbluetooth_log",
-        "libbluetooth_rust_interop",
         "libbt-common",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libgmock",
@@ -699,7 +680,6 @@ cc_fuzz {
     defaults: ["gd_fuzz_defaults"],
     srcs: [
         ":BluetoothHciFuzzTestSources",
-        ":BluetoothL2capFuzzTestSources",
         "fuzz_test.cc",
     ],
     fuzz_config: {
@@ -735,6 +715,7 @@ cc_fuzz {
 cc_benchmark {
     name: "bluetooth_benchmark_gd",
     defaults: [
+        "aconfig_lib_cc_shared_link.defaults",
         "gd_defaults",
     ],
     host_supported: true,
@@ -743,12 +724,13 @@ cc_benchmark {
         "benchmark.cc",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbase",
         "libbluetooth_gd",
         "libbluetooth_log",
-        "libbt_shim_bridge",
         "libchrome",
         "liblog",
+        "server_configurable_flags",
     ],
 }
 
@@ -760,11 +742,9 @@ genrule {
     ],
     cmd: "$(location flatc) -I packages/modules/Bluetooth/system/gd -b --schema -o $(genDir) $(in) ",
     srcs: [
-        "common/init_flags.fbs",
         "dumpsys_data.fbs",
         "hci/hci_acl_manager.fbs",
         "hci/hci_controller.fbs",
-        "l2cap/classic/l2cap_classic_module.fbs",
         "module_unittest.fbs",
         "os/wakelock_manager.fbs",
         "shim/dumpsys.fbs",
@@ -774,8 +754,6 @@ genrule {
         "dumpsys_data.bfbs",
         "hci_acl_manager.bfbs",
         "hci_controller.bfbs",
-        "init_flags.bfbs",
-        "l2cap_classic_module.bfbs",
         "wakelock_manager.bfbs",
     ],
 }
@@ -787,11 +765,9 @@ genrule {
     ],
     cmd: "$(location flatc) -I packages/modules/Bluetooth/system/gd -o $(genDir) --cpp $(in) ",
     srcs: [
-        "common/init_flags.fbs",
         "dumpsys_data.fbs",
         "hci/hci_acl_manager.fbs",
         "hci/hci_controller.fbs",
-        "l2cap/classic/l2cap_classic_module.fbs",
         "module_unittest.fbs",
         "os/wakelock_manager.fbs",
         "shim/dumpsys.fbs",
@@ -801,8 +777,6 @@ genrule {
         "dumpsys_generated.h",
         "hci_acl_manager_generated.h",
         "hci_controller_generated.h",
-        "init_flags_generated.h",
-        "l2cap_classic_module_generated.h",
         "wakelock_manager_generated.h",
     ],
 }

@@ -244,12 +244,12 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
 
     @Override
     protected IProfileServiceBinder initBinder() {
-        return new OppBinder(this);
+        return new OppBinder();
     }
 
     private static class OppBinder extends Binder implements IProfileServiceBinder {
 
-        OppBinder(BluetoothOppService service) {}
+        OppBinder() {}
 
         @Override
         public void cleanup() {}
@@ -314,6 +314,7 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
     }
 
     @Override
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public void dump(StringBuilder sb) {
         super.dump(sb);
         if (mShares.size() > 0) {

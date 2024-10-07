@@ -133,16 +133,9 @@ void BTA_GATTC_AppDeregister(tGATT_IF client_if) {
  *                  opportunistic, and don't impact the disconnection timer
  *
  ******************************************************************************/
-void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda,
-                    tBTM_BLE_CONN_TYPE connection_type, bool opportunistic) {
-  constexpr uint8_t kPhyLe1M = 0x01;  // From the old controller shim.
-  uint8_t phy = kPhyLe1M;
-  BTA_GATTC_Open(client_if, remote_bda, connection_type, BT_TRANSPORT_LE, opportunistic, phy);
-}
-
 void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda, tBLE_ADDR_TYPE addr_type,
                     tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic,
-                    uint8_t initiating_phys) {
+                    uint8_t initiating_phys, uint16_t preferred_mtu) {
   tBTA_GATTC_DATA data = {
           .api_conn =
                   {
@@ -157,6 +150,7 @@ void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda, tBLE_ADDR_
                           .initiating_phys = initiating_phys,
                           .opportunistic = opportunistic,
                           .remote_addr_type = addr_type,
+                          .preferred_mtu = preferred_mtu,
                   },
   };
 
@@ -164,10 +158,9 @@ void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda, tBLE_ADDR_
 }
 
 void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda,
-                    tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic,
-                    uint8_t initiating_phys) {
+                    tBTM_BLE_CONN_TYPE connection_type, bool opportunistic) {
   BTA_GATTC_Open(client_if, remote_bda, BLE_ADDR_PUBLIC, connection_type, BT_TRANSPORT_LE,
-                 opportunistic, initiating_phys);
+                 opportunistic, LE_PHY_1M, 0);
 }
 
 /*******************************************************************************
@@ -208,11 +201,11 @@ void BTA_GATTC_CancelOpen(tGATT_IF client_if, const RawAddress& remote_bda, bool
  * Returns          void
  *
  ******************************************************************************/
-void BTA_GATTC_Close(uint16_t conn_id) {
+void BTA_GATTC_Close(tCONN_ID conn_id) {
   BT_HDR_RIGID* p_buf = (BT_HDR_RIGID*)osi_malloc(sizeof(BT_HDR_RIGID));
 
   p_buf->event = BTA_GATTC_API_CLOSE_EVT;
-  p_buf->layer_specific = conn_id;
+  p_buf->layer_specific = static_cast<uint16_t>(conn_id);
 
   bta_sys_sendmsg(p_buf);
 }
@@ -231,17 +224,17 @@ void BTA_GATTC_Close(uint16_t conn_id) {
  *
  ******************************************************************************/
 
-void BTA_GATTC_ConfigureMTU(uint16_t conn_id, uint16_t mtu) {
+void BTA_GATTC_ConfigureMTU(tCONN_ID conn_id, uint16_t mtu) {
   BTA_GATTC_ConfigureMTU(conn_id, mtu, NULL, NULL);
 }
 
-void BTA_GATTC_ConfigureMTU(uint16_t conn_id, uint16_t mtu, GATT_CONFIGURE_MTU_OP_CB callback,
+void BTA_GATTC_ConfigureMTU(tCONN_ID conn_id, uint16_t mtu, GATT_CONFIGURE_MTU_OP_CB callback,
                             void* cb_data) {
   tBTA_GATTC_API_CFG_MTU* p_buf =
           (tBTA_GATTC_API_CFG_MTU*)osi_malloc(sizeof(tBTA_GATTC_API_CFG_MTU));
 
   p_buf->hdr.event = BTA_GATTC_API_CFG_MTU_EVT;
-  p_buf->hdr.layer_specific = conn_id;
+  p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
   p_buf->mtu = mtu;
   p_buf->mtu_cb = callback;
   p_buf->mtu_cb_data = cb_data;
@@ -249,32 +242,32 @@ void BTA_GATTC_ConfigureMTU(uint16_t conn_id, uint16_t mtu, GATT_CONFIGURE_MTU_O
   bta_sys_sendmsg(p_buf);
 }
 
-void BTA_GATTC_ServiceSearchAllRequest(uint16_t conn_id) {
+void BTA_GATTC_ServiceSearchAllRequest(tCONN_ID conn_id) {
   const size_t len = sizeof(tBTA_GATTC_API_SEARCH);
   tBTA_GATTC_API_SEARCH* p_buf = (tBTA_GATTC_API_SEARCH*)osi_calloc(len);
 
   p_buf->hdr.event = BTA_GATTC_API_SEARCH_EVT;
-  p_buf->hdr.layer_specific = conn_id;
+  p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
   p_buf->p_srvc_uuid = NULL;
 
   bta_sys_sendmsg(p_buf);
 }
 
-void BTA_GATTC_ServiceSearchRequest(uint16_t conn_id, Uuid p_srvc_uuid) {
+void BTA_GATTC_ServiceSearchRequest(tCONN_ID conn_id, Uuid p_srvc_uuid) {
   const size_t len = sizeof(tBTA_GATTC_API_SEARCH) + sizeof(Uuid);
   tBTA_GATTC_API_SEARCH* p_buf = (tBTA_GATTC_API_SEARCH*)osi_calloc(len);
 
   p_buf->hdr.event = BTA_GATTC_API_SEARCH_EVT;
-  p_buf->hdr.layer_specific = conn_id;
+  p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
   p_buf->p_srvc_uuid = (Uuid*)(p_buf + 1);
   *p_buf->p_srvc_uuid = p_srvc_uuid;
 
   bta_sys_sendmsg(p_buf);
 }
 
-void BTA_GATTC_DiscoverServiceByUuid(uint16_t conn_id, const Uuid& srvc_uuid) {
+void BTA_GATTC_DiscoverServiceByUuid(tCONN_ID conn_id, const Uuid& srvc_uuid) {
   do_in_main_thread(base::BindOnce(
-          base::IgnoreResult<tGATT_STATUS (*)(uint16_t, tGATT_DISC_TYPE, uint16_t, uint16_t,
+          base::IgnoreResult<tGATT_STATUS (*)(tCONN_ID, tGATT_DISC_TYPE, uint16_t, uint16_t,
                                               const Uuid&)>(&GATTC_Discover),
           conn_id, GATT_DISC_SRVC_BY_UUID, 0x0001, 0xFFFF, srvc_uuid));
 }
@@ -291,7 +284,7 @@ void BTA_GATTC_DiscoverServiceByUuid(uint16_t conn_id, const Uuid& srvc_uuid) {
  * Returns          returns list of gatt::Service or NULL.
  *
  ******************************************************************************/
-const std::list<gatt::Service>* BTA_GATTC_GetServices(uint16_t conn_id) {
+const std::list<gatt::Service>* BTA_GATTC_GetServices(tCONN_ID conn_id) {
   return bta_gattc_get_services(conn_id);
 }
 
@@ -308,7 +301,7 @@ const std::list<gatt::Service>* BTA_GATTC_GetServices(uint16_t conn_id) {
  * Returns          returns pointer to gatt::Characteristic or NULL.
  *
  ******************************************************************************/
-const gatt::Characteristic* BTA_GATTC_GetCharacteristic(uint16_t conn_id, uint16_t handle) {
+const gatt::Characteristic* BTA_GATTC_GetCharacteristic(tCONN_ID conn_id, uint16_t handle) {
   return bta_gattc_get_characteristic(conn_id, handle);
 }
 
@@ -325,19 +318,19 @@ const gatt::Characteristic* BTA_GATTC_GetCharacteristic(uint16_t conn_id, uint16
  * Returns          returns pointer to gatt::Descriptor or NULL.
  *
  ******************************************************************************/
-const gatt::Descriptor* BTA_GATTC_GetDescriptor(uint16_t conn_id, uint16_t handle) {
+const gatt::Descriptor* BTA_GATTC_GetDescriptor(tCONN_ID conn_id, uint16_t handle) {
   return bta_gattc_get_descriptor(conn_id, handle);
 }
 
 /* Return characteristic that owns descriptor with handle equal to |handle|, or
  * NULL */
-const gatt::Characteristic* BTA_GATTC_GetOwningCharacteristic(uint16_t conn_id, uint16_t handle) {
+const gatt::Characteristic* BTA_GATTC_GetOwningCharacteristic(tCONN_ID conn_id, uint16_t handle) {
   return bta_gattc_get_owning_characteristic(conn_id, handle);
 }
 
 /* Return service that owns descriptor or characteristic with handle equal to
  * |handle|, or NULL */
-const gatt::Service* BTA_GATTC_GetOwningService(uint16_t conn_id, uint16_t handle) {
+const gatt::Service* BTA_GATTC_GetOwningService(tCONN_ID conn_id, uint16_t handle) {
   return bta_gattc_get_service_for_handle(conn_id, handle);
 }
 
@@ -353,7 +346,7 @@ const gatt::Service* BTA_GATTC_GetOwningService(uint16_t conn_id, uint16_t handl
  *                  count: number of elements in database.
  *
  ******************************************************************************/
-void BTA_GATTC_GetGattDb(uint16_t conn_id, uint16_t start_handle, uint16_t end_handle,
+void BTA_GATTC_GetGattDb(tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
                          btgatt_db_element_t** db, int* count) {
   bta_gattc_get_gatt_db(conn_id, start_handle, end_handle, db, count);
 }
@@ -370,12 +363,12 @@ void BTA_GATTC_GetGattDb(uint16_t conn_id, uint16_t start_handle, uint16_t end_h
  * Returns          None
  *
  ******************************************************************************/
-void BTA_GATTC_ReadCharacteristic(uint16_t conn_id, uint16_t handle, tGATT_AUTH_REQ auth_req,
+void BTA_GATTC_ReadCharacteristic(tCONN_ID conn_id, uint16_t handle, tGATT_AUTH_REQ auth_req,
                                   GATT_READ_OP_CB callback, void* cb_data) {
   tBTA_GATTC_API_READ* p_buf = (tBTA_GATTC_API_READ*)osi_calloc(sizeof(tBTA_GATTC_API_READ));
 
   p_buf->hdr.event = BTA_GATTC_API_READ_EVT;
-  p_buf->hdr.layer_specific = conn_id;
+  p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
   p_buf->is_multi_read = false;
   p_buf->auth_req = auth_req;
   p_buf->handle = handle;
@@ -389,13 +382,13 @@ void BTA_GATTC_ReadCharacteristic(uint16_t conn_id, uint16_t handle, tGATT_AUTH_
  * This function is called to read a value of characteristic with uuid equal to
  * |uuid|
  */
-void BTA_GATTC_ReadUsingCharUuid(uint16_t conn_id, const Uuid& uuid, uint16_t s_handle,
+void BTA_GATTC_ReadUsingCharUuid(tCONN_ID conn_id, const Uuid& uuid, uint16_t s_handle,
                                  uint16_t e_handle, tGATT_AUTH_REQ auth_req,
                                  GATT_READ_OP_CB callback, void* cb_data) {
   tBTA_GATTC_API_READ* p_buf = (tBTA_GATTC_API_READ*)osi_calloc(sizeof(tBTA_GATTC_API_READ));
 
   p_buf->hdr.event = BTA_GATTC_API_READ_EVT;
-  p_buf->hdr.layer_specific = conn_id;
+  p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
   p_buf->is_multi_read = false;
   p_buf->auth_req = auth_req;
   p_buf->handle = 0;
@@ -420,12 +413,12 @@ void BTA_GATTC_ReadUsingCharUuid(uint16_t conn_id, const Uuid& uuid, uint16_t s_
  * Returns          None
  *
  ******************************************************************************/
-void BTA_GATTC_ReadCharDescr(uint16_t conn_id, uint16_t handle, tGATT_AUTH_REQ auth_req,
+void BTA_GATTC_ReadCharDescr(tCONN_ID conn_id, uint16_t handle, tGATT_AUTH_REQ auth_req,
                              GATT_READ_OP_CB callback, void* cb_data) {
   tBTA_GATTC_API_READ* p_buf = (tBTA_GATTC_API_READ*)osi_calloc(sizeof(tBTA_GATTC_API_READ));
 
   p_buf->hdr.event = BTA_GATTC_API_READ_EVT;
-  p_buf->hdr.layer_specific = conn_id;
+  p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
   p_buf->is_multi_read = false;
   p_buf->auth_req = auth_req;
   p_buf->handle = handle;
@@ -442,7 +435,7 @@ void BTA_GATTC_ReadCharDescr(uint16_t conn_id, uint16_t handle, tGATT_AUTH_REQ a
  * Description      This function is called to read multiple characteristic or
  *                  characteristic descriptors.
  *
- * Parameters       conn_id - connectino ID.
+ * Parameters       conn_id - connection ID.
  *                  p_read_multi - pointer to the read multiple parameter.
  *                  variable_len - whether "read multi variable length" variant
  *                                 shall be used.
@@ -451,14 +444,14 @@ void BTA_GATTC_ReadCharDescr(uint16_t conn_id, uint16_t handle, tGATT_AUTH_REQ a
  * Returns          None
  *
  ******************************************************************************/
-void BTA_GATTC_ReadMultiple(uint16_t conn_id, tBTA_GATTC_MULTI& handles, bool variable_len,
+void BTA_GATTC_ReadMultiple(tCONN_ID conn_id, tBTA_GATTC_MULTI& handles, bool variable_len,
                             tGATT_AUTH_REQ auth_req, GATT_READ_MULTI_OP_CB callback,
                             void* cb_data) {
   tBTA_GATTC_API_READ_MULTI* p_buf =
           (tBTA_GATTC_API_READ_MULTI*)osi_calloc(sizeof(tBTA_GATTC_API_READ_MULTI));
 
   p_buf->hdr.event = BTA_GATTC_API_READ_MULTI_EVT;
-  p_buf->hdr.layer_specific = conn_id;
+  p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
   p_buf->is_multi_read = true;
   p_buf->auth_req = auth_req;
   p_buf->handles = handles;
@@ -482,14 +475,14 @@ void BTA_GATTC_ReadMultiple(uint16_t conn_id, tBTA_GATTC_MULTI& handles, bool va
  * Returns          None
  *
  ******************************************************************************/
-void BTA_GATTC_WriteCharValue(uint16_t conn_id, uint16_t handle, tGATT_WRITE_TYPE write_type,
+void BTA_GATTC_WriteCharValue(tCONN_ID conn_id, uint16_t handle, tGATT_WRITE_TYPE write_type,
                               std::vector<uint8_t> value, tGATT_AUTH_REQ auth_req,
                               GATT_WRITE_OP_CB callback, void* cb_data) {
   tBTA_GATTC_API_WRITE* p_buf =
           (tBTA_GATTC_API_WRITE*)osi_calloc(sizeof(tBTA_GATTC_API_WRITE) + value.size());
 
   p_buf->hdr.event = BTA_GATTC_API_WRITE_EVT;
-  p_buf->hdr.layer_specific = conn_id;
+  p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
   p_buf->auth_req = auth_req;
   p_buf->handle = handle;
   p_buf->write_type = write_type;
@@ -518,13 +511,13 @@ void BTA_GATTC_WriteCharValue(uint16_t conn_id, uint16_t handle, tGATT_WRITE_TYP
  * Returns          None
  *
  ******************************************************************************/
-void BTA_GATTC_WriteCharDescr(uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
+void BTA_GATTC_WriteCharDescr(tCONN_ID conn_id, uint16_t handle, std::vector<uint8_t> value,
                               tGATT_AUTH_REQ auth_req, GATT_WRITE_OP_CB callback, void* cb_data) {
   tBTA_GATTC_API_WRITE* p_buf =
           (tBTA_GATTC_API_WRITE*)osi_calloc(sizeof(tBTA_GATTC_API_WRITE) + value.size());
 
   p_buf->hdr.event = BTA_GATTC_API_WRITE_EVT;
-  p_buf->hdr.layer_specific = conn_id;
+  p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
   p_buf->auth_req = auth_req;
   p_buf->handle = handle;
   p_buf->write_type = GATT_WRITE;
@@ -555,14 +548,14 @@ void BTA_GATTC_WriteCharDescr(uint16_t conn_id, uint16_t handle, std::vector<uin
  * Returns          None
  *
  ******************************************************************************/
-void BTA_GATTC_PrepareWrite(uint16_t conn_id, uint16_t handle, uint16_t offset,
+void BTA_GATTC_PrepareWrite(tCONN_ID conn_id, uint16_t handle, uint16_t offset,
                             std::vector<uint8_t> value, tGATT_AUTH_REQ auth_req,
                             GATT_WRITE_OP_CB callback, void* cb_data) {
   tBTA_GATTC_API_WRITE* p_buf =
           (tBTA_GATTC_API_WRITE*)osi_calloc(sizeof(tBTA_GATTC_API_WRITE) + value.size());
 
   p_buf->hdr.event = BTA_GATTC_API_WRITE_EVT;
-  p_buf->hdr.layer_specific = conn_id;
+  p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
   p_buf->auth_req = auth_req;
   p_buf->handle = handle;
   p_buf->write_cb = callback;
@@ -593,11 +586,11 @@ void BTA_GATTC_PrepareWrite(uint16_t conn_id, uint16_t handle, uint16_t offset,
  * Returns          None
  *
  ******************************************************************************/
-void BTA_GATTC_ExecuteWrite(uint16_t conn_id, bool is_execute) {
+void BTA_GATTC_ExecuteWrite(tCONN_ID conn_id, bool is_execute) {
   tBTA_GATTC_API_EXEC* p_buf = (tBTA_GATTC_API_EXEC*)osi_calloc(sizeof(tBTA_GATTC_API_EXEC));
 
   p_buf->hdr.event = BTA_GATTC_API_EXEC_EVT;
-  p_buf->hdr.layer_specific = conn_id;
+  p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
   p_buf->is_execute = is_execute;
 
   bta_sys_sendmsg(p_buf);
@@ -615,14 +608,14 @@ void BTA_GATTC_ExecuteWrite(uint16_t conn_id, bool is_execute) {
  * Returns          None
  *
  ******************************************************************************/
-void BTA_GATTC_SendIndConfirm(uint16_t conn_id, uint16_t cid) {
+void BTA_GATTC_SendIndConfirm(tCONN_ID conn_id, uint16_t cid) {
   tBTA_GATTC_API_CONFIRM* p_buf =
           (tBTA_GATTC_API_CONFIRM*)osi_calloc(sizeof(tBTA_GATTC_API_CONFIRM));
 
   log::verbose("conn_id={} cid=0x{:x}", conn_id, cid);
 
   p_buf->hdr.event = BTA_GATTC_API_CONFIRM_EVT;
-  p_buf->hdr.layer_specific = conn_id;
+  p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
   p_buf->cid = cid;
 
   bta_sys_sendmsg(p_buf);

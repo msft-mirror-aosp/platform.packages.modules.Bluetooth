@@ -19,18 +19,23 @@
  *   Functions generated:47
  */
 
+#include <base/functional/callback.h>
+
 #include <cstdint>
 #include <vector>
 
 #include "stack/btm/btm_ble_int.h"
 #include "stack/btm/btm_ble_int_types.h"
 #include "stack/include/bt_dev_class.h"
-#include "stack/include/btm_api_types.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
+#include "stack/include/rnr_interface.h"
 #include "test/common/mock_functions.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using StartSyncCb = base::Callback<void(
         uint8_t /*status*/, uint16_t /*sync_handle*/, uint8_t /*advertising_sid*/,
@@ -50,6 +55,10 @@ bool BTM_BleConfigPrivacy(bool /* privacy_mode */) {
   return false;
 }
 bool BTM_BleLocalPrivacyEnabled(void) {
+  inc_func_call_count(__func__);
+  return false;
+}
+bool btm_ble_read_remote_cod(const RawAddress& /* remote_bda */) {
   inc_func_call_count(__func__);
   return false;
 }
@@ -75,7 +84,8 @@ void BTM_BleOpportunisticObserve(bool /* enable */, tBTM_INQ_RESULTS_CB* /* p_re
 void BTM_BleTargetAnnouncementObserve(bool /* enable */, tBTM_INQ_RESULTS_CB* /* p_results_cb */) {
   inc_func_call_count(__func__);
 }
-tBTM_STATUS btm_ble_read_remote_name(const RawAddress& /* remote_bda */, tBTM_CMPL_CB* /* p_cb */) {
+tBTM_STATUS btm_ble_read_remote_name(const RawAddress& /* remote_bda */,
+                                     tBTM_NAME_CMPL_CB* /* p_cb */) {
   inc_func_call_count(__func__);
   return tBTM_STATUS::BTM_SUCCESS;
 }

@@ -45,7 +45,6 @@ static_library("bta") {
     "dm/bta_dm_ci.cc",
     "dm/bta_dm_device_search.cc",
     "dm/bta_dm_disc.cc",
-    "dm/bta_dm_disc_legacy.cc",
     "dm/bta_dm_disc_sdp.cc",
     "dm/bta_dm_gatt_client.cc",
     "dm/bta_dm_main.cc",
@@ -173,7 +172,6 @@ static_library("bta") {
     "//bt/system/bta:install_audio_set_scenarios_bfbs",
     "//bt/system/bta:install_audio_set_configurations_bfbs",
     "//bt/system:libbt-platform-protos-lite",
-    "//bt/system/gd/rust/shim:init_flags_bridge_header",
   ]
 
   libs = [

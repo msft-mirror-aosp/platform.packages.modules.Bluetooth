@@ -77,7 +77,7 @@ public class BluetoothPbapVcardManager {
 
     static final int CONTACTS_NAME_COLUMN_INDEX = 1;
 
-    static long sLastFetchedTimeStamp;
+    private long mLastFetchedTimeStamp;
 
     // call histories use dynamic handles, and handles should order by date; the
     // most recently one should be the first handle. In table "calls", _id and
@@ -90,7 +90,7 @@ public class BluetoothPbapVcardManager {
     public BluetoothPbapVcardManager(final Context context) {
         mContext = context;
         mResolver = mContext.getContentResolver();
-        sLastFetchedTimeStamp = System.currentTimeMillis();
+        mLastFetchedTimeStamp = System.currentTimeMillis();
     }
 
     /** Create an owner vcard from the configured profile */
@@ -528,9 +528,9 @@ public class BluetoothPbapVcardManager {
     byte[] getCallHistoryPrimaryFolderVersion(final int type) {
         final Uri myUri = CallLog.Calls.CONTENT_URI;
         String selection = BluetoothPbapObexServer.createSelectionPara(type);
-        selection = selection + " AND date >= " + sLastFetchedTimeStamp;
+        selection = selection + " AND date >= " + mLastFetchedTimeStamp;
 
-        Log.d(TAG, "LAST_FETCHED_TIME_STAMP is " + sLastFetchedTimeStamp);
+        Log.d(TAG, "LAST_FETCHED_TIME_STAMP is " + mLastFetchedTimeStamp);
         Cursor callCursor = null;
         long count = 0;
         long primaryVcMsb = 0;
@@ -555,7 +555,7 @@ public class BluetoothPbapVcardManager {
             }
         }
 
-        sLastFetchedTimeStamp = System.currentTimeMillis();
+        mLastFetchedTimeStamp = System.currentTimeMillis();
         Log.d(TAG, "getCallHistoryPrimaryFolderVersion count is " + count + " type is " + type);
         ByteBuffer pvc = ByteBuffer.allocate(16);
         pvc.putLong(primaryVcMsb);
@@ -1103,13 +1103,11 @@ public class BluetoothPbapVcardManager {
             boolean vCardSelct) {
         long timestamp = System.currentTimeMillis();
 
-        BluetoothPbapCallLogComposer composer = null;
         HandlerForStringBuffer buffer = null;
 
-        try {
+        try (BluetoothPbapCallLogComposer composer = new BluetoothPbapCallLogComposer(mContext)) {
             VCardFilter vcardfilter = new VCardFilter(ignorefilter ? null : filter);
             PropertySelector vcardselector = new PropertySelector(selector);
-            composer = new BluetoothPbapCallLogComposer(mContext);
             buffer = new HandlerForStringBuffer(op, ownerVCard);
             if (!composer.init(CallLog.Calls.CONTENT_URI, selection, null, CALLLOG_SORT_ORDER)
                     || !buffer.init()) {
@@ -1182,9 +1180,6 @@ public class BluetoothPbapVcardManager {
                 return pbSize;
             }
         } finally {
-            if (composer != null) {
-                composer.terminate();
-            }
             if (buffer != null) {
                 buffer.terminate();
             }

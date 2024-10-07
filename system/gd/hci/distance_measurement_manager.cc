@@ -19,6 +19,7 @@
 #include <com_android_bluetooth_flags.h>
 #include <math.h>
 
+#include <chrono>
 #include <complex>
 #include <unordered_map>
 
@@ -41,7 +42,6 @@ using bluetooth::hci::acl_manager::PacketViewForRecombination;
 
 namespace bluetooth {
 namespace hci {
-
 const ModuleFactory DistanceMeasurementManager::Factory =
         ModuleFactory([]() { return new DistanceMeasurementManager(); });
 static constexpr uint16_t kIllegalConnectionHandle = 0xffff;
@@ -132,6 +132,39 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     uint8_t ras_subevent_counter_ = 0;
   };
 
+  struct RSSITracker {
+    uint16_t handle;
+    uint16_t interval_ms;
+    uint8_t remote_tx_power;
+    bool started;
+    std::unique_ptr<os::RepeatingAlarm> repeating_alarm;
+  };
+
+  struct CsTracker {
+    Address address;
+    uint16_t local_counter;
+    uint16_t remote_counter;
+    CsRole role;
+    bool local_start = false;  // If the CS was started by the local device.
+    bool measurement_ongoing = false;
+    bool ras_connected = false;
+    bool setup_complete = false;
+    bool config_set = false;
+    CsMainModeType main_mode_type;
+    CsSubModeType sub_mode_type;
+    CsRttType rtt_type;
+    bool remote_support_phase_based_ranging = false;
+    uint8_t config_id = 0;
+    uint8_t selected_tx_power = 0;
+    std::vector<CsProcedureData> procedure_data_list;
+    uint16_t interval_ms;
+    bool waiting_for_start_callback = false;
+    std::unique_ptr<os::RepeatingAlarm> repeating_alarm;
+    // RAS data
+    RangingHeader ranging_header_;
+    PacketViewForRecombination segment_data_;
+  };
+
   void OnOpened(
           uint16_t connection_handle,
           const std::vector<bluetooth::hal::VendorSpecificCharacteristic>& vendor_specific_reply) {
@@ -139,8 +172,6 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
               vendor_specific_reply.size());
     if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
       log::error("Can't find CS tracker for connection_handle {}", connection_handle);
-      distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
-              cs_trackers_[connection_handle].address, REASON_INTERNAL_ERROR, METHOD_CS);
       return;
     }
 
@@ -152,11 +183,15 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       return;
     }
 
-    start_distance_measurement_with_cs(tracker.address, connection_handle, tracker.interval_ms);
+    start_distance_measurement_with_cs(tracker.address, connection_handle);
   }
 
   void OnOpenFailed(uint16_t connection_handle) {
     log::info("connection_handle:0x{:04x}", connection_handle);
+    if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
+      log::error("Can't find CS tracker for connection_handle {}", connection_handle);
+      return;
+    }
     distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
             cs_trackers_[connection_handle].address, REASON_INTERNAL_ERROR, METHOD_CS);
   }
@@ -165,8 +200,6 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     log::info("connection_handle:0x{:04x}, success:{}", connection_handle, success);
     if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
       log::error("Can't find CS tracker for connection_handle {}", connection_handle);
-      distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
-              cs_trackers_[connection_handle].address, REASON_INTERNAL_ERROR, METHOD_CS);
       return;
     }
     distance_measurement_callbacks_->OnHandleVendorSpecificReplyComplete(
@@ -180,9 +213,12 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
     log::debug("address {}, resultMeters {}", cs_trackers_[connection_handle].address,
                ranging_result.result_meters_);
+    using namespace std::chrono;
+    long elapsedRealtimeNanos =
+            duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
     distance_measurement_callbacks_->OnDistanceMeasurementResult(
             cs_trackers_[connection_handle].address, ranging_result.result_meters_ * 100, 0.0, -1,
-            -1, -1, -1, DistanceMeasurementMethod::METHOD_CS);
+            -1, -1, -1, elapsedRealtimeNanos, DistanceMeasurementMethod::METHOD_CS);
   }
 
   ~impl() {}
@@ -205,7 +241,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             handler_->BindOnceOn(this, &impl::on_cs_read_local_supported_capabilities));
     if (ranging_hal_->IsBound()) {
       ranging_hal_->RegisterCallback(this);
-    };
+    }
   }
 
   void stop() { hci_layer_->UnregisterLeEventHandler(hci::SubeventCode::TRANSMIT_POWER_REPORTING); }
@@ -220,10 +256,9 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
   }
 
-  void start_distance_measurement(const Address address, uint16_t interval,
-                                  DistanceMeasurementMethod method) {
+  void start_distance_measurement(const Address address, uint16_t connection_handle,
+                                  uint16_t interval, DistanceMeasurementMethod method) {
     log::info("Address:{}, method:{}", address, method);
-    uint16_t connection_handle = acl_manager_->HACK_GetLeHandle(address);
 
     // Remove this check if we support any connection less method
     if (connection_handle == kIllegalConnectionHandle) {
@@ -243,8 +278,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
           rssi_trackers[address].started = false;
           rssi_trackers[address].repeating_alarm = std::make_unique<os::RepeatingAlarm>(handler_);
           hci_layer_->EnqueueCommand(
-                  LeReadRemoteTransmitPowerLevelBuilder::Create(
-                          acl_manager_->HACK_GetLeHandle(address), 0x01),
+                  LeReadRemoteTransmitPowerLevelBuilder::Create(connection_handle, 0x01),
                   handler_->BindOnceOn(this, &impl::on_read_remote_transmit_power_level_status,
                                        address));
         } else {
@@ -252,13 +286,35 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
         }
       } break;
       case METHOD_CS: {
-        start_distance_measurement_with_cs(address, connection_handle, interval);
+        init_cs_tracker(address, connection_handle, interval);
+        start_distance_measurement_with_cs(address, connection_handle);
       } break;
     }
   }
 
+  void init_cs_tracker(const Address& cs_remote_address, uint16_t connection_handle,
+                       uint16_t interval) {
+    if (cs_trackers_.find(connection_handle) != cs_trackers_.end() &&
+        cs_trackers_[connection_handle].address != cs_remote_address) {
+      log::debug("Remove old tracker for {}", cs_remote_address);
+      cs_trackers_.erase(connection_handle);
+    }
+    if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
+      cs_trackers_[connection_handle].address = cs_remote_address;
+    }
+    // make sure the repeating_alarm is initialized.
+    if (cs_trackers_[connection_handle].repeating_alarm == nullptr) {
+      cs_trackers_[connection_handle].repeating_alarm =
+              std::make_unique<os::RepeatingAlarm>(handler_);
+    }
+    cs_trackers_[connection_handle].interval_ms = interval;
+    cs_trackers_[connection_handle].local_start = true;
+    cs_trackers_[connection_handle].measurement_ongoing = true;
+    cs_trackers_[connection_handle].waiting_for_start_callback = true;
+  }
+
   void start_distance_measurement_with_cs(const Address& cs_remote_address,
-                                          uint16_t connection_handle, uint16_t interval) {
+                                          uint16_t connection_handle) {
     log::info("connection_handle: {}, address: {}", connection_handle, cs_remote_address);
     if (!com::android::bluetooth::flags::channel_sounding_in_stack()) {
       log::error("Channel Sounding is not enabled");
@@ -266,23 +322,6 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
               cs_remote_address, REASON_INTERNAL_ERROR, METHOD_CS);
       return;
     }
-
-    if (cs_trackers_.find(connection_handle) != cs_trackers_.end() &&
-        cs_trackers_[connection_handle].address != cs_remote_address) {
-      log::warn("Remove old tracker for {}", cs_remote_address);
-      cs_trackers_.erase(connection_handle);
-    }
-
-    if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
-      // Create a cs tracker with role initiator
-      cs_trackers_[connection_handle].address = cs_remote_address;
-      // TODO: Check ROLE via CS config. (b/304295768)
-      cs_trackers_[connection_handle].role = CsRole::INITIATOR;
-      cs_trackers_[connection_handle].repeating_alarm =
-              std::make_unique<os::RepeatingAlarm>(handler_);
-    }
-    cs_trackers_[connection_handle].interval_ms = interval;
-    cs_trackers_[connection_handle].waiting_for_start_callback = true;
 
     if (!cs_trackers_[connection_handle].ras_connected) {
       log::info("Waiting for RAS connected");
@@ -294,6 +333,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       return;
     }
     if (!cs_trackers_[connection_handle].config_set) {
+      // TODO: compare the config set with the requested config.
+      // The config may be override by reflector. consider to use different tracker for reflector
       send_le_cs_create_config(connection_handle);
       return;
     }
@@ -307,7 +348,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             std::chrono::milliseconds(cs_trackers_[connection_handle].interval_ms));
   }
 
-  void stop_distance_measurement(const Address address, DistanceMeasurementMethod method) {
+  void stop_distance_measurement(const Address address, uint16_t connection_handle,
+                                 DistanceMeasurementMethod method) {
     log::info("Address:{}, method:{}", address, method);
     switch (method) {
       case METHOD_AUTO:
@@ -326,23 +368,19 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
         }
       } break;
       case METHOD_CS: {
-        uint16_t connection_handle = acl_manager_->HACK_GetLeHandle(address);
         if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
           log::warn("Can't find CS tracker for {}", address);
-        } else {
+        } else if (cs_trackers_[connection_handle].measurement_ongoing) {
           cs_trackers_[connection_handle].repeating_alarm->Cancel();
-          cs_trackers_[connection_handle].repeating_alarm.reset();
           send_le_cs_procedure_enable(connection_handle, Enable::DISABLED);
-          cs_trackers_.erase(connection_handle);
         }
       } break;
     }
   }
 
   void handle_ras_connected_event(
-          const Address address, uint16_t att_handle,
+          const Address address, uint16_t connection_handle, uint16_t att_handle,
           const std::vector<hal::VendorSpecificCharacteristic> vendor_specific_data) {
-    uint16_t connection_handle = acl_manager_->HACK_GetLeHandle(address);
     log::info(
             "address:{}, connection_handle 0x{:04x}, att_handle 0x{:04x}, size of "
             "vendor_specific_data {}",
@@ -363,13 +401,29 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       ranging_hal_->OpenSession(connection_handle, att_handle, vendor_specific_data);
       return;
     }
-    start_distance_measurement_with_cs(tracker.address, connection_handle, tracker.interval_ms);
+    start_distance_measurement_with_cs(tracker.address, connection_handle);
+  }
+
+  void handle_ras_disconnected_event(const Address address) {
+    log::info("address:{}", address);
+    for (auto it = cs_trackers_.begin(); it != cs_trackers_.end();) {
+      if (it->second.address == address) {
+        if (it->second.repeating_alarm != nullptr) {
+          it->second.repeating_alarm->Cancel();
+          it->second.repeating_alarm.reset();
+        }
+        distance_measurement_callbacks_->OnDistanceMeasurementStopped(
+                address, REASON_NO_LE_CONNECTION, METHOD_CS);
+        it = cs_trackers_.erase(it);  // erase and get the next iterator
+      } else {
+        ++it;
+      }
+    }
   }
 
   void handle_vendor_specific_reply(
-          const Address address,
+          const Address address, uint16_t connection_handle,
           const std::vector<hal::VendorSpecificCharacteristic> vendor_specific_reply) {
-    uint16_t connection_handle = acl_manager_->HACK_GetLeHandle(address);
     cs_trackers_[connection_handle].address = address;
     if (ranging_hal_->IsBound()) {
       ranging_hal_->HandleVendorSpecificReply(connection_handle, vendor_specific_reply);
@@ -377,8 +431,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
   }
 
-  void handle_vendor_specific_reply_complete(const Address address, bool success) {
-    uint16_t connection_handle = acl_manager_->HACK_GetLeHandle(address);
+  void handle_vendor_specific_reply_complete(const Address address, uint16_t connection_handle,
+                                             bool success) {
     log::info("address:{}, connection_handle:0x{:04x}, success:{}", address, connection_handle,
               success);
     if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
@@ -395,16 +449,16 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
 
     auto& tracker = cs_trackers_[connection_handle];
-    start_distance_measurement_with_cs(tracker.address, connection_handle, tracker.interval_ms);
+    start_distance_measurement_with_cs(tracker.address, connection_handle);
   }
 
-  void send_read_rssi(const Address& address) {
+  void send_read_rssi(const Address& address, uint16_t connection_handle) {
     if (rssi_trackers.find(address) == rssi_trackers.end()) {
       log::warn("Can't find rssi tracker for {}", address);
       return;
     }
-    uint16_t connection_handle = acl_manager_->HACK_GetLeHandle(address);
-    if (connection_handle == kIllegalConnectionHandle) {
+    Address connection_address = acl_manager_->HACK_GetLeAddress(connection_handle);
+    if (connection_address.IsEmpty()) {
       log::warn("Can't find connection for {}", address);
       if (rssi_trackers.find(address) != rssi_trackers.end()) {
         distance_measurement_callbacks_->OnDistanceMeasurementStopped(
@@ -455,21 +509,20 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   void send_le_cs_read_remote_supported_capabilities(uint16_t connection_handle) {
     hci_layer_->EnqueueCommand(
             LeCsReadRemoteSupportedCapabilitiesBuilder::Create(connection_handle),
-            handler_->BindOnce(check_status<LeCsReadRemoteSupportedCapabilitiesStatusView>));
+            handler_->BindOnceOn(this, &impl::on_cs_setup_command_status_cb, connection_handle));
   }
 
   void send_le_cs_security_enable(uint16_t connection_handle) {
-    hci_layer_->EnqueueCommand(LeCsSecurityEnableBuilder::Create(connection_handle),
-                               handler_->BindOnce(check_status<LeCsSecurityEnableStatusView>));
+    hci_layer_->EnqueueCommand(
+            LeCsSecurityEnableBuilder::Create(connection_handle),
+            handler_->BindOnceOn(this, &impl::on_cs_setup_command_status_cb, connection_handle));
   }
 
   void send_le_cs_set_default_settings(uint16_t connection_handle) {
     uint8_t role_enable = (1 << (uint8_t)CsRole::INITIATOR) | 1 << ((uint8_t)CsRole::REFLECTOR);
     hci_layer_->EnqueueCommand(
             LeCsSetDefaultSettingsBuilder::Create(connection_handle, role_enable,
-                                                  kCsSyncAntennaSelection,
-                                                  kCsMaxTxPower  // max_tx_power
-                                                  ),
+                                                  kCsSyncAntennaSelection, kCsMaxTxPower),
             handler_->BindOnceOn(this, &impl::on_cs_set_default_settings_complete));
   }
 
@@ -486,7 +539,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
                     CsConfigRttType::RTT_WITH_128_BIT_RANDOM_SEQUENCE, CsSyncPhy::LE_1M_PHY,
                     channel_map, kChannelMapRepetition, CsChannelSelectionType::TYPE_3B,
                     CsCh3cShape::HAT_SHAPE, kCh3cJump, Enable::DISABLED),
-            handler_->BindOnce(check_status<LeCsCreateConfigStatusView>));
+            handler_->BindOnceOn(this, &impl::on_cs_setup_command_status_cb, connection_handle));
   }
 
   void send_le_cs_set_procedure_parameters(uint16_t connection_handle) {
@@ -500,26 +553,52 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             handler_->BindOnceOn(this, &impl::on_cs_set_procedure_parameters));
   }
 
+  static void reset_tracker_on_stopped(CsTracker* cs_tracker) {
+    cs_tracker->local_start = false;
+    cs_tracker->measurement_ongoing = false;
+  }
+
+  void handle_cs_setup_failure(uint16_t connection_handle, DistanceMeasurementErrorCode errorCode) {
+    auto it = cs_trackers_.find(connection_handle);
+    if (it == cs_trackers_.end()) {
+      log::debug("no cs tracker is found for connection - {}", connection_handle);
+      return;
+    }
+    if (it->second.local_start) {
+      if (it->second.waiting_for_start_callback) {
+        distance_measurement_callbacks_->OnDistanceMeasurementStartFail(it->second.address,
+                                                                        errorCode, METHOD_CS);
+      } else {
+        distance_measurement_callbacks_->OnDistanceMeasurementStopped(it->second.address, errorCode,
+                                                                      METHOD_CS);
+      }
+      it->second.repeating_alarm->Cancel();
+      it->second.repeating_alarm.reset();
+    }
+    reset_tracker_on_stopped(&(it->second));
+    // the cs_tracker should be kept until the connection is disconnected
+  }
+
   void send_le_cs_procedure_enable(uint16_t connection_handle, Enable enable) {
+    log::debug("cmd {}", enable);
     if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
       log::warn("Can't find cs tracker for connection {}", connection_handle);
       return;
     }
-    Address address = cs_trackers_[connection_handle].address;
-    // Check if the connection still exists
-    uint16_t connection_handle_from_acl_manager = acl_manager_->HACK_GetLeHandle(address);
-    if (connection_handle_from_acl_manager == kIllegalConnectionHandle) {
-      log::warn("Can't find connection for {}", address);
-      distance_measurement_callbacks_->OnDistanceMeasurementStopped(
-              address, REASON_NO_LE_CONNECTION, METHOD_CS);
-      cs_trackers_[connection_handle].repeating_alarm->Cancel();
-      cs_trackers_[connection_handle].repeating_alarm.reset();
-      cs_trackers_.erase(connection_handle);
-      return;
-    }
+
     hci_layer_->EnqueueCommand(
             LeCsProcedureEnableBuilder::Create(connection_handle, kConfigId, enable),
-            handler_->BindOnce(check_status<LeCsProcedureEnableStatusView>));
+            handler_->BindOnceOn(this, &impl::on_cs_setup_command_status_cb, connection_handle));
+  }
+
+  void on_cs_setup_command_status_cb(uint16_t connection_handle, CommandStatusView status_view) {
+    ErrorCode status = status_view.GetStatus();
+    OpCode op_code = status_view.GetCommandOpCode();
+    if (status != ErrorCode::SUCCESS) {
+      log::error("Error code {}, opcode {} for connection-{}", ErrorCodeText(status),
+                 OpCodeText(op_code), connection_handle);
+      handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+    }
   }
 
   void on_cs_read_local_supported_capabilities(CommandCompleteView view) {
@@ -541,21 +620,22 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (!event_view.IsValid()) {
       log::warn("Get invalid LeCsReadRemoteSupportedCapabilitiesCompleteView");
       return;
-    } else if (event_view.GetStatus() != ErrorCode::SUCCESS) {
+    }
+    uint16_t connection_handle = event_view.GetConnectionHandle();
+    if (event_view.GetStatus() != ErrorCode::SUCCESS) {
       std::string error_code = ErrorCodeText(event_view.GetStatus());
       log::warn("Received LeCsReadRemoteSupportedCapabilitiesCompleteView with error code {}",
                 error_code);
+      handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
       return;
     }
-    uint16_t connection_handle = event_view.GetConnectionHandle();
     send_le_cs_set_default_settings(event_view.GetConnectionHandle());
-    if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
-      // Create a cs tracker with role reflector
-      // TODO: Check ROLE via CS config. (b/304295768)
-      cs_trackers_[connection_handle].role = CsRole::REFLECTOR;
-      cs_trackers_[connection_handle].address = acl_manager_->HACK_GetLeAddress(connection_handle);
-    } else {
+    if (cs_trackers_.find(connection_handle) != cs_trackers_.end() &&
+        cs_trackers_[connection_handle].local_start) {
       send_le_cs_security_enable(connection_handle);
+    } else {
+      // TODO(b/361567359): problematic? HACK_ may not get the identity address for sure.
+      cs_trackers_[connection_handle].address = acl_manager_->HACK_GetLeAddress(connection_handle);
     }
 
     if (event_view.GetOptionalSubfeaturesSupported().phase_based_ranging_ == 0x01) {
@@ -574,9 +654,12 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (!complete_view.IsValid()) {
       log::warn("Get invalid LeCsSetDefaultSettingsComplete");
       return;
-    } else if (complete_view.GetStatus() != ErrorCode::SUCCESS) {
+    }
+    if (complete_view.GetStatus() != ErrorCode::SUCCESS) {
       std::string error_code = ErrorCodeText(complete_view.GetStatus());
       log::warn("Received LeCsSetDefaultSettingsComplete with error code {}", error_code);
+      uint16_t connection_handle = complete_view.GetConnectionHandle();
+      handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
       return;
     }
   }
@@ -585,20 +668,22 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (!event_view.IsValid()) {
       log::warn("Get invalid LeCsSecurityEnableCompleteView");
       return;
-    } else if (event_view.GetStatus() != ErrorCode::SUCCESS) {
-      std::string error_code = ErrorCodeText(event_view.GetStatus());
-      log::warn("Received LeCsSecurityEnableCompleteView with error code {}", error_code);
-      return;
     }
     uint16_t connection_handle = event_view.GetConnectionHandle();
+    if (event_view.GetStatus() != ErrorCode::SUCCESS) {
+      std::string error_code = ErrorCodeText(event_view.GetStatus());
+      log::warn("Received LeCsSecurityEnableCompleteView with error code {}", error_code);
+      handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+      return;
+    }
     if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
       log::warn("Can't find cs tracker for connection_handle {}", connection_handle);
       return;
     }
-    cs_trackers_[connection_handle].setup_complete = true;
-    log::info("Setup phase complete, connection_handle: {}, address: {}", connection_handle,
-              cs_trackers_[connection_handle].address);
-    if (cs_trackers_[connection_handle].role == CsRole::INITIATOR) {
+    if (cs_trackers_[connection_handle].local_start) {
+      cs_trackers_[connection_handle].setup_complete = true;
+      log::info("Setup phase complete, connection_handle: {}, address: {}", connection_handle,
+                cs_trackers_[connection_handle].address);
       send_le_cs_create_config(connection_handle);
     }
   }
@@ -607,12 +692,14 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (!event_view.IsValid()) {
       log::warn("Get invalid LeCsConfigCompleteView");
       return;
-    } else if (event_view.GetStatus() != ErrorCode::SUCCESS) {
-      std::string error_code = ErrorCodeText(event_view.GetStatus());
-      log::warn("Received LeCsConfigCompleteView with error code {}", error_code);
-      return;
     }
     uint16_t connection_handle = event_view.GetConnectionHandle();
+    if (event_view.GetStatus() != ErrorCode::SUCCESS) {
+      std::string error_code = ErrorCodeText(event_view.GetStatus());
+      log::warn("Received LeCsConfigCompleteView with error code {}", error_code);
+      handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+      return;
+    }
     if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
       log::warn("Can't find cs tracker for connection_handle {}", connection_handle);
       return;
@@ -622,12 +709,12 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
     log::info("Get {}", event_view.ToString());
     cs_trackers_[connection_handle].role = event_view.GetRole();
-    cs_trackers_[connection_handle].config_set = true;
     cs_trackers_[connection_handle].main_mode_type = event_view.GetMainModeType();
     cs_trackers_[connection_handle].sub_mode_type = event_view.GetSubModeType();
     cs_trackers_[connection_handle].rtt_type = event_view.GetRttType();
 
-    if (cs_trackers_[connection_handle].role == CsRole::INITIATOR) {
+    if (cs_trackers_[connection_handle].local_start) {
+      cs_trackers_[connection_handle].config_set = true;
       send_le_cs_set_procedure_parameters(event_view.GetConnectionHandle());
     }
   }
@@ -637,18 +724,21 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (!complete_view.IsValid()) {
       log::warn("Get Invalid LeCsSetProcedureParametersCompleteView");
       return;
-    } else if (complete_view.GetStatus() != ErrorCode::SUCCESS) {
-      std::string error_code = ErrorCodeText(complete_view.GetStatus());
-      log::warn("Received LeCsSetProcedureParametersCompleteView with error code {}", error_code);
-      return;
     }
     uint16_t connection_handle = complete_view.GetConnectionHandle();
+    if (complete_view.GetStatus() != ErrorCode::SUCCESS) {
+      std::string error_code = ErrorCodeText(complete_view.GetStatus());
+      log::warn("Received LeCsSetProcedureParametersCompleteView with error code {}", error_code);
+      handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+      return;
+    }
+
     if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
       log::warn("Can't find cs tracker for connection_handle {}", connection_handle);
       return;
     }
 
-    if (cs_trackers_[connection_handle].role == CsRole::INITIATOR) {
+    if (cs_trackers_[connection_handle].local_start) {
       log::info("enable cs procedure regularly with interval: {} ms",
                 cs_trackers_[connection_handle].interval_ms);
       cs_trackers_[connection_handle].repeating_alarm->Cancel();
@@ -663,23 +753,18 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   void on_cs_procedure_enable_complete(LeCsProcedureEnableCompleteView event_view) {
     log::assert_that(event_view.IsValid(), "assert failed: event_view.IsValid()");
     uint16_t connection_handle = event_view.GetConnectionHandle();
+    log::debug("on cs procedure enabled complete");
     if (event_view.GetStatus() != ErrorCode::SUCCESS) {
       std::string error_code = ErrorCodeText(event_view.GetStatus());
       log::warn("Received LeCsProcedureEnableCompleteView with error code {}", error_code);
-      if (cs_trackers_.find(connection_handle) != cs_trackers_.end() &&
-          cs_trackers_[connection_handle].waiting_for_start_callback) {
-        cs_trackers_[connection_handle].waiting_for_start_callback = false;
-        distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
-                cs_trackers_[connection_handle].address, REASON_INTERNAL_ERROR, METHOD_CS);
-      }
+      handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
       return;
     }
-
+    if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
+      return;
+    }
     if (event_view.GetState() == Enable::ENABLED) {
       log::debug("Procedure enabled, {}", event_view.ToString());
-      if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
-        return;
-      }
       cs_trackers_[connection_handle].config_id = event_view.GetConfigId();
       cs_trackers_[connection_handle].selected_tx_power = event_view.GetSelectedTxPower();
 
@@ -688,8 +773,10 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
         distance_measurement_callbacks_->OnDistanceMeasurementStarted(
                 cs_trackers_[connection_handle].address, METHOD_CS);
       }
+    } else if (event_view.GetState() == Enable::DISABLED) {
+      reset_tracker_on_stopped(&cs_trackers_[connection_handle]);
     }
-    cs_delete_obsolete_data(event_view.GetConnectionHandle());
+    cs_delete_obsolete_data(connection_handle);
   }
 
   void on_cs_subevent(LeMetaEventView event) {
@@ -791,7 +878,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     procedure_data->local_status = procedure_done_status;
     check_cs_procedure_complete(procedure_data, connection_handle);
 
-    if (cs_trackers_[connection_handle].role == CsRole::INITIATOR) {
+    if (cs_trackers_[connection_handle].local_start) {
       // Skip to send remote
       return;
     }
@@ -851,8 +938,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
   }
 
-  void handle_remote_data(const Address address, const std::vector<uint8_t> raw_data) {
-    uint16_t connection_handle = acl_manager_->HACK_GetLeHandle(address);
+  void handle_remote_data(const Address address, uint16_t connection_handle,
+                          const std::vector<uint8_t> raw_data) {
     log::debug("address:{}, connection_handle 0x{:04x}, size:{}", address.ToString(),
                connection_handle, raw_data.size());
 
@@ -1332,7 +1419,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
                 LeSetTransmitPowerReportingEnableBuilder::Create(event_view.GetConnectionHandle(),
                                                                  0x00, 0x01),
                 handler_->BindOnceOn(this, &impl::on_set_transmit_power_reporting_enable_complete,
-                                     address));
+                                     address, event_view.GetConnectionHandle()));
       } else {
         log::warn("Read remote transmit power level fail");
         distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
@@ -1342,7 +1429,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
   }
 
-  void on_set_transmit_power_reporting_enable_complete(Address address, CommandCompleteView view) {
+  void on_set_transmit_power_reporting_enable_complete(Address address, uint16_t connection_handle,
+                                                       CommandCompleteView view) {
     auto complete_view = LeSetTransmitPowerReportingEnableCompleteView::Create(view);
     if (!complete_view.IsValid()) {
       log::warn("Invalid LeSetTransmitPowerReportingEnableComplete event");
@@ -1370,7 +1458,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       rssi_trackers[address].started = true;
       distance_measurement_callbacks_->OnDistanceMeasurementStarted(address, METHOD_RSSI);
       rssi_trackers[address].repeating_alarm->Schedule(
-              common::Bind(&impl::send_read_rssi, common::Unretained(this), address),
+              common::Bind(&impl::send_read_rssi, common::Unretained(this), address,
+                           connection_handle),
               std::chrono::milliseconds(rssi_trackers[address].interval_ms));
     }
   }
@@ -1389,8 +1478,12 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     int8_t rssi = complete_view.GetRssi();
     double pow_value = (remote_tx_power - rssi - kRSSIDropOffAt1M) / 20.0;
     double distance = pow(10.0, pow_value);
+
+    using namespace std::chrono;
+    long elapsedRealtimeNanos =
+            duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
     distance_measurement_callbacks_->OnDistanceMeasurementResult(
-            address, distance * 100, distance * 100, -1, -1, -1, -1,
+            address, distance * 100, distance * 100, -1, -1, -1, -1, elapsedRealtimeNanos,
             DistanceMeasurementMethod::METHOD_RSSI);
   }
 
@@ -1405,37 +1498,6 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     v1.reserve(v2.size());
     v1.insert(v1.end(), v2.begin(), v2.end());
   }
-
-  struct RSSITracker {
-    uint16_t handle;
-    uint16_t interval_ms;
-    uint8_t remote_tx_power;
-    bool started;
-    std::unique_ptr<os::RepeatingAlarm> repeating_alarm;
-  };
-
-  struct CsTracker {
-    Address address;
-    uint16_t local_counter;
-    uint16_t remote_counter;
-    CsRole role;
-    bool ras_connected = false;
-    bool setup_complete = false;
-    bool config_set = false;
-    CsMainModeType main_mode_type;
-    CsSubModeType sub_mode_type;
-    CsRttType rtt_type;
-    bool remote_support_phase_based_ranging = false;
-    uint8_t config_id = 0;
-    uint8_t selected_tx_power = 0;
-    std::vector<CsProcedureData> procedure_data_list;
-    uint16_t interval_ms;
-    bool waiting_for_start_callback = false;
-    std::unique_ptr<os::RepeatingAlarm> repeating_alarm;
-    // RAS data
-    RangingHeader ranging_header_;
-    PacketViewForRecombination segment_data_;
-  };
 
   os::Handler* handler_;
   hal::RangingHal* ranging_hal_;
@@ -1478,37 +1540,49 @@ void DistanceMeasurementManager::RegisterDistanceMeasurementCallbacks(
   CallOn(pimpl_.get(), &impl::register_distance_measurement_callbacks, callbacks);
 }
 
-void DistanceMeasurementManager::StartDistanceMeasurement(const Address& address, uint16_t interval,
+void DistanceMeasurementManager::StartDistanceMeasurement(const Address& address,
+                                                          uint16_t connection_handle,
+                                                          uint16_t interval,
                                                           DistanceMeasurementMethod method) {
-  CallOn(pimpl_.get(), &impl::start_distance_measurement, address, interval, method);
+  CallOn(pimpl_.get(), &impl::start_distance_measurement, address, connection_handle, interval,
+         method);
 }
 
 void DistanceMeasurementManager::StopDistanceMeasurement(const Address& address,
+                                                         uint16_t connection_handle,
                                                          DistanceMeasurementMethod method) {
-  CallOn(pimpl_.get(), &impl::stop_distance_measurement, address, method);
+  CallOn(pimpl_.get(), &impl::stop_distance_measurement, address, connection_handle, method);
 }
 
 void DistanceMeasurementManager::HandleRasConnectedEvent(
-        const Address& address, uint16_t att_handle,
+        const Address& address, uint16_t connection_handle, uint16_t att_handle,
         const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data) {
-  CallOn(pimpl_.get(), &impl::handle_ras_connected_event, address, att_handle,
+  CallOn(pimpl_.get(), &impl::handle_ras_connected_event, address, connection_handle, att_handle,
          vendor_specific_data);
 }
 
+void DistanceMeasurementManager::HandleRasDisconnectedEvent(const Address& address) {
+  CallOn(pimpl_.get(), &impl::handle_ras_disconnected_event, address);
+}
+
 void DistanceMeasurementManager::HandleVendorSpecificReply(
-        const Address& address,
+        const Address& address, uint16_t connection_handle,
         const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_reply) {
-  CallOn(pimpl_.get(), &impl::handle_vendor_specific_reply, address, vendor_specific_reply);
+  CallOn(pimpl_.get(), &impl::handle_vendor_specific_reply, address, connection_handle,
+         vendor_specific_reply);
 }
 
 void DistanceMeasurementManager::HandleVendorSpecificReplyComplete(const Address& address,
+                                                                   uint16_t connection_handle,
                                                                    bool success) {
-  CallOn(pimpl_.get(), &impl::handle_vendor_specific_reply_complete, address, success);
+  CallOn(pimpl_.get(), &impl::handle_vendor_specific_reply_complete, address, connection_handle,
+         success);
 }
 
 void DistanceMeasurementManager::HandleRemoteData(const Address& address,
+                                                  uint16_t connection_handle,
                                                   const std::vector<uint8_t>& raw_data) {
-  CallOn(pimpl_.get(), &impl::handle_remote_data, address, raw_data);
+  CallOn(pimpl_.get(), &impl::handle_remote_data, address, connection_handle, raw_data);
 }
 
 }  // namespace hci

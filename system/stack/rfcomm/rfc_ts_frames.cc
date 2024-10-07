@@ -31,10 +31,12 @@
 #include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/rfcdefs.h"
 #include "stack/rfcomm/port_int.h"
 #include "stack/rfcomm/rfc_int.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -199,7 +201,8 @@ void rfc_send_buf_uih(tRFC_MCB* p_mcb, uint8_t dlci, BT_HDR* p_buf) {
   if (dlci == RFCOMM_MX_DLCI) {
     rfc_check_send_cmd(p_mcb, p_buf);
   } else {
-    if (L2CA_DataWrite(p_mcb->lcid, p_buf) != tL2CAP_DW_RESULT::SUCCESS) {
+    if (stack::l2cap::get_interface().L2CA_DataWrite(p_mcb->lcid, p_buf) !=
+        tL2CAP_DW_RESULT::SUCCESS) {
       log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_mcb->bd_addr, p_mcb->lcid,
                 p_buf->len);
     }

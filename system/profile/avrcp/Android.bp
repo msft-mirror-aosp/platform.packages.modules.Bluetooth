@@ -30,7 +30,6 @@ cc_library_static {
         "lib-bt-packets",
         "libbluetooth-types",
         "libbluetooth_log",
-        "libbt_shim_bridge",
         "libosi",
     ],
     whole_static_libs: [
@@ -73,7 +72,7 @@ cc_test {
     ],
     static_libs: [
         "avrcp-target-service",
-        "bluetooth_flags_c_lib",
+        "bluetooth_flags_c_lib_for_test",
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
@@ -81,8 +80,6 @@ cc_test {
         "libbluetooth-types",
         "libbluetooth_gd",
         "libbluetooth_log",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libbtdevice",
         "libchrome",
         "libcutils",
@@ -116,8 +113,13 @@ cc_fuzz {
         "packages/modules/Bluetooth/system/packet/tests",
         "packages/modules/Bluetooth/system/stack/include",
     ],
+    shared_libs: [
+        "libaconfig_storage_read_api_cc",
+        "server_configurable_flags",
+    ],
     static_libs: [
         "avrcp-target-service",
+        "bluetooth_flags_c_lib",
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
@@ -125,8 +127,6 @@ cc_fuzz {
         "libbluetooth-types",
         "libbluetooth_gd",
         "libbluetooth_log",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libcutils",
         "libevent",

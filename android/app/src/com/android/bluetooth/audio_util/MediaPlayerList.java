@@ -233,10 +233,8 @@ public class MediaPlayerList {
         } else {
             // Build the list of browsable players and afterwards, build the list of media players
             Intent intent = new Intent(android.service.media.MediaBrowserService.SERVICE_INTERFACE);
-            if (Flags.keepStoppedMediaBrowserService()) {
-                // Don't query stopped apps, that would end up unstopping them
-                intent.addFlags(Intent.FLAG_EXCLUDE_STOPPED_PACKAGES);
-            }
+            // Don't query stopped apps, that would end up unstopping them
+            intent.addFlags(Intent.FLAG_EXCLUDE_STOPPED_PACKAGES);
             List<ResolveInfo> playerList =
                     mContext.getApplicationContext()
                             .getPackageManager()
@@ -419,6 +417,9 @@ public class MediaPlayerList {
         if (mMediaPlayerIds.containsValue(playerId)) {
             mAddressedPlayerId = playerId;
             sendFolderUpdate(false, true, false);
+            Log.d(TAG, "setAddressedPlayer to: " + mAddressedPlayerId);
+        } else {
+            Log.d(TAG, "setAddressedPlayer not updated: " + mAddressedPlayerId);
         }
         return mAddressedPlayerId;
     }
@@ -853,10 +854,8 @@ public class MediaPlayerList {
                         .getPackageManager()
                         .queryIntentActivities(intentPlayer, 0);
 
-        if (Flags.keepStoppedMediaBrowserService()) {
-            // Don't query stopped apps, that would end up unstopping them
-            intentBrowsable.addFlags(Intent.FLAG_EXCLUDE_STOPPED_PACKAGES);
-        }
+        // Don't query stopped apps, that would end up unstopping them
+        intentBrowsable.addFlags(Intent.FLAG_EXCLUDE_STOPPED_PACKAGES);
         List<ResolveInfo> browsablePlayerList =
                 mContext.getApplicationContext()
                         .getPackageManager()
@@ -984,11 +983,13 @@ public class MediaPlayerList {
 
         if (Utils.isPtsTestMode()) {
             sendFolderUpdate(true, true, false);
-        } else if (Flags.setAddressedPlayer()) {
+        } else if (Flags.setAddressedPlayer() && Flags.browsingRefactor()) {
+            // If the browsing refactor flag is not active, addressed player should always be 0.
             // If the new active player has been set by Addressed player key event
             // We don't send an addressed player update.
             if (mActivePlayerId != mAddressedPlayerId) {
                 mAddressedPlayerId = mActivePlayerId;
+                Log.d(TAG, "setActivePlayer AddressedPlayer changed to " + mAddressedPlayerId);
                 sendFolderUpdate(false, true, false);
             }
         }

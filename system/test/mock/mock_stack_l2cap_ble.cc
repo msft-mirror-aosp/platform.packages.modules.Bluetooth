@@ -31,6 +31,9 @@
 // Mocked compile conditionals, if any
 // Mocked internal structures, if any
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace test {
 namespace mock {
 namespace stack_l2cap_ble {
@@ -143,7 +146,7 @@ void l2cble_credit_based_conn_req(tL2C_CCB* p_ccb) {
   inc_func_call_count(__func__);
   test::mock::stack_l2cap_ble::l2cble_credit_based_conn_req(p_ccb);
 }
-void l2cble_credit_based_conn_res(tL2C_CCB* p_ccb, uint16_t result) {
+void l2cble_credit_based_conn_res(tL2C_CCB* p_ccb, tL2CAP_LE_RESULT_CODE result) {
   inc_func_call_count(__func__);
   test::mock::stack_l2cap_ble::l2cble_credit_based_conn_res(p_ccb, result);
 }

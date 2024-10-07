@@ -40,7 +40,7 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_status.h"
-#include "stack/include/l2c_api.h"  // L2CA_
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
 #include "types/bluetooth/uuid.h"
@@ -195,7 +195,7 @@ void bta_hh_le_enable(void) {
     bta_hh_cb.le_cb_index[xx] = BTA_HH_IDX_INVALID;
   }
 
-  BTA_GATTC_AppRegister(bta_hh_gattc_callback, base::Bind([](uint8_t client_id, uint8_t r_status) {
+  BTA_GATTC_AppRegister(bta_hh_gattc_callback, base::Bind([](tGATT_IF client_id, uint8_t r_status) {
                           tBTA_HH bta_hh;
                           bta_hh.status = BTA_HH_ERR;
 
@@ -284,7 +284,7 @@ void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb) {
  *                  ID.
  *
  ******************************************************************************/
-static tBTA_HH_DEV_CB* bta_hh_le_find_dev_cb_by_conn_id(uint16_t conn_id) {
+static tBTA_HH_DEV_CB* bta_hh_le_find_dev_cb_by_conn_id(tCONN_ID conn_id) {
   for (uint8_t i = 0; i < BTA_HH_MAX_DEVICE; i++) {
     tBTA_HH_DEV_CB* p_dev_cb = &bta_hh_cb.kdev[i];
     if (p_dev_cb->in_use && p_dev_cb->conn_id == conn_id) {
@@ -454,7 +454,7 @@ tBTA_HH_LE_RPT* bta_hh_le_find_alloc_report_entry(tBTA_HH_DEV_CB* p_cb, uint8_t 
   return NULL;
 }
 
-static const gatt::Descriptor* find_descriptor_by_short_uuid(uint16_t conn_id, uint16_t char_handle,
+static const gatt::Descriptor* find_descriptor_by_short_uuid(tCONN_ID conn_id, uint16_t char_handle,
                                                              uint16_t short_uuid) {
   const gatt::Characteristic* p_char = BTA_GATTC_GetCharacteristic(conn_id, char_handle);
 
@@ -655,7 +655,7 @@ static bool bta_hh_le_write_ccc(tBTA_HH_DEV_CB* p_cb, uint16_t char_handle, uint
 
 static bool bta_hh_le_write_rpt_clt_cfg(tBTA_HH_DEV_CB* p_cb);
 
-static void write_rpt_clt_cfg_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void write_rpt_clt_cfg_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                  uint16_t len, const uint8_t* value, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   const gatt::Characteristic* characteristic = BTA_GATTC_GetOwningCharacteristic(conn_id, handle);
@@ -756,7 +756,7 @@ void bta_hh_le_service_parsed(tBTA_HH_DEV_CB* p_dev_cb, tGATT_STATUS status) {
   }
 }
 
-static void write_proto_mode_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void write_proto_mode_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                 uint16_t len, const uint8_t* value, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   bta_hh_le_service_parsed(p_dev_cb, status);
@@ -813,7 +813,7 @@ static bool bta_hh_le_set_protocol_mode(tBTA_HH_DEV_CB* p_cb, tBTA_HH_PROTO_MODE
  *                  application with the protocol mode.
  *
  ******************************************************************************/
-static void get_protocol_mode_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void get_protocol_mode_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                  uint16_t len, uint8_t* value, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   tBTA_HH_HSDATA hs_data;
@@ -911,6 +911,14 @@ static void bta_hh_le_dis_cback(const RawAddress& addr, tDIS_VALUE* p_dis_value)
     p_cb->dscp_info.vendor_id = p_dis_value->pnp_id.vendor_id;
     p_cb->dscp_info.version = p_dis_value->pnp_id.product_version;
   }
+
+  /* TODO(b/367910199): un-serialize once multiservice HoGP is implemented */
+  if (com::android::bluetooth::flags::serialize_hogp_and_dis()) {
+    Uuid pri_srvc = Uuid::From16Bit(UUID_SERVCLASS_LE_HID);
+    BTA_GATTC_ServiceSearchRequest(p_cb->conn_id, pri_srvc);
+    return;
+  }
+
   bta_hh_le_open_cmpl(p_cb);
 }
 
@@ -933,6 +941,12 @@ static void bta_hh_le_pri_service_discovery(tBTA_HH_DEV_CB* p_cb) {
   if (!DIS_ReadDISInfo(p_cb->link_spec.addrt.bda, bta_hh_le_dis_cback, DIS_ATTR_PNP_ID_BIT)) {
     log::error("read DIS failed");
     p_cb->disc_active &= ~BTA_HH_LE_DISC_DIS;
+  } else {
+    /* TODO(b/367910199): un-serialize once multiservice HoGP is implemented */
+    if (com::android::bluetooth::flags::serialize_hogp_and_dis()) {
+      log::debug("Waiting for DIS result before starting HoGP service discovery");
+      return;
+    }
   }
 
   /* in parallel */
@@ -1011,7 +1025,7 @@ void bta_hh_security_cmpl(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */)
       log::verbose("Starting service discovery");
       bta_hh_le_pri_service_discovery(p_cb);
     }
-  } else if (p_cb->btm_status == BTM_ERR_KEY_MISSING) {
+  } else if (p_cb->btm_status == tBTM_STATUS::BTM_ERR_KEY_MISSING) {
     log::error("Received encryption failed status:{} btm_status:{}",
                bta_hh_status_text(p_cb->status), btm_status_text(p_cb->btm_status));
     bta_hh_le_api_disc_act(p_cb);
@@ -1019,8 +1033,9 @@ void bta_hh_security_cmpl(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */)
     log::error("Encryption failed status:{} btm_status:{}", bta_hh_status_text(p_cb->status),
                btm_status_text(p_cb->btm_status));
     if (!(p_cb->status == BTA_HH_ERR_SEC &&
-          (p_cb->btm_status == BTM_ERR_PROCESSING || p_cb->btm_status == BTM_FAILED_ON_SECURITY ||
-           p_cb->btm_status == BTM_WRONG_MODE))) {
+          (p_cb->btm_status == tBTM_STATUS::BTM_ERR_PROCESSING ||
+           p_cb->btm_status == tBTM_STATUS::BTM_FAILED_ON_SECURITY ||
+           p_cb->btm_status == tBTM_STATUS::BTM_WRONG_MODE))) {
       bta_hh_le_api_disc_act(p_cb);
     }
   }
@@ -1223,7 +1238,7 @@ static void bta_hh_le_gatt_disc_cmpl(tBTA_HH_DEV_CB* p_cb, tBTA_HH_STATUS status
   }
 }
 
-static void read_hid_info_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+static void read_hid_info_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                              uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
@@ -1258,7 +1273,7 @@ void bta_hh_le_save_report_map(tBTA_HH_DEV_CB* p_dev_cb, uint16_t len, uint8_t* 
   }
 }
 
-static void read_hid_report_map_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_hid_report_map_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                    uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error reading characteristic:{}", status);
@@ -1269,7 +1284,7 @@ static void read_hid_report_map_cb(uint16_t conn_id, tGATT_STATUS status, uint16
   bta_hh_le_save_report_map(p_dev_cb, len, value);
 }
 
-static void read_ext_rpt_ref_desc_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_ext_rpt_ref_desc_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                      uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
@@ -1291,7 +1306,7 @@ static void read_ext_rpt_ref_desc_cb(uint16_t conn_id, tGATT_STATUS status, uint
   log::verbose("External Report Reference UUID 0x{:04x}", p_dev_cb->hid_srvc.ext_rpt_ref);
 }
 
-static void read_report_ref_desc_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_report_ref_desc_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                     uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
@@ -1331,7 +1346,7 @@ static void read_report_ref_desc_cb(uint16_t conn_id, tGATT_STATUS status, uint1
   bta_hh_le_save_report_ref(p_dev_cb, p_rpt, rpt_type, rpt_id);
 }
 
-static void read_pref_conn_params_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_pref_conn_params_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                      uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
@@ -1354,7 +1369,8 @@ static void read_pref_conn_params_cb(uint16_t conn_id, tGATT_STATUS status, uint
 
   // Make sure both min, and max are bigger than 11.25ms, lower values can
   // introduce audio issues if A2DP is also active.
-  L2CA_AdjustConnectionIntervals(&min_interval, &max_interval, BTM_BLE_CONN_INT_MIN_LIMIT);
+  stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(&min_interval, &max_interval,
+                                                               BTM_BLE_CONN_INT_MIN_LIMIT);
 
   // If the device has no preferred connection timeout, use the default.
   if (timeout == BTM_BLE_CONN_PARAM_UNDEF) {
@@ -1386,8 +1402,8 @@ static void read_pref_conn_params_cb(uint16_t conn_id, tGATT_STATUS status, uint
 
   get_btm_client_interface().ble.BTM_BleSetPrefConnParams(
           p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency, timeout);
-  if (!L2CA_UpdateBleConnParams(p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency,
-                                timeout, 0, 0)) {
+  if (!stack::l2cap::get_interface().L2CA_UpdateBleConnParams(
+              p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency, timeout, 0, 0)) {
     log::warn("Unable to update L2CAP ble connection params peer:{}",
               p_dev_cb->link_spec.addrt.bda);
   }
@@ -1779,7 +1795,7 @@ void bta_hh_le_api_disc_act(tBTA_HH_DEV_CB* p_cb) {
  * Parameters:
  *
  ******************************************************************************/
-static void read_report_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+static void read_report_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                            uint8_t* value, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   if (p_dev_cb->w4_evt != BTA_HH_GET_RPT_EVT) {
@@ -1859,7 +1875,7 @@ static void bta_hh_le_get_rpt(tBTA_HH_DEV_CB* p_cb, tBTA_HH_RPT_TYPE r_type, uin
   BtaGattQueue::ReadCharacteristic(p_cb->conn_id, p_rpt->char_inst_id, read_report_cb, p_cb);
 }
 
-static void write_report_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+static void write_report_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                             const uint8_t* value, void* data) {
   tBTA_HH_CBDATA cback_data;
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;

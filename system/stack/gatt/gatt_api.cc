@@ -33,7 +33,6 @@
 
 #include "internal_include/bt_target.h"
 #include "internal_include/stack_config.h"
-#include "l2c_api.h"
 #include "os/system_properties.h"
 #include "osi/include/allocator.h"
 #include "rust/src/connection/ffi/connection_shim.h"
@@ -46,11 +45,15 @@
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/sdp_api.h"
 #include "types/bluetooth/uuid.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;
@@ -457,17 +460,17 @@ void GATTS_StopService(uint16_t service_handle) {
  *                  code.
  *
  ******************************************************************************/
-tGATT_STATUS GATTS_HandleValueIndication(uint16_t conn_id, uint16_t attr_handle, uint16_t val_len,
+tGATT_STATUS GATTS_HandleValueIndication(tCONN_ID conn_id, uint16_t attr_handle, uint16_t val_len,
                                          uint8_t* p_val) {
-  tGATT_IF gatt_if = GATT_GET_GATT_IF(conn_id);
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+  tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
+  uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
 
   log::verbose("");
   if ((p_reg == NULL) || (p_tcb == NULL)) {
     log::error("Unknown  conn_id=0x{:x}", conn_id);
-    return (tGATT_STATUS)GATT_INVALID_CONN_ID;
+    return GATT_ILLEGAL_PARAMETER;
   }
 
   if (!GATT_HANDLE_IS_VALID(attr_handle)) {
@@ -554,11 +557,11 @@ static tGATT_STATUS GATTS_HandleMultipleValueNotification(
  * Returns          GATT_SUCCESS if successfully sent; otherwise error code.
  *
  ******************************************************************************/
-tGATT_STATUS GATTS_HandleValueNotification(uint16_t conn_id, uint16_t attr_handle, uint16_t val_len,
+tGATT_STATUS GATTS_HandleValueNotification(tCONN_ID conn_id, uint16_t attr_handle, uint16_t val_len,
                                            uint8_t* p_val) {
   tGATT_VALUE notif;
-  tGATT_IF gatt_if = GATT_GET_GATT_IF(conn_id);
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+  tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
+  uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
 #if (GATT_UPPER_TESTER_MULT_VARIABLE_LENGTH_NOTIF == TRUE)
@@ -571,7 +574,7 @@ tGATT_STATUS GATTS_HandleValueNotification(uint16_t conn_id, uint16_t attr_handl
 
   if ((p_reg == NULL) || (p_tcb == NULL)) {
     log::error("Unknown  conn_id: {}", conn_id);
-    return (tGATT_STATUS)GATT_INVALID_CONN_ID;
+    return GATT_ILLEGAL_PARAMETER;
   }
 
   if (!GATT_HANDLE_IS_VALID(attr_handle)) {
@@ -650,10 +653,10 @@ tGATT_STATUS GATTS_HandleValueNotification(uint16_t conn_id, uint16_t attr_handl
  * Returns          GATT_SUCCESS if successfully sent; otherwise error code.
  *
  ******************************************************************************/
-tGATT_STATUS GATTS_SendRsp(uint16_t conn_id, uint32_t trans_id, tGATT_STATUS status,
+tGATT_STATUS GATTS_SendRsp(tCONN_ID conn_id, uint32_t trans_id, tGATT_STATUS status,
                            tGATTS_RSP* p_msg) {
-  tGATT_IF gatt_if = GATT_GET_GATT_IF(conn_id);
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+  tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
+  uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
 
@@ -662,7 +665,7 @@ tGATT_STATUS GATTS_SendRsp(uint16_t conn_id, uint32_t trans_id, tGATT_STATUS sta
 
   if ((p_reg == NULL) || (p_tcb == NULL)) {
     log::error("Unknown  conn_id=0x{:x}", conn_id);
-    return (tGATT_STATUS)GATT_INVALID_CONN_ID;
+    return GATT_ILLEGAL_PARAMETER;
   }
 
   tGATT_SR_CMD* sr_res_p = gatt_sr_get_cmd_by_trans_id(p_tcb, trans_id);
@@ -699,9 +702,9 @@ tGATT_STATUS GATTS_SendRsp(uint16_t conn_id, uint32_t trans_id, tGATT_STATUS sta
  * Returns          GATT_SUCCESS if command started successfully.
  *
  ******************************************************************************/
-tGATT_STATUS GATTC_ConfigureMTU(uint16_t conn_id, uint16_t mtu) {
-  tGATT_IF gatt_if = GATT_GET_GATT_IF(conn_id);
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+tGATT_STATUS GATTC_ConfigureMTU(tCONN_ID conn_id, uint16_t mtu) {
+  tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
+  uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
 
@@ -774,7 +777,7 @@ tGATT_STATUS GATTC_ConfigureMTU(uint16_t conn_id, uint16_t mtu) {
  *
  ******************************************************************************/
 tGATTC_TryMtuRequestResult GATTC_TryMtuRequest(const RawAddress& remote_bda,
-                                               tBT_TRANSPORT transport, uint16_t conn_id,
+                                               tBT_TRANSPORT transport, tCONN_ID conn_id,
                                                uint16_t* current_mtu) {
   log::info("{} conn_id=0x{:04x}", remote_bda, conn_id);
   *current_mtu = GATT_DEF_BLE_MTU_SIZE;
@@ -844,14 +847,15 @@ void GATTC_UpdateUserAttMtuIfNeeded(const RawAddress& remote_bda, tBT_TRANSPORT 
   }
 
   p_tcb->max_user_mtu = user_mtu;
-  if (get_btm_client_interface().ble.BTM_SetBleDataLength(remote_bda, user_mtu) != BTM_SUCCESS) {
+  if (get_btm_client_interface().ble.BTM_SetBleDataLength(remote_bda, user_mtu) !=
+      tBTM_STATUS::BTM_SUCCESS) {
     log::warn("Unable to set ble data length peer:{} mtu:{}", remote_bda, user_mtu);
   }
 }
 
-std::list<uint16_t> GATTC_GetAndRemoveListOfConnIdsWaitingForMtuRequest(
+std::list<tCONN_ID> GATTC_GetAndRemoveListOfConnIdsWaitingForMtuRequest(
         const RawAddress& remote_bda) {
-  std::list result = std::list<uint16_t>();
+  std::list result = std::list<tCONN_ID>();
 
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(remote_bda, BT_TRANSPORT_LE);
   if (!p_tcb || p_tcb->conn_ids_waiting_for_mtu_exchange.empty()) {
@@ -878,10 +882,10 @@ std::list<uint16_t> GATTC_GetAndRemoveListOfConnIdsWaitingForMtuRequest(
  * Returns          GATT_SUCCESS if command received/sent successfully.
  *
  ******************************************************************************/
-tGATT_STATUS GATTC_Discover(uint16_t conn_id, tGATT_DISC_TYPE disc_type, uint16_t start_handle,
+tGATT_STATUS GATTC_Discover(tCONN_ID conn_id, tGATT_DISC_TYPE disc_type, uint16_t start_handle,
                             uint16_t end_handle, const Uuid& uuid) {
-  tGATT_IF gatt_if = GATT_GET_GATT_IF(conn_id);
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+  tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
+  uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
 
@@ -922,7 +926,7 @@ tGATT_STATUS GATTC_Discover(uint16_t conn_id, tGATT_DISC_TYPE disc_type, uint16_
   return GATT_SUCCESS;
 }
 
-tGATT_STATUS GATTC_Discover(uint16_t conn_id, tGATT_DISC_TYPE disc_type, uint16_t start_handle,
+tGATT_STATUS GATTC_Discover(tCONN_ID conn_id, tGATT_DISC_TYPE disc_type, uint16_t start_handle,
                             uint16_t end_handle) {
   return GATTC_Discover(conn_id, disc_type, start_handle, end_handle, Uuid::kEmpty);
 }
@@ -941,9 +945,9 @@ tGATT_STATUS GATTC_Discover(uint16_t conn_id, tGATT_DISC_TYPE disc_type, uint16_
  * Returns          GATT_SUCCESS if command started successfully.
  *
  ******************************************************************************/
-tGATT_STATUS GATTC_Read(uint16_t conn_id, tGATT_READ_TYPE type, tGATT_READ_PARAM* p_read) {
-  tGATT_IF gatt_if = GATT_GET_GATT_IF(conn_id);
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+tGATT_STATUS GATTC_Read(tCONN_ID conn_id, tGATT_READ_TYPE type, tGATT_READ_PARAM* p_read) {
+  tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
+  uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
 #if (GATT_UPPER_TESTER_MULT_VARIABLE_LENGTH_READ == TRUE)
@@ -1048,9 +1052,9 @@ tGATT_STATUS GATTC_Read(uint16_t conn_id, tGATT_READ_TYPE type, tGATT_READ_PARAM
  * Returns          GATT_SUCCESS if command started successfully.
  *
  ******************************************************************************/
-tGATT_STATUS GATTC_Write(uint16_t conn_id, tGATT_WRITE_TYPE type, tGATT_VALUE* p_write) {
-  tGATT_IF gatt_if = GATT_GET_GATT_IF(conn_id);
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+tGATT_STATUS GATTC_Write(tCONN_ID conn_id, tGATT_WRITE_TYPE type, tGATT_VALUE* p_write) {
+  tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
+  uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
 
@@ -1098,9 +1102,9 @@ tGATT_STATUS GATTC_Write(uint16_t conn_id, tGATT_WRITE_TYPE type, tGATT_VALUE* p
  * Returns          GATT_SUCCESS if command started successfully.
  *
  ******************************************************************************/
-tGATT_STATUS GATTC_ExecuteWrite(uint16_t conn_id, bool is_execute) {
-  tGATT_IF gatt_if = GATT_GET_GATT_IF(conn_id);
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+tGATT_STATUS GATTC_ExecuteWrite(tCONN_ID conn_id, bool is_execute) {
+  tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
+  uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
 
@@ -1135,10 +1139,10 @@ tGATT_STATUS GATTC_ExecuteWrite(uint16_t conn_id, bool is_execute) {
  * Returns          GATT_SUCCESS if command started successfully.
  *
  ******************************************************************************/
-tGATT_STATUS GATTC_SendHandleValueConfirm(uint16_t conn_id, uint16_t cid) {
+tGATT_STATUS GATTC_SendHandleValueConfirm(tCONN_ID conn_id, uint16_t cid) {
   log::info("conn_id=0x{:04x} , cid=0x{:04x}", conn_id, cid);
 
-  tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(GATT_GET_TCB_IDX(conn_id));
+  tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(gatt_get_tcb_idx(conn_id));
   if (!p_tcb) {
     log::error("Unknown conn_id=0x{:x}", conn_id);
     return GATT_ILLEGAL_PARAMETER;
@@ -1189,15 +1193,15 @@ void GATT_SetIdleTimeout(const RawAddress& bd_addr, uint16_t idle_tout, tBT_TRAN
 
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, transport);
   if (p_tcb != nullptr) {
-    status = L2CA_SetLeGattTimeout(bd_addr, idle_tout);
+    status = stack::l2cap::get_interface().L2CA_SetLeGattTimeout(bd_addr, idle_tout);
 
     if (is_active) {
-      status &= L2CA_MarkLeLinkAsActive(bd_addr);
+      status &= stack::l2cap::get_interface().L2CA_MarkLeLinkAsActive(bd_addr);
     }
 
     if (idle_tout == GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP) {
-      if (!L2CA_SetIdleTimeoutByBdAddr(p_tcb->peer_bda, GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP,
-                                       BT_TRANSPORT_LE)) {
+      if (!stack::l2cap::get_interface().L2CA_SetIdleTimeoutByBdAddr(
+                  p_tcb->peer_bda, GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP, BT_TRANSPORT_LE)) {
         log::warn("Unable to set L2CAP link idle timeout peer:{} transport:{}", p_tcb->peer_bda,
                   bt_transport_text(transport));
       }
@@ -1301,6 +1305,7 @@ static tGATT_IF GATT_Register_Dynamic(const Uuid& app_uuid128, const std::string
       if (gatt_cb.next_gatt_if == 0) {
         gatt_cb.next_gatt_if = 1;
       }
+      return p_reg->gatt_if;
     }
     i_gatt_if++;
     if (i_gatt_if == 0) {
@@ -1373,7 +1378,7 @@ void GATT_Deregister(tGATT_IF gatt_if) {
     }
   }
 
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     bluetooth::connection::GetConnectionManager().remove_client(gatt_if);
   } else {
     connection_manager::on_app_deregistered(gatt_if);
@@ -1404,7 +1409,7 @@ void GATT_StartIf(tGATT_IF gatt_if) {
   tGATT_TCB* p_tcb;
   RawAddress bda = {};
   uint8_t start_idx, found_idx;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
   tBT_TRANSPORT transport;
 
   log::debug("Starting GATT interface gatt_if_:{}", gatt_if);
@@ -1416,7 +1421,7 @@ void GATT_StartIf(tGATT_IF gatt_if) {
       p_tcb = gatt_find_tcb_by_addr(bda, transport);
       log::info("GATT interface {} already has connected device {}", gatt_if, bda);
       if (p_reg->app_cb.p_conn_cb && p_tcb) {
-        conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, gatt_if);
+        conn_id = gatt_create_conn_id(p_tcb->tcb_idx, gatt_if);
         log::info("Invoking callback with connection id {}", conn_id);
         (*p_reg->app_cb.p_conn_cb)(gatt_if, bda, conn_id, true, GATT_CONN_OK, transport);
       } else {
@@ -1443,16 +1448,9 @@ void GATT_StartIf(tGATT_IF gatt_if) {
  *                  failure.
  *
  ******************************************************************************/
-bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBTM_BLE_CONN_TYPE connection_type,
-                  tBT_TRANSPORT transport, bool opportunistic) {
-  constexpr uint8_t kPhyLe1M = 0x01;  // From the old controller shim.
-  uint8_t phy = kPhyLe1M;
-  return GATT_Connect(gatt_if, bd_addr, connection_type, transport, opportunistic, phy);
-}
-
 bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
                   tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic,
-                  uint8_t initiating_phys) {
+                  uint8_t initiating_phys, uint16_t preferred_mtu) {
   /* Make sure app is registered */
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
   if (!p_reg) {
@@ -1467,6 +1465,11 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
     return false;
   }
 
+  if (bd_addr == RawAddress::kEmpty) {
+    log::error("Unsupported empty address, gatt_if={}", gatt_if);
+    return false;
+  }
+
   if (opportunistic) {
     log::info("Registered for opportunistic connection gatt_if={}", gatt_if);
     return true;
@@ -1478,8 +1481,7 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
                transport);
     bool tcb_exist = !!gatt_find_tcb_by_addr(bd_addr, transport);
 
-    if (!com::android::bluetooth::flags::gatt_reconnect_on_bt_on_fix() || tcb_exist ||
-        transport == BT_TRANSPORT_BR_EDR) {
+    if (tcb_exist || transport == BT_TRANSPORT_BR_EDR) {
       /* Consider to remove gatt_act_connect at all */
       ret = gatt_act_connect(p_reg, bd_addr, addr_type, transport, initiating_phys);
     } else {
@@ -1504,7 +1506,7 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
       ret = false;
     } else {
       log::debug("Adding to background connect to device:{}", bd_addr);
-      if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+      if (com::android::bluetooth::flags::unified_connection_manager()) {
         if (connection_type == BTM_BLE_BKG_CONNECT_ALLOW_LIST) {
           bluetooth::connection::GetConnectionManager().add_background_connection(
                   gatt_if, bluetooth::connection::ResolveRawAddress(bd_addr));
@@ -1535,20 +1537,22 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
     }
   }
 
+  if (ret) {
+    // Save the current MTU preference for this app
+    p_reg->mtu_prefs.erase(bd_addr);
+    if (preferred_mtu > GATT_DEF_BLE_MTU_SIZE) {
+      log::verbose("Saving MTU preference from app {} for {}", gatt_if, bd_addr);
+      p_reg->mtu_prefs.insert({bd_addr, preferred_mtu});
+    }
+  }
+
   return ret;
 }
 
-bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
-                  tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic) {
-  constexpr uint8_t kPhyLe1M = 0x01;  // From the old controller shim.
-  uint8_t phy = kPhyLe1M;
-  return GATT_Connect(gatt_if, bd_addr, addr_type, connection_type, transport, opportunistic, phy);
-}
-
 bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBTM_BLE_CONN_TYPE connection_type,
-                  tBT_TRANSPORT transport, bool opportunistic, uint8_t initiating_phys) {
+                  tBT_TRANSPORT transport, bool opportunistic) {
   return GATT_Connect(gatt_if, bd_addr, BLE_ADDR_PUBLIC, connection_type, transport, opportunistic,
-                      initiating_phys);
+                      LE_PHY_1M, 0);
 }
 
 /*******************************************************************************
@@ -1598,7 +1602,7 @@ bool GATT_CancelConnect(tGATT_IF gatt_if, const RawAddress& bd_addr, bool is_dir
     }
   }
 
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
+  if (com::android::bluetooth::flags::unified_connection_manager()) {
     bluetooth::connection::GetConnectionManager().stop_all_connections_to_device(
             bluetooth::connection::ResolveRawAddress(bd_addr));
   } else {
@@ -1623,17 +1627,17 @@ bool GATT_CancelConnect(tGATT_IF gatt_if, const RawAddress& bd_addr, bool is_dir
  * Returns          GATT_SUCCESS if disconnected.
  *
  ******************************************************************************/
-tGATT_STATUS GATT_Disconnect(uint16_t conn_id) {
+tGATT_STATUS GATT_Disconnect(tCONN_ID conn_id) {
   log::info("conn_id={}", conn_id);
 
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+  uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
   if (!p_tcb) {
     log::warn("Cannot find TCB for connection {}", conn_id);
     return GATT_ILLEGAL_PARAMETER;
   }
 
-  tGATT_IF gatt_if = GATT_GET_GATT_IF(conn_id);
+  tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
   gatt_update_app_use_link_flag(gatt_if, p_tcb, false, true);
   return GATT_SUCCESS;
 }
@@ -1652,11 +1656,11 @@ tGATT_STATUS GATT_Disconnect(uint16_t conn_id) {
  * Returns          true the logical link information is found for conn_id
  *
  ******************************************************************************/
-bool GATT_GetConnectionInfor(uint16_t conn_id, tGATT_IF* p_gatt_if, RawAddress& bd_addr,
+bool GATT_GetConnectionInfor(tCONN_ID conn_id, tGATT_IF* p_gatt_if, RawAddress& bd_addr,
                              tBT_TRANSPORT* p_transport) {
-  tGATT_IF gatt_if = GATT_GET_GATT_IF(conn_id);
+  tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+  uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
 
   log::verbose("conn_id=0x{:x}", conn_id);
@@ -1686,14 +1690,14 @@ bool GATT_GetConnectionInfor(uint16_t conn_id, tGATT_IF* p_gatt_if, RawAddress& 
  * Returns          true the logical link is connected
  *
  ******************************************************************************/
-bool GATT_GetConnIdIfConnected(tGATT_IF gatt_if, const RawAddress& bd_addr, uint16_t* p_conn_id,
+bool GATT_GetConnIdIfConnected(tGATT_IF gatt_if, const RawAddress& bd_addr, tCONN_ID* p_conn_id,
                                tBT_TRANSPORT transport) {
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, transport);
   bool status = false;
 
   if (p_reg && p_tcb && (gatt_get_ch_state(p_tcb) == GATT_CH_OPEN)) {
-    *p_conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, gatt_if);
+    *p_conn_id = gatt_create_conn_id(p_tcb->tcb_idx, gatt_if);
     status = true;
   }
 

@@ -11,6 +11,7 @@ aconfig_declarations {
     srcs: [
         "a2dp.aconfig",
         "active_device_manager.aconfig",
+        "adapter.aconfig",
         "asha.aconfig",
         "audio_routing.aconfig",
         "avrcp.aconfig",
@@ -20,14 +21,14 @@ aconfig_declarations {
         "btm_ble.aconfig",
         "connectivity.aconfig",
         "device_iot_config.aconfig",
-        "did.aconfig",
-        "dumpsys.aconfig",
+        "dis.aconfig",
         "framework.aconfig",
         "gap.aconfig",
         "hal.aconfig",
         "hap.aconfig",
         "hci.aconfig",
         "hfp.aconfig",
+        "hfpclient.aconfig",
         "hid.aconfig",
         "l2cap.aconfig",
         "le_advertising.aconfig",
@@ -44,6 +45,7 @@ aconfig_declarations {
         "sco.aconfig",
         "sdp.aconfig",
         "security.aconfig",
+        "service_discovery.aconfig",
         "sockets.aconfig",
         "system_service.aconfig",
         "vcp.aconfig",
@@ -67,7 +69,7 @@ java_aconfig_library {
     apex_available: [
         "com.android.btservices",
     ],
-    libs: ["framework-configinfrastructure"],
+    libs: ["framework-configinfrastructure.stubs.module_lib"],
     sdk_version: "module_current",
     min_sdk_version: "Tiramisu",
 }
@@ -88,7 +90,7 @@ cc_aconfig_library {
     aconfig_declarations: "bluetooth_aconfig_flags",
     host_supported: true,
     visibility: [
-        "//packages/modules/Bluetooth/system:__subpackages__",
+        "//packages/modules/Bluetooth:__subpackages__",
     ],
     apex_available: [
         "com.android.btservices",
@@ -105,4 +107,18 @@ cc_aconfig_library {
         "//packages/modules/Bluetooth/system:__subpackages__",
     ],
     min_sdk_version: "Tiramisu",
+}
+
+rust_aconfig_library {
+    name: "libbluetooth_aconfig_flags_rust",
+    host_supported: true,
+    crate_name: "bluetooth_aconfig_flags_rust",
+    aconfig_declarations: "bluetooth_aconfig_flags",
+    apex_available: [
+        "com.android.btservices",
+    ],
+    min_sdk_version: "Tiramisu",
+    visibility: [
+        "//packages/modules/Bluetooth/system:__subpackages__",
+    ],
 }

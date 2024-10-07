@@ -61,6 +61,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -130,7 +131,7 @@ public class ScanManager {
     private Set<ScanClient> mSuspendedScanClients;
     private SparseIntArray mPriorityMap = new SparseIntArray();
 
-    private DisplayManager mDm;
+    private DisplayManager mDisplayManager;
 
     private ActivityManager mActivityManager;
     private LocationManager mLocationManager;
@@ -172,7 +173,7 @@ public class ScanManager {
         mScanHelper = scanHelper;
         mAdapterService = adapterService;
         mScanNative = new ScanNative(scanHelper);
-        mDm = mContext.getSystemService(DisplayManager.class);
+        mDisplayManager = mContext.getSystemService(DisplayManager.class);
         mActivityManager = mContext.getSystemService(ActivityManager.class);
         mLocationManager = mAdapterService.getSystemService(LocationManager.class);
         mBluetoothAdapterProxy = bluetoothAdapterProxy;
@@ -188,8 +189,8 @@ public class ScanManager {
         mPriorityMap.put(ScanSettings.SCAN_MODE_LOW_LATENCY, 5);
 
         mHandler = new ClientHandler(looper);
-        if (mDm != null) {
-            mDm.registerDisplayListener(mDisplayListener, null);
+        if (mDisplayManager != null) {
+            mDisplayManager.registerDisplayListener(mDisplayListener, null);
         }
         mScreenOn = isScreenOn();
         AppScanStats.initScanRadioState();
@@ -217,8 +218,8 @@ public class ScanManager {
             }
         }
 
-        if (mDm != null) {
-            mDm.unregisterDisplayListener(mDisplayListener);
+        if (mDisplayManager != null) {
+            mDisplayManager.unregisterDisplayListener(mDisplayListener);
         }
 
         if (mHandler != null) {
@@ -782,7 +783,12 @@ public class ScanManager {
             if (upgradeScanModeByOneLevel(client)) {
                 Message msg = obtainMessage(MSG_REVERT_SCAN_MODE_UPGRADE);
                 msg.obj = client;
-                Log.d(TAG, "scanMode is upgraded for " + client);
+                Log.d(
+                        TAG,
+                        "scanMode is upgraded to "
+                                + getScanModeString(client.settings.getScanMode())
+                                + " for "
+                                + client);
                 sendMessageDelayed(msg, mAdapterService.getScanUpgradeDurationMillis());
                 return true;
             }
@@ -809,7 +815,12 @@ public class ScanManager {
                 return;
             }
             if (client.updateScanMode(client.scanModeApp)) {
-                Log.d(TAG, "scanMode upgrade is reverted for " + client);
+                Log.d(
+                        TAG,
+                        "scanMode upgrade is reverted to "
+                                + getScanModeString(client.scanModeApp)
+                                + " for "
+                                + client);
                 mScanNative.configureRegularScanParams();
             }
         }
@@ -837,11 +848,16 @@ public class ScanManager {
             if ((client.stats == null) || mAdapterService.getScanDowngradeDurationMillis() == 0) {
                 return false;
             }
-            int scanMode = client.settings.getScanMode();
-            int maxScanMode = SCAN_MODE_MAX_IN_CONCURRENCY;
-            if (client.updateScanMode(getMinScanMode(scanMode, maxScanMode))) {
+            int updatedScanMode =
+                    getMinScanMode(client.settings.getScanMode(), SCAN_MODE_MAX_IN_CONCURRENCY);
+            if (client.updateScanMode(updatedScanMode)) {
                 client.stats.setScanDowngrade(client.scannerId, true);
-                Log.d(TAG, "downgradeScanModeFromMaxDuty() for " + client);
+                Log.d(
+                        TAG,
+                        "downgradeScanModeFromMaxDuty() to "
+                                + getScanModeString(updatedScanMode)
+                                + " for "
+                                + client);
                 return true;
             }
             return false;
@@ -949,6 +965,11 @@ public class ScanManager {
             return scanMode == other.scanMode
                     && fullScanscannerId == other.fullScanscannerId
                     && truncatedScanscannerId == other.truncatedScanscannerId;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(scanMode, fullScanscannerId, truncatedScanscannerId);
         }
     }
 
@@ -1946,7 +1967,7 @@ public class ScanManager {
     }
 
     private boolean isScreenOn() {
-        Display[] displays = mDm.getDisplays();
+        Display[] displays = mDisplayManager.getDisplays();
 
         if (displays == null) {
             return false;

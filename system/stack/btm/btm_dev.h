@@ -58,6 +58,18 @@ const char* BTM_SecReadDevName(const RawAddress& bd_addr);
 
 /*******************************************************************************
  *
+ * Function         BTM_SecReadDevName
+ *
+ * Description      Looks for the device name in the security database for the
+ *                  specified BD address.
+ *
+ * Returns          Pointer to the name or NULL
+ *
+ ******************************************************************************/
+DEV_CLASS BTM_SecReadDevClass(const RawAddress& bd_addr);
+
+/*******************************************************************************
+ *
  * Function         btm_sec_alloc_dev
  *
  * Description      Allocate a record in the device database
@@ -192,3 +204,14 @@ std::vector<tBTM_SEC_DEV_REC*> btm_get_sec_dev_rec();
 
 bool BTM_Sec_AddressKnown(const RawAddress& address);
 const tBLE_BD_ADDR BTM_Sec_GetAddressWithType(const RawAddress& bd_addr);
+
+/*******************************************************************************
+ *
+ * Function         DumpsysRecord
+ *
+ * Description      Provides dumpsys access to device records.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void DumpsysRecord(int fd);

@@ -33,6 +33,9 @@
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::Uuid;
 using namespace bluetooth;
 
@@ -46,7 +49,7 @@ typedef struct {
 typedef struct {
   RawAddress bda;
   tGAP_BLE_CMPL_CBACK* p_cback;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
   uint16_t cl_op_uuid;
   bool connected;
   std::queue<tGAP_REQUEST> requests;
@@ -58,10 +61,10 @@ typedef struct {
   tGAP_BLE_ATTR_VALUE attr_value;
 } tGAP_ATTR;
 
-void server_attr_request_cback(uint16_t, uint32_t, tGATTS_REQ_TYPE, tGATTS_DATA*);
-void client_connect_cback(tGATT_IF, const RawAddress&, uint16_t, bool, tGATT_DISCONN_REASON,
+void server_attr_request_cback(tCONN_ID, uint32_t, tGATTS_REQ_TYPE, tGATTS_DATA*);
+void client_connect_cback(tGATT_IF, const RawAddress&, tCONN_ID, bool, tGATT_DISCONN_REASON,
                           tBT_TRANSPORT);
-void client_cmpl_cback(uint16_t, tGATTC_OPTYPE, tGATT_STATUS, tGATT_CL_COMPLETE*);
+void client_cmpl_cback(tCONN_ID, tGATTC_OPTYPE, tGATT_STATUS, tGATT_CL_COMPLETE*);
 
 tGATT_CBACK gap_cback = {
         .p_conn_cb = client_connect_cback,
@@ -96,7 +99,7 @@ tGAP_CLCB* find_clcb_by_bd_addr(const RawAddress& bda) {
 }
 
 /** returns LCB with matching connection ID, or nullptr if not found  */
-tGAP_CLCB* ble_find_clcb_by_conn_id(uint16_t conn_id) {
+tGAP_CLCB* ble_find_clcb_by_conn_id(tCONN_ID conn_id) {
   for (auto& cb : gap_clcbs) {
     if (cb.connected && cb.conn_id == conn_id) {
       return &cb;
@@ -210,7 +213,7 @@ tGATT_STATUS proc_write_req(tGATTS_REQ_TYPE, tGATT_WRITE_REQ* p_data) {
 }
 
 /** GAP ATT server attribute access request callback */
-void server_attr_request_cback(uint16_t conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
+void server_attr_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
                                tGATTS_DATA* p_data) {
   tGATT_STATUS status = GATT_INVALID_PDU;
   bool ignore = false;
@@ -256,7 +259,7 @@ void server_attr_request_cback(uint16_t conn_id, uint32_t trans_id, tGATTS_REQ_T
 }
 
 /**
- * utility function to send a read request for a GAP charactersitic.
+ * Utility function to send a read request for GAP characteristics.
  * Returns true if read started, else false if GAP is busy.
  */
 bool send_cl_read_request(tGAP_CLCB& clcb) {
@@ -308,7 +311,7 @@ void cl_op_cmpl(tGAP_CLCB& clcb, bool status, uint16_t len, uint8_t* p_name) {
 }
 
 /** Client connection callback */
-void client_connect_cback(tGATT_IF, const RawAddress& bda, uint16_t conn_id, bool connected,
+void client_connect_cback(tGATT_IF, const RawAddress& bda, tCONN_ID conn_id, bool connected,
                           tGATT_DISCONN_REASON /* reason */, tBT_TRANSPORT) {
   tGAP_CLCB* p_clcb = find_clcb_by_bd_addr(bda);
   if (p_clcb == NULL) {
@@ -333,7 +336,7 @@ void client_connect_cback(tGATT_IF, const RawAddress& bda, uint16_t conn_id, boo
 }
 
 /** Client operation complete callback */
-void client_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
+void client_cmpl_cback(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
                        tGATT_CL_COMPLETE* p_data) {
   tGAP_CLCB* p_clcb = ble_find_clcb_by_conn_id(conn_id);
   uint16_t op_type;
@@ -382,6 +385,14 @@ void client_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
     case GATT_UUID_GAP_CENTRAL_ADDR_RESOL:
       cl_op_cmpl(*p_clcb, true, 1, pp);
       break;
+
+    case GATT_UUID_GAP_ICON:
+      cl_op_cmpl(*p_clcb, true, p_data->att_value.len, pp);
+      break;
+
+    default:
+      log::error("Unexpected operation {}", op);
+      break;
   }
 }
 
@@ -418,9 +429,9 @@ bool accept_client_operation(const RawAddress& peer_bda, uint16_t uuid,
 
 /*******************************************************************************
  *
- * Function         btm_ble_att_db_init
+ * Function         gap_attr_db_init
  *
- * Description      GAP ATT database initalization.
+ * Description      GAP ATT database initialization.
  *
  * Returns          void.
  *
@@ -557,6 +568,19 @@ bool GAP_BleReadPeerPrefConnParams(const RawAddress& peer_bda) {
  ******************************************************************************/
 bool GAP_BleReadPeerDevName(const RawAddress& peer_bda, tGAP_BLE_CMPL_CBACK* p_cback) {
   return accept_client_operation(peer_bda, GATT_UUID_GAP_DEVICE_NAME, p_cback);
+}
+
+/*******************************************************************************
+ *
+ * Function         GAP_BleReadPeerAppearance
+ *
+ * Description      Start a process to read a connected peripheral's appearance.
+ *
+ * Returns          true if request accepted
+ *
+ ******************************************************************************/
+bool GAP_BleReadPeerAppearance(const RawAddress& peer_bda, tGAP_BLE_CMPL_CBACK* p_cback) {
+  return accept_client_operation(peer_bda, GATT_UUID_GAP_ICON, p_cback);
 }
 
 /*******************************************************************************

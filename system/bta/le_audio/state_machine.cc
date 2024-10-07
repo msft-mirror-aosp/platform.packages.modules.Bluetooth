@@ -133,8 +133,8 @@ LeAudioGroupStateMachineImpl* instance;
 
 class LeAudioGroupStateMachineImpl : public LeAudioGroupStateMachine {
 public:
-  LeAudioGroupStateMachineImpl(Callbacks* state_machine_callbacks_)
-      : state_machine_callbacks_(state_machine_callbacks_),
+  LeAudioGroupStateMachineImpl(Callbacks* state_machine_callbacks)
+      : state_machine_callbacks_(state_machine_callbacks),
         watchdog_(alarm_new("LeAudioStateMachineTimer")) {
     log_history_ = LeAudioLogHistory::Get();
   }
@@ -241,7 +241,25 @@ public:
       case AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED: {
         LeAudioDevice* leAudioDevice = group->GetFirstActiveDevice();
         if (!leAudioDevice) {
-          log::error("group has no active devices");
+          group->PrintDebugState();
+          log::error("group_id: {} has no active devices", group->group_id_);
+          return false;
+        }
+
+        if (!group->IsConfiguredForContext(context_type)) {
+          if (group->GetConfigurationContextType() == context_type) {
+            log::info(
+                    "Looks like another device connected in the meantime to group_id: {}, try to "
+                    "reconfigure.",
+                    group->group_id_);
+            if (group->Configure(context_type, metadata_context_types, ccid_lists)) {
+              return PrepareAndSendCodecConfigToTheGroup(group);
+            }
+          }
+          log::error("Trying to start stream not configured for the context {} in group_id: {} ",
+                     ToString(context_type), group->group_id_);
+          group->PrintDebugState();
+          StopStream(group);
           return false;
         }
 
@@ -283,11 +301,24 @@ public:
 
   bool ConfigureStream(LeAudioDeviceGroup* group, LeAudioContextType context_type,
                        const BidirectionalPair<AudioContexts>& metadata_context_types,
-                       BidirectionalPair<std::vector<uint8_t>> ccid_lists) override {
+                       BidirectionalPair<std::vector<uint8_t>> ccid_lists,
+                       bool configure_qos) override {
     if (group->GetState() > AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED) {
       log::error("Stream should be stopped or in configured stream. Current state: {}",
                  ToString(group->GetState()));
       return false;
+    }
+
+    if (configure_qos) {
+      if (group->IsConfiguredForContext(context_type)) {
+        if (group->Activate(context_type, metadata_context_types, ccid_lists)) {
+          SetTargetState(group, AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED);
+          if (CigCreate(group)) {
+            return true;
+          }
+        }
+      }
+      log::info("Could not activate device, try to configure it again");
     }
 
     group->Deactivate();
@@ -301,7 +332,11 @@ public:
     }
 
     group->cig.GenerateCisIds(context_type);
-    SetTargetState(group, AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED);
+    if (configure_qos) {
+      SetTargetState(group, AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED);
+    } else {
+      SetTargetState(group, AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED);
+    }
     return PrepareAndSendCodecConfigToTheGroup(group);
   }
 
@@ -314,7 +349,8 @@ public:
 
   void StopStream(LeAudioDeviceGroup* group) override {
     if (group->IsReleasingOrIdle()) {
-      log::info("group: {} already in releasing process", group->group_id_);
+      log::info("group: {} in_transition: {}, current_state {}", group->group_id_,
+                group->IsInTransition(), ToString(group->GetState()));
       return;
     }
 
@@ -488,7 +524,8 @@ public:
               group->group_id_, ToString(group->cig.GetState()),
               static_cast<int>(conn_handles.size()));
 
-    if (group->GetTargetState() != AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING) {
+    if (group->GetTargetState() != AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING &&
+        group->GetTargetState() != AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED) {
       /* Group is not going to stream. It happen while CIG was creating.
        * Remove CIG in such a case
        */
@@ -503,9 +540,6 @@ public:
 
     /* Assign all connection handles to multiple device ASEs */
     group->AssignCisConnHandlesToAses();
-
-    /* Last node configured, process group to codec configured state */
-    group->SetState(AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED);
 
     PrepareAndSendQoSToTheGroup(group);
   }
@@ -670,7 +704,7 @@ public:
       if (group->dsa_.active && leAudioDevice->GetDsaDataPathState() == DataPathState::REMOVING) {
         log::info("DSA data path removed");
         leAudioDevice->SetDsaDataPathState(DataPathState::IDLE);
-        leAudioDevice->SetDsaCisHandle(GATT_INVALID_CONN_ID);
+        leAudioDevice->SetDsaCisHandle(LE_AUDIO_INVALID_CIS_HANDLE);
       }
     }
 
@@ -708,7 +742,7 @@ public:
     while (leAudioDevice != nullptr) {
       for (auto& ase : leAudioDevice->ases_) {
         ase.cis_id = bluetooth::le_audio::kInvalidCisId;
-        ase.cis_conn_hdl = 0;
+        ase.cis_conn_hdl = bluetooth::le_audio::kInvalidCisConnHandle;
       }
       leAudioDevice = group->GetNextDevice(leAudioDevice);
     }
@@ -765,6 +799,10 @@ public:
 
     /* It is possible that ACL disconnection came before CIS disconnect event */
     for (auto& ase : leAudioDevice->ases_) {
+      if (ase.data_path_state == DataPathState::CONFIGURED ||
+          ase.data_path_state == DataPathState::CONFIGURING) {
+        RemoveDataPathByCisHandle(leAudioDevice, ase.cis_conn_hdl);
+      }
       group->RemoveCisFromStreamIfNeeded(leAudioDevice, ase.cis_conn_hdl);
     }
 
@@ -815,11 +853,17 @@ public:
         SendStreamingStatusCbIfNeeded(group);
         return;
       }
+
+      if (!group->IsInTransitionTo(AseState::BTA_LE_AUDIO_ASE_STATE_IDLE)) {
+        /* do nothing if not transitioning to IDLE */
+        return;
+      }
     }
 
     /* Group is not connected and all the CISes are down.
      * Clean states and destroy HCI group
      */
+    log::debug("Clearing inactive group");
     ClearGroup(group, true);
   }
 
@@ -1860,6 +1904,7 @@ private:
     }
 
     std::vector<uint8_t> value;
+    log::info("{} -> ", leAudioDevice->address_);
     bluetooth::le_audio::client_parser::ascs::PrepareAseCtpCodecConfig(confs, value);
     WriteToControlPoint(leAudioDevice, value);
 
@@ -1989,12 +2034,17 @@ private:
         /* Last node configured, process group to codec configured state */
         group->SetState(AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED);
 
-        if (group->GetTargetState() == AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING) {
+        if (group->GetTargetState() == AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING ||
+            group->GetTargetState() == AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED) {
           if (group->cig.GetState() == CigState::CREATED) {
             /* It can happen on the earbuds switch scenario. When one device
              * is getting remove while other is adding to the stream and CIG is
-             * already created */
-            PrepareAndSendConfigQos(group, leAudioDevice);
+             * already created.
+             * Also if one of the set members got reconnected while the other was in QoSConfigured
+             * state. In this case, state machine will keep CIG but will send Codec Config to all
+             * the set members and when ASEs will move to Codec Configured State, we would like a
+             * whole group to move to QoS Configure.*/
+            PrepareAndSendQoSToTheGroup(group);
           } else if (!CigCreate(group)) {
             log::error("Could not create CIG. Stop the stream for group {}", group->group_id_);
             StopStream(group);
@@ -2197,7 +2247,8 @@ private:
       case AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED: {
         SetAseState(leAudioDevice, ase, AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED);
 
-        if (group->GetTargetState() != AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING) {
+        if (group->GetTargetState() != AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING &&
+            group->GetTargetState() != AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED) {
           log::warn("{}, ase_id: {}, target state: {}", leAudioDevice->address_, ase->id,
                     ToString(group->GetTargetState()));
           group->PrintDebugState();
@@ -2223,6 +2274,14 @@ private:
           return;
         }
 
+        group->SetState(AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED);
+
+        if (group->GetTargetState() == AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED) {
+          cancel_watchdog_if_needed(group->group_id_);
+          state_machine_callbacks_->StatusReportCb(group->group_id_,
+                                                   GroupStreamStatus::CONFIGURED_BY_USER);
+          return;
+        }
         PrepareAndSendEnableToTheGroup(group);
 
         break;
@@ -2461,11 +2520,22 @@ private:
     msg_stream << kLogAseQoSConfigOp;
 
     std::stringstream extra_stream;
+    int number_of_active_ases = 0;
+    int number_of_streaming_ases = 0;
 
     for (struct ase* ase = leAudioDevice->GetFirstActiveAse(); ase != nullptr;
          ase = leAudioDevice->GetNextActiveAse(ase)) {
       log::debug("device: {}, ase_id: {}, cis_id: {}, ase state: {}", leAudioDevice->address_,
                  ase->id, ase->cis_id, ToString(ase->state));
+
+      /* QoS Config can be done on ASEs which are in Codec Configured and QoS Configured state.
+       * If ASE is streaming, it can be skipped.
+       */
+      number_of_active_ases++;
+      if (ase->state == AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING) {
+        number_of_streaming_ases++;
+        continue;
+      }
 
       /* Fill in the whole group dependent ASE parameters */
       if (!group->GetPresentationDelay(&ase->qos_config.presentation_delay, ase->direction)) {
@@ -2515,6 +2585,11 @@ private:
       // dir...cis_id,sdu,lat,rtn,phy,frm;;
       extra_stream << +conf.cis << "," << +conf.max_sdu << "," << +conf.max_transport_latency << ","
                    << +conf.retrans_nb << "," << +conf.phy << "," << +conf.framing << ";;";
+    }
+
+    if (number_of_streaming_ases > 0 && number_of_streaming_ases == number_of_active_ases) {
+      log::debug("Device {} is already streaming", leAudioDevice->address_);
+      return;
     }
 
     if (confs.size() == 0 || !validate_transport_latency || !validate_max_sdu_size) {

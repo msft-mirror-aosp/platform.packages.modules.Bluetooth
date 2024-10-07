@@ -15,6 +15,7 @@
  */
 
 #include <base/functional/bind.h>
+#include <base/functional/callback.h>
 #include <bluetooth/log.h>
 
 #include <unordered_map>
@@ -57,13 +58,13 @@ public:
   };
 
   struct PendingWriteResponse {
-    uint16_t conn_id_;
+    tCONN_ID conn_id_;
     uint32_t trans_id_;
     uint16_t write_req_handle_;
   };
 
   struct ClientTracker {
-    uint16_t conn_id_;
+    tCONN_ID conn_id_;
     std::unordered_map<Uuid, uint16_t> ccc_values_;
     std::vector<DataBuffer> buffers_;
     bool handling_control_point_command_ = false;
@@ -127,11 +128,11 @@ public:
     uint16_t ccc_data_over_written = tracker.ccc_values_[kRasRangingDataOverWrittenCharacteristic];
 
     if (ccc_real_time != GATT_CLT_CONFIG_NONE) {
-      bool need_confirm = ccc_real_time & GATT_CLT_CONFIG_INDICATION;
+      bool use_notification = ccc_real_time & GATT_CLT_CONFIG_NOTIFICATION;
       uint16_t attr_id =
               GetCharacteristic(kRasRealTimeRangingDataCharacteristic)->attribute_handle_;
       log::debug("Send Real-time Ranging Data is_last {}", is_last);
-      BTA_GATTS_HandleValueIndication(tracker.conn_id_, attr_id, data, need_confirm);
+      BTA_GATTS_HandleValueIndication(tracker.conn_id_, attr_id, data, !use_notification);
     }
 
     if (ccc_data_ready == GATT_CLT_CONFIG_NONE && ccc_data_over_written == GATT_CLT_CONFIG_NONE) {
@@ -368,15 +369,11 @@ public:
       } break;
       case kRasRangingDataReadyCharacteristic16bit: {
         p_msg.attr_value.len = kRingingCounterSize;
-        std::vector<uint8_t> value(kRingingCounterSize);
-        if (tracker->buffers_.size() > 0) {
-          p_msg.attr_value.value[0] = (tracker->last_ready_procedure_ & 0xFF);
-          p_msg.attr_value.value[1] = (tracker->last_ready_procedure_ >> 8) & 0xFF;
-        }
+        p_msg.attr_value.value[0] = (tracker->last_ready_procedure_ & 0xFF);
+        p_msg.attr_value.value[1] = (tracker->last_ready_procedure_ >> 8) & 0xFF;
       } break;
       case kRasRangingDataOverWrittenCharacteristic16bit: {
         p_msg.attr_value.len = kRingingCounterSize;
-        std::vector<uint8_t> value(kRingingCounterSize);
         p_msg.attr_value.value[0] = (tracker->last_overwritten_procedure_ & 0xFF);
         p_msg.attr_value.value[1] = (tracker->last_overwritten_procedure_ >> 8) & 0xFF;
       } break;
@@ -390,7 +387,7 @@ public:
   }
 
   void OnReadDescriptor(tBTA_GATTS* p_data) {
-    uint16_t conn_id = p_data->req_data.conn_id;
+    tCONN_ID conn_id = p_data->req_data.conn_id;
     uint16_t read_req_handle = p_data->req_data.p_data->read_req.handle;
     RawAddress remote_bda = p_data->req_data.remote_bda;
     log::info("conn_id:{}, read_req_handle:0x{:04x}", conn_id, read_req_handle);
@@ -419,7 +416,7 @@ public:
   }
 
   void OnWriteCharacteristic(tBTA_GATTS* p_data) {
-    uint16_t conn_id = p_data->req_data.conn_id;
+    tCONN_ID conn_id = p_data->req_data.conn_id;
     uint16_t write_req_handle = p_data->req_data.p_data->write_req.handle;
     uint16_t len = p_data->req_data.p_data->write_req.len;
     bool need_rsp = p_data->req_data.p_data->write_req.need_rsp;
@@ -453,11 +450,6 @@ public:
           return;
         }
         ClientTracker* tracker = &trackers_[p_data->req_data.remote_bda];
-        if (tracker->handling_control_point_command_) {
-          log::warn("Server busy");
-          SendResponseCode(ResponseCodeValue::SERVER_BUSY, tracker);
-          return;
-        }
         if (need_rsp) {
           BTA_GATTS_SendRsp(conn_id, p_data->req_data.trans_id, GATT_SUCCESS, &p_msg);
         }
@@ -510,7 +502,7 @@ public:
   }
 
   void OnWriteDescriptor(tBTA_GATTS* p_data) {
-    uint16_t conn_id = p_data->req_data.conn_id;
+    tCONN_ID conn_id = p_data->req_data.conn_id;
     uint16_t write_req_handle = p_data->req_data.p_data->write_req.handle;
     uint16_t len = p_data->req_data.p_data->write_req.len;
     RawAddress remote_bda = p_data->req_data.remote_bda;
@@ -565,6 +557,12 @@ public:
       return;
     }
 
+    if (tracker->handling_control_point_command_ && command.opcode_ != Opcode::ABORT_OPERATION) {
+      log::warn("Server busy");
+      SendResponseCode(ResponseCodeValue::SERVER_BUSY, tracker);
+      return;
+    }
+
     tracker->handling_control_point_command_ = true;
 
     switch (command.opcode_) {
@@ -595,7 +593,7 @@ public:
 
     uint16_t ccc_value = tracker->ccc_values_[kRasOnDemandDataCharacteristic];
     uint16_t attr_id = GetCharacteristic(kRasOnDemandDataCharacteristic)->attribute_handle_;
-    bool need_confirm = ccc_value & GATT_CLT_CONFIG_INDICATION;
+    bool use_notification = ccc_value & GATT_CLT_CONFIG_NOTIFICATION;
 
     std::lock_guard<std::mutex> lock(on_demand_ranging_mutex_);
     auto it = std::find_if(tracker->buffers_.begin(), tracker->buffers_.end(),
@@ -609,7 +607,8 @@ public:
           break;
         }
         log::info("Send On Demand Ranging Data, segment {}", i);
-        BTA_GATTS_HandleValueIndication(tracker->conn_id_, attr_id, it->segments_[i], need_confirm);
+        BTA_GATTS_HandleValueIndication(tracker->conn_id_, attr_id, it->segments_[i],
+                                        !use_notification);
       }
       log::info("Send COMPLETE_RANGING_DATA_RESPONSE, ranging_counter:{}", ranging_counter);
       std::vector<uint8_t> response(3, 0);

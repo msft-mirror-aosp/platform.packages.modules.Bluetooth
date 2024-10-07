@@ -25,6 +25,7 @@ import android.annotation.FlaggedApi;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
@@ -107,7 +108,6 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
          * @param volumeOffset latest volume offset for this VOCS instance
          * @hide
          */
-        @FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API)
         @SystemApi
         default void onVolumeOffsetChanged(
                 @NonNull BluetoothDevice device,
@@ -127,7 +127,6 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
          * @param audioLocation latest audio location for this VOCS instance
          * @hide
          */
-        @FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API)
         @SystemApi
         default void onVolumeOffsetAudioLocationChanged(
                 @NonNull BluetoothDevice device,
@@ -143,7 +142,6 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
          * @param audioDescription latest audio description for this VOCS instance
          * @hide
          */
-        @FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API)
         @SystemApi
         default void onVolumeOffsetAudioDescriptionChanged(
                 @NonNull BluetoothDevice device,
@@ -188,9 +186,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
         public void onVolumeOffsetChanged(
                 @NonNull BluetoothDevice device, int instanceId, int volumeOffset) {
             Attributable.setAttributionSource(device, mAttributionSource);
-            if (Flags.leaudioMultipleVocsInstancesApi()) {
-                forEach((cb) -> cb.onVolumeOffsetChanged(device, instanceId, volumeOffset));
-            }
+            forEach((cb) -> cb.onVolumeOffsetChanged(device, instanceId, volumeOffset));
         }
 
         @Override
@@ -287,6 +283,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     @SuppressLint("AndroidFrameworkRequiresPermission") // Unexposed re-entrant callback
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothVolumeControl.Stub.asInterface(service);
@@ -305,6 +302,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public void onServiceDisconnected() {
         mService = null;
     }
@@ -315,6 +313,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }
@@ -460,7 +459,6 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
             } catch (RemoteException e) {
                 mCallbackExecutorMap.remove(callback);
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-                throw e.rethrowAsRuntimeException();
             }
         }
     }
@@ -503,10 +501,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
             if (service != null) {
                 service.unregisterCallback(mCallback, mAttributionSource);
             }
-        } catch (RemoteException e) {
-            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            throw e.rethrowAsRuntimeException();
-        } catch (IllegalStateException e) {
+        } catch (IllegalStateException | RemoteException e) {
             Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
         }
     }
@@ -547,7 +542,6 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
      * @param volumeOffset volume offset to be set on VOCS instance
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API)
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
@@ -650,7 +644,6 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
      * @return number of VOCS instances. When Bluetooth is off, the return value is 0.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API)
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(

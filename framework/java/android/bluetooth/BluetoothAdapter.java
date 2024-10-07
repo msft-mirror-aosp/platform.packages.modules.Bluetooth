@@ -29,7 +29,6 @@ import static java.util.Objects.requireNonNull;
 
 import android.annotation.BroadcastBehavior;
 import android.annotation.CallbackExecutor;
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -285,8 +284,7 @@ public final class BluetoothAdapter {
      */
     @SystemApi
     @RequiresNoPermission
-    @NonNull
-    public static String nameForState(@InternalAdapterState int state) {
+    public static @NonNull String nameForState(@InternalAdapterState int state) {
         switch (state) {
             case STATE_OFF:
                 return "OFF";
@@ -754,7 +752,6 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_AUTO_ON_FEATURE)
     @RequiresPermission(BLUETOOTH_PRIVILEGED)
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     @BroadcastBehavior(registeredOnly = true, protectedBroadcast = true)
@@ -769,7 +766,6 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_AUTO_ON_FEATURE)
     public static final String EXTRA_AUTO_ON_STATE = "android.bluetooth.extra.AUTO_ON_STATE";
 
     /**
@@ -778,7 +774,6 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_AUTO_ON_FEATURE)
     public static final int AUTO_ON_STATE_DISABLED = 1;
 
     /**
@@ -787,7 +782,6 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_AUTO_ON_FEATURE)
     public static final int AUTO_ON_STATE_ENABLED = 2;
 
     /**
@@ -874,8 +868,6 @@ public final class BluetoothAdapter {
     @GuardedBy("mServiceLock")
     private IBluetooth mService;
 
-    private static int sAdapterState = BluetoothAdapter.STATE_OFF;
-
     private final ReentrantReadWriteLock mServiceLock = new ReentrantReadWriteLock();
 
     @GuardedBy("sServiceLock")
@@ -901,6 +893,7 @@ public final class BluetoothAdapter {
             mListener = listener;
         }
 
+        @GuardedBy("BluetoothAdapter.sProfileLock")
         void connect(BluetoothProfile proxy, IBinder binder) {
             Log.d(TAG, BluetoothProfile.getProfileName(mProfile) + " connected");
             mConnected = true;
@@ -908,6 +901,7 @@ public final class BluetoothAdapter {
             mListener.onServiceConnected(mProfile, proxy);
         }
 
+        @GuardedBy("BluetoothAdapter.sProfileLock")
         void disconnect(BluetoothProfile proxy) {
             Log.d(TAG, BluetoothProfile.getProfileName(mProfile) + " disconnected");
             mConnected = false;
@@ -916,6 +910,9 @@ public final class BluetoothAdapter {
         }
     }
 
+    private static final Object sProfileLock = new Object();
+
+    @GuardedBy("sProfileLock")
     private final Map<BluetoothProfile, ProfileConnection> mProfileConnections =
             new ConcurrentHashMap<>();
 
@@ -924,10 +921,10 @@ public final class BluetoothAdapter {
     /**
      * Bluetooth metadata listener. Overrides the default BluetoothMetadataListener implementation.
      */
-    @SuppressLint("AndroidFrameworkBluetoothPermission")
     private final IBluetoothMetadataListener mBluetoothMetadataListener =
             new IBluetoothMetadataListener.Stub() {
                 @Override
+                @RequiresNoPermission
                 public void onMetadataChanged(BluetoothDevice device, int key, byte[] value) {
                     Attributable.setAttributionSource(device, mAttributionSource);
                     synchronized (mMetadataListeners) {
@@ -1005,6 +1002,7 @@ public final class BluetoothAdapter {
         }
 
         @Override
+        @RequiresNoPermission
         public void onBluetoothActivityEnergyInfoAvailable(BluetoothActivityEnergyInfo info) {
             Executor executor;
             OnBluetoothActivityEnergyInfoCallback callback;
@@ -1033,6 +1031,7 @@ public final class BluetoothAdapter {
         }
 
         /** Framework only method that is called when the service can't be reached. */
+        @RequiresNoPermission
         public void onError(int errorCode) {
             Executor executor;
             OnBluetoothActivityEnergyInfoCallback callback;
@@ -1325,11 +1324,8 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @Nullable DistanceMeasurementManager getDistanceMeasurementManager() {
         if (!getLeAccess()) {
             return null;
@@ -1472,7 +1468,6 @@ public final class BluetoothAdapter {
             super(8, IpcDataCache.MODULE_BLUETOOTH, api, api, query);
         }
     }
-    ;
 
     /**
      * Invalidate a bluetooth cache. This method is just a short-hand wrapper that enforces the
@@ -1496,26 +1491,64 @@ public final class BluetoothAdapter {
                 }
             };
 
+    private static final IpcDataCache.QueryHandler<IBluetoothManager, Integer>
+            sBluetoothGetSystemStateQuery =
+                    new IpcDataCache.QueryHandler<>() {
+                        @RequiresNoPermission
+                        @Override
+                        public @InternalAdapterState Integer apply(IBluetoothManager serviceQuery) {
+                            try {
+                                return serviceQuery.getState();
+                            } catch (RemoteException e) {
+                                throw e.rethrowAsRuntimeException();
+                            }
+                        }
+                    };
+
     private static final String GET_STATE_API = "BluetoothAdapter_getState";
+
+    /** @hide */
+    public static final String GET_SYSTEM_STATE_API = IBluetoothManager.GET_SYSTEM_STATE_API;
 
     private static final IpcDataCache<IBluetooth, Integer> sBluetoothGetStateCache =
             new BluetoothCache<>(GET_STATE_API, sBluetoothGetStateQuery);
 
+    private static final IpcDataCache<IBluetoothManager, Integer> sBluetoothGetSystemStateCache =
+            new IpcDataCache<>(
+                    8,
+                    IBluetoothManager.IPC_CACHE_MODULE_SYSTEM,
+                    GET_SYSTEM_STATE_API,
+                    GET_SYSTEM_STATE_API,
+                    sBluetoothGetSystemStateQuery);
+
     /** @hide */
     @RequiresNoPermission
     public void disableBluetoothGetStateCache() {
+        if (Flags.getStateFromSystemServer()) {
+            throw new IllegalStateException("getStateFromSystemServer is enabled");
+        }
         sBluetoothGetStateCache.disableForCurrentProcess();
     }
 
     /** @hide */
     public static void invalidateBluetoothGetStateCache() {
+        if (Flags.getStateFromSystemServer()) {
+            throw new IllegalStateException("getStateFromSystemServer is enabled");
+        }
         invalidateCache(GET_STATE_API);
     }
 
     /** Fetch the current bluetooth state. If the service is down, return OFF. */
     private @InternalAdapterState int getStateInternal() {
-        if (Flags.broadcastAdapterStateWithCallback()) {
-            return sAdapterState;
+        if (Flags.getStateFromSystemServer()) {
+            try {
+                return sBluetoothGetSystemStateCache.query(mManagerService);
+            } catch (RuntimeException runtime) {
+                if (runtime.getCause() instanceof RemoteException e) {
+                    throw e.rethrowFromSystemServer();
+                }
+                throw runtime;
+            }
         }
         mServiceLock.readLock().lock();
         try {
@@ -1846,6 +1879,7 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(BLUETOOTH_CONNECT)
     public @NonNull List<ParcelUuid> getUuidsList() {
         List<ParcelUuid> defaultValue = new ArrayList<>();
@@ -2315,11 +2349,8 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @NonNull List<BluetoothDevice> getActiveDevices(@ActiveDeviceProfile int profile) {
         if (profile != BluetoothProfile.HEADSET
                 && profile != BluetoothProfile.A2DP
@@ -2680,11 +2711,8 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @LeFeatureReturnValues int isDistanceMeasurementSupported() {
         if (!getLeAccess()) {
             return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
@@ -2774,7 +2802,7 @@ public final class BluetoothAdapter {
      * @return true if there are hw entries available for matching beacons
      * @hide
      */
-    @RequiresBluetoothConnectPermission
+    @RequiresBluetoothScanPermission
     @RequiresPermission(BLUETOOTH_SCAN)
     public boolean isHardwareTrackingFiltersAvailable() {
         if (!getLeAccess()) {
@@ -3026,6 +3054,7 @@ public final class BluetoothAdapter {
                     new IpcDataCache.QueryHandler<>() {
                         @SuppressLint("AndroidFrameworkRequiresPermission")
                         @Override
+                        @RequiresNoPermission
                         public Integer apply(
                                 Pair<IBluetooth, Pair<AttributionSource, Integer>> pairQuery) {
                             IBluetooth service = pairQuery.first;
@@ -3320,18 +3349,16 @@ public final class BluetoothAdapter {
                 }
             case BluetoothStatusCodes.RFCOMM_LISTENER_OPERATION_FAILED_DIFFERENT_APP:
                 throw new IllegalStateException(
-                        String.format(
-                                "RFCOMM listener for UUID %s was not registered by this app",
-                                uuid));
+                        "RFCOMM listener for UUID " + uuid + " was not registered by this app");
             case BluetoothStatusCodes.RFCOMM_LISTENER_NO_SOCKET_AVAILABLE:
                 return null;
             default:
                 Log.e(
                         TAG,
-                        String.format(
-                                "Unexpected result: (%d), from the adapter service while retrieving"
-                                        + " an rfcomm socket",
-                                socketInfo.status));
+                        "Unexpected result: ("
+                                + socketInfo.status
+                                + "), from the adapter service"
+                                + " while retrieving an rfcomm socket");
                 return null;
         }
     }
@@ -3589,7 +3616,11 @@ public final class BluetoothAdapter {
      *     BluetoothProfile#HEARING_AID} or {@link BluetoothProfile#GATT_SERVER}.
      * @return true on success, false on error
      */
-    @SuppressLint({"AndroidFrameworkRequiresPermission", "AndroidFrameworkBluetoothPermission"})
+    @SuppressLint({
+        "AndroidFrameworkRequiresPermission",
+        "AndroidFrameworkBluetoothPermission",
+        "AndroidFrameworkCompatChange"
+    })
     public boolean getProfileProxy(
             Context context, BluetoothProfile.ServiceListener listener, int profile) {
         if (context == null || listener == null) {
@@ -3617,7 +3648,7 @@ public final class BluetoothAdapter {
         // Preserve legacy compatibility where apps were depending on
         // registerStateChangeCallback() performing a permissions check which
         // has been relaxed in modern platform versions
-        if (context.getApplicationInfo().targetSdkVersion <= Build.VERSION_CODES.R
+        if (context.getApplicationInfo().targetSdkVersion < Build.VERSION_CODES.S
                 && context.checkSelfPermission(BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
             throw new SecurityException("Need BLUETOOTH permission");
         }
@@ -3625,16 +3656,25 @@ public final class BluetoothAdapter {
         BluetoothProfile profileProxy = constructor.apply(context, this);
         ProfileConnection connection = new ProfileConnection(profile, listener);
 
-        mMainHandler.post(
+        Runnable connectAction =
                 () -> {
-                    mProfileConnections.put(profileProxy, connection);
+                    synchronized (sProfileLock) {
+                        // Synchronize with the binder callback to prevent performing the
+                        // connection.connect
+                        // concurrently
+                        mProfileConnections.put(profileProxy, connection);
 
-                    IBinder binder = getProfile(profile);
-                    if (binder != null) {
-                        connection.connect(profileProxy, binder);
+                        IBinder binder = getProfile(profile);
+                        if (binder != null) {
+                            connection.connect(profileProxy, binder);
+                        }
                     }
-                });
-
+                };
+        if (Flags.getProfileUseLock()) {
+            connectAction.run();
+            return true;
+        }
+        mMainHandler.post(connectAction);
         return true;
     }
 
@@ -3648,6 +3688,7 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SuppressLint("AndroidFrameworkRequiresPermission") // Call control is not exposed to 3p app
+    @RequiresNoPermission
     public void closeProfileProxy(@NonNull BluetoothProfile proxy) {
         if (proxy instanceof BluetoothGatt gatt) {
             gatt.close();
@@ -3670,13 +3711,15 @@ public final class BluetoothAdapter {
             return;
         }
 
-        ProfileConnection connection = mProfileConnections.remove(proxy);
-        if (connection != null) {
-            if (proxy instanceof BluetoothLeCallControl callControl) {
-                callControl.unregisterBearer();
-            }
+        synchronized (sProfileLock) {
+            ProfileConnection connection = mProfileConnections.remove(proxy);
+            if (connection != null) {
+                if (proxy instanceof BluetoothLeCallControl callControl) {
+                    callControl.unregisterBearer();
+                }
 
-            connection.disconnect(proxy);
+                connection.disconnect(proxy);
+            }
         }
     }
 
@@ -3699,6 +3742,7 @@ public final class BluetoothAdapter {
 
     private static final IBluetoothManagerCallback sManagerCallback =
             new IBluetoothManagerCallback.Stub() {
+                @RequiresNoPermission
                 public void onBluetoothServiceUp(IBinder bluetoothService) {
                     if (DBG) {
                         Log.d(TAG, "onBluetoothServiceUp: " + bluetoothService);
@@ -3720,6 +3764,7 @@ public final class BluetoothAdapter {
                     }
                 }
 
+                @RequiresNoPermission
                 public void onBluetoothServiceDown() {
                     if (DBG) {
                         Log.d(TAG, "onBluetoothServiceDown");
@@ -3741,6 +3786,7 @@ public final class BluetoothAdapter {
                     }
                 }
 
+                @RequiresNoPermission
                 public void onBluetoothOn() {
                     if (DBG) {
                         Log.d(TAG, "onBluetoothOn");
@@ -3761,6 +3807,7 @@ public final class BluetoothAdapter {
                     }
                 }
 
+                @RequiresNoPermission
                 public void onBluetoothOff() {
                     if (DBG) {
                         Log.d(TAG, "onBluetoothOff");
@@ -3780,15 +3827,12 @@ public final class BluetoothAdapter {
                         }
                     }
                 }
-
-                public void onBluetoothAdapterStateChange(int newState) {
-                    sAdapterState = newState;
-                }
             };
 
     private final IBluetoothManagerCallback mManagerCallback =
             new IBluetoothManagerCallback.Stub() {
                 @SuppressLint("AndroidFrameworkRequiresPermission") // Internal callback
+                @RequiresNoPermission
                 public void onBluetoothServiceUp(@NonNull IBinder bluetoothService) {
                     requireNonNull(bluetoothService, "bluetoothService cannot be null");
                     mServiceLock.writeLock().lock();
@@ -3827,6 +3871,7 @@ public final class BluetoothAdapter {
                     }
                 }
 
+                @RequiresNoPermission
                 public void onBluetoothServiceDown() {
                     mServiceLock.writeLock().lock();
                     try {
@@ -3845,41 +3890,52 @@ public final class BluetoothAdapter {
                     }
                 }
 
+                @RequiresNoPermission
                 public void onBluetoothOn() {
-                    mMainHandler.post(
+                    Runnable btOnAction =
                             () -> {
-                                mProfileConnections.forEach(
-                                        (proxy, connection) -> {
-                                            if (connection.mConnected) return;
+                                synchronized (sProfileLock) {
+                                    mProfileConnections.forEach(
+                                            (proxy, connection) -> {
+                                                if (connection.mConnected) return;
 
-                                            IBinder binder = getProfile(connection.mProfile);
-                                            if (binder != null) {
-                                                connection.connect(proxy, binder);
-                                            } else {
-                                                Log.e(
-                                                        TAG,
-                                                        "onBluetoothOn: Binder null for "
-                                                                + BluetoothProfile.getProfileName(
-                                                                        connection.mProfile));
-                                            }
-                                        });
-                            });
+                                                IBinder binder = getProfile(connection.mProfile);
+                                                if (binder != null) {
+                                                    connection.connect(proxy, binder);
+                                                } else {
+                                                    Log.e(
+                                                            TAG,
+                                                            "onBluetoothOn: Binder null for "
+                                                                    + BluetoothProfile.getProfileName(connection.mProfile));
+                                                }
+                                            });
+                                }
+                            };
+                    if (Flags.getProfileUseLock()) {
+                        btOnAction.run();
+                        return;
+                    }
+                    mMainHandler.post(btOnAction);
                 }
 
+                @RequiresNoPermission
                 public void onBluetoothOff() {
-                    mMainHandler.post(
+                    Runnable btOffAction =
                             () -> {
-                                mProfileConnections.forEach(
-                                        (proxy, connection) -> {
-                                            if (connection.mConnected) {
-                                                connection.disconnect(proxy);
-                                            }
-                                        });
-                            });
-                }
-
-                public void onBluetoothAdapterStateChange(int newState) {
-                    // Nothing to do, this is entirely handled by sManagerCallback.
+                                synchronized (sProfileLock) {
+                                    mProfileConnections.forEach(
+                                            (proxy, connection) -> {
+                                                if (connection.mConnected) {
+                                                    connection.disconnect(proxy);
+                                                }
+                                            });
+                                }
+                            };
+                    if (Flags.getProfileUseLock()) {
+                        btOffAction.run();
+                        return;
+                    }
+                    mMainHandler.post(btOffAction);
                 }
             };
 
@@ -4140,6 +4196,7 @@ public final class BluetoothAdapter {
      *
      * @hide
      */
+    @RequiresNoPermission
     public @Nullable IBluetoothGatt getBluetoothGatt() {
         mServiceLock.readLock().lock();
         try {
@@ -4159,6 +4216,7 @@ public final class BluetoothAdapter {
      *
      * @hide
      */
+    @RequiresNoPermission
     public @Nullable IBluetoothScan getBluetoothScan() {
         mServiceLock.readLock().lock();
         try {
@@ -4174,6 +4232,7 @@ public final class BluetoothAdapter {
     }
 
     /** Return a binder to a Profile service */
+    @GuardedBy("sProfileLock")
     private @Nullable IBinder getProfile(int profile) {
         mServiceLock.readLock().lock();
         try {
@@ -4214,14 +4273,14 @@ public final class BluetoothAdapter {
                         IBluetooth.Stub.asInterface(
                                 mManagerService.registerAdapter(sManagerCallback));
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                throw e.rethrowFromSystemServer();
             }
         } else {
             try {
                 mManagerService.unregisterAdapter(sManagerCallback);
                 sService = null;
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                throw e.rethrowFromSystemServer();
             }
         }
         sServiceRegistered = wantRegistered;
@@ -4531,26 +4590,15 @@ public final class BluetoothAdapter {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean addOnMetadataChangedListener(
             @NonNull BluetoothDevice device,
             @NonNull Executor executor,
             @NonNull OnMetadataChangedListener listener) {
         if (DBG) Log.d(TAG, "addOnMetadataChangedListener()");
-
-        if (listener == null) {
-            throw new NullPointerException("listener is null");
-        }
-        if (device == null) {
-            throw new NullPointerException("device is null");
-        }
-        if (executor == null) {
-            throw new NullPointerException("executor is null");
-        }
+        requireNonNull(device);
+        requireNonNull(executor);
+        requireNonNull(listener);
 
         mServiceLock.readLock().lock();
         try {
@@ -4570,7 +4618,7 @@ public final class BluetoothAdapter {
                     // Check whether this device is already registered by the listener
                     if (listenerList.stream().anyMatch((pair) -> (pair.first.equals(listener)))) {
                         throw new IllegalArgumentException(
-                                "listener was already registered" + " for the device");
+                                "listener already registered for " + device);
                     }
                 }
 
@@ -4619,20 +4667,12 @@ public final class BluetoothAdapter {
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean removeOnMetadataChangedListener(
             @NonNull BluetoothDevice device, @NonNull OnMetadataChangedListener listener) {
         if (DBG) Log.d(TAG, "removeOnMetadataChangedListener()");
-        if (device == null) {
-            throw new NullPointerException("device is null");
-        }
-        if (listener == null) {
-            throw new NullPointerException("listener is null");
-        }
+        requireNonNull(device);
+        requireNonNull(listener);
 
         synchronized (mMetadataListeners) {
             if (!mMetadataListeners.containsKey(device)) {
@@ -4648,7 +4688,8 @@ public final class BluetoothAdapter {
                 mServiceLock.readLock().lock();
                 try {
                     if (mService != null) {
-                        return mService.unregisterMetadataListener(device, mAttributionSource);
+                        return mService.unregisterMetadataListener(
+                                mBluetoothMetadataListener, device, mAttributionSource);
                     }
                 } catch (RemoteException e) {
                     Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
@@ -4685,6 +4726,7 @@ public final class BluetoothAdapter {
     private final IBluetoothConnectionCallback mBluetoothConnectionCallback =
             new IBluetoothConnectionCallback.Stub() {
                 @Override
+                @RequiresNoPermission
                 public void onDeviceConnected(BluetoothDevice device) {
                     Attributable.setAttributionSource(device, mAttributionSource);
                     mBluetoothConnectionCallbackWrapper.forEach(
@@ -4692,6 +4734,7 @@ public final class BluetoothAdapter {
                 }
 
                 @Override
+                @RequiresNoPermission
                 public void onDeviceDisconnected(BluetoothDevice device, int hciReason) {
                     Attributable.setAttributionSource(device, mAttributionSource);
                     mBluetoothConnectionCallbackWrapper.forEach(
@@ -4875,6 +4918,7 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @SetPreferredAudioProfilesReturnValues
     public int setPreferredAudioProfiles(
@@ -4958,9 +5002,9 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
-    @NonNull
-    public Bundle getPreferredAudioProfiles(@NonNull BluetoothDevice device) {
+    public @NonNull Bundle getPreferredAudioProfiles(@NonNull BluetoothDevice device) {
         if (DBG) Log.d(TAG, "getPreferredAudioProfiles(" + device + ")");
         requireNonNull(device, "device cannot be null");
         if (!BluetoothAdapter.checkBluetoothAddress(device.getAddress())) {
@@ -5011,6 +5055,7 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
+    @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @NotifyActiveDeviceChangeAppliedReturnValues
     public int notifyActiveDeviceChangeApplied(@NonNull BluetoothDevice device) {
@@ -5040,6 +5085,7 @@ public final class BluetoothAdapter {
     private final IBluetoothPreferredAudioProfilesCallback mPreferredAudioProfilesChangedCallback =
             new IBluetoothPreferredAudioProfilesCallback.Stub() {
                 @Override
+                @RequiresNoPermission
                 public void onPreferredAudioProfilesChanged(
                         BluetoothDevice device, Bundle preferredAudioProfiles, int status) {
                     mAudioProfilesCallbackWrapper.forEach(
@@ -5189,14 +5235,13 @@ public final class BluetoothAdapter {
     private final IBluetoothQualityReportReadyCallback mBluetoothQualityReportReadyCallback =
             new IBluetoothQualityReportReadyCallback.Stub() {
                 @Override
+                @RequiresNoPermission
                 public void onBluetoothQualityReportReady(
-                        BluetoothDevice device,
-                        BluetoothQualityReport report,
-                        int status) {
+                        BluetoothDevice device, BluetoothQualityReport report, int status) {
                     mQualityCallbackWrapper.forEach(
                             (cb) -> cb.onBluetoothQualityReportReady(device, report, status));
-                    }
-                };
+                }
+            };
 
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
@@ -5398,7 +5443,6 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_AUTO_ON_FEATURE)
     @RequiresPermission(BLUETOOTH_PRIVILEGED)
     public boolean isAutoOnSupported() {
         try {
@@ -5416,7 +5460,6 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_AUTO_ON_FEATURE)
     @RequiresPermission(BLUETOOTH_PRIVILEGED)
     public boolean isAutoOnEnabled() {
         try {
@@ -5435,7 +5478,6 @@ public final class BluetoothAdapter {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_AUTO_ON_FEATURE)
     @RequiresPermission(BLUETOOTH_PRIVILEGED)
     public void setAutoOnEnabled(boolean status) {
         try {

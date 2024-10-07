@@ -27,7 +27,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "codec_status_aidl.h"
 #include "hal_version_manager.h"
 #include "os/log.h"
 
@@ -81,43 +80,6 @@ LeAudioTransport::~LeAudioTransport() {
 }
 
 BluetoothAudioCtrlAck LeAudioTransport::StartRequest(bool /*is_low_latency*/) {
-  // Check if operation is pending already
-  if (GetStartRequestState() == StartRequestState::PENDING_AFTER_RESUME) {
-    log::info("Start request is already pending. Ignore the request");
-    return BluetoothAudioCtrlAck::PENDING;
-  }
-
-  SetStartRequestState(StartRequestState::PENDING_BEFORE_RESUME);
-  if (stream_cb_.on_resume_(true)) {
-    auto expected = StartRequestState::CONFIRMED;
-    if (std::atomic_compare_exchange_strong(&start_request_state_, &expected,
-                                            StartRequestState::IDLE)) {
-      log::info("Start completed.");
-      return BluetoothAudioCtrlAck::SUCCESS_FINISHED;
-    }
-
-    expected = StartRequestState::CANCELED;
-    if (std::atomic_compare_exchange_strong(&start_request_state_, &expected,
-                                            StartRequestState::IDLE)) {
-      log::info("Start request failed.");
-      return BluetoothAudioCtrlAck::FAILURE;
-    }
-
-    expected = StartRequestState::PENDING_BEFORE_RESUME;
-    if (std::atomic_compare_exchange_strong(&start_request_state_, &expected,
-                                            StartRequestState::PENDING_AFTER_RESUME)) {
-      log::info("Start pending.");
-      return BluetoothAudioCtrlAck::PENDING;
-    }
-  }
-
-  log::error("Start request failed.");
-  auto expected = StartRequestState::PENDING_BEFORE_RESUME;
-  std::atomic_compare_exchange_strong(&start_request_state_, &expected, StartRequestState::IDLE);
-  return BluetoothAudioCtrlAck::FAILURE;
-}
-
-BluetoothAudioCtrlAck LeAudioTransport::StartRequestV2(bool /*is_low_latency*/) {
   // Check if operation is pending already
   if (GetStartRequestState() == StartRequestState::PENDING_AFTER_RESUME) {
     log::info("Start request is already pending. Ignore the request");
@@ -380,9 +342,6 @@ LeAudioSinkTransport::LeAudioSinkTransport(SessionType session_type, StreamCallb
 LeAudioSinkTransport::~LeAudioSinkTransport() { delete transport_; }
 
 BluetoothAudioCtrlAck LeAudioSinkTransport::StartRequest(bool is_low_latency) {
-  if (com::android::bluetooth::flags::leaudio_start_stream_race_fix()) {
-    return transport_->StartRequestV2(is_low_latency);
-  }
   return transport_->StartRequest(is_low_latency);
 }
 
@@ -471,9 +430,6 @@ LeAudioSourceTransport::LeAudioSourceTransport(SessionType session_type, StreamC
 LeAudioSourceTransport::~LeAudioSourceTransport() { delete transport_; }
 
 BluetoothAudioCtrlAck LeAudioSourceTransport::StartRequest(bool is_low_latency) {
-  if (com::android::bluetooth::flags::leaudio_start_stream_race_fix()) {
-    return transport_->StartRequestV2(is_low_latency);
-  }
   return transport_->StartRequest(is_low_latency);
 }
 
@@ -627,8 +583,8 @@ bool hal_ucast_capability_to_stack_format(const UnicastCapability& hal_capabilit
   return true;
 }
 
-bool hal_bcast_capability_to_stack_format(const BroadcastCapability& hal_bcast_capability,
-                                          CodecConfigSetting& stack_capability) {
+static bool hal_bcast_capability_to_stack_format(const BroadcastCapability& hal_bcast_capability,
+                                                 CodecConfigSetting& stack_capability) {
   if (hal_bcast_capability.codecType != CodecType::LC3) {
     log::warn("Unsupported codecType: {}", toString(hal_bcast_capability.codecType));
     return false;

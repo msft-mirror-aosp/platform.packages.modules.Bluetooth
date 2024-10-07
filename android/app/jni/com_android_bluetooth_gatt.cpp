@@ -26,13 +26,15 @@
 
 #include "com_android_bluetooth.h"
 #include "com_android_bluetooth_flags.h"
-#include "common/init_flags.h"
 #include "hardware/bt_gatt.h"
 #include "hardware/bt_gatt_types.h"
 #include "main/shim/le_scanning_manager.h"
 #include "rust/cxx.h"
 #include "rust/src/gatt/ffi/gatt_shim.h"
 #include "src/gatt/ffi.rs.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::Uuid;
 
@@ -1229,17 +1231,18 @@ public:
   void OnDistanceMeasurementResult(RawAddress address, uint32_t centimeter,
                                    uint32_t error_centimeter, int azimuth_angle,
                                    int error_azimuth_angle, int altitude_angle,
-                                   int error_altitude_angle, uint8_t method) {
+                                   int error_altitude_angle, long elapsedRealtimeNanos,
+                                   uint8_t method) {
     std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
     CallbackEnv sCallbackEnv(__func__);
     if (!sCallbackEnv.valid() || !mDistanceMeasurementCallbacksObj) {
       return;
     }
     ScopedLocalRef<jstring> addr(sCallbackEnv.get(), bdaddr2newjstr(sCallbackEnv.get(), &address));
-    sCallbackEnv->CallVoidMethod(mDistanceMeasurementCallbacksObj,
-                                 method_onDistanceMeasurementResult, addr.get(), centimeter,
-                                 error_centimeter, azimuth_angle, error_azimuth_angle,
-                                 altitude_angle, error_altitude_angle, method);
+    sCallbackEnv->CallVoidMethod(
+            mDistanceMeasurementCallbacksObj, method_onDistanceMeasurementResult, addr.get(),
+            centimeter, error_centimeter, azimuth_angle, error_azimuth_angle, altitude_angle,
+            error_altitude_angle, elapsedRealtimeNanos, method);
   }
 };
 
@@ -1286,6 +1289,7 @@ static void initializeNative(JNIEnv* env, jobject object) {
   }
 
   if (com::android::bluetooth::flags::scan_manager_refactor()) {
+    log::info("Starting rust module");
     btIf->start_rust_module();
   }
 
@@ -1304,6 +1308,7 @@ static void cleanupNative(JNIEnv* env, jobject /* object */) {
   }
 
   if (com::android::bluetooth::flags::scan_manager_refactor()) {
+    log::info("Stopping rust module");
     btIf->stop_rust_module();
   }
 
@@ -1383,13 +1388,14 @@ static void gattClientScanNative(JNIEnv* /* env */, jobject /* object */, jboole
 
 static void gattClientConnectNative(JNIEnv* env, jobject /* object */, jint clientif,
                                     jstring address, jint addressType, jboolean isDirect,
-                                    jint transport, jboolean opportunistic, jint initiating_phys) {
+                                    jint transport, jboolean opportunistic, jint initiating_phys,
+                                    jint preferred_mtu) {
   if (!sGattIf) {
     return;
   }
 
   sGattIf->client->connect(clientif, str2addr(env, address), addressType, isDirect, transport,
-                           opportunistic, initiating_phys);
+                           opportunistic, initiating_phys, preferred_mtu);
 }
 
 static void gattClientDisconnectNative(JNIEnv* env, jobject /* object */, jint clientIf,
@@ -2821,7 +2827,7 @@ static int register_com_android_bluetooth_gatt_distance_measurement(JNIEnv* env)
            &method_onDistanceMeasurementStartFail},
           {"onDistanceMeasurementStopped", "(Ljava/lang/String;II)V",
            &method_onDistanceMeasurementStopped},
-          {"onDistanceMeasurementResult", "(Ljava/lang/String;IIIIIII)V",
+          {"onDistanceMeasurementResult", "(Ljava/lang/String;IIIIIIJI)V",
            &method_onDistanceMeasurementResult},
   };
   GET_JAVA_METHODS(env, "com/android/bluetooth/gatt/DistanceMeasurementNativeInterface",
@@ -2838,7 +2844,7 @@ static int register_com_android_bluetooth_gatt_(JNIEnv* env) {
            (void*)gattClientGetDeviceTypeNative},
           {"gattClientRegisterAppNative", "(JJZ)V", (void*)gattClientRegisterAppNative},
           {"gattClientUnregisterAppNative", "(I)V", (void*)gattClientUnregisterAppNative},
-          {"gattClientConnectNative", "(ILjava/lang/String;IZIZI)V",
+          {"gattClientConnectNative", "(ILjava/lang/String;IZIZII)V",
            (void*)gattClientConnectNative},
           {"gattClientDisconnectNative", "(ILjava/lang/String;I)V",
            (void*)gattClientDisconnectNative},

@@ -33,6 +33,9 @@
 #include "test/headless/messenger.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 //
 // Aggregate disparate variables from callback API into unified single structure
 //
@@ -255,7 +258,7 @@ void HeadlessStack::SetUp() {
   const bool is_atv = false;
 
   int status = bluetoothInterface.init(&bt_callbacks, start_restricted, is_common_criteria_mode,
-                                       config_compare_result, StackInitFlags(), is_atv, nullptr);
+                                       config_compare_result, nullptr, is_atv, nullptr);
 
   if (status == BT_STATUS_SUCCESS) {
     log::info("Initialized bluetooth callbacks");

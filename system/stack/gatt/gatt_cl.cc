@@ -36,6 +36,7 @@
 #include "stack/eatt/eatt.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/l2cdefs.h"
 #include "types/bluetooth/uuid.h"
 
 #define GATT_WRITE_LONG_HDR_SIZE 5 /* 1 opcode + 2 handle + 2 offset */
@@ -50,6 +51,9 @@
 #define GATT_READ_BY_TYPE_RSP_MIN_LEN 1
 
 #define L2CAP_PKT_OVERHEAD 4
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 using bluetooth::Uuid;
@@ -245,7 +249,7 @@ void gatt_act_write(tGATT_CLCB* p_clcb, uint8_t sec_act) {
     }
 
     case GATT_WRITE: {
-      if (attr.len <= (payload_size - GATT_HDR_SIZE)) {
+      if ((attr.len + GATT_HDR_SIZE) <= payload_size) {
         p_clcb->s_handle = attr.handle;
 
         tGATT_STATUS rt = gatt_send_write_msg(tcb, p_clcb, GATT_REQ_WRITE, attr.handle, attr.len, 0,
@@ -342,7 +346,14 @@ void gatt_send_prepare_write(tGATT_TCB& tcb, tGATT_CLCB* p_clcb) {
   uint16_t to_send = p_attr->len - p_attr->offset;
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, p_clcb->cid);
-  if (to_send > (payload_size - GATT_WRITE_LONG_HDR_SIZE)) { /* 2 = uint16_t offset bytes  */
+
+  if (payload_size <= GATT_WRITE_LONG_HDR_SIZE) {
+    log::error("too small mtu size {}, possibly due to disconnection", payload_size);
+    gatt_end_operation(p_clcb, GATT_ERROR, NULL);
+    return;
+  }
+
+  if (to_send > (payload_size - GATT_WRITE_LONG_HDR_SIZE)) {
     to_send = payload_size - GATT_WRITE_LONG_HDR_SIZE;
   }
 
@@ -623,7 +634,7 @@ void gatt_process_notification(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, ui
                                uint8_t* p_data) {
   tGATT_VALUE value = {};
   tGATT_REG* p_reg;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
   tGATT_STATUS encrypt_status = {};
   uint8_t* p = p_data;
   uint8_t i;
@@ -728,14 +739,14 @@ void gatt_process_notification(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, ui
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
       if (p_reg->in_use && p_reg->app_cb.p_cmpl_cb) {
-        conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, p_reg->gatt_if);
+        conn_id = gatt_create_conn_id(tcb.tcb_idx, p_reg->gatt_if);
         (*p_reg->app_cb.p_cmpl_cb)(conn_id, event, encrypt_status, &gatt_cl_complete);
       }
     }
   } else {
     for (i = 0, p_reg = gatt_cb.cl_rcb; i < GATT_MAX_APPS; i++, p_reg++) {
       if (p_reg->in_use && p_reg->app_cb.p_cmpl_cb) {
-        conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, p_reg->gatt_if);
+        conn_id = gatt_create_conn_id(tcb.tcb_idx, p_reg->gatt_if);
         (*p_reg->app_cb.p_cmpl_cb)(conn_id, event, encrypt_status, &gatt_cl_complete);
       }
     }
@@ -778,14 +789,14 @@ void gatt_process_notification(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, ui
     if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
       for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
         if (p_reg->in_use && p_reg->app_cb.p_cmpl_cb) {
-          conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, p_reg->gatt_if);
+          conn_id = gatt_create_conn_id(tcb.tcb_idx, p_reg->gatt_if);
           (*p_reg->app_cb.p_cmpl_cb)(conn_id, event, encrypt_status, &gatt_cl_complete);
         }
       }
     } else {
       for (i = 0, p_reg = gatt_cb.cl_rcb; i < GATT_MAX_APPS; i++, p_reg++) {
         if (p_reg->in_use && p_reg->app_cb.p_cmpl_cb) {
-          conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, p_reg->gatt_if);
+          conn_id = gatt_create_conn_id(tcb.tcb_idx, p_reg->gatt_if);
           (*p_reg->app_cb.p_cmpl_cb)(conn_id, event, encrypt_status, &gatt_cl_complete);
         }
       }
@@ -912,7 +923,25 @@ void gatt_process_read_by_type_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t o
     else if (p_clcb->operation == GATTC_OPTYPE_READ && p_clcb->op_subtype == GATT_READ_BY_TYPE) {
       p_clcb->counter = len - 2;
       p_clcb->s_handle = handle;
+
       if (p_clcb->counter == (payload_size - 4)) {
+        /* IOP: Some devices can't handle Read Blob request. Apps for such devices send their MTU
+         * preference with the connect request. Expectation is that the stack would exchange MTU
+         * immediately on connection and thereby avoid using Read Blob request.
+         * However, the stack does not support exchanging MTU immediately on connection at present.
+         * As a workaround, GATT client instead just avoids sending Read Blob request when certain
+         * conditions are met. */
+        tGATT_TCB* p_tcb = p_clcb->p_tcb;
+        if (p_tcb->transport == BT_TRANSPORT_LE && p_tcb->att_lcid == L2CAP_ATT_CID &&
+            p_tcb->app_mtu_pref > GATT_DEF_BLE_MTU_SIZE &&
+            p_tcb->payload_size <= GATT_DEF_BLE_MTU_SIZE && p_clcb->uuid.Is16Bit() &&
+            p_clcb->uuid.As16Bit() == GATT_UUID_GAP_DEVICE_NAME) {
+          log::warn("Skipping Read Blob request for reading device name {}", p_tcb->peer_bda);
+          gatt_end_operation(p_clcb, GATT_SUCCESS, (void*)p);
+          return;
+        }
+
+        /* Continue reading rest of value */
         p_clcb->op_subtype = GATT_READ_BY_HANDLE;
         if (!p_clcb->p_attr_buf) {
           p_clcb->p_attr_buf = (uint8_t*)osi_malloc(GATT_MAX_ATTR_LEN);
@@ -1126,7 +1155,7 @@ void gatt_process_mtu_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint16_t len, uint
     log::info("MTU Exchange resulted in: {}", tcb.payload_size);
 
     if (get_btm_client_interface().ble.BTM_SetBleDataLength(
-                tcb.peer_bda, tcb.max_user_mtu + L2CAP_PKT_OVERHEAD) != BTM_SUCCESS) {
+                tcb.peer_bda, tcb.max_user_mtu + L2CAP_PKT_OVERHEAD) != tBTM_STATUS::BTM_SUCCESS) {
       log::warn("Unable to set BLE data length peer:{} mtu:{}", tcb.peer_bda,
                 tcb.max_user_mtu + L2CAP_PKT_OVERHEAD);
     }

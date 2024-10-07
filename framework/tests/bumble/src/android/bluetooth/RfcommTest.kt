@@ -16,8 +16,11 @@
 package android.bluetooth
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.bluetooth.test_utils.EnableBluetoothRule
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.compatibility.common.util.AdoptShellPermissionsRule
 import com.google.common.truth.Truth
@@ -29,68 +32,124 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import org.junit.After
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.junit.runners.JUnit4
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.timeout
+import org.mockito.kotlin.verify
 import pandora.RfcommProto
 import pandora.RfcommProto.ServerId
 import pandora.RfcommProto.StartServerRequest
 
-@RunWith(JUnit4::class)
-@kotlinx.coroutines.ExperimentalCoroutinesApi
+@SuppressLint("MissingPermission")
+@RunWith(AndroidJUnit4::class)
+@ExperimentalCoroutinesApi
 class RfcommTest {
     private val mContext = ApplicationProvider.getApplicationContext<Context>()
     private val mManager = mContext.getSystemService(BluetoothManager::class.java)
     private val mAdapter = mManager!!.adapter
 
     // Gives shell permissions during the test.
-    @Rule
+    @Rule(order = 0)
     @JvmField
     val mPermissionsRule =
         AdoptShellPermissionsRule(
             InstrumentationRegistry.getInstrumentation().getUiAutomation(),
             Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_PRIVILEGED
+            Manifest.permission.BLUETOOTH_PRIVILEGED,
+            Manifest.permission.MODIFY_PHONE_STATE,
         )
 
     // Set up a Bumble Pandora device for the duration of the test.
-    @Rule @JvmField val mBumble = PandoraDevice()
+    @Rule(order = 1) @JvmField val mBumble = PandoraDevice()
 
-    private lateinit var mBumbleDevice: BluetoothDevice
+    @Rule(order = 2) @JvmField val enableBluetoothRule = EnableBluetoothRule(false, true)
+
+    private lateinit var mRemoteDevice: BluetoothDevice
     private lateinit var host: Host
     private var mConnectionCounter = 1
+    private var mProfileServiceListener = mock<BluetoothProfile.ServiceListener>()
 
+    /*
+        Setup:
+        1. Initialize host and mRemoteDevice
+        2. Disable A2DP, HFP, and HID profiles
+        3. Bond devices
+        4. Disconnect devices
+    */
     @Before
     fun setUp() {
-        mBumbleDevice = mBumble.remoteDevice
+        mRemoteDevice = mBumble.remoteDevice
         host = Host(mContext)
-        host.createBondAndVerify(mBumbleDevice)
+        val bluetoothA2dp = getProfileProxy(mContext, BluetoothProfile.A2DP) as BluetoothA2dp
+        bluetoothA2dp.setConnectionPolicy(
+            mRemoteDevice,
+            BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
+        )
+        val bluetoothHfp = getProfileProxy(mContext, BluetoothProfile.HEADSET) as BluetoothHeadset
+        bluetoothHfp.setConnectionPolicy(
+            mRemoteDevice,
+            BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
+        )
+        val bluetoothHidHost =
+            getProfileProxy(mContext, BluetoothProfile.HID_HOST) as BluetoothHidHost
+        bluetoothHidHost.setConnectionPolicy(
+            mRemoteDevice,
+            BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
+        )
+        host.createBondAndVerify(mRemoteDevice)
+        if (mRemoteDevice.isConnected) {
+            host.disconnectAndVerify(mRemoteDevice)
+        }
     }
 
+    /*
+        TearDown:
+        1. unbond
+        2. shutdown host
+    */
     @After
     fun tearDown() {
-        if (mAdapter.bondedDevices.contains(mBumbleDevice)) {
-            host.removeBondAndVerify(mBumbleDevice)
+        if (mAdapter.bondedDevices.contains(mRemoteDevice)) {
+            host.removeBondAndVerify(mRemoteDevice)
         }
         host.close()
     }
 
+    /*
+       Test Steps:
+       1. Create an insecure socket
+       2. Connect to the socket
+       3. Verify that devices are connected.
+    */
     @Test
-    @Ignore("b/355328584")
     fun clientConnectToOpenServerSocketBondedInsecure() {
         startServer { serverId -> createConnectAcceptSocket(isSecure = false, serverId) }
     }
 
+    /*
+       Test Steps:
+       1. Create an secure socket
+       2. Connect to the socket
+       3. Verify that devices are connected.
+    */
     @Test
-    @Ignore("b/355328584")
     fun clientConnectToOpenServerSocketBondedSecure() {
         startServer { serverId -> createConnectAcceptSocket(isSecure = true, serverId) }
     }
 
+    /*
+        Test Steps:
+        1. Create an insecure socket
+        2. Connect to the socket
+        3. Verify that devices are connected
+        4. Write data to socket output stream
+        5. Verify bumble received that data
+    */
     @Test
-    @Ignore("b/355328584")
     fun clientSendDataOverInsecureSocket() {
         startServer { serverId ->
             val (insecureSocket, connection) = createConnectAcceptSocket(isSecure = false, serverId)
@@ -107,8 +166,15 @@ class RfcommTest {
         }
     }
 
+    /*
+        Test Steps:
+        1. Create a secure socket
+        2. Connect to the socket
+        3. Verify that devices are connected
+        4. Write data to socket output stream
+        5. Verify remote device received that data
+    */
     @Test
-    @Ignore("b/355328584")
     fun clientSendDataOverSecureSocket() {
         startServer { serverId ->
             val (secureSocket, connection) = createConnectAcceptSocket(isSecure = true, serverId)
@@ -125,8 +191,15 @@ class RfcommTest {
         }
     }
 
+    /*
+        Test Steps:
+        1. Create an insecure socket
+        2. Connect to the socket
+        3. Verify that devices are connected
+        4. Send data from remote device
+        5. Read and verify data from socket input stream
+    */
     @Test
-    @Ignore("b/355328584")
     fun clientReceiveDataOverInsecureSocket() {
         startServer { serverId ->
             val (insecureSocket, connection) = createConnectAcceptSocket(isSecure = false, serverId)
@@ -144,8 +217,15 @@ class RfcommTest {
         }
     }
 
+    /*
+        Test Steps:
+        1. Create a secure socket
+        2. Connect to the socket
+        3. Verify that devices are connected
+        4. Send data from remote device
+        5. Read and verify data from socket input stream
+    */
     @Test
-    @Ignore("b/355328584")
     fun clientReceiveDataOverSecureSocket() {
         startServer { serverId ->
             val (secureSocket, connection) = createConnectAcceptSocket(isSecure = true, serverId)
@@ -163,12 +243,150 @@ class RfcommTest {
         }
     }
 
+    /*
+        Test Steps:
+        1. Create insecure socket 1
+        2. Create insecure socket 2
+        3. Remote device initiates connection to socket 1
+        4. Remote device initiates connection to socket 2
+        5. Accept socket 1 and verify connection
+        6. Accept socket 2 and verify connection
+    */
+    @Test
+    fun connectTwoInsecureClientsSimultaneously() {
+        startServer("ServerPort1", TEST_UUID) { serverId1 ->
+            startServer("ServerPort2", SERIAL_PORT_UUID) { serverId2 ->
+                val socket1 = createSocket(mRemoteDevice, isSecure = false, TEST_UUID)
+                val socket2 = createSocket(mRemoteDevice, isSecure = false, SERIAL_PORT_UUID)
+
+                acceptSocket(serverId1)
+                Truth.assertThat(socket1.isConnected).isTrue()
+
+                acceptSocket(serverId2)
+                Truth.assertThat(socket2.isConnected).isTrue()
+            }
+        }
+    }
+
+    /*
+        Test Steps:
+        1. Create insecure socket 1
+        2. Remote device initiates connection to socket 1
+        3. Accept socket 1 and verify connection
+        4. Repeat for socket 2
+    */
+    @Test
+    fun connectTwoInsecureClientsSequentially() {
+        startServer("ServerPort1", TEST_UUID) { serverId1 ->
+            startServer("ServerPort2", SERIAL_PORT_UUID) { serverId2 ->
+                val socket1 = createSocket(mRemoteDevice, isSecure = false, TEST_UUID)
+                acceptSocket(serverId1)
+                Truth.assertThat(socket1.isConnected).isTrue()
+
+                val socket2 = createSocket(mRemoteDevice, isSecure = false, SERIAL_PORT_UUID)
+                acceptSocket(serverId2)
+                Truth.assertThat(socket2.isConnected).isTrue()
+            }
+        }
+    }
+
+    /*
+        Test Steps:
+        1. Create secure socket 1
+        2. Create secure socket 2
+        3. Remote device initiates connection to socket 1
+        4. Remote device initiates connection to socket 2
+        5. Accept socket 1 and verify connection
+        6. Accept socket 2 and verify connection
+    */
+    @Test
+    fun connectTwoSecureClientsSimultaneously() {
+        startServer("ServerPort1", TEST_UUID) { serverId1 ->
+            startServer("ServerPort2", SERIAL_PORT_UUID) { serverId2 ->
+                val socket2 = createSocket(mRemoteDevice, isSecure = true, SERIAL_PORT_UUID)
+                val socket1 = createSocket(mRemoteDevice, isSecure = true, TEST_UUID)
+
+                acceptSocket(serverId1)
+                Truth.assertThat(socket1.isConnected).isTrue()
+
+                acceptSocket(serverId2)
+                Truth.assertThat(socket2.isConnected).isTrue()
+            }
+        }
+    }
+
+    /*
+        Test Steps:
+        1. Create insecure socket 1
+        2. Remote device initiates connection to socket 1
+        3. Accept socket 1 and verify connection
+        4. Repeat for socket 2
+    */
+    @Test
+    fun connectTwoSecureClientsSequentially() {
+        startServer("ServerPort1", TEST_UUID) { serverId1 ->
+            startServer("ServerPort2", SERIAL_PORT_UUID) { serverId2 ->
+                val socket1 = createSocket(mRemoteDevice, isSecure = true, TEST_UUID)
+                acceptSocket(serverId1)
+                Truth.assertThat(socket1.isConnected).isTrue()
+
+                val socket2 = createSocket(mRemoteDevice, isSecure = true, SERIAL_PORT_UUID)
+                acceptSocket(serverId2)
+                Truth.assertThat(socket2.isConnected).isTrue()
+            }
+        }
+    }
+
+    /*
+        Test Steps:
+        1. Create insecure socket 1
+        2. Remote device initiates connection to socket 1
+        3. Accept socket 1 and verify connection
+        4. Repeat for secure socket 2
+    */
+    @Test
+    fun connectTwoMixedClientsInsecureThenSecure() {
+        startServer("ServerPort1", TEST_UUID) { serverId1 ->
+            startServer("ServerPort2", SERIAL_PORT_UUID) { serverId2 ->
+                val socket2 = createSocket(mRemoteDevice, isSecure = false, SERIAL_PORT_UUID)
+                acceptSocket(serverId2)
+                Truth.assertThat(socket2.isConnected).isTrue()
+
+                val socket1 = createSocket(mRemoteDevice, isSecure = true, TEST_UUID)
+                acceptSocket(serverId1)
+                Truth.assertThat(socket1.isConnected).isTrue()
+            }
+        }
+    }
+
+    /*
+        Test Steps:
+        1. Create secure socket 2
+        2. Remote device initiates connection to socket 2
+        3. Accept socket 2 and verify connection
+        4. Repeat for insecure socket 1
+    */
+    @Test
+    fun connectTwoMixedClientsSecureThenInsecure() {
+        startServer("ServerPort1", TEST_UUID) { serverId1 ->
+            startServer("ServerPort2", SERIAL_PORT_UUID) { serverId2 ->
+                val socket2 = createSocket(mRemoteDevice, isSecure = true, SERIAL_PORT_UUID)
+                acceptSocket(serverId2)
+                Truth.assertThat(socket2.isConnected).isTrue()
+
+                val socket1 = createSocket(mRemoteDevice, isSecure = false, TEST_UUID)
+                acceptSocket(serverId1)
+                Truth.assertThat(socket1.isConnected).isTrue()
+            }
+        }
+    }
+
     private fun createConnectAcceptSocket(
         isSecure: Boolean,
         server: ServerId,
-        uuid: String = TEST_UUID
+        uuid: String = TEST_UUID,
     ): Pair<BluetoothSocket, RfcommProto.RfcommConnection> {
-        val socket = createSocket(mBumbleDevice, isSecure, uuid)
+        val socket = createSocket(mRemoteDevice, isSecure, uuid)
 
         val connection = acceptSocket(server)
         Truth.assertThat(socket.isConnected).isTrue()
@@ -179,7 +397,7 @@ class RfcommTest {
     private fun createSocket(
         device: BluetoothDevice,
         isSecure: Boolean,
-        uuid: String
+        uuid: String,
     ): BluetoothSocket {
         val socket =
             if (isSecure) {
@@ -208,7 +426,7 @@ class RfcommTest {
     private fun startServer(
         name: String = TEST_SERVER_NAME,
         uuid: String = TEST_UUID,
-        block: (ServerId) -> Unit
+        block: (ServerId) -> Unit,
     ) {
         val request = StartServerRequest.newBuilder().setName(name).setUuid(uuid).build()
         val response = mBumble.rfcommBlocking().startServer(request)
@@ -223,6 +441,14 @@ class RfcommTest {
                     RfcommProto.StopServerRequest.newBuilder().setServer(response.server).build()
                 )
         }
+    }
+
+    private fun getProfileProxy(context: Context, profile: Int): BluetoothProfile {
+        mAdapter.getProfileProxy(context, mProfileServiceListener, profile)
+        val proxyCaptor = argumentCaptor<BluetoothProfile>()
+        verify(mProfileServiceListener, timeout(GRPC_TIMEOUT.toMillis()))
+            .onServiceConnected(eq(profile), proxyCaptor.capture())
+        return proxyCaptor.lastValue
     }
 
     companion object {

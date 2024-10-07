@@ -33,7 +33,6 @@
 #include "os/log.h"
 #include "os/system_properties.h"
 #include "shim/dumpsys.h"
-#include "shim/dumpsys_args.h"
 
 namespace bluetooth {
 namespace shim {
@@ -133,8 +132,7 @@ std::string Dumpsys::impl::PrintAsJson(std::string* dumpsys_data) const {
   return jsongen;
 }
 
-void Dumpsys::impl::DumpWithArgsAsync(int fd, const char** args) const {
-  ParsedDumpsysArgs parsed_dumpsys_args(args);
+void Dumpsys::impl::DumpWithArgsAsync(int fd, const char** /*args*/) const {
   const auto registry = dumpsys_module_.GetModuleRegistry();
 
   ModuleDumper dumper(fd, *registry, kDumpsysTitle);
@@ -149,35 +147,19 @@ void Dumpsys::impl::DumpWithArgsAsync(int fd, const char** args) const {
 }
 
 void Dumpsys::impl::DumpWithArgsSync(int fd, const char** args, std::promise<void> promise) {
-  if (com::android::bluetooth::flags::dumpsys_acquire_stack_when_executing()) {
-    if (bluetooth::shim::Stack::GetInstance()->LockForDumpsys([=, *this]() {
-          log::info("Started dumpsys procedure");
-          this->DumpWithArgsAsync(fd, args);
-        })) {
-      log::info("Successful dumpsys procedure");
-    } else {
-      log::info("Failed dumpsys procedure as stack was not longer active");
-    }
+  if (bluetooth::shim::Stack::GetInstance()->LockForDumpsys([=, *this]() {
+        log::info("Started dumpsys procedure");
+        this->DumpWithArgsAsync(fd, args);
+      })) {
+    log::info("Successful dumpsys procedure");
   } else {
-    DumpWithArgsAsync(fd, args);
+    log::info("Failed dumpsys procedure as stack was not longer active");
   }
   promise.set_value();
 }
 
 Dumpsys::Dumpsys(const std::string& pre_bundled_schema)
     : reflection_schema_(dumpsys::ReflectionSchema(pre_bundled_schema)) {}
-
-// DEPRECATED Flag: dumpsys_acquire_stack_when_executing
-void Dumpsys::Dump(int fd, const char** args) {
-  if (fd <= 0) {
-    return;
-  }
-  std::promise<void> promise;
-  auto future = promise.get_future();
-  CallOn(pimpl_.get(), &Dumpsys::impl::DumpWithArgsSync, fd, args, std::move(promise));
-  future.get();
-}
-// !DEPRECATED Flag: dumpsys_acquire_stack_when_executing
 
 void Dumpsys::Dump(int fd, const char** args, std::promise<void> promise) {
   if (fd <= 0) {
@@ -186,8 +168,6 @@ void Dumpsys::Dump(int fd, const char** args, std::promise<void> promise) {
   }
   CallOn(pimpl_.get(), &Dumpsys::impl::DumpWithArgsSync, fd, args, std::move(promise));
 }
-
-os::Handler* Dumpsys::GetGdShimHandler() { return GetHandler(); }
 
 /**
  * Module methods

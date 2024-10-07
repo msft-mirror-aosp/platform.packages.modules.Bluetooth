@@ -35,6 +35,7 @@
 #include "stack/avct/avct_defs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/l2cap_interface.h"
 
 using namespace bluetooth;
 
@@ -187,7 +188,13 @@ void avct_lcb_chnl_open(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* /* p_data */) {
   uint16_t result = AVCT_RESULT_FAIL;
 
   p_lcb->ch_state = AVCT_CH_CONN;
-  p_lcb->ch_lcid = L2CA_ConnectReqWithSecurity(AVCT_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE);
+  if (com::android::bluetooth::flags::use_encrypt_req_for_av()) {
+    p_lcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+            AVCT_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
+  } else {
+    p_lcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+            AVCT_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE);
+  }
   if (p_lcb->ch_lcid == 0) {
     /* if connect req failed, send ourselves close event */
     tAVCT_LCB_EVT avct_lcb_evt;
@@ -250,7 +257,8 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
         if (p_ccb->cc.role == AVCT_INT) {
           /** @} */
           bind = true;
-          if (!L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH)) {
+          if (!stack::l2cap::get_interface().L2CA_SetTxPriority(p_lcb->ch_lcid,
+                                                                L2CAP_CHNL_PRIORITY_HIGH)) {
             log::warn("Unable to set L2CAP transmit high priority peer:{} cid:{}",
                       p_ccb->p_lcb->peer_addr, p_lcb->ch_lcid);
           }
@@ -269,7 +277,8 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
           } else {
             bind = true;
             p_ccb->p_lcb = p_lcb;
-            if (!L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH)) {
+            if (!stack::l2cap::get_interface().L2CA_SetTxPriority(p_lcb->ch_lcid,
+                                                                  L2CAP_CHNL_PRIORITY_HIGH)) {
               log::warn("Unable to set L2CAP transmit high priority peer:{} cid:{}",
                         p_ccb->p_lcb->peer_addr, p_lcb->ch_lcid);
             }
@@ -286,7 +295,8 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
         /* if bound to this lcb send connect confirm event */
         if (p_ccb->p_lcb == p_lcb) {
           bind = true;
-          if (!L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH)) {
+          if (!stack::l2cap::get_interface().L2CA_SetTxPriority(p_lcb->ch_lcid,
+                                                                L2CAP_CHNL_PRIORITY_HIGH)) {
             log::warn("Unable to set L2CAP transmit high priority peer:{} cid:{}",
                       p_ccb->p_lcb->peer_addr, p_lcb->ch_lcid);
           }
@@ -300,7 +310,8 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
           /* bind ccb to lcb and send connect ind event */
           bind = true;
           p_ccb->p_lcb = p_lcb;
-          if (!L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH)) {
+          if (!stack::l2cap::get_interface().L2CA_SetTxPriority(p_lcb->ch_lcid,
+                                                                L2CAP_CHNL_PRIORITY_HIGH)) {
             log::warn("Unable to set L2CAP transmit high priority peer:{} cid:{}",
                       p_ccb->p_lcb->peer_addr, p_lcb->ch_lcid);
           }
@@ -495,7 +506,8 @@ void avct_lcb_cong_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
   p_lcb->cong = p_data->cong;
   if (!p_lcb->cong && !fixed_queue_is_empty(p_lcb->tx_q)) {
     while (!p_lcb->cong && (p_buf = (BT_HDR*)fixed_queue_try_dequeue(p_lcb->tx_q)) != NULL) {
-      if (L2CA_DataWrite(p_lcb->ch_lcid, p_buf) == tL2CAP_DW_RESULT::CONGESTED) {
+      if (stack::l2cap::get_interface().L2CA_DataWrite(p_lcb->ch_lcid, p_buf) ==
+          tL2CAP_DW_RESULT::CONGESTED) {
         p_lcb->cong = true;
       }
     }
@@ -605,7 +617,8 @@ void avct_lcb_send_msg(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
 
     /* send message to L2CAP */
     else {
-      if (L2CA_DataWrite(p_lcb->ch_lcid, p_buf) == tL2CAP_DW_RESULT::CONGESTED) {
+      if (stack::l2cap::get_interface().L2CA_DataWrite(p_lcb->ch_lcid, p_buf) ==
+          tL2CAP_DW_RESULT::CONGESTED) {
         p_lcb->cong = true;
       }
     }
@@ -683,7 +696,7 @@ void avct_lcb_msg_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
 
   bool bind = false;
   if (btif_av_src_sink_coexist_enabled()) {
-    bind = avct_msg_ind_for_src_sink_coexist(p_lcb, p_data, label, cr_ipid);
+    bind = avct_msg_ind_for_src_sink_coexist(p_lcb, p_data, label, cr_ipid, pid);
     osi_free_and_reset((void**)&p_data->p_buf);
     if (bind) {
       return;
@@ -712,7 +725,8 @@ void avct_lcb_msg_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
     p = (uint8_t*)(p_buf + 1) + p_buf->offset;
     AVCT_BUILD_HDR(p, label, AVCT_PKT_TYPE_SINGLE, AVCT_REJ);
     UINT16_TO_BE_STREAM(p, pid);
-    if (L2CA_DataWrite(p_lcb->ch_lcid, p_buf) != tL2CAP_DW_RESULT::SUCCESS) {
+    if (stack::l2cap::get_interface().L2CA_DataWrite(p_lcb->ch_lcid, p_buf) !=
+        tL2CAP_DW_RESULT::SUCCESS) {
       log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_lcb->peer_addr,
                 p_lcb->ch_lcid, p_buf->len);
     }
@@ -720,19 +734,10 @@ void avct_lcb_msg_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
 }
 
 bool avct_msg_ind_for_src_sink_coexist(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data, uint8_t label,
-                                       uint8_t cr_ipid) {
+                                       uint8_t cr_ipid, uint16_t pid) {
   bool bind = false;
   tAVCT_CCB* p_ccb;
   int p_buf_len;
-  uint8_t* p;
-  uint16_t pid, type;
-
-  p = (uint8_t*)(p_data->p_buf + 1) + p_data->p_buf->offset;
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    AVCT_PARSE_HDR(p, label, type, cr_ipid);
-  }
-
-  BE_STREAM_TO_UINT16(pid, p);
 
   p_ccb = &avct_cb.ccb[0];
   p_data->p_buf->offset += AVCT_HDR_LEN_SINGLE;

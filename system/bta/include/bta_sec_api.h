@@ -25,6 +25,7 @@
 #include <cstdint>
 
 #include "bta/include/bta_api_data_types.h"
+#include "include/hardware/bluetooth.h"
 #include "stack/include/bt_device_type.h"
 #include "stack/include/bt_name.h"
 #include "stack/include/bt_octets.h"
@@ -67,6 +68,7 @@ typedef enum : uint8_t {
   BTA_DM_LE_ADDR_ASSOC_EVT = 33,     /* identity address association event */
   BTA_DM_SIRK_VERIFICATION_REQ_EVT = 35,
   BTA_DM_KEY_MISSING_EVT = 36,
+  BTA_DM_ENCRYPTION_CHANGE_EVT = 37,
 } tBTA_DM_SEC_EVT;
 
 /* Structure associated with BTA_DM_PIN_REQ_EVT */
@@ -76,6 +78,7 @@ typedef struct {
   RawAddress bd_addr;  /* BD address peer device. */
   DEV_CLASS dev_class; /* Class of Device */
   BD_NAME bd_name;     /* Name of peer device. */
+
   bool min_16_digit;   /* true if the pin returned must be at least 16 digits */
 } tBTA_DM_PIN_REQ;
 
@@ -121,7 +124,10 @@ enum class tBTA_DM_BLE_SEC_GRANT {
 
 /* Structure associated with BTA_DM_BLE_SEC_REQ_EVT */
 typedef struct {
+  /* Note: First 3 data members must be, bd_addr, dev_class, and bd_name in
+   * order */
   RawAddress bd_addr; /* peer address */
+  DEV_CLASS dev_class;
   BD_NAME bd_name;    /* peer device name */
 } tBTA_DM_BLE_SEC_REQ;
 
@@ -169,6 +175,7 @@ typedef struct {
   RawAddress bd_addr;         /* peer address */
   DEV_CLASS dev_class;        /* peer CoD */
   BD_NAME bd_name;            /* peer device name */
+
   uint32_t num_val;           /* the numeric value for comparison. If just_works, do not
                                  show this number to UI */
   bool just_works;            /* true, if "Just Works" association model */
@@ -185,6 +192,7 @@ typedef struct {
   RawAddress bd_addr;  /* peer address */
   DEV_CLASS dev_class; /* peer CoD */
   BD_NAME bd_name;     /* peer device name */
+
   uint32_t passkey;    /* the numeric value for comparison. If just_works, do not
                           show this number to UI */
 } tBTA_DM_SP_KEY_NOTIF;
@@ -230,6 +238,7 @@ typedef union {
   tBTA_DM_RC_UNPAIR delete_key_RC_to_unpair;
   tBTA_DM_PROC_ID_ADDR proc_id_addr; /* Identity address event */
   tBTA_DM_KEY_MISSING key_missing;
+  bt_encryption_change_evt encryption_change;
 } tBTA_DM_SEC;
 
 /* Security callback */

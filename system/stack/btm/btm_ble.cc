@@ -42,6 +42,9 @@
 #include "stack/include/gatt_api.h"
 #include "stack/include/hcimsgs.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
@@ -167,11 +170,11 @@ void BTM_BleReadPhy(const RawAddress& bd_addr,
     return;
   }
 
-  // checking if local controller supports it!
+  // The connection PHY is always LE_1M when the controller supports
+  // neither LE_2M nor LE_CODED PHYs.
   if (!bluetooth::shim::GetController()->SupportsBle2mPhy() &&
       !bluetooth::shim::GetController()->SupportsBleCodedPhy()) {
-    log::error("request not supported in local controller!");
-    cb.Run(0, 0, GATT_REQ_NOT_SUPPORTED);
+    cb.Run(1, 1, HCI_SUCCESS);
     return;
   }
 

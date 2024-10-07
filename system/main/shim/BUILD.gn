@@ -24,7 +24,6 @@ source_set("BluetoothStackManagerSources") {
     "//bt/system",
     "//bt/system/btif/include",
     "//bt/system/gd",
-    "//bt/system/gd/rust/shim",
     "//bt/system/stack/include",
     "//bt/system/types",
   ]
@@ -36,7 +35,6 @@ source_set("BluetoothStackManagerSources") {
     "//bt/system/gd/hci:BluetoothHciSources",
     "//bt/system/gd/os:BluetoothOsSources_linux_generic",
     "//bt/system/gd/packet:BluetoothPacketSources",
-    "//bt/system/gd/rust/shim:libbluetooth_rust_interop",
     "//bt/system/gd/rust/topshim:libbluetooth_topshim",
     "//bt/system/osi",
     "//bt/system/pdl:BluetoothGeneratedPackets_h",
@@ -53,7 +51,7 @@ source_set("LibBluetoothShimSources") {
   sources = [
     "acl.cc",
     "acl_api.cc",
-    "acl_legacy_interface.cc",
+    "acl_interface.cc",
     "btm_api.cc",
     "config.cc",
     "distance_measurement_manager.cc",
@@ -71,7 +69,6 @@ source_set("LibBluetoothShimSources") {
     "//bt/system",
     "//bt/system/btif/include",
     "//bt/system/gd",
-    "//bt/system/gd/rust/shim",
     "//bt/system/stack/include",
     "//bt/system/types",
   ]
@@ -84,7 +81,6 @@ source_set("LibBluetoothShimSources") {
     "//bt/system/gd/hci:BluetoothHciSources",
     "//bt/system/gd/os:BluetoothOsSources_linux_generic",
     "//bt/system/gd/packet:BluetoothPacketSources",
-    "//bt/system/gd/rust/shim:libbluetooth_rust_interop",
     "//bt/system/gd/rust/topshim:libbluetooth_topshim",
     "//bt/system/osi",
     "//bt/system/pdl:BluetoothGeneratedPackets_h",

@@ -28,6 +28,9 @@
 #include "stack/include/gatt_api.h"
 #include "types/bluetooth/uuid.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::Uuid;
 using bluetooth::log::error;
 using bluetooth::log::warn;
@@ -44,7 +47,7 @@ static uint16_t attr_api_level_handle;
 
 static uint32_t api_level;
 
-void ais_request_cback(uint16_t, uint32_t, tGATTS_REQ_TYPE, tGATTS_DATA*);
+void ais_request_cback(tCONN_ID, uint32_t, tGATTS_REQ_TYPE, tGATTS_DATA*);
 
 static tGATT_CBACK ais_cback = {
         .p_conn_cb = nullptr,
@@ -60,7 +63,7 @@ static tGATT_CBACK ais_cback = {
 };
 
 /** AIS ATT server attribute access request callback */
-void ais_request_cback(uint16_t conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
+void ais_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
                        tGATTS_DATA* p_data) {
   tGATT_STATUS status = GATT_INVALID_PDU;
   tGATTS_RSP rsp_msg = {};

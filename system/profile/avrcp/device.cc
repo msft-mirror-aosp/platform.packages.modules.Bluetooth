@@ -19,6 +19,7 @@
 #include "device.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include "abstract_message_loop.h"
 #include "avrcp_common.h"
@@ -34,6 +35,9 @@
 #include "packet/avrcp/set_addressed_player.h"
 #include "packet/avrcp/set_player_application_setting_value.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 extern bool btif_av_peer_is_connected_sink(const RawAddress& peer_address);
 extern bool btif_av_both_enable(void);
@@ -776,8 +780,29 @@ void Device::GetElementAttributesResponse(uint8_t label,
       }
     }
   } else {  // zero attributes requested which means all attributes requested
-    for (const auto& attribute : info.attributes) {
-      response->AddAttributeEntry(attribute);
+
+    if (!com::android::bluetooth::flags::get_all_element_attributes_empty()) {
+      for (const auto& attribute : info.attributes) {
+        response->AddAttributeEntry(attribute);
+      }
+    } else {
+      std::vector<Attribute> all_attributes = {Attribute::TITLE,
+                                               Attribute::ARTIST_NAME,
+                                               Attribute::ALBUM_NAME,
+                                               Attribute::TRACK_NUMBER,
+                                               Attribute::TOTAL_NUMBER_OF_TRACKS,
+                                               Attribute::GENRE,
+                                               Attribute::PLAYING_TIME,
+                                               Attribute::DEFAULT_COVER_ART};
+      for (const auto& attribute : all_attributes) {
+        if (info.attributes.find(attribute) != info.attributes.end()) {
+          response->AddAttributeEntry(*info.attributes.find(attribute));
+        } else {
+          // If all attributes were requested, we send a response even for attributes that we don't
+          // have a value for.
+          response->AddAttributeEntry(attribute, std::string());
+        }
+      }
     }
   }
 
@@ -902,6 +927,7 @@ void Device::HandlePlayItem(uint8_t label, std::shared_ptr<PlayItemRequest> pkt)
 void Device::HandleSetAddressedPlayer(uint8_t label, std::shared_ptr<SetAddressedPlayerRequest> pkt,
                                       uint16_t curr_player) {
   log::verbose("PlayerId={}", pkt->GetPlayerId());
+  log::verbose("curr_player={}", curr_player);
 
   if (curr_player != pkt->GetPlayerId()) {
     log::verbose("Reject invalid addressed player ID");
@@ -1401,7 +1427,7 @@ void Device::GetVFSListResponse(uint8_t label, std::shared_ptr<GetFolderItemsReq
 
       auto title = song.attributes.find(Attribute::TITLE) != song.attributes.end()
                            ? song.attributes.find(Attribute::TITLE)->value()
-                           : "No Song Info";
+                           : std::string();
       MediaElementItem song_item(vfs_ids_.get_uid(song.media_id), title,
                                  std::set<AttributeEntry>());
 
@@ -1444,7 +1470,7 @@ void Device::GetNowPlayingListResponse(uint8_t label, std::shared_ptr<GetFolderI
 
     auto title = song.attributes.find(Attribute::TITLE) != song.attributes.end()
                          ? song.attributes.find(Attribute::TITLE)->value()
-                         : "No Song Info";
+                         : std::string();
 
     MediaElementItem item(i + 1, title, std::set<AttributeEntry>());
     if (pkt->GetNumAttributes() == 0x00) {

@@ -27,6 +27,8 @@
 
 #define LOG_TAG "bt_btif_hf"
 
+#include "btif/include/btif_hf.h"
+
 #include <android_bluetooth_sysprop.h>
 #include <base/functional/callback.h>
 #include <bluetooth/log.h>
@@ -59,8 +61,7 @@ namespace {
 constexpr char kBtmLogTag[] = "HFP";
 }
 
-namespace bluetooth {
-namespace headset {
+namespace bluetooth::headset {
 
 /*******************************************************************************
  *  Constants & Macros
@@ -112,6 +113,7 @@ struct btif_hf_cb_t {
   tBTA_AG_PEER_FEAT peer_feat;
   int num_active;
   int num_held;
+  bool is_during_voice_recognition;
   bthf_call_state_t call_setup_state;
 };
 
@@ -131,6 +133,8 @@ static const char* dump_hf_call_state(bthf_call_state_t call_state) {
       return "UNKNOWN CALL STATE";
   }
 }
+
+static int btif_hf_idx_by_bdaddr(RawAddress* bd_addr);
 
 /**
  * Check if bd_addr is the current active device.
@@ -265,7 +269,7 @@ static bool is_nth_bit_enabled(uint32_t value, int n) {
   return (value & (static_cast<uint32_t>(1) << n)) != 0;
 }
 
-void clear_phone_state_multihf(btif_hf_cb_t* hf_cb) {
+static void clear_phone_state_multihf(btif_hf_cb_t* hf_cb) {
   hf_cb->call_setup_state = BTHF_CALL_STATE_IDLE;
   hf_cb->num_active = 0;
   hf_cb->num_held = 0;
@@ -818,6 +822,28 @@ bool IsCallIdle() {
   return true;
 }
 
+bool IsDuringVoiceRecognition(RawAddress* bd_addr) {
+  if (!bt_hf_callbacks) {
+    return false;
+  }
+  if (bd_addr == nullptr) {
+    log::error("null address");
+    return false;
+  }
+  int idx = btif_hf_idx_by_bdaddr(bd_addr);
+  if ((idx < 0) || (idx >= BTA_AG_MAX_NUM_CLIENTS)) {
+    log::error("Invalid index {}", idx);
+    return false;
+  }
+  if (!is_connected(bd_addr)) {
+    log::error("{} is not connected", *bd_addr);
+    return false;
+  }
+  bool in_vr = btif_hf_cb[idx].is_during_voice_recognition;
+  log::debug("IsDuringVoiceRecognition={}", in_vr);
+  return in_vr;
+}
+
 class HeadsetInterface : Interface {
 public:
   static Interface* GetInstance() {
@@ -989,6 +1015,7 @@ bt_status_t HeadsetInterface::StartVoiceRecognition(RawAddress* bd_addr) {
     log::error("voice recognition not supported, features=0x{:x}", btif_hf_cb[idx].peer_feat);
     return BT_STATUS_UNSUPPORTED;
   }
+  btif_hf_cb[idx].is_during_voice_recognition = true;
   tBTA_AG_RES_DATA ag_res = {};
   ag_res.state = true;
   BTA_AgResult(btif_hf_cb[idx].handle, BTA_AG_BVRA_RES, ag_res);
@@ -1011,6 +1038,7 @@ bt_status_t HeadsetInterface::StopVoiceRecognition(RawAddress* bd_addr) {
     log::error("voice recognition not supported, features=0x{:x}", btif_hf_cb[idx].peer_feat);
     return BT_STATUS_UNSUPPORTED;
   }
+  btif_hf_cb[idx].is_during_voice_recognition = false;
   tBTA_AG_RES_DATA ag_res = {};
   ag_res.state = false;
   BTA_AgResult(btif_hf_cb[idx].handle, BTA_AG_BVRA_RES, ag_res);
@@ -1592,5 +1620,4 @@ Interface* GetInterface() {
   return HeadsetInterface::GetInstance();
 }
 
-}  // namespace headset
-}  // namespace bluetooth
+}  // namespace bluetooth::headset

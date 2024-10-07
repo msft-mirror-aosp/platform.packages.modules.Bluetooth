@@ -18,36 +18,7 @@ package {
 
 java_defaults {
     name: "service-bluetooth-buildflags",
-    errorprone: {
-        enabled: true,
-        javacflags: [
-            "-Xep:AlreadyChecked:ERROR",
-            "-Xep:BadImport:ERROR",
-            "-Xep:CatchFail:ERROR",
-            "-Xep:CheckReturnValue:ERROR",
-            "-Xep:ClassCanBeStatic:ERROR",
-            "-Xep:EmptyBlockTag:ERROR",
-            "-Xep:EmptyCatch:ERROR",
-            "-Xep:EqualsIncompatibleType:ERROR",
-            "-Xep:FutureReturnValueIgnored:ERROR",
-            "-Xep:InlineMeInliner:ERROR",
-            "-Xep:InvalidBlockTag:ERROR",
-            "-Xep:InvalidInlineTag:ERROR",
-            "-Xep:InvalidParam:ERROR",
-            "-Xep:MockNotUsedInProduction:ERROR",
-            "-Xep:NonApiType:ERROR",
-            "-Xep:NonCanonicalType:ERROR",
-            "-Xep:NotJavadoc:ERROR",
-            "-Xep:ReferenceEquality:ERROR",
-            "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
-            "-Xep:StringCaseLocaleUsage:ERROR",
-            "-Xep:StringCharset:ERROR",
-            "-Xep:UnnecessaryAssignment:ERROR",
-            "-Xep:UnnecessaryAsync:ERROR",
-            "-Xep:UnusedMethod:ERROR",
-            "-Xep:UnusedVariable:ERROR",
-        ],
-    },
+    defaults: ["bluetooth_errorprone_rules"],
 
     lint: {
         error_checks: [
@@ -92,7 +63,7 @@ java_library {
     libs: [
         "framework-annotations-lib",
         "framework-bluetooth-pre-jarjar",
-        "framework-configinfrastructure",
+        "framework-configinfrastructure.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
         "service-bluetooth-binder-aidl",
         "service-bluetooth.change-ids",
@@ -108,10 +79,6 @@ java_library {
         "modules-utils-build_system",
         "modules-utils-shell-command-handler",
     ],
-
-    lint: {
-        baseline_filename: "lint-baseline.xml",
-    },
 
     optimize: {
         enabled: true,
@@ -140,7 +107,7 @@ java_library {
     },
 
     libs: [
-        "framework-bluetooth",
+        "framework-bluetooth.impl",
     ],
 
     sdk_version: "system_server_current",
@@ -223,6 +190,7 @@ android_robolectric_test {
         "mockito-robolectric-prebuilt",
         "modules-utils-expresslog",
         "platform-test-annotations",
+        "service-bluetooth-binder-aidl",
         "testng",
         "truth",
     ],

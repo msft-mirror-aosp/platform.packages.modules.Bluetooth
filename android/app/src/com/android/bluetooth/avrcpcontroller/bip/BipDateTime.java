@@ -114,6 +114,7 @@ public class BipDateTime {
     }
 
     @Override
+    @SuppressWarnings("UndefinedEquals") // Related to java Date API that should be clean repo wide
     public boolean equals(Object o) {
         if (o == this) {
             return true;
@@ -123,6 +124,11 @@ public class BipDateTime {
         }
 
         return d.isUtc() == isUtc() && Objects.equals(d.getTime(), getTime());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(isUtc(), getTime());
     }
 
     @Override

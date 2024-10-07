@@ -32,6 +32,7 @@
 #include <base/functional/bind.h>
 #include <base/location.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
@@ -58,6 +59,9 @@
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 using base::Location;
 using bluetooth::hci::IsoManager;
@@ -73,6 +77,7 @@ void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason,
 /******************************************************************************/
 static void btu_hcif_authentication_comp_evt(uint8_t* p);
 static void btu_hcif_encryption_change_evt(uint8_t* p);
+static void btu_hcif_encryption_change_evt_v2(uint8_t* p);
 static void btu_hcif_read_rmt_ext_features_comp_evt(uint8_t* p, uint8_t evt_len);
 static void btu_hcif_command_complete_evt(BT_HDR* response, void* context);
 static void btu_hcif_command_status_evt(uint8_t status, BT_HDR* command, void* context);
@@ -147,6 +152,16 @@ static void btu_hcif_log_event_metrics(uint8_t evt_code, const uint8_t* p_event)
       log_classic_pairing_event(bda, handle, cmd, evt_code, status, reason, encryption_enabled);
       break;
     }
+    case HCI_ENCRYPTION_CHANGE_EVT_V2: {
+      uint8_t encryption_enabled;
+      uint8_t key_size;
+      STREAM_TO_UINT8(status, p_event);
+      STREAM_TO_UINT16(handle, p_event);
+      STREAM_TO_UINT8(encryption_enabled, p_event);
+      STREAM_TO_UINT8(key_size, p_event);
+      log_classic_pairing_event(bda, handle, cmd, evt_code, status, reason, encryption_enabled);
+      break;
+    }
     case HCI_ESCO_CONNECTION_COMP_EVT: {
       uint8_t link_type;
       STREAM_TO_UINT8(status, p_event);
@@ -218,6 +233,9 @@ void btu_hcif_process_event(uint8_t /* controller_id */, const BT_HDR* p_msg) {
       break;
     case HCI_ENCRYPTION_CHANGE_EVT:
       btu_hcif_encryption_change_evt(p);
+      break;
+    case HCI_ENCRYPTION_CHANGE_EVT_V2:
+      btu_hcif_encryption_change_evt_v2(p);
       break;
     case HCI_ENCRYPTION_KEY_REFRESH_COMP_EVT:
       btu_hcif_encryption_key_refresh_cmpl_evt(p);
@@ -749,7 +767,30 @@ static void btu_hcif_encryption_change_evt(uint8_t* p) {
   STREAM_TO_UINT16(handle, p);
   STREAM_TO_UINT8(encr_enable, p);
 
-  btm_sec_encryption_change_evt(handle, static_cast<tHCI_STATUS>(status), encr_enable);
+  btm_sec_encryption_change_evt(handle, static_cast<tHCI_STATUS>(status), encr_enable, 0);
+}
+
+/*******************************************************************************
+ *
+ * Function         btu_hcif_encryption_change_evt_v2
+ *
+ * Description      Process event HCI_ENCRYPTION_CHANGE_EVT_V2
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+static void btu_hcif_encryption_change_evt_v2(uint8_t* p) {
+  uint8_t status;
+  uint16_t handle;
+  uint8_t encr_enable;
+  uint8_t key_size;
+
+  STREAM_TO_UINT8(status, p);
+  STREAM_TO_UINT16(handle, p);
+  STREAM_TO_UINT8(encr_enable, p);
+  STREAM_TO_UINT8(key_size, p);
+
+  btm_sec_encryption_change_evt(handle, static_cast<tHCI_STATUS>(status), encr_enable, key_size);
 }
 
 /*******************************************************************************
@@ -859,10 +900,6 @@ static void btu_hcif_hdl_command_complete(uint16_t opcode, uint8_t* p, uint16_t 
 
     case HCI_DELETE_STORED_LINK_KEY:
       btm_delete_stored_link_key_complete(p, evt_len);
-      break;
-
-    case HCI_READ_LOCAL_NAME:
-      btm_read_local_name_complete(p, evt_len);
       break;
 
     case HCI_READ_RSSI:
@@ -1028,7 +1065,7 @@ static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status, const u
       if (status != HCI_SUCCESS) {
         // Device refused to start encryption
         // This is treated as an encryption failure
-        btm_sec_encrypt_change(HCI_INVALID_HANDLE, hci_status, false);
+        btm_sec_encrypt_change(HCI_INVALID_HANDLE, hci_status, false, 0);
       }
       break;
     case HCI_READ_RMT_EXT_FEATURES:
@@ -1040,9 +1077,15 @@ static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status, const u
     case HCI_SETUP_ESCO_CONNECTION:
     case HCI_ENH_SETUP_ESCO_CONNECTION:
       if (status != HCI_SUCCESS) {
-        STREAM_TO_UINT16(handle, p_cmd);
-        RawAddress addr(RawAddress::kEmpty);
-        btm_sco_connection_failed(hci_status, addr, handle, nullptr);
+        if (com::android::bluetooth::flags::fix_sco_command_status_handling()) {
+          log::debug("flag: fix_sco_command_status_handling is enabled");
+          btm_sco_create_command_status_failed(hci_status);
+        } else {
+          log::debug("flag: fix_sco_command_status_handling is disabled");
+          STREAM_TO_UINT16(handle, p_cmd);
+          RawAddress addr(RawAddress::kEmpty);
+          btm_sco_connection_failed(hci_status, addr, handle, nullptr);
+        }
       }
       break;
 
@@ -1090,6 +1133,11 @@ static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status, const u
 void bluetooth::legacy::testing::btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status,
                                                              const uint8_t* p_cmd) {
   ::btu_hcif_hdl_command_status(opcode, status, p_cmd);
+}
+
+void bluetooth::legacy::testing::btu_hcif_process_event(uint8_t controller_id,
+                                                        const BT_HDR* p_msg) {
+  ::btu_hcif_process_event(controller_id, p_msg);
 }
 
 /*******************************************************************************
@@ -1223,7 +1271,7 @@ void btu_hcif_read_local_oob_complete(const uint8_t* p, uint16_t evt_len) {
   if (status == HCI_SUCCESS) {
     evt_data.status = tBTM_STATUS::BTM_SUCCESS;
   } else {
-    evt_data.status = BTM_ERR_PROCESSING;
+    evt_data.status = tBTM_STATUS::BTM_ERR_PROCESSING;
   }
   if (evt_len < 32 + 1) {
     goto err_out;
@@ -1249,7 +1297,7 @@ void btu_hcif_read_local_oob_extended_complete(const uint8_t* p, uint16_t evt_le
   if (status == HCI_SUCCESS) {
     evt_data.status = tBTM_STATUS::BTM_SUCCESS;
   } else {
-    evt_data.status = BTM_ERR_PROCESSING;
+    evt_data.status = tBTM_STATUS::BTM_ERR_PROCESSING;
   }
 
   STREAM_TO_ARRAY16(evt_data.c_192.data(), p);

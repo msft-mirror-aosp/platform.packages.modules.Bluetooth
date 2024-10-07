@@ -18,13 +18,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_broadcast_audio_handover_policies"
-    namespace: "bluetooth"
-    description: "Support le audio broadcast audio routing policies"
-    bug: "308171251"
-}
-
-flag {
     name: "leaudio_multicodec_aidl_support"
     namespace: "bluetooth"
     description: "Enables support for the multicodec AIDL"
@@ -53,13 +46,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_broadcast_feature_support"
-    namespace: "bluetooth"
-    description: "Le audio broadcast feature roll-out control flag"
-    bug: "316005152"
-}
-
-flag {
     name: "metadata_api_inactive_audio_device_upon_connection"
     is_exported: true
     namespace: "bluetooth"
@@ -68,37 +54,11 @@ flag {
 }
 
 flag {
-    name: "leaudio_add_sampling_frequencies"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Adds missing frequencies defined by the Bluetooth SIG"
-    bug: "323287937"
-}
-
-flag {
-    name: "leaudio_callback_on_group_stream_status"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Add group stream status callback to notify about playing state"
-    bug: "323288608"
-}
-
-flag {
     name: "leaudio_multiple_vocs_instances_api"
     is_exported: true
     namespace: "bluetooth"
     description: "Support multiple audio outputs for volume offset"
     bug: "323156655"
-}
-
-flag {
-    name: "leaudio_start_stream_race_fix"
-    namespace: "bluetooth"
-    description: "Fix possible race on start stream request"
-    bug: "325181889"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -122,16 +82,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_resume_active_after_hfp_handover"
-    namespace: "bluetooth"
-    description: "Fix for if HFP- LE Audio handover happened, LE audio resume active after the call"
-    bug: "331468678"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "leaudio_allow_leaudio_only_devices"
     namespace: "bluetooth"
     description: "Enable Le Audio for LeAudio only devices"
@@ -143,26 +93,6 @@ flag {
     namespace: "bluetooth"
     description: "Add mono location as per Bluetooth Assigned Numbers"
     bug: "331139722"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_quick_leaudio_toggle_switch_fix"
-    namespace: "bluetooth"
-    description: "Fix for one device being not connected when toggle LeAudio is switch during bonding"
-    bug: "328595942"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_broadcast_assistant_handle_command_statuses"
-    namespace: "bluetooth"
-    description: "Handle command statuses to recover from errors"
-    bug: "331167629"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -390,4 +320,58 @@ flag {
     namespace: "bluetooth"
     description: "New apis to set codec config preference"
     bug: "353909820"
+}
+
+flag {
+    name: "leaudio_add_aics_support"
+    namespace: "bluetooth"
+    description: "Add AICS support"
+    bug: "361263965"
+}
+
+flag {
+    name: "leaudio_gmap_client"
+    namespace: "bluetooth"
+    description: "enable Gaming Audio Profile"
+    bug: "353978074"
+}
+
+flag {
+    name: "leaudio_broadcast_resync_helper"
+    namespace: "bluetooth"
+    description: "Helps sinks to resync to external broadcast when BIS or PA unsynced"
+    bug: "363168099"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_unicast_no_available_contexts"
+    namespace: "bluetooth"
+    description: "Fix handling initial zero available contexts"
+    bug: "367325041"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_improve_switch_during_phone_call"
+    namespace: "bluetooth"
+    description: "Fix audio slip to speaker while switching bt audio device during phonecall"
+    bug: "369322905"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_sort_scans_to_sync_by_fails"
+    namespace: "bluetooth"
+    description: "Sort scan results for source sync by fails counter"
+    bug: "370639684"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

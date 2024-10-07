@@ -42,9 +42,9 @@
  *
  ******************************************************************************/
 
-#ifndef LOG_TAG
 #define LOG_TAG "bt_btif_hfc"
-#endif
+
+#include "btif_hf_client.h"
 
 #include <bluetooth/log.h>
 #include <hardware/bluetooth.h>
@@ -91,9 +91,8 @@ typedef struct {
 /******************************************************************************
  * Local function declarations
  ******************************************************************************/
-btif_hf_client_cb_t* btif_hf_client_get_cb_by_handle(uint16_t handle);
-btif_hf_client_cb_t* btif_hf_client_get_cb_by_bda(const RawAddress& addr);
-bool is_connected(const btif_hf_client_cb_t* cb);
+static btif_hf_client_cb_t* btif_hf_client_get_cb_by_bda(const RawAddress& addr);
+static bool is_connected(const btif_hf_client_cb_t* cb);
 
 /*******************************************************************************
  *  Static variables
@@ -180,7 +179,7 @@ static void btif_in_hf_client_generic_evt(uint16_t event, char* p_param) {
 /*******************************************************************************
  *  Functions
  ******************************************************************************/
-bool is_connected(const btif_hf_client_cb_t* cb) {
+static bool is_connected(const btif_hf_client_cb_t* cb) {
   if ((cb->state == BTHF_CLIENT_CONNECTION_STATE_CONNECTED) ||
       (cb->state == BTHF_CLIENT_CONNECTION_STATE_SLC_CONNECTED)) {
     return true;
@@ -192,28 +191,6 @@ bool is_connected(const btif_hf_client_cb_t* cb) {
 
 /*******************************************************************************
  *
- * Function        btif_hf_client_get_cb_by_handle
- *
- * Description     Get control block by handle
- *
- * Returns         btif_hf_client_cb_t pointer if available NULL otherwise
- *
- ******************************************************************************/
-btif_hf_client_cb_t* btif_hf_client_get_cb_by_handle(uint16_t handle) {
-  log::verbose("cb by handle {}", handle);
-  for (int i = 0; i < HF_CLIENT_MAX_DEVICES; i++) {
-    // Block is valid only if it is allocated i.e. state is not DISCONNECTED
-    if (btif_hf_client_cb_arr.cb[i].state != BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED &&
-        btif_hf_client_cb_arr.cb[i].handle == handle) {
-      return &btif_hf_client_cb_arr.cb[i];
-    }
-  }
-  log::error("could not find block for handle {}", handle);
-  return NULL;
-}
-
-/*******************************************************************************
- *
  * Function        btif_hf_client_get_cb_by_bda
  *
  * Description     Get control block by bda
@@ -221,7 +198,7 @@ btif_hf_client_cb_t* btif_hf_client_get_cb_by_handle(uint16_t handle) {
  * Returns         btif_hf_client_cb_t pointer if available NULL otherwise
  *
  ******************************************************************************/
-btif_hf_client_cb_t* btif_hf_client_get_cb_by_bda(const RawAddress& bd_addr) {
+static btif_hf_client_cb_t* btif_hf_client_get_cb_by_bda(const RawAddress& bd_addr) {
   log::verbose("incoming addr {}", bd_addr);
 
   for (int i = 0; i < HF_CLIENT_MAX_DEVICES; i++) {
@@ -244,7 +221,7 @@ btif_hf_client_cb_t* btif_hf_client_get_cb_by_bda(const RawAddress& bd_addr) {
  * Returns         btif_hf_client_cb_t pointer if available NULL otherwise
  *
  ******************************************************************************/
-btif_hf_client_cb_t* btif_hf_client_allocate_cb() {
+static btif_hf_client_cb_t* btif_hf_client_allocate_cb() {
   for (int i = 0; i < HF_CLIENT_MAX_DEVICES; i++) {
     btif_hf_client_cb_t* cb = &btif_hf_client_cb_arr.cb[i];
     if (cb->state == BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED) {

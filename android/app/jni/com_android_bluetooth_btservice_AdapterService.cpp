@@ -31,8 +31,10 @@
 
 #include "./com_android_bluetooth.h"
 #include "hardware/bt_sock.h"
-#include "os/logging/log_adapter.h"
-#include "utils/misc.h"
+#include "types/bt_transport.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::Uuid;
 extern bt_interface_t bluetoothInterface;
@@ -53,12 +55,25 @@ static Uuid from_java_uuid(jlong uuid_msb, jlong uuid_lsb) {
   return Uuid::From128BitBE(uu);
 }
 
-namespace android {
-// Both
+namespace {
+tBT_TRANSPORT to_bt_transport(jint val) {
+  switch (val) {
+    case 0:
+      return BT_TRANSPORT_AUTO;
+    case 1:
+      return BT_TRANSPORT_BR_EDR;
+    case 2:
+      return BT_TRANSPORT_LE;
+    default:
+      break;
+  }
+  log::warn("Passed unexpected transport value:{}", val);
+  return BT_TRANSPORT_AUTO;
+}
 
-#define TRANSPORT_AUTO 0
-#define TRANSPORT_BREDR 1
-#define TRANSPORT_LE 2
+}  // namespace
+
+namespace android {
 
 #define BLE_ADDR_PUBLIC 0x00
 #define BLE_ADDR_RANDOM 0x01
@@ -85,6 +100,7 @@ static jmethodID method_acquireWakeLock;
 static jmethodID method_releaseWakeLock;
 static jmethodID method_energyInfo;
 static jmethodID method_keyMissingCallback;
+static jmethodID method_encryptionChangeCallback;
 
 static struct {
   jclass clazz;
@@ -655,12 +671,12 @@ static void generate_local_oob_data_callback(tBT_TRANSPORT transport, bt_oob_dat
     return;
   }
 
-  if (transport == TRANSPORT_BREDR) {
+  if (transport == BT_TRANSPORT_BR_EDR) {
     sCallbackEnv->CallVoidMethod(
             sJniCallbacksObj, method_oobDataReceivedCallback, (jint)transport,
             ((oob_data.is_valid) ? createClassicOobDataObject(sCallbackEnv.get(), oob_data)
                                  : nullptr));
-  } else if (transport == TRANSPORT_LE) {
+  } else if (transport == BT_TRANSPORT_LE) {
     sCallbackEnv->CallVoidMethod(
             sJniCallbacksObj, method_oobDataReceivedCallback, (jint)transport,
             ((oob_data.is_valid) ? createLeOobDataObject(sCallbackEnv.get(), oob_data) : nullptr));
@@ -761,6 +777,34 @@ static void key_missing_callback(const RawAddress bd_addr) {
   sCallbackEnv->CallVoidMethod(sJniCallbacksObj, method_keyMissingCallback, addr.get());
 }
 
+static void encryption_change_callback(const bt_encryption_change_evt encryption_change) {
+  std::shared_lock<std::shared_timed_mutex> lock(jniObjMutex);
+  if (!sJniCallbacksObj) {
+    log::error("JNI obj is null. Failed to call JNI callback");
+    return;
+  }
+
+  CallbackEnv sCallbackEnv(__func__);
+  if (!sCallbackEnv.valid()) {
+    return;
+  }
+
+  ScopedLocalRef<jbyteArray> addr(sCallbackEnv.get(),
+                                  sCallbackEnv->NewByteArray(sizeof(RawAddress)));
+  if (!addr.get()) {
+    log::error("Address allocation failed");
+    return;
+  }
+  sCallbackEnv->SetByteArrayRegion(
+          addr.get(), 0, sizeof(RawAddress),
+          reinterpret_cast<jbyte*>(const_cast<RawAddress*>(&encryption_change.bd_addr)));
+
+  sCallbackEnv->CallVoidMethod(sJniCallbacksObj, method_encryptionChangeCallback, addr.get(),
+                               encryption_change.status, encryption_change.encr_enable,
+                               encryption_change.transport, encryption_change.secure_connections,
+                               encryption_change.key_size);
+}
+
 static void callback_thread_event(bt_cb_thread_evt event) {
   if (event == ASSOCIATE_JVM) {
     JavaVMAttachArgs args;
@@ -849,6 +893,7 @@ static bt_callbacks_t sBluetoothCallbacks = {
         switch_codec_callback,
         le_rand_callback,
         key_missing_callback,
+        encryption_change_callback,
 };
 
 class JNIThreadAttacher {
@@ -975,8 +1020,7 @@ int hal_util_load_bt_library(const bt_interface_t** interface) {
 }
 
 static bool initNative(JNIEnv* env, jobject obj, jboolean isGuest, jboolean isCommonCriteriaMode,
-                       int configCompareResult, jobjectArray initFlags, jboolean isAtvDevice,
-                       jstring userDataDirectory) {
+                       int configCompareResult, jboolean isAtvDevice, jstring userDataDirectory) {
   std::unique_lock<std::shared_timed_mutex> lock(jniObjMutex);
 
   log::verbose("");
@@ -991,33 +1035,14 @@ static bool initNative(JNIEnv* env, jobject obj, jboolean isGuest, jboolean isCo
     return JNI_FALSE;
   }
 
-  int flagCount = env->GetArrayLength(initFlags);
-  jstring* flagObjs = new jstring[flagCount];
-  const char** flags = nullptr;
-  if (flagCount > 0) {
-    flags = new const char*[flagCount + 1];
-    flags[flagCount] = nullptr;
-  }
-
-  for (int i = 0; i < flagCount; i++) {
-    flagObjs[i] = (jstring)env->GetObjectArrayElement(initFlags, i);
-    flags[i] = env->GetStringUTFChars(flagObjs[i], NULL);
-  }
-
   const char* user_data_directory = env->GetStringUTFChars(userDataDirectory, NULL);
 
-  int ret = sBluetoothInterface->init(&sBluetoothCallbacks, isGuest == JNI_TRUE ? 1 : 0,
-                                      isCommonCriteriaMode == JNI_TRUE ? 1 : 0, configCompareResult,
-                                      flags, isAtvDevice == JNI_TRUE ? 1 : 0, user_data_directory);
+  int ret =
+          sBluetoothInterface->init(&sBluetoothCallbacks, isGuest == JNI_TRUE ? 1 : 0,
+                                    isCommonCriteriaMode == JNI_TRUE ? 1 : 0, configCompareResult,
+                                    nullptr, isAtvDevice == JNI_TRUE ? 1 : 0, user_data_directory);
 
   env->ReleaseStringUTFChars(userDataDirectory, user_data_directory);
-
-  for (int i = 0; i < flagCount; i++) {
-    env->ReleaseStringUTFChars(flagObjs[i], flags[i]);
-  }
-
-  delete[] flags;
-  delete[] flagObjs;
 
   if (ret != BT_STATUS_SUCCESS) {
     log::error("Error while setting the callbacks: {}", ret);
@@ -1251,7 +1276,7 @@ static jboolean set_data(JNIEnv* env, jobject oobData, jint transport, bt_oob_da
   }
 
   // Transport specific data fetching/setting
-  if (transport == TRANSPORT_BREDR) {
+  if (transport == BT_TRANSPORT_BR_EDR) {
     // Classic
     // Not optional
     jbyteArray oobDataLength =
@@ -1282,7 +1307,7 @@ static jboolean set_data(JNIEnv* env, jobject oobData, jint transport, bt_oob_da
       memcpy(oob_data->class_of_device, classOfDeviceBytes, OOB_COD_SIZE);
       env->ReleaseByteArrayElements(classOfDevice, classOfDeviceBytes, 0);
     }
-  } else if (transport == TRANSPORT_LE) {
+  } else if (transport == BT_TRANSPORT_LE) {
     // LE
     jbyteArray temporaryKey =
             callByteArrayGetter(env, oobData, "android/bluetooth/OobData", "getLeTemporaryKey");
@@ -1330,12 +1355,14 @@ static void generateLocalOobDataNative(JNIEnv* /* env */, jobject /* obj */, jin
     return;
   }
 
-  if (sBluetoothInterface->generate_local_oob_data(transport) != BT_STATUS_SUCCESS) {
+  tBT_TRANSPORT bt_transport = to_bt_transport(transport);
+
+  if (sBluetoothInterface->generate_local_oob_data(bt_transport) != BT_STATUS_SUCCESS) {
     log::error("Call to generate_local_oob_data failed!");
     bt_oob_data_t oob_data = {
             .is_valid = false,
     };
-    generate_local_oob_data_callback(transport, oob_data);
+    generate_local_oob_data_callback(bt_transport, oob_data);
   }
 }  // namespace android
 
@@ -2129,10 +2156,76 @@ static jint getSocketL2capRemoteChannelIdNative(JNIEnv* /* env */, jobject /* ob
   return (jint)cid;
 }
 
+static jboolean setDefaultEventMaskExceptNative(JNIEnv* /* env */, jobject /* obj */, jlong mask,
+                                                jlong le_mask) {
+  log::verbose("");
+
+  if (!sBluetoothInterface) {
+    return JNI_FALSE;
+  }
+
+  int ret = sBluetoothInterface->set_default_event_mask_except(mask, le_mask);
+  return (ret == BT_STATUS_SUCCESS) ? JNI_TRUE : JNI_FALSE;
+}
+
+static jboolean clearEventFilterNative(JNIEnv* /* env */, jobject /* obj */) {
+  log::verbose("");
+
+  if (!sBluetoothInterface) {
+    return JNI_FALSE;
+  }
+
+  int ret = sBluetoothInterface->clear_event_filter();
+  return (ret == BT_STATUS_SUCCESS) ? JNI_TRUE : JNI_FALSE;
+}
+
+static jboolean clearFilterAcceptListNative(JNIEnv* /* env */, jobject /* obj */) {
+  log::verbose("");
+
+  if (!sBluetoothInterface) {
+    return JNI_FALSE;
+  }
+
+  int ret = sBluetoothInterface->clear_filter_accept_list();
+  return (ret == BT_STATUS_SUCCESS) ? JNI_TRUE : JNI_FALSE;
+}
+
+static jboolean disconnectAllAclsNative(JNIEnv* /* env */, jobject /* obj */) {
+  log::verbose("");
+
+  if (!sBluetoothInterface) {
+    return JNI_FALSE;
+  }
+
+  int ret = sBluetoothInterface->disconnect_all_acls();
+  return (ret == BT_STATUS_SUCCESS) ? JNI_TRUE : JNI_FALSE;
+}
+
+static jboolean allowWakeByHidNative(JNIEnv* /* env */, jobject /* obj */) {
+  log::verbose("");
+
+  if (!sBluetoothInterface) {
+    return JNI_FALSE;
+  }
+
+  int ret = sBluetoothInterface->allow_wake_by_hid();
+  return (ret == BT_STATUS_SUCCESS) ? JNI_TRUE : JNI_FALSE;
+}
+
+static jboolean restoreFilterAcceptListNative(JNIEnv* /* env */, jobject /* obj */) {
+  log::verbose("");
+
+  if (!sBluetoothInterface) {
+    return JNI_FALSE;
+  }
+
+  int ret = sBluetoothInterface->restore_filter_accept_list();
+  return (ret == BT_STATUS_SUCCESS) ? JNI_TRUE : JNI_FALSE;
+}
+
 int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
   const JNINativeMethod methods[] = {
-          {"initNative", "(ZZI[Ljava/lang/String;ZLjava/lang/String;)Z",
-           reinterpret_cast<void*>(initNative)},
+          {"initNative", "(ZZIZLjava/lang/String;)Z", reinterpret_cast<void*>(initNative)},
           {"cleanupNative", "()V", reinterpret_cast<void*>(cleanupNative)},
           {"enableNative", "()Z", reinterpret_cast<void*>(enableNative)},
           {"disableNative", "()Z", reinterpret_cast<void*>(disableNative)},
@@ -2193,6 +2286,16 @@ int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
            reinterpret_cast<void*>(getSocketL2capLocalChannelIdNative)},
           {"getSocketL2capRemoteChannelIdNative", "(JJ)I",
            reinterpret_cast<void*>(getSocketL2capRemoteChannelIdNative)},
+          {"setDefaultEventMaskExceptNative", "(JJ)Z",
+           reinterpret_cast<void*>(setDefaultEventMaskExceptNative)},
+          {"clearEventFilterNative", "()Z", reinterpret_cast<void*>(clearEventFilterNative)},
+          {"clearFilterAcceptListNative", "()Z",
+           reinterpret_cast<void*>(clearFilterAcceptListNative)},
+          {"disconnectAllAclsNative", "()Z", reinterpret_cast<void*>(disconnectAllAclsNative)},
+          {"allowWakeByHidNative", "()Z", reinterpret_cast<void*>(allowWakeByHidNative)},
+          {"restoreFilterAcceptListNative", "()Z",
+           reinterpret_cast<void*>(restoreFilterAcceptListNative)},
+
   };
   const int result = REGISTER_NATIVE_METHODS(
           env, "com/android/bluetooth/btservice/AdapterNativeInterface", methods);
@@ -2227,6 +2330,7 @@ int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
           {"releaseWakeLock", "(Ljava/lang/String;)Z", &method_releaseWakeLock},
           {"energyInfoCallback", "(IIJJJJ[Landroid/bluetooth/UidTraffic;)V", &method_energyInfo},
           {"keyMissingCallback", "([B)V", &method_keyMissingCallback},
+          {"encryptionChangeCallback", "([BIZIZI)V", &method_encryptionChangeCallback},
   };
   GET_JAVA_METHODS(env, "com/android/bluetooth/btservice/JniCallbacks", javaMethods);
 

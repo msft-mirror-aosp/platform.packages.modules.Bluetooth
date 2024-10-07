@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -46,7 +47,7 @@ public:
   bool mute;
   uint8_t flags;
 
-  uint16_t connection_id;
+  tCONN_ID connection_id;
 
   /* Volume Control Service */
   uint16_t volume_state_handle;
@@ -55,6 +56,7 @@ public:
   uint16_t volume_flags_handle;
   uint16_t volume_flags_ccc_handle;
 
+  VolumeAudioInputs audio_inputs;
   VolumeOffsets audio_offsets;
 
   /* Set when device successfully reads server status and registers for
@@ -79,9 +81,6 @@ public:
 
   ~VolumeControlDevice() = default;
 
-  // TODO: remove
-  inline std::string ToString() { return address.ToString(); }
-
   std::string ToStringForLogging() const override { return address.ToStringForLogging(); }
 
   std::string ToRedactedStringForLogging() const override {
@@ -95,7 +94,7 @@ public:
     if (connection_id == GATT_INVALID_CONN_ID) {
       stream << "    Not connected\n";
     } else {
-      stream << "    Connected. Conn_id = " << connection_id << "\n";
+      stream << "    Connected. Conn_id = " << static_cast<int>(connection_id) << "\n";
     }
 
     stream << "    volume: " << +volume << "\n"
@@ -107,6 +106,7 @@ public:
 
     dprintf(fd, "%s", stream.str().c_str());
     audio_offsets.Dump(fd);
+    audio_inputs.Dump(fd);
   }
 
   bool IsConnected() { return connection_id != GATT_INVALID_CONN_ID; }
@@ -127,10 +127,19 @@ public:
   void SetExtAudioOutLocation(uint8_t ext_output_id, uint32_t location);
   void GetExtAudioOutLocation(uint8_t ext_output_id, GATT_READ_OP_CB cb, void* cb_data);
   void GetExtAudioOutDescription(uint8_t ext_output_id, GATT_READ_OP_CB cb, void* cb_data);
-  void SetExtAudioOutDescription(uint8_t ext_output_id, std::string& descr);
+  void SetExtAudioOutDescription(uint8_t ext_output_id, const std::string& descr);
   void ExtAudioOutControlPointOperation(uint8_t ext_output_id, uint8_t opcode,
                                         const std::vector<uint8_t>* arg, GATT_WRITE_OP_CB cb,
                                         void* cb_data);
+  void GetExtAudioInState(uint8_t ext_input_id, GATT_READ_OP_CB cb, void* cb_data);
+  void GetExtAudioInStatus(uint8_t ext_input_id, GATT_READ_OP_CB cb, void* cb_data);
+  void GetExtAudioInType(uint8_t ext_input_id, GATT_READ_OP_CB cb, void* cb_data);
+  void GetExtAudioInGainProps(uint8_t ext_input_id, GATT_READ_OP_CB cb, void* cb_data);
+  void GetExtAudioInDescription(uint8_t ext_input_id, GATT_READ_OP_CB cb, void* cb_data);
+  void SetExtAudioInDescription(uint8_t ext_input_id, const std::string& descr);
+  void ExtAudioInControlPointOperation(uint8_t ext_input_id, uint8_t opcode,
+                                       const std::vector<uint8_t>* arg, GATT_WRITE_OP_CB cb,
+                                       void* cb_data);
   bool IsEncryptionEnabled();
 
   bool EnableEncryption();
@@ -138,6 +147,7 @@ public:
   bool EnqueueInitialRequests(tGATT_IF gatt_if, GATT_READ_OP_CB chrc_read_cb,
                               GATT_WRITE_OP_CB cccd_write_cb);
   void EnqueueRemainingRequests(tGATT_IF gatt_if, GATT_READ_OP_CB chrc_read_cb,
+                                GATT_READ_MULTI_OP_CB chrc_multi_read,
                                 GATT_WRITE_OP_CB cccd_write_cb);
   bool VerifyReady(uint16_t handle);
   bool IsReady() { return device_ready; }
@@ -154,6 +164,7 @@ private:
   uint16_t find_ccc_handle(uint16_t chrc_handle);
   bool set_volume_control_service_handles(const gatt::Service& service);
   void set_volume_offset_control_service_handles(const gatt::Service& service);
+  void set_audio_input_control_service_handles(const gatt::Service& service);
   bool subscribe_for_notifications(tGATT_IF gatt_if, uint16_t handle, uint16_t ccc_handle,
                                    GATT_WRITE_OP_CB cb);
 };
@@ -185,7 +196,7 @@ public:
     return (iter == devices_.end()) ? nullptr : &(*iter);
   }
 
-  VolumeControlDevice* FindByConnId(uint16_t connection_id) {
+  VolumeControlDevice* FindByConnId(tCONN_ID connection_id) {
     auto iter = std::find_if(devices_.begin(), devices_.end(),
                              [&connection_id](const VolumeControlDevice& device) {
                                return device.connection_id == connection_id;
@@ -215,7 +226,7 @@ public:
     }
   }
 
-  void ControlPointOperation(std::vector<RawAddress>& devices, uint8_t opcode,
+  void ControlPointOperation(const std::vector<RawAddress>& devices, uint8_t opcode,
                              const std::vector<uint8_t>* arg, GATT_WRITE_OP_CB cb, void* cb_data) {
     for (auto& addr : devices) {
       VolumeControlDevice* device = FindByAddress(addr);

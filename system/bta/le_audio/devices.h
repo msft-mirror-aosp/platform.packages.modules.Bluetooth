@@ -33,6 +33,7 @@ namespace bluetooth::le_audio {
 
 // Maps to BluetoothProfile#LE_AUDIO
 #define LE_AUDIO_PROFILE_CONSTANT 22
+#define LE_AUDIO_INVALID_CIS_HANDLE 0xFFFF
 
 /* Enums */
 enum class DeviceConnectState : uint8_t {
@@ -82,7 +83,7 @@ public:
   bool notify_connected_after_read_;
   bool closing_stream_for_disconnection_;
   bool autoconnect_flag_;
-  uint16_t conn_id_;
+  tCONN_ID conn_id_;
   uint16_t mtu_;
   bool encrypted_;
   int group_id_;
@@ -112,9 +113,9 @@ public:
   alarm_t* link_quality_timer;
   uint16_t link_quality_timer_data;
 
-  LeAudioDevice(const RawAddress& address_, DeviceConnectState state,
+  LeAudioDevice(const RawAddress& address, DeviceConnectState state,
                 int group_id = bluetooth::groups::kGroupUnknown)
-      : address_(address_),
+      : address_(address),
         connection_state_(state),
         known_service_handles_(false),
         notify_connected_after_read_(false),
@@ -132,7 +133,10 @@ public:
         acl_asymmetric_(false),
         acl_phy_update_done_(false),
         link_quality_timer(nullptr),
-        dsa_({{DsaMode::DISABLED}, types::DataPathState::IDLE, GATT_INVALID_CONN_ID, false}) {}
+        dsa_({{DsaMode::DISABLED},
+              types::DataPathState::IDLE,
+              LE_AUDIO_INVALID_CIS_HANDLE,
+              false}) {}
   ~LeAudioDevice(void);
 
   void SetConnectionState(DeviceConnectState state);
@@ -260,7 +264,7 @@ public:
   void Remove(const RawAddress& address);
   LeAudioDevice* FindByAddress(const RawAddress& address) const;
   std::shared_ptr<LeAudioDevice> GetByAddress(const RawAddress& address) const;
-  LeAudioDevice* FindByConnId(uint16_t conn_id) const;
+  LeAudioDevice* FindByConnId(tCONN_ID conn_id) const;
   LeAudioDevice* FindByCisConnHdl(uint8_t cig_id, uint16_t conn_hdl) const;
   void SetInitialGroupAutoconnectState(int group_id, int gatt_if,
                                        tBTM_BLE_CONN_TYPE reconnection_mode,

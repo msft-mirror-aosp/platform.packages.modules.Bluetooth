@@ -28,6 +28,7 @@
 #define LOG_TAG "bluetooth"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include "avct_api.h"
@@ -40,6 +41,7 @@
 #include "stack/avct/avct_defs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/l2cap_interface.h"
 
 using namespace bluetooth;
 
@@ -115,7 +117,13 @@ void avct_bcb_chnl_open(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
 
   /* call l2cap connect req */
   p_bcb->ch_state = AVCT_CH_CONN;
-  p_bcb->ch_lcid = L2CA_ConnectReqWithSecurity(AVCT_BR_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE);
+  if (com::android::bluetooth::flags::use_encrypt_req_for_av()) {
+    p_bcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+            AVCT_BR_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
+  } else {
+    p_bcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+            AVCT_BR_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE);
+  }
   if (p_bcb->ch_lcid == 0) {
     /* if connect req failed, send ourselves close event */
     tAVCT_LCB_EVT avct_lcb_evt;
@@ -467,7 +475,8 @@ void avct_bcb_send_msg(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
   p_buf->layer_specific = AVCT_DATA_BROWSE;
 
   /* send message to L2CAP */
-  if (L2CA_DataWrite(p_bcb->ch_lcid, p_buf) != tL2CAP_DW_RESULT::SUCCESS) {
+  if (stack::l2cap::get_interface().L2CA_DataWrite(p_bcb->ch_lcid, p_buf) !=
+      tL2CAP_DW_RESULT::SUCCESS) {
     log::warn("Unable to write L2CAP data peer:{} cid:{}", p_bcb->peer_addr, p_bcb->ch_lcid);
   }
 }
@@ -545,7 +554,7 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
 
   bool bind = false;
   if (btif_av_src_sink_coexist_enabled()) {
-    bind = avct_msg_ind_for_src_sink_coexist(p_lcb, p_data, label, cr_ipid);
+    bind = avct_msg_ind_for_src_sink_coexist(p_lcb, p_data, label, cr_ipid, pid);
     osi_free_and_reset((void**)&p_data->p_buf);
     if (bind) {
       return;
@@ -575,7 +584,8 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
     AVCT_BUILD_HDR(p, label, AVCT_PKT_TYPE_SINGLE, AVCT_REJ);
     UINT16_TO_BE_STREAM(p, pid);
     p_buf->layer_specific = AVCT_DATA_BROWSE;
-    if (L2CA_DataWrite(p_bcb->ch_lcid, p_buf) != tL2CAP_DW_RESULT::SUCCESS) {
+    if (stack::l2cap::get_interface().L2CA_DataWrite(p_bcb->ch_lcid, p_buf) !=
+        tL2CAP_DW_RESULT::SUCCESS) {
       log::warn("Unable to write L2CAP data peer:{} cid:{}", p_bcb->peer_addr, p_bcb->ch_lcid);
     }
   }

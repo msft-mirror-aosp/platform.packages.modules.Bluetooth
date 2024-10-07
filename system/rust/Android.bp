@@ -22,7 +22,6 @@ rust_defaults {
         "libbase",
     ],
     static_libs: [
-        "libbt_shim_bridge",
         "libchrome",
         "libevent",
         "libmodpb64",
@@ -35,7 +34,6 @@ rust_defaults {
         "libanyhow",
         "libbitflags",
         "libbt_common",
-        "libbt_shim",
         "libbytes",
         "libcxx",
         "liblog_rust",
@@ -44,11 +42,6 @@ rust_defaults {
     ],
     whole_static_libs: [
         "libbluetooth_core_rs_bridge",
-    ],
-    features: [
-        // used to hide libbt_shim in Cargo builds, but
-        // expose it to Soong to work around linker bug
-        "via_android_bp",
     ],
     target: {
         android: {
@@ -73,6 +66,7 @@ rust_library {
     crate_name: "bluetooth_core_rs_for_facade",
     defaults: ["libbluetooth_core_rs_defaults"],
     rustlibs: [
+        "libbluetooth_aconfig_flags_rust",
         "libtokio",
     ],
     host_supported: true,
@@ -83,6 +77,7 @@ rust_ffi_static {
     crate_name: "bluetooth_core",
     defaults: ["libbluetooth_core_rs_defaults"],
     rustlibs: [
+        "libbluetooth_aconfig_flags_rust",
         "libtokio",
     ],
     target: {
@@ -99,6 +94,7 @@ rust_test_host {
     name: "libbluetooth_core_rs_test",
     defaults: ["libbluetooth_core_rs_defaults"],
     rustlibs: [
+        "libbluetooth_aconfig_flags_rust",
         "libtokio_for_test",
         "libtokio_test",
     ],
@@ -107,6 +103,10 @@ rust_test_host {
 cc_library_static {
     name: "libbluetooth_core_rs_bridge",
     defaults: ["bluetooth_cflags"],
+    cflags: [
+        // The generated code triggers these warnings.
+        "-Wno-missing-prototypes",
+    ],
     srcs: [
         "src/connection/ffi/connection_shim.cc",
         "src/core/ffi/module.cc",
@@ -123,8 +123,6 @@ cc_library_static {
     static_libs: [
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libflatbuffers-cpp",
     ],
@@ -136,6 +134,7 @@ cc_library_static {
         "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     export_generated_headers: [
+        "cxx-bridge-header",
         "libbluetooth_core_rs_bridge_codegen_header",
     ],
     host_supported: true,

@@ -6,7 +6,6 @@ build = "build.rs"
 
 [dependencies]
 bt_topshim = { path = "../../topshim" }
-bt_shim = { path = "../../shim" }
 btstack = { path = "../stack" }
 clap = "2.33.3"
 dbus_projection = { path = "../dbus_projection" }
@@ -16,7 +15,6 @@ dbus = "0.9.2"
 dbus-crossroads = "0.4.0"
 dbus-tokio = "0.7.6"
 futures = "0.3.13"
-lazy_static = "1.4"
 log = "0.4.14"
 nix = "0.23"
 num-traits = "0.2"

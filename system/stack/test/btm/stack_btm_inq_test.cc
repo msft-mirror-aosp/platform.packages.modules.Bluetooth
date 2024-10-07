@@ -36,6 +36,9 @@
 #include "test/mock/mock_main_shim_entry.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 extern tBTM_CB btm_cb;
 
 using bluetooth::common::ContextualCallback;
@@ -108,78 +111,6 @@ protected:
 
   void TearDown() override { BtmInqTest::TearDown(); }
 };
-
-TEST_F(BtmInqActiveTest, btm_process_remote_name__typical) {
-  btm_process_remote_name(&kRawAddress, kBdName, 0, HCI_SUCCESS);
-  ASSERT_FALSE(btm_cb.rnr.p_remname_cmpl_cb);
-  ASSERT_FALSE(btm_cb.rnr.remname_active);
-  ASSERT_EQ(btm_cb.rnr.remname_bda, RawAddress::kEmpty);
-  ASSERT_EQ(btm_cb.rnr.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
-
-  ASSERT_TRUE(gBTM_REMOTE_DEV_NAME_sent);
-  ASSERT_EQ(tBTM_STATUS::BTM_SUCCESS, gBTM_REMOTE_DEV_NAME.btm_status);
-  ASSERT_EQ(HCI_SUCCESS, gBTM_REMOTE_DEV_NAME.hci_status);
-  ASSERT_EQ(kRawAddress, gBTM_REMOTE_DEV_NAME.bd_addr);
-  ASSERT_STREQ((char*)kBdName, (char*)gBTM_REMOTE_DEV_NAME.remote_bd_name);
-}
-
-TEST_F(BtmInqActiveTest, btm_process_remote_name__no_name) {
-  btm_process_remote_name(&kRawAddress, nullptr, 0, HCI_SUCCESS);
-  ASSERT_FALSE(btm_cb.rnr.p_remname_cmpl_cb);
-  ASSERT_FALSE(btm_cb.rnr.remname_active);
-  ASSERT_EQ(btm_cb.rnr.remname_bda, RawAddress::kEmpty);
-  ASSERT_EQ(btm_cb.rnr.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
-
-  ASSERT_TRUE(gBTM_REMOTE_DEV_NAME_sent);
-  ASSERT_EQ(tBTM_STATUS::BTM_SUCCESS, gBTM_REMOTE_DEV_NAME.btm_status);
-  ASSERT_EQ(HCI_SUCCESS, gBTM_REMOTE_DEV_NAME.hci_status);
-  ASSERT_EQ(kRawAddress, gBTM_REMOTE_DEV_NAME.bd_addr);
-  ASSERT_STREQ((char*)kEmptyName, (char*)gBTM_REMOTE_DEV_NAME.remote_bd_name);
-}
-
-TEST_F(BtmInqActiveTest, btm_process_remote_name__bad_status) {
-  btm_process_remote_name(&kRawAddress, kBdName, 0, HCI_ERR_PAGE_TIMEOUT);
-  ASSERT_FALSE(btm_cb.rnr.p_remname_cmpl_cb);
-  ASSERT_FALSE(btm_cb.rnr.remname_active);
-  ASSERT_EQ(btm_cb.rnr.remname_bda, RawAddress::kEmpty);
-  ASSERT_EQ(btm_cb.rnr.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
-
-  ASSERT_TRUE(gBTM_REMOTE_DEV_NAME_sent);
-  ASSERT_EQ(tBTM_STATUS::BTM_BAD_VALUE_RET, gBTM_REMOTE_DEV_NAME.btm_status);
-  ASSERT_EQ(HCI_ERR_PAGE_TIMEOUT, gBTM_REMOTE_DEV_NAME.hci_status);
-  ASSERT_EQ(kRawAddress, gBTM_REMOTE_DEV_NAME.bd_addr);
-  ASSERT_STREQ((char*)kEmptyName, (char*)gBTM_REMOTE_DEV_NAME.remote_bd_name);
-}
-
-TEST_F(BtmInqActiveTest, btm_process_remote_name__no_address) {
-  btm_process_remote_name(nullptr, kBdName, 0, HCI_SUCCESS);
-  ASSERT_FALSE(btm_cb.rnr.p_remname_cmpl_cb);
-  ASSERT_FALSE(btm_cb.rnr.remname_active);
-  ASSERT_EQ(btm_cb.rnr.remname_bda, RawAddress::kEmpty);
-  ASSERT_EQ(btm_cb.rnr.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
-
-  ASSERT_TRUE(gBTM_REMOTE_DEV_NAME_sent);
-  ASSERT_EQ(tBTM_STATUS::BTM_SUCCESS, gBTM_REMOTE_DEV_NAME.btm_status);
-  ASSERT_EQ(HCI_SUCCESS, gBTM_REMOTE_DEV_NAME.hci_status);
-  ASSERT_EQ(RawAddress::kEmpty, gBTM_REMOTE_DEV_NAME.bd_addr);
-  ASSERT_STREQ((char*)kBdName, (char*)gBTM_REMOTE_DEV_NAME.remote_bd_name);
-}
-
-TEST_F(BtmInqActiveTest, btm_process_remote_name__different_address) {
-  btm_cb.rnr.remname_bda = kRawAddress2;
-  btm_process_remote_name(&kRawAddress, kBdName, 0, HCI_SUCCESS);
-  ASSERT_TRUE(btm_cb.rnr.p_remname_cmpl_cb);
-  ASSERT_TRUE(btm_cb.rnr.remname_active);
-  ASSERT_NE(btm_cb.rnr.remname_bda, RawAddress::kEmpty);
-  ASSERT_NE(btm_cb.rnr.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(0, get_func_call_count("alarm_cancel"));
-
-  ASSERT_FALSE(gBTM_REMOTE_DEV_NAME_sent);
-}
 
 class BtmInquiryCallbacks {
 public:

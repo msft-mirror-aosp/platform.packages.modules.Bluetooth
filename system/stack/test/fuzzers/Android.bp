@@ -15,6 +15,10 @@ cc_defaults {
         "latest_android_hardware_bluetooth_audio_ndk_static",
         "latest_android_media_audio_common_types_ndk_static",
     ],
+    cflags: [
+        // Fuzzers are hopeless..
+        "-Wno-missing-prototypes",
+    ],
     include_dirs: [
         "packages/modules/Bluetooth/system/",
         "packages/modules/Bluetooth/system/gd/",
@@ -33,6 +37,7 @@ cc_defaults {
         "android.hardware.common.fmq-V1-ndk",
         "android.system.suspend-V1-ndk",
         "android.system.suspend.control-V1-ndk",
+        "bluetooth_flags_c_lib",
         "libFraunhoferAAC",
         "libbluetooth-dumpsys",
         "libbluetooth-gdx",
@@ -52,13 +57,13 @@ cc_defaults {
         "libbt-sbc-encoder",
         "libbt-stack",
         "libbt-stack-core",
-        "libbt_shim_bridge",
         "libbtcore",
         "libbtdevice",
         "libbte",
         "libbtif",
         "libbtif-core",
         "libexpresslog",
+        "libflags_rust_cpp_bridge",
         "libg722codec",
         "liblc3",
         "libopus",

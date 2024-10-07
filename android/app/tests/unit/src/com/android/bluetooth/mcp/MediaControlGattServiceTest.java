@@ -34,7 +34,6 @@ import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.le_audio.LeAudioService;
 
 import org.junit.After;
@@ -915,10 +914,7 @@ public class MediaControlGattServiceTest {
     }
 
     private void verifyMediaControlPointRequest(
-            int opcode,
-            Integer value,
-            int expectedGattResult,
-            int invocation_count) {
+            int opcode, Integer value, int expectedGattResult, int invocation_count) {
         ByteBuffer bb;
 
         if (expectedGattResult == BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH) {
@@ -986,44 +982,23 @@ public class MediaControlGattServiceTest {
         verifyMediaControlPointRequest(
                 Request.Opcodes.FAST_REWIND, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.FAST_FORWARD,
-                null,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.FAST_FORWARD, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
                 Request.Opcodes.STOP, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.MOVE_RELATIVE,
-                100,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.MOVE_RELATIVE, 100, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.PREVIOUS_SEGMENT,
-                null,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.PREVIOUS_SEGMENT, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.NEXT_SEGMENT,
-                null,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.NEXT_SEGMENT, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.FIRST_SEGMENT,
-                null,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.FIRST_SEGMENT, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.LAST_SEGMENT,
-                null,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.LAST_SEGMENT, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
                 Request.Opcodes.GOTO_SEGMENT, 10, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.PREVIOUS_TRACK,
-                null,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.PREVIOUS_TRACK, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
                 Request.Opcodes.NEXT_TRACK, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
@@ -1033,10 +1008,7 @@ public class MediaControlGattServiceTest {
         verifyMediaControlPointRequest(
                 Request.Opcodes.GOTO_TRACK, 7, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.PREVIOUS_GROUP,
-                null,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.PREVIOUS_GROUP, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
                 Request.Opcodes.NEXT_GROUP, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
@@ -1064,18 +1036,14 @@ public class MediaControlGattServiceTest {
 
     @Test
     public void testMediaControlPointeRequest_OpcodePlayCallLeAudioServiceSetActiveDevice() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_BROADCAST_FEATURE_SUPPORT);
         initAllFeaturesGattService();
         prepareConnectedDevice();
         mMcpService.updateSupportedOpcodesChar(Request.SupportedOpcodes.PLAY, true);
         verifyMediaControlPointRequest(Request.Opcodes.PLAY, null, BluetoothGatt.GATT_SUCCESS, 1);
-        if (!Flags.leaudioBroadcastFeatureSupport()) {
-            verify(mMockLeAudioService).setActiveDevice(any(BluetoothDevice.class));
-        } else {
-            final List<BluetoothLeBroadcastMetadata> metadataList = mock(List.class);
-            when(mMockLeAudioService.getAllBroadcastMetadata()).thenReturn(metadataList);
-            verify(mMockMcsCallbacks, times(1)).onMediaControlRequest(any(Request.class));
-        }
+
+        final List<BluetoothLeBroadcastMetadata> metadataList = mock(List.class);
+        when(mMockLeAudioService.getAllBroadcastMetadata()).thenReturn(metadataList);
+        verify(mMockMcsCallbacks, times(1)).onMediaControlRequest(any(Request.class));
     }
 
     @Test

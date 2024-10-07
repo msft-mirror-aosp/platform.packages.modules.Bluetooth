@@ -24,6 +24,7 @@ use bt_topshim::profiles::sdp::{
 };
 use bt_topshim::profiles::socket::SocketType;
 use bt_topshim::profiles::ProfileConnectionState;
+use bt_topshim::syslog::Level;
 
 use btstack::battery_manager::{Battery, BatterySet, IBatteryManager, IBatteryManagerCallback};
 use btstack::bluetooth::{
@@ -52,6 +53,7 @@ use btstack::socket_manager::{
 };
 use btstack::{RPCProxy, SuspendMode};
 
+use btstack::bluetooth_logging::IBluetoothLogging;
 use btstack::suspend::{ISuspend, ISuspendCallback, SuspendType};
 
 use dbus::arg::RefArg;
@@ -115,6 +117,7 @@ impl_dbus_arg_enum!(BthhReportType);
 impl_dbus_arg_enum!(BtAdapterRole);
 
 impl_dbus_arg_enum!(BtSdpType);
+impl_dbus_arg_enum!(Level);
 
 #[dbus_propmap(BtSdpHeaderOverlay)]
 struct BtSdpHeaderOverlayDBus {
@@ -588,6 +591,7 @@ pub struct BtLePcmConfigDBus {
     channels_count: u8,
 }
 
+#[allow(dead_code)]
 struct IBluetoothCallbackDBus {}
 
 impl RPCProxy for IBluetoothCallbackDBus {}
@@ -658,6 +662,7 @@ impl IBluetoothCallback for IBluetoothCallbackDBus {
     fn on_sdp_record_created(&mut self, record: BtSdpRecord, handle: i32) {}
 }
 
+#[allow(dead_code)]
 struct IBluetoothConnectionCallbackDBus {}
 
 impl RPCProxy for IBluetoothConnectionCallbackDBus {}
@@ -674,6 +679,7 @@ impl IBluetoothConnectionCallback for IBluetoothConnectionCallbackDBus {
     fn on_device_disconnected(&mut self, remote_device: BluetoothDevice) {}
 }
 
+#[allow(dead_code)]
 struct IScannerCallbackDBus {}
 
 impl RPCProxy for IScannerCallbackDBus {}
@@ -766,7 +772,7 @@ impl IBluetooth for BluetoothDBus {
         dbus_generated!()
     }
 
-    fn init(&mut self, _init_flags: Vec<String>) -> bool {
+    fn init(&mut self, _hci_index: i32) -> bool {
         // Not implemented by server
         true
     }
@@ -1203,6 +1209,7 @@ impl IBluetoothManager for BluetoothManagerDBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBluetoothManagerCallbackDBus {}
 
 impl RPCProxy for IBluetoothManagerCallbackDBus {}
@@ -1400,6 +1407,7 @@ pub struct PolicyEffectDBus {
     pub affected: bool,
 }
 
+#[allow(dead_code)]
 struct IBluetoothAdminPolicyCallbackDBus {}
 
 impl RPCProxy for IBluetoothAdminPolicyCallbackDBus {}
@@ -1695,7 +1703,7 @@ impl IBluetoothGatt for BluetoothGattDBus {
 
     #[dbus_method("WriteCharacteristic")]
     fn write_characteristic(
-        &self,
+        &mut self,
         client_id: i32,
         addr: RawAddress,
         handle: i32,
@@ -1861,6 +1869,7 @@ impl IBluetoothGatt for BluetoothGattDBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBluetoothGattCallbackDBus {}
 
 impl RPCProxy for IBluetoothGattCallbackDBus {}
@@ -2269,6 +2278,7 @@ impl IBluetoothSocketManager for BluetoothSocketManagerDBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBluetoothSocketManagerCallbacksDBus {}
 
 impl RPCProxy for IBluetoothSocketManagerCallbacksDBus {}
@@ -2348,6 +2358,7 @@ impl ISuspend for SuspendDBus {
     }
 }
 
+#[allow(dead_code)]
 struct ISuspendCallbackDBus {}
 
 impl RPCProxy for ISuspendCallbackDBus {}
@@ -2475,6 +2486,7 @@ impl IBluetoothTelephony for BluetoothTelephonyDBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBluetoothTelephonyCallbackDBus {}
 
 impl RPCProxy for IBluetoothTelephonyCallbackDBus {}
@@ -2570,6 +2582,7 @@ impl IBluetoothQA for BluetoothQADBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBluetoothQACallbackDBus {}
 
 impl RPCProxy for IBluetoothQACallbackDBus {}
@@ -2897,6 +2910,7 @@ impl IBluetoothMedia for BluetoothMediaDBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBluetoothMediaCallbackDBus {}
 
 impl RPCProxy for IBluetoothMediaCallbackDBus {}
@@ -3050,6 +3064,7 @@ pub struct BatteryDBus {
     variant: String,
 }
 
+#[allow(dead_code)]
 struct IBatteryManagerCallbackDBus {}
 
 impl RPCProxy for IBatteryManagerCallbackDBus {}
@@ -3061,4 +3076,58 @@ impl RPCProxy for IBatteryManagerCallbackDBus {}
 impl IBatteryManagerCallback for IBatteryManagerCallbackDBus {
     #[dbus_method("OnBatteryInfoUpdated")]
     fn on_battery_info_updated(&mut self, remote_address: RawAddress, battery_set: BatterySet) {}
+}
+
+#[allow(dead_code)]
+pub(crate) struct BluetoothLoggingDBusRPC {
+    client_proxy: ClientDBusProxy,
+}
+
+#[allow(dead_code)]
+pub(crate) struct BluetoothLoggingDBus {
+    client_proxy: ClientDBusProxy,
+    pub rpc: BluetoothLoggingDBusRPC,
+}
+
+impl BluetoothLoggingDBus {
+    fn make_client_proxy(conn: Arc<SyncConnection>, index: i32) -> ClientDBusProxy {
+        ClientDBusProxy::new(
+            conn.clone(),
+            String::from("org.chromium.bluetooth"),
+            make_object_path(index, "logging"),
+            String::from("org.chromium.bluetooth.Logging"),
+        )
+    }
+
+    pub(crate) fn new(conn: Arc<SyncConnection>, index: i32) -> BluetoothLoggingDBus {
+        BluetoothLoggingDBus {
+            client_proxy: Self::make_client_proxy(conn.clone(), index),
+            rpc: BluetoothLoggingDBusRPC {
+                client_proxy: Self::make_client_proxy(conn.clone(), index),
+            },
+        }
+    }
+}
+
+#[generate_dbus_interface_client(BluetoothLoggingDBusRPC)]
+impl IBluetoothLogging for BluetoothLoggingDBus {
+    #[dbus_method("IsDebugEnabled")]
+    fn is_debug_enabled(&self) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("SetDebugLogging")]
+    fn set_debug_logging(&mut self, enabled: bool) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("SetLogLevel")]
+    fn set_log_level(&mut self, level: Level) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("GetLogLevel")]
+    fn get_log_level(&self) -> Level {
+        dbus_generated!()
+    }
 }
