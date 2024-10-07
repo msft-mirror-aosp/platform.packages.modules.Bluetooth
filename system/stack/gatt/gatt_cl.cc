@@ -36,6 +36,7 @@
 #include "stack/eatt/eatt.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/l2cdefs.h"
 #include "types/bluetooth/uuid.h"
 
 #define GATT_WRITE_LONG_HDR_SIZE 5 /* 1 opcode + 2 handle + 2 offset */
@@ -248,7 +249,7 @@ void gatt_act_write(tGATT_CLCB* p_clcb, uint8_t sec_act) {
     }
 
     case GATT_WRITE: {
-      if (attr.len <= (payload_size - GATT_HDR_SIZE)) {
+      if ((attr.len + GATT_HDR_SIZE) <= payload_size) {
         p_clcb->s_handle = attr.handle;
 
         tGATT_STATUS rt = gatt_send_write_msg(tcb, p_clcb, GATT_REQ_WRITE, attr.handle, attr.len, 0,
@@ -345,7 +346,14 @@ void gatt_send_prepare_write(tGATT_TCB& tcb, tGATT_CLCB* p_clcb) {
   uint16_t to_send = p_attr->len - p_attr->offset;
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, p_clcb->cid);
-  if (to_send > (payload_size - GATT_WRITE_LONG_HDR_SIZE)) { /* 2 = uint16_t offset bytes  */
+
+  if (payload_size <= GATT_WRITE_LONG_HDR_SIZE) {
+    log::error("too small mtu size {}, possibly due to disconnection", payload_size);
+    gatt_end_operation(p_clcb, GATT_ERROR, NULL);
+    return;
+  }
+
+  if (to_send > (payload_size - GATT_WRITE_LONG_HDR_SIZE)) {
     to_send = payload_size - GATT_WRITE_LONG_HDR_SIZE;
   }
 
@@ -915,7 +923,25 @@ void gatt_process_read_by_type_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t o
     else if (p_clcb->operation == GATTC_OPTYPE_READ && p_clcb->op_subtype == GATT_READ_BY_TYPE) {
       p_clcb->counter = len - 2;
       p_clcb->s_handle = handle;
+
       if (p_clcb->counter == (payload_size - 4)) {
+        /* IOP: Some devices can't handle Read Blob request. Apps for such devices send their MTU
+         * preference with the connect request. Expectation is that the stack would exchange MTU
+         * immediately on connection and thereby avoid using Read Blob request.
+         * However, the stack does not support exchanging MTU immediately on connection at present.
+         * As a workaround, GATT client instead just avoids sending Read Blob request when certain
+         * conditions are met. */
+        tGATT_TCB* p_tcb = p_clcb->p_tcb;
+        if (p_tcb->transport == BT_TRANSPORT_LE && p_tcb->att_lcid == L2CAP_ATT_CID &&
+            p_tcb->app_mtu_pref > GATT_DEF_BLE_MTU_SIZE &&
+            p_tcb->payload_size <= GATT_DEF_BLE_MTU_SIZE && p_clcb->uuid.Is16Bit() &&
+            p_clcb->uuid.As16Bit() == GATT_UUID_GAP_DEVICE_NAME) {
+          log::warn("Skipping Read Blob request for reading device name {}", p_tcb->peer_bda);
+          gatt_end_operation(p_clcb, GATT_SUCCESS, (void*)p);
+          return;
+        }
+
+        /* Continue reading rest of value */
         p_clcb->op_subtype = GATT_READ_BY_HANDLE;
         if (!p_clcb->p_attr_buf) {
           p_clcb->p_attr_buf = (uint8_t*)osi_malloc(GATT_MAX_ATTR_LEN);

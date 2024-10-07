@@ -300,7 +300,7 @@ static bt_status_t btif_gattc_unregister_app(int client_if) {
 
 void btif_gattc_open_impl(int client_if, RawAddress address, tBLE_ADDR_TYPE addr_type,
                           bool is_direct, tBT_TRANSPORT transport, bool opportunistic,
-                          int initiating_phys) {
+                          int initiating_phys, int preferred_mtu) {
   int device_type = BT_DEVICE_TYPE_UNKNOWN;
 
   if (addr_type == BLE_ADDR_RANDOM) {
@@ -349,6 +349,8 @@ void btif_gattc_open_impl(int client_if, RawAddress address, tBLE_ADDR_TYPE addr
 
       default:
         log::error("Unknown device type {}", DeviceTypeText(device_type));
+        // transport must not be AUTO for finding control blocks. Use LE for backward compatibility.
+        transport = BT_TRANSPORT_LE;
         break;
     }
   }
@@ -358,16 +360,18 @@ void btif_gattc_open_impl(int client_if, RawAddress address, tBLE_ADDR_TYPE addr
             bt_transport_text(transport), DeviceTypeText(device_type),
             address, addr_type, initiating_phys);
   tBTM_BLE_CONN_TYPE type = is_direct ? BTM_BLE_DIRECT_CONNECTION : BTM_BLE_BKG_CONNECT_ALLOW_LIST;
-  BTA_GATTC_Open(client_if, address, addr_type, type, transport, opportunistic, initiating_phys);
+  BTA_GATTC_Open(client_if, address, addr_type, type, transport, opportunistic, initiating_phys,
+                 preferred_mtu);
 }
 
 static bt_status_t btif_gattc_open(int client_if, const RawAddress& bd_addr, uint8_t addr_type,
                                    bool is_direct, int transport, bool opportunistic,
-                                   int initiating_phys) {
+                                   int initiating_phys, int preferred_mtu) {
   CHECK_BTGATT_INIT();
   // Closure will own this value and free it.
   return do_in_jni_thread(Bind(&btif_gattc_open_impl, client_if, bd_addr, addr_type, is_direct,
-                               to_bt_transport(transport), opportunistic, initiating_phys));
+                               to_bt_transport(transport), opportunistic, initiating_phys,
+                               preferred_mtu));
 }
 
 void btif_gattc_close_impl(int client_if, RawAddress address, int conn_id) {

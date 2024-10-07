@@ -895,8 +895,7 @@ public:
     /* If assistant have some connected delegators that needs to be informed
      * when there would be request to stream unicast.
      */
-    if (com::android::bluetooth::flags::leaudio_broadcast_audio_handover_policies() &&
-        !sink_monitor_mode_ && source_monitor_mode_ && !group_is_streaming) {
+    if (!sink_monitor_mode_ && source_monitor_mode_ && !group_is_streaming) {
       callbacks_->OnUnicastMonitorModeStatus(bluetooth::le_audio::types::kLeAudioDirectionSource,
                                              UnicastMonitorModeStatus::STREAMING_REQUESTED);
     }
@@ -1113,11 +1112,6 @@ public:
   }
 
   void SetUnicastMonitorMode(uint8_t direction, bool enable) override {
-    if (!com::android::bluetooth::flags::leaudio_broadcast_audio_handover_policies()) {
-      log::warn("Monitor mode is disabled, Set Unicast Monitor mode is ignored");
-      return;
-    }
-
     if (direction == bluetooth::le_audio::types::kLeAudioDirectionSink) {
       /* Cleanup Sink HAL client interface if listening mode is toggled off
        * before group activation (active group context would take care of
@@ -1302,6 +1296,35 @@ public:
     active_group_id_ = bluetooth::groups::kGroupUnknown;
   }
 
+  void PrepareStreamForAConversational(LeAudioDeviceGroup* group) {
+    if (!com::android::bluetooth::flags::leaudio_improve_switch_during_phone_call()) {
+      log::info("Flag leaudio_improve_switch_during_phone_call is not enabled");
+      return;
+    }
+
+    log::debug("group_id: {}", group->group_id_);
+
+    auto remote_direction = bluetooth::le_audio::types::kLeAudioDirectionSink;
+    ReconfigureOrUpdateRemote(group, remote_direction);
+
+    if (configuration_context_type_ != LeAudioContextType::CONVERSATIONAL) {
+      log::error("Something went wrong {} != {} ", ToString(configuration_context_type_),
+                 ToString(LeAudioContextType::CONVERSATIONAL));
+      return;
+    }
+
+    BidirectionalPair<std::vector<uint8_t>> ccids = {
+            .sink = ContentControlIdKeeper::GetInstance()->GetAllCcids(
+                    local_metadata_context_types_.sink),
+            .source = ContentControlIdKeeper::GetInstance()->GetAllCcids(
+                    local_metadata_context_types_.source)};
+    if (!groupStateMachine_->ConfigureStream(group, configuration_context_type_,
+                                             local_metadata_context_types_, ccids, true)) {
+      log::info("Reconfiguration is needed for group {}", group->group_id_);
+      initReconfiguration(group, LeAudioContextType::UNSPECIFIED);
+    }
+  }
+
   void GroupSetActive(const int group_id) override {
     log::info("group_id: {}", group_id);
 
@@ -1417,6 +1440,13 @@ public:
     } else {
       callbacks_->OnGroupStatus(active_group_id_, GroupStatus::ACTIVE);
       SendAudioGroupSelectableCodecConfigChanged(group);
+    }
+
+    /* If group become active while phone call, let's configure it right away,
+     * so when audio framework resumes the stream, it will be almost there.
+     */
+    if (IsInCall()) {
+      PrepareStreamForAConversational(group);
     }
   }
 
@@ -4573,8 +4603,6 @@ public:
     /* Set the remote sink metadata context from the playback tracks metadata */
     local_metadata_context_types_.source = GetAudioContextsFromSourceMetadata(source_metadata);
 
-    local_metadata_context_types_.sink =
-            ChooseMetadataContextType(local_metadata_context_types_.sink);
     local_metadata_context_types_.source =
             ChooseMetadataContextType(local_metadata_context_types_.source);
 

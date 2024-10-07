@@ -298,7 +298,7 @@ cc_test {
         "android.hardware.audio.common@5.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
-        "bluetooth_flags_c_lib",
+        "bluetooth_flags_c_lib_for_test",
         "libFraunhoferAAC",
         "libbase",
         "libbluetooth-dumpsys",
@@ -344,6 +344,7 @@ cc_test {
         android: {
             shared_libs: [
                 "libPlatformProperties",
+                "libaaudio",
                 "libbinder_ndk",
                 "libstatssocket",
             ],
@@ -354,7 +355,9 @@ cc_test {
                 "android.hardware.common.fmq-V1-ndk",
                 "android.system.suspend-V1-ndk",
                 "android.system.suspend.control-V1-ndk",
-                "libaaudio",
+                "libexpresslog",
+                "libstatslog_express",
+                "libtextclassifier_hash_static",
             ],
         },
         host: {
@@ -696,6 +699,7 @@ cc_test {
         ":TestMockBtaVc",
         ":TestMockBtcore",
         ":TestMockBtu",
+        ":TestMockFrameworks",
         ":TestMockHci",
         ":TestMockMainShim",
         ":TestMockMainShimDumpsys",

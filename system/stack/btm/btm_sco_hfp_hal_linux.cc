@@ -324,8 +324,13 @@ bool get_wbs_supported() {
 
 // Check if super-wideband speech is supported on local device
 bool get_swb_supported() {
+#ifdef TARGET_FLOSS
   // We only support SWB via transparent mode.
   return is_coding_format_supported(ESCO_CODING_FORMAT_TRANSPNT);
+#else
+  return is_coding_format_supported(ESCO_CODING_FORMAT_TRANSPNT) &&
+         osi_property_get_bool("bluetooth.hfp.swb.supported", true);  // TODO: add SWB for desktop
+#endif
 }
 
 // Checks the supported codecs

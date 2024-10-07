@@ -20,7 +20,6 @@ import static android.bluetooth.BluetoothGatt.GATT_SUCCESS;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.common.truth.Truth8.assertThat;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
@@ -54,6 +53,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.AdditionalMatchers;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.invocation.Invocation;
 
@@ -480,6 +480,28 @@ public class GattClientTest {
         return gatt;
     }
 
+    /** Tries to connect GATT, it could fail and return null. */
+    private BluetoothGatt tryConnectGatt(BluetoothGattCallback callback) {
+        advertiseWithBumble();
+
+        BluetoothDevice device =
+                mAdapter.getRemoteLeDevice(
+                        Utils.BUMBLE_RANDOM_ADDRESS, BluetoothDevice.ADDRESS_TYPE_RANDOM);
+
+        BluetoothGatt gatt = device.connectGatt(mContext, false, callback);
+
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> stateCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(callback, timeout(1000))
+                .onConnectionStateChange(eq(gatt), statusCaptor.capture(), stateCaptor.capture());
+
+        if (statusCaptor.getValue() == GATT_SUCCESS && stateCaptor.getValue() == STATE_CONNECTED) {
+            return gatt;
+        }
+        gatt.close();
+        return null;
+    }
+
     private void disconnectAndWaitDisconnection(
             BluetoothGatt gatt, BluetoothGattCallback callback) {
         final int state = BluetoothProfile.STATE_DISCONNECTED;
@@ -578,12 +600,22 @@ public class GattClientTest {
         registerGattService();
 
         List<BluetoothGatt> gatts = new ArrayList<>();
+        boolean failed = false;
         final int repeatTimes = 100;
 
         try {
             for (int i = 0; i < repeatTimes; i++) {
                 BluetoothGattCallback gattCallback = mock(BluetoothGattCallback.class);
-                BluetoothGatt gatt = connectGattAndWaitConnection(gattCallback);
+                BluetoothGatt gatt = tryConnectGatt(gattCallback);
+                // If it fails, close an existing gatt instance and try again.
+                if (gatt == null) {
+                    failed = true;
+                    BluetoothGatt connectedGatt = gatts.remove(0);
+                    connectedGatt.disconnect();
+                    connectedGatt.close();
+                    gattCallback = mock(BluetoothGattCallback.class);
+                    gatt = connectGattAndWaitConnection(gattCallback);
+                }
                 gatts.add(gatt);
                 gatt.discoverServices();
                 verify(gattCallback, timeout(10000)).onServicesDiscovered(any(), eq(GATT_SUCCESS));
@@ -600,6 +632,36 @@ public class GattClientTest {
                 gatt.disconnect();
                 gatt.close();
             }
+        }
+        // We should fail because we reached the limit.
+        assertThat(failed).isTrue();
+    }
+
+    @Test
+    public void writeCharacteristic_disconnected_shouldNotCrash() {
+        registerGattService();
+
+        BluetoothGattCallback gattCallback = mock(BluetoothGattCallback.class);
+
+        BluetoothGatt gatt = connectGattAndWaitConnection(gattCallback);
+
+        try {
+            gatt.discoverServices();
+            verify(gattCallback, timeout(10000)).onServicesDiscovered(any(), eq(GATT_SUCCESS));
+
+            BluetoothGattCharacteristic characteristic =
+                    gatt.getService(TEST_SERVICE_UUID).getCharacteristic(TEST_CHARACTERISTIC_UUID);
+
+            byte[] newValue = new byte[] {13};
+
+            gatt.writeCharacteristic(
+                    characteristic, newValue, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+            // TODO(b/370607862): disconnect from the remote
+            gatt.disconnect();
+            gatt.close();
+        } finally {
+            // it's okay to close twice.
+            gatt.close();
         }
     }
 }

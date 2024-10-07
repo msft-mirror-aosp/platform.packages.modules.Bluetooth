@@ -1394,11 +1394,9 @@ public class BassClientServiceTest {
     }
 
     private void handleHandoverSupport() {
-        if (Flags.leaudioBroadcastAudioHandoverPolicies()) {
-            /* Unicast finished streaming */
-            mBassClientService.handleUnicastSourceStreamStatusChange(
-                    2 /* STATUS_LOCAL_STREAM_SUSPENDED */);
-        }
+        /* Unicast finished streaming */
+        mBassClientService.handleUnicastSourceStreamStatusChange(
+                2 /* STATUS_LOCAL_STREAM_SUSPENDED */);
     }
 
     private void verifyAddSourceForGroup(BluetoothLeBroadcastMetadata meta) {

@@ -24,7 +24,6 @@
 
 #include "module.h"
 #include "os/thread.h"
-#include "shim/dumpsys_args.h"
 #include "test_data/dumpsys_test_data_bin.h"
 
 namespace testing {
@@ -76,8 +75,6 @@ protected:
   }
 
   void TearDown() override { fake_registry_.StopAll(); }
-
-  void Print() { dumpsys_module_->Dump(0, nullptr); }
 
   int GetSocketBufferSize(int sockfd) {
     int socket_buffer_size;

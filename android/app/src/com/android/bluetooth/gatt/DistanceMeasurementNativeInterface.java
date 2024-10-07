@@ -110,6 +110,7 @@ public class DistanceMeasurementNativeInterface {
             int errorAzimuthAngle,
             int altitudeAngle,
             int errorAltitudeAngle,
+            long elapsedRealtimeNanos,
             int method) {
         mDistanceMeasurementManager.onDistanceMeasurementResult(
                 address,
@@ -119,6 +120,7 @@ public class DistanceMeasurementNativeInterface {
                 errorAzimuthAngle,
                 altitudeAngle,
                 errorAltitudeAngle,
+                elapsedRealtimeNanos,
                 method);
     }
 

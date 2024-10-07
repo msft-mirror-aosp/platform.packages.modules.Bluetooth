@@ -630,7 +630,7 @@ protected:
   const RawAddress test_address2 = GetTestAddress(1);
 };
 
-TEST_F(CsisClientTest, test_get_uninitialized) { ASSERT_DEATH(CsisClient::Get(), ""); }
+TEST_F(CsisClientTest, test_get_uninitialized) { ASSERT_EQ(CsisClient::Get(), nullptr); }
 
 TEST_F(CsisClientTest, test_initialize) {
   CsisClient::Initialize(callbacks.get(), base::DoNothing());

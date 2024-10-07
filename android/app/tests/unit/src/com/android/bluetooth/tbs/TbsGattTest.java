@@ -137,6 +137,7 @@ public class TbsGattTest {
                         mMockTbsGattCallback));
         Assert.assertNotNull(mMockGattServer);
 
+        verify(mAdapterService, times(1)).registerBluetoothStateCallback(any(), any());
         verify(mMockGattServer).addService(mGattServiceCaptor.capture());
         doReturn(mGattServiceCaptor.getValue()).when(mMockGattServer).getService(any(UUID.class));
         Assert.assertNotNull(mMockGattServer);
