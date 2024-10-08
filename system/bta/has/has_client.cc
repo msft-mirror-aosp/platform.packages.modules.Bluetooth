@@ -1394,6 +1394,12 @@ private:
         break;
       }
 
+      if (!device.has_presets.contains(nt.index)) {
+        log::error("Unknown preset. Notification is discarded: {}", nt);
+        device.has_journal_.Append(HasJournalRecord(nt));
+        device.ctp_notifications_.pop_front();
+        continue;
+      }
       auto preset = device.has_presets.extract(nt.index).value();
       auto new_props = preset.GetProperties();
 
@@ -1560,7 +1566,15 @@ private:
 
     /* Get the active preset value */
     auto* pp = value;
-    STREAM_TO_UINT8(device->currently_active_preset, pp);
+    uint8_t active_preset_index;
+    STREAM_TO_UINT8(active_preset_index, pp);
+    if (active_preset_index != 0 && device->isGattServiceValid() &&
+        !device->has_presets.contains(active_preset_index)) {
+      log::error("Unknown preset {}. Active preset change is discarded", active_preset_index);
+      device->has_journal_.Append(HasJournalRecord(active_preset_index, false));
+      return;
+    }
+    device->currently_active_preset = active_preset_index;
 
     if (device->isGattServiceValid()) {
       btif_storage_set_leaudio_has_active_preset(device->addr, device->currently_active_preset);
@@ -1573,7 +1587,9 @@ private:
     MarkDeviceValidIfInInitialDiscovery(*device);
 
     if (device->isGattServiceValid()) {
-      if (!pending_group_operation_timeouts_.empty()) {
+      if (pending_group_operation_timeouts_.empty()) {
+        callbacks_->OnActivePresetSelected(device->addr, device->currently_active_preset);
+      } else {
         for (auto it = pending_group_operation_timeouts_.rbegin();
              it != pending_group_operation_timeouts_.rend(); ++it) {
           auto& group_op_coordinator = it->second;
@@ -1609,9 +1625,6 @@ private:
             break;
           }
         }
-
-      } else {
-        callbacks_->OnActivePresetSelected(device->addr, device->currently_active_preset);
       }
     }
   }
