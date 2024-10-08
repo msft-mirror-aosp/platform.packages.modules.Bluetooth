@@ -1384,10 +1384,6 @@ public class RemoteDevices {
         Log.i(TAG, "keyMissingCallback device: " + bluetoothDevice);
 
         if (getBondState(bluetoothDevice) == BluetoothDevice.BOND_BONDED) {
-            if (!Flags.keyMissingBroadcast()) {
-                Log.d(TAG, "flag not set - don't send key missing broadcast");
-                return;
-            }
             Intent intent =
                     new Intent(BluetoothDevice.ACTION_KEY_MISSING)
                             .putExtra(BluetoothDevice.EXTRA_DEVICE, bluetoothDevice)
