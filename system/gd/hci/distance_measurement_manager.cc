@@ -538,7 +538,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
                     kMaxMainModeSteps, kMainModeRepetition, kMode0Steps, CsRole::INITIATOR,
                     CsConfigRttType::RTT_WITH_128_BIT_RANDOM_SEQUENCE, CsSyncPhy::LE_1M_PHY,
                     channel_map, kChannelMapRepetition, CsChannelSelectionType::TYPE_3B,
-                    CsCh3cShape::HAT_SHAPE, kCh3cJump, Enable::DISABLED),
+                    CsCh3cShape::HAT_SHAPE, kCh3cJump),
             handler_->BindOnceOn(this, &impl::on_cs_setup_command_status_cb, connection_handle));
   }
 
@@ -906,8 +906,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (procedure_data->local_status != CsProcedureDoneStatus::PARTIAL_RESULTS &&
         unsent_data_size <= kMtuForRasData) {
       procedure_data->segmentation_header_.last_segment_ = 1;
-    } else if (procedure_data->ras_raw_data_.size() < kMtuForRasData) {
-      log::verbose("waiting for more data, current size {}", procedure_data->ras_raw_data_.size());
+    } else if (unsent_data_size < kMtuForRasData) {
+      log::verbose("waiting for more data, current unsent data size {}", unsent_data_size);
       return;
     }
 

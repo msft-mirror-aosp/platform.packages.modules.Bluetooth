@@ -145,7 +145,7 @@ public class GattService extends ProfileService {
 
     private static final Integer GATT_MTU_MAX = 517;
     private static final Map<String, Integer> EARLY_MTU_EXCHANGE_PACKAGES =
-            Map.of("com.teslamotors.tesla", GATT_MTU_MAX);
+            Map.of("com.teslamotors", GATT_MTU_MAX);
 
     @VisibleForTesting static final int GATT_CLIENT_LIMIT_PER_APP = 32;
 
@@ -2161,14 +2161,19 @@ public class GattService extends ProfileService {
 
         // Some applications expect MTU to be exchanged immediately on connections
         String packageName = attributionSource.getPackageName();
-        if (packageName != null && EARLY_MTU_EXCHANGE_PACKAGES.containsKey(packageName)) {
-            preferredMtu = EARLY_MTU_EXCHANGE_PACKAGES.get(packageName);
-            Log.i(
-                    TAG,
-                    "Early MTU exchange preference ("
-                            + preferredMtu
-                            + ") requested for "
-                            + packageName);
+        if (packageName != null) {
+            for (Map.Entry<String, Integer> entry : EARLY_MTU_EXCHANGE_PACKAGES.entrySet()) {
+                if (packageName.contains(entry.getKey())) {
+                    preferredMtu = entry.getValue();
+                    Log.i(
+                            TAG,
+                            "Early MTU exchange preference ("
+                                    + preferredMtu
+                                    + ") requested for "
+                                    + packageName);
+                    break;
+                }
+            }
         }
 
         mNativeInterface.gattClientConnect(

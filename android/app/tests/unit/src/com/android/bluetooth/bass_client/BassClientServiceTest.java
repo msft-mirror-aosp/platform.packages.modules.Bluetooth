@@ -2377,35 +2377,11 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testSelectSource_withSameBroadcastId() {
-        byte[] scanRecord = getScanRecord(TEST_BROADCAST_ID);
-
-        ScanResult scanResult1 =
-                new ScanResult(
-                        mSourceDevice,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        TEST_RSSI,
-                        0,
-                        ScanRecord.parseFromBytes(scanRecord),
-                        0);
-        ScanResult scanResult2 =
-                new ScanResult(
-                        mSourceDevice2,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        TEST_RSSI,
-                        0,
-                        ScanRecord.parseFromBytes(scanRecord),
-                        0);
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
 
         // First selectSource
-        mBassClientService.addSelectSourceRequest(scanResult1, false);
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
         mInOrderMethodProxy
                 .verify(mMethodProxy)
                 .periodicAdvertisingManagerRegisterSync(
@@ -2414,7 +2390,7 @@ public class BassClientServiceTest {
         onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
 
         // Second selectSource with the same broadcast id
-        mBassClientService.addSelectSourceRequest(scanResult2, false);
+        onScanResult(mSourceDevice2, TEST_BROADCAST_ID);
         mInOrderMethodProxy
                 .verify(mMethodProxy, never())
                 .periodicAdvertisingManagerRegisterSync(
@@ -2491,7 +2467,9 @@ public class BassClientServiceTest {
                         ScanRecord.parseFromBytes(scanRecord),
                         0);
 
-        mBassClientService.addSelectSourceRequest(scanResult, false);
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        mCallbackCaptor.getValue().onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult);
         verify(mMethodProxy, never())
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
@@ -2591,7 +2569,9 @@ public class BassClientServiceTest {
                         ScanRecord.parseFromBytes(scanRecord),
                         0);
 
-        mBassClientService.addSelectSourceRequest(scanResult, false);
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        mCallbackCaptor.getValue().onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult);
         verify(mMethodProxy)
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
@@ -2667,7 +2647,9 @@ public class BassClientServiceTest {
                         ScanRecord.parseFromBytes(scanRecord),
                         0);
 
-        mBassClientService.addSelectSourceRequest(scanResult, false);
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        mCallbackCaptor.getValue().onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult);
         verify(mMethodProxy)
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
@@ -3318,7 +3300,7 @@ public class BassClientServiceTest {
 
     @Test
     @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
-    public void testSelectSource_orderOfSyncRegistering() {
+    public void testSelectSource_orderOfSyncRegisteringByPriorityAndRssi() {
         final BluetoothDevice device1 =
                 mBluetoothAdapter.getRemoteLeDevice(
                         "00:11:22:33:44:11", BluetoothDevice.ADDRESS_TYPE_RANDOM);
@@ -3441,20 +3423,42 @@ public class BassClientServiceTest {
                         ScanRecord.parseFromBytes(scanRecord7),
                         0);
 
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+
         // Added and executed immidiatelly as no other in queue
-        mBassClientService.addSelectSourceRequest(scanResult1, false);
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult1);
         // Added to queue with worst rssi
-        mBassClientService.addSelectSourceRequest(scanResult2, false);
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult2);
         // Added to queue with best rssi
-        mBassClientService.addSelectSourceRequest(scanResult3, false);
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult3);
         // Added to queue with medium rssi
-        mBassClientService.addSelectSourceRequest(scanResult4, false);
-        // Added to queue with priority and worst rssi
-        mBassClientService.addSelectSourceRequest(scanResult5, true);
-        // Added to queue with priority and best rssi
-        mBassClientService.addSelectSourceRequest(scanResult6, true);
-        // Added to queue with priority and medium rssi
-        mBassClientService.addSelectSourceRequest(scanResult7, true);
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult4);
+        // Added to queue with worst rssi (increase priority after all)
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult5);
+        // Added to queue with best rssi (increase priority after all)
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult6);
+        // Added to queue with medium rssi (increase priority after all)
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult7);
+
+        // Increase priority of last 3 of them
+        mBassClientService.addSelectSourceRequest(broadcastId5, true);
+        mBassClientService.addSelectSourceRequest(broadcastId6, true);
+        mBassClientService.addSelectSourceRequest(broadcastId7, true);
 
         ArgumentCaptor<ScanResult> resultCaptor = ArgumentCaptor.forClass(ScanResult.class);
         mInOrderMethodProxy
@@ -3553,6 +3557,215 @@ public class BassClientServiceTest {
                                         .getServiceData()
                                         .get(BassConstants.BAAS_UUID)))
                 .isEqualTo(broadcastId2);
+    }
+
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_SORT_SCANS_TO_SYNC_BY_FAILS,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void testSelectSource_orderOfSyncRegisteringByRssiAndFailsCounter() {
+        final BluetoothDevice device1 =
+                mBluetoothAdapter.getRemoteLeDevice(
+                        "00:11:22:33:44:11", BluetoothDevice.ADDRESS_TYPE_RANDOM);
+        final BluetoothDevice device2 =
+                mBluetoothAdapter.getRemoteLeDevice(
+                        "00:11:22:33:44:22", BluetoothDevice.ADDRESS_TYPE_RANDOM);
+        final BluetoothDevice device3 =
+                mBluetoothAdapter.getRemoteLeDevice(
+                        "00:11:22:33:44:33", BluetoothDevice.ADDRESS_TYPE_RANDOM);
+        final int broadcastId1 = 1111;
+        final int broadcastId2 = 2222;
+        final int broadcastId3 = 3333;
+
+        byte[] scanRecord1 = getScanRecord(broadcastId1);
+        byte[] scanRecord2 = getScanRecord(broadcastId2);
+        byte[] scanRecord3 = getScanRecord(broadcastId3);
+
+        ScanResult scanResult1 =
+                new ScanResult(
+                        device1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        TEST_RSSI + 10,
+                        0,
+                        ScanRecord.parseFromBytes(scanRecord1),
+                        0);
+        ScanResult scanResult2 =
+                new ScanResult(
+                        device2,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        TEST_RSSI + 9,
+                        0,
+                        ScanRecord.parseFromBytes(scanRecord2),
+                        0);
+        ScanResult scanResult3 =
+                new ScanResult(
+                        device3,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        TEST_RSSI,
+                        0,
+                        ScanRecord.parseFromBytes(scanRecord3),
+                        0);
+
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+
+        // Test using onSyncEstablishedFailed
+
+        // Added and executed immidiatelly as no other in queue, high rssi
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult1);
+        // Added to queue, medium rssi
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult2);
+        // Added to queue, low rssi
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult3);
+
+        ArgumentCaptor<ScanResult> resultCaptor = ArgumentCaptor.forClass(ScanResult.class);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), resultCaptor.capture(), anyInt(), anyInt(), any(), any());
+        assertThat(
+                        BassUtils.parseBroadcastId(
+                                resultCaptor
+                                        .getValue()
+                                        .getScanRecord()
+                                        .getServiceData()
+                                        .get(BassConstants.BAAS_UUID)))
+                .isEqualTo(broadcastId1);
+
+        onSyncEstablishedFailed(device1, TEST_SYNC_HANDLE);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), resultCaptor.capture(), anyInt(), anyInt(), any(), any());
+        assertThat(
+                        BassUtils.parseBroadcastId(
+                                resultCaptor
+                                        .getValue()
+                                        .getScanRecord()
+                                        .getServiceData()
+                                        .get(BassConstants.BAAS_UUID)))
+                .isEqualTo(broadcastId2);
+
+        // Added to queue again, high rssi
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult1);
+
+        onSyncEstablishedFailed(device2, TEST_SYNC_HANDLE + 1);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), resultCaptor.capture(), anyInt(), anyInt(), any(), any());
+        assertThat(
+                        BassUtils.parseBroadcastId(
+                                resultCaptor
+                                        .getValue()
+                                        .getScanRecord()
+                                        .getServiceData()
+                                        .get(BassConstants.BAAS_UUID)))
+                .isEqualTo(broadcastId3);
+
+        onSyncEstablished(device3, TEST_SYNC_HANDLE + 2);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), resultCaptor.capture(), anyInt(), anyInt(), any(), any());
+        assertThat(
+                        BassUtils.parseBroadcastId(
+                                resultCaptor
+                                        .getValue()
+                                        .getScanRecord()
+                                        .getServiceData()
+                                        .get(BassConstants.BAAS_UUID)))
+                .isEqualTo(broadcastId1);
+
+        // Restart searching clears the mSyncFailureCounter
+        mBassClientService.stopSearchingForSources();
+        mInOrderMethodProxy
+                .verify(mMethodProxy, times(2))
+                .periodicAdvertisingManagerUnregisterSync(any(), any());
+        startSearchingForSources();
+
+        // Test using onSyncLost
+
+        // Added and executed immidiatelly as no other in queue, high rssi
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult1);
+        // Added to queue, medium rssi
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult2);
+        // Added to queue, low rssi
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult3);
+
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), resultCaptor.capture(), anyInt(), anyInt(), any(), any());
+        assertThat(
+                        BassUtils.parseBroadcastId(
+                                resultCaptor
+                                        .getValue()
+                                        .getScanRecord()
+                                        .getServiceData()
+                                        .get(BassConstants.BAAS_UUID)))
+                .isEqualTo(broadcastId1);
+
+        onSyncEstablished(device1, TEST_SYNC_HANDLE);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), resultCaptor.capture(), anyInt(), anyInt(), any(), any());
+        assertThat(
+                        BassUtils.parseBroadcastId(
+                                resultCaptor
+                                        .getValue()
+                                        .getScanRecord()
+                                        .getServiceData()
+                                        .get(BassConstants.BAAS_UUID)))
+                .isEqualTo(broadcastId2);
+        onSyncLost();
+
+        // Added to queue again, high rssi
+        mCallbackCaptor
+                .getValue()
+                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult1);
+
+        onSyncEstablished(device2, TEST_SYNC_HANDLE + 1);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), resultCaptor.capture(), anyInt(), anyInt(), any(), any());
+        assertThat(
+                        BassUtils.parseBroadcastId(
+                                resultCaptor
+                                        .getValue()
+                                        .getScanRecord()
+                                        .getServiceData()
+                                        .get(BassConstants.BAAS_UUID)))
+                .isEqualTo(broadcastId3);
     }
 
     @Test
