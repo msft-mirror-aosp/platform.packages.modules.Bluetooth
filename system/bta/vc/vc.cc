@@ -311,7 +311,7 @@ public:
   }
 
   void OnCharacteristicValueChanged(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
-                                    uint16_t len, uint8_t* value, void* data,
+                                    uint16_t len, uint8_t* value, void* /*data*/,
                                     bool is_notification) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(conn_id);
     if (!device) {
@@ -522,7 +522,7 @@ public:
     StartQueueOperation();
   }
 
-  void OnVolumeControlFlagsChanged(VolumeControlDevice* device, uint16_t len, uint8_t* value) {
+  void OnVolumeControlFlagsChanged(VolumeControlDevice* device, uint16_t /*len*/, uint8_t* value) {
     device->flags = *value;
 
     bluetooth::log::info("{}, flags {:#x}", device->address, device->flags);
@@ -740,8 +740,8 @@ public:
     callbacks_->OnExtAudioOutDescriptionChanged(device->address, offset->id, offset->description);
   }
 
-  void OnGattWriteCcc(tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                      const uint8_t* value, void* /*data*/) {
+  void OnGattWriteCcc(tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle,
+                      uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
       bluetooth::log::error("unknown connection_id={:#x}", connection_id);
@@ -1364,8 +1364,8 @@ private:
                                     const std::vector<uint8_t>* arg, int operation_id = -1) {
     volume_control_devices_.ControlPointOperation(
             devices, opcode, arg,
-            [](tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* data) {
+            [](tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* data) {
               if (instance) {
                 instance->OnWriteControlResponse(connection_id, status, handle, data);
               }
@@ -1385,8 +1385,8 @@ private:
 
     device->ExtAudioInControlPointOperation(
             ext_input_id, opcode, arg,
-            [](uint16_t connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* data) {
+            [](uint16_t connection_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* /*data*/) {
               if (instance) {
                 instance->OnExtAudioInCPWrite(connection_id, status, handle);
               }
@@ -1404,8 +1404,8 @@ private:
     }
     device->ExtAudioOutControlPointOperation(
             ext_output_id, opcode, arg,
-            [](tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* data) {
+            [](tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* data) {
               if (instance) {
                 instance->OnExtAudioOutCPWrite(connection_id, status, handle, data);
               }

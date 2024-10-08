@@ -60,7 +60,6 @@ cc_library_static {
     srcs: ["src/btif_jni_task.cc"],
     static_libs: [
         "libbluetooth_log",
-        "libbt_shim_bridge",
         "libosi",
     ],
     shared_libs: [
@@ -163,12 +162,8 @@ cc_library_static {
         "libbt-platform-protos-lite",
         "libbt-stack",
         "libbt-stack-core",
-        "libbt_shim_bridge",
         "libbtif-core",
         "libflatbuffers-cpp",
-    ],
-    cflags: [
-        "-Wno-unused-parameter",
     ],
     apex_available: [
         "com.android.btservices",
@@ -244,7 +239,6 @@ cc_library_static {
         "libbt-jni-thread",
         "libbt-platform-protos-lite",
         "libbt-stack-core",
-        "libbt_shim_bridge",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libflatbuffers-cpp",
         "libstatslog_bt",
@@ -320,7 +314,6 @@ cc_test {
         "libbt-sbc-encoder",
         "libbt-stack",
         "libbt-stack-core",
-        "libbt_shim_bridge",
         "libbtcore",
         "libbtdevice",
         "libbtif",
@@ -392,13 +385,8 @@ cc_test {
         "libbluetooth-types",
         "libbluetooth_gd",
         "libbluetooth_log",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libosi",
-    ],
-    cflags: [
-        "-Wno-unused-parameter",
     ],
     shared_libs: [
         "libbase",
@@ -431,17 +419,12 @@ cc_test {
     static_libs: [
         "libbluetooth-types",
         "libbluetooth_log",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libosi",
     ],
     shared_libs: [
         "libbase",
         "liblog",
-    ],
-    cflags: [
-        "-Wno-unused-parameter",
     ],
 }
 
@@ -480,8 +463,6 @@ cc_test {
         "libbluetooth_log",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libevent",
     ],
@@ -490,9 +471,6 @@ cc_test {
             shared_libs: ["libstatssocket"],
         },
     },
-    cflags: [
-        "-Wno-unused-parameter",
-    ],
     sanitize: {
         address: true,
         cfi: true,
@@ -523,16 +501,12 @@ cc_test {
     ],
     static_libs: [
         "libbluetooth-types",
+        "libbluetooth_core_rs_bridge",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libgmock",
-    ],
-    cflags: [
-        "-Wno-unused-parameter",
     ],
 }
 
@@ -612,6 +586,7 @@ cc_test {
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libbluetooth-types",
+        "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_log",
@@ -623,8 +598,6 @@ cc_test {
         "libbt-sbc-encoder",
         "libbt-stack",
         "libbt-stack-core",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libbtdevice",
         "libbtif",
         "libbtif-core",
@@ -736,6 +709,7 @@ cc_test {
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libbluetooth-types",
+        "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_hci_pdl",
@@ -747,8 +721,6 @@ cc_test {
         "libbt-platform-protos-lite",
         "libbt-sbc-decoder",
         "libbt-sbc-encoder",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libbtdevice",
         "libbtif",
         "libbtif-core",

@@ -39,9 +39,6 @@ rust_library_host_rlib {
 
 cc_library_static {
     name: "libbt_topshim_cxx",
-    defaults: [
-        "gd_ffi_defaults",
-    ],
     srcs: [
         "btav/btav_shim.cc",
         "btav_sink/btav_sink_shim.cc",
@@ -57,7 +54,6 @@ cc_library_static {
     generated_headers: [
         "BluetoothGeneratedDumpsysDataSchema_h",
         "cxx-bridge-header",
-        "libbt_init_flags_bridge_header",
         "libbt_topshim_bridge_header",
     ],
     generated_sources: ["libbt_topshim_bridge_code"],
@@ -75,6 +71,11 @@ cc_library_static {
         "libchrome",
         "libflatbuffers-cpp",
     ],
+    target: {
+        darwin: {
+            enabled: false,
+        },
+    },
 }
 
 gensrcs {

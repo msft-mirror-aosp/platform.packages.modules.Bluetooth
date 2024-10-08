@@ -133,7 +133,6 @@ cc_library_static {
         "vc/vc.cc",
     ],
     cflags: [
-        "-Wno-unused-parameter",
         /* we export all classes, so change default visibility, instead of having EXPORT_SYMBOL on each class*/
         "-fvisibility=default",
     ],
@@ -150,7 +149,6 @@ cc_library_static {
         "libbt-audio-asrc",
         "libbt-bta-core",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
         "libcom.android.sysprop.bluetooth.wrapped",
         "liblc3",
     ],
@@ -205,7 +203,6 @@ cc_library_static {
         "sys/utl.cc",
     ],
     cflags: [
-        "-Wno-unused-parameter",
         /* we export all classes, so change default visibility, instead of having EXPORT_SYMBOL on each class*/
         "-fvisibility=default",
     ],
@@ -218,7 +215,6 @@ cc_library_static {
         "libbluetooth_log",
         "libbt-audio-hal-interface",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libflatbuffers-cpp",
         "server_configurable_flags",
@@ -317,8 +313,6 @@ cc_test {
         "libbt-btu-main-thread",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libbtcore",
         "libbtdevice",
         "libchrome",
@@ -337,7 +331,6 @@ cc_test {
     ],
     cflags: [
         "-Wno-macro-redefined",
-        "-Wno-unused-parameter",
     ],
     target: {
         android: {
@@ -398,14 +391,11 @@ cc_test {
         "libbt-bta-core",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libbtcore",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libgmock",
     ],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 // bta unit tests for target
@@ -438,6 +428,7 @@ cc_test {
     static_libs: [
         "bluetooth_flags_c_lib",
         "libbluetooth-types",
+        "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_log",
@@ -447,15 +438,12 @@ cc_test {
         "libbt-btu-main-thread",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libbtcore",
         "libchrome",
         "libgmock",
         "libosi",
         "libstatslog_bt",
     ],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -501,8 +489,6 @@ cc_test {
         "libbluetooth_log",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libbtcore",
         "libbtdevice",
         "libchrome",
@@ -522,7 +508,6 @@ cc_test {
             ],
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 // csis unit tests for host
@@ -570,8 +555,6 @@ cc_test {
         "libbluetooth_gd",
         "libbluetooth_log",
         "libbt-common",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libcutils",
         "libgmock",
@@ -587,7 +570,6 @@ cc_test {
             undefined: true,
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 // groups unit tests for host
@@ -620,8 +602,6 @@ cc_test {
         "libbluetooth_gd",
         "libbluetooth_log",
         "libbt-common",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libgmock",
         "libosi",
@@ -636,7 +616,6 @@ cc_test {
             undefined: true,
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 // bta unit tests for host
@@ -682,8 +661,6 @@ cc_test {
         "libbluetooth_log",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libgmock",
         "server_configurable_flags",
@@ -691,7 +668,6 @@ cc_test {
     sanitize: {
         cfi: false,
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 genrule {
@@ -839,8 +815,6 @@ cc_test {
         "libbt-audio-hal-interface",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libevent",
         "libflatbuffers-cpp",
@@ -852,7 +826,6 @@ cc_test {
         cfi: false,
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -951,8 +924,6 @@ cc_test {
         "libbt-audio-asrc",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libevent",
         "libflatbuffers-cpp",
@@ -964,7 +935,6 @@ cc_test {
         cfi: false,
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1039,8 +1009,6 @@ cc_test {
         "libbt-audio-hal-interface",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libevent",
         "libflagtest",
@@ -1085,7 +1053,6 @@ cc_test {
             undefined: true,
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1134,8 +1101,6 @@ cc_test {
         "libbluetooth_log",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libflagtest",
         "libflatbuffers-cpp",
@@ -1154,7 +1119,6 @@ cc_test {
             undefined: true,
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1212,8 +1176,6 @@ cc_test {
         "libbt-audio-hal-interface",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libevent",
         "libflagtest",
@@ -1234,7 +1196,6 @@ cc_test {
             undefined: true,
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1282,8 +1243,6 @@ cc_test {
         "libbluetooth_gd",
         "libbluetooth_log",
         "libbt-common",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libgmock",
     ],
@@ -1297,7 +1256,6 @@ cc_test {
             undefined: true,
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1350,14 +1308,13 @@ cc_test {
     static_libs: [
         "bluetooth_flags_c_lib",
         "libbluetooth-types",
+        "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libevent",
@@ -1377,7 +1334,6 @@ cc_test {
             undefined: true,
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1423,14 +1379,13 @@ cc_test {
     static_libs: [
         "bluetooth_flags_c_lib",
         "libbluetooth-types",
+        "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libevent",

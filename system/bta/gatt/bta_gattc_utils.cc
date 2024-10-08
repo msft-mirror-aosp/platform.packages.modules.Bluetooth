@@ -145,7 +145,7 @@ tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_cif(uint8_t client_if, const RawAddress&
 tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_conn_id(tCONN_ID conn_id) {
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     for (auto& p_clcb : bta_gattc_cb.clcb_set) {
-      if (p_clcb->bta_conn_id == conn_id) {
+      if (p_clcb->in_use && p_clcb->bta_conn_id == conn_id) {
         return p_clcb.get();
       }
     }
@@ -598,7 +598,7 @@ bool bta_gattc_check_notif_registry(tBTA_GATTC_RCB* p_clreg, tBTA_GATTC_SERV* p_
  * Returns          None.
  *
  ******************************************************************************/
-void bta_gattc_clear_notif_registration(tBTA_GATTC_SERV* p_srcb, tCONN_ID conn_id,
+void bta_gattc_clear_notif_registration(tBTA_GATTC_SERV* /*p_srcb*/, tCONN_ID conn_id,
                                         uint16_t start_handle, uint16_t end_handle) {
   RawAddress remote_bda;
   tGATT_IF gatt_if;
@@ -960,6 +960,9 @@ void bta_gatt_client_dump(int fd) {
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     stream << " ->clcb (dynamic)\n";
     for (auto& p_clcb : bta_gattc_cb.clcb_set) {
+      if (!p_clcb->in_use) {
+        continue;
+      }
       entry_count++;
       stream << "  conn_id: " << loghex(p_clcb->bta_conn_id)
              << "  address: " << ADDRESS_TO_LOGGABLE_STR(p_clcb->bda)

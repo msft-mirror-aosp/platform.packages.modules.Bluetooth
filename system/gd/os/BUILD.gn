@@ -27,7 +27,6 @@ source_set("BluetoothOsSources_chromeos") {
   ]
   deps = [
     "//bt/system:libbt-platform-protos-lite",
-    "//bt/system/gd/rust/shim:init_flags_bridge_header",
   ]
 }
 
@@ -46,7 +45,6 @@ source_set("BluetoothOsSources_linux") {
   ]
   deps = [
     "//bt/system:libbt-platform-protos-lite",
-    "//bt/system/gd/rust/shim:init_flags_bridge_header",
   ]
 }
 

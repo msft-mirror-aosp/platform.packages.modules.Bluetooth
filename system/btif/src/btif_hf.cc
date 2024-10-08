@@ -27,6 +27,8 @@
 
 #define LOG_TAG "bt_btif_hf"
 
+#include "btif/include/btif_hf.h"
+
 #include <android_bluetooth_sysprop.h>
 #include <base/functional/callback.h>
 #include <bluetooth/log.h>
@@ -55,15 +57,11 @@
 #include "stack/include/btm_log_history.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace {
 constexpr char kBtmLogTag[] = "HFP";
 }
 
-namespace bluetooth {
-namespace headset {
+namespace bluetooth::headset {
 
 /*******************************************************************************
  *  Constants & Macros
@@ -271,7 +269,7 @@ static bool is_nth_bit_enabled(uint32_t value, int n) {
   return (value & (static_cast<uint32_t>(1) << n)) != 0;
 }
 
-void clear_phone_state_multihf(btif_hf_cb_t* hf_cb) {
+static void clear_phone_state_multihf(btif_hf_cb_t* hf_cb) {
   hf_cb->call_setup_state = BTHF_CALL_STATE_IDLE;
   hf_cb->num_active = 0;
   hf_cb->num_held = 0;
@@ -756,7 +754,7 @@ static void bte_hf_evt(tBTA_AG_EVT event, tBTA_AG* p_data) {
  * Returns         bt_status_t
  *
  ******************************************************************************/
-static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid) {
+static bt_status_t connect_int(RawAddress* bd_addr, uint16_t /*uuid*/) {
   CHECK_BTHF_INIT();
   if (is_connected(bd_addr)) {
     log::warn("device {} is already connected", *bd_addr);
@@ -1502,7 +1500,7 @@ bt_status_t HeadsetInterface::PhoneStateChange(int num_active, int num_held,
   return status;
 }
 
-bt_status_t HeadsetInterface::EnableSwb(bthf_swb_codec_t swb_codec, bool enable,
+bt_status_t HeadsetInterface::EnableSwb(bthf_swb_codec_t /*swb_codec*/, bool enable,
                                         RawAddress* bd_addr) {
   return enable_aptx_swb_codec(enable, bd_addr);
 }
@@ -1622,5 +1620,4 @@ Interface* GetInterface() {
   return HeadsetInterface::GetInstance();
 }
 
-}  // namespace headset
-}  // namespace bluetooth
+}  // namespace bluetooth::headset

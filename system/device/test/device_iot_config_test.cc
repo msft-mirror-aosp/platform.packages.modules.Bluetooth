@@ -41,19 +41,19 @@ using namespace testing;
 
 extern module_t device_iot_config_module;
 
-bt_status_t btif_transfer_context(tBTIF_CBACK* p_cback, uint16_t event, char* p_params,
-                                  int param_len, tBTIF_COPY_CBACK* p_copy_cback) {
+bt_status_t btif_transfer_context(tBTIF_CBACK* /*p_cback*/, uint16_t /*event*/, char* /*p_params*/,
+                                  int /*param_len*/, tBTIF_COPY_CBACK* /*p_copy_cback*/) {
   inc_func_call_count(__func__);
   return BT_STATUS_SUCCESS;
 }
 
 struct alarm_t {
-  alarm_t(const char* name) {}
+  alarm_t(const char* /*name*/) {}
   int any_value;
 };
 
 struct future_t {
-  future_t(void* value) {}
+  future_t(void* /*value*/) {}
   void* value;
 };
 
@@ -64,23 +64,24 @@ std::string true_val = "true";
 class DeviceIotConfigModuleTest : public testing::Test {
 protected:
   void SetUp() override {
-    test::mock::osi_alarm::alarm_new.body = [&](const char* name) -> alarm_t* {
+    test::mock::osi_alarm::alarm_new.body = [&](const char* /*name*/) -> alarm_t* {
       return &placeholder_alarm;
     };
 
     test::mock::osi_properties::osi_property_get_bool.body =
-            [&](const char* key, bool default_value) -> int { return false; };
+            [&](const char* /*key*/, bool /*default_value*/) -> int { return false; };
 
-    test::mock::osi_alarm::alarm_set.body = [&](alarm_t* alarm, uint64_t interval_ms,
-                                                alarm_callback_t cb, void* data) { return; };
+    test::mock::osi_alarm::alarm_set.body = [&](alarm_t* /*alarm*/, uint64_t /*interval_ms*/,
+                                                alarm_callback_t /*cb*/,
+                                                void* /*data*/) { return; };
 
-    test::mock::osi_alarm::alarm_free.body = [](alarm_t* alarm) {};
+    test::mock::osi_alarm::alarm_free.body = [](alarm_t* /*alarm*/) {};
 
-    test::mock::osi_alarm::alarm_is_scheduled.body = [&](const alarm_t* alarm) -> bool {
+    test::mock::osi_alarm::alarm_is_scheduled.body = [&](const alarm_t* /*alarm*/) -> bool {
       return false;
     };
 
-    test::mock::osi_future::future_new_immediate.body = [&](void* value) -> future_t* {
+    test::mock::osi_future::future_new_immediate.body = [&](void* /*value*/) -> future_t* {
       return &placeholder_future;
     };
 
@@ -89,27 +90,27 @@ protected:
     };
 
     test::mock::osi_config::config_new.body =
-            [&](const char* filename) -> std::unique_ptr<config_t> {
+            [&](const char* /*filename*/) -> std::unique_ptr<config_t> {
       return std::make_unique<config_t>();
     };
 
     test::mock::osi_config::config_get_int.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                int def_value) { return def_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/, int def_value) { return def_value; };
 
-    test::mock::osi_config::config_set_int.body = [&](config_t* config, const std::string& section,
-                                                      const std::string& key,
-                                                      int value) { return; };
+    test::mock::osi_config::config_set_int.body =
+            [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
+                int /*value*/) { return; };
 
     test::mock::osi_config::config_get_string.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                const std::string* def_value) { return def_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/, const std::string* def_value) { return def_value; };
 
     test::mock::osi_config::config_set_string.body =
-            [&](config_t* config, const std::string& section, const std::string& key,
-                const std::string& value) { return; };
+            [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
+                const std::string& /*value*/) { return; };
 
-    test::mock::osi_allocator::osi_free.body = [&](void* ptr) {};
+    test::mock::osi_allocator::osi_free.body = [&](void* /*ptr*/) {};
 
     reset_mock_function_count_map();
   }
@@ -138,9 +139,9 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_init_
   config_t* config_new_empty_return_value = NULL;
 
   test::mock::osi_properties::osi_property_get_bool.body =
-          [&](const char* key, bool default_value) -> int { return is_factory_reset; };
+          [&](const char* /*key*/, bool /*default_value*/) -> int { return is_factory_reset; };
 
-  test::mock::osi_config::config_new.body = [&](const char* filename) {
+  test::mock::osi_config::config_new.body = [&](const char* /*filename*/) {
     return std::unique_ptr<config_t>(config_new_return_value);
   };
 
@@ -193,7 +194,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_init_
 
 TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_init_no_config,
                   REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, device_iot_config_logging))) {
-  test::mock::osi_config::config_new.body = [&](const char* filename) {
+  test::mock::osi_config::config_new.body = [&](const char* /*filename*/) {
     return std::unique_ptr<config_t>(nullptr);
   };
 
@@ -223,7 +224,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_init_
   config_t* config_new_return_value = NULL;
   config_t* config_new_empty_return_value = NULL;
 
-  test::mock::osi_config::config_new.body = [&](const char* filename) {
+  test::mock::osi_config::config_new.body = [&](const char* /*filename*/) {
     return std::unique_ptr<config_t>(config_new_return_value);
   };
 
@@ -242,12 +243,14 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_init_
     std::string config_get_string_return_value(TIME_STRING_FORMAT);
 
     test::mock::osi_config::config_get_int.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                int def_value) { return config_get_int_return_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/,
+                int /*def_value*/) { return config_get_int_return_value; };
 
     test::mock::osi_config::config_get_string.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                const std::string* def_value) { return &config_get_string_return_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/,
+                const std::string* /*def_value*/) { return &config_get_string_return_value; };
 
     device_iot_config_module_init();
 
@@ -294,12 +297,14 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_init_
     std::string config_get_string_return_value(TIME_STRING_FORMAT);
 
     test::mock::osi_config::config_get_int.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                int def_value) { return config_get_int_return_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/,
+                int /*def_value*/) { return config_get_int_return_value; };
 
     test::mock::osi_config::config_get_string.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                const std::string* def_value) { return &config_get_string_return_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/,
+                const std::string* /*def_value*/) { return &config_get_string_return_value; };
 
     device_iot_config_module_init();
 
@@ -324,7 +329,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_init_
   config_t* config_new_return_value = NULL;
   config_t* config_new_empty_return_value = NULL;
 
-  test::mock::osi_config::config_new.body = [&](const char* filename) {
+  test::mock::osi_config::config_new.body = [&](const char* /*filename*/) {
     return std::unique_ptr<config_t>(config_new_return_value);
   };
 
@@ -342,8 +347,9 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_init_
     std::string config_get_string_return_value(TIME_STRING_FORMAT);
 
     test::mock::osi_config::config_get_string.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                const std::string* def_value) { return &config_get_string_return_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/,
+                const std::string* /*def_value*/) { return &config_get_string_return_value; };
 
     device_iot_config_module_init();
 
@@ -368,7 +374,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_init_
   config_t* config_new_return_value = NULL;
   config_t* config_new_empty_return_value = NULL;
 
-  test::mock::osi_config::config_new.body = [&](const char* filename) {
+  test::mock::osi_config::config_new.body = [&](const char* /*filename*/) {
     return std::unique_ptr<config_t>(config_new_return_value);
   };
 
@@ -387,12 +393,14 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_init_
     std::string config_get_string_return_value(TIME_STRING_FORMAT);
 
     test::mock::osi_config::config_get_int.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                int def_value) { return config_get_int_return_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/,
+                int /*def_value*/) { return config_get_int_return_value; };
 
     test::mock::osi_config::config_get_string.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                const std::string* def_value) { return &config_get_string_return_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/,
+                const std::string* /*def_value*/) { return &config_get_string_return_value; };
 
     device_iot_config_module_init();
 
@@ -418,7 +426,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest,
   config_t* config_new_return_value = NULL;
   config_t* config_new_empty_return_value = NULL;
 
-  test::mock::osi_config::config_new.body = [&](const char* filename) {
+  test::mock::osi_config::config_new.body = [&](const char* /*filename*/) {
     return std::unique_ptr<config_t>(config_new_return_value);
   };
 
@@ -437,12 +445,14 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest,
     std::string config_get_string_return_value(TIME_STRING_FORMAT);
 
     test::mock::osi_config::config_get_int.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                int def_value) { return config_get_int_return_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/,
+                int /*def_value*/) { return config_get_int_return_value; };
 
     test::mock::osi_config::config_get_string.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                const std::string* def_value) { return &config_get_string_return_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/,
+                const std::string* /*def_value*/) { return &config_get_string_return_value; };
 
     int file_fd = -1;
     int backup_fd = -1;
@@ -493,7 +503,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest,
   config_t* config_new_return_value = NULL;
   config_t* config_new_empty_return_value = NULL;
 
-  test::mock::osi_config::config_new.body = [&](const char* filename) {
+  test::mock::osi_config::config_new.body = [&](const char* /*filename*/) {
     return std::unique_ptr<config_t>(config_new_return_value);
   };
 
@@ -512,12 +522,14 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest,
     std::string config_get_string_return_value(TIME_STRING_FORMAT);
 
     test::mock::osi_config::config_get_int.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                int def_value) { return config_get_int_return_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/,
+                int /*def_value*/) { return config_get_int_return_value; };
 
     test::mock::osi_config::config_get_string.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                const std::string* def_value) { return &config_get_string_return_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/,
+                const std::string* /*def_value*/) { return &config_get_string_return_value; };
 
     int file_fd = -1;
     int backup_fd = -1;
@@ -568,7 +580,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest,
   config_t* config_new_return_value = NULL;
   config_t* config_new_empty_return_value = NULL;
 
-  test::mock::osi_config::config_new.body = [&](const char* filename) {
+  test::mock::osi_config::config_new.body = [&](const char* /*filename*/) {
     return std::unique_ptr<config_t>(config_new_return_value);
   };
 
@@ -586,12 +598,13 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest,
     int config_get_int_return_value = DEVICE_IOT_INFO_CURRENT_VERSION;
 
     test::mock::osi_config::config_get_int.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                int def_value) { return config_get_int_return_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/,
+                int /*def_value*/) { return config_get_int_return_value; };
 
     test::mock::osi_config::config_get_string.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                const std::string* def_value) { return nullptr; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/, const std::string* /*def_value*/) { return nullptr; };
 
     device_iot_config_module_init();
 
@@ -616,7 +629,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_init_
   config_t* config_new_return_value = NULL;
   config_t* config_new_empty_return_value = NULL;
 
-  test::mock::osi_config::config_new.body = [&](const char* filename) {
+  test::mock::osi_config::config_new.body = [&](const char* /*filename*/) {
     return std::unique_ptr<config_t>(config_new_return_value);
   };
 
@@ -635,14 +648,16 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_init_
     std::string config_get_string_return_value(TIME_STRING_FORMAT);
 
     test::mock::osi_config::config_get_int.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                int def_value) { return config_get_int_return_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/,
+                int /*def_value*/) { return config_get_int_return_value; };
 
     test::mock::osi_config::config_get_string.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                const std::string* def_value) { return &config_get_string_return_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/,
+                const std::string* /*def_value*/) { return &config_get_string_return_value; };
 
-    test::mock::osi_alarm::alarm_new.body = [&](const char* name) { return nullptr; };
+    test::mock::osi_alarm::alarm_new.body = [&](const char* /*name*/) { return nullptr; };
 
     device_iot_config_module_init();
 
@@ -690,7 +705,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_shutd
   std::string enable_logging_property_get_value;
   std::string factory_reset_property_get_value;
 
-  test::mock::osi_alarm::alarm_is_scheduled.body = [&](const alarm_t* alarm) -> bool {
+  test::mock::osi_alarm::alarm_is_scheduled.body = [&](const alarm_t* /*alarm*/) -> bool {
     return return_value;
   };
 
@@ -736,7 +751,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_clean
   std::string enable_logging_property_get_value;
   std::string factory_reset_property_get_value;
 
-  test::mock::osi_alarm::alarm_is_scheduled.body = [&](const alarm_t* alarm) -> bool {
+  test::mock::osi_alarm::alarm_is_scheduled.body = [&](const alarm_t* /*alarm*/) -> bool {
     return return_value;
   };
 
@@ -781,23 +796,24 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_clean
 class DeviceIotConfigTest : public testing::Test {
 protected:
   void SetUp() override {
-    test::mock::osi_alarm::alarm_new.body = [&](const char* name) -> alarm_t* {
+    test::mock::osi_alarm::alarm_new.body = [&](const char* /*name*/) -> alarm_t* {
       return &placeholder_alarm;
     };
 
     test::mock::osi_properties::osi_property_get_bool.body =
-            [&](const char* key, bool default_value) -> int { return false; };
+            [&](const char* /*key*/, bool /*default_value*/) -> int { return false; };
 
-    test::mock::osi_alarm::alarm_set.body = [&](alarm_t* alarm, uint64_t interval_ms,
-                                                alarm_callback_t cb, void* data) { return; };
+    test::mock::osi_alarm::alarm_set.body = [&](alarm_t* /*alarm*/, uint64_t /*interval_ms*/,
+                                                alarm_callback_t /*cb*/,
+                                                void* /*data*/) { return; };
 
-    test::mock::osi_alarm::alarm_free.body = [](alarm_t* alarm) {};
+    test::mock::osi_alarm::alarm_free.body = [](alarm_t* /*alarm*/) {};
 
-    test::mock::osi_alarm::alarm_is_scheduled.body = [&](const alarm_t* alarm) -> bool {
+    test::mock::osi_alarm::alarm_is_scheduled.body = [&](const alarm_t* /*alarm*/) -> bool {
       return false;
     };
 
-    test::mock::osi_future::future_new_immediate.body = [&](void* value) -> future_t* {
+    test::mock::osi_future::future_new_immediate.body = [&](void* /*value*/) -> future_t* {
       return &placeholder_future;
     };
 
@@ -806,27 +822,27 @@ protected:
     };
 
     test::mock::osi_config::config_new.body =
-            [&](const char* filename) -> std::unique_ptr<config_t> {
+            [&](const char* /*filename*/) -> std::unique_ptr<config_t> {
       return std::make_unique<config_t>();
     };
 
     test::mock::osi_config::config_get_int.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                int def_value) { return def_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/, int def_value) { return def_value; };
 
-    test::mock::osi_config::config_set_int.body = [&](config_t* config, const std::string& section,
-                                                      const std::string& key,
-                                                      int value) { return; };
+    test::mock::osi_config::config_set_int.body =
+            [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
+                int /*value*/) { return; };
 
     test::mock::osi_config::config_get_string.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                const std::string* def_value) { return def_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/, const std::string* def_value) { return def_value; };
 
     test::mock::osi_config::config_set_string.body =
-            [&](config_t* config, const std::string& section, const std::string& key,
-                const std::string& value) { return; };
+            [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
+                const std::string& /*value*/) { return; };
 
-    test::mock::osi_allocator::osi_free.body = [&](void* ptr) {};
+    test::mock::osi_allocator::osi_free.body = [&](void* /*ptr*/) {};
 
     device_iot_config_module_init();
     device_iot_config_module_start_up();
@@ -915,7 +931,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_has_section,
   std::string actual_section, expected_section = "abc";
   bool return_value = false;
 
-  test::mock::osi_config::config_has_section.body = [&](const config_t& config,
+  test::mock::osi_config::config_has_section.body = [&](const config_t& /*config*/,
                                                         const std::string& section) {
     actual_section = section;
     return return_value;
@@ -949,7 +965,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_exist,
   bool return_value = false;
 
   test::mock::osi_config::config_has_key.body =
-          [&](const config_t& config, const std::string& section, const std::string& key) {
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key) {
             actual_section = section;
             actual_key = key;
             return return_value;
@@ -986,7 +1002,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_has_key_value,
   const std::string* return_value = NULL;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
               const std::string* def_value) {
             actual_section = section;
             actual_key = key;
@@ -1072,15 +1088,15 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_get_int,
   int int_value = 0, new_value = 0xff;
 
   test::mock::osi_config::config_has_key.body =
-          [&](const config_t& config, const std::string& section, const std::string& key) {
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key) {
             actual_section = section;
             actual_key = key;
             return return_value;
           };
 
   test::mock::osi_config::config_get_int.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
-              int def_value) { return new_value; };
+          [&](const config_t& /*config*/, const std::string& /*section*/,
+              const std::string& /*key*/, int /*def_value*/) { return new_value; };
 
   {
     reset_mock_function_count_map();
@@ -1120,15 +1136,15 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_addr_get_int,
   int int_value = 0, new_value = 0xff;
 
   test::mock::osi_config::config_has_key.body =
-          [&](const config_t& config, const std::string& section, const std::string& key) {
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key) {
             actual_section = section;
             actual_key = key;
             return return_value;
           };
 
   test::mock::osi_config::config_get_int.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
-              int def_value) { return new_value; };
+          [&](const config_t& /*config*/, const std::string& /*section*/,
+              const std::string& /*key*/, int /*def_value*/) { return new_value; };
 
   {
     reset_mock_function_count_map();
@@ -1168,19 +1184,19 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_set_int,
   int int_value = 123456789;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
-              const std::string* def_value) {
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
+              const std::string* /*def_value*/) {
             actual_section = section;
             actual_key = key;
             return &string_return_value;
           };
 
   test::mock::osi_config::config_set_string.body =
-          [&](config_t* config, const std::string& section, const std::string& key,
+          [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
               const std::string& value) { new_string_value = value; };
 
-  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* alarm, uint64_t interval_ms,
-                                              alarm_callback_t cb, void* data) {};
+  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* /*alarm*/, uint64_t /*interval_ms*/,
+                                              alarm_callback_t /*cb*/, void* /*data*/) {};
 
   {
     reset_mock_function_count_map();
@@ -1225,19 +1241,19 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_addr_set_int,
   int int_value = 123456789;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
-              const std::string* def_value) {
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
+              const std::string* /*def_value*/) {
             actual_section = section;
             actual_key = key;
             return &string_return_value;
           };
 
   test::mock::osi_config::config_set_string.body =
-          [&](config_t* config, const std::string& section, const std::string& key,
+          [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
               const std::string& value) { new_string_value = value; };
 
-  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* alarm, uint64_t interval_ms,
-                                              alarm_callback_t cb, void* data) {};
+  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* /*alarm*/, uint64_t /*interval_ms*/,
+                                              alarm_callback_t /*cb*/, void* /*data*/) {};
 
   {
     reset_mock_function_count_map();
@@ -1276,7 +1292,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_int_add_one,
   std::string actual_section, actual_key, expected_section = "abc", expected_key = "def";
   int int_value = 0, get_default_value, set_value;
 
-  test::mock::osi_config::config_get_int.body = [&](const config_t& config,
+  test::mock::osi_config::config_get_int.body = [&](const config_t& /*config*/,
                                                     const std::string& section,
                                                     const std::string& key, int def_value) {
     actual_section = section;
@@ -1285,12 +1301,12 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_int_add_one,
     return int_value;
   };
 
-  test::mock::osi_config::config_set_int.body = [&](config_t* config, const std::string& section,
-                                                    const std::string& key,
-                                                    int val) { set_value = val; };
+  test::mock::osi_config::config_set_int.body =
+          [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
+              int val) { set_value = val; };
 
-  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* alarm, uint64_t interval_ms,
-                                              alarm_callback_t cb, void* data) {};
+  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* /*alarm*/, uint64_t /*interval_ms*/,
+                                              alarm_callback_t /*cb*/, void* /*data*/) {};
 
   {
     reset_mock_function_count_map();
@@ -1385,7 +1401,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_addr_int_add_one,
                                           expected_key = "def";
   int int_value = 0, get_default_value, set_value;
 
-  test::mock::osi_config::config_get_int.body = [&](const config_t& config,
+  test::mock::osi_config::config_get_int.body = [&](const config_t& /*config*/,
                                                     const std::string& section,
                                                     const std::string& key, int def_value) {
     actual_section = section;
@@ -1394,12 +1410,12 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_addr_int_add_one,
     return int_value;
   };
 
-  test::mock::osi_config::config_set_int.body = [&](config_t* config, const std::string& section,
-                                                    const std::string& key,
-                                                    int val) { set_value = val; };
+  test::mock::osi_config::config_set_int.body =
+          [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
+              int val) { set_value = val; };
 
-  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* alarm, uint64_t interval_ms,
-                                              alarm_callback_t cb, void* data) {};
+  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* /*alarm*/, uint64_t /*interval_ms*/,
+                                              alarm_callback_t /*cb*/, void* /*data*/) {};
 
   {
     reset_mock_function_count_map();
@@ -1495,8 +1511,8 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_get_hex,
   std::string* get_string_return_value = NULL;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
-              const std::string* def_value) {
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
+              const std::string* /*def_value*/) {
             actual_section = section;
             actual_key = key;
             return get_string_return_value;
@@ -1656,8 +1672,8 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_addr_get_hex,
   std::string* get_string_return_value = NULL;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
-              const std::string* def_value) {
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
+              const std::string* /*def_value*/) {
             actual_section = section;
             actual_key = key;
             return get_string_return_value;
@@ -1813,19 +1829,19 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_set_hex,
   int int_value, byte_num;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
-              const std::string* def_value) {
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
+              const std::string* /*def_value*/) {
             actual_section = section;
             actual_key = key;
             return get_string_return_value;
           };
 
   test::mock::osi_config::config_set_string.body =
-          [&](config_t* config, const std::string& section, const std::string& key,
+          [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
               const std::string& value) { new_string_value = value; };
 
-  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* alarm, uint64_t interval_ms,
-                                              alarm_callback_t cb, void* data) {};
+  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* /*alarm*/, uint64_t /*interval_ms*/,
+                                              alarm_callback_t /*cb*/, void* /*data*/) {};
 
   {
     reset_mock_function_count_map();
@@ -1964,19 +1980,19 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_addr_set_hex,
   int byte_num = 1;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
-              const std::string* def_value) {
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
+              const std::string* /*def_value*/) {
             actual_section = section;
             actual_key = key;
             return get_string_return_value;
           };
 
   test::mock::osi_config::config_set_string.body =
-          [&](config_t* config, const std::string& section, const std::string& key,
+          [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
               const std::string& value) { new_string_value = value; };
 
-  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* alarm, uint64_t interval_ms,
-                                              alarm_callback_t cb, void* data) {};
+  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* /*alarm*/, uint64_t /*interval_ms*/,
+                                              alarm_callback_t /*cb*/, void* /*data*/) {};
 
   {
     reset_mock_function_count_map();
@@ -2117,19 +2133,19 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_addr_set_hex_if_gr
   int byte_num = 1;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
-              const std::string* def_value) {
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
+              const std::string* /*def_value*/) {
             actual_section = section;
             actual_key = key;
             return get_string_return_value;
           };
 
   test::mock::osi_config::config_set_string.body =
-          [&](config_t* config, const std::string& section, const std::string& key,
+          [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
               const std::string& value) { new_string_value = value; };
 
-  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* alarm, uint64_t interval_ms,
-                                              alarm_callback_t cb, void* data) {};
+  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* /*alarm*/, uint64_t /*interval_ms*/,
+                                              alarm_callback_t /*cb*/, void* /*data*/) {};
 
   {
     reset_mock_function_count_map();
@@ -2198,7 +2214,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_get_str,
   const std::string* return_value = NULL;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
               const std::string* def_value) {
             actual_section = section;
             actual_key = key;
@@ -2257,19 +2273,19 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_set_str,
   std::string str_value;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
-              const std::string* def_value) {
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
+              const std::string* /*def_value*/) {
             actual_section = section;
             actual_key = key;
             return get_string_return_value;
           };
 
   test::mock::osi_config::config_set_string.body =
-          [&](config_t* config, const std::string& section, const std::string& key,
+          [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
               const std::string& value) { new_string_value = value; };
 
-  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* alarm, uint64_t interval_ms,
-                                              alarm_callback_t cb, void* data) {};
+  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* /*alarm*/, uint64_t /*interval_ms*/,
+                                              alarm_callback_t /*cb*/, void* /*data*/) {};
 
   {
     reset_mock_function_count_map();
@@ -2322,19 +2338,19 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_addr_set_str,
   std::string str_value;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
-              const std::string* def_value) {
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
+              const std::string* /*def_value*/) {
             actual_section = section;
             actual_key = key;
             return get_string_return_value;
           };
 
   test::mock::osi_config::config_set_string.body =
-          [&](config_t* config, const std::string& section, const std::string& key,
+          [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
               const std::string& value) { new_string_value = value; };
 
-  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* alarm, uint64_t interval_ms,
-                                              alarm_callback_t cb, void* data) {};
+  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* /*alarm*/, uint64_t /*interval_ms*/,
+                                              alarm_callback_t /*cb*/, void* /*data*/) {};
 
   {
     reset_mock_function_count_map();
@@ -2382,7 +2398,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_get_bin,
   const std::string* return_value = NULL;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
               const std::string* def_value) {
             actual_section = section;
             actual_key = key;
@@ -2489,7 +2505,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_get_bin_length,
   const std::string* return_value = NULL;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
               const std::string* def_value) {
             actual_section = section;
             actual_key = key;
@@ -2569,19 +2585,19 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_set_bin,
   std::string str_value;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
-              const std::string* def_value) {
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
+              const std::string* /*def_value*/) {
             actual_section = section;
             actual_key = key;
             return get_string_return_value;
           };
 
   test::mock::osi_config::config_set_string.body =
-          [&](config_t* config, const std::string& section, const std::string& key,
+          [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
               const std::string& value) { new_string_value = value; };
 
-  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* alarm, uint64_t interval_ms,
-                                              alarm_callback_t cb, void* data) {};
+  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* /*alarm*/, uint64_t /*interval_ms*/,
+                                              alarm_callback_t /*cb*/, void* /*data*/) {};
 
   test::mock::osi_allocator::osi_calloc.body = [&](size_t size) { return new char[size]; };
 
@@ -2644,7 +2660,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_set_bin,
 
   {
     reset_mock_function_count_map();
-    test::mock::osi_allocator::osi_calloc.body = [&](size_t size) { return nullptr; };
+    test::mock::osi_allocator::osi_calloc.body = [&](size_t /*size*/) { return nullptr; };
 
     uint8_t input_value[] = {0x01, 0x02, 0x03};
     size_t length = sizeof(input_value);
@@ -2677,19 +2693,19 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_addr_set_bin,
   std::string str_value;
 
   test::mock::osi_config::config_get_string.body =
-          [&](const config_t& config, const std::string& section, const std::string& key,
-              const std::string* def_value) {
+          [&](const config_t& /*config*/, const std::string& section, const std::string& key,
+              const std::string* /*def_value*/) {
             actual_section = section;
             actual_key = key;
             return get_string_return_value;
           };
 
   test::mock::osi_config::config_set_string.body =
-          [&](config_t* config, const std::string& section, const std::string& key,
+          [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
               const std::string& value) { new_string_value = value; };
 
-  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* alarm, uint64_t interval_ms,
-                                              alarm_callback_t cb, void* data) {};
+  test::mock::osi_alarm::alarm_set.body = [&](alarm_t* /*alarm*/, uint64_t /*interval_ms*/,
+                                              alarm_callback_t /*cb*/, void* /*data*/) {};
 
   test::mock::osi_allocator::osi_calloc.body = [&](size_t size) { return new char[size]; };
 
@@ -2752,7 +2768,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_addr_set_bin,
 
   {
     reset_mock_function_count_map();
-    test::mock::osi_allocator::osi_calloc.body = [&](size_t size) { return nullptr; };
+    test::mock::osi_allocator::osi_calloc.body = [&](size_t /*size*/) { return nullptr; };
 
     uint8_t input_value[] = {0x01, 0x02, 0x03};
     size_t length = sizeof(input_value);
@@ -2779,12 +2795,12 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_remove,
   std::string actual_section, expected_section = "00:00:00:00:00:00";
   bool return_value;
 
-  test::mock::osi_config::config_remove_key.body = [&](config_t* config, const std::string& section,
-                                                       const std::string& key) {
-    actual_section = section;
-    actual_key = key;
-    return return_value;
-  };
+  test::mock::osi_config::config_remove_key.body =
+          [&](config_t* /*config*/, const std::string& section, const std::string& key) {
+            actual_section = section;
+            actual_key = key;
+            return return_value;
+          };
 
   {
     reset_mock_function_count_map();
@@ -2828,7 +2844,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_flush,
                   REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, device_iot_config_logging))) {
   bool return_value;
 
-  test::mock::osi_alarm::alarm_is_scheduled.body = [&](const alarm_t* alarm) -> bool {
+  test::mock::osi_alarm::alarm_is_scheduled.body = [&](const alarm_t* /*alarm*/) -> bool {
     return return_value;
   };
 
@@ -2866,14 +2882,14 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_clear,
   config_t* config_new_empty_return_value;
   bool config_save_return_value;
 
-  test::mock::osi_alarm::alarm_cancel.body = [&](alarm_t* alarm) {};
+  test::mock::osi_alarm::alarm_cancel.body = [&](alarm_t* /*alarm*/) {};
 
   test::mock::osi_config::config_new_empty.body = [&]() {
     return std::unique_ptr<config_t>(config_new_empty_return_value);
   };
 
-  test::mock::osi_config::config_save.body = [&](const config_t& config,
-                                                 const std::string& filename) -> bool {
+  test::mock::osi_config::config_save.body = [&](const config_t& /*config*/,
+                                                 const std::string& /*filename*/) -> bool {
     return config_save_return_value;
   };
 
@@ -3083,7 +3099,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_compare_key,
 TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_write,
                   REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, device_iot_config_logging))) {
   test::mock::osi_config::config_save.body =
-          [&](const config_t& config, const std::string& filename) -> bool { return true; };
+          [&](const config_t& /*config*/, const std::string& /*filename*/) -> bool { return true; };
 
   {
     reset_mock_function_count_map();
@@ -3141,7 +3157,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_is_factory_reset,
                   REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, device_iot_config_logging))) {
   bool return_value;
   test::mock::osi_properties::osi_property_get_bool.body =
-          [&](const char* key, bool default_value) -> bool { return return_value; };
+          [&](const char* /*key*/, bool /*default_value*/) -> bool { return return_value; };
 
   {
     return_value = false;
@@ -3187,20 +3203,21 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_debug_iot_config_delete_files
 class DeviceIotConfigDisabledTest : public testing::Test {
 protected:
   void SetUp() override {
-    test::mock::osi_alarm::alarm_new.body = [&](const char* name) -> alarm_t* {
+    test::mock::osi_alarm::alarm_new.body = [&](const char* /*name*/) -> alarm_t* {
       return &placeholder_alarm;
     };
 
-    test::mock::osi_alarm::alarm_set.body = [&](alarm_t* alarm, uint64_t interval_ms,
-                                                alarm_callback_t cb, void* data) { return; };
+    test::mock::osi_alarm::alarm_set.body = [&](alarm_t* /*alarm*/, uint64_t /*interval_ms*/,
+                                                alarm_callback_t /*cb*/,
+                                                void* /*data*/) { return; };
 
-    test::mock::osi_alarm::alarm_free.body = [](alarm_t* alarm) {};
+    test::mock::osi_alarm::alarm_free.body = [](alarm_t* /*alarm*/) {};
 
-    test::mock::osi_alarm::alarm_is_scheduled.body = [&](const alarm_t* alarm) -> bool {
+    test::mock::osi_alarm::alarm_is_scheduled.body = [&](const alarm_t* /*alarm*/) -> bool {
       return false;
     };
 
-    test::mock::osi_future::future_new_immediate.body = [&](void* value) -> future_t* {
+    test::mock::osi_future::future_new_immediate.body = [&](void* /*value*/) -> future_t* {
       return &placeholder_future;
     };
 
@@ -3209,27 +3226,27 @@ protected:
     };
 
     test::mock::osi_config::config_new.body =
-            [&](const char* filename) -> std::unique_ptr<config_t> {
+            [&](const char* /*filename*/) -> std::unique_ptr<config_t> {
       return std::make_unique<config_t>();
     };
 
     test::mock::osi_config::config_get_int.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                int def_value) { return def_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/, int def_value) { return def_value; };
 
-    test::mock::osi_config::config_set_int.body = [&](config_t* config, const std::string& section,
-                                                      const std::string& key,
-                                                      int value) { return; };
+    test::mock::osi_config::config_set_int.body =
+            [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
+                int /*value*/) { return; };
 
     test::mock::osi_config::config_get_string.body =
-            [&](const config_t& config, const std::string& section, const std::string& key,
-                const std::string* def_value) { return def_value; };
+            [&](const config_t& /*config*/, const std::string& /*section*/,
+                const std::string& /*key*/, const std::string* def_value) { return def_value; };
 
     test::mock::osi_config::config_set_string.body =
-            [&](config_t* config, const std::string& section, const std::string& key,
-                const std::string& value) { return; };
+            [&](config_t* /*config*/, const std::string& /*section*/, const std::string& /*key*/,
+                const std::string& /*value*/) { return; };
 
-    test::mock::osi_allocator::osi_free.body = [&](void* ptr) {};
+    test::mock::osi_allocator::osi_free.body = [&](void* /*ptr*/) {};
 
     device_iot_config_module_init();
     device_iot_config_module_start_up();

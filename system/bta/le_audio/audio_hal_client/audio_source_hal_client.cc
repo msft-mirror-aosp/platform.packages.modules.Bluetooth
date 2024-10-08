@@ -120,7 +120,7 @@ bool SourceImpl::Acquire() {
           .on_metadata_update_ = std::bind(&SourceImpl::OnMetadataUpdateReq, this,
                                            std::placeholders::_1, std::placeholders::_2),
           .on_sink_metadata_update_ =
-                  [](const sink_metadata_v7_t& sink_metadata) {
+                  [](const sink_metadata_v7_t& /*sink_metadata*/) {
                     // TODO: update microphone configuration based on sink metadata
                     return true;
                   },
@@ -174,7 +174,7 @@ void SourceImpl::Release() {
   }
 }
 
-bool SourceImpl::OnResumeReq(bool start_media_task) {
+bool SourceImpl::OnResumeReq(bool /*start_media_task*/) {
   std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
   if (audioSourceCallbacks_ == nullptr) {
     log::error("audioSourceCallbacks_ not set");
