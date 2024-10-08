@@ -700,8 +700,7 @@ public class AdapterService extends Service {
                 mUserManager.isGuestUser(),
                 isCommonCriteriaMode,
                 configCompareResult,
-                isAtvDevice,
-                getApplicationInfo().dataDir);
+                isAtvDevice);
         mNativeAvailable = true;
         // Load the name and address
         mNativeInterface.getAdapterProperty(AbstractionLayer.BT_PROPERTY_BDADDR);

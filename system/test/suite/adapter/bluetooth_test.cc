@@ -86,7 +86,7 @@ void BluetoothTest::SetUp() {
   remove("/data/misc/bluedroid/bt_config.conf.encrypted-checksum");
 
   instance = this;
-  int status = bluetoothInterface.init(&callbacks, false, false, 0, nullptr, false, nullptr);
+  int status = bluetoothInterface.init(&callbacks, false, false, 0, false);
   ASSERT_EQ(status, BT_STATUS_SUCCESS);
 }
 

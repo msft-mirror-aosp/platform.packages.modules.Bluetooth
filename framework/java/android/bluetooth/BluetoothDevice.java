@@ -302,7 +302,6 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_KEY_MISSING_BROADCAST)
     @SuppressLint("ActionValue")
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
