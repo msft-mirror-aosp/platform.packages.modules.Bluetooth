@@ -138,7 +138,7 @@ bool ConnectionHandler::ConnectDevice(const RawAddress& bdaddr) {
   }
 
   auto connection_lambda = [](ConnectionHandler* instance_, const RawAddress& bdaddr,
-                              tSDP_STATUS status, uint16_t version, uint16_t features) {
+                              tSDP_STATUS status, uint16_t /*version*/, uint16_t features) {
     log::info("SDP Completed features=0x{:x}", features);
     if (status != tSDP_STATUS::SDP_SUCCESS || !(features & BTA_AV_FEAT_RCCT)) {
       log::error(
@@ -371,8 +371,8 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event, uint16_
       connection_cb_.Run(newDevice);
 
       log::info("Performing SDP on connected device. address={}", *peer_addr);
-      auto sdp_lambda = [](ConnectionHandler* instance_, uint8_t handle, tSDP_STATUS status,
-                           uint16_t version, uint16_t features) {
+      auto sdp_lambda = [](ConnectionHandler* instance_, uint8_t handle, tSDP_STATUS /*status*/,
+                           uint16_t /*version*/, uint16_t features) {
         if (instance_->device_map_.find(handle) == instance_->device_map_.end()) {
           log::warn("No device found for handle: 0x{:x}", handle);
           return;
@@ -652,8 +652,9 @@ bool ConnectionHandler::SdpLookupAudioRole(uint16_t handle) {
                                               weak_ptr_factory_.GetWeakPtr(), handle));
 }
 
-void ConnectionHandler::SdpLookupAudioRoleCb(uint16_t handle, bool found, tA2DP_Service* p_service,
-                                             const RawAddress& peer_address) {
+void ConnectionHandler::SdpLookupAudioRoleCb(uint16_t handle, bool found,
+                                             tA2DP_Service* /*p_service*/,
+                                             const RawAddress& /*peer_address*/) {
   if (device_map_.find(handle) == device_map_.end()) {
     log::warn("No device found for handle: {}", loghex(handle));
     return;

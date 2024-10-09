@@ -1026,7 +1026,7 @@ static void bta_av_sco_chg_cback(tBTA_SYS_CONN_STATUS status, uint8_t num_sco_li
  * Returns          true, if role switch is done
  *
  ******************************************************************************/
-bool bta_av_switch_if_needed(tBTA_AV_SCB* p_scb) {
+bool bta_av_switch_if_needed(tBTA_AV_SCB* /*p_scb*/) {
   // TODO: A workaround for devices that are connected first, become
   // Central, and block follow-up role changes - b/72122792 .
   return false;
