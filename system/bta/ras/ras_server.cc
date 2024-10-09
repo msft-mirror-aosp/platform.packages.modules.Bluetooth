@@ -23,8 +23,10 @@
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_ras_api.h"
 #include "bta/ras/ras_types.h"
+#include "gd/hci/controller_interface.h"
 #include "gd/hci/uuid.h"
 #include "gd/os/rand.h"
+#include "main/shim/entry.h"
 #include "os/logging/log_adapter.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_addr.h"
@@ -74,11 +76,15 @@ public:
     uint16_t last_overwritten_procedure_ = 0;
   };
 
-  void Initialize() {
+  void Initialize() override {
+    auto controller = bluetooth::shim::GetController();
+    if (controller && !controller->SupportsBleChannelSounding()) {
+      log::info("controller does not support channel sounding.");
+      return;
+    }
     Uuid uuid = Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
     app_uuid_ = uuid;
     log::info("Register server with uuid:{}", app_uuid_.ToString());
-
     BTA_GATTS_AppRegister(
             app_uuid_,
             [](tBTA_GATTS_EVT event, tBTA_GATTS* p_data) {
@@ -221,14 +227,30 @@ public:
       log::warn("Create new tracker");
     }
     trackers_[address].conn_id_ = p_data->conn.conn_id;
+
+    RawAddress identity_address = p_data->conn.remote_bda;
+    tBLE_ADDR_TYPE address_type = BLE_ADDR_PUBLIC_ID;
+    btm_random_pseudo_to_identity_addr(&identity_address, &address_type);
+    // TODO: optimize, remove this event, initialize the tracker within the GD on demand.
+    callbacks_->OnRasServerConnected(identity_address);
   }
 
   void OnGattDisconnect(tBTA_GATTS* p_data) {
-    auto address = p_data->conn.remote_bda;
-    log::info("Address: {}, conn_id:{}", address, p_data->conn.conn_id);
-    if (trackers_.find(address) != trackers_.end()) {
-      trackers_.erase(address);
+    auto remote_bda = p_data->conn.remote_bda;
+    log::info("Address: {}, conn_id:{}", remote_bda, p_data->conn.conn_id);
+    if (trackers_.find(remote_bda) != trackers_.end()) {
+      NotifyRasServerDisconnected(remote_bda);
+      trackers_.erase(remote_bda);
     }
+  }
+
+  void NotifyRasServerDisconnected(const RawAddress& remote_bda) {
+    tBLE_BD_ADDR ble_identity_bd_addr;
+    ble_identity_bd_addr.bda = remote_bda;
+    ble_identity_bd_addr.type = BLE_ADDR_RANDOM;
+    btm_random_pseudo_to_identity_addr(&ble_identity_bd_addr.bda, &ble_identity_bd_addr.type);
+
+    callbacks_->OnRasServerDisconnected(ble_identity_bd_addr.bda);
   }
 
   void OnGattServerRegister(tBTA_GATTS* p_data) {

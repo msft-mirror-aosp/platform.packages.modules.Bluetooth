@@ -364,9 +364,6 @@ cc_defaults {
         "bluetooth_cflags",
         "bluetooth_flatbuffer_bundler_defaults",
     ],
-    cflags: [
-        "-Wno-unused-parameter",
-    ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/gd",
@@ -957,7 +954,6 @@ cc_test {
         cfi: false,
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 // Bluetooth stack smp unit tests for target
@@ -1041,8 +1037,6 @@ cc_test {
             ],
         },
     },
-    //    header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 // Bluetooth stack advertise data parsing unit tests for target
@@ -1115,7 +1109,6 @@ cc_test {
         cfi: false,
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1183,7 +1176,6 @@ cc_test {
         misc_undefined: ["bounds"],
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1254,7 +1246,6 @@ cc_test {
         misc_undefined: ["bounds"],
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1265,7 +1256,6 @@ cc_test {
     ],
     cflags: [
         "-DUNIT_TESTS",
-        "-Wno-unused-parameter",
     ],
     test_suites: ["general-tests"],
     host_supported: true,
@@ -1407,7 +1397,6 @@ cc_test {
         misc_undefined: ["bounds"],
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 // gatt sr hash test
@@ -1474,7 +1463,6 @@ cc_test {
         },
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 // Iso manager unit tests
@@ -1614,7 +1602,6 @@ cc_test {
         cfi: false,
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1870,7 +1857,6 @@ cc_test {
         },
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1943,7 +1929,6 @@ cc_test {
         },
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -2044,7 +2029,6 @@ cc_test {
         },
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -2139,7 +2123,6 @@ cc_test {
         },
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -2229,7 +2212,6 @@ cc_test {
         },
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {

@@ -69,15 +69,16 @@ void BTM_BleTargetAnnouncementObserve(bool enable, tBTM_INQ_RESULTS_CB* p_result
   localAcceptlistMock->EnableTargetedAnnouncements(enable, p_results_cb);
 }
 
-void BTM_LogHistory(const std::string& tag, const RawAddress& bd_addr, const std::string& msg) {}
+void BTM_LogHistory(const std::string& /*tag*/, const RawAddress& /*bd_addr*/,
+                    const std::string& /*msg*/) {}
 
 namespace bluetooth {
 namespace shim {
-void set_target_announcements_filter(bool enable) {}
+void set_target_announcements_filter(bool /*enable*/) {}
 }  // namespace shim
 }  // namespace bluetooth
 
-bool L2CA_ConnectFixedChnl(uint16_t fixed_cid, const RawAddress& bd_addr) { return false; }
+bool L2CA_ConnectFixedChnl(uint16_t /*fixed_cid*/, const RawAddress& /*bd_addr*/) { return false; }
 uint16_t BTM_GetHCIConnHandle(RawAddress const&, unsigned char) { return 0xFFFF; }
 
 namespace connection_manager {
@@ -85,7 +86,7 @@ class BleConnectionManager : public testing::Test {
   void SetUp() override {
     localAcceptlistMock = std::make_unique<AcceptlistMock>();
     auto alarm_mock = AlarmMock::Get();
-    ON_CALL(*alarm_mock, AlarmNew(_)).WillByDefault(testing::Invoke([](const char* name) {
+    ON_CALL(*alarm_mock, AlarmNew(_)).WillByDefault(testing::Invoke([](const char* /*name*/) {
       // We must return something from alarm_new in tests, if we just return
       // null, unique_ptr will misbehave.
       return (alarm_t*)new uint8_t[30];

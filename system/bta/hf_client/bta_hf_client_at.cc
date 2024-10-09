@@ -1466,7 +1466,7 @@ static char* bta_hf_client_parse_rejectlisted(tBTA_HF_CLIENT_CB* client_cb, char
   return buffer;
 }
 
-static char* bta_hf_client_skip_unknown(tBTA_HF_CLIENT_CB* client_cb, char* buffer) {
+static char* bta_hf_client_skip_unknown(tBTA_HF_CLIENT_CB* /*client_cb*/, char* buffer) {
   char* start;
   char* tmp;
 

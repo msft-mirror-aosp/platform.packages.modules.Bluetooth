@@ -5,7 +5,7 @@
 //! to tune log levels for syslog.
 
 use num_derive::{FromPrimitive, ToPrimitive};
-use num_traits::cast::{FromPrimitive, ToPrimitive};
+use num_traits::cast::ToPrimitive;
 use std::ffi::CString;
 use std::os::raw::c_char;
 

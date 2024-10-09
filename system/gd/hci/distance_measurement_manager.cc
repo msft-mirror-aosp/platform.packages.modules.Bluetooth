@@ -142,6 +142,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
 
   struct CsTracker {
     Address address;
+    hci::Role local_hci_role;
     uint16_t local_counter;
     uint16_t remote_counter;
     CsRole role;
@@ -257,7 +258,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   }
 
   void start_distance_measurement(const Address address, uint16_t connection_handle,
-                                  uint16_t interval, DistanceMeasurementMethod method) {
+                                  hci::Role local_hci_role, uint16_t interval,
+                                  DistanceMeasurementMethod method) {
     log::info("Address:{}, method:{}", address, method);
 
     // Remove this check if we support any connection less method
@@ -286,14 +288,14 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
         }
       } break;
       case METHOD_CS: {
-        init_cs_tracker(address, connection_handle, interval);
+        init_cs_tracker(address, connection_handle, local_hci_role, interval);
         start_distance_measurement_with_cs(address, connection_handle);
       } break;
     }
   }
 
   void init_cs_tracker(const Address& cs_remote_address, uint16_t connection_handle,
-                       uint16_t interval) {
+                       hci::Role local_hci_role, uint16_t interval) {
     if (cs_trackers_.find(connection_handle) != cs_trackers_.end() &&
         cs_trackers_[connection_handle].address != cs_remote_address) {
       log::debug("Remove old tracker for {}", cs_remote_address);
@@ -311,6 +313,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     cs_trackers_[connection_handle].local_start = true;
     cs_trackers_[connection_handle].measurement_ongoing = true;
     cs_trackers_[connection_handle].waiting_for_start_callback = true;
+    cs_trackers_[connection_handle].local_hci_role = local_hci_role;
   }
 
   void start_distance_measurement_with_cs(const Address& cs_remote_address,
@@ -378,7 +381,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
   }
 
-  void handle_ras_connected_event(
+  void handle_ras_client_connected_event(
           const Address address, uint16_t connection_handle, uint16_t att_handle,
           const std::vector<hal::VendorSpecificCharacteristic> vendor_specific_data) {
     log::info(
@@ -404,7 +407,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     start_distance_measurement_with_cs(tracker.address, connection_handle);
   }
 
-  void handle_ras_disconnected_event(const Address address) {
+  void handle_ras_client_disconnected_event(const Address address) {
     log::info("address:{}", address);
     for (auto it = cs_trackers_.begin(); it != cs_trackers_.end();) {
       if (it->second.address == address) {
@@ -421,13 +424,58 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
   }
 
-  void handle_vendor_specific_reply(
-          const Address address, uint16_t connection_handle,
+  void handle_ras_server_vendor_specific_reply(
+          const Address& address, uint16_t connection_handle,
           const std::vector<hal::VendorSpecificCharacteristic> vendor_specific_reply) {
-    cs_trackers_[connection_handle].address = address;
+    if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
+      log::info("no cs tracker found for {}", connection_handle);
+      return;
+    }
+    if (cs_trackers_[connection_handle].address != address) {
+      log::info("the cs tracker address was changed as {}, not {}.",
+                cs_trackers_[connection_handle].address, address);
+      return;
+    }
     if (ranging_hal_->IsBound()) {
       ranging_hal_->HandleVendorSpecificReply(connection_handle, vendor_specific_reply);
       return;
+    }
+  }
+
+  void handle_ras_server_connected(const Address& identity_address, uint16_t connection_handle,
+                                   hci::Role local_hci_role) {
+    log::info("initialize the cs tracker for {}", connection_handle);
+    // create CS tracker to serve the ras_server
+    if (cs_trackers_.find(connection_handle) != cs_trackers_.end()) {
+      if (cs_trackers_[connection_handle].local_start &&
+          cs_trackers_[connection_handle].measurement_ongoing) {
+        log::info("cs tracker for {} is being used for measurement.", identity_address);
+        return;
+      }
+    }
+    if (cs_trackers_[connection_handle].address != identity_address) {
+      log::debug("Remove old tracker for {}", identity_address);
+      cs_trackers_.erase(connection_handle);
+    }
+
+    cs_trackers_[connection_handle].address = identity_address;
+    cs_trackers_[connection_handle].local_start = false;
+    cs_trackers_[connection_handle].local_hci_role = local_hci_role;
+  }
+
+  void handle_ras_server_disconnected(const Address& identity_address, uint16_t connection_handle) {
+    if (cs_trackers_.find(connection_handle) == cs_trackers_.end()) {
+      log::info("no CS tracker available.");
+      return;
+    }
+    if (cs_trackers_[connection_handle].address != identity_address) {
+      log::info("cs tracker connection is associated with device {}, not device {}",
+                cs_trackers_[connection_handle].address, identity_address);
+      return;
+    }
+    if (!cs_trackers_[connection_handle].local_start) {
+      log::info("erase cs tracker for {}, as ras server is disconnected.", connection_handle);
+      cs_trackers_.erase(connection_handle);
     }
   }
 
@@ -631,11 +679,9 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
     send_le_cs_set_default_settings(event_view.GetConnectionHandle());
     if (cs_trackers_.find(connection_handle) != cs_trackers_.end() &&
-        cs_trackers_[connection_handle].local_start) {
+        cs_trackers_[connection_handle].local_hci_role == hci::Role::CENTRAL) {
+      // send the cmd from the BLE central only.
       send_le_cs_security_enable(connection_handle);
-    } else {
-      // TODO(b/361567359): problematic? HACK_ may not get the identity address for sure.
-      cs_trackers_[connection_handle].address = acl_manager_->HACK_GetLeAddress(connection_handle);
     }
 
     if (event_view.GetOptionalSubfeaturesSupported().phase_based_ranging_ == 0x01) {
@@ -906,8 +952,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (procedure_data->local_status != CsProcedureDoneStatus::PARTIAL_RESULTS &&
         unsent_data_size <= kMtuForRasData) {
       procedure_data->segmentation_header_.last_segment_ = 1;
-    } else if (procedure_data->ras_raw_data_.size() < kMtuForRasData) {
-      log::verbose("waiting for more data, current size {}", procedure_data->ras_raw_data_.size());
+    } else if (unsent_data_size < kMtuForRasData) {
+      log::verbose("waiting for more data, current unsent data size {}", unsent_data_size);
       return;
     }
 
@@ -1542,10 +1588,11 @@ void DistanceMeasurementManager::RegisterDistanceMeasurementCallbacks(
 
 void DistanceMeasurementManager::StartDistanceMeasurement(const Address& address,
                                                           uint16_t connection_handle,
+                                                          hci::Role local_hci_role,
                                                           uint16_t interval,
                                                           DistanceMeasurementMethod method) {
-  CallOn(pimpl_.get(), &impl::start_distance_measurement, address, connection_handle, interval,
-         method);
+  CallOn(pimpl_.get(), &impl::start_distance_measurement, address, connection_handle,
+         local_hci_role, interval, method);
 }
 
 void DistanceMeasurementManager::StopDistanceMeasurement(const Address& address,
@@ -1554,22 +1601,34 @@ void DistanceMeasurementManager::StopDistanceMeasurement(const Address& address,
   CallOn(pimpl_.get(), &impl::stop_distance_measurement, address, connection_handle, method);
 }
 
-void DistanceMeasurementManager::HandleRasConnectedEvent(
+void DistanceMeasurementManager::HandleRasClientConnectedEvent(
         const Address& address, uint16_t connection_handle, uint16_t att_handle,
         const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data) {
-  CallOn(pimpl_.get(), &impl::handle_ras_connected_event, address, connection_handle, att_handle,
-         vendor_specific_data);
+  CallOn(pimpl_.get(), &impl::handle_ras_client_connected_event, address, connection_handle,
+         att_handle, vendor_specific_data);
 }
 
-void DistanceMeasurementManager::HandleRasDisconnectedEvent(const Address& address) {
-  CallOn(pimpl_.get(), &impl::handle_ras_disconnected_event, address);
+void DistanceMeasurementManager::HandleRasClientDisconnectedEvent(const Address& address) {
+  CallOn(pimpl_.get(), &impl::handle_ras_client_disconnected_event, address);
 }
 
 void DistanceMeasurementManager::HandleVendorSpecificReply(
         const Address& address, uint16_t connection_handle,
         const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_reply) {
-  CallOn(pimpl_.get(), &impl::handle_vendor_specific_reply, address, connection_handle,
+  CallOn(pimpl_.get(), &impl::handle_ras_server_vendor_specific_reply, address, connection_handle,
          vendor_specific_reply);
+}
+
+void DistanceMeasurementManager::HandleRasServerConnected(const Address& identity_address,
+                                                          uint16_t connection_handle,
+                                                          hci::Role local_hci_role) {
+  CallOn(pimpl_.get(), &impl::handle_ras_server_connected, identity_address, connection_handle,
+         local_hci_role);
+}
+
+void DistanceMeasurementManager::HandleRasServerDisconnected(
+        const bluetooth::hci::Address& identity_address, uint16_t connection_handle) {
+  CallOn(pimpl_.get(), &impl::handle_ras_server_disconnected, identity_address, connection_handle);
 }
 
 void DistanceMeasurementManager::HandleVendorSpecificReplyComplete(const Address& address,

@@ -222,7 +222,8 @@ static void btif_a2dp_sink_startup_delayed() {
   // Nothing to do
 }
 
-static void btif_a2dp_sink_on_decode_complete(uint8_t* data, uint32_t len) {
+static void btif_a2dp_sink_on_decode_complete([[maybe_unused]] uint8_t* data,
+                                              [[maybe_unused]] uint32_t len) {
 #ifdef __ANDROID__
   BtifAvrcpAudioTrackWriteData(btif_a2dp_sink_cb.audio_track, reinterpret_cast<void*>(data), len);
 #endif

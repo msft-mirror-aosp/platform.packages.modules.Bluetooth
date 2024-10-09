@@ -1037,7 +1037,7 @@ void bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name, uint
  * Returns          void.
  *
  ******************************************************************************/
-void bta_hh_co_set_rpt_rsp(uint8_t dev_handle, uint8_t status) {
+void bta_hh_co_set_rpt_rsp([[maybe_unused]] uint8_t dev_handle, [[maybe_unused]] uint8_t status) {
 #if ENABLE_UHID_SET_REPORT
   log::verbose("dev_handle = {}", dev_handle);
 
