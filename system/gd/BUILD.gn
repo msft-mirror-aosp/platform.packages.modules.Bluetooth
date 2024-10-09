@@ -20,7 +20,6 @@ import("//common-mk/flatbuffer.gni")
 config("gd_defaults") {
   cflags_cc = [
     "-DGOOGLE_PROTOBUF_NO_RTTI",
-    "-Wno-unused-parameter",
     "-Wno-unused-result",
     "-Wno-tautological-overlap-compare",
   ]

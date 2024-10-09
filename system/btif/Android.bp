@@ -165,9 +165,6 @@ cc_library_static {
         "libbtif-core",
         "libflatbuffers-cpp",
     ],
-    cflags: [
-        "-Wno-unused-parameter",
-    ],
     apex_available: [
         "com.android.btservices",
     ],
@@ -391,9 +388,6 @@ cc_test {
         "libchrome",
         "libosi",
     ],
-    cflags: [
-        "-Wno-unused-parameter",
-    ],
     shared_libs: [
         "libbase",
         "liblog",
@@ -431,9 +425,6 @@ cc_test {
     shared_libs: [
         "libbase",
         "liblog",
-    ],
-    cflags: [
-        "-Wno-unused-parameter",
     ],
 }
 
@@ -480,9 +471,6 @@ cc_test {
             shared_libs: ["libstatssocket"],
         },
     },
-    cflags: [
-        "-Wno-unused-parameter",
-    ],
     sanitize: {
         address: true,
         cfi: true,
@@ -519,9 +507,6 @@ cc_test {
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libgmock",
-    ],
-    cflags: [
-        "-Wno-unused-parameter",
     ],
 }
 

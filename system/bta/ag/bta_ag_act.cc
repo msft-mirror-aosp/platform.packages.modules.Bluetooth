@@ -145,7 +145,7 @@ void bta_ag_register(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_deregister(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
+void bta_ag_deregister(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /*data*/) {
   /* set dealloc */
   p_scb->dealloc = true;
 
@@ -169,7 +169,7 @@ void bta_ag_deregister(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_start_dereg(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
+void bta_ag_start_dereg(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /*data*/) {
   /* set dealloc */
   p_scb->dealloc = true;
 

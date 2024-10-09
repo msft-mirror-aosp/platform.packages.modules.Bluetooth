@@ -40,7 +40,7 @@
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
-void btif_storage_add_volume_control(const RawAddress& addr, bool auto_conn) {}
+void btif_storage_add_volume_control(const RawAddress& /*addr*/, bool /*auto_conn*/) {}
 
 struct alarm_t {
   alarm_callback_t cb = nullptr;
@@ -485,14 +485,14 @@ protected:
     // default action for WriteDescriptor function call
     ON_CALL(gatt_queue, WriteDescriptor(_, _, _, _, _, _))
             .WillByDefault(Invoke([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                     tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
+                                     tGATT_WRITE_TYPE /*write_type*/, GATT_WRITE_OP_CB cb,
                                      void* cb_data) -> void {
               if (cb) {
                 cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(), cb_data);
               }
             }));
     auto mock_alarm = AlarmMock::Get();
-    ON_CALL(*mock_alarm, AlarmNew(_)).WillByDefault(Invoke([](const char* name) {
+    ON_CALL(*mock_alarm, AlarmNew(_)).WillByDefault(Invoke([](const char* /*name*/) {
       return new alarm_t();
     }));
     ON_CALL(*mock_alarm, AlarmFree(_)).WillByDefault(Invoke([](alarm_t* alarm) {
@@ -515,7 +515,7 @@ protected:
     }));
     ON_CALL(*mock_alarm, AlarmSet(_, _, _, _))
             .WillByDefault(Invoke(
-                    [](alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb, void* data) {
+                    [](alarm_t* alarm, uint64_t /*interval_ms*/, alarm_callback_t cb, void* data) {
                       if (alarm) {
                         alarm->data = data;
                         alarm->cb = cb;
@@ -523,7 +523,7 @@ protected:
                     }));
     ON_CALL(*mock_alarm, AlarmSetOnMloop(_, _, _, _))
             .WillByDefault(Invoke(
-                    [](alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb, void* data) {
+                    [](alarm_t* alarm, uint64_t /*interval_ms*/, alarm_callback_t cb, void* data) {
                       if (alarm) {
                         alarm->on_main_loop = true;
                         alarm->data = data;
@@ -694,7 +694,7 @@ protected:
             .WillByDefault(
                     Invoke([&success, this](const RawAddress& bd_addr, tBT_TRANSPORT transport,
                                             tBTM_SEC_CALLBACK* p_callback, void* p_ref_data,
-                                            tBTM_BLE_SEC_ACT sec_act) -> tBTM_STATUS {
+                                            tBTM_BLE_SEC_ACT /*sec_act*/) -> tBTM_STATUS {
                       if (p_callback) {
                         p_callback(bd_addr, transport, p_ref_data,
                                    success ? tBTM_STATUS::BTM_SUCCESS
@@ -1264,19 +1264,19 @@ TEST_F(VolumeControlTest, test_read_vcs_database_out_of_sync) {
 
   /* Simulate database change on the remote side. */
   ON_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _))
-          .WillByDefault(
-                  Invoke([this](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb, void* cb_data) {
-                    auto* svc = gatt::FindService(services_map[conn_id], handle);
-                    if (svc == nullptr) {
-                      return;
-                    }
+          .WillByDefault(Invoke([this](uint16_t conn_id, uint16_t handle,
+                                       std::vector<uint8_t> value, tGATT_WRITE_TYPE /*write_type*/,
+                                       GATT_WRITE_OP_CB cb, void* cb_data) {
+            auto* svc = gatt::FindService(services_map[conn_id], handle);
+            if (svc == nullptr) {
+              return;
+            }
 
-                    tGATT_STATUS status = GATT_DATABASE_OUT_OF_SYNC;
-                    if (cb) {
-                      cb(conn_id, status, handle, value.size(), value.data(), cb_data);
-                    }
-                  }));
+            tGATT_STATUS status = GATT_DATABASE_OUT_OF_SYNC;
+            if (cb) {
+              cb(conn_id, status, handle, value.size(), value.data(), cb_data);
+            }
+          }));
 
   ON_CALL(gatt_interface, ServiceSearchRequest(_, _)).WillByDefault(Return());
   EXPECT_CALL(gatt_interface, ServiceSearchRequest(_, _));
@@ -1527,8 +1527,9 @@ protected:
     GetSearchCompleteEvent(conn_id);
 
     ON_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x0024, _, GATT_WRITE, _, _))
-            .WillByDefault([this](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                  tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb, void* cb_data) {
+            .WillByDefault([this](uint16_t conn_id, uint16_t /*handle*/, std::vector<uint8_t> value,
+                                  tGATT_WRITE_TYPE /*write_type*/, GATT_WRITE_OP_CB cb,
+                                  void* cb_data) {
               uint8_t write_rsp;
 
               std::vector<uint8_t> ntf_value({value[0], 0, static_cast<uint8_t>(value[1] + 1)});
@@ -1581,19 +1582,19 @@ TEST_F(VolumeControlValueSetTest, test_volume_operation_failed) {
   const std::vector<uint8_t> vol_x10({0x04, 0x00, 0x10});
   EXPECT_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x0024, vol_x10, GATT_WRITE, _, _)).Times(1);
   ON_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _))
-          .WillByDefault(
-                  Invoke([this](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb, void* cb_data) {
-                    auto* svc = gatt::FindService(services_map[conn_id], handle);
-                    if (svc == nullptr) {
-                      return;
-                    }
+          .WillByDefault(Invoke([this](uint16_t conn_id, uint16_t handle,
+                                       std::vector<uint8_t> value, tGATT_WRITE_TYPE /*write_type*/,
+                                       GATT_WRITE_OP_CB cb, void* cb_data) {
+            auto* svc = gatt::FindService(services_map[conn_id], handle);
+            if (svc == nullptr) {
+              return;
+            }
 
-                    tGATT_STATUS status = GATT_ERROR;
-                    if (cb) {
-                      cb(conn_id, status, handle, value.size(), value.data(), cb_data);
-                    }
-                  }));
+            tGATT_STATUS status = GATT_ERROR;
+            if (cb) {
+              cb(conn_id, status, handle, value.size(), value.data(), cb_data);
+            }
+          }));
 
   EXPECT_CALL(*AlarmMock::Get(), AlarmSetOnMloop(_, _, _, _)).Times(1);
   EXPECT_CALL(*AlarmMock::Get(), AlarmCancel(_)).Times(1);
@@ -1607,24 +1608,24 @@ TEST_F(VolumeControlValueSetTest, test_volume_operation_failed_due_to_device_dis
   const std::vector<uint8_t> vol_x10({0x04, 0x00, 0x10});
   EXPECT_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x0024, vol_x10, GATT_WRITE, _, _)).Times(1);
   ON_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _))
-          .WillByDefault(
-                  Invoke([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                            tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb, void* cb_data) {
-                    /* Do nothing */
-                  }));
+          .WillByDefault(Invoke([](uint16_t /*conn_id*/, uint16_t /*handle*/,
+                                   std::vector<uint8_t> /*value*/, tGATT_WRITE_TYPE /*write_type*/,
+                                   GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
+            /* Do nothing */
+          }));
 
   EXPECT_CALL(*AlarmMock::Get(), AlarmSetOnMloop(_, _, _, _)).Times(0);
 
   alarm_callback_t active_alarm_cb = nullptr;
   EXPECT_CALL(*AlarmMock::Get(), AlarmSetOnMloop(_, _, _, _))
-          .WillOnce(Invoke(
-                  [&](alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb, void* data) {
-                    if (alarm) {
-                      alarm->on_main_loop = true;
-                      alarm->cb = cb;
-                      active_alarm_cb = cb;
-                    }
-                  }));
+          .WillOnce(Invoke([&](alarm_t* alarm, uint64_t /*interval_ms*/, alarm_callback_t cb,
+                               void* /*data*/) {
+            if (alarm) {
+              alarm->on_main_loop = true;
+              alarm->cb = cb;
+              active_alarm_cb = cb;
+            }
+          }));
   ON_CALL(*AlarmMock::Get(), AlarmCancel(_)).WillByDefault(Invoke([&](alarm_t* alarm) {
     if (alarm) {
       alarm->cb = nullptr;
@@ -1687,7 +1688,7 @@ TEST_F(VolumeControlValueSetTest, test_set_volume_stress_2) {
   // queued
   ON_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x0024, _, GATT_WRITE, _, _))
           .WillByDefault([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                            tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb, void* cb_data) {
+                            tGATT_WRITE_TYPE /*write_type*/, GATT_WRITE_OP_CB cb, void* cb_data) {
             uint8_t write_rsp;
 
             switch (value[0]) {
@@ -1734,7 +1735,7 @@ TEST_F(VolumeControlValueSetTest, test_set_volume_stress_3) {
    */
   ON_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x0024, _, GATT_WRITE, _, _))
           .WillByDefault([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                            tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb, void* cb_data) {
+                            tGATT_WRITE_TYPE /*write_type*/, GATT_WRITE_OP_CB cb, void* cb_data) {
             uint8_t write_rsp;
 
             switch (value[0]) {

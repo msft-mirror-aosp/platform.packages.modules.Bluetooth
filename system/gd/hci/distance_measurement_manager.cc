@@ -906,8 +906,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (procedure_data->local_status != CsProcedureDoneStatus::PARTIAL_RESULTS &&
         unsent_data_size <= kMtuForRasData) {
       procedure_data->segmentation_header_.last_segment_ = 1;
-    } else if (procedure_data->ras_raw_data_.size() < kMtuForRasData) {
-      log::verbose("waiting for more data, current size {}", procedure_data->ras_raw_data_.size());
+    } else if (unsent_data_size < kMtuForRasData) {
+      log::verbose("waiting for more data, current unsent data size {}", unsent_data_size);
       return;
     }
 
