@@ -41,7 +41,7 @@ static void fixed_queue_ready(fixed_queue_t* queue, void* /* context */) {
   future_ready(received_message_future, msg);
 }
 
-static void test_queue_entry_free_cb(void* data) {
+static void test_queue_entry_free_cb(void* /*data*/) {
   // Don't free the data, because we are testing only whether the callback
   // is called.
   test_queue_entry_free_counter++;

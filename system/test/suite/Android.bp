@@ -153,5 +153,4 @@ cc_test {
         },
         host: {},
     },
-    cflags: ["-Wno-unused-parameter"],
 }

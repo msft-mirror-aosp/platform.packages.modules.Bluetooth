@@ -176,7 +176,7 @@ void HfpTransport::ResetPendingCmd() { hfp_pending_cmd_ = HFP_CTRL_CMD_NONE; }
 uint8_t HfpTransport::GetPendingCmd() const { return hfp_pending_cmd_; }
 
 // Unimplemented functions
-void HfpTransport::LogBytesProcessed(size_t bytes_read) {}
+void HfpTransport::LogBytesProcessed(size_t /*bytes_read*/) {}
 
 BluetoothAudioCtrlAck HfpTransport::SuspendRequest() {
   log::info("handling");
@@ -209,16 +209,17 @@ BluetoothAudioCtrlAck HfpTransport::SuspendRequest() {
   }
 }
 
-void HfpTransport::SetLatencyMode(LatencyMode latency_mode) {}
+void HfpTransport::SetLatencyMode(LatencyMode /*latency_mode*/) {}
 
-void HfpTransport::SourceMetadataChanged(const source_metadata_v7_t& source_metadata) {}
+void HfpTransport::SourceMetadataChanged(const source_metadata_v7_t& /*source_metadata*/) {}
 
 void HfpTransport::SinkMetadataChanged(const sink_metadata_v7_t&) {}
 
 void HfpTransport::ResetPresentationPosition() {}
 
-bool HfpTransport::GetPresentationPosition(uint64_t* remote_delay_report_ns,
-                                           uint64_t* total_bytes_read, timespec* data_position) {
+bool HfpTransport::GetPresentationPosition(uint64_t* /*remote_delay_report_ns*/,
+                                           uint64_t* /*total_bytes_read*/,
+                                           timespec* /*data_position*/) {
   return false;
 }
 
@@ -230,7 +231,7 @@ HfpDecodingTransport::HfpDecodingTransport(SessionType session_type)
 
 HfpDecodingTransport::~HfpDecodingTransport() { delete transport_; }
 
-BluetoothAudioCtrlAck HfpDecodingTransport::StartRequest(bool is_low_latency) {
+BluetoothAudioCtrlAck HfpDecodingTransport::StartRequest(bool /*is_low_latency*/) {
   return transport_->StartRequest();
 }
 
@@ -285,7 +286,7 @@ HfpEncodingTransport::HfpEncodingTransport(SessionType session_type)
 
 HfpEncodingTransport::~HfpEncodingTransport() { delete transport_; }
 
-BluetoothAudioCtrlAck HfpEncodingTransport::StartRequest(bool is_low_latency) {
+BluetoothAudioCtrlAck HfpEncodingTransport::StartRequest(bool /*is_low_latency*/) {
   return transport_->StartRequest();
 }
 

@@ -201,7 +201,9 @@ public:
     AssignCsisGroup(address, group_id, false, Uuid::kEmpty);
   }
 
-  void OnGroupRemovedCb(const bluetooth::Uuid& uuid, int group_id) { RemoveCsisGroup(group_id); }
+  void OnGroupRemovedCb(const bluetooth::Uuid& /*uuid*/, int group_id) {
+    RemoveCsisGroup(group_id);
+  }
 
   void OnGroupMemberRemovedCb(const RawAddress& address, int group_id) {
     log::debug("{}, group_id: {}", address, group_id);
@@ -336,7 +338,8 @@ public:
     NotifyGroupStatus(group_id, false, status, std::move(cb));
   }
 
-  void OnGattCsisWriteLockRsp(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, void* data) {
+  void OnGattCsisWriteLockRsp(tCONN_ID conn_id, tGATT_STATUS status, uint16_t /*handle*/,
+                              void* data) {
     auto device = FindDeviceByConnId(conn_id);
     if (device == nullptr) {
       log::error("Device not there for conn_id: 0x{:04x}", conn_id);
@@ -433,8 +436,8 @@ public:
 
     BtaGattQueue::WriteCharacteristic(
             device->conn_id, csis_instance->svc_data.lock_handle.val_hdl, value, GATT_WRITE,
-            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* data) {
               if (instance) {
                 instance->OnGattCsisWriteLockRsp(conn_id, status, handle, data);
               }
@@ -913,7 +916,7 @@ private:
     }
   }
 
-  void OnGattWriteCcc(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, void* user_data) {
+  void OnGattWriteCcc(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, void* /*user_data*/) {
     auto device = FindDeviceByConnId(conn_id);
     if (device == nullptr) {
       log::info("unknown conn_id= 0x{:04x}", conn_id);
@@ -991,7 +994,7 @@ private:
     csis_group->SetTargetLockState(CsisLockState::CSIS_STATE_UNSET);
   }
 
-  void OnCsisLockNotifications(std::shared_ptr<CsisDevice>& device,
+  void OnCsisLockNotifications(std::shared_ptr<CsisDevice>& /*device*/,
                                std::shared_ptr<CsisInstance>& csis_instance, uint16_t len,
                                const uint8_t* value) {
     if (len != 1) {
@@ -2144,8 +2147,8 @@ private:
     UINT16_TO_STREAM(value_ptr, GATT_CHAR_CLIENT_CONFIG_NOTIFICATION);
     BtaGattQueue::WriteDescriptor(
             conn_id, ccc_handle, std::move(value), GATT_WRITE,
-            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* user_data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* user_data) {
               if (instance) {
                 instance->OnGattWriteCcc(conn_id, status, handle, user_data);
               }
@@ -2153,7 +2156,8 @@ private:
             nullptr);
   }
 
-  void DisableGattNotification(tCONN_ID conn_id, const RawAddress& address, uint16_t value_handle) {
+  void DisableGattNotification(tCONN_ID /*conn_id*/, const RawAddress& address,
+                               uint16_t value_handle) {
     if (value_handle != GAP_INVALID_HANDLE) {
       tGATT_STATUS register_status =
               BTA_GATTC_DeregisterForNotifications(gatt_if_, address, value_handle);

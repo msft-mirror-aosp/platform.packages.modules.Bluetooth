@@ -283,17 +283,15 @@ protected:
     MockCsisClient::SetMockInstanceForTesting(&mock_csis_client_module_);
     ON_CALL(mock_csis_client_module_, Get()).WillByDefault(Return(&mock_csis_client_module_));
     ON_CALL(mock_csis_client_module_, IsCsisClientRunning()).WillByDefault(Return(true));
-    ON_CALL(mock_csis_client_module_, GetDeviceList(_)).WillByDefault(Invoke([this](int group_id) {
-      return addresses_;
-    }));
-    ON_CALL(mock_csis_client_module_, GetDesiredSize(_)).WillByDefault(Invoke([this](int group_id) {
-      return (int)(addresses_.size());
-    }));
+    ON_CALL(mock_csis_client_module_, GetDeviceList(_))
+            .WillByDefault(Invoke([this](int /*group_id*/) { return addresses_; }));
+    ON_CALL(mock_csis_client_module_, GetDesiredSize(_))
+            .WillByDefault(Invoke([this](int /*group_id*/) { return (int)(addresses_.size()); }));
 
     // Support 2M Phy
     ON_CALL(btm_interface, IsPhy2mSupported(_, _)).WillByDefault(Return(true));
     ON_CALL(btm_interface, GetHCIConnHandle(_, _))
-            .WillByDefault(Invoke([](RawAddress const& remote_bda, tBT_TRANSPORT transport) {
+            .WillByDefault(Invoke([](RawAddress const& remote_bda, tBT_TRANSPORT /*transport*/) {
               return remote_bda.IsEmpty()
                              ? HCI_INVALID_HANDLE
                              : ((uint16_t)(remote_bda.address[0] ^ remote_bda.address[1] ^
@@ -304,9 +302,9 @@ protected:
             }));
 
     ON_CALL(gatt_queue, WriteCharacteristic(_, _, _, GATT_WRITE_NO_RSP, _, _))
-            .WillByDefault(
-                    Invoke([this](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                  tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb, void* cb_data) {
+            .WillByDefault(Invoke(
+                    [this](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
+                           tGATT_WRITE_TYPE /*write_type*/, GATT_WRITE_OP_CB cb, void* cb_data) {
                       for (auto& dev : le_audio_devices_) {
                         if (dev->conn_id_ == conn_id) {
                           // Control point write handler
@@ -396,7 +394,7 @@ protected:
                       }
                     });
 
-    ON_CALL(*mock_iso_manager_, RemoveCig).WillByDefault([this](uint8_t cig_id, bool force) {
+    ON_CALL(*mock_iso_manager_, RemoveCig).WillByDefault([this](uint8_t cig_id, bool /*force*/) {
       log::debug("CreateRemove");
 
       auto& group = le_audio_device_groups_[cig_id];
@@ -408,7 +406,7 @@ protected:
 
     ON_CALL(*mock_iso_manager_, SetupIsoDataPath)
             .WillByDefault([this](uint16_t conn_handle,
-                                  bluetooth::hci::iso_manager::iso_data_path_params p) {
+                                  bluetooth::hci::iso_manager::iso_data_path_params /*p*/) {
               log::debug("SetupIsoDataPath");
 
               ASSERT_NE(conn_handle, kInvalidCisConnHandle);
@@ -434,7 +432,7 @@ protected:
             });
 
     ON_CALL(*mock_iso_manager_, RemoveIsoDataPath)
-            .WillByDefault([this](uint16_t conn_handle, uint8_t iso_direction) {
+            .WillByDefault([this](uint16_t conn_handle, uint8_t /*iso_direction*/) {
               log::debug("RemoveIsoDataPath");
 
               ASSERT_NE(conn_handle, kInvalidCisConnHandle);
@@ -1204,7 +1202,7 @@ protected:
     ON_CALL(ase_ctp_handler, AseCtpConfigureCodecHandler)
             .WillByDefault(Invoke([group, verify_ase_count, caching, inject_configured, this](
                                           LeAudioDevice* device, std::vector<uint8_t> value,
-                                          GATT_WRITE_OP_CB cb, void* cb_data) {
+                                          GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
               auto num_ase = value[1];
 
               // Verify ase count if needed
@@ -1275,7 +1273,7 @@ protected:
     ON_CALL(ase_ctp_handler, AseCtpConfigureQosHandler)
             .WillByDefault(Invoke([group, verify_ase_count, caching, inject_qos_configured, this](
                                           LeAudioDevice* device, std::vector<uint8_t> value,
-                                          GATT_WRITE_OP_CB cb, void* cb_data) {
+                                          GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
               auto num_ase = value[1];
 
               // Verify ase count if needed
@@ -1347,7 +1345,7 @@ protected:
                                    uint8_t reason) {
     auto foo = [group, opcode, response_code, reason](LeAudioDevice* device,
                                                       std::vector<uint8_t> value,
-                                                      GATT_WRITE_OP_CB cb, void* cb_data) {
+                                                      GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
       auto num_ase = value[1];
       std::vector<uint8_t> notif_value(2 +
                                        num_ase * sizeof(struct client_parser::ascs::ctp_ase_entry));
@@ -1417,7 +1415,7 @@ protected:
     ON_CALL(ase_ctp_handler, AseCtpEnableHandler)
             .WillByDefault(Invoke([group, verify_ase_count, inject_enabling, incject_streaming,
                                    this](LeAudioDevice* device, std::vector<uint8_t> value,
-                                         GATT_WRITE_OP_CB cb, void* cb_data) {
+                                         GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
               auto num_ase = value[1];
 
               // Verify ase count if needed
@@ -1469,7 +1467,7 @@ protected:
     ON_CALL(ase_ctp_handler, AseCtpDisableHandler)
             .WillByDefault(Invoke([group, verify_ase_count, this](
                                           LeAudioDevice* device, std::vector<uint8_t> value,
-                                          GATT_WRITE_OP_CB cb, void* cb_data) {
+                                          GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
               auto num_ase = value[1];
 
               // Verify ase count if needed
@@ -1512,7 +1510,7 @@ protected:
     ON_CALL(ase_ctp_handler, AseCtpReceiverStartReadyHandler)
             .WillByDefault(Invoke([group, verify_ase_count, this](
                                           LeAudioDevice* device, std::vector<uint8_t> value,
-                                          GATT_WRITE_OP_CB cb, void* cb_data) {
+                                          GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
               auto num_ase = value[1];
 
               // Verify ase count if needed
@@ -1544,7 +1542,7 @@ protected:
     ON_CALL(ase_ctp_handler, AseCtpReceiverStopReadyHandler)
             .WillByDefault(Invoke([group, verify_ase_count, this](
                                           LeAudioDevice* device, std::vector<uint8_t> value,
-                                          GATT_WRITE_OP_CB cb, void* cb_data) {
+                                          GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
               auto num_ase = value[1];
 
               // Verify ase count if needed
@@ -1577,7 +1575,7 @@ protected:
     ON_CALL(ase_ctp_handler, AseCtpReleaseHandler)
             .WillByDefault(Invoke([group, verify_ase_count, inject_disconnect_device, dev, this](
                                           LeAudioDevice* device, std::vector<uint8_t> value,
-                                          GATT_WRITE_OP_CB cb, void* cb_data) {
+                                          GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
               if (dev != nullptr && device != dev) {
                 log::info("Do nothing for {}", dev->address_);
                 return;

@@ -579,7 +579,7 @@ void AvrcpService::SendFolderUpdate(bool available_players, bool addressed_playe
 }
 
 // Send out the track changed info to update the playback state for each device
-void AvrcpService::SendActiveDeviceChanged(const RawAddress& address) {
+void AvrcpService::SendActiveDeviceChanged(const RawAddress& /*address*/) {
   SendMediaUpdate(false, true, false);
 }
 
