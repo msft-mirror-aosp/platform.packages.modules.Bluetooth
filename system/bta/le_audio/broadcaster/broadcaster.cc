@@ -1041,7 +1041,7 @@ private:
     }
 
     void OnStateMachineEvent(uint32_t broadcast_id, BroadcastStateMachine::State state,
-                             const void* data) override {
+                             const void* /*data*/) override {
       log::info("broadcast_id={} state={}", broadcast_id, ToString(state));
 
       switch (state) {
@@ -1095,7 +1095,8 @@ private:
               broadcast_id, static_cast<bluetooth::le_audio::BroadcastState>(state));
     }
 
-    void OnOwnAddressResponse(uint32_t broadcast_id, uint8_t addr_type, RawAddress addr) override {
+    void OnOwnAddressResponse(uint32_t /*broadcast_id*/, uint8_t /*addr_type*/,
+                              RawAddress /*addr*/) override {
       /* Not used currently */
     }
 
@@ -1165,17 +1166,18 @@ private:
       }
     }
 
-    void OnScanResponseDataSet(uint8_t advertiser_id, uint8_t status) {
+    void OnScanResponseDataSet(uint8_t advertiser_id, uint8_t /*status*/) {
       log::warn("Not being used, ignored OnScanResponseDataSet callback advertiser_id:{}",
                 advertiser_id);
     }
 
-    void OnAdvertisingParametersUpdated(uint8_t advertiser_id, int8_t tx_power, uint8_t status) {
+    void OnAdvertisingParametersUpdated(uint8_t advertiser_id, int8_t /*tx_power*/,
+                                        uint8_t /*status*/) {
       log::warn("Not being used, ignored OnAdvertisingParametersUpdated callback advertiser_id:{}",
                 advertiser_id);
     }
 
-    void OnPeriodicAdvertisingParametersUpdated(uint8_t advertiser_id, uint8_t status) {
+    void OnPeriodicAdvertisingParametersUpdated(uint8_t advertiser_id, uint8_t /*status*/) {
       log::warn(
               "Not being used, ignored OnPeriodicAdvertisingParametersUpdated "
               "callback advertiser_id:{}",
@@ -1205,12 +1207,12 @@ private:
       }
     }
 
-    void OnPeriodicAdvertisingEnabled(uint8_t advertiser_id, bool enable, uint8_t status) {
+    void OnPeriodicAdvertisingEnabled(uint8_t advertiser_id, bool /*enable*/, uint8_t /*status*/) {
       log::warn("Not being used, ignored OnPeriodicAdvertisingEnabled callback advertiser_id:{}",
                 advertiser_id);
     }
 
-    void OnOwnAddressRead(uint8_t advertiser_id, uint8_t address_type, RawAddress address) {
+    void OnOwnAddressRead(uint8_t advertiser_id, uint8_t /*address_type*/, RawAddress /*address*/) {
       log::warn("Not being used, ignored OnOwnAddressRead callback advertiser_id:{}",
                 advertiser_id);
     }
@@ -1360,7 +1362,7 @@ private:
 
     virtual void OnAudioMetadataUpdate(
             const std::vector<struct playback_track_metadata_v7> source_metadata,
-            DsaMode dsa_mode) override {
+            DsaMode /*dsa_mode*/) override {
       log::info("");
       if (!instance) {
         return;

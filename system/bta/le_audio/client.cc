@@ -2057,8 +2057,8 @@ public:
     }
   }
 
-  void OnGattReadRsp(tCONN_ID conn_id, tGATT_STATUS status, uint16_t hdl, uint16_t len,
-                     uint8_t* value, void* data) {
+  void OnGattReadRsp(tCONN_ID conn_id, tGATT_STATUS /*status*/, uint16_t hdl, uint16_t len,
+                     uint8_t* value, void* /*data*/) {
     LeAudioCharValueHandle(conn_id, hdl, len, value);
   }
 
@@ -2099,7 +2099,7 @@ public:
     }
   }
 
-  void OnGattConnected(tGATT_STATUS status, tCONN_ID conn_id, tGATT_IF client_if,
+  void OnGattConnected(tGATT_STATUS status, tCONN_ID conn_id, tGATT_IF /*client_if*/,
                        RawAddress address, tBT_TRANSPORT transport, uint16_t mtu) {
     LeAudioDevice* leAudioDevice = leAudioDevices_.FindByAddress(address);
 
@@ -2476,7 +2476,7 @@ public:
                               std::chrono::milliseconds(kCsisGroupMemberDelayMs));
   }
 
-  void OnGattDisconnected(tCONN_ID conn_id, tGATT_IF client_if, RawAddress address,
+  void OnGattDisconnected(tCONN_ID conn_id, tGATT_IF /*client_if*/, RawAddress address,
                           tGATT_DISCONN_REASON reason) {
     LeAudioDevice* leAudioDevice = leAudioDevices_.FindByConnId(conn_id);
 
@@ -2598,8 +2598,8 @@ public:
 
     BtaGattQueue::WriteDescriptor(
             conn_id, ccc_handle, std::move(value), GATT_WRITE,
-            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* data) {
               if (instance) {
                 instance->OnGattWriteCcc(conn_id, status, handle, data);
               }
@@ -3095,7 +3095,7 @@ public:
                                    bluetooth::le_audio::uuid::kCapServiceUuid);
   }
 
-  void OnGattWriteCcc(tCONN_ID conn_id, tGATT_STATUS status, uint16_t hdl, void* data) {
+  void OnGattWriteCcc(tCONN_ID conn_id, tGATT_STATUS status, uint16_t hdl, void* /*data*/) {
     LeAudioDevice* leAudioDevice = leAudioDevices_.FindByConnId(conn_id);
     std::vector<struct ase>::iterator ase_it;
 
@@ -4880,7 +4880,7 @@ public:
     return remote_metadata;
   }
 
-  bool ReconfigureOrUpdateRemoteForPTS(LeAudioDeviceGroup* group, int remote_direction) {
+  bool ReconfigureOrUpdateRemoteForPTS(LeAudioDeviceGroup* group, int /*remote_direction*/) {
     log::info("{}", group->group_id_);
     // Use common audio stream contexts exposed by the PTS
     auto override_contexts = AudioContexts(0xFFFF);
@@ -6000,8 +6000,10 @@ public:
       instance->OnGroupMemberRemovedCb(address, group_id);
     }
   }
-  void OnGroupRemoved(const bluetooth::Uuid& uuid, int group_id) { /* to implement if needed */ }
-  void OnGroupAddFromStorage(const RawAddress& address, const bluetooth::Uuid& uuid, int group_id) {
+  void OnGroupRemoved(const bluetooth::Uuid& /*uuid*/,
+                      int /*group_id*/) { /* to implement if needed */ }
+  void OnGroupAddFromStorage(const RawAddress& /*address*/, const bluetooth::Uuid& /*uuid*/,
+                             int /*group_id*/) {
     /* to implement if needed */
   }
 };

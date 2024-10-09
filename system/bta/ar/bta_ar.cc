@@ -160,7 +160,8 @@ void bta_ar_dereg_avdt() {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ar_avdt_conn(tBTA_SYS_ID sys_id, const RawAddress& bd_addr, uint8_t scb_index) {}
+void bta_ar_avdt_conn(tBTA_SYS_ID /*sys_id*/, const RawAddress& /*bd_addr*/,
+                      uint8_t /*scb_index*/) {}
 
 /*******************************************************************************
  *

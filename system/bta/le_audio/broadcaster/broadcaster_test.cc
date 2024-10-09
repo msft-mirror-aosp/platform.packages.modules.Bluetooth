@@ -91,7 +91,7 @@ void btsnd_hcic_ble_rand(base::Callback<void(BT_OCTET8)> cb) { generator_cb = cb
 std::atomic<int> num_async_tasks;
 bluetooth::common::MessageLoopThread message_loop_thread("test message loop");
 bluetooth::common::MessageLoopThread* get_main_thread() { return &message_loop_thread; }
-void invoke_switch_buffer_size_cb(bool is_low_latency_buffer_size) {}
+void invoke_switch_buffer_size_cb(bool /*is_low_latency_buffer_size*/) {}
 
 bt_status_t do_in_main_thread(base::OnceClosure task) {
   // Wrap the task with task counter so we could later know if there are
@@ -282,7 +282,7 @@ protected:
       }
     };
 
-    test::mock::osi_alarm::alarm_set_on_mloop.body = [](alarm_t* alarm, uint64_t interval_ms,
+    test::mock::osi_alarm::alarm_set_on_mloop.body = [](alarm_t* alarm, uint64_t /*interval_ms*/,
                                                         alarm_callback_t cb, void* data) {
       alarm->cb = cb;
       alarm->data = data;
@@ -757,7 +757,7 @@ TEST_F(BroadcasterTest, UpdateMetadata) {
           });
 
   EXPECT_CALL(*MockBroadcastStateMachine::GetLastInstance(), UpdatePublicBroadcastAnnouncement)
-          .WillOnce([&](uint32_t broadcast_id, const std::string& broadcast_name,
+          .WillOnce([&](uint32_t /*broadcast_id*/, const std::string& broadcast_name,
                         const bluetooth::le_audio::PublicBroadcastAnnouncementData& announcement) {
             expected_broadcast_name = broadcast_name;
             expected_public_meta = types::LeAudioLtvMap(announcement.metadata).RawPacket();
@@ -1211,7 +1211,7 @@ TEST_F(BroadcasterTest, AudioActiveState) {
 
   ON_CALL(*sm, UpdatePublicBroadcastAnnouncement(broadcast_id, _, _))
           .WillByDefault(
-                  [&](uint32_t broadcast_id, const std::string& broadcast_name,
+                  [&](uint32_t /*broadcast_id*/, const std::string& /*broadcast_name*/,
                       const bluetooth::le_audio::PublicBroadcastAnnouncementData& announcement) {
                     pb_announcement = announcement;
                     updated_public_meta = types::LeAudioLtvMap(announcement.metadata).RawPacket();

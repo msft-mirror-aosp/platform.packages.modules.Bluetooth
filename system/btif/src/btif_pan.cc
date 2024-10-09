@@ -758,7 +758,7 @@ static void btif_pan_close_all_conns() {
   }
 }
 
-static void btpan_tap_fd_signaled(int fd, int type, int flags, uint32_t user_id) {
+static void btpan_tap_fd_signaled(int fd, int /*type*/, int flags, uint32_t /*user_id*/) {
   log::assert_that(btpan_cb.tap_fd == INVALID_FD || btpan_cb.tap_fd == fd,
                    "assert failed: btpan_cb.tap_fd == INVALID_FD || btpan_cb.tap_fd == fd");
 

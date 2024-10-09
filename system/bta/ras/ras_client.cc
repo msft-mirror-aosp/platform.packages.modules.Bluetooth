@@ -20,6 +20,8 @@
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_ras_api.h"
 #include "bta/ras/ras_types.h"
+#include "gd/hci/controller_interface.h"
+#include "main/shim/entry.h"
 #include "os/logging/log_adapter.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_addr.h"
@@ -100,6 +102,11 @@ public:
   };
 
   void Initialize() override {
+    auto controller = bluetooth::shim::GetController();
+    if (controller && !controller->SupportsBleChannelSounding()) {
+      log::info("controller does not support channel sounding.");
+      return;
+    }
     BTA_GATTC_AppRegister(
             [](tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
               if (instance && p_data) {
@@ -431,7 +438,7 @@ public:
   }
 
   void GattWriteCallbackForVendorSpecificData(tCONN_ID conn_id, tGATT_STATUS status,
-                                              uint16_t handle, const uint8_t* value,
+                                              uint16_t handle, const uint8_t* /*value*/,
                                               GattWriteCallbackData* data) {
     if (data != nullptr) {
       GattWriteCallbackData* structPtr = static_cast<GattWriteCallbackData*>(data);
@@ -466,7 +473,7 @@ public:
   }
 
   void GattWriteCallback(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
-                         const uint8_t* value) {
+                         const uint8_t* /*value*/) {
     if (status != GATT_SUCCESS) {
       log::error("Fail to write conn_id {}, status {}, handle {}", conn_id,
                  gatt_status_text(status), handle);
@@ -490,7 +497,7 @@ public:
   }
 
   static void GattWriteCallback(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
-                                uint16_t len, const uint8_t* value, void* data) {
+                                uint16_t /*len*/, const uint8_t* value, void* data) {
     if (instance != nullptr) {
       if (data != nullptr) {
         GattWriteCallbackData* structPtr = static_cast<GattWriteCallbackData*>(data);
@@ -542,8 +549,8 @@ public:
             nullptr);
   }
 
-  void OnDescriptorWrite(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                         const uint8_t* value, void* data) {
+  void OnDescriptorWrite(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+                         const uint8_t* /*value*/, void* /*data*/) {
     log::info("conn_id:{}, handle:{}, status:{}", conn_id, handle, gatt_status_text(status));
   }
 

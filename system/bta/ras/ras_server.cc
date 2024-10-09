@@ -23,8 +23,10 @@
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_ras_api.h"
 #include "bta/ras/ras_types.h"
+#include "gd/hci/controller_interface.h"
 #include "gd/hci/uuid.h"
 #include "gd/os/rand.h"
+#include "main/shim/entry.h"
 #include "os/logging/log_adapter.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_addr.h"
@@ -74,11 +76,15 @@ public:
     uint16_t last_overwritten_procedure_ = 0;
   };
 
-  void Initialize() {
+  void Initialize() override {
+    auto controller = bluetooth::shim::GetController();
+    if (controller && !controller->SupportsBleChannelSounding()) {
+      log::info("controller does not support channel sounding.");
+      return;
+    }
     Uuid uuid = Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
     app_uuid_ = uuid;
     log::info("Register server with uuid:{}", app_uuid_.ToString());
-
     BTA_GATTS_AppRegister(
             app_uuid_,
             [](tBTA_GATTS_EVT event, tBTA_GATTS* p_data) {

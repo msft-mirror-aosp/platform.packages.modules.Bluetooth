@@ -98,7 +98,7 @@ void BtaAvCoPeer::setCodecConfig(const uint8_t* new_codec_config) {
 }
 
 void BtaAvCoPeerCache::Init(const std::vector<btav_a2dp_codec_config_t>& codec_priorities,
-                            std::vector<btav_a2dp_codec_info_t>* supported_codecs) {
+                            std::vector<btav_a2dp_codec_info_t>* /*supported_codecs*/) {
   std::lock_guard<std::recursive_mutex> lock(codec_lock_);
 
   codec_priorities_ = codec_priorities;
