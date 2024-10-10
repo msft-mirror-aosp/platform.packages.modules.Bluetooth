@@ -1028,9 +1028,13 @@ protected:
                                           metadata_context_types,
                                   types::BidirectionalPair<std::vector<uint8_t>> ccid_lists) {
               auto group_state = group->GetState();
-              log::info("StartStream: group {} state {}, context type {}", group->group_id_,
-                        bluetooth::common::ToString(group_state),
-                        bluetooth::common::ToString(context_type));
+              log::info(
+                      "StartStream: group {} state {}, context type {} sink metadata_ctx {}, "
+                      "source metadata_ctx {}",
+                      group->group_id_, bluetooth::common::ToString(group_state),
+                      bluetooth::common::ToString(context_type),
+                      bluetooth::common::ToString(metadata_context_types.sink),
+                      bluetooth::common::ToString(metadata_context_types.source));
 
               /* Do nothing if already streaming - the implementation would
                * probably update the metadata.
@@ -10432,7 +10436,7 @@ TEST_F(UnicastTest, MusicDuringCallContextTypes) {
   available_snk_context_types_ =
           (types::LeAudioContextType::CONVERSATIONAL | types::LeAudioContextType::RINGTONE |
            types::LeAudioContextType::GAME | types::LeAudioContextType::MEDIA |
-           types::LeAudioContextType::LIVE)
+           types::LeAudioContextType::LIVE | types::LeAudioContextType::NOTIFICATIONS)
                   .value();
   supported_snk_context_types_ =
           available_snk_context_types_ |
@@ -10463,7 +10467,7 @@ TEST_F(UnicastTest, MusicDuringCallContextTypes) {
   LeAudioClient::Get()->GroupSetActive(group_id);
   SyncOnMainLoop();
 
-  // 1) Start with the call first
+  log::info("TESTPOINT 1: Start with the call first");
   // -----------------------------
   // CONVERSATIONAL is from In Call preference, and RINGTONE is from metadata
   LeAudioClient::Get()->SetInCall(true);
@@ -10489,7 +10493,7 @@ TEST_F(UnicastTest, MusicDuringCallContextTypes) {
   uint8_t cis_count_in = 1;
   TestAudioDataTransfer(group_id, cis_count_out, cis_count_in, 1920, 40);
 
-  // 2) Start MEDIA during the call, expect MEDIA only on the remote sink
+  log::info("TESTPOINT 2: Start MEDIA during the call, expect MEDIA only on the remote sink");
   contexts = {.sink = types::AudioContexts(types::LeAudioContextType::CONVERSATIONAL |
                                            types::LeAudioContextType::MEDIA),
               .source = types::AudioContexts(types::LeAudioContextType::CONVERSATIONAL)};
@@ -10504,25 +10508,27 @@ TEST_F(UnicastTest, MusicDuringCallContextTypes) {
   Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
   Mock::VerifyAndClearExpectations(mock_le_audio_sink_hal_client_);
 
-  // 2) Disable In Call preference but do not suspend the local sink
-  // We should stay in CONVERSATIONAL until the local sink suspends
+  log::info(
+          "TESTPOINT 3: Disable In Call preference but do not suspend the local sink. Play "
+          "notification on the same stream.");
+  // Verify both context are sent as the metadata.
   // ---------------------------------------
   LeAudioClient::Get()->SetInCall(false);
 
   EXPECT_CALL(mock_state_machine_, StopStream(_)).Times(0);
-  contexts = {.sink = types::AudioContexts(types::LeAudioContextType::MEDIA |
+  contexts = {.sink = types::AudioContexts(types::LeAudioContextType::NOTIFICATIONS |
                                            types::LeAudioContextType::CONVERSATIONAL),
               .source = types::AudioContexts(types::LeAudioContextType::CONVERSATIONAL)};
   EXPECT_CALL(mock_state_machine_,
               StartStream(_, types::LeAudioContextType::CONVERSATIONAL, contexts, _))
           .Times(1);
-  UpdateLocalSourceMetadata(AUDIO_USAGE_MEDIA, AUDIO_CONTENT_TYPE_MUSIC,
+  UpdateLocalSourceMetadata(AUDIO_USAGE_NOTIFICATION, AUDIO_CONTENT_TYPE_UNKNOWN,
                             /*reconfigure=*/false);
   Mock::VerifyAndClearExpectations(&mock_state_machine_);
   Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
   Mock::VerifyAndClearExpectations(mock_le_audio_sink_hal_client_);
 
-  // 3) Disable call so we could go back to MEDIA
+  log::info("TESTPOING 4: Disable call so we could go back to MEDIA");
   // ---------------------------------------
   // Suspend should stop the stream
   EXPECT_CALL(mock_state_machine_, StopStream(_)).Times(1);
@@ -10549,7 +10555,7 @@ TEST_F(UnicastTest, MusicDuringCallContextTypes) {
   Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
   Mock::VerifyAndClearExpectations(mock_le_audio_sink_hal_client_);
 
-  // 4) Stop streaming
+  log::info("TESTPOINT 5: Stop streaming");
   // ------------------
   StopStreaming(group_id);
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
@@ -10573,7 +10579,7 @@ TEST_F(UnicastTest, MusicDuringCallContextTypes_SpeedUpReconfigFlagEnabled) {
   available_snk_context_types_ =
           (types::LeAudioContextType::CONVERSATIONAL | types::LeAudioContextType::RINGTONE |
            types::LeAudioContextType::GAME | types::LeAudioContextType::MEDIA |
-           types::LeAudioContextType::LIVE)
+           types::LeAudioContextType::LIVE | types::LeAudioContextType::NOTIFICATIONS)
                   .value();
   supported_snk_context_types_ =
           available_snk_context_types_ |
@@ -10659,7 +10665,7 @@ TEST_F(UnicastTest, MusicDuringCallContextTypes_SpeedUpReconfigFlagEnabled) {
   Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
   Mock::VerifyAndClearExpectations(mock_le_audio_sink_hal_client_);
 
-  log::info("Step 2) Disable call so we could go back to MEDIA");
+  log::info("Step 3) Disable call so we could go back to MEDIA");
   // ---------------------------------------
   // Suspend should stop the stream
   EXPECT_CALL(mock_state_machine_, StopStream(_)).Times(1);

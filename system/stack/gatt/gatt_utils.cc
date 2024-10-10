@@ -32,10 +32,12 @@
 
 #include "hardware/bt_gatt_types.h"
 #include "internal_include/bt_target.h"
+#include "main/shim/acl_api.h"
 #include "main/shim/dumpsys.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "rust/src/connection/ffi/connection_shim.h"
+#include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/eatt/eatt.h"
 #include "stack/gatt/connection_manager.h"
@@ -1667,7 +1669,7 @@ bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda) {
       if (!connection_manager::is_background_connection(bda)) {
         if (!com::android::bluetooth::flags::gatt_fix_multiple_direct_connect() ||
             p_tcb->app_hold_link.empty()) {
-          BTM_AcceptlistRemove(bda);
+          bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(bda));
         }
         log::info(
                 "Gatt connection manager has no background record but  removed "
