@@ -754,7 +754,7 @@ static void bte_hf_evt(tBTA_AG_EVT event, tBTA_AG* p_data) {
  * Returns         bt_status_t
  *
  ******************************************************************************/
-static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid) {
+static bt_status_t connect_int(RawAddress* bd_addr, uint16_t /*uuid*/) {
   CHECK_BTHF_INIT();
   if (is_connected(bd_addr)) {
     log::warn("device {} is already connected", *bd_addr);
@@ -1500,7 +1500,7 @@ bt_status_t HeadsetInterface::PhoneStateChange(int num_active, int num_held,
   return status;
 }
 
-bt_status_t HeadsetInterface::EnableSwb(bthf_swb_codec_t swb_codec, bool enable,
+bt_status_t HeadsetInterface::EnableSwb(bthf_swb_codec_t /*swb_codec*/, bool enable,
                                         RawAddress* bd_addr) {
   return enable_aptx_swb_codec(enable, bd_addr);
 }

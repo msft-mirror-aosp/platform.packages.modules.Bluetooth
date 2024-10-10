@@ -1196,7 +1196,7 @@ public class HeadsetService extends ProfileService {
             if (!Objects.equals(mActiveDevice, device)) {
                 Log.w(
                         TAG,
-                        "startVoiceRecognition: requested device "
+                        "stopVoiceRecognition: requested device "
                                 + device
                                 + " is not active, use active device "
                                 + mActiveDevice

@@ -35,6 +35,7 @@
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 
 bluetooth::common::MessageLoopThread* main_thread_ptr = nullptr;
 

@@ -1013,18 +1013,10 @@ static bool btif_a2dp_source_enqueue_callback(BT_HDR* p_buf, size_t frames_n,
       log::warn("Cannot read RSSI: status {}", status);
     }
 
-    // Intel controllers don't handle ReadFailedContactCounter very well, it
-    // sends back Hardware Error event which will crash the daemon. So
-    // temporarily disable this for Floss.
-    // TODO(b/249876976): Intel controllers to handle this command correctly.
-    // And if the need for disabling metrics-related HCI call grows, consider
-    // creating a framework to avoid ifdefs.
-#ifndef TARGET_FLOSS
     status = BTM_ReadFailedContactCounter(peer_bda, btm_read_failed_contact_counter_cb);
     if (status != tBTM_STATUS::BTM_CMD_STARTED) {
       log::warn("Cannot read Failed Contact Counter: status {}", status);
     }
-#endif
 
     status = BTM_ReadTxPower(peer_bda, BT_TRANSPORT_BR_EDR, btm_read_tx_power_cb);
     if (status != tBTM_STATUS::BTM_CMD_STARTED) {

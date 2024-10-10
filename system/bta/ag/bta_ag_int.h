@@ -458,8 +458,8 @@ void bta_ag_set_sco_offload_enabled(bool value);
 void bta_ag_set_sco_allowed(bool value);
 const RawAddress& bta_ag_get_active_device();
 void bta_clear_active_device();
-void bta_ag_send_qac(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
-void bta_ag_send_qcs(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
+void bta_ag_send_qac(tBTA_AG_SCB* p_scb);
+void bta_ag_send_qcs(tBTA_AG_SCB* p_scb);
 /**
  * Check if SCO is managed by Audio is enabled. This is set via the system property
  * bluetooth.sco.managed_by_audio.

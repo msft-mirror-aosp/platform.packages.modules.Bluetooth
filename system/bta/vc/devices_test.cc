@@ -229,8 +229,8 @@ protected:
     bluetooth::manager::SetMockBtmInterface(&btm_interface);
 
     ON_CALL(gatt_interface, GetCharacteristic(_, _))
-            .WillByDefault(
-                    Invoke([&](uint16_t conn_id, uint16_t handle) -> const gatt::Characteristic* {
+            .WillByDefault(Invoke(
+                    [&](uint16_t /*conn_id*/, uint16_t handle) -> const gatt::Characteristic* {
                       for (auto const& service : services) {
                         for (auto const& characteristic : service.characteristics) {
                           if (characteristic.value_handle == handle) {
@@ -243,15 +243,16 @@ protected:
                     }));
 
     ON_CALL(gatt_interface, GetOwningService(_, _))
-            .WillByDefault(Invoke([&](uint16_t conn_id, uint16_t handle) -> const gatt::Service* {
-              for (auto const& service : services) {
-                if (service.handle <= handle && service.end_handle >= handle) {
-                  return &service;
-                }
-              }
+            .WillByDefault(
+                    Invoke([&](uint16_t /*conn_id*/, uint16_t handle) -> const gatt::Service* {
+                      for (auto const& service : services) {
+                        if (service.handle <= handle && service.end_handle >= handle) {
+                          return &service;
+                        }
+                      }
 
-              return nullptr;
-            }));
+                      return nullptr;
+                    }));
 
     ON_CALL(gatt_interface, GetServices(_)).WillByDefault(Return(&services));
 
@@ -600,10 +601,10 @@ TEST_F(VolumeControlDeviceTest, test_enqueue_initial_requests) {
     EXPECT_CALL(gatt_interface, RegisterForNotifications(gatt_if, _, handle_pair.first));
   }
 
-  auto chrc_read_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                         uint8_t* value, void* data) {};
-  auto cccd_write_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                          const uint8_t* value, void* data) {};
+  auto chrc_read_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                         uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
+  auto cccd_write_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                          uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {};
   ASSERT_EQ(true, device->EnqueueInitialRequests(gatt_if, chrc_read_cb, cccd_write_cb));
   Mock::VerifyAndClearExpectations(&gatt_queue);
   Mock::VerifyAndClearExpectations(&gatt_interface);
@@ -615,21 +616,22 @@ TEST_F(VolumeControlDeviceTest, test_device_ready) {
   // grab all the handles requested
   std::vector<uint16_t> requested_handles;
   ON_CALL(gatt_queue, WriteDescriptor(_, _, _, _, _, _))
-          .WillByDefault(
-                  Invoke([&requested_handles](
-                                 uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                 tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
-                                 void* cb_data) -> void { requested_handles.push_back(handle); }));
+          .WillByDefault(Invoke(
+                  [&requested_handles](
+                          uint16_t /*conn_id*/, uint16_t handle, std::vector<uint8_t> /*value*/,
+                          tGATT_WRITE_TYPE /*write_type*/, GATT_WRITE_OP_CB /*cb*/,
+                          void* /*cb_data*/) -> void { requested_handles.push_back(handle); }));
   ON_CALL(gatt_queue, ReadCharacteristic(_, _, _, _))
-          .WillByDefault(Invoke([&requested_handles](uint16_t conn_id, uint16_t handle,
-                                                     GATT_READ_OP_CB cb, void* cb_data) -> void {
-            requested_handles.push_back(handle);
-          }));
+          .WillByDefault(
+                  Invoke([&requested_handles](uint16_t /*conn_id*/, uint16_t handle,
+                                              GATT_READ_OP_CB /*cb*/, void* /*cb_data*/) -> void {
+                    requested_handles.push_back(handle);
+                  }));
 
-  auto chrc_read_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                         uint8_t* value, void* data) {};
-  auto cccd_write_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                          const uint8_t* value, void* data) {};
+  auto chrc_read_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                         uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
+  auto cccd_write_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                          uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {};
   ASSERT_EQ(true, device->EnqueueInitialRequests(0x0001, chrc_read_cb, cccd_write_cb));
   ASSERT_NE((size_t)0, requested_handles.size());
 
@@ -669,12 +671,13 @@ TEST_F(VolumeControlDeviceTest, test_enqueue_remaining_requests) {
   EXPECT_CALL(gatt_queue, WriteDescriptor(_, _, _, GATT_WRITE, _, _)).Times(0);
   EXPECT_CALL(gatt_interface, RegisterForNotifications(_, _, _)).Times(0);
 
-  auto chrc_read_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                         uint8_t* value, void* data) {};
-  auto chrc_multi_read_cb = [](uint16_t conn_id, tGATT_STATUS status, tBTA_GATTC_MULTI& handles,
-                               uint16_t len, uint8_t* value, void* data) {};
-  auto cccd_write_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                          const uint8_t* value, void* data) {};
+  auto chrc_read_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                         uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
+  auto chrc_multi_read_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/,
+                               tBTA_GATTC_MULTI& /*handles*/, uint16_t /*len*/, uint8_t* /*value*/,
+                               void* /*data*/) {};
+  auto cccd_write_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                          uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {};
   device->EnqueueRemainingRequests(gatt_if, chrc_read_cb, chrc_multi_read_cb, cccd_write_cb);
   Mock::VerifyAndClearExpectations(&gatt_queue);
   Mock::VerifyAndClearExpectations(&gatt_interface);
@@ -719,12 +722,13 @@ TEST_F(VolumeControlDeviceTest, test_enqueue_remaining_requests_multiread) {
   EXPECT_CALL(gatt_queue, WriteDescriptor(_, _, _, GATT_WRITE, _, _)).Times(0);
   EXPECT_CALL(gatt_interface, RegisterForNotifications(_, _, _)).Times(0);
 
-  auto chrc_read_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                         uint8_t* value, void* data) {};
-  auto chrc_multi_read_cb = [](uint16_t conn_id, tGATT_STATUS status, tBTA_GATTC_MULTI& handles,
-                               uint16_t len, uint8_t* value, void* data) {};
-  auto cccd_write_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                          const uint8_t* value, void* data) {};
+  auto chrc_read_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                         uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
+  auto chrc_multi_read_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/,
+                               tBTA_GATTC_MULTI& /*handles*/, uint16_t /*len*/, uint8_t* /*value*/,
+                               void* /*data*/) {};
+  auto cccd_write_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                          uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {};
 
   device->EnqueueRemainingRequests(gatt_if, chrc_read_cb, chrc_multi_read_cb, cccd_write_cb);
 
@@ -744,8 +748,8 @@ TEST_F(VolumeControlDeviceTest, test_check_link_encrypted) {
 }
 
 TEST_F(VolumeControlDeviceTest, test_control_point_operation) {
-  GATT_WRITE_OP_CB write_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
-                                 uint16_t len, const uint8_t* value, void* data) {};
+  GATT_WRITE_OP_CB write_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                                 uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   device->change_counter = 0x01;
   std::vector<uint8_t> expected_data({0x03, 0x01});
@@ -755,8 +759,8 @@ TEST_F(VolumeControlDeviceTest, test_control_point_operation) {
 }
 
 TEST_F(VolumeControlDeviceTest, test_control_point_operation_arg) {
-  GATT_WRITE_OP_CB write_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
-                                 uint16_t len, const uint8_t* value, void* data) {};
+  GATT_WRITE_OP_CB write_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                                 uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   device->change_counter = 0x55;
   std::vector<uint8_t> expected_data({0x01, 0x55, 0x02, 0x03});
@@ -767,16 +771,16 @@ TEST_F(VolumeControlDeviceTest, test_control_point_operation_arg) {
 }
 
 TEST_F(VolumeControlDeviceTest, test_get_ext_audio_out_volume_offset) {
-  GATT_READ_OP_CB read_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                               uint8_t* value, void* data) {};
+  GATT_READ_OP_CB read_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                               uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x0062, read_cb, nullptr));
   device->GetExtAudioOutVolumeOffset(1, read_cb, nullptr);
 }
 
 TEST_F(VolumeControlDeviceTest, test_get_ext_audio_out_location) {
-  GATT_READ_OP_CB read_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                               uint8_t* value, void* data) {};
+  GATT_READ_OP_CB read_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                               uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x0085, read_cb, nullptr));
   device->GetExtAudioOutLocation(2, read_cb, nullptr);
@@ -797,8 +801,8 @@ TEST_F(VolumeControlDeviceTest, test_set_ext_audio_out_location_non_writable) {
 }
 
 TEST_F(VolumeControlDeviceTest, test_get_ext_audio_out_description) {
-  GATT_READ_OP_CB read_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                               uint8_t* value, void* data) {};
+  GATT_READ_OP_CB read_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                               uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x008a, read_cb, nullptr));
   device->GetExtAudioOutDescription(2, read_cb, nullptr);
@@ -821,8 +825,8 @@ TEST_F(VolumeControlDeviceTest, test_set_ext_audio_out_description_non_writable)
 }
 
 TEST_F(VolumeControlDeviceTest, test_ext_audio_out_control_point_operation) {
-  GATT_WRITE_OP_CB write_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
-                                 uint16_t len, const uint8_t* value, void* data) {};
+  GATT_WRITE_OP_CB write_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                                 uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   VolumeOffset* offset = device->audio_offsets.FindById(1);
   ASSERT_NE(nullptr, offset);
@@ -834,8 +838,8 @@ TEST_F(VolumeControlDeviceTest, test_ext_audio_out_control_point_operation) {
 }
 
 TEST_F(VolumeControlDeviceTest, test_ext_audio_out_control_point_operation_arg) {
-  GATT_WRITE_OP_CB write_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
-                                 uint16_t len, const uint8_t* value, void* data) {};
+  GATT_WRITE_OP_CB write_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                                 uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   VolumeOffset* offset = device->audio_offsets.FindById(1);
   ASSERT_NE(nullptr, offset);
@@ -848,32 +852,32 @@ TEST_F(VolumeControlDeviceTest, test_ext_audio_out_control_point_operation_arg) 
 }
 
 TEST_F(VolumeControlDeviceTest, test_get_ext_audio_in_state) {
-  GATT_READ_OP_CB read_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                               uint8_t* value, void* data) {};
+  GATT_READ_OP_CB read_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                               uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x0022, read_cb, nullptr));
   device->GetExtAudioInState(1, read_cb, nullptr);
 }
 
 TEST_F(VolumeControlDeviceTest, test_get_ext_audio_in_status) {
-  GATT_READ_OP_CB read_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                               uint8_t* value, void* data) {};
+  GATT_READ_OP_CB read_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                               uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x0049, read_cb, nullptr));
   device->GetExtAudioInStatus(2, read_cb, nullptr);
 }
 
 TEST_F(VolumeControlDeviceTest, test_get_ext_audio_in_gain_props) {
-  GATT_READ_OP_CB read_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                               uint8_t* value, void* data) {};
+  GATT_READ_OP_CB read_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                               uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x0025, read_cb, nullptr));
   device->GetExtAudioInGainProps(1, read_cb, nullptr);
 }
 
 TEST_F(VolumeControlDeviceTest, test_get_ext_audio_in_description) {
-  GATT_READ_OP_CB read_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                               uint8_t* value, void* data) {};
+  GATT_READ_OP_CB read_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                               uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x002e, read_cb, nullptr));
   device->GetExtAudioInDescription(1, read_cb, nullptr);
@@ -897,8 +901,8 @@ TEST_F(VolumeControlDeviceTest, test_set_ext_audio_in_description_non_writable) 
 }
 
 TEST_F(VolumeControlDeviceTest, test_ext_audio_in_control_point_operation) {
-  GATT_WRITE_OP_CB write_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
-                                 uint16_t len, const uint8_t* value, void* data) {};
+  GATT_WRITE_OP_CB write_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                                 uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   VolumeAudioInput* input = device->audio_inputs.FindById(2);
   ASSERT_NE(nullptr, input);
@@ -910,8 +914,8 @@ TEST_F(VolumeControlDeviceTest, test_ext_audio_in_control_point_operation) {
 }
 
 TEST_F(VolumeControlDeviceTest, test_ext_audio_in_control_point_operation_arg) {
-  GATT_WRITE_OP_CB write_cb = [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
-                                 uint16_t len, const uint8_t* value, void* data) {};
+  GATT_WRITE_OP_CB write_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                                 uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   VolumeAudioInput* input = device->audio_inputs.FindById(2);
   ASSERT_NE(nullptr, input);

@@ -36,7 +36,7 @@ const RawAddress kRawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
 }  // namespace
 
 struct alarm_t {
-  alarm_t(const char* name) {}
+  alarm_t(const char* /*name*/) {}
   int any_value;
 };
 
