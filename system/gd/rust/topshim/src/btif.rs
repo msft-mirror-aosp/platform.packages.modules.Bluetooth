@@ -435,7 +435,7 @@ impl ToString for BtVendorProductInfo {
             match self.vendor_id_src {
                 1 => "bluetooth",
                 2 => "usb",
-                default => "unknown",
+                _ => "unknown",
             },
             self.vendor_id,
             self.product_id,

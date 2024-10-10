@@ -43,7 +43,6 @@ AvrcpService* AvrcpService::instance_ = nullptr;
 void AvrcpService::SendMediaUpdate(bool /*track_changed*/, bool /*play_state*/, bool /*queue*/) {}
 void AvrcpService::SendFolderUpdate(bool /*available_players*/, bool /*addressed_players*/,
                                     bool /*uids*/) {}
-void AvrcpService::SendActiveDeviceChanged(const RawAddress& /*address*/) {}
 void AvrcpService::SendPlayerSettingsChanged(std::vector<PlayerAttribute> /*attributes*/,
                                              std::vector<uint8_t> /*values*/) {}
 void AvrcpService::ServiceInterfaceImpl::Init(

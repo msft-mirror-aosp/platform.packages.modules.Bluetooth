@@ -21,7 +21,6 @@
 
 #include <set>
 
-#include "stack/btm/btm_ble_bgconn.h"
 #include "stack/gatt/connection_manager.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"

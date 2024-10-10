@@ -193,7 +193,7 @@ void NotifyAclFeaturesReadComplete(tACL_CONN& p_acl, uint8_t max_page_number) {
   btm_process_remote_ext_features(&p_acl, max_page_number);
   btm_set_link_policy(&p_acl, btm_cb.acl_cb_.DefaultLinkPolicy());
   int32_t flush_timeout = osi_property_get_int32(PROPERTY_AUTO_FLUSH_TIMEOUT, 0);
-  if (flush_timeout != 0) {
+  if (bluetooth::shim::GetController()->SupportsNonFlushablePb() && flush_timeout != 0) {
     acl_write_automatic_flush_timeout(p_acl.remote_addr, static_cast<uint16_t>(flush_timeout));
   }
   BTA_dm_notify_remote_features_complete(p_acl.remote_addr);
