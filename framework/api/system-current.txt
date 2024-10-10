@@ -1416,7 +1416,6 @@ package android.bluetooth.le {
   public final class BluetoothLeScanner {
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.UPDATE_DEVICE_STATS}) public void startScanFromSource(android.os.WorkSource, android.bluetooth.le.ScanCallback);
     method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.UPDATE_DEVICE_STATS}) public void startScanFromSource(java.util.List<android.bluetooth.le.ScanFilter>, android.bluetooth.le.ScanSettings, android.os.WorkSource, android.bluetooth.le.ScanCallback);
-    method @Deprecated @RequiresPermission(android.Manifest.permission.BLUETOOTH_SCAN) public void startTruncatedScan(java.util.List<android.bluetooth.le.TruncatedFilter>, android.bluetooth.le.ScanSettings, android.bluetooth.le.ScanCallback);
   }
 
   public final class ChannelSoundingParams implements android.os.Parcelable {
