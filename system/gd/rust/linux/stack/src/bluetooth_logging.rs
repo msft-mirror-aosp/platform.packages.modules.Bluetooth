@@ -98,6 +98,9 @@ impl BluetoothLogging {
 
     fn apply_libbluetooth_log_level(&self) {
         set_default_log_level(self.log_level);
+
+        // TODO(b/371889111): Don't set log level for tag until b/371889111 is fixed.
+        /*
         // Levels for verbose-only tags.
         let level = match self.log_level {
             Level::Verbose => Level::Verbose,
@@ -107,6 +110,7 @@ impl BluetoothLogging {
             log::info!("Setting log level for tag {} to {:?}", tag, level);
             set_log_level_for_tag(tag, level);
         }
+         */
     }
 }
 

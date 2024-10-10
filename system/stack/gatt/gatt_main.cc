@@ -268,7 +268,7 @@ void gatt_cancel_connect(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
             bluetooth::connection::ResolveRawAddress(bd_addr));
   } else {
     if (!connection_manager::direct_connect_remove(CONN_MGR_ID_L2CAP, bd_addr)) {
-      BTM_AcceptlistRemove(bd_addr);
+      bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(bd_addr));
       log::info(
               "GATT connection manager has no record but removed filter "
               "acceptlist gatt_if:{} peer:{}",

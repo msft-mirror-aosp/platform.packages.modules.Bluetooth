@@ -513,8 +513,6 @@ void fill_avrc_attr_entry(tAVRC_ATTR_ENTRY* attr_vals, int num_attrs,
   }
 }
 
-void rc_cleanup_sent_cmd(void* /*p_data*/) { log::verbose(""); }
-
 void handle_rc_ctrl_features_all(btif_rc_device_cb_t* p_dev) {
   if (!(p_dev->peer_tg_features & BTA_AV_FEAT_RCTG) &&
       (!(p_dev->peer_tg_features & BTA_AV_FEAT_RCCT) ||

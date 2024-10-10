@@ -13,20 +13,17 @@
 # limitations under the License.
 
 import sys
+from typing import Dict, Optional
 
-from mmi2grpc._helpers import assert_description
-from mmi2grpc._helpers import match_description
+from mmi2grpc._helpers import assert_description, match_description
 from mmi2grpc._proxy import ProfileProxy
 from mmi2grpc._rootcanal import Dongle
-
 from pandora.host_grpc import Host
 from pandora.host_pb2 import PUBLIC, RANDOM, Connection
 from pandora.l2cap_grpc import L2CAP
 from pandora.l2cap_pb2 import CreditBasedChannelRequest
-from pandora.security_pb2 import PairingEventAnswer
 from pandora.security_grpc import Security
-
-from typing import Optional, Dict
+from pandora.security_pb2 import PairingEventAnswer
 
 
 class L2CAPProxy(ProfileProxy):

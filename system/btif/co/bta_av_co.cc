@@ -91,7 +91,7 @@ void BtaAvCo::Init(const std::vector<btav_a2dp_codec_config_t>& codec_priorities
 
   // Reset the control block
   Reset();
-  peer_cache_->Init(codec_priorities, supported_codecs);
+  peer_cache_->Init(codec_priorities);
 
   // Gather the supported codecs from the first peer context;
   // all contexes should be identical.

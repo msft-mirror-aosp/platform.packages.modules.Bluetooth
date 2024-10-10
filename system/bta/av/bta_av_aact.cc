@@ -1227,7 +1227,6 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
         }
       }
     }
-    bta_ar_avdt_conn(BTA_ID_AV, open.bd_addr, p_scb->hdi);
     if (p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SRC) {
       open.starting = false;
       open.sep = AVDT_TSEP_SNK;
