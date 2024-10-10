@@ -456,7 +456,7 @@ static uint8_t bta_ag_parse_chld(tBTA_AG_SCB* /* p_scb */, char* p_s) {
  * Returns          Returns bitmap of supported codecs.
  *
  ******************************************************************************/
-static tBTA_AG_PEER_CODEC bta_ag_parse_bac(tBTA_AG_SCB* /*p_scb*/, char* p_s, char* p_end) {
+static tBTA_AG_PEER_CODEC bta_ag_parse_bac(char* p_s, char* p_end) {
   tBTA_AG_PEER_CODEC retval = BTM_SCO_CODEC_NONE;
   tBTA_AG_UUID_CODEC uuid_codec;
   char* p;
@@ -1246,7 +1246,7 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, cha
       /* store available codecs from the peer */
       if ((p_scb->peer_features & BTA_AG_PEER_FEAT_CODEC) &&
           (p_scb->features & BTA_AG_FEAT_CODEC)) {
-        p_scb->peer_codecs = bta_ag_parse_bac(p_scb, p_arg, p_end);
+        p_scb->peer_codecs = bta_ag_parse_bac(p_arg, p_end);
         p_scb->codec_updated = true;
 
         bool wbs_supported = hfp_hal_interface::get_wbs_supported();
@@ -1953,7 +1953,7 @@ void bta_ag_send_ring(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_send_qcs(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* /*p_data*/) {
+void bta_ag_send_qcs(tBTA_AG_SCB* p_scb) {
   tBTA_AG_UUID_CODEC codec_uuid;
   if (p_scb->codec_fallback) {
     if (p_scb->peer_codecs & BTM_SCO_CODEC_MSBC) {
@@ -1978,7 +1978,7 @@ void bta_ag_send_qcs(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* /*p_data*/) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_send_qac(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* /*p_data*/) {
+void bta_ag_send_qac(tBTA_AG_SCB* p_scb) {
   if (!get_swb_codec_status(bluetooth::headset::BTHF_SWB_CODEC_VENDOR_APTX, &p_scb->peer_addr)) {
     log::verbose("send +QAC codecs unsupported");
     bta_ag_send_result(p_scb, BTA_AG_LOCAL_RES_QAC, SWB_CODECS_UNSUPPORTED, 0);

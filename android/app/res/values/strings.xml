@@ -101,7 +101,7 @@
     <!-- label for the notification item of sent file -->
     <string name="notification_sent">Bluetooth share: Sent <xliff:g id="file">%1$s</xliff:g></string>
     <!-- label for the notification item of sent file -status -->
-    <string name="notification_sent_complete">100% complete</string>
+    <string name="notification_sent_complete">100%% complete</string>
     <!-- label for the notification item of failed sending file -->
     <string name="notification_sent_fail">Bluetooth share: File <xliff:g id="file">%1$s</xliff:g> not sent</string>
 

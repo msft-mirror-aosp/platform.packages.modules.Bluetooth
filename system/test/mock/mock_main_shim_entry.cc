@@ -57,9 +57,7 @@ os::Handler* GetGdShimHandler() { return hci::testing::mock_gd_shim_handler_; }
 hal::SnoopLogger* GetSnoopLogger() { return nullptr; }
 storage::StorageModule* GetStorage() { return nullptr; }
 metrics::CounterMetrics* GetCounterMetrics() { return nullptr; }
-#if TARGET_FLOSS
 hci::MsftExtensionManager* GetMsftExtensionManager() { return nullptr; }
-#endif
 hci::RemoteNameRequestModule* GetRemoteNameRequest() { return nullptr; }
 
 }  // namespace shim

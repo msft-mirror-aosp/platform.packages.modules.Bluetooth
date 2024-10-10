@@ -44,3 +44,13 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+flag {
+  name: "btsec_avdt_msg_ind_type_confusion"
+  namespace: "bluetooth"
+  description: "Properly check current state and sig value of avdt rej/rsp messages before parsing"
+  bug: "358212054"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

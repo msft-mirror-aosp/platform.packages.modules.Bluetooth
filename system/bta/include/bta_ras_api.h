@@ -37,6 +37,8 @@ public:
   virtual void OnVendorSpecificReply(
           const RawAddress& address,
           const std::vector<VendorSpecificCharacteristic>& vendor_specific_reply) = 0;
+  virtual void OnRasServerConnected(const RawAddress& identity_address) = 0;
+  virtual void OnRasServerDisconnected(const RawAddress& identity_address) = 0;
 };
 
 class RasServer {
