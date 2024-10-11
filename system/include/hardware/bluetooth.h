@@ -687,13 +687,11 @@ typedef struct {
    * config file. These devices are deleted upon leaving restricted mode.
    * The |is_common_criteria_mode| flag inits the adapter in common criteria
    * mode. The |config_compare_result| flag show the config checksum check
-   * result if is in common criteria mode. The |init_flags| are config flags
-   * that cannot change during run. The |is_atv| flag indicates whether the
-   * local device is an Android TV
+   * result if is in common criteria mode. The |is_atv| flag indicates whether
+   * the local device is an Android TV
    */
   int (*init)(bt_callbacks_t* callbacks, bool guest_mode, bool is_common_criteria_mode,
-              int config_compare_result, const char** init_flags, bool is_atv,
-              const char* user_data_directory);
+              int config_compare_result, bool is_atv);
 
   /** Enable Bluetooth. */
   int (*enable)();

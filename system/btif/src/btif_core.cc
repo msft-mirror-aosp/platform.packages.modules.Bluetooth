@@ -110,12 +110,6 @@ static base::AtExitManager* exit_manager;
 static uid_set_t* uid_set;
 
 /*******************************************************************************
- *  Externs
- ******************************************************************************/
-void btif_dm_enable_service(tBTA_SERVICE_ID service_id, bool enable);
-void btif_dm_load_local_oob(void);
-
-/*******************************************************************************
  *
  * Function         btif_is_dut_mode
  *

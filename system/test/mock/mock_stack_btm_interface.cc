@@ -142,6 +142,10 @@ struct btm_client_interface_t default_btm_client_interface = {
                 },
                 .BTM_IsLinkKeyKnown = [](const RawAddress& /* bd_addr */,
                                          tBT_TRANSPORT /* transport */) -> bool { return false; },
+                .BTM_SetSecurityLevel = [](bool /* is_originator */, const char* /*p_name */,
+                                           uint8_t /* service_id */, uint16_t /* sec_level */,
+                                           uint16_t /* psm */, uint32_t /* mx_proto_id */,
+                                           uint32_t /* mx_chan_id */) -> bool { return false; },
                 .BTM_SecClrService = [](uint8_t /* service_id */) -> uint8_t { return 0; },
                 .BTM_SecClrServiceByPsm = [](uint16_t /* psm */) -> uint8_t { return 0; },
                 .BTM_SecBond = [](const RawAddress& /* bd_addr */, tBLE_ADDR_TYPE /* addr_type */,
@@ -150,7 +154,6 @@ struct btm_client_interface_t default_btm_client_interface = {
                 .BTM_SecBondCancel = [](const RawAddress& /* bd_addr */) -> tBTM_STATUS {
                   return tBTM_STATUS::BTM_SUCCESS;
                 },
-
                 .BTM_RemoteOobDataReply = [](tBTM_STATUS /* res */, const RawAddress& /* bd_addr */,
                                              const Octet16& /* c */, const Octet16& /* r */) {},
                 .BTM_PINCodeReply = [](const RawAddress& /* bd_addr */, tBTM_STATUS /* res */,

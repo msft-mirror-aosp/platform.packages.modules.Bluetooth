@@ -97,12 +97,12 @@ class BtaDmCustomAlarmTest : public BtaDmTest {
 protected:
   void SetUp() override {
     BtaDmTest::SetUp();
-    test::mock::osi_alarm::alarm_set_on_mloop.body = [this](alarm_t* alarm, uint64_t interval_ms,
-                                                            alarm_callback_t cb, void* data) {
-      ASSERT_TRUE(alarm != nullptr);
-      this->alarm_callback = cb;
-      this->alarm_data = data;
-    };
+    test::mock::osi_alarm::alarm_set_on_mloop.body =
+            [this](alarm_t* alarm, uint64_t /*interval_ms*/, alarm_callback_t cb, void* data) {
+              ASSERT_TRUE(alarm != nullptr);
+              this->alarm_callback = cb;
+              this->alarm_data = data;
+            };
   }
   void TearDown() override {
     test::mock::osi_alarm::alarm_set_on_mloop = {};
@@ -238,8 +238,9 @@ TEST_F(BtaDmTest, bta_dm_set_encryption) {
 
   // Setup a device that fails encryption
   mock_btm_client_interface.security.BTM_SetEncryption =
-          [](const RawAddress& bd_addr, tBT_TRANSPORT transport, tBTM_SEC_CALLBACK* p_callback,
-             void* p_ref_data, tBTM_BLE_SEC_ACT sec_act) -> tBTM_STATUS {
+          [](const RawAddress& /*bd_addr*/, tBT_TRANSPORT /*transport*/,
+             tBTM_SEC_CALLBACK* /*p_callback*/, void* /*p_ref_data*/,
+             tBTM_BLE_SEC_ACT /*sec_act*/) -> tBTM_STATUS {
     inc_func_call_count("BTM_SetEncryption");
     return tBTM_STATUS::BTM_MODE_UNSUPPORTED;
   };
@@ -251,8 +252,9 @@ TEST_F(BtaDmTest, bta_dm_set_encryption) {
 
   // Setup a device that successfully starts encryption
   mock_btm_client_interface.security.BTM_SetEncryption =
-          [](const RawAddress& bd_addr, tBT_TRANSPORT transport, tBTM_SEC_CALLBACK* p_callback,
-             void* p_ref_data, tBTM_BLE_SEC_ACT sec_act) -> tBTM_STATUS {
+          [](const RawAddress& /*bd_addr*/, tBT_TRANSPORT /*transport*/,
+             tBTM_SEC_CALLBACK* /*p_callback*/, void* /*p_ref_data*/,
+             tBTM_BLE_SEC_ACT /*sec_act*/) -> tBTM_STATUS {
     inc_func_call_count("BTM_SetEncryption");
     return tBTM_STATUS::BTM_CMD_STARTED;
   };
@@ -374,7 +376,7 @@ TEST_F(BtaDmTest, bta_dm_remname_cback__HCI_ERR_CONNECTION_EXISTS) {
 TEST_F(BtaDmTest, bta_dm_determine_discovery_transport__BR_EDR) {
   tBTA_DM_SEARCH_CB& search_cb = bluetooth::legacy::testing::bta_dm_disc_search_cb();
 
-  mock_btm_client_interface.peer.BTM_ReadDevInfo = [](const RawAddress& remote_bda,
+  mock_btm_client_interface.peer.BTM_ReadDevInfo = [](const RawAddress& /*remote_bda*/,
                                                       tBT_DEVICE_TYPE* p_dev_type,
                                                       tBLE_ADDR_TYPE* p_addr_type) {
     *p_dev_type = BT_DEVICE_TYPE_BREDR;
@@ -388,7 +390,7 @@ TEST_F(BtaDmTest, bta_dm_determine_discovery_transport__BR_EDR) {
 TEST_F(BtaDmTest, bta_dm_determine_discovery_transport__BLE__PUBLIC) {
   tBTA_DM_SEARCH_CB& search_cb = bluetooth::legacy::testing::bta_dm_disc_search_cb();
 
-  mock_btm_client_interface.peer.BTM_ReadDevInfo = [](const RawAddress& remote_bda,
+  mock_btm_client_interface.peer.BTM_ReadDevInfo = [](const RawAddress& /*remote_bda*/,
                                                       tBT_DEVICE_TYPE* p_dev_type,
                                                       tBLE_ADDR_TYPE* p_addr_type) {
     *p_dev_type = BT_DEVICE_TYPE_BLE;
@@ -402,7 +404,7 @@ TEST_F(BtaDmTest, bta_dm_determine_discovery_transport__BLE__PUBLIC) {
 TEST_F(BtaDmTest, bta_dm_determine_discovery_transport__DUMO) {
   tBTA_DM_SEARCH_CB& search_cb = bluetooth::legacy::testing::bta_dm_disc_search_cb();
 
-  mock_btm_client_interface.peer.BTM_ReadDevInfo = [](const RawAddress& remote_bda,
+  mock_btm_client_interface.peer.BTM_ReadDevInfo = [](const RawAddress& /*remote_bda*/,
                                                       tBT_DEVICE_TYPE* p_dev_type,
                                                       tBLE_ADDR_TYPE* p_addr_type) {
     *p_dev_type = BT_DEVICE_TYPE_DUMO;
@@ -432,7 +434,7 @@ TEST_F(BtaDmTest, bta_dm_search_evt_text) {
 
 TEST_F(BtaDmTest, bta_dm_remote_name_cmpl) {
   reset_mock_btm_client_interface();
-  mock_btm_client_interface.db.BTM_InqDbRead = [](const RawAddress& bd_addr) -> tBTM_INQ_INFO* {
+  mock_btm_client_interface.db.BTM_InqDbRead = [](const RawAddress& /*bd_addr*/) -> tBTM_INQ_INFO* {
     inc_func_call_count("BTM_InqDbRead");
     return nullptr;
   };
@@ -473,7 +475,7 @@ TEST_F(BtaDmCustomAlarmTest, bta_dm_sniff_cback) {
 TEST_F(BtaDmCustomAlarmTest, sniff_offload_feature__test_sysprop) {
   bool is_property_enabled = true;
   test::mock::osi_properties::osi_property_get_bool.body =
-          [&](const char* key, bool default_value) -> int { return is_property_enabled; };
+          [&](const char* /*key*/, bool /*default_value*/) -> int { return is_property_enabled; };
 
   // Expect not to trigger bta_dm_init_pm due to sysprop enabled
   // and reset the value of .srvc_id.

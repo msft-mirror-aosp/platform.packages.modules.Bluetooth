@@ -40,7 +40,6 @@ source_set("nonstandard_codecs") {
     ]
 
     deps = [
-      "//bt/system/gd/rust/shim:init_flags_bridge_header",
       "//bt/system/stack/mmc",
     ]
 
@@ -96,7 +95,6 @@ source_set("stack") {
     "btm/btm_ble.cc",
     "btm/btm_ble_addr.cc",
     "btm/btm_ble_adv_filter.cc",
-    "btm/btm_ble_bgconn.cc",
     "btm/btm_ble_cont_energy.cc",
     "btm/btm_ble_gap.cc",
     "btm/btm_ble_privacy.cc",
@@ -223,9 +221,9 @@ source_set("stack") {
   deps = [
     "//bt/sysprop:libcom.android.sysprop.bluetooth",
     "//bt/system/gd/crypto_toolbox:crypto_toolbox",
+    "//bt/system/gd/rust/topshim:cxxlibheader",
     ":nonstandard_codecs",
     "//bt/system:libbt-platform-protos-lite",
-    "//bt/system/gd/rust/shim:init_flags_bridge_header",
     "//bt/system/stack/mmc",
     "//bt/system/types",
   ]

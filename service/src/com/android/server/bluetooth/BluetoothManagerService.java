@@ -16,6 +16,7 @@
 
 package com.android.server.bluetooth;
 
+import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.bluetooth.BluetoothAdapter.STATE_BLE_ON;
 import static android.bluetooth.BluetoothAdapter.STATE_BLE_TURNING_OFF;
 import static android.bluetooth.BluetoothAdapter.STATE_BLE_TURNING_ON;
@@ -254,6 +255,13 @@ class BluetoothManagerService {
         }
         mName = name;
         Log.v(TAG, "storeName(" + mName + "): Success");
+        mContext.sendBroadcastAsUser(
+                new Intent(BluetoothAdapter.ACTION_LOCAL_NAME_CHANGED)
+                        .putExtra(BluetoothAdapter.EXTRA_LOCAL_NAME, name)
+                        .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT),
+                UserHandle.ALL,
+                BLUETOOTH_CONNECT,
+                getTempAllowlistBroadcastOptions());
     }
 
     private void storeAddress(String address) {
@@ -654,9 +662,14 @@ class BluetoothManagerService {
                 mHandler);
 
         if (Flags.getNameAndAddressAsCallback()) {
-            mName = Settings.Secure.getString(mContentResolver, Settings.Secure.BLUETOOTH_NAME);
+            mName =
+                    BluetoothServerProxy.getInstance()
+                            .settingsSecureGetString(
+                                    mContentResolver, Settings.Secure.BLUETOOTH_NAME);
             mAddress =
-                    Settings.Secure.getString(mContentResolver, Settings.Secure.BLUETOOTH_ADDRESS);
+                    BluetoothServerProxy.getInstance()
+                            .settingsSecureGetString(
+                                    mContentResolver, Settings.Secure.BLUETOOTH_ADDRESS);
 
             Log.d(TAG, "Local adapter: Name=" + mName + ", Address=" + logAddress(mAddress));
         } else {

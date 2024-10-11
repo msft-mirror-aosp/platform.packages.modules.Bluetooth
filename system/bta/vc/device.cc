@@ -399,9 +399,10 @@ bool VolumeControlDevice::EnqueueInitialRequests(tGATT_IF gatt_if, GATT_READ_OP_
  * This includes characteristics read and subscription.
  * In each case we subscribe first to be sure we do not miss any value change.
  */
-void VolumeControlDevice::EnqueueRemainingRequests(tGATT_IF gatt_if, GATT_READ_OP_CB chrc_read_cb,
+void VolumeControlDevice::EnqueueRemainingRequests(tGATT_IF /*gatt_if*/,
+                                                   GATT_READ_OP_CB chrc_read_cb,
                                                    GATT_READ_MULTI_OP_CB chrc_multi_read_cb,
-                                                   GATT_WRITE_OP_CB cccd_write_cb) {
+                                                   GATT_WRITE_OP_CB /*cccd_write_cb*/) {
   std::vector<uint16_t> handles_to_read;
 
   for (auto const& input : audio_inputs.volume_audio_inputs) {
