@@ -251,6 +251,12 @@ public:
             bluetooth::ToGdAddress(address), GetConnectionHandleAndRole(address), data);
   }
 
+  // Must be called from main_thread
+  void OnRemoteDataTimeout(const RawAddress& address) {
+    bluetooth::shim::GetDistanceMeasurementManager()->HandleRemoteDataTimeout(
+            bluetooth::ToGdAddress(address), GetConnectionHandleAndRole(address));
+  }
+
 private:
   ::DistanceMeasurementCallbacks* distance_measurement_callbacks_;
   static constexpr uint16_t kIllegalConnectionHandle = 0xffff;

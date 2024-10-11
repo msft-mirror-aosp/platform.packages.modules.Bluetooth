@@ -44,10 +44,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import pandora.HIDGrpc;
-import pandora.HidProto.HidServiceType;
 import pandora.HidProto.ProtocolModeEvent;
 import pandora.HidProto.ReportEvent;
-import pandora.HidProto.ServiceRequest;
 
 import java.time.Duration;
 import java.util.Iterator;
@@ -235,10 +233,6 @@ public class HidHostTest {
         mAdapter.getProfileProxy(
                 mContext, mBluetoothProfileServiceListener, BluetoothProfile.HEADSET);
         mHidBlockingStub = mBumble.hidBlocking();
-        mHidBlockingStub.registerService(
-                ServiceRequest.newBuilder()
-                        .setServiceType(HidServiceType.SERVICE_TYPE_HID)
-                        .build());
         mFutureConnectionIntent = SettableFuture.create();
 
         mDevice = mBumble.getRemoteDevice();

@@ -269,11 +269,13 @@ public class LeAudioServiceDiscoveryTest {
                         BluetoothDevice.EXTRA_UUID,
                         Matchers.allOf(
                                 Matchers.hasItemInArray(BluetoothUuid.HFP),
+                                Matchers.hasItemInArray(BluetoothUuid.HID),
                                 Matchers.hasItemInArray(BluetoothUuid.A2DP_SOURCE),
                                 Matchers.hasItemInArray(BluetoothUuid.A2DP_SINK),
                                 Matchers.hasItemInArray(BluetoothUuid.AVRCP),
                                 Matchers.hasItemInArray(BluetoothUuid.LE_AUDIO),
-                                Matchers.hasItemInArray(BluetoothUuid.BATTERY))));
+                                Matchers.hasItemInArray(BluetoothUuid.BATTERY),
+                                Matchers.hasItemInArray(BluetoothUuid.HOGP))));
         unregisterIntentActions(
                 BluetoothDevice.ACTION_UUID,
                 BluetoothDevice.ACTION_ACL_CONNECTED,

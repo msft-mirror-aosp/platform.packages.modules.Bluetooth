@@ -64,6 +64,7 @@ public:
   virtual void OnDisconnected(const RawAddress& address) = 0;
   virtual void OnWriteVendorSpecificReplyComplete(const RawAddress& address, bool success) = 0;
   virtual void OnRemoteData(const RawAddress& address, const std::vector<uint8_t>& data) = 0;
+  virtual void OnRemoteDataTimeout(const RawAddress& address) = 0;
 };
 
 class RasClient {

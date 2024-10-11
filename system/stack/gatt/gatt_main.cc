@@ -35,7 +35,6 @@
 #include "main/shim/acl_api.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
-#include "rust/src/connection/ffi/connection_shim.h"
 #include "stack/arbiter/acl_arbiter.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sec.h"
@@ -261,20 +260,14 @@ void gatt_cancel_connect(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   /* This shall be call only when device is not connected */
   log::debug("{}, transport {}", bd_addr, transport);
 
-  if (com::android::bluetooth::flags::unified_connection_manager()) {
-    // TODO(aryarahul): this might not be necessary now that the connection
-    // manager handles GATT client closure correctly in GATT_Deregister
-    bluetooth::connection::GetConnectionManager().stop_all_connections_to_device(
-            bluetooth::connection::ResolveRawAddress(bd_addr));
-  } else {
-    if (!connection_manager::direct_connect_remove(CONN_MGR_ID_L2CAP, bd_addr)) {
-      bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(bd_addr));
-      log::info(
-              "GATT connection manager has no record but removed filter "
-              "acceptlist gatt_if:{} peer:{}",
-              static_cast<uint8_t>(CONN_MGR_ID_L2CAP), bd_addr);
-    }
+  if (!connection_manager::direct_connect_remove(CONN_MGR_ID_L2CAP, bd_addr)) {
+    bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(bd_addr));
+    log::info(
+            "GATT connection manager has no record but removed filter "
+            "acceptlist gatt_if:{} peer:{}",
+            static_cast<uint8_t>(CONN_MGR_ID_L2CAP), bd_addr);
   }
+
   gatt_cleanup_upon_disc(bd_addr, GATT_CONN_TERMINATE_LOCAL_HOST, transport);
 }
 
@@ -1010,14 +1003,7 @@ static void gatt_send_conn_cback(tGATT_TCB* p_tcb) {
   tGATT_REG* p_reg;
   tCONN_ID conn_id;
 
-  std::set<tGATT_IF> apps = {};
-  if (com::android::bluetooth::flags::unified_connection_manager()) {
-    // TODO(aryarahul): this should be done via callbacks passed into the
-    // connection manager
-    apps = {};
-  } else {
-    apps = connection_manager::get_apps_connecting_to(p_tcb->peer_bda);
-  }
+  std::set<tGATT_IF> apps = connection_manager::get_apps_connecting_to(p_tcb->peer_bda);
 
   /* notifying all applications for the connection up event */
 
@@ -1070,9 +1056,7 @@ static void gatt_send_conn_cback(tGATT_TCB* p_tcb) {
   }
 
   /* Remove the direct connection */
-  if (!com::android::bluetooth::flags::unified_connection_manager()) {
-    connection_manager::on_connection_complete(p_tcb->peer_bda);
-  }
+  connection_manager::on_connection_complete(p_tcb->peer_bda);
 
   if (p_tcb->att_lcid == L2CAP_ATT_CID) {
     if (!p_tcb->app_hold_link.empty()) {
