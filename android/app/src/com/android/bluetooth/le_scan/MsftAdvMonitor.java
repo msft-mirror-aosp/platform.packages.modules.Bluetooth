@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,23 +14,25 @@
  * limitations under the License.
  */
 
-#include "rust/src/connection/ffi/connection_shim.h"
-#include "test/common/mock_functions.h"
+package com.android.bluetooth.le_scan;
 
-namespace bluetooth {
+class MsftAdvMonitor {
+    static class Monitor {
+        public byte rssi_threshold_high;
+        public byte rssi_threshold_low;
+        public byte rssi_threshold_low_time_interval;
+        public byte rssi_sampling_period;
+        public byte condition_type;
+    }
 
-namespace connection {
+    static class Pattern {
+        public byte ad_type;
+        public byte start_byte;
+        public byte[] pattern;
+    }
 
-RustConnectionManager& GetConnectionManager() {
-  static RustConnectionManager manager = {};
-  inc_func_call_count(__func__);
-  return manager;
+    static class Address {
+        byte addr_type;
+        String bd_addr;
+    }
 }
-
-core::AddressWithType ResolveRawAddress(RawAddress /* bd_addr */) {
-  inc_func_call_count(__func__);
-  return {};
-}
-
-}  // namespace connection
-}  // namespace bluetooth

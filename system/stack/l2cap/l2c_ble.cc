@@ -926,7 +926,7 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
 /** This function is to initate a direct connection. Returns true if connection
  * initiated, false otherwise. */
 bool l2cble_create_conn(tL2C_LCB* p_lcb) {
-  if (!acl_create_le_connection(p_lcb->remote_bd_addr)) {
+  if (!acl_create_le_connection_with_id(CONN_MGR_ID_L2CAP, p_lcb->remote_bd_addr)) {
     return false;
   }
 
