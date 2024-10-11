@@ -5709,6 +5709,14 @@ public class AdapterService extends Service {
     }
 
     public void setPhonebookAccessPermission(BluetoothDevice device, int value) {
+        Log.d(
+                TAG,
+                "setPhonebookAccessPermission device="
+                        + ((device == null) ? "null" : device.getAnonymizedAddress())
+                        + ", value="
+                        + value
+                        + ", callingUid="
+                        + Binder.getCallingUid());
         setDeviceAccessFromPrefs(device, value, PHONEBOOK_ACCESS_PERMISSION_PREFERENCE_FILE);
     }
 

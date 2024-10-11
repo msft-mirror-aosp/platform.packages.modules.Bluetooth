@@ -287,13 +287,13 @@ void BleScannerInterfaceImpl::MsftAdvMonitorEnable(bool enable, MsftAdvMonitorEn
 void BleScannerInterfaceImpl::OnMsftAdvMonitorAdd(uint8_t monitor_handle,
                                                   bluetooth::hci::ErrorCode status) {
   log::info("in shim layer");
-  msft_callbacks_.Add.Run(monitor_handle, (uint8_t)status);
+  do_in_jni_thread(base::BindOnce(msft_callbacks_.Add, monitor_handle, (uint8_t)status));
 }
 
 /** Callback of removing MSFT filter */
 void BleScannerInterfaceImpl::OnMsftAdvMonitorRemove(bluetooth::hci::ErrorCode status) {
   log::info("in shim layer");
-  msft_callbacks_.Remove.Run((uint8_t)status);
+  do_in_jni_thread(base::BindOnce(msft_callbacks_.Remove, (uint8_t)status));
 }
 
 /** Callback of enabling / disabling MSFT scan filter */
@@ -307,7 +307,7 @@ void BleScannerInterfaceImpl::OnMsftAdvMonitorEnable(bool enable,
                    : bluetooth::hci::LeScanningFilterPolicy::ACCEPT_ALL);
   }
 
-  msft_callbacks_.Enable.Run((uint8_t)status);
+  do_in_jni_thread(base::BindOnce(msft_callbacks_.Enable, (uint8_t)status));
 }
 
 /** Sets the LE scan interval and window in units of N*0.625 msec */
