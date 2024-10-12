@@ -1755,7 +1755,7 @@ static std::string volumeToStr(int8_t volume) {
 
 std::ostream& operator<<(std::ostream& out, const Device& d) {
   // TODO: whether this should be turned into LOGGABLE STRING?
-  out << "  " << ADDRESS_TO_LOGGABLE_STR(d.address_);
+  out << "  " << d.address_.ToRedactedStringForLogging();
   if (d.IsActive()) {
     out << " <Active>";
   }

@@ -1055,7 +1055,7 @@ public class A2dpService extends ProfileService {
         }
     }
 
-    /* Notifications of audio device connection/disconn events. */
+    /* Notifications of audio device connection/disconnection events. */
     private class AudioManagerAudioDeviceCallback extends AudioDeviceCallback {
         @Override
         public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {

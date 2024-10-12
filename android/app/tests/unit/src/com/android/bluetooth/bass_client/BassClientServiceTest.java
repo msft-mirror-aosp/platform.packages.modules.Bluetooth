@@ -6471,4 +6471,45 @@ public class BassClientServiceTest {
             }
         }
     }
+
+    @Test
+    public void testIsLocalBroadacst() {
+        int broadcastId = 12345;
+
+        BluetoothLeBroadcastMetadata metadata = createBroadcastMetadata(broadcastId);
+        BluetoothLeBroadcastReceiveState receiveState =
+                new BluetoothLeBroadcastReceiveState(
+                        TEST_SOURCE_ID,
+                        metadata.getSourceAddressType(),
+                        metadata.getSourceDevice(),
+                        metadata.getSourceAdvertisingSid(),
+                        metadata.getBroadcastId(),
+                        BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCHRONIZED,
+                        BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_NOT_ENCRYPTED,
+                        null,
+                        metadata.getSubgroups().size(),
+                        // Bis sync states
+                        metadata.getSubgroups().stream()
+                                .map(e -> (long) 0x00000001)
+                                .collect(Collectors.toList()),
+                        metadata.getSubgroups().stream()
+                                .map(e -> e.getContentMetadata())
+                                .collect(Collectors.toList()));
+
+        /* External broadcast check */
+        doReturn(new ArrayList<BluetoothLeBroadcastMetadata>())
+                .when(mLeAudioService)
+                .getAllBroadcastMetadata();
+
+        assertThat(mBassClientService.isLocalBroadcast(metadata)).isFalse();
+        assertThat(mBassClientService.isLocalBroadcast(receiveState)).isFalse();
+
+        /* Local broadcast check */
+        doReturn(new ArrayList<BluetoothLeBroadcastMetadata>(Arrays.asList(metadata)))
+                .when(mLeAudioService)
+                .getAllBroadcastMetadata();
+
+        assertThat(mBassClientService.isLocalBroadcast(metadata)).isTrue();
+        assertThat(mBassClientService.isLocalBroadcast(receiveState)).isTrue();
+    }
 }
