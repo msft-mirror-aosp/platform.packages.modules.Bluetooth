@@ -99,6 +99,7 @@ public:
                                          bool success);
   void HandleRemoteData(const Address& address, uint16_t connection_handle,
                         const std::vector<uint8_t>& raw_data);
+  void HandleRemoteDataTimeout(const Address& address, uint16_t connection_handle);
 
   static const ModuleFactory Factory;
 

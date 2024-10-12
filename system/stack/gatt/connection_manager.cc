@@ -27,10 +27,11 @@
 #include <memory>
 #include <set>
 
+#include "main/shim/acl_api.h"
 #include "main/shim/le_scanning_manager.h"
 #include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
-#include "stack/btm/btm_ble_bgconn.h"
+#include "stack/btm/btm_dev.h"
 #include "stack/include/advertise_data_parser.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_api.h"
@@ -229,7 +230,7 @@ bool background_connect_targeted_announcement_add(tAPP_ID app_id, const RawAddre
   }
 
   if (disable_accept_list) {
-    BTM_AcceptlistRemove(address);
+    bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(address));
     bgconn_dev[address].is_in_accept_list = false;
   }
 
@@ -275,7 +276,8 @@ bool background_connect_add(uint8_t app_id, const RawAddress& address) {
     if (is_targeted_announcement_enabled) {
       log::debug("Targeted announcement enabled, do not add to AcceptList");
     } else {
-      if (!BTM_AcceptlistAdd(address)) {
+      if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address),
+                                                       false)) {
         log::warn("Failed to add device {} to accept list for app {}", address,
                   static_cast<int>(app_id));
         return false;
@@ -300,7 +302,7 @@ bool remove_unconditional(const RawAddress& address) {
     return false;
   }
 
-  BTM_AcceptlistRemove(address);
+  bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(address));
   bgconn_dev.erase(it);
   return true;
 }
@@ -342,7 +344,8 @@ bool background_connect_remove(uint8_t app_id, const RawAddress& address) {
         /* Keep using filtering */
         log::debug("Keep using target announcement filtering");
       } else if (!it->second.doing_bg_conn.empty()) {
-        if (!BTM_AcceptlistAdd(address)) {
+        if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address),
+                                                         false)) {
           log::warn("Could not re add device to accept list");
         } else {
           bgconn_dev[address].is_in_accept_list = true;
@@ -356,7 +359,7 @@ bool background_connect_remove(uint8_t app_id, const RawAddress& address) {
 
   // no more apps interested - remove from accept list and delete record
   if (accept_list_enabled) {
-    BTM_AcceptlistRemove(address);
+    bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(address));
     return true;
   }
 
@@ -392,7 +395,7 @@ void on_app_deregistered(uint8_t app_id) {
       continue;
     }
 
-    BTM_AcceptlistRemove(it->first);
+    bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(it->first));
     it = bgconn_dev.erase(it);
   }
 }
@@ -424,7 +427,7 @@ void reset(bool after_reset) {
   bgconn_dev.clear();
   if (!after_reset) {
     target_announcements_filtering_set(false);
-    BTM_AcceptlistClear();
+    bluetooth::shim::ACL_IgnoreAllLeConnections();
   }
 }
 
@@ -458,7 +461,7 @@ bool direct_connect_add(uint8_t app_id, const RawAddress& address) {
   }
 
   if (!in_acceptlist) {
-    if (!BTM_AcceptlistAdd(address, true)) {
+    if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address), true)) {
       // if we can't add to acceptlist, turn parameters back to slow.
       log::warn("Unable to add le device to acceptlist");
       return false;
@@ -506,7 +509,8 @@ bool direct_connect_remove(uint8_t app_id, const RawAddress& address, bool conne
        * when connection timeout out, the lower layer removes device from
        * the allow list.
        */
-      if (!BTM_AcceptlistAdd(address)) {
+      if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address),
+                                                       false)) {
         log::warn("Failed to re-add device {} to accept list after connection timeout", address);
       }
     }
@@ -514,7 +518,7 @@ bool direct_connect_remove(uint8_t app_id, const RawAddress& address, bool conne
   }
 
   // no more apps interested - remove from acceptlist
-  BTM_AcceptlistRemove(address);
+  bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(address));
 
   if (!is_targeted_announcement_enabled) {
     bgconn_dev.erase(it);

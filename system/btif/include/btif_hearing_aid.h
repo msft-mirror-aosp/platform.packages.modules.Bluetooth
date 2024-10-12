@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,23 +14,8 @@
  * limitations under the License.
  */
 
-#include "rust/src/connection/ffi/connection_shim.h"
-#include "test/common/mock_functions.h"
+#pragma once
 
-namespace bluetooth {
+#include "hardware/bt_hearing_aid.h"
 
-namespace connection {
-
-RustConnectionManager& GetConnectionManager() {
-  static RustConnectionManager manager = {};
-  inc_func_call_count(__func__);
-  return manager;
-}
-
-core::AddressWithType ResolveRawAddress(RawAddress /* bd_addr */) {
-  inc_func_call_count(__func__);
-  return {};
-}
-
-}  // namespace connection
-}  // namespace bluetooth
+bluetooth::hearing_aid::HearingAidInterface* btif_hearing_aid_get_interface();

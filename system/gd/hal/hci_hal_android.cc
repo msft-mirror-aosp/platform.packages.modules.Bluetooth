@@ -24,6 +24,7 @@
 #include "hal/hci_backend.h"
 #include "hal/hci_hal.h"
 #include "hal/link_clocker.h"
+#include "hal/mgmt.h"
 #include "hal/snoop_logger.h"
 
 namespace bluetooth::hal {
@@ -156,6 +157,8 @@ public:
                              SnoopLogger::PacketType::ISO);
     backend_->sendIsoData(packet);
   }
+
+  uint16_t getMsftOpcode() override { return Mgmt().get_vs_opcode(MGMT_VS_OPCODE_MSFT); }
 
 protected:
   void ListDependencies(ModuleList* list) const override {
