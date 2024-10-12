@@ -30,6 +30,7 @@
 #include "os/logging/log_adapter.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_addr.h"
+#include "stack/include/main_thread.h"
 
 using namespace bluetooth;
 using namespace ::ras;
@@ -77,6 +78,10 @@ public:
   };
 
   void Initialize() override {
+    do_in_main_thread(base::BindOnce(&RasServerImpl::do_initialize, base::Unretained(this)));
+  }
+
+  void do_initialize() {
     auto controller = bluetooth::shim::GetController();
     if (controller && !controller->SupportsBleChannelSounding()) {
       log::info("controller does not support channel sounding.");

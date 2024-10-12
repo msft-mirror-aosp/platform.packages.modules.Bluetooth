@@ -35,7 +35,6 @@
 #include "internal_include/stack_config.h"
 #include "os/system_properties.h"
 #include "osi/include/allocator.h"
-#include "rust/src/connection/ffi/connection_shim.h"
 #include "stack/arbiter/acl_arbiter.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/gatt/connection_manager.h"
@@ -1378,11 +1377,7 @@ void GATT_Deregister(tGATT_IF gatt_if) {
     }
   }
 
-  if (com::android::bluetooth::flags::unified_connection_manager()) {
-    bluetooth::connection::GetConnectionManager().remove_client(gatt_if);
-  } else {
-    connection_manager::on_app_deregistered(gatt_if);
-  }
+  connection_manager::on_app_deregistered(gatt_if);
 
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     gatt_cb.cl_rcb_map.erase(gatt_if);
@@ -1506,20 +1501,10 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
       ret = false;
     } else {
       log::debug("Adding to background connect to device:{}", bd_addr);
-      if (com::android::bluetooth::flags::unified_connection_manager()) {
-        if (connection_type == BTM_BLE_BKG_CONNECT_ALLOW_LIST) {
-          bluetooth::connection::GetConnectionManager().add_background_connection(
-                  gatt_if, bluetooth::connection::ResolveRawAddress(bd_addr));
-          ret = true;  // TODO(aryarahul): error handling
-        } else {
-          log::fatal("unimplemented, TODO(aryarahul)");
-        }
+      if (connection_type == BTM_BLE_BKG_CONNECT_ALLOW_LIST) {
+        ret = connection_manager::background_connect_add(gatt_if, bd_addr);
       } else {
-        if (connection_type == BTM_BLE_BKG_CONNECT_ALLOW_LIST) {
-          ret = connection_manager::background_connect_add(gatt_if, bd_addr);
-        } else {
-          ret = connection_manager::background_connect_targeted_announcement_add(gatt_if, bd_addr);
-        }
+        ret = connection_manager::background_connect_targeted_announcement_add(gatt_if, bd_addr);
       }
     }
   }
@@ -1602,14 +1587,9 @@ bool GATT_CancelConnect(tGATT_IF gatt_if, const RawAddress& bd_addr, bool is_dir
     }
   }
 
-  if (com::android::bluetooth::flags::unified_connection_manager()) {
-    bluetooth::connection::GetConnectionManager().stop_all_connections_to_device(
-            bluetooth::connection::ResolveRawAddress(bd_addr));
-  } else {
-    if (!connection_manager::remove_unconditional(bd_addr)) {
-      log::error("no app associated with the bg device for unconditional removal");
-      return false;
-    }
+  if (!connection_manager::remove_unconditional(bd_addr)) {
+    log::error("no app associated with the bg device for unconditional removal");
+    return false;
   }
 
   return true;

@@ -24,7 +24,6 @@
 #include <string>
 #include <type_traits>
 
-#include "internal_include/bt_trace.h"
 #include "macros.h"
 #include "sdp_common.h"
 
@@ -42,7 +41,7 @@ inline std::string PduIdText(const PduId& id) {
     CASE_RETURN_TEXT(PduId::SERVICE_SEARCH_ATTRIBUTE_REQUEST);
     CASE_RETURN_TEXT(PduId::SERVICE_SEARCH_ATTRIBUTE_RESPONSE);
     default:
-      return "Unknown PduId: " + loghex((uint8_t)id);
+      return fmt::format("Unknown PduId: 0x{:x}", (uint8_t)id);
   }
 }
 
@@ -67,7 +66,7 @@ inline std::string AttributeIdText(const AttributeId& id) {
     CASE_RETURN_TEXT(AttributeId::VERSION_NUMBER_LIST);
     CASE_RETURN_TEXT(AttributeId::SERVICE_DATABASE_STATE);
     default:
-      return "Unknown AttributeId: " + loghex((uint16_t)id);
+      return fmt::format("Unknown AttributeId: 0x{:x}", (uint16_t)id);
   }
 }
 
@@ -87,7 +86,7 @@ inline std::string DataElementTypeText(const DataElementType& type) {
     CASE_RETURN_TEXT(DataElementType::DATA_ELEMENT_ALTERNATIVE);
     CASE_RETURN_TEXT(DataElementType::URL);
     default:
-      return "Unknown DataElementType: " + loghex((uint8_t)type);
+      return fmt::format("Unknown DataElementType: 0x{:x}", (uint8_t)type);
   }
 }
 
@@ -106,7 +105,7 @@ inline std::string DataElementSizeText(const DataElementSize& size) {
     CASE_RETURN_TEXT(DataElementSize::ADDITIONAL_16BIT);
     CASE_RETURN_TEXT(DataElementSize::ADDITIONAL_32BIT);
     default:
-      return "Unknown DataElementSize: " + loghex((uint8_t)size);
+      return fmt::format("Unknown DataElementSize: 0x{:x}", (uint8_t)size);
   }
 }
 

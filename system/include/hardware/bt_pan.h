@@ -19,6 +19,8 @@
 #include <bluetooth/log.h>
 #include <raw_address.h>
 
+#include "hardware/bluetooth.h"
+
 #define BTPAN_ROLE_NONE 0
 #define BTPAN_ROLE_PANNAP 1
 #define BTPAN_ROLE_PANU 2

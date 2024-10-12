@@ -27,6 +27,7 @@ import static android.bluetooth.BluetoothAdapter.SCAN_MODE_CONNECTABLE;
 import static android.bluetooth.BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE;
 import static android.bluetooth.BluetoothAdapter.SCAN_MODE_NONE;
 import static android.bluetooth.BluetoothDevice.BATTERY_LEVEL_UNKNOWN;
+import static android.bluetooth.BluetoothDevice.BOND_NONE;
 import static android.bluetooth.BluetoothDevice.TRANSPORT_AUTO;
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 import static android.text.format.DateUtils.MINUTE_IN_MILLIS;
@@ -1200,6 +1201,11 @@ public class AdapterService extends Service {
     }
 
     void updateAdapterName(String name) {
+        // TODO: b/372775662 - remove post once caller is on correct thread
+        mHandler.post(() -> updateAdapterNameInternal(name));
+    }
+
+    private void updateAdapterNameInternal(String name) {
         int n = mRemoteCallbacks.beginBroadcast();
         Log.d(TAG, "updateAdapterName(" + name + ")");
         for (int i = 0; i < n; i++) {
@@ -1213,6 +1219,11 @@ public class AdapterService extends Service {
     }
 
     void updateAdapterAddress(String address) {
+        // TODO: b/372775662 - remove post once caller is on correct thread
+        mHandler.post(() -> updateAdapterAddressInternal(address));
+    }
+
+    private void updateAdapterAddressInternal(String address) {
         int n = mRemoteCallbacks.beginBroadcast();
         Log.d(TAG, "updateAdapterAddress(" + BluetoothUtils.toAnonymizedAddress(address) + ")");
         for (int i = 0; i < n; i++) {
@@ -5709,6 +5720,14 @@ public class AdapterService extends Service {
     }
 
     public void setPhonebookAccessPermission(BluetoothDevice device, int value) {
+        Log.d(
+                TAG,
+                "setPhonebookAccessPermission device="
+                        + ((device == null) ? "null" : device.getAnonymizedAddress())
+                        + ", value="
+                        + value
+                        + ", callingUid="
+                        + Binder.getCallingUid());
         setDeviceAccessFromPrefs(device, value, PHONEBOOK_ACCESS_PERMISSION_PREFERENCE_FILE);
     }
 
@@ -6120,6 +6139,13 @@ public class AdapterService extends Service {
             mCsipSetCoordinatorService.handleBondStateChanged(device, fromState, toState);
         }
         mDatabaseManager.handleBondStateChanged(device, fromState, toState);
+
+        if (toState == BOND_NONE) {
+            // Remove the permissions for unbonded devices
+            setMessageAccessPermission(device, BluetoothDevice.ACCESS_UNKNOWN);
+            setPhonebookAccessPermission(device, BluetoothDevice.ACCESS_UNKNOWN);
+            setSimAccessPermission(device, BluetoothDevice.ACCESS_UNKNOWN);
+        }
     }
 
     static int convertScanModeToHal(int mode) {

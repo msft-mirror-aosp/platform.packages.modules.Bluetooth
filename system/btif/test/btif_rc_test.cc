@@ -29,6 +29,7 @@
 #include "common/message_loop_thread.h"
 #include "device/include/interop.h"
 #include "include/hardware/bt_rc.h"
+#include "stack/include/main_thread.h"
 #include "test/common/mock_functions.h"
 #include "test/mock/mock_osi_alarm.h"
 #include "test/mock/mock_osi_allocator.h"
@@ -43,7 +44,6 @@ AvrcpService* AvrcpService::instance_ = nullptr;
 void AvrcpService::SendMediaUpdate(bool /*track_changed*/, bool /*play_state*/, bool /*queue*/) {}
 void AvrcpService::SendFolderUpdate(bool /*available_players*/, bool /*addressed_players*/,
                                     bool /*uids*/) {}
-void AvrcpService::SendActiveDeviceChanged(const RawAddress& /*address*/) {}
 void AvrcpService::SendPlayerSettingsChanged(std::vector<PlayerAttribute> /*attributes*/,
                                              std::vector<uint8_t> /*values*/) {}
 void AvrcpService::ServiceInterfaceImpl::Init(
