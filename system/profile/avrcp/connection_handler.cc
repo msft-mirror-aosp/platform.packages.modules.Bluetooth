@@ -638,7 +638,7 @@ void ConnectionHandler::RegisterVolChanged(const RawAddress& bdaddr) {
 
 bool ConnectionHandler::SdpLookupAudioRole(uint16_t handle) {
   if (device_map_.find(handle) == device_map_.end()) {
-    log::warn("No device found for handle: {}", loghex(handle));
+    log::warn("No device found for handle: 0x{:x}", handle);
     return false;
   }
   auto device = device_map_[handle];
@@ -656,7 +656,7 @@ void ConnectionHandler::SdpLookupAudioRoleCb(uint16_t handle, bool found,
                                              tA2DP_Service* /*p_service*/,
                                              const RawAddress& /*peer_address*/) {
   if (device_map_.find(handle) == device_map_.end()) {
-    log::warn("No device found for handle: {}", loghex(handle));
+    log::warn("No device found for handle: 0x{:x}", handle);
     return;
   }
   auto device = device_map_[handle];
