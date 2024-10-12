@@ -143,8 +143,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   struct CsTracker {
     Address address;
     hci::Role local_hci_role;
-    uint16_t local_counter;
-    uint16_t remote_counter;
+    uint16_t procedure_counter;
     CsRole role;
     bool local_start = false;  // If the CS was started by the local device.
     bool measurement_ongoing = false;
@@ -856,7 +855,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       }
       CsProcedureData* procedure_data =
               init_cs_procedure_data(connection_handle, cs_event_result.GetProcedureCounter(),
-                                     cs_event_result.GetNumAntennaPaths(), true);
+                                     cs_event_result.GetNumAntennaPaths());
       if (cs_trackers_[connection_handle].role == CsRole::INITIATOR) {
         procedure_data->frequency_compensation.push_back(
                 cs_event_result.GetFrequencyCompensation());
@@ -886,7 +885,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       }
     }
 
-    uint16_t counter = cs_trackers_[connection_handle].local_counter;
+    uint16_t counter = cs_trackers_[connection_handle].procedure_counter;
     log::debug(
             "Connection_handle {}, procedure_done_status: {}, subevent_done_status: {}, counter: "
             "{}",
@@ -1185,13 +1184,9 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   }
 
   CsProcedureData* init_cs_procedure_data(uint16_t connection_handle, uint16_t procedure_counter,
-                                          uint8_t num_antenna_paths, bool local) {
+                                          uint8_t num_antenna_paths) {
     // Update procedure count
-    if (local) {
-      cs_trackers_[connection_handle].local_counter = procedure_counter;
-    } else {
-      cs_trackers_[connection_handle].remote_counter = procedure_counter;
-    }
+    cs_trackers_[connection_handle].procedure_counter = procedure_counter;
 
     std::vector<CsProcedureData>& data_list = cs_trackers_[connection_handle].procedure_data_list;
     for (auto& data : data_list) {
