@@ -268,7 +268,7 @@ static bt_status_t init(bthf_client_callbacks_t* callbacks) {
  * Returns         bt_status_t
  *
  ******************************************************************************/
-static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid) {
+static bt_status_t connect_int(RawAddress* bd_addr, uint16_t /*uuid*/) {
   btif_hf_client_cb_t* cb = btif_hf_client_allocate_cb();
   if (cb == NULL) {
     log::error("could not allocate block!");

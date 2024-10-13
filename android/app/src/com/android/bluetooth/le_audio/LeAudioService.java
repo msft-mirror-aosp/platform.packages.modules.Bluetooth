@@ -1239,7 +1239,7 @@ public class LeAudioService extends ProfileService {
 
             BluetoothLeAudioCodecStatus codecStatus = getCodecStatus(groupId);
             if (codecStatus != null
-                    && !codecStatus.isInputCodecConfigSelectable(BROADCAST_HIGH_QUALITY_CONFIG)) {
+                    && !codecStatus.isOutputCodecConfigSelectable(BROADCAST_HIGH_QUALITY_CONFIG)) {
                 // If any sink device does not support high quality audio config,
                 // set all subgroup audio quality to standard quality for now before multi codec
                 // config support is ready

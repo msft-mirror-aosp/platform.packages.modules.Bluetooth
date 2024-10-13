@@ -435,7 +435,7 @@ impl ToString for BtVendorProductInfo {
             match self.vendor_id_src {
                 1 => "bluetooth",
                 2 => "usb",
-                default => "unknown",
+                _ => "unknown",
             },
             self.vendor_id,
             self.product_id,
@@ -1262,9 +1262,7 @@ impl BluetoothInterface {
             guest_mode,
             is_common_criteria_mode,
             config_compare_result,
-            std::ptr::null_mut(),
-            is_atv,
-            std::ptr::null()
+            is_atv
         );
 
         self.is_init = init == 0;

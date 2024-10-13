@@ -32,10 +32,11 @@
 
 #include "hardware/bt_gatt_types.h"
 #include "internal_include/bt_target.h"
+#include "main/shim/acl_api.h"
 #include "main/shim/dumpsys.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
-#include "rust/src/connection/ffi/connection_shim.h"
+#include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/eatt/eatt.h"
 #include "stack/gatt/connection_manager.h"
@@ -1659,26 +1660,21 @@ bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda) {
     gatt_disconnect(p_tcb);
   }
 
-  if (com::android::bluetooth::flags::unified_connection_manager()) {
-    bluetooth::connection::GetConnectionManager().stop_direct_connection(
-            gatt_if, bluetooth::connection::ResolveRawAddress(bda));
-  } else {
-    if (!connection_manager::direct_connect_remove(gatt_if, bda)) {
-      if (!connection_manager::is_background_connection(bda)) {
-        if (!com::android::bluetooth::flags::gatt_fix_multiple_direct_connect() ||
-            p_tcb->app_hold_link.empty()) {
-          BTM_AcceptlistRemove(bda);
-        }
-        log::info(
-                "Gatt connection manager has no background record but  removed "
-                "filter acceptlist gatt_if:{} peer:{}",
-                gatt_if, bda);
-      } else {
-        log::info(
-                "Gatt connection manager maintains a background record preserving "
-                "filter acceptlist gatt_if:{} peer:{}",
-                gatt_if, bda);
+  if (!connection_manager::direct_connect_remove(gatt_if, bda)) {
+    if (!connection_manager::is_background_connection(bda)) {
+      if (!com::android::bluetooth::flags::gatt_fix_multiple_direct_connect() ||
+          p_tcb->app_hold_link.empty()) {
+        bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(bda));
       }
+      log::info(
+              "Gatt connection manager has no background record but  removed "
+              "filter acceptlist gatt_if:{} peer:{}",
+              gatt_if, bda);
+    } else {
+      log::info(
+              "Gatt connection manager maintains a background record preserving "
+              "filter acceptlist gatt_if:{} peer:{}",
+              gatt_if, bda);
     }
   }
 
@@ -1977,14 +1973,7 @@ bool gatt_auto_connect_dev_remove(tGATT_IF gatt_if, const RawAddress& bd_addr) {
   if (p_tcb) {
     gatt_update_app_use_link_flag(gatt_if, p_tcb, false, false);
   }
-  if (com::android::bluetooth::flags::unified_connection_manager()) {
-    bluetooth::connection::GetConnectionManager().remove_background_connection(
-            gatt_if, bluetooth::connection::ResolveRawAddress(bd_addr));
-    // TODO(aryarahul): handle failure case
-    return true;
-  } else {
-    return connection_manager::background_connect_remove(gatt_if, bd_addr);
-  }
+  return connection_manager::background_connect_remove(gatt_if, bd_addr);
 }
 
 tCONN_ID gatt_create_conn_id(tTCB_IDX tcb_idx, tGATT_IF gatt_if) {

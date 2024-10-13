@@ -115,6 +115,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
+        Log.d(TAG, "enable()");
         return mBluetoothManagerService.enableFromBinder(source.getPackageName());
     }
 
@@ -140,6 +141,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             throw new SecurityException("No permission to enable Bluetooth quietly");
         }
 
+        Log.d(TAG, "enableNoAutoConnect()");
         return mBluetoothManagerService.enableNoAutoConnectFromBinder(source.getPackageName());
     }
 
@@ -165,6 +167,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
+        Log.d(TAG, "disable(" + persist + ")");
         return mBluetoothManagerService.disableFromBinder(source.getPackageName(), persist);
     }
 
@@ -265,6 +268,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
+        Log.d(TAG, "enableBle(" + token + ")");
         return mBluetoothManagerService.enableBleFromBinder(source.getPackageName(), token);
     }
 
@@ -288,6 +292,7 @@ class BluetoothServiceBinder extends IBluetoothManager.Stub {
             return false;
         }
 
+        Log.d(TAG, "disableBle(" + token + ")");
         return mBluetoothManagerService.disableBleFromBinder(source.getPackageName(), token);
     }
 

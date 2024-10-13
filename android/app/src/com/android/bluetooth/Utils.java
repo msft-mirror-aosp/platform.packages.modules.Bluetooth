@@ -650,7 +650,7 @@ public final class Utils {
         }
 
         final String msg =
-                "Need " + permission + " permission for " + attributionSource + ": " + message;
+                "Need " + permission + " permission for " + currentAttribution + ": " + message;
         if (result == PERMISSION_HARD_DENIED) {
             throw new SecurityException(msg);
         } else {

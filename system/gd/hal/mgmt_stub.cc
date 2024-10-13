@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright 2018 The Android Open Source Project
+ *  Copyright 2024 The Android Open Source Project
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,19 +16,21 @@
  *
  ******************************************************************************/
 
-#include "types/raw_address.h"
+/*
+ * MGMT stub
+ */
 
-/** Adds the device into acceptlist. Returns false if acceptlist is full and
- * device can't be added, true otherwise. */
-bool BTM_AcceptlistAdd(const RawAddress& address);
+#include <bluetooth/log.h>
 
-/** Adds the device into acceptlist and indicates whether to using direct
- * connect parameters. Returns false if acceptlist is full and device can't
- * be added, true otherwise. */
-bool BTM_AcceptlistAdd(const RawAddress& address, bool is_direct);
+#include "hal/mgmt.h"
 
-/** Removes the device from acceptlist */
-void BTM_AcceptlistRemove(const RawAddress& address);
+namespace bluetooth {
+namespace hal {
 
-/** Clear the acceptlist, end any pending acceptlist connections */
-void BTM_AcceptlistClear();
+uint16_t Mgmt::get_vs_opcode(uint16_t vendor_specification) {
+  log::debug("Using stub for vendor opcode 0x{:04x}", vendor_specification);
+  return 0;
+}
+
+}  // namespace hal
+}  // namespace bluetooth

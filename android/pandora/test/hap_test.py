@@ -18,6 +18,7 @@ from bumble.gatt import GATT_HEARING_ACCESS_SERVICE, GATT_AUDIO_STREAM_CONTROL_S
 from bumble.profiles import hap
 from bumble.profiles.hap import DynamicPresets, HearingAccessService, HearingAidFeatures, HearingAidType, IndependentPresets, PresetRecord, PresetSynchronizationSupport, WritablePresetsSupport
 
+from pandora_experimental.os_grpc_aio import Os as OsAio
 from pandora_experimental.gatt_grpc_aio import GATT
 from pandora_experimental.hap_grpc_aio import HAP
 from pandora_experimental.hap_pb2 import PresetRecord as grpcPresetRecord  # type: ignore
@@ -84,6 +85,8 @@ class HapTest(base_test.BaseTestClass):
     @asynchronous
     async def setup_test(self) -> None:
         await asyncio.gather(self.dut.reset(), self.ref_left.reset())
+        self.logcat = OsAio(channel=self.dut.aio.channel)
+        await self.logcat.Log("setup test")
         self.hap_grpc = HAP(channel=self.dut.aio.channel)
         device_features = HearingAidFeatures(HearingAidType.MONAURAL_HEARING_AID,
                                              PresetSynchronizationSupport.PRESET_SYNCHRONIZATION_IS_NOT_SUPPORTED,
@@ -162,6 +165,7 @@ class HapTest(base_test.BaseTestClass):
 
     @asynchronous
     async def test_get_features(self) -> None:
+        await self.logcat.Log("test_get_features")
         dut_connection_to_ref = await self.setupHapConnection()
 
         features = hap.HearingAidFeatures_from_bytes(
@@ -170,6 +174,7 @@ class HapTest(base_test.BaseTestClass):
 
     @asynchronous
     async def test_get_preset(self) -> None:
+        await self.logcat.Log("test_get_preset")
         dut_connection_to_ref = await self.setupHapConnection()
 
         await self.assertIdentiqPresetInDutAndRef(dut_connection_to_ref)

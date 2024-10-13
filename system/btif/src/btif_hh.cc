@@ -1299,7 +1299,7 @@ static void btif_hh_upstreams_evt(uint16_t event, char* p_param) {
  *
  ******************************************************************************/
 
-static void btif_hh_hsdata_rpt_copy_cb(uint16_t event, char* p_dest, const char* p_src) {
+static void btif_hh_hsdata_rpt_copy_cb(uint16_t /*event*/, char* p_dest, const char* p_src) {
   tBTA_HH_HSDATA* p_dst_data = (tBTA_HH_HSDATA*)p_dest;
   tBTA_HH_HSDATA* p_src_data = (tBTA_HH_HSDATA*)p_src;
   BT_HDR* hdr;

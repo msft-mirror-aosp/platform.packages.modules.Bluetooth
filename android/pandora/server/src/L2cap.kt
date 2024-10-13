@@ -25,6 +25,7 @@ import com.google.protobuf.Any
 import com.google.protobuf.ByteString
 import io.grpc.stub.StreamObserver
 import java.io.Closeable
+import java.io.IOException
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -128,6 +129,44 @@ class L2cap(val context: Context) : L2CAPImplBase(), Closeable {
         }
     }
 
+    override fun disconnect(
+        request: DisconnectRequest,
+        responseObserver: StreamObserver<DisconnectResponse>,
+    ) {
+        grpcUnary(scope, responseObserver) {
+            val channel = request.channel
+            val bluetoothSocket = channel.toBluetoothSocket(channels)
+            Log.i(TAG, "disconnect: ${channel.id()} ")
+
+            try {
+                bluetoothSocket.close()
+                DisconnectResponse.getDefaultInstance()
+            } catch (e: IOException) {
+                Log.e(TAG, "disconnect: exception while closing the socket: $e")
+
+                DisconnectResponse.newBuilder()
+                    .setErrorValue(CommandRejectReason.COMMAND_NOT_UNDERSTOOD_VALUE)
+                    .build()
+            } finally {
+                channels.remove(channel.id())
+            }
+        }
+    }
+
+    override fun waitDisconnection(
+        request: WaitDisconnectionRequest,
+        responseObserver: StreamObserver<WaitDisconnectionResponse>,
+    ) {
+        grpcUnary(scope, responseObserver) {
+            Log.i(TAG, "waitDisconnection: ${request.channel.id()}")
+            val bluetoothSocket = request.channel.toBluetoothSocket(channels)
+
+            while (bluetoothSocket.isConnected()) Thread.sleep(100)
+
+            WaitDisconnectionResponse.getDefaultInstance()
+        }
+    }
+
     override fun send(request: SendRequest, responseObserver: StreamObserver<SendResponse>) {
         grpcUnary(scope, responseObserver) {
             Log.i(TAG, "send")
@@ -167,6 +206,8 @@ class L2cap(val context: Context) : L2CAPImplBase(), Closeable {
         return channel
     }
 
+    fun Channel.id(): Long = this.cookie.value.toStringUtf8().toLong()
+
     fun Channel.toBluetoothSocket(channels: HashMap<Long, BluetoothSocket>): BluetoothSocket =
-        channels.get(this.cookie.value.toStringUtf8().toLong())!!
+        channels.get(this.id())!!
 }
