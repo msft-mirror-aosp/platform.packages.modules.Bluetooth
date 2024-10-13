@@ -58,7 +58,6 @@ cc_library_static {
         "libcom.android.sysprop.bluetooth.wrapped",
     ],
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_library {
@@ -133,11 +132,6 @@ cc_library_static {
     generated_headers: [
         "BluetoothGeneratedBundlerSchema_h_bfbs",
         "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
-    cflags: [
-        "-Wno-unused-parameter",
-    ],
-    shared_libs: [
     ],
     whole_static_libs: [
         "libbluetooth_gd", // Gabeldorsche
@@ -245,7 +239,6 @@ cc_test {
     ],
     min_sdk_version: "Tiramisu",
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {

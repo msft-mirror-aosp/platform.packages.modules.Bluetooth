@@ -656,7 +656,7 @@ static bool bta_hh_le_write_ccc(tBTA_HH_DEV_CB* p_cb, uint16_t char_handle, uint
 static bool bta_hh_le_write_rpt_clt_cfg(tBTA_HH_DEV_CB* p_cb);
 
 static void write_rpt_clt_cfg_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
-                                 uint16_t len, const uint8_t* value, void* data) {
+                                 uint16_t /*len*/, const uint8_t* /*value*/, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   const gatt::Characteristic* characteristic = BTA_GATTC_GetOwningCharacteristic(conn_id, handle);
   if (characteristic == nullptr) {
@@ -756,8 +756,8 @@ void bta_hh_le_service_parsed(tBTA_HH_DEV_CB* p_dev_cb, tGATT_STATUS status) {
   }
 }
 
-static void write_proto_mode_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
-                                uint16_t len, const uint8_t* value, void* data) {
+static void write_proto_mode_cb(tCONN_ID /*conn_id*/, tGATT_STATUS status, uint16_t /*handle*/,
+                                uint16_t /*len*/, const uint8_t* /*value*/, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   bta_hh_le_service_parsed(p_dev_cb, status);
 }
@@ -813,7 +813,7 @@ static bool bta_hh_le_set_protocol_mode(tBTA_HH_DEV_CB* p_cb, tBTA_HH_PROTO_MODE
  *                  application with the protocol mode.
  *
  ******************************************************************************/
-static void get_protocol_mode_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
+static void get_protocol_mode_cb(tCONN_ID /*conn_id*/, tGATT_STATUS status, uint16_t /*handle*/,
                                  uint16_t len, uint8_t* value, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   tBTA_HH_HSDATA hs_data;
@@ -1238,8 +1238,8 @@ static void bta_hh_le_gatt_disc_cmpl(tBTA_HH_DEV_CB* p_cb, tBTA_HH_STATUS status
   }
 }
 
-static void read_hid_info_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                             uint8_t* value, void* data) {
+static void read_hid_info_cb(tCONN_ID /*conn_id*/, tGATT_STATUS status, uint16_t /*handle*/,
+                             uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
     return;
@@ -1273,7 +1273,7 @@ void bta_hh_le_save_report_map(tBTA_HH_DEV_CB* p_dev_cb, uint16_t len, uint8_t* 
   }
 }
 
-static void read_hid_report_map_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_hid_report_map_cb(tCONN_ID /*conn_id*/, tGATT_STATUS status, uint16_t /*handle*/,
                                    uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error reading characteristic:{}", status);
@@ -1284,7 +1284,7 @@ static void read_hid_report_map_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16
   bta_hh_le_save_report_map(p_dev_cb, len, value);
 }
 
-static void read_ext_rpt_ref_desc_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_ext_rpt_ref_desc_cb(tCONN_ID /*conn_id*/, tGATT_STATUS status, uint16_t /*handle*/,
                                      uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
@@ -1346,7 +1346,7 @@ static void read_report_ref_desc_cb(tCONN_ID conn_id, tGATT_STATUS status, uint1
   bta_hh_le_save_report_ref(p_dev_cb, p_rpt, rpt_type, rpt_id);
 }
 
-static void read_pref_conn_params_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_pref_conn_params_cb(tCONN_ID /*conn_id*/, tGATT_STATUS status, uint16_t /*handle*/,
                                      uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
@@ -1875,8 +1875,8 @@ static void bta_hh_le_get_rpt(tBTA_HH_DEV_CB* p_cb, tBTA_HH_RPT_TYPE r_type, uin
   BtaGattQueue::ReadCharacteristic(p_cb->conn_id, p_rpt->char_inst_id, read_report_cb, p_cb);
 }
 
-static void write_report_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                            const uint8_t* value, void* data) {
+static void write_report_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
+                            uint16_t /*len*/, const uint8_t* /*value*/, void* data) {
   tBTA_HH_CBDATA cback_data;
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   uint16_t cb_evt = p_dev_cb->w4_evt;
@@ -2283,8 +2283,8 @@ static void bta_hh_process_cache_rpt(tBTA_HH_DEV_CB* p_cb, tBTA_HH_RPT_CACHE_ENT
   }
 }
 
-static bool bta_hh_le_iso_data_callback(const RawAddress& addr, uint16_t cis_conn_hdl,
-                                        uint8_t* data, uint16_t size, uint32_t timestamp) {
+static bool bta_hh_le_iso_data_callback(const RawAddress& addr, uint16_t /*cis_conn_hdl*/,
+                                        uint8_t* data, uint16_t size, uint32_t /*timestamp*/) {
   if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
     log::warn("DSA not supported");
     return false;

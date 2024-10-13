@@ -471,8 +471,8 @@ public:
     EnqueueCtpOp(operation);
     BtaGattQueue::WriteCharacteristic(
             device->conn_id, device->cp_handle, operation.ToCharacteristicValue(), GATT_WRITE,
-            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* user_data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t /*handle*/, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* user_data) {
               if (instance) {
                 instance->OnHasPresetNameGetStatus(conn_id, status, user_data);
               }
@@ -571,8 +571,8 @@ public:
     EnqueueCtpOp(operation);
     BtaGattQueue::WriteCharacteristic(
             device.conn_id, device.cp_handle, operation.ToCharacteristicValue(), GATT_WRITE,
-            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* user_data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t /*handle*/, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* user_data) {
               if (instance) {
                 instance->OnHasPresetIndexOperation(conn_id, status, user_data);
               }
@@ -731,8 +731,8 @@ public:
     EnqueueCtpOp(operation);
     BtaGattQueue::WriteCharacteristic(
             device.conn_id, device.cp_handle, operation.ToCharacteristicValue(), GATT_WRITE,
-            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* user_data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t /*handle*/, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* user_data) {
               if (instance) {
                 instance->OnHasActivePresetCycleStatus(conn_id, status, user_data);
               }
@@ -791,8 +791,8 @@ public:
     EnqueueCtpOp(operation);
     BtaGattQueue::WriteCharacteristic(
             device.conn_id, device.cp_handle, operation.ToCharacteristicValue(), GATT_WRITE,
-            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* user_data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t /*handle*/, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* user_data) {
               if (instance) {
                 instance->OnHasPresetNameSetStatus(conn_id, status, user_data);
               }
@@ -981,7 +981,7 @@ public:
     dprintf(fd, "%s", stream.str().c_str());
   }
 
-  void OnGroupOpCoordinatorTimeout(void* p) {
+  void OnGroupOpCoordinatorTimeout(void* /*p*/) {
     log::error(
             "Coordinated operation timeout:  not all the devices notified their "
             "state change on time.");
@@ -1137,7 +1137,7 @@ private:
 
   void OnHasFeaturesValue(std::variant<tCONN_ID, HasDevice*> conn_id_device_variant,
                           tGATT_STATUS status, uint16_t handle, uint16_t len, const uint8_t* value,
-                          void* user_data = nullptr) {
+                          void* /*user_data*/ = nullptr) {
     log::debug("");
 
     auto device = GetDevice(conn_id_device_variant);
@@ -1539,7 +1539,7 @@ private:
 
   void OnHasActivePresetValue(std::variant<tCONN_ID, HasDevice*> conn_id_device_variant,
                               tGATT_STATUS status, uint16_t handle, uint16_t len,
-                              const uint8_t* value, void* user_data = nullptr) {
+                              const uint8_t* value, void* /*user_data*/ = nullptr) {
     log::debug("");
 
     auto device = GetDevice(conn_id_device_variant);
@@ -1766,7 +1766,8 @@ private:
     return true;
   }
 
-  bool StartInitialHasDetailsReadAndValidation(const gatt::Service& service, HasDevice* device) {
+  bool StartInitialHasDetailsReadAndValidation(const gatt::Service& /*service*/,
+                                               HasDevice* device) {
     // Validate service structure
     if (device->features_handle == GAP_INVALID_HANDLE) {
       /* Missing key characteristic */
@@ -2142,8 +2143,8 @@ private:
     UINT16_TO_STREAM(value_ptr, ccc_val);
     BtaGattQueue::WriteDescriptor(
             conn_id, ccc_handle, std::move(value), GATT_WRITE,
-            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t value_handle, uint16_t len,
-               const uint8_t* value, void* data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t value_handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* data) {
               if (instance) {
                 instance->OnGattWriteCcc(conn_id, status, value_handle, data);
               }

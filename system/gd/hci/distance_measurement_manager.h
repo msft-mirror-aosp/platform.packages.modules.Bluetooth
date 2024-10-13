@@ -19,6 +19,7 @@
 
 #include "address.h"
 #include "hal/ranging_hal.h"
+#include "hci/hci_packets.h"
 #include "module.h"
 
 namespace bluetooth {
@@ -60,6 +61,7 @@ public:
                                            uint32_t error_centimeter, int azimuth_angle,
                                            int error_azimuth_angle, int altitude_angle,
                                            int error_altitude_angle, long elapsedRealtimeNanos,
+                                           int8_t confidence_level,
                                            DistanceMeasurementMethod method) = 0;
   virtual void OnRasFragmentReady(Address address, uint16_t procedure_counter, bool is_last,
                                   std::vector<uint8_t> raw_data) = 0;
@@ -79,21 +81,26 @@ public:
   DistanceMeasurementManager& operator=(const DistanceMeasurementManager&) = delete;
 
   void RegisterDistanceMeasurementCallbacks(DistanceMeasurementCallbacks* callbacks);
-  void StartDistanceMeasurement(const Address&, uint16_t connection_handle, uint16_t interval,
+  void StartDistanceMeasurement(const Address&, uint16_t connection_handle,
+                                hci::Role local_hci_role, uint16_t interval,
                                 DistanceMeasurementMethod method);
   void StopDistanceMeasurement(const Address& address, uint16_t connection_handle,
                                DistanceMeasurementMethod method);
-  void HandleRasConnectedEvent(
+  void HandleRasClientConnectedEvent(
           const Address& address, uint16_t connection_handle, uint16_t att_handle,
           const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data);
-  void HandleRasDisconnectedEvent(const Address& address);
+  void HandleRasClientDisconnectedEvent(const Address& address);
   void HandleVendorSpecificReply(
           const Address& address, uint16_t connection_handle,
           const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_reply);
+  void HandleRasServerConnected(const Address& identity_address, uint16_t connection_handle,
+                                hci::Role local_hci_role);
+  void HandleRasServerDisconnected(const Address& identity_address, uint16_t connection_handle);
   void HandleVendorSpecificReplyComplete(const Address& address, uint16_t connection_handle,
                                          bool success);
   void HandleRemoteData(const Address& address, uint16_t connection_handle,
                         const std::vector<uint8_t>& raw_data);
+  void HandleRemoteDataTimeout(const Address& address, uint16_t connection_handle);
 
   static const ModuleFactory Factory;
 

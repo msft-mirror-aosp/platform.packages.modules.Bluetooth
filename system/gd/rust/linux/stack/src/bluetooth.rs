@@ -308,8 +308,8 @@ pub trait IBluetoothQALegacy {
     fn send_hid_data(&mut self, addr: RawAddress, data: String) -> BtStatus;
 }
 
-/// Delayed actions from adapter events.
-pub enum DelayedActions {
+/// Action events from lib.rs
+pub enum AdapterActions {
     /// Check whether the current set of found devices are still fresh.
     DeviceFreshnessCheck,
 
@@ -1092,22 +1092,22 @@ impl Bluetooth {
         );
     }
 
-    /// Handle some delayed and recurring actions within the adapter.
-    pub(crate) fn handle_delayed_actions(&mut self, action: DelayedActions) {
+    /// Handle adapter actions.
+    pub(crate) fn handle_actions(&mut self, action: AdapterActions) {
         match action {
-            DelayedActions::DeviceFreshnessCheck => {
+            AdapterActions::DeviceFreshnessCheck => {
                 self.trigger_freshness_check();
             }
 
-            DelayedActions::ConnectAllProfiles(device) => {
+            AdapterActions::ConnectAllProfiles(device) => {
                 self.connect_all_enabled_profiles(device);
             }
 
-            DelayedActions::ConnectProfiles(uuids, device) => {
+            AdapterActions::ConnectProfiles(uuids, device) => {
                 self.connect_profiles_internal(&uuids, device);
             }
 
-            DelayedActions::BleDiscoveryScannerRegistered(uuid, scanner_id, status) => {
+            AdapterActions::BleDiscoveryScannerRegistered(uuid, scanner_id, status) => {
                 if let Some(app_uuid) = self.ble_scanner_uuid {
                     if app_uuid == uuid {
                         if status == GattStatus::Success {
@@ -1119,7 +1119,7 @@ impl Bluetooth {
                 }
             }
 
-            DelayedActions::BleDiscoveryScannerResult(result) => {
+            AdapterActions::BleDiscoveryScannerResult(result) => {
                 // Generate a vector of properties from ScanResult.
                 let properties = {
                     let mut props = vec![];
@@ -1164,11 +1164,11 @@ impl Bluetooth {
                     ));
             }
 
-            DelayedActions::ResetDiscoverable => {
+            AdapterActions::ResetDiscoverable => {
                 self.set_discoverable(BtDiscMode::NonDiscoverable, 0);
             }
 
-            DelayedActions::CreateBond => {
+            AdapterActions::CreateBond => {
                 if let Some((device, transport)) = self.pending_create_bond.take() {
                     let status = self.create_bond(device, transport);
                     if status != BtStatus::Success {
@@ -1335,9 +1335,7 @@ impl Bluetooth {
         let tx = self.tx.clone();
         tokio::spawn(async move {
             let _ = tx
-                .send(Message::DelayedAdapterActions(DelayedActions::ConnectProfiles(
-                    new_uuids, device,
-                )))
+                .send(Message::AdapterActions(AdapterActions::ConnectProfiles(new_uuids, device)))
                 .await;
         });
     }
@@ -1668,9 +1666,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
                     loop {
                         time::sleep(FOUND_DEVICE_FRESHNESS).await;
                         let _ = txl
-                            .send(Message::DelayedAdapterActions(
-                                DelayedActions::DeviceFreshnessCheck,
-                            ))
+                            .send(Message::AdapterActions(AdapterActions::DeviceFreshnessCheck))
                             .await;
                     }
                 }));
@@ -1821,7 +1817,7 @@ impl BtifBluetoothCallbacks for Bluetooth {
             debug!("Invoking delayed CreateBond");
             let tx = self.tx.clone();
             tokio::spawn(async move {
-                let _ = tx.send(Message::DelayedAdapterActions(DelayedActions::CreateBond)).await;
+                let _ = tx.send(Message::AdapterActions(AdapterActions::CreateBond)).await;
             });
         }
     }
@@ -2173,9 +2169,9 @@ impl IScannerCallback for BleDiscoveryCallbacks {
         let tx = self.tx.clone();
         tokio::spawn(async move {
             let _ = tx
-                .send(Message::DelayedAdapterActions(
-                    DelayedActions::BleDiscoveryScannerRegistered(uuid, scanner_id, status),
-                ))
+                .send(Message::AdapterActions(AdapterActions::BleDiscoveryScannerRegistered(
+                    uuid, scanner_id, status,
+                )))
                 .await;
         });
     }
@@ -2184,7 +2180,7 @@ impl IScannerCallback for BleDiscoveryCallbacks {
         let tx = self.tx.clone();
         tokio::spawn(async move {
             let _ = tx
-                .send(Message::DelayedAdapterActions(DelayedActions::BleDiscoveryScannerResult(
+                .send(Message::AdapterActions(AdapterActions::BleDiscoveryScannerResult(
                     scan_result,
                 )))
                 .await;
@@ -2339,9 +2335,7 @@ impl IBluetooth for Bluetooth {
             let txl = self.tx.clone();
             self.discoverable_timeout = Some(tokio::spawn(async move {
                 time::sleep(Duration::from_secs(duration.into())).await;
-                let _ = txl
-                    .send(Message::DelayedAdapterActions(DelayedActions::ResetDiscoverable))
-                    .await;
+                let _ = txl.send(Message::AdapterActions(AdapterActions::ResetDiscoverable)).await;
             }));
         }
 

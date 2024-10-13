@@ -27,6 +27,8 @@
 
 #define LOG_TAG "bt_btif_pan"
 
+#include "btif/include/btif_pan.h"
+
 #include <android_bluetooth_sysprop.h>
 #include <arpa/inet.h>
 #include <base/functional/bind.h>
@@ -72,9 +74,6 @@
   } while (0)
 
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -535,14 +534,6 @@ btpan_conn_t* btpan_new_conn(int handle, const RawAddress& addr, tBTA_PAN_ROLE l
   return nullptr;
 }
 
-void btpan_close_handle(btpan_conn_t* p) {
-  log::verbose("btpan_close_handle : close handle {}", p->handle);
-  p->handle = -1;
-  p->local_role = -1;
-  p->remote_role = -1;
-  memset(&p->peer, 0, 6);
-}
-
 static inline bool should_forward(tETH_HDR* hdr) {
   uint16_t proto = ntohs(hdr->h_proto);
   if (proto == ETH_P_IP || proto == ETH_P_ARP || proto == ETH_P_IPV6) {
@@ -758,7 +749,7 @@ static void btif_pan_close_all_conns() {
   }
 }
 
-static void btpan_tap_fd_signaled(int fd, int type, int flags, uint32_t user_id) {
+static void btpan_tap_fd_signaled(int fd, int /*type*/, int flags, uint32_t /*user_id*/) {
   log::assert_that(btpan_cb.tap_fd == INVALID_FD || btpan_cb.tap_fd == fd,
                    "assert failed: btpan_cb.tap_fd == INVALID_FD || btpan_cb.tap_fd == fd");
 

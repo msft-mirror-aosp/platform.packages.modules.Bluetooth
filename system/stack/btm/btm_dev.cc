@@ -36,9 +36,9 @@
 #include "btm_sec_api.h"
 #include "btm_sec_cb.h"
 #include "internal_include/bt_target.h"
+#include "main/shim/acl_api.h"
 #include "main/shim/dumpsys.h"
 #include "osi/include/allocator.h"
-#include "rust/src/connection/ffi/connection_shim.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_octets.h"
@@ -151,9 +151,6 @@ void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class, LinkKey li
   p_dev_rec->device_type |= BT_DEVICE_TYPE_BREDR;
 }
 
-/** Removes the device from acceptlist */
-void BTM_AcceptlistRemove(const RawAddress& address);
-
 /** Free resources associated with the device associated with |bd_addr| address.
  *
  * *** WARNING ***
@@ -184,12 +181,7 @@ bool BTM_SecDeleteDevice(const RawAddress& bd_addr) {
   RawAddress bda = p_dev_rec->bd_addr;
 
   log::info("Remove device {} from filter accept list before delete record", bd_addr);
-  if (com::android::bluetooth::flags::unified_connection_manager()) {
-    bluetooth::connection::GetConnectionManager().stop_all_connections_to_device(
-            bluetooth::connection::ResolveRawAddress(p_dev_rec->bd_addr));
-  } else {
-    BTM_AcceptlistRemove(p_dev_rec->bd_addr);
-  }
+  bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(bda));
 
   const auto device_type = p_dev_rec->device_type;
   const auto bond_type = p_dev_rec->sec_rec.bond_type;

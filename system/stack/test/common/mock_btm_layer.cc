@@ -33,9 +33,11 @@ void bluetooth::manager::SetMockSecurityInternalInterface(
   btm_security_internal_interface = mock_btm_security_internal_interface;
 }
 
-uint16_t BTM_GetMaxPacketSize(const RawAddress& addr) { return RFCOMM_DEFAULT_MTU; }
+uint16_t BTM_GetMaxPacketSize(const RawAddress& /*addr*/) { return RFCOMM_DEFAULT_MTU; }
 
-bool BTM_IsAclConnectionUp(const RawAddress& remote_bda, tBT_TRANSPORT transport) { return true; }
+bool BTM_IsAclConnectionUp(const RawAddress& /*remote_bda*/, tBT_TRANSPORT /*transport*/) {
+  return true;
+}
 
 struct btm_client_interface_t btm_client_interface = {
         .peer =

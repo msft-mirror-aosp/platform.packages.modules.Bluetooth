@@ -261,7 +261,7 @@ int WriteBundledSchema() {
   return EXIT_SUCCESS;
 }
 
-int Usage(int argc, char** argv) {
+int Usage(int /*argc*/, char** argv) {
   fprintf(stderr,
           "Usage: %s [-r | -w] [-f <filename>] [-g <gen_out_path>] [-n <namespace> ] [-v] -m "
           "<main_root_name> <file.bfbs "
