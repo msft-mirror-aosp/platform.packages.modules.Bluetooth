@@ -145,7 +145,7 @@ tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_cif(uint8_t client_if, const RawAddress&
 tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_conn_id(tCONN_ID conn_id) {
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     for (auto& p_clcb : bta_gattc_cb.clcb_set) {
-      if (p_clcb->bta_conn_id == conn_id) {
+      if (p_clcb->in_use && p_clcb->bta_conn_id == conn_id) {
         return p_clcb.get();
       }
     }
@@ -598,7 +598,7 @@ bool bta_gattc_check_notif_registry(tBTA_GATTC_RCB* p_clreg, tBTA_GATTC_SERV* p_
  * Returns          None.
  *
  ******************************************************************************/
-void bta_gattc_clear_notif_registration(tBTA_GATTC_SERV* p_srcb, tCONN_ID conn_id,
+void bta_gattc_clear_notif_registration(tBTA_GATTC_SERV* /*p_srcb*/, tCONN_ID conn_id,
                                         uint16_t start_handle, uint16_t end_handle) {
   RawAddress remote_bda;
   tGATT_IF gatt_if;
@@ -691,9 +691,12 @@ bool bta_gattc_mark_bg_conn(tGATT_IF client_if, const RawAddress& remote_bda_ptr
         p_bg_tck->in_use = true;
         p_bg_tck->remote_bda = remote_bda_ptr;
 
-        p_cif_mask = &p_bg_tck->cif_mask;
-
-        *p_cif_mask = ((tBTA_GATTC_CIF_MASK)1 << (client_if - 1));
+        if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+          p_bg_tck->cif_set = {client_if};
+        } else {
+          p_cif_mask = &p_bg_tck->cif_mask;
+          *p_cif_mask = ((tBTA_GATTC_CIF_MASK)1 << (client_if - 1));
+        }
         return true;
       }
     }
@@ -719,9 +722,15 @@ bool bta_gattc_check_bg_conn(tGATT_IF client_if, const RawAddress& remote_bda, u
   for (i = 0; i < ble_acceptlist_size() && !is_bg_conn; i++, p_bg_tck++) {
     if (p_bg_tck->in_use &&
         (p_bg_tck->remote_bda == remote_bda || p_bg_tck->remote_bda.IsEmpty())) {
-      if (((p_bg_tck->cif_mask & ((tBTA_GATTC_CIF_MASK)1 << (client_if - 1))) != 0) &&
-          role == HCI_ROLE_CENTRAL) {
-        is_bg_conn = true;
+      if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+        if (p_bg_tck->cif_set.contains(client_if) && role == HCI_ROLE_CENTRAL) {
+          is_bg_conn = true;
+        }
+      } else {
+        if (((p_bg_tck->cif_mask & ((tBTA_GATTC_CIF_MASK)1 << (client_if - 1))) != 0) &&
+            role == HCI_ROLE_CENTRAL) {
+          is_bg_conn = true;
+        }
       }
     }
   }
@@ -960,6 +969,9 @@ void bta_gatt_client_dump(int fd) {
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     stream << " ->clcb (dynamic)\n";
     for (auto& p_clcb : bta_gattc_cb.clcb_set) {
+      if (!p_clcb->in_use) {
+        continue;
+      }
       entry_count++;
       stream << "  conn_id: " << loghex(p_clcb->bta_conn_id)
              << "  address: " << ADDRESS_TO_LOGGABLE_STR(p_clcb->bda)

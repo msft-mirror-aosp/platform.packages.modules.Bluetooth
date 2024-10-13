@@ -1114,7 +1114,7 @@ void Device::HandleGetTotalNumberOfItems(uint8_t label,
   }
 }
 
-void Device::GetTotalNumberOfItemsMediaPlayersResponse(uint8_t label, uint16_t curr_player,
+void Device::GetTotalNumberOfItemsMediaPlayersResponse(uint8_t label, uint16_t /*curr_player*/,
                                                        std::vector<MediaPlayerInfo> list) {
   log::verbose("num_items={}", list.size());
 
@@ -1131,7 +1131,7 @@ void Device::GetTotalNumberOfItemsVFSResponse(uint8_t label, std::vector<ListIte
   send_message(label, true, std::move(builder));
 }
 
-void Device::GetTotalNumberOfItemsNowPlayingResponse(uint8_t label, std::string curr_song_id,
+void Device::GetTotalNumberOfItemsNowPlayingResponse(uint8_t label, std::string /*curr_song_id*/,
                                                      std::vector<SongInfo> list) {
   log::verbose("num_items={}", list.size());
 
@@ -1179,7 +1179,7 @@ void Device::HandleChangePath(uint8_t label, std::shared_ptr<ChangePathRequest> 
           base::Bind(&Device::ChangePathResponse, weak_ptr_factory_.GetWeakPtr(), label, pkt));
 }
 
-void Device::ChangePathResponse(uint8_t label, std::shared_ptr<ChangePathRequest> pkt,
+void Device::ChangePathResponse(uint8_t label, std::shared_ptr<ChangePathRequest> /*pkt*/,
                                 std::vector<ListItem> list) {
   // TODO (apanicke): Reconstruct the VFS ID's here. Right now it gets
   // reconstructed in GetFolderItemsVFS
@@ -1557,7 +1557,7 @@ void Device::SendMediaUpdate(bool metadata, bool play_status, bool queue) {
   }
 }
 
-void Device::SendFolderUpdate(bool available_players, bool addressed_player, bool uids) {
+void Device::SendFolderUpdate(bool available_players, bool addressed_player, bool /*uids*/) {
   log::assert_that(media_interface_ != nullptr, "assert failed: media_interface_ != nullptr");
   log::verbose("");
 
@@ -1664,7 +1664,7 @@ void Device::PlayerSettingChangedNotificationResponse(uint8_t label, bool interi
 }
 
 void Device::HandleNowPlayingNotificationResponse(uint8_t label, bool interim,
-                                                  std::string curr_song_id,
+                                                  std::string /*curr_song_id*/,
                                                   std::vector<SongInfo> song_list) {
   if (interim) {
     now_playing_changed_ = Notification(true, label);

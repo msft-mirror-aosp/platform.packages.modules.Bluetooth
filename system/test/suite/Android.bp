@@ -129,7 +129,6 @@ cc_test {
         "libbt-btu-main-thread",
         "libbt-jni-thread",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
         "libchrome",
         "libevent",
         "libflags_rust_cpp_bridge",
@@ -154,5 +153,4 @@ cc_test {
         },
         host: {},
     },
-    cflags: ["-Wno-unused-parameter"],
 }

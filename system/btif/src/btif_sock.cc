@@ -114,7 +114,7 @@ bt_status_t btif_sock_init(uid_set_t* uid_set) {
 
   return BT_STATUS_SUCCESS;
 
-error:;
+error:
   thread_free(thread);
   thread = NULL;
   if (thread_handle != -1) {

@@ -375,7 +375,6 @@ static const uint8_t media_attr_list_no_cover_art_size =
 /*****************************************************************************
  *  Externs
  *****************************************************************************/
-bool check_cod(const RawAddress& remote_bdaddr, uint32_t cod);
 
 void btif_rc_get_addr_by_handle(uint8_t handle, RawAddress& rc_addr) {
   log::verbose("handle: 0x{:x}", handle);
@@ -513,8 +512,6 @@ void fill_avrc_attr_entry(tAVRC_ATTR_ENTRY* attr_vals, int num_attrs,
                  reinterpret_cast<char const*>(attr_vals[attr_cnt].name.p_str));
   }
 }
-
-void rc_cleanup_sent_cmd(void* p_data) { log::verbose(""); }
 
 void handle_rc_ctrl_features_all(btif_rc_device_cb_t* p_dev) {
   if (!(p_dev->peer_tg_features & BTA_AV_FEAT_RCTG) &&
@@ -3616,7 +3613,7 @@ static void cleanup_app_attr_val_txt_response(btif_rc_player_app_settings_t* p_a
  * Returns          None
  *
  **************************************************************************/
-static void handle_set_app_attr_val_response(tBTA_AV_META_MSG* pmeta_msg, tAVRC_RSP* p_rsp) {
+static void handle_set_app_attr_val_response(tBTA_AV_META_MSG* pmeta_msg, tAVRC_RSP* /*p_rsp*/) {
   uint8_t accepted = 0;
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_handle(pmeta_msg->rc_handle);
 
@@ -4442,8 +4439,9 @@ static bt_status_t get_now_playing_list_cmd(const RawAddress& bd_addr, uint32_t 
  *                  otherwise BT_STATUS_FAIL
  *
  **************************************************************************/
-static bt_status_t get_item_attribute_cmd(uint64_t uid, int scope, uint8_t num_attribute,
-                                          const uint32_t* p_attr_ids, btif_rc_device_cb_t* p_dev) {
+static bt_status_t get_item_attribute_cmd(uint64_t uid, int scope, uint8_t /*num_attribute*/,
+                                          const uint32_t* /*p_attr_ids*/,
+                                          btif_rc_device_cb_t* p_dev) {
   tAVRC_COMMAND avrc_cmd = {0};
   avrc_cmd.pdu = AVRC_PDU_GET_ITEM_ATTRIBUTES;
   avrc_cmd.get_attrs.scope = scope;

@@ -143,17 +143,8 @@ static tHID_KB_LIST hid_kb_numlock_on_list[] = {
  ******************************************************************************/
 
 static void btif_hh_transport_select(tAclLinkSpec& link_spec);
-
-/*******************************************************************************
- *  Externs
- ******************************************************************************/
-
-bool check_cod(const RawAddress* remote_bdaddr, uint32_t cod);
-bool check_cod_hid(const RawAddress* remote_bdaddr);
-bool check_cod_hid_major(const RawAddress& bd_addr, uint32_t cod);
-
-static void bte_hh_evt(tBTA_HH_EVT event, tBTA_HH* p_data);
 static void btif_hh_timer_timeout(void* data);
+static void bte_hh_evt(tBTA_HH_EVT event, tBTA_HH* p_data);
 
 /*******************************************************************************
  *  Functions
@@ -870,7 +861,7 @@ static void hh_vc_unplug_handler(tBTA_HH_CBDATA& dev_status) {
   BTHH_STATE_UPDATE(p_dev->link_spec, p_dev->dev_status);
 
   if (!com::android::bluetooth::flags::remove_input_device_on_vup()) {
-    if (p_dev->local_vup || check_cod_hid(&(p_dev->link_spec.addrt.bda))) {
+    if (p_dev->local_vup || check_cod_hid(p_dev->link_spec.addrt.bda)) {
       p_dev->local_vup = false;
       BTA_DmRemoveDevice(p_dev->link_spec.addrt.bda);
     } else {
@@ -890,7 +881,7 @@ static void hh_vc_unplug_handler(tBTA_HH_CBDATA& dev_status) {
 
   // Remove the HID device
   btif_hh_remove_device(p_dev->link_spec);
-  if (p_dev->local_vup || check_cod_hid(&(p_dev->link_spec.addrt.bda))) {
+  if (p_dev->local_vup || check_cod_hid(p_dev->link_spec.addrt.bda)) {
     // Remove the bond if locally initiated or remote device has major class HID
     p_dev->local_vup = false;
     BTA_DmRemoveDevice(p_dev->link_spec.addrt.bda);
@@ -1308,7 +1299,7 @@ static void btif_hh_upstreams_evt(uint16_t event, char* p_param) {
  *
  ******************************************************************************/
 
-static void btif_hh_hsdata_rpt_copy_cb(uint16_t event, char* p_dest, const char* p_src) {
+static void btif_hh_hsdata_rpt_copy_cb(uint16_t /*event*/, char* p_dest, const char* p_src) {
   tBTA_HH_HSDATA* p_dst_data = (tBTA_HH_HSDATA*)p_dest;
   tBTA_HH_HSDATA* p_src_data = (tBTA_HH_HSDATA*)p_src;
   BT_HDR* hdr;

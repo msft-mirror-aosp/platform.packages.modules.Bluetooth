@@ -31,7 +31,6 @@ cc_library_static {
         "bluetooth_flags_c_lib",
         "libbluetooth_log",
         "libbt-common",
-        "libbt_shim_bridge",
         "libosi",
     ],
     target: {
@@ -78,7 +77,6 @@ cc_library_static {
     },
     host_supported: true,
     cflags: [
-        "-Wno-unused-parameter",
         "-Wthread-safety",
     ],
     apex_available: [
@@ -123,7 +121,6 @@ cc_test {
         "libbluetooth_log",
         "libbt-audio-hal-interface",
         "libbt-common",
-        "libbt_shim_bridge",
         "libchrome",
     ],
     header_libs: ["libbluetooth_headers"],
@@ -142,7 +139,6 @@ cc_test {
     ],
     cflags: [
         "-DUNIT_TESTS",
-        "-Wno-unused-parameter",
     ],
     host_supported: true,
     test_options: {
@@ -190,7 +186,6 @@ cc_test {
         "libbluetooth-types",
         "libbluetooth_log",
         "libbt-common",
-        "libbt_shim_bridge",
         "libchrome",
         "libflagtest",
         "libfmq",
@@ -240,14 +235,12 @@ cc_defaults {
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_log",
-        "libbluetooth_rust_interop",
         "libbt-common", // needed for MessageLoopThread
         "libbt-jni-thread",
         "libbt-sbc-decoder",
         "libbt-sbc-encoder",
         "libbt-stack",
         "libbt-stack-core",
-        "libbt_shim_bridge",
         "libbtcore",
         "libbtdevice",
         "libbte",
@@ -317,7 +310,6 @@ cc_test {
         "libbt-bta",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
         "libchrome",
         "libevent",
         "libgmock",
@@ -387,6 +379,5 @@ cc_test {
     header_libs: ["libbluetooth_headers"],
     cflags: [
         "-DBUILDCFG",
-        "-Wno-unused-parameter",
     ],
 }

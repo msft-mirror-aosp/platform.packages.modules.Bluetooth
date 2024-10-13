@@ -125,7 +125,6 @@ cc_library_shared {
         "libbt-sbc-encoder",
         "libbt-stack",
         "libbt-stack-core",
-        "libbt_shim_bridge",
         "libbtcore",
         "libbtdevice",
         "libbte",
@@ -294,15 +293,44 @@ android_app {
     javacflags: ["-Aroom.schemaLocation=packages/modules/Bluetooth/android/app/tests/unit/src/com/android/bluetooth/btservice/storage/schemas"],
 
     lint: {
-        // TODO(b/318814235): Add back ObsoleteSdkInt to this list.
         error_checks: [
+            "Autofill",
+            "DefaultLocale",
+            "DuplicateDefinition",
+            // "ExportedContentProvider", // TODO: b/289445022 - enable this check
+            // "ExportedReceiver", // TODO: b/289445022 - enable this check
+            // "ExportedService", // TODO: b/289445022 - enable this check
             "ExtraText",
+            "ExtraTranslation",
+            "GestureBackNavigation",
+            "GuardedLogInvocation",
+            "HandlerLeak",
+            "InflateParams",
+            // "InvalidPermission", // TODO: b/289445022 - enable this check
+            "LabelFor",
             "MissingClass",
+            // "MissingVersion", // TODO: b/289445022 - enable this check
+            "MonochromeLauncherIcon",
             "NewApi",
+            "ObsoleteSdkInt",
+            // "QueryAllPackagesPermission", // TODO: b/289445022 - enable this check
             "Recycle",
             "RtlHardcoded",
+            "RtlSymmetry",
+            "ScrollViewSize",
+            "SetTextI18n",
+            "SimpleDateFormat",
+            "StaticFieldLeak",
+            "StringFormatCount",
+            "StringFormatInvalid",
+            "TextFields",
+            "TypographyEllipsis",
             "UseSparseArrays",
             "UseValueOf",
+            "VectorPath",
+            "VisibleForTests",
+            "Wakelock",
+            "WakelockTimeout",
         ],
         extra_check_modules: ["BluetoothLintChecker"],
         baseline_filename: "lint-baseline.xml",
@@ -321,6 +349,7 @@ android_app {
     ],
     min_sdk_version: "Tiramisu",
     sdk_version: "module_current",
+    updatable: true,
 }
 
 java_library {

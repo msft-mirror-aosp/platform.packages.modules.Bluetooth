@@ -23,6 +23,7 @@
 
 #include "android/binder_ibinder_platform.h"
 #include "btif/include/btif_common.h"
+#include "client_interface_aidl.h"
 #include "common/stop_watch_legacy.h"
 
 namespace bluetooth {
@@ -41,9 +42,9 @@ BluetoothAudioPortImpl::~BluetoothAudioPortImpl() {}
 
 ndk::ScopedAStatus BluetoothAudioPortImpl::startStream(bool is_low_latency) {
   StopWatchLegacy stop_watch(__func__);
-  BluetoothAudioCtrlAck ack = transport_instance_->StartRequest(is_low_latency);
-  if (ack != BluetoothAudioCtrlAck::PENDING) {
-    auto aidl_retval = provider_->streamStarted(BluetoothAudioCtrlAckToHalStatus(ack));
+  BluetoothAudioStatus ack = transport_instance_->StartRequest(is_low_latency);
+  if (ack != BluetoothAudioStatus::PENDING) {
+    auto aidl_retval = provider_->streamStarted(BluetoothAudioStatusToHalStatus(ack));
     if (!aidl_retval.isOk()) {
       log::error("BluetoothAudioHal failure: {}", aidl_retval.getDescription());
     }
@@ -53,9 +54,9 @@ ndk::ScopedAStatus BluetoothAudioPortImpl::startStream(bool is_low_latency) {
 
 ndk::ScopedAStatus BluetoothAudioPortImpl::suspendStream() {
   StopWatchLegacy stop_watch(__func__);
-  BluetoothAudioCtrlAck ack = transport_instance_->SuspendRequest();
-  if (ack != BluetoothAudioCtrlAck::PENDING) {
-    auto aidl_retval = provider_->streamSuspended(BluetoothAudioCtrlAckToHalStatus(ack));
+  BluetoothAudioStatus ack = transport_instance_->SuspendRequest();
+  if (ack != BluetoothAudioStatus::PENDING) {
+    auto aidl_retval = provider_->streamSuspended(BluetoothAudioStatusToHalStatus(ack));
     if (!aidl_retval.isOk()) {
       log::error("BluetoothAudioHal failure: {}", aidl_retval.getDescription());
     }
@@ -95,111 +96,12 @@ ndk::ScopedAStatus BluetoothAudioPortImpl::getPresentationPosition(
 }
 
 ndk::ScopedAStatus BluetoothAudioPortImpl::updateSourceMetadata(
-        const SourceMetadata& source_metadata) {
-  StopWatchLegacy stop_watch(__func__);
-  log::info("{} track(s)", source_metadata.tracks.size());
-
-  std::vector<playback_track_metadata_v7> tracks_vec;
-  tracks_vec.reserve(source_metadata.tracks.size());
-  for (const auto& track : source_metadata.tracks) {
-    auto num_of_tags = track.tags.size();
-    log::info("metadata tags size: {}", num_of_tags);
-
-    playback_track_metadata_v7 desc_track = {
-            .base = {.usage = static_cast<audio_usage_t>(track.usage),
-                     .content_type = static_cast<audio_content_type_t>(track.contentType),
-                     .gain = track.gain},
-    };
-
-    if (num_of_tags != 0) {
-      int copied_size = 0;
-      int max_tags_size = sizeof(desc_track.tags);
-      std::string separator(1, AUDIO_ATTRIBUTES_TAGS_SEPARATOR);
-      for (size_t i = 0; i < num_of_tags - 1; i++) {
-        int string_len = track.tags[i].length();
-
-        if ((copied_size >= max_tags_size) || (copied_size + string_len >= max_tags_size)) {
-          log::error("Too many tags, copied size: {}", copied_size);
-          break;
-        }
-
-        track.tags[i].copy(desc_track.tags + copied_size, string_len, 0);
-        copied_size += string_len;
-        separator.copy(desc_track.tags + copied_size, 1, 0);
-        copied_size += 1;
-      }
-
-      int string_len = track.tags[num_of_tags - 1].length();
-      if ((copied_size >= max_tags_size) || (copied_size + string_len >= max_tags_size)) {
-        log::error("Too many tags, copied size: {}", copied_size);
-      } else {
-        track.tags[num_of_tags - 1].copy(desc_track.tags + copied_size, string_len, 0);
-      }
-    } else {
-      memset(desc_track.tags, 0, sizeof(desc_track.tags));
-    }
-
-    tracks_vec.push_back(desc_track);
-  }
-
-  const source_metadata_v7_t legacy_source_metadata = {.track_count = tracks_vec.size(),
-                                                       .tracks = tracks_vec.data()};
-  transport_instance_->SourceMetadataChanged(legacy_source_metadata);
+        const SourceMetadata& /*source_metadata*/) {
   return ndk::ScopedAStatus::ok();
 }
 
-ndk::ScopedAStatus BluetoothAudioPortImpl::updateSinkMetadata(const SinkMetadata& sink_metadata) {
-  StopWatchLegacy stop_watch(__func__);
-  log::info("{} track(s)", sink_metadata.tracks.size());
-
-  std::vector<record_track_metadata_v7> tracks_vec;
-  tracks_vec.reserve(sink_metadata.tracks.size());
-  for (const auto& track : sink_metadata.tracks) {
-    auto num_of_tags = track.tags.size();
-    log::info("metadata tags size: {}", num_of_tags);
-
-    record_track_metadata_v7 desc_track = {
-            .base =
-                    {
-                            .source = static_cast<audio_source_t>(track.source),
-                            .gain = track.gain,
-                    },
-    };
-
-    if (num_of_tags != 0) {
-      int copied_size = 0;
-      int max_tags_size = sizeof(desc_track.tags);
-      std::string separator(1, AUDIO_ATTRIBUTES_TAGS_SEPARATOR);
-      for (size_t i = 0; i < num_of_tags - 1; i++) {
-        int string_len = track.tags[i].length();
-
-        if ((copied_size >= max_tags_size) || (copied_size + string_len >= max_tags_size)) {
-          log::error("Too many tags, copied size: {}", copied_size);
-          break;
-        }
-
-        track.tags[i].copy(desc_track.tags + copied_size, string_len, 0);
-        copied_size += string_len;
-        separator.copy(desc_track.tags + copied_size, 1, 0);
-        copied_size += 1;
-      }
-
-      int string_len = track.tags[num_of_tags - 1].length();
-      if ((copied_size >= max_tags_size) || (copied_size + string_len >= max_tags_size)) {
-        log::error("Too many tags, copied size: {}", copied_size);
-      } else {
-        track.tags[num_of_tags - 1].copy(desc_track.tags + copied_size, string_len, 0);
-      }
-    } else {
-      memset(desc_track.tags, 0, sizeof(desc_track.tags));
-    }
-
-    tracks_vec.push_back(desc_track);
-  }
-
-  const sink_metadata_v7_t legacy_sink_metadata = {.track_count = tracks_vec.size(),
-                                                   .tracks = tracks_vec.data()};
-  transport_instance_->SinkMetadataChanged(legacy_sink_metadata);
+ndk::ScopedAStatus BluetoothAudioPortImpl::updateSinkMetadata(
+        const SinkMetadata& /*sink_metadata*/) {
   return ndk::ScopedAStatus::ok();
 }
 
