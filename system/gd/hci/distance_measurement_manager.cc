@@ -68,6 +68,7 @@ static constexpr uint8_t kTxPwrDelta = 0x00;
 static constexpr uint8_t kProcedureDataBufferSize = 0x10;  // Buffer size of Procedure data
 static constexpr uint16_t kMtuForRasData = 507;            // 512 - 5
 static constexpr uint16_t kRangingCounterMask = 0x0FFF;
+static constexpr uint8_t kInvalidConfigId = 0xFF;
 
 struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   struct CsProcedureData {
@@ -154,7 +155,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     CsSubModeType sub_mode_type;
     CsRttType rtt_type;
     bool remote_support_phase_based_ranging = false;
-    uint8_t config_id = 0;
+    uint8_t config_id = kInvalidConfigId;
     uint8_t selected_tx_power = 0;
     std::vector<CsProcedureData> procedure_data_list;
     uint16_t interval_ms;
@@ -218,7 +219,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
     distance_measurement_callbacks_->OnDistanceMeasurementResult(
             cs_trackers_[connection_handle].address, ranging_result.result_meters_ * 100, 0.0, -1,
-            -1, -1, -1, elapsedRealtimeNanos, DistanceMeasurementMethod::METHOD_CS);
+            -1, -1, -1, elapsedRealtimeNanos, ranging_result.confidence_level_,
+            DistanceMeasurementMethod::METHOD_CS);
   }
 
   ~impl() {}
@@ -313,6 +315,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     cs_trackers_[connection_handle].measurement_ongoing = true;
     cs_trackers_[connection_handle].waiting_for_start_callback = true;
     cs_trackers_[connection_handle].local_hci_role = local_hci_role;
+    cs_trackers_[connection_handle].config_id = kConfigId;
   }
 
   void start_distance_measurement_with_cs(const Address& cs_remote_address,
@@ -337,7 +340,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (!cs_trackers_[connection_handle].config_set) {
       // TODO: compare the config set with the requested config.
       // The config may be override by reflector. consider to use different tracker for reflector
-      send_le_cs_create_config(connection_handle);
+      send_le_cs_create_config(connection_handle, cs_trackers_[connection_handle].config_id);
       return;
     }
     log::info("enable cs procedure regularly with interval: {} ms",
@@ -573,14 +576,14 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             handler_->BindOnceOn(this, &impl::on_cs_set_default_settings_complete));
   }
 
-  void send_le_cs_create_config(uint16_t connection_handle) {
+  void send_le_cs_create_config(uint16_t connection_handle, uint8_t config_id) {
     auto channel_vector = common::FromHexString("1FFFFFFFFFFFFC7FFFFC");  // use all 72 Channel
     std::array<uint8_t, 10> channel_map;
     std::copy(channel_vector->begin(), channel_vector->end(), channel_map.begin());
     std::reverse(channel_map.begin(), channel_map.end());
     hci_layer_->EnqueueCommand(
             LeCsCreateConfigBuilder::Create(
-                    connection_handle, kConfigId, CsCreateContext::BOTH_LOCAL_AND_REMOTE_CONTROLLER,
+                    connection_handle, config_id, CsCreateContext::BOTH_LOCAL_AND_REMOTE_CONTROLLER,
                     CsMainModeType::MODE_2, CsSubModeType::UNUSED, kMinMainModeSteps,
                     kMaxMainModeSteps, kMainModeRepetition, kMode0Steps, CsRole::INITIATOR,
                     CsConfigRttType::RTT_WITH_128_BIT_RANDOM_SEQUENCE, CsSyncPhy::LE_1M_PHY,
@@ -589,11 +592,11 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             handler_->BindOnceOn(this, &impl::on_cs_setup_command_status_cb, connection_handle));
   }
 
-  void send_le_cs_set_procedure_parameters(uint16_t connection_handle) {
+  void send_le_cs_set_procedure_parameters(uint16_t connection_handle, uint8_t config_id) {
     CsPreferredPeerAntenna preferred_peer_antenna;
     hci_layer_->EnqueueCommand(
             LeCsSetProcedureParametersBuilder::Create(
-                    connection_handle, kConfigId, kMaxProcedureLen, kMinProcedureInterval,
+                    connection_handle, config_id, kMaxProcedureLen, kMinProcedureInterval,
                     kMaxProcedureInterval, kMaxProcedureCount, kMinSubeventLen, kMaxSubeventLen,
                     kToneAntennaConfigSelection, CsPhy::LE_1M_PHY, kTxPwrDelta,
                     preferred_peer_antenna, CsSnrControl::NOT_APPLIED, CsSnrControl::NOT_APPLIED),
@@ -633,9 +636,33 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       return;
     }
 
+    if (!cs_trackers_[connection_handle].measurement_ongoing) {
+      log::error("safe guard, error state, no local measurement request.");
+      if (cs_trackers_[connection_handle].repeating_alarm) {
+        cs_trackers_[connection_handle].repeating_alarm->Cancel();
+      }
+      return;
+    }
+
     hci_layer_->EnqueueCommand(
-            LeCsProcedureEnableBuilder::Create(connection_handle, kConfigId, enable),
-            handler_->BindOnceOn(this, &impl::on_cs_setup_command_status_cb, connection_handle));
+            LeCsProcedureEnableBuilder::Create(connection_handle,
+                                               cs_trackers_[connection_handle].config_id, enable),
+            handler_->BindOnceOn(this, &impl::on_cs_procedure_enable_command_status_cb,
+                                 connection_handle, enable));
+  }
+
+  void on_cs_procedure_enable_command_status_cb(uint16_t connection_handle, Enable enable,
+                                                CommandStatusView status_view) {
+    ErrorCode status = status_view.GetStatus();
+    // controller may send error if the procedure instance has finished all scheduled procedures.
+    if (enable == Enable::DISABLED && status == ErrorCode::COMMAND_DISALLOWED) {
+      log::info("ignored the procedure disable command disallow error.");
+      if (cs_trackers_.find(connection_handle) != cs_trackers_.end()) {
+        reset_tracker_on_stopped(&cs_trackers_[connection_handle]);
+      }
+    } else {
+      on_cs_setup_command_status_cb(connection_handle, status_view);
+    }
   }
 
   void on_cs_setup_command_status_cb(uint16_t connection_handle, CommandStatusView status_view) {
@@ -729,7 +756,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       cs_trackers_[connection_handle].setup_complete = true;
       log::info("Setup phase complete, connection_handle: {}, address: {}", connection_handle,
                 cs_trackers_[connection_handle].address);
-      send_le_cs_create_config(connection_handle);
+      send_le_cs_create_config(connection_handle, cs_trackers_[connection_handle].config_id);
     }
   }
 
@@ -760,7 +787,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
 
     if (cs_trackers_[connection_handle].local_start) {
       cs_trackers_[connection_handle].config_set = true;
-      send_le_cs_set_procedure_parameters(event_view.GetConnectionHandle());
+      send_le_cs_set_procedure_parameters(event_view.GetConnectionHandle(),
+                                          cs_trackers_[connection_handle].config_id);
     }
   }
 
@@ -1541,7 +1569,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     long elapsedRealtimeNanos =
             duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
     distance_measurement_callbacks_->OnDistanceMeasurementResult(
-            address, distance * 100, distance * 100, -1, -1, -1, -1, elapsedRealtimeNanos,
+            address, distance * 100, distance * 100, -1, -1, -1, -1, elapsedRealtimeNanos, -1,
             DistanceMeasurementMethod::METHOD_RSSI);
   }
 

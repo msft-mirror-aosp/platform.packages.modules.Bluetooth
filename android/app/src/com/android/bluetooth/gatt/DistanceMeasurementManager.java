@@ -469,16 +469,22 @@ public class DistanceMeasurementManager {
             int altitudeAngle,
             int errorAltitudeAngle,
             long elapsedRealtimeNanos,
+            int confidenceLevel,
             int method) {
         logd(
                 "onDistanceMeasurementResult "
                         + BluetoothUtils.toAnonymizedAddress(address)
                         + ", centimeter "
-                        + centimeter);
-        DistanceMeasurementResult result =
+                        + centimeter
+                        + ", confidenceLevel "
+                        + confidenceLevel);
+        DistanceMeasurementResult.Builder builder =
                 new DistanceMeasurementResult.Builder(centimeter / 100.0, errorCentimeter / 100.0)
-                        .setMeasurementTimestampNanos(elapsedRealtimeNanos)
-                        .build();
+                        .setMeasurementTimestampNanos(elapsedRealtimeNanos);
+        if (confidenceLevel != -1) {
+            builder.setConfidenceLevel(confidenceLevel / 100.0);
+        }
+        DistanceMeasurementResult result = builder.build();
         switch (method) {
             case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI:
                 handleRssiResult(address, result);
