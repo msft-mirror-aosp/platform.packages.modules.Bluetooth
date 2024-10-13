@@ -34,7 +34,7 @@ public:
                                            uint32_t error_centimeter, int azimuth_angle,
                                            int error_azimuth_angle, int altitude_angle,
                                            int error_altitude_angle, long elapsedRealtimeNanos,
-                                           uint8_t method) = 0;
+                                           int8_t confidence_level, uint8_t method) = 0;
 };
 
 class DistanceMeasurementInterface {

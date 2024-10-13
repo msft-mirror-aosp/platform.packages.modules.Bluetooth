@@ -219,7 +219,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
     distance_measurement_callbacks_->OnDistanceMeasurementResult(
             cs_trackers_[connection_handle].address, ranging_result.result_meters_ * 100, 0.0, -1,
-            -1, -1, -1, elapsedRealtimeNanos, DistanceMeasurementMethod::METHOD_CS);
+            -1, -1, -1, elapsedRealtimeNanos, ranging_result.confidence_level_,
+            DistanceMeasurementMethod::METHOD_CS);
   }
 
   ~impl() {}
@@ -635,10 +636,33 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       return;
     }
 
+    if (!cs_trackers_[connection_handle].measurement_ongoing) {
+      log::error("safe guard, error state, no local measurement request.");
+      if (cs_trackers_[connection_handle].repeating_alarm) {
+        cs_trackers_[connection_handle].repeating_alarm->Cancel();
+      }
+      return;
+    }
+
     hci_layer_->EnqueueCommand(
             LeCsProcedureEnableBuilder::Create(connection_handle,
                                                cs_trackers_[connection_handle].config_id, enable),
-            handler_->BindOnceOn(this, &impl::on_cs_setup_command_status_cb, connection_handle));
+            handler_->BindOnceOn(this, &impl::on_cs_procedure_enable_command_status_cb,
+                                 connection_handle, enable));
+  }
+
+  void on_cs_procedure_enable_command_status_cb(uint16_t connection_handle, Enable enable,
+                                                CommandStatusView status_view) {
+    ErrorCode status = status_view.GetStatus();
+    // controller may send error if the procedure instance has finished all scheduled procedures.
+    if (enable == Enable::DISABLED && status == ErrorCode::COMMAND_DISALLOWED) {
+      log::info("ignored the procedure disable command disallow error.");
+      if (cs_trackers_.find(connection_handle) != cs_trackers_.end()) {
+        reset_tracker_on_stopped(&cs_trackers_[connection_handle]);
+      }
+    } else {
+      on_cs_setup_command_status_cb(connection_handle, status_view);
+    }
   }
 
   void on_cs_setup_command_status_cb(uint16_t connection_handle, CommandStatusView status_view) {
@@ -1545,7 +1569,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     long elapsedRealtimeNanos =
             duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
     distance_measurement_callbacks_->OnDistanceMeasurementResult(
-            address, distance * 100, distance * 100, -1, -1, -1, -1, elapsedRealtimeNanos,
+            address, distance * 100, distance * 100, -1, -1, -1, -1, elapsedRealtimeNanos, -1,
             DistanceMeasurementMethod::METHOD_RSSI);
   }
 
