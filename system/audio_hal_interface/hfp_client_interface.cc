@@ -168,7 +168,7 @@ void HfpClientInterface::Decode::StopSession() {
 }
 
 void HfpClientInterface::Decode::UpdateAudioConfigToHal(
-        const ::hfp::offload_config& offload_config) {
+        const ::hfp::offload_config& /*offload_config*/) {
   log::warn(
           "'UpdateAudioConfigToHal(offload_config)' should not be called on "
           "HfpClientInterface::Decode");
@@ -335,7 +335,7 @@ void HfpClientInterface::Encode::StopSession() {
 }
 
 void HfpClientInterface::Encode::UpdateAudioConfigToHal(
-        const ::hfp::offload_config& offload_config) {
+        const ::hfp::offload_config& /*offload_config*/) {
   log::warn(
           "'UpdateAudioConfigToHal(offload_config)' should not be called on "
           "HfpClientInterface::Encode");
@@ -519,7 +519,7 @@ void HfpClientInterface::Offload::UpdateAudioConfigToHal(
           offload_config_to_hal_audio_config(offload_config));
 }
 
-void HfpClientInterface::Offload::UpdateAudioConfigToHal(const ::hfp::pcm_config& pcm_config) {
+void HfpClientInterface::Offload::UpdateAudioConfigToHal(const ::hfp::pcm_config& /*pcm_config*/) {
   log::warn(
           "'UpdateAudioConfigToHal(pcm_config)' should not be called on "
           "HfpClientInterface::Offload");

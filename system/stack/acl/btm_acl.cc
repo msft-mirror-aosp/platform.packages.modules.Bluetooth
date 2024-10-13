@@ -54,8 +54,6 @@
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "osi/include/stack_power_telemetry.h"
-#include "rust/src/connection/ffi/connection_shim.h"
-#include "rust/src/core/ffi/types.h"
 #include "stack/acl/acl.h"
 #include "stack/acl/peer_packet_types.h"
 #include "stack/btm/btm_ble_int.h"
@@ -193,7 +191,7 @@ void NotifyAclFeaturesReadComplete(tACL_CONN& p_acl, uint8_t max_page_number) {
   btm_process_remote_ext_features(&p_acl, max_page_number);
   btm_set_link_policy(&p_acl, btm_cb.acl_cb_.DefaultLinkPolicy());
   int32_t flush_timeout = osi_property_get_int32(PROPERTY_AUTO_FLUSH_TIMEOUT, 0);
-  if (flush_timeout != 0) {
+  if (bluetooth::shim::GetController()->SupportsNonFlushablePb() && flush_timeout != 0) {
     acl_write_automatic_flush_timeout(p_acl.remote_addr, static_cast<uint16_t>(flush_timeout));
   }
   BTA_dm_notify_remote_features_complete(p_acl.remote_addr);
@@ -2464,7 +2462,7 @@ void acl_write_automatic_flush_timeout(const RawAddress& bd_addr, uint16_t flush
   btsnd_hcic_write_auto_flush_tout(p_acl->hci_handle, flush_timeout_in_ticks);
 }
 
-bool acl_create_le_connection_with_id(uint8_t id, const RawAddress& bd_addr,
+bool acl_create_le_connection_with_id(uint8_t /* id */, const RawAddress& bd_addr,
                                       tBLE_ADDR_TYPE addr_type) {
   tBLE_BD_ADDR address_with_type{
           .type = addr_type,
@@ -2484,22 +2482,9 @@ bool acl_create_le_connection_with_id(uint8_t id, const RawAddress& bd_addr,
     return false;
   }
 
-  if (com::android::bluetooth::flags::unified_connection_manager()) {
-    bluetooth::connection::GetConnectionManager().start_direct_connection(
-            id, bluetooth::core::ToRustAddress(address_with_type));
-  } else {
-    bluetooth::shim::ACL_AcceptLeConnectionFrom(address_with_type,
-                                                /* is_direct */ true);
-  }
+  bluetooth::shim::ACL_AcceptLeConnectionFrom(address_with_type,
+                                              /* is_direct */ true);
   return true;
-}
-
-bool acl_create_le_connection_with_id(uint8_t id, const RawAddress& bd_addr) {
-  return acl_create_le_connection_with_id(id, bd_addr, BLE_ADDR_PUBLIC);
-}
-
-bool acl_create_le_connection(const RawAddress& bd_addr) {
-  return acl_create_le_connection_with_id(CONN_MGR_ID_L2CAP, bd_addr);
 }
 
 void acl_rcv_acl_data(BT_HDR* p_msg) {

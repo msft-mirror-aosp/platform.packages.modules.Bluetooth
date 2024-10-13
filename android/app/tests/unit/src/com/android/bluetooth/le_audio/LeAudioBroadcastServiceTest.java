@@ -534,7 +534,7 @@ public class LeAudioBroadcastServiceTest {
     }
 
     @Test
-    public void testCreateBroadcast_updateQualityToStandard() {
+    public void testCreateBroadcast_noAudioQualityUpdate() {
         byte[] code = {0x00, 0x01, 0x00, 0x02};
         int groupId = 1;
 
@@ -551,9 +551,52 @@ public class LeAudioBroadcastServiceTest {
         BluetoothLeBroadcastSettings settings = buildBroadcastSettingsFromMetadata(meta, code, 1);
 
         when(mBassClientService.getConnectedDevices()).thenReturn(List.of(mDevice));
-        // update selectable configs to be STANDARD quality
+        // update input selectable configs to be STANDARD quality
+        // keep output selectable configs as HIGH quality
         injectGroupSelectableCodecConfigChanged(
-                groupId, INPUT_SELECTABLE_CONFIG_STANDARD, OUTPUT_SELECTABLE_CONFIG_STANDARD);
+                groupId, INPUT_SELECTABLE_CONFIG_STANDARD, OUTPUT_SELECTABLE_CONFIG_HIGH);
+        injectGroupCurrentCodecConfigChanged(groupId, LC3_16KHZ_CONFIG, LC3_48KHZ_CONFIG);
+
+        mService.createBroadcast(settings);
+
+        // Test data with only one subgroup
+        // Verify quality is  not updated to standard because HIGH is selectable in output
+        int[] expectedQualityArray = {BluetoothLeBroadcastSubgroupSettings.QUALITY_HIGH};
+        byte[][] expectedDataArray = {
+            settings.getSubgroupSettings().get(0).getContentMetadata().getRawMetadata()
+        };
+
+        verify(mLeAudioBroadcasterNativeInterface, times(1))
+                .createBroadcast(
+                        eq(true),
+                        eq(TEST_BROADCAST_NAME),
+                        eq(code),
+                        eq(settings.getPublicBroadcastMetadata().getRawMetadata()),
+                        eq(expectedQualityArray),
+                        eq(expectedDataArray));
+    }
+
+    @Test
+    public void testCreateBroadcast_updateAudioQualityToStandard() {
+        byte[] code = {0x00, 0x01, 0x00, 0x02};
+        int groupId = 1;
+
+        initializeNative();
+        prepareConnectedUnicastDevice(groupId, mDevice);
+
+        synchronized (mService.mBroadcastCallbacks) {
+            mService.mBroadcastCallbacks.register(mCallbacks);
+        }
+
+        BluetoothLeAudioContentMetadata.Builder meta_builder =
+                new BluetoothLeAudioContentMetadata.Builder();
+        BluetoothLeAudioContentMetadata meta = meta_builder.build();
+        BluetoothLeBroadcastSettings settings = buildBroadcastSettingsFromMetadata(meta, code, 1);
+
+        when(mBassClientService.getConnectedDevices()).thenReturn(List.of(mDevice));
+        // update output selectable configs to be STANDARD quality
+        injectGroupSelectableCodecConfigChanged(
+                groupId, INPUT_SELECTABLE_CONFIG_HIGH, OUTPUT_SELECTABLE_CONFIG_STANDARD);
         injectGroupCurrentCodecConfigChanged(groupId, LC3_16KHZ_CONFIG, LC3_48KHZ_CONFIG);
 
         mService.createBroadcast(settings);

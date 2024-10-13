@@ -977,6 +977,7 @@ class AdapterProperties {
                         mName = name;
                         if (Flags.getNameAndAddressAsCallback()) {
                             mService.updateAdapterName(mName);
+                            break;
                         }
                         intent = new Intent(BluetoothAdapter.ACTION_LOCAL_NAME_CHANGED);
                         intent.putExtra(BluetoothAdapter.EXTRA_LOCAL_NAME, mName);

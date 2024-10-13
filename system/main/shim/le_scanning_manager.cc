@@ -26,9 +26,7 @@
 #include "btif/include/btif_common.h"
 #include "hci/address.h"
 #include "hci/le_scanning_manager.h"
-#if TARGET_FLOSS
 #include "hci/msft.h"
-#endif
 #include "include/hardware/ble_scanner.h"
 #include "main/shim/ble_scanner_interface_impl.h"
 #include "main/shim/entry.h"
@@ -133,11 +131,9 @@ void BleScannerInterfaceImpl::Init() {
   log::info("init BleScannerInterfaceImpl");
   bluetooth::shim::GetScanning()->RegisterScanningCallback(this);
 
-#if TARGET_FLOSS
   if (bluetooth::shim::GetMsftExtensionManager()) {
     bluetooth::shim::GetMsftExtensionManager()->SetScanningCallback(this);
   }
-#endif
 }
 
 /** Registers a scanner with the stack */
@@ -251,7 +247,6 @@ void BleScannerInterfaceImpl::ScanFilterEnable(bool enable, EnableCallback cb) {
   do_in_jni_thread(base::BindOnce(cb, action, btm_status_value(tBTM_STATUS::BTM_SUCCESS)));
 }
 
-#if TARGET_FLOSS
 /** Is MSFT Extension supported? */
 bool BleScannerInterfaceImpl::IsMsftSupported() {
   log::info("in shim layer");
@@ -292,13 +287,13 @@ void BleScannerInterfaceImpl::MsftAdvMonitorEnable(bool enable, MsftAdvMonitorEn
 void BleScannerInterfaceImpl::OnMsftAdvMonitorAdd(uint8_t monitor_handle,
                                                   bluetooth::hci::ErrorCode status) {
   log::info("in shim layer");
-  msft_callbacks_.Add.Run(monitor_handle, (uint8_t)status);
+  do_in_jni_thread(base::BindOnce(msft_callbacks_.Add, monitor_handle, (uint8_t)status));
 }
 
 /** Callback of removing MSFT filter */
 void BleScannerInterfaceImpl::OnMsftAdvMonitorRemove(bluetooth::hci::ErrorCode status) {
   log::info("in shim layer");
-  msft_callbacks_.Remove.Run((uint8_t)status);
+  do_in_jni_thread(base::BindOnce(msft_callbacks_.Remove, (uint8_t)status));
 }
 
 /** Callback of enabling / disabling MSFT scan filter */
@@ -312,9 +307,8 @@ void BleScannerInterfaceImpl::OnMsftAdvMonitorEnable(bool enable,
                    : bluetooth::hci::LeScanningFilterPolicy::ACCEPT_ALL);
   }
 
-  msft_callbacks_.Enable.Run((uint8_t)status);
+  do_in_jni_thread(base::BindOnce(msft_callbacks_.Enable, (uint8_t)status));
 }
-#endif
 
 /** Sets the LE scan interval and window in units of N*0.625 msec */
 void BleScannerInterfaceImpl::SetScanParameters(int scanner_id, uint8_t scan_type,

@@ -44,3 +44,23 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+flag {
+  name: "btsec_avdt_msg_ind_type_confusion"
+  namespace: "bluetooth"
+  description: "Properly check current state and sig value of avdt rej/rsp messages before parsing"
+  bug: "358212054"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "btsec_cycle_irks"
+  namespace: "bluetooth"
+  description: "Change the IRK per BT spec when all devices are unbonded"
+  bug: "372714979"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

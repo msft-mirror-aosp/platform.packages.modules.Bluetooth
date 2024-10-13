@@ -1056,6 +1056,72 @@ public class ActiveDeviceManagerTest {
     }
 
     /**
+     * An ASHA device connected and set to active. Same device connected as a LE Audio device. ASHA
+     * disconnects with no fallback and LE Audio is set to active. New LE Audio device is connected
+     * and selected as active. First LE Audio device disconnects with fallback to new one.
+     */
+    @Test
+    @EnableFlags(Flags.FLAG_ADM_VERIFY_ACTIVE_FALLBACK_DEVICE)
+    public void sameDeviceAsAshaAndLeAudio_noFallbackOnSwitch() {
+        when(mAudioManager.getMode()).thenReturn(AudioManager.MODE_NORMAL);
+
+        /* Connect first device as ASHA */
+        hearingAidConnected(mHearingAidDevice);
+        mTestLooper.dispatchAll();
+        verify(mHearingAidService).setActiveDevice(mHearingAidDevice);
+
+        /* Connect first device as LE Audio */
+        leAudioConnected(mHearingAidDevice);
+        hearingAidDisconnected(mHearingAidDevice);
+        mTestLooper.dispatchAll();
+        verify(mHearingAidService).removeActiveDevice(false);
+        verify(mLeAudioService).setActiveDevice(mHearingAidDevice);
+
+        /* Connect second device as LE Audio. First device is disconnected with fallback to
+         * new one.
+         */
+        leAudioConnected(mLeAudioDevice);
+        leAudioDisconnected(mHearingAidDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService).removeActiveDevice(true);
+        verify(mLeAudioService).setActiveDevice(mLeAudioDevice);
+    }
+
+    /**
+     * A LE Audio device connected and set to active. Same device connected as an ASHA device. LE
+     * Audio disconnects with no fallback and ASHA is set to active. New ASHA device is connected
+     * and selected as active. First ASHA device disconnects with fallback to new one.
+     */
+    @Test
+    @EnableFlags(Flags.FLAG_ADM_VERIFY_ACTIVE_FALLBACK_DEVICE)
+    public void sameDeviceAsLeAudioAndAsha_noFallbackOnSwitch() {
+        // Turn on the dual mode audio flag so the A2DP won't disconnect LE Audio
+        when(mAudioManager.getMode()).thenReturn(AudioManager.MODE_NORMAL);
+        List<BluetoothDevice> list = new ArrayList<>();
+        when(mLeAudioService.getActiveDevices()).thenReturn(list);
+
+        /* Connect first device as LE Audio */
+        leAudioConnected(mHearingAidDevice);
+        list.add(mHearingAidDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService).setActiveDevice(mHearingAidDevice);
+
+        /* Connect first device as ASHA */
+        hearingAidConnected(mHearingAidDevice);
+        leAudioDisconnected(mHearingAidDevice);
+        mTestLooper.dispatchAll();
+        verify(mHearingAidService).setActiveDevice(mHearingAidDevice);
+        verify(mLeAudioService).removeActiveDevice(false);
+
+        /* Connect second device as ASHA. It is set as fallback device for LE Audio Service
+         */
+        hearingAidConnected(mSecondaryAudioDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService).removeActiveDevice(true);
+        verify(mHearingAidService).setActiveDevice(mSecondaryAudioDevice);
+    }
+
+    /**
      * Two Hearing Aid are connected and the current active is then disconnected. Should then set
      * active device to fallback device.
      */
