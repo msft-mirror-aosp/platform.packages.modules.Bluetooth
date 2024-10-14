@@ -39,6 +39,7 @@
 
 #include <cstdint>
 
+#include "btif/include/btif_api.h"
 #include "btif/include/btif_common.h"
 #include "btif/include/btif_config.h"
 #include "btif/include/btif_dm.h"
@@ -63,9 +64,6 @@
 #include "storage/config_keys.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using base::PlatformThread;
 using bluetooth::Uuid;

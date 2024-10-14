@@ -489,11 +489,7 @@ bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBT_TRANSPORT
 
 namespace connection_manager {
 void on_connection_timed_out(uint8_t /* app_id */, const RawAddress& address) {
-  if (com::android::bluetooth::flags::enumerate_gatt_errors()) {
-    gatt_le_connect_cback(L2CAP_ATT_CID, address, false, 0x08, BT_TRANSPORT_LE);
-  } else {
-    gatt_le_connect_cback(L2CAP_ATT_CID, address, false, 0xff, BT_TRANSPORT_LE);
-  }
+  gatt_le_connect_cback(L2CAP_ATT_CID, address, false, 0x08, BT_TRANSPORT_LE);
 }
 }  // namespace connection_manager
 
