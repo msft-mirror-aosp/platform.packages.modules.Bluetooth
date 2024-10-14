@@ -77,7 +77,6 @@ struct bta_dm_on_encryption_change bta_dm_on_encryption_change;
 struct bta_dm_rm_cback bta_dm_rm_cback;
 struct bta_dm_set_dev_name bta_dm_set_dev_name;
 struct bta_dm_set_encryption bta_dm_set_encryption;
-struct handle_remote_features_complete handle_remote_features_complete;
 
 }  // namespace bta_dm_act
 }  // namespace mock
@@ -249,10 +248,6 @@ void bta_dm_set_encryption(const RawAddress& bd_addr, tBT_TRANSPORT transport,
                            tBTA_DM_ENCRYPT_CBACK* p_callback, tBTM_BLE_SEC_ACT sec_act) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_act::bta_dm_set_encryption(bd_addr, transport, p_callback, sec_act);
-}
-void handle_remote_features_complete(const RawAddress& bd_addr) {
-  inc_func_call_count(__func__);
-  test::mock::bta_dm_act::handle_remote_features_complete(bd_addr);
 }
 
 // END mockcify generation

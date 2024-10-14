@@ -17,8 +17,10 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 #include "bta/include/bta_gatt_api.h"
+#include "gd/common/circular_buffer.h"
 #include "include/hardware/bt_common_types.h"
 #include "stack/include/btm_ble_api_types.h"
 #include "types/bluetooth/uuid.h"
@@ -56,13 +58,6 @@ void gatt_history_callback(const std::string& entry);
 //
 void DumpsysBtaDmGattClient(int fd);
 
-namespace bluetooth {
-namespace testing {
-
-//
-// TESTING: Sets a specialzed GATT client interface implementation for testing
-//
-void set_gatt_interface(const gatt_interface_t& interface);
-
-}  // namespace testing
-}  // namespace bluetooth
+namespace bluetooth::testing {
+std::vector<bluetooth::common::TimestampedEntry<std::string>> PullCopyOfGattHistory();
+}  // namespace bluetooth::testing

@@ -35,6 +35,8 @@
 #include <cstdint>
 #include <string>
 
+#include "bta/dm/bta_dm_act.h"
+#include "bta/dm/bta_dm_sec_int.h"
 #include "btif/include/btif_storage.h"
 #include "common/metrics.h"
 #include "common/time_util.h"
@@ -103,9 +105,6 @@ extern tBTM_CB btm_cb;
 
 bool btm_ble_init_pseudo_addr(tBTM_SEC_DEV_REC* p_dev_rec, const RawAddress& new_pseudo_addr);
 void bta_dm_remove_device(const RawAddress& bd_addr);
-void bta_dm_on_encryption_change(bt_encryption_change_evt encryption_change);
-void bta_dm_remote_key_missing(const RawAddress bd_addr);
-void bta_dm_process_remove_device(const RawAddress& bd_addr);
 
 static tBTM_STATUS btm_sec_execute_procedure(tBTM_SEC_DEV_REC* p_dev_rec);
 static bool btm_sec_start_get_name(tBTM_SEC_DEV_REC* p_dev_rec);

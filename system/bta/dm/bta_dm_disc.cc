@@ -52,9 +52,6 @@
 #include "stack/include/srvc_api.h"
 #endif
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using bluetooth::Uuid;
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;
@@ -716,10 +713,6 @@ tBT_TRANSPORT bta_dm_determine_discovery_transport(const RawAddress& bd_addr) {
   return ::bta_dm_determine_discovery_transport(bd_addr);
 }
 
-void bta_dm_sdp_result(tSDP_STATUS sdp_status, tBTA_DM_SDP_STATE* state) {
-  ::bta_dm_sdp_result(sdp_status, state);
-}
-
 }  // namespace testing
 }  // namespace legacy
 }  // namespace bluetooth
@@ -846,13 +839,3 @@ void DumpsysBtaDmDisc(int fd) {
               bta_dm_state_text(bta_dm_discovery_get_state()).c_str());
 }
 #undef DUMPSYS_TAG
-
-namespace bluetooth {
-namespace legacy {
-namespace testing {
-
-tBTA_DM_SERVICE_DISCOVERY_CB& bta_dm_discovery_cb() { return ::bta_dm_discovery_cb; }
-
-}  // namespace testing
-}  // namespace legacy
-}  // namespace bluetooth

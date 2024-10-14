@@ -36,9 +36,6 @@
 
 constexpr tGATT_IF kGattRegisteredIf = 5;
 
-void BTA_dm_on_hw_on();
-void BTA_dm_on_hw_off();
-
 extern tBTA_DM_CB bta_dm_cb;
 
 // Set up base mocks and fakes
