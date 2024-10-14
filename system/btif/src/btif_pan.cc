@@ -27,6 +27,8 @@
 
 #define LOG_TAG "bt_btif_pan"
 
+#include "btif/include/btif_pan.h"
+
 #include <android_bluetooth_sysprop.h>
 #include <arpa/inet.h>
 #include <base/functional/bind.h>
@@ -72,9 +74,6 @@
   } while (0)
 
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -533,14 +532,6 @@ btpan_conn_t* btpan_new_conn(int handle, const RawAddress& addr, tBTA_PAN_ROLE l
   }
   log::warn("Unable to create new pan connection max:{}", MAX_PAN_CONNS);
   return nullptr;
-}
-
-void btpan_close_handle(btpan_conn_t* p) {
-  log::verbose("btpan_close_handle : close handle {}", p->handle);
-  p->handle = -1;
-  p->local_role = -1;
-  p->remote_role = -1;
-  memset(&p->peer, 0, 6);
 }
 
 static inline bool should_forward(tETH_HDR* hdr) {

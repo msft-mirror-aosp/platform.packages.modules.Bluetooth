@@ -127,12 +127,14 @@ public:
                                    uint32_t error_centimeter, int azimuth_angle,
                                    int error_azimuth_angle, int altitude_angle,
                                    int error_altitude_angle, long elapsedRealtimeNanos,
+                                   int8_t confidence_level,
                                    DistanceMeasurementMethod method) override {
-    do_in_jni_thread(base::BindOnce(
-            &::DistanceMeasurementCallbacks::OnDistanceMeasurementResult,
-            base::Unretained(distance_measurement_callbacks_), bluetooth::ToRawAddress(address),
-            centimeter, error_centimeter, azimuth_angle, error_azimuth_angle, altitude_angle,
-            error_altitude_angle, elapsedRealtimeNanos, static_cast<uint8_t>(method)));
+    do_in_jni_thread(base::BindOnce(&::DistanceMeasurementCallbacks::OnDistanceMeasurementResult,
+                                    base::Unretained(distance_measurement_callbacks_),
+                                    bluetooth::ToRawAddress(address), centimeter, error_centimeter,
+                                    azimuth_angle, error_azimuth_angle, altitude_angle,
+                                    error_altitude_angle, elapsedRealtimeNanos, confidence_level,
+                                    static_cast<uint8_t>(method)));
   }
 
   void OnRasFragmentReady(bluetooth::hci::Address address, uint16_t procedure_counter, bool is_last,
