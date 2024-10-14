@@ -202,6 +202,21 @@ public:
   }
 
   // Must be called from main_thread
+  // Callbacks of bluetooth::ras::RasServerCallbacks
+  void OnMtuChangedFromServer(const RawAddress& address, uint16_t mtu) override {
+    handle_mtu_changed(address, mtu);
+  }
+
+  void OnMtuChangedFromClient(const RawAddress& address, uint16_t mtu) override {
+    handle_mtu_changed(address, mtu);
+  }
+
+  void handle_mtu_changed(const RawAddress& address, uint16_t mtu) {
+    uint16_t connection_handle = GetConnectionHandleAndRole(address);
+    bluetooth::shim::GetDistanceMeasurementManager()->HandleMtuChanged(connection_handle, mtu);
+  }
+
+  // Must be called from main_thread
   // Callbacks of bluetooth::ras::RasSeverCallbacks
   void OnRasServerDisconnected(const RawAddress& identity_address) override {
     bluetooth::shim::GetDistanceMeasurementManager()->HandleRasServerDisconnected(
