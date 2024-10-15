@@ -374,7 +374,7 @@ public class GattServiceTest {
         IBluetoothGattCallback callback = mock(IBluetoothGattCallback.class);
 
         mService.registerClient(uuid, callback, /* eattSupport= */ true, mAttributionSource);
-        verify(mClientMap, never()).add(any(), any(), any());
+        verify(mClientMap, never()).add(any(), any(), any(), any());
         verify(mNativeInterface, never()).gattClientRegisterApp(anyLong(), anyLong(), anyBoolean());
     }
 

@@ -365,7 +365,7 @@ public class A2dpStateMachineTest {
         // Selected codec = SBC, selectable codec = SBC
         mA2dpStateMachine.processCodecConfigEvent(codecStatusSbcAndSbc);
         verify(mA2dpService).codecConfigUpdated(mTestDevice, codecStatusSbcAndSbc, false);
-        verify(mA2dpService, times(1)).updateLowLatencyAudioSupport(mTestDevice);
+        verify(mA2dpService).updateLowLatencyAudioSupport(mTestDevice);
 
         // Inject an event to change state machine to connected state
         A2dpStackEvent connStCh =
@@ -382,7 +382,7 @@ public class A2dpStateMachineTest {
                 .sendBroadcast(intentArgument2.capture(), anyString(), any(Bundle.class));
 
         // Verify that state machine update optional codec when enter connected state
-        verify(mA2dpService, times(1)).updateOptionalCodecsSupport(mTestDevice);
+        verify(mA2dpService).updateOptionalCodecsSupport(mTestDevice);
         verify(mA2dpService, times(2)).updateLowLatencyAudioSupport(mTestDevice);
 
         // Change codec status when device connected.

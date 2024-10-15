@@ -262,7 +262,7 @@ public class AvrcpControllerServiceTest {
 
         BrowseResult result = mService.getContents(parentMediaId);
 
-        verify(mStateMachine, times(1)).requestContents(eq(node));
+        verify(mStateMachine).requestContents(eq(node));
         assertThat(result.getStatus()).isEqualTo(BrowseResult.DOWNLOAD_PENDING);
     }
 

@@ -888,10 +888,6 @@ TEST_F(BtifCoreVseWithSocketTest, debug_dump_empty) {
   EXPECT_EQ(std::future_status::ready, reading_done.wait_for(std::chrono::seconds(1)));
 }
 
-namespace bluetooth::bqr::testing {
-void set_lmp_trace_log_fd(int fd);
-}
-
 TEST_F(BtifCoreVseWithSocketTest, send_lmp_ll_msg) {
   auto payload = std::make_unique<RawBuilder>();
   payload->AddOctets({'d', 'a', 't', 'a'});
@@ -904,7 +900,7 @@ TEST_F(BtifCoreVseWithSocketTest, send_lmp_ll_msg) {
   auto reading_done = reading_promise->get_future();
 
   static int write_fd = write_fd_;
-  do_in_main_thread(BindOnce([]() { bluetooth::bqr::testing::set_lmp_trace_log_fd(write_fd); }));
+  do_in_main_thread(BindOnce([]() { bluetooth::bqr::SetLmpLlMessageTraceLogFd(write_fd); }));
   vse_callback_(view);
 
   do_in_main_thread(BindOnce(

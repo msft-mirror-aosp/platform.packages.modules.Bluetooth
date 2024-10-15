@@ -1066,7 +1066,7 @@ public class TransitionalScanHelper {
         if (app != null
                 && app.isScanningTooFrequently()
                 && !Utils.checkCallerHasPrivilegedPermission(mContext)) {
-            Log.e(TAG, "App '" + app.appName + "' is scanning too frequently");
+            Log.e(TAG, "App '" + app.mAppName + "' is scanning too frequently");
             try {
                 callback.onScannerRegistered(ScanCallback.SCAN_FAILED_SCANNING_TOO_FREQUENTLY, -1);
             } catch (RemoteException e) {
@@ -1074,15 +1074,16 @@ public class TransitionalScanHelper {
             }
             return;
         }
-        registerScannerInternal(callback, workSource);
+        registerScannerInternal(callback, attributionSource, workSource);
     }
 
     /** Intended for internal use within the Bluetooth app. Bypass permission check */
-    public void registerScannerInternal(IScannerCallback callback, WorkSource workSource) {
+    public void registerScannerInternal(
+            IScannerCallback callback, AttributionSource attrSource, WorkSource workSource) {
         UUID uuid = UUID.randomUUID();
         Log.d(TAG, "registerScanner() - UUID=" + uuid);
 
-        mScannerMap.add(uuid, workSource, callback, mContext, this);
+        mScannerMap.add(uuid, attrSource, workSource, callback, mContext, this);
         mScanManager.registerScanner(uuid);
     }
 
@@ -1252,7 +1253,8 @@ public class TransitionalScanHelper {
             return;
         }
 
-        ScannerMap.ScannerApp app = mScannerMap.add(uuid, piInfo, mContext, this);
+        ScannerMap.ScannerApp app =
+                mScannerMap.add(uuid, attributionSource, piInfo, mContext, this);
 
         app.mUserHandle = UserHandle.getUserHandleForUid(Binder.getCallingUid());
         mAppOps.checkPackage(Binder.getCallingUid(), callingPackage);

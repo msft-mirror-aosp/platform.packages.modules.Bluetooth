@@ -279,7 +279,7 @@ public class PhonePolicyTest {
         // Single device, no CSIP
         processInitProfilePriorities_LeAudioOnlyHelper(
                 BluetoothCsipSetCoordinator.GROUP_ID_INVALID, 1, false, false);
-        verify(mLeAudioService, times(1))
+        verify(mLeAudioService)
                 .setConnectionPolicy(
                         any(BluetoothDevice.class), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED));
     }
@@ -573,17 +573,17 @@ public class PhonePolicyTest {
         waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
 
         // Verify connection policy is set properly
-        verify(mLeAudioService, times(1))
+        verify(mLeAudioService)
                 .setConnectionPolicy(
                         eq(firstDevice), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED));
 
         mPhonePolicy.profileActiveDeviceChanged(BluetoothProfile.LE_AUDIO, firstDevice);
         waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
 
-        verify(mA2dpService, times(1))
+        verify(mA2dpService)
                 .setConnectionPolicy(
                         eq(firstDevice), eq(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN));
-        verify(mHeadsetService, times(1))
+        verify(mHeadsetService)
                 .setConnectionPolicy(
                         eq(firstDevice), eq(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN));
 
@@ -606,17 +606,17 @@ public class PhonePolicyTest {
         waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
 
         // Verify connection policy is set properly
-        verify(mLeAudioService, times(1))
+        verify(mLeAudioService)
                 .setConnectionPolicy(
                         eq(secondDevice), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED));
 
         mPhonePolicy.profileActiveDeviceChanged(BluetoothProfile.LE_AUDIO, secondDevice);
         waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
 
-        verify(mA2dpService, times(1))
+        verify(mA2dpService)
                 .setConnectionPolicy(
                         eq(secondDevice), eq(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN));
-        verify(mHeadsetService, times(1))
+        verify(mHeadsetService)
                 .setConnectionPolicy(
                         eq(secondDevice), eq(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN));
     }
@@ -692,14 +692,14 @@ public class PhonePolicyTest {
         waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
 
         // Verify connection policy is set properly
-        verify(mLeAudioService, times(1))
+        verify(mLeAudioService)
                 .setConnectionPolicy(
                         eq(firstDevice), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED));
 
         mPhonePolicy.profileActiveDeviceChanged(BluetoothProfile.LE_AUDIO, firstDevice);
         waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
 
-        verify(mHearingAidService, times(1))
+        verify(mHearingAidService)
                 .setConnectionPolicy(
                         eq(firstDevice), eq(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN));
 
@@ -722,14 +722,14 @@ public class PhonePolicyTest {
         waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
 
         // Verify connection policy is set properly
-        verify(mLeAudioService, times(1))
+        verify(mLeAudioService)
                 .setConnectionPolicy(
                         eq(secondDevice), eq(BluetoothProfile.CONNECTION_POLICY_ALLOWED));
 
         mPhonePolicy.profileActiveDeviceChanged(BluetoothProfile.LE_AUDIO, secondDevice);
         waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
 
-        verify(mHearingAidService, times(1))
+        verify(mHearingAidService)
                 .setConnectionPolicy(
                         eq(secondDevice), eq(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN));
     }
@@ -864,7 +864,7 @@ public class PhonePolicyTest {
 
         // Verify we didn't have any unexpected calls to setConnection or deleteConnection
         verify(mDatabaseManager, times(2)).setConnection(any(BluetoothDevice.class), anyInt());
-        verify(mDatabaseManager, times(1))
+        verify(mDatabaseManager)
                 .setDisconnection(eq(connectionOrder.get(1)), eq(BluetoothProfile.HEADSET));
     }
 

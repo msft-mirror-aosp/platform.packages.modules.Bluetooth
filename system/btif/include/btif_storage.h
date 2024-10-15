@@ -334,6 +334,17 @@ void btif_storage_set_leaudio_has_acceptlist(const RawAddress& address, bool add
  ******************************************************************************/
 bool btif_storage_is_restricted_device(const RawAddress* remote_bd_addr);
 
+/*******************************************************************************
+ *
+ * Function         btif_storage_prune_devices
+ *
+ * Description      Removes restricted mode devices in non-restricted mode
+ *
+ * Returns          none
+ *
+ ******************************************************************************/
+void btif_storage_prune_devices();
+
 bt_status_t btif_storage_add_ble_bonding_key(RawAddress* remote_bd_addr, const uint8_t* key,
                                              uint8_t key_type, uint8_t key_length);
 bt_status_t btif_storage_get_ble_bonding_key(const RawAddress& remote_bd_addr, uint8_t key_type,
