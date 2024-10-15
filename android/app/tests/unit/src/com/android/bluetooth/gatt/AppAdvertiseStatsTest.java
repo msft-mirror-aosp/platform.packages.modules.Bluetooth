@@ -26,10 +26,12 @@ import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.PeriodicAdvertisingParameters;
+import android.content.AttributionSource;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.Log;
 
+import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -68,6 +70,9 @@ public class AppAdvertiseStatsTest {
 
     @Captor ArgumentCaptor<Long> mAdvDurationCaptor;
 
+    private final AttributionSource mAttributionSource =
+            InstrumentationRegistry.getTargetContext().getAttributionSource();
+
     @Before
     public void setUp() throws Exception {
         MetricsLogger.setInstanceForTesting(mMetricsLogger);
@@ -96,7 +101,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         assertThat(appAdvertiseStats.mAdvertiserRecords.size()).isEqualTo(0);
 
@@ -134,7 +140,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         int duration = 1;
         int maxExtAdvEvents = 2;
@@ -174,7 +181,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         int duration = 1;
         int maxExtAdvEvents = 2;
@@ -196,7 +204,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         AdvertiseData advertiseData = new AdvertiseData.Builder().build();
         appAdvertiseStats.setAdvertisingData(advertiseData);
@@ -210,7 +219,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         AdvertiseData scanResponse = new AdvertiseData.Builder().build();
         appAdvertiseStats.setScanResponseData(scanResponse);
@@ -224,7 +234,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         AdvertisingSetParameters parameters = new AdvertisingSetParameters.Builder().build();
         appAdvertiseStats.setAdvertisingParameters(parameters);
@@ -236,7 +247,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         PeriodicAdvertisingParameters periodicParameters =
                 new PeriodicAdvertisingParameters.Builder().build();
@@ -249,7 +261,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         AdvertiseData periodicData = new AdvertiseData.Builder().build();
         appAdvertiseStats.setPeriodicAdvertisingData(periodicData);
@@ -265,7 +278,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         AdvertisingSetParameters parameters = new AdvertisingSetParameters.Builder().build();
         AdvertiseData advertiseData = new AdvertiseData.Builder().build();
@@ -297,7 +311,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         AdvertisingSetParameters parameters =
                 new AdvertisingSetParameters.Builder().setConnectable(true).build();

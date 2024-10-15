@@ -270,7 +270,14 @@ public class TransitionalScanHelperTest {
         doReturn(appScanStats).when(mScannerMap).getAppScanStatsByUid(Binder.getCallingUid());
 
         mScanHelper.registerScanner(callback, workSource, mAttributionSource);
-        verify(mScannerMap).add(any(), eq(workSource), eq(callback), any(), eq(mScanHelper));
+        verify(mScannerMap)
+                .add(
+                        any(),
+                        eq(mAttributionSource),
+                        eq(workSource),
+                        eq(callback),
+                        any(),
+                        eq(mScanHelper));
         verify(mScanManager).registerScanner(any());
     }
 

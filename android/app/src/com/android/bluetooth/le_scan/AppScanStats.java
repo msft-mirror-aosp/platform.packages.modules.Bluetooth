@@ -135,7 +135,7 @@ public class AppScanStats {
         }
     }
 
-    public String appName;
+    String mAppName;
     private WorkSource mWorkSource; // Used for BatteryStatsManager
     private final WorkSourceUtil mWorkSourceUtil; // Used for BluetoothStatsLog
     private int mScansStarted = 0;
@@ -168,14 +168,14 @@ public class AppScanStats {
             ScannerMap map,
             Context context,
             TransitionalScanHelper scanHelper) {
-        appName = name;
+        mAppName = name;
         mScannerMap = map;
         mScanHelper = scanHelper;
         mBatteryStatsManager = context.getSystemService(BatteryStatsManager.class);
 
         if (source == null) {
             // Bill the caller if the work source isn't passed through
-            source = new WorkSource(Binder.getCallingUid(), appName);
+            source = new WorkSource(Binder.getCallingUid(), mAppName);
         }
         mWorkSource = source;
         mWorkSourceUtil = new WorkSourceUtil(source);
@@ -298,7 +298,7 @@ public class AppScanStats {
                                 BluetoothMetricsProto.ScanEvent.ScanTechnologyType
                                         .SCAN_TECH_TYPE_LE)
                         .setEventTimeMillis(System.currentTimeMillis())
-                        .setInitiator(truncateAppName(appName))
+                        .setInitiator(truncateAppName(mAppName))
                         .build();
         mScanHelper.addScanEvent(scanEvent);
 
@@ -349,7 +349,7 @@ public class AppScanStats {
                                 BluetoothMetricsProto.ScanEvent.ScanTechnologyType
                                         .SCAN_TECH_TYPE_LE)
                         .setEventTimeMillis(System.currentTimeMillis())
-                        .setInitiator(truncateAppName(appName))
+                        .setInitiator(truncateAppName(mAppName))
                         .setNumberResults(scan.results)
                         .build();
         mScanHelper.addScanEvent(scanEvent);
@@ -1000,7 +1000,7 @@ public class AppScanStats {
                                 + ambientDiscoveryScanTime * AMBIENT_DISCOVERY_WEIGHT)
                         / 100;
 
-        sb.append("  ").append(appName);
+        sb.append("  ").append(mAppName);
         if (isRegistered) {
             sb.append(" (Registered)");
         }
@@ -1153,10 +1153,15 @@ public class AppScanStats {
             }
         }
 
-        ScannerMap.ScannerApp appEntry = mScannerMap.getByName(appName);
-        if (appEntry != null && isRegistered) {
-            sb.append("\n  Application ID                     : ").append(appEntry.mId);
-            sb.append("\n  UUID                               : ").append(appEntry.mUuid);
+        if (isRegistered) {
+            List<ScannerMap.ScannerApp> appEntries = mScannerMap.getByName(mAppName);
+            for (ScannerMap.ScannerApp appEntry : appEntries) {
+                sb.append("\n  Application ID: ").append(appEntry.mId);
+                sb.append(", UUID: ").append(appEntry.mUuid);
+                if (appEntry.mAttributionTag != null) {
+                    sb.append(", Tag: ").append(appEntry.mAttributionTag);
+                }
+            }
         }
         sb.append("\n\n");
     }

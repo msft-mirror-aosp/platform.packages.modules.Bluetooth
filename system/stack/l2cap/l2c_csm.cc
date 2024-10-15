@@ -25,6 +25,7 @@
 
 #include <base/functional/callback.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 
 #include <string>
@@ -74,6 +75,13 @@ static void l2c_csm_send_config_req(tL2C_CCB* p_ccb) {
   if (p_ccb->p_rcb->ertm_info.preferred_mode != L2CAP_FCR_BASIC_MODE) {
     config.fcr_present = true;
     config.fcr = kDefaultErtmOptions;
+
+    if (com::android::bluetooth::flags::l2cap_fcs_option_fix()) {
+      /* Later l2cu_process_our_cfg_req() will check if remote supports it, and if not, it will be
+       * cleared as per spec. */
+      config.fcs_present = true;
+      config.fcs = 1;
+    }
   }
   p_ccb->our_cfg = config;
   l2c_csm_execute(p_ccb, L2CEVT_L2CA_CONFIG_REQ, &config);

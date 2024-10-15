@@ -68,9 +68,6 @@
 #define LOGITECH_KB_MX5500_VENDOR_ID 0x046D
 #define LOGITECH_KB_MX5500_PRODUCT_ID 0xB30B
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 static int btif_hh_keylockstates = 0;  // The current key state of each key
@@ -301,7 +298,7 @@ static void sync_lockstate_on_connect(btif_hh_device_t* p_dev, tBTA_HH_DEV_DSCP_
  *
  * Returns          Added device entry
  ******************************************************************************/
-btif_hh_added_device_t* btif_hh_find_added_dev(const tAclLinkSpec& link_spec) {
+static btif_hh_added_device_t* btif_hh_find_added_dev(const tAclLinkSpec& link_spec) {
   for (int i = 0; i < BTIF_HH_MAX_ADDED_DEV; i++) {
     btif_hh_added_device_t* added_dev = &btif_hh_cb.added_devices[i];
     if (added_dev->link_spec == link_spec) {
@@ -1123,7 +1120,7 @@ bt_status_t btif_hh_connect(const tAclLinkSpec& link_spec) {
  * Returns          void
  *
  ******************************************************************************/
-void btif_hh_disconnect(const tAclLinkSpec& link_spec) {
+static void btif_hh_disconnect(const tAclLinkSpec& link_spec) {
   btif_hh_device_t* p_dev = btif_hh_find_connected_dev_by_link_spec(link_spec);
   if (p_dev == nullptr) {
     log::warn("Unable to disconnect unknown HID device:{}", link_spec);
