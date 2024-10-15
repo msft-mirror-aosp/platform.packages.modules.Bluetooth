@@ -41,7 +41,6 @@
 using namespace bluetooth;
 
 #if (PAN_INCLUDED == TRUE)
-void bta_pan_sm_execute(tBTA_PAN_SCB* p_scb, uint16_t event, tBTA_PAN_DATA* p_data);
 
 /* RX and TX data flow mask */
 #define BTA_PAN_RX_MASK 0x0F

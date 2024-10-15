@@ -762,6 +762,7 @@ void l2cu_release_ble_rcb(tL2C_RCB* p_rcb);
 tL2C_RCB* l2cu_allocate_ble_rcb(uint16_t psm);
 tL2C_RCB* l2cu_find_ble_rcb_by_psm(uint16_t psm);
 
+uint8_t l2cu_get_fcs_len(tL2C_CCB* p_ccb);
 uint8_t l2cu_process_peer_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg);
 void l2cu_process_peer_cfg_rsp(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg);
 void l2cu_process_our_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg);

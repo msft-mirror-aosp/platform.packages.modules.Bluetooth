@@ -27,3 +27,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "allow_free_last_scn"
+    namespace: "bluetooth"
+    description: "Allow SCN 30 to be freed"
+    bug: "372923869"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

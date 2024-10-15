@@ -20,6 +20,7 @@
 
 #include <set>
 
+#include "ble_address_with_type.h"
 #include "types/raw_address.h"
 
 /* connection_manager takes care of all the low-level details of LE connection
@@ -49,6 +50,14 @@ void on_connection_complete(const RawAddress& address);
 
 std::set<tAPP_ID> get_apps_connecting_to(const RawAddress& remote_bda);
 
+/* create_le_connection is adding device directly to AclManager, and relying on it's "direct
+ * connect" implementation.
+ * direct_connect_add method is doing multiplexing of apps request, and
+ * sending the request to AclManager, but it lacks some extra checks and lookups. Currently these
+ * methods are exclusive, if you try to use both you will get some bad behavior. These should be
+ * merged into one. */
+bool create_le_connection(uint8_t /* id */, const RawAddress& bd_addr,
+                          tBLE_ADDR_TYPE addr_type = BLE_ADDR_PUBLIC);
 bool direct_connect_add(tAPP_ID app_id, const RawAddress& address);
 bool direct_connect_remove(tAPP_ID app_id, const RawAddress& address,
                            bool connection_timeout = false);
