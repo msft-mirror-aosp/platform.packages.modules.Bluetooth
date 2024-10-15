@@ -422,8 +422,7 @@ void bta_gattc_open_error(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* /* p_d
 }
 
 void bta_gattc_open_fail(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
-  if (com::android::bluetooth::flags::enumerate_gatt_errors() &&
-      p_data->int_conn.reason == GATT_CONN_TIMEOUT) {
+  if (p_data->int_conn.reason == GATT_CONN_TIMEOUT) {
     log::warn(
             "Connection timed out after 30 seconds. conn_id=0x{:x}. Return "
             "GATT_CONNECTION_TIMEOUT({})",

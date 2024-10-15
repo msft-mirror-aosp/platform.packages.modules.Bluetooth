@@ -19,6 +19,7 @@
 #include <base/functional/callback.h>
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <hardware/bt_gatt_types.h>
 #include <hardware/bt_has.h>
 
@@ -153,6 +154,22 @@ public:
       return;
     }
 
+    if (com::android::bluetooth::flags::hap_connect_only_requested_device()) {
+      auto device =
+              std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(address));
+      if (device == devices_.end()) {
+        devices_.emplace_back(address, true);
+        BTA_GATTC_Open(gatt_if_, address, BTM_BLE_DIRECT_CONNECTION, false);
+
+      } else {
+        device->is_connecting_actively = true;
+        if (!device->IsConnected()) {
+          BTA_GATTC_Open(gatt_if_, address, BTM_BLE_DIRECT_CONNECTION, false);
+        }
+      }
+      return;
+    }
+
     std::vector<RawAddress> addresses = {address};
     auto csis_api = CsisClient::Get();
     if (csis_api != nullptr) {
@@ -201,6 +218,24 @@ public:
 
   void Disconnect(const RawAddress& address) override {
     log::debug("{}", address);
+
+    if (com::android::bluetooth::flags::hap_connect_only_requested_device()) {
+      auto device =
+              std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(address));
+      auto conn_id = device->conn_id;
+      auto is_connecting_actively = device->is_connecting_actively;
+      if (conn_id != GATT_INVALID_CONN_ID) {
+        BTA_GATTC_Close(conn_id);
+        callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
+      } else {
+        /* Removes active connection. */
+        if (is_connecting_actively) {
+          BTA_GATTC_CancelOpen(gatt_if_, address, true);
+          callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
+        }
+      }
+      return;
+    }
 
     std::vector<RawAddress> addresses = {address};
     auto csis_api = CsisClient::Get();

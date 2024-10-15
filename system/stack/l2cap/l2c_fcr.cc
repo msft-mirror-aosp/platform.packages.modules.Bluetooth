@@ -280,6 +280,8 @@ static void prepare_I_frame(tL2C_CCB* p_ccb, BT_HDR* p_buf, bool is_retransmissi
   uint16_t ctrl_word;
   bool set_f_bit = p_fcrb->send_f_rsp;
 
+  uint8_t fcs_len = l2cu_get_fcs_len(p_ccb);
+
   p_fcrb->send_f_rsp = false;
 
   if (is_retransmission) {
@@ -317,21 +319,23 @@ static void prepare_I_frame(tL2C_CCB* p_ccb, BT_HDR* p_buf, bool is_retransmissi
   /* Compute the FCS and add to the end of the buffer if not bypassed */
   /* length field in l2cap header has to include FCS length */
   p = ((uint8_t*)(p_buf + 1)) + p_buf->offset;
-  UINT16_TO_STREAM(p, p_buf->len + L2CAP_FCS_LEN - L2CAP_PKT_OVERHEAD);
+  UINT16_TO_STREAM(p, p_buf->len + fcs_len - L2CAP_PKT_OVERHEAD);
 
-  /* Calculate the FCS */
-  fcs = l2c_fcr_tx_get_fcs(p_buf);
+  if (fcs_len != 0) {
+    /* Calculate the FCS */
+    fcs = l2c_fcr_tx_get_fcs(p_buf);
 
-  /* Point to the end of the buffer and put the FCS there */
-  /*
-   * NOTE: Here we assume the allocated buffer is large enough
-   * to include extra L2CAP_FCS_LEN octets at the end.
-   */
-  p = ((uint8_t*)(p_buf + 1)) + p_buf->offset + p_buf->len;
+    /* Point to the end of the buffer and put the FCS there */
+    /*
+     * NOTE: Here we assume the allocated buffer is large enough
+     * to include extra L2CAP_FCS_LEN octets at the end.
+     */
+    p = ((uint8_t*)(p_buf + 1)) + p_buf->offset + p_buf->len;
 
-  UINT16_TO_STREAM(p, fcs);
+    UINT16_TO_STREAM(p, fcs);
 
-  p_buf->len += L2CAP_FCS_LEN;
+    p_buf->len += fcs_len;
+  }
 
   if (is_retransmission) {
     log::verbose(
@@ -397,16 +401,20 @@ void l2c_fcr_send_S_frame(tL2C_CCB* p_ccb, uint16_t function_code, uint16_t pf_b
   /* Set the pointer to the beginning of the data */
   p = (uint8_t*)(p_buf + 1) + p_buf->offset;
 
+  uint8_t fcs_len = l2cu_get_fcs_len(p_ccb);
+
   /* Put in the L2CAP header */
-  UINT16_TO_STREAM(p, L2CAP_FCR_OVERHEAD + L2CAP_FCS_LEN);
+  UINT16_TO_STREAM(p, L2CAP_FCR_OVERHEAD + fcs_len);
   UINT16_TO_STREAM(p, p_ccb->remote_cid);
   UINT16_TO_STREAM(p, ctrl_word);
 
-  /* Compute the FCS and add to the end of the buffer if not bypassed */
-  fcs = l2c_fcr_tx_get_fcs(p_buf);
+  if (fcs_len != 0) {
+    /* Compute the FCS and add to the end of the buffer if not bypassed */
+    fcs = l2c_fcr_tx_get_fcs(p_buf);
 
-  UINT16_TO_STREAM(p, fcs);
-  p_buf->len += L2CAP_FCS_LEN;
+    UINT16_TO_STREAM(p, fcs);
+    p_buf->len += fcs_len;
+  }
 
   /* Now, the HCI transport header */
   p_buf->layer_specific = L2CAP_NON_FLUSHABLE_PKT;
@@ -462,7 +470,9 @@ void l2c_fcr_proc_pdu(tL2C_CCB* p_ccb, BT_HDR* p_buf) {
   uint16_t ctrl_word;
 
   /* Check the length */
-  min_pdu_len = (uint16_t)(L2CAP_FCS_LEN + L2CAP_FCR_OVERHEAD);
+  uint8_t fcs_len = l2cu_get_fcs_len(p_ccb);
+
+  min_pdu_len = (uint16_t)(fcs_len + L2CAP_FCR_OVERHEAD);
 
   if (p_buf->len < min_pdu_len) {
     log::warn("Rx L2CAP PDU: CID: 0x{:04x}  Len too short: {}", p_ccb->local_cid, p_buf->len);
@@ -514,17 +524,19 @@ void l2c_fcr_proc_pdu(tL2C_CCB* p_ccb, BT_HDR* p_buf) {
           p_ccb->fcrb.last_ack_sent, fixed_queue_length(p_ccb->fcrb.waiting_for_ack_q),
           p_ccb->fcrb.num_tries);
 
-  /* Verify FCS if using */
-  p = ((uint8_t*)(p_buf + 1)) + p_buf->offset + p_buf->len - L2CAP_FCS_LEN;
+  if (fcs_len != 0) {
+    /* Verify FCS if using */
+    p = ((uint8_t*)(p_buf + 1)) + p_buf->offset + p_buf->len - fcs_len;
 
-  /* Extract and drop the FCS from the packet */
-  STREAM_TO_UINT16(fcs, p);
-  p_buf->len -= L2CAP_FCS_LEN;
+    /* Extract and drop the FCS from the packet */
+    STREAM_TO_UINT16(fcs, p);
+    p_buf->len -= fcs_len;
 
-  if (l2c_fcr_rx_get_fcs(p_buf) != fcs) {
-    log::warn("Rx L2CAP PDU: CID: 0x{:04x}  BAD FCS", p_ccb->local_cid);
-    osi_free(p_buf);
-    return;
+    if (l2c_fcr_rx_get_fcs(p_buf) != fcs) {
+      log::warn("Rx L2CAP PDU: CID: 0x{:04x}  BAD FCS", p_ccb->local_cid);
+      osi_free(p_buf);
+      return;
+    }
   }
 
   /* Get the control word */
@@ -1466,6 +1478,7 @@ BT_HDR* l2c_fcr_get_next_xmit_sdu_seg(tL2C_CCB* p_ccb, uint16_t max_packet_lengt
   }
 
   prepare_I_frame(p_ccb, p_xmit, false);
+  uint8_t fcs_len = l2cu_get_fcs_len(p_ccb);
 
   if (p_ccb->peer_cfg.fcr.mode == L2CAP_FCR_ERTM_MODE) {
     BT_HDR* p_wack = l2c_fcr_clone_buf(p_xmit, HCI_DATA_PREAMBLE_SIZE, p_xmit->len);
@@ -1475,14 +1488,14 @@ BT_HDR* l2c_fcr_get_next_xmit_sdu_seg(tL2C_CCB* p_ccb, uint16_t max_packet_lengt
                  p_xmit->len);
 
       /* We will not save the FCS in case we reconfigure and change options */
-      p_xmit->len -= L2CAP_FCS_LEN;
+      p_xmit->len -= fcs_len;
 
       /* Pretend we sent it and it got lost */
       fixed_queue_enqueue(p_ccb->fcrb.waiting_for_ack_q, p_xmit);
       return NULL;
     } else {
       /* We will not save the FCS in case we reconfigure and change options */
-      p_wack->len -= L2CAP_FCS_LEN;
+      p_wack->len -= fcs_len;
 
       p_wack->layer_specific = p_xmit->layer_specific;
       fixed_queue_enqueue(p_ccb->fcrb.waiting_for_ack_q, p_wack);
@@ -1793,6 +1806,8 @@ uint8_t l2c_fcr_process_peer_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg) {
     }
   }
 
+  uint8_t fcs_len = l2cu_get_fcs_len(p_ccb);
+
   /* Configuration for FCR channels so make any adjustments and fwd to upper
    * layer */
   if (fcr_ok == L2CAP_PEER_CFG_OK) {
@@ -1807,7 +1822,7 @@ uint8_t l2c_fcr_process_peer_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg) {
       }
 
       max_retrans_size = BT_DEFAULT_BUFFER_SIZE - sizeof(BT_HDR) - L2CAP_MIN_OFFSET -
-                         L2CAP_SDU_LEN_OFFSET - L2CAP_FCS_LEN;
+                         L2CAP_SDU_LEN_OFFSET - fcs_len;
 
       /* Ensure the MPS is not bigger than the MTU */
       if ((p_cfg->fcr.mps == 0) || (p_cfg->fcr.mps > p_ccb->peer_cfg.mtu)) {

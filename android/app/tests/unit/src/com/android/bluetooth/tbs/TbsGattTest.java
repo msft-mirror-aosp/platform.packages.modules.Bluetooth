@@ -137,7 +137,7 @@ public class TbsGattTest {
                         mMockTbsGattCallback));
         Assert.assertNotNull(mMockGattServer);
 
-        verify(mAdapterService, times(1)).registerBluetoothStateCallback(any(), any());
+        verify(mAdapterService).registerBluetoothStateCallback(any(), any());
         verify(mMockGattServer).addService(mGattServiceCaptor.capture());
         doReturn(mGattServiceCaptor.getValue()).when(mMockGattServer).getService(any(UUID.class));
         Assert.assertNotNull(mMockGattServer);
@@ -758,7 +758,7 @@ public class TbsGattTest {
         mTbsGatt.setInbandRingtoneFlag(mFirstDevice);
         mTbsGatt.setInbandRingtoneFlag(mFirstDevice);
 
-        verify(mMockGattServer, times(1))
+        verify(mMockGattServer)
                 .notifyCharacteristicChanged(
                         eq(mFirstDevice), eq(characteristic), eq(false), eq(valueBytes));
 
@@ -766,7 +766,7 @@ public class TbsGattTest {
         mTbsGatt.setInbandRingtoneFlag(mSecondDevice);
         mTbsGatt.setInbandRingtoneFlag(mSecondDevice);
 
-        verify(mMockGattServer, times(1))
+        verify(mMockGattServer)
                 .notifyCharacteristicChanged(
                         eq(mSecondDevice), eq(characteristic), eq(false), eq(valueBytes));
     }
@@ -785,14 +785,14 @@ public class TbsGattTest {
         valueBytes[1] = (byte) ((statusFlagValue >> 8) & 0xFF);
 
         mTbsGatt.setInbandRingtoneFlag(mFirstDevice);
-        verify(mMockGattServer, times(1))
+        verify(mMockGattServer)
                 .notifyCharacteristicChanged(
                         eq(mFirstDevice), eq(characteristic), eq(false), eq(valueBytes));
 
         reset(mMockGattServer);
 
         mTbsGatt.setInbandRingtoneFlag(mSecondDevice);
-        verify(mMockGattServer, times(1))
+        verify(mMockGattServer)
                 .notifyCharacteristicChanged(
                         eq(mSecondDevice), eq(characteristic), eq(false), eq(valueBytes));
 
@@ -805,14 +805,14 @@ public class TbsGattTest {
 
         mTbsGatt.clearInbandRingtoneFlag(mFirstDevice);
         mTbsGatt.clearInbandRingtoneFlag(mFirstDevice);
-        verify(mMockGattServer, times(1))
+        verify(mMockGattServer)
                 .notifyCharacteristicChanged(
                         eq(mFirstDevice), eq(characteristic), eq(false), eq(valueBytes));
 
         reset(mMockGattServer);
         mTbsGatt.clearInbandRingtoneFlag(mSecondDevice);
         mTbsGatt.clearInbandRingtoneFlag(mSecondDevice);
-        verify(mMockGattServer, times(1))
+        verify(mMockGattServer)
                 .notifyCharacteristicChanged(
                         eq(mSecondDevice), eq(characteristic), eq(false), eq(valueBytes));
     }
@@ -847,14 +847,14 @@ public class TbsGattTest {
 
         mTbsGatt.setInbandRingtoneFlag(mFirstDevice);
 
-        verify(mMockGattServer, times(1))
+        verify(mMockGattServer)
                 .notifyCharacteristicChanged(
                         eq(mFirstDevice), eq(characteristic), eq(false), eq(valueBytes));
 
         reset(mMockGattServer);
         mTbsGatt.setInbandRingtoneFlag(mSecondDevice);
 
-        verify(mMockGattServer, times(1))
+        verify(mMockGattServer)
                 .notifyCharacteristicChanged(
                         eq(mSecondDevice), eq(characteristic), eq(false), eq(valueBytes));
         reset(mMockGattServer);
@@ -1091,7 +1091,7 @@ public class TbsGattTest {
         mTbsGatt.onDeviceAuthorizationSet(mFirstDevice);
         verify(mMockGattServer, times(0))
                 .notifyCharacteristicChanged(any(), eq(characteristic2), eq(false));
-        verify(mMockGattServer, times(1))
+        verify(mMockGattServer)
                 .notifyCharacteristicChanged(any(), eq(characteristic), eq(false), eq(valueBytes));
     }
 

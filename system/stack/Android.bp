@@ -2067,6 +2067,7 @@ cc_test {
         ":TestMockMainShimEntry",
         ":TestMockStackAcl",
         ":TestMockStackBtm",
+        ":TestMockStackGatt",
         ":TestMockStackHcic",
         ":TestMockStackSdp",
         ":TestMockStackSmp",
