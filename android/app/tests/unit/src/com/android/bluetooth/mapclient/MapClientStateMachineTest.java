@@ -522,7 +522,7 @@ public class MapClientStateMachineTest {
         mMceStateMachine.sendMessage(msgSent);
 
         TestUtils.waitForLooperToFinishScheduledTask(mMceStateMachine.getHandler().getLooper());
-        verify(mMockDatabase, times(1))
+        verify(mMockDatabase)
                 .storeMessage(
                         eq(mTestIncomingSmsBmessage),
                         eq(mTestMessageSmsHandle),
@@ -704,7 +704,7 @@ public class MapClientStateMachineTest {
         mMceStateMachine.receiveEvent(event);
 
         TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
-        verify(mMockMasClient, times(1)).makeRequest(any(RequestGetMessage.class));
+        verify(mMockMasClient).makeRequest(any(RequestGetMessage.class));
 
         msg =
                 Message.obtain(
@@ -714,7 +714,7 @@ public class MapClientStateMachineTest {
         mMceStateMachine.sendMessage(msg);
 
         TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
-        verify(mMockDatabase, times(1))
+        verify(mMockDatabase)
                 .storeMessage(
                         eq(mTestIncomingSmsBmessage),
                         eq(mTestMessageSmsHandle),
@@ -753,7 +753,7 @@ public class MapClientStateMachineTest {
         mMceStateMachine.receiveEvent(event);
 
         TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
-        verify(mMockMasClient, times(1)).makeRequest(any(RequestGetMessage.class));
+        verify(mMockMasClient).makeRequest(any(RequestGetMessage.class));
 
         msg =
                 Message.obtain(
@@ -763,7 +763,7 @@ public class MapClientStateMachineTest {
         mMceStateMachine.sendMessage(msg);
 
         TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
-        verify(mMockDatabase, times(1))
+        verify(mMockDatabase)
                 .storeMessage(
                         eq(mTestIncomingMmsBmessage),
                         eq(mTestMessageMmsHandle),
@@ -799,7 +799,7 @@ public class MapClientStateMachineTest {
         mMceStateMachine.sendMessage(msg);
 
         TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
-        verify(mMockMasClient, times(1)).makeRequest(any(RequestGetMessagesListing.class));
+        verify(mMockMasClient).makeRequest(any(RequestGetMessagesListing.class));
 
         msg =
                 Message.obtain(
@@ -809,7 +809,7 @@ public class MapClientStateMachineTest {
         mMceStateMachine.sendMessage(msg);
 
         TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
-        verify(mMockMasClient, times(1)).makeRequest(any(RequestGetMessage.class));
+        verify(mMockMasClient).makeRequest(any(RequestGetMessage.class));
 
         msg =
                 Message.obtain(
@@ -819,7 +819,7 @@ public class MapClientStateMachineTest {
         mMceStateMachine.sendMessage(msg);
 
         TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
-        verify(mMockDatabase, times(1)).storeMessage(any(), any(), any(), eq(MESSAGE_SEEN));
+        verify(mMockDatabase).storeMessage(any(), any(), any(), eq(MESSAGE_SEEN));
     }
 
     /** Test seen status set in database on initial download */
@@ -853,7 +853,7 @@ public class MapClientStateMachineTest {
         mMceStateMachine.sendMessage(msg);
 
         TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
-        verify(mMockMasClient, times(1)).makeRequest(any(RequestGetMessagesListing.class));
+        verify(mMockMasClient).makeRequest(any(RequestGetMessagesListing.class));
 
         msg =
                 Message.obtain(
@@ -863,7 +863,7 @@ public class MapClientStateMachineTest {
         mMceStateMachine.sendMessage(msg);
 
         TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
-        verify(mMockMasClient, times(1)).makeRequest(any(RequestGetMessage.class));
+        verify(mMockMasClient).makeRequest(any(RequestGetMessage.class));
 
         msg =
                 Message.obtain(
@@ -873,7 +873,7 @@ public class MapClientStateMachineTest {
         mMceStateMachine.sendMessage(msg);
 
         TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
-        verify(mMockDatabase, times(1)).storeMessage(any(), any(), any(), eq(MESSAGE_SEEN));
+        verify(mMockDatabase).storeMessage(any(), any(), any(), eq(MESSAGE_SEEN));
     }
 
     /** Test receiving a new message notification. */
@@ -988,7 +988,7 @@ public class MapClientStateMachineTest {
         mMceStateMachine.receiveEvent(event);
 
         TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
-        verify(mMockMasClient, times(1)).makeRequest(any(RequestGetMessage.class));
+        verify(mMockMasClient).makeRequest(any(RequestGetMessage.class));
 
         msg =
                 Message.obtain(
