@@ -303,7 +303,7 @@ impl Stack {
                     bluetooth_media.lock().unwrap().initialize();
                     bluetooth.lock().unwrap().set_media(bluetooth_media.clone());
                     // Init Gatt and pass it to Bluetooth.
-                    bluetooth_gatt.lock().unwrap().init_profiles(tx.clone(), api_tx.clone());
+                    bluetooth_gatt.lock().unwrap().init_profiles(api_tx.clone());
                     bluetooth_gatt.lock().unwrap().enable(true);
                     bluetooth.lock().unwrap().set_gatt_and_init_scanner(bluetooth_gatt.clone());
                     // Init AdvertiseManager. It selects the stack per is_le_ext_adv_supported

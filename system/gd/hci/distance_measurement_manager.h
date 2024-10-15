@@ -61,6 +61,7 @@ public:
                                            uint32_t error_centimeter, int azimuth_angle,
                                            int error_azimuth_angle, int altitude_angle,
                                            int error_altitude_angle, long elapsedRealtimeNanos,
+                                           int8_t confidence_level,
                                            DistanceMeasurementMethod method) = 0;
   virtual void OnRasFragmentReady(Address address, uint16_t procedure_counter, bool is_last,
                                   std::vector<uint8_t> raw_data) = 0;
@@ -99,6 +100,7 @@ public:
                                          bool success);
   void HandleRemoteData(const Address& address, uint16_t connection_handle,
                         const std::vector<uint8_t>& raw_data);
+  void HandleRemoteDataTimeout(const Address& address, uint16_t connection_handle);
 
   static const ModuleFactory Factory;
 

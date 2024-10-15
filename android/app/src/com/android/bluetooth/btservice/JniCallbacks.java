@@ -21,9 +21,10 @@ import android.bluetooth.UidTraffic;
 
 class JniCallbacks {
 
+    private final AdapterProperties mAdapterProperties;
+    private final AdapterService mAdapterService;
+
     private RemoteDevices mRemoteDevices;
-    private AdapterProperties mAdapterProperties;
-    private AdapterService mAdapterService;
     private BondStateMachine mBondStateMachine;
 
     JniCallbacks(AdapterService adapterService, AdapterProperties adapterProperties) {
@@ -38,8 +39,6 @@ class JniCallbacks {
 
     void cleanup() {
         mRemoteDevices = null;
-        mAdapterProperties = null;
-        mAdapterService = null;
         mBondStateMachine = null;
     }
 

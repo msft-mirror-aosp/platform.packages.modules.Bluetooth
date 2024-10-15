@@ -21,7 +21,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -197,6 +196,6 @@ public class PbapClientConnectionHandlerTest {
     public void createAndDisconnectWithoutAddingAccount_doesNotCrash() {
         mHandler.obtainMessage(PbapClientConnectionHandler.MSG_DISCONNECT).sendToTarget();
         TestUtils.waitForLooperToFinishScheduledTask(mHandler.getLooper());
-        verify(mStateMachine, times(1)).sendMessage(PbapClientStateMachine.MSG_CONNECTION_CLOSED);
+        verify(mStateMachine).sendMessage(PbapClientStateMachine.MSG_CONNECTION_CLOSED);
     }
 }

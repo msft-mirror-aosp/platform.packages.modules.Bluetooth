@@ -108,7 +108,6 @@ cc_library_static {
         "-Wno-missing-prototypes",
     ],
     srcs: [
-        "src/connection/ffi/connection_shim.cc",
         "src/core/ffi/module.cc",
         "src/gatt/ffi/gatt_shim.cc",
     ],
@@ -169,7 +168,6 @@ cc_library_static {
 filegroup {
     name: "libbluetooth_core_rs_ffi",
     srcs: [
-        "src/connection/ffi.rs",
         "src/core/ffi.rs",
         "src/gatt/ffi.rs",
     ],

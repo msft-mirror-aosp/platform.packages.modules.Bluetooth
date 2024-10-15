@@ -1041,6 +1041,12 @@ void LeAudioDevice::Dump(int fd) {
          << ",mtu: " << std::to_string(mtu_)
          << "\n\tnumber of ases_: " << static_cast<int>(ases_.size());
 
+  if (gmap_client_ != nullptr) {
+    gmap_client_->DebugDump(fd);
+  } else {
+    stream << "GmapClient not initialized\n";
+  }
+
   if (ases_.size() > 0) {
     stream << "\n\t== ASEs == \n\t";
     stream << "id  active dir     cis_id  cis_handle  sdu  latency rtn  "

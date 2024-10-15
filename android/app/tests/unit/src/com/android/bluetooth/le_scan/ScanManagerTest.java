@@ -46,7 +46,6 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -1418,7 +1417,7 @@ public class ScanManagerTest {
             // Create scan client for the app, which also records scan start
             ScanClient client = createScanClient(i, isFiltered, scanMode, UID, appScanStats);
             // Verify that the app scan start is logged
-            verify(mMetricsLogger, times(1))
+            verify(mMetricsLogger)
                     .logAppScanStateChanged(
                             new int[] {UID},
                             new String[] {PACKAGE_NAME},
@@ -1441,7 +1440,7 @@ public class ScanManagerTest {
             // Record scan stop
             client.stats.recordScanStop(i);
             // Verify that the app scan stop is logged
-            verify(mMetricsLogger, times(1))
+            verify(mMetricsLogger)
                     .logAppScanStateChanged(
                             eq(new int[] {UID}),
                             eq(new String[] {PACKAGE_NAME}),
@@ -1509,7 +1508,7 @@ public class ScanManagerTest {
         mHandler.sendMessage(createStartStopScanMessage(true, client2));
         mTestLooper.dispatchAll();
         // Verify radio scan stop is logged with the first app
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logRadioScanStopped(
                         eq(new int[] {UID_1}),
                         eq(new String[] {PACKAGE_NAME_1}),
@@ -1544,7 +1543,7 @@ public class ScanManagerTest {
         mHandler.sendMessage(createStartStopScanMessage(true, client3));
         mTestLooper.dispatchAll();
         // Verify radio scan stop is logged with the second app
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logRadioScanStopped(
                         eq(new int[] {UID_2}),
                         eq(new String[] {PACKAGE_NAME_2}),
@@ -1602,7 +1601,7 @@ public class ScanManagerTest {
         mHandler.sendMessage(createScreenOnOffMessage(false));
         mTestLooper.dispatchAll();
         // Verify radio scan stop is logged with the third app when screen turns off
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logRadioScanStopped(
                         eq(new int[] {UID_3}),
                         eq(new String[] {PACKAGE_NAME_3}),
@@ -1638,7 +1637,7 @@ public class ScanManagerTest {
         mHandler.sendMessage(createImportanceMessage(true, UID_4));
         mTestLooper.dispatchAll();
         // Verify radio scan stop is logged with the third app when screen turns on
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logRadioScanStopped(
                         eq(new int[] {mostAggressiveClient.appUid}),
                         eq(new String[] {TEST_PACKAGE_NAME + mostAggressiveClient.appUid}),
@@ -1679,7 +1678,7 @@ public class ScanManagerTest {
         mHandler.sendMessage(createStartStopScanMessage(false, client3));
         mTestLooper.dispatchAll();
         // Verify radio scan stop is logged with the third app
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logRadioScanStopped(
                         eq(new int[] {UID_3}),
                         eq(new String[] {PACKAGE_NAME_3}),
@@ -1703,7 +1702,7 @@ public class ScanManagerTest {
         mHandler.sendMessage(createStartStopScanMessage(false, client2));
         mTestLooper.dispatchAll();
         // Verify radio scan stop is logged with the second app
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logRadioScanStopped(
                         eq(new int[] {UID_2}),
                         eq(new String[] {PACKAGE_NAME_2}),
@@ -1727,7 +1726,7 @@ public class ScanManagerTest {
         mHandler.sendMessage(createStartStopScanMessage(false, client1));
         mTestLooper.dispatchAll();
         // Verify radio scan stop is logged with the first app
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logRadioScanStopped(
                         eq(new int[] {UID_1}),
                         eq(new String[] {PACKAGE_NAME_1}),
@@ -1771,9 +1770,9 @@ public class ScanManagerTest {
         testSleep(50);
         // Stop scan
         sendMessageWaitForProcessed(createStartStopScanMessage(false, client));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR), anyLong());
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(
                         eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR_SCREEN_ON),
                         anyLong());
@@ -1837,9 +1836,9 @@ public class ScanManagerTest {
         testSleep(50);
         // Stop scan
         sendMessageWaitForProcessed(createStartStopScanMessage(false, client));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR), anyLong());
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(
                         eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR_SCREEN_ON),
                         anyLong());
@@ -1876,9 +1875,9 @@ public class ScanManagerTest {
         testSleep(50);
         // Start scan with higher duty cycle
         sendMessageWaitForProcessed(createStartStopScanMessage(true, client2));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR), anyLong());
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(
                         eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR_SCREEN_ON),
                         anyLong());
@@ -1894,9 +1893,9 @@ public class ScanManagerTest {
         Mockito.clearInvocations(mMetricsLogger);
         // Stop scan with higher duty cycle
         sendMessageWaitForProcessed(createStartStopScanMessage(false, client2));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR), anyLong());
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(
                         eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR_SCREEN_ON),
                         anyLong());
@@ -1943,7 +1942,7 @@ public class ScanManagerTest {
             testSleep(scanTestDuration);
             // Stop scan
             sendMessageWaitForProcessed(createStartStopScanMessage(false, client));
-            verify(mMetricsLogger, times(1))
+            verify(mMetricsLogger)
                     .cacheCount(
                             eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR),
                             mScanDurationCaptor.capture());
@@ -1964,15 +1963,13 @@ public class ScanManagerTest {
         sendMessageWaitForProcessed(createScreenOnOffMessage(true));
         verify(mMetricsLogger, never())
                 .cacheCount(eq(BluetoothProtoEnums.SCREEN_OFF_EVENT), anyLong());
-        verify(mMetricsLogger, times(1))
-                .cacheCount(eq(BluetoothProtoEnums.SCREEN_ON_EVENT), anyLong());
+        verify(mMetricsLogger).cacheCount(eq(BluetoothProtoEnums.SCREEN_ON_EVENT), anyLong());
         Mockito.clearInvocations(mMetricsLogger);
         // Turn off screen
         sendMessageWaitForProcessed(createScreenOnOffMessage(false));
         verify(mMetricsLogger, never())
                 .cacheCount(eq(BluetoothProtoEnums.SCREEN_ON_EVENT), anyLong());
-        verify(mMetricsLogger, times(1))
-                .cacheCount(eq(BluetoothProtoEnums.SCREEN_OFF_EVENT), anyLong());
+        verify(mMetricsLogger).cacheCount(eq(BluetoothProtoEnums.SCREEN_OFF_EVENT), anyLong());
         Mockito.clearInvocations(mMetricsLogger);
     }
 
