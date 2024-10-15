@@ -59,7 +59,6 @@
 #include "btif_api.h"
 #include "btif_bqr.h"
 #include "btif_config.h"
-#include "btif_dm.h"
 #include "btif_metrics_logging.h"
 #include "btif_sdp.h"
 #include "btif_storage.h"
@@ -1923,6 +1922,10 @@ void BTIF_dm_report_inquiry_status_change(tBTM_INQUIRY_STATE status) {
 }
 
 void BTIF_dm_enable() {
+  if (com::android::bluetooth::flags::guest_mode_bond()) {
+    btif_storage_prune_devices();
+  }
+
   BD_NAME bdname;
   bt_status_t status;
   bt_property_t prop;

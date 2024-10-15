@@ -9,6 +9,7 @@
 
 #include "osi/include/alarm.h"
 #include "osi/test/alarm_mock.h"
+#include "security_device_record.h"
 #include "stack/btm/neighbor_inquiry.h"
 #include "stack/gatt/connection_manager.h"
 
@@ -52,6 +53,8 @@ constexpr tAPP_ID CLIENT10 = 10;
 const tBLE_BD_ADDR BTM_Sec_GetAddressWithType(const RawAddress& bd_addr) {
   return tBLE_BD_ADDR{.type = BLE_ADDR_PUBLIC, .bda = bd_addr};
 }
+
+tBTM_SEC_DEV_REC* btm_find_dev(const RawAddress& /* bd_addr */) { return nullptr; }
 
 namespace bluetooth {
 namespace shim {

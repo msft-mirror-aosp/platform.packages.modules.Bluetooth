@@ -37,6 +37,13 @@ bool connection_manager::background_connect_remove(uint8_t /* app_id */,
   inc_func_call_count(__func__);
   return false;
 }
+
+bool connection_manager::create_le_connection(uint8_t /* id */, const RawAddress& /* bd_addr */,
+                                              tBLE_ADDR_TYPE /* addr_type */) {
+  inc_func_call_count(__func__);
+  return false;
+}
+
 bool connection_manager::direct_connect_add(uint8_t /* app_id */, const RawAddress& /* address */) {
   inc_func_call_count(__func__);
   return false;

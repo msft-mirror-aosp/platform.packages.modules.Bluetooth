@@ -15,6 +15,10 @@
  */
 package com.android.bluetooth.gatt;
 
+import static com.android.bluetooth.util.AttributionSourceUtil.getLastAttributionTag;
+
+import android.annotation.Nullable;
+import android.content.AttributionSource;
 import android.content.Context;
 import android.os.Binder;
 import android.os.IBinder;
@@ -75,6 +79,9 @@ public class ContextMap<C> {
         /** The package name of the application */
         public final String name;
 
+        /** The last attribution tag of the caller */
+        @Nullable public final String attributionTag;
+
         /** Application callbacks */
         public C callback;
 
@@ -88,11 +95,12 @@ public class ContextMap<C> {
         private List<CallbackInfo> mCongestionQueue = new ArrayList<>();
 
         /** Creates a new app context. */
-        App(UUID uuid, C callback, int appUid, String name) {
+        App(UUID uuid, C callback, int appUid, String name, AttributionSource attrSource) {
             this.uuid = uuid;
             this.callback = callback;
             this.appUid = appUid;
             this.name = name;
+            this.attributionTag = getLastAttributionTag(attrSource);
         }
 
         /** Link death recipient */
@@ -146,7 +154,7 @@ public class ContextMap<C> {
     private final Object mConnectionsLock = new Object();
 
     /** Add an entry to the application context list. */
-    public App add(UUID uuid, C callback, Context context) {
+    public App add(UUID uuid, C callback, Context context, AttributionSource attrSource) {
         int appUid = Binder.getCallingUid();
         String appName = context.getPackageManager().getNameForUid(appUid);
         if (appName == null) {
@@ -154,7 +162,7 @@ public class ContextMap<C> {
             appName = "Unknown App (UID: " + appUid + ")";
         }
         synchronized (mAppsLock) {
-            App app = new App(uuid, callback, appUid, appName);
+            App app = new App(uuid, callback, appUid, appName, attrSource);
             mApps.add(app);
             return app;
         }
