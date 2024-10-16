@@ -2139,7 +2139,7 @@ public class BassClientServiceTest {
                 verify(sm, never()).sendMessage(any());
             } else if (sm.getDevice().equals(mCurrentDevice1)) {
                 ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
-                verify(sm, times(1)).sendMessage(messageCaptor.capture());
+                verify(sm).sendMessage(messageCaptor.capture());
                 List<Message> msgs =
                         messageCaptor.getAllValues().stream()
                                 .filter(
@@ -4380,7 +4380,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice, true);
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, true);
 
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
@@ -4396,7 +4396,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice, true);
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, true);
 
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
@@ -4444,7 +4444,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, true);
 
         /* After second device disconnection and de-synchronization expect stopping broadcast */
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
@@ -4473,7 +4473,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, false);
 
         /* After second device disconnection and de-synchronization expect stopping broadcast */
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
@@ -4491,7 +4491,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice, true);
 
         /* After first device disconnection and de-synchronization expect stopping broadcast */
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
 
         /* Imitate first device being in disconnected state */
         doReturn(BluetoothProfile.STATE_DISCONNECTED)
@@ -4502,7 +4502,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, true);
 
         /* After second device disconnection and de-synchronization expect not stopping broadcast */
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
