@@ -364,52 +364,6 @@ public class DistanceMeasurementManager {
         }
     }
 
-    void onDistanceMeasurementStartFail(String address, int reason, int method) {
-        logd(
-                "onDistanceMeasurementStartFail address:"
-                        + BluetoothUtils.toAnonymizedAddress(address)
-                        + ", method:"
-                        + method);
-        switch (method) {
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI:
-                handleRssiStartFail(address, reason);
-                break;
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
-                handleCsStartFail(address, reason);
-                break;
-            default:
-                Log.w(TAG, "onDistanceMeasurementStartFail: invalid method " + method);
-        }
-    }
-
-    void handleRssiStartFail(String address, int reason) {
-        CopyOnWriteArraySet<DistanceMeasurementTracker> set = mRssiTrackers.get(address);
-        if (set == null) {
-            Log.w(TAG, "Can't find rssi tracker");
-            return;
-        }
-        for (DistanceMeasurementTracker tracker : set) {
-            if (!tracker.mStarted) {
-                invokeStartFail(tracker.mCallback, tracker.mDevice, reason);
-            }
-        }
-        set.removeIf(tracker -> !tracker.mStarted);
-    }
-
-    void handleCsStartFail(String address, int reason) {
-        CopyOnWriteArraySet<DistanceMeasurementTracker> set = mCsTrackers.get(address);
-        if (set == null) {
-            Log.w(TAG, "Can't find CS tracker");
-            return;
-        }
-        for (DistanceMeasurementTracker tracker : set) {
-            if (!tracker.mStarted) {
-                invokeStartFail(tracker.mCallback, tracker.mDevice, reason);
-            }
-        }
-        set.removeIf(tracker -> !tracker.mStarted);
-    }
-
     void onDistanceMeasurementStopped(String address, int reason, int method) {
         logd(
                 "onDistanceMeasurementStopped address:"
@@ -440,9 +394,11 @@ public class DistanceMeasurementManager {
             if (tracker.mStarted) {
                 tracker.cancelTimer();
                 invokeOnStopped(tracker.mCallback, tracker.mDevice, reason);
+            } else {
+                invokeStartFail(tracker.mCallback, tracker.mDevice, reason);
             }
         }
-        set.removeIf(tracker -> tracker.mStarted);
+        mRssiTrackers.remove(address);
     }
 
     void handleCsStopped(String address, int reason) {
@@ -455,9 +411,11 @@ public class DistanceMeasurementManager {
             if (tracker.mStarted) {
                 tracker.cancelTimer();
                 invokeOnStopped(tracker.mCallback, tracker.mDevice, reason);
+            } else {
+                invokeStartFail(tracker.mCallback, tracker.mDevice, reason);
             }
         }
-        set.removeIf(tracker -> tracker.mStarted);
+        mCsTrackers.remove(address);
     }
 
     void onDistanceMeasurementResult(

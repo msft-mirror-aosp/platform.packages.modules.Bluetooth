@@ -725,6 +725,7 @@ void Device::AddressedPlayerNotificationResponse(uint8_t label, bool interim,
   if (curr_browsed_player_id_ == -1) {
     curr_browsed_player_id_ = curr_player;
   }
+  curr_addressed_player_id_ = curr_player;
 
   auto response = RegisterNotificationResponseBuilder::MakeAddressedPlayerBuilder(
           interim, curr_player, 0x0000);
@@ -937,6 +938,8 @@ void Device::HandleSetAddressedPlayer(uint8_t label, std::shared_ptr<SetAddresse
     return;
   }
 
+  curr_addressed_player_id_ = curr_player;
+
   auto response = SetAddressedPlayerResponseBuilder::MakeBuilder(Status::NO_ERROR);
   send_message(label, false, std::move(response));
 }
@@ -1126,6 +1129,13 @@ void Device::GetTotalNumberOfItemsMediaPlayersResponse(uint8_t label, uint16_t /
 void Device::GetTotalNumberOfItemsVFSResponse(uint8_t label, std::vector<ListItem> list) {
   log::verbose("num_items={}", list.size());
 
+  if (curr_browsed_player_id_ == -1) {
+    auto response = GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_AVAILABLE_PLAYERS,
+                                                                      0x0000, 0);
+    send_message(label, true, std::move(response));
+    return;
+  }
+
   auto builder =
           GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_ERROR, 0x0000, list.size());
   send_message(label, true, std::move(builder));
@@ -1134,6 +1144,13 @@ void Device::GetTotalNumberOfItemsVFSResponse(uint8_t label, std::vector<ListIte
 void Device::GetTotalNumberOfItemsNowPlayingResponse(uint8_t label, std::string /*curr_song_id*/,
                                                      std::vector<SongInfo> list) {
   log::verbose("num_items={}", list.size());
+
+  if (curr_addressed_player_id_ == -1) {
+    auto response = GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_AVAILABLE_PLAYERS,
+                                                                      0x0000, 0);
+    send_message(label, true, std::move(response));
+    return;
+  }
 
   auto builder =
           GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_ERROR, 0x0000, list.size());
