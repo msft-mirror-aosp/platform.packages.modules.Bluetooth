@@ -322,13 +322,10 @@ public class AdapterServiceTest {
         when(mMockService.getName()).thenReturn("Service1");
         when(mMockService2.getName()).thenReturn("Service2");
 
-        when(mMockMetricsLogger.init(any())).thenReturn(true);
-        when(mMockMetricsLogger.close()).thenReturn(true);
-
         configureEnabledProfiles();
         Config.init(mMockContext);
 
-        mAdapterService.setMetricsLogger(mMockMetricsLogger);
+        MetricsLogger.setInstanceForTesting(mMockMetricsLogger);
 
         // Attach a context to the service for permission checks.
         mAdapterService.attach(mMockContext, null, null, null, mApplication, null);
@@ -358,6 +355,7 @@ public class AdapterServiceTest {
         GattNativeInterface.setInstance(null);
         PeriodicScanNativeInterface.setInstance(null);
         ScanNativeInterface.setInstance(null);
+        MetricsLogger.setInstanceForTesting(null);
     }
 
     private void syncHandler(int... what) {

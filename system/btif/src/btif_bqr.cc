@@ -45,9 +45,6 @@
 #include "stack/include/btm_client_interface.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace bluetooth {
 namespace bqr {
 
@@ -58,6 +55,15 @@ using std::chrono::system_clock;
 static LeakyBondedQueue<BqrVseSubEvt> kpBqrEventQueue{kBqrEventQueueSize};
 
 static uint16_t vendor_cap_supported_version;
+
+// File Descriptor of LMP/LL message trace log
+static int LmpLlMessageTraceLogFd = INVALID_FD;
+// File Descriptor of Bluetooth Multi-profile/Coex scheduling trace log
+static int BtSchedulingTraceLogFd = INVALID_FD;
+// Counter of LMP/LL message trace
+static uint16_t LmpLlMessageTraceCounter = 0;
+// Counter of Bluetooth Multi-profile/Coex scheduling trace
+static uint16_t BtSchedulingTraceCounter = 0;
 
 class BluetoothQualityReportInterfaceImpl;
 std::unique_ptr<BluetoothQualityReportInterface> bluetoothQualityReportInstance;
@@ -508,7 +514,7 @@ static void BqrVscCompleteCallback(hci::CommandCompleteView complete) {
   ConfigureBqrCmpl(current_quality_event_mask);
 }
 
-void ConfigBqrA2dpScoThreshold() {
+static void ConfigBqrA2dpScoThreshold() {
   uint8_t sub_opcode = 0x16;
   uint16_t a2dp_choppy_threshold = 0;
   uint16_t sco_choppy_threshold = 0;
@@ -926,9 +932,7 @@ void unregister_vse() {
           hci::VseSubeventCode::BQR_EVENT);
 }
 
-namespace testing {
-void set_lmp_trace_log_fd(int fd) { LmpLlMessageTraceLogFd = fd; }
-}  // namespace testing
+void SetLmpLlMessageTraceLogFd(int fd) { LmpLlMessageTraceLogFd = fd; }
 
 }  // namespace bqr
 }  // namespace bluetooth

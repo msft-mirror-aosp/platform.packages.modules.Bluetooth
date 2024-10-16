@@ -92,11 +92,6 @@ public class DistanceMeasurementNativeInterface {
         mDistanceMeasurementManager.onDistanceMeasurementStarted(address, method);
     }
 
-    void onDistanceMeasurementStartFail(String address, int reason, int method) {
-        mDistanceMeasurementManager.onDistanceMeasurementStartFail(
-                address, convertErrorCode(reason), method);
-    }
-
     void onDistanceMeasurementStopped(String address, int reason, int method) {
         mDistanceMeasurementManager.onDistanceMeasurementStopped(
                 address, convertErrorCode(reason), method);

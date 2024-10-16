@@ -1488,7 +1488,7 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
         log::warn("{} already added to gatt_if {} direct conn list", bd_addr, gatt_if);
       }
 
-      ret = acl_create_le_connection_with_id(gatt_if, bd_addr, addr_type);
+      ret = connection_manager::create_le_connection(gatt_if, bd_addr, addr_type);
     }
 
   } else {

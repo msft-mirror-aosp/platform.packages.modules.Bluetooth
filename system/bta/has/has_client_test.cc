@@ -19,8 +19,10 @@
 #include <base/functional/bind.h>
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <log/log.h>
 #include <osi/include/alarm.h>
 #include <sys/socket.h>
 
@@ -622,6 +624,7 @@ protected:
   }
 
   void SetUp(void) override {
+    __android_log_set_minimum_priority(ANDROID_LOG_VERBOSE);
     reset_mock_function_count_map();
     bluetooth::manager::SetMockBtmInterface(&btm_interface);
     bluetooth::storage::SetMockBtifStorageInterface(&btif_storage_interface_);
@@ -1129,6 +1132,7 @@ class HasClientTest : public HasClientTestBase {
     TestAppRegister();
   }
   void TearDown(void) override {
+    com::android::bluetooth::flags::provider_->reset_flags();
     TestAppUnregister();
     HasClientTestBase::TearDown();
   }
@@ -1213,7 +1217,24 @@ TEST_F(HasClientTest, test_has_connected) {
   TestConnect(test_address);
 }
 
+TEST_F(HasClientTest, test_disconnect_connected_without_hap_connect_only_requested_device_flag) {
+  /* TODO: this test shall be removed b/370405555 */
+  com::android::bluetooth::flags::provider_->hap_connect_only_requested_device(false);
+  const RawAddress test_address = GetTestAddress(1);
+  /* Minimal possible HA device (only feature flags) */
+  SetSampleDatabaseHasNoPresetChange(test_address,
+                                     bluetooth::has::kFeatureBitHearingAidTypeBinaural);
+
+  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(1);
+  TestConnect(test_address);
+
+  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(1);
+  EXPECT_CALL(gatt_queue, Clean(1)).Times(1);
+  TestDisconnect(test_address, 1);
+}
+
 TEST_F(HasClientTest, test_disconnect_connected) {
+  com::android::bluetooth::flags::provider_->hap_connect_only_requested_device(true);
   const RawAddress test_address = GetTestAddress(1);
   /* Minimal possible HA device (only feature flags) */
   SetSampleDatabaseHasNoPresetChange(test_address,

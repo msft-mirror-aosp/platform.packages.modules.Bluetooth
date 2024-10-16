@@ -78,8 +78,8 @@ public class RemoteDevicesTest {
                 .thenReturn(Context.BLUETOOTH_SERVICE);
 
         mRemoteDevices = new RemoteDevices(mAdapterService, mHandlerThread.getLooper());
-        verify(mAdapterService, times(1)).getSystemService(Context.BLUETOOTH_SERVICE);
-        verify(mAdapterService, times(1)).getSystemService(BluetoothManager.class);
+        verify(mAdapterService).getSystemService(Context.BLUETOOTH_SERVICE);
+        verify(mAdapterService).getSystemService(BluetoothManager.class);
     }
 
     @After
