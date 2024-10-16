@@ -1519,12 +1519,12 @@ public class AvrcpControllerStateMachineTest {
         sendAudioFocusUpdate(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT);
 
         TestUtils.waitForLooperToBeIdle(mAvrcpStateMachine.getHandler().getLooper());
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .sendPassThroughCommand(
                         eq(mTestAddress),
                         eq(AvrcpControllerService.PASS_THRU_CMD_ID_PAUSE),
                         eq(KEY_DOWN));
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .sendPassThroughCommand(
                         eq(mTestAddress),
                         eq(AvrcpControllerService.PASS_THRU_CMD_ID_PAUSE),
@@ -1564,12 +1564,12 @@ public class AvrcpControllerStateMachineTest {
         sendAudioFocusUpdate(AudioManager.AUDIOFOCUS_LOSS);
 
         TestUtils.waitForLooperToBeIdle(mAvrcpStateMachine.getHandler().getLooper());
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .sendPassThroughCommand(
                         eq(mTestAddress),
                         eq(AvrcpControllerService.PASS_THRU_CMD_ID_PAUSE),
                         eq(KEY_DOWN));
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .sendPassThroughCommand(
                         eq(mTestAddress),
                         eq(AvrcpControllerService.PASS_THRU_CMD_ID_PAUSE),
@@ -1610,12 +1610,12 @@ public class AvrcpControllerStateMachineTest {
         sendAudioFocusUpdate(AudioManager.AUDIOFOCUS_GAIN);
 
         TestUtils.waitForLooperToBeIdle(mAvrcpStateMachine.getHandler().getLooper());
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .sendPassThroughCommand(
                         eq(mTestAddress),
                         eq(AvrcpControllerService.PASS_THRU_CMD_ID_PLAY),
                         eq(KEY_DOWN));
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .sendPassThroughCommand(
                         eq(mTestAddress),
                         eq(AvrcpControllerService.PASS_THRU_CMD_ID_PLAY),
@@ -1754,12 +1754,12 @@ public class AvrcpControllerStateMachineTest {
         TestUtils.waitForLooperToFinishScheduledTask(mAvrcpStateMachine.getHandler().getLooper());
 
         // Verify download attempt and send some elements over, verify next set is requested
-        verify(mNativeInterface, times(1)).getNowPlayingList(eq(mTestAddress), eq(0), eq(19));
+        verify(mNativeInterface).getNowPlayingList(eq(mTestAddress), eq(0), eq(19));
         mAvrcpStateMachine.sendMessage(
                 AvrcpControllerStateMachine.MESSAGE_PROCESS_GET_FOLDER_ITEMS,
                 new ArrayList<AvrcpItem>(nowPlayingList.subList(0, 20)));
         TestUtils.waitForLooperToFinishScheduledTask(mAvrcpStateMachine.getHandler().getLooper());
-        verify(mNativeInterface, times(1)).getNowPlayingList(eq(mTestAddress), eq(20), eq(39));
+        verify(mNativeInterface).getNowPlayingList(eq(mTestAddress), eq(20), eq(39));
 
         // Force a now playing content invalidation and verify attempted download
         mAvrcpStateMachine.nowPlayingContentChanged();
@@ -1821,7 +1821,7 @@ public class AvrcpControllerStateMachineTest {
         TestUtils.waitForLooperToFinishScheduledTask(mAvrcpStateMachine.getHandler().getLooper());
 
         // Verify download attempt and send some elements over, verify next set is requested
-        verify(mNativeInterface, times(1)).getNowPlayingList(eq(mTestAddress), eq(0), eq(19));
+        verify(mNativeInterface).getNowPlayingList(eq(mTestAddress), eq(0), eq(19));
         mAvrcpStateMachine.nowPlayingContentChanged();
 
         mAvrcpStateMachine.sendMessage(
@@ -1881,12 +1881,12 @@ public class AvrcpControllerStateMachineTest {
         TestUtils.waitForLooperToFinishScheduledTask(mAvrcpStateMachine.getHandler().getLooper());
 
         // Verify download attempt and send some elements over, verify next set is requested
-        verify(mNativeInterface, times(1)).getNowPlayingList(eq(mTestAddress), eq(0), eq(19));
+        verify(mNativeInterface).getNowPlayingList(eq(mTestAddress), eq(0), eq(19));
         mAvrcpStateMachine.sendMessage(
                 AvrcpControllerStateMachine.MESSAGE_PROCESS_GET_FOLDER_ITEMS,
                 new ArrayList<AvrcpItem>(nowPlayingList.subList(0, 20)));
         TestUtils.waitForLooperToFinishScheduledTask(mAvrcpStateMachine.getHandler().getLooper());
-        verify(mNativeInterface, times(1)).getNowPlayingList(eq(mTestAddress), eq(20), eq(39));
+        verify(mNativeInterface).getNowPlayingList(eq(mTestAddress), eq(20), eq(39));
 
         // Force a now playing content invalidation due to addressed player change
         mAvrcpStateMachine.sendMessage(
@@ -1949,7 +1949,7 @@ public class AvrcpControllerStateMachineTest {
         TestUtils.waitForLooperToFinishScheduledTask(mAvrcpStateMachine.getHandler().getLooper());
 
         // Verify download attempt and send some elements over, verify next set is requested
-        verify(mNativeInterface, times(1)).getNowPlayingList(eq(mTestAddress), eq(0), eq(19));
+        verify(mNativeInterface).getNowPlayingList(eq(mTestAddress), eq(0), eq(19));
 
         // Force a now playing content invalidation due to addressed player change, happening
         // before we've received any items from the remote device.
@@ -2007,7 +2007,7 @@ public class AvrcpControllerStateMachineTest {
         TestUtils.waitForLooperToFinishScheduledTask(mAvrcpStateMachine.getHandler().getLooper());
 
         // Request for new contents should be sent
-        verify(mNativeInterface, times(1)).getNowPlayingList(eq(mTestAddress), eq(0), eq(19));
+        verify(mNativeInterface).getNowPlayingList(eq(mTestAddress), eq(0), eq(19));
         Assert.assertFalse(nowPlaying.isCached());
 
         // Send timeout on our own instead of waiting 10 seconds
@@ -2075,7 +2075,7 @@ public class AvrcpControllerStateMachineTest {
         // issues a player list fetch
         mAvrcpStateMachine.connect(StackEvent.connectionStateChanged(true, true));
         TestUtils.waitForLooperToBeIdle(mAvrcpStateMachine.getHandler().getLooper());
-        verify(mNativeInterface, times(1)).getPlayerList(eq(mTestAddress), eq(0), eq(19));
+        verify(mNativeInterface).getPlayerList(eq(mTestAddress), eq(0), eq(19));
     }
 
     @Test

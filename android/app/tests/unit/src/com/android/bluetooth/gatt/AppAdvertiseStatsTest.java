@@ -19,7 +19,6 @@ package com.android.bluetooth.gatt;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothProtoEnums;
@@ -84,7 +83,6 @@ public class AppAdvertiseStatsTest {
     @After
     public void tearDown() throws Exception {
         MetricsLogger.setInstanceForTesting(null);
-        MetricsLogger.getInstance();
     }
 
     private void testSleep(long millis) {
@@ -335,13 +333,13 @@ public class AppAdvertiseStatsTest {
                 duration,
                 maxExtAdvEvents,
                 instanceCount);
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_ADV_COUNT_ENABLE), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_ADV_COUNT_CONNECTABLE_ENABLE), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_ADV_COUNT_PERIODIC_ENABLE), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logAdvStateChanged(
                         new int[] {appUid},
                         new String[] {name},
@@ -360,21 +358,21 @@ public class AppAdvertiseStatsTest {
         testSleep(advTestDuration);
 
         appAdvertiseStats.recordAdvertiseStop(instanceCount);
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_ADV_COUNT_DISABLE), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_ADV_COUNT_CONNECTABLE_DISABLE), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_ADV_COUNT_PERIODIC_DISABLE), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_ADV_DURATION_COUNT_TOTAL_1M), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(
                         eq(BluetoothProtoEnums.LE_ADV_DURATION_COUNT_CONNECTABLE_1M), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(
                         eq(BluetoothProtoEnums.LE_ADV_DURATION_COUNT_PERIODIC_1M), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logAdvStateChanged(
                         eq(new int[] {appUid}),
                         eq(new String[] {name}),

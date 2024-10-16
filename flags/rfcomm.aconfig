@@ -37,3 +37,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "rfcomm_cancel_ongoing_sdp_on_close"
+    namespace: "bluetooth"
+    description: "Make sure the ongoing SDP is cleaned up when the socket is closed"
+    bug: "370916753"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
