@@ -2108,7 +2108,8 @@ public class LeAudioService extends ProfileService {
                         + (", isSink: " + isSink)
                         + (" isSource: " + isSource)
                         + (", mActiveAudioInDevice: " + mActiveAudioInDevice)
-                        + (", mActiveAudioOutDevice: " + mActiveAudioOutDevice));
+                        + (", mActiveAudioOutDevice: " + mActiveAudioOutDevice)
+                        + (", mExposedActiveDevice: " + mExposedActiveDevice));
 
         if (!device.equals(mExposedActiveDevice)) {
             return;
@@ -2123,9 +2124,21 @@ public class LeAudioService extends ProfileService {
             return;
         }
 
-        Log.i(TAG, "Audio manager disactivate LeAudio device " + mExposedActiveDevice);
-        mExposedActiveDevice = null;
-        setActiveDevice(null);
+        if (device.equals(mActiveAudioInDevice) || device.equals(mActiveAudioOutDevice)) {
+            Log.i(TAG, "Audio manager disactivate LeAudio device " + mExposedActiveDevice);
+            mExposedActiveDevice = null;
+            setActiveDevice(null);
+            return;
+        }
+
+        Log.i(
+                TAG,
+                ("LeAudio active device switch: "
+                        + mExposedActiveDevice
+                        + " -> "
+                        + (mActiveAudioInDevice != null
+                                ? mActiveAudioInDevice
+                                : mActiveAudioOutDevice)));
     }
 
     /* Notifications of audio device connection/disconn events. */

@@ -619,6 +619,13 @@ static void bta_hh_le_open_cmpl(tBTA_HH_DEV_CB* p_cb) {
     bta_hh_le_register_input_notif(p_cb, p_cb->mode, true);
     bta_hh_sm_execute(p_cb, BTA_HH_OPEN_CMPL_EVT, NULL);
 
+    // Some HOGP devices requires MTU exchange be part of the initial setup to function. The size of
+    // the requested MTU does not matter as long as the procedure is triggered.
+    if (interop_match_vendor_product_ids(INTEROP_HOGP_FORCE_MTU_EXCHANGE, p_cb->dscp_info.vendor_id,
+                                         p_cb->dscp_info.product_id)) {
+      BTA_GATTC_ConfigureMTU(p_cb->conn_id, GATT_MAX_MTU_SIZE);
+    }
+
     if (!com::android::bluetooth::flags::prevent_hogp_reconnect_when_connected()) {
       if (kBTA_HH_LE_RECONN && p_cb->status == BTA_HH_OK) {
         bta_hh_le_add_dev_bg_conn(p_cb);
@@ -1258,16 +1265,43 @@ static void read_hid_info_cb(tCONN_ID /*conn_id*/, tGATT_STATUS status, uint16_t
   STREAM_TO_UINT8(p_dev_cb->dscp_info.flag, pp);
 }
 
+static void get_iop_device_rpt_map(tBTA_HH_LE_HID_SRVC* p_srvc, uint16_t* len, uint8_t* desc) {
+  static const uint8_t residual_report_map[] = {
+          0x31, 0x81, 0x02, 0xC0, 0x05, 0x0D, 0x09, 0x54, 0x25, 0x05, 0x75, 0x07, 0x95, 0x01,
+          0x81, 0x02, 0x05, 0x01, 0x05, 0x09, 0x19, 0x01, 0x29, 0x01, 0x15, 0x00, 0x25, 0x01,
+          0x75, 0x01, 0x95, 0x01, 0x81, 0x02, 0x05, 0x0D, 0x55, 0x0C, 0x66, 0x01, 0x10, 0x47,
+          0xFF, 0xFF, 0x00, 0x00, 0x27, 0xFF, 0xFF, 0x00, 0x00, 0x75, 0x10, 0x95, 0x01, 0x09,
+          0x56, 0x81, 0x02, 0x85, 0x12, 0x09, 0x55, 0x09, 0x59, 0x25, 0x0F, 0x75, 0x08, 0x95,
+          0x01, 0xB1, 0x02, 0x06, 0x00, 0xFF, 0x85, 0x11, 0x09, 0xC5, 0x15, 0x00, 0x26, 0xFF,
+          0x00, 0x75, 0x08, 0x96, 0x00, 0x01, 0xB1, 0x02, 0xC0};
+
+  p_srvc->rpt_map = (uint8_t*)osi_malloc(*len + sizeof(residual_report_map));
+  STREAM_TO_ARRAY(p_srvc->rpt_map, desc, *len);
+  memcpy(&(p_srvc->rpt_map[*len]), residual_report_map, sizeof(residual_report_map));
+  *len = *len + sizeof(residual_report_map);
+}
 void bta_hh_le_save_report_map(tBTA_HH_DEV_CB* p_dev_cb, uint16_t len, uint8_t* desc) {
   tBTA_HH_LE_HID_SRVC* p_srvc = &p_dev_cb->hid_srvc;
 
   osi_free_and_reset((void**)&p_srvc->rpt_map);
 
   if (len > 0) {
-    p_srvc->rpt_map = (uint8_t*)osi_malloc(len);
+    // Workaround for HID report maps exceeding 512 bytes. The HID spec allows for large report
+    // maps, but Bluetooth GATT attributes have a maximum size of 512 bytes. This interop workaround
+    // extended a received truncated report map with stored values.
+    // TODO: The workaround is specific to one device, if more devices need the similar interop
+    // workaround in the future, the “cached” report mapped should be stored in a separate file.
+    if (len == GATT_MAX_ATTR_LEN &&
+        interop_match_vendor_product_ids(INTEROP_HOGP_LONG_REPORT, p_dev_cb->dscp_info.vendor_id,
+                                         p_dev_cb->dscp_info.product_id)) {
+      get_iop_device_rpt_map(p_srvc, &len, desc);
+    } else {
+      p_srvc->rpt_map = (uint8_t*)osi_malloc(len);
 
-    uint8_t* pp = desc;
-    STREAM_TO_ARRAY(p_srvc->rpt_map, pp, len);
+      uint8_t* pp = desc;
+      STREAM_TO_ARRAY(p_srvc->rpt_map, pp, len);
+    }
+
     p_srvc->descriptor.dl_len = len;
     p_srvc->descriptor.dsc_list = p_dev_cb->hid_srvc.rpt_map;
   }

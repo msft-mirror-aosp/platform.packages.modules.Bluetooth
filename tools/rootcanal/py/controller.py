@@ -315,7 +315,7 @@ class ControllerTest(unittest.IsolatedAsyncioTestCase):
 
         async with asyncio.timeout(timeout):
             while True:
-                packet = await asyncio.wait_for(self.controller.receive_ll())
+                packet = await self.controller.receive_ll()
                 pdu = ll.LinkLayerPacket.parse_all(packet)
 
                 for ignored_pdu in ignored_pdus:

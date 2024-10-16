@@ -341,6 +341,7 @@ private:
   bool has_bip_client_;
 
   int curr_browsed_player_id_ = -1;
+  int curr_addressed_player_id_ = -1;
 
   std::stack<std::string> current_path_;
 
