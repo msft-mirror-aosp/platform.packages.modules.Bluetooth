@@ -1434,8 +1434,12 @@ public:
        * the new group so the group change is correctly handled in OnStateMachineStatusReportCb
        */
       active_group_id_ = group_id;
+      SuspendedForReconfiguration();
       GroupStop(previous_active_group);
-      callbacks_->OnGroupStatus(previous_active_group, GroupStatus::INACTIVE);
+      /* Note: On purpose we are not sending INACTIVE status up to Java, because previous active
+       * group will be provided in ACTIVE status. This is in order to have single call to audio
+       * framework
+       */
     }
 
     /* Reset sink listener notified status */

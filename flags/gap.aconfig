@@ -244,3 +244,13 @@ flag {
     description: "Support MSFT HCI extension for LE Scanning. go/bt-msft-aosp-dd"
     bug: "365787977"
 }
+
+flag {
+    name: "gatt_clear_cache_on_factory_reset"
+    namespace: "bluetooth"
+    description: "Clear GATT cache/hash on factory reset"
+    bug: "373284699"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
