@@ -232,6 +232,32 @@ class Hap(val context: Context) : HAPImplBase(), Closeable {
         }
     }
 
+    override fun getActivePresetRecord(
+        request: GetActivePresetRecordRequest,
+        responseObserver: StreamObserver<GetActivePresetRecordResponse>,
+    ) {
+        grpcUnary<GetActivePresetRecordResponse>(scope, responseObserver) {
+            val device = request.connection.toBluetoothDevice(bluetoothAdapter)
+            Log.i(TAG, "GetActivePresetRecord($device)")
+
+            val presetInfo: BluetoothHapPresetInfo? = bluetoothHapClient.getActivePresetInfo(device)
+
+            if (presetInfo != null) {
+                GetActivePresetRecordResponse.newBuilder()
+                    .setPresetRecord(
+                        PresetRecord.newBuilder()
+                            .setIndex(presetInfo.getIndex())
+                            .setName(presetInfo.getName())
+                            .setIsWritable(presetInfo.isWritable())
+                            .setIsAvailable(presetInfo.isAvailable())
+                    )
+                    .build()
+            } else {
+                GetActivePresetRecordResponse.getDefaultInstance()
+            }
+        }
+    }
+
     override fun setNextPreset(
         request: SetNextPresetRequest,
         responseObserver: StreamObserver<Empty>,

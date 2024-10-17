@@ -574,6 +574,9 @@ pub trait IBluetoothConnectionCallback: RPCProxy {
 
     /// Notification sent when a remote device completes HCI disconnection.
     fn on_device_disconnected(&mut self, remote_device: BluetoothDevice);
+
+    /// Notification sent when a remote device fails to complete HCI connection.
+    fn on_device_connection_failed(&mut self, remote_device: BluetoothDevice, status: BtStatus);
 }
 
 /// Implementation of the adapter API.
@@ -2061,6 +2064,12 @@ impl BtifBluetoothCallbacks for Bluetooth {
                 conn_direction,
                 hci_reason,
             );
+            self.connection_callbacks.for_all_callbacks(|callback| {
+                callback.on_device_connection_failed(
+                    BluetoothDevice::new(addr, String::from("")),
+                    status,
+                );
+            });
             return;
         }
 

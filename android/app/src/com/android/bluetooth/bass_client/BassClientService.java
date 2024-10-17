@@ -25,7 +25,6 @@ import static com.android.bluetooth.flags.Flags.leaudioAllowedContextMask;
 import static com.android.bluetooth.flags.Flags.leaudioBigDependsOnAudioState;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastAssistantPeripheralEntrustment;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastExtractPeriodicScannerFromStateMachine;
-import static com.android.bluetooth.flags.Flags.leaudioBroadcastMonitorSourceSyncStatus;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastResyncHelper;
 import static com.android.bluetooth.flags.Flags.leaudioSortScansToSyncByFails;
 
@@ -390,12 +389,8 @@ public class BassClientService extends ProfileService {
                                             + " same syncHandle="
                                             + syncHandle
                                             + ", before syncLost");
-                            if (leaudioBroadcastMonitorSourceSyncStatus()) {
-                                log(
-                                        "Notify broadcast source lost, broadcast id: "
-                                                + oldBroadcastId);
-                                mCallbacks.notifySourceLost(oldBroadcastId);
-                            }
+                            log("Notify broadcast source lost, broadcast id: " + oldBroadcastId);
+                            mCallbacks.notifySourceLost(oldBroadcastId);
                             clearAllDataForSyncHandle(syncHandle);
                             mCachedBroadcasts.remove(oldBroadcastId);
                         }
@@ -2203,10 +2198,8 @@ public class BassClientService extends ProfileService {
                             mCachedBroadcasts.remove(broadcastId);
                         }
                     }
-                    if (leaudioBroadcastMonitorSourceSyncStatus()) {
-                        log("Notify broadcast source lost, broadcast id: " + broadcastId);
-                        mCallbacks.notifySourceLost(broadcastId);
-                    }
+                    log("Notify broadcast source lost, broadcast id: " + broadcastId);
+                    mCallbacks.notifySourceLost(broadcastId);
                 }
             }
         }
@@ -2359,12 +2352,10 @@ public class BassClientService extends ProfileService {
             }
         }
         metaData.setEncrypted(encrypted);
-        if (leaudioBroadcastMonitorSourceSyncStatus()) {
-            // update the rssi value
-            ScanResult scanRes = getCachedBroadcast(result.getBroadcastId());
-            if (scanRes != null) {
-                metaData.setRssi(scanRes.getRssi());
-            }
+        // update the rssi value
+        ScanResult scanRes = getCachedBroadcast(result.getBroadcastId());
+        if (scanRes != null) {
+            metaData.setRssi(scanRes.getRssi());
         }
         return metaData.build();
     }

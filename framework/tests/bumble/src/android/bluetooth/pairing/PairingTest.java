@@ -239,6 +239,64 @@ public class PairingTest {
      * <ol>
      *   <li>1. Bumble resets, enables inquiry and page scan, and sets I/O cap to no display no
      *       input
+     *   <li>2. Android tries to create bond via MAC address, emitting bonding intent
+     *   <li>3. Android confirms the pairing via pairing request intent
+     *   <li>4. Android cancel the pairing of unrelated device. verify current pairing is continued
+     *       and success.
+     *   <li>5. Bumble confirms the pairing internally (optional, added only for test confirmation)
+     *   <li>6. Android verifies bonded intent
+     * </ol>
+     */
+    @Test
+    @RequiresFlagsEnabled({Flags.FLAG_IGNORE_UNRELATED_CANCEL_BOND})
+    public void testBrEdrPairing_cancelBond_forUnrelatedDevice() {
+        registerIntentActions(
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED, BluetoothDevice.ACTION_PAIRING_REQUEST);
+
+        StreamObserver<PairingEventAnswer> pairingEventAnswerObserver =
+                mBumble.security()
+                        .withDeadlineAfter(BOND_INTENT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+                        .onPairing(mPairingEventStreamObserver);
+
+        assertThat(mBumbleDevice.createBond()).isTrue();
+        verifyIntentReceived(
+                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDING));
+
+        verifyIntentReceived(
+                hasAction(BluetoothDevice.ACTION_PAIRING_REQUEST),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(
+                        BluetoothDevice.EXTRA_PAIRING_VARIANT,
+                        BluetoothDevice.PAIRING_VARIANT_CONSENT));
+        // cancel bonding for unrelated device and verify current pairing continued and success.
+        BluetoothDevice fakeUnintendedDevice = sAdapter.getRemoteDevice("51:F7:A8:75:17:01");
+        assertThat(fakeUnintendedDevice.cancelBondProcess()).isTrue();
+        mBumbleDevice.setPairingConfirmation(true);
+
+        PairingEvent pairingEvent = mPairingEventStreamObserver.iterator().next();
+        assertThat(pairingEvent.hasJustWorks()).isTrue();
+        pairingEventAnswerObserver.onNext(
+                PairingEventAnswer.newBuilder().setEvent(pairingEvent).setConfirm(true).build());
+
+        verifyIntentReceived(
+                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
+
+        verifyNoMoreInteractions(mReceiver);
+
+        unregisterIntentActions(
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED, BluetoothDevice.ACTION_PAIRING_REQUEST);
+    }
+
+    /**
+     * Test a simple BR/EDR just works pairing flow in the follow steps:
+     *
+     * <ol>
+     *   <li>1. Bumble resets, enables inquiry and page scan, and sets I/O cap to no display no
+     *       input
      *   <li>2. Android connects to Bumble via its MAC address
      *   <li>3. Android tries to create bond, emitting bonding intent
      *   <li>4. Android confirms the pairing via pairing request intent

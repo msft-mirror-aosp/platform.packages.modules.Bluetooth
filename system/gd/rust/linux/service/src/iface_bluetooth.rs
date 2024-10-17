@@ -196,6 +196,14 @@ impl IBluetoothConnectionCallback for BluetoothConnectionCallbackDBus {
     fn on_device_disconnected(&mut self, remote_device: BluetoothDevice) {
         dbus_generated!()
     }
+
+    #[dbus_method(
+        "OnDeviceConnectionFailed",
+        DBusLog::Enable(DBusLogOptions::LogAll, DBusLogVerbosity::Verbose)
+    )]
+    fn on_device_connection_failed(&mut self, remote_device: BluetoothDevice, status: BtStatus) {
+        dbus_generated!()
+    }
 }
 
 impl_dbus_arg_enum!(BtSdpType);

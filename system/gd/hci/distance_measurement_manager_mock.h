@@ -32,8 +32,6 @@ namespace testing {
 
 class MockDistanceMeasurementCallbacks : public DistanceMeasurementCallbacks {
   MOCK_METHOD(void, OnDistanceMeasurementStarted, (Address, DistanceMeasurementMethod));
-  MOCK_METHOD(void, OnDistanceMeasurementStartFail,
-              (Address, DistanceMeasurementErrorCode, DistanceMeasurementMethod));
   MOCK_METHOD(void, OnDistanceMeasurementStopped,
               (Address, DistanceMeasurementErrorCode, DistanceMeasurementMethod));
   MOCK_METHOD(void, OnDistanceMeasurementResult,
