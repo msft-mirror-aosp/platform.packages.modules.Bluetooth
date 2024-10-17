@@ -233,12 +233,12 @@ static BtifA2dpSource btif_a2dp_source_cb;
 static uint8_t btif_a2dp_source_dynamic_audio_buffer_size = MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ;
 
 static void btif_a2dp_source_init_delayed(void);
+static bool btif_a2dp_source_startup(void);
 static void btif_a2dp_source_startup_delayed(void);
 static void btif_a2dp_source_start_session_delayed(const RawAddress& peer_address,
                                                    std::promise<void> start_session_promise);
 static void btif_a2dp_source_end_session_delayed(const RawAddress& peer_address);
 static void btif_a2dp_source_shutdown_delayed(std::promise<void>);
-static void btif_a2dp_source_cleanup_delayed(void);
 static void btif_a2dp_source_audio_tx_start_event(void);
 static void btif_a2dp_source_audio_tx_stop_event(void);
 static void btif_a2dp_source_audio_tx_flush_event(void);
@@ -388,7 +388,7 @@ static void btif_a2dp_source_init_delayed(void) {
                                btif_av_is_a2dp_offload_enabled());
 }
 
-bool btif_a2dp_source_startup(void) {
+static bool btif_a2dp_source_startup(void) {
   log::info("state={}", btif_a2dp_source_cb.StateStr());
 
   if (btif_a2dp_source_cb.State() != BtifA2dpSource::kStateOff) {
@@ -555,23 +555,8 @@ void btif_a2dp_source_cleanup(void) {
   std::promise<void> shutdown_complete_promise;
   btif_a2dp_source_shutdown(std::move(shutdown_complete_promise));
 
-  btif_a2dp_source_thread.DoInThread(FROM_HERE, base::BindOnce(&btif_a2dp_source_cleanup_delayed));
-
   // Exit the thread
   btif_a2dp_source_thread.ShutDown();
-}
-
-static void btif_a2dp_source_cleanup_delayed(void) {
-  log::info("state={}", btif_a2dp_source_cb.StateStr());
-  // Nothing to do
-}
-
-bool btif_a2dp_source_media_task_is_running(void) {
-  return btif_a2dp_source_cb.State() == BtifA2dpSource::kStateRunning;
-}
-
-bool btif_a2dp_source_media_task_is_shutting_down(void) {
-  return btif_a2dp_source_cb.State() == BtifA2dpSource::kStateShuttingDown;
 }
 
 // This runs on worker thread
