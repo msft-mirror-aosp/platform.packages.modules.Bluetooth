@@ -53,8 +53,6 @@ class DistanceMeasurementCallbacks {
 public:
   virtual ~DistanceMeasurementCallbacks() = default;
   virtual void OnDistanceMeasurementStarted(Address address, DistanceMeasurementMethod method) = 0;
-  virtual void OnDistanceMeasurementStartFail(Address address, DistanceMeasurementErrorCode reason,
-                                              DistanceMeasurementMethod method) = 0;
   virtual void OnDistanceMeasurementStopped(Address address, DistanceMeasurementErrorCode reason,
                                             DistanceMeasurementMethod method) = 0;
   virtual void OnDistanceMeasurementResult(Address address, uint32_t centimeter,

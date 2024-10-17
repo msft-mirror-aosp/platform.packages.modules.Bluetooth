@@ -197,7 +197,6 @@ static jmethodID method_onBigInfoReport;
  * Distance Measurement callback methods
  */
 static jmethodID method_onDistanceMeasurementStarted;
-static jmethodID method_onDistanceMeasurementStartFail;
 static jmethodID method_onDistanceMeasurementStopped;
 static jmethodID method_onDistanceMeasurementResult;
 
@@ -1210,16 +1209,7 @@ public:
     sCallbackEnv->CallVoidMethod(mDistanceMeasurementCallbacksObj,
                                  method_onDistanceMeasurementStarted, addr.get(), method);
   }
-  void OnDistanceMeasurementStartFail(RawAddress address, uint8_t reason, uint8_t method) {
-    std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
-    CallbackEnv sCallbackEnv(__func__);
-    if (!sCallbackEnv.valid() || !mDistanceMeasurementCallbacksObj) {
-      return;
-    }
-    ScopedLocalRef<jstring> addr(sCallbackEnv.get(), bdaddr2newjstr(sCallbackEnv.get(), &address));
-    sCallbackEnv->CallVoidMethod(mDistanceMeasurementCallbacksObj,
-                                 method_onDistanceMeasurementStartFail, addr.get(), reason, method);
-  }
+
   void OnDistanceMeasurementStopped(RawAddress address, uint8_t reason, uint8_t method) {
     std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
     CallbackEnv sCallbackEnv(__func__);
@@ -2975,8 +2965,6 @@ static int register_com_android_bluetooth_gatt_distance_measurement(JNIEnv* env)
   const JNIJavaMethod javaMethods[] = {
           {"onDistanceMeasurementStarted", "(Ljava/lang/String;I)V",
            &method_onDistanceMeasurementStarted},
-          {"onDistanceMeasurementStartFail", "(Ljava/lang/String;II)V",
-           &method_onDistanceMeasurementStartFail},
           {"onDistanceMeasurementStopped", "(Ljava/lang/String;II)V",
            &method_onDistanceMeasurementStopped},
           {"onDistanceMeasurementResult", "(Ljava/lang/String;IIIIIIJII)V",

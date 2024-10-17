@@ -358,6 +358,14 @@ typedef uint16_t tCONN_ID;
 typedef uint8_t tGATT_IF;
 typedef uint8_t tTCB_IDX;
 
+inline constexpr tGATT_IF GATT_IF_INVALID = static_cast<tGATT_IF>(0);
+// 0xF1 ~ 0xFF are reserved for special use cases.
+inline constexpr tGATT_IF GATT_IF_MAX = static_cast<tGATT_IF>(0xf8);
+/* connection manager doesn't generate its own IDs. Instead, all GATT clients
+ * use their gatt_if to identify against connection manager. When stack tries to
+ * create l2cap connection, it will use this fixed ID. */
+inline constexpr tGATT_IF CONN_MGR_ID_L2CAP = static_cast<tGATT_IF>(0xf9);
+
 typedef enum : uint8_t {
   BTM_BLE_DIRECT_CONNECTION = 0x00,
   BTM_BLE_BKG_CONNECT_ALLOW_LIST = 0x01,
