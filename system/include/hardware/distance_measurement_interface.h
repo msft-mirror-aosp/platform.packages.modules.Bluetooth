@@ -27,8 +27,6 @@ class DistanceMeasurementCallbacks {
 public:
   virtual ~DistanceMeasurementCallbacks() = default;
   virtual void OnDistanceMeasurementStarted(RawAddress address, uint8_t method) = 0;
-  virtual void OnDistanceMeasurementStartFail(RawAddress address, uint8_t reason,
-                                              uint8_t method) = 0;
   virtual void OnDistanceMeasurementStopped(RawAddress address, uint8_t reason, uint8_t method) = 0;
   virtual void OnDistanceMeasurementResult(RawAddress address, uint32_t centimeter,
                                            uint32_t error_centimeter, int azimuth_angle,

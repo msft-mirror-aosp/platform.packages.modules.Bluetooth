@@ -48,6 +48,7 @@
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_status.h"
@@ -924,7 +925,7 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
   }
 }
 
-/** This function is to initate a direct connection. Returns true if connection
+/** This function is to initiate a direct connection. Returns true if connection
  * initiated, false otherwise. */
 bool l2cble_create_conn(tL2C_LCB* p_lcb) {
   if (!connection_manager::create_le_connection(CONN_MGR_ID_L2CAP, p_lcb->remote_bd_addr)) {

@@ -224,6 +224,10 @@ public:
               std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(address));
       auto conn_id = device->conn_id;
       auto is_connecting_actively = device->is_connecting_actively;
+
+      DoDisconnectCleanUp(*device);
+      devices_.erase(device);
+
       if (conn_id != GATT_INVALID_CONN_ID) {
         BTA_GATTC_Close(conn_id);
         callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);

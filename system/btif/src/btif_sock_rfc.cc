@@ -19,6 +19,7 @@
 #define LOG_TAG "bt_btif_sock_rfcomm"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -963,6 +964,10 @@ void btsock_rfc_signaled(int /* fd */, int flags, uint32_t id) {
     // Clean up if there's no data pending.
     int size = 0;
     if (need_close || ioctl(slot->fd, FIONREAD, &size) != 0 || !size) {
+      if (com::android::bluetooth::flags::rfcomm_cancel_ongoing_sdp_on_close() &&
+          slot->f.doing_sdp_request) {
+        BTA_JvCancelDiscovery(slot->id);
+      }
       cleanup_rfc_slot(slot);
     }
   }

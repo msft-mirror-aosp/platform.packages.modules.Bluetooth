@@ -36,61 +36,6 @@
 
     <issue
         id="FlaggedApi"
-        message="Method `onSourceLost()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `onSourceLost` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
-        errorLine1="                        executor.execute(() -> callback.onSourceLost(broadcastId));"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastAssistant.java"
-            line="247"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `getRssi()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `equals` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
-        errorLine1="                &amp;&amp; mRssi == other.getRssi()"
-        errorLine2="                            ~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastMetadata.java"
-            line="168"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `setRssi()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
-        errorLine1="                    builder.setRssi(in.readInt());"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastMetadata.java"
-            line="492"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Field `RSSI_UNKNOWN` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
-        errorLine1="        private int mRssi = RSSI_UNKNOWN;"
-        errorLine2="                            ~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastMetadata.java"
-            line="522"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `getRssi()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
-        errorLine1="            mRssi = original.getRssi();"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastMetadata.java"
-            line="553"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
         message="Field `UNIX_FILE_SOCKET_CREATION_FAILURE` is a flagged API and should be inside an `if (Flags.unixFileSocketCreationFailure())` check (or annotate the surrounding method `connect` with `@FlaggedApi(Flags.FLAG_UNIX_FILE_SOCKET_CREATION_FAILURE) to transfer requirement to caller`)"
         errorLine1="                            BluetoothSocketException.UNIX_FILE_SOCKET_CREATION_FAILURE);"
         errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
