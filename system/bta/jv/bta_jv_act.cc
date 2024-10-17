@@ -916,6 +916,28 @@ void bta_jv_start_discovery(const RawAddress& bd_addr, uint16_t num_uuid,
   }
 }
 
+void bta_jv_cancel_discovery(uint32_t rfcomm_slot_id) {
+  if (!bta_jv_cb.sdp_cb.sdp_active) {
+    log::error("Canceling discovery but discovery is not active");
+    return;
+  }
+  if (!get_legacy_stack_sdp_api()->service.SDP_CancelServiceSearch(p_bta_jv_cfg->p_sdp_db)) {
+    log::error("Failed to cancel discovery, clean up the control block anyway");
+    bta_jv_cb.sdp_cb = {};
+    /* Send complete event right away as we might not receive callback from stack */
+    if (bta_jv_cb.p_dm_cback) {
+      tBTA_JV bta_jv = {
+              .status = tBTA_JV_STATUS::FAILURE,
+      };
+      bta_jv_cb.p_dm_cback(BTA_JV_DISCOVERY_COMP_EVT, &bta_jv, rfcomm_slot_id);
+    } else {
+      log::warn("No callback set for discovery complete event");
+    }
+  } else {
+    log::info("Canceled discovery");
+  }
+}
+
 /* Create an SDP record with the given attributes */
 void bta_jv_create_record(uint32_t rfcomm_slot_id) {
   tBTA_JV_CREATE_RECORD evt_data;

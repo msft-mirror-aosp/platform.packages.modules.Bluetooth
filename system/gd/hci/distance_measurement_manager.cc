@@ -195,7 +195,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       log::error("Can't find CS tracker for connection_handle {}", connection_handle);
       return;
     }
-    distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
+    distance_measurement_callbacks_->OnDistanceMeasurementStopped(
             cs_requester_trackers_[connection_handle].address, REASON_INTERNAL_ERROR, METHOD_CS);
   }
 
@@ -269,7 +269,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     // Remove this check if we support any connection less method
     if (connection_handle == kIllegalConnectionHandle) {
       log::warn("Can't find any LE connection for {}", address);
-      distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
+      distance_measurement_callbacks_->OnDistanceMeasurementStopped(
               address, REASON_NO_LE_CONNECTION, method);
       return;
     }
@@ -328,7 +328,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     log::info("connection_handle: {}, address: {}", connection_handle, cs_remote_address);
     if (!com::android::bluetooth::flags::channel_sounding_in_stack()) {
       log::error("Channel Sounding is not enabled");
-      distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
+      distance_measurement_callbacks_->OnDistanceMeasurementStopped(
               cs_remote_address, REASON_INTERNAL_ERROR, METHOD_CS);
       return;
     }
@@ -492,14 +492,14 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     auto it = cs_requester_trackers_.find(connection_handle);
     if (it == cs_requester_trackers_.end()) {
       log::warn("can't find tracker for 0x{:04x}", connection_handle);
-      distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
-              address, REASON_INTERNAL_ERROR, METHOD_CS);
+      distance_measurement_callbacks_->OnDistanceMeasurementStopped(address, REASON_INTERNAL_ERROR,
+                                                                    METHOD_CS);
       return;
     }
 
     if (!success) {
-      distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
-              address, REASON_INTERNAL_ERROR, METHOD_CS);
+      distance_measurement_callbacks_->OnDistanceMeasurementStopped(address, REASON_INTERNAL_ERROR,
+                                                                    METHOD_CS);
       return;
     }
 
@@ -619,13 +619,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       return;
     }
     if (it->second.measurement_ongoing) {
-      if (it->second.waiting_for_start_callback) {
-        distance_measurement_callbacks_->OnDistanceMeasurementStartFail(it->second.address,
-                                                                        errorCode, METHOD_CS);
-      } else {
-        distance_measurement_callbacks_->OnDistanceMeasurementStopped(it->second.address, errorCode,
-                                                                      METHOD_CS);
-      }
+      distance_measurement_callbacks_->OnDistanceMeasurementStopped(it->second.address, errorCode,
+                                                                    METHOD_CS);
       it->second.repeating_alarm->Cancel();
       it->second.repeating_alarm.reset();
     }
@@ -1505,14 +1500,14 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     auto status_view = LeReadRemoteTransmitPowerLevelStatusView::Create(view);
     if (!status_view.IsValid()) {
       log::warn("Invalid LeReadRemoteTransmitPowerLevelStatus event");
-      distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
-              address, REASON_INTERNAL_ERROR, METHOD_RSSI);
+      distance_measurement_callbacks_->OnDistanceMeasurementStopped(address, REASON_INTERNAL_ERROR,
+                                                                    METHOD_RSSI);
       rssi_trackers.erase(address);
     } else if (status_view.GetStatus() != ErrorCode::SUCCESS) {
       std::string error_code = ErrorCodeText(status_view.GetStatus());
       log::warn("Received LeReadRemoteTransmitPowerLevelStatus with error code {}", error_code);
-      distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
-              address, REASON_INTERNAL_ERROR, METHOD_RSSI);
+      distance_measurement_callbacks_->OnDistanceMeasurementStopped(address, REASON_INTERNAL_ERROR,
+                                                                    METHOD_RSSI);
       rssi_trackers.erase(address);
     }
   }
@@ -1558,7 +1553,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
                                      address, event_view.GetConnectionHandle()));
       } else {
         log::warn("Read remote transmit power level fail");
-        distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
+        distance_measurement_callbacks_->OnDistanceMeasurementStopped(
                 address, REASON_INTERNAL_ERROR, METHOD_RSSI);
         rssi_trackers.erase(address);
       }
@@ -1570,24 +1565,24 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     auto complete_view = LeSetTransmitPowerReportingEnableCompleteView::Create(view);
     if (!complete_view.IsValid()) {
       log::warn("Invalid LeSetTransmitPowerReportingEnableComplete event");
-      distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
-              address, REASON_INTERNAL_ERROR, METHOD_RSSI);
+      distance_measurement_callbacks_->OnDistanceMeasurementStopped(address, REASON_INTERNAL_ERROR,
+                                                                    METHOD_RSSI);
       rssi_trackers.erase(address);
       return;
     } else if (complete_view.GetStatus() != ErrorCode::SUCCESS) {
       std::string error_code = ErrorCodeText(complete_view.GetStatus());
       log::warn("Received LeSetTransmitPowerReportingEnableComplete with error code {}",
                 error_code);
-      distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
-              address, REASON_INTERNAL_ERROR, METHOD_RSSI);
+      distance_measurement_callbacks_->OnDistanceMeasurementStopped(address, REASON_INTERNAL_ERROR,
+                                                                    METHOD_RSSI);
       rssi_trackers.erase(address);
       return;
     }
 
     if (rssi_trackers.find(address) == rssi_trackers.end()) {
       log::warn("Can't find rssi tracker for {}", address);
-      distance_measurement_callbacks_->OnDistanceMeasurementStartFail(
-              address, REASON_INTERNAL_ERROR, METHOD_RSSI);
+      distance_measurement_callbacks_->OnDistanceMeasurementStopped(address, REASON_INTERNAL_ERROR,
+                                                                    METHOD_RSSI);
       rssi_trackers.erase(address);
     } else {
       log::info("Track rssi for address {}", address);

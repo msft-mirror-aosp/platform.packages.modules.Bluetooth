@@ -118,8 +118,8 @@ void gatt_init(void) {
   connection_manager::reset(true);
   memset(&fixed_reg, 0, sizeof(tL2CAP_FIXED_CHNL_REG));
 
-  // To catch a potential OOB.
-  gatt_cb.next_gatt_if = 40;
+  // To catch a potential OOB, 40>31 is used, any valid value (1 to GATT_IF_MAX) is okay.
+  gatt_cb.last_gatt_if = static_cast<tGATT_IF>(40);
 
   gatt_cb.sign_op_queue = fixed_queue_new(SIZE_MAX);
   gatt_cb.srv_chg_clt_q = fixed_queue_new(SIZE_MAX);
