@@ -36,7 +36,6 @@ import android.view.KeyEvent;
 
 import com.android.bluetooth.BluetoothEventLogger;
 import com.android.bluetooth.BluetoothMetricsProto;
-import com.android.bluetooth.R;
 import com.android.bluetooth.a2dp.A2dpService;
 import com.android.bluetooth.audio_util.MediaData;
 import com.android.bluetooth.audio_util.MediaPlayerList;
@@ -142,9 +141,7 @@ public class AvrcpTargetService extends ProfileService {
             mMediaPlayerList.init(new ListCallback());
         }
 
-        if (!getResources().getBoolean(R.bool.avrcp_target_enable_cover_art)) {
-            mAvrcpCoverArtService = null;
-        } else if (!mAvrcpVersion.isAtleastVersion(AvrcpVersion.AVRCP_VERSION_1_6)) {
+        if (!mAvrcpVersion.isAtleastVersion(AvrcpVersion.AVRCP_VERSION_1_6)) {
             Log.e(TAG, "Please use AVRCP version 1.6 to enable cover art");
             mAvrcpCoverArtService = null;
         } else {
