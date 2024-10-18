@@ -56,6 +56,9 @@ bool btif_a2dp_source_restart_session(const RawAddress& old_peer_address,
 // streaming session for |peer_address|.
 bool btif_a2dp_source_end_session(const RawAddress& peer_address);
 
+// Update allowed low latency modes for the active session.
+void btif_a2dp_source_allow_low_latency_audio(bool allowed);
+
 // Shutdown the A2DP Source module.
 // This function should be called by the BTIF state machine to stop streaming.
 void btif_a2dp_source_shutdown(std::promise<void>);

@@ -23,6 +23,7 @@
 namespace bluetooth {
 namespace hearing_aid {
 
+// Must be kept in sync with BluetoothProfile.java
 enum class ConnectionState { DISCONNECTED = 0, CONNECTING, CONNECTED, DISCONNECTING };
 
 class HearingAidCallbacks {

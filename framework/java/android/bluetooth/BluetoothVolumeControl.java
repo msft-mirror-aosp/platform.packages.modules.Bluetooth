@@ -19,6 +19,7 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothUtils.executeFromBinder;
 
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
@@ -176,7 +177,8 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
         private void forEach(Consumer<BluetoothVolumeControl.Callback> consumer) {
             synchronized (mCallbackMap) {
                 mCallbackMap.forEach(
-                        (callback, executor) -> executor.execute(() -> consumer.accept(callback)));
+                        (callback, executor) ->
+                                executeFromBinder(executor, () -> consumer.accept(callback)));
             }
         }
 
