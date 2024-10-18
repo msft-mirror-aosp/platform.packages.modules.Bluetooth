@@ -515,6 +515,14 @@ static void btif_a2dp_source_end_session_delayed(const RawAddress& peer_address)
   }
 }
 
+void btif_a2dp_source_allow_low_latency_audio(bool allowed) {
+  log::info("allowed={}", allowed);
+
+  btif_a2dp_source_thread.DoInThread(
+          FROM_HERE,
+          base::BindOnce(bluetooth::audio::a2dp::set_audio_low_latency_mode_allowed, allowed));
+}
+
 void btif_a2dp_source_shutdown(std::promise<void> shutdown_complete_promise) {
   log::info("state={}", btif_a2dp_source_cb.StateStr());
 
