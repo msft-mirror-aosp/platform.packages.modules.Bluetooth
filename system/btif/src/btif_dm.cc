@@ -461,7 +461,7 @@ static bool check_eir_appearance(tBTA_DM_SEARCH* p_search_data, uint16_t* p_appe
  *                  Populate p_remote_name, if provided and remote name found
  *
  ******************************************************************************/
-static bool get_cached_remote_name(const RawAddress& bd_addr, uint8_t* p_remote_name,
+static bool get_cached_remote_name(const RawAddress& bd_addr, bt_bdname_t* p_remote_name,
                                    uint8_t* p_remote_name_len) {
   bt_bdname_t bdname;
   bt_property_t prop_name;
@@ -471,7 +471,7 @@ static bool get_cached_remote_name(const RawAddress& bd_addr, uint8_t* p_remote_
   BTIF_STORAGE_FILL_PROPERTY(&prop_name, BT_PROPERTY_BDNAME, sizeof(bt_bdname_t), &bdname);
   if (btif_storage_get_remote_device_property(&bd_addr, &prop_name) == BT_STATUS_SUCCESS) {
     if (p_remote_name && p_remote_name_len) {
-      strcpy((char*)p_remote_name, (char*)bdname.name);
+      snprintf((char*)p_remote_name->name, sizeof(p_remote_name->name), "%s", (char*)bdname.name);
       *p_remote_name_len = strlen((char*)p_remote_name);
     }
     return true;
@@ -1334,7 +1334,7 @@ static void btif_dm_search_devices_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH*
       bdname.name[0] = 0;
 
       if (!check_eir_remote_name(p_search_data, bdname.name, &remote_name_len)) {
-        get_cached_remote_name(p_search_data->inq_res.bd_addr, bdname.name, &remote_name_len);
+        get_cached_remote_name(p_search_data->inq_res.bd_addr, &bdname, &remote_name_len);
       }
 
       /* Check EIR for services */
@@ -2211,8 +2211,9 @@ void btif_dm_acl_evt(tBTA_DM_ACL_EVT event, tBTA_DM_ACL* p_data) {
 
     case BTA_DM_LINK_UP_FAILED_EVT:
       GetInterfaceToProfiles()->events->invoke_acl_state_changed_cb(
-              BT_STATUS_FAIL, p_data->link_up_failed.bd_addr, BT_ACL_STATE_DISCONNECTED,
-              p_data->link_up_failed.transport_link_type, p_data->link_up_failed.status,
+              hci_error_to_bt_status(p_data->link_up_failed.status), p_data->link_up_failed.bd_addr,
+              BT_ACL_STATE_DISCONNECTED, p_data->link_up_failed.transport_link_type,
+              p_data->link_up_failed.status,
               btm_is_acl_locally_initiated() ? bt_conn_direction_t::BT_CONN_DIRECTION_OUTGOING
                                              : bt_conn_direction_t::BT_CONN_DIRECTION_INCOMING,
               INVALID_ACL_HANDLE);
@@ -2503,6 +2504,12 @@ void btif_dm_cancel_bond(const RawAddress bd_addr) {
   **  2. special handling for HID devices
   */
   if (is_bonding_or_sdp()) {
+    if (com::android::bluetooth::flags::ignore_unrelated_cancel_bond() &&
+        (pairing_cb.bd_addr != bd_addr)) {
+      log::warn("Ignoring bond cancel for unrelated device: {} pairing: {}", bd_addr,
+                pairing_cb.bd_addr);
+      return;
+    }
     if (pairing_cb.is_ssp) {
       if (pairing_cb.is_le_only) {
         BTA_DmBleSecurityGrant(bd_addr, tBTA_DM_BLE_SEC_GRANT::BTA_DM_SEC_PAIR_NOT_SPT);
@@ -3128,39 +3135,40 @@ bool btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg) {
   char conf[64];
   char* pch;
   char* endptr;
+  char* saveptr;
 
   strncpy(conf, recv->c_str(), 64);
   conf[63] = 0;  // null terminate
 
-  pch = strtok(conf, ",");
+  pch = strtok_r(conf, ",", &saveptr);
   if (pch != NULL) {
     p_cfg->ble_auth_req = (uint8_t)strtoul(pch, &endptr, 16);
   } else {
     return false;
   }
 
-  pch = strtok(NULL, ",");
+  pch = strtok_r(NULL, ",", &saveptr);
   if (pch != NULL) {
     p_cfg->ble_io_cap = (uint8_t)strtoul(pch, &endptr, 16);
   } else {
     return false;
   }
 
-  pch = strtok(NULL, ",");
+  pch = strtok_r(NULL, ",", &saveptr);
   if (pch != NULL) {
     p_cfg->ble_init_key = (uint8_t)strtoul(pch, &endptr, 16);
   } else {
     return false;
   }
 
-  pch = strtok(NULL, ",");
+  pch = strtok_r(NULL, ",", &saveptr);
   if (pch != NULL) {
     p_cfg->ble_resp_key = (uint8_t)strtoul(pch, &endptr, 16);
   } else {
     return false;
   }
 
-  pch = strtok(NULL, ",");
+  pch = strtok_r(NULL, ",", &saveptr);
   if (pch != NULL) {
     p_cfg->ble_max_key_size = (uint8_t)strtoul(pch, &endptr, 16);
   } else {
@@ -3773,7 +3781,8 @@ void btif_debug_bond_event_dump(int fd) {
 
     char eventtime[20];
     char temptime[20];
-    struct tm* tstamp = localtime(&event->timestamp.tv_sec);
+    struct tm buf;
+    struct tm* tstamp = localtime_r(&event->timestamp.tv_sec, &buf);
     strftime(temptime, sizeof(temptime), "%H:%M:%S", tstamp);
     snprintf(eventtime, sizeof(eventtime), "%s.%03ld", temptime,
              event->timestamp.tv_nsec / 1000000);
