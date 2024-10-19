@@ -21,8 +21,9 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.bluetooth.BluetoothUtils.executeFromBinder;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.CallbackExecutor;
-import android.annotation.FlaggedApi;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -40,14 +41,12 @@ import android.os.RemoteException;
 import android.util.CloseGuard;
 import android.util.Log;
 
-import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
@@ -157,7 +156,6 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
          * @param volume level
          * @hide
          */
-        @FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_VOLUME_CONTROL_FOR_CONNECTED_DEVICES)
         @SystemApi
         default void onDeviceVolumeChanged(
                 @NonNull BluetoothDevice device, @IntRange(from = 0, to = 255) int volume) {}
@@ -269,12 +267,12 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
     }
 
     /**
-     * Close this VolumeControl server instance.
+     * {@inheritDoc}
      *
-     * <p>Application should call this method as early as possible after it is done with this
-     * VolumeControl server.
+     * @hide
      */
     @Override
+    @SystemApi
     public void close() {
         Log.v(TAG, "close()");
 
@@ -344,11 +342,12 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
     }
 
     /**
-     * Get the list of devices matching specified states. Currently at most one.
+     * {@inheritDoc}
      *
-     * @return list of matching devices
      * @hide
      */
+    @Override
+    @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public List<BluetoothDevice> getDevicesMatchingConnectionStates(int[] states) {
@@ -369,11 +368,12 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
     }
 
     /**
-     * Get connection state of device
+     * {@inheritDoc}
      *
-     * @return device connection state
      * @hide
      */
+    @Override
+    @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(BLUETOOTH_CONNECT)
     public int getConnectionState(BluetoothDevice device) {
@@ -409,8 +409,8 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void registerCallback(
             @NonNull @CallbackExecutor Executor executor, @NonNull Callback callback) {
-        Objects.requireNonNull(executor, "executor cannot be null");
-        Objects.requireNonNull(callback, "callback cannot be null");
+        requireNonNull(executor);
+        requireNonNull(callback);
         Log.d(TAG, "registerCallback");
         synchronized (mCallbackExecutorMap) {
             if (!mAdapter.isEnabled()) {
@@ -468,7 +468,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void unregisterCallback(@NonNull Callback callback) {
-        Objects.requireNonNull(callback, "callback cannot be null");
+        requireNonNull(callback);
         Log.d(TAG, "unregisterCallback");
         synchronized (mCallbackExecutorMap) {
             if (mCallbackExecutorMap.remove(callback) == null) {
@@ -553,6 +553,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
             @NonNull BluetoothDevice device,
             @IntRange(from = 1, to = 255) int instanceId,
             @IntRange(from = -255, to = 255) int volumeOffset) {
+        requireNonNull(device);
         Log.d(
                 TAG,
                 "setVolumeOffset("
@@ -587,6 +588,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean isVolumeOffsetAvailable(@NonNull BluetoothDevice device) {
+        requireNonNull(device);
         Log.d(TAG, "isVolumeOffsetAvailable(" + device + ")");
         final IBluetoothVolumeControl service = getService();
         if (service == null) {
@@ -618,6 +620,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public int getNumberOfVolumeOffsetInstances(@NonNull BluetoothDevice device) {
+        requireNonNull(device);
         Log.d(TAG, "getNumberOfVolumeOffsetInstances(" + device + ")");
         final IBluetoothVolumeControl service = getService();
         final int defaultValue = 0;
@@ -719,7 +722,6 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
      * @throws IllegalArgumentException if volume is not in the range [0, 255].
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_VOLUME_CONTROL_FOR_CONNECTED_DEVICES)
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
@@ -727,6 +729,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
             @NonNull BluetoothDevice device,
             @IntRange(from = 0, to = 255) int volume,
             boolean isGroupOperation) {
+        requireNonNull(device);
         if (volume < 0 || volume > 255) {
             throw new IllegalArgumentException("illegal volume " + volume);
         }
