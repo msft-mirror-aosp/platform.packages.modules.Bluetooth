@@ -99,6 +99,7 @@ namespace sco {
 void open() {
   if (sco_uipc != nullptr) {
     log::warn("Re-opening UIPC that is already running");
+    cleanup();
   }
 
   sco_uipc = UIPC_Init();

@@ -3047,7 +3047,10 @@ impl BtifHHCallbacks for Bluetooth {
             state as u32,
         );
 
-        if BtBondState::Bonded != self.get_bond_state_by_addr(&address) {
+        if BtBondState::Bonded != self.get_bond_state_by_addr(&address)
+            && (state != BthhConnectionState::Disconnecting
+                && state != BthhConnectionState::Disconnected)
+        {
             warn!(
                 "[{}]: Rejecting a unbonded device's attempt to connect to HID/HOG profiles",
                 DisplayAddress(&address)
