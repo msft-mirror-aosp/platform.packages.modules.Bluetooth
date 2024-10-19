@@ -197,7 +197,7 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
               toString(transport_->GetSessionType()), capabilities_.size());
 
     aidl_retval = provider_factory->openProvider(transport_->GetSessionType(), &provider_);
-    if (!aidl_retval.isOk()) {
+    if (!aidl_retval.isOk() || provider_ == nullptr) {
       log::error("BluetoothAudioHal::openProvider failure: {}, retry number {}",
                  aidl_retval.getDescription(), retry_no + 1);
     } else {

@@ -789,12 +789,10 @@ public class BassClientStateMachine extends StateMachine {
             }
         }
         metaData.setEncrypted(encrypted);
-        if (Flags.leaudioBroadcastMonitorSourceSyncStatus()) {
-            // update the rssi value
-            ScanResult scanRes = mService.getCachedBroadcast(result.getBroadcastId());
-            if (scanRes != null) {
-                metaData.setRssi(scanRes.getRssi());
-            }
+        // update the rssi value
+        ScanResult scanRes = mService.getCachedBroadcast(result.getBroadcastId());
+        if (scanRes != null) {
+            metaData.setRssi(scanRes.getRssi());
         }
         return metaData.build();
     }
@@ -1482,12 +1480,10 @@ public class BassClientStateMachine extends StateMachine {
                                 + " leaudioBroadcastExtractPeriodicScannerFromStateMachine flag");
             }
             log("OnSyncLost" + syncHandle);
-            if (Flags.leaudioBroadcastMonitorSourceSyncStatus()) {
-                int broadcastId = mService.getBroadcastIdForSyncHandle(syncHandle);
-                if (broadcastId != BassConstants.INVALID_BROADCAST_ID) {
-                    log("Notify broadcast source lost, broadcast id: " + broadcastId);
-                    mService.getCallbacks().notifySourceLost(broadcastId);
-                }
+            int broadcastId = mService.getBroadcastIdForSyncHandle(syncHandle);
+            if (broadcastId != BassConstants.INVALID_BROADCAST_ID) {
+                log("Notify broadcast source lost, broadcast id: " + broadcastId);
+                mService.getCallbacks().notifySourceLost(broadcastId);
             }
             cancelActiveSync(syncHandle);
         }
@@ -1879,7 +1875,7 @@ public class BassClientStateMachine extends StateMachine {
         return res;
     }
 
-    private byte[] convertBroadcastMetadataToUpdateSourceByteArray(
+    private byte[] convertToUpdateSourceByteArray(
             int sourceId, BluetoothLeBroadcastMetadata metaData, int paSync) {
         BluetoothLeBroadcastReceiveState existingState =
                 getBroadcastReceiveStateForSourceId(sourceId);
@@ -1887,8 +1883,10 @@ public class BassClientStateMachine extends StateMachine {
             log("no existing SI for update source op");
             return null;
         }
-        List<BluetoothLeBroadcastSubgroup> subGroups = metaData.getSubgroups();
-        byte numSubGroups = (byte) subGroups.size();
+        int numSubGroups =
+                (metaData != null)
+                        ? metaData.getSubgroups().size()
+                        : existingState.getNumSubgroups();
         byte[] res = new byte[UPDATE_SOURCE_FIXED_LENGTH + numSubGroups * 5];
         int offset = 0;
         // Opcode
@@ -1908,23 +1906,22 @@ public class BassClientStateMachine extends StateMachine {
         res[offset++] = (byte) 0xFF;
         res[offset++] = (byte) 0xFF;
         // Num_Subgroups
-        res[offset++] = numSubGroups;
+        res[offset++] = (byte) numSubGroups;
 
-        for (BluetoothLeBroadcastSubgroup subGroup : subGroups) {
-            int bisIndexValue;
+        for (int i = 0; i < numSubGroups; i++) {
+            int bisIndexValue = existingState.getBisSyncState().get(i).intValue();
             if (paSync == BassConstants.PA_SYNC_DO_NOT_SYNC) {
                 bisIndexValue = 0;
-            } else if (paSync == BassConstants.PA_SYNC_PAST_AVAILABLE
-                    || paSync == BassConstants.PA_SYNC_PAST_NOT_AVAILABLE) {
-                bisIndexValue = getBisSyncFromChannelPreference(subGroup.getChannels());
-
+            } else if (metaData != null
+                    && (paSync == BassConstants.PA_SYNC_PAST_AVAILABLE
+                            || paSync == BassConstants.PA_SYNC_PAST_NOT_AVAILABLE)) {
+                bisIndexValue =
+                        getBisSyncFromChannelPreference(
+                                metaData.getSubgroups().get(i).getChannels());
                 // Let sink decide to which BIS sync if there is no channel preference
                 if (bisIndexValue == 0) {
                     bisIndexValue = 0xFFFFFFFF;
                 }
-            } else {
-                bisIndexValue =
-                        existingState.getBisSyncState().get(subGroups.indexOf(subGroup)).intValue();
             }
             log("UPDATE_BCAST_SOURCE: bisIndexValue : " + bisIndexValue);
             // BIS_Sync
@@ -2239,9 +2236,9 @@ public class BassClientStateMachine extends StateMachine {
                     int sourceId = message.arg1;
                     int paSync = message.arg2;
                     log("Updating Broadcast source: " + metaData);
+                    // Convert the source from either metadata or remote receive state
                     byte[] updateSourceInfo =
-                            convertBroadcastMetadataToUpdateSourceByteArray(
-                                    sourceId, metaData, paSync);
+                            convertToUpdateSourceByteArray(sourceId, metaData, paSync);
                     if (updateSourceInfo == null) {
                         Log.e(TAG, "update source: source Info is NULL");
                         break;
@@ -2253,7 +2250,9 @@ public class BassClientStateMachine extends StateMachine {
                         if (paSync == BassConstants.PA_SYNC_DO_NOT_SYNC) {
                             setPendingRemove(sourceId, true);
                         }
-                        if (metaData.isEncrypted() && (metaData.getBroadcastCode() != null)) {
+                        if (metaData != null
+                                && metaData.isEncrypted()
+                                && metaData.getBroadcastCode() != null) {
                             mSetBroadcastCodePending = true;
                         }
                         mPendingMetadata = metaData;
@@ -2262,9 +2261,10 @@ public class BassClientStateMachine extends StateMachine {
                                 GATT_TXN_TIMEOUT,
                                 UPDATE_BCAST_SOURCE,
                                 BassConstants.GATT_TXN_TIMEOUT_MS);
+                        // convertToUpdateSourceByteArray ensures receive state valid for sourceId
                         sendMessageDelayed(
                                 CANCEL_PENDING_SOURCE_OPERATION,
-                                metaData.getBroadcastId(),
+                                getBroadcastReceiveStateForSourceId(sourceId).getBroadcastId(),
                                 BassConstants.SOURCE_OPERATION_TIMEOUT_MS);
                     } else {
                         Log.e(TAG, "UPDATE_BCAST_SOURCE: no Bluetooth Gatt handle, Fatal");

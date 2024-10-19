@@ -415,7 +415,7 @@ typedef struct {
   fixed_queue_t* srv_chg_clt_q; /* service change clients queue */
   tGATT_REG cl_rcb[GATT_MAX_APPS];
 
-  tGATT_IF next_gatt_if; /* potential next gatt if, should be greater than 0 */
+  tGATT_IF last_gatt_if; /* last used gatt_if, used to find the next gatt_if easily */
   std::unordered_map<tGATT_IF, std::unique_ptr<tGATT_REG>> cl_rcb_map;
 
   /* list of connection link control blocks.
