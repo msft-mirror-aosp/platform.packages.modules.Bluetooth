@@ -2829,7 +2829,7 @@ static int register_com_android_bluetooth_gatt_scan(JNIEnv* env) {
           {"gattClientScanFilterEnableNative", "(IZ)V", (void*)gattClientScanFilterEnableNative},
           {"gattSetScanParametersNative", "(IIII)V", (void*)gattSetScanParametersNative},
           // MSFT HCI Extension functions.
-          {"gattClientIsMsftSupportedNative", "()Z", (void*)gattClientIsMsftSupportedNative},
+          {"gattClientIsMsftSupportedNative", "()Z", (bool*)gattClientIsMsftSupportedNative},
           {"gattClientMsftAdvMonitorAddNative",
            "(Lcom/android/bluetooth/le_scan/MsftAdvMonitor$Monitor;[Lcom/android/bluetooth/le_scan/"
            "MsftAdvMonitor$Pattern;Lcom/android/bluetooth/le_scan/MsftAdvMonitor$Address;I)V",
