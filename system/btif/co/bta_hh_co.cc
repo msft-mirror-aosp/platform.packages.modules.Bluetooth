@@ -1115,7 +1115,8 @@ void bta_hh_co_get_rpt_rsp(uint8_t dev_handle, uint8_t status, const uint8_t* p_
     return;
   }
 
-  if (len == 0 || len > UHID_DATA_MAX) {
+  // len of zero is allowed, it's possible on failure case.
+  if (len > UHID_DATA_MAX) {
     log::warn("Invalid report size = {}", len);
     return;
   }
@@ -1126,7 +1127,9 @@ void bta_hh_co_get_rpt_rsp(uint8_t dev_handle, uint8_t status, const uint8_t* p_
     to_uhid.uhid.type = UHID_GET_REPORT_REPLY;
     to_uhid.uhid.u.get_report_reply.err = status;
     to_uhid.uhid.u.get_report_reply.size = len;
-    memcpy(to_uhid.uhid.u.get_report_reply.data, p_rpt, len);
+    if (len > 0) {
+      memcpy(to_uhid.uhid.u.get_report_reply.data, p_rpt, len);
+    }
 
     to_uhid_thread(p_dev->internal_send_fd, &to_uhid, uhid_calc_msg_len(&to_uhid.uhid, len));
     return;
@@ -1162,7 +1165,9 @@ void bta_hh_co_get_rpt_rsp(uint8_t dev_handle, uint8_t status, const uint8_t* p_
                                   },
                   },
   };
-  memcpy(ev.u.get_report_reply.data, p_rpt, len);
+  if (len > 0) {
+    memcpy(ev.u.get_report_reply.data, p_rpt, len);
+  }
 
   uhid_write(p_dev->uhid.fd, &ev, uhid_calc_msg_len(&ev, len));
   osi_free(context);

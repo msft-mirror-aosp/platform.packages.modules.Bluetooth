@@ -67,6 +67,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -142,6 +143,7 @@ public class TransitionalScanHelper {
     private AdapterService mAdapterService;
 
     private ScannerMap mScannerMap = new ScannerMap();
+    private HashMap<Integer, Integer> mFilterIndexToMsftAdvMonitorMap = new HashMap<>();
     private String mExposureNotificationPackage;
 
     public ScannerMap getScannerMap() {
@@ -1048,6 +1050,49 @@ public class TransitionalScanHelper {
         }
     }
 
+    public int msftMonitorHandleFromFilterIndex(int filter_index) {
+        if (!mFilterIndexToMsftAdvMonitorMap.containsKey(filter_index)) {
+            Log.e(TAG, "Monitor with filter_index'" + filter_index + "' does not exist");
+            return -1;
+        }
+        return mFilterIndexToMsftAdvMonitorMap.get(filter_index);
+    }
+
+    public void onMsftAdvMonitorAdd(int filter_index, int monitor_handle, int status) {
+        if (status != 0) {
+            Log.e(
+                    TAG,
+                    "Error adding advertisement monitor with filter index '" + filter_index + "'");
+            return;
+        }
+        if (mFilterIndexToMsftAdvMonitorMap.containsKey(filter_index)) {
+            Log.e(TAG, "Monitor with filter_index'" + filter_index + "' already added");
+            return;
+        }
+        mFilterIndexToMsftAdvMonitorMap.put(filter_index, monitor_handle);
+    }
+
+    public void onMsftAdvMonitorRemove(int filter_index, int status) {
+        if (status != 0) {
+            Log.e(
+                    TAG,
+                    "Error removing advertisement monitor with filter index '"
+                            + filter_index
+                            + "'");
+        }
+        if (!mFilterIndexToMsftAdvMonitorMap.containsKey(filter_index)) {
+            Log.e(TAG, "Monitor with filter_index'" + filter_index + "' does not exist");
+            return;
+        }
+        mFilterIndexToMsftAdvMonitorMap.remove(filter_index);
+    }
+
+    public void onMsftAdvMonitorEnable(int status) {
+        if (status != 0) {
+            Log.e(TAG, "Error enabling advertisement monitor");
+        }
+    }
+
     /**************************************************************************
      * GATT Service functions - Shared CLIENT/SERVER
      *************************************************************************/
@@ -1066,7 +1111,7 @@ public class TransitionalScanHelper {
         if (app != null
                 && app.isScanningTooFrequently()
                 && !Utils.checkCallerHasPrivilegedPermission(mContext)) {
-            Log.e(TAG, "App '" + app.appName + "' is scanning too frequently");
+            Log.e(TAG, "App '" + app.mAppName + "' is scanning too frequently");
             try {
                 callback.onScannerRegistered(ScanCallback.SCAN_FAILED_SCANNING_TOO_FREQUENTLY, -1);
             } catch (RemoteException e) {
@@ -1074,15 +1119,16 @@ public class TransitionalScanHelper {
             }
             return;
         }
-        registerScannerInternal(callback, workSource);
+        registerScannerInternal(callback, attributionSource, workSource);
     }
 
     /** Intended for internal use within the Bluetooth app. Bypass permission check */
-    public void registerScannerInternal(IScannerCallback callback, WorkSource workSource) {
+    public void registerScannerInternal(
+            IScannerCallback callback, AttributionSource attrSource, WorkSource workSource) {
         UUID uuid = UUID.randomUUID();
         Log.d(TAG, "registerScanner() - UUID=" + uuid);
 
-        mScannerMap.add(uuid, workSource, callback, mContext, this);
+        mScannerMap.add(uuid, attrSource, workSource, callback, mContext, this);
         mScanManager.registerScanner(uuid);
     }
 
@@ -1252,7 +1298,8 @@ public class TransitionalScanHelper {
             return;
         }
 
-        ScannerMap.ScannerApp app = mScannerMap.add(uuid, piInfo, mContext, this);
+        ScannerMap.ScannerApp app =
+                mScannerMap.add(uuid, attributionSource, piInfo, mContext, this);
 
         app.mUserHandle = UserHandle.getUserHandleForUid(Binder.getCallingUid());
         mAppOps.checkPackage(Binder.getCallingUid(), callingPackage);

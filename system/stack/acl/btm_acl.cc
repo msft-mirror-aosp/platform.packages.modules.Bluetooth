@@ -96,7 +96,6 @@ using bluetooth::legacy::hci::GetInterface;
 void BTM_update_version_info(const RawAddress& bd_addr,
                              const remote_version_info& remote_version_info);
 
-static void find_in_device_record(const RawAddress& bd_addr, tBLE_BD_ADDR* address_with_type);
 void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddress& p_bda);
 
 void BTM_db_reset(void);
@@ -2462,31 +2461,6 @@ void acl_write_automatic_flush_timeout(const RawAddress& bd_addr, uint16_t flush
   btsnd_hcic_write_auto_flush_tout(p_acl->hci_handle, flush_timeout_in_ticks);
 }
 
-bool acl_create_le_connection_with_id(uint8_t /* id */, const RawAddress& bd_addr,
-                                      tBLE_ADDR_TYPE addr_type) {
-  tBLE_BD_ADDR address_with_type{
-          .type = addr_type,
-          .bda = bd_addr,
-  };
-
-  find_in_device_record(bd_addr, &address_with_type);
-
-  log::debug("Creating le direct connection to:{} type:{} (initial type: {})", address_with_type,
-             AddressTypeText(address_with_type.type), AddressTypeText(addr_type));
-
-  if (address_with_type.type == BLE_ADDR_ANONYMOUS) {
-    log::warn(
-            "Creating le direct connection to:{}, address type 'anonymous' is "
-            "invalid",
-            address_with_type);
-    return false;
-  }
-
-  bluetooth::shim::ACL_AcceptLeConnectionFrom(address_with_type,
-                                              /* is_direct */ true);
-  return true;
-}
-
 void acl_rcv_acl_data(BT_HDR* p_msg) {
   acl_header_t acl_header{
           .handle = HCI_INVALID_HANDLE,
@@ -2581,24 +2555,6 @@ tACL_CONN* btm_acl_for_bda(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
     return nullptr;
   }
   return p_acl;
-}
-
-void find_in_device_record(const RawAddress& bd_addr, tBLE_BD_ADDR* address_with_type) {
-  const tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
-  if (p_dev_rec == nullptr) {
-    return;
-  }
-
-  if (p_dev_rec->device_type & BT_DEVICE_TYPE_BLE) {
-    if (p_dev_rec->ble.identity_address_with_type.bda.IsEmpty()) {
-      *address_with_type = {.type = p_dev_rec->ble.AddressType(), .bda = bd_addr};
-      return;
-    }
-    *address_with_type = p_dev_rec->ble.identity_address_with_type;
-    return;
-  }
-  *address_with_type = {.type = BLE_ADDR_PUBLIC, .bda = bd_addr};
-  return;
 }
 
 /*******************************************************************************

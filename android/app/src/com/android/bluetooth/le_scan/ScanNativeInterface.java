@@ -182,6 +182,36 @@ public class ScanNativeInterface {
         gattClientScanFilterEnableNative(clientIf, enable);
     }
 
+    /** Check if MSFT HCI extension is supported */
+    public boolean gattClientIsMsftSupported() {
+        return gattClientIsMsftSupportedNative();
+    }
+
+    /** Add a MSFT Advertisement Monitor */
+    public void gattClientMsftAdvMonitorAdd(
+            MsftAdvMonitor.Monitor msft_adv_monitor,
+            MsftAdvMonitor.Pattern[] msft_adv_monitor_patterns,
+            MsftAdvMonitor.Address msft_adv_monitor_address,
+            int filter_index) {
+        gattClientMsftAdvMonitorAddNative(
+                msft_adv_monitor,
+                msft_adv_monitor_patterns,
+                msft_adv_monitor_address,
+                filter_index);
+    }
+
+    /** Remove a MSFT Advertisement Monitor */
+    public void gattClientMsftAdvMonitorRemove(int filter_index) {
+        int monitor_handle = mScanHelper.msftMonitorHandleFromFilterIndex(filter_index);
+        if (monitor_handle < 0) return;
+        gattClientMsftAdvMonitorRemoveNative(filter_index, monitor_handle);
+    }
+
+    /** Enable a MSFT Advertisement Monitor */
+    public void gattClientMsftAdvMonitorEnable(boolean enable) {
+        gattClientMsftAdvMonitorEnableNative(enable);
+    }
+
     /** Configure BLE batch scan storage */
     public void gattClientConfigBatchScanStorage(
             int clientIf,
@@ -385,9 +415,27 @@ public class ScanNativeInterface {
         mScanHelper.onScanParamSetupCompleted(status, scannerId);
     }
 
-    void onMsftAdvMonitorAdd(int filter_index, int monitor_handle, int status) {}
+    void onMsftAdvMonitorAdd(int filter_index, int monitor_handle, int status) {
+        if (mScanHelper == null) {
+            Log.e(TAG, "Scan helper is null!");
+            return;
+        }
+        mScanHelper.onMsftAdvMonitorAdd(filter_index, monitor_handle, status);
+    }
 
-    void onMsftAdvMonitorRemove(int filter_index, int status) {}
+    void onMsftAdvMonitorRemove(int filter_index, int status) {
+        if (mScanHelper == null) {
+            Log.e(TAG, "Scan helper is null!");
+            return;
+        }
+        mScanHelper.onMsftAdvMonitorRemove(filter_index, status);
+    }
 
-    void onMsftAdvMonitorEnable(int status) {}
+    void onMsftAdvMonitorEnable(int status) {
+        if (mScanHelper == null) {
+            Log.e(TAG, "Scan helper is null!");
+            return;
+        }
+        mScanHelper.onMsftAdvMonitorEnable(status);
+    }
 }

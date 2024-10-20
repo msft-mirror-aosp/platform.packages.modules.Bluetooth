@@ -101,6 +101,9 @@ import platform.test.runner.parameterized.Parameters;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
@@ -322,13 +325,10 @@ public class AdapterServiceTest {
         when(mMockService.getName()).thenReturn("Service1");
         when(mMockService2.getName()).thenReturn("Service2");
 
-        when(mMockMetricsLogger.init(any())).thenReturn(true);
-        when(mMockMetricsLogger.close()).thenReturn(true);
-
         configureEnabledProfiles();
         Config.init(mMockContext);
 
-        mAdapterService.setMetricsLogger(mMockMetricsLogger);
+        MetricsLogger.setInstanceForTesting(mMockMetricsLogger);
 
         // Attach a context to the service for permission checks.
         mAdapterService.attach(mMockContext, null, null, null, mApplication, null);
@@ -358,6 +358,7 @@ public class AdapterServiceTest {
         GattNativeInterface.setInstance(null);
         PeriodicScanNativeInterface.setInstance(null);
         ScanNativeInterface.setInstance(null);
+        MetricsLogger.setInstanceForTesting(null);
     }
 
     private void syncHandler(int... what) {
@@ -1032,5 +1033,42 @@ public class AdapterServiceTest {
         doReturn(new byte[0]).when(mNativeInterface).dumpMetrics();
         mAdapterService.dump(fd, writer, new String[] {"--proto-bin"});
         mAdapterService.dump(fd, writer, new String[] {"random", "arguments"});
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_GATT_CLEAR_CACHE_ON_FACTORY_RESET)
+    public void testClearStorage() throws Exception {
+        // clearStorage should remove all files under /data/misc/bluetooth/ && /data/misc/bluedroid/
+        final Path testCachePath = Paths.get("/data/misc/bluetooth/gatt_cache_a475b9a23d72");
+        final Path testHashPath =
+                Paths.get("/data/misc/bluetooth/gatt_hash_400D017CB2563A6FB62A2DC4C2AEFD6F");
+        final Path randomFileUnderBluedroidPath =
+                Paths.get("/data/misc/bluedroid/random_test_file.txt");
+        final Path randomFileUnderBluetoothPath =
+                Paths.get("/data/misc/bluetooth/random_test_file.txt");
+
+        try {
+            Files.createFile(testCachePath);
+            Files.createFile(testHashPath);
+            Files.createFile(randomFileUnderBluedroidPath);
+            Files.createFile(randomFileUnderBluetoothPath);
+
+            assertThat(Files.exists(testCachePath)).isTrue();
+            assertThat(Files.exists(testHashPath)).isTrue();
+            assertThat(Files.exists(randomFileUnderBluedroidPath)).isTrue();
+            assertThat(Files.exists(randomFileUnderBluetoothPath)).isTrue();
+
+            mAdapterService.clearStorage();
+
+            assertThat(Files.exists(testCachePath)).isFalse();
+            assertThat(Files.exists(testHashPath)).isFalse();
+            assertThat(Files.exists(randomFileUnderBluedroidPath)).isFalse();
+            assertThat(Files.exists(randomFileUnderBluetoothPath)).isFalse();
+        } finally {
+            Files.deleteIfExists(testCachePath);
+            Files.deleteIfExists(testHashPath);
+            Files.deleteIfExists(randomFileUnderBluedroidPath);
+            Files.deleteIfExists(randomFileUnderBluetoothPath);
+        }
     }
 }

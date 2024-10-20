@@ -3536,17 +3536,17 @@ packet LeWriteSuggestedDefaultDataLengthComplete : CommandComplete (command_op_c
   status : ErrorCode,
 }
 
-packet LeReadLocalP256PublicKeyCommand : Command (op_code = LE_READ_LOCAL_P_256_PUBLIC_KEY) {
+packet LeReadLocalP256PublicKey : Command (op_code = LE_READ_LOCAL_P_256_PUBLIC_KEY) {
 }
 
-packet LeReadLocalP256PublicKeyCommandStatus : CommandStatus (command_op_code = LE_READ_LOCAL_P_256_PUBLIC_KEY) {
+packet LeReadLocalP256PublicKeyStatus : CommandStatus (command_op_code = LE_READ_LOCAL_P_256_PUBLIC_KEY) {
 }
 
-packet LeGenerateDhkeyV1Command : Command (op_code = LE_GENERATE_DHKEY_V1) {
+packet LeGenerateDhkeyV1 : Command (op_code = LE_GENERATE_DHKEY_V1) {
   remote_p_256_public_key : 8[64],
 }
 
-packet LeGenerateDhkeyV1CommandStatus : CommandStatus (command_op_code = LE_GENERATE_DHKEY_V1) {
+packet LeGenerateDhkeyV1Status : CommandStatus (command_op_code = LE_GENERATE_DHKEY_V1) {
 }
 
 packet LeAddDeviceToResolvingList : Command (op_code = LE_ADD_DEVICE_TO_RESOLVING_LIST) {
@@ -5211,12 +5211,13 @@ packet LeDataLengthChange : LeMetaEvent (subevent_code = DATA_LENGTH_CHANGE) {
   max_rx_time : 16, // 0x0148 - 0x4290
 }
 
-packet ReadLocalP256PublicKeyComplete : LeMetaEvent (subevent_code = READ_LOCAL_P256_PUBLIC_KEY_COMPLETE) {
+packet LeReadLocalP256PublicKeyComplete : LeMetaEvent (subevent_code = READ_LOCAL_P256_PUBLIC_KEY_COMPLETE) {
   status : ErrorCode,
-  local_p_256_public_key : 8[64],
+  key_x_coordinate : 8[32],
+  key_y_coordinate : 8[32],
 }
 
-packet GenerateDhKeyComplete : LeMetaEvent (subevent_code = GENERATE_DHKEY_COMPLETE) {
+packet LeGenerateDhKeyComplete : LeMetaEvent (subevent_code = GENERATE_DHKEY_COMPLETE) {
   status : ErrorCode,
   dh_key : 8[32],
 }

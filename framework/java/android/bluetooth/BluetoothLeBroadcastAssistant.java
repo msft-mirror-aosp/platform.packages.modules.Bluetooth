@@ -21,7 +21,6 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
 
 import android.annotation.CallbackExecutor;
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -40,8 +39,6 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.CloseGuard;
 import android.util.Log;
-
-import com.android.bluetooth.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -454,7 +451,6 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
          * @param broadcastId broadcast ID as defined in the BASS specification
          * @hide
          */
-        @FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS)
         @SystemApi
         default void onSourceLost(int broadcastId) {}
     }

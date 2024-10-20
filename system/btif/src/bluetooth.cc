@@ -62,6 +62,7 @@
 #include "bta/include/bta_vc_api.h"
 #include "btif/avrcp/avrcp_service.h"
 #include "btif/include/btif_a2dp.h"
+#include "btif/include/btif_a2dp_source.h"
 #include "btif/include/btif_api.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_bqr.h"
@@ -165,10 +166,6 @@ bool is_local_device_atv = false;
 
 /*rfc l2cap*/
 extern const btsock_interface_t* btif_sock_get_interface();
-/* hid host profile */
-extern const bthh_interface_t* btif_hh_get_interface();
-/* hid device profile */
-extern const bthd_interface_t* btif_hd_get_interface();
 /* gatt */
 extern const btgatt_interface_t* btif_gatt_get_interface();
 /* avrc target */
@@ -189,8 +186,6 @@ extern CsisClientInterface* btif_csis_client_get_interface();
 extern VolumeControlInterface* btif_volume_control_get_interface();
 
 bt_status_t btif_av_sink_execute_service(bool b_enable);
-bt_status_t btif_hh_execute_service(bool b_enable);
-bt_status_t btif_hd_execute_service(bool b_enable);
 
 extern void gatt_tcb_dump(int fd);
 extern void bta_gatt_client_dump(int fd);
@@ -1123,13 +1118,7 @@ static int set_dynamic_audio_buffer_size(int codec, int size) {
 }
 
 static bool allow_low_latency_audio(bool allowed, const RawAddress& /* address */) {
-  log::info("{}", allowed);
-  if (com::android::bluetooth::flags::a2dp_async_allow_low_latency()) {
-    do_in_main_thread(
-            base::BindOnce(bluetooth::audio::a2dp::set_audio_low_latency_mode_allowed, allowed));
-  } else {
-    bluetooth::audio::a2dp::set_audio_low_latency_mode_allowed(allowed);
-  }
+  btif_a2dp_source_allow_low_latency_audio(allowed);
   return true;
 }
 
