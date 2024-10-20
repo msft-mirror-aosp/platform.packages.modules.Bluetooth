@@ -1943,7 +1943,8 @@ public class GattService extends ProfileService {
                 duration,
                 maxExtAdvEvents,
                 serverIf,
-                callback);
+                callback,
+                attributionSource);
     }
 
     @RequiresPermission(BLUETOOTH_ADVERTISE)
@@ -2102,7 +2103,7 @@ public class GattService extends ProfileService {
         }
 
         Log.d(TAG, "registerClient() - UUID=" + uuid);
-        mClientMap.add(uuid, callback, this);
+        mClientMap.add(uuid, callback, this, attributionSource);
         mNativeInterface.gattClientRegisterApp(
                 uuid.getLeastSignificantBits(), uuid.getMostSignificantBits(), eatt_support);
     }
@@ -3161,7 +3162,7 @@ public class GattService extends ProfileService {
         }
 
         Log.d(TAG, "registerServer() - UUID=" + uuid);
-        mServerMap.add(uuid, callback, this);
+        mServerMap.add(uuid, callback, this, attributionSource);
         mNativeInterface.gattServerRegisterApp(
                 uuid.getLeastSignificantBits(), uuid.getMostSignificantBits(), eatt_support);
     }
@@ -3551,11 +3552,25 @@ public class GattService extends ProfileService {
         mTransitionalScanHelper.getScannerMap().dumpApps(sb, ProfileService::println);
         sb.append("  Client:\n");
         for (Integer appId : mClientMap.getAllAppsIds()) {
-            println(sb, "    app_if: " + appId + ", appName: " + mClientMap.getById(appId).name);
+            ContextMap.App app = mClientMap.getById(appId);
+            println(
+                    sb,
+                    "    app_if: "
+                            + appId
+                            + ", appName: "
+                            + app.name
+                            + (app.attributionTag == null ? "" : ", tag: " + app.attributionTag));
         }
         sb.append("  Server:\n");
         for (Integer appId : mServerMap.getAllAppsIds()) {
-            println(sb, "    app_if: " + appId + ", appName: " + mServerMap.getById(appId).name);
+            ContextMap.App app = mServerMap.getById(appId);
+            println(
+                    sb,
+                    "    app_if: "
+                            + appId
+                            + ", appName: "
+                            + app.name
+                            + (app.attributionTag == null ? "" : ", tag: " + app.attributionTag));
         }
         sb.append("\n\n");
     }

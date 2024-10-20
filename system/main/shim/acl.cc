@@ -1009,9 +1009,7 @@ struct shim::Acl::impl {
     auto connection = handle_to_le_connection_map_.find(handle);
     if (connection != handle_to_le_connection_map_.end()) {
       auto remote_address_with_type = connection->second->GetRemoteAddressWithType();
-      if (!com::android::bluetooth::flags::unified_connection_manager()) {
-        GetAclManager()->RemoveFromBackgroundList(remote_address_with_type);
-      }
+      GetAclManager()->RemoveFromBackgroundList(remote_address_with_type);
       connection->second->InitiateDisconnect(ToDisconnectReasonFromLegacy(reason));
       log::debug("Disconnection initiated le remote:{} handle:{}", remote_address_with_type,
                  handle);

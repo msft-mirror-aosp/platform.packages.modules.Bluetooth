@@ -768,8 +768,7 @@ public final class OobData implements Parcelable {
      */
     @NonNull
     @SystemApi
-    @LeRole
-    public int getLeDeviceRole() {
+    public @LeRole int getLeDeviceRole() {
         return mLeDeviceRole;
     }
 

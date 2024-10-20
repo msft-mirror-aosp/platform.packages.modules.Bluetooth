@@ -28,6 +28,7 @@
 #include <cstdint>
 
 #include "bta/ar/bta_ar_int.h"
+#include "bta/include/bta_ar_api.h"
 #include "bta/sys/bta_sys.h"
 #include "profile/avrcp/avrcp_sdp_service.h"
 #include "stack/include/avct_api.h"
@@ -36,9 +37,6 @@
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/sdp_api.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth::avrcp;

@@ -75,8 +75,10 @@ public:
   ::ndk::ScopedAStatus onResult(
           const ::aidl::android::hardware::bluetooth::ranging::RangingResult& in_result) {
     log::verbose("resultMeters {}", in_result.resultMeters);
-    hal::RangingResult ranging_result;
-    ranging_result.result_meters_ = in_result.resultMeters;
+    hal::RangingResult ranging_result = {
+            .result_meters_ = in_result.resultMeters,
+            .confidence_level_ = in_result.confidenceLevel,
+    };
     ranging_hal_callback_->OnResult(connection_handle_, ranging_result);
     return ::ndk::ScopedAStatus::ok();
   }

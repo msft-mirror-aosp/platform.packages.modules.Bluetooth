@@ -98,6 +98,19 @@ public class ScanNativeInterface {
 
     private native void gattClientScanFilterEnableNative(int clientIf, boolean enable);
 
+    /************************** MSFT scan related native methods *****************************/
+    private native boolean gattClientIsMsftSupportedNative();
+
+    private native void gattClientMsftAdvMonitorAddNative(
+            MsftAdvMonitor.Monitor msft_adv_monitor,
+            MsftAdvMonitor.Pattern[] msft_adv_monitor_patterns,
+            MsftAdvMonitor.Address msft_adv_monitor_address,
+            int filter_index);
+
+    private native void gattClientMsftAdvMonitorRemoveNative(int filter_index, int monitor_handle);
+
+    private native void gattClientMsftAdvMonitorEnableNative(boolean enable);
+
     /************************** Batch related native methods *********************************/
     private native void gattClientConfigBatchScanStorageNative(
             int clientIf,
@@ -371,4 +384,10 @@ public class ScanNativeInterface {
         }
         mScanHelper.onScanParamSetupCompleted(status, scannerId);
     }
+
+    void onMsftAdvMonitorAdd(int filter_index, int monitor_handle, int status) {}
+
+    void onMsftAdvMonitorRemove(int filter_index, int status) {}
+
+    void onMsftAdvMonitorEnable(int status) {}
 }

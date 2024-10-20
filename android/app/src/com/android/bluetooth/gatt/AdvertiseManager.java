@@ -21,6 +21,7 @@ import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.IAdvertisingSetCallback;
 import android.bluetooth.le.PeriodicAdvertisingParameters;
+import android.content.AttributionSource;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -246,7 +247,8 @@ public class AdvertiseManager {
             int duration,
             int maxExtAdvEvents,
             int serverIf,
-            IAdvertisingSetCallback callback) {
+            IAdvertisingSetCallback callback,
+            AttributionSource attrSource) {
         // If we are using an isolated server, force usage of an NRPA
         if (serverIf != 0
                 && parameters.getOwnAddressType()
@@ -294,7 +296,7 @@ public class AdvertiseManager {
 
             Log.d(TAG, "startAdvertisingSet() - reg_id=" + cbId + ", callback: " + binder);
 
-            mAdvertiserMap.addAppAdvertiseStats(cbId, mService);
+            mAdvertiserMap.addAppAdvertiseStats(cbId, mService, attrSource);
             mAdvertiserMap.recordAdvertiseStart(
                     cbId,
                     parameters,

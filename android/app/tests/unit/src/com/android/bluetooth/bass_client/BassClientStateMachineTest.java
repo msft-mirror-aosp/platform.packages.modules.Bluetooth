@@ -62,7 +62,6 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -174,7 +173,6 @@ public class BassClientStateMachineTest {
         doNothing()
                 .when(mMethodProxy)
                 .periodicAdvertisingManagerTransferSync(any(), any(), anyInt(), anyInt());
-        MetricsLogger.getInstance();
         MetricsLogger.setInstanceForTesting(mMetricsLogger);
 
         // Get a device for testing
@@ -2224,7 +2222,6 @@ public class BassClientStateMachineTest {
     public void periodicAdvertisingCallbackOnSyncLost_notifySourceLost() {
         mSetFlagsRule.disableFlags(
                 Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE);
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS);
         PeriodicAdvertisingCallback cb = mBassClientStateMachine.mLocalPeriodicAdvCallback;
         BassClientService.Callbacks callbacks = Mockito.mock(BassClientService.Callbacks.class);
         int syncHandle = 1;
@@ -2240,7 +2237,6 @@ public class BassClientStateMachineTest {
     public void periodicAdvertisingCallbackOnBigInfoAdvertisingReport_updateRssi() {
         mSetFlagsRule.disableFlags(
                 Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE);
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS);
         PeriodicAdvertisingCallback cb = mBassClientStateMachine.mLocalPeriodicAdvCallback;
         BassClientService.Callbacks callbacks = Mockito.mock(BassClientService.Callbacks.class);
         int testRssi = -40;
@@ -2496,7 +2492,7 @@ public class BassClientStateMachineTest {
                 BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_CODE_REQUIRED,
                 0x0L);
         // Verify broadcast audio session is logged when pa no past
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logLeAudioBroadcastAudioSync(
                         eq(mTestDevice),
                         eq(TEST_BROADCAST_ID),
@@ -2519,7 +2515,7 @@ public class BassClientStateMachineTest {
                 BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_BAD_CODE,
                 0x0L);
         // Verify broadcast audio session is logged when big encryption failed
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logLeAudioBroadcastAudioSync(
                         eq(mTestDevice),
                         eq(TEST_BROADCAST_ID),
@@ -2542,7 +2538,7 @@ public class BassClientStateMachineTest {
                 BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_DECRYPTING,
                 BassConstants.BIS_SYNC_FAILED_SYNC_TO_BIG);
         // Verify broadcast audio session is logged when bis sync failed
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logLeAudioBroadcastAudioSync(
                         eq(mTestDevice),
                         eq(TEST_BROADCAST_ID),
@@ -2579,7 +2575,7 @@ public class BassClientStateMachineTest {
                 0x0L);
 
         // Verify broadcast audio session is logged when source removed
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logLeAudioBroadcastAudioSync(
                         eq(mTestDevice),
                         eq(TEST_BROADCAST_ID),
@@ -2608,7 +2604,7 @@ public class BassClientStateMachineTest {
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
 
         // Verify broadcast audio session is logged when source removed
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logLeAudioBroadcastAudioSync(
                         eq(mTestDevice),
                         eq(TEST_BROADCAST_ID),
@@ -2704,7 +2700,7 @@ public class BassClientStateMachineTest {
 
     @SafeVarargs
     private void verifyIntentSent(int timeout_ms, Matcher<Intent>... matchers) {
-        verify(mBassClientService, timeout(timeout_ms).times(1))
+        verify(mBassClientService, timeout(timeout_ms))
                 .sendBroadcast(
                         MockitoHamcrest.argThat(AllOf.allOf(matchers)),
                         eq(BLUETOOTH_CONNECT),

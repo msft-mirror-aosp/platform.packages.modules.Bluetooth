@@ -18,6 +18,8 @@
 
 /* Hearing Aid Profile Interface */
 
+#include "btif_hearing_aid.h"
+
 #include <base/functional/bind.h>
 #include <base/location.h>
 #include <hardware/bluetooth.h>
@@ -28,9 +30,6 @@
 #include "btif_profile_storage.h"
 #include "stack/include/main_thread.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using base::Bind;
 using base::Unretained;

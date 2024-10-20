@@ -245,6 +245,7 @@ cc_library_static {
     ],
     shared_libs: [
         "libcrypto",
+        "libcutils",
     ],
     cflags: [
         /* we export all classes, so change default visibility, instead of having EXPORT_SYMBOL on each class*/

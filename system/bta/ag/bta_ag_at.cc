@@ -37,9 +37,6 @@
 #include "os/log.h"
 #include "osi/include/allocator.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 /*****************************************************************************
@@ -90,7 +87,7 @@ void bta_ag_at_reinit(tBTA_AG_AT_CB* p_cb) {
  * Returns          void
  *
  *****************************************************************************/
-void bta_ag_process_at(tBTA_AG_AT_CB* p_cb, char* p_end) {
+static void bta_ag_process_at(tBTA_AG_AT_CB* p_cb, char* p_end) {
   uint16_t idx;
   uint8_t arg_type;
   char* p_arg;

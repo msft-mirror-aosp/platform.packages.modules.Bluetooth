@@ -25,7 +25,6 @@ import static com.android.bluetooth.flags.Flags.leaudioAllowedContextMask;
 import static com.android.bluetooth.flags.Flags.leaudioBigDependsOnAudioState;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastAssistantPeripheralEntrustment;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastExtractPeriodicScannerFromStateMachine;
-import static com.android.bluetooth.flags.Flags.leaudioBroadcastMonitorSourceSyncStatus;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastResyncHelper;
 import static com.android.bluetooth.flags.Flags.leaudioSortScansToSyncByFails;
 
@@ -390,12 +389,8 @@ public class BassClientService extends ProfileService {
                                             + " same syncHandle="
                                             + syncHandle
                                             + ", before syncLost");
-                            if (leaudioBroadcastMonitorSourceSyncStatus()) {
-                                log(
-                                        "Notify broadcast source lost, broadcast id: "
-                                                + oldBroadcastId);
-                                mCallbacks.notifySourceLost(oldBroadcastId);
-                            }
+                            log("Notify broadcast source lost, broadcast id: " + oldBroadcastId);
+                            mCallbacks.notifySourceLost(oldBroadcastId);
                             clearAllDataForSyncHandle(syncHandle);
                             mCachedBroadcasts.remove(oldBroadcastId);
                         }
@@ -2203,10 +2198,8 @@ public class BassClientService extends ProfileService {
                             mCachedBroadcasts.remove(broadcastId);
                         }
                     }
-                    if (leaudioBroadcastMonitorSourceSyncStatus()) {
-                        log("Notify broadcast source lost, broadcast id: " + broadcastId);
-                        mCallbacks.notifySourceLost(broadcastId);
-                    }
+                    log("Notify broadcast source lost, broadcast id: " + broadcastId);
+                    mCallbacks.notifySourceLost(broadcastId);
                 }
             }
         }
@@ -2359,12 +2352,10 @@ public class BassClientService extends ProfileService {
             }
         }
         metaData.setEncrypted(encrypted);
-        if (leaudioBroadcastMonitorSourceSyncStatus()) {
-            // update the rssi value
-            ScanResult scanRes = getCachedBroadcast(result.getBroadcastId());
-            if (scanRes != null) {
-                metaData.setRssi(scanRes.getRssi());
-            }
+        // update the rssi value
+        ScanResult scanRes = getCachedBroadcast(result.getBroadcastId());
+        if (scanRes != null) {
+            metaData.setRssi(scanRes.getRssi());
         }
         return metaData.build();
     }
@@ -3102,7 +3093,7 @@ public class BassClientService extends ProfileService {
         return stateMachine.getMaximumSourceCapacity();
     }
 
-    private boolean isLocalBroadcast(int sourceAdvertisingSid) {
+    private boolean isLocalBroadcast(int broadcastId) {
         LeAudioService leAudioService = mServiceFactory.getLeAudioService();
         if (leAudioService == null) {
             return false;
@@ -3112,7 +3103,7 @@ public class BassClientService extends ProfileService {
                 leAudioService.getAllBroadcastMetadata().stream()
                         .anyMatch(
                                 meta -> {
-                                    return meta.getSourceAdvertisingSid() == sourceAdvertisingSid;
+                                    return meta.getBroadcastId() == broadcastId;
                                 });
         log("isLocalBroadcast=" + wasFound);
         return wasFound;
@@ -3123,7 +3114,7 @@ public class BassClientService extends ProfileService {
             return false;
         }
 
-        return isLocalBroadcast(metaData.getSourceAdvertisingSid());
+        return isLocalBroadcast(metaData.getBroadcastId());
     }
 
     boolean isLocalBroadcast(BluetoothLeBroadcastReceiveState receiveState) {
@@ -3131,7 +3122,7 @@ public class BassClientService extends ProfileService {
             return false;
         }
 
-        return isLocalBroadcast(receiveState.getSourceAdvertisingSid());
+        return isLocalBroadcast(receiveState.getBroadcastId());
     }
 
     static void log(String msg) {

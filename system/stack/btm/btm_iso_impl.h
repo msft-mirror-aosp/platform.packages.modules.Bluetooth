@@ -17,19 +17,19 @@
 
 #pragma once
 
+#include <base/functional/bind.h>
+#include <base/functional/callback.h>
+
 #include <list>
 #include <map>
 #include <memory>
 #include <mutex>
 
-#include "base/functional/bind.h"
-#include "base/functional/callback.h"
 #include "btm_dev.h"
 #include "btm_iso_api.h"
 #include "common/time_util.h"
 #include "hci/controller_interface.h"
 #include "hci/include/hci_layer.h"
-#include "internal_include/bt_trace.h"
 #include "internal_include/stack_config.h"
 #include "main/shim/entry.h"
 #include "main/shim/hci_layer.h"
@@ -417,7 +417,7 @@ struct iso_impl {
 
   void remove_iso_data_path(uint16_t iso_handle, uint8_t data_path_dir) {
     iso_base* iso = GetIsoIfKnown(iso_handle);
-    log::assert_that(iso != nullptr, "No such iso connection: {}", loghex(iso_handle));
+    log::assert_that(iso != nullptr, "No such iso connection: 0x{:x}", iso_handle);
     log::assert_that((iso->state_flags & kStateFlagHasDataPathSet) == kStateFlagHasDataPathSet,
                      "Data path not set");
 
@@ -512,7 +512,7 @@ struct iso_impl {
 
   void send_iso_data(uint16_t iso_handle, const uint8_t* data, uint16_t data_len) {
     iso_base* iso = GetIsoIfKnown(iso_handle);
-    log::assert_that(iso != nullptr, "No such iso connection handle: {}", loghex(iso_handle));
+    log::assert_that(iso != nullptr, "No such iso connection handle: 0x{:x}", iso_handle);
 
     if (!(iso->state_flags & kStateFlagIsBroadcast)) {
       if (!(iso->state_flags & kStateFlagIsConnected)) {
