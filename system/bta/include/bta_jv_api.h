@@ -514,6 +514,19 @@ tBTA_JV_STATUS BTA_JvStartDiscovery(const RawAddress& bd_addr, uint16_t num_uuid
 
 /*******************************************************************************
  *
+ * Function         BTA_JvCancelDiscovery
+ *
+ * Description      This function cancels the ongoing service discovery and make
+ *                  sure the tBTA_JV_DM_CBACK callback function will be called
+ *                  with a BTA_JV_DISCOVERY_COMP_EVT.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_JvCancelDiscovery(uint32_t rfcomm_slot_id);
+
+/*******************************************************************************
+ *
  * Function         BTA_JvCreateRecordByUser
  *
  * Description      Create a service record in the local SDP database by user in

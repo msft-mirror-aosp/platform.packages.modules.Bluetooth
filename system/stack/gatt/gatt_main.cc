@@ -118,8 +118,8 @@ void gatt_init(void) {
   connection_manager::reset(true);
   memset(&fixed_reg, 0, sizeof(tL2CAP_FIXED_CHNL_REG));
 
-  // To catch a potential OOB.
-  gatt_cb.next_gatt_if = 40;
+  // To catch a potential OOB, 40>31 is used, any valid value (1 to GATT_IF_MAX) is okay.
+  gatt_cb.last_gatt_if = static_cast<tGATT_IF>(40);
 
   gatt_cb.sign_op_queue = fixed_queue_new(SIZE_MAX);
   gatt_cb.srv_chg_clt_q = fixed_queue_new(SIZE_MAX);
@@ -237,7 +237,7 @@ bool gatt_connect(const RawAddress& rem_bda, tBLE_ADDR_TYPE addr_type, tGATT_TCB
   }
 
   p_tcb->att_lcid = L2CAP_ATT_CID;
-  return acl_create_le_connection_with_id(gatt_if, rem_bda, addr_type);
+  return connection_manager::create_le_connection(gatt_if, rem_bda, addr_type);
 }
 
 bool gatt_connect(const RawAddress& rem_bda, tGATT_TCB* p_tcb, tBT_TRANSPORT transport,

@@ -19,6 +19,7 @@ package android.bluetooth;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresNoPermission;
+import android.os.Binder;
 import android.os.Parcel;
 import android.os.UserHandle;
 import android.util.Log;
@@ -26,6 +27,7 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 /** @hide */
 public final class BluetoothUtils {
@@ -323,5 +325,22 @@ public final class BluetoothUtils {
      */
     public static void writeStringToParcel(@NonNull Parcel out, @Nullable String str) {
         out.writeString(str);
+    }
+
+    /**
+     * Execute the callback without UID / PID information
+     *
+     * @hide
+     */
+    public static void executeFromBinder(@NonNull Executor executor, @NonNull Runnable callback) {
+        executor.execute(
+                () -> {
+                    final long identity = Binder.clearCallingIdentity();
+                    try {
+                        callback.run();
+                    } finally {
+                        Binder.restoreCallingIdentity(identity);
+                    }
+                });
     }
 }

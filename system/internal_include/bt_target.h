@@ -349,11 +349,6 @@
 #define GATT_MAX_APPS 32 /* note: 2 apps used internally GATT and GAP */
 #endif
 
-/* connection manager doesn't generate it's own IDs. Instead, all GATT clients
- * use their gatt_if to identify against conection manager. When stack tries to
- * create l2cap connection, it will use this fixed ID. */
-#define CONN_MGR_ID_L2CAP (GATT_MAX_APPS + 10)
-
 /* This value is used for static allocation of resources. The actual maximum at
  * runtime is controlled by a system property. */
 #ifndef GATT_MAX_PHY_CHANNEL

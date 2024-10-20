@@ -1868,6 +1868,57 @@ public class BassClientServiceTest {
         }
     }
 
+    /**
+     * Test whether service.removeSource() does send modify source if source is from remote receive
+     * state. In this case, assistant should be able to remove source which was not managed by BASS
+     * service (external manager/no source metadata)
+     */
+    @Test
+    public void testRemoveSourceForGroupAndTriggerModifySourceWithoutMetadata() {
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            injectRemoteSourceStateSourceAdded(
+                    sm,
+                    meta,
+                    TEST_SOURCE_ID,
+                    BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCHRONIZED,
+                    meta.isEncrypted()
+                            ? BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_DECRYPTING
+                            : BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_NOT_ENCRYPTED,
+                    null);
+            // no current broadcast metadata for external broadcast source
+            doReturn(null).when(sm).getCurrentBroadcastMetadata(eq(TEST_SOURCE_ID));
+            doReturn(true).when(sm).isSyncedToTheSource(eq(TEST_SOURCE_ID));
+        }
+
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+            mBassClientService.removeSource(sm.getDevice(), TEST_SOURCE_ID);
+            // Verify device get update source
+            verify(sm, atLeast(1)).sendMessage(messageCaptor.capture());
+
+            Optional<Message> msg =
+                    messageCaptor.getAllValues().stream()
+                            .filter(m -> m.what == BassClientStateMachine.UPDATE_BCAST_SOURCE)
+                            .findFirst();
+            assertThat(msg.isPresent()).isEqualTo(true);
+
+            assertThat(msg.get().arg1).isEqualTo(TEST_SOURCE_ID);
+            assertThat(msg.get().arg2).isEqualTo(BassConstants.PA_SYNC_DO_NOT_SYNC);
+            // Verify metadata is null
+            assertThat(msg.get().obj).isEqualTo(null);
+        }
+
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            injectRemoteSourceStateRemoval(sm, TEST_SOURCE_ID);
+        }
+    }
+
     /** Test whether the group operation flag is set on addSource() and removed on removeSource */
     @Test
     public void testGroupStickyFlagSetUnset() {
@@ -2139,7 +2190,7 @@ public class BassClientServiceTest {
                 verify(sm, never()).sendMessage(any());
             } else if (sm.getDevice().equals(mCurrentDevice1)) {
                 ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
-                verify(sm, times(1)).sendMessage(messageCaptor.capture());
+                verify(sm).sendMessage(messageCaptor.capture());
                 List<Message> msgs =
                         messageCaptor.getAllValues().stream()
                                 .filter(
@@ -4380,7 +4431,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice, true);
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, true);
 
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
@@ -4396,7 +4447,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice, true);
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, true);
 
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
@@ -4444,7 +4495,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, true);
 
         /* After second device disconnection and de-synchronization expect stopping broadcast */
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
@@ -4473,7 +4524,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, false);
 
         /* After second device disconnection and de-synchronization expect stopping broadcast */
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
@@ -4491,7 +4542,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice, true);
 
         /* After first device disconnection and de-synchronization expect stopping broadcast */
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
 
         /* Imitate first device being in disconnected state */
         doReturn(BluetoothProfile.STATE_DISCONNECTED)
@@ -4502,7 +4553,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, true);
 
         /* After second device disconnection and de-synchronization expect not stopping broadcast */
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
@@ -4554,10 +4605,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void onPeriodicAdvertisingReport_withoutBaseData_cancelActiveSync() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -4648,10 +4696,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void onPeriodicAdvertisingReport_wrongBaseData_cancelActiveSync() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -4751,10 +4796,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void onPeriodicAdvertisingReport_updateBase() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -4788,10 +4830,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void onPeriodicAdvertisingReport_updateBaseAfterWrongBaseData() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -4935,10 +4974,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void notifySourceFound_once_updateRssi() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -4995,7 +5031,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS,
         Flags.FLAG_LEAUDIO_BIG_DEPENDS_ON_AUDIO_STATE
     })
     public void notifySourceFound_without_public_announcement() {
@@ -5102,10 +5137,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void notifySourceFound_periodic_after_big() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -5159,7 +5191,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS,
         Flags.FLAG_LEAUDIO_BIG_DEPENDS_ON_AUDIO_STATE
     })
     public void notifySourceFound_periodic_after_wrong_periodic() {
@@ -5251,10 +5282,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void notifySourceFound_alreadySynced_clearFlag() {
         // Scan
         prepareConnectedDeviceGroup();
@@ -5322,10 +5350,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void onSyncLost_notifySourceLostAndCancelSync() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();

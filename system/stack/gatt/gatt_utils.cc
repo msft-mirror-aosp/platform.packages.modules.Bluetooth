@@ -1529,7 +1529,6 @@ tGATT_READ_MULTI* gatt_sr_get_read_multi(tGATT_TCB& tcb, uint16_t cid) {
  ******************************************************************************/
 void gatt_sr_update_cback_cnt(tGATT_TCB& tcb, uint16_t cid, tGATT_IF gatt_if, bool is_inc,
                               bool is_reset_first) {
-  uint8_t idx = ((uint8_t)gatt_if) - 1;
   tGATT_SR_CMD* sr_cmd_p;
 
   if (cid == tcb.att_lcid) {
@@ -1549,9 +1548,9 @@ void gatt_sr_update_cback_cnt(tGATT_TCB& tcb, uint16_t cid, tGATT_IF gatt_if, bo
 
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     if (is_inc) {
-      sr_cmd_p->cback_cnt_map[idx]++;
+      sr_cmd_p->cback_cnt_map[gatt_if]++;
     } else {
-      auto cback_cnt_it = sr_cmd_p->cback_cnt_map.find(idx);
+      auto cback_cnt_it = sr_cmd_p->cback_cnt_map.find(gatt_if);
       if (cback_cnt_it != sr_cmd_p->cback_cnt_map.end()) {
         if ((--cback_cnt_it->second) <= 0) {
           sr_cmd_p->cback_cnt_map.erase(cback_cnt_it);
@@ -1559,6 +1558,8 @@ void gatt_sr_update_cback_cnt(tGATT_TCB& tcb, uint16_t cid, tGATT_IF gatt_if, bo
       }
     }
   } else {
+    uint8_t idx = ((uint8_t)gatt_if) - 1;
+
     if (is_inc) {
       sr_cmd_p->cback_cnt[idx]++;
     } else {
@@ -1980,9 +1981,9 @@ tCONN_ID gatt_create_conn_id(tTCB_IDX tcb_idx, tGATT_IF gatt_if) {
   return (tcb_idx << 8) | gatt_if;
 }
 
-tTCB_IDX gatt_get_tcb_idx(tCONN_ID conn_id) { return (uint8_t)(conn_id >> 8); }
+tTCB_IDX gatt_get_tcb_idx(tCONN_ID conn_id) { return static_cast<tTCB_IDX>(conn_id >> 8); }
 
-tGATT_IF gatt_get_gatt_if(tCONN_ID conn_id) { return (tGATT_IF)conn_id; }
+tGATT_IF gatt_get_gatt_if(tCONN_ID conn_id) { return static_cast<tGATT_IF>(conn_id); }
 
 uint16_t gatt_get_mtu_pref(const tGATT_REG* p_reg, const RawAddress& bda) {
   auto mtu_pref = p_reg->mtu_prefs.find(bda);

@@ -1241,9 +1241,6 @@ tL2C_CCB* l2cu_get_next_channel_in_rr(tL2C_LCB* p_lcb) {
         return NULL;
       }
 
-      log::verbose("RR scan pri={}, lcid=0x{:04x}, q_cout={}", p_ccb->ccb_priority,
-                   p_ccb->local_cid, fixed_queue_length(p_ccb->xmit_hold_q));
-
       /* store the next serving channel */
       /* this channel is the last channel of its priority group */
       if ((p_ccb->p_next_ccb == NULL) || (p_ccb->p_next_ccb->ccb_priority != p_ccb->ccb_priority)) {
