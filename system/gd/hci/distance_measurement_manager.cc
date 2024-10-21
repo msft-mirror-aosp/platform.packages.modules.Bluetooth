@@ -47,7 +47,7 @@ const ModuleFactory DistanceMeasurementManager::Factory =
 static constexpr uint16_t kIllegalConnectionHandle = 0xffff;
 static constexpr uint8_t kTxPowerNotAvailable = 0xfe;
 static constexpr int8_t kRSSIDropOffAt1M = 41;
-static constexpr uint8_t kCsMaxTxPower = 12;  // 12 dBm
+static constexpr uint8_t kCsMaxTxPower = 10;  // 10 dBm
 static constexpr CsSyncAntennaSelection kCsSyncAntennaSelection = CsSyncAntennaSelection::ANTENNA_2;
 static constexpr uint8_t kConfigId = 0x01;  // Use 0x01 to create config and enable procedure
 static constexpr uint8_t kMinMainModeSteps = 0x02;
@@ -57,7 +57,7 @@ static constexpr uint8_t kMode0Steps =
         0x03;  // Maximum number of mode-0 steps to increase success subevent rate
 static constexpr uint8_t kChannelMapRepetition = 0x01;  // No repetition
 static constexpr uint8_t kCh3cJump = 0x03;              // Skip 3 Channels
-static constexpr uint16_t kMaxProcedureLen = 0x4E20;    // 12.5s
+static constexpr uint16_t kMaxProcedureLen = 0x2710;    // 6.25s
 static constexpr uint16_t kMinProcedureInterval = 0x01;
 static constexpr uint16_t kMaxProcedureInterval = 0xFF;
 static constexpr uint16_t kMaxProcedureCount = 0x01;
@@ -70,6 +70,7 @@ static constexpr uint16_t kMtuForRasData = 507;            // 512 - 5
 static constexpr uint16_t kRangingCounterMask = 0x0FFF;
 static constexpr uint8_t kInvalidConfigId = 0xFF;
 static constexpr uint16_t kDefaultIntervalMs = 1000;  // 1s
+static constexpr uint8_t kPreferredPeerAntennaValue = 0x01;  // Use first ordered antenna element
 
 struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   struct CsProcedureData {
@@ -590,14 +591,21 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
                     connection_handle, config_id, CsCreateContext::BOTH_LOCAL_AND_REMOTE_CONTROLLER,
                     CsMainModeType::MODE_2, CsSubModeType::UNUSED, kMinMainModeSteps,
                     kMaxMainModeSteps, kMainModeRepetition, kMode0Steps, CsRole::INITIATOR,
-                    CsConfigRttType::RTT_WITH_128_BIT_RANDOM_SEQUENCE, CsSyncPhy::LE_1M_PHY,
-                    channel_map, kChannelMapRepetition, CsChannelSelectionType::TYPE_3B,
-                    CsCh3cShape::HAT_SHAPE, kCh3cJump),
+                    CsConfigRttType::RTT_AA_COARSE, CsSyncPhy::LE_1M_PHY, channel_map,
+                    kChannelMapRepetition, CsChannelSelectionType::TYPE_3B, CsCh3cShape::HAT_SHAPE,
+                    kCh3cJump),
             handler_->BindOnceOn(this, &impl::on_cs_setup_command_status_cb, connection_handle));
   }
 
   void send_le_cs_set_procedure_parameters(uint16_t connection_handle, uint8_t config_id) {
     CsPreferredPeerAntenna preferred_peer_antenna;
+    preferred_peer_antenna.use_first_ordered_antenna_element_ = kPreferredPeerAntennaValue & 0x01;
+    preferred_peer_antenna.use_second_ordered_antenna_element_ =
+            (kPreferredPeerAntennaValue >> 1) & 0x01;
+    preferred_peer_antenna.use_third_ordered_antenna_element_ =
+            (kPreferredPeerAntennaValue >> 2) & 0x01;
+    preferred_peer_antenna.use_fourth_ordered_antenna_element_ =
+            (kPreferredPeerAntennaValue >> 3) & 0x01;
     hci_layer_->EnqueueCommand(
             LeCsSetProcedureParametersBuilder::Create(
                     connection_handle, config_id, kMaxProcedureLen, kMinProcedureInterval,
