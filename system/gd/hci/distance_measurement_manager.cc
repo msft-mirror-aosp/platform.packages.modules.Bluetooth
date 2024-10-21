@@ -591,7 +591,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
                     connection_handle, config_id, CsCreateContext::BOTH_LOCAL_AND_REMOTE_CONTROLLER,
                     CsMainModeType::MODE_2, CsSubModeType::UNUSED, kMinMainModeSteps,
                     kMaxMainModeSteps, kMainModeRepetition, kMode0Steps, CsRole::INITIATOR,
-                    CsConfigRttType::RTT_AA_COARSE, CsSyncPhy::LE_1M_PHY, channel_map,
+                    CsConfigRttType::RTT_AA_ONLY, CsSyncPhy::LE_1M_PHY, channel_map,
                     kChannelMapRepetition, CsChannelSelectionType::TYPE_3B, CsCh3cShape::HAT_SHAPE,
                     kCh3cJump),
             handler_->BindOnceOn(this, &impl::on_cs_setup_command_status_cb, connection_handle));
