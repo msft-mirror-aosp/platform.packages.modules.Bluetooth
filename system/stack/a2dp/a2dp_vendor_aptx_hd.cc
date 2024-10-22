@@ -32,7 +32,6 @@
 #include "a2dp_vendor_aptx_hd_encoder.h"
 #include "btif/include/btif_av_co.h"
 #include "internal_include/bt_trace.h"
-#include "os/log.h"
 #include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 

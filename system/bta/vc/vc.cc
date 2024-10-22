@@ -33,7 +33,6 @@
 #include "bta/le_audio/le_audio_types.h"
 #include "bta/vc/devices.h"
 #include "internal_include/bt_trace.h"
-#include "os/log.h"
 #include "osi/include/osi.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/bt_types.h"
