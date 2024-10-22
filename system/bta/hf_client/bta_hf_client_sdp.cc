@@ -34,7 +34,6 @@
 #include "bta/include/bta_rfcomm_scn.h"
 #include "bta/sys/bta_sys.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"

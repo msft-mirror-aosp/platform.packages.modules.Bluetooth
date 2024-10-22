@@ -28,7 +28,6 @@
 
 #include "bta/gatt/bta_gattc_int.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "stack/include/bt_hdr.h"
 
 using base::StringPrintf;

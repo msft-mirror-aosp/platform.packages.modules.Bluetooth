@@ -37,7 +37,6 @@
 #include "hal/mgmt.h"
 #include "hal/snoop_logger.h"
 #include "metrics/counter_metrics.h"
-#include "os/log.h"
 #include "os/reactor.h"
 #include "os/thread.h"
 

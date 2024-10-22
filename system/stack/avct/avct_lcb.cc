@@ -32,7 +32,6 @@
 #include "avct_int.h"
 #include "device/include/device_iot_config.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
 #include "types/raw_address.h"

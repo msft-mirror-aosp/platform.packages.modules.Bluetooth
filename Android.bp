@@ -75,6 +75,27 @@ cc_defaults {
     cpp_std: "c++20",
 }
 
+// List of tidy checks that are enabled for cc targets.
+// Note that the goal is not to enable all checks, many of them will
+// appear as noise especially in the modernize-* range.
+bluetooth_tidy_checks = [
+    "-*",
+    "misc-*",
+
+    // This check implements detection of local variables which could be declared
+    // as const but are not.
+    "-misc-const-correctness",
+]
+
+// This default tidy checks that will be run against all the cc targets
+// developed by the Bluetooth team.
+cc_defaults {
+    name: "bluetooth_tidy",
+    tidy: true,
+    tidy_checks: bluetooth_tidy_checks,
+    tidy_checks_as_errors: bluetooth_tidy_checks,
+}
+
 java_defaults {
     name: "bluetooth_errorprone_rules",
     errorprone: {
