@@ -34,6 +34,7 @@
 #include "bta/include/bta_api.h"
 #include "bta/sys/bta_sys.h"
 #include "internal_include/bt_target.h"
+#include "os/logging/log_adapter.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_api_types.h"
 #include "stack/include/sdp_status.h"

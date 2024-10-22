@@ -44,3 +44,11 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "socket_settings_api"
+    namespace: "bluetooth"
+    description: "Adds new socket settings interface which allows creation of encryption only socket"
+    bug: "374358112"
+    is_exported: true
+}

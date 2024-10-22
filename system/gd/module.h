@@ -30,7 +30,6 @@
 
 #include "common/bind.h"
 #include "os/handler.h"
-#include "os/log.h"
 #include "os/thread.h"
 
 namespace bluetooth {

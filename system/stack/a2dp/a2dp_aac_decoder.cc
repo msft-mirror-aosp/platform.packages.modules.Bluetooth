@@ -21,7 +21,6 @@
 #include <aacdecoder_lib.h>
 #include <bluetooth/log.h>
 
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 

@@ -66,6 +66,69 @@ static void l2c_csm_send_connect_rsp(tL2C_CCB* p_ccb) {
   l2c_csm_execute(p_ccb, L2CEVT_L2CA_CONNECT_RSP, NULL);
 }
 
+#if (L2CAP_CONFORMANCE_TESTING == TRUE)
+#include "osi/include/properties.h"
+
+/* FCS Flag configuration for L2CAP/FOC/BV-04 and L2CAP/FOC/BV-05
+ * Upper tester implementation for above two testcases where
+ * different FCS options need to be used in different steps.
+ */
+
+/* L2CAP.TSp38, table 4.13 */
+static uint8_t pts_fcs_option_bv_04_c[] = {0x01, 0x01, 0x01, 0x01, 0x01, 0x01};
+
+/* L2CAP.TSp38, table 4.68 */
+static uint8_t pts_fcs_option_bv_05_c[] = {0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01};
+
+static uint8_t pts_foc_bv_test_id_property;
+
+static uint8_t pts_get_fcs_option(void) {
+  static size_t fcs_opt_iter = 0;
+  uint8_t* fcs_test_options = nullptr;
+  uint8_t iter_cnt = 0;
+
+  uint8_t test_id = osi_property_get_int32("bluetooth.pts.l2cap.foc.bv.test", 0);
+  if (pts_foc_bv_test_id_property != test_id) {
+    pts_foc_bv_test_id_property = test_id;
+    fcs_opt_iter = 0;
+  }
+
+  switch (test_id) {
+    case 4:
+      log::info("Proceed test L2CAP/FOC/BV-04-C");
+      fcs_test_options = &pts_fcs_option_bv_04_c[0];
+      iter_cnt = sizeof(pts_fcs_option_bv_04_c);
+      break;
+    case 5:
+      log::info("Proceed test L2CAP/FOC/BV-05-C");
+      fcs_test_options = &pts_fcs_option_bv_05_c[0];
+      iter_cnt = sizeof(pts_fcs_option_bv_05_c);
+      break;
+    default:
+      log::info("Proceed unknown test");
+      return 1;
+  }
+
+  log::info("fcs_opt_iter: {}, fcs option: {}", fcs_opt_iter,
+            fcs_opt_iter < iter_cnt ? fcs_test_options[fcs_opt_iter] : -1);
+
+  if (fcs_opt_iter < iter_cnt) {
+    return fcs_test_options[fcs_opt_iter++];
+  }
+
+  log::info("Too many iterations: {}, return fcs = 0x01", fcs_opt_iter);
+  return 1;
+}
+#endif
+
+static uint8_t get_fcs_option(void) {
+#if (L2CAP_CONFORMANCE_TESTING == TRUE)
+  return pts_get_fcs_option();
+#else
+  return 0x01;
+#endif
+}
+
 // Send a config request and adjust the state machine
 static void l2c_csm_send_config_req(tL2C_CCB* p_ccb) {
   tL2CAP_CFG_INFO config{};
@@ -80,7 +143,7 @@ static void l2c_csm_send_config_req(tL2C_CCB* p_ccb) {
       /* Later l2cu_process_our_cfg_req() will check if remote supports it, and if not, it will be
        * cleared as per spec. */
       config.fcs_present = true;
-      config.fcs = 1;
+      config.fcs = get_fcs_option();
     }
   }
   p_ccb->our_cfg = config;
