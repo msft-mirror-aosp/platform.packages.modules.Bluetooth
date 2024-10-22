@@ -27,7 +27,6 @@
 #include "btif/include/btif_a2dp_source.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_hf.h"
-#include "os/log.h"
 #include "stack/include/avdt_api.h"
 #include "types/raw_address.h"
 #include "udrv/include/uipc.h"

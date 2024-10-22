@@ -28,7 +28,6 @@
 #include "bta/ag/bta_ag_int.h"
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_sco.h"
 #include "udrv/include/uipc.h"
@@ -99,6 +98,7 @@ namespace sco {
 void open() {
   if (sco_uipc != nullptr) {
     log::warn("Re-opening UIPC that is already running");
+    cleanup();
   }
 
   sco_uipc = UIPC_Init();

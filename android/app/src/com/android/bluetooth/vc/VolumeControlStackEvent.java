@@ -18,6 +18,7 @@
 package com.android.bluetooth.vc;
 
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothProfile;
 
 public class VolumeControlStackEvent {
     // Event types for STACK_EVENT message (coming from native)
@@ -33,13 +34,6 @@ public class VolumeControlStackEvent {
     public static final int EVENT_TYPE_EXT_AUDIO_IN_TYPE_CHANGED = 9;
     public static final int EVENT_TYPE_EXT_AUDIO_IN_DESCR_CHANGED = 10;
     public static final int EVENT_TYPE_EXT_AUDIO_IN_GAIN_PROPS_CHANGED = 11;
-
-    // Do not modify without updating the HAL bt_vc_aid.h files.
-    // Match up with enum class ConnectionState of bt_vc_aid.h.
-    static final int CONNECTION_STATE_DISCONNECTED = 0;
-    static final int CONNECTION_STATE_CONNECTING = 1;
-    static final int CONNECTION_STATE_CONNECTED = 2;
-    static final int CONNECTION_STATE_DISCONNECTING = 3;
 
     public int type;
     public BluetoothDevice device;
@@ -108,18 +102,7 @@ public class VolumeControlStackEvent {
     private static String eventTypeValue1ToString(int type, int value) {
         switch (type) {
             case EVENT_TYPE_CONNECTION_STATE_CHANGED:
-                switch (value) {
-                    case CONNECTION_STATE_DISCONNECTED:
-                        return "CONNECTION_STATE_DISCONNECTED";
-                    case CONNECTION_STATE_CONNECTING:
-                        return "CONNECTION_STATE_CONNECTING";
-                    case CONNECTION_STATE_CONNECTED:
-                        return "CONNECTION_STATE_CONNECTED";
-                    case CONNECTION_STATE_DISCONNECTING:
-                        return "CONNECTION_STATE_DISCONNECTING";
-                    default:
-                        return "UNKNOWN";
-                }
+                return BluetoothProfile.getConnectionStateName(value);
             case EVENT_TYPE_VOLUME_STATE_CHANGED:
                 return "{group_id:" + value + "}";
             case EVENT_TYPE_DEVICE_AVAILABLE:
@@ -143,18 +126,7 @@ public class VolumeControlStackEvent {
     private static String eventTypeValue2ToString(int type, int value) {
         switch (type) {
             case EVENT_TYPE_CONNECTION_STATE_CHANGED:
-                switch (value) {
-                    case CONNECTION_STATE_DISCONNECTED:
-                        return "CONNECTION_STATE_DISCONNECTED";
-                    case CONNECTION_STATE_CONNECTING:
-                        return "CONNECTION_STATE_CONNECTING";
-                    case CONNECTION_STATE_CONNECTED:
-                        return "CONNECTION_STATE_CONNECTED";
-                    case CONNECTION_STATE_DISCONNECTING:
-                        return "CONNECTION_STATE_DISCONNECTING";
-                    default:
-                        return "UNKNOWN";
-                }
+                return BluetoothProfile.getConnectionStateName(value);
             case EVENT_TYPE_VOLUME_STATE_CHANGED:
                 return "{volume:" + value + "}";
             case EVENT_TYPE_DEVICE_AVAILABLE:

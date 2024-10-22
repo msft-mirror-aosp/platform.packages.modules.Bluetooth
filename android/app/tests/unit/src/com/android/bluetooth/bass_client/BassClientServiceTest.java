@@ -1868,6 +1868,57 @@ public class BassClientServiceTest {
         }
     }
 
+    /**
+     * Test whether service.removeSource() does send modify source if source is from remote receive
+     * state. In this case, assistant should be able to remove source which was not managed by BASS
+     * service (external manager/no source metadata)
+     */
+    @Test
+    public void testRemoveSourceForGroupAndTriggerModifySourceWithoutMetadata() {
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            injectRemoteSourceStateSourceAdded(
+                    sm,
+                    meta,
+                    TEST_SOURCE_ID,
+                    BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCHRONIZED,
+                    meta.isEncrypted()
+                            ? BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_DECRYPTING
+                            : BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_NOT_ENCRYPTED,
+                    null);
+            // no current broadcast metadata for external broadcast source
+            doReturn(null).when(sm).getCurrentBroadcastMetadata(eq(TEST_SOURCE_ID));
+            doReturn(true).when(sm).isSyncedToTheSource(eq(TEST_SOURCE_ID));
+        }
+
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+            mBassClientService.removeSource(sm.getDevice(), TEST_SOURCE_ID);
+            // Verify device get update source
+            verify(sm, atLeast(1)).sendMessage(messageCaptor.capture());
+
+            Optional<Message> msg =
+                    messageCaptor.getAllValues().stream()
+                            .filter(m -> m.what == BassClientStateMachine.UPDATE_BCAST_SOURCE)
+                            .findFirst();
+            assertThat(msg.isPresent()).isEqualTo(true);
+
+            assertThat(msg.get().arg1).isEqualTo(TEST_SOURCE_ID);
+            assertThat(msg.get().arg2).isEqualTo(BassConstants.PA_SYNC_DO_NOT_SYNC);
+            // Verify metadata is null
+            assertThat(msg.get().obj).isEqualTo(null);
+        }
+
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            injectRemoteSourceStateRemoval(sm, TEST_SOURCE_ID);
+        }
+    }
+
     /** Test whether the group operation flag is set on addSource() and removed on removeSource */
     @Test
     public void testGroupStickyFlagSetUnset() {

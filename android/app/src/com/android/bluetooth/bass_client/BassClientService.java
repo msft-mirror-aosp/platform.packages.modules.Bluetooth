@@ -3017,14 +3017,18 @@ public class BassClientService extends ProfileService {
                 stopBigMonitoring(metaData.getBroadcastId(), true);
             }
 
-            if (metaData != null && stateMachine.isSyncedToTheSource(sourceId)) {
+            if (stateMachine.isSyncedToTheSource(sourceId)) {
                 sEventLogger.logd(
                         TAG,
                         "Remove Broadcast Source(Force lost PA sync): "
                                 + ("device: " + device)
                                 + (", sourceId: " + sourceId)
-                                + (", broadcastId: " + metaData.getBroadcastId())
-                                + (", broadcastName: " + metaData.getBroadcastName()));
+                                + (", broadcastId: "
+                                        + ((metaData == null)
+                                                ? BassConstants.INVALID_BROADCAST_ID
+                                                : metaData.getBroadcastId()))
+                                + (", broadcastName: "
+                                        + ((metaData == null) ? "" : metaData.getBroadcastName())));
 
                 log("Force source to lost PA sync");
                 Message message =
@@ -3032,9 +3036,9 @@ public class BassClientService extends ProfileService {
                 message.arg1 = sourceId;
                 message.arg2 = BassConstants.PA_SYNC_DO_NOT_SYNC;
                 /* Pending remove set. Remove source once not synchronized to PA */
+                /* MetaData can be null if source is from remote's receive state */
                 message.obj = metaData;
                 stateMachine.sendMessage(message);
-
                 continue;
             }
 

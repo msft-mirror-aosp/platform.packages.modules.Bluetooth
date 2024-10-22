@@ -20,7 +20,6 @@
 
 #include "common/strings.h"
 #include "le_audio_types.h"
-#include "os/log.h"
 
 using bluetooth::common::ToString;
 using bluetooth::le_audio::types::AudioContexts;

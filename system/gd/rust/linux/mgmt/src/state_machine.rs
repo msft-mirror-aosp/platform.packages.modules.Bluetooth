@@ -174,8 +174,9 @@ pub struct StateMachineProxy {
 const TX_SEND_TIMEOUT_DURATION: Duration = Duration::from_secs(3);
 
 /// Duration to use for timeouts when starting/stopping adapters.
-/// Some adapters take a while to load firmware so use a sufficiently long timeout here.
-const COMMAND_TIMEOUT_DURATION: Duration = Duration::from_secs(7);
+/// GD start timeout is set for 12 seconds. This timeout needs to be longer than that otherwise
+/// Floss could crash.
+const COMMAND_TIMEOUT_DURATION: Duration = Duration::from_secs(15);
 
 impl StateMachineProxy {
     pub fn start_bluetooth(&self, hci: VirtualHciIndex) {

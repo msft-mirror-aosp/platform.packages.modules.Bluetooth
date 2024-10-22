@@ -12,9 +12,7 @@ cc_defaults {
     name: "gd_defaults",
     defaults: [
         "bluetooth_cflags",
-    ],
-    tidy_checks: [
-        "-performance-unnecessary-value-param",
+        "bluetooth_tidy",
     ],
     target: {
         android: {
@@ -37,56 +35,6 @@ cc_defaults {
         "-fvisibility=hidden",
     ],
     header_libs: ["jni_headers"],
-}
-
-cc_defaults {
-    name: "gd_clang_tidy",
-    tidy: true,
-    tidy_checks: [
-        "-bugprone*",
-        "-cert-dcl21-cpp", // warning: overloaded returns a non-constant object instead of a constant object type
-        "-cert-dcl59-cpp", // warning: do not use unnamed namespaces in header files
-        "-cert-msc30-c", // warning: rand() has limited randomness; use C++11 random library instead
-        "-cert-msc50-cpp", // warning: rand() has limited randomness; use C++11 random library instead
-        "-cert-oop54-cpp", // warning: operator=() does not handle self-assignment properly
-        "-google*",
-        "-performance*",
-        "clang-analyzer-core.CallAndMessage",
-        "clang-analyzer-optin.cplusplus.UninitializedObject",
-    ],
-    tidy_checks_as_errors: [
-        "clang-analyzer-core.CallAndMessage",
-        "clang-analyzer-optin.cplusplus.UninitializedObject",
-        "cppcoreguidelines-pro-type-member-init",
-    ],
-    tidy_flags: [
-        "--header-filter=^.*packages/modules/Bluetooth/system/.*.h$",
-
-        "--extra-arg-before=-Xclang",
-        "--extra-arg-before=-analyzer-config",
-
-        "--extra-arg-before=-Xclang",
-        "--extra-arg-before=optin.cplusplus.UninitializedObject:Pedantic=true",
-
-        "--extra-arg-before=-Xclang",
-        "--extra-arg-before=-analyzer-config",
-
-        "--extra-arg-before=-Xclang",
-        "--extra-arg-before=optin.cplusplus.UninitializedObject:CheckPointeeInitialization=true",
-
-    ],
-}
-
-// Clang is targeted for android core libraries but other base libraries
-// may not support clang tidy recommendations (e.g. MacOS)
-cc_defaults {
-    name: "gd_clang_tidy_ignore_android",
-    tidy: true,
-    tidy_checks: [
-        "-android-cloexec-accept", // warning: prefer accept4() to accept() because accept4() allows SOCK_CLOEXEC
-        "-android-cloexec-pipe2", //  warning: 'pipe2' should use O_CLOEXEC where possible
-        "-android-cloexec-socket", // warning: 'pipe2' should use O_CLOEXEC where possible
-    ],
 }
 
 soong_config_module_type {

@@ -33,7 +33,6 @@
 #include "internal_include/stack_config.h"
 #include "main/shim/entry.h"
 #include "main/shim/hci_layer.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
