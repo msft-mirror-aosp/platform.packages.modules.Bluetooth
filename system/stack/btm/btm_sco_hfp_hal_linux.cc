@@ -23,7 +23,6 @@
 
 #include "hci/controller_interface.h"
 #include "main/shim/entry.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/include/hcimsgs.h"

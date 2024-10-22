@@ -31,7 +31,6 @@
 #include "hci/address.h"
 #include "hci/address_with_type.h"
 #include "hci/le_advertising_manager.h"
-#include "os/log.h"
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"

@@ -23,7 +23,6 @@
 #include <cstring>
 
 #include "main/shim/entry.h"
-#include "os/log.h"
 #include "storage/storage_module.h"
 
 using ::bluetooth::shim::GetStorage;

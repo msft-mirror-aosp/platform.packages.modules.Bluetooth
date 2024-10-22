@@ -186,24 +186,3 @@ only symbols that should be exposed are:
 *   A header library to all exposed API service to profiles and layers
 *   An entry point to a certification interface, libbluetooth\_certification.so
 *   A header library to this certification stack
-
-## Logging
-
-Gabeldorsche uses `printf` style logging with macros defined in `os/log.h`. Five
-log levels are available.
-
-*   LOG_VERBOSE(fmt, args...): Will be disabled by default
-*   LOG_INFO(fmt, args...): Will be disabled by default
-*   LOG_INFO(fmt, args...): Enabled
-*   LOG_WARN(fmt, args...): Enabled
-*   LOG_ERROR(fmt, args...): Enabled
-*   LOG_ALWAYS_FATAL(fmt, args...): Enabled, will always crash
-*   ASSERT(condition): Enabled, will crash when condition is false
-*   ASSERT_LOG(conditon, fmt, args...): Enabled, will crash and print log when
-    condition is false
-
-In general, errors that are caused by remote device should never crash our stack
-and should be logged using LOG_WARN() only. Recoverable errors due to our stack
-or badly behaved bluetooth controller firmware should be logged using
-LOG_ERROR() before recovery. Non-recoverable errors should be logged as
-LOG_ALWAYS_FATAL() to crash the stack and restart.
