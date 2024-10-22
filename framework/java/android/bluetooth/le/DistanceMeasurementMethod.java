@@ -94,7 +94,7 @@ public final class DistanceMeasurementMethod implements Parcelable {
     @FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING_25Q2_APIS)
     @Deprecated
     @SystemApi
-    public @DistanceMeasurementMethodId double getId() {
+    public double getId() {
         return mId;
     }
 

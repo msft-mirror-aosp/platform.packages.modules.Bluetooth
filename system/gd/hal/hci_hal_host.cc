@@ -149,7 +149,7 @@ int waitHciDev(int hci_interface) {
       if (n < 0) {
         bluetooth::log::error("Error reading control channel: {}", strerror(errno));
         break;
-      } else if (n == 0) { // unlikely to happen, just a safeguard.
+      } else if (n == 0) {  // unlikely to happen, just a safeguard.
         bluetooth::log::error("Error reading control channel: EOF");
         break;
       }
@@ -339,6 +339,7 @@ protected:
     // We don't want to crash when the chipset is broken.
     if (sock_fd_ == INVALID_FD) {
       log::error("Failed to connect to HCI socket. Aborting HAL initialization process.");
+      controller_broken_ = true;
       kill(getpid(), SIGTERM);
       return;
     }

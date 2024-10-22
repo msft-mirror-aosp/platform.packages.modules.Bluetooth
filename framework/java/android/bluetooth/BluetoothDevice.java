@@ -1546,8 +1546,8 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     }
 
     /**
-     * Returns the address type of this BluetoothDevice, one of {@link ADDRESS_TYPE_PUBLIC}, {@link
-     * ADDRESS_TYPE_RANDOM}, {@link ADDRESS_TYPE_ANONYMOUS}, or {@link ADDRESS_TYPE_UNKNOWN}.
+     * Returns the address type of this BluetoothDevice, one of {@link #ADDRESS_TYPE_PUBLIC}, {@link
+     * #ADDRESS_TYPE_RANDOM}, {@link #ADDRESS_TYPE_ANONYMOUS}, or {@link #ADDRESS_TYPE_UNKNOWN}.
      *
      * @return Bluetooth address type
      */

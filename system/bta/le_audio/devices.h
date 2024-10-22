@@ -24,6 +24,7 @@
 #include "audio_hal_client/audio_hal_client.h"
 #include "bta_groups.h"
 #include "gatt_api.h"
+#include "gmap_client.h"
 #include "le_audio_types.h"
 #include "os/log.h"
 #include "osi/include/alarm.h"
@@ -109,6 +110,7 @@ public:
   bool allowlist_flag_;
   bool acl_asymmetric_;
   bool acl_phy_update_done_;
+  std::unique_ptr<GmapClient> gmap_client_;
 
   alarm_t* link_quality_timer;
   uint16_t link_quality_timer_data;

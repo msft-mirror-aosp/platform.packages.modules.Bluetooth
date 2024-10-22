@@ -168,8 +168,7 @@ TEST_F(StackGattTest, GATT_Register_Deregister) {
   gatt_free();
 }
 
-TEST_F_WITH_FLAGS(StackGattTest, gatt_status_text,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, enumerate_gatt_errors))) {
+TEST_F(StackGattTest, gatt_status_text) {
   std::vector<std::pair<tGATT_STATUS, std::string>> statuses = {
           std::make_pair(GATT_SUCCESS, "GATT_SUCCESS"),  // Also GATT_ENCRYPED_MITM
           std::make_pair(GATT_INVALID_HANDLE, "GATT_INVALID_HANDLE"),

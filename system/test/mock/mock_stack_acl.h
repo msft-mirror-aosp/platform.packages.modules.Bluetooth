@@ -97,28 +97,6 @@ struct acl_send_data_packet_br_edr {
   void operator()(const RawAddress& bd_addr, BT_HDR* p_buf) { return body(bd_addr, p_buf); }
 };
 extern struct acl_send_data_packet_br_edr acl_send_data_packet_br_edr;
-// Name: acl_create_le_connection
-// Params: const RawAddress& bd_addr
-// Returns: bool
-struct acl_create_le_connection {
-  std::function<bool(const RawAddress& bd_addr)> body{
-          [](const RawAddress& /* bd_addr */) { return false; }};
-  bool operator()(const RawAddress& bd_addr) { return body(bd_addr); }
-};
-extern struct acl_create_le_connection acl_create_le_connection;
-// Name: acl_create_le_connection_with_id
-// Params: uint8_t id, const RawAddress& bd_addr
-// Returns: bool
-struct acl_create_le_connection_with_id {
-  std::function<bool(uint8_t id, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type)> body{
-          [](uint8_t /* id */, const RawAddress& /* bd_addr */, tBLE_ADDR_TYPE /* addr_type */) {
-            return false;
-          }};
-  bool operator()(uint8_t id, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type) {
-    return body(id, bd_addr, addr_type);
-  }
-};
-extern struct acl_create_le_connection_with_id acl_create_le_connection_with_id;
 // Name: acl_is_role_switch_allowed
 // Params:
 // Returns: bool

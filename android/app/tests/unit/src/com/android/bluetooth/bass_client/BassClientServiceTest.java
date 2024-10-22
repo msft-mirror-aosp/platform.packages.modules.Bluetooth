@@ -2139,7 +2139,7 @@ public class BassClientServiceTest {
                 verify(sm, never()).sendMessage(any());
             } else if (sm.getDevice().equals(mCurrentDevice1)) {
                 ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
-                verify(sm, times(1)).sendMessage(messageCaptor.capture());
+                verify(sm).sendMessage(messageCaptor.capture());
                 List<Message> msgs =
                         messageCaptor.getAllValues().stream()
                                 .filter(
@@ -4380,7 +4380,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice, true);
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, true);
 
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
@@ -4396,7 +4396,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice, true);
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, true);
 
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
@@ -4444,7 +4444,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, true);
 
         /* After second device disconnection and de-synchronization expect stopping broadcast */
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
@@ -4473,7 +4473,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, false);
 
         /* After second device disconnection and de-synchronization expect stopping broadcast */
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
@@ -4491,7 +4491,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice, true);
 
         /* After first device disconnection and de-synchronization expect stopping broadcast */
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
 
         /* Imitate first device being in disconnected state */
         doReturn(BluetoothProfile.STATE_DISCONNECTED)
@@ -4502,7 +4502,7 @@ public class BassClientServiceTest {
         mBassClientService.handleDeviceDisconnection(mCurrentDevice1, true);
 
         /* After second device disconnection and de-synchronization expect not stopping broadcast */
-        verify(mLeAudioService, times(1)).stopBroadcast(eq(TEST_BROADCAST_ID));
+        verify(mLeAudioService).stopBroadcast(eq(TEST_BROADCAST_ID));
     }
 
     @Test
@@ -4554,10 +4554,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void onPeriodicAdvertisingReport_withoutBaseData_cancelActiveSync() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -4648,10 +4645,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void onPeriodicAdvertisingReport_wrongBaseData_cancelActiveSync() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -4751,10 +4745,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void onPeriodicAdvertisingReport_updateBase() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -4788,10 +4779,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void onPeriodicAdvertisingReport_updateBaseAfterWrongBaseData() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -4935,10 +4923,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void notifySourceFound_once_updateRssi() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -4995,7 +4980,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS,
         Flags.FLAG_LEAUDIO_BIG_DEPENDS_ON_AUDIO_STATE
     })
     public void notifySourceFound_without_public_announcement() {
@@ -5102,10 +5086,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void notifySourceFound_periodic_after_big() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -5159,7 +5140,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS,
         Flags.FLAG_LEAUDIO_BIG_DEPENDS_ON_AUDIO_STATE
     })
     public void notifySourceFound_periodic_after_wrong_periodic() {
@@ -5251,10 +5231,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void notifySourceFound_alreadySynced_clearFlag() {
         // Scan
         prepareConnectedDeviceGroup();
@@ -5322,10 +5299,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void onSyncLost_notifySourceLostAndCancelSync() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -6470,5 +6444,46 @@ public class BassClientServiceTest {
                 throw new AssertionError("Unexpected device");
             }
         }
+    }
+
+    @Test
+    public void testIsLocalBroadacst() {
+        int broadcastId = 12345;
+
+        BluetoothLeBroadcastMetadata metadata = createBroadcastMetadata(broadcastId);
+        BluetoothLeBroadcastReceiveState receiveState =
+                new BluetoothLeBroadcastReceiveState(
+                        TEST_SOURCE_ID,
+                        metadata.getSourceAddressType(),
+                        metadata.getSourceDevice(),
+                        metadata.getSourceAdvertisingSid(),
+                        metadata.getBroadcastId(),
+                        BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCHRONIZED,
+                        BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_NOT_ENCRYPTED,
+                        null,
+                        metadata.getSubgroups().size(),
+                        // Bis sync states
+                        metadata.getSubgroups().stream()
+                                .map(e -> (long) 0x00000001)
+                                .collect(Collectors.toList()),
+                        metadata.getSubgroups().stream()
+                                .map(e -> e.getContentMetadata())
+                                .collect(Collectors.toList()));
+
+        /* External broadcast check */
+        doReturn(new ArrayList<BluetoothLeBroadcastMetadata>())
+                .when(mLeAudioService)
+                .getAllBroadcastMetadata();
+
+        assertThat(mBassClientService.isLocalBroadcast(metadata)).isFalse();
+        assertThat(mBassClientService.isLocalBroadcast(receiveState)).isFalse();
+
+        /* Local broadcast check */
+        doReturn(new ArrayList<BluetoothLeBroadcastMetadata>(Arrays.asList(metadata)))
+                .when(mLeAudioService)
+                .getAllBroadcastMetadata();
+
+        assertThat(mBassClientService.isLocalBroadcast(metadata)).isTrue();
+        assertThat(mBassClientService.isLocalBroadcast(receiveState)).isTrue();
     }
 }

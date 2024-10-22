@@ -89,10 +89,44 @@ cc_defaults {
     ],
 }
 
+soong_config_module_type {
+    name: "mgmt_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "mgmt",
+    variables: ["vertical"],
+    properties: ["srcs"],
+}
+
+soong_config_string_variable {
+    name: "vertical",
+    values: [
+        "android_default",
+        "android_desktop",
+    ],
+}
+
+mgmt_cc_defaults {
+    name: "mgmt_defaults",
+    soong_config_variables: {
+        vertical: {
+            android_desktop: {
+                srcs: [":BluetoothHalSources_mgmt"],
+            },
+            android_default: {
+                srcs: [":BluetoothHalSources_mgmt_stub"],
+            },
+            conditions_default: {
+                srcs: [":BluetoothHalSources_mgmt_stub"],
+            },
+        },
+    },
+}
+
 cc_defaults {
     name: "libbluetooth_gd_defaults",
     defaults: [
         "gd_defaults",
+        "mgmt_defaults",
     ],
     host_supported: true,
     target: {

@@ -167,14 +167,6 @@ static constexpr const char* kpBtSchedulingTraceLastLogPath =
 // for sco choppy. Value format is a2dp_choppy_threshold,sco_choppy_threshold
 static constexpr const char* kpPropertyChoppyThreshold = "persist.bluetooth.bqr.choppy_threshold";
 
-// File Descriptor of LMP/LL message trace log
-static int LmpLlMessageTraceLogFd = INVALID_FD;
-// File Descriptor of Bluetooth Multi-profile/Coex scheduling trace log
-static int BtSchedulingTraceLogFd = INVALID_FD;
-// Counter of LMP/LL message trace
-static uint16_t LmpLlMessageTraceCounter = 0;
-// Counter of Bluetooth Multi-profile/Coex scheduling trace
-static uint16_t BtSchedulingTraceCounter = 0;
 // The version supports ISO packets start from v1.01(257)
 static constexpr uint16_t kBqrIsoVersion = 0x101;
 // The version supports vendor quality and trace log starting v1.02(258)
@@ -401,6 +393,9 @@ void DisableBtQualityReport();
 //
 // @param fd The file descriptor to use for dumping information.
 void DebugDump(int fd);
+
+// Configure the file descriptor for the LMP/LL message trace log.
+void SetLmpLlMessageTraceLogFd(int fd);
 
 }  // namespace bqr
 }  // namespace bluetooth
