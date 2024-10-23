@@ -1283,6 +1283,9 @@ static void btif_hh_upstreams_evt(uint16_t event, char* p_param) {
     case BTA_HH_API_ERR_EVT:
       log::error("BTA_HH API_ERR");
       break;
+    case BTA_HH_DATA_EVT:
+      // data output is sent - do nothing.
+      break;
     default:
       log::warn("Unhandled event: {}", event);
       break;
