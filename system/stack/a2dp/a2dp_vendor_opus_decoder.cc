@@ -22,7 +22,6 @@
 #include <opus.h>
 
 #include "a2dp_vendor_opus.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 
 using namespace bluetooth;

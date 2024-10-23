@@ -30,7 +30,6 @@
 #include <cstdint>
 
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/sdp_api.h"

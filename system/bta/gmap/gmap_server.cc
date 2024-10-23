@@ -38,7 +38,6 @@
 #include "gd/os/rand.h"
 #include "include/hardware/bt_gmap.h"
 #include "internal_include/bt_trace.h"
-#include "os/log.h"
 #include "os/logging/log_adapter.h"
 #include "osi/include/properties.h"
 #include "stack/include/bt_types.h"

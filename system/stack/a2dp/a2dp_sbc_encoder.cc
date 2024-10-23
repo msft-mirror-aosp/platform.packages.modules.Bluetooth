@@ -25,11 +25,14 @@
 #include <limits.h>
 #include <string.h>
 
+#include <cinttypes>
+
 #include "a2dp_sbc.h"
 #include "a2dp_sbc_up_sample.h"
 #include "common/time_util.h"
 #include "embdrv/sbc/encoder/include/sbc_encoder.h"
 #include "internal_include/bt_target.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 

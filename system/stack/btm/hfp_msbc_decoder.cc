@@ -24,7 +24,6 @@
 
 #include "embdrv/sbc/decoder/include/oi_codec_sbc.h"
 #include "embdrv/sbc/decoder/include/oi_status.h"
-#include "os/log.h"
 
 #define HFP_MSBC_PKT_LEN 60
 #define HFP_MSBC_PCM_BYTES 240

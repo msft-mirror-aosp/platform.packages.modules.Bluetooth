@@ -30,13 +30,6 @@ flag {
 }
 
 flag {
-    name: "le_scan_fix_remote_exception"
-    namespace: "bluetooth"
-    description: "Fix handling remote exception for LE scanners"
-    bug: "320402249"
-}
-
-flag {
     name: "gatt_fix_device_busy"
     namespace: "bluetooth"
     description: "Fix device busy bug in BluetoothGatt"

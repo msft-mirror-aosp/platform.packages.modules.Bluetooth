@@ -21,7 +21,6 @@
 #include <deque>
 #include <string>
 
-#include "gd/os/log.h"
 #include "include/hardware/bluetooth.h"
 #include "macros.h"
 #include "test/headless/log.h"

@@ -25,7 +25,6 @@
 #include "avrc_defs.h"
 #include "avrc_int.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
