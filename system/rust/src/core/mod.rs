@@ -12,7 +12,7 @@ use cxx::UniquePtr;
 
 use crate::{
     gatt::ffi::{AttTransportImpl, GattCallbacksImpl},
-    GlobalModuleRegistry, MainThreadTxMessage, GLOBAL_MODULE_REGISTRY,
+    RustModuleRunner,
 };
 
 use self::ffi::{future_ready, Future, GattServerCallbacks};
@@ -22,7 +22,7 @@ fn start(
     on_started: Pin<&'static mut Future>,
 ) {
     thread::spawn(move || {
-        GlobalModuleRegistry::start(
+        RustModuleRunner::run(
             Rc::new(GattCallbacksImpl(gatt_server_callbacks)),
             Rc::new(AttTransportImpl()),
             || {
@@ -33,9 +33,5 @@ fn start(
 }
 
 fn stop() {
-    let _ = GLOBAL_MODULE_REGISTRY
-        .try_lock()
-        .unwrap()
-        .as_ref()
-        .map(|registry| registry.task_tx.send(MainThreadTxMessage::Stop));
+    RustModuleRunner::stop();
 }
