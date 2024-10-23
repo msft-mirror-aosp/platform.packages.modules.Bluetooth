@@ -4943,7 +4943,7 @@ struct CsOptionalCsSyncPhysSupported {
 }
 
 struct CsOptionalSubfeaturesSupported {
-  _reserved_ : 1,
+  companion_signal : 1,
   frequency_actuation_error : 1,
   channel_selection_algorithm : 1,
   phase_based_ranging : 1,
@@ -5129,7 +5129,7 @@ enum CsRole : 8 {
 }
 
 enum CsConfigRttType : 8 {
-  RTT_AA_ONLY = 0x00,
+  RTT_AA_COARSE = 0x00,
   RTT_WITH_32_BIT_SOUNDING_SEQUENCE = 0x01,
   RTT_WITH_96_BIT_SOUNDING_SEQUENCE = 0x02,
   RTT_WITH_32_BIT_RANDOM_SEQUENCE = 0x03,
@@ -6879,7 +6879,6 @@ packet LeCsProcedureEnableComplete : LeMetaEvent (subevent_code = LE_CS_PROCEDUR
   event_interval : 16,
   procedure_interval : 16,
   procedure_count : 16,
-  max_procedure_len : 16,
 }
 
 struct LeCsMode0InitatorData {
