@@ -119,6 +119,12 @@ static uint8_t pts_get_fcs_option(void) {
   log::info("Too many iterations: {}, return fcs = 0x01", fcs_opt_iter);
   return 1;
 }
+
+static void l2c_csm_send_config_req(tL2C_CCB* p_ccb);
+static void l2c_ccb_pts_delay_config_timeout(void* data) {
+  tL2C_CCB* p_ccb = (tL2C_CCB*)data;
+  l2c_csm_send_config_req(p_ccb);
+}
 #endif
 
 static uint8_t get_fcs_option(void) {
@@ -569,7 +575,13 @@ static void l2c_csm_term_w4_sec_comp(tL2C_CCB* p_ccb, tL2CEVT event, void* p_dat
         if (p_ccb->p_lcb->transport != BT_TRANSPORT_LE) {
           log::debug("Not LE connection, sending configure request");
           l2c_csm_send_connect_rsp(p_ccb);
+#if (L2CAP_CONFORMANCE_TESTING == TRUE)
+          // TODO: when b/374014194 is solved on PTS side, revert change adding this delay.
+          alarm_set_on_mloop(p_ccb->pts_config_delay_timer, 5000, l2c_ccb_pts_delay_config_timeout,
+                             p_ccb);
+#else
           l2c_csm_send_config_req(p_ccb);
+#endif
         } else {
           if (p_ccb->ecoc) {
             /* Handle Credit Based Connection */

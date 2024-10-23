@@ -168,8 +168,10 @@ java_defaults {
             // Exclude generated files
             "-XepExcludedPaths:.*/srcjars/.*",
 
-            // The @InlineMe annotation is not available
-            // "-Xep:InlineMeSuggester:OFF",
+            // The @InlineMe annotation could be made available, but it would
+            // apply on external facing API. This is not desired. For more
+            // context, see https://r.android.com/3303475
+            "-Xep:InlineMeSuggester:OFF",
         ],
     },
 }

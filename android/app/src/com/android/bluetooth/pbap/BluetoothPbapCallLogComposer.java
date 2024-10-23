@@ -280,6 +280,7 @@ public class BluetoothPbapCallLogComposer implements AutoCloseable {
     }
 
     /** Closes the composer, releasing all of its resources. */
+    @Override
     public void close() {
         if (mCursor != null) {
             try {
