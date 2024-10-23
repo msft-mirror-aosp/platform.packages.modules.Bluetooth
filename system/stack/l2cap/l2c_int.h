@@ -282,6 +282,11 @@ struct tL2C_CCB {
 
   alarm_t* l2c_ccb_timer; /* CCB Timer Entry */
 
+#if (L2CAP_CONFORMANCE_TESTING == TRUE)
+  alarm_t* pts_config_delay_timer; /* Used to delay sending CONFIGURATION_REQ to overcome PTS issue
+                                    */
+#endif
+
   tL2C_RCB* p_rcb; /* Registration CB for this Channel */
 
 #define IB_CFG_DONE 0x01

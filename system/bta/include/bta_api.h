@@ -35,7 +35,6 @@
 #include "bta_api_data_types.h"
 #include "hci/le_rand_callback.h"
 #include "macros.h"
-#include "os/log.h"
 #include "stack/btm/btm_eir.h"
 #include "stack/btm/power_mode.h"
 #include "stack/include/bt_dev_class.h"

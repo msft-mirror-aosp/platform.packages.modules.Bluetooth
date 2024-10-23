@@ -30,8 +30,6 @@
 
 #include <cerrno>
 
-#include "os/log.h"
-
 extern int GetAdapterIndex();
 
 namespace bluetooth {

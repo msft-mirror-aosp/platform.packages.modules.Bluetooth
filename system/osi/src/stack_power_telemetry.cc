@@ -28,7 +28,7 @@
 #include <map>
 #include <mutex>
 
-#include "os/log.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/properties.h"
 #include "stack/include/acl_api_types.h"
 #include "stack/include/bt_psm_types.h"

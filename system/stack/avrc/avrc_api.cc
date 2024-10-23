@@ -31,7 +31,6 @@
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_config.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
 #include "osi/include/properties.h"

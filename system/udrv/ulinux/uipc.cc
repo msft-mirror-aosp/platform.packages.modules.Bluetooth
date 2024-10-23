@@ -44,7 +44,6 @@
 #include <cerrno>
 #include <mutex>
 
-#include "os/log.h"
 #include "osi/include/osi.h"
 #include "osi/include/socket_utils/sockets.h"
 

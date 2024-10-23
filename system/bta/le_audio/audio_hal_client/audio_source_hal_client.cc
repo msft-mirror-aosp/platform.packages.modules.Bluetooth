@@ -30,7 +30,6 @@
 #include "common/repeating_timer.h"
 #include "common/time_util.h"
 #include "gd/hal/link_clocker.h"
-#include "os/log.h"
 #include "osi/include/wakelock.h"
 #include "stack/include/main_thread.h"
 

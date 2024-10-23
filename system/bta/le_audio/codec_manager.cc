@@ -31,7 +31,6 @@
 #include "le_audio_set_configuration_provider.h"
 #include "le_audio_utils.h"
 #include "main/shim/entry.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 #include "stack/include/hcimsgs.h"
 

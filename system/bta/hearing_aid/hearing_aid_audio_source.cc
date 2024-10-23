@@ -29,7 +29,6 @@
 #include "bta/include/bta_hearing_aid_api.h"
 #include "common/repeating_timer.h"
 #include "common/time_util.h"
-#include "os/log.h"
 #include "osi/include/wakelock.h"
 #include "stack/include/main_thread.h"
 #include "udrv/include/uipc.h"

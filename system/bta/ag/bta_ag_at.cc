@@ -34,7 +34,6 @@
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/utl.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 
 using namespace bluetooth;
