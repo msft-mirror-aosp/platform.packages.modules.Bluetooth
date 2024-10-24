@@ -31,12 +31,13 @@ using common::BindOnce;
 using fake_timer::fake_timerfd_advance;
 using fake_timer::fake_timerfd_reset;
 
-class AlarmTest : public ::testing::Test {
+class AlarmTest : public ::testing::TestWithParam<bool> {
 protected:
   void SetUp() override {
+    bool isWakeAlarm = GetParam();
     thread_ = new Thread("test_thread", Thread::Priority::NORMAL);
     handler_ = new Handler(thread_);
-    alarm_ = std::make_shared<Alarm>(handler_);
+    alarm_ = std::make_shared<Alarm>(handler_, isWakeAlarm);
   }
 
   void TearDown() override {
@@ -51,7 +52,7 @@ protected:
     handler_->Post(common::BindOnce(fake_timerfd_advance, ms));
   }
 
-  std::shared_ptr<Alarm> get_new_alarm() { return std::make_shared<Alarm>(handler_); }
+  std::shared_ptr<Alarm> get_new_alarm() { return std::make_shared<Alarm>(handler_, GetParam()); }
 
   std::shared_ptr<Alarm> alarm_;
 
@@ -60,9 +61,9 @@ private:
   Thread* thread_;
 };
 
-TEST_F(AlarmTest, cancel_while_not_armed) { alarm_->Cancel(); }
+TEST_P(AlarmTest, cancel_while_not_armed) { alarm_->Cancel(); }
 
-TEST_F(AlarmTest, schedule) {
+TEST_P(AlarmTest, schedule) {
   std::promise<void> promise;
   auto future = promise.get_future();
   int delay_ms = 10;
@@ -73,13 +74,13 @@ TEST_F(AlarmTest, schedule) {
   ASSERT_FALSE(future.valid());
 }
 
-TEST_F(AlarmTest, cancel_alarm) {
+TEST_P(AlarmTest, cancel_alarm) {
   alarm_->Schedule(BindOnce([]() { FAIL() << "Should not happen"; }), std::chrono::milliseconds(3));
   alarm_->Cancel();
   std::this_thread::sleep_for(std::chrono::milliseconds(5));
 }
 
-TEST_F(AlarmTest, cancel_alarm_from_callback) {
+TEST_P(AlarmTest, cancel_alarm_from_callback) {
   std::promise<void> promise;
   auto future = promise.get_future();
   alarm_->Schedule(BindOnce(
@@ -95,7 +96,7 @@ TEST_F(AlarmTest, cancel_alarm_from_callback) {
   ASSERT_EQ(alarm_.use_count(), 1);
 }
 
-TEST_F(AlarmTest, schedule_while_alarm_armed) {
+TEST_P(AlarmTest, schedule_while_alarm_armed) {
   alarm_->Schedule(BindOnce([]() { FAIL() << "Should not happen"; }), std::chrono::milliseconds(1));
   std::promise<void> promise;
   auto future = promise.get_future();
@@ -105,7 +106,7 @@ TEST_F(AlarmTest, schedule_while_alarm_armed) {
   future.get();
 }
 
-TEST_F(AlarmTest, delete_while_alarm_armed) {
+TEST_P(AlarmTest, delete_while_alarm_armed) {
   alarm_->Schedule(BindOnce([]() { FAIL() << "Should not happen"; }), std::chrono::milliseconds(1));
   alarm_.reset();
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -126,7 +127,7 @@ protected:
   std::shared_ptr<Alarm> alarm2;
 };
 
-TEST_F(TwoAlarmTest, schedule_from_alarm_long) {
+TEST_P(TwoAlarmTest, schedule_from_alarm_long) {
   auto promise = std::make_unique<std::promise<void>>();
   auto future = promise->get_future();
   auto promise2 = std::make_unique<std::promise<void>>();
@@ -146,6 +147,12 @@ TEST_F(TwoAlarmTest, schedule_from_alarm_long) {
   fake_timer_advance(10);
   EXPECT_EQ(std::future_status::ready, future2.wait_for(std::chrono::milliseconds(20)));
 }
+
+INSTANTIATE_TEST_SUITE_P(
+        /* no label */, AlarmTest, ::testing::Bool());
+
+INSTANTIATE_TEST_SUITE_P(
+        /* no label */, TwoAlarmTest, ::testing::Bool());
 
 }  // namespace
 }  // namespace os

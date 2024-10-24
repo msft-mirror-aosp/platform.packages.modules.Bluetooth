@@ -39,13 +39,15 @@
 #include "hci/controller_interface.h"
 #include "main/shim/dumpsys.h"
 #include "main/shim/entry.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 

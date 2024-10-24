@@ -41,6 +41,9 @@
 
 #define TEST_BT com::android::bluetooth::flags
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace std::chrono_literals;
 
 using bluetooth::le_audio::types::AudioContexts;
@@ -88,7 +91,7 @@ void btsnd_hcic_ble_rand(base::Callback<void(BT_OCTET8)> cb) { generator_cb = cb
 std::atomic<int> num_async_tasks;
 bluetooth::common::MessageLoopThread message_loop_thread("test message loop");
 bluetooth::common::MessageLoopThread* get_main_thread() { return &message_loop_thread; }
-void invoke_switch_buffer_size_cb(bool is_low_latency_buffer_size) {}
+void invoke_switch_buffer_size_cb(bool /*is_low_latency_buffer_size*/) {}
 
 bt_status_t do_in_main_thread(base::OnceClosure task) {
   // Wrap the task with task counter so we could later know if there are
@@ -224,6 +227,7 @@ public:
               (uint32_t broadcast_id, bluetooth::le_audio::BroadcastState state), (override));
   MOCK_METHOD((void), OnBroadcastMetadataChanged,
               (uint32_t broadcast_id, const BroadcastMetadata& broadcast_metadata), (override));
+  MOCK_METHOD((void), OnBroadcastAudioSessionCreated, (bool success), (override));
 };
 
 class MockAudioHalClientEndpoint : public LeAudioSourceAudioHalClient {
@@ -278,7 +282,7 @@ protected:
       }
     };
 
-    test::mock::osi_alarm::alarm_set_on_mloop.body = [](alarm_t* alarm, uint64_t interval_ms,
+    test::mock::osi_alarm::alarm_set_on_mloop.body = [](alarm_t* alarm, uint64_t /*interval_ms*/,
                                                         alarm_callback_t cb, void* data) {
       alarm->cb = cb;
       alarm->data = data;
@@ -545,6 +549,14 @@ TEST_F(BroadcasterTest, SuspendAudioBroadcast) {
 }
 
 TEST_F(BroadcasterTest, StartAudioBroadcast) {
+  com::android::bluetooth::flags::provider_->leaudio_big_depends_on_audio_state(true);
+
+  // Add Audio Actie State while broadcast created
+  LeAudioSourceAudioHalClient::Callbacks* audio_receiver;
+  EXPECT_CALL(*mock_audio_source_, Start)
+          .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)))
+          .WillRepeatedly(Return(false));
+
   EXPECT_CALL(*mock_codec_manager_, UpdateActiveBroadcastAudioHalClient(mock_audio_source_, true))
           .Times(1);
   auto broadcast_id = InstantiateBroadcast();
@@ -559,10 +571,9 @@ TEST_F(BroadcasterTest, StartAudioBroadcast) {
   EXPECT_CALL(mock_broadcaster_callbacks_,
               OnBroadcastStateChanged(broadcast_id, BroadcastState::STREAMING))
           .Times(1);
-
-  LeAudioSourceAudioHalClient::Callbacks* audio_receiver;
-  EXPECT_CALL(*mock_audio_source_, Start)
-          .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)));
+  // Timers not started
+  ASSERT_TRUE(big_terminate_timer_->cb == nullptr);
+  ASSERT_TRUE(broadcast_stop_timer_->cb == nullptr);
 
   LeAudioBroadcaster::Get()->StartAudioBroadcast(broadcast_id);
   ASSERT_NE(audio_receiver, nullptr);
@@ -586,6 +597,14 @@ TEST_F(BroadcasterTest, StartAudioBroadcast) {
 }
 
 TEST_F(BroadcasterTest, StartAudioBroadcastMedia) {
+  com::android::bluetooth::flags::provider_->leaudio_big_depends_on_audio_state(true);
+
+  // Add Audio Actie State while broadcast created
+  LeAudioSourceAudioHalClient::Callbacks* audio_receiver;
+  EXPECT_CALL(*mock_audio_source_, Start)
+          .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)))
+          .WillRepeatedly(Return(false));
+
   EXPECT_CALL(*mock_codec_manager_, UpdateActiveBroadcastAudioHalClient(mock_audio_source_, true))
           .Times(1);
   auto broadcast_id =
@@ -598,9 +617,10 @@ TEST_F(BroadcasterTest, StartAudioBroadcastMedia) {
               OnBroadcastStateChanged(broadcast_id, BroadcastState::STREAMING))
           .Times(1);
 
-  LeAudioSourceAudioHalClient::Callbacks* audio_receiver;
-  EXPECT_CALL(*mock_audio_source_, Start)
-          .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)));
+  // Timers not started
+  ASSERT_TRUE(big_terminate_timer_->cb == nullptr);
+  ASSERT_TRUE(broadcast_stop_timer_->cb == nullptr);
+
   EXPECT_CALL(*mock_codec_manager_, UpdateActiveBroadcastAudioHalClient(mock_audio_source_, true))
           .Times(0);
   EXPECT_CALL(*mock_codec_manager_, UpdateActiveBroadcastAudioHalClient(mock_audio_source_, false))
@@ -737,7 +757,7 @@ TEST_F(BroadcasterTest, UpdateMetadata) {
           });
 
   EXPECT_CALL(*MockBroadcastStateMachine::GetLastInstance(), UpdatePublicBroadcastAnnouncement)
-          .WillOnce([&](uint32_t broadcast_id, const std::string& broadcast_name,
+          .WillOnce([&](uint32_t /*broadcast_id*/, const std::string& broadcast_name,
                         const bluetooth::le_audio::PublicBroadcastAnnouncementData& announcement) {
             expected_broadcast_name = broadcast_name;
             expected_public_meta = types::LeAudioLtvMap(announcement.metadata).RawPacket();
@@ -815,12 +835,16 @@ static BasicAudioAnnouncementData prepareAnnouncement(
 }
 
 TEST_F(BroadcasterTest, UpdateMetadataFromAudioTrackMetadata) {
-  ContentControlIdKeeper::GetInstance()->SetCcid(LeAudioContextType::MEDIA, media_ccid);
-  auto broadcast_id = InstantiateBroadcast();
+  com::android::bluetooth::flags::provider_->leaudio_big_depends_on_audio_state(true);
 
+  // Add Audio Actie State while broadcast created
   LeAudioSourceAudioHalClient::Callbacks* audio_receiver;
   EXPECT_CALL(*mock_audio_source_, Start)
-          .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)));
+          .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)))
+          .WillRepeatedly(Return(false));
+
+  ContentControlIdKeeper::GetInstance()->SetCcid(LeAudioContextType::MEDIA, media_ccid);
+  auto broadcast_id = InstantiateBroadcast();
 
   LeAudioBroadcaster::Get()->StartAudioBroadcast(broadcast_id);
   ASSERT_NE(audio_receiver, nullptr);
@@ -1174,6 +1198,11 @@ TEST_F(BroadcasterTest, AudioActiveState) {
                                     audio_active_state_true.begin(), audio_active_state_true.end());
 
   // Add Audio Actie State while broadcast created
+  LeAudioSourceAudioHalClient::Callbacks* audio_receiver;
+  EXPECT_CALL(*mock_audio_source_, Start)
+          .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)))
+          .WillRepeatedly(Return(false));
+
   auto broadcast_id = InstantiateBroadcast();
   auto sm = MockBroadcastStateMachine::GetLastInstance();
   pb_announcement = sm->GetPublicBroadcastAnnouncement();
@@ -1182,17 +1211,13 @@ TEST_F(BroadcasterTest, AudioActiveState) {
 
   ON_CALL(*sm, UpdatePublicBroadcastAnnouncement(broadcast_id, _, _))
           .WillByDefault(
-                  [&](uint32_t broadcast_id, const std::string& broadcast_name,
+                  [&](uint32_t /*broadcast_id*/, const std::string& /*broadcast_name*/,
                       const bluetooth::le_audio::PublicBroadcastAnnouncementData& announcement) {
                     pb_announcement = announcement;
                     updated_public_meta = types::LeAudioLtvMap(announcement.metadata).RawPacket();
                   });
   ON_CALL(*sm, GetPublicBroadcastAnnouncement()).WillByDefault(ReturnRef(pb_announcement));
 
-  LeAudioSourceAudioHalClient::Callbacks* audio_receiver;
-  EXPECT_CALL(*mock_audio_source_, Start)
-          .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)))
-          .WillRepeatedly(Return(false));
   LeAudioBroadcaster::Get()->StartAudioBroadcast(broadcast_id);
   ASSERT_NE(audio_receiver, nullptr);
 
@@ -1246,11 +1271,11 @@ TEST_F(BroadcasterTest, BigTerminationAndBroadcastStopWhenNoSoundFromTheBeginnin
   ASSERT_TRUE(big_terminate_timer_ != nullptr);
   ASSERT_TRUE(broadcast_stop_timer_ != nullptr);
 
-  auto broadcast_id = InstantiateBroadcast();
   LeAudioSourceAudioHalClient::Callbacks* audio_receiver;
   EXPECT_CALL(*mock_audio_source_, Start)
           .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)))
           .WillRepeatedly(Return(false));
+  auto broadcast_id = InstantiateBroadcast();
   EXPECT_CALL(mock_broadcaster_callbacks_,
               OnBroadcastStateChanged(broadcast_id, BroadcastState::STREAMING))
           .Times(1);
@@ -1288,11 +1313,11 @@ TEST_F(BroadcasterTest, BigTerminationAndBroadcastStopWhenNoSoundAfterSuspend) {
   ASSERT_TRUE(big_terminate_timer_ != nullptr);
   ASSERT_TRUE(broadcast_stop_timer_ != nullptr);
 
-  auto broadcast_id = InstantiateBroadcast();
   LeAudioSourceAudioHalClient::Callbacks* audio_receiver;
   EXPECT_CALL(*mock_audio_source_, Start)
           .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)))
           .WillRepeatedly(Return(false));
+  auto broadcast_id = InstantiateBroadcast();
   EXPECT_CALL(mock_broadcaster_callbacks_,
               OnBroadcastStateChanged(broadcast_id, BroadcastState::STREAMING))
           .Times(1);
@@ -1358,11 +1383,11 @@ TEST_F(BroadcasterTest, BigCreationTerminationDependsOnAudioResumeSuspend) {
   ASSERT_TRUE(big_terminate_timer_ != nullptr);
   ASSERT_TRUE(broadcast_stop_timer_ != nullptr);
 
-  auto broadcast_id = InstantiateBroadcast();
   LeAudioSourceAudioHalClient::Callbacks* audio_receiver;
   EXPECT_CALL(*mock_audio_source_, Start)
           .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)))
           .WillRepeatedly(Return(false));
+  auto broadcast_id = InstantiateBroadcast();
   EXPECT_CALL(mock_broadcaster_callbacks_,
               OnBroadcastStateChanged(broadcast_id, BroadcastState::STREAMING))
           .Times(1);
@@ -1422,77 +1447,6 @@ TEST_F(BroadcasterTest, BigCreationTerminationDependsOnAudioResumeSuspend) {
   ASSERT_EQ(6, get_func_call_count("alarm_cancel"));
   ASSERT_TRUE(big_terminate_timer_->cb == nullptr);
   ASSERT_TRUE(broadcast_stop_timer_->cb == nullptr);
-}
-
-TEST_F(BroadcasterTest, AudioSuspendBeforeBigCreateCallback) {
-  com::android::bluetooth::flags::provider_->leaudio_big_depends_on_audio_state(true);
-
-  // Timers created
-  ASSERT_TRUE(big_terminate_timer_ != nullptr);
-  ASSERT_TRUE(broadcast_stop_timer_ != nullptr);
-
-  auto broadcast_id = InstantiateBroadcast();
-  LeAudioSourceAudioHalClient::Callbacks* audio_receiver;
-  EXPECT_CALL(*mock_audio_source_, Start)
-          .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)))
-          .WillRepeatedly(Return(false));
-  EXPECT_CALL(mock_broadcaster_callbacks_,
-              OnBroadcastStateChanged(broadcast_id, BroadcastState::STREAMING))
-          .Times(1);
-  // Timers not started
-  ASSERT_TRUE(big_terminate_timer_->cb == nullptr);
-  ASSERT_TRUE(broadcast_stop_timer_->cb == nullptr);
-
-  // Start Broadcast
-  LeAudioBroadcaster::Get()->StartAudioBroadcast(broadcast_id);
-  // Timers started
-  ASSERT_EQ(2, get_func_call_count("alarm_set_on_mloop"));
-  ASSERT_TRUE(big_terminate_timer_->cb != nullptr);
-  ASSERT_TRUE(broadcast_stop_timer_->cb != nullptr);
-  ASSERT_NE(audio_receiver, nullptr);
-
-  // First onAudioResume when BIG already created, not cause any state change
-  EXPECT_CALL(mock_broadcaster_callbacks_, OnBroadcastStateChanged(broadcast_id, _)).Times(0);
-  audio_receiver->OnAudioResume();
-  // Timers cancelled
-  ASSERT_EQ(2, get_func_call_count("alarm_cancel"));
-  ASSERT_TRUE(big_terminate_timer_->cb == nullptr);
-  ASSERT_TRUE(broadcast_stop_timer_->cb == nullptr);
-
-  audio_receiver->OnAudioSuspend();
-  ASSERT_EQ(4, get_func_call_count("alarm_set_on_mloop"));
-  ASSERT_TRUE(big_terminate_timer_->cb != nullptr);
-  ASSERT_TRUE(broadcast_stop_timer_->cb != nullptr);
-
-  // BIG termination timer execution, state machine go to CONFIGURED state so BIG terminated
-  EXPECT_CALL(mock_broadcaster_callbacks_,
-              OnBroadcastStateChanged(broadcast_id, BroadcastState::CONFIGURED))
-          .Times(1);
-  // Imitate execution of BIG termination timer
-  big_terminate_timer_->cb(big_terminate_timer_->data);
-
-  auto mock_state_machine = MockBroadcastStateMachine::GetLastInstance();
-  /* Prepare method that would not proceed BIG created event */
-  EXPECT_CALL(*mock_state_machine, ProcessMessage(BroadcastStateMachine::Message::START, _))
-          .WillOnce(Return());
-
-  // onAudioResume cause state machine go to STREAMING state so BIG creation
-  EXPECT_CALL(mock_broadcaster_callbacks_,
-              OnBroadcastStateChanged(broadcast_id, BroadcastState::STREAMING))
-          .Times(0);
-  audio_receiver->OnAudioResume();
-  // Timers Cancelled
-  ASSERT_EQ(4, get_func_call_count("alarm_cancel"));
-  ASSERT_TRUE(big_terminate_timer_->cb == nullptr);
-  ASSERT_TRUE(broadcast_stop_timer_->cb == nullptr);
-
-  // OnAudioSuspend cause starting the BIG termination timer
-  EXPECT_CALL(*mock_state_machine, ProcessMessage(BroadcastStateMachine::Message::SUSPEND, _))
-          .WillOnce(Return());
-  audio_receiver->OnAudioSuspend();
-  ASSERT_EQ(6, get_func_call_count("alarm_set_on_mloop"));
-  ASSERT_TRUE(big_terminate_timer_->cb != nullptr);
-  ASSERT_TRUE(broadcast_stop_timer_->cb != nullptr);
 }
 
 // TODO: Add tests for:

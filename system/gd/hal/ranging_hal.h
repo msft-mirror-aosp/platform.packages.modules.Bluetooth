@@ -39,6 +39,9 @@ struct ChannelSoundingRawData {
 
 struct RangingResult {
   double result_meters_;
+  // A normalized value from 0 (low confidence) to 100 (high confidence) representing the confidence
+  // of estimated distance. The value is -1 when unavailable.
+  int8_t confidence_level_;
 };
 
 class RangingHalCallback {

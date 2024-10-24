@@ -16,14 +16,32 @@
 
 #define LOG_TAG "BluetoothLeAudioServiceJni"
 
-#include <hardware/bluetooth.h>
+#include <bluetooth/log.h>
+#include <jni.h>
+#include <nativehelper/JNIHelp.h>
+#include <nativehelper/scoped_local_ref.h>
 
+#include <algorithm>
 #include <array>
+#include <cctype>
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
+#include <map>
+#include <mutex>
 #include <optional>
 #include <shared_mutex>
+#include <string>
+#include <type_traits>
+#include <vector>
 
 #include "com_android_bluetooth.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bt_le_audio.h"
+#include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::le_audio::BroadcastId;
 using bluetooth::le_audio::BroadcastState;
@@ -721,6 +739,7 @@ static jmethodID method_onBroadcastCreated;
 static jmethodID method_onBroadcastDestroyed;
 static jmethodID method_onBroadcastStateChanged;
 static jmethodID method_onBroadcastMetadataChanged;
+static jmethodID method_onBroadcastAudioSessionCreated;
 
 static LeAudioBroadcasterInterface* sLeAudioBroadcasterInterface = nullptr;
 static std::shared_timed_mutex sBroadcasterInterfaceMutex;
@@ -1132,6 +1151,19 @@ public:
     sCallbackEnv->CallVoidMethod(sBroadcasterCallbacksObj, method_onBroadcastMetadataChanged,
                                  (jint)broadcast_id, metadata_obj.get());
   }
+
+  void OnBroadcastAudioSessionCreated(bool success) override {
+    log::info("");
+
+    std::shared_lock<std::shared_timed_mutex> lock(sBroadcasterCallbacksMutex);
+    CallbackEnv sCallbackEnv(__func__);
+
+    if (!sCallbackEnv.valid() || sBroadcasterCallbacksObj == nullptr) {
+      return;
+    }
+    sCallbackEnv->CallVoidMethod(sBroadcasterCallbacksObj, method_onBroadcastAudioSessionCreated,
+                                 success ? JNI_TRUE : JNI_FALSE);
+  }
 };
 
 static LeAudioBroadcasterCallbacksImpl sLeAudioBroadcasterCallbacks;
@@ -1449,6 +1481,7 @@ static int register_com_android_bluetooth_le_audio_broadcaster(JNIEnv* env) {
           {"onBroadcastStateChanged", "(II)V", &method_onBroadcastStateChanged},
           {"onBroadcastMetadataChanged", "(ILandroid/bluetooth/BluetoothLeBroadcastMetadata;)V",
            &method_onBroadcastMetadataChanged},
+          {"onBroadcastAudioSessionCreated", "(Z)V", &method_onBroadcastAudioSessionCreated},
   };
   GET_JAVA_METHODS(env, "com/android/bluetooth/le_audio/LeAudioBroadcasterNativeInterface",
                    javaMethods);

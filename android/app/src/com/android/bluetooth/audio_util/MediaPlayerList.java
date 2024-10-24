@@ -233,10 +233,8 @@ public class MediaPlayerList {
         } else {
             // Build the list of browsable players and afterwards, build the list of media players
             Intent intent = new Intent(android.service.media.MediaBrowserService.SERVICE_INTERFACE);
-            if (Flags.keepStoppedMediaBrowserService()) {
-                // Don't query stopped apps, that would end up unstopping them
-                intent.addFlags(Intent.FLAG_EXCLUDE_STOPPED_PACKAGES);
-            }
+            // Don't query stopped apps, that would end up unstopping them
+            intent.addFlags(Intent.FLAG_EXCLUDE_STOPPED_PACKAGES);
             List<ResolveInfo> playerList =
                     mContext.getApplicationContext()
                             .getPackageManager()
@@ -856,10 +854,8 @@ public class MediaPlayerList {
                         .getPackageManager()
                         .queryIntentActivities(intentPlayer, 0);
 
-        if (Flags.keepStoppedMediaBrowserService()) {
-            // Don't query stopped apps, that would end up unstopping them
-            intentBrowsable.addFlags(Intent.FLAG_EXCLUDE_STOPPED_PACKAGES);
-        }
+        // Don't query stopped apps, that would end up unstopping them
+        intentBrowsable.addFlags(Intent.FLAG_EXCLUDE_STOPPED_PACKAGES);
         List<ResolveInfo> browsablePlayerList =
                 mContext.getApplicationContext()
                         .getPackageManager()

@@ -21,13 +21,11 @@ rust_defaults {
     rustlibs: [
         "libbluetooth_core_rs_for_facade",
         "libbt_common",
-        "libbt_shim",
         "libbt_topshim",
         "libbt_topshim_facade_protobuf",
         "libclap",
         "libfutures",
         "libgrpcio",
-        "liblazy_static",
         "liblog_rust",
         "libnix",
         "libnum_traits",
@@ -57,7 +55,6 @@ rust_defaults {
         "libbt-sbc-encoder",
         "libbt-stack",
         "libbt-stack-core",
-        "libbt_shim_bridge",
         "libbt_topshim_cxx",
         "libbtcore",
         "libbtdevice",
@@ -91,10 +88,16 @@ rust_defaults {
 rust_binary_host {
     name: "bt_topshim_facade",
     defaults: ["bt_topshim_facade.defaults"],
+    static_libs: [
+        "bluetooth_flags_c_lib",
+    ],
 }
 
 rust_test_host {
     name: "bt_topshim_facade.test",
     defaults: ["bt_topshim_facade.defaults"],
+    static_libs: [
+        "bluetooth_flags_c_lib_for_test",
+    ],
     test_suites: ["general-tests"],
 }

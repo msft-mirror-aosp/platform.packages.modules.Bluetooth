@@ -380,6 +380,7 @@ public class BluetoothMapSmsPdu {
             Log.v(TAG, "userDataMsgOffset:" + mUserDataMsgOffset);
         }
 
+        @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
         private void gsmWriteDate(ByteArrayOutputStream header, long time) {
             SimpleDateFormat format = new SimpleDateFormat("yyMMddHHmmss");
             Date date = new Date(time);

@@ -17,6 +17,9 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 void update_pce_entry_to_interop_database(RawAddress /* remote_addr */) {
   inc_func_call_count(__func__);
 }

@@ -102,7 +102,7 @@ std::optional<IBluetoothAudioProviderFactory::ProviderInfo>
 BluetoothAudioClientInterface::GetProviderInfo(
         SessionType session_type,
         std::shared_ptr<IBluetoothAudioProviderFactory> provider_factory) {
-  if (!is_aidl_available() || !com::android::bluetooth::flags::a2dp_offload_codec_extensibility()) {
+  if (!is_aidl_available()) {
     return std::nullopt;
   }
 
@@ -127,50 +127,6 @@ BluetoothAudioClientInterface::GetProviderInfo(
   return provider_info;
 }
 
-std::optional<A2dpConfiguration> BluetoothAudioClientInterface::GetA2dpConfiguration(
-        std::vector<A2dpRemoteCapabilities> const& remote_capabilities,
-        A2dpConfigurationHint const& hint) const {
-  if (!is_aidl_available() || !com::android::bluetooth::flags::a2dp_offload_codec_extensibility()) {
-    return std::nullopt;
-  }
-
-  if (provider_ == nullptr) {
-    log::error("can't get a2dp configuration from unknown provider");
-    return std::nullopt;
-  }
-
-  std::optional<A2dpConfiguration> configuration = std::nullopt;
-  auto aidl_retval = provider_->getA2dpConfiguration(remote_capabilities, hint, &configuration);
-
-  if (!aidl_retval.isOk()) {
-    log::error("getA2dpConfiguration failure: {}", aidl_retval.getDescription());
-    return std::nullopt;
-  }
-
-  return configuration;
-}
-
-std::optional<A2dpStatus> BluetoothAudioClientInterface::ParseA2dpConfiguration(
-        const CodecId& codec_id, const std::vector<uint8_t>& configuration,
-        CodecParameters* codec_parameters) const {
-  A2dpStatus a2dp_status;
-
-  if (provider_ == nullptr) {
-    log::error("can not parse A2DP configuration because of unknown provider");
-    return std::nullopt;
-  }
-
-  auto aidl_retval = provider_->parseA2dpConfiguration(codec_id, configuration, codec_parameters,
-                                                       &a2dp_status);
-
-  if (!aidl_retval.isOk()) {
-    log::error("parseA2dpConfiguration failure: {}", aidl_retval.getDescription());
-    return std::nullopt;
-  }
-
-  return std::make_optional(a2dp_status);
-}
-
 void BluetoothAudioClientInterface::FetchAudioProvider() {
   if (!is_aidl_available()) {
     log::error("aidl is not supported on this platform.");
@@ -179,6 +135,8 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
   if (provider_ != nullptr) {
     log::warn("refetch");
   }
+  // Prevent other access to the AIDL if currently fetching new service
+  std::lock_guard<std::mutex> guard(internal_mutex_);
   // Retry if audioserver restarts in the middle of fetching.
   // When audioserver restarts, IBluetoothAudioProviderFactory service is also
   // re-registered, so we need to re-fetch the service.
@@ -195,9 +153,9 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
     auto aidl_retval =
             provider_factory->getProviderCapabilities(transport_->GetSessionType(), &capabilities_);
     if (!aidl_retval.isOk()) {
-      log::fatal("BluetoothAudioHal::getProviderCapabilities failure: {}",
-                 aidl_retval.getDescription());
-      return;
+      log::error("BluetoothAudioHal::getProviderCapabilities failure: {}, retry number {}",
+                 aidl_retval.getDescription(), retry_no + 1);
+      continue;
     }
     if (capabilities_.empty()) {
       log::warn("SessionType={} Not supported by BluetoothAudioHal",
@@ -208,7 +166,7 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
               toString(transport_->GetSessionType()), capabilities_.size());
 
     aidl_retval = provider_factory->openProvider(transport_->GetSessionType(), &provider_);
-    if (!aidl_retval.isOk()) {
+    if (!aidl_retval.isOk() || provider_ == nullptr) {
       log::error("BluetoothAudioHal::openProvider failure: {}, retry number {}",
                  aidl_retval.getDescription(), retry_no + 1);
     } else {
@@ -216,6 +174,7 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
       break;
     }
   }
+  log::assert_that(provider_factory_ != nullptr, "assert failed: provider_factory_ != nullptr");
   log::assert_that(provider_ != nullptr, "assert failed: provider_ != nullptr");
 
   binder_status_t binder_status =
@@ -263,6 +222,7 @@ void BluetoothAudioClientInterface::binderDiedCallbackAidl(void* ptr) {
 }
 
 bool BluetoothAudioClientInterface::UpdateAudioConfig(const AudioConfiguration& audio_config) {
+  std::lock_guard<std::mutex> guard(internal_mutex_);
   bool is_software_session =
           (transport_->GetSessionType() == SessionType::A2DP_SOFTWARE_ENCODING_DATAPATH ||
            transport_->GetSessionType() == SessionType::HEARING_AID_SOFTWARE_ENCODING_DATAPATH ||
@@ -646,6 +606,7 @@ BluetoothAudioClientInterface::GetLeAudioAseConfiguration(
                 std::vector<std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
                 remoteSourceAudioCapabilities,
         std::vector<IBluetoothAudioProvider::LeAudioConfigurationRequirement>& requirements) {
+  std::lock_guard<std::mutex> guard(internal_mutex_);
   log::assert_that(provider_ != nullptr, "assert failed: provider_ != nullptr");
 
   std::vector<IBluetoothAudioProvider::LeAudioAseConfigurationSetting> configurations;
@@ -713,6 +674,7 @@ BluetoothAudioClientInterface::getLeAudioBroadcastConfiguration(
                 std::vector<std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
                 remoteSinkAudioCapabilities,
         const IBluetoothAudioProvider::LeAudioBroadcastConfigurationRequirement& requirement) {
+  std::lock_guard<std::mutex> guard(internal_mutex_);
   log::assert_that(provider_ != nullptr, "assert failed: provider_ != nullptr");
 
   IBluetoothAudioProvider::LeAudioBroadcastConfigurationSetting setting;

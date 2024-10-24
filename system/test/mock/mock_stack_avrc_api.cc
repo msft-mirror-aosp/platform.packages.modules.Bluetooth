@@ -25,6 +25,9 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 bool avrcp_absolute_volume_is_enabled() {
   inc_func_call_count(__func__);
   return true;
@@ -55,7 +58,7 @@ uint16_t AVRC_Open(uint8_t* /* p_handle */, tAVRC_CONN_CB* /* p_ccb */,
   inc_func_call_count(__func__);
   return 0;
 }
-uint16_t AVRC_OpenBrowse(uint8_t /* handle */, uint8_t /* conn_role */) {
+uint16_t AVRC_OpenBrowse(uint8_t /* handle */, tAVCT_ROLE /* conn_role */) {
   inc_func_call_count(__func__);
   return 0;
 }

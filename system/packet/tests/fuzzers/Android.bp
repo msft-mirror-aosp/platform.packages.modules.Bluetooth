@@ -37,6 +37,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -76,6 +77,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -115,6 +117,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -154,6 +157,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -193,6 +197,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -232,6 +237,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -271,6 +277,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -310,6 +317,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -349,6 +357,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -388,6 +397,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -427,6 +437,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -466,6 +477,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -505,6 +517,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -544,6 +557,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -583,6 +597,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -622,6 +637,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -661,6 +677,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -700,6 +717,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -739,6 +757,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -778,6 +797,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -817,6 +837,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -856,6 +877,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -895,6 +917,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -934,6 +957,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [
@@ -973,6 +997,7 @@ cc_fuzz {
         "libgmock",
     ],
     cflags: [
+        "-Wno-missing-prototypes",
         "-Wno-unused-parameter",
     ],
     shared_libs: [

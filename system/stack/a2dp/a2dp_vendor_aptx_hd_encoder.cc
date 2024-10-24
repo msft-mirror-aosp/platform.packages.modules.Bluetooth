@@ -28,7 +28,6 @@
 #include "aptXHDbtenc.h"
 #include "common/time_util.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 

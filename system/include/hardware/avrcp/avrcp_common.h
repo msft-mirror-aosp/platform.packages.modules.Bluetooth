@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include <base/sys_byteorder.h>
-
 #include <set>
 
 namespace bluetooth {

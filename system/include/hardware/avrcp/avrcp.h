@@ -76,8 +76,6 @@ public:
   virtual void SendMediaUpdate(bool track_changed, bool play_state, bool queue) = 0;
   virtual void SendFolderUpdate(bool available_players, bool addressed_players,
                                 bool uids_changed) = 0;
-  virtual void SendActiveDeviceChanged(const RawAddress& address) = 0;
-
   virtual void SendPlayerSettingsChanged(std::vector<PlayerAttribute> attributes,
                                          std::vector<uint8_t> values) = 0;
   virtual ~MediaCallbacks() = default;

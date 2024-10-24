@@ -63,6 +63,9 @@
 #include "stack/include/stack_metrics_logging.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 extern tBTM_CB btm_cb;
 
 /* Default to allow enhanced connections where supported. */

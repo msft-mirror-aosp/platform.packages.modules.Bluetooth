@@ -22,6 +22,9 @@
 #include "stack/sdp/sdpint.h"
 #include "test/common/mock_functions.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 bool SDP_AddAdditionProtoLists(uint32_t /* handle */, uint16_t /* num_elem */,
                                tSDP_PROTO_LIST_ELEM* /* p_proto_list */) {
   inc_func_call_count(__func__);

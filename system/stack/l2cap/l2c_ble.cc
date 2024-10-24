@@ -44,18 +44,23 @@
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/btm/btm_sec_int_types.h"
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_status.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/main_thread.h"
 #include "stack/l2cap/l2c_int.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -305,7 +310,7 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       STREAM_TO_UINT16(timeout, p);      /* 0x000A - 0x0C80 */
       /* If we are a central, the peripheral wants to update the parameters */
       if (p_lcb->IsLinkRoleCentral()) {
-        L2CA_AdjustConnectionIntervals(
+        stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(
                 &min_interval, &max_interval,
                 osi_property_get_int32("bluetooth.core.le.min_connection_interval",
                                        BTM_BLE_CONN_INT_MIN_LIMIT));
@@ -920,10 +925,10 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
   }
 }
 
-/** This function is to initate a direct connection. Returns true if connection
+/** This function is to initiate a direct connection. Returns true if connection
  * initiated, false otherwise. */
 bool l2cble_create_conn(tL2C_LCB* p_lcb) {
-  if (!acl_create_le_connection(p_lcb->remote_bd_addr)) {
+  if (!connection_manager::create_le_connection(CONN_MGR_ID_L2CAP, p_lcb->remote_bd_addr)) {
     return false;
   }
 

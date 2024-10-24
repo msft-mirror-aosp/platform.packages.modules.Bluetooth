@@ -862,6 +862,7 @@ enum EventCode : 8 {
   LE_META_EVENT = 0x3e,
   NUMBER_OF_COMPLETED_DATA_BLOCKS = 0x48,
   AUTHENTICATED_PAYLOAD_TIMEOUT_EXPIRED = 0x57,
+  ENCRYPTION_CHANGE_V2 = 0x59,
   VENDOR_SPECIFIC = 0xFF,
 }
 
@@ -5011,6 +5012,7 @@ packet LeCsReadLocalSupportedCapabilitiesComplete : CommandComplete (command_op_
   optional_t_fcs_times_supported : CsOptionalTFcsTimesSupported,
   optional_t_pm_times_supported : CsOptionalTPmTimesSupported,
   t_sw_time_supported : 8,
+  optional_tx_snr_capability : 8,
 }
 
 packet LeCsReadRemoteSupportedCapabilities : DistanceMeasurementCommand (op_code = LE_CS_READ_REMOTE_SUPPORTED_CAPABILITIES) {
@@ -5043,6 +5045,7 @@ packet LeCsWriteCachedRemoteSupportedCapabilities : DistanceMeasurementCommand (
   optional_t_fcs_times_supported : CsOptionalTFcsTimesSupported,
   optional_t_pm_times_supported : CsOptionalTPmTimesSupported,
   t_sw_time_supported : 8,
+  optional_tx_snr_capability: 8,
 }
 
 packet LeCsWriteCachedRemoteSupportedCapabilitiesComplete : CommandComplete (command_op_code = LE_CS_WRITE_CACHED_REMOTE_SUPPORTED_CAPABILITIES) {
@@ -5172,7 +5175,7 @@ packet LeCsCreateConfig : DistanceMeasurementCommand (op_code = LE_CS_CREATE_CON
   channel_selection_type : CsChannelSelectionType,
   ch3c_shape : CsCh3cShape,
   ch3c_jump : 8,
-  companion_signal_enable : Enable,
+  _reserved_ : 8,
 }
 
 packet LeCsCreateConfigStatus : CommandStatus (command_op_code = LE_CS_CREATE_CONFIG) {
@@ -6327,6 +6330,14 @@ packet AuthenticatedPayloadTimeoutExpired : Event (event_code = AUTHENTICATED_PA
   _reserved_ : 4,
 }
 
+packet EncryptionChangeV2 : Event (event_code = ENCRYPTION_CHANGE_V2) {
+  status : ErrorCode,
+  connection_handle : 12,
+  _reserved_ : 4,
+  encryption_enabled : EncryptionEnabled,
+  key_size : 8,
+}
+
 // LE Events
 packet LeConnectionComplete : LeMetaEvent (subevent_code = CONNECTION_COMPLETE) {
   status : ErrorCode,
@@ -6792,6 +6803,7 @@ packet LeCsReadRemoteSupportedCapabilitiesComplete : LeMetaEvent (subevent_code 
   optional_t_fcs_times_supported : CsOptionalTFcsTimesSupported,
   optional_t_pm_times_supported : CsOptionalTPmTimesSupported,
   t_sw_time_supported : 8,
+  optional_tx_snr_capability : 8,
 }
 
 packet LeCsReadRemoteFaeTableComplete : LeMetaEvent (subevent_code = LE_CS_READ_REMOTE_FAE_TABLE_COMPLETE) {
@@ -6845,7 +6857,7 @@ packet LeCsConfigComplete : LeMetaEvent (subevent_code = LE_CS_CONFIG_COMPLETE) 
   channel_selection_type : CsChannelSelectionType,
   ch3c_shape : CsCh3cShape,
   ch3c_jump : 8,
-  companion_signal_enable : Enable,
+  _reserved_ : 8,
   t_ip1_time : 8,
   t_ip2_time : 8,
   t_fcs_time : 8,

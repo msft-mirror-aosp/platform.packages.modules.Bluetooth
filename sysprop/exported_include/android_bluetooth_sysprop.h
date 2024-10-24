@@ -21,4 +21,5 @@
 #include <ble.sysprop.h>
 #include <bta.sysprop.h>
 #include <device_id.sysprop.h>
+#include <gap.sysprop.h>
 #include <hfp.sysprop.h>

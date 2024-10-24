@@ -32,6 +32,7 @@
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_common.h"
 #include "osi/include/osi.h"
+#include "profile/avrcp/avrcp_config.h"
 #include "profile/avrcp/device.h"
 #include "stack/include/a2dp_api.h"
 #include "stack/include/bt_hdr.h"
@@ -100,7 +101,7 @@ public:
     return AVRC_Open(p_handle, p_ccb, bd_addr);
   }
 
-  uint16_t OpenBrowse(uint8_t handle, uint8_t conn_role) override {
+  uint16_t OpenBrowse(uint8_t handle, tAVCT_ROLE conn_role) override {
     return AVRC_OpenBrowse(handle, conn_role);
   }
 
@@ -576,11 +577,6 @@ void AvrcpService::SendFolderUpdate(bool available_players, bool addressed_playe
     do_in_main_thread(base::BindOnce(&Device::SendFolderUpdate, device.get()->Get(),
                                      available_players, addressed_players, uids));
   }
-}
-
-// Send out the track changed info to update the playback state for each device
-void AvrcpService::SendActiveDeviceChanged(const RawAddress& address) {
-  SendMediaUpdate(false, true, false);
 }
 
 void AvrcpService::SendPlayerSettingsChanged(std::vector<PlayerAttribute> attributes,

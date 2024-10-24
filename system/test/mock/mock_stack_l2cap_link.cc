@@ -26,6 +26,9 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 BT_HDR* l2cu_get_next_buffer_to_send(tL2C_LCB* /* p_lcb */) {
   inc_func_call_count(__func__);
   return nullptr;

@@ -57,6 +57,9 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace bluetooth::testing {
 void set_hal_cbacks(bt_callbacks_t* callbacks);
 }  // namespace bluetooth::testing
@@ -288,42 +291,6 @@ TEST_F(BtifCoreTest, test_post_on_bt_jni_simple3) {
   post_on_bt_jni(closure);
   ASSERT_EQ(std::future_status::ready, future.wait_for(timeout_time));
   ASSERT_EQ(val, future.get());
-}
-
-extern const char* dump_av_sm_event_name(int event);
-TEST_F(BtifUtilsTest, dump_av_sm_event_name) {
-  std::vector<std::pair<int, std::string>> events = {
-          std::make_pair(BTA_AV_ENABLE_EVT, "BTA_AV_ENABLE_EVT"),
-          std::make_pair(BTA_AV_REGISTER_EVT, "BTA_AV_REGISTER_EVT"),
-          std::make_pair(BTA_AV_OPEN_EVT, "BTA_AV_OPEN_EVT"),
-          std::make_pair(BTA_AV_CLOSE_EVT, "BTA_AV_CLOSE_EVT"),
-          std::make_pair(BTA_AV_START_EVT, "BTA_AV_START_EVT"),
-          std::make_pair(BTA_AV_STOP_EVT, "BTA_AV_STOP_EVT"),
-          std::make_pair(BTA_AV_PROTECT_REQ_EVT, "BTA_AV_PROTECT_REQ_EVT"),
-          std::make_pair(BTA_AV_PROTECT_RSP_EVT, "BTA_AV_PROTECT_RSP_EVT"),
-          std::make_pair(BTA_AV_RC_OPEN_EVT, "BTA_AV_RC_OPEN_EVT"),
-          std::make_pair(BTA_AV_RC_CLOSE_EVT, "BTA_AV_RC_CLOSE_EVT"),
-          std::make_pair(BTA_AV_RC_BROWSE_OPEN_EVT, "BTA_AV_RC_BROWSE_OPEN_EVT"),
-          std::make_pair(BTA_AV_RC_BROWSE_CLOSE_EVT, "BTA_AV_RC_BROWSE_CLOSE_EVT"),
-          std::make_pair(BTA_AV_REMOTE_CMD_EVT, "BTA_AV_REMOTE_CMD_EVT"),
-          std::make_pair(BTA_AV_REMOTE_RSP_EVT, "BTA_AV_REMOTE_RSP_EVT"),
-          std::make_pair(BTA_AV_VENDOR_CMD_EVT, "BTA_AV_VENDOR_CMD_EVT"),
-          std::make_pair(BTA_AV_VENDOR_RSP_EVT, "BTA_AV_VENDOR_RSP_EVT"),
-          std::make_pair(BTA_AV_RECONFIG_EVT, "BTA_AV_RECONFIG_EVT"),
-          std::make_pair(BTA_AV_SUSPEND_EVT, "BTA_AV_SUSPEND_EVT"),
-          std::make_pair(BTA_AV_PENDING_EVT, "BTA_AV_PENDING_EVT"),
-          std::make_pair(BTA_AV_META_MSG_EVT, "BTA_AV_META_MSG_EVT"),
-          std::make_pair(BTA_AV_REJECT_EVT, "BTA_AV_REJECT_EVT"),
-          std::make_pair(BTA_AV_RC_FEAT_EVT, "BTA_AV_RC_FEAT_EVT"),
-          std::make_pair(BTA_AV_RC_PSM_EVT, "BTA_AV_RC_PSM_EVT"),
-          std::make_pair(BTA_AV_OFFLOAD_START_RSP_EVT, "BTA_AV_OFFLOAD_START_RSP_EVT"),
-  };
-  for (const auto& event : events) {
-    ASSERT_EQ(event.second, dump_av_sm_event_name(event.first));
-  }
-  std::ostringstream oss;
-  oss << "UNKNOWN_EVENT";
-  ASSERT_EQ(oss.str(), dump_av_sm_event_name(std::numeric_limits<int>::max()));
 }
 
 TEST_F(BtifUtilsTest, dump_dm_search_event) {
@@ -921,10 +888,6 @@ TEST_F(BtifCoreVseWithSocketTest, debug_dump_empty) {
   EXPECT_EQ(std::future_status::ready, reading_done.wait_for(std::chrono::seconds(1)));
 }
 
-namespace bluetooth::bqr::testing {
-void set_lmp_trace_log_fd(int fd);
-}
-
 TEST_F(BtifCoreVseWithSocketTest, send_lmp_ll_msg) {
   auto payload = std::make_unique<RawBuilder>();
   payload->AddOctets({'d', 'a', 't', 'a'});
@@ -937,7 +900,7 @@ TEST_F(BtifCoreVseWithSocketTest, send_lmp_ll_msg) {
   auto reading_done = reading_promise->get_future();
 
   static int write_fd = write_fd_;
-  do_in_main_thread(BindOnce([]() { bluetooth::bqr::testing::set_lmp_trace_log_fd(write_fd); }));
+  do_in_main_thread(BindOnce([]() { bluetooth::bqr::SetLmpLlMessageTraceLogFd(write_fd); }));
   vse_callback_(view);
 
   do_in_main_thread(BindOnce(

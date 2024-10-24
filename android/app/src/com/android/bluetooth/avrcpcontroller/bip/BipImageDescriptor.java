@@ -267,6 +267,12 @@ public class BipImageDescriptor {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hash(
+                getEncoding(), getPixel(), getTransformation(), getSize(), getMaxSize());
+    }
+
+    @Override
     @SuppressLint("ToStringReturnsNull") // Since this is used for encoding to xml
     public String toString() {
         if (mEncoding == null || mPixel == null) {

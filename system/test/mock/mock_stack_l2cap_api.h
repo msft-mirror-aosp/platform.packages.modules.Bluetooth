@@ -31,7 +31,7 @@
 #include <cstdint>
 
 #include "stack/include/bt_hdr.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 

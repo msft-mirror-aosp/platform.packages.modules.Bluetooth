@@ -293,7 +293,8 @@ public class GattNativeInterface {
             boolean isDirect,
             int transport,
             boolean opportunistic,
-            int initiatingPhys);
+            int initiatingPhys,
+            int preferredMtu);
 
     private native void gattClientDisconnectNative(int clientIf, String address, int connId);
 
@@ -447,9 +448,17 @@ public class GattNativeInterface {
             boolean isDirect,
             int transport,
             boolean opportunistic,
-            int initiatingPhys) {
+            int initiatingPhys,
+            int preferredMtu) {
         gattClientConnectNative(
-                clientIf, address, addressType, isDirect, transport, opportunistic, initiatingPhys);
+                clientIf,
+                address,
+                addressType,
+                isDirect,
+                transport,
+                opportunistic,
+                initiatingPhys,
+                preferredMtu);
     }
 
     /** Disconnect from the remote Gatt server */

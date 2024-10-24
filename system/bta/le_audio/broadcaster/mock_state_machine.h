@@ -37,7 +37,7 @@ public:
     ON_CALL(*this, ProcessMessage)
             .WillByDefault(
                     [this](bluetooth::le_audio::broadcaster::BroadcastStateMachine::Message event,
-                           const void* data) {
+                           const void* /*data*/) {
                       const void* sent_data = nullptr;
                       switch (event) {
                         case Message::START:

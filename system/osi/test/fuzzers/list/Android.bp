@@ -21,5 +21,4 @@ cc_fuzz {
         "liblog",
         "libosi",
     ],
-    cflags: ["-Wno-unused-parameter"],
 }

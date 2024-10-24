@@ -357,12 +357,16 @@ public class BrowseTree {
         }
 
         @Override
-        public boolean equals(Object other) {
-            if (!(other instanceof BrowseNode)) {
+        public boolean equals(Object obj) {
+            if (!(obj instanceof BrowseNode other)) {
                 return false;
             }
-            BrowseNode otherNode = (BrowseNode) other;
-            return getID().equals(otherNode.getID());
+            return getID().equals(other.getID());
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(getID());
         }
 
         public synchronized void toTreeString(int depth, StringBuilder sb) {

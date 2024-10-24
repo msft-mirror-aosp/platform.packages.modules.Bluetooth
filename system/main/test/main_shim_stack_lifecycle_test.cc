@@ -157,7 +157,7 @@ public:
   }
 
 protected:
-  void ListDependencies(ModuleList* list) const override {}
+  void ListDependencies(ModuleList* /*list*/) const override {}
   void Start() override { log::error("Started TestStackModuleBase"); }
   void Stop() override { log::error("Stopped TestStackModuleBase"); }
   std::string ToString() const override { return std::string("TestFunction"); }
@@ -503,29 +503,29 @@ TEST_F(StackLifecycleWithDefaultModulesUnitTest, client_using_stack_manager) {
   for (int i = 0; i < kNumIters; i++) {
     for (auto& c : client_group.clients_) {
       c->Post(base::BindOnce(
-              [](int id, int iter, std::shared_ptr<TestStackManager> stack_manager) {
+              [](int /*id*/, int iter, std::shared_ptr<TestStackManager> stack_manager) {
                 stack_manager->GetUnsafeModule<TestStackModule1>()->TestMethod({
                         .iter = iter,
                         .tag = std::string(kTestDataTag),
-                        .callback = [](TestCallbackData data) {},
+                        .callback = [](TestCallbackData /*data*/) {},
                 });
               },
               c->Id(), i, StackManager()));
       c->Post(base::BindOnce(
-              [](int id, int iter, std::shared_ptr<TestStackManager> stack_manager) {
+              [](int /*id*/, int iter, std::shared_ptr<TestStackManager> stack_manager) {
                 stack_manager->GetUnsafeModule<TestStackModule2>()->TestMethod({
                         .iter = iter,
                         .tag = std::string(kTestDataTag),
-                        .callback = [](TestCallbackData data) {},
+                        .callback = [](TestCallbackData /*data*/) {},
                 });
               },
               c->Id(), i, StackManager()));
       c->Post(base::BindOnce(
-              [](int id, int iter, std::shared_ptr<TestStackManager> stack_manager) {
+              [](int /*id*/, int iter, std::shared_ptr<TestStackManager> stack_manager) {
                 stack_manager->GetUnsafeModule<TestStackModule3>()->TestMethod({
                         .iter = iter,
                         .tag = std::string(kTestDataTag),
-                        .callback = [](TestCallbackData data) {},
+                        .callback = [](TestCallbackData /*data*/) {},
                 });
               },
               c->Id(), i, StackManager()));
@@ -554,12 +554,12 @@ TEST_F(StackLifecycleWithDefaultModulesUnitTest, client_using_stack_manager_when
   for (int i = 0; i < kNumIters; i++) {
     for (auto& c : client_group.clients_) {
       c->Post(base::BindOnce(
-              [](int id, int iter, Counters* counters,
-                 std::shared_ptr<TestStackManager> stack_manager) {
+              [](int /*id*/, int iter, Counters* counters,
+                 std::shared_ptr<TestStackManager> /*stack_manager*/) {
                 TestData test_data = {
                         .iter = iter,
                         .tag = std::string(kTestDataTag),
-                        .callback = [](TestCallbackData data) {},
+                        .callback = [](TestCallbackData /*data*/) {},
                 };
                 if (bluetooth::shim::Stack::GetInstance()->CallOnModule<TestStackModule1>(
                             [test_data](TestStackModule1* mod) { mod->TestMethod(test_data); })) {
@@ -570,12 +570,12 @@ TEST_F(StackLifecycleWithDefaultModulesUnitTest, client_using_stack_manager_when
               },
               c->Id(), i, &counters, StackManager()));
       c->Post(base::BindOnce(
-              [](int id, int iter, Counters* counters,
-                 std::shared_ptr<TestStackManager> stack_manager) {
+              [](int /*id*/, int iter, Counters* counters,
+                 std::shared_ptr<TestStackManager> /*stack_manager*/) {
                 TestData test_data = {
                         .iter = iter,
                         .tag = std::string(kTestDataTag),
-                        .callback = [](TestCallbackData data) {},
+                        .callback = [](TestCallbackData /*data*/) {},
                 };
                 if (bluetooth::shim::Stack::GetInstance()->CallOnModule<TestStackModule2>(
                             [test_data](TestStackModule2* mod) { mod->TestMethod(test_data); })) {
@@ -586,12 +586,12 @@ TEST_F(StackLifecycleWithDefaultModulesUnitTest, client_using_stack_manager_when
               },
               c->Id(), i, &counters, StackManager()));
       c->Post(base::BindOnce(
-              [](int id, int iter, Counters* counters,
-                 std::shared_ptr<TestStackManager> stack_manager) {
+              [](int /*id*/, int iter, Counters* counters,
+                 std::shared_ptr<TestStackManager> /*stack_manager*/) {
                 TestData test_data = {
                         .iter = iter,
                         .tag = std::string(kTestDataTag),
-                        .callback = [](TestCallbackData data) {},
+                        .callback = [](TestCallbackData /*data*/) {},
                 };
                 if (bluetooth::shim::Stack::GetInstance()->CallOnModule<TestStackModule3>(
                             [test_data](TestStackModule3* mod) { mod->TestMethod(test_data); })) {

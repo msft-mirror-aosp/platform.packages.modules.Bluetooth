@@ -34,12 +34,12 @@
 #define LOG_TAG "btm_acl"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
 #include "bta/include/bta_dm_acl.h"
 #include "bta/sys/bta_sys.h"
-#include "common/init_flags.h"
 #include "common/metrics.h"
 #include "device/include/device_iot_config.h"
 #include "device/include/interop.h"
@@ -54,8 +54,6 @@
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "osi/include/stack_power_telemetry.h"
-#include "rust/src/connection/ffi/connection_shim.h"
-#include "rust/src/core/ffi/types.h"
 #include "stack/acl/acl.h"
 #include "stack/acl/peer_packet_types.h"
 #include "stack/btm/btm_ble_int.h"
@@ -89,13 +87,15 @@
 #define PROPERTY_AUTO_FLUSH_TIMEOUT "bluetooth.core.classic.auto_flush_timeout"
 #endif
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 using bluetooth::legacy::hci::GetInterface;
 
 void BTM_update_version_info(const RawAddress& bd_addr,
                              const remote_version_info& remote_version_info);
 
-static void find_in_device_record(const RawAddress& bd_addr, tBLE_BD_ADDR* address_with_type);
 void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddress& p_bda);
 
 void BTM_db_reset(void);
@@ -190,7 +190,7 @@ void NotifyAclFeaturesReadComplete(tACL_CONN& p_acl, uint8_t max_page_number) {
   btm_process_remote_ext_features(&p_acl, max_page_number);
   btm_set_link_policy(&p_acl, btm_cb.acl_cb_.DefaultLinkPolicy());
   int32_t flush_timeout = osi_property_get_int32(PROPERTY_AUTO_FLUSH_TIMEOUT, 0);
-  if (flush_timeout != 0) {
+  if (bluetooth::shim::GetController()->SupportsNonFlushablePb() && flush_timeout != 0) {
     acl_write_automatic_flush_timeout(p_acl.remote_addr, static_cast<uint16_t>(flush_timeout));
   }
   BTA_dm_notify_remote_features_complete(p_acl.remote_addr);
@@ -774,16 +774,6 @@ void BTM_default_unblock_role_switch() {
 
 extern void bta_gattc_continue_discovery_if_needed(const RawAddress& bd_addr, uint16_t acl_handle);
 
-/*******************************************************************************
- *
- * Function         btm_read_remote_version_complete
- *
- * Description      This function is called when the command complete message
- *                  is received from the HCI for the remote version info.
- *
- * Returns          void
- *
- ******************************************************************************/
 static void maybe_chain_more_commands_after_read_remote_version_complete(uint8_t /* status */,
                                                                          uint16_t handle) {
   tACL_CONN* p_acl_cb = internal_.acl_get_connection_from_handle(handle);
@@ -837,6 +827,16 @@ void btm_process_remote_version_complete(uint8_t status, uint16_t handle, uint8_
   }
 }
 
+/*******************************************************************************
+ *
+ * Function         btm_read_remote_version_complete
+ *
+ * Description      This function is called when the command complete message
+ *                  is received from the HCI for the remote version info.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
 void btm_read_remote_version_complete(tHCI_STATUS status, uint16_t handle, uint8_t lmp_version,
                                       uint16_t manufacturer, uint16_t lmp_subversion) {
   btm_process_remote_version_complete(status, handle, lmp_version, manufacturer, lmp_subversion);
@@ -2461,44 +2461,6 @@ void acl_write_automatic_flush_timeout(const RawAddress& bd_addr, uint16_t flush
   btsnd_hcic_write_auto_flush_tout(p_acl->hci_handle, flush_timeout_in_ticks);
 }
 
-bool acl_create_le_connection_with_id(uint8_t id, const RawAddress& bd_addr,
-                                      tBLE_ADDR_TYPE addr_type) {
-  tBLE_BD_ADDR address_with_type{
-          .type = addr_type,
-          .bda = bd_addr,
-  };
-
-  find_in_device_record(bd_addr, &address_with_type);
-
-  log::debug("Creating le direct connection to:{} type:{} (initial type: {})", address_with_type,
-             AddressTypeText(address_with_type.type), AddressTypeText(addr_type));
-
-  if (address_with_type.type == BLE_ADDR_ANONYMOUS) {
-    log::warn(
-            "Creating le direct connection to:{}, address type 'anonymous' is "
-            "invalid",
-            address_with_type);
-    return false;
-  }
-
-  if (bluetooth::common::init_flags::use_unified_connection_manager_is_enabled()) {
-    bluetooth::connection::GetConnectionManager().start_direct_connection(
-            id, bluetooth::core::ToRustAddress(address_with_type));
-  } else {
-    bluetooth::shim::ACL_AcceptLeConnectionFrom(address_with_type,
-                                                /* is_direct */ true);
-  }
-  return true;
-}
-
-bool acl_create_le_connection_with_id(uint8_t id, const RawAddress& bd_addr) {
-  return acl_create_le_connection_with_id(id, bd_addr, BLE_ADDR_PUBLIC);
-}
-
-bool acl_create_le_connection(const RawAddress& bd_addr) {
-  return acl_create_le_connection_with_id(CONN_MGR_ID_L2CAP, bd_addr);
-}
-
 void acl_rcv_acl_data(BT_HDR* p_msg) {
   acl_header_t acl_header{
           .handle = HCI_INVALID_HANDLE,
@@ -2593,24 +2555,6 @@ tACL_CONN* btm_acl_for_bda(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
     return nullptr;
   }
   return p_acl;
-}
-
-void find_in_device_record(const RawAddress& bd_addr, tBLE_BD_ADDR* address_with_type) {
-  const tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
-  if (p_dev_rec == nullptr) {
-    return;
-  }
-
-  if (p_dev_rec->device_type & BT_DEVICE_TYPE_BLE) {
-    if (p_dev_rec->ble.identity_address_with_type.bda.IsEmpty()) {
-      *address_with_type = {.type = p_dev_rec->ble.AddressType(), .bda = bd_addr};
-      return;
-    }
-    *address_with_type = p_dev_rec->ble.identity_address_with_type;
-    return;
-  }
-  *address_with_type = {.type = BLE_ADDR_PUBLIC, .bda = bd_addr};
-  return;
 }
 
 /*******************************************************************************

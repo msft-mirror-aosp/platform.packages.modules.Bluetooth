@@ -31,7 +31,6 @@
 #include "le_audio_set_configuration_provider.h"
 #include "le_audio_utils.h"
 #include "main/shim/entry.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 #include "stack/include/hcimsgs.h"
 
@@ -168,9 +167,12 @@ public:
                            bluetooth::le_audio::types::kLeAudioDirectionSource}) {
       auto& stream_map = offloader_stream_maps.get(direction);
       if (!stream_map.has_changed && !stream_map.is_initial) {
+        log::warn("unexpected call for direction {}, stream_map.has_changed {}", direction,
+                  stream_map.has_changed, stream_map.is_initial);
         continue;
       }
       if (stream_params.get(direction).stream_locations.empty()) {
+        log::warn("unexpected call, stream is empty for direction {}, ", direction);
         continue;
       }
 
@@ -675,7 +677,7 @@ public:
     stream_map.streams_map_current.clear();
   }
 
-  static uint32_t AdjustAllocationForOffloader(uint32_t allocation) {
+  static int AdjustAllocationForOffloader(uint32_t allocation) {
     if ((allocation & codec_spec_conf::kLeAudioLocationAnyLeft) &&
         (allocation & codec_spec_conf::kLeAudioLocationAnyRight)) {
       return codec_spec_conf::kLeAudioLocationStereo;
@@ -686,20 +688,70 @@ public:
     if (allocation & codec_spec_conf::kLeAudioLocationAnyRight) {
       return codec_spec_conf::kLeAudioLocationFrontRight;
     }
-    return 0;
+
+    if (allocation == codec_spec_conf::kLeAudioLocationMonoAudio) {
+      return codec_spec_conf::kLeAudioLocationMonoAudio;
+    }
+
+    return -1;
   }
 
-  void UpdateCisConfiguration(const std::vector<struct types::cis>& cises,
+  bool UpdateCisMonoConfiguration(const std::vector<struct types::cis>& cises, uint8_t direction) {
+    if (!LeAudioHalVerifier::SupportsStreamActiveApi() ||
+        !com::android::bluetooth::flags::leaudio_mono_location_errata()) {
+      log::error(
+              "SupportsStreamActiveApi() not supported or leaudio_mono_location_errata flag is not "
+              "enabled. Mono stream cannot be enabled");
+      return false;
+    }
+
+    auto& stream_map = offloader_stream_maps.get(direction);
+
+    stream_map.has_changed = true;
+    stream_map.streams_map_target.clear();
+    stream_map.streams_map_current.clear();
+
+    const std::string tag =
+            types::BidirectionalPair<std::string>({.sink = "Sink", .source = "Source"})
+                    .get(direction);
+
+    constexpr types::BidirectionalPair<types::CisType> cis_types = {
+            .sink = types::CisType::CIS_TYPE_UNIDIRECTIONAL_SINK,
+            .source = types::CisType::CIS_TYPE_UNIDIRECTIONAL_SOURCE};
+    auto cis_type = cis_types.get(direction);
+
+    for (auto const& cis_entry : cises) {
+      if ((cis_entry.type == types::CisType::CIS_TYPE_BIDIRECTIONAL ||
+           cis_entry.type == cis_type) &&
+          cis_entry.conn_handle != 0) {
+        bool is_active = cis_entry.addr != RawAddress::kEmpty;
+        log::info("{}: {}, Cis handle {:#x}, allocation  {:#x}, active: {}", tag, cis_entry.addr,
+                  cis_entry.conn_handle, codec_spec_conf::kLeAudioLocationMonoAudio, is_active);
+        stream_map.streams_map_target.emplace_back(stream_map_info(
+                cis_entry.conn_handle, codec_spec_conf::kLeAudioLocationMonoAudio, is_active));
+        stream_map.streams_map_current.emplace_back(stream_map_info(
+                cis_entry.conn_handle, codec_spec_conf::kLeAudioLocationMonoAudio, is_active));
+      }
+    }
+
+    return true;
+  }
+
+  bool UpdateCisConfiguration(const std::vector<struct types::cis>& cises,
                               const stream_parameters& stream_params, uint8_t direction) {
     if (GetCodecLocation() != bluetooth::le_audio::types::CodecLocation::ADSP) {
-      return;
+      return false;
     }
 
     auto available_allocations =
             AdjustAllocationForOffloader(stream_params.audio_channel_allocation);
-    if (available_allocations == 0) {
-      log::error("There is no CIS connected");
-      return;
+    if (available_allocations == -1) {
+      log::error("Unsupported allocation {:#x}", stream_params.audio_channel_allocation);
+      return false;
+    }
+
+    if (available_allocations == codec_spec_conf::kLeAudioLocationMonoAudio) {
+      return UpdateCisMonoConfiguration(cises, direction);
     }
 
     auto& stream_map = offloader_stream_maps.get(direction);
@@ -770,6 +822,8 @@ public:
                 stream_map_info(cis_entry.conn_handle, current_allocation, is_active));
       }
     }
+
+    return true;
   }
 
 private:
@@ -926,7 +980,6 @@ private:
                      conf.codec.id.coding_format, conf.codec.GetSamplingFrequencyHz(),
                      conf.codec.GetDataIntervalUs(), conf.codec.GetChannelCountPerIsoStream());
 
-          /* TODO: How to get bits_per_sample ? */
           btle_audio_codec_config_t capa_to_add = {
                   .codec_type =
                           (conf.codec.id.coding_format == types::kLeAudioCodingFormatLC3)
@@ -934,7 +987,8 @@ private:
                                   : btle_audio_codec_index_t::LE_AUDIO_CODEC_INDEX_SOURCE_INVALID,
                   .sample_rate = utils::translateToBtLeAudioCodecConfigSampleRate(
                           conf.codec.GetSamplingFrequencyHz()),
-                  .bits_per_sample = utils::translateToBtLeAudioCodecConfigBitPerSample(16),
+                  .bits_per_sample = utils::translateToBtLeAudioCodecConfigBitPerSample(
+                          conf.codec.GetBitsPerSample()),
                   .channel_count = utils::translateToBtLeAudioCodecConfigChannelCount(
                           conf.codec.GetChannelCountPerIsoStream()),
                   .frame_duration = utils::translateToBtLeAudioCodecConfigFrameDuration(
@@ -1233,12 +1287,13 @@ void CodecManager::UpdateBroadcastConnHandle(
   }
 }
 
-void CodecManager::UpdateCisConfiguration(const std::vector<struct types::cis>& cises,
+bool CodecManager::UpdateCisConfiguration(const std::vector<struct types::cis>& cises,
                                           const stream_parameters& stream_params,
                                           uint8_t direction) {
   if (pimpl_->IsRunning()) {
     return pimpl_->codec_manager_impl_->UpdateCisConfiguration(cises, stream_params, direction);
   }
+  return false;
 }
 
 void CodecManager::ClearCisConfiguration(uint8_t direction) {

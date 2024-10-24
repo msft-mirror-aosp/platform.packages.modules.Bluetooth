@@ -32,7 +32,6 @@
 
 #include "device/include/device_iot_config.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/include/acl_api.h"
@@ -46,6 +45,9 @@
 #include "stack/l2cap/l2c_int.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -1238,9 +1240,6 @@ tL2C_CCB* l2cu_get_next_channel_in_rr(tL2C_LCB* p_lcb) {
         log::error("p_serve_ccb is NULL, rr_pri={}", p_lcb->rr_pri);
         return NULL;
       }
-
-      log::verbose("RR scan pri={}, lcid=0x{:04x}, q_cout={}", p_ccb->ccb_priority,
-                   p_ccb->local_cid, fixed_queue_length(p_ccb->xmit_hold_q));
 
       /* store the next serving channel */
       /* this channel is the last channel of its priority group */

@@ -24,12 +24,14 @@
 #include "avrc_defs.h"
 #include "avrc_int.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
 #include "stack/avct/avct_defs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 

@@ -649,7 +649,7 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
       }
       /* start listening when A2DP is registered */
       if (bta_av_cb.features & BTA_AV_FEAT_RCTG) {
-        bta_av_rc_create(&bta_av_cb, AVCT_ACP, 0, BTA_AV_NUM_LINKS + 1);
+        bta_av_rc_create(&bta_av_cb, AVCT_ROLE_ACCEPTOR, 0, BTA_AV_NUM_LINKS + 1);
       }
 
       /* if the AV and AVK are both supported, it cannot support the CT role
@@ -658,7 +658,7 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
         /* if TG is not supported, we need to register to AVCT now */
         if ((bta_av_cb.features & (BTA_AV_FEAT_RCTG)) == 0) {
           bta_ar_reg_avct();
-          bta_av_rc_create(&bta_av_cb, AVCT_ACP, 0, BTA_AV_NUM_LINKS + 1);
+          bta_av_rc_create(&bta_av_cb, AVCT_ROLE_ACCEPTOR, 0, BTA_AV_NUM_LINKS + 1);
         }
         if (com::android::bluetooth::flags::avrcp_sdp_records()) {
           // Add control record for sink profile.
@@ -1026,7 +1026,7 @@ static void bta_av_sco_chg_cback(tBTA_SYS_CONN_STATUS status, uint8_t num_sco_li
  * Returns          true, if role switch is done
  *
  ******************************************************************************/
-bool bta_av_switch_if_needed(tBTA_AV_SCB* p_scb) {
+bool bta_av_switch_if_needed(tBTA_AV_SCB* /*p_scb*/) {
   // TODO: A workaround for devices that are connected first, become
   // Central, and block follow-up role changes - b/72122792 .
   return false;

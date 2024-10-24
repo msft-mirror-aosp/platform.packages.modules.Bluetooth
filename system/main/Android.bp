@@ -11,7 +11,6 @@ package {
 filegroup {
     name: "LibBluetoothSources",
     srcs: [
-        "bte_conf.cc",
         "stack_config.cc",
     ],
 }
@@ -56,11 +55,9 @@ cc_library_static {
         "libbluetooth_gd",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
         "libcom.android.sysprop.bluetooth.wrapped",
     ],
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_library {
@@ -68,7 +65,6 @@ cc_library {
     visibility: [
         "//cts/hostsidetests:__subpackages__",
         "//packages/modules/Bluetooth:__subpackages__",
-        "//vendor:__subpackages__",
     ],
     defaults: ["fluoride_defaults"],
     header_libs: ["libbluetooth_headers"],
@@ -137,11 +133,6 @@ cc_library_static {
         "BluetoothGeneratedBundlerSchema_h_bfbs",
         "BluetoothGeneratedDumpsysDataSchema_h",
     ],
-    cflags: [
-        "-Wno-unused-parameter",
-    ],
-    shared_libs: [
-    ],
     whole_static_libs: [
         "libbluetooth_gd", // Gabeldorsche
     ],
@@ -150,7 +141,6 @@ cc_library_static {
         "bluetooth_flags_c_lib",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
         "libcom.android.sysprop.bluetooth.wrapped",
     ],
 }
@@ -176,6 +166,7 @@ cc_test {
         ":BluetoothOsSources_host",
         ":TestCommonMainHandler",
         ":TestCommonMockFunctions",
+        ":TestFakeOsi",
         ":TestMockBta",
         ":TestMockBtif",
         ":TestMockBtu",
@@ -205,19 +196,18 @@ cc_test {
         "test/main_shim_test.cc",
     ],
     static_libs: [
-        "bluetooth_flags_c_lib",
+        "bluetooth_flags_c_lib_for_test",
         "libbase",
         "libbluetooth-dumpsys",
         "libbluetooth-gdx",
         "libbluetooth-types",
+        "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libbtdevice",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
@@ -250,7 +240,6 @@ cc_test {
     ],
     min_sdk_version: "Tiramisu",
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -291,19 +280,18 @@ cc_test {
         "test/main_shim_stack_dumpsys_test.cc",
     ],
     static_libs: [
-        "bluetooth_flags_c_lib",
+        "bluetooth_flags_c_lib_for_test",
         "libbase",
         "libbluetooth-dumpsys",
         "libbluetooth-gdx",
         "libbluetooth-types",
+        "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libbtdevice",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",

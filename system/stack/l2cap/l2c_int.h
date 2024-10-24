@@ -38,8 +38,8 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/hci_error_code.h"
-#include "stack/include/l2c_api.h"
-#include "stack/include/l2cdefs.h"
+#include "stack/include/l2cap_interface.h"
+#include "stack/l2cap/internal/l2c_api.h"
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
@@ -281,6 +281,11 @@ struct tL2C_CCB {
   uint16_t remote_cid; /* Remote CID */
 
   alarm_t* l2c_ccb_timer; /* CCB Timer Entry */
+
+#if (L2CAP_CONFORMANCE_TESTING == TRUE)
+  alarm_t* pts_config_delay_timer; /* Used to delay sending CONFIGURATION_REQ to overcome PTS issue
+                                    */
+#endif
 
   tL2C_RCB* p_rcb; /* Registration CB for this Channel */
 
@@ -762,6 +767,7 @@ void l2cu_release_ble_rcb(tL2C_RCB* p_rcb);
 tL2C_RCB* l2cu_allocate_ble_rcb(uint16_t psm);
 tL2C_RCB* l2cu_find_ble_rcb_by_psm(uint16_t psm);
 
+uint8_t l2cu_get_fcs_len(tL2C_CCB* p_ccb);
 uint8_t l2cu_process_peer_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg);
 void l2cu_process_peer_cfg_rsp(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg);
 void l2cu_process_our_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg);

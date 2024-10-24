@@ -19,6 +19,8 @@
 
 #include <hardware/bt_vc.h>
 
+#include <string>
+
 #include "types/raw_address.h"
 
 class VolumeControl {
@@ -55,4 +57,19 @@ public:
   virtual void GetExtAudioOutDescription(const RawAddress& address, uint8_t ext_output_id) = 0;
   virtual void SetExtAudioOutDescription(const RawAddress& address, uint8_t ext_output_id,
                                          std::string descr) = 0;
+  /* Audio Input Service (AIS)*/
+  virtual void GetExtAudioInState(const RawAddress& address, uint8_t ext_input_id) = 0;
+  virtual void GetExtAudioInStatus(const RawAddress& address, uint8_t ext_input_id) = 0;
+  virtual void GetExtAudioInType(const RawAddress& address, uint8_t ext_input_id) = 0;
+  virtual void GetExtAudioInGainProps(const RawAddress& address, uint8_t ext_input_id) = 0;
+  virtual void GetExtAudioInDescription(const RawAddress& address, uint8_t ext_input_id) = 0;
+  virtual void SetExtAudioInDescription(const RawAddress& address, uint8_t ext_input_id,
+                                        std::string descr) = 0;
+  virtual void SetExtAudioInGainValue(const RawAddress& address, uint8_t ext_input_id,
+                                      int8_t value) = 0;
+  /* Set Gain Mode as per AIS */
+  virtual void SetExtAudioInGainMode(const RawAddress& address, uint8_t ext_input_id,
+                                     bool auto_mode) = 0;
+  virtual void SetExtAudioInGainMute(const RawAddress& address, uint8_t ext_input_id,
+                                     bool mute) = 0;
 };

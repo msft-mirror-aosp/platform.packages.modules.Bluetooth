@@ -23,7 +23,7 @@
 
 #include <unordered_map>
 
-// AIDL uses syslog.h, so these defines conflict with os/log.h
+// AIDL uses syslog.h, so these defines conflict with log/log.h
 #undef LOG_DEBUG
 #undef LOG_INFO
 #undef LOG_WARNING
@@ -75,8 +75,10 @@ public:
   ::ndk::ScopedAStatus onResult(
           const ::aidl::android::hardware::bluetooth::ranging::RangingResult& in_result) {
     log::verbose("resultMeters {}", in_result.resultMeters);
-    hal::RangingResult ranging_result;
-    ranging_result.result_meters_ = in_result.resultMeters;
+    hal::RangingResult ranging_result = {
+            .result_meters_ = in_result.resultMeters,
+            .confidence_level_ = in_result.confidenceLevel,
+    };
     ranging_hal_callback_->OnResult(connection_handle_, ranging_result);
     return ::ndk::ScopedAStatus::ok();
   }

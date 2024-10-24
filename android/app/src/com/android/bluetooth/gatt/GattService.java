@@ -60,6 +60,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.PackageManager.PackageInfoFlags;
 import android.content.res.Resources;
+import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -98,6 +99,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Provides Bluetooth Gatt profile, as a service in the Bluetooth application. */
 public class GattService extends ProfileService {
@@ -139,6 +142,12 @@ public class GattService extends ProfileService {
                 "0201060303AAFE1116AAFE20000BF017000008874803FB93540916802069080EFE13551109426C7565436861726D5F313639363835000000000000000000",
                 "0201061AFF4C000215426C7565436861726D426561636F6E730EFE1355C509168020691E0EFE13551109426C7565436861726D5F31363936383500000000",
             };
+
+    private static final Integer GATT_MTU_MAX = 517;
+    private static final Map<String, Integer> EARLY_MTU_EXCHANGE_PACKAGES =
+            Map.of("com.teslamotors", GATT_MTU_MAX);
+
+    @VisibleForTesting static final int GATT_CLIENT_LIMIT_PER_APP = 32;
 
     public final TransitionalScanHelper mTransitionalScanHelper =
             new TransitionalScanHelper(this, this::isTestModeEnabled);
@@ -322,15 +331,13 @@ public class GattService extends ProfileService {
                             }
                         };
             }
-            if (enableTestMode && !isTestModeEnabled()) {
-                super.setTestModeEnabled(true);
-                mTestModeHandler.removeMessages(0);
-                mTestModeHandler.sendEmptyMessageDelayed(0, DateUtils.SECOND_IN_MILLIS);
-            } else if (!enableTestMode && isTestModeEnabled()) {
-                super.setTestModeEnabled(false);
-                mTestModeHandler.removeMessages(0);
-                mTestModeHandler.sendEmptyMessage(0);
+            if (enableTestMode == isTestModeEnabled()) {
+                return;
             }
+            super.setTestModeEnabled(enableTestMode);
+            mTestModeHandler.removeMessages(0);
+            mTestModeHandler.sendEmptyMessageDelayed(
+                    0, enableTestMode ? DateUtils.SECOND_IN_MILLIS : 0);
         }
     }
 
@@ -1874,18 +1881,10 @@ public class GattService extends ProfileService {
         }
 
         // Create matching device sub-set
-
-        List<BluetoothDevice> deviceList = new ArrayList<>();
-
-        for (Map.Entry<BluetoothDevice, Integer> entry : deviceStates.entrySet()) {
-            for (int state : states) {
-                if (entry.getValue() == state) {
-                    deviceList.add(entry.getKey());
-                }
-            }
-        }
-
-        return deviceList;
+        return deviceStates.entrySet().stream()
+                .filter(e -> Arrays.stream(states).anyMatch(s -> s == e.getValue()))
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
     }
 
     @RequiresPermission(BLUETOOTH_CONNECT)
@@ -1944,7 +1943,8 @@ public class GattService extends ProfileService {
                 duration,
                 maxExtAdvEvents,
                 serverIf,
-                callback);
+                callback,
+                attributionSource);
     }
 
     @RequiresPermission(BLUETOOTH_ADVERTISE)
@@ -2091,9 +2091,19 @@ public class GattService extends ProfileService {
                 this, attributionSource, "GattService registerClient")) {
             return;
         }
+        if (Flags.gattClientDynamicAllocation()
+                && mClientMap.countByAppUid(Binder.getCallingUid()) >= GATT_CLIENT_LIMIT_PER_APP) {
+            Log.w(TAG, "registerClient() - failed due to too many clients");
+            try {
+                callback.onClientRegistered(BluetoothGatt.GATT_FAILURE, 0);
+            } catch (RemoteException e) {
+                // do nothing
+            }
+            return;
+        }
 
         Log.d(TAG, "registerClient() - UUID=" + uuid);
-        mClientMap.add(uuid, callback, this);
+        mClientMap.add(uuid, callback, this, attributionSource);
         mNativeInterface.gattClientRegisterApp(
                 uuid.getLeastSignificantBits(), uuid.getMostSignificantBits(), eatt_support);
     }
@@ -2147,8 +2157,28 @@ public class GattService extends ProfileService {
                 clientIf,
                 BluetoothProtoEnums.CONNECTION_STATE_CONNECTING,
                 -1);
+
+        int preferredMtu = 0;
+
+        // Some applications expect MTU to be exchanged immediately on connections
+        String packageName = attributionSource.getPackageName();
+        if (packageName != null) {
+            for (Map.Entry<String, Integer> entry : EARLY_MTU_EXCHANGE_PACKAGES.entrySet()) {
+                if (packageName.contains(entry.getKey())) {
+                    preferredMtu = entry.getValue();
+                    Log.i(
+                            TAG,
+                            "Early MTU exchange preference ("
+                                    + preferredMtu
+                                    + ") requested for "
+                                    + packageName);
+                    break;
+                }
+            }
+        }
+
         mNativeInterface.gattClientConnect(
-                clientIf, address, addressType, isDirect, transport, opportunistic, phy);
+                clientIf, address, addressType, isDirect, transport, opportunistic, phy, preferredMtu);
     }
 
     @RequiresPermission(BLUETOOTH_CONNECT)
@@ -2215,11 +2245,9 @@ public class GattService extends ProfileService {
                 this, attributionSource, "GattService getRegisteredServiceUuids")) {
             return Collections.emptyList();
         }
-        List<ParcelUuid> serviceUuids = new ArrayList<>();
-        for (HandleMap.Entry entry : mHandleMap.getEntries()) {
-            serviceUuids.add(new ParcelUuid(entry.uuid));
-        }
-        return serviceUuids;
+        return mHandleMap.getEntries().stream()
+                .map(entry -> new ParcelUuid(entry.uuid))
+                .collect(Collectors.toList());
     }
 
     @RequiresPermission(BLUETOOTH_CONNECT)
@@ -2229,11 +2257,11 @@ public class GattService extends ProfileService {
             return Collections.emptyList();
         }
 
-        Set<String> connectedDevAddress = new HashSet<>();
-        connectedDevAddress.addAll(mClientMap.getConnectedDevices());
-        connectedDevAddress.addAll(mServerMap.getConnectedDevices());
-        List<String> connectedDeviceList = new ArrayList<>(connectedDevAddress);
-        return connectedDeviceList;
+        return Stream.concat(
+                        mClientMap.getConnectedDevices().stream(),
+                        mServerMap.getConnectedDevices().stream())
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     @RequiresPermission(BLUETOOTH_CONNECT)
@@ -3134,7 +3162,7 @@ public class GattService extends ProfileService {
         }
 
         Log.d(TAG, "registerServer() - UUID=" + uuid);
-        mServerMap.add(uuid, callback, this);
+        mServerMap.add(uuid, callback, this, attributionSource);
         mNativeInterface.gattServerRegisterApp(
                 uuid.getLeastSignificantBits(), uuid.getMostSignificantBits(), eatt_support);
     }
@@ -3524,11 +3552,25 @@ public class GattService extends ProfileService {
         mTransitionalScanHelper.getScannerMap().dumpApps(sb, ProfileService::println);
         sb.append("  Client:\n");
         for (Integer appId : mClientMap.getAllAppsIds()) {
-            println(sb, "    app_if: " + appId + ", appName: " + mClientMap.getById(appId).name);
+            ContextMap.App app = mClientMap.getById(appId);
+            println(
+                    sb,
+                    "    app_if: "
+                            + appId
+                            + ", appName: "
+                            + app.name
+                            + (app.attributionTag == null ? "" : ", tag: " + app.attributionTag));
         }
         sb.append("  Server:\n");
         for (Integer appId : mServerMap.getAllAppsIds()) {
-            println(sb, "    app_if: " + appId + ", appName: " + mServerMap.getById(appId).name);
+            ContextMap.App app = mServerMap.getById(appId);
+            println(
+                    sb,
+                    "    app_if: "
+                            + appId
+                            + ", appName: "
+                            + app.name
+                            + (app.attributionTag == null ? "" : ", tag: " + app.attributionTag));
         }
         sb.append("\n\n");
     }

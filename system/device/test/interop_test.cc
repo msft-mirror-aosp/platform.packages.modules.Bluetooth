@@ -365,6 +365,9 @@ TEST_F(InteropTest, test_name_hit) {
                                  "Targus BT Laser Notebook Mouse"));
   EXPECT_TRUE(interop_match_name(INTEROP_REMOVE_HID_DIG_DESCRIPTOR, "Motorola Keyboard KZ500"));
   EXPECT_TRUE(interop_match_name(INTEROP_DISABLE_LE_CONN_PREFERRED_PARAMS, "BSMBB09DS"));
+  EXPECT_TRUE(interop_match_name(INTEROP_DISABLE_LE_CONN_PREFERRED_PARAMS, "DXCMog"));
+  EXPECT_TRUE(interop_match_name(INTEROP_DISABLE_LE_CONN_PREFERRED_PARAMS, "Dexcom 123"));
+  EXPECT_TRUE(interop_match_name(INTEROP_DISABLE_LE_CONN_PREFERRED_PARAMS, "DX01ab"));
   EXPECT_TRUE(interop_match_name(INTEROP_DISABLE_AAC_CODEC, "abramtek M1"));
   EXPECT_TRUE(interop_match_name(INTEROP_DISABLE_AAC_VBR_CODEC, "Audi_MMI_2781"));
   EXPECT_TRUE(interop_match_name(INTEROP_DISABLE_AVDTP_RECONFIGURE, "KMM-BT51*HD"));

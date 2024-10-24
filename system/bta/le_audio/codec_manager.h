@@ -104,7 +104,7 @@ public:
   void Stop(void);
   virtual types::CodecLocation GetCodecLocation(void) const;
   virtual bool IsDualBiDirSwbSupported(void) const;
-  virtual void UpdateCisConfiguration(const std::vector<struct types::cis>& cises,
+  virtual bool UpdateCisConfiguration(const std::vector<struct types::cis>& cises,
                                       const stream_parameters& stream_params, uint8_t direction);
   virtual void ClearCisConfiguration(uint8_t direction);
   virtual bool IsUsingCodecExtensibility() const;

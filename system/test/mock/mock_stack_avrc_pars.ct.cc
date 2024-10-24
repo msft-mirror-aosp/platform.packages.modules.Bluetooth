@@ -23,6 +23,9 @@
 #include "avrc_defs.h"
 #include "test/common/mock_functions.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 tAVRC_STS AVRC_Ctrl_ParsResponse(tAVRC_MSG* /* p_msg */, tAVRC_RESPONSE* /* p_result */,
                                  uint8_t* /* p_buf */, uint16_t* /* buf_len */) {
   inc_func_call_count(__func__);
