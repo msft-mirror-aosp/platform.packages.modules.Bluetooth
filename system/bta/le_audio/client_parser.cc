@@ -33,7 +33,6 @@
 #include "internal_include/bt_trace.h"
 #include "le_audio_types.h"
 #include "le_audio_utils.h"
-#include "os/log.h"
 #include "stack/include/bt_types.h"
 
 using bluetooth::le_audio::types::acs_ac_record;

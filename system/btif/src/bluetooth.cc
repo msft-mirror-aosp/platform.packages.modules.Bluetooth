@@ -62,6 +62,7 @@
 #include "bta/include/bta_vc_api.h"
 #include "btif/avrcp/avrcp_service.h"
 #include "btif/include/btif_a2dp.h"
+#include "btif/include/btif_a2dp_source.h"
 #include "btif/include/btif_api.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_bqr.h"
@@ -99,7 +100,7 @@
 #include "osi/include/wakelock.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
-#include "stack/gatt/connection_manager.h"
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/include/a2dp_api.h"
 #include "stack/include/avdt_api.h"
 #include "stack/include/btm_client_interface.h"
@@ -1117,13 +1118,7 @@ static int set_dynamic_audio_buffer_size(int codec, int size) {
 }
 
 static bool allow_low_latency_audio(bool allowed, const RawAddress& /* address */) {
-  log::info("{}", allowed);
-  if (com::android::bluetooth::flags::a2dp_async_allow_low_latency()) {
-    do_in_main_thread(
-            base::BindOnce(bluetooth::audio::a2dp::set_audio_low_latency_mode_allowed, allowed));
-  } else {
-    bluetooth::audio::a2dp::set_audio_low_latency_mode_allowed(allowed);
-  }
+  btif_a2dp_source_allow_low_latency_audio(allowed);
   return true;
 }
 

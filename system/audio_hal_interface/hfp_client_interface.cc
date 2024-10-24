@@ -24,7 +24,6 @@
 #include "aidl/hfp_client_interface_aidl.h"
 #include "hal_version_manager.h"
 #include "hfp_client_interface.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 
 using ::bluetooth::audio::aidl::hfp::HfpDecodingTransport;

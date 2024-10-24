@@ -1442,6 +1442,7 @@ protected:
   void SetUp() override {
     __android_log_set_minimum_priority(ANDROID_LOG_VERBOSE);
     init_message_loop_thread();
+    reset_mock_function_count_map();
     ON_CALL(controller_, SupportsBleConnectedIsochronousStreamCentral).WillByDefault(Return(true));
     ON_CALL(controller_, SupportsBleConnectedIsochronousStreamPeripheral)
             .WillByDefault(Return(true));
@@ -9912,6 +9913,83 @@ TEST_F(UnicastTest, MicrophoneAttachToCurrentMediaScenario) {
   SyncOnMainLoop();
 
   Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
+}
+
+TEST_F(UnicastTest, SwitchBetweenMicrophoneAndSoundEffectScenario) {
+  const RawAddress test_address0 = GetTestAddress(0);
+  int group_id = bluetooth::groups::kGroupUnknown;
+
+  /* Scenario:
+   * 1. User starts Recording - this creates bidiretional CISes
+   * 2. User stops recording  - this starts suspend timeout (500ms)
+   * 3. Since user touch the screen it generates touch tone - this shall reuse existing CISes when
+   * it happens 500ms before stop
+   */
+  SetSampleDatabaseEarbudsValid(1, test_address0, codec_spec_conf::kLeAudioLocationStereo,
+                                codec_spec_conf::kLeAudioLocationFrontLeft, default_channel_cnt,
+                                default_channel_cnt, 0x0024, false /*add_csis*/, true /*add_cas*/,
+                                true /*add_pacs*/, default_ase_cnt /*add_ascs_cnt*/, 1 /*set_size*/,
+                                0 /*rank*/);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnConnectionState(ConnectionState::CONNECTED, test_address0))
+          .Times(1);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnGroupNodeStatus(test_address0, _, GroupNodeStatus::ADDED))
+          .WillOnce(DoAll(SaveArg<1>(&group_id)));
+
+  ConnectLeAudio(test_address0);
+  ASSERT_NE(group_id, bluetooth::groups::kGroupUnknown);
+
+  // Audio sessions are started only when device gets active
+  EXPECT_CALL(*mock_le_audio_source_hal_client_, Start(_, _, _)).Times(1);
+  EXPECT_CALL(*mock_le_audio_sink_hal_client_, Start(_, _, _)).Times(1);
+  LeAudioClient::Get()->GroupSetActive(group_id);
+  SyncOnMainLoop();
+
+  // When the local audio source resumes we have no knowledge of recording
+  EXPECT_CALL(mock_state_machine_,
+              StartStream(_, bluetooth::le_audio::types::LeAudioContextType::LIVE, _, _))
+          .Times(1);
+
+  log::info("Start Microphone recording - bidirectional CISes are expected");
+  UpdateLocalSinkMetadata(AUDIO_SOURCE_MIC);
+  LocalAudioSinkResume();
+
+  ASSERT_EQ(0, get_func_call_count("alarm_set_on_mloop"));
+  SyncOnMainLoop();
+
+  Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
+  Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
+  Mock::VerifyAndClearExpectations(&mock_state_machine_);
+
+  // Verify Data transfer on one audio source cis
+  uint8_t cis_count_out = 0;
+  uint8_t cis_count_in = 1;
+  TestAudioDataTransfer(group_id, cis_count_out, cis_count_in, 1920, 60);
+
+  log::info("Suspend microphone recording - suspend timeout is not fired");
+  LocalAudioSinkSuspend();
+  SyncOnMainLoop();
+
+  // VBC and Suspend
+  ASSERT_EQ(1, get_func_call_count("alarm_set_on_mloop"));
+  ASSERT_EQ(0, get_func_call_count("alarm_cancel"));
+
+  log::info("Resume local source with touch tone - expect suspend timeout to be canceled");
+
+  UpdateLocalSourceMetadata(AUDIO_USAGE_ASSISTANCE_SONIFICATION, AUDIO_CONTENT_TYPE_SONIFICATION);
+  LocalAudioSourceResume();
+  SyncOnMainLoop();
+
+  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
+
+  auto group = streaming_groups.at(group_id);
+  group->PrintDebugState();
+
+  // Verify Data transfer on one audio source and sink cis
+  cis_count_out = 1;
+  cis_count_in = 0;
+  TestAudioDataTransfer(group_id, cis_count_out, cis_count_in, 1920, 60);
 }
 
 /* When a certain context is unavailable and not supported we should stream

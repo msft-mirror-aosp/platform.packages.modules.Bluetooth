@@ -22,8 +22,6 @@
 #include <array>
 #include <cstdint>
 
-#include "os/log.h"
-
 namespace bluetooth {
 namespace os {
 

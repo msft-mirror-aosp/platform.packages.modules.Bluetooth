@@ -31,14 +31,13 @@
 #include <com_android_bluetooth_flags.h>
 #include <string.h>
 
-#include "avct_api.h"
-#include "avct_int.h"
 #include "bta/include/bta_sec_api.h"
 #include "btif/include/btif_av.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
 #include "stack/avct/avct_defs.h"
+#include "stack/avct/avct_int.h"
+#include "stack/include/avct_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/l2cap_interface.h"
@@ -162,56 +161,68 @@ void avct_bcb_unbind_disc(tAVCT_BCB* /* p_bcb */, tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
+namespace {
+bool is_valid_role_check(const tAVCT_CCB* p_ccb) {
+  return com::android::bluetooth::flags::
+                         associate_browse_l2cap_request_with_active_control_channel()
+                 ? true
+                 : p_ccb->cc.role == AVCT_ACP;
+}
+}  // namespace
+
 void avct_bcb_open_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
   tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
-  tAVCT_CCB* p_ccb_bind = NULL;
-  bool bind = false;
-  tAVCT_UL_MSG ul_msg;
+  tAVCT_CCB* p_ccb_bind = nullptr;
 
   for (int idx = 0; idx < AVCT_NUM_CONN; idx++, p_ccb++) {
-    /* if ccb allocated and */
-    if (p_ccb->allocated) {
-      /* if bound to this bcb send connect confirm event */
-      if (p_ccb->p_bcb == p_bcb) {
-        bind = true;
-        p_ccb_bind = p_ccb;
-        p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_BROWSE_CONN_CFM_EVT, 0,
-                               &p_ccb->p_lcb->peer_addr);
-      }
+    if (!p_ccb->allocated) {
+      continue;
+    }
+
+    /* if ccb allocated and bound to this bcb send connect confirm event */
+    if (p_ccb->p_bcb == p_bcb) {
+      p_ccb_bind = p_ccb;
+      p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_BROWSE_CONN_CFM_EVT, 0,
+                             &p_ccb->p_lcb->peer_addr);
+    } else if ((p_ccb->p_bcb == NULL) && is_valid_role_check(p_ccb) && (p_ccb->p_lcb != NULL) &&
+               p_bcb->peer_addr == p_ccb->p_lcb->peer_addr) {
       /* if unbound acceptor and lcb allocated and bd_addr are the same for bcb
          and lcb */
-      else if ((p_ccb->p_bcb == NULL) && (p_ccb->cc.role == AVCT_ACP) && (p_ccb->p_lcb != NULL) &&
-               p_bcb->peer_addr == p_ccb->p_lcb->peer_addr) {
-        /* bind bcb to ccb and send connect ind event */
-        bind = true;
-        p_ccb_bind = p_ccb;
-        p_ccb->p_bcb = p_bcb;
-        p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_BROWSE_CONN_IND_EVT, 0,
-                               &p_ccb->p_lcb->peer_addr);
-      }
+      /* bind bcb to ccb and send connect ind event */
+      p_ccb_bind = p_ccb;
+      p_ccb->p_bcb = p_bcb;
+      p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_BROWSE_CONN_IND_EVT, 0,
+                             &p_ccb->p_lcb->peer_addr);
     }
   }
 
   /* if no ccbs bound to this lcb, disconnect */
-  if (!bind) {
+  if (p_ccb_bind == nullptr) {
+    log::warn("Ignoring incoming browse request and closing channel from peer:{} lcid:0x{:04x}",
+              p_bcb->peer_addr, p_bcb->ch_lcid);
     avct_bcb_event(p_bcb, AVCT_LCB_INT_CLOSE_EVT, p_data);
     return;
   }
 
-  if (!p_bcb->p_tx_msg || !p_ccb_bind) {
+  if (!p_bcb->p_tx_msg) {
+    log::warn("Received browse packet with no browse data peer:{} lcid:0x{:04x}", p_bcb->peer_addr,
+              p_bcb->ch_lcid);
     return;
   }
 
-  ul_msg.p_buf = p_bcb->p_tx_msg;
-  ul_msg.p_ccb = p_ccb_bind;
-  ul_msg.label = (uint8_t)(p_bcb->p_tx_msg->layer_specific & 0xFF);
-  ul_msg.cr = (uint8_t)((p_bcb->p_tx_msg->layer_specific & 0xFF00) >> 8);
+  tAVCT_UL_MSG ul_msg = {
+          .p_buf = p_bcb->p_tx_msg,
+          .p_ccb = p_ccb_bind,
+          .label = (uint8_t)(p_bcb->p_tx_msg->layer_specific & 0xFF),
+          .cr = (uint8_t)((p_bcb->p_tx_msg->layer_specific & 0xFF00) >> 8),
+  };
   p_bcb->p_tx_msg->layer_specific = AVCT_DATA_BROWSE;
   p_bcb->p_tx_msg = NULL;
 
   /* send msg event to bcb */
-  tAVCT_LCB_EVT avct_lcb_evt;
-  avct_lcb_evt.ul_msg = ul_msg;
+  tAVCT_LCB_EVT avct_lcb_evt = {
+          .ul_msg = ul_msg,
+  };
   avct_bcb_event(p_bcb, AVCT_LCB_UL_MSG_EVT, &avct_lcb_evt);
 }
 

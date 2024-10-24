@@ -18,7 +18,6 @@
 #include <memory>
 
 #include "hci/hci_packets.h"
-#include "os/log.h"
 #include "packet/bit_inserter.h"
 #include "packet/raw_builder.h"
 

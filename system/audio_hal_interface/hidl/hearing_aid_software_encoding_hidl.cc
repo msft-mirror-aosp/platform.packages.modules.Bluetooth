@@ -22,7 +22,6 @@
 
 #include "audio_hearing_aid_hw/include/audio_hearing_aid_hw.h"
 #include "client_interface_hidl.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 
 namespace fmt {

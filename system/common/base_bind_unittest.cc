@@ -24,8 +24,6 @@
 #include <memory>
 #include <mutex>
 
-#include "os/log.h"
-
 class BaseBindThreadTest : public ::testing::Test {
 public:
 protected:

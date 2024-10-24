@@ -20,7 +20,6 @@
 
 #include <bluetooth/log.h>
 
-#include "os/log.h"
 #include "smp_int.h"
 #include "stack/include/btm_log_history.h"
 
