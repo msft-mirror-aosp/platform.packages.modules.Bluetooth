@@ -53,16 +53,6 @@ struct TestMutables {
 TestMutables test_state_;
 }  // namespace
 
-namespace connection_manager {
-bool background_connect_remove(uint8_t /*app_id*/, const RawAddress& /*address*/) { return false; }
-bool direct_connect_remove(uint8_t /*app_id*/, const RawAddress& /*address*/,
-                           bool /*connection_timeout*/) {
-  return false;
-}
-bool is_background_connection(const RawAddress& /*address*/) { return false; }
-
-}  // namespace connection_manager
-
 BT_HDR* attp_build_sr_msg(tGATT_TCB& /*tcb*/, uint8_t op_code, tGATT_SR_MSG* /*p_msg*/,
                           uint16_t /*payload_size*/) {
   test_state_.attp_build_sr_msg.op_code_ = op_code;

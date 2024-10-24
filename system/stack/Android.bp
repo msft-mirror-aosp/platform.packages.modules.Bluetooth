@@ -1105,6 +1105,7 @@ cc_test {
         ":TestMockRustFfi",
         ":TestMockStackArbiter",
         ":TestMockStackBtm",
+        ":TestMockStackConnMgr",
         ":TestMockStackSdp",
         "gatt/gatt_utils.cc",
         "test/common/mock_eatt.cc",

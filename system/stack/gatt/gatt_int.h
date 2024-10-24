@@ -193,7 +193,6 @@ typedef struct {
   uint8_t listening{0}; /* if adv for all has been enabled */
   bool eatt_support{false};
   std::string name;
-  std::set<RawAddress> direct_connect_request;
   std::map<RawAddress, uint16_t> mtu_prefs;
 } tGATT_REG;
 
