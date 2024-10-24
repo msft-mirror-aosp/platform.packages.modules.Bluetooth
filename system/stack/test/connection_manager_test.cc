@@ -9,7 +9,9 @@
 
 #include <memory>
 
+#include "gd/hci/controller_interface_mock.h"
 #include "main/shim/acl_api.h"
+#include "main/shim/entry.h"
 #include "main/shim/le_scanning_manager.h"
 #include "osi/include/alarm.h"
 #include "osi/test/alarm_mock.h"
@@ -72,6 +74,13 @@ void ACL_IgnoreLeConnectionFrom(const tBLE_BD_ADDR& address) {
 }
 
 void ACL_IgnoreAllLeConnections() { return localAcceptlistMock->AcceptlistClear(); }
+
+testing::NiceMock<bluetooth::hci::testing::MockControllerInterface> controller;
+
+hci::ControllerInterface* GetController() {
+  ON_CALL(controller, GetLeFilterAcceptListSize).WillByDefault(Return(128));
+  return &controller;
+}
 
 }  // namespace shim
 }  // namespace bluetooth

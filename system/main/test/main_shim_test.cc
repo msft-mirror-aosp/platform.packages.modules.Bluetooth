@@ -80,8 +80,7 @@ using HciHandle = uint16_t;
 
 namespace test = bluetooth::hci::testing;
 
-const uint8_t kMaxLeAcceptlistSize = 16;
-const uint8_t kMaxAddressResolutionSize = kMaxLeAcceptlistSize;
+const uint8_t kMaxAddressResolutionSize = 16;
 
 tL2C_CB l2cb;
 tBTM_CB btm_cb;
@@ -379,8 +378,7 @@ protected:
     EXPECT_CALL(*test::mock_acl_manager_, RegisterLeCallbacks(_, _)).Times(1);
     EXPECT_CALL(*test::mock_controller_, RegisterCompletedMonitorAclPacketsCallback(_)).Times(1);
     EXPECT_CALL(*test::mock_controller_, UnregisterCompletedMonitorAclPacketsCallback).Times(1);
-    return std::make_unique<shim::Acl>(handler_, GetMockAclInterface(), kMaxLeAcceptlistSize,
-                                       kMaxAddressResolutionSize);
+    return std::make_unique<shim::Acl>(handler_, GetMockAclInterface(), kMaxAddressResolutionSize);
   }
 };
 
