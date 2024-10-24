@@ -581,7 +581,10 @@ void dump(int fd) {
   dprintf(fd, "\tdevices attempting connection: %d", (int)bgconn_dev.size());
   for (const auto& entry : bgconn_dev) {
     // TODO: confirm whether we need to replace this
-    dprintf(fd, "\n\t * %s: ", ADDRESS_TO_LOGGABLE_CSTR(entry.first));
+    dprintf(fd, "\n\t * %s:\t\tin_accept_list: %s\t cap_targeted_announcements: %s",
+            ADDRESS_TO_LOGGABLE_CSTR(entry.first),
+            entry.second.is_in_accept_list ? "true" : "false",
+            entry.second.doing_targeted_announcements_conn.empty() ? "false" : "true");
 
     if (!entry.second.doing_direct_conn.empty()) {
       dprintf(fd, "\n\t\tapps doing direct connect: ");
@@ -596,14 +599,6 @@ void dump(int fd) {
         dprintf(fd, "%d, ", id);
       }
     }
-    if (!entry.second.doing_targeted_announcements_conn.empty()) {
-      dprintf(fd, "\n\t\tapps doing cap announcement connect: ");
-      for (const auto& id : entry.second.doing_targeted_announcements_conn) {
-        dprintf(fd, "%d, ", id);
-      }
-    }
-    dprintf(fd, "\n\t\t is in the allow list: %s",
-            entry.second.is_in_accept_list ? "true" : "false");
   }
   dprintf(fd, "\n");
 }

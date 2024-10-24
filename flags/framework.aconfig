@@ -63,3 +63,11 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "support_remote_device_metadata"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Support setting/retrieving the remote device metadata for a BluetoothDevice"
+    bug: "374171574"
+}

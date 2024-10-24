@@ -18,20 +18,40 @@
 
 #include <base/functional/bind.h>
 #include <base/functional/callback.h>
-#include <string.h>
+#include <bluetooth/log.h>
+#include <jni.h>
+#include <nativehelper/JNIHelp.h>
+#include <nativehelper/scoped_local_ref.h>
 
 #include <array>
+#include <cerrno>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <functional>
 #include <memory>
+#include <mutex>
 #include <shared_mutex>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "com_android_bluetooth.h"
 #include "com_android_bluetooth_flags.h"
+#include "hardware/ble_advertiser.h"
+#include "hardware/ble_scanner.h"
+#include "hardware/bluetooth.h"
+#include "hardware/bt_common_types.h"
 #include "hardware/bt_gatt.h"
+#include "hardware/bt_gatt_client.h"
+#include "hardware/bt_gatt_server.h"
 #include "hardware/bt_gatt_types.h"
+#include "hardware/distance_measurement_interface.h"
 #include "main/shim/le_scanning_manager.h"
 #include "rust/cxx.h"
-#include "rust/src/gatt/ffi/gatt_shim.h"
 #include "src/gatt/ffi.rs.h"
+#include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"

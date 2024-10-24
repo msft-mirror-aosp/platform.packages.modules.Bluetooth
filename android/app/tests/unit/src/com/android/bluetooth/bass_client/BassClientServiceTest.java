@@ -62,6 +62,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Binder;
+import android.os.Handler;
 import android.os.Message;
 import android.os.ParcelUuid;
 import android.os.RemoteException;
@@ -784,7 +785,8 @@ public class BassClientServiceTest {
 
     @Test
     @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
-    public void testNotRemovingCachedBroadcastOnLostWithoutScanning() {
+    @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
+    public void testNotRemovingCachedBroadcastOnLostWithoutScanning_noResyncFlag() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
 
@@ -814,7 +816,47 @@ public class BassClientServiceTest {
             throw e.rethrowFromSystemServer();
         }
 
-        // Scan and sync again
+        // Add broadcast to cache
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+
+        // Stop searching
+        mBassClientService.stopSearchingForSources();
+
+        // Add sync handle by add source
+        mBassClientService.addSource(mCurrentDevice, meta, true);
+        handleHandoverSupport();
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+
+        // Sync lost without active scanning should not remove broadcast cache
+        onSyncLost();
+
+        // Add source to unsynced broadcast, causes synchronization first
+        mBassClientService.addSource(mCurrentDevice, meta, true);
+        handleHandoverSupport();
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+    }
+
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER
+    })
+    public void testNotRemovingCachedBroadcastOnLostWithoutScanning() {
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+
+        // Scan and sync 1
         onScanResult(mSourceDevice, TEST_BROADCAST_ID);
         mInOrderMethodProxy
                 .verify(mMethodProxy)
@@ -822,11 +864,47 @@ public class BassClientServiceTest {
                         any(), any(), anyInt(), anyInt(), any(), any());
         onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
 
+        // Sync lost during scanning removes cached broadcast
+        onSyncLost();
+        checkAndDispatchTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_SYNC_LOST_TIMEOUT);
+
+        // Add source to not cached broadcast cause addFailed notification
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        mBassClientService.addSource(mCurrentDevice, meta, true);
+        handleHandoverSupport();
+        TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
+        try {
+            verify(mCallback)
+                    .onSourceAddFailed(
+                            eq(mCurrentDevice),
+                            eq(meta),
+                            eq(BluetoothStatusCodes.ERROR_BAD_PARAMETERS));
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+
+        // Add broadcast to cache
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+
         // Stop searching
         mBassClientService.stopSearchingForSources();
 
+        // Add sync handle by add source
+        mBassClientService.addSource(mCurrentDevice, meta, true);
+        handleHandoverSupport();
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+
         // Sync lost without active scanning should not remove broadcast cache
         onSyncLost();
+        checkAndDispatchTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_SYNC_LOST_TIMEOUT);
 
         // Add source to unsynced broadcast, causes synchronization first
         mBassClientService.addSource(mCurrentDevice, meta, true);
@@ -1115,20 +1193,20 @@ public class BassClientServiceTest {
                         any(), any(), anyInt(), anyInt(), any(), any());
     }
 
-    private void checkNoMessage(int message) {
-        assertThat(mBassClientService.mHandler.hasMessages(message)).isFalse();
+    private void checkNoTimeout(int broadcastId, int message) {
+        assertThat(mBassClientService.mTimeoutHandler.isStarted(broadcastId, message)).isFalse();
     }
 
-    private void checkMessage(int message) {
-        assertThat(mBassClientService.mHandler.hasMessages(message)).isTrue();
+    private void checkTimeout(int broadcastId, int message) {
+        assertThat(mBassClientService.mTimeoutHandler.isStarted(broadcastId, message)).isTrue();
     }
 
-    private void checkAndDispatchMessage(int message, int broadcastId) {
-        checkMessage(message);
-        mBassClientService.mHandler.removeMessages(message);
-        Message newMsg = mBassClientService.mHandler.obtainMessage(message);
-        newMsg.arg1 = broadcastId;
-        mBassClientService.mHandler.dispatchMessage(newMsg);
+    private void checkAndDispatchTimeout(int broadcastId, int message) {
+        checkTimeout(broadcastId, message);
+        mBassClientService.mTimeoutHandler.stop(broadcastId, message);
+        Handler handler = mBassClientService.mTimeoutHandler.getOrCreateHandler(broadcastId);
+        Message newMsg = handler.obtainMessage(message);
+        handler.dispatchMessage(newMsg);
     }
 
     @Test
@@ -1154,7 +1232,8 @@ public class BassClientServiceTest {
         handleHandoverSupport();
 
         // Source synced which cause start timeout event
-        checkNoMessage(BassClientService.MESSAGE_SYNC_TIMEOUT);
+        assertThat(mBassClientService.mHandler.hasMessages(BassClientService.MESSAGE_SYNC_TIMEOUT))
+                .isFalse();
         onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
 
         assertThat(mBassClientService.getActiveSyncedSources().size()).isEqualTo(1);
@@ -1163,7 +1242,13 @@ public class BassClientServiceTest {
         assertThat(mBassClientService.getBroadcastIdForSyncHandle(TEST_SYNC_HANDLE))
                 .isEqualTo(TEST_BROADCAST_ID);
 
-        checkAndDispatchMessage(BassClientService.MESSAGE_SYNC_TIMEOUT, TEST_BROADCAST_ID);
+        assertThat(mBassClientService.mHandler.hasMessages(BassClientService.MESSAGE_SYNC_TIMEOUT))
+                .isTrue();
+        mBassClientService.mHandler.removeMessages(BassClientService.MESSAGE_SYNC_TIMEOUT);
+        Message newMsg =
+                mBassClientService.mHandler.obtainMessage(BassClientService.MESSAGE_SYNC_TIMEOUT);
+        newMsg.arg1 = TEST_BROADCAST_ID;
+        mBassClientService.mHandler.dispatchMessage(newMsg);
 
         // Check if unsyced
         mInOrderMethodProxy
@@ -1194,9 +1279,11 @@ public class BassClientServiceTest {
         handleHandoverSupport();
 
         // Source synced which cause start timeout event
-        checkNoMessage(BassClientService.MESSAGE_SYNC_TIMEOUT);
+        assertThat(mBassClientService.mHandler.hasMessages(BassClientService.MESSAGE_SYNC_TIMEOUT))
+                .isFalse();
         onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
-        checkMessage(BassClientService.MESSAGE_SYNC_TIMEOUT);
+        assertThat(mBassClientService.mHandler.hasMessages(BassClientService.MESSAGE_SYNC_TIMEOUT))
+                .isTrue();
 
         assertThat(mBassClientService.getActiveSyncedSources().size()).isEqualTo(1);
         assertThat(mBassClientService.getDeviceForSyncHandle(TEST_SYNC_HANDLE))
@@ -1206,7 +1293,8 @@ public class BassClientServiceTest {
 
         // Start searching again should clear timeout
         startSearchingForSources();
-        checkNoMessage(BassClientService.MESSAGE_SYNC_TIMEOUT);
+        assertThat(mBassClientService.mHandler.hasMessages(BassClientService.MESSAGE_SYNC_TIMEOUT))
+                .isFalse();
 
         mInOrderMethodProxy
                 .verify(mMethodProxy, never())
@@ -3155,11 +3243,11 @@ public class BassClientServiceTest {
         mInOrderMethodProxy
                 .verify(mMethodProxy)
                 .periodicAdvertisingManagerUnregisterSync(any(), any());
-        onSyncEstablished(device5, handle5);
         mInOrderMethodProxy
                 .verify(mMethodProxy)
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
+        onSyncEstablished(device5, handle5);
         assertThat(mBassClientService.getActiveSyncedSources().size()).isEqualTo(4);
         assertThat(mBassClientService.getActiveSyncedSources())
                 .containsExactly(handle2, handle3, handle4, handle5)
@@ -5351,7 +5439,8 @@ public class BassClientServiceTest {
 
     @Test
     @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
-    public void onSyncLost_notifySourceLostAndCancelSync() {
+    @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
+    public void onSyncLost_notifySourceLostAndCancelSync_noResyncFlag() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
         onScanResult(mSourceDevice, TEST_BROADCAST_ID);
@@ -5384,6 +5473,137 @@ public class BassClientServiceTest {
 
         // Could try to sync again
         onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+    }
+
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER
+    })
+    public void onSyncLost_notifySourceLostAndCancelSync() {
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+        assertThat(mBassClientService.getActiveSyncedSources().size()).isEqualTo(1);
+        assertThat(mBassClientService.getActiveSyncedSources()).containsExactly(TEST_SYNC_HANDLE);
+        assertThat(mBassClientService.getDeviceForSyncHandle(TEST_SYNC_HANDLE))
+                .isEqualTo(mSourceDevice);
+        assertThat(mBassClientService.getBroadcastIdForSyncHandle(TEST_SYNC_HANDLE))
+                .isEqualTo(TEST_BROADCAST_ID);
+
+        onSyncLost();
+        checkAndDispatchTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_SYNC_LOST_TIMEOUT);
+
+        TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
+        try {
+            verify(mCallback).onSourceLost(eq(TEST_BROADCAST_ID));
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+
+        // Cleaned all
+        assertThat(mBassClientService.getActiveSyncedSources()).isEmpty();
+        assertThat(mBassClientService.getDeviceForSyncHandle(TEST_SYNC_HANDLE)).isEqualTo(null);
+        assertThat(mBassClientService.getBroadcastIdForSyncHandle(TEST_SYNC_HANDLE))
+                .isEqualTo(BassConstants.INVALID_BROADCAST_ID);
+
+        // Could try to sync again
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+    }
+
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER
+    })
+    public void monitorBroadcastAfterSyncMaxLimit() {
+        final BluetoothDevice device1 =
+                mBluetoothAdapter.getRemoteLeDevice(
+                        "00:11:22:33:44:11", BluetoothDevice.ADDRESS_TYPE_RANDOM);
+        final BluetoothDevice device2 =
+                mBluetoothAdapter.getRemoteLeDevice(
+                        "00:11:22:33:44:22", BluetoothDevice.ADDRESS_TYPE_RANDOM);
+        final BluetoothDevice device3 =
+                mBluetoothAdapter.getRemoteLeDevice(
+                        "00:11:22:33:44:33", BluetoothDevice.ADDRESS_TYPE_RANDOM);
+        final BluetoothDevice device4 =
+                mBluetoothAdapter.getRemoteLeDevice(
+                        "00:11:22:33:44:44", BluetoothDevice.ADDRESS_TYPE_RANDOM);
+        final BluetoothDevice device5 =
+                mBluetoothAdapter.getRemoteLeDevice(
+                        "00:11:22:33:44:55", BluetoothDevice.ADDRESS_TYPE_RANDOM);
+        final int handle1 = 0;
+        final int handle2 = 1;
+        final int handle3 = 2;
+        final int handle4 = 3;
+        final int handle5 = 4;
+        final int broadcastId1 = 1111;
+        final int broadcastId2 = 2222;
+        final int broadcastId3 = 3333;
+        final int broadcastId4 = 4444;
+        final int broadcastId5 = 5555;
+
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+
+        // Scan and sync 5 sources cause removing 1 synced element
+        onScanResult(device1, broadcastId1);
+        onSyncEstablished(device1, handle1);
+        onScanResult(device2, broadcastId2);
+        onSyncEstablished(device2, handle2);
+        onScanResult(device3, broadcastId3);
+        onSyncEstablished(device3, handle3);
+        onScanResult(device4, broadcastId4);
+        onSyncEstablished(device4, handle4);
+        onScanResult(device5, broadcastId5);
+        mInOrderMethodProxy
+                .verify(mMethodProxy, times(4))
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerUnregisterSync(any(), any());
+
+        checkTimeout(broadcastId1, BassClientService.MESSAGE_SYNC_LOST_TIMEOUT);
+
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+        onSyncEstablished(device5, handle5);
+
+        // Couldn't sync again as broadcast is in the cache
+        onScanResult(device1, broadcastId1);
+        mInOrderMethodProxy
+                .verify(mMethodProxy, never())
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+
+        // Lost should notify about lost and clear cache
+        checkAndDispatchTimeout(broadcastId1, BassClientService.MESSAGE_SYNC_LOST_TIMEOUT);
+
+        TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
+        try {
+            verify(mCallback).onSourceLost(eq(broadcastId1));
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+
+        // Could try to sync again
+        onScanResult(device1, broadcastId1);
         mInOrderMethodProxy
                 .verify(mMethodProxy)
                 .periodicAdvertisingManagerRegisterSync(
@@ -5432,7 +5652,7 @@ public class BassClientServiceTest {
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
         onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
-        checkMessage(BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
     }
 
     private void sinkUnintentionalDuringScanning() {
@@ -5441,7 +5661,7 @@ public class BassClientServiceTest {
         // Bis and PA unsynced, SINK_UNINTENTIONAL
         BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
         injectRemoteSourceStateChanged(meta, false, false);
-        checkMessage(BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
     }
 
     private void checkResumeSynchronizationByBig() {
@@ -5491,16 +5711,16 @@ public class BassClientServiceTest {
     }
 
     private void verifyStopBigMonitoringWithUnsync() {
-        checkNoMessage(BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
-        checkNoMessage(BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+        checkNoTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+        checkNoTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
         mInOrderMethodProxy
                 .verify(mMethodProxy)
                 .periodicAdvertisingManagerUnregisterSync(any(), any());
     }
 
     private void verifyStopBigMonitoringWithoutUnsync() {
-        checkNoMessage(BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
-        checkNoMessage(BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+        checkNoTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+        checkNoTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
         mInOrderMethodProxy
                 .verify(mMethodProxy, never())
                 .periodicAdvertisingManagerUnregisterSync(any(), any());
@@ -5527,14 +5747,14 @@ public class BassClientServiceTest {
                 .verify(mMethodProxy, never())
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
-        checkNoMessage(BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
-        checkNoMessage(BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+        checkNoTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+        checkNoTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
     }
 
     private void checkSinkPause() {
         BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
         injectRemoteSourceStateChanged(meta, false, false);
-        checkMessage(BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
     }
 
     @Test
@@ -5807,7 +6027,7 @@ public class BassClientServiceTest {
                         (long) 0x00000000);
             }
         }
-        checkMessage(BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
 
         // Unsync all sinks cause stop monitoring
         for (BassClientStateMachine sm : mStateMachines.values()) {
@@ -5849,7 +6069,7 @@ public class BassClientServiceTest {
                         (long) 0x00000000);
             }
         }
-        checkMessage(BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
 
         // Unsync all sinks cause stop monitoring
         for (BassClientStateMachine sm : mStateMachines.values()) {
@@ -5886,7 +6106,7 @@ public class BassClientServiceTest {
                 mCurrentDevice,
                 BluetoothProfile.STATE_CONNECTED,
                 BluetoothProfile.STATE_DISCONNECTED);
-        checkMessage(BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
 
         // Disconnect all sinks cause stop monitoring
         doReturn(BluetoothProfile.STATE_DISCONNECTED)
@@ -5918,7 +6138,7 @@ public class BassClientServiceTest {
                 mCurrentDevice,
                 BluetoothProfile.STATE_CONNECTED,
                 BluetoothProfile.STATE_DISCONNECTED);
-        checkMessage(BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
 
         // Disconnect all sinks cause stop monitoring
         doReturn(BluetoothProfile.STATE_DISCONNECTED)
@@ -5941,10 +6161,10 @@ public class BassClientServiceTest {
     public void sinkUnintentional_syncLost_withoutScanning_outOfRange() {
         sinkUnintentionalWithoutScanning();
 
-        checkNoMessage(BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+        checkNoTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
 
         onSyncLost();
-        checkMessage(BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
         mInOrderMethodProxy
                 .verify(mMethodProxy)
                 .periodicAdvertisingManagerRegisterSync(
@@ -5956,8 +6176,8 @@ public class BassClientServiceTest {
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
 
-        checkAndDispatchMessage(
-                BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT, TEST_BROADCAST_ID);
+        checkAndDispatchTimeout(
+                TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
         verifyStopBigMonitoringWithUnsync();
         verifyRemoveMessageAndInjectSourceRemoval();
         checkNoResumeSynchronizationByBig();
@@ -5971,10 +6191,10 @@ public class BassClientServiceTest {
     public void sinkUnintentional_syncLost_duringScanning_outOfRange() {
         sinkUnintentionalDuringScanning();
 
-        checkNoMessage(BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+        checkNoTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
 
         onSyncLost();
-        checkMessage(BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
         mInOrderMethodProxy
                 .verify(mMethodProxy)
                 .periodicAdvertisingManagerRegisterSync(
@@ -5986,8 +6206,8 @@ public class BassClientServiceTest {
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
 
-        checkAndDispatchMessage(
-                BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT, TEST_BROADCAST_ID);
+        checkAndDispatchTimeout(
+                TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
         verifyStopBigMonitoringWithoutUnsync();
         verifyRemoveMessageAndInjectSourceRemoval();
         checkNoResumeSynchronizationByBig();
@@ -6001,7 +6221,7 @@ public class BassClientServiceTest {
     public void sinkUnintentional_bigMonitorTimeout_withoutScanning() {
         sinkUnintentionalWithoutScanning();
 
-        checkAndDispatchMessage(BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT, TEST_BROADCAST_ID);
+        checkAndDispatchTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
         verifyStopBigMonitoringWithUnsync();
         verifyRemoveMessageAndInjectSourceRemoval();
         checkNoResumeSynchronizationByBig();
@@ -6015,7 +6235,7 @@ public class BassClientServiceTest {
     public void sinkUnintentional_bigMonitorTimeout_duringScanning() {
         sinkUnintentionalDuringScanning();
 
-        checkAndDispatchMessage(BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT, TEST_BROADCAST_ID);
+        checkAndDispatchTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
         verifyStopBigMonitoringWithoutUnsync();
         verifyRemoveMessageAndInjectSourceRemoval();
         checkNoResumeSynchronizationByBig();
@@ -6371,11 +6591,11 @@ public class BassClientServiceTest {
                 .verify(mMethodProxy)
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
-        checkMessage(BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
-        checkNoMessage(BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+        checkNoTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
 
         onSyncEstablishedFailed(mSourceDevice, TEST_SYNC_HANDLE);
-        checkMessage(BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
         mInOrderMethodProxy
                 .verify(mMethodProxy)
                 .periodicAdvertisingManagerRegisterSync(
@@ -6387,8 +6607,8 @@ public class BassClientServiceTest {
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
 
-        checkAndDispatchMessage(
-                BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT, TEST_BROADCAST_ID);
+        checkAndDispatchTimeout(
+                TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
         verifyStopBigMonitoringWithUnsync();
     }
 
@@ -6407,11 +6627,11 @@ public class BassClientServiceTest {
                 .verify(mMethodProxy)
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
-        checkMessage(BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
-        checkNoMessage(BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+        checkNoTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
 
         onSyncEstablishedFailed(mSourceDevice, TEST_SYNC_HANDLE);
-        checkMessage(BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
         mInOrderMethodProxy
                 .verify(mMethodProxy)
                 .periodicAdvertisingManagerRegisterSync(
@@ -6424,7 +6644,7 @@ public class BassClientServiceTest {
                         any(), any(), anyInt(), anyInt(), any(), any());
 
         onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
-        checkNoMessage(BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+        checkNoTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
     }
 
     @Test

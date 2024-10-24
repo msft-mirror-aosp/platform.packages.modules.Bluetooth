@@ -64,3 +64,14 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+flag {
+  name: "btsec_le_oob_pairing"
+  namespace: "bluetooth"
+  description: "Drop connection if a peer claims it has OOB data but no local OOB data is stored"
+  bug: "374376990"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
