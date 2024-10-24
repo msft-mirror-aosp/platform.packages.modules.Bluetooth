@@ -43,7 +43,6 @@ use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
 use tokio::time;
 
-use crate::battery_service::BatteryServiceActions;
 use crate::bluetooth_admin::BluetoothAdminPolicyHelper;
 use crate::bluetooth_gatt::{
     BluetoothGatt, GattActions, IBluetoothGatt, IScannerCallback, ScanResult,
@@ -375,6 +374,7 @@ struct BluetoothDeviceContext {
     pub info: BluetoothDevice,
     pub last_seen: Instant,
     pub properties: HashMap<BtPropertyType, BluetoothProperty>,
+    pub is_hh_connected: bool,
 
     /// If user wants to connect to all profiles, when new profiles are discovered we will also try
     /// to connect them.
@@ -398,6 +398,7 @@ impl BluetoothDeviceContext {
             info,
             last_seen,
             properties: HashMap::new(),
+            is_hh_connected: false,
             connect_to_new_profiles: false,
         };
         device.update_properties(&properties);
@@ -1296,6 +1297,10 @@ impl Bluetooth {
             || self.pending_create_bond.is_some()
     }
 
+    pub fn is_hh_connected(&self, device_address: &RawAddress) -> bool {
+        self.remote_devices.get(&device_address).map_or(false, |context| context.is_hh_connected)
+    }
+
     /// Checks whether the list of device properties contains some UUID we should connect now
     /// This function also connects those UUIDs.
     fn check_new_property_and_potentially_connect_profiles(
@@ -1417,37 +1422,6 @@ impl Bluetooth {
                                 });
                             }
 
-                            Profile::Bas => {
-                                has_supported_profile = true;
-                                let tx = self.tx.clone();
-                                let device_context = match self.remote_devices.get(&addr) {
-                                    Some(context) => context,
-                                    None => continue,
-                                };
-
-                                let acl_state = device_context.ble_acl_state.clone();
-                                let bond_state = device_context.bond_state.clone();
-                                let device_to_send = device.clone();
-
-                                let transport = match self.get_remote_type(device.clone()) {
-                                    BtDeviceType::Bredr => BtTransport::Bredr,
-                                    BtDeviceType::Ble => BtTransport::Le,
-                                    _ => device_context.acl_reported_transport.clone(),
-                                };
-                                topstack::get_runtime().spawn(async move {
-                                    let _ = tx
-                                        .send(Message::BatteryService(
-                                            BatteryServiceActions::Connect(
-                                                device_to_send,
-                                                acl_state,
-                                                bond_state,
-                                                transport,
-                                            ),
-                                        ))
-                                        .await;
-                                });
-                            }
-
                             // We don't connect most profiles
                             _ => (),
                         }
@@ -1462,6 +1436,31 @@ impl Bluetooth {
         // callbacks.
         if !has_supported_profile {
             self.resume_discovery();
+        }
+    }
+
+    fn fire_device_connection_or_bonded_state_changed(&self, addr: RawAddress) {
+        if let Some(device) = self.remote_devices.get(&addr) {
+            let tx = self.tx.clone();
+            let bredr_acl_state = device.bredr_acl_state.clone();
+            let ble_acl_state = device.ble_acl_state.clone();
+            let bond_state = device.bond_state.clone();
+            let transport = match self.get_remote_type(device.info.clone()) {
+                BtDeviceType::Bredr => BtTransport::Bredr,
+                BtDeviceType::Ble => BtTransport::Le,
+                _ => device.acl_reported_transport.clone(),
+            };
+            tokio::spawn(async move {
+                let _ = tx
+                    .send(Message::OnDeviceConnectionOrBondStateChanged(
+                        addr,
+                        bredr_acl_state,
+                        ble_acl_state,
+                        bond_state,
+                        transport,
+                    ))
+                    .await;
+            });
         }
     }
 }
@@ -1933,39 +1932,21 @@ impl BtifBluetoothCallbacks for Bluetooth {
                         Instant::now(),
                         vec![],
                     ));
-                    let acl_reported_transport = device.acl_reported_transport.clone();
-                    let acl_state = device.ble_acl_state.clone();
                     let device_info = device.info.clone();
-
                     // Since this is a newly bonded device, we also need to trigger SDP on it.
-                    self.fetch_remote_uuids(device_info.clone());
+                    self.fetch_remote_uuids(device_info);
                     if self.get_wake_allowed_device_bonded() {
                         self.create_uhid_for_suspend_wakesource();
                     }
                     // Update the connectable mode since bonded list is changed.
                     self.update_connectable_mode();
-
-                    let transport = match self.get_remote_type(device_info.clone()) {
-                        BtDeviceType::Bredr => BtTransport::Bredr,
-                        BtDeviceType::Ble => BtTransport::Le,
-                        _ => acl_reported_transport,
-                    };
-
-                    let tx = self.tx.clone();
-                    tokio::spawn(async move {
-                        let _ = tx
-                            .send(Message::OnDeviceConnectionStateChanged(
-                                device_info.clone(),
-                                acl_state,
-                                BtBondState::Bonded,
-                                transport,
-                            ))
-                            .await;
-                    });
                 }
                 BtBondState::Bonding => {}
             }
         }
+
+        // Modification to |self.remote_devices| has done, ok to fire the change event.
+        self.fire_device_connection_or_bonded_state_changed(addr);
 
         // Resume discovery once the bonding process is complete. Discovery was paused before the
         // bond request to avoid ACL connection from interfering with active inquiry.
@@ -2073,7 +2054,6 @@ impl BtifBluetoothCallbacks for Bluetooth {
             return;
         }
 
-        let txl = self.tx.clone();
         let device = self.remote_devices.entry(addr).or_insert(BluetoothDeviceContext::new(
             BtBondState::NotBonded,
             BtAclState::Disconnected,
@@ -2090,7 +2070,6 @@ impl BtifBluetoothCallbacks for Bluetooth {
 
         let info = device.info.clone();
         device.acl_reported_transport = link_type;
-        let bond_state = device.bond_state.clone();
 
         metrics::acl_connection_state_changed(
             addr,
@@ -2103,25 +2082,9 @@ impl BtifBluetoothCallbacks for Bluetooth {
 
         match state {
             BtAclState::Connected => {
-                let acl_reported_transport = device.acl_reported_transport;
                 Bluetooth::send_metrics_remote_device_info(device);
                 self.connection_callbacks.for_all_callbacks(|callback| {
                     callback.on_device_connected(info.clone());
-                });
-                let transport = match self.get_remote_type(info.clone()) {
-                    BtDeviceType::Bredr => BtTransport::Bredr,
-                    BtDeviceType::Ble => BtTransport::Le,
-                    _ => acl_reported_transport,
-                };
-                tokio::spawn(async move {
-                    let _ = txl
-                        .send(Message::OnDeviceConnectionStateChanged(
-                            info,
-                            BtAclState::Connected,
-                            bond_state,
-                            transport,
-                        ))
-                        .await;
                 });
             }
             BtAclState::Disconnected => {
@@ -2131,11 +2094,12 @@ impl BtifBluetoothCallbacks for Bluetooth {
                     });
                     device.connect_to_new_profiles = false;
                 }
-                tokio::spawn(async move {
-                    let _ = txl.send(Message::OnDeviceDisconnected(info)).await;
-                });
             }
         };
+
+        // Modification to |self.remote_devices| has done, ok to fire the change event.
+        self.fire_device_connection_or_bonded_state_changed(addr);
+
         // If we are bonding, skip the update here as we will update it after bonding complete anyway.
         // This is necessary for RTK controllers, which will break RNR after |Write Scan Enable|
         // command. Although this is a bug of RTK controllers, but as we could avoid unwanted page
@@ -2848,18 +2812,6 @@ impl IBluetooth for Bluetooth {
                                 });
                             }
 
-                            Profile::Bas => {
-                                let tx = self.tx.clone();
-                                let device_to_send = device.clone();
-                                topstack::get_runtime().spawn(async move {
-                                    let _ = tx
-                                        .send(Message::BatteryService(
-                                            BatteryServiceActions::Disconnect(device_to_send),
-                                        ))
-                                        .await;
-                                });
-                            }
-
                             // We don't connect most profiles
                             _ => (),
                         }
@@ -3010,7 +2962,7 @@ impl BtifSdpCallbacks for Bluetooth {
 impl BtifHHCallbacks for Bluetooth {
     fn connection_state(
         &mut self,
-        mut address: RawAddress,
+        address: RawAddress,
         address_type: BtAddrType,
         transport: BtTransport,
         state: BthhConnectionState,
@@ -3047,6 +2999,16 @@ impl BtifHHCallbacks for Bluetooth {
             state as u32,
         );
 
+        let tx = self.tx.clone();
+        self.remote_devices.entry(address).and_modify(|context| {
+            if context.is_hh_connected && state != BthhConnectionState::Connected {
+                tokio::spawn(async move {
+                    let _ = tx.send(Message::ProfileDisconnected(address)).await;
+                });
+            }
+            context.is_hh_connected = state == BthhConnectionState::Connected;
+        });
+
         if BtBondState::Bonded != self.get_bond_state_by_addr(&address)
             && (state != BthhConnectionState::Disconnecting
                 && state != BthhConnectionState::Disconnected)
@@ -3057,6 +3019,7 @@ impl BtifHHCallbacks for Bluetooth {
             );
             // TODO(b/329837967): Determine correct reconnection
             // behavior based on device instead of the default
+            let mut address = address;
             self.hh.as_ref().unwrap().disconnect(
                 &mut address,
                 address_type,

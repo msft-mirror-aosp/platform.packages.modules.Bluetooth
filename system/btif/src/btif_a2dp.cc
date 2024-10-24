@@ -130,6 +130,8 @@ void btif_a2dp_on_offload_started(const RawAddress& peer_addr, tBTA_AV_STATUS st
 
   switch (status) {
     case BTA_AV_SUCCESS:
+      // Call required to update the session state for metrics.
+      btif_a2dp_source_start_audio_req();
       ack = BluetoothAudioStatus::SUCCESS;
       break;
     case BTA_AV_FAIL_RESOURCES:
