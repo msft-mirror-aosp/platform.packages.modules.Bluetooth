@@ -20,7 +20,7 @@ pub mod suspend;
 pub mod uuid;
 
 use bluetooth_qa::{BluetoothQA, IBluetoothQA};
-use log::debug;
+use log::{debug, info};
 use num_derive::{FromPrimitive, ToPrimitive};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::channel;
@@ -29,7 +29,9 @@ use tokio::time::{sleep, Duration};
 
 use crate::battery_manager::{BatteryManager, BatterySet};
 use crate::battery_provider_manager::BatteryProviderManager;
-use crate::battery_service::{BatteryService, BatteryServiceActions};
+use crate::battery_service::{
+    BatteryService, BatteryServiceActions, BATTERY_SERVICE_GATT_CLIENT_APP_ID,
+};
 use crate::bluetooth::{
     dispatch_base_callbacks, dispatch_hid_host_callbacks, dispatch_sdp_callbacks, AdapterActions,
     Bluetooth, BluetoothDevice, IBluetooth,
@@ -45,7 +47,7 @@ use crate::dis::{DeviceInformation, ServiceCallbacks};
 use crate::socket_manager::{BluetoothSocketManager, SocketActions};
 use crate::suspend::Suspend;
 use bt_topshim::{
-    btif::{BaseCallbacks, BtAclState, BtBondState, BtTransport, RawAddress},
+    btif::{BaseCallbacks, BtAclState, BtBondState, BtTransport, DisplayAddress, RawAddress, Uuid},
     profiles::{
         a2dp::A2dpCallbacks,
         avrcp::AvrcpCallbacks,
@@ -109,8 +111,14 @@ pub enum Message {
 
     // Follows IBluetooth's on_device_(dis)connected and bond_state callbacks
     // but doesn't require depending on Bluetooth.
-    OnDeviceConnectionStateChanged(BluetoothDevice, BtAclState, BtBondState, BtTransport),
-    OnDeviceDisconnected(BluetoothDevice),
+    // Params: Address, BR/EDR ACL state, BLE ACL state, bond state, transport
+    OnDeviceConnectionOrBondStateChanged(
+        RawAddress,
+        BtAclState,
+        BtAclState,
+        BtBondState,
+        BtTransport,
+    ),
 
     // Suspend related
     SuspendCallbackRegistered(u32),
@@ -167,6 +175,11 @@ pub enum Message {
     // UHid callbacks
     UHidHfpOutputCallback(RawAddress, u8, u8),
     UHidTelephonyUseCallback(RawAddress, bool),
+
+    // This message is sent when either HID, media, or GATT client, is disconnected.
+    // Note that meida sends this when the profiles are disconnected as a whole, that is, it will
+    // not be called when AVRCP is disconnected but not A2DP, as an example.
+    ProfileDisconnected(RawAddress),
 }
 
 /// Returns a callable object that dispatches a BTIF callback to Message
@@ -432,27 +445,19 @@ impl Stack {
                     bluetooth.lock().unwrap().handle_actions(action);
                 }
 
-                // Any service needing an updated list of devices can have an
-                // update method triggered from here rather than needing a
-                // reference to Bluetooth.
-                Message::OnDeviceConnectionStateChanged(
-                    device,
-                    acl_state,
+                // Any service needing an updated list of devices can have an update method
+                // triggered from here rather than needing a reference to Bluetooth.
+                Message::OnDeviceConnectionOrBondStateChanged(
+                    addr,
+                    _bredr_acl_state,
+                    ble_acl_state,
                     bond_state,
-                    transport,
+                    _transport,
                 ) => {
-                    battery_service.lock().unwrap().handle_action(BatteryServiceActions::Connect(
-                        device, acl_state, bond_state, transport,
-                    ));
-                }
-
-                // For battery service, use this to clean up internal handles. GATT connection is
-                // already dropped if ACL disconnect has occurred.
-                Message::OnDeviceDisconnected(device) => {
-                    battery_service
-                        .lock()
-                        .unwrap()
-                        .handle_action(BatteryServiceActions::Disconnect(device));
+                    if ble_acl_state == BtAclState::Connected && bond_state == BtBondState::Bonded {
+                        info!("BAS: Connecting to {}", DisplayAddress(&addr));
+                        battery_service.lock().unwrap().init_device(addr);
+                    }
                 }
 
                 Message::SuspendCallbackRegistered(id) => {
@@ -598,6 +603,26 @@ impl Stack {
                         .lock()
                         .unwrap()
                         .dispatch_uhid_telephony_use_callback(addr, state);
+                }
+
+                Message::ProfileDisconnected(addr) => {
+                    let bas_app_uuid =
+                        Uuid::from_string(String::from(BATTERY_SERVICE_GATT_CLIENT_APP_ID))
+                            .expect("BAS Uuid failed to be parsed");
+                    // Ideally we would also check that there are no open sockets for this device
+                    // but Floss does not manage socket state so there is no reasonable way for us
+                    // to know whether a socket is open or not.
+                    if bluetooth_gatt.lock().unwrap().get_connected_applications(&addr)
+                        == vec![bas_app_uuid]
+                        && !bluetooth.lock().unwrap().is_hh_connected(&addr)
+                        && bluetooth_media.lock().unwrap().get_connected_profiles(&addr).is_empty()
+                    {
+                        info!(
+                            "BAS: Disconnecting from {} since it's the last active profile",
+                            DisplayAddress(&addr)
+                        );
+                        battery_service.lock().unwrap().drop_device(addr);
+                    }
                 }
             }
         }
