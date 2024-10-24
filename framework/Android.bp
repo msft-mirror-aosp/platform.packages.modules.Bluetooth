@@ -91,6 +91,9 @@ java_sdk_library {
     plugins: [
         "error_prone_android_framework",
     ],
+    aconfig_declarations: [
+        "bluetooth_aconfig_flags",
+    ],
     lint: {
         error_checks: [
             "Autofill",

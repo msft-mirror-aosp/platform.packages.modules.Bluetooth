@@ -173,6 +173,14 @@ impl ContextMap {
             .collect()
     }
 
+    fn get_connected_applications_from_address(&self, address: &RawAddress) -> Vec<Uuid> {
+        self.get_client_ids_from_address(address)
+            .into_iter()
+            .filter_map(|id| self.get_by_client_id(id))
+            .map(|client| client.uuid)
+            .collect()
+    }
+
     fn get_callback_from_callback_id(
         &mut self,
         callback_id: u32,
@@ -1872,6 +1880,10 @@ impl BluetoothGatt {
     pub fn handle_adv_action(&mut self, action: AdvertiserActions) {
         self.adv_manager.get_impl().handle_action(action);
     }
+
+    pub(crate) fn get_connected_applications(&self, device_address: &RawAddress) -> Vec<Uuid> {
+        self.context_map.get_connected_applications_from_address(device_address)
+    }
 }
 
 #[derive(Debug, FromPrimitive, ToPrimitive)]
@@ -2865,6 +2877,11 @@ impl BtifGattClientCallbacks for BluetoothGatt {
                 }
             }
         }
+
+        let tx = self.tx.clone();
+        tokio::spawn(async move {
+            let _ = tx.send(Message::ProfileDisconnected(addr)).await;
+        });
     }
 
     fn search_complete_cb(&mut self, conn_id: i32, _status: GattStatus) {

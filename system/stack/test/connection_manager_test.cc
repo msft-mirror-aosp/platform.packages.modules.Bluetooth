@@ -1,3 +1,5 @@
+#include "stack/connection_manager/connection_manager.h"
+
 #include <base/bind_helpers.h>
 #include <base/functional/bind.h>
 #include <base/functional/callback.h>
@@ -11,7 +13,6 @@
 #include "osi/test/alarm_mock.h"
 #include "security_device_record.h"
 #include "stack/btm/neighbor_inquiry.h"
-#include "stack/gatt/connection_manager.h"
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
