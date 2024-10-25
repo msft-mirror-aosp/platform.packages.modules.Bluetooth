@@ -125,7 +125,7 @@ source_set("stack") {
     "gap/gap_ble.cc",
     "gap/gap_conn.cc",
     "gatt/att_protocol.cc",
-    "connection_manager/connection_manager.cc",
+    "gatt/connection_manager.cc",
     "gatt/gatt_api.cc",
     "gatt/gatt_attr.cc",
     "gatt/gatt_auth.cc",

@@ -38,7 +38,7 @@
 #include "main/shim/entry.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec.h"
-#include "stack/connection_manager/connection_manager.h"
+#include "stack/gatt/connection_manager.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/acl_api_types.h"
 #include "stack/include/bt_types.h"

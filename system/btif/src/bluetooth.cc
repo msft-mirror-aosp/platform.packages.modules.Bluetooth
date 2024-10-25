@@ -100,8 +100,9 @@
 #include "osi/include/wakelock.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
-#include "stack/connection_manager/connection_manager.h"
+#include "stack/gatt/connection_manager.h"
 #include "stack/include/a2dp_api.h"
+#include "stack/include/avct_api.h"
 #include "stack/include/avdt_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
@@ -886,6 +887,7 @@ static void dump(int fd, const char** arguments) {
   VolumeControl::DebugDump(fd);
   connection_manager::dump(fd);
   bluetooth::bqr::DebugDump(fd);
+  AVCT_Dumpsys(fd);
   PAN_Dumpsys(fd);
   DumpsysHid(fd);
   DumpsysBtaDm(fd);

@@ -21,17 +21,11 @@
 
 #include <set>
 
-#include "stack/connection_manager/connection_manager.h"
+#include "stack/gatt/connection_manager.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
 using namespace connection_manager;
-
-bool connection_manager::background_connect_targeted_announcement_add(
-        tAPP_ID /* app_id */, const RawAddress& /* address */) {
-  inc_func_call_count(__func__);
-  return false;
-}
 
 bool connection_manager::background_connect_add(uint8_t /* app_id */,
                                                 const RawAddress& /* address */) {

@@ -31,8 +31,10 @@
 #include "avct_int.h"
 #include "bta/include/bta_sec_api.h"
 #include "internal_include/bt_target.h"
+#include "main/shim/dumpsys.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/bt_psm_types.h"
 #include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
@@ -68,20 +70,20 @@ void AVCT_Register() {
 
   /* register PSM with L2CAP */
   if (!stack::l2cap::get_interface().L2CA_RegisterWithSecurity(
-              AVCT_PSM, avct_l2c_appl, true /* enable_snoop */, nullptr, kAvrcMtu, 0, sec)) {
-    log::error("Unable to register with L2CAP AVCT profile psm:AVCT_PSM[0x0017]");
+              BT_PSM_AVCTP, avct_l2c_appl, true /* enable_snoop */, nullptr, kAvrcMtu, 0, sec)) {
+    log::error("Unable to register with L2CAP AVCT profile psm:{}", bt_psm_text(BT_PSM_AVCTP));
   }
 
   /* Include the browsing channel which uses eFCR */
-  tL2CAP_ERTM_INFO ertm_info;
-  ertm_info.preferred_mode = L2CAP_FCR_ERTM_MODE;
+  tL2CAP_ERTM_INFO ertm_info = {
+          .preferred_mode = L2CAP_FCR_ERTM_MODE,
+  };
 
   if (!stack::l2cap::get_interface().L2CA_RegisterWithSecurity(
-              AVCT_BR_PSM, avct_l2c_br_appl, true /*enable_snoop*/, &ertm_info, kAvrcBrMtu,
+              BT_PSM_AVCTP_BROWSE, avct_l2c_br_appl, true /*enable_snoop*/, &ertm_info, kAvrcBrMtu,
               AVCT_MIN_BROWSE_MTU, sec)) {
-    log::error(
-            "Unable to register with L2CAP AVCT_BR profile "
-            "psm:AVCT_BR_PSM[0x001b]");
+    log::error("Unable to register with L2CAP AVCT_BROWSE profile psm:{}",
+               bt_psm_text(BT_PSM_AVCTP_BROWSE));
   }
 }
 
@@ -103,10 +105,10 @@ void AVCT_Deregister(void) {
   log::verbose("AVCT_Deregister");
 
   /* deregister PSM with L2CAP */
-  stack::l2cap::get_interface().L2CA_Deregister(AVCT_PSM);
+  stack::l2cap::get_interface().L2CA_Deregister(BT_PSM_AVCTP);
 
   /* deregister AVCT_BR_PSM with L2CAP */
-  stack::l2cap::get_interface().L2CA_Deregister(AVCT_BR_PSM);
+  stack::l2cap::get_interface().L2CA_Deregister(BT_PSM_AVCTP_BROWSE);
 }
 
 /*******************************************************************************
@@ -131,7 +133,7 @@ uint16_t AVCT_CreateConn(uint8_t* p_handle, tAVCT_CC* p_cc, const RawAddress& pe
   tAVCT_CCB* p_ccb;
   tAVCT_LCB* p_lcb;
 
-  log::verbose("AVCT_CreateConn: {}, control:{}", p_cc->role, p_cc->control);
+  log::verbose("AVCT_CreateConn:{}, control:0x{:x}", avct_role_text(p_cc->role), p_cc->control);
 
   /* Allocate ccb; if no ccbs, return failure */
   p_ccb = avct_ccb_alloc(p_cc);
@@ -142,7 +144,7 @@ uint16_t AVCT_CreateConn(uint8_t* p_handle, tAVCT_CC* p_cc, const RawAddress& pe
     *p_handle = avct_ccb_to_idx(p_ccb);
 
     /* if initiator connection */
-    if (p_cc->role == AVCT_INT) {
+    if (p_cc->role == AVCT_ROLE_INITIATOR) {
       /* find link; if none allocate a new one */
       p_lcb = avct_lcb_by_bd(peer_addr);
       if (p_lcb == NULL) {
@@ -162,9 +164,10 @@ uint16_t AVCT_CreateConn(uint8_t* p_handle, tAVCT_CC* p_cc, const RawAddress& pe
       if (result == AVCT_SUCCESS) {
         /* bind lcb to ccb */
         p_ccb->p_lcb = p_lcb;
-        log::verbose("ch_state: {}", p_lcb->ch_state);
-        tAVCT_LCB_EVT avct_lcb_evt;
-        avct_lcb_evt.p_ccb = p_ccb;
+        log::verbose("ch_state:{}", avct_ch_state_text(p_lcb->ch_state));
+        tAVCT_LCB_EVT avct_lcb_evt = {
+                .p_ccb = p_ccb,
+        };
         avct_lcb_event(p_lcb, AVCT_LCB_UL_BIND_EVT, &avct_lcb_evt);
       }
     }
@@ -226,13 +229,13 @@ uint16_t AVCT_RemoveConn(uint8_t handle) {
  * Returns          AVCT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-uint16_t AVCT_CreateBrowse(uint8_t handle, uint8_t role) {
+uint16_t AVCT_CreateBrowse(uint8_t handle, tAVCT_ROLE role) {
   uint16_t result = AVCT_SUCCESS;
   tAVCT_CCB* p_ccb;
   tAVCT_BCB* p_bcb;
   int index;
 
-  log::verbose("AVCT_CreateBrowse: {}", role);
+  log::verbose("AVCT_CreateBrowse: role:{}", avct_role_text(role));
 
   /* map handle to ccb */
   p_ccb = avct_ccb_by_idx(handle);
@@ -246,7 +249,7 @@ uint16_t AVCT_CreateBrowse(uint8_t handle, uint8_t role) {
   }
 
   /* if initiator connection */
-  if (role == AVCT_INT) {
+  if (role == AVCT_ROLE_INITIATOR) {
     /* the link control block must exist before this function is called as INT.
      */
     if ((p_ccb->p_lcb == NULL) || (p_ccb->p_lcb->allocated == 0)) {
@@ -266,7 +269,7 @@ uint16_t AVCT_CreateBrowse(uint8_t handle, uint8_t role) {
       /* bind bcb to ccb */
       p_ccb->p_bcb = p_bcb;
       p_bcb->peer_addr = p_ccb->p_lcb->peer_addr;
-      log::verbose("ch_state: {}", p_bcb->ch_state);
+      log::verbose("Created BCB ch_state:{}", avct_ch_state_text(p_bcb->ch_state));
       tAVCT_LCB_EVT avct_lcb_evt;
       avct_lcb_evt.p_ccb = p_ccb;
       avct_bcb_event(p_bcb, AVCT_LCB_UL_BIND_EVT, &avct_lcb_evt);
@@ -390,7 +393,7 @@ uint16_t AVCT_MsgReq(uint8_t handle, uint8_t label, uint8_t cr, BT_HDR* p_msg) {
   if (p_msg == NULL) {
     return AVCT_NO_RESOURCES;
   }
-  log::verbose("len: {} layer_specific: {}", p_msg->len, p_msg->layer_specific);
+  log::verbose("msg_len:{} msg_layer_specific:{}", p_msg->len, p_msg->layer_specific);
 
   /* map handle to ccb */
   p_ccb = avct_ccb_by_idx(handle);
@@ -432,3 +435,37 @@ uint16_t AVCT_MsgReq(uint8_t handle, uint8_t label, uint8_t cr, BT_HDR* p_msg) {
   }
   return result;
 }
+
+#define DUMPSYS_TAG "stack::avct"
+
+void AVCT_Dumpsys(int fd) {
+  LOG_DUMPSYS_TITLE(fd, DUMPSYS_TAG);
+  for (int i = 0; i < AVCT_NUM_CONN; i++) {
+    const tAVCT_CCB& ccb = avct_cb.ccb[i];
+    if (!ccb.allocated) {
+      continue;
+    }
+    LOG_DUMPSYS(fd, " Id:%2u profile_uuid:0x%04x role:%s control:0x%2x", i, ccb.cc.pid,
+                avct_role_text(ccb.cc.role).c_str(), ccb.cc.control);
+    if (ccb.p_lcb) {  // tAVCT_LCB
+      LOG_DUMPSYS(fd,
+                  "  Link  : peer:%s lcid:0x%04x sm_state:%-24s ch_state:%s conflict_lcid:0x%04x",
+                  fmt::format("{}", ccb.p_lcb->peer_addr).c_str(), ccb.p_lcb->ch_lcid,
+                  avct_sm_state_text(ccb.p_lcb->state).c_str(),
+                  avct_ch_state_text(ccb.p_lcb->ch_state).c_str(), ccb.p_lcb->conflict_lcid);
+    } else {
+      LOG_DUMPSYS(fd, "  Link  : No link channel");
+    }
+
+    if (ccb.p_bcb) {  // tAVCT_BCB
+      LOG_DUMPSYS(fd,
+                  "  Browse: peer:%s lcid:0x%04x sm_state:%-24s ch_state:%s conflict_lcid:0x%04x",
+                  fmt::format("{}", ccb.p_bcb->peer_addr).c_str(), ccb.p_bcb->ch_lcid,
+                  avct_sm_state_text(ccb.p_bcb->state).c_str(),
+                  avct_ch_state_text(ccb.p_bcb->ch_state).c_str(), ccb.p_bcb->conflict_lcid);
+    } else {
+      LOG_DUMPSYS(fd, "  Browse: No browse channel");
+    }
+  }
+}
+#undef DUMPSYS_TAG
