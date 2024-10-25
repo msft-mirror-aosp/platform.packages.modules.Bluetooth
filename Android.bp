@@ -112,6 +112,7 @@ java_defaults {
             "-Xep:DirectInvocationOnMock:ERROR",
             "-Xep:EmptyBlockTag:ERROR",
             "-Xep:EmptyCatch:ERROR",
+            "-Xep:EnumOrdinal:ERROR",
             "-Xep:EqualsGetClass:ERROR",
             "-Xep:EqualsHashCode:ERROR",
             "-Xep:EqualsIncompatibleType:ERROR",

@@ -1062,16 +1062,15 @@ uint16_t AVRC_GetProfileVersion() {
  *
  *****************************************************************************/
 uint16_t AVRC_Open(uint8_t* p_handle, tAVRC_CONN_CB* p_ccb, const RawAddress& peer_addr) {
-  uint16_t status;
-  tAVCT_CC cc;
+  tAVCT_CC cc = {
+          .p_ctrl_cback = avrc_ctrl_cback,         /* Control callback */
+          .p_msg_cback = avrc_msg_cback,           /* Message callback */
+          .pid = UUID_SERVCLASS_AV_REMOTE_CONTROL, /* Profile ID */
+          .role = p_ccb->conn,                     /* Initiator/acceptor role */
+          .control = p_ccb->control,               /* Control role (Control/Target) */
+  };
 
-  cc.p_ctrl_cback = avrc_ctrl_cback;         /* Control callback */
-  cc.p_msg_cback = avrc_msg_cback;           /* Message callback */
-  cc.pid = UUID_SERVCLASS_AV_REMOTE_CONTROL; /* Profile ID */
-  cc.role = p_ccb->conn;                     /* Initiator/acceptor role */
-  cc.control = p_ccb->control;               /* Control role (Control/Target) */
-
-  status = AVCT_CreateConn(p_handle, &cc, peer_addr);
+  uint16_t status = AVCT_CreateConn(p_handle, &cc, peer_addr);
   if (status == AVCT_SUCCESS) {
     avrc_cb.ccb[*p_handle] = *p_ccb;
     memset(&avrc_cb.ccb_int[*p_handle], 0, sizeof(tAVRC_CONN_INT_CB));
@@ -1080,7 +1079,8 @@ uint16_t AVRC_Open(uint8_t* p_handle, tAVRC_CONN_CB* p_ccb, const RawAddress& pe
     avrc_cb.ccb_int[*p_handle].tle = alarm_new("avrcp.commandTimer");
     avrc_cb.ccb_int[*p_handle].cmd_q = fixed_queue_new(SIZE_MAX);
   }
-  log::verbose("role: {}, control:{} status:{}, handle:{}", cc.role, cc.control, status, *p_handle);
+  log::verbose("role: {}, control:0x{:x} status:{}, handle:{}", avct_role_text(cc.role), cc.control,
+               status, *p_handle);
 
   return status;
 }
@@ -1123,7 +1123,7 @@ uint16_t AVRC_Close(uint8_t handle) {
  *                  the connection.
  *
  *****************************************************************************/
-uint16_t AVRC_OpenBrowse(uint8_t handle, uint8_t conn_role) {
+uint16_t AVRC_OpenBrowse(uint8_t handle, tAVCT_ROLE conn_role) {
   return AVCT_CreateBrowse(handle, conn_role);
 }
 

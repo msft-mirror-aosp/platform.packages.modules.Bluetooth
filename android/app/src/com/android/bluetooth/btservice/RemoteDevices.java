@@ -293,10 +293,16 @@ public class RemoteDevices {
     @VisibleForTesting
     DeviceProperties addDeviceProperties(byte[] address) {
         synchronized (mDevices) {
+            String key = Utils.getAddressStringFromByte(address);
+            if (Flags.fixAddDeviceProperties() && mDevices.containsKey(key)) {
+                debugLog("Properties for device " + key + " are already added");
+                return mDevices.get(key);
+            }
+
             DeviceProperties prop = new DeviceProperties();
             prop.setDevice(mAdapter.getRemoteDevice(Utils.getAddressStringFromByte(address)));
             prop.setAddress(address);
-            String key = Utils.getAddressStringFromByte(address);
+
             DeviceProperties pv = mDevices.put(key, prop);
 
             if (pv == null) {

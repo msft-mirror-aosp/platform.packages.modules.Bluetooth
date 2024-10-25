@@ -38,20 +38,6 @@ bool dis_gatt_c_read_dis_req(uint16_t /* conn_id */) {
   inc_func_call_count(__func__);
   return false;
 }
-bool dis_valid_handle_range(uint16_t /* handle */) {
-  inc_func_call_count(__func__);
-  return false;
-}
-uint8_t dis_read_attr_value(uint8_t /* clcb_idx */, uint16_t /* handle */,
-                            tGATT_VALUE* /* p_value */, bool /* is_long */,
-                            tGATT_STATUS* /* p_status */) {
-  inc_func_call_count(__func__);
-  return 0;
-}
-uint8_t dis_write_attr_value(tGATT_WRITE_REQ* /* p_data */, tGATT_STATUS* /* p_status */) {
-  inc_func_call_count(__func__);
-  return 0;
-}
 void dis_c_cmpl_cback(tSRVC_CLCB* /* p_clcb */, tGATTC_OPTYPE /* op */, tGATT_STATUS /* status */,
                       tGATT_CL_COMPLETE* /* p_data */) {
   inc_func_call_count(__func__);
