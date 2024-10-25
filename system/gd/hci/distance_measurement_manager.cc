@@ -70,6 +70,7 @@ static constexpr uint16_t kRangingCounterMask = 0x0FFF;
 static constexpr uint8_t kInvalidConfigId = 0xFF;
 static constexpr uint16_t kDefaultIntervalMs = 1000;  // 1s
 static constexpr uint8_t kPreferredPeerAntennaValue = 0x01;  // Use first ordered antenna element
+static constexpr uint8_t kMaxRetryCounterForCreateConfig = 0x03;
 
 struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   struct CsProcedureData {
@@ -166,6 +167,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     bool ras_connected = false;
     bool setup_complete = false;
     bool config_set = false;
+    uint8_t retry_counter_for_create_config = 0;
     uint16_t n_procedure_count = 0;
     CsMainModeType main_mode_type = CsMainModeType::MODE_2;
     CsSubModeType sub_mode_type = CsSubModeType::UNUSED;
@@ -759,6 +761,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       req_it->second.setup_complete = true;
       log::info("Setup phase complete, connection_handle: {}, address: {}", connection_handle,
                 cs_requester_trackers_[connection_handle].address);
+      req_it->second.retry_counter_for_create_config = 0;
       send_le_cs_create_config(connection_handle,
                                cs_requester_trackers_[connection_handle].config_id);
     }
@@ -820,7 +823,20 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (event_view.GetStatus() != ErrorCode::SUCCESS) {
       std::string error_code = ErrorCodeText(event_view.GetStatus());
       log::warn("Received LeCsConfigCompleteView with error code {}", error_code);
-      handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+      // The Create Config LL packet may arrive before the remote side has finished setting default
+      // settings, which will result in create config failure. Retry to ensure the remote side has
+      // completed its setup.
+      if (cs_requester_trackers_.find(connection_handle) != cs_requester_trackers_.end() &&
+          cs_requester_trackers_[connection_handle].retry_counter_for_create_config <
+                  kMaxRetryCounterForCreateConfig) {
+        cs_requester_trackers_[connection_handle].retry_counter_for_create_config++;
+        log::info("send_le_cs_create_config, retry counter {}",
+                  cs_requester_trackers_[connection_handle].retry_counter_for_create_config);
+        send_le_cs_create_config(connection_handle,
+                                 cs_requester_trackers_[connection_handle].config_id);
+      } else {
+        handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+      }
       return;
     }
     uint8_t config_id = event_view.GetConfigId();

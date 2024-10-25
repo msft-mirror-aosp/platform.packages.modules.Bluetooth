@@ -1491,24 +1491,29 @@ public final class BluetoothAdapter {
                 }
             };
 
-    private static final IpcDataCache.QueryHandler<IBluetoothManager, Integer>
-            sBluetoothGetSystemStateQuery =
-                    new IpcDataCache.QueryHandler<>() {
-                        @RequiresNoPermission
-                        @Override
-                        public @InternalAdapterState Integer apply(IBluetoothManager serviceQuery) {
-                            try {
-                                return serviceQuery.getState();
-                            } catch (RemoteException e) {
-                                throw e.rethrowAsRuntimeException();
-                            }
-                        }
-                        @RequiresNoPermission
-                        @Override
-                        public boolean shouldBypassCache(IBluetoothManager serviceQuery) {
-                            return false;
-                        }
-                    };
+    private static final IpcDataCache.QueryHandler<Void, Integer> sBluetoothGetSystemStateQuery =
+            new IpcDataCache.QueryHandler<>() {
+                @RequiresNoPermission
+                @Override
+                public @InternalAdapterState Integer apply(Void query) {
+                    try {
+                        IBluetoothManager service =
+                                IBluetoothManager.Stub.asInterface(
+                                        BluetoothFrameworkInitializer.getBluetoothServiceManager()
+                                                .getBluetoothManagerServiceRegisterer()
+                                                .get());
+                        return service.getState();
+                    } catch (RemoteException e) {
+                        throw e.rethrowFromSystemServer();
+                    }
+                }
+
+                @RequiresNoPermission
+                @Override
+                public boolean shouldBypassCache(Void query) {
+                    return false;
+                }
+            };
 
     private static final String GET_STATE_API = "BluetoothAdapter_getState";
 
@@ -1518,9 +1523,9 @@ public final class BluetoothAdapter {
     private static final IpcDataCache<IBluetooth, Integer> sBluetoothGetStateCache =
             new BluetoothCache<>(GET_STATE_API, sBluetoothGetStateQuery);
 
-    private static final IpcDataCache<IBluetoothManager, Integer> sBluetoothGetSystemStateCache =
+    private static final IpcDataCache<Void, Integer> sBluetoothGetSystemStateCache =
             new IpcDataCache<>(
-                    8,
+                    1,
                     IBluetoothManager.IPC_CACHE_MODULE_SYSTEM,
                     GET_SYSTEM_STATE_API,
                     GET_SYSTEM_STATE_API,
@@ -1546,14 +1551,7 @@ public final class BluetoothAdapter {
     /** Fetch the current bluetooth state. If the service is down, return OFF. */
     private @InternalAdapterState int getStateInternal() {
         if (Flags.getStateFromSystemServer()) {
-            try {
-                return sBluetoothGetSystemStateCache.query(mManagerService);
-            } catch (RuntimeException runtime) {
-                if (runtime.getCause() instanceof RemoteException e) {
-                    throw e.rethrowFromSystemServer();
-                }
-                throw runtime;
-            }
+            return sBluetoothGetSystemStateCache.query(null);
         }
         mServiceLock.readLock().lock();
         try {
