@@ -17,15 +17,22 @@
 #define LOG_TAG "BluetoothHeadsetServiceJni"
 
 #include <bluetooth/log.h>
+#include <jni.h>
+#include <nativehelper/JNIHelp.h>
+#include <nativehelper/scoped_local_ref.h>
 
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
 #include <mutex>
 #include <shared_mutex>
 
-#include "btif/include/btif_hf.h"
 #include "com_android_bluetooth.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bluetooth_headset_callbacks.h"
 #include "hardware/bluetooth_headset_interface.h"
 #include "hardware/bt_hf.h"
+#include "types/raw_address.h"
 
 namespace android {
 
