@@ -62,14 +62,12 @@ static constexpr uint16_t kMaxProcedureInterval = 0xFF;
 static constexpr uint16_t kMaxProcedureCount = 0x01;
 static constexpr uint32_t kMinSubeventLen = 0x0004E2;         // 1250us
 static constexpr uint32_t kMaxSubeventLen = 0x3d0900;         // 4s
-static constexpr uint8_t kToneAntennaConfigSelection = 0x00;  // 1x1
 static constexpr uint8_t kTxPwrDelta = 0x00;
 static constexpr uint8_t kProcedureDataBufferSize = 0x10;  // Buffer size of Procedure data
 static constexpr uint16_t kMtuForRasData = 507;            // 512 - 5
 static constexpr uint16_t kRangingCounterMask = 0x0FFF;
 static constexpr uint8_t kInvalidConfigId = 0xFF;
 static constexpr uint16_t kDefaultIntervalMs = 1000;  // 1s
-static constexpr uint8_t kPreferredPeerAntennaValue = 0x01;  // Use first ordered antenna element
 static constexpr uint8_t kMaxRetryCounterForCreateConfig = 0x03;
 
 struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
@@ -173,6 +171,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     CsSubModeType sub_mode_type = CsSubModeType::UNUSED;
     CsRttType rtt_type = CsRttType::RTT_AA_ONLY;
     bool remote_support_phase_based_ranging = false;
+    uint8_t remote_num_antennas_supported_ = 0x01;
     uint8_t config_id = kInvalidConfigId;
     uint8_t selected_tx_power = 0;
     std::vector<CsProcedureData> procedure_data_list = {};
@@ -624,20 +623,31 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             handler_->BindOnceOn(this, &impl::on_cs_setup_command_status_cb, connection_handle));
   }
 
-  void send_le_cs_set_procedure_parameters(uint16_t connection_handle, uint8_t config_id) {
+  void send_le_cs_set_procedure_parameters(uint16_t connection_handle, uint8_t config_id,
+                                           uint8_t remote_num_antennas_supported) {
+    uint8_t tone_antenna_config_selection =
+            cs_tone_antenna_config_mapping_table_[num_antennas_supported_]
+                                                 [remote_num_antennas_supported];
+    uint8_t preferred_peer_antenna_value =
+            cs_preferred_peer_antenna_mapping_table_[tone_antenna_config_selection];
+    log::info(
+            "num_antennas_supported:{}, remote_num_antennas_supported:{}, "
+            "tone_antenna_config_selection:{}, preferred_peer_antenna:{}",
+            num_antennas_supported_, remote_num_antennas_supported, tone_antenna_config_selection,
+            preferred_peer_antenna_value);
     CsPreferredPeerAntenna preferred_peer_antenna;
-    preferred_peer_antenna.use_first_ordered_antenna_element_ = kPreferredPeerAntennaValue & 0x01;
+    preferred_peer_antenna.use_first_ordered_antenna_element_ = preferred_peer_antenna_value & 0x01;
     preferred_peer_antenna.use_second_ordered_antenna_element_ =
-            (kPreferredPeerAntennaValue >> 1) & 0x01;
+            (preferred_peer_antenna_value >> 1) & 0x01;
     preferred_peer_antenna.use_third_ordered_antenna_element_ =
-            (kPreferredPeerAntennaValue >> 2) & 0x01;
+            (preferred_peer_antenna_value >> 2) & 0x01;
     preferred_peer_antenna.use_fourth_ordered_antenna_element_ =
-            (kPreferredPeerAntennaValue >> 3) & 0x01;
+            (preferred_peer_antenna_value >> 3) & 0x01;
     hci_layer_->EnqueueCommand(
             LeCsSetProcedureParametersBuilder::Create(
                     connection_handle, config_id, kMaxProcedureLen, kMinProcedureInterval,
                     kMaxProcedureInterval, kMaxProcedureCount, kMinSubeventLen, kMaxSubeventLen,
-                    kToneAntennaConfigSelection, CsPhy::LE_1M_PHY, kTxPwrDelta,
+                    tone_antenna_config_selection, CsPhy::LE_1M_PHY, kTxPwrDelta,
                     preferred_peer_antenna, CsSnrControl::NOT_APPLIED, CsSnrControl::NOT_APPLIED),
             handler_->BindOnceOn(this, &impl::on_cs_set_procedure_parameters));
   }
@@ -731,6 +741,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       return;
     }
     cs_subfeature_supported_ = complete_view.GetOptionalSubfeaturesSupported();
+    num_antennas_supported_ = complete_view.GetNumAntennasSupported();
   }
 
   void on_cs_read_remote_supported_capabilities_complete(
@@ -758,6 +769,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (req_it != cs_requester_trackers_.end() && req_it->second.measurement_ongoing) {
       req_it->second.remote_support_phase_based_ranging =
               event_view.GetOptionalSubfeaturesSupported().phase_based_ranging_ == 0x01;
+      req_it->second.remote_num_antennas_supported_ = event_view.GetNumAntennasSupported();
       req_it->second.setup_complete = true;
       log::info("Setup phase complete, connection_handle: {}, address: {}", connection_handle,
                 cs_requester_trackers_[connection_handle].address);
@@ -805,7 +817,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
         !req_it->second.config_set) {
       req_it->second.config_set = true;
       send_le_cs_set_procedure_parameters(event_view.GetConnectionHandle(),
-                                          req_it->second.config_id);
+                                          req_it->second.config_id,
+                                          req_it->second.remote_num_antennas_supported_);
     }
     auto res_it = cs_responder_trackers_.find(connection_handle);
     if (res_it != cs_responder_trackers_.end() &&
@@ -989,14 +1002,6 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
         live_tracker->waiting_for_start_callback = false;
         distance_measurement_callbacks_->OnDistanceMeasurementStarted(live_tracker->address,
                                                                       METHOD_CS);
-      }
-      // cs role switch from requester to responder, may reset the config if conflict.
-      if (!live_tracker->local_start &&
-          cs_requester_trackers_.find(connection_handle) != cs_requester_trackers_.end() &&
-          cs_requester_trackers_[connection_handle].config_id == live_tracker->config_id) {
-        log::debug("config id {} from remote is the same as the cached local, reset config_set.",
-                   cs_requester_trackers_[connection_handle].config_id);
-        cs_requester_trackers_[connection_handle].config_set = false;
       }
     } else if (event_view.GetState() == Enable::DISABLED) {
       uint8_t valid_requester_states = static_cast<uint8_t>(CsTrackerState::STARTED);
@@ -1774,6 +1779,13 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   std::unordered_map<uint16_t, CsTracker> cs_responder_trackers_;
   DistanceMeasurementCallbacks* distance_measurement_callbacks_;
   CsOptionalSubfeaturesSupported cs_subfeature_supported_;
+  uint8_t num_antennas_supported_ = 0x01;
+  // A table that maps num_antennas_supported and remote_num_antennas_supported to Antenna
+  // Configuration Index.
+  uint8_t cs_tone_antenna_config_mapping_table_[4][4] = {
+          {0, 4, 5, 6}, {1, 7, 7, 7}, {2, 7, 7, 7}, {3, 7, 7, 7}};
+  // A table that maps Antenna Configuration Index to Preferred Peer Antenna.
+  uint8_t cs_preferred_peer_antenna_mapping_table_[8] = {1, 1, 1, 1, 3, 7, 15, 3};
   // Antenna path permutations. See Channel Sounding CR_PR for the details.
   uint8_t cs_antenna_permutation_array_[24][4] = {
           {1, 2, 3, 4}, {2, 1, 3, 4}, {1, 3, 2, 4}, {3, 1, 2, 4}, {3, 2, 1, 4}, {2, 3, 1, 4},
