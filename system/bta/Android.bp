@@ -260,6 +260,7 @@ cc_test {
         ":TestMockStackAvdt",
         ":TestMockStackAvrc",
         ":TestMockStackBtm",
+        ":TestMockStackConnMgr",
         ":TestMockStackGap",
         ":TestMockStackGatt",
         ":TestMockStackHid",

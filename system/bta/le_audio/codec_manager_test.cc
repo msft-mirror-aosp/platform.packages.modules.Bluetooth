@@ -265,6 +265,8 @@ void set_mock_offload_capabilities(const std::vector<AudioSetConfiguration>& cap
 }
 
 static constexpr char kPropLeAudioOffloadSupported[] = "ro.bluetooth.leaudio_offload.supported";
+static constexpr char kPropLeAudioCodecExtensibility[] =
+        "bluetooth.core.le_audio.codec_extension_aidl.enabled";
 static constexpr char kPropLeAudioOffloadDisabled[] = "persist.bluetooth.leaudio_offload.disabled";
 static constexpr char kPropLeAudioBidirSwbSupported[] =
         "bluetooth.leaudio.dual_bidirection_swb.supported";
@@ -823,6 +825,10 @@ public:
     // Allow for bidir SWB configurations
     osi_property_set_bool(kPropLeAudioBidirSwbSupported, true);
 
+    // Codec extensibility disabled by default
+    com::android::bluetooth::flags::provider_->leaudio_multicodec_aidl_support(false);
+    osi_property_set_bool(kPropLeAudioCodecExtensibility, false);
+
     CodecManagerTestBase::SetUp();
   }
 };
@@ -836,6 +842,10 @@ public:
 
     // Do not allow for bidir SWB configurations
     osi_property_set_bool(kPropLeAudioBidirSwbSupported, false);
+
+    // Codec extensibility disabled by default
+    com::android::bluetooth::flags::provider_->leaudio_multicodec_aidl_support(false);
+    osi_property_set_bool(kPropLeAudioCodecExtensibility, false);
 
     CodecManagerTestBase::SetUp();
   }
@@ -1293,6 +1303,30 @@ TEST_F(CodecManagerTestHost, test_dont_update_broadcast_offloader) {
 
   // Expect no call for HOST encoding
   ASSERT_FALSE(was_called);
+}
+
+TEST_F(CodecManagerTestHost, test_dont_call_hal_for_config) {
+  com::android::bluetooth::flags::provider_->leaudio_multicodec_aidl_support(true);
+  osi_property_set_bool(kPropLeAudioCodecExtensibility, true);
+
+  // Set the offloader capabilities
+  std::vector<AudioSetConfiguration> offload_capabilities;
+  set_mock_offload_capabilities(offload_capabilities);
+
+  const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference = {};
+  codec_manager->Start(offloading_preference);
+  codec_manager->UpdateActiveUnicastAudioHalClient(mock_le_audio_source_hal_client_,
+                                                   mock_le_audio_sink_hal_client_, true);
+
+  EXPECT_CALL(*mock_le_audio_source_hal_client_, GetUnicastConfig(_)).Times(0);
+  codec_manager->GetCodecConfig(
+          {.audio_context_type = types::LeAudioContextType::MEDIA},
+          [&](const CodecManager::UnicastConfigurationRequirements& /*requirements*/,
+              const set_configurations::AudioSetConfigurations* /*confs*/)
+                  -> std::unique_ptr<set_configurations::AudioSetConfiguration> {
+            // In this case the chosen configuration doesn't matter - select none
+            return nullptr;
+          });
 }
 
 }  // namespace bluetooth::le_audio

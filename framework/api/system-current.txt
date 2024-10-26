@@ -1166,8 +1166,8 @@ package android.bluetooth {
     method @NonNull public byte[] getDeviceAddressWithType();
     method @Nullable public byte[] getDeviceName();
     method @Nullable public byte[] getLeAppearance();
-    method @NonNull public int getLeDeviceRole();
-    method @NonNull public int getLeFlags();
+    method public int getLeDeviceRole();
+    method public int getLeFlags();
     method @Nullable public byte[] getLeTemporaryKey();
     method @NonNull public byte[] getRandomizerHash();
     method public void writeToParcel(@NonNull android.os.Parcel, int);
@@ -1382,9 +1382,9 @@ package android.bluetooth.le {
 
   public static interface DistanceMeasurementSession.Callback {
     method public void onResult(@NonNull android.bluetooth.BluetoothDevice, @NonNull android.bluetooth.le.DistanceMeasurementResult);
-    method public void onStartFail(@NonNull int);
+    method public void onStartFail(int);
     method public void onStarted(@NonNull android.bluetooth.le.DistanceMeasurementSession);
-    method public void onStopped(@NonNull android.bluetooth.le.DistanceMeasurementSession, @NonNull int);
+    method public void onStopped(@NonNull android.bluetooth.le.DistanceMeasurementSession, int);
   }
 
   @Deprecated public final class ResultStorageDescriptor implements android.os.Parcelable {
