@@ -904,7 +904,23 @@ public class VolumeControlServiceTest {
     }
 
     @Test
-    public void serviceBinderRegisterUnregisterCallback() {
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_VOLUME_CONTROL_FOR_CONNECTED_DEVICES)
+    public void testServiceBinderSetDeviceVolumeNoGroupId() throws Exception {
+        int deviceVolume = 42;
+        when(mLeAudioService.getGroupId(mDevice)).thenReturn(LE_AUDIO_GROUP_ID_INVALID);
+
+        generateDeviceAvailableMessageFromNative(mDevice, 1);
+        generateConnectionMessageFromNative(
+                mDevice, STATE_CONNECTED, STATE_DISCONNECTED);
+        assertThat(mService.getDevices()).contains(mDevice);
+
+        mBinder.setDeviceVolume(mDevice, deviceVolume, false, mAttributionSource);
+        verify(mNativeInterface).setVolume(mDevice, deviceVolume);
+        assertThat(mService.getDeviceVolume(mDevice)).isEqualTo(deviceVolume);
+    }
+
+    @Test
+    public void testServiceBinderRegisterUnregisterCallback() throws Exception {
         IBluetoothVolumeControlCallback callback =
                 Mockito.mock(IBluetoothVolumeControlCallback.class);
         Binder binder = Mockito.mock(Binder.class);

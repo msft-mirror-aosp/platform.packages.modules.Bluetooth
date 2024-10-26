@@ -57,7 +57,8 @@ static constexpr uint8_t kStateFlagIsCancelled = 0x20;
 constexpr char kBtmLogTag[] = "ISO";
 
 struct iso_sync_info {
-  uint16_t seq_nb;
+  uint16_t tx_seq_nb;
+  uint16_t rx_seq_nb;
 };
 
 struct iso_base {
@@ -159,7 +160,7 @@ struct iso_impl {
         auto cis = std::unique_ptr<iso_cis>(new iso_cis());
         cis->cig_id = cig_id;
         cis->sdu_itv = sdu_itv_mtos;
-        cis->sync_info = {.seq_nb = 0};
+        cis->sync_info = {.tx_seq_nb = 0, .rx_seq_nb = 0};
         cis->used_credits = 0;
         cis->state_flags = kStateFlagsNone;
         conn_hdl_to_cis_map_[conn_handle] = std::move(cis);
@@ -528,8 +529,8 @@ struct iso_impl {
     /* Calculate sequence number for the ISO data packet.
      * It should be incremented by 1 every SDU Interval.
      */
-    uint16_t seq_nb = iso->sync_info.seq_nb;
-    iso->sync_info.seq_nb = (seq_nb + 1) & 0xffff;
+    uint16_t seq_nb = iso->sync_info.tx_seq_nb;
+    iso->sync_info.tx_seq_nb = (seq_nb + 1) & 0xffff;
 
     if (iso_credits_ == 0 || data_len > iso_buffer_size_) {
       iso->cr_stats.credits_underflow_bytes += data_len;
@@ -681,7 +682,7 @@ struct iso_impl {
         auto bis = std::unique_ptr<iso_bis>(new iso_bis());
         bis->big_handle = evt.big_id;
         bis->sdu_itv = last_big_create_req_sdu_itv_;
-        bis->sync_info = {.seq_nb = 0};
+        bis->sync_info = {.tx_seq_nb = 0, .rx_seq_nb = 0};
         bis->used_credits = 0;
         bis->state_flags = kStateFlagIsBroadcast;
         conn_hdl_to_bis_map_[conn_handle] = std::move(bis);
@@ -806,8 +807,8 @@ struct iso_impl {
 
     STREAM_TO_UINT16(seq_nb, stream);
 
-    uint16_t expected_seq_nb = iso->sync_info.seq_nb;
-    iso->sync_info.seq_nb = (seq_nb + 1) & 0xffff;
+    uint16_t expected_seq_nb = iso->sync_info.rx_seq_nb;
+    iso->sync_info.rx_seq_nb = (seq_nb + 1) & 0xffff;
 
     evt.evt_lost = ((1 << 16) + seq_nb - expected_seq_nb) & 0xffff;
     if (evt.evt_lost > 0) {

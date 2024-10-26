@@ -206,7 +206,7 @@ TEST_F(AvrcpConnectionHandlerTest, remoteDeviceConnectionTest) {
 
   // Set an Expectation that OpenBrowse will be called in acceptor mode when the
   // device connects.
-  EXPECT_CALL(mock_avrcp_, OpenBrowse(1, AVCT_ACP)).Times(1);
+  EXPECT_CALL(mock_avrcp_, OpenBrowse(1, AVCT_ROLE_ACCEPTOR)).Times(1);
 
   if (com::android::bluetooth::flags::avrcp_connect_a2dp_with_delay()) {
     // Set an expectation that SDP for audio will be performed
@@ -374,7 +374,7 @@ TEST_F(AvrcpConnectionHandlerTest, multipleRemoteDeviceConnectionTest) {
 
   // Set an Expectation that OpenBrowse will be called in acceptor mode when the
   // device connects on handle 1
-  EXPECT_CALL(mock_avrcp_, OpenBrowse(1, AVCT_ACP)).Times(1);
+  EXPECT_CALL(mock_avrcp_, OpenBrowse(1, AVCT_ROLE_ACCEPTOR)).Times(1);
 
   // Call the callback with a message saying that a remote device has connected
   conn_cb.ctrl_cback.Run(1, AVRC_OPEN_IND_EVT, 0, &RawAddress::kAny);
@@ -391,7 +391,7 @@ TEST_F(AvrcpConnectionHandlerTest, multipleRemoteDeviceConnectionTest) {
 
   // Set an Expectation that OpenBrowse will be called in acceptor mode when the
   // device connects on handle 2
-  EXPECT_CALL(mock_avrcp_, OpenBrowse(2, AVCT_ACP)).Times(1);
+  EXPECT_CALL(mock_avrcp_, OpenBrowse(2, AVCT_ROLE_ACCEPTOR)).Times(1);
 
   // Call the callback with a message saying that a remote device has connected
   // with a different address
@@ -504,7 +504,7 @@ TEST_F(AvrcpConnectionHandlerTest, connectToBrowsableRemoteDeviceTest) {
 
   // Set an Expectation that OpenBrowse will be called since browsing is listed
   // as supported in SDP
-  EXPECT_CALL(mock_avrcp_, OpenBrowse(1, AVCT_INT)).Times(1);
+  EXPECT_CALL(mock_avrcp_, OpenBrowse(1, AVCT_ROLE_INITIATOR)).Times(1);
 
   // Call the callback with a message saying that a remote device has connected
   // with a different address

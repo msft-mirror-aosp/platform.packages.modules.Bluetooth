@@ -37,7 +37,7 @@
 #include "osi/include/allocator.h"
 #include "stack/arbiter/acl_arbiter.h"
 #include "stack/btm/btm_dev.h"
-#include "stack/gatt/connection_manager.h"
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/ais_api.h"
 #include "stack/include/bt_hdr.h"

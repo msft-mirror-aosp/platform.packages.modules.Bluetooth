@@ -484,6 +484,13 @@ filegroup {
 }
 
 filegroup {
+    name: "TestMockStackConnMgr",
+    srcs: [
+        "mock/mock_stack_connection_manager.cc",
+    ],
+}
+
+filegroup {
     name: "TestMockStackEatt",
     srcs: [
         "mock/mock_stack_eatt*.cc",

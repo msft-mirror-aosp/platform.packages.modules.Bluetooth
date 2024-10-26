@@ -25,8 +25,6 @@
  *
  *****************************************************************************/
 
-#define LOG_TAG "bluetooth"
-
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 #include <string.h>
@@ -39,10 +37,28 @@
 #include "stack/avct/avct_int.h"
 #include "stack/include/avct_api.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/l2cap_interface.h"
 
 using namespace bluetooth;
+
+static void avct_bcb_chnl_open(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_chnl_disc(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_send_msg(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_open_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_open_fail(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_close_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_close_cfm(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_cong_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_bind_conn(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_bind_fail(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_unbind_disc(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_chk_disc(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_discard_msg(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_dealloc(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
+static void avct_bcb_free_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data);
 
 /* action function list */
 const tAVCT_BCB_ACTION avct_bcb_action[] = {
@@ -91,7 +107,7 @@ static BT_HDR* avct_bcb_msg_asmbl(tAVCT_BCB* /* p_bcb */, BT_HDR* p_buf) {
   /* must be single packet - can not fragment */
   if (pkt_type != AVCT_PKT_TYPE_SINGLE) {
     osi_free_and_reset((void**)&p_buf);
-    log::warn("Pkt type={} - fragmentation not allowed. drop it", pkt_type);
+    log::warn("Pkt type:{} - fragmentation not allowed. drop it", pkt_type);
   }
   return p_buf;
 }
@@ -109,19 +125,15 @@ static BT_HDR* avct_bcb_msg_asmbl(tAVCT_BCB* /* p_bcb */, BT_HDR* p_buf) {
 void avct_bcb_chnl_open(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
   uint16_t result = AVCT_RESULT_FAIL;
   tAVCT_LCB* p_lcb = avct_lcb_by_bcb(p_bcb);
-  tL2CAP_ERTM_INFO ertm_info;
-
-  /* Set the FCR options: Browsing channel mandates ERTM */
-  ertm_info.preferred_mode = L2CAP_FCR_ERTM_MODE;
 
   /* call l2cap connect req */
   p_bcb->ch_state = AVCT_CH_CONN;
   if (com::android::bluetooth::flags::use_encrypt_req_for_av()) {
     p_bcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
-            AVCT_BR_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
+            BT_PSM_AVCTP_BROWSE, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
   } else {
     p_bcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
-            AVCT_BR_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE);
+            BT_PSM_AVCTP_BROWSE, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE);
   }
   if (p_bcb->ch_lcid == 0) {
     /* if connect req failed, send ourselves close event */
@@ -166,7 +178,7 @@ bool is_valid_role_check(const tAVCT_CCB* p_ccb) {
   return com::android::bluetooth::flags::
                          associate_browse_l2cap_request_with_active_control_channel()
                  ? true
-                 : p_ccb->cc.role == AVCT_ACP;
+                 : p_ccb->cc.role == AVCT_ROLE_ACCEPTOR;
 }
 }  // namespace
 
@@ -264,7 +276,7 @@ void avct_bcb_close_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
 
   for (int idx = 0; idx < AVCT_NUM_CONN; idx++, p_ccb++) {
     if (p_ccb->allocated && (p_ccb->p_bcb == p_bcb)) {
-      if (p_ccb->cc.role == AVCT_INT) {
+      if (p_ccb->cc.role == AVCT_ROLE_INITIATOR) {
         (*p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_ccb), AVCT_BROWSE_DISCONN_CFM_EVT, 0,
                                   &p_lcb->peer_addr);
       } else {
@@ -288,26 +300,19 @@ void avct_bcb_close_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
  *
  ******************************************************************************/
 void avct_bcb_close_cfm(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
-  tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
-  uint8_t event = 0;
   /* Whether BCB initiated channel close */
-  bool ch_close = p_bcb->ch_close;
-  tAVCT_CTRL_CBACK* p_cback;
-
+  const bool ch_close = p_bcb->ch_close;
   p_bcb->ch_close = false;
   p_bcb->allocated = 0;
+
+  tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
   for (int idx = 0; idx < AVCT_NUM_CONN; idx++, p_ccb++) {
     if (p_ccb->allocated && (p_ccb->p_bcb == p_bcb)) {
       /* if this ccb initiated close send disconnect cfm otherwise ind */
-      if (ch_close) {
-        event = AVCT_BROWSE_DISCONN_CFM_EVT;
-      } else {
-        event = AVCT_BROWSE_DISCONN_IND_EVT;
-      }
-
-      p_cback = p_ccb->cc.p_ctrl_cback;
-      p_ccb->p_bcb = NULL;
-      if (p_ccb->p_lcb == NULL) {
+      uint8_t event = ch_close ? AVCT_BROWSE_DISCONN_CFM_EVT : AVCT_BROWSE_DISCONN_IND_EVT;
+      tAVCT_CTRL_CBACK* p_cback = p_ccb->cc.p_ctrl_cback;
+      p_ccb->p_bcb = nullptr;
+      if (p_ccb->p_lcb == nullptr) {
         avct_ccb_dealloc(p_ccb, AVCT_NO_EVT, 0, NULL);
       }
       (*p_cback)(avct_ccb_to_idx(p_ccb), event, p_data->result, &p_bcb->peer_addr);
@@ -397,11 +402,10 @@ void avct_bcb_bind_fail(tAVCT_BCB* /* p_bcb */, tAVCT_LCB_EVT* p_data) {
  ******************************************************************************/
 void avct_bcb_cong_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
   tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
-  uint8_t event;
   tAVCT_LCB* p_lcb = avct_lcb_by_bcb(p_bcb);
 
   /* set event */
-  event = (p_data->cong) ? AVCT_BROWSE_CONG_IND_EVT : AVCT_BROWSE_UNCONG_IND_EVT;
+  uint8_t event = (p_data->cong) ? AVCT_BROWSE_CONG_IND_EVT : AVCT_BROWSE_UNCONG_IND_EVT;
 
   /* send event to all ccbs on this lcb */
   for (int idx = 0; idx < AVCT_NUM_CONN; idx++, p_ccb++) {
@@ -435,7 +439,8 @@ void avct_bcb_discard_msg(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
     p_bcb->p_tx_msg->layer_specific = (p_data->ul_msg.cr << 8) + p_data->ul_msg.label;
 
     /* the channel is closed, opening or closing - open it again */
-    log::verbose("ch_state: {}, allocated:{}->{}", p_bcb->ch_state, p_bcb->allocated,
+    log::verbose("ch_state:{} bcb_allocated:{} ccb_lcb_allocated:{}",
+                 avct_ch_state_text(p_bcb->ch_state), p_bcb->allocated,
                  p_data->ul_msg.p_ccb->p_lcb->allocated);
     p_bcb->allocated = p_data->ul_msg.p_ccb->p_lcb->allocated;
     avct_bcb_event(p_bcb, AVCT_LCB_UL_BIND_EVT, (tAVCT_LCB_EVT*)p_data->ul_msg.p_ccb);
@@ -464,7 +469,7 @@ void avct_bcb_send_msg(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
 
   /* initialize packet type and other stuff */
   if (curr_msg_len > (p_bcb->peer_mtu - AVCT_HDR_LEN_SINGLE)) {
-    log::error("msg len ({}) exceeds peer mtu({}-{})!!", curr_msg_len, p_bcb->peer_mtu,
+    log::error("msg_len:{} exceeds peer mtu:{} header-{})!!", curr_msg_len, p_bcb->peer_mtu,
                AVCT_HDR_LEN_SINGLE);
     osi_free_and_reset((void**)&p_data->ul_msg.p_buf);
     return;
@@ -488,7 +493,7 @@ void avct_bcb_send_msg(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
   /* send message to L2CAP */
   if (stack::l2cap::get_interface().L2CA_DataWrite(p_bcb->ch_lcid, p_buf) !=
       tL2CAP_DW_RESULT::SUCCESS) {
-    log::warn("Unable to write L2CAP data peer:{} cid:{}", p_bcb->peer_addr, p_bcb->ch_lcid);
+    log::warn("Unable to write L2CAP data peer:{} cid:0x{:04x}", p_bcb->peer_addr, p_bcb->ch_lcid);
   }
 }
 
@@ -543,7 +548,7 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
   }
 
   if (p_data->p_buf->len < AVCT_HDR_LEN_SINGLE) {
-    log::warn("Invalid AVCTP packet length {}: must be at least {}", p_data->p_buf->len,
+    log::warn("Invalid AVCTP packet length:{} must be at least:{}", p_data->p_buf->len,
               AVCT_HDR_LEN_SINGLE);
     osi_free_and_reset((void**)&p_data->p_buf);
     return;
@@ -558,7 +563,7 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
 
   /* check for invalid cr_ipid */
   if (cr_ipid == AVCT_CR_IPID_INVALID) {
-    log::warn("Invalid cr_ipid {}", cr_ipid);
+    log::warn("Invalid cr_ipid:{}", cr_ipid);
     osi_free_and_reset((void**)&p_data->p_buf);
     return;
   }
@@ -583,7 +588,7 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
   }
 
   /* PID not found; drop message */
-  log::warn("No ccb for PID={:x}", pid);
+  log::warn("No ccb for PID=0x{:x}", pid);
   osi_free_and_reset((void**)&p_data->p_buf);
 
   /* if command send reject */
@@ -597,7 +602,8 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
     p_buf->layer_specific = AVCT_DATA_BROWSE;
     if (stack::l2cap::get_interface().L2CA_DataWrite(p_bcb->ch_lcid, p_buf) !=
         tL2CAP_DW_RESULT::SUCCESS) {
-      log::warn("Unable to write L2CAP data peer:{} cid:{}", p_bcb->peer_addr, p_bcb->ch_lcid);
+      log::warn("Unable to write L2CAP data peer:{} cid:0x{:04x}", p_bcb->peer_addr,
+                p_bcb->ch_lcid);
     }
   }
 }
@@ -615,13 +621,13 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
 void avct_bcb_dealloc(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
   tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
 
-  log::verbose("{}", p_bcb->allocated);
+  log::verbose("BCB allocated:{}", p_bcb->allocated);
 
   for (int idx = 0; idx < AVCT_NUM_CONN; idx++, p_ccb++) {
     /* if ccb allocated and */
     if ((p_ccb->allocated) && (p_ccb->p_bcb == p_bcb)) {
       p_ccb->p_bcb = NULL;
-      log::verbose("used by ccb: {}", idx);
+      log::verbose("used by ccb idx:{}", idx);
       break;
     }
   }
@@ -716,6 +722,6 @@ tAVCT_BCB* avct_bcb_by_lcid(uint16_t lcid) {
   }
 
   /* out of lcbs */
-  log::warn("No bcb for lcid {:x}", lcid);
-  return NULL;
+  log::warn("No bcb for lcid 0x{:04x}", lcid);
+  return nullptr;
 }
