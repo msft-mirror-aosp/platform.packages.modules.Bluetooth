@@ -22,7 +22,6 @@
 #include "common/strings.h"
 #include "device/include/interop.h"
 #include "include/hardware/bt_hf.h"
-#include "os/log.h"
 #include "src/profiles/hfp.rs.h"
 #include "types/raw_address.h"
 

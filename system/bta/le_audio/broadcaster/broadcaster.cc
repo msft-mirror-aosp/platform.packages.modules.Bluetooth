@@ -913,13 +913,16 @@ public:
     is_iso_running_ = is_active;
     log::info("is_iso_running: {}", is_iso_running_);
     if (!is_iso_running_) {
-      if (queued_start_broadcast_request_) {
-        auto broadcast_id = *queued_start_broadcast_request_;
-        queued_start_broadcast_request_ = std::nullopt;
+      if (!com::android::bluetooth::flags::leaudio_big_depends_on_audio_state()) {
+        if (queued_start_broadcast_request_) {
+          auto broadcast_id = *queued_start_broadcast_request_;
+          queued_start_broadcast_request_ = std::nullopt;
 
-        log::info("Start queued broadcast.");
-        StartAudioBroadcast(broadcast_id);
+          log::info("Start queued broadcast.");
+          StartAudioBroadcast(broadcast_id);
+        }
       }
+
       if (queued_create_broadcast_request_) {
         auto broadcast_msg = std::move(*queued_create_broadcast_request_);
         queued_create_broadcast_request_ = std::nullopt;

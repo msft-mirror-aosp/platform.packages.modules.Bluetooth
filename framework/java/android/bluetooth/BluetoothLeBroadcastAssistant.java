@@ -316,6 +316,8 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
          * Callback invoked when a new Broadcast Source is found together with the {@link
          * BluetoothLeBroadcastMetadata}.
          *
+         * <p>Broadcast is found when it is available for user to synchronize with it.
+         *
          * @param source {@link BluetoothLeBroadcastMetadata} representing a Broadcast Source
          * @hide
          */
@@ -443,8 +445,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         /**
          * Callback invoked when the Broadcast Source is lost together with source broadcast id.
          *
-         * <p>This callback is to notify source lost due to periodic advertising sync lost. Callback
-         * client can know that the source notified by {@link
+         * <p>Callback client can know that the source notified by {@link
          * Callback#onSourceFound(BluetoothLeBroadcastMetadata)} before is not available any more
          * after this callback.
          *

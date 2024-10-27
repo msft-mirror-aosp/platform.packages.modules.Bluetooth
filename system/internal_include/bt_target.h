@@ -311,7 +311,10 @@
 #endif
 
 /* Used for conformance testing ONLY:  When TRUE lets scriptwrapper overwrite
- * info response */
+ * info response.
+ * For testcases L2CAP/FOC/BV-{04,05}-C set property bluetooth.pts.l2cap.foc.bv.test to 4 and
+ * 5 respectively
+ */
 #ifndef L2CAP_CONFORMANCE_TESTING
 #define L2CAP_CONFORMANCE_TESTING FALSE
 #endif

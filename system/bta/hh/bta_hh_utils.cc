@@ -26,7 +26,6 @@
 #include "btif/include/btif_storage.h"
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"

@@ -70,7 +70,7 @@ class MsftAdvMonitor {
         mMonitor.rssi_sampling_period = RSSI_SAMPLING_PERIOD;
         mMonitor.condition_type = MSFT_CONDITION_TYPE_PATTERNS;
 
-        if (filter.getServiceDataUuid() != null && filter.getServiceDataMask() == null) {
+        if (filter.getServiceDataUuid() != null && dataMaskIsEmpty(filter.getServiceDataMask())) {
             Pattern pattern = new Pattern();
             pattern.ad_type = (byte) 0x16; // Bluetooth Core Spec Part A, Section 1
             pattern.start_byte = FILTER_PATTERN_START_POSITION;
@@ -86,8 +86,7 @@ class MsftAdvMonitor {
             mPatterns.add(pattern);
         } else if (filter.getAdvertisingData() != null
                 && filter.getAdvertisingData().length != 0
-                && (filter.getAdvertisingDataMask() == null
-                        || filter.getAdvertisingDataMask().length == 0)) {
+                && dataMaskIsEmpty(filter.getAdvertisingDataMask())) {
             Pattern pattern = new Pattern();
             pattern.ad_type = (byte) filter.getAdvertisingDataType();
             pattern.start_byte = FILTER_PATTERN_START_POSITION;
@@ -111,5 +110,11 @@ class MsftAdvMonitor {
 
     Address getAddress() {
         return mAddress;
+    }
+
+    private boolean dataMaskIsEmpty(byte[] mask) {
+        if (mask == null || mask.length == 0) return true;
+        if (mask.length == 1 && mask[0] == 0) return true;
+        return false;
     }
 }

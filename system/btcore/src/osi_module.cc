@@ -21,7 +21,6 @@
 #include "btcore/include/osi_module.h"
 
 #include "btcore/include/module.h"
-#include "os/log.h"
 #include "osi/include/alarm.h"
 #include "osi/include/future.h"
 #include "osi/include/osi.h"

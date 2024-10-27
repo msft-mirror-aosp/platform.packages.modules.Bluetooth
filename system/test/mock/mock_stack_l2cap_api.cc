@@ -37,7 +37,6 @@ namespace mock {
 namespace stack_l2cap_api {
 
 // Function state capture and return values, if needed
-struct l2c_get_transport_from_fixed_cid l2c_get_transport_from_fixed_cid;
 struct L2CA_RegisterWithSecurity L2CA_RegisterWithSecurity;
 struct L2CA_Register L2CA_Register;
 struct L2CA_Deregister L2CA_Deregister;
@@ -82,10 +81,6 @@ struct L2CA_LeCreditThreshold L2CA_LeCreditThreshold;
 }  // namespace test
 
 // Mocked functions, if any
-tBT_TRANSPORT l2c_get_transport_from_fixed_cid(uint16_t fixed_cid) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_l2cap_api::l2c_get_transport_from_fixed_cid(fixed_cid);
-}
 uint16_t L2CA_RegisterWithSecurity(uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info,
                                    bool enable_snoop, tL2CAP_ERTM_INFO* p_ertm_info,
                                    uint16_t my_mtu, uint16_t required_remote_mtu,
