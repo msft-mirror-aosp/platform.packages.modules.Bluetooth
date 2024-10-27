@@ -22,7 +22,6 @@
 
 #include "avrc_api.h"
 #include "avrc_int.h"
-#include "os/log.h"
 #include "stack/include/bt_types.h"
 
 using namespace bluetooth;

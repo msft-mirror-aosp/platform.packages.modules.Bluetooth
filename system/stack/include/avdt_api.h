@@ -33,7 +33,6 @@
 
 #include "internal_include/bt_target.h"
 #include "macros.h"
-#include "os/log.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
 

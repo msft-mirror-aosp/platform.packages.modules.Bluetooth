@@ -25,7 +25,6 @@
 #include <map>
 #include <memory>
 
-#include "gd/os/log.h"
 #include "include/hardware/bluetooth.h"
 #include "test/headless/bt_stack_info.h"
 #include "test/headless/interface.h"

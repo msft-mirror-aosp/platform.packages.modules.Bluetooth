@@ -24,15 +24,11 @@
 #include "avrc_defs.h"
 #include "avrc_int.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
 #include "stack/avct/avct_defs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -709,7 +705,7 @@ static tAVRC_STS avrc_bld_set_absolute_volume_rsp(uint8_t abs_vol, BT_HDR* p_pkt
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-tAVRC_STS avrc_bld_group_navigation_rsp(uint16_t navi_id, BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_group_navigation_rsp(uint16_t navi_id, BT_HDR* p_pkt) {
   if (!AVRC_IS_VALID_GROUP(navi_id)) {
     log::error("bad navigation op id: {}", navi_id);
     return AVRC_STS_BAD_PARAM;

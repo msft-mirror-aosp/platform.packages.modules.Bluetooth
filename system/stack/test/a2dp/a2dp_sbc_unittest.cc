@@ -24,7 +24,6 @@
 #include <string>
 
 #include "common/time_util.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/a2dp_sbc_decoder.h"
 #include "stack/include/a2dp_sbc_encoder.h"

@@ -194,6 +194,7 @@ public class BluetoothPbapSimVcardManager implements AutoCloseable {
     }
 
     /** Closes the manager, releasing all of its resources. */
+    @Override
     public void close() {
         if (mCursor != null) {
             try {

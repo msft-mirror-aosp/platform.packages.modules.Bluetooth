@@ -30,7 +30,6 @@
 #include "common/strings.h"
 #include "hardware/bt_av.h"
 #include "hci/hci_packets.h"
-#include "os/log.h"
 
 namespace fmt {
 template <>

@@ -39,7 +39,6 @@
 #include "gatt_api.h"
 #include "has_types.h"
 #include "internal_include/bt_trace.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 #include "stack/include/bt_types.h"
 

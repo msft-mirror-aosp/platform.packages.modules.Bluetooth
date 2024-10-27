@@ -27,7 +27,6 @@
 #include "dumpsys/internal/test_data/string_generated.h"
 #include "dumpsys/internal/test_data/struct_bfbs.h"
 #include "dumpsys/internal/test_data/struct_generated.h"
-#include "os/log.h"
 
 namespace testing {
 

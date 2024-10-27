@@ -32,9 +32,6 @@ void acl_write_automatic_flush_timeout(const RawAddress& bd_addr, uint16_t flush
 // ACL data received from HCI-ACL
 void l2c_rcv_acl_data(BT_HDR* p_msg);
 
-// Segments is sent to HCI-ACL
-void l2c_link_segments_xmitted(BT_HDR* p_msg);
-
 void l2cu_resubmit_pending_sec_req(const RawAddress* p_bda);
 
 void l2c_packets_completed(uint16_t handle, uint16_t num_sent);

@@ -12,13 +12,6 @@ flag {
 }
 
 flag {
-    name: "cleanup_le_only_device_type"
-    namespace: "bluetooth"
-    description: "Cleanup the duplicate bond records only if the device type is LE-only"
-    bug: "333949759"
-}
-
-flag {
     name: "pairing_on_unknown_transport"
     namespace: "bluetooth"
     description: "Allow pairing on transport not known to be supported by the remote device"

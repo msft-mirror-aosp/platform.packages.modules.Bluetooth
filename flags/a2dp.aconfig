@@ -147,3 +147,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+
+flag {
+    name: "a2dp_source_threading_fix"
+    namespace: "bluetooth"
+    description: "Schedule A2DP source setup operations to bt_main_thread to prevent races"
+    bug: "374166531"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
