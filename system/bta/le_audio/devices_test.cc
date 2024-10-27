@@ -32,7 +32,6 @@
 #include "le_audio_types.h"
 #include "mock_codec_manager.h"
 #include "mock_csis_client.h"
-#include "os/log.h"
 #include "stack/btm/btm_int_types.h"
 #include "test/mock/mock_main_shim_entry.h"
 

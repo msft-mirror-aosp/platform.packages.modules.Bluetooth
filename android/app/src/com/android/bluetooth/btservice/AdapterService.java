@@ -171,6 +171,12 @@ import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -5863,6 +5869,10 @@ public class AdapterService extends Service {
             mBtCompanionManager.factoryReset();
         }
 
+        if (Flags.gattClearCacheOnFactoryReset()) {
+            clearStorage();
+        }
+
         return mNativeInterface.factoryReset();
     }
 
@@ -6951,6 +6961,48 @@ public class AdapterService extends Service {
         }
         if (mPhonePolicy != null) {
             mPhonePolicy.onUuidsDiscovered(device, uuids);
+        }
+    }
+
+    /** Clear storage */
+    void clearStorage() {
+        deleteDirectoryContents("/data/misc/bluedroid/");
+        deleteDirectoryContents("/data/misc/bluetooth/");
+    }
+
+    private void deleteDirectoryContents(String dirPath) {
+        Path directoryPath = Paths.get(dirPath);
+        try {
+            Files.walkFileTree(
+                    directoryPath,
+                    new SimpleFileVisitor<Path>() {
+                        @Override
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+                                throws IOException {
+                            Files.delete(file);
+                            return FileVisitResult.CONTINUE;
+                        }
+
+                        @Override
+                        public FileVisitResult postVisitDirectory(Path dir, IOException ex)
+                                throws IOException {
+                            if (ex != null) {
+                                Log.e(TAG, "Error happened while removing contents. ", ex);
+                            }
+
+                            if (!dir.equals(directoryPath)) {
+                                try {
+                                    Files.delete(dir);
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Error happened while removing directory: ", e);
+                                }
+                            }
+                            return FileVisitResult.CONTINUE;
+                        }
+                    });
+            Log.i(TAG, "deleteDirectoryContents() completed. Path: " + dirPath);
+        } catch (Exception e) {
+            Log.e(TAG, "Error happened while removing contents: ", e);
         }
     }
 }

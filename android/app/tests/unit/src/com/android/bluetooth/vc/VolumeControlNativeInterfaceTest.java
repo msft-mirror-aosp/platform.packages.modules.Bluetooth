@@ -21,6 +21,8 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.bluetooth.BluetoothProfile;
+
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
@@ -55,7 +57,7 @@ public class VolumeControlNativeInterfaceTest {
 
     @Test
     public void onConnectionStateChanged() {
-        int state = VolumeControlStackEvent.CONNECTION_STATE_CONNECTED;
+        int state = BluetoothProfile.STATE_CONNECTED;
         byte[] address = new byte[] {0x00, 0x01, 0x02, 0x03, 0x04, 0x05};
 
         mNativeInterface.onConnectionStateChanged(state, address);

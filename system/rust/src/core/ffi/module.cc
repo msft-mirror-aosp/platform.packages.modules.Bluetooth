@@ -20,7 +20,7 @@
 #include <hardware/bt_gatt.h>
 
 #include "btcore/include/module.h"
-#include "os/log.h"
+
 #ifndef TARGET_FLOSS
 #include "src/core/ffi.rs.h"
 #include "src/gatt/ffi.rs.h"

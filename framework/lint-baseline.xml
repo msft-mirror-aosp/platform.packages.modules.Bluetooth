@@ -58,17 +58,6 @@
 
     <issue
         id="FlaggedApi"
-        message="Method `onDeviceVolumeChanged()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastVolumeControlForConnectedDevices())` check (or annotate the surrounding method `onDeviceVolumeChanged` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_VOLUME_CONTROL_FOR_CONNECTED_DEVICES) to transfer requirement to caller`)"
-        errorLine1="            forEach((cb) -> cb.onDeviceVolumeChanged(device, volume));"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothVolumeControl.java"
-            line="215"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
         message="Field `DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
         errorLine1="                case DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:"
         errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
