@@ -784,11 +784,12 @@ void l2cu_adjust_out_mps(tL2C_CCB* p_ccb);
 /* Functions provided by l2c_link.cc
  ***********************************
  */
+
 void l2c_link_timeout(tL2C_LCB* p_lcb);
 void l2c_info_resp_timer_timeout(void* data);
 void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, uint16_t local_cid, BT_HDR* p_buf);
 void l2c_link_adjust_allocation(void);
-
+void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddress& p_bda);
 void l2c_link_sec_comp(RawAddress p_bda, tBT_TRANSPORT transport, void* p_ref_data,
                        tBTM_STATUS status);
 void l2c_link_adjust_chnl_allocation(void);
@@ -832,10 +833,11 @@ void l2c_fcr_stop_timer(tL2C_CCB* p_ccb);
 /* Functions provided by l2c_ble.cc
  ***********************************
  */
+
 bool l2cble_create_conn(tL2C_LCB* p_lcb);
 void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len);
 void l2c_ble_link_adjust_allocation(void);
-
+void l2cble_start_conn_update(tL2C_LCB* p_lcb);
 void l2cble_credit_based_conn_req(tL2C_CCB* p_ccb);
 void l2cble_credit_based_conn_res(tL2C_CCB* p_ccb, tL2CAP_LE_RESULT_CODE result);
 void l2cble_send_peer_disc_req(tL2C_CCB* p_ccb);
