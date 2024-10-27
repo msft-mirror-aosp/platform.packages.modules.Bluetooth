@@ -71,3 +71,13 @@ flag {
     description: "Support setting/retrieving the remote device metadata for a BluetoothDevice"
     bug: "374171574"
 }
+
+flag {
+    name: "fix_add_device_properties"
+    namespace: "bluetooth"
+    description: "Make sure single entry for mDevices. Race fix."
+    bug: "375158716"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

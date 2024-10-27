@@ -750,7 +750,6 @@ public final class OobData implements Parcelable {
      *     55 of LMP Feature Mask Definitions. <b>0x05- 0x07 Reserved</b>
      * @hide
      */
-    @NonNull
     @SystemApi
     @LeFlag
     public int getLeFlags() {
@@ -766,7 +765,6 @@ public final class OobData implements Parcelable {
      *     Preferred 0x04 - 0xFF Reserved
      * @hide
      */
-    @NonNull
     @SystemApi
     public @LeRole int getLeDeviceRole() {
         return mLeDeviceRole;
@@ -849,7 +847,7 @@ public final class OobData implements Parcelable {
     }
 
     // For Parcelable
-    public static final @android.annotation.NonNull Parcelable.Creator<OobData> CREATOR =
+    public static final @NonNull Parcelable.Creator<OobData> CREATOR =
             new Parcelable.Creator<OobData>() {
                 public OobData createFromParcel(Parcel in) {
                     return new OobData(in);

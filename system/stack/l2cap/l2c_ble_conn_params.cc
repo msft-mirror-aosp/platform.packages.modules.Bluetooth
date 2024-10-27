@@ -38,13 +38,11 @@
 #include "stack/include/acl_api.h"
 #include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/l2cap_hci_link_interface.h"
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "stack/l2cap/l2c_int.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 

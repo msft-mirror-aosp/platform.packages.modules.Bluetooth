@@ -27,7 +27,6 @@ filegroup {
 
 genrule {
     name: "BluetoothGeneratedDumpsysTestData_h",
-    visibility: ["//visibility:public"],
     tools: [
         "flatc",
     ],
