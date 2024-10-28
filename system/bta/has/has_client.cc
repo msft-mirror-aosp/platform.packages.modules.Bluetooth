@@ -39,7 +39,6 @@
 #include "gatt_api.h"
 #include "has_types.h"
 #include "internal_include/bt_trace.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 #include "stack/include/bt_types.h"
 
@@ -222,6 +221,11 @@ public:
     if (com::android::bluetooth::flags::hap_connect_only_requested_device()) {
       auto device =
               std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(address));
+      if (device == devices_.end()) {
+        log::warn("Device not connected to profile{}", address);
+        return;
+      }
+
       auto conn_id = device->conn_id;
       auto is_connecting_actively = device->is_connecting_actively;
 

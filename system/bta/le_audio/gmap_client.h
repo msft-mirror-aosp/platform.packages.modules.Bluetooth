@@ -34,7 +34,7 @@ public:
 
   static void UpdateGmapOffloaderSupport(bool value);
 
-  GmapClient(const RawAddress& addr) : addr_(addr) {}
+  GmapClient(const RawAddress& addr) : role_handle_(0), UGT_feature_handle_(0), addr_(addr) {}
 
   bool parseAndSaveGmapRole(uint16_t len, const uint8_t* value);
 

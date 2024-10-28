@@ -233,14 +233,14 @@ bool ConnectionHandler::AvrcpConnect(bool initiator, const RawAddress& bdaddr) {
   }
   open_cb.msg_cback = base::Bind(&ConnectionHandler::MessageCb, weak_ptr_factory_.GetWeakPtr());
   open_cb.company_id = AVRC_CO_GOOGLE;
-  open_cb.conn = initiator ? AVRC_CONN_INT : AVRC_CONN_ACP;  // 0 if initiator, 1 if acceptor
+  open_cb.conn = initiator ? AVCT_ROLE_INITIATOR : AVCT_ROLE_ACCEPTOR;
   // TODO (apanicke): We shouldn't need RCCT to do absolute volume. The current
   // AVRC_API requires it though.
   open_cb.control = BTA_AV_FEAT_RCTG | BTA_AV_FEAT_RCCT | BTA_AV_FEAT_METADATA | AVRC_CT_PASSIVE;
 
   uint8_t handle = 0;
   uint16_t status = avrc_->Open(&handle, &open_cb, bdaddr);
-  log::info("handle=0x{:x} status= 0x{:x}", handle, status);
+  log::info("handle=0x{:x} status=0x{:x}", handle, status);
   return status == AVRC_SUCCESS;
 }
 
@@ -266,7 +266,7 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event, uint16
       bool supports_browsing = feature_iter->second & BTA_AV_FEAT_BROWSE;
 
       if (supports_browsing) {
-        avrc_->OpenBrowse(handle, AVCT_INT);
+        avrc_->OpenBrowse(handle, AVCT_ROLE_INITIATOR);
       }
 
       // TODO (apanicke): Implement a system to cache SDP entries. For most
@@ -395,7 +395,7 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event, uint16_
       };
 
       if (SdpLookup(*peer_addr, base::Bind(sdp_lambda, this, handle), false)) {
-        avrc_->OpenBrowse(handle, AVCT_ACP);
+        avrc_->OpenBrowse(handle, AVCT_ROLE_ACCEPTOR);
       } else {
         // SDP search failed, this could be due to a collision between outgoing
         // and incoming connection. In any case, we need to reject the current

@@ -22,7 +22,6 @@
 #include <metrics/structured_events.h>
 
 #include "metrics/utils.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace os {

@@ -39,7 +39,6 @@
 #include "hci/controller_interface.h"
 #include "main/shim/dumpsys.h"
 #include "main/shim/entry.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/btm_client_interface.h"

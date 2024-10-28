@@ -25,7 +25,6 @@
 
 #include "common/bind.h"
 #include "os/linux_generic/linux.h"
-#include "os/log.h"
 #include "os/utils.h"
 
 #ifdef __ANDROID__

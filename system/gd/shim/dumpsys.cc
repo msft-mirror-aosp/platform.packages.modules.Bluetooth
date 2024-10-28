@@ -30,7 +30,6 @@
 #include "main/shim/stack.h"
 #include "module.h"
 #include "module_dumper.h"
-#include "os/log.h"
 #include "os/system_properties.h"
 #include "shim/dumpsys.h"
 

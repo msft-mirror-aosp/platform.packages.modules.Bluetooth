@@ -1466,6 +1466,11 @@ tL2C_CCB* l2cu_allocate_ccb(tL2C_LCB* p_lcb, uint16_t cid, bool is_eatt) {
   alarm_free(p_ccb->l2c_ccb_timer);
   p_ccb->l2c_ccb_timer = alarm_new("l2c.l2c_ccb_timer");
 
+#if (L2CAP_CONFORMANCE_TESTING == TRUE)
+  alarm_free(p_ccb->pts_config_delay_timer);
+  p_ccb->pts_config_delay_timer = alarm_new("pts.delay");
+#endif
+
   l2c_link_adjust_chnl_allocation();
 
   if (p_lcb != NULL) {
@@ -1574,6 +1579,11 @@ void l2cu_release_ccb(tL2C_CCB* p_ccb) {
   /* Free the timer */
   alarm_free(p_ccb->l2c_ccb_timer);
   p_ccb->l2c_ccb_timer = NULL;
+
+#if (L2CAP_CONFORMANCE_TESTING == TRUE)
+  alarm_free(p_ccb->pts_config_delay_timer);
+  p_ccb->pts_config_delay_timer = NULL;
+#endif
 
   fixed_queue_free(p_ccb->xmit_hold_q, osi_free);
   p_ccb->xmit_hold_q = NULL;

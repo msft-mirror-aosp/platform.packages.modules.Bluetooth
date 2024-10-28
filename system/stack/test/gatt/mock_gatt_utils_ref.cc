@@ -22,7 +22,7 @@
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
-/** stack/gatt/connection_manager.cc */
+/** stack/connection_manager/connection_manager.cc */
 namespace connection_manager {
 bool background_connect_remove(uint8_t app_id, const RawAddress& address) { return false; }
 bool direct_connect_remove(uint8_t app_id, const RawAddress& address, bool connection_timeout) {
