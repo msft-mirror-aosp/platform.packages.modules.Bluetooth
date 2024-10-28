@@ -330,15 +330,13 @@ bool background_connect_add(uint8_t app_id, const RawAddress& address) {
  * Returns true if anything was removed, false otherwise */
 bool remove_unconditional(const RawAddress& address) {
   log::debug("address={}", address);
-  auto it = bgconn_dev.find(address);
-  if (it == bgconn_dev.end()) {
-    log::warn("address {} is not found", address);
-    return false;
+  int count = bgconn_dev.erase(address);
+  if (count == 0) {
+    log::info("address {} is not found", address);
   }
 
   bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(address));
-  bgconn_dev.erase(it);
-  return true;
+  return count > 0;
 }
 
 /** Remove device from the background connection device list or listening to
