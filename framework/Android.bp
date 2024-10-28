@@ -10,6 +10,7 @@ filegroup {
         "java/**/*.java",
     ],
     path: "java",
+    visibility: ["//packages/modules/Bluetooth/framework/tests/unit"],
 }
 
 // defaults shared between `framework-bluetooth` & `framework-bluetooth-pre-jarjar`
@@ -49,6 +50,7 @@ java_library {
     sdk_version: "module_current",
     libs: ["framework-annotations-lib"],
     installable: false,
+    visibility: ["//packages/modules/Bluetooth:__subpackages__"],
 }
 
 // post-jarjar version of framework-bluetooth
@@ -85,7 +87,6 @@ java_sdk_library {
 
     permitted_packages: [
         "android.bluetooth",
-        "com.android.bluetooth.flags",
         "com.android.bluetooth.jarjar",
     ],
     plugins: [
@@ -149,7 +150,7 @@ java_defaults {
         // if sdk_version="" this gets automatically included, but here we need to add manually.
         "framework-res",
     ],
-    defaults_visibility: ["//visibility:public"],
+    defaults_visibility: ["//packages/modules/Bluetooth:__subpackages__"],
 }
 
 filegroup {

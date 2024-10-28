@@ -41,9 +41,6 @@
 #include "storage/config_keys.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 /*****************************************************************************
@@ -156,7 +153,7 @@ void avrc_flush_cmd_q(uint8_t handle) {
  * Returns          Nothing.
  *
  *****************************************************************************/
-void avrc_process_timeout(void* data) {
+static void avrc_process_timeout(void* data) {
   tAVRC_PARAM* param = (tAVRC_PARAM*)data;
 
   log::verbose("AVRC: command timeout (handle=0x{:02x}, label=0x{:02x})", param->handle,
