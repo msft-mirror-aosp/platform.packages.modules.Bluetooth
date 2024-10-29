@@ -247,3 +247,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "le_scan_remove_non_oneway_binder_calls"
+    namespace: "bluetooth"
+    description: "Remove non-oneway binder calls from BluetoothLeScanner.startScan"
+    bug: "375558872"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

@@ -76,6 +76,7 @@
 #include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/main_thread.h"
+#include "stack/l2cap/l2c_int.h"
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
@@ -95,8 +96,6 @@ using bluetooth::legacy::hci::GetInterface;
 
 void BTM_update_version_info(const RawAddress& bd_addr,
                              const remote_version_info& remote_version_info);
-
-void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddress& p_bda);
 
 void BTM_db_reset(void);
 

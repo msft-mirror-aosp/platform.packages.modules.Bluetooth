@@ -143,6 +143,8 @@ java_defaults {
             "-Xep:NonAtomicVolatileUpdate:ERROR",
             "-Xep:NonCanonicalType:ERROR",
             "-Xep:NotJavadoc:ERROR",
+            "-Xep:NullablePrimitive:ERROR",
+            "-Xep:NullableVoid:ERROR",
             "-Xep:ObjectEqualsForPrimitives:ERROR",
             "-Xep:OperatorPrecedence:ERROR",
             "-Xep:ReferenceEquality:ERROR",

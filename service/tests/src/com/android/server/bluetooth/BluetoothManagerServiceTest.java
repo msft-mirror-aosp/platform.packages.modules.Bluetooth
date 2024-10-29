@@ -19,6 +19,7 @@ package com.android.server.bluetooth;
 import static android.bluetooth.BluetoothAdapter.STATE_BLE_ON;
 import static android.bluetooth.BluetoothAdapter.STATE_OFF;
 import static android.bluetooth.BluetoothAdapter.STATE_ON;
+import static android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF;
 import static android.bluetooth.BluetoothAdapter.STATE_TURNING_ON;
 
 import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_BLUETOOTH_SERVICE_CONNECTED;
@@ -26,7 +27,9 @@ import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_BLUET
 import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_BLUETOOTH_STATE_CHANGE;
 import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_DISABLE;
 import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_ENABLE;
+import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_HANDLE_DISABLE_DELAYED;
 import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_RESTART_BLUETOOTH_SERVICE;
+import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_RESTORE_USER_SETTING_OFF;
 import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_TIMEOUT_BIND;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -101,6 +104,7 @@ public class BluetoothManagerServiceTest {
     }
 
     private static final int STATE_BLE_TURNING_ON = 14; // can't find the symbol because hidden api
+    private static final int STATE_BLE_TURNING_OFF = 16; // can't find the symbol because hidden api
 
     BluetoothManagerService mManagerService;
 
@@ -185,6 +189,7 @@ public class BluetoothManagerServiceTest {
 
         doReturn(mAdapterBinder).when(mBluetoothServerProxy).createAdapterBinder(any());
         doReturn(mAdapterService).when(mAdapterBinder).getAdapterBinder();
+        doReturn(mBinder).when(mAdapterService).asBinder();
 
         doReturn(mock(Intent.class))
                 .when(mContext)
@@ -235,6 +240,17 @@ public class BluetoothManagerServiceTest {
                             assertThat(msg).isNotNull();
                             assertThat(msg.what).isEqualTo(w);
                             msg.getTarget().dispatchMessage(msg);
+                        });
+    }
+
+    private void discardMessage(int... what) {
+        IntStream.of(what)
+                .forEach(
+                        w -> {
+                            Message msg = mLooper.nextMessage();
+                            assertThat(msg).isNotNull();
+                            assertThat(msg.what).isEqualTo(w);
+                            // Drop the message
                         });
     }
 
@@ -358,6 +374,22 @@ public class BluetoothManagerServiceTest {
         return btCallback;
     }
 
+    private void transition_onToBleOn(IBluetoothCallback btCallback) throws Exception {
+        verify(mAdapterBinder).onToBleOn(any());
+
+        btCallback.onBluetoothStateChange(STATE_TURNING_OFF, STATE_BLE_ON);
+        syncHandler(MESSAGE_BLUETOOTH_STATE_CHANGE);
+    }
+
+    private void transition_onToOff(IBluetoothCallback btCallback) throws Exception {
+        transition_onToBleOn(btCallback);
+        verify(mAdapterBinder).bleOnToOff(any());
+
+        // When all the profile are started, adapterService consider it is ON
+        btCallback.onBluetoothStateChange(STATE_BLE_TURNING_OFF, STATE_OFF);
+        syncHandler(MESSAGE_BLUETOOTH_STATE_CHANGE);
+    }
+
     @Test
     public void enable_whileTurningToBleOn_shouldEnable() throws Exception {
         mManagerService.enableBle("enable_whileTurningToBleOn_shouldEnable", mBinder);
@@ -450,9 +482,47 @@ public class BluetoothManagerServiceTest {
         assertThat(mManagerService.getState()).isEqualTo(STATE_OFF);
 
         mLooper.moveTimeForward(120_000);
-        Message msg = mLooper.nextMessage();
-        assertThat(msg).isNotNull();
-        assertThat(msg.what).isEqualTo(MESSAGE_RESTART_BLUETOOTH_SERVICE);
-        // Discard the msg without executing it
+        discardMessage(MESSAGE_RESTART_BLUETOOTH_SERVICE);
+    }
+
+    @Test
+    public void disableAirplane_whenNothing_startBluetooth() throws Exception {
+        doReturn(BluetoothManagerService.BLUETOOTH_ON_BLUETOOTH)
+                .when(mBluetoothServerProxy)
+                .getBluetoothPersistedState(any(), anyInt());
+        mManagerService.enable("disableAirplane_whenNothing_startBluetooth");
+        discardMessage(MESSAGE_ENABLE);
+
+        mManagerService.onAirplaneModeChanged(false);
+        discardMessage(MESSAGE_ENABLE);
+    }
+
+    @Test
+    public void disableAirplane_whenFactoryReset_doesNotStartBluetooth() throws Exception {
+        doAnswer(
+                        invocation -> {
+                            IBinder.DeathRecipient recipient = invocation.getArgument(0);
+                            recipient.binderDied();
+                            return null;
+                        })
+                .when(mBinder)
+                .linkToDeath(any(), anyInt());
+
+        mManagerService.enable("test_offToOn");
+        syncHandler(MESSAGE_ENABLE);
+        IBluetoothCallback btCallback = transition_offToOn();
+        assertThat(mManagerService.getState()).isEqualTo(STATE_ON);
+
+        mManagerService.mHandler.sendEmptyMessage(MESSAGE_RESTORE_USER_SETTING_OFF);
+        syncHandler(MESSAGE_RESTORE_USER_SETTING_OFF);
+        syncHandler(MESSAGE_DISABLE);
+        mLooper.moveTimeForward(BluetoothManagerService.ENABLE_DISABLE_DELAY_MS);
+        syncHandler(MESSAGE_HANDLE_DISABLE_DELAYED);
+        mLooper.moveTimeForward(BluetoothManagerService.ENABLE_DISABLE_DELAY_MS);
+        syncHandler(MESSAGE_HANDLE_DISABLE_DELAYED);
+        transition_onToOff(btCallback);
+
+        mManagerService.onAirplaneModeChanged(false);
+        assertThat(mLooper.nextMessage()).isNull(); // Must not create a MESSAGE_ENABLE
     }
 }

@@ -40,14 +40,12 @@
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_controller_interface.h"
 #include "stack/include/l2cap_hci_link_interface.h"
 #include "stack/include/l2cap_security_interface.h"
 #include "stack/l2cap/l2c_int.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -1151,45 +1149,6 @@ void l2c_packets_completed(uint16_t handle, uint16_t num_sent) {
   }
 }
 
-/*******************************************************************************
- *
- * Function         l2c_link_segments_xmitted
- *
- * Description      This function is called from the HCI Interface when an ACL
- *                  data packet segment is transmitted.
- *
- * Returns          void
- *
- ******************************************************************************/
-void l2c_link_segments_xmitted(BT_HDR* p_msg) {
-  uint8_t* p = (uint8_t*)(p_msg + 1) + p_msg->offset;
-
-  /* Extract the handle */
-  uint16_t handle{HCI_INVALID_HANDLE};
-  STREAM_TO_UINT16(handle, p);
-  handle = HCID_GET_HANDLE(handle);
-
-  /* Find the LCB based on the handle */
-  tL2C_LCB* p_lcb = l2cu_find_lcb_by_handle(handle);
-  if (p_lcb == nullptr) {
-    log::warn("Received segment complete for unknown connection handle:{}", handle);
-    osi_free(p_msg);
-    return;
-  }
-
-  if (p_lcb->link_state != LST_CONNECTED) {
-    log::info("Received segment complete for unconnected connection handle:{}:", handle);
-    osi_free(p_msg);
-    return;
-  }
-
-  /* Enqueue the buffer to the head of the transmit queue, and see */
-  /* if we can transmit anything more.                             */
-  list_prepend(p_lcb->link_xmit_data_q, p_msg);
-
-  l2c_link_check_send_pkts(p_lcb, 0, NULL);
-}
-
 tBTM_STATUS l2cu_ConnectAclForSecurity(const RawAddress& bd_addr) {
   tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(bd_addr, BT_TRANSPORT_BR_EDR);
   if (p_lcb && (p_lcb->link_state == LST_CONNECTED || p_lcb->link_state == LST_CONNECTING)) {
@@ -1222,7 +1181,7 @@ void l2cble_update_sec_act(const RawAddress& bd_addr, uint16_t sec_act) {
  * Returns          pointer to CCB or NULL
  *
  ******************************************************************************/
-tL2C_CCB* l2cu_get_next_channel_in_rr(tL2C_LCB* p_lcb) {
+static tL2C_CCB* l2cu_get_next_channel_in_rr(tL2C_LCB* p_lcb) {
   tL2C_CCB* p_serve_ccb = NULL;
   tL2C_CCB* p_ccb;
 
@@ -1320,7 +1279,7 @@ tL2C_CCB* l2cu_get_next_channel_in_rr(tL2C_LCB* p_lcb) {
  * Returns          pointer to buffer or NULL
  *
  ******************************************************************************/
-BT_HDR* l2cu_get_next_buffer_to_send(tL2C_LCB* p_lcb, tL2C_TX_COMPLETE_CB_INFO* p_cbi) {
+static BT_HDR* l2cu_get_next_buffer_to_send(tL2C_LCB* p_lcb, tL2C_TX_COMPLETE_CB_INFO* p_cbi) {
   tL2C_CCB* p_ccb;
   BT_HDR* p_buf;
 
