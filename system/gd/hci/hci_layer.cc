@@ -279,6 +279,17 @@ struct HciLayer::impl {
     command_queue_.clear();
     command_credits_ = 1;
     waiting_command_ = OpCode::NONE;
+
+#ifdef TARGET_FLOSS
+    log::warn("Ignoring the timeouted HCI command {}.", OpCodeText(op_code));
+    // Terminate the process to trigger controller reset, also mark the controller
+    // is broken to prevent further error while terminating.
+    auto hal = module_.GetDependency<hal::HciHal>();
+    hal->markControllerBroken();
+    kill(getpid(), SIGTERM);
+    return;
+#endif
+
     // Ignore the response, since we don't know what might come back.
     enqueue_command(ControllerDebugInfoBuilder::Create(),
                     module_.GetHandler()->BindOnce([](CommandCompleteView) {}));
