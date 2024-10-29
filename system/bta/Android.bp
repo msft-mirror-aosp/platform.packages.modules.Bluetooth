@@ -326,7 +326,7 @@ cc_test {
         "libgmock",
         "server_configurable_flags",
     ],
-    data: [
+    device_first_data: [
         ":audio_set_configurations_bfbs",
         ":audio_set_configurations_json",
         ":audio_set_scenarios_bfbs",
@@ -792,7 +792,7 @@ cc_test {
         "le_audio/le_audio_types.cc",
         "le_audio/le_audio_utils.cc",
     ],
-    data: [
+    device_first_data: [
         ":audio_set_configurations_bfbs",
         ":audio_set_configurations_json",
         ":audio_set_scenarios_bfbs",
@@ -901,7 +901,7 @@ cc_test {
         "test/common/btm_api_mock.cc",
         "test/common/mock_csis_client.cc",
     ],
-    data: [
+    device_first_data: [
         ":audio_set_configurations_bfbs",
         ":audio_set_configurations_json",
         ":audio_set_scenarios_bfbs",
@@ -1027,7 +1027,7 @@ cc_test {
         "libosi",
         "server_configurable_flags",
     ],
-    data: [
+    device_first_data: [
         ":audio_set_configurations_bfbs",
         ":audio_set_configurations_json",
         ":audio_set_scenarios_bfbs",

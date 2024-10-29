@@ -75,3 +75,13 @@ flag {
   }
 }
 
+
+flag {
+  name: "opp_check_content_uri_permissions"
+  namespace: "bluetooth"
+  description: "Check that the launching application for OPP has read access to the given content URI, on Android V+"
+  bug: "375466974"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

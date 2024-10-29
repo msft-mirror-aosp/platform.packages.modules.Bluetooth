@@ -1770,7 +1770,6 @@ public class HeadsetServiceAndStateMachineTest {
         HeadsetCallState headsetCallState =
                 new HeadsetCallState(
                         0, 0, HeadsetHalConstants.CALL_STATE_INCOMING, TEST_PHONE_NUMBER, 128, "");
-        mTestLooper.startAutoDispatch(); // Require as this is waiting unconditionally
         mHeadsetService.phoneStateChanged(
                 headsetCallState.mNumActive,
                 headsetCallState.mNumHeld,
@@ -1779,7 +1778,6 @@ public class HeadsetServiceAndStateMachineTest {
                 headsetCallState.mType,
                 headsetCallState.mName,
                 false);
-        mTestLooper.stopAutoDispatch();
         mTestLooper.dispatchAll();
         // HeadsetStateMachine completes processing CALL_STATE_CHANGED message
         verify(mNativeInterface).phoneStateChange(device, headsetCallState);

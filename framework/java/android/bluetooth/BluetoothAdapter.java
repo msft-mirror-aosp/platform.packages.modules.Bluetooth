@@ -1403,9 +1403,8 @@ public final class BluetoothAdapter {
         try {
             return mManagerService.disableBle(mAttributionSource, mToken);
         } catch (RemoteException e) {
-            Log.e(TAG, "", e);
+            throw e.rethrowFromSystemServer();
         }
-        return false;
     }
 
     /**
@@ -1447,10 +1446,8 @@ public final class BluetoothAdapter {
         try {
             return mManagerService.enableBle(mAttributionSource, mToken);
         } catch (RemoteException e) {
-            Log.e(TAG, "", e);
+            throw e.rethrowFromSystemServer();
         }
-
-        return false;
     }
 
     /**
@@ -1491,24 +1488,29 @@ public final class BluetoothAdapter {
                 }
             };
 
-    private static final IpcDataCache.QueryHandler<IBluetoothManager, Integer>
-            sBluetoothGetSystemStateQuery =
-                    new IpcDataCache.QueryHandler<>() {
-                        @RequiresNoPermission
-                        @Override
-                        public @InternalAdapterState Integer apply(IBluetoothManager serviceQuery) {
-                            try {
-                                return serviceQuery.getState();
-                            } catch (RemoteException e) {
-                                throw e.rethrowAsRuntimeException();
-                            }
-                        }
-                        @RequiresNoPermission
-                        @Override
-                        public boolean shouldBypassCache(IBluetoothManager serviceQuery) {
-                            return false;
-                        }
-                    };
+    private static final IpcDataCache.QueryHandler<Void, Integer> sBluetoothGetSystemStateQuery =
+            new IpcDataCache.QueryHandler<>() {
+                @RequiresNoPermission
+                @Override
+                public @InternalAdapterState Integer apply(Void query) {
+                    try {
+                        IBluetoothManager service =
+                                IBluetoothManager.Stub.asInterface(
+                                        BluetoothFrameworkInitializer.getBluetoothServiceManager()
+                                                .getBluetoothManagerServiceRegisterer()
+                                                .get());
+                        return service.getState();
+                    } catch (RemoteException e) {
+                        throw e.rethrowFromSystemServer();
+                    }
+                }
+
+                @RequiresNoPermission
+                @Override
+                public boolean shouldBypassCache(Void query) {
+                    return false;
+                }
+            };
 
     private static final String GET_STATE_API = "BluetoothAdapter_getState";
 
@@ -1518,9 +1520,9 @@ public final class BluetoothAdapter {
     private static final IpcDataCache<IBluetooth, Integer> sBluetoothGetStateCache =
             new BluetoothCache<>(GET_STATE_API, sBluetoothGetStateQuery);
 
-    private static final IpcDataCache<IBluetoothManager, Integer> sBluetoothGetSystemStateCache =
+    private static final IpcDataCache<Void, Integer> sBluetoothGetSystemStateCache =
             new IpcDataCache<>(
-                    8,
+                    1,
                     IBluetoothManager.IPC_CACHE_MODULE_SYSTEM,
                     GET_SYSTEM_STATE_API,
                     GET_SYSTEM_STATE_API,
@@ -1546,14 +1548,7 @@ public final class BluetoothAdapter {
     /** Fetch the current bluetooth state. If the service is down, return OFF. */
     private @InternalAdapterState int getStateInternal() {
         if (Flags.getStateFromSystemServer()) {
-            try {
-                return sBluetoothGetSystemStateCache.query(mManagerService);
-            } catch (RuntimeException runtime) {
-                if (runtime.getCause() instanceof RemoteException e) {
-                    throw e.rethrowFromSystemServer();
-                }
-                throw runtime;
-            }
+            return sBluetoothGetSystemStateCache.query(null);
         }
         mServiceLock.readLock().lock();
         try {
@@ -1688,9 +1683,8 @@ public final class BluetoothAdapter {
         try {
             return mManagerService.enable(mAttributionSource);
         } catch (RemoteException e) {
-            Log.e(TAG, "", e);
+            throw e.rethrowFromSystemServer();
         }
-        return false;
     }
 
     /**
@@ -1753,9 +1747,8 @@ public final class BluetoothAdapter {
         try {
             return mManagerService.disable(mAttributionSource, persist);
         } catch (RemoteException e) {
-            Log.e(TAG, "", e);
+            throw e.rethrowFromSystemServer();
         }
-        return false;
     }
 
     /**
@@ -1772,9 +1765,8 @@ public final class BluetoothAdapter {
         try {
             return mManagerService.getAddress(mAttributionSource);
         } catch (RemoteException e) {
-            Log.e(TAG, "", e);
+            throw e.rethrowFromSystemServer();
         }
-        return null;
     }
 
     /**
@@ -1791,9 +1783,8 @@ public final class BluetoothAdapter {
         try {
             return mManagerService.getName(mAttributionSource);
         } catch (RemoteException e) {
-            Log.e(TAG, "", e);
+            throw e.rethrowFromSystemServer();
         }
-        return null;
     }
 
     /** @hide */
@@ -2398,8 +2389,7 @@ public final class BluetoothAdapter {
         try {
             return mManagerService.isBleScanAvailable();
         } catch (RemoteException e) {
-            Log.e(TAG, "remote exception when calling isBleScanAvailable", e);
-            return false;
+            throw e.rethrowFromSystemServer();
         }
     }
 
@@ -2746,8 +2736,7 @@ public final class BluetoothAdapter {
         try {
             return mManagerService.isHearingAidProfileSupported();
         } catch (RemoteException e) {
-            Log.e(TAG, "remote exception when calling isHearingAidProfileSupported", e);
-            return false;
+            throw e.rethrowFromSystemServer();
         }
     }
 
@@ -3926,9 +3915,8 @@ public final class BluetoothAdapter {
         try {
             return mManagerService.enableNoAutoConnect(mAttributionSource);
         } catch (RemoteException e) {
-            Log.e(TAG, "", e);
+            throw e.rethrowFromSystemServer();
         }
-        return false;
     }
 
     /** @hide */
@@ -4558,7 +4546,7 @@ public final class BluetoothAdapter {
             @NonNull BluetoothDevice device,
             @NonNull Executor executor,
             @NonNull OnMetadataChangedListener listener) {
-        if (DBG) Log.d(TAG, "addOnMetadataChangedListener()");
+        if (DBG) Log.d(TAG, "addOnMetadataChangedListener(" + device + ", " + listener + ")");
         requireNonNull(device);
         requireNonNull(executor);
         requireNonNull(listener);
@@ -4633,7 +4621,7 @@ public final class BluetoothAdapter {
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean removeOnMetadataChangedListener(
             @NonNull BluetoothDevice device, @NonNull OnMetadataChangedListener listener) {
-        if (DBG) Log.d(TAG, "removeOnMetadataChangedListener()");
+        if (DBG) Log.d(TAG, "removeOnMetadataChangedListener(" + device + ", " + listener + ")");
         requireNonNull(device);
         requireNonNull(listener);
 
@@ -5377,9 +5365,8 @@ public final class BluetoothAdapter {
         try {
             return mManagerService.setBtHciSnoopLogMode(mode);
         } catch (RemoteException e) {
-            Log.e(TAG, "", e);
+            throw e.rethrowFromSystemServer();
         }
-        return BluetoothStatusCodes.ERROR_UNKNOWN;
     }
 
     /**
@@ -5395,9 +5382,8 @@ public final class BluetoothAdapter {
         try {
             return mManagerService.getBtHciSnoopLogMode();
         } catch (RemoteException e) {
-            Log.e(TAG, "", e);
+            throw e.rethrowFromSystemServer();
         }
-        return BT_SNOOP_LOG_MODE_DISABLED;
     }
 
     /**
