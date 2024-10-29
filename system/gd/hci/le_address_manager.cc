@@ -265,6 +265,12 @@ void LeAddressManager::unregister_client(LeAddressManagerCallback* callback) {
     if (address_rotation_non_wake_alarm_ != nullptr) {
       address_rotation_non_wake_alarm_->Cancel();
     }
+    if (address_rotation_interval_min.has_value()) {
+      address_rotation_interval_min.reset();
+    }
+    if (address_rotation_interval_max.has_value()) {
+      address_rotation_interval_max.reset();
+    }
     log::info("Cancelled address rotation alarm");
   }
 }
