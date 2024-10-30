@@ -39,9 +39,6 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using bluetooth::Uuid;
 using namespace bluetooth;
 
@@ -253,7 +250,7 @@ static bool sdp_copy_raw_data(tCONN_CB* p_ccb, bool offset) {
  * Returns          pointer to next byte in data stream
  *
  ******************************************************************************/
-tSDP_DISC_REC* add_record(tSDP_DISCOVERY_DB* p_db, const RawAddress& bd_addr) {
+static tSDP_DISC_REC* add_record(tSDP_DISCOVERY_DB* p_db, const RawAddress& bd_addr) {
   tSDP_DISC_REC* p_rec;
 
   /* See if there is enough space in the database */

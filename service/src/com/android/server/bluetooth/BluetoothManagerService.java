@@ -398,6 +398,7 @@ class BluetoothManagerService {
     private static final Object ON_SATELLITE_MODE_CHANGED_TOKEN = new Object();
     private static final Object ON_SWITCH_USER_TOKEN = new Object();
 
+    @VisibleForTesting
     Unit onAirplaneModeChanged(boolean isAirplaneModeOn) {
         delayModeChangedIfNeeded(
                 ON_AIRPLANE_MODE_CHANGED_TOKEN,
@@ -406,8 +407,7 @@ class BluetoothManagerService {
         return Unit.INSTANCE;
     }
 
-    // TODO(b/289584302): Update to private once use_new_satellite_mode is enabled
-    Unit onSatelliteModeChanged(boolean isSatelliteModeOn) {
+    private Unit onSatelliteModeChanged(boolean isSatelliteModeOn) {
         delayModeChangedIfNeeded(
                 ON_SATELLITE_MODE_CHANGED_TOKEN,
                 () -> handleSatelliteModeChanged(isSatelliteModeOn),

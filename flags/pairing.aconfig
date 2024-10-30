@@ -180,3 +180,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "trigger_sec_proc_on_inc_access_req"
+    namespace: "bluetooth"
+    description: "Trigger security procedure as acceptor as needed"
+    bug: "376278485"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

@@ -435,6 +435,12 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
         advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_->Cancel();
         advertising_sets_[advertiser_id].address_rotation_non_wake_alarm_.reset();
       }
+      if (advertising_sets_[advertiser_id].address_rotation_interval_min.has_value()) {
+        advertising_sets_[advertiser_id].address_rotation_interval_min.reset();
+      }
+      if (advertising_sets_[advertiser_id].address_rotation_interval_max.has_value()) {
+        advertising_sets_[advertiser_id].address_rotation_interval_max.reset();
+      }
     }
     advertising_sets_.erase(advertiser_id);
     if (advertising_sets_.empty() && address_manager_registered) {
