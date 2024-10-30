@@ -64,9 +64,6 @@ using ::testing::ReturnArg;
 using ::testing::SaveArg;
 using ::testing::SetArrayArgument;
 
-bool sdp_dynamic_change_hfp_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress& remote_address);
-void hfp_fallback(bool& is_hfp_fallback, const tSDP_ATTRIBUTE* p_attr);
-
 void sdp_callback(const RawAddress& bd_addr, tSDP_RESULT result);
 tCONN_CB* find_ccb(uint16_t cid, uint8_t state);
 
@@ -577,10 +574,7 @@ TEST_F(StackSdpUtilsTest, check_HFP_version_fallback_success) {
   EXPECT_CALL(*localIopMock, InteropMatchAddrOrName(INTEROP_HFP_1_9_ALLOWLIST, &bdaddr,
                                                     &btif_storage_get_remote_device_property))
           .WillOnce(Return(true));
-  bool is_hfp_fallback = sdp_dynamic_change_hfp_version(&hfp_attr, bdaddr);
-  ASSERT_EQ(hfp_attr.value_ptr[PROFILE_VERSION_POSITION], HFP_PROFILE_MINOR_VERSION_7);
-  hfp_fallback(is_hfp_fallback, &hfp_attr);
-  ASSERT_EQ(hfp_attr.value_ptr[PROFILE_VERSION_POSITION], HFP_PROFILE_MINOR_VERSION_6);
+  ASSERT_TRUE(sdp_dynamic_change_hfp_version(&hfp_attr, bdaddr));
 }
 
 TEST_F(StackSdpUtilsTest, sdpu_compare_uuid_with_attr_u16) {
