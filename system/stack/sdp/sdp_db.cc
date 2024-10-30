@@ -35,11 +35,9 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/sdpdefs.h"
+#include "stack/sdp/internal/sdp_api.h"
 #include "stack/sdp/sdp_discovery_db.h"
 #include "stack/sdp/sdpint.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 

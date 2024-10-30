@@ -1130,11 +1130,11 @@ TEST_F(AvrcpDeviceTest, setBrowsedPlayerTest) {
 
   test_device->RegisterInterfaces(&interface, &a2dp_interface, nullptr, nullptr);
 
-  EXPECT_CALL(interface, SetBrowsedPlayer(_, _))
+  EXPECT_CALL(interface, SetBrowsedPlayer(_, "", _))
           .Times(3)
-          .WillOnce(InvokeCb<1>(true, "", 0))
-          .WillOnce(InvokeCb<1>(false, "", 0))
-          .WillOnce(InvokeCb<1>(true, "", 2));
+          .WillOnce(InvokeCb<2>(true, "", 0))
+          .WillOnce(InvokeCb<2>(false, "", 0))
+          .WillOnce(InvokeCb<2>(true, "", 2));
 
   auto not_browsable_rsp = SetBrowsedPlayerResponseBuilder::MakeBuilder(
           Status::PLAYER_NOT_BROWSABLE, 0x0000, 0, 0, "");

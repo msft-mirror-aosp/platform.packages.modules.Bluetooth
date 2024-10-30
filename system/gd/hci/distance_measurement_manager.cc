@@ -119,6 +119,14 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     std::vector<std::vector<std::complex<double>>> tone_pct_reflector;
     std::vector<std::vector<uint8_t>> tone_quality_indicator_initiator;
     std::vector<std::vector<uint8_t>> tone_quality_indicator_reflector;
+    std::vector<int8_t> packet_quality_initiator;
+    std::vector<int8_t> packet_quality_reflector;
+    std::vector<int16_t> toa_tod_initiators;
+    std::vector<int16_t> tod_toa_reflectors;
+    std::vector<int8_t> rssi_initiator;
+    std::vector<int8_t> rssi_reflector;
+    bool contains_sounding_sequence_local_;
+    bool contains_sounding_sequence_remote_;
     CsProcedureDoneStatus local_status;
     CsProcedureDoneStatus remote_status;
     // If the procedure is aborted by either the local or remote side.
@@ -742,6 +750,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
     cs_subfeature_supported_ = complete_view.GetOptionalSubfeaturesSupported();
     num_antennas_supported_ = complete_view.GetNumAntennasSupported();
+    local_support_phase_based_ranging_ = cs_subfeature_supported_.phase_based_ranging_ == 0x01;
   }
 
   void on_cs_read_remote_supported_capabilities_complete(
@@ -1334,6 +1343,57 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             }
             parse_index = after;
           } break;
+          case 1: {
+            if (remote_role == CsRole::INITIATOR) {
+              if (procedure_data->contains_sounding_sequence_remote_) {
+                LeCsMode1InitatorDataWithPacketPct tone_data;
+                after = LeCsMode1InitatorDataWithPacketPct::Parse(&tone_data, parse_index);
+                if (after == parse_index) {
+                  log::warn("Error invalid mode {} data, role:{}", step_mode.mode_type_,
+                            CsRoleText(remote_role));
+                  return;
+                }
+                parse_index = after;
+                procedure_data->toa_tod_initiators.emplace_back(tone_data.toa_tod_initiator_);
+                procedure_data->packet_quality_initiator.emplace_back(tone_data.packet_quality_);
+              } else {
+                LeCsMode1InitatorData tone_data;
+                after = LeCsMode1InitatorData::Parse(&tone_data, parse_index);
+                if (after == parse_index) {
+                  log::warn("Error invalid mode {} data, role:{}", step_mode.mode_type_,
+                            CsRoleText(remote_role));
+                  return;
+                }
+                parse_index = after;
+                procedure_data->toa_tod_initiators.emplace_back(tone_data.toa_tod_initiator_);
+                procedure_data->packet_quality_initiator.emplace_back(tone_data.packet_quality_);
+              }
+            } else {
+              if (procedure_data->contains_sounding_sequence_remote_) {
+                LeCsMode1ReflectorDataWithPacketPct tone_data;
+                after = LeCsMode1ReflectorDataWithPacketPct::Parse(&tone_data, parse_index);
+                if (after == parse_index) {
+                  log::warn("Error invalid mode {} data, role:{}", step_mode.mode_type_,
+                            CsRoleText(remote_role));
+                  return;
+                }
+                parse_index = after;
+                procedure_data->tod_toa_reflectors.emplace_back(tone_data.tod_toa_reflector_);
+                procedure_data->packet_quality_reflector.emplace_back(tone_data.packet_quality_);
+              } else {
+                LeCsMode1ReflectorData tone_data;
+                after = LeCsMode1ReflectorData::Parse(&tone_data, parse_index);
+                if (after == parse_index) {
+                  log::warn("Error invalid mode {} data, role:{}", step_mode.mode_type_,
+                            CsRoleText(remote_role));
+                  return;
+                }
+                parse_index = after;
+                procedure_data->tod_toa_reflectors.emplace_back(tone_data.tod_toa_reflector_);
+                procedure_data->packet_quality_reflector.emplace_back(tone_data.packet_quality_);
+              }
+            }
+          } break;
           case 2: {
             uint8_t num_tone_data = num_antenna_paths + 1;
             uint8_t data_len = 1 + (4 * num_tone_data);
@@ -1385,6 +1445,131 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
               }
             }
           } break;
+          case 3: {
+            uint8_t num_tone_data = num_antenna_paths + 1;
+            uint8_t data_len = 7 + (4 * num_tone_data);
+            if (procedure_data->contains_sounding_sequence_local_) {
+              data_len += 3;  // 3 bytes for packet_pct1, packet_pct2
+            }
+            remaining_data_size = std::distance(parse_index, segment_data.end());
+            if (remaining_data_size < data_len) {
+              log::warn(
+                      "insufficient length for LeCsMode2Data, num_tone_data {}, "
+                      "remaining_data_size {}",
+                      num_tone_data, remaining_data_size);
+              return;
+            }
+            std::vector<uint8_t> vector_for_num_tone_data = {num_tone_data};
+            PacketView<kLittleEndian> packet_view_for_num_tone_data(
+                    std::make_shared<std::vector<uint8_t>>(vector_for_num_tone_data));
+            PacketViewForRecombination packet_bytes_view =
+                    PacketViewForRecombination(packet_view_for_num_tone_data);
+            auto subview_begin = std::distance(segment_data.begin(), parse_index);
+            packet_bytes_view.AppendPacketView(
+                    segment_data.GetLittleEndianSubview(subview_begin, subview_begin + data_len));
+            uint8_t permutation_index = 0;
+            std::vector<LeCsToneDataWithQuality> view_tone_data = {};
+            if (remote_role == CsRole::INITIATOR) {
+              if (procedure_data->contains_sounding_sequence_local_) {
+                LeCsMode3InitatorDataWithPacketPct tone_data_view;
+                after = LeCsMode3InitatorDataWithPacketPct::Parse(&tone_data_view,
+                                                                  packet_bytes_view.begin());
+                if (after == packet_bytes_view.begin()) {
+                  log::warn("Error invalid mode {} data, role:{}", step_mode.mode_type_,
+                            CsRoleText(remote_role));
+                  return;
+                }
+                parse_index += data_len;
+                log::verbose("step_data: {}", tone_data_view.ToString());
+                permutation_index = tone_data_view.antenna_permutation_index_;
+                procedure_data->rssi_initiator.emplace_back(tone_data_view.packet_rssi_);
+                procedure_data->toa_tod_initiators.emplace_back(tone_data_view.toa_tod_initiator_);
+                procedure_data->packet_quality_initiator.emplace_back(
+                        tone_data_view.packet_quality_);
+                auto tone_data = tone_data_view.tone_data_;
+                view_tone_data.reserve(tone_data.size());
+                view_tone_data.insert(view_tone_data.end(), tone_data.begin(), tone_data.end());
+              } else {
+                LeCsMode3InitatorData tone_data_view;
+                after = LeCsMode3InitatorData::Parse(&tone_data_view, packet_bytes_view.begin());
+                if (after == packet_bytes_view.begin()) {
+                  log::warn("Error invalid mode {} data, role:{}", step_mode.mode_type_,
+                            CsRoleText(remote_role));
+                  return;
+                }
+                parse_index += data_len;
+                log::verbose("step_data: {}", tone_data_view.ToString());
+                permutation_index = tone_data_view.antenna_permutation_index_;
+                procedure_data->rssi_initiator.emplace_back(tone_data_view.packet_rssi_);
+                procedure_data->toa_tod_initiators.emplace_back(tone_data_view.toa_tod_initiator_);
+                procedure_data->packet_quality_initiator.emplace_back(
+                        tone_data_view.packet_quality_);
+                auto tone_data = tone_data_view.tone_data_;
+                view_tone_data.reserve(tone_data.size());
+                view_tone_data.insert(view_tone_data.end(), tone_data.begin(), tone_data.end());
+              }
+            } else {
+              if (procedure_data->contains_sounding_sequence_local_) {
+                LeCsMode3ReflectorDataWithPacketPct tone_data_view;
+                after = LeCsMode3ReflectorDataWithPacketPct::Parse(&tone_data_view,
+                                                                   packet_bytes_view.begin());
+                if (after == packet_bytes_view.begin()) {
+                  log::warn("Error invalid mode {} data, role:{}", step_mode.mode_type_,
+                            CsRoleText(remote_role));
+                  return;
+                }
+                parse_index += data_len;
+                log::verbose("step_data: {}", tone_data_view.ToString());
+                permutation_index = tone_data_view.antenna_permutation_index_;
+                procedure_data->rssi_reflector.emplace_back(tone_data_view.packet_rssi_);
+                procedure_data->tod_toa_reflectors.emplace_back(tone_data_view.tod_toa_reflector_);
+                procedure_data->packet_quality_reflector.emplace_back(
+                        tone_data_view.packet_quality_);
+                auto tone_data = tone_data_view.tone_data_;
+                view_tone_data.reserve(tone_data.size());
+                view_tone_data.insert(view_tone_data.end(), tone_data.begin(), tone_data.end());
+              } else {
+                LeCsMode3ReflectorData tone_data_view;
+                after = LeCsMode3ReflectorData::Parse(&tone_data_view, packet_bytes_view.begin());
+                if (after == packet_bytes_view.begin()) {
+                  log::warn("Error invalid mode {} data, role:{}", step_mode.mode_type_,
+                            CsRoleText(remote_role));
+                  return;
+                }
+                parse_index += data_len;
+                log::verbose("step_data: {}", tone_data_view.ToString());
+                permutation_index = tone_data_view.antenna_permutation_index_;
+                procedure_data->rssi_reflector.emplace_back(tone_data_view.packet_rssi_);
+                procedure_data->tod_toa_reflectors.emplace_back(tone_data_view.tod_toa_reflector_);
+                procedure_data->packet_quality_reflector.emplace_back(
+                        tone_data_view.packet_quality_);
+                auto tone_data = tone_data_view.tone_data_;
+                view_tone_data.reserve(tone_data.size());
+                view_tone_data.insert(view_tone_data.end(), tone_data.begin(), tone_data.end());
+              }
+            }
+            // Parse in ascending order of antenna position with tone extension data at the end
+            for (uint16_t k = 0; k < num_tone_data; k++) {
+              uint8_t antenna_path =
+                      k == num_antenna_paths
+                              ? num_antenna_paths
+                              : cs_antenna_permutation_array_[permutation_index][k] - 1;
+              double i_value = get_iq_value(view_tone_data[k].i_sample_);
+              double q_value = get_iq_value(view_tone_data[k].q_sample_);
+              uint8_t tone_quality_indicator = view_tone_data[k].tone_quality_indicator_;
+              log::verbose("antenna_path {}, {:f}, {:f}", (uint16_t)(antenna_path + 1), i_value,
+                           q_value);
+              if (remote_role == CsRole::INITIATOR) {
+                procedure_data->tone_pct_initiator[antenna_path].emplace_back(i_value, q_value);
+                procedure_data->tone_quality_indicator_initiator[antenna_path].emplace_back(
+                        tone_quality_indicator);
+              } else {
+                procedure_data->tone_pct_reflector[antenna_path].emplace_back(i_value, q_value);
+                procedure_data->tone_quality_indicator_reflector[antenna_path].emplace_back(
+                        tone_quality_indicator);
+              }
+            }
+          } break;
           default:
             log::error("Unexpect mode: {}", step_mode.mode_type_);
             return;
@@ -1414,6 +1599,18 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     log::info("Create data for procedure_counter: {}", procedure_counter);
     data_list.emplace_back(procedure_counter, num_antenna_paths, live_tracker->config_id,
                            live_tracker->selected_tx_power);
+
+    // Check if sounding phase-based ranging is supported, and RTT type contains a sounding
+    // sequence
+    bool rtt_contains_sounding_sequence = false;
+    if (live_tracker->rtt_type == CsRttType::RTT_WITH_32_BIT_SOUNDING_SEQUENCE ||
+        live_tracker->rtt_type == CsRttType::RTT_WITH_96_BIT_SOUNDING_SEQUENCE) {
+      rtt_contains_sounding_sequence = true;
+    }
+    data_list.back().contains_sounding_sequence_local_ =
+            local_support_phase_based_ranging_ && rtt_contains_sounding_sequence;
+    data_list.back().contains_sounding_sequence_remote_ =
+            live_tracker->remote_support_phase_based_ranging && rtt_contains_sounding_sequence;
 
     // Append ranging header raw data
     std::vector<uint8_t> ranging_header_raw = {};
@@ -1482,6 +1679,10 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
         raw_data.tone_pct_reflector_ = procedure_data->tone_pct_reflector;
         raw_data.tone_quality_indicator_reflector_ =
                 procedure_data->tone_quality_indicator_reflector;
+        raw_data.toa_tod_initiators_ = procedure_data->toa_tod_initiators;
+        raw_data.tod_toa_reflectors_ = procedure_data->tod_toa_reflectors;
+        raw_data.packet_quality_initiator = procedure_data->packet_quality_initiator;
+        raw_data.packet_quality_reflector = procedure_data->packet_quality_reflector;
         ranging_hal_->WriteRawData(connection_handle, raw_data);
         return;
       }
@@ -1552,6 +1753,62 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             log::verbose("step_data: {}", tone_data_view.ToString());
           }
         } break;
+        case 1: {
+          if (role == CsRole::INITIATOR) {
+            if (procedure_data.contains_sounding_sequence_local_) {
+              LeCsMode1InitatorDataWithPacketPct tone_data_view;
+              auto after = LeCsMode1InitatorDataWithPacketPct::Parse(&tone_data_view, iterator);
+              if (after == iterator) {
+                log::warn("Received invalid mode {} data, role:{}", mode, CsRoleText(role));
+                print_raw_data(result_data_structure.step_data_);
+                continue;
+              }
+              log::verbose("step_data: {}", tone_data_view.ToString());
+              procedure_data.rssi_initiator.emplace_back(tone_data_view.packet_rssi_);
+              procedure_data.toa_tod_initiators.emplace_back(tone_data_view.toa_tod_initiator_);
+              procedure_data.packet_quality_initiator.emplace_back(tone_data_view.packet_quality_);
+            } else {
+              LeCsMode1InitatorData tone_data_view;
+              auto after = LeCsMode1InitatorData::Parse(&tone_data_view, iterator);
+              if (after == iterator) {
+                log::warn("Received invalid mode {} data, role:{}", mode, CsRoleText(role));
+                print_raw_data(result_data_structure.step_data_);
+                continue;
+              }
+              log::verbose("step_data: {}", tone_data_view.ToString());
+              procedure_data.rssi_initiator.emplace_back(tone_data_view.packet_rssi_);
+              procedure_data.toa_tod_initiators.emplace_back(tone_data_view.toa_tod_initiator_);
+              procedure_data.packet_quality_initiator.emplace_back(tone_data_view.packet_quality_);
+            }
+            procedure_data.step_channel.push_back(step_channel);
+          } else {
+            if (procedure_data.contains_sounding_sequence_local_) {
+              LeCsMode1ReflectorDataWithPacketPct tone_data_view;
+              auto after = LeCsMode1ReflectorDataWithPacketPct::Parse(&tone_data_view, iterator);
+              if (after == iterator) {
+                log::warn("Received invalid mode {} data, role:{}", mode, CsRoleText(role));
+                print_raw_data(result_data_structure.step_data_);
+                continue;
+              }
+              log::verbose("step_data: {}", tone_data_view.ToString());
+              procedure_data.rssi_reflector.emplace_back(tone_data_view.packet_rssi_);
+              procedure_data.tod_toa_reflectors.emplace_back(tone_data_view.tod_toa_reflector_);
+              procedure_data.packet_quality_reflector.emplace_back(tone_data_view.packet_quality_);
+            } else {
+              LeCsMode1ReflectorData tone_data_view;
+              auto after = LeCsMode1ReflectorData::Parse(&tone_data_view, iterator);
+              if (after == iterator) {
+                log::warn("Received invalid mode {} data, role:{}", mode, CsRoleText(role));
+                print_raw_data(result_data_structure.step_data_);
+                continue;
+              }
+              log::verbose("step_data: {}", tone_data_view.ToString());
+              procedure_data.rssi_reflector.emplace_back(tone_data_view.packet_rssi_);
+              procedure_data.tod_toa_reflectors.emplace_back(tone_data_view.tod_toa_reflector_);
+              procedure_data.packet_quality_reflector.emplace_back(tone_data_view.packet_quality_);
+            }
+          }
+        } break;
         case 2: {
           LeCsMode2Data tone_data_view;
           auto after = LeCsMode2Data::Parse(&tone_data_view, iterator);
@@ -1589,10 +1846,102 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             }
           }
         } break;
-        case 1:
-        case 3:
-          log::debug("Unsupported mode: {}", mode);
-          break;
+        case 3: {
+          uint8_t permutation_index = 0;
+          std::vector<LeCsToneDataWithQuality> view_tone_data = {};
+          if (role == CsRole::INITIATOR) {
+            if (procedure_data.contains_sounding_sequence_local_) {
+              LeCsMode3InitatorDataWithPacketPct tone_data_view;
+              auto after = LeCsMode3InitatorDataWithPacketPct::Parse(&tone_data_view, iterator);
+              if (after == iterator) {
+                log::warn("Received invalid mode {} data, role:{}", mode, CsRoleText(role));
+                print_raw_data(result_data_structure.step_data_);
+                continue;
+              }
+              log::verbose("step_data: {}", tone_data_view.ToString());
+              permutation_index = tone_data_view.antenna_permutation_index_;
+              procedure_data.rssi_initiator.emplace_back(tone_data_view.packet_rssi_);
+              procedure_data.toa_tod_initiators.emplace_back(tone_data_view.toa_tod_initiator_);
+              procedure_data.packet_quality_initiator.emplace_back(tone_data_view.packet_quality_);
+              auto tone_data = tone_data_view.tone_data_;
+              view_tone_data.reserve(tone_data.size());
+              view_tone_data.insert(view_tone_data.end(), tone_data.begin(), tone_data.end());
+            } else {
+              LeCsMode3InitatorData tone_data_view;
+              auto after = LeCsMode3InitatorData::Parse(&tone_data_view, iterator);
+              if (after == iterator) {
+                log::warn("Received invalid mode {} data, role:{}", mode, CsRoleText(role));
+                print_raw_data(result_data_structure.step_data_);
+                continue;
+              }
+              log::verbose("step_data: {}", tone_data_view.ToString());
+              permutation_index = tone_data_view.antenna_permutation_index_;
+              procedure_data.rssi_initiator.emplace_back(tone_data_view.packet_rssi_);
+              procedure_data.toa_tod_initiators.emplace_back(tone_data_view.toa_tod_initiator_);
+              procedure_data.packet_quality_initiator.emplace_back(tone_data_view.packet_quality_);
+              auto tone_data = tone_data_view.tone_data_;
+              view_tone_data.reserve(tone_data.size());
+              view_tone_data.insert(view_tone_data.end(), tone_data.begin(), tone_data.end());
+            }
+            procedure_data.step_channel.push_back(step_channel);
+          } else {
+            if (procedure_data.contains_sounding_sequence_local_) {
+              LeCsMode3ReflectorDataWithPacketPct tone_data_view;
+              auto after = LeCsMode3ReflectorDataWithPacketPct::Parse(&tone_data_view, iterator);
+              if (after == iterator) {
+                log::warn("Received invalid mode {} data, role:{}", mode, CsRoleText(role));
+                print_raw_data(result_data_structure.step_data_);
+                continue;
+              }
+              log::verbose("step_data: {}", tone_data_view.ToString());
+              permutation_index = tone_data_view.antenna_permutation_index_;
+              procedure_data.rssi_reflector.emplace_back(tone_data_view.packet_rssi_);
+              procedure_data.tod_toa_reflectors.emplace_back(tone_data_view.tod_toa_reflector_);
+              procedure_data.packet_quality_reflector.emplace_back(tone_data_view.packet_quality_);
+              auto tone_data = tone_data_view.tone_data_;
+              view_tone_data.reserve(tone_data.size());
+              view_tone_data.insert(view_tone_data.end(), tone_data.begin(), tone_data.end());
+            } else {
+              LeCsMode3ReflectorData tone_data_view;
+              auto after = LeCsMode3ReflectorData::Parse(&tone_data_view, iterator);
+              if (after == iterator) {
+                log::warn("Received invalid mode {} data, role:{}", mode, CsRoleText(role));
+                print_raw_data(result_data_structure.step_data_);
+                continue;
+              }
+              log::verbose("step_data: {}", tone_data_view.ToString());
+              permutation_index = tone_data_view.antenna_permutation_index_;
+              procedure_data.rssi_reflector.emplace_back(tone_data_view.packet_rssi_);
+              procedure_data.tod_toa_reflectors.emplace_back(tone_data_view.tod_toa_reflector_);
+              procedure_data.packet_quality_reflector.emplace_back(tone_data_view.packet_quality_);
+              auto tone_data = tone_data_view.tone_data_;
+              view_tone_data.reserve(tone_data.size());
+              view_tone_data.insert(view_tone_data.end(), tone_data.begin(), tone_data.end());
+            }
+          }
+          // Parse in ascending order of antenna position with tone extension data at the end
+          uint16_t num_tone_data = num_antenna_paths + 1;
+          for (uint16_t k = 0; k < num_tone_data; k++) {
+            uint8_t antenna_path =
+                    k == num_antenna_paths
+                            ? num_antenna_paths
+                            : cs_antenna_permutation_array_[permutation_index][k] - 1;
+            double i_value = get_iq_value(view_tone_data[k].i_sample_);
+            double q_value = get_iq_value(view_tone_data[k].q_sample_);
+            uint8_t tone_quality_indicator = view_tone_data[k].tone_quality_indicator_;
+            log::verbose("antenna_path {}, {:f}, {:f}", (uint16_t)(antenna_path + 1), i_value,
+                         q_value);
+            if (role == CsRole::INITIATOR) {
+              procedure_data.tone_pct_initiator[antenna_path].emplace_back(i_value, q_value);
+              procedure_data.tone_quality_indicator_initiator[antenna_path].emplace_back(
+                      tone_quality_indicator);
+            } else {
+              procedure_data.tone_pct_reflector[antenna_path].emplace_back(i_value, q_value);
+              procedure_data.tone_quality_indicator_reflector[antenna_path].emplace_back(
+                      tone_quality_indicator);
+            }
+          }
+        } break;
         default: {
           log::warn("Invalid mode {}", mode);
         }
@@ -1780,6 +2129,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   DistanceMeasurementCallbacks* distance_measurement_callbacks_;
   CsOptionalSubfeaturesSupported cs_subfeature_supported_;
   uint8_t num_antennas_supported_ = 0x01;
+  bool local_support_phase_based_ranging_ = false;
   // A table that maps num_antennas_supported and remote_num_antennas_supported to Antenna
   // Configuration Index.
   uint8_t cs_tone_antenna_config_mapping_table_[4][4] = {

@@ -18,6 +18,7 @@ aconfig("bluetooth_flags_c_lib") {
     "dis.aconfig",
     "framework.aconfig",
     "gap.aconfig",
+    "gatt.aconfig",
     "hal.aconfig",
     "hap.aconfig",
     "hci.aconfig",

@@ -19,11 +19,9 @@
  *   Functions generated:14
  */
 
+#include "stack/sdp/internal/sdp_api.h"
 #include "stack/sdp/sdpint.h"
 #include "test/common/mock_functions.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 bool SDP_AddAdditionProtoLists(uint32_t /* handle */, uint16_t /* num_elem */,
                                tSDP_PROTO_LIST_ELEM* /* p_proto_list */) {
@@ -69,8 +67,8 @@ bool SDP_DeleteRecord(uint32_t /* handle */) {
   inc_func_call_count(__func__);
   return false;
 }
-tSDP_ATTRIBUTE* sdp_db_find_attr_in_rec(tSDP_RECORD* /* p_rec */, uint16_t /* start_attr */,
-                                        uint16_t /* end_attr */) {
+const tSDP_ATTRIBUTE* sdp_db_find_attr_in_rec(const tSDP_RECORD* /* p_rec */,
+                                              uint16_t /* start_attr */, uint16_t /* end_attr */) {
   inc_func_call_count(__func__);
   return nullptr;
 }
@@ -79,7 +77,7 @@ tSDP_RECORD* sdp_db_find_record(uint32_t /* handle */) {
   return nullptr;
 }
 const tSDP_RECORD* sdp_db_service_search(const tSDP_RECORD* /* p_rec */,
-                                         tSDP_UUID_SEQ* /* p_seq */) {
+                                         const tSDP_UUID_SEQ* /* p_seq */) {
   inc_func_call_count(__func__);
   return nullptr;
 }
