@@ -144,8 +144,9 @@ public:
     addressed_player.Run(currentPlayer);
   }
   using SetBrowsedPlayerCallback =
-          base::Callback<void(bool success, std::string root_id, uint32_t num_items)>;
-  void SetBrowsedPlayer(uint16_t player_id, SetBrowsedPlayerCallback browse_cb) {
+          base::Callback<void(bool success, std::string current_path, uint32_t num_items)>;
+  void SetBrowsedPlayer(uint16_t player_id, std::string /* current_path */,
+                        SetBrowsedPlayerCallback browse_cb) {
     std::string rootId = mFdp->ConsumeRandomLengthString(kMaxLen);
     uint32_t numItems = mFdp->ConsumeIntegral<uint32_t>();
     browse_cb.Run(player_id, rootId, numItems);
