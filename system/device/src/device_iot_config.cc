@@ -32,7 +32,6 @@
 
 #include "device_iot_config_int.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"

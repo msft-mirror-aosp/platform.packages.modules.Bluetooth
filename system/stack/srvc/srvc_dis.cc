@@ -23,7 +23,6 @@
 
 #include "gatt_api.h"
 #include "hardware/bt_gatt_types.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
 #include "srvc_dis_int.h"
@@ -32,6 +31,9 @@
 #include "stack/include/bt_uuid16.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -68,31 +70,6 @@ static tDIS_ATTR_MASK dis_uuid_to_attr(uint16_t uuid) {
 }
 
 /*******************************************************************************
- *   dis_valid_handle_range
- *
- *   validate a handle to be a DIS attribute handle or not.
- ******************************************************************************/
-bool dis_valid_handle_range(uint16_t /* handle */) { return false; }
-/*******************************************************************************
- *   dis_write_attr_value
- *
- *   Process write DIS attribute request.
- ******************************************************************************/
-uint8_t dis_write_attr_value(tGATT_WRITE_REQ* /* p_data */, tGATT_STATUS* p_status) {
-  *p_status = GATT_WRITE_NOT_PERMIT;
-  return SRVC_ACT_RSP;
-}
-/*******************************************************************************
- *   DIS Attributes Database Server Request callback
- ******************************************************************************/
-uint8_t dis_read_attr_value(uint8_t /* clcb_idx */, uint16_t /* handle */,
-                            tGATT_VALUE* /* p_value */, bool /* is_long */,
-                            tGATT_STATUS* p_status) {
-  *p_status = GATT_NOT_FOUND;
-  return SRVC_ACT_RSP;
-}
-
-/*******************************************************************************
  *
  * Function         dis_gatt_c_read_dis_value_cmpl
  *
@@ -101,7 +78,7 @@ uint8_t dis_read_attr_value(uint8_t /* clcb_idx */, uint16_t /* handle */,
  * Returns          void
  *
  ******************************************************************************/
-static void dis_gatt_c_read_dis_value_cmpl(uint16_t conn_id) {
+static void dis_gatt_c_read_dis_value_cmpl(tCONN_ID conn_id) {
   tSRVC_CLCB* p_clcb = srvc_eng_find_clcb_by_conn_id(conn_id);
 
   dis_cb.dis_read_uuid_idx = 0xff;
@@ -143,7 +120,7 @@ static void dis_gatt_c_read_dis_value_cmpl(uint16_t conn_id) {
  * Returns          void
  *
  ******************************************************************************/
-bool dis_gatt_c_read_dis_req(uint16_t conn_id) {
+bool dis_gatt_c_read_dis_req(tCONN_ID conn_id) {
   tGATT_READ_PARAM param;
 
   memset(&param, 0, sizeof(tGATT_READ_PARAM));
@@ -184,7 +161,7 @@ void dis_c_cmpl_cback(tSRVC_CLCB* p_clcb, tGATTC_OPTYPE op, tGATT_STATUS status,
                       tGATT_CL_COMPLETE* p_data) {
   uint16_t read_type;
   uint8_t *pp = NULL, *p_str;
-  uint16_t conn_id = p_clcb->conn_id;
+  tCONN_ID conn_id = p_clcb->conn_id;
 
   if (dis_cb.dis_read_uuid_idx >= (sizeof(dis_attr_uuid) / sizeof(dis_attr_uuid[0]))) {
     log::error("invalid dis_cb.dis_read_uuid_idx");
@@ -260,7 +237,7 @@ void dis_c_cmpl_cback(tSRVC_CLCB* p_clcb, tGATTC_OPTYPE op, tGATT_STATUS status,
  *
  ******************************************************************************/
 bool DIS_ReadDISInfo(const RawAddress& peer_bda, tDIS_READ_CBACK* p_cback, tDIS_ATTR_MASK mask) {
-  uint16_t conn_id;
+  tCONN_ID conn_id;
 
   /* Initialize the DIS client if it hasn't been initialized already. */
   srvc_eng_init();

@@ -42,6 +42,9 @@
 #include "stack/include/smp_api_types.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 namespace {
@@ -681,17 +684,14 @@ void smp_proc_rand(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
     return;
   }
 
-  if (com::android::bluetooth::flags::fix_le_pairing_passkey_entry_bypass()) {
-    if (!((p_cb->loc_auth_req & SMP_SC_SUPPORT_BIT) &&
-          (p_cb->peer_auth_req & SMP_SC_SUPPORT_BIT)) &&
-        !(p_cb->flags & SMP_PAIR_FLAGS_CMD_CONFIRM_SENT)) {
-      // in legacy pairing, the peer should send its rand after
-      // we send our confirm
-      tSMP_INT_DATA smp_int_data{};
-      smp_int_data.status = SMP_INVALID_PARAMETERS;
-      smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &smp_int_data);
-      return;
-    }
+  if (!((p_cb->loc_auth_req & SMP_SC_SUPPORT_BIT) && (p_cb->peer_auth_req & SMP_SC_SUPPORT_BIT)) &&
+      !(p_cb->flags & SMP_PAIR_FLAGS_CMD_CONFIRM_SENT)) {
+    // in legacy pairing, the peer should send its rand after
+    // we send our confirm
+    tSMP_INT_DATA smp_int_data{};
+    smp_int_data.status = SMP_INVALID_PARAMETERS;
+    smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &smp_int_data);
+    return;
   }
 
   /* save the SRand for comparison */
@@ -1083,6 +1083,10 @@ void smp_proc_srk_info(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
 
   smp_update_key_mask(p_cb, SMP_SEC_KEY_TYPE_CSRK, true);
 
+  if (com::android::bluetooth::flags::save_peer_csrk_after_ltk_gen()) {
+    smp_key_distribution_by_transport(p_cb, NULL);
+  }
+
   /* save CSRK to security record */
   tBTM_LE_KEY_VALUE le_key = {
           .pcsrk_key =
@@ -1100,7 +1104,10 @@ void smp_proc_srk_info(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   if ((p_cb->peer_auth_req & SMP_AUTH_BOND) && (p_cb->loc_auth_req & SMP_AUTH_BOND)) {
     btm_sec_save_le_key(p_cb->pairing_bda, BTM_LE_KEY_PCSRK, &le_key, true);
   }
-  smp_key_distribution_by_transport(p_cb, NULL);
+
+  if (!com::android::bluetooth::flags::save_peer_csrk_after_ltk_gen()) {
+    smp_key_distribution_by_transport(p_cb, NULL);
+  }
 }
 
 /*******************************************************************************

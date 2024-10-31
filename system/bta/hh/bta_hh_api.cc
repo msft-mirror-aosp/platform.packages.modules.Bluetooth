@@ -30,7 +30,6 @@
 
 #include "bta/hh/bta_hh_int.h"
 #include "bta/sys/bta_sys.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/main_thread.h"

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// AIDL uses syslog.h, so these defines conflict with os/log.h
+// AIDL uses syslog.h, so these defines conflict with log/log.h
 #undef LOG_DEBUG
 #undef LOG_INFO
 #undef LOG_WARNING

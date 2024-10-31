@@ -18,6 +18,9 @@ package android.bluetooth.le;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothUtils.executeFromBinder;
+
+import static java.util.Objects.requireNonNull;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -28,13 +31,12 @@ import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.IBluetoothGatt;
 import android.bluetooth.annotations.RequiresBluetoothConnectPermission;
 import android.content.AttributionSource;
-import android.os.Binder;
 import android.os.ParcelUuid;
 import android.os.RemoteException;
+import android.util.Log;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.util.Objects;
 import java.util.concurrent.Executor;
 
 /**
@@ -83,16 +85,12 @@ public final class DistanceMeasurementSession {
             Executor executor,
             AttributionSource attributionSource,
             Callback callback) {
-        Objects.requireNonNull(gatt, "gatt is null");
-        Objects.requireNonNull(params, "params is null");
-        Objects.requireNonNull(executor, "executor is null");
-        Objects.requireNonNull(callback, "callback is null");
-        mGatt = gatt;
+        mGatt = requireNonNull(gatt);
+        mDistanceMeasurementParams = requireNonNull(params);
+        mExecutor = requireNonNull(executor);
+        mCallback = requireNonNull(callback);
         mUuid = uuid;
-        mDistanceMeasurementParams = params;
-        mExecutor = executor;
         mAttributionSource = attributionSource;
-        mCallback = callback;
     }
 
     /**
@@ -112,38 +110,29 @@ public final class DistanceMeasurementSession {
                     mDistanceMeasurementParams.getMethodId(),
                     mAttributionSource);
         } catch (RemoteException e) {
-            throw e.rethrowAsRuntimeException();
+            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+            return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
         }
     }
 
     /** @hide */
     void onStarted() {
-        executeCallback(() -> mCallback.onStarted(this));
+        executeFromBinder(mExecutor, () -> mCallback.onStarted(this));
     }
 
     /** @hide */
     void onStartFail(int reason) {
-        executeCallback(() -> mCallback.onStartFail(reason));
+        executeFromBinder(mExecutor, () -> mCallback.onStartFail(reason));
     }
 
     /** @hide */
     void onStopped(int reason) {
-        executeCallback(() -> mCallback.onStopped(this, reason));
+        executeFromBinder(mExecutor, () -> mCallback.onStopped(this, reason));
     }
 
     /** @hide */
     void onResult(@NonNull BluetoothDevice device, @NonNull DistanceMeasurementResult result) {
-        executeCallback(() -> mCallback.onResult(device, result));
-    }
-
-    /** @hide */
-    private void executeCallback(@NonNull Runnable runnable) {
-        final long identity = Binder.clearCallingIdentity();
-        try {
-            mExecutor.execute(runnable);
-        } finally {
-            Binder.restoreCallingIdentity(identity);
-        }
+        executeFromBinder(mExecutor, () -> mCallback.onResult(device, result));
     }
 
     /**
@@ -188,7 +177,7 @@ public final class DistanceMeasurementSession {
          * @hide
          */
         @SystemApi
-        void onStartFail(@NonNull @Reason int reason);
+        void onStartFail(@Reason int reason);
 
         /**
          * Invoked when a distance measurement session stopped.
@@ -197,7 +186,7 @@ public final class DistanceMeasurementSession {
          * @hide
          */
         @SystemApi
-        void onStopped(@NonNull DistanceMeasurementSession session, @NonNull @Reason int reason);
+        void onStopped(@NonNull DistanceMeasurementSession session, @Reason int reason);
 
         /**
          * Invoked when get distance measurement result.

@@ -37,6 +37,8 @@ public:
   virtual void OnVendorSpecificReply(
           const RawAddress& address,
           const std::vector<VendorSpecificCharacteristic>& vendor_specific_reply) = 0;
+  virtual void OnRasServerConnected(const RawAddress& identity_address) = 0;
+  virtual void OnRasServerDisconnected(const RawAddress& identity_address) = 0;
 };
 
 class RasServer {
@@ -62,6 +64,7 @@ public:
   virtual void OnDisconnected(const RawAddress& address) = 0;
   virtual void OnWriteVendorSpecificReplyComplete(const RawAddress& address, bool success) = 0;
   virtual void OnRemoteData(const RawAddress& address, const std::vector<uint8_t>& data) = 0;
+  virtual void OnRemoteDataTimeout(const RawAddress& address) = 0;
 };
 
 class RasClient {

@@ -20,7 +20,6 @@
 
 #include "common/strings.h"
 #include "le_audio_types.h"
-#include "os/log.h"
 
 using bluetooth::common::ToString;
 using bluetooth::le_audio::types::AudioContexts;
@@ -334,7 +333,8 @@ void fillStreamParamsToBtLeAudioCodecConfig(
 
   out_config.sample_rate =
           translateToBtLeAudioCodecConfigSampleRate(config.GetSamplingFrequencyHz());
-  out_config.bits_per_sample = translateToBtLeAudioCodecConfigBitPerSample(16);
+  out_config.bits_per_sample =
+          translateToBtLeAudioCodecConfigBitPerSample(config.GetBitsPerSample());
   out_config.frame_duration =
           translateToBtLeAudioCodecConfigFrameDuration(config.GetDataIntervalUs());
   out_config.octets_per_frame = config.GetOctetsPerFrame();

@@ -32,7 +32,6 @@
 #include <bluetooth/log.h>
 
 #include "bta/hd/bta_hd_int.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
 #include "stack/include/bt_hdr.h"

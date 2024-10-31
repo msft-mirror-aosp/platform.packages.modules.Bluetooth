@@ -20,10 +20,12 @@
  */
 
 #include "gap_api.h"
-#include "l2c_api.h"
 #include "stack/include/bt_hdr.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 const RawAddress* GAP_ConnGetRemoteAddr(uint16_t /* gap_handle */) {
   inc_func_call_count(__func__);

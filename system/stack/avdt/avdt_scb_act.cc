@@ -306,7 +306,7 @@ length_error:
  * Returns          Nothing.
  *
  ******************************************************************************/
-uint8_t* avdt_scb_hdl_report(AvdtpScb* p_scb, uint8_t* p, uint16_t len) {
+static uint8_t* avdt_scb_hdl_report(AvdtpScb* p_scb, uint8_t* p, uint16_t len) {
   uint16_t result = AVDT_SUCCESS;
   uint8_t* p_start = p;
   uint32_t ssrc;
@@ -1148,7 +1148,7 @@ void avdt_scb_snd_open_req(AvdtpScb* p_scb, tAVDT_SCB_EVT* /* p_data */) {
  *
  ******************************************************************************/
 void avdt_scb_snd_open_rsp(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
-  /* notify adaption that we're waiting for transport channel open */
+  /* notify adaptation that we're waiting for transport channel open */
   p_scb->role = AVDT_OPEN_ACP;
   avdt_ad_open_req(AVDT_CHAN_MEDIA, p_scb->p_ccb, p_scb, AVDT_ACP);
 

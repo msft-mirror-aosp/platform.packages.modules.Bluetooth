@@ -507,12 +507,6 @@ void LogLeAudioConnectionSessionReported(
 
 void LogLeAudioBroadcastSessionReported(int64_t duration_nanos);
 
-void LogLeBluetoothConnectionMetricEventReported(
-        const RawAddress& raw_address, android::bluetooth::le::LeConnectionOriginType origin_type,
-        android::bluetooth::le::LeConnectionType connection_type,
-        android::bluetooth::le::LeConnectionState transaction_state,
-        std::vector<std::pair<os::ArgumentType, int>> argument_list);
-
 }  // namespace common
 
 }  // namespace bluetooth
