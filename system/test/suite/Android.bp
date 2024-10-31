@@ -121,7 +121,6 @@ cc_test {
     ],
     static_libs: [
         "bluetooth_flags_c_lib_for_test",
-        "libbluetooth-gdx",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_hci_pdl",

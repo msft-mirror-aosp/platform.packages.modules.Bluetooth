@@ -60,7 +60,6 @@ cc_defaults {
         "libFraunhoferAAC",
         "libbase",
         "libbluetooth-dumpsys",
-        "libbluetooth-gdx",
         "libbluetooth-protos",
         "libbluetooth-types",
         "libbluetooth_core_rs",

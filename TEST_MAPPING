@@ -308,9 +308,6 @@
       "name": "bluetooth-test-audio-hal-a2dp-provider-info"
     },
     {
-      "name": "bluetooth_test_gdx_unit"
-    },
-    {
       "name": "net_test_bta_jv"
     },
     {
