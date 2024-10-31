@@ -21,6 +21,7 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.LOCAL_MAC_ADDRESS;
 
 import android.annotation.FlaggedApi;
+import android.annotation.NonNull;
 import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
@@ -130,7 +131,7 @@ public final class BluetoothSocket implements Closeable {
     /*package*/ static final int SEC_FLAG_ENCRYPT = 1;
     /*package*/ static final int SEC_FLAG_AUTH = 1 << 1;
     /*package*/ static final int BTSOCK_FLAG_NO_SDP = 1 << 2;
-    /*package*/ static final int SEC_FLAG_AUTH_MITM = 1 << 3;
+    /*package*/ static final int SEC_FLAG_AUTH_PITM = 1 << 3;
     /*package*/ static final int SEC_FLAG_AUTH_16_DIGIT = 1 << 4;
 
     private final int mType; /* one of TYPE_RFCOMM etc */
@@ -146,7 +147,7 @@ public final class BluetoothSocket implements Closeable {
     private boolean mExcludeSdp = false;
 
     /** when true Person-in-the-middle protection will be enabled */
-    private boolean mAuthMitm = false;
+    private boolean mAuthPitm = false;
 
     /** Minimum 16 digit pin for sec mode 2 connections */
     private boolean mMin16DigitPin = false;
@@ -189,7 +190,6 @@ public final class BluetoothSocket implements Closeable {
      * @param type type of socket
      * @param auth require the remote device to be authenticated
      * @param encrypt require the connection to be encrypted
-     * @param device remote device that this socket can connect to
      * @param port remote port
      * @param uuid SDP uuid
      * @throws IOException On error, for example Bluetooth not available, or insufficient privileges
@@ -199,11 +199,10 @@ public final class BluetoothSocket implements Closeable {
             int type,
             boolean auth,
             boolean encrypt,
-            BluetoothDevice device,
             int port,
             ParcelUuid uuid)
             throws IOException {
-        this(type, auth, encrypt, device, port, uuid, false, false);
+        this(type, auth, encrypt, port, uuid, false, false);
     }
 
     /**
@@ -212,10 +211,9 @@ public final class BluetoothSocket implements Closeable {
      * @param type type of socket
      * @param auth require the remote device to be authenticated
      * @param encrypt require the connection to be encrypted
-     * @param device remote device that this socket can connect to
      * @param port remote port
      * @param uuid SDP uuid
-     * @param mitm enforce person-in-the-middle protection.
+     * @param pitm enforce person-in-the-middle protection.
      * @param min16DigitPin enforce a minimum length of 16 digits for a sec mode 2 connection
      * @throws IOException On error, for example Bluetooth not available, or insufficient privileges
      */
@@ -224,10 +222,9 @@ public final class BluetoothSocket implements Closeable {
             int type,
             boolean auth,
             boolean encrypt,
-            BluetoothDevice device,
             int port,
             ParcelUuid uuid,
-            boolean mitm,
+            boolean pitm,
             boolean min16DigitPin)
             throws IOException {
         if (VDBG) Log.d(TAG, "Creating new BluetoothSocket of type: " + type);
@@ -246,7 +243,84 @@ public final class BluetoothSocket implements Closeable {
         }
         mType = type;
         mAuth = auth;
-        mAuthMitm = mitm;
+        mAuthPitm = pitm;
+        mMin16DigitPin = min16DigitPin;
+        mEncrypt = encrypt;
+        mPort = port;
+        // this constructor to be called only from BluetoothServerSocket
+        mDevice = null;
+
+        mSocketState = SocketState.INIT;
+
+        mAddress = BluetoothAdapter.getDefaultAdapter().getAddress();
+
+        mInputStream = new BluetoothInputStream(this);
+        mOutputStream = new BluetoothOutputStream(this);
+        mSocketCreationLatencyNanos = System.nanoTime() - mSocketCreationTimeNanos;
+    }
+
+    /**
+     * Construct a BluetoothSocket.
+     *
+     * @param device remote device that this socket can connect to
+     * @param type type of socket
+     * @param auth require the remote device to be authenticated
+     * @param encrypt require the connection to be encrypted
+     * @param port remote port
+     * @param uuid SDP uuid
+     * @throws IOException On error, for example Bluetooth not available, or insufficient privileges
+     */
+    /*package*/ BluetoothSocket(
+            BluetoothDevice device,
+            int type,
+            boolean auth,
+            boolean encrypt,
+            int port,
+            ParcelUuid uuid)
+            throws IOException {
+        this(device, type, auth, encrypt, port, uuid, false, false);
+    }
+
+    /**
+     * Construct a BluetoothSocket.
+     *
+     * @param device remote device that this socket can connect to
+     * @param type type of socket
+     * @param auth require the remote device to be authenticated
+     * @param encrypt require the connection to be encrypted
+     * @param port remote port
+     * @param uuid SDP uuid
+     * @param pitm enforce person-in-the-middle protection.
+     * @param min16DigitPin enforce a minimum length of 16 digits for a sec mode 2 connection
+     * @throws IOException On error, for example Bluetooth not available, or insufficient privileges
+     */
+    /*package*/ BluetoothSocket(
+            @NonNull BluetoothDevice device,
+            int type,
+            boolean auth,
+            boolean encrypt,
+            int port,
+            ParcelUuid uuid,
+            boolean pitm,
+            boolean min16DigitPin)
+            throws IOException {
+        if (VDBG) Log.d(TAG, "Creating new BluetoothSocket of type: " + type);
+        mSocketCreationTimeNanos = System.nanoTime();
+        if (type == BluetoothSocket.TYPE_RFCOMM
+                && uuid == null
+                && port != BluetoothAdapter.SOCKET_CHANNEL_AUTO_STATIC_NO_SDP) {
+            if (port < 1 || port > MAX_RFCOMM_CHANNEL) {
+                throw new IOException("Invalid RFCOMM channel: " + port);
+            }
+        }
+        if (uuid != null) {
+            mUuid = uuid;
+        } else {
+            mUuid = new ParcelUuid(new UUID(0, 0));
+        }
+        mType = type;
+        mAuth = auth;
+        mAuthPitm = pitm;
         mMin16DigitPin = min16DigitPin;
         mEncrypt = encrypt;
         mDevice = device;
@@ -254,13 +328,9 @@ public final class BluetoothSocket implements Closeable {
 
         mSocketState = SocketState.INIT;
 
-        if (device == null) {
-            // Server socket
-            mAddress = BluetoothAdapter.getDefaultAdapter().getAddress();
-        } else {
-            // Remote socket
-            mAddress = device.getAddress();
-        }
+        // Remote socket
+        mAddress = device.getAddress();
+
         mInputStream = new BluetoothInputStream(this);
         mOutputStream = new BluetoothOutputStream(this);
         mSocketCreationLatencyNanos = System.nanoTime() - mSocketCreationTimeNanos;
@@ -282,7 +352,7 @@ public final class BluetoothSocket implements Closeable {
     /*package*/ static BluetoothSocket createSocketFromOpenFd(
             ParcelFileDescriptor pfd, BluetoothDevice device, ParcelUuid uuid) throws IOException {
         BluetoothSocket bluetoothSocket =
-                new BluetoothSocket(TYPE_RFCOMM, true, true, device, -1, uuid);
+                new BluetoothSocket(device, TYPE_RFCOMM, true, true, -1, uuid);
 
         bluetoothSocket.mPfd = pfd;
         bluetoothSocket.mSocket = new LocalSocket(pfd.getFileDescriptor());
@@ -308,7 +378,7 @@ public final class BluetoothSocket implements Closeable {
 
         mServiceName = s.mServiceName;
         mExcludeSdp = s.mExcludeSdp;
-        mAuthMitm = s.mAuthMitm;
+        mAuthPitm = s.mAuthPitm;
         mMin16DigitPin = s.mMin16DigitPin;
         mSocketCreationTimeNanos = s.mSocketCreationTimeNanos;
         mSocketCreationLatencyNanos = s.mSocketCreationLatencyNanos;
@@ -356,8 +426,8 @@ public final class BluetoothSocket implements Closeable {
         if (mExcludeSdp) {
             flags |= BTSOCK_FLAG_NO_SDP;
         }
-        if (mAuthMitm) {
-            flags |= SEC_FLAG_AUTH_MITM;
+        if (mAuthPitm) {
+            flags |= SEC_FLAG_AUTH_PITM;
         }
         if (mMin16DigitPin) {
             flags |= SEC_FLAG_AUTH_16_DIGIT;
