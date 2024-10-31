@@ -813,7 +813,6 @@ cc_test {
         "libbase",
         "libbluetooth-dumpsys",
         "libbluetooth-for-tests",
-        "libbluetooth-gdx",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_crypto_toolbox",

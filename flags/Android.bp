@@ -43,6 +43,7 @@ aconfig_declarations {
         "metric.aconfig",
         "opp.aconfig",
         "pairing.aconfig",
+        "pbapclient.aconfig",
         "ranging.aconfig",
         "rfcomm.aconfig",
         "rnr.aconfig",
