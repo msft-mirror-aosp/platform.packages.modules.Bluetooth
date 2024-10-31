@@ -26,7 +26,6 @@
 #include <string.h>
 
 #include "a2dp_vendor_ldac.h"
-#include "os/log.h"
 #include "stack/include/bt_hdr.h"
 
 using namespace bluetooth;

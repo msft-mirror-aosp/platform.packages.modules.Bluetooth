@@ -59,6 +59,7 @@ public class CallLogPullRequest extends PullRequest {
     }
 
     @Override
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public void onPullComplete() {
         if (mEntries == null) {
             Log.e(TAG, "onPullComplete entries is null.");

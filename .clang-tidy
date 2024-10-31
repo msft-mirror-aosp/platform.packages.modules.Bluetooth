@@ -1,0 +1,4 @@
+---
+CheckOptions:
+  - key:             misc-include-cleaner.IgnoreHeaders
+    value:           (fmt/.*|bits/pthread_types\.h)

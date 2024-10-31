@@ -20,6 +20,9 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btu_hcif.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::hci::IsoManager;
 
 void btu_hci_msg_process(BT_HDR* p_msg) {

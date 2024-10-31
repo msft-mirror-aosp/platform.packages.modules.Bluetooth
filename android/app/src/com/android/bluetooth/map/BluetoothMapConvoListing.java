@@ -35,6 +35,7 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 3
 public class BluetoothMapConvoListing {
@@ -220,13 +221,14 @@ public class BluetoothMapConvoListing {
         if (mHasUnread != other.mHasUnread) {
             return false;
         }
-        if (mList == null) {
-            if (other.mList != null) {
-                return false;
-            }
-        } else if (!mList.equals(other.mList)) {
+        if (!Objects.equals(mList, other.mList)) {
             return false;
         }
         return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(mHasUnread, mList);
     }
 }

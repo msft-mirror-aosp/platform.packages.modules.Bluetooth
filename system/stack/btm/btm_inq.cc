@@ -35,7 +35,7 @@
 
 #include <mutex>
 
-#include "btif/include/btif_acl.h"
+#include "btif/include/btif_dm.h"
 #include "common/time_util.h"
 #include "hci/controller_interface.h"
 #include "hci/event_checkers.h"
@@ -84,6 +84,9 @@
   ((((uint32_t*)(p))[(((uint32_t)(service)) / BTM_EIR_ARRAY_BITS)] &  \
     ((uint32_t)1 << (((uint32_t)(service)) % BTM_EIR_ARRAY_BITS))) >> \
    (((uint32_t)(service)) % BTM_EIR_ARRAY_BITS))
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 namespace {
 constexpr char kBtmLogTag[] = "SCAN";

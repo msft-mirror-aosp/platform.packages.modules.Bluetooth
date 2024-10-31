@@ -692,6 +692,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
     }
 
     /** Set transfer confirmed status. It should only be called for inbound transfer */
+    @SuppressWarnings("SynchronizeOnNonFinalField")
     public void confirmStatusChanged() {
         /* unblock server session */
         final Thread notifyThread =

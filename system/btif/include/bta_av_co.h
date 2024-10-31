@@ -553,7 +553,6 @@ private:
 
   const bool content_protect_enabled_;  // True if Content Protect is enabled
   uint8_t content_protect_flag_;        // Content Protect flag
-  BtaAvCoState bta_av_legacy_state_;    // Legacy state
   BtaAvCoState bta_av_source_state_;    // Source profile state
   BtaAvCoState bta_av_sink_state_;      // Sink profile state
 };

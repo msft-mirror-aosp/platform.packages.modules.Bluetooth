@@ -377,6 +377,14 @@ impl IBluetoothConnectionCallback for BtConnectionCallback {
             remote_device.name
         );
     }
+
+    fn on_device_connection_failed(&mut self, remote_device: BluetoothDevice, status: BtStatus) {
+        print_info!(
+            "Connection to [{}] failed, status = {:?}",
+            remote_device.address.to_string(),
+            status
+        );
+    }
 }
 
 impl RPCProxy for BtConnectionCallback {
