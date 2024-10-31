@@ -27,7 +27,6 @@
 #include "dumpsys/internal/test_data/string_generated.h"
 #include "dumpsys/internal/test_data/struct_bfbs.h"
 #include "dumpsys/internal/test_data/struct_generated.h"
-#include "os/log.h"
 
 namespace testing {
 
@@ -42,7 +41,7 @@ protected:
 
   void ParseReflectionSchema(unsigned char* bfbs, unsigned int bfbs_len) {
     ASSERT_TRUE(reflection_schema_.empty());
-    reflection_schema_ = std::vector<const uint8_t>(bfbs, bfbs + bfbs_len);
+    reflection_schema_ = std::vector<uint8_t>(bfbs, bfbs + bfbs_len);
     flatbuffers::Verifier verifier(reflection_schema_.data(), reflection_schema_.size());
     ASSERT_TRUE(reflection::VerifySchemaBuffer(verifier));
     schema_ = reflection::GetSchema(reflection_schema_.data());
@@ -53,7 +52,7 @@ protected:
   flatbuffers::FlatBufferBuilder fb_builder_ = flatbuffers::FlatBufferBuilder(1024);
 
 private:
-  std::vector<const uint8_t> reflection_schema_;
+  std::vector<uint8_t> reflection_schema_;
 };
 
 class DumpsysFilterInternalIntegerTest : public DumpsysFilterInternalTest {

@@ -19,6 +19,7 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothUtils.executeFromBinder;
 
 import android.annotation.CallbackExecutor;
 import android.annotation.IntDef;
@@ -105,7 +106,8 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
         @Override
         @RequiresNoPermission
         public void onGroupLockSet(int groupId, int opStatus, boolean isLocked) {
-            mExecutor.execute(() -> mCallback.onGroupLockSet(groupId, opStatus, isLocked));
+            executeFromBinder(
+                    mExecutor, () -> mCallback.onGroupLockSet(groupId, opStatus, isLocked));
         }
     }
     ;
@@ -294,7 +296,7 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
                 final ParcelUuid ret = service.lockGroup(groupId, delegate, mAttributionSource);
                 return ret == null ? null : ret.getUuid();
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return null;
@@ -323,7 +325,7 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
                 service.unlockGroup(new ParcelUuid(lockUuid), mAttributionSource);
                 return true;
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return false;
@@ -350,7 +352,7 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
             try {
                 return service.getGroupUuidMapByDevice(device, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return new HashMap<>();
@@ -375,7 +377,7 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
             try {
                 return service.getAllGroupIds(uuid, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return Collections.emptyList();
@@ -395,7 +397,7 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
             try {
                 return service.getConnectedDevices(mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return Collections.emptyList();
@@ -416,7 +418,7 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
             try {
                 return service.getDevicesMatchingConnectionStates(states, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return Collections.emptyList();
@@ -437,7 +439,7 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
             try {
                 return service.getConnectionState(device, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return BluetoothProfile.STATE_DISCONNECTED;
@@ -472,7 +474,7 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
             try {
                 return service.setConnectionPolicy(device, connectionPolicy, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return false;
@@ -501,7 +503,7 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
             try {
                 return service.getConnectionPolicy(device, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;

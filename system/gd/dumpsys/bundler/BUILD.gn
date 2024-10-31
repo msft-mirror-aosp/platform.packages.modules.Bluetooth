@@ -31,7 +31,6 @@ config("bundler_defaults") {
 
   cflags_cc = [
     "-std=c++17",
-    "-Wno-unused-parameter",
     "-Wno-unused-variable",
     "-Wno-poison-system-directories",
   ]

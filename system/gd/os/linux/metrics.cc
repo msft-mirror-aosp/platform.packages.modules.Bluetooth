@@ -18,8 +18,6 @@
 
 #include "os/metrics.h"
 
-#include "os/log.h"
-
 namespace bluetooth {
 namespace os {
 
@@ -107,12 +105,6 @@ void LogMetricBluetoothRemoteSupportedFeatures(const Address& address, uint32_t 
                                                uint64_t features, uint32_t connection_handle) {}
 
 void LogMetricBluetoothCodePathCounterMetrics(int32_t key, int64_t count) {}
-
-void LogMetricBluetoothLEConnectionMetricEvent(
-        const Address& address, android::bluetooth::le::LeConnectionOriginType origin_type,
-        android::bluetooth::le::LeConnectionType connection_type,
-        android::bluetooth::le::LeConnectionState transaction_state,
-        std::vector<std::pair<os::ArgumentType, int>>& argument_list) {}
 
 void LogMetricBluetoothLEConnection(os::LEConnectionSessionOptions /* session_options */) {}
 

@@ -40,6 +40,9 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using base::StringPrintf;
 using bluetooth::Uuid;
 using namespace bluetooth;
@@ -63,33 +66,33 @@ typedef struct {
   gatt_sirk_cb sirk_cb;
 } gatt_op_cb_data;
 
-static std::map<uint16_t, std::deque<gatt_op_cb_data>> OngoingOps;
+static std::map<tCONN_ID, std::deque<gatt_op_cb_data>> OngoingOps;
 
-static void gatt_request_cback(uint16_t conn_id, uint32_t trans_id, uint8_t op_code,
+static void gatt_request_cback(tCONN_ID conn_id, uint32_t trans_id, uint8_t op_code,
                                tGATTS_DATA* p_data);
-static void gatt_connect_cback(tGATT_IF /* gatt_if */, const RawAddress& bda, uint16_t conn_id,
+static void gatt_connect_cback(tGATT_IF /* gatt_if */, const RawAddress& bda, tCONN_ID conn_id,
                                bool connected, tGATT_DISCONN_REASON reason,
                                tBT_TRANSPORT transport);
-static void gatt_disc_res_cback(uint16_t conn_id, tGATT_DISC_TYPE disc_type,
+static void gatt_disc_res_cback(tCONN_ID conn_id, tGATT_DISC_TYPE disc_type,
                                 tGATT_DISC_RES* p_data);
-static void gatt_disc_cmpl_cback(uint16_t conn_id, tGATT_DISC_TYPE disc_type, tGATT_STATUS status);
-static void gatt_cl_op_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
+static void gatt_disc_cmpl_cback(tCONN_ID conn_id, tGATT_DISC_TYPE disc_type, tGATT_STATUS status);
+static void gatt_cl_op_cmpl_cback(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
                                   tGATT_CL_COMPLETE* p_data);
 
 static void gatt_cl_start_config_ccc(tGATT_PROFILE_CLCB* p_clcb);
 
 static bool gatt_sr_is_robust_caching_enabled();
 
-static bool read_sr_supported_feat_req(uint16_t conn_id,
+static bool read_sr_supported_feat_req(tCONN_ID conn_id,
                                        base::OnceCallback<void(const RawAddress&, uint8_t)> cb);
-static bool read_sr_sirk_req(uint16_t conn_id,
+static bool read_sr_sirk_req(tCONN_ID conn_id,
                              base::OnceCallback<void(tGATT_STATUS status, const RawAddress&,
                                                      uint8_t sirk_type, Octet16& sirk)>
                                      cb);
 
-static tGATT_STATUS gatt_sr_read_db_hash(uint16_t conn_id, tGATT_VALUE* p_value);
-static tGATT_STATUS gatt_sr_read_cl_supp_feat(uint16_t conn_id, tGATT_VALUE* p_value);
-static tGATT_STATUS gatt_sr_write_cl_supp_feat(uint16_t conn_id, tGATT_WRITE_REQ* p_data);
+static tGATT_STATUS gatt_sr_read_db_hash(tCONN_ID conn_id, tGATT_VALUE* p_value);
+static tGATT_STATUS gatt_sr_read_cl_supp_feat(tCONN_ID conn_id, tGATT_VALUE* p_value);
+static tGATT_STATUS gatt_sr_write_cl_supp_feat(tCONN_ID conn_id, tGATT_WRITE_REQ* p_data);
 
 static tGATT_CBACK gatt_profile_cback = {
         .p_conn_cb = gatt_connect_cback,
@@ -113,8 +116,8 @@ static tGATT_CBACK gatt_profile_cback = {
  * Returns          Connection ID
  *
  ******************************************************************************/
-uint16_t gatt_profile_find_conn_id_by_bd_addr(const RawAddress& remote_bda) {
-  uint16_t conn_id = GATT_INVALID_CONN_ID;
+tCONN_ID gatt_profile_find_conn_id_by_bd_addr(const RawAddress& remote_bda) {
+  tCONN_ID conn_id = GATT_INVALID_CONN_ID;
   if (!GATT_GetConnIdIfConnected(gatt_cb.gatt_if, remote_bda, &conn_id, BT_TRANSPORT_LE)) {
     log::warn(
             "Unable to get GATT connection id if connected peer:{} gatt_if:{} "
@@ -141,7 +144,7 @@ uint16_t gatt_profile_find_conn_id_by_bd_addr(const RawAddress& remote_bda) {
  * Returns          Pointer to the found link conenction control block.
  *
  ******************************************************************************/
-static tGATT_PROFILE_CLCB* gatt_profile_find_clcb_by_conn_id(uint16_t conn_id) {
+static tGATT_PROFILE_CLCB* gatt_profile_find_clcb_by_conn_id(tCONN_ID conn_id) {
   uint8_t i_clcb;
   tGATT_PROFILE_CLCB* p_clcb = NULL;
 
@@ -189,7 +192,7 @@ static tGATT_PROFILE_CLCB* gatt_profile_find_clcb_by_bd_addr(const RawAddress& b
  *                  block.
  *
  ******************************************************************************/
-tGATT_PROFILE_CLCB* gatt_profile_clcb_alloc(uint16_t conn_id, const RawAddress& bda,
+tGATT_PROFILE_CLCB* gatt_profile_clcb_alloc(tCONN_ID conn_id, const RawAddress& bda,
                                             tBT_TRANSPORT tranport) {
   uint8_t i_clcb = 0;
   tGATT_PROFILE_CLCB* p_clcb = NULL;
@@ -226,7 +229,7 @@ void gatt_profile_clcb_dealloc(tGATT_PROFILE_CLCB* p_clcb) {
 }
 
 /** GAP Attributes Database Request callback */
-tGATT_STATUS read_attr_value(uint16_t conn_id, uint16_t handle, tGATT_VALUE* p_value,
+tGATT_STATUS read_attr_value(tCONN_ID conn_id, uint16_t handle, tGATT_VALUE* p_value,
                              bool is_long) {
   uint8_t* p = p_value->value;
 
@@ -268,7 +271,7 @@ tGATT_STATUS read_attr_value(uint16_t conn_id, uint16_t handle, tGATT_VALUE* p_v
 }
 
 /** GAP Attributes Database Read/Read Blob Request process */
-tGATT_STATUS proc_read_req(uint16_t conn_id, tGATTS_REQ_TYPE, tGATT_READ_REQ* p_data,
+tGATT_STATUS proc_read_req(tCONN_ID conn_id, tGATTS_REQ_TYPE, tGATT_READ_REQ* p_data,
                            tGATTS_RSP* p_rsp) {
   if (p_data->is_long) {
     p_rsp->attr_value.offset = p_data->offset;
@@ -280,7 +283,7 @@ tGATT_STATUS proc_read_req(uint16_t conn_id, tGATTS_REQ_TYPE, tGATT_READ_REQ* p_
 }
 
 /** GAP ATT server process a write request */
-tGATT_STATUS proc_write_req(uint16_t conn_id, tGATTS_REQ_TYPE, tGATT_WRITE_REQ* p_data) {
+tGATT_STATUS proc_write_req(tCONN_ID conn_id, tGATTS_REQ_TYPE, tGATT_WRITE_REQ* p_data) {
   uint16_t handle = p_data->handle;
 
   /* GATT_UUID_SERVER_SUP_FEAT*/
@@ -315,7 +318,7 @@ tGATT_STATUS proc_write_req(uint16_t conn_id, tGATTS_REQ_TYPE, tGATT_WRITE_REQ* 
  * Returns          void.
  *
  ******************************************************************************/
-static void gatt_request_cback(uint16_t conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
+static void gatt_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
                                tGATTS_DATA* p_data) {
   tGATT_STATUS status = GATT_INVALID_PDU;
   tGATTS_RSP rsp_msg;
@@ -366,7 +369,7 @@ static void gatt_request_cback(uint16_t conn_id, uint32_t trans_id, tGATTS_REQ_T
  * Returns          void
  *
  ******************************************************************************/
-static void gatt_connect_cback(tGATT_IF /* gatt_if */, const RawAddress& bda, uint16_t conn_id,
+static void gatt_connect_cback(tGATT_IF /* gatt_if */, const RawAddress& bda, tCONN_ID conn_id,
                                bool connected, tGATT_DISCONN_REASON /* reason */,
                                tBT_TRANSPORT transport) {
   log::verbose("from {} connected: {}, conn_id: 0x{:x}", bda, connected, conn_id);
@@ -478,7 +481,7 @@ void gatt_profile_db_init(void) {
  * Returns          void
  *
  ******************************************************************************/
-static void gatt_disc_res_cback(uint16_t conn_id, tGATT_DISC_TYPE disc_type,
+static void gatt_disc_res_cback(tCONN_ID conn_id, tGATT_DISC_TYPE disc_type,
                                 tGATT_DISC_RES* p_data) {
   tGATT_PROFILE_CLCB* p_clcb = gatt_profile_find_clcb_by_conn_id(conn_id);
 
@@ -521,7 +524,7 @@ static void gatt_disc_res_cback(uint16_t conn_id, tGATT_DISC_TYPE disc_type,
  * Returns          void
  *
  ******************************************************************************/
-static void gatt_disc_cmpl_cback(uint16_t conn_id, tGATT_DISC_TYPE /* disc_type */,
+static void gatt_disc_cmpl_cback(tCONN_ID conn_id, tGATT_DISC_TYPE /* disc_type */,
                                  tGATT_STATUS status) {
   tGATT_PROFILE_CLCB* p_clcb = gatt_profile_find_clcb_by_conn_id(conn_id);
   if (p_clcb == NULL) {
@@ -543,7 +546,7 @@ static void gatt_disc_cmpl_cback(uint16_t conn_id, tGATT_DISC_TYPE /* disc_type 
   gatt_cl_start_config_ccc(p_clcb);
 }
 
-static bool gatt_svc_read_cl_supp_feat_req(uint16_t conn_id) {
+static bool gatt_svc_read_cl_supp_feat_req(tCONN_ID conn_id) {
   tGATT_READ_PARAM param;
 
   memset(&param, 0, sizeof(tGATT_READ_PARAM));
@@ -570,7 +573,7 @@ static bool gatt_svc_read_cl_supp_feat_req(uint16_t conn_id) {
   return true;
 }
 
-static bool gatt_att_write_cl_supp_feat(uint16_t conn_id, uint16_t handle) {
+static bool gatt_att_write_cl_supp_feat(tCONN_ID conn_id, uint16_t handle) {
   tGATT_VALUE attr;
 
   memset(&attr, 0, sizeof(tGATT_VALUE));
@@ -598,12 +601,12 @@ static bool gatt_att_write_cl_supp_feat(uint16_t conn_id, uint16_t handle) {
  * Returns          void
  *
  ******************************************************************************/
-static void gatt_cl_op_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
+static void gatt_cl_op_cmpl_cback(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
                                   tGATT_CL_COMPLETE* p_data) {
   auto iter = OngoingOps.find(conn_id);
 
   log::verbose("opcode: 0x{:x} status: {} conn id: 0x{:x}", static_cast<uint8_t>(op), status,
-               static_cast<uint8_t>(conn_id));
+               static_cast<int>(conn_id));
 
   if (op != GATTC_OPTYPE_READ && op != GATTC_OPTYPE_WRITE) {
     log::verbose("Not interested in opcode {}", op);
@@ -639,7 +642,7 @@ static void gatt_cl_op_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STAT
 
   switch (cl_op_uuid) {
     case GATT_UUID_SERVER_SUP_FEAT: {
-      uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+      uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
       tGATT_TCB& tcb = gatt_cb.tcb[tcb_idx];
 
       auto operation_callback_data = std::move(iter->second.front());
@@ -665,7 +668,7 @@ static void gatt_cl_op_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STAT
       break;
     }
     case GATT_UUID_CSIS_SIRK: {
-      uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+      uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
       tGATT_TCB& tcb = gatt_cb.tcb[tcb_idx];
 
       auto operation_callback_data = std::move(iter->second.front());
@@ -819,7 +822,7 @@ void gatt_cl_init_sr_status(tGATT_TCB& tcb) {
   }
 }
 
-static bool read_sr_supported_feat_req(uint16_t conn_id,
+static bool read_sr_supported_feat_req(tCONN_ID conn_id,
                                        base::OnceCallback<void(const RawAddress&, uint8_t)> cb) {
   tGATT_READ_PARAM param = {};
 
@@ -843,7 +846,7 @@ static bool read_sr_supported_feat_req(uint16_t conn_id,
   return true;
 }
 
-static bool read_sr_sirk_req(uint16_t conn_id,
+static bool read_sr_sirk_req(tCONN_ID conn_id,
                              base::OnceCallback<void(tGATT_STATUS status, const RawAddress&,
                                                      uint8_t sirk_type, Octet16& sirk)>
                                      cb) {
@@ -882,7 +885,7 @@ static bool read_sr_sirk_req(uint16_t conn_id,
 bool gatt_cl_read_sr_supp_feat_req(const RawAddress& peer_bda,
                                    base::OnceCallback<void(const RawAddress&, uint8_t)> cb) {
   tGATT_PROFILE_CLCB* p_clcb;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
 
   if (!cb) {
     return false;
@@ -933,7 +936,7 @@ bool gatt_cl_read_sirk_req(const RawAddress& peer_bda,
                                                    uint8_t sirk_type, Octet16& sirk)>
                                    cb) {
   tGATT_PROFILE_CLCB* p_clcb;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
 
   if (!cb) {
     return false;
@@ -980,7 +983,7 @@ bool gatt_cl_read_sirk_req(const RawAddress& peer_bda,
  *
  ******************************************************************************/
 bool gatt_profile_get_eatt_support(const RawAddress& remote_bda) {
-  uint16_t conn_id;
+  tCONN_ID conn_id;
 
   log::verbose("BDA: {} read GATT support", remote_bda);
 
@@ -999,9 +1002,9 @@ bool gatt_profile_get_eatt_support(const RawAddress& remote_bda) {
   return gatt_profile_get_eatt_support_by_conn_id(conn_id);
 }
 
-bool gatt_profile_get_eatt_support_by_conn_id(uint16_t conn_id) {
+bool gatt_profile_get_eatt_support_by_conn_id(tCONN_ID conn_id) {
   /* Get tcb info */
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+  uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_TCB& tcb = gatt_cb.tcb[tcb_idx];
   return tcb.sr_supp_feat & BLE_GATT_SVR_SUP_FEAT_EATT_BITMASK;
 }
@@ -1123,7 +1126,7 @@ void gatt_sr_update_cl_status(tGATT_TCB& tcb, bool chg_aware) {
 }
 
 /* handle request for reading database hash */
-static tGATT_STATUS gatt_sr_read_db_hash(uint16_t conn_id, tGATT_VALUE* p_value) {
+static tGATT_STATUS gatt_sr_read_db_hash(tCONN_ID conn_id, tGATT_VALUE* p_value) {
   log::info("conn_id=0x{:x}", conn_id);
 
   uint8_t* p = p_value->value;
@@ -1132,15 +1135,15 @@ static tGATT_STATUS gatt_sr_read_db_hash(uint16_t conn_id, tGATT_VALUE* p_value)
   p_value->len = (uint16_t)db_hash.size();
 
   // Every time when database hash is requested, reset flag.
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+  uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   gatt_sr_update_cl_status(gatt_cb.tcb[tcb_idx], /* chg_aware= */ true);
   return GATT_SUCCESS;
 }
 
 /* handle request for reading client supported features */
-static tGATT_STATUS gatt_sr_read_cl_supp_feat(uint16_t conn_id, tGATT_VALUE* p_value) {
+static tGATT_STATUS gatt_sr_read_cl_supp_feat(tCONN_ID conn_id, tGATT_VALUE* p_value) {
   // Get tcb info
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+  uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_TCB& tcb = gatt_cb.tcb[tcb_idx];
 
   uint8_t* p = p_value->value;
@@ -1151,7 +1154,7 @@ static tGATT_STATUS gatt_sr_read_cl_supp_feat(uint16_t conn_id, tGATT_VALUE* p_v
 }
 
 /* handle request for writing client supported features */
-static tGATT_STATUS gatt_sr_write_cl_supp_feat(uint16_t conn_id, tGATT_WRITE_REQ* p_data) {
+static tGATT_STATUS gatt_sr_write_cl_supp_feat(tCONN_ID conn_id, tGATT_WRITE_REQ* p_data) {
   std::list<uint8_t> tmp;
   uint16_t len = p_data->len;
   uint8_t value, *p = p_data->value;
@@ -1170,7 +1173,7 @@ static tGATT_STATUS gatt_sr_write_cl_supp_feat(uint16_t conn_id, tGATT_WRITE_REQ
   }
 
   // Get tcb info
-  uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
+  uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_TCB& tcb = gatt_cb.tcb[tcb_idx];
 
   std::list<uint8_t> feature_list;

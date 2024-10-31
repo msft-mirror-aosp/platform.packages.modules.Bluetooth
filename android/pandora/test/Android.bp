@@ -14,7 +14,6 @@
 
 package {
     default_applicable_licenses: ["Android-Apache-2.0"],
-    default_team: "trendy_team_bluetooth",
 }
 
 python_test_host {
@@ -40,8 +39,10 @@ python_test_host {
         unit_test: false,
     },
     data: [
-        ":PandoraServer",
         "config.yml",
+    ],
+    device_common_data: [
+        ":PandoraServer",
     ],
 }
 
@@ -69,8 +70,10 @@ python_test_host {
         unit_test: false,
     },
     data: [
-        ":PandoraServer",
         "config.yml",
+    ],
+    device_common_data: [
+        ":PandoraServer",
     ],
 }
 

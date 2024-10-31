@@ -48,6 +48,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_sec_api_types.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/sdpdefs.h"
 #include "stack/include/stack_metrics_logging.h"
 #include "stack/sdp/internal/sdp_api.h"
@@ -522,7 +523,8 @@ bool sdpu_process_pend_ccb_new_cid(const tCONN_CB& ccb) {
       if (!new_conn) {
         // Only change state of the first ccb
         p_ccb->con_state = tSDP_STATE::CONN_SETUP;
-        new_cid = L2CA_ConnectReqWithSecurity(BT_PSM_SDP, p_ccb->device_address, BTM_SEC_NONE);
+        new_cid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+                BT_PSM_SDP, p_ccb->device_address, BTM_SEC_NONE);
         new_conn = true;
       }
       // Check if L2CAP started the connection process
@@ -732,7 +734,8 @@ void sdpu_build_n_send_error(tCONN_CB* p_ccb, uint16_t trans_num, tSDP_STATUS er
   p_buf->len = p_rsp - p_rsp_start;
 
   /* Send the buffer through L2CAP */
-  if (L2CA_DataWrite(p_ccb->connection_id, p_buf) != tL2CAP_DW_RESULT::SUCCESS) {
+  if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_buf) !=
+      tL2CAP_DW_RESULT::SUCCESS) {
     log::warn("Unable to write L2CAP data cid:{}", p_ccb->connection_id);
   }
 }
@@ -1536,8 +1539,10 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress
   }
 
   if (iop_version != 0) {
-    log::info("device={} is in IOP database. Reply AVRC Target version {:x} instead of {:x}.",
-              *bdaddr, iop_version, avrcp_version);
+    log::info(
+            "device={} is in IOP database. Reply AVRC Target version {:x} instead "
+            "of {:x}.",
+            *bdaddr, iop_version, avrcp_version);
     uint8_t* p_version = p_attr->value_ptr + 6;
     UINT16_TO_BE_FIELD(p_version, iop_version);
     return;
@@ -1638,8 +1643,10 @@ void sdpu_set_avrc_target_features(const tSDP_ATTRIBUTE* p_attr, const RawAddres
   bool browsing_supported = ((AVRCP_FEAT_BRW_BIT & avrcp_peer_features) == AVRCP_FEAT_BRW_BIT);
   bool coverart_supported = ((AVRCP_FEAT_CA_BIT & avrcp_peer_features) == AVRCP_FEAT_CA_BIT);
 
-  log::info("SDP AVRCP DB Version 0x{:x}, browse supported {}, cover art supported {}",
-            avrcp_peer_features, browsing_supported, coverart_supported);
+  log::info(
+          "SDP AVRCP DB Version 0x{:x}, browse supported {}, cover art supported "
+          "{}",
+          avrcp_peer_features, browsing_supported, coverart_supported);
   if (avrcp_version < AVRC_REV_1_4 || !browsing_supported) {
     log::info("Reset Browsing Feature");
     p_attr->value_ptr[AVRCP_SUPPORTED_FEATURES_POSITION] &= ~AVRCP_BROWSE_SUPPORT_BITMASK;

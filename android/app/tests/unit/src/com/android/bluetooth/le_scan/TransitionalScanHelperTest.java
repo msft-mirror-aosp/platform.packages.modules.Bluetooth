@@ -270,7 +270,14 @@ public class TransitionalScanHelperTest {
         doReturn(appScanStats).when(mScannerMap).getAppScanStatsByUid(Binder.getCallingUid());
 
         mScanHelper.registerScanner(callback, workSource, mAttributionSource);
-        verify(mScannerMap).add(any(), eq(workSource), eq(callback), any(), eq(mScanHelper));
+        verify(mScannerMap)
+                .add(
+                        any(),
+                        eq(mAttributionSource),
+                        eq(workSource),
+                        eq(callback),
+                        any(),
+                        eq(mScanHelper));
         verify(mScanManager).registerScanner(any());
     }
 
@@ -284,7 +291,6 @@ public class TransitionalScanHelperTest {
 
     @Test
     public void onScanResult_remoteException_clientDied() throws Exception {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LE_SCAN_FIX_REMOTE_EXCEPTION);
         int scannerId = 1;
 
         int eventType = 0;

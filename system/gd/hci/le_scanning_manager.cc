@@ -31,7 +31,6 @@
 #include "hci/le_scanning_reassembler.h"
 #include "module.h"
 #include "os/handler.h"
-#include "os/log.h"
 #include "os/system_properties.h"
 #include "storage/storage_module.h"
 

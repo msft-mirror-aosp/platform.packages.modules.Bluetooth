@@ -30,8 +30,6 @@
 #include "common/strings.h"
 #include "hardware/bt_av.h"
 #include "hci/hci_packets.h"
-#include "metrics/metrics_state.h"
-#include "os/log.h"
 
 namespace fmt {
 template <>
@@ -437,15 +435,6 @@ void LogMetricBluetoothCodePathCounterMetrics(int32_t key, int64_t count) {
   }
 }
 
-void LogMetricBluetoothLEConnectionMetricEvent(
-        const Address& address, android::bluetooth::le::LeConnectionOriginType origin_type,
-        android::bluetooth::le::LeConnectionType connection_type,
-        android::bluetooth::le::LeConnectionState transaction_state,
-        std::vector<std::pair<os::ArgumentType, int>>& argument_list) {
-  bluetooth::metrics::MetricsCollector::GetLEConnectionMetricsCollector()->AddStateChangedEvent(
-          address, origin_type, connection_type, transaction_state, argument_list);
-}
-
 void LogMetricBluetoothLEConnection(os::LEConnectionSessionOptions session_options) {
   int metric_id = 0;
   if (!session_options.remote_address.IsEmpty()) {
@@ -475,7 +464,12 @@ void LogMetricBluetoothEvent(const Address& address, android::bluetooth::EventTy
     return;
   }
   int metric_id = MetricIdManager::GetInstance().AllocateId(address);
-  int ret = stats_write(BLUETOOTH_CROSS_LAYER_EVENT_REPORTED, event_type, state, 0, metric_id, 0);
+  int ret = stats_write(BLUETOOTH_CROSS_LAYER_EVENT_REPORTED,
+                        event_type,
+                        state,
+                        0,
+                        metric_id,
+                        BytesField(nullptr, 0));
   if (ret < 0) {
     log::warn("Failed BluetoothEvent Upload - Address {}, Event_type {}, State {}", address,
               event_type, state);

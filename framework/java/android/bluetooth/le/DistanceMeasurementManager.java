@@ -153,8 +153,9 @@ public final class DistanceMeasurementManager {
             gatt.startDistanceMeasurement(mUuid, params, mCallbackWrapper, mAttributionSource);
             return cancellationSignal;
         } catch (RemoteException e) {
-            throw e.rethrowAsRuntimeException();
+            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
         }
+        return null;
     }
 
     /**

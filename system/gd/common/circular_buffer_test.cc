@@ -22,8 +22,6 @@
 #include <limits>
 #include <string>
 
-#include "os/log.h"
-
 namespace testing {
 
 long long timestamp_{0};

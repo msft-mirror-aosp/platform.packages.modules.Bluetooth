@@ -16,6 +16,8 @@
 
 #include "get_play_status_packet.h"
 
+#include <base/sys_byteorder.h>
+
 namespace bluetooth {
 namespace avrcp {
 

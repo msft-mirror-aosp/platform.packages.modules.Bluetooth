@@ -34,7 +34,6 @@
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/utl.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 
 using namespace bluetooth;
@@ -87,7 +86,7 @@ void bta_ag_at_reinit(tBTA_AG_AT_CB* p_cb) {
  * Returns          void
  *
  *****************************************************************************/
-void bta_ag_process_at(tBTA_AG_AT_CB* p_cb, char* p_end) {
+static void bta_ag_process_at(tBTA_AG_AT_CB* p_cb, char* p_end) {
   uint16_t idx;
   uint8_t arg_type;
   char* p_arg;

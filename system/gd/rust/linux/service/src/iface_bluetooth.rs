@@ -196,6 +196,14 @@ impl IBluetoothConnectionCallback for BluetoothConnectionCallbackDBus {
     fn on_device_disconnected(&mut self, remote_device: BluetoothDevice) {
         dbus_generated!()
     }
+
+    #[dbus_method(
+        "OnDeviceConnectionFailed",
+        DBusLog::Enable(DBusLogOptions::LogAll, DBusLogVerbosity::Verbose)
+    )]
+    fn on_device_connection_failed(&mut self, remote_device: BluetoothDevice, status: BtStatus) {
+        dbus_generated!()
+    }
 }
 
 impl_dbus_arg_enum!(BtSdpType);
@@ -499,7 +507,7 @@ impl IBluetooth for IBluetoothDBus {
     }
 
     // Not exposed over D-Bus. The stack is automatically initialized when the daemon starts.
-    fn init(&mut self, _init_flags: Vec<String>, _hci_index: i32) -> bool {
+    fn init(&mut self, _hci_index: i32) -> bool {
         dbus_generated!()
     }
 
@@ -806,6 +814,7 @@ pub struct SocketResultDBus {
     id: u64,
 }
 
+#[allow(dead_code)]
 struct IBluetoothSocketManagerCallbacksDBus {}
 
 #[dbus_proxy_obj(BluetoothSocketCallback, "org.chromium.bluetooth.SocketManagerCallback")]
@@ -840,6 +849,7 @@ impl IBluetoothSocketManagerCallbacks for IBluetoothSocketManagerCallbacksDBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBluetoothSocketManagerDBus {}
 
 #[generate_dbus_exporter(

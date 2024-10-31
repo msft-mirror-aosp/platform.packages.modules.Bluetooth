@@ -24,5 +24,4 @@ cc_fuzz {
         "libchrome",
         "libosi",
     ],
-    cflags: ["-Wno-unused-parameter"],
 }

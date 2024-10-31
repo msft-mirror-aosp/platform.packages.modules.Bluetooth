@@ -32,7 +32,7 @@
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/rfcomm/port_int.h"
 #include "stack/rfcomm/rfc_int.h"
@@ -72,8 +72,9 @@ void rfcomm_l2cap_if_init(void) {
   p_l2c->pL2CA_TxComplete_Cb = NULL;
   p_l2c->pL2CA_Error_Cb = rfc_on_l2cap_error;
 
-  if (!L2CA_Register(BT_PSM_RFCOMM, rfc_cb.rfc.reg_info, true /* enable_snoop */, nullptr,
-                     L2CAP_MTU_SIZE, 0, 0)) {
+  if (!stack::l2cap::get_interface().L2CA_Register(BT_PSM_RFCOMM, rfc_cb.rfc.reg_info,
+                                                   true /* enable_snoop */, nullptr, L2CAP_MTU_SIZE,
+                                                   0, 0)) {
     log::error("Unable to register with L2CAP profile RFCOMM psm:{}", BT_PSM_RFCOMM);
   }
 }
@@ -118,7 +119,7 @@ void RFCOMM_ConnectInd(const RawAddress& bd_addr, uint16_t lcid, uint16_t /* psm
   }
 
   if (p_mcb == nullptr) {
-    if (!L2CA_DisconnectReq(lcid)) {
+    if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
       log::warn("Unable to disconnect L2CAP cid:{}", lcid);
     }
     return;
@@ -155,7 +156,7 @@ void RFCOMM_ConnectCnf(uint16_t lcid, tL2CAP_CONN result) {
 
       /* Peer gave up its connection request, make sure cleaning up L2CAP
        * channel */
-      if (!L2CA_DisconnectReq(p_mcb->pending_lcid)) {
+      if (!stack::l2cap::get_interface().L2CA_DisconnectReq(p_mcb->pending_lcid)) {
         log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}", p_mcb->bd_addr,
                   p_mcb->lcid);
       }

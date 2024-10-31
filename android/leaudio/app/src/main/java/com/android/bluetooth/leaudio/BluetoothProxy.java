@@ -1387,7 +1387,8 @@ public class BluetoothProxy {
                                             break;
                                     }
                                 }
-                            }, BluetoothDevice.TRANSPORT_BREDR);
+                            },
+                            BluetoothDevice.TRANSPORT_BREDR);
             bluetoothGattMap.put(device_wrapper, bluetoothGatt);
         }
 

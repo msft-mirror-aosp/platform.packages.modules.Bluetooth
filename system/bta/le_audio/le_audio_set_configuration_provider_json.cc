@@ -29,7 +29,6 @@
 #include "flatbuffers/util.h"
 #include "le_audio/le_audio_types.h"
 #include "le_audio_set_configuration_provider.h"
-#include "os/log.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
 

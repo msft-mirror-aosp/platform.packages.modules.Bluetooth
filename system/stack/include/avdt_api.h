@@ -33,7 +33,6 @@
 
 #include "internal_include/bt_target.h"
 #include "macros.h"
-#include "os/log.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
 
@@ -117,7 +116,7 @@ inline const std::string peer_stream_endpoint_text(int type) {
   }
 }
 
-/* initiator/acceptor role for adaption */
+/* initiator/acceptor role for adaptation */
 #define AVDT_INT 0 /* initiator */
 #define AVDT_ACP 1 /* acceptor */
 

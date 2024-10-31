@@ -407,6 +407,8 @@ enum class BroadcastState {
   STOPPED = 0,
   CONFIGURING,
   CONFIGURED,
+  ENABLING,
+  DISABLING,
   STOPPING,
   STREAMING,
 };
@@ -507,6 +509,8 @@ public:
   /* Callback for the broadcast metadata change. */
   virtual void OnBroadcastMetadataChanged(uint32_t broadcast_id,
                                           const BroadcastMetadata& broadcast_metadata) = 0;
+  /* Callback for broadcast audio session create event. */
+  virtual void OnBroadcastAudioSessionCreated(bool success) = 0;
 };
 
 class LeAudioBroadcasterInterface {

@@ -36,6 +36,7 @@ import static com.android.bluetooth.le_scan.ScanManager.SCAN_MODE_SCREEN_OFF_LOW
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -46,7 +47,6 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -64,6 +64,7 @@ import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.os.SystemProperties;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
 import android.platform.test.annotations.EnableFlags;
@@ -127,6 +128,9 @@ public class ScanManagerTest {
     private static final int TEST_SCAN_QUOTA_COUNT = 5;
     private static final String TEST_APP_NAME = "Test";
     private static final String TEST_PACKAGE_NAME = "com.test.package";
+
+    // MSFT-based hardware scan offload sysprop
+    private static final String MSFT_HCI_EXT_ENABLED = "bluetooth.core.le.use_msft_hci_ext";
 
     private Context mTargetContext;
     private ScanManager mScanManager;
@@ -1418,7 +1422,7 @@ public class ScanManagerTest {
             // Create scan client for the app, which also records scan start
             ScanClient client = createScanClient(i, isFiltered, scanMode, UID, appScanStats);
             // Verify that the app scan start is logged
-            verify(mMetricsLogger, times(1))
+            verify(mMetricsLogger)
                     .logAppScanStateChanged(
                             new int[] {UID},
                             new String[] {PACKAGE_NAME},
@@ -1426,9 +1430,9 @@ public class ScanManagerTest {
                             true,
                             false,
                             BluetoothStatsLog
-                                .LE_APP_SCAN_STATE_CHANGED__SCAN_CALLBACK_TYPE__TYPE_ALL_MATCHES,
+                                    .LE_APP_SCAN_STATE_CHANGED__SCAN_CALLBACK_TYPE__TYPE_ALL_MATCHES,
                             BluetoothStatsLog
-                                .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR,
+                                    .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR,
                             loggedScanMode,
                             DEFAULT_REGULAR_SCAN_REPORT_DELAY_MS,
                             0,
@@ -1441,17 +1445,19 @@ public class ScanManagerTest {
             // Record scan stop
             client.stats.recordScanStop(i);
             // Verify that the app scan stop is logged
-            verify(mMetricsLogger, times(1))
+            verify(mMetricsLogger)
                     .logAppScanStateChanged(
                             eq(new int[] {UID}),
                             eq(new String[] {PACKAGE_NAME}),
                             eq(false),
                             eq(true),
                             eq(false),
-                            eq(BluetoothStatsLog
-                                .LE_APP_SCAN_STATE_CHANGED__SCAN_CALLBACK_TYPE__TYPE_ALL_MATCHES),
-                            eq(BluetoothStatsLog
-                                .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                            eq(
+                                    BluetoothStatsLog
+                                            .LE_APP_SCAN_STATE_CHANGED__SCAN_CALLBACK_TYPE__TYPE_ALL_MATCHES),
+                            eq(
+                                    BluetoothStatsLog
+                                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
                             eq(loggedScanMode),
                             eq((long) DEFAULT_REGULAR_SCAN_REPORT_DELAY_MS),
                             mScanDurationCaptor.capture(),
@@ -1507,14 +1513,16 @@ public class ScanManagerTest {
         mHandler.sendMessage(createStartStopScanMessage(true, client2));
         mTestLooper.dispatchAll();
         // Verify radio scan stop is logged with the first app
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logRadioScanStopped(
                         eq(new int[] {UID_1}),
                         eq(new String[] {PACKAGE_NAME_1}),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_POWER),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_POWER),
                         eq((long) ScanManager.SCAN_MODE_LOW_POWER_INTERVAL_MS),
                         eq((long) ScanManager.SCAN_MODE_LOW_POWER_WINDOW_MS),
                         eq(true),
@@ -1540,14 +1548,16 @@ public class ScanManagerTest {
         mHandler.sendMessage(createStartStopScanMessage(true, client3));
         mTestLooper.dispatchAll();
         // Verify radio scan stop is logged with the second app
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logRadioScanStopped(
                         eq(new int[] {UID_2}),
                         eq(new String[] {PACKAGE_NAME_2}),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_BALANCED),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_BALANCED),
                         eq((long) ScanManager.SCAN_MODE_BALANCED_INTERVAL_MS),
                         eq((long) ScanManager.SCAN_MODE_BALANCED_WINDOW_MS),
                         eq(true),
@@ -1596,14 +1606,16 @@ public class ScanManagerTest {
         mHandler.sendMessage(createScreenOnOffMessage(false));
         mTestLooper.dispatchAll();
         // Verify radio scan stop is logged with the third app when screen turns off
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logRadioScanStopped(
                         eq(new int[] {UID_3}),
                         eq(new String[] {PACKAGE_NAME_3}),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_LATENCY),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_LATENCY),
                         eq((long) ScanManager.SCAN_MODE_LOW_LATENCY_INTERVAL_MS),
                         eq((long) ScanManager.SCAN_MODE_LOW_LATENCY_WINDOW_MS),
                         eq(true),
@@ -1630,12 +1642,13 @@ public class ScanManagerTest {
         mHandler.sendMessage(createImportanceMessage(true, UID_4));
         mTestLooper.dispatchAll();
         // Verify radio scan stop is logged with the third app when screen turns on
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logRadioScanStopped(
                         eq(new int[] {mostAggressiveClient.appUid}),
                         eq(new String[] {TEST_PACKAGE_NAME + mostAggressiveClient.appUid}),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
                         eq(AppScanStats.convertScanMode(mostAggressiveClient.scanModeApp)),
                         eq((long) SCAN_MODE_SCREEN_OFF_LOW_POWER_INTERVAL_MS),
                         eq((long) SCAN_MODE_SCREEN_OFF_LOW_POWER_WINDOW_MS),
@@ -1670,14 +1683,16 @@ public class ScanManagerTest {
         mHandler.sendMessage(createStartStopScanMessage(false, client3));
         mTestLooper.dispatchAll();
         // Verify radio scan stop is logged with the third app
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logRadioScanStopped(
                         eq(new int[] {UID_3}),
                         eq(new String[] {PACKAGE_NAME_3}),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_LATENCY),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_LATENCY),
                         eq((long) ScanManager.SCAN_MODE_LOW_LATENCY_INTERVAL_MS),
                         eq((long) ScanManager.SCAN_MODE_LOW_LATENCY_WINDOW_MS),
                         eq(true),
@@ -1692,14 +1707,16 @@ public class ScanManagerTest {
         mHandler.sendMessage(createStartStopScanMessage(false, client2));
         mTestLooper.dispatchAll();
         // Verify radio scan stop is logged with the second app
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logRadioScanStopped(
                         eq(new int[] {UID_2}),
                         eq(new String[] {PACKAGE_NAME_2}),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_BALANCED),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_BALANCED),
                         eq((long) ScanManager.SCAN_MODE_BALANCED_INTERVAL_MS),
                         eq((long) ScanManager.SCAN_MODE_BALANCED_WINDOW_MS),
                         eq(true),
@@ -1714,14 +1731,16 @@ public class ScanManagerTest {
         mHandler.sendMessage(createStartStopScanMessage(false, client1));
         mTestLooper.dispatchAll();
         // Verify radio scan stop is logged with the first app
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logRadioScanStopped(
                         eq(new int[] {UID_1}),
                         eq(new String[] {PACKAGE_NAME_1}),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
-                        eq(BluetoothStatsLog
-                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_POWER),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_POWER),
                         eq((long) ScanManager.SCAN_MODE_LOW_POWER_INTERVAL_MS),
                         eq((long) ScanManager.SCAN_MODE_LOW_POWER_WINDOW_MS),
                         eq(true),
@@ -1756,9 +1775,9 @@ public class ScanManagerTest {
         testSleep(50);
         // Stop scan
         sendMessageWaitForProcessed(createStartStopScanMessage(false, client));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR), anyLong());
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(
                         eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR_SCREEN_ON),
                         anyLong());
@@ -1822,9 +1841,9 @@ public class ScanManagerTest {
         testSleep(50);
         // Stop scan
         sendMessageWaitForProcessed(createStartStopScanMessage(false, client));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR), anyLong());
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(
                         eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR_SCREEN_ON),
                         anyLong());
@@ -1861,9 +1880,9 @@ public class ScanManagerTest {
         testSleep(50);
         // Start scan with higher duty cycle
         sendMessageWaitForProcessed(createStartStopScanMessage(true, client2));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR), anyLong());
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(
                         eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR_SCREEN_ON),
                         anyLong());
@@ -1879,9 +1898,9 @@ public class ScanManagerTest {
         Mockito.clearInvocations(mMetricsLogger);
         // Stop scan with higher duty cycle
         sendMessageWaitForProcessed(createStartStopScanMessage(false, client2));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR), anyLong());
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(
                         eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR_SCREEN_ON),
                         anyLong());
@@ -1928,7 +1947,7 @@ public class ScanManagerTest {
             testSleep(scanTestDuration);
             // Stop scan
             sendMessageWaitForProcessed(createStartStopScanMessage(false, client));
-            verify(mMetricsLogger, times(1))
+            verify(mMetricsLogger)
                     .cacheCount(
                             eq(BluetoothProtoEnums.LE_SCAN_RADIO_DURATION_REGULAR),
                             mScanDurationCaptor.capture());
@@ -1949,15 +1968,13 @@ public class ScanManagerTest {
         sendMessageWaitForProcessed(createScreenOnOffMessage(true));
         verify(mMetricsLogger, never())
                 .cacheCount(eq(BluetoothProtoEnums.SCREEN_OFF_EVENT), anyLong());
-        verify(mMetricsLogger, times(1))
-                .cacheCount(eq(BluetoothProtoEnums.SCREEN_ON_EVENT), anyLong());
+        verify(mMetricsLogger).cacheCount(eq(BluetoothProtoEnums.SCREEN_ON_EVENT), anyLong());
         Mockito.clearInvocations(mMetricsLogger);
         // Turn off screen
         sendMessageWaitForProcessed(createScreenOnOffMessage(false));
         verify(mMetricsLogger, never())
                 .cacheCount(eq(BluetoothProtoEnums.SCREEN_ON_EVENT), anyLong());
-        verify(mMetricsLogger, times(1))
-                .cacheCount(eq(BluetoothProtoEnums.SCREEN_OFF_EVENT), anyLong());
+        verify(mMetricsLogger).cacheCount(eq(BluetoothProtoEnums.SCREEN_OFF_EVENT), anyLong());
         Mockito.clearInvocations(mMetricsLogger);
     }
 
@@ -2128,6 +2145,51 @@ public class ScanManagerTest {
             assertThat(client.settings.getPhy()).isEqualTo(phy);
             verify(mScanNativeInterface, atLeastOnce())
                     .gattSetScanParameters(anyInt(), anyInt(), anyInt(), eq(expectedPhy));
+        }
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LE_SCAN_MSFT_SUPPORT)
+    public void testMsftScan() {
+        final boolean isFiltered = true;
+        final boolean isEmptyFilter = false;
+
+        boolean isMsftEnabled = SystemProperties.getBoolean(MSFT_HCI_EXT_ENABLED, false);
+        SystemProperties.set(MSFT_HCI_EXT_ENABLED, Boolean.toString(true));
+        try {
+            when(mScanNativeInterface.gattClientIsMsftSupported()).thenReturn(true);
+            when(mBluetoothAdapterProxy.isOffloadedScanFilteringSupported()).thenReturn(false);
+
+            // Create new ScanManager since sysprop and MSFT support are only checked when
+            // ScanManager
+            // is created
+            mScanManager =
+                    new ScanManager(
+                            mMockGattService,
+                            mMockScanHelper,
+                            mAdapterService,
+                            mBluetoothAdapterProxy,
+                            mTestLooper.getLooper());
+            mHandler = mScanManager.getClientHandler();
+            assertThat(mHandler).isNotNull();
+
+            // Turn on screen
+            sendMessageWaitForProcessed(createScreenOnOffMessage(true));
+            // Create scan client
+            ScanClient client = createScanClient(0, isFiltered, isEmptyFilter, SCAN_MODE_LOW_POWER);
+            // Start scan
+            sendMessageWaitForProcessed(createStartStopScanMessage(true, client));
+
+            // Verify MSFT APIs
+            verify(mScanNativeInterface, atLeastOnce())
+                    .gattClientMsftAdvMonitorAdd(
+                            any(MsftAdvMonitor.Monitor.class),
+                            any(MsftAdvMonitor.Pattern[].class),
+                            any(MsftAdvMonitor.Address.class),
+                            anyInt());
+            verify(mScanNativeInterface, atLeastOnce()).gattClientMsftAdvMonitorEnable(eq(true));
+        } finally {
+            SystemProperties.set(MSFT_HCI_EXT_ENABLED, Boolean.toString(isMsftEnabled));
         }
     }
 }

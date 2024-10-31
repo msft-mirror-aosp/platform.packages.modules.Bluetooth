@@ -33,8 +33,12 @@ namespace os {
 // it will unregister itself from the thread.
 class Alarm {
 public:
-  // Create and register a single-shot alarm on a given handler
+  // Create and register a single-shot alarm on a given handler. This creates a wake alarm.
   explicit Alarm(Handler* handler);
+
+  // Create and register a single-shot alarm on a given handler.
+  // This constructor can specify whether the alarm will be a wake alarm or a non-wake alarm.
+  explicit Alarm(Handler* handler, bool isWakeAlarm);
 
   Alarm(const Alarm&) = delete;
   Alarm& operator=(const Alarm&) = delete;

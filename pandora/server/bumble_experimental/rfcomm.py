@@ -122,7 +122,7 @@ class RFCOMMService(RFCOMMServicer):
     async def StopServer(self, request: StopServerRequest, context: grpc.ServicerContext) -> StopServerResponse:
         logging.info(f"StopServer")
         assert self.server_ports[request.server.id] is not None
-        self.server_ports[request.server.id] = None
+        del self.server_ports[request.server.id]
 
         return StopServerResponse()
 

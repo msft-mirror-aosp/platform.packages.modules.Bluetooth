@@ -481,9 +481,10 @@ public class AvrcpTargetService extends ProfileService {
         return mMediaPlayerList.getMediaPlayerList();
     }
 
-    /** See {@link MediaPlayerList#getPlayerRoot}. */
-    void getPlayerRoot(int playerId, MediaPlayerList.GetPlayerRootCallback cb) {
-        mMediaPlayerList.getPlayerRoot(playerId, cb);
+    /** See {@link MediaPlayerList#setBrowsedPlayer}. */
+    void setBrowsedPlayer(
+            int playerId, String currentPath, MediaPlayerList.SetBrowsedPlayerCallback cb) {
+        mMediaPlayerList.setBrowsedPlayer(playerId, currentPath, cb);
     }
 
     /** See {@link MediaPlayerList#setAddressedPlayer}. */
@@ -607,8 +608,7 @@ public class AvrcpTargetService extends ProfileService {
             Metadata newMetadata = newQueue.get(index);
 
             if (!Objects.equals(currentMetadata.title, newMetadata.title)
-                    || !Objects.equals(currentMetadata.artist, newMetadata.artist)
-                    || !Objects.equals(currentMetadata.album, newMetadata.album)) {
+                    || !Objects.equals(currentMetadata.artist, newMetadata.artist)) {
                 return true;
             }
         }

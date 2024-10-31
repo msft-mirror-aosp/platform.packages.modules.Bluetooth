@@ -25,7 +25,6 @@
 
 #include "common/bind.h"
 #include "os/linux_generic/linux.h"
-#include "os/log.h"
 #include "os/utils.h"
 
 #ifdef __ANDROID__
@@ -39,10 +38,13 @@ namespace os {
 using common::Closure;
 using common::OnceClosure;
 
-Alarm::Alarm(Handler* handler) : handler_(handler) {
+Alarm::Alarm(Handler* handler) : Alarm(handler, true) {}
+
+Alarm::Alarm(Handler* handler, bool isWakeAlarm) : handler_(handler) {
   int timerfd_flag =
           com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation() ? TFD_NONBLOCK : 0;
-  fd_ = TIMERFD_CREATE(ALARM_CLOCK, timerfd_flag);
+
+  fd_ = TIMERFD_CREATE(isWakeAlarm ? ALARM_CLOCK : CLOCK_BOOTTIME, timerfd_flag);
 
   log::assert_that(fd_ != -1, "cannot create timerfd: {}", strerror(errno));
 

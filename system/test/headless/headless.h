@@ -46,16 +46,13 @@ constexpr char kHeadlessFinalSentinel[] =
 
 class HeadlessStack {
 protected:
-  HeadlessStack(const char** stack_init_flags) : stack_init_flags_(stack_init_flags) {}
+  HeadlessStack() {}
   virtual ~HeadlessStack() = default;
 
   void SetUp();
   void TearDown();
 
-  const char** StackInitFlags() const { return stack_init_flags_; }
-
 private:
-  const char** stack_init_flags_;
   std::unique_ptr<BtStackInfo> bt_stack_info_;
 };
 
@@ -64,8 +61,7 @@ protected:
   const bluetooth::test::headless::GetOpt& options_;
   unsigned long loop_{0};
 
-  HeadlessRun(const bluetooth::test::headless::GetOpt& options)
-      : HeadlessStack(options.StackInitFlags()), options_(options) {}
+  HeadlessRun(const bluetooth::test::headless::GetOpt& options) : options_(options) {}
 
   template <typename T>
   T RunOnHeadlessStack(ExecutionUnit<T> func) {

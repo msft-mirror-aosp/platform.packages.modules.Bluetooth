@@ -40,13 +40,15 @@
 #include "btif/include/btif_storage.h"
 #include "device/include/interop_config.h"
 #include "device/include/interop_database.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
 #include "osi/include/config.h"
 #include "osi/include/list.h"
 #include "osi/include/osi.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -390,6 +392,8 @@ static const char* interop_feature_string_(const interop_feature_t feature) {
     CASE_RETURN_STR(INTEROP_MULTIPLE_HOGP_SERVICE_CHOOSE_THIRD);
     CASE_RETURN_STR(INTEROP_A2DP_SKIP_SDP_DURING_RECONNECTION);
     CASE_RETURN_STR(INTEROP_HID_PREF_CONN_ZERO_LATENCY);
+    CASE_RETURN_STR(INTEROP_HOGP_LONG_REPORT);
+    CASE_RETURN_STR(INTEROP_HOGP_FORCE_MTU_EXCHANGE);
   }
   return UNKNOWN_INTEROP_FEATURE;
 }

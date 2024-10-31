@@ -185,6 +185,11 @@ public class BipEncoding {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hash(getType(), getProprietaryEncodingId());
+    }
+
+    @Override
     public String toString() {
         if (mType == USR_XXX) return "USR-" + mProprietaryEncodingId;
         String encoding = (String) sIdsToEncodingNames.get(mType);

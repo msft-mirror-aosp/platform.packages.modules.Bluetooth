@@ -69,6 +69,9 @@
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
@@ -302,10 +305,6 @@ static bool ble_evt_type_is_connectable(uint16_t evt_type) {
 
 static bool ble_evt_type_is_scannable(uint16_t evt_type) {
   return evt_type & (1 << BLE_EVT_SCANNABLE_BIT);
-}
-
-static bool ble_evt_type_is_directed(uint16_t evt_type) {
-  return evt_type & (1 << BLE_EVT_DIRECTED_BIT);
 }
 
 static bool ble_evt_type_is_scan_resp(uint16_t evt_type) {
@@ -2063,37 +2062,16 @@ static void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
         break;
       }
     }
-    if (com::android::bluetooth::flags::ensure_valid_adv_flag()) {
-      // Non-connectable packets may omit flags entirely, in which case nothing
-      // should be assumed about their values (CSSv10, 1.3.1). Thus, do not
-      // interpret the device type unless this packet has the flags set or is
-      // connectable.
-      if (ble_evt_type_is_connectable(evt_type) && !has_advertising_flags) {
-        // Assume that all-zero flags were received
-        has_advertising_flags = true;
-        local_flag = 0;
-      }
-      if (has_advertising_flags && (local_flag & BTM_BLE_BREDR_NOT_SPT) == 0) {
-        if (p_cur->ble_addr_type != BLE_ADDR_RANDOM) {
-          log::verbose("NOT_BR_EDR support bit not set, treat device as DUMO");
-          p_cur->device_type |= BT_DEVICE_TYPE_DUMO;
-        } else {
-          log::verbose("Random address, treat device as LE only");
-        }
-      } else {
-        log::verbose("NOT_BR/EDR support bit set, treat device as LE only");
-      }
-    }
-  }
-
-  if (!com::android::bluetooth::flags::ensure_valid_adv_flag()) {
     // Non-connectable packets may omit flags entirely, in which case nothing
     // should be assumed about their values (CSSv10, 1.3.1). Thus, do not
     // interpret the device type unless this packet has the flags set or is
     // connectable.
-    bool should_process_flags = has_advertising_flags || ble_evt_type_is_connectable(evt_type);
-    if (should_process_flags && (p_cur->flag & BTM_BLE_BREDR_NOT_SPT) == 0 &&
-        !ble_evt_type_is_directed(evt_type)) {
+    if (ble_evt_type_is_connectable(evt_type) && !has_advertising_flags) {
+      // Assume that all-zero flags were received
+      has_advertising_flags = true;
+      local_flag = 0;
+    }
+    if (has_advertising_flags && (local_flag & BTM_BLE_BREDR_NOT_SPT) == 0) {
       if (p_cur->ble_addr_type != BLE_ADDR_RANDOM) {
         log::verbose("NOT_BR_EDR support bit not set, treat device as DUMO");
         p_cur->device_type |= BT_DEVICE_TYPE_DUMO;
@@ -2312,8 +2290,7 @@ void btm_ble_process_adv_pkt_cont_for_inquiry(uint16_t evt_type, tBLE_ADDR_TYPE 
     if (p_i && (!(p_i->inq_info.results.device_type & BT_DEVICE_TYPE_BLE) ||
                 /* scan response to be updated */
                 (!p_i->scan_rsp) || (!p_i->inq_info.results.include_rsi && include_rsi) ||
-                (com::android::bluetooth::flags::update_inquiry_result_on_flag_change() &&
-                 !p_i->inq_info.results.flag && p_flag && *p_flag))) {
+                (!p_i->inq_info.results.flag && p_flag && *p_flag))) {
       update = true;
     } else if (btm_cb.ble_ctr_cb.is_ble_observe_active()) {
       btm_cb.neighbor.le_observe.results++;
@@ -2408,6 +2385,35 @@ static void btm_ble_start_scan() {
   } else {
     btm_ble_set_topology_mask(BTM_BLE_STATE_PASSIVE_SCAN_BIT);
   }
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_update_scanner_filter_policy
+ *
+ * Description      This function updates the filter policy of scanner
+ ******************************************************************************/
+static void btm_update_scanner_filter_policy(tBTM_BLE_SFP scan_policy) {
+  uint32_t scan_interval = !btm_cb.ble_ctr_cb.inq_var.scan_interval
+                                   ? BTM_BLE_GAP_DISC_SCAN_INT
+                                   : btm_cb.ble_ctr_cb.inq_var.scan_interval;
+  uint32_t scan_window = !btm_cb.ble_ctr_cb.inq_var.scan_window
+                                 ? BTM_BLE_GAP_DISC_SCAN_WIN
+                                 : btm_cb.ble_ctr_cb.inq_var.scan_window;
+  uint8_t scan_phy = !btm_cb.ble_ctr_cb.inq_var.scan_phy ? BTM_BLE_DEFAULT_PHYS
+                                                         : btm_cb.ble_ctr_cb.inq_var.scan_phy;
+
+  log::verbose("");
+
+  btm_cb.ble_ctr_cb.inq_var.sfp = scan_policy;
+  btm_cb.ble_ctr_cb.inq_var.scan_type =
+          btm_cb.ble_ctr_cb.inq_var.scan_type == BTM_BLE_SCAN_MODE_NONE
+                  ? BTM_BLE_SCAN_MODE_ACTI
+                  : btm_cb.ble_ctr_cb.inq_var.scan_type;
+
+  btm_send_hci_set_scan_params(btm_cb.ble_ctr_cb.inq_var.scan_type, (uint16_t)scan_interval,
+                               (uint16_t)scan_window, (uint8_t)scan_phy,
+                               btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type, scan_policy);
 }
 
 /*******************************************************************************

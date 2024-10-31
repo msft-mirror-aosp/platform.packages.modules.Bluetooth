@@ -14,7 +14,7 @@ android_test_helper_app {
     min_sdk_version: "current",
     target_sdk_version: "current",
     libs: [
-        "android.test.base",
+        "android.test.base.stubs",
         "libprotobuf-java-micro",
     ],
 
@@ -33,9 +33,9 @@ android_test_helper_app {
         "grpc-java-okhttp-client-lite",
         "mockito-kotlin2",
         "opencensus-java-contrib-grpc-metrics",
-        "pandora_experimental-grpc-java",
-        "pandora_experimental-proto-java",
-        "truth-java8-extension",
+        "pandora-grpc-java",
+        "pandora-proto-java",
+        "truth",
     ],
 
     // Include all test java and kotlin files.
@@ -54,7 +54,7 @@ java_test_host {
         "tradefed",
     ],
 
-    data: [
+    device_common_data: [
         ":BumbleBluetoothTestsApp",
         "bumble_config.json",
     ],
@@ -80,8 +80,10 @@ java_test_host {
     ],
 
     data: [
-        ":BumbleBluetoothTestsApp",
         "bumble_config.json",
+    ],
+    device_common_data: [
+        ":BumbleBluetoothTestsApp",
     ],
     data_native_bins: [
         "bumble_pandora_server",
