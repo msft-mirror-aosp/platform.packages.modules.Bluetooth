@@ -7,11 +7,20 @@ package {
     default_applicable_licenses: ["system_bt_license"],
 }
 
+rust_defaults {
+    name: "gd_rust_defaults",
+    target: {
+        darwin: {
+            enabled: false,
+        },
+    },
+    host_supported: true,
+}
+
 rust_library {
     name: "libbt_common",
     defaults: ["libbt_common_defaults"],
     rustlibs: [
-        "liblazy_static",
         "liblog_rust",
     ],
     target: {
@@ -38,7 +47,6 @@ rust_defaults {
     crate_name: "bt_common",
     srcs: ["src/lib.rs"],
     rustlibs: [
-        "liblazy_static",
         "liblog_rust",
     ],
     proc_macros: [
@@ -55,7 +63,6 @@ rust_test_host {
     rustlibs: [
         "libbt_common",
         "libenv_logger",
-        "liblazy_static",
         "liblog_rust",
     ],
     proc_macros: [

@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -223,6 +224,12 @@ public class BipPixel {
                 && p.getMaxWidth() == getMaxWidth()
                 && p.getMinHeight() == getMinHeight()
                 && p.getMaxHeight() == getMaxHeight();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                getType(), getMinWidth(), getMaxWidth(), getMinHeight(), getMaxHeight());
     }
 
     @Override

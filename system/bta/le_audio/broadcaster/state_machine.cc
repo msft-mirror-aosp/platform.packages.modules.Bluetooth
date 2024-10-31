@@ -30,7 +30,6 @@
 #include "bta/le_audio/le_audio_types.h"
 #include "common/strings.h"
 #include "hci/le_advertising_manager.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 #include "stack/include/btm_iso_api.h"
 
@@ -422,8 +421,8 @@ private:
 
   void TerminateBig() {
     log::info("disabling={}", GetState() == BroadcastStateMachine::State::DISABLING);
-    /* Terminate with reason: Connection Terminated By Local Host */
-    IsoManager::GetInstance()->TerminateBig(GetAdvertisingSid(), 0x16);
+    /* Terminate with reason: Remote User Terminated Connection */
+    IsoManager::GetInstance()->TerminateBig(GetAdvertisingSid(), 0x13);
   }
 
   void OnSetupIsoDataPath(uint8_t status, uint16_t conn_hdl) override {

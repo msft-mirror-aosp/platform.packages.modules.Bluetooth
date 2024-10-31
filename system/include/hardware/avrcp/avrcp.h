@@ -76,8 +76,6 @@ public:
   virtual void SendMediaUpdate(bool track_changed, bool play_state, bool queue) = 0;
   virtual void SendFolderUpdate(bool available_players, bool addressed_players,
                                 bool uids_changed) = 0;
-  virtual void SendActiveDeviceChanged(const RawAddress& address) = 0;
-
   virtual void SendPlayerSettingsChanged(std::vector<PlayerAttribute> attributes,
                                          std::vector<uint8_t> values) = 0;
   virtual ~MediaCallbacks() = default;
@@ -133,8 +131,9 @@ public:
   virtual void GetAddressedPlayer(GetAddressedPlayerCallback addressed_player) = 0;
 
   using SetBrowsedPlayerCallback =
-          base::Callback<void(bool success, std::string root_id, uint32_t num_items)>;
-  virtual void SetBrowsedPlayer(uint16_t player_id, SetBrowsedPlayerCallback browse_cb) = 0;
+          base::Callback<void(bool success, std::string current_path, uint32_t num_items)>;
+  virtual void SetBrowsedPlayer(uint16_t player_id, std::string current_path,
+                                SetBrowsedPlayerCallback browse_cb) = 0;
 
   using SetAddressedPlayerCallback = base::Callback<void(uint16_t)>;
   virtual void SetAddressedPlayer(uint16_t player_id, SetAddressedPlayerCallback new_player) = 0;

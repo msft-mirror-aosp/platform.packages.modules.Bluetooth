@@ -636,7 +636,7 @@ void bta_hh_open_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_hh_data_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
+void bta_hh_data_act(tBTA_HH_DEV_CB* /*p_cb*/, const tBTA_HH_DATA* p_data) {
   BT_HDR* pdata = p_data->hid_cback.p_data;
   uint8_t* p_rpt = (uint8_t*)(pdata + 1) + pdata->offset;
 

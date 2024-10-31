@@ -21,7 +21,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothAdapter;
@@ -147,7 +146,7 @@ public class DistanceMeasurementManagerTest {
                         IDENTITY_ADDRESS,
                         RSSI_FREQUENCY_LOW,
                         DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI);
-        mDistanceMeasurementManager.onDistanceMeasurementStartFail(
+        mDistanceMeasurementManager.onDistanceMeasurementStopped(
                 IDENTITY_ADDRESS,
                 BluetoothStatusCodes.ERROR_DISTANCE_MEASUREMENT_INTERNAL,
                 DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI);
@@ -196,16 +195,19 @@ public class DistanceMeasurementManagerTest {
                 -1,
                 -1,
                 -1,
+                1000L,
+                -1,
                 DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI);
         ArgumentCaptor<DistanceMeasurementResult> result =
                 ArgumentCaptor.forClass(DistanceMeasurementResult.class);
-        verify(mCallback, times(1)).onResult(eq(mDevice), result.capture());
+        verify(mCallback).onResult(eq(mDevice), result.capture());
         assertThat(result.getValue().getResultMeters()).isEqualTo(1.00);
         assertThat(result.getValue().getErrorMeters()).isEqualTo(1.00);
         assertThat(result.getValue().getAzimuthAngle()).isEqualTo(Double.NaN);
         assertThat(result.getValue().getErrorAzimuthAngle()).isEqualTo(Double.NaN);
         assertThat(result.getValue().getAltitudeAngle()).isEqualTo(Double.NaN);
         assertThat(result.getValue().getErrorAltitudeAngle()).isEqualTo(Double.NaN);
+        assertThat(result.getValue().getMeasurementTimestampNanos()).isEqualTo(1000L);
     }
 
     @Test
@@ -231,6 +233,8 @@ public class DistanceMeasurementManagerTest {
                 -1,
                 -1,
                 -1,
+                -1,
+                1000L,
                 -1,
                 DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI);
         DistanceMeasurementResult result =

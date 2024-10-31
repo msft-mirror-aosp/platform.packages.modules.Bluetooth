@@ -111,7 +111,7 @@ typedef struct {
 
 typedef struct {
   BT_HDR_RIGID hdr;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
   tGATT_DISCONN_REASON reason;
 } tBTA_HH_LE_CLOSE;
 
@@ -180,7 +180,7 @@ typedef struct {
 /* convert a GATT connection ID to HID device handle, it is the hi 4 bits of a
  * uint8_t */
 #define BTA_HH_GET_LE_DEV_HDL(x) (uint8_t)(((x) + 1) << 4)
-/* check to see if th edevice handle is a LE device handle */
+/* check to see if the device handle is a LE device handle */
 #define BTA_HH_IS_LE_DEV_HDL(x) ((x) & 0xf0)
 #define BTA_HH_IS_LE_DEV_HDL_VALID(x) (((x) >> 4) <= BTA_HH_LE_MAX_KNOWN)
 
@@ -213,7 +213,7 @@ typedef struct {
   tBTA_HH_STATUS status;
   tBTM_STATUS btm_status;
   tBTA_HH_LE_HID_SRVC hid_srvc;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
   bool in_bg_conn;
   uint8_t clt_cfg_idx;
   bool scps_supported;

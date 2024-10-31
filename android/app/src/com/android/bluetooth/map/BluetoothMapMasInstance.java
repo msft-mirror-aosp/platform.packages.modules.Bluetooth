@@ -166,6 +166,7 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
      * is changed. - If a MAS instance folderVersionCounter roles over - will not happen before a
      * long is too small to hold a unix time-stamp, hence is not handled.
      */
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     private void updateDbIdentifier() {
         mDbIndetifier.set(Calendar.getInstance().getTime().getTime());
     }

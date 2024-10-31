@@ -67,12 +67,14 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * A helper class which contains all scan related functions extracted from {@link
@@ -141,6 +143,7 @@ public class TransitionalScanHelper {
     private AdapterService mAdapterService;
 
     private ScannerMap mScannerMap = new ScannerMap();
+    private HashMap<Integer, Integer> mFilterIndexToMsftAdvMonitorMap = new HashMap<>();
     private String mExposureNotificationPackage;
 
     public ScannerMap getScannerMap() {
@@ -460,12 +463,7 @@ public class TransitionalScanHelper {
                 }
             } catch (RemoteException | PendingIntent.CanceledException e) {
                 Log.e(TAG, "Exception: " + e);
-                if (Flags.leScanFixRemoteException()) {
-                    handleDeadScanClient(client);
-                } else {
-                    mScannerMap.remove(client.scannerId);
-                    mScanManager.stopScan(client.scannerId);
-                }
+                handleDeadScanClient(client);
             }
         }
     }
@@ -769,12 +767,7 @@ public class TransitionalScanHelper {
             }
         } catch (RemoteException | PendingIntent.CanceledException e) {
             Log.e(TAG, "Exception: " + e);
-            if (Flags.leScanFixRemoteException()) {
-                handleDeadScanClient(client);
-            } else {
-                mScannerMap.remove(client.scannerId);
-                mScanManager.stopScan(client.scannerId);
-            }
+            handleDeadScanClient(client);
         }
     }
 
@@ -1047,6 +1040,49 @@ public class TransitionalScanHelper {
         }
     }
 
+    public int msftMonitorHandleFromFilterIndex(int filter_index) {
+        if (!mFilterIndexToMsftAdvMonitorMap.containsKey(filter_index)) {
+            Log.e(TAG, "Monitor with filter_index'" + filter_index + "' does not exist");
+            return -1;
+        }
+        return mFilterIndexToMsftAdvMonitorMap.get(filter_index);
+    }
+
+    public void onMsftAdvMonitorAdd(int filter_index, int monitor_handle, int status) {
+        if (status != 0) {
+            Log.e(
+                    TAG,
+                    "Error adding advertisement monitor with filter index '" + filter_index + "'");
+            return;
+        }
+        if (mFilterIndexToMsftAdvMonitorMap.containsKey(filter_index)) {
+            Log.e(TAG, "Monitor with filter_index'" + filter_index + "' already added");
+            return;
+        }
+        mFilterIndexToMsftAdvMonitorMap.put(filter_index, monitor_handle);
+    }
+
+    public void onMsftAdvMonitorRemove(int filter_index, int status) {
+        if (status != 0) {
+            Log.e(
+                    TAG,
+                    "Error removing advertisement monitor with filter index '"
+                            + filter_index
+                            + "'");
+        }
+        if (!mFilterIndexToMsftAdvMonitorMap.containsKey(filter_index)) {
+            Log.e(TAG, "Monitor with filter_index'" + filter_index + "' does not exist");
+            return;
+        }
+        mFilterIndexToMsftAdvMonitorMap.remove(filter_index);
+    }
+
+    public void onMsftAdvMonitorEnable(int status) {
+        if (status != 0) {
+            Log.e(TAG, "Error enabling advertisement monitor");
+        }
+    }
+
     /**************************************************************************
      * GATT Service functions - Shared CLIENT/SERVER
      *************************************************************************/
@@ -1065,7 +1101,7 @@ public class TransitionalScanHelper {
         if (app != null
                 && app.isScanningTooFrequently()
                 && !Utils.checkCallerHasPrivilegedPermission(mContext)) {
-            Log.e(TAG, "App '" + app.appName + "' is scanning too frequently");
+            Log.e(TAG, "App '" + app.mAppName + "' is scanning too frequently");
             try {
                 callback.onScannerRegistered(ScanCallback.SCAN_FAILED_SCANNING_TOO_FREQUENTLY, -1);
             } catch (RemoteException e) {
@@ -1073,15 +1109,16 @@ public class TransitionalScanHelper {
             }
             return;
         }
-        registerScannerInternal(callback, workSource);
+        registerScannerInternal(callback, attributionSource, workSource);
     }
 
     /** Intended for internal use within the Bluetooth app. Bypass permission check */
-    public void registerScannerInternal(IScannerCallback callback, WorkSource workSource) {
+    public void registerScannerInternal(
+            IScannerCallback callback, AttributionSource attrSource, WorkSource workSource) {
         UUID uuid = UUID.randomUUID();
         Log.d(TAG, "registerScanner() - UUID=" + uuid);
 
-        mScannerMap.add(uuid, workSource, callback, mContext, this);
+        mScannerMap.add(uuid, attrSource, workSource, callback, mContext, this);
         mScanManager.registerScanner(uuid);
     }
 
@@ -1107,17 +1144,17 @@ public class TransitionalScanHelper {
             return Collections.emptyList();
         }
 
-        List<String> macAddresses = new ArrayList();
-
         final long identity = Binder.clearCallingIdentity();
         try {
-            for (AssociationInfo info : mCompanionManager.getAllAssociations()) {
-                if (info.getPackageName().equals(callingPackage)
-                        && !info.isSelfManaged()
-                        && info.getDeviceMacAddress() != null) {
-                    macAddresses.add(info.getDeviceMacAddress().toString());
-                }
-            }
+            return mCompanionManager.getAllAssociations().stream()
+                    .filter(
+                            info ->
+                                    info.getPackageName().equals(callingPackage)
+                                            && !info.isSelfManaged()
+                                            && info.getDeviceMacAddress() != null)
+                    .map(AssociationInfo::getDeviceMacAddress)
+                    .map(MacAddress::toString)
+                    .collect(Collectors.toList());
         } catch (SecurityException se) {
             // Not an app with associated devices
         } catch (Exception e) {
@@ -1125,7 +1162,7 @@ public class TransitionalScanHelper {
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
-        return macAddresses;
+        return Collections.emptyList();
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
@@ -1251,7 +1288,8 @@ public class TransitionalScanHelper {
             return;
         }
 
-        ScannerMap.ScannerApp app = mScannerMap.add(uuid, piInfo, mContext, this);
+        ScannerMap.ScannerApp app =
+                mScannerMap.add(uuid, attributionSource, piInfo, mContext, this);
 
         app.mUserHandle = UserHandle.getUserHandleForUid(Binder.getCallingUid());
         mAppOps.checkPackage(Binder.getCallingUid(), callingPackage);
@@ -1470,15 +1508,7 @@ public class TransitionalScanHelper {
 
             ScanClient client = getScanClient(mScannerId);
             if (client != null) {
-                if (Flags.leScanFixRemoteException()) {
-                    handleDeadScanClient(client);
-                } else {
-                    client.appDied = true;
-                    if (client.stats != null) {
-                        client.stats.isAppDead = true;
-                    }
-                    stopScanInternal(client.scannerId);
-                }
+                handleDeadScanClient(client);
             }
         }
 

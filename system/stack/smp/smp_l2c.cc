@@ -33,7 +33,7 @@
 #include "stack/btm/btm_dev.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "types/raw_address.h"
 
@@ -68,14 +68,14 @@ void smp_l2cap_if_init(void) {
   fixed_reg.pL2CA_FixedCong_Cb = NULL; /* do not handle congestion on this channel */
   fixed_reg.default_idle_tout = 60;    /* set 60 seconds timeout, 0xffff default idle timeout */
 
-  if (!L2CA_RegisterFixedChannel(L2CAP_SMP_CID, &fixed_reg)) {
+  if (!stack::l2cap::get_interface().L2CA_RegisterFixedChannel(L2CAP_SMP_CID, &fixed_reg)) {
     log::error("Unable to register with L2CAP fixed channel profile SMP psm:{}", L2CAP_SMP_CID);
   }
 
   fixed_reg.pL2CA_FixedConn_Cb = smp_br_connect_callback;
   fixed_reg.pL2CA_FixedData_Cb = smp_br_data_received;
 
-  if (!L2CA_RegisterFixedChannel(L2CAP_SMP_BR_CID, &fixed_reg)) {
+  if (!stack::l2cap::get_interface().L2CA_RegisterFixedChannel(L2CAP_SMP_BR_CID, &fixed_reg)) {
     log::error("Unable to register with L2CAP fixed channel profile SMP_BR psm:{}",
                L2CAP_SMP_BR_CID);
   }
@@ -115,7 +115,7 @@ static void smp_connect_callback(uint16_t /* channel */, const RawAddress& bd_ad
       if (!p_cb->connect_initialized) {
         p_cb->connect_initialized = true;
         /* initiating connection established */
-        p_cb->role = L2CA_GetBleConnRole(bd_addr);
+        p_cb->role = stack::l2cap::get_interface().L2CA_GetBleConnRole(bd_addr);
 
         /* initialize local i/r key to be default keys */
         p_cb->local_r_key = p_cb->local_i_key = SMP_SEC_DEFAULT_KEY;
@@ -167,7 +167,7 @@ static void smp_data_received(uint16_t channel, const RawAddress& bd_addr, BT_HD
   if (SMP_OPCODE_PAIRING_REQ == cmd || SMP_OPCODE_SEC_REQ == cmd) {
     if ((p_cb->state == SMP_STATE_IDLE) && (p_cb->br_state == SMP_BR_STATE_IDLE) &&
         !(p_cb->flags & SMP_PAIR_FLAGS_WE_STARTED_DD)) {
-      p_cb->role = L2CA_GetBleConnRole(bd_addr);
+      p_cb->role = bluetooth::stack::l2cap::get_interface().L2CA_GetBleConnRole(bd_addr);
       p_cb->pairing_bda = bd_addr;
     } else if (bd_addr != p_cb->pairing_bda) {
       osi_free(p_buf);
@@ -199,7 +199,7 @@ static void smp_data_received(uint16_t channel, const RawAddress& bd_addr, BT_HD
     smp_int_data.p_data = p;
     smp_sm_event(p_cb, static_cast<tSMP_EVENT>(cmd), &smp_int_data);
   } else {
-    if (!L2CA_RemoveFixedChnl(channel, bd_addr)) {
+    if (!stack::l2cap::get_interface().L2CA_RemoveFixedChnl(channel, bd_addr)) {
       log::error("Unable to remove fixed channel peer:{} cid:{}", bd_addr, channel);
     }
   }

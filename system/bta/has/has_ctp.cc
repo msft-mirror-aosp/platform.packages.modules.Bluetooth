@@ -19,7 +19,7 @@
 
 #include <bluetooth/log.h>
 
-#include "os/log.h"
+#include "os/logging/log_adapter.h"
 #include "stack/include/bt_types.h"
 
 using namespace bluetooth;

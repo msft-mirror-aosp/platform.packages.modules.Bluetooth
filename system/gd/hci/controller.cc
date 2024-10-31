@@ -16,6 +16,7 @@
 
 #include "hci/controller.h"
 
+#include <android_bluetooth_sysprop.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -31,6 +32,7 @@
 #include "hci_controller_generated.h"
 #include "os/metrics.h"
 #include "os/system_properties.h"
+#include "stack/include/hcidefs.h"
 #if TARGET_FLOSS
 #include "sysprops/sysprops_module.h"
 #endif
@@ -38,7 +40,9 @@
 namespace bluetooth {
 namespace hci {
 
-constexpr uint8_t kMinEncryptionKeySize = 7;  // #define MIN_ENCRYPTION_KEY_SIZE 7
+constexpr int kMinEncryptionKeySize = 7;
+constexpr int kMinEncryptionKeySizeDefault = kMinEncryptionKeySize;
+constexpr int kMaxEncryptionKeySize = 16;
 
 constexpr bool kDefaultVendorCapabilitiesEnabled = true;
 static const std::string kPropertyVendorCapabilitiesEnabled =
@@ -56,6 +60,10 @@ struct Controller::impl {
                                handler->BindOn(this, &Controller::impl::NumberOfCompletedPackets));
 
     set_event_mask(kDefaultEventMask);
+    if (com::android::bluetooth::flags::encryption_change_v2()) {
+      set_event_mask_page_2(kDefaultEventMaskPage2);
+    }
+
     write_le_host_support(Enable::ENABLED, Enable::DISABLED);
     hci_->EnqueueCommand(
             ReadLocalNameBuilder::Create(),
@@ -102,8 +110,13 @@ struct Controller::impl {
             handler->BindOnceOn(this, &Controller::impl::read_buffer_size_complete_handler));
 
     if (is_supported(OpCode::SET_MIN_ENCRYPTION_KEY_SIZE)) {
+      uint8_t min_key_size =
+              (uint8_t)std::min(std::max(android::sysprop::bluetooth::Gap::min_key_size().value_or(
+                                                 kMinEncryptionKeySizeDefault),
+                                         kMinEncryptionKeySize),
+                                kMaxEncryptionKeySize);
       hci_->EnqueueCommand(
-              SetMinEncryptionKeySizeBuilder::Create(kMinEncryptionKeySize),
+              SetMinEncryptionKeySizeBuilder::Create(min_key_size),
               handler->BindOnceOn(this, &Controller::impl::set_min_encryption_key_size_handler));
     }
 
@@ -356,6 +369,13 @@ struct Controller::impl {
     log::assert_that(status == ErrorCode::SUCCESS, "Status {}", ErrorCodeText(status));
     uint8_t page_number = complete_view.GetPageNumber();
     extended_lmp_features_array_.push_back(complete_view.GetExtendedLmpFeatures());
+    if (page_number == 0 && local_version_information_.manufacturer_name_ == LMP_COMPID_INTEL &&
+        local_version_information_.lmp_version_ == LmpVersion::V_4_2 &&
+        local_version_information_.lmp_subversion_ == LMP_SUBVERSION_INTEL_AC7265) {
+      // Override the packet boundary feature bit on Intel AC7265 because it don't support well.
+      extended_lmp_features_array_.back() &=
+              ~static_cast<uint64_t>(LMPFeaturesPage0Bits::NON_FLUSHABLE_PACKET_BOUNDARY_FLAG);
+    }
     bluetooth::os::LogMetricBluetoothLocalSupportedFeatures(page_number,
                                                             complete_view.GetExtendedLmpFeatures());
     // Query all extended features
@@ -675,36 +695,24 @@ struct Controller::impl {
     }
     vendor_capabilities_.dynamic_audio_buffer_support_ = v103.GetDynamicAudioBufferSupport();
 
-    if (com::android::bluetooth::flags::a2dp_offload_codec_extensibility()) {
-      // v1.04
-      auto v104 = LeGetVendorCapabilitiesComplete104View::Create(v103);
-      if (!v104.IsValid()) {
-        log::info("invalid data for hci requirements v1.04");
-      } else {
-        vendor_capabilities_.a2dp_offload_v2_support_ = v104.GetA2dpOffloadV2Support();
-      }
-
-      if (vendor_capabilities_.dynamic_audio_buffer_support_) {
-        hci_->EnqueueCommand(
-                DabGetAudioBufferTimeCapabilityBuilder::Create(),
-                module_.GetHandler()->BindOnceOn(
-                        this, &Controller::impl::le_get_dynamic_audio_buffer_support_handler,
-                        std::move(vendor_promise)));
-        return;
-      }
-
-      vendor_promise.set_value();
+    // v1.04
+    auto v104 = LeGetVendorCapabilitiesComplete104View::Create(v103);
+    if (!v104.IsValid()) {
+      log::info("invalid data for hci requirements v1.04");
     } else {
-      if (vendor_capabilities_.dynamic_audio_buffer_support_ == 0) {
-        vendor_promise.set_value();
-        return;
-      }
+      vendor_capabilities_.a2dp_offload_v2_support_ = v104.GetA2dpOffloadV2Support();
+    }
+
+    if (vendor_capabilities_.dynamic_audio_buffer_support_) {
       hci_->EnqueueCommand(
               DabGetAudioBufferTimeCapabilityBuilder::Create(),
               module_.GetHandler()->BindOnceOn(
                       this, &Controller::impl::le_get_dynamic_audio_buffer_support_handler,
                       std::move(vendor_promise)));
+      return;
     }
+
+    vendor_promise.set_value();
   }
 
   void le_get_dynamic_audio_buffer_support_handler(std::promise<void> vendor_promise,
@@ -764,6 +772,13 @@ struct Controller::impl {
     std::unique_ptr<SetEventMaskBuilder> packet = SetEventMaskBuilder::Create(event_mask);
     hci_->EnqueueCommand(std::move(packet),
                          module_.GetHandler()->BindOnce(check_complete<SetEventMaskCompleteView>));
+  }
+
+  void set_event_mask_page_2(uint64_t event_mask_page_2) {
+    std::unique_ptr<SetEventMaskPage2Builder> packet =
+            SetEventMaskPage2Builder::Create(event_mask_page_2);
+    hci_->EnqueueCommand(std::move(packet), module_.GetHandler()->BindOnce(
+                                                    check_complete<SetEventMaskPage2CompleteView>));
   }
 
   void write_le_host_support(Enable enable, Enable deprecated_host_bit) {

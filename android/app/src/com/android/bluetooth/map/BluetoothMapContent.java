@@ -1259,7 +1259,9 @@ public class BluetoothMapContent {
         } else {
             isHondaCarkit =
                     DeviceWorkArounds.addressStartsWith(
-                            BluetoothMapService.getRemoteDevice().getAddress(),
+                            BluetoothMapService.getBluetoothMapService()
+                                    .getRemoteDevice()
+                                    .getAddress(),
                             DeviceWorkArounds.HONDA_CARKIT);
         }
         if (isHondaCarkit || (ap.getParameterMask() & MASK_SUBJECT) != 0) {

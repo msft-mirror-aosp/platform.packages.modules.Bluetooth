@@ -25,8 +25,6 @@
 #include <optional>
 #include <vector>
 
-#include "os/log.h"
-
 namespace bluetooth::le_audio {
 
 struct CodecInterface::Impl {

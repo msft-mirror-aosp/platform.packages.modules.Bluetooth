@@ -183,6 +183,12 @@ public class BipImageFormat {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hash(
+                getType(), getEncoding(), getPixel(), getTransformation(), getSize(), getMaxSize());
+    }
+
+    @Override
     @SuppressLint("ToStringReturnsNull") // Since this is used for encoding to xml
     public String toString() {
         if (mEncoding == null

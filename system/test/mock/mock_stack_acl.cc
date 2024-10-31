@@ -35,6 +35,9 @@
 // Mocked compile conditionals, if any
 // Mocked internal structures, if any
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace test {
 namespace mock {
 namespace stack_acl {
@@ -45,8 +48,6 @@ struct BTM_IsAclConnectionUp BTM_IsAclConnectionUp;
 struct BTM_IsBleConnection BTM_IsBleConnection;
 struct BTM_ReadRemoteConnectionAddr BTM_ReadRemoteConnectionAddr;
 struct BTM_is_sniff_allowed_for BTM_is_sniff_allowed_for;
-struct acl_create_le_connection acl_create_le_connection;
-struct acl_create_le_connection_with_id acl_create_le_connection_with_id;
 struct acl_is_role_switch_allowed acl_is_role_switch_allowed;
 struct acl_is_switch_role_idle acl_is_switch_role_idle;
 struct acl_peer_supports_ble_2m_phy acl_peer_supports_ble_2m_phy;
@@ -149,15 +150,6 @@ bool BTM_ReadRemoteConnectionAddr(const RawAddress& pseudo_addr, RawAddress& con
 bool BTM_is_sniff_allowed_for(const RawAddress& peer_addr) {
   inc_func_call_count(__func__);
   return test::mock::stack_acl::BTM_is_sniff_allowed_for(peer_addr);
-}
-bool acl_create_le_connection(const RawAddress& bd_addr) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_acl::acl_create_le_connection(bd_addr);
-}
-bool acl_create_le_connection_with_id(uint8_t id, const RawAddress& bd_addr,
-                                      tBLE_ADDR_TYPE addr_type) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_acl::acl_create_le_connection_with_id(id, bd_addr, addr_type);
 }
 bool acl_is_role_switch_allowed() {
   inc_func_call_count(__func__);
