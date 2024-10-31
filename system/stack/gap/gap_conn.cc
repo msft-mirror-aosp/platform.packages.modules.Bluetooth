@@ -23,8 +23,6 @@
 #include "gap_api.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
-#include "l2cdefs.h"
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
@@ -35,6 +33,9 @@
 #include "stack/include/l2cap_interface.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 

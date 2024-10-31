@@ -29,12 +29,9 @@
 #include "avdt_int.h"
 #include "bta/include/bta_av_api.h"
 #include "device/include/interop.h"
-#include "l2c_api.h"
-#include "l2cdefs.h"
 #include "osi/include/allocator.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/btm_status.h"
 #include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
@@ -226,7 +223,7 @@ static void avdt_on_l2cap_error(uint16_t lcid, uint16_t result) {
   AvdtpTransportChannel* p_tbl;
 
   log::warn("lcid: 0x{:04x}, result: {}", lcid, to_l2cap_result_code(result));
-  if (!L2CA_DisconnectReq(lcid)) {
+  if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
     log::warn("Unable to disconnect L2CAP lcid: 0x{:04x}", lcid);
   }
 

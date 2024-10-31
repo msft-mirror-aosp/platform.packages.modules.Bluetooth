@@ -33,9 +33,8 @@
 #include "avdt_api.h"
 #include "avdt_defs.h"
 #include "avdtc_api.h"
+#include "include/macros.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
-#include "macros.h"
 #include "osi/include/alarm.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
@@ -885,6 +884,7 @@ void avdt_scb_hdl_open_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 void avdt_scb_hdl_open_rej(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 void avdt_scb_hdl_open_rsp(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 void avdt_scb_hdl_pkt(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
+void avdt_scb_hdl_pkt_no_frag(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 void avdt_scb_drop_pkt(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 void avdt_scb_hdl_reconfig_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 void avdt_scb_hdl_reconfig_rsp(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);

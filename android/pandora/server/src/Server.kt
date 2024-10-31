@@ -56,6 +56,7 @@ class Server(context: Context) {
                 mapOf(
                         BluetoothProfile.A2DP to ::A2dp,
                         BluetoothProfile.A2DP_SINK to ::A2dpSink,
+                        BluetoothProfile.HAP_CLIENT to ::Hap,
                         BluetoothProfile.HEARING_AID to ::Asha,
                         BluetoothProfile.AVRCP to ::Avrcp,
                         BluetoothProfile.GATT to ::Gatt,
@@ -67,6 +68,7 @@ class Server(context: Context) {
                         BluetoothProfile.OPP to ::Opp,
                         BluetoothProfile.MAP to ::Map,
                         BluetoothProfile.LE_AUDIO to ::LeAudio,
+                        BluetoothProfile.VOLUME_CONTROL to ::Vcp,
                     )
                     .filter { bluetoothAdapter.isEnabled }
                     .filter { bluetoothAdapter.getSupportedProfiles().contains(it.key) == true }

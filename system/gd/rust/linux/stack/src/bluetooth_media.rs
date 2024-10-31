@@ -609,6 +609,10 @@ impl BluetoothMedia {
         false
     }
 
+    pub(crate) fn get_connected_profiles(&self, device_address: &RawAddress) -> HashSet<Profile> {
+        self.connected_profiles.get(device_address).cloned().unwrap_or_default()
+    }
+
     fn add_connected_profile(&mut self, addr: RawAddress, profile: Profile) {
         if self.is_profile_connected(&addr, &profile) {
             warn!("[{}]: profile is already connected", DisplayAddress(&addr));
@@ -2302,6 +2306,10 @@ impl BluetoothMedia {
             self.connected_profiles.remove(&addr);
             states.remove(&addr);
             guard.remove(&addr);
+            let tx = self.tx.clone();
+            tokio::spawn(async move {
+                let _ = tx.send(Message::ProfileDisconnected(addr)).await;
+            });
             return;
         }
 

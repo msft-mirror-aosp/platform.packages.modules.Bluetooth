@@ -28,7 +28,6 @@
 
 #include "bta/av/bta_av_int.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 
 using namespace bluetooth;
 

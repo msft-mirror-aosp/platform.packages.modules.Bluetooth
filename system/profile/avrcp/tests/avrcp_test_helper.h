@@ -45,7 +45,8 @@ public:
   MOCK_METHOD1(GetMediaPlayerList, void(MediaInterface::MediaListCallback));
   MOCK_METHOD1(GetAddressedPlayer, void(MediaInterface::GetAddressedPlayerCallback));
   MOCK_METHOD3(GetFolderItems, void(uint16_t, std::string, MediaInterface::FolderItemsCallback));
-  MOCK_METHOD2(SetBrowsedPlayer, void(uint16_t, MediaInterface::SetBrowsedPlayerCallback));
+  MOCK_METHOD3(SetBrowsedPlayer,
+               void(uint16_t, std::string, MediaInterface::SetBrowsedPlayerCallback));
   MOCK_METHOD2(SetAddressedPlayer, void(uint16_t, MediaInterface::SetAddressedPlayerCallback));
   MOCK_METHOD3(PlayItem, void(uint16_t, bool, std::string));
   MOCK_METHOD1(SetActiveDevice, void(const RawAddress&));
@@ -80,7 +81,7 @@ public:
   MOCK_METHOD4(FindService,
                uint16_t(uint16_t, const RawAddress&, tAVRC_SDP_DB_PARAMS*, tAVRC_FIND_CBACK));
   MOCK_METHOD3(Open, uint16_t(uint8_t*, tAVRC_CONN_CB*, const RawAddress&));
-  MOCK_METHOD2(OpenBrowse, uint16_t(uint8_t, uint8_t));
+  MOCK_METHOD2(OpenBrowse, uint16_t(uint8_t, tAVCT_ROLE));
   MOCK_METHOD1(GetPeerMtu, uint16_t(uint8_t));
   MOCK_METHOD1(GetBrowseMtu, uint16_t(uint8_t));
   MOCK_METHOD1(Close, uint16_t(uint8_t));

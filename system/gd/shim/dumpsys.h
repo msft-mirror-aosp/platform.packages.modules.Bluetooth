@@ -29,14 +29,9 @@ constexpr char kArgumentDeveloper[] = "--dev";
 
 class Dumpsys : public bluetooth::Module {
 public:
-  void Dump(int fd, const char** args);
   void Dump(int fd, const char** args, std::promise<void> promise);
 
-  // Convenience thread used by shim layer for task execution
-  os::Handler* GetGdShimHandler();
-
   Dumpsys(const std::string& pre_bundled_schema);
-
   Dumpsys(const Dumpsys&) = delete;
   Dumpsys& operator=(const Dumpsys&) = delete;
 

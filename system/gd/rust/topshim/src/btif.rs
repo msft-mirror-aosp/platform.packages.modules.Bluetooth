@@ -14,6 +14,7 @@ use std::hash::{Hash, Hasher};
 use std::mem;
 use std::os::fd::RawFd;
 use std::os::raw::c_char;
+use std::ptr::NonNull;
 use std::sync::{Arc, Mutex};
 use std::vec::Vec;
 use topshim_macros::{cb_variant, gen_cxx_extern_trivial};
@@ -427,6 +428,22 @@ pub type BtPinCode = bindings::bt_pin_code_t;
 pub type BtRemoteVersion = bindings::bt_remote_version_t;
 pub type BtVendorProductInfo = bindings::bt_vendor_product_info_t;
 
+impl ToString for BtVendorProductInfo {
+    fn to_string(&self) -> String {
+        format!(
+            "{}:v{:04X}p{:04X}d{:04X}",
+            match self.vendor_id_src {
+                1 => "bluetooth",
+                2 => "usb",
+                _ => "unknown",
+            },
+            self.vendor_id,
+            self.product_id,
+            self.version
+        )
+    }
+}
+
 impl TryFrom<Uuid> for Vec<u8> {
     type Error = &'static str;
 
@@ -788,9 +805,12 @@ impl BluetoothProperty {
 // TODO(abps) - Check that sizes are correct when given a BtProperty
 impl From<bindings::bt_property_t> for BluetoothProperty {
     fn from(prop: bindings::bt_property_t) -> Self {
-        let slice: &[u8] =
-            unsafe { std::slice::from_raw_parts(prop.val as *mut u8, prop.len as usize) };
+        // Property values may be null, which isn't valid to pass for `slice::from_raw_parts`.
+        // Choose a dangling pointer in that case.
+        let prop_val_ptr =
+            NonNull::new(prop.val as *mut u8).unwrap_or(NonNull::dangling()).as_ptr();
         let len = prop.len as usize;
+        let slice: &[u8] = unsafe { std::slice::from_raw_parts(prop_val_ptr, len) };
 
         match BtPropertyType::from(prop.type_) {
             BtPropertyType::BdName => BluetoothProperty::BdName(ascii_to_string(slice, len)),
@@ -905,20 +925,6 @@ impl From<SupportedProfiles> for Vec<u8> {
         .bytes()
         .chain("\0".bytes())
         .collect::<Vec<u8>>()
-    }
-}
-
-#[cxx::bridge(namespace = bluetooth::topshim::rust)]
-mod ffi {
-    unsafe extern "C++" {
-        include!("btif/btif_shim.h");
-
-        // For converting init flags from Vec<String> to const char **
-        type InitFlags;
-
-        // Convert flgas into an InitFlags object
-        fn ConvertFlags(flags: Vec<String>) -> UniquePtr<InitFlags>;
-        fn GetFlagsPtr(self: &InitFlags) -> *mut *const c_char;
     }
 }
 
@@ -1057,6 +1063,7 @@ pub enum BaseCallbacks {
     GenerateLocalOobData(u8, Box<OobData>), // Box OobData as its size is much bigger than others
     LeRandCallback(u64),
     // key_missing_cb
+    // encryption_change_cb
 }
 
 pub struct BaseCallbacksDispatcher {
@@ -1208,18 +1215,8 @@ impl BluetoothInterface {
     /// # Arguments
     ///
     /// * `callbacks` - Dispatcher struct that accepts [`BaseCallbacks`]
-    /// * `init_flags` - List of flags sent to libbluetooth for init.
     /// * `hci_index` - Index of the hci adapter in use
-    pub fn initialize(
-        &mut self,
-        callbacks: BaseCallbacksDispatcher,
-        init_flags: Vec<String>,
-        hci_index: i32,
-    ) -> bool {
-        // Init flags need to be converted from string to null terminated bytes
-        let converted: cxx::UniquePtr<ffi::InitFlags> = ffi::ConvertFlags(init_flags);
-        let flags = (*converted).GetFlagsPtr();
-
+    pub fn initialize(&mut self, callbacks: BaseCallbacksDispatcher, hci_index: i32) -> bool {
         if get_dispatchers().lock().unwrap().set::<BaseCb>(Arc::new(Mutex::new(callbacks))) {
             panic!("Tried to set dispatcher for BaseCallbacks but it already existed");
         }
@@ -1249,6 +1246,7 @@ impl BluetoothInterface {
             switch_codec_cb: None,
             le_rand_cb: Some(le_rand_cb),
             key_missing_cb: None,
+            encryption_change_cb: None,
         });
 
         let cb_ptr = LTCheckedPtrMut::from(&mut callbacks);
@@ -1264,9 +1262,7 @@ impl BluetoothInterface {
             guest_mode,
             is_common_criteria_mode,
             config_compare_result,
-            flags,
-            is_atv,
-            std::ptr::null()
+            is_atv
         );
 
         self.is_init = init == 0;

@@ -16,6 +16,10 @@
 
 #include "model/controller/dual_mode_controller.h"
 
+#include <openssl/ec.h>
+#include <openssl/ec_key.h>
+#include <openssl/mem.h>
+#include <openssl/nid.h>
 #include <packet_runtime.h>
 
 #include <algorithm>
@@ -2210,6 +2214,61 @@ void DualModeController::LeWriteSuggestedDefaultDataLength(CommandView command) 
           kNumCommandPackets, status));
 }
 
+static ErrorCode generateP256Key(std::array<uint8_t, 32>& key_x_coordinate,
+                                 std::array<uint8_t, 32>& key_y_coordinate) {
+  auto ec_key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+  if (!ec_key) {
+    WARNING("EC_KEY_new_by_curve_name(NID_X9_62_prime256v1) failed");
+    return ErrorCode::UNSPECIFIED_ERROR;
+  }
+
+  if (!EC_KEY_generate_key(ec_key)) {
+    WARNING("EC_KEY_generate_key failed");
+    EC_KEY_free(ec_key);
+    return ErrorCode::UNSPECIFIED_ERROR;
+  }
+
+  uint8_t* out_buf = nullptr;
+  auto size = EC_KEY_key2buf(ec_key, POINT_CONVERSION_UNCOMPRESSED, &out_buf, nullptr);
+  if (!out_buf) {
+    WARNING("EC_KEY_key2buf failed");
+    EC_KEY_free(ec_key);
+    return ErrorCode::UNSPECIFIED_ERROR;
+  }
+
+  const size_t expected_size = key_x_coordinate.size() + key_y_coordinate.size() + 1;
+  if (size != expected_size) {
+    WARNING("unexpected size {}", size);
+    OPENSSL_free(out_buf);
+    EC_KEY_free(ec_key);
+    return ErrorCode::UNSPECIFIED_ERROR;
+  }
+
+  memcpy(key_x_coordinate.data(), out_buf + 1, key_x_coordinate.size());
+  memcpy(key_y_coordinate.data(), out_buf + 1 + key_x_coordinate.size(), key_y_coordinate.size());
+
+  // OPENSSL_free(out_buf); // <-- this call fails with error invalid pointer
+  EC_KEY_free(ec_key);
+  return ErrorCode::SUCCESS;
+}
+
+void DualModeController::LeReadLocalP256PublicKey(CommandView command) {
+  auto command_view = bluetooth::hci::LeReadLocalP256PublicKeyView::Create(command);
+  CHECK_PACKET_VIEW(command_view);
+
+  DEBUG(id_, "<< LE Read Local P-256 Public Key");
+
+  send_event_(bluetooth::hci::LeReadLocalP256PublicKeyStatusBuilder::Create(ErrorCode::SUCCESS,
+                                                                            kNumCommandPackets));
+
+  std::array<uint8_t, 32> key_x_coordinate = {};
+  std::array<uint8_t, 32> key_y_coordinate = {};
+  ErrorCode status = generateP256Key(key_x_coordinate, key_y_coordinate);
+
+  send_event_(bluetooth::hci::LeReadLocalP256PublicKeyCompleteBuilder::Create(
+          status, key_x_coordinate, key_y_coordinate));
+}
+
 void DualModeController::LeAddDeviceToResolvingList(CommandView command) {
   auto command_view = bluetooth::hci::LeAddDeviceToResolvingListView::Create(command);
   CHECK_PACKET_VIEW(command_view);
@@ -3959,8 +4018,8 @@ const std::unordered_map<OpCode, DualModeController::CommandHandler>
                  &DualModeController::LeReadSuggestedDefaultDataLength},
                 {OpCode::LE_WRITE_SUGGESTED_DEFAULT_DATA_LENGTH,
                  &DualModeController::LeWriteSuggestedDefaultDataLength},
-                //{OpCode::LE_READ_LOCAL_P_256_PUBLIC_KEY,
-                //&DualModeController::LeReadLocalP256PublicKey},
+                {OpCode::LE_READ_LOCAL_P_256_PUBLIC_KEY,
+                 &DualModeController::LeReadLocalP256PublicKey},
                 //{OpCode::LE_GENERATE_DHKEY_V1,
                 //&DualModeController::LeGenerateDhkeyV1},
                 {OpCode::LE_ADD_DEVICE_TO_RESOLVING_LIST,

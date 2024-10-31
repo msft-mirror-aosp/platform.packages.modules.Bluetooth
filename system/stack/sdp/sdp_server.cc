@@ -160,7 +160,7 @@ bool sdp_dynamic_change_hfp_version(const tSDP_ATTRIBUTE* p_attr,
  * Returns          void
  *
  *****************************************************************************/
-void hfp_fallback(bool& is_hfp_fallback, const tSDP_ATTRIBUTE* p_attr) {
+static void hfp_fallback(bool& is_hfp_fallback, const tSDP_ATTRIBUTE* p_attr) {
   /* Update HFP version back to 1.6 */
   p_attr->value_ptr[PROFILE_VERSION_POSITION] = HFP_PROFILE_MINOR_VERSION_6;
   log::verbose("Restore HFP version to 1.6");

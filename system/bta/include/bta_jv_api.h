@@ -32,7 +32,6 @@
 #include "include/macros.h"
 #include "internal_include/bt_target.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/rfcdefs.h"
 #include "types/bluetooth/uuid.h"
@@ -512,6 +511,19 @@ tBTA_JV_STATUS BTA_JvFreeChannel(uint16_t channel, tBTA_JV_CONN_TYPE conn_type);
  ******************************************************************************/
 tBTA_JV_STATUS BTA_JvStartDiscovery(const RawAddress& bd_addr, uint16_t num_uuid,
                                     const bluetooth::Uuid* p_uuid_list, uint32_t rfcomm_slot_id);
+
+/*******************************************************************************
+ *
+ * Function         BTA_JvCancelDiscovery
+ *
+ * Description      This function cancels the ongoing service discovery and make
+ *                  sure the tBTA_JV_DM_CBACK callback function will be called
+ *                  with a BTA_JV_DISCOVERY_COMP_EVT.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_JvCancelDiscovery(uint32_t rfcomm_slot_id);
 
 /*******************************************************************************
  *

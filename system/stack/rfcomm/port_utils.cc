@@ -41,7 +41,7 @@
 
 using namespace bluetooth;
 
-static const tPORT_STATE default_port_pars = {
+static const PortSettings default_port_settings = {
         PORT_BAUD_RATE_9600,
         PORT_8_BITS,
         PORT_ONESTOPBIT,
@@ -110,8 +110,8 @@ void port_set_defaults(tPORT* p_port) {
   p_port->rx_flag_ev_pending = false;
   p_port->peer_mtu = RFCOMM_DEFAULT_MTU;
 
-  p_port->user_port_pars = default_port_pars;
-  p_port->peer_port_pars = default_port_pars;
+  p_port->user_port_settings = default_port_settings;
+  p_port->peer_port_settings = default_port_settings;
 
   p_port->credit_tx = 0;
   p_port->credit_rx = 0;
@@ -242,14 +242,14 @@ void port_release_port(tPORT* p_port) {
       /* save event mask and callback */
       uint32_t mask = p_port->ev_mask;
       tPORT_CALLBACK* p_port_cb = p_port->p_callback;
-      tPORT_STATE user_port_pars = p_port->user_port_pars;
+      PortSettings user_port_settings = p_port->user_port_settings;
 
       port_set_defaults(p_port);
 
       /* restore */
       p_port->ev_mask = mask;
       p_port->p_callback = p_port_cb;
-      p_port->user_port_pars = user_port_pars;
+      p_port->user_port_settings = user_port_settings;
       p_port->mtu = p_port->keep_mtu;
 
       p_port->state = PORT_CONNECTION_STATE_OPENING;

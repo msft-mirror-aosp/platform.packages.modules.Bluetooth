@@ -23,7 +23,6 @@
 #include "hci/controller.h"
 #include "hci/hci_packets.h"
 #include "os/handler.h"
-#include "os/log.h"
 #include "packet/raw_builder.h"
 
 using ::bluetooth::common::BidiQueue;

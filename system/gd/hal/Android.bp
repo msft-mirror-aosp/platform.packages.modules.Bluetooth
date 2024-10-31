@@ -52,6 +52,20 @@ filegroup {
 }
 
 filegroup {
+    name: "BluetoothHalSources_mgmt_stub",
+    srcs: [
+        "mgmt_stub.cc",
+    ],
+}
+
+filegroup {
+    name: "BluetoothHalSources_mgmt",
+    srcs: [
+        "mgmt.cc",
+    ],
+}
+
+filegroup {
     name: "BluetoothHalSources_ranging_android",
     srcs: [
         "ranging_hal_android.cc",

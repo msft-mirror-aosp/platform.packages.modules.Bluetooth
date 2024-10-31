@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_interface.h"
+#include "stack/l2cap/internal/l2c_api.h"
+#include "stack/l2cap/l2c_api.h"
 
 static bluetooth::stack::l2cap::Impl l2cap_impl;
 static bluetooth::stack::l2cap::Interface* interface_ = &l2cap_impl;

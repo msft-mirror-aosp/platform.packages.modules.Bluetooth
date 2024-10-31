@@ -18,7 +18,7 @@
 
 #include <vector>
 
-#include "aidl/a2dp_encoding_aidl.h"
+#include "aidl/a2dp/a2dp_encoding_aidl.h"
 #include "hal_version_manager.h"
 #include "hidl/a2dp_encoding_hidl.h"
 
@@ -53,11 +53,12 @@ bool is_hal_offloading() {
 }
 
 // Initialize BluetoothAudio HAL: openProvider
-bool init(bluetooth::common::MessageLoopThread* message_loop) {
+bool init(bluetooth::common::MessageLoopThread* message_loop,
+          bluetooth::audio::a2dp::BluetoothAudioPort const* audio_port, bool offload_enabled) {
   if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
-    return hidl::a2dp::init(message_loop);
+    return hidl::a2dp::init(message_loop, audio_port, offload_enabled);
   }
-  return aidl::a2dp::init(message_loop);
+  return aidl::a2dp::init(message_loop, audio_port, offload_enabled);
 }
 
 // Clean up BluetoothAudio HAL
@@ -70,11 +71,12 @@ void cleanup() {
 }
 
 // Set up the codec into BluetoothAudio HAL
-bool setup_codec() {
+bool setup_codec(A2dpCodecConfig* a2dp_config, uint16_t peer_mtu,
+                 int preferred_encoding_interval_us) {
   if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
-    return hidl::a2dp::setup_codec();
+    return hidl::a2dp::setup_codec(a2dp_config, peer_mtu, preferred_encoding_interval_us);
   }
-  return aidl::a2dp::setup_codec();
+  return aidl::a2dp::setup_codec(a2dp_config, peer_mtu, preferred_encoding_interval_us);
 }
 
 // Send command to the BluetoothAudio HAL: StartSession, EndSession,

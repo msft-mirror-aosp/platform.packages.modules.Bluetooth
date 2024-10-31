@@ -55,29 +55,15 @@ void bluetooth::shim::Dump(int fd, const char** args) {
       dumpsys.second(fd);
     }
   }
-  if (com::android::bluetooth::flags::dumpsys_acquire_stack_when_executing()) {
-    std::promise<void> promise;
-    std::future future = promise.get_future();
-    if (bluetooth::shim::Stack::GetInstance()->CallOnModule<shim::Dumpsys>(
-                [&promise, fd, args](shim::Dumpsys* mod) {
-                  mod->Dump(fd, args, std::move(promise));
-                })) {
-      log::assert_that(future.wait_for(std::chrono::seconds(1)) == std::future_status::ready,
-                       "Timed out waiting for dumpsys to complete");
-    } else {
-      dprintf(fd, "%s NOTE: gd dumpsys module not loaded or started\n", kModuleName);
-    }
-  } else {  // !FLAG(dumpsys_acquire_stack_when_executing)
-    bluetooth::shim::Stack::GetInstance()->LockForDumpsys([=]() {
-      if (bluetooth::shim::is_gd_stack_started_up()) {
-        if (bluetooth::shim::is_gd_dumpsys_module_started()) {
-          bluetooth::shim::GetDumpsys()->Dump(fd, args);
-        } else {
-          dprintf(fd, "%s NOTE: gd dumpsys module not loaded or started\n", kModuleName);
-        }
-      } else {
-        dprintf(fd, "%s gd stack is enabled but not started\n", kModuleName);
-      }
-    });
+  std::promise<void> promise;
+  std::future future = promise.get_future();
+  if (bluetooth::shim::Stack::GetInstance()->CallOnModule<shim::Dumpsys>(
+              [&promise, fd, args](shim::Dumpsys* mod) {
+                mod->Dump(fd, args, std::move(promise));
+              })) {
+    log::assert_that(future.wait_for(std::chrono::seconds(1)) == std::future_status::ready,
+                     "Timed out waiting for dumpsys to complete");
+  } else {
+    dprintf(fd, "%s NOTE: gd dumpsys module not loaded or started\n", kModuleName);
   }
 }

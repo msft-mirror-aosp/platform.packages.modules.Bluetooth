@@ -29,8 +29,6 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
-#include "l2c_api.h"
-#include "l2cdefs.h"
 #include "smp_int.h"
 #include "stack/include/bt_octets.h"
 #include "stack/include/btm_sec_api_types.h"

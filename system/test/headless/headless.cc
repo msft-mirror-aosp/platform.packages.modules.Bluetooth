@@ -25,13 +25,15 @@
 #include <map>
 #include <memory>
 
-#include "gd/os/log.h"
 #include "include/hardware/bluetooth.h"
 #include "test/headless/bt_stack_info.h"
 #include "test/headless/interface.h"
 #include "test/headless/log.h"
 #include "test/headless/messenger.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 //
 // Aggregate disparate variables from callback API into unified single structure
@@ -255,7 +257,7 @@ void HeadlessStack::SetUp() {
   const bool is_atv = false;
 
   int status = bluetoothInterface.init(&bt_callbacks, start_restricted, is_common_criteria_mode,
-                                       config_compare_result, {}, is_atv, nullptr);
+                                       config_compare_result, is_atv);
 
   if (status == BT_STATUS_SUCCESS) {
     log::info("Initialized bluetooth callbacks");

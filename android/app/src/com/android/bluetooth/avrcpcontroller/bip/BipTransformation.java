@@ -22,6 +22,7 @@ import android.util.Log;
 import com.google.common.base.Ascii;
 
 import java.util.HashSet;
+import java.util.Objects;
 
 /**
  * Represents the set of possible transformations available for a variant of an image to get the
@@ -155,6 +156,11 @@ public class BipTransformation {
         }
 
         return mSupportedTransformations.equals(t.mSupportedTransformations);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(mSupportedTransformations);
     }
 
     @Override

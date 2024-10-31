@@ -63,7 +63,7 @@ static MessageLoopThread* thread = new MessageLoopThread("fake main thread");
 
 bluetooth::common::MessageLoopThread* get_main_thread() { return thread; }
 
-static void cb(void* data) {
+static void cb(void* /*data*/) {
   ++cb_counter;
   semaphore.post();
 }

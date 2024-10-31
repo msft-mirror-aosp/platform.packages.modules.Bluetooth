@@ -20,6 +20,9 @@
 #include "main/shim/helpers.h"
 #include "os/metrics.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace bluetooth {
 namespace metrics {
 
