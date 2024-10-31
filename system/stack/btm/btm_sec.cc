@@ -3424,9 +3424,6 @@ static void read_encryption_key_size_complete_after_encryption_change(uint8_t st
   btm_sec_encrypt_change(handle, static_cast<tHCI_STATUS>(status), 1 /* enable */, key_size);
 }
 
-// TODO: Remove
-void smp_cancel_start_encryption_attempt();
-
 /*******************************************************************************
  *
  * Function         btm_encryption_change_evt
