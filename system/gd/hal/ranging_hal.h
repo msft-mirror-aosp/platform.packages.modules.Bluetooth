@@ -35,10 +35,17 @@ struct ChannelSoundingRawData {
   std::vector<std::vector<std::complex<double>>> tone_pct_reflector_;
   std::vector<std::vector<uint8_t>> tone_quality_indicator_initiator_;
   std::vector<std::vector<uint8_t>> tone_quality_indicator_reflector_;
+  std::vector<int8_t> packet_quality_initiator;
+  std::vector<int8_t> packet_quality_reflector;
+  std::vector<int16_t> toa_tod_initiators_;
+  std::vector<int16_t> tod_toa_reflectors_;
 };
 
 struct RangingResult {
   double result_meters_;
+  // A normalized value from 0 (low confidence) to 100 (high confidence) representing the confidence
+  // of estimated distance. The value is -1 when unavailable.
+  int8_t confidence_level_;
 };
 
 class RangingHalCallback {

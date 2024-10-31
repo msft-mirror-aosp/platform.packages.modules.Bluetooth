@@ -35,6 +35,9 @@
 #include "osi/include/properties.h"
 #include "stack/include/btm_client_interface.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::hci::kIsoCigPhy1M;
 using bluetooth::hci::kIsoCigPhy2M;
 using bluetooth::le_audio::DeviceConnectState;
@@ -1038,6 +1041,12 @@ void LeAudioDevice::Dump(int fd) {
          << ",mtu: " << std::to_string(mtu_)
          << "\n\tnumber of ases_: " << static_cast<int>(ases_.size());
 
+  if (gmap_client_ != nullptr) {
+    gmap_client_->DebugDump(fd);
+  } else {
+    stream << "GmapClient not initialized\n";
+  }
+
   if (ases_.size() > 0) {
     stream << "\n\t== ASEs == \n\t";
     stream << "id  active dir     cis_id  cis_handle  sdu  latency rtn  "
@@ -1149,7 +1158,7 @@ void LeAudioDevice::DeactivateAllAses(void) {
     ase.active = false;
     ase.reconfigure = 0;
     ase.cis_id = bluetooth::le_audio::kInvalidCisId;
-    ase.cis_conn_hdl = 0;
+    ase.cis_conn_hdl = bluetooth::le_audio::kInvalidCisConnHandle;
   }
 }
 
@@ -1258,7 +1267,7 @@ std::shared_ptr<LeAudioDevice> LeAudioDevices::GetByAddress(const RawAddress& ad
   return (iter == leAudioDevices_.end()) ? nullptr : *iter;
 }
 
-LeAudioDevice* LeAudioDevices::FindByConnId(uint16_t conn_id) const {
+LeAudioDevice* LeAudioDevices::FindByConnId(tCONN_ID conn_id) const {
   auto iter = std::find_if(
           leAudioDevices_.begin(), leAudioDevices_.end(),
           [&conn_id](auto const& leAudioDevice) { return leAudioDevice->conn_id_ == conn_id; });
@@ -1293,7 +1302,7 @@ LeAudioDevice* LeAudioDevices::FindByCisConnHdl(uint8_t cig_id, uint16_t conn_hd
 }
 
 void LeAudioDevices::SetInitialGroupAutoconnectState(int group_id, int gatt_if,
-                                                     tBTM_BLE_CONN_TYPE reconnection_mode,
+                                                     tBTM_BLE_CONN_TYPE /*reconnection_mode*/,
                                                      bool current_dev_autoconnect_flag) {
   if (!current_dev_autoconnect_flag) {
     /* If current device autoconnect flag is false, check if there is other

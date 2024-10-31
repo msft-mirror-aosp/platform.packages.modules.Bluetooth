@@ -92,7 +92,6 @@ cc_library_static {
         "libaconfig_storage_read_api_cc",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
         "server_configurable_flags",
     ],
 }
@@ -104,6 +103,9 @@ cc_test {
     defaults: [
         "fluoride_osi_defaults",
         "mts_defaults",
+    ],
+    cflags: [
+        "-DLIB_OSI_INTERNAL",
     ],
     host_supported: true,
     srcs: [
@@ -142,8 +144,6 @@ cc_test {
         "libbluetooth_gd",
         "libbluetooth_log",
         "libbt-common",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libevent",
         "libgmock",
@@ -158,10 +158,6 @@ cc_test {
             ],
         },
     },
-    cflags: [
-        "-DLIB_OSI_INTERNAL",
-        "-Wno-unused-parameter",
-    ],
     sanitize: {
         address: true,
         cfi: false,

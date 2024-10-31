@@ -265,7 +265,8 @@ SDP_Sequence_Helper generateArbitrarySdpElemSequence(FuzzedDataProvider* fdp) {
 }
 
 // Define our callback functions we'll be using within our functions
-void sdp_disc_cmpl_cb(const RawAddress& bd_addr, tSDP_STATUS result) {}
-void sdp_disc_cmpl_cb2(std::vector<uint8_t> data, const RawAddress& bd_addr, tSDP_STATUS result) {}
+void sdp_disc_cmpl_cb(const RawAddress& /*bd_addr*/, tSDP_STATUS /*result*/) {}
+void sdp_disc_cmpl_cb2(std::vector<uint8_t> /*data*/, const RawAddress& /*bd_addr*/,
+                       tSDP_STATUS /*result*/) {}
 
 #endif  // FUZZER_SDP_HELPERS_H_

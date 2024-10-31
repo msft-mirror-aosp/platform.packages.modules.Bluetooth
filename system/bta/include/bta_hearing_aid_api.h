@@ -27,6 +27,7 @@
 #include <functional>
 #include <vector>
 
+#include "stack/include/btm_ble_api_types.h"
 #include "stack/include/gap_api.h"
 #include "types/raw_address.h"
 
@@ -131,7 +132,7 @@ struct HearingDevice {
    */
   bool accepting_audio;
 
-  uint16_t conn_id;
+  tCONN_ID conn_id;
   uint16_t gap_handle;
   uint16_t audio_control_point_handle;
   uint16_t audio_status_handle;

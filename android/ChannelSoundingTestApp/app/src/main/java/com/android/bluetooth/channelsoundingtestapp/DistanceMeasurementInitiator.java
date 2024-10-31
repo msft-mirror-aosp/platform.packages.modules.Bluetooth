@@ -74,6 +74,7 @@ class DistanceMeasurementInitiator {
     void setTargetDevice(BluetoothDevice targetDevice) {
         mTargetDevice = targetDevice;
     }
+
     private void printLog(String log) {
         mLoggingListener.onLog(log);
     }

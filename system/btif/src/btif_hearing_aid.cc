@@ -18,6 +18,8 @@
 
 /* Hearing Aid Profile Interface */
 
+#include "btif_hearing_aid.h"
+
 #include <base/functional/bind.h>
 #include <base/location.h>
 #include <hardware/bluetooth.h>

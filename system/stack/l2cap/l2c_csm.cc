@@ -25,6 +25,7 @@
 
 #include <base/functional/callback.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 
 #include <string>
@@ -38,6 +39,7 @@
 #include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/l2cap/l2c_int.h"
@@ -64,6 +66,75 @@ static void l2c_csm_send_connect_rsp(tL2C_CCB* p_ccb) {
   l2c_csm_execute(p_ccb, L2CEVT_L2CA_CONNECT_RSP, NULL);
 }
 
+#if (L2CAP_CONFORMANCE_TESTING == TRUE)
+#include "osi/include/properties.h"
+
+/* FCS Flag configuration for L2CAP/FOC/BV-04 and L2CAP/FOC/BV-05
+ * Upper tester implementation for above two testcases where
+ * different FCS options need to be used in different steps.
+ */
+
+/* L2CAP.TSp38, table 4.13 */
+static uint8_t pts_fcs_option_bv_04_c[] = {0x01, 0x01, 0x01, 0x01, 0x01, 0x01};
+
+/* L2CAP.TSp38, table 4.68 */
+static uint8_t pts_fcs_option_bv_05_c[] = {0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01};
+
+static uint8_t pts_foc_bv_test_id_property;
+
+static uint8_t pts_get_fcs_option(void) {
+  static size_t fcs_opt_iter = 0;
+  uint8_t* fcs_test_options = nullptr;
+  uint8_t iter_cnt = 0;
+
+  uint8_t test_id = osi_property_get_int32("bluetooth.pts.l2cap.foc.bv.test", 0);
+  if (pts_foc_bv_test_id_property != test_id) {
+    pts_foc_bv_test_id_property = test_id;
+    fcs_opt_iter = 0;
+  }
+
+  switch (test_id) {
+    case 4:
+      log::info("Proceed test L2CAP/FOC/BV-04-C");
+      fcs_test_options = &pts_fcs_option_bv_04_c[0];
+      iter_cnt = sizeof(pts_fcs_option_bv_04_c);
+      break;
+    case 5:
+      log::info("Proceed test L2CAP/FOC/BV-05-C");
+      fcs_test_options = &pts_fcs_option_bv_05_c[0];
+      iter_cnt = sizeof(pts_fcs_option_bv_05_c);
+      break;
+    default:
+      log::info("Proceed unknown test");
+      return 1;
+  }
+
+  log::info("fcs_opt_iter: {}, fcs option: {}", fcs_opt_iter,
+            fcs_opt_iter < iter_cnt ? fcs_test_options[fcs_opt_iter] : -1);
+
+  if (fcs_opt_iter < iter_cnt) {
+    return fcs_test_options[fcs_opt_iter++];
+  }
+
+  log::info("Too many iterations: {}, return fcs = 0x01", fcs_opt_iter);
+  return 1;
+}
+
+static void l2c_csm_send_config_req(tL2C_CCB* p_ccb);
+static void l2c_ccb_pts_delay_config_timeout(void* data) {
+  tL2C_CCB* p_ccb = (tL2C_CCB*)data;
+  l2c_csm_send_config_req(p_ccb);
+}
+#endif
+
+static uint8_t get_fcs_option(void) {
+#if (L2CAP_CONFORMANCE_TESTING == TRUE)
+  return pts_get_fcs_option();
+#else
+  return 0x01;
+#endif
+}
+
 // Send a config request and adjust the state machine
 static void l2c_csm_send_config_req(tL2C_CCB* p_ccb) {
   tL2CAP_CFG_INFO config{};
@@ -73,6 +144,13 @@ static void l2c_csm_send_config_req(tL2C_CCB* p_ccb) {
   if (p_ccb->p_rcb->ertm_info.preferred_mode != L2CAP_FCR_BASIC_MODE) {
     config.fcr_present = true;
     config.fcr = kDefaultErtmOptions;
+
+    if (com::android::bluetooth::flags::l2cap_fcs_option_fix()) {
+      /* Later l2cu_process_our_cfg_req() will check if remote supports it, and if not, it will be
+       * cleared as per spec. */
+      config.fcs_present = true;
+      config.fcs = get_fcs_option();
+    }
   }
   p_ccb->our_cfg = config;
   l2c_csm_execute(p_ccb, L2CEVT_L2CA_CONFIG_REQ, &config);
@@ -205,8 +283,8 @@ static void l2c_csm_closed(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
 
   disconnect_ind = p_ccb->p_rcb->api.pL2CA_DisconnectInd_Cb;
 
-  log::debug("LCID: 0x{:04x}  st: CLOSED  evt: {}", p_ccb->local_cid,
-             l2c_csm_get_event_name(event));
+  log::debug("LCID: 0x{:04x}  st: CLOSED  evt: {} psm: {}", p_ccb->local_cid,
+             l2c_csm_get_event_name(event), psm_to_text(p_ccb->p_rcb->psm));
 
   switch (event) {
     case L2CEVT_LP_DISCONNECT_IND: /* Link was disconnected */
@@ -377,9 +455,9 @@ static void l2c_csm_orig_w4_sec_comp(tL2C_CCB* p_ccb, tL2CEVT event, void* p_dat
   tL2CA_DISCONNECT_IND_CB* disconnect_ind = p_ccb->p_rcb->api.pL2CA_DisconnectInd_Cb;
   uint16_t local_cid = p_ccb->local_cid;
 
-  log::debug("{} - LCID: 0x{:04x}  st: ORIG_W4_SEC_COMP  evt: {}",
+  log::debug("{} - LCID: 0x{:04x}  st: ORIG_W4_SEC_COMP  evt: {} psm: {}",
              ((p_ccb->p_lcb) && (p_ccb->p_lcb->transport == BT_TRANSPORT_LE)) ? "LE " : "",
-             p_ccb->local_cid, l2c_csm_get_event_name(event));
+             p_ccb->local_cid, l2c_csm_get_event_name(event), psm_to_text(p_ccb->p_rcb->psm));
 
   switch (event) {
     case L2CEVT_LP_DISCONNECT_IND: /* Link was disconnected */
@@ -472,8 +550,8 @@ static void l2c_csm_orig_w4_sec_comp(tL2C_CCB* p_ccb, tL2CEVT event, void* p_dat
  *
  ******************************************************************************/
 static void l2c_csm_term_w4_sec_comp(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
-  log::debug("LCID: 0x{:04x}  st: TERM_W4_SEC_COMP  evt: {}", p_ccb->local_cid,
-             l2c_csm_get_event_name(event));
+  log::debug("LCID: 0x{:04x}  st: TERM_W4_SEC_COMP  evt: {} psm: {}", p_ccb->local_cid,
+             l2c_csm_get_event_name(event), psm_to_text(p_ccb->p_rcb->psm));
 
   switch (event) {
     case L2CEVT_LP_DISCONNECT_IND: /* Link was disconnected */
@@ -497,7 +575,13 @@ static void l2c_csm_term_w4_sec_comp(tL2C_CCB* p_ccb, tL2CEVT event, void* p_dat
         if (p_ccb->p_lcb->transport != BT_TRANSPORT_LE) {
           log::debug("Not LE connection, sending configure request");
           l2c_csm_send_connect_rsp(p_ccb);
+#if (L2CAP_CONFORMANCE_TESTING == TRUE)
+          // TODO: when b/374014194 is solved on PTS side, revert change adding this delay.
+          alarm_set_on_mloop(p_ccb->pts_config_delay_timer, 5000, l2c_ccb_pts_delay_config_timeout,
+                             p_ccb);
+#else
           l2c_csm_send_config_req(p_ccb);
+#endif
         } else {
           if (p_ccb->ecoc) {
             /* Handle Credit Based Connection */
@@ -617,8 +701,8 @@ static void l2c_csm_w4_l2cap_connect_rsp(tL2C_CCB* p_ccb, tL2CEVT event, void* p
   uint16_t local_cid = p_ccb->local_cid;
   tL2C_LCB* p_lcb = p_ccb->p_lcb;
 
-  log::debug("LCID: 0x{:04x}  st: W4_L2CAP_CON_RSP  evt: {}", p_ccb->local_cid,
-             l2c_csm_get_event_name(event));
+  log::debug("LCID: 0x{:04x}  st: W4_L2CAP_CON_RSP  evt: {} psm: {}", p_ccb->local_cid,
+             l2c_csm_get_event_name(event), psm_to_text(p_ccb->p_rcb->psm));
 
   switch (event) {
     case L2CEVT_LP_DISCONNECT_IND: /* Link was disconnected */
@@ -784,8 +868,8 @@ static void l2c_csm_w4_l2ca_connect_rsp(tL2C_CCB* p_ccb, tL2CEVT event, void* p_
   tL2CA_DISCONNECT_IND_CB* disconnect_ind = p_ccb->p_rcb->api.pL2CA_DisconnectInd_Cb;
   uint16_t local_cid = p_ccb->local_cid;
 
-  log::debug("LCID: 0x{:04x}  st: W4_L2CA_CON_RSP  evt: {}", p_ccb->local_cid,
-             l2c_csm_get_event_name(event));
+  log::debug("LCID: 0x{:04x}  st: W4_L2CA_CON_RSP  evt: {} psm: {}", p_ccb->local_cid,
+             l2c_csm_get_event_name(event), psm_to_text(p_ccb->p_rcb->psm));
 
   switch (event) {
     case L2CEVT_LP_DISCONNECT_IND: /* Link was disconnected */
@@ -941,8 +1025,8 @@ static void l2c_csm_config(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
   tL2C_CCB* temp_p_ccb;
   tL2CAP_LE_CFG_INFO* p_le_cfg = (tL2CAP_LE_CFG_INFO*)p_data;
 
-  log::debug("LCID: 0x{:04x}  st: CONFIG  evt: {}", p_ccb->local_cid,
-             l2c_csm_get_event_name(event));
+  log::debug("LCID: 0x{:04x}  st: CONFIG  evt: {} psm: {}", p_ccb->local_cid,
+             l2c_csm_get_event_name(event), psm_to_text(p_ccb->p_rcb->psm));
 
   switch (event) {
     case L2CEVT_LP_DISCONNECT_IND: /* Link was disconnected */
@@ -1233,8 +1317,8 @@ static void l2c_csm_open(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
   uint16_t credit = 0;
   tL2CAP_LE_CFG_INFO* p_le_cfg = (tL2CAP_LE_CFG_INFO*)p_data;
 
-  log::verbose("LCID: 0x{:04x}  st: OPEN  evt: {}", p_ccb->local_cid,
-               l2c_csm_get_event_name(event));
+  log::verbose("LCID: 0x{:04x}  st: OPEN  evt: {} psm: {}", p_ccb->local_cid,
+               l2c_csm_get_event_name(event), psm_to_text(p_ccb->p_rcb->psm));
 
   switch (event) {
     case L2CEVT_LP_DISCONNECT_IND: /* Link was disconnected */
@@ -1430,8 +1514,8 @@ static void l2c_csm_w4_l2cap_disconnect_rsp(tL2C_CCB* p_ccb, tL2CEVT event, void
   tL2CA_DISCONNECT_CFM_CB* disconnect_cfm = p_ccb->p_rcb->api.pL2CA_DisconnectCfm_Cb;
   uint16_t local_cid = p_ccb->local_cid;
 
-  log::debug("LCID: 0x{:04x}  st: W4_L2CAP_DISC_RSP  evt: {}", p_ccb->local_cid,
-             l2c_csm_get_event_name(event));
+  log::debug("LCID: 0x{:04x}  st: W4_L2CAP_DISC_RSP  evt: {} psm: {}", p_ccb->local_cid,
+             l2c_csm_get_event_name(event), psm_to_text(p_ccb->p_rcb->psm));
 
   switch (event) {
     case L2CEVT_L2CAP_DISCONNECT_RSP: /* Peer disconnect response */
@@ -1483,8 +1567,8 @@ static void l2c_csm_w4_l2ca_disconnect_rsp(tL2C_CCB* p_ccb, tL2CEVT event, void*
   tL2CA_DISCONNECT_IND_CB* disconnect_ind = p_ccb->p_rcb->api.pL2CA_DisconnectInd_Cb;
   uint16_t local_cid = p_ccb->local_cid;
 
-  log::debug("LCID: 0x{:04x}  st: W4_L2CA_DISC_RSP  evt: {}", p_ccb->local_cid,
-             l2c_csm_get_event_name(event));
+  log::debug("LCID: 0x{:04x}  st: W4_L2CA_DISC_RSP  evt: {} psm: {}", p_ccb->local_cid,
+             l2c_csm_get_event_name(event), psm_to_text(p_ccb->p_rcb->psm));
 
   switch (event) {
     case L2CEVT_LP_DISCONNECT_IND: /* Link was disconnected */

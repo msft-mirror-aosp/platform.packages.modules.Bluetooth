@@ -88,7 +88,7 @@ public:
           }
           // Fall through to the cases below to consume two more continuation
           // bytes.
-          FALLTHROUGH_INTENDED;
+          [[fallthrough]];
         case 0x0e:
           // Bit pattern 1110, so there are two additional bytes.
           utf8 = reinterpret_cast<const uint8_t*>(bytes++);
@@ -96,7 +96,7 @@ public:
             return false;
           }
           // Fall through to consume one more continuation byte.
-          FALLTHROUGH_INTENDED;
+          [[fallthrough]];
         case 0x0c:
         case 0x0d:
           // Bit pattern 110x, so there is one additional byte.

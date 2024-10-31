@@ -19,6 +19,7 @@
 
 #include <bluetooth/log.h>
 
+#include <algorithm>
 #include <list>
 #include <optional>
 #include <vector>

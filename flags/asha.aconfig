@@ -2,13 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "asha_asrc"
-    namespace: "bluetooth"
-    description: "Sync audio stream with the bluetooth link clock"
-    bug: "321057945"
-}
-
-flag {
     name: "asha_encrypted_l2c_coc"
     namespace: "bluetooth"
     description: "Request encryption in LE CoC channel creation"

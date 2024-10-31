@@ -53,10 +53,11 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Pattern;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 22
 public class BluetoothPbapVcardManager {
-    private static final String TAG = "BluetoothPbapVcardManager";
+    private static final String TAG = BluetoothPbapVcardManager.class.getSimpleName();
 
     private ContentResolver mResolver;
 
@@ -77,7 +78,7 @@ public class BluetoothPbapVcardManager {
 
     static final int CONTACTS_NAME_COLUMN_INDEX = 1;
 
-    static long sLastFetchedTimeStamp;
+    private long mLastFetchedTimeStamp;
 
     // call histories use dynamic handles, and handles should order by date; the
     // most recently one should be the first handle. In table "calls", _id and
@@ -87,10 +88,15 @@ public class BluetoothPbapVcardManager {
 
     private static final int NEED_SEND_BODY = -1;
 
+    private static final String SEPARATOR = System.getProperty("line.separator");
+    private static final Pattern SEPARATOR_PATTERN = Pattern.compile(SEPARATOR);
+    private static final Pattern PROPERTY_PATTERN = Pattern.compile("[;:]");
+    private static final Pattern ATTRIBUTE_PATTERN = Pattern.compile(":");
+
     public BluetoothPbapVcardManager(final Context context) {
         mContext = context;
         mResolver = mContext.getContentResolver();
-        sLastFetchedTimeStamp = System.currentTimeMillis();
+        mLastFetchedTimeStamp = System.currentTimeMillis();
     }
 
     /** Create an owner vcard from the configured profile */
@@ -528,9 +534,9 @@ public class BluetoothPbapVcardManager {
     byte[] getCallHistoryPrimaryFolderVersion(final int type) {
         final Uri myUri = CallLog.Calls.CONTENT_URI;
         String selection = BluetoothPbapObexServer.createSelectionPara(type);
-        selection = selection + " AND date >= " + sLastFetchedTimeStamp;
+        selection = selection + " AND date >= " + mLastFetchedTimeStamp;
 
-        Log.d(TAG, "LAST_FETCHED_TIME_STAMP is " + sLastFetchedTimeStamp);
+        Log.d(TAG, "LAST_FETCHED_TIME_STAMP is " + mLastFetchedTimeStamp);
         Cursor callCursor = null;
         long count = 0;
         long primaryVcMsb = 0;
@@ -555,7 +561,7 @@ public class BluetoothPbapVcardManager {
             }
         }
 
-        sLastFetchedTimeStamp = System.currentTimeMillis();
+        mLastFetchedTimeStamp = System.currentTimeMillis();
         Log.d(TAG, "getCallHistoryPrimaryFolderVersion count is " + count + " type is " + type);
         ByteBuffer pvc = ByteBuffer.allocate(16);
         pvc.putLong(primaryVcMsb);
@@ -1100,16 +1106,14 @@ public class BluetoothPbapVcardManager {
             byte[] filter,
             byte[] selector,
             String vcardselectorop,
-            boolean vCardSelct) {
+            boolean vCardSelect) {
         long timestamp = System.currentTimeMillis();
 
-        BluetoothPbapCallLogComposer composer = null;
         HandlerForStringBuffer buffer = null;
 
-        try {
+        try (BluetoothPbapCallLogComposer composer = new BluetoothPbapCallLogComposer(mContext)) {
             VCardFilter vcardfilter = new VCardFilter(ignorefilter ? null : filter);
             PropertySelector vcardselector = new PropertySelector(selector);
-            composer = new BluetoothPbapCallLogComposer(mContext);
             buffer = new HandlerForStringBuffer(op, ownerVCard);
             if (!composer.init(CallLog.Calls.CONTENT_URI, selection, null, CALLLOG_SORT_ORDER)
                     || !buffer.init()) {
@@ -1123,7 +1127,7 @@ public class BluetoothPbapVcardManager {
                     break;
                 }
                 String vcard = composer.createOneEntry(vcardType21);
-                if (vCardSelct) {
+                if (vCardSelect) {
                     if (!vcardselector.checkVCardSelector(vcard, vcardselectorop)) {
                         Log.e(TAG, "Checking vcard selector for call log");
                         ContentProfileErrorReportUtils.report(
@@ -1178,13 +1182,10 @@ public class BluetoothPbapVcardManager {
                     buffer.writeVCard(vcard);
                 }
             }
-            if (needSendBody != NEED_SEND_BODY && vCardSelct) {
+            if (needSendBody != NEED_SEND_BODY && vCardSelect) {
                 return pbSize;
             }
         } finally {
-            if (composer != null) {
-                composer.terminate();
-            }
             if (buffer != null) {
                 buffer.terminate();
             }
@@ -1199,12 +1200,11 @@ public class BluetoothPbapVcardManager {
     }
 
     public String stripTelephoneNumber(String vCard) {
-        String separator = System.getProperty("line.separator");
-        String[] attr = vCard.split(separator);
+        String[] attr = SEPARATOR_PATTERN.split(vCard);
         String stripedVCard = "";
         for (int i = 0; i < attr.length; i++) {
             if (attr[i].startsWith("TEL")) {
-                String[] vTagAndTel = attr[i].split(":", 2);
+                String[] vTagAndTel = ATTRIBUTE_PATTERN.split(attr[i], 2);
                 int telLenBefore = vTagAndTel[1].length();
                 // Remove '-', '(', ')' or ' ' from TEL number
                 vTagAndTel[1] =
@@ -1222,7 +1222,7 @@ public class BluetoothPbapVcardManager {
 
         for (int i = 0; i < attr.length; i++) {
             if (!attr[i].isEmpty()) {
-                stripedVCard = stripedVCard.concat(attr[i] + separator);
+                stripedVCard = stripedVCard.concat(attr[i] + SEPARATOR);
             }
         }
         Log.v(TAG, "vCard with stripped telephone no.: " + stripedVCard);
@@ -1258,7 +1258,6 @@ public class BluetoothPbapVcardManager {
             }
         }
 
-        private static final String SEPARATOR = System.getProperty("line.separator");
         private final byte[] mFilter;
 
         // This function returns true if the attributes needs to be included in the filtered vcard.
@@ -1289,7 +1288,7 @@ public class BluetoothPbapVcardManager {
             if (mFilter == null) {
                 return vCard;
             }
-            String[] lines = vCard.split(SEPARATOR);
+            String[] lines = SEPARATOR_PATTERN.split(vCard);
             StringBuilder filteredVCard = new StringBuilder();
             boolean filteredIn = false;
 
@@ -1297,7 +1296,7 @@ public class BluetoothPbapVcardManager {
                 // Check whether the current property is changing (ignoring multi-line properties)
                 // and determine if the current property is filtered in.
                 if (!Character.isWhitespace(line.charAt(0)) && !line.startsWith("=")) {
-                    String currentProp = line.split("[;:]")[0];
+                    String currentProp = PROPERTY_PATTERN.split(line, 2)[0];
                     filteredIn = true;
 
                     for (FilterBit bit : FilterBit.values()) {
@@ -1357,7 +1356,6 @@ public class BluetoothPbapVcardManager {
             }
         }
 
-        private static final String SEPARATOR = System.getProperty("line.separator");
         private final byte[] mSelector;
 
         PropertySelector(byte[] selector) {
@@ -1468,7 +1466,7 @@ public class BluetoothPbapVcardManager {
 
     @VisibleForTesting
     static String getNameFromVCard(String vCard) {
-        String[] lines = vCard.split(PropertySelector.SEPARATOR);
+        String[] lines = SEPARATOR_PATTERN.split(vCard);
         String name = "";
         for (String line : lines) {
             if (!Character.isWhitespace(line.charAt(0)) && !line.startsWith("=")) {
@@ -1482,10 +1480,10 @@ public class BluetoothPbapVcardManager {
     }
 
     private static boolean doesVCardHaveProperty(String vCard, String property) {
-        String[] lines = vCard.split(PropertySelector.SEPARATOR);
+        String[] lines = SEPARATOR_PATTERN.split(vCard);
         for (String line : lines) {
             if (!Character.isWhitespace(line.charAt(0)) && !line.startsWith("=")) {
-                String currentProperty = line.split("[;:]")[0];
+                String currentProperty = PROPERTY_PATTERN.split(line)[0];
                 if (property.equals(currentProperty)) {
                     return true;
                 }

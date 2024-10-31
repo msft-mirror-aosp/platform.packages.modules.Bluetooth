@@ -542,6 +542,6 @@ void bta_ag_do_disc(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_free_db(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
+void bta_ag_free_db(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /*data*/) {
   osi_free_and_reset((void**)&p_scb->p_disc_db);
 }

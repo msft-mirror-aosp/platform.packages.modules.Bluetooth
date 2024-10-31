@@ -19,6 +19,7 @@
 #include <base/functional/callback.h>
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <hardware/bt_gatt_types.h>
 #include <hardware/bt_has.h>
 
@@ -38,7 +39,6 @@
 #include "gatt_api.h"
 #include "has_types.h"
 #include "internal_include/bt_trace.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 #include "stack/include/bt_types.h"
 
@@ -153,6 +153,22 @@ public:
       return;
     }
 
+    if (com::android::bluetooth::flags::hap_connect_only_requested_device()) {
+      auto device =
+              std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(address));
+      if (device == devices_.end()) {
+        devices_.emplace_back(address, true);
+        BTA_GATTC_Open(gatt_if_, address, BTM_BLE_DIRECT_CONNECTION, false);
+
+      } else {
+        device->is_connecting_actively = true;
+        if (!device->IsConnected()) {
+          BTA_GATTC_Open(gatt_if_, address, BTM_BLE_DIRECT_CONNECTION, false);
+        }
+      }
+      return;
+    }
+
     std::vector<RawAddress> addresses = {address};
     auto csis_api = CsisClient::Get();
     if (csis_api != nullptr) {
@@ -201,6 +217,33 @@ public:
 
   void Disconnect(const RawAddress& address) override {
     log::debug("{}", address);
+
+    if (com::android::bluetooth::flags::hap_connect_only_requested_device()) {
+      auto device =
+              std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(address));
+      if (device == devices_.end()) {
+        log::warn("Device not connected to profile{}", address);
+        return;
+      }
+
+      auto conn_id = device->conn_id;
+      auto is_connecting_actively = device->is_connecting_actively;
+
+      DoDisconnectCleanUp(*device);
+      devices_.erase(device);
+
+      if (conn_id != GATT_INVALID_CONN_ID) {
+        BTA_GATTC_Close(conn_id);
+        callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
+      } else {
+        /* Removes active connection. */
+        if (is_connecting_actively) {
+          BTA_GATTC_CancelOpen(gatt_if_, address, true);
+          callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
+        }
+      }
+      return;
+    }
 
     std::vector<RawAddress> addresses = {address};
     auto csis_api = CsisClient::Get();
@@ -285,7 +328,7 @@ public:
 
   void EnqueueCtpOp(HasCtpOp op) { pending_operations_.push_back(op); }
 
-  void OnHasActivePresetCycleStatus(uint16_t conn_id, tGATT_STATUS status, void* user_data) {
+  void OnHasActivePresetCycleStatus(tCONN_ID conn_id, tGATT_STATUS status, void* user_data) {
     log::debug("status: {}", status);
 
     auto device = GetDevice(conn_id);
@@ -321,7 +364,7 @@ public:
     }
   }
 
-  void OnHasPresetNameSetStatus(uint16_t conn_id, tGATT_STATUS status, void* user_data) {
+  void OnHasPresetNameSetStatus(tCONN_ID conn_id, tGATT_STATUS status, void* user_data) {
     auto device = GetDevice(conn_id);
     if (!device) {
       log::warn("Device not connected to profile, conn_id={}", conn_id);
@@ -355,7 +398,7 @@ public:
     }
   }
 
-  void OnHasPresetNameGetStatus(uint16_t conn_id, tGATT_STATUS status, void* user_data) {
+  void OnHasPresetNameGetStatus(tCONN_ID conn_id, tGATT_STATUS status, void* user_data) {
     auto device = GetDevice(conn_id);
     if (!device) {
       log::warn("Device not connected to profile, conn_id={}", conn_id);
@@ -390,7 +433,7 @@ public:
     }
   }
 
-  void OnHasPresetIndexOperation(uint16_t conn_id, tGATT_STATUS status, void* user_data) {
+  void OnHasPresetIndexOperation(tCONN_ID conn_id, tGATT_STATUS status, void* user_data) {
     log::debug("");
 
     auto device = GetDevice(conn_id);
@@ -471,8 +514,8 @@ public:
     EnqueueCtpOp(operation);
     BtaGattQueue::WriteCharacteristic(
             device->conn_id, device->cp_handle, operation.ToCharacteristicValue(), GATT_WRITE,
-            [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* user_data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t /*handle*/, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* user_data) {
               if (instance) {
                 instance->OnHasPresetNameGetStatus(conn_id, status, user_data);
               }
@@ -571,8 +614,8 @@ public:
     EnqueueCtpOp(operation);
     BtaGattQueue::WriteCharacteristic(
             device.conn_id, device.cp_handle, operation.ToCharacteristicValue(), GATT_WRITE,
-            [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* user_data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t /*handle*/, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* user_data) {
               if (instance) {
                 instance->OnHasPresetIndexOperation(conn_id, status, user_data);
               }
@@ -731,8 +774,8 @@ public:
     EnqueueCtpOp(operation);
     BtaGattQueue::WriteCharacteristic(
             device.conn_id, device.cp_handle, operation.ToCharacteristicValue(), GATT_WRITE,
-            [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* user_data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t /*handle*/, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* user_data) {
               if (instance) {
                 instance->OnHasActivePresetCycleStatus(conn_id, status, user_data);
               }
@@ -791,8 +834,8 @@ public:
     EnqueueCtpOp(operation);
     BtaGattQueue::WriteCharacteristic(
             device.conn_id, device.cp_handle, operation.ToCharacteristicValue(), GATT_WRITE,
-            [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* user_data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t /*handle*/, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* user_data) {
               if (instance) {
                 instance->OnHasPresetNameSetStatus(conn_id, status, user_data);
               }
@@ -981,7 +1024,7 @@ public:
     dprintf(fd, "%s", stream.str().c_str());
   }
 
-  void OnGroupOpCoordinatorTimeout(void* p) {
+  void OnGroupOpCoordinatorTimeout(void* /*p*/) {
     log::error(
             "Coordinated operation timeout:  not all the devices notified their "
             "state change on time.");
@@ -1066,7 +1109,7 @@ private:
     }
   }
 
-  void OnGattWriteCcc(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, void* user_data) {
+  void OnGattWriteCcc(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, void* user_data) {
     log::debug("handle=0x{:x}", handle);
 
     auto device = GetDevice(conn_id);
@@ -1100,7 +1143,7 @@ private:
     }
   }
 
-  void OnHasNotification(uint16_t conn_id, uint16_t handle, uint16_t len, const uint8_t* value) {
+  void OnHasNotification(tCONN_ID conn_id, uint16_t handle, uint16_t len, const uint8_t* value) {
     auto device = GetDevice(conn_id);
     if (!device) {
       log::warn("Skipping unknown device, conn_id=0x{:x}", conn_id);
@@ -1119,14 +1162,14 @@ private:
   }
 
   /* Gets the device from variant, possibly searching by conn_id */
-  HasDevice* GetDevice(std::variant<uint16_t, HasDevice*> conn_id_device_variant) {
+  HasDevice* GetDevice(std::variant<tCONN_ID, HasDevice*> conn_id_device_variant) {
     HasDevice* device = nullptr;
 
     if (std::holds_alternative<HasDevice*>(conn_id_device_variant)) {
       device = std::get<HasDevice*>(conn_id_device_variant);
     } else {
       auto it = std::find_if(devices_.begin(), devices_.end(),
-                             HasDevice::MatchConnId(std::get<uint16_t>(conn_id_device_variant)));
+                             HasDevice::MatchConnId(std::get<tCONN_ID>(conn_id_device_variant)));
       if (it != devices_.end()) {
         device = &(*it);
       }
@@ -1135,9 +1178,9 @@ private:
     return device;
   }
 
-  void OnHasFeaturesValue(std::variant<uint16_t, HasDevice*> conn_id_device_variant,
+  void OnHasFeaturesValue(std::variant<tCONN_ID, HasDevice*> conn_id_device_variant,
                           tGATT_STATUS status, uint16_t handle, uint16_t len, const uint8_t* value,
-                          void* user_data = nullptr) {
+                          void* /*user_data*/ = nullptr) {
     log::debug("");
 
     auto device = GetDevice(conn_id_device_variant);
@@ -1394,6 +1437,12 @@ private:
         break;
       }
 
+      if (!device.has_presets.contains(nt.index)) {
+        log::error("Unknown preset. Notification is discarded: {}", nt);
+        device.has_journal_.Append(HasJournalRecord(nt));
+        device.ctp_notifications_.pop_front();
+        continue;
+      }
       auto preset = device.has_presets.extract(nt.index).value();
       auto new_props = preset.GetProperties();
 
@@ -1531,9 +1580,9 @@ private:
     }
   }
 
-  void OnHasActivePresetValue(std::variant<uint16_t, HasDevice*> conn_id_device_variant,
+  void OnHasActivePresetValue(std::variant<tCONN_ID, HasDevice*> conn_id_device_variant,
                               tGATT_STATUS status, uint16_t handle, uint16_t len,
-                              const uint8_t* value, void* user_data = nullptr) {
+                              const uint8_t* value, void* /*user_data*/ = nullptr) {
     log::debug("");
 
     auto device = GetDevice(conn_id_device_variant);
@@ -1560,7 +1609,15 @@ private:
 
     /* Get the active preset value */
     auto* pp = value;
-    STREAM_TO_UINT8(device->currently_active_preset, pp);
+    uint8_t active_preset_index;
+    STREAM_TO_UINT8(active_preset_index, pp);
+    if (active_preset_index != 0 && device->isGattServiceValid() &&
+        !device->has_presets.contains(active_preset_index)) {
+      log::error("Unknown preset {}. Active preset change is discarded", active_preset_index);
+      device->has_journal_.Append(HasJournalRecord(active_preset_index, false));
+      return;
+    }
+    device->currently_active_preset = active_preset_index;
 
     if (device->isGattServiceValid()) {
       btif_storage_set_leaudio_has_active_preset(device->addr, device->currently_active_preset);
@@ -1573,7 +1630,9 @@ private:
     MarkDeviceValidIfInInitialDiscovery(*device);
 
     if (device->isGattServiceValid()) {
-      if (!pending_group_operation_timeouts_.empty()) {
+      if (pending_group_operation_timeouts_.empty()) {
+        callbacks_->OnActivePresetSelected(device->addr, device->currently_active_preset);
+      } else {
         for (auto it = pending_group_operation_timeouts_.rbegin();
              it != pending_group_operation_timeouts_.rend(); ++it) {
           auto& group_op_coordinator = it->second;
@@ -1609,9 +1668,6 @@ private:
             break;
           }
         }
-
-      } else {
-        callbacks_->OnActivePresetSelected(device->addr, device->currently_active_preset);
       }
     }
   }
@@ -1753,7 +1809,8 @@ private:
     return true;
   }
 
-  bool StartInitialHasDetailsReadAndValidation(const gatt::Service& service, HasDevice* device) {
+  bool StartInitialHasDetailsReadAndValidation(const gatt::Service& /*service*/,
+                                               HasDevice* device) {
     // Validate service structure
     if (device->features_handle == GAP_INVALID_HANDLE) {
       /* Missing key characteristic */
@@ -1776,7 +1833,7 @@ private:
     /* Read the initial features */
     BtaGattQueue::ReadCharacteristic(
             device->conn_id, device->features_handle,
-            [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len, uint8_t* value,
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len, uint8_t* value,
                void* user_data) {
               if (instance) {
                 instance->OnHasFeaturesValue(conn_id, status, handle, len, value, user_data);
@@ -1811,7 +1868,7 @@ private:
       /* Read the current active preset index */
       BtaGattQueue::ReadCharacteristic(
               device->conn_id, device->active_preset_handle,
-              [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+              [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                  uint8_t* value, void* user_data) {
                 if (instance) {
                   instance->OnHasActivePresetValue(conn_id, status, handle, len, value, user_data);
@@ -2094,7 +2151,7 @@ private:
     }
   }
 
-  static uint16_t FindCccHandle(uint16_t conn_id, uint16_t char_handle) {
+  static uint16_t FindCccHandle(tCONN_ID conn_id, uint16_t char_handle) {
     const gatt::Characteristic* p_char = BTA_GATTC_GetCharacteristic(conn_id, char_handle);
     if (!p_char) {
       log::warn("No such characteristic: {}", char_handle);
@@ -2110,7 +2167,7 @@ private:
     return GAP_INVALID_HANDLE;
   }
 
-  void SubscribeForNotifications(uint16_t conn_id, const RawAddress& address, uint16_t value_handle,
+  void SubscribeForNotifications(tCONN_ID conn_id, const RawAddress& address, uint16_t value_handle,
                                  uint16_t ccc_handle,
                                  uint16_t ccc_val = GATT_CHAR_CLIENT_CONFIG_NOTIFICATION) {
     if (value_handle != GAP_INVALID_HANDLE) {
@@ -2129,8 +2186,8 @@ private:
     UINT16_TO_STREAM(value_ptr, ccc_val);
     BtaGattQueue::WriteDescriptor(
             conn_id, ccc_handle, std::move(value), GATT_WRITE,
-            [](uint16_t conn_id, tGATT_STATUS status, uint16_t value_handle, uint16_t len,
-               const uint8_t* value, void* data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t value_handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* data) {
               if (instance) {
                 instance->OnGattWriteCcc(conn_id, status, value_handle, data);
               }

@@ -314,6 +314,12 @@ void btif_config_remove_device(const std::string& section) {
   bluetooth::shim::BtifConfigInterface::RemoveSection(section);
 }
 
+void btif_config_remove_device_with_key(const std::string& key) {
+  log::assert_that(bluetooth::shim::is_gd_stack_started_up(),
+                   "assert failed: bluetooth::shim::is_gd_stack_started_up()");
+  bluetooth::shim::BtifConfigInterface::RemoveSectionWithProperty(key);
+}
+
 bool btif_config_clear(void) {
   log::assert_that(bluetooth::shim::is_gd_stack_started_up(),
                    "assert failed: bluetooth::shim::is_gd_stack_started_up()");
