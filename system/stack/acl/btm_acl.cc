@@ -73,6 +73,7 @@
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hcimsgs.h"
+#include "stack/include/inq_hci_link_interface.h"
 #include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/main_thread.h"
@@ -87,9 +88,6 @@
 #ifndef PROPERTY_AUTO_FLUSH_TIMEOUT
 #define PROPERTY_AUTO_FLUSH_TIMEOUT "bluetooth.core.classic.auto_flush_timeout"
 #endif
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 using bluetooth::legacy::hci::GetInterface;
@@ -212,27 +210,6 @@ void StackAclBtmAcl::hci_start_role_switch_to_central(tACL_CONN& p_acl) {
   p_acl.rs_disc_pending = BTM_SEC_RS_PENDING;
 }
 
-void hci_btm_set_link_supervision_timeout(tACL_CONN& link, uint16_t timeout) {
-  if (link.link_role != HCI_ROLE_CENTRAL) {
-    /* Only send if current role is Central; 2.0 spec requires this */
-    log::warn("Can only set link supervision timeout if central role:{}", RoleText(link.link_role));
-    return;
-  }
-
-  if (!bluetooth::shim::GetController()->IsSupported(
-              bluetooth::hci::OpCode::WRITE_LINK_SUPERVISION_TIMEOUT)) {
-    log::warn(
-            "UNSUPPORTED by controller write link supervision timeout:{:.2f}ms "
-            "bd_addr:{}",
-            supervision_timeout_to_seconds(timeout), link.RemoteAddress());
-    return;
-  }
-  log::debug("Setting link supervision timeout:{:.2f}s peer:{}", double(timeout) * 0.01,
-             link.RemoteAddress());
-  link.link_super_tout = timeout;
-  btsnd_hcic_write_link_super_tout(link.Handle(), timeout);
-}
-
 /* 3 seconds timeout waiting for responses */
 #define BTM_DEV_REPLY_TIMEOUT_MS (3 * 1000)
 
@@ -302,10 +279,6 @@ tACL_CONN* StackAclBtmAcl::btm_bda_to_acl(const RawAddress& bda, tBT_TRANSPORT t
   return nullptr;
 }
 
-tACL_CONN* acl_get_connection_from_address(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
-  return internal_.btm_bda_to_acl(bd_addr, transport);
-}
-
 void StackAclBtmAcl::btm_acl_consolidate(const RawAddress& identity_addr, const RawAddress& rpa) {
   tACL_CONN* p_acl = &btm_cb.acl_cb_.acl_db[0];
   for (uint8_t index = 0; index < MAX_L2CAP_LINKS; index++, p_acl++) {
@@ -356,7 +329,7 @@ tACL_CONN* StackAclBtmAcl::acl_get_connection_from_handle(uint16_t hci_handle) {
   return &btm_cb.acl_cb_.acl_db[index];
 }
 
-tACL_CONN* acl_get_connection_from_handle(uint16_t handle) {
+static tACL_CONN* acl_get_connection_from_handle(uint16_t handle) {
   return internal_.acl_get_connection_from_handle(handle);
 }
 
@@ -803,8 +776,9 @@ static void maybe_chain_more_commands_after_read_remote_version_complete(uint8_t
   btm_iot_save_remote_versions(p_acl_cb);
 }
 
-void btm_process_remote_version_complete(uint8_t status, uint16_t handle, uint8_t lmp_version,
-                                         uint16_t manufacturer, uint16_t lmp_subversion) {
+static void btm_process_remote_version_complete(uint8_t status, uint16_t handle,
+                                                uint8_t lmp_version, uint16_t manufacturer,
+                                                uint16_t lmp_subversion) {
   tACL_CONN* p_acl_cb = internal_.acl_get_connection_from_handle(handle);
   if (p_acl_cb == nullptr) {
     log::warn("Received remote version complete for unknown acl");
@@ -2376,7 +2350,7 @@ void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason, std::string
 // 7.1.6 Disconnect command
 // Only a subset of reasons are valid and will be accepted
 // by the controller
-bool is_disconnect_reason_valid(const tHCI_REASON& reason) {
+static bool is_disconnect_reason_valid(const tHCI_REASON& reason) {
   switch (reason) {
     case HCI_ERR_AUTH_FAILURE:
     case HCI_ERR_PEER_USER:

@@ -32,6 +32,7 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.Host;
 import android.bluetooth.PandoraDevice;
+import android.bluetooth.VirtualOnly;
 import android.bluetooth.test_utils.EnableBluetoothRule;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -204,6 +205,7 @@ public class LeAudioServiceDiscoveryTest {
      * Classic services
      */
     @Test
+    @VirtualOnly
     public void testServiceDiscoveryWithRandomAddr() {
 
         registerIntentActions(

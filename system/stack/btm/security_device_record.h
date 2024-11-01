@@ -338,8 +338,8 @@ public:
             "sec_prop:%s",
             ADDRESS_TO_LOGGABLE_CSTR(bd_addr), DeviceTypeText(device_type).c_str(),
             dev_class_text(dev_class).c_str(), remote_version_info.ToString().c_str(), sm4,
-            (remote_supports_secure_connections) ? 'T' : 'F', PRIVATE_NAME(sec_bd_name),
-            sec_rec.ToString().c_str());
+            (remote_supports_secure_connections) ? 'T' : 'F',
+            PRIVATE_NAME(reinterpret_cast<char const*>(sec_bd_name)), sec_rec.ToString().c_str());
   }
 
 public:
