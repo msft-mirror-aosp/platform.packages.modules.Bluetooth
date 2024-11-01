@@ -56,3 +56,4 @@ uint16_t AVCT_RemoveConn(uint8_t /* handle */) {
 }
 void AVCT_Deregister(void) { inc_func_call_count(__func__); }
 void AVCT_Register() { inc_func_call_count(__func__); }
+void AVCT_Dumpsys(int /* fd */) { inc_func_call_count(__func__); }

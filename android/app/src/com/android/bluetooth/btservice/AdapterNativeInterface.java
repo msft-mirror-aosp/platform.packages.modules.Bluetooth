@@ -16,9 +16,11 @@
 
 package com.android.bluetooth.btservice;
 
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.OobData;
 import android.os.ParcelUuid;
 
+import com.android.bluetooth.Utils;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -210,8 +212,8 @@ public class AdapterNativeInterface {
         return allowLowLatencyAudioNative(allowed, address);
     }
 
-    void metadataChanged(byte[] address, int key, byte[] value) {
-        metadataChangedNative(address, key, value);
+    void metadataChanged(BluetoothDevice device, int key, byte[] value) {
+        metadataChangedNative(Utils.getBytesFromAddress(device.getAddress()), key, value);
     }
 
     boolean interopMatchAddr(String featureName, String address) {

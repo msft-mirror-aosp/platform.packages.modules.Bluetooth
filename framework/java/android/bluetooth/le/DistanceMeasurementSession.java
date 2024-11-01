@@ -177,7 +177,7 @@ public final class DistanceMeasurementSession {
          * @hide
          */
         @SystemApi
-        void onStartFail(@NonNull @Reason int reason);
+        void onStartFail(@Reason int reason);
 
         /**
          * Invoked when a distance measurement session stopped.
@@ -186,7 +186,7 @@ public final class DistanceMeasurementSession {
          * @hide
          */
         @SystemApi
-        void onStopped(@NonNull DistanceMeasurementSession session, @NonNull @Reason int reason);
+        void onStopped(@NonNull DistanceMeasurementSession session, @Reason int reason);
 
         /**
          * Invoked when get distance measurement result.

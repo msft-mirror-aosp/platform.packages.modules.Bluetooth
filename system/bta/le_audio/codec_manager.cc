@@ -280,23 +280,47 @@ public:
     return true;
   }
 
-  AudioSetConfigurations GetSupportedCodecConfigurations(
-          const CodecManager::UnicastConfigurationRequirements& requirements) const {
+  std::unique_ptr<AudioSetConfiguration> GetLocalCodecConfigurations(
+          const CodecManager::UnicastConfigurationRequirements& requirements,
+          CodecManager::UnicastConfigurationProvider provider) const {
+    AudioSetConfigurations configs;
     if (GetCodecLocation() == le_audio::types::CodecLocation::ADSP) {
       log::verbose("Get offload config for the context type: {}",
                    (int)requirements.audio_context_type);
-
       // TODO: Need to have a mechanism to switch to software session if offload
       // doesn't support.
-      return context_type_offload_config_map_.count(requirements.audio_context_type)
-                     ? context_type_offload_config_map_.at(requirements.audio_context_type)
-                     : AudioSetConfigurations();
+      configs = context_type_offload_config_map_.count(requirements.audio_context_type)
+                        ? context_type_offload_config_map_.at(requirements.audio_context_type)
+                        : AudioSetConfigurations();
+    } else {
+      log::verbose("Get software config for the context type: {}",
+                   (int)requirements.audio_context_type);
+      configs = *AudioSetConfigurationProvider::Get()->GetConfigurations(
+              requirements.audio_context_type);
     }
 
-    log::verbose("Get software config for the context type: {}",
-                 (int)requirements.audio_context_type);
-    return *AudioSetConfigurationProvider::Get()->GetConfigurations(
-            requirements.audio_context_type);
+    if (configs.empty()) {
+      log::error("No valid configuration matching the requirements: {}", requirements);
+      PrintDebugState();
+      return nullptr;
+    }
+
+    // Remove the dual bidir SWB config if not supported
+    if (!IsDualBiDirSwbSupported()) {
+      configs.erase(std::remove_if(configs.begin(), configs.end(),
+                                   [](auto const& el) {
+                                     if (el->confs.source.empty()) {
+                                       return false;
+                                     }
+                                     return AudioSetConfigurationProvider::Get()
+                                             ->CheckConfigurationIsDualBiDirSwb(*el);
+                                   }),
+                    configs.end());
+    }
+
+    // Note: For the software configuration provider, we use the provider matcher
+    //       logic to match the proper configuration with group capabilities.
+    return provider(requirements, &configs);
   }
 
   void PrintDebugState() const {
@@ -317,6 +341,10 @@ public:
   }
 
   bool IsUsingCodecExtensibility() const {
+    if (GetCodecLocation() == types::CodecLocation::HOST) {
+      return false;
+    }
+
     auto codec_ext_status =
             osi_property_get_bool("bluetooth.core.le_audio.codec_extension_aidl.enabled", false) &&
             com::android::bluetooth::flags::leaudio_multicodec_aidl_support();
@@ -333,37 +361,9 @@ public:
       if (hal_config) {
         return std::make_unique<AudioSetConfiguration>(*hal_config);
       }
-      log::debug(
-              "No configuration received from AIDL, fall back to static "
-              "configuration.");
+      log::debug("No configuration received from AIDL, fall back to static configuration.");
     }
-
-    auto configs = GetSupportedCodecConfigurations(requirements);
-    if (configs.empty()) {
-      log::error("No valid configuration matching the requirements: {}", requirements);
-      PrintDebugState();
-      return nullptr;
-    }
-
-    // Remove the dual bidir SWB config if not supported
-    if (!IsDualBiDirSwbSupported()) {
-      configs.erase(std::remove_if(configs.begin(), configs.end(),
-                                   [](auto const& el) {
-                                     if (el->confs.source.empty()) {
-                                       return false;
-                                     }
-                                     return AudioSetConfigurationProvider::Get()
-                                             ->CheckConfigurationIsDualBiDirSwb(*el);
-                                   }),
-                    configs.end());
-    }
-
-    // Note: For the only supported right now legacy software configuration
-    //       provider, we use the device group logic to match the proper
-    //       configuration with group capabilities. Note that this path only
-    //       supports the LC3 codec format. For the multicodec support we should
-    //       rely on the configuration matcher behind the AIDL interface.
-    return provider(requirements, &configs);
+    return GetLocalCodecConfigurations(requirements, provider);
   }
 
   bool CheckCodecConfigIsBiDirSwb(const AudioSetConfiguration& config) {

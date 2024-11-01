@@ -135,7 +135,7 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
     private BluetoothShareContentObserver mObserver;
 
     /** Class to handle Notification Manager updates */
-    private BluetoothOppNotification mNotifier;
+    @VisibleForTesting BluetoothOppNotification mNotifier;
 
     private boolean mPendingUpdate;
 

@@ -180,3 +180,23 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "trigger_sec_proc_on_inc_access_req"
+    namespace: "bluetooth"
+    description: "Trigger security procedure as acceptor as needed"
+    bug: "376278485"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "smp_state_machine_stuck_after_disconnection_fix"
+    namespace: "bluetooth"
+    description: "Fix state machine stuck after pairing device disconnection"
+    bug: "376306092"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

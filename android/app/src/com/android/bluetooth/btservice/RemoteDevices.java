@@ -42,8 +42,6 @@ import android.os.ParcelUuid;
 import android.os.SystemProperties;
 import android.util.Log;
 
-import androidx.annotation.NonNull;
-
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.R;
 import com.android.bluetooth.Utils;
@@ -1321,7 +1319,6 @@ public class RemoteDevices {
         mAdapterService.aclStateChangeBroadcastCallback(connectionChangeConsumer);
     }
 
-    @NonNull
     private void sendPairingCancelIntent(BluetoothDevice device) {
         Intent intent = new Intent(BluetoothDevice.ACTION_PAIRING_CANCEL);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);

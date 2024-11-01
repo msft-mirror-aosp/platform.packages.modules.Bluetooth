@@ -6287,24 +6287,30 @@ public class AdapterService extends Service {
 
     /** Update metadata change to registered listeners */
     @VisibleForTesting
-    public void metadataChanged(String address, int key, byte[] value) {
-        BluetoothDevice device = mRemoteDevices.getDevice(Utils.getBytesFromAddress(address));
+    public void onMetadataChanged(BluetoothDevice device, int key, byte[] value) {
+        mHandler.post(() -> onMetadataChangedInternal(device, key, value));
+    }
+
+    private void onMetadataChangedInternal(BluetoothDevice device, int key, byte[] value) {
+        String info = "onMetadataChangedInternal(" + device + ", " + key + ")";
 
         // pass just interesting metadata to native, to reduce spam
         if (key == BluetoothDevice.METADATA_LE_AUDIO) {
-            mNativeInterface.metadataChanged(Utils.getBytesFromAddress(address), key, value);
+            mNativeInterface.metadataChanged(device, key, value);
         }
 
         RemoteCallbackList<IBluetoothMetadataListener> list = mMetadataListeners.get(device);
         if (list == null) {
+            Log.d(TAG, info + ": No registered listener");
             return;
         }
         int n = list.beginBroadcast();
+        Log.d(TAG, info + ": Broadcast to " + n + " receivers");
         for (int i = 0; i < n; i++) {
             try {
                 list.getBroadcastItem(i).onMetadataChanged(device, key, value);
             } catch (RemoteException e) {
-                Log.d(TAG, "metadataChanged() - Callback #" + i + " failed (" + e + ")");
+                Log.d(TAG, info + ": Callback #" + i + " failed (" + e + ")");
             }
         }
         list.finishBroadcast();
