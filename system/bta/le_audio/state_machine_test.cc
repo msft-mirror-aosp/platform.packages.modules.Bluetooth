@@ -4920,6 +4920,54 @@ TEST_F(StateMachineTest, testStateTransitionTimeoutAndDisconnectWhenEnabling) {
   }
 }
 
+TEST_F(StateMachineTest, testInjectReleasingStateWhenEnabling) {
+  const auto context_type = kContextTypeConversational;
+  const int leaudio_group_id = 4;
+  channel_count_ = kLeAudioCodecChannelCountSingleChannel;
+
+  // Prepare fake connected device group
+  auto* group = PrepareSingleTestDeviceGroup(leaudio_group_id, context_type);
+  PrepareConfigureCodecHandler(group, 2);
+  PrepareConfigureQosHandler(group, 2);
+  PrepareEnableHandler(group, 0, true, false);
+
+  InjectInitialConfiguredNotification(group);
+
+  EXPECT_CALL(*mock_iso_manager_, CreateCig(_, _)).Times(1);
+  EXPECT_CALL(*mock_iso_manager_, EstablishCis(_)).Times(1);
+  EXPECT_CALL(*mock_iso_manager_, SetupIsoDataPath(_, _)).Times(0);
+  EXPECT_CALL(*mock_iso_manager_, RemoveIsoDataPath(_, _)).Times(0);
+  EXPECT_CALL(*mock_iso_manager_, DisconnectCis(_, _)).Times(0);
+  EXPECT_CALL(*mock_iso_manager_, RemoveCig(_, _)).Times(0);
+
+  // Stub Establish Cis and Remove CIG
+  ON_CALL(*mock_iso_manager_, EstablishCis).WillByDefault(Return());
+  ON_CALL(*mock_iso_manager_, RemoveCig).WillByDefault(Return());
+
+  group->PrintDebugState();
+
+  // Start the configuration and stream Media content
+  ASSERT_TRUE(LeAudioGroupStateMachine::Get()->StartStream(
+          group, context_type,
+          {.sink = types::AudioContexts(context_type),
+           .source = types::AudioContexts(context_type)}));
+
+  testing::Mock::VerifyAndClearExpectations(mock_iso_manager_);
+
+  group->PrintDebugState();
+
+  log::info("Inject Release of all ASEs");
+
+  EXPECT_CALL(*mock_iso_manager_, DisconnectCis(_, _)).Times(1);
+
+  // Stub DisconnectCis to trigger the issue.
+  ON_CALL(*mock_iso_manager_, DisconnectCis).WillByDefault(Return());
+
+  InjectReleaseAndIdleStateForAGroup(group, true, false);
+
+  testing::Mock::VerifyAndClearExpectations(mock_iso_manager_);
+}
+
 MATCHER_P(dataPathIsEq, expected, "") { return arg.data_path_id == expected; }
 
 TEST_F(StateMachineTest, testConfigureDataPathForHost) {

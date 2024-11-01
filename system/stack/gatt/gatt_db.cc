@@ -31,9 +31,6 @@
 #include "stack/include/l2cap_types.h"
 #include "types/bluetooth/uuid.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using bluetooth::Uuid;
 using namespace bluetooth;
 
@@ -442,7 +439,7 @@ uint16_t gatts_add_char_descr(tGATT_SVC_DB& db, tGATT_PERM perm, const Uuid& des
 /******************************************************************************/
 /* Service Attribute Database Query Utility Functions */
 /******************************************************************************/
-tGATT_ATTR* find_attr_by_handle(tGATT_SVC_DB* p_db, uint16_t handle) {
+static tGATT_ATTR* find_attr_by_handle(tGATT_SVC_DB* p_db, uint16_t handle) {
   if (!p_db) {
     return nullptr;
   }

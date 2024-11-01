@@ -1272,6 +1272,10 @@ void gatt_init(void);
 // Frees resources used by the GATT profile.
 void gatt_free(void);
 
+void gatt_consolidate(const RawAddress& identity_addr, const RawAddress& rpa);
+void gatt_notify_conn_update(const RawAddress& remote, uint16_t interval, uint16_t latency,
+                             uint16_t timeout, tHCI_STATUS status);
+
 // Link encryption complete notification for all encryption process
 // initiated outside GATT.
 void gatt_notify_enc_cmpl(const RawAddress& bd_addr);
@@ -1282,6 +1286,8 @@ void gatt_reset_bgdev_list(bool after_reset);
 
 // Initialize GATTS list of bonded device service change updates.
 void gatt_load_bonded(void);
+
+void gatt_tcb_dump(int fd);
 
 namespace fmt {
 template <>

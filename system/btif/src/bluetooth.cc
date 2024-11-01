@@ -106,6 +106,7 @@
 #include "stack/include/avdt_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/gatt_api.h"
 #include "stack/include/hfp_lc3_decoder.h"
 #include "stack/include/hfp_lc3_encoder.h"
 #include "stack/include/hfp_msbc_decoder.h"
@@ -188,7 +189,6 @@ extern VolumeControlInterface* btif_volume_control_get_interface();
 
 bt_status_t btif_av_sink_execute_service(bool b_enable);
 
-extern void gatt_tcb_dump(int fd);
 extern void bta_gatt_client_dump(int fd);
 
 /*******************************************************************************

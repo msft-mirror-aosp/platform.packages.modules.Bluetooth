@@ -156,7 +156,7 @@ private:
   /*
    * This is used to track the pending GATT operation handles. Once the list is
    * empty the device is assumed ready and connected. We are doing it because we
-   * want to make sure all the required characteristics and descritors are
+   * want to make sure all the required characteristics and descriptors are
    * available on server side.
    */
   std::unordered_set<uint16_t> handles_pending;
