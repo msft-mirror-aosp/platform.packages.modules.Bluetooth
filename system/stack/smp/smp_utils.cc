@@ -71,9 +71,6 @@
                                                                    Check*/)
 #define SMP_PAIR_KEYPR_NOTIF_SIZE (1 /* opcode */ + 1 /*Notif Type*/)
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 namespace {
@@ -341,7 +338,7 @@ void smp_log_metrics(const RawAddress& bd_addr, bool is_outgoing, const uint8_t*
  * Description      Send message to L2CAP.
  *
  ******************************************************************************/
-bool smp_send_msg_to_L2CAP(const RawAddress& rem_bda, BT_HDR* p_toL2CAP) {
+static bool smp_send_msg_to_L2CAP(const RawAddress& rem_bda, BT_HDR* p_toL2CAP) {
   tL2CAP_DW_RESULT l2cap_ret;
   uint16_t fixed_cid = L2CAP_SMP_CID;
 
