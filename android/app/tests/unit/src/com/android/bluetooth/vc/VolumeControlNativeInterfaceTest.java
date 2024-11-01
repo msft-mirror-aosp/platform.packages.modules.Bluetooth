@@ -168,7 +168,7 @@ public class VolumeControlNativeInterfaceTest {
         int externalInputId = 2;
         int gainValue = 1;
         int gainMode = 0;
-        boolean mute = false;
+        int mute = 0;
         byte[] address = new byte[] {0x00, 0x01, 0x02, 0x03, 0x04, 0x05};
 
         mNativeInterface.onExtAudioInStateChanged(

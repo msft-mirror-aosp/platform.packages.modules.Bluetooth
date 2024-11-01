@@ -342,11 +342,12 @@ static void bta_dm_inq_cmpl() {
 }
 
 static void bta_dm_remote_name_cmpl(const tBTA_DM_REMOTE_NAME& remote_name_msg) {
-  BTM_LogHistory(kBtmLogTag, remote_name_msg.bd_addr, "Remote name completed",
-                 base::StringPrintf("status:%s state:%s name:\"%s\"",
-                                    hci_status_code_text(remote_name_msg.hci_status).c_str(),
-                                    bta_dm_state_text(bta_dm_search_get_state()).c_str(),
-                                    PRIVATE_NAME(remote_name_msg.bd_name)));
+  BTM_LogHistory(
+          kBtmLogTag, remote_name_msg.bd_addr, "Remote name completed",
+          base::StringPrintf("status:%s state:%s name:\"%s\"",
+                             hci_status_code_text(remote_name_msg.hci_status).c_str(),
+                             bta_dm_state_text(bta_dm_search_get_state()).c_str(),
+                             PRIVATE_NAME(reinterpret_cast<char const*>(remote_name_msg.bd_name))));
 
   tBTM_INQ_INFO* p_btm_inq_info =
           get_btm_client_interface().db.BTM_InqDbRead(remote_name_msg.bd_addr);

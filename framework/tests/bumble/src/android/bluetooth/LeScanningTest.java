@@ -354,6 +354,7 @@ public class LeScanningTest {
     }
 
     @Test
+    @VirtualOnly
     public void startBleScan_withServiceData() {
         advertiseWithBumbleWithServiceData();
 
