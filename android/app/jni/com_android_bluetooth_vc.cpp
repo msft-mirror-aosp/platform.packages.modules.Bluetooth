@@ -218,7 +218,7 @@ public:
   }
 
   void OnExtAudioInStateChanged(const RawAddress& bd_addr, uint8_t ext_input_id, int8_t gain_val,
-                                uint8_t gain_mode, bool mute) override {
+                                uint8_t gain_mode, uint8_t mute) override {
     log::info("");
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
@@ -237,7 +237,7 @@ public:
     sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
                                      reinterpret_cast<const jbyte*>(&bd_addr));
     sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onExtAudioInStateChanged, (jint)ext_input_id,
-                                 (jint)gain_val, (jint)gain_mode, (jboolean)mute, addr.get());
+                                 (jint)gain_val, (jint)gain_mode, (jint)mute, addr.get());
   }
 
   void OnExtAudioInStatusChanged(const RawAddress& bd_addr, uint8_t ext_input_id,
@@ -893,7 +893,7 @@ int register_com_android_bluetooth_vc(JNIEnv* env) {
           {"onExtAudioOutLocationChanged", "(II[B)V", &method_onExtAudioOutLocationChanged},
           {"onExtAudioOutDescriptionChanged", "(ILjava/lang/String;[B)V",
            &method_onExtAudioOutDescriptionChanged},
-          {"onExtAudioInStateChanged", "(IIIZ[B)V", &method_onExtAudioInStateChanged},
+          {"onExtAudioInStateChanged", "(IIII[B)V", &method_onExtAudioInStateChanged},
           {"onExtAudioInStatusChanged", "(II[B)V", &method_onExtAudioInStatusChanged},
           {"onExtAudioInTypeChanged", "(II[B)V", &method_onExtAudioInTypeChanged},
           {"onExtAudioInGainPropsChanged", "(IIII[B)V", &method_onExtAudioInGainPropsChanged},

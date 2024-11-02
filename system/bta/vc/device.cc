@@ -123,53 +123,61 @@ bool VolumeControlDevice::set_volume_control_service_handles(const gatt::Service
 }
 
 void VolumeControlDevice::set_audio_input_control_service_handles(const gatt::Service& service) {
-  VolumeAudioInput input = VolumeAudioInput(service.handle);
+  uint16_t state_handle{0};
+  uint16_t state_ccc_handle{0};
+  uint16_t gain_setting_handle{0};
+  uint16_t type_handle{0};
+  uint16_t status_handle{0};
+  uint16_t status_ccc_handle{0};
+  uint16_t control_point_handle{0};
+  uint16_t description_handle{0};
+  uint16_t description_ccc_handle{0};
+  uint16_t description_writable{0};
+
   for (const gatt::Characteristic& chrc : service.characteristics) {
     if (chrc.uuid == kVolumeAudioInputStateUuid) {
-      input.state_handle = chrc.value_handle;
-      input.state_ccc_handle = find_ccc_handle(chrc.value_handle);
-      log::debug("{}, input_state handle={:#x}, ccc {:#x}", address, input.state_handle,
-                 input.state_ccc_handle);
-
-    } else if (chrc.uuid == kVolumeAudioInputGainSettingUuid) {
-      input.gain_setting_handle = chrc.value_handle;
-
+      state_handle = chrc.value_handle;
+      state_ccc_handle = find_ccc_handle(chrc.value_handle);
+      log::debug("{} state_handle={:#x} ccc={:#x}", address, state_handle, state_ccc_handle);
+    } else if (chrc.uuid == kVolumeAudioInputGainSettingPropertiesUuid) {
+      gain_setting_handle = chrc.value_handle;
     } else if (chrc.uuid == kVolumeAudioInputTypeUuid) {
-      input.type_handle = chrc.value_handle;
-
+      type_handle = chrc.value_handle;
     } else if (chrc.uuid == kVolumeAudioInputStatusUuid) {
-      input.status_handle = chrc.value_handle;
-      input.status_ccc_handle = find_ccc_handle(chrc.value_handle);
-      log::debug("{}, input_status handle={:#x}, ccc {:#x}", address, input.status_handle,
-                 input.status_ccc_handle);
-
+      status_handle = chrc.value_handle;
+      status_ccc_handle = find_ccc_handle(chrc.value_handle);
+      log::debug("{} status_handle={:#x} ccc={:#x}", address, status_handle, status_ccc_handle);
     } else if (chrc.uuid == kVolumeAudioInputControlPointUuid) {
-      input.control_point_handle = chrc.value_handle;
-
+      control_point_handle = chrc.value_handle;
     } else if (chrc.uuid == kVolumeAudioInputDescriptionUuid) {
-      input.description_handle = chrc.value_handle;
-      input.description_ccc_handle = find_ccc_handle(chrc.value_handle);
-      input.description_writable = chrc.properties & GATT_CHAR_PROP_BIT_WRITE_NR;
-      log::debug("{}, input_desc handle={:#x}, ccc {:#x}", address, input.description_handle,
-                 input.description_ccc_handle);
-
+      description_handle = chrc.value_handle;
+      description_ccc_handle = find_ccc_handle(chrc.value_handle);
+      description_writable = chrc.properties & GATT_CHAR_PROP_BIT_WRITE_NR;
+      log::debug("{} description_handle={:#x} ccc={:#x}", address, description_handle,
+                 description_ccc_handle);
     } else {
-      log::warn("unknown characteristic={}", chrc.uuid);
+      log::info("found unexpected characteristic={}", chrc.uuid);
     }
   }
 
   // Check if all mandatory attributes are present
-  if (GATT_HANDLE_IS_VALID(input.state_handle) && GATT_HANDLE_IS_VALID(input.state_ccc_handle) &&
-      GATT_HANDLE_IS_VALID(input.gain_setting_handle) && GATT_HANDLE_IS_VALID(input.type_handle) &&
-      GATT_HANDLE_IS_VALID(input.status_handle) && GATT_HANDLE_IS_VALID(input.status_ccc_handle) &&
-      GATT_HANDLE_IS_VALID(input.control_point_handle) &&
-      GATT_HANDLE_IS_VALID(input.description_handle)
+  if (!GATT_HANDLE_IS_VALID(state_handle) || !GATT_HANDLE_IS_VALID(state_ccc_handle) ||
+      !GATT_HANDLE_IS_VALID(gain_setting_handle) || !GATT_HANDLE_IS_VALID(type_handle) ||
+      !GATT_HANDLE_IS_VALID(status_handle) || !GATT_HANDLE_IS_VALID(status_ccc_handle) ||
+      !GATT_HANDLE_IS_VALID(control_point_handle) || !GATT_HANDLE_IS_VALID(description_handle)
       /* description_ccc_handle is optional */) {
-    audio_inputs.Add(input);
-    log::info("{}, input added id={:#x}", address, input.id);
-  } else {
-    log::warn("{}, ignoring input handle={:#x}", address, service.handle);
+    log::error(
+            "The remote device {} does not comply with AICS 1-0, some handles are invalid. "
+            "The aics service with handle {:#x} will be ignored",
+            address, service.handle);
+    return;
   }
+  VolumeAudioInput input = VolumeAudioInput(
+          audio_inputs.Size(), service.handle, state_handle, state_ccc_handle, gain_setting_handle,
+          type_handle, status_handle, status_ccc_handle, control_point_handle, description_handle,
+          description_ccc_handle, description_writable);
+  audio_inputs.Add(input);
+  log::info("{}, input added id={:#x}", address, input.id);
 }
 
 void VolumeControlDevice::set_volume_offset_control_service_handles(const gatt::Service& service) {

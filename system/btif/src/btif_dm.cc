@@ -978,7 +978,8 @@ static void btif_dm_pin_req_evt(tBTA_DM_PIN_REQ* p_pin_req) {
     }
   }
   BTM_LogHistory(kBtmLogTagCallback, bd_addr, "Pin request",
-                 base::StringPrintf("name:\"%s\" min16:%c", PRIVATE_NAME(bd_name.name),
+                 base::StringPrintf("name:\"%s\" min16:%c",
+                                    PRIVATE_NAME(reinterpret_cast<char const*>(bd_name.name)),
                                     (p_pin_req->min_16_digit) ? 'T' : 'F'));
   GetInterfaceToProfiles()->events->invoke_pin_request_cb(bd_addr, bd_name, cod,
                                                           p_pin_req->min_16_digit);
@@ -3550,7 +3551,8 @@ static void btif_dm_ble_passkey_req_evt(tBTA_DM_PIN_REQ* p_pin_req) {
   cod = COD_UNCLASSIFIED;
 
   BTM_LogHistory(kBtmLogTagCallback, bd_addr, "PIN request",
-                 base::StringPrintf("name:'%s'", PRIVATE_NAME(bd_name.name)));
+                 base::StringPrintf("name:'%s'",
+                                    PRIVATE_NAME(reinterpret_cast<char const*>(bd_name.name))));
 
   GetInterfaceToProfiles()->events->invoke_pin_request_cb(bd_addr, bd_name, cod, false);
 }

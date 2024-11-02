@@ -109,6 +109,8 @@ class RangingHalAndroid : public RangingHal {
 public:
   bool IsBound() override { return bluetooth_channel_sounding_ != nullptr; }
 
+  RangingHalVersion GetRangingHalVersion() { return hal_ver_; }
+
   void RegisterCallback(RangingHalCallback* callback) { ranging_hal_callback_ = callback; }
 
   std::vector<VendorSpecificCharacteristic> GetVendorSpecificCharacteristics() override {
@@ -195,6 +197,7 @@ public:
     hal_raw_data.stepChannels = raw_data.step_channel_;
     hal_raw_data.initiatorData.stepTonePcts.emplace(std::vector<std::optional<StepTonePct>>{});
     hal_raw_data.reflectorData.stepTonePcts.emplace(std::vector<std::optional<StepTonePct>>{});
+    // Add tone data for mode 2, mode 3
     for (uint8_t i = 0; i < raw_data.tone_pct_initiator_.size(); i++) {
       StepTonePct step_tone_pct;
       for (uint8_t j = 0; j < raw_data.tone_pct_initiator_[i].size(); j++) {
@@ -217,6 +220,19 @@ public:
       step_tone_pct.toneQualityIndicator = raw_data.tone_quality_indicator_reflector_[i];
       hal_raw_data.reflectorData.stepTonePcts.value().emplace_back(step_tone_pct);
     }
+    // Add RTT data for mode 1, mode 3
+    if (!raw_data.toa_tod_initiators_.empty()) {
+      hal_raw_data.toaTodInitiator = std::vector<int32_t>(raw_data.toa_tod_initiators_.begin(),
+                                                          raw_data.toa_tod_initiators_.end());
+      hal_raw_data.initiatorData.packetQuality = std::vector<uint8_t>(
+              raw_data.packet_quality_initiator.begin(), raw_data.packet_quality_initiator.end());
+    }
+    if (!raw_data.tod_toa_reflectors_.empty()) {
+      hal_raw_data.todToaReflector = std::vector<int32_t>(raw_data.tod_toa_reflectors_.begin(),
+                                                          raw_data.tod_toa_reflectors_.end());
+      hal_raw_data.reflectorData.packetQuality = std::vector<uint8_t>(
+              raw_data.packet_quality_reflector.begin(), raw_data.packet_quality_reflector.end());
+    }
     session_trackers_[connection_handle]->GetSession()->writeRawData(hal_raw_data);
   }
 
@@ -234,6 +250,17 @@ public:
 protected:
   void ListDependencies(ModuleList* /*list*/) const {}
 
+  RangingHalVersion get_ranging_hal_version() {
+    int ver = 0;
+    auto aidl_ret = bluetooth_channel_sounding_->getInterfaceVersion(&ver);
+    if (aidl_ret.isOk()) {
+      log::info("ranging HAL version - {}", ver);
+      return static_cast<RangingHalVersion>(ver);
+    }
+    log::warn("ranging HAL version is not available.");
+    return RangingHalVersion::V_UNKNOWN;
+  }
+
   void Start() override {
     std::string instance = std::string() + IBluetoothChannelSounding::descriptor + "/default";
     log::info("AServiceManager_isDeclared {}", AServiceManager_isDeclared(instance.c_str()));
@@ -241,6 +268,9 @@ protected:
       ::ndk::SpAIBinder binder(AServiceManager_waitForService(instance.c_str()));
       bluetooth_channel_sounding_ = IBluetoothChannelSounding::fromBinder(binder);
       log::info("Bind IBluetoothChannelSounding {}", IsBound() ? "Success" : "Fail");
+      if (bluetooth_channel_sounding_ != nullptr) {
+        hal_ver_ = get_ranging_hal_version();
+      }
     }
   }
 
@@ -253,6 +283,7 @@ private:
   RangingHalCallback* ranging_hal_callback_;
   std::unordered_map<uint16_t, std::shared_ptr<BluetoothChannelSoundingSessionTracker>>
           session_trackers_;
+  RangingHalVersion hal_ver_;
 };
 
 const ModuleFactory RangingHal::Factory = ModuleFactory([]() { return new RangingHalAndroid(); });

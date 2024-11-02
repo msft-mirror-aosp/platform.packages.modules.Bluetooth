@@ -45,6 +45,7 @@
 #include "stack/include/btm_ble_privacy.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/gatt_api.h"
 #include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
@@ -54,7 +55,6 @@
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
-void gatt_consolidate(const RawAddress& identity_addr, const RawAddress& rpa);
 
 namespace {
 

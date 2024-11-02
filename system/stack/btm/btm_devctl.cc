@@ -41,6 +41,7 @@
 #include "stack/connection_manager/connection_manager.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/acl_api_types.h"
+#include "stack/include/acl_hci_link_interface.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_privacy.h"
 #include "stack/include/btm_inq.h"
@@ -57,7 +58,6 @@ using namespace ::bluetooth;
 extern tBTM_CB btm_cb;
 
 void btm_inq_db_reset(void);
-void btm_pm_reset(void);
 /******************************************************************************/
 /*               L O C A L    D A T A    D E F I N I T I O N S                */
 /******************************************************************************/

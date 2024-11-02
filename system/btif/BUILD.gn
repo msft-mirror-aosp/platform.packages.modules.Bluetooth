@@ -114,7 +114,6 @@ static_library("btif") {
     "//bt/system:libbt-platform-protos-lite",
     "//bt/system/common",
     "//bt/system/profile/avrcp:profile_avrcp",
-    "//bt/system/gd:libbluetooth-gdx",
   ]
 
   configs += [
