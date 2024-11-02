@@ -48,6 +48,8 @@ struct alarm_t {
   bool on_main_loop = false;
 };
 
+using ::testing::NiceMock;
+
 namespace bluetooth {
 namespace vc {
 namespace internal {
@@ -102,7 +104,7 @@ public:
               (const RawAddress& address, uint8_t ext_output_id, std::string descr), (override));
   MOCK_METHOD((void), OnExtAudioInStateChanged,
               (const RawAddress& address, uint8_t ext_input_id, int8_t gain_val,
-               uint8_t gain_mode_auto, bool mute),
+               uint8_t gain_mode_auto, uint8_t mute),
               (override));
   MOCK_METHOD((void), OnExtAudioInStatusChanged,
               (const RawAddress& address, uint8_t ext_input_id, VolumeInputStatus status),
@@ -152,7 +154,7 @@ private:
         builder.AddCharacteristic(0x0031, 0x0032, kVolumeAudioInputStateUuid,
                                   GATT_CHAR_PROP_BIT_READ);
         builder.AddDescriptor(0x0033, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
-        builder.AddCharacteristic(0x0034, 0x0035, kVolumeAudioInputGainSettingUuid,
+        builder.AddCharacteristic(0x0034, 0x0035, kVolumeAudioInputGainSettingPropertiesUuid,
                                   GATT_CHAR_PROP_BIT_READ);
         builder.AddCharacteristic(0x0036, 0x0037, kVolumeAudioInputTypeUuid,
                                   GATT_CHAR_PROP_BIT_READ);
@@ -171,7 +173,7 @@ private:
                                   GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
         builder.AddDescriptor(0x0053, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
         if (!aics_broken) {
-          builder.AddCharacteristic(0x0054, 0x0055, kVolumeAudioInputGainSettingUuid,
+          builder.AddCharacteristic(0x0054, 0x0055, kVolumeAudioInputGainSettingPropertiesUuid,
                                     GATT_CHAR_PROP_BIT_READ);
         }
         builder.AddCharacteristic(0x0056, 0x0057, kVolumeAudioInputTypeUuid,
@@ -315,7 +317,7 @@ private:
               std::vector<uint8_t> value;
 
               auto add_element = [&](uint8_t data[], uint8_t len) -> void {
-                // LE order, 2 octects
+                // LE order, 2 octets
                 value.push_back(len);
                 value.push_back(0x00);
 
@@ -434,7 +436,6 @@ protected:
     MockCsisClient::SetMockInstanceForTesting(&mock_csis_client_module_);
     gatt::SetMockBtaGattInterface(&gatt_interface);
     gatt::SetMockBtaGattQueue(&gatt_queue);
-    callbacks.reset(new MockVolumeControlCallbacks());
     reset_mock_function_count_map();
 
     ON_CALL(btm_interface, IsLinkKeyKnown(_, _)).WillByDefault(DoAll(Return(true)));
@@ -535,7 +536,6 @@ protected:
   void TearDown(void) override {
     com::android::bluetooth::flags::provider_->reset_flags();
     services_map.clear();
-    callbacks.reset();
     gatt::SetMockBtaGattQueue(nullptr);
     gatt::SetMockBtaGattInterface(nullptr);
     bluetooth::manager::SetMockBtmInterface(nullptr);
@@ -546,7 +546,7 @@ protected:
     BtaAppRegisterCallback app_register_callback;
     EXPECT_CALL(gatt_interface, AppRegister(_, _, _))
             .WillOnce(DoAll(SaveArg<0>(&gatt_callback), SaveArg<1>(&app_register_callback)));
-    VolumeControl::Initialize(callbacks.get(), base::DoNothing());
+    VolumeControl::Initialize(&callbacks, base::DoNothing());
     ASSERT_TRUE(gatt_callback);
     ASSERT_TRUE(app_register_callback);
     app_register_callback.Run(gatt_if, GATT_SUCCESS);
@@ -738,11 +738,12 @@ protected:
     set_sample_database(conn_id, true, false, true, false, true, false);
   }
 
-  std::unique_ptr<MockVolumeControlCallbacks> callbacks;
-  bluetooth::manager::MockBtmInterface btm_interface;
+  NiceMock<MockVolumeControlCallbacks> callbacks;
+  NiceMock<bluetooth::manager::MockBtmInterface> btm_interface;
   MockCsisClient mock_csis_client_module_;
-  gatt::MockBtaGattInterface gatt_interface;
-  gatt::MockBtaGattQueue gatt_queue;
+  NiceMock<gatt::MockBtaGattInterface> gatt_interface;
+  NiceMock<gatt::MockBtaGattQueue> gatt_queue;
+
   tBTA_GATTC_CBACK* gatt_callback;
   const uint8_t gatt_if = 0xff;
   std::map<uint16_t, std::list<gatt::Service>> services_map;
@@ -756,7 +757,7 @@ TEST_F(VolumeControlTest, test_initialize) {
   EXPECT_CALL(gatt_interface, AppRegister(_, _, _))
           .WillOnce(DoAll(SaveArg<0>(&gatt_callback), SaveArg<1>(&app_register_callback)));
   VolumeControl::Initialize(
-          callbacks.get(),
+          &callbacks,
           base::Bind([](bool* init_cb_called) { *init_cb_called = true; }, &init_cb_called));
   ASSERT_TRUE(gatt_callback);
   ASSERT_TRUE(app_register_callback);
@@ -768,15 +769,15 @@ TEST_F(VolumeControlTest, test_initialize) {
 }
 
 TEST_F(VolumeControlTest, test_initialize_twice) {
-  VolumeControl::Initialize(callbacks.get(), base::DoNothing());
+  VolumeControl::Initialize(&callbacks, base::DoNothing());
   VolumeControl* volume_control_p = VolumeControl::Get();
-  VolumeControl::Initialize(callbacks.get(), base::DoNothing());
+  VolumeControl::Initialize(&callbacks, base::DoNothing());
   ASSERT_EQ(volume_control_p, VolumeControl::Get());
   VolumeControl::CleanUp();
 }
 
 TEST_F(VolumeControlTest, test_cleanup_initialized) {
-  VolumeControl::Initialize(callbacks.get(), base::DoNothing());
+  VolumeControl::Initialize(&callbacks, base::DoNothing());
   VolumeControl::CleanUp();
   ASSERT_FALSE(VolumeControl::IsVolumeControlRunning());
 }
@@ -805,18 +806,18 @@ TEST_F(VolumeControlTest, test_connect_after_remove) {
 
   TestConnect(test_address);
   GetConnectedEvent(test_address, conn_id);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
 
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(1);
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(1);
 
   TestRemove(test_address, conn_id);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
 
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(1);
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(1);
   ON_CALL(btm_interface, IsLinkKeyKnown(_, _)).WillByDefault(DoAll(Return(false)));
 
   VolumeControl::Get()->Connect(test_address);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
   TestAppUnregister();
 }
 
@@ -828,15 +829,15 @@ TEST_F(VolumeControlTest, test_reconnect_after_interrupted_discovery) {
   SetSampleDatabaseVOCS(1);
   TestAppRegister();
   TestConnect(test_address);
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(0);
-  EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, 2, _)).Times(0);
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(0);
+  EXPECT_CALL(callbacks, OnDeviceAvailable(test_address, 2, _)).Times(0);
   GetConnectedEvent(test_address, 1);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
 
   // Remote disconnects in the middle of the service discovery
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
   GetDisconnectedEvent(test_address, 1);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
 
   // This time let the service discovery pass
   ON_CALL(gatt_interface, ServiceSearchRequest(_, _))
@@ -847,19 +848,19 @@ TEST_F(VolumeControlTest, test_reconnect_after_interrupted_discovery) {
           }));
 
   // Remote is being connected by another GATT client
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address));
-  EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, 2, _));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnDeviceAvailable(test_address, 2, _));
   GetConnectedEvent(test_address, 1);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
 
   // Request connect when the remote was already connected by another service
-  EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, 2, _)).Times(0);
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnDeviceAvailable(test_address, 2, _)).Times(0);
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address));
   VolumeControl::Get()->Connect(test_address);
   // The GetConnectedEvent(test_address, 1); should not be triggered here, since
   // GATT implementation will not send this event for the already connected
   // device
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
 
   TestAppUnregister();
 }
@@ -871,14 +872,14 @@ TEST_F(VolumeControlTest, test_verify_opportunistic_connect_active_after_connect
   TestAddFromStorage(address);
   Mock::VerifyAndClearExpectations(&gatt_interface);
 
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, address)).Times(1);
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, address)).Times(1);
   TestConnect(address);
 
   EXPECT_CALL(gatt_interface, CancelOpen(gatt_if, address, _)).Times(0);
   EXPECT_CALL(gatt_interface, Open(gatt_if, address, BTM_BLE_DIRECT_CONNECTION, true)).Times(1);
 
   GetConnectedEvent(address, 1, GATT_ERROR);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
   Mock::VerifyAndClearExpectations(&gatt_interface);
   TestAppUnregister();
 }
@@ -890,12 +891,12 @@ TEST_F(VolumeControlTest, test_reconnect_after_timeout) {
   SetSampleDatabaseVOCS(1);
   TestAppRegister();
 
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, address)).Times(0);
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, address)).Times(0);
   TestConnect(address);
 
   // Disconnect not connected device - upper layer times out and needs a
   // disconnection event to leave the transient Connecting state
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, address));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, address));
   EXPECT_CALL(gatt_interface, CancelOpen(gatt_if, address, false)).Times(0);
   TestDisconnect(address, 0);
 
@@ -909,16 +910,16 @@ TEST_F(VolumeControlTest, test_reconnect_after_timeout) {
               GetSearchCompleteEvent(conn_id);
             }
           }));
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, address));
-  EXPECT_CALL(*callbacks, OnDeviceAvailable(address, 2, _));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, address));
+  EXPECT_CALL(callbacks, OnDeviceAvailable(address, 2, _));
   GetConnectedEvent(address, 1);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
 
   // Make sure that the upper layer gets the disconnection event even if not
   // connecting actively anymore due to the mentioned time-out mechanism.
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, address));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, address));
   GetDisconnectedEvent(address, 1);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
   TestAppUnregister();
 }
 
@@ -932,7 +933,7 @@ TEST_F(VolumeControlTest, test_remove_non_connected) {
   const RawAddress test_address = GetTestAddress(0);
   TestAppRegister();
   TestConnect(test_address);
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
   TestRemove(test_address, 0);
   TestAppUnregister();
 }
@@ -942,7 +943,7 @@ TEST_F(VolumeControlTest, test_remove_connected) {
   TestAppRegister();
   TestConnect(test_address);
   GetConnectedEvent(test_address, 1);
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
   TestDisconnect(test_address, 1);
   TestAppUnregister();
 }
@@ -951,7 +952,7 @@ TEST_F(VolumeControlTest, test_disconnect_non_connected) {
   const RawAddress test_address = GetTestAddress(0);
   TestAppRegister();
   TestConnect(test_address);
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
   TestDisconnect(test_address, 0);
   TestAppUnregister();
 }
@@ -961,7 +962,7 @@ TEST_F(VolumeControlTest, test_disconnect_connected) {
   TestAppRegister();
   TestConnect(test_address);
   GetConnectedEvent(test_address, 1);
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
   TestDisconnect(test_address, 1);
   TestAppUnregister();
 }
@@ -971,7 +972,7 @@ TEST_F(VolumeControlTest, test_disconnected) {
   TestAppRegister();
   TestConnect(test_address);
   GetConnectedEvent(test_address, 1);
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
   GetDisconnectedEvent(test_address, 1);
   TestAppUnregister();
 }
@@ -982,7 +983,7 @@ TEST_F(VolumeControlTest, test_disconnected_while_autoconnect) {
   TestAddFromStorage(test_address);
   GetConnectedEvent(test_address, 1);
   // autoconnect - don't indicate disconnection
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(0);
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(0);
   GetDisconnectedEvent(test_address, 1);
   TestAppUnregister();
 }
@@ -997,7 +998,7 @@ TEST_F(VolumeControlTest, test_disconnect_when_link_key_gone) {
           .WillByDefault(Return(tBTM_STATUS::BTM_ERR_KEY_MISSING));
 
   // autoconnect - don't indicate disconnection
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(0);
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(0);
   EXPECT_CALL(gatt_interface, Close(1));
   GetConnectedEvent(test_address, 1);
   Mock::VerifyAndClearExpectations(&btm_interface);
@@ -1010,7 +1011,7 @@ TEST_F(VolumeControlTest, test_reconnect_after_encryption_failed) {
   TestAddFromStorage(test_address);
   SetEncryptionResult(test_address, false);
   // autoconnect - don't indicate disconnection
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(0);
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(0);
   GetConnectedEvent(test_address, 1);
   Mock::VerifyAndClearExpectations(&btm_interface);
   SetEncryptionResult(test_address, true);
@@ -1029,14 +1030,14 @@ TEST_F(VolumeControlTest, test_service_discovery_completed_before_encryption) {
   ON_CALL(btm_interface, SetEncryption(test_address, _, _, _, _))
           .WillByDefault(Return(tBTM_STATUS::BTM_SUCCESS));
 
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(0);
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(0);
   uint16_t conn_id = 1;
   GetConnectedEvent(test_address, conn_id);
   GetSearchCompleteEvent(conn_id);
   Mock::VerifyAndClearExpectations(&btm_interface);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
 
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(1);
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(1);
 
   ON_CALL(btm_interface, BTM_IsEncrypted(test_address, _)).WillByDefault(DoAll(Return(true)));
   EXPECT_CALL(gatt_interface, ServiceSearchRequest(_, _));
@@ -1044,7 +1045,7 @@ TEST_F(VolumeControlTest, test_service_discovery_completed_before_encryption) {
   GetEncryptionCompleteEvt(test_address);
   GetSearchCompleteEvent(conn_id);
 
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
   Mock::VerifyAndClearExpectations(&gatt_interface);
 
   TestAppUnregister();
@@ -1055,11 +1056,11 @@ TEST_F(VolumeControlTest, test_discovery_vcs_found) {
   SetSampleDatabaseVCS(1);
   TestAppRegister();
   TestConnect(test_address);
-  EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, _, _));
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnDeviceAvailable(test_address, _, _));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address));
   GetConnectedEvent(test_address, 1);
   GetSearchCompleteEvent(1);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
   TestAppUnregister();
 }
 
@@ -1068,11 +1069,11 @@ TEST_F(VolumeControlTest, test_discovery_vcs_not_found) {
   SetSampleDatabaseNoVCS(1);
   TestAppRegister();
   TestConnect(test_address);
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
   GetConnectedEvent(test_address, 1);
 
   GetSearchCompleteEvent(1);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
   TestAppUnregister();
 }
 
@@ -1081,10 +1082,10 @@ TEST_F(VolumeControlTest, test_discovery_vcs_broken) {
   SetSampleDatabaseVCSBroken(1);
   TestAppRegister();
   TestConnect(test_address);
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
   GetConnectedEvent(test_address, 1);
   GetSearchCompleteEvent(1);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
   TestAppUnregister();
 }
 
@@ -1110,7 +1111,7 @@ TEST_F(VolumeControlTest, test_subscribe_vocs_output_description) {
 
 TEST_F(VolumeControlTest, test_read_vcs_volume_state) {
   const RawAddress test_address = GetTestAddress(0);
-  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address, _, _, _, true)).Times(1);
+  EXPECT_CALL(callbacks, OnVolumeStateChanged(test_address, _, _, _, true)).Times(1);
   std::vector<uint16_t> handles({0x0021});
   TestReadCharacteristic(test_address, 1, handles);
 }
@@ -1123,29 +1124,29 @@ TEST_F(VolumeControlTest, test_read_vcs_volume_flags) {
 TEST_F(VolumeControlTest, test_read_vocs_volume_offset) {
   com::android::bluetooth::flags::provider_->le_ase_read_multiple_variable(false);
   const RawAddress test_address = GetTestAddress(0);
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 2, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutDescriptionChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutDescriptionChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, _)).Times(1);
   std::vector<uint16_t> handles({0x0072, 0x0082});
   TestReadCharacteristic(test_address, 1, handles);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
 }
 
 TEST_F(VolumeControlTest, test_read_vocs_volume_offset_multi) {
   com::android::bluetooth::flags::provider_->le_ase_read_multiple_variable(true);
   const RawAddress test_address = GetTestAddress(0);
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 2, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutDescriptionChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutDescriptionChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, _)).Times(1);
   std::vector<uint16_t> handles({0x0072, 0x0082});
   TestReadCharacteristic(test_address, 1, handles);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
 }
 
 TEST_F(VolumeControlTest, test_read_vocs_offset_location) {
@@ -1153,15 +1154,15 @@ TEST_F(VolumeControlTest, test_read_vocs_offset_location) {
   const RawAddress test_address = GetTestAddress(0);
   // It is called twice because after connect read is done once and second read is coming from the
   // test.
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 2, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutDescriptionChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutDescriptionChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, _)).Times(1);
   std::vector<uint16_t> handles({0x0075, 0x0085});
   TestReadCharacteristic(test_address, 1, handles);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
 }
 
 TEST_F(VolumeControlTest, test_read_vocs_offset_location_multi) {
@@ -1169,26 +1170,26 @@ TEST_F(VolumeControlTest, test_read_vocs_offset_location_multi) {
   const RawAddress test_address = GetTestAddress(0);
   // It is called twice because after connect read is done once and second read is coming from the
   // test.
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 2, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutDescriptionChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutDescriptionChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, _)).Times(1);
   std::vector<uint16_t> handles({0x0075, 0x0085});
   TestReadCharacteristic(test_address, 1, handles);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
 }
 
 TEST_F(VolumeControlTest, test_read_vocs_output_description) {
   com::android::bluetooth::flags::provider_->le_ase_read_multiple_variable(false);
   const RawAddress test_address = GetTestAddress(0);
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 2, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutDescriptionChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutDescriptionChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, _)).Times(1);
   std::vector<uint16_t> handles({0x0079, 0x008a});
   TestReadCharacteristic(test_address, 1, handles);
 }
@@ -1196,12 +1197,12 @@ TEST_F(VolumeControlTest, test_read_vocs_output_description) {
 TEST_F(VolumeControlTest, test_read_vocs_output_description_multi) {
   com::android::bluetooth::flags::provider_->le_ase_read_multiple_variable(true);
   const RawAddress test_address = GetTestAddress(0);
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 2, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutDescriptionChanged(test_address, 1, _)).Times(1);
-  EXPECT_CALL(*callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 2, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutDescriptionChanged(test_address, 1, _)).Times(1);
+  EXPECT_CALL(callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, _)).Times(1);
   std::vector<uint16_t> handles({0x0079, 0x008a});
   TestReadCharacteristic(test_address, 1, handles);
 }
@@ -1211,11 +1212,11 @@ TEST_F(VolumeControlTest, test_discovery_vocs_found) {
   SetSampleDatabaseVOCS(1);
   TestAppRegister();
   TestConnect(test_address);
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address));
-  EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, 2, _));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnDeviceAvailable(test_address, 2, _));
   GetConnectedEvent(test_address, 1);
   GetSearchCompleteEvent(1);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
   TestAppUnregister();
 }
 
@@ -1224,11 +1225,11 @@ TEST_F(VolumeControlTest, test_discovery_vocs_not_found) {
   SetSampleDatabaseVCS(1);
   TestAppRegister();
   TestConnect(test_address);
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address));
-  EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, 0, _));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnDeviceAvailable(test_address, 0, _));
   GetConnectedEvent(test_address, 1);
   GetSearchCompleteEvent(1);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
   TestAppUnregister();
 }
 
@@ -1237,17 +1238,17 @@ TEST_F(VolumeControlTest, test_discovery_vocs_broken) {
   SetSampleDatabaseVOCSBroken(1);
   TestAppRegister();
   TestConnect(test_address);
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address));
-  EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, 1, _));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnDeviceAvailable(test_address, 1, _));
   GetConnectedEvent(test_address, 1);
   GetSearchCompleteEvent(1);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
   TestAppUnregister();
 }
 
 TEST_F(VolumeControlTest, test_read_vcs_database_out_of_sync) {
   const RawAddress test_address = GetTestAddress(0);
-  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address, _, _, _, true));
+  EXPECT_CALL(callbacks, OnVolumeStateChanged(test_address, _, _, _, true));
   std::vector<uint16_t> handles({0x0021});
   uint16_t conn_id = 1;
 
@@ -1320,26 +1321,39 @@ protected:
 
 TEST_F(VolumeControlCallbackTest, test_volume_state_changed_stress) {
   std::vector<uint8_t> value({0x03, 0x01, 0x02});
-  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address, 0x03, true, _, true));
+  EXPECT_CALL(callbacks, OnVolumeStateChanged(test_address, 0x03, true, _, true));
   GetNotificationEvent(0x0021, value);
 }
 
 TEST_F(VolumeControlCallbackTest, test_volume_state_changed_malformed) {
-  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address, _, _, _, _)).Times(0);
+  EXPECT_CALL(callbacks, OnVolumeStateChanged(test_address, _, _, _, _)).Times(0);
   std::vector<uint8_t> too_short({0x03, 0x01});
   GetNotificationEvent(0x0021, too_short);
   std::vector<uint8_t> too_long({0x03, 0x01, 0x02, 0x03});
   GetNotificationEvent(0x0021, too_long);
 }
 
-TEST_F(VolumeControlCallbackTest, test_audio_input_state_changed) {
+TEST_F(VolumeControlCallbackTest, audio_input_state_changed__invalid_mute__is_rejected) {
+  uint8_t invalid_mute = 0x03;
+  std::vector<uint8_t> value({0x03, invalid_mute, 0x02, 0x04});
+  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(_, _, _, _, _)).Times(0);
+  GetNotificationEvent(0x0032, value);
+}
+
+TEST_F(VolumeControlCallbackTest, test_audio_input_state_changed__muted) {
   std::vector<uint8_t> value({0x03, 0x01, 0x02, 0x04});
-  EXPECT_CALL(*callbacks, OnExtAudioInStateChanged(test_address, 1, 0x03, 0x02, true));
+  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(test_address, _, 0x03, 0x02, 0x01));
+  GetNotificationEvent(0x0032, value);
+}
+
+TEST_F(VolumeControlCallbackTest, test_audio_input_state_changed__disabled) {
+  std::vector<uint8_t> value({0x03, 0x02, 0x02, 0x04});
+  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(test_address, _, 0x03, 0x02, 0x02));
   GetNotificationEvent(0x0032, value);
 }
 
 TEST_F(VolumeControlCallbackTest, test_audio_input_state_changed_malformed) {
-  EXPECT_CALL(*callbacks, OnExtAudioInStateChanged(test_address, 1, _, _, _)).Times(0);
+  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(test_address, _, _, _, _)).Times(0);
   std::vector<uint8_t> too_short({0x03, 0x01, 0x02});
   GetNotificationEvent(0x0032, too_short);
   std::vector<uint8_t> too_long({0x03, 0x01, 0x02, 0x04, 0x05});
@@ -1348,12 +1362,12 @@ TEST_F(VolumeControlCallbackTest, test_audio_input_state_changed_malformed) {
 
 TEST_F(VolumeControlCallbackTest, test_audio_gain_props_changed) {
   std::vector<uint8_t> value({0x03, 0x01, 0x02});
-  EXPECT_CALL(*callbacks, OnExtAudioInGainPropsChanged(test_address, 2, 0x03, 0x01, 0x02));
+  EXPECT_CALL(callbacks, OnExtAudioInGainPropsChanged(test_address, _, 0x03, 0x01, 0x02));
   GetNotificationEvent(0x0055, value);
 }
 
 TEST_F(VolumeControlCallbackTest, test_audio_gain_props_changed_malformed) {
-  EXPECT_CALL(*callbacks, OnExtAudioInGainPropsChanged(test_address, 2, _, _, _)).Times(0);
+  EXPECT_CALL(callbacks, OnExtAudioInGainPropsChanged(test_address, _, _, _, _)).Times(0);
   std::vector<uint8_t> too_short({0x03, 0x01});
   GetNotificationEvent(0x0055, too_short);
   std::vector<uint8_t> too_long({0x03, 0x01, 0x02, 0x03});
@@ -1362,13 +1376,13 @@ TEST_F(VolumeControlCallbackTest, test_audio_gain_props_changed_malformed) {
 
 TEST_F(VolumeControlCallbackTest, test_audio_input_status_changed) {
   std::vector<uint8_t> value({static_cast<uint8_t>(bluetooth::vc::VolumeInputStatus::Inactive)});
-  EXPECT_CALL(*callbacks, OnExtAudioInStatusChanged(test_address, 1,
-                                                    bluetooth::vc::VolumeInputStatus::Inactive));
+  EXPECT_CALL(callbacks, OnExtAudioInStatusChanged(test_address, _,
+                                                   bluetooth::vc::VolumeInputStatus::Inactive));
   GetNotificationEvent(0x0039, value);
 }
 
 TEST_F(VolumeControlCallbackTest, test_audio_input_status_changed_malformed) {
-  EXPECT_CALL(*callbacks, OnExtAudioInStatusChanged(test_address, 1, _)).Times(0);
+  EXPECT_CALL(callbacks, OnExtAudioInStatusChanged(test_address, _, _)).Times(0);
   std::vector<uint8_t> too_short(0);
   GetNotificationEvent(0x0039, too_short);
   std::vector<uint8_t> too_long({0x03, 0x01});
@@ -1378,18 +1392,18 @@ TEST_F(VolumeControlCallbackTest, test_audio_input_status_changed_malformed) {
 TEST_F(VolumeControlCallbackTest, test_audio_input_description_changed) {
   std::string descr = "SPDIF";
   std::vector<uint8_t> value(descr.begin(), descr.end());
-  EXPECT_CALL(*callbacks, OnExtAudioInDescriptionChanged(test_address, 2, descr));
+  EXPECT_CALL(callbacks, OnExtAudioInDescriptionChanged(test_address, _, descr));
   GetNotificationEvent(0x005e, value);
 }
 
 TEST_F(VolumeControlCallbackTest, test_volume_offset_changed) {
   std::vector<uint8_t> value({0x04, 0x05, 0x06});
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, 0x0504));
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, 0x0504));
   GetNotificationEvent(0x0082, value);
 }
 
 TEST_F(VolumeControlCallbackTest, test_volume_offset_changed_malformed) {
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, _)).Times(0);
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 2, _)).Times(0);
   std::vector<uint8_t> too_short({0x04});
   GetNotificationEvent(0x0082, too_short);
   std::vector<uint8_t> too_long({0x04, 0x05, 0x06, 0x07});
@@ -1398,12 +1412,12 @@ TEST_F(VolumeControlCallbackTest, test_volume_offset_changed_malformed) {
 
 TEST_F(VolumeControlCallbackTest, test_offset_location_changed) {
   std::vector<uint8_t> value({0x01, 0x02, 0x03, 0x04});
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 2, 0x04030201));
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 2, 0x04030201));
   GetNotificationEvent(0x0085, value);
 }
 
 TEST_F(VolumeControlCallbackTest, test_offset_location_changed_malformed) {
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 2, _)).Times(0);
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 2, _)).Times(0);
   std::vector<uint8_t> too_short({0x04});
   GetNotificationEvent(0x0085, too_short);
   std::vector<uint8_t> too_long({0x04, 0x05, 0x06});
@@ -1413,7 +1427,7 @@ TEST_F(VolumeControlCallbackTest, test_offset_location_changed_malformed) {
 TEST_F(VolumeControlCallbackTest, test_audio_output_description_changed) {
   std::string descr = "left";
   std::vector<uint8_t> value(descr.begin(), descr.end());
-  EXPECT_CALL(*callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, descr));
+  EXPECT_CALL(callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, descr));
   GetNotificationEvent(0x008a, value);
 }
 
@@ -1449,7 +1463,7 @@ TEST_F(VolumeControlValueGetTest, test_get_ext_audio_out_volume_offset) {
   VolumeControl::Get()->GetExtAudioOutVolumeOffset(test_address, 1);
   EXPECT_TRUE(cb);
   std::vector<uint8_t> value({0x01, 0x02, 0x03});
-  EXPECT_CALL(*callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 1, 0x0201));
+  EXPECT_CALL(callbacks, OnExtAudioOutVolumeOffsetChanged(test_address, 1, 0x0201));
   cb(conn_id, GATT_SUCCESS, handle, (uint16_t)value.size(), value.data(), cb_data);
 }
 
@@ -1457,7 +1471,7 @@ TEST_F(VolumeControlValueGetTest, test_get_ext_audio_out_location) {
   VolumeControl::Get()->GetExtAudioOutLocation(test_address, 2);
   EXPECT_TRUE(cb);
   std::vector<uint8_t> value({0x01, 0x02, 0x03, 0x04});
-  EXPECT_CALL(*callbacks, OnExtAudioOutLocationChanged(test_address, 2, 0x04030201));
+  EXPECT_CALL(callbacks, OnExtAudioOutLocationChanged(test_address, 2, 0x04030201));
   cb(conn_id, GATT_SUCCESS, handle, (uint16_t)value.size(), value.data(), cb_data);
 }
 
@@ -1466,7 +1480,7 @@ TEST_F(VolumeControlValueGetTest, test_get_ext_audio_out_description) {
   EXPECT_TRUE(cb);
   std::string descr = "right";
   std::vector<uint8_t> value(descr.begin(), descr.end());
-  EXPECT_CALL(*callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, descr));
+  EXPECT_CALL(callbacks, OnExtAudioOutDescriptionChanged(test_address, 2, descr));
   cb(conn_id, GATT_SUCCESS, handle, (uint16_t)value.size(), value.data(), cb_data);
 }
 
@@ -1474,24 +1488,24 @@ TEST_F(VolumeControlValueGetTest, test_get_ext_audio_in_state) {
   VolumeControl::Get()->GetExtAudioInState(test_address, 1);
   EXPECT_TRUE(cb);
   std::vector<uint8_t> value({0x01, 0x00, 0x02, 0x03});
-  EXPECT_CALL(*callbacks, OnExtAudioInStateChanged(test_address, 1, 0x01, 0x02, false));
+  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(test_address, 1, 0x01, 0x02, 0x00));
   cb(conn_id, GATT_SUCCESS, handle, (uint16_t)value.size(), value.data(), cb_data);
 }
 
 TEST_F(VolumeControlValueGetTest, test_get_ext_audio_in_status) {
-  VolumeControl::Get()->GetExtAudioInStatus(test_address, 2);
+  VolumeControl::Get()->GetExtAudioInStatus(test_address, 0);
   EXPECT_TRUE(cb);
   std::vector<uint8_t> value({static_cast<uint8_t>(bluetooth::vc::VolumeInputStatus::Active)});
-  EXPECT_CALL(*callbacks,
-              OnExtAudioInStatusChanged(test_address, 2, bluetooth::vc::VolumeInputStatus::Active));
+  EXPECT_CALL(callbacks,
+              OnExtAudioInStatusChanged(test_address, 0, bluetooth::vc::VolumeInputStatus::Active));
   cb(conn_id, GATT_SUCCESS, handle, (uint16_t)value.size(), value.data(), cb_data);
 }
 
 TEST_F(VolumeControlValueGetTest, test_get_ext_audio_in_gain_props) {
-  VolumeControl::Get()->GetExtAudioInGainProps(test_address, 2);
+  VolumeControl::Get()->GetExtAudioInGainProps(test_address, 0);
   EXPECT_TRUE(cb);
   std::vector<uint8_t> value({0x01, 0x02, 0x03});
-  EXPECT_CALL(*callbacks, OnExtAudioInGainPropsChanged(test_address, 2, 0x01, 0x02, 0x03));
+  EXPECT_CALL(callbacks, OnExtAudioInGainPropsChanged(test_address, 0, 0x01, 0x02, 0x03));
   cb(conn_id, GATT_SUCCESS, handle, (uint16_t)value.size(), value.data(), cb_data);
 }
 
@@ -1500,7 +1514,7 @@ TEST_F(VolumeControlValueGetTest, test_get_ext_audio_in_description) {
   EXPECT_TRUE(cb);
   std::string descr = "AUX-IN";
   std::vector<uint8_t> value(descr.begin(), descr.end());
-  EXPECT_CALL(*callbacks, OnExtAudioInDescriptionChanged(test_address, 1, descr));
+  EXPECT_CALL(callbacks, OnExtAudioInDescriptionChanged(test_address, 1, descr));
   cb(conn_id, GATT_SUCCESS, handle, (uint16_t)value.size(), value.data(), cb_data);
 }
 
@@ -1508,7 +1522,7 @@ TEST_F(VolumeControlValueGetTest, test_get_ext_audio_in_type) {
   VolumeControl::Get()->GetExtAudioInType(test_address, 1);
   EXPECT_TRUE(cb);
   std::vector<uint8_t> value({static_cast<uint8_t>(bluetooth::vc::VolumeInputType::Ambient)});
-  EXPECT_CALL(*callbacks,
+  EXPECT_CALL(callbacks,
               OnExtAudioInTypeChanged(test_address, 1, bluetooth::vc::VolumeInputType::Ambient));
   cb(conn_id, GATT_SUCCESS, handle, (uint16_t)value.size(), value.data(), cb_data);
 }
@@ -1641,11 +1655,11 @@ TEST_F(VolumeControlValueSetTest, test_volume_operation_failed_due_to_device_dis
   ASSERT_NE(active_alarm_cb, nullptr);
 
   EXPECT_CALL(*AlarmMock::Get(), AlarmCancel(_)).Times(1);
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
   GetDisconnectedEvent(test_address, conn_id);
 
   ASSERT_EQ(active_alarm_cb, nullptr);
-  Mock::VerifyAndClearExpectations(callbacks.get());
+  Mock::VerifyAndClearExpectations(&callbacks);
 }
 
 TEST_F(VolumeControlValueSetTest, test_set_volume) {
@@ -1835,38 +1849,38 @@ TEST_F(VolumeControlValueSetTest, test_set_ext_audio_in_description) {
   std::vector<uint8_t> expected_data(descr.begin(), descr.end());
   EXPECT_CALL(gatt_queue,
               WriteCharacteristic(conn_id, 0x005e, expected_data, GATT_WRITE_NO_RSP, _, _));
-  VolumeControl::Get()->SetExtAudioInDescription(test_address, 2, descr);
+  VolumeControl::Get()->SetExtAudioInDescription(test_address, 1, descr);
 }
 
 TEST_F(VolumeControlValueSetTest, test_set_ext_audio_in_description_non_writable) {
   std::string descr = "AUX";
   std::vector<uint8_t> expected_data(descr.begin(), descr.end());
   EXPECT_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _)).Times(0);
-  VolumeControl::Get()->SetExtAudioInDescription(test_address, 1, descr);
+  VolumeControl::Get()->SetExtAudioInDescription(test_address, 0, descr);
 }
 
 TEST_F(VolumeControlValueSetTest, test_set_ext_audio_in_gain_value) {
   std::vector<uint8_t> expected_data({0x01, 0x00, 0x34});
   EXPECT_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x005c, expected_data, GATT_WRITE, _, _));
-  VolumeControl::Get()->SetExtAudioInGainValue(test_address, 2, 0x34);
+  VolumeControl::Get()->SetExtAudioInGainValue(test_address, 1, 0x34);
 }
 
 TEST_F(VolumeControlValueSetTest, test_set_ext_audio_in_gain_mode) {
   std::vector<uint8_t> mode_manual({0x04, 0x00});
   EXPECT_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x005c, mode_manual, GATT_WRITE, _, _));
-  VolumeControl::Get()->SetExtAudioInGainMode(test_address, 2, false);
+  VolumeControl::Get()->SetExtAudioInGainMode(test_address, 1, false);
   std::vector<uint8_t> mode_automatic({0x05, 0x00});
   EXPECT_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x005c, mode_automatic, GATT_WRITE, _, _));
-  VolumeControl::Get()->SetExtAudioInGainMode(test_address, 2, true);
+  VolumeControl::Get()->SetExtAudioInGainMode(test_address, 1, true);
 }
 
 TEST_F(VolumeControlValueSetTest, test_set_ext_audio_in_gain_mute) {
   std::vector<uint8_t> mute({0x03, 0x00});
   EXPECT_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x005c, mute, GATT_WRITE, _, _));
-  VolumeControl::Get()->SetExtAudioInGainMute(test_address, 2, true);
+  VolumeControl::Get()->SetExtAudioInGainMute(test_address, 1, true);
   std::vector<uint8_t> unmute({0x02, 0x00});
   EXPECT_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x005c, unmute, GATT_WRITE, _, _));
-  VolumeControl::Get()->SetExtAudioInGainMute(test_address, 2, false);
+  VolumeControl::Get()->SetExtAudioInGainMute(test_address, 1, false);
 }
 
 class VolumeControlCsis : public VolumeControlTest {
@@ -1932,7 +1946,7 @@ TEST_F(VolumeControlCsis, test_set_volume) {
   VolumeControl::Get()->SetVolume(group_id, 10);
 
   /* Now inject notification and make sure callback is sent up to Java layer */
-  EXPECT_CALL(*callbacks, OnGroupVolumeStateChanged(group_id, 0x03, true, false));
+  EXPECT_CALL(callbacks, OnGroupVolumeStateChanged(group_id, 0x03, true, false));
 
   std::vector<uint8_t> value({0x03, 0x01, 0x02});
   GetNotificationEvent(conn_id_1, test_address_1, 0x0021, value);
@@ -1947,8 +1961,8 @@ TEST_F(VolumeControlCsis, test_set_volume) {
   VolumeControl::Get()->SetVolume(test_address_1, 20);
   VolumeControl::Get()->SetVolume(test_address_2, 20);
 
-  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address_1, 20, false, _, false));
-  EXPECT_CALL(*callbacks, OnVolumeStateChanged(test_address_2, 20, false, _, false));
+  EXPECT_CALL(callbacks, OnVolumeStateChanged(test_address_1, 20, false, _, false));
+  EXPECT_CALL(callbacks, OnVolumeStateChanged(test_address_2, 20, false, _, false));
   std::vector<uint8_t> value2({20, 0x00, 0x03});
   GetNotificationEvent(conn_id_1, test_address_1, 0x0021, value2);
   GetNotificationEvent(conn_id_2, test_address_2, 0x0021, value2);
@@ -1983,7 +1997,7 @@ TEST_F(VolumeControlCsis, autonomus_test_set_volume) {
   GetSearchCompleteEvent(conn_id_2);
 
   /* Now inject notification and make sure callback is sent up to Java layer */
-  EXPECT_CALL(*callbacks, OnGroupVolumeStateChanged(group_id, 0x03, false, true));
+  EXPECT_CALL(callbacks, OnGroupVolumeStateChanged(group_id, 0x03, false, true));
 
   std::vector<uint8_t> value({0x03, 0x00, 0x02});
   GetNotificationEvent(conn_id_1, test_address_1, 0x0021, value);
@@ -1999,11 +2013,11 @@ TEST_F(VolumeControlCsis, autonomus_single_device_test_set_volume) {
   GetSearchCompleteEvent(conn_id_2);
 
   /* Disconnect one device. */
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address_1));
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address_1));
   GetDisconnectedEvent(test_address_1, conn_id_1);
 
   /* Now inject notification and make sure callback is sent up to Java layer */
-  EXPECT_CALL(*callbacks, OnGroupVolumeStateChanged(group_id, 0x03, false, true));
+  EXPECT_CALL(callbacks, OnGroupVolumeStateChanged(group_id, 0x03, false, true));
 
   std::vector<uint8_t> value({0x03, 0x00, 0x02});
   GetNotificationEvent(conn_id_2, test_address_2, 0x0021, value);

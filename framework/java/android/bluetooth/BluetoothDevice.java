@@ -1416,8 +1416,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *
      * @hide
      */
-    @SystemApi
-    public static final int ACTIVE_AUDIO_DEVICE_POLICY_DEFAULT = 0;
+    @SystemApi public static final int ACTIVE_AUDIO_DEVICE_POLICY_DEFAULT = 0;
 
     /**
      * Indicates all profiles active audio device policy is applied to this device
@@ -2794,15 +2793,12 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      */
     @UnsupportedAppUsage
     @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public BluetoothSocket createRfcommSocket(int channel) throws IOException {
         if (!isBluetoothEnabled()) {
             Log.e(TAG, "Bluetooth is not enabled");
             throw new IOException();
         }
-        return new BluetoothSocket(BluetoothSocket.TYPE_RFCOMM, true, true, this, channel, null);
+        return new BluetoothSocket(this, BluetoothSocket.TYPE_RFCOMM, true, true, channel, null);
     }
 
     /**
@@ -2830,11 +2826,8 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public BluetoothSocket createL2capSocket(int channel) throws IOException {
-        return new BluetoothSocket(BluetoothSocket.TYPE_L2CAP, true, true, this, channel, null);
+        return new BluetoothSocket(this, BluetoothSocket.TYPE_L2CAP, true, true, channel, null);
     }
 
     /**
@@ -2855,11 +2848,8 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public BluetoothSocket createInsecureL2capSocket(int channel) throws IOException {
-        return new BluetoothSocket(BluetoothSocket.TYPE_L2CAP, false, false, this, channel, null);
+        return new BluetoothSocket(this, BluetoothSocket.TYPE_L2CAP, false, false, channel, null);
     }
 
     /**
@@ -2893,9 +2883,6 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *     permissions
      */
     @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public BluetoothSocket createRfcommSocketToServiceRecord(UUID uuid) throws IOException {
         if (!isBluetoothEnabled()) {
             Log.e(TAG, "Bluetooth is not enabled");
@@ -2903,7 +2890,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
         }
 
         return new BluetoothSocket(
-                BluetoothSocket.TYPE_RFCOMM, true, true, this, -1, new ParcelUuid(uuid));
+                this, BluetoothSocket.TYPE_RFCOMM, true, true, -1, new ParcelUuid(uuid));
     }
 
     /**
@@ -2936,16 +2923,13 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *     permissions
      */
     @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public BluetoothSocket createInsecureRfcommSocketToServiceRecord(UUID uuid) throws IOException {
         if (!isBluetoothEnabled()) {
             Log.e(TAG, "Bluetooth is not enabled");
             throw new IOException();
         }
         return new BluetoothSocket(
-                BluetoothSocket.TYPE_RFCOMM, false, false, this, -1, new ParcelUuid(uuid));
+                this, BluetoothSocket.TYPE_RFCOMM, false, false, -1, new ParcelUuid(uuid));
     }
 
     /**
@@ -2963,15 +2947,12 @@ public final class BluetoothDevice implements Parcelable, Attributable {
             publicAlternatives =
                     "Use " + "{@link #createInsecureRfcommSocketToServiceRecord} instead.")
     @RequiresLegacyBluetoothAdminPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public BluetoothSocket createInsecureRfcommSocket(int port) throws IOException {
         if (!isBluetoothEnabled()) {
             Log.e(TAG, "Bluetooth is not enabled");
             throw new IOException();
         }
-        return new BluetoothSocket(BluetoothSocket.TYPE_RFCOMM, false, false, this, port, null);
+        return new BluetoothSocket(this, BluetoothSocket.TYPE_RFCOMM, false, false, port, null);
     }
 
     /**
@@ -2985,15 +2966,12 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      */
     @UnsupportedAppUsage
     @RequiresLegacyBluetoothAdminPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public BluetoothSocket createScoSocket() throws IOException {
         if (!isBluetoothEnabled()) {
             Log.e(TAG, "Bluetooth is not enabled");
             throw new IOException();
         }
-        return new BluetoothSocket(BluetoothSocket.TYPE_SCO, true, true, this, -1, null);
+        return new BluetoothSocket(this, BluetoothSocket.TYPE_SCO, true, true, -1, null);
     }
 
     /**
@@ -3197,16 +3175,13 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *     permissions
      */
     @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public @NonNull BluetoothSocket createL2capChannel(int psm) throws IOException {
         if (!isBluetoothEnabled()) {
             Log.e(TAG, "createL2capChannel: Bluetooth is not enabled");
             throw new IOException();
         }
         if (DBG) Log.d(TAG, "createL2capChannel: psm=" + psm);
-        return new BluetoothSocket(BluetoothSocket.TYPE_L2CAP_LE, true, true, this, psm, null);
+        return new BluetoothSocket(this, BluetoothSocket.TYPE_L2CAP_LE, true, true, psm, null);
     }
 
     /**
@@ -3231,9 +3206,6 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *     permissions
      */
     @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public @NonNull BluetoothSocket createInsecureL2capChannel(int psm) throws IOException {
         if (!isBluetoothEnabled()) {
             Log.e(TAG, "createInsecureL2capChannel: Bluetooth is not enabled");
@@ -3242,7 +3214,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
         if (DBG) {
             Log.d(TAG, "createInsecureL2capChannel: psm=" + psm);
         }
-        return new BluetoothSocket(BluetoothSocket.TYPE_L2CAP_LE, false, false, this, psm, null);
+        return new BluetoothSocket(this, BluetoothSocket.TYPE_L2CAP_LE, false, false, psm, null);
     }
 
     /**

@@ -16,56 +16,47 @@
 
 package com.android.bluetooth.vc;
 
-import android.bluetooth.BluetoothVolumeControl;
 import android.util.Log;
 
 import com.android.bluetooth.btservice.ProfileService;
 
-import java.util.HashMap;
-import java.util.Map;
-
 class VolumeControlInputDescriptor {
-    private static final String TAG = "VolumeControlInputDescriptor";
-    final Map<Integer, Descriptor> mVolumeInputs = new HashMap<>();
+    private static final String TAG = VolumeControlInputDescriptor.class.getSimpleName();
 
-    public static final int AUDIO_INPUT_TYPE_UNSPECIFIED = 0x00;
-    public static final int AUDIO_INPUT_TYPE_BLUETOOTH = 0x01;
-    public static final int AUDIO_INPUT_TYPE_MICROPHONE = 0x02;
-    public static final int AUDIO_INPUT_TYPE_ANALOG = 0x03;
-    public static final int AUDIO_INPUT_TYPE_DIGITAL = 0x04;
-    public static final int AUDIO_INPUT_TYPE_RADIO = 0x05;
-    public static final int AUDIO_INPUT_TYPE_STREAMING = 0x06;
-    public static final int AUDIO_INPUT_TYPE_AMBIENT = 0x07;
+    final Descriptor[] mVolumeInputs;
+
+    VolumeControlInputDescriptor(int numberOfExternalInputs) {
+        mVolumeInputs = new Descriptor[numberOfExternalInputs];
+        // Stack delivers us number of audio inputs. ids are countinous from [0;n[
+        for (int i = 0; i < numberOfExternalInputs; i++) {
+            mVolumeInputs[i] = new Descriptor();
+        }
+    }
 
     private static class Descriptor {
-        /* True when input is active, false otherwise */
-        boolean mIsActive = false;
+        int mStatus = 0; // AudioInputStatus.INACTIVE;
 
-        /* Defined as in Assigned Numbers in the BluetoothVolumeControl.AUDIO_INPUT_TYPE_ */
-        int mType = AUDIO_INPUT_TYPE_UNSPECIFIED;
+        int mType = 0; // AudioInputType.UNSPECIFIED;
 
         int mGainValue = 0;
 
-        /* As per AICS 1.0
-         * 3.1.3. Gain_Mode field
-         * The Gain_Mode field shall be set to a value that reflects whether gain modes are
-         *  manual or automatic.
+        /* See AICS 1.0 - 3.1.3. Gain_Mode field
+         * The Gain_Mode field shall be set to a value that reflects whether gain modes are manual
+         * or automatic.
+         * - Manual Only, the server allows only manual gain.
+         * - Automatic Only, the server allows only automatic gain.
          *
-         * If the Gain_Mode field value is Manual Only, the server allows only manual gain.
-         * If the Gain_Mode field is Automatic Only, the server allows only automatic gain.
-         *
-         * For all other Gain_Mode field values, the server allows switchable
-         * automatic/manual gain.
+         * For all other Gain_Mode field values, the server allows switchable automatic/manual gain.
          */
         int mGainMode = 0;
 
-        boolean mIsMute = false;
+        int mMute = 2; // DISABLED
 
-        /* As per AICS 1.0
-         * The Gain_Setting (mGainValue) field is a signed value for which a single increment
-         * or decrement should result in a corresponding increase or decrease of the input
-         * amplitude by the value of the Gain_Setting_Units (mGainSettingsUnits)
-         * field of the Gain Setting Properties characteristic value.
+        /* See AICS 1.0
+         * The Gain_Setting (mGainValue) field is a signed value for which a single increment or
+         * decrement should result in a corresponding increase or decrease of the input amplitude by
+         * the value of the Gain_Setting_Units (mGainSettingsUnits) field of the Gain Setting
+         * Properties characteristic value.
          */
         int mGainSettingsUnits = 0;
 
@@ -76,150 +67,90 @@ class VolumeControlInputDescriptor {
     }
 
     int size() {
-        return mVolumeInputs.size();
+        return mVolumeInputs.length;
     }
 
-    void add(int id) {
-        if (!mVolumeInputs.containsKey(id)) {
-            mVolumeInputs.put(id, new Descriptor());
-        }
-    }
-
-    boolean setActive(int id, boolean active) {
-        Descriptor desc = mVolumeInputs.get(id);
-        if (desc == null) {
-            Log.e(TAG, "setActive, Id " + id + " is unknown");
+    private boolean isValidId(int id) {
+        if (id >= size() || id < 0) {
+            Log.e(TAG, "Request fail. Illegal id argument: " + id);
             return false;
         }
-        desc.mIsActive = active;
         return true;
     }
 
-    boolean isActive(int id) {
-        Descriptor desc = mVolumeInputs.get(id);
-        if (desc == null) {
-            Log.e(TAG, "isActive, Id " + id + " is unknown");
-            return false;
-        }
-        return desc.mIsActive;
+    void setStatus(int id, int status) {
+        if (!isValidId(id)) return;
+        mVolumeInputs[id].mStatus = status;
     }
 
-    boolean setDescription(int id, String description) {
-        Descriptor desc = mVolumeInputs.get(id);
-        if (desc == null) {
-            Log.e(TAG, "setDescription, Id " + id + " is unknown");
-            return false;
-        }
-        desc.mDescription = description;
-        return true;
+    int getStatus(int id) {
+        if (!isValidId(id)) return 0; // AudioInputStatus.INACTIVE;
+        return mVolumeInputs[id].mStatus;
+    }
+
+    void setDescription(int id, String description) {
+        if (!isValidId(id)) return;
+        mVolumeInputs[id].mDescription = description;
     }
 
     String getDescription(int id) {
-        Descriptor desc = mVolumeInputs.get(id);
-        if (desc == null) {
-            Log.e(TAG, "getDescription, Id " + id + " is unknown");
-            return null;
-        }
-        return desc.mDescription;
+        if (!isValidId(id)) return null;
+        return mVolumeInputs[id].mDescription;
     }
 
-    boolean setType(int id, int type) {
-        Descriptor desc = mVolumeInputs.get(id);
-        if (desc == null) {
-            Log.e(TAG, "setType, Id " + id + " is unknown");
-            return false;
-        }
-
-        if (type > AUDIO_INPUT_TYPE_AMBIENT) {
-            Log.e(TAG, "setType, Type " + type + "for id " + id + " is invalid");
-            return false;
-        }
-
-        desc.mType = type;
-        return true;
+    void setType(int id, int type) {
+        if (!isValidId(id)) return;
+        mVolumeInputs[id].mType = type;
     }
 
     int getType(int id) {
-        Descriptor desc = mVolumeInputs.get(id);
-        if (desc == null) {
-            Log.e(TAG, "getType, Id " + id + " is unknown");
-            return AUDIO_INPUT_TYPE_UNSPECIFIED;
-        }
-        return desc.mType;
+        if (!isValidId(id)) return 0; // AudioInputType.UNSPECIFIED;
+        return mVolumeInputs[id].mType;
     }
 
     int getGain(int id) {
-        Descriptor desc = mVolumeInputs.get(id);
-        if (desc == null) {
-            Log.e(TAG, "getGain, Id " + id + " is unknown");
-            return 0;
-        }
-        return desc.mGainValue;
+        if (!isValidId(id)) return 0;
+        return mVolumeInputs[id].mGainValue;
     }
 
-    boolean isMuted(int id) {
-        Descriptor desc = mVolumeInputs.get(id);
-        if (desc == null) {
-            Log.e(TAG, "isMuted, Id " + id + " is unknown");
-            return false;
-        }
-        return desc.mIsMute;
+    int getMute(int id) {
+        if (!isValidId(id)) return 2; // MuteField.DISABLED
+        return mVolumeInputs[id].mMute;
     }
 
-    boolean setPropSettings(int id, int gainUnit, int gainMin, int gainMax) {
-        Descriptor desc = mVolumeInputs.get(id);
-        if (desc == null) {
-            Log.e(TAG, "setPropSettings, Id " + id + " is unknown");
-            return false;
-        }
+    void setPropSettings(int id, int gainUnit, int gainMin, int gainMax) {
+        if (!isValidId(id)) return;
 
-        desc.mGainSettingsUnits = gainUnit;
-        desc.mGainSettingsMinSetting = gainMin;
-        desc.mGainSettingsMaxSetting = gainMax;
-
-        return true;
+        mVolumeInputs[id].mGainSettingsUnits = gainUnit;
+        mVolumeInputs[id].mGainSettingsMinSetting = gainMin;
+        mVolumeInputs[id].mGainSettingsMaxSetting = gainMax;
     }
 
-    boolean setState(int id, int gainValue, int gainMode, boolean mute) {
-        Descriptor desc = mVolumeInputs.get(id);
-        if (desc == null) {
-            Log.e(TAG, "Id " + id + " is unknown");
-            return false;
-        }
+    void setState(int id, int gainValue, int gainMode, int mute) {
+        if (!isValidId(id)) return;
+
+        Descriptor desc = mVolumeInputs[id];
 
         if (gainValue > desc.mGainSettingsMaxSetting || gainValue < desc.mGainSettingsMinSetting) {
-            Log.e(TAG, "Invalid gainValue " + gainValue);
-            return false;
+            Log.e(TAG, "Request fail. Illegal gainValue argument: " + gainValue);
+            return;
         }
 
         desc.mGainValue = gainValue;
         desc.mGainMode = gainMode;
-        desc.mIsMute = mute;
-
-        return true;
-    }
-
-    void remove(int id) {
-        Log.d(TAG, "remove, id: " + id);
-        mVolumeInputs.remove(id);
-    }
-
-    void clear() {
-        Log.d(TAG, "clear all inputs");
-        mVolumeInputs.clear();
+        desc.mMute = mute;
     }
 
     void dump(StringBuilder sb) {
-        for (Map.Entry<Integer, Descriptor> entry : mVolumeInputs.entrySet()) {
-            Descriptor desc = entry.getValue();
-            Integer id = entry.getKey();
-            ProfileService.println(sb, "        id: " + id);
+        for (int i = 0; i < mVolumeInputs.length; i++) {
+            Descriptor desc = mVolumeInputs[i];
+            ProfileService.println(sb, "      id: " + i);
             ProfileService.println(sb, "        description: " + desc.mDescription);
             ProfileService.println(sb, "        type: " + desc.mType);
-            ProfileService.println(sb, "        isActive: " + desc.mIsActive);
+            ProfileService.println(sb, "        status: " + desc.mStatus);
             ProfileService.println(sb, "        gainValue: " + desc.mGainValue);
             ProfileService.println(sb, "        gainMode: " + desc.mGainMode);
-            ProfileService.println(sb, "        mute: " + desc.mIsMute);
+            ProfileService.println(sb, "        mute: " + desc.mMute);
             ProfileService.println(sb, "        units:" + desc.mGainSettingsUnits);
             ProfileService.println(sb, "        minGain:" + desc.mGainSettingsMinSetting);
             ProfileService.println(sb, "        maxGain:" + desc.mGainSettingsMaxSetting);

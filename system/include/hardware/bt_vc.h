@@ -73,7 +73,7 @@ public:
 
   /* Callbacks for Audio Input Stream (AIS) - Extended Audio Inputs */
   virtual void OnExtAudioInStateChanged(const RawAddress& address, uint8_t ext_input_id,
-                                        int8_t gain_val, uint8_t gain_mode_auto, bool mute) = 0;
+                                        int8_t gain_val, uint8_t gain_mode_auto, uint8_t mute) = 0;
 
   virtual void OnExtAudioInStatusChanged(const RawAddress& address, uint8_t ext_input_id,
                                          VolumeInputStatus status) = 0;
