@@ -1684,7 +1684,6 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
         raw_data.packet_quality_initiator = procedure_data->packet_quality_initiator;
         raw_data.packet_quality_reflector = procedure_data->packet_quality_reflector;
         ranging_hal_->WriteRawData(connection_handle, raw_data);
-        return;
       }
     }
 
