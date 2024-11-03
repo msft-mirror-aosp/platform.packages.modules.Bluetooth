@@ -2946,6 +2946,11 @@ private:
       return CIS_STILL_NEEDED;
     }
 
+    ase->cis_state = CisState::DISCONNECTING;
+    if (bidirection_ase) {
+      bidirection_ase->cis_state = CisState::DISCONNECTING;
+    }
+
     group->RemoveCisFromStreamIfNeeded(leAudioDevice, ase->cis_conn_hdl);
     IsoManager::GetInstance()->DisconnectCis(ase->cis_conn_hdl, HCI_ERR_PEER_USER);
     log_history_->AddLogHistory(kLogStateMachineTag, group->group_id_, leAudioDevice->address_,

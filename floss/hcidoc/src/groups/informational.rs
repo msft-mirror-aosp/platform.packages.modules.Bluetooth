@@ -83,6 +83,24 @@ impl AddressType {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+enum Transport {
+    Unknown,
+    BREDR,
+    LE,
+}
+
+impl fmt::Display for Transport {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let str = match self {
+            Transport::Unknown => "??",
+            Transport::BREDR => "BR",
+            Transport::LE => "LE",
+        };
+        write!(f, "{}", str)
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 enum InitiatorType {
     Unknown,
@@ -124,8 +142,8 @@ struct DeviceInformation {
     names: HashSet<String>,
     address: Address,
     address_type: AddressType,
-    acls: Vec<AclInformation>,
-    acl_state: AclState,
+    acls: HashMap<Transport, Vec<AclInformation>>,
+    acl_state: HashMap<Transport, AclState>,
 }
 
 impl DeviceInformation {
@@ -134,30 +152,52 @@ impl DeviceInformation {
             names: HashSet::new(),
             address: address,
             address_type: AddressType::None,
-            acls: vec![],
-            acl_state: AclState::None,
+            acls: HashMap::from([(Transport::BREDR, vec![]), (Transport::LE, vec![])]),
+            acl_state: HashMap::from([
+                (Transport::BREDR, AclState::None),
+                (Transport::LE, AclState::None),
+            ]),
         }
     }
 
-    fn is_connection_active(&self) -> bool {
+    fn is_connection_active(&self, transport: Transport) -> bool {
+        if transport == Transport::Unknown {
+            return false;
+        }
+
         // not empty and last connection's end time is not set.
-        return !self.acls.is_empty() && self.acls.last().unwrap().end_time == INVALID_TS;
+        return !self.acls[&transport].is_empty()
+            && self.acls[&transport].last().unwrap().end_time == INVALID_TS;
     }
 
-    fn get_or_allocate_connection(&mut self, handle: &ConnectionHandle) -> &mut AclInformation {
-        if !self.is_connection_active() {
-            let acl = AclInformation::new(*handle);
-            self.acls.push(acl);
+    fn get_or_allocate_connection(
+        &mut self,
+        handle: ConnectionHandle,
+        transport: Transport,
+    ) -> &mut AclInformation {
+        assert_ne!(transport, Transport::Unknown, "device allocating unknown transport");
+        if !self.is_connection_active(transport) {
+            let acl = AclInformation::new(handle, transport);
+            self.acls.get_mut(&transport).unwrap().push(acl);
         }
-        return self.acls.last_mut().unwrap();
+        return self.acls.get_mut(&transport).unwrap().last_mut().unwrap();
     }
 
-    fn report_connection_start(&mut self, handle: ConnectionHandle, ts: NaiveDateTime) {
-        let mut acl = AclInformation::new(handle);
-        let initiator = self.acl_state.get_connection_initiator();
+    fn report_connection_start(
+        &mut self,
+        handle: ConnectionHandle,
+        transport: Transport,
+        ts: NaiveDateTime,
+    ) {
+        if transport == Transport::Unknown {
+            return;
+        }
+
+        let mut acl = AclInformation::new(handle, transport);
+        let initiator = self.acl_state[&transport].get_connection_initiator();
         acl.report_start(initiator, ts);
-        self.acls.push(acl);
-        self.acl_state = AclState::Connected;
+        self.acls.get_mut(&transport).unwrap().push(acl);
+        self.acl_state.insert(transport, AclState::Connected);
     }
 
     fn report_connection_end(
@@ -166,9 +206,25 @@ impl DeviceInformation {
         initiator: InitiatorType,
         ts: NaiveDateTime,
     ) {
-        let acl = self.get_or_allocate_connection(&handle);
-        acl.report_end(initiator, ts);
-        self.acl_state = AclState::None;
+        for transport in [Transport::BREDR, Transport::LE] {
+            if self.is_connection_active(transport) {
+                if self.acls[&transport].last().unwrap().handle == handle {
+                    self.acls
+                        .get_mut(&transport)
+                        .unwrap()
+                        .last_mut()
+                        .unwrap()
+                        .report_end(initiator, ts);
+                    self.acl_state.insert(transport, AclState::None);
+                    return;
+                }
+            }
+        }
+
+        eprintln!(
+            "device {} receive disconnection of handle {} without corresponding connection at {}",
+            self.address, handle, ts
+        );
     }
 
     fn print_names(names: &HashSet<String>) -> String {
@@ -190,7 +246,10 @@ impl fmt::Display for DeviceInformation {
             device_names = DeviceInformation::print_names(&self.names),
             num_connections = self.acls.len()
         );
-        for acl in &self.acls {
+        for acl in &self.acls[&Transport::BREDR] {
+            let _ = write!(f, "{}", acl);
+        }
+        for acl in &self.acls[&Transport::LE] {
             let _ = write!(f, "{}", acl);
         }
 
@@ -209,6 +268,7 @@ struct AclInformation {
     start_time: NaiveDateTime,
     end_time: NaiveDateTime,
     handle: ConnectionHandle,
+    transport: Transport,
     start_initiator: InitiatorType,
     end_initiator: InitiatorType,
     active_profiles: HashMap<ProfileId, ProfileInformation>,
@@ -218,11 +278,12 @@ struct AclInformation {
 }
 
 impl AclInformation {
-    pub fn new(handle: ConnectionHandle) -> Self {
+    pub fn new(handle: ConnectionHandle, transport: Transport) -> Self {
         AclInformation {
             start_time: INVALID_TS,
             end_time: INVALID_TS,
-            handle: handle,
+            handle,
+            transport,
             start_initiator: InitiatorType::Unknown,
             end_initiator: InitiatorType::Unknown,
             active_profiles: HashMap::new(),
@@ -387,7 +448,8 @@ impl fmt::Display for AclInformation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let _ = writeln!(
             f,
-            "  Handle: {handle}, {timestamp_initiator_info}",
+            "  Handle: {handle} ({transport}), {timestamp_initiator_info}",
+            transport = self.transport,
             handle = self.handle,
             timestamp_initiator_info = print_timestamps_and_initiator(
                 self.start_time,
@@ -566,23 +628,28 @@ impl InformationalRule {
 
     fn get_or_allocate_unknown_connection(
         &mut self,
-        handle: &ConnectionHandle,
+        handle: ConnectionHandle,
+        transport: Transport,
     ) -> &mut AclInformation {
-        if !self.unknown_connections.contains_key(handle) {
-            self.unknown_connections.insert(*handle, AclInformation::new(*handle));
+        if !self.unknown_connections.contains_key(&handle) {
+            self.unknown_connections.insert(handle, AclInformation::new(handle, transport));
         }
-        return self.unknown_connections.get_mut(handle).unwrap();
+        return self.unknown_connections.get_mut(&handle).unwrap();
     }
 
-    fn get_or_allocate_connection(&mut self, handle: &ConnectionHandle) -> &mut AclInformation {
-        if !self.handles.contains_key(&handle) {
-            let conn = self.get_or_allocate_unknown_connection(&handle);
+    fn get_or_allocate_connection(
+        &mut self,
+        handle: ConnectionHandle,
+        transport: Transport,
+    ) -> &mut AclInformation {
+        if !self.handles.contains_key(&handle) || transport == Transport::Unknown {
+            let conn = self.get_or_allocate_unknown_connection(handle, transport);
             return conn;
         }
 
-        let address = &self.handles.get(handle).unwrap().clone();
+        let address = &self.handles.get(&handle).unwrap().clone();
         let device = self.get_or_allocate_device(address);
-        return device.get_or_allocate_connection(handle);
+        return device.get_or_allocate_connection(handle, transport);
     }
 
     fn report_address_type(&mut self, address: &Address, address_type: AddressType) {
@@ -595,19 +662,20 @@ impl InformationalRule {
         device.names.insert(name.into());
     }
 
-    fn report_acl_state(&mut self, address: &Address, state: AclState) {
+    fn report_acl_state(&mut self, address: &Address, transport: Transport, state: AclState) {
         let device = self.get_or_allocate_device(address);
-        device.acl_state = state;
+        device.acl_state.insert(transport, state);
     }
 
     fn report_connection_start(
         &mut self,
         address: &Address,
         handle: ConnectionHandle,
+        transport: Transport,
         ts: NaiveDateTime,
     ) {
         let device = self.get_or_allocate_device(address);
-        device.report_connection_start(handle, ts);
+        device.report_connection_start(handle, transport, ts);
         self.handles.insert(handle, *address);
         self.pending_disconnections.remove(&handle);
     }
@@ -624,14 +692,14 @@ impl InformationalRule {
         }
 
         let device = self.devices.get_mut(address).unwrap();
-        if !device.is_connection_active() {
+        if !device.is_connection_active(Transport::BREDR) {
             // SCO is connected, but ACL is not. This is weird, but let's ignore for simplicity.
             eprintln!("[{}] SCO is connected, but ACL is not.", address);
             return;
         }
 
         // Whatever handle value works here - we aren't allocating a new one.
-        let acl = device.get_or_allocate_connection(&0);
+        let acl = device.get_or_allocate_connection(0, Transport::BREDR);
         let acl_handle = acl.handle;
         // We need to listen the HCI commands to determine the correct initiator.
         // Here we just assume host for simplicity.
@@ -654,7 +722,7 @@ impl InformationalRule {
         // This might be a SCO disconnection event, so check that first
         if self.sco_handles.contains_key(&handle) {
             let acl_handle = self.sco_handles[&handle];
-            let conn = self.get_or_allocate_connection(&acl_handle);
+            let conn = self.get_or_allocate_connection(acl_handle, Transport::BREDR);
             // in case of HFP failure, the initiator here would be set to peer, which is incorrect,
             // but when printing we detect by the timestamp that it was a failure anyway.
             conn.report_profile_end(
@@ -677,7 +745,7 @@ impl InformationalRule {
             self.sco_handles.retain(|_sco_handle, acl_handle| *acl_handle != handle);
         } else {
             // Unknown device.
-            let conn = self.get_or_allocate_unknown_connection(&handle);
+            let conn = self.get_or_allocate_unknown_connection(handle, Transport::Unknown);
             conn.report_end(initiator, ts);
         }
     }
@@ -731,7 +799,7 @@ impl InformationalRule {
         initiator: InitiatorType,
         ts: NaiveDateTime,
     ) {
-        let conn = self.get_or_allocate_connection(&handle);
+        let conn = self.get_or_allocate_connection(handle, Transport::BREDR);
         conn.report_l2cap_conn_req(psm, cid, initiator, ts);
     }
 
@@ -747,7 +815,7 @@ impl InformationalRule {
         if status == ConnectionResponseResult::Pending {
             return;
         }
-        let conn = self.get_or_allocate_connection(&handle);
+        let conn = self.get_or_allocate_connection(handle, Transport::BREDR);
         let cid_info = CidInformation { host_cid, peer_cid };
         conn.report_l2cap_conn_rsp(status, cid_info, initiator, ts);
     }
@@ -760,7 +828,7 @@ impl InformationalRule {
         initiator: InitiatorType,
         ts: NaiveDateTime,
     ) {
-        let conn = self.get_or_allocate_connection(&handle);
+        let conn = self.get_or_allocate_connection(handle, Transport::BREDR);
         let cid_info = CidInformation { host_cid, peer_cid };
         conn.report_l2cap_disconn_rsp(cid_info, initiator, ts);
     }
@@ -774,6 +842,7 @@ impl Rule for InformationalRule {
                     self.report_connection_start(
                         &ev.get_bd_addr(),
                         ev.get_connection_handle(),
+                        Transport::BREDR,
                         packet.ts,
                     );
 
@@ -830,10 +899,15 @@ impl Rule for InformationalRule {
                         }
 
                         // Determining LE initiator is complex, for simplicity assume host inits.
-                        self.report_acl_state(&ev.get_peer_address(), AclState::Initiating);
+                        self.report_acl_state(
+                            &ev.get_peer_address(),
+                            Transport::LE,
+                            AclState::Initiating,
+                        );
                         self.report_connection_start(
                             &ev.get_peer_address(),
                             ev.get_connection_handle(),
+                            Transport::LE,
                             packet.ts,
                         );
                         self.report_address_type(&ev.get_peer_address(), AddressType::LE);
@@ -845,10 +919,15 @@ impl Rule for InformationalRule {
                         }
 
                         // Determining LE initiator is complex, for simplicity assume host inits.
-                        self.report_acl_state(&ev.get_peer_address(), AclState::Initiating);
+                        self.report_acl_state(
+                            &ev.get_peer_address(),
+                            Transport::LE,
+                            AclState::Initiating,
+                        );
                         self.report_connection_start(
                             &ev.get_peer_address(),
                             ev.get_connection_handle(),
+                            Transport::LE,
                             packet.ts,
                         );
                         self.report_address_type(&ev.get_peer_address(), AddressType::LE);
@@ -881,11 +960,19 @@ impl Rule for InformationalRule {
                     self.report_reset(packet.ts);
                 }
                 CommandChild::CreateConnection(cmd) => {
-                    self.report_acl_state(&cmd.get_bd_addr(), AclState::Initiating);
+                    self.report_acl_state(
+                        &cmd.get_bd_addr(),
+                        Transport::BREDR,
+                        AclState::Initiating,
+                    );
                     self.report_address_type(&cmd.get_bd_addr(), AddressType::BREDR);
                 }
                 CommandChild::AcceptConnectionRequest(cmd) => {
-                    self.report_acl_state(&cmd.get_bd_addr(), AclState::Accepting);
+                    self.report_acl_state(
+                        &cmd.get_bd_addr(),
+                        Transport::BREDR,
+                        AclState::Accepting,
+                    );
                     self.report_address_type(&cmd.get_bd_addr(), AddressType::BREDR);
                 }
                 CommandChild::Disconnect(cmd) => {
@@ -1001,7 +1088,9 @@ impl Rule for InformationalRule {
          * (5) Address, alphabetically
          */
         fn sort_addresses(a: &DeviceInformation, b: &DeviceInformation) -> Ordering {
-            let connection_order = a.acls.is_empty().cmp(&b.acls.is_empty());
+            let a_empty = a.acls[&Transport::BREDR].is_empty() && a.acls[&Transport::LE].is_empty();
+            let b_empty = b.acls[&Transport::BREDR].is_empty() && b.acls[&Transport::LE].is_empty();
+            let connection_order = a_empty.cmp(&b_empty);
             if connection_order != Ordering::Equal {
                 return connection_order;
             }

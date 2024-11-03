@@ -651,7 +651,8 @@ class AdapterProperties {
                                         BluetoothAdapter.EXTRA_PREVIOUS_CONNECTION_STATE,
                                         prevAdapterState)
                                 .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-                logProfileConnectionStateChange(device, newState, prevState);
+                MetricsLogger.getInstance()
+                        .logProfileConnectionStateChange(device, profile, newState, prevState);
                 Log.d(TAG, "updateOnProfileConnectionChanged: " + logInfo);
                 mService.sendBroadcastAsUser(
                         intent,
@@ -662,33 +663,7 @@ class AdapterProperties {
         }
     }
 
-    private void logProfileConnectionStateChange(BluetoothDevice device, int state, int prevState) {
 
-        switch (state) {
-            case BluetoothAdapter.STATE_CONNECTED:
-                MetricsLogger.getInstance()
-                        .logBluetoothEvent(
-                                device,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__SUCCESS,
-                                0);
-                break;
-            case BluetoothAdapter.STATE_DISCONNECTED:
-                if (prevState == BluetoothAdapter.STATE_CONNECTING) {
-                    MetricsLogger.getInstance()
-                            .logBluetoothEvent(
-                                    device,
-                                    BluetoothStatsLog
-                                            .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION,
-                                    BluetoothStatsLog
-                                            .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__FAIL,
-                                    0);
-                }
-                break;
-        }
-    }
 
     private boolean validateProfileConnectionState(int state) {
         return (state == BluetoothProfile.STATE_DISCONNECTED

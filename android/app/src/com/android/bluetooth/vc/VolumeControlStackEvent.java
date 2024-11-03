@@ -159,6 +159,8 @@ public class VolumeControlStackEvent {
         switch (type) {
             case EVENT_TYPE_EXT_AUDIO_IN_GAIN_PROPS_CHANGED:
                 return "{gain set max:" + value + "}";
+            case EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED:
+                return "{mute:" + value + "}";
             default:
                 break;
         }
@@ -168,7 +170,6 @@ public class VolumeControlStackEvent {
     private static String eventTypeValueBool1ToString(int type, boolean value) {
         switch (type) {
             case EVENT_TYPE_VOLUME_STATE_CHANGED:
-            case EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED:
                 return "{muted:" + value + "}";
             default:
                 break;

@@ -40,7 +40,6 @@ cc_defaults {
         "bluetooth_flags_c_lib",
         "libFraunhoferAAC",
         "libbluetooth-dumpsys",
-        "libbluetooth-gdx",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_crypto_toolbox",

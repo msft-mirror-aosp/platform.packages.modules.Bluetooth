@@ -197,27 +197,25 @@ uint16_t AVCT_CreateConn(uint8_t* p_handle, tAVCT_CC* p_cc, const RawAddress& pe
  *
  ******************************************************************************/
 uint16_t AVCT_RemoveConn(uint8_t handle) {
-  uint16_t result = AVCT_SUCCESS;
-  tAVCT_CCB* p_ccb;
-
   log::verbose("AVCT_RemoveConn");
 
   /* map handle to ccb */
-  p_ccb = avct_ccb_by_idx(handle);
-  if (p_ccb == NULL) {
-    result = AVCT_BAD_HANDLE;
+  tAVCT_CCB* p_ccb = avct_ccb_by_idx(handle);
+  if (p_ccb == nullptr) {
+    return AVCT_BAD_HANDLE;
   }
+
   /* if connection not bound to lcb, dealloc */
-  else if (p_ccb->p_lcb == NULL) {
+  if (p_ccb->p_lcb == nullptr) {
     avct_ccb_dealloc(p_ccb, AVCT_NO_EVT, 0, NULL);
-  }
-  /* send unbind event to lcb */
-  else {
-    tAVCT_LCB_EVT avct_lcb_evt;
-    avct_lcb_evt.p_ccb = p_ccb;
+  } else {
+    /* send unbind event to lcb */
+    tAVCT_LCB_EVT avct_lcb_evt = {
+            .p_ccb = p_ccb,
+    };
     avct_lcb_event(p_ccb->p_lcb, AVCT_LCB_UL_UNBIND_EVT, &avct_lcb_evt);
   }
-  return result;
+  return AVCT_SUCCESS;
 }
 
 /*******************************************************************************
@@ -301,24 +299,22 @@ uint16_t AVCT_CreateBrowse(uint8_t handle, tAVCT_ROLE role) {
  *
  ******************************************************************************/
 uint16_t AVCT_RemoveBrowse(uint8_t handle) {
-  uint16_t result = AVCT_SUCCESS;
-  tAVCT_CCB* p_ccb;
-
   log::verbose("AVCT_RemoveBrowse");
 
   /* map handle to ccb */
-  p_ccb = avct_ccb_by_idx(handle);
-  if (p_ccb == NULL) {
-    result = AVCT_BAD_HANDLE;
-  } else if (p_ccb->p_bcb != NULL)
-  /* send unbind event to bcb */
-  {
-    tAVCT_LCB_EVT avct_lcb_evt;
-    avct_lcb_evt.p_ccb = p_ccb;
-    avct_bcb_event(p_ccb->p_bcb, AVCT_LCB_UL_UNBIND_EVT, &avct_lcb_evt);
+  tAVCT_CCB* p_ccb = avct_ccb_by_idx(handle);
+  if (p_ccb == nullptr) {
+    return AVCT_BAD_HANDLE;
   }
 
-  return result;
+  if (p_ccb->p_bcb != nullptr) {
+    /* send unbind event to bcb */
+    tAVCT_LCB_EVT avct_lcb_evt = {
+            .p_ccb = p_ccb,
+    };
+    avct_bcb_event(p_ccb->p_bcb, AVCT_LCB_UL_UNBIND_EVT, &avct_lcb_evt);
+  }
+  return AVCT_SUCCESS;
 }
 
 /*******************************************************************************

@@ -867,7 +867,10 @@ public:
                    BidirectionalPair<AudioContexts> remote_contexts) {
     LeAudioDeviceGroup* group = aseGroups_.FindById(group_id);
 
-    log::debug("configuration_context_type= {}", ToString(configuration_context_type));
+    log::debug(
+            "configuration_context_type= {}, remote sink contexts= {}, remote source contexts= {}",
+            ToString(configuration_context_type), ToString(remote_contexts.sink),
+            ToString(remote_contexts.source));
 
     log::debug("");
     if (configuration_context_type >= LeAudioContextType::RFU) {
@@ -4701,16 +4704,18 @@ public:
         continue;
       }
 
+      // Use only available contexts
       contexts_pair.get(dir) &= group_available_contexts;
+
+      // Check we we should add UNSPECIFIED as well in case not available context is also not
+      // supported
       auto unavail_but_supported = (unavail_contexts & group->GetSupportedContexts(dir));
       if (unavail_but_supported.none() &&
           group_available_contexts.test(LeAudioContextType::UNSPECIFIED)) {
-        log::debug("Replaced the unsupported contexts: {} with UNSPECIFIED",
-                   ToString(unavail_contexts));
-        /* All unavailable are also unsupported - replace with UNSPECIFIED if
-         * available
-         */
         contexts_pair.get(dir).set(LeAudioContextType::UNSPECIFIED);
+
+        log::debug("Replaced the unsupported contexts: {} with UNSPECIFIED -> {}",
+                   ToString(unavail_contexts), ToString(contexts_pair.get(dir)));
       } else {
         log::debug("Some contexts are supported but currently unavailable: {}!",
                    ToString(unavail_but_supported));
@@ -4732,7 +4737,8 @@ public:
       std::tie(dir, other_dir, local_hal_state) = entry;
 
       if (contexts_pair.get(dir).test(LeAudioContextType::UNSPECIFIED)) {
-        /* Try to use the other direction context if not UNSPECIFIED and active
+        /* If this directions is streaming just UNSPECIFIED and if other direction is streaming some
+         * meaningfull context type,  try to use the meaningful context type
          */
         if (contexts_pair.get(dir) == AudioContexts(LeAudioContextType::UNSPECIFIED)) {
           auto is_other_direction_streaming = (*local_hal_state == AudioState::STARTED) ||
@@ -4746,7 +4752,8 @@ public:
             contexts_pair.get(dir) = contexts_pair.get(other_dir);
           }
         } else {
-          log::debug("Removing UNSPECIFIED from the remote sink context: {}",
+          log::debug("Removing UNSPECIFIED from the remote {} context: {}",
+                     dir == bluetooth::le_audio::types::kLeAudioDirectionSink ? " Sink" : " Source",
                      ToString(contexts_pair.get(other_dir)));
           contexts_pair.get(dir).unset(LeAudioContextType::UNSPECIFIED);
         }
@@ -4794,14 +4801,23 @@ public:
 
   BidirectionalPair<AudioContexts> DirectionalRealignMetadataAudioContexts(
           LeAudioDeviceGroup* group, int remote_direction) {
-    auto remote_other_direction =
-            (remote_direction == bluetooth::le_audio::types::kLeAudioDirectionSink
-                     ? bluetooth::le_audio::types::kLeAudioDirectionSource
-                     : bluetooth::le_audio::types::kLeAudioDirectionSink);
-    auto other_direction_hal =
-            (remote_other_direction == bluetooth::le_audio::types::kLeAudioDirectionSource
-                     ? audio_receiver_state_
-                     : audio_sender_state_);
+    uint8_t remote_other_direction;
+    std::string remote_direction_str;
+    std::string remote_other_direction_str;
+    AudioState other_direction_hal;
+
+    if (remote_direction == bluetooth::le_audio::types::kLeAudioDirectionSink) {
+      remote_other_direction = bluetooth::le_audio::types::kLeAudioDirectionSource;
+      remote_direction_str = "Sink";
+      remote_other_direction_str = "Source";
+      other_direction_hal = audio_receiver_state_;
+    } else {
+      remote_other_direction = bluetooth::le_audio::types::kLeAudioDirectionSink;
+      remote_direction_str = "Source";
+      remote_other_direction_str = "Sink";
+      other_direction_hal = audio_sender_state_;
+    }
+
     auto is_streaming_other_direction = (other_direction_hal == AudioState::STARTED) ||
                                         (other_direction_hal == AudioState::READY_TO_START);
     auto is_releasing_for_reconfiguration =
@@ -4863,9 +4879,7 @@ public:
                ToString(local_metadata_context_types_.sink));
     log::debug("remote_metadata.source= {}", ToString(remote_metadata.source));
     log::debug("remote_metadata.sink= {}", ToString(remote_metadata.sink));
-    log::debug("remote_direction= {}",
-               (remote_direction == bluetooth::le_audio::types::kLeAudioDirectionSource ? "Source"
-                                                                                        : "Sink"));
+    log::debug("remote_direction= {}", remote_direction_str);
     log::debug("is_streaming_other_direction= {}", is_streaming_other_direction ? "True" : "False");
     log::debug("is_releasing_for_reconfiguration= {}",
                is_releasing_for_reconfiguration ? "True" : "False");

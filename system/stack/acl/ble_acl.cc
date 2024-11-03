@@ -27,13 +27,12 @@
 #include "stack/btm/btm_sec.h"
 #include "stack/connection_manager/connection_manager.h"
 #include "stack/include/acl_api.h"
+#include "stack/include/ble_acl_interface.h"
 #include "stack/include/btm_ble_addr.h"
 #include "stack/include/btm_ble_privacy.h"
+#include "stack/include/gatt_api.h"
 #include "stack/include/l2cap_hci_link_interface.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -144,8 +143,6 @@ void acl_ble_connection_fail(const tBLE_BD_ADDR& address_with_type, uint16_t /* 
   btm_ble_update_mode_operation(HCI_ROLE_UNKNOWN, &address_with_type.bda, status);
 }
 
-void gatt_notify_conn_update(const RawAddress& remote, uint16_t interval, uint16_t latency,
-                             uint16_t timeout, tHCI_STATUS status);
 void acl_ble_update_event_received(tHCI_STATUS status, uint16_t handle, uint16_t interval,
                                    uint16_t latency, uint16_t timeout) {
   l2cble_process_conn_update_evt(handle, status, interval, latency, timeout);

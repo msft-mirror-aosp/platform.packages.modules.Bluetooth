@@ -1566,22 +1566,27 @@ tBTM_STATUS btm_sec_l2cap_access_req_by_requirement(const RawAddress& bd_addr,
             "enc: x{:x}",
             p_dev_rec->sec_rec.sec_flags & BTM_SEC_AUTHENTICATED,
             p_dev_rec->sec_rec.sec_flags & BTM_SEC_ENCRYPTED);
-    /* SM4, but we do not know for sure which level of security we need.
-     * as long as we have a link key, it's OK */
-    if ((0 == (p_dev_rec->sec_rec.sec_flags & BTM_SEC_AUTHENTICATED)) ||
-        (0 == (p_dev_rec->sec_rec.sec_flags & BTM_SEC_ENCRYPTED))) {
-      rc = tBTM_STATUS::BTM_DELAY_CHECK;
-      /*
-      2046 may report HCI_Encryption_Change and L2C Connection Request out of
-      sequence
-      because of data path issues. Delay this disconnect a little bit
-      */
-      log::info("peer should have initiated security process by now (SM4 to SM4)");
-      p_dev_rec->sec_rec.p_callback = p_callback;
-      p_dev_rec->sec_rec.classic_link = tSECURITY_STATE::DELAY_FOR_ENC;
-      (*p_callback)(bd_addr, transport, p_ref_data, rc);
 
-      return tBTM_STATUS::BTM_SUCCESS;
+    if (!com::android::bluetooth::flags::trigger_sec_proc_on_inc_access_req()) {
+      /* SM4, but we do not know for sure which level of security we need.
+       * as long as we have a link key, it's OK */
+      if ((0 == (p_dev_rec->sec_rec.sec_flags & BTM_SEC_AUTHENTICATED)) ||
+         (0 == (p_dev_rec->sec_rec.sec_flags & BTM_SEC_ENCRYPTED))) {
+        rc = tBTM_STATUS::BTM_DELAY_CHECK;
+        /*
+        2046 may report HCI_Encryption_Change and L2C Connection Request out of
+        sequence
+        because of data path issues. Delay this disconnect a little bit
+        */
+        log::info("peer should have initiated security process by now (SM4 to SM4)");
+        p_dev_rec->sec_rec.p_callback = p_callback;
+        p_dev_rec->sec_rec.classic_link = tSECURITY_STATE::DELAY_FOR_ENC;
+        (*p_callback)(bd_addr, transport, p_ref_data, rc);
+
+        return tBTM_STATUS::BTM_SUCCESS;
+      }
+    } else {
+       log::debug("force fallthrough to trigger sec proceudure");
     }
   }
 
@@ -2159,7 +2164,7 @@ tBTM_SEC_DEV_REC* btm_rnr_add_name_to_security_record(const RawAddress* p_bd_add
   BTM_LogHistory(
           kBtmLogTag, (p_bd_addr) ? *p_bd_addr : RawAddress::kEmpty, "RNR complete",
           base::StringPrintf("hci_status:%s name:%s", hci_error_code_text(hci_status).c_str(),
-                             PRIVATE_NAME(p_bd_name)));
+                             PRIVATE_NAME(reinterpret_cast<char const*>(p_bd_name))));
 
   if (p_dev_rec == nullptr) {
     // We need to send the callbacks to complete the RNR cycle despite failure
@@ -3289,6 +3294,10 @@ void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_en
     if (status == HCI_ERR_KEY_MISSING) {
       log::info("Remote key missing - will report");
       bta_dm_remote_key_missing(p_dev_rec->ble.pseudo_addr);
+      if (com::android::bluetooth::flags::sec_disconnect_on_le_key_missing()) {
+        btm_sec_send_hci_disconnect(p_dev_rec, HCI_ERR_HOST_REJECT_SECURITY,
+                                    p_dev_rec->ble_hci_handle, "encryption_change:key_missing");
+      }
       return;
     }
 
@@ -3423,9 +3432,6 @@ static void read_encryption_key_size_complete_after_encryption_change(uint8_t st
   btm_acl_encrypt_change(handle, static_cast<tHCI_STATUS>(status), 1 /* enable */);
   btm_sec_encrypt_change(handle, static_cast<tHCI_STATUS>(status), 1 /* enable */, key_size);
 }
-
-// TODO: Remove
-void smp_cancel_start_encryption_attempt();
 
 /*******************************************************************************
  *
