@@ -85,3 +85,13 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+flag {
+  name: "sec_disconnect_on_le_key_missing"
+  namespace: "bluetooth"
+  description: "Disconnect LE link when keys are missing during encryption"
+  bug: "376680866"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

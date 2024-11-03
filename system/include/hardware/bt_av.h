@@ -26,7 +26,7 @@
 
 __BEGIN_DECLS
 
-/* Bluetooth AV connection states */
+// Must be kept in sync with BluetoothProfile.java
 typedef enum {
   BTAV_CONNECTION_STATE_DISCONNECTED = 0,
   BTAV_CONNECTION_STATE_CONNECTING,
