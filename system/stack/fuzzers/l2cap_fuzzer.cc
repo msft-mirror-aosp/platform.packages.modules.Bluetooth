@@ -36,6 +36,7 @@
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cap_module.h"
 #include "stack/include/l2cdefs.h"
+#include "stack/l2cap/l2c_int.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_main_shim_entry.h"
 #include "test/mock/mock_stack_acl.h"
@@ -160,8 +161,6 @@ constexpr uint16_t kSmpBrHndl = 0x0222;
 
 constexpr uint16_t kNumClassicAclBuffer = 100;
 constexpr uint16_t kNumLeAclBuffer = 100;
-
-void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddress& p_bda);
 
 static void Fuzz(const uint8_t* data, size_t size) {
   memset(&btm_cb, 0, sizeof(btm_cb));

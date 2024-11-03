@@ -46,6 +46,8 @@ enum class BluetoothAudioStatus {
 /// Implements callbacks for the BT Audio HAL to start, suspend and configure
 /// the audio stream. Completion of the requested operation is indicated
 /// by the methods ack_stream_started, ack_stream_suspended.
+///
+/// The callbacks are always invoked from one of the binder threads.
 class BluetoothAudioPort {
 public:
   virtual ~BluetoothAudioPort() {}

@@ -135,8 +135,6 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
   if (provider_ != nullptr) {
     log::warn("refetch");
   }
-  // Prevent other access to the AIDL if currently fetching new service
-  std::lock_guard<std::mutex> guard(internal_mutex_);
   // Retry if audioserver restarts in the middle of fetching.
   // When audioserver restarts, IBluetoothAudioProviderFactory service is also
   // re-registered, so we need to re-fetch the service.

@@ -32,6 +32,7 @@
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_common.h"
 #include "osi/include/osi.h"
+#include "profile/avrcp/avrcp_config.h"
 #include "profile/avrcp/device.h"
 #include "stack/include/a2dp_api.h"
 #include "stack/include/bt_hdr.h"
@@ -100,7 +101,7 @@ public:
     return AVRC_Open(p_handle, p_ccb, bd_addr);
   }
 
-  uint16_t OpenBrowse(uint8_t handle, uint8_t conn_role) override {
+  uint16_t OpenBrowse(uint8_t handle, tAVCT_ROLE conn_role) override {
     return AVRC_OpenBrowse(handle, conn_role);
   }
 
@@ -226,7 +227,8 @@ public:
             base::Bind(&MediaInterface::GetAddressedPlayer, base::Unretained(wrapped_), bound_cb));
   }
 
-  void SetBrowsedPlayer(uint16_t player_id, SetBrowsedPlayerCallback browse_cb) override {
+  void SetBrowsedPlayer(uint16_t player_id, std::string current_path,
+                        SetBrowsedPlayerCallback browse_cb) override {
     auto cb_lambda = [](SetBrowsedPlayerCallback cb, bool success, std::string root_id,
                         uint32_t num_items) {
       do_in_main_thread(base::BindOnce(cb, success, root_id, num_items));
@@ -235,7 +237,7 @@ public:
     auto bound_cb = base::Bind(cb_lambda, browse_cb);
 
     do_in_jni_thread(base::Bind(&MediaInterface::SetBrowsedPlayer, base::Unretained(wrapped_),
-                                player_id, bound_cb));
+                                player_id, current_path, bound_cb));
   }
 
   void SetAddressedPlayer(uint16_t player_id, SetAddressedPlayerCallback addressed_cb) override {

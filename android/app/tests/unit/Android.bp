@@ -41,6 +41,7 @@ java_defaults {
         "truth",
     ],
 
+    jarjar_rules: ":bluetooth-jarjar-rules",
     asset_dirs: ["src/com/android/bluetooth/btservice/storage/schemas"],
 
     // Include all test java files.
