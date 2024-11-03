@@ -6895,6 +6895,58 @@ struct LeCsMode0ReflectorData {
   packet_antenna : 8,
 }
 
+enum CsPacketNadm : 8 {
+  ATTACK_IS_EXTREMELY_UNLIKELY = 0x00,
+  ATTACK_IS_VERY_UNLIKELY = 0x01,
+  ATTACK_IS_UNLIKELY = 0x02,
+  ATTACK_IS_POSSIBLE = 0x03,
+  ATTACK_IS_LIKELY = 0x04,
+  ATTACK_IS_VERY_LIKELY = 0x05,
+  ATTACK_IS_EXTREMELY_LIKELY = 0x06,
+  UNKNOWN_NADM = 0xFF,
+}
+
+struct LeCsToneData {
+  i_sample : 12,
+  q_sample : 12,
+}
+
+struct LeCsMode1InitatorData {
+  packet_quality : 8,
+  packet_nadm : CsPacketNadm,
+  packet_rssi : 8,
+  toa_tod_initiator : 16,
+  packet_antenna : 8,
+}
+
+struct LeCsMode1InitatorDataWithPacketPct {
+  packet_quality : 8,
+  packet_nadm : CsPacketNadm,
+  packet_rssi : 8,
+  toa_tod_initiator : 16,
+  packet_antenna : 8,
+  packet_pct1 : LeCsToneData,
+  packet_pct2 : LeCsToneData,
+}
+
+struct LeCsMode1ReflectorData {
+  packet_quality : 8,
+  packet_nadm : CsPacketNadm,
+  packet_rssi : 8,
+  tod_toa_reflector : 16,
+  packet_antenna : 8,
+}
+
+struct LeCsMode1ReflectorDataWithPacketPct {
+  packet_quality : 8,
+  packet_nadm : CsPacketNadm,
+  packet_rssi : 8,
+  tod_toa_reflector : 16,
+  packet_antenna : 8,
+  packet_pct1 : LeCsToneData,
+  packet_pct2 : LeCsToneData,
+}
+
 struct LeCsToneDataWithQuality {
   i_sample : 12,
   q_sample : 12,
@@ -6903,6 +6955,54 @@ struct LeCsToneDataWithQuality {
 
 struct LeCsMode2Data {
   _count_(tone_data) : 8,
+  antenna_permutation_index : 8,
+  tone_data : LeCsToneDataWithQuality[],
+}
+
+struct LeCsMode3InitatorData {
+  _count_(tone_data) : 8,
+  packet_quality : 8,
+  packet_nadm : CsPacketNadm,
+  packet_rssi : 8,
+  packet_antenna : 8,
+  toa_tod_initiator : 16,
+  antenna_permutation_index : 8,
+  tone_data : LeCsToneDataWithQuality[],
+}
+
+struct LeCsMode3InitatorDataWithPacketPct {
+  _count_(tone_data) : 8,
+  packet_quality : 8,
+  packet_nadm : CsPacketNadm,
+  packet_rssi : 8,
+  packet_antenna : 8,
+  packet_pct1 : LeCsToneData,
+  packet_pct2 : LeCsToneData,
+  toa_tod_initiator : 16,
+  antenna_permutation_index : 8,
+  tone_data : LeCsToneDataWithQuality[],
+}
+
+struct LeCsMode3ReflectorData {
+  _count_(tone_data) : 8,
+  packet_quality : 8,
+  packet_nadm : CsPacketNadm,
+  packet_rssi : 8,
+  packet_antenna : 8,
+  tod_toa_reflector : 16,
+  antenna_permutation_index : 8,
+  tone_data : LeCsToneDataWithQuality[],
+}
+
+struct LeCsMode3ReflectorDataWithPacketPct {
+  _count_(tone_data) : 8,
+  packet_quality : 8,
+  packet_nadm : CsPacketNadm,
+  packet_rssi : 8,
+  packet_antenna : 8,
+  packet_pct1 : LeCsToneData,
+  packet_pct2 : LeCsToneData,
+  tod_toa_reflector : 16,
   antenna_permutation_index : 8,
   tone_data : LeCsToneDataWithQuality[],
 }

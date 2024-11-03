@@ -15,11 +15,28 @@
  */
 package com.android.bluetooth.btservice;
 
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_A2DP;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_A2DP_SINK;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_BATTERY;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_CSIP_SET_COORDINATOR;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_HAP_CLIENT;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_HEADSET;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_HEADSET_CLIENT;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_HEARING_AID;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_HID_HOST;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_LE_AUDIO;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_LE_AUDIO_BROADCAST_ASSISTANT;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_MAP_CLIENT;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_PAN;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_PBAP_CLIENT;
+import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_VOLUME_CONTROL;
 import static com.android.bluetooth.BtRestrictedStatsLog.RESTRICTED_BLUETOOTH_DEVICE_NAME_REPORTED;
 
 import android.app.AlarmManager;
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothA2dpSink;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothAvrcpController;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadset;
@@ -712,6 +729,65 @@ public class MetricsLogger {
             return null;
         }
         return digest.digest(name.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private int getProfileEnumFromProfileId(int profile) {
+        return switch (profile) {
+            case BluetoothProfile.A2DP ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_A2DP;
+            case BluetoothProfile.A2DP_SINK ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_A2DP_SINK;
+            case BluetoothProfile.HEADSET ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_HEADSET;
+            case BluetoothProfile.HEADSET_CLIENT ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_HEADSET_CLIENT;
+            case BluetoothProfile.MAP_CLIENT ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_MAP_CLIENT;
+            case BluetoothProfile.HID_HOST ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_HID_HOST;
+            case BluetoothProfile.PAN ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_PAN;
+            case BluetoothProfile.PBAP_CLIENT ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_PBAP_CLIENT;
+            case BluetoothProfile.HEARING_AID ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_HEARING_AID;
+            case BluetoothProfile.HAP_CLIENT ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_HAP_CLIENT;
+            case BluetoothProfile.VOLUME_CONTROL ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_VOLUME_CONTROL;
+            case BluetoothProfile.CSIP_SET_COORDINATOR ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_CSIP_SET_COORDINATOR;
+            case BluetoothProfile.LE_AUDIO ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_LE_AUDIO;
+            case BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_LE_AUDIO_BROADCAST_ASSISTANT;
+            case BluetoothProfile.BATTERY ->
+                    BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION_BATTERY;
+            default -> BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION;
+        };
+    }
+
+    public void logProfileConnectionStateChange(
+            BluetoothDevice device, int profileId, int state, int prevState) {
+
+        switch (state) {
+            case BluetoothAdapter.STATE_CONNECTED:
+                logBluetoothEvent(
+                        device,
+                        getProfileEnumFromProfileId(profileId),
+                        BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__SUCCESS,
+                        0);
+                break;
+            case BluetoothAdapter.STATE_DISCONNECTED:
+                if (prevState == BluetoothAdapter.STATE_CONNECTING) {
+                    logBluetoothEvent(
+                            device,
+                            getProfileEnumFromProfileId(profileId),
+                            BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__FAIL,
+                            0);
+                }
+                break;
+        }
     }
 
     /** Logs LE Audio Broadcast audio session. */

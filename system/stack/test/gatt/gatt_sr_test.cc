@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/main_thread.h"
@@ -120,12 +121,8 @@ tGATT_STATUS gatts_write_attr_perm_check(tGATT_SVC_DB* /*p_db*/, uint8_t /*op_co
 void gatt_update_app_use_link_flag(tGATT_IF /*gatt_if*/, tGATT_TCB* /*p_tcb*/, bool /*is_add*/,
                                    bool /*check_acl_link*/) {}
 bluetooth::common::MessageLoopThread* get_main_thread() { return nullptr; }
-void l2cble_set_fixed_channel_tx_data_length(const RawAddress& /*remote_bda*/, uint16_t /*fix_cid*/,
-                                             uint16_t /*tx_mtu*/) {}
-void L2CA_SetLeFixedChannelTxDataLength(const RawAddress& /*remote_bda*/, uint16_t /*fix_cid*/,
-                                        uint16_t /*tx_mtu*/) {}
-void ApplicationRequestCallback(uint16_t conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
-                                tGATTS_DATA* p_data) {
+static void ApplicationRequestCallback(uint16_t conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
+                                       tGATTS_DATA* p_data) {
   test_state_.application_request_callback.conn_id_ = conn_id;
   test_state_.application_request_callback.trans_id_ = trans_id;
   test_state_.application_request_callback.type_ = type;

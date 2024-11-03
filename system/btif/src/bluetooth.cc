@@ -106,6 +106,7 @@
 #include "stack/include/avdt_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/gatt_api.h"
 #include "stack/include/hfp_lc3_decoder.h"
 #include "stack/include/hfp_lc3_encoder.h"
 #include "stack/include/hfp_msbc_decoder.h"
@@ -188,7 +189,6 @@ extern VolumeControlInterface* btif_volume_control_get_interface();
 
 bt_status_t btif_av_sink_execute_service(bool b_enable);
 
-extern void gatt_tcb_dump(int fd);
 extern void bta_gatt_client_dump(int fd);
 
 /*******************************************************************************
@@ -498,7 +498,15 @@ static int disable(void) {
 
 static void cleanup(void) { stack_manager_get_interface()->clean_up_stack(&stop_profiles); }
 
-static void start_rust_module(void) { stack_manager_get_interface()->start_up_rust_module_async(); }
+static void start_rust_module(void) {
+  std::promise<void> rust_up_promise;
+  auto rust_up_future = rust_up_promise.get_future();
+  stack_manager_get_interface()->start_up_rust_module_async(std::move(rust_up_promise));
+  auto status = rust_up_future.wait_for(std::chrono::milliseconds(1000));
+  if (status != std::future_status::ready) {
+    log::error("Failed to wait for rust initialization in time. May lead to unpredictable crash");
+  }
+}
 
 static void stop_rust_module(void) { stack_manager_get_interface()->shut_down_rust_module_async(); }
 
