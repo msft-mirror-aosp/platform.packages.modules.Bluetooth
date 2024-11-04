@@ -26,7 +26,6 @@
 
 #include "gatt_int.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
@@ -38,7 +37,6 @@
 #define GATT_OP_CODE_SIZE 1
 #define GATT_START_END_HANDLE_SIZE 4
 
-using base::StringPrintf;
 using bluetooth::Uuid;
 using namespace bluetooth;
 

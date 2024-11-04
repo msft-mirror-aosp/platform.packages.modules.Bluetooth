@@ -306,7 +306,7 @@ length_error:
  * Returns          Nothing.
  *
  ******************************************************************************/
-uint8_t* avdt_scb_hdl_report(AvdtpScb* p_scb, uint8_t* p, uint16_t len) {
+static uint8_t* avdt_scb_hdl_report(AvdtpScb* p_scb, uint8_t* p, uint16_t len) {
   uint16_t result = AVDT_SUCCESS;
   uint8_t* p_start = p;
   uint32_t ssrc;

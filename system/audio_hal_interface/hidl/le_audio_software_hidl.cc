@@ -21,8 +21,6 @@
 
 #include <bluetooth/log.h>
 
-#include "os/log.h"
-
 namespace bluetooth {
 namespace audio {
 namespace hidl {
@@ -106,31 +104,6 @@ LeAudioTransport::LeAudioTransport(void (*flush)(void), StreamCallbacks stream_c
       start_request_state_(StartRequestState::IDLE) {}
 
 BluetoothAudioCtrlAck LeAudioTransport::StartRequest() {
-  SetStartRequestState(StartRequestState::PENDING_BEFORE_RESUME);
-  if (stream_cb_.on_resume_(true)) {
-    if (start_request_state_ == StartRequestState::CONFIRMED) {
-      log::info("Start completed.");
-      SetStartRequestState(StartRequestState::IDLE);
-      return BluetoothAudioCtrlAck::SUCCESS_FINISHED;
-    }
-
-    if (start_request_state_ == StartRequestState::CANCELED) {
-      log::info("Start request failed.");
-      SetStartRequestState(StartRequestState::IDLE);
-      return BluetoothAudioCtrlAck::FAILURE;
-    }
-
-    log::info("Start pending.");
-    SetStartRequestState(StartRequestState::PENDING_AFTER_RESUME);
-    return BluetoothAudioCtrlAck::PENDING;
-  }
-
-  log::error("Start request failed.");
-  SetStartRequestState(StartRequestState::IDLE);
-  return BluetoothAudioCtrlAck::FAILURE;
-}
-
-BluetoothAudioCtrlAck LeAudioTransport::StartRequestV2() {
   SetStartRequestState(StartRequestState::PENDING_BEFORE_RESUME);
   if (stream_cb_.on_resume_(true)) {
     std::lock_guard<std::mutex> guard(start_request_state_mutex_);
@@ -288,12 +261,7 @@ LeAudioSinkTransport::LeAudioSinkTransport(SessionType_2_1 session_type, StreamC
 
 LeAudioSinkTransport::~LeAudioSinkTransport() { delete transport_; }
 
-BluetoothAudioCtrlAck LeAudioSinkTransport::StartRequest() {
-  if (com::android::bluetooth::flags::leaudio_start_stream_race_fix()) {
-    return transport_->StartRequestV2();
-  }
-  return transport_->StartRequest();
-}
+BluetoothAudioCtrlAck LeAudioSinkTransport::StartRequest() { return transport_->StartRequest(); }
 
 BluetoothAudioCtrlAck LeAudioSinkTransport::SuspendRequest() {
   return transport_->SuspendRequest();
@@ -364,12 +332,7 @@ LeAudioSourceTransport::LeAudioSourceTransport(SessionType_2_1 session_type,
 
 LeAudioSourceTransport::~LeAudioSourceTransport() { delete transport_; }
 
-BluetoothAudioCtrlAck LeAudioSourceTransport::StartRequest() {
-  if (com::android::bluetooth::flags::leaudio_start_stream_race_fix()) {
-    return transport_->StartRequestV2();
-  }
-  return transport_->StartRequest();
-}
+BluetoothAudioCtrlAck LeAudioSourceTransport::StartRequest() { return transport_->StartRequest(); }
 
 BluetoothAudioCtrlAck LeAudioSourceTransport::SuspendRequest() {
   return transport_->SuspendRequest();

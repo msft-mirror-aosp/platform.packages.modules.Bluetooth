@@ -44,6 +44,7 @@
 #include "btif_common.h"
 #include "btif_util.h"
 #include "device/include/interop.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/list.h"
@@ -268,7 +269,7 @@ static const uint8_t status_code_map[] = {
         AVRC_STS_ADDR_PLAYER_CHG, /* BTRC_STS_ADDR_PLAY_CHGD */
 };
 
-void initialize_device(btif_rc_device_cb_t* p_dev);
+static void initialize_device(btif_rc_device_cb_t* p_dev);
 static void send_reject_response(uint8_t rc_handle, uint8_t label, uint8_t pdu, uint8_t status,
                                  uint8_t opcode);
 static uint8_t opcode_from_pdu(uint8_t pdu);
@@ -327,9 +328,11 @@ static bt_status_t list_player_app_setting_attrib_cmd(btif_rc_device_cb_t* p_dev
 static bt_status_t list_player_app_setting_value_cmd(uint8_t attrib_id, btif_rc_device_cb_t* p_dev);
 static bt_status_t get_player_app_setting_cmd(uint8_t num_attrib, uint8_t* attrib_ids,
                                               btif_rc_device_cb_t* p_dev);
-void get_folder_item_type_media(const tAVRC_ITEM* avrc_item, btrc_folder_items_t* btrc_item);
-void get_folder_item_type_folder(const tAVRC_ITEM* avrc_item, btrc_folder_items_t* btrc_item);
-void get_folder_item_type_player(const tAVRC_ITEM* avrc_item, btrc_folder_items_t* btrc_item);
+static void get_folder_item_type_media(const tAVRC_ITEM* avrc_item, btrc_folder_items_t* btrc_item);
+static void get_folder_item_type_folder(const tAVRC_ITEM* avrc_item,
+                                        btrc_folder_items_t* btrc_item);
+static void get_folder_item_type_player(const tAVRC_ITEM* avrc_item,
+                                        btrc_folder_items_t* btrc_item);
 static bt_status_t get_folder_items_cmd(const RawAddress& bd_addr, uint8_t scope,
                                         uint32_t start_item, uint32_t end_item);
 
@@ -372,7 +375,6 @@ static const uint8_t media_attr_list_no_cover_art_size =
 /*****************************************************************************
  *  Externs
  *****************************************************************************/
-bool check_cod(const RawAddress& remote_bdaddr, uint32_t cod);
 
 void btif_rc_get_addr_by_handle(uint8_t handle, RawAddress& rc_addr) {
   log::verbose("handle: 0x{:x}", handle);
@@ -402,7 +404,7 @@ static btif_rc_device_cb_t* alloc_device() {
   return NULL;
 }
 
-void initialize_device(btif_rc_device_cb_t* p_dev) {
+static void initialize_device(btif_rc_device_cb_t* p_dev) {
   if (p_dev == nullptr) {
     return;
   }
@@ -453,7 +455,7 @@ static btif_rc_device_cb_t* get_connected_device(int index) {
   return &btif_rc_cb.rc_multi_cb[index];
 }
 
-btif_rc_device_cb_t* btif_rc_get_device_by_bda(const RawAddress& bd_addr) {
+static btif_rc_device_cb_t* btif_rc_get_device_by_bda(const RawAddress& bd_addr) {
   log::verbose("bd_addr: {}", bd_addr);
 
   for (int idx = 0; idx < BTIF_RC_NUM_CONN; idx++) {
@@ -466,7 +468,7 @@ btif_rc_device_cb_t* btif_rc_get_device_by_bda(const RawAddress& bd_addr) {
   return NULL;
 }
 
-btif_rc_device_cb_t* btif_rc_get_device_by_handle(uint8_t handle) {
+static btif_rc_device_cb_t* btif_rc_get_device_by_handle(uint8_t handle) {
   log::verbose("handle: 0x{:x}", handle);
   for (int idx = 0; idx < BTIF_RC_NUM_CONN; idx++) {
     if ((btif_rc_cb.rc_multi_cb[idx].rc_state != BTRC_CONNECTION_STATE_DISCONNECTED) &&
@@ -480,25 +482,25 @@ btif_rc_device_cb_t* btif_rc_get_device_by_handle(uint8_t handle) {
   return NULL;
 }
 
-const uint32_t* get_requested_attributes_list(btif_rc_device_cb_t* p_dev) {
+static const uint32_t* get_requested_attributes_list(btif_rc_device_cb_t* p_dev) {
   return p_dev->rc_features & BTA_AV_FEAT_COVER_ARTWORK ? media_attr_list
                                                         : media_attr_list_no_cover_art;
 }
 
-uint8_t get_requested_attributes_list_size(btif_rc_device_cb_t* p_dev) {
+static uint8_t get_requested_attributes_list_size(btif_rc_device_cb_t* p_dev) {
   return p_dev->rc_features & BTA_AV_FEAT_COVER_ARTWORK ? media_attr_list_size
                                                         : media_attr_list_no_cover_art_size;
 }
 
-void fill_pdu_queue(int index, uint8_t ctype, uint8_t label, bool pending,
-                    btif_rc_device_cb_t* p_dev) {
+static void fill_pdu_queue(int index, uint8_t ctype, uint8_t label, bool pending,
+                           btif_rc_device_cb_t* p_dev) {
   p_dev->rc_pdu_info[index].ctype = ctype;
   p_dev->rc_pdu_info[index].label = label;
   p_dev->rc_pdu_info[index].is_rsp_pending = pending;
 }
 
-void fill_avrc_attr_entry(tAVRC_ATTR_ENTRY* attr_vals, int num_attrs,
-                          btrc_element_attr_val_t* p_attrs) {
+static void fill_avrc_attr_entry(tAVRC_ATTR_ENTRY* attr_vals, int num_attrs,
+                                 btrc_element_attr_val_t* p_attrs) {
   for (int attr_cnt = 0; attr_cnt < num_attrs; attr_cnt++) {
     attr_vals[attr_cnt].attr_id = p_attrs[attr_cnt].attr_id;
     attr_vals[attr_cnt].name.charset_id = AVRC_CHARSET_ID_UTF8;
@@ -511,9 +513,7 @@ void fill_avrc_attr_entry(tAVRC_ATTR_ENTRY* attr_vals, int num_attrs,
   }
 }
 
-void rc_cleanup_sent_cmd(void* p_data) { log::verbose(""); }
-
-void handle_rc_ctrl_features_all(btif_rc_device_cb_t* p_dev) {
+static void handle_rc_ctrl_features_all(btif_rc_device_cb_t* p_dev) {
   if (!(p_dev->peer_tg_features & BTA_AV_FEAT_RCTG) &&
       (!(p_dev->peer_tg_features & BTA_AV_FEAT_RCCT) ||
        !(p_dev->peer_tg_features & BTA_AV_FEAT_ADV_CTRL))) {
@@ -575,7 +575,7 @@ void handle_rc_ctrl_features_all(btif_rc_device_cb_t* p_dev) {
   }
 }
 
-void handle_rc_ctrl_features(btif_rc_device_cb_t* p_dev) {
+static void handle_rc_ctrl_features(btif_rc_device_cb_t* p_dev) {
   if (btif_av_src_sink_coexist_enabled() && btif_av_both_enable()) {
     handle_rc_ctrl_features_all(p_dev);
     return;
@@ -657,7 +657,7 @@ void btif_rc_check_pending_cmd(const RawAddress& peer_address) {
   p_dev->launch_cmd_pending = 0;
 }
 
-void handle_rc_ctrl_psm(btif_rc_device_cb_t* p_dev) {
+static void handle_rc_ctrl_psm(btif_rc_device_cb_t* p_dev) {
   uint16_t cover_art_psm = p_dev->rc_cover_art_psm;
   log::verbose("Update rc cover art psm to CTRL: {}", cover_art_psm);
   if (bt_rc_ctrl_callbacks != NULL) {
@@ -666,7 +666,7 @@ void handle_rc_ctrl_psm(btif_rc_device_cb_t* p_dev) {
   }
 }
 
-void handle_rc_features(btif_rc_device_cb_t* p_dev) {
+static void handle_rc_features(btif_rc_device_cb_t* p_dev) {
   log::assert_that(bt_rc_callbacks != nullptr, "assert failed: bt_rc_callbacks != nullptr");
 
   btrc_remote_features_t rc_features = BTRC_FEAT_NONE;
@@ -719,7 +719,7 @@ void handle_rc_features(btif_rc_device_cb_t* p_dev) {
  *  - Description: browse RC connection event handler
  *
  ***************************************************************************/
-void handle_rc_browse_connect(tBTA_AV_RC_BROWSE_OPEN* p_rc_br_open) {
+static void handle_rc_browse_connect(tBTA_AV_RC_BROWSE_OPEN* p_rc_br_open) {
   log::verbose("rc_handle {} status {}", p_rc_br_open->rc_handle, p_rc_br_open->status);
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_handle(p_rc_br_open->rc_handle);
 
@@ -762,7 +762,7 @@ void handle_rc_browse_connect(tBTA_AV_RC_BROWSE_OPEN* p_rc_br_open) {
  *  - Description: RC connection event handler
  *
  ***************************************************************************/
-void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
+static void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
   log::verbose("rc_handle: {}", p_rc_open->rc_handle);
 
   btif_rc_device_cb_t* p_dev = alloc_device();
@@ -841,7 +841,7 @@ void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
  *  - Description: RC disconnection event handler
  *
  ***************************************************************************/
-void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
+static void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
   btif_rc_device_cb_t* p_dev = NULL;
   log::verbose("rc_handle: {}", p_rc_close->rc_handle);
 
@@ -877,7 +877,7 @@ void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
  *  - Description: Remote control command handler
  *
  ***************************************************************************/
-void handle_rc_passthrough_cmd(tBTA_AV_REMOTE_CMD* p_remote_cmd) {
+static void handle_rc_passthrough_cmd(tBTA_AV_REMOTE_CMD* p_remote_cmd) {
   if (p_remote_cmd == NULL) {
     log::error("No remote command!");
     return;
@@ -929,7 +929,7 @@ void handle_rc_passthrough_cmd(tBTA_AV_REMOTE_CMD* p_remote_cmd) {
  *  - Description: Remote control passthrough response handler
  *
  ***************************************************************************/
-void handle_rc_passthrough_rsp(tBTA_AV_REMOTE_RSP* p_remote_rsp) {
+static void handle_rc_passthrough_rsp(tBTA_AV_REMOTE_RSP* p_remote_rsp) {
   btif_rc_device_cb_t* p_dev = NULL;
 
   p_dev = btif_rc_get_device_by_handle(p_remote_rsp->rc_handle);
@@ -961,7 +961,7 @@ void handle_rc_passthrough_rsp(tBTA_AV_REMOTE_RSP* p_remote_rsp) {
  *  - Description: Remote control vendor unique response handler
  *
  ***************************************************************************/
-void handle_rc_vendorunique_rsp(tBTA_AV_REMOTE_RSP* p_remote_rsp) {
+static void handle_rc_vendorunique_rsp(tBTA_AV_REMOTE_RSP* p_remote_rsp) {
   btif_rc_device_cb_t* p_dev = NULL;
   const char* status;
   uint8_t vendor_id = 0;
@@ -1007,7 +1007,7 @@ void handle_rc_vendorunique_rsp(tBTA_AV_REMOTE_RSP* p_remote_rsp) {
  *  - Description: Remote control metamsg command handler (AVRCP 1.3)
  *
  ***************************************************************************/
-void handle_rc_metamsg_cmd(tBTA_AV_META_MSG* pmeta_msg) {
+static void handle_rc_metamsg_cmd(tBTA_AV_META_MSG* pmeta_msg) {
   /* Parse the metamsg command and pass it on to BTL-IFS */
   uint8_t scratch_buf[512] = {0};
   tAVRC_COMMAND avrc_command = {0};
@@ -2793,7 +2793,7 @@ static void handle_rc_metamsg_rsp(tBTA_AV_META_MSG* pmeta_msg, btif_rc_device_cb
  * Returns          true to continue iterating, false to stop
  *
  **************************************************************************/
-bool iterate_supported_event_list_for_interim_rsp(void* data, void* cb_data) {
+static bool iterate_supported_event_list_for_interim_rsp(void* data, void* cb_data) {
   uint8_t* p_event_id;
   btif_rc_supported_event_t* p_event = (btif_rc_supported_event_t*)data;
 
@@ -3034,7 +3034,7 @@ static void handle_get_capability_response(tBTA_AV_META_MSG* pmeta_msg, tAVRC_GE
   }
 }
 
-bool rc_is_track_id_valid(tAVRC_UID uid) {
+static bool rc_is_track_id_valid(tAVRC_UID uid) {
   tAVRC_UID invalid_uid = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
   if (memcmp(uid, invalid_uid, sizeof(tAVRC_UID)) == 0) {
@@ -3613,7 +3613,7 @@ static void cleanup_app_attr_val_txt_response(btif_rc_player_app_settings_t* p_a
  * Returns          None
  *
  **************************************************************************/
-static void handle_set_app_attr_val_response(tBTA_AV_META_MSG* pmeta_msg, tAVRC_RSP* p_rsp) {
+static void handle_set_app_attr_val_response(tBTA_AV_META_MSG* pmeta_msg, tAVRC_RSP* /*p_rsp*/) {
   uint8_t accepted = 0;
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_handle(pmeta_msg->rc_handle);
 
@@ -3840,7 +3840,8 @@ static void cleanup_btrc_folder_items(btrc_folder_items_t* btrc_items, uint8_t i
  * Returns          None
  *
  **************************************************************************/
-void get_folder_item_type_media(const tAVRC_ITEM* avrc_item, btrc_folder_items_t* btrc_item) {
+static void get_folder_item_type_media(const tAVRC_ITEM* avrc_item,
+                                       btrc_folder_items_t* btrc_item) {
   btrc_item->item_type = BTRC_ITEM_MEDIA;
   const tAVRC_ITEM_MEDIA* avrc_item_media = &(avrc_item->u.media);
   btrc_item_media_t* btrc_item_media = &(btrc_item->media);
@@ -3918,7 +3919,8 @@ void get_folder_item_type_media(const tAVRC_ITEM* avrc_item, btrc_folder_items_t
  * Returns          None
  *
  **************************************************************************/
-void get_folder_item_type_folder(const tAVRC_ITEM* avrc_item, btrc_folder_items_t* btrc_item) {
+static void get_folder_item_type_folder(const tAVRC_ITEM* avrc_item,
+                                        btrc_folder_items_t* btrc_item) {
   btrc_item->item_type = BTRC_ITEM_FOLDER;
   const tAVRC_ITEM_FOLDER* avrc_item_folder = &(avrc_item->u.folder);
   btrc_item_folder_t* btrc_item_folder = &(btrc_item->folder);
@@ -3973,7 +3975,8 @@ void get_folder_item_type_folder(const tAVRC_ITEM* avrc_item, btrc_folder_items_
  * Returns          None
  *
  **************************************************************************/
-void get_folder_item_type_player(const tAVRC_ITEM* avrc_item, btrc_folder_items_t* btrc_item) {
+static void get_folder_item_type_player(const tAVRC_ITEM* avrc_item,
+                                        btrc_folder_items_t* btrc_item) {
   btrc_item->item_type = BTRC_ITEM_PLAYER;
   const tAVRC_ITEM_PLAYER* avrc_item_player = &(avrc_item->u.player);
   btrc_item_player_t* btrc_item_player = &(btrc_item->player);
@@ -4439,8 +4442,9 @@ static bt_status_t get_now_playing_list_cmd(const RawAddress& bd_addr, uint32_t 
  *                  otherwise BT_STATUS_FAIL
  *
  **************************************************************************/
-static bt_status_t get_item_attribute_cmd(uint64_t uid, int scope, uint8_t num_attribute,
-                                          const uint32_t* p_attr_ids, btif_rc_device_cb_t* p_dev) {
+static bt_status_t get_item_attribute_cmd(uint64_t uid, int scope, uint8_t /*num_attribute*/,
+                                          const uint32_t* /*p_attr_ids*/,
+                                          btif_rc_device_cb_t* p_dev) {
   tAVRC_COMMAND avrc_cmd = {0};
   avrc_cmd.pdu = AVRC_PDU_GET_ITEM_ATTRIBUTES;
   avrc_cmd.get_attrs.scope = scope;
@@ -5057,10 +5061,7 @@ static const btrc_ctrl_interface_t bt_rc_ctrl_interface = {
  * Returns          btrc_interface_t
  *
  ******************************************************************************/
-const btrc_interface_t* btif_rc_get_interface(void) {
-  log::verbose("");
-  return &bt_rc_interface;
-}
+const btrc_interface_t* btif_rc_get_interface(void) { return &bt_rc_interface; }
 
 /*******************************************************************************
  *
@@ -5071,10 +5072,7 @@ const btrc_interface_t* btif_rc_get_interface(void) {
  * Returns          btrc_ctrl_interface_t
  *
  ******************************************************************************/
-const btrc_ctrl_interface_t* btif_rc_ctrl_get_interface(void) {
-  log::verbose("");
-  return &bt_rc_ctrl_interface;
-}
+const btrc_ctrl_interface_t* btif_rc_ctrl_get_interface(void) { return &bt_rc_ctrl_interface; }
 
 /*******************************************************************************
  *      Function         initialize_transaction

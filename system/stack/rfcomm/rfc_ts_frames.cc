@@ -31,10 +31,12 @@
 #include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/rfcdefs.h"
 #include "stack/rfcomm/port_int.h"
 #include "stack/rfcomm/rfc_int.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -402,7 +404,7 @@ void rfc_send_nsc(tRFC_MCB* p_mcb) {
  * Description      This function sends Remote Port Negotiation Command
  *
  ******************************************************************************/
-void rfc_send_rpn(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, tPORT_STATE* p_pars,
+void rfc_send_rpn(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, PortSettings* p_settings,
                   uint16_t mask) {
   uint8_t* p_data;
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(RFCOMM_CMD_BUF_SIZE);
@@ -412,7 +414,7 @@ void rfc_send_rpn(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, tPORT_STATE* p
 
   *p_data++ = RFCOMM_EA | RFCOMM_I_CR(is_command) | RFCOMM_MX_RPN;
 
-  if (!p_pars) {
+  if (!p_settings) {
     *p_data++ = RFCOMM_EA | (RFCOMM_MX_RPN_REQ_LEN << 1);
 
     *p_data++ = RFCOMM_EA | RFCOMM_CR_MASK | (dlci << RFCOMM_SHIFT_DLCI);
@@ -422,14 +424,14 @@ void rfc_send_rpn(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, tPORT_STATE* p
     *p_data++ = RFCOMM_EA | (RFCOMM_MX_RPN_LEN << 1);
 
     *p_data++ = RFCOMM_EA | RFCOMM_CR_MASK | (dlci << RFCOMM_SHIFT_DLCI);
-    *p_data++ = p_pars->baud_rate;
-    *p_data++ = (p_pars->byte_size << RFCOMM_RPN_BITS_SHIFT) |
-                (p_pars->stop_bits << RFCOMM_RPN_STOP_BITS_SHIFT) |
-                (p_pars->parity << RFCOMM_RPN_PARITY_SHIFT) |
-                (p_pars->parity_type << RFCOMM_RPN_PARITY_TYPE_SHIFT);
-    *p_data++ = p_pars->fc_type;
-    *p_data++ = p_pars->xon_char;
-    *p_data++ = p_pars->xoff_char;
+    *p_data++ = p_settings->baud_rate;
+    *p_data++ = (p_settings->byte_size << RFCOMM_RPN_BITS_SHIFT) |
+                (p_settings->stop_bits << RFCOMM_RPN_STOP_BITS_SHIFT) |
+                (p_settings->parity << RFCOMM_RPN_PARITY_SHIFT) |
+                (p_settings->parity_type << RFCOMM_RPN_PARITY_TYPE_SHIFT);
+    *p_data++ = p_settings->fc_type;
+    *p_data++ = p_settings->xon_char;
+    *p_data++ = p_settings->xoff_char;
     *p_data++ = (mask & 0xFF);
     *p_data++ = (mask >> 8);
 

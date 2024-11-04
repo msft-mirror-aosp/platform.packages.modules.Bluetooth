@@ -30,7 +30,6 @@
 
 #include <base/functional/bind.h>
 #include <base/functional/callback.h>
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <string.h>
 
@@ -53,8 +52,7 @@ public:
       : address_(address), uuid_(uuid), busy_(false), connect_cb_(connect_cb) {}
 
   std::string ToString() const {
-    return base::StringPrintf("address=%s UUID=%04X busy=%s", ADDRESS_TO_LOGGABLE_CSTR(address_),
-                              uuid_, (busy_) ? "true" : "false");
+    return fmt::format("address={} UUID={:04X} busy={}", address_, uuid_, busy_);
   }
 
   const RawAddress& address() const { return address_; }

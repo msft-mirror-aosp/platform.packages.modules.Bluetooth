@@ -285,7 +285,7 @@ static std::array<uint8_t, 64> SupportedCommands() {
           // OpCodeIndex::LE_SET_DATA_LENGTH,
           OpCodeIndex::LE_READ_SUGGESTED_DEFAULT_DATA_LENGTH,
           OpCodeIndex::LE_WRITE_SUGGESTED_DEFAULT_DATA_LENGTH,
-          // OpCodeIndex::LE_READ_LOCAL_P_256_PUBLIC_KEY,
+          OpCodeIndex::LE_READ_LOCAL_P_256_PUBLIC_KEY,
           // OpCodeIndex::LE_GENERATE_DHKEY_V1,
           OpCodeIndex::LE_ADD_DEVICE_TO_RESOLVING_LIST,
           OpCodeIndex::LE_REMOVE_DEVICE_FROM_RESOLVING_LIST, OpCodeIndex::LE_CLEAR_RESOLVING_LIST,

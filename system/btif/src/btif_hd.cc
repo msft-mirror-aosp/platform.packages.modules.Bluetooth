@@ -33,10 +33,13 @@
 
 #include <cstdint>
 
+#include "bta/include/bta_dm_api.h"
 #include "bta/include/bta_hd_api.h"
 #include "bta/sys/bta_sys.h"
 #include "bta_sec_api.h"
 #include "btif/include/btif_common.h"
+#include "btif/include/btif_dm.h"
+#include "btif/include/btif_hh.h"
 #include "btif/include/btif_profile_storage.h"
 #include "btif/include/btif_util.h"
 #include "include/hardware/bt_hd.h"
@@ -56,11 +59,6 @@
 #define COD_HID_MAJOR 0x0500
 
 using namespace bluetooth;
-
-bool bta_dm_check_if_only_hd_connected(const RawAddress& peer_addr);
-bool check_cod_hid(const RawAddress* remote_bdaddr);
-bool check_cod_hid(const RawAddress& bd_addr);
-void btif_hh_service_registration(bool enable);
 
 /* HD request events */
 typedef enum { BTIF_HD_DUMMY_REQ_EVT = 0 } btif_hd_req_evt_t;
@@ -219,8 +217,8 @@ static void btif_hd_upstreams_evt(uint16_t event, char* p_param) {
       break;
 
     case BTA_HD_OPEN_EVT: {
-      RawAddress* addr = (RawAddress*)&p_data->conn.bda;
-      log::warn("BTA_HD_OPEN_EVT, address={}", *addr);
+      RawAddress& addr = p_data->conn.bda;
+      log::warn("BTA_HD_OPEN_EVT, address={}", addr);
       /* Check if the connection is from hid host and not hid device */
       if (check_cod_hid(addr)) {
         /* Incoming connection from hid device, reject it */

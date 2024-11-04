@@ -39,6 +39,7 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/smp_api.h"
 #include "stack/include/smp_api_types.h"
 #include "types/raw_address.h"
 
@@ -681,17 +682,14 @@ void smp_proc_rand(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
     return;
   }
 
-  if (com::android::bluetooth::flags::fix_le_pairing_passkey_entry_bypass()) {
-    if (!((p_cb->loc_auth_req & SMP_SC_SUPPORT_BIT) &&
-          (p_cb->peer_auth_req & SMP_SC_SUPPORT_BIT)) &&
-        !(p_cb->flags & SMP_PAIR_FLAGS_CMD_CONFIRM_SENT)) {
-      // in legacy pairing, the peer should send its rand after
-      // we send our confirm
-      tSMP_INT_DATA smp_int_data{};
-      smp_int_data.status = SMP_INVALID_PARAMETERS;
-      smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &smp_int_data);
-      return;
-    }
+  if (!((p_cb->loc_auth_req & SMP_SC_SUPPORT_BIT) && (p_cb->peer_auth_req & SMP_SC_SUPPORT_BIT)) &&
+      !(p_cb->flags & SMP_PAIR_FLAGS_CMD_CONFIRM_SENT)) {
+    // in legacy pairing, the peer should send its rand after
+    // we send our confirm
+    tSMP_INT_DATA smp_int_data{};
+    smp_int_data.status = SMP_INVALID_PARAMETERS;
+    smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &smp_int_data);
+    return;
   }
 
   /* save the SRand for comparison */

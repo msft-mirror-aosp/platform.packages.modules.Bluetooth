@@ -25,6 +25,7 @@
 #define LOG_TAG "stack::sdp"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
@@ -179,7 +180,7 @@ static void sdp_snd_service_search_req(tCONN_CB* p_ccb, uint8_t cont_len, uint8_
   if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_cmd) !=
       tL2CAP_DW_RESULT::SUCCESS) {
     log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_ccb->device_address,
-              p_ccb->connection_id, p_cmd->len);
+              p_ccb->connection_id, p - p_start);
   }
 
   /* Start inactivity timer */
@@ -249,7 +250,7 @@ static bool sdp_copy_raw_data(tCONN_CB* p_ccb, bool offset) {
  * Returns          pointer to next byte in data stream
  *
  ******************************************************************************/
-tSDP_DISC_REC* add_record(tSDP_DISCOVERY_DB* p_db, const RawAddress& bd_addr) {
+static tSDP_DISC_REC* add_record(tSDP_DISCOVERY_DB* p_db, const RawAddress& bd_addr) {
   tSDP_DISC_REC* p_rec;
 
   /* See if there is enough space in the database */
@@ -636,6 +637,16 @@ static void process_service_search_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
     uint8_t* p;
     uint16_t bytes_left = SDP_DATA_BUF_SIZE;
 
+    /* If we don't have a valid discovery database, we can't do anything. */
+    if (com::android::bluetooth::flags::btsec_check_valid_discovery_database() &&
+        p_ccb->p_db == NULL) {
+      log::warn(
+              "Attempted continuation or first time request with invalid discovery "
+              "database");
+      sdp_disconnect(p_ccb, tSDP_STATUS::SDP_INVALID_CONT_STATE);
+      return;
+    }
+
     p_msg->offset = L2CAP_MIN_OFFSET;
     p = p_start = (uint8_t*)(p_msg + 1) + L2CAP_MIN_OFFSET;
 
@@ -697,7 +708,7 @@ static void process_service_search_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
     if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_msg) !=
         tL2CAP_DW_RESULT::SUCCESS) {
       log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_ccb->device_address,
-                p_ccb->connection_id, p_msg->len);
+                p_ccb->connection_id, p - p_start);
     }
 
     /* Start inactivity timer */

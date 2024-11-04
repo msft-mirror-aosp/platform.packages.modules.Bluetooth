@@ -22,7 +22,6 @@
 
 #include "audio_hearing_aid_hw/include/audio_hearing_aid_hw.h"
 #include "client_interface_aidl.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 
 namespace fmt {
@@ -55,7 +54,7 @@ public:
         total_bytes_read_(0),
         data_position_({}) {}
 
-  BluetoothAudioCtrlAck StartRequest(bool is_low_latency) override {
+  BluetoothAudioCtrlAck StartRequest(bool /*is_low_latency*/) override {
     log::info("");
     if (stream_cb_.on_resume_(true)) {
       return BluetoothAudioCtrlAck::SUCCESS_FINISHED;
@@ -83,7 +82,7 @@ public:
     }
   }
 
-  void SetLatencyMode(LatencyMode latency_mode) override {}
+  void SetLatencyMode(LatencyMode /*latency_mode*/) override {}
 
   bool GetPresentationPosition(uint64_t* remote_delay_report_ns, uint64_t* total_bytes_read,
                                timespec* data_position) override {
@@ -158,20 +157,10 @@ HearingAidTransport* hearing_aid_sink = nullptr;
 // Common interface to call-out into Bluetooth Audio Hal
 bluetooth::audio::aidl::BluetoothAudioSinkClientInterface* hearing_aid_hal_clientinterface =
         nullptr;
-bool btaudio_hearing_aid_disabled = false;
-bool is_configured = false;
 
 // Save the value if the remote reports its delay before hearing_aid_sink is
 // initialized
 uint16_t remote_delay_ms = 0;
-
-bool is_hal_force_disabled() {
-  if (!is_configured) {
-    btaudio_hearing_aid_disabled = osi_property_get_bool(BLUETOOTH_AUDIO_HAL_PROP_DISABLED, false);
-    is_configured = true;
-  }
-  return btaudio_hearing_aid_disabled;
-}
 
 }  // namespace
 
@@ -184,11 +173,6 @@ bool is_hal_enabled() { return hearing_aid_hal_clientinterface != nullptr; }
 
 bool init(StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* /*message_loop*/) {
   log::info("");
-
-  if (is_hal_force_disabled()) {
-    log::error("BluetoothAudio HAL is disabled");
-    return false;
-  }
 
   if (!BluetoothAudioClientInterface::is_aidl_available()) {
     log::error("BluetoothAudio AIDL implementation does not exist");

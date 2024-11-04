@@ -512,9 +512,6 @@ class HeadsetStateMachine extends StateMachine {
         abstract int getAudioStateInt();
 
         protected void setAptxVoice(HeadsetCallState callState) {
-            if (!Flags.hfpCodecAptxVoice()) {
-                return;
-            }
             if (!mHeadsetService.isAptXSwbEnabled()) {
                 return;
             }
@@ -1339,8 +1336,7 @@ class HeadsetStateMachine extends StateMachine {
                         mSystemInterface.getAudioManager().setLeAudioSuspended(true);
                     }
 
-                    if (Flags.hfpCodecAptxVoice()
-                            && mHeadsetService.isAptXSwbEnabled()
+                    if (mHeadsetService.isAptXSwbEnabled()
                             && mHeadsetService.isAptXSwbPmEnabled()) {
                         if (!mHeadsetService.isVirtualCallStarted()
                                 && mSystemInterface.isHighDefCallInProgress()) {
@@ -1799,11 +1795,12 @@ class HeadsetStateMachine extends StateMachine {
      *     BluetoothHeadset#STATE_AUDIO_CONNECTING}, or {@link
      *     BluetoothHeadset#STATE_AUDIO_CONNECTED}
      */
-    public synchronized int getAudioState() {
-        if (mCurrentState == null) {
+    public int getAudioState() {
+        HeadsetStateBase state = mCurrentState;
+        if (state == null) {
             return BluetoothHeadset.STATE_AUDIO_DISCONNECTED;
         }
-        return mCurrentState.getAudioStateInt();
+        return state.getAudioStateInt();
     }
 
     public long getConnectingTimestampMs() {
@@ -1880,7 +1877,7 @@ class HeadsetStateMachine extends StateMachine {
                         + (" hasSwbEnabled=" + mHasSwbLc3Enabled)
                         + (" hasAptXSwbEnabled=" + mHasSwbAptXEnabled));
         am.setParameters("bt_lc3_swb=" + (mHasSwbLc3Enabled ? "on" : "off"));
-        if (Flags.hfpCodecAptxVoice() && mHeadsetService.isAptXSwbEnabled()) {
+        if (mHeadsetService.isAptXSwbEnabled()) {
             /* AptX bt_swb: 0 -> on, 65535 -> off */
             am.setParameters("bt_swb=" + (mHasSwbAptXEnabled ? "0" : "65535"));
         }
@@ -2030,7 +2027,7 @@ class HeadsetStateMachine extends StateMachine {
         switch (wbsConfig) {
             case HeadsetHalConstants.BTHF_WBS_YES:
                 mHasWbsEnabled = true;
-                if (Flags.hfpCodecAptxVoice() && mHeadsetService.isAptXSwbEnabled()) {
+                if (mHeadsetService.isAptXSwbEnabled()) {
                     mHasSwbAptXEnabled = false;
                 }
                 break;
@@ -2133,28 +2130,28 @@ class HeadsetStateMachine extends StateMachine {
             callSetup = phoneState.getNumHeldCall();
         }
 
-        if (Flags.pretendNetworkService()) {
-            logd("processAtCind: pretendNetworkService enabled");
-            boolean isCallOngoing =
-                    (phoneState.getNumActiveCall() > 0)
-                            || (phoneState.getNumHeldCall() > 0)
-                            || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_ALERTING
-                            || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_DIALING
-                            || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_INCOMING;
-            if ((isCallOngoing
-                    && (!mHeadsetService.isVirtualCallStarted())
-                    && (phoneState.getCindService()
-                            == HeadsetHalConstants.NETWORK_STATE_NOT_AVAILABLE))) {
-                logi(
-                        "processAtCind: If regular call is in progress/active/held while no network"
+        // During wifi call, a regular call in progress while no network service,
+        // pretend service availability and signal strength.
+        boolean isCallOngoing =
+                (phoneState.getNumActiveCall() > 0)
+                        || (phoneState.getNumHeldCall() > 0)
+                        || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_ALERTING
+                        || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_DIALING
+                        || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_INCOMING;
+        if ((isCallOngoing
+                && (!mHeadsetService.isVirtualCallStarted())
+                && (phoneState.getCindService()
+                        == HeadsetHalConstants.NETWORK_STATE_NOT_AVAILABLE))) {
+            logi(
+                    "processAtCind: If regular call is in progress/active/held while no network"
                             + " during BT-ON, pretend service availability and signal strength");
-                service = HeadsetHalConstants.NETWORK_STATE_AVAILABLE;
-                signal = 3;
-            } else {
-                service = phoneState.getCindService();
-                signal = phoneState.getCindSignal();
-            }
+            service = HeadsetHalConstants.NETWORK_STATE_AVAILABLE;
+            signal = 3; // use a non-zero signal strength
+        } else {
+            service = phoneState.getCindService();
+            signal = phoneState.getCindSignal();
         }
+
         mNativeInterface.cindResponse(
                 device,
                 service,
@@ -2392,6 +2389,15 @@ class HeadsetStateMachine extends StateMachine {
                 Log.d(TAG, "Processing command: " + atString);
                 if (processAndroidAtSinkAudioPolicy(args, device)) {
                     mNativeInterface.atResponseCode(device, HeadsetHalConstants.AT_RESPONSE_OK, 0);
+                    if (getHfpCallAudioPolicy().getActiveDevicePolicyAfterConnection()
+                                    == BluetoothSinkAudioPolicy.POLICY_NOT_ALLOWED
+                            && mDevice.equals(mHeadsetService.getActiveDevice())) {
+                        Log.d(
+                                TAG,
+                                "Remove the active device because the active device policy after"
+                                        + " connection is not allowed");
+                        mHeadsetService.setActiveDevice(null);
+                    }
                 } else {
                     Log.w(TAG, "Invalid SinkAudioPolicy parameters!");
                     mNativeInterface.atResponseCode(

@@ -2,14 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "auto_on_feature"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Turn bluetooth on next morning at 5 am"
-    bug: "323060869"
-}
-
-flag {
     name: "avoid_static_loading_of_native"
     namespace: "bluetooth"
     description: "Prevent loading native during static initialization and prefer doing it during init"
@@ -17,6 +9,16 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
     bug: "339554081"
+}
+
+flag {
+    name: "enforce_resolve_system_service_behavior"
+    namespace: "bluetooth"
+    description: "Loudly crash when it is not possible to find a service to start bluetooth"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+    bug: "366273182"
 }
 
 flag {
@@ -37,6 +39,16 @@ flag {
 }
 
 flag {
+    name: "get_name_and_address_as_callback"
+    namespace: "bluetooth"
+    description: "Getting the name and address is a non-oneway call. Instead inform the system server with callback"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+    bug: "368114370"
+}
+
+flag {
     name: "kill_instead_of_exit"
     namespace: "bluetooth"
     description: "There is no value in pretending we are exiting properly. This is a kill and we should express it this way when finishing the process"
@@ -44,6 +56,16 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
     bug: "339553092"
+}
+
+flag {
+    name: "remove_one_time_get_name_and_address"
+    namespace: "bluetooth"
+    description: "We don't need to start bluetooth the first time to get name & address. We can wait for a proper start"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+    bug: "368120237"
 }
 
 flag {

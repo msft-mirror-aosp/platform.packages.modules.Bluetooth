@@ -50,7 +50,7 @@ static void EmitHeader(const BasicAudioAnnouncementData& announcement_data,
 
 static void EmitCodecConfiguration(const BasicAudioAnnouncementCodecConfig& config,
                                    std::vector<uint8_t>& data,
-                                   const BasicAudioAnnouncementCodecConfig* lower_lvl_config) {
+                                   const BasicAudioAnnouncementCodecConfig* /*lower_lvl_config*/) {
   size_t old_size = data.size();
 
   // Add 5 for full, or 1 for short Codec ID

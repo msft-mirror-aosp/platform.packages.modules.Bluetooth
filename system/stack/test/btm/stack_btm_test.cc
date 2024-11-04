@@ -38,6 +38,9 @@
 #include "test/mock/mock_main_shim_entry.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using ::testing::_;
 using ::testing::Each;
 using ::testing::Eq;
@@ -272,27 +275,6 @@ TEST_F(StackBtmTest, sco_state_text) {
   ASSERT_STREQ(oss.str().c_str(),
                sco_state_text(static_cast<tSCO_STATE>(std::numeric_limits<std::uint16_t>::max()))
                        .c_str());
-}
-
-bool is_disconnect_reason_valid(const tHCI_REASON& reason);
-TEST_F(StackBtmWithInitFreeTest, is_disconnect_reason_valid) {
-  std::set<tHCI_REASON> valid_reason_set{
-          HCI_ERR_AUTH_FAILURE,
-          HCI_ERR_PEER_USER,
-          HCI_ERR_REMOTE_LOW_RESOURCE,
-          HCI_ERR_REMOTE_POWER_OFF,
-          HCI_ERR_UNSUPPORTED_REM_FEATURE,
-          HCI_ERR_PAIRING_WITH_UNIT_KEY_NOT_SUPPORTED,
-          HCI_ERR_UNACCEPT_CONN_INTERVAL,
-  };
-  for (unsigned u = 0; u < 256; u++) {
-    const tHCI_REASON reason = static_cast<tHCI_REASON>(u);
-    if (valid_reason_set.count(reason)) {
-      ASSERT_TRUE(is_disconnect_reason_valid(reason));
-    } else {
-      ASSERT_FALSE(is_disconnect_reason_valid(reason));
-    }
-  }
 }
 
 TEST_F(StackBtmWithInitFreeTest, Init) { ASSERT_FALSE(btm_cb.rnr.remname_active); }

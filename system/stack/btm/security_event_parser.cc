@@ -68,7 +68,24 @@ static void parse_encryption_change(const EventView event) {
   EncryptionEnabled encr_enable = change.GetEncryptionEnabled();
 
   btm_sec_encryption_change_evt(handle, static_cast<tHCI_STATUS>(status),
-                                static_cast<uint8_t>(encr_enable));
+                                static_cast<uint8_t>(encr_enable), 0);
+  log_classic_pairing_event(
+          ToRawAddress(Address::kEmpty), handle, android::bluetooth::hci::CMD_UNKNOWN,
+          static_cast<uint32_t>(change.GetEventCode()), static_cast<uint16_t>(status),
+          android::bluetooth::hci::STATUS_UNKNOWN, 0);
+}
+static void parse_encryption_change_v2(const EventView event) {
+  auto change_opt = EncryptionChangeV2View::CreateOptional(event);
+  log::assert_that(change_opt.has_value(), "assert failed: change_opt.has_value()");
+  auto change = change_opt.value();
+
+  ErrorCode status = change.GetStatus();
+  uint16_t handle = change.GetConnectionHandle();
+  EncryptionEnabled encr_enable = change.GetEncryptionEnabled();
+  uint8_t key_size = change.GetKeySize();
+
+  btm_sec_encryption_change_evt(handle, static_cast<tHCI_STATUS>(status),
+                                static_cast<uint8_t>(encr_enable), key_size);
   log_classic_pairing_event(
           ToRawAddress(Address::kEmpty), handle, android::bluetooth::hci::CMD_UNKNOWN,
           static_cast<uint32_t>(change.GetEventCode()), static_cast<uint16_t>(status),
@@ -260,6 +277,9 @@ void SecurityEventParser::OnSecurityEvent(bluetooth::hci::EventView event) {
       break;
     case EventCode::USER_PASSKEY_REQUEST:
       parse_user_passkey_request(event);
+      break;
+    case EventCode::ENCRYPTION_CHANGE_V2:
+      parse_encryption_change_v2(event);
       break;
     default:
       log::error("Unhandled event {}", EventCodeText(event.GetEventCode()));

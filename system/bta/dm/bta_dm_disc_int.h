@@ -106,7 +106,7 @@ typedef struct {
   tBTA_DM_SERVICE_DISCOVERY_STATE service_discovery_state;
   std::unique_ptr<tBTA_DM_SDP_STATE> sdp_state;
 
-  uint16_t conn_id;
+  tCONN_ID conn_id;
   alarm_t* gatt_close_timer;    /* GATT channel close delay timer */
   RawAddress pending_close_bda; /* pending GATT channel remote device address */
 } tBTA_DM_SERVICE_DISCOVERY_CB;

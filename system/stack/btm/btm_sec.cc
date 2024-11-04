@@ -26,6 +26,7 @@
 
 #include "stack/btm/btm_sec.h"
 
+#include <android_bluetooth_sysprop.h>
 #include <base/functional/bind.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
@@ -77,6 +78,9 @@
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace {
 
 constexpr char kBtmLogTag[] = "SEC";
@@ -100,6 +104,7 @@ extern tBTM_CB btm_cb;
 
 bool btm_ble_init_pseudo_addr(tBTM_SEC_DEV_REC* p_dev_rec, const RawAddress& new_pseudo_addr);
 void bta_dm_remove_device(const RawAddress& bd_addr);
+void bta_dm_on_encryption_change(bt_encryption_change_evt encryption_change);
 void bta_dm_remote_key_missing(const RawAddress bd_addr);
 void bta_dm_process_remove_device(const RawAddress& bd_addr);
 
@@ -1561,22 +1566,27 @@ tBTM_STATUS btm_sec_l2cap_access_req_by_requirement(const RawAddress& bd_addr,
             "enc: x{:x}",
             p_dev_rec->sec_rec.sec_flags & BTM_SEC_AUTHENTICATED,
             p_dev_rec->sec_rec.sec_flags & BTM_SEC_ENCRYPTED);
-    /* SM4, but we do not know for sure which level of security we need.
-     * as long as we have a link key, it's OK */
-    if ((0 == (p_dev_rec->sec_rec.sec_flags & BTM_SEC_AUTHENTICATED)) ||
-        (0 == (p_dev_rec->sec_rec.sec_flags & BTM_SEC_ENCRYPTED))) {
-      rc = tBTM_STATUS::BTM_DELAY_CHECK;
-      /*
-      2046 may report HCI_Encryption_Change and L2C Connection Request out of
-      sequence
-      because of data path issues. Delay this disconnect a little bit
-      */
-      log::info("peer should have initiated security process by now (SM4 to SM4)");
-      p_dev_rec->sec_rec.p_callback = p_callback;
-      p_dev_rec->sec_rec.classic_link = tSECURITY_STATE::DELAY_FOR_ENC;
-      (*p_callback)(bd_addr, transport, p_ref_data, rc);
 
-      return tBTM_STATUS::BTM_SUCCESS;
+    if (!com::android::bluetooth::flags::trigger_sec_proc_on_inc_access_req()) {
+      /* SM4, but we do not know for sure which level of security we need.
+       * as long as we have a link key, it's OK */
+      if ((0 == (p_dev_rec->sec_rec.sec_flags & BTM_SEC_AUTHENTICATED)) ||
+         (0 == (p_dev_rec->sec_rec.sec_flags & BTM_SEC_ENCRYPTED))) {
+        rc = tBTM_STATUS::BTM_DELAY_CHECK;
+        /*
+        2046 may report HCI_Encryption_Change and L2C Connection Request out of
+        sequence
+        because of data path issues. Delay this disconnect a little bit
+        */
+        log::info("peer should have initiated security process by now (SM4 to SM4)");
+        p_dev_rec->sec_rec.p_callback = p_callback;
+        p_dev_rec->sec_rec.classic_link = tSECURITY_STATE::DELAY_FOR_ENC;
+        (*p_callback)(bd_addr, transport, p_ref_data, rc);
+
+        return tBTM_STATUS::BTM_SUCCESS;
+      }
+    } else {
+       log::debug("force fallthrough to trigger sec proceudure");
     }
   }
 
@@ -2154,7 +2164,7 @@ tBTM_SEC_DEV_REC* btm_rnr_add_name_to_security_record(const RawAddress* p_bd_add
   BTM_LogHistory(
           kBtmLogTag, (p_bd_addr) ? *p_bd_addr : RawAddress::kEmpty, "RNR complete",
           base::StringPrintf("hci_status:%s name:%s", hci_error_code_text(hci_status).c_str(),
-                             PRIVATE_NAME(p_bd_name)));
+                             PRIVATE_NAME(reinterpret_cast<char const*>(p_bd_name))));
 
   if (p_dev_rec == nullptr) {
     // We need to send the callbacks to complete the RNR cycle despite failure
@@ -3174,7 +3184,8 @@ void btm_sec_auth_complete(uint16_t handle, tHCI_STATUS status) {
  * Returns          void
  *
  ******************************************************************************/
-void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable) {
+void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable,
+                            uint8_t key_size, bool from_key_refresh = false) {
   /* For transaction collision we need to wait and repeat.  There is no need */
   /* for random timeout because only peripheral should receive the result */
   if ((status == HCI_ERR_LMP_ERR_TRANS_COLLISION) ||
@@ -3197,12 +3208,16 @@ void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_en
   const tBT_TRANSPORT transport =
           BTM_IsBleConnection(handle) ? BT_TRANSPORT_LE : BT_TRANSPORT_BR_EDR;
 
+  if (transport == BT_TRANSPORT_LE) {
+    key_size = p_dev_rec->sec_rec.ble_keys.key_size;
+  }
+
   log::debug(
           "Security Manager encryption change request hci_status:{} request:{} "
-          "state: le_link:{} classic_link:{} sec_flags:0x{:x}",
+          "state: le_link:{} classic_link:{} sec_flags:0x{:x} key_size:{}",
           hci_status_code_text(status), (encr_enable) ? "encrypt" : "unencrypt",
-          p_dev_rec->sec_rec.le_link, p_dev_rec->sec_rec.classic_link,
-          p_dev_rec->sec_rec.sec_flags);
+          p_dev_rec->sec_rec.le_link, p_dev_rec->sec_rec.classic_link, p_dev_rec->sec_rec.sec_flags,
+          key_size);
 
   if (status == HCI_SUCCESS) {
     if (encr_enable) {
@@ -3257,6 +3272,12 @@ void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_en
 
   btm_sec_check_pending_enc_req(p_dev_rec, transport, encr_enable);
 
+  if (!from_key_refresh) {
+    bta_dm_on_encryption_change(bt_encryption_change_evt{p_dev_rec->ble.pseudo_addr, status,
+                                                         (bool)encr_enable, key_size, transport,
+                                                         p_dev_rec->SupportsSecureConnections()});
+  }
+
   if (transport == BT_TRANSPORT_LE) {
     if (status == HCI_ERR_KEY_MISSING || status == HCI_ERR_AUTH_FAILURE ||
         status == HCI_ERR_ENCRY_MODE_NOT_ACCEPTABLE) {
@@ -3273,6 +3294,10 @@ void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_en
     if (status == HCI_ERR_KEY_MISSING) {
       log::info("Remote key missing - will report");
       bta_dm_remote_key_missing(p_dev_rec->ble.pseudo_addr);
+      if (com::android::bluetooth::flags::sec_disconnect_on_le_key_missing()) {
+        btm_sec_send_hci_disconnect(p_dev_rec, HCI_ERR_HOST_REJECT_SECURITY,
+                                    p_dev_rec->ble_hci_handle, "encryption_change:key_missing");
+      }
       return;
     }
 
@@ -3350,7 +3375,16 @@ void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_en
   }
 }
 
-constexpr uint8_t MIN_KEY_SIZE = 7;
+constexpr int MIN_KEY_SIZE = 7;
+constexpr int MIN_KEY_SIZE_DEFAULT = MIN_KEY_SIZE;
+constexpr int MAX_KEY_SIZE = 16;
+static uint8_t get_min_enc_key_size() {
+  static uint8_t min_key_size = (uint8_t)std::min(
+          std::max(android::sysprop::bluetooth::Gap::min_key_size().value_or(MIN_KEY_SIZE_DEFAULT),
+                   MIN_KEY_SIZE),
+          MAX_KEY_SIZE);
+  return min_key_size;
+}
 
 static void read_encryption_key_size_complete_after_encryption_change(uint8_t status,
                                                                       uint16_t handle,
@@ -3371,7 +3405,7 @@ static void read_encryption_key_size_complete_after_encryption_change(uint8_t st
     return;
   }
 
-  if (key_size < MIN_KEY_SIZE) {
+  if (key_size < get_min_enc_key_size()) {
     log::error("encryption key too short, disconnecting. handle:0x{:x},key_size:{}", handle,
                key_size);
 
@@ -3396,11 +3430,8 @@ static void read_encryption_key_size_complete_after_encryption_change(uint8_t st
 
   // good key size - succeed
   btm_acl_encrypt_change(handle, static_cast<tHCI_STATUS>(status), 1 /* enable */);
-  btm_sec_encrypt_change(handle, static_cast<tHCI_STATUS>(status), 1 /* enable */);
+  btm_sec_encrypt_change(handle, static_cast<tHCI_STATUS>(status), 1 /* enable */, key_size);
 }
-
-// TODO: Remove
-void smp_cancel_start_encryption_attempt();
 
 /*******************************************************************************
  *
@@ -3411,21 +3442,29 @@ void smp_cancel_start_encryption_attempt();
  * Returns          void
  *
  ******************************************************************************/
-void btm_sec_encryption_change_evt(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable) {
-  if (status != HCI_SUCCESS || encr_enable == 0 || BTM_IsBleConnection(handle) ||
-      !bluetooth::shim::GetController()->IsSupported(
-              bluetooth::hci::OpCode::READ_ENCRYPTION_KEY_SIZE)) {
-    if (status == HCI_ERR_CONNECTION_TOUT) {
-      smp_cancel_start_encryption_attempt();
+void btm_sec_encryption_change_evt(uint16_t handle, tHCI_STATUS status, uint8_t encr_enable,
+                                   uint8_t key_size) {
+  if (status == HCI_SUCCESS && encr_enable != 0 && !BTM_IsBleConnection(handle)) {
+    if (key_size != 0) {
+      read_encryption_key_size_complete_after_encryption_change(status, handle, key_size);
       return;
     }
 
-    btm_acl_encrypt_change(handle, static_cast<tHCI_STATUS>(status), encr_enable);
-    btm_sec_encrypt_change(handle, static_cast<tHCI_STATUS>(status), encr_enable);
-  } else {
-    btsnd_hcic_read_encryption_key_size(
-            handle, base::Bind(&read_encryption_key_size_complete_after_encryption_change));
+    if (bluetooth::shim::GetController()->IsSupported(
+                bluetooth::hci::OpCode::READ_ENCRYPTION_KEY_SIZE)) {
+      btsnd_hcic_read_encryption_key_size(
+              handle, base::Bind(&read_encryption_key_size_complete_after_encryption_change));
+      return;
+    }
   }
+
+  if (status == HCI_ERR_CONNECTION_TOUT) {
+    smp_cancel_start_encryption_attempt();
+    return;
+  }
+
+  btm_acl_encrypt_change(handle, static_cast<tHCI_STATUS>(status), encr_enable);
+  btm_sec_encrypt_change(handle, static_cast<tHCI_STATUS>(status), encr_enable, 0);
 }
 /*******************************************************************************
  *
@@ -3938,7 +3977,7 @@ static void read_encryption_key_size_complete_after_key_refresh(uint8_t status, 
     return;
   }
 
-  if (key_size < MIN_KEY_SIZE) {
+  if (key_size < get_min_enc_key_size()) {
     log::error("encryption key too short, disconnecting. handle: 0x{:x} key_size {}", handle,
                key_size);
 
@@ -3948,7 +3987,7 @@ static void read_encryption_key_size_complete_after_key_refresh(uint8_t status, 
     return;
   }
 
-  btm_sec_encrypt_change(handle, static_cast<tHCI_STATUS>(status), 1 /* enc_enable */);
+  btm_sec_encrypt_change(handle, static_cast<tHCI_STATUS>(status), 1 /* enc_enable */, key_size);
 }
 
 void btm_sec_encryption_key_refresh_complete(uint16_t handle, tHCI_STATUS status) {
@@ -3957,7 +3996,7 @@ void btm_sec_encryption_key_refresh_complete(uint16_t handle, tHCI_STATUS status
       bluetooth::shim::GetController()->IsSupported(
               bluetooth::hci::OpCode::SET_MIN_ENCRYPTION_KEY_SIZE)) {
     btm_sec_encrypt_change(handle, static_cast<tHCI_STATUS>(status),
-                           (status == HCI_SUCCESS) ? 1 : 0);
+                           (status == HCI_SUCCESS) ? 1 : 0, 0, true);
   } else {
     btsnd_hcic_read_encryption_key_size(
             handle, base::Bind(&read_encryption_key_size_complete_after_key_refresh));

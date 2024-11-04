@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "bta/include/bta_av_api.h"
 #include "include/hardware/bt_av.h"
 #include "types/raw_address.h"
 
@@ -288,13 +289,12 @@ void btif_av_connect_sink_delayed(uint8_t handle, const RawAddress& peer_address
 /**
  * Check whether A2DP Source is enabled.
  */
-bool btif_av_is_source_enabled(void);
 bool btif_av_both_enable(void);
 bool btif_av_src_sink_coexist_enabled(void);
-bool btif_av_is_sink_enabled(void);
 bool btif_av_peer_is_connected_sink(const RawAddress& peer_address);
 bool btif_av_peer_is_connected_source(const RawAddress& peer_address);
 bool btif_av_peer_is_sink(const RawAddress& peer_address);
 bool btif_av_peer_is_source(const RawAddress& peer_address);
+const RawAddress& btif_av_find_by_handle(tBTA_AV_HNDL bta_handle);
 
 #endif /* BTIF_AV_H */
