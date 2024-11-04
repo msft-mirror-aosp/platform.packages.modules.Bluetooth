@@ -327,7 +327,7 @@ void avct_lcb_dealloc(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* /* p_data */) {
   // If not, de-allocate now...
 
   log::verbose("Freeing LCB");
-  osi_free(p_lcb->p_rx_msg);
+  osi_free_and_reset((void**)&(p_lcb->p_rx_msg));
   fixed_queue_free(p_lcb->tx_q, NULL);
   memset(p_lcb, 0, sizeof(tAVCT_LCB));
 }
