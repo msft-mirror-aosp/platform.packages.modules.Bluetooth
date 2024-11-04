@@ -718,6 +718,7 @@ cc_fuzz {
         "libbluetooth_l2cap_pdl",
         "libbluetooth_log",
         "libbluetooth_smp_pdl",
+        "libbt-common",
         "libbt-platform-protos-lite",
     ],
     shared_libs: [

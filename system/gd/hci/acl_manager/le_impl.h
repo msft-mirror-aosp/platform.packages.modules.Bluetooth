@@ -27,7 +27,9 @@
 #include <vector>
 
 #include "common/bind.h"
+#include "common/le_conn_params.h"
 #include "hci/acl_manager/assembler.h"
+#include "hci/acl_manager/classic_impl.h"
 #include "hci/acl_manager/le_acceptlist_callbacks.h"
 #include "hci/acl_manager/le_acl_connection.h"
 #include "hci/acl_manager/le_connection_callbacks.h"
@@ -41,6 +43,7 @@
 #include "os/alarm.h"
 #include "os/handler.h"
 #include "os/system_properties.h"
+#include "stack/include/btm_ble_api_types.h"
 #include "stack/include/stack_metrics_logging.h"
 
 namespace bluetooth {
@@ -102,6 +105,8 @@ enum class ConnectabilityState {
   DISARMING = 3,
 };
 
+enum class ConnectionMode { RELAXED = 0, AGGRESSIVE = 1 };
+
 inline std::string connectability_state_machine_text(const ConnectabilityState& state) {
   switch (state) {
     CASE_RETURN_TEXT(ConnectabilityState::DISARMED);
@@ -127,7 +132,8 @@ struct le_acl_connection {
 
 struct le_impl : public bluetooth::hci::LeAddressManagerCallback {
   le_impl(HciLayer* hci_layer, Controller* controller, os::Handler* handler,
-          RoundRobinScheduler* round_robin_scheduler, bool crash_on_unknown_handle)
+          RoundRobinScheduler* round_robin_scheduler, bool crash_on_unknown_handle,
+          classic_impl* classic_impl)
       : hci_layer_(hci_layer),
         controller_(controller),
         round_robin_scheduler_(round_robin_scheduler) {
@@ -135,6 +141,7 @@ struct le_impl : public bluetooth::hci::LeAddressManagerCallback {
     controller_ = controller;
     handler_ = handler;
     connections.crash_on_unknown_handle_ = crash_on_unknown_handle;
+    classic_impl_ = classic_impl;
     le_acl_connection_interface_ = hci_layer_->GetLeAclConnectionInterface(
             handler_->BindOn(this, &le_impl::on_le_event),
             handler_->BindOn(this, &le_impl::on_le_disconnect),
@@ -204,6 +211,10 @@ private:
 
   public:
     bool crash_on_unknown_handle_ = false;
+    size_t size() const {
+      std::unique_lock<std::mutex> lock(le_acl_connections_guard_);
+      return le_acl_connections_.size();
+    }
     bool is_empty() const {
       std::unique_lock<std::mutex> lock(le_acl_connections_guard_);
       return le_acl_connections_.empty();
@@ -300,6 +311,17 @@ private:
       return false;
     }
   } connections;
+
+  std::string connection_mode_to_string(ConnectionMode connection_mode) {
+    switch (connection_mode) {
+      case ConnectionMode::RELAXED:
+        return "RELAXED";
+      case ConnectionMode::AGGRESSIVE:
+        return "AGGRESSIVE";
+      default:
+        return "UNKNOWN";
+    }
+  }
 
 public:
   void enqueue_command(std::unique_ptr<CommandBuilder> command_packet) {
@@ -489,6 +511,8 @@ public:
     connection->supervision_timeout_ = supervision_timeout;
     connection->in_filter_accept_list_ = in_filter_accept_list;
     connection->locally_initiated_ = (role == hci::Role::CENTRAL);
+
+    log::info("addr={}, conn_interval={}", remote_address, conn_interval);
 
     if (packet.GetSubeventCode() == SubeventCode::ENHANCED_CONNECTION_COMPLETE) {
       LeEnhancedConnectionCompleteView connection_complete =
@@ -845,10 +869,24 @@ public:
     InitiatorFilterPolicy initiator_filter_policy = InitiatorFilterPolicy::USE_FILTER_ACCEPT_LIST;
     OwnAddressType own_address_type = static_cast<OwnAddressType>(
             le_address_manager_->GetInitiatorAddress().GetAddressType());
-    uint16_t conn_interval_min =
-            os::GetSystemPropertyUint32(kPropertyMinConnInterval, kConnIntervalMin);
-    uint16_t conn_interval_max =
-            os::GetSystemPropertyUint32(kPropertyMaxConnInterval, kConnIntervalMax);
+
+    uint16_t conn_interval_min;
+    uint16_t conn_interval_max;
+
+    if (com::android::bluetooth::flags::initial_conn_params_p1()) {
+      size_t num_classic_acl_connections = classic_impl_->get_connection_count();
+      size_t num_acl_connections = connections.size();
+
+      log::debug("ACL connection count: Classic={}, LE={}", num_classic_acl_connections,
+                 num_acl_connections);
+
+      choose_connection_mode(num_classic_acl_connections + num_acl_connections, &conn_interval_min,
+                             &conn_interval_max);
+    } else {
+      conn_interval_min = os::GetSystemPropertyUint32(kPropertyMinConnInterval, kConnIntervalMin);
+      conn_interval_max = os::GetSystemPropertyUint32(kPropertyMaxConnInterval, kConnIntervalMax);
+    }
+
     uint16_t conn_latency = os::GetSystemPropertyUint32(kPropertyConnLatency, kConnLatency);
     uint16_t supervision_timeout =
             os::GetSystemPropertyUint32(kPropertyConnSupervisionTimeout, kSupervisionTimeout);
@@ -928,6 +966,36 @@ public:
                       supervision_timeout, 0x00, 0x00),
               handler_->BindOnce(&le_impl::on_create_connection, common::Unretained(this)));
     }
+  }
+
+  // Choose which connection mode should be used based on the number of ongoing ACL connections.
+  // According to the connection mode, connection interval min/max values are set.
+  void choose_connection_mode(size_t num_acl_connections, uint16_t* conn_interval_min,
+                              uint16_t* conn_interval_max) {
+    ConnectionMode connection_mode = ConnectionMode::RELAXED;
+
+    uint32_t aggressive_connection_threshold = LeConnectionParameters::GetAggressiveConnThreshold();
+    log::debug("num_acl_connections={}, aggressive_connection_threshold={}", num_acl_connections,
+               aggressive_connection_threshold);
+
+    if (num_acl_connections < aggressive_connection_threshold) {
+      connection_mode = ConnectionMode::AGGRESSIVE;
+    }
+
+    switch (connection_mode) {
+      case ConnectionMode::AGGRESSIVE:
+        *conn_interval_min = LeConnectionParameters::GetMinConnIntervalAggressive();
+        *conn_interval_max = LeConnectionParameters::GetMaxConnIntervalAggressive();
+        break;
+      case ConnectionMode::RELAXED:
+      default:
+        *conn_interval_min = LeConnectionParameters::GetMinConnIntervalRelaxed();
+        *conn_interval_max = LeConnectionParameters::GetMaxConnIntervalRelaxed();
+        break;
+    }
+    log::info("Connection mode: {}", connection_mode_to_string(connection_mode));
+    log::debug("conn_interval_min={}, conn_interval_max={}", *conn_interval_min,
+               *conn_interval_max);
   }
 
   void disarm_connectability() {
@@ -1237,6 +1305,7 @@ public:
   RoundRobinScheduler* round_robin_scheduler_ = nullptr;
   LeAddressManager* le_address_manager_ = nullptr;
   LeAclConnectionInterface* le_acl_connection_interface_ = nullptr;
+  classic_impl* classic_impl_ = nullptr;
   LeConnectionCallbacks* le_client_callbacks_ = nullptr;
   os::Handler* le_client_handler_ = nullptr;
   LeAcceptlistCallbacks* le_acceptlist_callbacks_ = nullptr;
