@@ -109,6 +109,8 @@ class RangingHalAndroid : public RangingHal {
 public:
   bool IsBound() override { return bluetooth_channel_sounding_ != nullptr; }
 
+  RangingHalVersion GetRangingHalVersion() { return hal_ver_; }
+
   void RegisterCallback(RangingHalCallback* callback) { ranging_hal_callback_ = callback; }
 
   std::vector<VendorSpecificCharacteristic> GetVendorSpecificCharacteristics() override {
@@ -248,6 +250,17 @@ public:
 protected:
   void ListDependencies(ModuleList* /*list*/) const {}
 
+  RangingHalVersion get_ranging_hal_version() {
+    int ver = 0;
+    auto aidl_ret = bluetooth_channel_sounding_->getInterfaceVersion(&ver);
+    if (aidl_ret.isOk()) {
+      log::info("ranging HAL version - {}", ver);
+      return static_cast<RangingHalVersion>(ver);
+    }
+    log::warn("ranging HAL version is not available.");
+    return RangingHalVersion::V_UNKNOWN;
+  }
+
   void Start() override {
     std::string instance = std::string() + IBluetoothChannelSounding::descriptor + "/default";
     log::info("AServiceManager_isDeclared {}", AServiceManager_isDeclared(instance.c_str()));
@@ -255,6 +268,9 @@ protected:
       ::ndk::SpAIBinder binder(AServiceManager_waitForService(instance.c_str()));
       bluetooth_channel_sounding_ = IBluetoothChannelSounding::fromBinder(binder);
       log::info("Bind IBluetoothChannelSounding {}", IsBound() ? "Success" : "Fail");
+      if (bluetooth_channel_sounding_ != nullptr) {
+        hal_ver_ = get_ranging_hal_version();
+      }
     }
   }
 
@@ -267,6 +283,7 @@ private:
   RangingHalCallback* ranging_hal_callback_;
   std::unordered_map<uint16_t, std::shared_ptr<BluetoothChannelSoundingSessionTracker>>
           session_trackers_;
+  RangingHalVersion hal_ver_;
 };
 
 const ModuleFactory RangingHal::Factory = ModuleFactory([]() { return new RangingHalAndroid(); });

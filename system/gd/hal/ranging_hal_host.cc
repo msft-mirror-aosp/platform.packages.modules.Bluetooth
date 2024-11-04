@@ -27,6 +27,7 @@ namespace hal {
 class RangingHalHost : public RangingHal {
 public:
   bool IsBound() override { return false; }
+  RangingHalVersion GetRangingHalVersion() { return V_UNKNOWN; }
   void RegisterCallback(RangingHalCallback* /* callback */) override {}
   std::vector<VendorSpecificCharacteristic> GetVendorSpecificCharacteristics() override {
     std::vector<VendorSpecificCharacteristic> vendor_specific_characteristics = {};
