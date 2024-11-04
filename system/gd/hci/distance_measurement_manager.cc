@@ -47,7 +47,8 @@ static constexpr uint16_t kIllegalConnectionHandle = 0xffff;
 static constexpr uint8_t kTxPowerNotAvailable = 0xfe;
 static constexpr int8_t kRSSIDropOffAt1M = 41;
 static constexpr uint8_t kCsMaxTxPower = 10;  // 10 dBm
-static constexpr CsSyncAntennaSelection kCsSyncAntennaSelection = CsSyncAntennaSelection::ANTENNA_2;
+static constexpr CsSyncAntennaSelection kCsSyncAntennaSelection =
+        CsSyncAntennaSelection::ANTENNAS_IN_ORDER;
 static constexpr uint8_t kConfigId = 0x01;  // Use 0x01 to create config and enable procedure
 static constexpr uint8_t kMinMainModeSteps = 0x02;
 static constexpr uint8_t kMaxMainModeSteps = 0x05;
@@ -1684,7 +1685,6 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
         raw_data.packet_quality_initiator = procedure_data->packet_quality_initiator;
         raw_data.packet_quality_reflector = procedure_data->packet_quality_reflector;
         ranging_hal_->WriteRawData(connection_handle, raw_data);
-        return;
       }
     }
 
