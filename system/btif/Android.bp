@@ -165,6 +165,12 @@ cc_library_static {
         "libbtif-core",
         "libflatbuffers-cpp",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
+    shared_libs: [
+        "libbinder",
+    ],
     apex_available: [
         "com.android.btservices",
     ],
@@ -243,7 +249,11 @@ cc_library_static {
         "libflatbuffers-cpp",
         "libstatslog_bt",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
+        "libbinder",
         "libcrypto",
         "libcutils",
     ],

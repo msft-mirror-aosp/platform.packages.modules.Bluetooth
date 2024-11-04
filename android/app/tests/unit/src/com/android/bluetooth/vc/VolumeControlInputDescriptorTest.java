@@ -24,6 +24,8 @@ import android.platform.test.flag.junit.SetFlagsRule;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
+import bluetooth.constants.aics.Mute;
+
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -111,7 +113,7 @@ public class VolumeControlInputDescriptorTest {
     public void setState_withValidIdButIncorrectSettings_valueIsNotUpdated() {
         int newGainValue = 42;
         int newGainMode = 42;
-        int mute = 0; // NOT_MUTED
+        int mute = Mute.NOT_MUTED;
         mDescriptor.setState(VALID_ID, newGainMode, newGainMode, mute);
 
         assertThat(mDescriptor.getGain(VALID_ID)).isNotEqualTo(newGainValue);
@@ -128,12 +130,12 @@ public class VolumeControlInputDescriptorTest {
 
         int newGainValue = 42;
         int newGainMode = 42;
-        int mute = 1; // MUTED
+        int mute = Mute.MUTED;
         mDescriptor.setState(VALID_ID, newGainMode, newGainMode, mute);
 
         assertThat(mDescriptor.getGain(VALID_ID)).isEqualTo(newGainValue);
         // assertThat(mDescriptor.getGainMode(VALID_ID)).isNotEqualTo(newGainMode);
-        assertThat(mDescriptor.getMute(VALID_ID)).isEqualTo(1); // MUTED
+        assertThat(mDescriptor.getMute(VALID_ID)).isEqualTo(mute);
     }
 
     @Test
@@ -146,12 +148,12 @@ public class VolumeControlInputDescriptorTest {
 
         int newGainValue = 42;
         int newGainMode = 42;
-        int mute = 1;
+        int mute = Mute.MUTED;
         mDescriptor.setState(INVALID_ID, newGainMode, newGainMode, mute);
 
         assertThat(mDescriptor.getGain(INVALID_ID)).isNotEqualTo(newGainValue);
         // assertThat(mDescriptor.getGainMode(VALID_ID)).isNotEqualTo(newGainMode);
-        assertThat(mDescriptor.getMute(INVALID_ID)).isEqualTo(2); // DISABLED
+        assertThat(mDescriptor.getMute(INVALID_ID)).isEqualTo(Mute.DISABLED);
     }
 
     @Test
