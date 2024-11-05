@@ -154,7 +154,11 @@ cc_library_static {
         "libcom.android.sysprop.bluetooth.wrapped",
         "liblc3",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
+        "libbinder",
         "libcrypto",
     ],
     generated_headers: [

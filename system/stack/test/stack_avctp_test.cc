@@ -30,14 +30,27 @@ using ::testing::SaveArg;
 
 namespace {
 constexpr uint16_t kRemoteCid = 0x0123;
+constexpr uint16_t kRemoteBrowseCid = 0x0456;
 const RawAddress kRawAddress = RawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
 }  // namespace
 
-class StackAvctpTest : public ::testing::Test {
+class StackAvctpWithMocksTest : public ::testing::Test {
 protected:
   void SetUp() override {
     fake_osi_ = std::make_unique<::test::fake::FakeOsi>();
     bluetooth::testing::stack::l2cap::set_interface(&mock_stack_l2cap_interface_);
+  }
+
+  void TearDown() override {}
+
+  bluetooth::testing::stack::l2cap::Mock mock_stack_l2cap_interface_;
+  std::unique_ptr<test::fake::FakeOsi> fake_osi_;
+};
+
+class StackAvctpTest : public StackAvctpWithMocksTest {
+protected:
+  void SetUp() override {
+    StackAvctpWithMocksTest::SetUp();
     EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_RegisterWithSecurity(_, _, _, _, _, _, _))
             .WillRepeatedly([this](unsigned short psm, const tL2CAP_APPL_INFO& cb, bool /* c */,
                                    tL2CAP_ERTM_INFO* /*d*/, unsigned short /* e */,
@@ -57,11 +70,10 @@ protected:
     EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_Deregister(BT_PSM_AVCTP));
     EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_Deregister(BT_PSM_AVCTP_BROWSE));
     AVCT_Deregister();
+    StackAvctpWithMocksTest::TearDown();
   }
 
   std::map<uint16_t, tL2CAP_APPL_INFO> callback_map_;
-  bluetooth::testing::stack::l2cap::Mock mock_stack_l2cap_interface_;
-  std::unique_ptr<test::fake::FakeOsi> fake_osi_;
   int fd_{STDOUT_FILENO};
 };
 
@@ -125,4 +137,58 @@ TEST_F(StackAvctpTest, AVCT_RemoteInitiatesBrowse) {
   callback_map_[BT_PSM_AVCTP_BROWSE].pL2CA_ConnectCfm_Cb(kRemoteCid, tL2CAP_CONN::L2CAP_CONN_OK);
 
   AVCT_Dumpsys(fd_);
+}
+
+TEST_F(StackAvctpWithMocksTest, AVCT_Lifecycle) {
+  // Register the AVCT profile and capture the l2cap callbacks
+  std::map<uint16_t, tL2CAP_APPL_INFO> callback_map;
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_RegisterWithSecurity(_, _, _, _, _, _, _))
+          .WillRepeatedly([&callback_map](unsigned short psm, const tL2CAP_APPL_INFO& cb,
+                                          bool /* c */, tL2CAP_ERTM_INFO* /*d*/,
+                                          unsigned short /* e */, unsigned short /* f */,
+                                          unsigned short /* g */) {
+            callback_map.insert(std::make_tuple(psm, cb));
+            return psm;
+          });
+  AVCT_Register();
+
+  // Return well known l2cap channel IDs for each of the two PSMs
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_ConnectReqWithSecurity(_, _, _))
+          .WillRepeatedly(
+                  [](unsigned short psm, const RawAddress /* bd_addr */, uint16_t /* sec_level */) {
+                    return (psm == BT_PSM_AVCTP) ? kRemoteCid : kRemoteBrowseCid;
+                  });
+
+  uint8_t handle;
+  tAVCT_CC cc = {
+          .p_ctrl_cback = [](uint8_t /* handle */, uint8_t /* event */, uint16_t /* result */,
+                             const RawAddress* /* peer_addr */) {},
+          .p_msg_cback = [](uint8_t /* handle */, uint8_t /* label */, uint8_t /* cr */,
+                            BT_HDR* /* p_pkt */) {},
+          .pid = 0x1234,
+          .role = AVCT_ROLE_INITIATOR,
+          .control = 1,
+  };
+
+  // Initiate the creation of both control and browse AVCT connections
+  ASSERT_EQ(AVCT_SUCCESS, AVCT_CreateConn(&handle, &cc, kRawAddress));
+  ASSERT_EQ(AVCT_SUCCESS, AVCT_CreateBrowse(handle, AVCT_ROLE_INITIATOR));
+
+  // Provide appropriate l2cap remote responses to open both channels
+  tL2CAP_CFG_INFO l2cap_cfg{};
+  callback_map[BT_PSM_AVCTP].pL2CA_ConnectCfm_Cb(kRemoteCid, tL2CAP_CONN::L2CAP_CONN_OK);
+  callback_map[BT_PSM_AVCTP].pL2CA_ConfigCfm_Cb(kRemoteCid, 0, &l2cap_cfg);
+  callback_map[BT_PSM_AVCTP_BROWSE].pL2CA_ConnectCfm_Cb(kRemoteBrowseCid,
+                                                        tL2CAP_CONN::L2CAP_CONN_OK);
+  callback_map[BT_PSM_AVCTP_BROWSE].pL2CA_ConfigCfm_Cb(kRemoteBrowseCid, 0, &l2cap_cfg);
+
+  // Close the profile by deregistering from l2cap
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_Deregister(BT_PSM_AVCTP));
+  EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_Deregister(BT_PSM_AVCTP_BROWSE));
+  AVCT_Deregister();
+
+  // Ensure that API calls with a cached handle value or any run from a reactor
+  // thread or message loop do not fail
+  ASSERT_EQ(AVCT_SUCCESS, AVCT_RemoveBrowse(handle));
+  ASSERT_EQ(AVCT_SUCCESS, AVCT_RemoveConn(handle));
 }

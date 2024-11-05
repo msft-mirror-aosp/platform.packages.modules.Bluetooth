@@ -63,6 +63,9 @@ import com.android.internal.annotations.VisibleForTesting;
 
 import libcore.util.SneakyThrow;
 
+import bluetooth.constants.AudioInputType;
+import bluetooth.constants.aics.AudioInputStatus;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1056,7 +1059,7 @@ public class VolumeControlService extends ProfileService {
             return;
         }
 
-        if (status != 0 && status != 1) {
+        if (status != AudioInputStatus.INACTIVE && status != AudioInputStatus.ACTIVE) {
             Log.e(TAG, logInfo + ": Invalid status argument");
             return;
         }
@@ -1079,7 +1082,7 @@ public class VolumeControlService extends ProfileService {
             return;
         }
 
-        if (type > 7) { // AudioInputType.AMBIENT) {
+        if (type > AudioInputType.AMBIENT) {
             Log.e(TAG, logInfo + ": Invalid type argument");
             return;
         }

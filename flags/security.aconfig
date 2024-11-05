@@ -95,3 +95,13 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+flag {
+    name: "guard_bonded_device_properties"
+    namespace: "bluetooth"
+    description: "Don't update device properties for bonded devices from the device discovery results"
+    bug: "376928594"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

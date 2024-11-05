@@ -113,8 +113,9 @@ void AVCT_Deregister(void) {
 
   // Clean up AVCTP data structures
   for (int i = 0; i < AVCT_NUM_LINKS; i++) {
-    osi_free(avct_cb.lcb[i].p_rx_msg);
+    osi_free_and_reset((void**)&(avct_cb.lcb[i].p_rx_msg));
     fixed_queue_free(avct_cb.lcb[i].tx_q, nullptr);
+    avct_cb.lcb[i].tx_q = nullptr;
     osi_free_and_reset((void**)&(avct_cb.bcb[i].p_tx_msg));
   }
 }
