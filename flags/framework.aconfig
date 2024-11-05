@@ -28,14 +28,6 @@ flag {
 }
 
 flag {
-    name: "key_missing_broadcast"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Broadcast when remote device it lost bond"
-    bug: "311447399"
-}
-
-flag {
     name: "identity_address_null_if_not_known"
     namespace: "bluetooth"
     description: "Return null for identity address if identity address is not known"
@@ -70,4 +62,30 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "support_remote_device_metadata"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Support setting/retrieving the remote device metadata for a BluetoothDevice"
+    bug: "374171574"
+}
+
+flag {
+    name: "fix_add_device_properties"
+    namespace: "bluetooth"
+    description: "Make sure single entry for mDevices. Race fix."
+    bug: "375158716"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "identity_address_type_api"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Add a new API to BluetoothDevice to retrieve Identity Address Type"
+    bug: "377171798"
 }

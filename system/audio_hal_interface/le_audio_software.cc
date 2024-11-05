@@ -31,7 +31,6 @@
 #include "bta/le_audio/le_audio_types.h"
 #include "hal_version_manager.h"
 #include "hidl/le_audio_software_hidl.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 
 namespace bluetooth {

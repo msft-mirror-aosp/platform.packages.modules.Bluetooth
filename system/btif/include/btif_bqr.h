@@ -88,6 +88,8 @@ static constexpr uint32_t kQualityEventMaskLeAudioChoppy = 0x1 << 6;
 static constexpr uint32_t kQualityEventMaskConnectFail = 0x1 << 7;
 static constexpr uint32_t kQualityEventMaskAdvRFStatsEvent = 0x1 << 8;
 static constexpr uint32_t kQualityEventMaskAdvRFStatsMonitor = 0x1 << 9;
+static constexpr uint32_t kQualityEventMaskHealthMonitorStatsEvent = 0x1 << 10;
+static constexpr uint32_t kQualityEventMaskControllerHealthMonitor = 0x1 << 11;
 static constexpr uint32_t kQualityEventMaskVendorSpecificQuality = 0x1 << 15;
 static constexpr uint32_t kQualityEventMaskLmpMessageTrace = 0x1 << 16;
 static constexpr uint32_t kQualityEventMaskBtSchedulingTrace = 0x1 << 17;
@@ -99,6 +101,7 @@ static constexpr uint32_t kQualityEventMaskAll =
         kQualityEventMaskRootInflammation | kQualityEventMaskEnergyMonitoring |
         kQualityEventMaskLeAudioChoppy | kQualityEventMaskConnectFail |
         kQualityEventMaskAdvRFStatsEvent | kQualityEventMaskAdvRFStatsMonitor |
+        kQualityEventMaskHealthMonitorStatsEvent | kQualityEventMaskControllerHealthMonitor |
         kQualityEventMaskVendorSpecificQuality | kQualityEventMaskLmpMessageTrace |
         kQualityEventMaskBtSchedulingTrace | kQualityEventMaskControllerDbgInfo |
         kQualityEventMaskVendorSpecificTrace;
@@ -132,6 +135,7 @@ static constexpr uint8_t kLogDumpParamTotalLen = 3;
 static constexpr uint8_t kVersion5_0ParamsTotalLen = 7;
 // Added in BQR V6.0
 static constexpr uint8_t kVersion6_0ParamsTotalLen = 6;
+
 // Warning criteria of the RSSI value.
 static constexpr int8_t kCriWarnRssi = -80;
 // Warning criteria of the unused AFH channel count.
@@ -167,14 +171,6 @@ static constexpr const char* kpBtSchedulingTraceLastLogPath =
 // for sco choppy. Value format is a2dp_choppy_threshold,sco_choppy_threshold
 static constexpr const char* kpPropertyChoppyThreshold = "persist.bluetooth.bqr.choppy_threshold";
 
-// File Descriptor of LMP/LL message trace log
-static int LmpLlMessageTraceLogFd = INVALID_FD;
-// File Descriptor of Bluetooth Multi-profile/Coex scheduling trace log
-static int BtSchedulingTraceLogFd = INVALID_FD;
-// Counter of LMP/LL message trace
-static uint16_t LmpLlMessageTraceCounter = 0;
-// Counter of Bluetooth Multi-profile/Coex scheduling trace
-static uint16_t BtSchedulingTraceCounter = 0;
 // The version supports ISO packets start from v1.01(257)
 static constexpr uint16_t kBqrIsoVersion = 0x101;
 // The version supports vendor quality and trace log starting v1.02(258)
@@ -184,7 +180,7 @@ static constexpr uint16_t kBqrVndLogVersion = 0x102;
 static constexpr uint16_t kBqrVersion5_0 = 0x103;
 // The REPORT_ACTION_QUERY and BQR_Report_interval starting v1.04(260)
 static constexpr uint16_t kBqrVersion6_0 = 0x104;
-
+static constexpr uint16_t kBqrVersion7_0 = 0x105;
 // Action definition
 //
 // Action to Add, Delete or Clear the reporting of quality event(s).
@@ -401,6 +397,9 @@ void DisableBtQualityReport();
 //
 // @param fd The file descriptor to use for dumping information.
 void DebugDump(int fd);
+
+// Configure the file descriptor for the LMP/LL message trace log.
+void SetLmpLlMessageTraceLogFd(int fd);
 
 }  // namespace bqr
 }  // namespace bluetooth

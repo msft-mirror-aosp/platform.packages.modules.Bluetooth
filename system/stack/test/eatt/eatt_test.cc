@@ -59,10 +59,10 @@ extern struct fake_osi_alarm_set_on_mloop fake_osi_alarm_set_on_mloop_;
 
 /* Needed for testing context */
 static tGATT_TCB test_tcb;
-void btif_storage_add_eatt_supported(const RawAddress& addr) { return; }
-void gatt_consolidate(const RawAddress& identity_addr, const RawAddress& rpa) {}
-void gatt_data_process(tGATT_TCB& tcb, uint16_t cid, BT_HDR* p_buf) { return; }
-tGATT_TCB* gatt_find_tcb_by_addr(const RawAddress& bda, tBT_TRANSPORT transport) {
+void btif_storage_add_eatt_supported(const RawAddress& /*addr*/) { return; }
+void gatt_consolidate(const RawAddress& /*identity_addr*/, const RawAddress& /*rpa*/) {}
+void gatt_data_process(tGATT_TCB& /*tcb*/, uint16_t /*cid*/, BT_HDR* /*p_buf*/) { return; }
+tGATT_TCB* gatt_find_tcb_by_addr(const RawAddress& /*bda*/, tBT_TRANSPORT /*transport*/) {
   log::info("");
   return &test_tcb;
 }
@@ -80,7 +80,7 @@ protected:
               std::move(cb).Run(addr, BLE_GATT_SVR_SUP_FEAT_EATT_BITMASK);
               return true;
             });
-    EXPECT_CALL(gatt_interface_, GetEattSupport).WillRepeatedly([](const RawAddress& addr) {
+    EXPECT_CALL(gatt_interface_, GetEattSupport).WillRepeatedly([](const RawAddress& /*addr*/) {
       return true;
     });
 
@@ -137,14 +137,14 @@ protected:
 
     ON_CALL(gatt_interface_, ClientReadSupportedFeatures)
             .WillByDefault(
-                    [&eatt_supp_feat_cb](const RawAddress& addr,
+                    [&eatt_supp_feat_cb](const RawAddress& /*addr*/,
                                          base::OnceCallback<void(const RawAddress&, uint8_t)> cb) {
                       eatt_supp_feat_cb = std::move(cb);
                       return true;
                     });
 
     // Return false to trigger supported features request
-    ON_CALL(gatt_interface_, GetEattSupport).WillByDefault([](const RawAddress& addr) {
+    ON_CALL(gatt_interface_, GetEattSupport).WillByDefault([](const RawAddress& /*addr*/) {
       return false;
     });
 
@@ -297,7 +297,8 @@ TEST_F(EattTest, IncomingEattConnectionByUnknownDevice) {
   std::vector<uint16_t> incoming_cids{71, 72, 73, 74, 75};
 
   ON_CALL(btm_api_interface_, IsEncrypted)
-          .WillByDefault([](const RawAddress& addr, tBT_TRANSPORT transport) { return true; });
+          .WillByDefault(
+                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return true; });
   EXPECT_CALL(mock_stack_l2cap_interface_,
               L2CA_ConnectCreditBasedRsp(test_address, 1, incoming_cids,
                                          tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK, _))
@@ -312,14 +313,15 @@ TEST_F(EattTest, IncomingEattConnectionByUnknownDevice) {
 TEST_F(EattTest, IncomingEattConnectionByKnownDevice) {
   hci_role_ = HCI_ROLE_PERIPHERAL;
   ON_CALL(btm_api_interface_, IsEncrypted)
-          .WillByDefault([](const RawAddress& addr, tBT_TRANSPORT transport) { return true; });
+          .WillByDefault(
+                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return true; });
   ON_CALL(gatt_interface_, ClientReadSupportedFeatures)
           .WillByDefault([](const RawAddress& addr,
                             base::OnceCallback<void(const RawAddress&, uint8_t)> cb) {
             std::move(cb).Run(addr, BLE_GATT_SVR_SUP_FEAT_EATT_BITMASK);
             return true;
           });
-  ON_CALL(gatt_interface_, GetEattSupport).WillByDefault([](const RawAddress& addr) {
+  ON_CALL(gatt_interface_, GetEattSupport).WillByDefault([](const RawAddress& /*addr*/) {
     return true;
   });
 
@@ -342,16 +344,18 @@ TEST_F(EattTest, IncomingEattConnectionByKnownDevice) {
 TEST_F(EattTest, IncomingEattConnectionByKnownDeviceEncryptionOff) {
   hci_role_ = HCI_ROLE_PERIPHERAL;
   ON_CALL(btm_api_interface_, IsEncrypted)
-          .WillByDefault([](const RawAddress& addr, tBT_TRANSPORT transport) { return false; });
+          .WillByDefault(
+                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return false; });
   ON_CALL(btm_api_interface_, IsLinkKeyKnown)
-          .WillByDefault([](const RawAddress& addr, tBT_TRANSPORT transport) { return true; });
+          .WillByDefault(
+                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return true; });
   ON_CALL(gatt_interface_, ClientReadSupportedFeatures)
           .WillByDefault([](const RawAddress& addr,
                             base::OnceCallback<void(const RawAddress&, uint8_t)> cb) {
             std::move(cb).Run(addr, BLE_GATT_SVR_SUP_FEAT_EATT_BITMASK);
             return true;
           });
-  ON_CALL(gatt_interface_, GetEattSupport).WillByDefault([](const RawAddress& addr) {
+  ON_CALL(gatt_interface_, GetEattSupport).WillByDefault([](const RawAddress& /*addr*/) {
     return true;
   });
 
@@ -374,9 +378,11 @@ TEST_F(EattTest, IncomingEattConnectionByUnknownDeviceEncryptionOff) {
   std::vector<uint16_t> incoming_cids{71, 72, 73, 74, 75};
 
   ON_CALL(btm_api_interface_, IsEncrypted)
-          .WillByDefault([](const RawAddress& addr, tBT_TRANSPORT transport) { return false; });
+          .WillByDefault(
+                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return false; });
   ON_CALL(btm_api_interface_, IsLinkKeyKnown)
-          .WillByDefault([](const RawAddress& addr, tBT_TRANSPORT transport) { return false; });
+          .WillByDefault(
+                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return false; });
   EXPECT_CALL(mock_stack_l2cap_interface_,
               L2CA_ConnectCreditBasedRsp(
                       test_address, 1, _,
@@ -393,7 +399,8 @@ TEST_F(EattTest, ReconnectInitiatedByRemoteSucceed) {
   std::vector<uint16_t> incoming_cids{71, 72, 73, 74, 75};
 
   ON_CALL(btm_api_interface_, IsEncrypted)
-          .WillByDefault([](const RawAddress& addr, tBT_TRANSPORT transport) { return true; });
+          .WillByDefault(
+                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return true; });
 
   EXPECT_CALL(mock_stack_l2cap_interface_,
               L2CA_ConnectCreditBasedRsp(test_address, 1, incoming_cids,
@@ -408,7 +415,8 @@ TEST_F(EattTest, ReconnectInitiatedByRemoteSucceed) {
 
 TEST_F(EattTest, ConnectInitiatedWhenRemoteConnects) {
   ON_CALL(btm_api_interface_, IsEncrypted)
-          .WillByDefault([](const RawAddress& addr, tBT_TRANSPORT transport) { return true; });
+          .WillByDefault(
+                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return true; });
 
   std::vector<uint16_t> incoming_cids{71, 72, 73, 74};
   ConnectDeviceBothSides(1, incoming_cids);
@@ -432,7 +440,7 @@ TEST_F(EattTest, ConnectFailedEattNotSupported) {
             std::move(cb).Run(addr, 0);
             return true;
           });
-  ON_CALL(gatt_interface_, GetEattSupport).WillByDefault([](const RawAddress& addr) {
+  ON_CALL(gatt_interface_, GetEattSupport).WillByDefault([](const RawAddress& /*addr*/) {
     return false;
   });
 

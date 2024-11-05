@@ -38,8 +38,6 @@
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_sec.h"
-#include "stack/include/avct_api.h"  // AVCT_PSM
-#include "stack/include/avdt_api.h"  // AVDT_PSM
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
@@ -621,8 +619,8 @@ bool bta_jv_check_psm(uint16_t psm) {
           }
           break;
 
-        case AVCT_PSM: /* 0x17 */
-        case AVDT_PSM: /* 0x19 */
+        case BT_PSM_AVCTP: /* 0x17 */
+        case BT_PSM_AVDTP: /* 0x19 */
           if (!bta_sys_is_register(BTA_ID_AV)) {
             ret = true;
           }
@@ -913,6 +911,28 @@ void bta_jv_start_discovery(const RawAddress& bd_addr, uint16_t num_uuid,
   } else {
     log::info("Started service discovery bd_addr:{} num_uuid:{} rfcomm_slot_id:{}", bd_addr,
               num_uuid, rfcomm_slot_id);
+  }
+}
+
+void bta_jv_cancel_discovery(uint32_t rfcomm_slot_id) {
+  if (!bta_jv_cb.sdp_cb.sdp_active) {
+    log::error("Canceling discovery but discovery is not active");
+    return;
+  }
+  if (!get_legacy_stack_sdp_api()->service.SDP_CancelServiceSearch(p_bta_jv_cfg->p_sdp_db)) {
+    log::error("Failed to cancel discovery, clean up the control block anyway");
+    bta_jv_cb.sdp_cb = {};
+    /* Send complete event right away as we might not receive callback from stack */
+    if (bta_jv_cb.p_dm_cback) {
+      tBTA_JV bta_jv = {
+              .status = tBTA_JV_STATUS::FAILURE,
+      };
+      bta_jv_cb.p_dm_cback(BTA_JV_DISCOVERY_COMP_EVT, &bta_jv, rfcomm_slot_id);
+    } else {
+      log::warn("No callback set for discovery complete event");
+    }
+  } else {
+    log::info("Canceled discovery");
   }
 }
 
@@ -1442,7 +1462,7 @@ void bta_jv_rfcomm_connect(tBTA_SEC sec_mask, uint8_t remote_scn, const RawAddre
                            tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id) {
   uint16_t handle = 0;
   uint32_t event_mask = BTA_JV_RFC_EV_MASK;
-  tPORT_STATE port_state;
+  PortSettings port_settings;
 
   tBTA_JV bta_jv = {
           .rfc_cl_init =
@@ -1485,13 +1505,13 @@ void bta_jv_rfcomm_connect(tBTA_SEC sec_mask, uint8_t remote_scn, const RawAddre
       if (PORT_SetDataCOCallback(handle, bta_jv_port_data_co_cback) != PORT_SUCCESS) {
         log::warn("Unable to set RFCOMM client data callback handle:{}", handle);
       }
-      if (PORT_GetState(handle, &port_state) != PORT_SUCCESS) {
+      if (PORT_GetSettings(handle, &port_settings) != PORT_SUCCESS) {
         log::warn("Unable to get RFCOMM client state handle:{}", handle);
       }
 
-      port_state.fc_type = (PORT_FC_CTS_ON_INPUT | PORT_FC_CTS_ON_OUTPUT);
+      port_settings.fc_type = (PORT_FC_CTS_ON_INPUT | PORT_FC_CTS_ON_OUTPUT);
 
-      if (PORT_SetState(handle, &port_state) != PORT_SUCCESS) {
+      if (PORT_SetSettings(handle, &port_settings) != PORT_SUCCESS) {
         log::warn("Unable to set RFCOMM client state handle:{}", handle);
       }
 
@@ -1677,7 +1697,7 @@ static void bta_jv_port_event_sr_cback(uint32_t code, uint16_t port_handle) {
 static tBTA_JV_PCB* bta_jv_add_rfc_port(tBTA_JV_RFC_CB* p_cb, tBTA_JV_PCB* p_pcb_open) {
   uint8_t used = 0, i, listen = 0;
   uint32_t si = 0;
-  tPORT_STATE port_state;
+  PortSettings port_settings;
   uint32_t event_mask = BTA_JV_RFC_EV_MASK;
   tBTA_JV_PCB* p_pcb = NULL;
   tBTA_SEC sec_mask;
@@ -1733,13 +1753,13 @@ static tBTA_JV_PCB* bta_jv_add_rfc_port(tBTA_JV_RFC_CB* p_cb, tBTA_JV_PCB* p_pcb
         if (PORT_SetDataCOCallback(p_pcb->port_handle, bta_jv_port_data_co_cback) != PORT_SUCCESS) {
           log::warn("Unable to set RFCOMM server data callback handle:{}", p_pcb->port_handle);
         }
-        if (PORT_GetState(p_pcb->port_handle, &port_state) != PORT_SUCCESS) {
+        if (PORT_GetSettings(p_pcb->port_handle, &port_settings) != PORT_SUCCESS) {
           log::warn("Unable to get RFCOMM server state handle:{}", p_pcb->port_handle);
         }
 
-        port_state.fc_type = (PORT_FC_CTS_ON_INPUT | PORT_FC_CTS_ON_OUTPUT);
+        port_settings.fc_type = (PORT_FC_CTS_ON_INPUT | PORT_FC_CTS_ON_OUTPUT);
 
-        if (PORT_SetState(p_pcb->port_handle, &port_state) != PORT_SUCCESS) {
+        if (PORT_SetSettings(p_pcb->port_handle, &port_settings) != PORT_SUCCESS) {
           log::warn("Unable to set RFCOMM server state handle:{}", p_pcb->port_handle);
         }
         p_pcb->handle = BTA_JV_RFC_H_S_TO_HDL(p_cb->handle, si);
@@ -1762,7 +1782,7 @@ void bta_jv_rfcomm_start_server(tBTA_SEC sec_mask, uint8_t local_scn, uint8_t ma
                                 tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id) {
   uint16_t handle = 0;
   uint32_t event_mask = BTA_JV_RFC_EV_MASK;
-  tPORT_STATE port_state;
+  PortSettings port_settings;
   tBTA_JV_RFC_CB* p_cb = NULL;
   tBTA_JV_PCB* p_pcb;
   tBTA_JV_RFCOMM_START evt_data;
@@ -1800,13 +1820,13 @@ void bta_jv_rfcomm_start_server(tBTA_SEC sec_mask, uint8_t local_scn, uint8_t ma
         PORT_SUCCESS) {
       log::warn("Unable to set RFCOMM server event mask and callback handle:{}", handle);
     }
-    if (PORT_GetState(handle, &port_state) != PORT_SUCCESS) {
+    if (PORT_GetSettings(handle, &port_settings) != PORT_SUCCESS) {
       log::warn("Unable to get RFCOMM server state handle:{}", handle);
     }
 
-    port_state.fc_type = (PORT_FC_CTS_ON_INPUT | PORT_FC_CTS_ON_OUTPUT);
+    port_settings.fc_type = (PORT_FC_CTS_ON_INPUT | PORT_FC_CTS_ON_OUTPUT);
 
-    if (PORT_SetState(handle, &port_state) != PORT_SUCCESS) {
+    if (PORT_SetSettings(handle, &port_settings) != PORT_SUCCESS) {
       log::warn("Unable to set RFCOMM port state handle:{}", handle);
     }
   } while (0);

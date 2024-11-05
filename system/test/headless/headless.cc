@@ -25,7 +25,6 @@
 #include <map>
 #include <memory>
 
-#include "gd/os/log.h"
 #include "include/hardware/bluetooth.h"
 #include "test/headless/bt_stack_info.h"
 #include "test/headless/interface.h"
@@ -258,7 +257,7 @@ void HeadlessStack::SetUp() {
   const bool is_atv = false;
 
   int status = bluetoothInterface.init(&bt_callbacks, start_restricted, is_common_criteria_mode,
-                                       config_compare_result, nullptr, is_atv, nullptr);
+                                       config_compare_result, is_atv);
 
   if (status == BT_STATUS_SUCCESS) {
     log::info("Initialized bluetooth callbacks");

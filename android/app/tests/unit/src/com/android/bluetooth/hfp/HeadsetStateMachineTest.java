@@ -1333,7 +1333,7 @@ public class HeadsetStateMachineTest {
         ArgumentCaptor<Intent> intentArgument = ArgumentCaptor.forClass(Intent.class);
         verify(mHeadsetService, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
                 .sendBroadcast(intentArgument.capture(), eq(BLUETOOTH_CONNECT), any(Bundle.class));
-        verify(mHeadsetService, times(1)).sendBroadcast(any(), any(), any());
+        verify(mHeadsetService).sendBroadcast(any(), any(), any());
         Assert.assertEquals(
                 mTestDevice,
                 intentArgument.getValue().getExtra(BluetoothDevice.EXTRA_DEVICE, null));
@@ -1361,7 +1361,7 @@ public class HeadsetStateMachineTest {
         ArgumentCaptor<Intent> intentArgument = ArgumentCaptor.forClass(Intent.class);
         verify(mHeadsetService, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
                 .sendBroadcast(intentArgument.capture(), eq(BLUETOOTH_CONNECT), any(Bundle.class));
-        verify(mHeadsetService, times(1)).sendBroadcast(any(), any(), any());
+        verify(mHeadsetService).sendBroadcast(any(), any(), any());
         Assert.assertEquals(
                 mTestDevice,
                 intentArgument.getValue().getExtra(BluetoothDevice.EXTRA_DEVICE, null));
@@ -1389,7 +1389,7 @@ public class HeadsetStateMachineTest {
         ArgumentCaptor<Intent> intentArgument = ArgumentCaptor.forClass(Intent.class);
         verify(mHeadsetService, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
                 .sendBroadcast(intentArgument.capture(), eq(BLUETOOTH_CONNECT), any(Bundle.class));
-        verify(mHeadsetService, times(1)).sendBroadcast(any(), any(), any());
+        verify(mHeadsetService).sendBroadcast(any(), any(), any());
         Assert.assertEquals(
                 mTestDevice,
                 intentArgument.getValue().getExtra(BluetoothDevice.EXTRA_DEVICE, null));
@@ -1921,6 +1921,14 @@ public class HeadsetStateMachineTest {
                 .atResponseCode(mTestDevice, HeadsetHalConstants.AT_RESPONSE_OK, 0);
         verify(mNativeInterface, timeout(ASYNC_CALL_TIMEOUT_MILLIS).times(counter_error))
                 .atResponseCode(mTestDevice, HeadsetHalConstants.AT_RESPONSE_ERROR, 0);
+    }
+
+    @Test
+    public void testCheckAndProcessAndroidAt_handleConnectingTimePolicyNotAllowed() {
+        when(mHeadsetService.getActiveDevice()).thenReturn(mTestDevice);
+        mHeadsetStateMachine.checkAndProcessAndroidAt(
+                "+ANDROID=SINKAUDIOPOLICY,0,2,2", mTestDevice);
+        verify(mHeadsetService).setActiveDevice(null);
     }
 
     @Test

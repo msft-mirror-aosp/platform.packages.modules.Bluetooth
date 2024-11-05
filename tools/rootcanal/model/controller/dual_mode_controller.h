@@ -450,6 +450,9 @@ public:
   void LeReadSuggestedDefaultDataLength(CommandView command);
   void LeWriteSuggestedDefaultDataLength(CommandView command);
 
+  // 7.8.36
+  void LeReadLocalP256PublicKey(CommandView command);
+
   // 7.8.38 - 7.8.41
   void LeAddDeviceToResolvingList(CommandView command);
   void LeRemoveDeviceFromResolvingList(CommandView command);

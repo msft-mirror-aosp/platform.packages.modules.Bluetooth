@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <aics/api.h>
 #include <hardware/bluetooth.h>
 #include <raw_address.h>
 
@@ -26,6 +27,9 @@
 namespace bluetooth {
 namespace vc {
 
+using bluetooth::aics::Mute;
+
+// Must be kept in sync with BluetoothProfile.java
 enum class ConnectionState { DISCONNECTED = 0, CONNECTING, CONNECTED, DISCONNECTING };
 
 /* Audio input types */
@@ -72,7 +76,7 @@ public:
 
   /* Callbacks for Audio Input Stream (AIS) - Extended Audio Inputs */
   virtual void OnExtAudioInStateChanged(const RawAddress& address, uint8_t ext_input_id,
-                                        int8_t gain_val, uint8_t gain_mode_auto, bool mute) = 0;
+                                        int8_t gain_val, uint8_t gain_mode_auto, Mute mute) = 0;
 
   virtual void OnExtAudioInStatusChanged(const RawAddress& address, uint8_t ext_input_id,
                                          VolumeInputStatus status) = 0;

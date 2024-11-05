@@ -34,6 +34,7 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.BluetoothSinkAudioPolicy;
+import android.bluetooth.BluetoothUtils;
 import android.bluetooth.IBluetoothConnectionCallback;
 import android.content.Context;
 import android.content.Intent;
@@ -44,8 +45,6 @@ import android.os.Message;
 import android.os.ParcelUuid;
 import android.os.SystemProperties;
 import android.util.Log;
-
-import androidx.annotation.NonNull;
 
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.R;
@@ -188,7 +187,7 @@ public class RemoteDevices {
 
                         debugLog(
                                 "reset(): address="
-                                        + address
+                                        + BluetoothUtils.toAnonymizedAddress(address)
                                         + ", connected="
                                         + bluetoothDevice.isConnected());
 
@@ -293,10 +292,16 @@ public class RemoteDevices {
     @VisibleForTesting
     DeviceProperties addDeviceProperties(byte[] address) {
         synchronized (mDevices) {
+            String key = Utils.getAddressStringFromByte(address);
+            if (Flags.fixAddDeviceProperties() && mDevices.containsKey(key)) {
+                debugLog("Properties for device " + key + " are already added");
+                return mDevices.get(key);
+            }
+
             DeviceProperties prop = new DeviceProperties();
             prop.setDevice(mAdapter.getRemoteDevice(Utils.getAddressStringFromByte(address)));
             prop.setAddress(address);
-            String key = Utils.getAddressStringFromByte(address);
+
             DeviceProperties pv = mDevices.put(key, prop);
 
             if (pv == null) {
@@ -1167,7 +1172,7 @@ public class RemoteDevices {
                         + Utils.getRedactedAddressStringFromByte(secondaryAddress));
 
         DeviceProperties deviceProperties = getDeviceProperties(device);
-        deviceProperties.mIdentityAddress = Utils.getAddressStringFromByte(secondaryAddress);
+        deviceProperties.setIdentityAddress(Utils.getAddressStringFromByte(secondaryAddress));
     }
 
     void aclStateChangeCallback(
@@ -1318,7 +1323,6 @@ public class RemoteDevices {
         mAdapterService.aclStateChangeBroadcastCallback(connectionChangeConsumer);
     }
 
-    @NonNull
     private void sendPairingCancelIntent(BluetoothDevice device) {
         Intent intent = new Intent(BluetoothDevice.ACTION_PAIRING_CANCEL);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
@@ -1384,10 +1388,6 @@ public class RemoteDevices {
         Log.i(TAG, "keyMissingCallback device: " + bluetoothDevice);
 
         if (getBondState(bluetoothDevice) == BluetoothDevice.BOND_BONDED) {
-            if (!Flags.keyMissingBroadcast()) {
-                Log.d(TAG, "flag not set - don't send key missing broadcast");
-                return;
-            }
             Intent intent =
                     new Intent(BluetoothDevice.ACTION_KEY_MISSING)
                             .putExtra(BluetoothDevice.EXTRA_DEVICE, bluetoothDevice)

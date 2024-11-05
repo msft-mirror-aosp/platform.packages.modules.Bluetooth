@@ -86,7 +86,7 @@ tBTM_SEC_DEV_REC* btm_find_dev(const RawAddress& bd_addr) {
   return btm_interface->FindDevice(bd_addr);
 }
 
-void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason, std::string comment) {
+void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason, std::string /*comment*/) {
   log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
   return btm_interface->AclDisconnectFromHandle(handle, reason);
 }

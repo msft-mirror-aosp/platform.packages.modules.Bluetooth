@@ -1041,6 +1041,12 @@ void LeAudioDevice::Dump(int fd) {
          << ",mtu: " << std::to_string(mtu_)
          << "\n\tnumber of ases_: " << static_cast<int>(ases_.size());
 
+  if (gmap_client_ != nullptr) {
+    gmap_client_->DebugDump(fd);
+  } else {
+    stream << "GmapClient not initialized\n";
+  }
+
   if (ases_.size() > 0) {
     stream << "\n\t== ASEs == \n\t";
     stream << "id  active dir     cis_id  cis_handle  sdu  latency rtn  "
@@ -1296,7 +1302,7 @@ LeAudioDevice* LeAudioDevices::FindByCisConnHdl(uint8_t cig_id, uint16_t conn_hd
 }
 
 void LeAudioDevices::SetInitialGroupAutoconnectState(int group_id, int gatt_if,
-                                                     tBTM_BLE_CONN_TYPE reconnection_mode,
+                                                     tBTM_BLE_CONN_TYPE /*reconnection_mode*/,
                                                      bool current_dev_autoconnect_flag) {
   if (!current_dev_autoconnect_flag) {
     /* If current device autoconnect flag is false, check if there is other

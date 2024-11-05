@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <aics/api.h>
 #include <base/functional/bind.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
@@ -33,7 +34,6 @@
 #include "bta/le_audio/le_audio_types.h"
 #include "bta/vc/devices.h"
 #include "internal_include/bt_trace.h"
-#include "os/log.h"
 #include "osi/include/osi.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/bt_types.h"
@@ -311,7 +311,7 @@ public:
   }
 
   void OnCharacteristicValueChanged(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
-                                    uint16_t len, uint8_t* value, void* data,
+                                    uint16_t len, uint8_t* value, void* /*data*/,
                                     bool is_notification) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(conn_id);
     if (!device) {
@@ -522,7 +522,7 @@ public:
     StartQueueOperation();
   }
 
-  void OnVolumeControlFlagsChanged(VolumeControlDevice* device, uint16_t len, uint8_t* value) {
+  void OnVolumeControlFlagsChanged(VolumeControlDevice* device, uint16_t /*len*/, uint8_t* value) {
     device->flags = *value;
 
     bluetooth::log::info("{}, flags {:#x}", device->address, device->flags);
@@ -582,7 +582,14 @@ public:
 
     uint8_t* pp = value;
     STREAM_TO_INT8(input->gain_value, pp);
-    STREAM_TO_UINT8(input->mute, pp);
+    uint8_t mute;
+    STREAM_TO_UINT8(mute, pp);
+    if (!bluetooth::aics::isValidAudioInputMuteValue(mute)) {
+      bluetooth::log::error("{} Invalid mute value: {:#x}", device->address, mute);
+      return;
+    }
+    input->mute = bluetooth::aics::parseMuteField(mute);
+
     STREAM_TO_UINT8(input->mode, pp);
     STREAM_TO_UINT8(input->change_counter, pp);
 
@@ -590,7 +597,7 @@ public:
     bluetooth::log::info(
             "{} id={:#x}gain_value {:#x}, mute: {:#x}, mode: {:#x}, "
             "change_counter: {}",
-            device->address, input->id, input->gain_value, input->mute, input->mode,
+            device->address, input->id, input->gain_value, mute, input->mode,
             input->change_counter);
 
     if (!device->device_ready) {
@@ -740,8 +747,8 @@ public:
     callbacks_->OnExtAudioOutDescriptionChanged(device->address, offset->id, offset->description);
   }
 
-  void OnGattWriteCcc(tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                      const uint8_t* value, void* /*data*/) {
+  void OnGattWriteCcc(tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle,
+                      uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
       bluetooth::log::error("unknown connection_id={:#x}", connection_id);
@@ -1364,8 +1371,8 @@ private:
                                     const std::vector<uint8_t>* arg, int operation_id = -1) {
     volume_control_devices_.ControlPointOperation(
             devices, opcode, arg,
-            [](tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* data) {
+            [](tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* data) {
               if (instance) {
                 instance->OnWriteControlResponse(connection_id, status, handle, data);
               }
@@ -1385,8 +1392,8 @@ private:
 
     device->ExtAudioInControlPointOperation(
             ext_input_id, opcode, arg,
-            [](uint16_t connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* data) {
+            [](uint16_t connection_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* /*data*/) {
               if (instance) {
                 instance->OnExtAudioInCPWrite(connection_id, status, handle);
               }
@@ -1404,8 +1411,8 @@ private:
     }
     device->ExtAudioOutControlPointOperation(
             ext_output_id, opcode, arg,
-            [](tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* data) {
+            [](tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* data) {
               if (instance) {
                 instance->OnExtAudioOutCPWrite(connection_id, status, handle, data);
               }
@@ -1504,7 +1511,7 @@ private:
 
       if (position + len >= total_len) {
         bluetooth::log::warn(
-                "Multi read was too long, value truncated conn_id: {:#x} handle: {:#x}, possition: "
+                "Multi read was too long, value truncated conn_id: {:#x} handle: {:#x}, position: "
                 "{:#x}, len: {:#x}, total_len: {:#x}, data: {}",
                 conn_id, hdl, position, len, total_len, base::HexEncode(value, total_len));
         break;

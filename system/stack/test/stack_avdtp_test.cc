@@ -40,19 +40,20 @@ protected:
   static uint8_t scb_handle_;
 
 protected:
-  static void AvdtConnCallback(uint8_t handle, const RawAddress& bd_addr, uint8_t event,
-                               tAVDT_CTRL* p_data, uint8_t scb_index) {
+  static void AvdtConnCallback(uint8_t /*handle*/, const RawAddress& /*bd_addr*/, uint8_t event,
+                               tAVDT_CTRL* /*p_data*/, uint8_t /*scb_index*/) {
     inc_func_call_count(__func__);
     callback_event_ = event;
   }
 
-  static void StreamCtrlCallback(uint8_t handle, const RawAddress& bd_addr, uint8_t event,
-                                 tAVDT_CTRL* p_data, uint8_t scb_index) {
+  static void StreamCtrlCallback(uint8_t /*handle*/, const RawAddress& /*bd_addr*/, uint8_t event,
+                                 tAVDT_CTRL* /*p_data*/, uint8_t /*scb_index*/) {
     inc_func_call_count(__func__);
     callback_event_ = event;
   }
 
-  static void AvdtReportCallback(uint8_t handle, AVDT_REPORT_TYPE type, tAVDT_REPORT_DATA* p_data) {
+  static void AvdtReportCallback(uint8_t /*handle*/, AVDT_REPORT_TYPE /*type*/,
+                                 tAVDT_REPORT_DATA* /*p_data*/) {
     inc_func_call_count(__func__);
   }
 

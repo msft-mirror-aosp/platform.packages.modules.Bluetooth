@@ -74,6 +74,8 @@ cc_library_static {
         "av/bta_av_main.cc",
         "av/bta_av_ssm.cc",
         "csis/csis_client.cc",
+        "gmap/gmap_client.cc",
+        "gmap/gmap_server.cc",
         "groups/groups.cc",
         "has/has_client.cc",
         "has/has_ctp.cc",
@@ -133,7 +135,6 @@ cc_library_static {
         "vc/vc.cc",
     ],
     cflags: [
-        "-Wno-unused-parameter",
         /* we export all classes, so change default visibility, instead of having EXPORT_SYMBOL on each class*/
         "-fvisibility=default",
     ],
@@ -153,7 +154,11 @@ cc_library_static {
         "libcom.android.sysprop.bluetooth.wrapped",
         "liblc3",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
+        "libbinder",
         "libcrypto",
     ],
     generated_headers: [
@@ -204,7 +209,6 @@ cc_library_static {
         "sys/utl.cc",
     ],
     cflags: [
-        "-Wno-unused-parameter",
         /* we export all classes, so change default visibility, instead of having EXPORT_SYMBOL on each class*/
         "-fvisibility=default",
     ],
@@ -260,6 +264,7 @@ cc_test {
         ":TestMockStackAvdt",
         ":TestMockStackAvrc",
         ":TestMockStackBtm",
+        ":TestMockStackConnMgr",
         ":TestMockStackGap",
         ":TestMockStackGatt",
         ":TestMockStackHid",
@@ -325,7 +330,7 @@ cc_test {
         "libgmock",
         "server_configurable_flags",
     ],
-    data: [
+    device_first_data: [
         ":audio_set_configurations_bfbs",
         ":audio_set_configurations_json",
         ":audio_set_scenarios_bfbs",
@@ -333,7 +338,6 @@ cc_test {
     ],
     cflags: [
         "-Wno-macro-redefined",
-        "-Wno-unused-parameter",
     ],
     target: {
         android: {
@@ -399,7 +403,6 @@ cc_test {
         "libcom.android.sysprop.bluetooth.wrapped",
         "libgmock",
     ],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 // bta unit tests for target
@@ -448,7 +451,6 @@ cc_test {
         "libosi",
         "libstatslog_bt",
     ],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -513,7 +515,6 @@ cc_test {
             ],
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 // csis unit tests for host
@@ -576,7 +577,6 @@ cc_test {
             undefined: true,
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 // groups unit tests for host
@@ -623,7 +623,6 @@ cc_test {
             undefined: true,
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 // bta unit tests for host
@@ -656,12 +655,17 @@ cc_test {
         "vc/vc.cc",
         "vc/vc_test.cc",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
         "libbase",
+        "libbinder",
         "libcrypto",
         "liblog",
     ],
     static_libs: [
+        "aics",
         "bluetooth_flags_c_lib_for_test",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
@@ -676,7 +680,6 @@ cc_test {
     sanitize: {
         cfi: false,
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 genrule {
@@ -798,7 +801,7 @@ cc_test {
         "le_audio/le_audio_types.cc",
         "le_audio/le_audio_utils.cc",
     ],
-    data: [
+    device_first_data: [
         ":audio_set_configurations_bfbs",
         ":audio_set_configurations_json",
         ":audio_set_scenarios_bfbs",
@@ -816,7 +819,7 @@ cc_test {
         "liblog", // __android_log_print
     ],
     static_libs: [
-        "bluetooth_flags_c_lib",
+        "bluetooth_flags_c_lib_for_test",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
@@ -835,7 +838,6 @@ cc_test {
         cfi: false,
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -876,6 +878,7 @@ cc_test {
         ":TestMockStackBtmIso",
         ":TestMockStackL2cap",
         ":TestStubOsi",
+        "gmap/gmap_client.cc",
         "le_audio/audio_hal_client/audio_hal_client_test.cc",
         "le_audio/audio_hal_client/audio_sink_hal_client.cc",
         "le_audio/audio_hal_client/audio_source_hal_client.cc",
@@ -907,7 +910,7 @@ cc_test {
         "test/common/btm_api_mock.cc",
         "test/common/mock_csis_client.cc",
     ],
-    data: [
+    device_first_data: [
         ":audio_set_configurations_bfbs",
         ":audio_set_configurations_json",
         ":audio_set_scenarios_bfbs",
@@ -945,7 +948,6 @@ cc_test {
         cfi: false,
     },
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -976,6 +978,10 @@ cc_test {
         ":TestStubOsi",
         "gatt/database.cc",
         "gatt/database_builder.cc",
+        "gmap/gmap_client.cc",
+        "gmap/gmap_client_test.cc",
+        "gmap/gmap_server.cc",
+        "gmap/gmap_server_test.cc",
         "le_audio/broadcaster/broadcast_configuration_provider.cc",
         "le_audio/broadcaster/broadcaster_types.cc",
         "le_audio/client.cc",
@@ -1030,7 +1036,7 @@ cc_test {
         "libosi",
         "server_configurable_flags",
     ],
-    data: [
+    device_first_data: [
         ":audio_set_configurations_bfbs",
         ":audio_set_configurations_json",
         ":audio_set_scenarios_bfbs",
@@ -1064,7 +1070,6 @@ cc_test {
             undefined: true,
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1131,7 +1136,6 @@ cc_test {
             undefined: true,
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1209,7 +1213,6 @@ cc_test {
             undefined: true,
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1252,6 +1255,7 @@ cc_test {
         "liblog",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
@@ -1259,6 +1263,7 @@ cc_test {
         "libbt-common",
         "libchrome",
         "libgmock",
+        "server_configurable_flags",
     ],
     sanitize: {
         cfi: true,
@@ -1270,7 +1275,6 @@ cc_test {
             undefined: true,
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {
@@ -1349,7 +1353,6 @@ cc_test {
             undefined: true,
         },
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_test {

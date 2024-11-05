@@ -199,9 +199,8 @@ public:
 
   static size_t GetMaxPacketsPerBuffer();
 
-  // Get snoop logger mode based on current system setup
-  // Changes to this values is only effective after restarting Bluetooth
-  static std::string GetBtSnoopMode();
+  // Get current snoop logger mode
+  std::string GetCurrentSnoopMode();
 
   // Returns whether the soc manufacturer is Qualcomm
   // Changes to this value is only effective after restarting Bluetooth
@@ -232,7 +231,7 @@ public:
 
   // Set a RFCOMM dlci as acceptlisted, allowing packets with that RFCOMM CID
   // to show up in the snoop logs. The local_cid is used to associate it with
-  // its corrisponding ACL connection. The dlci is the channel with direction
+  // its corresponding ACL connection. The dlci is the channel with direction
   // so there is no chance of a collision if two services are using the same
   // channel but in different directions.
   void AcceptlistRfcommDlci(uint16_t conn_handle, uint16_t local_cid, uint8_t dlci);
@@ -305,7 +304,7 @@ protected:
   uint32_t FilterProfiles(bool is_received, uint8_t* packet);
   // Check if packet is A2DP media packet (a2dppktsfiltered mode)
   bool IsA2dpMediaPacket(bool is_received, uint8_t* packet);
-  // Chec if channel is cached in snoop logger for filtering (a2dppktsfiltered mode)
+  // Check if channel is cached in snoop logger for filtering (a2dppktsfiltered mode)
   bool IsA2dpMediaChannel(uint16_t conn_handle, uint16_t cid, bool is_local_cid);
   // Handle HFP filtering while profilesfiltered enabled
   uint32_t FilterProfilesHandleHfp(uint8_t* packet, uint32_t length, uint32_t totlen,
@@ -319,12 +318,12 @@ protected:
 
   std::unique_ptr<SnoopLoggerSocketThread> snoop_logger_socket_thread_;
 
-  #ifdef __ANDROID__
+#ifdef __ANDROID__
   void LogTracePoint(const HciPacket& packet, Direction direction, PacketType type);
-  #endif // __ANDROID__
+#endif  // __ANDROID__
 
 private:
-  static std::string btsnoop_mode_;
+  std::string btsnoop_mode_;
   std::string snoop_log_path_;
   std::string snooz_log_path_;
   std::ofstream btsnoop_ostream_;

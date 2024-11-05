@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include "os/log.h"
-
 #include <chrono>
 #include <ctime>
 #include <string>

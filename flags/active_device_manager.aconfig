@@ -30,3 +30,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "adm_fix_disconnect_of_set_member"
+    namespace: "bluetooth"
+    description: "Fix disconnecting of the set member device. Make sure the other set member is not considered as fallback device."
+    bug: "374320313"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

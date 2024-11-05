@@ -120,8 +120,8 @@ cc_test {
         "gatt/gatt_unittest.cc",
     ],
     static_libs: [
+        "aics",
         "bluetooth_flags_c_lib_for_test",
-        "libbluetooth-gdx",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_hci_pdl",
@@ -134,9 +134,13 @@ cc_test {
         "libflags_rust_cpp_bridge",
         "libprotobuf-cpp-lite",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
+        "libbinder",
         "server_configurable_flags",
     ],
     generated_headers: [
@@ -153,5 +157,4 @@ cc_test {
         },
         host: {},
     },
-    cflags: ["-Wno-unused-parameter"],
 }

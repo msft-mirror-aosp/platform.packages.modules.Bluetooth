@@ -20,7 +20,6 @@ import("//common-mk/flatbuffer.gni")
 config("gd_defaults") {
   cflags_cc = [
     "-DGOOGLE_PROTOBUF_NO_RTTI",
-    "-Wno-unused-parameter",
     "-Wno-unused-result",
     "-Wno-tautological-overlap-compare",
   ]
@@ -51,17 +50,6 @@ group("gd_default_deps") {
     "//bt/system/gd:BluetoothGeneratedDumpsysDataSchema_h",
     "//bt/system/gd/dumpsys:libbluetooth-dumpsys",
     "//bt/system/pdl:BluetoothGeneratedPackets_h",
-  ]
-}
-
-static_library("libbluetooth-gdx") {
-  include_dirs = [
-    "packages/modules/Bluetooth/system",
-  ]
-  configs += [ ":gd_defaults" ]
-  deps = [
-    "//bt/system/gd:gd_default_deps",
-    "//bt/system/gd/shim:BluetoothShimSources",
   ]
 }
 

@@ -12,9 +12,7 @@ cc_defaults {
     name: "gd_defaults",
     defaults: [
         "bluetooth_cflags",
-    ],
-    tidy_checks: [
-        "-performance-unnecessary-value-param",
+        "bluetooth_tidy",
     ],
     target: {
         android: {
@@ -39,60 +37,44 @@ cc_defaults {
     header_libs: ["jni_headers"],
 }
 
-cc_defaults {
-    name: "gd_clang_tidy",
-    tidy: true,
-    tidy_checks: [
-        "-bugprone*",
-        "-cert-dcl21-cpp", // warning: overloaded returns a non-constant object instead of a constant object type
-        "-cert-dcl59-cpp", // warning: do not use unnamed namespaces in header files
-        "-cert-msc30-c", // warning: rand() has limited randomness; use C++11 random library instead
-        "-cert-msc50-cpp", // warning: rand() has limited randomness; use C++11 random library instead
-        "-cert-oop54-cpp", // warning: operator=() does not handle self-assignment properly
-        "-google*",
-        "-performance*",
-        "clang-analyzer-core.CallAndMessage",
-        "clang-analyzer-optin.cplusplus.UninitializedObject",
-    ],
-    tidy_checks_as_errors: [
-        "clang-analyzer-core.CallAndMessage",
-        "clang-analyzer-optin.cplusplus.UninitializedObject",
-        "cppcoreguidelines-pro-type-member-init",
-    ],
-    tidy_flags: [
-        "--header-filter=^.*packages/modules/Bluetooth/system/.*.h$",
+soong_config_module_type {
+    name: "mgmt_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "mgmt",
+    variables: ["vertical"],
+    properties: ["srcs"],
+}
 
-        "--extra-arg-before=-Xclang",
-        "--extra-arg-before=-analyzer-config",
-
-        "--extra-arg-before=-Xclang",
-        "--extra-arg-before=optin.cplusplus.UninitializedObject:Pedantic=true",
-
-        "--extra-arg-before=-Xclang",
-        "--extra-arg-before=-analyzer-config",
-
-        "--extra-arg-before=-Xclang",
-        "--extra-arg-before=optin.cplusplus.UninitializedObject:CheckPointeeInitialization=true",
-
+soong_config_string_variable {
+    name: "vertical",
+    values: [
+        "android_default",
+        "android_desktop",
     ],
 }
 
-// Clang is targeted for android core libraries but other base libraries
-// may not support clang tidy recommendations (e.g. MacOS)
-cc_defaults {
-    name: "gd_clang_tidy_ignore_android",
-    tidy: true,
-    tidy_checks: [
-        "-android-cloexec-accept", // warning: prefer accept4() to accept() because accept4() allows SOCK_CLOEXEC
-        "-android-cloexec-pipe2", //  warning: 'pipe2' should use O_CLOEXEC where possible
-        "-android-cloexec-socket", // warning: 'pipe2' should use O_CLOEXEC where possible
-    ],
+mgmt_cc_defaults {
+    name: "mgmt_defaults",
+    soong_config_variables: {
+        vertical: {
+            android_desktop: {
+                srcs: [":BluetoothOsSources_mgmt_linux"],
+            },
+            android_default: {
+                srcs: [":BluetoothOsSources_mgmt"],
+            },
+            conditions_default: {
+                srcs: [":BluetoothOsSources_mgmt"],
+            },
+        },
+    },
 }
 
 cc_defaults {
     name: "libbluetooth_gd_defaults",
     defaults: [
         "gd_defaults",
+        "mgmt_defaults",
     ],
     host_supported: true,
     target: {
@@ -147,6 +129,7 @@ cc_defaults {
         ":BluetoothNeighborSources",
         ":BluetoothOsSources",
         ":BluetoothPacketSources",
+        ":BluetoothShimSources",
         ":BluetoothStorageSources",
         "module.cc",
         "module_dumper.cc",
@@ -191,7 +174,7 @@ cc_defaults {
     ],
 }
 
-cc_library {
+cc_library_static {
     name: "libbluetooth_gd",
     defaults: [
         "libbluetooth_gd_defaults",
@@ -210,27 +193,6 @@ cc_library {
 }
 
 cc_library_static {
-    name: "libbluetooth-gdx",
-    defaults: [
-        "libbluetooth_gd_defaults",
-    ],
-    srcs: [
-        ":BluetoothShimSources",
-    ],
-    include_dirs: [
-        "packages/modules/Bluetooth/system",
-    ],
-    apex_available: [
-        "com.android.btservices",
-    ],
-    min_sdk_version: "31",
-    static_libs: [
-        "bluetooth_flags_c_lib",
-        "libchrome",
-    ],
-}
-
-cc_library {
     name: "libbluetooth_gd_fuzzing",
     defaults: [
         "libbluetooth_gd_defaults",
@@ -244,7 +206,6 @@ cc_library {
     cflags: [
         "-DFUZZ_TARGET",
         "-DUSE_FAKE_TIMERS",
-        "-Wno-unused-parameter",
     ],
     static_libs: [
         "bluetooth_flags_c_lib",
@@ -255,7 +216,7 @@ cc_library {
     ],
 }
 
-cc_library {
+cc_library_static {
     name: "libbluetooth_gd_unit_tests",
     defaults: [
         "libbluetooth_gd_defaults",
@@ -316,7 +277,6 @@ cc_binary {
         "breakpad_client",
         "libPlatformProperties",
         "libbluetooth-dumpsys",
-        "libbluetooth-gdx",
         "libbluetooth-protos",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
@@ -517,63 +477,6 @@ cc_test {
 }
 
 cc_test {
-    name: "bluetooth_test_gdx_unit",
-    test_suites: ["device-tests"],
-    defaults: [
-        "aconfig_lib_cc_shared_link.defaults",
-        "gd_defaults",
-        "mts_defaults",
-    ],
-    include_dirs: [
-        "packages/modules/Bluetooth/system",
-        "packages/modules/Bluetooth/system/include",
-        "packages/modules/Bluetooth/system/stack/include",
-        "packages/modules/Bluetooth/system/types",
-    ],
-    host_supported: true,
-    srcs: [
-        ":BluetoothDumpsysTestSources",
-        ":BluetoothShimTestSources",
-        ":TestCommonMockFunctions",
-        ":TestMockMainShimStack",
-        "module_gdx_unittest.cc",
-        "module_jniloop_unittest.cc",
-        "module_mainloop_unittest.cc",
-        "module_state_dumper_unittest.cc",
-    ],
-    generated_headers: [
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
-        "BluetoothGeneratedDumpsysInternalTestData_h",
-        "BluetoothGeneratedDumpsysTestData_h",
-    ],
-    static_libs: [
-        "bluetooth_flags_c_lib_for_test",
-        "libbase",
-        "libbluetooth-dumpsys",
-        "libbluetooth-dumpsys-test",
-        "libbluetooth-dumpsys-unittest",
-        "libbluetooth-gdx",
-        "libbluetooth_gd",
-        "libbluetooth_log",
-        "libbt-btu-main-thread",
-        "libbt-common",
-        "libbt-jni-thread",
-        "libchrome",
-        "libevent",
-        "libflatbuffers-cpp",
-        "libgmock",
-        "liblog",
-        "libosi",
-        "server_configurable_flags",
-    ],
-    sanitize: {
-        address: true,
-    },
-    min_sdk_version: "Tiramisu",
-}
-
-cc_test {
     name: "bluetooth_packet_parser_test",
     test_suites: ["general-tests"],
     defaults: [
@@ -686,7 +589,6 @@ cc_fuzz {
         cc: ["android-bluetooth-security@google.com"],
         componentid: 27441,
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_fuzz {
@@ -696,7 +598,6 @@ cc_fuzz {
         ":BluetoothHalFuzzSources",
         "hci/fuzz/hci_layer_fuzz_test.cc",
     ],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_fuzz {
@@ -709,7 +610,6 @@ cc_fuzz {
         cc: ["android-bluetooth-security@google.com"],
         componentid: 27441,
     },
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_benchmark {

@@ -23,7 +23,7 @@
 #include <com_android_bluetooth_flags.h>
 #ifdef __ANDROID__
 #include <cutils/trace.h>
-#endif // __ANDROID__
+#endif  // __ANDROID__
 #include <sys/stat.h>
 
 #include <algorithm>
@@ -469,8 +469,6 @@ const std::string SnoopLogger::kBtSnoopLogFilterProfileModeMagic = "magic";
 // PBAP, MAP and HFP packets filter mode - disabled
 const std::string SnoopLogger::kBtSnoopLogFilterProfileModeDisabled = "disabled";
 
-std::string SnoopLogger::btsnoop_mode_;
-
 // Consts accessible in unit tests
 const size_t SnoopLogger::PACKET_TYPE_LENGTH = 1;
 const size_t SnoopLogger::MAX_HCI_ACL_LEN = 14;
@@ -482,7 +480,8 @@ SnoopLogger::SnoopLogger(std::string snoop_log_path, std::string snooz_log_path,
                          const std::chrono::milliseconds snooz_log_life_time,
                          const std::chrono::milliseconds snooz_log_delete_alarm_interval,
                          bool snoop_log_persists)
-    : snoop_log_path_(std::move(snoop_log_path)),
+    : btsnoop_mode_(btsnoop_mode),
+      snoop_log_path_(std::move(snoop_log_path)),
       snooz_log_path_(std::move(snooz_log_path)),
       max_packets_per_file_(max_packets_per_file),
       btsnooz_buffer_(max_packets_per_buffer),
@@ -490,8 +489,6 @@ SnoopLogger::SnoopLogger(std::string snoop_log_path, std::string snooz_log_path,
       snooz_log_life_time_(snooz_log_life_time),
       snooz_log_delete_alarm_interval_(snooz_log_delete_alarm_interval),
       snoop_log_persists(snoop_log_persists) {
-  btsnoop_mode_ = btsnoop_mode;
-
   if (btsnoop_mode_ == kBtSnoopLogModeFiltered) {
     log::info("Snoop Logs filtered mode enabled");
     EnableFilters();
@@ -566,9 +563,6 @@ void SnoopLogger::OpenNextSnoopLogFile() {
 }
 
 void SnoopLogger::EnableFilters() {
-  if (btsnoop_mode_ != kBtSnoopLogModeFiltered) {
-    return;
-  }
   std::lock_guard<std::mutex> lock(snoop_log_filters_mutex);
   for (auto itr = kBtSnoopLogFilterState.begin(); itr != kBtSnoopLogFilterState.end(); itr++) {
     auto filter_enabled_property = os::GetSystemProperty(itr->first);
@@ -1135,7 +1129,7 @@ void SnoopLogger::Capture(const HciPacket& immutable_packet, Direction direction
   if (com::android::bluetooth::flags::snoop_logger_tracing()) {
     LogTracePoint(packet, direction, type);
   }
-  #endif // __ANDROID__
+#endif  // __ANDROID__
 
   uint64_t timestamp_us = std::chrono::duration_cast<std::chrono::microseconds>(
                                   std::chrono::system_clock::now().time_since_epoch())
@@ -1305,7 +1299,7 @@ void SnoopLogger::Stop() {
     socket_ = nullptr;
   }
 
-  btsnoop_mode_.clear();
+  btsnoop_mode_ = kBtSnoopLogModeDisabled;
   // Disable all filters
   DisableFilters();
 
@@ -1350,36 +1344,26 @@ size_t SnoopLogger::GetMaxPacketsPerBuffer() {
   return btsnooz_max_memory_usage_bytes / kDefaultBtSnoozMaxBytesPerPacket;
 }
 
-std::string SnoopLogger::GetBtSnoopMode() {
+std::string SnoopLogger::GetCurrentSnoopMode() { return btsnoop_mode_; }
+
+static std::string GetBtSnoopMode() {
   // Default mode is FILTERED on userdebug/eng build, DISABLED on user build.
   // In userdebug/eng build, it can also be overwritten by modifying the global setting
-  std::string default_mode = kBtSnoopLogModeDisabled;
-  {
-    auto is_debuggable = os::GetSystemPropertyBool(kIsDebuggableProperty, false);
-    if (is_debuggable) {
-      auto default_mode_property = os::GetSystemProperty(kBtSnoopDefaultLogModeProperty);
-      if (default_mode_property) {
-        default_mode = std::move(default_mode_property.value());
-      } else {
-        default_mode = kBtSnoopLogModeFiltered;
-      }
-    }
+  std::string btsnoop_mode = SnoopLogger::kBtSnoopLogModeDisabled;
+  if (os::GetSystemPropertyBool(SnoopLogger::kIsDebuggableProperty, false)) {
+    btsnoop_mode = os::GetSystemProperty(SnoopLogger::kBtSnoopDefaultLogModeProperty)
+                           .value_or(SnoopLogger::kBtSnoopLogModeFiltered);
   }
 
-  // Get the actual mode if exist
-  std::string btsnoop_mode = default_mode;
-  {
-    auto btsnoop_mode_prop = os::GetSystemProperty(kBtSnoopLogModeProperty);
-    if (btsnoop_mode_prop) {
-      btsnoop_mode = std::move(btsnoop_mode_prop.value());
-    }
-  }
+  btsnoop_mode = os::GetSystemProperty(SnoopLogger::kBtSnoopLogModeProperty).value_or(btsnoop_mode);
 
-  // If Snoop Logger already set up, return current mode
-  bool btsnoop_mode_empty = btsnoop_mode_.empty();
-  log::info("btsnoop_mode_empty: {}", btsnoop_mode_empty);
-  if (!btsnoop_mode_empty) {
-    return btsnoop_mode_;
+  // Only allow a subset of values:
+  if (!(btsnoop_mode == SnoopLogger::kBtSnoopLogModeDisabled ||
+        btsnoop_mode == SnoopLogger::kBtSnoopLogModeFull ||
+        btsnoop_mode == SnoopLogger::kBtSnoopLogModeFiltered ||
+        btsnoop_mode == SnoopLogger::kBtSnoopLogModeKernel)) {
+    log::warn("{}: Invalid btsnoop value, default back to disabled", btsnoop_mode);
+    return SnoopLogger::kBtSnoopLogModeDisabled;
   }
 
   return btsnoop_mode;
@@ -1463,7 +1447,7 @@ void SnoopLogger::LogTracePoint(const HciPacket& packet, Direction direction, Pa
     } break;
   }
 }
-#endif // __ANDROID__
+#endif  // __ANDROID__
 
 }  // namespace hal
 }  // namespace bluetooth

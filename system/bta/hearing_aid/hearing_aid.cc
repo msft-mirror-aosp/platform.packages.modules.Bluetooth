@@ -224,7 +224,7 @@ public:
 };
 
 static void write_rpt_ctl_cfg_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
-                                 uint16_t len, const uint8_t* value, void* data) {
+                                 uint16_t len, const uint8_t* /*value*/, void* /*data*/) {
   if (status != GATT_SUCCESS) {
     log::error("handle= {}, conn_id={}, status= 0x{:x}, length={}", handle, conn_id,
                static_cast<uint8_t>(status), len);
@@ -465,8 +465,8 @@ public:
 
   int GetDeviceCount() { return hearingDevices.size(); }
 
-  void OnGattConnected(tGATT_STATUS status, tCONN_ID conn_id, tGATT_IF client_if,
-                       RawAddress address, tBT_TRANSPORT transport, uint16_t mtu) {
+  void OnGattConnected(tGATT_STATUS status, tCONN_ID conn_id, tGATT_IF /*client_if*/,
+                       RawAddress address, tBT_TRANSPORT /*transport*/, uint16_t /*mtu*/) {
     HearingDevice* hearingDevice = hearingDevices.FindByAddress(address);
     if (!hearingDevice) {
       /* When Hearing Aid is quickly disabled and enabled in settings, this case
@@ -882,8 +882,8 @@ public:
     device->command_acked = true;
   }
 
-  void OnReadOnlyPropertiesRead(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
-                                uint16_t len, uint8_t* value, void* data) {
+  void OnReadOnlyPropertiesRead(tCONN_ID conn_id, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                                uint16_t len, uint8_t* value, void* /*data*/) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -989,13 +989,13 @@ public:
     }
   }
 
-  void OnAudioStatus(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                     uint8_t* value, void* data) {
+  void OnAudioStatus(tCONN_ID /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                     uint16_t len, uint8_t* value, void* /*data*/) {
     log::info("{}", base::HexEncode(value, len));
   }
 
-  void OnPsmRead(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                 uint8_t* value, void* data) {
+  void OnPsmRead(tCONN_ID conn_id, tGATT_STATUS status, uint16_t /*handle*/, uint16_t len,
+                 uint8_t* value, void* /*data*/) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -1278,7 +1278,8 @@ public:
   }
 
   static void StartAudioCtrlCallbackStatic(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
-                                           uint16_t len, const uint8_t* value, void* data) {
+                                           uint16_t /*len*/, const uint8_t* /*value*/,
+                                           void* /*data*/) {
     if (status != GATT_SUCCESS) {
       log::error("handle={}, conn_id={}, status=0x{:x}", handle, conn_id,
                  static_cast<uint8_t>(status));
@@ -1553,7 +1554,7 @@ public:
     }
   }
 
-  void GapCallback(uint16_t gap_handle, uint16_t event, tGAP_CB_DATA* data) {
+  void GapCallback(uint16_t gap_handle, uint16_t event, tGAP_CB_DATA* /*data*/) {
     HearingDevice* hearingDevice = hearingDevices.FindByGapHandle(gap_handle);
     if (!hearingDevice) {
       log::error("unknown device: gap_handle={} event=0x{:x}", gap_handle, event);
@@ -1768,7 +1769,7 @@ public:
     DoDisconnectAudioStop();
   }
 
-  void OnGattDisconnected(tCONN_ID conn_id, tGATT_IF client_if, RawAddress remote_bda) {
+  void OnGattDisconnected(tCONN_ID conn_id, tGATT_IF /*client_if*/, RawAddress remote_bda) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x} bd_addr={}", conn_id, remote_bda);

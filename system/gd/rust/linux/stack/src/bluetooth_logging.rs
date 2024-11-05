@@ -85,8 +85,12 @@ impl BluetoothLogging {
         Ok(())
     }
 
+    fn should_enable_debug_mode(&self) -> bool {
+        self.log_level == Level::Debug || self.log_level == Level::Verbose
+    }
+
     fn get_log_level_filter(&self) -> LevelFilter {
-        match self.is_debug_enabled() {
+        match self.should_enable_debug_mode() {
             true => LevelFilter::Debug,
             false => LevelFilter::Info,
         }
@@ -98,6 +102,9 @@ impl BluetoothLogging {
 
     fn apply_libbluetooth_log_level(&self) {
         set_default_log_level(self.log_level);
+
+        // TODO(b/371889111): Don't set log level for tag until b/371889111 is fixed.
+        /*
         // Levels for verbose-only tags.
         let level = match self.log_level {
             Level::Verbose => Level::Verbose,
@@ -107,12 +114,13 @@ impl BluetoothLogging {
             log::info!("Setting log level for tag {} to {:?}", tag, level);
             set_log_level_for_tag(tag, level);
         }
+         */
     }
 }
 
 impl IBluetoothLogging for BluetoothLogging {
     fn is_debug_enabled(&self) -> bool {
-        self.is_initialized && (self.log_level == Level::Debug || self.log_level == Level::Verbose)
+        self.is_initialized && self.should_enable_debug_mode()
     }
 
     fn set_debug_logging(&mut self, enabled: bool) {

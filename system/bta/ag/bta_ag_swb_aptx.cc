@@ -85,7 +85,7 @@ void bta_ag_swb_handle_vs_at_events(tBTA_AG_SCB* p_scb, uint16_t cmd, int16_t in
     case BTA_AG_AT_QAC_EVT:
       if (!get_swb_codec_status(bluetooth::headset::BTHF_SWB_CODEC_VENDOR_APTX,
                                 &p_scb->peer_addr)) {
-        bta_ag_send_qac(p_scb, NULL);
+        bta_ag_send_qac(p_scb);
         break;
       }
       log::verbose("BTA_AG_AT_QAC_EVT");
@@ -95,7 +95,7 @@ void bta_ag_swb_handle_vs_at_events(tBTA_AG_SCB* p_scb, uint16_t cmd, int16_t in
       } else if (p_scb->peer_codecs & BTM_SCO_CODEC_MSBC) {
         p_scb->sco_codec = BTM_SCO_CODEC_MSBC;
       }
-      bta_ag_send_qac(p_scb, NULL);
+      bta_ag_send_qac(p_scb);
       log::verbose("Received AT+QAC, updating sco codec to SWB: {}", p_scb->sco_codec);
       val->num = p_scb->peer_codecs;
       break;

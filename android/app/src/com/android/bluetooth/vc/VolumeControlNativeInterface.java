@@ -454,7 +454,7 @@ public class VolumeControlNativeInterface {
 
     @VisibleForTesting
     void onExtAudioInStateChanged(
-            int externalInputId, int gainValue, int gainMode, boolean mute, byte[] address) {
+            int externalInputId, int gainValue, int gainMode, int mute, byte[] address) {
         VolumeControlStackEvent event =
                 new VolumeControlStackEvent(
                         VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED);
@@ -462,7 +462,7 @@ public class VolumeControlNativeInterface {
         event.valueInt1 = externalInputId;
         event.valueInt2 = gainValue;
         event.valueInt3 = gainMode;
-        event.valueBool1 = mute;
+        event.valueInt4 = mute;
 
         Log.d(TAG, "onExtAudioInStateChanged: " + event);
         sendMessageToService(event);

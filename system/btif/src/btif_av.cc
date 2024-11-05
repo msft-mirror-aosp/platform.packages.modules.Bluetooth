@@ -52,6 +52,7 @@
 #include "device/include/device_iot_config.h"
 #include "hardware/bt_av.h"
 #include "include/hardware/bt_rc.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
@@ -3662,7 +3663,7 @@ bool btif_av_is_sink_enabled(void) { return btif_av_sink.Enabled(); }
 
 bool btif_av_is_source_enabled(void) { return btif_av_source.Enabled(); }
 
-void btif_av_stream_start(const A2dpType local_a2dp_type) {
+void btif_av_stream_start(const A2dpType /*local_a2dp_type*/) {
   log::info("");
 
   btif_av_source_dispatch_sm_event(btif_av_source_active_peer(), BTIF_AV_START_STREAM_REQ_EVT);

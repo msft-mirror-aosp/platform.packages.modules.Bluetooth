@@ -25,3 +25,12 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+
+flag {
+    name: "aics_api"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Expose new API to control AICS data"
+    bug: "372328699"
+}

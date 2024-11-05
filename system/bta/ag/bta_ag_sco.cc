@@ -716,7 +716,7 @@ void bta_ag_codec_negotiate(tBTA_AG_SCB* p_scb) {
       log::verbose("Sending +QCS, sco_codec={}, is_aptx_swb_codec={}", p_scb->sco_codec,
                    p_scb->is_aptx_swb_codec);
       /* Send +QCS to the peer */
-      bta_ag_send_qcs(p_scb, NULL);
+      bta_ag_send_qcs(p_scb);
     } else {
       if (aptx_voice) {
         p_scb->sco_codec = BTM_SCO_CODEC_MSBC;
@@ -1555,7 +1555,7 @@ void bta_ag_sco_conn_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_sco_conn_rsp(tBTA_AG_SCB* p_scb, tBTM_ESCO_CONN_REQ_EVT_DATA* p_data) {
+void bta_ag_sco_conn_rsp(tBTA_AG_SCB* p_scb, tBTM_ESCO_CONN_REQ_EVT_DATA* /*p_data*/) {
   bta_ag_cb.sco.is_local = false;
 
   log::verbose("eSCO {}, state {}",

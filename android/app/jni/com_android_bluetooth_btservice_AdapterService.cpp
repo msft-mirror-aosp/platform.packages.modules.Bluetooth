@@ -17,21 +17,31 @@
 
 #define LOG_TAG "BluetoothServiceJni"
 
-#include <dlfcn.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <hardware/bluetooth.h>
+#include <android/log.h>
+#include <bluetooth/log.h>
+#include <jni.h>
+#include <nativehelper/JNIHelp.h>
 #include <nativehelper/JNIPlatformHelp.h>
+#include <nativehelper/scoped_local_ref.h>
 #include <pthread.h>
-#include <string.h>
 #include <sys/prctl.h>
-#include <sys/stat.h>
 
+#include <array>
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
+#include <mutex>
 #include <shared_mutex>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include "./com_android_bluetooth.h"
+#include "com_android_bluetooth.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bt_sock.h"
+#include "types/bluetooth/uuid.h"
 #include "types/bt_transport.h"
+#include "types/raw_address.h"
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
@@ -1020,7 +1030,7 @@ int hal_util_load_bt_library(const bt_interface_t** interface) {
 }
 
 static bool initNative(JNIEnv* env, jobject obj, jboolean isGuest, jboolean isCommonCriteriaMode,
-                       int configCompareResult, jboolean isAtvDevice, jstring userDataDirectory) {
+                       int configCompareResult, jboolean isAtvDevice) {
   std::unique_lock<std::shared_timed_mutex> lock(jniObjMutex);
 
   log::verbose("");
@@ -1035,14 +1045,10 @@ static bool initNative(JNIEnv* env, jobject obj, jboolean isGuest, jboolean isCo
     return JNI_FALSE;
   }
 
-  const char* user_data_directory = env->GetStringUTFChars(userDataDirectory, NULL);
-
   int ret =
           sBluetoothInterface->init(&sBluetoothCallbacks, isGuest == JNI_TRUE ? 1 : 0,
                                     isCommonCriteriaMode == JNI_TRUE ? 1 : 0, configCompareResult,
-                                    nullptr, isAtvDevice == JNI_TRUE ? 1 : 0, user_data_directory);
-
-  env->ReleaseStringUTFChars(userDataDirectory, user_data_directory);
+                                    isAtvDevice == JNI_TRUE ? 1 : 0);
 
   if (ret != BT_STATUS_SUCCESS) {
     log::error("Error while setting the callbacks: {}", ret);
@@ -2225,7 +2231,7 @@ static jboolean restoreFilterAcceptListNative(JNIEnv* /* env */, jobject /* obj 
 
 int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
   const JNINativeMethod methods[] = {
-          {"initNative", "(ZZIZLjava/lang/String;)Z", reinterpret_cast<void*>(initNative)},
+          {"initNative", "(ZZIZ)Z", reinterpret_cast<void*>(initNative)},
           {"cleanupNative", "()V", reinterpret_cast<void*>(cleanupNative)},
           {"enableNative", "()Z", reinterpret_cast<void*>(enableNative)},
           {"disableNative", "()Z", reinterpret_cast<void*>(disableNative)},

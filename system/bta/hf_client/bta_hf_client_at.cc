@@ -23,7 +23,6 @@
 
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "internal_include/bt_trace.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
 #include "osi/include/properties.h"
@@ -1466,7 +1465,7 @@ static char* bta_hf_client_parse_rejectlisted(tBTA_HF_CLIENT_CB* client_cb, char
   return buffer;
 }
 
-static char* bta_hf_client_skip_unknown(tBTA_HF_CLIENT_CB* client_cb, char* buffer) {
+static char* bta_hf_client_skip_unknown(tBTA_HF_CLIENT_CB* /*client_cb*/, char* buffer) {
   char* start;
   char* tmp;
 

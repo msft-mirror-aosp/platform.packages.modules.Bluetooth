@@ -26,7 +26,6 @@
 #include "hci/hci_layer.h"
 #include "os/fuzz/dev_null_queue.h"
 #include "os/fuzz/fuzz_inject_queue.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace hci {

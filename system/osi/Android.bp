@@ -104,6 +104,9 @@ cc_test {
         "fluoride_osi_defaults",
         "mts_defaults",
     ],
+    cflags: [
+        "-DLIB_OSI_INTERNAL",
+    ],
     host_supported: true,
     srcs: [
         "test/alarm_test.cc",
@@ -155,10 +158,6 @@ cc_test {
             ],
         },
     },
-    cflags: [
-        "-DLIB_OSI_INTERNAL",
-        "-Wno-unused-parameter",
-    ],
     sanitize: {
         address: true,
         cfi: false,

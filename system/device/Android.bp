@@ -111,5 +111,4 @@ cc_test {
         "server_configurable_flags",
     ],
     header_libs: ["libbluetooth_headers"],
-    cflags: ["-Wno-unused-parameter"],
 }

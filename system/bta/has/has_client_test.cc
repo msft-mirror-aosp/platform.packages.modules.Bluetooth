@@ -19,8 +19,10 @@
 #include <base/functional/bind.h>
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <log/log.h>
 #include <osi/include/alarm.h>
 #include <sys/socket.h>
 
@@ -45,7 +47,7 @@
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
-bool gatt_profile_get_eatt_support(const RawAddress& addr) { return true; }
+bool gatt_profile_get_eatt_support(const RawAddress& /*addr*/) { return true; }
 void osi_property_set_bool(const char* key, bool value);
 
 namespace bluetooth {
@@ -292,8 +294,8 @@ protected:
             WriteCharacteristic(conn_id, HasDbBuilder::kPresetsCtpValHdl, _, GATT_WRITE, _, _))
             .WillByDefault(Invoke([this, address](uint16_t conn_id, uint16_t handle,
                                                   std::vector<uint8_t> value,
-                                                  tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
-                                                  void* cb_data) {
+                                                  tGATT_WRITE_TYPE /*write_type*/,
+                                                  GATT_WRITE_OP_CB cb, void* cb_data) {
               auto pp = value.data();
               auto len = value.size();
               uint8_t op, index, num_of_indices;
@@ -622,6 +624,7 @@ protected:
   }
 
   void SetUp(void) override {
+    __android_log_set_minimum_priority(ANDROID_LOG_VERBOSE);
     reset_mock_function_count_map();
     bluetooth::manager::SetMockBtmInterface(&btm_interface);
     bluetooth::storage::SetMockBtifStorageInterface(&btif_storage_interface_);
@@ -634,9 +637,9 @@ protected:
     ON_CALL(btm_interface, IsLinkKeyKnown(_, _)).WillByDefault(DoAll(Return(true)));
 
     ON_CALL(btm_interface, SetEncryption(_, _, _, _, _))
-            .WillByDefault(Invoke([this](const RawAddress& bd_addr, tBT_TRANSPORT transport,
-                                         tBTM_SEC_CALLBACK* p_callback, void* p_ref_data,
-                                         tBTM_BLE_SEC_ACT sec_act) -> tBTM_STATUS {
+            .WillByDefault(Invoke([this](const RawAddress& bd_addr, tBT_TRANSPORT /*transport*/,
+                                         tBTM_SEC_CALLBACK* /*p_callback*/, void* /*p_ref_data*/,
+                                         tBTM_BLE_SEC_ACT /*sec_act*/) -> tBTM_STATUS {
               InjectEncryptionEvent(bd_addr);
               return tBTM_STATUS::BTM_SUCCESS;
             }));
@@ -695,7 +698,7 @@ protected:
     /* default action for WriteDescriptor function call */
     ON_CALL(gatt_queue, WriteDescriptor(_, _, _, _, _, _))
             .WillByDefault(Invoke([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                     tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
+                                     tGATT_WRITE_TYPE /*write_type*/, GATT_WRITE_OP_CB cb,
                                      void* cb_data) -> void {
               if (cb) {
                 cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(), cb_data);
@@ -704,8 +707,8 @@ protected:
 
     /* by default connect only direct connection requests */
     ON_CALL(gatt_interface, Open(_, _, _, _))
-            .WillByDefault(Invoke([&](tGATT_IF client_if, const RawAddress& remote_bda,
-                                      tBTM_BLE_CONN_TYPE connection_type, bool opportunistic) {
+            .WillByDefault(Invoke([&](tGATT_IF /*client_if*/, const RawAddress& remote_bda,
+                                      tBTM_BLE_CONN_TYPE connection_type, bool /*opportunistic*/) {
               if (connection_type == BTM_BLE_DIRECT_CONNECTION) {
                 InjectConnectedEvent(remote_bda, GetTestConnId(remote_bda));
               }
@@ -1129,6 +1132,7 @@ class HasClientTest : public HasClientTestBase {
     TestAppRegister();
   }
   void TearDown(void) override {
+    com::android::bluetooth::flags::provider_->reset_flags();
     TestAppUnregister();
     HasClientTestBase::TearDown();
   }
@@ -1191,7 +1195,20 @@ TEST_F(HasClientTest, test_connect_after_remove) {
   Mock::VerifyAndClearExpectations(&callbacks);
 }
 
+TEST_F(HasClientTest,
+       test_disconnect_non_connected_without_hap_connect_only_requested_device_flag) {
+  com::android::bluetooth::flags::provider_->hap_connect_only_requested_device(false);
+  const RawAddress test_address = GetTestAddress(1);
+
+  /* Override the default action to prevent us sendind the connected event */
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION, _))
+          .WillOnce(Return());
+  HasClient::Get()->Connect(test_address);
+  TestDisconnect(test_address, GATT_INVALID_CONN_ID);
+}
+
 TEST_F(HasClientTest, test_disconnect_non_connected) {
+  com::android::bluetooth::flags::provider_->hap_connect_only_requested_device(true);
   const RawAddress test_address = GetTestAddress(1);
 
   /* Override the default action to prevent us sendind the connected event */
@@ -1213,7 +1230,24 @@ TEST_F(HasClientTest, test_has_connected) {
   TestConnect(test_address);
 }
 
+TEST_F(HasClientTest, test_disconnect_connected_without_hap_connect_only_requested_device_flag) {
+  /* TODO: this test shall be removed b/370405555 */
+  com::android::bluetooth::flags::provider_->hap_connect_only_requested_device(false);
+  const RawAddress test_address = GetTestAddress(1);
+  /* Minimal possible HA device (only feature flags) */
+  SetSampleDatabaseHasNoPresetChange(test_address,
+                                     bluetooth::has::kFeatureBitHearingAidTypeBinaural);
+
+  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(1);
+  TestConnect(test_address);
+
+  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(1);
+  EXPECT_CALL(gatt_queue, Clean(1)).Times(1);
+  TestDisconnect(test_address, 1);
+}
+
 TEST_F(HasClientTest, test_disconnect_connected) {
+  com::android::bluetooth::flags::provider_->hap_connect_only_requested_device(true);
   const RawAddress test_address = GetTestAddress(1);
   /* Minimal possible HA device (only feature flags) */
   SetSampleDatabaseHasNoPresetChange(test_address,
@@ -3023,19 +3057,19 @@ TEST_F(HasClientTest, test_connect_database_out_of_sync) {
   TestConnect(test_address);
 
   ON_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _))
-          .WillByDefault(
-                  Invoke([this](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb, void* cb_data) {
-                    auto* svc = gatt::FindService(services_map[conn_id], handle);
-                    if (svc == nullptr) {
-                      return;
-                    }
+          .WillByDefault(Invoke([this](uint16_t conn_id, uint16_t handle,
+                                       std::vector<uint8_t> value, tGATT_WRITE_TYPE /*write_type*/,
+                                       GATT_WRITE_OP_CB cb, void* cb_data) {
+            auto* svc = gatt::FindService(services_map[conn_id], handle);
+            if (svc == nullptr) {
+              return;
+            }
 
-                    tGATT_STATUS status = GATT_DATABASE_OUT_OF_SYNC;
-                    if (cb) {
-                      cb(conn_id, status, handle, value.size(), value.data(), cb_data);
-                    }
-                  }));
+            tGATT_STATUS status = GATT_DATABASE_OUT_OF_SYNC;
+            if (cb) {
+              cb(conn_id, status, handle, value.size(), value.data(), cb_data);
+            }
+          }));
 
   ON_CALL(gatt_interface, ServiceSearchRequest(_, _)).WillByDefault(Return());
   EXPECT_CALL(gatt_interface, ServiceSearchRequest(_, _));

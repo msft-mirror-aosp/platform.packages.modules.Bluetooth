@@ -422,8 +422,6 @@ impl RPCProxy for BluetoothDeviceCallbacks {
 mod tests {
     use crate::bluetooth_admin::{BluetoothAdmin, BluetoothAdminPolicyHelper};
     use bt_topshim::btif::Uuid;
-
-    #[allow(unused)]
     use serde_json::{json, Value};
 
     #[test]

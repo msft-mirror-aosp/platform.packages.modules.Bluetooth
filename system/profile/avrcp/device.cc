@@ -603,7 +603,8 @@ void Device::TrackChangedNotificationResponse(uint8_t label, bool interim, std::
   // PTS BV-04-C and BV-5-C assume browsing not supported
   if (stack_config_get_interface()->get_pts_avrcp_test()) {
     log::warn("{}: pts test mode", address_);
-    uint64_t uid = curr_song_id.empty() ? 0xffffffffffffffff : 0;
+    uint64_t uid =
+            (curr_song_id.empty() || curr_song_id == "Not Provided") ? 0xffffffffffffffff : 0;
     auto response = RegisterNotificationResponseBuilder::MakeTrackChangedBuilder(interim, uid);
     send_message_cb_.Run(label, false, std::move(response));
     return;
@@ -725,6 +726,7 @@ void Device::AddressedPlayerNotificationResponse(uint8_t label, bool interim,
   if (curr_browsed_player_id_ == -1) {
     curr_browsed_player_id_ = curr_player;
   }
+  curr_addressed_player_id_ = curr_player;
 
   auto response = RegisterNotificationResponseBuilder::MakeAddressedPlayerBuilder(
           interim, curr_player, 0x0000);
@@ -937,6 +939,8 @@ void Device::HandleSetAddressedPlayer(uint8_t label, std::shared_ptr<SetAddresse
     return;
   }
 
+  curr_addressed_player_id_ = curr_player;
+
   auto response = SetAddressedPlayerResponseBuilder::MakeBuilder(Status::NO_ERROR);
   send_message(label, false, std::move(response));
 }
@@ -1114,7 +1118,7 @@ void Device::HandleGetTotalNumberOfItems(uint8_t label,
   }
 }
 
-void Device::GetTotalNumberOfItemsMediaPlayersResponse(uint8_t label, uint16_t curr_player,
+void Device::GetTotalNumberOfItemsMediaPlayersResponse(uint8_t label, uint16_t /*curr_player*/,
                                                        std::vector<MediaPlayerInfo> list) {
   log::verbose("num_items={}", list.size());
 
@@ -1126,14 +1130,28 @@ void Device::GetTotalNumberOfItemsMediaPlayersResponse(uint8_t label, uint16_t c
 void Device::GetTotalNumberOfItemsVFSResponse(uint8_t label, std::vector<ListItem> list) {
   log::verbose("num_items={}", list.size());
 
+  if (curr_browsed_player_id_ == -1) {
+    auto response = GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_AVAILABLE_PLAYERS,
+                                                                      0x0000, 0);
+    send_message(label, true, std::move(response));
+    return;
+  }
+
   auto builder =
           GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_ERROR, 0x0000, list.size());
   send_message(label, true, std::move(builder));
 }
 
-void Device::GetTotalNumberOfItemsNowPlayingResponse(uint8_t label, std::string curr_song_id,
+void Device::GetTotalNumberOfItemsNowPlayingResponse(uint8_t label, std::string /*curr_song_id*/,
                                                      std::vector<SongInfo> list) {
   log::verbose("num_items={}", list.size());
+
+  if (curr_addressed_player_id_ == -1) {
+    auto response = GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_AVAILABLE_PLAYERS,
+                                                                      0x0000, 0);
+    send_message(label, true, std::move(response));
+    return;
+  }
 
   auto builder =
           GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_ERROR, 0x0000, list.size());
@@ -1179,7 +1197,7 @@ void Device::HandleChangePath(uint8_t label, std::shared_ptr<ChangePathRequest> 
           base::Bind(&Device::ChangePathResponse, weak_ptr_factory_.GetWeakPtr(), label, pkt));
 }
 
-void Device::ChangePathResponse(uint8_t label, std::shared_ptr<ChangePathRequest> pkt,
+void Device::ChangePathResponse(uint8_t label, std::shared_ptr<ChangePathRequest> /*pkt*/,
                                 std::vector<ListItem> list) {
   // TODO (apanicke): Reconstruct the VFS ID's here. Right now it gets
   // reconstructed in GetFolderItemsVFS
@@ -1347,6 +1365,7 @@ void Device::GetMediaPlayerListResponse(uint8_t label, std::shared_ptr<GetFolder
     auto no_items_rsp = GetFolderItemsResponseBuilder::MakePlayerListBuilder(
             Status::RANGE_OUT_OF_BOUNDS, 0x0000, browse_mtu_);
     send_message(label, true, std::move(no_items_rsp));
+    return;
   }
 
   auto builder = GetFolderItemsResponseBuilder::MakePlayerListBuilder(Status::NO_ERROR, 0x0000,
@@ -1499,14 +1518,14 @@ void Device::HandleSetBrowsedPlayer(uint8_t label, std::shared_ptr<SetBrowsedPla
   }
 
   log::verbose("player_id={}", pkt->GetPlayerId());
-  media_interface_->SetBrowsedPlayer(pkt->GetPlayerId(),
+  media_interface_->SetBrowsedPlayer(pkt->GetPlayerId(), CurrentFolder(),
                                      base::Bind(&Device::SetBrowsedPlayerResponse,
                                                 weak_ptr_factory_.GetWeakPtr(), label, pkt));
 }
 
 void Device::SetBrowsedPlayerResponse(uint8_t label, std::shared_ptr<SetBrowsedPlayerRequest> pkt,
-                                      bool success, std::string root_id, uint32_t num_items) {
-  log::verbose("success={} root_id=\"{}\" num_items={}", success, root_id, num_items);
+                                      bool success, std::string current_path, uint32_t num_items) {
+  log::verbose("success={} current_path=\"{}\" num_items={}", success, current_path, num_items);
 
   if (!success) {
     auto response = SetBrowsedPlayerResponseBuilder::MakeBuilder(Status::INVALID_PLAYER_ID, 0x0000,
@@ -1523,14 +1542,18 @@ void Device::SetBrowsedPlayerResponse(uint8_t label, std::shared_ptr<SetBrowsedP
     return;
   }
 
-  curr_browsed_player_id_ = pkt->GetPlayerId();
-
-  // Clear the path and push the new root.
-  current_path_ = std::stack<std::string>();
-  current_path_.push(root_id);
+  // SetBrowsedPlayer can be called to retrieve the current path
+  // and to verify that the player is still present, so we need to
+  // keep current_path_ as is if the player is already the one browsed.
+  // Otherwise, the current_path in the callback will contain the root id.
+  if (pkt->GetPlayerId() != curr_browsed_player_id_) {
+    curr_browsed_player_id_ = pkt->GetPlayerId();
+    current_path_ = std::stack<std::string>();
+    current_path_.push(current_path);
+  }
 
   auto response = SetBrowsedPlayerResponseBuilder::MakeBuilder(Status::NO_ERROR, 0x0000, num_items,
-                                                               0, root_id);
+                                                               0, current_path);
   send_message(label, true, std::move(response));
 }
 
@@ -1557,7 +1580,7 @@ void Device::SendMediaUpdate(bool metadata, bool play_status, bool queue) {
   }
 }
 
-void Device::SendFolderUpdate(bool available_players, bool addressed_player, bool uids) {
+void Device::SendFolderUpdate(bool available_players, bool addressed_player, bool /*uids*/) {
   log::assert_that(media_interface_ != nullptr, "assert failed: media_interface_ != nullptr");
   log::verbose("");
 
@@ -1664,7 +1687,7 @@ void Device::PlayerSettingChangedNotificationResponse(uint8_t label, bool interi
 }
 
 void Device::HandleNowPlayingNotificationResponse(uint8_t label, bool interim,
-                                                  std::string curr_song_id,
+                                                  std::string /*curr_song_id*/,
                                                   std::vector<SongInfo> song_list) {
   if (interim) {
     now_playing_changed_ = Notification(true, label);
@@ -1755,7 +1778,7 @@ static std::string volumeToStr(int8_t volume) {
 
 std::ostream& operator<<(std::ostream& out, const Device& d) {
   // TODO: whether this should be turned into LOGGABLE STRING?
-  out << "  " << ADDRESS_TO_LOGGABLE_STR(d.address_);
+  out << "  " << d.address_.ToRedactedStringForLogging();
   if (d.IsActive()) {
     out << " <Active>";
   }

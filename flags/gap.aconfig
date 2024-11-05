@@ -30,21 +30,6 @@ flag {
 }
 
 flag {
-    name: "le_scan_fix_remote_exception"
-    namespace: "bluetooth"
-    description: "Fix handling remote exception for LE scanners"
-    bug: "320402249"
-}
-
-flag {
-    name: "enumerate_gatt_errors"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Enumerate GATT error situations"
-    bug: "320574336"
-}
-
-flag {
     name: "gatt_fix_device_busy"
     namespace: "bluetooth"
     description: "Fix device busy bug in BluetoothGatt"
@@ -251,4 +236,24 @@ flag {
     namespace: "bluetooth"
     description: "Support MSFT HCI extension for LE Scanning. go/bt-msft-aosp-dd"
     bug: "365787977"
+}
+
+flag {
+    name: "gatt_clear_cache_on_factory_reset"
+    namespace: "bluetooth"
+    description: "Clear GATT cache/hash on factory reset"
+    bug: "373284699"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_scan_remove_non_oneway_binder_calls"
+    namespace: "bluetooth"
+    description: "Remove non-oneway binder calls from BluetoothLeScanner.startScan"
+    bug: "375558872"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

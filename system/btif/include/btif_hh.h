@@ -142,10 +142,13 @@ typedef struct {
 
 extern btif_hh_cb_t btif_hh_cb;
 
+const bthh_interface_t* btif_hh_get_interface();
+bt_status_t btif_hh_execute_service(bool b_enable);
 btif_hh_device_t* btif_hh_find_connected_dev_by_handle(uint8_t handle);
 btif_hh_device_t* btif_hh_find_dev_by_handle(uint8_t handle);
 btif_hh_device_t* btif_hh_find_empty_dev(void);
 bt_status_t btif_hh_virtual_unplug(const tAclLinkSpec& link_spec);
+bt_status_t btif_hh_connect(const tAclLinkSpec& link_spec);
 void btif_hh_remove_device(const tAclLinkSpec& link_spec);
 void btif_hh_setreport(btif_hh_uhid_t* p_uhid, bthh_report_type_t r_type, uint16_t size,
                        uint8_t* report);
@@ -165,6 +168,10 @@ void bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name, uint
                              uint16_t dscp_len, uint8_t* p_dscp);
 
 void DumpsysHid(int fd);
+
+namespace bluetooth::legacy::testing {
+void bte_hh_evt(tBTA_HH_EVT event, tBTA_HH* p_data);
+}  // namespace bluetooth::legacy::testing
 
 namespace fmt {
 template <>

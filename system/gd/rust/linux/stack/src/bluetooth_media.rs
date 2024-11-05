@@ -1,8 +1,8 @@
 //! Anything related to audio and media API.
 
 use bt_topshim::btif::{
-    BluetoothInterface, BtBondState, BtConnectionDirection, BtStatus, BtTransport, DisplayAddress,
-    RawAddress, ToggleableProfile,
+    BluetoothInterface, BtBondState, BtStatus, BtTransport, DisplayAddress, RawAddress,
+    ToggleableProfile,
 };
 use bt_topshim::profiles::a2dp::{
     A2dp, A2dpCallbacks, A2dpCallbacksDispatcher, A2dpCodecBitsPerSample, A2dpCodecChannelMode,
@@ -472,7 +472,8 @@ pub struct BluetoothMedia {
     adapter: Arc<Mutex<Box<Bluetooth>>>,
     a2dp: A2dp,
     avrcp: Avrcp,
-    avrcp_direction: BtConnectionDirection,
+    avrcp_address: Option<RawAddress>,
+    avrcp_states: HashMap<RawAddress, BtavConnectionState>,
     a2dp_states: HashMap<RawAddress, BtavConnectionState>,
     a2dp_audio_state: HashMap<RawAddress, BtavAudioState>,
     a2dp_has_interrupted_stream: bool, // Only used for qualification.
@@ -548,7 +549,8 @@ impl BluetoothMedia {
             adapter,
             a2dp,
             avrcp,
-            avrcp_direction: BtConnectionDirection::Unknown,
+            avrcp_address: None,
+            avrcp_states: HashMap::new(),
             a2dp_states: HashMap::new(),
             a2dp_audio_state: HashMap::new(),
             a2dp_has_interrupted_stream: false,
@@ -607,6 +609,10 @@ impl BluetoothMedia {
         }
 
         false
+    }
+
+    pub(crate) fn get_connected_profiles(&self, device_address: &RawAddress) -> HashSet<Profile> {
+        self.connected_profiles.get(device_address).cloned().unwrap_or_default()
     }
 
     fn add_connected_profile(&mut self, addr: RawAddress, profile: Profile) {
@@ -1303,6 +1309,31 @@ impl BluetoothMedia {
                     supported
                 );
 
+                // If is device initiated the AVRCP connection, emit a fake connecting state as
+                // stack don't receive one.
+                if self.avrcp_states.get(&addr) != Some(&BtavConnectionState::Connecting) {
+                    metrics::profile_connection_state_changed(
+                        addr,
+                        Profile::AvrcpController as u32,
+                        BtStatus::Success,
+                        BtavConnectionState::Connecting as u32,
+                    );
+                }
+                metrics::profile_connection_state_changed(
+                    addr,
+                    Profile::AvrcpController as u32,
+                    BtStatus::Success,
+                    BtavConnectionState::Connected as u32,
+                );
+                self.avrcp_states.insert(addr, BtavConnectionState::Connected);
+
+                if self.avrcp_address.is_some() {
+                    warn!("Another AVRCP connection exists. Disconnect {}", DisplayAddress(&addr));
+                    self.avrcp.disconnect(addr);
+                    return;
+                }
+                self.avrcp_address = Some(addr);
+
                 match self.uinput.create(self.adapter_get_remote_name(addr), addr.to_string()) {
                     Ok(()) => info!("uinput device created for: {}", DisplayAddress(&addr)),
                     Err(e) => warn!("{}", e),
@@ -1321,46 +1352,14 @@ impl BluetoothMedia {
                 }
 
                 self.absolute_volume = supported;
-
-                // If is device initiated the AVRCP connection, emit a fake connecting state as
-                // stack don't receive one.
-                if self.avrcp_direction != BtConnectionDirection::Outgoing {
-                    metrics::profile_connection_state_changed(
-                        addr,
-                        Profile::AvrcpController as u32,
-                        BtStatus::Success,
-                        BtavConnectionState::Connecting as u32,
-                    );
-                }
-                metrics::profile_connection_state_changed(
-                    addr,
-                    Profile::AvrcpController as u32,
-                    BtStatus::Success,
-                    BtavConnectionState::Connected as u32,
-                );
-                // Reset direction to unknown.
-                self.avrcp_direction = BtConnectionDirection::Unknown;
-
                 self.add_connected_profile(addr, Profile::AvrcpController);
             }
             AvrcpCallbacks::AvrcpDeviceDisconnected(addr) => {
                 info!("[{}]: avrcp disconnected.", DisplayAddress(&addr));
 
-                self.uinput.close(addr.to_string());
-
-                // TODO: better support for multi-device
-                self.absolute_volume = false;
-
-                // This may be considered a critical profile in the extreme case
-                // where only AVRCP was connected.
-                let is_profile_critical = match self.connected_profiles.get(&addr) {
-                    Some(profiles) => *profiles == HashSet::from([Profile::AvrcpController]),
-                    None => false,
-                };
-
                 // If the peer device initiated the AVRCP disconnection, emit a fake connecting
                 // state as stack don't receive one.
-                if self.avrcp_direction != BtConnectionDirection::Outgoing {
+                if self.avrcp_states.get(&addr) != Some(&BtavConnectionState::Disconnecting) {
                     metrics::profile_connection_state_changed(
                         addr,
                         Profile::AvrcpController as u32,
@@ -1374,8 +1373,25 @@ impl BluetoothMedia {
                     BtStatus::Success,
                     BtavConnectionState::Disconnected as u32,
                 );
-                // Reset direction to unknown.
-                self.avrcp_direction = BtConnectionDirection::Unknown;
+                self.avrcp_states.remove(&addr);
+
+                if self.avrcp_address != Some(addr) {
+                    // Ignore disconnection to address we don't care
+                    return;
+                }
+                self.avrcp_address = None;
+
+                self.uinput.close(addr.to_string());
+
+                // TODO: better support for multi-device
+                self.absolute_volume = false;
+
+                // This may be considered a critical profile in the extreme case
+                // where only AVRCP was connected.
+                let is_profile_critical = match self.connected_profiles.get(&addr) {
+                    Some(profiles) => *profiles == HashSet::from([Profile::AvrcpController]),
+                    None => false,
+                };
 
                 self.rm_connected_profile(addr, Profile::AvrcpController, is_profile_critical);
             }
@@ -2302,6 +2318,10 @@ impl BluetoothMedia {
             self.connected_profiles.remove(&addr);
             states.remove(&addr);
             guard.remove(&addr);
+            let tx = self.tx.clone();
+            tokio::spawn(async move {
+                let _ = tx.send(Message::ProfileDisconnected(addr)).await;
+            });
             return;
         }
 
@@ -3328,11 +3348,11 @@ impl IBluetoothMedia for BluetoothMedia {
                         BtStatus::Success,
                         BtavConnectionState::Connecting as u32,
                     );
-                    self.avrcp_direction = BtConnectionDirection::Outgoing;
+                    self.avrcp_states.insert(addr, BtavConnectionState::Connecting);
                     let status = self.avrcp.connect(addr);
                     if BtStatus::Success != status {
                         // Reset direction to unknown.
-                        self.avrcp_direction = BtConnectionDirection::Unknown;
+                        self.avrcp_states.remove(&addr);
                         metrics::profile_connection_state_changed(
                             addr,
                             Profile::AvrcpController as u32,
@@ -3455,11 +3475,11 @@ impl IBluetoothMedia for BluetoothMedia {
                         BtStatus::Success,
                         BtavConnectionState::Disconnecting as u32,
                     );
-                    self.avrcp_direction = BtConnectionDirection::Outgoing;
+                    self.avrcp_states.insert(addr, BtavConnectionState::Disconnecting);
                     let status = self.avrcp.disconnect(addr);
                     if BtStatus::Success != status {
                         // Reset direction to unknown.
-                        self.avrcp_direction = BtConnectionDirection::Unknown;
+                        self.avrcp_states.remove(&addr);
                         metrics::profile_connection_state_changed(
                             addr,
                             Profile::AvrcpController as u32,
@@ -3561,6 +3581,10 @@ impl IBluetoothMedia for BluetoothMedia {
     }
 
     fn set_volume(&mut self, volume: u8) {
+        if self.avrcp_address.is_none() {
+            return;
+        }
+
         // Guard the range 0-127 by the try_from cast from u8 to i8.
         let vol = match i8::try_from(volume) {
             Ok(val) => val,
@@ -3570,7 +3594,7 @@ impl IBluetoothMedia for BluetoothMedia {
             }
         };
 
-        self.avrcp.set_volume(vol);
+        self.avrcp.set_volume(self.avrcp_address.unwrap(), vol);
     }
 
     fn set_hfp_volume(&mut self, volume: u8, addr: RawAddress) {

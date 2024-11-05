@@ -73,6 +73,9 @@ cc_library_shared {
         "jni_headers",
         "libbluetooth_headers",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/gd",
@@ -88,6 +91,7 @@ cc_library_shared {
     // is required to maintain FIPS compliance.
     stl: "libc++_static",
     static_libs: [
+        "aics",
         "android.hardware.audio.common@5.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
@@ -106,7 +110,6 @@ cc_library_shared {
         "libbase",
         "libbluetooth",
         "libbluetooth-dumpsys",
-        "libbluetooth-gdx",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_core_rs_bridge",
@@ -269,6 +272,7 @@ android_app {
         "bluetooth-protos-lite",
         "bluetooth.change-ids",
         "bluetooth.mapsapi",
+        "bluetooth_constants_java",
         "com.android.obex",
         "com.android.vcard",
         "guava",
@@ -294,15 +298,44 @@ android_app {
     javacflags: ["-Aroom.schemaLocation=packages/modules/Bluetooth/android/app/tests/unit/src/com/android/bluetooth/btservice/storage/schemas"],
 
     lint: {
-        // TODO(b/318814235): Add back ObsoleteSdkInt to this list.
         error_checks: [
+            "Autofill",
+            "DefaultLocale",
+            "DuplicateDefinition",
+            // "ExportedContentProvider", // TODO: b/289445022 - enable this check
+            // "ExportedReceiver", // TODO: b/289445022 - enable this check
+            // "ExportedService", // TODO: b/289445022 - enable this check
             "ExtraText",
+            "ExtraTranslation",
+            "GestureBackNavigation",
+            "GuardedLogInvocation",
+            "HandlerLeak",
+            "InflateParams",
+            // "InvalidPermission", // TODO: b/289445022 - enable this check
+            "LabelFor",
             "MissingClass",
+            // "MissingVersion", // TODO: b/289445022 - enable this check
+            "MonochromeLauncherIcon",
             "NewApi",
+            "ObsoleteSdkInt",
+            // "QueryAllPackagesPermission", // TODO: b/289445022 - enable this check
             "Recycle",
             "RtlHardcoded",
+            "RtlSymmetry",
+            "ScrollViewSize",
+            "SetTextI18n",
+            "SimpleDateFormat",
+            "StaticFieldLeak",
+            "StringFormatCount",
+            "StringFormatInvalid",
+            "TextFields",
+            "TypographyEllipsis",
             "UseSparseArrays",
             "UseValueOf",
+            "VectorPath",
+            "VisibleForTests",
+            "Wakelock",
+            "WakelockTimeout",
         ],
         extra_check_modules: ["BluetoothLintChecker"],
         baseline_filename: "lint-baseline.xml",

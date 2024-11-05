@@ -63,7 +63,7 @@ BluetoothAudioSinkClientInterface::BluetoothAudioSinkClientInterface(
     : BluetoothAudioClientInterface{sink}, sink_(sink) {}
 BluetoothAudioSinkClientInterface::~BluetoothAudioSinkClientInterface() {}
 
-size_t BluetoothAudioSinkClientInterface::ReadAudioData(uint8_t* p_buf, uint32_t len) {
+size_t BluetoothAudioSinkClientInterface::ReadAudioData(uint8_t* /*p_buf*/, uint32_t len) {
   sink_client_read_called = true;
   return len;
 }
@@ -73,33 +73,34 @@ BluetoothAudioSourceClientInterface::BluetoothAudioSourceClientInterface(
     : BluetoothAudioClientInterface{source}, source_(source) {}
 BluetoothAudioSourceClientInterface::~BluetoothAudioSourceClientInterface() {}
 
-size_t BluetoothAudioSourceClientInterface::WriteAudioData(const uint8_t* p_buf, uint32_t len) {
+size_t BluetoothAudioSourceClientInterface::WriteAudioData(const uint8_t* /*p_buf*/, uint32_t len) {
   source_client_write_called = true;
   return len;
 }
 
 bool BluetoothAudioClientInterface::IsValid() const { return true; }
 
-bool BluetoothAudioClientInterface::SetAllowedLatencyModes(std::vector<LatencyMode> latency_modes) {
+bool BluetoothAudioClientInterface::SetAllowedLatencyModes(
+        std::vector<LatencyMode> /*latency_modes*/) {
   return false;
 }
 
 void BluetoothAudioClientInterface::FlushAudioData() {}
 
-bool BluetoothAudioClientInterface::UpdateAudioConfig(const AudioConfiguration& audio_config) {
+bool BluetoothAudioClientInterface::UpdateAudioConfig(const AudioConfiguration& /*audio_config*/) {
   return false;
 }
 
 int BluetoothAudioClientInterface::StartSession() { return -EINVAL; }
 
-void BluetoothAudioClientInterface::StreamStarted(const BluetoothAudioCtrlAck& ack) {}
+void BluetoothAudioClientInterface::StreamStarted(const BluetoothAudioCtrlAck& /*ack*/) {}
 
 int BluetoothAudioClientInterface::EndSession() { return -EINVAL; }
 
-void BluetoothAudioClientInterface::StreamSuspended(const BluetoothAudioCtrlAck& ack) {}
+void BluetoothAudioClientInterface::StreamSuspended(const BluetoothAudioCtrlAck& /*ack*/) {}
 
 std::vector<AudioCapabilities> BluetoothAudioClientInterface::GetAudioCapabilities(
-        SessionType session_type) {
+        SessionType /*session_type*/) {
   return std::vector<AudioCapabilities>(0);
 }
 
@@ -107,11 +108,11 @@ std::vector<IBluetoothAudioProvider::LeAudioAseConfigurationSetting>
 BluetoothAudioClientInterface::GetLeAudioAseConfiguration(
         std::optional<
                 std::vector<std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
-                remoteSinkAudioCapabilities,
+        /*remoteSinkAudioCapabilities*/,
         std::optional<
                 std::vector<std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
-                remoteSourceAudioCapabilities,
-        std::vector<IBluetoothAudioProvider::LeAudioConfigurationRequirement>& requirements) {
+        /*remoteSourceAudioCapabilities*/,
+        std::vector<IBluetoothAudioProvider::LeAudioConfigurationRequirement>& /*requirements*/) {
   return std::vector<IBluetoothAudioProvider::LeAudioAseConfigurationSetting>();
 }
 
@@ -119,12 +120,12 @@ IBluetoothAudioProvider::LeAudioBroadcastConfigurationSetting
 BluetoothAudioClientInterface::getLeAudioBroadcastConfiguration(
         const std::optional<
                 std::vector<std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
-                remoteSinkAudioCapabilities,
-        const IBluetoothAudioProvider::LeAudioBroadcastConfigurationRequirement& requirement) {
+        /*remoteSinkAudioCapabilities*/,
+        const IBluetoothAudioProvider::LeAudioBroadcastConfigurationRequirement& /*requirement*/) {
   return IBluetoothAudioProvider::LeAudioBroadcastConfigurationSetting();
 }
 
-std::ostream& operator<<(std::ostream& os, const BluetoothAudioCtrlAck& ack) { return os; }
+std::ostream& operator<<(std::ostream& os, const BluetoothAudioCtrlAck& /*ack*/) { return os; }
 
 namespace hfp {
 
@@ -138,21 +139,22 @@ BluetoothAudioCtrlAck HfpTransport::StartRequest() {
 void HfpTransport::StopRequest() {}
 void HfpTransport::ResetPendingCmd() {}
 uint8_t HfpTransport::GetPendingCmd() const { return HFP_CTRL_CMD_NONE; }
-void HfpTransport::LogBytesProcessed(size_t bytes_read) {}
+void HfpTransport::LogBytesProcessed(size_t /*bytes_read*/) {}
 BluetoothAudioCtrlAck HfpTransport::SuspendRequest() {
   return BluetoothAudioCtrlAck::SUCCESS_FINISHED;
 }
-void HfpTransport::SetLatencyMode(LatencyMode latency_mode) {}
-void HfpTransport::SourceMetadataChanged(const source_metadata_v7_t& source_metadata) {}
+void HfpTransport::SetLatencyMode(LatencyMode /*latency_mode*/) {}
+void HfpTransport::SourceMetadataChanged(const source_metadata_v7_t& /*source_metadata*/) {}
 void HfpTransport::SinkMetadataChanged(const sink_metadata_v7_t&) {}
 void HfpTransport::ResetPresentationPosition() {}
-bool HfpTransport::GetPresentationPosition(uint64_t* remote_delay_report_ns,
-                                           uint64_t* total_bytes_read, timespec* data_position) {
+bool HfpTransport::GetPresentationPosition(uint64_t* /*remote_delay_report_ns*/,
+                                           uint64_t* /*total_bytes_read*/,
+                                           timespec* /*data_position*/) {
   return false;
 }
 
 std::unordered_map<tBTA_AG_UUID_CODEC, ::hfp::sco_config> HfpTransport::GetHfpScoConfig(
-        SessionType sessionType) {
+        SessionType /*sessionType*/) {
   return std::unordered_map<tBTA_AG_UUID_CODEC, ::hfp::sco_config>{};
 }
 
@@ -161,22 +163,22 @@ HfpDecodingTransport::HfpDecodingTransport(SessionType session_type)
     : IBluetoothSourceTransportInstance(session_type, (AudioConfiguration){}) {}
 
 HfpDecodingTransport::~HfpDecodingTransport() {}
-BluetoothAudioCtrlAck HfpDecodingTransport::StartRequest(bool is_low_latency) {
+BluetoothAudioCtrlAck HfpDecodingTransport::StartRequest(bool /*is_low_latency*/) {
   return BluetoothAudioCtrlAck::SUCCESS_FINISHED;
 }
 BluetoothAudioCtrlAck HfpDecodingTransport::SuspendRequest() {
   return BluetoothAudioCtrlAck::SUCCESS_FINISHED;
 }
-void HfpDecodingTransport::SetLatencyMode(LatencyMode latency_mode) {}
-bool HfpDecodingTransport::GetPresentationPosition(uint64_t* remote_delay_report_ns,
-                                                   uint64_t* total_bytes_written,
-                                                   timespec* data_position) {
+void HfpDecodingTransport::SetLatencyMode(LatencyMode /*latency_mode*/) {}
+bool HfpDecodingTransport::GetPresentationPosition(uint64_t* /*remote_delay_report_ns*/,
+                                                   uint64_t* /*total_bytes_written*/,
+                                                   timespec* /*data_position*/) {
   return false;
 }
-void HfpDecodingTransport::SourceMetadataChanged(const source_metadata_v7_t& source_metadata) {}
-void HfpDecodingTransport::SinkMetadataChanged(const sink_metadata_v7_t& sink_metadata) {}
+void HfpDecodingTransport::SourceMetadataChanged(const source_metadata_v7_t& /*source_metadata*/) {}
+void HfpDecodingTransport::SinkMetadataChanged(const sink_metadata_v7_t& /*sink_metadata*/) {}
 void HfpDecodingTransport::ResetPresentationPosition() {}
-void HfpDecodingTransport::LogBytesWritten(size_t bytes_written) {}
+void HfpDecodingTransport::LogBytesWritten(size_t /*bytes_written*/) {}
 uint8_t HfpDecodingTransport::GetPendingCmd() const { return HFP_CTRL_CMD_NONE; }
 void HfpDecodingTransport::ResetPendingCmd() {}
 void HfpDecodingTransport::StopRequest() {}
@@ -185,24 +187,24 @@ bool HfpDecodingTransport::IsStreamActive() { return decoding_transport_is_strea
 HfpEncodingTransport::HfpEncodingTransport(SessionType session_type)
     : IBluetoothSinkTransportInstance(session_type, (AudioConfiguration){}) {}
 HfpEncodingTransport::~HfpEncodingTransport() {}
-BluetoothAudioCtrlAck HfpEncodingTransport::StartRequest(bool is_low_latency) {
+BluetoothAudioCtrlAck HfpEncodingTransport::StartRequest(bool /*is_low_latency*/) {
   return BluetoothAudioCtrlAck::SUCCESS_FINISHED;
 }
 BluetoothAudioCtrlAck HfpEncodingTransport::SuspendRequest() {
   return BluetoothAudioCtrlAck::SUCCESS_FINISHED;
 }
 void HfpEncodingTransport::StopRequest() {}
-void HfpEncodingTransport::SetLatencyMode(LatencyMode latency_mode) {}
-bool HfpEncodingTransport::GetPresentationPosition(uint64_t* remote_delay_report_ns,
-                                                   uint64_t* total_bytes_written,
-                                                   timespec* data_position) {
+void HfpEncodingTransport::SetLatencyMode(LatencyMode /*latency_mode*/) {}
+bool HfpEncodingTransport::GetPresentationPosition(uint64_t* /*remote_delay_report_ns*/,
+                                                   uint64_t* /*total_bytes_written*/,
+                                                   timespec* /*data_position*/) {
   return false;
 }
 
-void HfpEncodingTransport::SourceMetadataChanged(const source_metadata_v7_t& source_metadata) {}
-void HfpEncodingTransport::SinkMetadataChanged(const sink_metadata_v7_t& sink_metadata) {}
+void HfpEncodingTransport::SourceMetadataChanged(const source_metadata_v7_t& /*source_metadata*/) {}
+void HfpEncodingTransport::SinkMetadataChanged(const sink_metadata_v7_t& /*sink_metadata*/) {}
 void HfpEncodingTransport::ResetPresentationPosition() {}
-void HfpEncodingTransport::LogBytesRead(size_t bytes_written) {}
+void HfpEncodingTransport::LogBytesRead(size_t /*bytes_written*/) {}
 uint8_t HfpEncodingTransport::GetPendingCmd() const { return HFP_CTRL_CMD_NONE; }
 void HfpEncodingTransport::ResetPendingCmd() {}
 bool HfpEncodingTransport::IsStreamActive() { return encoding_transport_is_stream_active_ret; }

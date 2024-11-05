@@ -172,8 +172,8 @@ typedef struct {
   tPORT_DATA tx; /* Control block for data from app to peer */
   tPORT_DATA rx; /* Control block for data from peer to app */
 
-  tPORT_STATE user_port_pars; /* Port parameters for user connection */
-  tPORT_STATE peer_port_pars; /* Port parameters for user connection */
+  PortSettings user_port_settings; /* Port parameters for user connection */
+  PortSettings peer_port_settings; /* Port parameters for peer connection */
 
   tPORT_CTRL local_ctrl;
   tPORT_CTRL peer_ctrl;

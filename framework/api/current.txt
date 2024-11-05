@@ -527,10 +527,10 @@ package android.bluetooth {
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public android.bluetooth.BluetoothGatt connectGatt(android.content.Context, boolean, android.bluetooth.BluetoothGattCallback, int, int);
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public android.bluetooth.BluetoothGatt connectGatt(android.content.Context, boolean, android.bluetooth.BluetoothGattCallback, int, int, android.os.Handler);
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public boolean createBond();
-    method @NonNull @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public android.bluetooth.BluetoothSocket createInsecureL2capChannel(int) throws java.io.IOException;
-    method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public android.bluetooth.BluetoothSocket createInsecureRfcommSocketToServiceRecord(java.util.UUID) throws java.io.IOException;
-    method @NonNull @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public android.bluetooth.BluetoothSocket createL2capChannel(int) throws java.io.IOException;
-    method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public android.bluetooth.BluetoothSocket createRfcommSocketToServiceRecord(java.util.UUID) throws java.io.IOException;
+    method @NonNull public android.bluetooth.BluetoothSocket createInsecureL2capChannel(int) throws java.io.IOException;
+    method public android.bluetooth.BluetoothSocket createInsecureRfcommSocketToServiceRecord(java.util.UUID) throws java.io.IOException;
+    method @NonNull public android.bluetooth.BluetoothSocket createL2capChannel(int) throws java.io.IOException;
+    method public android.bluetooth.BluetoothSocket createRfcommSocketToServiceRecord(java.util.UUID) throws java.io.IOException;
     method public int describeContents();
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public boolean fetchUuidsWithSdp();
     method public String getAddress();
@@ -627,7 +627,7 @@ package android.bluetooth {
     field public static final int CONNECTION_PRIORITY_HIGH = 1; // 0x1
     field public static final int CONNECTION_PRIORITY_LOW_POWER = 2; // 0x2
     field public static final int GATT_CONNECTION_CONGESTED = 143; // 0x8f
-    field @FlaggedApi("com.android.bluetooth.flags.enumerate_gatt_errors") public static final int GATT_CONNECTION_TIMEOUT = 147; // 0x93
+    field public static final int GATT_CONNECTION_TIMEOUT = 147; // 0x93
     field public static final int GATT_FAILURE = 257; // 0x101
     field public static final int GATT_INSUFFICIENT_AUTHENTICATION = 5; // 0x5
     field public static final int GATT_INSUFFICIENT_AUTHORIZATION = 8; // 0x8
