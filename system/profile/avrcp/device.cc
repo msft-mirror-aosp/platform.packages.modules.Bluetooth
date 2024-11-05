@@ -1365,6 +1365,7 @@ void Device::GetMediaPlayerListResponse(uint8_t label, std::shared_ptr<GetFolder
     auto no_items_rsp = GetFolderItemsResponseBuilder::MakePlayerListBuilder(
             Status::RANGE_OUT_OF_BOUNDS, 0x0000, browse_mtu_);
     send_message(label, true, std::move(no_items_rsp));
+    return;
   }
 
   auto builder = GetFolderItemsResponseBuilder::MakePlayerListBuilder(Status::NO_ERROR, 0x0000,
