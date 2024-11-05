@@ -215,9 +215,13 @@ cc_test {
         "liblog",
         "libosi",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
         "libPlatformProperties",
         "libaconfig_storage_read_api_cc",
+        "libbinder",
         "libbinder_ndk",
         "libcrypto",
         "server_configurable_flags",

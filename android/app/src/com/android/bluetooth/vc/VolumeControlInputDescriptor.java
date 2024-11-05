@@ -20,6 +20,11 @@ import android.util.Log;
 
 import com.android.bluetooth.btservice.ProfileService;
 
+import bluetooth.constants.AudioInputType;
+import bluetooth.constants.aics.AudioInputStatus;
+import bluetooth.constants.aics.GainMode;
+import bluetooth.constants.aics.Mute;
+
 class VolumeControlInputDescriptor {
     private static final String TAG = VolumeControlInputDescriptor.class.getSimpleName();
 
@@ -34,26 +39,18 @@ class VolumeControlInputDescriptor {
     }
 
     private static class Descriptor {
-        int mStatus = 0; // AudioInputStatus.INACTIVE;
+        int mStatus = AudioInputStatus.INACTIVE;
 
-        int mType = 0; // AudioInputType.UNSPECIFIED;
+        int mType = AudioInputType.UNSPECIFIED;
 
-        int mGainValue = 0;
+        int mGainSetting = 0;
 
-        /* See AICS 1.0 - 3.1.3. Gain_Mode field
-         * The Gain_Mode field shall be set to a value that reflects whether gain modes are manual
-         * or automatic.
-         * - Manual Only, the server allows only manual gain.
-         * - Automatic Only, the server allows only automatic gain.
-         *
-         * For all other Gain_Mode field values, the server allows switchable automatic/manual gain.
-         */
-        int mGainMode = 0;
+        int mGainMode = GainMode.MANUAL_ONLY;
 
-        int mMute = 2; // DISABLED
+        int mMute = Mute.DISABLED;
 
         /* See AICS 1.0
-         * The Gain_Setting (mGainValue) field is a signed value for which a single increment or
+         * The Gain_Setting (mGainSetting) field is a signed value for which a single increment or
          * decrement should result in a corresponding increase or decrease of the input amplitude by
          * the value of the Gain_Setting_Units (mGainSettingsUnits) field of the Gain Setting
          * Properties characteristic value.
@@ -84,7 +81,7 @@ class VolumeControlInputDescriptor {
     }
 
     int getStatus(int id) {
-        if (!isValidId(id)) return 0; // AudioInputStatus.INACTIVE;
+        if (!isValidId(id)) return AudioInputStatus.INACTIVE;
         return mVolumeInputs[id].mStatus;
     }
 
@@ -104,17 +101,17 @@ class VolumeControlInputDescriptor {
     }
 
     int getType(int id) {
-        if (!isValidId(id)) return 0; // AudioInputType.UNSPECIFIED;
+        if (!isValidId(id)) return AudioInputType.UNSPECIFIED;
         return mVolumeInputs[id].mType;
     }
 
-    int getGain(int id) {
+    int getGainSetting(int id) {
         if (!isValidId(id)) return 0;
-        return mVolumeInputs[id].mGainValue;
+        return mVolumeInputs[id].mGainSetting;
     }
 
     int getMute(int id) {
-        if (!isValidId(id)) return 2; // MuteField.DISABLED
+        if (!isValidId(id)) return Mute.DISABLED;
         return mVolumeInputs[id].mMute;
     }
 
@@ -126,17 +123,18 @@ class VolumeControlInputDescriptor {
         mVolumeInputs[id].mGainSettingsMaxSetting = gainMax;
     }
 
-    void setState(int id, int gainValue, int gainMode, int mute) {
+    void setState(int id, int gainSetting, int mute, int gainMode) {
         if (!isValidId(id)) return;
 
         Descriptor desc = mVolumeInputs[id];
 
-        if (gainValue > desc.mGainSettingsMaxSetting || gainValue < desc.mGainSettingsMinSetting) {
-            Log.e(TAG, "Request fail. Illegal gainValue argument: " + gainValue);
+        if (gainSetting > desc.mGainSettingsMaxSetting
+                || gainSetting < desc.mGainSettingsMinSetting) {
+            Log.e(TAG, "Request fail. Illegal gainSetting argument: " + gainSetting);
             return;
         }
 
-        desc.mGainValue = gainValue;
+        desc.mGainSetting = gainSetting;
         desc.mGainMode = gainMode;
         desc.mMute = mute;
     }
@@ -148,7 +146,7 @@ class VolumeControlInputDescriptor {
             ProfileService.println(sb, "        description: " + desc.mDescription);
             ProfileService.println(sb, "        type: " + desc.mType);
             ProfileService.println(sb, "        status: " + desc.mStatus);
-            ProfileService.println(sb, "        gainValue: " + desc.mGainValue);
+            ProfileService.println(sb, "        gainSetting: " + desc.mGainSetting);
             ProfileService.println(sb, "        gainMode: " + desc.mGainMode);
             ProfileService.println(sb, "        mute: " + desc.mMute);
             ProfileService.println(sb, "        units:" + desc.mGainSettingsUnits);

@@ -93,6 +93,7 @@ static_library("btif") {
     "//bt/system/bta/dm",
     "//bt/system/linux_include",
     "//bt/system/audio_hearing_aid_hw/include",
+    "//bt/system/bta/aics/include",
     "//bt/system/bta/include",
     "//bt/system/bta/sys",
     "//bt/system/device/include",
@@ -114,6 +115,7 @@ static_library("btif") {
     "//bt/system:libbt-platform-protos-lite",
     "//bt/system/common",
     "//bt/system/profile/avrcp:profile_avrcp",
+    "//bt/system/bta/aics:aics",
   ]
 
   configs += [

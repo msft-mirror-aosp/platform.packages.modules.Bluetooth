@@ -165,6 +165,7 @@ java_defaults {
             "-Xep:UnusedMethod:ERROR",
             "-Xep:UnusedNestedClass:ERROR",
             "-Xep:UnusedVariable:ERROR",
+            "-Xep:VariableNameSameAsType:ERROR",
             "-Xep:WaitNotInLoop:ERROR",
             "-Xep:WakelockReleasedDangerously:ERROR",
 
@@ -172,8 +173,8 @@ java_defaults {
             "-XepExcludedPaths:.*/srcjars/.*",
 
             // The @InlineMe annotation could be made available, but it would
-            // apply on external facing API. This is not desired. For more
-            // context, see https://r.android.com/3303475
+            // apply on external facing API. This is not desired.
+            // For more context, see https://r.android.com/3303475
             "-Xep:InlineMeSuggester:OFF",
         ],
     },

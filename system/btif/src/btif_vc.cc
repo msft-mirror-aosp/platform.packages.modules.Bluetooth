@@ -17,6 +17,7 @@
 
 /* Volume Control Interface */
 
+#include <aics/api.h>
 #include <base/functional/bind.h>
 #include <base/location.h>
 #include <bluetooth/log.h>
@@ -34,6 +35,7 @@
 
 using base::Bind;
 using base::Unretained;
+using bluetooth::aics::Mute;
 using bluetooth::vc::ConnectionState;
 using bluetooth::vc::VolumeControlCallbacks;
 using bluetooth::vc::VolumeControlInterface;
@@ -102,10 +104,10 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
   }
 
   /* Callbacks for Audio Input Stream (AIS) - Extended Audio Inputs */
-  void OnExtAudioInStateChanged(const RawAddress& address, uint8_t ext_input_id, int8_t gain_val,
-                                uint8_t gain_mode, uint8_t mute) override {
+  void OnExtAudioInStateChanged(const RawAddress& address, uint8_t ext_input_id,
+                                int8_t gain_setting, ::Mute mute, uint8_t gain_mode) override {
     do_in_jni_thread(Bind(&VolumeControlCallbacks::OnExtAudioInStateChanged, Unretained(callbacks_),
-                          address, ext_input_id, gain_val, gain_mode, mute));
+                          address, ext_input_id, gain_setting, mute, gain_mode));
   }
 
   void OnExtAudioInStatusChanged(const RawAddress& address, uint8_t ext_input_id,
@@ -351,8 +353,8 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
                            Unretained(VolumeControl::Get()), address, ext_input_id, descr));
   }
 
-  void SetExtAudioInGainValue(const RawAddress& address, uint8_t ext_input_id,
-                              int8_t value) override {
+  void SetExtAudioInGainSetting(const RawAddress& address, uint8_t ext_input_id,
+                                int8_t gain_setting) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
       bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
@@ -360,8 +362,8 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
       return;
     }
 
-    do_in_main_thread(Bind(&VolumeControl::SetExtAudioInGainValue, Unretained(VolumeControl::Get()),
-                           address, ext_input_id, value));
+    do_in_main_thread(Bind(&VolumeControl::SetExtAudioInGainSetting,
+                           Unretained(VolumeControl::Get()), address, ext_input_id, gain_setting));
   }
 
   void SetExtAudioInGainMode(const RawAddress& address, uint8_t ext_input_id,
