@@ -17,6 +17,7 @@
 
 #define LOG_TAG "BluetoothVolumeControlServiceJni"
 
+#include <aics/api.h>
 #include <bluetooth/log.h>
 #include <jni.h>
 #include <nativehelper/JNIHelp.h>
@@ -34,9 +35,12 @@
 #include "hardware/bt_vc.h"
 #include "types/raw_address.h"
 
+using bluetooth::aics::Mute;
 using bluetooth::vc::ConnectionState;
 using bluetooth::vc::VolumeControlCallbacks;
 using bluetooth::vc::VolumeControlInterface;
+using bluetooth::vc::VolumeInputStatus;
+using bluetooth::vc::VolumeInputType;
 
 namespace android {
 static jmethodID method_onConnectionStateChanged;
@@ -218,7 +222,7 @@ public:
   }
 
   void OnExtAudioInStateChanged(const RawAddress& bd_addr, uint8_t ext_input_id, int8_t gain_val,
-                                uint8_t gain_mode, uint8_t mute) override {
+                                uint8_t gain_mode, Mute mute) override {
     log::info("");
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
@@ -241,7 +245,7 @@ public:
   }
 
   void OnExtAudioInStatusChanged(const RawAddress& bd_addr, uint8_t ext_input_id,
-                                 bluetooth::vc::VolumeInputStatus status) override {
+                                 VolumeInputStatus status) override {
     log::info("");
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
@@ -264,7 +268,7 @@ public:
   }
 
   void OnExtAudioInTypeChanged(const RawAddress& bd_addr, uint8_t ext_input_id,
-                               bluetooth::vc::VolumeInputType type) override {
+                               VolumeInputType type) override {
     log::info("");
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);

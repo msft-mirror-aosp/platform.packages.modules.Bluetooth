@@ -88,6 +88,8 @@ static constexpr uint32_t kQualityEventMaskLeAudioChoppy = 0x1 << 6;
 static constexpr uint32_t kQualityEventMaskConnectFail = 0x1 << 7;
 static constexpr uint32_t kQualityEventMaskAdvRFStatsEvent = 0x1 << 8;
 static constexpr uint32_t kQualityEventMaskAdvRFStatsMonitor = 0x1 << 9;
+static constexpr uint32_t kQualityEventMaskHealthMonitorStatsEvent = 0x1 << 10;
+static constexpr uint32_t kQualityEventMaskControllerHealthMonitor = 0x1 << 11;
 static constexpr uint32_t kQualityEventMaskVendorSpecificQuality = 0x1 << 15;
 static constexpr uint32_t kQualityEventMaskLmpMessageTrace = 0x1 << 16;
 static constexpr uint32_t kQualityEventMaskBtSchedulingTrace = 0x1 << 17;
@@ -99,6 +101,7 @@ static constexpr uint32_t kQualityEventMaskAll =
         kQualityEventMaskRootInflammation | kQualityEventMaskEnergyMonitoring |
         kQualityEventMaskLeAudioChoppy | kQualityEventMaskConnectFail |
         kQualityEventMaskAdvRFStatsEvent | kQualityEventMaskAdvRFStatsMonitor |
+        kQualityEventMaskHealthMonitorStatsEvent | kQualityEventMaskControllerHealthMonitor |
         kQualityEventMaskVendorSpecificQuality | kQualityEventMaskLmpMessageTrace |
         kQualityEventMaskBtSchedulingTrace | kQualityEventMaskControllerDbgInfo |
         kQualityEventMaskVendorSpecificTrace;
@@ -132,6 +135,7 @@ static constexpr uint8_t kLogDumpParamTotalLen = 3;
 static constexpr uint8_t kVersion5_0ParamsTotalLen = 7;
 // Added in BQR V6.0
 static constexpr uint8_t kVersion6_0ParamsTotalLen = 6;
+
 // Warning criteria of the RSSI value.
 static constexpr int8_t kCriWarnRssi = -80;
 // Warning criteria of the unused AFH channel count.
@@ -176,7 +180,7 @@ static constexpr uint16_t kBqrVndLogVersion = 0x102;
 static constexpr uint16_t kBqrVersion5_0 = 0x103;
 // The REPORT_ACTION_QUERY and BQR_Report_interval starting v1.04(260)
 static constexpr uint16_t kBqrVersion6_0 = 0x104;
-
+static constexpr uint16_t kBqrVersion7_0 = 0x105;
 // Action definition
 //
 // Action to Add, Delete or Clear the reporting of quality event(s).

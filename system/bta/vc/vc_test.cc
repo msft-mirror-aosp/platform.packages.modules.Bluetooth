@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <aics/api.h>
 #include <base/functional/bind.h>
 #include <com_android_bluetooth_flags.h>
 #include <gmock/gmock.h>
@@ -58,6 +59,7 @@ namespace {
 using base::Bind;
 using base::Unretained;
 
+using bluetooth::aics::Mute;
 using bluetooth::vc::ConnectionState;
 using bluetooth::vc::VolumeControlCallbacks;
 
@@ -104,7 +106,7 @@ public:
               (const RawAddress& address, uint8_t ext_output_id, std::string descr), (override));
   MOCK_METHOD((void), OnExtAudioInStateChanged,
               (const RawAddress& address, uint8_t ext_input_id, int8_t gain_val,
-               uint8_t gain_mode_auto, uint8_t mute),
+               uint8_t gain_mode_auto, Mute mute),
               (override));
   MOCK_METHOD((void), OnExtAudioInStatusChanged,
               (const RawAddress& address, uint8_t ext_input_id, VolumeInputStatus status),
@@ -1341,14 +1343,14 @@ TEST_F(VolumeControlCallbackTest, audio_input_state_changed__invalid_mute__is_re
 }
 
 TEST_F(VolumeControlCallbackTest, test_audio_input_state_changed__muted) {
-  std::vector<uint8_t> value({0x03, 0x01, 0x02, 0x04});
-  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(test_address, _, 0x03, 0x02, 0x01));
+  std::vector<uint8_t> value({0x03, (uint8_t)Mute::MUTED, 0x02, 0x04});
+  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(test_address, _, 0x03, 0x02, Mute::MUTED));
   GetNotificationEvent(0x0032, value);
 }
 
 TEST_F(VolumeControlCallbackTest, test_audio_input_state_changed__disabled) {
-  std::vector<uint8_t> value({0x03, 0x02, 0x02, 0x04});
-  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(test_address, _, 0x03, 0x02, 0x02));
+  std::vector<uint8_t> value({0x03, (uint8_t)Mute::DISABLED, 0x02, 0x04});
+  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(test_address, _, 0x03, 0x02, Mute::DISABLED));
   GetNotificationEvent(0x0032, value);
 }
 
@@ -1487,8 +1489,8 @@ TEST_F(VolumeControlValueGetTest, test_get_ext_audio_out_description) {
 TEST_F(VolumeControlValueGetTest, test_get_ext_audio_in_state) {
   VolumeControl::Get()->GetExtAudioInState(test_address, 1);
   EXPECT_TRUE(cb);
-  std::vector<uint8_t> value({0x01, 0x00, 0x02, 0x03});
-  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(test_address, 1, 0x01, 0x02, 0x00));
+  std::vector<uint8_t> value({0x01, (uint8_t)Mute::NOT_MUTED, 0x02, 0x03});
+  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(test_address, 1, 0x01, 0x02, Mute::NOT_MUTED));
   cb(conn_id, GATT_SUCCESS, handle, (uint16_t)value.size(), value.data(), cb_data);
 }
 

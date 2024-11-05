@@ -34,6 +34,7 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.BluetoothSinkAudioPolicy;
+import android.bluetooth.BluetoothUtils;
 import android.bluetooth.IBluetoothConnectionCallback;
 import android.content.Context;
 import android.content.Intent;
@@ -186,7 +187,7 @@ public class RemoteDevices {
 
                         debugLog(
                                 "reset(): address="
-                                        + address
+                                        + BluetoothUtils.toAnonymizedAddress(address)
                                         + ", connected="
                                         + bluetoothDevice.isConnected());
 
@@ -1171,7 +1172,7 @@ public class RemoteDevices {
                         + Utils.getRedactedAddressStringFromByte(secondaryAddress));
 
         DeviceProperties deviceProperties = getDeviceProperties(device);
-        deviceProperties.mIdentityAddress = Utils.getAddressStringFromByte(secondaryAddress);
+        deviceProperties.setIdentityAddress(Utils.getAddressStringFromByte(secondaryAddress));
     }
 
     void aclStateChangeCallback(

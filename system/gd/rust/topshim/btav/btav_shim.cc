@@ -292,10 +292,16 @@ std::unique_ptr<A2dpIntf> GetA2dpProfile(const unsigned char* btif) {
 }
 
 int A2dpIntf::init() const {
-  std::vector<btav_a2dp_codec_config_t> a;
+  btav_a2dp_codec_config_t a2dp_config_sbc{
+          .codec_type = BTAV_A2DP_CODEC_INDEX_SOURCE_SBC,
+          .codec_priority = BTAV_A2DP_CODEC_PRIORITY_HIGHEST,
+          // Using default settings for those untouched fields
+  };
+
+  std::vector<btav_a2dp_codec_config_t> codec_priorities(1, a2dp_config_sbc);
   std::vector<btav_a2dp_codec_config_t> b;
   std::vector<btav_a2dp_codec_info_t> c;
-  return btif_av_source_init(&internal::g_callbacks, 1, a, b, &c);
+  return btif_av_source_init(&internal::g_callbacks, 1, codec_priorities, b, &c);
 }
 
 uint32_t A2dpIntf::connect(RawAddress addr) const { return btif_av_source_connect(addr); }

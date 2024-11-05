@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <aics/api.h>
 #include <base/functional/bind.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
@@ -583,11 +584,11 @@ public:
     STREAM_TO_INT8(input->gain_value, pp);
     uint8_t mute;
     STREAM_TO_UINT8(mute, pp);
-    if (mute > 0x02 /*Mute::DISABLED*/) {
+    if (!bluetooth::aics::isValidAudioInputMuteValue(mute)) {
       bluetooth::log::error("{} Invalid mute value: {:#x}", device->address, mute);
       return;
     }
-    input->mute = mute;
+    input->mute = bluetooth::aics::parseMuteField(mute);
 
     STREAM_TO_UINT8(input->mode, pp);
     STREAM_TO_UINT8(input->change_counter, pp);
