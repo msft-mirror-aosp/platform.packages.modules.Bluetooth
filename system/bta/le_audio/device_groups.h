@@ -249,7 +249,7 @@ public:
 
   inline types::AseState GetState(void) const { return current_state_; }
   void SetState(types::AseState state) {
-    log::info("current state: {}, new state {}, in_transition_ {}",
+    log::info("group_id: {} current state: {}, new state {}, in_transition_ {}", group_id_,
               bluetooth::common::ToString(current_state_), bluetooth::common::ToString(state),
               in_transition_);
     LeAudioLogHistory::Get()->AddLogHistory(kLogStateMachineTag, group_id_, RawAddress::kEmpty,
@@ -272,7 +272,7 @@ public:
     return notify_streaming_when_cises_are_ready_;
   }
   void SetTargetState(types::AseState state) {
-    log::info("target state: {}, new target state: {}, in_transition_ {}",
+    log::info("group_id: {} target state: {}, new target state: {}, in_transition_ {}", group_id_,
               bluetooth::common::ToString(target_state_), bluetooth::common::ToString(state),
               in_transition_);
     LeAudioLogHistory::Get()->AddLogHistory(

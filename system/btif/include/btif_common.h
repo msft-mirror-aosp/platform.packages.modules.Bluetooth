@@ -30,7 +30,6 @@
 
 #include "abstract_message_loop.h"
 #include "bta/include/bta_api.h"
-#include "os/log.h"
 #include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
@@ -163,4 +162,5 @@ void invoke_link_quality_report_cb(uint64_t timestamp, int report_id, int rssi, 
 void invoke_switch_buffer_size_cb(bool is_low_latency_buffer_size);
 void invoke_switch_codec_cb(bool is_low_latency_buffer_size);
 void invoke_key_missing_cb(RawAddress bd_addr);
+void invoke_encryption_change_cb(bt_encryption_change_evt encryption_change);
 #endif /* BTIF_COMMON_H */

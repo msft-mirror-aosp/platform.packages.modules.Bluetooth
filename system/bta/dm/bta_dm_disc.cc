@@ -31,8 +31,10 @@
 
 #include "bta/dm/bta_dm_disc_int.h"
 #include "bta/include/bta_gatt_api.h"
+#include "btif/include/btif_storage.h"
 #include "common/circular_buffer.h"
 #include "common/strings.h"
+#include "device/include/interop.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
 #include "os/logging/log_adapter.h"
@@ -51,6 +53,9 @@
 #ifdef TARGET_FLOSS
 #include "stack/include/srvc_api.h"
 #endif
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::Uuid;
 using namespace bluetooth::legacy::stack::sdp;
@@ -91,7 +96,7 @@ static void post_disc_evt(tBTA_DM_DISC_EVT event, std::unique_ptr<tBTA_DM_MSG> m
   }
 }
 
-static void bta_dm_gatt_disc_complete(uint16_t conn_id, tGATT_STATUS status);
+static void bta_dm_gatt_disc_complete(tCONN_ID conn_id, tGATT_STATUS status);
 static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data);
 static void bta_dm_execute_queued_discovery_request();
 static void bta_dm_close_gatt_conn();
@@ -101,14 +106,15 @@ namespace {
 struct gatt_interface_t {
   void (*BTA_GATTC_CancelOpen)(tGATT_IF client_if, const RawAddress& remote_bda, bool is_direct);
   void (*BTA_GATTC_Refresh)(const RawAddress& remote_bda);
-  void (*BTA_GATTC_GetGattDb)(uint16_t conn_id, uint16_t start_handle, uint16_t end_handle,
+  void (*BTA_GATTC_GetGattDb)(tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
                               btgatt_db_element_t** db, int* count);
   void (*BTA_GATTC_AppRegister)(tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
                                 bool eatt_support);
-  void (*BTA_GATTC_Close)(uint16_t conn_id);
-  void (*BTA_GATTC_ServiceSearchRequest)(uint16_t conn_id, const bluetooth::Uuid* p_srvc_uuid);
+  void (*BTA_GATTC_Close)(tCONN_ID conn_id);
+  void (*BTA_GATTC_ServiceSearchRequest)(tCONN_ID conn_id, const bluetooth::Uuid* p_srvc_uuid);
   void (*BTA_GATTC_Open)(tGATT_IF client_if, const RawAddress& remote_bda,
-                         tBTM_BLE_CONN_TYPE connection_type, bool opportunistic);
+                         tBTM_BLE_CONN_TYPE connection_type, bool opportunistic,
+                         uint16_t preferred_mtu);
 } default_gatt_interface = {
         .BTA_GATTC_CancelOpen =
                 [](tGATT_IF client_if, const RawAddress& remote_bda, bool is_direct) {
@@ -116,7 +122,7 @@ struct gatt_interface_t {
                 },
         .BTA_GATTC_Refresh = [](const RawAddress& remote_bda) { BTA_GATTC_Refresh(remote_bda); },
         .BTA_GATTC_GetGattDb =
-                [](uint16_t conn_id, uint16_t start_handle, uint16_t end_handle,
+                [](tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
                    btgatt_db_element_t** db, int* count) {
                   BTA_GATTC_GetGattDb(conn_id, start_handle, end_handle, db, count);
                 },
@@ -124,9 +130,9 @@ struct gatt_interface_t {
                 [](tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb, bool eatt_support) {
                   BTA_GATTC_AppRegister(p_client_cb, cb, eatt_support);
                 },
-        .BTA_GATTC_Close = [](uint16_t conn_id) { BTA_GATTC_Close(conn_id); },
+        .BTA_GATTC_Close = [](tCONN_ID conn_id) { BTA_GATTC_Close(conn_id); },
         .BTA_GATTC_ServiceSearchRequest =
-                [](uint16_t conn_id, const bluetooth::Uuid* p_srvc_uuid) {
+                [](tCONN_ID conn_id, const bluetooth::Uuid* p_srvc_uuid) {
                   if (p_srvc_uuid) {
                     BTA_GATTC_ServiceSearchRequest(conn_id, *p_srvc_uuid);
                   } else {
@@ -135,8 +141,9 @@ struct gatt_interface_t {
                 },
         .BTA_GATTC_Open =
                 [](tGATT_IF client_if, const RawAddress& remote_bda,
-                   tBTM_BLE_CONN_TYPE connection_type, bool opportunistic) {
-                  BTA_GATTC_Open(client_if, remote_bda, connection_type, opportunistic);
+                   tBTM_BLE_CONN_TYPE connection_type, bool opportunistic, uint16_t preferred_mtu) {
+                  BTA_GATTC_Open(client_if, remote_bda, BLE_ADDR_PUBLIC, connection_type,
+                                 BT_TRANSPORT_LE, opportunistic, LE_PHY_1M, preferred_mtu);
                 },
 };
 
@@ -162,7 +169,7 @@ void bta_dm_disc_remove_device(const RawAddress& bd_addr) {
   if (bta_dm_discovery_cb.service_discovery_state == BTA_DM_DISCOVER_ACTIVE &&
       bta_dm_discovery_cb.peer_bdaddr == bd_addr) {
     log::info("Device removed while service discovery was pending, conclude the service discovery");
-    bta_dm_gatt_disc_complete((uint16_t)GATT_INVALID_CONN_ID, (tGATT_STATUS)GATT_ERROR);
+    bta_dm_gatt_disc_complete(GATT_INVALID_CONN_ID, (tGATT_STATUS)GATT_ERROR);
   }
 }
 
@@ -271,8 +278,17 @@ static void bta_dm_disc_result(tBTA_DM_SVC_RES& disc_result) {
     bta_dm_discovery_cb.service_search_cbacks.on_service_discovery_results(r.bd_addr, r.uuids,
                                                                            r.result);
   } else {
+    char remote_name[BD_NAME_LEN] = "";
     bta_dm_discovery_cb.transports &= ~BT_TRANSPORT_LE;
-    GAP_BleReadPeerPrefConnParams(bta_dm_discovery_cb.peer_bdaddr);
+    if (btif_storage_get_stored_remote_name(bta_dm_discovery_cb.peer_bdaddr, remote_name) &&
+        interop_match_name(INTEROP_DISABLE_LE_CONN_PREFERRED_PARAMS, remote_name)) {
+      // Some devices provide PPCP values that are incompatible with the device-side firmware.
+      log::info("disable PPCP read: interop matched name {} address {}", remote_name,
+                bta_dm_discovery_cb.peer_bdaddr);
+    } else {
+      log::info("reading PPCP");
+      GAP_BleReadPeerPrefConnParams(bta_dm_discovery_cb.peer_bdaddr);
+    }
 
     bta_dm_discovery_cb.service_search_cbacks.on_gatt_results(bta_dm_discovery_cb.peer_bdaddr,
                                                               disc_result.gatt_uuids,
@@ -491,7 +507,7 @@ void bta_dm_gatt_finished(RawAddress bda, tBTA_STATUS result,
  * Parameters:
  *
  ******************************************************************************/
-static void bta_dm_gatt_disc_complete(uint16_t conn_id, tGATT_STATUS status) {
+static void bta_dm_gatt_disc_complete(tCONN_ID conn_id, tGATT_STATUS status) {
   bool sdp_pending = bta_dm_discovery_cb.transports & BT_TRANSPORT_BR_EDR;
   bool le_pending = bta_dm_discovery_cb.transports & BT_TRANSPORT_LE;
 
@@ -602,14 +618,14 @@ static void btm_dm_start_gatt_discovery(const RawAddress& bd_addr) {
               "transport:{} opportunistic:{:c}",
               bd_addr, bt_transport_text(BT_TRANSPORT_LE), (kUseOpportunistic) ? 'T' : 'F');
       get_gatt_interface().BTA_GATTC_Open(bta_dm_discovery_cb.client_if, bd_addr,
-                                          BTM_BLE_DIRECT_CONNECTION, kUseOpportunistic);
+                                          BTM_BLE_DIRECT_CONNECTION, kUseOpportunistic, 0);
     } else {
       log::debug(
               "Opening new gatt client connection for discovery peer:{} "
               "transport:{} opportunistic:{:c}",
               bd_addr, bt_transport_text(BT_TRANSPORT_LE), (!kUseOpportunistic) ? 'T' : 'F');
       get_gatt_interface().BTA_GATTC_Open(bta_dm_discovery_cb.client_if, bd_addr,
-                                          BTM_BLE_DIRECT_CONNECTION, !kUseOpportunistic);
+                                          BTM_BLE_DIRECT_CONNECTION, !kUseOpportunistic, 0);
     }
   }
 }
@@ -672,7 +688,7 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
       if (bta_dm_discovery_get_state() == BTA_DM_DISCOVER_ACTIVE) {
         /* in case of disconnect before search is completed */
         if (p_data->close.remote_bda == bta_dm_discovery_cb.peer_bdaddr) {
-          bta_dm_gatt_disc_complete((uint16_t)GATT_INVALID_CONN_ID, (tGATT_STATUS)GATT_ERROR);
+          bta_dm_gatt_disc_complete(GATT_INVALID_CONN_ID, (tGATT_STATUS)GATT_ERROR);
         }
       }
       break;

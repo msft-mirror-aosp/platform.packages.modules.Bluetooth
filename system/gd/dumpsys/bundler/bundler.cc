@@ -28,6 +28,9 @@
 #include "flatbuffers/idl.h"
 #include "flatbuffers/util.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 using namespace dumpsys;
 
@@ -258,7 +261,7 @@ int WriteBundledSchema() {
   return EXIT_SUCCESS;
 }
 
-int Usage(int argc, char** argv) {
+int Usage(int /*argc*/, char** argv) {
   fprintf(stderr,
           "Usage: %s [-r | -w] [-f <filename>] [-g <gen_out_path>] [-n <namespace> ] [-v] -m "
           "<main_root_name> <file.bfbs "

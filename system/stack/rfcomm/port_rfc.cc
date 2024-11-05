@@ -142,7 +142,7 @@ void port_start_par_neg(tPORT* p_port) {
     return;
   }
 
-  RFCOMM_PortParameterNegotiationRequest(p_mcb, p_port->dlci, &p_port->user_port_pars);
+  RFCOMM_PortParameterNegotiationRequest(p_mcb, p_port->dlci, &p_port->user_port_settings);
 }
 
 /*******************************************************************************
@@ -519,7 +519,7 @@ void PORT_DlcEstablishCnf(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint16_t 
  *                  allocated before meaning that application already made open.
  *
  ******************************************************************************/
-void PORT_PortNegInd(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_STATE* p_pars, uint16_t param_mask) {
+void PORT_PortNegInd(tRFC_MCB* p_mcb, uint8_t dlci, PortSettings* p_settings, uint16_t param_mask) {
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
 
   log::verbose("PORT_PortNegInd");
@@ -528,15 +528,15 @@ void PORT_PortNegInd(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_STATE* p_pars, uint16_
     /* This can be a first request for this port */
     p_port = port_find_dlci_port(dlci);
     if (!p_port) {
-      RFCOMM_PortParameterNegotiationResponse(p_mcb, dlci, p_pars, 0);
+      RFCOMM_PortParameterNegotiationResponse(p_mcb, dlci, p_settings, 0);
       return;
     }
     p_mcb->port_handles[dlci] = p_port->handle;
   }
 
   /* Check if the flow control is acceptable on local side */
-  p_port->peer_port_pars = *p_pars;
-  RFCOMM_PortParameterNegotiationResponse(p_mcb, dlci, p_pars, param_mask);
+  p_port->peer_port_settings = *p_settings;
+  RFCOMM_PortParameterNegotiationResponse(p_mcb, dlci, p_settings, param_mask);
 }
 
 /*******************************************************************************
@@ -547,7 +547,8 @@ void PORT_PortNegInd(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_STATE* p_pars, uint16_
  *                  state for the port.  Propagate change to the user.
  *
  ******************************************************************************/
-void PORT_PortNegCnf(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_STATE* /* p_pars */, uint16_t result) {
+void PORT_PortNegCnf(tRFC_MCB* p_mcb, uint8_t dlci, PortSettings* /* p_settings */,
+                     uint16_t result) {
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
 
   log::verbose("PORT_PortNegCnf");
@@ -822,7 +823,8 @@ void PORT_DataInd(tRFC_MCB* p_mcb, uint8_t dlci, BT_HDR* p_buf) {
   }
   /* If user registered to receive notification when a particular byte is */
   /* received we mast check all received bytes */
-  if (((rx_char1 = p_port->user_port_pars.rx_char1) != 0) && (p_port->ev_mask & PORT_EV_RXFLAG)) {
+  if (((rx_char1 = p_port->user_port_settings.rx_char1) != 0) &&
+      (p_port->ev_mask & PORT_EV_RXFLAG)) {
     for (i = 0, p = (uint8_t*)(p_buf + 1) + p_buf->offset; i < p_buf->len; i++) {
       if (*p++ == rx_char1) {
         events |= PORT_EV_RXFLAG;

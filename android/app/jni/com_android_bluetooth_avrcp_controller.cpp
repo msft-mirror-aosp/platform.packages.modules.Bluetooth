@@ -16,12 +16,21 @@
 
 #define LOG_TAG "BluetoothAvrcpControllerJni"
 
-#include <string.h>
+#include <bluetooth/log.h>
+#include <jni.h>
+#include <nativehelper/JNIHelp.h>
+#include <nativehelper/scoped_local_ref.h>
 
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
+#include <mutex>
 #include <shared_mutex>
 
 #include "com_android_bluetooth.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bt_rc.h"
+#include "types/raw_address.h"
 
 namespace android {
 static jmethodID method_onConnectionStateChanged;

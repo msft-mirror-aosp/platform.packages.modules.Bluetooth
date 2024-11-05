@@ -203,7 +203,7 @@
         </receiver>
         <activity android:name="com.android.bluetooth.opp.BluetoothOppLauncherActivity"
              android:process="@string/process"
-             android:theme="@android:style/Theme.Material.Light.Dialog"
+             android:theme="@android:style/Theme.Translucent.NoTitleBar"
              android:label="@string/bt_share_picker_label"
              android:enabled="false"
              android:exported="true">

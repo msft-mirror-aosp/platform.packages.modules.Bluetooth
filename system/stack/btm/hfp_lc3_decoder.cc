@@ -23,7 +23,6 @@
 
 #include <cstring>
 
-#include "os/log.h"
 #include "osi/include/allocator.h"
 
 using namespace bluetooth;

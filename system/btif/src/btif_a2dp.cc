@@ -23,23 +23,24 @@
 
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
-#include <stdbool.h>
+
+#include <cstddef>
+#include <cstdint>
 
 #include "audio_hal_interface/a2dp_encoding.h"
+#include "avdt_api.h"
 #include "bta_av_api.h"
 #include "btif_a2dp_sink.h"
 #include "btif_a2dp_source.h"
 #include "btif_av.h"
 #include "btif_av_co.h"
 #include "btif_hf.h"
-#include "btif_util.h"
-#include "internal_include/bt_trace.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
 using bluetooth::audio::a2dp::BluetoothAudioStatus;
 
-void btif_a2dp_on_idle(const RawAddress& peer_addr, const A2dpType local_a2dp_type) {
+void btif_a2dp_on_idle(const RawAddress& /*peer_addr*/, const A2dpType local_a2dp_type) {
   log::verbose("Peer stream endpoint type:{}",
                peer_stream_endpoint_text(btif_av_get_peer_sep(local_a2dp_type)));
   if (btif_av_get_peer_sep(local_a2dp_type) == AVDT_TSEP_SNK) {
@@ -130,6 +131,8 @@ void btif_a2dp_on_offload_started(const RawAddress& peer_addr, tBTA_AV_STATUS st
 
   switch (status) {
     case BTA_AV_SUCCESS:
+      // Call required to update the session state for metrics.
+      btif_a2dp_source_start_audio_req();
       ack = BluetoothAudioStatus::SUCCESS;
       break;
     case BTA_AV_FAIL_RESOURCES:

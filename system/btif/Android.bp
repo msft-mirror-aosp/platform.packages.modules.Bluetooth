@@ -60,7 +60,6 @@ cc_library_static {
     srcs: ["src/btif_jni_task.cc"],
     static_libs: [
         "libbluetooth_log",
-        "libbt_shim_bridge",
         "libosi",
     ],
     shared_libs: [
@@ -140,6 +139,10 @@ cc_library_static {
             shared_libs: ["libaaudio"],
         },
         host: {
+            include_dirs: [
+                "bionic/libc/kernel/android/uapi/",
+                "bionic/libc/kernel/uapi",
+            ],
             srcs: [
                 "src/btif_avrcp_audio_track_linux.cc",
                 "src/btif_leaudio_hal_version_host.cc",
@@ -147,6 +150,7 @@ cc_library_static {
         },
     },
     static_libs: [
+        "aics",
         "avrcp-target-service",
         "bluetooth_flags_c_lib",
         "lib-bt-packets",
@@ -159,12 +163,14 @@ cc_library_static {
         "libbt-platform-protos-lite",
         "libbt-stack",
         "libbt-stack-core",
-        "libbt_shim_bridge",
         "libbtif-core",
         "libflatbuffers-cpp",
     ],
-    cflags: [
-        "-Wno-unused-parameter",
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
+    shared_libs: [
+        "libbinder",
     ],
     apex_available: [
         "com.android.btservices",
@@ -230,6 +236,7 @@ cc_library_static {
         },
     },
     static_libs: [
+        "bluetooth_flags_c_lib",
         "lib-bt-packets",
         "lib-bt-packets-base",
         "libbluetooth_crypto_toolbox",
@@ -239,16 +246,17 @@ cc_library_static {
         "libbt-jni-thread",
         "libbt-platform-protos-lite",
         "libbt-stack-core",
-        "libbt_shim_bridge",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libflatbuffers-cpp",
         "libstatslog_bt",
     ],
-    whole_static_libs: [
-        "bluetooth_flags_c_lib",
-    ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
+        "libbinder",
         "libcrypto",
+        "libcutils",
     ],
     cflags: [
         /* we export all classes, so change default visibility, instead of having EXPORT_SYMBOL on each class*/
@@ -282,9 +290,13 @@ cc_test {
         "test/btif_storage_test.cc",
     ],
     header_libs: ["libbluetooth_headers"],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
+        "libbinder",
         "libcrypto",
         "libcutils",
         "libhidlbase",
@@ -293,14 +305,15 @@ cc_test {
         "server_configurable_flags",
     ],
     static_libs: [
+        "aics",
         "android.hardware.audio.common@5.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
+        "bluetooth_flags_c_lib_for_test",
         "libFraunhoferAAC",
         "libbase",
         "libbluetooth-dumpsys",
         "libbluetooth-for-tests",
-        "libbluetooth-gdx",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_crypto_toolbox",
@@ -317,7 +330,6 @@ cc_test {
         "libbt-sbc-encoder",
         "libbt-stack",
         "libbt-stack-core",
-        "libbt_shim_bridge",
         "libbtcore",
         "libbtdevice",
         "libbtif",
@@ -341,6 +353,7 @@ cc_test {
         android: {
             shared_libs: [
                 "libPlatformProperties",
+                "libaaudio",
                 "libbinder_ndk",
                 "libstatssocket",
             ],
@@ -351,7 +364,9 @@ cc_test {
                 "android.hardware.common.fmq-V1-ndk",
                 "android.system.suspend-V1-ndk",
                 "android.system.suspend.control-V1-ndk",
-                "libaaudio",
+                "libexpresslog",
+                "libstatslog_express",
+                "libtextclassifier_hash_static",
             ],
         },
         host: {
@@ -386,13 +401,8 @@ cc_test {
         "libbluetooth-types",
         "libbluetooth_gd",
         "libbluetooth_log",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libosi",
-    ],
-    cflags: [
-        "-Wno-unused-parameter",
     ],
     shared_libs: [
         "libbase",
@@ -425,17 +435,12 @@ cc_test {
     static_libs: [
         "libbluetooth-types",
         "libbluetooth_log",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libosi",
     ],
     shared_libs: [
         "libbase",
         "liblog",
-    ],
-    cflags: [
-        "-Wno-unused-parameter",
     ],
 }
 
@@ -474,8 +479,6 @@ cc_test {
         "libbluetooth_log",
         "libbt-common",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libevent",
     ],
@@ -484,9 +487,6 @@ cc_test {
             shared_libs: ["libstatssocket"],
         },
     },
-    cflags: [
-        "-Wno-unused-parameter",
-    ],
     sanitize: {
         address: true,
         cfi: true,
@@ -517,16 +517,12 @@ cc_test {
     ],
     static_libs: [
         "libbluetooth-types",
+        "libbluetooth_core_rs_bridge",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libgmock",
-    ],
-    cflags: [
-        "-Wno-unused-parameter",
     ],
 }
 
@@ -585,9 +581,13 @@ cc_test {
         "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     header_libs: ["libbluetooth_headers"],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
+        "libbinder",
         "libcrypto",
         "libcutils",
         "libfmq",
@@ -606,6 +606,7 @@ cc_test {
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libbluetooth-types",
+        "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_log",
@@ -615,10 +616,6 @@ cc_test {
         "libbt-platform-protos-lite",
         "libbt-sbc-decoder",
         "libbt-sbc-encoder",
-        "libbt-stack",
-        "libbt-stack-core",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libbtdevice",
         "libbtif",
         "libbtif-core",
@@ -693,6 +690,7 @@ cc_test {
         ":TestMockBtaVc",
         ":TestMockBtcore",
         ":TestMockBtu",
+        ":TestMockFrameworks",
         ":TestMockHci",
         ":TestMockMainShim",
         ":TestMockMainShimDumpsys",
@@ -708,9 +706,13 @@ cc_test {
         "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     header_libs: ["libbluetooth_headers"],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
+        "libbinder",
         "libcrypto",
         "libcutils",
         "libfmq",
@@ -729,6 +731,7 @@ cc_test {
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libbluetooth-types",
+        "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_hci_pdl",
@@ -740,8 +743,6 @@ cc_test {
         "libbt-platform-protos-lite",
         "libbt-sbc-decoder",
         "libbt-sbc-encoder",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libbtdevice",
         "libbtif",
         "libbtif-core",

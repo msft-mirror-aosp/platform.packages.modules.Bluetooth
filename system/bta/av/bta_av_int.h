@@ -37,6 +37,7 @@
 #include "macros.h"
 #include "osi/include/list.h"
 #include "stack/include/a2dp_constants.h"
+#include "stack/include/avct_api.h"
 #include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/hci_error_code.h"
@@ -526,7 +527,7 @@ public:
   bool use_rc;                    /* true if AVRCP is allowed */
   bool started;                   /* true if stream started */
   bool use_rtp_header_marker_bit; /* true if the encoded data packets have RTP
-                                   * headers, and the Marker bit in the header
+                                   * headers, with the Marker bit in the header
                                    * is set according to RFC 6416 */
   uint8_t co_started;             /* non-zero, if stream started from call-out perspective */
   bool recfg_sup;                 /* true if the first attempt to reconfigure the stream was
@@ -708,7 +709,7 @@ bool bta_av_chk_start(tBTA_AV_SCB* p_scb);
 void bta_av_restore_switch(void);
 void bta_av_conn_cback(uint8_t handle, const RawAddress& bd_addr, uint8_t event, tAVDT_CTRL* p_data,
                        uint8_t scb_index);
-uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl, uint8_t lidx);
+uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, tAVCT_ROLE role, uint8_t shdl, uint8_t lidx);
 void bta_av_stream_chg(tBTA_AV_SCB* p_scb, bool started);
 bool bta_av_is_scb_opening(tBTA_AV_SCB* p_scb);
 bool bta_av_is_scb_incoming(tBTA_AV_SCB* p_scb);

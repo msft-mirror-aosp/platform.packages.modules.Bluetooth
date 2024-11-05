@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.le_scan;
 
+import android.annotation.Nullable;
 import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanSettings;
@@ -104,6 +105,7 @@ public class AppScanStats {
         public int scanMode;
         public int scanCallbackType;
         public StringBuilder filterString;
+        @Nullable public String attributionTag;
 
         LastScan(
                 long timestamp,
@@ -112,7 +114,8 @@ public class AppScanStats {
                 boolean isCallbackScan,
                 int scannerId,
                 int scanMode,
-                int scanCallbackType) {
+                int scanCallbackType,
+                @Nullable String attributionTag) {
             this.duration = 0;
             this.timestamp = timestamp;
             this.reportDelayMillis = reportDelayMillis;
@@ -126,6 +129,7 @@ public class AppScanStats {
             this.isAutoBatchScan = false;
             this.scanMode = scanMode;
             this.scanCallbackType = scanCallbackType;
+            this.attributionTag = attributionTag;
             this.results = 0;
             this.scannerId = scannerId;
             this.suspendDuration = 0;
@@ -135,7 +139,7 @@ public class AppScanStats {
         }
     }
 
-    public String appName;
+    String mAppName;
     private WorkSource mWorkSource; // Used for BatteryStatsManager
     private final WorkSourceUtil mWorkSourceUtil; // Used for BluetoothStatsLog
     private int mScansStarted = 0;
@@ -168,14 +172,14 @@ public class AppScanStats {
             ScannerMap map,
             Context context,
             TransitionalScanHelper scanHelper) {
-        appName = name;
+        mAppName = name;
         mScannerMap = map;
         mScanHelper = scanHelper;
         mBatteryStatsManager = context.getSystemService(BatteryStatsManager.class);
 
         if (source == null) {
             // Bill the caller if the work source isn't passed through
-            source = new WorkSource(Binder.getCallingUid(), appName);
+            source = new WorkSource(Binder.getCallingUid(), mAppName);
         }
         mWorkSource = source;
         mWorkSourceUtil = new WorkSourceUtil(source);
@@ -239,7 +243,8 @@ public class AppScanStats {
             List<ScanFilter> filters,
             boolean isFilterScan,
             boolean isCallbackScan,
-            int scannerId) {
+            int scannerId,
+            @Nullable String attributionTag) {
         LastScan existingScan = getScanFromScannerId(scannerId);
         if (existingScan != null) {
             return;
@@ -255,7 +260,8 @@ public class AppScanStats {
                         isCallbackScan,
                         scannerId,
                         settings.getScanMode(),
-                        settings.getCallbackType());
+                        settings.getCallbackType(),
+                        attributionTag);
         if (settings != null) {
             scan.isOpportunisticScan = scan.scanMode == ScanSettings.SCAN_MODE_OPPORTUNISTIC;
             scan.isBackgroundScan =
@@ -298,7 +304,7 @@ public class AppScanStats {
                                 BluetoothMetricsProto.ScanEvent.ScanTechnologyType
                                         .SCAN_TECH_TYPE_LE)
                         .setEventTimeMillis(System.currentTimeMillis())
-                        .setInitiator(truncateAppName(appName))
+                        .setInitiator(truncateAppName(mAppName))
                         .build();
         mScanHelper.addScanEvent(scanEvent);
 
@@ -349,7 +355,7 @@ public class AppScanStats {
                                 BluetoothMetricsProto.ScanEvent.ScanTechnologyType
                                         .SCAN_TECH_TYPE_LE)
                         .setEventTimeMillis(System.currentTimeMillis())
-                        .setInitiator(truncateAppName(appName))
+                        .setInitiator(truncateAppName(mAppName))
                         .setNumberResults(scan.results)
                         .build();
         mScanHelper.addScanEvent(scanEvent);
@@ -1000,7 +1006,7 @@ public class AppScanStats {
                                 + ambientDiscoveryScanTime * AMBIENT_DISCOVERY_WEIGHT)
                         / 100;
 
-        sb.append("  ").append(appName);
+        sb.append("  ").append(mAppName);
         if (isRegistered) {
             sb.append(" (Registered)");
         }
@@ -1065,6 +1071,9 @@ public class AppScanStats {
                 }
                 sb.append(scan.results).append(" results");
                 sb.append(" (").append(scan.scannerId).append(") ");
+                if (scan.attributionTag != null) {
+                    sb.append(" [").append(scan.attributionTag).append("] ");
+                }
                 if (scan.isCallbackScan) {
                     sb.append("CB ");
                 } else {
@@ -1153,10 +1162,15 @@ public class AppScanStats {
             }
         }
 
-        ScannerMap.ScannerApp appEntry = mScannerMap.getByName(appName);
-        if (appEntry != null && isRegistered) {
-            sb.append("\n  Application ID                     : ").append(appEntry.mId);
-            sb.append("\n  UUID                               : ").append(appEntry.mUuid);
+        if (isRegistered) {
+            List<ScannerMap.ScannerApp> appEntries = mScannerMap.getByName(mAppName);
+            for (ScannerMap.ScannerApp appEntry : appEntries) {
+                sb.append("\n  Application ID: ").append(appEntry.mId);
+                sb.append(", UUID: ").append(appEntry.mUuid);
+                if (appEntry.mAttributionTag != null) {
+                    sb.append(", Tag: ").append(appEntry.mAttributionTag);
+                }
+            }
         }
         sb.append("\n\n");
     }

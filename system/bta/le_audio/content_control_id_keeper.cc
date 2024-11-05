@@ -18,12 +18,12 @@
 
 #include <bluetooth/log.h>
 
+#include <algorithm>
 #include <bitset>
 #include <map>
 
 #include "common/strings.h"
 #include "le_audio_types.h"
-#include "os/log.h"
 
 namespace {
 

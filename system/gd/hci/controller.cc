@@ -16,6 +16,7 @@
 
 #include "hci/controller.h"
 
+#include <android_bluetooth_sysprop.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -39,7 +40,9 @@
 namespace bluetooth {
 namespace hci {
 
-constexpr uint8_t kMinEncryptionKeySize = 7;  // #define MIN_ENCRYPTION_KEY_SIZE 7
+constexpr int kMinEncryptionKeySize = 7;
+constexpr int kMinEncryptionKeySizeDefault = kMinEncryptionKeySize;
+constexpr int kMaxEncryptionKeySize = 16;
 
 constexpr bool kDefaultVendorCapabilitiesEnabled = true;
 static const std::string kPropertyVendorCapabilitiesEnabled =
@@ -107,8 +110,13 @@ struct Controller::impl {
             handler->BindOnceOn(this, &Controller::impl::read_buffer_size_complete_handler));
 
     if (is_supported(OpCode::SET_MIN_ENCRYPTION_KEY_SIZE)) {
+      uint8_t min_key_size =
+              (uint8_t)std::min(std::max(android::sysprop::bluetooth::Gap::min_key_size().value_or(
+                                                 kMinEncryptionKeySizeDefault),
+                                         kMinEncryptionKeySize),
+                                kMaxEncryptionKeySize);
       hci_->EnqueueCommand(
-              SetMinEncryptionKeySizeBuilder::Create(kMinEncryptionKeySize),
+              SetMinEncryptionKeySizeBuilder::Create(min_key_size),
               handler->BindOnceOn(this, &Controller::impl::set_min_encryption_key_size_handler));
     }
 
@@ -687,36 +695,24 @@ struct Controller::impl {
     }
     vendor_capabilities_.dynamic_audio_buffer_support_ = v103.GetDynamicAudioBufferSupport();
 
-    if (com::android::bluetooth::flags::a2dp_offload_codec_extensibility()) {
-      // v1.04
-      auto v104 = LeGetVendorCapabilitiesComplete104View::Create(v103);
-      if (!v104.IsValid()) {
-        log::info("invalid data for hci requirements v1.04");
-      } else {
-        vendor_capabilities_.a2dp_offload_v2_support_ = v104.GetA2dpOffloadV2Support();
-      }
-
-      if (vendor_capabilities_.dynamic_audio_buffer_support_) {
-        hci_->EnqueueCommand(
-                DabGetAudioBufferTimeCapabilityBuilder::Create(),
-                module_.GetHandler()->BindOnceOn(
-                        this, &Controller::impl::le_get_dynamic_audio_buffer_support_handler,
-                        std::move(vendor_promise)));
-        return;
-      }
-
-      vendor_promise.set_value();
+    // v1.04
+    auto v104 = LeGetVendorCapabilitiesComplete104View::Create(v103);
+    if (!v104.IsValid()) {
+      log::info("invalid data for hci requirements v1.04");
     } else {
-      if (vendor_capabilities_.dynamic_audio_buffer_support_ == 0) {
-        vendor_promise.set_value();
-        return;
-      }
+      vendor_capabilities_.a2dp_offload_v2_support_ = v104.GetA2dpOffloadV2Support();
+    }
+
+    if (vendor_capabilities_.dynamic_audio_buffer_support_) {
       hci_->EnqueueCommand(
               DabGetAudioBufferTimeCapabilityBuilder::Create(),
               module_.GetHandler()->BindOnceOn(
                       this, &Controller::impl::le_get_dynamic_audio_buffer_support_handler,
                       std::move(vendor_promise)));
+      return;
     }
+
+    vendor_promise.set_value();
   }
 
   void le_get_dynamic_audio_buffer_support_handler(std::promise<void> vendor_promise,

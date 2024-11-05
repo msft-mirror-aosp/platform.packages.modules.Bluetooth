@@ -52,7 +52,7 @@
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
-#include "stack/gatt/connection_manager.h"
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
@@ -66,12 +66,13 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::Uuid;
 using namespace bluetooth;
 
 bool ble_vnd_is_included();
-void BTIF_dm_disable();
-void BTIF_dm_enable();
 void btm_ble_scanner_init(void);
 
 static void bta_dm_check_av();
@@ -563,6 +564,11 @@ static void bta_dm_remove_device_(const RawAddress& bd_addr) {
 void bta_dm_remove_device(const RawAddress& target) {
   if (!com::android::bluetooth::flags::wait_for_disconnect_before_unbond()) {
     bta_dm_remove_device_(target);
+    return;
+  }
+
+  if (bta_dm_removal_pending(target)) {
+    log::warn("{} already getting removed", target);
     return;
   }
 

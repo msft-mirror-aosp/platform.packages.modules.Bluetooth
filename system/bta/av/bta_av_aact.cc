@@ -440,7 +440,8 @@ void bta_av_proc_stream_evt(uint8_t handle, const RawAddress& bd_addr, uint8_t e
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_sink_data_cback(uint8_t handle, BT_HDR* p_pkt, uint32_t time_stamp, uint8_t m_pt) {
+void bta_av_sink_data_cback(uint8_t handle, BT_HDR* p_pkt, uint32_t /*time_stamp*/,
+                            uint8_t /*m_pt*/) {
   int index = 0;
   tBTA_AV_SCB* p_scb;
   log::verbose(
@@ -1226,7 +1227,6 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
         }
       }
     }
-    bta_ar_avdt_conn(BTA_ID_AV, open.bd_addr, p_scb->hdi);
     if (p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SRC) {
       open.starting = false;
       open.sep = AVDT_TSEP_SNK;
@@ -1766,9 +1766,11 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     err_code = AVDT_ERR_UNSUP_CFG;
   }
 
-  // The error code must be set by the caller, otherwise
-  // AVDT_ConfigRsp will interpret the event as RSP instead of REJ.
-  log::assert_that(err_code != 0, "err_code != 0");
+  // The error code might not be set when the configuration is rejected
+  // based on the current AVDTP state.
+  if (err_code == AVDT_SUCCESS) {
+    err_code = AVDT_ERR_UNSUP_CFG;
+  }
 
   AVDT_ConfigRsp(avdt_handle, p_scb->avdt_label, err_code, 0);
 
@@ -2712,7 +2714,7 @@ void bta_av_rcfg_connect(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_rcfg_discntd(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
+void bta_av_rcfg_discntd(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /*p_data*/) {
   log::error("num_recfg={} conn_lcb=0x{:x} peer_addr={}", p_scb->num_recfg, bta_av_cb.conn_lcb,
              p_scb->PeerAddress());
 
@@ -3010,7 +3012,7 @@ void bta_av_open_at_inc(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   }
 }
 
-void offload_vendor_callback(tBTM_VSC_CMPL* param) {
+static void offload_vendor_callback(tBTM_VSC_CMPL* param) {
   tBTA_AV value{0};
   uint8_t sub_opcode = 0;
   if (param->param_len) {
@@ -3048,7 +3050,7 @@ void offload_vendor_callback(tBTM_VSC_CMPL* param) {
   }
 }
 
-void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb, tBT_A2DP_OFFLOAD* offload_start) {
+static void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb, tBT_A2DP_OFFLOAD* offload_start) {
   uint8_t param[sizeof(tBT_A2DP_OFFLOAD)];
   log::verbose("");
 
@@ -3079,7 +3081,7 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb, tBT_A2DP_OFFLOAD* offload_s
                                                               param, offload_vendor_callback);
 }
 
-void bta_av_vendor_offload_start_v2(tBTA_AV_SCB* p_scb, A2dpCodecConfigExt* offload_codec) {
+static void bta_av_vendor_offload_start_v2(tBTA_AV_SCB* p_scb, A2dpCodecConfigExt* offload_codec) {
   log::verbose("");
 
   uint16_t connection_handle = get_btm_client_interface().peer.BTM_GetHCIConnHandle(
@@ -3174,7 +3176,7 @@ void bta_av_vendor_offload_stop() {
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
+void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /*p_data*/) {
   tBTA_AV_STATUS status = BTA_AV_FAIL_RESOURCES;
 
   tBT_A2DP_OFFLOAD offload_start;

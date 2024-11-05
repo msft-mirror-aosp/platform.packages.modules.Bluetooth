@@ -28,7 +28,6 @@
 
 #include "bta/gatt/bta_gattc_int.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "stack/include/bt_hdr.h"
 
 using base::StringPrintf;
@@ -328,7 +327,7 @@ bool bta_gattc_hdl_event(const BT_HDR_RIGID* p_msg) {
       } else if (p_msg->event == BTA_GATTC_INT_DISCONN_EVT) {
         p_clcb = bta_gattc_find_int_disconn_clcb((tBTA_GATTC_DATA*)p_msg);
       } else {
-        p_clcb = bta_gattc_find_clcb_by_conn_id(p_msg->layer_specific);
+        p_clcb = bta_gattc_find_clcb_by_conn_id(static_cast<tCONN_ID>(p_msg->layer_specific));
       }
 
       if (p_clcb != nullptr) {

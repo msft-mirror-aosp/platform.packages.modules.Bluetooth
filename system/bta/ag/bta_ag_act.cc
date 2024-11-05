@@ -145,7 +145,7 @@ void bta_ag_register(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_deregister(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
+void bta_ag_deregister(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /*data*/) {
   /* set dealloc */
   p_scb->dealloc = true;
 
@@ -169,7 +169,7 @@ void bta_ag_deregister(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_start_dereg(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
+void bta_ag_start_dereg(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /*data*/) {
   /* set dealloc */
   p_scb->dealloc = true;
 
@@ -594,7 +594,7 @@ void bta_ag_rfc_acp_open(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
           log::warn("RFCOMM_RemoveConnection failed for {}, handle {}, error {}", dev_addr,
                     ag_scb.conn_handle, status);
         }
-      } else if (com::android::bluetooth::flags::reset_after_collision()) {
+      } else {
         // As no existing outgoing rfcomm connection, then manual reset current
         // state, and use the incoming one
         bta_ag_rfc_fail(&ag_scb, tBTA_AG_DATA::kEmpty);

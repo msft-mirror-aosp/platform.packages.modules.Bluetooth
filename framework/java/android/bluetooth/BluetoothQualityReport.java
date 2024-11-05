@@ -295,8 +295,7 @@ public final class BluetoothQualityReport implements Parcelable {
      * @hide
      */
     @SystemApi
-    @QualityReportId
-    public int getQualityReportId() {
+    public @QualityReportId int getQualityReportId() {
         return mBqrCommon.getQualityReportId();
     }
 
@@ -661,7 +660,7 @@ public final class BluetoothQualityReport implements Parcelable {
         private static final String TAG = BluetoothQualityReport.TAG + ".BqrCommon";
         static final int BQR_COMMON_LEN = 55;
 
-        private int mQualityReportId;
+        private @QualityReportId int mQualityReportId;
         private int mPacketType;
         private int mConnectionHandle;
         private int mConnectionRole;
@@ -749,6 +748,7 @@ public final class BluetoothQualityReport implements Parcelable {
             mCalFailedItemCount = in.readInt();
         }
 
+        @QualityReportId
         int getQualityReportId() {
             return mQualityReportId;
         }

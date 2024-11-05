@@ -55,9 +55,13 @@
 #include "stack/include/main_thread.h"
 #include "stack/include/sco_hci_link_interface.h"
 #include "stack/include/sec_hci_link_interface.h"
+#include "stack/include/smp_api.h"
 #include "stack/include/stack_metrics_logging.h"
 #include "types/hci_role.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 using base::Location;
@@ -65,7 +69,6 @@ using bluetooth::hci::IsoManager;
 
 bool BTM_BLE_IS_RESOLVE_BDA(const RawAddress& x);  // TODO remove
 void BTA_sys_signal_hw_error();                    // TODO remove
-void smp_cancel_start_encryption_attempt();        // TODO remove
 void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason,
                                 std::string comment);  // TODO remove
 

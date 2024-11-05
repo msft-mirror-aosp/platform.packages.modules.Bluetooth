@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <iterator>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "include/hardware/bt_common_types.h"
@@ -224,36 +225,25 @@ void BleScannerIntf::ScanFilterEnable(bool enable) {
           enable, base::Bind(&BleScannerIntf::OnEnableCallback, base::Unretained(this)));
 }
 
-#if TARGET_FLOSS
-
 bool BleScannerIntf::IsMsftSupported() { return scanner_intf_->IsMsftSupported(); }
 
-void BleScannerIntf::MsftAdvMonitorAdd(uint32_t call_id, const RustMsftAdvMonitor& monitor) {
-  scanner_intf_->MsftAdvMonitorAdd(internal::ConvertAdvMonitor(monitor),
-                                   base::Bind(&BleScannerIntf::OnMsftAdvMonitorAddCallback,
-                                              base::Unretained(this), call_id));
+void BleScannerIntf::MsftAdvMonitorAdd(const RustMsftAdvMonitor& monitor) {
+  scanner_intf_->MsftAdvMonitorAdd(
+          internal::ConvertAdvMonitor(monitor),
+          base::Bind(&BleScannerIntf::OnMsftAdvMonitorAddCallback, base::Unretained(this)));
 }
 
-void BleScannerIntf::MsftAdvMonitorRemove(uint32_t call_id, uint8_t monitor_handle) {
-  scanner_intf_->MsftAdvMonitorRemove(monitor_handle,
-                                      base::Bind(&BleScannerIntf::OnMsftAdvMonitorRemoveCallback,
-                                                 base::Unretained(this), call_id));
+void BleScannerIntf::MsftAdvMonitorRemove(uint8_t monitor_handle) {
+  scanner_intf_->MsftAdvMonitorRemove(
+          monitor_handle,
+          base::Bind(&BleScannerIntf::OnMsftAdvMonitorRemoveCallback, base::Unretained(this)));
 }
 
-void BleScannerIntf::MsftAdvMonitorEnable(uint32_t call_id, bool enable) {
-  scanner_intf_->MsftAdvMonitorEnable(enable,
-                                      base::Bind(&BleScannerIntf::OnMsftAdvMonitorEnableCallback,
-                                                 base::Unretained(this), call_id));
+void BleScannerIntf::MsftAdvMonitorEnable(bool enable) {
+  scanner_intf_->MsftAdvMonitorEnable(
+          enable,
+          base::Bind(&BleScannerIntf::OnMsftAdvMonitorEnableCallback, base::Unretained(this)));
 }
-
-#else
-
-bool BleScannerIntf::IsMsftSupported() { return false; }
-void BleScannerIntf::MsftAdvMonitorAdd(uint32_t, const RustMsftAdvMonitor&) {}
-void BleScannerIntf::MsftAdvMonitorRemove(uint32_t, uint8_t) {}
-void BleScannerIntf::MsftAdvMonitorEnable(uint32_t, bool) {}
-
-#endif
 
 void BleScannerIntf::SetScanParameters(uint8_t scanner_id, uint8_t scan_type,
                                        uint16_t scan_interval, uint16_t scan_window,
@@ -334,20 +324,17 @@ void BleScannerIntf::OnFilterConfigCallback(uint8_t filter_index, uint8_t filt_t
   rusty::gdscan_filter_config_callback(filter_index, filt_type, avbl_space, action, btm_status);
 }
 
-#if TARGET_FLOSS
-void BleScannerIntf::OnMsftAdvMonitorAddCallback(uint32_t call_id, uint8_t monitor_handle,
-                                                 uint8_t status) {
-  rusty::gdscan_msft_adv_monitor_add_callback(call_id, monitor_handle, status);
+void BleScannerIntf::OnMsftAdvMonitorAddCallback(uint8_t monitor_handle, uint8_t status) {
+  rusty::gdscan_msft_adv_monitor_add_callback(monitor_handle, status);
 }
 
-void BleScannerIntf::OnMsftAdvMonitorRemoveCallback(uint32_t call_id, uint8_t status) {
-  rusty::gdscan_msft_adv_monitor_remove_callback(call_id, status);
+void BleScannerIntf::OnMsftAdvMonitorRemoveCallback(uint8_t status) {
+  rusty::gdscan_msft_adv_monitor_remove_callback(status);
 }
 
-void BleScannerIntf::OnMsftAdvMonitorEnableCallback(uint32_t call_id, uint8_t status) {
-  rusty::gdscan_msft_adv_monitor_enable_callback(call_id, status);
+void BleScannerIntf::OnMsftAdvMonitorEnableCallback(uint8_t status) {
+  rusty::gdscan_msft_adv_monitor_enable_callback(status);
 }
-#endif
 
 void BleScannerIntf::OnPeriodicSyncStarted(int, uint8_t status, uint16_t sync_handle,
                                            uint8_t advertising_sid, uint8_t address_type,

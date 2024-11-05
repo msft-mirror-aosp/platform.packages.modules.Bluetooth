@@ -27,7 +27,8 @@
 
 #define LOG_TAG "bt_btif_pan"
 
-#include <android_bluetooth_sysprop.h>
+#include "btif/include/btif_pan.h"
+
 #include <arpa/inet.h>
 #include <base/functional/bind.h>
 #include <base/location.h>
@@ -37,13 +38,24 @@
 #include <linux/if_tun.h>
 #include <net/if.h>
 #include <poll.h>
+#include <string.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
+
+#include <cerrno>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <string>
 
 #include "bta/include/bta_pan_api.h"
 #include "btif/include/btif_common.h"
 #include "btif/include/btif_pan_internal.h"
 #include "btif/include/btif_sock_thread.h"
+#include "hardware/bluetooth.h"
 #include "hci/controller_interface.h"
 #include "include/hardware/bt_pan.h"
 #include "internal_include/bt_target.h"
@@ -51,6 +63,7 @@
 #include "main/shim/helpers.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
+#include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/pan_api.h"
@@ -532,14 +545,6 @@ btpan_conn_t* btpan_new_conn(int handle, const RawAddress& addr, tBTA_PAN_ROLE l
   return nullptr;
 }
 
-void btpan_close_handle(btpan_conn_t* p) {
-  log::verbose("btpan_close_handle : close handle {}", p->handle);
-  p->handle = -1;
-  p->local_role = -1;
-  p->remote_role = -1;
-  memset(&p->peer, 0, 6);
-}
-
 static inline bool should_forward(tETH_HDR* hdr) {
   uint16_t proto = ntohs(hdr->h_proto);
   if (proto == ETH_P_IP || proto == ETH_P_ARP || proto == ETH_P_IPV6) {
@@ -755,7 +760,7 @@ static void btif_pan_close_all_conns() {
   }
 }
 
-static void btpan_tap_fd_signaled(int fd, int type, int flags, uint32_t user_id) {
+static void btpan_tap_fd_signaled(int fd, int /*type*/, int flags, uint32_t /*user_id*/) {
   log::assert_that(btpan_cb.tap_fd == INVALID_FD || btpan_cb.tap_fd == fd,
                    "assert failed: btpan_cb.tap_fd == INVALID_FD || btpan_cb.tap_fd == fd");
 

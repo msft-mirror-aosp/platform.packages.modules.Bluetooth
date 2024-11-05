@@ -34,7 +34,6 @@
 
 #include "hidd_int.h"
 #include "hiddefs.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"

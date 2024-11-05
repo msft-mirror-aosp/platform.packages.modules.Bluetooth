@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// AIDL uses syslog.h, so these defines conflict with os/log.h
+// AIDL uses syslog.h, so these defines conflict with log/log.h
 #undef LOG_DEBUG
 #undef LOG_INFO
 #undef LOG_WARNING
@@ -27,6 +27,7 @@ namespace hal {
 class RangingHalHost : public RangingHal {
 public:
   bool IsBound() override { return false; }
+  RangingHalVersion GetRangingHalVersion() { return V_UNKNOWN; }
   void RegisterCallback(RangingHalCallback* /* callback */) override {}
   std::vector<VendorSpecificCharacteristic> GetVendorSpecificCharacteristics() override {
     std::vector<VendorSpecificCharacteristic> vendor_specific_characteristics = {};

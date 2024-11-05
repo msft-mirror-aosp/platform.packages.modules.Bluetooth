@@ -69,6 +69,9 @@
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
@@ -2382,6 +2385,35 @@ static void btm_ble_start_scan() {
   } else {
     btm_ble_set_topology_mask(BTM_BLE_STATE_PASSIVE_SCAN_BIT);
   }
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_update_scanner_filter_policy
+ *
+ * Description      This function updates the filter policy of scanner
+ ******************************************************************************/
+static void btm_update_scanner_filter_policy(tBTM_BLE_SFP scan_policy) {
+  uint32_t scan_interval = !btm_cb.ble_ctr_cb.inq_var.scan_interval
+                                   ? BTM_BLE_GAP_DISC_SCAN_INT
+                                   : btm_cb.ble_ctr_cb.inq_var.scan_interval;
+  uint32_t scan_window = !btm_cb.ble_ctr_cb.inq_var.scan_window
+                                 ? BTM_BLE_GAP_DISC_SCAN_WIN
+                                 : btm_cb.ble_ctr_cb.inq_var.scan_window;
+  uint8_t scan_phy = !btm_cb.ble_ctr_cb.inq_var.scan_phy ? BTM_BLE_DEFAULT_PHYS
+                                                         : btm_cb.ble_ctr_cb.inq_var.scan_phy;
+
+  log::verbose("");
+
+  btm_cb.ble_ctr_cb.inq_var.sfp = scan_policy;
+  btm_cb.ble_ctr_cb.inq_var.scan_type =
+          btm_cb.ble_ctr_cb.inq_var.scan_type == BTM_BLE_SCAN_MODE_NONE
+                  ? BTM_BLE_SCAN_MODE_ACTI
+                  : btm_cb.ble_ctr_cb.inq_var.scan_type;
+
+  btm_send_hci_set_scan_params(btm_cb.ble_ctr_cb.inq_var.scan_type, (uint16_t)scan_interval,
+                               (uint16_t)scan_window, (uint8_t)scan_phy,
+                               btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type, scan_policy);
 }
 
 /*******************************************************************************

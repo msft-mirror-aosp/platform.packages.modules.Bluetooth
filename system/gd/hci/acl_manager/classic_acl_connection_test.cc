@@ -33,7 +33,6 @@
 #include "hci/address.h"
 #include "hci/hci_packets.h"
 #include "os/handler.h"
-#include "os/log.h"
 #include "os/thread.h"
 
 using namespace bluetooth;

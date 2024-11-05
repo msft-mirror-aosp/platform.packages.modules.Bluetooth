@@ -17,16 +17,30 @@
 
 #define LOG_TAG "BluetoothVolumeControlServiceJni"
 
-#include <string.h>
+#include <aics/api.h>
+#include <bluetooth/log.h>
+#include <jni.h>
+#include <nativehelper/JNIHelp.h>
+#include <nativehelper/scoped_local_ref.h>
 
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
+#include <mutex>
 #include <shared_mutex>
+#include <string>
 
-#include "./com_android_bluetooth.h"
+#include "com_android_bluetooth.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bt_vc.h"
+#include "types/raw_address.h"
 
+using bluetooth::aics::Mute;
 using bluetooth::vc::ConnectionState;
 using bluetooth::vc::VolumeControlCallbacks;
 using bluetooth::vc::VolumeControlInterface;
+using bluetooth::vc::VolumeInputStatus;
+using bluetooth::vc::VolumeInputType;
 
 namespace android {
 static jmethodID method_onConnectionStateChanged;
@@ -47,6 +61,8 @@ static std::shared_timed_mutex interface_mutex;
 
 static jobject mCallbacksObj = nullptr;
 static std::shared_timed_mutex callbacks_mutex;
+
+static jfieldID sCallbacksField;
 
 class VolumeControlCallbacksImpl : public VolumeControlCallbacks {
 public:
@@ -207,8 +223,8 @@ public:
                                  (jint)ext_output_id, description, addr.get());
   }
 
-  void OnExtAudioInStateChanged(const RawAddress& bd_addr, uint8_t ext_input_id, int8_t gain_val,
-                                uint8_t gain_mode, bool mute) override {
+  void OnExtAudioInStateChanged(const RawAddress& bd_addr, uint8_t ext_input_id,
+                                int8_t gain_setting, Mute mute, uint8_t gain_mode) override {
     log::info("");
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
@@ -227,11 +243,11 @@ public:
     sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
                                      reinterpret_cast<const jbyte*>(&bd_addr));
     sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onExtAudioInStateChanged, (jint)ext_input_id,
-                                 (jint)gain_val, (jint)gain_mode, (jboolean)mute, addr.get());
+                                 (jint)gain_setting, (jint)mute, (jint)gain_mode, addr.get());
   }
 
   void OnExtAudioInStatusChanged(const RawAddress& bd_addr, uint8_t ext_input_id,
-                                 bluetooth::vc::VolumeInputStatus status) override {
+                                 VolumeInputStatus status) override {
     log::info("");
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
@@ -254,7 +270,7 @@ public:
   }
 
   void OnExtAudioInTypeChanged(const RawAddress& bd_addr, uint8_t ext_input_id,
-                               bluetooth::vc::VolumeInputType type) override {
+                               VolumeInputType type) override {
     log::info("");
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
@@ -348,7 +364,8 @@ static void initNative(JNIEnv* env, jobject object) {
     mCallbacksObj = nullptr;
   }
 
-  if ((mCallbacksObj = env->NewGlobalRef(object)) == nullptr) {
+  if ((mCallbacksObj = env->NewGlobalRef(env->GetObjectField(object, sCallbacksField))) ==
+      nullptr) {
     log::error("Failed to allocate Global Ref for Volume control Callbacks");
     return;
   }
@@ -765,8 +782,9 @@ static jboolean setExtAudioInDescriptionNative(JNIEnv* env, jobject /* object */
   return JNI_TRUE;
 }
 
-static jboolean setExtAudioInGainValueNative(JNIEnv* env, jobject /* object */, jbyteArray address,
-                                             jint ext_input_id, jint gain_val) {
+static jboolean setExtAudioInGainSettingNative(JNIEnv* env, jobject /* object */,
+                                               jbyteArray address, jint ext_input_id,
+                                               jint gain_setting) {
   log::info("");
   std::shared_lock<std::shared_timed_mutex> lock(interface_mutex);
   if (!sVolumeControlInterface) {
@@ -780,7 +798,7 @@ static jboolean setExtAudioInGainValueNative(JNIEnv* env, jobject /* object */, 
   }
 
   RawAddress* tmpraw = reinterpret_cast<RawAddress*>(addr);
-  sVolumeControlInterface->SetExtAudioInGainValue(*tmpraw, ext_input_id, gain_val);
+  sVolumeControlInterface->SetExtAudioInGainSetting(*tmpraw, ext_input_id, gain_setting);
   env->ReleaseByteArrayElements(address, addr, 0);
   return JNI_TRUE;
 }
@@ -861,8 +879,8 @@ int register_com_android_bluetooth_vc(JNIEnv* env) {
            reinterpret_cast<void*>(getExtAudioInDescriptionNative)},
           {"setExtAudioInDescriptionNative", "([BILjava/lang/String;)Z",
            reinterpret_cast<void*>(setExtAudioInDescriptionNative)},
-          {"setExtAudioInGainValueNative", "([BII)Z",
-           reinterpret_cast<void*>(setExtAudioInGainValueNative)},
+          {"setExtAudioInGainSettingNative", "([BII)Z",
+           reinterpret_cast<void*>(setExtAudioInGainSettingNative)},
           {"setExtAudioInGainModeNative", "([BIZ)Z",
            reinterpret_cast<void*>(setExtAudioInGainModeNative)},
           {"setExtAudioInGainMuteNative", "([BIZ)Z",
@@ -874,6 +892,12 @@ int register_com_android_bluetooth_vc(JNIEnv* env) {
     return result;
   }
 
+  jclass jniVolumeControlNativeInterfaceClass =
+          env->FindClass("com/android/bluetooth/vc/VolumeControlNativeInterface");
+  sCallbacksField = env->GetFieldID(jniVolumeControlNativeInterfaceClass, "mNativeCallback",
+                                    "Lcom/android/bluetooth/vc/VolumeControlNativeCallback;");
+  env->DeleteLocalRef(jniVolumeControlNativeInterfaceClass);
+
   const JNIJavaMethod javaMethods[] = {
           {"onConnectionStateChanged", "(I[B)V", &method_onConnectionStateChanged},
           {"onVolumeStateChanged", "(IZI[BZ)V", &method_onVolumeStateChanged},
@@ -883,14 +907,14 @@ int register_com_android_bluetooth_vc(JNIEnv* env) {
           {"onExtAudioOutLocationChanged", "(II[B)V", &method_onExtAudioOutLocationChanged},
           {"onExtAudioOutDescriptionChanged", "(ILjava/lang/String;[B)V",
            &method_onExtAudioOutDescriptionChanged},
-          {"onExtAudioInStateChanged", "(IIIZ[B)V", &method_onExtAudioInStateChanged},
+          {"onExtAudioInStateChanged", "(IIII[B)V", &method_onExtAudioInStateChanged},
           {"onExtAudioInStatusChanged", "(II[B)V", &method_onExtAudioInStatusChanged},
           {"onExtAudioInTypeChanged", "(II[B)V", &method_onExtAudioInTypeChanged},
           {"onExtAudioInGainPropsChanged", "(IIII[B)V", &method_onExtAudioInGainPropsChanged},
           {"onExtAudioInDescriptionChanged", "(ILjava/lang/String;[B)V",
            &method_onExtAudioInDescriptionChanged},
   };
-  GET_JAVA_METHODS(env, "com/android/bluetooth/vc/VolumeControlNativeInterface", javaMethods);
+  GET_JAVA_METHODS(env, "com/android/bluetooth/vc/VolumeControlNativeCallback", javaMethods);
 
   return 0;
 }

@@ -60,6 +60,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.PackageManager.PackageInfoFlags;
 import android.content.res.Resources;
+import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -141,6 +142,12 @@ public class GattService extends ProfileService {
                 "0201060303AAFE1116AAFE20000BF017000008874803FB93540916802069080EFE13551109426C7565436861726D5F313639363835000000000000000000",
                 "0201061AFF4C000215426C7565436861726D426561636F6E730EFE1355C509168020691E0EFE13551109426C7565436861726D5F31363936383500000000",
             };
+
+    private static final Integer GATT_MTU_MAX = 517;
+    private static final Map<String, Integer> EARLY_MTU_EXCHANGE_PACKAGES =
+            Map.of("com.teslamotors", GATT_MTU_MAX);
+
+    @VisibleForTesting static final int GATT_CLIENT_LIMIT_PER_APP = 32;
 
     public final TransitionalScanHelper mTransitionalScanHelper =
             new TransitionalScanHelper(this, this::isTestModeEnabled);
@@ -1305,14 +1312,17 @@ public class GattService extends ProfileService {
                         + ", connId="
                         + connId
                         + ", address="
-                        + address);
+                        + BluetoothUtils.toAnonymizedAddress(address));
         int connectionState = BluetoothProtoEnums.CONNECTION_STATE_DISCONNECTED;
         if (status == 0) {
             mClientMap.addConnection(clientIf, connId, address);
 
             // Allow one writeCharacteristic operation at a time for each connected remote device.
             synchronized (mPermits) {
-                Log.d(TAG, "onConnected() - adding permit for address=" + address);
+                Log.d(
+                        TAG,
+                        "onConnected() - adding permit for address="
+                                + BluetoothUtils.toAnonymizedAddress(address));
                 mPermits.putIfAbsent(address, -1);
             }
             connectionState = BluetoothProtoEnums.CONNECTION_STATE_CONNECTED;
@@ -1335,7 +1345,7 @@ public class GattService extends ProfileService {
                         + ", connId="
                         + connId
                         + ", address="
-                        + address);
+                        + BluetoothUtils.toAnonymizedAddress(address));
 
         mClientMap.removeConnection(clientIf, connId);
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getById(clientIf);
@@ -1348,13 +1358,19 @@ public class GattService extends ProfileService {
         // device.
         if (!mClientMap.getConnectedDevices().contains(address)) {
             synchronized (mPermits) {
-                Log.d(TAG, "onDisconnected() - removing permit for address=" + address);
+                Log.d(
+                        TAG,
+                        "onDisconnected() - removing permit for address="
+                                + BluetoothUtils.toAnonymizedAddress(address));
                 mPermits.remove(address);
             }
         } else {
             synchronized (mPermits) {
                 if (mPermits.get(address) == connId) {
-                    Log.d(TAG, "onDisconnected() - set permit -1 for address=" + address);
+                    Log.d(
+                            TAG,
+                            "onDisconnected() - set permit -1 for address="
+                                    + BluetoothUtils.toAnonymizedAddress(address));
                     mPermits.put(address, -1);
                 }
             }
@@ -1392,7 +1408,7 @@ public class GattService extends ProfileService {
         Log.d(
                 TAG,
                 "onClientPhyRead() - address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", status="
                         + status
                         + ", clientIf="
@@ -1400,7 +1416,10 @@ public class GattService extends ProfileService {
 
         Integer connId = mClientMap.connIdByAddress(clientIf, address);
         if (connId == null) {
-            Log.d(TAG, "onClientPhyRead() - no connection to " + address);
+            Log.d(
+                    TAG,
+                    "onClientPhyRead() - no connection to "
+                            + BluetoothUtils.toAnonymizedAddress(address));
             return;
         }
 
@@ -1481,11 +1500,19 @@ public class GattService extends ProfileService {
 
     void onServerPhyRead(int serverIf, String address, int txPhy, int rxPhy, int status)
             throws RemoteException {
-        Log.d(TAG, "onServerPhyRead() - address=" + address + ", status=" + status);
+        Log.d(
+                TAG,
+                "onServerPhyRead() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + ", status="
+                        + status);
 
         Integer connId = mServerMap.connIdByAddress(serverIf, address);
         if (connId == null) {
-            Log.d(TAG, "onServerPhyRead() - no connection to " + address);
+            Log.d(
+                    TAG,
+                    "onServerPhyRead() - no connection to "
+                            + BluetoothUtils.toAnonymizedAddress(address));
             return;
         }
 
@@ -1556,7 +1583,7 @@ public class GattService extends ProfileService {
     void onGetGattDb(int connId, List<GattDbElement> db) throws RemoteException {
         String address = mClientMap.addressByConnId(connId);
 
-        Log.d(TAG, "onGetGattDb() - address=" + address);
+        Log.d(TAG, "onGetGattDb() - address=" + BluetoothUtils.toAnonymizedAddress(address));
 
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getByConnId(connId);
         if (app == null || app.callback == null) {
@@ -1647,7 +1674,7 @@ public class GattService extends ProfileService {
         Log.d(
                 TAG,
                 "onRegisterForNotifications() - address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", status="
                         + status
                         + ", registered="
@@ -1662,7 +1689,7 @@ public class GattService extends ProfileService {
         Log.v(
                 TAG,
                 "onNotify() - address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", handle="
                         + handle
                         + ", length="
@@ -1691,7 +1718,7 @@ public class GattService extends ProfileService {
         Log.v(
                 TAG,
                 "onReadCharacteristic() - address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", status="
                         + status
                         + ", length="
@@ -1707,14 +1734,17 @@ public class GattService extends ProfileService {
             throws RemoteException {
         String address = mClientMap.addressByConnId(connId);
         synchronized (mPermits) {
-            Log.d(TAG, "onWriteCharacteristic() - increasing permit for address=" + address);
+            Log.d(
+                    TAG,
+                    "onWriteCharacteristic() - increasing permit for address="
+                            + BluetoothUtils.toAnonymizedAddress(address));
             mPermits.put(address, -1);
         }
 
         Log.v(
                 TAG,
                 "onWriteCharacteristic() - address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", status="
                         + status
                         + ", length="
@@ -1742,7 +1772,12 @@ public class GattService extends ProfileService {
 
     void onExecuteCompleted(int connId, int status) throws RemoteException {
         String address = mClientMap.addressByConnId(connId);
-        Log.v(TAG, "onExecuteCompleted() - address=" + address + ", status=" + status);
+        Log.v(
+                TAG,
+                "onExecuteCompleted() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + ", status="
+                        + status);
 
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getByConnId(connId);
         if (app != null) {
@@ -1756,7 +1791,7 @@ public class GattService extends ProfileService {
         Log.v(
                 TAG,
                 "onReadDescriptor() - address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", status="
                         + status
                         + ", length="
@@ -1774,7 +1809,7 @@ public class GattService extends ProfileService {
         Log.v(
                 TAG,
                 "onWriteDescriptor() - address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", status="
                         + status
                         + ", length="
@@ -1793,7 +1828,7 @@ public class GattService extends ProfileService {
                 "onReadRemoteRssi() - clientIf="
                         + clientIf
                         + " address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", rssi="
                         + rssi
                         + ", status="
@@ -1808,7 +1843,14 @@ public class GattService extends ProfileService {
     void onConfigureMTU(int connId, int status, int mtu) throws RemoteException {
         String address = mClientMap.addressByConnId(connId);
 
-        Log.d(TAG, "onConfigureMTU() address=" + address + ", status=" + status + ", mtu=" + mtu);
+        Log.d(
+                TAG,
+                "onConfigureMTU() address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + ", status="
+                        + status
+                        + ", mtu="
+                        + mtu);
 
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getByConnId(connId);
         if (app != null) {
@@ -1936,7 +1978,8 @@ public class GattService extends ProfileService {
                 duration,
                 maxExtAdvEvents,
                 serverIf,
-                callback);
+                callback,
+                attributionSource);
     }
 
     @RequiresPermission(BLUETOOTH_ADVERTISE)
@@ -2083,9 +2126,19 @@ public class GattService extends ProfileService {
                 this, attributionSource, "GattService registerClient")) {
             return;
         }
+        if (Flags.gattClientDynamicAllocation()
+                && mClientMap.countByAppUid(Binder.getCallingUid()) >= GATT_CLIENT_LIMIT_PER_APP) {
+            Log.w(TAG, "registerClient() - failed due to too many clients");
+            try {
+                callback.onClientRegistered(BluetoothGatt.GATT_FAILURE, 0);
+            } catch (RemoteException e) {
+                // do nothing
+            }
+            return;
+        }
 
         Log.d(TAG, "registerClient() - UUID=" + uuid);
-        mClientMap.add(uuid, callback, this);
+        mClientMap.add(uuid, callback, this, attributionSource);
         mNativeInterface.gattClientRegisterApp(
                 uuid.getLeastSignificantBits(), uuid.getMostSignificantBits(), eatt_support);
     }
@@ -2120,7 +2173,7 @@ public class GattService extends ProfileService {
         Log.d(
                 TAG,
                 "clientConnect() - address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", addressType="
                         + addressType
                         + ", isDirect="
@@ -2139,8 +2192,35 @@ public class GattService extends ProfileService {
                 clientIf,
                 BluetoothProtoEnums.CONNECTION_STATE_CONNECTING,
                 -1);
+
+        int preferredMtu = 0;
+
+        // Some applications expect MTU to be exchanged immediately on connections
+        String packageName = attributionSource.getPackageName();
+        if (packageName != null) {
+            for (Map.Entry<String, Integer> entry : EARLY_MTU_EXCHANGE_PACKAGES.entrySet()) {
+                if (packageName.contains(entry.getKey())) {
+                    preferredMtu = entry.getValue();
+                    Log.i(
+                            TAG,
+                            "Early MTU exchange preference ("
+                                    + preferredMtu
+                                    + ") requested for "
+                                    + packageName);
+                    break;
+                }
+            }
+        }
+
         mNativeInterface.gattClientConnect(
-                clientIf, address, addressType, isDirect, transport, opportunistic, phy);
+                clientIf,
+                address,
+                addressType,
+                isDirect,
+                transport,
+                opportunistic,
+                phy,
+                preferredMtu);
     }
 
     @RequiresPermission(BLUETOOTH_CONNECT)
@@ -2151,7 +2231,12 @@ public class GattService extends ProfileService {
         }
 
         Integer connId = mClientMap.connIdByAddress(clientIf, address);
-        Log.d(TAG, "clientDisconnect() - address=" + address + ", connId=" + connId);
+        Log.d(
+                TAG,
+                "clientDisconnect() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + ", connId="
+                        + connId);
         statsLogGattConnectionStateChange(
                 BluetoothProfile.GATT,
                 address,
@@ -2176,11 +2261,19 @@ public class GattService extends ProfileService {
 
         Integer connId = mClientMap.connIdByAddress(clientIf, address);
         if (connId == null) {
-            Log.d(TAG, "clientSetPreferredPhy() - no connection to " + address);
+            Log.d(
+                    TAG,
+                    "clientSetPreferredPhy() - no connection to "
+                            + BluetoothUtils.toAnonymizedAddress(address));
             return;
         }
 
-        Log.d(TAG, "clientSetPreferredPhy() - address=" + address + ", connId=" + connId);
+        Log.d(
+                TAG,
+                "clientSetPreferredPhy() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + ", connId="
+                        + connId);
         mNativeInterface.gattClientSetPreferredPhy(clientIf, address, txPhy, rxPhy, phyOptions);
     }
 
@@ -2193,11 +2286,19 @@ public class GattService extends ProfileService {
 
         Integer connId = mClientMap.connIdByAddress(clientIf, address);
         if (connId == null) {
-            Log.d(TAG, "clientReadPhy() - no connection to " + address);
+            Log.d(
+                    TAG,
+                    "clientReadPhy() - no connection to "
+                            + BluetoothUtils.toAnonymizedAddress(address));
             return;
         }
 
-        Log.d(TAG, "clientReadPhy() - address=" + address + ", connId=" + connId);
+        Log.d(
+                TAG,
+                "clientReadPhy() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + ", connId="
+                        + connId);
         mNativeInterface.gattClientReadPhy(clientIf, address);
     }
 
@@ -2233,7 +2334,7 @@ public class GattService extends ProfileService {
             return;
         }
 
-        Log.d(TAG, "refreshDevice() - address=" + address);
+        Log.d(TAG, "refreshDevice() - address=" + BluetoothUtils.toAnonymizedAddress(address));
         mNativeInterface.gattClientRefresh(clientIf, address);
     }
 
@@ -2245,12 +2346,21 @@ public class GattService extends ProfileService {
         }
 
         Integer connId = mClientMap.connIdByAddress(clientIf, address);
-        Log.d(TAG, "discoverServices() - address=" + address + ", connId=" + connId);
+        Log.d(
+                TAG,
+                "discoverServices() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + ", connId="
+                        + connId);
 
         if (connId != null) {
             mNativeInterface.gattClientSearchService(connId, true, 0, 0);
         } else {
-            Log.e(TAG, "discoverServices() - No connection for " + address + "...");
+            Log.e(
+                    TAG,
+                    "discoverServices() - No connection for "
+                            + BluetoothUtils.toAnonymizedAddress(address)
+                            + "...");
         }
     }
 
@@ -2267,7 +2377,11 @@ public class GattService extends ProfileService {
             mNativeInterface.gattClientDiscoverServiceByUuid(
                     connId, uuid.getLeastSignificantBits(), uuid.getMostSignificantBits());
         } else {
-            Log.e(TAG, "discoverServiceByUuid() - No connection for " + address + "...");
+            Log.e(
+                    TAG,
+                    "discoverServiceByUuid() - No connection for "
+                            + BluetoothUtils.toAnonymizedAddress(address)
+                            + "...");
         }
     }
 
@@ -2283,11 +2397,15 @@ public class GattService extends ProfileService {
             return;
         }
 
-        Log.v(TAG, "readCharacteristic() - address=" + address);
+        Log.v(TAG, "readCharacteristic() - address=" + BluetoothUtils.toAnonymizedAddress(address));
 
         Integer connId = mClientMap.connIdByAddress(clientIf, address);
         if (connId == null) {
-            Log.e(TAG, "readCharacteristic() - No connection for " + address + "...");
+            Log.e(
+                    TAG,
+                    "readCharacteristic() - No connection for "
+                            + BluetoothUtils.toAnonymizedAddress(address)
+                            + "...");
             return;
         }
 
@@ -2320,11 +2438,18 @@ public class GattService extends ProfileService {
             return;
         }
 
-        Log.v(TAG, "readUsingCharacteristicUuid() - address=" + address);
+        Log.v(
+                TAG,
+                "readUsingCharacteristicUuid() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address));
 
         Integer connId = mClientMap.connIdByAddress(clientIf, address);
         if (connId == null) {
-            Log.e(TAG, "readUsingCharacteristicUuid() - No connection for " + address + "...");
+            Log.e(
+                    TAG,
+                    "readUsingCharacteristicUuid() - No connection for "
+                            + BluetoothUtils.toAnonymizedAddress(address)
+                            + "...");
             return;
         }
 
@@ -2363,7 +2488,9 @@ public class GattService extends ProfileService {
             return BluetoothStatusCodes.ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION;
         }
 
-        Log.v(TAG, "writeCharacteristic() - address=" + address);
+        Log.v(
+                TAG,
+                "writeCharacteristic() - address=" + BluetoothUtils.toAnonymizedAddress(address));
 
         if (mReliableQueue.contains(address)) {
             writeType = 3; // Prepared write
@@ -2371,7 +2498,11 @@ public class GattService extends ProfileService {
 
         Integer connId = mClientMap.connIdByAddress(clientIf, address);
         if (connId == null) {
-            Log.e(TAG, "writeCharacteristic() - No connection for " + address + "...");
+            Log.e(
+                    TAG,
+                    "writeCharacteristic() - No connection for "
+                            + BluetoothUtils.toAnonymizedAddress(address)
+                            + "...");
             return BluetoothStatusCodes.ERROR_DEVICE_NOT_CONNECTED;
         }
         permissionCheck(connId, handle);
@@ -2409,11 +2540,15 @@ public class GattService extends ProfileService {
             return;
         }
 
-        Log.v(TAG, "readDescriptor() - address=" + address);
+        Log.v(TAG, "readDescriptor() - address=" + BluetoothUtils.toAnonymizedAddress(address));
 
         Integer connId = mClientMap.connIdByAddress(clientIf, address);
         if (connId == null) {
-            Log.e(TAG, "readDescriptor() - No connection for " + address + "...");
+            Log.e(
+                    TAG,
+                    "readDescriptor() - No connection for "
+                            + BluetoothUtils.toAnonymizedAddress(address)
+                            + "...");
             return;
         }
 
@@ -2444,11 +2579,15 @@ public class GattService extends ProfileService {
                 this, attributionSource, "GattService writeDescriptor")) {
             return BluetoothStatusCodes.ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION;
         }
-        Log.v(TAG, "writeDescriptor() - address=" + address);
+        Log.v(TAG, "writeDescriptor() - address=" + BluetoothUtils.toAnonymizedAddress(address));
 
         Integer connId = mClientMap.connIdByAddress(clientIf, address);
         if (connId == null) {
-            Log.e(TAG, "writeDescriptor() - No connection for " + address + "...");
+            Log.e(
+                    TAG,
+                    "writeDescriptor() - No connection for "
+                            + BluetoothUtils.toAnonymizedAddress(address)
+                            + "...");
             return BluetoothStatusCodes.ERROR_DEVICE_NOT_CONNECTED;
         }
         permissionCheck(connId, handle);
@@ -2464,7 +2603,7 @@ public class GattService extends ProfileService {
             return;
         }
 
-        Log.d(TAG, "beginReliableWrite() - address=" + address);
+        Log.d(TAG, "beginReliableWrite() - address=" + BluetoothUtils.toAnonymizedAddress(address));
         mReliableQueue.add(address);
     }
 
@@ -2476,7 +2615,12 @@ public class GattService extends ProfileService {
             return;
         }
 
-        Log.d(TAG, "endReliableWrite() - address=" + address + " execute: " + execute);
+        Log.d(
+                TAG,
+                "endReliableWrite() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + " execute: "
+                        + execute);
         mReliableQueue.remove(address);
 
         Integer connId = mClientMap.connIdByAddress(clientIf, address);
@@ -2497,11 +2641,20 @@ public class GattService extends ProfileService {
             return;
         }
 
-        Log.d(TAG, "registerForNotification() - address=" + address + " enable: " + enable);
+        Log.d(
+                TAG,
+                "registerForNotification() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + " enable: "
+                        + enable);
 
         Integer connId = mClientMap.connIdByAddress(clientIf, address);
         if (connId == null) {
-            Log.e(TAG, "registerForNotification() - No connection for " + address + "...");
+            Log.e(
+                    TAG,
+                    "registerForNotification() - No connection for "
+                            + BluetoothUtils.toAnonymizedAddress(address)
+                            + "...");
             return;
         }
 
@@ -2527,7 +2680,7 @@ public class GattService extends ProfileService {
             return;
         }
 
-        Log.d(TAG, "readRemoteRssi() - address=" + address);
+        Log.d(TAG, "readRemoteRssi() - address=" + BluetoothUtils.toAnonymizedAddress(address));
         mNativeInterface.gattClientReadRemoteRssi(clientIf, address);
     }
 
@@ -2538,12 +2691,21 @@ public class GattService extends ProfileService {
             return;
         }
 
-        Log.d(TAG, "configureMTU() - address=" + address + " mtu=" + mtu);
+        Log.d(
+                TAG,
+                "configureMTU() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + " mtu="
+                        + mtu);
         Integer connId = mClientMap.connIdByAddress(clientIf, address);
         if (connId != null) {
             mNativeInterface.gattClientConfigureMTU(connId, mtu);
         } else {
-            Log.e(TAG, "configureMTU() - No connection for " + address + "...");
+            Log.e(
+                    TAG,
+                    "configureMTU() - No connection for "
+                            + BluetoothUtils.toAnonymizedAddress(address)
+                            + "...");
         }
     }
 
@@ -2582,7 +2744,7 @@ public class GattService extends ProfileService {
         Log.d(
                 TAG,
                 "connectionParameterUpdate() - address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + " params="
                         + connectionPriority
                         + " interval="
@@ -2615,7 +2777,7 @@ public class GattService extends ProfileService {
         Log.d(
                 TAG,
                 "leConnectionUpdate() - address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", intervals="
                         + minInterval
                         + "/"
@@ -2849,7 +3011,7 @@ public class GattService extends ProfileService {
                 "onClientConnected() connId="
                         + connId
                         + ", address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", connected="
                         + connected);
 
@@ -2890,7 +3052,7 @@ public class GattService extends ProfileService {
                 "onServerReadCharacteristic() connId="
                         + connId
                         + ", address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", handle="
                         + handle
                         + ", requestId="
@@ -2921,7 +3083,7 @@ public class GattService extends ProfileService {
                 "onServerReadDescriptor() connId="
                         + connId
                         + ", address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", handle="
                         + handle
                         + ", requestId="
@@ -2960,7 +3122,7 @@ public class GattService extends ProfileService {
                 "onServerWriteCharacteristic() connId="
                         + connId
                         + ", address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", handle="
                         + handle
                         + ", requestId="
@@ -3002,7 +3164,7 @@ public class GattService extends ProfileService {
                 "onAttributeWrite() connId="
                         + connId
                         + ", address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", handle="
                         + handle
                         + ", requestId="
@@ -3035,7 +3197,7 @@ public class GattService extends ProfileService {
                 "onExecuteWrite() connId="
                         + connId
                         + ", address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", transId="
                         + transId);
 
@@ -3124,7 +3286,7 @@ public class GattService extends ProfileService {
         }
 
         Log.d(TAG, "registerServer() - UUID=" + uuid);
-        mServerMap.add(uuid, callback, this);
+        mServerMap.add(uuid, callback, this, attributionSource);
         mNativeInterface.gattServerRegisterApp(
                 uuid.getLeastSignificantBits(), uuid.getMostSignificantBits(), eatt_support);
     }
@@ -3157,7 +3319,7 @@ public class GattService extends ProfileService {
             return;
         }
 
-        Log.d(TAG, "serverConnect() - address=" + address);
+        Log.d(TAG, "serverConnect() - address=" + BluetoothUtils.toAnonymizedAddress(address));
 
         logServerForegroundInfo(attributionSource.getUid(), isDirect);
 
@@ -3172,7 +3334,12 @@ public class GattService extends ProfileService {
         }
 
         Integer connId = mServerMap.connIdByAddress(serverIf, address);
-        Log.d(TAG, "serverDisconnect() - address=" + address + ", connId=" + connId);
+        Log.d(
+                TAG,
+                "serverDisconnect() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + ", connId="
+                        + connId);
 
         mNativeInterface.gattServerDisconnect(serverIf, address, connId != null ? connId : 0);
     }
@@ -3192,11 +3359,19 @@ public class GattService extends ProfileService {
 
         Integer connId = mServerMap.connIdByAddress(serverIf, address);
         if (connId == null) {
-            Log.d(TAG, "serverSetPreferredPhy() - no connection to " + address);
+            Log.d(
+                    TAG,
+                    "serverSetPreferredPhy() - no connection to "
+                            + BluetoothUtils.toAnonymizedAddress(address));
             return;
         }
 
-        Log.d(TAG, "serverSetPreferredPhy() - address=" + address + ", connId=" + connId);
+        Log.d(
+                TAG,
+                "serverSetPreferredPhy() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + ", connId="
+                        + connId);
         mNativeInterface.gattServerSetPreferredPhy(serverIf, address, txPhy, rxPhy, phyOptions);
     }
 
@@ -3209,11 +3384,19 @@ public class GattService extends ProfileService {
 
         Integer connId = mServerMap.connIdByAddress(serverIf, address);
         if (connId == null) {
-            Log.d(TAG, "serverReadPhy() - no connection to " + address);
+            Log.d(
+                    TAG,
+                    "serverReadPhy() - no connection to "
+                            + BluetoothUtils.toAnonymizedAddress(address));
             return;
         }
 
-        Log.d(TAG, "serverReadPhy() - address=" + address + ", connId=" + connId);
+        Log.d(
+                TAG,
+                "serverReadPhy() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + ", connId="
+                        + connId);
         mNativeInterface.gattServerReadPhy(serverIf, address);
     }
 
@@ -3301,7 +3484,12 @@ public class GattService extends ProfileService {
             return;
         }
 
-        Log.v(TAG, "sendResponse() - address=" + address + ", requestId=" + requestId);
+        Log.v(
+                TAG,
+                "sendResponse() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + ", requestId="
+                        + requestId);
 
         int handle = 0;
         Integer connId = 0;
@@ -3346,7 +3534,12 @@ public class GattService extends ProfileService {
             return BluetoothStatusCodes.ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION;
         }
 
-        Log.v(TAG, "sendNotification() - address=" + address + " handle=" + handle);
+        Log.v(
+                TAG,
+                "sendNotification() - address="
+                        + BluetoothUtils.toAnonymizedAddress(address)
+                        + " handle="
+                        + handle);
 
         Integer connId = mServerMap.connIdByAddress(serverIf, address);
         if (connId == null || connId == 0) {
@@ -3514,11 +3707,25 @@ public class GattService extends ProfileService {
         mTransitionalScanHelper.getScannerMap().dumpApps(sb, ProfileService::println);
         sb.append("  Client:\n");
         for (Integer appId : mClientMap.getAllAppsIds()) {
-            println(sb, "    app_if: " + appId + ", appName: " + mClientMap.getById(appId).name);
+            ContextMap.App app = mClientMap.getById(appId);
+            println(
+                    sb,
+                    "    app_if: "
+                            + appId
+                            + ", appName: "
+                            + app.name
+                            + (app.attributionTag == null ? "" : ", tag: " + app.attributionTag));
         }
         sb.append("  Server:\n");
         for (Integer appId : mServerMap.getAllAppsIds()) {
-            println(sb, "    app_if: " + appId + ", appName: " + mServerMap.getById(appId).name);
+            ContextMap.App app = mServerMap.getById(appId);
+            println(
+                    sb,
+                    "    app_if: "
+                            + appId
+                            + ", appName: "
+                            + app.name
+                            + (app.attributionTag == null ? "" : ", tag: " + app.attributionTag));
         }
         sb.append("\n\n");
     }

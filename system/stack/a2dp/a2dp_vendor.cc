@@ -18,15 +18,16 @@
  * Vendor Specific A2DP Codecs Support
  */
 
-#define LOG_TAG "a2dp_vendor"
+#define LOG_TAG "bluetooth-a2dp"
 
 #include "a2dp_vendor.h"
+
+#include <bluetooth/log.h>
 
 #include "a2dp_vendor_aptx.h"
 #include "a2dp_vendor_aptx_hd.h"
 #include "a2dp_vendor_ldac.h"
 #include "a2dp_vendor_opus.h"
-#include "internal_include/bt_trace.h"
 #include "stack/include/bt_hdr.h"
 
 bool A2DP_IsVendorSourceCodecValid(const uint8_t* p_codec_info) {
@@ -129,23 +130,6 @@ tA2DP_STATUS A2DP_IsVendorSinkCodecSupported(const uint8_t* p_codec_info) {
   }
 
   return A2DP_NOT_SUPPORTED_CODEC_TYPE;
-}
-
-uint32_t A2DP_VendorCodecGetVendorId(const uint8_t* p_codec_info) {
-  const uint8_t* p = &p_codec_info[A2DP_VENDOR_CODEC_VENDOR_ID_START_IDX];
-
-  uint32_t vendor_id = (p[0] & 0x000000ff) | ((p[1] << 8) & 0x0000ff00) |
-                       ((p[2] << 16) & 0x00ff0000) | ((p[3] << 24) & 0xff000000);
-
-  return vendor_id;
-}
-
-uint16_t A2DP_VendorCodecGetCodecId(const uint8_t* p_codec_info) {
-  const uint8_t* p = &p_codec_info[A2DP_VENDOR_CODEC_CODEC_ID_START_IDX];
-
-  uint16_t codec_id = (p[0] & 0x00ff) | ((p[1] << 8) & 0xff00);
-
-  return codec_id;
 }
 
 bool A2DP_VendorUsesRtpHeader(bool content_protection_enabled, const uint8_t* p_codec_info) {
@@ -707,5 +691,5 @@ std::string A2DP_VendorCodecInfoString(const uint8_t* p_codec_info) {
 
   // Add checks based on <vendor_id, codec_id>
 
-  return "Unsupported codec vendor_id: " + loghex(vendor_id) + " codec_id: " + loghex(codec_id);
+  return fmt::format("Unsupported codec vendor_id: 0x{:x} codec_id: 0x{:x}", vendor_id, codec_id);
 }
