@@ -58,13 +58,13 @@ mgmt_cc_defaults {
     soong_config_variables: {
         vertical: {
             android_desktop: {
-                srcs: [":BluetoothHalSources_mgmt"],
+                srcs: [":BluetoothOsSources_mgmt_linux"],
             },
             android_default: {
-                srcs: [":BluetoothHalSources_mgmt_stub"],
+                srcs: [":BluetoothOsSources_mgmt"],
             },
             conditions_default: {
-                srcs: [":BluetoothHalSources_mgmt_stub"],
+                srcs: [":BluetoothOsSources_mgmt"],
             },
         },
     },

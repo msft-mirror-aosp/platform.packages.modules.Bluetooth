@@ -25,23 +25,29 @@
  *
  *
  ***********************************************************************************/
+
 #define LOG_TAG "BTIF_HD"
 
 #include "btif/include/btif_hd.h"
 
 #include <bluetooth/log.h>
+#include <string.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "bta/include/bta_dm_api.h"
 #include "bta/include/bta_hd_api.h"
 #include "bta/sys/bta_sys.h"
+#include "bta_api.h"
 #include "bta_sec_api.h"
 #include "btif/include/btif_common.h"
 #include "btif/include/btif_dm.h"
 #include "btif/include/btif_hh.h"
 #include "btif/include/btif_profile_storage.h"
 #include "btif/include/btif_util.h"
+#include "hardware/bluetooth.h"
 #include "include/hardware/bt_hd.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"

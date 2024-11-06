@@ -29,7 +29,6 @@
 
 #include "btif/include/btif_pan.h"
 
-#include <android_bluetooth_sysprop.h>
 #include <arpa/inet.h>
 #include <base/functional/bind.h>
 #include <base/location.h>
@@ -39,13 +38,24 @@
 #include <linux/if_tun.h>
 #include <net/if.h>
 #include <poll.h>
+#include <string.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
+
+#include <cerrno>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <string>
 
 #include "bta/include/bta_pan_api.h"
 #include "btif/include/btif_common.h"
 #include "btif/include/btif_pan_internal.h"
 #include "btif/include/btif_sock_thread.h"
+#include "hardware/bluetooth.h"
 #include "hci/controller_interface.h"
 #include "include/hardware/bt_pan.h"
 #include "internal_include/bt_target.h"
@@ -53,6 +63,7 @@
 #include "main/shim/helpers.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
+#include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/pan_api.h"

@@ -130,8 +130,9 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     bool contains_sounding_sequence_remote_;
     CsProcedureDoneStatus local_status;
     CsProcedureDoneStatus remote_status;
-    // If the procedure is aborted by either the local or remote side.
-    bool aborted = false;
+    // If any subevent is received with a Subevent_Done_Status of 0x0 (All results complete for the
+    // CS subevent)
+    bool contains_complete_subevent_ = false;
     // RAS data
     SegmentationHeader segmentation_header_;
     RangingHeader ranging_header_;
@@ -1122,12 +1123,14 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       return;
     }
     procedure_data->ras_subevent_header_.num_steps_reported_ += result_data_structures.size();
+    if (subevent_done_status == CsSubeventDoneStatus::ALL_RESULTS_COMPLETE) {
+      procedure_data->contains_complete_subevent_ = true;
+    }
 
     if (procedure_abort_reason != ProcedureAbortReason::NO_ABORT ||
         subevent_abort_reason != SubeventAbortReason::NO_ABORT) {
       // Even the procedure is aborted, we should keep following process and
       // handle it when all corresponding remote data received.
-      procedure_data->aborted = true;
       procedure_data->ras_subevent_header_.ranging_abort_reason_ =
               static_cast<RangingAbortReason>(procedure_abort_reason);
       procedure_data->ras_subevent_header_.subevent_abort_reason_ =
@@ -1664,7 +1667,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (live_tracker->local_start &&
         procedure_data->local_status == CsProcedureDoneStatus::ALL_RESULTS_COMPLETE &&
         procedure_data->remote_status == CsProcedureDoneStatus::ALL_RESULTS_COMPLETE &&
-        !procedure_data->aborted) {
+        procedure_data->contains_complete_subevent_) {
       log::debug("Procedure complete counter:{} data size:{}, main_mode_type:{}, sub_mode_type:{}",
                  (uint16_t)procedure_data->counter, (uint16_t)procedure_data->step_channel.size(),
                  (uint16_t)live_tracker->main_mode_type, (uint16_t)live_tracker->sub_mode_type);
