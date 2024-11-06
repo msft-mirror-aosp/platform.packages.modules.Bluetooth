@@ -20,22 +20,33 @@
 
 #include "btif/include/btif_av.h"
 
-#include <android_bluetooth_sysprop.h>
 #include <base/functional/bind.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/a2dp/enums.pb.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
+#include <stdio.h>
 
+#include <chrono>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <future>
+#include <ios>
+#include <map>
 #include <mutex>
 #include <optional>
+#include <set>
+#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "audio_hal_interface/a2dp_encoding.h"
+#include "bta/include/bta_api.h"
+#include "bta/include/bta_api_data_types.h"
+#include "bta/include/bta_av_api.h"
 #include "btif/avrcp/avrcp_service.h"
 #include "btif/include/btif_a2dp.h"
 #include "btif/include/btif_a2dp_sink.h"
@@ -49,17 +60,23 @@
 #include "btif/include/stack_manager_t.h"
 #include "btif_metrics_logging.h"
 #include "common/state_machine.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bt_av.h"
 #include "include/hardware/bt_rc.h"
 #include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
+#include "stack/include/a2dp_codec_api.h"
+#include "stack/include/avdt_api.h"
 #include "stack/include/avrc_api.h"
+#include "stack/include/avrc_defs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_ble_api.h"
+#include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/main_thread.h"
 #include "types/raw_address.h"
@@ -3217,7 +3234,7 @@ static void btif_av_handle_bta_av_event(uint8_t peer_sep, const BtifAvEvent& bti
         }
         break;
       } else {
-        FALLTHROUGH_INTENDED;
+        [[fallthrough]];
       }
     }
     case BTA_AV_OFFLOAD_START_RSP_EVT: {

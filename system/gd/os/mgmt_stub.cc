@@ -22,15 +22,15 @@
 
 #include <bluetooth/log.h>
 
-#include "hal/mgmt.h"
+#include "os/mgmt.h"
 
 namespace bluetooth {
-namespace hal {
+namespace os {
 
-uint16_t Mgmt::get_vs_opcode(uint16_t vendor_specification) {
+uint16_t Management::getVendorSpecificCode(uint16_t vendor_specification) {
   log::debug("Using stub for vendor opcode 0x{:04x}", vendor_specification);
   return 0;
 }
 
-}  // namespace hal
+}  // namespace os
 }  // namespace bluetooth
