@@ -369,17 +369,6 @@ public class AdapterService extends Service {
         }
     };
 
-    static {
-        if (!Flags.avoidStaticLoadingOfNative()) {
-            Log.d(TAG, "Loading JNI Library");
-            if (Utils.isInstrumentationTestMode()) {
-                Log.w(TAG, "App is instrumented. Skip loading the native");
-            } else {
-                System.loadLibrary("bluetooth_jni");
-            }
-        }
-    }
-
     // Keep a constructor for ActivityThread.handleCreateService
     AdapterService() {
         this(Looper.getMainLooper());
@@ -629,10 +618,6 @@ public class AdapterService extends Service {
     public void onCreate() {
         super.onCreate();
         Log.d(TAG, "onCreate()");
-        if (!Flags.fastBindToApp()) {
-            init();
-            return;
-        }
         // OnCreate must perform the minimum of infaillible and mandatory initialization
         mRemoteDevices = new RemoteDevices(this, mLooper);
         mAdapterProperties = new AdapterProperties(this, mRemoteDevices, mLooper);
@@ -652,27 +637,10 @@ public class AdapterService extends Service {
         Config.init(this);
         mDeviceConfigListener.start();
 
-        if (!Flags.fastBindToApp()) {
-            // Moved to OnCreate
-            mUserManager = getNonNullSystemService(UserManager.class);
-            mAppOps = getNonNullSystemService(AppOpsManager.class);
-            mPowerManager = getNonNullSystemService(PowerManager.class);
-            mBatteryStatsManager = getNonNullSystemService(BatteryStatsManager.class);
-            mCompanionDeviceManager = getNonNullSystemService(CompanionDeviceManager.class);
-            mRemoteDevices = new RemoteDevices(this, mLooper);
-        }
         MetricsLogger.getInstance().init(this, mRemoteDevices);
 
         clearDiscoveringPackages();
-        if (!Flags.fastBindToApp()) {
-            mBinder = new AdapterServiceBinder(this);
-        }
         mAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (!Flags.fastBindToApp()) {
-            // Moved to OnCreate
-            mAdapterProperties = new AdapterProperties(this, mRemoteDevices, mLooper);
-            mAdapterStateMachine = new AdapterState(this, mLooper);
-        }
         boolean isCommonCriteriaMode =
                 getNonNullSystemService(DevicePolicyManager.class)
                         .isCommonCriteriaModeEnabled(null);
@@ -690,13 +658,11 @@ public class AdapterService extends Service {
                 getApplicationContext()
                         .getPackageManager()
                         .hasSystemFeature(PackageManager.FEATURE_LEANBACK_ONLY);
-        if (Flags.avoidStaticLoadingOfNative()) {
-            if (Utils.isInstrumentationTestMode()) {
-                Log.w(TAG, "This Bluetooth App is instrumented. ** Skip loading the native **");
-            } else {
-                Log.d(TAG, "Loading JNI Library");
-                System.loadLibrary("bluetooth_jni");
-            }
+        if (Utils.isInstrumentationTestMode()) {
+            Log.w(TAG, "This Bluetooth App is instrumented. ** Skip loading the native **");
+        } else {
+            Log.d(TAG, "Loading JNI Library");
+            System.loadLibrary("bluetooth_jni");
         }
         mNativeInterface.init(
                 this,
@@ -719,11 +685,7 @@ public class AdapterService extends Service {
                         "BluetoothQualityReportNativeInterface cannot be null when BQR starts");
         mBluetoothQualityReportNativeInterface.init();
 
-        if (Flags.fastBindToApp()) {
-            mSdpManager = new SdpManager(this, mLooper);
-        } else {
-            mSdpManager = new SdpManager(this);
-        }
+        mSdpManager = new SdpManager(this, mLooper);
 
         mDatabaseManager.start(MetadataDatabase.createDatabase(this));
 
@@ -763,10 +725,6 @@ public class AdapterService extends Service {
             mAdapterSuspend =
                     new AdapterSuspend(
                             mNativeInterface, mLooper, getSystemService(DisplayManager.class));
-        }
-
-        if (!Flags.fastBindToApp()) {
-            setAdapterService(this);
         }
 
         invalidateBluetoothCaches();
@@ -4683,10 +4641,8 @@ public class AdapterService extends Service {
             Log.d(TAG, "offToBleOn() called when Bluetooth was disallowed");
             return;
         }
-        if (Flags.fastBindToApp()) {
-            // The call to init must be done on the main thread
-            mHandler.post(() -> init());
-        }
+        // The call to init must be done on the main thread
+        mHandler.post(() -> init());
 
         Log.i(TAG, "offToBleOn() - Enable called with quiet mode status =  " + quietMode);
         mQuietmode = quietMode;

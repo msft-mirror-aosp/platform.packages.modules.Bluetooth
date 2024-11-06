@@ -775,6 +775,7 @@ int adev_open_output_stream(struct audio_hw_device* dev, audio_io_handle_t /*han
 
   out->frames_rendered_ = 0;
   out->frames_presented_ = 0;
+  out->last_write_time_us_ = 0;
 
   BluetoothStreamOut* out_ptr = out.release();
   {

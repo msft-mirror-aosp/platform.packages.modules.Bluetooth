@@ -23,6 +23,12 @@
 namespace bluetooth {
 namespace hal {
 
+enum RangingHalVersion {
+  V_UNKNOWN = 0,
+  V_1 = 1,
+  V_2 = 2,
+};
+
 struct VendorSpecificCharacteristic {
   std::array<uint8_t, 16> characteristicUuid_;
   std::vector<uint8_t> value_;

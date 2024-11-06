@@ -30,27 +30,40 @@
 #include "btif/include/btif_hf.h"
 
 #include <android_bluetooth_sysprop.h>
+#include <base/functional/bind.h>
 #include <base/functional/callback.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <sstream>
 #include <string>
+#include <vector>
 
+#include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_ag_api.h"
+#include "bta/include/bta_api.h"
 #include "bta/include/utl.h"
 #include "bta_ag_swb_aptx.h"
 #include "btif/include/btif_common.h"
 #include "btif/include/btif_metrics_logging.h"
 #include "btif/include/btif_profile_queue.h"
 #include "btif/include/btif_util.h"
+#include "btm_api_types.h"
 #include "common/metrics.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
+#include "hardware/bluetooth.h"
 #include "include/hardware/bluetooth_headset_callbacks.h"
 #include "include/hardware/bluetooth_headset_interface.h"
 #include "include/hardware/bt_hf.h"
 #include "internal_include/bt_target.h"
+#include "os/logging/log_adapter.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"

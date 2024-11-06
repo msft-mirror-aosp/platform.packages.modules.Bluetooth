@@ -66,10 +66,17 @@ cc_library_static {
     ],
     host_supported: true,
     static_libs: [
+        "aics",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libchrome",
         "libflatbuffers-cpp",
+    ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
+    shared_libs: [
+        "libbinder",
     ],
     target: {
         darwin: {

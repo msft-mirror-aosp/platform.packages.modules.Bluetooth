@@ -21,7 +21,7 @@
  * This file will be replaced such that it is not optimized for now.
  */
 
-#include "hal/mgmt.h"
+#include "os/mgmt.h"
 
 #include <bluetooth/log.h>
 #include <poll.h>
@@ -33,7 +33,7 @@
 extern int GetAdapterIndex();
 
 namespace bluetooth {
-namespace hal {
+namespace os {
 
 #define RETRY_ON_INTR(fn) \
   do {                    \
@@ -80,7 +80,7 @@ static int btsocket_open_mgmt() {
  * or failures in writing/reading the MGMT socket, the return opcode would
  * be HCI_OP_NOP (0x0000).
  */
-uint16_t Mgmt::get_vs_opcode(uint16_t vendor_specification) {
+uint16_t Management::getVendorSpecificCode(uint16_t vendor_specification) {
   int hci = GetAdapterIndex();
   int fd = btsocket_open_mgmt();
   uint16_t ret_opcode = HCI_OP_NOP;
@@ -140,7 +140,7 @@ uint16_t Mgmt::get_vs_opcode(uint16_t vendor_specification) {
           log::error("Failed to read mgmt socket: {}", -errno);
           close(fd);
           return ret_opcode;
-        } else if (ret == 0) { // unlikely to happen, just a safeguard.
+        } else if (ret == 0) {  // unlikely to happen, just a safeguard.
           log::error("Failed to read mgmt socket: EOF");
           close(fd);
           return ret_opcode;
@@ -173,5 +173,5 @@ uint16_t Mgmt::get_vs_opcode(uint16_t vendor_specification) {
   return ret_opcode;
 }
 
-}  // namespace hal
+}  // namespace os
 }  // namespace bluetooth

@@ -665,7 +665,7 @@ bool provider::supports_codec(btav_a2dp_codec_index_t codec_index) {
 /***
  * Return the A2DP capabilities for the selected codec.
  ***/
-bool provider::codec_info(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id,
+bool provider::codec_info(btav_a2dp_codec_index_t codec_index, bluetooth::a2dp::CodecId* codec_id,
                           uint8_t* codec_info, btav_a2dp_codec_config_t* codec_config) {
   return provider_info
                  ? provider_info->CodecCapabilities(codec_index, codec_id, codec_info, codec_config)

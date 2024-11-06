@@ -1092,12 +1092,6 @@ public final class BluetoothAdapter {
     BluetoothAdapter(IBluetoothManager managerService, AttributionSource attributionSource) {
         mManagerService = requireNonNull(managerService);
         mAttributionSource = requireNonNull(attributionSource);
-        mServiceLock.writeLock().lock();
-        try {
-            mService = getBluetoothService(mManagerCallback);
-        } finally {
-            mServiceLock.writeLock().unlock();
-        }
 
         Consumer<IBluetooth> registerQualityReportCallbackConsumer =
                 (IBluetooth service) -> {
@@ -1165,6 +1159,13 @@ public final class BluetoothAdapter {
                 new CallbackWrapper(
                         registerBluetoothConnectionCallbackConsumer,
                         unregisterBluetoothConnectionCallbackConsumer);
+
+        mServiceLock.writeLock().lock();
+        try {
+            mService = registerBlueoothManagerCallback(mManagerCallback);
+        } finally {
+            mServiceLock.writeLock().unlock();
+        }
     }
 
     /**
@@ -4211,15 +4212,8 @@ public final class BluetoothAdapter {
         }
     }
 
-    /**
-     * Registers a IBluetoothManagerCallback and returns the cached Bluetooth service proxy object.
-     *
-     * <p>TODO: rename this API to registerBlueoothManagerCallback or something? the current name
-     * does not match what it does very well.
-     *
-     * <p>/ @UnsupportedAppUsage /*package
-     */
-    IBluetooth getBluetoothService(IBluetoothManagerCallback cb) {
+    /** Registers a IBluetoothManagerCallback and returns the cached service proxy object. */
+    IBluetooth registerBlueoothManagerCallback(IBluetoothManagerCallback cb) {
         requireNonNull(cb);
         if (Flags.getProfileUseLock()) {
             sServiceLock.writeLock().lock();

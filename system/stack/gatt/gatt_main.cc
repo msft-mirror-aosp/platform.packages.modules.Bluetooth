@@ -45,14 +45,12 @@
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/gatt_api.h"
 #include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::eatt::EattExtension;
 using namespace bluetooth;
@@ -218,8 +216,8 @@ void gatt_free(void) {
  * Returns          true if connection is started, otherwise return false.
  *
  ******************************************************************************/
-bool gatt_connect(const RawAddress& rem_bda, tBLE_ADDR_TYPE addr_type, tGATT_TCB* p_tcb,
-                  tBT_TRANSPORT transport, uint8_t /* initiating_phys */, tGATT_IF gatt_if) {
+static bool gatt_connect(const RawAddress& rem_bda, tBLE_ADDR_TYPE addr_type, tGATT_TCB* p_tcb,
+                         tBT_TRANSPORT transport, uint8_t /* initiating_phys */, tGATT_IF gatt_if) {
   if (gatt_get_ch_state(p_tcb) != GATT_CH_OPEN) {
     gatt_set_ch_state(p_tcb, GATT_CH_CONN);
   }
@@ -238,11 +236,6 @@ bool gatt_connect(const RawAddress& rem_bda, tBLE_ADDR_TYPE addr_type, tGATT_TCB
 
   p_tcb->att_lcid = L2CAP_ATT_CID;
   return connection_manager::create_le_connection(gatt_if, rem_bda, addr_type);
-}
-
-bool gatt_connect(const RawAddress& rem_bda, tGATT_TCB* p_tcb, tBT_TRANSPORT transport,
-                  uint8_t initiating_phys, tGATT_IF gatt_if) {
-  return gatt_connect(rem_bda, BLE_ADDR_PUBLIC, p_tcb, transport, initiating_phys, gatt_if);
 }
 
 /*******************************************************************************
