@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <aics/api.h>
 #include <hardware/bluetooth.h>
 #include <raw_address.h>
 
@@ -25,6 +26,8 @@
 
 namespace bluetooth {
 namespace vc {
+
+using bluetooth::aics::Mute;
 
 // Must be kept in sync with BluetoothProfile.java
 enum class ConnectionState { DISCONNECTED = 0, CONNECTING, CONNECTED, DISCONNECTING };
@@ -73,7 +76,7 @@ public:
 
   /* Callbacks for Audio Input Stream (AIS) - Extended Audio Inputs */
   virtual void OnExtAudioInStateChanged(const RawAddress& address, uint8_t ext_input_id,
-                                        int8_t gain_val, uint8_t gain_mode_auto, uint8_t mute) = 0;
+                                        int8_t gain_setting, Mute mute, uint8_t gain_mode_auto) = 0;
 
   virtual void OnExtAudioInStatusChanged(const RawAddress& address, uint8_t ext_input_id,
                                          VolumeInputStatus status) = 0;
@@ -131,8 +134,8 @@ public:
   virtual void GetExtAudioInDescription(const RawAddress& address, uint8_t ext_input_id) = 0;
   virtual void SetExtAudioInDescription(const RawAddress& address, uint8_t ext_input_id,
                                         std::string descr) = 0;
-  virtual void SetExtAudioInGainValue(const RawAddress& address, uint8_t ext_input_id,
-                                      int8_t value) = 0;
+  virtual void SetExtAudioInGainSetting(const RawAddress& address, uint8_t ext_input_id,
+                                        int8_t gain_setting) = 0;
   virtual void SetExtAudioInGainMode(const RawAddress& address, uint8_t ext_input_id,
                                      bool automatic) = 0;
   virtual void SetExtAudioInGainMute(const RawAddress& address, uint8_t ext_input_id,

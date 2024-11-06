@@ -29,7 +29,11 @@
 
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
+#include <stdio.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <mutex>
 #include <optional>
 #include <vector>
@@ -42,16 +46,16 @@
 #include "btif/include/btif_a2dp_source.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_av_co.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
 #include "include/hardware/bt_av.h"
-#include "internal_include/bt_trace.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/include/a2dp_codec_api.h"
 #include "stack/include/a2dp_constants.h"
 #include "stack/include/a2dp_ext.h"
 #include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "types/raw_address.h"
 

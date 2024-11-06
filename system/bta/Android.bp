@@ -655,12 +655,17 @@ cc_test {
         "vc/vc.cc",
         "vc/vc_test.cc",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
         "libbase",
+        "libbinder",
         "libcrypto",
         "liblog",
     ],
     static_libs: [
+        "aics",
         "bluetooth_flags_c_lib_for_test",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
