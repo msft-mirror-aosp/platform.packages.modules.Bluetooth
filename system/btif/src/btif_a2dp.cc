@@ -23,17 +23,18 @@
 
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
-#include <stdbool.h>
+
+#include <cstddef>
+#include <cstdint>
 
 #include "audio_hal_interface/a2dp_encoding.h"
+#include "avdt_api.h"
 #include "bta_av_api.h"
 #include "btif_a2dp_sink.h"
 #include "btif_a2dp_source.h"
 #include "btif_av.h"
 #include "btif_av_co.h"
 #include "btif_hf.h"
-#include "btif_util.h"
-#include "internal_include/bt_trace.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;

@@ -132,23 +132,6 @@ tA2DP_STATUS A2DP_IsVendorSinkCodecSupported(const uint8_t* p_codec_info) {
   return A2DP_NOT_SUPPORTED_CODEC_TYPE;
 }
 
-uint32_t A2DP_VendorCodecGetVendorId(const uint8_t* p_codec_info) {
-  const uint8_t* p = &p_codec_info[A2DP_VENDOR_CODEC_VENDOR_ID_START_IDX];
-
-  uint32_t vendor_id = (p[0] & 0x000000ff) | ((p[1] << 8) & 0x0000ff00) |
-                       ((p[2] << 16) & 0x00ff0000) | ((p[3] << 24) & 0xff000000);
-
-  return vendor_id;
-}
-
-uint16_t A2DP_VendorCodecGetCodecId(const uint8_t* p_codec_info) {
-  const uint8_t* p = &p_codec_info[A2DP_VENDOR_CODEC_CODEC_ID_START_IDX];
-
-  uint16_t codec_id = (p[0] & 0x00ff) | ((p[1] << 8) & 0xff00);
-
-  return codec_id;
-}
-
 bool A2DP_VendorUsesRtpHeader(bool content_protection_enabled, const uint8_t* p_codec_info) {
   uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
   uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);

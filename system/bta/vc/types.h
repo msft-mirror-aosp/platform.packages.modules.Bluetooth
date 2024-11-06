@@ -138,7 +138,7 @@ struct GainSettings {
 struct VolumeAudioInput {
   /* const */ uint8_t id;
   Mute mute = bluetooth::aics::Mute::DISABLED;
-  int8_t gain_value = 0;
+  int8_t gain_setting = 0;
   VolumeInputStatus status = VolumeInputStatus::Inactive;
   VolumeInputType type = VolumeInputType::Unspecified;
   uint8_t change_counter = 0;

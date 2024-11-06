@@ -33,10 +33,13 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
 #include <list>
+#include <string>
 
 #include "btif/include/stack_manager_t.h"
 #include "btif_common.h"
+#include "hardware/bluetooth.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;

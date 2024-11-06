@@ -136,10 +136,11 @@ public:
     topshim::rust::internal::ext_audio_out_description_cb(address, ext_output_id, descr);
   }
 
-  void OnExtAudioInStateChanged(const RawAddress& address, uint8_t ext_input_id, int8_t gain_val,
-                                uint8_t gain_mode_auto, bluetooth::aics::Mute mute) {
-    log::info("address={}, ext_input_id={}, gain_val={}, gain_mode_auto={}, mute={}", address,
-              ext_input_id, gain_val, gain_mode_auto, static_cast<uint8_t>(mute));
+  void OnExtAudioInStateChanged(const RawAddress& address, uint8_t ext_input_id,
+                                int8_t gain_setting, bluetooth::aics::Mute mute,
+                                uint8_t gain_mode_auto) {
+    log::info("address={}, ext_input_id={}, gain_setting={}, gain_mode_auto={}, mute={}", address,
+              ext_input_id, gain_setting, gain_mode_auto, static_cast<uint8_t>(mute));
     log::info("Not implemented");
   }
 
