@@ -5532,7 +5532,7 @@ public final class BluetoothAdapter {
         try {
             mManagerService.setAutoOnEnabled(status);
         } catch (RemoteException e) {
-            e.rethrowFromSystemServer();
+            throw e.rethrowFromSystemServer();
         }
     }
 

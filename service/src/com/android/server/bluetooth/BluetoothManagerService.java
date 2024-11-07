@@ -2402,8 +2402,7 @@ class BluetoothManagerService {
                 snoopMode = BluetoothProperties.snoop_log_mode_values.FULL;
                 break;
             default:
-                Log.e(TAG, "setBtHciSnoopLogMode: Not a valid mode:" + mode);
-                return BluetoothStatusCodes.ERROR_BAD_PARAMETERS;
+                throw new IllegalArgumentException("Invalid HCI snoop log mode param value");
         }
         try {
             BluetoothProperties.snoop_log_mode(snoopMode);
