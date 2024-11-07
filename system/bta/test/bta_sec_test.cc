@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <base/strings/stringprintf.h>
+#include <fmt/format.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <sys/socket.h>
