@@ -29,6 +29,7 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElseGet;
 
 import android.annotation.RequiresPermission;
 import android.bluetooth.BluetoothDevice;
@@ -114,7 +115,7 @@ public class VolumeControlService extends ProfileService {
     @VisibleForTesting ServiceFactory mFactory = new ServiceFactory();
 
     public VolumeControlService(AdapterService adapterService) {
-        this(adapterService, null, VolumeControlNativeInterface.getInstance());
+        this(adapterService, null, null);
     }
 
     @VisibleForTesting
@@ -125,7 +126,12 @@ public class VolumeControlService extends ProfileService {
         super(requireNonNull(adapterService));
         mAdapterService = adapterService;
         mDatabaseManager = requireNonNull(mAdapterService.getDatabase());
-        mNativeInterface = requireNonNull(nativeInterface);
+        mNativeInterface =
+                requireNonNullElseGet(
+                        nativeInterface,
+                        () ->
+                                new VolumeControlNativeInterface(
+                                        new VolumeControlNativeCallback(adapterService, this)));
         mAudioManager = requireNonNull(getSystemService(AudioManager.class));
         if (looper == null) {
             mHandler = new Handler(requireNonNull(Looper.getMainLooper()));
@@ -1024,13 +1030,13 @@ public class VolumeControlService extends ProfileService {
         }
     }
 
-    void handleDeviceExtInputStateChanged(
-            BluetoothDevice device, int id, int gainValue, int gainMode, int mute) {
+    void onExtAudioInStateChanged(
+            BluetoothDevice device, int id, int gainSetting, int mute, int gainMode) {
         String logInfo =
-                "handleDeviceExtInputStateChanged("
+                "onExtAudioInStateChanged("
                         + ("device:" + device)
                         + (", id" + id)
-                        + (" gainValue: " + gainValue)
+                        + (" gainSetting: " + gainSetting)
                         + (" gainMode: " + gainMode)
                         + (" mute: " + mute)
                         + ")";
@@ -1042,12 +1048,12 @@ public class VolumeControlService extends ProfileService {
         }
 
         Log.d(TAG, logInfo);
-        input.setState(id, gainValue, gainMode, mute);
+        input.setState(id, gainSetting, mute, gainMode);
     }
 
-    void handleDeviceExtInputStatusChanged(BluetoothDevice device, int id, int status) {
+    void onExtAudioInStatusChanged(BluetoothDevice device, int id, int status) {
         String logInfo =
-                "handleDeviceExtInputStatusChanged("
+                "onExtAudioInStatusChanged("
                         + ("device:" + device)
                         + (", id" + id)
                         + (", status" + status)
@@ -1068,9 +1074,9 @@ public class VolumeControlService extends ProfileService {
         input.setStatus(id, status);
     }
 
-    void handleDeviceExtInputTypeChanged(BluetoothDevice device, int id, int type) {
+    void onExtAudioInTypeChanged(BluetoothDevice device, int id, int type) {
         String logInfo =
-                "handleDeviceExtInputTypeChanged("
+                "onExtAudioInTypeChanged("
                         + ("device:" + device)
                         + (", id" + id)
                         + (", type" + type)
@@ -1091,10 +1097,9 @@ public class VolumeControlService extends ProfileService {
         input.setType(id, type);
     }
 
-    void handleDeviceExtInputDescriptionChanged(
-            BluetoothDevice device, int id, String description) {
+    void onExtAudioInDescriptionChanged(BluetoothDevice device, int id, String description) {
         String logInfo =
-                "handleDeviceExtInputDescriptionChanged("
+                "onExtAudioInDescriptionChanged("
                         + ("device:" + device)
                         + (", id" + id)
                         + (", description" + description)
@@ -1115,10 +1120,9 @@ public class VolumeControlService extends ProfileService {
         input.setDescription(id, description);
     }
 
-    void handleDeviceExtInputGainPropsChanged(
-            BluetoothDevice device, int id, int unit, int min, int max) {
+    void onExtAudioInGainPropsChanged(BluetoothDevice device, int id, int unit, int min, int max) {
         String logInfo =
-                "handleDeviceExtInputGainPropsChanged("
+                "onExtAudioInGainPropsChanged("
                         + ("device:" + device)
                         + (", id" + id)
                         + (" unit: " + unit + " min" + min + " max:" + max)
@@ -1135,6 +1139,10 @@ public class VolumeControlService extends ProfileService {
     }
 
     void messageFromNative(VolumeControlStackEvent stackEvent) {
+        if (!isAvailable()) {
+            Log.e(TAG, "Event ignored, service not available: " + stackEvent);
+            return;
+        }
         Log.d(TAG, "messageFromNative: " + stackEvent);
 
         if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_VOLUME_STATE_CHANGED) {
@@ -1171,42 +1179,6 @@ public class VolumeControlService extends ProfileService {
                 == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED) {
             handleDeviceExtAudioDescriptionChanged(
                     device, stackEvent.valueInt1, stackEvent.valueString1);
-            return;
-        }
-
-        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED) {
-            handleDeviceExtInputStateChanged(
-                    device,
-                    stackEvent.valueInt1,
-                    stackEvent.valueInt2,
-                    stackEvent.valueInt3,
-                    stackEvent.valueInt4);
-            return;
-        }
-
-        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_STATUS_CHANGED) {
-            handleDeviceExtInputStatusChanged(device, stackEvent.valueInt1, stackEvent.valueInt2);
-            return;
-        }
-
-        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_TYPE_CHANGED) {
-            handleDeviceExtInputTypeChanged(device, stackEvent.valueInt1, stackEvent.valueInt2);
-            return;
-        }
-
-        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_DESCR_CHANGED) {
-            handleDeviceExtInputDescriptionChanged(
-                    device, stackEvent.valueInt1, stackEvent.valueString1);
-            return;
-        }
-
-        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_GAIN_PROPS_CHANGED) {
-            handleDeviceExtInputGainPropsChanged(
-                    device,
-                    stackEvent.valueInt1,
-                    stackEvent.valueInt2,
-                    stackEvent.valueInt3,
-                    stackEvent.valueInt4);
             return;
         }
 

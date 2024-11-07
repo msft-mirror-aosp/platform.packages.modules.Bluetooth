@@ -19,6 +19,7 @@ package android.bluetooth;
 import android.app.PendingIntent;
 import android.bluetooth.IBluetoothActivityEnergyInfoListener;
 import android.bluetooth.IBluetoothGatt;
+import android.bluetooth.IBluetoothHciVendorSpecificCallback;
 import android.bluetooth.IBluetoothPreferredAudioProfilesCallback;
 import android.bluetooth.IBluetoothQualityReportReadyCallback;
 import android.bluetooth.IBluetoothCallback;
@@ -292,6 +293,13 @@ interface IBluetooth
     int registerBluetoothQualityReportReadyCallback(in IBluetoothQualityReportReadyCallback callback, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
     int unregisterBluetoothQualityReportReadyCallback(in IBluetoothQualityReportReadyCallback callback, in AttributionSource attributionSource);
+
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
+    void registerHciVendorSpecificCallback(in IBluetoothHciVendorSpecificCallback callback, in int[] eventCodes);
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
+    void unregisterHciVendorSpecificCallback(in IBluetoothHciVendorSpecificCallback callback);
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
+    void sendHciVendorSpecificCommand(in int ocf, in byte[] parameters, in IBluetoothHciVendorSpecificCallback callback);
 
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_SCAN,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
     int getOffloadedTransportDiscoveryDataScanSupported(in AttributionSource attributionSource);

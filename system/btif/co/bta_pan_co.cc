@@ -26,18 +26,15 @@
  ******************************************************************************/
 #include "bta_pan_co.h"
 
-#include <hardware/bluetooth.h>
-#include <hardware/bt_pan.h>
-#include <string.h>
+#include <bluetooth/log.h>
 
-#include "bta_api.h"
-#include "bta_pan_api.h"
+#include <cstdint>
+#include <cstring>
+
+#include "bta/include/bta_pan_api.h"
 #include "bta_pan_ci.h"
 #include "btif_pan_internal.h"
-#include "btif_sock_thread.h"
-#include "btif_util.h"
 #include "osi/include/allocator.h"
-#include "pan_api.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
 

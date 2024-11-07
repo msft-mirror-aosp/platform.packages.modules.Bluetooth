@@ -174,7 +174,7 @@ public class TransitionalScanHelperTest {
         mScanHelper.continuePiStartScan(scannerId, mApp);
 
         verify(appScanStats)
-                .recordScanStart(mPiInfo.settings, mPiInfo.filters, false, false, scannerId);
+                .recordScanStart(mPiInfo.settings, mPiInfo.filters, false, false, scannerId, null);
         verify(mScanManager).startScan(any());
     }
 
@@ -192,7 +192,7 @@ public class TransitionalScanHelperTest {
         mScanHelper.continuePiStartScan(scannerId, mApp);
 
         verify(appScanStats)
-                .recordScanStart(mPiInfo.settings, mPiInfo.filters, false, false, scannerId);
+                .recordScanStart(mPiInfo.settings, mPiInfo.filters, false, false, scannerId, null);
         verify(mScanManager)
                 .startScan(
                         argThat(
