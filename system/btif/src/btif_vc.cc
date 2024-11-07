@@ -21,8 +21,14 @@
 #include <base/functional/bind.h>
 #include <base/location.h>
 #include <bluetooth/log.h>
-#include <hardware/bluetooth.h>
 #include <hardware/bt_vc.h>
+
+#include <atomic>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <utility>
+#include <variant>
 
 #include "bta/include/bta_vc_api.h"
 #include "btif/include/btif_common.h"

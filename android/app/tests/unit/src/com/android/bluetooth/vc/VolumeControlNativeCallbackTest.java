@@ -18,16 +18,14 @@ package com.android.bluetooth.vc;
 
 import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED;
 import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_DEVICE_AVAILABLE;
-import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_DESCR_CHANGED;
-import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_GAIN_PROPS_CHANGED;
-import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED;
-import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_STATUS_CHANGED;
-import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_TYPE_CHANGED;
 import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED;
 import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_LOCATION_CHANGED;
 import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_VOL_OFFSET_CHANGED;
 import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_VOLUME_STATE_CHANGED;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothProfile;
@@ -61,6 +59,8 @@ public class VolumeControlNativeCallbackTest {
 
     @Before
     public void setUp() throws Exception {
+        doReturn(true).when(mService).isAvailable();
+
         mNativeCallback = new VolumeControlNativeCallback(mAdapterService, mService);
     }
 
@@ -158,65 +158,51 @@ public class VolumeControlNativeCallbackTest {
 
     @Test
     public void onExtAudioInStateChanged() {
-        int externalInputId = 2;
+        int id = 2;
         int gainSetting = 1;
         int gainMode = 0;
         int mute = 0;
 
-        mNativeCallback.onExtAudioInStateChanged(externalInputId, gainSetting, mute, gainMode, null);
-        verify(mService).messageFromNative(mEvent.capture());
-        VolumeControlStackEvent event = mEvent.getValue();
-
-        expect.that(event.type).isEqualTo(EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED);
+        mNativeCallback.onExtAudioInStateChanged(id, gainSetting, mute, gainMode, null);
+        verify(mService)
+                .onExtAudioInStateChanged(any(), eq(id), eq(gainSetting), eq(mute), eq(gainMode));
     }
 
     @Test
     public void onExtAudioInStatusChanged() {
-        int externalInputId = 2;
+        int id = 2;
         int status = 1;
 
-        mNativeCallback.onExtAudioInStatusChanged(externalInputId, status, null);
-        verify(mService).messageFromNative(mEvent.capture());
-        VolumeControlStackEvent event = mEvent.getValue();
-
-        expect.that(event.type).isEqualTo(EVENT_TYPE_EXT_AUDIO_IN_STATUS_CHANGED);
+        mNativeCallback.onExtAudioInStatusChanged(id, status, null);
+        verify(mService).onExtAudioInStatusChanged(any(), eq(id), eq(status));
     }
 
     @Test
     public void onExtAudioInTypeChanged() {
-        int externalInputId = 2;
+        int id = 2;
         int type = 1;
 
-        mNativeCallback.onExtAudioInTypeChanged(externalInputId, type, null);
-        verify(mService).messageFromNative(mEvent.capture());
-        VolumeControlStackEvent event = mEvent.getValue();
-
-        expect.that(event.type).isEqualTo(EVENT_TYPE_EXT_AUDIO_IN_TYPE_CHANGED);
+        mNativeCallback.onExtAudioInTypeChanged(id, type, null);
+        verify(mService).onExtAudioInTypeChanged(any(), eq(id), eq(type));
     }
 
     @Test
     public void onExtAudioInDescriptionChanged() {
-        int externalInputId = 2;
+        int id = 2;
         String descr = "microphone";
 
-        mNativeCallback.onExtAudioInDescriptionChanged(externalInputId, descr, null);
-        verify(mService).messageFromNative(mEvent.capture());
-        VolumeControlStackEvent event = mEvent.getValue();
-
-        expect.that(event.type).isEqualTo(EVENT_TYPE_EXT_AUDIO_IN_DESCR_CHANGED);
+        mNativeCallback.onExtAudioInDescriptionChanged(id, descr, null);
+        verify(mService).onExtAudioInDescriptionChanged(any(), eq(id), eq(descr));
     }
 
     @Test
     public void onExtAudioInGainPropsChanged() {
-        int externalInputId = 2;
+        int id = 2;
         int unit = 1;
         int min = 0;
         int max = 100;
 
-        mNativeCallback.onExtAudioInGainPropsChanged(externalInputId, unit, min, max, null);
-        verify(mService).messageFromNative(mEvent.capture());
-        VolumeControlStackEvent event = mEvent.getValue();
-
-        expect.that(event.type).isEqualTo(EVENT_TYPE_EXT_AUDIO_IN_GAIN_PROPS_CHANGED);
+        mNativeCallback.onExtAudioInGainPropsChanged(id, unit, min, max, null);
+        verify(mService).onExtAudioInGainPropsChanged(any(), eq(id), eq(unit), eq(min), eq(max));
     }
 }

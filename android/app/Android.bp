@@ -308,6 +308,7 @@ android_app {
             "ExtraText",
             "ExtraTranslation",
             "GestureBackNavigation",
+            "GetterSetterNullability",
             "GuardedLogInvocation",
             "HandlerLeak",
             "InflateParams",
