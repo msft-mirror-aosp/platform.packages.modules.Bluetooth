@@ -6218,6 +6218,93 @@ TEST_F(UnicastTest, SpeakerStreamingNonDefault) {
   LocalAudioSourceResume();
 }
 
+TEST_F(UnicastTest, TestUnidirectionalGameAndLiveRecording) {
+  com::android::bluetooth::flags::provider_->le_audio_support_unidirectional_voice_assistant(true);
+  const RawAddress test_address0 = GetTestAddress(0);
+  int group_id = bluetooth::groups::kGroupUnknown;
+
+  /**
+   * Scenario test steps
+   * 1. Configure group to support GAME only on SINK
+   * 2. Configure group to support LIVE
+   * 3. Start recording with LIVE
+   * 4. Update context type with GAME
+   * 5. Verify that Configuration did not changed.
+   */
+
+  available_snk_context_types_ =
+          (types::LeAudioContextType::GAME | types::LeAudioContextType::MEDIA |
+           types::LeAudioContextType::UNSPECIFIED | types::LeAudioContextType::LIVE)
+                  .value();
+  supported_snk_context_types_ = available_snk_context_types_;
+
+  available_src_context_types_ =
+          (types::LeAudioContextType::LIVE | types::LeAudioContextType::UNSPECIFIED).value();
+  supported_src_context_types_ = available_src_context_types_;
+
+  default_channel_cnt = 1;
+
+  SetSampleDatabaseEarbudsValid(
+          1, test_address0, codec_spec_conf::kLeAudioLocationStereo,
+          codec_spec_conf::kLeAudioLocationStereo, default_channel_cnt, default_channel_cnt, 0x0004,
+          /* source sample freq 16khz */ false /*add_csis*/, true /*add_cas*/, true /*add_pacs*/,
+          default_ase_cnt /*add_ascs_cnt*/, 1 /*set_size*/, 0 /*rank*/);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnConnectionState(ConnectionState::CONNECTED, test_address0))
+          .Times(1);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnGroupNodeStatus(test_address0, _, GroupNodeStatus::ADDED))
+          .WillOnce(DoAll(SaveArg<1>(&group_id)));
+
+  types::BidirectionalPair<types::AudioContexts> metadata_contexts = {
+          .sink = types::AudioContexts(types::LeAudioContextType::LIVE),
+          .source = types::AudioContexts(types::LeAudioContextType::LIVE)};
+  EXPECT_CALL(mock_state_machine_,
+              StartStream(_, types::LeAudioContextType::LIVE, metadata_contexts, _))
+          .Times(1);
+
+  log::info("Connecting LeAudio to {}", test_address0);
+  ConnectLeAudio(test_address0);
+  ASSERT_NE(group_id, bluetooth::groups::kGroupUnknown);
+
+  // Audio sessions are started only when device gets active
+  EXPECT_CALL(*mock_le_audio_source_hal_client_, Start(_, _, _)).Times(1);
+  EXPECT_CALL(*mock_le_audio_sink_hal_client_, Start(_, _, _)).Times(1);
+
+  EXPECT_CALL(*mock_codec_manager_,
+              UpdateActiveUnicastAudioHalClient(mock_le_audio_source_hal_client_,
+                                                mock_le_audio_sink_hal_client_, true))
+          .Times(1);
+
+  LeAudioClient::Get()->GroupSetActive(group_id);
+  SyncOnMainLoop();
+
+  UpdateLocalSinkMetadata(AUDIO_SOURCE_MIC);
+  LocalAudioSinkResume();
+  SyncOnMainLoop();
+
+  Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
+  Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
+  Mock::VerifyAndClearExpectations(mock_le_audio_sink_hal_client_);
+  Mock::VerifyAndClearExpectations(mock_codec_manager_);
+  Mock::VerifyAndClearExpectations(&mock_state_machine_);
+  SyncOnMainLoop();
+
+  // We do expect only unidirectional CIS
+  uint8_t cis_count_out = 0;
+  uint8_t cis_count_in = 1;
+
+  // Verify Data transfer on one local audio source cis
+  TestAudioDataTransfer(group_id, cis_count_out, cis_count_in, 0, 40);
+  SyncOnMainLoop();
+
+  EXPECT_CALL(mock_state_machine_, StopStream(_)).Times(0);
+  UpdateLocalSourceMetadata(AUDIO_USAGE_GAME, AUDIO_CONTENT_TYPE_UNKNOWN);
+  LocalAudioSourceResume();
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_state_machine_);
+}
+
 TEST_F(UnicastTest, TestUnidirectionalVoiceAssistant_Sink) {
   com::android::bluetooth::flags::provider_->le_audio_support_unidirectional_voice_assistant(true);
   const RawAddress test_address0 = GetTestAddress(0);
@@ -6254,7 +6341,7 @@ TEST_F(UnicastTest, TestUnidirectionalVoiceAssistant_Sink) {
 
   types::BidirectionalPair<types::AudioContexts> metadata_contexts = {
           .sink = types::AudioContexts(types::LeAudioContextType::VOICEASSISTANTS),
-          .source = types::AudioContexts(types::LeAudioContextType::UNSPECIFIED)};
+          .source = types::AudioContexts()};
   EXPECT_CALL(mock_state_machine_,
               StartStream(_, types::LeAudioContextType::VOICEASSISTANTS, metadata_contexts, _))
           .Times(1);
@@ -6328,7 +6415,7 @@ TEST_F(UnicastTest, TestUnidirectionalVoiceAssistant_Source) {
           .WillOnce(DoAll(SaveArg<1>(&group_id)));
 
   types::BidirectionalPair<types::AudioContexts> metadata_contexts = {
-          .sink = types::AudioContexts(types::LeAudioContextType::UNSPECIFIED),
+          .sink = types::AudioContexts(),
           .source = types::AudioContexts(types::LeAudioContextType::VOICEASSISTANTS)};
   EXPECT_CALL(mock_state_machine_,
               StartStream(_, types::LeAudioContextType::VOICEASSISTANTS, metadata_contexts, _))
@@ -9971,8 +10058,8 @@ TEST_F(UnicastTest, SwitchBetweenMicrophoneAndSoundEffectScenario) {
   LocalAudioSinkSuspend();
   SyncOnMainLoop();
 
-  // VBC and Suspend
-  ASSERT_EQ(1, get_func_call_count("alarm_set_on_mloop"));
+  log::info("Expect VBC and Suspend timeouts to be started");
+  ASSERT_EQ(2, get_func_call_count("alarm_set_on_mloop"));
   ASSERT_EQ(0, get_func_call_count("alarm_cancel"));
 
   log::info("Resume local source with touch tone - expect suspend timeout to be canceled");
@@ -9981,7 +10068,8 @@ TEST_F(UnicastTest, SwitchBetweenMicrophoneAndSoundEffectScenario) {
   LocalAudioSourceResume();
   SyncOnMainLoop();
 
-  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
+  log::info("Expect VBC and Suspend timeouts to be started");
+  ASSERT_EQ(2, get_func_call_count("alarm_set_on_mloop"));
 
   auto group = streaming_groups.at(group_id);
   group->PrintDebugState();
@@ -10060,7 +10148,7 @@ TEST_F(UnicastTest, UpdateNotSupportedContextTypeUnspecifiedAvailable) {
   EXPECT_CALL(mock_state_machine_, StopStream(_)).Times(0);
   types::BidirectionalPair<types::AudioContexts> contexts = {
           .sink = types::AudioContexts(types::LeAudioContextType::UNSPECIFIED),
-          .source = types::AudioContexts(types::LeAudioContextType::UNSPECIFIED)};
+          .source = types::AudioContexts()};
   EXPECT_CALL(mock_state_machine_, StartStream(_, types::LeAudioContextType::GAME, contexts, _))
           .Times(1);
   UpdateLocalSourceMetadata(AUDIO_USAGE_GAME, AUDIO_CONTENT_TYPE_UNKNOWN, false);
@@ -10128,7 +10216,7 @@ TEST_F(UnicastTest, UpdateNotSupportedContextTypeUnspecifiedAvailable_SpeedUpRec
   EXPECT_CALL(mock_state_machine_, StopStream(_)).Times(0);
   types::BidirectionalPair<types::AudioContexts> contexts = {
           .sink = types::AudioContexts(types::LeAudioContextType::UNSPECIFIED),
-          .source = types::AudioContexts(types::LeAudioContextType::UNSPECIFIED)};
+          .source = types::AudioContexts()};
   EXPECT_CALL(mock_state_machine_, StartStream(_, types::LeAudioContextType::GAME, contexts, _))
           .Times(1);
   UpdateLocalSourceMetadata(AUDIO_USAGE_GAME, AUDIO_CONTENT_TYPE_UNKNOWN, false);
@@ -10520,6 +10608,8 @@ TEST_F(UnicastTest, MusicDuringCallContextTypes) {
           available_snk_context_types_ |
           types::AudioContexts(types::LeAudioContextType::UNSPECIFIED).value();
   available_src_context_types_ = available_snk_context_types_;
+  available_src_context_types_ &=
+          ~((types::LeAudioContextType::NOTIFICATIONS | types::LeAudioContextType::MEDIA).value());
   supported_src_context_types_ =
           available_src_context_types_ |
           types::AudioContexts(types::LeAudioContextType::UNSPECIFIED).value();
@@ -10558,7 +10648,6 @@ TEST_F(UnicastTest, MusicDuringCallContextTypes) {
                           contexts, _))
           .Times(1);
   StartStreaming(AUDIO_USAGE_NOTIFICATION_TELEPHONY_RINGTONE, AUDIO_CONTENT_TYPE_UNKNOWN, group_id);
-  LocalAudioSourceResume();
   LocalAudioSinkResume();
 
   // Verify

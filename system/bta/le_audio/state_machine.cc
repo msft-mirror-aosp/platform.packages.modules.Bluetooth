@@ -156,8 +156,8 @@ public:
      */
     if (group->GetState() != AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING ||
         group->GetTargetState() != AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING) {
-      log::error("group {} no in correct streaming state: {} or target state: {}", group->group_id_,
-                 ToString(group->GetState()), ToString(group->GetTargetState()));
+      log::error("Group {} is not streaming or is in transition, state: {}, target state: {}",
+                 group->group_id_, ToString(group->GetState()), ToString(group->GetTargetState()));
       return false;
     }
 
