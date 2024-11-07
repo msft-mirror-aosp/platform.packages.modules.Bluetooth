@@ -221,7 +221,7 @@ public:
 
   void PrintDebugState(void);
   void DumpPacsDebugState(std::stringstream& stream);
-  void Dump(int fd);
+  void Dump(std::stringstream& stream);
 
   void DisconnectAcl(void);
   std::vector<uint8_t> GetMetadata(types::AudioContexts context_type,
@@ -271,7 +271,7 @@ public:
                                        tBTM_BLE_CONN_TYPE reconnection_mode,
                                        bool current_dev_autoconnect_flag);
   size_t Size(void) const;
-  void Dump(int fd, int group_id) const;
+  void Dump(std::stringstream& stream, int group_id) const;
   void Cleanup(tGATT_IF client_if);
 
 private:

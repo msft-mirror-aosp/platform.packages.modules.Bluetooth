@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The Android Open Source Project
+ * Copyright 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 
-/*
- * Generated mock file from original source file
- *   Functions generated:7
- */
+#ifndef BTIF_HCI_VS_H_
+#define BTIF_HCI_VS_H_
 
-#include "stack/include/bt_hdr.h"
-#include "test/common/mock_functions.h"
+#include <bluetooth/log.h>
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#include "include/hardware/bt_hci_vs.h"
 
-void btu_hci_msg_process(BT_HDR* /* p_msg */) { inc_func_call_count(__func__); }
+namespace bluetooth {
+namespace hci_vs {
+
+BluetoothHciVendorSpecificInterface* getBluetoothHciVendorSpecificInterface();
+
+}  // namespace hci_vs
+}  // namespace bluetooth
+
+#endif  // BTIF_HCI_VS_H_

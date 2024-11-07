@@ -3459,6 +3459,9 @@ TEST_F(StateMachineTest, testReleaseSingle) {
   EXPECT_CALL(*mock_iso_manager_, DisconnectCis(_, _)).Times(1);
   EXPECT_CALL(*mock_iso_manager_, RemoveCig(_, _)).Times(1);
 
+  EXPECT_CALL(*mock_codec_manager_, UpdateCisConfiguration(_, _, _)).Times(0);
+  EXPECT_CALL(*mock_codec_manager_, ClearCisConfiguration(_)).Times(0);
+
   InjectInitialIdleNotification(group);
 
   // Start the configuration and stream Media content
@@ -3469,6 +3472,9 @@ TEST_F(StateMachineTest, testReleaseSingle) {
   // Check if group has transitioned to a proper state
   ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
   ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
+
+  testing::Mock::VerifyAndClearExpectations(mock_codec_manager_);
+
   reset_mock_function_count_map();
   // Validate GroupStreamStatus
   EXPECT_CALL(mock_callbacks_,
@@ -3477,11 +3483,24 @@ TEST_F(StateMachineTest, testReleaseSingle) {
               StatusReportCb(leaudio_group_id, bluetooth::le_audio::GroupStreamStatus::IDLE));
 
   // Stop the stream
+  EXPECT_CALL(*mock_codec_manager_, UpdateCisConfiguration(_, _, _)).Times(0);
+
+  /* ClearCisConfiguration is called for each direction unconditionaly when stream goes to idle.
+   * In addition, it is called when handling CIS disconnection and here we want Sink to be called.
+   */
+  EXPECT_CALL(*mock_codec_manager_,
+              ClearCisConfiguration(bluetooth::le_audio::types::kLeAudioDirectionSink))
+          .Times(2);
+  EXPECT_CALL(*mock_codec_manager_,
+              ClearCisConfiguration(bluetooth::le_audio::types::kLeAudioDirectionSource))
+          .Times(1);
+
   LeAudioGroupStateMachine::Get()->StopStream(group);
 
   // Check if group has transitioned to a proper state
   ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
   ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
+  testing::Mock::VerifyAndClearExpectations(mock_codec_manager_);
 }
 
 TEST_F(StateMachineTest, testReleaseCachingSingle) {
@@ -3813,6 +3832,87 @@ static void InjectCisDisconnected(LeAudioDeviceGroup* group, LeAudioDevice* leAu
       }
     }
   }
+}
+
+TEST_F(StateMachineTest, testStartAndStopStreamConversational_VerifyCodecManagerCallsOnCisRemoval) {
+  const auto context_type = kContextTypeConversational;
+  const auto leaudio_group_id = 6;
+  const auto num_devices = 2;
+
+  // Prepare multiple fake connected devices in a group
+  auto* group = PrepareSingleTestDeviceGroup(leaudio_group_id, context_type, num_devices);
+  ASSERT_EQ(group->Size(), num_devices);
+
+  PrepareConfigureCodecHandler(group);
+  PrepareConfigureQosHandler(group);
+  PrepareEnableHandler(group);
+  PrepareReceiverStartReadyHandler(group);
+  PrepareDisableHandler(group);
+  PrepareReleaseHandler(group);
+
+  auto* leAudioDevice = group->GetFirstDevice();
+
+  EXPECT_CALL(*mock_iso_manager_, CreateCig(_, _)).Times(1);
+  EXPECT_CALL(*mock_iso_manager_, EstablishCis(_)).Times(1);
+  EXPECT_CALL(*mock_iso_manager_, SetupIsoDataPath(_, _)).Times(4);
+  EXPECT_CALL(*mock_iso_manager_, RemoveIsoDataPath(_, _)).Times(2);
+  EXPECT_CALL(*mock_iso_manager_, DisconnectCis(_, _)).Times(1);
+  EXPECT_CALL(*mock_iso_manager_, RemoveCig(_, _)).Times(1);
+
+  InjectInitialIdleNotification(group);
+
+  EXPECT_CALL(mock_callbacks_,
+              StatusReportCb(leaudio_group_id, bluetooth::le_audio::GroupStreamStatus::STREAMING))
+          .Times(1);
+
+  // Start the configuration and stream Media content
+  LeAudioGroupStateMachine::Get()->StartStream(group, context_type,
+                                               {.sink = types::AudioContexts(context_type),
+                                                .source = types::AudioContexts(context_type)});
+
+  // Check if group has transitioned to a proper state
+  ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
+
+  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
+  reset_mock_function_count_map();
+
+  // Validate GroupStreamStatus
+  EXPECT_CALL(mock_callbacks_,
+              StatusReportCb(leaudio_group_id, bluetooth::le_audio::GroupStreamStatus::RELEASING));
+  EXPECT_CALL(mock_callbacks_,
+              StatusReportCb(leaudio_group_id, bluetooth::le_audio::GroupStreamStatus::IDLE));
+
+  // This is called when 1 CIS got disconnected.
+  EXPECT_CALL(mock_callbacks_,
+              StatusReportCb(leaudio_group_id, bluetooth::le_audio::GroupStreamStatus::STREAMING))
+          .Times(1);
+
+  EXPECT_CALL(*mock_codec_manager_,
+              UpdateCisConfiguration(_, _, bluetooth::le_audio::types::kLeAudioDirectionSink))
+          .Times(1);
+  EXPECT_CALL(*mock_codec_manager_,
+              UpdateCisConfiguration(_, _, bluetooth::le_audio::types::kLeAudioDirectionSource))
+          .Times(1);
+  EXPECT_CALL(*mock_codec_manager_, ClearCisConfiguration(_)).Times(0);
+
+  InjectCisDisconnected(group, leAudioDevice, HCI_ERR_PEER_USER);
+  testing::Mock::VerifyAndClearExpectations(mock_codec_manager_);
+
+  // Stop the stream
+  EXPECT_CALL(*mock_codec_manager_, UpdateCisConfiguration(_, _, _)).Times(0);
+  EXPECT_CALL(*mock_codec_manager_,
+              ClearCisConfiguration(bluetooth::le_audio::types::kLeAudioDirectionSink))
+          .Times(2);
+  EXPECT_CALL(*mock_codec_manager_,
+              ClearCisConfiguration(bluetooth::le_audio::types::kLeAudioDirectionSource))
+          .Times(2);
+
+  LeAudioGroupStateMachine::Get()->StopStream(group);
+
+  // Check if group has transitioned to a proper state
+  ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
+  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
+  testing::Mock::VerifyAndClearExpectations(mock_codec_manager_);
 }
 
 TEST_F(StateMachineTest, testReleaseMultiple_CisDisconnectedBeforeGettingToIdleState) {
@@ -4189,6 +4289,10 @@ TEST_F(StateMachineTest, testReleaseBidirectional) {
   EXPECT_CALL(*mock_iso_manager_, DisconnectCis(_, _)).Times(2);
   EXPECT_CALL(*mock_iso_manager_, RemoveCig(_, _)).Times(1);
 
+  // 1 for Sink and 1 for Source
+  EXPECT_CALL(*mock_codec_manager_, UpdateCisConfiguration(_, _, _)).Times(0);
+  EXPECT_CALL(*mock_codec_manager_, ClearCisConfiguration(_)).Times(0);
+
   InjectInitialIdleNotification(group);
 
   // Start the configuration and stream Media content
@@ -4201,14 +4305,32 @@ TEST_F(StateMachineTest, testReleaseBidirectional) {
 
   ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
   reset_mock_function_count_map();
+  testing::Mock::VerifyAndClearExpectations(mock_codec_manager_);
+
+  group->PrintDebugState();
 
   // Stop the stream
+  // This will be called once after first CIS is disconnected
+  EXPECT_CALL(*mock_codec_manager_, UpdateCisConfiguration(_, _, _)).Times(1);
+
+  /* ClearCisConfiguration is called for each direction unconditionaly when stream goes to idle.
+   * In addition, it is called when handling CIS disconnection and here we want Sink and Source to
+   * be called.
+   */
+  EXPECT_CALL(*mock_codec_manager_,
+              ClearCisConfiguration(bluetooth::le_audio::types::kLeAudioDirectionSink))
+          .Times(2);
+  EXPECT_CALL(*mock_codec_manager_,
+              ClearCisConfiguration(bluetooth::le_audio::types::kLeAudioDirectionSource))
+          .Times(2);
+
   LeAudioGroupStateMachine::Get()->StopStream(group);
 
   // Check if group has transitioned to a proper state
   ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
   ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
   reset_mock_function_count_map();
+  testing::Mock::VerifyAndClearExpectations(mock_codec_manager_);
 }
 
 TEST_F(StateMachineTest, testDisableAndReleaseBidirectional) {
