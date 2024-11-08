@@ -569,6 +569,10 @@ static void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
       bluetooth::os::LogMetricBluetoothEvent(ToGdAddress(bd_addr),
                                              android::bluetooth::EventType::BOND,
                                              android::bluetooth::State::STATE_NONE);
+    } else if (state == BT_BOND_STATE_BONDED) {
+      bluetooth::os::LogMetricBluetoothEvent(ToGdAddress(bd_addr),
+                                             android::bluetooth::EventType::BOND,
+                                             android::bluetooth::State::STATE_BONDED);
     }
   }
 
@@ -808,6 +812,10 @@ static void btif_dm_cb_create_bond(const RawAddress bd_addr, tBT_TRANSPORT trans
 
   /*  Track originator of bond creation  */
   pairing_cb.is_local_initiated = true;
+  bluetooth::os::LogMetricBluetoothEvent(
+          ToGdAddress(bd_addr), android::bluetooth::EventType::TRANSPORT,
+          transport == BT_TRANSPORT_LE ? android::bluetooth::State::LE
+                                       : android::bluetooth::State::CLASSIC);
   BTA_DmBond(bd_addr, addr_type, transport, device_type);
 }
 

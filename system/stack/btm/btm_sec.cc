@@ -2450,7 +2450,7 @@ void btm_io_capabilities_req(RawAddress p) {
       auto p_dev_rec = btm_find_dev(p);
       if (p_dev_rec != NULL) {
         btm_sec_disconnect(p_dev_rec->hci_handle, HCI_ERR_AUTH_FAILURE,
-                           "btm_io_capabilities_req Security failure");
+                           "btm_io_capabilities_req for bonded device");
       }
       return;
     }
@@ -2623,10 +2623,22 @@ void btm_io_capabilities_req(RawAddress p) {
  *
  ******************************************************************************/
 void btm_io_capabilities_rsp(const tBTM_SP_IO_RSP evt_data) {
-  tBTM_SEC_DEV_REC* p_dev_rec;
-
   /* Allocate a new device record or reuse the oldest one */
-  p_dev_rec = btm_find_or_alloc_dev(evt_data.bd_addr);
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_or_alloc_dev(evt_data.bd_addr);
+
+  /* If device is bonded, and encrypted it's upgrading security and it's ok.
+   * If it's bonded and not encrypted, it's remote missing keys scenario */
+  if (btm_sec_is_a_bonded_dev(evt_data.bd_addr) && !p_dev_rec->sec_rec.is_device_encrypted() &&
+      com::android::bluetooth::flags::key_missing_classic_device()) {
+    log::warn("Incoming bond request, but {} is already bonded (notifying user)", evt_data.bd_addr);
+    bta_dm_remote_key_missing(evt_data.bd_addr);
+
+    if (p_dev_rec != NULL) {
+      btm_sec_disconnect(p_dev_rec->hci_handle, HCI_ERR_AUTH_FAILURE,
+                         "btm_io_capabilities_rsp for bonded device");
+    }
+    return;
+  }
 
   /* If no security is in progress, this indicates incoming security */
   if (btm_sec_cb.pairing_state == BTM_PAIR_STATE_IDLE) {
@@ -3017,6 +3029,16 @@ void btm_sec_auth_complete(uint16_t handle, tHCI_STATUS status) {
             tBTM_SEC_CB::btm_pair_state_descr(btm_sec_cb.pairing_state), handle, status,
             p_dev_rec->sec_rec.classic_link, p_dev_rec->bd_addr,
             reinterpret_cast<char const*>(p_dev_rec->sec_bd_name));
+
+    if (status == HCI_ERR_KEY_MISSING &&
+        com::android::bluetooth::flags::key_missing_classic_device()) {
+      log::warn("auth_complete KEY_MISSING {} is already bonded (notifying user)",
+                p_dev_rec->bd_addr);
+      bta_dm_remote_key_missing(p_dev_rec->bd_addr);
+      btm_sec_disconnect(handle, HCI_ERR_AUTH_FAILURE, "auth_cmpl KEY_MISSING for bonded device");
+      return;
+    }
+
   } else {
     log::verbose("Security Manager: in state: {}, handle: {}, status: {}",
                  tBTM_SEC_CB::btm_pair_state_descr(btm_sec_cb.pairing_state), handle, status);

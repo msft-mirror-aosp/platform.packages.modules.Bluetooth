@@ -645,6 +645,20 @@ public class ActiveDeviceManagerTest {
     }
 
     @Test
+    public void a2dpDeactivated_makeSureToNotRemoveLeAudioDevice() {
+        a2dpActiveDeviceChanged(null);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService, never()).removeActiveDevice(anyBoolean());
+    }
+
+    @Test
+    public void hfpDeactivated_makeSureToNotRemoveLeAudioDevice() {
+        headsetActiveDeviceChanged(null);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService, never()).removeActiveDevice(anyBoolean());
+    }
+
+    @Test
     public void a2dpActivated_whileActivatingA2dpHeadset() {
         a2dpConnected(mA2dpDevice, false);
         a2dpConnected(mA2dpHeadsetDevice, true);
@@ -1477,9 +1491,8 @@ public class ActiveDeviceManagerTest {
         headsetActiveDeviceChanged(mDualModeAudioDevice);
         mTestLooper.dispatchAll();
 
-        // When A2DP device is getting active, first LeAudio device is removed from active devices
-        // and later added
-        verify(mLeAudioService).removeActiveDevice(anyBoolean());
+        // When Hfp device is getting active and it is dual mode device LeAudioDevice will be added.
+        verify(mLeAudioService, never()).removeActiveDevice(anyBoolean());
         verify(mLeAudioService).setActiveDevice(mDualModeAudioDevice);
 
         Assert.assertEquals(mDualModeAudioDevice, mActiveDeviceManager.getA2dpActiveDevice());
