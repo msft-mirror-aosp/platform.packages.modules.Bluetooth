@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,19 @@
  * limitations under the License.
  */
 
-#pragma once
+#ifndef BTIF_HCI_VS_H_
+#define BTIF_HCI_VS_H_
 
-#include "hci/hci_packets.h"
+#include <bluetooth/log.h>
+
+#include "include/hardware/bt_hci_vs.h"
 
 namespace bluetooth {
-namespace hci {
-namespace fuzz {
+namespace hci_vs {
 
-bool uses_command_status(hci::OpCode code);
-bool uses_command_status_or_complete(hci::OpCode code);
-}
-}  // namespace hci
+BluetoothHciVendorSpecificInterface* getBluetoothHciVendorSpecificInterface();
+
+}  // namespace hci_vs
 }  // namespace bluetooth
+
+#endif  // BTIF_HCI_VS_H_

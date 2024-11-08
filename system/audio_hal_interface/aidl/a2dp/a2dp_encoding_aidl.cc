@@ -185,7 +185,7 @@ BluetoothAudioStatus A2dpTransport::SuspendRequest() {
 void A2dpTransport::StopRequest() {
   log::info("");
 
-  auto status = bluetooth_audio_port_->SuspendStream();
+  auto status = bluetooth_audio_port_->StopStream();
   a2dp_pending_cmd_ =
           status == BluetoothAudioStatus::PENDING ? A2DP_CTRL_CMD_STOP : A2DP_CTRL_CMD_NONE;
 }

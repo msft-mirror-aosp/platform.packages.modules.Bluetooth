@@ -27,6 +27,7 @@ filegroup {
         "android/bluetooth/IBluetoothGattServerCallback.aidl",
         "android/bluetooth/IBluetoothHapClient.aidl",
         "android/bluetooth/IBluetoothHapClientCallback.aidl",
+        "android/bluetooth/IBluetoothHciVendorSpecificCallback.aidl",
         "android/bluetooth/IBluetoothHeadset.aidl",
         "android/bluetooth/IBluetoothHeadsetClient.aidl",
         "android/bluetooth/IBluetoothHearingAid.aidl",
