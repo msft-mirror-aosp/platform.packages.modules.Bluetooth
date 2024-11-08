@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,17 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package android.bluetooth;
 
-#pragma once
-
-#include "hci/hci_packets.h"
-
-namespace bluetooth {
-namespace hci {
-namespace fuzz {
-
-bool uses_command_status(hci::OpCode code);
-bool uses_command_status_or_complete(hci::OpCode code);
+/**
+ * Callback definitions for HCI Vendor Specific Callback.
+ * @hide
+ */
+oneway interface IBluetoothHciVendorSpecificCallback {
+    void onCommandStatus(int ocf, in int status);
+    void onCommandComplete(int ocf, in byte[] returnParameters);
+    void onEvent(int code, in byte[] data);
 }
-}  // namespace hci
-}  // namespace bluetooth
