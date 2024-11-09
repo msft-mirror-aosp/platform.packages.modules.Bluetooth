@@ -135,9 +135,9 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
   }
 
   void OnExtAudioInDescriptionChanged(const RawAddress& address, uint8_t ext_input_id,
-                                      std::string descr) override {
+                                      std::string description, bool is_writable) override {
     do_in_jni_thread(Bind(&VolumeControlCallbacks::OnExtAudioInDescriptionChanged,
-                          Unretained(callbacks_), address, ext_input_id, descr));
+                          Unretained(callbacks_), address, ext_input_id, description, is_writable));
   }
 
   void Connect(const RawAddress& address) override {
@@ -346,17 +346,18 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
                            Unretained(VolumeControl::Get()), address, ext_input_id));
   }
 
-  void SetExtAudioInDescription(const RawAddress& address, uint8_t ext_input_id,
+  bool SetExtAudioInDescription(const RawAddress& address, uint8_t ext_input_id,
                                 std::string descr) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
       bluetooth::log::verbose(
               "call ignored, due to already started cleanup procedure or service "
               "being not read");
-      return;
+      return false;
     }
 
     do_in_main_thread(Bind(&VolumeControl::SetExtAudioInDescription,
                            Unretained(VolumeControl::Get()), address, ext_input_id, descr));
+    return true;
   }
 
   void SetExtAudioInGainSetting(const RawAddress& address, uint8_t ext_input_id,

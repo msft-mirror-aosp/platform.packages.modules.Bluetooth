@@ -20,6 +20,7 @@ java_defaults {
     name: "framework-bluetooth-defaults",
     static_libs: [
         "PlatformProperties",
+        "bluetooth_constants_java",
         "bluetooth_flags_java_lib",
         "modules-utils-build",
         "modules-utils-expresslog",

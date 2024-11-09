@@ -610,8 +610,8 @@ public class VolumeControlServiceTest {
                 (int) Math.round((double) (volumeDevice * MEDIA_MAX_VOL) / BT_LE_AUDIO_MAX_VOL);
         verify(mAudioManager).setStreamVolume(anyInt(), eq(expectedAfVol), anyInt());
 
-        // Connect second device and read different volume. Expect it will be set to AF and to
-        // another set member
+        // Connect second device and read different volume. Expect it will NOT be set to AF
+        // and to another set member, but the existing volume gets applied to it
         generateDeviceAvailableMessageFromNative(mDeviceTwo, 1);
         generateConnectionMessageFromNative(mDeviceTwo, STATE_CONNECTED, STATE_DISCONNECTED);
         assertThat(mService.getConnectionState(mDeviceTwo)).isEqualTo(STATE_CONNECTED);
@@ -625,9 +625,12 @@ public class VolumeControlServiceTest {
                 flags,
                 initialMuteState,
                 initialAutonomousFlag);
-        expectedAfVol =
+
+        expectedAfVol = volumeDevice;
+        int unexpectedAfVol =
                 (int) Math.round((double) (volumeDeviceTwo * MEDIA_MAX_VOL) / BT_LE_AUDIO_MAX_VOL);
-        verify(mAudioManager).setStreamVolume(anyInt(), eq(expectedAfVol), anyInt());
+        verify(mAudioManager, times(0)).setStreamVolume(anyInt(), eq(unexpectedAfVol), anyInt());
+        verify(mNativeInterface).setGroupVolume(eq(groupId), eq(expectedAfVol));
     }
 
     private void testConnectedDeviceWithResetFlag(
@@ -1276,6 +1279,7 @@ public class VolumeControlServiceTest {
         stackEvent.valueBool1 = mute;
         stackEvent.valueBool2 = isAutonomous;
         mService.messageFromNative(stackEvent);
+        mLooper.dispatchAll();
     }
 
     private void generateDeviceOffsetChangedMessageFromNative(
@@ -1288,6 +1292,7 @@ public class VolumeControlServiceTest {
         event.valueInt1 = extOffsetIndex; // external output index
         event.valueInt2 = offset; // offset value
         mService.messageFromNative(event);
+        mLooper.dispatchAll();
     }
 
     private void generateDeviceLocationChangedMessageFromNative(
@@ -1300,6 +1305,7 @@ public class VolumeControlServiceTest {
         event.valueInt1 = extOffsetIndex; // external output index
         event.valueInt2 = location; // location
         mService.messageFromNative(event);
+        mLooper.dispatchAll();
     }
 
     private void generateDeviceDescriptionChangedMessageFromNative(
@@ -1312,6 +1318,7 @@ public class VolumeControlServiceTest {
         event.valueInt1 = extOffsetIndex; // external output index
         event.valueString1 = description; // description
         mService.messageFromNative(event);
+        mLooper.dispatchAll();
     }
 
     @SafeVarargs
