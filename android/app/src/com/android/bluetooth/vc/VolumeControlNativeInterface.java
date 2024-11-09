@@ -182,7 +182,7 @@ public class VolumeControlNativeInterface {
     private native boolean setExtAudioOutDescriptionNative(
             byte[] address, int externalOutputId, String descr);
 
-    /* Native methods for external audio inputs */
+    /* Native methods for audio inputs control service */
     private native boolean getExtAudioInStateNative(byte[] address, int externalInputId);
 
     private native boolean getExtAudioInStatusNative(byte[] address, int externalInputId);

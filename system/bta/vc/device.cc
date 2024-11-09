@@ -610,12 +610,12 @@ void VolumeControlDevice::GetExtAudioInDescription(uint8_t ext_input_id, GATT_RE
 void VolumeControlDevice::SetExtAudioInDescription(uint8_t ext_input_id, const std::string& descr) {
   VolumeAudioInput* input = audio_inputs.FindById(ext_input_id);
   if (!input) {
-    log::error("{}, no such input={:#x}", address, ext_input_id);
+    log::error("{} no such input={:#x}", address, ext_input_id);
     return;
   }
 
   if (!input->description_writable) {
-    log::warn("not writable");
+    log::warn("{} input={:#x} input description is not writable", address, ext_input_id);
     return;
   }
 

@@ -169,8 +169,12 @@ class VolumeControlNativeCallback {
     }
 
     @VisibleForTesting
-    void onExtAudioInDescriptionChanged(int id, String descr, byte[] address) {
-        sendMessageToService(s -> s.onExtAudioInDescriptionChanged(getDevice(address), id, descr));
+    void onExtAudioInDescriptionChanged(
+            int id, String description, boolean isWritable, byte[] address) {
+        sendMessageToService(
+                s ->
+                        s.onExtAudioInDescriptionChanged(
+                                getDevice(address), id, description, isWritable));
     }
 
     @VisibleForTesting

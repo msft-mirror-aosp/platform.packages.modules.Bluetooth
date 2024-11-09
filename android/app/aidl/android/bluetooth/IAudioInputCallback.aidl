@@ -1,6 +1,5 @@
 /*
- *
- * Copyright 2023 The Android Open Source Project
+ *  Copyright 2024 The Android Open Source Project
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,26 +12,15 @@
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
- *
  */
 
-#pragma once
+package android.bluetooth;
 
-#include <base/strings/stringprintf.h>
-
-#include <cstdint>
-#include <string>
-
-struct tREMOTE_VERSION_INFO {
-  uint8_t lmp_version{0};
-  uint16_t lmp_subversion{0};
-  uint16_t manufacturer{0};
-  bool valid{false};
-  std::string ToString() const {
-    return (valid) ? base::StringPrintf("%02hhu-%05hu-%05hu", lmp_version, lmp_subversion,
-                                        manufacturer)
-                   : std::string("UNKNOWN");
-  }
-};
-
-using remote_version_info = tREMOTE_VERSION_INFO;
+/**
+ * Callback definitions for interacting with @see AudioInputControl
+ *
+ * @hide
+ */
+oneway interface IAudioInputCallback {
+    void onDescriptionChanged(in String description);
+}

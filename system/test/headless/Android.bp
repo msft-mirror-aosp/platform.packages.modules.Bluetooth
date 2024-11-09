@@ -106,6 +106,7 @@ cc_binary {
         "libbtif",
         "libbtif-core",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libevent",
         "libflags_rust_cpp_bridge",
         "libflatbuffers-cpp",
