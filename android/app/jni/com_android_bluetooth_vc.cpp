@@ -316,7 +316,7 @@ public:
   }
 
   void OnExtAudioInDescriptionChanged(const RawAddress& bd_addr, uint8_t ext_input_id,
-                                      std::string descr) override {
+                                      std::string description, bool is_writable) override {
     log::info("");
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
@@ -334,9 +334,10 @@ public:
 
     sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
                                      reinterpret_cast<const jbyte*>(&bd_addr));
-    jstring description = sCallbackEnv->NewStringUTF(descr.c_str());
+    jstring jdescription = sCallbackEnv->NewStringUTF(description.c_str());
     sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onExtAudioInDescriptionChanged,
-                                 (jint)ext_input_id, description, addr.get());
+                                 (jint)ext_input_id, jdescription, (jboolean)is_writable,
+                                 addr.get());
   }
 };
 
@@ -777,9 +778,9 @@ static jboolean setExtAudioInDescriptionNative(JNIEnv* env, jobject /* object */
   }
 
   RawAddress* tmpraw = reinterpret_cast<RawAddress*>(addr);
-  sVolumeControlInterface->SetExtAudioInDescription(*tmpraw, ext_input_id, description);
+  bool ret = sVolumeControlInterface->SetExtAudioInDescription(*tmpraw, ext_input_id, description);
   env->ReleaseByteArrayElements(address, addr, 0);
-  return JNI_TRUE;
+  return ret ? JNI_TRUE : JNI_FALSE;
 }
 
 static jboolean setExtAudioInGainSettingNative(JNIEnv* env, jobject /* object */,
@@ -911,7 +912,7 @@ int register_com_android_bluetooth_vc(JNIEnv* env) {
           {"onExtAudioInStatusChanged", "(II[B)V", &method_onExtAudioInStatusChanged},
           {"onExtAudioInTypeChanged", "(II[B)V", &method_onExtAudioInTypeChanged},
           {"onExtAudioInGainPropsChanged", "(IIII[B)V", &method_onExtAudioInGainPropsChanged},
-          {"onExtAudioInDescriptionChanged", "(ILjava/lang/String;[B)V",
+          {"onExtAudioInDescriptionChanged", "(ILjava/lang/String;Z[B)V",
            &method_onExtAudioInDescriptionChanged},
   };
   GET_JAVA_METHODS(env, "com/android/bluetooth/vc/VolumeControlNativeCallback", javaMethods);

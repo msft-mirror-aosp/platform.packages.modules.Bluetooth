@@ -118,7 +118,9 @@ public:
                int8_t max),
               (override));
   MOCK_METHOD((void), OnExtAudioInDescriptionChanged,
-              (const RawAddress& address, uint8_t ext_input_id, std::string descr), (override));
+              (const RawAddress& address, uint8_t ext_input_id, std::string description,
+               bool is_writable),
+              (override));
 };
 
 class VolumeControlTest : public ::testing::Test {
@@ -572,7 +574,7 @@ protected:
   }
 
   void TestRemove(const RawAddress& address, uint16_t conn_id) {
-    EXPECT_CALL(gatt_interface, CancelOpen(gatt_if, address, false));
+    EXPECT_CALL(gatt_interface, CancelOpen(gatt_if, address, true));
     if (conn_id) {
       EXPECT_CALL(gatt_interface, Close(conn_id));
     } else {
@@ -899,7 +901,7 @@ TEST_F(VolumeControlTest, test_reconnect_after_timeout) {
   // Disconnect not connected device - upper layer times out and needs a
   // disconnection event to leave the transient Connecting state
   EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, address));
-  EXPECT_CALL(gatt_interface, CancelOpen(gatt_if, address, false)).Times(0);
+  EXPECT_CALL(gatt_interface, CancelOpen(gatt_if, address, _)).Times(0);
   TestDisconnect(address, 0);
 
   // Above the device was not connected and we got Disconnect request from the
@@ -984,6 +986,7 @@ TEST_F(VolumeControlTest, test_disconnected_while_autoconnect) {
   TestAppRegister();
   TestAddFromStorage(test_address);
   GetConnectedEvent(test_address, 1);
+  Mock::VerifyAndClearExpectations(&gatt_interface);
   // autoconnect - don't indicate disconnection
   EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(0);
   GetDisconnectedEvent(test_address, 1);
@@ -1392,9 +1395,9 @@ TEST_F(VolumeControlCallbackTest, test_audio_input_status_changed_malformed) {
 }
 
 TEST_F(VolumeControlCallbackTest, test_audio_input_description_changed) {
-  std::string descr = "SPDIF";
-  std::vector<uint8_t> value(descr.begin(), descr.end());
-  EXPECT_CALL(callbacks, OnExtAudioInDescriptionChanged(test_address, _, descr));
+  std::string description = "SPDIF";
+  std::vector<uint8_t> value(description.begin(), description.end());
+  EXPECT_CALL(callbacks, OnExtAudioInDescriptionChanged(test_address, _, description, _));
   GetNotificationEvent(0x005e, value);
 }
 
@@ -1514,9 +1517,9 @@ TEST_F(VolumeControlValueGetTest, test_get_ext_audio_in_gain_props) {
 TEST_F(VolumeControlValueGetTest, test_get_ext_audio_in_description) {
   VolumeControl::Get()->GetExtAudioInDescription(test_address, 1);
   EXPECT_TRUE(cb);
-  std::string descr = "AUX-IN";
-  std::vector<uint8_t> value(descr.begin(), descr.end());
-  EXPECT_CALL(callbacks, OnExtAudioInDescriptionChanged(test_address, 1, descr));
+  std::string description = "AUX-IN";
+  std::vector<uint8_t> value(description.begin(), description.end());
+  EXPECT_CALL(callbacks, OnExtAudioInDescriptionChanged(test_address, 1, description, _));
   cb(conn_id, GATT_SUCCESS, handle, (uint16_t)value.size(), value.data(), cb_data);
 }
 
