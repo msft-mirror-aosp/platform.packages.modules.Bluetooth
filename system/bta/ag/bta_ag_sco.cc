@@ -174,9 +174,8 @@ static void bta_ag_sco_conn_cback(uint16_t sco_idx) {
   /* match callback to scb; first check current sco scb */
   if (bta_ag_cb.sco.p_curr_scb != nullptr && bta_ag_cb.sco.p_curr_scb->in_use) {
     handle = bta_ag_scb_to_idx(bta_ag_cb.sco.p_curr_scb);
-  }
-  /* then check for scb connected to this peer */
-  else {
+  } else {
+    /* then check for scb connected to this peer */
     /* Check if SLC is up */
     handle = bta_ag_idx_by_bdaddr(BTM_ReadScoBdAddr(sco_idx));
     p_scb = bta_ag_scb_by_idx(handle);

@@ -64,9 +64,8 @@ static bool bta_hf_client_sco_remove(tBTA_HF_CLIENT_CB* client_cb) {
 
     if (status == tBTM_STATUS::BTM_CMD_STARTED) {
       removed_started = true;
-    }
-    /* If no connection reset the SCO handle */
-    else if ((status == tBTM_STATUS::BTM_SUCCESS) || (status == tBTM_STATUS::BTM_UNKNOWN_ADDR)) {
+    } else if ((status == tBTM_STATUS::BTM_SUCCESS) || (status == tBTM_STATUS::BTM_UNKNOWN_ADDR)) {
+      /* If no connection reset the SCO handle */
       client_cb->sco_idx = BTM_INVALID_SCO_INDEX;
     }
   }

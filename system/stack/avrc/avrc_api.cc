@@ -386,9 +386,8 @@ static BT_HDR* avrc_proc_vendor_command(uint8_t handle, uint8_t label, BT_HDR* p
     log::error("commands must be in single packet pdu:0x{:x}", *p_data);
     /* use the current GKI buffer to send the reject */
     status = AVRC_STS_BAD_CMD;
-  }
-  /* check if there are fragments waiting to be sent */
-  else if (avrc_cb.fcb[handle].frag_enabled) {
+  } else if (avrc_cb.fcb[handle].frag_enabled) {
+    /* check if there are fragments waiting to be sent */
     p_fcb = &avrc_cb.fcb[handle];
     if (p_msg->company_id == AVRC_CO_METADATA) {
       switch (*p_data) {

@@ -942,10 +942,9 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, cha
           event = BTA_AG_ENABLE_EVT;
           bta_ag_send_error(p_scb, BTA_AG_ERR_OP_NOT_SUPPORTED);
         }
-      }
-      /* If dial cmd, make sure string contains only dial digits
-      ** Dial digits are 0-9, A-C, *, #, + */
-      else {
+      } else {
+        /* If dial cmd, make sure string contains only dial digits
+        ** Dial digits are 0-9, A-C, *, #, + */
         /* Some car kits may add some unwanted space characters in the
         ** input string. This workaround will trim the unwanted chars. */
         remove_spaces(val.str);

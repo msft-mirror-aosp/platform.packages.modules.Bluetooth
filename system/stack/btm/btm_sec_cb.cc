@@ -230,9 +230,8 @@ bool tBTM_SEC_CB::AddService(bool is_originator, const char* p_name, uint8_t ser
         record_allocated = true;
         break;
       }
-    }
-    /* Mark the first available service record */
-    else if (!record_allocated) {
+    } else if (!record_allocated) {
+      /* Mark the first available service record */
       *p_srec = {};
       record_allocated = true;
       first_unused_record = index;

@@ -542,18 +542,16 @@ static void bta_hh_le_register_input_notif(tBTA_HH_DEV_CB* p_dev_cb, uint8_t pro
       if (register_ba && p_rpt->uuid == GATT_UUID_BATTERY_LEVEL) {
         BTA_GATTC_RegisterForNotifications(bta_hh_cb.gatt_if, p_dev_cb->link_spec.addrt.bda,
                                            p_rpt->char_inst_id);
-      }
-      /* boot mode, deregister report input notification */
-      else if (proto_mode == BTA_HH_PROTO_BOOT_MODE) {
+      } else if (proto_mode == BTA_HH_PROTO_BOOT_MODE) {
+        /* boot mode, deregister report input notification */
         if (p_rpt->uuid == GATT_UUID_HID_REPORT &&
             p_rpt->client_cfg_value == GATT_CLT_CONFIG_NOTIFICATION) {
           log::verbose("---> Deregister Report ID:{}", p_rpt->rpt_id);
           BTA_GATTC_DeregisterForNotifications(bta_hh_cb.gatt_if, p_dev_cb->link_spec.addrt.bda,
                                                p_rpt->char_inst_id);
-        }
-        /* register boot reports notification */
-        else if (p_rpt->uuid == GATT_UUID_HID_BT_KB_INPUT ||
-                 p_rpt->uuid == GATT_UUID_HID_BT_MOUSE_INPUT) {
+        } else if (p_rpt->uuid == GATT_UUID_HID_BT_KB_INPUT ||
+                   /* register boot reports notification */
+                   p_rpt->uuid == GATT_UUID_HID_BT_MOUSE_INPUT) {
           log::verbose("<--- Register Boot Report ID:{}", p_rpt->rpt_id);
           BTA_GATTC_RegisterForNotifications(bta_hh_cb.gatt_if, p_dev_cb->link_spec.addrt.bda,
                                              p_rpt->char_inst_id);
@@ -1026,9 +1024,8 @@ void bta_hh_security_cmpl(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */)
       if (!bta_hh_le_set_protocol_mode(p_cb, p_cb->mode)) {
         bta_hh_le_open_cmpl(p_cb);
       }
-    }
-    /* start primary service discovery for HID service */
-    else {
+    } else {
+      /* start primary service discovery for HID service */
       log::verbose("Starting service discovery");
       bta_hh_le_pri_service_discovery(p_cb);
     }
@@ -1103,9 +1100,8 @@ void bta_hh_start_security(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */
     log::debug("addr:{} already encrypted", p_cb->link_spec.addrt.bda);
     p_cb->status = BTA_HH_OK;
     bta_hh_sm_execute(p_cb, BTA_HH_ENC_CMPL_EVT, NULL);
-  }
-  /* if bonded and link not encrypted */
-  else if (BTM_IsLinkKeyKnown(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE)) {
+  } else if (BTM_IsLinkKeyKnown(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE)) {
+    /* if bonded and link not encrypted */
     log::debug("addr:{} bonded, not encrypted", p_cb->link_spec.addrt.bda);
     p_cb->status = BTA_HH_ERR_AUTH_FAILED;
     BTM_SetEncryption(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE, bta_hh_le_encrypt_cback, NULL,
