@@ -145,33 +145,32 @@ class VCPProxy(ProfileProxy):
         # After discovery Android subscribes by itself, after profile connection
         return "OK"
 
-    def IUT_SEND_WRITE_REQUEST(self, description: str, **kwargs):
+    @match_description
+    def IUT_SEND_WRITE_REQUEST(self, description: str, chr_name: str, op_code: str, **kwargs):
         r"""
-        Please send write request to handle 0xXXXX with following value.
-        Characteristic name:
-            Op Code: [X (0xXX)] Op code name
-            Change Counter: <WildCard: Exists>
-            Value: <WildCard: Exists>
+        Please send write request to handle 0x([0-9A-Fa-f]{4}) with following value.
+        (?P<chr_name>(Volume Control Point|Volume Offset Control Point)):
+            Op Code: (?P<op_code>((<WildCard: Exists>)|(\[[0-9] \(0x0[0-9]\)\]\s([\w]*\s){1,3})))(.*)
         """
 
         # Wait a couple seconds so the VCP is ready (subscriptions and reads are completed)
         sleep(2)
 
-        if ("Set Absolute Volume" in description):
-            self.vcp.SetDeviceVolume(connection=self.connection, volume=42)
-        elif ("Unmute" in description):
-            # for now, there is no way to trigger this, and tests are skipped
+        if (chr_name == "Volume Control Point"):
+            if "Set Absolute Volume" in op_code:
+                self.vcp.SetDeviceVolume(connection=self.connection, volume=42)
+            elif ("Unmute" in op_code):
+                # for now, there is no way to trigger this, and tests are skipped
+                return "No"
+            elif ("<WildCard: Exists>" in op_code):
+                # Handles sending *any* OP Code on Volume Control Point
+                self.vcp.SetDeviceVolume(connection=self.connection, volume=42)
+        elif (chr_name == "Volume Offset Control Point"):
+            if ("Set Volume Offset" in op_code or
+                "<WildCard: Exists>" in op_code):
+                self.vcp.SetVolumeOffset(connection=self.connection, offset=42)
+        else:
             return "No"
-        elif ("Set Volume Offset" in description):
-            self.vcp.SetVolumeOffset(connection=self.connection, offset=42)
-        elif ("Volume Control Point" in description and
-              "Op Code: <WildCard: Exists>" in description):
-            # Handles sending *any* OP Code on Volume Control Point
-            self.vcp.SetDeviceVolume(connection=self.connection, volume=42)
-        elif ("Volume Offset Control Point" in description and
-              "Op Code: <WildCard: Exists>" in description):
-            self.vcp.SetVolumeOffset(connection=self.connection, offset=42)
-
 
         return "OK"
 

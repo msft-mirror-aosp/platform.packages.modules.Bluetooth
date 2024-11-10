@@ -52,9 +52,6 @@
 
 #define L2CAP_PKT_OVERHEAD 4
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 using bluetooth::Uuid;
 using bluetooth::eatt::EattChannel;
@@ -277,6 +274,7 @@ void gatt_act_write(tGATT_CLCB* p_clcb, uint8_t sec_act) {
       return;
   }
 }
+
 /*******************************************************************************
  *
  * Function         gatt_send_queue_write_cancel
@@ -299,6 +297,7 @@ void gatt_send_queue_write_cancel(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, tGATT_EXEC
     gatt_end_operation(p_clcb, rt, NULL);
   }
 }
+
 /*******************************************************************************
  *
  * Function         gatt_check_write_long_terminate
@@ -308,7 +307,8 @@ void gatt_send_queue_write_cancel(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, tGATT_EXEC
  * Returns          true: write long is terminated; false keep sending.
  *
  ******************************************************************************/
-bool gatt_check_write_long_terminate(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, tGATT_VALUE* p_rsp_value) {
+static bool gatt_check_write_long_terminate(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
+                                            tGATT_VALUE* p_rsp_value) {
   tGATT_VALUE* p_attr = (tGATT_VALUE*)p_clcb->p_attr_buf;
   bool terminate = false;
   tGATT_EXEC_FLAG flag = GATT_PREP_WRITE_EXEC;
@@ -389,8 +389,8 @@ void gatt_send_prepare_write(tGATT_TCB& tcb, tGATT_CLCB* p_clcb) {
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_find_type_value_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint16_t len,
-                                      uint8_t* p_data) {
+static void gatt_process_find_type_value_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint16_t len,
+                                             uint8_t* p_data) {
   tGATT_DISC_RES result;
   uint8_t* p = p_data;
 
@@ -434,8 +434,8 @@ void gatt_process_find_type_value_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, 
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_read_info_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint8_t /* op_code */,
-                                uint16_t len, uint8_t* p_data) {
+static void gatt_process_read_info_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb,
+                                       uint8_t /* op_code */, uint16_t len, uint8_t* p_data) {
   tGATT_DISC_RES result;
   uint8_t *p = p_data, uuid_len = 0, type;
 
@@ -481,6 +481,7 @@ void gatt_process_read_info_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint8_
   /* initiate another request */
   gatt_act_discovery(p_clcb);
 }
+
 /*******************************************************************************
  *
  * Function         gatt_proc_disc_error_rsp
@@ -491,8 +492,8 @@ void gatt_process_read_info_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint8_
  * Returns          void.
  *
  ******************************************************************************/
-void gatt_proc_disc_error_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint8_t opcode,
-                              uint16_t /* handle */, uint8_t reason) {
+static void gatt_proc_disc_error_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint8_t opcode,
+                                     uint16_t /* handle */, uint8_t reason) {
   tGATT_STATUS status = (tGATT_STATUS)reason;
 
   log::verbose("reason: {:02x} cmd_code {:04x}", reason, opcode);
@@ -525,8 +526,8 @@ void gatt_proc_disc_error_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint8_t 
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_error_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_code */, uint16_t len,
-                            uint8_t* p_data) {
+static void gatt_process_error_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_code */,
+                                   uint16_t len, uint8_t* p_data) {
   uint8_t opcode, *p = p_data;
   uint8_t reason;
   uint16_t handle;
@@ -569,6 +570,7 @@ void gatt_process_error_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_co
     }
   }
 }
+
 /*******************************************************************************
  *
  * Function         gatt_process_prep_write_rsp
@@ -579,8 +581,8 @@ void gatt_process_error_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_co
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_prep_write_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t op_code, uint16_t len,
-                                 uint8_t* p_data) {
+static void gatt_process_prep_write_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t op_code,
+                                        uint16_t len, uint8_t* p_data) {
   uint8_t* p = p_data;
 
   tGATT_VALUE value = {
@@ -630,8 +632,8 @@ void gatt_process_prep_write_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t op_
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_notification(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
-                               uint8_t* p_data) {
+static void gatt_process_notification(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
+                                      uint8_t* p_data) {
   tGATT_VALUE value = {};
   tGATT_REG* p_reg;
   tCONN_ID conn_id;
@@ -815,8 +817,8 @@ void gatt_process_notification(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, ui
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_read_by_type_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t op_code,
-                                   uint16_t len, uint8_t* p_data) {
+static void gatt_process_read_by_type_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t op_code,
+                                          uint16_t len, uint8_t* p_data) {
   tGATT_DISC_RES result;
   tGATT_DISC_VALUE record_value;
   uint8_t *p = p_data, value_len, handle_len = 2;
@@ -1027,8 +1029,8 @@ void gatt_process_read_by_type_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t o
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_read_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_code */, uint16_t len,
-                           uint8_t* p_data) {
+static void gatt_process_read_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_code */,
+                                  uint16_t len, uint8_t* p_data) {
   uint16_t offset = p_clcb->counter;
   uint8_t* p = p_data;
 
@@ -1110,7 +1112,10 @@ void gatt_process_read_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_cod
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_handle_rsp(tGATT_CLCB* p_clcb) { gatt_end_operation(p_clcb, GATT_SUCCESS, NULL); }
+static void gatt_process_handle_rsp(tGATT_CLCB* p_clcb) {
+  gatt_end_operation(p_clcb, GATT_SUCCESS, NULL);
+}
+
 /*******************************************************************************
  *
  * Function         gatt_process_mtu_rsp
@@ -1121,7 +1126,8 @@ void gatt_process_handle_rsp(tGATT_CLCB* p_clcb) { gatt_end_operation(p_clcb, GA
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_mtu_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint16_t len, uint8_t* p_data) {
+static void gatt_process_mtu_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint16_t len,
+                                 uint8_t* p_data) {
   uint16_t mtu;
   tGATT_STATUS status = GATT_SUCCESS;
 
@@ -1173,7 +1179,7 @@ void gatt_process_mtu_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint16_t len, uint
  * Returns          response code.
  *
  ******************************************************************************/
-uint8_t gatt_cmd_to_rsp_code(uint8_t cmd_code) {
+static uint8_t gatt_cmd_to_rsp_code(uint8_t cmd_code) {
   uint8_t rsp_code = 0;
 
   if (cmd_code > 1 && cmd_code != GATT_CMD_WRITE) {

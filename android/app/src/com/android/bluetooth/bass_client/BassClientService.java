@@ -23,6 +23,7 @@ import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 
 import static com.android.bluetooth.flags.Flags.leaudioAllowedContextMask;
 import static com.android.bluetooth.flags.Flags.leaudioBigDependsOnAudioState;
+import static com.android.bluetooth.flags.Flags.leaudioBroadcastApiGetLocalMetadata;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastAssistantPeripheralEntrustment;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastExtractPeriodicScannerFromStateMachine;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastResyncHelper;
@@ -3273,6 +3274,27 @@ public class BassClientService extends ProfileService {
         return stateMachine.getMaximumSourceCapacity();
     }
 
+    /**
+     * Get metadata of source that stored on this Broadcast Sink
+     *
+     * @param sink Broadcast Sink device
+     * @param sourceId Broadcast source id
+     * @return metadata of source that stored on this Broadcast Sink
+     */
+    BluetoothLeBroadcastMetadata getSourceMetadata(BluetoothDevice sink, int sourceId) {
+        if (!leaudioBroadcastApiGetLocalMetadata()) {
+            return null;
+        }
+
+        log("getSourceMetadata: device = " + sink + " with source id = " + sourceId);
+        BassClientStateMachine stateMachine = getOrCreateStateMachine(sink);
+        if (stateMachine == null) {
+            log("stateMachine is null");
+            return null;
+        }
+        return stateMachine.getCurrentBroadcastMetadata(sourceId);
+    }
+
     private boolean isLocalBroadcast(int broadcastId) {
         LeAudioService leAudioService = mServiceFactory.getLeAudioService();
         if (leAudioService == null) {
@@ -4629,6 +4651,17 @@ public class BassClientService extends ProfileService {
                 return 0;
             }
             return service.getMaximumSourceCapacity(sink);
+        }
+
+        @Override
+        public BluetoothLeBroadcastMetadata getSourceMetadata(
+                BluetoothDevice sink, int sourceId, AttributionSource source) {
+            BassClientService service = getServiceAndEnforceConnect(source);
+            if (service == null) {
+                Log.e(TAG, "Service is null");
+                return null;
+            }
+            return service.getSourceMetadata(sink, sourceId);
         }
     }
 }

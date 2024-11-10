@@ -922,14 +922,14 @@ uint8_t LeAudioDevice::GetPhyBitmask(void) const {
 void LeAudioDevice::PrintDebugState(void) {
   std::stringstream debug_str;
 
-  debug_str << " address: " << address_ << ", " << bluetooth::common::ToString(connection_state_)
+  debug_str << " Address: " << address_ << ", " << bluetooth::common::ToString(connection_state_)
             << ", conn_id: " << +conn_id_ << ", mtu: " << +mtu_
             << ", num_of_ase: " << static_cast<int>(ases_.size());
 
   if (ases_.size() > 0) {
     debug_str << "\n  == ASEs == ";
     for (auto& ase : ases_) {
-      debug_str << "\n  id: " << +ase.id << ", active: " << ase.active
+      debug_str << "  id: " << +ase.id << ", active: " << ase.active
                 << ", dir: " << (ase.direction == types::kLeAudioDirectionSink ? "sink" : "source")
                 << ", state: " << bluetooth::common::ToString(ase.state)
                 << ", cis_id: " << +ase.cis_id << ", cis_handle: " << +ase.cis_conn_hdl
@@ -942,7 +942,7 @@ void LeAudioDevice::PrintDebugState(void) {
                 << ", presentation_delay: " << +ase.qos_config.presentation_delay
                 << ", framing: " << +ase.qos_config.framing << ", phy: " << +ase.qos_config.phy
                 << ", target latency: " << +ase.target_latency
-                << ", reconfigure: " << ase.reconfigure << "\n";
+                << ", reconfigure: " << ase.reconfigure << "\n\n";
     }
   }
 
@@ -979,80 +979,81 @@ void LeAudioDevice::DumpPacsDebugState(std::stringstream& stream,
                                        types::PublishedAudioCapabilities pacs) {
   if (pacs.size() > 0) {
     for (auto& pac : pacs) {
-      stream << "\n\t\tvalue handle: " << loghex(std::get<0>(pac).val_hdl)
-             << " / CCC handle: " << loghex(std::get<0>(pac).ccc_hdl);
+      stream << "\t    • Value handle: " << loghex(std::get<0>(pac).val_hdl)
+             << ", CCC handle: " << loghex(std::get<0>(pac).ccc_hdl);
 
       for (auto& record : std::get<1>(pac)) {
-        stream << "\n\n\t\tCodecId(Coding format: "
-               << static_cast<int>(record.codec_id.coding_format)
-               << ", Vendor company ID: " << static_cast<int>(record.codec_id.vendor_company_id)
-               << ", Vendor codec ID: " << static_cast<int>(record.codec_id.vendor_codec_id) << ")";
-        stream << "\n\t\tCodec specific capabilities:\n";
+        stream << "\n\t\t· CodecId (Coding format: " << loghex(record.codec_id.coding_format)
+               << ", Vendor company ID: " << loghex(record.codec_id.vendor_company_id)
+               << ", Vendor codec ID: " << loghex(record.codec_id.vendor_codec_id) << ")";
+        stream << "\n\t\t    Codec specific capabilities:\n";
         if (utils::IsCodecUsingLtvFormat(record.codec_id)) {
           stream << record.codec_spec_caps.ToString("\t\t\t", types::CodecCapabilitiesLtvFormat);
         } else {
           stream << "\t\t\t"
                  << base::HexEncode(record.codec_spec_caps_raw.data(),
-                                    record.codec_spec_caps_raw.size());
+                                    record.codec_spec_caps_raw.size())
+                 << "\n";
         }
-        stream << "\t\tMetadata: "
+        stream << "\t\t    Metadata: "
                << base::HexEncode(record.metadata.data(), record.metadata.size());
       }
+      stream << "\n";
     }
   }
 }
 
 void LeAudioDevice::DumpPacsDebugState(std::stringstream& stream) {
-  stream << "\n\tSink PACs";
+  stream << "      ● Device PACS, address: " << ADDRESS_TO_LOGGABLE_STR(address_) << "\n";
+  stream << "\t  == Sink PACs:\n";
   DumpPacsDebugState(stream, snk_pacs_);
-  stream << "\n\tSource PACs";
+  stream << "\t  == Source PACs:\n";
   DumpPacsDebugState(stream, src_pacs_);
 }
 
 static std::string locationToString(uint32_t location) {
-  std::string result_str = "unknown location";
-
   if (location & codec_spec_conf::kLeAudioLocationAnyLeft &&
       location & codec_spec_conf::kLeAudioLocationAnyRight) {
-    std::string location_left_right = "left/right";
-    result_str.swap(location_left_right);
+    return "left/right";
   } else if (location & codec_spec_conf::kLeAudioLocationAnyLeft) {
-    std::string location_left = "left";
-    result_str.swap(location_left);
+    return "left";
   } else if (location & codec_spec_conf::kLeAudioLocationAnyRight) {
-    std::string location_right = "right";
-    result_str.swap(location_right);
+    return "right";
+  } else if (location == codec_spec_conf::kLeAudioLocationMonoAudio) {
+    return "mono";
   }
-
-  return result_str;
+  return "unknown location";
 }
 
-void LeAudioDevice::Dump(int fd) {
+void LeAudioDevice::Dump(std::stringstream& stream) {
   uint16_t acl_handle =
           get_btm_client_interface().peer.BTM_GetHCIConnHandle(address_, BT_TRANSPORT_LE);
   std::string snk_location = locationToString(snk_audio_locations_.to_ulong());
   std::string src_location = locationToString(src_audio_locations_.to_ulong());
 
-  std::stringstream stream;
-  stream << "\n\taddress: " << ADDRESS_TO_LOGGABLE_STR(address_) << ": " << connection_state_
-         << ": " << (conn_id_ == GATT_INVALID_CONN_ID ? "" : std::to_string(conn_id_))
+  stream << "      ● Device address: " << ADDRESS_TO_LOGGABLE_STR(address_) << ", "
+         << connection_state_
+         << ", conn_id: " << (conn_id_ == GATT_INVALID_CONN_ID ? "-1" : std::to_string(conn_id_))
          << ", acl_handle: " << std::to_string(acl_handle) << ", snk_location: " << snk_location
-         << ", src_location: " << src_location << ",\t" << (encrypted_ ? "Encrypted" : "Unecrypted")
-         << ",mtu: " << std::to_string(mtu_)
-         << "\n\tnumber of ases_: " << static_cast<int>(ases_.size());
+         << ", src_location: " << src_location << ", mtu: " << std::to_string(mtu_) << ", "
+         << (encrypted_ ? "Encrypted" : "Unecrypted")
+         << "\n\t  Sink avail. contexts: " << common::ToString(avail_contexts_.sink)
+         << "\n\t  Source avail. contexts: " << common::ToString(avail_contexts_.source) << "\n";
 
   if (gmap_client_ != nullptr) {
-    gmap_client_->DebugDump(fd);
+    stream << "\t  ";
+    gmap_client_->DebugDump(stream);
   } else {
+    stream << "\t  ";
     stream << "GmapClient not initialized\n";
   }
 
   if (ases_.size() > 0) {
-    stream << "\n\t== ASEs == \n\t";
-    stream << "id  active dir     cis_id  cis_handle  sdu  latency rtn  "
-              "cis_state data_path_state";
+    stream << "\t  == ASEs (" << static_cast<int>(ases_.size()) << "):\n";
+    stream << "\t    id  active dir     cis_id  cis_handle  sdu  latency rtn  "
+              "cis_state            data_path_state\n";
     for (auto& ase : ases_) {
-      stream << std::setfill('\x20') << "\n\t" << std::left << std::setw(4)
+      stream << std::setfill('\x20') << "\t    " << std::left << std::setw(4)
              << static_cast<int>(ase.id) << std::left << std::setw(7)
              << (ase.active ? "true" : "false") << std::left << std::setw(8)
              << (ase.direction == types::kLeAudioDirectionSink ? "sink" : "source") << std::left
@@ -1060,14 +1061,10 @@ void LeAudioDevice::Dump(int fd) {
              << ase.cis_conn_hdl << std::left << std::setw(5) << ase.qos_config.max_sdu_size
              << std::left << std::setw(8) << ase.qos_config.max_transport_latency << std::left
              << std::setw(5) << static_cast<int>(ase.qos_config.retrans_nb) << std::left
-             << std::setw(10) << bluetooth::common::ToString(ase.cis_state) << std::setw(12)
-             << bluetooth::common::ToString(ase.data_path_state);
+             << std::setw(21) << bluetooth::common::ToString(ase.cis_state) << std::setw(19)
+             << bluetooth::common::ToString(ase.data_path_state) << "\n";
     }
   }
-
-  stream << "\n\t====";
-
-  dprintf(fd, "%s", stream.str().c_str());
 }
 
 void LeAudioDevice::DisconnectAcl(void) {
@@ -1341,16 +1338,14 @@ void LeAudioDevices::SetInitialGroupAutoconnectState(int group_id, int gatt_if,
 
 size_t LeAudioDevices::Size() const { return leAudioDevices_.size(); }
 
-void LeAudioDevices::Dump(int fd, int group_id) const {
-  std::stringstream stream, stream_pacs;
-
+void LeAudioDevices::Dump(std::stringstream& stream, int group_id) const {
   for (auto const& device : leAudioDevices_) {
     if (device->group_id_ == group_id) {
-      device->Dump(fd);
+      device->Dump(stream);
 
-      stream_pacs << "\n\taddress: " << device->address_;
-      device->DumpPacsDebugState(stream_pacs);
-      dprintf(fd, "%s", stream_pacs.str().c_str());
+      stream << "\tAddress: " << device->address_ << "\n";
+      device->DumpPacsDebugState(stream);
+      stream << "\n";
     }
   }
 }

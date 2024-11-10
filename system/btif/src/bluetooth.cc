@@ -27,32 +27,23 @@
 
 #define LOG_TAG "bt_btif"
 
-#include <bluetooth/log.h>
-#include <com_android_bluetooth_flags.h>
-#include <hardware/bluetooth.h>
-#include <hardware/bluetooth_headset_interface.h>
-#include <hardware/bt_av.h>
-#include <hardware/bt_csis.h>
-#include <hardware/bt_gatt.h>
-#include <hardware/bt_has.h>
-#include <hardware/bt_hd.h>
-#include <hardware/bt_hearing_aid.h>
-#include <hardware/bt_hf_client.h>
-#include <hardware/bt_hh.h>
-#include <hardware/bt_le_audio.h>
-#include <hardware/bt_pan.h>
-#include <hardware/bt_rc.h>
-#include <hardware/bt_sdp.h>
-#include <hardware/bt_sock.h>
-#include <hardware/bt_vc.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include "hardware/bluetooth.h"
 
-#include "audio_hal_interface/a2dp_encoding.h"
-#include "bta/hh/bta_hh_int.h"  // for HID HACK profile methods
+#include <base/functional/bind.h>
+#include <base/functional/callback.h>
+#include <bluetooth/log.h>
+
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "bta/hh/bta_hh_int.h"
 #include "bta/include/bta_api.h"
 #include "bta/include/bta_ar_api.h"
+#include "bta/include/bta_av_api.h"
 #include "bta/include/bta_csis_api.h"
 #include "bta/include/bta_has_api.h"
 #include "bta/include/bta_hearing_aid_api.h"
@@ -66,6 +57,7 @@
 #include "btif/include/btif_api.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_bqr.h"
+#include "btif/include/btif_common.h"
 #include "btif/include/btif_config.h"
 #include "btif/include/btif_debug_conn.h"
 #include "btif/include/btif_dm.h"
@@ -91,11 +83,22 @@
 #include "device/include/esco_parameters.h"
 #include "device/include/interop.h"
 #include "device/include/interop_config.h"
+#include "hardware/avrcp/avrcp.h"
+#include "hardware/bt_csis.h"
+#include "hardware/bt_gatt.h"
+#include "hardware/bt_has.h"
+#include "hardware/bt_hearing_aid.h"
+#include "hardware/bt_le_audio.h"
+#include "hardware/bt_rc.h"
+#include "hardware/bt_sdp.h"
+#include "hardware/bt_sock.h"
+#include "hardware/bt_vc.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
 #include "os/parameter_provider.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
+#include "osi/include/properties.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "osi/include/wakelock.h"
 #include "stack/btm/btm_dev.h"
@@ -104,8 +107,14 @@
 #include "stack/include/a2dp_api.h"
 #include "stack/include/avct_api.h"
 #include "stack/include/avdt_api.h"
+#include "stack/include/avrc_api.h"
+#include "stack/include/bnep_api.h"
+#include "stack/include/bt_name.h"
+#include "stack/include/bt_octets.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/gatt_api.h"
+#include "stack/include/hcidefs.h"
 #include "stack/include/hfp_lc3_decoder.h"
 #include "stack/include/hfp_lc3_encoder.h"
 #include "stack/include/hfp_msbc_decoder.h"
@@ -116,6 +125,7 @@
 #include "stack/include/pan_api.h"
 #include "stack/include/sdp_api.h"
 #include "storage/config_keys.h"
+#include "types/ble_address_with_type.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
@@ -124,7 +134,6 @@
 
 using bluetooth::csis::CsisClientInterface;
 using bluetooth::has::HasClientInterface;
-using bluetooth::hearing_aid::HearingAidInterface;
 using bluetooth::le_audio::LeAudioBroadcasterInterface;
 using bluetooth::le_audio::LeAudioClientInterface;
 using bluetooth::vc::VolumeControlInterface;
@@ -188,7 +197,6 @@ extern VolumeControlInterface* btif_volume_control_get_interface();
 
 bt_status_t btif_av_sink_execute_service(bool b_enable);
 
-extern void gatt_tcb_dump(int fd);
 extern void bta_gatt_client_dump(int fd);
 
 /*******************************************************************************
@@ -498,7 +506,15 @@ static int disable(void) {
 
 static void cleanup(void) { stack_manager_get_interface()->clean_up_stack(&stop_profiles); }
 
-static void start_rust_module(void) { stack_manager_get_interface()->start_up_rust_module_async(); }
+static void start_rust_module(void) {
+  std::promise<void> rust_up_promise;
+  auto rust_up_future = rust_up_promise.get_future();
+  stack_manager_get_interface()->start_up_rust_module_async(std::move(rust_up_promise));
+  auto status = rust_up_future.wait_for(std::chrono::milliseconds(1000));
+  if (status != std::future_status::ready) {
+    log::error("Failed to wait for rust initialization in time. May lead to unpredictable crash");
+  }
+}
 
 static void stop_rust_module(void) { stack_manager_get_interface()->shut_down_rust_module_async(); }
 

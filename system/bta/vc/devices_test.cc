@@ -44,6 +44,7 @@ using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Mock;
+using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
@@ -74,8 +75,8 @@ protected:
   }
 
   VolumeControlDevices* devices_ = nullptr;
-  gatt::MockBtaGattInterface gatt_interface;
-  gatt::MockBtaGattQueue gatt_queue;
+  NiceMock<gatt::MockBtaGattInterface> gatt_interface;
+  NiceMock<gatt::MockBtaGattQueue> gatt_queue;
 };
 
 TEST_F(VolumeControlDevicesTest, test_add) {
@@ -288,7 +289,7 @@ protected:
     builder.AddService(0x0020, 0x002e, kVolumeAudioInputUuid, false);
     builder.AddCharacteristic(0x0021, 0x0022, kVolumeAudioInputStateUuid, GATT_CHAR_PROP_BIT_READ);
     builder.AddDescriptor(0x0023, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
-    builder.AddCharacteristic(0x0024, 0x0025, kVolumeAudioInputGainSettingUuid,
+    builder.AddCharacteristic(0x0024, 0x0025, kVolumeAudioInputGainSettingPropertiesUuid,
                               GATT_CHAR_PROP_BIT_READ);
     builder.AddCharacteristic(0x0026, 0x0027, kVolumeAudioInputTypeUuid, GATT_CHAR_PROP_BIT_READ);
     builder.AddCharacteristic(0x0028, 0x0029, kVolumeAudioInputStatusUuid,
@@ -304,7 +305,7 @@ protected:
     builder.AddCharacteristic(0x0041, 0x0042, kVolumeAudioInputStateUuid,
                               GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
     builder.AddDescriptor(0x0043, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
-    builder.AddCharacteristic(0x0044, 0x0045, kVolumeAudioInputGainSettingUuid,
+    builder.AddCharacteristic(0x0044, 0x0045, kVolumeAudioInputGainSettingPropertiesUuid,
                               GATT_CHAR_PROP_BIT_READ);
     builder.AddCharacteristic(0x0046, 0x0047, kVolumeAudioInputTypeUuid, GATT_CHAR_PROP_BIT_READ);
     builder.AddCharacteristic(0x0048, 0x0049, kVolumeAudioInputStatusUuid,
@@ -361,9 +362,9 @@ protected:
   }
 
   VolumeControlDevice* device = nullptr;
-  gatt::MockBtaGattInterface gatt_interface;
-  gatt::MockBtaGattQueue gatt_queue;
-  bluetooth::manager::MockBtmInterface btm_interface;
+  NiceMock<gatt::MockBtaGattInterface> gatt_interface;
+  NiceMock<gatt::MockBtaGattQueue> gatt_queue;
+  NiceMock<bluetooth::manager::MockBtmInterface> btm_interface;
   std::list<gatt::Service> services;
 };
 
@@ -387,7 +388,7 @@ TEST_F(VolumeControlDeviceTest, test_service_aics_incomplete) {
   builder.AddCharacteristic(0x000c, 0x000d, kVolumeAudioInputStateUuid,
                             GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
   builder.AddDescriptor(0x000e, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
-  builder.AddCharacteristic(0x000f, 0x0010, kVolumeAudioInputGainSettingUuid,
+  builder.AddCharacteristic(0x000f, 0x0010, kVolumeAudioInputGainSettingPropertiesUuid,
                             GATT_CHAR_PROP_BIT_READ);
   builder.AddCharacteristic(0x0011, 0x0012, kVolumeAudioInputTypeUuid, GATT_CHAR_PROP_BIT_READ);
   builder.AddCharacteristic(0x0013, 0x0014, kVolumeAudioInputStatusUuid,
@@ -423,7 +424,7 @@ TEST_F(VolumeControlDeviceTest, test_service_aics_found) {
   builder.AddCharacteristic(0x000c, 0x000d, kVolumeAudioInputStateUuid,
                             GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
   builder.AddDescriptor(0x000e, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
-  builder.AddCharacteristic(0x000f, 0x0010, kVolumeAudioInputGainSettingUuid,
+  builder.AddCharacteristic(0x000f, 0x0010, kVolumeAudioInputGainSettingPropertiesUuid,
                             GATT_CHAR_PROP_BIT_READ);
   builder.AddCharacteristic(0x0011, 0x0012, kVolumeAudioInputTypeUuid, GATT_CHAR_PROP_BIT_READ);
   builder.AddCharacteristic(0x0013, 0x0014, kVolumeAudioInputStatusUuid,
@@ -542,8 +543,8 @@ TEST_F(VolumeControlDeviceTest, test_multiple_services_found) {
   SetSampleDatabase1();
   ASSERT_EQ((size_t)2, device->audio_offsets.Size());
   ASSERT_EQ((size_t)2, device->audio_inputs.Size());
-  VolumeAudioInput* input_1 = device->audio_inputs.FindById(1);
-  VolumeAudioInput* input_2 = device->audio_inputs.FindById(2);
+  VolumeAudioInput* input_1 = device->audio_inputs.FindById(0);
+  VolumeAudioInput* input_2 = device->audio_inputs.FindById(1);
   ASSERT_NE(nullptr, input_1);
   ASSERT_NE(nullptr, input_2);
   ASSERT_NE(input_1->service_handle, input_2->service_handle);
@@ -578,7 +579,7 @@ TEST_F(VolumeControlDeviceTest, test_enqueue_initial_requests) {
   tGATT_IF gatt_if = 0x0001;
   std::vector<uint8_t> register_for_notification_data({0x01, 0x00});
 
-  std::map<uint16_t, uint16_t> expected_subscribtions{
+  std::map<uint16_t, uint16_t> expected_subscriptions{
           {0x0011, 0x0012} /* volume control state */,
           {0x0016, 0x0017} /* volume control flags */,
           {0x0022, 0x0023} /* audio input state 1 */,
@@ -595,7 +596,7 @@ TEST_F(VolumeControlDeviceTest, test_enqueue_initial_requests) {
   EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x0011, _, _));
   EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x0016, _, _));
 
-  for (auto const& handle_pair : expected_subscribtions) {
+  for (auto const& handle_pair : expected_subscriptions) {
     EXPECT_CALL(gatt_queue, WriteDescriptor(_, handle_pair.second, register_for_notification_data,
                                             GATT_WRITE, _, _));
     EXPECT_CALL(gatt_interface, RegisterForNotifications(gatt_if, _, handle_pair.first));
@@ -856,7 +857,7 @@ TEST_F(VolumeControlDeviceTest, test_get_ext_audio_in_state) {
                                uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x0022, read_cb, nullptr));
-  device->GetExtAudioInState(1, read_cb, nullptr);
+  device->GetExtAudioInState(0, read_cb, nullptr);
 }
 
 TEST_F(VolumeControlDeviceTest, test_get_ext_audio_in_status) {
@@ -864,7 +865,7 @@ TEST_F(VolumeControlDeviceTest, test_get_ext_audio_in_status) {
                                uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x0049, read_cb, nullptr));
-  device->GetExtAudioInStatus(2, read_cb, nullptr);
+  device->GetExtAudioInStatus(1, read_cb, nullptr);
 }
 
 TEST_F(VolumeControlDeviceTest, test_get_ext_audio_in_gain_props) {
@@ -872,7 +873,7 @@ TEST_F(VolumeControlDeviceTest, test_get_ext_audio_in_gain_props) {
                                uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x0025, read_cb, nullptr));
-  device->GetExtAudioInGainProps(1, read_cb, nullptr);
+  device->GetExtAudioInGainProps(0, read_cb, nullptr);
 }
 
 TEST_F(VolumeControlDeviceTest, test_get_ext_audio_in_description) {
@@ -880,7 +881,7 @@ TEST_F(VolumeControlDeviceTest, test_get_ext_audio_in_description) {
                                uint16_t /*len*/, uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
   EXPECT_CALL(gatt_queue, ReadCharacteristic(_, 0x002e, read_cb, nullptr));
-  device->GetExtAudioInDescription(1, read_cb, nullptr);
+  device->GetExtAudioInDescription(0, read_cb, nullptr);
 }
 
 TEST_F(VolumeControlDeviceTest, test_set_ext_audio_in_description) {
@@ -889,7 +890,7 @@ TEST_F(VolumeControlDeviceTest, test_set_ext_audio_in_description) {
   std::vector<uint8_t> expected_data(descr.begin(), descr.end());
   EXPECT_CALL(gatt_queue,
               WriteCharacteristic(_, 0x004e, expected_data, GATT_WRITE_NO_RSP, nullptr, nullptr));
-  device->SetExtAudioInDescription(2, descr);
+  device->SetExtAudioInDescription(1, descr);
 }
 
 TEST_F(VolumeControlDeviceTest, test_set_ext_audio_in_description_non_writable) {
@@ -897,34 +898,34 @@ TEST_F(VolumeControlDeviceTest, test_set_ext_audio_in_description_non_writable) 
   std::string descr = "AUX";
   std::vector<uint8_t> expected_data(descr.begin(), descr.end());
   EXPECT_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _)).Times(0);
-  device->SetExtAudioInDescription(1, descr);
+  device->SetExtAudioInDescription(0, descr);
 }
 
 TEST_F(VolumeControlDeviceTest, test_ext_audio_in_control_point_operation) {
   GATT_WRITE_OP_CB write_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
                                  uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
-  VolumeAudioInput* input = device->audio_inputs.FindById(2);
+  VolumeAudioInput* input = device->audio_inputs.FindById(1);
   ASSERT_NE(nullptr, input);
   input->change_counter = 0x11;
   std::vector<uint8_t> expected_data({0x0c, 0x11});
   EXPECT_CALL(gatt_queue,
               WriteCharacteristic(_, 0x004c, expected_data, GATT_WRITE, write_cb, nullptr));
-  device->ExtAudioInControlPointOperation(2, 0x0c, nullptr, write_cb, nullptr);
+  device->ExtAudioInControlPointOperation(1, 0x0c, nullptr, write_cb, nullptr);
 }
 
 TEST_F(VolumeControlDeviceTest, test_ext_audio_in_control_point_operation_arg) {
   GATT_WRITE_OP_CB write_cb = [](uint16_t /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
                                  uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {};
   SetSampleDatabase1();
-  VolumeAudioInput* input = device->audio_inputs.FindById(2);
+  VolumeAudioInput* input = device->audio_inputs.FindById(1);
   ASSERT_NE(nullptr, input);
   input->change_counter = 0x12;
   std::vector<uint8_t> expected_data({0x0d, 0x12, 0x01, 0x02, 0x03, 0x04});
   std::vector<uint8_t> arg({0x01, 0x02, 0x03, 0x04});
   EXPECT_CALL(gatt_queue,
               WriteCharacteristic(_, 0x004c, expected_data, GATT_WRITE, write_cb, nullptr));
-  device->ExtAudioInControlPointOperation(2, 0x0d, &arg, write_cb, nullptr);
+  device->ExtAudioInControlPointOperation(1, 0x0d, &arg, write_cb, nullptr);
 }
 
 }  // namespace internal

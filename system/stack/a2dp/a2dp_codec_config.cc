@@ -24,6 +24,7 @@
 
 #include "a2dp_aac.h"
 #include "a2dp_codec_api.h"
+#include "a2dp_constants.h"
 #include "a2dp_ext.h"
 #include "a2dp_sbc.h"
 #include "a2dp_vendor.h"
@@ -45,13 +46,50 @@
 /* The Media Type offset within the codec info byte array */
 #define A2DP_MEDIA_TYPE_OFFSET 1
 
+namespace bluetooth::a2dp {
+
+std::optional<CodecId> ParseCodecId(uint8_t const media_codec_capabilities[]) {
+  uint8_t length_of_service_capability = media_codec_capabilities[0];
+  // The Media Codec Capabilities contain the Media Codec Type and
+  // Media Type on 16-bits.
+  if (length_of_service_capability < 2) {
+    return {};
+  }
+  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(media_codec_capabilities);
+  switch (codec_type) {
+    case A2DP_MEDIA_CT_SBC:
+      return CodecId::SBC;
+    case A2DP_MEDIA_CT_AAC:
+      return CodecId::AAC;
+    case A2DP_MEDIA_CT_NON_A2DP: {
+      // The Vendor Codec Specific Information Elements contain
+      // a 32-bit Vendor ID and 16-bit Vendor Specific Codec ID.
+      if (length_of_service_capability < 8) {
+        return {};
+      }
+      uint32_t vendor_id = A2DP_VendorCodecGetVendorId(media_codec_capabilities);
+      uint16_t codec_id = A2DP_VendorCodecGetCodecId(media_codec_capabilities);
+      // The lower 16 bits of the 32-bit Vendor ID shall contain a valid,
+      // nonreserved 16-bit Company ID as defined in Bluetooth Assigned Numbers.
+      // The upper 16 bits of the 32-bit Vendor ID shall be set to zero.
+      if (vendor_id > UINT16_MAX) {
+        return {};
+      }
+      return static_cast<CodecId>(VendorCodecId(static_cast<uint16_t>(vendor_id), codec_id));
+    }
+    default:
+      return {};
+  }
+}
+
+}  // namespace bluetooth::a2dp
+
+using namespace bluetooth;
+
 // Initializes the codec config.
 // |codec_config| is the codec config to initialize.
 // |codec_index| and |codec_priority| are the codec type and priority to use
 // for the initialization.
-
-using namespace bluetooth;
-
 static void init_btav_a2dp_codec_config(btav_a2dp_codec_config_t* codec_config,
                                         btav_a2dp_codec_index_t codec_index,
                                         btav_a2dp_codec_priority_t codec_priority) {
@@ -60,7 +98,7 @@ static void init_btav_a2dp_codec_config(btav_a2dp_codec_config_t* codec_config,
   codec_config->codec_priority = codec_priority;
 }
 
-A2dpCodecConfig::A2dpCodecConfig(btav_a2dp_codec_index_t codec_index, tA2DP_CODEC_ID codec_id,
+A2dpCodecConfig::A2dpCodecConfig(btav_a2dp_codec_index_t codec_index, a2dp::CodecId codec_id,
                                  const std::string& name, btav_a2dp_codec_priority_t codec_priority)
     : codec_index_(codec_index),
       codec_id_(codec_id),
@@ -1571,4 +1609,21 @@ std::string A2DP_CodecInfoString(const uint8_t* p_codec_info) {
 int A2DP_GetEecoderEffectiveFrameSize(const uint8_t* p_codec_info) {
   const tA2DP_ENCODER_INTERFACE* a2dp_encoder_interface = A2DP_GetEncoderInterface(p_codec_info);
   return a2dp_encoder_interface ? a2dp_encoder_interface->get_effective_frame_size() : 0;
+}
+
+uint32_t A2DP_VendorCodecGetVendorId(const uint8_t* p_codec_info) {
+  const uint8_t* p = &p_codec_info[A2DP_VENDOR_CODEC_VENDOR_ID_START_IDX];
+
+  uint32_t vendor_id = (p[0] & 0x000000ff) | ((p[1] << 8) & 0x0000ff00) |
+                       ((p[2] << 16) & 0x00ff0000) | ((p[3] << 24) & 0xff000000);
+
+  return vendor_id;
+}
+
+uint16_t A2DP_VendorCodecGetCodecId(const uint8_t* p_codec_info) {
+  const uint8_t* p = &p_codec_info[A2DP_VENDOR_CODEC_CODEC_ID_START_IDX];
+
+  uint16_t codec_id = (p[0] & 0x00ff) | ((p[1] << 8) & 0xff00);
+
+  return codec_id;
 }

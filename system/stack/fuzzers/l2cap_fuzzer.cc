@@ -85,7 +85,7 @@ class SnoopLogger;
 
 const std::string SnoopLogger::kBtSnoopLogModeFiltered = "filtered";
 
-std::string SnoopLogger::GetBtSnoopMode() { return "filtered"; }
+std::string SnoopLogger::GetCurrentSnoopMode() { return "filtered"; }
 void SnoopLogger::AcceptlistL2capChannel(uint16_t, uint16_t, uint16_t) {}
 void SnoopLogger::AddA2dpMediaChannel(uint16_t, uint16_t, uint16_t) {}
 void SnoopLogger::AddRfcommL2capChannel(uint16_t, uint16_t, uint16_t) {}

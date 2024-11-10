@@ -16,8 +16,14 @@
  */
 
 #include <base/functional/bind.h>
-#include <hardware/bluetooth.h>
 #include <hardware/bt_le_audio.h>
+
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "bta_le_audio_api.h"
 #include "bta_le_audio_broadcaster_api.h"

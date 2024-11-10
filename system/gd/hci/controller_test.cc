@@ -78,6 +78,12 @@ public:
     FAIL() << "Controller properties should not generate Command Status";
   }
 
+  void EnqueueCommand(std::unique_ptr<CommandBuilder> /* command */,
+                      common::ContextualOnceCallback<void(
+                              CommandStatusOrCompleteView)> /* on_status_or_complete */) override {
+    FAIL() << "Controller properties should not generate Command Status";
+  }
+
   void HandleCommand(std::unique_ptr<CommandBuilder> command_builder,
                      common::ContextualOnceCallback<void(CommandCompleteView)> on_complete) {
     auto bytes = std::make_shared<std::vector<uint8_t>>();

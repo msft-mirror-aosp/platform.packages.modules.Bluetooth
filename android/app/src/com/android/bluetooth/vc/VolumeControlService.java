@@ -29,6 +29,7 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElseGet;
 
 import android.annotation.RequiresPermission;
 import android.bluetooth.BluetoothDevice;
@@ -62,6 +63,9 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
 import libcore.util.SneakyThrow;
+
+import bluetooth.constants.AudioInputType;
+import bluetooth.constants.aics.AudioInputStatus;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -111,7 +115,7 @@ public class VolumeControlService extends ProfileService {
     @VisibleForTesting ServiceFactory mFactory = new ServiceFactory();
 
     public VolumeControlService(AdapterService adapterService) {
-        this(adapterService, null, VolumeControlNativeInterface.getInstance());
+        this(adapterService, null, null);
     }
 
     @VisibleForTesting
@@ -122,7 +126,12 @@ public class VolumeControlService extends ProfileService {
         super(requireNonNull(adapterService));
         mAdapterService = adapterService;
         mDatabaseManager = requireNonNull(mAdapterService.getDatabase());
-        mNativeInterface = requireNonNull(nativeInterface);
+        mNativeInterface =
+                requireNonNullElseGet(
+                        nativeInterface,
+                        () ->
+                                new VolumeControlNativeInterface(
+                                        new VolumeControlNativeCallback(adapterService, this)));
         mAudioManager = requireNonNull(getSystemService(AudioManager.class));
         if (looper == null) {
             mHandler = new Handler(requireNonNull(Looper.getMainLooper()));
@@ -935,23 +944,11 @@ public class VolumeControlService extends ProfileService {
     void handleExternalInputs(BluetoothDevice device, int numberOfExternalInputs) {
         if (numberOfExternalInputs == 0) {
             Log.i(TAG, "Volume offset not available");
+            mAudioInputs.remove(device);
             return;
         }
 
-        VolumeControlInputDescriptor inputs = mAudioInputs.get(device);
-        if (inputs == null) {
-            inputs = new VolumeControlInputDescriptor();
-            mAudioInputs.put(device, inputs);
-        } else if (inputs.size() != numberOfExternalInputs) {
-            Log.i(TAG, "Number of inputs changed: ");
-            inputs.clear();
-        }
-
-        /* Stack delivers us number of audio inputs.
-         * Offset ids a countinous from 1 to numberOfExternalInputs*/
-        for (int i = 1; i <= numberOfExternalInputs; i++) {
-            inputs.add(i);
-        }
+        mAudioInputs.put(device, new VolumeControlInputDescriptor(numberOfExternalInputs));
     }
 
     void handleDeviceAvailable(
@@ -1033,138 +1030,119 @@ public class VolumeControlService extends ProfileService {
         }
     }
 
-    void handleDeviceExtInputStateChanged(
-            BluetoothDevice device, int id, int gainValue, int gainMode, boolean mute) {
-        Log.d(
-                TAG,
-                ("handleDeviceExtInputStateChanged, device: " + device)
-                        + (" inputId: " + id)
-                        + (" gainValue: " + gainValue)
+    void onExtAudioInStateChanged(
+            BluetoothDevice device, int id, int gainSetting, int mute, int gainMode) {
+        String logInfo =
+                "onExtAudioInStateChanged("
+                        + ("device:" + device)
+                        + (", id" + id)
+                        + (" gainSetting: " + gainSetting)
                         + (" gainMode: " + gainMode)
-                        + (" mute: " + mute));
+                        + (" mute: " + mute)
+                        + ")";
 
         VolumeControlInputDescriptor input = mAudioInputs.get(device);
         if (input == null) {
-            Log.e(
-                    TAG,
-                    ("handleDeviceExtInputStateChanged, inputId: " + id)
-                            + (" not found for device: " + device));
+            Log.e(TAG, logInfo + " This device has no audio input control");
             return;
         }
-        if (!input.setState(id, gainValue, gainMode, mute)) {
-            Log.e(
-                    TAG,
-                    ("handleDeviceExtInputStateChanged, error while setting inputId: " + id)
-                            + ("for: " + device));
-        }
+
+        Log.d(TAG, logInfo);
+        input.setState(id, gainSetting, mute, gainMode);
     }
 
-    void handleDeviceExtInputStatusChanged(BluetoothDevice device, int id, int status) {
-        Log.d(TAG, " device: " + device + " inputId: " + id + " status: " + status);
+    void onExtAudioInStatusChanged(BluetoothDevice device, int id, int status) {
+        String logInfo =
+                "onExtAudioInStatusChanged("
+                        + ("device:" + device)
+                        + (", id" + id)
+                        + (", status" + status)
+                        + ")";
 
         VolumeControlInputDescriptor input = mAudioInputs.get(device);
         if (input == null) {
-            Log.e(TAG, " inputId: " + id + " not found for device: " + device);
+            Log.e(TAG, logInfo + " This device has no audio input control");
             return;
         }
 
-        /*
-         * As per ACIS 1.0. Status
-         * Inactive: 0x00
-         * Active: 0x01
-         */
-        if (status > 1 || status < 0) {
-            Log.e(
-                    TAG,
-                    ("handleDeviceExtInputStatusChanged, invalid status: " + status)
-                            + (" for: " + device));
+        if (status != AudioInputStatus.INACTIVE && status != AudioInputStatus.ACTIVE) {
+            Log.e(TAG, logInfo + ": Invalid status argument");
             return;
         }
 
-        boolean active = (status == 0x01);
-        if (!input.setActive(id, active)) {
-            Log.e(
-                    TAG,
-                    ("handleDeviceExtInputStatusChanged, error while setting inputId: " + id)
-                            + ("for: " + device));
-        }
+        Log.d(TAG, logInfo);
+        input.setStatus(id, status);
     }
 
-    void handleDeviceExtInputTypeChanged(BluetoothDevice device, int id, int type) {
-        Log.d(
-                TAG,
-                ("handleDeviceExtInputTypeChanged, device: " + device)
-                        + (" inputId: " + id)
-                        + (" type: " + type));
+    void onExtAudioInTypeChanged(BluetoothDevice device, int id, int type) {
+        String logInfo =
+                "onExtAudioInTypeChanged("
+                        + ("device:" + device)
+                        + (", id" + id)
+                        + (", type" + type)
+                        + ")";
 
         VolumeControlInputDescriptor input = mAudioInputs.get(device);
         if (input == null) {
-            Log.e(
-                    TAG,
-                    ("handleDeviceExtInputTypeChanged, inputId: " + id)
-                            + (" not found for device: " + device));
+            Log.e(TAG, logInfo + ": This device has no audio input control");
             return;
         }
 
-        if (!input.setType(id, type)) {
-            Log.e(
-                    TAG,
-                    ("handleDeviceExtInputTypeChanged, error while setting inputId: " + id)
-                            + ("for: " + device));
+        if (type > AudioInputType.AMBIENT) {
+            Log.e(TAG, logInfo + ": Invalid type argument");
+            return;
         }
+
+        Log.d(TAG, logInfo);
+        input.setType(id, type);
     }
 
-    void handleDeviceExtInputDescriptionChanged(
-            BluetoothDevice device, int id, String description) {
-        Log.d(
-                TAG,
-                ("handleDeviceExtInputDescriptionChanged, device: " + device)
-                        + (" inputId: " + id)
-                        + (" description: " + description));
+    void onExtAudioInDescriptionChanged(BluetoothDevice device, int id, String description) {
+        String logInfo =
+                "onExtAudioInDescriptionChanged("
+                        + ("device:" + device)
+                        + (", id" + id)
+                        + (", description" + description)
+                        + ")";
 
         VolumeControlInputDescriptor input = mAudioInputs.get(device);
         if (input == null) {
-            Log.e(
-                    TAG,
-                    ("handleDeviceExtInputDescriptionChanged, inputId: " + id)
-                            + (" not found for device: " + device));
+            Log.e(TAG, logInfo + ": This device has no audio input control");
             return;
         }
 
-        if (!input.setDescription(id, description)) {
-            Log.e(
-                    TAG,
-                    ("handleDeviceExtInputDescriptionChanged, error while setting inputId: " + id)
-                            + ("for: " + device));
+        if (description == null) {
+            Log.e(TAG, logInfo + ": Invalid description argument");
+            return;
         }
+
+        Log.d(TAG, logInfo);
+        input.setDescription(id, description);
     }
 
-    void handleDeviceExtInputGainPropsChanged(
-            BluetoothDevice device, int id, int unit, int min, int max) {
-        Log.d(
-                TAG,
-                ("handleDeviceExtInputGainPropsChanged, device: " + device)
-                        + (" inputId: " + id)
-                        + (" unit: " + unit + " min" + min + " max:" + max));
+    void onExtAudioInGainPropsChanged(BluetoothDevice device, int id, int unit, int min, int max) {
+        String logInfo =
+                "onExtAudioInGainPropsChanged("
+                        + ("device:" + device)
+                        + (", id" + id)
+                        + (" unit: " + unit + " min" + min + " max:" + max)
+                        + ")";
 
         VolumeControlInputDescriptor input = mAudioInputs.get(device);
         if (input == null) {
-            Log.e(
-                    TAG,
-                    ("handleDeviceExtInputGainPropsChanged, inputId: " + id)
-                            + (" not found for device: " + device));
+            Log.e(TAG, logInfo + ": This device has no audio input control");
             return;
         }
 
-        if (!input.setPropSettings(id, unit, min, max)) {
-            Log.e(
-                    TAG,
-                    ("handleDeviceExtInputGainPropsChanged, error while setting inputId: " + id)
-                            + ("for: " + device));
-        }
+        Log.d(TAG, logInfo);
+        input.setPropSettings(id, unit, min, max);
     }
 
     void messageFromNative(VolumeControlStackEvent stackEvent) {
+        if (!isAvailable()) {
+            Log.e(TAG, "Event ignored, service not available: " + stackEvent);
+            return;
+        }
         Log.d(TAG, "messageFromNative: " + stackEvent);
 
         if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_VOLUME_STATE_CHANGED) {
@@ -1201,42 +1179,6 @@ public class VolumeControlService extends ProfileService {
                 == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED) {
             handleDeviceExtAudioDescriptionChanged(
                     device, stackEvent.valueInt1, stackEvent.valueString1);
-            return;
-        }
-
-        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED) {
-            handleDeviceExtInputStateChanged(
-                    device,
-                    stackEvent.valueInt1,
-                    stackEvent.valueInt2,
-                    stackEvent.valueInt3,
-                    stackEvent.valueBool1);
-            return;
-        }
-
-        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_STATUS_CHANGED) {
-            handleDeviceExtInputStatusChanged(device, stackEvent.valueInt1, stackEvent.valueInt2);
-            return;
-        }
-
-        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_TYPE_CHANGED) {
-            handleDeviceExtInputTypeChanged(device, stackEvent.valueInt1, stackEvent.valueInt2);
-            return;
-        }
-
-        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_DESCR_CHANGED) {
-            handleDeviceExtInputDescriptionChanged(
-                    device, stackEvent.valueInt1, stackEvent.valueString1);
-            return;
-        }
-
-        if (stackEvent.type == VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_GAIN_PROPS_CHANGED) {
-            handleDeviceExtInputGainPropsChanged(
-                    device,
-                    stackEvent.valueInt1,
-                    stackEvent.valueInt2,
-                    stackEvent.valueInt3,
-                    stackEvent.valueInt4);
             return;
         }
 

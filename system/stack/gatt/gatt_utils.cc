@@ -45,15 +45,11 @@
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/btm_sec_api.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/sdp_api.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
-uint8_t btm_ble_read_sec_key_size(const RawAddress& bd_addr);
 
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;
@@ -108,7 +104,7 @@ uint16_t gatt_get_local_mtu(void) {
   return ATT_MTU_DEFAULT;
 }
 
-uint16_t gatt_get_max_phy_channel() {
+static uint16_t gatt_get_max_phy_channel() {
   static const uint16_t MAX_PHY_CHANNEL =
           std::min(std::max(osi_property_get_int32(
                                     "bluetooth.core.le.max_number_of_concurrent_connections", 0),
@@ -126,7 +122,7 @@ uint16_t gatt_get_max_phy_channel() {
  * Returns       None
  *
  ******************************************************************************/
-void gatt_free_pending_ind(tGATT_TCB* p_tcb) {
+static void gatt_free_pending_ind(tGATT_TCB* p_tcb) {
   log::verbose("");
 
   if (p_tcb->pending_ind_q == NULL) {
@@ -377,28 +373,6 @@ tGATTS_SRV_CHG* gatt_is_bda_in_the_srv_chg_clt_list(const RawAddress& bda) {
 
 /*******************************************************************************
  *
- * Function         gatt_is_bda_connected
- *
- * Description
- *
- * Returns          GATT_INDEX_INVALID if not found. Otherwise index to the tcb.
- *
- ******************************************************************************/
-bool gatt_is_bda_connected(const RawAddress& bda) {
-  uint8_t i = 0;
-  bool connected = false;
-
-  for (i = 0; i < gatt_get_max_phy_channel(); i++) {
-    if (gatt_cb.tcb[i].in_use && gatt_cb.tcb[i].peer_bda == bda) {
-      connected = true;
-      break;
-    }
-  }
-  return connected;
-}
-
-/*******************************************************************************
- *
  * Function         gatt_find_i_tcb_by_addr
  *
  * Description      Search for an empty tcb entry, and return the index.
@@ -406,7 +380,7 @@ bool gatt_is_bda_connected(const RawAddress& bda) {
  * Returns          GATT_INDEX_INVALID if not found. Otherwise index to the tcb.
  *
  ******************************************************************************/
-uint8_t gatt_find_i_tcb_by_addr(const RawAddress& bda, tBT_TRANSPORT transport) {
+static uint8_t gatt_find_i_tcb_by_addr(const RawAddress& bda, tBT_TRANSPORT transport) {
   uint8_t i = 0;
 
   for (; i < gatt_get_max_phy_channel(); i++) {
@@ -793,8 +767,6 @@ void gatt_rsp_timeout(void* data) {
     gatt_disconnect(p_clcb->p_tcb);
   }
 }
-
-void gatts_proc_srv_chg_ind_ack(tGATT_TCB tcb);
 
 /*******************************************************************************
  *

@@ -17,6 +17,7 @@
 #include "rust/topshim/btav/btav_shim.h"
 
 #include <cstdio>
+#include <map>
 #include <memory>
 
 #include "base/functional/callback.h"
@@ -156,12 +157,12 @@ public:
   }
 
   void DeviceConnected(const RawAddress& addr, VolumeChangedCb cb) override {
-    volumeCb = std::move(cb);
+    volumeCbs[addr] = std::move(cb);
     rusty::avrcp_device_connected(addr, /*absolute_volume_enabled=*/true);
   }
 
   void DeviceDisconnected(const RawAddress& addr) override {
-    volumeCb.Reset();
+    volumeCbs.erase(addr);
     rusty::avrcp_device_disconnected(addr);
   }
 
@@ -175,16 +176,19 @@ public:
   }
 
   // Set CT's (headsets, speakers) volume.
-  void SetDeviceVolume(int8_t volume) {
-    if (!volumeCb || volume < 0) {
+  void SetDeviceVolume(const RawAddress& addr, int8_t volume) {
+    if (volume < 0) {
       return;
     }
 
-    volumeCb.Run(volume);
+    const auto& cb_iter = this->volumeCbs.find(addr);
+    if (cb_iter != this->volumeCbs.end()) {
+      cb_iter->second.Run(volume);
+    }
   }
 
 private:
-  VolumeInterface::VolumeChangedCb volumeCb;
+  std::map<RawAddress, VolumeInterface::VolumeChangedCb> volumeCbs;
 };
 
 }  // namespace bluetooth::avrcp
@@ -288,10 +292,16 @@ std::unique_ptr<A2dpIntf> GetA2dpProfile(const unsigned char* btif) {
 }
 
 int A2dpIntf::init() const {
-  std::vector<btav_a2dp_codec_config_t> a;
+  btav_a2dp_codec_config_t a2dp_config_sbc{
+          .codec_type = BTAV_A2DP_CODEC_INDEX_SOURCE_SBC,
+          .codec_priority = BTAV_A2DP_CODEC_PRIORITY_HIGHEST,
+          // Using default settings for those untouched fields
+  };
+
+  std::vector<btav_a2dp_codec_config_t> codec_priorities(1, a2dp_config_sbc);
   std::vector<btav_a2dp_codec_config_t> b;
   std::vector<btav_a2dp_codec_info_t> c;
-  return btif_av_source_init(&internal::g_callbacks, 1, a, b, &c);
+  return btif_av_source_init(&internal::g_callbacks, 1, codec_priorities, b, &c);
 }
 
 uint32_t A2dpIntf::connect(RawAddress addr) const { return btif_av_source_connect(addr); }
@@ -362,7 +372,9 @@ void AvrcpIntf::cleanup() { intf_->Cleanup(); }
 uint32_t AvrcpIntf::connect(RawAddress addr) { return intf_->ConnectDevice(addr); }
 uint32_t AvrcpIntf::disconnect(RawAddress addr) { return intf_->DisconnectDevice(addr); }
 
-void AvrcpIntf::set_volume(int8_t volume) { return mVolumeInterface.SetDeviceVolume(volume); }
+void AvrcpIntf::set_volume(RawAddress addr, int8_t volume) {
+  return mVolumeInterface.SetDeviceVolume(addr, volume);
+}
 
 void AvrcpIntf::set_playback_status(const ::rust::String& status) {
   avrcp::PlayState state = avrcp::PlayState::STOPPED;

@@ -44,9 +44,6 @@
 #define GATT_MTU_REQ_MIN_LEN 2
 #define L2CAP_PKT_OVERHEAD 4
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using bluetooth::Uuid;
 using bluetooth::eatt::EattChannel;
 using bluetooth::eatt::EattExtension;
@@ -107,7 +104,7 @@ uint32_t gatt_sr_enqueue_cmd(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint
  * Returns          true if empty, false if there is pending command.
  *
  ******************************************************************************/
-bool gatt_sr_cmd_empty(tGATT_TCB& tcb, uint16_t cid) {
+static bool gatt_sr_cmd_empty(tGATT_TCB& tcb, uint16_t cid) {
   if (cid == tcb.att_lcid) {
     return tcb.sr_cmd.op_code == 0;
   }
@@ -369,8 +366,8 @@ tGATT_STATUS gatt_sr_process_app_rsp(tGATT_TCB& tcb, tGATT_IF gatt_if, uint32_t 
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
-                                 uint8_t* p_data) {
+static void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
+                                        uint8_t* p_data) {
   uint8_t *p = p_data, flag;
   uint32_t trans_id = 0;
   tGATT_IF gatt_if;
@@ -441,8 +438,8 @@ void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, 
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_read_multi_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
-                                 uint8_t* p_data) {
+static void gatt_process_read_multi_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
+                                        uint8_t* p_data) {
   uint32_t trans_id;
   uint16_t handle = 0, ll = len;
   uint8_t* p = p_data;
@@ -730,8 +727,8 @@ static tGATT_STATUS gatts_validate_packet_format(uint8_t op_code, uint16_t& len,
  * Returns          void
  *
  ******************************************************************************/
-void gatts_process_primary_service_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
-                                       uint8_t* p_data) {
+static void gatts_process_primary_service_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code,
+                                              uint16_t len, uint8_t* p_data) {
   uint16_t s_hdl = 0, e_hdl = 0;
   Uuid uuid = Uuid::kEmpty;
 
@@ -1144,8 +1141,8 @@ static void gatts_process_read_req(tGATT_TCB& tcb, uint16_t cid, tGATT_SRV_LIST_
  * Returns          void
  *
  ******************************************************************************/
-void gatts_process_attribute_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
-                                 uint8_t* p_data) {
+static void gatts_process_attribute_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
+                                        uint8_t* p_data) {
   uint16_t handle = 0;
   uint8_t* p = p_data;
   tGATT_STATUS status = GATT_INVALID_HANDLE;
@@ -1291,7 +1288,7 @@ static bool gatts_proc_ind_ack(tGATT_TCB& tcb, uint16_t ack_handle) {
  * Returns          void
  *
  ******************************************************************************/
-void gatts_process_value_conf(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code) {
+static void gatts_process_value_conf(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code) {
   uint16_t handle;
 
   if (!gatt_tcb_find_indicate_handle(tcb, cid, &handle)) {
