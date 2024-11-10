@@ -28,6 +28,7 @@ import android.app.AppOpsManager;
 import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothUtils;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.IPeriodicAdvertisingCallback;
 import android.bluetooth.le.IScannerCallback;
@@ -342,7 +343,7 @@ public class TransitionalScanHelper {
                         + ", addressType="
                         + addressType
                         + ", address="
-                        + address
+                        + BluetoothUtils.toAnonymizedAddress(address)
                         + ", primaryPhy="
                         + primaryPhy
                         + ", secondaryPhy="
@@ -1245,7 +1246,13 @@ public class TransitionalScanHelper {
             if (cbApp != null) {
                 isCallbackScan = cbApp.mCallback != null;
             }
-            app.recordScanStart(settings, filters, isFilteredScan, isCallbackScan, scannerId);
+            app.recordScanStart(
+                    settings,
+                    filters,
+                    isFilteredScan,
+                    isCallbackScan,
+                    scannerId,
+                    cbApp == null ? null : cbApp.mAttributionTag);
         }
 
         mScanManager.startScan(scanClient);
@@ -1352,7 +1359,12 @@ public class TransitionalScanHelper {
             scanClient.stats = scanStats;
             boolean isFilteredScan = (piInfo.filters != null) && !piInfo.filters.isEmpty();
             scanStats.recordScanStart(
-                    piInfo.settings, piInfo.filters, isFilteredScan, false, scannerId);
+                    piInfo.settings,
+                    piInfo.filters,
+                    isFilteredScan,
+                    false,
+                    scannerId,
+                    app.mAttributionTag);
         }
 
         mScanManager.startScan(scanClient);

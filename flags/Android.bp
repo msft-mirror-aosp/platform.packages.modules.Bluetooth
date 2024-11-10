@@ -83,6 +83,7 @@ java_aconfig_library {
     mode: "exported",
     visibility: [
         "//frameworks/base",
+        "//frameworks/base/packages/SettingsLib",
     ],
 }
 

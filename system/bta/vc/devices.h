@@ -99,10 +99,12 @@ public:
 
     stream << "    volume: " << +volume << "\n"
            << "    mute: " << +mute << "\n"
+           << "    change_counter: " << +change_counter << "\n"
            << "    flags: " << +flags << "\n"
-           << "    device read: " << device_ready << "\n"
+           << "    device ready: " << device_ready << "\n"
            << "    connecting_actively: " << connecting_actively << "\n"
-           << "    change_counter: " << +change_counter << "\n";
+           << "    is encrypted: " << IsEncryptionEnabled() << "\n"
+           << "    GATT operations pending: " << handles_pending.size() << "\n";
 
     dprintf(fd, "%s", stream.str().c_str());
     audio_offsets.Dump(fd);

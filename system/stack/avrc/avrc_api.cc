@@ -82,6 +82,8 @@ static const uint8_t avrc_ctrl_event_map[] = {
 #define AVRC_MSG_MASK_IS_VENDOR_CMD 0x01
 #define AVRC_MSG_MASK_IS_CONTINUATION_RSP 0x02
 
+static void avrc_start_cmd_timer(uint8_t handle, uint8_t label, uint8_t msg_mask);
+
 /******************************************************************************
  *
  * Function         avrcp_absolute_volume_is_enabled
@@ -216,14 +218,19 @@ void avrc_send_next_vendor_cmd(uint8_t handle) {
  * Returns          Nothing.
  *
  *****************************************************************************/
-void avrc_start_cmd_timer(uint8_t handle, uint8_t label, uint8_t msg_mask) {
+static void avrc_start_cmd_timer(uint8_t handle, uint8_t label, uint8_t msg_mask) {
+  if (!avrc_cb.ccb_int[handle].tle) {
+    log::warn("Unable to start response timer handle=0x{:02x} label=0x{:02x} msg_mask:0x{:02x}",
+              handle, label, msg_mask);
+    return;
+  }
+
   tAVRC_PARAM* param = static_cast<tAVRC_PARAM*>(osi_malloc(sizeof(tAVRC_PARAM)));
   param->handle = handle;
   param->label = label;
   param->msg_mask = msg_mask;
 
-  log::verbose("AVRC: starting timer (handle=0x{:02x}, label=0x{:02x})", handle, label);
-
+  log::verbose("AVRC: starting timer (handle=0x{:02x} label=0x{:02x})", handle, label);
   alarm_set_on_mloop(avrc_cb.ccb_int[handle].tle, AVRC_CMD_TOUT_MS, avrc_process_timeout, param);
 }
 
@@ -379,9 +386,8 @@ static BT_HDR* avrc_proc_vendor_command(uint8_t handle, uint8_t label, BT_HDR* p
     log::error("commands must be in single packet pdu:0x{:x}", *p_data);
     /* use the current GKI buffer to send the reject */
     status = AVRC_STS_BAD_CMD;
-  }
-  /* check if there are fragments waiting to be sent */
-  else if (avrc_cb.fcb[handle].frag_enabled) {
+  } else if (avrc_cb.fcb[handle].frag_enabled) {
+    /* check if there are fragments waiting to be sent */
     p_fcb = &avrc_cb.fcb[handle];
     if (p_msg->company_id == AVRC_CO_METADATA) {
       switch (*p_data) {

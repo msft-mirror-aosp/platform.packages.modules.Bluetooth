@@ -21,7 +21,7 @@
 #include <inttypes.h>
 
 namespace bluetooth {
-namespace hal {
+namespace os {
 
 #define HCI_OP_NOP 0x0000
 
@@ -56,10 +56,31 @@ struct mgmt_rp_get_vs_opcode {
 #define MGMT_POLL_TIMEOUT_MS 2000
 
 // This class provides an interface to interact with the kernel.
-class Mgmt {
+class Management {
 public:
-  uint16_t get_vs_opcode(uint16_t vendor_specification);
+  ~Management() = default;
+
+  /**
+   * Get the instance of singleton
+   *
+   * @return Management&
+   */
+  static Management& getInstance() {
+    static Management mgmt;
+    return mgmt;
+  }
+
+  uint16_t getVendorSpecificCode(uint16_t vendor_specification);
+
+protected:
+  // Singleton
+  Management() = default;
+
+private:
+  // delete copy constructor for singleton
+  Management(Management const&) = delete;
+  Management& operator=(Management const&) = delete;
 };
 
-}  // namespace hal
+}  // namespace os
 }  // namespace bluetooth

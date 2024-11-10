@@ -155,6 +155,24 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                 Log.d(TAG, " onGroupStreamStatusChanged is not implemented.");
             }
         }
+
+        /**
+         * Callback invoked when the broadcast to unicast fallback group changes.
+         *
+         * <p>This callback provides the new broadcast to unicast fallback group ID. It is invoked
+         * when the broadcast to unicast fallback group is initially set, or when it subsequently
+         * changes.
+         *
+         * @param groupId The ID of the new broadcast to unicast fallback group.
+         * @hide
+         */
+        @FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_API_MANAGE_PRIMARY_GROUP)
+        @SystemApi
+        default void onBroadcastToUnicastFallbackGroupChanged(int groupId) {
+            if (DBG) {
+                Log.d(TAG, "onBroadcastToUnicastFallbackGroupChanged is not implemented.");
+            }
+        }
     }
 
     private final CallbackWrapper<Callback, IBluetoothLeAudio> mCallbackWrapper;
@@ -188,6 +206,14 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
         public void onGroupStreamStatusChanged(int groupId, int groupStreamStatus) {
             mCallbackWrapper.forEach(
                     (cb) -> cb.onGroupStreamStatusChanged(groupId, groupStreamStatus));
+        }
+
+        @Override
+        public void onBroadcastToUnicastFallbackGroupChanged(int groupId) {
+            if (Flags.leaudioBroadcastApiManagePrimaryGroup()) {
+                mCallbackWrapper.forEach(
+                        (cb) -> cb.onBroadcastToUnicastFallbackGroupChanged(groupId));
+            }
         }
     }
 

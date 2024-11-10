@@ -9,7 +9,7 @@ okamil@google.com #{LAST_RESORT_SUGGESTION}
 # Per-file ownership
 
 # Build files / test_config / presubmit / preupload / linter file
-per-file PREUPLOAD.cfg,TEST_MAPPING,*.bp,*.xml,pyrightconfig.json=file:/OWNERS_build
+per-file *.cfg,.cfg,TEST_MAPPING,*.bp,*.xml,.clang-tidy,pyrightconfig.json=file:/OWNERS_build
 
 # ChromeOS team owns Linux build files
 # - build.py is used for Linux build

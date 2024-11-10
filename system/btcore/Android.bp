@@ -110,6 +110,7 @@ cc_test {
         "libbluetooth_log",
         "libbtcore",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libosi",
     ],
     host_supported: true,

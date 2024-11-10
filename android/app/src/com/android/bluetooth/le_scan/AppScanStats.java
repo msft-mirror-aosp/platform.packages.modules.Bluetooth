@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.le_scan;
 
+import android.annotation.Nullable;
 import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanSettings;
@@ -104,6 +105,7 @@ public class AppScanStats {
         public int scanMode;
         public int scanCallbackType;
         public StringBuilder filterString;
+        @Nullable public String attributionTag;
 
         LastScan(
                 long timestamp,
@@ -112,7 +114,8 @@ public class AppScanStats {
                 boolean isCallbackScan,
                 int scannerId,
                 int scanMode,
-                int scanCallbackType) {
+                int scanCallbackType,
+                @Nullable String attributionTag) {
             this.duration = 0;
             this.timestamp = timestamp;
             this.reportDelayMillis = reportDelayMillis;
@@ -126,6 +129,7 @@ public class AppScanStats {
             this.isAutoBatchScan = false;
             this.scanMode = scanMode;
             this.scanCallbackType = scanCallbackType;
+            this.attributionTag = attributionTag;
             this.results = 0;
             this.scannerId = scannerId;
             this.suspendDuration = 0;
@@ -239,7 +243,8 @@ public class AppScanStats {
             List<ScanFilter> filters,
             boolean isFilterScan,
             boolean isCallbackScan,
-            int scannerId) {
+            int scannerId,
+            @Nullable String attributionTag) {
         LastScan existingScan = getScanFromScannerId(scannerId);
         if (existingScan != null) {
             return;
@@ -255,7 +260,8 @@ public class AppScanStats {
                         isCallbackScan,
                         scannerId,
                         settings.getScanMode(),
-                        settings.getCallbackType());
+                        settings.getCallbackType(),
+                        attributionTag);
         if (settings != null) {
             scan.isOpportunisticScan = scan.scanMode == ScanSettings.SCAN_MODE_OPPORTUNISTIC;
             scan.isBackgroundScan =
@@ -1065,6 +1071,9 @@ public class AppScanStats {
                 }
                 sb.append(scan.results).append(" results");
                 sb.append(" (").append(scan.scannerId).append(") ");
+                if (scan.attributionTag != null) {
+                    sb.append(" [").append(scan.attributionTag).append("] ");
+                }
                 if (scan.isCallbackScan) {
                     sb.append("CB ");
                 } else {

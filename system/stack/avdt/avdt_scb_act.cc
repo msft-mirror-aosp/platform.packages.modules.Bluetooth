@@ -276,9 +276,8 @@ void avdt_scb_hdl_pkt_no_frag(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
   if (pad_len >= (len - offset)) {
     log::warn("Got bad media packet");
     osi_free_and_reset((void**)&p_data->p_pkt);
-  }
-  /* adjust offset and length and send it up */
-  else {
+  } else {
+    /* adjust offset and length and send it up */
     p_data->p_pkt->len -= (offset + pad_len);
     p_data->p_pkt->offset += offset;
 

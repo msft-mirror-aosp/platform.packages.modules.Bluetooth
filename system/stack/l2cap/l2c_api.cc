@@ -24,7 +24,7 @@
 
 #define LOG_TAG "bt_l2cap"
 
-#include "stack/l2cap/internal/l2c_api.h"
+#include "stack/l2cap/l2c_api.h"
 
 #include <base/location.h>
 #include <base/strings/stringprintf.h>
@@ -47,6 +47,7 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/l2cap_module.h"
 #include "stack/include/main_thread.h"
+#include "stack/l2cap/internal/l2c_api.h"
 #include "stack/l2cap/l2c_int.h"
 #include "types/raw_address.h"
 
@@ -551,15 +552,12 @@ uint16_t L2CA_ConnectLECocReq(uint16_t psm, const RawAddress& p_bd_addr, tL2CAP_
       do_in_main_thread(base::BindOnce(&l2c_csm_execute, base::Unretained(p_ccb),
                                        L2CEVT_L2CA_CONNECT_REQ, nullptr));
     }
-  }
-
-  /* If link is disconnecting, save link info to retry after disconnect
-   * Possible Race condition when a reconnect occurs
-   * on the channel during a disconnect of link. This
-   * ccb will be automatically retried after link disconnect
-   * arrives
-   */
-  else if (p_lcb->link_state == LST_DISCONNECTING) {
+  } else if (p_lcb->link_state == LST_DISCONNECTING) {
+    /* If link is disconnecting, save link info to retry after disconnect
+     * Possible Race condition when a reconnect occurs
+     * on the channel during a disconnect of link. This
+     * ccb will be automatically retried after link disconnect
+     * arrives */
     log::verbose("link disconnecting: RETRY LATER");
 
     /* Save ccb so it can be started after disconnect is finished */
@@ -1639,7 +1637,7 @@ void L2CA_SetMediaStreamChannel(uint16_t local_media_cid, bool status) {
     return;
   }
 
-  if (snoop_logger->GetBtSnoopMode() != snoop_logger->kBtSnoopLogModeFiltered) {
+  if (snoop_logger->GetCurrentSnoopMode() != snoop_logger->kBtSnoopLogModeFiltered) {
     return;
   }
 

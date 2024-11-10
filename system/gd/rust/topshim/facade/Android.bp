@@ -32,6 +32,7 @@ rust_defaults {
         "libtokio",
     ],
     static_libs: [
+        "aics",
         "avrcp-target-service",
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
@@ -72,6 +73,7 @@ rust_defaults {
     ],
     shared_libs: [
         "libaconfig_storage_read_api_cc",
+        "libbinder",
         "libcrypto",
         "libcutils",
         "libgrpc++",
