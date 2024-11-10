@@ -671,4 +671,26 @@ public abstract class MetadataDatabase extends RoomDatabase {
                     }
                 }
             };
+
+    @VisibleForTesting
+    static final Migration MIGRATION_120_121 =
+            new Migration(120, 121) {
+                @Override
+                public void migrate(SupportSQLiteDatabase database) {
+                    try {
+                        database.execSQL(
+                                "ALTER TABLE metadata ADD COLUMN"
+                                        + " `is_preferred_microphone_for_calls` INTEGER NOT NULL"
+                                        + " DEFAULT 1");
+                    } catch (SQLException ex) {
+                        // Check if user has new schema, but is just missing the version update
+                        Cursor cursor = database.query("SELECT * FROM metadata");
+                        if (cursor == null
+                                || cursor.getColumnIndex("is_preferred_microphone_for_calls")
+                                        == -1) {
+                            throw ex;
+                        }
+                    }
+                }
+            };
 }

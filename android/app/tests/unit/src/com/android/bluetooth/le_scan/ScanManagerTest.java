@@ -291,7 +291,7 @@ public class ScanManagerTest {
 
         ScanClient client = new ScanClient(id, scanSettings, scanFilterList, appUid);
         client.stats = appScanStats;
-        client.stats.recordScanStart(scanSettings, scanFilterList, isFiltered, false, id);
+        client.stats.recordScanStart(scanSettings, scanFilterList, isFiltered, false, id, null);
         return client;
     }
 
@@ -389,7 +389,7 @@ public class ScanManagerTest {
 
         ScanClient client = new ScanClient(id, scanSettings, scanFilterList);
         client.stats = mMockAppScanStats;
-        client.stats.recordScanStart(scanSettings, scanFilterList, isFiltered, false, id);
+        client.stats.recordScanStart(scanSettings, scanFilterList, isFiltered, false, id, null);
         return client;
     }
 

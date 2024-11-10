@@ -118,7 +118,6 @@ source_set("stack") {
     "btm/hfp_lc3_decoder_linux.cc",
     "btm/hfp_msbc_encoder.cc",
     "btm/hfp_msbc_decoder.cc",
-    "btu/btu_event.cc",
     "btu/btu_hcif.cc",
     "btu/main_thread.cc",
     "eatt/eatt.cc",

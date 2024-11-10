@@ -830,9 +830,8 @@ void avdt_ccb_snd_msg(AvdtpCcb* p_ccb, tAVDT_CCB_EVT* /* p_data */) {
     /* are we sending a fragmented message? continue sending fragment */
     if (p_ccb->p_curr_msg != NULL) {
       avdt_msg_send(p_ccb, NULL);
-    }
-    /* do we have responses to send?  send them */
-    else if (!fixed_queue_is_empty(p_ccb->rsp_q)) {
+    } else if (!fixed_queue_is_empty(p_ccb->rsp_q)) {
+      /* do we have responses to send?  send them */
       while ((p_msg = (BT_HDR*)fixed_queue_try_dequeue(p_ccb->rsp_q)) != NULL) {
         if (avdt_msg_send(p_ccb, p_msg)) {
           /* break out if congested */

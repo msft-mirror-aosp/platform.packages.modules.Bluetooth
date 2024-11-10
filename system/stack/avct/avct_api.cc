@@ -163,9 +163,8 @@ uint16_t AVCT_CreateConn(uint8_t* p_handle, tAVCT_CC* p_cc, const RawAddress& pe
           avct_ccb_dealloc(p_ccb, AVCT_NO_EVT, 0, NULL);
           result = AVCT_NO_RESOURCES;
         }
-      }
-      /* check if PID already in use */
-      else if (avct_lcb_has_pid(p_lcb, p_cc->pid)) {
+      } else if (avct_lcb_has_pid(p_lcb, p_cc->pid)) {
+        /* check if PID already in use */
         avct_ccb_dealloc(p_ccb, AVCT_NO_EVT, 0, NULL);
         result = AVCT_PID_IN_USE;
       }
@@ -405,9 +404,8 @@ uint16_t AVCT_MsgReq(uint8_t handle, uint8_t label, uint8_t cr, BT_HDR* p_msg) {
   if (p_ccb == NULL) {
     result = AVCT_BAD_HANDLE;
     osi_free(p_msg);
-  }
-  /* verify channel is bound to link */
-  else if (p_ccb->p_lcb == NULL) {
+  } else if (p_ccb->p_lcb == NULL) {
+    /* verify channel is bound to link */
     result = AVCT_NOT_OPEN;
     osi_free(p_msg);
   }
@@ -430,9 +428,8 @@ uint16_t AVCT_MsgReq(uint8_t handle, uint8_t label, uint8_t cr, BT_HDR* p_msg) {
         avct_lcb_evt.ul_msg = ul_msg;
         avct_bcb_event(p_ccb->p_bcb, AVCT_LCB_UL_MSG_EVT, &avct_lcb_evt);
       }
-    }
-    /* send msg event to lcb */
-    else {
+    } else {
+      /* send msg event to lcb */
       tAVCT_LCB_EVT avct_lcb_evt;
       avct_lcb_evt.ul_msg = ul_msg;
       avct_lcb_event(p_ccb->p_lcb, AVCT_LCB_UL_MSG_EVT, &avct_lcb_evt);

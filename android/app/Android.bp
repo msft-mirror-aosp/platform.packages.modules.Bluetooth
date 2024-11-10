@@ -73,6 +73,9 @@ cc_library_shared {
         "jni_headers",
         "libbluetooth_headers",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/gd",
@@ -88,6 +91,7 @@ cc_library_shared {
     // is required to maintain FIPS compliance.
     stl: "libc++_static",
     static_libs: [
+        "aics",
         "android.hardware.audio.common@5.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
@@ -239,6 +243,7 @@ android_app {
     jni_uses_platform_apis: true,
     libs: [
         "app-compat-annotations",
+        "bluetooth_constants_java",
         "bluetooth_flags_java_lib",
         "error_prone_annotations",
         "framework-annotations-lib",
@@ -303,6 +308,7 @@ android_app {
             "ExtraText",
             "ExtraTranslation",
             "GestureBackNavigation",
+            "GetterSetterNullability",
             "GuardedLogInvocation",
             "HandlerLeak",
             "InflateParams",

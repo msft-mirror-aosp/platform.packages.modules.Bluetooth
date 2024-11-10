@@ -38,6 +38,7 @@ cc_defaults {
         "libbt-common",
         "libbtcore",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libevent",
         "liblog",
         "libmodpb64",

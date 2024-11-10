@@ -2509,6 +2509,12 @@ jint JNI_OnLoad(JavaVM* jvm, void* /* reserved */) {
     return JNI_ERR;
   }
 
+  status = android::register_com_android_bluetooth_btservice_BluetoothHciVendorSpecific(e);
+  if (status < 0) {
+    log::error("jni bluetooth hci vendor-specific registration failure: {}", status);
+    return JNI_ERR;
+  }
+
   return JNI_VERSION_1_6;
 }
 

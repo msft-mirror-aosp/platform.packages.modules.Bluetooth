@@ -396,7 +396,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
      *
      * @param executor an {@link Executor} to execute given callback
      * @param callback user implementation of the {@link Callback}
-     * @throws IllegalArgumentException if a null executor, sink, or callback is given
+     * @throws IllegalArgumentException if a null executor, or callback is given
      * @hide
      */
     @SystemApi

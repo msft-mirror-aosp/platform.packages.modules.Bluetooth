@@ -466,17 +466,15 @@ void bta_ag_do_disc(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
     attr_list[3] = ATTR_ID_SUPPORTED_FEATURES;
     num_attr = 4;
     uuid_list[0] = Uuid::From16Bit(UUID_SERVCLASS_HF_HANDSFREE);
-  }
-  /* HFP acceptor; get features */
-  else if (service & BTA_HFP_SERVICE_MASK && p_scb->role == BTA_AG_ACP) {
+  } else if (service & BTA_HFP_SERVICE_MASK && p_scb->role == BTA_AG_ACP) {
+    /* HFP acceptor; get features */
     attr_list[0] = ATTR_ID_SERVICE_CLASS_ID_LIST;
     attr_list[1] = ATTR_ID_BT_PROFILE_DESC_LIST;
     attr_list[2] = ATTR_ID_SUPPORTED_FEATURES;
     num_attr = 3;
     uuid_list[0] = Uuid::From16Bit(UUID_SERVCLASS_HF_HANDSFREE);
-  }
-  /* HSP initiator; get proto list */
-  else if (service & BTA_HSP_SERVICE_MASK && p_scb->role == BTA_AG_INT) {
+  } else if (service & BTA_HSP_SERVICE_MASK && p_scb->role == BTA_AG_INT) {
+    /* HSP initiator; get proto list */
     attr_list[0] = ATTR_ID_SERVICE_CLASS_ID_LIST;
     attr_list[1] = ATTR_ID_PROTOCOL_DESC_LIST;
     attr_list[2] = ATTR_ID_BT_PROFILE_DESC_LIST;

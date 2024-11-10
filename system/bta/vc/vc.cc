@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <aics/api.h>
 #include <base/functional/bind.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
@@ -194,7 +195,7 @@ public:
     /* Make sure to remove device from background connect.
      * It will be added back if needed, when device got disconnected
      */
-    BTA_GATTC_CancelOpen(gatt_if_, address, false);
+    BTA_GATTC_CancelOpen(gatt_if_, address, true);
 
     if (device->IsEncryptionEnabled()) {
       OnEncryptionComplete(address, tBTM_STATUS::BTM_SUCCESS);
@@ -580,31 +581,31 @@ public:
     }
 
     uint8_t* pp = value;
-    STREAM_TO_INT8(input->gain_value, pp);
+    STREAM_TO_INT8(input->gain_setting, pp);
     uint8_t mute;
     STREAM_TO_UINT8(mute, pp);
-    if (mute > 0x02 /*Mute::DISABLED*/) {
+    if (!bluetooth::aics::isValidAudioInputMuteValue(mute)) {
       bluetooth::log::error("{} Invalid mute value: {:#x}", device->address, mute);
       return;
     }
-    input->mute = mute;
+    input->mute = bluetooth::aics::parseMuteField(mute);
 
     STREAM_TO_UINT8(input->mode, pp);
     STREAM_TO_UINT8(input->change_counter, pp);
 
     bluetooth::log::verbose("{}, data:{}", device->address, base::HexEncode(value, len));
     bluetooth::log::info(
-            "{} id={:#x}gain_value {:#x}, mute: {:#x}, mode: {:#x}, "
+            "{} id={:#x}gain_setting {:#x}, mute: {:#x}, mode: {:#x}, "
             "change_counter: {}",
-            device->address, input->id, input->gain_value, mute, input->mode,
+            device->address, input->id, input->gain_setting, mute, input->mode,
             input->change_counter);
 
     if (!device->device_ready) {
       return;
     }
 
-    callbacks_->OnExtAudioInStateChanged(device->address, input->id, input->gain_value, input->mode,
-                                         input->mute);
+    callbacks_->OnExtAudioInStateChanged(device->address, input->id, input->gain_setting,
+                                         input->mute, input->mode);
   }
 
   void OnExtAudioInTypeChanged(VolumeControlDevice* device, VolumeAudioInput* input, uint16_t len,
@@ -671,7 +672,8 @@ public:
       return;
     }
 
-    callbacks_->OnExtAudioInDescriptionChanged(device->address, input->id, input->description);
+    callbacks_->OnExtAudioInDescriptionChanged(device->address, input->id, input->description,
+                                               input->description_writable);
   }
 
   void OnExtAudioInCPWrite(uint16_t connection_id, tGATT_STATUS status, uint16_t handle) {
@@ -809,14 +811,14 @@ public:
     bluetooth::log::info("{}", address);
 
     /* Removes all registrations for connection. */
-    BTA_GATTC_CancelOpen(gatt_if_, address, false);
+    BTA_GATTC_CancelOpen(gatt_if_, address, true);
 
     Disconnect(address);
     volume_control_devices_.Remove(address);
   }
 
   void OnGattDisconnected(tCONN_ID connection_id, tGATT_IF /*client_if*/, RawAddress remote_bda,
-                          tGATT_DISCONN_REASON reason) {
+                          tGATT_DISCONN_REASON /*reason*/) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
       bluetooth::log::error("Skipping unknown device disconnect, connection_id={:#x}",
@@ -837,9 +839,7 @@ public:
     bool notify = device->IsReady() || device->connecting_actively;
     device_cleanup_helper(device, notify);
 
-    if (reason != GATT_CONN_TERMINATE_LOCAL_HOST && device->connecting_actively) {
-      StartOpportunisticConnect(remote_bda);
-    }
+    StartOpportunisticConnect(remote_bda);
   }
 
   void RemoveDeviceFromOperationList(const RawAddress& addr) {
@@ -1291,9 +1291,9 @@ public:
     device->SetExtAudioInDescription(ext_input_id, descr);
   }
 
-  void SetExtAudioInGainValue(const RawAddress& address, uint8_t ext_input_id,
-                              int8_t value) override {
-    std::vector<uint8_t> arg({(uint8_t)value});
+  void SetExtAudioInGainSetting(const RawAddress& address, uint8_t ext_input_id,
+                                int8_t gain_setting) override {
+    std::vector<uint8_t> arg({(uint8_t)gain_setting});
     ext_audio_in_control_point_helper(address, ext_input_id, kVolumeInputControlPointOpcodeSetGain,
                                       &arg);
   }

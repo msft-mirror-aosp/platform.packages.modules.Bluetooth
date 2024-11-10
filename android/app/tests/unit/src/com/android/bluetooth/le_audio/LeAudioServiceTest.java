@@ -2229,6 +2229,9 @@ public class LeAudioServiceTest {
 
                     @Override
                     public void onGroupStreamStatusChanged(int groupId, int groupStreamStatus) {}
+
+                    @Override
+                    public void onBroadcastToUnicastFallbackGroupChanged(int groupId) {}
                 };
 
         synchronized (mService.mLeAudioCallbacks) {
@@ -2287,6 +2290,9 @@ public class LeAudioServiceTest {
                         assertThat(gid == groupId).isTrue();
                         assertThat(gStreamStatus == groupStreamStatus).isTrue();
                     }
+
+                    @Override
+                    public void onBroadcastToUnicastFallbackGroupChanged(int groupId) {}
                 };
 
         synchronized (mService.mLeAudioCallbacks) {
@@ -2400,6 +2406,9 @@ public class LeAudioServiceTest {
 
                     @Override
                     public void onGroupStreamStatusChanged(int groupId, int groupStreamStatus) {}
+
+                    @Override
+                    public void onBroadcastToUnicastFallbackGroupChanged(int groupId) {}
                 };
 
         synchronized (mService.mLeAudioCallbacks) {
@@ -2484,6 +2493,9 @@ public class LeAudioServiceTest {
 
                     @Override
                     public void onGroupStreamStatusChanged(int groupId, int groupStreamStatus) {}
+
+                    @Override
+                    public void onBroadcastToUnicastFallbackGroupChanged(int groupId) {}
                 };
 
         synchronized (mService.mLeAudioCallbacks) {
@@ -2577,6 +2589,9 @@ public class LeAudioServiceTest {
 
                     @Override
                     public void onGroupStreamStatusChanged(int groupId, int groupStreamStatus) {}
+
+                    @Override
+                    public void onBroadcastToUnicastFallbackGroupChanged(int groupId) {}
                 };
 
         synchronized (mService.mLeAudioCallbacks) {

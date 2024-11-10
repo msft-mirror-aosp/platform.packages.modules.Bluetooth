@@ -75,7 +75,7 @@ typedef uint8_t tL2CAP_CHNL_DATA_RATE;
 #define L2CAP_FCR_CHAN_OPT_ALL_MASK (L2CAP_FCR_CHAN_OPT_BASIC | L2CAP_FCR_CHAN_OPT_ERTM)
 
 /* Validity check for PSM.  PSM values must be odd.  Also, all PSM values must
- * be assigned such that the least significant bit of the most sigificant
+ * be assigned such that the least significant bit of the most significant
  * octet equals zero.
  */
 #define L2C_INVALID_PSM(psm) (((psm) & 0x0101) != 0x0001)
