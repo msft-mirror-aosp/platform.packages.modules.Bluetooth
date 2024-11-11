@@ -1423,9 +1423,8 @@ BT_HDR* l2c_fcr_get_next_xmit_sdu_seg(tL2C_CCB* p_ccb, uint16_t max_packet_lengt
 
       /* copy PBF setting */
       p_xmit->layer_specific = p_buf->layer_specific;
-    } else /* Should never happen if the application has configured buffers
-              correctly */
-    {
+    } else {
+      /* Should never happen if the application has configured buffers correctly */
       log::error("L2CAP - cannot get buffer for segmentation, max_pdu: {}", max_pdu);
       return NULL;
     }
@@ -1794,10 +1793,8 @@ uint8_t l2c_fcr_process_peer_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg) {
       p_cfg->fcr.tx_win_sz = p_ccb->our_cfg.fcr.tx_win_sz;
       p_cfg->fcr.max_transmit = p_ccb->our_cfg.fcr.max_transmit;
       fcr_ok = L2CAP_PEER_CFG_UNACCEPTABLE;
-    }
-
-    /* If we wanted basic, then try to renegotiate it */
-    else if (p_ccb->p_rcb->ertm_info.preferred_mode == L2CAP_FCR_BASIC_MODE) {
+    } else if (p_ccb->p_rcb->ertm_info.preferred_mode == L2CAP_FCR_BASIC_MODE) {
+      /* If we wanted basic, then try to renegotiate it */
       p_cfg->fcr.mode = L2CAP_FCR_BASIC_MODE;
       p_cfg->fcr.max_transmit = p_cfg->fcr.tx_win_sz = 0;
       p_cfg->fcr.rtrans_tout = p_cfg->fcr.mon_tout = p_cfg->fcr.mps = 0;

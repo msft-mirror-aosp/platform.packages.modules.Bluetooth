@@ -884,10 +884,9 @@ static void gatt_process_read_by_type_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, ui
           break;
         }
       }
-    }
-    /* discover included service */
-    else if (p_clcb->operation == GATTC_OPTYPE_DISCOVERY &&
-             p_clcb->op_subtype == GATT_DISC_INC_SRVC) {
+    } else if (p_clcb->operation == GATTC_OPTYPE_DISCOVERY &&
+               p_clcb->op_subtype == GATT_DISC_INC_SRVC) {
+      /* discover included service */
       if (value_len < 4) {
         log::error("Illegal Response length, must be at least 4.");
         gatt_end_operation(p_clcb, GATT_INVALID_PDU, NULL);
@@ -920,9 +919,8 @@ static void gatt_process_read_by_type_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, ui
         gatt_end_operation(p_clcb, GATT_INVALID_PDU, (void*)p);
         return;
       }
-    }
-    /* read by type */
-    else if (p_clcb->operation == GATTC_OPTYPE_READ && p_clcb->op_subtype == GATT_READ_BY_TYPE) {
+    } else if (p_clcb->operation == GATTC_OPTYPE_READ && p_clcb->op_subtype == GATT_READ_BY_TYPE) {
+      /* read by type */
       p_clcb->counter = len - 2;
       p_clcb->s_handle = handle;
 

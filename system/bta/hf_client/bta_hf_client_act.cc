@@ -300,9 +300,8 @@ void bta_hf_client_rfc_close(tBTA_HF_CLIENT_DATA* p_data) {
     bta_hf_client_sco_shutdown(client_cb);
 
     bta_sys_sco_unuse(BTA_ID_HS, 1, client_cb->peer_addr);
-  }
-  /* else close port and deallocate scb */
-  else {
+  } else {
+    /* else close port and deallocate scb */
     tBTA_HF_CLIENT evt;
     memset(&evt, 0, sizeof(evt));
     evt.reg.bd_addr = client_cb->peer_addr;

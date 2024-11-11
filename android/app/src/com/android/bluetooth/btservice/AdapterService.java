@@ -4328,6 +4328,55 @@ public class AdapterService extends Service {
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
             return service.mDatabaseManager.getActiveAudioDevicePolicy(device);
         }
+
+        @Override
+        public int setMicrophonePreferredForCalls(
+                BluetoothDevice device, boolean enabled, AttributionSource source) {
+            requireNonNull(device);
+            AdapterService service = getService();
+            if (service == null) {
+                return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
+            }
+            if (!callerIsSystemOrActiveOrManagedUser(
+                    service, TAG, "setMicrophonePreferredForCalls")) {
+                return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ALLOWED;
+            }
+            if (!BluetoothAdapter.checkBluetoothAddress(device.getAddress())) {
+                throw new IllegalArgumentException("device cannot have an invalid address");
+            }
+            if (!Utils.checkConnectPermissionForDataDelivery(
+                    service, source, "AdapterService setMicrophonePreferredForCalls")) {
+                return BluetoothStatusCodes.ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION;
+            }
+
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            return service.mDatabaseManager.setMicrophonePreferredForCalls(device, enabled);
+        }
+
+        @Override
+        public boolean isMicrophonePreferredForCalls(
+                BluetoothDevice device, AttributionSource source) {
+            requireNonNull(device);
+            AdapterService service = getService();
+            if (service == null) {
+                return true;
+            }
+            if (!callerIsSystemOrActiveOrManagedUser(
+                    service, TAG, "isMicrophonePreferredForCalls")) {
+                throw new IllegalStateException(
+                        "Caller is not the system or part of the active/managed user");
+            }
+            if (!BluetoothAdapter.checkBluetoothAddress(device.getAddress())) {
+                throw new IllegalArgumentException("device cannot have an invalid address");
+            }
+            if (!Utils.checkConnectPermissionForDataDelivery(
+                    service, source, "AdapterService isMicrophonePreferredForCalls")) {
+                return true;
+            }
+
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            return service.mDatabaseManager.isMicrophonePreferredForCalls(device);
+        }
     }
 
     /**

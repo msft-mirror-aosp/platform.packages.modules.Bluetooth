@@ -622,9 +622,8 @@ void BTM_PINCodeReply(const RawAddress& bd_addr, tBTM_STATUS res, uint8_t pin_le
        * connection */
       /*   when existing ACL link is down completely */
       btm_sec_cb.change_pairing_state(BTM_PAIR_STATE_WAIT_PIN_REQ);
-    }
-    /* if we already accepted incoming connection from pairing device */
-    else if (p_dev_rec->sm4 & BTM_SM4_CONN_PEND) {
+    } else if (p_dev_rec->sm4 & BTM_SM4_CONN_PEND) {
+      /* if we already accepted incoming connection from pairing device */
       log::warn(
               "BTM_PINCodeReply(): link is connecting so wait pin code request "
               "from peer");
@@ -2327,9 +2326,8 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr, const uint8_
         /*  before originating  */
         if (btm_sec_cb.pairing_flags & BTM_PAIR_FLAGS_REJECTED_CONNECT) {
           log::warn("waiting HCI_Connection_Complete after rejecting connection");
-        }
-        /* Both we and the peer are 2.1 - continue to create connection */
-        else {
+        } else {
+          /* Both we and the peer are 2.1 - continue to create connection */
           tBTM_STATUS req_status = btm_sec_dd_create_conn(p_dev_rec);
           bluetooth::metrics::LogAclAfterRemoteNameRequest(bd_addr, req_status);
           if (req_status == tBTM_STATUS::BTM_SUCCESS) {
@@ -3661,20 +3659,19 @@ void btm_sec_connected(const RawAddress& bda, uint16_t handle, tHCI_STATUS statu
 
       /* We need to notify host that the key is not known any more */
       NotifyBondingChange(*p_dev_rec, status);
-    }
-    /*
-        Do not send authentication failure, if following conditions hold good
-         1.  BTM Sec Pairing state is idle
-         2.  Link key for the remote device is present.
-         3.  Remote is SSP capable.
-     */
-    else if ((p_dev_rec->sec_rec.link_key_type <= BTM_LKEY_TYPE_REMOTE_UNIT) &&
-             ((status == HCI_ERR_AUTH_FAILURE) || (status == HCI_ERR_KEY_MISSING) ||
-              (status == HCI_ERR_HOST_REJECT_SECURITY) || (status == HCI_ERR_PAIRING_NOT_ALLOWED) ||
-              (status == HCI_ERR_UNIT_KEY_USED) ||
-              (status == HCI_ERR_PAIRING_WITH_UNIT_KEY_NOT_SUPPORTED) ||
-              (status == HCI_ERR_ENCRY_MODE_NOT_ACCEPTABLE) ||
-              (status == HCI_ERR_REPEATED_ATTEMPTS))) {
+    } else if ((p_dev_rec->sec_rec.link_key_type <= BTM_LKEY_TYPE_REMOTE_UNIT) &&
+               ((status == HCI_ERR_AUTH_FAILURE) || (status == HCI_ERR_KEY_MISSING) ||
+                (status == HCI_ERR_HOST_REJECT_SECURITY) ||
+                (status == HCI_ERR_PAIRING_NOT_ALLOWED) || (status == HCI_ERR_UNIT_KEY_USED) ||
+                (status == HCI_ERR_PAIRING_WITH_UNIT_KEY_NOT_SUPPORTED) ||
+                (status == HCI_ERR_ENCRY_MODE_NOT_ACCEPTABLE) ||
+                (status == HCI_ERR_REPEATED_ATTEMPTS))) {
+      /*
+          Do not send authentication failure, if following conditions hold good
+           1.  BTM Sec Pairing state is idle
+           2.  Link key for the remote device is present.
+           3.  Remote is SSP capable.
+       */
       p_dev_rec->sec_rec.security_required &= ~BTM_SEC_OUT_AUTHENTICATE;
       p_dev_rec->sec_rec.sec_flags &= ~(BTM_SEC_LE_LINK_KEY_KNOWN << bit_shift);
 
@@ -4359,31 +4356,23 @@ void btm_sec_pin_code_request(const RawAddress p_bda) {
     btm_restore_mode(); */
 
     btm_sec_cb.change_pairing_state(BTM_PAIR_STATE_WAIT_AUTH_COMPLETE);
-  }
-
-  /* If pairing disabled OR (no PIN callback and not bonding) */
-  /* OR we could not allocate entry in the database reject pairing request */
-  else if (p_cb->pairing_disabled ||
-           (p_cb->api.p_pin_callback == NULL)
-
-           /* OR Microsoft keyboard can for some reason try to establish
-            * connection
-            */
-           /*  the only thing we can do here is to shut it up.  Normally we will
-              be originator */
-           /*  for keyboard bonding */
-           || (!p_dev_rec->IsLocallyInitiated() &&
-               ((p_dev_rec->dev_class[1] & BTM_COD_MAJOR_CLASS_MASK) == BTM_COD_MAJOR_PERIPHERAL) &&
-               (p_dev_rec->dev_class[2] & BTM_COD_MINOR_KEYBOARD))) {
+  } else if (p_cb->pairing_disabled || (p_cb->api.p_pin_callback == NULL) ||
+             (!p_dev_rec->IsLocallyInitiated() &&
+              ((p_dev_rec->dev_class[1] & BTM_COD_MAJOR_CLASS_MASK) == BTM_COD_MAJOR_PERIPHERAL) &&
+              (p_dev_rec->dev_class[2] & BTM_COD_MINOR_KEYBOARD))) {
+    /* If pairing disabled
+     * OR no PIN callback and not bonding
+     * OR we could not allocate entry in the database reject pairing request
+     * OR Microsoft keyboard can for some reason try to establish connection the only thing we can
+     *    do here is to shut it up. Normally we will be originator for keyboard bonding */
     log::warn(
             "btm_sec_pin_code_request(): Pairing disabled:{}; PIN callback:{}, Dev "
             "Rec:{}!",
             p_cb->pairing_disabled, fmt::ptr(p_cb->api.p_pin_callback), fmt::ptr(p_dev_rec));
 
     btsnd_hcic_pin_code_neg_reply(p_bda);
-  }
-  /* Notify upper layer of PIN request and start expiration timer */
-  else {
+  } else {
+    /* Notify upper layer of PIN request and start expiration timer */
     btm_sec_cb.change_pairing_state(BTM_PAIR_STATE_WAIT_LOCAL_PIN);
     /* Pin code request can not come at the same time as connection request */
     p_cb->connecting_bda = p_bda;
