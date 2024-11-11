@@ -533,10 +533,8 @@ static void gatt_le_connect_cback(uint16_t /* chan */, const RawAddress& bd_addr
     if (check_srv_chg) {
       gatt_chk_srv_chg(p_srv_chg_clt);
     }
-  }
-  /* this is incoming connection or background connection callback */
-
-  else {
+  } else {
+    /* this is incoming connection or background connection callback */
     p_tcb = gatt_allocate_tcb_by_bdaddr(bd_addr, BT_TRANSPORT_LE);
     if (!p_tcb) {
       log::error("Disconnecting address:{} due to out of resources.", bd_addr);

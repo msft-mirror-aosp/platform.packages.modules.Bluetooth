@@ -58,7 +58,6 @@ cc_fuzz {
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
-        "packages/modules/Bluetooth/system/device/include",
         "packages/modules/Bluetooth/system/gd",
     ],
     fuzz_config: {

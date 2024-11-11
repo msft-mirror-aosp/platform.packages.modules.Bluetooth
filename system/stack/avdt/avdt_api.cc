@@ -173,10 +173,8 @@ uint16_t AVDT_CreateStream(uint8_t peer_id, uint8_t* p_handle,
     result = AVDT_BAD_PARAMS;
     log::error("Invalid AVDT stream endpoint parameters peer_id={} scb_index={}", peer_id,
                avdtp_stream_config.scb_index);
-  }
-
-  /* Allocate scb; if no scbs, return failure */
-  else {
+  } else {
+    /* Allocate scb; if no scbs, return failure */
     p_scb = avdt_scb_alloc(peer_id, avdtp_stream_config);
     if (p_scb == NULL) {
       log::error("Unable to create AVDT stream endpoint peer_id={} scb_index={}", peer_id,
@@ -274,9 +272,8 @@ uint16_t AVDT_DiscoverReq(const RawAddress& bd_addr, uint8_t channel_index,
     /* make sure no discovery or get capabilities req already in progress */
     if (p_ccb->proc_busy) {
       result = AVDT_BUSY;
-    }
-    /* send event to ccb */
-    else {
+    } else {
+      /* send event to ccb */
       evt.discover.p_sep_info = p_sep_info;
       evt.discover.num_seps = max_seps;
       evt.discover.p_cback = p_cback;
@@ -308,9 +305,8 @@ static uint16_t avdt_get_cap_req(const RawAddress& bd_addr, uint8_t channel_inde
   if ((p_evt->single.seid < AVDT_SEID_MIN) || (p_evt->single.seid > AVDT_SEID_MAX)) {
     log::error("seid: {}", p_evt->single.seid);
     result = AVDT_BAD_PARAMS;
-  }
-  /* find channel control block for this bd addr; if none, allocate one */
-  else {
+  } else {
+    /* find channel control block for this bd addr; if none, allocate one */
     p_ccb = avdt_ccb_by_bd(bd_addr);
     if (p_ccb == NULL) {
       p_ccb = avdt_ccb_alloc_by_channel_index(bd_addr, channel_index);
@@ -325,9 +321,8 @@ static uint16_t avdt_get_cap_req(const RawAddress& bd_addr, uint8_t channel_inde
     /* make sure no discovery or get capabilities req already in progress */
     if (p_ccb->proc_busy) {
       result = AVDT_BUSY;
-    }
-    /* send event to ccb */
-    else {
+    } else {
+      /* send event to ccb */
       avdt_ccb_event(p_ccb, AVDT_CCB_API_GETCAP_REQ_EVT, (tAVDT_CCB_EVT*)p_evt);
     }
   }
@@ -448,15 +443,13 @@ uint16_t AVDT_OpenReq(uint8_t handle, const RawAddress& bd_addr, uint8_t channel
   /* verify SEID */
   if ((seid < AVDT_SEID_MIN) || (seid > AVDT_SEID_MAX)) {
     result = AVDT_BAD_PARAMS;
-  }
-  /* map handle to scb */
-  else {
+  } else {
+    /* map handle to scb */
     p_scb = avdt_scb_by_hdl(handle);
     if (p_scb == NULL) {
       result = AVDT_BAD_HANDLE;
-    }
-    /* find channel control block for this bd addr; if none, allocate one */
-    else {
+    } else {
+      /* find channel control block for this bd addr; if none, allocate one */
       p_ccb = avdt_ccb_by_bd(bd_addr);
       if (p_ccb == NULL) {
         p_ccb = avdt_ccb_alloc_by_channel_index(bd_addr, channel_index);
@@ -509,15 +502,12 @@ uint16_t AVDT_ConfigRsp(uint8_t handle, uint8_t label, uint8_t error_code, uint8
   p_scb = avdt_scb_by_hdl(handle);
   if (p_scb == NULL) {
     result = AVDT_BAD_HANDLE;
-  }
-  /* handle special case when this function is called but peer has not send
-  ** a configuration cmd; ignore and return error result
-  */
-  else if (!p_scb->in_use) {
+  } else if (!p_scb->in_use) {
+    /* handle special case when this function is called but peer has not send
+     * a configuration cmd; ignore and return error result */
     result = AVDT_BAD_HANDLE;
-  }
-  /* send event to scb */
-  else {
+  } else {
+    /* send event to scb */
     evt.msg.hdr.err_code = error_code;
     evt.msg.hdr.err_param = category;
     evt.msg.hdr.label = label;
@@ -715,9 +705,8 @@ uint16_t AVDT_ReconfigReq(uint8_t handle, AvdtpSepConfig* p_cfg) {
   p_scb = avdt_scb_by_hdl(handle);
   if (p_scb == NULL) {
     result = AVDT_BAD_HANDLE;
-  }
-  /* send event to scb */
-  else {
+  } else {
+    /* send event to scb */
     /* force psc_mask to zero */
     p_cfg->psc_mask = 0;
     evt.msg.reconfig_cmd.p_cfg = p_cfg;
@@ -755,9 +744,8 @@ uint16_t AVDT_SecurityReq(uint8_t handle, uint8_t* p_data, uint16_t len) {
   p_scb = avdt_scb_by_hdl(handle);
   if (p_scb == NULL) {
     result = AVDT_BAD_HANDLE;
-  }
-  /* send event to scb */
-  else {
+  } else {
+    /* send event to scb */
     evt.msg.security_rsp.p_data = p_data;
     evt.msg.security_rsp.len = len;
     avdt_scb_event(p_scb, AVDT_SCB_API_SECURITY_REQ_EVT, &evt);
@@ -795,9 +783,8 @@ uint16_t AVDT_SecurityRsp(uint8_t handle, uint8_t label, uint8_t error_code, uin
   p_scb = avdt_scb_by_hdl(handle);
   if (p_scb == NULL) {
     result = AVDT_BAD_HANDLE;
-  }
-  /* send event to scb */
-  else {
+  } else {
+    /* send event to scb */
     evt.msg.security_rsp.hdr.err_code = error_code;
     evt.msg.security_rsp.hdr.label = label;
     evt.msg.security_rsp.p_data = p_data;

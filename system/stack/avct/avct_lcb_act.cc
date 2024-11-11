@@ -77,9 +77,8 @@ static BT_HDR* avct_lcb_msg_asmbl(tAVCT_LCB* p_lcb, BT_HDR* p_buf) {
     osi_free(p_buf);
     log::warn("Bad length during reassembly");
     p_ret = NULL;
-  }
-  /* single packet */
-  else if (pkt_type == AVCT_PKT_TYPE_SINGLE) {
+  } else if (pkt_type == AVCT_PKT_TYPE_SINGLE) {
+    /* single packet */
     /* if reassembly in progress drop message and process new single */
     if (p_lcb->p_rx_msg != NULL) {
       log::warn("Got single during reassembly");
@@ -88,9 +87,8 @@ static BT_HDR* avct_lcb_msg_asmbl(tAVCT_LCB* p_lcb, BT_HDR* p_buf) {
     osi_free_and_reset((void**)&p_lcb->p_rx_msg);
 
     p_ret = p_buf;
-  }
-  /* start packet */
-  else if (pkt_type == AVCT_PKT_TYPE_START) {
+  } else if (pkt_type == AVCT_PKT_TYPE_START) {
+    /* start packet */
     /* if reassembly in progress drop message and process new start */
     if (p_lcb->p_rx_msg != NULL) {
       log::warn("Got start during reassembly");
@@ -127,9 +125,8 @@ static BT_HDR* avct_lcb_msg_asmbl(tAVCT_LCB* p_lcb, BT_HDR* p_buf) {
     p_lcb->p_rx_msg->len -= 1;
 
     p_ret = NULL;
-  }
-  /* continue or end */
-  else {
+  } else {
+    /* continue or end */
     /* if no reassembly in progress drop message */
     if (p_lcb->p_rx_msg == NULL) {
       osi_free(p_buf);
@@ -266,12 +263,10 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
           }
           p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_CFM_EVT, 0,
                                  &p_lcb->peer_addr);
-        }
-        /* if unbound acceptor and lcb doesn't already have a ccb for this PID
-         */
-        /** M: to avoid avctp collision, make sure the collision can be checked
-           @{ */
-        else if ((p_ccb->cc.role == AVCT_ROLE_ACCEPTOR) && avct_lcb_has_pid(p_lcb, p_ccb->cc.pid)) {
+        } else if ((p_ccb->cc.role == AVCT_ROLE_ACCEPTOR) &&
+                   avct_lcb_has_pid(p_lcb, p_ccb->cc.pid)) {
+          /* if unbound acceptor and lcb doesn't already have a ccb for this PID */
+          /* to avoid avctp collision, make sure the collision can be checked */
           /* bind ccb to lcb and send connect ind event  */
           if (is_originater) {
             log::error("int exist, unbind acp handle:{}", i);
@@ -304,11 +299,9 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
           }
           p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_CFM_EVT, 0,
                                  &p_lcb->peer_addr);
-        }
-        /* if unbound acceptor and lcb doesn't already have a ccb for this PID
-         */
-        else if ((p_ccb->p_lcb == NULL) && (p_ccb->cc.role == AVCT_ROLE_ACCEPTOR) &&
-                 (avct_lcb_has_pid(p_lcb, p_ccb->cc.pid) == NULL)) {
+        } else if ((p_ccb->p_lcb == NULL) && (p_ccb->cc.role == AVCT_ROLE_ACCEPTOR) &&
+                   (avct_lcb_has_pid(p_lcb, p_ccb->cc.pid) == NULL)) {
+          /* if unbound acceptor and lcb doesn't already have a ccb for this PID */
           /* bind ccb to lcb and send connect ind event */
           bind = true;
           p_ccb->p_lcb = p_lcb;
@@ -615,10 +608,8 @@ void avct_lcb_send_msg(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
 
     if (p_lcb->cong) {
       fixed_queue_enqueue(p_lcb->tx_q, p_buf);
-    }
-
-    /* send message to L2CAP */
-    else {
+    } else {
+      /* send message to L2CAP */
       if (stack::l2cap::get_interface().L2CA_DataWrite(p_lcb->ch_lcid, p_buf) ==
           tL2CAP_DW_RESULT::CONGESTED) {
         p_lcb->cong = true;

@@ -1015,10 +1015,9 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
         memcpy(&av.remote_cmd.hdr, &p_data->rc_msg.msg.hdr, sizeof(tAVRC_HDR));
         av.remote_cmd.label = p_data->rc_msg.label;
       }
-    }
-    /* else if this is a pass thru response */
-    /* id response type is not impl, we have to release label */
-    else if (p_data->rc_msg.msg.hdr.ctype >= AVRC_RSP_NOT_IMPL) {
+    } else if (p_data->rc_msg.msg.hdr.ctype >= AVRC_RSP_NOT_IMPL) {
+      /* else if this is a pass thru response */
+      /* id response type is not impl, we have to release label */
       /* set up for callback */
       evt = BTA_AV_REMOTE_RSP_EVT;
       av.remote_rsp.rc_id = p_data->rc_msg.msg.pass.op_id;
@@ -1036,15 +1035,13 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
         memcpy(av.remote_rsp.p_data, p_data->rc_msg.msg.pass.p_pass_data,
                p_data->rc_msg.msg.pass.pass_len);
       }
-    }
-    /* must be a bad ctype -> reject*/
-    else {
+    } else {
+      /* must be a bad ctype -> reject*/
       p_data->rc_msg.msg.hdr.ctype = AVRC_RSP_REJ;
       AVRC_PassRsp(p_data->rc_msg.handle, p_data->rc_msg.label, &p_data->rc_msg.msg.pass);
     }
-  }
-  /* else if this is a vendor specific command or response */
-  else if (p_data->rc_msg.opcode == AVRC_OP_VENDOR) {
+  } else if (p_data->rc_msg.opcode == AVRC_OP_VENDOR) {
+    /* else if this is a vendor specific command or response */
     /* set up for callback */
     av.vendor_cmd.code = p_data->rc_msg.msg.hdr.ctype;
     av.vendor_cmd.company_id = p_vendor->company_id;
