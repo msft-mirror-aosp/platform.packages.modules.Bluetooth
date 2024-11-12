@@ -118,7 +118,6 @@ typedef struct {
    * Get L2CAP remote channel ID with the associated connection uuid.
    */
   bt_status_t (*get_l2cap_remote_cid)(bluetooth::Uuid& conn_uuid, uint16_t* cid);
-
 } btsock_interface_t;
 
 __END_DECLS

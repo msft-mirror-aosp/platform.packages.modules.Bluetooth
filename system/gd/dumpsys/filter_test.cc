@@ -92,15 +92,15 @@ TEST_F(DumpsysFilterTest, filter_as_developer) {
 
   const testing::DumpsysTestDataRoot* data_root = GetDumpsysTestDataRoot(dumpsys_data.data());
 
-  ASSERT_TRUE(data_root->string_private()->str() == "String private");
-  ASSERT_TRUE(data_root->string_opaque()->str() == "String opaque");
-  ASSERT_TRUE(data_root->string_anonymized()->str() == "String anonymized");
-  ASSERT_TRUE(data_root->string_any()->str() == "String any");
+  ASSERT_EQ("String private", data_root->string_private()->str());
+  ASSERT_EQ("String opaque", data_root->string_opaque()->str());
+  ASSERT_EQ("String anonymized", data_root->string_anonymized()->str());
+  ASSERT_EQ("String any", data_root->string_any()->str());
 
-  ASSERT_TRUE(data_root->int_private() == 123);
-  ASSERT_TRUE(data_root->int_opaque() == 456);
-  ASSERT_TRUE(data_root->int_anonymized() == 789);
-  ASSERT_TRUE(data_root->int_any() == 0xabc);
+  ASSERT_EQ(123, data_root->int_private());
+  ASSERT_EQ(456, data_root->int_opaque());
+  ASSERT_EQ(789, data_root->int_anonymized());
+  ASSERT_EQ(0xabc, data_root->int_any());
 
   ASSERT_EQ(nullptr, data_root->bar_module_data());
 

@@ -75,7 +75,6 @@ typedef enum {
   BTHF_CLIENT_CALLSETUP_INCOMING,
   BTHF_CLIENT_CALLSETUP_OUTGOING,
   BTHF_CLIENT_CALLSETUP_ALERTING
-
 } bthf_client_callsetup_t;
 
 typedef enum {

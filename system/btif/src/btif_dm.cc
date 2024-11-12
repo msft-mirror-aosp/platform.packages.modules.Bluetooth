@@ -196,7 +196,6 @@ typedef struct {
   Octet16 er;
   bool is_id_keys_rcvd;
   btif_dm_local_key_id_t id_keys; /* ID kyes */
-
 } btif_dm_local_key_cb_t;
 
 /* this structure holds optional OOB data for remote device */

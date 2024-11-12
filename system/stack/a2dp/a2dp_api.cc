@@ -139,7 +139,6 @@ static void a2dp_sdp_cback(const RawAddress& /* bd_addr */, tSDP_STATUS status) 
       /* we've got everything, we're done */
       found = true;
       break;
-
     } while (true);
   }
 

@@ -9840,7 +9840,7 @@ TEST_F(UnicastTest, TwoEarbudsStreamingProfileDisconnectStreamStopTimeout) {
   ASSERT_NE(0lu, streaming_groups.count(group_id));
   auto group = streaming_groups.at(group_id);
   ASSERT_TRUE(group != nullptr);
-  ASSERT_TRUE(group->NumOfConnected() > 0);
+  ASSERT_GT(group->NumOfConnected(), 0);
 
   state_machine_callbacks_->OnStateTransitionTimeout(group_id);
   SyncOnMainLoop();

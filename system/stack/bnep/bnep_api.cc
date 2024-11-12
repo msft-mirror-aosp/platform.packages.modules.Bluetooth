@@ -389,7 +389,6 @@ tBNEP_RESULT BNEP_WriteBuf(uint16_t handle, const RawAddress& dest_addr, BT_HDR*
           osi_free(p_buf);
           return BNEP_IGNORE_CMD;
         }
-
       } while (ext & 0x80);
 
       if (protocol != BNEP_802_1_P_PROTOCOL) {
@@ -494,7 +493,6 @@ tBNEP_RESULT BNEP_Write(uint16_t handle, const RawAddress& dest_addr, uint8_t* p
         if (new_len > org_len) {
           return BNEP_IGNORE_CMD;
         }
-
       } while (ext & 0x80);
 
       if (protocol != BNEP_802_1_P_PROTOCOL) {

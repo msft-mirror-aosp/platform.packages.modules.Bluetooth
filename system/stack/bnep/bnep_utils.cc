@@ -1204,7 +1204,6 @@ tBNEP_RESULT bnep_is_packet_allowed(tBNEP_CONN* p_bcb, const RawAddress& dest_ad
           p_data += len;
 
           new_len += (len + 2);
-
         } while (ext & 0x80);
       }
       if ((new_len + 4) > org_len) {

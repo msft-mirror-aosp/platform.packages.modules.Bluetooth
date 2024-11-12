@@ -659,7 +659,6 @@ void avdt_ccb_clear_cmds(AvdtpCcb* p_ccb, tAVDT_CCB_EVT* /* p_data */) {
 
     /* set up next message */
     p_ccb->p_curr_cmd = (BT_HDR*)fixed_queue_try_dequeue(p_ccb->cmd_q);
-
   } while (p_ccb->p_curr_cmd != NULL);
 
   /* send a CC_CLOSE_EVT any active scbs associated with this ccb */

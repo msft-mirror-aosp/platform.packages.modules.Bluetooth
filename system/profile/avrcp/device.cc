@@ -782,7 +782,6 @@ void Device::GetElementAttributesResponse(uint8_t label,
       }
     }
   } else {  // zero attributes requested which means all attributes requested
-
     if (!com::android::bluetooth::flags::get_all_element_attributes_empty()) {
       for (const auto& attribute : info.attributes) {
         response->AddAttributeEntry(attribute);
