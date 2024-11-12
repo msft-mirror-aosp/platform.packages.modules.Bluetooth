@@ -217,7 +217,6 @@ void bta_dm_sdp_result(tSDP_STATUS sdp_result, tBTA_DM_SDP_STATE* sdp_state) {
       } else { /* regular one service per search or PNP search */
         break;
       }
-
     } while (sdp_state->service_index <= BTA_MAX_SERVICE_ID);
 
     log::verbose("services_found = {:04x}", sdp_state->services_found);

@@ -1901,26 +1901,23 @@ void bta_jv_rfcomm_write(uint32_t handle, uint32_t req_id, tBTA_JV_RFC_CB* p_cb,
 
 /* Set or free power mode profile for a JV application */
 void bta_jv_set_pm_profile(uint32_t handle, tBTA_JV_PM_ID app_id, tBTA_JV_CONN_STATE init_st) {
-  tBTA_JV_STATUS status;
-  tBTA_JV_PM_CB* p_cb;
-
   log::verbose("handle=0x{:x}, app_id={}, init_st={}", handle, app_id,
                bta_jv_conn_state_text(init_st));
 
   /* clear PM control block */
   if (app_id == BTA_JV_PM_ID_CLEAR) {
-    status = bta_jv_free_set_pm_profile_cb(handle);
-
+    tBTA_JV_STATUS status = bta_jv_free_set_pm_profile_cb(handle);
     if (status != tBTA_JV_STATUS::SUCCESS) {
-      log::warn("free pm cb failed: reason={}", bta_jv_status_text(status));
+      log::warn("Unable to free a power mode profile handle:0x:{:x} app_id:{} state:{} status:{}",
+                handle, app_id, init_st, bta_jv_status_text(status));
     }
   } else { /* set PM control block */
-    p_cb = bta_jv_alloc_set_pm_profile_cb(handle, app_id);
-
-    if (NULL != p_cb) {
+    tBTA_JV_PM_CB* p_cb = bta_jv_alloc_set_pm_profile_cb(handle, app_id);
+    if (p_cb) {
       bta_jv_pm_state_change(p_cb, init_st);
     } else {
-      log::warn("failed");
+      log::warn("Unable to allocate a power mode profile handle:0x:{:x} app_id:{} state:{}", handle,
+                app_id, init_st);
     }
   }
 }

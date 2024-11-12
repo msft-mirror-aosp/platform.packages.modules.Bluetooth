@@ -781,14 +781,14 @@ TEST_F(StackA2dpTest, test_a2dp_adjust_codec) {
   memset(codec_info_sbc_test, 0xAB, sizeof(codec_info_sbc_test));
   memcpy(codec_info_sbc_test, codec_info_sbc, sizeof(codec_info_sbc));
   EXPECT_TRUE(A2DP_AdjustCodec(codec_info_sbc_test));
-  EXPECT_TRUE(memcmp(codec_info_sbc_test, codec_info_sbc, sizeof(codec_info_sbc)) == 0);
+  EXPECT_EQ(0, memcmp(codec_info_sbc_test, codec_info_sbc, sizeof(codec_info_sbc)));
 
   // Test updating a valid SBC codec that needs adjustment
   memset(codec_info_sbc_test, 0xAB, sizeof(codec_info_sbc_test));
   memcpy(codec_info_sbc_test, codec_info_sbc, sizeof(codec_info_sbc));
   codec_info_sbc_test[6] = 54;  // A2DP_SBC_MAX_BITPOOL + 1
   EXPECT_TRUE(A2DP_AdjustCodec(codec_info_sbc_test));
-  EXPECT_TRUE(memcmp(codec_info_sbc_test, codec_info_sbc, sizeof(codec_info_sbc)) == 0);
+  EXPECT_EQ(0, memcmp(codec_info_sbc_test, codec_info_sbc, sizeof(codec_info_sbc)));
 
   // Test updating an invalid SBC codec
   memset(codec_info_sbc_test, 0xAB, sizeof(codec_info_sbc_test));
@@ -800,7 +800,7 @@ TEST_F(StackA2dpTest, test_a2dp_adjust_codec) {
   memset(codec_info_aac_test, 0xAB, sizeof(codec_info_aac_test));
   memcpy(codec_info_aac_test, codec_info_aac, sizeof(codec_info_aac));
   EXPECT_TRUE(A2DP_AdjustCodec(codec_info_aac_test));
-  EXPECT_TRUE(memcmp(codec_info_aac_test, codec_info_aac, sizeof(codec_info_aac)) == 0);
+  EXPECT_EQ(0, memcmp(codec_info_aac_test, codec_info_aac, sizeof(codec_info_aac)));
 
   // Test updating a non-A2DP codec that is not recognized
   memset(codec_info_non_a2dp_test, 0xAB, sizeof(codec_info_non_a2dp_test));

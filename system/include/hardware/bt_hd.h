@@ -112,7 +112,6 @@ typedef struct {
 
   /** send Virtual Cable Unplug  */
   bt_status_t (*virtual_cable_unplug)(void);
-
 } bthd_interface_t;
 
 __END_DECLS
