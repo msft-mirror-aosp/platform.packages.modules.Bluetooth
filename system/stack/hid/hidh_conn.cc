@@ -832,7 +832,6 @@ tHID_STATUS hidh_conn_snd_data(uint8_t dhandle, uint8_t trans_type, uint8_t para
       trans_type = HID_TRANS_DATAC;
       blank_datc = true;
     }
-
   } while ((data_size != 0) || blank_datc);
 
   return HID_SUCCESS;

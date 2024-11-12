@@ -33,7 +33,7 @@ import java.util.List;
 /** MetadataDatabase is a Room database stores Bluetooth persistence data */
 @Database(
         entities = {Metadata.class},
-        version = 120)
+        version = 121)
 public abstract class MetadataDatabase extends RoomDatabase {
     /** The metadata database file name */
     public static final String DATABASE_NAME = "bluetooth_db";
@@ -70,6 +70,7 @@ public abstract class MetadataDatabase extends RoomDatabase {
                 .addMigrations(MIGRATION_117_118)
                 .addMigrations(MIGRATION_118_119)
                 .addMigrations(MIGRATION_119_120)
+                .addMigrations(MIGRATION_120_121)
                 .allowMainThreadQueries()
                 .build();
     }

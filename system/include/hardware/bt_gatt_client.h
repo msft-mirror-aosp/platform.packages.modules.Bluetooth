@@ -291,7 +291,6 @@ typedef struct {
   /** Request a BLE subrate request procedure */
   bt_status_t (*subrate_request)(const RawAddress& bd_addr, int subrate_min, int subrate_max,
                                  int max_latency, int cont_num, int timeout);
-
 } btgatt_client_interface_t;
 
 __END_DECLS

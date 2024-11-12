@@ -41,7 +41,7 @@ protected:
 
 TEST_F(ReflectionSchemaTest, verify_test_content) {
   dumpsys::ReflectionSchema reflection_schema(testing::GetBundledSchemaData());
-  ASSERT_TRUE(reflection_schema.GetNumberOfBundledSchemas() == 5);
+  ASSERT_EQ(5, reflection_schema.GetNumberOfBundledSchemas());
   ASSERT_TRUE(reflection_schema.FindInReflectionSchema("testing.DumpsysTestDataRoot") != nullptr);
   ASSERT_TRUE(reflection_schema.FindInReflectionSchema("testing.BarTestSchema") != nullptr);
   ASSERT_TRUE(reflection_schema.FindInReflectionSchema("testing.BazTestSchema") != nullptr);

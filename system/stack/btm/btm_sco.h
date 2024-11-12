@@ -255,7 +255,6 @@ public:
 
   bool is_orig;      /* true if the originator       */
   bool rem_bd_known; /* true if remote BD addr known */
-
 } tSCO_CONN;
 
 /* SCO Management control block */
