@@ -187,6 +187,7 @@ public class BassClientStateMachineTest {
         doReturn(mEmptyTestDevice)
                 .when(mAdapterService)
                 .getDeviceFromByte(Utils.getBytesFromAddress(EMPTY_BLUETOOTH_DEVICE_ADDRESS));
+        doReturn(mBassClientService).when(mBassClientService).getBaseContext();
 
         // Set up thread and looper
         mHandlerThread = new HandlerThread("BassClientStateMachineTestHandlerThread");
