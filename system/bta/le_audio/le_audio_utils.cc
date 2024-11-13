@@ -64,7 +64,7 @@ LeAudioContextType AudioContentToLeAudioContext(audio_content_type_t content_typ
         return LeAudioContextType::RINGTONE;
       }
 
-      return LeAudioContextType::MEDIA;
+      return LeAudioContextType::SOUNDEFFECTS;
     case AUDIO_USAGE_GAME:
       return LeAudioContextType::GAME;
     case AUDIO_USAGE_NOTIFICATION:

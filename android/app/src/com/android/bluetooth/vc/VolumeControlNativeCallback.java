@@ -25,6 +25,10 @@ import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_VOLUME
 
 import static java.util.Objects.requireNonNull;
 
+import android.bluetooth.AudioInputControl.AudioInputStatus;
+import android.bluetooth.AudioInputControl.AudioInputType;
+import android.bluetooth.AudioInputControl.GainMode;
+import android.bluetooth.AudioInputControl.Mute;
 import android.bluetooth.BluetoothDevice;
 import android.util.Log;
 
@@ -151,7 +155,8 @@ class VolumeControlNativeCallback {
     }
 
     @VisibleForTesting
-    void onExtAudioInStateChanged(int id, int gainSetting, int gainMode, int mute, byte[] address) {
+    void onExtAudioInStateChanged(
+            int id, int gainSetting, @Mute int mute, @GainMode int gainMode, byte[] address) {
         sendMessageToService(
                 s ->
                         s.onExtAudioInStateChanged(
@@ -159,12 +164,27 @@ class VolumeControlNativeCallback {
     }
 
     @VisibleForTesting
-    void onExtAudioInStatusChanged(int id, int status, byte[] address) {
+    void onExtAudioInSetGainSettingFailed(int id, byte[] address) {
+        sendMessageToService(s -> s.onExtAudioInSetGainSettingFailed(getDevice(address), id));
+    }
+
+    @VisibleForTesting
+    void onExtAudioInSetMuteFailed(int id, byte[] address) {
+        sendMessageToService(s -> s.onExtAudioInSetMuteFailed(getDevice(address), id));
+    }
+
+    @VisibleForTesting
+    void onExtAudioInSetGainModeFailed(int id, byte[] address) {
+        sendMessageToService(s -> s.onExtAudioInSetGainModeFailed(getDevice(address), id));
+    }
+
+    @VisibleForTesting
+    void onExtAudioInStatusChanged(int id, @AudioInputStatus int status, byte[] address) {
         sendMessageToService(s -> s.onExtAudioInStatusChanged(getDevice(address), id, status));
     }
 
     @VisibleForTesting
-    void onExtAudioInTypeChanged(int id, int type, byte[] address) {
+    void onExtAudioInTypeChanged(int id, @AudioInputType int type, byte[] address) {
         sendMessageToService(s -> s.onExtAudioInTypeChanged(getDevice(address), id, type));
     }
 
@@ -178,8 +198,11 @@ class VolumeControlNativeCallback {
     }
 
     @VisibleForTesting
-    void onExtAudioInGainPropsChanged(int id, int unit, int min, int max, byte[] address) {
+    void onExtAudioInGainSettingPropertiesChanged(
+            int id, int unit, int min, int max, byte[] address) {
         sendMessageToService(
-                s -> s.onExtAudioInGainPropsChanged(getDevice(address), id, unit, min, max));
+                s ->
+                        s.onExtAudioInGainSettingPropertiesChanged(
+                                getDevice(address), id, unit, min, max));
     }
 }

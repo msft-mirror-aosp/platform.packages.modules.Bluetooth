@@ -12493,10 +12493,7 @@ TEST_F(UnicastTestHandoverMode, SetAllowedContextMask) {
   ASSERT_NE(group_id, bluetooth::groups::kGroupUnknown);
 
   EXPECT_CALL(*mock_le_audio_source_hal_client_, Start(_, _, _)).Times(1);
-  types::BidirectionalPair<types::AudioContexts> metadata = {.sink = types::AudioContexts(),
-                                                             .source = types::AudioContexts()};
-  EXPECT_CALL(mock_state_machine_,
-              StartStream(_, types::LeAudioContextType::SOUNDEFFECTS, metadata, _))
+  EXPECT_CALL(mock_state_machine_, StartStream(_, types::LeAudioContextType::SOUNDEFFECTS, _, _))
           .Times(0);
 
   LeAudioClient::Get()->GroupSetActive(group_id);
