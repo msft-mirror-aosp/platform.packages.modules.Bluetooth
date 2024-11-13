@@ -531,9 +531,9 @@ public:
                                    * is set according to RFC 6416 */
   uint8_t co_started;             /* non-zero, if stream started from call-out perspective */
   bool recfg_sup;                 /* true if the first attempt to reconfigure the stream was
-                                     successful, else False if command fails */
-  bool suspend_sup;               /* true if Suspend stream is supported, else false if
-                                     suspend command fails */
+                                     successful, false if command fails */
+  bool suspend_sup;               /* true if Suspend stream is supported, false if suspend command
+                                     fails */
   bool deregistering;             /* true if deregistering */
   bool sco_suspend;               /* true if SUSPEND is issued automatically for SCO */
   uint8_t coll_mask;              /* Mask to check incoming and outgoing collision */

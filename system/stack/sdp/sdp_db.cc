@@ -341,30 +341,30 @@ uint32_t SDP_CreateRecord(void) {
   tSDP_DB* p_db = &sdp_cb.server_db;
 
   /* First, check if there is a free record */
-  if (p_db->num_records < SDP_MAX_RECORDS) {
-    memset(&p_db->record[p_db->num_records], 0, sizeof(tSDP_RECORD));
-
-    /* We will use a handle of the first unreserved handle plus last record
-    ** number + 1 */
-    if (p_db->num_records) {
-      handle = p_db->record[p_db->num_records - 1].record_handle + 1;
-    } else {
-      handle = 0x10000;
-    }
-
-    p_db->record[p_db->num_records].record_handle = handle;
-
-    p_db->num_records++;
-    log::verbose("SDP_CreateRecord ok, num_records:{}", p_db->num_records);
-    /* Add the first attribute (the handle) automatically */
-    UINT32_TO_BE_FIELD(buf, handle);
-    SDP_AddAttribute(handle, ATTR_ID_SERVICE_RECORD_HDL, UINT_DESC_TYPE, 4, buf);
-
-    return p_db->record[p_db->num_records - 1].record_handle;
-  } else {
+  if (p_db->num_records >= SDP_MAX_RECORDS) {
     log::error("SDP_CreateRecord fail, exceed maximum records:{}", SDP_MAX_RECORDS);
+    return 0;
   }
-  return 0;
+
+  memset(&p_db->record[p_db->num_records], 0, sizeof(tSDP_RECORD));
+
+  /* We will use a handle of the first unreserved handle plus last record
+  ** number + 1 */
+  if (p_db->num_records) {
+    handle = p_db->record[p_db->num_records - 1].record_handle + 1;
+  } else {
+    handle = 0x10000;
+  }
+
+  p_db->record[p_db->num_records].record_handle = handle;
+
+  p_db->num_records++;
+  log::verbose("SDP_CreateRecord ok, num_records:{}", p_db->num_records);
+  /* Add the first attribute (the handle) automatically */
+  UINT32_TO_BE_FIELD(buf, handle);
+  SDP_AddAttribute(handle, ATTR_ID_SERVICE_RECORD_HDL, UINT_DESC_TYPE, 4, buf);
+
+  return p_db->record[p_db->num_records - 1].record_handle;
 }
 
 /*******************************************************************************
@@ -392,32 +392,34 @@ bool SDP_DeleteRecord(uint32_t handle) {
     sdp_cb.server_db.di_primary_handle = 0;
 
     return true;
-  } else {
-    /* Find the record in the database */
-    for (xx = 0; xx < sdp_cb.server_db.num_records; xx++, p_rec++) {
-      if (p_rec->record_handle == handle) {
-        /* Found it. Shift everything up one */
-        for (yy = xx; yy < sdp_cb.server_db.num_records - 1; yy++, p_rec++) {
-          *p_rec = *(p_rec + 1);
+  }
 
-          /* Adjust the attribute value pointer for each attribute */
-          for (zz = 0; zz < p_rec->num_attributes; zz++) {
-            p_rec->attribute[zz].value_ptr -= sizeof(tSDP_RECORD);
-          }
-        }
+  /* Find the record in the database */
+  for (xx = 0; xx < sdp_cb.server_db.num_records; xx++, p_rec++) {
+    if (p_rec->record_handle != handle) {
+      continue;
+    }
 
-        sdp_cb.server_db.num_records--;
+    /* Found it. Shift everything up one */
+    for (yy = xx; yy < sdp_cb.server_db.num_records - 1; yy++, p_rec++) {
+      *p_rec = *(p_rec + 1);
 
-        log::verbose("SDP_DeleteRecord ok, num_records:{}", sdp_cb.server_db.num_records);
-        /* if we're deleting the primary DI record, clear the */
-        /* value in the control block */
-        if (sdp_cb.server_db.di_primary_handle == handle) {
-          sdp_cb.server_db.di_primary_handle = 0;
-        }
-
-        return true;
+      /* Adjust the attribute value pointer for each attribute */
+      for (zz = 0; zz < p_rec->num_attributes; zz++) {
+        p_rec->attribute[zz].value_ptr -= sizeof(tSDP_RECORD);
       }
     }
+
+    sdp_cb.server_db.num_records--;
+
+    log::verbose("SDP_DeleteRecord ok, num_records:{}", sdp_cb.server_db.num_records);
+    /* if we're deleting the primary DI record, clear the */
+    /* value in the control block */
+    if (sdp_cb.server_db.di_primary_handle == handle) {
+      sdp_cb.server_db.di_primary_handle = 0;
+    }
+
+    return true;
   }
   return false;
 }

@@ -81,7 +81,6 @@ typedef struct {
    * Cleanup the pan interface
    */
   void (*cleanup)(void);
-
 } btpan_interface_t;
 
 namespace fmt {

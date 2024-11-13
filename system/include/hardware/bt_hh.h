@@ -161,7 +161,6 @@ typedef struct {
   bthh_get_report_callback get_report_cb;
   bthh_virtual_unplug_callback virtual_unplug_cb;
   bthh_handshake_callback handshake_cb;
-
 } bthh_callbacks_t;
 
 /** Represents the standard BT-HH interface. */
@@ -227,7 +226,6 @@ typedef struct {
 
   /** Configure which profiles can be enabled. Affected after re-init */
   void (*configure_enabled_profiles)(bool enable_hidp, bool enable_hogp);
-
 } bthh_interface_t;
 __END_DECLS
 

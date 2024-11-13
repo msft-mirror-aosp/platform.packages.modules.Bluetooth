@@ -59,6 +59,7 @@ namespace {
 using base::Bind;
 using base::Unretained;
 
+using bluetooth::aics::GainMode;
 using bluetooth::aics::Mute;
 using bluetooth::vc::ConnectionState;
 using bluetooth::vc::VolumeControlCallbacks;
@@ -106,19 +107,27 @@ public:
               (const RawAddress& address, uint8_t ext_output_id, std::string descr), (override));
   MOCK_METHOD((void), OnExtAudioInStateChanged,
               (const RawAddress& address, uint8_t ext_input_id, int8_t gain_setting, Mute mute,
-               uint8_t gain_mode_auto),
+               GainMode gain_mode),
               (override));
+  MOCK_METHOD((void), OnExtAudioInSetGainSettingFailed,
+              (const RawAddress& address, uint8_t ext_input_id), (override));
+  MOCK_METHOD((void), OnExtAudioInSetMuteFailed, (const RawAddress& address, uint8_t ext_input_id),
+              (override));
+  MOCK_METHOD((void), OnExtAudioInSetGainModeFailed,
+              (const RawAddress& address, uint8_t ext_input_id), (override));
   MOCK_METHOD((void), OnExtAudioInStatusChanged,
               (const RawAddress& address, uint8_t ext_input_id, VolumeInputStatus status),
               (override));
   MOCK_METHOD((void), OnExtAudioInTypeChanged,
               (const RawAddress& address, uint8_t ext_input_id, VolumeInputType type), (override));
-  MOCK_METHOD((void), OnExtAudioInGainPropsChanged,
+  MOCK_METHOD((void), OnExtAudioInGainSettingPropertiesChanged,
               (const RawAddress& address, uint8_t ext_input_id, uint8_t unit, int8_t min,
                int8_t max),
               (override));
   MOCK_METHOD((void), OnExtAudioInDescriptionChanged,
-              (const RawAddress& address, uint8_t ext_input_id, std::string descr), (override));
+              (const RawAddress& address, uint8_t ext_input_id, std::string description,
+               bool is_writable),
+              (override));
 };
 
 class VolumeControlTest : public ::testing::Test {
@@ -572,7 +581,7 @@ protected:
   }
 
   void TestRemove(const RawAddress& address, uint16_t conn_id) {
-    EXPECT_CALL(gatt_interface, CancelOpen(gatt_if, address, false));
+    EXPECT_CALL(gatt_interface, CancelOpen(gatt_if, address, true));
     if (conn_id) {
       EXPECT_CALL(gatt_interface, Close(conn_id));
     } else {
@@ -899,7 +908,7 @@ TEST_F(VolumeControlTest, test_reconnect_after_timeout) {
   // Disconnect not connected device - upper layer times out and needs a
   // disconnection event to leave the transient Connecting state
   EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, address));
-  EXPECT_CALL(gatt_interface, CancelOpen(gatt_if, address, false)).Times(0);
+  EXPECT_CALL(gatt_interface, CancelOpen(gatt_if, address, _)).Times(0);
   TestDisconnect(address, 0);
 
   // Above the device was not connected and we got Disconnect request from the
@@ -984,6 +993,7 @@ TEST_F(VolumeControlTest, test_disconnected_while_autoconnect) {
   TestAppRegister();
   TestAddFromStorage(test_address);
   GetConnectedEvent(test_address, 1);
+  Mock::VerifyAndClearExpectations(&gatt_interface);
   // autoconnect - don't indicate disconnection
   EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(0);
   GetDisconnectedEvent(test_address, 1);
@@ -1337,20 +1347,29 @@ TEST_F(VolumeControlCallbackTest, test_volume_state_changed_malformed) {
 
 TEST_F(VolumeControlCallbackTest, audio_input_state_changed__invalid_mute__is_rejected) {
   uint8_t invalid_mute = 0x03;
-  std::vector<uint8_t> value({0x03, invalid_mute, 0x02, 0x04});
+  std::vector<uint8_t> value({0x03, invalid_mute, (uint8_t)GainMode::MANUAL, 0x04});
+  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(_, _, _, _, _)).Times(0);
+  GetNotificationEvent(0x0032, value);
+}
+
+TEST_F(VolumeControlCallbackTest, audio_input_state_changed__invalid_gain_mode__is_rejected) {
+  uint8_t invalid_gain_mode = 0x06;
+  std::vector<uint8_t> value({0x03, (uint8_t)Mute::MUTED, invalid_gain_mode, 0x04});
   EXPECT_CALL(callbacks, OnExtAudioInStateChanged(_, _, _, _, _)).Times(0);
   GetNotificationEvent(0x0032, value);
 }
 
 TEST_F(VolumeControlCallbackTest, test_audio_input_state_changed__muted) {
-  std::vector<uint8_t> value({0x03, (uint8_t)Mute::MUTED, 0x02, 0x04});
-  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(test_address, _, 0x03, Mute::MUTED, 0x02));
+  std::vector<uint8_t> value({0x03, (uint8_t)Mute::MUTED, (uint8_t)GainMode::MANUAL, 0x04});
+  EXPECT_CALL(callbacks,
+              OnExtAudioInStateChanged(test_address, _, 0x03, Mute::MUTED, GainMode::MANUAL));
   GetNotificationEvent(0x0032, value);
 }
 
 TEST_F(VolumeControlCallbackTest, test_audio_input_state_changed__disabled) {
-  std::vector<uint8_t> value({0x03, (uint8_t)Mute::DISABLED, 0x02, 0x04});
-  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(test_address, _, 0x03, Mute::DISABLED, 0x02));
+  std::vector<uint8_t> value({0x03, (uint8_t)Mute::DISABLED, (uint8_t)GainMode::MANUAL, 0x04});
+  EXPECT_CALL(callbacks,
+              OnExtAudioInStateChanged(test_address, _, 0x03, Mute::DISABLED, GainMode::MANUAL));
   GetNotificationEvent(0x0032, value);
 }
 
@@ -1364,12 +1383,14 @@ TEST_F(VolumeControlCallbackTest, test_audio_input_state_changed_malformed) {
 
 TEST_F(VolumeControlCallbackTest, test_audio_gain_props_changed) {
   std::vector<uint8_t> value({0x03, 0x01, 0x02});
-  EXPECT_CALL(callbacks, OnExtAudioInGainPropsChanged(test_address, _, 0x03, 0x01, 0x02));
+  EXPECT_CALL(callbacks,
+              OnExtAudioInGainSettingPropertiesChanged(test_address, _, 0x03, 0x01, 0x02));
   GetNotificationEvent(0x0055, value);
 }
 
 TEST_F(VolumeControlCallbackTest, test_audio_gain_props_changed_malformed) {
-  EXPECT_CALL(callbacks, OnExtAudioInGainPropsChanged(test_address, _, _, _, _)).Times(0);
+  EXPECT_CALL(callbacks, OnExtAudioInGainSettingPropertiesChanged(test_address, _, _, _, _))
+          .Times(0);
   std::vector<uint8_t> too_short({0x03, 0x01});
   GetNotificationEvent(0x0055, too_short);
   std::vector<uint8_t> too_long({0x03, 0x01, 0x02, 0x03});
@@ -1392,9 +1413,9 @@ TEST_F(VolumeControlCallbackTest, test_audio_input_status_changed_malformed) {
 }
 
 TEST_F(VolumeControlCallbackTest, test_audio_input_description_changed) {
-  std::string descr = "SPDIF";
-  std::vector<uint8_t> value(descr.begin(), descr.end());
-  EXPECT_CALL(callbacks, OnExtAudioInDescriptionChanged(test_address, _, descr));
+  std::string description = "SPDIF";
+  std::vector<uint8_t> value(description.begin(), description.end());
+  EXPECT_CALL(callbacks, OnExtAudioInDescriptionChanged(test_address, _, description, _));
   GetNotificationEvent(0x005e, value);
 }
 
@@ -1489,8 +1510,9 @@ TEST_F(VolumeControlValueGetTest, test_get_ext_audio_out_description) {
 TEST_F(VolumeControlValueGetTest, test_get_ext_audio_in_state) {
   VolumeControl::Get()->GetExtAudioInState(test_address, 1);
   EXPECT_TRUE(cb);
-  std::vector<uint8_t> value({0x01, (uint8_t)Mute::NOT_MUTED, 0x02, 0x03});
-  EXPECT_CALL(callbacks, OnExtAudioInStateChanged(test_address, 1, 0x01, Mute::NOT_MUTED, 0x02));
+  std::vector<uint8_t> value({0x01, (uint8_t)Mute::NOT_MUTED, (uint8_t)GainMode::MANUAL, 0x03});
+  EXPECT_CALL(callbacks,
+              OnExtAudioInStateChanged(test_address, 1, 0x01, Mute::NOT_MUTED, GainMode::MANUAL));
   cb(conn_id, GATT_SUCCESS, handle, (uint16_t)value.size(), value.data(), cb_data);
 }
 
@@ -1507,16 +1529,17 @@ TEST_F(VolumeControlValueGetTest, test_get_ext_audio_in_gain_props) {
   VolumeControl::Get()->GetExtAudioInGainProps(test_address, 0);
   EXPECT_TRUE(cb);
   std::vector<uint8_t> value({0x01, 0x02, 0x03});
-  EXPECT_CALL(callbacks, OnExtAudioInGainPropsChanged(test_address, 0, 0x01, 0x02, 0x03));
+  EXPECT_CALL(callbacks,
+              OnExtAudioInGainSettingPropertiesChanged(test_address, 0, 0x01, 0x02, 0x03));
   cb(conn_id, GATT_SUCCESS, handle, (uint16_t)value.size(), value.data(), cb_data);
 }
 
 TEST_F(VolumeControlValueGetTest, test_get_ext_audio_in_description) {
   VolumeControl::Get()->GetExtAudioInDescription(test_address, 1);
   EXPECT_TRUE(cb);
-  std::string descr = "AUX-IN";
-  std::vector<uint8_t> value(descr.begin(), descr.end());
-  EXPECT_CALL(callbacks, OnExtAudioInDescriptionChanged(test_address, 1, descr));
+  std::string description = "AUX-IN";
+  std::vector<uint8_t> value(description.begin(), description.end());
+  EXPECT_CALL(callbacks, OnExtAudioInDescriptionChanged(test_address, 1, description, _));
   cb(conn_id, GATT_SUCCESS, handle, (uint16_t)value.size(), value.data(), cb_data);
 }
 
@@ -1868,21 +1891,21 @@ TEST_F(VolumeControlValueSetTest, test_set_ext_audio_in_gain_setting) {
 }
 
 TEST_F(VolumeControlValueSetTest, test_set_ext_audio_in_gain_mode) {
-  std::vector<uint8_t> mode_manual({0x04, 0x00});
+  std::vector<uint8_t> mode_manual({0x04, 0x00});  // 0x04 is the opcode for Manual
   EXPECT_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x005c, mode_manual, GATT_WRITE, _, _));
-  VolumeControl::Get()->SetExtAudioInGainMode(test_address, 1, false);
-  std::vector<uint8_t> mode_automatic({0x05, 0x00});
+  VolumeControl::Get()->SetExtAudioInGainMode(test_address, 1, GainMode::MANUAL);
+  std::vector<uint8_t> mode_automatic({0x05, 0x00});  // 0x05 is the opcode for Automatic
   EXPECT_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x005c, mode_automatic, GATT_WRITE, _, _));
-  VolumeControl::Get()->SetExtAudioInGainMode(test_address, 1, true);
+  VolumeControl::Get()->SetExtAudioInGainMode(test_address, 1, GainMode::AUTOMATIC);
 }
 
 TEST_F(VolumeControlValueSetTest, test_set_ext_audio_in_gain_mute) {
-  std::vector<uint8_t> mute({0x03, 0x00});
+  std::vector<uint8_t> mute({0x03, 0x00});  // 0x03 is the opcode for Mute
   EXPECT_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x005c, mute, GATT_WRITE, _, _));
-  VolumeControl::Get()->SetExtAudioInGainMute(test_address, 1, true);
-  std::vector<uint8_t> unmute({0x02, 0x00});
+  VolumeControl::Get()->SetExtAudioInMute(test_address, 1, Mute::MUTED);
+  std::vector<uint8_t> unmute({0x02, 0x00});  // 0x02 is the opcode for UnMute
   EXPECT_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x005c, unmute, GATT_WRITE, _, _));
-  VolumeControl::Get()->SetExtAudioInGainMute(test_address, 1, false);
+  VolumeControl::Get()->SetExtAudioInMute(test_address, 1, Mute::NOT_MUTED);
 }
 
 class VolumeControlCsis : public VolumeControlTest {

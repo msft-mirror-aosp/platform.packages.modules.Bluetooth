@@ -31,7 +31,6 @@ static const char INTEROP_MODULE[] = "interop_module";
 // Only add values at the end of this enum and before END_OF_INTEROP_LIST
 // do NOT delete values as they may be used in dynamic device configuration.
 typedef enum {
-
   BEGINNING_OF_INTEROP_LIST = 0,
   // Disable secure connections
   // This is for pre BT 4.1/2 devices that do not handle secure mode

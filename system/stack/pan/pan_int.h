@@ -74,7 +74,6 @@ typedef struct {
     size_t errors{0};
     size_t drops{0};
   } write, read;
-
 } tPAN_CONN;
 
 /*  The main PAN control block

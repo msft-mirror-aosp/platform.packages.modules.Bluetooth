@@ -298,7 +298,6 @@ private:
       }
       return false;
     }
-
   } connections;
 
 public:
