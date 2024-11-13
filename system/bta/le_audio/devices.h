@@ -27,7 +27,7 @@
 #include "gmap_client.h"
 #include "le_audio_types.h"
 #include "osi/include/alarm.h"
-#include "raw_address.h"
+#include "types/raw_address.h"
 
 namespace bluetooth::le_audio {
 

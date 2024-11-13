@@ -20,8 +20,15 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <vector>
+
 #include "a2dp_codec_api.h"
+#include "a2dp_constants.h"
 #include "audio_hal_interface/a2dp_encoding.h"
+#include "hardware/bt_av.h"
 
 using namespace bluetooth;
 

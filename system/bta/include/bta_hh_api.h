@@ -318,7 +318,6 @@ typedef struct {
     BT_HDR* p_rpt_data;            /* GET_RPT_EVT   : report data  */
     uint8_t idle_rate;             /* GET_IDLE_EVT  : idle rate    */
   } rsp_data;
-
 } tBTA_HH_HSDATA;
 
 /* union of data associated with HD callback */

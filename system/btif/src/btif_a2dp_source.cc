@@ -40,7 +40,6 @@
 #include "a2dp_codec_api.h"
 #include "audio_hal_interface/a2dp_encoding.h"
 #include "avdt_api.h"
-#include "bt_transport.h"
 #include "bta_av_api.h"
 #include "bta_av_ci.h"
 #include "btif_av.h"
@@ -64,6 +63,7 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 #ifdef __ANDROID__
@@ -364,6 +364,7 @@ class A2dpAudioPort : public bluetooth::audio::a2dp::BluetoothAudioPort {
 
     // Check if the stream has already been started.
     if (btif_av_stream_started_ready(A2dpType::kSource)) {
+      log::verbose("stream is already started");
       return BluetoothAudioStatus::SUCCESS;
     }
 
@@ -386,12 +387,27 @@ class A2dpAudioPort : public bluetooth::audio::a2dp::BluetoothAudioPort {
     // Check if the stream is already suspended.
     if (!btif_av_stream_started_ready(A2dpType::kSource)) {
       btif_av_clear_remote_suspend_flag(A2dpType::kSource);
+      log::verbose("stream is already suspended");
       return BluetoothAudioStatus::SUCCESS;
     }
 
     // Post suspend event. The suspend request is pending, completion will
     // be notified to bluetooth::audio::a2dp::ack_stream_suspended.
     btif_av_stream_suspend();
+    return BluetoothAudioStatus::PENDING;
+  }
+
+  BluetoothAudioStatus StopStream() const override {
+    // Check if the stream is already suspended.
+    if (!btif_av_stream_started_ready(A2dpType::kSource)) {
+      btif_av_clear_remote_suspend_flag(A2dpType::kSource);
+      log::verbose("stream is already stopped");
+      return BluetoothAudioStatus::SUCCESS;
+    }
+
+    // Post stop event. The stop request is pending, but completion is not
+    // notified to the HAL.
+    btif_av_stream_stop(RawAddress::kEmpty);
     return BluetoothAudioStatus::PENDING;
   }
 

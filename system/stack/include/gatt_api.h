@@ -279,7 +279,6 @@ typedef enum : uint16_t {
   GATT_CONN_TERMINATED_POWER_OFF = HCI_ERR_REMOTE_POWER_OFF,
 
   BTA_GATT_CONN_NONE = 0x0101, /* 0x0101 no connection to cancel  */
-
 } tGATT_DISCONN_REASON;
 
 inline std::string gatt_disconnection_reason_text(const tGATT_DISCONN_REASON& reason) {
@@ -502,7 +501,6 @@ typedef union {
   tGATT_VALUE attr_value; /* READ, HANDLE_VALUE_IND, PREPARE_WRITE */
                           /* READ_BLOB, READ_BY_TYPE */
   uint16_t handle;        /* WRITE, WRITE_BLOB */
-
 } tGATTS_RSP;
 
 #define GATT_PREP_WRITE_CANCEL 0x00

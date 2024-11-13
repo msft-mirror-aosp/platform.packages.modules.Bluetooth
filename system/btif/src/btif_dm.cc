@@ -33,7 +33,6 @@
 #include <base/functional/bind.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
-#include <bluetooth/uuid.h>
 #include <com_android_bluetooth_flags.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_csis.h>
@@ -99,6 +98,7 @@
 #include "stack/include/smp_api.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
 #include "storage/config_keys.h"
+#include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
 #ifdef __ANDROID__
@@ -196,7 +196,6 @@ typedef struct {
   Octet16 er;
   bool is_id_keys_rcvd;
   btif_dm_local_key_id_t id_keys; /* ID kyes */
-
 } btif_dm_local_key_cb_t;
 
 /* this structure holds optional OOB data for remote device */
@@ -569,6 +568,10 @@ static void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
       bluetooth::os::LogMetricBluetoothEvent(ToGdAddress(bd_addr),
                                              android::bluetooth::EventType::BOND,
                                              android::bluetooth::State::STATE_NONE);
+    } else if (state == BT_BOND_STATE_BONDED) {
+      bluetooth::os::LogMetricBluetoothEvent(ToGdAddress(bd_addr),
+                                             android::bluetooth::EventType::BOND,
+                                             android::bluetooth::State::STATE_BONDED);
     }
   }
 
@@ -808,6 +811,10 @@ static void btif_dm_cb_create_bond(const RawAddress bd_addr, tBT_TRANSPORT trans
 
   /*  Track originator of bond creation  */
   pairing_cb.is_local_initiated = true;
+  bluetooth::os::LogMetricBluetoothEvent(
+          ToGdAddress(bd_addr), android::bluetooth::EventType::TRANSPORT,
+          transport == BT_TRANSPORT_LE ? android::bluetooth::State::LE
+                                       : android::bluetooth::State::CLASSIC);
   BTA_DmBond(bd_addr, addr_type, transport, device_type);
 }
 

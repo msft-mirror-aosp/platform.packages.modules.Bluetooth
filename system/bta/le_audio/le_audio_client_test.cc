@@ -859,13 +859,18 @@ protected:
                                           metadata_context_types,
                                   types::BidirectionalPair<std::vector<uint8_t>> ccid_lists,
                                   bool configure_qos) {
+              auto group_state = group->GetState();
               bool isReconfiguration = group->IsPendingConfiguration();
 
               log::info(
-                      "ConfigureStream: group_id {}, context_type {}, configure_qos {}, "
+                      "ConfigureStream: group {} state {}, context type {} sink metadata_ctx {}, "
+                      "source metadata_ctx {}, ccid_sink size {}, ccid_source_size {}, "
                       "isReconfiguration {}",
-                      group->group_id_, bluetooth::common::ToString(context_type), configure_qos,
-                      isReconfiguration);
+                      group->group_id_, bluetooth::common::ToString(group_state),
+                      bluetooth::common::ToString(context_type),
+                      bluetooth::common::ToString(metadata_context_types.sink),
+                      bluetooth::common::ToString(metadata_context_types.source),
+                      ccid_lists.sink.size(), ccid_lists.source.size(), isReconfiguration);
 
               /* Do what ReleaseCisIds(group) does: start */
               LeAudioDevice* leAudioDevice = group->GetFirstDevice();
@@ -1030,11 +1035,12 @@ protected:
               auto group_state = group->GetState();
               log::info(
                       "StartStream: group {} state {}, context type {} sink metadata_ctx {}, "
-                      "source metadata_ctx {}",
+                      "source metadata_ctx {}, ccid_sink size {}, ccid_source_size {}",
                       group->group_id_, bluetooth::common::ToString(group_state),
                       bluetooth::common::ToString(context_type),
                       bluetooth::common::ToString(metadata_context_types.sink),
-                      bluetooth::common::ToString(metadata_context_types.source));
+                      bluetooth::common::ToString(metadata_context_types.source),
+                      ccid_lists.sink.size(), ccid_lists.source.size());
 
               /* Do nothing if already streaming - the implementation would
                * probably update the metadata.
@@ -7535,11 +7541,11 @@ TEST_F(UnicastTest, TwoEarbudsSetPreferenceWhenMediaForBothMediaAndConv) {
                          is_using_set_before_media_codec_during_media,
                          is_using_set_while_media_codec_during_media, is_reconfig);
 
-  // simulate suspend timeout passed, alarm executing
+  log::info("simulate suspend timeout passed, alarm executing");
   fake_osi_alarm_set_on_mloop_.cb(fake_osi_alarm_set_on_mloop_.data);
   SyncOnMainLoop();
 
-  // SetInCall is used by GTBS - and only then we can expect CCID to be set.
+  log::info("SetInCall is used by GTBS - and only then we can expect CCID to be set.");
   LeAudioClient::Get()->SetInCall(true);
 
   bool set_before_conv = false;
@@ -7553,7 +7559,7 @@ TEST_F(UnicastTest, TwoEarbudsSetPreferenceWhenMediaForBothMediaAndConv) {
                          is_using_set_while_conv_codec_during_conv, is_reconfig);
   LeAudioClient::Get()->SetInCall(false);
 
-  // should use preferred codec when switching back to media
+  log::info("should use preferred codec when switching back to media");
   ASSERT_EQ(LeAudioClient::Get()->IsUsingPreferredCodecConfig(
                     group_id, static_cast<int>(types::LeAudioContextType::MEDIA)),
             true);
@@ -8310,7 +8316,7 @@ TEST_F(UnicastTest, TwoEarbudsStreamingContextSwitchReconfigure) {
   fake_osi_alarm_set_on_mloop_.cb(fake_osi_alarm_set_on_mloop_.data);
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
 
-  // SetInCall is used by GTBS - and only then we can expect CCID to be set.
+  log::info("SetInCall is used by GTBS - and only then we can expect CCID to be set.");
   LeAudioClient::Get()->SetInCall(true);
 
   // Conversational is a bidirectional scenario so expect GTBS CCID
@@ -8331,11 +8337,12 @@ TEST_F(UnicastTest, TwoEarbudsStreamingContextSwitchReconfigure) {
   cis_count_in = 2;
   TestAudioDataTransfer(group_id, cis_count_out, cis_count_in, 1920, 40);
 
+  log::info("End call");
   LeAudioClient::Get()->SetInCall(false);
   // Stop
   StopStreaming(group_id, true);
 
-  // Switch back to MEDIA
+  log::info("Switch back to MEDIA");
   ccids = {.sink = {gmcs_ccid}, .source = {}};
   types::BidirectionalPair<types::AudioContexts> contexts = {
           .sink = types::AudioContexts(types::LeAudioContextType::MEDIA),
@@ -9833,7 +9840,7 @@ TEST_F(UnicastTest, TwoEarbudsStreamingProfileDisconnectStreamStopTimeout) {
   ASSERT_NE(0lu, streaming_groups.count(group_id));
   auto group = streaming_groups.at(group_id);
   ASSERT_TRUE(group != nullptr);
-  ASSERT_TRUE(group->NumOfConnected() > 0);
+  ASSERT_GT(group->NumOfConnected(), 0);
 
   state_machine_callbacks_->OnStateTransitionTimeout(group_id);
   SyncOnMainLoop();
@@ -10735,6 +10742,79 @@ TEST_F(UnicastTest, MusicDuringCallContextTypes) {
           [](LeAudioClient* client) { client->GroupSetActive(bluetooth::groups::kGroupUnknown); },
           LeAudioClient::Get()));
   SyncOnMainLoop();
+}
+
+TEST_F(UnicastTest, MetadataUpdateDuringReconfiguration) {
+  com::android::bluetooth::flags::provider_->leaudio_speed_up_reconfiguration_between_call(true);
+  const RawAddress test_address0 = GetTestAddress(0);
+  int group_id = bluetooth::groups::kGroupUnknown;
+
+  /* Scenario
+   * 1. Start reconfiguration
+   * 2. Send metadata update
+   * 3. Make sure metadata updates are ignored
+   */
+  available_snk_context_types_ =
+          (types::LeAudioContextType::CONVERSATIONAL | types::LeAudioContextType::RINGTONE |
+           types::LeAudioContextType::GAME | types::LeAudioContextType::MEDIA |
+           types::LeAudioContextType::LIVE | types::LeAudioContextType::NOTIFICATIONS)
+                  .value();
+  supported_snk_context_types_ =
+          available_snk_context_types_ |
+          types::AudioContexts(types::LeAudioContextType::UNSPECIFIED).value();
+  available_src_context_types_ = available_snk_context_types_;
+  supported_src_context_types_ =
+          available_src_context_types_ |
+          types::AudioContexts(types::LeAudioContextType::UNSPECIFIED).value();
+
+  SetSampleDatabaseEarbudsValid(1, test_address0, codec_spec_conf::kLeAudioLocationAnyLeft,
+                                codec_spec_conf::kLeAudioLocationStereo, default_channel_cnt,
+                                default_channel_cnt, 0x0024, false /*add_csis*/, true /*add_cas*/,
+                                true /*add_pacs*/, default_ase_cnt /*add_ascs_cnt*/, 1 /*set_size*/,
+                                0 /*rank*/);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnConnectionState(ConnectionState::CONNECTED, test_address0))
+          .Times(1);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnGroupNodeStatus(test_address0, _, GroupNodeStatus::ADDED))
+          .WillOnce(DoAll(SaveArg<1>(&group_id)));
+
+  ConnectLeAudio(test_address0);
+  ASSERT_NE(group_id, bluetooth::groups::kGroupUnknown);
+
+  // Audio sessions are started only when device gets active
+  EXPECT_CALL(*mock_le_audio_source_hal_client_, Start(_, _, _)).Times(1);
+  EXPECT_CALL(*mock_le_audio_sink_hal_client_, Start(_, _, _)).Times(1);
+  LeAudioClient::Get()->GroupSetActive(group_id);
+  SyncOnMainLoop();
+  EXPECT_CALL(mock_state_machine_,
+              StartStream(_, bluetooth::le_audio::types::LeAudioContextType::MEDIA, _, _))
+          .Times(1);
+  StartStreaming(AUDIO_USAGE_MEDIA, AUDIO_CONTENT_TYPE_MUSIC, group_id);
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_state_machine_);
+
+  auto group = streaming_groups.at(group_id);
+
+  stay_at_qos_config_in_start_stream = true;
+  log::info("Reconfigure to conversational and stay in Codec Config");
+
+  EXPECT_CALL(mock_state_machine_, StopStream(_)).Times(1);
+  EXPECT_CALL(mock_state_machine_, ConfigureStream(_, _, _, _, _)).Times(1);
+
+  LeAudioClient::Get()->SetInCall(true);
+  SyncOnMainLoop();
+
+  ASSERT_TRUE(group->GetState() == types::AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED);
+
+  log::info("Expect not action on metadata change");
+
+  EXPECT_CALL(mock_state_machine_, StopStream(_)).Times(0);
+  EXPECT_CALL(mock_state_machine_, ConfigureStream(_, _, _, _, _)).Times(0);
+
+  UpdateLocalSourceMetadata(AUDIO_USAGE_MEDIA, AUDIO_CONTENT_TYPE_MUSIC);
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_state_machine_);
 }
 
 TEST_F(UnicastTest, MusicDuringCallContextTypes_SpeedUpReconfigFlagEnabled) {
@@ -12413,10 +12493,7 @@ TEST_F(UnicastTestHandoverMode, SetAllowedContextMask) {
   ASSERT_NE(group_id, bluetooth::groups::kGroupUnknown);
 
   EXPECT_CALL(*mock_le_audio_source_hal_client_, Start(_, _, _)).Times(1);
-  types::BidirectionalPair<types::AudioContexts> metadata = {.sink = types::AudioContexts(),
-                                                             .source = types::AudioContexts()};
-  EXPECT_CALL(mock_state_machine_,
-              StartStream(_, types::LeAudioContextType::SOUNDEFFECTS, metadata, _))
+  EXPECT_CALL(mock_state_machine_, StartStream(_, types::LeAudioContextType::SOUNDEFFECTS, _, _))
           .Times(0);
 
   LeAudioClient::Get()->GroupSetActive(group_id);

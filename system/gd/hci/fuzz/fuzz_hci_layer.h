@@ -42,6 +42,11 @@ public:
   void EnqueueCommand(
           std::unique_ptr<T> /* command */,
           common::ContextualOnceCallback<void(hci::CommandStatusView)> /* on_status */) override {}
+
+  void EnqueueCommand(
+          std::unique_ptr<T> /* command */,
+          common::ContextualOnceCallback<
+                  void(hci::CommandStatusOrCompleteView)> /* on_status_or_complete */) override {}
 };
 
 class FuzzHciLayer : public HciLayer {

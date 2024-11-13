@@ -55,6 +55,7 @@ public:
     return BluetoothAudioStatus::FAILURE;
   }
   virtual BluetoothAudioStatus SuspendStream() const { return BluetoothAudioStatus::FAILURE; }
+  virtual BluetoothAudioStatus StopStream() const { return SuspendStream(); }
   virtual BluetoothAudioStatus SetLatencyMode(bool /*low_latency*/) const {
     return BluetoothAudioStatus::FAILURE;
   }

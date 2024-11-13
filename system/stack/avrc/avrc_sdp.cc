@@ -21,18 +21,25 @@
  *  AVRCP SDP related functions
  *
  ******************************************************************************/
+
 #define LOG_TAG "avrcp"
 
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+
+#include "avct_api.h"
 #include "avrc_api.h"
+#include "avrc_defs.h"
 #include "avrc_int.h"
+#include "sdp_status.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/sdp_api.h"
 #include "stack/include/sdpdefs.h"
+#include "stack/sdp/sdp_discovery_db.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 

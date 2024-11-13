@@ -55,7 +55,6 @@ cc_library_static {
         "packages/modules/Bluetooth/system/gd",
         "packages/modules/Bluetooth/system/include",
         "packages/modules/Bluetooth/system/stack/include",
-        "packages/modules/Bluetooth/system/types",
     ],
     srcs: ["src/btif_jni_task.cc"],
     static_libs: [
@@ -198,6 +197,7 @@ cc_library_static {
         "src/btif_gatt_client.cc",
         "src/btif_gatt_server.cc",
         "src/btif_gatt_util.cc",
+        "src/btif_hci_vs.cc",
         "src/btif_iot_config.cc",
         "src/btif_keystore.cc",
         "src/btif_metrics_logging.cc",
@@ -402,6 +402,7 @@ cc_test {
         "libbluetooth_gd",
         "libbluetooth_log",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libosi",
     ],
     shared_libs: [
@@ -436,6 +437,7 @@ cc_test {
         "libbluetooth-types",
         "libbluetooth_log",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libosi",
     ],
     shared_libs: [

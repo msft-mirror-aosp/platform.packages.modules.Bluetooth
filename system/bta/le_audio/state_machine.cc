@@ -1687,7 +1687,6 @@ private:
                 leAudioDevice->address_, BT_TRANSPORT_LE);
         conn_pairs.push_back({.cis_conn_handle = ase->cis_conn_hdl, .acl_conn_handle = acl_handle});
         log::debug("cis handle: {} acl handle : 0x{:x}", ase->cis_conn_hdl, acl_handle);
-
       } while ((ase = leAudioDevice->GetNextActiveAse(ase)));
     } while ((leAudioDevice = group->GetNextActiveDevice(leAudioDevice)));
 
@@ -2416,7 +2415,6 @@ private:
       msg_stream << "ASE_ID " << +ase->id << ",";
       extra_stream << "meta: " << base::HexEncode(conf.metadata.data(), conf.metadata.size())
                    << ";;";
-
     } while ((ase = leAudioDevice->GetNextActiveAse(ase)));
 
     bluetooth::le_audio::client_parser::ascs::PrepareAseCtpEnable(confs, value);

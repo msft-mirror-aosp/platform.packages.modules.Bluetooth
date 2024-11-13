@@ -480,21 +480,18 @@ void port_flow_control_peer(tPORT* p_port, bool enable, uint16_t count) {
 
         p_port->rx.peer_fc = false;
       }
-    }
-    /* else want to disable flow from peer */
-    else {
+    } else {
+      /* else want to disable flow from peer */
       /* if client registered data callback, just do what they want */
       if (p_port->p_data_callback || p_port->p_data_co_callback) {
         p_port->rx.peer_fc = true;
-      }
-      /* if queue count reached credit rx max, set peer fc */
-      else if (fixed_queue_length(p_port->rx.queue) >= p_port->credit_rx_max) {
+      } else if (fixed_queue_length(p_port->rx.queue) >= p_port->credit_rx_max) {
+        /* if queue count reached credit rx max, set peer fc */
         p_port->rx.peer_fc = true;
       }
     }
-  }
-  /* else using TS 07.10 flow control */
-  else {
+  } else {
+    /* else using TS 07.10 flow control */
     /* if want to enable flow from peer */
     if (enable) {
       /* If rfcomm suspended traffic from the peer based on the rx_queue_size */
@@ -508,19 +505,17 @@ void port_flow_control_peer(tPORT* p_port, bool enable, uint16_t count) {
           RFCOMM_FlowReq(p_port->rfc.p_mcb, p_port->dlci, true);
         }
       }
-    }
-    /* else want to disable flow from peer */
-    else {
+    } else {
+      /* else want to disable flow from peer */
       /* if client registered data callback, just do what they want */
       if (p_port->p_data_callback || p_port->p_data_co_callback) {
         p_port->rx.peer_fc = true;
         RFCOMM_FlowReq(p_port->rfc.p_mcb, p_port->dlci, false);
-      }
-      /* Check the size of the rx queue.  If it exceeds certain */
-      /* level and flow control has not been sent to the peer do it now */
-      else if (((p_port->rx.queue_size > PORT_RX_HIGH_WM) ||
-                (fixed_queue_length(p_port->rx.queue) > PORT_RX_BUF_HIGH_WM)) &&
-               !p_port->rx.peer_fc) {
+      } else if (((p_port->rx.queue_size > PORT_RX_HIGH_WM) ||
+                  (fixed_queue_length(p_port->rx.queue) > PORT_RX_BUF_HIGH_WM)) &&
+                 !p_port->rx.peer_fc) {
+        /* Check the size of the rx queue.  If it exceeds certain */
+        /* level and flow control has not been sent to the peer do it now */
         log::verbose("PORT_DataInd Data reached HW. Sending FC set.");
 
         p_port->rx.peer_fc = true;

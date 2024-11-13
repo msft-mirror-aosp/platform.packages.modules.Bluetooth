@@ -3218,6 +3218,60 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     }
 
     /**
+     * Creates a client socket to connect to a remote Bluetooth server with the specified socket
+     * settings {@link BluetoothSocketSettings} This API is used to connect to a remote server
+     * hosted using {@link BluetoothAdapter#listenUsingSocketSettings}.
+     *
+     * <ul>
+     *   <li>For `BluetoothSocket.TYPE_RFCOMM`: The RFCOMM UUID must be provided using {@link
+     *       BluetoothSocketSettings#setRfcommUuid()}.
+     *   <li>For `BluetoothSocket.TYPE_LE`: The L2cap protocol/service multiplexer (PSM) value must
+     *       be provided using {@link BluetoothSocketSettings#setL2capPsm()}.
+     * </ul>
+     *
+     * <p>Application using this API is responsible for obtaining protocol/service multiplexer (psm)
+     * value from remote device.
+     *
+     * <p>Use {@link BluetoothSocket#connect} to initiate the outgoing connection.
+     *
+     * @param settings Bluetooth socket settings {@link BluetoothSocketSettings}.
+     * @return a {@link BluetoothSocket} ready for an outgoing connection.
+     * @throws IllegalArgumentException if BluetoothSocket#TYPE_RFCOMM socket with no UUID is passed
+     *     as input or if BluetoothSocket#TYPE_LE with invalid PSM is passed.
+     * @throws IOException on error, for example Bluetooth not available.
+     */
+    @FlaggedApi(Flags.FLAG_SOCKET_SETTINGS_API)
+    public @NonNull BluetoothSocket createUsingSocketSettings(
+            @NonNull BluetoothSocketSettings settings) throws IOException {
+        if (!isBluetoothEnabled()) {
+            Log.e(TAG, "createUsingSocketSettings: Bluetooth is not enabled");
+            throw new IOException();
+        }
+        if (DBG) {
+            Log.d(TAG, "createUsingSocketSettings: =" + settings.getL2capPsm());
+        }
+        ParcelUuid uuid = null;
+        int psm = settings.getL2capPsm();
+        if (settings.getSocketType() == BluetoothSocket.TYPE_RFCOMM) {
+            if (settings.getRfcommUuid() == null) {
+                throw new IllegalArgumentException("null uuid: " + settings.getRfcommUuid());
+            }
+            uuid = new ParcelUuid(settings.getRfcommUuid());
+        } else if (settings.getSocketType() == BluetoothSocket.TYPE_LE) {
+            if (psm < 128 || psm > 255) {
+                throw new IllegalArgumentException("Invalid PSM/Channel value: " + psm);
+            }
+        }
+        return new BluetoothSocket(
+                this,
+                settings.getSocketType(),
+                settings.isAuthenticationRequired(),
+                settings.isEncryptionRequired(),
+                psm,
+                uuid);
+    }
+
+    /**
      * Set a keyed metadata of this {@link BluetoothDevice} to a {@link String} value. Only bonded
      * devices's metadata will be persisted across Bluetooth restart. Metadata will be removed when
      * the device's bond state is moved to {@link #BOND_NONE}.
@@ -3532,6 +3586,86 @@ public final class BluetoothDevice implements Parcelable, Attributable {
             }
         }
         return ACTIVE_AUDIO_DEVICE_POLICY_DEFAULT;
+    }
+
+    /** @hide */
+    @IntDef(
+            value = {
+                BluetoothStatusCodes.SUCCESS,
+                BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED,
+                BluetoothStatusCodes.ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION,
+                BluetoothStatusCodes.ERROR_DEVICE_NOT_BONDED
+            })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface SetMicrophonePreferredForCallsReturnValues {}
+
+    /**
+     * Sets whether this {@link BluetoothDevice} should be the preferred microphone for calls.
+     *
+     * <p>This API is for Bluetooth audio devices and only sets a preference. The caller is
+     * responsible for changing the audio input routing to reflect the preference.
+     *
+     * @param enabled {@code true} to set the device as the preferred microphone for calls, {@code
+     *     false} otherwise.
+     * @return Whether the preferred microphone for calls was set properly.
+     * @throws IllegalArgumentException if the {@link BluetoothDevice} object has an invalid
+     *     address.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_METADATA_API_MICROPHONE_FOR_CALL_ENABLED)
+    @SystemApi
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    public @SetMicrophonePreferredForCallsReturnValues int setMicrophonePreferredForCalls(
+            boolean enabled) {
+        if (DBG) log("setMicrophonePreferredForCalls(" + enabled + ")");
+        if (!BluetoothAdapter.checkBluetoothAddress(getAddress())) {
+            throw new IllegalArgumentException("device cannot have an invalid address");
+        }
+
+        final IBluetooth service = getService();
+        if (service == null || !isBluetoothEnabled()) {
+            Log.e(TAG, "Bluetooth is not enabled. Cannot set microphone for call enabled state.");
+            if (DBG) log(Log.getStackTraceString(new Throwable()));
+        } else {
+            try {
+                return service.setMicrophonePreferredForCalls(this, enabled, mAttributionSource);
+            } catch (RemoteException e) {
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+            }
+        }
+        return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
+    }
+
+    /**
+     * Gets whether this {@link BluetoothDevice} should be the preferred microphone for calls.
+     *
+     * <p>This API returns the configured preference for whether this device should be the preferred
+     * microphone for calls and return {@code true} by default in case of error. It does not reflect
+     * the current audio routing.
+     *
+     * @return {@code true} if the device is the preferred microphone for calls, {@code false}
+     *     otherwise.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_METADATA_API_MICROPHONE_FOR_CALL_ENABLED)
+    @SystemApi
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    public boolean isMicrophonePreferredForCalls() {
+        if (DBG) log("isMicrophoneForCallEnabled");
+        final IBluetooth service = getService();
+        if (service == null || !isBluetoothEnabled()) {
+            Log.e(TAG, "Bluetooth is not enabled. Cannot get microphone for call enabled state.");
+            if (DBG) log(Log.getStackTraceString(new Throwable()));
+        } else {
+            try {
+                return service.isMicrophonePreferredForCalls(this, mAttributionSource);
+            } catch (RemoteException e) {
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+            }
+        }
+        return true;
     }
 
     private static void log(String msg) {

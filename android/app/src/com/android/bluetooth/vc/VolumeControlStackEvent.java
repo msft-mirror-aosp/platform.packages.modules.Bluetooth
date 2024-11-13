@@ -102,8 +102,6 @@ public class VolumeControlStackEvent {
 
     private static String eventTypeValue2ToString(int type, int value) {
         switch (type) {
-            case EVENT_TYPE_CONNECTION_STATE_CHANGED:
-                return BluetoothProfile.getConnectionStateName(value);
             case EVENT_TYPE_VOLUME_STATE_CHANGED:
                 return "{volume:" + value + "}";
             case EVENT_TYPE_DEVICE_AVAILABLE:

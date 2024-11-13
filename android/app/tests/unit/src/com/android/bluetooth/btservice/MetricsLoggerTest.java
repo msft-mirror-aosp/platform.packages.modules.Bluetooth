@@ -270,6 +270,28 @@ public class MetricsLoggerTest {
     }
 
     @Test
+    public void testGetAllowlistedDeviceNameHashForMedicalDevice() {
+        String deviceName = "Sam's rphonak hearing aid";
+        String expectMedicalDeviceSha256 = MetricsLogger.getSha256String("rphonakhearingaid");
+
+        String actualMedicalDeviceSha256 =
+                mTestableMetricsLogger.getAllowlistedDeviceNameHash(deviceName, true);
+
+        Assert.assertEquals(expectMedicalDeviceSha256, actualMedicalDeviceSha256);
+    }
+
+    @Test
+    public void testGetAllowlistedDeviceNameHashForMedicalDeviceIdentifiedLogging() {
+        String deviceName = "Sam's rphonak hearing aid";
+        String expectMedicalDeviceSha256 = "";
+
+        String actualMedicalDeviceSha256 =
+                mTestableMetricsLogger.getAllowlistedDeviceNameHash(deviceName, false);
+
+        Assert.assertEquals(expectMedicalDeviceSha256, actualMedicalDeviceSha256);
+    }
+
+    @Test
     public void uploadEmptyDeviceName() {
         initTestingBloomfilter();
         Assert.assertEquals("", mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, "", true));
