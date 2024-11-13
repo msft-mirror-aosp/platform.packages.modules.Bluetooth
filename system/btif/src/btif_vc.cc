@@ -41,6 +41,7 @@
 
 using base::Bind;
 using base::Unretained;
+using bluetooth::aics::GainMode;
 using bluetooth::aics::Mute;
 using bluetooth::vc::ConnectionState;
 using bluetooth::vc::VolumeControlCallbacks;
@@ -111,9 +112,23 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
 
   /* Callbacks for Audio Input Stream (AIS) - Extended Audio Inputs */
   void OnExtAudioInStateChanged(const RawAddress& address, uint8_t ext_input_id,
-                                int8_t gain_setting, ::Mute mute, uint8_t gain_mode) override {
+                                int8_t gain_setting, ::Mute mute, ::GainMode gain_mode) override {
     do_in_jni_thread(Bind(&VolumeControlCallbacks::OnExtAudioInStateChanged, Unretained(callbacks_),
                           address, ext_input_id, gain_setting, mute, gain_mode));
+  }
+
+  void OnExtAudioInSetGainSettingFailed(const RawAddress& address, uint8_t ext_input_id) override {
+    do_in_jni_thread(Bind(&VolumeControlCallbacks::OnExtAudioInSetGainSettingFailed,
+                          Unretained(callbacks_), address, ext_input_id));
+  }
+
+  void OnExtAudioInSetMuteFailed(const RawAddress& address, uint8_t ext_input_id) override {
+    do_in_jni_thread(Bind(&VolumeControlCallbacks::OnExtAudioInSetMuteFailed,
+                          Unretained(callbacks_), address, ext_input_id));
+  }
+  void OnExtAudioInSetGainModeFailed(const RawAddress& address, uint8_t ext_input_id) override {
+    do_in_jni_thread(Bind(&VolumeControlCallbacks::OnExtAudioInSetGainModeFailed,
+                          Unretained(callbacks_), address, ext_input_id));
   }
 
   void OnExtAudioInStatusChanged(const RawAddress& address, uint8_t ext_input_id,
@@ -128,9 +143,9 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
                           address, ext_input_id, type));
   }
 
-  void OnExtAudioInGainPropsChanged(const RawAddress& address, uint8_t ext_input_id, uint8_t unit,
-                                    int8_t min, int8_t max) override {
-    do_in_jni_thread(Bind(&VolumeControlCallbacks::OnExtAudioInGainPropsChanged,
+  void OnExtAudioInGainSettingPropertiesChanged(const RawAddress& address, uint8_t ext_input_id,
+                                                uint8_t unit, int8_t min, int8_t max) override {
+    do_in_jni_thread(Bind(&VolumeControlCallbacks::OnExtAudioInGainSettingPropertiesChanged,
                           Unretained(callbacks_), address, ext_input_id, unit, min, max));
   }
 
@@ -360,42 +375,42 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
     return true;
   }
 
-  void SetExtAudioInGainSetting(const RawAddress& address, uint8_t ext_input_id,
+  bool SetExtAudioInGainSetting(const RawAddress& address, uint8_t ext_input_id,
                                 int8_t gain_setting) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
       bluetooth::log::verbose(
-              "call ignored, due to already started cleanup procedure or service "
-              "being not read");
-      return;
+              "call ignored, due to already started cleanup procedure or service being not read");
+      return false;
     }
 
     do_in_main_thread(Bind(&VolumeControl::SetExtAudioInGainSetting,
                            Unretained(VolumeControl::Get()), address, ext_input_id, gain_setting));
+    return true;
   }
 
-  void SetExtAudioInGainMode(const RawAddress& address, uint8_t ext_input_id,
-                             bool automatic) override {
+  bool SetExtAudioInGainMode(const RawAddress& address, uint8_t ext_input_id,
+                             ::GainMode gain_mode) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
       bluetooth::log::verbose(
-              "call ignored, due to already started cleanup procedure or service "
-              "being not read");
-      return;
+              "call ignored, due to already started cleanup procedure or service being not read");
+      return false;
     }
 
     do_in_main_thread(Bind(&VolumeControl::SetExtAudioInGainMode, Unretained(VolumeControl::Get()),
-                           address, ext_input_id, automatic));
+                           address, ext_input_id, gain_mode));
+    return true;
   }
 
-  void SetExtAudioInGainMute(const RawAddress& address, uint8_t ext_input_id, bool mute) override {
+  bool SetExtAudioInMute(const RawAddress& address, uint8_t ext_input_id, ::Mute mute) override {
     if (!initialized || !VolumeControl::IsVolumeControlRunning()) {
       bluetooth::log::verbose(
-              "call ignored, due to already started cleanup procedure or service "
-              "being not read");
-      return;
+              "call ignored, due to already started cleanup procedure or service being not read");
+      return false;
     }
 
-    do_in_main_thread(Bind(&VolumeControl::SetExtAudioInGainMute, Unretained(VolumeControl::Get()),
+    do_in_main_thread(Bind(&VolumeControl::SetExtAudioInMute, Unretained(VolumeControl::Get()),
                            address, ext_input_id, mute));
+    return true;
   }
 
   void Cleanup(void) override {

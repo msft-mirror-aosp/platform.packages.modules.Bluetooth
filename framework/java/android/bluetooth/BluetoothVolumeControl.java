@@ -704,6 +704,26 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
                 s -> s.setDeviceVolume(device, volume, isGroupOperation, mAttributionSource));
     }
 
+    /**
+     * @return The list of {@code AudioInputControl} associated with a device
+     * @hide
+     */
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    public @NonNull List<AudioInputControl> getAudioInputControlPoints(
+            @NonNull BluetoothDevice device) {
+        requireNonNull(device);
+        Log.d(TAG, "getAudioInputControlPoints(" + device + ")");
+        if (!isValidDevice(device)) {
+            throw new IllegalArgumentException("Invalid device " + device);
+        }
+        return callServiceIfEnabled(
+                mAdapter,
+                this::getService,
+                s -> AudioInputControl.getAudioInputControlServices(s, mAttributionSource, device),
+                Collections.emptyList());
+    }
+
     private static boolean isValidDevice(@Nullable BluetoothDevice device) {
         return device != null && BluetoothAdapter.checkBluetoothAddress(device.getAddress());
     }
