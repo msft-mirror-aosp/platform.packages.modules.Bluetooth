@@ -381,6 +381,11 @@ public final class BluetoothUtils {
         }
     }
 
+    public static <S, R> R callService(
+            S service, RemoteExceptionIgnoringFunction<S, R> function, R defaultValue) {
+        return function.apply(service, defaultValue);
+    }
+
     public static <S, R> R callServiceIfEnabled(
             BluetoothAdapter adapter,
             Supplier<S> provider,
@@ -395,7 +400,7 @@ public final class BluetoothUtils {
             Log.d(TAG, "Proxy not attached to service");
             return defaultValue;
         }
-        return function.apply(service, defaultValue);
+        return callService(service, function, defaultValue);
     }
 
     public static <S> void callServiceIfEnabled(
