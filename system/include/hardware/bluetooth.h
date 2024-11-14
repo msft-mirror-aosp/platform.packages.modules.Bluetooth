@@ -26,9 +26,9 @@
 #include <vector>
 
 #include "avrcp/avrcp.h"
-#include "bluetooth/uuid.h"
-#include "bt_transport.h"
-#include "raw_address.h"
+#include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
 
 /**
  * The Bluetooth Hardware Module ID

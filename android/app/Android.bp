@@ -79,7 +79,6 @@ cc_library_shared {
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/gd",
-        "packages/modules/Bluetooth/system/types",
     ],
     // libbluetooth_jni is the jni lib included in the btservices apex.
     // As this library is inside an APEX the shared_libs that does not
@@ -181,9 +180,6 @@ cc_library {
     header_libs: [
         "jni_headers",
         "libbluetooth_headers",
-    ],
-    include_dirs: [
-        "packages/modules/Bluetooth/system/types",
     ],
     static_libs: [
         "lib-bt-packets",

@@ -16,7 +16,8 @@
  *
  ******************************************************************************/
 
-#include <bluetooth/uuid.h>
+#include "types/bluetooth/uuid.h"
+
 #include <gtest/gtest.h>
 
 using bluetooth::Uuid;
