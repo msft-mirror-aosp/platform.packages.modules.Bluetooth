@@ -25,12 +25,20 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <algorithm>
+#include <cstdint>
+
+#include "bnep_api.h"
 #include "bnep_int.h"
+#include "bt_transport.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
+#include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/l2cap_interface.h"

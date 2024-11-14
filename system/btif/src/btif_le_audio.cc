@@ -26,8 +26,8 @@
 #include "bta_le_audio_api.h"
 #include "btif_common.h"
 #include "btif_profile_storage.h"
-#include "raw_address.h"
 #include "stack/include/main_thread.h"
+#include "types/raw_address.h"
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"

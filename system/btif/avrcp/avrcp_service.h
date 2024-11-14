@@ -24,7 +24,7 @@
 #include "osi/include/properties.h"
 #include "profile/avrcp/avrcp_sdp_service.h"
 #include "profile/avrcp/connection_handler.h"
-#include "raw_address.h"
+#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace avrcp {

@@ -55,7 +55,6 @@ cc_library_static {
         "packages/modules/Bluetooth/system/gd",
         "packages/modules/Bluetooth/system/include",
         "packages/modules/Bluetooth/system/stack/include",
-        "packages/modules/Bluetooth/system/types",
     ],
     srcs: ["src/btif_jni_task.cc"],
     static_libs: [

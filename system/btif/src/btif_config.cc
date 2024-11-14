@@ -37,8 +37,8 @@
 #include "common/metric_id_allocator.h"
 #include "main/shim/config.h"
 #include "main/shim/shim.h"
-#include "raw_address.h"
 #include "storage/config_keys.h"
+#include "types/raw_address.h"
 
 #define TEMPORARY_SECTION_CAPACITY 10000
 

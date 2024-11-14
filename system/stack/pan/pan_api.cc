@@ -32,6 +32,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <string>
 
 #include "bta/sys/bta_sys.h"
 #include "internal_include/bt_target.h"
