@@ -23,7 +23,7 @@
 
 #include "include/hardware/bluetooth.h"
 #include "osi/include/list.h"
-#include "raw_address.h"
+#include "types/raw_address.h"
 
 static const char INTEROP_MODULE[] = "interop_module";
 

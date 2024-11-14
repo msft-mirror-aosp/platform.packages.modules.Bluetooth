@@ -25,6 +25,8 @@
 
 #include "a2dp_sbc_up_sample.h"
 
+#include <cstdint>
+
 typedef int(tA2DP_SBC_ACT)(void* p_src, void* p_dst, uint32_t src_samples, uint32_t dst_samples,
                            uint32_t* p_ret);
 

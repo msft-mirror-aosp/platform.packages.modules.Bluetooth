@@ -25,7 +25,7 @@
 #include <ostream>
 #include <vector>
 
-#include "raw_address.h"
+#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace le_audio {

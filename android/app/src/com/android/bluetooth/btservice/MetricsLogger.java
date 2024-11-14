@@ -96,7 +96,10 @@ public class MetricsLogger {
     private static final String TAG = "BluetoothMetricsLogger";
     private static final String BLOOMFILTER_PATH = "/data/misc/bluetooth";
     private static final String BLOOMFILTER_FILE = "/devices_for_metrics_v3";
+    private static final String MEDICAL_DEVICE_BLOOMFILTER_FILE = "/medical_devices_for_metrics_v1";
     public static final String BLOOMFILTER_FULL_PATH = BLOOMFILTER_PATH + BLOOMFILTER_FILE;
+    public static final String MEDICAL_DEVICE_BLOOMFILTER_FULL_PATH =
+            BLOOMFILTER_PATH + MEDICAL_DEVICE_BLOOMFILTER_FILE;
 
     // 6 hours timeout for counter metrics
     private static final long BLUETOOTH_COUNTER_METRICS_ACTION_DURATION_MILLIS = 6L * 3600L * 1000L;
@@ -113,6 +116,10 @@ public class MetricsLogger {
     private static final Object sLock = new Object();
     private BloomFilter<byte[]> mBloomFilter = null;
     protected boolean mBloomFilterInitialized = false;
+
+    private BloomFilter<byte[]> mMedicalDeviceBloomFilter = null;
+
+    protected boolean mMedicalDeviceBloomFilterInitialized = false;
 
     private AlarmManager.OnAlarmListener mOnAlarmListener =
             new AlarmManager.OnAlarmListener() {
@@ -185,8 +192,46 @@ public class MetricsLogger {
         return true;
     }
 
+    /** Initialize medical device bloom filter */
+    public boolean initMedicalDeviceBloomFilter(String path) {
+        try {
+            File medicalDeviceFile = new File(path);
+            if (!medicalDeviceFile.exists()) {
+                Log.w(TAG, "MetricsLogger is creating a new medical device Bloomfilter file");
+                MedicalDeviceBloomfilterGenerator.generateDefaultBloomfilter(path);
+            }
+
+            FileInputStream inputStream = new FileInputStream(new File(path));
+            mMedicalDeviceBloomFilter =
+                    BloomFilter.readFrom(inputStream, Funnels.byteArrayFunnel());
+            mMedicalDeviceBloomFilterInitialized = true;
+        } catch (IOException e1) {
+            Log.w(TAG, "MetricsLogger can't read the medical device BloomFilter file.");
+            byte[] bloomfilterData =
+                    MedicalDeviceBloomfilterGenerator.hexStringToByteArray(
+                            MedicalDeviceBloomfilterGenerator.BLOOM_FILTER_DEFAULT);
+            try {
+                mMedicalDeviceBloomFilter =
+                        BloomFilter.readFrom(
+                                new ByteArrayInputStream(bloomfilterData),
+                                Funnels.byteArrayFunnel());
+                mMedicalDeviceBloomFilterInitialized = true;
+                Log.i(TAG, "The medical device bloomfilter is used");
+                return true;
+            } catch (IOException e2) {
+                Log.w(TAG, "The medical device bloomfilter can't be used.");
+            }
+            return false;
+        }
+        return true;
+    }
+
     protected void setBloomfilter(BloomFilter bloomfilter) {
         mBloomFilter = bloomfilter;
+    }
+
+    protected void setMedicalDeviceBloomfilter(BloomFilter bloomfilter) {
+        mMedicalDeviceBloomFilter = bloomfilter;
     }
 
     void init(AdapterService adapterService, RemoteDevices remoteDevices) {
@@ -199,6 +244,12 @@ public class MetricsLogger {
         scheduleDrains();
         if (!initBloomFilter(BLOOMFILTER_FULL_PATH)) {
             Log.w(TAG, "MetricsLogger can't initialize the bloomfilter");
+            // The class is for multiple metrics tasks.
+            // We still want to use this class even if the bloomfilter isn't initialized
+            // so still return true here.
+        }
+        if (!initMedicalDeviceBloomFilter(MEDICAL_DEVICE_BLOOMFILTER_FULL_PATH)) {
+            Log.w(TAG, "MetricsLogger can't initialize the medical device bloomfilter");
             // The class is for multiple metrics tasks.
             // We still want to use this class even if the bloomfilter isn't initialized
             // so still return true here.
@@ -289,7 +340,8 @@ public class MetricsLogger {
         BluetoothDevice device = connIntent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
         int state = connIntent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1);
         int metricId = mAdapterService.getMetricId(device);
-        byte[] remoteDeviceInfoBytes = getRemoteDeviceInfoProto(device);
+        boolean includeMedicalDevices = false;
+        byte[] remoteDeviceInfoBytes = getRemoteDeviceInfoProto(device, includeMedicalDevices);
         if (state == BluetoothProfile.STATE_CONNECTING) {
             String deviceName = mRemoteDevices.getName(device);
             BluetoothStatsLog.write(
@@ -417,6 +469,7 @@ public class MetricsLogger {
         mAdapterService = null;
         mInitialized = false;
         mBloomFilterInitialized = false;
+        mMedicalDeviceBloomFilterInitialized = false;
     }
 
     protected void cancelPendingDrain() {
@@ -446,15 +499,31 @@ public class MetricsLogger {
 
     /**
      * Retrieves a byte array containing serialized remote device information for the specified
-     * BluetoothDevice. This data can be used for remote device identification and logging.
+     * BluetoothDevice. This data can be used for remote device identification and logging. Does not
+     * include medical remote devices.
      *
      * @param device The BluetoothDevice for which to retrieve device information.
      * @return A byte array containing the serialized remote device information.
      */
     public byte[] getRemoteDeviceInfoProto(BluetoothDevice device) {
-        if (!mInitialized) {
-            return null;
-        }
+        return mInitialized ? buildRemoteDeviceInfoProto(device, false) : null;
+    }
+
+    /**
+     * Retrieves a byte array containing serialized remote device information for the specified
+     * BluetoothDevice. This data can be used for remote device identification and logging.
+     *
+     * @param device The BluetoothDevice for which to retrieve device information.
+     * @param includeMedicalDevices Should be true only if logging as de-identified metric,
+     *     otherwise false.
+     * @return A byte array containing the serialized remote device information.
+     */
+    public byte[] getRemoteDeviceInfoProto(BluetoothDevice device, boolean includeMedicalDevices) {
+        return mInitialized ? buildRemoteDeviceInfoProto(device, includeMedicalDevices) : null;
+    }
+
+    private byte[] buildRemoteDeviceInfoProto(
+            BluetoothDevice device, boolean includeMedicalDevices) {
         ProtoOutputStream proto = new ProtoOutputStream();
 
         // write Allowlisted Device Name Hash
@@ -463,7 +532,8 @@ public class MetricsLogger {
                 ProtoOutputStream.FIELD_TYPE_STRING,
                 ProtoOutputStream.FIELD_COUNT_SINGLE,
                 BluetoothRemoteDeviceInformation.ALLOWLISTED_DEVICE_NAME_HASH_FIELD_NUMBER,
-                getAllowlistedDeviceNameHash(mAdapterService.getRemoteName(device)));
+                getAllowlistedDeviceNameHash(
+                        mAdapterService.getRemoteName(device), includeMedicalDevices));
 
         // write COD
         writeFieldIfNotNull(
@@ -567,7 +637,7 @@ public class MetricsLogger {
         }
     }
 
-    private String getMatchedString(List<String> wordBreakdownList) {
+    private String getMatchedString(List<String> wordBreakdownList, boolean includeMedicalDevices) {
         if (!mBloomFilterInitialized || wordBreakdownList.isEmpty()) {
             return "";
         }
@@ -576,6 +646,21 @@ public class MetricsLogger {
         for (String word : wordBreakdownList) {
             byte[] sha256 = getSha256(word);
             if (mBloomFilter.mightContain(sha256) && word.length() > matchedString.length()) {
+                matchedString = word;
+            }
+        }
+
+        return (matchedString.equals("") && includeMedicalDevices)
+                ? getMatchedStringForMedicalDevice(wordBreakdownList)
+                : matchedString;
+    }
+
+    private String getMatchedStringForMedicalDevice(List<String> wordBreakdownList) {
+        String matchedString = "";
+        for (String word : wordBreakdownList) {
+            byte[] sha256 = getSha256(word);
+            if (mMedicalDeviceBloomFilter.mightContain(sha256)
+                    && word.length() > matchedString.length()) {
                 matchedString = word;
             }
         }
@@ -664,16 +749,18 @@ public class MetricsLogger {
                 advDurationMs);
     }
 
-    protected String getAllowlistedDeviceNameHash(String deviceName) {
+    protected String getAllowlistedDeviceNameHash(
+            String deviceName, boolean includeMedicalDevices) {
         List<String> wordBreakdownList = getWordBreakdownList(deviceName);
-        String matchedString = getMatchedString(wordBreakdownList);
+        String matchedString = getMatchedString(wordBreakdownList, includeMedicalDevices);
         return getSha256String(matchedString);
     }
 
     protected String logAllowlistedDeviceNameHash(
             int metricId, String deviceName, boolean logRestrictedNames) {
         List<String> wordBreakdownList = getWordBreakdownList(deviceName);
-        String matchedString = getMatchedString(wordBreakdownList);
+        boolean includeMedicalDevices = false;
+        String matchedString = getMatchedString(wordBreakdownList, includeMedicalDevices);
         if (logRestrictedNames) {
             // Log the restricted bluetooth device name
             if (SdkLevel.isAtLeastU()) {
@@ -705,7 +792,7 @@ public class MetricsLogger {
                 state,
                 uid,
                 mAdapterService.getMetricId(device),
-                getRemoteDeviceInfoProto(device));
+                getRemoteDeviceInfoProto(device, false));
     }
 
     protected static String getSha256String(String name) {
@@ -836,6 +923,6 @@ public class MetricsLogger {
                 latencyPaSyncMs,
                 latencyBisSyncMs,
                 syncStatus,
-                getRemoteDeviceInfoProto(device));
+                getRemoteDeviceInfoProto(device, false));
     }
 }

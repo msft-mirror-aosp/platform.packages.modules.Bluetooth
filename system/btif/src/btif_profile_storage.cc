@@ -32,8 +32,6 @@
 #include <utility>
 #include <vector>
 
-#include "ble_address_with_type.h"
-#include "bt_transport.h"
 #include "bta_csis_api.h"
 #include "bta_groups.h"
 #include "bta_has_api.h"
@@ -51,7 +49,9 @@
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/main_thread.h"
 #include "storage/config_keys.h"
+#include "types/ble_address_with_type.h"
 #include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes

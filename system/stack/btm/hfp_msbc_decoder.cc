@@ -20,9 +20,11 @@
 
 #include <bluetooth/log.h>
 
+#include <cstdint>
 #include <cstring>
 
 #include "embdrv/sbc/decoder/include/oi_codec_sbc.h"
+#include "embdrv/sbc/decoder/include/oi_cpu_dep.h"
 #include "embdrv/sbc/decoder/include/oi_status.h"
 
 #define HFP_MSBC_PKT_LEN 60

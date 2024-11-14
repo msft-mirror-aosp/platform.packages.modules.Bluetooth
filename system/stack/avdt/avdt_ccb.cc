@@ -28,9 +28,12 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "avdt_int.h"
 #include "internal_include/bt_target.h"
-#include "osi/include/osi.h"
+#include "osi/include/alarm.h"
+#include "osi/include/fixed_queue.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;

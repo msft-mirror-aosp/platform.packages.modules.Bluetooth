@@ -27,10 +27,17 @@
 #include <bluetooth/log.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
+#include "bt_transport.h"
 #include "bta/include/bta_sec_api.h"
+#include "hid_conn.h"
+#include "hidd_api.h"
+#include "hiddefs.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
 #include "osi/include/allocator.h"
 #include "stack/hid/hidd_int.h"
 #include "stack/include/bt_hdr.h"

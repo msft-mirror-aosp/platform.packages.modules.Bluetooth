@@ -25,7 +25,6 @@ cc_defaults {
         "packages/modules/Bluetooth/system/include/",
         "packages/modules/Bluetooth/system/stack/include",
         "packages/modules/Bluetooth/system/stack/test",
-        "packages/modules/Bluetooth/system/types/",
     ],
     static_libs: [
         "android.hardware.audio.common@5.0",

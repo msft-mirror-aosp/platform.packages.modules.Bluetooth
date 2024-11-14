@@ -28,11 +28,19 @@
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 #include <string.h>
 
+#include <cstdint>
+
+#include "bt_transport.h"
 #include "bta/include/bta_sec_api.h"
+#include "hci_error_code.h"
+#include "hid_conn.h"
 #include "hiddefs.h"
 #include "hidh_api.h"
 #include "hidh_int.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
+#include "l2cdefs.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
 #include "stack/include/acl_api.h"
