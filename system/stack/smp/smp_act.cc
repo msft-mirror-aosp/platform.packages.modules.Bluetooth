@@ -1296,11 +1296,10 @@ void smp_check_auth_req(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
     /* if failed for encryption after pairing, send callback */
     if (p_cb->flags & SMP_PAIR_FLAG_ENC_AFTER_PAIR) {
       smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &smp_int_data);
-    }
-    /* if enc failed for old security information */
-    /* if central device, clean up and abck to idle; peripheral device do
-     * nothing */
-    else if (p_cb->role == HCI_ROLE_CENTRAL) {
+    } else if (p_cb->role == HCI_ROLE_CENTRAL) {
+      /* if enc failed for old security information */
+      /* if central device, clean up and abck to idle; peripheral device do
+       * nothing */
       smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &smp_int_data);
     }
   }

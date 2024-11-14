@@ -21,6 +21,7 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.LOCAL_MAC_ADDRESS;
 
 import android.annotation.FlaggedApi;
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
@@ -42,6 +43,8 @@ import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
@@ -112,6 +115,8 @@ public final class BluetoothSocket implements Closeable {
     /**
      * L2CAP socket on BR/EDR transport
      *
+     * <p>To be removed once Flags.FLAG_SOCKET_SETTINGS_API is removed
+     *
      * @hide
      */
     public static final int TYPE_L2CAP_BREDR = TYPE_L2CAP;
@@ -119,9 +124,27 @@ public final class BluetoothSocket implements Closeable {
     /**
      * L2CAP socket on LE transport
      *
+     * <p>To be removed once Flags.FLAG_SOCKET_SETTINGS_API is removed
+     *
      * @hide
      */
     public static final int TYPE_L2CAP_LE = 4;
+
+    /** L2CAP socket on LE transport */
+    @FlaggedApi(Flags.FLAG_SOCKET_SETTINGS_API)
+    public static final int TYPE_LE = 4;
+
+    /** @hide */
+    @IntDef(
+            prefix = {"BluetoothSocket.TYPE_"},
+            value = {
+                BluetoothSocket.TYPE_RFCOMM,
+                BluetoothSocket.TYPE_SCO,
+                BluetoothSocket.TYPE_L2CAP,
+                BluetoothSocket.TYPE_LE,
+            })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface SocketType {}
 
     /*package*/ static final int EBADFD = 77;
 
@@ -195,12 +218,7 @@ public final class BluetoothSocket implements Closeable {
      * @throws IOException On error, for example Bluetooth not available, or insufficient privileges
      */
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, LOCAL_MAC_ADDRESS})
-    /*package*/ BluetoothSocket(
-            int type,
-            boolean auth,
-            boolean encrypt,
-            int port,
-            ParcelUuid uuid)
+    /*package*/ BluetoothSocket(int type, boolean auth, boolean encrypt, int port, ParcelUuid uuid)
             throws IOException {
         this(type, auth, encrypt, port, uuid, false, false);
     }

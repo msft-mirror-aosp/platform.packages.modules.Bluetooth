@@ -232,6 +232,10 @@ static BluetoothAudioPort const* bluetooth_audio_port = &null_audio_port;
 // Initialize BluetoothAudio HAL: openProvider
 bool init(bluetooth::common::MessageLoopThread* /*message_loop*/,
           BluetoothAudioPort const* audio_port, bool /*offload_enabled*/) {
+  if (a2dp_uipc != nullptr) {
+    log::warn("Re-init-ing UIPC that is already running");
+    cleanup();
+  }
   a2dp_uipc = UIPC_Init();
   total_bytes_read_ = 0;
   data_position_ = {};

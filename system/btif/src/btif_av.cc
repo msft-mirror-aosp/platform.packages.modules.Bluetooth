@@ -2407,6 +2407,14 @@ bool BtifAvStateMachine::StateOpened::ProcessEvent(uint32_t event, void* p_data)
                   peer_.PeerAddress());
         std::promise<void> peer_ready_promise;
         std::future<void> peer_ready_future = peer_ready_promise.get_future();
+
+        if (com::android::bluetooth::flags::a2dp_clear_pending_start_on_session_restart()) {
+          // The stream may not be restarted without an explicit request from the
+          // Bluetooth Audio HAL. Any start request that was pending before the
+          // reconfiguration is invalidated when the session is ended.
+          peer_.ClearFlags(BtifAvPeer::kFlagPendingStart);
+        }
+
         btif_a2dp_source_start_session(peer_.PeerAddress(), std::move(peer_ready_promise));
       }
       if (peer_.CheckFlags(BtifAvPeer::kFlagPendingStart)) {

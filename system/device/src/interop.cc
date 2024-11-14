@@ -179,7 +179,6 @@ typedef struct {
     interop_lmp_version_t lmp_version_entry;
     interop_addr_range_entry_t addr_range_entry;
   } entry_type;
-
 } interop_db_entry_t;
 
 namespace fmt {

@@ -567,9 +567,8 @@ tBTM_STATUS BTM_SwitchRoleToCentral(const RawAddress& remote_bd_addr) {
       return tBTM_STATUS::BTM_WRONG_MODE;
     }
     p_acl->set_switch_role_changing();
-  }
-  /* some devices do not support switch while encryption is on */
-  else {
+  } else {
+    /* some devices do not support switch while encryption is on */
     if (p_acl->is_encrypted && !IsEprAvailable(*p_acl)) {
       /* bypass turning off encryption if change link key is already doing it */
       p_acl->set_encryption_off();
@@ -630,9 +629,8 @@ void btm_acl_encrypt_change(uint16_t handle, uint8_t /* status */, uint8_t encr_
       p->set_switch_role_switching();
     }
     internal_.hci_start_role_switch_to_central(*p);
-  }
-  /* Finished enabling Encryption after role switch */
-  else if (p->is_switch_role_encryption_on()) {
+  } else if (p->is_switch_role_encryption_on()) {
+    /* Finished enabling Encryption after role switch */
     p->reset_switch_role();
     p->set_encryption_idle();
     NotifyAclRoleSwitchComplete(btm_cb.acl_cb_.switch_role_ref_data.remote_bd_addr,
@@ -1976,16 +1974,14 @@ void btm_cont_rswitch_from_handle(uint16_t hci_handle) {
    change of link key or role switch */
   if (p->is_switch_role_mode_change()) {
     /* Must turn off Encryption first if necessary */
-    /* Some devices do not support switch or change of link key while encryption
-     * is on */
+    /* Some devices do not support switch or change of link key while encryption is on */
     if (p->is_encrypted && !IsEprAvailable(*p)) {
       p->set_encryption_off();
       if (p->is_switch_role_mode_change()) {
         p->set_switch_role_encryption_off();
       }
-    } else /* Encryption not used or EPR supported, continue with switch
-              and/or change of link key */
-    {
+    } else {
+      /* Encryption not used or EPR supported, continue with switch and/or change of link key */
       if (p->is_switch_role_mode_change()) {
         internal_.hci_start_role_switch_to_central(*p);
       }

@@ -68,6 +68,7 @@ cc_test {
         "libbtcore",
         "libbtdevice",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libosi",
     ],
     header_libs: ["libbluetooth_headers"],

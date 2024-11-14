@@ -26,9 +26,15 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
+#include <cstdint>
+
 #include "avdt_int.h"
 #include "bta/include/bta_av_api.h"
 #include "device/include/interop.h"
+#include "hcidefs.h"
+#include "l2cap_types.h"
+#include "l2cdefs.h"
 #include "osi/include/allocator.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"

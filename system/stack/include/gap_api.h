@@ -103,7 +103,6 @@ typedef union {
   uint16_t icon;
   uint8_t* p_dev_name;
   uint8_t addr_resolution;
-
 } tGAP_BLE_ATTR_VALUE;
 
 typedef void(tGAP_BLE_CMPL_CBACK)(bool status, const RawAddress& addr, uint16_t length,

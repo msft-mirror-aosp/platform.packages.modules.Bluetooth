@@ -18,6 +18,8 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "avrc_api.h"
 #include "avrc_defs.h"
 #include "avrc_int.h"

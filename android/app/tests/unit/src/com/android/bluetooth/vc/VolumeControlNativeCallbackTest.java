@@ -189,20 +189,24 @@ public class VolumeControlNativeCallbackTest {
     @Test
     public void onExtAudioInDescriptionChanged() {
         int id = 2;
-        String descr = "microphone";
+        String description = "microphone";
+        boolean isWritable = true;
 
-        mNativeCallback.onExtAudioInDescriptionChanged(id, descr, null);
-        verify(mService).onExtAudioInDescriptionChanged(any(), eq(id), eq(descr));
+        mNativeCallback.onExtAudioInDescriptionChanged(id, description, isWritable, null);
+        verify(mService)
+                .onExtAudioInDescriptionChanged(any(), eq(id), eq(description), eq(isWritable));
     }
 
     @Test
-    public void onExtAudioInGainPropsChanged() {
+    public void onExtAudioInGainSettingPropertiesChanged() {
         int id = 2;
         int unit = 1;
         int min = 0;
         int max = 100;
 
-        mNativeCallback.onExtAudioInGainPropsChanged(id, unit, min, max, null);
-        verify(mService).onExtAudioInGainPropsChanged(any(), eq(id), eq(unit), eq(min), eq(max));
+        mNativeCallback.onExtAudioInGainSettingPropertiesChanged(id, unit, min, max, null);
+        verify(mService)
+                .onExtAudioInGainSettingPropertiesChanged(
+                        any(), eq(id), eq(unit), eq(min), eq(max));
     }
 }

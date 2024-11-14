@@ -114,7 +114,6 @@ private:
   mutable std::mutex mutex;
   std::unordered_map<RawAddress, std::deque<std::promise<power_mode_callback_t>>> promises_map_;
   size_t cnt = 0;
-
 } queue_;
 
 }  // namespace

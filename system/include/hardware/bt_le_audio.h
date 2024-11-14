@@ -25,7 +25,7 @@
 #include <ostream>
 #include <vector>
 
-#include "raw_address.h"
+#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace le_audio {
@@ -298,7 +298,6 @@ typedef struct btle_audio_codec_config {
            ", frame duration: " + frame_duration_str +
            ", octets per frame: " + octets_per_frame_str + ", codec priroty: " + codec_priority_str;
   }
-
 } btle_audio_codec_config_t;
 
 class LeAudioClientCallbacks {

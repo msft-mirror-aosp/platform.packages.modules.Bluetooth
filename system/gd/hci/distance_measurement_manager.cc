@@ -27,6 +27,7 @@
 #include "common/strings.h"
 #include "hal/ranging_hal.h"
 #include "hci/acl_manager.h"
+#include "hci/controller.h"
 #include "hci/distance_measurement_interface.h"
 #include "hci/event_checkers.h"
 #include "hci/hci_layer.h"
@@ -186,6 +187,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     uint8_t selected_tx_power = 0;
     std::vector<CsProcedureData> procedure_data_list = {};
     uint16_t interval_ms = kDefaultIntervalMs;
+    uint16_t max_procedure_count = 1;
     bool waiting_for_start_callback = false;
     std::unique_ptr<os::RepeatingAlarm> repeating_alarm = nullptr;
     // RAS data
@@ -252,9 +254,10 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   }
 
   ~impl() {}
-  void start(os::Handler* handler, hal::RangingHal* ranging_hal, hci::HciLayer* hci_layer,
-             hci::AclManager* acl_manager) {
+  void start(os::Handler* handler, hci::Controller* controller, hal::RangingHal* ranging_hal,
+             hci::HciLayer* hci_layer, hci::AclManager* acl_manager) {
     handler_ = handler;
+    controller_ = controller;
     ranging_hal_ = ranging_hal;
     hci_layer_ = hci_layer;
     acl_manager_ = acl_manager;
@@ -262,6 +265,10 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
                                        handler_->BindOn(this, &impl::on_transmit_power_reporting));
     if (!com::android::bluetooth::flags::channel_sounding_in_stack()) {
       log::info("IS_FLAG_ENABLED channel_sounding_in_stack: false");
+      return;
+    }
+    if (!controller_->SupportsBleChannelSounding()) {
+      log::info("The controller doesn't support Channel Sounding feature.");
       return;
     }
     distance_measurement_interface_ = hci_layer_->GetDistanceMeasurementInterface(
@@ -341,6 +348,14 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       it->second.repeating_alarm = std::make_unique<os::RepeatingAlarm>(handler_);
     }
     it->second.state = CsTrackerState::INIT;
+    // If the interval is less than 1 second, update it to 1 second and increase the
+    // max_procedure_count
+    if (interval < 1000) {
+      it->second.max_procedure_count = 1000 / interval;
+      interval = 1000;
+      log::info("Update interval to 1s and max_procedure_count to {}",
+                it->second.max_procedure_count);
+    }
     it->second.interval_ms = interval;
     it->second.local_start = true;
     it->second.measurement_ongoing = true;
@@ -618,7 +633,11 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       log::warn("no cs tracker found for {}", connection_handle);
     }
     cs_requester_trackers_[connection_handle].state = CsTrackerState::WAIT_FOR_CONFIG_COMPLETE;
-    auto channel_vector = common::FromHexString("1FFFFFFFFFFFFC7FFFFC");  // use all 72 Channel
+    auto channel_vector = common::FromHexString("1FFFFFFFFFFFFC7FFFFC");  // use all 72 Channels
+    // If the interval is less than or equal to 1 second, then use half channels
+    if (cs_requester_trackers_[connection_handle].interval_ms <= 1000) {
+      channel_vector = common::FromHexString("15555555555554555554");
+    }
     std::array<uint8_t, 10> channel_map;
     std::copy(channel_vector->begin(), channel_vector->end(), channel_map.begin());
     std::reverse(channel_map.begin(), channel_map.end());
@@ -656,8 +675,9 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     hci_layer_->EnqueueCommand(
             LeCsSetProcedureParametersBuilder::Create(
                     connection_handle, config_id, kMaxProcedureLen, kMinProcedureInterval,
-                    kMaxProcedureInterval, kMaxProcedureCount, kMinSubeventLen, kMaxSubeventLen,
-                    tone_antenna_config_selection, CsPhy::LE_1M_PHY, kTxPwrDelta,
+                    kMaxProcedureInterval,
+                    cs_requester_trackers_[connection_handle].max_procedure_count, kMinSubeventLen,
+                    kMaxSubeventLen, tone_antenna_config_selection, CsPhy::LE_1M_PHY, kTxPwrDelta,
                     preferred_peer_antenna, CsSnrControl::NOT_APPLIED, CsSnrControl::NOT_APPLIED),
             handler_->BindOnceOn(this, &impl::on_cs_set_procedure_parameters));
   }
@@ -2123,6 +2143,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
 
   os::Handler* handler_;
   hal::RangingHal* ranging_hal_;
+  hci::Controller* controller_;
   hci::HciLayer* hci_layer_;
   hci::AclManager* acl_manager_;
   hci::DistanceMeasurementInterface* distance_measurement_interface_;
@@ -2153,13 +2174,14 @@ DistanceMeasurementManager::~DistanceMeasurementManager() = default;
 
 void DistanceMeasurementManager::ListDependencies(ModuleList* list) const {
   list->add<hal::RangingHal>();
+  list->add<hci::Controller>();
   list->add<hci::HciLayer>();
   list->add<hci::AclManager>();
 }
 
 void DistanceMeasurementManager::Start() {
-  pimpl_->start(GetHandler(), GetDependency<hal::RangingHal>(), GetDependency<hci::HciLayer>(),
-                GetDependency<AclManager>());
+  pimpl_->start(GetHandler(), GetDependency<hci::Controller>(), GetDependency<hal::RangingHal>(),
+                GetDependency<hci::HciLayer>(), GetDependency<AclManager>());
 }
 
 void DistanceMeasurementManager::Stop() { pimpl_->stop(); }
