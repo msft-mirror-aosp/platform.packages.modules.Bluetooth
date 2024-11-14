@@ -26,7 +26,6 @@ import static com.android.bluetooth.flags.Flags.leaudioBigDependsOnAudioState;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastAssistantPeripheralEntrustment;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastAudioHandoverPolicies;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastExtractPeriodicScannerFromStateMachine;
-import static com.android.bluetooth.flags.Flags.leaudioBroadcastFeatureSupport;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastMonitorSourceSyncStatus;
 
 import android.annotation.RequiresPermission;
@@ -207,8 +206,7 @@ public class BassClientService extends ProfileService {
     }
 
     public static boolean isEnabled() {
-        return leaudioBroadcastFeatureSupport()
-                && BluetoothProperties.isProfileBapBroadcastAssistEnabled().orElse(false);
+        return BluetoothProperties.isProfileBapBroadcastAssistEnabled().orElse(false);
     }
 
     private static class SourceSyncRequest {
