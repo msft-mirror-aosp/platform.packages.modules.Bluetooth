@@ -29,13 +29,18 @@
 
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
+#include <stdio.h>
 #include <string.h>
 
+#include <cstdint>
+
+#include "avdt_defs.h"
 #include "avdt_int.h"
 #include "avdtc_api.h"
 #include "bta/include/bta_sec_api.h"
 #include "internal_include/bt_target.h"
 #include "os/logging/log_adapter.h"
+#include "osi/include/alarm.h"
 #include "stack/include/a2dp_codec_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cap_interface.h"

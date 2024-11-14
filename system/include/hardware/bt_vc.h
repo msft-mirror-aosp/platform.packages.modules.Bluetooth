@@ -19,10 +19,11 @@
 
 #include <aics/api.h>
 #include <hardware/bluetooth.h>
-#include <raw_address.h>
 
 #include <string>
 #include <variant>
+
+#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace vc {

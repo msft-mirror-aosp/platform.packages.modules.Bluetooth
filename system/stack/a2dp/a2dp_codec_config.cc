@@ -21,6 +21,18 @@
 #define LOG_TAG "bluetooth-a2dp"
 
 #include <bluetooth/log.h>
+#include <stdio.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <ios>
+#include <mutex>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "a2dp_aac.h"
 #include "a2dp_codec_api.h"
@@ -28,6 +40,12 @@
 #include "a2dp_ext.h"
 #include "a2dp_sbc.h"
 #include "a2dp_vendor.h"
+#include "a2dp_vendor_aptx_constants.h"
+#include "a2dp_vendor_aptx_hd_constants.h"
+#include "a2dp_vendor_ldac_constants.h"
+#include "avdt_api.h"
+#include "device/include/device_iot_conf_defs.h"
+#include "hardware/bt_av.h"
 
 #if !defined(EXCLUDE_NONSTANDARD_CODECS)
 #include "a2dp_vendor_aptx.h"
@@ -38,8 +56,6 @@
 
 #include "audio_hal_interface/a2dp_encoding.h"
 #include "bta/av/bta_av_int.h"
-#include "device/include/device_iot_config.h"
-#include "internal_include/bt_trace.h"
 #include "osi/include/properties.h"
 #include "stack/include/bt_hdr.h"
 

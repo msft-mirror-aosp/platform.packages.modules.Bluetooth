@@ -19,8 +19,8 @@
 #include <stddef.h>
 
 #include "bluetooth.h"
-#include "bluetooth/uuid.h"
-#include "raw_address.h"
+#include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 __BEGIN_DECLS
 

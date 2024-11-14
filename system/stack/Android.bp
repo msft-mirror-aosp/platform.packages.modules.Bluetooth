@@ -17,7 +17,6 @@ cc_library_static {
         "packages/modules/Bluetooth/system/gd",
         "packages/modules/Bluetooth/system/include",
         "packages/modules/Bluetooth/system/stack/include",
-        "packages/modules/Bluetooth/system/types",
     ],
     static_libs: [
         "libbluetooth_log",
@@ -367,7 +366,6 @@ cc_defaults {
         "packages/modules/Bluetooth/system/include",
         "packages/modules/Bluetooth/system/stack/include",
         "packages/modules/Bluetooth/system/test/common",
-        "packages/modules/Bluetooth/system/types",
     ],
     static_libs: [
         "libchrome",

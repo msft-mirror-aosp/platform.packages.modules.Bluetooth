@@ -33,11 +33,11 @@
 #include <variant>
 #include <vector>
 
-#include "bluetooth/uuid.h"
 #include "bta/include/bta_le_audio_uuids.h"
 #include "osi/include/alarm.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_iso_api_types.h"
+#include "types/bluetooth/uuid.h"
 
 namespace bluetooth::le_audio {
 
