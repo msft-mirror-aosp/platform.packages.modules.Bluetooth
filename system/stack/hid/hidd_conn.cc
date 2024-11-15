@@ -31,7 +31,6 @@
 #include <cstdint>
 #include <cstring>
 
-#include "bt_transport.h"
 #include "bta/include/bta_sec_api.h"
 #include "hid_conn.h"
 #include "hidd_api.h"
@@ -45,6 +44,7 @@
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/stack_metrics_logging.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;

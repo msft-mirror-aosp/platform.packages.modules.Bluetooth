@@ -200,3 +200,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "prevent_service_connections_on_remove_bond"
+    namespace: "bluetooth"
+    description: "Disable service connections on remove bond"
+    bug: "378736590"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
