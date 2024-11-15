@@ -246,7 +246,7 @@ public class MetricsLoggerTest {
             Assert.assertEquals(
                     deviceName,
                     sha256,
-                    mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, deviceName, true));
+                    mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, deviceName));
         }
     }
 
@@ -294,7 +294,7 @@ public class MetricsLoggerTest {
     @Test
     public void uploadEmptyDeviceName() {
         initTestingBloomfilter();
-        Assert.assertEquals("", mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, "", true));
+        Assert.assertEquals("", mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, ""));
     }
 
     private void initTestingBloomfilter() {

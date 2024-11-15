@@ -30,7 +30,6 @@
 
 #include "bnep_api.h"
 #include "bnep_int.h"
-#include "bt_transport.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
 #include "l2cap_types.h"
@@ -43,6 +42,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/l2cap_interface.h"
 #include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
