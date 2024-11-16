@@ -260,5 +260,14 @@ void LogSDPComplete(const RawAddress& raw_address, tBTA_STATUS status) {
           status == tBTA_STATUS::BTA_SUCCESS ? State::SUCCESS : State::FAIL);
 }
 
+void LogLeAclCompletionEvent(const hci::Address& address, hci::ErrorCode reason,
+                             bool is_locally_initiated) {
+  bluetooth::os::LogMetricBluetoothEvent(address,
+                                         is_locally_initiated
+                                                 ? EventType::LE_ACL_CONNECTION_INITIATOR
+                                                 : EventType::LE_ACL_CONNECTION_RESPONDER,
+                                         MapErrorCodeToState(reason));
+}
+
 }  // namespace metrics
 }  // namespace bluetooth
