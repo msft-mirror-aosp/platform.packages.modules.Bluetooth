@@ -1624,6 +1624,9 @@ void shim::Acl::OnLeConnectSuccess(hci::AddressWithType address_with_type,
 
   log::debug("Connection successful le remote:{} handle:{} initiator:{}", address_with_type, handle,
              (locally_initiated) ? "local" : "remote");
+  bluetooth::metrics::LogLeAclCompletionEvent(address_with_type.GetAddress(),
+                                              hci::ErrorCode::SUCCESS, locally_initiated);
+
   BTM_LogHistory(kBtmLogTag, ToLegacyAddressWithType(address_with_type), "Connection successful",
                  "Le");
 }
@@ -1638,6 +1641,7 @@ void shim::Acl::OnLeConnectFail(hci::AddressWithType address_with_type, hci::Err
   TRY_POSTING_ON_MAIN(acl_interface_.connection.le.on_failed, legacy_address_with_type, handle,
                       enhanced, status);
 
+  bluetooth::metrics::LogLeAclCompletionEvent(address_with_type.GetAddress(), reason, true);
   pimpl_->shadow_acceptlist_.Remove(address_with_type);
   log::warn("Connection failed le remote:{}", address_with_type);
   BTM_LogHistory(kBtmLogTag, ToLegacyAddressWithType(address_with_type), "Connection failed",
