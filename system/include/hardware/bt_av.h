@@ -19,10 +19,11 @@
 
 #include <bluetooth/log.h>
 #include <hardware/bluetooth.h>
-#include <raw_address.h>
 
 #include <optional>
 #include <vector>
+
+#include "types/raw_address.h"
 
 __BEGIN_DECLS
 

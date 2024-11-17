@@ -19,6 +19,10 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.*;
 
+import android.bluetooth.AudioInputControl.AudioInputStatus;
+import android.bluetooth.AudioInputControl.AudioInputType;
+import android.bluetooth.AudioInputControl.GainMode;
+import android.bluetooth.AudioInputControl.Mute;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.platform.test.flag.junit.SetFlagsRule;
@@ -27,8 +31,6 @@ import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
-
-import bluetooth.constants.aics.Mute;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -74,99 +76,108 @@ public class VolumeControlInputDescriptorTest {
     @Test
     public void setFoo_withAllValidId_valuesAreUpdated() {
         for (int i = 0; i < NUMBER_OF_INPUT; i++) {
-            assertThat(mDescriptor.getStatus(i)).isEqualTo(0); // AudioInputStatus.INACTIVE);
-            mDescriptor.setStatus(i, 1); // AudioInputStatus.ACTIVE);
-            assertThat(mDescriptor.getStatus(i)).isEqualTo(1); // AudioInputStatus.ACTIVE);
+            assertThat(mDescriptor.getStatus(i))
+                    .isEqualTo(bluetooth.constants.aics.AudioInputStatus.INACTIVE);
+            mDescriptor.onStatusChanged(i, bluetooth.constants.aics.AudioInputStatus.ACTIVE);
+            assertThat(mDescriptor.getStatus(i))
+                    .isEqualTo(bluetooth.constants.aics.AudioInputStatus.ACTIVE);
         }
     }
 
     @Test
     public void getStatus_whenNeverSet_defaultToInactive() {
-        assertThat(mDescriptor.getStatus(VALID_ID)).isEqualTo(0); // AudioInputStatus.INACTIVE);
+        assertThat(mDescriptor.getStatus(VALID_ID))
+                .isEqualTo(bluetooth.constants.aics.AudioInputStatus.INACTIVE);
     }
 
     @Test
     public void setStatus_withValidId_valueIsUpdated() {
-        int newStatus = 1; // AudioInputStatus.ACTIVE;
-        mDescriptor.setStatus(VALID_ID, newStatus);
+        @AudioInputStatus int status = bluetooth.constants.aics.AudioInputStatus.ACTIVE;
+        mDescriptor.onStatusChanged(VALID_ID, status);
 
-        assertThat(mDescriptor.getStatus(VALID_ID)).isEqualTo(newStatus);
+        assertThat(mDescriptor.getStatus(VALID_ID)).isEqualTo(status);
     }
 
     @Test
     public void setStatus_withInvalidId_valueIsNotUpdated() {
-        int newStatus = 1; // AudioInputStatus.ACTIVE;
-        mDescriptor.setStatus(INVALID_ID, newStatus);
+        @AudioInputStatus int status = bluetooth.constants.aics.AudioInputStatus.ACTIVE;
+        mDescriptor.onStatusChanged(INVALID_ID, status);
 
-        assertThat(mDescriptor.getStatus(INVALID_ID)).isNotEqualTo(newStatus);
+        assertThat(mDescriptor.getStatus(INVALID_ID)).isNotEqualTo(status);
     }
 
     @Test
     public void getType_whenNeverSet_defaultToUnspecified() {
-        assertThat(mDescriptor.getType(VALID_ID)).isEqualTo(0); // AudioInputType.UNSPECIFIED);
+        assertThat(mDescriptor.getType(VALID_ID))
+                .isEqualTo(bluetooth.constants.AudioInputType.UNSPECIFIED);
     }
 
     @Test
     public void setType_withValidId_valueIsUpdated() {
-        int newType = 7; // AudioInputType.AMBIENT;
-        mDescriptor.setType(VALID_ID, newType);
+        @AudioInputType int type = bluetooth.constants.AudioInputType.AMBIENT;
+        mDescriptor.setType(VALID_ID, type);
 
-        assertThat(mDescriptor.getType(VALID_ID)).isEqualTo(newType);
+        assertThat(mDescriptor.getType(VALID_ID)).isEqualTo(type);
     }
 
     @Test
     public void setType_withInvalidId_valueIsNotUpdated() {
-        int newType = 1; // AudioInputType.BLUETOOTH;
-        mDescriptor.setType(INVALID_ID2, newType);
+        @AudioInputType int type = bluetooth.constants.AudioInputType.BLUETOOTH;
+        mDescriptor.setType(INVALID_ID2, type);
 
-        assertThat(mDescriptor.getType(INVALID_ID2)).isNotEqualTo(newType);
+        assertThat(mDescriptor.getType(INVALID_ID2)).isNotEqualTo(type);
     }
 
     @Test
     public void setState_withValidIdButIncorrectSettings_valueIsNotUpdated() {
-        int newGainValue = 42;
-        int newGainMode = 42;
-        int mute = Mute.NOT_MUTED;
-        mDescriptor.setState(VALID_ID, newGainMode, newGainMode, mute);
+        mDescriptor.onStateChanged(
+                VALID_ID,
+                34,
+                bluetooth.constants.aics.Mute.NOT_MUTED,
+                bluetooth.constants.aics.GainMode.MANUAL);
 
-        assertThat(mDescriptor.getGainSetting(VALID_ID)).isNotEqualTo(newGainValue);
-        // assertThat(mDescriptor.getGainMode(VALID_ID)).isNotEqualTo(newGainMode);
-        assertThat(mDescriptor.getMute(VALID_ID)).isNotEqualTo(mute);
+        assertThat(mDescriptor.getGainSetting(VALID_ID)).isEqualTo(0);
+        assertThat(mDescriptor.getGainMode(VALID_ID))
+                .isEqualTo(bluetooth.constants.aics.GainMode.MANUAL_ONLY);
+        assertThat(mDescriptor.getMute(VALID_ID)).isEqualTo(bluetooth.constants.aics.Mute.DISABLED);
     }
 
     @Test
     public void setState_withValidIdAndCorrectSettings_valueIsUpdated() {
-        int newMax = 100;
-        int newMin = 0;
-        int newUnit = 1;
-        mDescriptor.setPropSettings(VALID_ID, newUnit, newMin, newMax);
+        int max = 100;
+        int min = 0;
+        int unit = 1;
+        mDescriptor.onGainSettingsPropertiesChanged(VALID_ID, unit, min, max);
 
-        int newGainValue = 42;
-        int newGainMode = 42;
-        int mute = Mute.MUTED;
-        mDescriptor.setState(VALID_ID, newGainMode, mute, newGainMode);
+        int gainSetting = 42;
+        @Mute int mute = bluetooth.constants.aics.Mute.MUTED;
+        @GainMode int gainMode = bluetooth.constants.aics.GainMode.MANUAL;
+        mDescriptor.onStateChanged(VALID_ID, gainSetting, mute, gainMode);
 
-        assertThat(mDescriptor.getGainSetting(VALID_ID)).isEqualTo(newGainValue);
-        // assertThat(mDescriptor.getGainMode(VALID_ID)).isNotEqualTo(newGainMode);
+        assertThat(mDescriptor.getGainSetting(VALID_ID)).isEqualTo(gainSetting);
+        assertThat(mDescriptor.getGainMode(VALID_ID)).isEqualTo(gainMode);
         assertThat(mDescriptor.getMute(VALID_ID)).isEqualTo(mute);
     }
 
     @Test
     public void setState_withInvalidId_valueIsNotUpdated() {
-        int newMax = 100;
-        int newMin = 0;
-        int newUnit = 1;
+        int max = 100;
+        int min = 0;
+        int unit = 1;
         // Should be no-op but we want to copy the working case test, just with an invalid id
-        mDescriptor.setPropSettings(INVALID_ID, newUnit, newMin, newMax);
+        mDescriptor.onGainSettingsPropertiesChanged(INVALID_ID, unit, min, max);
 
-        int newGainValue = 42;
-        int newGainMode = 42;
-        int mute = Mute.MUTED;
-        mDescriptor.setState(INVALID_ID, newGainMode, newGainMode, mute);
+        mDescriptor.onStateChanged(
+                INVALID_ID,
+                35,
+                bluetooth.constants.aics.Mute.MUTED,
+                bluetooth.constants.aics.GainMode.MANUAL);
 
-        assertThat(mDescriptor.getGainSetting(INVALID_ID)).isNotEqualTo(newGainValue);
-        // assertThat(mDescriptor.getGainMode(VALID_ID)).isNotEqualTo(newGainMode);
-        assertThat(mDescriptor.getMute(INVALID_ID)).isEqualTo(Mute.DISABLED);
+        assertThat(mDescriptor.getGainSetting(INVALID_ID)).isEqualTo(0);
+        assertThat(mDescriptor.getGainMode(INVALID_ID))
+                .isEqualTo(bluetooth.constants.aics.GainMode.AUTOMATIC_ONLY);
+        assertThat(mDescriptor.getMute(INVALID_ID))
+                .isEqualTo(bluetooth.constants.aics.Mute.DISABLED);
     }
 
     @Test

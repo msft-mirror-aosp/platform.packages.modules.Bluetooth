@@ -327,11 +327,8 @@ public class GattClientTest {
                         eq(BluetoothProfile.STATE_DISCONNECTED));
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_GATT_FIX_DEVICE_BUSY)
     @Test
     public void consecutiveWriteCharacteristicFails_thenSuccess() throws Exception {
-        Assume.assumeTrue(Flags.gattFixDeviceBusy());
-
         registerGattService();
 
         BluetoothGattCallback gattCallback = mock(BluetoothGattCallback.class);

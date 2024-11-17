@@ -20,7 +20,7 @@
 
 #include <set>
 
-#include "ble_address_with_type.h"
+#include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
 /* connection_manager takes care of all the low-level details of LE connection

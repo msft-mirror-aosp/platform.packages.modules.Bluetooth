@@ -129,7 +129,6 @@ inline std::string preferred_role_text(const tBTA_PREF_ROLES& role) {
 }
 
 enum {
-
   BTA_DM_NO_SCATTERNET,      /* Device doesn't support scatternet, it might
                                 support "role switch during connection" for
                                 an incoming connection, when it already has
@@ -139,7 +138,6 @@ enum {
                                 Peripheral roles for short period of time */
   BTA_DM_FULL_SCATTERNET     /* Device can have simultaneous connection in central
                                 and peripheral roles */
-
 };
 
 typedef struct {

@@ -139,7 +139,6 @@ void bta_pan_co_tx_path(uint16_t handle, uint8_t app_id) {
                      p_buf->len, ext, forward);
       osi_free(p_buf);
     }
-
   } while (p_buf != NULL);
 }
 

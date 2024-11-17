@@ -53,6 +53,7 @@ import com.android.bluetooth.bas.BatteryService;
 import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.hfp.HeadsetHalConstants;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.modules.utils.build.SdkLevel;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
@@ -949,6 +950,12 @@ public class RemoteDevices {
                                 break;
                             }
                             deviceProperties.setName(newName);
+                            List<String> wordBreakdownList =
+                                    MetricsLogger.getInstance().getWordBreakdownList(newName);
+                            if (SdkLevel.isAtLeastU()) {
+                                MetricsLogger.getInstance()
+                                        .uploadRestrictedBluetothDeviceName(wordBreakdownList);
+                            }
                             intent = new Intent(BluetoothDevice.ACTION_NAME_CHANGED);
                             intent.putExtra(BluetoothDevice.EXTRA_DEVICE, bdDevice);
                             intent.putExtra(BluetoothDevice.EXTRA_NAME, deviceProperties.getName());
@@ -1297,6 +1304,13 @@ public class RemoteDevices {
                 mAdapterService.obfuscateAddress(device),
                 getBluetoothClass(device),
                 metricId);
+
+        byte[] remoteDeviceInfoBytes = MetricsLogger.getInstance().getRemoteDeviceInfoProto(device);
+
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.REMOTE_DEVICE_INFORMATION_WITH_METRIC_ID,
+                metricId,
+                remoteDeviceInfoBytes);
 
         if (intent == null) {
             Log.e(TAG, "aclStateChangeCallback intent is null. BondState: " + getBondState(device));

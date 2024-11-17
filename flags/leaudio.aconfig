@@ -427,3 +427,20 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "leaudio_monitor_unicast_source_when_managed_by_broadcast_delegator"
+    namespace: "bluetooth"
+    description: "Monitor stream for primary devices which manages external sources"
+    bug: "378661060"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_config_profile_enabling"
+    namespace: "bluetooth"
+    description: "Change how LE Audio profiles are configured and enabled"
+    bug: "379178585"
+}

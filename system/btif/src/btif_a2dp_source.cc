@@ -40,7 +40,6 @@
 #include "a2dp_codec_api.h"
 #include "audio_hal_interface/a2dp_encoding.h"
 #include "avdt_api.h"
-#include "bt_transport.h"
 #include "bta_av_api.h"
 #include "bta_av_ci.h"
 #include "btif_av.h"
@@ -64,6 +63,7 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 #ifdef __ANDROID__

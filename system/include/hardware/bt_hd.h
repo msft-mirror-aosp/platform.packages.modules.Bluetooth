@@ -17,8 +17,9 @@
 #ifndef ANDROID_INCLUDE_BT_HD_H
 #define ANDROID_INCLUDE_BT_HD_H
 
-#include <raw_address.h>
 #include <stdint.h>
+
+#include "types/raw_address.h"
 
 __BEGIN_DECLS
 
@@ -112,7 +113,6 @@ typedef struct {
 
   /** send Virtual Cable Unplug  */
   bt_status_t (*virtual_cable_unplug)(void);
-
 } bthd_interface_t;
 
 __END_DECLS

@@ -28,10 +28,15 @@
 #include <com_android_bluetooth_flags.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "bta/include/bta_sec_api.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
+#include "l2cdefs.h"
 #include "main/shim/dumpsys.h"
 #include "osi/include/allocator.h"
+#include "osi/include/fixed_queue.h"
 #include "stack/avct/avct_int.h"
 #include "stack/include/avct_api.h"
 #include "stack/include/bt_hdr.h"

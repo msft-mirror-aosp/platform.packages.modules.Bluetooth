@@ -28,11 +28,13 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "avdt_api.h"
 #include "avdt_int.h"
 #include "avdtc_api.h"
 #include "internal_include/bt_target.h"
-#include "osi/include/osi.h"
+#include "osi/include/alarm.h"
 
 using namespace bluetooth;
 

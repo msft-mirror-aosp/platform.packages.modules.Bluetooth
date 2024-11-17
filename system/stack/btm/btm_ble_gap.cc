@@ -359,7 +359,6 @@ const uint8_t btm_le_state_combo_tbl[BTM_BLE_STATE_MAX][BTM_BLE_STATE_MAX] = {
                 HCI_LE_STATES_PASS_SCAN_INIT_BIT,          /* passive scan */
                 HCI_LE_STATES_ACTIVE_SCAN_INIT_BIT,        /*  active scan */
                 HCI_LE_STATES_SCAN_ADV_INIT_BIT            /* scanable adv */
-
         },
         {
                 /* central */
@@ -373,7 +372,6 @@ const uint8_t btm_le_state_combo_tbl[BTM_BLE_STATE_MAX][BTM_BLE_STATE_MAX] = {
                 HCI_LE_STATES_PASS_SCAN_CENTRAL_BIT,       /*  passive scan */
                 HCI_LE_STATES_ACTIVE_SCAN_CENTRAL_BIT,     /*   active scan */
                 HCI_LE_STATES_SCAN_ADV_CENTRAL_BIT         /*  scanable adv */
-
         },
         {
                 /* peripheral */
@@ -387,7 +385,6 @@ const uint8_t btm_le_state_combo_tbl[BTM_BLE_STATE_MAX][BTM_BLE_STATE_MAX] = {
                 HCI_LE_STATES_PASS_SCAN_PERIPHERAL_BIT,       /* passive scan */
                 HCI_LE_STATES_ACTIVE_SCAN_PERIPHERAL_BIT,     /*  active scan */
                 HCI_LE_STATES_SCAN_ADV_PERIPHERAL_BIT         /* scanable adv */
-
         },
         {
                 /* lo duty cycle adv */

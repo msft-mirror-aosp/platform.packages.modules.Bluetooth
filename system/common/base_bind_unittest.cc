@@ -36,7 +36,6 @@ struct Vars {
   int c{0};
 
   bool operator==(const Vars& rhs) const { return a == rhs.a && b == rhs.b && c == rhs.c; }
-
 } g_vars;
 
 void func() {}

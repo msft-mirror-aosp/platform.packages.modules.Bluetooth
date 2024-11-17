@@ -624,13 +624,13 @@ void VolumeControlDevice::SetExtAudioInDescription(uint8_t ext_input_id, const s
                                     GATT_WRITE_NO_RSP, nullptr, nullptr);
 }
 
-void VolumeControlDevice::ExtAudioInControlPointOperation(uint8_t ext_input_id, uint8_t opcode,
+bool VolumeControlDevice::ExtAudioInControlPointOperation(uint8_t ext_input_id, uint8_t opcode,
                                                           const std::vector<uint8_t>* arg,
                                                           GATT_WRITE_OP_CB cb, void* cb_data) {
   VolumeAudioInput* input = audio_inputs.FindById(ext_input_id);
   if (!input) {
     log::error("{}, no such input={:#x}", address, ext_input_id);
-    return;
+    return false;
   }
 
   std::vector<uint8_t> set_value({opcode, input->change_counter});
@@ -640,6 +640,7 @@ void VolumeControlDevice::ExtAudioInControlPointOperation(uint8_t ext_input_id, 
 
   BtaGattQueue::WriteCharacteristic(connection_id, input->control_point_handle, set_value,
                                     GATT_WRITE, cb, cb_data);
+  return true;
 }
 
 bool VolumeControlDevice::IsEncryptionEnabled() {

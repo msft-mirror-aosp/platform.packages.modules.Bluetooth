@@ -25,16 +25,24 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <algorithm>
+#include <cstdint>
+
+#include "bnep_api.h"
 #include "bnep_int.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
+#include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/l2cap_interface.h"
 #include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
@@ -1204,7 +1212,6 @@ tBNEP_RESULT bnep_is_packet_allowed(tBNEP_CONN* p_bcb, const RawAddress& dest_ad
           p_data += len;
 
           new_len += (len + 2);
-
         } while (ext & 0x80);
       }
       if ((new_len + 4) > org_len) {
