@@ -349,7 +349,6 @@ public class DatabaseManager {
      *     BluetoothProfile.CONNECTION_POLICY_FORBIDDEN}, {@link
      *     BluetoothProfile.CONNECTION_POLICY_ALLOWED}
      */
-    @VisibleForTesting
     public boolean setProfileConnectionPolicy(
             BluetoothDevice device, int profile, int newConnectionPolicy) {
         if (device == null) {
