@@ -684,7 +684,6 @@ typedef enum {
                              status. (Only to be used for special cases
                              involving OI_SLOG_ERROR() and OI_SLOG_WARNING().)
                              */
-
 } OI_STATUS;
 
 /* Remember to update the #define below when new reserved blocks are added to

@@ -26,9 +26,9 @@
 #include <vector>
 
 #include "avrcp/avrcp.h"
-#include "bluetooth/uuid.h"
-#include "bt_transport.h"
-#include "raw_address.h"
+#include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
 
 /**
  * The Bluetooth Hardware Module ID
@@ -993,7 +993,6 @@ typedef struct {
 
   /** check if pbap pse dynamic version upgrade is enable */
   bool (*pbap_pse_dynamic_version_upgrade_is_enabled)();
-
 } bt_interface_t;
 
 #define BLUETOOTH_INTERFACE_STRING "bluetoothInterface"

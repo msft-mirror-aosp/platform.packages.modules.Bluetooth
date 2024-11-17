@@ -25,7 +25,11 @@
 #include <pthread.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "a2dp_vendor_ldac.h"
+#include "a2dp_vendor_ldac_constants.h"
+#include "avdt_api.h"
 #include "stack/include/bt_hdr.h"
 
 using namespace bluetooth;

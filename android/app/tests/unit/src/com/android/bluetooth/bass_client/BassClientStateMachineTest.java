@@ -2701,6 +2701,60 @@ public class BassClientStateMachineTest {
         assertThat(mBassClientStateMachine.mPendingSourceId).isEqualTo(sourceId);
     }
 
+    @Test
+    public void updateBroadcastSource_pendingSourceToRemove() {
+        prepareInitialReceiveStateForGatt();
+
+        generateBroadcastReceiveStatesAndVerify(
+                mSourceTestDevice,
+                TEST_SOURCE_ID,
+                BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCHRONIZED,
+                BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_DECRYPTING,
+                0x1L);
+
+        BassClientStateMachine.BluetoothGattTestableWrapper btGatt =
+                Mockito.mock(BassClientStateMachine.BluetoothGattTestableWrapper.class);
+        mBassClientStateMachine.mBluetoothGatt = btGatt;
+        BluetoothGattCharacteristic scanControlPoint =
+                Mockito.mock(BluetoothGattCharacteristic.class);
+        mBassClientStateMachine.mBroadcastScanControlPoint = scanControlPoint;
+
+        BluetoothLeBroadcastMetadata metadata = createBroadcastMetadata();
+        mBassClientStateMachine.mPendingMetadata = metadata;
+
+        sendMessageAndVerifyTransition(
+                mBassClientStateMachine.obtainMessage(
+                        UPDATE_BCAST_SOURCE,
+                        TEST_SOURCE_ID,
+                        BassConstants.PA_SYNC_DO_NOT_SYNC,
+                        metadata),
+                BassClientStateMachine.ConnectedProcessing.class);
+        assertThat(mBassClientStateMachine.mPendingOperation).isEqualTo(UPDATE_BCAST_SOURCE);
+        assertThat(mBassClientStateMachine.mPendingSourceId).isEqualTo(TEST_SOURCE_ID);
+
+        mBassClientStateMachine.mPendingOperation = 0;
+        mBassClientStateMachine.mPendingSourceId = 0;
+        // Verify not removing source when PA is still synced
+        generateBroadcastReceiveStatesAndVerify(
+                mSourceTestDevice,
+                TEST_SOURCE_ID,
+                BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCHRONIZED,
+                BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_NOT_ENCRYPTED,
+                0x0L);
+        assertThat(mBassClientStateMachine.mPendingOperation).isEqualTo(0);
+        assertThat(mBassClientStateMachine.mPendingSourceId).isEqualTo(0);
+
+        // Verify removing source when PA is unsynced
+        generateBroadcastReceiveStatesAndVerify(
+                mSourceTestDevice,
+                TEST_SOURCE_ID,
+                BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_IDLE,
+                BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_NOT_ENCRYPTED,
+                0x0L);
+        assertThat(mBassClientStateMachine.mPendingOperation).isEqualTo(REMOVE_BCAST_SOURCE);
+        assertThat(mBassClientStateMachine.mPendingSourceId).isEqualTo(TEST_SOURCE_ID);
+    }
+
     private void initToConnectingState() {
         allowConnection(true);
         allowConnectGatt(true);

@@ -97,7 +97,6 @@ static_library("btif") {
     "//bt/system/bta/aics/include",
     "//bt/system/bta/include",
     "//bt/system/bta/sys",
-    "//bt/system/device/include",
     "//bt/system/embdrv/sbc/encoder/include",
     "//bt/system/embdrv/sbc/decoder/include",
     "//bt/system/gd",

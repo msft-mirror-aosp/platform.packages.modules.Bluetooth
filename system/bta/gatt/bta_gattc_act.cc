@@ -634,9 +634,7 @@ void bta_gattc_conn(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
     } else { /* cache is building */
       p_clcb->state = BTA_GATTC_DISCOVER_ST;
     }
-  }
-
-  else {
+  } else {
     /* a pending service handle change indication */
     if (p_clcb->p_srcb->srvc_hdl_chg) {
       p_clcb->p_srcb->srvc_hdl_chg = false;
@@ -932,9 +930,8 @@ void bta_gattc_start_discover(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* /*
     }
 
     bta_gattc_continue_with_version_and_cache_known(p_clcb, cache_support, is_svc_chg);
-  }
-  /* pending operation, wait until it finishes */
-  else {
+  } else {
+    /* pending operation, wait until it finishes */
     p_clcb->auto_update = BTA_GATTC_DISC_WAITING;
 
     if (p_clcb->p_srcb->state == BTA_GATTC_SERV_IDLE) {
@@ -1021,9 +1018,8 @@ void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* /* p_da
     /* start discovery again */
     p_clcb->auto_update = BTA_GATTC_REQ_WAITING;
     bta_gattc_sm_execute(p_clcb, BTA_GATTC_INT_DISCOVER_EVT, NULL);
-  }
-  /* get any queued command to proceed */
-  else if (p_q_cmd != NULL) {
+  } else if (p_q_cmd != NULL) {
+    /* get any queued command to proceed */
     p_clcb->p_q_cmd = NULL;
     /* execute pending operation of link block still present */
     if (bluetooth::stack::l2cap::get_interface().L2CA_IsLinkEstablished(p_clcb->p_srcb->server_bda,
@@ -1713,9 +1709,8 @@ static void bta_gattc_process_indicate(tCONN_ID conn_id, tGATTC_OPTYPE op,
     if (p_clcb != NULL) {
       bta_gattc_proc_other_indication(p_clcb, op, p_data, &notify);
     }
-  }
-  /* no one intersted and need ack? */
-  else if (op == GATTC_OPTYPE_INDICATION) {
+  } else if (op == GATTC_OPTYPE_INDICATION) {
+    /* no one interested and need ack? */
     log::verbose("no one interested, ack now");
     if (GATTC_SendHandleValueConfirm(conn_id, p_data->cid) != GATT_SUCCESS) {
       log::warn("Unable to send GATT client handle value confirmation conn_id:{} cid:{}", conn_id,

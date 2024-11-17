@@ -953,9 +953,8 @@ uint32_t port_rfc_send_tx_data(tPORT* p_port) {
           events |= PORT_EV_TXEMPTY;
           break;
         }
-      }
-      /* queue is empty-- all data sent */
-      else {
+      } else {
+        /* queue is empty-- all data sent */
         mutex_global_unlock();
 
         events |= PORT_EV_TXEMPTY;

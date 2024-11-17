@@ -18,12 +18,20 @@
 
 #include "a2dp_aac_encoder.h"
 
+#include <FDK_audio.h>
 #include <aacenc_lib.h>
 #include <bluetooth/log.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include <string.h>
 
+#include <algorithm>
+#include <cstdint>
+
 #include "a2dp_aac.h"
+#include "a2dp_aac_constants.h"
+#include "a2dp_codec_api.h"
+#include "avdt_api.h"
 #include "common/time_util.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"

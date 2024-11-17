@@ -17,7 +17,8 @@
 #pragma once
 
 #include <bluetooth/log.h>
-#include <raw_address.h>
+
+#include "types/raw_address.h"
 
 typedef enum {
   BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED = 0,
@@ -75,7 +76,6 @@ typedef enum {
   BTHF_CLIENT_CALLSETUP_INCOMING,
   BTHF_CLIENT_CALLSETUP_OUTGOING,
   BTHF_CLIENT_CALLSETUP_ALERTING
-
 } bthf_client_callsetup_t;
 
 typedef enum {

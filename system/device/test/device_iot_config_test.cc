@@ -161,12 +161,12 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest, test_device_iot_config_module_init_
     int backup_fd = -1;
 
     file_fd = open(IOT_CONFIG_FILE_PATH, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, S_IRUSR | S_IWUSR);
-    EXPECT_TRUE(file_fd > 0);
+    EXPECT_GT(file_fd, 0);
     EXPECT_EQ(errno, 0);
 
     backup_fd =
             open(IOT_CONFIG_BACKUP_PATH, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, S_IRUSR | S_IWUSR);
-    EXPECT_TRUE(backup_fd > 0);
+    EXPECT_GT(backup_fd, 0);
     EXPECT_EQ(errno, 0);
 
     EXPECT_EQ(access(IOT_CONFIG_FILE_PATH, F_OK), 0);
@@ -459,13 +459,13 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest,
 
     errno = 0;
     file_fd = open(IOT_CONFIG_FILE_PATH, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, S_IRUSR | S_IWUSR);
-    EXPECT_TRUE(file_fd > 0);
+    EXPECT_GT(file_fd, 0);
     EXPECT_EQ(errno, 0);
 
     errno = 0;
     backup_fd =
             open(IOT_CONFIG_BACKUP_PATH, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, S_IRUSR | S_IWUSR);
-    EXPECT_TRUE(backup_fd > 0);
+    EXPECT_GT(backup_fd, 0);
     EXPECT_EQ(errno, 0);
 
     EXPECT_EQ(access(IOT_CONFIG_FILE_PATH, F_OK), 0);
@@ -536,13 +536,13 @@ TEST_F_WITH_FLAGS(DeviceIotConfigModuleTest,
 
     errno = 0;
     file_fd = open(IOT_CONFIG_FILE_PATH, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, S_IRUSR | S_IWUSR);
-    EXPECT_TRUE(file_fd > 0);
+    EXPECT_GT(file_fd, 0);
     EXPECT_EQ(errno, 0);
 
     errno = 0;
     backup_fd =
             open(IOT_CONFIG_BACKUP_PATH, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, S_IRUSR | S_IWUSR);
-    EXPECT_TRUE(backup_fd > 0);
+    EXPECT_GT(backup_fd, 0);
     EXPECT_EQ(errno, 0);
 
     EXPECT_EQ(access(IOT_CONFIG_FILE_PATH, F_OK), 0);
@@ -908,7 +908,6 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_sections_sort_by_e
                                               .key = "a",
                                       },
                               }},
-
     };
     device_iot_config_sections_sort_by_entry_key(conf,
                                                  [](const entry_t& first, const entry_t& second) {
@@ -2253,7 +2252,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_iot_config_get_str,
     EXPECT_EQ(actual_section, expected_section);
     EXPECT_EQ(actual_key, expected_key);
     EXPECT_EQ(size_bytes, (int)actual_value_str.length() + 1);
-    EXPECT_TRUE(strncmp(get_value_str, actual_value_str.c_str(), size_bytes) == 0);
+    EXPECT_EQ(0, strncmp(get_value_str, actual_value_str.c_str(), size_bytes));
 
     EXPECT_EQ(get_func_call_count("config_get_string"), 1);
   }
@@ -3132,7 +3131,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_debug_iot_config_dump,
     char buf[BUF_SIZE] = {0};
 
     fd = open(IOT_CONFIG_FILE_PATH, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, S_IRUSR | S_IWUSR);
-    EXPECT_TRUE(fd > 0);
+    EXPECT_GT(fd, 0);
     EXPECT_EQ(errno, 0);
 
     lseek(fd, 0, SEEK_SET);
@@ -3145,7 +3144,7 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_debug_iot_config_dump,
 
     lseek(fd, 0, SEEK_SET);
     bytes_read = read(fd, buf, BUF_SIZE);
-    EXPECT_TRUE(bytes_read > 0);
+    EXPECT_GT(bytes_read, 0);
     EXPECT_EQ(errno, 0);
     lseek(fd, 0, SEEK_SET);
 
@@ -3178,12 +3177,12 @@ TEST_F_WITH_FLAGS(DeviceIotConfigTest, test_device_debug_iot_config_delete_files
     int backup_fd = -1;
 
     file_fd = open(IOT_CONFIG_FILE_PATH, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, S_IRUSR | S_IWUSR);
-    EXPECT_TRUE(file_fd > 0);
+    EXPECT_GT(file_fd, 0);
     EXPECT_EQ(errno, 0);
 
     backup_fd =
             open(IOT_CONFIG_BACKUP_PATH, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, S_IRUSR | S_IWUSR);
-    EXPECT_TRUE(backup_fd > 0);
+    EXPECT_GT(backup_fd, 0);
     EXPECT_EQ(errno, 0);
 
     EXPECT_EQ(access(IOT_CONFIG_FILE_PATH, F_OK), 0);

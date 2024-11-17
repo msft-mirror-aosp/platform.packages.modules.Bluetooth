@@ -71,7 +71,6 @@ enum {
   BTA_HH_W4_SEC,
   BTA_HH_INVALID_ST /* Used to check invalid states before executing SM function
                      */
-
 };
 typedef uint8_t tBTA_HH_STATE;
 

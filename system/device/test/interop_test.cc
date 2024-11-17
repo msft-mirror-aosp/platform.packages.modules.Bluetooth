@@ -543,7 +543,7 @@ TEST_F(InteropTest, test_ssr_max_latency_hit) {
 
   EXPECT_TRUE(interop_database_match_addr_get_max_lat(INTEROP_UPDATE_HID_SSR_MAX_LAT, &test_address,
                                                       &max_lat));
-  EXPECT_TRUE(max_lat == 0x0012);
+  EXPECT_EQ(0x0012, max_lat);
 
   module_clean_up(&interop_module);
 }
@@ -624,7 +624,7 @@ TEST_F(InteropTest, test_dynamic_addr_get_ssr_max_lat) {
   interop_database_add_addr_max_lat(INTEROP_UPDATE_HID_SSR_MAX_LAT, &test_address, 0x0012);
 
   interop_database_match_addr_get_max_lat(INTEROP_UPDATE_HID_SSR_MAX_LAT, &test_address, &max_lat);
-  EXPECT_TRUE(max_lat == 0x0012);
+  EXPECT_EQ(0x0012, max_lat);
 
   interop_database_remove_addr_max_lat(INTEROP_UPDATE_HID_SSR_MAX_LAT, &test_address, 0x0012);
 
@@ -632,7 +632,7 @@ TEST_F(InteropTest, test_dynamic_addr_get_ssr_max_lat) {
   EXPECT_FALSE(interop_database_match_addr_get_max_lat(INTEROP_UPDATE_HID_SSR_MAX_LAT,
                                                        &test_address, &max_lat));
 
-  EXPECT_FALSE(max_lat == 0x0012);
+  EXPECT_NE(0x0012, max_lat);
 
   module_clean_up(&interop_module);
 }

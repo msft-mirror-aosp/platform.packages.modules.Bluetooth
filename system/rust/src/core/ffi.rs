@@ -65,7 +65,7 @@ mod inner {
 
     #[namespace = "bluetooth"]
     extern "C++" {
-        include!("bluetooth/uuid.h");
+        include!("types/bluetooth/uuid.h");
         type Uuid = crate::core::uuid::Uuid;
     }
 
