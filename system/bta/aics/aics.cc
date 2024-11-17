@@ -13,8 +13,9 @@
 
 #define LOG_TAG "aics"
 
-#include <aics/api.h>
 #include <bluetooth/log.h>
+
+#include "aics/api.h"
 
 namespace bluetooth::aics {
 
@@ -27,6 +28,17 @@ Mute parseMuteField(uint8_t data) {
   log::assert_that(isValidAudioInputMuteValue(data), "Not a valid Mute Value");
 
   return static_cast<Mute>(data);
+}
+
+bool isValidAudioInputGainModeValue(uint8_t data) {
+  return data >= static_cast<uint8_t>(GainMode::MANUAL_ONLY) &&
+         data <= static_cast<uint8_t>(GainMode::AUTOMATIC);
+}
+
+GainMode parseGainModeField(uint8_t data) {
+  log::assert_that(isValidAudioInputGainModeValue(data), "Not a valid GainMode Value");
+
+  return static_cast<GainMode>(data);
 }
 
 }  // namespace bluetooth::aics

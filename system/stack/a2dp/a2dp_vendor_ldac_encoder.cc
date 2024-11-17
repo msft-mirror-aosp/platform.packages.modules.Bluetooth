@@ -19,11 +19,21 @@
 
 #include "a2dp_vendor_ldac_encoder.h"
 
+#include <stdio.h>
+
+#include <cstdint>
+#include <string>
+
+#include "a2dp_codec_api.h"
+#include "a2dp_vendor_ldac_constants.h"
+#include "avdt_api.h"
+#include "hardware/bt_av.h"
+#include "ldacBT.h"
+
 #ifdef __ANDROID__
 #include <cutils/trace.h>
 #endif
 #include <bluetooth/log.h>
-#include <dlfcn.h>
 #include <inttypes.h>
 #include <ldacBT_abr.h>
 #include <string.h>

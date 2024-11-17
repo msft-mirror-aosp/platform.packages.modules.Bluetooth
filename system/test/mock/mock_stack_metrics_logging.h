@@ -92,10 +92,25 @@ struct log_smp_pairing_event {
   }
 };
 extern struct log_smp_pairing_event log_smp_pairing_event;
+
+// Name: log_le_pairing_fail
+// Params: const RawAddress& raw_address, uint8_t failure_reason, bool
+// is_outgoing Returns:
+// void
 // Name: log_sdp_attribute
 // Params: const RawAddress& address, uint16_t protocol_uuid, uint16_t
 // attribute_id, size_t attribute_size, const char* attribute_value Returns:
 // void
+struct log_le_pairing_fail {
+  std::function<void(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing)> body{
+          [](const RawAddress& /* address */, uint8_t /* failure reason */,
+             bool /* is_outgoing */) {}};
+  void operator()(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing) {
+    body(raw_address, failure_reason, is_outgoing);
+  }
+};
+extern struct log_le_pairing_fail log_le_pairing_fail;
+
 struct log_sdp_attribute {
   std::function<void(const RawAddress& address, uint16_t protocol_uuid, uint16_t attribute_id,
                      size_t attribute_size, const char* attribute_value)>

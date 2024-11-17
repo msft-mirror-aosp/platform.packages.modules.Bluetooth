@@ -24,6 +24,7 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
 import static android.Manifest.permission.LOCAL_MAC_ADDRESS;
 import static android.Manifest.permission.MODIFY_PHONE_STATE;
+import static android.bluetooth.BluetoothProfile.getProfileName;
 import static android.bluetooth.BluetoothStatusCodes.FEATURE_NOT_SUPPORTED;
 import static android.bluetooth.BluetoothUtils.executeFromBinder;
 
@@ -888,29 +889,42 @@ public final class BluetoothAdapter {
             mMetadataListeners = new HashMap<>();
 
     private static final class ProfileConnection {
-        int mProfile;
-        BluetoothProfile.ServiceListener mListener;
+        private final int mProfile;
+        private final BluetoothProfile.ServiceListener mListener;
+        private final Executor mExecutor;
+
+        @GuardedBy("BluetoothAdapter.sProfileLock")
         boolean mConnected = false;
 
-        ProfileConnection(int profile, BluetoothProfile.ServiceListener listener) {
+        ProfileConnection(
+                int profile, BluetoothProfile.ServiceListener listener, Executor executor) {
             mProfile = profile;
             mListener = listener;
+            mExecutor = executor;
         }
 
         @GuardedBy("BluetoothAdapter.sProfileLock")
         void connect(BluetoothProfile proxy, IBinder binder) {
-            Log.d(TAG, BluetoothProfile.getProfileName(mProfile) + " connected");
+            Log.d(TAG, getProfileName(mProfile) + " connected");
             mConnected = true;
             proxy.onServiceConnected(binder);
-            mListener.onServiceConnected(mProfile, proxy);
+            if (Flags.getProfileUseLock()) {
+                executeFromBinder(mExecutor, () -> mListener.onServiceConnected(mProfile, proxy));
+            } else {
+                mListener.onServiceConnected(mProfile, proxy);
+            }
         }
 
         @GuardedBy("BluetoothAdapter.sProfileLock")
         void disconnect(BluetoothProfile proxy) {
-            Log.d(TAG, BluetoothProfile.getProfileName(mProfile) + " disconnected");
+            Log.d(TAG, getProfileName(mProfile) + " disconnected");
             mConnected = false;
             proxy.onServiceDisconnected();
-            mListener.onServiceDisconnected(mProfile);
+            if (Flags.getProfileUseLock()) {
+                executeFromBinder(mExecutor, () -> mListener.onServiceDisconnected(mProfile));
+            } else {
+                mListener.onServiceDisconnected(mProfile);
+            }
         }
     }
 
@@ -2334,11 +2348,7 @@ public final class BluetoothAdapter {
         try {
             if (mService != null) {
                 if (DBG) {
-                    Log.d(
-                            TAG,
-                            "getActiveDevices(profile= "
-                                    + BluetoothProfile.getProfileName(profile)
-                                    + ")");
+                    Log.d(TAG, "getActiveDevices(" + getProfileName(profile) + ")");
                 }
                 return mService.getActiveDevices(profile, mAttributionSource);
             }
@@ -3561,17 +3571,11 @@ public final class BluetoothAdapter {
     /**
      * Get the profile proxy object associated with the profile.
      *
-     * <p>Profile can be one of {@link BluetoothProfile#HEADSET}, {@link BluetoothProfile#A2DP},
-     * {@link BluetoothProfile#GATT}, {@link BluetoothProfile#HEARING_AID}, or {@link
-     * BluetoothProfile#GATT_SERVER}. Clients must implement {@link
-     * BluetoothProfile.ServiceListener} to get notified of the connection status and to get the
-     * proxy object.
+     * <p> The ServiceListener's methods will be invoked on the application's main looper
      *
      * @param context Context of the application
-     * @param listener The service Listener for connection callbacks.
-     * @param profile The Bluetooth profile; either {@link BluetoothProfile#HEADSET}, {@link
-     *     BluetoothProfile#A2DP}, {@link BluetoothProfile#GATT}, {@link
-     *     BluetoothProfile#HEARING_AID} or {@link BluetoothProfile#GATT_SERVER}.
+     * @param listener The service listener for connection callbacks.
+     * @param profile The Bluetooth profile to listen for status change
      * @return true on success, false on error
      */
     @SuppressLint({
@@ -3584,6 +3588,26 @@ public final class BluetoothAdapter {
         if (context == null || listener == null) {
             return false;
         }
+
+        // Preserve legacy compatibility where apps were depending on
+        // registerStateChangeCallback() performing a permissions check which
+        // has been relaxed in modern platform versions
+        if (context.getApplicationInfo().targetSdkVersion < Build.VERSION_CODES.S
+                && context.checkSelfPermission(BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
+            throw new SecurityException("Need BLUETOOTH permission");
+        }
+
+        return getProfileProxy(context, listener, profile, mMainHandler::post);
+    }
+
+    private boolean getProfileProxy(
+            @NonNull Context context,
+            @NonNull BluetoothProfile.ServiceListener listener,
+            int profile,
+            @NonNull @CallbackExecutor Executor executor) {
+        requireNonNull(context);
+        requireNonNull(listener);
+        requireNonNull(executor);
 
         if (profile == BluetoothProfile.HEALTH) {
             Log.e(TAG, "getProfileProxy(): BluetoothHealth is deprecated");
@@ -3598,28 +3622,19 @@ public final class BluetoothAdapter {
         BiFunction<Context, BluetoothAdapter, BluetoothProfile> constructor =
                 PROFILE_CONSTRUCTORS.get(profile);
 
+        BluetoothProfile profileProxy = constructor.apply(context, this);
+        ProfileConnection connection = new ProfileConnection(profile, listener, executor);
+
         if (constructor == null) {
             Log.e(TAG, "getProfileProxy(): Unknown profile " + profile);
             return false;
         }
 
-        // Preserve legacy compatibility where apps were depending on
-        // registerStateChangeCallback() performing a permissions check which
-        // has been relaxed in modern platform versions
-        if (context.getApplicationInfo().targetSdkVersion < Build.VERSION_CODES.S
-                && context.checkSelfPermission(BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-            throw new SecurityException("Need BLUETOOTH permission");
-        }
-
-        BluetoothProfile profileProxy = constructor.apply(context, this);
-        ProfileConnection connection = new ProfileConnection(profile, listener);
-
         Runnable connectAction =
                 () -> {
                     synchronized (sProfileLock) {
                         // Synchronize with the binder callback to prevent performing the
-                        // connection.connect
-                        // concurrently
+                        // ProfileConnection.connect concurrently
                         mProfileConnections.put(profileProxy, connection);
 
                         IBinder binder = getProfile(profile);
@@ -3632,7 +3647,7 @@ public final class BluetoothAdapter {
             connectAction.run();
             return true;
         }
-        mMainHandler.post(connectAction);
+        executor.execute(connectAction);
         return true;
     }
 
@@ -3935,25 +3950,31 @@ public final class BluetoothAdapter {
                     }
                 }
 
+                @GuardedBy("sProfileLock")
+                private boolean connectAllProfileProxyLocked() {
+                    mProfileConnections.forEach(
+                            (proxy, connection) -> {
+                                if (connection.mConnected) return;
+
+                                IBinder binder = getProfile(connection.mProfile);
+                                if (binder == null) {
+                                    Log.e(
+                                            TAG,
+                                            "Failed to retrieve a binder for "
+                                                    + getProfileName(connection.mProfile));
+                                    return;
+                                }
+                                connection.connect(proxy, binder);
+                            });
+                    return true;
+                }
+
                 @RequiresNoPermission
                 public void onBluetoothOn() {
                     Runnable btOnAction =
                             () -> {
                                 synchronized (sProfileLock) {
-                                    mProfileConnections.forEach(
-                                            (proxy, connection) -> {
-                                                if (connection.mConnected) return;
-
-                                                IBinder binder = getProfile(connection.mProfile);
-                                                if (binder != null) {
-                                                    connection.connect(proxy, binder);
-                                                } else {
-                                                    Log.e(
-                                                            TAG,
-                                                            "onBluetoothOn: Binder null for "
-                                                                    + BluetoothProfile.getProfileName(connection.mProfile));
-                                                }
-                                            });
+                                    connectAllProfileProxyLocked();
                                 }
                             };
                     if (Flags.getProfileUseLock()) {
@@ -4283,7 +4304,6 @@ public final class BluetoothAdapter {
     }
 
     /** Return a binder to a Profile service */
-    @GuardedBy("sProfileLock")
     private @Nullable IBinder getProfile(int profile) {
         mServiceLock.readLock().lock();
         try {

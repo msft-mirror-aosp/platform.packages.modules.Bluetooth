@@ -44,7 +44,7 @@
 #include "packet/avrcp/set_player_application_setting_value.h"
 #include "packet/avrcp/vendor_packet.h"
 #include "profile/avrcp/media_id_map.h"
-#include "raw_address.h"
+#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace avrcp {

@@ -27,10 +27,16 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+
+#include "avct_api.h"
+#include "avrc_defs.h"
 #include "avrc_int.h"
+#include "avrcp.sysprop.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_config.h"
 #include "internal_include/bt_target.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
 #include "osi/include/properties.h"

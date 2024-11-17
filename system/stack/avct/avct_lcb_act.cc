@@ -25,13 +25,18 @@
 #include <com_android_bluetooth_flags.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "avct_api.h"
 #include "avct_int.h"
 #include "bta/include/bta_sec_api.h"
 #include "btif/include/btif_av.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
 #include "osi/include/allocator.h"
+#include "osi/include/fixed_queue.h"
 #include "stack/avct/avct_defs.h"
 #include "stack/include/avct_api.h"
 #include "stack/include/bt_hdr.h"

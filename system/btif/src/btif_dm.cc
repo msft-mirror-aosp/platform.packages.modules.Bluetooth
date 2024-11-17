@@ -33,7 +33,6 @@
 #include <base/functional/bind.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
-#include <bluetooth/uuid.h>
 #include <com_android_bluetooth_flags.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_csis.h>
@@ -99,6 +98,7 @@
 #include "stack/include/smp_api.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
 #include "storage/config_keys.h"
+#include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
 #ifdef __ANDROID__
@@ -196,7 +196,6 @@ typedef struct {
   Octet16 er;
   bool is_id_keys_rcvd;
   btif_dm_local_key_id_t id_keys; /* ID kyes */
-
 } btif_dm_local_key_cb_t;
 
 /* this structure holds optional OOB data for remote device */
@@ -564,18 +563,7 @@ static void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
 
   if (pairing_cb.bond_type == BOND_TYPE_TEMPORARY) {
     state = BT_BOND_STATE_NONE;
-  } else {
-    if (state == BT_BOND_STATE_NONE) {
-      bluetooth::os::LogMetricBluetoothEvent(ToGdAddress(bd_addr),
-                                             android::bluetooth::EventType::BOND,
-                                             android::bluetooth::State::STATE_NONE);
-    } else if (state == BT_BOND_STATE_BONDED) {
-      bluetooth::os::LogMetricBluetoothEvent(ToGdAddress(bd_addr),
-                                             android::bluetooth::EventType::BOND,
-                                             android::bluetooth::State::STATE_BONDED);
-    }
   }
-
   log::info(
           "Bond state changed to state={}[0:none, 1:bonding, "
           "2:bonded],prev_state={}, sdp_attempts={}",
@@ -1333,6 +1321,31 @@ static void btif_dm_search_devices_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH*
     } break;
 
     case BTA_DM_INQ_RES_EVT: {
+      RawAddress& bdaddr = p_search_data->inq_res.bd_addr;
+
+      // Do not update device properties of already bonded devices.
+      if (com::android::bluetooth::flags::guard_bonded_device_properties() &&
+          btm_sec_is_a_bonded_dev(bdaddr)) {
+        log::debug("Ignore device properties from discovery results for the bonded device: {}",
+                   bdaddr);
+
+        bool restrict_report =
+                osi_property_get_bool("bluetooth.restrict_discovered_device.enabled", false);
+        if (restrict_report && p_search_data->inq_res.device_type == BT_DEVICE_TYPE_BLE &&
+            !(p_search_data->inq_res.ble_evt_type & BTM_BLE_CONNECTABLE_MASK)) {
+          log::debug("Ble device {} is not connectable", bdaddr);
+          break;
+        }
+
+        bt_property_t bt_property[] = {
+                {BT_PROPERTY_BDADDR, sizeof(bdaddr), &bdaddr},
+                {BT_PROPERTY_REMOTE_RSSI, sizeof(p_search_data->inq_res.rssi),
+                 &(p_search_data->inq_res.rssi)}};
+        GetInterfaceToProfiles()->events->invoke_device_found_cb(ARRAY_SIZE(bt_property),
+                                                                 bt_property);
+        break;
+      }
+
       /* inquiry result */
       bt_bdname_t bdname;
       uint8_t remote_name_len = 0;
@@ -1343,7 +1356,6 @@ static void btif_dm_search_devices_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH*
         p_search_data->inq_res.remt_name_not_required =
                 check_eir_remote_name(p_search_data, NULL, NULL);
       }
-      RawAddress& bdaddr = p_search_data->inq_res.bd_addr;
 
       log::verbose("addr:{} device_type=0x{:x}", bdaddr, p_search_data->inq_res.device_type);
       bdname.name[0] = 0;

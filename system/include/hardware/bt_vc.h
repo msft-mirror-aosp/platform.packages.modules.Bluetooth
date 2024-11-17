@@ -19,15 +19,14 @@
 
 #include <aics/api.h>
 #include <hardware/bluetooth.h>
-#include <raw_address.h>
 
 #include <string>
 #include <variant>
 
+#include "types/raw_address.h"
+
 namespace bluetooth {
 namespace vc {
-
-using bluetooth::aics::Mute;
 
 // Must be kept in sync with BluetoothProfile.java
 enum class ConnectionState { DISCONNECTED = 0, CONNECTING, CONNECTED, DISCONNECTING };
@@ -76,7 +75,12 @@ public:
 
   /* Callbacks for Audio Input Stream (AIS) - Extended Audio Inputs */
   virtual void OnExtAudioInStateChanged(const RawAddress& address, uint8_t ext_input_id,
-                                        int8_t gain_setting, Mute mute, uint8_t gain_mode_auto) = 0;
+                                        int8_t gain_setting, bluetooth::aics::Mute mute,
+                                        bluetooth::aics::GainMode gain_mode) = 0;
+  virtual void OnExtAudioInSetGainSettingFailed(const RawAddress& address,
+                                                uint8_t ext_input_id) = 0;
+  virtual void OnExtAudioInSetMuteFailed(const RawAddress& address, uint8_t ext_input_id) = 0;
+  virtual void OnExtAudioInSetGainModeFailed(const RawAddress& address, uint8_t ext_input_id) = 0;
 
   virtual void OnExtAudioInStatusChanged(const RawAddress& address, uint8_t ext_input_id,
                                          VolumeInputStatus status) = 0;
@@ -84,8 +88,9 @@ public:
   virtual void OnExtAudioInTypeChanged(const RawAddress& address, uint8_t ext_input_id,
                                        VolumeInputType type) = 0;
 
-  virtual void OnExtAudioInGainPropsChanged(const RawAddress& address, uint8_t ext_input_id,
-                                            uint8_t unit, int8_t min, int8_t max) = 0;
+  virtual void OnExtAudioInGainSettingPropertiesChanged(const RawAddress& address,
+                                                        uint8_t ext_input_id, uint8_t unit,
+                                                        int8_t min, int8_t max) = 0;
 
   virtual void OnExtAudioInDescriptionChanged(const RawAddress& address, uint8_t ext_input_id,
                                               std::string description, bool is_writable) = 0;
@@ -134,12 +139,12 @@ public:
   virtual void GetExtAudioInDescription(const RawAddress& address, uint8_t ext_input_id) = 0;
   virtual bool SetExtAudioInDescription(const RawAddress& address, uint8_t ext_input_id,
                                         std::string descr) = 0;
-  virtual void SetExtAudioInGainSetting(const RawAddress& address, uint8_t ext_input_id,
+  virtual bool SetExtAudioInGainSetting(const RawAddress& address, uint8_t ext_input_id,
                                         int8_t gain_setting) = 0;
-  virtual void SetExtAudioInGainMode(const RawAddress& address, uint8_t ext_input_id,
-                                     bool automatic) = 0;
-  virtual void SetExtAudioInGainMute(const RawAddress& address, uint8_t ext_input_id,
-                                     bool mute) = 0;
+  virtual bool SetExtAudioInGainMode(const RawAddress& address, uint8_t ext_input_id,
+                                     bluetooth::aics::GainMode gain_mode) = 0;
+  virtual bool SetExtAudioInMute(const RawAddress& address, uint8_t ext_input_id,
+                                 bluetooth::aics::Mute mute) = 0;
 };
 
 } /* namespace vc */

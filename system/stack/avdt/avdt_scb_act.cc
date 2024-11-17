@@ -29,10 +29,16 @@
 #include <com_android_bluetooth_flags.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "a2dp_codec_api.h"
+#include "a2dp_constants.h"
 #include "avdt_api.h"
+#include "avdt_defs.h"
 #include "avdt_int.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"

@@ -55,7 +55,6 @@ cc_library_static {
         "packages/modules/Bluetooth/system/gd",
         "packages/modules/Bluetooth/system/include",
         "packages/modules/Bluetooth/system/stack/include",
-        "packages/modules/Bluetooth/system/types",
     ],
     srcs: ["src/btif_jni_task.cc"],
     static_libs: [
@@ -139,10 +138,6 @@ cc_library_static {
             shared_libs: ["libaaudio"],
         },
         host: {
-            include_dirs: [
-                "bionic/libc/kernel/android/uapi/",
-                "bionic/libc/kernel/uapi",
-            ],
             srcs: [
                 "src/btif_avrcp_audio_track_linux.cc",
                 "src/btif_leaudio_hal_version_host.cc",

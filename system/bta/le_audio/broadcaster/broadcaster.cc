@@ -889,7 +889,6 @@ public:
         log::assert_that(broadcasts_.count(broadcast_id) != 0,
                          "assert failed: broadcasts_.count(broadcast_id) != 0");
         broadcasts_[broadcast_id]->HandleHciEvent(HCI_BLE_CREATE_BIG_CPL_EVT, evt);
-
       } break;
       case bluetooth::hci::iso_manager::kIsoEventBigOnTerminateCmpl: {
         auto* evt = static_cast<big_terminate_cmpl_evt*>(data);
@@ -1108,6 +1107,10 @@ private:
               conn_handle,
               std::bind(&LeAudioSourceAudioHalClient::UpdateBroadcastAudioConfigToHal,
                         instance->le_audio_source_hal_client_.get(), std::placeholders::_1));
+
+      if (com::android::bluetooth::flags::leaudio_big_depends_on_audio_state()) {
+        instance->le_audio_source_hal_client_->ConfirmStreamingRequest();
+      }
     }
 
     void OnAnnouncementUpdated(uint32_t broadcast_id) {
@@ -1351,8 +1354,6 @@ private:
           auto& broadcast = broadcast_pair.second;
           broadcast->ProcessMessage(BroadcastStateMachine::Message::START, nullptr);
         }
-
-        instance->le_audio_source_hal_client_->ConfirmStreamingRequest();
       } else {
         if (!IsAnyoneStreaming()) {
           instance->le_audio_source_hal_client_->CancelStreamingRequest();
