@@ -717,7 +717,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
                 updateLeAudioActiveDeviceIfDualMode(mHfpActiveDevice, device);
 
                 if (!Utils.isDualModeAudioEnabled() || device == null) {
-                    Log.d(TAG, "HFP active device is null. Try to fallback to le audio device");
+                    Log.d(TAG, "HFP active device is null. Try to fallback to the active device.");
                     synchronized (mLock) {
                         setFallbackDeviceActiveLocked(null);
                     }
@@ -815,8 +815,14 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
                 mLeHearingAidActiveDevice = device;
             }
 
-            if (device == null && !Utils.isDualModeAudioEnabled()) {
-                Log.d(TAG, "LE audio active device is null. Try to fallback to hfp active device.");
+            // This covers the call audio routing case across classic BT and BLE.
+            // Because there's only one active device at the same time. So if a device connect with
+            // HFP & LE audio and when LE audio device is disconnected, we should fallback the
+            // active device to the HFP.
+            // LE case has isBroadcastingAudio which would set the active device to null when
+            // broadcasting the audio. So we shouldn't try to change the active device in this case.
+            if (device == null && !Utils.isDualModeAudioEnabled() && !isBroadcastingAudio()) {
+                Log.d(TAG, "LE audio active device is null. Try to fallback to the active device.");
                 synchronized (mLock) {
                     setFallbackDeviceActiveLocked(device);
                 }
