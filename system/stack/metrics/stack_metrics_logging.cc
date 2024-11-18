@@ -77,3 +77,7 @@ void log_mmc_transcode_rtt_stats(int maximum_rtt, double mean_rtt, int num_reque
                                  int codec_type) {
   bluetooth::shim::LogMetricMmcTranscodeRttStats(maximum_rtt, mean_rtt, num_requests, codec_type);
 }
+
+void log_le_pairing_fail(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing) {
+  bluetooth::shim::LogMetricLePairingFail(raw_address, failure_reason, is_outgoing);
+}
