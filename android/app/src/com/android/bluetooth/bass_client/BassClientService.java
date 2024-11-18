@@ -1325,10 +1325,15 @@ public class BassClientService extends ProfileService {
             return false;
         }
         boolean isRoomAvailable = false;
-        for (BluetoothLeBroadcastReceiveState recvState : stateMachine.getAllSources()) {
-            if (isEmptyBluetoothDevice(recvState.getSourceDevice())) {
-                isRoomAvailable = true;
-                break;
+        List<BluetoothLeBroadcastReceiveState> sources = stateMachine.getAllSources();
+        if (sources.size() < stateMachine.getMaximumSourceCapacity()) {
+            isRoomAvailable = true;
+        } else {
+            for (BluetoothLeBroadcastReceiveState recvState : sources) {
+                if (isEmptyBluetoothDevice(recvState.getSourceDevice())) {
+                    isRoomAvailable = true;
+                    break;
+                }
             }
         }
         log("isRoomAvailable: " + isRoomAvailable);
