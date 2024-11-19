@@ -21,27 +21,23 @@
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
-#include <hardware/bt_gatt_types.h>
+#include <stdio.h>
 
 #include <bitset>
-#include <string>
+#include <cstdint>
+#include <sstream>
+#include <unordered_map>
 #include <vector>
 
 #include "bta/le_audio/le_audio_types.h"
 #include "bta_gatt_api.h"
 #include "bta_gatt_queue.h"
-#include "bta_le_audio_uuids.h"
-#include "btm_sec.h"
-#include "gap_api.h"
 #include "gatt_api.h"
-#include "gd/hci/uuid.h"
-#include "gd/os/rand.h"
+#include "hardware/bt_common_types.h"
 #include "include/hardware/bt_gmap.h"
-#include "internal_include/bt_trace.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/properties.h"
-#include "stack/include/bt_types.h"
-#include "stack/include/btm_ble_addr.h"
+#include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
 
 using bluetooth::Uuid;
 using namespace bluetooth;

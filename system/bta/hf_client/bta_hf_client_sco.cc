@@ -19,9 +19,16 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "bta/hf_client/bta_hf_client_int.h"
+#include "bta_hf_client_api.h"
+#include "bta_sys.h"
+#include "btm_api_types.h"
+#include "device/include/esco_parameters.h"
+#include "hci_error_code.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_client_interface.h"

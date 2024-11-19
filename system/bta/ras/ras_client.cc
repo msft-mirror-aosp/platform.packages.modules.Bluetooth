@@ -17,16 +17,34 @@
 #include <base/functional/bind.h>
 #include <base/functional/callback.h>
 
+#include <algorithm>
+#include <cstdint>
+#include <list>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "bluetooth/log.h"
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_ras_api.h"
 #include "bta/ras/ras_types.h"
+#include "btm_ble_api_types.h"
+#include "gatt/database.h"
+#include "gatt_api.h"
+#include "gattdefs.h"
 #include "gd/hci/controller_interface.h"
 #include "main/shim/entry.h"
-#include "os/logging/log_adapter.h"
+#include "osi/include/alarm.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_addr.h"
 #include "stack/include/gap_api.h"
 #include "stack/include/main_thread.h"
+#include "types/ble_address_with_type.h"
+#include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
 
 using namespace bluetooth;
 using namespace ::ras;

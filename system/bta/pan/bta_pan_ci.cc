@@ -24,9 +24,11 @@
 
 #include "bta/include/bta_pan_ci.h"
 
+#include <cstddef>
+#include <cstdint>
+
 #include "bta/pan/bta_pan_int.h"
-#include "internal_include/bt_target.h"
-#include "osi/include/allocator.h"
+#include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
 

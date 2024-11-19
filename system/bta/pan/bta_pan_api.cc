@@ -23,11 +23,15 @@
  *
  ******************************************************************************/
 
+#include "bta_pan_api.h"
+
 #include <cstdint>
 #include <cstring>
+#include <string>
 
 #include "bta/pan/bta_pan_int.h"
-#include "internal_include/bt_target.h"
+#include "bta_api.h"
+#include "bta_sys.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
 #include "stack/include/bt_hdr.h"
