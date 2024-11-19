@@ -21,9 +21,15 @@
 #include <bluetooth/log.h>
 #include <lc3.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <optional>
 #include <vector>
+
+#include "audio_hal_client/audio_hal_client.h"
+#include "le_audio/le_audio_types.h"
 
 namespace bluetooth::le_audio {
 

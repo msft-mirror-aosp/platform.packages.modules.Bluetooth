@@ -22,9 +22,15 @@
 #include <bluetooth/log.h>
 #include <hardware/bt_gatt_types.h>
 #include <hardware/bt_vc.h>
+#include <stdio.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <list>
 #include <mutex>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "bta/include/bta_csis_api.h"
@@ -33,16 +39,21 @@
 #include "bta/include/bta_vc_api.h"
 #include "bta/le_audio/le_audio_types.h"
 #include "bta/vc/devices.h"
-#include "internal_include/bt_trace.h"
+#include "bta_groups.h"
+#include "btm_ble_api_types.h"
+#include "gatt/database.h"
+#include "gatt_api.h"
+#include "osi/include/alarm.h"
 #include "osi/include/osi.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_status.h"
 #include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
+#include "vc/types.h"
 
 using base::Closure;
-using bluetooth::Uuid;
 using bluetooth::csis::CsisClient;
 using bluetooth::vc::ConnectionState;
 using bluetooth::vc::VolumeInputStatus;

@@ -19,9 +19,12 @@
 #define LOG_TAG "bta_ag_cmd"
 
 #include <bluetooth/log.h>
-#include <com_android_bluetooth_flags.h>
+#include <string.h>
 
+#include <cctype>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 #include "bta/ag/bta_ag_at.h"
@@ -30,16 +33,19 @@
 #include "bta/include/bta_hfp_api.h"
 #include "bta/include/utl.h"
 #include "bta_ag_swb_aptx.h"
+#include "bta_sys.h"
+#include "btm_api_types.h"
+#include "hardware/bt_hf.h"
+#include "osi/include/alarm.h"
 
 #ifdef __ANDROID__
 #include "bta_le_audio_api.h"
+#include "os/system_properties.h"
 #endif
 
 #include "bta/include/bta_hfp_api.h"
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
-#include "internal_include/bt_trace.h"
-#include "os/system_properties.h"
 #include "osi/include/compat.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/include/port_api.h"

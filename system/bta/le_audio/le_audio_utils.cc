@@ -18,7 +18,16 @@
 
 #include <bluetooth/log.h>
 
+#include <cstdint>
+#include <sstream>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+#include "audio_hal_client/audio_hal_client.h"
 #include "common/strings.h"
+#include "hardware/bt_le_audio.h"
+#include "le_audio/codec_manager.h"
 #include "le_audio_types.h"
 
 using bluetooth::common::ToString;

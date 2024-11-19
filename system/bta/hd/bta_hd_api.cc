@@ -25,6 +25,13 @@
 
 #define LOG_TAG "bluetooth"
 
+#include "bta_hd_api.h"
+
+#include <cstdint>
+#include <cstring>
+
+#include "bta_sys.h"
+
 // BTA_HD_INCLUDED
 #include "internal_include/bt_target.h"
 #if defined(BTA_HD_INCLUDED) && (BTA_HD_INCLUDED == TRUE)
