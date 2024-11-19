@@ -23,10 +23,13 @@
  ******************************************************************************/
 #include <bluetooth/log.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "bta/pan/bta_pan_int.h"
-#include "internal_include/bt_target.h"
+#include "bta_pan_api.h"
+#include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 
 using namespace bluetooth;

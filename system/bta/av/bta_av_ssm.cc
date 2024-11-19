@@ -26,8 +26,11 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
+#include <cstdint>
+
 #include "bta/av/bta_av_int.h"
-#include "internal_include/bt_target.h"
+#include "bta_av_api.h"
 
 using namespace bluetooth;
 
@@ -45,11 +48,27 @@ enum {
   BTA_AV_CLOSING_SST
 };
 
-static void bta_av_better_stream_state_machine(tBTA_AV_SCB* p_scb, uint16_t event,
-                                               tBTA_AV_DATA* p_data) {
+/*******************************************************************************
+ *
+ * Function         bta_av_ssm_execute
+ *
+ * Description      Stream state machine event handling function for AV
+ *
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void bta_av_ssm_execute(tBTA_AV_SCB* p_scb, uint16_t event, tBTA_AV_DATA* p_data) {
+  if (p_scb == NULL) {
+    /* this stream is not registered */
+    log::error("AV channel not registered");
+    return;
+  }
+
   uint8_t previous_state = p_scb->state;
   tBTA_AV_ACT event_handler1 = nullptr;
   tBTA_AV_ACT event_handler2 = nullptr;
+
   switch (p_scb->state) {
     case BTA_AV_INIT_SST:
       switch (event) {
@@ -437,26 +456,6 @@ static void bta_av_better_stream_state_machine(tBTA_AV_SCB* p_scb, uint16_t even
   if (event_handler2 != nullptr) {
     event_handler2(p_scb, p_data);
   }
-}
-
-/*******************************************************************************
- *
- * Function         bta_av_ssm_execute
- *
- * Description      Stream state machine event handling function for AV
- *
- *
- * Returns          void
- *
- ******************************************************************************/
-void bta_av_ssm_execute(tBTA_AV_SCB* p_scb, uint16_t event, tBTA_AV_DATA* p_data) {
-  if (p_scb == NULL) {
-    /* this stream is not registered */
-    log::verbose("AV channel not registered");
-    return;
-  }
-
-  bta_av_better_stream_state_machine(p_scb, event, p_data);
 }
 
 /*******************************************************************************

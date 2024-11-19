@@ -27,7 +27,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -49,7 +48,6 @@ import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
-import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -67,7 +65,8 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -78,56 +77,44 @@ import java.util.Set;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class TransitionalScanHelperTest {
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
-    private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
-
-    private TransitionalScanHelper mScanHelper;
     @Mock private ScannerMap mScannerMap;
-
     @Mock private ScannerMap.ScannerApp mApp;
-
     @Mock private TransitionalScanHelper.PendingIntentInfo mPiInfo;
     @Mock private PeriodicScanManager mPeriodicScanManager;
     @Mock private ScanManager mScanManager;
-
-    @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
-
-    private BluetoothDevice mDevice;
-    private BluetoothAdapter mAdapter;
-    private AttributionSource mAttributionSource;
-
     @Mock private Resources mResources;
     @Mock private AdapterService mAdapterService;
     @Mock private GattObjectsFactory mGattObjectsFactory;
     @Mock private ScanObjectsFactory mScanObjectsFactory;
     @Mock private GattNativeInterface mNativeInterface;
+
+    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final BluetoothDevice mDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
+    private final AttributionSource mAttributionSource = mAdapter.getAttributionSource();
+    private final Context mContext = InstrumentationRegistry.getTargetContext();
+
+    private TransitionalScanHelper mScanHelper;
     private CompanionManager mBtCompanionManager;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
-        TestUtils.setAdapterService(mAdapterService);
-
         GattObjectsFactory.setInstanceForTesting(mGattObjectsFactory);
         ScanObjectsFactory.setInstanceForTesting(mScanObjectsFactory);
+
         doReturn(mNativeInterface).when(mGattObjectsFactory).getNativeInterface();
         doReturn(mScanManager)
                 .when(mScanObjectsFactory)
                 .createScanManager(any(), any(), any(), any(), any());
         doReturn(mPeriodicScanManager).when(mScanObjectsFactory).createPeriodicScanManager(any());
 
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mAttributionSource = mAdapter.getAttributionSource();
-        mDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(REMOTE_DEVICE_ADDRESS);
-
-        when(mAdapterService.getResources()).thenReturn(mResources);
-        when(mResources.getInteger(anyInt())).thenReturn(0);
-        when(mAdapterService.getSharedPreferences(anyString(), anyInt()))
-                .thenReturn(
-                        InstrumentationRegistry.getTargetContext()
-                                .getSharedPreferences(
-                                        "GattServiceTestPrefs", Context.MODE_PRIVATE));
+        doReturn(mResources).when(mAdapterService).getResources();
+        doReturn(mContext.getPackageManager()).when(mAdapterService).getPackageManager();
+        doReturn(mContext.getSharedPreferences("TransitionalScanHelperTest", Context.MODE_PRIVATE))
+                .when(mAdapterService)
+                .getSharedPreferences(anyString(), anyInt());
 
         TestUtils.mockGetSystemService(
                 mAdapterService, Context.LOCATION_SERVICE, LocationManager.class);
@@ -138,8 +125,7 @@ public class TransitionalScanHelperTest {
         TestLooper testLooper = new TestLooper();
         testLooper.startAutoDispatch();
 
-        mScanHelper =
-                new TransitionalScanHelper(InstrumentationRegistry.getTargetContext(), () -> false);
+        mScanHelper = new TransitionalScanHelper(mAdapterService, () -> false);
         mScanHelper.start(testLooper.getLooper());
 
         mScanHelper.setScannerMap(mScannerMap);
@@ -148,9 +134,7 @@ public class TransitionalScanHelperTest {
     @After
     public void tearDown() throws Exception {
         mScanHelper.stop();
-        mScanHelper = null;
 
-        TestUtils.clearAdapterService(mAdapterService);
         GattObjectsFactory.setInstanceForTesting(null);
         ScanObjectsFactory.setInstanceForTesting(null);
     }

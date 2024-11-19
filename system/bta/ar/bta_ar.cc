@@ -25,12 +25,19 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <memory>
 
+#include "avdt_api.h"
+#include "avrc_defs.h"
+#include "avrcp_sdp_records.h"
 #include "bta/ar/bta_ar_int.h"
 #include "bta/include/bta_ar_api.h"
 #include "bta/sys/bta_sys.h"
 #include "profile/avrcp/avrcp_sdp_service.h"
+#include "sdpdefs.h"
 #include "stack/include/avct_api.h"
 #include "stack/include/avrc_api.h"
 #include "stack/include/bt_types.h"

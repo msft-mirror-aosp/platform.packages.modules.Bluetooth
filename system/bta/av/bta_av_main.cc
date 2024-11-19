@@ -26,21 +26,37 @@
 
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
+#include <stdio.h>
 
+#include <chrono>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
+#include "a2dp_api.h"
+#include "a2dp_codec_api.h"
+#include "a2dp_constants.h"
+#include "avct_api.h"
+#include "avdt_api.h"
+#include "avrc_api.h"
+#include "avrc_defs.h"
+#include "bt_dev_class.h"
 #include "bta/av/bta_av_int.h"
 #include "bta/include/bta_ar_api.h"
 #include "bta/include/bta_av_co.h"
 #include "bta/include/utl.h"
 #include "bta/sys/bta_sys.h"
+#include "bta_av_api.h"
 #include "btif/avrcp/avrcp_service.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_av_co.h"
 #include "btif/include/btif_config.h"
+#include "hardware/bt_av.h"
 #include "internal_include/bt_target.h"
+#include "os/logging/log_adapter.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
-#include "stack/include/acl_api.h"
+#include "osi/include/list.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
@@ -83,7 +99,6 @@ static void bta_av_api_enable(tBTA_AV_DATA* p_data);
 static void bta_av_api_register(tBTA_AV_DATA* p_data);
 static void bta_av_ci_data(tBTA_AV_DATA* p_data);
 static void bta_av_rpc_conn(tBTA_AV_DATA* p_data);
-static void bta_av_api_to_ssm(tBTA_AV_DATA* p_data);
 
 static void bta_av_sco_chg_cback(tBTA_SYS_CONN_STATUS status, uint8_t num_sco_links, uint8_t app_id,
                                  const RawAddress& peer_addr);
@@ -210,7 +225,6 @@ tBTA_AV_SCB* bta_av_addr_to_scb(const RawAddress& bd_addr) {
   return p_scb;
 }
 
-extern const RawAddress& btif_av_find_by_handle(tBTA_AV_HNDL bta_handle);
 int BTA_AvObtainPeerChannelIndex(const RawAddress& peer_address) {
   // Find the entry for the peer (if exists)
   tBTA_AV_SCB* p_scb = bta_av_addr_to_scb(peer_address);
@@ -799,26 +813,6 @@ static void bta_av_rpc_conn(tBTA_AV_DATA* /* p_data */) {}
 
 /*******************************************************************************
  *
- * Function         bta_av_api_to_ssm
- *
- * Description      forward the API request to stream state machine
- *
- *
- * Returns          void
- *
- ******************************************************************************/
-static void bta_av_api_to_ssm(tBTA_AV_DATA* p_data) {
-  uint16_t event = p_data->hdr.event - BTA_AV_FIRST_A2S_API_EVT + BTA_AV_FIRST_A2S_SSM_EVT;
-  tBTA_AV_HNDL handle = p_data->hdr.layer_specific;
-  tBTA_AV_SCB* p_scb = bta_av_hndl_to_scb(handle);
-
-  if (p_scb != nullptr) {
-    bta_av_ssm_execute(p_scb, event, p_data);
-  }
-}
-
-/*******************************************************************************
- *
  * Function         bta_av_chk_start
  *
  * Description      if this is audio channel, check if more than one audio
@@ -1207,19 +1201,15 @@ static void bta_av_non_state_machine_event(uint16_t event, tBTA_AV_DATA* p_data)
     case BTA_AV_AVDT_RPT_CONN_EVT:
       bta_av_rpc_conn(p_data);
       break;
-    case BTA_AV_API_START_EVT:
-      bta_av_api_to_ssm(p_data);
-      break;
-    case BTA_AV_API_STOP_EVT:
-      bta_av_api_to_ssm(p_data);
-      break;
     case BTA_AV_API_PEER_SEP_EVT:
       bta_av_api_set_peer_sep(p_data);
       break;
   }
 }
 
-static void bta_av_better_state_machine(tBTA_AV_CB* p_cb, uint16_t event, tBTA_AV_DATA* p_data) {
+void bta_av_sm_execute(tBTA_AV_CB* p_cb, uint16_t event, tBTA_AV_DATA* p_data) {
+  log::verbose("AV event=0x{:x}({}) state={}({})", event, bta_av_evt_code(event), p_cb->state,
+               bta_av_st_code(p_cb->state));
   switch (p_cb->state) {
     case BTA_AV_INIT_ST:
       switch (event) {
@@ -1271,12 +1261,6 @@ static void bta_av_better_state_machine(tBTA_AV_CB* p_cb, uint16_t event, tBTA_A
       }
       break;
   }
-}
-
-void bta_av_sm_execute(tBTA_AV_CB* p_cb, uint16_t event, tBTA_AV_DATA* p_data) {
-  log::verbose("AV event=0x{:x}({}) state={}({})", event, bta_av_evt_code(event), p_cb->state,
-               bta_av_st_code(p_cb->state));
-  bta_av_better_state_machine(p_cb, event, p_data);
 }
 
 /*******************************************************************************
@@ -1462,10 +1446,6 @@ const char* bta_av_evt_code(uint16_t evt_code) {
       return "DEREG_COMP";
     case BTA_AV_AVDT_RPT_CONN_EVT:
       return "RPT_CONN";
-    case BTA_AV_API_START_EVT:
-      return "API_START";
-    case BTA_AV_API_STOP_EVT:
-      return "API_STOP";
     default:
       return "unknown";
   }

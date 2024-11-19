@@ -26,10 +26,12 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
 #include <cstdint>
 
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/include/bta_sec_api.h"
+#include "bta_sys.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/port_api.h"
