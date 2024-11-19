@@ -23,13 +23,17 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
-#include <com_android_bluetooth_flags.h>
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_hfp_api.h"
+#include "bta_ag_api.h"
+#include "bta_api.h"
+#include "bta_sys.h"
+#include "btm_api_types.h"
 #include "internal_include/bt_target.h"
 #include "macros.h"
 #include "osi/include/alarm.h"

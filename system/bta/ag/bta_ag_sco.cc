@@ -26,15 +26,28 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <unordered_map>
 
 #include "audio_hal_interface/hfp_client_interface.h"
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_ag_swb_aptx.h"
+#include "bta_ag_api.h"
+#include "bta_sys.h"
+#include "btm_api_types.h"
 #include "btm_status.h"
+#include "device/include/esco_parameters.h"
+#include "hardware/bt_hf.h"
 #include "hci/controller_interface.h"
+#include "hci/hci_packets.h"
+#include "hci_error_code.h"
+#include "hcidefs.h"
+#include "internal/btm_api.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/entry.h"
+#include "osi/include/alarm.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sco.h"

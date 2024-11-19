@@ -21,10 +21,21 @@
 #include <bluetooth/log.h>
 #include <hardware/bt_csis.h>
 #include <hardware/bt_gatt_types.h>
+#include <stdio.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
 #include <list>
+#include <map>
+#include <memory>
 #include <mutex>
+#include <sstream>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "advertise_data_parser.h"
@@ -33,16 +44,21 @@
 #include "bta_gatt_api.h"
 #include "bta_gatt_queue.h"
 #include "bta_groups.h"
-#include "bta_le_audio_uuids.h"
 #include "bta_sec_api.h"
 #include "btif/include/btif_storage.h"
+#include "btm_ble_api_types.h"
+#include "btm_sec_api_types.h"
 #include "crypto_toolbox/crypto_toolbox.h"
 #include "csis_types.h"
 #include "gap_api.h"
+#include "gatt/database.h"
 #include "gatt_api.h"
+#include "gattdefs.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/bt_trace.h"
 #include "main/shim/le_scanning_manager.h"
+#include "neighbor_inquiry.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/osi.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "stack/btm/btm_sec.h"
@@ -51,6 +67,9 @@
 #include "stack/include/btm_ble_sec_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
+#include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
 
 using base::Closure;
 using bluetooth::Uuid;

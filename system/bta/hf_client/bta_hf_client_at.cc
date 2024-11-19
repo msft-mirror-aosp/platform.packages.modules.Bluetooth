@@ -21,11 +21,23 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <string>
+
 #include "bta/hf_client/bta_hf_client_int.h"
-#include "internal_include/bt_trace.h"
+#include "bta_hf_client_api.h"
+#include "bta_hfp_api.h"
+#include "bta_sys.h"
+#include "btm_api_types.h"
+#include "os/logging/log_adapter.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
 #include "osi/include/properties.h"
+#include "power_mode.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/port_api.h"
 

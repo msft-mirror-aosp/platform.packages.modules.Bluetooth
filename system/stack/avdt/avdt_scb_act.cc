@@ -53,16 +53,16 @@ using namespace bluetooth;
  * allowing for this table.
  */
 const uint8_t avdt_scb_cback_evt[] = {
-        0,                     /* API_REMOVE_EVT (no event) */
-        AVDT_WRITE_CFM_EVT,    /* API_WRITE_REQ_EVT */
-        0,                     /* API_GETCONFIG_REQ_EVT (no event) */
-        0,                     /* API_DELAY_RPT_REQ_EVT (no event) */
-        AVDT_OPEN_CFM_EVT,     /* API_SETCONFIG_REQ_EVT */
-        AVDT_OPEN_CFM_EVT,     /* API_OPEN_REQ_EVT */
-        AVDT_CLOSE_CFM_EVT,    /* API_CLOSE_REQ_EVT */
-        AVDT_RECONFIG_CFM_EVT, /* API_RECONFIG_REQ_EVT */
-        AVDT_SECURITY_CFM_EVT, /* API_SECURITY_REQ_EVT */
-        0                      /* API_ABORT_REQ_EVT (no event) */
+        0,                     /* AVDT_SCB_API_REMOVE_EVT (no event) */
+        AVDT_WRITE_CFM_EVT,    /* AVDT_SCB_API_WRITE_REQ_EVT */
+        0,                     /* AVDT_SCB_API_GETCONFIG_REQ_EVT (no event) */
+        0,                     /* AVDT_SCB_API_DELAY_RPT_REQ_EVT (no event) */
+        AVDT_OPEN_CFM_EVT,     /* AVDT_SCB_API_SETCONFIG_REQ_EVT */
+        AVDT_OPEN_CFM_EVT,     /* AVDT_SCB_API_OPEN_REQ_EVT */
+        AVDT_CLOSE_CFM_EVT,    /* AVDT_SCB_API_CLOSE_REQ_EVT */
+        AVDT_RECONFIG_CFM_EVT, /* AVDT_SCB_API_RECONFIG_REQ_EVT */
+        AVDT_SECURITY_CFM_EVT, /* AVDT_SCB_API_SECURITY_REQ_EVT */
+        0                      /* AVDT_SCB_API_ABORT_REQ_EVT (no event) */
 };
 
 /*******************************************************************************

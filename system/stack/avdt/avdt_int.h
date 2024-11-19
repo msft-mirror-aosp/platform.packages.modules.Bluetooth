@@ -41,10 +41,6 @@
 #include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
-#ifndef AVDT_DEBUG
-#define AVDT_DEBUG FALSE
-#endif
-
 /*****************************************************************************
  * constants
  ****************************************************************************/

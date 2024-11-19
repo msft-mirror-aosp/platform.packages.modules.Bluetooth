@@ -18,10 +18,22 @@
 #include <base/functional/bind.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
-#include <lc3.h>
+#include <stdio.h>
 
+#include <algorithm>
+#include <cstdint>
+#include <cstring>
+#include <functional>
+#include <map>
+#include <memory>
 #include <mutex>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "bt_octets.h"
 #include "bta/include/bta_le_audio_broadcaster_api.h"
 #include "bta/le_audio/broadcaster/state_machine.h"
 #include "bta/le_audio/codec_interface.h"
@@ -30,15 +42,28 @@
 #include "bta/le_audio/le_audio_utils.h"
 #include "bta/le_audio/metrics_collector.h"
 #include "bta_le_audio_api.h"
+#include "btm_iso_api_types.h"
 #include "common/strings.h"
+#include "hardware/ble_advertiser.h"
+#include "hardware/bt_le_audio.h"
 #include "hci/controller_interface.h"
+#include "hcidefs.h"
+#include "hcimsgs.h"
 #include "internal_include/stack_config.h"
+#include "le_audio/audio_hal_client/audio_hal_client.h"
+#include "le_audio/broadcaster/broadcaster_types.h"
 #include "main/shim/entry.h"
 #include "osi/include/alarm.h"
 #include "osi/include/properties.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_api_types.h"
 #include "stack/include/btm_iso_api.h"
+
+#ifdef TARGET_FLOSS
+#include <audio_hal_interface/audio_linux.h>
+#else
+#include <hardware/audio.h>
+#endif  // TARGET_FLOSS
 
 using bluetooth::common::ToString;
 using bluetooth::hci::IsoManager;
@@ -51,19 +76,16 @@ using bluetooth::le_audio::BroadcastId;
 using bluetooth::le_audio::CodecManager;
 using bluetooth::le_audio::ContentControlIdKeeper;
 using bluetooth::le_audio::DsaMode;
-using bluetooth::le_audio::LeAudioCodecConfiguration;
 using bluetooth::le_audio::LeAudioSourceAudioHalClient;
 using bluetooth::le_audio::PublicBroadcastAnnouncementData;
 using bluetooth::le_audio::broadcaster::BigConfig;
 using bluetooth::le_audio::broadcaster::BroadcastConfiguration;
-using bluetooth::le_audio::broadcaster::BroadcastQosConfig;
 using bluetooth::le_audio::broadcaster::BroadcastStateMachine;
 using bluetooth::le_audio::broadcaster::BroadcastStateMachineConfig;
 using bluetooth::le_audio::broadcaster::BroadcastSubgroupCodecConfig;
 using bluetooth::le_audio::broadcaster::IBroadcastStateMachineCallbacks;
 using bluetooth::le_audio::types::AudioContexts;
 using bluetooth::le_audio::types::CodecLocation;
-using bluetooth::le_audio::types::kLeAudioCodingFormatLC3;
 using bluetooth::le_audio::types::LeAudioContextType;
 using bluetooth::le_audio::types::LeAudioLtvMap;
 using bluetooth::le_audio::utils::GetAudioContextsFromSourceMetadata;
