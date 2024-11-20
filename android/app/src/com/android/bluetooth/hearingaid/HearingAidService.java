@@ -61,7 +61,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Provides Bluetooth HearingAid profile, as a service in the Bluetooth application. */
@@ -561,29 +560,33 @@ public class HearingAidService extends ProfileService {
         ArrayList<BluetoothDevice> activeDevices = new ArrayList<>();
         activeDevices.add(null);
         activeDevices.add(null);
+
         synchronized (mStateMachines) {
-            if (mActiveDeviceHiSyncId == BluetoothHearingAid.HI_SYNC_ID_INVALID) {
+            long activeDeviceHiSyncId = mActiveDeviceHiSyncId;
+            if (activeDeviceHiSyncId == BluetoothHearingAid.HI_SYNC_ID_INVALID) {
                 return activeDevices;
             }
-            for (BluetoothDevice device : mDeviceHiSyncIdMap.keySet()) {
-                if (getConnectionState(device) != STATE_CONNECTED) {
-                    continue;
-                }
-                if (mDeviceHiSyncIdMap.get(device) == mActiveDeviceHiSyncId) {
-                    int deviceSide = getCapabilities(device) & 1;
-                    if (deviceSide == BluetoothHearingAid.SIDE_RIGHT) {
-                        activeDevices.set(1, device);
-                    } else {
-                        activeDevices.set(0, device);
-                    }
-                }
-            }
+
+            mDeviceHiSyncIdMap.entrySet().stream()
+                    .filter(entry -> activeDeviceHiSyncId == entry.getValue())
+                    .map(Map.Entry::getKey)
+                    .filter(device -> getConnectionState(device) == STATE_CONNECTED)
+                    .forEach(
+                            device -> {
+                                int deviceSide = getCapabilities(device) & 1;
+                                if (deviceSide == BluetoothHearingAid.SIDE_RIGHT) {
+                                    activeDevices.set(1, device);
+                                } else {
+                                    activeDevices.set(0, device);
+                                }
+                            });
         }
+
         return activeDevices;
     }
 
     void messageFromNative(HearingAidStackEvent stackEvent) {
-        Objects.requireNonNull(stackEvent.device);
+        requireNonNull(stackEvent.device);
 
         if (stackEvent.type == HearingAidStackEvent.EVENT_TYPE_DEVICE_AVAILABLE) {
             BluetoothDevice device = stackEvent.device;
@@ -591,12 +594,9 @@ public class HearingAidService extends ProfileService {
             long hiSyncId = stackEvent.valueLong2;
             Log.d(
                     TAG,
-                    "Device available: device="
-                            + device
-                            + " capabilities="
-                            + capabilities
-                            + " hiSyncId="
-                            + hiSyncId);
+                    ("Device available: device=" + device)
+                            + (" capabilities=" + capabilities)
+                            + (" hiSyncId=" + hiSyncId));
             mDeviceCapabilitiesMap.put(device, capabilities);
             mDeviceHiSyncIdMap.put(device, hiSyncId);
             return;

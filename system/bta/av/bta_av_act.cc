@@ -27,20 +27,34 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
+#include "avct_api.h"
+#include "avdt_api.h"
+#include "avrc_api.h"
+#include "avrc_defs.h"
+#include "bt_dev_class.h"
 #include "bta/av/bta_av_int.h"
 #include "bta/include/bta_ar_api.h"
 #include "bta/include/utl.h"
+#include "bta_av_api.h"
+#include "bta_sys.h"
 #include "btif/avrcp/avrcp_service.h"
 #include "btif/include/btif_av.h"
+#include "common/bind.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
+#include "osi/include/list.h"
 #include "osi/include/osi.h"  // UINT_TO_PTR PTR_TO_UINT
 #include "osi/include/properties.h"
-#include "stack/include/acl_api.h"
+#include "sdpdefs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
@@ -48,6 +62,7 @@
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/sdp_api.h"
 #include "stack/include/sdp_status.h"
+#include "stack/sdp/sdp_discovery_db.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth::legacy::stack::sdp;

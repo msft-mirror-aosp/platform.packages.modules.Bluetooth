@@ -30,7 +30,6 @@
 #include <cstdint>
 
 #include "bnep_int.h"
-#include "bt_transport.h"
 #include "bta/include/bta_sec_api.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/alarm.h"
@@ -40,6 +39,7 @@
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/l2cap_interface.h"
 #include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;

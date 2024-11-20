@@ -19,14 +19,29 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <algorithm>
 #include <bitset>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <ostream>
 #include <sstream>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "audio_hal_client/audio_hal_client.h"
+#include "audio_hal_interface/le_audio_software.h"
 #include "broadcaster/broadcast_configuration_provider.h"
 #include "broadcaster/broadcaster_types.h"
+#include "bta_le_audio_api.h"
+#include "btm_iso_api_types.h"
+#include "hardware/bt_le_audio.h"
 #include "hci/controller_interface.h"
+#include "hci/hci_packets.h"
 #include "le_audio/le_audio_types.h"
 #include "le_audio_set_configuration_provider.h"
 #include "le_audio_utils.h"
@@ -42,7 +57,6 @@ using bluetooth::le_audio::CodecManager;
 using bluetooth::le_audio::types::CodecLocation;
 using bluetooth::legacy::hci::GetInterface;
 
-using bluetooth::le_audio::AudioSetConfigurationProvider;
 using bluetooth::le_audio::btle_audio_codec_config_t;
 using bluetooth::le_audio::btle_audio_codec_index_t;
 using bluetooth::le_audio::set_configurations::AseConfiguration;

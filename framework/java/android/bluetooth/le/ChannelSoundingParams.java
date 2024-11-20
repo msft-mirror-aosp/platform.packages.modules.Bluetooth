@@ -16,14 +16,11 @@
 
 package android.bluetooth.le;
 
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
-
-import com.android.bluetooth.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -35,7 +32,6 @@ import java.lang.annotation.RetentionPolicy;
  *
  * @hide
  */
-@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING)
 @SystemApi
 public final class ChannelSoundingParams implements Parcelable {
 

@@ -19,7 +19,6 @@ package android.bluetooth.le;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
@@ -35,8 +34,6 @@ import android.os.CancellationSignal;
 import android.os.ParcelUuid;
 import android.os.RemoteException;
 import android.util.Log;
-
-import com.android.bluetooth.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -169,7 +166,6 @@ public final class DistanceMeasurementManager {
      *     when Channel Sounding is not supported or encounters an internal error.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING)
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
@@ -200,7 +196,6 @@ public final class DistanceMeasurementManager {
      *     when Channel Sounding is not supported or encounters an internal error.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING)
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})

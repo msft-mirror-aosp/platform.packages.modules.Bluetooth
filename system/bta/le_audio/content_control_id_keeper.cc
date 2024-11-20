@@ -19,8 +19,10 @@
 #include <bluetooth/log.h>
 
 #include <algorithm>
-#include <bitset>
+#include <cstdint>
 #include <map>
+#include <memory>
+#include <vector>
 
 #include "common/strings.h"
 #include "le_audio_types.h"

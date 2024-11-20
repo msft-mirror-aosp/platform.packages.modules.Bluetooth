@@ -20,20 +20,45 @@
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
+#include <stdio.h>
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <iomanip>
+#include <ios>
+#include <iterator>
+#include <memory>
+#include <optional>
+#include <ostream>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include "acl_api.h"
+#include "bta_gatt_api.h"
 #include "bta_gatt_queue.h"
 #include "btif/include/btif_storage.h"
+#include "btm_ble_api_types.h"
+#include "btm_iso_api_types.h"
 #include "common/strings.h"
+#include "gatt_api.h"
+#include "hardware/bluetooth.h"
 #include "hci/controller_interface.h"
+#include "hci_error_code.h"
+#include "hcidefs.h"
 #include "internal_include/bt_trace.h"
 #include "le_audio/codec_manager.h"
 #include "le_audio/le_audio_types.h"
 #include "le_audio_log_history.h"
 #include "le_audio_utils.h"
 #include "main/shim/entry.h"
+#include "os/logging/log_adapter.h"
+#include "osi/include/alarm.h"
 #include "osi/include/properties.h"
 #include "stack/include/btm_client_interface.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
@@ -41,7 +66,6 @@
 using bluetooth::hci::kIsoCigPhy1M;
 using bluetooth::hci::kIsoCigPhy2M;
 using bluetooth::le_audio::DeviceConnectState;
-using bluetooth::le_audio::set_configurations::CodecConfigSetting;
 using bluetooth::le_audio::types::ase;
 using bluetooth::le_audio::types::AseState;
 using bluetooth::le_audio::types::AudioContexts;
@@ -50,7 +74,6 @@ using bluetooth::le_audio::types::BidirectionalPair;
 using bluetooth::le_audio::types::CisState;
 using bluetooth::le_audio::types::DataPathState;
 using bluetooth::le_audio::types::LeAudioContextType;
-using bluetooth::le_audio::types::LeAudioCoreCodecConfig;
 
 namespace bluetooth::le_audio {
 std::ostream& operator<<(std::ostream& os, const DeviceConnectState& state) {
