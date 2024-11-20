@@ -652,9 +652,9 @@ public:
             "target state: {}, check_if_recovery_needed: {}",
             group_id, ToString(group->GetState()), ToString(group->GetTargetState()),
             check_if_recovery_needed);
+    group->PrintDebugState();
     group->SetTargetState(AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
     group->ClearAllCises();
-    group->PrintDebugState();
 
     /* There is an issue with a setting up stream or any other operation which
      * are gatt operations. It means peer is not responsible. Lets close ACL

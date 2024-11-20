@@ -1383,14 +1383,16 @@ bool LeAudioDeviceGroup::CigConfiguration::AssignCisIds(LeAudioDevice* leAudioDe
          */
         cis_id = GetFirstFreeCisId(CisType::CIS_TYPE_BIDIRECTIONAL);
         if (cis_id == kInvalidCisId) {
-          log::error("Unable to get free Uni-Directional Sink CIS ID");
+          log::error("Unable to get free Bi-Directional CIS ID for Sink ASE");
           return false;
         }
+        log::info("ASE ID: {}, assigned Bi-Directional CIS ID: {} for Sink ASE", ase->id, cis_id);
+      } else {
+        log::info("ASE ID: {}, assigned Uni-Directional CIS ID: {} for Sink ASE", ase->id, cis_id);
       }
 
       ase->cis_id = cis_id;
       cises[cis_id].addr = leAudioDevice->address_;
-      log::info("ASE ID: {}, assigned Uni-Directional Sink CIS ID: {}", ase->id, ase->cis_id);
       continue;
     }
 
@@ -1411,14 +1413,16 @@ bool LeAudioDeviceGroup::CigConfiguration::AssignCisIds(LeAudioDevice* leAudioDe
               "bi-directional available");
       cis_id = GetFirstFreeCisId(CisType::CIS_TYPE_BIDIRECTIONAL);
       if (cis_id == kInvalidCisId) {
-        log::error("Unable to get free Uni-Directional Source CIS ID");
+        log::error("Unable to get free Bi-Directional CIS ID for Source ASE");
         return false;
       }
+      log::info("ASE ID: {}, assigned Bi-Directional CIS ID: {} for Source ASE", ase->id, cis_id);
+    } else {
+      log::info("ASE ID: {}, assigned Uni-Directional CIS ID: {} for Source ASE", ase->id, cis_id);
     }
 
     ase->cis_id = cis_id;
     cises[cis_id].addr = leAudioDevice->address_;
-    log::info("ASE ID: {}, assigned Uni-Directional Source CIS ID: {}", ase->id, ase->cis_id);
   }
 
   return true;

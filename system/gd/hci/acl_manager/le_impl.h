@@ -325,6 +325,11 @@ public:
     log::debug("{} --> {}", connectability_state_machine_text(connectability_state_),
                connectability_state_machine_text(state));
     connectability_state_ = state;
+    if (com::android::bluetooth::flags::le_impl_ack_pause_disarmed()) {
+      if (state == ConnectabilityState::DISARMED && pause_connection) {
+        le_address_manager_->AckPause(this);
+      }
+    }
   }
 
   // connection canceled by LeAddressManager.OnPause(), will auto reconnect by
@@ -333,7 +338,9 @@ public:
     log::assert_that(pause_connection, "Connection must be paused to ack the le address manager");
     arm_on_resume_ = true;
     set_connectability_state(ConnectabilityState::DISARMED);
-    le_address_manager_->AckPause(this);
+    if (!com::android::bluetooth::flags::le_impl_ack_pause_disarmed()) {
+      le_address_manager_->AckPause(this);
+    }
   }
 
   void on_common_le_connection_complete(AddressWithType address_with_type) {
