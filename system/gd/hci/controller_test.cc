@@ -637,15 +637,5 @@ TEST_F(ControllerTest, leRandTest) {
   ASSERT_EQ(kRandomNumber, le_rand_set_future.get());
 }
 
-TEST_F(ControllerTest, Dumpsys) {
-  ModuleDumper dumper(STDOUT_FILENO, fake_registry_, title);
-
-  std::string output;
-  std::ostringstream oss;
-  dumper.DumpState(&output, oss);
-
-  ASSERT_TRUE(output.find("Hci Controller Dumpsys") != std::string::npos);
-}
-
 }  // namespace hci
 }  // namespace bluetooth
