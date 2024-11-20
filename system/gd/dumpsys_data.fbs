@@ -10,7 +10,6 @@
 
 
 include "hci/hci_acl_manager.fbs";
-include "hci/hci_controller.fbs";
 include "module_unittest.fbs";
 include "os/wakelock_manager.fbs";
 include "shim/dumpsys.fbs";
@@ -24,7 +23,6 @@ table DumpsysData {
     wakelock_manager_data:bluetooth.os.WakelockManagerData (privacy:"Any");
     shim_dumpsys_data:bluetooth.shim.DumpsysModuleData (privacy:"Any");
     hci_acl_manager_dumpsys_data:bluetooth.hci.AclManagerData (privacy:"Any");
-    hci_controller_dumpsys_data:bluetooth.hci.ControllerData (privacy:"Any");
     module_unittest_data:bluetooth.ModuleUnitTestData; // private
 }
 
