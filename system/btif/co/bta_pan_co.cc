@@ -122,7 +122,7 @@ void bta_pan_co_tx_path(uint16_t handle, uint8_t app_id) {
     log::error("cannot find pan connection");
     return;
   } else if (conn->state != PAN_STATE_OPEN) {
-    log::error("conn is not opened, conn:{}, conn->state:{}", fmt::ptr(conn), conn->state);
+    log::error("conn is not opened, conn:{}, conn->state:{}", std::format_ptr(conn), conn->state);
     return;
   }
 

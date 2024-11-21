@@ -217,7 +217,6 @@ public class HeadsetClientService extends ProfileService {
         return amVol;
     }
 
-    @VisibleForTesting
     int amToHfVol(int amVol) {
         int amRange = (mMaxAmVcVol > mMinAmVcVol) ? (mMaxAmVcVol - mMinAmVcVol) : 1;
         int hfRange = MAX_HFP_SCO_VOICE_CALL_VOLUME - MIN_HFP_SCO_VOICE_CALL_VOLUME;

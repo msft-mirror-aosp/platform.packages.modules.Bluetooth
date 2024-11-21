@@ -359,7 +359,7 @@
         errorLine1="                SimpleDateFormat parser = new SimpleDateFormat(TIMESTAMP_FORMAT);"
         errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/pbapclient/CallLogPullRequest.java"
+            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/pbapclient/obex/CallLogPullRequest.java"
             line="105"
             column="43"/>
     </issue>

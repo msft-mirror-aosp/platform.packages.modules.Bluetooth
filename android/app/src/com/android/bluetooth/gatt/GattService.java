@@ -24,6 +24,8 @@ import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREG
 import static com.android.bluetooth.Utils.callerIsSystemOrActiveOrManagedUser;
 import static com.android.bluetooth.Utils.checkCallerTargetSdk;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
@@ -55,7 +57,6 @@ import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.AttributionSource;
-import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.PackageManager.PackageInfoFlags;
@@ -149,22 +150,19 @@ public class GattService extends ProfileService {
 
     @VisibleForTesting static final int GATT_CLIENT_LIMIT_PER_APP = 32;
 
-    public final TransitionalScanHelper mTransitionalScanHelper =
-            new TransitionalScanHelper(this, this::isTestModeEnabled);
+    public final TransitionalScanHelper mTransitionalScanHelper;
 
     /** This is only used when Flags.scanManagerRefactor() is true. */
     private static GattService sGattService;
 
     /** List of our registered clients. */
-    ContextMap<IBluetoothGattCallback> mClientMap = new ContextMap<>();
+    @VisibleForTesting ContextMap<IBluetoothGattCallback> mClientMap = new ContextMap<>();
 
     /** List of our registered server apps. */
-    ContextMap<IBluetoothGattServerCallback> mServerMap = new ContextMap<>();
+    @VisibleForTesting ContextMap<IBluetoothGattServerCallback> mServerMap = new ContextMap<>();
 
     /** Server handle map. */
-    HandleMap mHandleMap = new HandleMap();
-
-    private List<UUID> mAdvertisingServiceUuids = new ArrayList<>();
+    private final HandleMap mHandleMap = new HandleMap();
 
     /**
      * Set of restricted (which require a BLUETOOTH_PRIVILEGED permission) handles per connectionId.
@@ -177,46 +175,31 @@ public class GattService extends ProfileService {
      */
     private final HashMap<String, Integer> mPermits = new HashMap<>();
 
-    private AdapterService mAdapterService;
-    AdvertiseManager mAdvertiseManager;
-    DistanceMeasurementManager mDistanceMeasurementManager;
-    private Handler mTestModeHandler;
-    private ActivityManager mActivityManager;
-    private PackageManager mPackageManager;
     private final Object mTestModeLock = new Object();
 
-    public GattService(Context ctx) {
-        super(ctx);
-    }
+    private final AdapterService mAdapterService;
+    private final AdvertiseManager mAdvertiseManager;
+    private final GattNativeInterface mNativeInterface;
+    private final DistanceMeasurementManager mDistanceMeasurementManager;
+    private final ActivityManager mActivityManager;
+    private final PackageManager mPackageManager;
 
-    public static boolean isEnabled() {
-        return BluetoothProperties.isProfileGattEnabled().orElse(true);
-    }
+    private Handler mTestModeHandler;
 
-    /** Reliable write queue */
-    @VisibleForTesting Set<String> mReliableQueue = new HashSet<>();
+    public GattService(AdapterService adapterService) {
+        super(requireNonNull(adapterService));
+        mAdapterService = adapterService;
+        mActivityManager = requireNonNull(getSystemService(ActivityManager.class));
+        mPackageManager = requireNonNull(mAdapterService.getPackageManager());
 
-    private GattNativeInterface mNativeInterface;
-
-    @Override
-    protected IProfileServiceBinder initBinder() {
-        return new BluetoothGattBinder(this);
-    }
-
-    @Override
-    public void start() {
-        Log.d(TAG, "start()");
-
-        if (Flags.scanManagerRefactor() && sGattService != null) {
-            throw new IllegalStateException("start() called twice");
-        }
+        mTransitionalScanHelper =
+                new TransitionalScanHelper(adapterService, this::isTestModeEnabled);
 
         Settings.Global.putInt(
                 getContentResolver(), "bluetooth_sanitized_exposure_notification_supported", 1);
 
         mNativeInterface = GattObjectsFactory.getInstance().getNativeInterface();
         mNativeInterface.init(this);
-        mAdapterService = AdapterService.getAdapterService();
         mAdvertiseManager = new AdvertiseManager(this);
 
         if (!Flags.scanManagerRefactor()) {
@@ -227,12 +210,21 @@ public class GattService extends ProfileService {
         mDistanceMeasurementManager =
                 GattObjectsFactory.getInstance().createDistanceMeasurementManager(mAdapterService);
 
-        mActivityManager = getSystemService(ActivityManager.class);
-        mPackageManager = mAdapterService.getPackageManager();
-
         if (Flags.scanManagerRefactor()) {
             setGattService(this);
         }
+    }
+
+    public static boolean isEnabled() {
+        return BluetoothProperties.isProfileGattEnabled().orElse(true);
+    }
+
+    /** Reliable write queue */
+    @VisibleForTesting Set<String> mReliableQueue = new HashSet<>();
+
+    @Override
+    protected IProfileServiceBinder initBinder() {
+        return new BluetoothGattBinder(this);
     }
 
     @Override
@@ -249,9 +241,7 @@ public class GattService extends ProfileService {
         }
         mAdvertiseManager.clear();
         mClientMap.clear();
-        if (Flags.gattCleanupRestrictedHandles()) {
-            mRestrictedHandles.clear();
-        }
+        mRestrictedHandles.clear();
         mServerMap.clear();
         mHandleMap.clear();
         mReliableQueue.clear();
@@ -261,16 +251,9 @@ public class GattService extends ProfileService {
     @Override
     public void cleanup() {
         Log.d(TAG, "cleanup()");
-        if (mNativeInterface != null) {
-            mNativeInterface.cleanup();
-            mNativeInterface = null;
-        }
-        if (mAdvertiseManager != null) {
-            mAdvertiseManager.cleanup();
-        }
-        if (mDistanceMeasurementManager != null) {
-            mDistanceMeasurementManager.cleanup();
-        }
+        mNativeInterface.cleanup();
+        mAdvertiseManager.cleanup();
+        mDistanceMeasurementManager.cleanup();
         if (!Flags.scanManagerRefactor()) {
             mTransitionalScanHelper.cleanup();
         }
@@ -1281,6 +1264,26 @@ public class GattService extends ProfileService {
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
             return service.getLocalChannelSoundingMaxSupportedSecurityLevel();
         }
+
+        @Override
+        public int[] getChannelSoundingSupportedSecurityLevels(
+                AttributionSource attributionSource) {
+            GattService service = getService();
+
+            if (service == null
+                    || !callerIsSystemOrActiveOrManagedUser(
+                            service, TAG, "GattService getChannelSoundingSupportedSecurityLevels")
+                    || !Utils.checkConnectPermissionForDataDelivery(
+                            service,
+                            attributionSource,
+                            "GattService getChannelSoundingSupportedSecurityLevels")) {
+                return new int[0];
+            }
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            return service.getChannelSoundingSupportedSecurityLevels().stream()
+                    .mapToInt(i -> i)
+                    .toArray();
+        }
     }
     ;
 
@@ -1350,9 +1353,7 @@ public class GattService extends ProfileService {
         mClientMap.removeConnection(clientIf, connId);
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getById(clientIf);
 
-        if (Flags.gattCleanupRestrictedHandles()) {
-            mRestrictedHandles.remove(connId);
-        }
+        mRestrictedHandles.remove(connId);
 
         // Remove AtomicBoolean representing permit if no other connections rely on this remote
         // device.
@@ -2112,6 +2113,10 @@ public class GattService extends ProfileService {
         return mDistanceMeasurementManager.getLocalChannelSoundingMaxSupportedSecurityLevel();
     }
 
+    Set<Integer> getChannelSoundingSupportedSecurityLevels() {
+        return mDistanceMeasurementManager.getChannelSoundingSupportedSecurityLevels();
+    }
+
     /**************************************************************************
      * GATT Service functions - CLIENT
      *************************************************************************/
@@ -2729,7 +2734,7 @@ public class GattService extends ProfileService {
         // Link supervision timeout is measured in N * 10ms
         int timeout = 500; // 5s
 
-        CompanionManager manager = AdapterService.getAdapterService().getCompanionManager();
+        CompanionManager manager = mAdapterService.getCompanionManager();
 
         minInterval =
                 manager.getGattConnParameters(
@@ -3607,10 +3612,6 @@ public class GattService extends ProfileService {
     }
 
     private void logClientForegroundInfo(int uid, boolean isDirect) {
-        if (mPackageManager == null) {
-            return;
-        }
-
         String packageName = mPackageManager.getPackagesForUid(uid)[0];
         int importance = mActivityManager.getPackageImportance(packageName);
         if (importance == IMPORTANCE_FOREGROUND_SERVICE) {
@@ -3635,10 +3636,6 @@ public class GattService extends ProfileService {
     }
 
     private void logServerForegroundInfo(int uid, boolean isDirect) {
-        if (mPackageManager == null) {
-            return;
-        }
-
         String packageName = mPackageManager.getPackagesForUid(uid)[0];
         int importance = mActivityManager.getPackageImportance(packageName);
         if (importance == IMPORTANCE_FOREGROUND_SERVICE) {
@@ -3733,11 +3730,6 @@ public class GattService extends ProfileService {
     @Override
     public void dump(StringBuilder sb) {
         super.dump(sb);
-        println(sb, "mAdvertisingServiceUuids:");
-        for (UUID uuid : mAdvertisingServiceUuids) {
-            println(sb, "  " + uuid);
-        }
-
         sb.append("\nRegistered App\n");
         dumpRegisterId(sb);
 

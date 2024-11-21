@@ -41,10 +41,6 @@
 #include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
-#ifndef AVDT_DEBUG
-#define AVDT_DEBUG FALSE
-#endif
-
 /*****************************************************************************
  * constants
  ****************************************************************************/
@@ -356,12 +352,12 @@ inline std::string tc_type_text(uint8_t type) {
   }
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tTRANSPORT_CHANNEL_STATE> : enum_formatter<tTRANSPORT_CHANNEL_STATE> {};
 template <>
 struct formatter<tTRANSPORT_CHANNEL_TYPE> : enum_formatter<tTRANSPORT_CHANNEL_TYPE> {};
-}  // namespace fmt
+}  // namespace std
 
 /*****************************************************************************
  * data types

@@ -19,24 +19,43 @@
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
-#include <lc3.h>
+#include <stdio.h>
 
+#include <algorithm>
+#include <bitset>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <deque>
+#include <functional>
+#include <list>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <optional>
+#include <ostream>
+#include <sstream>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 #include "audio_hal_client/audio_hal_client.h"
 #include "audio_hal_interface/le_audio_software.h"
 #include "bt_types.h"
 #include "bta/csis/csis_types.h"
+#include "bta_csis_api.h"
 #include "bta_gatt_api.h"
 #include "bta_gatt_queue.h"
 #include "bta_groups.h"
 #include "bta_le_audio_api.h"
 #include "bta_le_audio_broadcaster_api.h"
 #include "btif/include/btif_profile_storage.h"
+#include "btm_api_types.h"
+#include "btm_ble_api_types.h"
 #include "btm_iso_api.h"
+#include "btm_iso_api_types.h"
+#include "btm_sec_api_types.h"
 #include "client_parser.h"
 #include "codec_interface.h"
 #include "codec_manager.h"
@@ -44,23 +63,29 @@
 #include "common/time_util.h"
 #include "content_control_id_keeper.h"
 #include "devices.h"
+#include "gatt/database.h"
 #include "gatt_api.h"
+#include "gattdefs.h"
 #include "gmap_client.h"
 #include "gmap_server.h"
+#include "hardware/bt_le_audio.h"
 #include "hci/controller_interface.h"
+#include "hci_error_code.h"
 #include "include/hardware/bt_gmap.h"
+#include "internal_include/bt_trace.h"
 #include "internal_include/stack_config.h"
 #include "le_audio/device_groups.h"
+#include "le_audio/le_audio_log_history.h"
 #include "le_audio_health_status.h"
 #include "le_audio_set_configuration_provider.h"
 #include "le_audio_types.h"
 #include "le_audio_utils.h"
 #include "main/shim/entry.h"
 #include "metrics_collector.h"
+#include "osi/include/alarm.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_sec.h"
-#include "stack/include/acl_api.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
@@ -68,6 +93,15 @@
 #include "stack/include/main_thread.h"
 #include "state_machine.h"
 #include "storage_helper.h"
+#include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
+
+#ifdef TARGET_FLOSS
+#include <audio_hal_interface/audio_linux.h>
+#else
+#include <hardware/audio.h>
+#endif  // TARGET_FLOSS
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
@@ -75,7 +109,6 @@
 using base::Closure;
 using bluetooth::Uuid;
 using bluetooth::common::ToString;
-using bluetooth::gmap::RolesBitMask;
 using bluetooth::groups::DeviceGroups;
 using bluetooth::groups::DeviceGroupsCallbacks;
 using bluetooth::hci::IsoManager;
@@ -88,7 +121,6 @@ using bluetooth::le_audio::ContentControlIdKeeper;
 using bluetooth::le_audio::DeviceConnectState;
 using bluetooth::le_audio::DsaMode;
 using bluetooth::le_audio::DsaModes;
-using bluetooth::le_audio::GmapCharacteristic;
 using bluetooth::le_audio::GmapClient;
 using bluetooth::le_audio::GmapServer;
 using bluetooth::le_audio::GroupNodeStatus;
@@ -115,7 +147,6 @@ using bluetooth::le_audio::types::AudioLocations;
 using bluetooth::le_audio::types::BidirectionalPair;
 using bluetooth::le_audio::types::DataPathState;
 using bluetooth::le_audio::types::hdl_pair;
-using bluetooth::le_audio::types::kDefaultScanDurationS;
 using bluetooth::le_audio::types::kLeAudioContextAllRemoteSource;
 using bluetooth::le_audio::types::kLeAudioContextAllTypesArray;
 using bluetooth::le_audio::types::LeAudioContextType;
@@ -182,10 +213,10 @@ std::ostream& operator<<(std::ostream& os, const AudioState& audio_state) {
   return os;
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<AudioState> : ostream_formatter {};
-}  // namespace fmt
+}  // namespace std
 
 namespace {
 void le_audio_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data);
@@ -621,9 +652,9 @@ public:
             "target state: {}, check_if_recovery_needed: {}",
             group_id, ToString(group->GetState()), ToString(group->GetTargetState()),
             check_if_recovery_needed);
+    group->PrintDebugState();
     group->SetTargetState(AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
     group->ClearAllCises();
-    group->PrintDebugState();
 
     /* There is an issue with a setting up stream or any other operation which
      * are gatt operations. It means peer is not responsible. Lets close ACL
@@ -797,7 +828,7 @@ public:
       }
     }
 
-    log::debug("New group {}, id: {}", fmt::ptr(new_group), new_group->group_id_);
+    log::debug("New group {}, id: {}", std::format_ptr(new_group), new_group->group_id_);
 
     /* If device was in the group and it was not removed by the application,
      * lets do it now
@@ -838,8 +869,8 @@ public:
       log::debug("group is null");
       return;
     }
-    log::debug("Group {}, id: {}, size: {}, is cig_state {}", fmt::ptr(group), group->group_id_,
-               group->Size(), ToString(group->cig.GetState()));
+    log::debug("Group {}, id: {}, size: {}, is cig_state {}", std::format_ptr(group),
+               group->group_id_, group->Size(), ToString(group->cig.GetState()));
     if (group->IsEmpty() && (group->cig.GetState() == bluetooth::le_audio::types::CigState::NONE)) {
       lastNotifiedGroupStreamStatusMap_.erase(group->group_id_);
       aseGroups_.Remove(group->group_id_);
@@ -2278,6 +2309,9 @@ public:
 
     leAudioDevice->conn_id_ = conn_id;
     leAudioDevice->mtu_ = mtu;
+    if (com::android::bluetooth::flags::gatt_queue_cleanup_connected()) {
+      BtaGattQueue::Clean(conn_id);
+    }
 
     /* Remove device from the background connect (it might be either Allow list
      * or TA) and add it again with reconnection_mode_. In case it is TA, we are
@@ -2657,7 +2691,8 @@ public:
      * issues
      */
     if (group == nullptr || !group->IsEnabled()) {
-      log::error("Group id {} ({}) disabled or null", leAudioDevice->group_id_, fmt::ptr(group));
+      log::error("Group id {} ({}) disabled or null", leAudioDevice->group_id_,
+                 std::format_ptr(group));
       return;
     }
 
@@ -2771,7 +2806,7 @@ public:
   void OnServiceChangeEvent(const RawAddress& address) {
     LeAudioDevice* leAudioDevice = leAudioDevices_.FindByAddress(address);
     if (!leAudioDevice) {
-      log::warn("Skipping unknown leAudioDevice {} ({})", address, fmt::ptr(leAudioDevice));
+      log::warn("Skipping unknown leAudioDevice {} ({})", address, std::format_ptr(leAudioDevice));
       return;
     }
 
@@ -2830,7 +2865,7 @@ public:
     LeAudioDevice* leAudioDevice = leAudioDevices_.FindByAddress(address);
     if (!leAudioDevice || (leAudioDevice->conn_id_ == GATT_INVALID_CONN_ID)) {
       log::verbose("skipping unknown leAudioDevice, address {} ({})", address,
-                   fmt::ptr(leAudioDevice));
+                   std::format_ptr(leAudioDevice));
       return;
     }
 

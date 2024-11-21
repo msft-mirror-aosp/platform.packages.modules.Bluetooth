@@ -86,7 +86,7 @@ tPORT* port_allocate_port(uint8_t dlci, const RawAddress& bd_addr) {
       p_port->bd_addr = bd_addr;
       rfc_cb.rfc.last_port_index = port_index;
       log::verbose("rfc_cb.port.port[{}]:{} chosen, last_port_index:{}, bd_addr={}", port_index,
-                   fmt::ptr(p_port), rfc_cb.rfc.last_port_index, bd_addr);
+                   std::format_ptr(p_port), rfc_cb.rfc.last_port_index, bd_addr);
       return p_port;
     }
   }
@@ -199,7 +199,7 @@ void port_select_mtu(tPORT* p_port) {
  *
  ******************************************************************************/
 void port_release_port(tPORT* p_port) {
-  log::verbose("p_port: {} state: {} keep_handle: {}", fmt::ptr(p_port), p_port->rfc.state,
+  log::verbose("p_port: {} state: {} keep_handle: {}", std::format_ptr(p_port), p_port->rfc.state,
                p_port->keep_port_handle);
 
   mutex_global_lock();
@@ -280,7 +280,8 @@ tRFC_MCB* port_find_mcb(const RawAddress& bd_addr) {
   for (tRFC_MCB& mcb : rfc_cb.port.rfc_mcb) {
     if ((mcb.state != RFC_MX_STATE_IDLE) && (mcb.bd_addr == bd_addr)) {
       /* Multiplexer channel found do not change anything */
-      log::verbose("found, bd_addr:{}, rfc_mcb:{}, lcid:0x{:x}", bd_addr, fmt::ptr(&mcb), mcb.lcid);
+      log::verbose("found, bd_addr:{}, rfc_mcb:{}, lcid:0x{:x}", bd_addr, std::format_ptr(&mcb),
+                   mcb.lcid);
       return &mcb;
     }
   }
@@ -307,14 +308,15 @@ tPORT* port_find_mcb_dlci_port(tRFC_MCB* p_mcb, uint8_t dlci) {
   }
 
   if (dlci > RFCOMM_MAX_DLCI) {
-    log::warn("DLCI {} is too large, bd_addr={}, p_mcb={}", dlci, p_mcb->bd_addr, fmt::ptr(p_mcb));
+    log::warn("DLCI {} is too large, bd_addr={}, p_mcb={}", dlci, p_mcb->bd_addr,
+              std::format_ptr(p_mcb));
     return nullptr;
   }
 
   uint8_t handle = p_mcb->port_handles[dlci];
   if (handle == 0) {
     log::info("Cannot find allocated RFCOMM app port for DLCI {} on {}, p_mcb={}", dlci,
-              p_mcb->bd_addr, fmt::ptr(p_mcb));
+              p_mcb->bd_addr, std::format_ptr(p_mcb));
     return nullptr;
   }
   return &rfc_cb.port.port[handle - 1];

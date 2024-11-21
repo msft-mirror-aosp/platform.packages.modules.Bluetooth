@@ -2671,6 +2671,7 @@ public class AdapterService extends Service {
                 deviceProp.setBondingInitiatedLocally(false);
             }
 
+            service.logUserBondResponse(device, false, source);
             return service.mNativeInterface.cancelBond(getBytesFromAddress(device.getAddress()));
         }
 
@@ -2697,7 +2698,9 @@ public class AdapterService extends Service {
                                         : "bond state is " + deviceProp.getBondState()));
                 return false;
             }
+            service.logUserBondResponse(device, false, source);
             service.mBondAttemptCallerInfo.remove(device.getAddress());
+            service.mPhonePolicy.onRemoveBondRequest(device);
             deviceProp.setBondingInitiatedLocally(false);
 
             Message msg = service.mBondStateMachine.obtainMessage(BondStateMachine.REMOVE_BOND);
@@ -3111,8 +3114,7 @@ public class AdapterService extends Service {
                         0x534e4554, "139287605", -1, "PIN code length mismatch");
                 return false;
             }
-            service.logUserBondResponse(
-                    device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_PIN_REPLIED);
+            service.logUserBondResponse(device, accept, source);
             Log.i(
                     TAG,
                     "setPin: device="
@@ -3150,8 +3152,7 @@ public class AdapterService extends Service {
                         0x534e4554, "139287605", -1, "Passkey length mismatch");
                 return false;
             }
-            service.logUserBondResponse(
-                    device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_SSP_REPLIED);
+            service.logUserBondResponse(device, accept, source);
             Log.i(
                     TAG,
                     "setPasskey: device="
@@ -3185,8 +3186,7 @@ public class AdapterService extends Service {
                 Log.e(TAG, "setPairingConfirmation: device=" + device + ", not bonding");
                 return false;
             }
-            service.logUserBondResponse(
-                    device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_SSP_REPLIED);
+            service.logUserBondResponse(device, accept, source);
             Log.i(
                     TAG,
                     "setPairingConfirmation: device="
@@ -5758,17 +5758,19 @@ public class AdapterService extends Service {
         }
     }
 
-    void logUserBondResponse(BluetoothDevice device, boolean accepted, int event) {
+    void logUserBondResponse(BluetoothDevice device, boolean accepted, AttributionSource source) {
+        if (accepted) {
+            return;
+        }
         final long token = Binder.clearCallingIdentity();
         try {
-            BluetoothStatsLog.write(
-                    BluetoothStatsLog.BLUETOOTH_BOND_STATE_CHANGED,
-                    obfuscateAddress(device),
-                    0,
-                    device.getType(),
-                    BluetoothDevice.BOND_BONDING,
-                    event,
-                    accepted ? 0 : BluetoothDevice.UNBOND_REASON_AUTH_REJECTED);
+            MetricsLogger.getInstance()
+                    .logBluetoothEvent(
+                            device,
+                            BluetoothStatsLog
+                                    .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__USER_CONF_REQUEST,
+                            BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__FAIL,
+                            source.getUid());
         } finally {
             Binder.restoreCallingIdentity(token);
         }

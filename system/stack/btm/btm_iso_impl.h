@@ -95,11 +95,11 @@ struct iso_impl {
   iso_impl() {
     iso_credits_ = shim::GetController()->GetControllerIsoBufferSize().total_num_le_packets_;
     iso_buffer_size_ = shim::GetController()->GetControllerIsoBufferSize().le_data_packet_length_;
-    log::info("{} created, iso credits: {}, buffer size: {}.", fmt::ptr(this), iso_credits_.load(),
-              iso_buffer_size_);
+    log::info("{} created, iso credits: {}, buffer size: {}.", std::format_ptr(this),
+              iso_credits_.load(), iso_buffer_size_);
   }
 
-  ~iso_impl() { log::info("{} removed.", fmt::ptr(this)); }
+  ~iso_impl() { log::info("{} removed.", std::format_ptr(this)); }
 
   void handle_register_cis_callbacks(CigCallbacks* callbacks) {
     log::assert_that(callbacks != nullptr, "Invalid CIG callbacks");

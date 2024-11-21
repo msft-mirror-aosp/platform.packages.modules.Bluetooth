@@ -178,9 +178,9 @@ __END_DECLS
 #if __has_include(<bluetooth/log.h>)
 #include <bluetooth/log.h>
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth_sdp_types> : enum_formatter<bluetooth_sdp_types> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif  // __has_include(<bluetooth/log.h>)

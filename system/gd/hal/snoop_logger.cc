@@ -1409,12 +1409,12 @@ void SnoopLogger::LogTracePoint(const HciPacket& packet, Direction direction, Pa
           evt_code == static_cast<uint8_t>(hci::EventCode::VENDOR_SPECIFIC)) {
         uint8_t subevt_code = packet[2];
         std::string message =
-                fmt::format("BTSL:{}/{}/{}/{:02x}/{:02x}", static_cast<uint8_t>(type),
+                std::format("BTSL:{}/{}/{}/{:02x}/{:02x}", static_cast<uint8_t>(type),
                             static_cast<uint8_t>(direction), packet.size(), evt_code, subevt_code);
 
         ATRACE_INSTANT_FOR_TRACK(LOG_TAG, message.c_str());
       } else {
-        std::string message = fmt::format("BTSL:{}/{}/{}/{:02x}", static_cast<uint8_t>(type),
+        std::string message = std::format("BTSL:{}/{}/{}/{:02x}", static_cast<uint8_t>(type),
                                           static_cast<uint8_t>(direction), packet.size(), evt_code);
 
         ATRACE_INSTANT_FOR_TRACK(LOG_TAG, message.c_str());
@@ -1423,7 +1423,7 @@ void SnoopLogger::LogTracePoint(const HciPacket& packet, Direction direction, Pa
     case PacketType::CMD: {
       uint16_t op_code = packet[0] | (packet[1] << 8);
 
-      std::string message = fmt::format("BTSL:{}/{}/{}/{:04x}", static_cast<uint8_t>(type),
+      std::string message = std::format("BTSL:{}/{}/{}/{:04x}", static_cast<uint8_t>(type),
                                         static_cast<uint8_t>(direction), packet.size(), op_code);
 
       ATRACE_INSTANT_FOR_TRACK(LOG_TAG, message.c_str());
@@ -1432,15 +1432,15 @@ void SnoopLogger::LogTracePoint(const HciPacket& packet, Direction direction, Pa
       uint16_t handle = (packet[0] | (packet[1] << 8)) & 0x0fff;
       uint8_t pb_flag = (packet[1] & 0x30) >> 4;
 
-      std::string message = fmt::format("BTSL:{}/{}/{}/{:03x}/{}", static_cast<uint8_t>(type),
-                                        static_cast<uint8_t>(direction), packet.size(), handle,
-                                        pb_flag);
+      std::string message =
+              std::format("BTSL:{}/{}/{}/{:03x}/{}", static_cast<uint8_t>(type),
+                          static_cast<uint8_t>(direction), packet.size(), handle, pb_flag);
 
       ATRACE_INSTANT_FOR_TRACK(LOG_TAG, message.c_str());
     } break;
     case PacketType::ISO:
     case PacketType::SCO: {
-      std::string message = fmt::format("BTSL:{}/{}/{}", static_cast<uint8_t>(type),
+      std::string message = std::format("BTSL:{}/{}/{}", static_cast<uint8_t>(type),
                                         static_cast<uint8_t>(direction), packet.size());
 
       ATRACE_INSTANT_FOR_TRACK(LOG_TAG, message.c_str());

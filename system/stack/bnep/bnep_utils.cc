@@ -30,7 +30,6 @@
 
 #include "bnep_api.h"
 #include "bnep_int.h"
-#include "bt_transport.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
 #include "l2cap_types.h"
@@ -43,6 +42,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/l2cap_interface.h"
 #include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
@@ -724,7 +724,8 @@ uint8_t* bnep_process_control_packet(tBNEP_CONN* p_bcb, uint8_t* p, uint16_t* re
     if (rem_len != NULL) {
       *rem_len = 0;
     }
-    log::verbose("invalid packet: p = {} rem_len = {}", fmt::ptr(p), fmt::ptr(rem_len));
+    log::verbose("invalid packet: p = {} rem_len = {}", std::format_ptr(p),
+                 std::format_ptr(rem_len));
     return NULL;
   }
   uint16_t rem_len_orig = *rem_len;

@@ -39,14 +39,14 @@ typedef enum {
   A2DP_CTRL_GET_PRESENTATION_POSITION,
 } tA2DP_CTRL_CMD;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tA2DP_CTRL_CMD> : enum_formatter<tA2DP_CTRL_CMD> {};
 template <>
 struct formatter<audio_usage_t> : enum_formatter<audio_usage_t> {};
 template <>
 struct formatter<audio_content_type_t> : enum_formatter<audio_content_type_t> {};
-}  // namespace fmt
+}  // namespace std
 
 namespace bluetooth {
 namespace audio {

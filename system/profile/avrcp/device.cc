@@ -44,7 +44,7 @@ extern bool btif_av_both_enable(void);
 extern bool btif_av_src_sink_coexist_enabled(void);
 
 template <>
-struct fmt::formatter<bluetooth::avrcp::PlayState> : enum_formatter<bluetooth::avrcp::PlayState> {};
+struct std::formatter<bluetooth::avrcp::PlayState> : enum_formatter<bluetooth::avrcp::PlayState> {};
 
 namespace bluetooth {
 namespace avrcp {

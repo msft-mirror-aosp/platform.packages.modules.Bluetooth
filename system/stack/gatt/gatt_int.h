@@ -702,9 +702,9 @@ BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code, uint16_t ha
 }  // namespace legacy
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tGATT_CH_STATE> : enum_formatter<tGATT_CH_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif

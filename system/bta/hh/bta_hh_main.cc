@@ -25,11 +25,12 @@
 #define LOG_TAG "bt_bta_hh"
 
 #include <bluetooth/log.h>
-#include <string.h>  // memset
 
 #include <cstdint>
 
 #include "bta/hh/bta_hh_int.h"
+#include "bta_hh_api.h"
+#include "hiddefs.h"
 #include "main/shim/dumpsys.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
