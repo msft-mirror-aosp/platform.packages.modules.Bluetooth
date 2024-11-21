@@ -381,9 +381,9 @@ public:
   tBTM_SEC_REC sec_rec;
 };
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tSECURITY_STATE> : string_formatter<tSECURITY_STATE, &security_state_text> {};
 template <>
 struct formatter<tBLE_RAND_ADDR_TYPE> : enum_formatter<tBLE_RAND_ADDR_TYPE> {};
-}  // namespace fmt
+}  // namespace std

@@ -34,7 +34,7 @@ using bluetooth::common::ToString;
 using bluetooth::le_audio::types::AudioContexts;
 using bluetooth::le_audio::types::LeAudioContextType;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<audio_usage_t> : enum_formatter<audio_usage_t> {};
 template <>
@@ -43,7 +43,7 @@ template <>
 struct formatter<audio_source_t> : enum_formatter<audio_source_t> {};
 template <>
 struct formatter<audio_devices_t> : enum_formatter<audio_devices_t> {};
-}  // namespace fmt
+}  // namespace std
 
 namespace bluetooth::le_audio {
 namespace utils {
@@ -584,7 +584,7 @@ static bool IsCodecConfigSettingSupported(
     return false;
   }
 
-  log::debug(": Settings for format: 0x{:#02x} ", codec_id.coding_format);
+  log::debug("Verifying coding format: {:#02x} ", codec_id.coding_format);
 
   if (utils::IsCodecUsingLtvFormat(codec_id)) {
     log::assert_that(!pac.codec_spec_caps.IsEmpty(),

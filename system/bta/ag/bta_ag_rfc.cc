@@ -107,7 +107,7 @@ static void bta_ag_port_cback(uint32_t /* code */, uint16_t port_handle, uint16_
 static void bta_ag_mgmt_cback(const tPORT_RESULT code, uint16_t port_handle, uint16_t handle) {
   tBTA_AG_SCB* p_scb = bta_ag_scb_by_idx(handle);
   log::verbose("code={}, port_handle={}, scb_handle={}, p_scb=0x{}", code, port_handle, handle,
-               fmt::ptr(p_scb));
+               std::format_ptr(p_scb));
   if (p_scb == nullptr) {
     log::warn("cannot find scb, code={}, port_handle={}, handle={}", code, port_handle, handle);
     return;
@@ -262,10 +262,10 @@ void bta_ag_start_servers(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK services) {
         log::error(
                 "RFCOMM_CreateConnectionWithSecurity ERROR {}, p_scb={}, "
                 "services=0x{:x}, mgmt_cback_index={}",
-                status, fmt::ptr(p_scb), services, management_callback_index);
+                status, std::format_ptr(p_scb), services, management_callback_index);
       }
-      log::verbose("p_scb=0x{}, services=0x{:04x}, mgmt_cback_index={}", fmt::ptr(p_scb), services,
-                   management_callback_index);
+      log::verbose("p_scb=0x{}, services=0x{:04x}, mgmt_cback_index={}", std::format_ptr(p_scb),
+                   services, management_callback_index);
     }
   }
 }
@@ -332,7 +332,7 @@ void bta_ag_rfc_do_open(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
           bta_ag_uuid[p_scb->conn_service], p_scb->peer_scn, false, BTA_AG_MTU, p_scb->peer_addr,
           &(p_scb->conn_handle), bta_ag_mgmt_cback_tbl[management_callback_index],
           BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
-  log::verbose("p_scb=0x{}, conn_handle={}, mgmt_cback_index={}, status={}", fmt::ptr(p_scb),
+  log::verbose("p_scb=0x{}, conn_handle={}, mgmt_cback_index={}, status={}", std::format_ptr(p_scb),
                p_scb->conn_handle, management_callback_index, status);
   if (status == PORT_SUCCESS) {
     bta_ag_setup_port(p_scb, p_scb->conn_handle);

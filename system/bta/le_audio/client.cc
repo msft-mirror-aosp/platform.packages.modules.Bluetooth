@@ -213,10 +213,10 @@ std::ostream& operator<<(std::ostream& os, const AudioState& audio_state) {
   return os;
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<AudioState> : ostream_formatter {};
-}  // namespace fmt
+}  // namespace std
 
 namespace {
 void le_audio_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data);
@@ -828,7 +828,7 @@ public:
       }
     }
 
-    log::debug("New group {}, id: {}", fmt::ptr(new_group), new_group->group_id_);
+    log::debug("New group {}, id: {}", std::format_ptr(new_group), new_group->group_id_);
 
     /* If device was in the group and it was not removed by the application,
      * lets do it now
@@ -869,8 +869,8 @@ public:
       log::debug("group is null");
       return;
     }
-    log::debug("Group {}, id: {}, size: {}, is cig_state {}", fmt::ptr(group), group->group_id_,
-               group->Size(), ToString(group->cig.GetState()));
+    log::debug("Group {}, id: {}, size: {}, is cig_state {}", std::format_ptr(group),
+               group->group_id_, group->Size(), ToString(group->cig.GetState()));
     if (group->IsEmpty() && (group->cig.GetState() == bluetooth::le_audio::types::CigState::NONE)) {
       lastNotifiedGroupStreamStatusMap_.erase(group->group_id_);
       aseGroups_.Remove(group->group_id_);
@@ -2309,6 +2309,9 @@ public:
 
     leAudioDevice->conn_id_ = conn_id;
     leAudioDevice->mtu_ = mtu;
+    if (com::android::bluetooth::flags::gatt_queue_cleanup_connected()) {
+      BtaGattQueue::Clean(conn_id);
+    }
 
     /* Remove device from the background connect (it might be either Allow list
      * or TA) and add it again with reconnection_mode_. In case it is TA, we are
@@ -2688,7 +2691,8 @@ public:
      * issues
      */
     if (group == nullptr || !group->IsEnabled()) {
-      log::error("Group id {} ({}) disabled or null", leAudioDevice->group_id_, fmt::ptr(group));
+      log::error("Group id {} ({}) disabled or null", leAudioDevice->group_id_,
+                 std::format_ptr(group));
       return;
     }
 
@@ -2802,7 +2806,7 @@ public:
   void OnServiceChangeEvent(const RawAddress& address) {
     LeAudioDevice* leAudioDevice = leAudioDevices_.FindByAddress(address);
     if (!leAudioDevice) {
-      log::warn("Skipping unknown leAudioDevice {} ({})", address, fmt::ptr(leAudioDevice));
+      log::warn("Skipping unknown leAudioDevice {} ({})", address, std::format_ptr(leAudioDevice));
       return;
     }
 
@@ -2861,7 +2865,7 @@ public:
     LeAudioDevice* leAudioDevice = leAudioDevices_.FindByAddress(address);
     if (!leAudioDevice || (leAudioDevice->conn_id_ == GATT_INVALID_CONN_ID)) {
       log::verbose("skipping unknown leAudioDevice, address {} ({})", address,
-                   fmt::ptr(leAudioDevice));
+                   std::format_ptr(leAudioDevice));
       return;
     }
 

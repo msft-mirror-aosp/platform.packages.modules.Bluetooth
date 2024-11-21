@@ -320,7 +320,7 @@ uint16_t L2CA_ConnectReq(uint16_t psm, const RawAddress& p_bd_addr) {
     p_lcb = l2cu_allocate_lcb(p_bd_addr, false, BT_TRANSPORT_BR_EDR);
     /* currently use BR/EDR for ERTM mode l2cap connection */
     if (p_lcb == nullptr) {
-      log::warn("connection not started for PSM=0x{:x}, p_lcb={}", psm, fmt::ptr(p_lcb));
+      log::warn("connection not started for PSM=0x{:x}, p_lcb={}", psm, std::format_ptr(p_lcb));
       return 0;
     }
     l2cu_create_conn_br_edr(p_lcb);
@@ -520,7 +520,7 @@ uint16_t L2CA_ConnectLECocReq(uint16_t psm, const RawAddress& p_bd_addr, tL2CAP_
     if ((p_lcb == NULL)
         /* currently use BR/EDR for ERTM mode l2cap connection */
         || (!l2cu_create_conn_le(p_lcb))) {
-      log::warn("conn not started for PSM: 0x{:04x}  p_lcb: 0x{}", psm, fmt::ptr(p_lcb));
+      log::warn("conn not started for PSM: 0x{:04x}  p_lcb: 0x{}", psm, std::format_ptr(p_lcb));
       return 0;
     }
   }
@@ -1540,7 +1540,7 @@ uint16_t L2CA_FlushChannel(uint16_t lcid, uint16_t num_to_flush) {
             "L2CA_FlushChannel (FLUSH)  CID: 0x{:04x}  NumToFlush: {}  QC: {}  "
             "pFirst: 0x{}",
             lcid, num_to_flush, fixed_queue_length(p_ccb->xmit_hold_q),
-            fmt::ptr(fixed_queue_try_peek_first(p_ccb->xmit_hold_q)));
+            std::format_ptr(fixed_queue_try_peek_first(p_ccb->xmit_hold_q)));
   } else {
     log::verbose("L2CA_FlushChannel (QUERY)  CID: 0x{:04x}", lcid);
   }

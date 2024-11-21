@@ -32,6 +32,7 @@ import com.android.bluetooth.btservice.AdapterService;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -200,6 +201,11 @@ public class DistanceMeasurementManager {
 
     int getLocalChannelSoundingMaxSupportedSecurityLevel() {
         return ChannelSoundingParams.CS_SECURITY_LEVEL_ONE;
+    }
+
+    Set<Integer> getChannelSoundingSupportedSecurityLevels() {
+        // TODO(b/378685103): get it from the HAL when level 4 is supported and HAL v2 is available.
+        return Set.of(ChannelSoundingParams.CS_SECURITY_LEVEL_ONE);
     }
 
     private synchronized int stopRssiTracker(UUID uuid, String identityAddress, boolean timeout) {

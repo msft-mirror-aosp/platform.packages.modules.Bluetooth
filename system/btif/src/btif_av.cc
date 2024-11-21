@@ -1553,7 +1553,8 @@ bool BtifAvSink::AllowedToConnect(const RawAddress& peer_address) const {
         if ((btif_a2dp_sink_get_audio_track() != nullptr) &&
             (peer->PeerAddress() != peer_address)) {
           log::info("there is another peer with audio track({}), another={}, peer={}",
-                    fmt::ptr(btif_a2dp_sink_get_audio_track()), peer->PeerAddress(), peer_address);
+                    std::format_ptr(btif_a2dp_sink_get_audio_track()), peer->PeerAddress(),
+                    peer_address);
           connected++;
         }
         break;

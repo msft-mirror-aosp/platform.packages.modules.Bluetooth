@@ -173,9 +173,9 @@ namespace bluetooth::legacy::testing {
 void bte_hh_evt(tBTA_HH_EVT event, tBTA_HH* p_data);
 }  // namespace bluetooth::legacy::testing
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<BTIF_HH_STATUS> : enum_formatter<BTIF_HH_STATUS> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif

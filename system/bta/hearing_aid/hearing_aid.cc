@@ -524,6 +524,10 @@ public:
 
     hearingDevice->conn_id = conn_id;
 
+    if (com::android::bluetooth::flags::gatt_queue_cleanup_connected()) {
+      BtaGattQueue::Clean(conn_id);
+    }
+
     uint64_t hi_sync_id = hearingDevice->hi_sync_id;
 
     // If there a background connection to the other device of a pair, promote
@@ -1705,7 +1709,7 @@ public:
       if (!strftime(temptime, sizeof(temptime), "%H:%M:%S", tstamp)) {
         log::error("strftime fails. tm_sec={}, tm_min={}, tm_hour={}", tstamp->tm_sec,
                    tstamp->tm_min, tstamp->tm_hour);
-        strlcpy(temptime, "UNKNOWN TIME", sizeof(temptime));
+        osi_strlcpy(temptime, "UNKNOWN TIME", sizeof(temptime));
       }
       snprintf(eventtime, sizeof(eventtime), "%s.%03ld", temptime,
                rssi_logs.timestamp.tv_nsec / 1000000);

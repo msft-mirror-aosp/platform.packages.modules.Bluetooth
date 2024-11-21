@@ -541,5 +541,5 @@ std::string A2DP_VendorCodecInfoString(const uint8_t* p_codec_info) {
 
   // Add checks based on <vendor_id, codec_id>
 
-  return fmt::format("Unsupported codec vendor_id: 0x{:x} codec_id: 0x{:x}", vendor_id, codec_id);
+  return std::format("Unsupported codec vendor_id: 0x{:x} codec_id: 0x{:x}", vendor_id, codec_id);
 }

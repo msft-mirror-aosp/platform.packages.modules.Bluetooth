@@ -63,7 +63,7 @@ typedef struct {
   RawAddress bd_addr;
 } tBTA_DM_KEY_MISSING;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_STATUS> : enum_formatter<tBTA_STATUS> {};
-}  // namespace fmt
+}  // namespace std

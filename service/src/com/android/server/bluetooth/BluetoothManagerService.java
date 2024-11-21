@@ -253,13 +253,12 @@ class BluetoothManagerService {
         }
         mName = name;
         Log.v(TAG, "storeName(" + mName + "): Success");
-        mContext.sendBroadcastAsUser(
+        Intent intent =
                 new Intent(BluetoothAdapter.ACTION_LOCAL_NAME_CHANGED)
                         .putExtra(BluetoothAdapter.EXTRA_LOCAL_NAME, name)
-                        .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT),
-                UserHandle.ALL,
-                BLUETOOTH_CONNECT,
-                getTempAllowlistBroadcastOptions());
+                        .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
+        mContext.sendBroadcastAsUser(
+                intent, UserHandle.ALL, BLUETOOTH_CONNECT, getTempAllowlistBroadcastOptions());
     }
 
     private void storeAddress(String address) {
@@ -2216,13 +2215,12 @@ class BluetoothManagerService {
         if (mEnable) {
             long onDuration = SystemClock.elapsedRealtime() - mLastEnabledTime;
             String onDurationString =
-                    String.format(
-                            Locale.US,
+                    android.bluetooth.BluetoothUtils.formatSimple(
                             "%02d:%02d:%02d.%03d",
-                            (int) (onDuration / (1000 * 60 * 60)),
-                            (int) ((onDuration / (1000 * 60)) % 60),
-                            (int) ((onDuration / 1000) % 60),
-                            (int) (onDuration % 1000));
+                            onDuration / (1000 * 60 * 60),
+                            (onDuration / (1000 * 60)) % 60,
+                            (onDuration / 1000) % 60,
+                            onDuration % 1000);
             writer.println("  time since enabled: " + onDurationString);
         }
 

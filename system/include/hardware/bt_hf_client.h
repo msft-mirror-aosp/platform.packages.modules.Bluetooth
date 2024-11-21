@@ -384,8 +384,8 @@ typedef struct {
   bt_status_t (*send_android_at)(const RawAddress* bd_addr, const char* arg);
 } bthf_client_interface_t;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bthf_client_connection_state_t> : enum_formatter<bthf_client_connection_state_t> {
 };
-}  // namespace fmt
+}  // namespace std

@@ -547,7 +547,7 @@ public:
 } /* namespace le_audio */
 } /* namespace bluetooth */
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::le_audio::btle_audio_codec_index_t>
     : enum_formatter<bluetooth::le_audio::btle_audio_codec_index_t> {};
@@ -566,4 +566,4 @@ struct formatter<bluetooth::le_audio::btle_audio_frame_duration_index_t>
 template <>
 struct formatter<bluetooth::le_audio::GroupStreamStatus>
     : enum_formatter<bluetooth::le_audio::GroupStreamStatus> {};
-}  // namespace fmt
+}  // namespace std

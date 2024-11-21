@@ -235,7 +235,7 @@ static rfc_slot_t* alloc_rfc_slot(const RawAddress* addr, const char* name, cons
   slot->service_uuid = uuid;
 
   if (name && *name) {
-    strlcpy(slot->service_name, name, sizeof(slot->service_name));
+    osi_strlcpy(slot->service_name, name, sizeof(slot->service_name));
   } else {
     memset(slot->service_name, 0, sizeof(slot->service_name));
   }
@@ -742,7 +742,8 @@ static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id) {
         break;
       }
       if (p_data->scn == 0) {
-        log::error("Unable to allocate scn: all resources exhausted. slot found: {}", fmt::ptr(rs));
+        log::error("Unable to allocate scn: all resources exhausted. slot found: {}",
+                   std::format_ptr(rs));
         cleanup_rfc_slot(rs);
         break;
       }
@@ -789,7 +790,7 @@ static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id) {
       }
 
       if (!create_server_sdp_record(slot)) {
-        log::error("cannot start server, slot found: {}", fmt::ptr(slot));
+        log::error("cannot start server, slot found: {}", std::format_ptr(slot));
         cleanup_rfc_slot(slot);
         break;
       }

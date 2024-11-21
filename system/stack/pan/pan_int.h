@@ -128,9 +128,9 @@ void pan_dump_status(void);
 
 /******************************************************************************/
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tPAN_STATE> : enum_formatter<tPAN_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif

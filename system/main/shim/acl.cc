@@ -123,16 +123,16 @@ struct hash<ConnectAddressWithType> {
 };
 }  // namespace std
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<ConnectAddressWithType> : formatter<std::string> {
   template <class Context>
   typename Context::iterator format(const ConnectAddressWithType& address, Context& ctx) const {
     std::string repr = address.ToRedactedStringForLogging();
-    return fmt::formatter<std::string>::format(repr, ctx);
+    return std::formatter<std::string>::format(repr, ctx);
   }
 };
-}  // namespace fmt
+}  // namespace std
 
 namespace {
 

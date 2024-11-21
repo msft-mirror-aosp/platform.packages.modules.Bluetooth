@@ -807,9 +807,9 @@ void bta_av_vendor_offload_stop(void);
 void bta_av_st_rc_timer(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 void bta_av_api_set_peer_sep(tBTA_AV_DATA* p_data);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_AV_RS_RES> : enum_formatter<tBTA_AV_RS_RES> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_AV_INT_H */
