@@ -86,9 +86,9 @@ void Alarm::on_fire() {
   lock.unlock();
 
   if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation() && bytes_read == -1) {
-    log::info("No data to read.");
+    log::debug("No data to read.");
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      log::info("Alarm is already canceled or rescheduled.");
+      log::debug("Alarm is already canceled or rescheduled.");
       return;
     }
   }

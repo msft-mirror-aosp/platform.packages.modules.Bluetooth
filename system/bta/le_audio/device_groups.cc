@@ -1747,8 +1747,9 @@ bool LeAudioDeviceGroup::ConfigureAses(
 
     auto const max_required_device_cnt = NumOfAvailableForDirection(direction);
     auto required_device_cnt = max_required_device_cnt;
-    uint8_t active_ase_cnt = 0;
+    log::debug("Maximum {} device(s) required for {}", max_required_device_cnt, direction_str);
 
+    uint8_t active_ase_cnt = 0;
     auto configuration_closure = [&](LeAudioDevice* dev) -> void {
       /* For the moment, we configure only connected devices and when it is
        * ready to stream i.e. All ASEs are discovered and dev is reported as

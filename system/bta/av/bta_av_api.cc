@@ -119,7 +119,7 @@ void BTA_AvRegister(tBTA_AV_CHNL chnl, const char* p_service_name, uint8_t app_i
   p_buf->hdr.layer_specific = chnl;
   p_buf->hdr.event = BTA_AV_API_REGISTER_EVT;
   if (p_service_name) {
-    strlcpy(p_buf->p_service_name, p_service_name, BTA_SERVICE_NAME_LEN);
+    osi_strlcpy(p_buf->p_service_name, p_service_name, BTA_SERVICE_NAME_LEN);
   } else {
     p_buf->p_service_name[0] = 0;
   }

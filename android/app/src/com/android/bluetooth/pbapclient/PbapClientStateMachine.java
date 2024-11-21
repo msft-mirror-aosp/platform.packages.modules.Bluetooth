@@ -90,6 +90,9 @@ class PbapClientStateMachine extends StateMachine {
     static final int CONNECT_TIMEOUT = 10000;
     static final int DISCONNECT_TIMEOUT = 3000;
 
+    private static final int LOCAL_SUPPORTED_FEATURES =
+            PbapSdpRecord.FEATURE_DEFAULT_IMAGE_FORMAT | PbapSdpRecord.FEATURE_DOWNLOADING;
+
     private final Object mLock;
     private State mDisconnected;
     private State mConnecting;
@@ -168,6 +171,7 @@ class PbapClientStateMachine extends StateMachine {
                 mConnectionHandler =
                         new PbapClientConnectionHandler.Builder()
                                 .setLooper(looper)
+                                .setLocalSupportedFeatures(LOCAL_SUPPORTED_FEATURES)
                                 .setContext(mService)
                                 .setClientSM(PbapClientStateMachine.this)
                                 .setRemoteDevice(mCurrentDevice)
