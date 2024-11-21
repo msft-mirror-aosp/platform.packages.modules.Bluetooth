@@ -32,7 +32,6 @@ import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
-import com.android.bluetooth.a2dp.A2dpNativeInterface;
 import com.android.bluetooth.a2dpsink.A2dpSinkNativeInterface;
 import com.android.bluetooth.avrcp.AvrcpNativeInterface;
 import com.android.bluetooth.avrcpcontroller.AvrcpControllerNativeInterface;
@@ -80,7 +79,6 @@ public class ProfileServiceTest {
 
     private int[] mProfiles;
 
-    @Mock private A2dpNativeInterface mA2dpNativeInterface;
     @Mock private A2dpSinkNativeInterface mA2dpSinkNativeInterface;
     @Mock private AvrcpNativeInterface mAvrcpNativeInterface;
     @Mock private AvrcpControllerNativeInterface mAvrcpControllerNativeInterface;
@@ -155,13 +153,13 @@ public class ProfileServiceTest {
                                         profile != BluetoothProfile.HAP_CLIENT
                                                 && profile != BluetoothProfile.VOLUME_CONTROL
                                                 && profile != BluetoothProfile.CSIP_SET_COORDINATOR
-                                                && profile != BluetoothProfile.GATT)
+                                                && profile != BluetoothProfile.GATT
+                                                && profile != BluetoothProfile.A2DP)
                         .toArray();
         TestUtils.setAdapterService(mAdapterService);
 
         Assert.assertNotNull(AdapterService.getAdapterService());
 
-        A2dpNativeInterface.setInstance(mA2dpNativeInterface);
         A2dpSinkNativeInterface.setInstance(mA2dpSinkNativeInterface);
         AvrcpNativeInterface.setInstance(mAvrcpNativeInterface);
         AvrcpControllerNativeInterface.setInstance(mAvrcpControllerNativeInterface);
@@ -180,7 +178,6 @@ public class ProfileServiceTest {
         TestUtils.clearAdapterService(mAdapterService);
         mAdapterService = null;
         mProfiles = null;
-        A2dpNativeInterface.setInstance(null);
         A2dpSinkNativeInterface.setInstance(null);
         AvrcpNativeInterface.setInstance(null);
         AvrcpControllerNativeInterface.setInstance(null);
