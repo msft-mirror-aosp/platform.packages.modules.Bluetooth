@@ -23,21 +23,44 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "bta_gatt_queue.h"
 #include "btm_iso_api.h"
+#include "btm_iso_api_types.h"
 #include "client_parser.h"
-#include "codec_manager.h"
 #include "common/strings.h"
+#include "device_groups.h"
 #include "devices.h"
+#include "gatt_api.h"
+#include "hardware/bt_le_audio.h"
 #include "hci/hci_packets.h"
+#include "hci_error_code.h"
+#include "hcimsgs.h"
 #include "internal_include/bt_trace.h"
 #include "le_audio_health_status.h"
 #include "le_audio_log_history.h"
 #include "le_audio_types.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
 #include "stack/include/btm_client_interface.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
+
+#ifdef TARGET_FLOSS
+#include <audio_hal_interface/audio_linux.h>
+#else
+#include <hardware/audio.h>
+#endif  // TARGET_FLOSS
 
 // clang-format off
 /* ASCS state machine 1.0
@@ -92,7 +115,6 @@
 
 using bluetooth::common::ToString;
 using bluetooth::hci::IsoManager;
-using bluetooth::le_audio::CodecManager;
 using bluetooth::le_audio::GroupStreamStatus;
 using bluetooth::le_audio::LeAudioDevice;
 using bluetooth::le_audio::LeAudioDeviceGroup;
@@ -108,10 +130,8 @@ using bluetooth::le_audio::types::AudioContexts;
 using bluetooth::le_audio::types::BidirectionalPair;
 using bluetooth::le_audio::types::CigState;
 using bluetooth::le_audio::types::CisState;
-using bluetooth::le_audio::types::CodecLocation;
 using bluetooth::le_audio::types::DataPathState;
 using bluetooth::le_audio::types::LeAudioContextType;
-using bluetooth::le_audio::types::LeAudioCoreCodecConfig;
 
 namespace {
 
@@ -222,7 +242,8 @@ public:
         ReleaseCisIds(group);
 
         /* If configuration is needed */
-        FALLTHROUGH_INTENDED;
+        [[fallthrough]];
+
       case AseState::BTA_LE_AUDIO_ASE_STATE_IDLE:
         if (!group->Configure(context_type, metadata_context_types, ccid_lists)) {
           log::error("failed to set ASE configuration");
@@ -2243,7 +2264,8 @@ private:
                 ToString(AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED),
                 ToString(AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED));
         group->PrintDebugState();
-        FMT_FALLTHROUGH;
+        [[fallthrough]];
+
       case AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED: {
         SetAseState(leAudioDevice, ase, AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED);
 

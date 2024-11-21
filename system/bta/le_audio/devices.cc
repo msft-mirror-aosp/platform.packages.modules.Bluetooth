@@ -20,20 +20,45 @@
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
+#include <stdio.h>
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <iomanip>
+#include <ios>
+#include <iterator>
+#include <memory>
+#include <optional>
+#include <ostream>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include "acl_api.h"
+#include "bta_gatt_api.h"
 #include "bta_gatt_queue.h"
 #include "btif/include/btif_storage.h"
+#include "btm_ble_api_types.h"
+#include "btm_iso_api_types.h"
 #include "common/strings.h"
+#include "gatt_api.h"
+#include "hardware/bluetooth.h"
 #include "hci/controller_interface.h"
+#include "hci_error_code.h"
+#include "hcidefs.h"
 #include "internal_include/bt_trace.h"
 #include "le_audio/codec_manager.h"
 #include "le_audio/le_audio_types.h"
 #include "le_audio_log_history.h"
 #include "le_audio_utils.h"
 #include "main/shim/entry.h"
+#include "os/logging/log_adapter.h"
+#include "osi/include/alarm.h"
 #include "osi/include/properties.h"
 #include "stack/include/btm_client_interface.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
@@ -41,7 +66,6 @@
 using bluetooth::hci::kIsoCigPhy1M;
 using bluetooth::hci::kIsoCigPhy2M;
 using bluetooth::le_audio::DeviceConnectState;
-using bluetooth::le_audio::set_configurations::CodecConfigSetting;
 using bluetooth::le_audio::types::ase;
 using bluetooth::le_audio::types::AseState;
 using bluetooth::le_audio::types::AudioContexts;
@@ -50,7 +74,6 @@ using bluetooth::le_audio::types::BidirectionalPair;
 using bluetooth::le_audio::types::CisState;
 using bluetooth::le_audio::types::DataPathState;
 using bluetooth::le_audio::types::LeAudioContextType;
-using bluetooth::le_audio::types::LeAudioCoreCodecConfig;
 
 namespace bluetooth::le_audio {
 std::ostream& operator<<(std::ostream& os, const DeviceConnectState& state) {
@@ -268,16 +291,17 @@ bool LeAudioDevice::ConfigureAses(const set_configurations::AudioSetConfiguratio
                                   AudioLocations& group_audio_locations_memo,
                                   const AudioContexts& metadata_context_types,
                                   const std::vector<uint8_t>& ccid_lists, bool reuse_cis_id) {
+  auto direction_str = (direction == types::kLeAudioDirectionSink ? "Sink" : "Source");
   /* First try to use the already configured ASE */
   auto ase = GetFirstActiveAseByDirection(direction);
   if (ase) {
-    log::info("{}, using an already active ASE id={}", address_, ase->id);
+    log::info("{}, using an already active {} ASE id={}", address_, direction_str, ase->id);
   } else {
     ase = GetFirstInactiveAse(direction, reuse_cis_id);
   }
 
   if (!ase) {
-    log::error("{}, unable to find an ASE to configure", address_);
+    log::error("{}, unable to find a {} ASE to configure", address_, direction_str);
     PrintDebugState();
     return false;
   }
@@ -316,6 +340,8 @@ bool LeAudioDevice::ConfigureAses(const set_configurations::AudioSetConfiguratio
     auto const& ase_cfg = ase_configs.at(i);
     if (utils::IsCodecUsingLtvFormat(ase_cfg.codec.id) &&
         !utils::GetConfigurationSupportedPac(pacs, ase_cfg.codec)) {
+      log::error("{}, No {} PAC found matching codec: {}. Stop the activation.", address_,
+                 direction_str, common::ToString(ase_cfg.codec));
       return false;
     }
   }
@@ -333,12 +359,15 @@ bool LeAudioDevice::ConfigureAses(const set_configurations::AudioSetConfiguratio
   uint8_t max_required_ase_per_dev =
           ase_configs.size() / num_of_devices + (ase_configs.size() % num_of_devices);
   int needed_ase = std::min((int)(max_required_ase_per_dev), (int)(ase_configs.size()));
+  log::debug("{}, {} {} ASE(s) required for this configuration.", address_, needed_ase,
+             direction_str);
 
   for (int i = 0; i < needed_ase; ++i) {
     auto const& ase_cfg = ase_configs.at(i);
     if (utils::IsCodecUsingLtvFormat(ase_cfg.codec.id) &&
         !utils::GetConfigurationSupportedPac(pacs, ase_cfg.codec)) {
-      log::error("{}, no matching PAC found. Stop the activation.", address_);
+      log::error("{}, No {} PAC found matching codec: {}. Stop the activation.", address_,
+                 direction_str, common::ToString(ase_cfg.codec));
       return false;
     }
   }
@@ -406,8 +435,8 @@ bool LeAudioDevice::ConfigureAses(const set_configurations::AudioSetConfiguratio
     log::debug(
             "device={}, activated ASE id={}, direction={}, max_sdu_size={}, "
             "cis_id={}, target_latency={}",
-            address_, ase->id, direction == 1 ? "snk" : "src", ase->qos_config.max_sdu_size,
-            ase->cis_id, ase_cfg.qos.target_latency);
+            address_, ase->id, direction_str, ase->qos_config.max_sdu_size, ase->cis_id,
+            ase_cfg.qos.target_latency);
 
     /* Try to use the already active ASE */
     ase = GetNextActiveAseWithSameDirection(ase);

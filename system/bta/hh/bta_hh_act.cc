@@ -27,20 +27,29 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <string>
 
 #include "bta/hh/bta_hh_int.h"
 #include "bta/include/bta_hh_api.h"
 #include "bta/include/bta_hh_co.h"
 #include "bta/sys/bta_sys.h"
+#include "bta_api.h"
+#include "bta_gatt_api.h"
 #include "osi/include/allocator.h"
+#include "sdp_device_id.h"
+#include "sdp_status.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/hiddefs.h"
 #include "stack/include/hidh_api.h"
 #include "stack/include/sdp_api.h"
+#include "stack/sdp/sdp_discovery_db.h"
+#include "types/ble_address_with_type.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth::legacy::stack::sdp;

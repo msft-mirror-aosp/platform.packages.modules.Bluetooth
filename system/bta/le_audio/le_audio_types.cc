@@ -25,8 +25,25 @@
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <iomanip>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <optional>
+#include <ostream>
+#include <sstream>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
 #include "audio_hal_client/audio_hal_client.h"
 #include "common/strings.h"
+#include "hardware/bt_le_audio.h"
 #include "internal_include/bt_trace.h"
 #include "le_audio_utils.h"
 #include "stack/include/bt_types.h"
@@ -40,10 +57,7 @@ using types::LeAudioContextType;
 
 namespace set_configurations {
 using set_configurations::CodecConfigSetting;
-using types::CodecLocation;
 using types::kLeAudioCodingFormatLC3;
-using types::kLeAudioDirectionSink;
-using types::kLeAudioDirectionSource;
 using types::LeAudioCoreCodecConfig;
 
 void get_cis_count(LeAudioContextType context_type, uint8_t expected_remote_direction,

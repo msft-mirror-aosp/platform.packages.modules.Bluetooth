@@ -73,7 +73,6 @@ public final class DistanceMeasurementMethod implements Parcelable {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING)
     @SystemApi
     public static final int DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING = 2;
 

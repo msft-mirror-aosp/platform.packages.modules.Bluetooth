@@ -937,10 +937,12 @@ void btm_sec_save_le_key(const RawAddress& bd_addr, tBTM_LE_KEY_TYPE key_type,
         p_rec->sec_rec.ble_keys.counter = p_keys->pcsrk_key.counter;
         p_rec->sec_rec.ble_keys.key_type |= BTM_LE_KEY_PCSRK;
         p_rec->sec_rec.sec_flags |= BTM_SEC_LE_LINK_KEY_KNOWN;
-        if (p_keys->pcsrk_key.sec_level == SMP_SEC_AUTHENTICATED) {
-          p_rec->sec_rec.sec_flags |= BTM_SEC_LE_LINK_KEY_AUTHED;
-        } else {
-          p_rec->sec_rec.sec_flags &= ~BTM_SEC_LE_LINK_KEY_AUTHED;
+        if (!com::android::bluetooth::flags::donot_update_sec_flags_on_csrk_save()) {
+          if (p_keys->pcsrk_key.sec_level == SMP_SEC_AUTHENTICATED) {
+            p_rec->sec_rec.sec_flags |= BTM_SEC_LE_LINK_KEY_AUTHED;
+          } else {
+            p_rec->sec_rec.sec_flags &= ~BTM_SEC_LE_LINK_KEY_AUTHED;
+          }
         }
 
         log::verbose(
@@ -1519,7 +1521,7 @@ void btm_ble_connected(const RawAddress& bda, uint16_t handle, uint8_t /* enc_mo
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_or_alloc_dev(bda);
 
   log::info("Update timestamp for ble connection:{}", bda);
-  // TODO() Why is timestamp a counter ?
+  // TODO () Why is timestamp a counter ?
   p_dev_rec->timestamp = btm_sec_cb.dev_rec_count++;
 
   if (is_ble_addr_type_known(addr_type)) {

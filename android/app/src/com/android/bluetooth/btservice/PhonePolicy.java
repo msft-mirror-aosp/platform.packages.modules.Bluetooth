@@ -1148,6 +1148,32 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
         }
     }
 
+    /**
+     * Resets the service connection policies for the device. This is called when the {@link
+     * BluetoothDevice#removeBond} is requested for the device.
+     *
+     * @param device is the remote device whose services have been discovered
+     */
+    void onRemoveBondRequest(BluetoothDevice device) {
+        if (!Flags.preventServiceConnectionsOnRemoveBond()) {
+            return;
+        }
+
+        debugLog("onRemoveBondRequest: Disabling all profiles for " + device);
+        // Don't allow any profiles to connect to the device.
+        for (int profileId = BluetoothProfile.HEADSET;
+                profileId < BluetoothProfile.MAX_PROFILE_ID;
+                profileId++) {
+            if (mAdapterService.getDatabase().getProfileConnectionPolicy(device, profileId)
+                    == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+                mAdapterService
+                        .getDatabase()
+                        .setProfileConnectionPolicy(
+                                device, profileId, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+            }
+        }
+    }
+
     private static void debugLog(String msg) {
         Log.d(TAG, msg);
     }

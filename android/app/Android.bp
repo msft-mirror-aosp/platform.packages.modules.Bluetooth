@@ -259,6 +259,7 @@ android_app {
         "BluetoothApiShims",
         "android.hardware.radio-V1.0-java",
         "android.hardware.radio.sap-V1-java",
+        "android.media.audio-aconfig-exported-java",
         "android.os.flags-aconfig-java-export",
         "androidx.annotation_annotation",
         "androidx.core_core",
@@ -284,7 +285,6 @@ android_app {
 
     plugins: [
         "androidx.room_room-compiler-plugin",
-        "error_prone_android_framework",
     ],
 
     // Export schemas to the test directory so that we have an history

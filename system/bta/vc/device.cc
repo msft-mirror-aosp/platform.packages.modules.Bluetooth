@@ -18,18 +18,29 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <list>
 #include <map>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_gatt_queue.h"
 #include "bta/vc/devices.h"
-#include "internal_include/bt_trace.h"
-#include "os/logging/log_adapter.h"
+#include "btm_ble_api_types.h"
+#include "btm_sec_api_types.h"
+#include "btm_status.h"
+#include "gatt/database.h"
+#include "gattdefs.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/gatt_api.h"
 #include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
+#include "vc/types.h"
 
 using bluetooth::vc::internal::VolumeControlDevice;
 

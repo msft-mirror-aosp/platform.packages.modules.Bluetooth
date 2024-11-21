@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.SdpPseRecord;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.ContextWrapper;
@@ -56,6 +55,10 @@ public class PbapClientConnectionHandlerTest {
 
     private static final String TAG = "ConnHandlerTest";
     private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
+
+    // Normal supported features for our client
+    private static final int SUPPORTED_FEATURES =
+            PbapSdpRecord.FEATURE_DOWNLOADING | PbapSdpRecord.FEATURE_DEFAULT_IMAGE_FORMAT;
 
     private HandlerThread mThread;
     private Looper mLooper;
@@ -104,6 +107,7 @@ public class PbapClientConnectionHandlerTest {
         mHandler =
                 new PbapClientConnectionHandler.Builder()
                         .setLooper(mLooper)
+                        .setLocalSupportedFeatures(SUPPORTED_FEATURES)
                         .setClientSM(mStateMachine)
                         .setContext(mTargetContext)
                         .setRemoteDevice(mRemoteDevice)
@@ -126,7 +130,7 @@ public class PbapClientConnectionHandlerTest {
 
     @Test
     public void connectSocket_whenBluetoothIsNotEnabled_returnsFalse_withInvalidL2capPsm() {
-        SdpPseRecord record = mock(SdpPseRecord.class);
+        PbapSdpRecord record = mock(PbapSdpRecord.class);
         mHandler.setPseRecord(record);
 
         when(record.getL2capPsm()).thenReturn(PbapClientConnectionHandler.L2CAP_INVALID_PSM);
@@ -135,7 +139,7 @@ public class PbapClientConnectionHandlerTest {
 
     @Test
     public void connectSocket_whenBluetoothIsNotEnabled_returnsFalse_withValidL2capPsm() {
-        SdpPseRecord record = mock(SdpPseRecord.class);
+        PbapSdpRecord record = mock(PbapSdpRecord.class);
         mHandler.setPseRecord(record);
 
         when(record.getL2capPsm()).thenReturn(1); // Valid PSM ranges 1 to 30;
@@ -151,7 +155,7 @@ public class PbapClientConnectionHandlerTest {
 
     @Test
     public void abort() {
-        SdpPseRecord record = mock(SdpPseRecord.class);
+        PbapSdpRecord record = mock(PbapSdpRecord.class);
         when(record.getL2capPsm()).thenReturn(1); // Valid PSM ranges 1 to 30;
         mHandler.setPseRecord(record);
         mHandler.connectSocket(); // Workaround for setting mSocket as non-null value
@@ -172,24 +176,6 @@ public class PbapClientConnectionHandlerTest {
         // Also test when content resolver is null.
         when(mTargetContext.getContentResolver()).thenReturn(null);
         mHandler.removeCallLog();
-    }
-
-    @Test
-    public void isRepositorySupported_withoutSettingPseRecord_returnsFalse() {
-        mHandler.setPseRecord(null);
-        final int mask = 0x11;
-
-        assertThat(mHandler.isRepositorySupported(mask)).isFalse();
-    }
-
-    @Test
-    public void isRepositorySupported_withSettingPseRecord() {
-        SdpPseRecord record = mock(SdpPseRecord.class);
-        when(record.getSupportedRepositories()).thenReturn(1);
-        mHandler.setPseRecord(record);
-        final int mask = 0x11;
-
-        assertThat(mHandler.isRepositorySupported(mask)).isTrue();
     }
 
     @Test
