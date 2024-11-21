@@ -21,6 +21,7 @@
 #include <hardware/bluetooth.h>
 
 #include <optional>
+#include <sstream>
 #include <vector>
 
 #include "types/raw_address.h"
@@ -286,7 +287,7 @@ typedef struct {
 
 __END_DECLS
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<btav_connection_state_t> : enum_formatter<btav_connection_state_t> {};
 template <>
@@ -306,6 +307,6 @@ struct formatter<btav_a2dp_codec_channel_mode_t> : enum_formatter<btav_a2dp_code
 template <>
 struct formatter<btav_a2dp_scmst_enable_status_t>
     : enum_formatter<btav_a2dp_scmst_enable_status_t> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* ANDROID_INCLUDE_BT_AV_H */

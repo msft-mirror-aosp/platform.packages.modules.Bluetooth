@@ -42,6 +42,7 @@ import android.content.res.Resources;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Looper;
+import android.os.UserManager;
 import android.provider.CallLog;
 import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
@@ -64,6 +65,9 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class PbapClientServiceTest {
@@ -81,6 +85,7 @@ public class PbapClientServiceTest {
     private MockContentResolver mMockContentResolver;
     private MockCallLogProvider mMockCallLogProvider;
     @Mock private Resources mMockResources;
+    @Mock private UserManager mMockUserManager;
     @Mock private AccountManager mMockAccountManager;
 
     @Before
@@ -110,6 +115,13 @@ public class PbapClientServiceTest {
                 Context.ACCOUNT_SERVICE,
                 AccountManager.class,
                 mMockAccountManager);
+
+        doReturn(false).when(mMockUserManager).isUserUnlocked();
+        TestUtils.mockGetSystemService(
+                mMockContext,
+                Context.USER_SERVICE,
+                UserManager.class,
+                mMockUserManager);
 
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         Assert.assertNotNull(mAdapter);
@@ -153,6 +165,33 @@ public class PbapClientServiceTest {
     // * Incoming Events
     // *********************************************************************************************
 
+    // Account state changes from PbapClientAccountManager
+
+    @Test
+    public void onAccountsChanged_fromNulltoEmpty_tryDownloadIfConnectedCalled() {
+        PbapClientStateMachine sm = mock(PbapClientStateMachine.class);
+        mService.mPbapClientStateMachineMap.put(mRemoteDevice, sm);
+
+        PbapClientService.PbapClientAccountManagerCallback callback =
+                mService.new PbapClientAccountManagerCallback();
+        callback.onAccountsChanged(null, new ArrayList<Account>());
+
+        verify(sm).tryDownloadIfConnected();
+    }
+
+    @Test
+    public void onAccountsChanged_fromEmptyToOne_tryDownloadIfConnectedNotCalled() {
+        PbapClientStateMachine sm = mock(PbapClientStateMachine.class);
+        mService.mPbapClientStateMachineMap.put(mRemoteDevice, sm);
+
+        PbapClientService.PbapClientAccountManagerCallback callback =
+                mService.new PbapClientAccountManagerCallback();
+        Account acc = mock(Account.class);
+        callback.onAccountsChanged(new ArrayList<Account>(), new ArrayList<>(Arrays.asList(acc)));
+
+        verify(sm, never()).tryDownloadIfConnected();
+    }
+
     // ACL state changes from AdapterService
 
     @Test
@@ -179,20 +218,6 @@ public class PbapClientServiceTest {
         TestUtils.waitForLooperToFinishScheduledTask(Looper.getMainLooper());
 
         verify(sm).disconnect(mRemoteDevice);
-    }
-
-    // User unlock state changes
-
-    @Test
-    public void broadcastReceiver_withActionUserUnlocked_callsTryDownloadIfConnected() {
-        PbapClientStateMachine sm = mock(PbapClientStateMachine.class);
-        mService.mPbapClientStateMachineMap.put(mRemoteDevice, sm);
-
-        Intent intent = new Intent(Intent.ACTION_USER_UNLOCKED);
-        intent.putExtra(BluetoothDevice.EXTRA_DEVICE, mRemoteDevice);
-        mService.mPbapBroadcastReceiver.onReceive(mService, intent);
-
-        verify(sm).tryDownloadIfConnected();
     }
 
     // HFP HF State changes

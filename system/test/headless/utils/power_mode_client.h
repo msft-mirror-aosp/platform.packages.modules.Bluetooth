@@ -66,7 +66,7 @@ struct power_mode_callback_t {
   tHCI_STATUS hci_status;
 
   std::string ToString() const {
-    return fmt::format("bd_addr:{} pm_status:{} value:{} hci_status:{}", bd_addr.ToString(),
+    return std::format("bd_addr:{} pm_status:{} value:{} hci_status:{}", bd_addr.ToString(),
                        power_mode_status_text(status), value, hci_status_code_text(hci_status));
   }
 };

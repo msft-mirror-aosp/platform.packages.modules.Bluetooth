@@ -530,10 +530,10 @@ void SetLmpLlMessageTraceLogFd(int fd);
 }  // namespace bqr
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::bqr::BqrReportAction>
     : enum_formatter<bluetooth::bqr::BqrReportAction> {};
 template <>
 struct formatter<bluetooth::bqr::BqrVseSubEvt> : ostream_formatter {};
-}  // namespace fmt
+}  // namespace std

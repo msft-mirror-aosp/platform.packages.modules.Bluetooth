@@ -172,7 +172,7 @@ class PbapClientStateMachine extends StateMachine {
                         new PbapClientConnectionHandler.Builder()
                                 .setLooper(looper)
                                 .setLocalSupportedFeatures(LOCAL_SUPPORTED_FEATURES)
-                                .setContext(mService)
+                                .setService(mService)
                                 .setClientSM(PbapClientStateMachine.this)
                                 .setRemoteDevice(mCurrentDevice)
                                 .build();
@@ -315,14 +315,14 @@ class PbapClientStateMachine extends StateMachine {
     /** Trigger a contacts download if the user is unlocked and our accounts are available to us */
     private void downloadIfReady() {
         boolean userReady = mUserManager.isUserUnlocked();
-        boolean accountServiceReady = mService.isAuthenticationServiceReady();
-        if (!userReady || !accountServiceReady) {
+        boolean accountTypeReady = mService.isAccountTypeReady();
+        if (!userReady || !accountTypeReady) {
             Log.w(
                     TAG,
                     "Cannot download contacts yet, userReady="
                             + userReady
-                            + ", accountServiceReady="
-                            + accountServiceReady);
+                            + ", accountTypeReady="
+                            + accountTypeReady);
             return;
         }
         PbapClientConnectionHandler connectionHandler = mConnectionHandler;

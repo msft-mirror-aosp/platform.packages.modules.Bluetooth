@@ -1560,9 +1560,9 @@ std::string Controller::ToString() const { return "Controller"; }
 
 template <typename OutputT>
 void Controller::impl::dump(OutputT&& out) const {
-  fmt::format_to(out, "\nHCI Controller Dumpsys:\n");
+  std::format_to(out, "\nHCI Controller Dumpsys:\n");
 
-  fmt::format_to(out,
+  std::format_to(out,
                  "    local_version_information:\n"
                  "        hci_version: {}\n"
                  "        hci_revision: 0x{:x}\n"
@@ -1575,7 +1575,7 @@ void Controller::impl::dump(OutputT&& out) const {
                  local_version_information_.lmp_subversion_,
                  local_version_information_.manufacturer_name_);
 
-  fmt::format_to(out,
+  std::format_to(out,
                  "    buffer_size:\n"
                  "        acl_data_packet_length: {}\n"
                  "        total_num_acl_data_packets: {}\n"
@@ -1583,7 +1583,7 @@ void Controller::impl::dump(OutputT&& out) const {
                  "        total_num_sco_data_packets: {}\n",
                  acl_buffer_length_, acl_buffers_, sco_buffer_length_, sco_buffers_);
 
-  fmt::format_to(out,
+  std::format_to(out,
                  "    le_buffer_size:\n"
                  "        le_acl_data_packet_length: {}\n"
                  "        total_num_le_acl_data_packets: {}\n"
@@ -1592,7 +1592,7 @@ void Controller::impl::dump(OutputT&& out) const {
                  le_buffer_size_.le_data_packet_length_, le_buffer_size_.total_num_le_packets_,
                  iso_buffer_size_.le_data_packet_length_, iso_buffer_size_.total_num_le_packets_);
 
-  fmt::format_to(out,
+  std::format_to(out,
                  "    le_maximum_data_length:\n"
                  "        supported_max_tx_octets: {}\n"
                  "        supported_max_tx_time: {}\n"
@@ -1603,7 +1603,7 @@ void Controller::impl::dump(OutputT&& out) const {
                  le_maximum_data_length_.supported_max_rx_octets_,
                  le_maximum_data_length_.supported_max_rx_time_);
 
-  fmt::format_to(out,
+  std::format_to(out,
                  "    le_accept_list_size: {}\n"
                  "    le_resolving_list_size: {}\n"
                  "    le_maximum_advertising_data_length: {}\n"
@@ -1615,7 +1615,7 @@ void Controller::impl::dump(OutputT&& out) const {
                  le_suggested_default_data_length_, le_number_supported_advertising_sets_,
                  le_periodic_advertiser_list_size_, le_supported_states_);
 
-  fmt::format_to(out,
+  std::format_to(out,
                  "    local_supported_features:\n"
                  "        page0: 0x{:016x}\n"
                  "        page1: 0x{:016x}\n"
@@ -1625,16 +1625,16 @@ void Controller::impl::dump(OutputT&& out) const {
                  extended_lmp_features_array_[0], extended_lmp_features_array_[1],
                  extended_lmp_features_array_[2], le_local_supported_features_);
 
-  fmt::format_to(out, "    local_supported_commands: [");
+  std::format_to(out, "    local_supported_commands: [");
   for (size_t i = 0; i < local_supported_commands_.size(); i++) {
     if ((i % 8) == 0) {
-      fmt::format_to(out, "\n       ");
+      std::format_to(out, "\n       ");
     }
-    fmt::format_to(out, " 0x{:02x},", local_supported_commands_[i]);
+    std::format_to(out, " 0x{:02x},", local_supported_commands_[i]);
   }
-  fmt::format_to(out, "\n    ]\n");
+  std::format_to(out, "\n    ]\n");
 
-  fmt::format_to(
+  std::format_to(
           out,
           "    vendor_capabilities:\n"
           "        is_supported: {}\n"

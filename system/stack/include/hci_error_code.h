@@ -247,7 +247,7 @@ inline tHCI_REASON to_hci_reason_code(const uint8_t& reason_code) {
   return static_cast<tHCI_REASON>(reason_code);
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tHCI_ERROR_CODE> : enum_formatter<tHCI_ERROR_CODE> {};
-}  // namespace fmt
+}  // namespace std

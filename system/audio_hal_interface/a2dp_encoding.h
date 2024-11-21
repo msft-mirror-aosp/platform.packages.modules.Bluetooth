@@ -198,8 +198,8 @@ tA2DP_STATUS parse_a2dp_configuration(btav_a2dp_codec_index_t codec_index,
 }  // namespace audio
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<::bluetooth::audio::a2dp::BluetoothAudioStatus>
     : enum_formatter<::bluetooth::audio::a2dp::BluetoothAudioStatus> {};
-}  // namespace fmt
+}  // namespace std

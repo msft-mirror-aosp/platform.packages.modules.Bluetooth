@@ -17,16 +17,12 @@
 package com.android.bluetooth.pbapclient;
 
 import android.accounts.Account;
-import android.accounts.AccountManager;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.SdpPseRecord;
-import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelUuid;
@@ -35,7 +31,6 @@ import android.provider.CallLog;
 import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
-import com.android.bluetooth.R;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
@@ -67,61 +62,34 @@ public class PbapClientService extends ProfileService {
             new ConcurrentHashMap<>();
 
     private static PbapClientService sPbapClientService;
-    @VisibleForTesting PbapBroadcastReceiver mPbapBroadcastReceiver = new PbapBroadcastReceiver();
+    private final PbapClientAccountManager mPbapClientAccountManager;
     private int mSdpHandle = -1;
-
     private DatabaseManager mDatabaseManager;
-
-    /**
-     * There's an ~1-2 second latency between when our Authentication service is set as available to
-     * the system and when the Authentication/Account framework code will recognize it and allow us
-     * to alter accounts. In lieu of the Accounts team dealing with this race condition, we're going
-     * to periodically poll over 3 seconds until our accounts are visible, remove old accounts, and
-     * then notify device state machines that they can create accounts and download contacts.
-     */
-    // TODO(233361365): Remove this pattern when the framework solves their race condition
-    private static final int ACCOUNT_VISIBILITY_CHECK_MS = 500;
-
-    private static final int ACCOUNT_VISIBILITY_CHECK_TRIES_MAX = 6;
-    private int mAccountVisibilityCheckTries = 0;
-    private final Handler mAuthServiceHandler = new Handler();
     private Handler mHandler;
-    private final Runnable mCheckAuthService =
-            new Runnable() {
-                @Override
-                public void run() {
-                    // If our accounts are finally visible to use, clean up old ones and tell
-                    // devices they can issue downloads if they're ready. Otherwise, wait and try
-                    // again.
-                    if (isAuthenticationServiceReady()) {
-                        Log.i(
-                                TAG,
-                                "Service ready! Clean up old accounts and try contacts downloads");
-                        removeUncleanAccounts();
-                        for (PbapClientStateMachine stateMachine :
-                                mPbapClientStateMachineMap.values()) {
-                            stateMachine.tryDownloadIfConnected();
-                        }
-                    } else if (mAccountVisibilityCheckTries < ACCOUNT_VISIBILITY_CHECK_TRIES_MAX) {
-                        mAccountVisibilityCheckTries += 1;
-                        Log.w(
-                                TAG,
-                                "AccountManager hasn't registered our service yet. Retry "
-                                        + mAccountVisibilityCheckTries
-                                        + "/"
-                                        + ACCOUNT_VISIBILITY_CHECK_TRIES_MAX);
-                        mAuthServiceHandler.postDelayed(this, ACCOUNT_VISIBILITY_CHECK_MS);
-                    } else {
-                        Log.e(
-                                TAG,
-                                "Failed to register Authentication Service and get account"
-                                        + " visibility");
-                    }
-                }
-            };
 
-    public PbapClientService(Context ctx) {
-        super(ctx);
+    class PbapClientAccountManagerCallback implements PbapClientAccountManager.Callback {
+        @Override
+        public void onAccountsChanged(List<Account> oldAccounts, List<Account> newAccounts) {
+            Log.i(TAG, "onAccountsChanged: old=" + oldAccounts + ", new=" + newAccounts);
+            if (oldAccounts == null) {
+                removeUncleanAccounts();
+                for (PbapClientStateMachine stateMachine : mPbapClientStateMachineMap.values()) {
+                    stateMachine.tryDownloadIfConnected();
+                }
+            }
+        }
+    }
+
+    public PbapClientService(Context context) {
+        super(context);
+        mPbapClientAccountManager =
+                new PbapClientAccountManager(context, new PbapClientAccountManagerCallback());
+    }
+
+    @VisibleForTesting
+    PbapClientService(Context context, PbapClientAccountManager accountManager) {
+        super(context);
+        mPbapClientAccountManager = accountManager;
     }
 
     public static boolean isEnabled() {
@@ -145,17 +113,9 @@ public class PbapClientService extends ProfileService {
         setComponentAvailable(AUTHENTICATOR_SERVICE, true);
 
         mHandler = new Handler(Looper.getMainLooper());
-        IntentFilter filter = new IntentFilter();
-        filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
-        // delay initial download until after the user is unlocked to add an account.
-        filter.addAction(Intent.ACTION_USER_UNLOCKED);
-        try {
-            registerReceiver(mPbapBroadcastReceiver, filter);
-        } catch (Exception e) {
-            Log.w(TAG, "Unable to register pbapclient receiver", e);
-        }
 
-        initializeAuthenticationService();
+        mPbapClientAccountManager.start();
+
         registerSdpRecord();
         setPbapClientService(this);
     }
@@ -164,11 +124,7 @@ public class PbapClientService extends ProfileService {
     public void stop() {
         setPbapClientService(null);
         cleanUpSdpRecord();
-        try {
-            unregisterReceiver(mPbapBroadcastReceiver);
-        } catch (Exception e) {
-            Log.w(TAG, "Unable to unregister pbapclient receiver", e);
-        }
+
         for (PbapClientStateMachine pbapClientStateMachine : mPbapClientStateMachineMap.values()) {
             pbapClientStateMachine.doQuit();
         }
@@ -180,7 +136,9 @@ public class PbapClientService extends ProfileService {
             mHandler = null;
         }
 
-        cleanupAuthenticationService();
+        removeUncleanAccounts();
+        mPbapClientAccountManager.stop();
+
         setComponentAvailable(AUTHENTICATOR_SERVICE, false);
     }
 
@@ -238,61 +196,31 @@ public class PbapClientService extends ProfileService {
     }
 
     /**
-     * Periodically check if the account framework has recognized our service and will allow us to
-     * interact with our accounts. Notify state machines once our service is ready so we can trigger
-     * account downloads.
-     */
-    private void initializeAuthenticationService() {
-        mAuthServiceHandler.postDelayed(mCheckAuthService, ACCOUNT_VISIBILITY_CHECK_MS);
-    }
-
-    private void cleanupAuthenticationService() {
-        mAuthServiceHandler.removeCallbacks(mCheckAuthService);
-        removeUncleanAccounts();
-    }
-
-    /**
-     * Determine if our account type is visible to us yet. If it is, then our service is ready and
-     * our account type is ready to use.
+     * Clean up any existing accounts.
      *
-     * <p>Make a placeholder device account and determine our visibility relative to it. Note that
-     * this function uses the same restrictions as the other add and remove functions, but is *also*
-     * available to all system apps instead of throwing a runtime SecurityException.
+     * <p>This function gets the list of available Pbap Client accounts and deletes them. Deletion
+     * of the account causes Contacts Provider to also delete the associated contacts data. We
+     * separately clean up the call log data associated with a given account too.
      */
-    protected boolean isAuthenticationServiceReady() {
-        Account account =
-                new Account("00:00:00:00:00:00", getString(R.string.pbap_client_account_type));
-        AccountManager accountManager = AccountManager.get(this);
-        int visibility = accountManager.getAccountVisibility(account, getPackageName());
-        Log.d(TAG, "Checking visibility, visibility=" + visibility);
-        return visibility == AccountManager.VISIBILITY_VISIBLE
-                || visibility == AccountManager.VISIBILITY_USER_MANAGED_VISIBLE;
-    }
-
     private void removeUncleanAccounts() {
-        if (!isAuthenticationServiceReady()) {
-            Log.w(TAG, "Can't remove accounts. AccountManager hasn't registered our service yet.");
-            return;
-        }
+        List<Account> accounts = mPbapClientAccountManager.getAccounts();
+        Log.i(TAG, "removeUncleanAccounts: Found " + accounts.size() + " accounts");
 
-        // Find all accounts that match the type "pbap" and delete them.
-        AccountManager accountManager = AccountManager.get(this);
-        Account[] accounts =
-                accountManager.getAccountsByType(getString(R.string.pbap_client_account_type));
-        Log.v(TAG, "Found " + accounts.length + " unclean accounts");
-        for (Account acc : accounts) {
-            Log.w(TAG, "Deleting " + acc);
+        for (Account account : accounts) {
+            Log.d(TAG, "removeUncleanAccounts: removing call logs for account=" + account);
             try {
+                // The device ID for call logs is the name of the account
                 getContentResolver()
                         .delete(
                                 CallLog.Calls.CONTENT_URI,
                                 CallLog.Calls.PHONE_ACCOUNT_ID + "=?",
-                                new String[] {acc.name});
+                                new String[] {account.name});
             } catch (IllegalArgumentException e) {
-                Log.w(TAG, "Call Logs could not be deleted, they may not exist yet.");
+                Log.w(TAG, "Call Logs could not be deleted, they may not exist yet.", e);
             }
-            // The device ID is the name of the account.
-            accountManager.removeAccountExplicitly(acc);
+
+            Log.i(TAG, "removeUncleanAccounts: removing account=" + account);
+            mPbapClientAccountManager.removeAccount(account);
         }
     }
 
@@ -313,20 +241,6 @@ public class PbapClientService extends ProfileService {
         }
     }
 
-    @VisibleForTesting
-    class PbapBroadcastReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            Log.v(TAG, "onReceive" + action);
-            if (action.equals(Intent.ACTION_USER_UNLOCKED)) {
-                for (PbapClientStateMachine stateMachine : mPbapClientStateMachineMap.values()) {
-                    stateMachine.tryDownloadIfConnected();
-                }
-            }
-        }
-    }
-
     /**
      * Ensure that after HFP disconnects, we remove call logs. This addresses the situation when
      * PBAP was never connected while calls were made. Ideally {@link PbapClientConnectionHandler}
@@ -343,6 +257,35 @@ public class PbapClientService extends ProfileService {
     }
 
     /**
+     * Determine if our account type is available and ready to be interacted with
+     *
+     * @return True is account type is ready, false otherwise
+     */
+    public boolean isAccountTypeReady() {
+        return mPbapClientAccountManager.isAccountTypeInitialized();
+    }
+
+    /**
+     * Add an account
+     *
+     * @param account The account you wish to add
+     * @return True if the account addition was successful, False otherwise
+     */
+    public boolean addAccount(Account account) {
+        return mPbapClientAccountManager.addAccount(account);
+    }
+
+    /**
+     * Remove an account
+     *
+     * @param account The account you wish to remove
+     * @return True if the account removal was successful, False otherwise
+     */
+    public boolean removeAccount(Account account) {
+        return mPbapClientAccountManager.removeAccount(account);
+    }
+
+    /**
      * Get debug information about this PbapClientService instance
      *
      * @param sb The StringBuilder instance to add our debug dump info to
@@ -350,10 +293,10 @@ public class PbapClientService extends ProfileService {
     @Override
     public void dump(StringBuilder sb) {
         super.dump(sb);
-        ProfileService.println(sb, "isAuthServiceReady: " + isAuthenticationServiceReady());
         for (PbapClientStateMachine stateMachine : mPbapClientStateMachineMap.values()) {
             stateMachine.dump(sb);
         }
+        ProfileService.println(sb, mPbapClientAccountManager.dump());
     }
 
     // *********************************************************************************************

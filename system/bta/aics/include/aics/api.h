@@ -51,9 +51,9 @@ bool isValidAudioInputGainModeValue(uint8_t data);
 GainMode parseGainModeField(uint8_t data);
 }  // namespace bluetooth::aics
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::aics::Mute> : enum_formatter<bluetooth::aics::Mute> {};
 template <>
 struct formatter<bluetooth::aics::GainMode> : enum_formatter<bluetooth::aics::GainMode> {};
-}  // namespace fmt
+}  // namespace std

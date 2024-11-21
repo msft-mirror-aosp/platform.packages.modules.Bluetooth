@@ -470,7 +470,7 @@ btpan_conn_t* btpan_find_conn_addr(const RawAddress& addr) {
 static void btpan_open_conn(btpan_conn_t* conn, tBTA_PAN* p_data) {
   log::verbose("btpan_open_conn: local_role:{}, peer_role: {},  handle:{}, conn: {}",
                p_data->open.local_role, p_data->open.peer_role, p_data->open.handle,
-               fmt::ptr(conn));
+               std::format_ptr(conn));
 
   if (conn == NULL) {
     conn = btpan_new_conn(p_data->open.handle, p_data->open.bd_addr, p_data->open.local_role,
@@ -500,7 +500,7 @@ static void btpan_open_conn(btpan_conn_t* conn, tBTA_PAN* p_data) {
 }
 
 static void btpan_close_conn(btpan_conn_t* conn) {
-  log::verbose("btpan_close_conn: {}", fmt::ptr(conn));
+  log::verbose("btpan_close_conn: {}", std::format_ptr(conn));
 
   if (conn && conn->state == PAN_STATE_OPEN) {
     log::verbose("btpan_close_conn: PAN_STATE_OPEN");

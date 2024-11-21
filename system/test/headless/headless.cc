@@ -84,7 +84,7 @@ void adapter_properties(bt_status_t status, int num_properties, ::bt_property_t*
     }
   }
   log::info("num_callbacks:{} status:{} num_properties:{} properties:{}", num_callbacks,
-            bt_status_text(status), num_properties, fmt::ptr(properties));
+            bt_status_text(status), num_properties, std::format_ptr(properties));
 }
 
 void remote_device_properties(bt_status_t status, RawAddress* bd_addr, int num_properties,
@@ -100,7 +100,7 @@ void remote_device_properties(bt_status_t status, RawAddress* bd_addr, int num_p
     }
   }
   log::info("num_callbacks:{} status:{} device:{} num_properties:{} properties:{}", num_callbacks,
-            bt_status_text(status), STR(*bd_addr), num_properties, fmt::ptr(properties));
+            bt_status_text(status), STR(*bd_addr), num_properties, std::format_ptr(properties));
 }
 
 // Aggregate disparate variables from callback API into unified single structure
@@ -114,7 +114,7 @@ void device_found(int num_properties, ::bt_property_t* properties) {
     }
   }
   log::info("Device found callback: num_properties:{} properties:{}", num_properties,
-            fmt::ptr(properties));
+            std::format_ptr(properties));
 }
 
 void discovery_state_changed(bt_discovery_state_t state) {

@@ -515,7 +515,7 @@ void bta_gattc_continue(tBTA_GATTC_CLCB* p_clcb) {
         /* Handled, free command below and continue with a p_q_cmd_queue */
         break;
       case MTU_EXCHANGE_IN_PROGRESS:
-        log::warn("Waiting p_clcb {}", fmt::ptr(p_clcb));
+        log::warn("Waiting p_clcb {}", std::format_ptr(p_clcb));
         return;
       case MTU_EXCHANGE_NOT_DONE_YET:
         p_clcb->p_q_cmd_queue.pop_front();

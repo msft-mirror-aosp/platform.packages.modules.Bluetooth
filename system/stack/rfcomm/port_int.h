@@ -141,10 +141,10 @@ inline std::string port_connection_state_text(const tPORT_CONNECTION_STATE& stat
   RETURN_UNKNOWN_TYPE_STRING(tPORT_CONNECTION_STATE, state);
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tPORT_CONNECTION_STATE> : enum_formatter<tPORT_CONNECTION_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 /*
  * Define control block containing information about PORT connection

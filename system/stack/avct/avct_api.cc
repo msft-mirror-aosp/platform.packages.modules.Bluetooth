@@ -457,7 +457,7 @@ void AVCT_Dumpsys(int fd) {
     if (ccb.p_lcb) {  // tAVCT_LCB
       LOG_DUMPSYS(fd,
                   "  Link  : peer:%s lcid:0x%04x sm_state:%-24s ch_state:%s conflict_lcid:0x%04x",
-                  fmt::format("{}", ccb.p_lcb->peer_addr).c_str(), ccb.p_lcb->ch_lcid,
+                  std::format("{}", ccb.p_lcb->peer_addr).c_str(), ccb.p_lcb->ch_lcid,
                   avct_sm_state_text(ccb.p_lcb->state).c_str(),
                   avct_ch_state_text(ccb.p_lcb->ch_state).c_str(), ccb.p_lcb->conflict_lcid);
     } else {
@@ -467,7 +467,7 @@ void AVCT_Dumpsys(int fd) {
     if (ccb.p_bcb) {  // tAVCT_BCB
       LOG_DUMPSYS(fd,
                   "  Browse: peer:%s lcid:0x%04x sm_state:%-24s ch_state:%s conflict_lcid:0x%04x",
-                  fmt::format("{}", ccb.p_bcb->peer_addr).c_str(), ccb.p_bcb->ch_lcid,
+                  std::format("{}", ccb.p_bcb->peer_addr).c_str(), ccb.p_bcb->ch_lcid,
                   avct_sm_state_text(ccb.p_bcb->state).c_str(),
                   avct_ch_state_text(ccb.p_bcb->ch_state).c_str(), ccb.p_bcb->conflict_lcid);
     } else {
