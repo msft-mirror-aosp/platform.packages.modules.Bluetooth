@@ -19,6 +19,7 @@
 #include <base/functional/callback.h>
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <hardware/bt_csis.h>
 #include <hardware/bt_gatt_types.h>
 #include <stdio.h>
@@ -1918,7 +1919,9 @@ private:
 
     device->connecting_actively = false;
     device->conn_id = evt.conn_id;
-
+    if (com::android::bluetooth::flags::gatt_queue_cleanup_connected()) {
+      BtaGattQueue::Clean(evt.conn_id);
+    }
     /* Verify bond */
     if (BTM_SecIsSecurityPending(device->addr)) {
       /* if security collision happened, wait for encryption done

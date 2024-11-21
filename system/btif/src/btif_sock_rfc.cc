@@ -235,7 +235,7 @@ static rfc_slot_t* alloc_rfc_slot(const RawAddress* addr, const char* name, cons
   slot->service_uuid = uuid;
 
   if (name && *name) {
-    strlcpy(slot->service_name, name, sizeof(slot->service_name));
+    osi_strlcpy(slot->service_name, name, sizeof(slot->service_name));
   } else {
     memset(slot->service_name, 0, sizeof(slot->service_name));
   }
