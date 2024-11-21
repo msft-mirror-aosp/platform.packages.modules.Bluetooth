@@ -2441,15 +2441,17 @@ void btm_sec_rmt_host_support_feat_evt(const RawAddress bd_addr, uint8_t feature
  ******************************************************************************/
 void btm_io_capabilities_req(RawAddress p) {
   if (btm_sec_is_a_bonded_dev(p)) {
-    if (com::android::bluetooth::flags::key_missing_classic_device()) {
+    auto p_dev_rec = btm_find_dev(p);
+    ASSERT(p_dev_rec != NULL);
+
+    /* If device is bonded, and encrypted it's upgrading security and it's ok.
+     * If it's bonded and not encrypted, it's remote missing keys scenario */
+    if (!p_dev_rec->sec_rec.is_device_encrypted() &&
+        com::android::bluetooth::flags::key_missing_classic_device()) {
       log::warn("Incoming bond request, but {} is already bonded (notifying user)", p);
       bta_dm_remote_key_missing(p);
-
-      auto p_dev_rec = btm_find_dev(p);
-      if (p_dev_rec != NULL) {
-        btm_sec_disconnect(p_dev_rec->hci_handle, HCI_ERR_AUTH_FAILURE,
-                           "btm_io_capabilities_req for bonded device");
-      }
+      btm_sec_disconnect(p_dev_rec->hci_handle, HCI_ERR_AUTH_FAILURE,
+                         "btm_io_capabilities_req for bonded device");
       return;
     }
 
