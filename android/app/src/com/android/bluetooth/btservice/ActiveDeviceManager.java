@@ -22,6 +22,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHearingAid;
+import android.bluetooth.BluetoothLeAudio;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSinkAudioPolicy;
 import android.media.AudioDeviceCallback;
@@ -569,8 +570,8 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
             boolean hasFallbackDevice = false;
             if (Objects.equals(mLeAudioActiveDevice, device)) {
                 hasFallbackDevice = setFallbackDeviceActiveLocked(device);
-                if (!hasFallbackDevice) {
-                    setLeAudioActiveDevice(null, false);
+                if (!hasFallbackDevice && !Flags.admFixDisconnectOfSetMember()) {
+                    leAudioService.removeActiveDevice(false);
                 }
             }
             leAudioService.deviceDisconnected(device, hasFallbackDevice);
@@ -1095,13 +1096,25 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
             return false;
         }
 
+        if (firstDevice == null || secondDevice == null) {
+            return false;
+        }
+
         final LeAudioService leAudioService = mFactory.getLeAudioService();
         if (leAudioService == null) {
             Log.e(TAG, "LeAudioService not available");
             return false;
         }
 
-        return leAudioService.getGroupId(firstDevice) == leAudioService.getGroupId(secondDevice);
+        int groupIdFirst = leAudioService.getGroupId(firstDevice);
+        int groupIdSecond = leAudioService.getGroupId(secondDevice);
+
+        if (groupIdFirst == BluetoothLeAudio.GROUP_ID_INVALID
+                || groupIdSecond == BluetoothLeAudio.GROUP_ID_INVALID) {
+            return false;
+        }
+
+        return groupIdFirst == groupIdSecond;
     }
 
     /**
@@ -1113,7 +1126,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
      */
     @GuardedBy("mLock")
     private boolean setFallbackDeviceActiveLocked(BluetoothDevice recentlyRemovedDevice) {
-        Log.d(TAG, "setFallbackDeviceActive");
+        Log.d(TAG, "setFallbackDeviceActive, recently removed: " + recentlyRemovedDevice);
         mDbManager = mAdapterService.getDatabase();
         List<BluetoothDevice> connectedHearingAidDevices = new ArrayList<>();
         if (!mHearingAidConnectedDevices.isEmpty()) {
@@ -1368,7 +1381,18 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
      */
     private boolean isBroadcastingAudio() {
         final LeAudioService leAudioService = mFactory.getLeAudioService();
-        return leAudioService != null && !leAudioService.getAllBroadcastMetadata().isEmpty();
+        if (leAudioService == null) {
+            Log.d(TAG, "isBroadcastingAudio: false - there is no LeAudioService");
+            return false;
+        }
+
+        if (leAudioService.getAllBroadcastMetadata().isEmpty()) {
+            Log.d(TAG, "isBroadcastingAudio: false - getAllBroadcastMetadata is empty");
+            return false;
+        }
+
+        Log.d(TAG, "isBroadcastingAudio: true");
+        return true;
     }
 
     /**

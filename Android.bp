@@ -189,10 +189,9 @@ java_defaults {
 java_defaults {
     name: "bluetooth_framework_errorprone_rules",
     defaults: ["bluetooth_errorprone_rules"],
-    plugins: [
-        "error_prone_android_framework",
-    ],
     errorprone: {
+        extra_check_modules: ["error_prone_android_framework"],
+
         javacflags: [
             "-Xep:AndroidFrameworkBinderIdentity:ERROR",
             "-Xep:AndroidFrameworkBluetoothPermission:ERROR",

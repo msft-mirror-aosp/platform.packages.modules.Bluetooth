@@ -1266,6 +1266,26 @@ public class GattService extends ProfileService {
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
             return service.getLocalChannelSoundingMaxSupportedSecurityLevel();
         }
+
+        @Override
+        public int[] getChannelSoundingSupportedSecurityLevels(
+                AttributionSource attributionSource) {
+            GattService service = getService();
+
+            if (service == null
+                    || !callerIsSystemOrActiveOrManagedUser(
+                            service, TAG, "GattService getChannelSoundingSupportedSecurityLevels")
+                    || !Utils.checkConnectPermissionForDataDelivery(
+                            service,
+                            attributionSource,
+                            "GattService getChannelSoundingSupportedSecurityLevels")) {
+                return new int[0];
+            }
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            return service.getChannelSoundingSupportedSecurityLevels().stream()
+                    .mapToInt(i -> i)
+                    .toArray();
+        }
     }
     ;
 
@@ -2095,6 +2115,10 @@ public class GattService extends ProfileService {
 
     int getLocalChannelSoundingMaxSupportedSecurityLevel() {
         return mDistanceMeasurementManager.getLocalChannelSoundingMaxSupportedSecurityLevel();
+    }
+
+    Set<Integer> getChannelSoundingSupportedSecurityLevels() {
+        return mDistanceMeasurementManager.getChannelSoundingSupportedSecurityLevels();
     }
 
     /**************************************************************************

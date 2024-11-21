@@ -49,7 +49,7 @@ extern "C" int LLVMFuzzerTestOneInput([[maybe_unused]] const uint8_t* Data,
 
   // Copy, then concat
   size_t len_to_cpy = dataProvider.ConsumeIntegralInRange<size_t>(0, buf_size);
-  strlcpy(reinterpret_cast<char*>(dst_buf), reinterpret_cast<char*>(bytes.data()), len_to_cpy);
+  osi_strlcpy(reinterpret_cast<char*>(dst_buf), reinterpret_cast<char*>(bytes.data()), len_to_cpy);
 
   // Clear out our dest buffer
   free(dst_buf);

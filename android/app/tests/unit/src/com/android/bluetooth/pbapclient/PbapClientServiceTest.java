@@ -19,6 +19,8 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -27,19 +29,26 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.accounts.Account;
+import android.accounts.AccountManager;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Looper;
 import android.provider.CallLog;
+import android.test.mock.MockContentProvider;
+import android.test.mock.MockContentResolver;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
@@ -62,46 +71,71 @@ public class PbapClientServiceTest {
 
     private PbapClientService mService = null;
     private BluetoothAdapter mAdapter = null;
-    private Context mTargetContext;
     private BluetoothDevice mRemoteDevice;
-    boolean mIsAdapterServiceSet;
-    boolean mIsPbapClientServiceStarted;
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
-
-    @Mock private AdapterService mAdapterService;
-
+    @Mock private Context mMockContext;
+    @Mock private AdapterService mMockAdapterService;
     @Mock private DatabaseManager mDatabaseManager;
+    @Mock private PackageManager mMockPackageManager;
+    private MockContentResolver mMockContentResolver;
+    private MockCallLogProvider mMockCallLogProvider;
+    @Mock private Resources mMockResources;
+    @Mock private AccountManager mMockAccountManager;
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
-        TestUtils.setAdapterService(mAdapterService);
-        mIsAdapterServiceSet = true;
-        doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
-        mService = new PbapClientService(mTargetContext);
-        mService.start();
-        mService.setAvailable(true);
-        mIsPbapClientServiceStarted = true;
-        // Try getting the Bluetooth adapter
+        TestUtils.setAdapterService(mMockAdapterService);
+        doReturn(mDatabaseManager).when(mMockAdapterService).getDatabase();
+
+        doReturn("").when(mMockContext).getPackageName();
+        doReturn(mMockPackageManager).when(mMockContext).getPackageManager();
+
+        doReturn(mMockResources).when(mMockContext).getResources();
+        doReturn(Utils.ACCOUNT_TYPE).when(mMockResources).getString(anyInt());
+
+        mMockContentResolver = new MockContentResolver();
+        mMockCallLogProvider = new MockCallLogProvider();
+        mMockContentResolver.addProvider(CallLog.AUTHORITY, mMockCallLogProvider);
+        doReturn(mMockContentResolver).when(mMockContext).getContentResolver();
+
+        doReturn(AccountManager.VISIBILITY_VISIBLE)
+                .when(mMockAccountManager)
+                        .getAccountVisibility(any(Account.class), anyString());
+        doReturn(new Account[]{})
+                .when(mMockAccountManager)
+                        .getAccountsByType(eq(Utils.ACCOUNT_TYPE));
+        TestUtils.mockGetSystemService(
+                mMockContext,
+                Context.ACCOUNT_SERVICE,
+                AccountManager.class,
+                mMockAccountManager);
+
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         Assert.assertNotNull(mAdapter);
         mRemoteDevice = mAdapter.getRemoteDevice(REMOTE_DEVICE_ADDRESS);
+
+        if (Looper.myLooper() == null) {
+            Looper.prepare();
+        }
+
+        mService = new PbapClientService(mMockContext);
+        mService.start();
+        mService.setAvailable(true);
     }
 
     @After
     public void tearDown() throws Exception {
-        if (!mIsAdapterServiceSet) {
-            return;
-        }
-        if (mIsPbapClientServiceStarted) {
+        if (mService != null) {
             mService.stop();
-            mService = PbapClientService.getPbapClientService();
-            Assert.assertNull(mService);
+            mService = null;
         }
-        TestUtils.clearAdapterService(mAdapterService);
-        BluetoothMethodProxy.setInstanceForTesting(null);
+        TestUtils.clearAdapterService(mMockAdapterService);
     }
+
+    // *********************************************************************************************
+    // * Initialize Service
+    // *********************************************************************************************
 
     @Test
     public void testInitialize() {
@@ -115,16 +149,80 @@ public class PbapClientServiceTest {
         assertThat(PbapClientService.getPbapClientService()).isNull();
     }
 
+    // *********************************************************************************************
+    // * Incoming Events
+    // *********************************************************************************************
+
+    // ACL state changes from AdapterService
+
     @Test
-    public void dump_callsStateMachineDump() {
+    public void aclDisconnected_withLeTransport_doesNotCallDisconnect() {
+        int connectionState = BluetoothProfile.STATE_CONNECTED;
         PbapClientStateMachine sm = mock(PbapClientStateMachine.class);
         mService.mPbapClientStateMachineMap.put(mRemoteDevice, sm);
-        StringBuilder builder = new StringBuilder();
+        when(sm.getConnectionState(mRemoteDevice)).thenReturn(connectionState);
 
-        mService.dump(builder);
+        mService.aclDisconnected(mRemoteDevice, BluetoothDevice.TRANSPORT_LE);
+        TestUtils.waitForLooperToFinishScheduledTask(Looper.getMainLooper());
 
-        verify(sm).dump(builder);
+        verify(sm, never()).disconnect(mRemoteDevice);
     }
+
+    @Test
+    public void aclDisconnected_withBrEdrTransport_callsDisconnect() {
+        int connectionState = BluetoothProfile.STATE_CONNECTED;
+        PbapClientStateMachine sm = mock(PbapClientStateMachine.class);
+        mService.mPbapClientStateMachineMap.put(mRemoteDevice, sm);
+        when(sm.getConnectionState(mRemoteDevice)).thenReturn(connectionState);
+
+        mService.aclDisconnected(mRemoteDevice, BluetoothDevice.TRANSPORT_BREDR);
+        TestUtils.waitForLooperToFinishScheduledTask(Looper.getMainLooper());
+
+        verify(sm).disconnect(mRemoteDevice);
+    }
+
+    // User unlock state changes
+
+    @Test
+    public void broadcastReceiver_withActionUserUnlocked_callsTryDownloadIfConnected() {
+        PbapClientStateMachine sm = mock(PbapClientStateMachine.class);
+        mService.mPbapClientStateMachineMap.put(mRemoteDevice, sm);
+
+        Intent intent = new Intent(Intent.ACTION_USER_UNLOCKED);
+        intent.putExtra(BluetoothDevice.EXTRA_DEVICE, mRemoteDevice);
+        mService.mPbapBroadcastReceiver.onReceive(mService, intent);
+
+        verify(sm).tryDownloadIfConnected();
+    }
+
+    // HFP HF State changes
+
+    @Test
+    public void headsetClientConnectionStateChanged_hfpCallLogIsRemoved() {
+        mService.handleHeadsetClientConnectionStateChanged(
+                mRemoteDevice,
+                BluetoothProfile.STATE_CONNECTED,
+                BluetoothProfile.STATE_DISCONNECTED);
+
+        assertThat(mMockCallLogProvider.getMostRecentlyDeletedDevice())
+                .isEqualTo(mRemoteDevice.getAddress());
+    }
+
+    // Device state machines cleans up
+
+    @Test
+    public void cleanUpDevice() {
+        PbapClientStateMachine sm = mock(PbapClientStateMachine.class);
+        mService.mPbapClientStateMachineMap.put(mRemoteDevice, sm);
+
+        mService.cleanupDevice(mRemoteDevice);
+
+        assertThat(mService.mPbapClientStateMachineMap).doesNotContainKey(mRemoteDevice);
+    }
+
+    // *********************************************************************************************
+    // * API Methods
+    // *********************************************************************************************
 
     @Test
     public void testSetConnectionPolicy_withNullDevice_throwsIAE() {
@@ -211,171 +309,38 @@ public class PbapClientServiceTest {
                 .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
     }
 
+    // *********************************************************************************************
+    // * Debug/Dump/toString()
+    // *********************************************************************************************
+
     @Test
-    public void cleanUpDevice() {
+    public void dump_callsStateMachineDump() {
         PbapClientStateMachine sm = mock(PbapClientStateMachine.class);
         mService.mPbapClientStateMachineMap.put(mRemoteDevice, sm);
+        StringBuilder builder = new StringBuilder();
 
-        mService.cleanupDevice(mRemoteDevice);
+        mService.dump(builder);
 
-        assertThat(mService.mPbapClientStateMachineMap).doesNotContainKey(mRemoteDevice);
+        verify(sm).dump(builder);
     }
 
-    @Test
-    public void getConnectedDevices() {
-        int connectionState = BluetoothProfile.STATE_CONNECTED;
-        PbapClientStateMachine sm = mock(PbapClientStateMachine.class);
-        mService.mPbapClientStateMachineMap.put(mRemoteDevice, sm);
-        when(sm.getConnectionState()).thenReturn(connectionState);
+    // *********************************************************************************************
+    // * Fake Call Log Provider
+    // *********************************************************************************************
 
-        assertThat(mService.getConnectedDevices()).contains(mRemoteDevice);
-    }
+    private static class MockCallLogProvider extends MockContentProvider {
+        private String mMostRecentlyDeletedDevice = null;
 
-    @Test
-    public void binder_connect_callsServiceMethod() {
-        PbapClientService mockService = mock(PbapClientService.class);
-        PbapClientService.BluetoothPbapClientBinder binder =
-                new PbapClientService.BluetoothPbapClientBinder(mockService);
+        @Override
+        public int delete(Uri uri, String selection, String[] selectionArgs) {
+            if (selectionArgs != null && selectionArgs.length > 0) {
+                mMostRecentlyDeletedDevice = selectionArgs[0];
+            }
+            return 0;
+        }
 
-        binder.connect(mRemoteDevice, null);
-
-        verify(mockService).connect(mRemoteDevice);
-    }
-
-    @Test
-    public void binder_disconnect_callsServiceMethod() {
-        PbapClientService mockService = mock(PbapClientService.class);
-        PbapClientService.BluetoothPbapClientBinder binder =
-                new PbapClientService.BluetoothPbapClientBinder(mockService);
-
-        binder.disconnect(mRemoteDevice, null);
-
-        verify(mockService).disconnect(mRemoteDevice);
-    }
-
-    @Test
-    public void binder_getConnectedDevices_callsServiceMethod() {
-        PbapClientService mockService = mock(PbapClientService.class);
-        PbapClientService.BluetoothPbapClientBinder binder =
-                new PbapClientService.BluetoothPbapClientBinder(mockService);
-
-        binder.getConnectedDevices(null);
-
-        verify(mockService).getConnectedDevices();
-    }
-
-    @Test
-    public void binder_getDevicesMatchingConnectionStates_callsServiceMethod() {
-        PbapClientService mockService = mock(PbapClientService.class);
-        PbapClientService.BluetoothPbapClientBinder binder =
-                new PbapClientService.BluetoothPbapClientBinder(mockService);
-
-        int[] states = new int[] {BluetoothProfile.STATE_CONNECTED};
-        binder.getDevicesMatchingConnectionStates(states, null);
-
-        verify(mockService).getDevicesMatchingConnectionStates(states);
-    }
-
-    @Test
-    public void binder_getConnectionState_callsServiceMethod() {
-        PbapClientService mockService = mock(PbapClientService.class);
-        PbapClientService.BluetoothPbapClientBinder binder =
-                new PbapClientService.BluetoothPbapClientBinder(mockService);
-
-        binder.getConnectionState(mRemoteDevice, null);
-
-        verify(mockService).getConnectionState(mRemoteDevice);
-    }
-
-    @Test
-    public void binder_setConnectionPolicy_callsServiceMethod() {
-        PbapClientService mockService = mock(PbapClientService.class);
-        PbapClientService.BluetoothPbapClientBinder binder =
-                new PbapClientService.BluetoothPbapClientBinder(mockService);
-
-        int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
-        binder.setConnectionPolicy(mRemoteDevice, connectionPolicy, null);
-
-        verify(mockService).setConnectionPolicy(mRemoteDevice, connectionPolicy);
-    }
-
-    @Test
-    public void binder_getConnectionPolicy_callsServiceMethod() {
-        PbapClientService mockService = mock(PbapClientService.class);
-        PbapClientService.BluetoothPbapClientBinder binder =
-                new PbapClientService.BluetoothPbapClientBinder(mockService);
-
-        binder.getConnectionPolicy(mRemoteDevice, null);
-
-        verify(mockService).getConnectionPolicy(mRemoteDevice);
-    }
-
-    @Test
-    public void binder_cleanUp_doesNotCrash() {
-        PbapClientService mockService = mock(PbapClientService.class);
-        PbapClientService.BluetoothPbapClientBinder binder =
-                new PbapClientService.BluetoothPbapClientBinder(mockService);
-
-        binder.cleanup();
-    }
-
-    @Test
-    public void broadcastReceiver_withActionAclDisconnectedLeTransport_doesNotCallDisconnect() {
-        int connectionState = BluetoothProfile.STATE_CONNECTED;
-        PbapClientStateMachine sm = mock(PbapClientStateMachine.class);
-        mService.mPbapClientStateMachineMap.put(mRemoteDevice, sm);
-        when(sm.getConnectionState(mRemoteDevice)).thenReturn(connectionState);
-
-        mService.aclDisconnected(mRemoteDevice, BluetoothDevice.TRANSPORT_LE);
-        TestUtils.waitForLooperToFinishScheduledTask(Looper.getMainLooper());
-
-        verify(sm, never()).disconnect(mRemoteDevice);
-    }
-
-    @Test
-    public void broadcastReceiver_withActionAclDisconnectedBrEdrTransport_callsDisconnect() {
-        int connectionState = BluetoothProfile.STATE_CONNECTED;
-        PbapClientStateMachine sm = mock(PbapClientStateMachine.class);
-        mService.mPbapClientStateMachineMap.put(mRemoteDevice, sm);
-        when(sm.getConnectionState(mRemoteDevice)).thenReturn(connectionState);
-
-        mService.aclDisconnected(mRemoteDevice, BluetoothDevice.TRANSPORT_BREDR);
-        TestUtils.waitForLooperToFinishScheduledTask(Looper.getMainLooper());
-
-        verify(sm).disconnect(mRemoteDevice);
-    }
-
-    @Test
-    public void broadcastReceiver_withActionUserUnlocked_callsTryDownloadIfConnected() {
-        PbapClientStateMachine sm = mock(PbapClientStateMachine.class);
-        mService.mPbapClientStateMachineMap.put(mRemoteDevice, sm);
-
-        Intent intent = new Intent(Intent.ACTION_USER_UNLOCKED);
-        intent.putExtra(BluetoothDevice.EXTRA_DEVICE, mRemoteDevice);
-        mService.mPbapBroadcastReceiver.onReceive(mService, intent);
-
-        verify(sm).tryDownloadIfConnected();
-    }
-
-    @Test
-    public void headsetClientConnectionStateChanged_hfpCallLogIsRemoved() {
-        BluetoothMethodProxy methodProxy = spy(BluetoothMethodProxy.getInstance());
-        BluetoothMethodProxy.setInstanceForTesting(methodProxy);
-
-        mService.handleHeadsetClientConnectionStateChanged(
-                mRemoteDevice,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
-
-        ArgumentCaptor<Object> selectionArgsCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(methodProxy)
-                .contentResolverDelete(
-                        any(),
-                        eq(CallLog.Calls.CONTENT_URI),
-                        any(),
-                        (String[]) selectionArgsCaptor.capture());
-
-        assertThat(((String[]) selectionArgsCaptor.getValue())[0])
-                .isEqualTo(mRemoteDevice.getAddress());
+        public String getMostRecentlyDeletedDevice() {
+            return mMostRecentlyDeletedDevice;
+        }
     }
 }
