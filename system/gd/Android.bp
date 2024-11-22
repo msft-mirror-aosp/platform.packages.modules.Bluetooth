@@ -128,7 +128,6 @@ cc_defaults {
         ":BluetoothNeighborSources",
         ":BluetoothOsSources",
         ":BluetoothPacketSources",
-        ":BluetoothShimSources",
         ":BluetoothStorageSources",
         "module.cc",
         "stack_manager.cc",
