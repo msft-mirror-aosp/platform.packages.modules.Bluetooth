@@ -300,5 +300,14 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
 
+flag {
+    name: "unregister_gatt_client_disconnected"
+    namespace: "bluetooth"
+    description: "Unregister gatt client when disconneted to prevent client leaks"
+    bug: "380388092"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
