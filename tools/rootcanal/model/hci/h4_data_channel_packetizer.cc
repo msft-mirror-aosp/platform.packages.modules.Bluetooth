@@ -85,7 +85,7 @@ void H4DataChannelPacketizer::OnDataReady(std::shared_ptr<AsyncDataChannel> sock
         disconnect_cb_();
         return;
       }
-      FATAL("Read error in {}: {}", fmt::underlying(h4_parser_.CurrentState()), strerror(errno));
+      FATAL("Read error in {}: {}", std::to_underlying(h4_parser_.CurrentState()), strerror(errno));
     }
     h4_parser_.Consume(buffer.data(), bytes_read);
   }
