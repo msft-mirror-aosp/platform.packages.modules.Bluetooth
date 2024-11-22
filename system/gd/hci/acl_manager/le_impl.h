@@ -141,7 +141,7 @@ struct le_impl : public bluetooth::hci::LeAddressManagerCallback {
     le_address_manager_ = new LeAddressManager(
             common::Bind(&le_impl::enqueue_command, common::Unretained(this)), handler_,
             controller->GetMacAddress(), controller->GetLeFilterAcceptListSize(),
-            controller->GetLeResolvingListSize());
+            controller->GetLeResolvingListSize(), controller_);
   }
 
   ~le_impl() {
@@ -855,6 +855,13 @@ public:
     AddressWithType address_with_type = connection_peer_address_with_type_;
     if (initiator_filter_policy == InitiatorFilterPolicy::USE_FILTER_ACCEPT_LIST) {
       address_with_type = AddressWithType();
+    }
+
+    if (com::android::bluetooth::flags::rpa_offload_to_bt_controller() &&
+        controller_->IsSupported(OpCode::LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2) &&
+        own_address_type != OwnAddressType::PUBLIC_DEVICE_ADDRESS) {
+      log::info("Support RPA offload, set own address type RESOLVABLE_OR_RANDOM_ADDRESS");
+      own_address_type = OwnAddressType::RESOLVABLE_OR_RANDOM_ADDRESS;
     }
 
     if (controller_->IsSupported(OpCode::LE_EXTENDED_CREATE_CONNECTION)) {
