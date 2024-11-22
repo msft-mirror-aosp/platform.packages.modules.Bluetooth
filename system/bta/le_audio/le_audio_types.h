@@ -28,6 +28,7 @@
 #include <bit>
 #include <bitset>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <variant>
@@ -1329,7 +1330,7 @@ void AppendMetadataLtvEntryForStreamingContext(std::vector<uint8_t>& metadata,
 uint8_t GetMaxCodecFramesPerSduFromPac(const types::acs_ac_record* pac_record);
 }  // namespace bluetooth::le_audio
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::le_audio::DsaMode> : enum_formatter<bluetooth::le_audio::DsaMode> {};
 template <>
@@ -1338,4 +1339,4 @@ struct formatter<bluetooth::le_audio::types::CisType>
 template <>
 struct formatter<bluetooth::le_audio::types::LeAudioConfigurationStrategy>
     : enum_formatter<bluetooth::le_audio::types::LeAudioConfigurationStrategy> {};
-}  // namespace fmt
+}  // namespace std

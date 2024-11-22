@@ -48,9 +48,9 @@ enum class BluetoothAudioStatus {
 /// by the methods ack_stream_started, ack_stream_suspended.
 ///
 /// The callbacks are always invoked from one of the binder threads.
-class BluetoothAudioPort {
+class StreamCallbacks {
 public:
-  virtual ~BluetoothAudioPort() {}
+  virtual ~StreamCallbacks() {}
   virtual BluetoothAudioStatus StartStream(bool /*low_latency*/) const {
     return BluetoothAudioStatus::FAILURE;
   }
@@ -72,8 +72,8 @@ bool is_hal_enabled();
 bool is_hal_offloading();
 
 // Initialize BluetoothAudio HAL: openProvider
-bool init(bluetooth::common::MessageLoopThread* message_loop, BluetoothAudioPort const* audio_port,
-          bool offload_enabled);
+bool init(bluetooth::common::MessageLoopThread* message_loop,
+          StreamCallbacks const* strean_callbacks, bool offload_enabled);
 
 // Clean up BluetoothAudio HAL
 void cleanup();
@@ -198,8 +198,8 @@ tA2DP_STATUS parse_a2dp_configuration(btav_a2dp_codec_index_t codec_index,
 }  // namespace audio
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<::bluetooth::audio::a2dp::BluetoothAudioStatus>
     : enum_formatter<::bluetooth::audio::a2dp::BluetoothAudioStatus> {};
-}  // namespace fmt
+}  // namespace std

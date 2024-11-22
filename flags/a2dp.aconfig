@@ -177,3 +177,11 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "a2dp_lhdc_api"
+    namespace: "bluetooth"
+    description: "API change for LHDC codec support"
+    is_exported: true
+    bug: "380118954"
+}

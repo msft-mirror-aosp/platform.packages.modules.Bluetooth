@@ -837,7 +837,8 @@ void bta_gattc_cfg_mtu(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
       bta_gattc_send_mtu_response(p_clcb, p_data, current_mtu);
       return;
     case MTU_EXCHANGE_IN_PROGRESS:
-      log::info("Enqueue MTU Request  - waiting for response on p_clcb {}", fmt::ptr(p_clcb));
+      log::info("Enqueue MTU Request  - waiting for response on p_clcb {}",
+                std::format_ptr(p_clcb));
       /* MTU request is in progress and this one will not be sent to remote
        * device. Just push back on the queue and response will be sent up to
        * the upper layer when MTU Exchange will be completed.
@@ -1358,7 +1359,7 @@ void bta_gattc_op_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
     auto outstanding_conn_ids = GATTC_GetAndRemoveListOfConnIdsWaitingForMtuRequest(p_clcb->bda);
     for (auto conn_id : outstanding_conn_ids) {
       tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
-      log::debug("Continue MTU request clcb {}", fmt::ptr(p_clcb));
+      log::debug("Continue MTU request clcb {}", std::format_ptr(p_clcb));
       if (p_clcb) {
         log::debug("Continue MTU request for client conn_id=0x{:04x}", conn_id);
         bta_gattc_continue(p_clcb);

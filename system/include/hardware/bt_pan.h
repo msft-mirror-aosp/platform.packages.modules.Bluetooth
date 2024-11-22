@@ -83,10 +83,10 @@ typedef struct {
   void (*cleanup)(void);
 } btpan_interface_t;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<btpan_connection_state_t> : enum_formatter<btpan_connection_state_t> {};
 
 template <>
 struct formatter<btpan_control_state_t> : enum_formatter<btpan_control_state_t> {};
-}  // namespace fmt
+}  // namespace std

@@ -1665,7 +1665,7 @@ std::string A2DP_CodecInfoString(const uint8_t* p_codec_info) {
       break;
   }
 
-  return fmt::format("Unsupported codec type: {:x}", codec_type);
+  return std::format("Unsupported codec type: {:x}", codec_type);
 }
 
 int A2DP_GetEecoderEffectiveFrameSize(const uint8_t* p_codec_info) {

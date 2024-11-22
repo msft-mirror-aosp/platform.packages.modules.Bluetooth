@@ -177,11 +177,11 @@ struct btif_dm_pairing_cb_t {
   ServiceDiscoveryState sdp_over_classic;
 };
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<btif_dm_pairing_cb_t::ServiceDiscoveryState>
     : enum_formatter<btif_dm_pairing_cb_t::ServiceDiscoveryState> {};
-}  // namespace fmt
+}  // namespace std
 
 // TODO(jpawlowski): unify ?
 // btif_dm_local_key_id_t == tBTM_BLE_LOCAL_ID_KEYS == tBTA_BLE_LOCAL_ID_KEYS

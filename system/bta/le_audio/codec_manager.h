@@ -145,8 +145,8 @@ std::ostream& operator<<(std::ostream& os,
                          const CodecManager::UnicastConfigurationRequirements& req);
 }  // namespace bluetooth::le_audio
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements>
     : ostream_formatter {};
-}  // namespace fmt
+}  // namespace std
