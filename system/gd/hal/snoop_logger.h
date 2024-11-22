@@ -343,8 +343,8 @@ private:
 }  // namespace hal
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::hal::profile_type_t> : enum_formatter<bluetooth::hal::profile_type_t> {
 };
-}  // namespace fmt
+}  // namespace std

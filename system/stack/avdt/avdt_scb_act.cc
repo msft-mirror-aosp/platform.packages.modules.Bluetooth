@@ -553,7 +553,7 @@ void avdt_scb_hdl_security_rsp(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
  *
  ******************************************************************************/
 void avdt_scb_hdl_setconfig_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
-  log::verbose("p_scb->in_use={} p_avdt_scb={} scb_index={}", p_scb->in_use, fmt::ptr(p_scb),
+  log::verbose("p_scb->in_use={} p_avdt_scb={} scb_index={}", p_scb->in_use, std::format_ptr(p_scb),
                p_scb->stream_config.scb_index);
 
   if (p_scb->in_use) {
@@ -586,8 +586,8 @@ void avdt_scb_hdl_setconfig_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
     log::error(
             "mismatch in AVDTP SCB/CCB state: (p_scb->p_ccb={} != p_ccb={}): "
             "p_scb={} scb_handle={} ccb_idx={}",
-            fmt::ptr(p_scb->p_ccb), fmt::ptr(p_ccb), fmt::ptr(p_scb), p_scb->ScbHandle(),
-            p_data->msg.config_cmd.hdr.ccb_idx);
+            std::format_ptr(p_scb->p_ccb), std::format_ptr(p_ccb), std::format_ptr(p_scb),
+            p_scb->ScbHandle(), p_data->msg.config_cmd.hdr.ccb_idx);
     avdt_scb_rej_not_in_use(p_scb, p_data);
     return;
   }
@@ -1016,7 +1016,7 @@ void avdt_scb_hdl_write_req(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
 void avdt_scb_snd_abort_req(AvdtpScb* p_scb, tAVDT_SCB_EVT* /* p_data */) {
   tAVDT_EVT_HDR hdr;
 
-  log::verbose("p_scb->p_ccb={}", fmt::ptr(p_scb->p_ccb));
+  log::verbose("p_scb->p_ccb={}", std::format_ptr(p_scb->p_ccb));
 
   if (p_scb->p_ccb != NULL) {
     p_scb->role = AVDT_CLOSE_INT;
@@ -1286,8 +1286,8 @@ void avdt_scb_snd_setconfig_req(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
     log::error(
             "mismatch in AVDTP SCB/CCB state: (p_scb->p_ccb={} != p_ccb={}): "
             "p_scb={} scb_handle={} ccb_idx={}",
-            fmt::ptr(p_scb->p_ccb), fmt::ptr(p_ccb), fmt::ptr(p_scb), p_scb->ScbHandle(),
-            p_data->msg.config_cmd.hdr.ccb_idx);
+            std::format_ptr(p_scb->p_ccb), std::format_ptr(p_ccb), std::format_ptr(p_scb),
+            p_scb->ScbHandle(), p_data->msg.config_cmd.hdr.ccb_idx);
     avdt_scb_rej_not_in_use(p_scb, p_data);
     return;
   }

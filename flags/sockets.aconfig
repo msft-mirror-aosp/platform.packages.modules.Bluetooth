@@ -52,3 +52,13 @@ flag {
     bug: "374358112"
     is_exported: true
 }
+
+flag {
+    name: "avoid_l2c_processing_while_stack_shutdown"
+    namespace: "bluetooth"
+    description: "Avoid l2cap processing while stack is shutdown"
+    bug: "379731768"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

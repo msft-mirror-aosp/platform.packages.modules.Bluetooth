@@ -73,7 +73,7 @@ public:
   static A2dpCodecConfig* mCodec;
 };
 
-class TestAudioPort : public bluetooth::audio::a2dp::BluetoothAudioPort {
+class TestAudioPort : public bluetooth::audio::a2dp::StreamCallbacks {
   BluetoothAudioStatus StartStream(bool /*low_latency*/) const override {
     return BluetoothAudioStatus::PENDING;
   }

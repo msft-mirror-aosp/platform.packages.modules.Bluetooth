@@ -49,10 +49,10 @@
 
 using namespace bluetooth;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<AACENC_ERROR> : enum_formatter<AACENC_ERROR> {};
-}  // namespace fmt
+}  // namespace std
 
 typedef struct {
   uint32_t sample_rate;

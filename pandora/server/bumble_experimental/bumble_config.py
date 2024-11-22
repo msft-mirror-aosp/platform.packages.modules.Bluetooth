@@ -20,19 +20,21 @@ from bumble.device import Device
 from bumble.pairing import PairingConfig
 from bumble.pairing import PairingDelegate as BasePairingDelegate
 from bumble.pandora import Config, utils
-from bumble.pandora.security import PairingDelegate
+from bumble.pandora.security import PairingDelegate, SecurityService
 from google.protobuf.empty_pb2 import Empty
 from pandora.host_pb2 import PUBLIC
 from pandora_experimental.bumble_config_grpc_aio import BumbleConfigServicer
-from pandora_experimental.bumble_config_pb2 import (KeyDistribution,
-                                                    OverrideRequest)
+from pandora_experimental.bumble_config_pb2 import (KeyDistribution, OverrideRequest)
 
 
 class BumbleConfigService(BumbleConfigServicer):
     device: Device
 
     def __init__(self, device: Device, server_config: Config) -> None:
-        self.log = utils.BumbleServerLoggerAdapter(logging.getLogger(), {"service_name": "BumbleConfig", "device": device})
+        self.log = utils.BumbleServerLoggerAdapter(logging.getLogger(), {
+            "service_name": "BumbleConfig",
+            "device": device,
+        })
         self.device = device
         self.server_config = server_config
 
@@ -50,6 +52,7 @@ class BumbleConfigService(BumbleConfigServicer):
         def pairing_config_factory(connection: BumbleConnection) -> PairingConfig:
             pairing_delegate = PairingDelegate(
                 connection=connection,
+                service=SecurityService(self.device, self.server_config),
                 io_capability=BasePairingDelegate.IoCapability(request.io_capability),
                 local_initiator_key_distribution=parseProtoKeyDistribution(request.initiator_key_distribution),
                 local_responder_key_distribution=parseProtoKeyDistribution(request.responder_key_distribution),
@@ -61,7 +64,7 @@ class BumbleConfigService(BumbleConfigServicer):
                 mitm=pc_req.mitm,
                 bonding=pc_req.bonding,
                 identity_address_type=PairingConfig.AddressType.PUBLIC
-                if request.identity_address_type == PUBLIC else PairingConfig.AddressType.RANDOM,
+                if pc_req.identity_address_type == PUBLIC else PairingConfig.AddressType.RANDOM,
                 delegate=pairing_delegate,
             )
             self.log.debug(f"Override: {pairing_config}")

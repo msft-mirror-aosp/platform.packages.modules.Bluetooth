@@ -55,7 +55,7 @@ public:
       : address_(address), uuid_(uuid), busy_(false), connect_cb_(connect_cb) {}
 
   std::string ToString() const {
-    return fmt::format("address={} UUID={:04X} busy={}", address_, uuid_, busy_);
+    return std::format("address={} UUID={:04X} busy={}", address_, uuid_, busy_);
   }
 
   const RawAddress& address() const { return address_; }

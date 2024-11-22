@@ -89,8 +89,8 @@ private:
 }  // namespace hci
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::hci::acl_manager::RoundRobinScheduler::ConnectionType>
     : enum_formatter<bluetooth::hci::acl_manager::RoundRobinScheduler::ConnectionType> {};
-}  // namespace fmt
+}  // namespace std

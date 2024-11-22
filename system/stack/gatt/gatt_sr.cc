@@ -145,7 +145,7 @@ void gatt_dequeue_sr_cmd(tGATT_TCB& tcb, uint16_t cid) {
   /* Double check in case any buffers are queued */
   log::verbose("gatt_dequeue_sr_cmd cid: 0x{:x}", cid);
   if (p_cmd->p_rsp_msg) {
-    log::error("free tcb.sr_cmd.p_rsp_msg = {}", fmt::ptr(p_cmd->p_rsp_msg));
+    log::error("free tcb.sr_cmd.p_rsp_msg = {}", std::format_ptr(p_cmd->p_rsp_msg));
   }
   osi_free_and_reset((void**)&p_cmd->p_rsp_msg);
 

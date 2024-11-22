@@ -55,7 +55,7 @@ from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-AVRCP_CONNECT_A2DP_WITH_DELAY = 'persist.device_config.aconfig_flags.bluetooth.com.android.bluetooth.flags.avrcp_connect_a2dp_with_delay'
+AVRCP_CONNECT_A2DP_WITH_DELAY = 'com.android.bluetooth.flags.avrcp_connect_a2dp_with_delay'
 
 
 async def initiate_pairing(device, address) -> Connection:
@@ -281,7 +281,7 @@ class A2dpTest(base_test.BaseTestClass):  # type: ignore[misc]
         # Enable AVRCP connect A2DP delayed feature
         for server in self.devices._servers:
             if isinstance(server, AndroidPandoraServer):
-                server.device.adb.shell(['setprop', AVRCP_CONNECT_A2DP_WITH_DELAY, 'true'])  # type: ignore
+                server.device.adb.shell(['device_config override bluetooth', AVRCP_CONNECT_A2DP_WITH_DELAY, 'true'])  # type: ignore
                 break
 
         # Connect and pair RD1.

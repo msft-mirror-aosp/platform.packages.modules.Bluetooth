@@ -31,7 +31,7 @@
 #include "hardware/bt_av.h"
 #include "hci/hci_packets.h"
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<android::bluetooth::DirectionEnum>
     : enum_formatter<android::bluetooth::DirectionEnum> {};
@@ -51,7 +51,7 @@ template <>
 struct formatter<android::bluetooth::EventType> : enum_formatter<android::bluetooth::EventType> {};
 template <>
 struct formatter<android::bluetooth::State> : enum_formatter<android::bluetooth::State> {};
-}  // namespace fmt
+}  // namespace std
 
 namespace bluetooth {
 namespace os {
