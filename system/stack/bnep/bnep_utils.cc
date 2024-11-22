@@ -725,7 +725,8 @@ uint8_t* bnep_process_control_packet(tBNEP_CONN* p_bcb, uint8_t* p, uint16_t* re
     if (rem_len != NULL) {
       *rem_len = 0;
     }
-    log::verbose("invalid packet: p = {} rem_len = {}", fmt::ptr(p), fmt::ptr(rem_len));
+    log::verbose("invalid packet: p = {} rem_len = {}", std::format_ptr(p),
+                 std::format_ptr(rem_len));
     return NULL;
   }
   uint16_t rem_len_orig = *rem_len;

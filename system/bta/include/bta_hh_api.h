@@ -561,8 +561,8 @@ void BTA_HhRemoveDev(uint8_t dev_handle);
  ******************************************************************************/
 void BTA_HhDump(int fd);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_HH_STATUS> : enum_formatter<tBTA_HH_STATUS> {};
-}  // namespace fmt
+}  // namespace std
 #endif /* BTA_HH_API_H */

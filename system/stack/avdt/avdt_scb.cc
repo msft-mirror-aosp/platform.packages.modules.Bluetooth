@@ -760,8 +760,8 @@ void avdt_scb_event(AvdtpScb* p_scb, uint8_t event, tAVDT_SCB_EVT* p_data) {
   uint8_t action;
 
   log::verbose("SCB hdl={} event={}/{} state={} p_avdt_scb={} scb_index={}", avdt_scb_to_hdl(p_scb),
-               event, avdt_scb_evt_str[event], avdt_scb_st_str[p_scb->state], fmt::ptr(p_scb),
-               p_scb->stream_config.scb_index);
+               event, avdt_scb_evt_str[event], avdt_scb_st_str[p_scb->state],
+               std::format_ptr(p_scb), p_scb->stream_config.scb_index);
 
   /* Check that we only send AVDT_SCB_API_WRITE_REQ_EVT to the active stream
    * device */
@@ -925,7 +925,7 @@ AvdtpScb* avdt_scb_by_hdl(uint8_t hdl) {
     return nullptr;
   }
 
-  log::verbose("SCB for handle {} found: p_scb={} scb_index={}", hdl, fmt::ptr(p_scb),
+  log::verbose("SCB for handle {} found: p_scb={} scb_index={}", hdl, std::format_ptr(p_scb),
                p_scb->stream_config.scb_index);
   return p_scb;
 }

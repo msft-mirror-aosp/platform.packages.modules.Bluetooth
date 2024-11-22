@@ -1287,7 +1287,7 @@ void gatt_load_bonded(void);
 
 void gatt_tcb_dump(int fd);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<GattStatus> : enum_formatter<GattStatus> {};
 template <>
@@ -1298,6 +1298,6 @@ template <>
 struct formatter<tGATT_OP_CODE> : enum_formatter<tGATT_OP_CODE> {};
 template <>
 struct formatter<tGATT_DISC_TYPE> : enum_formatter<tGATT_DISC_TYPE> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* GATT_API_H */

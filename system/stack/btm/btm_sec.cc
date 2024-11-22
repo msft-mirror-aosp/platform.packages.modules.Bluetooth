@@ -396,7 +396,7 @@ static bool access_secure_service_from_temp_bond(const tBTM_SEC_DEV_REC* p_dev_r
  *
  ******************************************************************************/
 bool BTM_SecRegister(const tBTM_APPL_INFO* p_cb_info) {
-  log::info("p_cb_info->p_le_callback == 0x{}", fmt::ptr(p_cb_info->p_le_callback));
+  log::info("p_cb_info->p_le_callback == 0x{}", std::format_ptr(p_cb_info->p_le_callback));
   if (p_cb_info->p_le_callback) {
     log::verbose("SMP_Register( btm_proc_smp_cback )");
     SMP_Register(btm_proc_smp_cback);
@@ -410,7 +410,7 @@ bool BTM_SecRegister(const tBTM_APPL_INFO* p_cb_info) {
   }
 
   btm_sec_cb.api = *p_cb_info;
-  log::info("btm_sec_cb.api.p_le_callback = 0x{}", fmt::ptr(btm_sec_cb.api.p_le_callback));
+  log::info("btm_sec_cb.api.p_le_callback = 0x{}", std::format_ptr(btm_sec_cb.api.p_le_callback));
   log::verbose("application registered");
   return true;
 }
@@ -1611,8 +1611,8 @@ tBTM_STATUS btm_sec_l2cap_access_req_by_requirement(const RawAddress& bd_addr,
 
   rc = btm_sec_execute_procedure(p_dev_rec);
   if (rc != tBTM_STATUS::BTM_CMD_STARTED) {
-    log::verbose("p_dev_rec={}, clearing callback. old p_callback={}", fmt::ptr(p_dev_rec),
-                 fmt::ptr(p_dev_rec->sec_rec.p_callback));
+    log::verbose("p_dev_rec={}, clearing callback. old p_callback={}", std::format_ptr(p_dev_rec),
+                 std::format_ptr(p_dev_rec->sec_rec.p_callback));
     p_dev_rec->sec_rec.p_callback = NULL;
     (*p_callback)(bd_addr, transport, p_dev_rec->sec_rec.p_ref_data, rc);
   }
@@ -2048,8 +2048,8 @@ void btm_sec_abort_access_req(const RawAddress& bd_addr) {
 
   p_dev_rec->sec_rec.classic_link = tSECURITY_STATE::IDLE;
 
-  log::verbose("clearing callback. p_dev_rec={}, p_callback={}", fmt::ptr(p_dev_rec),
-               fmt::ptr(p_dev_rec->sec_rec.p_callback));
+  log::verbose("clearing callback. p_dev_rec={}, p_callback={}", std::format_ptr(p_dev_rec),
+               std::format_ptr(p_dev_rec->sec_rec.p_callback));
   p_dev_rec->sec_rec.p_callback = NULL;
 }
 
@@ -2252,7 +2252,7 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr, const uint8_
   if ((btm_sec_cb.pairing_state == BTM_PAIR_STATE_WAIT_LOCAL_PIN) &&
       (btm_sec_cb.pairing_bda == bd_addr)) {
     log::verbose("delayed pin now being requested flags:0x{:x}, (p_pin_callback=0x{})",
-                 btm_sec_cb.pairing_flags, fmt::ptr(btm_sec_cb.api.p_pin_callback));
+                 btm_sec_cb.pairing_flags, std::format_ptr(btm_sec_cb.api.p_pin_callback));
 
     if ((btm_sec_cb.pairing_flags & BTM_PAIR_FLAGS_PIN_REQD) == 0 &&
         btm_sec_cb.api.p_pin_callback) {
@@ -2441,15 +2441,17 @@ void btm_sec_rmt_host_support_feat_evt(const RawAddress bd_addr, uint8_t feature
  ******************************************************************************/
 void btm_io_capabilities_req(RawAddress p) {
   if (btm_sec_is_a_bonded_dev(p)) {
-    if (com::android::bluetooth::flags::key_missing_classic_device()) {
+    auto p_dev_rec = btm_find_dev(p);
+    ASSERT(p_dev_rec != NULL);
+
+    /* If device is bonded, and encrypted it's upgrading security and it's ok.
+     * If it's bonded and not encrypted, it's remote missing keys scenario */
+    if (!p_dev_rec->sec_rec.is_device_encrypted() &&
+        com::android::bluetooth::flags::key_missing_classic_device()) {
       log::warn("Incoming bond request, but {} is already bonded (notifying user)", p);
       bta_dm_remote_key_missing(p);
-
-      auto p_dev_rec = btm_find_dev(p);
-      if (p_dev_rec != NULL) {
-        btm_sec_disconnect(p_dev_rec->hci_handle, HCI_ERR_AUTH_FAILURE,
-                           "btm_io_capabilities_req for bonded device");
-      }
+      btm_sec_disconnect(p_dev_rec->hci_handle, HCI_ERR_AUTH_FAILURE,
+                         "btm_io_capabilities_req for bonded device");
       return;
     }
 
@@ -3360,8 +3362,8 @@ void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_en
   if (!p_dev_rec->sec_rec.is_security_state_bredr_encrypting()) {
     if (tSECURITY_STATE::DELAY_FOR_ENC == p_dev_rec->sec_rec.classic_link) {
       p_dev_rec->sec_rec.classic_link = tSECURITY_STATE::IDLE;
-      log::verbose("clearing callback. p_dev_rec={}, p_callback={}", fmt::ptr(p_dev_rec),
-                   fmt::ptr(p_dev_rec->sec_rec.p_callback));
+      log::verbose("clearing callback. p_dev_rec={}, p_callback={}", std::format_ptr(p_dev_rec),
+                   std::format_ptr(p_dev_rec->sec_rec.p_callback));
       p_dev_rec->sec_rec.p_callback = NULL;
       l2cu_resubmit_pending_sec_req(&p_dev_rec->bd_addr);
       return;
@@ -4375,7 +4377,8 @@ void btm_sec_pin_code_request(const RawAddress p_bda) {
     log::warn(
             "btm_sec_pin_code_request(): Pairing disabled:{}; PIN callback:{}, Dev "
             "Rec:{}!",
-            p_cb->pairing_disabled, fmt::ptr(p_cb->api.p_pin_callback), fmt::ptr(p_dev_rec));
+            p_cb->pairing_disabled, std::format_ptr(p_cb->api.p_pin_callback),
+            std::format_ptr(p_dev_rec));
 
     btsnd_hcic_pin_code_neg_reply(p_bda);
   } else {

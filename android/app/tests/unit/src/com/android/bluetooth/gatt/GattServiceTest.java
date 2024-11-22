@@ -708,7 +708,6 @@ public class GattServiceTest {
 
     @Test
     public void restrictedHandles() throws Exception {
-        mSetFlagsRule.enableFlags(Flags.FLAG_GATT_CLEANUP_RESTRICTED_HANDLES);
         int clientIf = 1;
         int connId = 1;
         ArrayList<GattDbElement> db = new ArrayList<>();

@@ -167,11 +167,11 @@ enum tA2DP_STATUS : uint8_t {
   A2DP_NOT_SUPPORTED_CODEC_PARAMETER = 0xE3,
 };
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::a2dp::CodecId> : enum_formatter<bluetooth::a2dp::CodecId> {};
 template <>
 struct formatter<tA2DP_CODEC_TYPE> : enum_formatter<tA2DP_CODEC_TYPE> {};
 template <>
 struct formatter<tA2DP_STATUS> : enum_formatter<tA2DP_STATUS> {};
-}  // namespace fmt
+}  // namespace std

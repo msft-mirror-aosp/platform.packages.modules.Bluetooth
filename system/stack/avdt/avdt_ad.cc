@@ -289,8 +289,8 @@ void avdt_ad_tc_close_ind(AvdtpTransportChannel* p_tbl) {
   AvdtpScb* p_scb;
   tAVDT_SCB_TC_CLOSE close;
 
-  log::verbose("p_tbl: {} state: {} tcid: {} type: {} ccb_idx: {} scb_hdl: {}", fmt::ptr(p_tbl),
-               tc_state_text(p_tbl->state), p_tbl->tcid,
+  log::verbose("p_tbl: {} state: {} tcid: {} type: {} ccb_idx: {} scb_hdl: {}",
+               std::format_ptr(p_tbl), tc_state_text(p_tbl->state), p_tbl->tcid,
                tc_type_text(avdt_ad_tcid_to_type(p_tbl->tcid)), p_tbl->ccb_idx,
                avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][p_tbl->tcid].scb_hdl);
 
@@ -338,8 +338,8 @@ void avdt_ad_tc_open_ind(AvdtpTransportChannel* p_tbl) {
   tAVDT_OPEN open;
   tAVDT_EVT_HDR evt;
 
-  log::verbose("p_tbl: {} state: {} tcid: {} type: {} ccb_idx: {} scb_hdl: {}", fmt::ptr(p_tbl),
-               tc_state_text(p_tbl->state), p_tbl->tcid,
+  log::verbose("p_tbl: {} state: {} tcid: {} type: {} ccb_idx: {} scb_hdl: {}",
+               std::format_ptr(p_tbl), tc_state_text(p_tbl->state), p_tbl->tcid,
                tc_type_text(avdt_ad_tcid_to_type(p_tbl->tcid)), p_tbl->ccb_idx,
                avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][p_tbl->tcid].scb_hdl);
 
@@ -401,7 +401,7 @@ void avdt_ad_tc_cong_ind(AvdtpTransportChannel* p_tbl, bool is_congested) {
   AvdtpScb* p_scb;
 
   log::verbose("p_tbl: {} state: {} tcid: {} type: {} ccb_idx: {} scb_hdl: {} is_congested: {}",
-               fmt::ptr(p_tbl), tc_state_text(p_tbl->state), p_tbl->tcid,
+               std::format_ptr(p_tbl), tc_state_text(p_tbl->state), p_tbl->tcid,
                tc_type_text(avdt_ad_tcid_to_type(p_tbl->tcid)), p_tbl->ccb_idx,
                avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][p_tbl->tcid].scb_hdl, is_congested);
 
@@ -515,7 +515,7 @@ void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb, uint8_t ro
 
   p_tbl->tcid = avdt_ad_type_to_tcid(type, p_scb);
   p_tbl->my_mtu = kAvdtpMtu;
-  log::verbose("p_tbl: {} state: {} tcid: {} type: {} role: {} my_mtu: {}", fmt::ptr(p_tbl),
+  log::verbose("p_tbl: {} state: {} tcid: {} type: {} role: {} my_mtu: {}", std::format_ptr(p_tbl),
                tc_state_text(p_tbl->state), p_tbl->tcid, tc_type_text(type), role, p_tbl->my_mtu);
 
   if (type != AVDT_CHAN_SIG) {
@@ -574,9 +574,9 @@ void avdt_ad_close_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb) {
   AvdtpTransportChannel* p_tbl;
 
   p_tbl = avdt_ad_tc_tbl_by_type(type, p_ccb, p_scb);
-  log::verbose("p_tbl: {} state: {} tcid: {} type: {} ccb_idx: {} scb_hdl: {}", fmt::ptr(p_tbl),
-               tc_state_text(p_tbl->state), p_tbl->tcid, tc_type_text(type), p_tbl->ccb_idx,
-               avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][p_tbl->tcid].scb_hdl);
+  log::verbose("p_tbl: {} state: {} tcid: {} type: {} ccb_idx: {} scb_hdl: {}",
+               std::format_ptr(p_tbl), tc_state_text(p_tbl->state), p_tbl->tcid, tc_type_text(type),
+               p_tbl->ccb_idx, avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][p_tbl->tcid].scb_hdl);
 
   switch (p_tbl->state) {
     case AVDT_AD_ST_UNUSED:

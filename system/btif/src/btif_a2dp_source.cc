@@ -347,7 +347,7 @@ bool btif_a2dp_source_init(void) {
   return true;
 }
 
-class A2dpAudioPort : public bluetooth::audio::a2dp::BluetoothAudioPort {
+class A2dpStreamCallbacks : public bluetooth::audio::a2dp::StreamCallbacks {
   BluetoothAudioStatus StartStream(bool low_latency) const override {
     // Check if a phone call is currently active.
     if (!bluetooth::headset::IsCallIdle()) {
@@ -417,7 +417,7 @@ class A2dpAudioPort : public bluetooth::audio::a2dp::BluetoothAudioPort {
   }
 };
 
-static const A2dpAudioPort a2dp_audio_port;
+static const A2dpStreamCallbacks a2dp_stream_callbacks;
 
 static void btif_a2dp_source_init_delayed(void) {
   log::info("");
@@ -425,7 +425,8 @@ static void btif_a2dp_source_init_delayed(void) {
   // the provider needs to be initialized earlier in order to ensure
   // get_a2dp_configuration and parse_a2dp_configuration can be
   // invoked before the stream is started.
-  bluetooth::audio::a2dp::init(local_thread(), &a2dp_audio_port, btif_av_is_a2dp_offload_enabled());
+  bluetooth::audio::a2dp::init(local_thread(), &a2dp_stream_callbacks,
+                               btif_av_is_a2dp_offload_enabled());
 }
 
 static bool btif_a2dp_source_startup(void) {
@@ -453,7 +454,7 @@ static void btif_a2dp_source_startup_delayed() {
     log::fatal("unable to enable real time scheduling");
 #endif
   }
-  if (!bluetooth::audio::a2dp::init(local_thread(), &a2dp_audio_port,
+  if (!bluetooth::audio::a2dp::init(local_thread(), &a2dp_stream_callbacks,
                                     btif_av_is_a2dp_offload_enabled())) {
     log::warn("Failed to setup the bluetooth audio HAL");
   }

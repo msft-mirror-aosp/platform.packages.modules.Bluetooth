@@ -1026,7 +1026,7 @@ void avdt_ccb_ll_opened(AvdtpCcb* p_ccb, tAVDT_CCB_EVT* p_data) {
   tAVDT_CTRL avdt_ctrl;
 
   log::verbose("peer {} BtaAvScbIndex={} p_ccb={}", p_ccb->peer_addr, p_ccb->BtaAvScbIndex(),
-               fmt::ptr(p_ccb));
+               std::format_ptr(p_ccb));
   p_ccb->ll_opened = true;
 
   if (!p_ccb->p_conn_cback) {

@@ -582,8 +582,8 @@ tAVRC_STS AVRC_BldCommand(tAVRC_COMMAND* p_cmd, BT_HDR** pp_pkt) {
   bool alloc = false;
   log::verbose("AVRC_BldCommand: pdu={:x} status={:x}", p_cmd->cmd.pdu, p_cmd->cmd.status);
   if (!p_cmd || !pp_pkt) {
-    log::verbose("AVRC_BldCommand. Invalid parameters passed. p_cmd={}, pp_pkt={}", fmt::ptr(p_cmd),
-                 fmt::ptr(pp_pkt));
+    log::verbose("AVRC_BldCommand. Invalid parameters passed. p_cmd={}, pp_pkt={}",
+                 std::format_ptr(p_cmd), std::format_ptr(pp_pkt));
     return AVRC_STS_BAD_PARAM;
   }
 

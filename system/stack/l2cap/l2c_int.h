@@ -854,11 +854,11 @@ void l2cble_process_subrate_change_evt(uint16_t handle, uint8_t status, uint16_t
                                        uint16_t peripheral_latency, uint16_t cont_num,
                                        uint16_t timeout);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tL2C_LINK_STATE> : enum_formatter<tL2C_LINK_STATE> {};
 template <>
 struct formatter<tL2CEVT> : enum_formatter<tL2CEVT> {};
 template <>
 struct formatter<tL2C_CHNL_STATE> : enum_formatter<tL2C_CHNL_STATE> {};
-}  // namespace fmt
+}  // namespace std

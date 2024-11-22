@@ -181,10 +181,10 @@ typedef struct {
   } entry_type;
 } interop_db_entry_t;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<interop_bl_type> : enum_formatter<interop_bl_type> {};
-}  // namespace fmt
+}  // namespace std
 
 static const char* interop_feature_string_(const interop_feature_t feature);
 static void interop_free_entry_(void* data);
@@ -264,7 +264,7 @@ void interop_database_add(const uint16_t feature, const RawAddress* addr, size_t
 
 void interop_database_clear() {
   log::debug("interop_is_initialized: {} interop_list: {}", interop_is_initialized,
-             fmt::ptr(interop_list));
+             std::format_ptr(interop_list));
 
   if (interop_is_initialized && interop_list) {
     for (int feature = BEGINNING_OF_INTEROP_LIST; feature != END_OF_INTEROP_LIST; feature++) {
