@@ -517,9 +517,9 @@ typedef struct {
 
 typedef void(tBTM_BLE_CTRL_FEATURES_CBACK)(tHCI_STATUS status);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTM_BLE_CONN_TYPE> : enum_formatter<tBTM_BLE_CONN_TYPE> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif  // BTM_BLE_API_TYPES_H

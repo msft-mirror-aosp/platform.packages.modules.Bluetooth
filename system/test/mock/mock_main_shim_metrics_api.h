@@ -215,6 +215,20 @@ struct LogMetricSmpPairingEvent {
   }
 };
 extern struct LogMetricSmpPairingEvent LogMetricSmpPairingEvent;
+
+// Name: LogMetricLePairingFail
+// Params: const RawAddress& raw_address, uint8_t failure_reason, bool
+// is_outgoing
+// void
+struct LogMetricLePairingFail {
+  std::function<void(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing)> body{
+          [](const RawAddress& /* raw address */, uint8_t /* failure reason */,
+             bool /* is_outgoing */) {}};
+  void operator()(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing) {
+    body(raw_address, failure_reason, is_outgoing);
+  }
+};
+extern struct LogMetricLePairingFail LogMetricLePairingFail;
 // Name: LogMetricClassicPairingEvent
 // Params: const RawAddress& raw_address, uint16_t handle, uint32_t hci_cmd,
 // uint16_t hci_event, uint16_t cmd_status, uint16_t reason_code, int64_t

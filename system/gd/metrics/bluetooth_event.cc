@@ -192,6 +192,63 @@ State MapHCIStatusToState(tHCI_STATUS status) {
   }
 }
 
+State MapSmpStatusCodeToState(tSMP_STATUS status) {
+  switch (status) {
+    case tSMP_STATUS::SMP_SUCCESS:
+      return State::SUCCESS;
+    case tSMP_STATUS::SMP_PASSKEY_ENTRY_FAIL:
+      return State::PASSKEY_ENTRY_FAIL;
+    case tSMP_STATUS::SMP_OOB_FAIL:
+      return State::OOB_FAIL;
+    case tSMP_STATUS::SMP_PAIR_AUTH_FAIL:
+      return State::AUTH_FAILURE;
+    case tSMP_STATUS::SMP_CONFIRM_VALUE_ERR:
+      return State::CONFIRM_VALUE_ERROR;
+    case tSMP_STATUS::SMP_PAIR_NOT_SUPPORT:
+      return State::PAIRING_NOT_ALLOWED;
+    case tSMP_STATUS::SMP_ENC_KEY_SIZE:
+      return State::ENC_KEY_SIZE;
+    case tSMP_STATUS::SMP_INVALID_CMD:
+      return State::INVALID_CMD;
+    case tSMP_STATUS::SMP_PAIR_FAIL_UNKNOWN:
+      return State::STATE_UNKNOWN;  // Assuming this maps to the default
+    case tSMP_STATUS::SMP_REPEATED_ATTEMPTS:
+      return State::REPEATED_ATTEMPTS;
+    case tSMP_STATUS::SMP_INVALID_PARAMETERS:
+      return State::INVALID_PARAMETERS;
+    case tSMP_STATUS::SMP_DHKEY_CHK_FAIL:
+      return State::DHKEY_CHK_FAIL;
+    case tSMP_STATUS::SMP_NUMERIC_COMPAR_FAIL:
+      return State::NUMERIC_COMPARISON_FAIL;
+    case tSMP_STATUS::SMP_BR_PARING_IN_PROGR:
+      return State::BR_PAIRING_IN_PROGRESS;
+    case tSMP_STATUS::SMP_XTRANS_DERIVE_NOT_ALLOW:
+      return State::CROSS_TRANSPORT_NOT_ALLOWED;
+    case tSMP_STATUS::SMP_PAIR_INTERNAL_ERR:
+      return State::INTERNAL_ERROR;
+    case tSMP_STATUS::SMP_UNKNOWN_IO_CAP:
+      return State::UNKNOWN_IO_CAP;
+    case tSMP_STATUS::SMP_BUSY:
+      return State::BUSY_PAIRING;
+    case tSMP_STATUS::SMP_ENC_FAIL:
+      return State::ENCRYPTION_FAIL;
+    case tSMP_STATUS::SMP_STARTED:
+      return State::STATE_UNKNOWN;  // Assuming this maps to the default
+    case tSMP_STATUS::SMP_RSP_TIMEOUT:
+      return State::RESPONSE_TIMEOUT;
+    case tSMP_STATUS::SMP_FAIL:
+      return State::FAIL;
+    case tSMP_STATUS::SMP_CONN_TOUT:
+      return State::CONNECTION_TIMEOUT;
+    case tSMP_STATUS::SMP_SIRK_DEVICE_INVALID:
+      return State::SIRK_DEVICE_INVALID;
+    case tSMP_STATUS::SMP_USER_CANCELLED:
+      return State::USER_CANCELLATION;
+    default:
+      return State::STATE_UNKNOWN;
+  }
+}
+
 void LogIncomingAclStartEvent(const hci::Address& address) {
   bluetooth::os::LogMetricBluetoothEvent(address, EventType::ACL_CONNECTION_RESPONDER,
                                          State::START);
@@ -239,11 +296,6 @@ void LogAclAfterRemoteNameRequest(const RawAddress& raw_address, tBTM_STATUS sta
   }
 }
 
-void LogUserConfirmationRequestResponse(const hci::Address& address, bool positive) {
-  bluetooth::os::LogMetricBluetoothEvent(address, EventType::USER_CONF_REQUEST,
-                                         positive ? State::SUCCESS : State::FAIL);
-}
-
 void LogAuthenticationComplete(const RawAddress& raw_address, tHCI_STATUS hci_status) {
   hci::Address address = bluetooth::ToGdAddress(raw_address);
   bluetooth::os::LogMetricBluetoothEvent(address,
@@ -258,6 +310,22 @@ void LogSDPComplete(const RawAddress& raw_address, tBTA_STATUS status) {
   bluetooth::os::LogMetricBluetoothEvent(
           address, EventType::SERVICE_DISCOVERY,
           status == tBTA_STATUS::BTA_SUCCESS ? State::SUCCESS : State::FAIL);
+}
+
+void LogLeAclCompletionEvent(const hci::Address& address, hci::ErrorCode reason,
+                             bool is_locally_initiated) {
+  bluetooth::os::LogMetricBluetoothEvent(address,
+                                         is_locally_initiated
+                                                 ? EventType::LE_ACL_CONNECTION_INITIATOR
+                                                 : EventType::LE_ACL_CONNECTION_RESPONDER,
+                                         MapErrorCodeToState(reason));
+}
+
+void LogLePairingFail(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing) {
+  hci::Address address = bluetooth::ToGdAddress(raw_address);
+  bluetooth::os::LogMetricBluetoothEvent(
+          address, is_outgoing ? EventType::SMP_PAIRING_OUTGOING : EventType::SMP_PAIRING_INCOMING,
+          MapSmpStatusCodeToState(static_cast<tSMP_STATUS>(failure_reason)));
 }
 
 }  // namespace metrics

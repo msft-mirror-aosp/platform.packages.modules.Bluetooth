@@ -90,6 +90,9 @@ class PbapClientStateMachine extends StateMachine {
     static final int CONNECT_TIMEOUT = 10000;
     static final int DISCONNECT_TIMEOUT = 3000;
 
+    private static final int LOCAL_SUPPORTED_FEATURES =
+            PbapSdpRecord.FEATURE_DEFAULT_IMAGE_FORMAT | PbapSdpRecord.FEATURE_DOWNLOADING;
+
     private final Object mLock;
     private State mDisconnected;
     private State mConnecting;
@@ -168,7 +171,8 @@ class PbapClientStateMachine extends StateMachine {
                 mConnectionHandler =
                         new PbapClientConnectionHandler.Builder()
                                 .setLooper(looper)
-                                .setContext(mService)
+                                .setLocalSupportedFeatures(LOCAL_SUPPORTED_FEATURES)
+                                .setService(mService)
                                 .setClientSM(PbapClientStateMachine.this)
                                 .setRemoteDevice(mCurrentDevice)
                                 .build();
@@ -311,14 +315,14 @@ class PbapClientStateMachine extends StateMachine {
     /** Trigger a contacts download if the user is unlocked and our accounts are available to us */
     private void downloadIfReady() {
         boolean userReady = mUserManager.isUserUnlocked();
-        boolean accountServiceReady = mService.isAuthenticationServiceReady();
-        if (!userReady || !accountServiceReady) {
+        boolean accountTypeReady = mService.isAccountTypeReady();
+        if (!userReady || !accountTypeReady) {
             Log.w(
                     TAG,
                     "Cannot download contacts yet, userReady="
                             + userReady
-                            + ", accountServiceReady="
-                            + accountServiceReady);
+                            + ", accountTypeReady="
+                            + accountTypeReady);
             return;
         }
         PbapClientConnectionHandler connectionHandler = mConnectionHandler;

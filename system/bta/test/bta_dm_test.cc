@@ -19,10 +19,10 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 #include <flag_macros.h>
-#include <fmt/format.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <format>
 #include <string>
 
 #include "bta/dm/bta_dm_device_search_int.h"
@@ -427,11 +427,10 @@ TEST_F(BtaDmTest, bta_dm_search_evt_text) {
   for (const auto& event : events) {
     ASSERT_STREQ(event.second.c_str(), bta_dm_search_evt_text(event.first).c_str());
   }
-  ASSERT_STREQ(
-          fmt::format("UNKNOWN[{}]", std::numeric_limits<uint8_t>::max()).c_str(),
-          bta_dm_search_evt_text(
-                  static_cast<tBTA_DM_SEARCH_EVT>(std::numeric_limits<uint8_t>::max()))
-                  .c_str());
+  ASSERT_STREQ(std::format("UNKNOWN[{}]", std::numeric_limits<uint8_t>::max()).c_str(),
+               bta_dm_search_evt_text(
+                       static_cast<tBTA_DM_SEARCH_EVT>(std::numeric_limits<uint8_t>::max()))
+                       .c_str());
 }
 
 TEST_F(BtaDmTest, bta_dm_remote_name_cmpl) {

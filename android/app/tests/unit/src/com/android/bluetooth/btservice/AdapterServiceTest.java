@@ -30,6 +30,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.AppOpsManager;
 import android.app.admin.DevicePolicyManager;
@@ -275,6 +276,8 @@ public class AdapterServiceTest {
         mockGetSystemService(Context.ALARM_SERVICE, AlarmManager.class);
         mockGetSystemService(Context.APP_OPS_SERVICE, AppOpsManager.class);
         mockGetSystemService(Context.AUDIO_SERVICE, AudioManager.class);
+        mockGetSystemService(Context.ACTIVITY_SERVICE, ActivityManager.class);
+
         DevicePolicyManager dpm =
                 mockGetSystemService(Context.DEVICE_POLICY_SERVICE, DevicePolicyManager.class);
         doReturn(false).when(dpm).isCommonCriteriaModeEnabled(any());

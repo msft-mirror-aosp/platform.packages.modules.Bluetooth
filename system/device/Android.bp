@@ -109,6 +109,7 @@ cc_test {
         "libchrome",
         "libflagtest",
         "libgmock",
+        "libosi",
         "server_configurable_flags",
     ],
     header_libs: ["libbluetooth_headers"],

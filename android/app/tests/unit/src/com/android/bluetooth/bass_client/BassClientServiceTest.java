@@ -1693,10 +1693,16 @@ public class BassClientServiceTest {
                 });
         doReturn(stateList).when(sm).getAllSources();
 
+        Optional<BluetoothLeBroadcastReceiveState> receiveState =
+                stateList.stream().filter(e -> e.getSourceId() == sourceId).findFirst();
+
         mBassClientService
                 .getCallbacks()
                 .notifySourceRemoved(
                         sm.getDevice(), sourceId, BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST);
+        mBassClientService
+                .getCallbacks()
+                .notifyReceiveStateChanged(sm.getDevice(), sourceId, receiveState.get());
         TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
     }
 

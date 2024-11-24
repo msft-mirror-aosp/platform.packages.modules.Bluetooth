@@ -264,7 +264,7 @@ void bta_dm_sdp_result(tSDP_STATUS sdp_result, tBTA_DM_SDP_STATE* sdp_state) {
     // Copy the raw_data to the discovery result structure
     if (p_sdp_db != NULL && p_sdp_db->raw_used != 0 && p_sdp_db->raw_data != NULL) {
       log::verbose("raw_data used = 0x{:x} raw_data_ptr = 0x{}", p_sdp_db->raw_used,
-                   fmt::ptr(p_sdp_db->raw_data));
+                   std::format_ptr(p_sdp_db->raw_data));
 
       p_sdp_db->raw_data = NULL;  // no need to free this - it is a global assigned.
       p_sdp_db->raw_used = 0;

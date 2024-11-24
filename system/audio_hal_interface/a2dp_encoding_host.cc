@@ -48,12 +48,12 @@ typedef enum {
   A2DP_CTRL_GET_PRESENTATION_POSITION,
 } tA2DP_CTRL_CMD;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tUIPC_EVENT> : enum_formatter<tUIPC_EVENT> {};
 template <>
 struct formatter<tA2DP_CTRL_CMD> : enum_formatter<tA2DP_CTRL_CMD> {};
-}  // namespace fmt
+}  // namespace std
 
 namespace {
 

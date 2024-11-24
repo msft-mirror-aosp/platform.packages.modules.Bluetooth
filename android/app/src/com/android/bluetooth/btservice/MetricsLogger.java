@@ -75,7 +75,6 @@ import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.BtRestrictedStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.bass_client.BassConstants;
-import com.android.modules.utils.build.SdkLevel;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ascii;
@@ -343,18 +342,11 @@ public class MetricsLogger {
         BluetoothDevice device = connIntent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
         int state = connIntent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1);
         int metricId = mAdapterService.getMetricId(device);
-        boolean includeMedicalDevices = false;
-        byte[] remoteDeviceInfoBytes = getRemoteDeviceInfoProto(device, includeMedicalDevices);
         if (state == BluetoothProfile.STATE_CONNECTING) {
             String deviceName = mRemoteDevices.getName(device);
             BluetoothStatsLog.write(
                     BluetoothStatsLog.BLUETOOTH_DEVICE_NAME_REPORTED, metricId, deviceName);
-            BluetoothStatsLog.write(
-                    BluetoothStatsLog.REMOTE_DEVICE_INFORMATION_WITH_METRIC_ID,
-                    metricId,
-                    remoteDeviceInfoBytes);
-
-            logAllowlistedDeviceNameHash(metricId, deviceName, true);
+            logAllowlistedDeviceNameHash(metricId, deviceName);
         }
         BluetoothStatsLog.write(
                 BluetoothStatsLog.BLUETOOTH_CONNECTION_STATE_CHANGED,
@@ -605,7 +597,7 @@ public class MetricsLogger {
         return Integer.parseInt(device.getAddress().replace(":", "").substring(0, 6), 16);
     }
 
-    private List<String> getWordBreakdownList(String deviceName) {
+    protected List<String> getWordBreakdownList(String deviceName) {
         if (deviceName == null) {
             return Collections.emptyList();
         }
@@ -634,7 +626,7 @@ public class MetricsLogger {
     }
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-    private void uploadRestrictedBluetothDeviceName(List<String> wordBreakdownList) {
+    protected void uploadRestrictedBluetothDeviceName(List<String> wordBreakdownList) {
         for (String word : wordBreakdownList) {
             BtRestrictedStatsLog.write(RESTRICTED_BLUETOOTH_DEVICE_NAME_REPORTED, word);
         }
@@ -759,17 +751,10 @@ public class MetricsLogger {
         return getSha256String(matchedString);
     }
 
-    protected String logAllowlistedDeviceNameHash(
-            int metricId, String deviceName, boolean logRestrictedNames) {
+    protected String logAllowlistedDeviceNameHash(int metricId, String deviceName) {
         List<String> wordBreakdownList = getWordBreakdownList(deviceName);
         boolean includeMedicalDevices = false;
         String matchedString = getMatchedString(wordBreakdownList, includeMedicalDevices);
-        if (logRestrictedNames) {
-            // Log the restricted bluetooth device name
-            if (SdkLevel.isAtLeastU()) {
-                uploadRestrictedBluetothDeviceName(wordBreakdownList);
-            }
-        }
         if (!matchedString.isEmpty()) {
             statslogBluetoothDeviceNames(metricId, matchedString);
         }

@@ -310,6 +310,29 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     public static final String ACTION_KEY_MISSING = "android.bluetooth.device.action.KEY_MISSING";
 
     /**
+     * Broadcast Action: Indicates that encryption state changed
+     *
+     * <p>Always contains the extra field {@link #EXTRA_DEVICE}
+     *
+     * <p>Always contains the extra field {@link #EXTRA_TRANSPORT}
+     *
+     * <p>Always contains the extra field {@link #EXTRA_ENCRYPTION_STATUS}
+     *
+     * <p>Always contains the extra field {@link #EXTRA_ENCRYPTION_ENABLED}
+     *
+     * <p>Always contains the extra field {@link #EXTRA_KEY_SIZE}
+     *
+     * <p>Always contains the extra field {@link #EXTRA_ENCRYPTION_ALGORITHM}
+     */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    @SuppressLint("ActionValue")
+    @RequiresPermission(BLUETOOTH_CONNECT)
+    @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
+    @BroadcastBehavior(protectedBroadcast = true)
+    public static final String ACTION_ENCRYPTION_CHANGE =
+            "android.bluetooth.device.action.ENCRYPTION_CHANGE";
+
+    /**
      * Used as an Integer extra field in {@link #ACTION_BATTERY_LEVEL_CHANGED} intent. It contains
      * the most recently retrieved battery level information ranging from 0% to 100% for a remote
      * device, {@link #BATTERY_LEVEL_UNKNOWN} when the valid is unknown or there is an error, {@link
@@ -476,6 +499,57 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     @SuppressLint("ActionValue")
     public static final String EXTRA_PAIRING_INITIATOR =
             "android.bluetooth.device.extra.PAIRING_INITIATOR";
+
+    /**
+     * Used as an int extra field in {@link #ACTION_ENCRYPTION_CHANGE} intents as the size of the
+     * encryption key, in number of bytes. i.e. value of 16 means 16-byte, or 128 bit key size.
+     */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    @SuppressLint("ActionValue")
+    public static final String EXTRA_KEY_SIZE = "android.bluetooth.device.extra.KEY_SIZE";
+
+    /**
+     * Used as an int extra field in {@link #ACTION_ENCRYPTION_CHANGE} intents as the algorithm used
+     * for encryption.
+     *
+     * <p>Possible values are: {@link #ENCRYPTION_ALGORITHM_NONE}, {@link #ENCRYPTION_ALGORITHM_E0},
+     * {@link #ENCRYPTION_ALGORITHM_AES}.
+     */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    @SuppressLint("ActionValue")
+    public static final String EXTRA_ENCRYPTION_ALGORITHM =
+            "android.bluetooth.device.extra.EXTRA_ENCRYPTION_ALGORITHM";
+
+    /** Indicates that link was not encrypted using any algorithm */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    public static final int ENCRYPTION_ALGORITHM_NONE = 0;
+
+    /** Indicates link was encrypted using E0 algorithm */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    public static final int ENCRYPTION_ALGORITHM_E0 = 1;
+
+    /** Indicates link was encrypted using AES algorithm */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    public static final int ENCRYPTION_ALGORITHM_AES = 2;
+
+    /**
+     * Used as an int extra field in {@link #ACTION_ENCRYPTION_CHANGE} intent. This is the status
+     * value as returned from controller in "HCI Encryption Change event" i.e. value of 0 means
+     * success.
+     */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    @SuppressLint("ActionValue")
+    public static final String EXTRA_ENCRYPTION_STATUS =
+            "android.bluetooth.device.extra.ENCRYPTION_STATUS";
+
+    /**
+     * Used as a boolean extra field in {@link #ACTION_ENCRYPTION_CHANGE} intent. false mean
+     * encryption is OFF, true means encryption is ON
+     */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    @SuppressLint("ActionValue")
+    public static final String EXTRA_ENCRYPTION_ENABLED =
+            "android.bluetooth.device.extra.ENCRYPTION_ENABLED";
 
     /**
      * Bluetooth pairing initiator, Foreground App
@@ -1380,9 +1454,9 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     public static final String EXTRA_MAS_INSTANCE = "android.bluetooth.device.extra.MAS_INSTANCE";
 
     /**
-     * Used as an int extra field in {@link #ACTION_ACL_CONNECTED} and {@link
-     * #ACTION_ACL_DISCONNECTED} intents to indicate which transport is connected. Possible values
-     * are: {@link #TRANSPORT_BREDR} and {@link #TRANSPORT_LE}.
+     * Used as an int extra field in {@link #ACTION_ACL_CONNECTED}, {@link #ACTION_ACL_DISCONNECTED}
+     * and {@link #ACTION_ENCRYPTION_CHANGE} intents to indicate which transport is connected.
+     * Possible values are: {@link #TRANSPORT_BREDR} and {@link #TRANSPORT_LE}.
      */
     @SuppressLint("ActionValue")
     public static final String EXTRA_TRANSPORT = "android.bluetooth.device.extra.TRANSPORT";

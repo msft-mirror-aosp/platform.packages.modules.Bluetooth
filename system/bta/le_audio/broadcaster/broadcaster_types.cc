@@ -19,20 +19,24 @@
 
 #include <base/strings/string_number_conversions.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <map>
+#include <ostream>
+#include <string>
 #include <vector>
 
 #include "bta/le_audio/audio_hal_client/audio_hal_client.h"
-#include "bta_le_audio_broadcaster_api.h"
 #include "btm_ble_api_types.h"
-#include "internal_include/stack_config.h"
-#include "osi/include/properties.h"
+#include "hardware/bt_le_audio.h"
+#include "le_audio/le_audio_types.h"
 #include "stack/include/bt_types.h"
 
 using bluetooth::le_audio::BasicAudioAnnouncementBisConfig;
 using bluetooth::le_audio::BasicAudioAnnouncementCodecConfig;
 using bluetooth::le_audio::BasicAudioAnnouncementData;
 using bluetooth::le_audio::BasicAudioAnnouncementSubgroup;
-using bluetooth::le_audio::types::LeAudioContextType;
 
 namespace bluetooth::le_audio {
 namespace broadcaster {

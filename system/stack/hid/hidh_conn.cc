@@ -30,7 +30,6 @@
 
 #include <cstdint>
 
-#include "bt_transport.h"
 #include "bta/include/bta_sec_api.h"
 #include "hci_error_code.h"
 #include "hid_conn.h"
@@ -50,6 +49,7 @@
 #include "stack/include/btm_log_history.h"
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/stack_metrics_logging.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;

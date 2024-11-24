@@ -1020,6 +1020,7 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
         BatteryService batteryService = mFactory.getBatteryService();
         HidHostService hidHostService = mFactory.getHidHostService();
         BassClientService bcService = mFactory.getBassClientService();
+        HapClientService hapClientService = mFactory.getHapClientService();
 
         if (hsService != null) {
             if (!mHeadsetRetrySet.contains(device)
@@ -1120,6 +1121,19 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
                 bcService.connect(device);
             }
         }
+        if (Flags.connectHapOnOtherProfileConnect()) {
+            if (hapClientService != null) {
+                List<BluetoothDevice> connectedDevices = hapClientService.getConnectedDevices();
+                if (!connectedDevices.contains(device)
+                        && (hapClientService.getConnectionPolicy(device)
+                                == BluetoothProfile.CONNECTION_POLICY_ALLOWED)
+                        && (hapClientService.getConnectionState(device)
+                                == BluetoothProfile.STATE_DISCONNECTED)) {
+                    debugLog("Retrying connection to HAS with device " + device);
+                    hapClientService.connect(device);
+                }
+            }
+        }
     }
 
     /**
@@ -1145,6 +1159,32 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
             }
         } else {
             warnLog("onUuidsDiscovered: uuids is null for device " + device);
+        }
+    }
+
+    /**
+     * Resets the service connection policies for the device. This is called when the {@link
+     * BluetoothDevice#removeBond} is requested for the device.
+     *
+     * @param device is the remote device whose services have been discovered
+     */
+    void onRemoveBondRequest(BluetoothDevice device) {
+        if (!Flags.preventServiceConnectionsOnRemoveBond()) {
+            return;
+        }
+
+        debugLog("onRemoveBondRequest: Disabling all profiles for " + device);
+        // Don't allow any profiles to connect to the device.
+        for (int profileId = BluetoothProfile.HEADSET;
+                profileId < BluetoothProfile.MAX_PROFILE_ID;
+                profileId++) {
+            if (mAdapterService.getDatabase().getProfileConnectionPolicy(device, profileId)
+                    == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+                mAdapterService
+                        .getDatabase()
+                        .setProfileConnectionPolicy(
+                                device, profileId, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+            }
         }
     }
 
