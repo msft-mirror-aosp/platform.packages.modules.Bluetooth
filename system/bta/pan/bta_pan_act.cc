@@ -26,10 +26,16 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <string>
 
 #include "bta/include/bta_pan_co.h"
 #include "bta/pan/bta_pan_int.h"
+#include "bta_api.h"
+#include "bta_pan_api.h"
+#include "bta_sys.h"
 #include "internal_include/bt_target.h"  // PAN_INCLUDED
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"

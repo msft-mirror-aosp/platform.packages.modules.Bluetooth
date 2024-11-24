@@ -49,12 +49,12 @@
 using bluetooth::Uuid;
 extern bt_interface_t bluetoothInterface;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bt_state_t> : enum_formatter<bt_state_t> {};
 template <>
 struct formatter<bt_discovery_state_t> : enum_formatter<bt_discovery_state_t> {};
-}  // namespace fmt
+}  // namespace std
 
 static Uuid from_java_uuid(jlong uuid_msb, jlong uuid_lsb) {
   std::array<uint8_t, Uuid::kNumBytes128> uu;
@@ -825,7 +825,7 @@ static void callback_thread_event(bt_cb_thread_evt event) {
     vm->AttachCurrentThread(&callbackEnv, &args);
     sHaveCallbackThread = true;
     sCallbackThread = pthread_self();
-    log::verbose("Callback thread attached: {}", fmt::ptr(callbackEnv));
+    log::verbose("Callback thread attached: {}", std::format_ptr(callbackEnv));
   } else if (event == DISASSOCIATE_JVM) {
     if (!isCallbackThread()) {
       log::error("Callback: '' is not called on the correct thread");

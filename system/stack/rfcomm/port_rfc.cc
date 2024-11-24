@@ -65,7 +65,7 @@ void port_get_credits(tPORT* p_port, uint8_t k);
  *
  ******************************************************************************/
 int port_open_continue(tPORT* p_port) {
-  log::verbose("port_open_continue, p_port:{}", fmt::ptr(p_port));
+  log::verbose("port_open_continue, p_port:{}", std::format_ptr(p_port));
 
   /* Check if multiplexer channel has already been established */
   tRFC_MCB* p_mcb = rfc_alloc_multiplexer_channel(p_port->bd_addr, true);
@@ -263,7 +263,8 @@ void PORT_StartInd(tRFC_MCB* p_mcb) {
   p_port = &rfc_cb.port.port[0];
   for (i = 0; i < MAX_RFC_PORTS; i++, p_port++) {
     if ((p_port->rfc.p_mcb == NULL) || (p_port->rfc.p_mcb == p_mcb)) {
-      log::verbose("PORT_StartInd, RFCOMM_StartRsp RFCOMM_SUCCESS: p_mcb:{}", fmt::ptr(p_mcb));
+      log::verbose("PORT_StartInd, RFCOMM_StartRsp RFCOMM_SUCCESS: p_mcb:{}",
+                   std::format_ptr(p_mcb));
       RFCOMM_StartRsp(p_mcb, RFCOMM_SUCCESS);
       return;
     }
@@ -289,7 +290,7 @@ void PORT_ParNegInd(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint8_t cl, uin
     p_port = port_find_dlci_port(dlci);
     if (!p_port) {
       log::error("Disconnect RFCOMM, port not found, dlci={}, p_mcb={}, bd_addr={}", dlci,
-                 fmt::ptr(p_mcb), p_mcb->bd_addr);
+                 std::format_ptr(p_mcb), p_mcb->bd_addr);
       /* If the port cannot be opened, send a DM.  Per Errata 1205 */
       rfc_send_dm(p_mcb, dlci, false);
       /* check if this is the last port open, some headsets have
@@ -416,8 +417,8 @@ void PORT_ParNegCnf(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint8_t cl, uin
 void PORT_DlcEstablishInd(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu) {
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
 
-  log::verbose("p_mcb:{}, dlci:{} mtu:{}i, p_port:{}, bd_addr:{}", fmt::ptr(p_mcb), dlci, mtu,
-               fmt::ptr(p_port), p_mcb->bd_addr);
+  log::verbose("p_mcb:{}, dlci:{} mtu:{}i, p_port:{}, bd_addr:{}", std::format_ptr(p_mcb), dlci,
+               mtu, std::format_ptr(p_port), p_mcb->bd_addr);
 
   if (!p_port) {
     /* This can be a first request for this port */
@@ -787,7 +788,7 @@ void PORT_DataInd(tRFC_MCB* p_mcb, uint8_t dlci, BT_HDR* p_buf) {
   int i;
 
   log::verbose("PORT_DataInd with data length {}, p_mcb:{},p_port:{},dlci:{}", p_buf->len,
-               fmt::ptr(p_mcb), fmt::ptr(p_port), dlci);
+               std::format_ptr(p_mcb), std::format_ptr(p_port), dlci);
   if (!p_port) {
     osi_free(p_buf);
     return;

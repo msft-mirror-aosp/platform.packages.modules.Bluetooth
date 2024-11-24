@@ -21,22 +21,17 @@
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
-#include <hardware/bt_gatt_types.h>
+#include <stdio.h>
 
 #include <bitset>
-#include <string>
-#include <vector>
+#include <cstdint>
+#include <sstream>
 
-#include "bta_gatt_api.h"
 #include "bta_gatt_queue.h"
-#include "bta_le_audio_uuids.h"
-#include "gap_api.h"
-#include "gatt_api.h"
-#include "internal_include/bt_trace.h"
 #include "osi/include/properties.h"
 #include "stack/include/bt_types.h"
+#include "types/raw_address.h"
 
-using bluetooth::Uuid;
 using namespace bluetooth;
 using bluetooth::le_audio::GmapClient;
 bool GmapClient::is_offloader_support_gmap_ = false;

@@ -31,10 +31,10 @@
 
 using namespace bluetooth;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<OI_STATUS> : enum_formatter<OI_STATUS> {};
-}  // namespace fmt
+}  // namespace std
 
 typedef struct {
   OI_CODEC_SBC_DECODER_CONTEXT decoder_context;

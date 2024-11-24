@@ -484,7 +484,7 @@ void BTA_DmSirkSecCbRegister(tBTA_DM_SEC_CBACK* p_cback);
  ******************************************************************************/
 void BTA_DmSirkConfirmDeviceReply(const RawAddress& bd_addr, bool accept);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_DM_SEC_EVT> : enum_formatter<tBTA_DM_SEC_EVT> {};
-}  // namespace fmt
+}  // namespace std

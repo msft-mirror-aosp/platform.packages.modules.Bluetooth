@@ -490,8 +490,9 @@ static void bta_dm_discover_name(const RawAddress& remote_bd_addr) {
   bta_dm_search_cb.peer_bdaddr = remote_bd_addr;
 
   log::verbose("name_discover_done = {} p_btm_inq_info 0x{} state = {}, transport={}",
-               bta_dm_search_cb.name_discover_done, fmt::ptr(bta_dm_search_cb.p_btm_inq_info),
-               bta_dm_search_get_state(), transport);
+               bta_dm_search_cb.name_discover_done,
+               std::format_ptr(bta_dm_search_cb.p_btm_inq_info), bta_dm_search_get_state(),
+               transport);
 
   if (bta_dm_search_cb.p_btm_inq_info) {
     log::verbose("appl_knows_rem_name {}", bta_dm_search_cb.p_btm_inq_info->appl_knows_rem_name);

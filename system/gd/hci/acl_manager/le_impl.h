@@ -141,7 +141,7 @@ struct le_impl : public bluetooth::hci::LeAddressManagerCallback {
     le_address_manager_ = new LeAddressManager(
             common::Bind(&le_impl::enqueue_command, common::Unretained(this)), handler_,
             controller->GetMacAddress(), controller->GetLeFilterAcceptListSize(),
-            controller->GetLeResolvingListSize());
+            controller->GetLeResolvingListSize(), controller_);
   }
 
   ~le_impl() {
@@ -325,6 +325,11 @@ public:
     log::debug("{} --> {}", connectability_state_machine_text(connectability_state_),
                connectability_state_machine_text(state));
     connectability_state_ = state;
+    if (com::android::bluetooth::flags::le_impl_ack_pause_disarmed()) {
+      if (state == ConnectabilityState::DISARMED && pause_connection) {
+        le_address_manager_->AckPause(this);
+      }
+    }
   }
 
   // connection canceled by LeAddressManager.OnPause(), will auto reconnect by
@@ -333,7 +338,9 @@ public:
     log::assert_that(pause_connection, "Connection must be paused to ack the le address manager");
     arm_on_resume_ = true;
     set_connectability_state(ConnectabilityState::DISARMED);
-    le_address_manager_->AckPause(this);
+    if (!com::android::bluetooth::flags::le_impl_ack_pause_disarmed()) {
+      le_address_manager_->AckPause(this);
+    }
   }
 
   void on_common_le_connection_complete(AddressWithType address_with_type) {
@@ -848,6 +855,13 @@ public:
     AddressWithType address_with_type = connection_peer_address_with_type_;
     if (initiator_filter_policy == InitiatorFilterPolicy::USE_FILTER_ACCEPT_LIST) {
       address_with_type = AddressWithType();
+    }
+
+    if (com::android::bluetooth::flags::rpa_offload_to_bt_controller() &&
+        controller_->IsSupported(OpCode::LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2) &&
+        own_address_type != OwnAddressType::PUBLIC_DEVICE_ADDRESS) {
+      log::info("Support RPA offload, set own address type RESOLVABLE_OR_RANDOM_ADDRESS");
+      own_address_type = OwnAddressType::RESOLVABLE_OR_RANDOM_ADDRESS;
     }
 
     if (controller_->IsSupported(OpCode::LE_EXTENDED_CREATE_CONNECTION)) {

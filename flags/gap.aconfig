@@ -30,13 +30,6 @@ flag {
 }
 
 flag {
-    name: "gatt_cleanup_restricted_handles"
-    namespace: "bluetooth"
-    description: "Cleans up restricted handles when disconnected"
-    bug: "323110155"
-}
-
-flag {
     name: "phy_to_native"
     namespace: "bluetooth"
     description: "Expose advertising PHY settings to native layer"
@@ -287,4 +280,24 @@ flag {
     is_exported: true
     description: "Add new API for directed advertising"
     bug: "378230500"
+}
+
+flag {
+    name: "gatt_queue_cleanup_connected"
+    namespace: "bluetooth"
+    description: "Cleans up BtaGattQueue when connected"
+    bug: "379007400"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "drop_acl_fragment_on_disconnect"
+    namespace: "bluetooth"
+    description: "Drop pending ACL packet fragments for disconnected connection"
+    bug: "376379859"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

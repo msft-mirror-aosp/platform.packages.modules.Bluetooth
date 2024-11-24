@@ -219,7 +219,7 @@ bool device_iot_config_get_str(const std::string& section, const std::string& ke
     return false;
   }
 
-  strlcpy(value, stored_value->c_str(), *size_bytes);
+  osi_strlcpy(value, stored_value->c_str(), *size_bytes);
   *size_bytes = strlen(value) + 1;
 
   return true;

@@ -129,7 +129,7 @@ std::optional<a2dp_configuration> provider::get_a2dp_configuration(
           peer_address, remote_seps, user_preferences);
 }
 bool init(bluetooth::common::MessageLoopThread* message_loop,
-          bluetooth::audio::a2dp::BluetoothAudioPort const* audio_port, bool offload_enabled) {
+          bluetooth::audio::a2dp::StreamCallbacks const* audio_port, bool offload_enabled) {
   inc_func_call_count(__func__);
   return test::mock::audio_hal_interface_a2dp_encoding::init(message_loop, audio_port,
                                                              offload_enabled);

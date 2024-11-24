@@ -19,9 +19,12 @@
 #define LOG_TAG "bta_ag_cmd"
 
 #include <bluetooth/log.h>
-#include <com_android_bluetooth_flags.h>
+#include <string.h>
 
+#include <cctype>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 #include "bta/ag/bta_ag_at.h"
@@ -30,16 +33,19 @@
 #include "bta/include/bta_hfp_api.h"
 #include "bta/include/utl.h"
 #include "bta_ag_swb_aptx.h"
+#include "bta_sys.h"
+#include "btm_api_types.h"
+#include "hardware/bt_hf.h"
+#include "osi/include/alarm.h"
 
 #ifdef __ANDROID__
 #include "bta_le_audio_api.h"
+#include "os/system_properties.h"
 #endif
 
 #include "bta/include/bta_hfp_api.h"
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
-#include "internal_include/bt_trace.h"
-#include "os/system_properties.h"
 #include "osi/include/compat.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/include/port_api.h"
@@ -219,7 +225,7 @@ static void bta_ag_send_result(tBTA_AG_SCB* p_scb, size_t code, const char* p_ar
   *p++ = '\n';
 
   /* copy result code string */
-  strlcpy(p, result->result_string, sizeof(buf) - 2);
+  osi_strlcpy(p, result->result_string, sizeof(buf) - 2);
 
   if (p_scb->conn_service == BTA_AG_HSP) {
     /* If HSP then ":"symbol should be changed as "=" for HSP compatibility */
@@ -535,7 +541,7 @@ static void bta_ag_process_unat_res(char* unat_result) {
     /* Add EOF */
     trim_data[j] = '\0';
     str_leng = str_leng - 4;
-    strlcpy(unat_result, trim_data, str_leng + 1);
+    osi_strlcpy(unat_result, trim_data, str_leng + 1);
     j = 0;
 
     if (str_leng < 4) {
@@ -615,7 +621,7 @@ void bta_ag_at_hsp_cback(tBTA_AG_SCB* p_scb, uint16_t command_id, uint8_t arg_ty
     bta_ag_send_error(p_scb, BTA_AG_ERR_TEXT_TOO_LONG);
     return;
   }
-  strlcpy(val.str, p_arg, sizeof(val.str));
+  osi_strlcpy(val.str, p_arg, sizeof(val.str));
 
   /* call callback with event */
   if (command_id & 0xff00) {
@@ -893,7 +899,7 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, cha
     bta_ag_send_error(p_scb, BTA_AG_ERR_TEXT_TOO_LONG);
     return;
   }
-  strlcpy(val.str, p_arg, sizeof(val.str));
+  osi_strlcpy(val.str, p_arg, sizeof(val.str));
 
   /**
    * Unless this this is a local event, by default we'll forward
@@ -1391,7 +1397,7 @@ void bta_ag_at_err_cback(tBTA_AG_SCB* p_scb, bool unknown, const char* p_arg) {
     val.hdr.app_id = p_scb->app_id;
     val.hdr.status = BTA_AG_SUCCESS;
     val.num = 0;
-    strlcpy(val.str, p_arg, sizeof(val.str));
+    osi_strlcpy(val.str, p_arg, sizeof(val.str));
     (*bta_ag_cb.p_cback)(BTA_AG_AT_UNAT_EVT, (tBTA_AG*)&val);
   } else {
     bta_ag_send_error(p_scb, BTA_AG_ERR_OP_NOT_SUPPORTED);

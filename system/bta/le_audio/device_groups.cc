@@ -19,15 +19,33 @@
 #include "device_groups.h"
 
 #include <bluetooth/log.h>
+#include <stdio.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <iterator>
+#include <memory>
 #include <optional>
+#include <sstream>
+#include <utility>
+#include <vector>
 
+#include "audio_hal_client/audio_hal_client.h"
 #include "bta/include/bta_gatt_api.h"
 #include "bta_csis_api.h"
+#include "bta_groups.h"
 #include "btif/include/btif_profile_storage.h"
+#include "btm_ble_api_types.h"
 #include "btm_iso_api.h"
+#include "btm_iso_api_types.h"
+#include "com_android_bluetooth_flags.h"
 #include "common/strings.h"
+#include "gatt_api.h"
+#include "hardware/bt_le_audio.h"
 #include "hci/controller_interface.h"
+#include "hci_error_code.h"
 #include "internal_include/bt_trace.h"
 #include "le_audio/codec_manager.h"
 #include "le_audio/devices.h"
@@ -35,7 +53,9 @@
 #include "le_audio_utils.h"
 #include "main/shim/entry.h"
 #include "metrics_collector.h"
+#include "os/logging/log_adapter.h"
 #include "stack/include/btm_client_interface.h"
+#include "types/bt_transport.h"
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
@@ -51,7 +71,6 @@ using types::CisState;
 using types::CisType;
 using types::DataPathState;
 using types::LeAudioContextType;
-using types::LeAudioCoreCodecConfig;
 
 /* LeAudioDeviceGroup Class methods implementation */
 void LeAudioDeviceGroup::AddNode(const std::shared_ptr<LeAudioDevice>& leAudioDevice) {
@@ -120,7 +139,7 @@ int LeAudioDeviceGroup::NumOfAvailableForDirection(int direction) const {
 }
 
 void LeAudioDeviceGroup::ClearSinksFromConfiguration(void) {
-  log::info("Group {}, group_id {}", fmt::ptr(this), group_id_);
+  log::info("Group {}, group_id {}", std::format_ptr(this), group_id_);
 
   auto direction = types::kLeAudioDirectionSink;
   stream_conf.stream_params.get(direction).clear();
@@ -128,7 +147,7 @@ void LeAudioDeviceGroup::ClearSinksFromConfiguration(void) {
 }
 
 void LeAudioDeviceGroup::ClearSourcesFromConfiguration(void) {
-  log::info("Group {}, group_id {}", fmt::ptr(this), group_id_);
+  log::info("Group {}, group_id {}", std::format_ptr(this), group_id_);
 
   auto direction = types::kLeAudioDirectionSource;
   stream_conf.stream_params.get(direction).clear();
@@ -1154,7 +1173,7 @@ bool LeAudioDeviceGroup::HaveAllCisesDisconnected(void) const {
 }
 
 uint8_t LeAudioDeviceGroup::CigConfiguration::GetFirstFreeCisId(CisType cis_type) const {
-  log::info("Group: {}, group_id: {} cis_type: {}", fmt::ptr(group_), group_->group_id_,
+  log::info("Group: {}, group_id: {} cis_type: {}", std::format_ptr(group_), group_->group_id_,
             static_cast<int>(cis_type));
   for (size_t id = 0; id < cises.size(); id++) {
     if (cises[id].addr.IsEmpty() && cises[id].type == cis_type) {
@@ -1224,7 +1243,7 @@ int LeAudioDeviceGroup::GetAseCount(uint8_t direction) const {
 }
 
 void LeAudioDeviceGroup::CigConfiguration::GenerateCisIds(LeAudioContextType context_type) {
-  log::info("Group {}, group_id: {}, context_type: {}", fmt::ptr(group_), group_->group_id_,
+  log::info("Group {}, group_id: {}, context_type: {}", std::format_ptr(group_), group_->group_id_,
             bluetooth::common::ToString(context_type));
 
   if (cises.size() > 0) {
@@ -1364,14 +1383,16 @@ bool LeAudioDeviceGroup::CigConfiguration::AssignCisIds(LeAudioDevice* leAudioDe
          */
         cis_id = GetFirstFreeCisId(CisType::CIS_TYPE_BIDIRECTIONAL);
         if (cis_id == kInvalidCisId) {
-          log::error("Unable to get free Uni-Directional Sink CIS ID");
+          log::error("Unable to get free Bi-Directional CIS ID for Sink ASE");
           return false;
         }
+        log::info("ASE ID: {}, assigned Bi-Directional CIS ID: {} for Sink ASE", ase->id, cis_id);
+      } else {
+        log::info("ASE ID: {}, assigned Uni-Directional CIS ID: {} for Sink ASE", ase->id, cis_id);
       }
 
       ase->cis_id = cis_id;
       cises[cis_id].addr = leAudioDevice->address_;
-      log::info("ASE ID: {}, assigned Uni-Directional Sink CIS ID: {}", ase->id, ase->cis_id);
       continue;
     }
 
@@ -1392,14 +1413,16 @@ bool LeAudioDeviceGroup::CigConfiguration::AssignCisIds(LeAudioDevice* leAudioDe
               "bi-directional available");
       cis_id = GetFirstFreeCisId(CisType::CIS_TYPE_BIDIRECTIONAL);
       if (cis_id == kInvalidCisId) {
-        log::error("Unable to get free Uni-Directional Source CIS ID");
+        log::error("Unable to get free Bi-Directional CIS ID for Source ASE");
         return false;
       }
+      log::info("ASE ID: {}, assigned Bi-Directional CIS ID: {} for Source ASE", ase->id, cis_id);
+    } else {
+      log::info("ASE ID: {}, assigned Uni-Directional CIS ID: {} for Source ASE", ase->id, cis_id);
     }
 
     ase->cis_id = cis_id;
     cises[cis_id].addr = leAudioDevice->address_;
-    log::info("ASE ID: {}, assigned Uni-Directional Source CIS ID: {}", ase->id, ase->cis_id);
   }
 
   return true;
@@ -1416,7 +1439,7 @@ void LeAudioDeviceGroup::CigConfiguration::AssignCisConnHandles(
 
 void LeAudioDeviceGroup::AssignCisConnHandlesToAses(LeAudioDevice* leAudioDevice) {
   log::assert_that(leAudioDevice, "Invalid device");
-  log::info("group: {}, group_id: {}, device: {}", fmt::ptr(this), group_id_,
+  log::info("group: {}, group_id: {}, device: {}", std::format_ptr(this), group_id_,
             leAudioDevice->address_);
 
   /* Assign all CIS connection handles to ases */
@@ -1447,7 +1470,7 @@ void LeAudioDeviceGroup::AssignCisConnHandlesToAses(void) {
   LeAudioDevice* leAudioDevice = GetFirstActiveDevice();
   log::assert_that(leAudioDevice, "Shouldn't be called without an active device.");
 
-  log::info("Group {}, group_id {}", fmt::ptr(this), group_id_);
+  log::info("Group {}, group_id {}", std::format_ptr(this), group_id_);
 
   /* Assign all CIS connection handles to ases */
   for (; leAudioDevice != nullptr; leAudioDevice = GetNextActiveDevice(leAudioDevice)) {
@@ -1459,7 +1482,7 @@ void LeAudioDeviceGroup::CigConfiguration::UnassignCis(LeAudioDevice* leAudioDev
                                                        uint16_t conn_handle) {
   log::assert_that(leAudioDevice, "Invalid device");
 
-  log::info("Group {}, group_id {}, device: {}, conn_handle: {:#x}", fmt::ptr(group_),
+  log::info("Group {}, group_id {}, device: {}, conn_handle: {:#x}", std::format_ptr(group_),
             group_->group_id_, leAudioDevice->address_, conn_handle);
 
   for (struct bluetooth::le_audio::types::cis& cis_entry : cises) {
@@ -1724,8 +1747,9 @@ bool LeAudioDeviceGroup::ConfigureAses(
 
     auto const max_required_device_cnt = NumOfAvailableForDirection(direction);
     auto required_device_cnt = max_required_device_cnt;
-    uint8_t active_ase_cnt = 0;
+    log::debug("Maximum {} device(s) required for {}", max_required_device_cnt, direction_str);
 
+    uint8_t active_ase_cnt = 0;
     auto configuration_closure = [&](LeAudioDevice* dev) -> void {
       /* For the moment, we configure only connected devices and when it is
        * ready to stream i.e. All ASEs are discovered and dev is reported as

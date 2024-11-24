@@ -444,3 +444,13 @@ flag {
     description: "Change how LE Audio profiles are configured and enabled"
     bug: "379178585"
 }
+
+flag {
+    name: "leaudio_dev_options_respect_profile_sysprops"
+    namespace: "bluetooth"
+    description: "LE Audio developer options should respect profile sysprops"
+    bug: "379562663"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

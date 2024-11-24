@@ -22,11 +22,20 @@
 #include <com_android_bluetooth_flags.h>
 #include <hardware/bt_gatt_types.h>
 #include <hardware/bt_has.h>
+#include <stdio.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <list>
 #include <map>
 #include <mutex>
+#include <optional>
+#include <sstream>
 #include <string>
+#include <utility>
+#include <variant>
 #include <vector>
 
 #include "bta_csis_api.h"
@@ -34,21 +43,30 @@
 #include "bta_gatt_queue.h"
 #include "bta_has_api.h"
 #include "bta_le_audio_uuids.h"
+#include "btm_ble_api_types.h"
 #include "btm_sec.h"
+#include "btm_sec_api_types.h"
+#include "btm_status.h"
 #include "gap_api.h"
+#include "gatt/database.h"
 #include "gatt_api.h"
+#include "gattdefs.h"
+#include "has_ctp.h"
+#include "has_journal.h"
+#include "has_preset.h"
 #include "has_types.h"
-#include "internal_include/bt_trace.h"
+#include "osi/include/alarm.h"
 #include "osi/include/properties.h"
 #include "stack/include/bt_types.h"
+#include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
 
 using base::Closure;
 using bluetooth::Uuid;
 using bluetooth::csis::CsisClient;
 using bluetooth::has::ConnectionState;
 using bluetooth::has::ErrorCode;
-using bluetooth::has::kFeatureBitPresetSynchronizationSupported;
-using bluetooth::has::kHasPresetIndexInvalid;
 using bluetooth::has::PresetInfo;
 using bluetooth::has::PresetInfoReason;
 using bluetooth::le_audio::has::HasClient;
@@ -59,8 +77,6 @@ using bluetooth::le_audio::has::HasDevice;
 using bluetooth::le_audio::has::HasGattOpContext;
 using bluetooth::le_audio::has::HasJournalRecord;
 using bluetooth::le_audio::has::HasPreset;
-using bluetooth::le_audio::has::kControlPointMandatoryOpcodesBitmask;
-using bluetooth::le_audio::has::kControlPointSynchronizedOpcodesBitmask;
 using bluetooth::le_audio::has::kUuidActivePresetIndex;
 using bluetooth::le_audio::has::kUuidHearingAccessService;
 using bluetooth::le_audio::has::kUuidHearingAidFeatures;
@@ -240,6 +256,9 @@ public:
         if (is_connecting_actively) {
           BTA_GATTC_CancelOpen(gatt_if_, address, true);
           callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
+        } else {
+          /* Removes all registrations for connection. */
+          BTA_GATTC_CancelOpen(gatt_if_, address, false);
         }
       }
       return;
@@ -1992,7 +2011,9 @@ private:
     }
 
     device->conn_id = evt.conn_id;
-
+    if (com::android::bluetooth::flags::gatt_queue_cleanup_connected()) {
+      BtaGattQueue::Clean(evt.conn_id);
+    }
     if (BTM_SecIsSecurityPending(device->addr)) {
       /* if security collision happened, wait for encryption done
        * (BTA_GATTC_ENC_CMPL_CB_EVT)

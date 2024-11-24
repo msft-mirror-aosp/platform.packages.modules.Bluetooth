@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <fmt/format.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <sys/socket.h>

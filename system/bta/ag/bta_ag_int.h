@@ -476,11 +476,11 @@ bool bta_ag_is_sco_managed_by_audio();
  */
 void bta_ag_stream_suspended();
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> : enum_formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> {};
 template <>
 struct formatter<tBTA_AG_SCO> : enum_formatter<tBTA_AG_SCO> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_AG_INT_H */

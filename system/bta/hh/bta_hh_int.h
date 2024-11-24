@@ -325,9 +325,9 @@ void bta_hh_dump(int fd);
 void bta_hh_trace_dev_db(void);
 #endif
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_HH_SERVICE_STATE> : enum_formatter<tBTA_HH_SERVICE_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif

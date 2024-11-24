@@ -199,7 +199,7 @@ void avrc_send_next_vendor_cmd(uint8_t handle) {
     p_next_cmd->layer_specific &= 0xFF;             /* AVCT_DATA_CTRL or AVCT_DATA_BROWSE */
 
     log::verbose("AVRC: Dequeuing command 0x{} (handle=0x{:02x}, label=0x{:02x})",
-                 fmt::ptr(p_next_cmd), handle, next_label);
+                 std::format_ptr(p_next_cmd), handle, next_label);
 
     /* Send the message */
     if ((AVCT_MsgReq(handle, next_label, AVCT_CMD, p_next_cmd)) == AVCT_SUCCESS) {
@@ -1309,8 +1309,8 @@ uint16_t AVRC_MsgReq(uint8_t handle, uint8_t label, uint8_t ctype, BT_HDR* p_pkt
      * command
      * is received (exception is continuation request command
      * must sent that to get additional response frags) */
-    log::verbose("AVRC: Enqueuing command 0x{} (handle=0x{:02x}, label=0x{:02x})", fmt::ptr(p_pkt),
-                 handle, label);
+    log::verbose("AVRC: Enqueuing command 0x{} (handle=0x{:02x}, label=0x{:02x})",
+                 std::format_ptr(p_pkt), handle, label);
 
     /* label in BT_HDR (will need this later when the command is dequeued) */
     p_pkt->layer_specific = (label << 8) | (p_pkt->layer_specific & 0xFF);
