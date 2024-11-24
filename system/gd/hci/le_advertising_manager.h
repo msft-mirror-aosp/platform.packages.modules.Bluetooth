@@ -185,8 +185,8 @@ private:
 }  // namespace hci
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::hci::AdvertiserAddressType>
     : enum_formatter<bluetooth::hci::AdvertiserAddressType> {};
-}  // namespace fmt
+}  // namespace std

@@ -25,7 +25,7 @@
 /// Supplied by bionic and glibc>=2.38
 /// This declaration is added simplify clang-tidy
 /// misc-include-cleaner check.
-extern "C" size_t strlcpy(char* dst, const char* src, size_t siz);
+size_t osi_strlcpy(char* dst, const char* src, size_t size);
 
 #if __GLIBC__
 

@@ -662,7 +662,7 @@ void bta_hf_client_operator_name(tBTA_HF_CLIENT_CB* client_cb, char* name) {
 
   memset(&evt, 0, sizeof(evt));
 
-  strlcpy(evt.operator_name.name, name, BTA_HF_CLIENT_OPERATOR_NAME_LEN + 1);
+  osi_strlcpy(evt.operator_name.name, name, BTA_HF_CLIENT_OPERATOR_NAME_LEN + 1);
   evt.operator_name.name[BTA_HF_CLIENT_OPERATOR_NAME_LEN] = '\0';
 
   evt.operator_name.bd_addr = client_cb->peer_addr;
@@ -684,7 +684,7 @@ void bta_hf_client_clip(tBTA_HF_CLIENT_CB* client_cb, char* number) {
 
   memset(&evt, 0, sizeof(evt));
 
-  strlcpy(evt.number.number, number, BTA_HF_CLIENT_NUMBER_LEN + 1);
+  osi_strlcpy(evt.number.number, number, BTA_HF_CLIENT_NUMBER_LEN + 1);
   evt.number.number[BTA_HF_CLIENT_NUMBER_LEN] = '\0';
 
   evt.number.bd_addr = client_cb->peer_addr;
@@ -706,7 +706,7 @@ void bta_hf_client_ccwa(tBTA_HF_CLIENT_CB* client_cb, char* number) {
 
   memset(&evt, 0, sizeof(evt));
 
-  strlcpy(evt.number.number, number, BTA_HF_CLIENT_NUMBER_LEN + 1);
+  osi_strlcpy(evt.number.number, number, BTA_HF_CLIENT_NUMBER_LEN + 1);
   evt.number.number[BTA_HF_CLIENT_NUMBER_LEN] = '\0';
 
   evt.number.bd_addr = client_cb->peer_addr;
@@ -759,7 +759,7 @@ void bta_hf_client_clcc(tBTA_HF_CLIENT_CB* client_cb, uint32_t idx, bool incomin
 
   if (number) {
     evt.clcc.number_present = true;
-    strlcpy(evt.clcc.number, number, BTA_HF_CLIENT_NUMBER_LEN + 1);
+    osi_strlcpy(evt.clcc.number, number, BTA_HF_CLIENT_NUMBER_LEN + 1);
     evt.clcc.number[BTA_HF_CLIENT_NUMBER_LEN] = '\0';
   }
 
@@ -781,7 +781,7 @@ void bta_hf_client_cnum(tBTA_HF_CLIENT_CB* client_cb, char* number, uint16_t ser
   tBTA_HF_CLIENT evt = {};
 
   evt.cnum.service = service;
-  strlcpy(evt.cnum.number, number, BTA_HF_CLIENT_NUMBER_LEN + 1);
+  osi_strlcpy(evt.cnum.number, number, BTA_HF_CLIENT_NUMBER_LEN + 1);
   evt.cnum.number[BTA_HF_CLIENT_NUMBER_LEN] = '\0';
 
   evt.cnum.bd_addr = client_cb->peer_addr;
@@ -791,7 +791,7 @@ void bta_hf_client_cnum(tBTA_HF_CLIENT_CB* client_cb, char* number, uint16_t ser
 void bta_hf_client_unknown_response(tBTA_HF_CLIENT_CB* client_cb, const char* evt_buffer) {
   tBTA_HF_CLIENT evt = {};
 
-  strlcpy(evt.unknown.event_string, evt_buffer, BTA_HF_CLIENT_UNKNOWN_EVENT_LEN + 1);
+  osi_strlcpy(evt.unknown.event_string, evt_buffer, BTA_HF_CLIENT_UNKNOWN_EVENT_LEN + 1);
   evt.unknown.event_string[BTA_HF_CLIENT_UNKNOWN_EVENT_LEN] = '\0';
 
   evt.unknown.bd_addr = client_cb->peer_addr;
@@ -813,7 +813,7 @@ void bta_hf_client_binp(tBTA_HF_CLIENT_CB* client_cb, char* number) {
 
   memset(&evt, 0, sizeof(evt));
 
-  strlcpy(evt.number.number, number, BTA_HF_CLIENT_NUMBER_LEN + 1);
+  osi_strlcpy(evt.number.number, number, BTA_HF_CLIENT_NUMBER_LEN + 1);
   evt.number.number[BTA_HF_CLIENT_NUMBER_LEN] = '\0';
 
   evt.number.bd_addr = client_cb->peer_addr;
@@ -1517,7 +1517,7 @@ static char* bta_hf_client_process_unknown(tBTA_HF_CLIENT_CB* client_cb, char* b
 
   char tmp_buf[BTA_HF_CLIENT_UNKNOWN_EVENT_LEN];
   if (evt_size < BTA_HF_CLIENT_UNKNOWN_EVENT_LEN) {
-    strlcpy(tmp_buf, start, evt_size);
+    osi_strlcpy(tmp_buf, start, evt_size);
     bta_hf_client_unknown_response(client_cb, tmp_buf);
     AT_CHECK_RN(end);
   } else {

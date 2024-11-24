@@ -241,9 +241,7 @@ public class GattService extends ProfileService {
         }
         mAdvertiseManager.clear();
         mClientMap.clear();
-        if (Flags.gattCleanupRestrictedHandles()) {
-            mRestrictedHandles.clear();
-        }
+        mRestrictedHandles.clear();
         mServerMap.clear();
         mHandleMap.clear();
         mReliableQueue.clear();
@@ -1266,6 +1264,26 @@ public class GattService extends ProfileService {
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
             return service.getLocalChannelSoundingMaxSupportedSecurityLevel();
         }
+
+        @Override
+        public int[] getChannelSoundingSupportedSecurityLevels(
+                AttributionSource attributionSource) {
+            GattService service = getService();
+
+            if (service == null
+                    || !callerIsSystemOrActiveOrManagedUser(
+                            service, TAG, "GattService getChannelSoundingSupportedSecurityLevels")
+                    || !Utils.checkConnectPermissionForDataDelivery(
+                            service,
+                            attributionSource,
+                            "GattService getChannelSoundingSupportedSecurityLevels")) {
+                return new int[0];
+            }
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            return service.getChannelSoundingSupportedSecurityLevels().stream()
+                    .mapToInt(i -> i)
+                    .toArray();
+        }
     }
     ;
 
@@ -1335,9 +1353,7 @@ public class GattService extends ProfileService {
         mClientMap.removeConnection(clientIf, connId);
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getById(clientIf);
 
-        if (Flags.gattCleanupRestrictedHandles()) {
-            mRestrictedHandles.remove(connId);
-        }
+        mRestrictedHandles.remove(connId);
 
         // Remove AtomicBoolean representing permit if no other connections rely on this remote
         // device.
@@ -2095,6 +2111,10 @@ public class GattService extends ProfileService {
 
     int getLocalChannelSoundingMaxSupportedSecurityLevel() {
         return mDistanceMeasurementManager.getLocalChannelSoundingMaxSupportedSecurityLevel();
+    }
+
+    Set<Integer> getChannelSoundingSupportedSecurityLevels() {
+        return mDistanceMeasurementManager.getChannelSoundingSupportedSecurityLevels();
     }
 
     /**************************************************************************

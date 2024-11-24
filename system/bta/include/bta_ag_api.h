@@ -647,9 +647,9 @@ void BTA_AgSetScoAllowed(bool value);
 
 void BTA_AgSetActiveDevice(const RawAddress& active_device_addr);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_AG_RES> : enum_formatter<tBTA_AG_RES> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_AG_API_H */

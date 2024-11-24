@@ -148,10 +148,10 @@ inline std::string bta_jv_conn_state_text(const tBTA_JV_CONN_STATE& state) {
   }
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_JV_CONN_STATE> : enum_formatter<tBTA_JV_CONN_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 /* JV Connection types */
 enum class tBTA_JV_CONN_TYPE {
@@ -171,10 +171,10 @@ inline std::string bta_jv_conn_type_text(const tBTA_JV_CONN_TYPE& type) {
   RETURN_UNKNOWN_TYPE_STRING(tBTA_JV_CONN_TYPE, type);
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_JV_CONN_TYPE> : enum_formatter<tBTA_JV_CONN_TYPE> {};
-}  // namespace fmt
+}  // namespace std
 
 enum tBTA_JV_EVT : uint16_t {
   /* Java I/F callback events */

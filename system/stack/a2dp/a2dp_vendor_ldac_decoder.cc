@@ -34,10 +34,10 @@
 
 using namespace bluetooth;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<LDACBT_SMPL_FMT_T> : enum_formatter<LDACBT_SMPL_FMT_T> {};
-}  // namespace fmt
+}  // namespace std
 
 //
 // Decoder for LDAC Source Codec

@@ -33,3 +33,13 @@ flag {
     description: "Allow user to control the preset of hearing aid devices"
     bug: "306236481"
 }
+
+flag {
+    name: "connect_hap_on_other_profile_connect"
+    namespace: "bluetooth"
+    description: "Try to connect HAP when other profile is getting connected"
+    bug: "379771539"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

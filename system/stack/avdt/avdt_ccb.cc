@@ -366,7 +366,7 @@ void avdt_ccb_event(AvdtpCcb* p_ccb, uint8_t event, tAVDT_CCB_EVT* p_data) {
   int i;
 
   log::verbose("CCB ccb={} event={} state={} p_ccb={}", avdt_ccb_to_idx(p_ccb),
-               avdt_ccb_evt_str[event], avdt_ccb_st_str[p_ccb->state], fmt::ptr(p_ccb));
+               avdt_ccb_evt_str[event], avdt_ccb_st_str[p_ccb->state], std::format_ptr(p_ccb));
 
   /* look up the state table for the current state */
   state_table = avdt_ccb_st_tbl[p_ccb->state];
@@ -457,7 +457,7 @@ AvdtpCcb* avdt_ccb_alloc_by_channel_index(const RawAddress& bd_addr, uint8_t cha
   }
   p_ccb->Allocate(bd_addr);
   log::verbose("allocated (index {}) peer={} p_ccb={}", channel_index, p_ccb->peer_addr,
-               fmt::ptr(p_ccb));
+               std::format_ptr(p_ccb));
   return p_ccb;
 }
 
@@ -484,7 +484,7 @@ void AvdtpCcb::Allocate(const RawAddress& peer_address) {
  ******************************************************************************/
 void avdt_ccb_dealloc(AvdtpCcb* p_ccb, tAVDT_CCB_EVT* /* p_data */) {
   log::verbose("deallocated (index {}) peer={} p_ccb={}", avdt_ccb_to_idx(p_ccb), p_ccb->peer_addr,
-               fmt::ptr(p_ccb));
+               std::format_ptr(p_ccb));
   p_ccb->ResetCcb();
 }
 

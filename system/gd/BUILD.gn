@@ -81,8 +81,6 @@ static_library("libbluetooth_gd") {
 flatbuffer("BluetoothGeneratedDumpsysDataSchema_h") {
   sources = [
     "dumpsys_data.fbs",
-    "hci/hci_acl_manager.fbs",
-    "hci/hci_controller.fbs",
     "os/wakelock_manager.fbs",
     "shim/dumpsys.fbs",
   ]
@@ -91,8 +89,6 @@ flatbuffer("BluetoothGeneratedDumpsysDataSchema_h") {
 bt_flatc_binary_schema("BluetoothGeneratedDumpsysBinarySchema_bfbs") {
   sources = [
     "dumpsys_data.fbs",
-    "hci/hci_acl_manager.fbs",
-    "hci/hci_controller.fbs",
     "os/wakelock_manager.fbs",
     "shim/dumpsys.fbs",
   ]

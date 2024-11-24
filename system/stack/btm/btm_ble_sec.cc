@@ -102,7 +102,7 @@ void BTM_SecAddBleDevice(const RawAddress& bd_addr, tBT_DEVICE_TYPE dev_type,
     p_dev_rec->conn_params.peripheral_latency = BTM_BLE_CONN_PARAM_UNDEF;
 
     log::debug("Device added, handle=0x{:x}, p_dev_rec={}, bd_addr={}", p_dev_rec->ble_hci_handle,
-               fmt::ptr(p_dev_rec), bd_addr);
+               std::format_ptr(p_dev_rec), bd_addr);
 
     if (com::android::bluetooth::flags::name_discovery_for_le_pairing() &&
         btif_storage_get_stored_remote_name(bd_addr,
@@ -1802,7 +1802,7 @@ bool BTM_BleDataSignature(const RawAddress& bd_addr, uint8_t* p_text, uint16_t l
                            BTM_CMAC_TLEN_SIZE, p_mac);
   p_rec->sec_rec.increment_sign_counter(true);
 
-  log::verbose("p_mac = {}", fmt::ptr(p_mac));
+  log::verbose("p_mac = {}", std::format_ptr(p_mac));
   log::verbose("p_mac[0]=0x{:02x} p_mac[1]=0x{:02x} p_mac[2]=0x{:02x} p_mac[3]=0x{:02x}", *p_mac,
                *(p_mac + 1), *(p_mac + 2), *(p_mac + 3));
   log::verbose("p_mac[4]=0x{:02x} p_mac[5]=0x{:02x} p_mac[6]=0x{:02x} p_mac[7]=0x{:02x}",

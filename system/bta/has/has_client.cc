@@ -256,6 +256,9 @@ public:
         if (is_connecting_actively) {
           BTA_GATTC_CancelOpen(gatt_if_, address, true);
           callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
+        } else {
+          /* Removes all registrations for connection. */
+          BTA_GATTC_CancelOpen(gatt_if_, address, false);
         }
       }
       return;
@@ -2008,7 +2011,9 @@ private:
     }
 
     device->conn_id = evt.conn_id;
-
+    if (com::android::bluetooth::flags::gatt_queue_cleanup_connected()) {
+      BtaGattQueue::Clean(evt.conn_id);
+    }
     if (BTM_SecIsSecurityPending(device->addr)) {
       /* if security collision happened, wait for encryption done
        * (BTA_GATTC_ENC_CMPL_CB_EVT)

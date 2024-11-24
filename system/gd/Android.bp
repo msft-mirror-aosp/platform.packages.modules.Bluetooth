@@ -639,8 +639,6 @@ genrule {
     cmd: "$(location flatc) -I packages/modules/Bluetooth/system/gd -b --schema -o $(genDir) $(in) ",
     srcs: [
         "dumpsys_data.fbs",
-        "hci/hci_acl_manager.fbs",
-        "hci/hci_controller.fbs",
         "module_unittest.fbs",
         "os/wakelock_manager.fbs",
         "shim/dumpsys.fbs",
@@ -648,8 +646,6 @@ genrule {
     out: [
         "dumpsys.bfbs",
         "dumpsys_data.bfbs",
-        "hci_acl_manager.bfbs",
-        "hci_controller.bfbs",
         "wakelock_manager.bfbs",
     ],
 }
@@ -662,8 +658,6 @@ genrule {
     cmd: "$(location flatc) -I packages/modules/Bluetooth/system/gd -o $(genDir) --cpp $(in) ",
     srcs: [
         "dumpsys_data.fbs",
-        "hci/hci_acl_manager.fbs",
-        "hci/hci_controller.fbs",
         "module_unittest.fbs",
         "os/wakelock_manager.fbs",
         "shim/dumpsys.fbs",
@@ -671,8 +665,6 @@ genrule {
     out: [
         "dumpsys_data_generated.h",
         "dumpsys_generated.h",
-        "hci_acl_manager_generated.h",
-        "hci_controller_generated.h",
         "wakelock_manager_generated.h",
     ],
 }

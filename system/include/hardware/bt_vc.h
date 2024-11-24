@@ -150,11 +150,11 @@ public:
 } /* namespace vc */
 } /* namespace bluetooth */
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::vc::VolumeInputType> : enum_formatter<bluetooth::vc::VolumeInputType> {
 };
 template <>
 struct formatter<bluetooth::vc::VolumeInputStatus>
     : enum_formatter<bluetooth::vc::VolumeInputStatus> {};
-}  // namespace fmt
+}  // namespace std

@@ -186,7 +186,7 @@ void BTA_HfClientSendAT(uint16_t handle, tBTA_HF_CLIENT_AT_CMD_TYPE at, uint32_t
   p_buf->uint32_val2 = val2;
 
   if (str) {
-    strlcpy(p_buf->str, str, BTA_HF_CLIENT_NUMBER_LEN + 1);
+    osi_strlcpy(p_buf->str, str, BTA_HF_CLIENT_NUMBER_LEN + 1);
     p_buf->str[BTA_HF_CLIENT_NUMBER_LEN] = '\0';
   } else {
     p_buf->str[0] = '\0';

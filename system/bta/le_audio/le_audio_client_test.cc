@@ -1318,7 +1318,7 @@ protected:
                                   log::info(
                                           ", sink ase to delete. Cis handle: {}, ase pointer: "
                                           "{}",
-                                          (int)(pair.first), fmt::ptr(+ases.sink));
+                                          (int)(pair.first), std::format_ptr(+ases.sink));
                                   if (ases.sink) {
                                     stream_conf->stream_params.sink.num_of_devices--;
                                     stream_conf->stream_params.sink.num_of_channels -=
@@ -1342,7 +1342,7 @@ protected:
                                   auto ases = leAudioDevice->GetAsesByCisConnHdl(pair.first);
 
                                   log::info(", source to delete. Cis handle: {}, ase pointer: {}",
-                                            (int)(pair.first), fmt::ptr(ases.source));
+                                            (int)(pair.first), std::format_ptr(ases.source));
                                   if (ases.source) {
                                     stream_conf->stream_params.source.num_of_devices--;
                                     stream_conf->stream_params.source.num_of_channels -=
@@ -1378,7 +1378,7 @@ protected:
                                    log::info(
                                            ", sink ase to delete. Cis handle: {}, ase "
                                            "pointer: {}",
-                                           (int)(pair.first), fmt::ptr(+ases.sink));
+                                           (int)(pair.first), std::format_ptr(+ases.sink));
                                    if (ases.sink) {
                                      stream_conf->stream_params.sink.num_of_devices--;
                                      stream_conf->stream_params.sink.num_of_channels -=
@@ -1403,7 +1403,7 @@ protected:
                                    log::info(
                                            ", source to delete. Cis handle: {}, ase pointer: "
                                            "{}",
-                                           (int)(pair.first), fmt::ptr(+ases.source));
+                                           (int)(pair.first), std::format_ptr(+ases.source));
                                    if (ases.source) {
                                      stream_conf->stream_params.source.num_of_devices--;
                                      stream_conf->stream_params.source.num_of_channels -=

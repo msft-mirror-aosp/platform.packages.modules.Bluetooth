@@ -280,7 +280,10 @@ public class HapClientService extends ProfileService {
         }
     }
 
-    List<BluetoothDevice> getConnectedDevices() {
+    /**
+     * @return A list of connected {@link BluetoothDevice}.
+     */
+    public List<BluetoothDevice> getConnectedDevices() {
         synchronized (mStateMachines) {
             List<BluetoothDevice> devices = new ArrayList<>();
             for (HapClientStateMachine sm : mStateMachines.values()) {
