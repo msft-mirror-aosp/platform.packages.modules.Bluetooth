@@ -32,6 +32,7 @@ import com.android.bluetooth.btservice.AdapterService;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -46,7 +47,7 @@ public class DistanceMeasurementManager {
     private static final int RSSI_HIGH_FREQUENCY_INTERVAL_MS = 500;
     private static final int CS_LOW_FREQUENCY_INTERVAL_MS = 5000;
     private static final int CS_MEDIUM_FREQUENCY_INTERVAL_MS = 3000;
-    private static final int CS_HIGH_FREQUENCY_INTERVAL_MS = 1000;
+    private static final int CS_HIGH_FREQUENCY_INTERVAL_MS = 200;
 
     private final AdapterService mAdapterService;
     private HandlerThread mHandlerThread;
@@ -120,7 +121,8 @@ public class DistanceMeasurementManager {
                 startRssiTracker(tracker);
                 break;
             case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
-                if (!mAdapterService.isConnected(params.getDevice())) {
+                if (!mAdapterService.isLeChannelSoundingSupported()
+                        || !mAdapterService.isConnected(params.getDevice())) {
                     Log.e(TAG, "Device " + params.getDevice() + " is not connected");
                     invokeStartFail(
                             callback,
@@ -199,6 +201,11 @@ public class DistanceMeasurementManager {
 
     int getLocalChannelSoundingMaxSupportedSecurityLevel() {
         return ChannelSoundingParams.CS_SECURITY_LEVEL_ONE;
+    }
+
+    Set<Integer> getChannelSoundingSupportedSecurityLevels() {
+        // TODO(b/378685103): get it from the HAL when level 4 is supported and HAL v2 is available.
+        return Set.of(ChannelSoundingParams.CS_SECURITY_LEVEL_ONE);
     }
 
     private synchronized int stopRssiTracker(UUID uuid, String identityAddress, boolean timeout) {

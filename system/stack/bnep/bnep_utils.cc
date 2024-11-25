@@ -25,16 +25,24 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <algorithm>
+#include <cstdint>
+
+#include "bnep_api.h"
 #include "bnep_int.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
+#include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/l2cap_interface.h"
 #include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
@@ -411,10 +419,11 @@ void bnepu_check_send_packet(tBNEP_CONN* p_bcb, BT_HDR* p_buf) {
       fixed_queue_enqueue(p_bcb->xmit_q, p_buf);
     }
   } else {
+    uint16_t len = p_buf->len;
     if (stack::l2cap::get_interface().L2CA_DataWrite(p_bcb->l2cap_cid, p_buf) !=
         tL2CAP_DW_RESULT::SUCCESS) {
       log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_bcb->rem_bda,
-                p_bcb->l2cap_cid, p_buf->len);
+                p_bcb->l2cap_cid, len);
     }
   }
 }
@@ -716,7 +725,8 @@ uint8_t* bnep_process_control_packet(tBNEP_CONN* p_bcb, uint8_t* p, uint16_t* re
     if (rem_len != NULL) {
       *rem_len = 0;
     }
-    log::verbose("invalid packet: p = {} rem_len = {}", fmt::ptr(p), fmt::ptr(rem_len));
+    log::verbose("invalid packet: p = {} rem_len = {}", std::format_ptr(p),
+                 std::format_ptr(rem_len));
     return NULL;
   }
   uint16_t rem_len_orig = *rem_len;
@@ -1203,7 +1213,6 @@ tBNEP_RESULT bnep_is_packet_allowed(tBNEP_CONN* p_bcb, const RawAddress& dest_ad
           p_data += len;
 
           new_len += (len + 2);
-
         } while (ext & 0x80);
       }
       if ((new_len + 4) > org_len) {

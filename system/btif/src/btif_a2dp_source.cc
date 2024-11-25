@@ -20,22 +20,28 @@
 #define LOG_TAG "bluetooth-a2dp"
 #define ATRACE_TAG ATRACE_TAG_AUDIO
 
-#include <base/run_loop.h>
+#include "btif_a2dp_source.h"
+
+#include <base/functional/bind.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
-#ifdef __ANDROID__
-#include <cutils/trace.h>
-#endif
-
-#include <limits.h>
-#include <string.h>
+#include <stdio.h>
 
 #include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <cstring>
 #include <future>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "a2dp_api.h"
+#include "a2dp_codec_api.h"
 #include "audio_hal_interface/a2dp_encoding.h"
+#include "avdt_api.h"
+#include "bta_av_api.h"
 #include "bta_av_ci.h"
-#include "btif_a2dp_source.h"
 #include "btif_av.h"
 #include "btif_av_co.h"
 #include "btif_common.h"
@@ -46,6 +52,7 @@
 #include "common/metrics.h"
 #include "common/repeating_timer.h"
 #include "common/time_util.h"
+#include "hardware/bt_av.h"
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
 #include "osi/include/wakelock.h"
@@ -56,7 +63,12 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
+
+#ifdef __ANDROID__
+#include <cutils/trace.h>
+#endif
 
 using bluetooth::audio::a2dp::BluetoothAudioStatus;
 using bluetooth::common::A2dpSessionMetrics;
@@ -335,7 +347,7 @@ bool btif_a2dp_source_init(void) {
   return true;
 }
 
-class A2dpAudioPort : public bluetooth::audio::a2dp::BluetoothAudioPort {
+class A2dpStreamCallbacks : public bluetooth::audio::a2dp::StreamCallbacks {
   BluetoothAudioStatus StartStream(bool low_latency) const override {
     // Check if a phone call is currently active.
     if (!bluetooth::headset::IsCallIdle()) {
@@ -352,6 +364,7 @@ class A2dpAudioPort : public bluetooth::audio::a2dp::BluetoothAudioPort {
 
     // Check if the stream has already been started.
     if (btif_av_stream_started_ready(A2dpType::kSource)) {
+      log::verbose("stream is already started");
       return BluetoothAudioStatus::SUCCESS;
     }
 
@@ -374,6 +387,7 @@ class A2dpAudioPort : public bluetooth::audio::a2dp::BluetoothAudioPort {
     // Check if the stream is already suspended.
     if (!btif_av_stream_started_ready(A2dpType::kSource)) {
       btif_av_clear_remote_suspend_flag(A2dpType::kSource);
+      log::verbose("stream is already suspended");
       return BluetoothAudioStatus::SUCCESS;
     }
 
@@ -383,13 +397,27 @@ class A2dpAudioPort : public bluetooth::audio::a2dp::BluetoothAudioPort {
     return BluetoothAudioStatus::PENDING;
   }
 
+  BluetoothAudioStatus StopStream() const override {
+    // Check if the stream is already suspended.
+    if (!btif_av_stream_started_ready(A2dpType::kSource)) {
+      btif_av_clear_remote_suspend_flag(A2dpType::kSource);
+      log::verbose("stream is already stopped");
+      return BluetoothAudioStatus::SUCCESS;
+    }
+
+    // Post stop event. The stop request is pending, but completion is not
+    // notified to the HAL.
+    btif_av_stream_stop(RawAddress::kEmpty);
+    return BluetoothAudioStatus::PENDING;
+  }
+
   BluetoothAudioStatus SetLatencyMode(bool low_latency) const override {
     btif_av_set_low_latency(low_latency);
     return BluetoothAudioStatus::SUCCESS;
   }
 };
 
-static const A2dpAudioPort a2dp_audio_port;
+static const A2dpStreamCallbacks a2dp_stream_callbacks;
 
 static void btif_a2dp_source_init_delayed(void) {
   log::info("");
@@ -397,7 +425,8 @@ static void btif_a2dp_source_init_delayed(void) {
   // the provider needs to be initialized earlier in order to ensure
   // get_a2dp_configuration and parse_a2dp_configuration can be
   // invoked before the stream is started.
-  bluetooth::audio::a2dp::init(local_thread(), &a2dp_audio_port, btif_av_is_a2dp_offload_enabled());
+  bluetooth::audio::a2dp::init(local_thread(), &a2dp_stream_callbacks,
+                               btif_av_is_a2dp_offload_enabled());
 }
 
 static bool btif_a2dp_source_startup(void) {
@@ -425,7 +454,7 @@ static void btif_a2dp_source_startup_delayed() {
     log::fatal("unable to enable real time scheduling");
 #endif
   }
-  if (!bluetooth::audio::a2dp::init(local_thread(), &a2dp_audio_port,
+  if (!bluetooth::audio::a2dp::init(local_thread(), &a2dp_stream_callbacks,
                                     btif_av_is_a2dp_offload_enabled())) {
     log::warn("Failed to setup the bluetooth audio HAL");
   }

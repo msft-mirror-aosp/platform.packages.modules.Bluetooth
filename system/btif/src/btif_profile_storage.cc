@@ -15,6 +15,7 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+
 #define LOG_TAG "bt_btif_profile_storage"
 
 #include "btif_profile_storage.h"
@@ -26,6 +27,9 @@
 #include <string.h>
 #include <time.h>
 
+#include <cstdint>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "bta_csis_api.h"
@@ -41,10 +45,13 @@
 #include "btif_config.h"
 #include "btif_hh.h"
 #include "btif_storage.h"
+#include "hardware/bluetooth.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/main_thread.h"
 #include "storage/config_keys.h"
+#include "types/ble_address_with_type.h"
 #include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes

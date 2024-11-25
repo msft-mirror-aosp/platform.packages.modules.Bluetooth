@@ -81,3 +81,19 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "identity_address_type_api"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Add a new API to BluetoothDevice to retrieve Identity Address Type"
+    bug: "377171798"
+}
+
+flag {
+    name: "encryption_change_broadcast"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Broadcast when remote device encryption changes"
+    bug: "369753860"
+}

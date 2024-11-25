@@ -86,7 +86,7 @@ tPORT* port_allocate_port(uint8_t dlci, const RawAddress& bd_addr) {
       p_port->bd_addr = bd_addr;
       rfc_cb.rfc.last_port_index = port_index;
       log::verbose("rfc_cb.port.port[{}]:{} chosen, last_port_index:{}, bd_addr={}", port_index,
-                   fmt::ptr(p_port), rfc_cb.rfc.last_port_index, bd_addr);
+                   std::format_ptr(p_port), rfc_cb.rfc.last_port_index, bd_addr);
       return p_port;
     }
   }
@@ -199,7 +199,7 @@ void port_select_mtu(tPORT* p_port) {
  *
  ******************************************************************************/
 void port_release_port(tPORT* p_port) {
-  log::verbose("p_port: {} state: {} keep_handle: {}", fmt::ptr(p_port), p_port->rfc.state,
+  log::verbose("p_port: {} state: {} keep_handle: {}", std::format_ptr(p_port), p_port->rfc.state,
                p_port->keep_port_handle);
 
   mutex_global_lock();
@@ -280,7 +280,8 @@ tRFC_MCB* port_find_mcb(const RawAddress& bd_addr) {
   for (tRFC_MCB& mcb : rfc_cb.port.rfc_mcb) {
     if ((mcb.state != RFC_MX_STATE_IDLE) && (mcb.bd_addr == bd_addr)) {
       /* Multiplexer channel found do not change anything */
-      log::verbose("found, bd_addr:{}, rfc_mcb:{}, lcid:0x{:x}", bd_addr, fmt::ptr(&mcb), mcb.lcid);
+      log::verbose("found, bd_addr:{}, rfc_mcb:{}, lcid:0x{:x}", bd_addr, std::format_ptr(&mcb),
+                   mcb.lcid);
       return &mcb;
     }
   }
@@ -307,14 +308,15 @@ tPORT* port_find_mcb_dlci_port(tRFC_MCB* p_mcb, uint8_t dlci) {
   }
 
   if (dlci > RFCOMM_MAX_DLCI) {
-    log::warn("DLCI {} is too large, bd_addr={}, p_mcb={}", dlci, p_mcb->bd_addr, fmt::ptr(p_mcb));
+    log::warn("DLCI {} is too large, bd_addr={}, p_mcb={}", dlci, p_mcb->bd_addr,
+              std::format_ptr(p_mcb));
     return nullptr;
   }
 
   uint8_t handle = p_mcb->port_handles[dlci];
   if (handle == 0) {
     log::info("Cannot find allocated RFCOMM app port for DLCI {} on {}, p_mcb={}", dlci,
-              p_mcb->bd_addr, fmt::ptr(p_mcb));
+              p_mcb->bd_addr, std::format_ptr(p_mcb));
     return nullptr;
   }
   return &rfc_cb.port.port[handle - 1];
@@ -480,21 +482,18 @@ void port_flow_control_peer(tPORT* p_port, bool enable, uint16_t count) {
 
         p_port->rx.peer_fc = false;
       }
-    }
-    /* else want to disable flow from peer */
-    else {
+    } else {
+      /* else want to disable flow from peer */
       /* if client registered data callback, just do what they want */
       if (p_port->p_data_callback || p_port->p_data_co_callback) {
         p_port->rx.peer_fc = true;
-      }
-      /* if queue count reached credit rx max, set peer fc */
-      else if (fixed_queue_length(p_port->rx.queue) >= p_port->credit_rx_max) {
+      } else if (fixed_queue_length(p_port->rx.queue) >= p_port->credit_rx_max) {
+        /* if queue count reached credit rx max, set peer fc */
         p_port->rx.peer_fc = true;
       }
     }
-  }
-  /* else using TS 07.10 flow control */
-  else {
+  } else {
+    /* else using TS 07.10 flow control */
     /* if want to enable flow from peer */
     if (enable) {
       /* If rfcomm suspended traffic from the peer based on the rx_queue_size */
@@ -508,19 +507,17 @@ void port_flow_control_peer(tPORT* p_port, bool enable, uint16_t count) {
           RFCOMM_FlowReq(p_port->rfc.p_mcb, p_port->dlci, true);
         }
       }
-    }
-    /* else want to disable flow from peer */
-    else {
+    } else {
+      /* else want to disable flow from peer */
       /* if client registered data callback, just do what they want */
       if (p_port->p_data_callback || p_port->p_data_co_callback) {
         p_port->rx.peer_fc = true;
         RFCOMM_FlowReq(p_port->rfc.p_mcb, p_port->dlci, false);
-      }
-      /* Check the size of the rx queue.  If it exceeds certain */
-      /* level and flow control has not been sent to the peer do it now */
-      else if (((p_port->rx.queue_size > PORT_RX_HIGH_WM) ||
-                (fixed_queue_length(p_port->rx.queue) > PORT_RX_BUF_HIGH_WM)) &&
-               !p_port->rx.peer_fc) {
+      } else if (((p_port->rx.queue_size > PORT_RX_HIGH_WM) ||
+                  (fixed_queue_length(p_port->rx.queue) > PORT_RX_BUF_HIGH_WM)) &&
+                 !p_port->rx.peer_fc) {
+        /* Check the size of the rx queue.  If it exceeds certain */
+        /* level and flow control has not been sent to the peer do it now */
         log::verbose("PORT_DataInd Data reached HW. Sending FC set.");
 
         p_port->rx.peer_fc = true;

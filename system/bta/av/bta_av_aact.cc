@@ -34,19 +34,39 @@
 #include <cstring>
 #include <vector>
 
+#include "a2dp_api.h"
+#include "a2dp_codec_api.h"
+#include "a2dp_constants.h"
+#include "a2dp_sbc_constants.h"
+#include "audio_hal_interface/a2dp_encoding.h"
+#include "avdt_api.h"
+#include "avrc_api.h"
+#include "avrc_defs.h"
+#include "bt_name.h"
 #include "bta/av/bta_av_int.h"
-#include "bta/include/bta_ar_api.h"
 #include "bta/include/bta_av_co.h"
+#include "bta_av_api.h"
+#include "bta_sys.h"
 #include "btif/avrcp/avrcp_service.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_av_co.h"
 #include "btif/include/btif_config.h"
 #include "btif/include/btif_storage.h"
+#include "btm_api_types.h"
+#include "common/message_loop_thread.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
 #include "device/include/interop.h"
+#include "hardware/bt_av.h"
+#include "hci_error_code.h"
+#include "hcidefs.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
+#include "osi/include/list.h"
 #include "osi/include/properties.h"
+#include "sdpdefs.h"
 #include "stack/include/a2dp_ext.h"
 #include "stack/include/a2dp_sbc.h"
 #include "stack/include/acl_api.h"
@@ -58,6 +78,7 @@
 #include "stack/include/btm_status.h"
 #include "stack/include/l2cap_interface.h"
 #include "storage/config_keys.h"
+#include "types/bt_transport.h"
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
@@ -346,7 +367,7 @@ void bta_av_proc_stream_evt(uint8_t handle, const RawAddress& bd_addr, uint8_t e
   uint16_t sec_len = 0;
 
   log::verbose("peer_address: {} avdt_handle: {} event=0x{:x} scb_index={} p_scb={}", bd_addr,
-               handle, event, scb_index, fmt::ptr(p_scb));
+               handle, event, scb_index, std::format_ptr(p_scb));
 
   if (p_data) {
     if (event == AVDT_SECURITY_IND_EVT) {
@@ -1917,7 +1938,7 @@ void bta_av_str_stopped(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   BT_HDR* p_buf;
 
   log::info("peer {} bta_handle:0x{:x} audio_open_cnt:{}, p_data {} start:{}", p_scb->PeerAddress(),
-            p_scb->hndl, bta_av_cb.audio_open_cnt, fmt::ptr(p_data), start);
+            p_scb->hndl, bta_av_cb.audio_open_cnt, std::format_ptr(p_data), start);
 
   bta_sys_idle(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->PeerAddress());
   BTM_unblock_role_switch_and_sniff_mode_for(p_scb->PeerAddress());

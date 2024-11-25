@@ -34,9 +34,9 @@
 
 #include "hal/hci_hal.h"
 #include "hal/link_clocker.h"
-#include "hal/mgmt.h"
 #include "hal/snoop_logger.h"
 #include "metrics/counter_metrics.h"
+#include "os/mgmt.h"
 #include "os/reactor.h"
 #include "os/thread.h"
 
@@ -312,7 +312,9 @@ public:
     write_to_fd(packet);
   }
 
-  uint16_t getMsftOpcode() override { return Mgmt().get_vs_opcode(MGMT_VS_OPCODE_MSFT); }
+  uint16_t getMsftOpcode() override {
+    return os::Management::getInstance().getVendorSpecificCode(MGMT_VS_OPCODE_MSFT);
+  }
 
   void markControllerBroken() override {
     std::lock_guard<std::mutex> lock(api_mutex_);

@@ -23,17 +23,18 @@
 
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
-#include <stdbool.h>
+
+#include <cstddef>
+#include <cstdint>
 
 #include "audio_hal_interface/a2dp_encoding.h"
+#include "avdt_api.h"
 #include "bta_av_api.h"
 #include "btif_a2dp_sink.h"
 #include "btif_a2dp_source.h"
 #include "btif_av.h"
 #include "btif_av_co.h"
 #include "btif_hf.h"
-#include "btif_util.h"
-#include "internal_include/bt_trace.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -51,7 +52,7 @@ void btif_a2dp_on_idle(const RawAddress& /*peer_addr*/, const A2dpType local_a2d
 
 bool btif_a2dp_on_started(const RawAddress& peer_addr, tBTA_AV_START* p_av_start,
                           const A2dpType local_a2dp_type) {
-  log::info("## ON A2DP STARTED ## peer {} p_av_start:{}", peer_addr, fmt::ptr(p_av_start));
+  log::info("## ON A2DP STARTED ## peer {} p_av_start:{}", peer_addr, std::format_ptr(p_av_start));
 
   if (p_av_start == NULL) {
     auto status = BluetoothAudioStatus::SUCCESS;
@@ -94,7 +95,7 @@ bool btif_a2dp_on_started(const RawAddress& peer_addr, tBTA_AV_START* p_av_start
 }
 
 void btif_a2dp_on_stopped(tBTA_AV_SUSPEND* p_av_suspend, const A2dpType local_a2dp_type) {
-  log::info("## ON A2DP STOPPED ## p_av_suspend={}", fmt::ptr(p_av_suspend));
+  log::info("## ON A2DP STOPPED ## p_av_suspend={}", std::format_ptr(p_av_suspend));
 
   const uint8_t peer_type_sep = btif_av_get_peer_sep(local_a2dp_type);
   if (peer_type_sep == AVDT_TSEP_SRC) {
@@ -110,7 +111,7 @@ void btif_a2dp_on_stopped(tBTA_AV_SUSPEND* p_av_suspend, const A2dpType local_a2
 }
 
 void btif_a2dp_on_suspended(tBTA_AV_SUSPEND* p_av_suspend, const A2dpType local_a2dp_type) {
-  log::info("## ON A2DP SUSPENDED ## p_av_suspend={}", fmt::ptr(p_av_suspend));
+  log::info("## ON A2DP SUSPENDED ## p_av_suspend={}", std::format_ptr(p_av_suspend));
   const uint8_t peer_type_sep = btif_av_get_peer_sep(local_a2dp_type);
   if (peer_type_sep == AVDT_TSEP_SRC) {
     btif_a2dp_sink_on_suspended(p_av_suspend);

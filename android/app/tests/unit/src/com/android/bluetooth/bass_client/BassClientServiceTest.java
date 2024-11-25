@@ -1693,10 +1693,16 @@ public class BassClientServiceTest {
                 });
         doReturn(stateList).when(sm).getAllSources();
 
+        Optional<BluetoothLeBroadcastReceiveState> receiveState =
+                stateList.stream().filter(e -> e.getSourceId() == sourceId).findFirst();
+
         mBassClientService
                 .getCallbacks()
                 .notifySourceRemoved(
                         sm.getDevice(), sourceId, BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST);
+        mBassClientService
+                .getCallbacks()
+                .notifyReceiveStateChanged(sm.getDevice(), sourceId, receiveState.get());
         TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
     }
 
@@ -2032,6 +2038,40 @@ public class BassClientServiceTest {
             assertThat(msg.get().arg2).isEqualTo(BassConstants.PA_SYNC_DO_NOT_SYNC);
             // Verify metadata is null
             assertThat(msg.get().obj).isEqualTo(null);
+        }
+
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            injectRemoteSourceStateRemoval(sm, TEST_SOURCE_ID);
+        }
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_API_GET_LOCAL_METADATA)
+    public void testGetSourceMetadata() {
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            injectRemoteSourceStateSourceAdded(
+                    sm,
+                    meta,
+                    TEST_SOURCE_ID,
+                    BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCHRONIZED,
+                    meta.isEncrypted()
+                            ? BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_DECRYPTING
+                            : BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_NOT_ENCRYPTED,
+                    null);
+            doReturn(null).when(sm).getCurrentBroadcastMetadata(eq(TEST_SOURCE_ID));
+            assertThat(mBassClientService.getSourceMetadata(sm.getDevice(), TEST_SOURCE_ID))
+                    .isEqualTo(null);
+
+            doReturn(meta).when(sm).getCurrentBroadcastMetadata(eq(TEST_SOURCE_ID));
+            doReturn(true).when(sm).isSyncedToTheSource(eq(TEST_SOURCE_ID));
+            assertThat(mBassClientService.getSourceMetadata(sm.getDevice(), TEST_SOURCE_ID))
+                    .isEqualTo(meta);
         }
 
         for (BassClientStateMachine sm : mStateMachines.values()) {

@@ -39,22 +39,22 @@ typedef enum {
   A2DP_CTRL_GET_PRESENTATION_POSITION,
 } tA2DP_CTRL_CMD;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tA2DP_CTRL_CMD> : enum_formatter<tA2DP_CTRL_CMD> {};
 template <>
 struct formatter<audio_usage_t> : enum_formatter<audio_usage_t> {};
 template <>
 struct formatter<audio_content_type_t> : enum_formatter<audio_content_type_t> {};
-}  // namespace fmt
+}  // namespace std
 
 namespace bluetooth {
 namespace audio {
 namespace hidl {
 namespace a2dp {
 
-static bluetooth::audio::a2dp::BluetoothAudioPort null_audio_port;
-static bluetooth::audio::a2dp::BluetoothAudioPort const* bluetooth_audio_port_;
+static bluetooth::audio::a2dp::StreamCallbacks null_stream_callbacks;
+static bluetooth::audio::a2dp::StreamCallbacks const* stream_callbacks_ = &null_stream_callbacks;
 
 namespace {
 
@@ -120,7 +120,7 @@ public:
 
     log::info("");
 
-    auto status = bluetooth_audio_port_->StartStream(false);
+    auto status = stream_callbacks_->StartStream(false);
     a2dp_pending_cmd_ =
             status == BluetoothAudioStatus::PENDING ? A2DP_CTRL_CMD_START : A2DP_CTRL_CMD_NONE;
 
@@ -142,7 +142,7 @@ public:
 
     log::info("");
 
-    auto status = bluetooth_audio_port_->SuspendStream();
+    auto status = stream_callbacks_->SuspendStream();
     a2dp_pending_cmd_ =
             status == BluetoothAudioStatus::PENDING ? A2DP_CTRL_CMD_SUSPEND : A2DP_CTRL_CMD_NONE;
 
@@ -152,7 +152,7 @@ public:
   void StopRequest() override {
     log::info("");
 
-    auto status = bluetooth_audio_port_->SuspendStream();
+    auto status = stream_callbacks_->SuspendStream();
     a2dp_pending_cmd_ =
             status == BluetoothAudioStatus::PENDING ? A2DP_CTRL_CMD_STOP : A2DP_CTRL_CMD_NONE;
   }
@@ -301,9 +301,9 @@ bool is_hal_2_0_offloading() {
 
 // Initialize BluetoothAudio HAL: openProvider
 bool init(bluetooth::common::MessageLoopThread* message_loop,
-          bluetooth::audio::a2dp::BluetoothAudioPort const* audio_port, bool offload_enabled) {
+          bluetooth::audio::a2dp::StreamCallbacks const* stream_callbacks, bool offload_enabled) {
   log::info("");
-  log::assert_that(audio_port != nullptr, "audio_port != nullptr");
+  log::assert_that(stream_callbacks != nullptr, "stream_callbacks != nullptr");
 
   auto a2dp_sink = new A2dpTransport(SessionType::A2DP_SOFTWARE_ENCODING_DATAPATH);
   software_hal_interface = new BluetoothAudioSinkClientInterface(a2dp_sink, message_loop);
@@ -331,7 +331,7 @@ bool init(bluetooth::common::MessageLoopThread* message_loop,
     }
   }
 
-  bluetooth_audio_port_ = audio_port;
+  stream_callbacks_ = stream_callbacks;
   active_hal_interface =
           (offloading_hal_interface != nullptr ? offloading_hal_interface : software_hal_interface);
 
@@ -367,7 +367,7 @@ void cleanup() {
     delete a2dp_sink;
   }
 
-  bluetooth_audio_port_ = &null_audio_port;
+  stream_callbacks_ = &null_stream_callbacks;
   remote_delay = 0;
 }
 

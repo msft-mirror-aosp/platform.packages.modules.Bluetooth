@@ -24,6 +24,7 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
 import static android.Manifest.permission.LOCAL_MAC_ADDRESS;
 import static android.Manifest.permission.MODIFY_PHONE_STATE;
+import static android.bluetooth.BluetoothProfile.getProfileName;
 import static android.bluetooth.BluetoothStatusCodes.FEATURE_NOT_SUPPORTED;
 import static android.bluetooth.BluetoothUtils.executeFromBinder;
 
@@ -31,7 +32,9 @@ import static java.util.Objects.requireNonNull;
 
 import android.annotation.BroadcastBehavior;
 import android.annotation.CallbackExecutor;
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
+import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresNoPermission;
@@ -886,29 +889,42 @@ public final class BluetoothAdapter {
             mMetadataListeners = new HashMap<>();
 
     private static final class ProfileConnection {
-        int mProfile;
-        BluetoothProfile.ServiceListener mListener;
+        private final int mProfile;
+        private final BluetoothProfile.ServiceListener mListener;
+        private final Executor mExecutor;
+
+        @GuardedBy("BluetoothAdapter.sProfileLock")
         boolean mConnected = false;
 
-        ProfileConnection(int profile, BluetoothProfile.ServiceListener listener) {
+        ProfileConnection(
+                int profile, BluetoothProfile.ServiceListener listener, Executor executor) {
             mProfile = profile;
             mListener = listener;
+            mExecutor = executor;
         }
 
         @GuardedBy("BluetoothAdapter.sProfileLock")
         void connect(BluetoothProfile proxy, IBinder binder) {
-            Log.d(TAG, BluetoothProfile.getProfileName(mProfile) + " connected");
+            Log.d(TAG, getProfileName(mProfile) + " connected");
             mConnected = true;
             proxy.onServiceConnected(binder);
-            mListener.onServiceConnected(mProfile, proxy);
+            if (Flags.getProfileUseLock()) {
+                executeFromBinder(mExecutor, () -> mListener.onServiceConnected(mProfile, proxy));
+            } else {
+                mListener.onServiceConnected(mProfile, proxy);
+            }
         }
 
         @GuardedBy("BluetoothAdapter.sProfileLock")
         void disconnect(BluetoothProfile proxy) {
-            Log.d(TAG, BluetoothProfile.getProfileName(mProfile) + " disconnected");
+            Log.d(TAG, getProfileName(mProfile) + " disconnected");
             mConnected = false;
             proxy.onServiceDisconnected();
-            mListener.onServiceDisconnected(mProfile);
+            if (Flags.getProfileUseLock()) {
+                executeFromBinder(mExecutor, () -> mListener.onServiceDisconnected(mProfile));
+            } else {
+                mListener.onServiceDisconnected(mProfile);
+            }
         }
     }
 
@@ -2332,11 +2348,7 @@ public final class BluetoothAdapter {
         try {
             if (mService != null) {
                 if (DBG) {
-                    Log.d(
-                            TAG,
-                            "getActiveDevices(profile= "
-                                    + BluetoothProfile.getProfileName(profile)
-                                    + ")");
+                    Log.d(TAG, "getActiveDevices(" + getProfileName(profile) + ")");
                 }
                 return mService.getActiveDevices(profile, mAttributionSource);
             }
@@ -3559,17 +3571,11 @@ public final class BluetoothAdapter {
     /**
      * Get the profile proxy object associated with the profile.
      *
-     * <p>Profile can be one of {@link BluetoothProfile#HEADSET}, {@link BluetoothProfile#A2DP},
-     * {@link BluetoothProfile#GATT}, {@link BluetoothProfile#HEARING_AID}, or {@link
-     * BluetoothProfile#GATT_SERVER}. Clients must implement {@link
-     * BluetoothProfile.ServiceListener} to get notified of the connection status and to get the
-     * proxy object.
+     * <p> The ServiceListener's methods will be invoked on the application's main looper
      *
      * @param context Context of the application
-     * @param listener The service Listener for connection callbacks.
-     * @param profile The Bluetooth profile; either {@link BluetoothProfile#HEADSET}, {@link
-     *     BluetoothProfile#A2DP}, {@link BluetoothProfile#GATT}, {@link
-     *     BluetoothProfile#HEARING_AID} or {@link BluetoothProfile#GATT_SERVER}.
+     * @param listener The service listener for connection callbacks.
+     * @param profile The Bluetooth profile to listen for status change
      * @return true on success, false on error
      */
     @SuppressLint({
@@ -3582,6 +3588,26 @@ public final class BluetoothAdapter {
         if (context == null || listener == null) {
             return false;
         }
+
+        // Preserve legacy compatibility where apps were depending on
+        // registerStateChangeCallback() performing a permissions check which
+        // has been relaxed in modern platform versions
+        if (context.getApplicationInfo().targetSdkVersion < Build.VERSION_CODES.S
+                && context.checkSelfPermission(BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
+            throw new SecurityException("Need BLUETOOTH permission");
+        }
+
+        return getProfileProxy(context, listener, profile, mMainHandler::post);
+    }
+
+    private boolean getProfileProxy(
+            @NonNull Context context,
+            @NonNull BluetoothProfile.ServiceListener listener,
+            int profile,
+            @NonNull @CallbackExecutor Executor executor) {
+        requireNonNull(context);
+        requireNonNull(listener);
+        requireNonNull(executor);
 
         if (profile == BluetoothProfile.HEALTH) {
             Log.e(TAG, "getProfileProxy(): BluetoothHealth is deprecated");
@@ -3596,28 +3622,19 @@ public final class BluetoothAdapter {
         BiFunction<Context, BluetoothAdapter, BluetoothProfile> constructor =
                 PROFILE_CONSTRUCTORS.get(profile);
 
+        BluetoothProfile profileProxy = constructor.apply(context, this);
+        ProfileConnection connection = new ProfileConnection(profile, listener, executor);
+
         if (constructor == null) {
             Log.e(TAG, "getProfileProxy(): Unknown profile " + profile);
             return false;
         }
 
-        // Preserve legacy compatibility where apps were depending on
-        // registerStateChangeCallback() performing a permissions check which
-        // has been relaxed in modern platform versions
-        if (context.getApplicationInfo().targetSdkVersion < Build.VERSION_CODES.S
-                && context.checkSelfPermission(BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-            throw new SecurityException("Need BLUETOOTH permission");
-        }
-
-        BluetoothProfile profileProxy = constructor.apply(context, this);
-        ProfileConnection connection = new ProfileConnection(profile, listener);
-
         Runnable connectAction =
                 () -> {
                     synchronized (sProfileLock) {
                         // Synchronize with the binder callback to prevent performing the
-                        // connection.connect
-                        // concurrently
+                        // ProfileConnection.connect concurrently
                         mProfileConnections.put(profileProxy, connection);
 
                         IBinder binder = getProfile(profile);
@@ -3630,7 +3647,7 @@ public final class BluetoothAdapter {
             connectAction.run();
             return true;
         }
-        mMainHandler.post(connectAction);
+        executor.execute(connectAction);
         return true;
     }
 
@@ -3901,6 +3918,14 @@ public final class BluetoothAdapter {
                         mAudioProfilesCallbackWrapper.registerToNewService(mService);
                         mQualityCallbackWrapper.registerToNewService(mService);
                         mBluetoothConnectionCallbackWrapper.registerToNewService(mService);
+                        synchronized (mHciVendorSpecificCallbackRegistration) {
+                            try {
+                                mHciVendorSpecificCallbackRegistration.registerToService(
+                                        mService, mHciVendorSpecificCallbackStub);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Failed to register HCI vendor-specific callback", e);
+                            }
+                        }
                     } finally {
                         mServiceLock.readLock().unlock();
                     }
@@ -3925,25 +3950,31 @@ public final class BluetoothAdapter {
                     }
                 }
 
+                @GuardedBy("sProfileLock")
+                private boolean connectAllProfileProxyLocked() {
+                    mProfileConnections.forEach(
+                            (proxy, connection) -> {
+                                if (connection.mConnected) return;
+
+                                IBinder binder = getProfile(connection.mProfile);
+                                if (binder == null) {
+                                    Log.e(
+                                            TAG,
+                                            "Failed to retrieve a binder for "
+                                                    + getProfileName(connection.mProfile));
+                                    return;
+                                }
+                                connection.connect(proxy, binder);
+                            });
+                    return true;
+                }
+
                 @RequiresNoPermission
                 public void onBluetoothOn() {
                     Runnable btOnAction =
                             () -> {
                                 synchronized (sProfileLock) {
-                                    mProfileConnections.forEach(
-                                            (proxy, connection) -> {
-                                                if (connection.mConnected) return;
-
-                                                IBinder binder = getProfile(connection.mProfile);
-                                                if (binder != null) {
-                                                    connection.connect(proxy, binder);
-                                                } else {
-                                                    Log.e(
-                                                            TAG,
-                                                            "onBluetoothOn: Binder null for "
-                                                                    + BluetoothProfile.getProfileName(connection.mProfile));
-                                                }
-                                            });
+                                    connectAllProfileProxyLocked();
                                 }
                             };
                     if (Flags.getProfileUseLock()) {
@@ -4273,7 +4304,6 @@ public final class BluetoothAdapter {
     }
 
     /** Return a binder to a Profile service */
-    @GuardedBy("sProfileLock")
     private @Nullable IBinder getProfile(int profile) {
         mServiceLock.readLock().lock();
         try {
@@ -4532,8 +4562,7 @@ public final class BluetoothAdapter {
      * another Android device that is given the PSM value.
      *
      * @return an L2CAP CoC BluetoothServerSocket
-     * @throws IOException on error, for example Bluetooth not available, or insufficient
-     *     permissions, or unable to start this CoC
+     * @throws IOException on error, for example Bluetooth not available or unable to start this CoC
      */
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
@@ -4588,8 +4617,7 @@ public final class BluetoothAdapter {
      * socket from another Android device that is given the PSM value.
      *
      * @return an L2CAP CoC BluetoothServerSocket
-     * @throws IOException on error, for example Bluetooth not available, or insufficient
-     *     permissions, or unable to start this CoC
+     * @throws IOException on error, for example Bluetooth not available or unable to start this CoC
      */
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
@@ -4616,6 +4644,81 @@ public final class BluetoothAdapter {
             Log.d(TAG, "listenUsingInsecureL2capChannel: set assigned PSM to " + assignedPsm);
         }
         socket.setChannel(assignedPsm);
+
+        return socket;
+    }
+
+    /**
+     * Creates a listening server channel for Bluetooth connections with the specified socket
+     * settings {@link BluetoothSocketSettings}.
+     *
+     * <p>Use {@link BluetoothServerSocket#accept} to retrieve incoming connections from a listening
+     * {@link BluetoothServerSocket}.
+     *
+     * <p>This API supports {@link BluetoothSocket#TYPE_RFCOMM} and {{@link BluetoothSocket#TYPE_LE}
+     * only, which can be set using {@link BluetoothSocketSettings#setSocketType()}.
+     * <li>For `BluetoothSocket.TYPE_RFCOMM`: The RFCOMM UUID must be provided using {@link
+     *     BluetoothSocketSettings#setRfcommUuid()}.
+     * <li>For `BluetoothSocket.TYPE_LE`: The system assigns a dynamic protocol/service multiplexer
+     *     (PSM) value. This value can be read from {@link BluetoothServerSocket#getPsm()}. This
+     *     value is released when the server socket is closed, Bluetooth is turned off, or the
+     *     application exits unexpectedly. The mechanism for disclosing the PSM value to the client
+     *     is application-defined.
+     *
+     *     <p>Use {@link BluetoothDevice#createUsingSocketSettings(BluetoothSocketSettings)} to
+     *     connect to this server socket from another Android device using the L2cap
+     *     protocol/service multiplexer(PSM) value or the RFCOMM service UUID as input.
+     *
+     * @param settings Bluetooth socket settings {@link BluetoothSocketSettings}.
+     * @return a {@link BluetoothServerSocket}
+     * @throws IllegalArgumentException if BluetoothSocket#TYPE_RFCOMM socket is requested with no
+     *     UUID.
+     * @throws IOException on error, for example Bluetooth not available or unable to start this LE
+     *     Connection-oriented Channel (CoC).
+     */
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(BLUETOOTH_CONNECT)
+    @FlaggedApi(Flags.FLAG_SOCKET_SETTINGS_API)
+    public @NonNull BluetoothServerSocket listenUsingSocketSettings(
+            @NonNull BluetoothSocketSettings settings) throws IOException {
+
+        BluetoothServerSocket socket;
+        int type = settings.getSocketType();
+        if (type == BluetoothSocket.TYPE_RFCOMM) {
+            if (settings.getRfcommUuid() == null) {
+                throw new IllegalArgumentException("RFCOMM server missing UUID");
+            }
+            return createNewRfcommSocketAndRecord(
+                    settings.getRfcommServiceName(),
+                    settings.getRfcommUuid(),
+                    settings.isAuthenticationRequired(),
+                    settings.isEncryptionRequired());
+        } else if (type == BluetoothSocket.TYPE_LE) {
+            socket =
+                    new BluetoothServerSocket(
+                            settings.getSocketType(),
+                            settings.isAuthenticationRequired(),
+                            settings.isEncryptionRequired(),
+                            SOCKET_CHANNEL_AUTO_STATIC_NO_SDP,
+                            false,
+                            false);
+        } else {
+            throw new IOException("Error: Invalid socket type: " + type);
+        }
+        int errno = socket.mSocket.bindListen();
+        if (errno != 0) {
+            throw new IOException("Error: " + errno);
+        }
+        if (type == BluetoothSocket.TYPE_LE) {
+            int assignedPsm = socket.mSocket.getPort();
+            if (assignedPsm == 0) {
+                throw new IOException("Error: Unable to assign PSM value");
+            }
+            if (DBG) {
+                Log.d(TAG, "listenUsingSocketSettings: set assigned PSM to " + assignedPsm);
+            }
+            socket.setChannel(assignedPsm);
+        }
 
         return socket;
     }
@@ -5532,7 +5635,7 @@ public final class BluetoothAdapter {
         try {
             mManagerService.setAutoOnEnabled(status);
         } catch (RemoteException e) {
-            e.rethrowFromSystemServer();
+            throw e.rethrowFromSystemServer();
         }
     }
 
@@ -5574,5 +5677,278 @@ public final class BluetoothAdapter {
             mServiceLock.readLock().unlock();
         }
         return BluetoothStatusCodes.ERROR_UNKNOWN;
+    }
+
+    /**
+     * Callbacks for receiving response of HCI Vendor-Specific Commands and Vendor-Specific Events
+     * that arise from the controller.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_HCI_VENDOR_SPECIFIC_EXTENSION)
+    public interface BluetoothHciVendorSpecificCallback {
+        /**
+         * Invoked when an `HCI_Command_Status`, in response to a Vendor Command is received.
+         *
+         * @param ocf "Opcode command field" of the HCI Opcode, as defined in the Bluetooth Core
+         *     Specification Vol 4, Part E, Section 5.4.1.
+         * @param status as defined by the Bluetooth Core Specification.
+         */
+        void onCommandStatus(
+                @IntRange(from = 0x000, to = 0x3ff) int ocf,
+                @IntRange(from = 0x00, to = 0xff) int status);
+
+        /**
+         * Invoked when an `HCI_Command_Complete`, in response to a Vendor Command is received.
+         *
+         * @param ocf "Opcode command field" of the HCI Opcode, as defined in the Bluetooth Core
+         *     Specification Vol 4, Part E, Section 5.4.1.
+         * @param returnParameters Data returned by the command (from 0 to 252 Bytes).
+         */
+        void onCommandComplete(
+                @IntRange(from = 0x000, to = 0x3ff) int ocf, @NonNull byte[] returnParameters);
+
+        /**
+         * Invoked when an event is received.
+         *
+         * @param code The vendor-specific event Code. The first octet of the event parameters
+         *     of a vendor-specific event (Bluetooth Core Specification Vol 4, Part E, 5.4.3).
+         * @param data from 0 to 254 Bytes.
+         */
+        void onEvent(@IntRange(from = 0x00, to = 0xfe) int code, @NonNull byte[] data);
+    }
+
+    private static final class HciVendorSpecificCallbackRegistration {
+        private BluetoothHciVendorSpecificCallback mCallback;
+        private Executor mExecutor;
+        private Set<Integer> mEventCodeSet;
+
+        void set(
+                BluetoothHciVendorSpecificCallback callback,
+                Set<Integer> eventCodeSet,
+                Executor executor) {
+            mCallback = callback;
+            mEventCodeSet = eventCodeSet;
+            mExecutor = executor;
+        }
+
+        void reset() {
+            mCallback = null;
+            mEventCodeSet = null;
+            mExecutor = null;
+        }
+
+        boolean isSet() {
+            return mCallback != null;
+        }
+
+        boolean isSet(BluetoothHciVendorSpecificCallback callback) {
+            return isSet() && (callback == mCallback);
+        }
+
+        @RequiresPermission(BLUETOOTH_PRIVILEGED)
+        void registerToService(IBluetooth service, IBluetoothHciVendorSpecificCallback stub) {
+            if (service == null || !isSet()) {
+                return;
+            }
+
+            int[] eventCodes = mEventCodeSet.stream().mapToInt(i -> i).toArray();
+            try {
+                service.registerHciVendorSpecificCallback(stub, eventCodes);
+            } catch (RemoteException e) {
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+            }
+        }
+
+        @RequiresPermission(BLUETOOTH_PRIVILEGED)
+        void unregisterFromService(IBluetooth service, IBluetoothHciVendorSpecificCallback stub) {
+            if (service == null) {
+                return;
+            }
+            try {
+                service.unregisterHciVendorSpecificCallback(stub);
+            } catch (RemoteException e) {
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+            }
+        }
+
+        void execute(Consumer<BluetoothHciVendorSpecificCallback> consumer) {
+            BluetoothHciVendorSpecificCallback callback = mCallback;
+            if (callback == null) {
+                return;
+            }
+            executeFromBinder(mExecutor, () -> consumer.accept(callback));
+        }
+    }
+
+    private final HciVendorSpecificCallbackRegistration mHciVendorSpecificCallbackRegistration =
+            new HciVendorSpecificCallbackRegistration();
+
+    private final IBluetoothHciVendorSpecificCallback mHciVendorSpecificCallbackStub =
+            new IBluetoothHciVendorSpecificCallback.Stub() {
+
+                @Override
+                @RequiresNoPermission
+                public void onCommandStatus(int ocf, int status) {
+                    synchronized (mHciVendorSpecificCallbackRegistration) {
+                        if (Flags.hciVendorSpecificExtension()) {
+                            mHciVendorSpecificCallbackRegistration.execute(
+                                    (cb) -> cb.onCommandStatus(ocf, status));
+                        }
+                    }
+                }
+
+                @Override
+                @RequiresNoPermission
+                public void onCommandComplete(int ocf, byte[] returnParameters) {
+                    synchronized (mHciVendorSpecificCallbackRegistration) {
+                        if (Flags.hciVendorSpecificExtension()) {
+                            mHciVendorSpecificCallbackRegistration.execute(
+                                    (cb) -> cb.onCommandComplete(ocf, returnParameters));
+                        }
+                    }
+                }
+
+                @Override
+                @RequiresNoPermission
+                public void onEvent(int code, byte[] data) {
+                    synchronized (mHciVendorSpecificCallbackRegistration) {
+                        if (Flags.hciVendorSpecificExtension()) {
+                            mHciVendorSpecificCallbackRegistration.execute(
+                                    (cb) -> cb.onEvent(code, data));
+                        }
+                    }
+                }
+            };
+
+    /**
+     * Register an {@link BluetoothHciVendorCallback} to listen for HCI vendor responses and events
+     *
+     * @param eventCodeSet Set of vendor-specific event codes to listen for updates. Each
+     *     vendor-specific event code must be in the range 0x00 to 0x4f or 0x60 to 0xff.
+     *     The inclusive range 0x50-0x5f is reserved by the system.
+     * @param executor an {@link Executor} to execute given callback
+     * @param callback user implementation of the {@link BluetoothHciVendorCallback}
+     * @throws IllegalArgumentException if the callback is already registered, or event codes not in
+     *     a valid range
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_HCI_VENDOR_SPECIFIC_EXTENSION)
+    @RequiresPermission(BLUETOOTH_PRIVILEGED)
+    @SuppressLint("AndroidFrameworkRequiresPermission") // Consumer wrongly report permission
+    public void registerBluetoothHciVendorSpecificCallback(
+            @NonNull Set<Integer> eventCodeSet,
+            @NonNull @CallbackExecutor Executor executor,
+            @NonNull BluetoothHciVendorSpecificCallback callback) {
+        if (DBG) Log.d(TAG, "registerBluetoothHciVendorSpecificCallback()");
+
+        requireNonNull(eventCodeSet);
+        requireNonNull(executor);
+        requireNonNull(callback);
+        if (eventCodeSet.stream()
+                .anyMatch((n) -> (n < 0) || (n >= 0x50 && n < 0x60) || (n > 0xff))) {
+            throw new IllegalArgumentException("Event code not in valid range");
+        }
+
+        mServiceLock.readLock().lock();
+        try {
+            synchronized (mHciVendorSpecificCallbackRegistration) {
+                if (mHciVendorSpecificCallbackRegistration.isSet()) {
+                    throw new IllegalArgumentException("Only one registration allowed");
+                }
+                mHciVendorSpecificCallbackRegistration.set(callback, eventCodeSet, executor);
+                try {
+                    mHciVendorSpecificCallbackRegistration.registerToService(
+                            mService, mHciVendorSpecificCallbackStub);
+                } catch (Exception e) {
+                    mHciVendorSpecificCallbackRegistration.reset();
+                    throw e;
+                }
+            }
+        } finally {
+            mServiceLock.readLock().unlock();
+        }
+    }
+
+    /**
+     * Unregister the specified {@link BluetoothHciVendorCallback}
+     *
+     * @param callback user implementation of the {@link BluetoothHciVendorCallback}
+     * @throws IllegalArgumentException if the callback has not been registered
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_HCI_VENDOR_SPECIFIC_EXTENSION)
+    @RequiresPermission(BLUETOOTH_PRIVILEGED)
+    @SuppressLint("AndroidFrameworkRequiresPermission") // Consumer wrongly report permission
+    public void unregisterBluetoothHciVendorSpecificCallback(
+            @NonNull BluetoothHciVendorSpecificCallback callback) {
+        if (DBG) Log.d(TAG, "unregisterBluetoothHciVendorSpecificCallback()");
+
+        requireNonNull(callback);
+
+        mServiceLock.readLock().lock();
+        try {
+            synchronized (mHciVendorSpecificCallbackRegistration) {
+                if (!mHciVendorSpecificCallbackRegistration.isSet(callback)) {
+                    throw new IllegalArgumentException("Callback not registered");
+                }
+                mHciVendorSpecificCallbackRegistration.unregisterFromService(
+                        mService, mHciVendorSpecificCallbackStub);
+                mHciVendorSpecificCallbackRegistration.reset();
+            }
+        } finally {
+            mServiceLock.readLock().unlock();
+        }
+    }
+
+    /**
+     * Send an HCI Vendor-Specific Command
+     *
+     * @param ocf "Opcode command field" of the HCI Opcode, as defined in the Bluetooth Core
+     *     Specification Vol 4, Part E, Section 5.4.1. Each vendor-specific ocf must be in the range
+     *     0x000-0x14f or 0x160-0x3ff. The inclusive range 0x150-0x15f is reserved by the system.
+     * @param parameters shall be less or equal to 255 bytes.
+     * @throws IllegalArgumentException if the ocf is not in a valid range
+     * @throws IllegalStateException when a callback has not been registered
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_HCI_VENDOR_SPECIFIC_EXTENSION)
+    @RequiresPermission(BLUETOOTH_PRIVILEGED)
+    public void sendBluetoothHciVendorSpecificCommand(
+            @IntRange(from = 0x000, to = 0x3ff) int ocf, @NonNull byte[] parameters) {
+        if (DBG) Log.d(TAG, "sendBluetoothHciVendorSpecificCommand()");
+
+        // Open this no-op android command for test purpose
+        int getVendorCapabilitiesOcf = 0x153;
+        if (ocf < 0
+                || (ocf >= 0x150 && ocf < 0x160 && ocf != getVendorCapabilitiesOcf)
+                || ocf > 0x3ff) {
+            throw new IllegalArgumentException("Opcode command value not in valid range");
+        }
+
+        requireNonNull(parameters);
+        if (parameters.length > 255) {
+            throw new IllegalArgumentException("Parameters size is too big");
+        }
+
+        mServiceLock.readLock().lock();
+        try {
+            if (!mHciVendorSpecificCallbackRegistration.isSet()) {
+                throw new IllegalStateException("No Callback registered");
+            }
+
+            if (mService != null) {
+                mService.sendHciVendorSpecificCommand(
+                        ocf, parameters, mHciVendorSpecificCallbackStub);
+            }
+        } catch (RemoteException e) {
+            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+        } finally {
+            mServiceLock.readLock().unlock();
+        }
     }
 }

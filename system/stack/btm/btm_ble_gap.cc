@@ -30,6 +30,7 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <bitset>
 #include <cstdint>
 #include <list>
 #include <memory>
@@ -359,7 +360,6 @@ const uint8_t btm_le_state_combo_tbl[BTM_BLE_STATE_MAX][BTM_BLE_STATE_MAX] = {
                 HCI_LE_STATES_PASS_SCAN_INIT_BIT,          /* passive scan */
                 HCI_LE_STATES_ACTIVE_SCAN_INIT_BIT,        /*  active scan */
                 HCI_LE_STATES_SCAN_ADV_INIT_BIT            /* scanable adv */
-
         },
         {
                 /* central */
@@ -373,7 +373,6 @@ const uint8_t btm_le_state_combo_tbl[BTM_BLE_STATE_MAX][BTM_BLE_STATE_MAX] = {
                 HCI_LE_STATES_PASS_SCAN_CENTRAL_BIT,       /*  passive scan */
                 HCI_LE_STATES_ACTIVE_SCAN_CENTRAL_BIT,     /*   active scan */
                 HCI_LE_STATES_SCAN_ADV_CENTRAL_BIT         /*  scanable adv */
-
         },
         {
                 /* peripheral */
@@ -387,7 +386,6 @@ const uint8_t btm_le_state_combo_tbl[BTM_BLE_STATE_MAX][BTM_BLE_STATE_MAX] = {
                 HCI_LE_STATES_PASS_SCAN_PERIPHERAL_BIT,       /* passive scan */
                 HCI_LE_STATES_ACTIVE_SCAN_PERIPHERAL_BIT,     /*  active scan */
                 HCI_LE_STATES_SCAN_ADV_PERIPHERAL_BIT         /* scanable adv */
-
         },
         {
                 /* lo duty cycle adv */
@@ -1176,11 +1174,9 @@ static uint8_t btm_set_conn_mode_adv_init_addr(RawAddress& p_peer_addr_ptr,
       /* resolving list is empty, not enabled */
       *p_own_addr_type = BLE_ADDR_RANDOM;
     }
-  }
-  /* privacy 1.1, or privacy 1.2, general discoverable/connectable mode, disable
-     privacy in */
-  /* controller fall back to host based privacy */
-  else if (btm_cb.ble_ctr_cb.privacy_mode != BTM_PRIVACY_NONE) {
+  } else if (btm_cb.ble_ctr_cb.privacy_mode != BTM_PRIVACY_NONE) {
+    /* privacy 1.1, or privacy 1.2, general discoverable/connectable mode, disable privacy in */
+    /* controller fall back to host based privacy */
     *p_own_addr_type = BLE_ADDR_RANDOM;
   }
 

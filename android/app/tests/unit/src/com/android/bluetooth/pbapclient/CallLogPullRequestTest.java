@@ -75,7 +75,7 @@ public class CallLogPullRequestTest {
 
     @Test
     public void testToString() {
-        final String path = PbapClientConnectionHandler.ICH_PATH;
+        final String path = PbapPhonebook.ICH_PATH;
         final CallLogPullRequest request =
                 new CallLogPullRequest(mTargetContext, path, mCallCounter, mAccount);
 
@@ -84,7 +84,7 @@ public class CallLogPullRequestTest {
 
     @Test
     public void onPullComplete_whenResultsAreNull() {
-        final String path = PbapClientConnectionHandler.ICH_PATH;
+        final String path = PbapPhonebook.ICH_PATH;
         final CallLogPullRequest request =
                 new CallLogPullRequest(mTargetContext, path, mCallCounter, mAccount);
         request.setResults(null);
@@ -111,7 +111,7 @@ public class CallLogPullRequestTest {
 
     @Test
     public void onPullComplete_whenResultsAreEmpty() {
-        final String path = PbapClientConnectionHandler.ICH_PATH;
+        final String path = PbapPhonebook.ICH_PATH;
         final CallLogPullRequest request =
                 new CallLogPullRequest(mTargetContext, path, mCallCounter, mAccount);
         List<VCardEntry> results = new ArrayList<>();
@@ -125,7 +125,7 @@ public class CallLogPullRequestTest {
 
     @Test
     public void onPullComplete_whenThereIsNoPhoneProperty() {
-        final String path = PbapClientConnectionHandler.MCH_PATH;
+        final String path = PbapPhonebook.MCH_PATH;
         final CallLogPullRequest request =
                 new CallLogPullRequest(mTargetContext, path, mCallCounter, mAccount);
 
@@ -149,7 +149,7 @@ public class CallLogPullRequestTest {
 
     @Test
     public void onPullComplete_success() {
-        final String path = PbapClientConnectionHandler.OCH_PATH;
+        final String path = PbapPhonebook.OCH_PATH;
         final CallLogPullRequest request =
                 new CallLogPullRequest(mTargetContext, path, mCallCounter, mAccount);
         List<VCardEntry> results = new ArrayList<>();
@@ -178,7 +178,7 @@ public class CallLogPullRequestTest {
 
     @Test
     public void updateTimesContacted_cursorIsClosed() {
-        final String path = PbapClientConnectionHandler.OCH_PATH;
+        final String path = PbapPhonebook.OCH_PATH;
         final CallLogPullRequest request =
                 new CallLogPullRequest(mTargetContext, path, mCallCounter, mAccount);
         mCallCounter.put("key", 1);

@@ -129,7 +129,6 @@ inline std::string preferred_role_text(const tBTA_PREF_ROLES& role) {
 }
 
 enum {
-
   BTA_DM_NO_SCATTERNET,      /* Device doesn't support scatternet, it might
                                 support "role switch during connection" for
                                 an incoming connection, when it already has
@@ -139,7 +138,6 @@ enum {
                                 Peripheral roles for short period of time */
   BTA_DM_FULL_SCATTERNET     /* Device can have simultaneous connection in central
                                 and peripheral roles */
-
 };
 
 typedef struct {
@@ -849,13 +847,13 @@ bool BTA_DmCheckLeAudioCapable(const RawAddress& address);
 
 void DumpsysBtaDm(int fd);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_DM_SEARCH_EVT> : enum_formatter<tBTA_DM_SEARCH_EVT> {};
 template <>
 struct formatter<tBTA_DM_ACL_EVT> : enum_formatter<tBTA_DM_ACL_EVT> {};
 template <>
 struct formatter<tBTA_PREF_ROLES> : enum_formatter<tBTA_PREF_ROLES> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_API_H */

@@ -34,6 +34,7 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.BluetoothSinkAudioPolicy;
+import android.bluetooth.BluetoothUtils;
 import android.bluetooth.IBluetoothConnectionCallback;
 import android.content.Context;
 import android.content.Intent;
@@ -52,6 +53,7 @@ import com.android.bluetooth.bas.BatteryService;
 import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.hfp.HeadsetHalConstants;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.modules.utils.build.SdkLevel;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
@@ -186,7 +188,7 @@ public class RemoteDevices {
 
                         debugLog(
                                 "reset(): address="
-                                        + address
+                                        + BluetoothUtils.toAnonymizedAddress(address)
                                         + ", connected="
                                         + bluetoothDevice.isConnected());
 
@@ -948,6 +950,12 @@ public class RemoteDevices {
                                 break;
                             }
                             deviceProperties.setName(newName);
+                            List<String> wordBreakdownList =
+                                    MetricsLogger.getInstance().getWordBreakdownList(newName);
+                            if (SdkLevel.isAtLeastU()) {
+                                MetricsLogger.getInstance()
+                                        .uploadRestrictedBluetothDeviceName(wordBreakdownList);
+                            }
                             intent = new Intent(BluetoothDevice.ACTION_NAME_CHANGED);
                             intent.putExtra(BluetoothDevice.EXTRA_DEVICE, bdDevice);
                             intent.putExtra(BluetoothDevice.EXTRA_NAME, deviceProperties.getName());
@@ -1171,7 +1179,7 @@ public class RemoteDevices {
                         + Utils.getRedactedAddressStringFromByte(secondaryAddress));
 
         DeviceProperties deviceProperties = getDeviceProperties(device);
-        deviceProperties.mIdentityAddress = Utils.getAddressStringFromByte(secondaryAddress);
+        deviceProperties.setIdentityAddress(Utils.getAddressStringFromByte(secondaryAddress));
     }
 
     void aclStateChangeCallback(
@@ -1296,6 +1304,13 @@ public class RemoteDevices {
                 mAdapterService.obfuscateAddress(device),
                 getBluetoothClass(device),
                 metricId);
+
+        byte[] remoteDeviceInfoBytes = MetricsLogger.getInstance().getRemoteDeviceInfoProto(device);
+
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.REMOTE_DEVICE_INFORMATION_WITH_METRIC_ID,
+                metricId,
+                remoteDeviceInfoBytes);
 
         if (intent == null) {
             Log.e(TAG, "aclStateChangeCallback intent is null. BondState: " + getBondState(device));
@@ -1444,6 +1459,30 @@ public class RemoteDevices {
                         + secureConnection
                         + ", keySize: "
                         + keySize);
+
+        int algorithm = BluetoothDevice.ENCRYPTION_ALGORITHM_NONE;
+        if (encryptionEnable) {
+            if (secureConnection || transport == BluetoothDevice.TRANSPORT_LE) {
+                /* LE link or Classic Secure Connections */
+                algorithm = BluetoothDevice.ENCRYPTION_ALGORITHM_AES;
+            } else {
+                /* Classic link using non-secure connections mode */
+                algorithm = BluetoothDevice.ENCRYPTION_ALGORITHM_E0;
+            }
+        }
+
+        Intent intent =
+                new Intent(BluetoothDevice.ACTION_ENCRYPTION_CHANGE)
+                        .putExtra(BluetoothDevice.EXTRA_DEVICE, bluetoothDevice)
+                        .putExtra(BluetoothDevice.EXTRA_TRANSPORT, transport)
+                        .putExtra(BluetoothDevice.EXTRA_ENCRYPTION_STATUS, status)
+                        .putExtra(BluetoothDevice.EXTRA_ENCRYPTION_ENABLED, encryptionEnable)
+                        .putExtra(BluetoothDevice.EXTRA_KEY_SIZE, keySize)
+                        .putExtra(BluetoothDevice.EXTRA_ENCRYPTION_ALGORITHM, algorithm);
+
+        if (com.android.bluetooth.flags.Flags.encryptionChangeBroadcast()) {
+            mAdapterService.sendBroadcast(intent, BLUETOOTH_CONNECT);
+        }
     }
 
     void fetchUuids(BluetoothDevice device, int transport) {

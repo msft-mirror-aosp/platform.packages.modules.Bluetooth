@@ -18,32 +18,38 @@
 
 #include <base/files/file_util.h>
 #include <bluetooth/log.h>
+#include <stdio.h>
 
+#include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <ostream>
 #include <sstream>
 #include <vector>
 
 #include "audio_hal_interface/hearing_aid_software_encoding.h"
 #include "audio_hearing_aid_hw/include/audio_hearing_aid_hw.h"
 #include "bta/include/bta_hearing_aid_api.h"
+#include "common/message_loop_thread.h"
 #include "common/repeating_timer.h"
 #include "common/time_util.h"
+#include "hardware/bluetooth.h"
+#include "hardware/bt_av.h"
 #include "osi/include/wakelock.h"
 #include "stack/include/main_thread.h"
 #include "udrv/include/uipc.h"
 
-using base::FilePath;
 using namespace bluetooth;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tUIPC_EVENT> : enum_formatter<tUIPC_EVENT> {};
 template <>
 struct formatter<tHEARING_AID_CTRL_ACK> : enum_formatter<tHEARING_AID_CTRL_ACK> {};
 template <>
 struct formatter<tHEARING_AID_CTRL_CMD> : enum_formatter<tHEARING_AID_CTRL_CMD> {};
-}  // namespace fmt
+}  // namespace std
 
 namespace {
 #define CASE_RETURN_STR(const) \

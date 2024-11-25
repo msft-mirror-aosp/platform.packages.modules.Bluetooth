@@ -44,7 +44,7 @@ extern bool btif_av_both_enable(void);
 extern bool btif_av_src_sink_coexist_enabled(void);
 
 template <>
-struct fmt::formatter<bluetooth::avrcp::PlayState> : enum_formatter<bluetooth::avrcp::PlayState> {};
+struct std::formatter<bluetooth::avrcp::PlayState> : enum_formatter<bluetooth::avrcp::PlayState> {};
 
 namespace bluetooth {
 namespace avrcp {
@@ -782,7 +782,6 @@ void Device::GetElementAttributesResponse(uint8_t label,
       }
     }
   } else {  // zero attributes requested which means all attributes requested
-
     if (!com::android::bluetooth::flags::get_all_element_attributes_empty()) {
       for (const auto& attribute : info.attributes) {
         response->AddAttributeEntry(attribute);
@@ -1365,6 +1364,7 @@ void Device::GetMediaPlayerListResponse(uint8_t label, std::shared_ptr<GetFolder
     auto no_items_rsp = GetFolderItemsResponseBuilder::MakePlayerListBuilder(
             Status::RANGE_OUT_OF_BOUNDS, 0x0000, browse_mtu_);
     send_message(label, true, std::move(no_items_rsp));
+    return;
   }
 
   auto builder = GetFolderItemsResponseBuilder::MakePlayerListBuilder(Status::NO_ERROR, 0x0000,

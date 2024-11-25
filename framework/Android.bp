@@ -20,6 +20,7 @@ java_defaults {
     name: "framework-bluetooth-defaults",
     static_libs: [
         "PlatformProperties",
+        "bluetooth_constants_java",
         "bluetooth_flags_java_lib",
         "modules-utils-build",
         "modules-utils-expresslog",
@@ -89,9 +90,6 @@ java_sdk_library {
         "android.bluetooth",
         "com.android.bluetooth.jarjar",
     ],
-    plugins: [
-        "error_prone_android_framework",
-    ],
     aconfig_declarations: [
         "bluetooth_aconfig_flags",
     ],
@@ -104,6 +102,7 @@ java_sdk_library {
             "ExtraTranslation",
             "FlaggedApi",
             "GestureBackNavigation",
+            "GetterSetterNullability",
             "GuardedLogInvocation",
             "HandlerLeak",
             "InflateParams",

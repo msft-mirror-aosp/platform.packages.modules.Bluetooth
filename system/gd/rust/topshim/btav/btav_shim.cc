@@ -239,18 +239,15 @@ static ::rust::Vec<A2dpCodecConfig> to_rust_codec_config_vec(
   return rconfigs;
 }
 
-static A2dpError to_rust_error(const btav_error_t& error) {
+static void connection_state_cb(const RawAddress& addr, btav_connection_state_t state,
+                                const btav_error_t& error) {
+  // CAUTION: The error_msg field is a reference and could refer to a rvalue on the stack.
+  //          DO NOT make this conversion into a helper function.
   A2dpError a2dp_error = {
           .status = error.status,
           .error_code = error.error_code,
           .error_msg = error.error_msg.value_or(""),
   };
-  return a2dp_error;
-}
-
-static void connection_state_cb(const RawAddress& addr, btav_connection_state_t state,
-                                const btav_error_t& error) {
-  A2dpError a2dp_error = to_rust_error(error);
   rusty::connection_state_callback(addr, state, a2dp_error);
 }
 static void audio_state_cb(const RawAddress& addr, btav_audio_state_t state) {
@@ -292,10 +289,16 @@ std::unique_ptr<A2dpIntf> GetA2dpProfile(const unsigned char* btif) {
 }
 
 int A2dpIntf::init() const {
-  std::vector<btav_a2dp_codec_config_t> a;
+  btav_a2dp_codec_config_t a2dp_config_sbc{
+          .codec_type = BTAV_A2DP_CODEC_INDEX_SOURCE_SBC,
+          .codec_priority = BTAV_A2DP_CODEC_PRIORITY_HIGHEST,
+          // Using default settings for those untouched fields
+  };
+
+  std::vector<btav_a2dp_codec_config_t> codec_priorities(1, a2dp_config_sbc);
   std::vector<btav_a2dp_codec_config_t> b;
   std::vector<btav_a2dp_codec_info_t> c;
-  return btif_av_source_init(&internal::g_callbacks, 1, a, b, &c);
+  return btif_av_source_init(&internal::g_callbacks, 1, codec_priorities, b, &c);
 }
 
 uint32_t A2dpIntf::connect(RawAddress addr) const { return btif_av_source_connect(addr); }

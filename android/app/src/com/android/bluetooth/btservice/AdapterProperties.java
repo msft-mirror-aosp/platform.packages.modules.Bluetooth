@@ -30,6 +30,7 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothMap;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSap;
+import android.bluetooth.BluetoothUtils;
 import android.bluetooth.BufferConstraint;
 import android.bluetooth.BufferConstraints;
 import android.content.Context;
@@ -1077,7 +1078,7 @@ class AdapterProperties {
     protected void dump(FileDescriptor fd, PrintWriter writer, String[] args) {
         writer.println(TAG);
         writer.println("  " + "Name: " + getName());
-        writer.println("  " + "Address: " + Utils.getAddressStringFromByte(mAddress));
+        writer.println("  " + "Address: " + Utils.getRedactedAddressStringFromByte(mAddress));
         writer.println("  " + "ConnectionState: " + dumpConnectionState(getConnectionState()));
         writer.println("  " + "State: " + BluetoothAdapter.nameForState(getState()));
         writer.println("  " + "MaxConnectedAudioDevices: " + getMaxConnectedAudioDevices());
@@ -1096,7 +1097,7 @@ class AdapterProperties {
             if (brEdrAddress.equals(address)) {
                 writer.println(
                         "    "
-                                + address
+                                + BluetoothUtils.toAnonymizedAddress(address)
                                 + " ["
                                 + dumpDeviceType(mRemoteDevices.getType(device))
                                 + "][ 0x"
@@ -1105,9 +1106,9 @@ class AdapterProperties {
                                 + Utils.getName(device));
             } else {
                 sb.append("    ")
-                        .append(address)
+                        .append(BluetoothUtils.toAnonymizedAddress(address))
                         .append(" => ")
-                        .append(brEdrAddress)
+                        .append(BluetoothUtils.toAnonymizedAddress(brEdrAddress))
                         .append(" [")
                         .append(dumpDeviceType(mRemoteDevices.getType(device)))
                         .append("][ 0x")

@@ -30,6 +30,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.AppOpsManager;
 import android.app.admin.DevicePolicyManager;
@@ -275,6 +276,8 @@ public class AdapterServiceTest {
         mockGetSystemService(Context.ALARM_SERVICE, AlarmManager.class);
         mockGetSystemService(Context.APP_OPS_SERVICE, AppOpsManager.class);
         mockGetSystemService(Context.AUDIO_SERVICE, AudioManager.class);
+        mockGetSystemService(Context.ACTIVITY_SERVICE, ActivityManager.class);
+
         DevicePolicyManager dpm =
                 mockGetSystemService(Context.DEVICE_POLICY_SERVICE, DevicePolicyManager.class);
         doReturn(false).when(dpm).isCommonCriteriaModeEnabled(any());
@@ -410,9 +413,7 @@ public class AdapterServiceTest {
             IBluetoothCallback callback,
             AdapterNativeInterface nativeInterface) {
         adapter.offToBleOn(false);
-        if (Flags.fastBindToApp()) {
-            TestUtils.syncHandler(looper, 0); // when fastBindToApp is enable init need to be run
-        }
+        TestUtils.syncHandler(looper, 0); // `init` need to be run first
         TestUtils.syncHandler(looper, AdapterState.BLE_TURN_ON);
         verifyStateChange(callback, STATE_OFF, STATE_BLE_TURNING_ON);
 
@@ -625,9 +626,7 @@ public class AdapterServiceTest {
         assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
 
         mAdapterService.offToBleOn(false);
-        if (Flags.fastBindToApp()) {
-            syncHandler(0); // when fastBindToApp is enable init need to be run
-        }
+        syncHandler(0); // `init` need to be run first
         syncHandler(AdapterState.BLE_TURN_ON);
         verifyStateChange(STATE_OFF, STATE_BLE_TURNING_ON);
         assertThat(mAdapterService.getBluetoothGatt()).isNotNull();

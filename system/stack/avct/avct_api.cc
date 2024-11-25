@@ -28,10 +28,15 @@
 #include <com_android_bluetooth_flags.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "bta/include/bta_sec_api.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
+#include "l2cdefs.h"
 #include "main/shim/dumpsys.h"
 #include "osi/include/allocator.h"
+#include "osi/include/fixed_queue.h"
 #include "stack/avct/avct_int.h"
 #include "stack/include/avct_api.h"
 #include "stack/include/bt_hdr.h"
@@ -163,9 +168,8 @@ uint16_t AVCT_CreateConn(uint8_t* p_handle, tAVCT_CC* p_cc, const RawAddress& pe
           avct_ccb_dealloc(p_ccb, AVCT_NO_EVT, 0, NULL);
           result = AVCT_NO_RESOURCES;
         }
-      }
-      /* check if PID already in use */
-      else if (avct_lcb_has_pid(p_lcb, p_cc->pid)) {
+      } else if (avct_lcb_has_pid(p_lcb, p_cc->pid)) {
+        /* check if PID already in use */
         avct_ccb_dealloc(p_ccb, AVCT_NO_EVT, 0, NULL);
         result = AVCT_PID_IN_USE;
       }
@@ -405,9 +409,8 @@ uint16_t AVCT_MsgReq(uint8_t handle, uint8_t label, uint8_t cr, BT_HDR* p_msg) {
   if (p_ccb == NULL) {
     result = AVCT_BAD_HANDLE;
     osi_free(p_msg);
-  }
-  /* verify channel is bound to link */
-  else if (p_ccb->p_lcb == NULL) {
+  } else if (p_ccb->p_lcb == NULL) {
+    /* verify channel is bound to link */
     result = AVCT_NOT_OPEN;
     osi_free(p_msg);
   }
@@ -430,9 +433,8 @@ uint16_t AVCT_MsgReq(uint8_t handle, uint8_t label, uint8_t cr, BT_HDR* p_msg) {
         avct_lcb_evt.ul_msg = ul_msg;
         avct_bcb_event(p_ccb->p_bcb, AVCT_LCB_UL_MSG_EVT, &avct_lcb_evt);
       }
-    }
-    /* send msg event to lcb */
-    else {
+    } else {
+      /* send msg event to lcb */
       tAVCT_LCB_EVT avct_lcb_evt;
       avct_lcb_evt.ul_msg = ul_msg;
       avct_lcb_event(p_ccb->p_lcb, AVCT_LCB_UL_MSG_EVT, &avct_lcb_evt);
@@ -455,7 +457,7 @@ void AVCT_Dumpsys(int fd) {
     if (ccb.p_lcb) {  // tAVCT_LCB
       LOG_DUMPSYS(fd,
                   "  Link  : peer:%s lcid:0x%04x sm_state:%-24s ch_state:%s conflict_lcid:0x%04x",
-                  fmt::format("{}", ccb.p_lcb->peer_addr).c_str(), ccb.p_lcb->ch_lcid,
+                  std::format("{}", ccb.p_lcb->peer_addr).c_str(), ccb.p_lcb->ch_lcid,
                   avct_sm_state_text(ccb.p_lcb->state).c_str(),
                   avct_ch_state_text(ccb.p_lcb->ch_state).c_str(), ccb.p_lcb->conflict_lcid);
     } else {
@@ -465,7 +467,7 @@ void AVCT_Dumpsys(int fd) {
     if (ccb.p_bcb) {  // tAVCT_BCB
       LOG_DUMPSYS(fd,
                   "  Browse: peer:%s lcid:0x%04x sm_state:%-24s ch_state:%s conflict_lcid:0x%04x",
-                  fmt::format("{}", ccb.p_bcb->peer_addr).c_str(), ccb.p_bcb->ch_lcid,
+                  std::format("{}", ccb.p_bcb->peer_addr).c_str(), ccb.p_bcb->ch_lcid,
                   avct_sm_state_text(ccb.p_bcb->state).c_str(),
                   avct_ch_state_text(ccb.p_bcb->ch_state).c_str(), ccb.p_bcb->conflict_lcid);
     } else {

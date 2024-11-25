@@ -20,9 +20,11 @@
 
 #include <bluetooth/log.h>
 
+#include <cstdint>
 #include <cstring>
 
 #include "embdrv/sbc/decoder/include/oi_codec_sbc.h"
+#include "embdrv/sbc/decoder/include/oi_cpu_dep.h"
 #include "embdrv/sbc/decoder/include/oi_status.h"
 
 #define HFP_MSBC_PKT_LEN 60
@@ -30,10 +32,10 @@
 
 using namespace bluetooth;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<OI_STATUS> : enum_formatter<OI_STATUS> {};
-}  // namespace fmt
+}  // namespace std
 
 typedef struct {
   OI_CODEC_SBC_DECODER_CONTEXT decoder_context;
