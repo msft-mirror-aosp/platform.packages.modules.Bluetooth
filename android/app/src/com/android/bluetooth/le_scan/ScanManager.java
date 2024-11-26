@@ -224,10 +224,6 @@ public class ScanManager {
 
         // Shut down the thread
         mHandler.removeCallbacksAndMessages(null);
-        Looper looper = mHandler.getLooper();
-        if (looper != null) {
-            looper.quitSafely();
-        }
 
         try {
             mAdapterService.unregisterReceiver(mLocationReceiver);
