@@ -19,8 +19,8 @@
 #include <stddef.h>
 
 #include "bluetooth.h"
-#include "bluetooth/uuid.h"
-#include "raw_address.h"
+#include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 __BEGIN_DECLS
 
@@ -40,18 +40,18 @@ typedef enum {
 
 /** Represents the standard BT SOCKET interface. */
 typedef struct {
-  short size;
+  int16_t size;
   RawAddress bd_addr;
   int channel;
   int status;
 
   // The writer must make writes using a buffer of this maximum size
   // to avoid loosing data. (L2CAP only)
-  unsigned short max_tx_packet_size;
+  uint16_t max_tx_packet_size;
 
   // The reader must read using a buffer of at least this size to avoid
   // loosing data. (L2CAP only)
-  unsigned short max_rx_packet_size;
+  uint16_t max_rx_packet_size;
 
   // The connection uuid. (L2CAP only)
   uint64_t conn_uuid_lsb;
@@ -118,7 +118,6 @@ typedef struct {
    * Get L2CAP remote channel ID with the associated connection uuid.
    */
   bt_status_t (*get_l2cap_remote_cid)(bluetooth::Uuid& conn_uuid, uint16_t* cid);
-
 } btsock_interface_t;
 
 __END_DECLS
@@ -126,9 +125,9 @@ __END_DECLS
 #if __has_include(<bluetooth/log.h>)
 #include <bluetooth/log.h>
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<btsock_type_t> : enum_formatter<btsock_type_t> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif  // __has_include(<bluetooth/log.h>)

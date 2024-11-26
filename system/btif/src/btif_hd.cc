@@ -414,11 +414,11 @@ static bt_status_t register_app(bthd_app_param_t* p_app_param, bthd_qos_param_t*
   }
 
   app_info.p_name = (char*)osi_calloc(BTIF_HD_APP_NAME_LEN);
-  strlcpy(app_info.p_name, p_app_param->name, BTIF_HD_APP_NAME_LEN);
+  osi_strlcpy(app_info.p_name, p_app_param->name, BTIF_HD_APP_NAME_LEN);
   app_info.p_description = (char*)osi_calloc(BTIF_HD_APP_DESCRIPTION_LEN);
-  strlcpy(app_info.p_description, p_app_param->description, BTIF_HD_APP_DESCRIPTION_LEN);
+  osi_strlcpy(app_info.p_description, p_app_param->description, BTIF_HD_APP_DESCRIPTION_LEN);
   app_info.p_provider = (char*)osi_calloc(BTIF_HD_APP_PROVIDER_LEN);
-  strlcpy(app_info.p_provider, p_app_param->provider, BTIF_HD_APP_PROVIDER_LEN);
+  osi_strlcpy(app_info.p_provider, p_app_param->provider, BTIF_HD_APP_PROVIDER_LEN);
   app_info.subclass = p_app_param->subclass;
   app_info.descriptor.dl_len = p_app_param->desc_list_len;
   app_info.descriptor.dsc_list = (uint8_t*)osi_malloc(app_info.descriptor.dl_len);

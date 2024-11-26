@@ -74,6 +74,7 @@ import android.bluetooth.IBluetooth;
 import android.bluetooth.IBluetoothActivityEnergyInfoListener;
 import android.bluetooth.IBluetoothCallback;
 import android.bluetooth.IBluetoothConnectionCallback;
+import android.bluetooth.IBluetoothHciVendorSpecificCallback;
 import android.bluetooth.IBluetoothMetadataListener;
 import android.bluetooth.IBluetoothOobDataCallback;
 import android.bluetooth.IBluetoothPreferredAudioProfilesCallback;
@@ -189,6 +190,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -274,6 +276,13 @@ public class AdapterService extends Service {
 
     private final DeviceConfigListener mDeviceConfigListener = new DeviceConfigListener();
 
+    private final BluetoothHciVendorSpecificDispatcher mBluetoothHciVendorSpecificDispatcher =
+            new BluetoothHciVendorSpecificDispatcher();
+    private final BluetoothHciVendorSpecificNativeInterface
+            mBluetoothHciVendorSpecificNativeInterface =
+                    new BluetoothHciVendorSpecificNativeInterface(
+                            mBluetoothHciVendorSpecificDispatcher);
+
     private final Looper mLooper;
     private final AdapterServiceHandler mHandler;
 
@@ -305,8 +314,8 @@ public class AdapterService extends Service {
     private UserManager mUserManager;
     private CompanionDeviceManager mCompanionDeviceManager;
 
-    // Phone Policy is not used on all devices. Ensure you null check before using it
-    @Nullable private PhonePolicy mPhonePolicy;
+    // Phone Policy is not used on all devices and can be empty
+    private Optional<PhonePolicy> mPhonePolicy = Optional.empty();
 
     private ActiveDeviceManager mActiveDeviceManager;
     private final DatabaseManager mDatabaseManager;
@@ -686,6 +695,10 @@ public class AdapterService extends Service {
                         "BluetoothQualityReportNativeInterface cannot be null when BQR starts");
         mBluetoothQualityReportNativeInterface.init();
 
+        if (Flags.hciVendorSpecificExtension()) {
+            mBluetoothHciVendorSpecificNativeInterface.init();
+        }
+
         mSdpManager = new SdpManager(this, mLooper);
 
         mDatabaseManager.start(MetadataDatabase.createDatabase(this));
@@ -703,8 +716,7 @@ public class AdapterService extends Service {
          */
         if (!isAutomotiveDevice && getResources().getBoolean(R.bool.enable_phone_policy)) {
             Log.i(TAG, "Phone policy enabled");
-            mPhonePolicy = new PhonePolicy(this, new ServiceFactory());
-            mPhonePolicy.start();
+            mPhonePolicy = Optional.of(new PhonePolicy(this, mLooper, new ServiceFactory()));
         } else {
             Log.i(TAG, "Phone policy disabled");
         }
@@ -1457,9 +1469,7 @@ public class AdapterService extends Service {
             mBluetoothKeystoreService.cleanup();
         }
 
-        if (mPhonePolicy != null) {
-            mPhonePolicy.cleanup();
-        }
+        mPhonePolicy.ifPresent(policy -> policy.cleanup());
 
         mSilenceDeviceManager.cleanup();
 
@@ -2659,6 +2669,7 @@ public class AdapterService extends Service {
                 deviceProp.setBondingInitiatedLocally(false);
             }
 
+            service.logUserBondResponse(device, false, source);
             return service.mNativeInterface.cancelBond(getBytesFromAddress(device.getAddress()));
         }
 
@@ -2685,7 +2696,9 @@ public class AdapterService extends Service {
                                         : "bond state is " + deviceProp.getBondState()));
                 return false;
             }
+            service.logUserBondResponse(device, false, source);
             service.mBondAttemptCallerInfo.remove(device.getAddress());
+            service.mPhonePolicy.ifPresent(policy -> policy.onRemoveBondRequest(device));
             deviceProp.setBondingInitiatedLocally(false);
 
             Message msg = service.mBondStateMachine.obtainMessage(BondStateMachine.REMOVE_BOND);
@@ -3099,8 +3112,7 @@ public class AdapterService extends Service {
                         0x534e4554, "139287605", -1, "PIN code length mismatch");
                 return false;
             }
-            service.logUserBondResponse(
-                    device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_PIN_REPLIED);
+            service.logUserBondResponse(device, accept, source);
             Log.i(
                     TAG,
                     "setPin: device="
@@ -3138,8 +3150,7 @@ public class AdapterService extends Service {
                         0x534e4554, "139287605", -1, "Passkey length mismatch");
                 return false;
             }
-            service.logUserBondResponse(
-                    device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_SSP_REPLIED);
+            service.logUserBondResponse(device, accept, source);
             Log.i(
                     TAG,
                     "setPasskey: device="
@@ -3173,8 +3184,7 @@ public class AdapterService extends Service {
                 Log.e(TAG, "setPairingConfirmation: device=" + device + ", not bonding");
                 return false;
             }
-            service.logUserBondResponse(
-                    device, accept, BluetoothProtoEnums.BOND_SUB_STATE_LOCAL_SSP_REPLIED);
+            service.logUserBondResponse(device, accept, source);
             Log.i(
                     TAG,
                     "setPairingConfirmation: device="
@@ -4136,6 +4146,84 @@ public class AdapterService extends Service {
         }
 
         @Override
+        public void registerHciVendorSpecificCallback(
+                IBluetoothHciVendorSpecificCallback callback, int[] eventCodes) {
+            AdapterService service = getService();
+            if (service == null) {
+                return;
+            }
+            if (!callerIsSystemOrActiveOrManagedUser(
+                    service, TAG, "registerHciVendorSpecificCallback")) {
+                throw new SecurityException("not allowed");
+            }
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            requireNonNull(callback);
+            requireNonNull(eventCodes);
+
+            Set<Integer> eventCodesSet =
+                    Arrays.stream(eventCodes).boxed().collect(Collectors.toSet());
+            if (eventCodesSet.stream()
+                    .anyMatch((n) -> (n < 0) || (n >= 0x50 && n < 0x60) || (n > 0xff))) {
+                throw new IllegalArgumentException("invalid vendor-specific event code");
+            }
+
+            service.mBluetoothHciVendorSpecificDispatcher.register(callback, eventCodesSet);
+        }
+
+        @Override
+        public void unregisterHciVendorSpecificCallback(
+                IBluetoothHciVendorSpecificCallback callback) {
+            AdapterService service = getService();
+            if (service == null) {
+                return;
+            }
+            if (!callerIsSystemOrActiveOrManagedUser(
+                    service, TAG, "unregisterHciVendorSpecificCallback")) {
+                throw new SecurityException("not allowed");
+            }
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            requireNonNull(callback);
+
+            service.mBluetoothHciVendorSpecificDispatcher.unregister(callback);
+        }
+
+        @Override
+        public void sendHciVendorSpecificCommand(
+                int ocf, byte[] parameters, IBluetoothHciVendorSpecificCallback callback) {
+            AdapterService service = getService();
+            if (service == null) {
+                return;
+            }
+            if (!callerIsSystemOrActiveOrManagedUser(
+                    service, TAG, "sendHciVendorSpecificCommand")) {
+                throw new SecurityException("not allowed");
+            }
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+
+            // Open this no-op android command for test purpose
+            int getVendorCapabilitiesOcf = 0x153;
+            if (ocf < 0
+                    || (ocf >= 0x150 && ocf < 0x160 && ocf != getVendorCapabilitiesOcf)
+                    || (ocf > 0x3ff)) {
+                throw new IllegalArgumentException("invalid vendor-specific event code");
+            }
+            requireNonNull(parameters);
+            if (parameters.length > 255) {
+                throw new IllegalArgumentException("Parameters size is too big");
+            }
+
+            Optional<byte[]> cookie =
+                    service.mBluetoothHciVendorSpecificDispatcher.getRegisteredCookie(callback);
+            if (!cookie.isPresent()) {
+                Log.e(TAG, "send command without registered callback");
+                throw new IllegalStateException("callback not registered");
+            }
+
+            service.mBluetoothHciVendorSpecificNativeInterface.sendCommand(
+                    ocf, parameters, cookie.get());
+        }
+
+        @Override
         public int getOffloadedTransportDiscoveryDataScanSupported(AttributionSource source) {
             AdapterService service = getService();
             if (service == null
@@ -4236,6 +4324,55 @@ public class AdapterService extends Service {
 
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
             return service.mDatabaseManager.getActiveAudioDevicePolicy(device);
+        }
+
+        @Override
+        public int setMicrophonePreferredForCalls(
+                BluetoothDevice device, boolean enabled, AttributionSource source) {
+            requireNonNull(device);
+            AdapterService service = getService();
+            if (service == null) {
+                return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
+            }
+            if (!callerIsSystemOrActiveOrManagedUser(
+                    service, TAG, "setMicrophonePreferredForCalls")) {
+                return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ALLOWED;
+            }
+            if (!BluetoothAdapter.checkBluetoothAddress(device.getAddress())) {
+                throw new IllegalArgumentException("device cannot have an invalid address");
+            }
+            if (!Utils.checkConnectPermissionForDataDelivery(
+                    service, source, "AdapterService setMicrophonePreferredForCalls")) {
+                return BluetoothStatusCodes.ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION;
+            }
+
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            return service.mDatabaseManager.setMicrophonePreferredForCalls(device, enabled);
+        }
+
+        @Override
+        public boolean isMicrophonePreferredForCalls(
+                BluetoothDevice device, AttributionSource source) {
+            requireNonNull(device);
+            AdapterService service = getService();
+            if (service == null) {
+                return true;
+            }
+            if (!callerIsSystemOrActiveOrManagedUser(
+                    service, TAG, "isMicrophonePreferredForCalls")) {
+                throw new IllegalStateException(
+                        "Caller is not the system or part of the active/managed user");
+            }
+            if (!BluetoothAdapter.checkBluetoothAddress(device.getAddress())) {
+                throw new IllegalArgumentException("device cannot have an invalid address");
+            }
+            if (!Utils.checkConnectPermissionForDataDelivery(
+                    service, source, "AdapterService isMicrophonePreferredForCalls")) {
+                return true;
+            }
+
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            return service.mDatabaseManager.isMicrophonePreferredForCalls(device);
         }
     }
 
@@ -5075,6 +5212,10 @@ public class AdapterService extends Service {
                  */
                 mLeAudioService.removeActiveDevice(true /* hasFallbackDevice */);
             } else {
+                if (mA2dpService != null && mA2dpService.getActiveDevice() != null) {
+                    // TODO:  b/312396770
+                    mA2dpService.removeActiveDevice(false);
+                }
                 mLeAudioService.setActiveDevice(device);
             }
         }
@@ -5615,17 +5756,19 @@ public class AdapterService extends Service {
         }
     }
 
-    void logUserBondResponse(BluetoothDevice device, boolean accepted, int event) {
+    void logUserBondResponse(BluetoothDevice device, boolean accepted, AttributionSource source) {
+        if (accepted) {
+            return;
+        }
         final long token = Binder.clearCallingIdentity();
         try {
-            BluetoothStatsLog.write(
-                    BluetoothStatsLog.BLUETOOTH_BOND_STATE_CHANGED,
-                    obfuscateAddress(device),
-                    0,
-                    device.getType(),
-                    BluetoothDevice.BOND_BONDING,
-                    event,
-                    accepted ? 0 : BluetoothDevice.UNBOND_REASON_AUTH_REJECTED);
+            MetricsLogger.getInstance()
+                    .logBluetoothEvent(
+                            device,
+                            BluetoothStatsLog
+                                    .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__USER_CONF_REQUEST,
+                            BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__FAIL,
+                            source.getUid());
         } finally {
             Binder.restoreCallingIdentity(token);
         }
@@ -5977,11 +6120,8 @@ public class AdapterService extends Service {
         }
     }
 
-    /** Update PhonePolicy when new {@link BluetoothDevice} creates an ACL connection. */
-    public void updatePhonePolicyOnAclConnect(BluetoothDevice device) {
-        if (mPhonePolicy != null) {
-            mPhonePolicy.handleAclConnected(device);
-        }
+    void updatePhonePolicyOnAclConnect(BluetoothDevice device) {
+        mPhonePolicy.ifPresent(policy -> policy.handleAclConnected(device));
     }
 
     /**
@@ -6027,18 +6167,16 @@ public class AdapterService extends Service {
      */
     public void handleProfileConnectionStateChange(
             int profile, BluetoothDevice device, int fromState, int toState) {
-        if (mPhonePolicy != null) {
-            mPhonePolicy.profileConnectionStateChanged(profile, device, fromState, toState);
-        }
+        mPhonePolicy.ifPresent(
+                policy ->
+                        policy.profileConnectionStateChanged(profile, device, fromState, toState));
     }
 
     /** Handle Bluetooth app state when active device changes for a given {@code profile}. */
     public void handleActiveDeviceChange(int profile, BluetoothDevice device) {
         mActiveDeviceManager.profileActiveDeviceChanged(profile, device);
         mSilenceDeviceManager.profileActiveDeviceChanged(profile, device);
-        if (mPhonePolicy != null) {
-            mPhonePolicy.profileActiveDeviceChanged(profile, device);
-        }
+        mPhonePolicy.ifPresent(policy -> policy.profileActiveDeviceChanged(profile, device));
     }
 
     /** Notify MAP and Pbap when a new sdp search record is found. */
@@ -6929,9 +7067,7 @@ public class AdapterService extends Service {
         for (int i = 0; i < uuids.length; i++) {
             Log.d(TAG, "sendUuidsInternal: index=" + i + " uuid=" + uuids[i]);
         }
-        if (mPhonePolicy != null) {
-            mPhonePolicy.onUuidsDiscovered(device, uuids);
-        }
+        mPhonePolicy.ifPresent(policy -> policy.onUuidsDiscovered(device, uuids));
     }
 
     /** Clear storage */

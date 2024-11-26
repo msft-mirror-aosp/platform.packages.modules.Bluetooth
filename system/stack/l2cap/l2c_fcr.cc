@@ -48,7 +48,7 @@ static const char* SAR_types[] = {"Unsegmented", "Start", "End", "Continuation"}
 static const char* SUP_types[] = {"RR", "REJ", "RNR", "SREJ"};
 
 /* Look-up table for the CRC calculation */
-static const unsigned short crctab[256] = {
+static const uint16_t crctab[256] = {
         0x0000, 0xc0c1, 0xc181, 0x0140, 0xc301, 0x03c0, 0x0280, 0xc241, 0xc601, 0x06c0, 0x0780,
         0xc741, 0x0500, 0xc5c1, 0xc481, 0x0440, 0xcc01, 0x0cc0, 0x0d80, 0xcd41, 0x0f00, 0xcfc1,
         0xce81, 0x0e40, 0x0a00, 0xcac1, 0xcb81, 0x0b40, 0xc901, 0x09c0, 0x0880, 0xc841, 0xd801,
@@ -94,8 +94,8 @@ static bool do_sar_reassembly(tL2C_CCB* p_ccb, BT_HDR* p_buf, uint16_t ctrl_word
  * Returns          CRC
  *
  ******************************************************************************/
-static unsigned short l2c_fcr_updcrc(unsigned short icrc, unsigned char* icp, int icnt) {
-  unsigned short crc = icrc;
+static uint16_t l2c_fcr_updcrc(uint16_t icrc, unsigned char* icp, int icnt) {
+  uint16_t crc = icrc;
   unsigned char* cp = icp;
   int cnt = icnt;
 
@@ -1423,9 +1423,8 @@ BT_HDR* l2c_fcr_get_next_xmit_sdu_seg(tL2C_CCB* p_ccb, uint16_t max_packet_lengt
 
       /* copy PBF setting */
       p_xmit->layer_specific = p_buf->layer_specific;
-    } else /* Should never happen if the application has configured buffers
-              correctly */
-    {
+    } else {
+      /* Should never happen if the application has configured buffers correctly */
       log::error("L2CAP - cannot get buffer for segmentation, max_pdu: {}", max_pdu);
       return NULL;
     }
@@ -1794,10 +1793,8 @@ uint8_t l2c_fcr_process_peer_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg) {
       p_cfg->fcr.tx_win_sz = p_ccb->our_cfg.fcr.tx_win_sz;
       p_cfg->fcr.max_transmit = p_ccb->our_cfg.fcr.max_transmit;
       fcr_ok = L2CAP_PEER_CFG_UNACCEPTABLE;
-    }
-
-    /* If we wanted basic, then try to renegotiate it */
-    else if (p_ccb->p_rcb->ertm_info.preferred_mode == L2CAP_FCR_BASIC_MODE) {
+    } else if (p_ccb->p_rcb->ertm_info.preferred_mode == L2CAP_FCR_BASIC_MODE) {
+      /* If we wanted basic, then try to renegotiate it */
       p_cfg->fcr.mode = L2CAP_FCR_BASIC_MODE;
       p_cfg->fcr.max_transmit = p_cfg->fcr.tx_win_sz = 0;
       p_cfg->fcr.rtrans_tout = p_cfg->fcr.mon_tout = p_cfg->fcr.mps = 0;

@@ -134,10 +134,9 @@ void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddres
       uint64_t timeout_ms = L2CAP_LINK_STARTUP_TOUT * 1000;
       alarm_set_on_mloop(p_lcb->l2c_lcb_timer, timeout_ms, l2c_lcb_timer_timeout, p_lcb);
     }
-  }
-  /* Max number of acl connections.                          */
-  /* If there's an lcb disconnecting set this one to holding */
-  else if ((ci.hci_status == HCI_ERR_MAX_NUM_OF_CONNECTIONS) && l2cu_lcb_disconnecting()) {
+  } else if ((ci.hci_status == HCI_ERR_MAX_NUM_OF_CONNECTIONS) && l2cu_lcb_disconnecting()) {
+    /* Max number of acl connections.                          */
+    /* If there's an lcb disconnecting set this one to holding */
     log::warn("Delaying connection as reached max number of links:{}",
               HCI_ERR_MAX_NUM_OF_CONNECTIONS);
     p_lcb->link_state = LST_CONNECT_HOLDING;
@@ -616,16 +615,14 @@ void l2c_link_adjust_allocation(void) {
   if (num_lowpri_links > low_quota) {
     l2cb.round_robin_quota = low_quota;
     qq = qq_remainder = 1;
-  }
-  /* If each low priority link can have at least one buffer */
-  else if (num_lowpri_links > 0) {
+  } else if (num_lowpri_links > 0) {
+    /* If each low priority link can have at least one buffer */
     l2cb.round_robin_quota = 0;
     l2cb.round_robin_unacked = 0;
     qq = low_quota / num_lowpri_links;
     qq_remainder = low_quota % num_lowpri_links;
-  }
-  /* If no low priority link */
-  else {
+  } else {
+    /* If no low priority link */
     l2cb.round_robin_quota = 0;
     l2cb.round_robin_unacked = 0;
     qq = qq_remainder = 1;
@@ -924,9 +921,8 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, uint16_t local_cid, BT_HDR* p_buf
         /* If only doing one write, break out */
         log::debug("single_write is true, skipping");
         break;
-      }
-      /* If nothing on the link queue, check the channel queue */
-      else {
+      } else {
+        /* If nothing on the link queue, check the channel queue */
         tL2C_TX_COMPLETE_CB_INFO cbi = {};
         log::debug("Check next buffer");
         p_buf = l2cu_get_next_buffer_to_send(p_lcb, &cbi);

@@ -22,11 +22,20 @@
 #include <com_android_bluetooth_flags.h>
 #include <hardware/bt_gatt_types.h>
 #include <hardware/bt_has.h>
+#include <stdio.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <list>
 #include <map>
 #include <mutex>
+#include <optional>
+#include <sstream>
 #include <string>
+#include <utility>
+#include <variant>
 #include <vector>
 
 #include "bta_csis_api.h"
@@ -34,21 +43,30 @@
 #include "bta_gatt_queue.h"
 #include "bta_has_api.h"
 #include "bta_le_audio_uuids.h"
+#include "btm_ble_api_types.h"
 #include "btm_sec.h"
+#include "btm_sec_api_types.h"
+#include "btm_status.h"
 #include "gap_api.h"
+#include "gatt/database.h"
 #include "gatt_api.h"
+#include "gattdefs.h"
+#include "has_ctp.h"
+#include "has_journal.h"
+#include "has_preset.h"
 #include "has_types.h"
-#include "internal_include/bt_trace.h"
+#include "osi/include/alarm.h"
 #include "osi/include/properties.h"
 #include "stack/include/bt_types.h"
+#include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
 
 using base::Closure;
 using bluetooth::Uuid;
 using bluetooth::csis::CsisClient;
 using bluetooth::has::ConnectionState;
 using bluetooth::has::ErrorCode;
-using bluetooth::has::kFeatureBitPresetSynchronizationSupported;
-using bluetooth::has::kHasPresetIndexInvalid;
 using bluetooth::has::PresetInfo;
 using bluetooth::has::PresetInfoReason;
 using bluetooth::le_audio::has::HasClient;
@@ -59,8 +77,6 @@ using bluetooth::le_audio::has::HasDevice;
 using bluetooth::le_audio::has::HasGattOpContext;
 using bluetooth::le_audio::has::HasJournalRecord;
 using bluetooth::le_audio::has::HasPreset;
-using bluetooth::le_audio::has::kControlPointMandatoryOpcodesBitmask;
-using bluetooth::le_audio::has::kControlPointSynchronizedOpcodesBitmask;
 using bluetooth::le_audio::has::kUuidActivePresetIndex;
 using bluetooth::le_audio::has::kUuidHearingAccessService;
 using bluetooth::le_audio::has::kUuidHearingAidFeatures;
@@ -240,6 +256,9 @@ public:
         if (is_connecting_actively) {
           BTA_GATTC_CancelOpen(gatt_if_, address, true);
           callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
+        } else {
+          /* Removes all registrations for connection. */
+          BTA_GATTC_CancelOpen(gatt_if_, address, false);
         }
       }
       return;
@@ -429,7 +448,7 @@ public:
       ClearDeviceInformationAndStartSearch(device);
     } else {
       log::error("Devices {}: Control point not usable. Disconnecting!", device->addr);
-      BTA_GATTC_Close(device->conn_id);
+      CleanAndDisconnectByConnId(conn_id);
     }
   }
 
@@ -475,7 +494,7 @@ public:
       ClearDeviceInformationAndStartSearch(device);
     } else {
       log::error("Devices {}: Control point not usable. Disconnecting!", device->addr);
-      BTA_GATTC_Close(device->conn_id);
+      CleanAndDisconnectByConnId(conn_id);
     }
   }
 
@@ -1137,7 +1156,7 @@ private:
       /* Both of these CCC are mandatory */
       if (enabling_ntf && (status != GATT_SUCCESS)) {
         log::error("Failed to register for notifications on handle=0x{:x}", handle);
-        BTA_GATTC_Close(conn_id);
+        CleanAndDisconnectByConnId(conn_id);
         return;
       }
     }
@@ -1189,20 +1208,22 @@ private:
       return;
     }
 
+    tCONN_ID conn_id = device->conn_id;
+
     if (status != GATT_SUCCESS) {
       if (status == GATT_DATABASE_OUT_OF_SYNC) {
         log::info("Database out of sync for {}", device->addr);
         ClearDeviceInformationAndStartSearch(device);
       } else {
         log::error("Could not read characteristic at handle=0x{:04x}", handle);
-        BTA_GATTC_Close(device->conn_id);
+        CleanAndDisconnectByConnId(conn_id);
       }
       return;
     }
 
     if (len != 1) {
       log::error("Invalid features value length={} at handle=0x{:x}", len, handle);
-      BTA_GATTC_Close(device->conn_id);
+      CleanAndDisconnectByConnId(conn_id);
       return;
     }
 
@@ -1565,9 +1586,11 @@ private:
 
   void OnHasCtpValueNotification(HasDevice* device, uint16_t len, const uint8_t* value) {
     auto ntf_opt = HasCtpNtf::FromCharacteristicValue(len, value);
+    tCONN_ID conn_id = device->conn_id;
+
     if (!ntf_opt.has_value()) {
       log::error("Unhandled notification for device: {}", *device);
-      BTA_GATTC_Close(device->conn_id);
+      CleanAndDisconnectByConnId(conn_id);
       return;
     }
 
@@ -1591,19 +1614,22 @@ private:
       return;
     }
 
+    tCONN_ID conn_id = device->conn_id;
+
     if (status != GATT_SUCCESS) {
       if (status == GATT_DATABASE_OUT_OF_SYNC) {
         log::info("Database out of sync for {}", device->addr);
         ClearDeviceInformationAndStartSearch(device);
       } else {
         log::error("Could not read characteristic at handle=0x{:04x}", handle);
-        BTA_GATTC_Close(device->conn_id);
+        CleanAndDisconnectByConnId(conn_id);
+        return;
       }
     }
 
     if (len != 1) {
       log::error("Invalid preset value length={} at handle=0x{:x}", len, handle);
-      BTA_GATTC_Close(device->conn_id);
+      CleanAndDisconnectByConnId(conn_id);
       return;
     }
 
@@ -1715,6 +1741,16 @@ private:
             pending_operations_.end());
 
     device.ConnectionCleanUp();
+  }
+
+  void CleanAndDisconnectByConnId(tCONN_ID conn_id) {
+    auto device_iter =
+            std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchConnId(conn_id));
+    if (device_iter != devices_.end()) {
+      DoDisconnectCleanUp(*device_iter);
+      devices_.erase(device_iter);
+    }
+    BTA_GATTC_Close(conn_id);
   }
 
   /* These below are all GATT service discovery, validation, cache & storage */
@@ -1975,7 +2011,9 @@ private:
     }
 
     device->conn_id = evt.conn_id;
-
+    if (com::android::bluetooth::flags::gatt_queue_cleanup_connected()) {
+      BtaGattQueue::Clean(evt.conn_id);
+    }
     if (BTM_SecIsSecurityPending(device->addr)) {
       /* if security collision happened, wait for encryption done
        * (BTA_GATTC_ENC_CMPL_CB_EVT)

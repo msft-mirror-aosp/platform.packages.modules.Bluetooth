@@ -19,7 +19,6 @@
 #ifndef SYSTEM_BTIF_INCLUDE_BTIF_STORAGE_H_
 #define SYSTEM_BTIF_INCLUDE_BTIF_STORAGE_H_
 
-#include <bluetooth/uuid.h>
 #include <hardware/bluetooth.h>
 
 #include <string>
@@ -29,6 +28,7 @@
 #include "stack/include/bt_octets.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "types/ble_address_with_type.h"
+#include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
 /*******************************************************************************

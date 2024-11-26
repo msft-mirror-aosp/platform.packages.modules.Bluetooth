@@ -26,9 +26,9 @@
 #include <vector>
 
 #include "avrcp/avrcp.h"
-#include "bluetooth/uuid.h"
-#include "bt_transport.h"
-#include "raw_address.h"
+#include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
 
 /**
  * The Bluetooth Hardware Module ID
@@ -993,7 +993,6 @@ typedef struct {
 
   /** check if pbap pse dynamic version upgrade is enable */
   bool (*pbap_pse_dynamic_version_upgrade_is_enabled)();
-
 } bt_interface_t;
 
 #define BLUETOOTH_INTERFACE_STRING "bluetoothInterface"
@@ -1001,7 +1000,7 @@ typedef struct {
 #if __has_include(<bluetooth/log.h>)
 #include <bluetooth/log.h>
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bt_status_t> : enum_formatter<bt_status_t> {};
 template <>
@@ -1010,7 +1009,7 @@ template <>
 struct formatter<bt_bond_state_t> : enum_formatter<bt_bond_state_t> {};
 template <>
 struct formatter<bt_property_type_t> : enum_formatter<bt_property_type_t> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif  // __has_include(<bluetooth/log.h>)
 

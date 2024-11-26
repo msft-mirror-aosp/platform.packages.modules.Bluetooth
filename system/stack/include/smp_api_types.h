@@ -228,13 +228,13 @@ typedef tBTM_STATUS(tSMP_CALLBACK)(tSMP_EVT event, const RawAddress& bd_addr,
  * Manager requires verification from CSIP.*/
 typedef tBTM_STATUS(tSMP_SIRK_CALLBACK)(const RawAddress& bd_addr);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tSMP_OOB_DATA_TYPE> : enum_formatter<tSMP_OOB_DATA_TYPE> {};
 template <>
 struct formatter<tSMP_SEC_LEVEL> : enum_formatter<tSMP_SEC_LEVEL> {};
 template <>
 struct formatter<tSMP_EVT> : enum_formatter<tSMP_EVT> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif  // SMP_API_TYPES_H

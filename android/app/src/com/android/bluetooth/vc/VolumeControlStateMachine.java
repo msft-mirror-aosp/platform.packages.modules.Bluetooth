@@ -157,7 +157,10 @@ class VolumeControlStateMachine extends StateMachine {
                         case VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED -> {
                             processConnectionEvent(event.valueInt1);
                         }
-                        default -> Log.e(TAG, "Disconnected: ignoring stack event: " + event);
+                        default -> {
+                            Log.e(TAG, "Disconnected: forwarding stack event: " + event);
+                            mService.handleStackEvent(event);
+                        }
                     }
                 }
                 default -> {
@@ -262,7 +265,14 @@ class VolumeControlStateMachine extends StateMachine {
                         case VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED -> {
                             processConnectionEvent(event.valueInt1);
                         }
-                        default -> Log.e(TAG, "Connecting: ignoring stack event: " + event);
+                        case VolumeControlStackEvent.EVENT_TYPE_VOLUME_STATE_CHANGED -> {
+                            Log.w(TAG, "Defer volume change received while connecting: " + mDevice);
+                            deferMessage(message);
+                        }
+                        default -> {
+                            Log.e(TAG, "Connecting: forwarding stack event: " + event);
+                            mService.handleStackEvent(event);
+                        }
                     }
                 }
                 default -> {
@@ -355,7 +365,10 @@ class VolumeControlStateMachine extends StateMachine {
                         case VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED -> {
                             processConnectionEvent(event.valueInt1);
                         }
-                        default -> Log.e(TAG, "Disconnecting: ignoring stack event: " + event);
+                        default -> {
+                            Log.e(TAG, "Disconnecting: forwarding stack event: " + event);
+                            mService.handleStackEvent(event);
+                        }
                     }
                 }
                 default -> {
@@ -452,7 +465,8 @@ class VolumeControlStateMachine extends StateMachine {
                             processConnectionEvent(event.valueInt1);
                         }
                         default -> {
-                            Log.e(TAG, "Connected: ignoring stack event: " + event);
+                            Log.e(TAG, "Connected: forwarding stack event: " + event);
+                            mService.handleStackEvent(event);
                         }
                     }
                 }

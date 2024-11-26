@@ -52,12 +52,12 @@ cc_fuzz {
         "libbtcore",
         "libbtdevice",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libgmock",
         "libosi",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
-        "packages/modules/Bluetooth/system/device/include",
         "packages/modules/Bluetooth/system/gd",
     ],
     fuzz_config: {

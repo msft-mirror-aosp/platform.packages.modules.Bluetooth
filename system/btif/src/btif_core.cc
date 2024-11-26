@@ -379,7 +379,7 @@ static bt_status_t btif_in_get_remote_device_properties(RawAddress* bd_addr) {
 }
 
 static void btif_core_storage_adapter_write(bt_property_t* prop) {
-  log::verbose("type: {}, len {}, {}", prop->type, prop->len, fmt::ptr(prop->val));
+  log::verbose("type: {}, len {}, {}", prop->type, prop->len, std::format_ptr(prop->val));
   bt_status_t status = btif_storage_set_adapter_property(prop);
   GetInterfaceToProfiles()->events->invoke_adapter_properties_cb(status, 1, prop);
 }
@@ -550,7 +550,7 @@ void btif_set_scan_mode(bt_scan_mode_t mode) {
 
 void btif_set_adapter_property(bt_property_t* property) {
   log::verbose("btif_set_adapter_property type: {}, len {}, {}", property->type, property->len,
-               fmt::ptr(property->val));
+               std::format_ptr(property->val));
 
   switch (property->type) {
     case BT_PROPERTY_BDNAME: {

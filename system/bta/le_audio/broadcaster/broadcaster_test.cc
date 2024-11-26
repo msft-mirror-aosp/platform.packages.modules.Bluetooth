@@ -1008,8 +1008,8 @@ TEST_F(BroadcasterTest, StreamParamsMedia) {
   ASSERT_EQ(config.config.subgroups.at(0).GetNumBis(), expected_channels);
   ASSERT_EQ(config.config.subgroups.at(0).GetNumChannelsTotal(), expected_channels);
   // Note there is one BIS configuration applied to both (stereo) BISes
-  ASSERT_EQ(config.config.subgroups.at(0).GetAllBisConfigCount(), (unsigned long)1);
-  ASSERT_EQ(config.config.subgroups.at(0).GetNumBis(0), (unsigned long)expected_channels);
+  ASSERT_EQ(config.config.subgroups.at(0).GetAllBisConfigCount(), 1u);
+  ASSERT_EQ(config.config.subgroups.at(0).GetNumBis(0), expected_channels);
 
   // Matches number of bises in the announcement
   ASSERT_EQ(config.announcement.subgroup_configs.size(), 1ul);

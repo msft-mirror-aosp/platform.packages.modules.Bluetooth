@@ -442,7 +442,7 @@ TEST(HciPacketsTest, testLeMultiAdvSetAdvertisingDataBuilderLength) {
   ASSERT_TRUE(command_view.IsValid());
   auto view = LeMultiAdvtSetDataView::Create(command_view);
   ASSERT_TRUE(view.IsValid());
-  ASSERT_TRUE(view.GetAdvertisingData().size() > 0ul);
+  ASSERT_GT(view.GetAdvertisingData().size(), 0ul);
   ASSERT_EQ(view.GetAdvertisingData()[0].data_, gap_data.data_);
   ASSERT_EQ(view.GetAdvertisingInstance(), 3);
 }

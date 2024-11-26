@@ -79,7 +79,6 @@ cc_library_shared {
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/gd",
-        "packages/modules/Bluetooth/system/types",
     ],
     // libbluetooth_jni is the jni lib included in the btservices apex.
     // As this library is inside an APEX the shared_libs that does not
@@ -182,9 +181,6 @@ cc_library {
         "jni_headers",
         "libbluetooth_headers",
     ],
-    include_dirs: [
-        "packages/modules/Bluetooth/system/types",
-    ],
     static_libs: [
         "lib-bt-packets",
         "lib-bt-packets-base",
@@ -243,6 +239,7 @@ android_app {
     jni_uses_platform_apis: true,
     libs: [
         "app-compat-annotations",
+        "bluetooth_constants_java",
         "bluetooth_flags_java_lib",
         "error_prone_annotations",
         "framework-annotations-lib",
@@ -262,6 +259,7 @@ android_app {
         "BluetoothApiShims",
         "android.hardware.radio-V1.0-java",
         "android.hardware.radio.sap-V1-java",
+        "android.media.audio-aconfig-exported-java",
         "android.os.flags-aconfig-java-export",
         "androidx.annotation_annotation",
         "androidx.core_core",
@@ -272,7 +270,6 @@ android_app {
         "bluetooth-protos-lite",
         "bluetooth.change-ids",
         "bluetooth.mapsapi",
-        "bluetooth_constants_java",
         "com.android.obex",
         "com.android.vcard",
         "guava",
@@ -288,7 +285,6 @@ android_app {
 
     plugins: [
         "androidx.room_room-compiler-plugin",
-        "error_prone_android_framework",
     ],
 
     // Export schemas to the test directory so that we have an history
@@ -308,6 +304,7 @@ android_app {
             "ExtraText",
             "ExtraTranslation",
             "GestureBackNavigation",
+            "GetterSetterNullability",
             "GuardedLogInvocation",
             "HandlerLeak",
             "InflateParams",
