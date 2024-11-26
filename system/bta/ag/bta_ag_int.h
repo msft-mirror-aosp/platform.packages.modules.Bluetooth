@@ -134,6 +134,24 @@ typedef enum : uint8_t {
   BTA_AG_SCO_SHUTTING_ST    /* sco shutting down */
 } tBTA_AG_SCO;
 
+inline std::string bta_ag_sco_state_text(const tBTA_AG_SCO& state) {
+  switch (state) {
+    CASE_RETURN_TEXT(BTA_AG_SCO_SHUTDOWN_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_LISTEN_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_CODEC_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_OPENING_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_OPEN_CL_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_OPEN_XFER_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_OPEN_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_CLOSING_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_CLOSE_OP_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_CLOSE_XFER_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_SHUTTING_ST);
+    default:
+      return std::string("unknown_bta_ag_sco_state: ") +
+             std::to_string(static_cast<uint8_t>(state));
+  }
+}
 /*****************************************************************************
  *  Data types
  ****************************************************************************/
@@ -245,7 +263,7 @@ struct formatter<tBTA_AG_SCO_LC3_SETTINGS> : enum_formatter<tBTA_AG_SCO_LC3_SETT
 template <>
 struct formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> : enum_formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> {};
 template <>
-struct formatter<tBTA_AG_SCO> : enum_formatter<tBTA_AG_SCO> {};
+struct formatter<tBTA_AG_SCO> : string_formatter<tBTA_AG_SCO, &bta_ag_sco_state_text> {};
 }  // namespace std
 
 /* state machine states */
