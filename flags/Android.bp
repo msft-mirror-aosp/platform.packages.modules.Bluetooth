@@ -33,7 +33,6 @@ aconfig_declarations {
         "l2cap.aconfig",
         "le_advertising.aconfig",
         "leaudio.aconfig",
-        "map.aconfig",
         "mapclient.aconfig",
         "mcp.aconfig",
         "metric.aconfig",
