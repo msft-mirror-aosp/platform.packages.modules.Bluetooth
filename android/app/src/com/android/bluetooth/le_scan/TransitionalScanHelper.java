@@ -201,7 +201,6 @@ public class TransitionalScanHelper {
                         .createScanManager(
                                 mAdapterService,
                                 this,
-                                mAdapterService,
                                 BluetoothAdapterProxy.getInstance(),
                                 looper);
 

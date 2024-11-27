@@ -65,7 +65,7 @@ protected:
 private:
   const char* name_;
   const Callback callback_type_;
-  const long long timestamp_ms_;
+  const uint64_t timestamp_ms_;
 };
 
 struct callback_params_t : public callback_data_t {

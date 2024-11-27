@@ -36,6 +36,8 @@ import io.grpc.stub.StreamObserver
 import java.io.Closeable
 import java.io.PrintWriter
 import java.io.StringWriter
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -193,6 +195,8 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
     ) {
         grpcUnary<SuspendResponse>(scope, responseObserver) {
             val device = bluetoothAdapter.getRemoteDevice(request.source.cookie.toString("UTF-8"))
+            val timeoutMillis: Duration = 5000.milliseconds
+
             Log.i(TAG, "suspend: device=$device")
 
             if (bluetoothA2dp.getConnectionState(device) != BluetoothA2dp.STATE_CONNECTED) {
@@ -210,7 +214,9 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
                     .map { it.getIntExtra(BluetoothA2dp.EXTRA_STATE, BluetoothAdapter.ERROR) }
 
             audioTrack!!.pause()
-            a2dpPlayingStateFlow.filter { it == BluetoothA2dp.STATE_NOT_PLAYING }.first()
+            withTimeoutOrNull(timeoutMillis) {
+                a2dpPlayingStateFlow.filter { it == BluetoothA2dp.STATE_NOT_PLAYING }.first()
+            }
             SuspendResponse.getDefaultInstance()
         }
     }
@@ -365,7 +371,7 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
         responseObserver: StreamObserver<SetConfigurationResponse>,
     ) {
         grpcUnary<SetConfigurationResponse>(scope, responseObserver) {
-            val timeoutMillis: Long = 5_000L // milliseconds
+            val timeoutMillis: Duration = 5000.milliseconds
             val device = request.connection.toBluetoothDevice(bluetoothAdapter)
             Log.i(TAG, "setConfiguration: device=$device")
 

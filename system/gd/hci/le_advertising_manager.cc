@@ -945,7 +945,7 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
           LegacyAdvertisingEventProperties legacy_properties =
                   LegacyAdvertisingEventProperties::ADV_IND;
           if (config.connectable && config.directed) {
-            if (config.high_duty_directed_connectable) {
+            if (config.high_duty_cycle) {
               legacy_properties = LegacyAdvertisingEventProperties::ADV_DIRECT_IND_HIGH;
             } else {
               legacy_properties = LegacyAdvertisingEventProperties::ADV_DIRECT_IND_LOW;
@@ -974,7 +974,7 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
           extended_properties.connectable_ = config.connectable;
           extended_properties.scannable_ = config.scannable;
           extended_properties.directed_ = config.directed;
-          extended_properties.high_duty_cycle_ = config.high_duty_directed_connectable;
+          extended_properties.high_duty_cycle_ = config.high_duty_cycle;
           extended_properties.legacy_ = false;
           extended_properties.anonymous_ = config.anonymous;
           extended_properties.tx_power_ = config.include_tx_power;
@@ -1868,7 +1868,7 @@ void LeAdvertisingManager::ExtendedCreateAdvertiser(
              AdvertisingCallback::AdvertisingStatus::INTERNAL_ERROR);
       return;
     }
-    if (config.high_duty_directed_connectable) {
+    if (config.high_duty_cycle) {
       log::info("Extended advertising PDUs can not be high duty cycle");
       CallOn(pimpl_.get(), &impl::start_advertising_fail, reg_id,
              AdvertisingCallback::AdvertisingStatus::INTERNAL_ERROR);

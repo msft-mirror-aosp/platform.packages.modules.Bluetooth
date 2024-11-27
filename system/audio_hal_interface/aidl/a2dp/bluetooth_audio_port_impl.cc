@@ -42,9 +42,9 @@ BluetoothAudioPortImpl::~BluetoothAudioPortImpl() {}
 
 ndk::ScopedAStatus BluetoothAudioPortImpl::startStream(bool is_low_latency) {
   StopWatchLegacy stop_watch(__func__);
-  BluetoothAudioStatus ack = transport_instance_->StartRequest(is_low_latency);
-  if (ack != BluetoothAudioStatus::PENDING) {
-    auto aidl_retval = provider_->streamStarted(BluetoothAudioStatusToHalStatus(ack));
+  Status ack = transport_instance_->StartRequest(is_low_latency);
+  if (ack != Status::PENDING) {
+    auto aidl_retval = provider_->streamStarted(StatusToHalStatus(ack));
     if (!aidl_retval.isOk()) {
       log::error("BluetoothAudioHal failure: {}", aidl_retval.getDescription());
     }
@@ -54,9 +54,9 @@ ndk::ScopedAStatus BluetoothAudioPortImpl::startStream(bool is_low_latency) {
 
 ndk::ScopedAStatus BluetoothAudioPortImpl::suspendStream() {
   StopWatchLegacy stop_watch(__func__);
-  BluetoothAudioStatus ack = transport_instance_->SuspendRequest();
-  if (ack != BluetoothAudioStatus::PENDING) {
-    auto aidl_retval = provider_->streamSuspended(BluetoothAudioStatusToHalStatus(ack));
+  Status ack = transport_instance_->SuspendRequest();
+  if (ack != Status::PENDING) {
+    auto aidl_retval = provider_->streamSuspended(StatusToHalStatus(ack));
     if (!aidl_retval.isOk()) {
       log::error("BluetoothAudioHal failure: {}", aidl_retval.getDescription());
     }
