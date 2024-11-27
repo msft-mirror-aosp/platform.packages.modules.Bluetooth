@@ -75,7 +75,7 @@ CK87BT = Name_Based                                                             
                                                                                              \n\
 # Some HID devices have problematic behaviour where when hid link is in Sniff                \n\
 # and DUT is in Peripheral role for SCO link ( not eSCO) any solution cannot maintain        \n\
-# the link as  SCO scheduling over a short period will overlap with Sniff link due to        \n\
+# the link as  SCO scheduling over a small period will overlap with Sniff link due to        \n\
 # peripheral drift.                                                                          \n\
 # To avoid degrading the user experience with those devices, sniff is disabled from          \n\
 # link policy when sco is active, and enabled when sco is disabled.                          \n\
@@ -85,7 +85,7 @@ CK87BT = Name_Based                                                             
                                                                                              \n\
 # Devices requiring this workaround do not handle SSR max latency values as mentioned,       \n\
 # in their SDP HID Record properly and lead to connection timeout or lags. To prevent        \n\
-# such scenarios, device requiring this workaorund need to use specific ssr max latency      \n\
+# such scenarios, device requiring this workaround need to use specific ssr max latency      \n\
 # values.                                                                                    \n\
 [INTEROP_UPDATE_HID_SSR_MAX_LAT]                                                             \n\
 00:1B:DC-0x0012 = SSR_Max_Lat_Based                                                          \n\

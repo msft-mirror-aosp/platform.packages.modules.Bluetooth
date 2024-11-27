@@ -296,17 +296,20 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *   <li>in case of LE devices, very unlikely address collision
      * </ul>
      *
-     * Only registered receivers will receive this intent.
-     *
      * <p>Always contains the extra field {@link #EXTRA_DEVICE}
      *
-     * @hide
+     * <p>This method requires the calling app to have the {@link
+     * android.Manifest.permission#BLUETOOTH_CONNECT} permission. Before {@link
+     * android.os.Build.VERSION_CODES#BAKLAVA} this method also required {@link
+     * android.Manifest.permission#BLUETOOTH_PRIVILEGED}
      */
     @SuppressLint("ActionValue")
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    @RequiresPermission(
+            allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+            conditional = true)
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
-    @SystemApi
-    @BroadcastBehavior(includeBackground = true, protectedBroadcast = true)
+    @BroadcastBehavior(protectedBroadcast = true)
+    @FlaggedApi(Flags.FLAG_KEY_MISSING_PUBLIC)
     public static final String ACTION_KEY_MISSING = "android.bluetooth.device.action.KEY_MISSING";
 
     /**

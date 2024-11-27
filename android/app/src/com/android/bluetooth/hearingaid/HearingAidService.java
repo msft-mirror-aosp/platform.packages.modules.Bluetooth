@@ -49,7 +49,6 @@ import com.android.bluetooth.BluetoothMetricsProto;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.AudioRoutingManager;
 import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
@@ -955,11 +954,6 @@ public class HearingAidService extends ProfileService {
                 return false;
             }
 
-            if (Flags.audioRoutingCentralization()) {
-                return ((AudioRoutingManager) service.mAdapterService.getActiveDeviceManager())
-                        .activateDeviceProfile(device, BluetoothProfile.HEARING_AID)
-                        .join();
-            }
             if (device == null) {
                 return service.removeActiveDevice(false);
             } else {

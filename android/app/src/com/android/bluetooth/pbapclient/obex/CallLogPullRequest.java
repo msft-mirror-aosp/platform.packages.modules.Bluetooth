@@ -30,6 +30,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.bluetooth.BluetoothMethodProxy;
+import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.vcard.VCardEntry;
 import com.android.vcard.VCardEntry.PhoneData;
@@ -52,6 +53,10 @@ public class CallLogPullRequest extends PullRequest {
 
     public CallLogPullRequest(
             Context context, String path, Map<String, Integer> map, Account account) {
+        if (Flags.pbapClientStorageRefactor()) {
+            Log.w(TAG, "This object should not be used. Use PbapClientContactsStorage");
+        }
+
         mContext = context;
         this.path = path;
         mCallCounter = map;

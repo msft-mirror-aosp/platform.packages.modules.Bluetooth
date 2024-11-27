@@ -94,8 +94,8 @@ class VCPProxy(ProfileProxy):
     def IUT_INITIATE_DISCOVER_CHARACTERISTIC(self, **kwargs):
         """
         Please take action to discover the
-        (Volume Control Point|Volume State|Volume Flags|Offset State|Volume Offset Control Point)
-        characteristic from the Volume (Offset )?Control. Discover the primary service if needed.
+        (Volume (Control Point|State|Flags|Offset Control Point)|Offset State|Audio Input (State|Type|Status|Control Point|Description)|Gain Setting Properties)
+        characteristic from the (Volume( Offset)?|Audio Input) Control. Discover the primary service if needed.
         Description: Verify that the Implementation Under Test \(IUT\) can send
         Discover All Characteristics command.
         """
@@ -108,9 +108,10 @@ class VCPProxy(ProfileProxy):
     @match_description
     def IUT_READ_CHARACTERISTIC(self, name: str, handle: str, **kwargs):
         """
-        Please send Read Request to read (?P<name>(Volume State|Volume Flags|Offset State)) characteristic with handle
+        Please send Read Request to read (?P<name>(Volume State|Volume Flags|Offset State|Audio Input (State|Status|Type)|Gain Setting Properties)) characteristic with handle
         = (?P<handle>(0x[0-9A-Fa-f]{4})).
         """
+
         # After discovery Android reads these values by itself, after profile connection.
         # Although, for some tests, this is used as validation, for example for tests with invalid
         # behavior (BI tests). Just send GATT read to sattisfy this conditions, as VCP has no exposed
@@ -139,7 +140,7 @@ class VCPProxy(ProfileProxy):
     def IUT_CONFIG_NOTIFICATION(self, name: str, **kwargs):
         """
         Please write to Client Characteristic Configuration Descriptor of
-        (?P<name>(Volume State|Offset State)) characteristic to enable notification.
+        (?P<name>(Volume State|Offset State|Audio Input State)) characteristic to enable notification.(.*)
         """
 
         # After discovery Android subscribes by itself, after profile connection
@@ -149,12 +150,12 @@ class VCPProxy(ProfileProxy):
     def IUT_SEND_WRITE_REQUEST(self, description: str, chr_name: str, op_code: str, **kwargs):
         r"""
         Please send write request to handle 0x([0-9A-Fa-f]{4}) with following value.
-        (?P<chr_name>(Volume Control Point|Volume Offset Control Point)):
-            Op Code: (?P<op_code>((<WildCard: Exists>)|(\[[0-9] \(0x0[0-9]\)\]\s([\w]*\s){1,3})))(.*)
+        (?P<chr_name>(Volume Control Point|Volume Offset Control Point|Audio Input Control Point)):
+            Op Code: (?P<op_code>((<WildCard: Exists>)|(\[[0-9] \(0x0[0-9]\)\]\s([\w]*\s){1,4})))(.*)
         """
 
         # Wait a couple seconds so the VCP is ready (subscriptions and reads are completed)
-        sleep(2)
+        sleep(4)
 
         if (chr_name == "Volume Control Point"):
             if "Set Absolute Volume" in op_code:
@@ -166,9 +167,23 @@ class VCPProxy(ProfileProxy):
                 # Handles sending *any* OP Code on Volume Control Point
                 self.vcp.SetDeviceVolume(connection=self.connection, volume=42)
         elif (chr_name == "Volume Offset Control Point"):
-            if ("Set Volume Offset" in op_code or
-                "<WildCard: Exists>" in op_code):
+            if ("Set Volume Offset" in op_code or "<WildCard: Exists>" in op_code):
                 self.vcp.SetVolumeOffset(connection=self.connection, offset=42)
+        elif (chr_name == "Audio Input Control Point"):
+            if "[1 (0x01)] Set Gain Setting" in op_code:
+                self.vcp.SetGainSetting(connection=self.connection, gainSetting=42)
+            elif "[2 (0x02)] Unmute" in op_code:
+                self.vcp.SetMute(connection=self.connection, mute=0x00)
+            elif "[3 (0x03)] Mute" in op_code:
+                self.vcp.SetMute(connection=self.connection, mute=0x01)
+            elif "[4 (0x04)] Set Manual Gain Mode" in op_code:
+                self.vcp.SetGainMode(connection=self.connection, gainMode=0x02)
+            elif "[5 (0x05)] Set Automatic Gain Mode" in op_code:
+                self.vcp.SetGainMode(connection=self.connection, gainMode=0x03)
+            elif "<WildCard: Exists>" in op_code:
+                self.vcp.SetMute(connection=self.connection, mute=0)
+            else:
+                assert False, f'Unhandled op_code in IUT_SEND_WRITE_REQUEST:\n{op_code}'
         else:
             return "No"
 
@@ -180,4 +195,67 @@ class VCPProxy(ProfileProxy):
         Please start general inquiry. Click 'Yes' If IUT does discovers PTS
         otherwise click 'No'.
         """
+        return "OK"
+
+    @assert_description
+    def IUT_WRITE_GAIN_SETTING_MAX(self, **kwargs):
+        """
+        Please write to Audio Input Control Point with the Set Gain Setting Op
+        Code value of 0x01, the Gain Setting parameters set to a random value
+        greater than 100 and the Change Counter parameter set.
+        """
+        # Wait a couple seconds so the VCP is ready (subscriptions and reads are completed)
+        sleep(4)
+
+        self.vcp.SetGainSetting(connection=self.connection, gainSetting=101)
+
+        return "OK"
+
+    @assert_description
+    def IUT_WRITE_UNMUTE_OPCODE(self, **kwargs):
+        """
+        Please write to Audio Input Control Point with the Unmute Op Code.
+        """
+        # Wait a couple seconds so the VCP is ready (subscriptions and reads are completed)
+        sleep(4)
+
+        self.vcp.SetMute(connection=self.connection, mute=0x00)
+
+        return "OK"
+
+    @assert_description
+    def IUT_WRITE_MUTE_OPCODE(self, **kwargs):
+        """
+        Please write to Audio Input Control Point with the Mute Op Code.
+        """
+        # Wait a couple seconds so the VCP is ready (subscriptions and reads are completed)
+        sleep(4)
+
+        self.vcp.SetMute(connection=self.connection, mute=0x01)
+
+        return "OK"
+
+    @assert_description
+    def IUT_WRITE_SET_MANUAL_GAIN_MODE_OPCODE(self, **kwargs):
+        """
+        Please write to Audio Input Control Point with the Set Manual Op Code.
+        """
+        # Wait a couple seconds so the VCP is ready (subscriptions and reads are completed)
+        sleep(4)
+
+        self.vcp.SetGainMode(connection=self.connection, gainMode=0x02)
+
+        return "OK"
+
+    @assert_description
+    def IUT_WRITE_SET_AUTOMATIC_GAIN_MODE_OPCODE(self, **kwargs):
+        """
+        Please write to Audio Input Control Point with the Set Automatic Op
+        Code.
+        """
+        # Wait a couple seconds so the VCP is ready (subscriptions and reads are completed)
+        sleep(4)
+
+        self.vcp.SetGainMode(connection=self.connection, gainMode=0x03)
+
         return "OK"

@@ -520,7 +520,7 @@ std::unique_ptr<LeAudioSourceAudioHalClient> LeAudioSourceAudioHalClient::Acquir
 std::unique_ptr<LeAudioSourceAudioHalClient> LeAudioSourceAudioHalClient::AcquireBroadcast() {
   std::unique_ptr<SourceImpl> impl(new SourceImpl(true));
   if (!impl->Acquire()) {
-    log::error("Could not acquire Broadcast Source on LE Audio HAL enpoint");
+    log::error("Could not acquire Broadcast Source on LE Audio HAL endpoint");
     impl.reset();
     return nullptr;
   }
@@ -539,7 +539,7 @@ void LeAudioSourceAudioHalClient::DebugDump(int fd) {
          << sStats.media_read_total_underflow_bytes
          << "\n    Last update time ago in ms (underflow)                  : "
          << (sStats.media_read_last_underflow_us > 0
-                     ? (unsigned long long)(now_us - sStats.media_read_last_underflow_us) / 1000
+                     ? (now_us - sStats.media_read_last_underflow_us) / 1000
                      : 0)
          << std::endl;
   dprintf(fd, "%s", stream.str().c_str());

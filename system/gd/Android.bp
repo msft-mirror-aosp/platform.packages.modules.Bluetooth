@@ -116,7 +116,7 @@ cc_defaults {
             ],
             whole_static_libs: [
                 "android.hardware.bluetooth-V1-ndk",
-                "android.hardware.bluetooth.ranging-V1-ndk",
+                "android.hardware.bluetooth.ranging-V2-ndk",
             ],
         },
     },
@@ -641,10 +641,8 @@ genrule {
         "dumpsys_data.fbs",
         "module_unittest.fbs",
         "os/wakelock_manager.fbs",
-        "shim/dumpsys.fbs",
     ],
     out: [
-        "dumpsys.bfbs",
         "dumpsys_data.bfbs",
         "wakelock_manager.bfbs",
     ],
@@ -660,11 +658,9 @@ genrule {
         "dumpsys_data.fbs",
         "module_unittest.fbs",
         "os/wakelock_manager.fbs",
-        "shim/dumpsys.fbs",
     ],
     out: [
         "dumpsys_data_generated.h",
-        "dumpsys_generated.h",
         "wakelock_manager_generated.h",
     ],
 }

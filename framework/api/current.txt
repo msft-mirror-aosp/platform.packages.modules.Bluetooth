@@ -508,6 +508,7 @@ package android.bluetooth {
     field public static final long CODEC_ID_APTX = 16797695L; // 0x1004fffL
     field public static final long CODEC_ID_APTX_HD = 604035071L; // 0x2400d7ffL
     field public static final long CODEC_ID_LDAC = -1442763265L; // 0xffffffffaa012dffL
+    field @FlaggedApi("com.android.bluetooth.flags.a2dp_lhdc_api") public static final long CODEC_ID_LHDCV5 = 327307049727L; // 0x4c35053affL
     field public static final long CODEC_ID_OPUS = 16834815L; // 0x100e0ffL
     field public static final long CODEC_ID_SBC = 0L; // 0x0L
     field @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.BluetoothCodecType> CREATOR;
@@ -555,6 +556,7 @@ package android.bluetooth {
     field @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public static final String ACTION_CLASS_CHANGED = "android.bluetooth.device.action.CLASS_CHANGED";
     field @FlaggedApi("com.android.bluetooth.flags.encryption_change_broadcast") @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public static final String ACTION_ENCRYPTION_CHANGE = "android.bluetooth.device.action.ENCRYPTION_CHANGE";
     field @RequiresPermission(android.Manifest.permission.BLUETOOTH_SCAN) public static final String ACTION_FOUND = "android.bluetooth.device.action.FOUND";
+    field @FlaggedApi("com.android.bluetooth.flags.key_missing_public") @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}, conditional=true) public static final String ACTION_KEY_MISSING = "android.bluetooth.device.action.KEY_MISSING";
     field @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public static final String ACTION_NAME_CHANGED = "android.bluetooth.device.action.NAME_CHANGED";
     field @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public static final String ACTION_PAIRING_REQUEST = "android.bluetooth.device.action.PAIRING_REQUEST";
     field @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public static final String ACTION_UUID = "android.bluetooth.device.action.UUID";
@@ -1003,6 +1005,7 @@ package android.bluetooth {
     field public static final int SAMPLE_RATE_NONE = 0; // 0x0
     field public static final int SOURCE_CODEC_TYPE_INVALID = 1000000; // 0xf4240
     field public static final int SOURCE_CODEC_TYPE_LC3 = 0; // 0x0
+    field @FlaggedApi("com.android.bluetooth.flags.leaudio_add_opus_codec_type") public static final int SOURCE_CODEC_TYPE_OPUS = 1; // 0x1
   }
 
   public static final class BluetoothLeAudioCodecConfig.Builder {

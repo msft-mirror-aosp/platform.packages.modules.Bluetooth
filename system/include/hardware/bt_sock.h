@@ -40,18 +40,18 @@ typedef enum {
 
 /** Represents the standard BT SOCKET interface. */
 typedef struct {
-  short size;
+  int16_t size;
   RawAddress bd_addr;
   int channel;
   int status;
 
   // The writer must make writes using a buffer of this maximum size
   // to avoid loosing data. (L2CAP only)
-  unsigned short max_tx_packet_size;
+  uint16_t max_tx_packet_size;
 
   // The reader must read using a buffer of at least this size to avoid
   // loosing data. (L2CAP only)
-  unsigned short max_rx_packet_size;
+  uint16_t max_rx_packet_size;
 
   // The connection uuid. (L2CAP only)
   uint64_t conn_uuid_lsb;

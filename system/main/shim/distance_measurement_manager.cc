@@ -117,7 +117,7 @@ public:
   void OnDistanceMeasurementResult(bluetooth::hci::Address address, uint32_t centimeter,
                                    uint32_t error_centimeter, int azimuth_angle,
                                    int error_azimuth_angle, int altitude_angle,
-                                   int error_altitude_angle, long elapsedRealtimeNanos,
+                                   int error_altitude_angle, uint64_t elapsedRealtimeNanos,
                                    int8_t confidence_level,
                                    DistanceMeasurementMethod method) override {
     do_in_jni_thread(base::BindOnce(&::DistanceMeasurementCallbacks::OnDistanceMeasurementResult,
