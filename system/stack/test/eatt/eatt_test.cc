@@ -27,7 +27,6 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/l2cdefs.h"
-#include "stack/test/common/mock_btif_storage.h"
 #include "stack/test/common/mock_btm_api_layer.h"
 #include "stack/test/common/mock_eatt.h"
 #include "stack/test/common/mock_gatt_layer.h"
@@ -35,9 +34,6 @@
 #include "test/mock/mock_main_shim_entry.h"
 #include "test/mock/mock_stack_l2cap_interface.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using testing::_;
 using testing::DoAll;
@@ -59,7 +55,6 @@ extern struct fake_osi_alarm_set_on_mloop fake_osi_alarm_set_on_mloop_;
 
 /* Needed for testing context */
 static tGATT_TCB test_tcb;
-void btif_storage_add_eatt_supported(const RawAddress& /*addr*/) { return; }
 void gatt_consolidate(const RawAddress& /*identity_addr*/, const RawAddress& /*rpa*/) {}
 void gatt_data_process(tGATT_TCB& /*tcb*/, uint16_t /*cid*/, BT_HDR* /*p_buf*/) { return; }
 tGATT_TCB* gatt_find_tcb_by_addr(const RawAddress& /*bda*/, tBT_TRANSPORT /*transport*/) {
@@ -227,7 +222,6 @@ protected:
     EXPECT_CALL(controller_, GetLeBufferSize).WillRepeatedly(Return(le_buffer_size_));
     bluetooth::l2cap::SetMockInterface(&l2cap_interface_);
     bluetooth::manager::SetMockBtmApiInterface(&btm_api_interface_);
-    bluetooth::manager::SetMockBtifStorageInterface(&btif_storage_interface_);
     bluetooth::gatt::SetMockGattInterface(&gatt_interface_);
     bluetooth::hci::testing::mock_controller_ = &controller_;
 
@@ -236,8 +230,6 @@ protected:
 
     EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_RegisterLECoc(BT_PSM_EATT, _, _, _))
             .WillOnce(DoAll(SaveArg<1>(&l2cap_app_info_), ::testing::ReturnArg<0>()));
-
-    ON_CALL(btif_storage_interface_, LoadBondedEatt).WillByDefault([]() { return; });
 
     hci_role_ = HCI_ROLE_CENTRAL;
 
@@ -265,7 +257,6 @@ protected:
     bluetooth::gatt::SetMockGattInterface(nullptr);
     bluetooth::l2cap::SetMockInterface(nullptr);
     bluetooth::testing::stack::l2cap::reset_interface();
-    bluetooth::manager::SetMockBtifStorageInterface(nullptr);
     bluetooth::manager::SetMockBtmApiInterface(nullptr);
     bluetooth::hci::testing::mock_controller_ = nullptr;
 
@@ -274,7 +265,6 @@ protected:
 
   tL2CAP_APPL_INFO reg_info_;
 
-  bluetooth::manager::MockBtifStorageInterface btif_storage_interface_;
   bluetooth::manager::MockBtmApiInterface btm_api_interface_;
   bluetooth::l2cap::MockL2capInterface l2cap_interface_;
   bluetooth::testing::stack::l2cap::Mock mock_stack_l2cap_interface_;
