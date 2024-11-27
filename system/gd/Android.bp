@@ -267,6 +267,7 @@ cc_test {
         "libchrome",
         "libgmock",
         "server_configurable_flags",
+        "libaconfig_storage_read_api_cc",
     ],
     shared_libs: [
         "libbase",
