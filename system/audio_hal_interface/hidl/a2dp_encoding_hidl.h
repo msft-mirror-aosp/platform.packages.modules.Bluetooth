@@ -38,7 +38,7 @@ bool is_hal_2_0_offloading();
 
 // Initialize BluetoothAudio HAL: openProvider
 bool init(bluetooth::common::MessageLoopThread* message_loop,
-          bluetooth::audio::a2dp::BluetoothAudioPort const* audio_port, bool offload_enabled);
+          bluetooth::audio::a2dp::StreamCallbacks const* stream_callbacks, bool offload_enabled);
 
 // Clean up BluetoothAudio HAL
 void cleanup();
@@ -51,8 +51,8 @@ bool setup_codec(A2dpCodecConfig* a2dp_config, uint16_t peer_mtu,
 // StreamStarted, StreamSuspended
 void start_session();
 void end_session();
-void ack_stream_started(::bluetooth::audio::a2dp::BluetoothAudioStatus status);
-void ack_stream_suspended(::bluetooth::audio::a2dp::BluetoothAudioStatus status);
+void ack_stream_started(::bluetooth::audio::a2dp::Status status);
+void ack_stream_suspended(::bluetooth::audio::a2dp::Status status);
 
 // Read from the FMQ of BluetoothAudio HAL
 size_t read(uint8_t* p_buf, uint32_t len);

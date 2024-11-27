@@ -291,6 +291,7 @@ public:
         sink_monitor_mode_(false),
         sink_monitor_notified_status_(std::nullopt),
         source_monitor_mode_(false),
+        source_monitor_notified_status_(std::nullopt),
         le_audio_source_hal_client_(nullptr),
         le_audio_sink_hal_client_(nullptr),
         close_vbc_timeout_(alarm_new("LeAudioCloseVbcTimeout")),
@@ -377,7 +378,7 @@ public:
     }
 
     static const uint64_t timeoutMs = 2000;
-    log::debug("Start VBC close timeout with {} ms", static_cast<unsigned long>(timeoutMs));
+    log::debug("Start VBC close timeout with {} ms", timeoutMs);
 
     alarm_set_on_mloop(
             close_vbc_timeout_, timeoutMs,
@@ -1037,8 +1038,7 @@ public:
      * when there would be request to stream unicast.
      */
     if (!sink_monitor_mode_ && source_monitor_mode_ && !group_is_streaming) {
-      callbacks_->OnUnicastMonitorModeStatus(bluetooth::le_audio::types::kLeAudioDirectionSource,
-                                             UnicastMonitorModeStatus::STREAMING_REQUESTED);
+      notifyAudioLocalSource(UnicastMonitorModeStatus::STREAMING_REQUESTED);
     }
 
     bool result = groupStateMachine_->StartStream(group, configuration_context_type,
@@ -1279,18 +1279,15 @@ public:
 
       LeAudioDeviceGroup* group = aseGroups_.FindById(active_group_id_);
       if (!group) {
-        callbacks_->OnUnicastMonitorModeStatus(bluetooth::le_audio::types::kLeAudioDirectionSource,
-                                               UnicastMonitorModeStatus::STREAMING_SUSPENDED);
+        notifyAudioLocalSource(UnicastMonitorModeStatus::STREAMING_SUSPENDED);
 
         return;
       }
 
       if (group->IsStreaming()) {
-        callbacks_->OnUnicastMonitorModeStatus(bluetooth::le_audio::types::kLeAudioDirectionSource,
-                                               UnicastMonitorModeStatus::STREAMING);
+        notifyAudioLocalSource(UnicastMonitorModeStatus::STREAMING);
       } else {
-        callbacks_->OnUnicastMonitorModeStatus(bluetooth::le_audio::types::kLeAudioDirectionSource,
-                                               UnicastMonitorModeStatus::STREAMING_SUSPENDED);
+        notifyAudioLocalSource(UnicastMonitorModeStatus::STREAMING_SUSPENDED);
       }
     } else {
       log::error("invalid direction: 0x{:02x} monitor mode set", direction);
@@ -1426,6 +1423,7 @@ public:
       return;
     }
     sink_monitor_notified_status_ = std::nullopt;
+    source_monitor_notified_status_ = std::nullopt;
     log::info("Group id: {}", active_group_id_);
 
     StopSuspendTimeout();
@@ -1576,8 +1574,9 @@ public:
        */
     }
 
-    /* Reset sink listener notified status */
+    /* Reset sink and source listener notified status */
     sink_monitor_notified_status_ = std::nullopt;
+    source_monitor_notified_status_ = std::nullopt;
     if (com::android::bluetooth::flags::leaudio_codec_config_callback_order_fix()) {
       SendAudioGroupSelectableCodecConfigChanged(group);
       SendAudioGroupCurrentCodecConfigChanged(group);
@@ -4038,6 +4037,10 @@ public:
              << static_cast<int>(sink_monitor_notified_status_.value()) << "\n";
     }
     stream << "  Source monitor mode: " << (source_monitor_mode_ ? "true" : "false") << "\n";
+    if (source_monitor_notified_status_) {
+      dprintf(fd, "  Local source notified state: %d\n",
+              static_cast<int>(source_monitor_notified_status_.value()));
+    }
 
     auto codec_loc = CodecManager::GetInstance()->GetCodecLocation();
     if (codec_loc == bluetooth::le_audio::types::CodecLocation::HOST) {
@@ -4149,9 +4152,7 @@ public:
 
       if (com::android::bluetooth::flags::leaudio_no_context_validate_streaming_request() &&
           source_monitor_mode_) {
-        callbacks_->OnUnicastMonitorModeStatus(
-                bluetooth::le_audio::types::kLeAudioDirectionSource,
-                UnicastMonitorModeStatus::STREAMING_REQUESTED_NO_CONTEXT_VALIDATE);
+        notifyAudioLocalSource(UnicastMonitorModeStatus::STREAMING_REQUESTED_NO_CONTEXT_VALIDATE);
 
         return false;
       }
@@ -4482,6 +4483,15 @@ public:
       log::info("Stream monitoring status changed to: {}", static_cast<int>(status));
       sink_monitor_notified_status_ = status;
       callbacks_->OnUnicastMonitorModeStatus(bluetooth::le_audio::types::kLeAudioDirectionSink,
+                                             status);
+    }
+  }
+
+  void notifyAudioLocalSource(UnicastMonitorModeStatus status) {
+    if (source_monitor_notified_status_ != status) {
+      log::info("Source stream monitoring status changed to: {}", static_cast<int>(status));
+      source_monitor_notified_status_ = status;
+      callbacks_->OnUnicastMonitorModeStatus(bluetooth::le_audio::types::kLeAudioDirectionSource,
                                              status);
     }
   }
@@ -5793,9 +5803,7 @@ public:
             }
 
             if (source_monitor_mode_) {
-              callbacks_->OnUnicastMonitorModeStatus(
-                      bluetooth::le_audio::types::kLeAudioDirectionSource,
-                      UnicastMonitorModeStatus::STREAMING_SUSPENDED);
+              notifyAudioLocalSource(UnicastMonitorModeStatus::STREAMING_SUSPENDED);
             }
           }
         }
@@ -5881,10 +5889,12 @@ private:
   bool in_voip_call_;
   /* Listen for streaming status on Sink stream */
   bool sink_monitor_mode_;
-  /* Status which has been notified to Service */
+  /* Sink stream status which has been notified to Service */
   std::optional<UnicastMonitorModeStatus> sink_monitor_notified_status_;
   /* Listen for streaming status on Source stream */
   bool source_monitor_mode_;
+  /* Source stream status which has been notified to Service */
+  std::optional<UnicastMonitorModeStatus> source_monitor_notified_status_;
 
   /* Reconnection mode */
   tBTM_BLE_CONN_TYPE reconnection_mode_;

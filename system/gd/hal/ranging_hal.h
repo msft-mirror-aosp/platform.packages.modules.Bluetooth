@@ -18,11 +18,11 @@
 
 #include <complex>
 
+#include "hci/hci_packets.h"
 #include "module.h"
 
 namespace bluetooth {
 namespace hal {
-
 enum RangingHalVersion {
   V_UNKNOWN = 0,
   V_1 = 1,
@@ -70,6 +70,7 @@ public:
 
   virtual ~RangingHal() = default;
   virtual bool IsBound() = 0;
+  virtual RangingHalVersion GetRangingHalVersion() = 0;
   virtual void RegisterCallback(RangingHalCallback* callback) = 0;
   virtual std::vector<VendorSpecificCharacteristic> GetVendorSpecificCharacteristics() = 0;
   virtual void OpenSession(
@@ -79,6 +80,12 @@ public:
           uint16_t connection_handle,
           const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_reply) = 0;
   virtual void WriteRawData(uint16_t connection_handle, const ChannelSoundingRawData& raw_data) = 0;
+  virtual void UpdateChannelSoundingConfig(
+          uint16_t connection_handle,
+          const hci::LeCsConfigCompleteView& leCsConfigCompleteView) = 0;
+  virtual void UpdateProcedureEnableConfig(
+          uint16_t connection_handle,
+          const hci::LeCsProcedureEnableCompleteView& leCsProcedureEnableCompleteView) = 0;
 };
 
 }  // namespace hal

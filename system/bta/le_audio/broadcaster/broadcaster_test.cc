@@ -1008,8 +1008,8 @@ TEST_F(BroadcasterTest, StreamParamsMedia) {
   ASSERT_EQ(config.config.subgroups.at(0).GetNumBis(), expected_channels);
   ASSERT_EQ(config.config.subgroups.at(0).GetNumChannelsTotal(), expected_channels);
   // Note there is one BIS configuration applied to both (stereo) BISes
-  ASSERT_EQ(config.config.subgroups.at(0).GetAllBisConfigCount(), (unsigned long)1);
-  ASSERT_EQ(config.config.subgroups.at(0).GetNumBis(0), (unsigned long)expected_channels);
+  ASSERT_EQ(config.config.subgroups.at(0).GetAllBisConfigCount(), 1u);
+  ASSERT_EQ(config.config.subgroups.at(0).GetNumBis(0), expected_channels);
 
   // Matches number of bises in the announcement
   ASSERT_EQ(config.announcement.subgroup_configs.size(), 1ul);
@@ -1420,6 +1420,38 @@ TEST_F(BroadcasterTest, BigCreationTerminationDependsOnAudioResumeSuspend) {
   ASSERT_EQ(6, get_func_call_count("alarm_cancel"));
   ASSERT_TRUE(big_terminate_timer_->cb == nullptr);
   ASSERT_TRUE(broadcast_stop_timer_->cb == nullptr);
+}
+
+TEST_F(BroadcasterTest, AudioResumeWhileStreaming) {
+  com::android::bluetooth::flags::provider_->leaudio_big_depends_on_audio_state(true);
+
+  EXPECT_CALL(*mock_codec_manager_, UpdateActiveBroadcastAudioHalClient(mock_audio_source_, true))
+          .Times(1);
+  LeAudioSourceAudioHalClient::Callbacks* audio_receiver;
+  EXPECT_CALL(*mock_audio_source_, Start)
+          .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)))
+          .WillRepeatedly(Return(false));
+  auto broadcast_id = InstantiateBroadcast();
+
+  ASSERT_NE(audio_receiver, nullptr);
+
+  // onAudioResume cause state machine go to STREAMING state so BIG creation
+  EXPECT_CALL(mock_broadcaster_callbacks_,
+              OnBroadcastStateChanged(broadcast_id, BroadcastState::STREAMING))
+          .Times(1);
+  audio_receiver->OnAudioResume();
+  Mock::VerifyAndClearExpectations(mock_audio_source_);
+
+  // 2nd stream resume
+  EXPECT_CALL(*mock_audio_source_, ConfirmStreamingRequest()).Times(1);
+  audio_receiver->OnAudioResume();
+  Mock::VerifyAndClearExpectations(mock_audio_source_);
+
+  // 3rd stream resume
+  EXPECT_CALL(*mock_audio_source_, ConfirmStreamingRequest()).Times(1);
+  audio_receiver->OnAudioResume();
+  Mock::VerifyAndClearExpectations(mock_audio_source_);
+  Mock::VerifyAndClearExpectations(mock_codec_manager_);
 }
 
 // TODO: Add tests for:

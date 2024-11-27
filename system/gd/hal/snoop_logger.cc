@@ -548,17 +548,21 @@ void SnoopLogger::OpenNextSnoopLogFile() {
   file_creation_time = fake_timerfd_get_clock();
 #endif
   if (!btsnoop_ostream_.good()) {
-    log::fatal("Unable to open snoop log at \"{}\", error: \"{}\"", snoop_log_path_,
+    log::error("Unable to open snoop log at \"{}\", error: \"{}\"", snoop_log_path_,
                strerror(errno));
+    return;
   }
   umask(prevmask);
   if (!btsnoop_ostream_.write(reinterpret_cast<const char*>(&SnoopLoggerCommon::kBtSnoopFileHeader),
                               sizeof(SnoopLoggerCommon::FileHeaderType))) {
-    log::fatal("Unable to write file header to \"{}\", error: \"{}\"", snoop_log_path_,
+    log::error("Unable to write file header to \"{}\", error: \"{}\"", snoop_log_path_,
                strerror(errno));
+    btsnoop_ostream_.close();
+    return;
   }
   if (!btsnoop_ostream_.flush()) {
     log::error("Failed to flush, error: \"{}\"", strerror(errno));
+    return;
   }
 }
 
@@ -1191,6 +1195,9 @@ void SnoopLogger::Capture(const HciPacket& immutable_packet, Direction direction
     if (packet_counter_ > max_packets_per_file_) {
       OpenNextSnoopLogFile();
     }
+    if (!btsnoop_ostream_.is_open() || !btsnoop_ostream_.good()) {
+      return;
+    }
     if (!btsnoop_ostream_.write(reinterpret_cast<const char*>(&header), sizeof(PacketHeaderType))) {
       log::error("Failed to write packet header for btsnoop, error: \"{}\"", strerror(errno));
     }
@@ -1214,8 +1221,10 @@ void SnoopLogger::Capture(const HciPacket& immutable_packet, Direction direction
   }
 }
 
-void SnoopLogger::DumpSnoozLogToFile(const std::vector<std::string>& data) const {
+void SnoopLogger::DumpSnoozLogToFile() {
   std::lock_guard<std::recursive_mutex> lock(file_mutex_);
+  std::vector<std::string> data = btsnooz_buffer_.Pull();
+
   if (btsnoop_mode_ != kBtSnoopLogModeDisabled) {
     log::debug("btsnoop log is enabled, skip dumping btsnooz log");
     return;
@@ -1310,12 +1319,6 @@ void SnoopLogger::Stop() {
   if (!snoop_log_persists) {
     delete_btsnoop_files(snooz_log_path_);
   }
-}
-
-DumpsysDataFinisher SnoopLogger::GetDumpsysData(
-        flatbuffers::FlatBufferBuilder* /* builder */) const {
-  DumpSnoozLogToFile(btsnooz_buffer_.Pull());
-  return EmptyDumpsysDataFinisher;
 }
 
 size_t SnoopLogger::GetMaxPacketsPerFile() {

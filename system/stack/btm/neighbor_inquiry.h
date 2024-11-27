@@ -180,7 +180,7 @@ typedef struct {
   tHCI_STATUS hci_status;
   uint8_t num_resp; /* Number of results from the current inquiry */
   unsigned resp_type[kMaxNumberInquiryResults];
-  long long start_time_ms;
+  uint64_t start_time_ms;
 } tBTM_INQUIRY_CMPL;
 
 inline std::string btm_inquiry_cmpl_status_text(const tBTM_INQUIRY_CMPL::STATUS& status) {

@@ -17,6 +17,7 @@
 package com.android.bluetooth.hfp;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.media.audio.Flags.FLAG_DEPRECATE_STREAM_BT_SCO;
 
 import static org.mockito.Mockito.*;
 
@@ -37,6 +38,10 @@ import android.os.CancellationSignal;
 import android.os.HandlerThread;
 import android.os.UserHandle;
 import android.platform.test.annotations.EnableFlags;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.CallLog;
 import android.provider.CallLog.Calls;
@@ -86,6 +91,9 @@ public class HeadsetStateMachineTest {
     private static final int MAX_RETRY_DISCONNECT_AUDIO = 3;
 
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     private BluetoothAdapter mAdapter;
     private HandlerThread mHandlerThread;
@@ -1796,6 +1804,7 @@ public class HeadsetStateMachineTest {
         Assert.assertEquals(mHeadsetStateMachine.mMicVolume, 1);
     }
 
+    @RequiresFlagsDisabled(FLAG_DEPRECATE_STREAM_BT_SCO)
     @Test
     public void testProcessVolumeEvent_withVolumeTypeSpk() {
         when(mHeadsetService.getActiveDevice()).thenReturn(mTestDevice);
@@ -1807,6 +1816,20 @@ public class HeadsetStateMachineTest {
 
         Assert.assertEquals(mHeadsetStateMachine.mSpeakerVolume, 2);
         verify(mockAudioManager).setStreamVolume(AudioManager.STREAM_BLUETOOTH_SCO, 2, 0);
+    }
+
+    @RequiresFlagsEnabled(FLAG_DEPRECATE_STREAM_BT_SCO)
+    @Test
+    public void testProcessVolumeEvent_withVolumeTypeSpkAndStreamVoiceCall() {
+        when(mHeadsetService.getActiveDevice()).thenReturn(mTestDevice);
+        AudioManager mockAudioManager = mock(AudioManager.class);
+        when(mockAudioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)).thenReturn(1);
+        when(mSystemInterface.getAudioManager()).thenReturn(mockAudioManager);
+
+        mHeadsetStateMachine.processVolumeEvent(HeadsetHalConstants.VOLUME_TYPE_SPK, 2);
+
+        Assert.assertEquals(mHeadsetStateMachine.mSpeakerVolume, 2);
+        verify(mockAudioManager).setStreamVolume(AudioManager.STREAM_VOICE_CALL, 2, 0);
     }
 
     @Test

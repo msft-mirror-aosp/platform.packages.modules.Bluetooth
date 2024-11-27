@@ -37,8 +37,9 @@ from bumble.a2dp import (
     SbcMediaCodecInformation,
     make_audio_sink_service_sdp_records,
 )
-from bumble.avdtp import (AVDTP_AUDIO_MEDIA_TYPE, AVDTP_OPEN_STATE, AVDTP_PSM, AVDTP_STREAMING_STATE, Listener,
-                          MediaCodecCapabilities, Protocol, AVDTP_BAD_STATE_ERROR, Suspend_Reject)
+from bumble.avdtp import (AVDTP_AUDIO_MEDIA_TYPE, AVDTP_OPEN_STATE, AVDTP_PSM, AVDTP_STREAMING_STATE, AVDTP_IDLE_STATE,
+                          AVDTP_CLOSING_STATE, Listener, MediaCodecCapabilities, Protocol, AVDTP_BAD_STATE_ERROR,
+                          Suspend_Reject)
 from bumble.l2cap import (ChannelManager, ClassicChannel, ClassicChannelSpec, L2CAP_Configure_Request,
                           L2CAP_Connection_Response, L2CAP_SIGNALING_CID)
 from bumble.pairing import PairingDelegate
@@ -55,7 +56,8 @@ from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-AVRCP_CONNECT_A2DP_WITH_DELAY = 'persist.device_config.aconfig_flags.bluetooth.com.android.bluetooth.flags.avrcp_connect_a2dp_with_delay'
+AVRCP_CONNECT_A2DP_WITH_DELAY = 'com.android.bluetooth.flags.avrcp_connect_a2dp_with_delay'
+AVDTP_HANDLE_SUSPEND_CFM_BAD_STATE = 'com.android.bluetooth.flags.avdt_handle_suspend_cfm_bad_state'
 
 
 async def initiate_pairing(device, address) -> Connection:
@@ -281,7 +283,8 @@ class A2dpTest(base_test.BaseTestClass):  # type: ignore[misc]
         # Enable AVRCP connect A2DP delayed feature
         for server in self.devices._servers:
             if isinstance(server, AndroidPandoraServer):
-                server.device.adb.shell(['setprop', AVRCP_CONNECT_A2DP_WITH_DELAY, 'true'])  # type: ignore
+                server.device.adb.shell(['device_config override bluetooth', AVRCP_CONNECT_A2DP_WITH_DELAY,
+                                         'true'])  # type: ignore
                 break
 
         # Connect and pair RD1.
@@ -542,6 +545,108 @@ class A2dpTest(base_test.BaseTestClass):  # type: ignore[misc]
         configurationResponse = await self.dut.a2dp.GetConfiguration(connection=dut_ref2)
         logger.info(f"Current codec configuration: {configurationResponse.configuration}")
         assert configurationResponse.configuration.id.HasField('mpeg_aac')
+
+    @avatar.asynchronous
+    async def test_avdt_handle_suspend_cfm_bad_state_error(self) -> None:
+        """Test AVDTP handling of suspend confirmation BAD_STATE error.
+
+        Test steps after DUT and RD1 connected and paired:
+        1. Start streaming to RD1.
+        2. Suspend streaming, RD1 will simulate failure response - AVDTP_BAD_STATE_ERROR.
+        3. The DUT closes the AVDTP connection.
+        """
+
+        class TestAvdtProtocol(Protocol):
+
+            def on_suspend_command(self, command):
+                logger.info("<< Simulate suspend reject >>")
+                for seid in command.acp_seids:
+                    endpoint = self.get_local_endpoint_by_seid(seid)
+                    if endpoint:
+                        logger.info(f"<< Reject on endpoint: {endpoint} >>")
+                        return Suspend_Reject(seid, AVDTP_BAD_STATE_ERROR)
+
+        class TestA2dpListener(Listener):
+
+            @classmethod
+            def for_device(cls, device: bumble.device.Device, version: Tuple[int, int] = (1, 3)) -> Listener:
+                listener = TestA2dpListener(registrar=None, version=version)
+                l2cap_server = device.create_l2cap_server(spec=ClassicChannelSpec(psm=AVDTP_PSM))
+                l2cap_server.on('connection', listener.on_l2cap_connection)
+                return listener
+
+            def on_l2cap_connection(self, channel: ClassicChannel) -> None:
+                logger.info(f"<<< incoming L2CAP connection: {channel}")
+
+                if channel.connection.handle in self.servers:
+                    # This is a channel for a stream endpoint
+                    server = self.servers[channel.connection.handle]
+                    server.on_l2cap_connection(channel)
+                else:
+                    # This is a new command/response channel
+                    def on_channel_open():
+                        logger.info('setting up new TestAvdtProtocol for the connection')
+                        server = TestAvdtProtocol(channel, self.version)
+                        self.set_server(channel.connection, server)
+                        self.emit('connection', server)
+
+                    def on_channel_close():
+                        logger.info('removing TestAvdtProtocol for the connection')
+                        self.remove_server(channel.connection)
+
+                    channel.on('open', on_channel_open)
+                    channel.on('close', on_channel_close)
+
+        # Enable BAD_STATE handling
+        for server in self.devices._servers:
+            if isinstance(server, AndroidPandoraServer):
+                server.device.adb.shell(
+                    ['device_config override bluetooth', AVDTP_HANDLE_SUSPEND_CFM_BAD_STATE, 'true'])  # type: ignore
+                break
+
+        self.ref1.device.l2cap_channel_manager.servers.pop(AVDTP_PSM)
+        self.ref1.a2dp = TestA2dpListener.for_device(self.ref1.device)
+        self.ref1.a2dp_sink = None
+
+        def on_ref1_avdtp_connection(server):
+            logger.info("<< RD1: On AVDTP Connection, adding sink >>")
+            self.ref1.a2dp_sink = server.add_sink(sbc_codec_capabilities())
+
+        self.ref1.a2dp.on('connection', on_ref1_avdtp_connection)
+
+        # Connect and pair RD1.
+        dut_ref1, ref1_dut = await asyncio.gather(
+            initiate_pairing(self.dut, self.ref1.address),
+            accept_pairing(self.ref1, self.dut.address),
+        )
+
+        # Connect AVDTP to RD1.
+        dut_ref1_source = await open_source(self.dut, dut_ref1)
+        assert_is_not_none(self.ref1.a2dp_sink)
+        assert_is_not_none(self.ref1.a2dp_sink.stream)
+        assert_in(self.ref1.a2dp_sink.stream.state, [AVDTP_OPEN_STATE, AVDTP_STREAMING_STATE])
+
+        # Create a listener to wait for AVDTP close
+        avdtp_future = asyncio.get_running_loop().create_future()
+
+        def on_ref1_avdtp_close():
+            nonlocal avdtp_future
+            logger.info("AVDTP Close received")
+            avdtp_future.set_result(None)
+
+        self.ref1.a2dp_sink.on('close', on_ref1_avdtp_close)
+
+        # Start streaming to RD1.
+        await self.dut.a2dp.Start(source=dut_ref1_source)
+        audio = AudioSignal(self.dut.a2dp, dut_ref1_source, 0.8, 44100)
+        assert_equal(self.ref1.a2dp_sink.stream.state, AVDTP_STREAMING_STATE)
+
+        # Suspend streaming, peer device will simulate failure response.
+        # The stack should close the stream.
+        await self.dut.a2dp.Suspend(source=dut_ref1_source)
+
+        # Wait for AVDTP Close
+        await asyncio.wait_for(avdtp_future, timeout=10.0)
 
 
 if __name__ == '__main__':
