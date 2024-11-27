@@ -107,7 +107,7 @@ public class TransitionalScanHelperTest {
         doReturn(mNativeInterface).when(mGattObjectsFactory).getNativeInterface();
         doReturn(mScanManager)
                 .when(mScanObjectsFactory)
-                .createScanManager(any(), any(), any(), any(), any());
+                .createScanManager(any(), any(), any(), any());
         doReturn(mPeriodicScanManager).when(mScanObjectsFactory).createPeriodicScanManager(any());
 
         doReturn(mResources).when(mAdapterService).getResources();

@@ -55,7 +55,7 @@ public:
 private:
   std::mutex mMutex;
   std::condition_variable mCondition;
-  unsigned long mCount = 0;
+  uint64_t mCount = 0;
 };
 static btsemaphore semaphore;
 static int cb_counter;

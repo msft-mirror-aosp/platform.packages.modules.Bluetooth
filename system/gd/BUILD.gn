@@ -82,7 +82,6 @@ flatbuffer("BluetoothGeneratedDumpsysDataSchema_h") {
   sources = [
     "dumpsys_data.fbs",
     "os/wakelock_manager.fbs",
-    "shim/dumpsys.fbs",
   ]
 }
 
@@ -90,7 +89,6 @@ bt_flatc_binary_schema("BluetoothGeneratedDumpsysBinarySchema_bfbs") {
   sources = [
     "dumpsys_data.fbs",
     "os/wakelock_manager.fbs",
-    "shim/dumpsys.fbs",
   ]
 
   include_dir = "system/gd"

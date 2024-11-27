@@ -29,7 +29,7 @@ namespace a2dp {
 using ::aidl::android::hardware::bluetooth::audio::AudioConfiguration;
 using ::aidl::android::hardware::bluetooth::audio::LatencyMode;
 using ::aidl::android::hardware::bluetooth::audio::SessionType;
-using ::bluetooth::audio::a2dp::BluetoothAudioStatus;
+using ::bluetooth::audio::a2dp::Status;
 
 /***
  * An IBluetoothTransportInstance needs to be implemented by a Bluetooth
@@ -66,8 +66,8 @@ public:
     }
   }
 
-  virtual BluetoothAudioStatus StartRequest(bool is_low_latency) = 0;
-  virtual BluetoothAudioStatus SuspendRequest() = 0;
+  virtual Status StartRequest(bool is_low_latency) = 0;
+  virtual Status SuspendRequest() = 0;
   virtual void StopRequest() = 0;
 
   virtual void SetLatencyMode(LatencyMode latency_mode) = 0;

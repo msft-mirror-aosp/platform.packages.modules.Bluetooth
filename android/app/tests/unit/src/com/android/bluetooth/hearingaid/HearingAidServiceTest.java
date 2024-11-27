@@ -34,7 +34,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
@@ -54,7 +53,6 @@ import android.media.BluetoothProfileConnectionInfo;
 import android.os.ParcelUuid;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.SmallTest;
@@ -63,7 +61,6 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.ActiveDeviceManager;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.AudioRoutingManager;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
 
@@ -82,7 +79,6 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
@@ -92,7 +88,6 @@ public class HearingAidServiceTest {
 
     @Mock private AdapterService mAdapterService;
     @Mock private ActiveDeviceManager mActiveDeviceManager;
-    @Mock private AudioRoutingManager mAudioRoutingManager;
     @Mock private DatabaseManager mDatabaseManager;
     @Mock private HearingAidNativeInterface mNativeInterface;
     @Mock private AudioManager mAudioManager;
@@ -115,10 +110,6 @@ public class HearingAidServiceTest {
         TestUtils.mockGetSystemService(
                 mAdapterService, Context.AUDIO_SERVICE, AudioManager.class, mAudioManager);
 
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
-        future.complete(true);
-        doReturn(future).when(mAudioRoutingManager).activateDeviceProfile(any(), anyInt());
-
         doReturn(CONNECTION_POLICY_ALLOWED)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(any(), anyInt());
@@ -127,16 +118,7 @@ public class HearingAidServiceTest {
         doReturn(new ParcelUuid[] {BluetoothUuid.HEARING_AID})
                 .when(mAdapterService)
                 .getRemoteUuids(any());
-        doAnswer(
-                        invocation -> {
-                            if (Flags.audioRoutingCentralization()) {
-                                return mAudioRoutingManager;
-                            } else {
-                                return mActiveDeviceManager;
-                            }
-                        })
-                .when(mAdapterService)
-                .getActiveDeviceManager();
+        doReturn(mActiveDeviceManager).when(mAdapterService).getActiveDeviceManager();
 
         doReturn(true).when(mNativeInterface).connectHearingAid(any());
         doReturn(true).when(mNativeInterface).disconnectHearingAid(any());
@@ -549,13 +531,6 @@ public class HearingAidServiceTest {
 
         assertThat(mService.setActiveDevice(null)).isTrue();
         assertThat(mService.getActiveDevices()).containsExactly(null, null);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_AUDIO_ROUTING_CENTRALIZATION)
-    public void setBinderActive_whenAudioRouting_redirectedToAudioRouting() {
-        mBinder.setActiveDevice(null, null);
-        verify(mAudioRoutingManager).activateDeviceProfile(null, BluetoothProfile.HEARING_AID);
     }
 
     // Verify the correctness during first time connection.

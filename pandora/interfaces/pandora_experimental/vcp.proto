@@ -24,6 +24,14 @@ service VCP {
   rpc SetVolumeOffset(SetVolumeOffsetRequest) returns (google.protobuf.Empty);
   // Wait for device to be connected.
   rpc WaitConnect(WaitConnectRequest) returns (google.protobuf.Empty);
+
+  // TODO: AICS interfaces could be made a bit more generic by first fetching
+  // what are the available instances and using them like the Connection object
+  // is used.
+
+  rpc SetGainSetting(SetGainSettingRequest) returns (google.protobuf.Empty);
+  rpc SetMute(SetMuteRequest) returns (google.protobuf.Empty);
+  rpc SetGainMode(SetGainModeRequest) returns (google.protobuf.Empty);
 }
 
 // Request of the `SetDeviceVolume` method
@@ -44,4 +52,19 @@ message SetVolumeOffsetRequest{
 
 message WaitConnectRequest {
   Connection connection = 1;
+}
+
+message SetGainSettingRequest {
+  Connection connection = 1;
+  int32 gainSetting = 2;
+}
+message SetMuteRequest {
+  Connection connection = 1;
+  // See Mute.aidl for valid values
+  int32 mute = 2;
+}
+message SetGainModeRequest {
+  Connection connection = 1;
+  // See GainMode.aidl for valid values
+  int32 gainMode = 2;
 }

@@ -1221,8 +1221,10 @@ void SnoopLogger::Capture(const HciPacket& immutable_packet, Direction direction
   }
 }
 
-void SnoopLogger::DumpSnoozLogToFile(const std::vector<std::string>& data) const {
+void SnoopLogger::DumpSnoozLogToFile() {
   std::lock_guard<std::recursive_mutex> lock(file_mutex_);
+  std::vector<std::string> data = btsnooz_buffer_.Pull();
+
   if (btsnoop_mode_ != kBtSnoopLogModeDisabled) {
     log::debug("btsnoop log is enabled, skip dumping btsnooz log");
     return;
@@ -1317,12 +1319,6 @@ void SnoopLogger::Stop() {
   if (!snoop_log_persists) {
     delete_btsnoop_files(snooz_log_path_);
   }
-}
-
-DumpsysDataFinisher SnoopLogger::GetDumpsysData(
-        flatbuffers::FlatBufferBuilder* /* builder */) const {
-  DumpSnoozLogToFile(btsnooz_buffer_.Pull());
-  return EmptyDumpsysDataFinisher;
 }
 
 size_t SnoopLogger::GetMaxPacketsPerFile() {
