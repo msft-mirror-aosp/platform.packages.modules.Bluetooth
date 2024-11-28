@@ -169,9 +169,6 @@ cc_library_shared {
         "com.android.btservices",
     ],
     min_sdk_version: "Tiramisu",
-
-    // TODO(b/346919576) Workaround LTO build breakage.
-    lto_O0: true,
 }
 
 cc_library {
