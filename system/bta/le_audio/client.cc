@@ -2680,7 +2680,10 @@ public:
        * to default background reconnection mode.
        * Since GATT notifies us before ACL was dropped, let's wait a bit
        * before we do reconnect.
+       *
+       * Also, make sure that device has state which allows to do recover
        */
+      leAudioDevice->SetConnectionState(DeviceConnectState::DISCONNECTING_AND_RECOVER);
       scheduleRecoveryReconnect(address);
       return;
     }

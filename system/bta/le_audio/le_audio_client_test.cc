@@ -11424,16 +11424,32 @@ TEST_F(UnicastTest, SpeakerStreamingTimeout) {
   // Verify Data transfer on one audio source cis
   TestAudioDataTransfer(group_id, cis_count_out, cis_count_in, 1920);
 
+  auto group = streaming_groups.at(group_id);
+  auto device = group->GetFirstActiveDevice();
+
   // Do not accept direct connect, but expect it to arrive.
   ON_CALL(mock_gatt_interface_, Open(_, _, BTM_BLE_DIRECT_CONNECTION, _)).WillByDefault(Return());
 
+  EXPECT_CALL(mock_btm_interface_, AclDisconnectFromHandle(device->conn_id_, _)).Times(1);
+  ON_CALL(mock_btm_interface_, AclDisconnectFromHandle(_, _))
+          .WillByDefault([](uint16_t handle, tHCI_STATUS /*rs*/) {
+            ASSERT_NE(handle, GATT_INVALID_CONN_ID);
+            // Do nothing here now.
+          });
+
   state_machine_callbacks_->OnStateTransitionTimeout(group_id);
+  SyncOnMainLoop();
+  ASSERT_EQ(device->GetConnectionState(), DeviceConnectState::DISCONNECTING_AND_RECOVER);
+
+  InjectDisconnectedEvent(device->conn_id_, GATT_CONN_TERMINATE_LOCAL_HOST);
   SyncOnMainLoop();
 
   /* No assigned cises should remain when transition remains in IDLE state */
   ASSERT_NE(0lu, streaming_groups.count(group_id));
-  auto group = streaming_groups.at(group_id);
   ASSERT_EQ(0, static_cast<int>(group->cig.cises.size()));
+  ASSERT_TRUE(device != nullptr);
+  ASSERT_EQ(device->GetConnectionState(), DeviceConnectState::CONNECTING_AUTOCONNECT);
+  Mock::VerifyAndClearExpectations(&mock_btm_interface_);
 }
 
 TEST_F(UnicastTest, AddMemberToAllowListWhenOneDeviceConnected) {
