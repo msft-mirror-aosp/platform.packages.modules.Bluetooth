@@ -32,13 +32,24 @@
 
 using aidl::android::hardware::bluetooth::ranging::BluetoothChannelSoundingParameters;
 using aidl::android::hardware::bluetooth::ranging::BnBluetoothChannelSoundingSessionCallback;
+using aidl::android::hardware::bluetooth::ranging::Ch3cShapeType;
+using aidl::android::hardware::bluetooth::ranging::ChannelSelectionType;
 using aidl::android::hardware::bluetooth::ranging::ChannelSoudingRawData;
+using aidl::android::hardware::bluetooth::ranging::ChannelSoundingProcedureData;
 using aidl::android::hardware::bluetooth::ranging::ComplexNumber;
+using aidl::android::hardware::bluetooth::ranging::Config;
+using aidl::android::hardware::bluetooth::ranging::CsSyncPhyType;
 using aidl::android::hardware::bluetooth::ranging::IBluetoothChannelSounding;
 using aidl::android::hardware::bluetooth::ranging::IBluetoothChannelSoundingSession;
 using aidl::android::hardware::bluetooth::ranging::IBluetoothChannelSoundingSessionCallback;
+using aidl::android::hardware::bluetooth::ranging::ModeType;
+using aidl::android::hardware::bluetooth::ranging::ProcedureEnableConfig;
+using aidl::android::hardware::bluetooth::ranging::Role;
+using aidl::android::hardware::bluetooth::ranging::RttType;
 using aidl::android::hardware::bluetooth::ranging::StepTonePct;
+using aidl::android::hardware::bluetooth::ranging::SubModeType;
 using aidl::android::hardware::bluetooth::ranging::VendorSpecificData;
+// using aidl::android::hardware::bluetooth::ranging::
 
 namespace bluetooth {
 namespace hal {
@@ -108,6 +119,8 @@ private:
 class RangingHalAndroid : public RangingHal {
 public:
   bool IsBound() override { return bluetooth_channel_sounding_ != nullptr; }
+
+  RangingHalVersion GetRangingHalVersion() { return hal_ver_; }
 
   void RegisterCallback(RangingHalCallback* callback) { ranging_hal_callback_ = callback; }
 
@@ -195,6 +208,7 @@ public:
     hal_raw_data.stepChannels = raw_data.step_channel_;
     hal_raw_data.initiatorData.stepTonePcts.emplace(std::vector<std::optional<StepTonePct>>{});
     hal_raw_data.reflectorData.stepTonePcts.emplace(std::vector<std::optional<StepTonePct>>{});
+    // Add tone data for mode 2, mode 3
     for (uint8_t i = 0; i < raw_data.tone_pct_initiator_.size(); i++) {
       StepTonePct step_tone_pct;
       for (uint8_t j = 0; j < raw_data.tone_pct_initiator_[i].size(); j++) {
@@ -217,7 +231,95 @@ public:
       step_tone_pct.toneQualityIndicator = raw_data.tone_quality_indicator_reflector_[i];
       hal_raw_data.reflectorData.stepTonePcts.value().emplace_back(step_tone_pct);
     }
+    // Add RTT data for mode 1, mode 3
+    if (!raw_data.toa_tod_initiators_.empty()) {
+      hal_raw_data.toaTodInitiator = std::vector<int32_t>(raw_data.toa_tod_initiators_.begin(),
+                                                          raw_data.toa_tod_initiators_.end());
+      hal_raw_data.initiatorData.packetQuality = std::vector<uint8_t>(
+              raw_data.packet_quality_initiator.begin(), raw_data.packet_quality_initiator.end());
+    }
+    if (!raw_data.tod_toa_reflectors_.empty()) {
+      hal_raw_data.todToaReflector = std::vector<int32_t>(raw_data.tod_toa_reflectors_.begin(),
+                                                          raw_data.tod_toa_reflectors_.end());
+      hal_raw_data.reflectorData.packetQuality = std::vector<uint8_t>(
+              raw_data.packet_quality_reflector.begin(), raw_data.packet_quality_reflector.end());
+    }
     session_trackers_[connection_handle]->GetSession()->writeRawData(hal_raw_data);
+  }
+
+  void UpdateChannelSoundingConfig(
+          uint16_t connection_handle,
+          const hci::LeCsConfigCompleteView& leCsConfigCompleteView) override {
+    auto it = session_trackers_.find(connection_handle);
+    if (it == session_trackers_.end()) {
+      log::error("Can't find session for connection_handle:0x{:04x}", connection_handle);
+      return;
+    } else if (it->second->GetSession() == nullptr) {
+      log::error("Session not opened");
+      return;
+    }
+
+    Config csConfig{
+            .modeType = static_cast<ModeType>(
+                    static_cast<int>(leCsConfigCompleteView.GetMainModeType())),
+            .subModeType = static_cast<SubModeType>(
+                    static_cast<int>(leCsConfigCompleteView.GetSubModeType())),
+            .rttType = static_cast<RttType>(static_cast<int>(leCsConfigCompleteView.GetRttType())),
+            .channelMap = leCsConfigCompleteView.GetChannelMap(),
+            .minMainModeSteps = leCsConfigCompleteView.GetMinMainModeSteps(),
+            .maxMainModeSteps = leCsConfigCompleteView.GetMaxMainModeSteps(),
+            .mainModeRepetition =
+                    static_cast<int8_t>(leCsConfigCompleteView.GetMainModeRepetition()),
+            .mode0Steps = static_cast<int8_t>(leCsConfigCompleteView.GetMode0Steps()),
+            .role = static_cast<Role>(static_cast<int>(leCsConfigCompleteView.GetRole())),
+            .csSyncPhyType = static_cast<CsSyncPhyType>(
+                    static_cast<int>(leCsConfigCompleteView.GetCsSyncPhy())),
+            .channelSelectionType = static_cast<ChannelSelectionType>(
+                    static_cast<int>(leCsConfigCompleteView.GetChannelSelectionType())),
+            .ch3cShapeType = static_cast<Ch3cShapeType>(
+                    static_cast<int>(leCsConfigCompleteView.GetCh3cShape())),
+            .ch3cJump = static_cast<int8_t>(leCsConfigCompleteView.GetCh3cJump()),
+            .channelMapRepetition = leCsConfigCompleteView.GetChannelMapRepetition(),
+            .tIp1TimeUs = leCsConfigCompleteView.GetTIp1Time(),
+            .tIp2TimeUs = leCsConfigCompleteView.GetTIp2Time(),
+            .tFcsTimeUs = leCsConfigCompleteView.GetTFcsTime(),
+            .tPmTimeUs = static_cast<int8_t>(leCsConfigCompleteView.GetTPmTime()),
+            // TODO(b/378942784): specify the following values.
+            .tSwTimeUsSupportedByLocal = 0,
+            .tSwTimeUsSupportedByRemote = 0,
+            .bleConnInterval = 0,
+    };
+    it->second->GetSession()->updateChannelSoundingConfig(csConfig);
+  }
+
+  void UpdateProcedureEnableConfig(
+          uint16_t connection_handle,
+          const hci::LeCsProcedureEnableCompleteView& leCsProcedureEnableCompleteView) override {
+    auto it = session_trackers_.find(connection_handle);
+    if (it == session_trackers_.end()) {
+      log::error("Can't find session for connection_handle:0x{:04x}", connection_handle);
+      return;
+    } else if (it->second->GetSession() == nullptr) {
+      log::error("Session not opened");
+      return;
+    }
+
+    ProcedureEnableConfig pConfig{
+            .toneAntennaConfigSelection = static_cast<int8_t>(
+                    leCsProcedureEnableCompleteView.GetToneAntennaConfigSelection()),
+            .subeventLenUs = static_cast<int>(leCsProcedureEnableCompleteView.GetSubeventLen()),
+            .subeventsPerEvent =
+                    static_cast<int8_t>(leCsProcedureEnableCompleteView.GetSubeventsPerEvent()),
+            .subeventInterval = leCsProcedureEnableCompleteView.GetSubeventInterval(),
+            .eventInterval = leCsProcedureEnableCompleteView.GetEventInterval(),
+            .procedureInterval = leCsProcedureEnableCompleteView.GetProcedureInterval(),
+            .procedureCount = leCsProcedureEnableCompleteView.GetProcedureCount(),
+            // TODO(b/378942784): update the max procedure len, the current complete view does not
+            // have it.
+            .maxProcedureLen = 0,
+    };
+
+    it->second->GetSession()->updateProcedureEnableConfig(pConfig);
   }
 
   void CopyVendorSpecificData(const std::vector<hal::VendorSpecificCharacteristic>& source,
@@ -234,6 +336,17 @@ public:
 protected:
   void ListDependencies(ModuleList* /*list*/) const {}
 
+  RangingHalVersion get_ranging_hal_version() {
+    int ver = 0;
+    auto aidl_ret = bluetooth_channel_sounding_->getInterfaceVersion(&ver);
+    if (aidl_ret.isOk()) {
+      log::info("ranging HAL version - {}", ver);
+      return static_cast<RangingHalVersion>(ver);
+    }
+    log::warn("ranging HAL version is not available.");
+    return RangingHalVersion::V_UNKNOWN;
+  }
+
   void Start() override {
     std::string instance = std::string() + IBluetoothChannelSounding::descriptor + "/default";
     log::info("AServiceManager_isDeclared {}", AServiceManager_isDeclared(instance.c_str()));
@@ -241,6 +354,9 @@ protected:
       ::ndk::SpAIBinder binder(AServiceManager_waitForService(instance.c_str()));
       bluetooth_channel_sounding_ = IBluetoothChannelSounding::fromBinder(binder);
       log::info("Bind IBluetoothChannelSounding {}", IsBound() ? "Success" : "Fail");
+      if (bluetooth_channel_sounding_ != nullptr) {
+        hal_ver_ = get_ranging_hal_version();
+      }
     }
   }
 
@@ -253,6 +369,7 @@ private:
   RangingHalCallback* ranging_hal_callback_;
   std::unordered_map<uint16_t, std::shared_ptr<BluetoothChannelSoundingSessionTracker>>
           session_trackers_;
+  RangingHalVersion hal_ver_;
 };
 
 const ModuleFactory RangingHal::Factory = ModuleFactory([]() { return new RangingHalAndroid(); });

@@ -179,10 +179,10 @@ inline std::string port_result_text(const tPORT_RESULT& result) {
   RETURN_UNKNOWN_TYPE_STRING(tPORT_RESULT, result);
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tPORT_RESULT> : enum_formatter<tPORT_RESULT> {};
-}  // namespace fmt
+}  // namespace std
 
 typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle);
 

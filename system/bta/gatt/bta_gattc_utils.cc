@@ -515,7 +515,7 @@ void bta_gattc_continue(tBTA_GATTC_CLCB* p_clcb) {
         /* Handled, free command below and continue with a p_q_cmd_queue */
         break;
       case MTU_EXCHANGE_IN_PROGRESS:
-        log::warn("Waiting p_clcb {}", fmt::ptr(p_clcb));
+        log::warn("Waiting p_clcb {}", std::format_ptr(p_clcb));
         return;
       case MTU_EXCHANGE_NOT_DONE_YET:
         p_clcb->p_q_cmd_queue.pop_front();
@@ -1007,7 +1007,6 @@ void bta_gatt_client_dump(int fd) {
     stream << "  server_address: " << ADDRESS_TO_LOGGABLE_STR(p_known_server->server_bda)
            << "  mtu: " << p_known_server->mtu
            << "  blocked_conn_id: " << loghex(p_known_server->blocked_conn_id)
-           << "  pending_discovery: " << p_known_server->pending_discovery.ToString()
            << "  num_clcb: " << +p_known_server->num_clcb
            << "  state: " << bta_server_state_text(p_known_server->state)
            << "  connected: " << p_known_server->connected

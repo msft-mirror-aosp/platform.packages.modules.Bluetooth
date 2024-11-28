@@ -19,14 +19,29 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <algorithm>
 #include <bitset>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <ostream>
 #include <sstream>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "audio_hal_client/audio_hal_client.h"
+#include "audio_hal_interface/le_audio_software.h"
 #include "broadcaster/broadcast_configuration_provider.h"
 #include "broadcaster/broadcaster_types.h"
+#include "bta_le_audio_api.h"
+#include "btm_iso_api_types.h"
+#include "hardware/bt_le_audio.h"
 #include "hci/controller_interface.h"
+#include "hci/hci_packets.h"
 #include "le_audio/le_audio_types.h"
 #include "le_audio_set_configuration_provider.h"
 #include "le_audio_utils.h"
@@ -42,7 +57,6 @@ using bluetooth::le_audio::CodecManager;
 using bluetooth::le_audio::types::CodecLocation;
 using bluetooth::legacy::hci::GetInterface;
 
-using bluetooth::le_audio::AudioSetConfigurationProvider;
 using bluetooth::le_audio::btle_audio_codec_config_t;
 using bluetooth::le_audio::btle_audio_codec_index_t;
 using bluetooth::le_audio::set_configurations::AseConfiguration;
@@ -197,8 +211,9 @@ public:
   bool UpdateActiveUnicastAudioHalClient(LeAudioSourceAudioHalClient* source_unicast_client,
                                          LeAudioSinkAudioHalClient* sink_unicast_client,
                                          bool is_active) {
-    log::debug("local_source: {}, local_sink: {}, is_active: {}", fmt::ptr(source_unicast_client),
-               fmt::ptr(sink_unicast_client), is_active);
+    log::debug("local_source: {}, local_sink: {}, is_active: {}",
+               std::format_ptr(source_unicast_client), std::format_ptr(sink_unicast_client),
+               is_active);
 
     if (source_unicast_client == nullptr && sink_unicast_client == nullptr) {
       return false;
@@ -207,13 +222,13 @@ public:
     if (is_active) {
       if (source_unicast_client && unicast_local_source_hal_client != nullptr) {
         log::error("Trying to override previous source hal client {}",
-                   fmt::ptr(unicast_local_source_hal_client));
+                   std::format_ptr(unicast_local_source_hal_client));
         return false;
       }
 
       if (sink_unicast_client && unicast_local_sink_hal_client != nullptr) {
         log::error("Trying to override previous sink hal client {}",
-                   fmt::ptr(unicast_local_sink_hal_client));
+                   std::format_ptr(unicast_local_sink_hal_client));
         return false;
       }
 
@@ -229,14 +244,16 @@ public:
     }
 
     if (source_unicast_client && source_unicast_client != unicast_local_source_hal_client) {
-      log::error("local source session does not match {} != {}", fmt::ptr(source_unicast_client),
-                 fmt::ptr(unicast_local_source_hal_client));
+      log::error("local source session does not match {} != {}",
+                 std::format_ptr(source_unicast_client),
+                 std::format_ptr(unicast_local_source_hal_client));
       return false;
     }
 
     if (sink_unicast_client && sink_unicast_client != unicast_local_sink_hal_client) {
-      log::error("local source session does not match {} != {}", fmt::ptr(sink_unicast_client),
-                 fmt::ptr(unicast_local_sink_hal_client));
+      log::error("local source session does not match {} != {}",
+                 std::format_ptr(sink_unicast_client),
+                 std::format_ptr(unicast_local_sink_hal_client));
       return false;
     }
 
@@ -253,7 +270,8 @@ public:
 
   bool UpdateActiveBroadcastAudioHalClient(LeAudioSourceAudioHalClient* source_broadcast_client,
                                            bool is_active) {
-    log::debug("local_source: {},is_active: {}", fmt::ptr(source_broadcast_client), is_active);
+    log::debug("local_source: {},is_active: {}", std::format_ptr(source_broadcast_client),
+               is_active);
 
     if (source_broadcast_client == nullptr) {
       return false;
@@ -262,7 +280,7 @@ public:
     if (is_active) {
       if (broadcast_local_source_hal_client != nullptr) {
         log::error("Trying to override previous source hal client {}",
-                   fmt::ptr(broadcast_local_source_hal_client));
+                   std::format_ptr(broadcast_local_source_hal_client));
         return false;
       }
       broadcast_local_source_hal_client = source_broadcast_client;
@@ -270,8 +288,9 @@ public:
     }
 
     if (source_broadcast_client != broadcast_local_source_hal_client) {
-      log::error("local source session does not match {} != {}", fmt::ptr(source_broadcast_client),
-                 fmt::ptr(broadcast_local_source_hal_client));
+      log::error("local source session does not match {} != {}",
+                 std::format_ptr(source_broadcast_client),
+                 std::format_ptr(broadcast_local_source_hal_client));
       return false;
     }
 
@@ -280,23 +299,47 @@ public:
     return true;
   }
 
-  AudioSetConfigurations GetSupportedCodecConfigurations(
-          const CodecManager::UnicastConfigurationRequirements& requirements) const {
+  std::unique_ptr<AudioSetConfiguration> GetLocalCodecConfigurations(
+          const CodecManager::UnicastConfigurationRequirements& requirements,
+          CodecManager::UnicastConfigurationProvider provider) const {
+    AudioSetConfigurations configs;
     if (GetCodecLocation() == le_audio::types::CodecLocation::ADSP) {
       log::verbose("Get offload config for the context type: {}",
                    (int)requirements.audio_context_type);
-
       // TODO: Need to have a mechanism to switch to software session if offload
       // doesn't support.
-      return context_type_offload_config_map_.count(requirements.audio_context_type)
-                     ? context_type_offload_config_map_.at(requirements.audio_context_type)
-                     : AudioSetConfigurations();
+      configs = context_type_offload_config_map_.count(requirements.audio_context_type)
+                        ? context_type_offload_config_map_.at(requirements.audio_context_type)
+                        : AudioSetConfigurations();
+    } else {
+      log::verbose("Get software config for the context type: {}",
+                   (int)requirements.audio_context_type);
+      configs = *AudioSetConfigurationProvider::Get()->GetConfigurations(
+              requirements.audio_context_type);
     }
 
-    log::verbose("Get software config for the context type: {}",
-                 (int)requirements.audio_context_type);
-    return *AudioSetConfigurationProvider::Get()->GetConfigurations(
-            requirements.audio_context_type);
+    if (configs.empty()) {
+      log::error("No valid configuration matching the requirements: {}", requirements);
+      PrintDebugState();
+      return nullptr;
+    }
+
+    // Remove the dual bidir SWB config if not supported
+    if (!IsDualBiDirSwbSupported()) {
+      configs.erase(std::remove_if(configs.begin(), configs.end(),
+                                   [](auto const& el) {
+                                     if (el->confs.source.empty()) {
+                                       return false;
+                                     }
+                                     return AudioSetConfigurationProvider::Get()
+                                             ->CheckConfigurationIsDualBiDirSwb(*el);
+                                   }),
+                    configs.end());
+    }
+
+    // Note: For the software configuration provider, we use the provider matcher
+    //       logic to match the proper configuration with group capabilities.
+    return provider(requirements, &configs);
   }
 
   void PrintDebugState() const {
@@ -317,6 +360,10 @@ public:
   }
 
   bool IsUsingCodecExtensibility() const {
+    if (GetCodecLocation() == types::CodecLocation::HOST) {
+      return false;
+    }
+
     auto codec_ext_status =
             osi_property_get_bool("bluetooth.core.le_audio.codec_extension_aidl.enabled", false) &&
             com::android::bluetooth::flags::leaudio_multicodec_aidl_support();
@@ -333,37 +380,9 @@ public:
       if (hal_config) {
         return std::make_unique<AudioSetConfiguration>(*hal_config);
       }
-      log::debug(
-              "No configuration received from AIDL, fall back to static "
-              "configuration.");
+      log::debug("No configuration received from AIDL, fall back to static configuration.");
     }
-
-    auto configs = GetSupportedCodecConfigurations(requirements);
-    if (configs.empty()) {
-      log::error("No valid configuration matching the requirements: {}", requirements);
-      PrintDebugState();
-      return nullptr;
-    }
-
-    // Remove the dual bidir SWB config if not supported
-    if (!IsDualBiDirSwbSupported()) {
-      configs.erase(std::remove_if(configs.begin(), configs.end(),
-                                   [](auto const& el) {
-                                     if (el->confs.source.empty()) {
-                                       return false;
-                                     }
-                                     return AudioSetConfigurationProvider::Get()
-                                             ->CheckConfigurationIsDualBiDirSwb(*el);
-                                   }),
-                    configs.end());
-    }
-
-    // Note: For the only supported right now legacy software configuration
-    //       provider, we use the device group logic to match the proper
-    //       configuration with group capabilities. Note that this path only
-    //       supports the LC3 codec format. For the multicodec support we should
-    //       rely on the configuration matcher behind the AIDL interface.
-    return provider(requirements, &configs);
+    return GetLocalCodecConfigurations(requirements, provider);
   }
 
   bool CheckCodecConfigIsBiDirSwb(const AudioSetConfiguration& config) {

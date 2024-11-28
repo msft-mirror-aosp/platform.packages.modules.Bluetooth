@@ -28,14 +28,21 @@
 #include <cstdint>
 #include <cstring>
 
+#include "ag/bta_ag_at.h"
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_dm_api.h"
 #include "bta/include/bta_hfp_api.h"
+#include "bta_ag_api.h"
 #include "bta_ag_swb_aptx.h"
-#include "internal_include/bt_trace.h"
+#include "bta_api.h"
+#include "bta_sys.h"
+#include "btm_api_types.h"
+#include "device/include/device_iot_conf_defs.h"
+#include "osi/include/alarm.h"
+#include "sdp_status.h"
+#include "types/bt_transport.h"
 
 #ifdef __ANDROID__
-#include "bta/le_audio/devices.h"
 #endif
 
 #include "btif/include/btif_config.h"

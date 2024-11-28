@@ -84,8 +84,7 @@ import java.util.Scanner;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
-@VisibleForTesting
-public class BassClientStateMachine extends StateMachine {
+class BassClientStateMachine extends StateMachine {
     private static final String TAG = "BassClientStateMachine";
     @VisibleForTesting static final byte[] REMOTE_SCAN_STOP = {00};
     @VisibleForTesting static final byte[] REMOTE_SCAN_START = {01};
@@ -113,6 +112,7 @@ public class BassClientStateMachine extends StateMachine {
     static final int REACHED_MAX_SOURCE_LIMIT = 16;
     static final int SWITCH_BCAST_SOURCE = 17;
     static final int CANCEL_PENDING_SOURCE_OPERATION = 18;
+    static final int INITIATE_PA_SYNC_TRANSFER = 19;
 
     // NOTE: the value is not "final" - it is modified in the unit tests
     @VisibleForTesting private int mConnectTimeoutMs;
@@ -374,10 +374,6 @@ public class BassClientStateMachine extends StateMachine {
 
     Boolean hasPendingSwitchingSourceOperation() {
         return mPendingSourceToSwitch != null;
-    }
-
-    BluetoothLeBroadcastMetadata getCurrentBroadcastMetadata(Integer sourceId) {
-        return mCurrentMetadata.getOrDefault(sourceId, null);
     }
 
     private void setCurrentBroadcastMetadata(
@@ -816,66 +812,77 @@ public class BassClientStateMachine extends StateMachine {
         int state = recvState.getPaSyncState();
         if (state == BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCINFO_REQUEST) {
             log("Initiate PAST procedure");
-            PeriodicAdvertisementResult result =
-                    mService.getPeriodicAdvertisementResult(
-                            recvState.getSourceDevice(), recvState.getBroadcastId());
-            if (result != null) {
-                int syncHandle = result.getSyncHandle();
-                log("processPASyncState: syncHandle " + result.getSyncHandle());
-                if (syncHandle != BassConstants.INVALID_SYNC_HANDLE) {
-                    serviceData = 0x000000FF & recvState.getSourceId();
-                    serviceData = serviceData << 8;
-                    // advA matches EXT_ADV_ADDRESS
-                    // also matches source address (as we would have written)
-                    serviceData =
-                            serviceData & (~BassConstants.ADV_ADDRESS_DONT_MATCHES_EXT_ADV_ADDRESS);
-                    serviceData =
-                            serviceData
-                                    & (~BassConstants.ADV_ADDRESS_DONT_MATCHES_SOURCE_ADV_ADDRESS);
-                    log(
-                            "Initiate PAST for: "
-                                    + mDevice
-                                    + ", syncHandle: "
-                                    + syncHandle
-                                    + "serviceData"
-                                    + serviceData);
-                    BluetoothMethodProxy.getInstance()
-                            .periodicAdvertisingManagerTransferSync(
-                                    BassClientPeriodicAdvertisingManager
-                                            .getPeriodicAdvertisingManager(),
-                                    mDevice,
-                                    serviceData,
-                                    syncHandle);
-                }
+            int sourceId = recvState.getSourceId();
+            BluetoothLeBroadcastMetadata currentMetadata = getCurrentBroadcastMetadata(sourceId);
+            if (mService.isLocalBroadcast(currentMetadata)) {
+                int advHandle = currentMetadata.getSourceAdvertisingSid();
+                serviceData = 0x000000FF & sourceId;
+                serviceData = serviceData << 8;
+                // Address we set in the Source Address can differ from the address in the air
+                serviceData =
+                        serviceData | BassConstants.ADV_ADDRESS_DONT_MATCHES_SOURCE_ADV_ADDRESS;
+                log(
+                        "Initiate local broadcast PAST for: "
+                                + mDevice
+                                + ", advSID/Handle: "
+                                + advHandle
+                                + ", serviceData: "
+                                + serviceData);
+                BluetoothMethodProxy.getInstance()
+                        .periodicAdvertisingManagerTransferSetInfo(
+                                BassClientPeriodicAdvertisingManager
+                                        .getPeriodicAdvertisingManager(),
+                                mDevice,
+                                serviceData,
+                                advHandle,
+                                mLocalPeriodicAdvCallback);
             } else {
-                BluetoothLeBroadcastMetadata currentMetadata =
-                        getCurrentBroadcastMetadata(recvState.getSourceId());
-                if (mService.isLocalBroadcast(currentMetadata)) {
-                    int advHandle = currentMetadata.getSourceAdvertisingSid();
-                    serviceData = 0x000000FF & recvState.getSourceId();
-                    serviceData = serviceData << 8;
-                    // Address we set in the Source Address can differ from the address in the air
-                    serviceData =
-                            serviceData | BassConstants.ADV_ADDRESS_DONT_MATCHES_SOURCE_ADV_ADDRESS;
-                    log(
-                            "Initiate local broadcast PAST for: "
-                                    + mDevice
-                                    + ", advSID/Handle: "
-                                    + advHandle
-                                    + ", serviceData: "
-                                    + serviceData);
-                    BluetoothMethodProxy.getInstance()
-                            .periodicAdvertisingManagerTransferSetInfo(
-                                    BassClientPeriodicAdvertisingManager
-                                            .getPeriodicAdvertisingManager(),
-                                    mDevice,
-                                    serviceData,
-                                    advHandle,
-                                    mLocalPeriodicAdvCallback);
-                } else {
-                    Log.e(TAG, "There is no valid sync handle for this Source");
+                int broadcastId = recvState.getBroadcastId();
+                PeriodicAdvertisementResult result =
+                        mService.getPeriodicAdvertisementResult(
+                                recvState.getSourceDevice(), broadcastId);
+                if (result != null) {
+                    int syncHandle = result.getSyncHandle();
+                    if (syncHandle != BassConstants.INVALID_SYNC_HANDLE) {
+                        initiatePaSyncTransfer(syncHandle, sourceId);
+                        return;
+                    }
                 }
+                mService.syncRequestForPast(mDevice, broadcastId, sourceId);
             }
+        }
+    }
+
+    private void initiatePaSyncTransfer(int syncHandle, int sourceId) {
+        if (syncHandle != BassConstants.INVALID_SYNC_HANDLE
+                && sourceId != BassConstants.INVALID_SOURCE_ID) {
+            int serviceData = 0x000000FF & sourceId;
+            serviceData = serviceData << 8;
+            // advA matches EXT_ADV_ADDRESS
+            // also matches source address (as we would have written)
+            serviceData = serviceData & (~BassConstants.ADV_ADDRESS_DONT_MATCHES_EXT_ADV_ADDRESS);
+            serviceData =
+                    serviceData & (~BassConstants.ADV_ADDRESS_DONT_MATCHES_SOURCE_ADV_ADDRESS);
+            log(
+                    "Initiate PAST for: "
+                            + mDevice
+                            + ", syncHandle: "
+                            + syncHandle
+                            + ", serviceData: "
+                            + serviceData);
+            BluetoothMethodProxy.getInstance()
+                    .periodicAdvertisingManagerTransferSync(
+                            BassClientPeriodicAdvertisingManager.getPeriodicAdvertisingManager(),
+                            mDevice,
+                            serviceData,
+                            syncHandle);
+        } else {
+            Log.e(
+                    TAG,
+                    "Invalid syncHandle or sourceId for PAST, syncHandle: "
+                            + syncHandle
+                            + ", sourceId: "
+                            + sourceId);
         }
     }
 
@@ -1144,6 +1151,7 @@ public class BassClientStateMachine extends StateMachine {
             log("processBroadcastReceiverState: invalid index: " + recvState.getSourceId());
             return;
         }
+        int sourceId = recvState.getSourceId();
         BluetoothLeBroadcastReceiveState oldRecvState =
                 mBluetoothLeBroadcastReceiveStates.get(characteristic.getInstanceId());
         if (oldRecvState == null) {
@@ -1171,7 +1179,7 @@ public class BassClientStateMachine extends StateMachine {
                         .notifySourceAdded(
                                 mDevice, recvState, BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST);
                 if (mPendingMetadata != null) {
-                    setCurrentBroadcastMetadata(recvState.getSourceId(), mPendingMetadata);
+                    setCurrentBroadcastMetadata(sourceId, mPendingMetadata);
                     mPendingMetadata = null;
                 }
                 checkAndUpdateBroadcastCode(recvState);
@@ -1217,28 +1225,28 @@ public class BassClientStateMachine extends StateMachine {
                 } else {
                     log("update to an existing recvState");
                     if (mPendingMetadata != null) {
-                        setCurrentBroadcastMetadata(recvState.getSourceId(), mPendingMetadata);
+                        setCurrentBroadcastMetadata(sourceId, mPendingMetadata);
                         mPendingMetadata = null;
                     }
                     removeMessages(CANCEL_PENDING_SOURCE_OPERATION);
                     mService.getCallbacks()
                             .notifySourceModified(
                                     mDevice,
-                                    recvState.getSourceId(),
+                                    sourceId,
                                     BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST);
                     checkAndUpdateBroadcastCode(recvState);
                     processPASyncState(recvState);
                     processSyncStateChangeStats(recvState);
 
-                    if (isPendingRemove(recvState.getSourceId())) {
+                    if (isPendingRemove(sourceId) && !isSyncedToTheSource(sourceId)) {
                         Message message = obtainMessage(REMOVE_BCAST_SOURCE);
-                        message.arg1 = recvState.getSourceId();
+                        message.arg1 = sourceId;
                         sendMessage(message);
                     }
                 }
             }
         }
-        broadcastReceiverState(recvState, recvState.getSourceId());
+        broadcastReceiverState(recvState, sourceId);
     }
 
     // Implements callback methods for GATT events that the app cares about.
@@ -1909,7 +1917,7 @@ public class BassClientStateMachine extends StateMachine {
         res[offset++] = (byte) numSubGroups;
 
         for (int i = 0; i < numSubGroups; i++) {
-            int bisIndexValue = existingState.getBisSyncState().get(i).intValue();
+            int bisIndexValue = 0xFFFFFFFF;
             if (paSync == BassConstants.PA_SYNC_DO_NOT_SYNC) {
                 bisIndexValue = 0;
             } else if (metaData != null
@@ -1922,6 +1930,8 @@ public class BassClientStateMachine extends StateMachine {
                 if (bisIndexValue == 0) {
                     bisIndexValue = 0xFFFFFFFF;
                 }
+            } else if (i < existingState.getBisSyncState().size()) {
+                bisIndexValue = existingState.getBisSyncState().get(i).intValue();
             }
             log("UPDATE_BCAST_SOURCE: bisIndexValue : " + bisIndexValue);
             // BIS_Sync
@@ -2350,6 +2360,11 @@ public class BassClientStateMachine extends StateMachine {
                     int broadcastId = message.arg1;
                     cancelPendingSourceOperation(broadcastId);
                     break;
+                case INITIATE_PA_SYNC_TRANSFER:
+                    int syncHandle = message.arg1;
+                    int sourceIdForPast = message.arg2;
+                    initiatePaSyncTransfer(syncHandle, sourceIdForPast);
+                    break;
                 default:
                     log("CONNECTED: not handled message:" + message.what);
                     return NOT_HANDLED;
@@ -2539,6 +2554,7 @@ public class BassClientStateMachine extends StateMachine {
                 case REACHED_MAX_SOURCE_LIMIT:
                 case SWITCH_BCAST_SOURCE:
                 case PSYNC_ACTIVE_TIMEOUT:
+                case INITIATE_PA_SYNC_TRANSFER:
                     log(
                             "defer the message: "
                                     + messageWhatToString(message.what)
@@ -2602,6 +2618,10 @@ public class BassClientStateMachine extends StateMachine {
         return mNumOfBroadcastReceiverStates;
     }
 
+    BluetoothLeBroadcastMetadata getCurrentBroadcastMetadata(Integer sourceId) {
+        return mCurrentMetadata.getOrDefault(sourceId, null);
+    }
+
     BluetoothDevice getDevice() {
         return mDevice;
     }
@@ -2646,6 +2666,8 @@ public class BassClientStateMachine extends StateMachine {
                 return "CONNECT_TIMEOUT";
             case CANCEL_PENDING_SOURCE_OPERATION:
                 return "CANCEL_PENDING_SOURCE_OPERATION";
+            case INITIATE_PA_SYNC_TRANSFER:
+                return "INITIATE_PA_SYNC_TRANSFER";
             default:
                 break;
         }

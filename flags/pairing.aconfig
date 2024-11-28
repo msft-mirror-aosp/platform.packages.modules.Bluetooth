@@ -180,3 +180,53 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "trigger_sec_proc_on_inc_access_req"
+    namespace: "bluetooth"
+    description: "Trigger security procedure as acceptor as needed"
+    bug: "376278485"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "smp_state_machine_stuck_after_disconnection_fix"
+    namespace: "bluetooth"
+    description: "Fix state machine stuck after pairing device disconnection"
+    bug: "376306092"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "prevent_service_connections_on_remove_bond"
+    namespace: "bluetooth"
+    description: "Disable service connections on remove bond"
+    bug: "378736590"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "donot_update_sec_flags_on_csrk_save"
+    namespace: "bluetooth"
+    description: "Updating sec flags while saving csrk info can cause setting securith level wrongly as security level might have not determined at that time"
+    bug: "379109304"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "ignore_auth_req_when_collision_timer_active"
+    namespace: "bluetooth"
+    description: "Ignore authentication request when collision timer is still active"
+    bug: "380328715"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

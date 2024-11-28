@@ -16,6 +16,7 @@
 
 #include "gd/rust/topshim/vc/vc_shim.h"
 
+#include <aics/api.h>
 #include <bluetooth/log.h>
 #include <hardware/bluetooth.h>
 
@@ -135,10 +136,26 @@ public:
     topshim::rust::internal::ext_audio_out_description_cb(address, ext_output_id, descr);
   }
 
-  void OnExtAudioInStateChanged(const RawAddress& address, uint8_t ext_input_id, int8_t gain_val,
-                                uint8_t gain_mode_auto, bool mute) {
-    log::info("address={}, ext_input_id={}, gain_val={}, gain_mode_auto={}, mute={}", address,
-              ext_input_id, gain_val, gain_mode_auto, mute);
+  void OnExtAudioInStateChanged(const RawAddress& address, uint8_t ext_input_id,
+                                int8_t gain_setting, bluetooth::aics::Mute mute,
+                                bluetooth::aics::GainMode gain_mode) {
+    log::info("address={}, ext_input_id={}, gain_setting={}, mute={:#x}, gain_mode={:#x}", address,
+              ext_input_id, gain_setting, mute, gain_mode);
+    log::info("Not implemented");
+  }
+
+  void OnExtAudioInSetGainSettingFailed(const RawAddress& address, uint8_t ext_input_id) {
+    log::info("address={}, ext_input_id={}", address, ext_input_id);
+    log::info("Not implemented");
+  }
+
+  void OnExtAudioInSetMuteFailed(const RawAddress& address, uint8_t ext_input_id) {
+    log::info("address={}, ext_input_id={}", address, ext_input_id);
+    log::info("Not implemented");
+  }
+
+  void OnExtAudioInSetGainModeFailed(const RawAddress& address, uint8_t ext_input_id) {
+    log::info("address={}, ext_input_id={}", address, ext_input_id);
     log::info("Not implemented");
   }
 
@@ -153,16 +170,17 @@ public:
     log::info("Not implemented");
   }
 
-  void OnExtAudioInGainPropsChanged(const RawAddress& address, uint8_t ext_input_id, uint8_t unit,
-                                    int8_t min, int8_t max) {
+  void OnExtAudioInGainSettingPropertiesChanged(const RawAddress& address, uint8_t ext_input_id,
+                                                uint8_t unit, int8_t min, int8_t max) {
     log::info("address={}, ext_input_id={}, unit={}, min={}, max={}", address, ext_input_id, unit,
               min, max);
     log::info("Not implemented");
   }
 
   void OnExtAudioInDescriptionChanged(const RawAddress& address, uint8_t ext_input_id,
-                                      std::string descr) {
-    log::info("address={}, ext_input_id={}, descr={}", address, ext_input_id, descr);
+                                      std::string description, bool is_writable) {
+    log::info("address={}, ext_input_id={}, description={}, is_writable={}", address, ext_input_id,
+              description, is_writable);
     log::info("Not implemented");
   }
 };

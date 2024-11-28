@@ -20,8 +20,15 @@
 
 #include <bluetooth/log.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <tuple>
+#include <vector>
+
 #include "client_parser.h"
-#include "common/strings.h"
+#include "devices.h"
 #include "le_audio_types.h"
 #include "stack/include/bt_types.h"
 

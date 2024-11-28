@@ -58,13 +58,13 @@ mgmt_cc_defaults {
     soong_config_variables: {
         vertical: {
             android_desktop: {
-                srcs: [":BluetoothHalSources_mgmt"],
+                srcs: [":BluetoothOsSources_mgmt_linux"],
             },
             android_default: {
-                srcs: [":BluetoothHalSources_mgmt_stub"],
+                srcs: [":BluetoothOsSources_mgmt"],
             },
             conditions_default: {
-                srcs: [":BluetoothHalSources_mgmt_stub"],
+                srcs: [":BluetoothOsSources_mgmt"],
             },
         },
     },
@@ -116,7 +116,7 @@ cc_defaults {
             ],
             whole_static_libs: [
                 "android.hardware.bluetooth-V1-ndk",
-                "android.hardware.bluetooth.ranging-V1-ndk",
+                "android.hardware.bluetooth.ranging-V2-ndk",
             ],
         },
     },
@@ -129,6 +129,7 @@ cc_defaults {
         ":BluetoothNeighborSources",
         ":BluetoothOsSources",
         ":BluetoothPacketSources",
+        ":BluetoothShimSources",
         ":BluetoothStorageSources",
         "module.cc",
         "module_dumper.cc",
@@ -169,11 +170,10 @@ cc_defaults {
     include_dirs: [
         "packages/modules/Bluetooth/system/include",
         "packages/modules/Bluetooth/system/stack/include",
-        "packages/modules/Bluetooth/system/types",
     ],
 }
 
-cc_library {
+cc_library_static {
     name: "libbluetooth_gd",
     defaults: [
         "libbluetooth_gd_defaults",
@@ -192,27 +192,6 @@ cc_library {
 }
 
 cc_library_static {
-    name: "libbluetooth-gdx",
-    defaults: [
-        "libbluetooth_gd_defaults",
-    ],
-    srcs: [
-        ":BluetoothShimSources",
-    ],
-    include_dirs: [
-        "packages/modules/Bluetooth/system",
-    ],
-    apex_available: [
-        "com.android.btservices",
-    ],
-    min_sdk_version: "31",
-    static_libs: [
-        "bluetooth_flags_c_lib",
-        "libchrome",
-    ],
-}
-
-cc_library {
     name: "libbluetooth_gd_fuzzing",
     defaults: [
         "libbluetooth_gd_defaults",
@@ -236,7 +215,7 @@ cc_library {
     ],
 }
 
-cc_library {
+cc_library_static {
     name: "libbluetooth_gd_unit_tests",
     defaults: [
         "libbluetooth_gd_defaults",
@@ -271,7 +250,6 @@ cc_binary {
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/include",
-        "packages/modules/Bluetooth/system/types",
     ],
     host_supported: true,
     srcs: [
@@ -297,7 +275,6 @@ cc_binary {
         "breakpad_client",
         "libPlatformProperties",
         "libbluetooth-dumpsys",
-        "libbluetooth-gdx",
         "libbluetooth-protos",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
@@ -363,7 +340,6 @@ cc_test {
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/include",
-        "packages/modules/Bluetooth/system/types",
     ],
     host_supported: true,
     target: {
@@ -408,7 +384,6 @@ cc_test {
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/include",
-        "packages/modules/Bluetooth/system/types",
     ],
     host_supported: true,
     // TODO(b/231993739): Reenable isolated:true by deleting the explicit disable below
@@ -490,63 +465,6 @@ cc_test {
         "libPlatformProperties",
         "libaconfig_storage_read_api_cc",
         "libcrypto",
-    ],
-    sanitize: {
-        address: true,
-    },
-    min_sdk_version: "Tiramisu",
-}
-
-cc_test {
-    name: "bluetooth_test_gdx_unit",
-    test_suites: ["device-tests"],
-    defaults: [
-        "aconfig_lib_cc_shared_link.defaults",
-        "gd_defaults",
-        "mts_defaults",
-    ],
-    include_dirs: [
-        "packages/modules/Bluetooth/system",
-        "packages/modules/Bluetooth/system/include",
-        "packages/modules/Bluetooth/system/stack/include",
-        "packages/modules/Bluetooth/system/types",
-    ],
-    host_supported: true,
-    srcs: [
-        ":BluetoothDumpsysTestSources",
-        ":BluetoothShimTestSources",
-        ":TestCommonMockFunctions",
-        ":TestMockMainShimStack",
-        "module_gdx_unittest.cc",
-        "module_jniloop_unittest.cc",
-        "module_mainloop_unittest.cc",
-        "module_state_dumper_unittest.cc",
-    ],
-    generated_headers: [
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
-        "BluetoothGeneratedDumpsysInternalTestData_h",
-        "BluetoothGeneratedDumpsysTestData_h",
-    ],
-    static_libs: [
-        "bluetooth_flags_c_lib_for_test",
-        "libbase",
-        "libbluetooth-dumpsys",
-        "libbluetooth-dumpsys-test",
-        "libbluetooth-dumpsys-unittest",
-        "libbluetooth-gdx",
-        "libbluetooth_gd",
-        "libbluetooth_log",
-        "libbt-btu-main-thread",
-        "libbt-common",
-        "libbt-jni-thread",
-        "libchrome",
-        "libevent",
-        "libflatbuffers-cpp",
-        "libgmock",
-        "liblog",
-        "libosi",
-        "server_configurable_flags",
     ],
     sanitize: {
         address: true,
@@ -721,17 +639,11 @@ genrule {
     cmd: "$(location flatc) -I packages/modules/Bluetooth/system/gd -b --schema -o $(genDir) $(in) ",
     srcs: [
         "dumpsys_data.fbs",
-        "hci/hci_acl_manager.fbs",
-        "hci/hci_controller.fbs",
         "module_unittest.fbs",
         "os/wakelock_manager.fbs",
-        "shim/dumpsys.fbs",
     ],
     out: [
-        "dumpsys.bfbs",
         "dumpsys_data.bfbs",
-        "hci_acl_manager.bfbs",
-        "hci_controller.bfbs",
         "wakelock_manager.bfbs",
     ],
 }
@@ -744,17 +656,11 @@ genrule {
     cmd: "$(location flatc) -I packages/modules/Bluetooth/system/gd -o $(genDir) --cpp $(in) ",
     srcs: [
         "dumpsys_data.fbs",
-        "hci/hci_acl_manager.fbs",
-        "hci/hci_controller.fbs",
         "module_unittest.fbs",
         "os/wakelock_manager.fbs",
-        "shim/dumpsys.fbs",
     ],
     out: [
         "dumpsys_data_generated.h",
-        "dumpsys_generated.h",
-        "hci_acl_manager_generated.h",
-        "hci_controller_generated.h",
         "wakelock_manager_generated.h",
     ],
 }

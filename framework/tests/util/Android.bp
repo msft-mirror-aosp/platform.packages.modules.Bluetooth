@@ -34,6 +34,7 @@ java_library {
     sdk_version: "test_current",
     visibility: [
         "//cts/tests/tests/bluetooth",
+        "//cts/tests/tests/car",
         "//packages/modules/Bluetooth/framework/tests/bumble",
 
         // TODO: b/339938196 -- remove export for other modules and test

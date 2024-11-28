@@ -30,6 +30,7 @@ public:
     advertising_sid_ = ++instance_counter_;
 
     ON_CALL(*this, Initialize).WillByDefault([this]() {
+      SetState(State::CONFIGURED);
       this->cb->OnStateMachineCreateStatus(this->cfg.broadcast_id, result_);
       return result_;
     });

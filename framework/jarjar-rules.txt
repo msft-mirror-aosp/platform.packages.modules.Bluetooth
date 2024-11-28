@@ -10,3 +10,6 @@ rule android.hardware.radio.V1_0.** com.android.bluetooth.jarjar.@0
 rule com.google.android.mms.** com.android.bluetooth.jarjar.@0
 rule com.android.internal.util.** com.android.bluetooth.jarjar.@0
 rule com.android.modules.expresslog.** com.android.bluetooth.jarjar.@0
+rule com.android.bluetooth.flags.** com.android.bluetooth.jarjar.@0
+rule bluetooth.constants.** com.android.bluetooth.jarjar.@0
+rule android.media.audio.Flags com.android.bluetooth.jarjar.audio.Flags

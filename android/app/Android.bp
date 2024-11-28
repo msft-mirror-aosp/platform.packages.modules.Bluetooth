@@ -73,10 +73,12 @@ cc_library_shared {
         "jni_headers",
         "libbluetooth_headers",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/gd",
-        "packages/modules/Bluetooth/system/types",
     ],
     // libbluetooth_jni is the jni lib included in the btservices apex.
     // As this library is inside an APEX the shared_libs that does not
@@ -88,6 +90,7 @@ cc_library_shared {
     // is required to maintain FIPS compliance.
     stl: "libc++_static",
     static_libs: [
+        "aics",
         "android.hardware.audio.common@5.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
@@ -106,7 +109,6 @@ cc_library_shared {
         "libbase",
         "libbluetooth",
         "libbluetooth-dumpsys",
-        "libbluetooth-gdx",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_core_rs_bridge",
@@ -167,9 +169,6 @@ cc_library_shared {
         "com.android.btservices",
     ],
     min_sdk_version: "Tiramisu",
-
-    // TODO(b/346919576) Workaround LTO build breakage.
-    lto_O0: true,
 }
 
 cc_library {
@@ -178,9 +177,6 @@ cc_library {
     header_libs: [
         "jni_headers",
         "libbluetooth_headers",
-    ],
-    include_dirs: [
-        "packages/modules/Bluetooth/system/types",
     ],
     static_libs: [
         "lib-bt-packets",
@@ -240,6 +236,7 @@ android_app {
     jni_uses_platform_apis: true,
     libs: [
         "app-compat-annotations",
+        "bluetooth_constants_java",
         "bluetooth_flags_java_lib",
         "error_prone_annotations",
         "framework-annotations-lib",
@@ -259,6 +256,7 @@ android_app {
         "BluetoothApiShims",
         "android.hardware.radio-V1.0-java",
         "android.hardware.radio.sap-V1-java",
+        "android.media.audio-aconfig-exported-java",
         "android.os.flags-aconfig-java-export",
         "androidx.annotation_annotation",
         "androidx.core_core",
@@ -284,7 +282,6 @@ android_app {
 
     plugins: [
         "androidx.room_room-compiler-plugin",
-        "error_prone_android_framework",
     ],
 
     // Export schemas to the test directory so that we have an history
@@ -304,6 +301,7 @@ android_app {
             "ExtraText",
             "ExtraTranslation",
             "GestureBackNavigation",
+            "GetterSetterNullability",
             "GuardedLogInvocation",
             "HandlerLeak",
             "InflateParams",

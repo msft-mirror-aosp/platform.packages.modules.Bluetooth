@@ -27,6 +27,7 @@ namespace hal {
 class RangingHalHost : public RangingHal {
 public:
   bool IsBound() override { return false; }
+  RangingHalVersion GetRangingHalVersion() { return V_UNKNOWN; }
   void RegisterCallback(RangingHalCallback* /* callback */) override {}
   std::vector<VendorSpecificCharacteristic> GetVendorSpecificCharacteristics() override {
     std::vector<VendorSpecificCharacteristic> vendor_specific_characteristics = {};
@@ -43,6 +44,15 @@ public:
 
   void WriteRawData(uint16_t /* connection_handle */,
                     const ChannelSoundingRawData& /* raw_data */) override {}
+
+  void UpdateChannelSoundingConfig(
+          uint16_t /* connection_handle */,
+          const hci::LeCsConfigCompleteView& /* leCsConfigCompleteView */) override {}
+
+  void UpdateProcedureEnableConfig(
+          uint16_t /* connection_handle */,
+          const hci::LeCsProcedureEnableCompleteView& /* leCsProcedureEnableCompleteView */)
+          override {}
 
 protected:
   void ListDependencies(ModuleList* /*list*/) const {}

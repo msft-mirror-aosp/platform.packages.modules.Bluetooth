@@ -19,11 +19,13 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothUtils.callServiceIfEnabled;
 import static android.bluetooth.BluetoothUtils.executeFromBinder;
 
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.CallbackExecutor;
+import android.annotation.FlaggedApi;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -41,8 +43,10 @@ import android.os.RemoteException;
 import android.util.CloseGuard;
 import android.util.Log;
 
+import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -327,18 +331,15 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @NonNull List<BluetoothDevice> getConnectedDevices() {
         Log.d(TAG, "getConnectedDevices()");
-        final IBluetoothVolumeControl service = getService();
-        if (service == null) {
-            Log.d(TAG, "Proxy not attached to service" + Log.getStackTraceString(new Throwable()));
-        } else if (mAdapter.isEnabled()) {
-            try {
-                return Attributable.setAttributionSource(
-                        service.getConnectedDevices(mAttributionSource), mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            }
-        }
-        return Collections.emptyList();
+        List<BluetoothDevice> defaultValue = Collections.emptyList();
+
+        return callServiceIfEnabled(
+                mAdapter,
+                this::getService,
+                s ->
+                        Attributable.setAttributionSource(
+                                s.getConnectedDevices(mAttributionSource), mAttributionSource),
+                defaultValue);
     }
 
     /**
@@ -351,20 +352,17 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public List<BluetoothDevice> getDevicesMatchingConnectionStates(int[] states) {
-        Log.d(TAG, "getDevicesMatchingStates()");
-        final IBluetoothVolumeControl service = getService();
-        if (service == null) {
-            Log.d(TAG, "Proxy not attached to service" + Log.getStackTraceString(new Throwable()));
-        } else if (mAdapter.isEnabled()) {
-            try {
-                return Attributable.setAttributionSource(
-                        service.getDevicesMatchingConnectionStates(states, mAttributionSource),
-                        mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            }
-        }
-        return Collections.emptyList();
+        Log.d(TAG, "getDevicesMatchingStates(" + Arrays.toString(states) + ")");
+        List<BluetoothDevice> defaultValue = Collections.emptyList();
+
+        return callServiceIfEnabled(
+                mAdapter,
+                this::getService,
+                s ->
+                        Attributable.setAttributionSource(
+                                s.getDevicesMatchingConnectionStates(states, mAttributionSource),
+                                mAttributionSource),
+                defaultValue);
     }
 
     /**
@@ -378,30 +376,29 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
     @RequiresPermission(BLUETOOTH_CONNECT)
     public int getConnectionState(BluetoothDevice device) {
         Log.d(TAG, "getConnectionState(" + device + ")");
-        final IBluetoothVolumeControl service = getService();
-        if (service == null) {
-            Log.d(TAG, "Proxy not attached to service" + Log.getStackTraceString(new Throwable()));
-        } else if (mAdapter.isEnabled() && isValidDevice(device)) {
-            try {
-                return service.getConnectionState(device, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            }
+        int defaultValue = BluetoothProfile.STATE_DISCONNECTED;
+
+        if (!isValidDevice(device)) {
+            return defaultValue;
         }
-        return BluetoothProfile.STATE_DISCONNECTED;
+        return callServiceIfEnabled(
+                mAdapter,
+                this::getService,
+                s -> s.getConnectionState(device, mAttributionSource),
+                defaultValue);
     }
 
     /**
      * Register a {@link Callback} that will be invoked during the operation of this profile.
      *
      * <p>Repeated registration of the same <var>callback</var> object will have no effect after the
-     * first call to this method, even when the <var>executor</var> is different. API caller would
-     * have to call {@link #unregisterCallback(Callback)} with the same callback object before
-     * registering it again.
+     * first call to this method, even when the <var>executor</var> is different. API caller must
+     * call {@link #unregisterCallback(Callback)} with the same callback object before registering
+     * it again.
      *
      * @param executor an {@link Executor} to execute given callback
      * @param callback user implementation of the {@link Callback}
-     * @throws IllegalArgumentException if a null executor, sink, or callback is given
+     * @throws IllegalArgumentException if a null executor, or callback is given
      * @hide
      */
     @SystemApi
@@ -458,7 +455,7 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
      * <p>The same {@link Callback} object used when calling {@link #registerCallback(Executor,
      * Callback)} must be used.
      *
-     * <p>Callbacks are automatically unregistered when application process goes away
+     * <p>Callbacks are automatically unregistered when the application process goes away
      *
      * @param callback user implementation of the {@link Callback}
      * @throws IllegalArgumentException when callback is null or when no callback is registered
@@ -553,26 +550,16 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
             @NonNull BluetoothDevice device,
             @IntRange(from = 1, to = 255) int instanceId,
             @IntRange(from = -255, to = 255) int volumeOffset) {
+        Log.d(TAG, "setVolumeOffset(" + device + ", " + instanceId + ", " + volumeOffset + ")");
+
         requireNonNull(device);
-        Log.d(
-                TAG,
-                "setVolumeOffset("
-                        + device
-                        + "/"
-                        + instanceId
-                        + " volumeOffset: "
-                        + volumeOffset
-                        + ")");
-        final IBluetoothVolumeControl service = getService();
-        if (service == null) {
-            Log.d(TAG, "Proxy not attached to service" + Log.getStackTraceString(new Throwable()));
-        } else if (mAdapter.isEnabled()) {
-            try {
-                service.setVolumeOffset(device, instanceId, volumeOffset, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            }
+        if (!isValidDevice(device)) {
+            return;
         }
+        callServiceIfEnabled(
+                mAdapter,
+                this::getService,
+                s -> s.setVolumeOffset(device, instanceId, volumeOffset, mAttributionSource));
     }
 
     /**
@@ -588,25 +575,18 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean isVolumeOffsetAvailable(@NonNull BluetoothDevice device) {
-        requireNonNull(device);
         Log.d(TAG, "isVolumeOffsetAvailable(" + device + ")");
-        final IBluetoothVolumeControl service = getService();
-        if (service == null) {
-            Log.d(TAG, "Proxy not attached to service" + Log.getStackTraceString(new Throwable()));
-            return false;
-        }
+        final boolean defaultValue = false;
 
-        if (!mAdapter.isEnabled()) {
-            return false;
+        requireNonNull(device);
+        if (!isValidDevice(device)) {
+            return defaultValue;
         }
-
-        try {
-            return service.isVolumeOffsetAvailable(device, mAttributionSource);
-        } catch (RemoteException e) {
-            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-        }
-
-        return false;
+        return callServiceIfEnabled(
+                mAdapter,
+                this::getService,
+                s -> s.isVolumeOffsetAvailable(device, mAttributionSource),
+                defaultValue);
     }
 
     /**
@@ -620,26 +600,18 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public int getNumberOfVolumeOffsetInstances(@NonNull BluetoothDevice device) {
-        requireNonNull(device);
         Log.d(TAG, "getNumberOfVolumeOffsetInstances(" + device + ")");
-        final IBluetoothVolumeControl service = getService();
         final int defaultValue = 0;
 
-        if (service == null) {
-            Log.d(TAG, "Proxy not attached to service" + Log.getStackTraceString(new Throwable()));
+        requireNonNull(device);
+        if (!isValidDevice(device)) {
             return defaultValue;
         }
-
-        if (!mAdapter.isEnabled()) {
-            return defaultValue;
-        }
-        try {
-            return service.getNumberOfVolumeOffsetInstances(device, mAttributionSource);
-        } catch (RemoteException e) {
-            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-        }
-
-        return defaultValue;
+        return callServiceIfEnabled(
+                mAdapter,
+                this::getService,
+                s -> s.getNumberOfVolumeOffsetInstances(device, mAttributionSource),
+                defaultValue);
     }
 
     /**
@@ -660,27 +632,21 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
     public boolean setConnectionPolicy(
             @NonNull BluetoothDevice device, @ConnectionPolicy int connectionPolicy) {
         Log.d(TAG, "setConnectionPolicy(" + device + ", " + connectionPolicy + ")");
-        final IBluetoothVolumeControl service = getService();
-        if (service == null) {
-            Log.d(TAG, "Proxy not attached to service" + Log.getStackTraceString(new Throwable()));
-        } else if (mAdapter.isEnabled()
-                && isValidDevice(device)
-                && (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
-                        || connectionPolicy == BluetoothProfile.CONNECTION_POLICY_ALLOWED)) {
-            try {
-                return service.setConnectionPolicy(device, connectionPolicy, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            }
+        boolean defaultValue = false;
+        if (!isValidDevice(device)
+                || (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
+                        && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED)) {
+            return defaultValue;
         }
-        return false;
+        return callServiceIfEnabled(
+                mAdapter,
+                this::getService,
+                s -> s.setConnectionPolicy(device, connectionPolicy, mAttributionSource),
+                defaultValue);
     }
 
     /**
      * Get the connection policy of the profile.
-     *
-     * <p>The connection policy can be any of: {@link #CONNECTION_POLICY_ALLOWED}, {@link
-     * #CONNECTION_POLICY_FORBIDDEN}, {@link #CONNECTION_POLICY_UNKNOWN}
      *
      * @param device Bluetooth device
      * @return connection policy of the device
@@ -691,17 +657,15 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @ConnectionPolicy int getConnectionPolicy(@NonNull BluetoothDevice device) {
         Log.v(TAG, "getConnectionPolicy(" + device + ")");
-        final IBluetoothVolumeControl service = getService();
-        if (service == null) {
-            Log.d(TAG, "Proxy not attached to service" + Log.getStackTraceString(new Throwable()));
-        } else if (mAdapter.isEnabled() && isValidDevice(device)) {
-            try {
-                return service.getConnectionPolicy(device, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            }
+        int defaultValue = BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+        if (!isValidDevice(device)) {
+            return defaultValue;
         }
-        return BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+        return callServiceIfEnabled(
+                mAdapter,
+                this::getService,
+                s -> s.getConnectionPolicy(device, mAttributionSource),
+                defaultValue);
     }
 
     /**
@@ -730,19 +694,48 @@ public final class BluetoothVolumeControl implements BluetoothProfile, AutoClose
             @IntRange(from = 0, to = 255) int volume,
             boolean isGroupOperation) {
         requireNonNull(device);
+        if (!isValidDevice(device)) {
+            return;
+        }
         if (volume < 0 || volume > 255) {
             throw new IllegalArgumentException("illegal volume " + volume);
         }
-        final IBluetoothVolumeControl service = getService();
-        if (service == null) {
-            Log.d(TAG, "Proxy not attached to service" + Log.getStackTraceString(new Throwable()));
-        } else if (mAdapter.isEnabled()) {
-            try {
-                service.setDeviceVolume(device, volume, isGroupOperation, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            }
+        callServiceIfEnabled(
+                mAdapter,
+                this::getService,
+                s -> s.setDeviceVolume(device, volume, isGroupOperation, mAttributionSource));
+    }
+
+    /**
+     * Returns a list of {@link AudioInputControl} objects associated with a Bluetooth device.
+     *
+     * <p>Each {@link AudioInputControl} object represents an instance of the Audio Input Control
+     * Service (AICS) on the remote device. A device may have multiple instances of the AICS, as
+     * described in the <a href="https://www.bluetooth.com/specifications/specs/aics-1-0/">Audio
+     * Input Control Service Specification (AICS 1.0)</a>.
+     *
+     * @param device The remote Bluetooth device.
+     * @return A list of {@link AudioInputControl} objects, or an empty list if no AICS instances
+     *     are found or if an error occurs.
+     * @throws IllegalArgumentException If the provided device is invalid.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_AICS_API)
+    @SystemApi
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    public @NonNull List<AudioInputControl> getAudioInputControlServices(
+            @NonNull BluetoothDevice device) {
+        requireNonNull(device);
+        Log.d(TAG, "getAudioInputControlServices(" + device + ")");
+        if (!isValidDevice(device)) {
+            throw new IllegalArgumentException("Invalid device " + device);
         }
+        return callServiceIfEnabled(
+                mAdapter,
+                this::getService,
+                s -> AudioInputControl.getAudioInputControlServices(s, mAttributionSource, device),
+                Collections.emptyList());
     }
 
     private static boolean isValidDevice(@Nullable BluetoothDevice device) {

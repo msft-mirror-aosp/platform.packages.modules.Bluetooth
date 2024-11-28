@@ -296,18 +296,44 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *   <li>in case of LE devices, very unlikely address collision
      * </ul>
      *
-     * Only registered receivers will receive this intent.
+     * <p>Always contains the extra field {@link #EXTRA_DEVICE}
+     *
+     * <p>This method requires the calling app to have the {@link
+     * android.Manifest.permission#BLUETOOTH_CONNECT} permission. Before {@link
+     * android.os.Build.VERSION_CODES#BAKLAVA} this method also required {@link
+     * android.Manifest.permission#BLUETOOTH_PRIVILEGED}
+     */
+    @SuppressLint("ActionValue")
+    @RequiresPermission(
+            allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+            conditional = true)
+    @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
+    @BroadcastBehavior(protectedBroadcast = true)
+    @FlaggedApi(Flags.FLAG_KEY_MISSING_PUBLIC)
+    public static final String ACTION_KEY_MISSING = "android.bluetooth.device.action.KEY_MISSING";
+
+    /**
+     * Broadcast Action: Indicates that encryption state changed
      *
      * <p>Always contains the extra field {@link #EXTRA_DEVICE}
      *
-     * @hide
+     * <p>Always contains the extra field {@link #EXTRA_TRANSPORT}
+     *
+     * <p>Always contains the extra field {@link #EXTRA_ENCRYPTION_STATUS}
+     *
+     * <p>Always contains the extra field {@link #EXTRA_ENCRYPTION_ENABLED}
+     *
+     * <p>Always contains the extra field {@link #EXTRA_KEY_SIZE}
+     *
+     * <p>Always contains the extra field {@link #EXTRA_ENCRYPTION_ALGORITHM}
      */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
     @SuppressLint("ActionValue")
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    @RequiresPermission(BLUETOOTH_CONNECT)
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
-    @SystemApi
-    @BroadcastBehavior(includeBackground = true, protectedBroadcast = true)
-    public static final String ACTION_KEY_MISSING = "android.bluetooth.device.action.KEY_MISSING";
+    @BroadcastBehavior(protectedBroadcast = true)
+    public static final String ACTION_ENCRYPTION_CHANGE =
+            "android.bluetooth.device.action.ENCRYPTION_CHANGE";
 
     /**
      * Used as an Integer extra field in {@link #ACTION_BATTERY_LEVEL_CHANGED} intent. It contains
@@ -478,6 +504,57 @@ public final class BluetoothDevice implements Parcelable, Attributable {
             "android.bluetooth.device.extra.PAIRING_INITIATOR";
 
     /**
+     * Used as an int extra field in {@link #ACTION_ENCRYPTION_CHANGE} intents as the size of the
+     * encryption key, in number of bytes. i.e. value of 16 means 16-byte, or 128 bit key size.
+     */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    @SuppressLint("ActionValue")
+    public static final String EXTRA_KEY_SIZE = "android.bluetooth.device.extra.KEY_SIZE";
+
+    /**
+     * Used as an int extra field in {@link #ACTION_ENCRYPTION_CHANGE} intents as the algorithm used
+     * for encryption.
+     *
+     * <p>Possible values are: {@link #ENCRYPTION_ALGORITHM_NONE}, {@link #ENCRYPTION_ALGORITHM_E0},
+     * {@link #ENCRYPTION_ALGORITHM_AES}.
+     */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    @SuppressLint("ActionValue")
+    public static final String EXTRA_ENCRYPTION_ALGORITHM =
+            "android.bluetooth.device.extra.EXTRA_ENCRYPTION_ALGORITHM";
+
+    /** Indicates that link was not encrypted using any algorithm */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    public static final int ENCRYPTION_ALGORITHM_NONE = 0;
+
+    /** Indicates link was encrypted using E0 algorithm */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    public static final int ENCRYPTION_ALGORITHM_E0 = 1;
+
+    /** Indicates link was encrypted using AES algorithm */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    public static final int ENCRYPTION_ALGORITHM_AES = 2;
+
+    /**
+     * Used as an int extra field in {@link #ACTION_ENCRYPTION_CHANGE} intent. This is the status
+     * value as returned from controller in "HCI Encryption Change event" i.e. value of 0 means
+     * success.
+     */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    @SuppressLint("ActionValue")
+    public static final String EXTRA_ENCRYPTION_STATUS =
+            "android.bluetooth.device.extra.ENCRYPTION_STATUS";
+
+    /**
+     * Used as a boolean extra field in {@link #ACTION_ENCRYPTION_CHANGE} intent. false mean
+     * encryption is OFF, true means encryption is ON
+     */
+    @FlaggedApi(Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST)
+    @SuppressLint("ActionValue")
+    public static final String EXTRA_ENCRYPTION_ENABLED =
+            "android.bluetooth.device.extra.ENCRYPTION_ENABLED";
+
+    /**
      * Bluetooth pairing initiator, Foreground App
      *
      * @hide
@@ -516,6 +593,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
             value = {
                 METADATA_MANUFACTURER_NAME,
                 METADATA_MODEL_NAME,
+                METADATA_MODEL_YEAR,
                 METADATA_SOFTWARE_VERSION,
                 METADATA_HARDWARE_VERSION,
                 METADATA_COMPANION_APP,
@@ -543,7 +621,11 @@ public final class BluetoothDevice implements Parcelable, Attributable {
                 METADATA_LE_AUDIO,
                 METADATA_GMCS_CCCD,
                 METADATA_GTBS_CCCD,
-                METADATA_EXCLUSIVE_MANAGER
+                METADATA_EXCLUSIVE_MANAGER,
+                METADATA_HEAD_UNIT_MANUFACTURER_NAME,
+                METADATA_HEAD_UNIT_MODEL_NAME,
+                METADATA_HEAD_UNIT_BUILD,
+                METADATA_HEAD_UNIT_SOFTWARE_VERSION
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface MetadataKey {}
@@ -569,6 +651,15 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @SystemApi public static final int METADATA_MODEL_NAME = 1;
+
+    /**
+     * Model year of the Bluetooth device. Data type should be {@link String} as {@link Byte} array.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_REMOTE_DEVICE_METADATA)
+    @SystemApi
+    public static final int METADATA_MODEL_YEAR = 30;
 
     /**
      * Software version of this Bluetooth device Data type should be {@link String} as {@link Byte}
@@ -809,6 +900,47 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     public static final int METADATA_EXCLUSIVE_MANAGER = 29;
 
     private static final int METADATA_MAX_KEY = METADATA_EXCLUSIVE_MANAGER;
+
+    /**
+     * Head unit manufacturer name of the Bluetooth device. Data type should be {@link String} as
+     * {@link Byte} array. Should only be set/available for a car device.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_REMOTE_DEVICE_METADATA)
+    @SystemApi
+    public static final int METADATA_HEAD_UNIT_MANUFACTURER_NAME = 31;
+
+    /**
+     * Head unit model name of the Bluetooth device. Data type should be {@link String} as {@link
+     * Byte} array. Should only be set/available for a car device.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_REMOTE_DEVICE_METADATA)
+    @SystemApi
+    public static final int METADATA_HEAD_UNIT_MODEL_NAME = 32;
+
+    /**
+     * Build of the overall head unit device. Not specific to hardware or software. Example can be
+     * 'manufacturer_country'. Data type should be {@link String} as {@link Byte} array. Should only
+     * be set/available for a car device.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_REMOTE_DEVICE_METADATA)
+    @SystemApi
+    public static final int METADATA_HEAD_UNIT_BUILD = 33;
+
+    /**
+     * Head unit software version of the Bluetooth device. Data type should be {@link String} as
+     * {@link Byte} array. Should only be set/available for a car device.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_REMOTE_DEVICE_METADATA)
+    @SystemApi
+    public static final int METADATA_HEAD_UNIT_SOFTWARE_VERSION = 34;
 
     /**
      * Device type which is used in METADATA_DEVICE_TYPE Indicates this Bluetooth device is a
@@ -1325,9 +1457,9 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     public static final String EXTRA_MAS_INSTANCE = "android.bluetooth.device.extra.MAS_INSTANCE";
 
     /**
-     * Used as an int extra field in {@link #ACTION_ACL_CONNECTED} and {@link
-     * #ACTION_ACL_DISCONNECTED} intents to indicate which transport is connected. Possible values
-     * are: {@link #TRANSPORT_BREDR} and {@link #TRANSPORT_LE}.
+     * Used as an int extra field in {@link #ACTION_ACL_CONNECTED}, {@link #ACTION_ACL_DISCONNECTED}
+     * and {@link #ACTION_ENCRYPTION_CHANGE} intents to indicate which transport is connected.
+     * Possible values are: {@link #TRANSPORT_BREDR} and {@link #TRANSPORT_LE}.
      */
     @SuppressLint("ActionValue")
     public static final String EXTRA_TRANSPORT = "android.bluetooth.device.extra.TRANSPORT";
@@ -1361,8 +1493,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *
      * @hide
      */
-    @SystemApi
-    public static final int ACTIVE_AUDIO_DEVICE_POLICY_DEFAULT = 0;
+    @SystemApi public static final int ACTIVE_AUDIO_DEVICE_POLICY_DEFAULT = 0;
 
     /**
      * Indicates all profiles active audio device policy is applied to this device
@@ -2739,15 +2870,12 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      */
     @UnsupportedAppUsage
     @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public BluetoothSocket createRfcommSocket(int channel) throws IOException {
         if (!isBluetoothEnabled()) {
             Log.e(TAG, "Bluetooth is not enabled");
             throw new IOException();
         }
-        return new BluetoothSocket(BluetoothSocket.TYPE_RFCOMM, true, true, this, channel, null);
+        return new BluetoothSocket(this, BluetoothSocket.TYPE_RFCOMM, true, true, channel, null);
     }
 
     /**
@@ -2775,11 +2903,8 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public BluetoothSocket createL2capSocket(int channel) throws IOException {
-        return new BluetoothSocket(BluetoothSocket.TYPE_L2CAP, true, true, this, channel, null);
+        return new BluetoothSocket(this, BluetoothSocket.TYPE_L2CAP, true, true, channel, null);
     }
 
     /**
@@ -2800,11 +2925,8 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      * @hide
      */
     @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public BluetoothSocket createInsecureL2capSocket(int channel) throws IOException {
-        return new BluetoothSocket(BluetoothSocket.TYPE_L2CAP, false, false, this, channel, null);
+        return new BluetoothSocket(this, BluetoothSocket.TYPE_L2CAP, false, false, channel, null);
     }
 
     /**
@@ -2838,9 +2960,6 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *     permissions
      */
     @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public BluetoothSocket createRfcommSocketToServiceRecord(UUID uuid) throws IOException {
         if (!isBluetoothEnabled()) {
             Log.e(TAG, "Bluetooth is not enabled");
@@ -2848,7 +2967,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
         }
 
         return new BluetoothSocket(
-                BluetoothSocket.TYPE_RFCOMM, true, true, this, -1, new ParcelUuid(uuid));
+                this, BluetoothSocket.TYPE_RFCOMM, true, true, -1, new ParcelUuid(uuid));
     }
 
     /**
@@ -2881,16 +3000,13 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *     permissions
      */
     @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public BluetoothSocket createInsecureRfcommSocketToServiceRecord(UUID uuid) throws IOException {
         if (!isBluetoothEnabled()) {
             Log.e(TAG, "Bluetooth is not enabled");
             throw new IOException();
         }
         return new BluetoothSocket(
-                BluetoothSocket.TYPE_RFCOMM, false, false, this, -1, new ParcelUuid(uuid));
+                this, BluetoothSocket.TYPE_RFCOMM, false, false, -1, new ParcelUuid(uuid));
     }
 
     /**
@@ -2908,15 +3024,12 @@ public final class BluetoothDevice implements Parcelable, Attributable {
             publicAlternatives =
                     "Use " + "{@link #createInsecureRfcommSocketToServiceRecord} instead.")
     @RequiresLegacyBluetoothAdminPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public BluetoothSocket createInsecureRfcommSocket(int port) throws IOException {
         if (!isBluetoothEnabled()) {
             Log.e(TAG, "Bluetooth is not enabled");
             throw new IOException();
         }
-        return new BluetoothSocket(BluetoothSocket.TYPE_RFCOMM, false, false, this, port, null);
+        return new BluetoothSocket(this, BluetoothSocket.TYPE_RFCOMM, false, false, port, null);
     }
 
     /**
@@ -2930,15 +3043,12 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      */
     @UnsupportedAppUsage
     @RequiresLegacyBluetoothAdminPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public BluetoothSocket createScoSocket() throws IOException {
         if (!isBluetoothEnabled()) {
             Log.e(TAG, "Bluetooth is not enabled");
             throw new IOException();
         }
-        return new BluetoothSocket(BluetoothSocket.TYPE_SCO, true, true, this, -1, null);
+        return new BluetoothSocket(this, BluetoothSocket.TYPE_SCO, true, true, -1, null);
     }
 
     /**
@@ -3142,16 +3252,13 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *     permissions
      */
     @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public @NonNull BluetoothSocket createL2capChannel(int psm) throws IOException {
         if (!isBluetoothEnabled()) {
             Log.e(TAG, "createL2capChannel: Bluetooth is not enabled");
             throw new IOException();
         }
         if (DBG) Log.d(TAG, "createL2capChannel: psm=" + psm);
-        return new BluetoothSocket(BluetoothSocket.TYPE_L2CAP_LE, true, true, this, psm, null);
+        return new BluetoothSocket(this, BluetoothSocket.TYPE_L2CAP_LE, true, true, psm, null);
     }
 
     /**
@@ -3176,9 +3283,6 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *     permissions
      */
     @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     public @NonNull BluetoothSocket createInsecureL2capChannel(int psm) throws IOException {
         if (!isBluetoothEnabled()) {
             Log.e(TAG, "createInsecureL2capChannel: Bluetooth is not enabled");
@@ -3187,7 +3291,61 @@ public final class BluetoothDevice implements Parcelable, Attributable {
         if (DBG) {
             Log.d(TAG, "createInsecureL2capChannel: psm=" + psm);
         }
-        return new BluetoothSocket(BluetoothSocket.TYPE_L2CAP_LE, false, false, this, psm, null);
+        return new BluetoothSocket(this, BluetoothSocket.TYPE_L2CAP_LE, false, false, psm, null);
+    }
+
+    /**
+     * Creates a client socket to connect to a remote Bluetooth server with the specified socket
+     * settings {@link BluetoothSocketSettings} This API is used to connect to a remote server
+     * hosted using {@link BluetoothAdapter#listenUsingSocketSettings}.
+     *
+     * <ul>
+     *   <li>For `BluetoothSocket.TYPE_RFCOMM`: The RFCOMM UUID must be provided using {@link
+     *       BluetoothSocketSettings#setRfcommUuid()}.
+     *   <li>For `BluetoothSocket.TYPE_LE`: The L2cap protocol/service multiplexer (PSM) value must
+     *       be provided using {@link BluetoothSocketSettings#setL2capPsm()}.
+     * </ul>
+     *
+     * <p>Application using this API is responsible for obtaining protocol/service multiplexer (psm)
+     * value from remote device.
+     *
+     * <p>Use {@link BluetoothSocket#connect} to initiate the outgoing connection.
+     *
+     * @param settings Bluetooth socket settings {@link BluetoothSocketSettings}.
+     * @return a {@link BluetoothSocket} ready for an outgoing connection.
+     * @throws IllegalArgumentException if BluetoothSocket#TYPE_RFCOMM socket with no UUID is passed
+     *     as input or if BluetoothSocket#TYPE_LE with invalid PSM is passed.
+     * @throws IOException on error, for example Bluetooth not available.
+     */
+    @FlaggedApi(Flags.FLAG_SOCKET_SETTINGS_API)
+    public @NonNull BluetoothSocket createUsingSocketSettings(
+            @NonNull BluetoothSocketSettings settings) throws IOException {
+        if (!isBluetoothEnabled()) {
+            Log.e(TAG, "createUsingSocketSettings: Bluetooth is not enabled");
+            throw new IOException();
+        }
+        if (DBG) {
+            Log.d(TAG, "createUsingSocketSettings: =" + settings.getL2capPsm());
+        }
+        ParcelUuid uuid = null;
+        int psm = settings.getL2capPsm();
+        if (settings.getSocketType() == BluetoothSocket.TYPE_RFCOMM) {
+            if (settings.getRfcommUuid() == null) {
+                throw new IllegalArgumentException("null uuid: " + settings.getRfcommUuid());
+            }
+            uuid = new ParcelUuid(settings.getRfcommUuid());
+        } else if (settings.getSocketType() == BluetoothSocket.TYPE_LE) {
+            if (psm < 128 || psm > 255) {
+                throw new IllegalArgumentException("Invalid PSM/Channel value: " + psm);
+            }
+        }
+        return new BluetoothSocket(
+                this,
+                settings.getSocketType(),
+                settings.isAuthenticationRequired(),
+                settings.isEncryptionRequired(),
+                psm,
+                uuid);
     }
 
     /**
@@ -3505,6 +3663,86 @@ public final class BluetoothDevice implements Parcelable, Attributable {
             }
         }
         return ACTIVE_AUDIO_DEVICE_POLICY_DEFAULT;
+    }
+
+    /** @hide */
+    @IntDef(
+            value = {
+                BluetoothStatusCodes.SUCCESS,
+                BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED,
+                BluetoothStatusCodes.ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION,
+                BluetoothStatusCodes.ERROR_DEVICE_NOT_BONDED
+            })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface SetMicrophonePreferredForCallsReturnValues {}
+
+    /**
+     * Sets whether this {@link BluetoothDevice} should be the preferred microphone for calls.
+     *
+     * <p>This API is for Bluetooth audio devices and only sets a preference. The caller is
+     * responsible for changing the audio input routing to reflect the preference.
+     *
+     * @param enabled {@code true} to set the device as the preferred microphone for calls, {@code
+     *     false} otherwise.
+     * @return Whether the preferred microphone for calls was set properly.
+     * @throws IllegalArgumentException if the {@link BluetoothDevice} object has an invalid
+     *     address.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_METADATA_API_MICROPHONE_FOR_CALL_ENABLED)
+    @SystemApi
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    public @SetMicrophonePreferredForCallsReturnValues int setMicrophonePreferredForCalls(
+            boolean enabled) {
+        if (DBG) log("setMicrophonePreferredForCalls(" + enabled + ")");
+        if (!BluetoothAdapter.checkBluetoothAddress(getAddress())) {
+            throw new IllegalArgumentException("device cannot have an invalid address");
+        }
+
+        final IBluetooth service = getService();
+        if (service == null || !isBluetoothEnabled()) {
+            Log.e(TAG, "Bluetooth is not enabled. Cannot set microphone for call enabled state.");
+            if (DBG) log(Log.getStackTraceString(new Throwable()));
+        } else {
+            try {
+                return service.setMicrophonePreferredForCalls(this, enabled, mAttributionSource);
+            } catch (RemoteException e) {
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+            }
+        }
+        return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
+    }
+
+    /**
+     * Gets whether this {@link BluetoothDevice} should be the preferred microphone for calls.
+     *
+     * <p>This API returns the configured preference for whether this device should be the preferred
+     * microphone for calls and return {@code true} by default in case of error. It does not reflect
+     * the current audio routing.
+     *
+     * @return {@code true} if the device is the preferred microphone for calls, {@code false}
+     *     otherwise.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_METADATA_API_MICROPHONE_FOR_CALL_ENABLED)
+    @SystemApi
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    public boolean isMicrophonePreferredForCalls() {
+        if (DBG) log("isMicrophoneForCallEnabled");
+        final IBluetooth service = getService();
+        if (service == null || !isBluetoothEnabled()) {
+            Log.e(TAG, "Bluetooth is not enabled. Cannot get microphone for call enabled state.");
+            if (DBG) log(Log.getStackTraceString(new Throwable()));
+        } else {
+            try {
+                return service.isMicrophonePreferredForCalls(this, mAttributionSource);
+            } catch (RemoteException e) {
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+            }
+        }
+        return true;
     }
 
     private static void log(String msg) {

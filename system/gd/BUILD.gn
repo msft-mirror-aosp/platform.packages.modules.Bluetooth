@@ -53,17 +53,6 @@ group("gd_default_deps") {
   ]
 }
 
-static_library("libbluetooth-gdx") {
-  include_dirs = [
-    "packages/modules/Bluetooth/system",
-  ]
-  configs += [ ":gd_defaults" ]
-  deps = [
-    "//bt/system/gd:gd_default_deps",
-    "//bt/system/gd/shim:BluetoothShimSources",
-  ]
-}
-
 static_library("libbluetooth_gd") {
   sources = [
     "module.cc",
@@ -92,20 +81,14 @@ static_library("libbluetooth_gd") {
 flatbuffer("BluetoothGeneratedDumpsysDataSchema_h") {
   sources = [
     "dumpsys_data.fbs",
-    "hci/hci_acl_manager.fbs",
-    "hci/hci_controller.fbs",
     "os/wakelock_manager.fbs",
-    "shim/dumpsys.fbs",
   ]
 }
 
 bt_flatc_binary_schema("BluetoothGeneratedDumpsysBinarySchema_bfbs") {
   sources = [
     "dumpsys_data.fbs",
-    "hci/hci_acl_manager.fbs",
-    "hci/hci_controller.fbs",
     "os/wakelock_manager.fbs",
-    "shim/dumpsys.fbs",
   ]
 
   include_dir = "system/gd"

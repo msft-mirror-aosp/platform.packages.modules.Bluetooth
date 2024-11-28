@@ -25,7 +25,6 @@ cc_defaults {
         "packages/modules/Bluetooth/system/include/",
         "packages/modules/Bluetooth/system/stack/include",
         "packages/modules/Bluetooth/system/stack/test",
-        "packages/modules/Bluetooth/system/types/",
     ],
     static_libs: [
         "android.hardware.audio.common@5.0",
@@ -40,7 +39,6 @@ cc_defaults {
         "bluetooth_flags_c_lib",
         "libFraunhoferAAC",
         "libbluetooth-dumpsys",
-        "libbluetooth-gdx",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_crypto_toolbox",
@@ -62,6 +60,7 @@ cc_defaults {
         "libbte",
         "libbtif",
         "libbtif-core",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libexpresslog",
         "libflags_rust_cpp_bridge",
         "libg722codec",

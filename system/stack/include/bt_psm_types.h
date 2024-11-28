@@ -70,7 +70,7 @@ inline std::string bt_psm_text(const tBT_PSM& psm) {
 
 inline std::string psm_to_text(uint16_t psm) { return bt_psm_text(static_cast<tBT_PSM>(psm)); }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBT_PSM> : enum_formatter<tBT_PSM> {};
-}  // namespace fmt
+}  // namespace std

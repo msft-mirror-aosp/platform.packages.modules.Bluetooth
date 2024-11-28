@@ -44,18 +44,15 @@
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hcidefs.h"
 #include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_controller_interface.h"
 #include "stack/include/l2cap_hci_link_interface.h"
 #include "stack/include/l2cap_interface.h"
+#include "stack/include/l2cap_security_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/l2cap/l2c_int.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
-
-tL2C_CCB* l2cu_get_next_channel_in_rr(tL2C_LCB* p_lcb);  // TODO Move
 
 /* The offset in a buffer that L2CAP will use when building commands.
  */
@@ -305,7 +302,7 @@ bool l2c_is_cmd_rejected(uint8_t cmd_code, uint8_t signal_id, tL2C_LCB* p_lcb) {
  * Returns          Pointer to allocated packet or NULL if no resources
  *
  ******************************************************************************/
-BT_HDR* l2cu_build_header(tL2C_LCB* p_lcb, uint16_t len, uint8_t cmd, uint8_t signal_id) {
+static BT_HDR* l2cu_build_header(tL2C_LCB* p_lcb, uint16_t len, uint8_t cmd, uint8_t signal_id) {
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(L2CAP_CMD_BUF_SIZE);
   uint8_t* p;
 
@@ -348,7 +345,7 @@ BT_HDR* l2cu_build_header(tL2C_LCB* p_lcb, uint16_t len, uint8_t cmd, uint8_t si
  * Returns          void
  *
  ******************************************************************************/
-void l2cu_adj_id(tL2C_LCB* p_lcb) {
+static void l2cu_adj_id(tL2C_LCB* p_lcb) {
   if (p_lcb->signal_id == 0) {
     p_lcb->signal_id++;
   }
@@ -1168,7 +1165,7 @@ void l2cu_enqueue_ccb(tL2C_CCB* p_ccb) {
 
   if ((!p_ccb->in_use) || (p_q == NULL)) {
     log::error("CID: 0x{:04x} ERROR in_use: {}  p_lcb: {}", p_ccb->local_cid, p_ccb->in_use,
-               fmt::ptr(p_ccb->p_lcb));
+               std::format_ptr(p_ccb->p_lcb));
     return;
   }
 
@@ -1254,8 +1251,8 @@ void l2cu_dequeue_ccb(tL2C_CCB* p_ccb) {
     log::error(
             "l2cu_dequeue_ccb  CID: 0x{:04x} ERROR in_use: {}  p_lcb: 0x{}  p_q: "
             "0x{}  p_q->p_first_ccb: 0x{}",
-            p_ccb->local_cid, p_ccb->in_use, fmt::ptr(p_ccb->p_lcb), fmt::ptr(p_q),
-            fmt::ptr(p_q ? p_q->p_first_ccb : 0));
+            p_ccb->local_cid, p_ccb->in_use, std::format_ptr(p_ccb->p_lcb), std::format_ptr(p_q),
+            std::format_ptr(p_q ? p_q->p_first_ccb : 0));
     return;
   }
 
@@ -1528,7 +1525,7 @@ bool l2cu_start_post_bond_timer(uint16_t handle) {
         timeout_ms = L2CAP_LINK_DISCONNECT_TIMEOUT_MS;
       }
       alarm_set_on_mloop(p_lcb->l2c_lcb_timer, timeout_ms, l2c_lcb_timer_timeout, p_lcb);
-      log::debug("Started link IDLE timeout_ms:{}", (unsigned long)timeout_ms);
+      log::debug("Started link IDLE timeout_ms:{}", timeout_ms);
       return true;
     } break;
 
@@ -2209,28 +2206,6 @@ void l2cu_create_conn_br_edr(tL2C_LCB* p_lcb) {
 
 /*******************************************************************************
  *
- * Function         l2cu_get_num_hi_priority
- *
- * Description      Gets the number of high priority channels.
- *
- * Returns
- *
- ******************************************************************************/
-uint8_t l2cu_get_num_hi_priority(void) {
-  uint8_t no_hi = 0;
-  int xx;
-  tL2C_LCB* p_lcb = &l2cb.lcb_pool[0];
-
-  for (xx = 0; xx < MAX_L2CAP_LINKS; xx++, p_lcb++) {
-    if ((p_lcb->in_use) && (p_lcb->acl_priority == L2CAP_PRIORITY_HIGH)) {
-      no_hi++;
-    }
-  }
-  return no_hi;
-}
-
-/*******************************************************************************
- *
  * Function         l2cu_create_conn_after_switch
  *
  * Description      This continues a connection creation possibly after
@@ -2627,7 +2602,7 @@ void l2cu_resubmit_pending_sec_req(const RawAddress* p_bda) {
   tL2C_CCB* p_next_ccb;
   int xx;
 
-  log::verbose("l2cu_resubmit_pending_sec_req  p_bda: 0x{}", fmt::ptr(p_bda));
+  log::verbose("l2cu_resubmit_pending_sec_req  p_bda: 0x{}", std::format_ptr(p_bda));
 
   /* If we are called with a BDA, only resubmit for that BDA */
   if (p_bda) {
@@ -2852,7 +2827,7 @@ void l2cu_no_dynamic_ccbs(tL2C_LCB* p_lcb) {
 
   if (start_timeout) {
     alarm_set_on_mloop(p_lcb->l2c_lcb_timer, timeout_ms, l2c_lcb_timer_timeout, p_lcb);
-    log::debug("Started link IDLE timeout_ms:{}", (unsigned long)timeout_ms);
+    log::debug("Started link IDLE timeout_ms:{}", timeout_ms);
   } else {
     alarm_cancel(p_lcb->l2c_lcb_timer);
   }

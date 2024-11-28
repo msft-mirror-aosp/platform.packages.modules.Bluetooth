@@ -23,10 +23,14 @@
  ******************************************************************************/
 #include <bluetooth/log.h>
 
+#include <cstddef>
+#include <cstdint>
+
 #include "avct_api.h"
 #include "avct_int.h"
 #include "btif/include/btif_av.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cap_interface.h"
@@ -148,19 +152,18 @@ void avct_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16
 
     /* transition to configuration state */
     p_lcb->ch_state = AVCT_CH_CFG;
+
+    log::debug("Received remote connection request peer:{} lcid:0x{:04x} ch_state:{}", bd_addr,
+               lcid, avct_ch_state_text(p_lcb->ch_state));
   } else {
     /* If we reject the connection, send DisconnectReq */
     if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
       log::warn("Unable to send L2CAP disconnect request peer:{} lcid:0x{:04x}", bd_addr, lcid);
     }
-  }
-
-  if (p_lcb) {
-    log::debug("Received remote connection request peer:{} lcid:0x{:04x} res:{} ch_state:{}",
-               bd_addr, lcid, l2cap_result_code_text(result), avct_ch_state_text(p_lcb->ch_state));
-  } else {
-    log::info("Ignoring remote connection request peer:{} lcid:0x{:04x} res:{} ch_state:{}",
-              bd_addr, lcid, l2cap_result_code_text(result), avct_ch_state_text(p_lcb->ch_state));
+    log::info(
+            "Ignoring remote connection request no link or no resources peer:{} lcid:0x{:04x} "
+            "lcb_exists:{}",
+            bd_addr, lcid, p_lcb != nullptr);
   }
 }
 

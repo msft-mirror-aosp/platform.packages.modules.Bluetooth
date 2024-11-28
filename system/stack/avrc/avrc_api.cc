@@ -27,10 +27,16 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+
+#include "avct_api.h"
+#include "avrc_defs.h"
 #include "avrc_int.h"
+#include "avrcp.sysprop.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_config.h"
 #include "internal_include/bt_target.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
 #include "osi/include/properties.h"
@@ -40,9 +46,6 @@
 #include "stack/include/bt_uuid16.h"
 #include "storage/config_keys.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -84,6 +87,8 @@ static const uint8_t avrc_ctrl_event_map[] = {
 /* Flags definitions for AVRC_MsgReq */
 #define AVRC_MSG_MASK_IS_VENDOR_CMD 0x01
 #define AVRC_MSG_MASK_IS_CONTINUATION_RSP 0x02
+
+static void avrc_start_cmd_timer(uint8_t handle, uint8_t label, uint8_t msg_mask);
 
 /******************************************************************************
  *
@@ -156,7 +161,7 @@ void avrc_flush_cmd_q(uint8_t handle) {
  * Returns          Nothing.
  *
  *****************************************************************************/
-void avrc_process_timeout(void* data) {
+static void avrc_process_timeout(void* data) {
   tAVRC_PARAM* param = (tAVRC_PARAM*)data;
 
   log::verbose("AVRC: command timeout (handle=0x{:02x}, label=0x{:02x})", param->handle,
@@ -194,7 +199,7 @@ void avrc_send_next_vendor_cmd(uint8_t handle) {
     p_next_cmd->layer_specific &= 0xFF;             /* AVCT_DATA_CTRL or AVCT_DATA_BROWSE */
 
     log::verbose("AVRC: Dequeuing command 0x{} (handle=0x{:02x}, label=0x{:02x})",
-                 fmt::ptr(p_next_cmd), handle, next_label);
+                 std::format_ptr(p_next_cmd), handle, next_label);
 
     /* Send the message */
     if ((AVCT_MsgReq(handle, next_label, AVCT_CMD, p_next_cmd)) == AVCT_SUCCESS) {
@@ -219,14 +224,19 @@ void avrc_send_next_vendor_cmd(uint8_t handle) {
  * Returns          Nothing.
  *
  *****************************************************************************/
-void avrc_start_cmd_timer(uint8_t handle, uint8_t label, uint8_t msg_mask) {
+static void avrc_start_cmd_timer(uint8_t handle, uint8_t label, uint8_t msg_mask) {
+  if (!avrc_cb.ccb_int[handle].tle) {
+    log::warn("Unable to start response timer handle=0x{:02x} label=0x{:02x} msg_mask:0x{:02x}",
+              handle, label, msg_mask);
+    return;
+  }
+
   tAVRC_PARAM* param = static_cast<tAVRC_PARAM*>(osi_malloc(sizeof(tAVRC_PARAM)));
   param->handle = handle;
   param->label = label;
   param->msg_mask = msg_mask;
 
-  log::verbose("AVRC: starting timer (handle=0x{:02x}, label=0x{:02x})", handle, label);
-
+  log::verbose("AVRC: starting timer (handle=0x{:02x} label=0x{:02x})", handle, label);
   alarm_set_on_mloop(avrc_cb.ccb_int[handle].tle, AVRC_CMD_TOUT_MS, avrc_process_timeout, param);
 }
 
@@ -382,9 +392,8 @@ static BT_HDR* avrc_proc_vendor_command(uint8_t handle, uint8_t label, BT_HDR* p
     log::error("commands must be in single packet pdu:0x{:x}", *p_data);
     /* use the current GKI buffer to send the reject */
     status = AVRC_STS_BAD_CMD;
-  }
-  /* check if there are fragments waiting to be sent */
-  else if (avrc_cb.fcb[handle].frag_enabled) {
+  } else if (avrc_cb.fcb[handle].frag_enabled) {
+    /* check if there are fragments waiting to be sent */
     p_fcb = &avrc_cb.fcb[handle];
     if (p_msg->company_id == AVRC_CO_METADATA) {
       switch (*p_data) {
@@ -1300,8 +1309,8 @@ uint16_t AVRC_MsgReq(uint8_t handle, uint8_t label, uint8_t ctype, BT_HDR* p_pkt
      * command
      * is received (exception is continuation request command
      * must sent that to get additional response frags) */
-    log::verbose("AVRC: Enqueuing command 0x{} (handle=0x{:02x}, label=0x{:02x})", fmt::ptr(p_pkt),
-                 handle, label);
+    log::verbose("AVRC: Enqueuing command 0x{} (handle=0x{:02x}, label=0x{:02x})",
+                 std::format_ptr(p_pkt), handle, label);
 
     /* label in BT_HDR (will need this later when the command is dequeued) */
     p_pkt->layer_specific = (label << 8) | (p_pkt->layer_specific & 0xFF);

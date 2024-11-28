@@ -21,8 +21,13 @@
 #include <base/threading/thread.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
+#include <stdio.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <mutex>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -31,14 +36,26 @@
 #include "bta/sys/bta_sys.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_common.h"
+#include "hardware/avrcp/avrcp.h"
+#include "hardware/avrcp/avrcp_common.h"
+#include "internal_include/bt_target.h"
 #include "osi/include/osi.h"
 #include "profile/avrcp/avrcp_config.h"
+#include "profile/avrcp/avrcp_internal.h"
+#include "profile/avrcp/avrcp_sdp_records.h"
+#include "profile/avrcp/avrcp_sdp_service.h"
 #include "profile/avrcp/device.h"
 #include "stack/include/a2dp_api.h"
+#include "stack/include/avct_api.h"
+#include "stack/include/avrc_api.h"
+#include "stack/include/avrc_defs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/sdp_api.h"
+#include "stack/include/sdp_callback.h"
+#include "stack/include/sdpdefs.h"
+#include "stack/sdp/sdp_discovery_db.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
@@ -227,7 +244,8 @@ public:
             base::Bind(&MediaInterface::GetAddressedPlayer, base::Unretained(wrapped_), bound_cb));
   }
 
-  void SetBrowsedPlayer(uint16_t player_id, SetBrowsedPlayerCallback browse_cb) override {
+  void SetBrowsedPlayer(uint16_t player_id, std::string current_path,
+                        SetBrowsedPlayerCallback browse_cb) override {
     auto cb_lambda = [](SetBrowsedPlayerCallback cb, bool success, std::string root_id,
                         uint32_t num_items) {
       do_in_main_thread(base::BindOnce(cb, success, root_id, num_items));
@@ -236,7 +254,7 @@ public:
     auto bound_cb = base::Bind(cb_lambda, browse_cb);
 
     do_in_jni_thread(base::Bind(&MediaInterface::SetBrowsedPlayer, base::Unretained(wrapped_),
-                                player_id, bound_cb));
+                                player_id, current_path, bound_cb));
   }
 
   void SetAddressedPlayer(uint16_t player_id, SetAddressedPlayerCallback addressed_cb) override {

@@ -201,10 +201,11 @@ void rfc_send_buf_uih(tRFC_MCB* p_mcb, uint8_t dlci, BT_HDR* p_buf) {
   if (dlci == RFCOMM_MX_DLCI) {
     rfc_check_send_cmd(p_mcb, p_buf);
   } else {
+    uint16_t len = p_buf->len;
     if (stack::l2cap::get_interface().L2CA_DataWrite(p_mcb->lcid, p_buf) !=
         tL2CAP_DW_RESULT::SUCCESS) {
       log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_mcb->bd_addr, p_mcb->lcid,
-                p_buf->len);
+                len);
     }
   }
 }
@@ -683,7 +684,7 @@ void rfc_process_mx_message(tRFC_MCB* p_mcb, BT_HDR* p_buf) {
   }
 
   if (mx_len != length) {
-    log::error("Bad MX frame, p_mcb={}, bd_addr={}", fmt::ptr(p_mcb), p_mcb->bd_addr);
+    log::error("Bad MX frame, p_mcb={}, bd_addr={}", std::format_ptr(p_mcb), p_mcb->bd_addr);
     osi_free(p_buf);
     return;
   }
@@ -692,7 +693,8 @@ void rfc_process_mx_message(tRFC_MCB* p_mcb, BT_HDR* p_buf) {
   switch (p_rx_frame->type) {
     case RFCOMM_MX_PN:
       if (length != RFCOMM_MX_PN_LEN) {
-        log::error("Invalid PN length, p_mcb={}, bd_addr={}", fmt::ptr(p_mcb), p_mcb->bd_addr);
+        log::error("Invalid PN length, p_mcb={}, bd_addr={}", std::format_ptr(p_mcb),
+                   p_mcb->bd_addr);
         break;
       }
 
@@ -708,7 +710,7 @@ void rfc_process_mx_message(tRFC_MCB* p_mcb, BT_HDR* p_buf) {
 
       if (!p_rx_frame->dlci || !RFCOMM_VALID_DLCI(p_rx_frame->dlci) ||
           (p_rx_frame->u.pn.mtu < RFCOMM_MIN_MTU) || (p_rx_frame->u.pn.mtu > RFCOMM_MAX_MTU)) {
-        log::error("Bad PN frame, p_mcb={}, bd_addr={}", fmt::ptr(p_mcb), p_mcb->bd_addr);
+        log::error("Bad PN frame, p_mcb={}, bd_addr={}", std::format_ptr(p_mcb), p_mcb->bd_addr);
         break;
       }
 

@@ -44,6 +44,7 @@ using ::aidl::android::hardware::bluetooth::audio::A2dpRemoteCapabilities;
 using ::aidl::android::hardware::bluetooth::audio::A2dpStatus;
 using ::aidl::android::hardware::bluetooth::audio::AudioCapabilities;
 using ::aidl::android::hardware::bluetooth::audio::AudioConfiguration;
+using ::aidl::android::hardware::bluetooth::audio::BluetoothAudioStatus;
 using ::aidl::android::hardware::bluetooth::audio::CodecId;
 using ::aidl::android::hardware::bluetooth::audio::CodecInfo;
 using ::aidl::android::hardware::bluetooth::audio::CodecParameters;
@@ -65,18 +66,16 @@ using MqDataMode = SynchronizedReadWrite;
 using DataMQ = AidlMessageQueue<MqDataType, MqDataMode>;
 using DataMQDesc = MQDescriptor<MqDataType, MqDataMode>;
 
-inline ::aidl::android::hardware::bluetooth::audio::BluetoothAudioStatus
-BluetoothAudioStatusToHalStatus(BluetoothAudioStatus ack) {
+inline BluetoothAudioStatus StatusToHalStatus(Status ack) {
   switch (ack) {
-    case BluetoothAudioStatus::SUCCESS:
-      return ::aidl::android::hardware::bluetooth::audio::BluetoothAudioStatus::SUCCESS;
-    case BluetoothAudioStatus::UNSUPPORTED_CODEC_CONFIGURATION:
-      return ::aidl::android::hardware::bluetooth::audio::BluetoothAudioStatus::
-              UNSUPPORTED_CODEC_CONFIGURATION;
-    case BluetoothAudioStatus::PENDING:
-    case BluetoothAudioStatus::FAILURE:
+    case Status::SUCCESS:
+      return BluetoothAudioStatus::SUCCESS;
+    case Status::UNSUPPORTED_CODEC_CONFIGURATION:
+      return BluetoothAudioStatus::UNSUPPORTED_CODEC_CONFIGURATION;
+    case Status::PENDING:
+    case Status::FAILURE:
     default:
-      return ::aidl::android::hardware::bluetooth::audio::BluetoothAudioStatus::FAILURE;
+      return BluetoothAudioStatus::FAILURE;
   }
 }
 
@@ -108,9 +107,9 @@ public:
           std::vector<A2dpRemoteCapabilities> const& remote_capabilities,
           A2dpConfigurationHint const& hint) const;
 
-  void StreamStarted(const BluetoothAudioStatus& ack);
+  void StreamStarted(const Status& ack);
 
-  void StreamSuspended(const BluetoothAudioStatus& ack);
+  void StreamSuspended(const Status& ack);
 
   int StartSession();
 

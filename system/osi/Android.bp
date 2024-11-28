@@ -92,6 +92,7 @@ cc_library_static {
         "libaconfig_storage_read_api_cc",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "server_configurable_flags",
     ],
 }
@@ -145,6 +146,7 @@ cc_test {
         "libbluetooth_log",
         "libbt-common",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libevent",
         "libgmock",
         "libosi",

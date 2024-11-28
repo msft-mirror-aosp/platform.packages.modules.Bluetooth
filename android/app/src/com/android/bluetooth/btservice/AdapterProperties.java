@@ -30,6 +30,7 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothMap;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSap;
+import android.bluetooth.BluetoothUtils;
 import android.bluetooth.BufferConstraint;
 import android.bluetooth.BufferConstraints;
 import android.content.Context;
@@ -651,7 +652,8 @@ class AdapterProperties {
                                         BluetoothAdapter.EXTRA_PREVIOUS_CONNECTION_STATE,
                                         prevAdapterState)
                                 .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-                logProfileConnectionStateChange(device, newState, prevState);
+                MetricsLogger.getInstance()
+                        .logProfileConnectionStateChange(device, profile, newState, prevState);
                 Log.d(TAG, "updateOnProfileConnectionChanged: " + logInfo);
                 mService.sendBroadcastAsUser(
                         intent,
@@ -662,33 +664,7 @@ class AdapterProperties {
         }
     }
 
-    private void logProfileConnectionStateChange(BluetoothDevice device, int state, int prevState) {
 
-        switch (state) {
-            case BluetoothAdapter.STATE_CONNECTED:
-                MetricsLogger.getInstance()
-                        .logBluetoothEvent(
-                                device,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__SUCCESS,
-                                0);
-                break;
-            case BluetoothAdapter.STATE_DISCONNECTED:
-                if (prevState == BluetoothAdapter.STATE_CONNECTING) {
-                    MetricsLogger.getInstance()
-                            .logBluetoothEvent(
-                                    device,
-                                    BluetoothStatsLog
-                                            .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__PROFILE_CONNECTION,
-                                    BluetoothStatsLog
-                                            .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__FAIL,
-                                    0);
-                }
-                break;
-        }
-    }
 
     private boolean validateProfileConnectionState(int state) {
         return (state == BluetoothProfile.STATE_DISCONNECTED
@@ -1102,7 +1078,7 @@ class AdapterProperties {
     protected void dump(FileDescriptor fd, PrintWriter writer, String[] args) {
         writer.println(TAG);
         writer.println("  " + "Name: " + getName());
-        writer.println("  " + "Address: " + Utils.getAddressStringFromByte(mAddress));
+        writer.println("  " + "Address: " + Utils.getRedactedAddressStringFromByte(mAddress));
         writer.println("  " + "ConnectionState: " + dumpConnectionState(getConnectionState()));
         writer.println("  " + "State: " + BluetoothAdapter.nameForState(getState()));
         writer.println("  " + "MaxConnectedAudioDevices: " + getMaxConnectedAudioDevices());
@@ -1121,7 +1097,7 @@ class AdapterProperties {
             if (brEdrAddress.equals(address)) {
                 writer.println(
                         "    "
-                                + address
+                                + BluetoothUtils.toAnonymizedAddress(address)
                                 + " ["
                                 + dumpDeviceType(mRemoteDevices.getType(device))
                                 + "][ 0x"
@@ -1130,9 +1106,9 @@ class AdapterProperties {
                                 + Utils.getName(device));
             } else {
                 sb.append("    ")
-                        .append(address)
+                        .append(BluetoothUtils.toAnonymizedAddress(address))
                         .append(" => ")
-                        .append(brEdrAddress)
+                        .append(BluetoothUtils.toAnonymizedAddress(brEdrAddress))
                         .append(" [")
                         .append(dumpDeviceType(mRemoteDevices.getType(device)))
                         .append("][ 0x")

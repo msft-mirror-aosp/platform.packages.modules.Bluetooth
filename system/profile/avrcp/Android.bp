@@ -81,6 +81,7 @@ cc_test {
         "libbluetooth_log",
         "libbtdevice",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libcutils",
         "libevent",
         "libgmock",

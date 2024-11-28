@@ -26,12 +26,18 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+#include <string>
+
 #include "avct_api.h"
 #include "avct_int.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
 #include "include/macros.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
 #include "osi/include/allocator.h"
+#include "osi/include/fixed_queue.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -90,10 +96,23 @@ typedef void (*tAVCT_LCB_ACTION)(tAVCT_LCB* p_ccb, tAVCT_LCB_EVT* p_data);
 
 /* action function list */
 const tAVCT_LCB_ACTION avct_lcb_action[] = {
-        avct_lcb_chnl_open, avct_lcb_chnl_disc,   avct_lcb_send_msg,  avct_lcb_open_ind,
-        avct_lcb_open_fail, avct_lcb_close_ind,   avct_lcb_close_cfm, avct_lcb_msg_ind,
-        avct_lcb_cong_ind,  avct_lcb_bind_conn,   avct_lcb_bind_fail, avct_lcb_unbind_disc,
-        avct_lcb_chk_disc,  avct_lcb_discard_msg, avct_lcb_dealloc,   avct_lcb_free_msg_ind};
+        avct_lcb_chnl_open,    // AVCT_LCB_CHNL_OPEN
+        avct_lcb_chnl_disc,    // AVCT_LCB_CHNL_DISC
+        avct_lcb_send_msg,     // AVCT_LCB_SEND_MSG
+        avct_lcb_open_ind,     // AVCT_LCB_OPEN_IND
+        avct_lcb_open_fail,    // AVCT_LCB_OPEN_FAIL
+        avct_lcb_close_ind,    // AVCT_LCB_CLOSE_IND
+        avct_lcb_close_cfm,    // AVCT_LCB_CLOSE_CFM
+        avct_lcb_msg_ind,      // AVCT_LCB_MSG_IND
+        avct_lcb_cong_ind,     // AVCT_LCB_CONG_IND
+        avct_lcb_bind_conn,    // AVCT_LCB_BIND_CONN
+        avct_lcb_bind_fail,    // AVCT_LCB_BIND_FAIL
+        avct_lcb_unbind_disc,  // AVCT_LCB_UNBIND_DISC
+        avct_lcb_chk_disc,     // AVCT_LCB_CHK_DISC
+        avct_lcb_discard_msg,  // AVCT_LCB_DISCARD_MSG
+        avct_lcb_dealloc,      // AVCT_LCB_DEALLOC
+        avct_lcb_free_msg_ind  // AVCT_LCB_FREE_MSG_IND
+};
 
 /* state table information */
 #define AVCT_LCB_ACTIONS 2    /* number of actions */
@@ -314,7 +333,7 @@ void avct_lcb_dealloc(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* /* p_data */) {
   // If not, de-allocate now...
 
   log::verbose("Freeing LCB");
-  osi_free(p_lcb->p_rx_msg);
+  osi_free_and_reset((void**)&(p_lcb->p_rx_msg));
   fixed_queue_free(p_lcb->tx_q, NULL);
   memset(p_lcb, 0, sizeof(tAVCT_LCB));
 }
@@ -341,8 +360,8 @@ tAVCT_LCB* avct_lcb_by_lcid(uint16_t lcid) {
 
   if (i == AVCT_NUM_LINKS) {
     /* out of lcbs */
-    p_lcb = NULL;
-    log::warn("No lcb for lcid {:x}", lcid);
+    p_lcb = nullptr;
+    log::warn("No lcb for lcid 0x{:04x}", lcid);
   }
 
   return p_lcb;

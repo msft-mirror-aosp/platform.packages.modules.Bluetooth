@@ -18,15 +18,13 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "avrc_api.h"
 #include "avrc_defs.h"
 #include "avrc_int.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
 #include "stack/include/bt_types.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -132,7 +130,8 @@ static tAVRC_STS avrc_pars_vendor_rsp(tAVRC_MSG_VENDOR* p_msg, tAVRC_RESPONSE* p
   return status;
 }
 
-tAVRC_STS avrc_parse_notification_rsp(uint8_t* p_stream, uint16_t len, tAVRC_REG_NOTIF_RSP* p_rsp) {
+static tAVRC_STS avrc_parse_notification_rsp(uint8_t* p_stream, uint16_t len,
+                                             tAVRC_REG_NOTIF_RSP* p_rsp) {
   uint32_t min_len = 1;
 
   if (len < min_len) {

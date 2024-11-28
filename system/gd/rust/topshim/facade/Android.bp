@@ -32,13 +32,13 @@ rust_defaults {
         "libtokio",
     ],
     static_libs: [
+        "aics",
         "avrcp-target-service",
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libFraunhoferAAC",
         "libbluetooth-dumpsys",
-        "libbluetooth-gdx",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd", // Gabeldorsche
@@ -73,6 +73,7 @@ rust_defaults {
     ],
     shared_libs: [
         "libaconfig_storage_read_api_cc",
+        "libbinder",
         "libcrypto",
         "libcutils",
         "libgrpc++",
