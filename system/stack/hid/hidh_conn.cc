@@ -24,6 +24,7 @@
 
 #include <base/functional/callback.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 #include <string.h>
 
@@ -70,6 +71,8 @@ static void hidh_l2cif_connect_cfm(uint16_t l2cap_cid, tL2CAP_CONN result);
 static void hidh_l2cif_config_ind(uint16_t l2cap_cid, tL2CAP_CFG_INFO* p_cfg);
 static void hidh_l2cif_config_cfm(uint16_t l2cap_cid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
 static void hidh_l2cif_disconnect_ind(uint16_t l2cap_cid, bool ack_needed);
+static void hidh_l2cif_disconnect_cfm(uint16_t l2cap_cid, uint16_t result);
+static void hidh_l2cif_disconnect_cfm_actual(uint16_t l2cap_cid, uint16_t result);
 static void hidh_l2cif_data_ind(uint16_t l2cap_cid, BT_HDR* p_msg);
 static void hidh_l2cif_disconnect(uint16_t l2cap_cid);
 static void hidh_l2cif_cong_ind(uint16_t l2cap_cid, bool congested);
@@ -81,6 +84,7 @@ static const tL2CAP_APPL_INFO hst_reg_info = {
         .pL2CA_ConfigInd_Cb = hidh_l2cif_config_ind,
         .pL2CA_ConfigCfm_Cb = hidh_l2cif_config_cfm,
         .pL2CA_DisconnectInd_Cb = hidh_l2cif_disconnect_ind,
+        .pL2CA_DisconnectCfm_Cb = hidh_l2cif_disconnect_cfm,
         .pL2CA_DataInd_Cb = hidh_l2cif_data_ind,
         .pL2CA_CongestionStatus_Cb = hidh_l2cif_cong_ind,
         .pL2CA_TxComplete_Cb = nullptr,
@@ -160,7 +164,7 @@ tHID_STATUS hidh_conn_disconnect(uint8_t dhandle) {
                                                                    BT_TRANSPORT_BR_EDR)) {
       log::warn("Unable to set L2CAP idle timeout peer:{}", hh_cb.devices[dhandle].addr);
     }
-    /* Disconnect both interrupt and control channels */
+    /* Disconnect channels one by one */
     if (p_hcon->intr_cid) {
       hidh_l2cif_disconnect(p_hcon->intr_cid);
     } else if (p_hcon->ctrl_cid) {
@@ -553,11 +557,38 @@ static void hidh_l2cif_disconnect_ind(uint16_t l2cap_cid, bool ack_needed) {
   }
 }
 
+// TODO: after disconnect_hid_channels_serially aflags is the default,
+//       remove this function and call L2CA_DisconnectReq directly.
 static void hidh_l2cif_disconnect(uint16_t l2cap_cid) {
   if (!stack::l2cap::get_interface().L2CA_DisconnectReq(l2cap_cid)) {
     log::warn("Unable to send L2CAP disconnect request cid:{}", l2cap_cid);
   }
 
+  if (!com::android::bluetooth::flags::disconnect_hid_channels_serially()) {
+    hidh_l2cif_disconnect_cfm_actual(l2cap_cid, 0);
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         hidh_l2cif_disconnect_cfm
+ *
+ * Description      This function handles a disconnect confirm from L2CAP. This
+ *                  means our disconnection request has been acknowledged, so we
+ *                  can disconnect the other channel, if required.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+static void hidh_l2cif_disconnect_cfm(uint16_t l2cap_cid, uint16_t result) {
+  if (com::android::bluetooth::flags::disconnect_hid_channels_serially()) {
+    hidh_l2cif_disconnect_cfm_actual(l2cap_cid, result);
+  }
+}
+
+// TODO: after disconnect_hid_channels_serially aflags is the default,
+//       copy the body to hidh_l2cif_disconnect_cfm and remove this.
+static void hidh_l2cif_disconnect_cfm_actual(uint16_t l2cap_cid, uint16_t /* result */) {
   /* Find CCB based on CID */
   const uint8_t dhandle = find_conn_by_cid(l2cap_cid);
   if (dhandle == kHID_HOST_MAX_DEVICES) {
