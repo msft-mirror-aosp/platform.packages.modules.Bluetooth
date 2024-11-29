@@ -180,7 +180,7 @@ bt_status_t btif_storage_remove_bonded_device(const RawAddress* remote_bd_addr);
  *                  It also invokes invoke_address_consolidate_cb
  *                  to consolidate each Dual Mode device and
  *                  invoke_le_address_associate_cb to associate each LE-only
- *                  device between its RPA and identity address.
+ *                  device between its RPA, identity address, and identity address type.
  *
  ******************************************************************************/
 void btif_storage_load_le_devices(void);

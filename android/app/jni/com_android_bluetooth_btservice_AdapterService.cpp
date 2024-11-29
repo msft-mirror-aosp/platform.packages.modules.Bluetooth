@@ -403,7 +403,8 @@ static void address_consolidate_callback(RawAddress* main_bd_addr, RawAddress* s
                                secondary_addr.get());
 }
 
-static void le_address_associate_callback(RawAddress* main_bd_addr, RawAddress* secondary_bd_addr) {
+static void le_address_associate_callback(RawAddress* main_bd_addr, RawAddress* secondary_bd_addr,
+                                          uint8_t identity_address_type) {
   std::shared_lock<std::shared_timed_mutex> lock(jniObjMutex);
   if (!sJniCallbacksObj) {
     log::error("JNI obj is null. Failed to call JNI callback");
@@ -432,7 +433,7 @@ static void le_address_associate_callback(RawAddress* main_bd_addr, RawAddress* 
                                    reinterpret_cast<jbyte*>(secondary_bd_addr));
 
   sCallbackEnv->CallVoidMethod(sJniCallbacksObj, method_leAddressAssociateCallback, main_addr.get(),
-                               secondary_addr.get());
+                               secondary_addr.get(), (jint)identity_address_type);
 }
 
 static void acl_state_changed_callback(bt_status_t status, RawAddress* bd_addr,
@@ -2301,7 +2302,6 @@ int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
           {"allowWakeByHidNative", "()Z", reinterpret_cast<void*>(allowWakeByHidNative)},
           {"restoreFilterAcceptListNative", "()Z",
            reinterpret_cast<void*>(restoreFilterAcceptListNative)},
-
   };
   const int result = REGISTER_NATIVE_METHODS(
           env, "com/android/bluetooth/btservice/AdapterNativeInterface", methods);
@@ -2327,7 +2327,7 @@ int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
           {"sspRequestCallback", "([BII)V", &method_sspRequestCallback},
           {"bondStateChangeCallback", "(I[BII)V", &method_bondStateChangeCallback},
           {"addressConsolidateCallback", "([B[B)V", &method_addressConsolidateCallback},
-          {"leAddressAssociateCallback", "([B[B)V", &method_leAddressAssociateCallback},
+          {"leAddressAssociateCallback", "([B[BI)V", &method_leAddressAssociateCallback},
           {"aclStateChangeCallback", "(I[BIIII)V", &method_aclStateChangeCallback},
           {"linkQualityReportCallback", "(JIIIIII)V", &method_linkQualityReportCallback},
           {"switchBufferSizeCallback", "(Z)V", &method_switchBufferSizeCallback},

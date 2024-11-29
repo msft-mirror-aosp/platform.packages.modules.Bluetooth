@@ -545,9 +545,10 @@ typedef void (*address_consolidate_callback)(RawAddress* main_bd_addr,
 
 /** Bluetooth LE Address association callback */
 /* Callback for the upper layer to associate the LE-only device's RPA to the
- * identity address */
+ * identity address and identity address type */
 typedef void (*le_address_associate_callback)(RawAddress* main_bd_addr,
-                                              RawAddress* secondary_bd_addr);
+                                              RawAddress* secondary_bd_addr,
+                                              uint8_t identity_address_type);
 
 /** Bluetooth ACL connection state changed callback */
 typedef void (*acl_state_changed_callback)(bt_status_t status, RawAddress* remote_bd_addr,

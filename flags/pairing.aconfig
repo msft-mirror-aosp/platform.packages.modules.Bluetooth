@@ -230,3 +230,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "remove_device_in_main_thread"
+    namespace: "bluetooth"
+    description: "Device must be removed in main thread"
+    bug: "381275933"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
