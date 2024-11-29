@@ -2182,12 +2182,14 @@ void btif_dm_sec_evt(tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
 
     case BTA_DM_LE_ADDR_ASSOC_EVT:
       GetInterfaceToProfiles()->events->invoke_le_address_associate_cb(
-              p_data->proc_id_addr.pairing_bda, p_data->proc_id_addr.id_addr);
+              p_data->proc_id_addr.pairing_bda, p_data->proc_id_addr.id_addr,
+              p_data->proc_id_addr.id_addr_type);
       break;
 
     case BTA_DM_SIRK_VERIFICATION_REQ_EVT:
       GetInterfaceToProfiles()->events->invoke_le_address_associate_cb(
-              p_data->proc_id_addr.pairing_bda, p_data->proc_id_addr.id_addr);
+              p_data->proc_id_addr.pairing_bda, p_data->proc_id_addr.id_addr,
+              p_data->proc_id_addr.id_addr_type);
       break;
 
     case BTA_DM_KEY_MISSING_EVT:
