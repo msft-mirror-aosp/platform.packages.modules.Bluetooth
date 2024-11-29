@@ -23,6 +23,7 @@ import android.content.ContentProviderResult;
 import android.content.ContentValues;
 import android.content.OperationApplicationException;
 import android.database.Cursor;
+import android.database.MatrixCursor;
 import android.net.Uri;
 import android.provider.CallLog;
 import android.provider.CallLog.Calls;
@@ -72,14 +73,21 @@ public class FakeContactsProvider extends MockContentProvider {
         String mAccountName;
         boolean mStarred;
         String mPhonebook;
+        int mTimesContacted;
 
         public FakeRawContact(
-                int id, String accountType, String accountName, boolean starred, String phonebook) {
+                int id,
+                String accountType,
+                String accountName,
+                boolean starred,
+                int timesContacted,
+                String phonebook) {
             mId = id;
             mAccountType = accountType;
             mAccountName = accountName;
             mStarred = starred;
             mPhonebook = phonebook;
+            mTimesContacted = timesContacted;
             mUri = RawContacts.CONTENT_URI.buildUpon().appendPath(String.valueOf(mId)).build();
         }
 
@@ -103,12 +111,20 @@ public class FakeContactsProvider extends MockContentProvider {
             return mStarred;
         }
 
+        public int getTimesContacted() {
+            return mTimesContacted;
+        }
+
         public Uri getUri() {
             return mUri;
         }
 
         public void setPhonebook(String phonebook) {
             mPhonebook = phonebook;
+        }
+
+        public void setTimesContacted(int timesContacted) {
+            mTimesContacted = timesContacted;
         }
     }
 
@@ -242,7 +258,7 @@ public class FakeContactsProvider extends MockContentProvider {
             String phone) {
         int rawContactId = getNextId();
         FakeRawContact contact =
-                new FakeRawContact(rawContactId, accountType, accountName, favorite, phonebook);
+                new FakeRawContact(rawContactId, accountType, accountName, favorite, 0, phonebook);
         mRawContacts.put(contact.getId(), contact);
 
         int id = getNextId();
@@ -305,6 +321,7 @@ public class FakeContactsProvider extends MockContentProvider {
                             accountType,
                             accountName,
                             (starred == null ? false : starred.booleanValue()),
+                            0,
                             null);
             mRawContacts.put(id, contact);
 
@@ -340,15 +357,30 @@ public class FakeContactsProvider extends MockContentProvider {
 
     @Override
     public int update(Uri uri, ContentValues values, String where, String[] selectionArgs) {
-        // Update type 1: by where clause, raw contact ID, updates the SYNC1 field with a
-        // phonebook type
+        // Update type 1: by where clause, raw contact ID, either SYNC1 or times contacted
         if (where.contains(RawContacts._ID)) {
             int rawContactId = Integer.parseInt(selectionArgs[0]);
             FakeRawContact contact = mRawContacts.get(rawContactId);
-            String phonebook = values.getAsString(RawContacts.SYNC1);
-            contact.setPhonebook(phonebook);
-            mRawContacts.put(rawContactId, contact);
-            return 1;
+
+            // Update the SYNC1 field with a phonebook type
+            if (values.containsKey(RawContacts.SYNC1)) {
+                String phonebook = values.getAsString(RawContacts.SYNC1);
+                contact.setPhonebook(phonebook);
+                mRawContacts.put(rawContactId, contact);
+                return 1;
+            }
+
+            // Update the TIMES_CONTACTED field with the number of times contacted
+            if (values.containsKey(RawContacts.TIMES_CONTACTED)) {
+                Integer timesContacted = values.getAsInteger(RawContacts.TIMES_CONTACTED);
+                if (timesContacted != null) {
+                    contact.setTimesContacted(timesContacted.intValue());
+                } else {
+                    contact.setTimesContacted(0);
+                }
+                mRawContacts.put(rawContactId, contact);
+                return 1;
+            }
         }
 
         return 0;
@@ -447,8 +479,31 @@ public class FakeContactsProvider extends MockContentProvider {
             String selection,
             String[] selectionArgs,
             String sortOrder) {
-        Cursor cursor = mock(Cursor.class);
-        return cursor;
+        // Ignore bad URIs
+        if (uri == null) {
+            return null;
+        }
+
+        // Use a UriMatcher if we begin to support many paths. For now though, this works just fine
+        if (uri.toString().contains(ContactsContract.PhoneLookup.CONTENT_FILTER_URI.toString())) {
+            MatrixCursor cursor =
+                    new MatrixCursor(new String[] {ContactsContract.PhoneLookup.CONTACT_ID});
+
+            String phoneNumber = uri.getLastPathSegment();
+            if (phoneNumber != null) {
+                for (int i = mData.size() - 1; i >= 0; i--) {
+                    FakeData data = mData.valueAt(i);
+                    if (data.getFields().containsKey(Phone.DATA)
+                            && phoneNumber.equals(data.getField(Phone.DATA))) {
+                        cursor.addRow(new Object[] {data.getRawContactId()});
+                    }
+                }
+            }
+            return cursor;
+        }
+
+        // Default: return a mock
+        return mock(Cursor.class);
     }
 
     // *********************************************************************************************

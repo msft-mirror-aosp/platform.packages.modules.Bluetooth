@@ -857,6 +857,7 @@ class PbapClientStateMachine extends StateMachine {
             case BluetoothProfile.STATE_CONNECTED:
                 onConnectionStateChanged(BluetoothProfile.STATE_DISCONNECTING);
                 // intentional fallthrough-- we want to broadcast both state changes
+            case BluetoothProfile.STATE_CONNECTING:
             case BluetoothProfile.STATE_DISCONNECTING:
                 onConnectionStateChanged(BluetoothProfile.STATE_DISCONNECTED);
                 cleanup();

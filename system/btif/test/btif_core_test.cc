@@ -152,7 +152,8 @@ void bond_state_changed_callback(bt_status_t /* status */, RawAddress* /* remote
 void address_consolidate_callback(RawAddress* /* main_bd_addr */,
                                   RawAddress* /* secondary_bd_addr */) {}
 void le_address_associate_callback(RawAddress* /* main_bd_addr */,
-                                   RawAddress* /* secondary_bd_addr */) {}
+                                   RawAddress* /* secondary_bd_addr */,
+                                   uint8_t /* identity_address_type */) {}
 void acl_state_changed_callback(bt_status_t /* status */, RawAddress* /* remote_bd_addr */,
                                 bt_acl_state_t /* state */, int /* transport_link_type */,
                                 bt_hci_error_code_t /* hci_reason */,
