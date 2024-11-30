@@ -40,6 +40,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_addr.h"
 #include "stack/include/gap_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "types/ble_address_with_type.h"
 #include "types/bluetooth/uuid.h"
@@ -257,9 +258,13 @@ public:
       log::debug("no ongoing measurement, skip");
       return;
     }
-    tracker->conn_interval_ = evt.interval;
-    log::info("conn interval is updated as {}", evt.interval);
-    callbacks_->OnConnIntervalUpdated(tracker->address_for_cs_, tracker->conn_interval_);
+    if (tracker->conn_interval_ != evt.interval) {
+      tracker->conn_interval_ = evt.interval;
+      log::info("conn interval is updated as {}", evt.interval);
+      callbacks_->OnConnIntervalUpdated(tracker->address_for_cs_, tracker->conn_interval_);
+    } else {
+      log::debug("conn interval was not updated");
+    }
   }
 
   void OnGattConnected(const tBTA_GATTC_OPEN& evt) {
@@ -285,6 +290,9 @@ public:
     }
     tracker->conn_id_ = evt.conn_id;
     tracker->is_connected_ = true;
+    tracker->conn_interval_ =
+            bluetooth::stack::l2cap::get_interface().L2CA_GetBleConnInterval(tracker->address_);
+    log::debug("The initial conn interval {}", tracker->conn_interval_);
     log::info("Search service");
     BTA_GATTC_ServiceSearchRequest(tracker->conn_id_, kRangingService);
   }

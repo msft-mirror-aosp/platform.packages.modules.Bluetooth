@@ -638,6 +638,7 @@ public:
    ******************************************************************************/
   virtual void L2CA_Consolidate(const RawAddress& identity_addr, const RawAddress& rpa) = 0;
   virtual tHCI_ROLE L2CA_GetBleConnRole(const RawAddress& bd_addr) = 0;
+  virtual uint16_t L2CA_GetBleConnInterval(const RawAddress& bd_addr) = 0;
 
   /*******************************************************************************
    **
