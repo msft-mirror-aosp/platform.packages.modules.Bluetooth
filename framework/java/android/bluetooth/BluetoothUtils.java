@@ -338,15 +338,12 @@ public final class BluetoothUtils {
      * @hide
      */
     public static void executeFromBinder(@NonNull Executor executor, @NonNull Runnable callback) {
-        executor.execute(
-                () -> {
-                    final long identity = Binder.clearCallingIdentity();
-                    try {
-                        callback.run();
-                    } finally {
-                        Binder.restoreCallingIdentity(identity);
-                    }
-                });
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            executor.execute(() -> callback.run());
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
     }
 
     /** A {@link Consumer} that automatically logs {@link RemoteException} @hide */

@@ -99,7 +99,7 @@ void end_session() {
   }
 }
 
-void ack_stream_started(BluetoothAudioStatus status) {
+void ack_stream_started(Status status) {
   if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
     hidl::a2dp::ack_stream_started(status);
     return;
@@ -107,7 +107,7 @@ void ack_stream_started(BluetoothAudioStatus status) {
   return aidl::a2dp::ack_stream_started(status);
 }
 
-void ack_stream_suspended(BluetoothAudioStatus status) {
+void ack_stream_suspended(Status status) {
   if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
     hidl::a2dp::ack_stream_suspended(status);
     return;

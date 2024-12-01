@@ -284,7 +284,6 @@ package android.bluetooth {
     field @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public static final String ACTION_CONNECTION_ACCESS_CANCEL = "android.bluetooth.device.action.CONNECTION_ACCESS_CANCEL";
     field @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public static final String ACTION_CONNECTION_ACCESS_REPLY = "android.bluetooth.device.action.CONNECTION_ACCESS_REPLY";
     field @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public static final String ACTION_CONNECTION_ACCESS_REQUEST = "android.bluetooth.device.action.CONNECTION_ACCESS_REQUEST";
-    field @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public static final String ACTION_KEY_MISSING = "android.bluetooth.device.action.KEY_MISSING";
     field @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public static final String ACTION_PAIRING_CANCEL = "android.bluetooth.device.action.PAIRING_CANCEL";
     field @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public static final String ACTION_SILENCE_MODE_CHANGED = "android.bluetooth.device.action.SILENCE_MODE_CHANGED";
     field @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}) public static final String ACTION_SWITCH_BUFFER_SIZE = "android.bluetooth.device.action.SWITCH_BUFFER_SIZE";
@@ -942,7 +941,9 @@ package android.bluetooth {
     field public static final int QUALITY_REPORT_ID_A2DP_CHOPPY = 3; // 0x3
     field public static final int QUALITY_REPORT_ID_APPROACH_LSTO = 2; // 0x2
     field public static final int QUALITY_REPORT_ID_CONN_FAIL = 8; // 0x8
+    field @FlaggedApi("com.android.bluetooth.flags.support_bluetooth_quality_report_v6") public static final int QUALITY_REPORT_ID_ENERGY_MONITOR = 6; // 0x6
     field public static final int QUALITY_REPORT_ID_MONITOR = 1; // 0x1
+    field @FlaggedApi("com.android.bluetooth.flags.support_bluetooth_quality_report_v6") public static final int QUALITY_REPORT_ID_RF_STATS = 9; // 0x9
     field public static final int QUALITY_REPORT_ID_SCO_CHOPPY = 4; // 0x4
   }
 
@@ -951,8 +952,10 @@ package android.bluetooth {
     method public int describeContents();
     method public int getAfhSelectUnidealChannelCount();
     method public int getCalFailedItemCount();
+    method @FlaggedApi("com.android.bluetooth.flags.support_bluetooth_quality_report_v6") public int getCoexInfoMask();
     method public int getConnectionHandle();
     method public int getConnectionRole();
+    method @FlaggedApi("com.android.bluetooth.flags.support_bluetooth_quality_report_v6") public long getCrcErrorPackets();
     method public long getFlowOffCount();
     method public long getLastFlowOnTimestamp();
     method public long getLastTxAckTimestamp();
@@ -964,8 +967,14 @@ package android.bluetooth {
     method public long getPiconetClock();
     method public long getRetransmissionCount();
     method public int getRssi();
+    method @FlaggedApi("com.android.bluetooth.flags.support_bluetooth_quality_report_v6") public long getRxDupPackets();
+    method @FlaggedApi("com.android.bluetooth.flags.support_bluetooth_quality_report_v6") public long getRxUnRecvPackets();
     method public int getSnr();
+    method @FlaggedApi("com.android.bluetooth.flags.support_bluetooth_quality_report_v6") public long getTxFlushPackets();
+    method @FlaggedApi("com.android.bluetooth.flags.support_bluetooth_quality_report_v6") public long getTxLastSubeventPackets();
     method public int getTxPowerLevel();
+    method @FlaggedApi("com.android.bluetooth.flags.support_bluetooth_quality_report_v6") public long getTxTotalPackets();
+    method @FlaggedApi("com.android.bluetooth.flags.support_bluetooth_quality_report_v6") public long getTxUnackPackets();
     method public long getUnderflowCount();
     method public int getUnusedAfhChannelCount();
     method @Nullable public static String packetTypeToString(int);
@@ -986,6 +995,61 @@ package android.bluetooth {
     field public static final int CONNECT_FAIL_ID_NO_ERROR = 0; // 0x0
     field public static final int CONNECT_FAIL_ID_PAGE_TIMEOUT = 4; // 0x4
     field @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.BluetoothQualityReport.BqrConnectFail> CREATOR;
+  }
+
+  @FlaggedApi("com.android.bluetooth.flags.support_bluetooth_quality_report_v6") public static final class BluetoothQualityReport.BqrEnergyMonitor implements android.os.Parcelable {
+    method public int describeContents();
+    method public long getActiveStateEnterCount();
+    method public long getActiveStateTotalTimeMillis();
+    method public int getAverageCurrentConsumptionMicroamps();
+    method public int getBredrAverageTxPowerLeveldBm();
+    method public long getBredrRxStateEnterCount();
+    method public long getBredrRxTotalTimeMillis();
+    method public long getBredrTxStateEnterCount();
+    method public long getBredrTxTotalTimeMillis();
+    method public long getIdleStateEnterCount();
+    method public long getIdleStateTotalTimeMillis();
+    method public int getLeAverageTxPowerLeveldBm();
+    method public long getLeRxStateEnterCount();
+    method public long getLeRxTotalTimeMillis();
+    method public long getLeTsTotalTimeMillis();
+    method public long getLeTxStateEnterCount();
+    method public long getPowerDataTotalTimeMillis();
+    method public long getRxDualChainActiveDurationMillis();
+    method public long getRxSingleChainActiveDurationMillis();
+    method public long getTxExternalPaDualChainActiveDurationMillis();
+    method public long getTxExternalPaSingleChainActiveDurationMillis();
+    method public long getTxInternalPaDualChainActiveDurationMillis();
+    method public long getTxInternalPaSingleChainActiveDurationMillis();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.BluetoothQualityReport.BqrEnergyMonitor> CREATOR;
+  }
+
+  @FlaggedApi("com.android.bluetooth.flags.support_bluetooth_quality_report_v6") public static final class BluetoothQualityReport.BqrRfStats implements android.os.Parcelable {
+    method public int describeContents();
+    method public int getExtensionInfo();
+    method public long getPacketsWithRssi50To55dBm();
+    method public long getPacketsWithRssi55To60dBm();
+    method public long getPacketsWithRssi60To65dBm();
+    method public long getPacketsWithRssi65To70dBm();
+    method public long getPacketsWithRssi70To75dBm();
+    method public long getPacketsWithRssi75To80dBm();
+    method public long getPacketsWithRssi80To85dBm();
+    method public long getPacketsWithRssi85To90dBm();
+    method public long getPacketsWithRssiAboveMinus50dBm();
+    method public long getPacketsWithRssiBelowMinus90dBm();
+    method public long getPacketsWithRssiDelta2To5dBm();
+    method public long getPacketsWithRssiDelta5To8dBm();
+    method public long getPacketsWithRssiDelta8To11dBm();
+    method public long getPacketsWithRssiDeltaAbove11dBm();
+    method public long getPacketsWithRssiDeltaBelow2dBm();
+    method public long getPerformanceDurationMillis();
+    method public long getTxPowerExternalPaBeamformingCount();
+    method public long getTxPowerExternalPaDiversityCount();
+    method public long getTxPowerInternalPaBeamformingCount();
+    method public long getTxPowerInternalPaDiversityCount();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.bluetooth.BluetoothQualityReport.BqrRfStats> CREATOR;
   }
 
   public static final class BluetoothQualityReport.BqrVsA2dpChoppy implements android.os.Parcelable {
@@ -1306,6 +1370,10 @@ package android.bluetooth.le {
 
   public final class AdvertisingSetParameters implements android.os.Parcelable {
     method public int getOwnAddressType();
+    method @FlaggedApi("com.android.bluetooth.flags.directed_advertising_api") @Nullable public String getPeerAddress();
+    method @FlaggedApi("com.android.bluetooth.flags.directed_advertising_api") public int getPeerAddressType();
+    method @FlaggedApi("com.android.bluetooth.flags.directed_advertising_api") public boolean isDirected();
+    method @FlaggedApi("com.android.bluetooth.flags.directed_advertising_api") public boolean isHighDutyCycle();
     field public static final int ADDRESS_TYPE_DEFAULT = -1; // 0xffffffff
     field public static final int ADDRESS_TYPE_PUBLIC = 0; // 0x0
     field public static final int ADDRESS_TYPE_RANDOM = 1; // 0x1
@@ -1313,7 +1381,11 @@ package android.bluetooth.le {
   }
 
   public static final class AdvertisingSetParameters.Builder {
+    method @FlaggedApi("com.android.bluetooth.flags.directed_advertising_api") @NonNull public android.bluetooth.le.AdvertisingSetParameters.Builder setDirected(boolean);
+    method @FlaggedApi("com.android.bluetooth.flags.directed_advertising_api") @NonNull public android.bluetooth.le.AdvertisingSetParameters.Builder setHighDutyCycle(boolean);
     method @NonNull public android.bluetooth.le.AdvertisingSetParameters.Builder setOwnAddressType(int);
+    method @FlaggedApi("com.android.bluetooth.flags.directed_advertising_api") @NonNull public android.bluetooth.le.AdvertisingSetParameters.Builder setPeerAddress(@NonNull String);
+    method @FlaggedApi("com.android.bluetooth.flags.directed_advertising_api") @NonNull public android.bluetooth.le.AdvertisingSetParameters.Builder setPeerAddressType(int);
   }
 
   public final class BluetoothLeAdvertiser {

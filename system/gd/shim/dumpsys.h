@@ -44,8 +44,6 @@ protected:
   void Start() override;                                   // Module
   void Stop() override;                                    // Module
   std::string ToString() const override;                   // Module
-  DumpsysDataFinisher GetDumpsysData(
-          flatbuffers::FlatBufferBuilder* builder) const override;  // Module
 
 private:
   struct impl;

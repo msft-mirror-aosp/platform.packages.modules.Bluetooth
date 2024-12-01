@@ -77,18 +77,18 @@ using ::bluetooth::audio::hidl::codec::A2dpLdacToHalConfig;
 using ::bluetooth::audio::hidl::codec::A2dpSbcToHalConfig;
 using ::bluetooth::audio::hidl::codec::CodecConfiguration;
 
-using ::bluetooth::audio::a2dp::BluetoothAudioStatus;
+using ::bluetooth::audio::a2dp::Status;
 
-static BluetoothAudioCtrlAck a2dp_ack_to_bt_audio_ctrl_ack(BluetoothAudioStatus ack) {
+static BluetoothAudioCtrlAck a2dp_ack_to_bt_audio_ctrl_ack(Status ack) {
   switch (ack) {
-    case BluetoothAudioStatus::SUCCESS:
+    case Status::SUCCESS:
       return BluetoothAudioCtrlAck::SUCCESS_FINISHED;
-    case BluetoothAudioStatus::PENDING:
+    case Status::PENDING:
       return BluetoothAudioCtrlAck::PENDING;
-    case BluetoothAudioStatus::UNSUPPORTED_CODEC_CONFIGURATION:
+    case Status::UNSUPPORTED_CODEC_CONFIGURATION:
       return BluetoothAudioCtrlAck::FAILURE_UNSUPPORTED;
-    case BluetoothAudioStatus::UNKNOWN:
-    case BluetoothAudioStatus::FAILURE:
+    case Status::UNKNOWN:
+    case Status::FAILURE:
     default:
       return BluetoothAudioCtrlAck::FAILURE;
   }
@@ -121,8 +121,7 @@ public:
     log::info("");
 
     auto status = stream_callbacks_->StartStream(false);
-    a2dp_pending_cmd_ =
-            status == BluetoothAudioStatus::PENDING ? A2DP_CTRL_CMD_START : A2DP_CTRL_CMD_NONE;
+    a2dp_pending_cmd_ = status == Status::PENDING ? A2DP_CTRL_CMD_START : A2DP_CTRL_CMD_NONE;
 
     return a2dp_ack_to_bt_audio_ctrl_ack(status);
   }
@@ -143,8 +142,7 @@ public:
     log::info("");
 
     auto status = stream_callbacks_->SuspendStream();
-    a2dp_pending_cmd_ =
-            status == BluetoothAudioStatus::PENDING ? A2DP_CTRL_CMD_SUSPEND : A2DP_CTRL_CMD_NONE;
+    a2dp_pending_cmd_ = status == Status::PENDING ? A2DP_CTRL_CMD_SUSPEND : A2DP_CTRL_CMD_NONE;
 
     return a2dp_ack_to_bt_audio_ctrl_ack(status);
   }
@@ -153,8 +151,7 @@ public:
     log::info("");
 
     auto status = stream_callbacks_->SuspendStream();
-    a2dp_pending_cmd_ =
-            status == BluetoothAudioStatus::PENDING ? A2DP_CTRL_CMD_STOP : A2DP_CTRL_CMD_NONE;
+    a2dp_pending_cmd_ = status == Status::PENDING ? A2DP_CTRL_CMD_STOP : A2DP_CTRL_CMD_NONE;
   }
 
   bool GetPresentationPosition(uint64_t* remote_delay_report_ns, uint64_t* total_bytes_read,
@@ -431,7 +428,7 @@ void end_session() {
           ->ResetPresentationPosition();
 }
 
-void ack_stream_started(BluetoothAudioStatus ack) {
+void ack_stream_started(Status ack) {
   if (!is_hal_2_0_enabled()) {
     log::error("BluetoothAudio HAL is not enabled");
     return;
@@ -445,12 +442,12 @@ void ack_stream_started(BluetoothAudioStatus ack) {
     log::warn("pending={} ignore result={}", pending_cmd, ack);
     return;
   }
-  if (ack != BluetoothAudioStatus::PENDING) {
+  if (ack != Status::PENDING) {
     a2dp_sink->ResetPendingCmd();
   }
 }
 
-void ack_stream_suspended(BluetoothAudioStatus ack) {
+void ack_stream_suspended(Status ack) {
   if (!is_hal_2_0_enabled()) {
     log::error("BluetoothAudio HAL is not enabled");
     return;
@@ -466,7 +463,7 @@ void ack_stream_suspended(BluetoothAudioStatus ack) {
     log::warn("pending={} ignore result={}", pending_cmd, ack);
     return;
   }
-  if (ack != BluetoothAudioStatus::PENDING) {
+  if (ack != Status::PENDING) {
     a2dp_sink->ResetPendingCmd();
   }
 }

@@ -81,7 +81,6 @@ import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.bass_client.BassClientService;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.AudioRoutingManager;
 import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.ServiceFactory;
@@ -1332,9 +1331,14 @@ public class LeAudioService extends ProfileService {
 
         Log.d(TAG, "startBroadcast");
 
-        /* Start timeout to recover from stucked/error start Broadcast operation */
-        mCreateBroadcastTimeoutEvent = new CreateBroadcastTimeoutEvent(broadcastId);
-        mHandler.postDelayed(mCreateBroadcastTimeoutEvent, CREATE_BROADCAST_TIMEOUT_MS);
+        /* For BIG dependent on Audio State, this timer is scheduled in
+         * LeAudioService#createBroadcast
+         */
+        if (!leaudioBigDependsOnAudioState()) {
+            /* Start timeout to recover from stucked/error start Broadcast operation */
+            mCreateBroadcastTimeoutEvent = new CreateBroadcastTimeoutEvent(broadcastId);
+            mHandler.postDelayed(mCreateBroadcastTimeoutEvent, CREATE_BROADCAST_TIMEOUT_MS);
+        }
 
         mLeAudioBroadcasterNativeInterface.startBroadcast(broadcastId);
     }
@@ -2582,18 +2586,15 @@ public class LeAudioService extends ProfileService {
             return false;
         }
 
-        if (!Flags.audioRoutingCentralization()) {
-            // If AUDIO_ROUTING_CENTRALIZATION, this will be checked inside AudioRoutingManager.
-            if (Utils.isDualModeAudioEnabled()) {
-                if (!mAdapterService.isAllSupportedClassicAudioProfilesActive(device)) {
-                    Log.e(
-                            TAG,
-                            "setActiveDevice("
-                                    + device
-                                    + "): failed because the device is not "
-                                    + "active for all supported classic audio profiles");
-                    return false;
-                }
+        if (Utils.isDualModeAudioEnabled()) {
+            if (!mAdapterService.isAllSupportedClassicAudioProfilesActive(device)) {
+                Log.e(
+                        TAG,
+                        "setActiveDevice("
+                                + device
+                                + "): failed because the device is not active for all supported"
+                                + " classic audio profiles");
+                return false;
             }
         }
         return setActiveGroupWithDevice(device, false);
@@ -3745,10 +3746,7 @@ public class LeAudioService extends ProfileService {
                                 if (!leaudioUseAudioModeListener()) {
                                     mQueuedInCallValue = Optional.empty();
                                 }
-                                if (!leaudioBigDependsOnAudioState()) {
-                                    startBroadcast(
-                                            mBroadcastIdDeactivatedForUnicastTransition.get());
-                                }
+                                startBroadcast(mBroadcastIdDeactivatedForUnicastTransition.get());
                                 mBroadcastIdDeactivatedForUnicastTransition = Optional.empty();
                             }
 
@@ -3810,10 +3808,8 @@ public class LeAudioService extends ProfileService {
                     mBroadcastSessionStats.put(broadcastId, sessionStats);
                 }
 
-                if (!leaudioBigDependsOnAudioState()) {
-                    // Start sending the actual stream
-                    startBroadcast(broadcastId);
-                }
+                // Start sending the actual stream
+                startBroadcast(broadcastId);
             } else {
                 // TODO: Improve reason reporting or extend the native stack event with reason code
                 Log.e(
@@ -5688,11 +5684,6 @@ public class LeAudioService extends ProfileService {
                 return false;
             }
 
-            if (Flags.audioRoutingCentralization()) {
-                return ((AudioRoutingManager) service.mAdapterService.getActiveDeviceManager())
-                        .activateDeviceProfile(device, BluetoothProfile.LE_AUDIO)
-                        .join();
-            }
             if (device == null) {
                 return service.removeActiveDevice(true);
             } else {

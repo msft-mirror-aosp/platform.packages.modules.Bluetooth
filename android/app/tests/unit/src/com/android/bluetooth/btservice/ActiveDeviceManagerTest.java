@@ -1070,8 +1070,9 @@ public class ActiveDeviceManagerTest {
         verify(mA2dpService, atLeastOnce()).setActiveDevice(mA2dpHeadsetDevice);
         verify(mHeadsetService, atLeastOnce()).setActiveDevice(mA2dpHeadsetDevice);
 
-        leAudioActiveDeviceChanged(mLeAudioDevice);
+        leAudioConnected(mLeAudioDevice);
         mTestLooper.dispatchAll();
+        verify(mLeAudioService).setActiveDevice(mLeAudioDevice);
         verify(mA2dpService).removeActiveDevice(false);
         verify(mHeadsetService).setActiveDevice(isNull());
     }
@@ -1079,8 +1080,9 @@ public class ActiveDeviceManagerTest {
     /** An LE Audio is connected. Then a combo (A2DP + Headset) device is connected. */
     @Test
     public void leAudioActive_setA2dpAndHeadsetActive() {
-        leAudioActiveDeviceChanged(mLeAudioDevice);
+        leAudioConnected(mLeAudioDevice);
         mTestLooper.dispatchAll();
+        verify(mLeAudioService).setActiveDevice(mLeAudioDevice);
         verify(mHeadsetService).setActiveDevice(null);
 
         a2dpConnected(mA2dpHeadsetDevice, true);
@@ -1093,8 +1095,9 @@ public class ActiveDeviceManagerTest {
     /** An LE Audio is connected. Then an A2DP active device is explicitly set. */
     @Test
     public void leAudioActive_setA2dpActiveExplicitly() {
-        leAudioActiveDeviceChanged(mLeAudioDevice);
+        leAudioConnected(mLeAudioDevice);
         mTestLooper.dispatchAll();
+        verify(mLeAudioService).setActiveDevice(mLeAudioDevice);
         verify(mHeadsetService).setActiveDevice(null);
 
         a2dpConnected(mA2dpDevice, false);
@@ -1110,8 +1113,9 @@ public class ActiveDeviceManagerTest {
     /** An LE Audio is connected. Then a Headset active device is explicitly set. */
     @Test
     public void leAudioActive_setHeadsetActiveExplicitly() {
-        leAudioActiveDeviceChanged(mLeAudioDevice);
+        leAudioConnected(mLeAudioDevice);
         mTestLooper.dispatchAll();
+        verify(mLeAudioService).setActiveDevice(mLeAudioDevice);
         verify(mHeadsetService).setActiveDevice(null);
 
         headsetConnected(mHeadsetDevice, false);
@@ -1702,6 +1706,23 @@ public class ActiveDeviceManagerTest {
         leHearingAidConnected(mLeHearingAidDevice);
         mTestLooper.dispatchAll();
         verify(mLeAudioService, never()).setActiveDevice(any());
+    }
+
+    /**
+     * Verifies that a Le Audio Unicast device is not treated as connected when an active device
+     * change is received after the device has been disconnected.
+     */
+    @Test
+    public void leAudioActiveDeviceChangeBeforeConnectedEvent() {
+        /* Active device change comes after disconnection (device considered as not connected) */
+        leAudioActiveDeviceChanged(mLeAudioDevice);
+        verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
+        mTestLooper.dispatchAll();
+
+        /* Device is connected back */
+        leAudioConnected(mLeAudioDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService).setActiveDevice(mLeAudioDevice);
     }
 
     /** Helper to indicate A2dp connected for a device. */

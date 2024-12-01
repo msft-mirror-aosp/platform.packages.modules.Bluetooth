@@ -1387,9 +1387,14 @@ void LeAudioDevices::Cleanup(tGATT_IF client_if) {
       continue;
     }
 
-    if (connection_state == DeviceConnectState::CONNECTING_AUTOCONNECT) {
-      BTA_GATTC_CancelOpen(client_if, device->address_, false);
-    } else {
+    // For connecting or connected device always remove background connect
+    BTA_GATTC_CancelOpen(client_if, device->address_, false);
+
+    if (connection_state == DeviceConnectState::CONNECTING_BY_USER) {
+      // When connecting by user, remove direct connect
+      BTA_GATTC_CancelOpen(client_if, device->address_, true);
+    } else if (connection_state != DeviceConnectState::CONNECTING_AUTOCONNECT) {
+      // If connected, close the connection
       BtaGattQueue::Clean(device->conn_id_);
       BTA_GATTC_Close(device->conn_id_);
       device->DisconnectAcl();

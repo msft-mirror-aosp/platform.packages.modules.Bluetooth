@@ -616,7 +616,7 @@ void bta_ag_at_hsp_cback(tBTA_AG_SCB* p_scb, uint16_t command_id, uint8_t arg_ty
   val.hdr.app_id = p_scb->app_id;
   val.num = (uint16_t)int_arg;
 
-  if ((p_end - p_arg + 1) >= (long)sizeof(val.str)) {
+  if ((p_end - p_arg + 1) >= (ptrdiff_t)sizeof(val.str)) {
     log::error("p_arg is too long, send error and return");
     bta_ag_send_error(p_scb, BTA_AG_ERR_TEXT_TOO_LONG);
     return;
@@ -894,7 +894,7 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, cha
   val.num = static_cast<uint32_t>(int_arg);
   val.bd_addr = p_scb->peer_addr;
 
-  if ((p_end - p_arg + 1) >= (long)sizeof(val.str)) {
+  if ((p_end - p_arg + 1) >= (ptrdiff_t)sizeof(val.str)) {
     log::error("p_arg is too long for cmd 0x{:x}, send error and return", cmd);
     bta_ag_send_error(p_scb, BTA_AG_ERR_TEXT_TOO_LONG);
     return;

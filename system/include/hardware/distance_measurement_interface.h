@@ -17,6 +17,8 @@
 #ifndef ANDROID_INCLUDE_DISTANCE_MEASUREMENT_INTERFACE_H
 #define ANDROID_INCLUDE_DISTANCE_MEASUREMENT_INTERFACE_H
 
+#include <stdint.h>
+
 #include "types/raw_address.h"
 
 /**
@@ -31,7 +33,7 @@ public:
   virtual void OnDistanceMeasurementResult(RawAddress address, uint32_t centimeter,
                                            uint32_t error_centimeter, int azimuth_angle,
                                            int error_azimuth_angle, int altitude_angle,
-                                           int error_altitude_angle, long elapsedRealtimeNanos,
+                                           int error_altitude_angle, uint64_t elapsedRealtimeNanos,
                                            int8_t confidence_level, uint8_t method) = 0;
 };
 

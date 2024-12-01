@@ -153,7 +153,8 @@ void address_consolidate([[maybe_unused]] RawAddress* main_bd_addr,
 }
 
 void le_address_associate([[maybe_unused]] RawAddress* main_bd_addr,
-                          [[maybe_unused]] RawAddress* secondary_bd_addr) {
+                          [[maybe_unused]] RawAddress* secondary_bd_addr,
+                          [[maybe_unused]] uint8_t identity_address_type) {
   log::info("");
 }
 
