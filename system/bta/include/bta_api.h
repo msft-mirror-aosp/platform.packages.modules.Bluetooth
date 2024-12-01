@@ -135,7 +135,7 @@ enum {
                                 another connection in central role */
   BTA_DM_PARTIAL_SCATTERNET, /* Device supports partial scatternet. It can have
                                 simultaneous connection in Central and
-                                Peripheral roles for short period of time */
+                                Peripheral roles for small period of time */
   BTA_DM_FULL_SCATTERNET     /* Device can have simultaneous connection in central
                                 and peripheral roles */
 };
@@ -159,7 +159,7 @@ typedef uint8_t tBTA_DM_BLE_RSSI_ALERT_TYPE;
 typedef enum : uint8_t {
   BTA_DM_LINK_UP_EVT = 5,         /* Connection UP event */
   BTA_DM_LINK_DOWN_EVT = 6,       /* Connection DOWN event */
-  BTA_DM_LE_FEATURES_READ = 27,   /* Cotroller specific LE features are read */
+  BTA_DM_LE_FEATURES_READ = 27,   /* Controller specific LE features are read */
   BTA_DM_LINK_UP_FAILED_EVT = 34, /* Create connection failed event */
 } tBTA_DM_ACL_EVT;
 

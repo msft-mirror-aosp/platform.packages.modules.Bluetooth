@@ -995,6 +995,11 @@ impl Bluetooth {
         )
     }
 
+    // TODO(b/328675014): Add BtAddrType and BtTransport parameters
+    pub(crate) fn send_hid_virtual_unplug_internal(&mut self, mut addr: RawAddress) -> BtStatus {
+        self.hh.as_mut().unwrap().virtual_unplug(&mut addr, BtAddrType::Public, BtTransport::Auto)
+    }
+
     /// Returns all bonded and connected devices.
     pub(crate) fn get_bonded_and_connected_devices(&mut self) -> Vec<BluetoothDevice> {
         self.remote_devices

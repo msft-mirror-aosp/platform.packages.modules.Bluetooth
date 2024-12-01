@@ -45,6 +45,24 @@ public:
   void WriteRawData(uint16_t /* connection_handle */,
                     const ChannelSoundingRawData& /* raw_data */) override {}
 
+  void UpdateChannelSoundingConfig(uint16_t /* connection_handle */,
+                                   const hci::LeCsConfigCompleteView& /* leCsConfigCompleteView */,
+                                   uint8_t /* local_supported_sw_time */,
+                                   uint8_t /* remote_supported_sw_time */,
+                                   uint16_t /* conn_interval */) override {}
+
+  void UpdateProcedureEnableConfig(
+          uint16_t /* connection_handle */,
+          const hci::LeCsProcedureEnableCompleteView& /* leCsProcedureEnableCompleteView */)
+          override {}
+
+  void WriteProcedureData(uint16_t /* connection_handle */, hci::CsRole /* local_cs_role */,
+                          const ProcedureDataV2& /* procedure_data */,
+                          uint16_t /* procedure_counter */) {}
+
+  void UpdateConnInterval(uint16_t /* connection_handle */, uint16_t /* conn_interval */) override {
+  }
+
 protected:
   void ListDependencies(ModuleList* /*list*/) const {}
 

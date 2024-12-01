@@ -23,6 +23,7 @@ import android.os.RemoteException;
 import android.provider.ContactsContract;
 import android.util.Log;
 
+import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.vcard.VCardEntry;
 
@@ -37,6 +38,10 @@ public class PhonebookPullRequest extends PullRequest {
     public boolean complete = false;
 
     public PhonebookPullRequest(Context context) {
+        if (Flags.pbapClientStorageRefactor()) {
+            Log.w(TAG, "This object should not be used. Use PbapClientContactsStorage");
+        }
+
         mContext = context;
         path = PbapPhonebook.LOCAL_PHONEBOOK_PATH;
     }

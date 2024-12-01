@@ -2669,6 +2669,7 @@ public class BassClientStateMachineTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void updateBroadcastSource_withoutMetadata() {
         int sourceId = 1;
         int paSync = BassConstants.PA_SYNC_DO_NOT_SYNC;
@@ -2702,6 +2703,7 @@ public class BassClientStateMachineTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void updateBroadcastSource_pendingSourceToRemove() {
         prepareInitialReceiveStateForGatt();
 

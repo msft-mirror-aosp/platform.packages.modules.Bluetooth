@@ -296,17 +296,20 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *   <li>in case of LE devices, very unlikely address collision
      * </ul>
      *
-     * Only registered receivers will receive this intent.
-     *
      * <p>Always contains the extra field {@link #EXTRA_DEVICE}
      *
-     * @hide
+     * <p>This method requires the calling app to have the {@link
+     * android.Manifest.permission#BLUETOOTH_CONNECT} permission. Before {@link
+     * android.os.Build.VERSION_CODES#BAKLAVA} this method also required {@link
+     * android.Manifest.permission#BLUETOOTH_PRIVILEGED}
      */
     @SuppressLint("ActionValue")
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    @RequiresPermission(
+            allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+            conditional = true)
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
-    @SystemApi
-    @BroadcastBehavior(includeBackground = true, protectedBroadcast = true)
+    @BroadcastBehavior(protectedBroadcast = true)
+    @FlaggedApi(Flags.FLAG_KEY_MISSING_PUBLIC)
     public static final String ACTION_KEY_MISSING = "android.bluetooth.device.action.KEY_MISSING";
 
     /**
@@ -1720,6 +1723,33 @@ public final class BluetoothDevice implements Parcelable, Attributable {
             }
         }
         return null;
+    }
+
+    /**
+     * Returns the identity address and identity address type of this BluetoothDevice.
+     *
+     * @return a {@link #BluetoothAddress} containing identity address and identity address type. If
+     *     Bluetooth is not enabled or identity address type is not available, it will return a
+     *     {@link #BluetoothAddress} containing {@link #ADDRESS_TYPE_UNKNOWN} device for the
+     *     identity address type.
+     */
+    @FlaggedApi(Flags.FLAG_IDENTITY_ADDRESS_TYPE_API)
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    @NonNull
+    public BluetoothAddress getIdentityAddressWithType() {
+        if (DBG) log("getIdentityAddressWithType()");
+        final IBluetooth service = getService();
+        if (service == null || !isBluetoothEnabled()) {
+            Log.e(TAG, "BT not enabled. Cannot get identity address with type");
+        } else {
+            try {
+                return service.getIdentityAddressWithType(mAddress);
+            } catch (RemoteException e) {
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+            }
+        }
+        return new BluetoothAddress(null, BluetoothDevice.ADDRESS_TYPE_UNKNOWN);
     }
 
     /**
@@ -3744,5 +3774,54 @@ public final class BluetoothDevice implements Parcelable, Attributable {
 
     private static void log(String msg) {
         Log.d(TAG, msg);
+    }
+
+    /** A data class for Bluetooth address and address type. */
+    @FlaggedApi(Flags.FLAG_IDENTITY_ADDRESS_TYPE_API)
+    public static final class BluetoothAddress implements Parcelable {
+        private final @Nullable String mAddress;
+        private final @AddressType int mAddressType;
+
+        public BluetoothAddress(@Nullable String address, @AddressType int addressType) {
+            mAddress = address;
+            mAddressType = addressType;
+        }
+
+        @Nullable
+        public String getAddress() {
+            return mAddress;
+        }
+
+        @AddressType
+        public int getAddressType() {
+            return mAddressType;
+        }
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+
+        @Override
+        public void writeToParcel(@NonNull Parcel out, int flags) {
+            BluetoothUtils.writeStringToParcel(out, mAddress);
+            out.writeInt(mAddressType);
+        }
+
+        private BluetoothAddress(@NonNull Parcel in) {
+            this(in.readString(), in.readInt());
+        }
+
+        /** {@link Parcelable.Creator} interface implementation. */
+        public static final @NonNull Parcelable.Creator<BluetoothAddress> CREATOR =
+                new Parcelable.Creator<BluetoothAddress>() {
+                    public @NonNull BluetoothAddress createFromParcel(Parcel in) {
+                        return new BluetoothAddress(in);
+                    }
+
+                    public @NonNull BluetoothAddress[] newArray(int size) {
+                        return new BluetoothAddress[size];
+                    }
+                };
     }
 }

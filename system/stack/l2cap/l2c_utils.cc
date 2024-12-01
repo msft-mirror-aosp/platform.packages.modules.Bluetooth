@@ -1525,7 +1525,7 @@ bool l2cu_start_post_bond_timer(uint16_t handle) {
         timeout_ms = L2CAP_LINK_DISCONNECT_TIMEOUT_MS;
       }
       alarm_set_on_mloop(p_lcb->l2c_lcb_timer, timeout_ms, l2c_lcb_timer_timeout, p_lcb);
-      log::debug("Started link IDLE timeout_ms:{}", (unsigned long)timeout_ms);
+      log::debug("Started link IDLE timeout_ms:{}", timeout_ms);
       return true;
     } break;
 
@@ -2827,7 +2827,7 @@ void l2cu_no_dynamic_ccbs(tL2C_LCB* p_lcb) {
 
   if (start_timeout) {
     alarm_set_on_mloop(p_lcb->l2c_lcb_timer, timeout_ms, l2c_lcb_timer_timeout, p_lcb);
-    log::debug("Started link IDLE timeout_ms:{}", (unsigned long)timeout_ms);
+    log::debug("Started link IDLE timeout_ms:{}", timeout_ms);
   } else {
     alarm_cancel(p_lcb->l2c_lcb_timer);
   }
