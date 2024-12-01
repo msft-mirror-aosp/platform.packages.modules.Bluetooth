@@ -129,7 +129,7 @@ public class GattServiceTest {
                 .createDistanceMeasurementManager(any());
         doReturn(mScanManager)
                 .when(mScanObjectsFactory)
-                .createScanManager(any(), any(), any(), any(), any());
+                .createScanManager(any(), any(), any(), any());
         doReturn(mContext.getPackageManager()).when(mAdapterService).getPackageManager();
         doReturn(mContext.getSharedPreferences("GattServiceTestPrefs", Context.MODE_PRIVATE))
                 .when(mAdapterService)

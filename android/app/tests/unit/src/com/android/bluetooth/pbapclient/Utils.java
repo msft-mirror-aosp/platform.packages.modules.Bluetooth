@@ -16,6 +16,10 @@
 
 package com.android.bluetooth.pbapclient;
 
+import android.accounts.Account;
+import android.bluetooth.BluetoothDevice;
+
+import java.nio.ByteBuffer;
 import java.util.List;
 
 public class Utils {
@@ -38,8 +42,11 @@ public class Utils {
     public static final String OUTGOING_CALL = "DIALED";
     private static final String CALL_HISTORY = "X-IRMC-CALL-DATETIME";
 
-    public static final String ACCOUNT_TYPE =
-            "com.android.bluetooth.pbapclient";
+    public static final String ACCOUNT_TYPE = "com.android.bluetooth.pbapclient";
+
+    public static Account getAccountForDevice(BluetoothDevice device) {
+        return new Account(device.getAddress(), ACCOUNT_TYPE);
+    }
 
     /**
      * Group a list of VCard entries or Call History entries into a full phonebook
@@ -140,5 +147,18 @@ public class Utils {
         sb.append("END:VCARD");
 
         return sb.toString();
+    }
+
+    public static byte[] shortToByteArray(short s) {
+        ByteBuffer ret = ByteBuffer.allocate(2);
+        ret.putShort(s);
+        return ret.array();
+    }
+
+    public static byte[] longToByteArray(long l) {
+        ByteBuffer ret = ByteBuffer.allocate(16);
+        ret.putLong(0); // Most significant bytes
+        ret.putLong(l); // Least significant bytes
+        return ret.array();
     }
 }

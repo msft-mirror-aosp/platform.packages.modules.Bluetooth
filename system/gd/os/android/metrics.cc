@@ -162,49 +162,51 @@ void LogMetricA2dpPlaybackEvent(const Address& address, int playback_state, int 
   }
 }
 
-void LogMetricA2dpSessionMetricsEvent(const hci::Address& /* address */, int64_t audio_duration_ms,
+void LogMetricA2dpSessionMetricsEvent(const hci::Address& address, int64_t audio_duration_ms,
                                       int media_timer_min_ms, int media_timer_max_ms,
                                       int media_timer_avg_ms, int total_scheduling_count,
                                       int buffer_overruns_max_count, int buffer_overruns_total,
                                       float buffer_underruns_average, int buffer_underruns_count,
                                       int64_t codec_index, bool is_a2dp_offload) {
-  char const* metric_id;
+  char const* expresslog_metric_id;
   a2dp::CodecId codec_id;
   switch (codec_index) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
-      metric_id = "bluetooth.value_sbc_codec_usage_over_a2dp";
+      expresslog_metric_id = "bluetooth.value_sbc_codec_usage_over_a2dp";
       codec_id = a2dp::CodecId::SBC;
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
-      metric_id = "bluetooth.value_aac_codec_usage_over_a2dp";
+      expresslog_metric_id = "bluetooth.value_aac_codec_usage_over_a2dp";
       codec_id = a2dp::CodecId::AAC;
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX:
-      metric_id = "bluetooth.value_aptx_codec_usage_over_a2dp";
+      expresslog_metric_id = "bluetooth.value_aptx_codec_usage_over_a2dp";
       codec_id = a2dp::CodecId::APTX;
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD:
-      metric_id = "bluetooth.value_aptx_hd_codec_usage_over_a2dp";
+      expresslog_metric_id = "bluetooth.value_aptx_hd_codec_usage_over_a2dp";
       codec_id = a2dp::CodecId::APTX_HD;
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
-      metric_id = "bluetooth.value_ldac_codec_usage_over_a2dp";
+      expresslog_metric_id = "bluetooth.value_ldac_codec_usage_over_a2dp";
       codec_id = a2dp::CodecId::LDAC;
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS:
-      metric_id = "bluetooth.value_opus_codec_usage_over_a2dp";
+      expresslog_metric_id = "bluetooth.value_opus_codec_usage_over_a2dp";
       codec_id = a2dp::CodecId::OPUS;
       break;
     default:
       return;
   }
 
-  android::expresslog::Counter::logIncrement(metric_id);
+  android::expresslog::Counter::logIncrement(expresslog_metric_id);
 
+  int32_t metric_id = MetricIdManager::GetInstance().AllocateId(address);
   int ret = stats_write(A2DP_SESSION_REPORTED, audio_duration_ms, media_timer_min_ms,
                         media_timer_max_ms, media_timer_avg_ms, total_scheduling_count,
                         buffer_overruns_max_count, buffer_overruns_total, buffer_underruns_average,
-                        buffer_underruns_count, static_cast<uint64_t>(codec_id), is_a2dp_offload);
+                        buffer_underruns_count, static_cast<uint64_t>(codec_id), is_a2dp_offload,
+                        metric_id);
 
   if (ret < 0) {
     log::warn("failed to log a2dp_session_reported");

@@ -116,7 +116,7 @@ cc_defaults {
             ],
             whole_static_libs: [
                 "android.hardware.bluetooth-V1-ndk",
-                "android.hardware.bluetooth.ranging-V1-ndk",
+                "android.hardware.bluetooth.ranging-V2-ndk",
             ],
         },
     },
@@ -639,15 +639,11 @@ genrule {
     cmd: "$(location flatc) -I packages/modules/Bluetooth/system/gd -b --schema -o $(genDir) $(in) ",
     srcs: [
         "dumpsys_data.fbs",
-        "hci/hci_acl_manager.fbs",
         "module_unittest.fbs",
         "os/wakelock_manager.fbs",
-        "shim/dumpsys.fbs",
     ],
     out: [
-        "dumpsys.bfbs",
         "dumpsys_data.bfbs",
-        "hci_acl_manager.bfbs",
         "wakelock_manager.bfbs",
     ],
 }
@@ -660,15 +656,11 @@ genrule {
     cmd: "$(location flatc) -I packages/modules/Bluetooth/system/gd -o $(genDir) --cpp $(in) ",
     srcs: [
         "dumpsys_data.fbs",
-        "hci/hci_acl_manager.fbs",
         "module_unittest.fbs",
         "os/wakelock_manager.fbs",
-        "shim/dumpsys.fbs",
     ],
     out: [
         "dumpsys_data_generated.h",
-        "dumpsys_generated.h",
-        "hci_acl_manager_generated.h",
         "wakelock_manager_generated.h",
     ],
 }

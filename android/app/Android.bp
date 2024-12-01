@@ -169,9 +169,6 @@ cc_library_shared {
         "com.android.btservices",
     ],
     min_sdk_version: "Tiramisu",
-
-    // TODO(b/346919576) Workaround LTO build breakage.
-    lto_O0: true,
 }
 
 cc_library {
@@ -260,6 +257,7 @@ android_app {
         "android.hardware.radio-V1.0-java",
         "android.hardware.radio.sap-V1-java",
         "android.media.audio-aconfig-exported-java",
+        "android.os.flags-aconfig-java-export",
         "androidx.annotation_annotation",
         "androidx.core_core",
         "androidx.lifecycle_lifecycle-livedata",

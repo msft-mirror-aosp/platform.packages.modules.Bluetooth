@@ -226,12 +226,12 @@ bool is_hal_enabled() { return true; }
 // Check if new bluetooth_audio is running with offloading encoders
 bool is_hal_offloading() { return false; }
 
-static BluetoothAudioPort null_audio_port;
-static BluetoothAudioPort const* bluetooth_audio_port = &null_audio_port;
+static StreamCallbacks null_stream_callbacks_;
+static StreamCallbacks const* stream_callbacks_ = &null_stream_callbacks_;
 
 // Initialize BluetoothAudio HAL: openProvider
 bool init(bluetooth::common::MessageLoopThread* /*message_loop*/,
-          BluetoothAudioPort const* audio_port, bool /*offload_enabled*/) {
+          StreamCallbacks const* strean_callbacks, bool /*offload_enabled*/) {
   if (a2dp_uipc != nullptr) {
     log::warn("Re-init-ing UIPC that is already running");
     cleanup();
@@ -240,7 +240,7 @@ bool init(bluetooth::common::MessageLoopThread* /*message_loop*/,
   total_bytes_read_ = 0;
   data_position_ = {};
   remote_delay_report_ = 0;
-  bluetooth_audio_port = audio_port;
+  stream_callbacks_ = strean_callbacks;
 
   return true;
 }
@@ -248,7 +248,7 @@ bool init(bluetooth::common::MessageLoopThread* /*message_loop*/,
 // Clean up BluetoothAudio HAL
 void cleanup() {
   end_session();
-  bluetooth_audio_port = &null_audio_port;
+  stream_callbacks_ = &null_stream_callbacks_;
 
   if (a2dp_uipc != nullptr) {
     UIPC_Close(*a2dp_uipc, UIPC_CH_ID_ALL);
@@ -278,12 +278,12 @@ void end_session() {
 
 void set_audio_low_latency_mode_allowed(bool /*allowed*/) {}
 
-void ack_stream_started(BluetoothAudioStatus /*ack*/) {
+void ack_stream_started(Status /*ack*/) {
   a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
   // TODO: Notify server
 }
 
-void ack_stream_suspended(BluetoothAudioStatus /*ack*/) {
+void ack_stream_suspended(Status /*ack*/) {
   a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
   // TODO: Notify server
 }
