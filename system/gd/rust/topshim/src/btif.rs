@@ -1042,7 +1042,7 @@ pub enum BaseCallbacks {
     SspRequest(RawAddress, BtSspVariant, u32),
     BondState(BtStatus, RawAddress, BtBondState, i32),
     AddressConsolidate(RawAddress, RawAddress),
-    LeAddressAssociate(RawAddress, RawAddress),
+    LeAddressAssociate(RawAddress, RawAddress, u8),
     AclState(
         BtStatus,
         RawAddress,
@@ -1109,7 +1109,7 @@ cb_variant!(BaseCb, address_consolidate_cb -> BaseCallbacks::AddressConsolidate,
 });
 
 cb_variant!(BaseCb, le_address_associate_cb -> BaseCallbacks::LeAddressAssociate,
-*mut RawAddress, *mut RawAddress, {
+*mut RawAddress, *mut RawAddress, u8, {
     let _0 = unsafe { *(_0 as *const RawAddress) };
     let _1 = unsafe { *(_1 as *const RawAddress) };
 });

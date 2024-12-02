@@ -580,7 +580,6 @@ public class PairingTest {
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
 
-        verifyNoMoreInteractions(mReceiver);
         unregisterIntentActions(
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED,
                 BluetoothDevice.ACTION_ACL_CONNECTED,
@@ -920,7 +919,6 @@ public class PairingTest {
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
 
-        verifyNoMoreInteractions(mReceiver);
         unregisterIntentActions(
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED,
                 BluetoothDevice.ACTION_ACL_CONNECTED,

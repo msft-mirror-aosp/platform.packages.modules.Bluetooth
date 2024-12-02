@@ -726,7 +726,7 @@ public class PbapClientService extends ProfileService {
 
     void cleanupDevice(BluetoothDevice device) {
         if (Flags.pbapClientStorageRefactor()) {
-            throw new UnsupportedOperationException("This is not needed with contacts storage");
+            Log.w(TAG, "This should not be used in this configuration");
         }
 
         Log.d(TAG, "Cleanup device: " + device);
@@ -746,7 +746,7 @@ public class PbapClientService extends ProfileService {
      */
     public boolean isAccountTypeReady() {
         if (Flags.pbapClientStorageRefactor()) {
-            throw new UnsupportedOperationException("This is not needed with contacts storage");
+            Log.w(TAG, "This should not be used in this configuration");
         }
         return mPbapClientAccountManager.isAccountTypeInitialized();
     }
@@ -758,6 +758,9 @@ public class PbapClientService extends ProfileService {
      * @return True if the account addition was successful, False otherwise
      */
     public boolean addAccount(Account account) {
+        if (Flags.pbapClientStorageRefactor()) {
+            Log.w(TAG, "This should not be used in this configuration");
+        }
         return mPbapClientAccountManager.addAccount(account);
     }
 
@@ -768,6 +771,9 @@ public class PbapClientService extends ProfileService {
      * @return True if the account removal was successful, False otherwise
      */
     public boolean removeAccount(Account account) {
+        if (Flags.pbapClientStorageRefactor()) {
+            Log.w(TAG, "This should not be used in this configuration");
+        }
         return mPbapClientAccountManager.removeAccount(account);
     }
 }
