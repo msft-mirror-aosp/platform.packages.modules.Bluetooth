@@ -38,7 +38,6 @@ rust_defaults {
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libFraunhoferAAC",
-        "libbluetooth-dumpsys",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd", // Gabeldorsche

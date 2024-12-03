@@ -67,6 +67,7 @@
 #include "stack/include/gattdefs.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/inq_hci_link_interface.h"
+#include "stack/rnr/remote_name_request.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
@@ -77,7 +78,6 @@ using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
 
-void btm_inq_remote_name_timer_timeout(void* data);
 void btm_ble_adv_filter_init(void);
 
 #define BTM_EXT_BLE_RMT_NAME_TIMEOUT_MS (30 * 1000)

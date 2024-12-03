@@ -13,10 +13,3 @@ filegroup {
         "dumpsys.cc",
     ],
 }
-
-filegroup {
-    name: "BluetoothShimTestSources",
-    srcs: [
-        "dumpsys_test.cc",
-    ],
-}

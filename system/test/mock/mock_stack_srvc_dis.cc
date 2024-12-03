@@ -22,19 +22,13 @@
 #include <cstdint>
 
 #include "stack/include/srvc_api.h"
+#include "stack/srvc/srvc_dis_int.h"
 #include "stack/srvc/srvc_eng_int.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 bool DIS_ReadDISInfo(const RawAddress& /* peer_bda */, tDIS_READ_CBACK* /* p_cback */,
                      tDIS_ATTR_MASK /* mask */) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool dis_gatt_c_read_dis_req(uint16_t /* conn_id */) {
   inc_func_call_count(__func__);
   return false;
 }

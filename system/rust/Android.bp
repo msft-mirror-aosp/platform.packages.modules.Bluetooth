@@ -127,9 +127,6 @@ cc_library_static {
     generated_headers: [
         "cxx-bridge-header",
         "libbluetooth_core_rs_bridge_codegen_header",
-
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     export_generated_headers: [
         "cxx-bridge-header",

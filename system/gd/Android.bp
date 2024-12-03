@@ -122,7 +122,6 @@ cc_defaults {
     },
     srcs: [
         ":BluetoothCommonSources",
-        ":BluetoothDumpsysSources",
         ":BluetoothHalSources",
         ":BluetoothHciSources",
         ":BluetoothMetricsSources",
@@ -132,12 +131,7 @@ cc_defaults {
         ":BluetoothShimSources",
         ":BluetoothStorageSources",
         "module.cc",
-        "module_dumper.cc",
         "stack_manager.cc",
-    ],
-    generated_headers: [
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     shared_libs: [
         "libcrypto",
@@ -156,7 +150,6 @@ cc_defaults {
     static_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
-        "libbluetooth-dumpsys",
         "libbluetooth-protos",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
@@ -264,8 +257,6 @@ cc_binary {
     ],
     generated_headers: [
         "BlueberryFacadeGeneratedStub_h",
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     generated_sources: [
         "BlueberryFacadeGeneratedStub_cc",
@@ -274,7 +265,6 @@ cc_binary {
         "bluetooth_flags_c_lib",
         "breakpad_client",
         "libPlatformProperties",
-        "libbluetooth-dumpsys",
         "libbluetooth-protos",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
@@ -433,12 +423,6 @@ cc_test {
         "module_unittest.cc",
         "stack_manager_unittest.cc",
     ],
-    generated_headers: [
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
-        "BluetoothGeneratedDumpsysInternalTestData_h",
-        "BluetoothGeneratedDumpsysTestData_h",
-    ],
     static_libs: [
         "bluetooth_flags_c_lib_for_test",
         "libbase",
@@ -541,9 +525,6 @@ cc_defaults {
         "libosi",
     ],
     host_supported: true,
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     shared_libs: [
         "libPlatformProperties",
         "libaconfig_storage_read_api_cc",
@@ -627,40 +608,5 @@ cc_benchmark {
         "libchrome",
         "liblog",
         "server_configurable_flags",
-    ],
-}
-
-// Generates binary schema data to be bundled and source file generated
-genrule {
-    name: "BluetoothGeneratedDumpsysBinarySchema_bfbs",
-    tools: [
-        "flatc",
-    ],
-    cmd: "$(location flatc) -I packages/modules/Bluetooth/system/gd -b --schema -o $(genDir) $(in) ",
-    srcs: [
-        "dumpsys_data.fbs",
-        "module_unittest.fbs",
-        "os/wakelock_manager.fbs",
-    ],
-    out: [
-        "dumpsys_data.bfbs",
-        "wakelock_manager.bfbs",
-    ],
-}
-
-genrule {
-    name: "BluetoothGeneratedDumpsysDataSchema_h",
-    tools: [
-        "flatc",
-    ],
-    cmd: "$(location flatc) -I packages/modules/Bluetooth/system/gd -o $(genDir) --cpp $(in) ",
-    srcs: [
-        "dumpsys_data.fbs",
-        "module_unittest.fbs",
-        "os/wakelock_manager.fbs",
-    ],
-    out: [
-        "dumpsys_data_generated.h",
-        "wakelock_manager_generated.h",
     ],
 }

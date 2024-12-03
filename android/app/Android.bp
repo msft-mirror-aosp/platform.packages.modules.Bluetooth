@@ -108,7 +108,6 @@ cc_library_shared {
         "libaconfig_storage_read_api_cc",
         "libbase",
         "libbluetooth",
-        "libbluetooth-dumpsys",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_core_rs_bridge",

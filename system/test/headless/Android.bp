@@ -82,7 +82,6 @@ cc_binary {
         "lib-bt-packets-base",
         "libFraunhoferAAC",
         "libbase",
-        "libbluetooth-dumpsys",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_crypto_toolbox",
