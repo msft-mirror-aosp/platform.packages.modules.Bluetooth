@@ -45,9 +45,6 @@
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 using bluetooth::Uuid;
 
@@ -56,8 +53,9 @@ using bluetooth::Uuid;
 /******************************************************************************/
 static uint8_t* bnepu_init_hdr(BT_HDR* p_buf, uint16_t hdr_len, uint8_t pkt_type);
 
-void bnepu_process_peer_multicast_filter_set(tBNEP_CONN* p_bcb, uint8_t* p_filters, uint16_t len);
-void bnepu_send_peer_multicast_filter_rsp(tBNEP_CONN* p_bcb, uint16_t response_code);
+static void bnepu_process_peer_multicast_filter_set(tBNEP_CONN* p_bcb, uint8_t* p_filters,
+                                                    uint16_t len);
+static void bnepu_send_peer_multicast_filter_rsp(tBNEP_CONN* p_bcb, uint16_t response_code);
 
 /*******************************************************************************
  *
@@ -343,7 +341,7 @@ void bnepu_send_peer_our_multi_filters(tBNEP_CONN* p_bcb) {
  * Returns          void
  *
  ******************************************************************************/
-void bnepu_send_peer_filter_rsp(tBNEP_CONN* p_bcb, uint16_t response_code) {
+static void bnepu_send_peer_filter_rsp(tBNEP_CONN* p_bcb, uint16_t response_code) {
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(BNEP_BUF_SIZE);
   uint8_t* p;
 
@@ -1031,7 +1029,8 @@ void bnepu_process_multicast_filter_rsp(tBNEP_CONN* p_bcb, uint8_t* p_data) {
  * Returns          void
  *
  ******************************************************************************/
-void bnepu_process_peer_multicast_filter_set(tBNEP_CONN* p_bcb, uint8_t* p_filters, uint16_t len) {
+static void bnepu_process_peer_multicast_filter_set(tBNEP_CONN* p_bcb, uint8_t* p_filters,
+                                                    uint16_t len) {
   uint16_t resp_code = BNEP_FILTER_CRL_OK;
   uint16_t num_filters, xx;
   uint8_t *p_temp_filters, null_bda[BD_ADDR_LEN] = {0, 0, 0, 0, 0, 0};
@@ -1107,7 +1106,7 @@ void bnepu_process_peer_multicast_filter_set(tBNEP_CONN* p_bcb, uint8_t* p_filte
  * Returns          void
  *
  ******************************************************************************/
-void bnepu_send_peer_multicast_filter_rsp(tBNEP_CONN* p_bcb, uint16_t response_code) {
+static void bnepu_send_peer_multicast_filter_rsp(tBNEP_CONN* p_bcb, uint16_t response_code) {
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(BNEP_BUF_SIZE);
   uint8_t* p;
 

@@ -35,7 +35,6 @@
 #include "common/strings.h"
 #include "hal/snoop_logger_common.h"
 #include "hci/hci_packets.h"
-#include "module_dumper_flatbuffer.h"
 #include "os/files.h"
 #include "os/parameter_provider.h"
 #include "os/system_properties.h"

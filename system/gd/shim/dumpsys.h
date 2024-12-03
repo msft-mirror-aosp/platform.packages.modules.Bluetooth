@@ -19,19 +19,16 @@
 #include <memory>
 #include <string>
 
-#include "dumpsys/reflection_schema.h"
 #include "module.h"
 
 namespace bluetooth {
 namespace shim {
 
-constexpr char kArgumentDeveloper[] = "--dev";
-
 class Dumpsys : public bluetooth::Module {
 public:
   void Dump(int fd, const char** args, std::promise<void> promise);
 
-  Dumpsys(const std::string& pre_bundled_schema);
+  Dumpsys();
   Dumpsys(const Dumpsys&) = delete;
   Dumpsys& operator=(const Dumpsys&) = delete;
 
@@ -48,7 +45,6 @@ protected:
 private:
   struct impl;
   std::unique_ptr<impl> pimpl_;
-  const dumpsys::ReflectionSchema reflection_schema_;
 };
 
 }  // namespace shim
