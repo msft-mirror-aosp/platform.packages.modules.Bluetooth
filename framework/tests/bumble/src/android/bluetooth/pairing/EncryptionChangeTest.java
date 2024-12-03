@@ -255,6 +255,71 @@ public class EncryptionChangeTest {
                 BluetoothDevice.ACTION_PAIRING_REQUEST);
     }
 
+    /**
+     * Test Encryption change event on classic link:
+     *
+     * <ol>
+     *   <li>1. Android initiate create bond over Classic link
+     *   <li>2. Android confirms the pairing via pairing request intent
+     *   <li>3. Bumble confirms the pairing internally (optional, added only for test confirmation)
+     *   <li>4. Android verifies Encryption change Intent and bonded intent
+     * </ol>
+     */
+    @Test
+    @RequiresFlagsEnabled({Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST})
+    public void encryptionChangeSecureClassicLink() {
+        registerIntentActions(
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
+                BluetoothDevice.ACTION_ENCRYPTION_CHANGE,
+                BluetoothDevice.ACTION_PAIRING_REQUEST);
+
+        StreamObserver<PairingEventAnswer> pairingEventAnswerObserver =
+                mBumble.security()
+                        .withDeadlineAfter(BOND_INTENT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+                        .onPairing(mPairingEventStreamObserver);
+
+        assertThat(mBumbleDevice.createBond(BluetoothDevice.TRANSPORT_BREDR)).isTrue();
+        verifyIntentReceived(
+                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDING));
+
+        verifyIntentReceived(
+                hasAction(BluetoothDevice.ACTION_PAIRING_REQUEST),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(
+                        BluetoothDevice.EXTRA_PAIRING_VARIANT,
+                        BluetoothDevice.PAIRING_VARIANT_CONSENT));
+        mBumbleDevice.setPairingConfirmation(true);
+
+        PairingEvent pairingEvent = mPairingEventStreamObserver.iterator().next();
+        assertThat(pairingEvent.hasJustWorks()).isTrue();
+        pairingEventAnswerObserver.onNext(
+                PairingEventAnswer.newBuilder().setEvent(pairingEvent).setConfirm(true).build());
+
+        verifyIntentReceived(
+                hasAction(BluetoothDevice.ACTION_ENCRYPTION_CHANGE),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_BREDR),
+                hasExtra(BluetoothDevice.EXTRA_ENCRYPTION_STATUS, 0),
+                hasExtra(BluetoothDevice.EXTRA_ENCRYPTION_ENABLED, true),
+                hasExtra(BluetoothDevice.EXTRA_KEY_SIZE, 16),
+                hasExtra(
+                        BluetoothDevice.EXTRA_ENCRYPTION_ALGORITHM,
+                        BluetoothDevice.ENCRYPTION_ALGORITHM_AES));
+
+        verifyIntentReceived(
+                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
+
+        verifyNoMoreInteractions(mReceiver);
+        unregisterIntentActions(
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
+                BluetoothDevice.ACTION_ENCRYPTION_CHANGE,
+                BluetoothDevice.ACTION_PAIRING_REQUEST);
+    }
+
     private void removeBond(BluetoothDevice device) {
         registerIntentActions(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
 
