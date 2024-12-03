@@ -14,8 +14,7 @@
 #  limitations under the License.
 #
 
-import("//bt/system/gd/dumpsys/bundler/bundler.gni")
-import("//common-mk/flatbuffer.gni")
+import("//bt/system/bta/bundler.gni")
 
 static_library("bta") {
   sources = [
