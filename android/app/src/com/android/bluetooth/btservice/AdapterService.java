@@ -56,6 +56,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothAdapter.ActiveDeviceProfile;
 import android.bluetooth.BluetoothAdapter.ActiveDeviceUse;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothDevice.BluetoothAddress;
 import android.bluetooth.BluetoothFrameworkInitializer;
 import android.bluetooth.BluetoothMap;
 import android.bluetooth.BluetoothProfile;
@@ -2388,6 +2389,23 @@ public class AdapterService extends Service {
         }
 
         @Override
+        @NonNull
+        public BluetoothAddress getIdentityAddressWithType(@NonNull String address) {
+            AdapterService service = getService();
+            if (service == null
+                    || !callerIsSystemOrActiveOrManagedUser(
+                            service, TAG, "getIdentityAddressWithType")
+                    || !Utils.checkConnectPermissionForDataDelivery(
+                            service,
+                            Utils.getCallingAttributionSource(mService),
+                            "AdapterService getIdentityAddressWithType")) {
+                return new BluetoothAddress(null, BluetoothDevice.ADDRESS_TYPE_UNKNOWN);
+            }
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            return service.getIdentityAddressWithType(address);
+        }
+
+        @Override
         public String getName(AttributionSource source) {
             AdapterService service = getService();
             if (service == null
@@ -4369,6 +4387,26 @@ public class AdapterService extends Service {
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
             return service.mDatabaseManager.isMicrophonePreferredForCalls(device);
         }
+
+        @Override
+        public boolean isLeCocSocketOffloadSupported(AttributionSource source) {
+            AdapterService service = getService();
+            if (service == null) {
+                return false;
+            }
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            return service.isLeCocSocketOffloadSupported();
+        }
+
+        @Override
+        public boolean isRfcommSocketOffloadSupported(AttributionSource source) {
+            AdapterService service = getService();
+            if (service == null) {
+                return false;
+            }
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            return service.isRfcommSocketOffloadSupported();
+        }
     }
 
     /**
@@ -4893,6 +4931,38 @@ public class AdapterService extends Service {
                 return address;
             }
         }
+    }
+
+    /**
+     * Returns the identity address and identity address type.
+     *
+     * @param address of remote device
+     * @return a {@link BluetoothDevice.BluetoothAddress} containing identity address and identity
+     *     address type
+     */
+    @NonNull
+    public BluetoothAddress getIdentityAddressWithType(@NonNull String address) {
+        BluetoothDevice device =
+                BluetoothAdapter.getDefaultAdapter().getRemoteDevice(Ascii.toUpperCase(address));
+        DeviceProperties deviceProp = mRemoteDevices.getDeviceProperties(device);
+
+        String identityAddress = null;
+        int identityAddressType = BluetoothDevice.ADDRESS_TYPE_UNKNOWN;
+
+        if (deviceProp != null) {
+            if (deviceProp.getIdentityAddress() != null) {
+                identityAddress = deviceProp.getIdentityAddress();
+            }
+            identityAddressType = deviceProp.getIdentityAddressType();
+        } else {
+            if (Flags.identityAddressNullIfNotKnown()) {
+                identityAddress = null;
+            } else {
+                identityAddress = address;
+            }
+        }
+
+        return new BluetoothAddress(identityAddress, identityAddressType);
     }
 
     private static class CallerInfo {
@@ -7105,5 +7175,27 @@ public class AdapterService extends Service {
         } catch (Exception e) {
             Log.e(TAG, "Error happened while removing contents: ", e);
         }
+    }
+
+    /** Get the number of the supported offloaded LE COC sockets. */
+    public int getNumberOfSupportedOffloadedLeCocSockets() {
+        return mAdapterProperties.getNumberOfSupportedOffloadedLeCocSockets();
+    }
+
+    /** Check if the offloaded LE COC socket is supported. */
+    public boolean isLeCocSocketOffloadSupported() {
+        int val = getNumberOfSupportedOffloadedLeCocSockets();
+        return val > 0;
+    }
+
+    /** Get the number of the supported offloaded RFCOMM sockets. */
+    public int getNumberOfSupportedOffloadedRfcommSockets() {
+        return mAdapterProperties.getNumberOfSupportedOffloadedRfcommSockets();
+    }
+
+    /** Check if the offloaded RFCOMM socket is supported. */
+    public boolean isRfcommSocketOffloadSupported() {
+        int val = getNumberOfSupportedOffloadedRfcommSockets();
+        return val > 0;
     }
 }

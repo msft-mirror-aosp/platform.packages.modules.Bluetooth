@@ -27,9 +27,6 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 tHID_STATUS HID_HostAddDev(const RawAddress& /* addr */, uint16_t /* attr_mask */,
                            uint8_t* /* handle */) {
   inc_func_call_count(__func__);
@@ -70,7 +67,3 @@ tHID_STATUS HID_HostWriteDev(uint8_t /* dev_handle */, uint8_t /* t_type */, uin
   return HID_SUCCESS;
 }
 void HID_HostInit(void) { inc_func_call_count(__func__); }
-void hidh_get_str_attr(tSDP_DISC_REC* /* p_rec */, uint16_t /* attr_id */, uint16_t /* max_len */,
-                       char* /* str */) {
-  inc_func_call_count(__func__);
-}

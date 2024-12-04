@@ -73,6 +73,7 @@ static constexpr uint8_t kMinConfigId = 0;
 static constexpr uint8_t kMaxConfigId = 3;
 static constexpr uint16_t kDefaultIntervalMs = 1000;  // 1s
 static constexpr uint8_t kMaxRetryCounterForCreateConfig = 0x03;
+static constexpr uint16_t kInvalidConnInterval = 0;  // valid value is from 0x0006 to 0x0C80
 
 struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   struct CsProcedureData {
@@ -187,10 +188,11 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     CsRttType rtt_type = CsRttType::RTT_AA_ONLY;
     bool remote_support_phase_based_ranging = false;
     uint8_t remote_num_antennas_supported_ = 0x01;
+    uint8_t remote_supported_sw_time_ = 0;
     // sending from host to controller with CS config command, request the controller to use it.
     uint8_t requesting_config_id = kInvalidConfigId;
     // received from controller to host with CS config complete event, it will be used
-    // for the following measruement.
+    // for the following measurement.
     uint8_t used_config_id = kInvalidConfigId;
     uint8_t selected_tx_power = 0;
     std::vector<CsProcedureData> procedure_data_list = {};
@@ -201,6 +203,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     // RAS data
     RangingHeader ranging_header_;
     PacketViewForRecombination segment_data_;
+    uint16_t conn_interval_ = kInvalidConnInterval;
   };
 
   bool get_free_config_id(uint16_t connection_handle, uint8_t& config_id) {
@@ -406,7 +409,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   void start_distance_measurement_with_cs(const Address& cs_remote_address,
                                           uint16_t connection_handle) {
     log::info("connection_handle: {}, address: {}", connection_handle, cs_remote_address);
-    if (!com::android::bluetooth::flags::channel_sounding_in_stack()) {
+    if (!com::android::bluetooth::flags::channel_sounding_in_stack() && !is_local_cs_ready_) {
       log::error("Channel Sounding is not enabled");
       distance_measurement_callbacks_->OnDistanceMeasurementStopped(
               cs_remote_address, REASON_INTERNAL_ERROR, METHOD_CS);
@@ -472,11 +475,12 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
 
   void handle_ras_client_connected_event(
           const Address address, uint16_t connection_handle, uint16_t att_handle,
-          const std::vector<hal::VendorSpecificCharacteristic> vendor_specific_data) {
+          const std::vector<hal::VendorSpecificCharacteristic> vendor_specific_data,
+          uint16_t conn_interval) {
     log::info(
             "address:{}, connection_handle 0x{:04x}, att_handle 0x{:04x}, size of "
-            "vendor_specific_data {}",
-            address, connection_handle, att_handle, vendor_specific_data.size());
+            "vendor_specific_data {}, conn_interval {}",
+            address, connection_handle, att_handle, vendor_specific_data.size(), conn_interval);
 
     auto it = cs_requester_trackers_.find(connection_handle);
     if (it == cs_requester_trackers_.end()) {
@@ -487,6 +491,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       log::debug("Already connected");
       return;
     }
+    it->second.conn_interval_ = conn_interval;
     it->second.ras_connected = true;
     it->second.state = CsTrackerState::RAS_CONNECTED;
 
@@ -495,6 +500,26 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       return;
     }
     start_distance_measurement_with_cs(it->second.address, connection_handle);
+  }
+
+  void handle_conn_interval_updated(const Address& address, uint16_t connection_handle,
+                                    uint16_t conn_interval) {
+    if (com::android::bluetooth::flags::channel_sounding_25q2_apis()) {
+      log::debug("connection interval is not required.");
+      return;
+    }
+    auto it = cs_requester_trackers_.find(connection_handle);
+    if (it == cs_requester_trackers_.end()) {
+      log::warn("can't find tracker for 0x{:04x}, address - {} ", connection_handle, address);
+      return;
+    }
+    log::info("interval updated as {}", conn_interval);
+    it->second.conn_interval_ = conn_interval;
+    if (is_hal_v2() && it->second.state >= CsTrackerState::WAIT_FOR_CONFIG_COMPLETE) {
+      log::info("send conn interval {} to HAL", conn_interval);
+      ranging_hal_->UpdateConnInterval(connection_handle, conn_interval);
+      // should the measurement be started over?
+    }
   }
 
   void handle_ras_client_disconnected_event(const Address address) {
@@ -670,6 +695,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (cs_requester_trackers_.find(connection_handle) == cs_requester_trackers_.end()) {
       log::warn("no cs tracker found for {}", connection_handle);
     }
+    log::debug("send cs create config");
     cs_requester_trackers_[connection_handle].state = CsTrackerState::WAIT_FOR_CONFIG_COMPLETE;
     auto channel_vector = common::FromHexString("1FFFFFFFFFFFFC7FFFFC");  // use all 72 Channels
     // If the interval is less than or equal to 1 second, then use half channels
@@ -812,6 +838,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     cs_subfeature_supported_ = complete_view.GetOptionalSubfeaturesSupported();
     num_antennas_supported_ = complete_view.GetNumAntennasSupported();
     local_support_phase_based_ranging_ = cs_subfeature_supported_.phase_based_ranging_ == 0x01;
+    local_supported_sw_time_ = complete_view.GetTSwTimeSupported();
+    is_local_cs_ready_ = true;
   }
 
   void on_cs_read_remote_supported_capabilities_complete(
@@ -844,6 +872,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       log::info("Setup phase complete, connection_handle: {}, address: {}", connection_handle,
                 req_it->second.address);
       req_it->second.retry_counter_for_create_config = 0;
+      req_it->second.remote_supported_sw_time_ = event_view.GetTSwTimeSupported();
       send_le_cs_create_config(connection_handle, req_it->second.requesting_config_id);
     }
     log::info(
@@ -944,7 +973,9 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     live_tracker->sub_mode_type = event_view.GetSubModeType();
     live_tracker->rtt_type = event_view.GetRttType();
     if (live_tracker->local_start && is_hal_v2()) {
-      ranging_hal_->UpdateChannelSoundingConfig(connection_handle, event_view);
+      ranging_hal_->UpdateChannelSoundingConfig(
+              connection_handle, event_view, local_supported_sw_time_,
+              live_tracker->remote_supported_sw_time_, live_tracker->conn_interval_);
     }
     if (live_tracker->local_hci_role == hci::Role::CENTRAL) {
       // send the cmd from the BLE central only.
@@ -2386,6 +2417,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   CsOptionalSubfeaturesSupported cs_subfeature_supported_;
   uint8_t num_antennas_supported_ = 0x01;
   bool local_support_phase_based_ranging_ = false;
+  uint8_t local_supported_sw_time_ = 0;
+  bool is_local_cs_ready_ = false;
   // A table that maps num_antennas_supported and remote_num_antennas_supported to Antenna
   // Configuration Index.
   uint8_t cs_tone_antenna_config_mapping_table_[4][4] = {
@@ -2442,9 +2475,17 @@ void DistanceMeasurementManager::StopDistanceMeasurement(const Address& address,
 
 void DistanceMeasurementManager::HandleRasClientConnectedEvent(
         const Address& address, uint16_t connection_handle, uint16_t att_handle,
-        const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data) {
+        const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data,
+        uint16_t conn_interval) {
   CallOn(pimpl_.get(), &impl::handle_ras_client_connected_event, address, connection_handle,
-         att_handle, vendor_specific_data);
+         att_handle, vendor_specific_data, conn_interval);
+}
+
+void DistanceMeasurementManager::HandleConnIntervalUpdated(const Address& address,
+                                                           uint16_t connection_handle,
+                                                           uint16_t conn_interval) {
+  CallOn(pimpl_.get(), &impl::handle_conn_interval_updated, address, connection_handle,
+         conn_interval);
 }
 
 void DistanceMeasurementManager::HandleRasClientDisconnectedEvent(const Address& address) {

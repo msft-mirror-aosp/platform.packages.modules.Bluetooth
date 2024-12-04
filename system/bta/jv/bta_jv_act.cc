@@ -982,11 +982,31 @@ static void bta_jv_l2cap_client_cback(uint16_t gap_handle, uint16_t event, tGAP_
 
   switch (event) {
     case GAP_EVT_CONN_OPENED:
-      evt_data.l2c_open.rem_bda = *GAP_ConnGetRemoteAddr(gap_handle);
-      evt_data.l2c_open.tx_mtu = GAP_ConnGetRemMtuSize(gap_handle);
-      if (data != nullptr) {
-        evt_data.l2c_open.local_cid = data->l2cap_cids.local_cid;
-        evt_data.l2c_open.remote_cid = data->l2cap_cids.remote_cid;
+      if (!com::android::bluetooth::flags::socket_settings_api() ||
+          !GAP_IsTransportLe(gap_handle)) {
+        evt_data.l2c_open.rem_bda = *GAP_ConnGetRemoteAddr(gap_handle);
+        evt_data.l2c_open.tx_mtu = GAP_ConnGetRemMtuSize(gap_handle);
+        if (data != nullptr) {
+          evt_data.l2c_open.local_cid = data->l2cap_cids.local_cid;
+          evt_data.l2c_open.remote_cid = data->l2cap_cids.remote_cid;
+        }
+      } else {
+        uint16_t remote_mtu, local_mps, remote_mps, local_credit, remote_credit;
+        uint16_t local_cid, remote_cid, acl_handle;
+        evt_data.l2c_open.rem_bda = *GAP_ConnGetRemoteAddr(gap_handle);
+        if (GAP_GetLeChannelInfo(gap_handle, &remote_mtu, &local_mps, &remote_mps, &local_credit,
+                                 &remote_credit, &local_cid, &remote_cid,
+                                 &acl_handle) != PORT_SUCCESS) {
+          log::warn("Unable to get GAP channel info handle:{}", gap_handle);
+        }
+        evt_data.l2c_open.tx_mtu = remote_mtu;
+        evt_data.l2c_open.local_coc_mps = local_mps;
+        evt_data.l2c_open.remote_coc_mps = remote_mps;
+        evt_data.l2c_open.local_coc_credit = local_credit;
+        evt_data.l2c_open.remote_coc_credit = remote_credit;
+        evt_data.l2c_open.local_cid = local_cid;
+        evt_data.l2c_open.remote_cid = remote_cid;
+        evt_data.l2c_open.acl_handle = acl_handle;
       }
       p_cb->state = BTA_JV_ST_CL_OPEN;
       p_cb->p_cback(BTA_JV_L2CAP_OPEN_EVT, &evt_data, p_cb->l2cap_socket_id);
@@ -1142,11 +1162,31 @@ static void bta_jv_l2cap_server_cback(uint16_t gap_handle, uint16_t event, tGAP_
 
   switch (event) {
     case GAP_EVT_CONN_OPENED:
-      evt_data.l2c_open.rem_bda = *GAP_ConnGetRemoteAddr(gap_handle);
-      evt_data.l2c_open.tx_mtu = GAP_ConnGetRemMtuSize(gap_handle);
-      if (data != nullptr) {
-        evt_data.l2c_open.local_cid = data->l2cap_cids.local_cid;
-        evt_data.l2c_open.remote_cid = data->l2cap_cids.remote_cid;
+      if (!com::android::bluetooth::flags::socket_settings_api() ||
+          !GAP_IsTransportLe(gap_handle)) {
+        evt_data.l2c_open.rem_bda = *GAP_ConnGetRemoteAddr(gap_handle);
+        evt_data.l2c_open.tx_mtu = GAP_ConnGetRemMtuSize(gap_handle);
+        if (data != nullptr) {
+          evt_data.l2c_open.local_cid = data->l2cap_cids.local_cid;
+          evt_data.l2c_open.remote_cid = data->l2cap_cids.remote_cid;
+        }
+      } else {
+        uint16_t remote_mtu, local_mps, remote_mps, local_credit, remote_credit;
+        uint16_t local_cid, remote_cid, acl_handle;
+        evt_data.l2c_open.rem_bda = *GAP_ConnGetRemoteAddr(gap_handle);
+        if (GAP_GetLeChannelInfo(gap_handle, &remote_mtu, &local_mps, &remote_mps, &local_credit,
+                                 &remote_credit, &local_cid, &remote_cid,
+                                 &acl_handle) != PORT_SUCCESS) {
+          log::warn("Unable to get GAP channel info handle:{}", gap_handle);
+        }
+        evt_data.l2c_open.tx_mtu = remote_mtu;
+        evt_data.l2c_open.local_coc_mps = local_mps;
+        evt_data.l2c_open.remote_coc_mps = remote_mps;
+        evt_data.l2c_open.local_coc_credit = local_credit;
+        evt_data.l2c_open.remote_coc_credit = remote_credit;
+        evt_data.l2c_open.local_cid = local_cid;
+        evt_data.l2c_open.remote_cid = remote_cid;
+        evt_data.l2c_open.acl_handle = acl_handle;
       }
       p_cb->state = BTA_JV_ST_SR_OPEN;
       p_cb->p_cback(BTA_JV_L2CAP_OPEN_EVT, &evt_data, p_cb->l2cap_socket_id);

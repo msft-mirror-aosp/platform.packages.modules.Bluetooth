@@ -154,6 +154,7 @@ void Device::VendorPacketHandler(uint8_t label, std::shared_ptr<VendorPacket> pk
         // TODO (apanicke): Add a retry mechanism if the response has a
         // different volume than the one we set. For now, we don't care
         // about the response to this message.
+        active_labels_.erase(label);
         break;
       default:
         log::warn("{}: Unhandled Response: pdu={}", address_, pkt->GetCommandPdu());

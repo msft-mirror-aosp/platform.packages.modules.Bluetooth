@@ -149,7 +149,8 @@ void smp_send_app_cback(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
         break;
 
       case SMP_LE_ADDR_ASSOC_EVT:
-        cb_data.id_addr = p_cb->id_addr;
+        cb_data.id_addr_with_type.bda = p_cb->id_addr;
+        cb_data.id_addr_with_type.type = p_cb->id_addr_type;
         break;
 
       default:
@@ -1518,7 +1519,7 @@ void smp_process_io_response(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_data */) {
         case SMP_OOB_NONE:
           log::info("SMP_MODEL_SEC_CONN_OOB with SMP_OOB_NONE");
           if (!com::android::bluetooth::flags::remove_dup_pairing_response_in_oob_pairing()) {
-              smp_send_pair_rsp(p_cb, NULL);
+            smp_send_pair_rsp(p_cb, NULL);
           }
           break;
         case SMP_OOB_PRESENT:

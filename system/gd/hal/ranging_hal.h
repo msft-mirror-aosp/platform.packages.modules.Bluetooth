@@ -313,8 +313,10 @@ public:
           const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_reply) = 0;
   virtual void WriteRawData(uint16_t connection_handle, const ChannelSoundingRawData& raw_data) = 0;
   virtual void UpdateChannelSoundingConfig(
-          uint16_t connection_handle,
-          const hci::LeCsConfigCompleteView& leCsConfigCompleteView) = 0;
+          uint16_t connection_handle, const hci::LeCsConfigCompleteView& leCsConfigCompleteView,
+          uint8_t local_supported_sw_time, uint8_t remote_supported_sw_time,
+          uint16_t conn_interval) = 0;
+  virtual void UpdateConnInterval(uint16_t connection_handle, uint16_t conn_interval) = 0;
   virtual void UpdateProcedureEnableConfig(
           uint16_t connection_handle,
           const hci::LeCsProcedureEnableCompleteView& leCsProcedureEnableCompleteView) = 0;

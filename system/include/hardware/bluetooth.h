@@ -238,6 +238,10 @@ typedef struct {
   bool le_channel_sounding_supported;
 } bt_local_le_features_t;
 
+typedef struct {
+  uint8_t number_of_supported_offloaded_le_coc_sockets;
+} bt_lpp_offload_features_t;
+
 /** Bluetooth Vendor and Product ID info */
 typedef struct {
   uint8_t vendor_id_src;
@@ -415,6 +419,13 @@ typedef enum {
    */
   BT_PROPERTY_REMOTE_MAX_SESSION_KEY_SIZE,
 
+  /**
+   * Description - Low power processor offload features
+   * Access mode - GET.
+   * Data Type   - bt_lpp_offload_features_t.
+   */
+  BT_PROPERTY_LPP_OFFLOAD_FEATURES,
+
   BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP = 0xFF,
 } bt_property_type_t;
 
@@ -545,9 +556,10 @@ typedef void (*address_consolidate_callback)(RawAddress* main_bd_addr,
 
 /** Bluetooth LE Address association callback */
 /* Callback for the upper layer to associate the LE-only device's RPA to the
- * identity address */
+ * identity address and identity address type */
 typedef void (*le_address_associate_callback)(RawAddress* main_bd_addr,
-                                              RawAddress* secondary_bd_addr);
+                                              RawAddress* secondary_bd_addr,
+                                              uint8_t identity_address_type);
 
 /** Bluetooth ACL connection state changed callback */
 typedef void (*acl_state_changed_callback)(bt_status_t status, RawAddress* remote_bd_addr,

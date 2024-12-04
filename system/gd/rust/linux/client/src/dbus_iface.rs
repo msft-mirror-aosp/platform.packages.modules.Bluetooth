@@ -2583,6 +2583,10 @@ impl IBluetoothQA for BluetoothQADBus {
     fn send_hid_data(&self, addr: RawAddress, data: String) {
         dbus_generated!()
     }
+    #[dbus_method("SendHIDVirtualUnplug")]
+    fn send_hid_virtual_unplug(&self, addr: RawAddress) {
+        dbus_generated!()
+    }
 }
 
 #[allow(dead_code)]
@@ -2622,6 +2626,10 @@ impl IBluetoothQACallback for IBluetoothQACallbackDBus {
     }
     #[dbus_method("OnSendHIDDataComplete", DBusLog::Disable)]
     fn on_send_hid_data_completed(&mut self, status: BtStatus) {
+        dbus_generated!()
+    }
+    #[dbus_method("OnSendHIDVirtualUnplugComplete", DBusLog::Disable)]
+    fn on_send_hid_virtual_unplug_completed(&mut self, status: BtStatus) {
         dbus_generated!()
     }
 }

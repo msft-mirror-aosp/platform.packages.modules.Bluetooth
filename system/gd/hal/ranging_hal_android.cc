@@ -262,9 +262,11 @@ public:
     session_trackers_[connection_handle]->GetSession()->writeRawData(hal_raw_data);
   }
 
-  void UpdateChannelSoundingConfig(
-          uint16_t connection_handle,
-          const hci::LeCsConfigCompleteView& leCsConfigCompleteView) override {
+  void UpdateChannelSoundingConfig(uint16_t connection_handle,
+                                   const hci::LeCsConfigCompleteView& leCsConfigCompleteView,
+                                   uint8_t local_supported_sw_time,
+                                   uint8_t remote_supported_sw_time,
+                                   uint16_t conn_interval) override {
     auto it = session_trackers_.find(connection_handle);
     if (it == session_trackers_.end()) {
       log::error("Can't find session for connection_handle:0x{:04x}", connection_handle);
@@ -299,12 +301,25 @@ public:
             .tIp2TimeUs = leCsConfigCompleteView.GetTIp2Time(),
             .tFcsTimeUs = leCsConfigCompleteView.GetTFcsTime(),
             .tPmTimeUs = static_cast<int8_t>(leCsConfigCompleteView.GetTPmTime()),
-            // TODO(b/378942784): specify the following values.
-            .tSwTimeUsSupportedByLocal = 0,
-            .tSwTimeUsSupportedByRemote = 0,
-            .bleConnInterval = 0,
+            .tSwTimeUsSupportedByLocal = static_cast<int8_t>(local_supported_sw_time),
+            .tSwTimeUsSupportedByRemote = static_cast<int8_t>(remote_supported_sw_time),
+            .bleConnInterval = conn_interval,
     };
+
     it->second->GetSession()->updateChannelSoundingConfig(csConfig);
+  }
+
+  void UpdateConnInterval(uint16_t connection_handle, uint16_t conn_interval) override {
+    auto it = session_trackers_.find(connection_handle);
+    if (it == session_trackers_.end()) {
+      log::error("Can't find session for connection_handle:0x{:04x}", connection_handle);
+      return;
+    } else if (it->second->GetSession() == nullptr) {
+      log::error("Session not opened");
+      return;
+    }
+
+    it->second->GetSession()->updateBleConnInterval(conn_interval);
   }
 
   void UpdateProcedureEnableConfig(
