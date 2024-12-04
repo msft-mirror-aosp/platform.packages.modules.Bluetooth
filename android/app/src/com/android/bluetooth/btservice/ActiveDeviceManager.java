@@ -412,7 +412,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
                 final LeAudioService leAudioService = mFactory.getLeAudioService();
                 setA2dpActiveDevice(null, true);
                 setHfpActiveDevice(null);
-                if (Flags.admVerifyActiveFallbackDevice()) {
+                if (Flags.admVerifyActiveFallbackDevice() && leAudioService != null) {
                     setLeAudioActiveDevice(
                             null, !leAudioService.getActiveDevices().contains(device));
                 } else {
