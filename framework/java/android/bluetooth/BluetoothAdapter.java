@@ -4564,6 +4564,14 @@ public final class BluetoothAdapter {
      * <p>Use {@link BluetoothServerSocket#accept} to retrieve incoming connections from a listening
      * {@link BluetoothServerSocket}.
      *
+     * <p>Use {@link BluetoothDevice#createUsingSocketSettings(BluetoothSocketSettings)} to connect
+     * to this server socket from another Android device using the L2cap protocol/service
+     * multiplexer(PSM) value or the RFCOMM service UUID as input.
+     *
+     * <p>This API requires the {@link android.Manifest.permission#BLUETOOTH_PRIVILEGED} permission
+     * only when {@code settings.getDataPath()} is different from {@link
+     * BluetoothSocketSettings#DATA_PATH_NO_OFFLOAD}.
+     *
      * <p>This API supports {@link BluetoothSocket#TYPE_RFCOMM} and {{@link BluetoothSocket#TYPE_LE}
      * only, which can be set using {@link BluetoothSocketSettings#setSocketType()}.
      * <li>For `BluetoothSocket.TYPE_RFCOMM`: The RFCOMM UUID must be provided using {@link
@@ -4574,10 +4582,6 @@ public final class BluetoothAdapter {
      *     application exits unexpectedly. The mechanism for disclosing the PSM value to the client
      *     is application-defined.
      *
-     *     <p>Use {@link BluetoothDevice#createUsingSocketSettings(BluetoothSocketSettings)} to
-     *     connect to this server socket from another Android device using the L2cap
-     *     protocol/service multiplexer(PSM) value or the RFCOMM service UUID as input.
-     *
      * @param settings Bluetooth socket settings {@link BluetoothSocketSettings}.
      * @return a {@link BluetoothServerSocket}
      * @throws IllegalArgumentException if BluetoothSocket#TYPE_RFCOMM socket is requested with no
@@ -4586,7 +4590,9 @@ public final class BluetoothAdapter {
      *     Connection-oriented Channel (CoC).
      */
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
+    @RequiresPermission(
+            allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+            conditional = true)
     @FlaggedApi(Flags.FLAG_SOCKET_SETTINGS_API)
     public @NonNull BluetoothServerSocket listenUsingSocketSettings(
             @NonNull BluetoothSocketSettings settings) throws IOException {
@@ -4597,24 +4603,64 @@ public final class BluetoothAdapter {
             if (settings.getRfcommUuid() == null) {
                 throw new IllegalArgumentException("RFCOMM server missing UUID");
             }
-            return createNewRfcommSocketAndRecord(
-                    settings.getRfcommServiceName(),
-                    settings.getRfcommUuid(),
-                    settings.isAuthenticationRequired(),
-                    settings.isEncryptionRequired());
+            if (settings.getDataPath() == BluetoothSocketSettings.DATA_PATH_NO_OFFLOAD) {
+                socket =
+                        new BluetoothServerSocket(
+                                settings.getSocketType(),
+                                settings.isAuthenticationRequired(),
+                                settings.isEncryptionRequired(),
+                                new ParcelUuid(settings.getRfcommUuid()));
+            } else {
+                socket =
+                        new BluetoothServerSocket(
+                                settings.getSocketType(),
+                                settings.isAuthenticationRequired(),
+                                settings.isEncryptionRequired(),
+                                -1,
+                                new ParcelUuid(settings.getRfcommUuid()),
+                                false,
+                                false,
+                                settings.getDataPath(),
+                                settings.getSocketName(),
+                                settings.getHubId(),
+                                settings.getEndpointId(),
+                                settings.getRequestedMaximumPacketSize());
+            }
+            socket.setServiceName(settings.getRfcommServiceName());
         } else if (type == BluetoothSocket.TYPE_LE) {
-            socket =
-                    new BluetoothServerSocket(
-                            settings.getSocketType(),
-                            settings.isAuthenticationRequired(),
-                            settings.isEncryptionRequired(),
-                            SOCKET_CHANNEL_AUTO_STATIC_NO_SDP,
-                            false,
-                            false);
+            if (settings.getDataPath() == BluetoothSocketSettings.DATA_PATH_NO_OFFLOAD) {
+                socket =
+                        new BluetoothServerSocket(
+                                settings.getSocketType(),
+                                settings.isAuthenticationRequired(),
+                                settings.isEncryptionRequired(),
+                                SOCKET_CHANNEL_AUTO_STATIC_NO_SDP,
+                                false,
+                                false);
+            } else {
+                socket =
+                        new BluetoothServerSocket(
+                                settings.getSocketType(),
+                                settings.isAuthenticationRequired(),
+                                settings.isEncryptionRequired(),
+                                SOCKET_CHANNEL_AUTO_STATIC_NO_SDP,
+                                null,
+                                false,
+                                false,
+                                settings.getDataPath(),
+                                settings.getSocketName(),
+                                settings.getHubId(),
+                                settings.getEndpointId(),
+                                settings.getRequestedMaximumPacketSize());
+            }
         } else {
-            throw new IOException("Error: Invalid socket type: " + type);
+            throw new IllegalArgumentException("Error: Invalid socket type: " + type);
         }
-        int errno = socket.mSocket.bindListen();
+        int errno;
+        errno =
+                (settings.getDataPath() == BluetoothSocketSettings.DATA_PATH_NO_OFFLOAD)
+                        ? socket.mSocket.bindListen()
+                        : socket.mSocket.bindListenWithOffload();
         if (errno != 0) {
             throw new IOException("Error: " + errno);
         }
@@ -5915,5 +5961,99 @@ public final class BluetoothAdapter {
         } finally {
             mServiceLock.readLock().unlock();
         }
+    }
+
+    /**
+     * Returns whether LE CoC socket hardware offload is supported.
+     *
+     * <p>Bluetooth socket hardware offload allows the system to handle Bluetooth communication on a
+     * low-power processor, improving efficiency and reducing power consumption. This is achieved by
+     * providing channel information of an already connected {@link BluetoothSocket} to offload
+     * endpoints (e.g., offload stacks and applications). The offload stack can then decode received
+     * packets and pass them to the appropriate offload application without waking up the main
+     * application processor. This API allows offload endpoints to utilize Bluetooth sockets while
+     * the host stack retains control over the connection.
+     *
+     * <p>To configure a socket for hardware offload, use the following {@link
+     * BluetoothSocketSettings} methods:
+     *
+     * <ul>
+     *   <li>{@link BluetoothSocketSettings#setDataPath(int)} with {@link
+     *       BluetoothSocketSettings#DATA_PATH_HARDWARE_OFFLOAD}
+     *   <li>{@link BluetoothSocketSettings#setHubId(long)}
+     *   <li>{@link BluetoothSocketSettings#setEndpointId(long)}
+     * </ul>
+     *
+     * <p>This functionality is provided as a System API because only OEM specific system
+     * applications can be offloaded as endpoints in the low-power processor.
+     *
+     * @return {@code true} if LE CoC socket hardware offload is supported, {@code false} otherwise.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SOCKET_SETTINGS_API)
+    @RequiresPermission(BLUETOOTH_PRIVILEGED)
+    public boolean isLeCocSocketOffloadSupported() {
+        if (!isEnabled()) {
+            return false;
+        }
+        mServiceLock.readLock().lock();
+        try {
+            if (mService != null) {
+                return mService.isLeCocSocketOffloadSupported(mAttributionSource);
+            }
+        } catch (RemoteException e) {
+            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+        } finally {
+            mServiceLock.readLock().unlock();
+        }
+        return false;
+    }
+
+    /**
+     * Returns whether RFCOMM socket hardware offload is supported.
+     *
+     * <p>Bluetooth socket hardware offload allows the system to handle Bluetooth communication on a
+     * low-power processor, improving efficiency and reducing power consumption. This is achieved by
+     * providing channel information of an already connected {@link BluetoothSocket} to offload
+     * endpoints (e.g., offload stacks and applications). The offload stack can then decode received
+     * packets and pass them to the appropriate offload application without waking up the main
+     * application processor. This API allows offload endpoints to utilize Bluetooth sockets while
+     * the host stack retains control over the connection.
+     *
+     * <p>To configure a socket for hardware offload, use the following {@link
+     * BluetoothSocketSettings} methods:
+     *
+     * <ul>
+     *   <li>{@link BluetoothSocketSettings#setDataPath(int)} with {@link
+     *       BluetoothSocketSettings#DATA_PATH_HARDWARE_OFFLOAD}
+     *   <li>{@link BluetoothSocketSettings#setHubId(long)}
+     *   <li>{@link BluetoothSocketSettings#setEndpointId(long)}
+     * </ul>
+     *
+     * <p>This functionality is provided as a System API because only OEM specific system
+     * applications can be offloaded as endpoints in the low-power processor.
+     *
+     * @return {@code true} if RFCOMM socket hardware offload is supported, {@code false} otherwise.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SOCKET_SETTINGS_API)
+    @RequiresPermission(BLUETOOTH_PRIVILEGED)
+    public boolean isRfcommSocketOffloadSupported() {
+        if (!isEnabled()) {
+            return false;
+        }
+        mServiceLock.readLock().lock();
+        try {
+            if (mService != null) {
+                return mService.isRfcommSocketOffloadSupported(mAttributionSource);
+            }
+        } catch (RemoteException e) {
+            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+        } finally {
+            mServiceLock.readLock().unlock();
+        }
+        return false;
     }
 }

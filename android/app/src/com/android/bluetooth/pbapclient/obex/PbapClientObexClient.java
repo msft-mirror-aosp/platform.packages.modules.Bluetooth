@@ -17,6 +17,7 @@
 package com.android.bluetooth.pbapclient;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
 import android.accounts.Account;
 import android.annotation.RequiresPermission;
@@ -468,7 +469,9 @@ class PbapClientObexClient {
 
     /* Utilize SDP, if available, to create a socket connection over L2CAP, RFCOMM specified
      * channel, or RFCOMM default channel. */
-    @RequiresPermission(BLUETOOTH_CONNECT)
+    @RequiresPermission(
+            allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+            conditional = true)
     private PbapClientSocket connectSocket(int transport, int channelOrPsm) {
         debug(
                 "Connect socket, transport="

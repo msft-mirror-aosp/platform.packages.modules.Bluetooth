@@ -87,6 +87,7 @@ cc_defaults {
             srcs: [
                 ":BluetoothHalSources_hci_host",
                 ":BluetoothHalSources_ranging_host",
+                ":BluetoothHalSources_socket_host",
                 ":BluetoothOsSources_host",
                 ":BluetoothSyspropsSources",
             ],
@@ -95,6 +96,7 @@ cc_defaults {
             srcs: [
                 ":BluetoothHalSources_hci_android_hidl",
                 ":BluetoothHalSources_ranging_android",
+                ":BluetoothHalSources_socket_android",
                 ":BluetoothOsSources_android",
             ],
             shared_libs: [
@@ -117,6 +119,7 @@ cc_defaults {
             whole_static_libs: [
                 "android.hardware.bluetooth-V1-ndk",
                 "android.hardware.bluetooth.ranging-V2-ndk",
+                "android.hardware.bluetooth.socket-V1-ndk",
             ],
         },
     },
@@ -124,6 +127,7 @@ cc_defaults {
         ":BluetoothCommonSources",
         ":BluetoothHalSources",
         ":BluetoothHciSources",
+        ":BluetoothLppOffloadSources",
         ":BluetoothMetricsSources",
         ":BluetoothNeighborSources",
         ":BluetoothOsSources",
