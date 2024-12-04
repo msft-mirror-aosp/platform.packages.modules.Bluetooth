@@ -20,8 +20,6 @@ source_set("BluetoothShimSources") {
 
   deps = [
     "//bt/flags:bluetooth_flags_c_lib",
-    "//bt/system/gd/dumpsys:libbluetooth-dumpsys",
-    "//bt/system/gd/dumpsys/bundler:BluetoothGeneratedBundlerSchema_h_bfbs",
     "//bt/system/pdl:BluetoothGeneratedPackets_h",
   ]
 

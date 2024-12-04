@@ -26,6 +26,7 @@
 #include "hci/le_scanning_manager.h"
 #include "hci/msft.h"
 #include "hci/remote_name_request.h"
+#include "lpp/lpp_offload_manager.h"
 #include "main/shim/stack.h"
 #include "metrics/counter_metrics.h"
 #include "os/handler.h"
@@ -65,6 +66,10 @@ hci::DistanceMeasurementManager* GetDistanceMeasurementManager() {
 
 hal::SnoopLogger* GetSnoopLogger() {
   return Stack::GetInstance()->GetStackManager()->GetInstance<hal::SnoopLogger>();
+}
+
+lpp::LppOffloadInterface* GetLppOffloadManager() {
+  return Stack::GetInstance()->GetStackManager()->GetInstance<lpp::LppOffloadManager>();
 }
 
 storage::StorageModule* GetStorage() {

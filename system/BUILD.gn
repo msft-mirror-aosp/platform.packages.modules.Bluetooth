@@ -55,7 +55,6 @@ group("bluetooth") {
 
 group("tools") {
   deps = [
-    "//bt/system/gd/dumpsys/bundler:bluetooth_flatbuffer_bundler",
     "//bt/system/gd/packet/parser:bluetooth_packetgen",
   ]
 }
