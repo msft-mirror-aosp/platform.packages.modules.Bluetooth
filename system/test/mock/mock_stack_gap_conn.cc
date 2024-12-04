@@ -61,4 +61,16 @@ uint16_t GAP_ConnWriteData(uint16_t /* gap_handle */, BT_HDR* /* msg */) {
   inc_func_call_count(__func__);
   return 0;
 }
+bool GAP_GetLeChannelInfo(uint16_t /* gap_handle */, uint16_t* /*remote_mtu */,
+                          uint16_t* /* local_mps */, uint16_t* /* remote_mps */,
+                          uint16_t* /* local_credit */, uint16_t* /* remote_credit */,
+                          uint16_t* /* local_cid */, uint16_t* /* remote_cid */,
+                          uint16_t* /* acl_handle */) {
+  inc_func_call_count(__func__);
+  return false;
+}
+bool GAP_IsTransportLe(uint16_t /* gap_handle */) {
+  inc_func_call_count(__func__);
+  return false;
+}
 void GAP_Init(void) { inc_func_call_count(__func__); }

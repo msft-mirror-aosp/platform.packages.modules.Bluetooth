@@ -195,13 +195,56 @@ public class AdapterNativeInterface {
         return getMetricIdNative(address);
     }
 
-    int connectSocket(byte[] address, int type, byte[] uuid, int port, int flag, int callingUid) {
-        return connectSocketNative(address, type, uuid, port, flag, callingUid);
+    int connectSocket(
+            byte[] address,
+            int type,
+            byte[] uuid,
+            int port,
+            int flag,
+            int callingUid,
+            int dataPath,
+            String socketName,
+            long hubId,
+            long endpointId,
+            int maximumPacketSize) {
+        return connectSocketNative(
+                address,
+                type,
+                uuid,
+                port,
+                flag,
+                callingUid,
+                dataPath,
+                socketName,
+                hubId,
+                endpointId,
+                maximumPacketSize);
     }
 
     int createSocketChannel(
-            int type, String serviceName, byte[] uuid, int port, int flag, int callingUid) {
-        return createSocketChannelNative(type, serviceName, uuid, port, flag, callingUid);
+            int type,
+            String serviceName,
+            byte[] uuid,
+            int port,
+            int flag,
+            int callingUid,
+            int dataPath,
+            String socketName,
+            long hubId,
+            long endpointId,
+            int maximumPacketSize) {
+        return createSocketChannelNative(
+                type,
+                serviceName,
+                uuid,
+                port,
+                flag,
+                callingUid,
+                dataPath,
+                socketName,
+                hubId,
+                endpointId,
+                maximumPacketSize);
     }
 
     void requestMaximumTxDataLength(byte[] address) {
@@ -359,10 +402,30 @@ public class AdapterNativeInterface {
     private native int getMetricIdNative(byte[] address);
 
     private native int connectSocketNative(
-            byte[] address, int type, byte[] uuid, int port, int flag, int callingUid);
+            byte[] address,
+            int type,
+            byte[] uuid,
+            int port,
+            int flag,
+            int callingUid,
+            int dataPath,
+            String socketName,
+            long hubId,
+            long endpointId,
+            int maximumPacketSize);
 
     private native int createSocketChannelNative(
-            int type, String serviceName, byte[] uuid, int port, int flag, int callingUid);
+            int type,
+            String serviceName,
+            byte[] uuid,
+            int port,
+            int flag,
+            int callingUid,
+            int dataPath,
+            String socketName,
+            long hubId,
+            long endpointId,
+            int maximumPacketSize);
 
     private native void requestMaximumTxDataLengthNative(byte[] address);
 
