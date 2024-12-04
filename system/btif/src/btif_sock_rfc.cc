@@ -36,6 +36,7 @@
 #include "btif/include/btif_sock_sdp.h"
 #include "btif/include/btif_sock_thread.h"
 #include "btif/include/btif_sock_util.h"
+#include "gd/os/rand.h"
 #include "include/hardware/bt_sock.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
@@ -92,6 +93,11 @@ typedef struct {
   int64_t tx_bytes;
   // Cumulative number of bytes received on this socket
   int64_t rx_bytes;
+  uint64_t socket_id;            // Socket ID in connected state
+  btsock_data_path_t data_path;  // socket data path
+  char socket_name[128];         // descriptive socket name
+  uint64_t hub_id;               // ID of the hub to which the end point belongs
+  uint64_t endpoint_id;          // ID of the hub end point
 } rfc_slot_t;
 
 static rfc_slot_t rfc_slots[MAX_RFC_CHANNEL];
@@ -106,6 +112,7 @@ static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id);
 static uint32_t rfcomm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t rfcomm_slot_id);
 static bool send_app_scn(rfc_slot_t* rs);
 static void handle_discovery_comp(tBTA_JV_STATUS status, int scn, uint32_t id);
+static uint64_t btif_rfc_sock_generate_socket_id();
 
 static bool is_init_done(void) { return pth != -1; }
 
@@ -230,6 +237,10 @@ static rfc_slot_t* alloc_rfc_slot(const RawAddress* addr, const char* name, cons
   slot->security = security;
   slot->scn = channel;
   slot->app_uid = -1;
+  slot->socket_id = 0;
+  slot->data_path = BTSOCK_DATA_PATH_NO_OFFLOAD;
+  slot->hub_id = 0;
+  slot->endpoint_id = 0;
 
   slot->is_service_uuid_valid = !uuid.IsEmpty();
   slot->service_uuid = uuid;
@@ -270,6 +281,15 @@ static rfc_slot_t* create_srv_accept_rfc_slot(rfc_slot_t* srv_rs, const RawAddre
   accept_rs->rfc_port_handle = BTA_JvRfcommGetPortHdl(open_handle);
   accept_rs->app_uid = srv_rs->app_uid;
 
+  if (com::android::bluetooth::flags::socket_settings_api()) {
+    accept_rs->socket_id = btif_rfc_sock_generate_socket_id();
+    accept_rs->data_path = srv_rs->data_path;
+    strncpy(accept_rs->socket_name, srv_rs->socket_name, sizeof(accept_rs->socket_name) - 1);
+    accept_rs->socket_name[sizeof(accept_rs->socket_name) - 1] = '\0';
+    accept_rs->hub_id = srv_rs->hub_id;
+    accept_rs->endpoint_id = srv_rs->endpoint_id;
+  }
+
   srv_rs->rfc_handle = new_listen_handle;
   srv_rs->rfc_port_handle = BTA_JvRfcommGetPortHdl(new_listen_handle);
 
@@ -303,7 +323,9 @@ bt_status_t btsock_rfc_control_req(uint8_t dlci, const RawAddress& bd_addr, uint
 }
 
 bt_status_t btsock_rfc_listen(const char* service_name, const Uuid* service_uuid, int channel,
-                              int* sock_fd, int flags, int app_uid) {
+                              int* sock_fd, int flags, int app_uid, btsock_data_path_t data_path,
+                              const char* socket_name, uint64_t hub_id, uint64_t endpoint_id,
+                              int /* max_rx_packet_size */) {
   log::assert_that(sock_fd != NULL, "assert failed: sock_fd != NULL");
   log::assert_that((service_uuid != NULL) || (channel >= 1 && channel <= MAX_RFC_CHANNEL) ||
                            ((flags & BTSOCK_FLAG_NO_SDP) != 0),
@@ -354,13 +376,24 @@ bt_status_t btsock_rfc_listen(const char* service_name, const Uuid* service_uuid
   //        close(rs->app_fd);
   slot->app_fd = INVALID_FD;  // Drop our reference to the fd.
   slot->app_uid = app_uid;
+  if (com::android::bluetooth::flags::socket_settings_api()) {
+    slot->data_path = data_path;
+    if (socket_name) {
+      strncpy(slot->socket_name, socket_name, sizeof(slot->socket_name) - 1);
+      slot->socket_name[sizeof(slot->socket_name) - 1] = '\0';
+    }
+    slot->hub_id = hub_id;
+    slot->endpoint_id = endpoint_id;
+  }
   btsock_thread_add_fd(pth, slot->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_EXCEPTION, slot->id);
 
   return BT_STATUS_SUCCESS;
 }
 
 bt_status_t btsock_rfc_connect(const RawAddress* bd_addr, const Uuid* service_uuid, int channel,
-                               int* sock_fd, int flags, int app_uid) {
+                               int* sock_fd, int flags, int app_uid, btsock_data_path_t data_path,
+                               const char* socket_name, uint64_t hub_id, uint64_t endpoint_id,
+                               int /* max_rx_packet_size */) {
   log::assert_that(sock_fd != NULL, "assert failed: sock_fd != NULL");
   log::assert_that((service_uuid != NULL) || (channel >= 1 && channel <= MAX_RFC_CHANNEL),
                    "assert failed: (service_uuid != NULL) || (channel >= 1 && channel <= "
@@ -416,6 +449,15 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr, const Uuid* service_uu
   *sock_fd = slot->app_fd;    // Transfer ownership of fd to caller.
   slot->app_fd = INVALID_FD;  // Drop our reference to the fd.
   slot->app_uid = app_uid;
+  if (com::android::bluetooth::flags::socket_settings_api()) {
+    slot->data_path = data_path;
+    if (socket_name) {
+      strncpy(slot->socket_name, socket_name, sizeof(slot->socket_name) - 1);
+      slot->socket_name[sizeof(slot->socket_name) - 1] = '\0';
+    }
+    slot->hub_id = hub_id;
+    slot->endpoint_id = endpoint_id;
+  }
   btsock_thread_add_fd(pth, slot->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_RD, slot->id);
 
   return BT_STATUS_SUCCESS;
@@ -451,8 +493,8 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
     close(slot->fd);
     log::info(
             "disconnected from RFCOMM socket connections for device: {}, scn: {}, "
-            "app_uid: {}, id: {}",
-            slot->addr, slot->scn, slot->app_uid, slot->id);
+            "app_uid: {}, id: {}, socket_id: {}",
+            slot->addr, slot->scn, slot->app_uid, slot->id, slot->socket_id);
     btif_sock_connection_logger(
             slot->addr, slot->id, BTSOCK_RFCOMM, SOCKET_CONNECTION_STATE_DISCONNECTED,
             slot->f.server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION, slot->app_uid, slot->scn,
@@ -500,7 +542,7 @@ static bool send_app_scn(rfc_slot_t* slot) {
 }
 
 static bool send_app_connect_signal(int fd, const RawAddress* addr, int channel, int status,
-                                    int send_fd) {
+                                    int send_fd, uint64_t socket_id) {
   sock_connect_signal_t cs;
   cs.size = sizeof(cs);
   cs.bd_addr = *addr;
@@ -510,7 +552,7 @@ static bool send_app_connect_signal(int fd, const RawAddress* addr, int channel,
   cs.max_tx_packet_size = 0;  // not used for RFCOMM
   cs.conn_uuid_lsb = 0;       // not used for RFCOMM
   cs.conn_uuid_msb = 0;       // not used for RFCOMM
-  cs.socket_id = 0;           // not used for RFCOMM
+  cs.socket_id = socket_id;
   if (send_fd == INVALID_FD) {
     return sock_send_all(fd, (const uint8_t*)&cs, sizeof(cs)) == sizeof(cs);
   }
@@ -575,8 +617,8 @@ static uint32_t on_srv_rfc_connect(tBTA_JV_RFCOMM_SRV_OPEN* p_open, uint32_t id)
 
   log::info(
           "connected to RFCOMM socket connections for device: {}, scn: {}, "
-          "app_uid: {}, id: {}",
-          accept_rs->addr, accept_rs->scn, accept_rs->app_uid, id);
+          "app_uid: {}, id: {}, socket_id: {}",
+          accept_rs->addr, accept_rs->scn, accept_rs->app_uid, id, accept_rs->socket_id);
   btif_sock_connection_logger(accept_rs->addr, accept_rs->id, BTSOCK_RFCOMM,
                               SOCKET_CONNECTION_STATE_DISCONNECTED,
                               accept_rs->f.server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION,
@@ -585,7 +627,8 @@ static uint32_t on_srv_rfc_connect(tBTA_JV_RFCOMM_SRV_OPEN* p_open, uint32_t id)
   // Start monitoring the socket.
   btsock_thread_add_fd(pth, srv_rs->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_EXCEPTION, srv_rs->id);
   btsock_thread_add_fd(pth, accept_rs->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_RD, accept_rs->id);
-  send_app_connect_signal(srv_rs->fd, &accept_rs->addr, srv_rs->scn, 0, accept_rs->app_fd);
+  send_app_connect_signal(srv_rs->fd, &accept_rs->addr, srv_rs->scn, 0, accept_rs->app_fd,
+                          accept_rs->socket_id);
   accept_rs->app_fd = INVALID_FD;  // Ownership of the application fd has been transferred.
   return srv_rs->id;
 }
@@ -608,21 +651,32 @@ static void on_cli_rfc_connect(tBTA_JV_RFCOMM_OPEN* p_open, uint32_t id) {
 
   slot->rfc_port_handle = BTA_JvRfcommGetPortHdl(p_open->handle);
   slot->addr = p_open->rem_bda;
+  slot->socket_id = btif_rfc_sock_generate_socket_id();
 
   log::info(
           "connected to RFCOMM socket connections for device: {}, scn: {}, "
-          "app_uid: {}, id: {}",
-          slot->addr, slot->scn, slot->app_uid, id);
+          "app_uid: {}, id: {}, socket_id: {}",
+          slot->addr, slot->scn, slot->app_uid, id, slot->socket_id);
   btif_sock_connection_logger(
           slot->addr, slot->id, BTSOCK_RFCOMM, SOCKET_CONNECTION_STATE_CONNECTED,
           slot->f.server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION, slot->app_uid, slot->scn, 0,
           0, slot->service_uuid.ToString().c_str());
 
-  if (send_app_connect_signal(slot->fd, &slot->addr, slot->scn, 0, -1)) {
+  if (send_app_connect_signal(slot->fd, &slot->addr, slot->scn, 0, -1, slot->socket_id)) {
     slot->f.connected = true;
   } else {
     log::error("unable to send connect completion signal to caller.");
   }
+}
+
+// TODO(b/380189525): Replace the randomized socket ID with static counter when we don't have
+// security concerns about using static counter.
+static uint64_t btif_rfc_sock_generate_socket_id() {
+  uint64_t socket_id;
+  do {
+    socket_id = bluetooth::os::GenerateRandomUint64();
+  } while (!socket_id);
+  return socket_id;
 }
 
 static void on_rfc_close(tBTA_JV_RFCOMM_CLOSE* /* p_close */, uint32_t id) {

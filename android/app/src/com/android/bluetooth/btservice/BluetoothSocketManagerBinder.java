@@ -116,11 +116,8 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
 
         if (dataPath != BluetoothSocketSettings.DATA_PATH_NO_OFFLOAD) {
             mService.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
-            if (type != BluetoothSocket.TYPE_LE || !mService.isLeCocSocketOffloadSupported()) {
-                throw new IllegalStateException("Unsupported socket type for offload " + type);
-            }
+            enforceSocketOffloadSupport(type);
         }
-
         String brEdrAddress =
                 Flags.identityAddressNullIfNotKnown()
                         ? Utils.getBrEdrAddress(device)
@@ -228,9 +225,7 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
 
         if (dataPath != BluetoothSocketSettings.DATA_PATH_NO_OFFLOAD) {
             mService.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
-            if (type != BluetoothSocket.TYPE_LE || !mService.isLeCocSocketOffloadSupported()) {
-                throw new IllegalStateException("Unsupported socket type for offload " + type);
-            }
+            enforceSocketOffloadSupport(type);
         }
 
         Log.i(
@@ -315,6 +310,14 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
     private void enforceActiveUser() {
         if (!Utils.checkCallerIsSystemOrActiveOrManagedUser(mService, TAG)) {
             throw new SecurityException("Not allowed for non-active user");
+        }
+    }
+
+    private void enforceSocketOffloadSupport(int type) {
+        if (!(type == BluetoothSocket.TYPE_LE && mService.isLeCocSocketOffloadSupported())
+                && !(type == BluetoothSocket.TYPE_RFCOMM
+                        && mService.isRfcommSocketOffloadSupported())) {
+            throw new IllegalStateException("Unsupported socket type for offload " + type);
         }
     }
 
