@@ -83,9 +83,6 @@ cc_library_host_shared {
         "liblog",
     ],
     stl: "libc++_static",
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
 }
 
 python_test_host {

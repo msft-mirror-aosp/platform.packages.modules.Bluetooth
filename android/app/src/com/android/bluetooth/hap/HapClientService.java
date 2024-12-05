@@ -50,7 +50,6 @@ import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.ServiceFactory;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.csip.CsipSetCoordinatorService;
-import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -280,7 +279,10 @@ public class HapClientService extends ProfileService {
         }
     }
 
-    List<BluetoothDevice> getConnectedDevices() {
+    /**
+     * @return A list of connected {@link BluetoothDevice}.
+     */
+    public List<BluetoothDevice> getConnectedDevices() {
         synchronized (mStateMachines) {
             List<BluetoothDevice> devices = new ArrayList<>();
             for (HapClientStateMachine sm : mStateMachines.values()) {
@@ -396,12 +398,10 @@ public class HapClientService extends ProfileService {
                 removeStateMachine(device);
             }
         }
-        if (!Flags.audioRoutingCentralization()) {
-            ActiveDeviceManager adManager = mAdapterService.getActiveDeviceManager();
-            if (adManager != null) {
-                adManager.profileConnectionStateChanged(
-                        BluetoothProfile.HAP_CLIENT, device, fromState, toState);
-            }
+        ActiveDeviceManager adManager = mAdapterService.getActiveDeviceManager();
+        if (adManager != null) {
+            adManager.profileConnectionStateChanged(
+                    BluetoothProfile.HAP_CLIENT, device, fromState, toState);
         }
     }
 

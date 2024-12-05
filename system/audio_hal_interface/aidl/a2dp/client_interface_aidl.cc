@@ -215,7 +215,7 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
   }
 
   log::info("IBluetoothAudioProvidersFactory::openProvider() returned {}{}",
-            fmt::ptr(provider_.get()), (provider_->isRemote() ? " (remote)" : " (local)"));
+            std::format_ptr(provider_.get()), (provider_->isRemote() ? " (remote)" : " (local)"));
 }
 
 void BluetoothAudioClientInterface::binderDiedCallbackAidl(void* ptr) {
@@ -395,17 +395,17 @@ int BluetoothAudioClientInterface::StartSession() {
   }
 }
 
-void BluetoothAudioClientInterface::StreamStarted(const BluetoothAudioStatus& ack) {
+void BluetoothAudioClientInterface::StreamStarted(const Status& ack) {
   if (provider_ == nullptr) {
     log::error("BluetoothAudioHal nullptr");
     return;
   }
-  if (ack == BluetoothAudioStatus::PENDING) {
+  if (ack == Status::PENDING) {
     log::info("{} ignored", ack);
     return;
   }
 
-  auto status = BluetoothAudioStatusToHalStatus(ack);
+  auto status = StatusToHalStatus(ack);
   auto aidl_retval = provider_->streamStarted(status);
 
   if (!aidl_retval.isOk()) {
@@ -413,17 +413,17 @@ void BluetoothAudioClientInterface::StreamStarted(const BluetoothAudioStatus& ac
   }
 }
 
-void BluetoothAudioClientInterface::StreamSuspended(const BluetoothAudioStatus& ack) {
+void BluetoothAudioClientInterface::StreamSuspended(const Status& ack) {
   if (provider_ == nullptr) {
     log::error("BluetoothAudioHal nullptr");
     return;
   }
-  if (ack == BluetoothAudioStatus::PENDING) {
+  if (ack == Status::PENDING) {
     log::info("{} ignored", ack);
     return;
   }
 
-  auto status = BluetoothAudioStatusToHalStatus(ack);
+  auto status = StatusToHalStatus(ack);
   auto aidl_retval = provider_->streamSuspended(status);
 
   if (!aidl_retval.isOk()) {

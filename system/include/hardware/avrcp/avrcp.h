@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "avrcp_common.h"
-#include "raw_address.h"
+#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace avrcp {

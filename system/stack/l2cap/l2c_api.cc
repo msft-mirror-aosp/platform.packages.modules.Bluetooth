@@ -320,7 +320,7 @@ uint16_t L2CA_ConnectReq(uint16_t psm, const RawAddress& p_bd_addr) {
     p_lcb = l2cu_allocate_lcb(p_bd_addr, false, BT_TRANSPORT_BR_EDR);
     /* currently use BR/EDR for ERTM mode l2cap connection */
     if (p_lcb == nullptr) {
-      log::warn("connection not started for PSM=0x{:x}, p_lcb={}", psm, fmt::ptr(p_lcb));
+      log::warn("connection not started for PSM=0x{:x}, p_lcb={}", psm, std::format_ptr(p_lcb));
       return 0;
     }
     l2cu_create_conn_br_edr(p_lcb);
@@ -520,7 +520,7 @@ uint16_t L2CA_ConnectLECocReq(uint16_t psm, const RawAddress& p_bd_addr, tL2CAP_
     if ((p_lcb == NULL)
         /* currently use BR/EDR for ERTM mode l2cap connection */
         || (!l2cu_create_conn_le(p_lcb))) {
-      log::warn("conn not started for PSM: 0x{:04x}  p_lcb: 0x{}", psm, fmt::ptr(p_lcb));
+      log::warn("conn not started for PSM: 0x{:04x}  p_lcb: 0x{}", psm, std::format_ptr(p_lcb));
       return 0;
     }
   }
@@ -552,15 +552,12 @@ uint16_t L2CA_ConnectLECocReq(uint16_t psm, const RawAddress& p_bd_addr, tL2CAP_
       do_in_main_thread(base::BindOnce(&l2c_csm_execute, base::Unretained(p_ccb),
                                        L2CEVT_L2CA_CONNECT_REQ, nullptr));
     }
-  }
-
-  /* If link is disconnecting, save link info to retry after disconnect
-   * Possible Race condition when a reconnect occurs
-   * on the channel during a disconnect of link. This
-   * ccb will be automatically retried after link disconnect
-   * arrives
-   */
-  else if (p_lcb->link_state == LST_DISCONNECTING) {
+  } else if (p_lcb->link_state == LST_DISCONNECTING) {
+    /* If link is disconnecting, save link info to retry after disconnect
+     * Possible Race condition when a reconnect occurs
+     * on the channel during a disconnect of link. This
+     * ccb will be automatically retried after link disconnect
+     * arrives */
     log::verbose("link disconnecting: RETRY LATER");
 
     /* Save ccb so it can be started after disconnect is finished */
@@ -1543,7 +1540,7 @@ uint16_t L2CA_FlushChannel(uint16_t lcid, uint16_t num_to_flush) {
             "L2CA_FlushChannel (FLUSH)  CID: 0x{:04x}  NumToFlush: {}  QC: {}  "
             "pFirst: 0x{}",
             lcid, num_to_flush, fixed_queue_length(p_ccb->xmit_hold_q),
-            fmt::ptr(fixed_queue_try_peek_first(p_ccb->xmit_hold_q)));
+            std::format_ptr(fixed_queue_try_peek_first(p_ccb->xmit_hold_q)));
   } else {
     log::verbose("L2CA_FlushChannel (QUERY)  CID: 0x{:04x}", lcid);
   }
@@ -1732,6 +1729,38 @@ bool L2CA_isMediaChannel(uint16_t handle, uint16_t channel_id, bool is_local_cid
   }
 
   return ret;
+}
+
+/*******************************************************************************
+ *
+ *  Function        L2CA_GetAclHandle
+ *
+ *  Description     Given a local channel identifier, |lcid|, this function
+ *                  returns the bound ACL handle, |acl_handle|. If |acl_handle|
+ *                  is not known or is invalid, this function returns false and
+ *                  does not modify the value pointed at by |acl_handle|.
+ *
+ *  Parameters:     lcid: Local CID
+ *                  rcid: Pointer to ACL handle must NOT be nullptr
+ *
+ *  Return value:   true if acl_handle lookup was successful
+ *
+ ******************************************************************************/
+bool L2CA_GetAclHandle(uint16_t lcid, uint16_t* acl_handle) {
+  log::assert_that(acl_handle != nullptr, "assert failed: acl_handle != nullptr");
+
+  tL2C_CCB* p_ccb = l2cu_find_ccb_by_cid(nullptr, lcid);
+  if (p_ccb == nullptr) {
+    log::error("No CCB for CID:0x{:04x}", lcid);
+    return false;
+  }
+  uint16_t handle = p_ccb->p_lcb->Handle();
+  if (handle == HCI_INVALID_HANDLE) {
+    log::error("Invalid ACL handle");
+    return false;
+  }
+  *acl_handle = handle;
+  return true;
 }
 
 using namespace bluetooth;

@@ -986,7 +986,7 @@ void bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name, uint
 
   // Create and send hid descriptor to kernel
   ev.type = UHID_CREATE2;
-  strlcpy((char*)ev.u.create2.name, dev_name, sizeof(ev.u.create2.name));
+  osi_strlcpy((char*)ev.u.create2.name, dev_name, sizeof(ev.u.create2.name));
   // TODO (b/258090765) fix: ToString -> ToColonSepHexString
   snprintf((char*)ev.u.create2.uniq, sizeof(ev.u.create2.uniq), "%s",
            p_dev->link_spec.addrt.bda.ToString().c_str());

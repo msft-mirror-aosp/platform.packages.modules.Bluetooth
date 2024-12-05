@@ -264,6 +264,9 @@ public:
 
   void RegisterSocket(SnoopLoggerSocketInterface* socket);
 
+  // Dump the contents of the snooz buffer to a file.
+  void DumpSnoozLogToFile();
+
 protected:
   // Packet type length
   static const size_t PACKET_TYPE_LENGTH;
@@ -276,7 +279,6 @@ protected:
   void ListDependencies(ModuleList* list) const override;
   void Start() override;
   void Stop() override;
-  DumpsysDataFinisher GetDumpsysData(flatbuffers::FlatBufferBuilder* builder) const override;
   std::string ToString() const override { return std::string("SnoopLogger"); }
 
   SnoopLogger(std::string snoop_log_path, std::string snooz_log_path, size_t max_packets_per_file,
@@ -286,7 +288,6 @@ protected:
               bool snoop_log_persists);
   void CloseCurrentSnoopLogFile();
   void OpenNextSnoopLogFile();
-  void DumpSnoozLogToFile(const std::vector<std::string>& data) const;
   // Enable filters according to their sysprops
   void EnableFilters();
   // Disable all filters
@@ -343,8 +344,8 @@ private:
 }  // namespace hal
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::hal::profile_type_t> : enum_formatter<bluetooth::hal::profile_type_t> {
 };
-}  // namespace fmt
+}  // namespace std

@@ -468,7 +468,7 @@ namespace {
 constexpr char kTimeFormatString[] = "%Y-%m-%d %H:%M:%S";
 
 constexpr unsigned MillisPerSecond = 1000;
-inline std::string EpochMillisToString(long long time_ms) {
+inline std::string EpochMillisToString(uint64_t time_ms) {
   time_t time_sec = time_ms / MillisPerSecond;
   struct tm tm;
   localtime_r(&time_sec, &tm);
@@ -702,9 +702,9 @@ BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code, uint16_t ha
 }  // namespace legacy
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tGATT_CH_STATE> : enum_formatter<tGATT_CH_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif

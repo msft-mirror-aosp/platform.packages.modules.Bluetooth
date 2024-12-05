@@ -38,7 +38,7 @@
 #include "types/raw_address.h"
 
 using namespace bluetooth;
-using bluetooth::audio::a2dp::BluetoothAudioStatus;
+using bluetooth::audio::a2dp::Status;
 
 void btif_a2dp_on_idle(const RawAddress& /*peer_addr*/, const A2dpType local_a2dp_type) {
   log::verbose("Peer stream endpoint type:{}",
@@ -52,13 +52,13 @@ void btif_a2dp_on_idle(const RawAddress& /*peer_addr*/, const A2dpType local_a2d
 
 bool btif_a2dp_on_started(const RawAddress& peer_addr, tBTA_AV_START* p_av_start,
                           const A2dpType local_a2dp_type) {
-  log::info("## ON A2DP STARTED ## peer {} p_av_start:{}", peer_addr, fmt::ptr(p_av_start));
+  log::info("## ON A2DP STARTED ## peer {} p_av_start:{}", peer_addr, std::format_ptr(p_av_start));
 
   if (p_av_start == NULL) {
-    auto status = BluetoothAudioStatus::SUCCESS;
+    auto status = Status::SUCCESS;
     if (!bluetooth::headset::IsCallIdle()) {
       log::error("peer {} call in progress, do not start A2DP stream", peer_addr);
-      status = BluetoothAudioStatus::FAILURE;
+      status = Status::FAILURE;
     }
     /* just ack back a local start request, do not start the media encoder since
      * this is not for BTA_AV_START_EVT. */
@@ -82,20 +82,20 @@ bool btif_a2dp_on_started(const RawAddress& peer_addr, tBTA_AV_START* p_av_start
         btif_a2dp_source_start_audio_req();
       }
       if (p_av_start->initiator) {
-        bluetooth::audio::a2dp::ack_stream_started(BluetoothAudioStatus::SUCCESS);
+        bluetooth::audio::a2dp::ack_stream_started(Status::SUCCESS);
         return true;
       }
     }
   } else if (p_av_start->initiator) {
     log::error("peer {} A2DP start request failed: status = {}", peer_addr, p_av_start->status);
-    bluetooth::audio::a2dp::ack_stream_started(BluetoothAudioStatus::FAILURE);
+    bluetooth::audio::a2dp::ack_stream_started(Status::FAILURE);
     return true;
   }
   return false;
 }
 
 void btif_a2dp_on_stopped(tBTA_AV_SUSPEND* p_av_suspend, const A2dpType local_a2dp_type) {
-  log::info("## ON A2DP STOPPED ## p_av_suspend={}", fmt::ptr(p_av_suspend));
+  log::info("## ON A2DP STOPPED ## p_av_suspend={}", std::format_ptr(p_av_suspend));
 
   const uint8_t peer_type_sep = btif_av_get_peer_sep(local_a2dp_type);
   if (peer_type_sep == AVDT_TSEP_SRC) {
@@ -111,7 +111,7 @@ void btif_a2dp_on_stopped(tBTA_AV_SUSPEND* p_av_suspend, const A2dpType local_a2
 }
 
 void btif_a2dp_on_suspended(tBTA_AV_SUSPEND* p_av_suspend, const A2dpType local_a2dp_type) {
-  log::info("## ON A2DP SUSPENDED ## p_av_suspend={}", fmt::ptr(p_av_suspend));
+  log::info("## ON A2DP SUSPENDED ## p_av_suspend={}", std::format_ptr(p_av_suspend));
   const uint8_t peer_type_sep = btif_av_get_peer_sep(local_a2dp_type);
   if (peer_type_sep == AVDT_TSEP_SRC) {
     btif_a2dp_sink_on_suspended(p_av_suspend);
@@ -126,27 +126,27 @@ void btif_a2dp_on_suspended(tBTA_AV_SUSPEND* p_av_suspend, const A2dpType local_
 }
 
 void btif_a2dp_on_offload_started(const RawAddress& peer_addr, tBTA_AV_STATUS status) {
-  BluetoothAudioStatus ack;
+  Status ack;
   log::info("peer {} status {}", peer_addr, status);
 
   switch (status) {
     case BTA_AV_SUCCESS:
       // Call required to update the session state for metrics.
       btif_a2dp_source_start_audio_req();
-      ack = BluetoothAudioStatus::SUCCESS;
+      ack = Status::SUCCESS;
       break;
     case BTA_AV_FAIL_RESOURCES:
       log::error("peer {} FAILED UNSUPPORTED", peer_addr);
-      ack = BluetoothAudioStatus::UNSUPPORTED_CODEC_CONFIGURATION;
+      ack = Status::UNSUPPORTED_CODEC_CONFIGURATION;
       break;
     default:
       log::error("peer {} FAILED: status = {}", peer_addr, status);
-      ack = BluetoothAudioStatus::FAILURE;
+      ack = Status::FAILURE;
       break;
   }
 
   if (btif_av_is_a2dp_offload_running()) {
-    if (ack != BluetoothAudioStatus::SUCCESS && btif_av_stream_started_ready(A2dpType::kSource)) {
+    if (ack != Status::SUCCESS && btif_av_stream_started_ready(A2dpType::kSource)) {
       log::error("peer {} offload start failed", peer_addr);
       if (com::android::bluetooth::flags::stop_on_offload_fail()) {
         btif_av_stream_stop(peer_addr);

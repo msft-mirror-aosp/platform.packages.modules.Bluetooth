@@ -125,7 +125,7 @@ namespace {
 
 struct WaitForAllAclConnectionsToDrain {
   uint64_t time_to_wait_in_ms;
-  unsigned long TimeToWaitInMs() const { return static_cast<unsigned long>(time_to_wait_in_ms); }
+  uint64_t TimeToWaitInMs() const { return time_to_wait_in_ms; }
   void* AlarmCallbackData() const { return const_cast<void*>(static_cast<const void*>(this)); }
 
   static const WaitForAllAclConnectionsToDrain* FromAlarmCallbackData(void* data);
@@ -269,6 +269,13 @@ void BTA_dm_on_hw_on() {
     }
   }
 
+  if (com::android::bluetooth::flags::socket_settings_api()) {
+    /* Read low power processor offload features */
+    if (bta_dm_acl_cb.p_acl_cback) {
+      bta_dm_acl_cb.p_acl_cback(BTA_DM_LPP_OFFLOAD_FEATURES_READ, NULL);
+    }
+  }
+
   btm_ble_scanner_init();
 
   // Synchronize with the controller before continuing
@@ -339,8 +346,7 @@ void bta_dm_disable() {
         bta_dm_disable_conn_down_timer_cback(nullptr);
         break;
       default:
-        log::debug("Set timer to delay disable initiation:{} ms",
-                   static_cast<unsigned long>(disable_delay_ms));
+        log::debug("Set timer to delay disable initiation:{} ms", disable_delay_ms);
         alarm_set_on_mloop(bta_dm_cb.disable_timer, disable_delay_ms,
                            bta_dm_disable_conn_down_timer_cback, nullptr);
     }

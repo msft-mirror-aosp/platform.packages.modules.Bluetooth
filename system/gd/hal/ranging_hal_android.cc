@@ -32,13 +32,39 @@
 
 using aidl::android::hardware::bluetooth::ranging::BluetoothChannelSoundingParameters;
 using aidl::android::hardware::bluetooth::ranging::BnBluetoothChannelSoundingSessionCallback;
+using aidl::android::hardware::bluetooth::ranging::Ch3cShapeType;
+using aidl::android::hardware::bluetooth::ranging::ChannelSelectionType;
 using aidl::android::hardware::bluetooth::ranging::ChannelSoudingRawData;
+using aidl::android::hardware::bluetooth::ranging::ChannelSoundingProcedureData;
 using aidl::android::hardware::bluetooth::ranging::ComplexNumber;
+using aidl::android::hardware::bluetooth::ranging::Config;
+using aidl::android::hardware::bluetooth::ranging::CsSyncPhyType;
 using aidl::android::hardware::bluetooth::ranging::IBluetoothChannelSounding;
 using aidl::android::hardware::bluetooth::ranging::IBluetoothChannelSoundingSession;
 using aidl::android::hardware::bluetooth::ranging::IBluetoothChannelSoundingSessionCallback;
+using aidl::android::hardware::bluetooth::ranging::ModeType;
+using aidl::android::hardware::bluetooth::ranging::ProcedureEnableConfig;
+using aidl::android::hardware::bluetooth::ranging::Role;
+using aidl::android::hardware::bluetooth::ranging::RttType;
 using aidl::android::hardware::bluetooth::ranging::StepTonePct;
+using aidl::android::hardware::bluetooth::ranging::SubModeType;
 using aidl::android::hardware::bluetooth::ranging::VendorSpecificData;
+// using aidl::android::hardware::bluetooth::ranging::
+
+using aidl::android::hardware::bluetooth::ranging::ChannelSoundingProcedureData;
+using aidl::android::hardware::bluetooth::ranging::ModeData;
+using aidl::android::hardware::bluetooth::ranging::ModeOneData;
+using aidl::android::hardware::bluetooth::ranging::ModeThreeData;
+using aidl::android::hardware::bluetooth::ranging::ModeTwoData;
+using aidl::android::hardware::bluetooth::ranging::ModeType;
+using aidl::android::hardware::bluetooth::ranging::ModeZeroData;
+using aidl::android::hardware::bluetooth::ranging::Nadm;
+using aidl::android::hardware::bluetooth::ranging::PctIQSample;
+using aidl::android::hardware::bluetooth::ranging::ProcedureAbortReason;
+using aidl::android::hardware::bluetooth::ranging::RttToaTodData;
+using aidl::android::hardware::bluetooth::ranging::StepData;
+using aidl::android::hardware::bluetooth::ranging::SubeventAbortReason;
+using aidl::android::hardware::bluetooth::ranging::SubeventResultData;
 
 namespace bluetooth {
 namespace hal {
@@ -234,6 +260,254 @@ public:
               raw_data.packet_quality_reflector.begin(), raw_data.packet_quality_reflector.end());
     }
     session_trackers_[connection_handle]->GetSession()->writeRawData(hal_raw_data);
+  }
+
+  void UpdateChannelSoundingConfig(uint16_t connection_handle,
+                                   const hci::LeCsConfigCompleteView& leCsConfigCompleteView,
+                                   uint8_t local_supported_sw_time,
+                                   uint8_t remote_supported_sw_time,
+                                   uint16_t conn_interval) override {
+    auto it = session_trackers_.find(connection_handle);
+    if (it == session_trackers_.end()) {
+      log::error("Can't find session for connection_handle:0x{:04x}", connection_handle);
+      return;
+    } else if (it->second->GetSession() == nullptr) {
+      log::error("Session not opened");
+      return;
+    }
+
+    Config csConfig{
+            .modeType = static_cast<ModeType>(
+                    static_cast<int>(leCsConfigCompleteView.GetMainModeType())),
+            .subModeType = static_cast<SubModeType>(
+                    static_cast<int>(leCsConfigCompleteView.GetSubModeType())),
+            .rttType = static_cast<RttType>(static_cast<int>(leCsConfigCompleteView.GetRttType())),
+            .channelMap = leCsConfigCompleteView.GetChannelMap(),
+            .minMainModeSteps = leCsConfigCompleteView.GetMinMainModeSteps(),
+            .maxMainModeSteps = leCsConfigCompleteView.GetMaxMainModeSteps(),
+            .mainModeRepetition =
+                    static_cast<int8_t>(leCsConfigCompleteView.GetMainModeRepetition()),
+            .mode0Steps = static_cast<int8_t>(leCsConfigCompleteView.GetMode0Steps()),
+            .role = static_cast<Role>(static_cast<int>(leCsConfigCompleteView.GetRole())),
+            .csSyncPhyType = static_cast<CsSyncPhyType>(
+                    static_cast<int>(leCsConfigCompleteView.GetCsSyncPhy())),
+            .channelSelectionType = static_cast<ChannelSelectionType>(
+                    static_cast<int>(leCsConfigCompleteView.GetChannelSelectionType())),
+            .ch3cShapeType = static_cast<Ch3cShapeType>(
+                    static_cast<int>(leCsConfigCompleteView.GetCh3cShape())),
+            .ch3cJump = static_cast<int8_t>(leCsConfigCompleteView.GetCh3cJump()),
+            .channelMapRepetition = leCsConfigCompleteView.GetChannelMapRepetition(),
+            .tIp1TimeUs = leCsConfigCompleteView.GetTIp1Time(),
+            .tIp2TimeUs = leCsConfigCompleteView.GetTIp2Time(),
+            .tFcsTimeUs = leCsConfigCompleteView.GetTFcsTime(),
+            .tPmTimeUs = static_cast<int8_t>(leCsConfigCompleteView.GetTPmTime()),
+            .tSwTimeUsSupportedByLocal = static_cast<int8_t>(local_supported_sw_time),
+            .tSwTimeUsSupportedByRemote = static_cast<int8_t>(remote_supported_sw_time),
+            .bleConnInterval = conn_interval,
+    };
+
+    it->second->GetSession()->updateChannelSoundingConfig(csConfig);
+  }
+
+  void UpdateConnInterval(uint16_t connection_handle, uint16_t conn_interval) override {
+    auto it = session_trackers_.find(connection_handle);
+    if (it == session_trackers_.end()) {
+      log::error("Can't find session for connection_handle:0x{:04x}", connection_handle);
+      return;
+    } else if (it->second->GetSession() == nullptr) {
+      log::error("Session not opened");
+      return;
+    }
+
+    it->second->GetSession()->updateBleConnInterval(conn_interval);
+  }
+
+  void UpdateProcedureEnableConfig(
+          uint16_t connection_handle,
+          const hci::LeCsProcedureEnableCompleteView& leCsProcedureEnableCompleteView) override {
+    auto it = session_trackers_.find(connection_handle);
+    if (it == session_trackers_.end()) {
+      log::error("Can't find session for connection_handle:0x{:04x}", connection_handle);
+      return;
+    } else if (it->second->GetSession() == nullptr) {
+      log::error("Session not opened");
+      return;
+    }
+
+    ProcedureEnableConfig pConfig{
+            .toneAntennaConfigSelection = static_cast<int8_t>(
+                    leCsProcedureEnableCompleteView.GetToneAntennaConfigSelection()),
+            .subeventLenUs = static_cast<int>(leCsProcedureEnableCompleteView.GetSubeventLen()),
+            .subeventsPerEvent =
+                    static_cast<int8_t>(leCsProcedureEnableCompleteView.GetSubeventsPerEvent()),
+            .subeventInterval = leCsProcedureEnableCompleteView.GetSubeventInterval(),
+            .eventInterval = leCsProcedureEnableCompleteView.GetEventInterval(),
+            .procedureInterval = leCsProcedureEnableCompleteView.GetProcedureInterval(),
+            .procedureCount = leCsProcedureEnableCompleteView.GetProcedureCount(),
+            // TODO(b/378942784): update the max procedure len, the current complete view does not
+            // have it.
+            .maxProcedureLen = 0,
+    };
+
+    it->second->GetSession()->updateProcedureEnableConfig(pConfig);
+  }
+
+  void WriteProcedureData(const uint16_t connection_handle, hci::CsRole local_cs_role,
+                          const ProcedureDataV2& procedure_data,
+                          uint16_t procedure_counter) override {
+    auto session_it = session_trackers_.find(connection_handle);
+    if (session_it == session_trackers_.end()) {
+      log::error("Can't find session for connection_handle:0x{:04x}", connection_handle);
+      return;
+    } else if (session_it->second->GetSession() == nullptr) {
+      log::error("Session not opened");
+      return;
+    }
+    ChannelSoundingProcedureData channel_sounding_procedure_data;
+    channel_sounding_procedure_data.procedureCounter = procedure_counter;
+    channel_sounding_procedure_data.procedureSequence = procedure_data.procedure_sequence_;
+
+    if (local_cs_role == hci::CsRole::INITIATOR) {
+      channel_sounding_procedure_data.initiatorSelectedTxPower =
+              static_cast<int8_t>(procedure_data.local_selected_tx_power_);
+      channel_sounding_procedure_data.reflectorSelectedTxPower =
+              static_cast<int8_t>(procedure_data.remote_selected_tx_power_);
+      channel_sounding_procedure_data.initiatorProcedureAbortReason =
+              static_cast<ProcedureAbortReason>(procedure_data.local_procedure_abort_reason_);
+      channel_sounding_procedure_data.reflectorProcedureAbortReason =
+              static_cast<ProcedureAbortReason>(procedure_data.remote_procedure_abort_reason_);
+      channel_sounding_procedure_data.initiatorSubeventResultData =
+              get_subevent_result_data(procedure_data.local_subevent_data_, hci::CsRole::INITIATOR);
+      channel_sounding_procedure_data.reflectorSubeventResultData = get_subevent_result_data(
+              procedure_data.remote_subevent_data_, hci::CsRole::REFLECTOR);
+    } else {
+      channel_sounding_procedure_data.initiatorSelectedTxPower =
+              static_cast<int8_t>(procedure_data.remote_selected_tx_power_);
+      channel_sounding_procedure_data.reflectorSelectedTxPower =
+              static_cast<int8_t>(procedure_data.local_selected_tx_power_);
+      channel_sounding_procedure_data.initiatorProcedureAbortReason =
+              static_cast<ProcedureAbortReason>(procedure_data.remote_procedure_abort_reason_);
+      channel_sounding_procedure_data.reflectorProcedureAbortReason =
+              static_cast<ProcedureAbortReason>(procedure_data.local_procedure_abort_reason_);
+      channel_sounding_procedure_data.initiatorSubeventResultData = get_subevent_result_data(
+              procedure_data.remote_subevent_data_, hci::CsRole::INITIATOR);
+      channel_sounding_procedure_data.reflectorSubeventResultData =
+              get_subevent_result_data(procedure_data.local_subevent_data_, hci::CsRole::REFLECTOR);
+
+      session_it->second->GetSession()->writeProcedureData(channel_sounding_procedure_data);
+    }
+  }
+
+  static std::vector<SubeventResultData> get_subevent_result_data(
+          const std::vector<std::shared_ptr<SubeventResult>>& subevent_results,
+          hci::CsRole cs_role) {
+    std::vector<SubeventResultData> hal_subevents;
+    for (auto subevent_result : subevent_results) {
+      SubeventResultData aidl_subevent_result{
+              .startAclConnEventCounter = subevent_result->start_acl_conn_event_counter_,
+              .frequencyCompensation = ConvertToSigned<kInitiatorMeasuredOffsetBits>(
+                      subevent_result->frequency_compensation_),
+              .referencePowerLevelDbm =
+                      static_cast<int8_t>(subevent_result->reference_power_level_),
+              .numAntennaPaths = static_cast<int8_t>(subevent_result->num_antenna_paths_),
+              .subeventAbortReason =
+                      static_cast<SubeventAbortReason>(subevent_result->subevent_abort_reason_),
+              .stepData = get_group_step_data(subevent_result->step_data_, cs_role),
+              .timestampNanos = subevent_result->timestamp_nanos_,
+      };
+      hal_subevents.push_back(aidl_subevent_result);
+    }
+    return hal_subevents;
+  }
+
+  static std::vector<StepData> get_group_step_data(
+          const std::vector<StepSpecificData>& step_specific_data_list, hci::CsRole cs_role) {
+    std::vector<StepData> group_step_data;
+    for (auto step_specific_data : step_specific_data_list) {
+      StepData step_data{
+              .stepChannel = static_cast<int8_t>(step_specific_data.step_channel_),
+              .stepMode = static_cast<ModeType>(step_specific_data.mode_type_),
+      };
+      get_step_mode_data(step_specific_data.mode_specific_data_, step_data.stepModeData, cs_role);
+      group_step_data.push_back(step_data);
+    }
+    return group_step_data;
+  }
+
+  static void get_step_mode_data(
+          std::variant<Mode0Data, Mode1Data, Mode2Data, Mode3Data> mode_specific_data,
+          ModeData& mode_data, hci::CsRole cs_role) {
+    if (std::holds_alternative<Mode0Data>(mode_specific_data)) {
+      auto mode_0_data = std::get<Mode0Data>(mode_specific_data);
+      ModeZeroData mode_zero_data{
+              .packetQuality = static_cast<int8_t>(mode_0_data.packet_quality_),
+              .packetRssiDbm = static_cast<int8_t>(mode_0_data.packet_rssi_),
+              .packetAntenna = static_cast<int8_t>(mode_0_data.packet_antenna_),
+      };
+      mode_data = mode_zero_data;
+      return;
+    }
+    if (std::holds_alternative<Mode1Data>(mode_specific_data)) {
+      auto mode_1_data = std::get<Mode1Data>(mode_specific_data);
+      mode_data = convert_mode_1_data(mode_1_data, cs_role);
+      return;
+    }
+    if (std::holds_alternative<Mode2Data>(mode_specific_data)) {
+      auto mode_2_data = std::get<Mode2Data>(mode_specific_data);
+      mode_data = convert_mode_2_data(mode_2_data);
+      return;
+    }
+    if (std::holds_alternative<Mode3Data>(mode_specific_data)) {
+      auto mode_3_data = std::get<Mode3Data>(mode_specific_data);
+      ModeThreeData mode_three_data{
+              .modeOneData = convert_mode_1_data(mode_3_data.mode1_data_, cs_role),
+              .modeTwoData = convert_mode_2_data(mode_3_data.mode2_data_),
+      };
+      mode_data = mode_three_data;
+      return;
+    }
+  }
+
+  static ModeOneData convert_mode_1_data(const Mode1Data& mode_1_data, hci::CsRole cs_role) {
+    ModeOneData mode_one_data{
+            .packetQuality = static_cast<int8_t>(mode_1_data.packet_quality_),
+            .packetNadm = static_cast<Nadm>(mode_1_data.packet_nadm_),
+            .packetRssiDbm = static_cast<int8_t>(mode_1_data.packet_rssi_),
+            .packetAntenna = static_cast<int8_t>(mode_1_data.packet_antenna_),
+    };
+    if (cs_role == hci::CsRole::INITIATOR) {
+      mode_one_data.rttToaTodData = RttToaTodData::make<RttToaTodData::Tag::toaTodInitiator>(
+              static_cast<int16_t>(mode_1_data.rtt_toa_tod_data_));
+    } else {
+      mode_one_data.rttToaTodData = RttToaTodData::make<RttToaTodData::Tag::todToaReflector>(
+              static_cast<int16_t>(mode_1_data.rtt_toa_tod_data_));
+    }
+    // TODO(b/378942784): once get 32 bits from controller, and check the unavailable data.
+    if (mode_1_data.i_packet_pct1_.has_value()) {
+      mode_one_data.packetPct1.emplace(
+              ConvertToSigned<kIQSampleBits>(mode_1_data.i_packet_pct1_.value()),
+              ConvertToSigned<kIQSampleBits>(mode_1_data.q_packet_pct1_.value()));
+    }
+    if (mode_1_data.i_packet_pct2_.has_value()) {
+      mode_one_data.packetPct2.emplace(
+              ConvertToSigned<kIQSampleBits>(mode_1_data.i_packet_pct2_.value()),
+              ConvertToSigned<kIQSampleBits>(mode_1_data.q_packet_pct2_.value()));
+    }
+    return mode_one_data;
+  }
+
+  static ModeTwoData convert_mode_2_data(const Mode2Data& mode_2_data) {
+    ModeTwoData mode_two_data{
+            .antennaPermutationIndex = static_cast<int8_t>(mode_2_data.antenna_permutation_index_),
+    };
+    for (const auto& tone_data_with_quality : mode_2_data.tone_data_with_qualities_) {
+      mode_two_data.toneQualityIndicators.emplace_back(
+              tone_data_with_quality.tone_quality_indicator_);
+      mode_two_data.tonePctIQSamples.emplace_back(
+              ConvertToSigned<kIQSampleBits>(tone_data_with_quality.i_sample_),
+              ConvertToSigned<kIQSampleBits>(tone_data_with_quality.q_sample_));
+    }
+    return mode_two_data;
   }
 
   void CopyVendorSpecificData(const std::vector<hal::VendorSpecificCharacteristic>& source,

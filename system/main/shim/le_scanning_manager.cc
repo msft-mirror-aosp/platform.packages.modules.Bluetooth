@@ -21,6 +21,7 @@
 #include <base/functional/bind.h>
 #include <base/threading/thread.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <hardware/bluetooth.h>
 
 #include "btif/include/btif_common.h"
@@ -37,6 +38,7 @@
 #include "stack/include/advertise_data_parser.h"
 #include "stack/include/bt_dev_class.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_status.h"
 #include "storage/device.h"
 #include "storage/le_device.h"
@@ -162,12 +164,12 @@ void BleScannerInterfaceImpl::Scan(bool start) {
     btm_cb.ble_ctr_cb.set_ble_observe_active();
   } else if (!start && btm_cb.ble_ctr_cb.is_ble_observe_active()) {
     // stopped
-    const unsigned long long duration_timestamp =
+    const uint64_t duration_timestamp =
             timestamper_in_milliseconds.GetTimestamp() - btm_cb.neighbor.le_scan.start_time_ms;
     BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Le scan stopped",
                    base::StringPrintf("duration_s:%6.3f results:%-3lu",
                                       (double)duration_timestamp / 1000.0,
-                                      btm_cb.neighbor.le_scan.results));
+                                      (unsigned long)btm_cb.neighbor.le_scan.results));
     btm_cb.ble_ctr_cb.reset_ble_observe();
     btm_cb.neighbor.le_scan = {};
   } else {
@@ -467,9 +469,13 @@ void BleScannerInterfaceImpl::OnScanResult(uint16_t event_type, uint8_t address_
     btm_ble_process_adv_addr(raw_address, &ble_addr_type);
   }
 
-  do_in_jni_thread(base::BindOnce(&BleScannerInterfaceImpl::handle_remote_properties,
-                                  base::Unretained(this), raw_address, ble_addr_type,
-                                  advertising_data));
+  // Do not update device properties of already bonded devices.
+  if (!com::android::bluetooth::flags::guard_bonded_device_properties() ||
+      !btm_sec_is_a_bonded_dev(raw_address)) {
+    do_in_jni_thread(base::BindOnce(&BleScannerInterfaceImpl::handle_remote_properties,
+                                    base::Unretained(this), raw_address, ble_addr_type,
+                                    advertising_data));
+  }
 
   do_in_jni_thread(base::BindOnce(
           &ScanningCallbacks::OnScanResult, base::Unretained(scanning_callbacks_), event_type,

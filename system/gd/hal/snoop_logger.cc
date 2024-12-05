@@ -35,7 +35,6 @@
 #include "common/strings.h"
 #include "hal/snoop_logger_common.h"
 #include "hci/hci_packets.h"
-#include "module_dumper_flatbuffer.h"
 #include "os/files.h"
 #include "os/parameter_provider.h"
 #include "os/system_properties.h"
@@ -548,17 +547,21 @@ void SnoopLogger::OpenNextSnoopLogFile() {
   file_creation_time = fake_timerfd_get_clock();
 #endif
   if (!btsnoop_ostream_.good()) {
-    log::fatal("Unable to open snoop log at \"{}\", error: \"{}\"", snoop_log_path_,
+    log::error("Unable to open snoop log at \"{}\", error: \"{}\"", snoop_log_path_,
                strerror(errno));
+    return;
   }
   umask(prevmask);
   if (!btsnoop_ostream_.write(reinterpret_cast<const char*>(&SnoopLoggerCommon::kBtSnoopFileHeader),
                               sizeof(SnoopLoggerCommon::FileHeaderType))) {
-    log::fatal("Unable to write file header to \"{}\", error: \"{}\"", snoop_log_path_,
+    log::error("Unable to write file header to \"{}\", error: \"{}\"", snoop_log_path_,
                strerror(errno));
+    btsnoop_ostream_.close();
+    return;
   }
   if (!btsnoop_ostream_.flush()) {
     log::error("Failed to flush, error: \"{}\"", strerror(errno));
+    return;
   }
 }
 
@@ -1191,6 +1194,9 @@ void SnoopLogger::Capture(const HciPacket& immutable_packet, Direction direction
     if (packet_counter_ > max_packets_per_file_) {
       OpenNextSnoopLogFile();
     }
+    if (!btsnoop_ostream_.is_open() || !btsnoop_ostream_.good()) {
+      return;
+    }
     if (!btsnoop_ostream_.write(reinterpret_cast<const char*>(&header), sizeof(PacketHeaderType))) {
       log::error("Failed to write packet header for btsnoop, error: \"{}\"", strerror(errno));
     }
@@ -1214,8 +1220,10 @@ void SnoopLogger::Capture(const HciPacket& immutable_packet, Direction direction
   }
 }
 
-void SnoopLogger::DumpSnoozLogToFile(const std::vector<std::string>& data) const {
+void SnoopLogger::DumpSnoozLogToFile() {
   std::lock_guard<std::recursive_mutex> lock(file_mutex_);
+  std::vector<std::string> data = btsnooz_buffer_.Pull();
+
   if (btsnoop_mode_ != kBtSnoopLogModeDisabled) {
     log::debug("btsnoop log is enabled, skip dumping btsnooz log");
     return;
@@ -1312,12 +1320,6 @@ void SnoopLogger::Stop() {
   }
 }
 
-DumpsysDataFinisher SnoopLogger::GetDumpsysData(
-        flatbuffers::FlatBufferBuilder* /* builder */) const {
-  DumpSnoozLogToFile(btsnooz_buffer_.Pull());
-  return EmptyDumpsysDataFinisher;
-}
-
 size_t SnoopLogger::GetMaxPacketsPerFile() {
   // Allow override max packet per file via system property
   auto max_packets_per_file = kDefaultBtSnoopMaxPacketsPerFile;
@@ -1409,12 +1411,12 @@ void SnoopLogger::LogTracePoint(const HciPacket& packet, Direction direction, Pa
           evt_code == static_cast<uint8_t>(hci::EventCode::VENDOR_SPECIFIC)) {
         uint8_t subevt_code = packet[2];
         std::string message =
-                fmt::format("BTSL:{}/{}/{}/{:02x}/{:02x}", static_cast<uint8_t>(type),
+                std::format("BTSL:{}/{}/{}/{:02x}/{:02x}", static_cast<uint8_t>(type),
                             static_cast<uint8_t>(direction), packet.size(), evt_code, subevt_code);
 
         ATRACE_INSTANT_FOR_TRACK(LOG_TAG, message.c_str());
       } else {
-        std::string message = fmt::format("BTSL:{}/{}/{}/{:02x}", static_cast<uint8_t>(type),
+        std::string message = std::format("BTSL:{}/{}/{}/{:02x}", static_cast<uint8_t>(type),
                                           static_cast<uint8_t>(direction), packet.size(), evt_code);
 
         ATRACE_INSTANT_FOR_TRACK(LOG_TAG, message.c_str());
@@ -1423,7 +1425,7 @@ void SnoopLogger::LogTracePoint(const HciPacket& packet, Direction direction, Pa
     case PacketType::CMD: {
       uint16_t op_code = packet[0] | (packet[1] << 8);
 
-      std::string message = fmt::format("BTSL:{}/{}/{}/{:04x}", static_cast<uint8_t>(type),
+      std::string message = std::format("BTSL:{}/{}/{}/{:04x}", static_cast<uint8_t>(type),
                                         static_cast<uint8_t>(direction), packet.size(), op_code);
 
       ATRACE_INSTANT_FOR_TRACK(LOG_TAG, message.c_str());
@@ -1432,15 +1434,15 @@ void SnoopLogger::LogTracePoint(const HciPacket& packet, Direction direction, Pa
       uint16_t handle = (packet[0] | (packet[1] << 8)) & 0x0fff;
       uint8_t pb_flag = (packet[1] & 0x30) >> 4;
 
-      std::string message = fmt::format("BTSL:{}/{}/{}/{:03x}/{}", static_cast<uint8_t>(type),
-                                        static_cast<uint8_t>(direction), packet.size(), handle,
-                                        pb_flag);
+      std::string message =
+              std::format("BTSL:{}/{}/{}/{:03x}/{}", static_cast<uint8_t>(type),
+                          static_cast<uint8_t>(direction), packet.size(), handle, pb_flag);
 
       ATRACE_INSTANT_FOR_TRACK(LOG_TAG, message.c_str());
     } break;
     case PacketType::ISO:
     case PacketType::SCO: {
-      std::string message = fmt::format("BTSL:{}/{}/{}", static_cast<uint8_t>(type),
+      std::string message = std::format("BTSL:{}/{}/{}", static_cast<uint8_t>(type),
                                         static_cast<uint8_t>(direction), packet.size());
 
       ATRACE_INSTANT_FOR_TRACK(LOG_TAG, message.c_str());

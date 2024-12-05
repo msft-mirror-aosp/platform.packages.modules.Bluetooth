@@ -40,10 +40,7 @@
 #include <cstdint>
 #include <cstring>
 
-#include "ble_address_with_type.h"
-#include "bluetooth/uuid.h"
 #include "bt_device_type.h"
-#include "bt_transport.h"
 #include "bta_api.h"
 #include "bta_hh_api.h"
 #include "bta_hh_co.h"
@@ -65,6 +62,9 @@
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/hidh_api.h"
+#include "types/ble_address_with_type.h"
+#include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 #define COD_HID_KEYBOARD 0x0540
@@ -977,6 +977,11 @@ void btif_hh_remove_device(const tAclLinkSpec& link_spec) {
     } else {
       log::warn("device_num = 0");
     }
+
+    if (com::android::bluetooth::flags::remove_pending_hid_connection()) {
+      BTA_HhRemoveDev(p_dev->dev_handle);  // Remove the connection, in case it was pending
+    }
+
     bta_hh_co_close(p_dev);
     p_dev->dev_status = BTHH_CONN_STATE_UNKNOWN;
     p_dev->dev_handle = BTA_HH_INVALID_HANDLE;

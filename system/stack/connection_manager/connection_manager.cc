@@ -42,9 +42,6 @@
 
 #define DIRECT_CONNECT_TIMEOUT (30 * 1000) /* 30 seconds */
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 constexpr char kBtmLogTag[] = "TA";
@@ -62,8 +59,8 @@ static void alarm_closure_cb(void* p) {
 }
 
 // Periodic alarms are not supported, because we clean up data in callback
-void alarm_set_closure(const base::Location& posted_from, alarm_t* alarm, uint64_t interval_ms,
-                       base::OnceClosure user_task) {
+static void alarm_set_closure(const base::Location& posted_from, alarm_t* alarm,
+                              uint64_t interval_ms, base::OnceClosure user_task) {
   closure_data* data = new closure_data;
   data->posted_from = posted_from;
   data->user_task = std::move(user_task);
@@ -118,7 +115,7 @@ std::set<tAPP_ID> get_apps_connecting_to(const RawAddress& address) {
   return (it != bgconn_dev.end()) ? it->second.doing_bg_conn : std::set<tAPP_ID>();
 }
 
-bool IsTargetedAnnouncement(const uint8_t* p_eir, uint16_t eir_len) {
+static bool IsTargetedAnnouncement(const uint8_t* p_eir, uint16_t eir_len) {
   const uint8_t* p_service_data = p_eir;
   uint8_t service_data_len = 0;
 
@@ -186,7 +183,7 @@ static void target_announcement_observe_results_cb(tBTM_INQ_RESULTS* p_inq, cons
   do_in_main_thread(base::BindOnce(schedule_direct_connect_add, app_id, addr));
 }
 
-void target_announcements_filtering_set(bool enable) {
+static void target_announcements_filtering_set(bool enable) {
   log::debug("enable {}", enable);
   BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, (enable ? "Start filtering" : "Stop filtering"));
 
@@ -431,7 +428,7 @@ void reset(bool after_reset) {
   }
 }
 
-void wl_direct_connect_timeout_cb(uint8_t app_id, const RawAddress& address) {
+static void wl_direct_connect_timeout_cb(uint8_t app_id, const RawAddress& address) {
   log::debug("app_id={}, address={}", static_cast<int>(app_id), address);
   on_connection_timed_out(app_id, address);
 

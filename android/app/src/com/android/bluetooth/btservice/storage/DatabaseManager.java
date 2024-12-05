@@ -349,7 +349,6 @@ public class DatabaseManager {
      *     BluetoothProfile.CONNECTION_POLICY_FORBIDDEN}, {@link
      *     BluetoothProfile.CONNECTION_POLICY_ALLOWED}
      */
-    @VisibleForTesting
     public boolean setProfileConnectionPolicy(
             BluetoothDevice device, int profile, int newConnectionPolicy) {
         if (device == null) {
@@ -1089,6 +1088,56 @@ public class DatabaseManager {
             Metadata metadata = mMetadataCache.get(address);
 
             return metadata.active_audio_device_policy;
+        }
+    }
+
+    /**
+     * Sets the preferred microphone for calls enable status for this device. See {@link
+     * BluetoothDevice#setMicrophonePreferredForCalls()} for more details.
+     *
+     * @param device is the remote device for which we set the preferred microphone for calls enable
+     *     status
+     * @param enabled {@code true} to enable the preferred microphone for calls
+     * @return whether the preferred microphone for call enable status was set properly
+     */
+    public int setMicrophonePreferredForCalls(BluetoothDevice device, boolean enabled) {
+        synchronized (mMetadataCache) {
+            String address = device.getAddress();
+
+            if (!mMetadataCache.containsKey(address)) {
+                Log.e(TAG, "device is not bonded");
+                return BluetoothStatusCodes.ERROR_DEVICE_NOT_BONDED;
+            }
+
+            Metadata metadata = mMetadataCache.get(address);
+            Log.i(TAG, "setMicrophoneForCallEnabled(" + device + ", " + enabled + ")");
+            metadata.is_preferred_microphone_for_calls = enabled;
+
+            updateDatabase(metadata);
+        }
+        return BluetoothStatusCodes.SUCCESS;
+    }
+
+    /**
+     * Gets the preferred microphone for calls enable status for this device. See {@link
+     * BluetoothDevice#isMicrophonePreferredForCalls()} for more details.
+     *
+     * @param device is the remote device for which we get the preferred microphone for calls enable
+     *     status
+     * @return {@code true} if the preferred microphone is enabled for calls
+     */
+    public boolean isMicrophonePreferredForCalls(BluetoothDevice device) {
+        synchronized (mMetadataCache) {
+            String address = device.getAddress();
+
+            if (!mMetadataCache.containsKey(address)) {
+                Log.e(TAG, "device is not bonded");
+                return true;
+            }
+
+            Metadata metadata = mMetadataCache.get(address);
+
+            return metadata.is_preferred_microphone_for_calls;
         }
     }
 

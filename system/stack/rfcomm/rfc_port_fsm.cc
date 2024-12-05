@@ -642,7 +642,8 @@ void rfc_process_pn(tRFC_MCB* p_mcb, bool is_command, MX_FRAME* p_frame) {
     if (p_mcb->state != RFC_MX_STATE_DISC_WAIT_UA) {
       PORT_ParNegInd(p_mcb, dlci, p_frame->u.pn.mtu, p_frame->u.pn.conv_layer, p_frame->u.pn.k);
     } else {
-      log::warn("MX PN while disconnecting, bd_addr={}, p_mcb={}", p_mcb->bd_addr, fmt::ptr(p_mcb));
+      log::warn("MX PN while disconnecting, bd_addr={}, p_mcb={}", p_mcb->bd_addr,
+                std::format_ptr(p_mcb));
       rfc_send_dm(p_mcb, dlci, false);
     }
 
@@ -651,7 +652,7 @@ void rfc_process_pn(tRFC_MCB* p_mcb, bool is_command, MX_FRAME* p_frame) {
   /* If we are not awaiting response just ignore it */
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
   if ((p_port == nullptr) || !(p_port->rfc.expected_rsp & RFC_RSP_PN)) {
-    log::warn(": Ignore unwanted response, p_mcb={}, bd_addr={}, dlci={}", fmt::ptr(p_mcb),
+    log::warn(": Ignore unwanted response, p_mcb={}, bd_addr={}, dlci={}", std::format_ptr(p_mcb),
               p_mcb->bd_addr, dlci);
     return;
   }

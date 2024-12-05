@@ -34,7 +34,7 @@
 #include "audio_hal_interface/a2dp_encoding.h"
 
 // Original usings
-using bluetooth::audio::a2dp::BluetoothAudioStatus;
+using bluetooth::audio::a2dp::Status;
 using bluetooth::audio::a2dp::provider::a2dp_configuration;
 using bluetooth::audio::a2dp::provider::a2dp_remote_capabilities;
 
@@ -46,20 +46,20 @@ namespace audio_hal_interface_a2dp_encoding {
 
 // Shared state between mocked functions and tests
 // Name: ack_stream_started
-// Params: BluetoothAudioStatus
+// Params: Status
 // Return: void
 struct ack_stream_started {
-  std::function<void(BluetoothAudioStatus status)> body{[](BluetoothAudioStatus /* status */) {}};
-  void operator()(BluetoothAudioStatus status) { body(status); }
+  std::function<void(Status status)> body{[](Status /* status */) {}};
+  void operator()(Status status) { body(status); }
 };
 extern struct ack_stream_started ack_stream_started;
 
 // Name: ack_stream_suspended
-// Params: BluetoothAudioStatus
+// Params: Status
 // Return: void
 struct ack_stream_suspended {
-  std::function<void(BluetoothAudioStatus status)> body{[](BluetoothAudioStatus /* status */) {}};
-  void operator()(BluetoothAudioStatus status) { body(status); }
+  std::function<void(Status status)> body{[](Status /* status */) {}};
+  void operator()(Status status) { body(status); }
 };
 extern struct ack_stream_suspended ack_stream_suspended;
 
@@ -137,13 +137,12 @@ extern struct get_a2dp_configuration get_a2dp_configuration;
 struct init {
   static bool return_value;
   std::function<bool(bluetooth::common::MessageLoopThread* message_loop,
-                     bluetooth::audio::a2dp::BluetoothAudioPort const*, bool)>
+                     bluetooth::audio::a2dp::StreamCallbacks const*, bool)>
           body{[](bluetooth::common::MessageLoopThread* /* message_loop */,
-                  bluetooth::audio::a2dp::BluetoothAudioPort const* /* audio_port */,
+                  bluetooth::audio::a2dp::StreamCallbacks const* /* audio_port */,
                   bool /* offload_enabled */) { return return_value; }};
   bool operator()(bluetooth::common::MessageLoopThread* message_loop,
-                  bluetooth::audio::a2dp::BluetoothAudioPort const* audio_port,
-                  bool offload_enabled) {
+                  bluetooth::audio::a2dp::StreamCallbacks const* audio_port, bool offload_enabled) {
     return body(message_loop, audio_port, offload_enabled);
   }
 };

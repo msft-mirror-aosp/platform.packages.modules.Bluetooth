@@ -27,9 +27,6 @@ cc_defaults {
         "packages/modules/Bluetooth/system/udrv/include",
     ],
     header_libs: ["libbluetooth_headers"],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
 }
 
 filegroup {
@@ -238,7 +235,6 @@ cc_library_static {
 cc_test {
     name: "net_test_bta",
     defaults: [
-        "bluetooth_flatbuffer_bundler_defaults",
         "fluoride_bta_defaults",
         "latest_android_hardware_audio_common_ndk_static",
         "latest_android_hardware_bluetooth_audio_ndk_static",
@@ -287,9 +283,6 @@ cc_test {
         "test/bta_pan_test.cc",
         "test/bta_sdp_test.cc",
         "test/bta_sec_test.cc",
-    ],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     shared_libs: [
         "libaconfig_storage_read_api_cc",
@@ -376,9 +369,6 @@ cc_test {
         "test/gatt/database_builder_test.cc",
         "test/gatt/database_test.cc",
     ],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     shared_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
@@ -447,6 +437,7 @@ cc_test {
         "libbt-platform-protos-lite",
         "libbtcore",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libgmock",
         "libosi",
         "libstatslog_bt",
@@ -464,9 +455,6 @@ cc_test {
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/gd",
-    ],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     srcs: [
         ":TestCommonMockFunctions",
@@ -563,6 +551,7 @@ cc_test {
         "libbluetooth_log",
         "libbt-common",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libcutils",
         "libgmock",
         "libosi",
@@ -610,6 +599,7 @@ cc_test {
         "libbluetooth_log",
         "libbt-common",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libgmock",
         "libosi",
     ],
@@ -761,7 +751,6 @@ cc_test {
     test_suites: ["general-tests"],
     defaults: [
         "aconfig_lib_cc_shared_link.defaults",
-        "bluetooth_flatbuffer_bundler_defaults",
         "fluoride_defaults",
         "mts_defaults",
     ],
@@ -808,7 +797,6 @@ cc_test {
         ":audio_set_scenarios_json",
     ],
     generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
         "LeAudioSetConfigSchemas_h",
     ],
     shared_libs: [
@@ -828,6 +816,7 @@ cc_test {
         "libbt-common",
         "libbt-platform-protos-lite",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libevent",
         "libflatbuffers-cpp",
         "libgmock",
@@ -844,7 +833,6 @@ cc_test {
     name: "bluetooth_le_audio_test",
     test_suites: ["general-tests"],
     defaults: [
-        "bluetooth_flatbuffer_bundler_defaults",
         "fluoride_defaults",
         "mts_defaults",
     ],
@@ -917,7 +905,6 @@ cc_test {
         ":audio_set_scenarios_json",
     ],
     generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
         "LeAudioSetConfigSchemas_h",
     ],
     shared_libs: [
@@ -938,6 +925,7 @@ cc_test {
         "libbt-common",
         "libbt-platform-protos-lite",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libevent",
         "libflatbuffers-cpp",
         "libgmock",
@@ -954,7 +942,6 @@ cc_test {
     name: "bluetooth_le_audio_client_test",
     test_suites: ["general-tests"],
     defaults: [
-        "bluetooth_flatbuffer_bundler_defaults",
         "fluoride_bta_defaults",
         "mts_defaults",
     ],
@@ -1027,6 +1014,7 @@ cc_test {
         "libbt-common",
         "libbt-platform-protos-lite",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libevent",
         "libflagtest",
         "libflatbuffers-cpp",
@@ -1143,7 +1131,6 @@ cc_test {
     test_suites: ["general-tests"],
     defaults: [
         "aconfig_lib_cc_shared_link.defaults",
-        "bluetooth_flatbuffer_bundler_defaults",
         "fluoride_bta_defaults",
         "mts_defaults",
     ],
@@ -1340,9 +1327,6 @@ cc_test {
         "libgmock",
         "libosi",
     ],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     sanitize: {
         cfi: true,
         scs: true,
@@ -1410,9 +1394,6 @@ cc_test {
         "libevent",
         "libgmock",
         "libosi",
-    ],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     sanitize: {
         cfi: true,
