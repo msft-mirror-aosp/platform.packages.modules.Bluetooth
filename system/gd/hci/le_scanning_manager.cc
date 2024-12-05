@@ -466,7 +466,12 @@ struct LeScanningManager::impl : public LeAddressManagerCallback {
     stop_scan();
 
     if (le_address_manager_->GetAddressPolicy() != LeAddressManager::USE_PUBLIC_ADDRESS) {
-      own_address_type_ = OwnAddressType::RANDOM_DEVICE_ADDRESS;
+      if (controller_->IsRpaOffloadSupported()) {
+        log::info("Support RPA offload, set own address type RESOLVABLE_OR_RANDOM_ADDRESS");
+        own_address_type_ = OwnAddressType::RESOLVABLE_OR_RANDOM_ADDRESS;
+      } else {
+        own_address_type_ = OwnAddressType::RANDOM_DEVICE_ADDRESS;
+      }
     } else {
       own_address_type_ = OwnAddressType::PUBLIC_DEVICE_ADDRESS;
     }

@@ -18,6 +18,7 @@
 
 #include <vector>
 
+#include "a2dp_constants.h"
 #include "a2dp_encoding.h"
 #include "a2dp_sbc_constants.h"
 #include "common/message_loop_thread.h"
@@ -48,7 +49,7 @@ bool is_hal_offloading();
  * Initialize BluetoothAudio HAL: openProvider
  ***/
 bool init(bluetooth::common::MessageLoopThread* message_loop,
-          bluetooth::audio::a2dp::BluetoothAudioPort const* audio_port, bool offload_enabled);
+          bluetooth::audio::a2dp::StreamCallbacks const* stream_callbacks, bool offload_enabled);
 
 /***
  * Clean up BluetoothAudio HAL
@@ -67,8 +68,8 @@ bool setup_codec(A2dpCodecConfig* a2dp_config, uint16_t peer_mtu,
  ***/
 void start_session();
 void end_session();
-void ack_stream_started(::bluetooth::audio::a2dp::BluetoothAudioStatus status);
-void ack_stream_suspended(::bluetooth::audio::a2dp::BluetoothAudioStatus status);
+void ack_stream_started(::bluetooth::audio::a2dp::Status status);
+void ack_stream_suspended(::bluetooth::audio::a2dp::Status status);
 
 /***
  * Read from the FMQ of BluetoothAudio HAL
@@ -119,8 +120,8 @@ bool supports_codec(btav_a2dp_codec_index_t codec_index);
 /***
  * Return the A2DP capabilities for the selected codec.
  ***/
-bool codec_info(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id, uint8_t* codec_info,
-                btav_a2dp_codec_config_t* codec_config);
+bool codec_info(btav_a2dp_codec_index_t codec_index, bluetooth::a2dp::CodecId* codec_id,
+                uint8_t* codec_info, btav_a2dp_codec_config_t* codec_config);
 
 /***
  * Query the codec selection fromt the audio HAL.

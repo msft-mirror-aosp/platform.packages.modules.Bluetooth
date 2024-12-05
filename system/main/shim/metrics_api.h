@@ -247,6 +247,15 @@ void LogMetricManufacturerInfo(const RawAddress& address,
                                const std::string& model, const std::string& hardware_version,
                                const std::string& software_version);
 
+/**
+ * Logs the Pairing Failed Command
+ * @param raw_address Address of the device
+ * @param failure_reason The reason for the pairing failure (smp status)
+ * @param is_outgoing the direction in which the command was sent
+ */
+void LogMetricLePairingFail(const RawAddress& raw_address, uint8_t failure_reason,
+                            bool is_outgoing);
+
 bool CountCounterMetrics(int32_t key, int64_t count);
 
 }  // namespace shim

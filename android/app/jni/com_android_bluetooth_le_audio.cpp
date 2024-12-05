@@ -706,7 +706,7 @@ static void setUnicastMonitorModeNative(JNIEnv* /* env */, jobject /* object */,
   sLeAudioClientInterface->SetUnicastMonitorMode(direction, enable);
 }
 
-static void sendAudioProfilePreferencesNative(JNIEnv* /* env */, jint groupId,
+static void sendAudioProfilePreferencesNative(JNIEnv* /* env */, jobject /* object */, jint groupId,
                                               jboolean isOutputPreferenceLeAudio,
                                               jboolean isDuplexPreferenceLeAudio) {
   std::shared_lock<std::shared_timed_mutex> lock(interface_mutex);

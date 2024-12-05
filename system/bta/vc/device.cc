@@ -18,18 +18,29 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <list>
 #include <map>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_gatt_queue.h"
 #include "bta/vc/devices.h"
-#include "internal_include/bt_trace.h"
-#include "os/logging/log_adapter.h"
+#include "btm_ble_api_types.h"
+#include "btm_sec_api_types.h"
+#include "btm_status.h"
+#include "gatt/database.h"
+#include "gattdefs.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/gatt_api.h"
 #include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
+#include "vc/types.h"
 
 using bluetooth::vc::internal::VolumeControlDevice;
 
@@ -610,12 +621,12 @@ void VolumeControlDevice::GetExtAudioInDescription(uint8_t ext_input_id, GATT_RE
 void VolumeControlDevice::SetExtAudioInDescription(uint8_t ext_input_id, const std::string& descr) {
   VolumeAudioInput* input = audio_inputs.FindById(ext_input_id);
   if (!input) {
-    log::error("{}, no such input={:#x}", address, ext_input_id);
+    log::error("{} no such input={:#x}", address, ext_input_id);
     return;
   }
 
   if (!input->description_writable) {
-    log::warn("not writable");
+    log::warn("{} input={:#x} input description is not writable", address, ext_input_id);
     return;
   }
 
@@ -624,13 +635,13 @@ void VolumeControlDevice::SetExtAudioInDescription(uint8_t ext_input_id, const s
                                     GATT_WRITE_NO_RSP, nullptr, nullptr);
 }
 
-void VolumeControlDevice::ExtAudioInControlPointOperation(uint8_t ext_input_id, uint8_t opcode,
+bool VolumeControlDevice::ExtAudioInControlPointOperation(uint8_t ext_input_id, uint8_t opcode,
                                                           const std::vector<uint8_t>* arg,
                                                           GATT_WRITE_OP_CB cb, void* cb_data) {
   VolumeAudioInput* input = audio_inputs.FindById(ext_input_id);
   if (!input) {
     log::error("{}, no such input={:#x}", address, ext_input_id);
-    return;
+    return false;
   }
 
   std::vector<uint8_t> set_value({opcode, input->change_counter});
@@ -640,6 +651,7 @@ void VolumeControlDevice::ExtAudioInControlPointOperation(uint8_t ext_input_id, 
 
   BtaGattQueue::WriteCharacteristic(connection_id, input->control_point_handle, set_value,
                                     GATT_WRITE, cb, cb_data);
+  return true;
 }
 
 bool VolumeControlDevice::IsEncryptionEnabled() {

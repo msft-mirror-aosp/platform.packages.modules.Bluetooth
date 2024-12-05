@@ -26,15 +26,23 @@
 #include <com_android_bluetooth_flags.h>
 
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <future>
 #include <mutex>
 #include <string>
+#include <utility>
 
+#include "a2dp_api.h"
+#include "a2dp_codec_api.h"
+#include "avdt_api.h"
+#include "bta_av_api.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_av_co.h"
 #include "btif/include/btif_avrcp_audio_track.h"
 #include "btif/include/btif_util.h"  // CASE_RETURN_STR
 #include "common/message_loop_thread.h"
-#include "hardware/bt_av.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"

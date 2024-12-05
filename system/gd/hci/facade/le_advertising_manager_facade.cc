@@ -125,7 +125,7 @@ bool AdvertisingConfigFromProto(const AdvertisingConfig& config_proto,
     case AdvertisingType::ADV_DIRECT_IND_HIGH: {
       config->connectable = true;
       config->directed = true;
-      config->high_duty_directed_connectable = true;
+      config->high_duty_cycle = true;
     } break;
     case AdvertisingType::ADV_SCAN_IND: {
       config->scannable = true;
@@ -150,7 +150,7 @@ bool ExtendedAdvertisingConfigFromProto(const ExtendedAdvertisingConfig& config_
   config->connectable = config_proto.connectable();
   config->scannable = config_proto.scannable();
   config->directed = config_proto.directed();
-  config->high_duty_directed_connectable = config_proto.high_duty_directed_connectable();
+  config->high_duty_cycle = config_proto.high_duty_directed_connectable();
   config->legacy_pdus = config_proto.legacy_pdus();
   config->anonymous = config_proto.anonymous();
   config->include_tx_power = config_proto.include_tx_power();

@@ -20,22 +20,33 @@
 
 #include "btif/include/btif_av.h"
 
-#include <android_bluetooth_sysprop.h>
 #include <base/functional/bind.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/a2dp/enums.pb.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
+#include <stdio.h>
 
+#include <chrono>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <future>
+#include <ios>
+#include <map>
 #include <mutex>
 #include <optional>
+#include <set>
+#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "audio_hal_interface/a2dp_encoding.h"
+#include "bta/include/bta_api.h"
+#include "bta/include/bta_api_data_types.h"
+#include "bta/include/bta_av_api.h"
 #include "btif/avrcp/avrcp_service.h"
 #include "btif/include/btif_a2dp.h"
 #include "btif/include/btif_a2dp_sink.h"
@@ -49,17 +60,23 @@
 #include "btif/include/stack_manager_t.h"
 #include "btif_metrics_logging.h"
 #include "common/state_machine.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bt_av.h"
 #include "include/hardware/bt_rc.h"
 #include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
+#include "stack/include/a2dp_codec_api.h"
+#include "stack/include/avdt_api.h"
 #include "stack/include/avrc_api.h"
+#include "stack/include/avrc_defs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_ble_api.h"
+#include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/main_thread.h"
 #include "types/raw_address.h"
@@ -1536,7 +1553,8 @@ bool BtifAvSink::AllowedToConnect(const RawAddress& peer_address) const {
         if ((btif_a2dp_sink_get_audio_track() != nullptr) &&
             (peer->PeerAddress() != peer_address)) {
           log::info("there is another peer with audio track({}), another={}, peer={}",
-                    fmt::ptr(btif_a2dp_sink_get_audio_track()), peer->PeerAddress(), peer_address);
+                    std::format_ptr(btif_a2dp_sink_get_audio_track()), peer->PeerAddress(),
+                    peer_address);
           connected++;
         }
         break;
@@ -2374,8 +2392,7 @@ bool BtifAvStateMachine::StateOpened::ProcessEvent(uint32_t event, void* p_data)
         if (peer_.CheckFlags(BtifAvPeer::kFlagPendingStart)) {
           log::error("Peer {} : cannot proceed to do AvStart", peer_.PeerAddress());
           peer_.ClearFlags(BtifAvPeer::kFlagPendingStart);
-          bluetooth::audio::a2dp::ack_stream_started(
-                  bluetooth::audio::a2dp::BluetoothAudioStatus::FAILURE);
+          bluetooth::audio::a2dp::ack_stream_started(bluetooth::audio::a2dp::Status::FAILURE);
         }
         if (peer_.IsSink()) {
           btif_av_source_disconnect(peer_.PeerAddress());
@@ -2390,6 +2407,14 @@ bool BtifAvStateMachine::StateOpened::ProcessEvent(uint32_t event, void* p_data)
                   peer_.PeerAddress());
         std::promise<void> peer_ready_promise;
         std::future<void> peer_ready_future = peer_ready_promise.get_future();
+
+        if (com::android::bluetooth::flags::a2dp_clear_pending_start_on_session_restart()) {
+          // The stream may not be restarted without an explicit request from the
+          // Bluetooth Audio HAL. Any start request that was pending before the
+          // reconfiguration is invalidated when the session is ended.
+          peer_.ClearFlags(BtifAvPeer::kFlagPendingStart);
+        }
+
         btif_a2dp_source_start_session(peer_.PeerAddress(), std::move(peer_ready_promise));
       }
       if (peer_.CheckFlags(BtifAvPeer::kFlagPendingStart)) {
@@ -3217,7 +3242,7 @@ static void btif_av_handle_bta_av_event(uint8_t peer_sep, const BtifAvEvent& bti
         }
         break;
       } else {
-        FALLTHROUGH_INTENDED;
+        [[fallthrough]];
       }
     }
     case BTA_AV_OFFLOAD_START_RSP_EVT: {

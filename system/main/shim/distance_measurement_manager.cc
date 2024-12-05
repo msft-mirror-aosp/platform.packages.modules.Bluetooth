@@ -117,7 +117,7 @@ public:
   void OnDistanceMeasurementResult(bluetooth::hci::Address address, uint32_t centimeter,
                                    uint32_t error_centimeter, int azimuth_angle,
                                    int error_azimuth_angle, int altitude_angle,
-                                   int error_altitude_angle, long elapsedRealtimeNanos,
+                                   int error_altitude_angle, uint64_t elapsedRealtimeNanos,
                                    int8_t confidence_level,
                                    DistanceMeasurementMethod method) override {
     do_in_jni_thread(base::BindOnce(&::DistanceMeasurementCallbacks::OnDistanceMeasurementResult,
@@ -212,7 +212,8 @@ public:
   // Callbacks of bluetooth::ras::RasClientCallbacks
   void OnConnected(const RawAddress& address, uint16_t att_handle,
                    const std::vector<bluetooth::ras::VendorSpecificCharacteristic>&
-                           vendor_specific_characteristics) {
+                           vendor_specific_characteristics,
+                   uint16_t conn_interval) override {
     std::vector<bluetooth::hal::VendorSpecificCharacteristic> hal_vendor_specific_characteristics;
     for (auto& characteristic : vendor_specific_characteristics) {
       bluetooth::hal::VendorSpecificCharacteristic vendor_specific_characteristic;
@@ -224,7 +225,12 @@ public:
 
     bluetooth::shim::GetDistanceMeasurementManager()->HandleRasClientConnectedEvent(
             bluetooth::ToGdAddress(address), GetConnectionHandleAndRole(address), att_handle,
-            hal_vendor_specific_characteristics);
+            hal_vendor_specific_characteristics, conn_interval);
+  }
+
+  void OnConnIntervalUpdated(const RawAddress& address, uint16_t conn_interval) {
+    bluetooth::shim::GetDistanceMeasurementManager()->HandleConnIntervalUpdated(
+            bluetooth::ToGdAddress(address), GetConnectionHandleAndRole(address), conn_interval);
   }
 
   void OnDisconnected(const RawAddress& address) {

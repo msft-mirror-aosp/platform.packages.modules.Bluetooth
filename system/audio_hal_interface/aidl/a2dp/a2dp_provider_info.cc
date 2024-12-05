@@ -350,8 +350,8 @@ bool ProviderInfo::BuildCodecCapabilities(CodecId const& codec_id,
   return false;
 }
 
-bool ProviderInfo::CodecCapabilities(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id,
-                                     uint8_t* codec_info,
+bool ProviderInfo::CodecCapabilities(btav_a2dp_codec_index_t codec_index,
+                                     bluetooth::a2dp::CodecId* codec_id, uint8_t* codec_info,
                                      btav_a2dp_codec_config_t* codec_config) const {
   auto it = assigned_codec_indexes.find(codec_index);
   if (it == assigned_codec_indexes.end()) {
@@ -365,13 +365,13 @@ bool ProviderInfo::CodecCapabilities(btav_a2dp_codec_index_t codec_index, uint64
     switch (codec->id.getTag()) {
       case CodecId::a2dp: {
         auto id = codec->id.get<CodecId::a2dp>();
-        *codec_id = static_cast<uint8_t>(id);
+        *codec_id = static_cast<bluetooth::a2dp::CodecId>(id);
         break;
       }
       case CodecId::vendor: {
         auto id = codec->id.get<CodecId::vendor>();
-        *codec_id = 0xff | (static_cast<uint64_t>(id.id) << 8) |
-                    (static_cast<uint64_t>(id.codecId) << 24);
+        *codec_id = static_cast<bluetooth::a2dp::CodecId>(
+                bluetooth::a2dp::VendorCodecId(id.id, id.codecId));
         break;
       }
       default:

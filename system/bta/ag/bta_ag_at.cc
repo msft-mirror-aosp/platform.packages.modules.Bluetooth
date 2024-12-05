@@ -30,10 +30,10 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/utl.h"
-#include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
 
 using namespace bluetooth;
@@ -110,14 +110,12 @@ static void bta_ag_process_at(tBTA_AG_AT_CB* p_cb, char* p_end) {
     /* if no argument */
     if (p_arg[0] == 0) {
       arg_type = BTA_AG_AT_NONE;
-    }
-    /* else if arg is '?' and it is last character */
-    else if (p_arg[0] == '?' && p_arg[1] == 0) {
+    } else if (p_arg[0] == '?' && p_arg[1] == 0) {
+      /* else if arg is '?' and it is last character */
       /* we have a read */
       arg_type = BTA_AG_AT_READ;
-    }
-    /* else if arg is '=' */
-    else if (p_arg[0] == '=' && p_arg[1] != 0) {
+    } else if (p_arg[0] == '=' && p_arg[1] != 0) {
+      /* else if arg is '=' */
       if (p_arg[1] == '?' && p_arg[2] == 0) {
         /* we have a test */
         arg_type = BTA_AG_AT_TEST;

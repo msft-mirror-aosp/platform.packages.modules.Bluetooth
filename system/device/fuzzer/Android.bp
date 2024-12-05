@@ -40,9 +40,6 @@ cc_fuzz {
         "liblog",
         "server_configurable_flags",
     ],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     static_libs: [
         "bluetooth_flags_c_lib",
         "libbluetooth-types",
@@ -52,12 +49,12 @@ cc_fuzz {
         "libbtcore",
         "libbtdevice",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libgmock",
         "libosi",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
-        "packages/modules/Bluetooth/system/device/include",
         "packages/modules/Bluetooth/system/gd",
     ],
     fuzz_config: {
