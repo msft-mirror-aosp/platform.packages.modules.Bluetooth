@@ -49,8 +49,12 @@
 #include <bluetooth/log.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_hf_client.h>
-#include <string.h>
 
+#include <cstdint>
+#include <cstring>
+
+#include "bta/include/bta_api.h"
+#include "bta/include/bta_hfp_api.h"
 #include "bta_hf_client_api.h"
 #include "btif_common.h"
 #include "btif_profile_queue.h"

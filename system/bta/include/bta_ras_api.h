@@ -60,7 +60,9 @@ public:
   virtual ~RasClientCallbacks() = default;
   virtual void OnConnected(
           const RawAddress& address, uint16_t att_handle,
-          const std::vector<VendorSpecificCharacteristic>& vendor_specific_characteristics) = 0;
+          const std::vector<VendorSpecificCharacteristic>& vendor_specific_characteristics,
+          uint16_t conn_interval) = 0;
+  virtual void OnConnIntervalUpdated(const RawAddress& address, uint16_t conn_interval) = 0;
   virtual void OnDisconnected(const RawAddress& address) = 0;
   virtual void OnWriteVendorSpecificReplyComplete(const RawAddress& address, bool success) = 0;
   virtual void OnRemoteData(const RawAddress& address, const std::vector<uint8_t>& data) = 0;

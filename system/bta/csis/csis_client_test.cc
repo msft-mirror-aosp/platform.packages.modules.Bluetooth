@@ -841,8 +841,7 @@ TEST_F(CsisClientTest, test_get_group_id) {
   EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, _, _, _, _));
   InjectConnectedEvent(test_address, 1);
   GetSearchCompleteEvent(1);
-  int group_id = CsisClient::Get()->GetGroupId(test_address);
-  ASSERT_TRUE(group_id == 1);
+  ASSERT_EQ(1, CsisClient::Get()->GetGroupId(test_address));
   TestAppUnregister();
 }
 

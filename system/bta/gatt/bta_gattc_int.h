@@ -532,7 +532,7 @@ inline std::string bta_gattc_state_text(const tBTA_GATTC_CB_STATE& state) {
   }
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_GATTC_CB_STATE> : enum_formatter<tBTA_GATTC_CB_STATE> {};
 template <>
@@ -541,6 +541,6 @@ template <>
 struct formatter<tBTA_GATTC_STATE> : enum_formatter<tBTA_GATTC_STATE> {};
 template <>
 struct formatter<RobustCachingSupport> : enum_formatter<RobustCachingSupport> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_GATTC_INT_H */

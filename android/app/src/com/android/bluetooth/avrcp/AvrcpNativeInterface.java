@@ -172,23 +172,24 @@ public class AvrcpNativeInterface {
         return mAvrcpService.getMediaPlayerList();
     }
 
-    void setBrowsedPlayer(int playerId, String currentPath) {
-        d("setBrowsedPlayer: playerId=" + playerId + ", currentPath= " + currentPath);
-        mAvrcpService.setBrowsedPlayer(
-                playerId, currentPath, (a, b, c, d) -> setBrowsedPlayerResponse(a, b, c, d));
+    // TODO(apanicke): This shouldn't be named setBrowsedPlayer as it doesn't actually connect
+    // anything internally. It just returns the number of items in the root folder.
+    void setBrowsedPlayer(int playerId) {
+        d("setBrowsedPlayer: playerId=" + playerId);
+        mAvrcpService.getPlayerRoot(playerId, (a, b, c, d) -> setBrowsedPlayerResponse(a, b, c, d));
     }
 
-    void setBrowsedPlayerResponse(int playerId, boolean success, String currentPath, int numItems) {
+    void setBrowsedPlayerResponse(int playerId, boolean success, String rootId, int numItems) {
         d(
                 "setBrowsedPlayerResponse: playerId="
                         + playerId
                         + " success="
                         + success
-                        + " currentPath="
-                        + currentPath
+                        + " rootId="
+                        + rootId
                         + " numItems="
                         + numItems);
-        setBrowsedPlayerResponseNative(playerId, success, currentPath, numItems);
+        setBrowsedPlayerResponseNative(playerId, success, rootId, numItems);
     }
 
     int setAddressedPlayer(int playerId) {

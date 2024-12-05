@@ -15,6 +15,7 @@
  */
 
 #include <cstdint>
+#include <future>
 
 #include "btif/include/stack_manager_t.h"
 #include "hardware/bluetooth.h"
@@ -44,7 +45,8 @@ void invoke_bond_state_changed_cb(bt_status_t /* status */, RawAddress /* bd_add
 void invoke_address_consolidate_cb(RawAddress /* main_bd_addr */,
                                    RawAddress /* secondary_bd_addr */) {}
 void invoke_le_address_associate_cb(RawAddress /* main_bd_addr */,
-                                    RawAddress /* secondary_bd_addr */) {}
+                                    RawAddress /* secondary_bd_addr */,
+                                    uint8_t /* identity_address_type */) {}
 void invoke_acl_state_changed_cb(bt_status_t /* status */, RawAddress /* bd_addr */,
                                  bt_acl_state_t /* state */, int /* transport_link_type */,
                                  bt_hci_error_code_t /* hci_reason */,
@@ -72,7 +74,7 @@ static void shut_down_stack_async(ProfileStopCallback /* stopProfiles */) {}
 
 static void clean_up_stack(ProfileStopCallback /* stopProfiles */) {}
 
-static void start_up_rust_module_async() {}
+static void start_up_rust_module_async(std::promise<void> /* promise */) {}
 
 static void shut_down_rust_module_async() {}
 

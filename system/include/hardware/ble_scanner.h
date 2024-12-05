@@ -17,8 +17,6 @@
 #ifndef ANDROID_INCLUDE_BLE_SCANNER_H
 #define ANDROID_INCLUDE_BLE_SCANNER_H
 
-#include <bluetooth/uuid.h>
-#include <raw_address.h>
 #include <stdint.h>
 
 #include <memory>
@@ -27,6 +25,8 @@
 #include "bt_common_types.h"
 #include "bt_gatt_client.h"
 #include "bt_gatt_types.h"
+#include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 /** Callback invoked when batchscan reports are obtained */
 typedef void (*batchscan_reports_callback)(int client_if, int status, int report_format,

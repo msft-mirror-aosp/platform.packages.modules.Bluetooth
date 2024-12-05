@@ -212,8 +212,9 @@ void l2c_csm_execute(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
   // Log all but data events
   if (event != L2CEVT_L2CAP_DATA && event != L2CEVT_L2CA_DATA_READ &&
       event != L2CEVT_L2CA_DATA_WRITE) {
-    log::info("Enter CSM, chnl_state:{} [{}], event:{} [{}]", channel_state_text(p_ccb->chnl_state),
-              p_ccb->chnl_state, l2c_csm_get_event_name(event), event);
+    log::info("Enter CSM, chnl_state:{} [{}] event:{} lcid:0x{:04x} rcid:0x{:04x}",
+              channel_state_text(p_ccb->chnl_state), p_ccb->chnl_state,
+              l2c_csm_get_event_name(event), p_ccb->local_cid, p_ccb->remote_cid);
   }
 
   switch (p_ccb->chnl_state) {
@@ -1687,7 +1688,8 @@ void l2c_enqueue_peer_data(tL2C_CCB* p_ccb, BT_HDR* p_buf) {
     log::error(
             "empty queue: p_ccb = {} p_ccb->in_use = {} p_ccb->chnl_state = {} "
             "p_ccb->local_cid = {} p_ccb->remote_cid = {}",
-            fmt::ptr(p_ccb), p_ccb->in_use, p_ccb->chnl_state, p_ccb->local_cid, p_ccb->remote_cid);
+            std::format_ptr(p_ccb), p_ccb->in_use, p_ccb->chnl_state, p_ccb->local_cid,
+            p_ccb->remote_cid);
   } else {
     fixed_queue_enqueue(p_ccb->xmit_hold_q, p_buf);
   }

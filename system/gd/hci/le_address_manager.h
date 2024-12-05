@@ -22,6 +22,7 @@
 
 #include "common/callback.h"
 #include "hci/address_with_type.h"
+#include "hci/controller.h"
 #include "hci/octets.h"
 #include "os/alarm.h"
 
@@ -47,7 +48,7 @@ class LeAddressManager {
 public:
   LeAddressManager(common::Callback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
                    os::Handler* handler, Address public_address, uint8_t accept_list_size,
-                   uint8_t resolving_list_size);
+                   uint8_t resolving_list_size, Controller* controller);
   virtual ~LeAddressManager();
 
   enum AddressPolicy {
@@ -186,6 +187,8 @@ private:
   // Only used for logging error in address rotation time.
   std::optional<std::chrono::time_point<std::chrono::system_clock>> address_rotation_interval_min;
   std::optional<std::chrono::time_point<std::chrono::system_clock>> address_rotation_interval_max;
+
+  Controller* controller_;
 };
 
 }  // namespace hci

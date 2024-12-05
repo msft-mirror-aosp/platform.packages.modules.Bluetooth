@@ -55,7 +55,6 @@ cc_library_static {
         "packages/modules/Bluetooth/system/gd",
         "packages/modules/Bluetooth/system/include",
         "packages/modules/Bluetooth/system/stack/include",
-        "packages/modules/Bluetooth/system/types",
     ],
     srcs: ["src/btif_jni_task.cc"],
     static_libs: [
@@ -124,9 +123,6 @@ cc_library_static {
         "src/btif_rc.cc",
         "src/btif_vc.cc",
     ],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     local_include_dirs: [
         "include",
     ],
@@ -139,10 +135,6 @@ cc_library_static {
             shared_libs: ["libaaudio"],
         },
         host: {
-            include_dirs: [
-                "bionic/libc/kernel/android/uapi/",
-                "bionic/libc/kernel/uapi",
-            ],
             srcs: [
                 "src/btif_avrcp_audio_track_linux.cc",
                 "src/btif_leaudio_hal_version_host.cc",
@@ -150,6 +142,7 @@ cc_library_static {
         },
     },
     static_libs: [
+        "aics",
         "avrcp-target-service",
         "bluetooth_flags_c_lib",
         "lib-bt-packets",
@@ -164,6 +157,12 @@ cc_library_static {
         "libbt-stack-core",
         "libbtif-core",
         "libflatbuffers-cpp",
+    ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
+    shared_libs: [
+        "libbinder",
     ],
     apex_available: [
         "com.android.btservices",
@@ -191,6 +190,7 @@ cc_library_static {
         "src/btif_gatt_client.cc",
         "src/btif_gatt_server.cc",
         "src/btif_gatt_util.cc",
+        "src/btif_hci_vs.cc",
         "src/btif_iot_config.cc",
         "src/btif_keystore.cc",
         "src/btif_metrics_logging.cc",
@@ -198,6 +198,7 @@ cc_library_static {
         "src/btif_sdp.cc",
         "src/btif_sdp_server.cc",
         "src/btif_sock.cc",
+        "src/btif_sock_hal.cc",
         "src/btif_sock_l2cap.cc",
         "src/btif_sock_logging.cc",
         "src/btif_sock_rfc.cc",
@@ -209,9 +210,6 @@ cc_library_static {
         "src/btif_uid.cc",
         "src/btif_util.cc",
         "src/stack_manager.cc",
-    ],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     target: {
         android: {
@@ -243,7 +241,11 @@ cc_library_static {
         "libflatbuffers-cpp",
         "libstatslog_bt",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
+        "libbinder",
         "libcrypto",
         "libcutils",
     ],
@@ -279,9 +281,13 @@ cc_test {
         "test/btif_storage_test.cc",
     ],
     header_libs: ["libbluetooth_headers"],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
+        "libbinder",
         "libcrypto",
         "libcutils",
         "libhidlbase",
@@ -290,13 +296,13 @@ cc_test {
         "server_configurable_flags",
     ],
     static_libs: [
+        "aics",
         "android.hardware.audio.common@5.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
         "bluetooth_flags_c_lib_for_test",
         "libFraunhoferAAC",
         "libbase",
-        "libbluetooth-dumpsys",
         "libbluetooth-for-tests",
         "libbluetooth-types",
         "libbluetooth_core_rs",
@@ -378,14 +384,12 @@ cc_test {
         "test/btif_profile_queue_test.cc",
     ],
     header_libs: ["libbluetooth_headers"],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     static_libs: [
         "libbluetooth-types",
         "libbluetooth_gd",
         "libbluetooth_log",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libosi",
     ],
     shared_libs: [
@@ -413,13 +417,11 @@ cc_test {
         "test/btif_avrcp_audio_track_test.cc",
     ],
     header_libs: ["libbluetooth_headers"],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     static_libs: [
         "libbluetooth-types",
         "libbluetooth_log",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libosi",
     ],
     shared_libs: [
@@ -560,14 +562,14 @@ cc_test {
         ":TestMockUdrv",
         "test/btif_hh_test.cc",
     ],
-    generated_headers: [
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     header_libs: ["libbluetooth_headers"],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
+        "libbinder",
         "libcrypto",
         "libcutils",
         "libfmq",
@@ -681,14 +683,14 @@ cc_test {
         ":TestMockUdrv",
         "test/btif_core_test.cc",
     ],
-    generated_headers: [
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     header_libs: ["libbluetooth_headers"],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
+        "libbinder",
         "libcrypto",
         "libcutils",
         "libfmq",
