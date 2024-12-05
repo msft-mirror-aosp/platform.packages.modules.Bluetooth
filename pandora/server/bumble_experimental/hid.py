@@ -654,7 +654,9 @@ def on_set_report_cb(report_id: int, report_type: int, report_size: int, data: b
     report.report_type = report_type
     report.report_id = report_id
     report.report_data = str(data.hex())
-    hid_report_queue.put_nowait(report)
+
+    if hid_report_queue:
+        hid_report_queue.put_nowait(report)
 
     if report_type == Message.ReportType.FEATURE_REPORT:
         retValue.status = hid_device.GetSetReturn.ERR_INVALID_PARAMETER
@@ -702,7 +704,7 @@ def on_virtual_cable_unplug_cb():
 
 
 hid_protoMode_queue = None
-
+hid_report_queue = None
 
 # This class implements the Hid Pandora interface.
 class HIDService(HIDServicer):

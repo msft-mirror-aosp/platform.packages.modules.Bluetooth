@@ -26,12 +26,18 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+#include <string>
+
 #include "avct_api.h"
 #include "avct_int.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
 #include "include/macros.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
 #include "osi/include/allocator.h"
+#include "osi/include/fixed_queue.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -327,7 +333,7 @@ void avct_lcb_dealloc(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* /* p_data */) {
   // If not, de-allocate now...
 
   log::verbose("Freeing LCB");
-  osi_free(p_lcb->p_rx_msg);
+  osi_free_and_reset((void**)&(p_lcb->p_rx_msg));
   fixed_queue_free(p_lcb->tx_q, NULL);
   memset(p_lcb, 0, sizeof(tAVCT_LCB));
 }

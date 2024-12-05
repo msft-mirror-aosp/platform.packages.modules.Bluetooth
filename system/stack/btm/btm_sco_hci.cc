@@ -457,7 +457,7 @@ struct tBTM_MSBC_INFO {
     /* In case of unsupported value, error log and fallback to
      * BTM_MSBC_PKT_LEN(60). */
     if (btm_wbs_supported_pkt_size[i] == 0) {
-      log::warn("Unsupported packet size {}", (unsigned long)pkt_size);
+      log::warn("Unsupported packet size {}", pkt_size);
       i = 0;
     }
 
@@ -625,7 +625,7 @@ public:
       }
 
       if (rp != 0) {
-        log::warn("Skipped {} bytes of mSBC data ahead of a valid mSBC frame", (unsigned long)rp);
+        log::warn("Skipped {} bytes of mSBC data ahead of a valid mSBC frame", rp);
         incr_buf_offset(decode_buf_ro, decode_buf_ro_mirror, buf_size, rp);
       }
 
@@ -737,7 +737,7 @@ bool enqueue_packet(const std::vector<uint8_t>& data, bool corrupted) {
     log::warn(
             "Ignoring the coming packet with size {} that is inconsistent with the "
             "HAL reported packet size {}",
-            (unsigned long)data.size(), (unsigned long)msbc_info->packet_size);
+            data.size(), msbc_info->packet_size);
     return false;
   }
 
@@ -816,7 +816,7 @@ size_t encode(int16_t* data, size_t len) {
 
   encoded_size = GetInterfaceToProfiles()->msbcCodec->encodePacket(data, pkt_body);
   if (encoded_size != BTM_MSBC_PKT_FRAME_LEN) {
-    log::warn("Encoding invalid packet size: {}", (unsigned long)encoded_size);
+    log::warn("Encoding invalid packet size: {}", encoded_size);
     std::copy(&btm_msbc_zero_packet[BTM_MSBC_H2_HEADER_LEN], std::end(btm_msbc_zero_packet),
               pkt_body);
   }
@@ -920,7 +920,7 @@ struct tBTM_LC3_INFO {
     /* In case of unsupported value, error log and fallback to
      * BTM_LC3_PKT_LEN(60). */
     if (btm_swb_supported_pkt_size[i] == 0) {
-      log::warn("Unsupported packet size {}", (unsigned long)pkt_size);
+      log::warn("Unsupported packet size {}", pkt_size);
       i = 0;
     }
 
@@ -1091,7 +1091,7 @@ public:
       }
 
       if (rp != 0) {
-        log::warn("Skipped {} bytes of LC3 data ahead of a valid LC3 frame", (unsigned long)rp);
+        log::warn("Skipped {} bytes of LC3 data ahead of a valid LC3 frame", rp);
         incr_buf_offset(decode_buf_ro, decode_buf_ro_mirror, buf_size, rp);
       }
 
@@ -1190,7 +1190,7 @@ bool enqueue_packet(const std::vector<uint8_t>& data, bool corrupted) {
     log::warn(
             "Ignoring the coming packet with size {} that is inconsistent with the "
             "HAL reported packet size {}",
-            (unsigned long)data.size(), (unsigned long)lc3_info->packet_size);
+            data.size(), lc3_info->packet_size);
     return false;
   }
 

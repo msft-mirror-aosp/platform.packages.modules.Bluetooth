@@ -71,6 +71,12 @@ public:
     }
   }
 
+  void EnqueueCommand(std::unique_ptr<LeScanningCommandBuilder> /* command */,
+                      common::ContextualOnceCallback<void(
+                              CommandStatusOrCompleteView)> /* on_status_or_complete */) override {
+    FAIL();
+  }
+
   void SetCommandFuture() {
     ASSERT_EQ(command_promise_, nullptr) << "Promises, Promises, ... Only one at a time.";
     command_promise_ = std::make_unique<std::promise<void>>();

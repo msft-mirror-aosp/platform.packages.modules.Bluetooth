@@ -48,6 +48,10 @@ class LeScanningManager;
 class MsftExtensionManager;
 }  // namespace hci
 
+namespace lpp {
+class LppOffloadInterface;
+}
+
 namespace metrics {
 class CounterMetrics;
 }
@@ -69,6 +73,7 @@ hci::HciInterface* GetHciLayer();
 hci::RemoteNameRequestModule* GetRemoteNameRequest();
 hci::DistanceMeasurementManager* GetDistanceMeasurementManager();
 hci::LeScanningManager* GetScanning();
+lpp::LppOffloadInterface* GetLppOffloadManager();
 hal::SnoopLogger* GetSnoopLogger();
 storage::StorageModule* GetStorage();
 hci::AclManager* GetAclManager();

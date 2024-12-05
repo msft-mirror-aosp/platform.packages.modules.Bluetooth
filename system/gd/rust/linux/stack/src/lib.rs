@@ -171,6 +171,7 @@ pub enum Message {
     QaGetHidReport(RawAddress, BthhReportType, u8),
     QaSetHidReport(RawAddress, BthhReportType, String),
     QaSendHidData(RawAddress, String),
+    QaSendHidVirtualUnplug(RawAddress),
 
     // UHid callbacks
     UHidHfpOutputCallback(RawAddress, u8, u8),
@@ -588,6 +589,10 @@ impl Stack {
                 Message::QaSendHidData(addr, data) => {
                     let status = bluetooth.lock().unwrap().send_hid_data_internal(addr, data);
                     bluetooth_qa.lock().unwrap().on_send_hid_data_completed(status);
+                }
+                Message::QaSendHidVirtualUnplug(addr) => {
+                    let status = bluetooth.lock().unwrap().send_hid_virtual_unplug_internal(addr);
+                    bluetooth_qa.lock().unwrap().on_send_hid_virtual_unplug_completed(status);
                 }
 
                 // UHid callbacks

@@ -85,3 +85,33 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+flag {
+  name: "sec_disconnect_on_le_key_missing"
+  namespace: "bluetooth"
+  description: "Disconnect LE link when keys are missing during encryption"
+  bug: "376680866"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+    name: "guard_bonded_device_properties"
+    namespace: "bluetooth"
+    description: "Don't update device properties for bonded devices from the device discovery results"
+    bug: "376928594"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "disconnect_on_encryption_failure"
+    namespace: "bluetooth"
+    description: "Disconnect ACL link when encryption fails"
+    bug: "378764380"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

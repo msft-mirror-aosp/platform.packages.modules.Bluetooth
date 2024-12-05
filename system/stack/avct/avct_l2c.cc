@@ -23,10 +23,14 @@
  ******************************************************************************/
 #include <bluetooth/log.h>
 
+#include <cstddef>
+#include <cstdint>
+
 #include "avct_api.h"
 #include "avct_int.h"
 #include "btif/include/btif_av.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cap_interface.h"

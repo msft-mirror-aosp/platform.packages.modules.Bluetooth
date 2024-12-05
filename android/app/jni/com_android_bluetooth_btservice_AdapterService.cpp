@@ -49,12 +49,12 @@
 using bluetooth::Uuid;
 extern bt_interface_t bluetoothInterface;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bt_state_t> : enum_formatter<bt_state_t> {};
 template <>
 struct formatter<bt_discovery_state_t> : enum_formatter<bt_discovery_state_t> {};
-}  // namespace fmt
+}  // namespace std
 
 static Uuid from_java_uuid(jlong uuid_msb, jlong uuid_lsb) {
   std::array<uint8_t, Uuid::kNumBytes128> uu;
@@ -403,7 +403,8 @@ static void address_consolidate_callback(RawAddress* main_bd_addr, RawAddress* s
                                secondary_addr.get());
 }
 
-static void le_address_associate_callback(RawAddress* main_bd_addr, RawAddress* secondary_bd_addr) {
+static void le_address_associate_callback(RawAddress* main_bd_addr, RawAddress* secondary_bd_addr,
+                                          uint8_t identity_address_type) {
   std::shared_lock<std::shared_timed_mutex> lock(jniObjMutex);
   if (!sJniCallbacksObj) {
     log::error("JNI obj is null. Failed to call JNI callback");
@@ -432,7 +433,7 @@ static void le_address_associate_callback(RawAddress* main_bd_addr, RawAddress* 
                                    reinterpret_cast<jbyte*>(secondary_bd_addr));
 
   sCallbackEnv->CallVoidMethod(sJniCallbacksObj, method_leAddressAssociateCallback, main_addr.get(),
-                               secondary_addr.get());
+                               secondary_addr.get(), (jint)identity_address_type);
 }
 
 static void acl_state_changed_callback(bt_status_t status, RawAddress* bd_addr,
@@ -825,7 +826,7 @@ static void callback_thread_event(bt_cb_thread_evt event) {
     vm->AttachCurrentThread(&callbackEnv, &args);
     sHaveCallbackThread = true;
     sCallbackThread = pthread_self();
-    log::verbose("Callback thread attached: {}", fmt::ptr(callbackEnv));
+    log::verbose("Callback thread attached: {}", std::format_ptr(callbackEnv));
   } else if (event == DISASSOCIATE_JVM) {
     if (!isCallbackThread()) {
       log::error("Callback: '' is not called on the correct thread");
@@ -1781,11 +1782,14 @@ static jboolean setBufferLengthMillisNative(JNIEnv* /* env */, jobject /* obj */
 }
 
 static jint connectSocketNative(JNIEnv* env, jobject /* obj */, jbyteArray address, jint type,
-                                jbyteArray uuid, jint port, jint flag, jint callingUid) {
+                                jbyteArray uuid, jint port, jint flag, jint callingUid,
+                                jint dataPath, jstring socketName, jlong hubId, jlong endPointId,
+                                jint maxRxPacketSize) {
   int socket_fd = INVALID_FD;
   jbyte* addr = nullptr;
   jbyte* uuidBytes = nullptr;
   Uuid btUuid;
+  const char* nativeSocketName = nullptr;
 
   if (!sBluetoothSocketInterface) {
     goto done;
@@ -1798,9 +1802,13 @@ static jint connectSocketNative(JNIEnv* env, jobject /* obj */, jbyteArray addre
   }
 
   btUuid = Uuid::From128BitBE(reinterpret_cast<uint8_t*>(uuidBytes));
+  if (socketName != nullptr) {
+    nativeSocketName = env->GetStringUTFChars(socketName, nullptr);
+  }
   if (sBluetoothSocketInterface->connect(reinterpret_cast<RawAddress*>(addr), (btsock_type_t)type,
-                                         &btUuid, port, &socket_fd, flag,
-                                         callingUid) != BT_STATUS_SUCCESS) {
+                                         &btUuid, port, &socket_fd, flag, callingUid,
+                                         (btsock_data_path_t)dataPath, nativeSocketName, hubId,
+                                         endPointId, maxRxPacketSize) != BT_STATUS_SUCCESS) {
     socket_fd = INVALID_FD;
   }
 
@@ -1811,16 +1819,21 @@ done:
   if (uuidBytes) {
     env->ReleaseByteArrayElements(uuid, uuidBytes, 0);
   }
+  if (nativeSocketName) {
+    env->ReleaseStringUTFChars(socketName, nativeSocketName);
+  }
   return socket_fd;
 }
 
 static jint createSocketChannelNative(JNIEnv* env, jobject /* obj */, jint type,
                                       jstring serviceName, jbyteArray uuid, jint port, jint flag,
-                                      jint callingUid) {
+                                      jint callingUid, jint dataPath, jstring socketName,
+                                      jlong hubId, jlong endPointId, jint maxRxPacketSize) {
   int socket_fd = INVALID_FD;
   jbyte* uuidBytes = nullptr;
   Uuid btUuid;
   const char* nativeServiceName = nullptr;
+  const char* nativeSocketName = nullptr;
 
   if (!sBluetoothSocketInterface) {
     goto done;
@@ -1834,9 +1847,14 @@ static jint createSocketChannelNative(JNIEnv* env, jobject /* obj */, jint type,
     goto done;
   }
   btUuid = Uuid::From128BitBE(reinterpret_cast<uint8_t*>(uuidBytes));
+  if (socketName != nullptr) {
+    nativeSocketName = env->GetStringUTFChars(socketName, nullptr);
+  }
 
   if (sBluetoothSocketInterface->listen((btsock_type_t)type, nativeServiceName, &btUuid, port,
-                                        &socket_fd, flag, callingUid) != BT_STATUS_SUCCESS) {
+                                        &socket_fd, flag, callingUid, (btsock_data_path_t)dataPath,
+                                        nativeSocketName, hubId, endPointId,
+                                        maxRxPacketSize) != BT_STATUS_SUCCESS) {
     socket_fd = INVALID_FD;
   }
 
@@ -1846,6 +1864,9 @@ done:
   }
   if (nativeServiceName) {
     env->ReleaseStringUTFChars(serviceName, nativeServiceName);
+  }
+  if (nativeSocketName) {
+    env->ReleaseStringUTFChars(socketName, nativeSocketName);
   }
   return socket_fd;
 }
@@ -2266,8 +2287,9 @@ int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
           {"setBufferLengthMillisNative", "(II)Z",
            reinterpret_cast<void*>(setBufferLengthMillisNative)},
           {"getMetricIdNative", "([B)I", reinterpret_cast<void*>(getMetricIdNative)},
-          {"connectSocketNative", "([BI[BIII)I", reinterpret_cast<void*>(connectSocketNative)},
-          {"createSocketChannelNative", "(ILjava/lang/String;[BIII)I",
+          {"connectSocketNative", "([BI[BIIIILjava/lang/String;JJI)I",
+           reinterpret_cast<void*>(connectSocketNative)},
+          {"createSocketChannelNative", "(ILjava/lang/String;[BIIIILjava/lang/String;JJI)I",
            reinterpret_cast<void*>(createSocketChannelNative)},
           {"requestMaximumTxDataLengthNative", "([B)V",
            reinterpret_cast<void*>(requestMaximumTxDataLengthNative)},
@@ -2301,7 +2323,6 @@ int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
           {"allowWakeByHidNative", "()Z", reinterpret_cast<void*>(allowWakeByHidNative)},
           {"restoreFilterAcceptListNative", "()Z",
            reinterpret_cast<void*>(restoreFilterAcceptListNative)},
-
   };
   const int result = REGISTER_NATIVE_METHODS(
           env, "com/android/bluetooth/btservice/AdapterNativeInterface", methods);
@@ -2327,7 +2348,7 @@ int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
           {"sspRequestCallback", "([BII)V", &method_sspRequestCallback},
           {"bondStateChangeCallback", "(I[BII)V", &method_bondStateChangeCallback},
           {"addressConsolidateCallback", "([B[B)V", &method_addressConsolidateCallback},
-          {"leAddressAssociateCallback", "([B[B)V", &method_leAddressAssociateCallback},
+          {"leAddressAssociateCallback", "([B[BI)V", &method_leAddressAssociateCallback},
           {"aclStateChangeCallback", "(I[BIIII)V", &method_aclStateChangeCallback},
           {"linkQualityReportCallback", "(JIIIIII)V", &method_linkQualityReportCallback},
           {"switchBufferSizeCallback", "(Z)V", &method_switchBufferSizeCallback},
@@ -2506,6 +2527,12 @@ jint JNI_OnLoad(JavaVM* jvm, void* /* reserved */) {
   status = android::register_com_android_bluetooth_btservice_BluetoothQualityReport(e);
   if (status < 0) {
     log::error("jni bluetooth quality report registration failure: {}", status);
+    return JNI_ERR;
+  }
+
+  status = android::register_com_android_bluetooth_btservice_BluetoothHciVendorSpecific(e);
+  if (status < 0) {
+    log::error("jni bluetooth hci vendor-specific registration failure: {}", status);
     return JNI_ERR;
   }
 

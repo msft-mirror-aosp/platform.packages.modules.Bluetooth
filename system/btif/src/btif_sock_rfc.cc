@@ -158,7 +158,7 @@ static rfc_slot_t* find_free_slot(void) {
 }
 
 static rfc_slot_t* find_rfc_slot_by_id(uint32_t id) {
-  CHECK(id != 0);
+  CHECK_NE(0u, id);
 
   for (size_t i = 0; i < ARRAY_SIZE(rfc_slots); ++i) {
     if (rfc_slots[i].id == id) {
@@ -235,7 +235,7 @@ static rfc_slot_t* alloc_rfc_slot(const RawAddress* addr, const char* name, cons
   slot->service_uuid = uuid;
 
   if (name && *name) {
-    strlcpy(slot->service_name, name, sizeof(slot->service_name));
+    osi_strlcpy(slot->service_name, name, sizeof(slot->service_name));
   } else {
     memset(slot->service_name, 0, sizeof(slot->service_name));
   }
@@ -510,6 +510,7 @@ static bool send_app_connect_signal(int fd, const RawAddress* addr, int channel,
   cs.max_tx_packet_size = 0;  // not used for RFCOMM
   cs.conn_uuid_lsb = 0;       // not used for RFCOMM
   cs.conn_uuid_msb = 0;       // not used for RFCOMM
+  cs.socket_id = 0;           // not used for RFCOMM
   if (send_fd == INVALID_FD) {
     return sock_send_all(fd, (const uint8_t*)&cs, sizeof(cs)) == sizeof(cs);
   }
@@ -742,7 +743,8 @@ static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id) {
         break;
       }
       if (p_data->scn == 0) {
-        log::error("Unable to allocate scn: all resources exhausted. slot found: {}", fmt::ptr(rs));
+        log::error("Unable to allocate scn: all resources exhausted. slot found: {}",
+                   std::format_ptr(rs));
         cleanup_rfc_slot(rs);
         break;
       }
@@ -789,7 +791,7 @@ static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id) {
       }
 
       if (!create_server_sdp_record(slot)) {
-        log::error("cannot start server, slot found: {}", fmt::ptr(slot));
+        log::error("cannot start server, slot found: {}", std::format_ptr(slot));
         cleanup_rfc_slot(slot);
         break;
       }

@@ -32,7 +32,7 @@ namespace a2dp {
 
 /// Loosely copied after the definition from the Bluetooth Audio interface:
 /// audio/aidl/android/hardware/bluetooth/audio/BluetoothAudioStatus.aidl
-enum class BluetoothAudioStatus {
+enum class Status {
   SUCCESS = 0,
   UNKNOWN,
   UNSUPPORTED_CODEC_CONFIGURATION,
@@ -48,16 +48,13 @@ enum class BluetoothAudioStatus {
 /// by the methods ack_stream_started, ack_stream_suspended.
 ///
 /// The callbacks are always invoked from one of the binder threads.
-class BluetoothAudioPort {
+class StreamCallbacks {
 public:
-  virtual ~BluetoothAudioPort() {}
-  virtual BluetoothAudioStatus StartStream(bool /*low_latency*/) const {
-    return BluetoothAudioStatus::FAILURE;
-  }
-  virtual BluetoothAudioStatus SuspendStream() const { return BluetoothAudioStatus::FAILURE; }
-  virtual BluetoothAudioStatus SetLatencyMode(bool /*low_latency*/) const {
-    return BluetoothAudioStatus::FAILURE;
-  }
+  virtual ~StreamCallbacks() {}
+  virtual Status StartStream(bool /*low_latency*/) const { return Status::FAILURE; }
+  virtual Status SuspendStream() const { return Status::FAILURE; }
+  virtual Status StopStream() const { return SuspendStream(); }
+  virtual Status SetLatencyMode(bool /*low_latency*/) const { return Status::FAILURE; }
 };
 
 bool update_codec_offloading_capabilities(
@@ -71,8 +68,8 @@ bool is_hal_enabled();
 bool is_hal_offloading();
 
 // Initialize BluetoothAudio HAL: openProvider
-bool init(bluetooth::common::MessageLoopThread* message_loop, BluetoothAudioPort const* audio_port,
-          bool offload_enabled);
+bool init(bluetooth::common::MessageLoopThread* message_loop,
+          StreamCallbacks const* strean_callbacks, bool offload_enabled);
 
 // Clean up BluetoothAudio HAL
 void cleanup();
@@ -88,8 +85,8 @@ void set_audio_low_latency_mode_allowed(bool allowed);
 // StreamStarted, StreamSuspended
 void start_session();
 void end_session();
-void ack_stream_started(BluetoothAudioStatus status);
-void ack_stream_suspended(BluetoothAudioStatus status);
+void ack_stream_started(Status status);
+void ack_stream_suspended(Status status);
 
 // Read from the FMQ of BluetoothAudio HAL
 size_t read(uint8_t* p_buf, uint32_t len);
@@ -124,8 +121,8 @@ bool supports_codec(btav_a2dp_codec_index_t codec_index);
 // Return the A2DP capabilities for the selected codec.
 // `codec_info` returns the OTA codec capabilities, `codec_config`
 // returns the supported capabilities in a generic format.
-bool codec_info(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id, uint8_t* codec_info,
-                btav_a2dp_codec_config_t* codec_config);
+bool codec_info(btav_a2dp_codec_index_t codec_index, bluetooth::a2dp::CodecId* codec_id,
+                uint8_t* codec_info, btav_a2dp_codec_config_t* codec_config);
 
 struct a2dp_configuration {
   int remote_seid;
@@ -197,8 +194,8 @@ tA2DP_STATUS parse_a2dp_configuration(btav_a2dp_codec_index_t codec_index,
 }  // namespace audio
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
-struct formatter<::bluetooth::audio::a2dp::BluetoothAudioStatus>
-    : enum_formatter<::bluetooth::audio::a2dp::BluetoothAudioStatus> {};
-}  // namespace fmt
+struct formatter<::bluetooth::audio::a2dp::Status>
+    : enum_formatter<::bluetooth::audio::a2dp::Status> {};
+}  // namespace std

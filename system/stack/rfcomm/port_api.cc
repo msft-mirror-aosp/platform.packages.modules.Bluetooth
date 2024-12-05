@@ -143,7 +143,7 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_serv
                 "bd_addr={}, scn={}, is_server={}, mtu={}, uuid=0x{:x}, dlci={}, p_mcb={}, port={}",
                 static_cast<int>(p_port->state), static_cast<int>(p_port->rfc.state),
                 p_port->rfc.p_mcb ? p_port->rfc.p_mcb->state : 0, bd_addr, scn, is_server, mtu,
-                uuid, dlci, fmt::ptr(p_mcb), p_port->handle);
+                uuid, dlci, std::format_ptr(p_mcb), p_port->handle);
         *p_handle = p_port->handle;
         return PORT_ALREADY_OPENED;
       }
@@ -214,7 +214,8 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_serv
   log::info(
           "bd_addr={}, scn={}, is_server={}, mtu={}, uuid=0x{:x}, dlci={}, "
           "signal_state=0x{:x}, p_port={}",
-          bd_addr, scn, is_server, mtu, uuid, dlci, p_port->default_signal_state, fmt::ptr(p_port));
+          bd_addr, scn, is_server, mtu, uuid, dlci, p_port->default_signal_state,
+          std::format_ptr(p_port));
 
   // If this is not initiator of the connection need to just wait
   if (p_port->is_server) {
@@ -410,7 +411,7 @@ int PORT_ClearKeepHandleFlag(uint16_t handle) {
  *
  ******************************************************************************/
 int PORT_SetDataCOCallback(uint16_t handle, tPORT_DATA_CO_CALLBACK* p_port_cb) {
-  log::verbose("handle:{} cb 0x{}", handle, fmt::ptr(p_port_cb));
+  log::verbose("handle:{} cb 0x{}", handle, std::format_ptr(p_port_cb));
 
   tPORT* p_port = get_port_from_handle(handle);
   if (p_port == nullptr) {
@@ -445,7 +446,7 @@ int PORT_CheckConnection(uint16_t handle, RawAddress* bd_addr, uint16_t* p_lcid)
     return PORT_BAD_HANDLE;
   }
   log::verbose("handle={}, in_use={}, port_state={}, p_mcb={}, peer_ready={}, rfc_state={}", handle,
-               p_port->in_use, p_port->state, fmt::ptr(p_port->rfc.p_mcb),
+               p_port->in_use, p_port->state, std::format_ptr(p_port->rfc.p_mcb),
                p_port->rfc.p_mcb ? p_port->rfc.p_mcb->peer_ready : -1, p_port->rfc.state);
 
   if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {

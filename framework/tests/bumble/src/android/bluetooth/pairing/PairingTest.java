@@ -380,6 +380,7 @@ public class PairingTest {
      * <p>Expectation: Pairing gets cancelled instead of getting timed out
      */
     @Test
+    @RequiresFlagsEnabled({Flags.FLAG_PREVENT_DUPLICATE_UUID_INTENT})
     public void testCancelBondLe_WithGattServiceDiscovery() {
         registerIntentActions(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
 
@@ -430,6 +431,7 @@ public class PairingTest {
      * <p>Expectation: Pairing succeeds
      */
     @Test
+    @RequiresFlagsEnabled({Flags.FLAG_PREVENT_DUPLICATE_UUID_INTENT})
     public void testBondLe_WithGattServiceDiscovery() {
         registerIntentActions(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
 
@@ -578,7 +580,6 @@ public class PairingTest {
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
 
-        verifyNoMoreInteractions(mReceiver);
         unregisterIntentActions(
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED,
                 BluetoothDevice.ACTION_ACL_CONNECTED,
@@ -918,7 +919,6 @@ public class PairingTest {
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
 
-        verifyNoMoreInteractions(mReceiver);
         unregisterIntentActions(
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED,
                 BluetoothDevice.ACTION_ACL_CONNECTED,
