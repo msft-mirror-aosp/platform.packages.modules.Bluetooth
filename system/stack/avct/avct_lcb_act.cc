@@ -192,13 +192,8 @@ void avct_lcb_chnl_open(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* /* p_data */) {
   uint16_t result = AVCT_RESULT_FAIL;
 
   p_lcb->ch_state = AVCT_CH_CONN;
-  if (com::android::bluetooth::flags::use_encrypt_req_for_av()) {
-    p_lcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
-            BT_PSM_AVCTP, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
-  } else {
-    p_lcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
-            BT_PSM_AVCTP, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE);
-  }
+  p_lcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+    BT_PSM_AVCTP, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
   if (p_lcb->ch_lcid == 0) {
     /* if connect req failed, send ourselves close event */
     tAVCT_LCB_EVT avct_lcb_evt;
