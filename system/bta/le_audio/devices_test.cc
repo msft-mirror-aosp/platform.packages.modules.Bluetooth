@@ -1080,9 +1080,9 @@ protected:
     }
 
     if (success_expected) {
-      ASSERT_TRUE(num_of_matching_configurations > 0);
+      ASSERT_GT(num_of_matching_configurations, 0);
     } else {
-      ASSERT_TRUE(num_of_matching_configurations == 0);
+      ASSERT_EQ(0, num_of_matching_configurations);
     }
   }
 

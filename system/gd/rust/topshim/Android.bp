@@ -52,7 +52,6 @@ cc_library_static {
         "vc/vc_shim.cc",
     ],
     generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
         "cxx-bridge-header",
         "libbt_topshim_bridge_header",
     ],
@@ -62,14 +61,20 @@ cc_library_static {
         "packages/modules/Bluetooth/system/gd",
         "packages/modules/Bluetooth/system/gd/rust/topshim",
         "packages/modules/Bluetooth/system/include",
-        "packages/modules/Bluetooth/system/types",
     ],
     host_supported: true,
     static_libs: [
+        "aics",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libchrome",
         "libflatbuffers-cpp",
+    ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
+    shared_libs: [
+        "libbinder",
     ],
     target: {
         darwin: {

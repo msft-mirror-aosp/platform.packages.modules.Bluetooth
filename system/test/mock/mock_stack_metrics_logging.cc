@@ -46,6 +46,7 @@ namespace stack_metrics_logging {
 struct log_classic_pairing_event log_classic_pairing_event;
 struct log_link_layer_connection_event log_link_layer_connection_event;
 struct log_smp_pairing_event log_smp_pairing_event;
+struct log_le_pairing_fail log_le_pairing_fail;
 struct log_sdp_attribute log_sdp_attribute;
 struct log_manufacturer_info log_manufacturer_info;
 struct log_counter_metrics log_counter_metrics;
@@ -80,6 +81,12 @@ void log_smp_pairing_event(const RawAddress& address, uint16_t smp_cmd,
   test::mock::stack_metrics_logging::log_smp_pairing_event(address, smp_cmd, direction,
                                                            smp_fail_reason);
 }
+
+void log_le_pairing_fail(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing) {
+  inc_func_call_count(__func__);
+  test::mock::stack_metrics_logging::log_le_pairing_fail(raw_address, failure_reason, is_outgoing);
+}
+
 void log_sdp_attribute(const RawAddress& address, uint16_t protocol_uuid, uint16_t attribute_id,
                        size_t attribute_size, const char* attribute_value) {
   inc_func_call_count(__func__);

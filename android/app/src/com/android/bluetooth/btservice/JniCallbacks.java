@@ -71,8 +71,10 @@ class JniCallbacks {
         mRemoteDevices.addressConsolidateCallback(mainAddress, secondaryAddress);
     }
 
-    void leAddressAssociateCallback(byte[] mainAddress, byte[] secondaryAddress) {
-        mRemoteDevices.leAddressAssociateCallback(mainAddress, secondaryAddress);
+    void leAddressAssociateCallback(
+            byte[] mainAddress, byte[] secondaryAddress, int identityAddressTypeFromNative) {
+        mRemoteDevices.leAddressAssociateCallback(
+                mainAddress, secondaryAddress, identityAddressTypeFromNative);
     }
 
     void aclStateChangeCallback(

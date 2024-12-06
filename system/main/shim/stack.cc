@@ -36,6 +36,7 @@
 #include "hci/le_scanning_manager.h"
 #include "hci/msft.h"
 #include "hci/remote_name_request.h"
+#include "lpp/lpp_offload_manager.h"
 #include "main/shim/acl.h"
 #include "main/shim/acl_interface.h"
 #include "main/shim/distance_measurement_manager.h"
@@ -74,6 +75,8 @@ void Stack::StartEverything() {
 
 #if TARGET_FLOSS
   modules.add<sysprops::SyspropsModule>();
+#else
+  modules.add<lpp::LppOffloadManager>();
 #endif
   modules.add<metrics::CounterMetrics>();
   modules.add<hal::HciHal>();

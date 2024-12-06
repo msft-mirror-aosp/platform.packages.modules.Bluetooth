@@ -72,10 +72,10 @@ typedef struct {
   bluetooth_sdp_record* record_data;
 } sdp_slot_t;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<sdp_state_t> : enum_formatter<sdp_state_t> {};
-}  // namespace fmt
+}  // namespace std
 
 #define MAX_SDP_SLOTS 128
 static sdp_slot_t sdp_slots[MAX_SDP_SLOTS];

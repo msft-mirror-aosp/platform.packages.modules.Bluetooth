@@ -18,14 +18,22 @@
 
 #include <android_bluetooth_sysprop.h>
 #include <bluetooth/log.h>
-#include <com_android_bluetooth_flags.h>
 #include <string.h>
-#include <unistd.h>
+
+#include <cctype>
+#include <cstdint>
+#include <cstdlib>
+#include <string>
 
 #include "bta/ag/bta_ag_int.h"
+#include "bta_ag_api.h"
 #include "common/strings.h"
+#include "hardware/bluetooth.h"
+#include "hardware/bt_hf.h"
+#include "osi/include/alarm.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/include/btm_api_types.h"
+#include "types/raw_address.h"
 
 using namespace bluetooth;
 

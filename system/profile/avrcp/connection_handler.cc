@@ -295,7 +295,6 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event, uint16
           instance_->vol_->DeviceConnected(newDevice->GetAddress());
         }
       }
-
     } break;
 
     case AVRC_CLOSE_IND_EVT: {

@@ -21,9 +21,12 @@
 
 #include <ctime>
 
+#include "hci/controller.h"
 #include "hci/octets.h"
 #include "include/macros.h"
 #include "os/rand.h"
+
+// TODO(b/378143579) For peer address not in resolving list
 
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
@@ -64,12 +67,13 @@ std::string AddressPolicyText(const LeAddressManager::AddressPolicy policy) {
 LeAddressManager::LeAddressManager(
         common::Callback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
         os::Handler* handler, Address public_address, uint8_t accept_list_size,
-        uint8_t resolving_list_size)
+        uint8_t resolving_list_size, Controller* controller)
     : enqueue_command_(enqueue_command),
       handler_(handler),
       public_address_(public_address),
       accept_list_size_(accept_list_size),
-      resolving_list_size_(resolving_list_size) {}
+      resolving_list_size_(resolving_list_size),
+      controller_(controller) {}
 
 LeAddressManager::~LeAddressManager() {
   if (address_rotation_wake_alarm_ != nullptr) {
@@ -153,11 +157,23 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddress(
         log::info("minimum_rotation_time_={}ms, maximum_rotation_time_={}ms",
                   minimum_rotation_time_.count(), maximum_rotation_time_.count());
       }
-      if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
-        address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_, true);
-        address_rotation_non_wake_alarm_ = std::make_unique<os::Alarm>(handler_, false);
+      if (controller_->IsRpaGenerationSupported()) {
+        auto min_seconds = std::chrono::duration_cast<std::chrono::seconds>(minimum_rotation_time_);
+        auto max_seconds = std::chrono::duration_cast<std::chrono::seconds>(maximum_rotation_time_);
+        log::info("Support RPA offload, set min_seconds={}s, max_seconds={}s", min_seconds.count(),
+                  max_seconds.count());
+        /* Default to 7 minutes minimum, 15 minutes maximum for random address refreshing;
+         * device can override. */
+        auto packet = hci::LeSetResolvablePrivateAddressTimeoutV2Builder::Create(
+                min_seconds.count(), max_seconds.count());
+        enqueue_command_.Run(std::move(packet));
       } else {
-        address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_);
+        if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
+          address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_, true);
+          address_rotation_non_wake_alarm_ = std::make_unique<os::Alarm>(handler_, false);
+        } else {
+          address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_);
+        }
       }
       set_random_address();
       break;
@@ -205,13 +221,25 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddressForTest(
       maximum_rotation_time_ = maximum_rotation_time;
       log::info("minimum_rotation_time_={}ms, maximum_rotation_time_={}ms",
                 minimum_rotation_time_.count(), maximum_rotation_time_.count());
-      if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
-        address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_, true);
-        address_rotation_non_wake_alarm_ = std::make_unique<os::Alarm>(handler_, false);
+      if (controller_->IsRpaGenerationSupported()) {
+        auto min_seconds = std::chrono::duration_cast<std::chrono::seconds>(minimum_rotation_time_);
+        auto max_seconds = std::chrono::duration_cast<std::chrono::seconds>(maximum_rotation_time_);
+        log::info("Support RPA offload, set min_seconds={}s, max_seconds={}s", min_seconds.count(),
+                  max_seconds.count());
+        /* Default to 7 minutes minimum, 15 minutes maximum for random address refreshing;
+         * device can override. */
+        auto packet = hci::LeSetResolvablePrivateAddressTimeoutV2Builder::Create(
+                min_seconds.count(), max_seconds.count());
+        enqueue_command_.Run(std::move(packet));
       } else {
-        address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_);
+        if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
+          address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_, true);
+          address_rotation_non_wake_alarm_ = std::make_unique<os::Alarm>(handler_, false);
+        } else {
+          address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_);
+        }
+        set_random_address();
       }
-      set_random_address();
       break;
     case AddressPolicy::POLICY_NOT_SET:
       log::fatal("invalid parameters");
@@ -237,8 +265,10 @@ void LeAddressManager::register_client(LeAddressManagerCallback* callback) {
   } else if (address_policy_ == AddressPolicy::USE_RESOLVABLE_ADDRESS ||
              address_policy_ == AddressPolicy::USE_NON_RESOLVABLE_ADDRESS) {
     if (registered_clients_.size() == 1) {
-      schedule_rotate_random_address();
-      log::info("Scheduled address rotation for first client registered");
+      if (!controller_->IsRpaGenerationSupported()) {
+        schedule_rotate_random_address();
+        log::info("Scheduled address rotation for first client registered");
+      }
     }
   }
   log::info("Client registered");
@@ -815,6 +845,10 @@ void LeAddressManager::OnCommandComplete(bluetooth::hci::CommandCompleteView vie
 
     case OpCode::LE_CLEAR_FILTER_ACCEPT_LIST:
       on_command_complete<LeClearFilterAcceptListCompleteView>(view);
+      break;
+
+    case OpCode::LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2:
+      on_command_complete<LeSetResolvablePrivateAddressTimeoutV2CompleteView>(view);
       break;
 
     default:

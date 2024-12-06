@@ -634,9 +634,7 @@ void bta_gattc_conn(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
     } else { /* cache is building */
       p_clcb->state = BTA_GATTC_DISCOVER_ST;
     }
-  }
-
-  else {
+  } else {
     /* a pending service handle change indication */
     if (p_clcb->p_srcb->srvc_hdl_chg) {
       p_clcb->p_srcb->srvc_hdl_chg = false;
@@ -839,7 +837,8 @@ void bta_gattc_cfg_mtu(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
       bta_gattc_send_mtu_response(p_clcb, p_data, current_mtu);
       return;
     case MTU_EXCHANGE_IN_PROGRESS:
-      log::info("Enqueue MTU Request  - waiting for response on p_clcb {}", fmt::ptr(p_clcb));
+      log::info("Enqueue MTU Request  - waiting for response on p_clcb {}",
+                std::format_ptr(p_clcb));
       /* MTU request is in progress and this one will not be sent to remote
        * device. Just push back on the queue and response will be sent up to
        * the upper layer when MTU Exchange will be completed.
@@ -932,9 +931,8 @@ void bta_gattc_start_discover(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* /*
     }
 
     bta_gattc_continue_with_version_and_cache_known(p_clcb, cache_support, is_svc_chg);
-  }
-  /* pending operation, wait until it finishes */
-  else {
+  } else {
+    /* pending operation, wait until it finishes */
     p_clcb->auto_update = BTA_GATTC_DISC_WAITING;
 
     if (p_clcb->p_srcb->state == BTA_GATTC_SERV_IDLE) {
@@ -1021,9 +1019,8 @@ void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* /* p_da
     /* start discovery again */
     p_clcb->auto_update = BTA_GATTC_REQ_WAITING;
     bta_gattc_sm_execute(p_clcb, BTA_GATTC_INT_DISCOVER_EVT, NULL);
-  }
-  /* get any queued command to proceed */
-  else if (p_q_cmd != NULL) {
+  } else if (p_q_cmd != NULL) {
+    /* get any queued command to proceed */
     p_clcb->p_q_cmd = NULL;
     /* execute pending operation of link block still present */
     if (bluetooth::stack::l2cap::get_interface().L2CA_IsLinkEstablished(p_clcb->p_srcb->server_bda,
@@ -1362,7 +1359,7 @@ void bta_gattc_op_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
     auto outstanding_conn_ids = GATTC_GetAndRemoveListOfConnIdsWaitingForMtuRequest(p_clcb->bda);
     for (auto conn_id : outstanding_conn_ids) {
       tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
-      log::debug("Continue MTU request clcb {}", fmt::ptr(p_clcb));
+      log::debug("Continue MTU request clcb {}", std::format_ptr(p_clcb));
       if (p_clcb) {
         log::debug("Continue MTU request for client conn_id=0x{:04x}", conn_id);
         bta_gattc_continue(p_clcb);
@@ -1713,9 +1710,8 @@ static void bta_gattc_process_indicate(tCONN_ID conn_id, tGATTC_OPTYPE op,
     if (p_clcb != NULL) {
       bta_gattc_proc_other_indication(p_clcb, op, p_data, &notify);
     }
-  }
-  /* no one intersted and need ack? */
-  else if (op == GATTC_OPTYPE_INDICATION) {
+  } else if (op == GATTC_OPTYPE_INDICATION) {
+    /* no one interested and need ack? */
     log::verbose("no one interested, ack now");
     if (GATTC_SendHandleValueConfirm(conn_id, p_data->cid) != GATT_SUCCESS) {
       log::warn("Unable to send GATT client handle value confirmation conn_id:{} cid:{}", conn_id,

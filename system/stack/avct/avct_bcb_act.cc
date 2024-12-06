@@ -29,6 +29,8 @@
 #include <com_android_bluetooth_flags.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "bta/include/bta_sec_api.h"
 #include "btif/include/btif_av.h"
 #include "internal_include/bt_target.h"

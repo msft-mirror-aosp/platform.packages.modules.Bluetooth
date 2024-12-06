@@ -726,7 +726,7 @@ TEST_F(MainShimTest, DumpsysNeighbor) {
           .hci_status = HCI_SUCCESS,
           .num_resp = 45,
           .resp_type = {20, 30, 40},
-          .start_time_ms = 0,
+          .start_time_ms = 1,
   });
 
   btm_cb.neighbor.inquiry_history_->Push({
@@ -734,7 +734,7 @@ TEST_F(MainShimTest, DumpsysNeighbor) {
           .hci_status = HCI_SUCCESS,
           .num_resp = 123,
           .resp_type = {50, 60, 70},
-          .start_time_ms = -1,
+          .start_time_ms = 0,
   });
 
   DumpsysNeighbor(STDOUT_FILENO);

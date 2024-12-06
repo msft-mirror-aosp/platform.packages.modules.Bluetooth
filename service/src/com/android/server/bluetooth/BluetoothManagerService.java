@@ -253,13 +253,12 @@ class BluetoothManagerService {
         }
         mName = name;
         Log.v(TAG, "storeName(" + mName + "): Success");
-        mContext.sendBroadcastAsUser(
+        Intent intent =
                 new Intent(BluetoothAdapter.ACTION_LOCAL_NAME_CHANGED)
                         .putExtra(BluetoothAdapter.EXTRA_LOCAL_NAME, name)
-                        .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT),
-                UserHandle.ALL,
-                BLUETOOTH_CONNECT,
-                getTempAllowlistBroadcastOptions());
+                        .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
+        mContext.sendBroadcastAsUser(
+                intent, UserHandle.ALL, BLUETOOTH_CONNECT, getTempAllowlistBroadcastOptions());
     }
 
     private void storeAddress(String address) {
@@ -684,11 +683,7 @@ class BluetoothManagerService {
             return Unit.INSTANCE;
         }
         clearBleApps();
-        try {
-            mAdapter.unregAllGattClient(mContext.getAttributionSource());
-        } catch (RemoteException e) {
-            Log.e(TAG, "onBleScanDisabled: unregAllGattClient failed", e);
-        }
+
         if (mState.oneOf(STATE_BLE_ON)) {
             Log.i(TAG, "onBleScanDisabled: Shutting down BLE_ON mode");
             bleOnToOff();
@@ -1570,23 +1565,15 @@ class BluetoothManagerService {
                         }
                     }
 
-                    // Register callback object
                     try {
                         mAdapter.registerCallback(
                                 mBluetoothCallback, mContext.getAttributionSource());
                     } catch (RemoteException e) {
                         Log.e(TAG, "Unable to register BluetoothCallback", e);
                     }
-                    // Inform BluetoothAdapter instances that service is up
-                    if (!Flags.fastBindToApp()) {
-                        sendBluetoothServiceUpCallback();
-                    }
 
-                    // Do enable request
                     offToBleOn();
-                    if (Flags.fastBindToApp()) {
-                        sendBluetoothServiceUpCallback();
-                    }
+                    sendBluetoothServiceUpCallback();
 
                     if (!mEnable) {
                         waitForState(STATE_ON);
@@ -1892,9 +1879,6 @@ class BluetoothManagerService {
     private void handleEnable() {
         if (mAdapter == null && !isBinding()) {
             bindToAdapter();
-        } else if (!Flags.fastBindToApp() && mAdapter != null) {
-            // Enable bluetooth
-            offToBleOn();
         }
     }
 
@@ -2224,13 +2208,12 @@ class BluetoothManagerService {
         if (mEnable) {
             long onDuration = SystemClock.elapsedRealtime() - mLastEnabledTime;
             String onDurationString =
-                    String.format(
-                            Locale.US,
+                    android.bluetooth.BluetoothUtils.formatSimple(
                             "%02d:%02d:%02d.%03d",
-                            (int) (onDuration / (1000 * 60 * 60)),
-                            (int) ((onDuration / (1000 * 60)) % 60),
-                            (int) ((onDuration / 1000) % 60),
-                            (int) (onDuration % 1000));
+                            onDuration / (1000 * 60 * 60),
+                            (onDuration / (1000 * 60)) % 60,
+                            (onDuration / 1000) % 60,
+                            onDuration % 1000);
             writer.println("  time since enabled: " + onDurationString);
         }
 
@@ -2413,8 +2396,7 @@ class BluetoothManagerService {
                 snoopMode = BluetoothProperties.snoop_log_mode_values.FULL;
                 break;
             default:
-                Log.e(TAG, "setBtHciSnoopLogMode: Not a valid mode:" + mode);
-                return BluetoothStatusCodes.ERROR_BAD_PARAMETERS;
+                throw new IllegalArgumentException("Invalid HCI snoop log mode param value");
         }
         try {
             BluetoothProperties.snoop_log_mode(snoopMode);
