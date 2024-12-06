@@ -466,8 +466,7 @@ struct LeScanningManager::impl : public LeAddressManagerCallback {
     stop_scan();
 
     if (le_address_manager_->GetAddressPolicy() != LeAddressManager::USE_PUBLIC_ADDRESS) {
-      if (com::android::bluetooth::flags::rpa_offload_to_bt_controller() &&
-          controller_->IsSupported(hci::OpCode::LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2)) {
+      if (controller_->IsRpaGenerationSupported()) {
         log::info("Support RPA offload, set own address type RESOLVABLE_OR_RANDOM_ADDRESS");
         own_address_type_ = OwnAddressType::RESOLVABLE_OR_RANDOM_ADDRESS;
       } else {

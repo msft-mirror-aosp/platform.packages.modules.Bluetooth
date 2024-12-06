@@ -658,9 +658,7 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
       // but we only rotate if the AdvertiserAddressType is non-public
       // or non-rpa requested by leaudio(since static random addresses don't rotate)
       if (advertising_sets_[id].address_type != AdvertiserAddressType::PUBLIC &&
-          !leaudio_requested_nrpa &&
-          (!com::android::bluetooth::flags::rpa_offload_to_bt_controller() ||
-           !controller_->IsSupported(hci::OpCode::LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2))) {
+          !leaudio_requested_nrpa && (!controller_->IsRpaGenerationSupported())) {
         // start timer for random address
         log::info("Scheduling address rotation for advertiser_id={}", id);
         if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
@@ -906,8 +904,7 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
     auto own_address_type = static_cast<OwnAddressType>(
             advertising_sets_[advertiser_id].current_address.GetAddressType());
 
-    if (com::android::bluetooth::flags::rpa_offload_to_bt_controller() &&
-        controller_->IsSupported(hci::OpCode::LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2) &&
+    if (controller_->IsRpaGenerationSupported() &&
         own_address_type != OwnAddressType::PUBLIC_DEVICE_ADDRESS) {
       log::info("Support RPA offload, set own address type RESOLVABLE_OR_RANDOM_ADDRESS");
       own_address_type = OwnAddressType::RESOLVABLE_OR_RANDOM_ADDRESS;
