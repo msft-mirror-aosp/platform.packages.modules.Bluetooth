@@ -50,6 +50,7 @@ struct LogMetricReadRssiResult LogMetricReadRssiResult;
 struct LogMetricReadFailedContactCounterResult LogMetricReadFailedContactCounterResult;
 struct LogMetricReadTxPowerLevelResult LogMetricReadTxPowerLevelResult;
 struct LogMetricSmpPairingEvent LogMetricSmpPairingEvent;
+struct LogMetricLePairingFail LogMetricLePairingFail;
 struct LogMetricClassicPairingEvent LogMetricClassicPairingEvent;
 struct LogMetricSdpAttribute LogMetricSdpAttribute;
 struct LogMetricSocketConnectionState LogMetricSocketConnectionState;
@@ -144,6 +145,12 @@ void bluetooth::shim::LogMetricSmpPairingEvent(const RawAddress& raw_address, ui
   test::mock::main_shim_metrics_api::LogMetricSmpPairingEvent(raw_address, smp_cmd, direction,
                                                               smp_fail_reason);
 }
+void bluetooth::shim::LogMetricLePairingFail(const RawAddress& raw_address, uint8_t failure_reason,
+                                             bool is_outgoing) {
+  inc_func_call_count(__func__);
+  test::mock::main_shim_metrics_api::LogMetricLePairingFail(raw_address, failure_reason,
+                                                            is_outgoing);
+}
 void bluetooth::shim::LogMetricClassicPairingEvent(const RawAddress& raw_address, uint16_t handle,
                                                    uint32_t hci_cmd, uint16_t hci_event,
                                                    uint16_t cmd_status, uint16_t reason_code,
@@ -182,15 +189,5 @@ void bluetooth::shim::LogMetricManufacturerInfo(
 bool bluetooth::shim::CountCounterMetrics(int32_t /* key */, int64_t /* count */) {
   inc_func_call_count(__func__);
   return false;
-}
-void bluetooth::shim::LogMetricBluetoothLEConnectionMetricEvent(
-        const RawAddress& /* raw_address */,
-        android::bluetooth::le::LeConnectionOriginType /* origin_type */,
-        android::bluetooth::le::LeConnectionType /* connection_type */,
-        android::bluetooth::le::LeConnectionState /* transaction_state */,
-        std::vector<std::pair<bluetooth::os::ArgumentType, int>> /* argument_list */) {
-  inc_func_call_count(__func__);
-  // test::mock::main_shim_metrics_api::LogMetricBluetoothLEConnectionMetricEvent(raw_address,
-  // origin_type, connection_type, transaction_state, argument_list);
 }
 // END mockcify generation

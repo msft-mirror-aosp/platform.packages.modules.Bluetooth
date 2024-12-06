@@ -215,6 +215,20 @@ struct LogMetricSmpPairingEvent {
   }
 };
 extern struct LogMetricSmpPairingEvent LogMetricSmpPairingEvent;
+
+// Name: LogMetricLePairingFail
+// Params: const RawAddress& raw_address, uint8_t failure_reason, bool
+// is_outgoing
+// void
+struct LogMetricLePairingFail {
+  std::function<void(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing)> body{
+          [](const RawAddress& /* raw address */, uint8_t /* failure reason */,
+             bool /* is_outgoing */) {}};
+  void operator()(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing) {
+    body(raw_address, failure_reason, is_outgoing);
+  }
+};
+extern struct LogMetricLePairingFail LogMetricLePairingFail;
 // Name: LogMetricClassicPairingEvent
 // Params: const RawAddress& raw_address, uint16_t handle, uint32_t hci_cmd,
 // uint16_t hci_event, uint16_t cmd_status, uint16_t reason_code, int64_t
@@ -298,35 +312,6 @@ struct LogMetricManufacturerInfo {
   }
 };
 extern struct LogMetricManufacturerInfo LogMetricManufacturerInfo;
-
-// Name: LogMetricBluetoothLEConnectionMetricEvent
-// Params:     const RawAddress& raw_address,
-//    android::bluetooth::le::LeConnectionOriginType origin_type,
-//    android::bluetooth::le::LeConnectionType connection_type,
-//    android::bluetooth::le::LeConnectionState transaction_state,
-//    std::vector<std::pair<bluetooth::metrics::ArgumentType, int>>
-//    argument_list
-struct LogMetricBluetoothLEConnectionMetricEvent {
-  std::function<void(const RawAddress& raw_address,
-                     android::bluetooth::le::LeConnectionOriginType origin_type,
-                     android::bluetooth::le::LeConnectionType connection_type,
-                     android::bluetooth::le::LeConnectionState transaction_state,
-                     std::vector<std::pair<bluetooth::os::ArgumentType, int>> argument_list)>
-          body{[](const RawAddress& /* raw_address */,
-                  android::bluetooth::le::LeConnectionOriginType /* origin_type */,
-                  android::bluetooth::le::LeConnectionType /* connection_type */,
-                  android::bluetooth::le::LeConnectionState
-                  /* transaction_state */,
-                  std::vector<std::pair<bluetooth::os::ArgumentType, int>>
-                  /* argument_list */) {}};
-  void operator()(const RawAddress& raw_address,
-                  android::bluetooth::le::LeConnectionOriginType origin_type,
-                  android::bluetooth::le::LeConnectionType connection_type,
-                  android::bluetooth::le::LeConnectionState transaction_state,
-                  std::vector<std::pair<bluetooth::os::ArgumentType, int>> argument_list) {
-    body(raw_address, origin_type, connection_type, transaction_state, argument_list);
-  }
-};
 
 }  // namespace main_shim_metrics_api
 }  // namespace mock

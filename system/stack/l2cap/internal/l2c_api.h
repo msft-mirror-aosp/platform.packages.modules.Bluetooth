@@ -40,11 +40,6 @@
  *  Constants
  ****************************************************************************/
 
-/* Define the minimum offset that L2CAP needs in a buffer. This is made up of
- * HCI type(1), len(2), handle(2), L2CAP len(2) and CID(2) => 9
- */
-#define L2CAP_MIN_OFFSET 13 /* plus control(2), SDU length(2) */
-
 #define L2CAP_LCC_SDU_LENGTH 2
 #define L2CAP_LCC_OFFSET (L2CAP_MIN_OFFSET + L2CAP_LCC_SDU_LENGTH) /* plus SDU length(2) */
 
@@ -80,7 +75,7 @@ typedef uint8_t tL2CAP_CHNL_DATA_RATE;
 #define L2CAP_FCR_CHAN_OPT_ALL_MASK (L2CAP_FCR_CHAN_OPT_BASIC | L2CAP_FCR_CHAN_OPT_ERTM)
 
 /* Validity check for PSM.  PSM values must be odd.  Also, all PSM values must
- * be assigned such that the least significant bit of the most sigificant
+ * be assigned such that the least significant bit of the most significant
  * octet equals zero.
  */
 #define L2C_INVALID_PSM(psm) (((psm) & 0x0101) != 0x0001)
@@ -410,10 +405,11 @@ void L2CA_DeregisterLECoc(uint16_t psm);
  *  Return value: true if peer is connected
  *
  ******************************************************************************/
-
 [[nodiscard]] bool L2CA_ConnectCreditBasedRsp(const RawAddress& p_bd_addr, uint8_t id,
                                               std::vector<uint16_t>& accepted_lcids,
-                                              uint16_t result, tL2CAP_LE_CFG_INFO* p_cfg);
+                                              tL2CAP_LE_RESULT_CODE result,
+                                              tL2CAP_LE_CFG_INFO* p_cfg);
+
 /*******************************************************************************
  *
  * Function         L2CA_DisconnectReq
@@ -781,3 +777,20 @@ void L2CA_SetMediaStreamChannel(uint16_t local_media_cid, bool status);
 **
 *******************************************************************************/
 [[nodiscard]] bool L2CA_isMediaChannel(uint16_t handle, uint16_t channel_id, bool is_local_cid);
+
+/*******************************************************************************
+**
+** Function         L2CA_GetAclHandle
+**
+** Description      Given a local channel identifier, |lcid|, this function
+**                  returns the handle of the corresponding ACL connection, |acl_handle|. If
+**                  |lcid| is not known or is invalid, this function returns false and does not
+**                  modify the value pointed at by |acl_handle|.
+**
+** Parameters:      lcid: Local CID
+**                  acl_handle: Pointer to ACL handle must NOT be nullptr
+**
+** Returns          true if acl_handle lookup was successful
+**
+******************************************************************************/
+[[nodiscard]] bool L2CA_GetAclHandle(uint16_t lcid, uint16_t* acl_handle);

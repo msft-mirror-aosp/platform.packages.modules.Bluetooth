@@ -77,15 +77,6 @@ public class BrowseTree {
                                     .setBrowsable(true)
                                     .build());
             mRootNode.setCached(true);
-        } else if (!Flags.randomizeDeviceLevelMediaIds()) {
-            mRootNode =
-                    new BrowseNode(
-                            new AvrcpItem.Builder()
-                                    .setDevice(device)
-                                    .setUuid(ROOT + device.getAddress().toString())
-                                    .setTitle(Utils.getName(device))
-                                    .setBrowsable(true)
-                                    .build());
         } else {
             mRootNode =
                     new BrowseNode(
@@ -184,11 +175,7 @@ public class BrowseTree {
         BrowseNode(BluetoothDevice device) {
             AvrcpItem.Builder aid = new AvrcpItem.Builder();
             aid.setDevice(device);
-            if (Flags.randomizeDeviceLevelMediaIds()) {
-                aid.setUuid(ROOT + device.getAddress().toString() + UUID.randomUUID().toString());
-            } else {
-                aid.setUuid(PLAYER_PREFIX + device.getAddress().toString());
-            }
+            aid.setUuid(ROOT + device.getAddress().toString() + UUID.randomUUID().toString());
             aid.setDisplayableName(Utils.getName(device));
             aid.setTitle(Utils.getName(device));
             aid.setBrowsable(true);
@@ -357,12 +344,16 @@ public class BrowseTree {
         }
 
         @Override
-        public boolean equals(Object other) {
-            if (!(other instanceof BrowseNode)) {
+        public boolean equals(Object obj) {
+            if (!(obj instanceof BrowseNode other)) {
                 return false;
             }
-            BrowseNode otherNode = (BrowseNode) other;
-            return getID().equals(otherNode.getID());
+            return getID().equals(other.getID());
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(getID());
         }
 
         public synchronized void toTreeString(int depth, StringBuilder sb) {

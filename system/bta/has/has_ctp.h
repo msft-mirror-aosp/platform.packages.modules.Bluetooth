@@ -19,6 +19,7 @@
 
 #include <bluetooth/log.h>
 
+#include <algorithm>
 #include <list>
 #include <optional>
 #include <vector>
@@ -256,9 +257,9 @@ struct HasCtpGroupOpCoordinator {
 }  // namespace has
 }  // namespace bluetooth::le_audio
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::le_audio::has::HasCtpNtf> : ostream_formatter {};
 template <>
 struct formatter<bluetooth::le_audio::has::HasCtpOp> : ostream_formatter {};
-}  // namespace fmt
+}  // namespace std

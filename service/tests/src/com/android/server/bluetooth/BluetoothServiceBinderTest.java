@@ -38,6 +38,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.quality.Strictness.STRICT_STUBS;
 
+import android.annotation.SuppressLint;
 import android.app.AppOpsManager;
 import android.app.admin.DevicePolicyManager;
 import android.bluetooth.IBluetoothManagerCallback;
@@ -48,10 +49,15 @@ import android.content.ContextWrapper;
 import android.os.IBinder;
 import android.os.Process;
 import android.os.UserManager;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
+
+import com.android.bluetooth.flags.Flags;
 
 import libcore.junit.util.compat.CoreCompatChangeRule.DisableCompatChanges;
 import libcore.junit.util.compat.CoreCompatChangeRule.EnableCompatChanges;
@@ -72,6 +78,7 @@ import java.util.function.BooleanSupplier;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
+@SuppressLint("AndroidFrameworkRequiresPermission")
 public class BluetoothServiceBinderTest {
     private static final String TAG = BluetoothServiceBinderTest.class.getSimpleName();
     private static final String LOG_COMPAT_CHANGE = "android.permission.LOG_COMPAT_CHANGE";
@@ -79,6 +86,8 @@ public class BluetoothServiceBinderTest {
             "android.permission.READ_COMPAT_CHANGE_CONFIG";
 
     @Rule public MockitoRule mockito = MockitoJUnit.rule().strictness(STRICT_STUBS);
+
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Rule public TestRule compatChangeRule = new PlatformCompatChangeRule();
 
@@ -217,6 +226,7 @@ public class BluetoothServiceBinderTest {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_GET_STATE_FROM_SYSTEM_SERVER)
     public void getState() {
         // TODO(b/280518177): add more test from not System / ...
         // TODO(b/280518177): add more test when caller is not in foreground
@@ -224,6 +234,14 @@ public class BluetoothServiceBinderTest {
         mBinder.getState();
         verify(mManagerService).getState();
         verify(mUserManager).getProfileParent(any());
+        verifyMock();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_GET_STATE_FROM_SYSTEM_SERVER)
+    public void getStateFromSystemServer() {
+        mBinder.getState();
+        verify(mManagerService).getState();
         verifyMock();
     }
 

@@ -28,8 +28,6 @@
 
 #include "common/message_loop_thread.h"
 
-#define BLUETOOTH_AUDIO_HAL_PROP_DISABLED "persist.bluetooth.bluetooth_audio_hal.disabled"
-
 namespace bluetooth {
 namespace audio {
 namespace hidl {
@@ -268,8 +266,8 @@ private:
 }  // namespace audio
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::audio::hidl::BluetoothAudioCtrlAck>
     : enum_formatter<bluetooth::audio::hidl::BluetoothAudioCtrlAck> {};
-}  // namespace fmt
+}  // namespace std

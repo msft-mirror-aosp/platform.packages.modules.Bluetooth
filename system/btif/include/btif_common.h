@@ -30,7 +30,6 @@
 
 #include "abstract_message_loop.h"
 #include "bta/include/bta_api.h"
-#include "os/log.h"
 #include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
@@ -129,8 +128,6 @@ void btif_adapter_properties_evt(bt_status_t status, uint32_t num_props, bt_prop
 void btif_remote_properties_evt(bt_status_t status, RawAddress* remote_addr, uint32_t num_props,
                                 bt_property_t* p_props);
 
-void bte_load_did_conf(const char* p_path);
-
 bt_status_t btif_transfer_context(tBTIF_CBACK* p_cback, uint16_t event, char* p_params,
                                   int param_len, tBTIF_COPY_CBACK* p_copy_cback);
 
@@ -151,7 +148,8 @@ void invoke_oob_data_request_cb(tBT_TRANSPORT t, bool valid, Octet16 c, Octet16 
 void invoke_bond_state_changed_cb(bt_status_t status, RawAddress bd_addr, bt_bond_state_t state,
                                   int fail_reason);
 void invoke_address_consolidate_cb(RawAddress main_bd_addr, RawAddress secondary_bd_addr);
-void invoke_le_address_associate_cb(RawAddress main_bd_addr, RawAddress secondary_bd_addr);
+void invoke_le_address_associate_cb(RawAddress main_bd_addr, RawAddress secondary_bd_addr,
+                                    uint8_t identity_address_type);
 void invoke_acl_state_changed_cb(bt_status_t status, RawAddress bd_addr, bt_acl_state_t state,
                                  int transport_link_type, bt_hci_error_code_t hci_reason,
                                  bt_conn_direction_t direction, uint16_t acl_handle);
@@ -165,4 +163,5 @@ void invoke_link_quality_report_cb(uint64_t timestamp, int report_id, int rssi, 
 void invoke_switch_buffer_size_cb(bool is_low_latency_buffer_size);
 void invoke_switch_codec_cb(bool is_low_latency_buffer_size);
 void invoke_key_missing_cb(RawAddress bd_addr);
+void invoke_encryption_change_cb(bt_encryption_change_evt encryption_change);
 #endif /* BTIF_COMMON_H */

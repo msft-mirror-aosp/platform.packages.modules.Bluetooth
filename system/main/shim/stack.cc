@@ -34,10 +34,9 @@
 #include "hci/hci_layer.h"
 #include "hci/le_advertising_manager.h"
 #include "hci/le_scanning_manager.h"
-#if TARGET_FLOSS
 #include "hci/msft.h"
-#endif
 #include "hci/remote_name_request.h"
+#include "lpp/lpp_offload_manager.h"
 #include "main/shim/acl.h"
 #include "main/shim/acl_interface.h"
 #include "main/shim/distance_measurement_manager.h"
@@ -76,6 +75,8 @@ void Stack::StartEverything() {
 
 #if TARGET_FLOSS
   modules.add<sysprops::SyspropsModule>();
+#else
+  modules.add<lpp::LppOffloadManager>();
 #endif
   modules.add<metrics::CounterMetrics>();
   modules.add<hal::HciHal>();
@@ -88,9 +89,7 @@ void Stack::StartEverything() {
   modules.add<hci::AclManager>();
   modules.add<hci::RemoteNameRequestModule>();
   modules.add<hci::LeAdvertisingManager>();
-#if TARGET_FLOSS
   modules.add<hci::MsftExtensionManager>();
-#endif
   modules.add<hci::LeScanningManager>();
   modules.add<hci::DistanceMeasurementManager>();
   Start(&modules);

@@ -19,6 +19,7 @@
 #include "hci/address.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
+#include "metrics/bluetooth_event.h"
 #include "metrics/counter_metrics.h"
 #include "os/metrics.h"
 #include "types/raw_address.h"
@@ -150,22 +151,17 @@ void LogMetricManufacturerInfo(const RawAddress& raw_address,
                                            manufacturer, model, hardware_version, software_version);
 }
 
+void LogMetricLePairingFail(const RawAddress& raw_address, uint8_t failure_reason,
+                            bool is_outgoing) {
+  bluetooth::metrics::LogLePairingFail(raw_address, failure_reason, is_outgoing);
+}
+
 bool CountCounterMetrics(int32_t key, int64_t count) {
   auto counter_metrics = GetCounterMetrics();
   if (counter_metrics == nullptr) {
     return false;
   }
   return counter_metrics->Count(key, count);
-}
-
-void LogMetricBluetoothLEConnectionMetricEvent(
-        const RawAddress& raw_address, android::bluetooth::le::LeConnectionOriginType origin_type,
-        android::bluetooth::le::LeConnectionType connection_type,
-        android::bluetooth::le::LeConnectionState transaction_state,
-        std::vector<std::pair<os::ArgumentType, int>> argument_list) {
-  Address address = bluetooth::ToGdAddress(raw_address);
-  bluetooth::os::LogMetricBluetoothLEConnectionMetricEvent(address, origin_type, connection_type,
-                                                           transaction_state, argument_list);
 }
 
 }  // namespace shim

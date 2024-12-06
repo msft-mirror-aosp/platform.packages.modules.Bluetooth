@@ -109,6 +109,11 @@ public class TbsCall {
         return mState == that.mState;
     }
 
+    @Override
+    public int hashCode() {
+        return mState;
+    }
+
     public int getState() {
         return mState;
     }
@@ -122,7 +127,10 @@ public class TbsCall {
     }
 
     public String getSafeUri() {
-        return Uri.parse(mUri).toSafeString();
+        if (mUri != null) {
+            return Uri.parse(mUri).toSafeString();
+        }
+        return null;
     }
 
     public int getFlags() {

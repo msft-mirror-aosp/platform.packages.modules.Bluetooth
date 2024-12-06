@@ -22,11 +22,10 @@
 
 #include "main/shim/hci_layer.h"
 #include "main/shim/stack.h"
+#include "stack/include/btu_hcif.h"
 #include "stack/include/main_thread.h"
 
 static const hci_t* hci;
-
-void btu_hci_msg_process(BT_HDR* p_msg);
 
 static void post_to_main_message_loop(BT_HDR* p_msg) {
   if (do_in_main_thread(base::Bind(&btu_hci_msg_process, p_msg)) != BT_STATUS_SUCCESS) {
@@ -58,8 +57,4 @@ EXPORT_SYMBOL extern const module_t gd_shim_module = {.name = GD_SHIM_MODULE,
 
 bool bluetooth::shim::is_gd_stack_started_up() {
   return bluetooth::shim::Stack::GetInstance()->IsRunning();
-}
-
-bool bluetooth::shim::is_gd_dumpsys_module_started() {
-  return bluetooth::shim::Stack::GetInstance()->IsDumpsysModuleStarted();
 }

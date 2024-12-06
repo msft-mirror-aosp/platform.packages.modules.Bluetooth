@@ -36,14 +36,13 @@
 
 typedef struct {
   bool in_use;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
   bool connected;
   RawAddress bda;
   uint32_t trans_id;
   uint8_t cur_srvc_id;
 
   tDIS_VALUE dis_value;
-
 } tSRVC_CLCB;
 
 /* service engine control block */
@@ -51,14 +50,13 @@ typedef struct {
   tSRVC_CLCB clcb[SRVC_MAX_APPS]; /* connection link*/
   tGATT_IF gatt_if;
   bool enabled;
-
 } tSRVC_ENG_CB;
 
 /* Global GATT data */
 extern tSRVC_ENG_CB srvc_eng_cb;
 
-tSRVC_CLCB* srvc_eng_find_clcb_by_conn_id(uint16_t conn_id);
+tSRVC_CLCB* srvc_eng_find_clcb_by_conn_id(tCONN_ID conn_id);
 
-void srvc_eng_release_channel(uint16_t conn_id);
+void srvc_eng_release_channel(tCONN_ID conn_id);
 bool srvc_eng_request_channel(const RawAddress& remote_bda, uint8_t srvc_id);
 #endif

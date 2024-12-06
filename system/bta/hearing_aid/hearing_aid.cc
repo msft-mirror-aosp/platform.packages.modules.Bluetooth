@@ -23,25 +23,50 @@
 #include <base/strings/string_number_conversions.h>  // HexEncode
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 
+#include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
+#include <deque>
+#include <functional>
+#include <list>
+#include <memory>
 #include <mutex>
+#include <ostream>
+#include <sstream>
+#include <utility>
 #include <vector>
 
 #include "audio/asrc/asrc_resampler.h"
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_gatt_queue.h"
 #include "bta/include/bta_hearing_aid_api.h"
+#include "btm_api_types.h"
+#include "btm_ble_api_types.h"
 #include "btm_iso_api.h"
+#include "btm_sec_api_types.h"
 #include "embdrv/g722/g722_enc_dec.h"
-#include "hal/link_clocker.h"
+#include "gap_api.h"
+#include "gatt/database.h"
+#include "gatt_api.h"
+#include "gattdefs.h"
 #include "hardware/bt_gatt_types.h"
+#include "hardware/bt_hearing_aid.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_trace.h"
+#include "l2cap_types.h"
 #include "main/shim/entry.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
+#include "profiles_api.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api_types.h"  // tBTM_RSSI_RESULT
 #include "stack/include/bt_hdr.h"
@@ -104,6 +129,8 @@ constexpr uint8_t OTHER_SIDE_IS_STREAMING = 0x01;
 // audio subsystem to bluetooth chip. Then the estimated OTA delay is two
 // connnection intervals.
 constexpr uint16_t ADD_RENDER_DELAY_INTERVALS = 4;
+
+constexpr tCONN_ID INVALID_CONN_ID = 0;
 
 namespace {
 
@@ -169,13 +196,14 @@ public:
 
   HearingDevice* FindOtherConnectedDeviceFromSet(const HearingDevice& device) {
     auto iter = std::find_if(devices.begin(), devices.end(), [&device](const HearingDevice& other) {
-      return &device != &other && device.hi_sync_id == other.hi_sync_id && other.conn_id != 0;
+      return &device != &other && device.hi_sync_id == other.hi_sync_id &&
+             other.conn_id != INVALID_CONN_ID;
     });
 
     return (iter == devices.end()) ? nullptr : &(*iter);
   }
 
-  HearingDevice* FindByConnId(uint16_t conn_id) {
+  HearingDevice* FindByConnId(tCONN_ID conn_id) {
     auto iter = std::find_if(
             devices.begin(), devices.end(),
             [&conn_id](const HearingDevice& device) { return device.conn_id == conn_id; });
@@ -220,8 +248,8 @@ public:
   std::vector<HearingDevice> devices;
 };
 
-static void write_rpt_ctl_cfg_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
-                                 uint16_t len, const uint8_t* value, void* data) {
+static void write_rpt_ctl_cfg_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
+                                 uint16_t len, const uint8_t* /*value*/, void* /*data*/) {
   if (status != GATT_SUCCESS) {
     log::error("handle= {}, conn_id={}, status= 0x{:x}, length={}", handle, conn_id,
                static_cast<uint8_t>(status), len);
@@ -336,7 +364,7 @@ public:
 
     if (needs_parameter_update) {
       for (auto& device : hearingDevices.devices) {
-        if (device.conn_id != 0) {
+        if (device.conn_id != INVALID_CONN_ID) {
           device.connection_update_status = STARTED;
           device.requested_connection_interval = UpdateBleConnParams(device.address);
         }
@@ -347,11 +375,6 @@ public:
   // Reset and configure the ASHA resampling context using the input device
   // devices as reference for the BT clock estimation.
   void ConfigureAsrc() {
-    if (!com::android::bluetooth::flags::asha_asrc()) {
-      log::info("Asha resampling disabled: feature flag off");
-      return;
-    }
-
     // Create a new ASRC context if required.
     if (asrc == nullptr) {
       log::info("Configuring Asha resampler");
@@ -467,8 +490,8 @@ public:
 
   int GetDeviceCount() { return hearingDevices.size(); }
 
-  void OnGattConnected(tGATT_STATUS status, uint16_t conn_id, tGATT_IF client_if,
-                       RawAddress address, tBT_TRANSPORT transport, uint16_t mtu) {
+  void OnGattConnected(tGATT_STATUS status, tCONN_ID conn_id, tGATT_IF /*client_if*/,
+                       RawAddress address, tBT_TRANSPORT /*transport*/, uint16_t /*mtu*/) {
     HearingDevice* hearingDevice = hearingDevices.FindByAddress(address);
     if (!hearingDevice) {
       /* When Hearing Aid is quickly disabled and enabled in settings, this case
@@ -501,13 +524,18 @@ public:
 
     hearingDevice->conn_id = conn_id;
 
+    if (com::android::bluetooth::flags::gatt_queue_cleanup_connected()) {
+      BtaGattQueue::Clean(conn_id);
+    }
+
     uint64_t hi_sync_id = hearingDevice->hi_sync_id;
 
     // If there a background connection to the other device of a pair, promote
     // it to a direct connection to scan more aggressively for it
     if (hi_sync_id != 0) {
       for (auto& device : hearingDevices.devices) {
-        if (device.hi_sync_id == hi_sync_id && device.conn_id == 0 && !device.connecting_actively) {
+        if (device.hi_sync_id == hi_sync_id && device.conn_id == INVALID_CONN_ID &&
+            !device.connecting_actively) {
           log::info("Promoting device from the set from background to direct connection, bda={}",
                     device.address);
           device.connecting_actively = true;
@@ -556,7 +584,7 @@ public:
     OnEncryptionComplete(address, true);
   }
 
-  void OnConnectionUpdateComplete(uint16_t conn_id, tBTA_GATTC* p_data) {
+  void OnConnectionUpdateComplete(tCONN_ID conn_id, tBTA_GATTC* p_data) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -626,7 +654,7 @@ public:
     }
 
     for (auto& device : hearingDevices.devices) {
-      if (device.conn_id && (device.connection_update_status == AWAITING)) {
+      if (device.conn_id != INVALID_CONN_ID && (device.connection_update_status == AWAITING)) {
         device.connection_update_status = STARTED;
         device.requested_connection_interval = UpdateBleConnParams(device.address);
         return;
@@ -692,7 +720,7 @@ public:
   }
 
   // Just take care phy update successful case to avoid loop executing.
-  void OnPhyUpdateEvent(uint16_t conn_id, uint8_t tx_phys, uint8_t rx_phys, tGATT_STATUS status) {
+  void OnPhyUpdateEvent(tCONN_ID conn_id, uint8_t tx_phys, uint8_t rx_phys, tGATT_STATUS status) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -762,7 +790,7 @@ public:
     }
   }
 
-  void OnServiceSearchComplete(uint16_t conn_id, tGATT_STATUS status) {
+  void OnServiceSearchComplete(tCONN_ID conn_id, tGATT_STATUS status) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -855,7 +883,7 @@ public:
     }
   }
 
-  void OnNotificationEvent(uint16_t conn_id, uint16_t handle, uint16_t len, uint8_t* value) {
+  void OnNotificationEvent(tCONN_ID conn_id, uint16_t handle, uint16_t len, uint8_t* value) {
     HearingDevice* device = hearingDevices.FindByConnId(conn_id);
     if (!device) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -883,8 +911,8 @@ public:
     device->command_acked = true;
   }
 
-  void OnReadOnlyPropertiesRead(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
-                                uint16_t len, uint8_t* value, void* data) {
+  void OnReadOnlyPropertiesRead(tCONN_ID conn_id, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                                uint16_t len, uint8_t* value, void* /*data*/) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -990,13 +1018,13 @@ public:
     }
   }
 
-  void OnAudioStatus(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                     uint8_t* value, void* data) {
+  void OnAudioStatus(tCONN_ID /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                     uint16_t len, uint8_t* value, void* /*data*/) {
     log::info("{}", base::HexEncode(value, len));
   }
 
-  void OnPsmRead(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                 uint8_t* value, void* data) {
+  void OnPsmRead(tCONN_ID conn_id, tGATT_STATUS status, uint16_t /*handle*/, uint16_t len,
+                 uint8_t* value, void* /*data*/) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -1056,21 +1084,21 @@ public:
     }
   }
 
-  static void OnReadOnlyPropertiesReadStatic(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+  static void OnReadOnlyPropertiesReadStatic(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                              uint16_t len, uint8_t* value, void* data) {
     if (instance) {
       instance->OnReadOnlyPropertiesRead(conn_id, status, handle, len, value, data);
     }
   }
 
-  static void OnAudioStatusStatic(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+  static void OnAudioStatusStatic(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                   uint16_t len, uint8_t* value, void* data) {
     if (instance) {
       instance->OnAudioStatus(conn_id, status, handle, len, value, data);
     }
   }
 
-  static void OnPsmReadStatic(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+  static void OnPsmReadStatic(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                               uint8_t* value, void* data) {
     if (instance) {
       instance->OnPsmRead(conn_id, status, handle, len, value, data);
@@ -1226,7 +1254,7 @@ public:
           (device.hi_sync_id != this_side_device->hi_sync_id)) {
         continue;
       }
-      if (audio_running && (device.conn_id != 0)) {
+      if (audio_running && (device.conn_id != INVALID_CONN_ID)) {
         return OTHER_SIDE_IS_STREAMING;
       } else {
         return OTHER_SIDE_NOT_STREAMING;
@@ -1278,8 +1306,9 @@ public:
     }
   }
 
-  static void StartAudioCtrlCallbackStatic(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
-                                           uint16_t len, const uint8_t* value, void* data) {
+  static void StartAudioCtrlCallbackStatic(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
+                                           uint16_t /*len*/, const uint8_t* /*value*/,
+                                           void* /*data*/) {
     if (status != GATT_SUCCESS) {
       log::error("handle={}, conn_id={}, status=0x{:x}", handle, conn_id,
                  static_cast<uint8_t>(status));
@@ -1292,7 +1321,7 @@ public:
     instance->StartAudioCtrlCallback(conn_id);
   }
 
-  void StartAudioCtrlCallback(uint16_t conn_id) {
+  void StartAudioCtrlCallback(tCONN_ID conn_id) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("Skipping unknown device, conn_id=0x{:x}", conn_id);
@@ -1413,19 +1442,11 @@ public:
       }
     }
 
-    uint16_t l2cap_flush_threshold = 0;
-
     // Skipping packets completely messes up the resampler context.
-    // The condition for skipping packets seems to be easily triggered,
-    // causing dropouts that could have been avoided.
-    //
-    // When the resampler is enabled, the flush threshold is set
-    // to the number of credits specified for the ASHA l2cap streaming
-    // channel. This will ensure it is only triggered in case of
-    // critical failure.
-    if (com::android::bluetooth::flags::asha_asrc()) {
-      l2cap_flush_threshold = 8;
-    }
+    // The flush threshold is set to the number of credits specified for the
+    // ASHA l2cap streaming channel. This will ensure it is only triggered in
+    // case of critical failure.
+    uint16_t l2cap_flush_threshold = 8;
 
     // TODO: monural, binarual check
 
@@ -1562,7 +1583,7 @@ public:
     }
   }
 
-  void GapCallback(uint16_t gap_handle, uint16_t event, tGAP_CB_DATA* data) {
+  void GapCallback(uint16_t gap_handle, uint16_t event, tGAP_CB_DATA* /*data*/) {
     HearingDevice* hearingDevice = hearingDevices.FindByGapHandle(gap_handle);
     if (!hearingDevice) {
       log::error("unknown device: gap_handle={} event=0x{:x}", gap_handle, event);
@@ -1688,7 +1709,7 @@ public:
       if (!strftime(temptime, sizeof(temptime), "%H:%M:%S", tstamp)) {
         log::error("strftime fails. tm_sec={}, tm_min={}, tm_hour={}", tstamp->tm_sec,
                    tstamp->tm_min, tstamp->tm_hour);
-        strlcpy(temptime, "UNKNOWN TIME", sizeof(temptime));
+        osi_strlcpy(temptime, "UNKNOWN TIME", sizeof(temptime));
       }
       snprintf(eventtime, sizeof(eventtime), "%s.%03ld", temptime,
                rssi_logs.timestamp.tv_nsec / 1000000);
@@ -1777,7 +1798,7 @@ public:
     DoDisconnectAudioStop();
   }
 
-  void OnGattDisconnected(uint16_t conn_id, tGATT_IF client_if, RawAddress remote_bda) {
+  void OnGattDisconnected(tCONN_ID conn_id, tGATT_IF /*client_if*/, RawAddress remote_bda) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x} bd_addr={}", conn_id, remote_bda);
@@ -1841,10 +1862,10 @@ public:
     hearingDevice->connection_update_status = NONE;
     hearingDevice->gap_opened = false;
 
-    if (hearingDevice->conn_id) {
+    if (hearingDevice->conn_id != INVALID_CONN_ID) {
       BtaGattQueue::Clean(hearingDevice->conn_id);
       BTA_GATTC_Close(hearingDevice->conn_id);
-      hearingDevice->conn_id = 0;
+      hearingDevice->conn_id = INVALID_CONN_ID;
     }
 
     if (hearingDevice->gap_handle != GAP_INVALID_HANDLE) {
@@ -1908,7 +1929,7 @@ private:
 
   HearingDevices hearingDevices;
 
-  void find_server_changed_ccc_handle(uint16_t conn_id, const gatt::Service* service) {
+  void find_server_changed_ccc_handle(tCONN_ID conn_id, const gatt::Service* service) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -1932,7 +1953,7 @@ private:
 
   // Find the handle for the client characteristics configuration of a given
   // characteristics
-  uint16_t find_ccc_handle(uint16_t conn_id, uint16_t char_handle) {
+  uint16_t find_ccc_handle(tCONN_ID conn_id, uint16_t char_handle) {
     const gatt::Characteristic* p_char = BTA_GATTC_GetCharacteristic(conn_id, char_handle);
 
     if (!p_char) {
@@ -1950,7 +1971,7 @@ private:
   }
 
   void send_state_change(HearingDevice* device, std::vector<uint8_t> payload) {
-    if (device->conn_id != 0) {
+    if (device->conn_id != INVALID_CONN_ID) {
       if (device->service_changed_rcvd) {
         log::info("service discover is in progress, skip send State Change cmd.");
         return;

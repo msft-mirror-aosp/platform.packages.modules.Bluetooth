@@ -47,7 +47,7 @@ public:
   bool mute;
   uint8_t flags;
 
-  uint16_t connection_id;
+  tCONN_ID connection_id;
 
   /* Volume Control Service */
   uint16_t volume_state_handle;
@@ -94,15 +94,17 @@ public:
     if (connection_id == GATT_INVALID_CONN_ID) {
       stream << "    Not connected\n";
     } else {
-      stream << "    Connected. Conn_id = " << connection_id << "\n";
+      stream << "    Connected. Conn_id = " << static_cast<int>(connection_id) << "\n";
     }
 
     stream << "    volume: " << +volume << "\n"
            << "    mute: " << +mute << "\n"
+           << "    change_counter: " << +change_counter << "\n"
            << "    flags: " << +flags << "\n"
-           << "    device read: " << device_ready << "\n"
+           << "    device ready: " << device_ready << "\n"
            << "    connecting_actively: " << connecting_actively << "\n"
-           << "    change_counter: " << +change_counter << "\n";
+           << "    is encrypted: " << IsEncryptionEnabled() << "\n"
+           << "    GATT operations pending: " << handles_pending.size() << "\n";
 
     dprintf(fd, "%s", stream.str().c_str());
     audio_offsets.Dump(fd);
@@ -137,7 +139,7 @@ public:
   void GetExtAudioInGainProps(uint8_t ext_input_id, GATT_READ_OP_CB cb, void* cb_data);
   void GetExtAudioInDescription(uint8_t ext_input_id, GATT_READ_OP_CB cb, void* cb_data);
   void SetExtAudioInDescription(uint8_t ext_input_id, const std::string& descr);
-  void ExtAudioInControlPointOperation(uint8_t ext_input_id, uint8_t opcode,
+  bool ExtAudioInControlPointOperation(uint8_t ext_input_id, uint8_t opcode,
                                        const std::vector<uint8_t>* arg, GATT_WRITE_OP_CB cb,
                                        void* cb_data);
   bool IsEncryptionEnabled();
@@ -156,7 +158,7 @@ private:
   /*
    * This is used to track the pending GATT operation handles. Once the list is
    * empty the device is assumed ready and connected. We are doing it because we
-   * want to make sure all the required characteristics and descritors are
+   * want to make sure all the required characteristics and descriptors are
    * available on server side.
    */
   std::unordered_set<uint16_t> handles_pending;
@@ -196,7 +198,7 @@ public:
     return (iter == devices_.end()) ? nullptr : &(*iter);
   }
 
-  VolumeControlDevice* FindByConnId(uint16_t connection_id) {
+  VolumeControlDevice* FindByConnId(tCONN_ID connection_id) {
     auto iter = std::find_if(devices_.begin(), devices_.end(),
                              [&connection_id](const VolumeControlDevice& device) {
                                return device.connection_id == connection_id;

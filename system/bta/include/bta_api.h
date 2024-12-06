@@ -35,7 +35,6 @@
 #include "bta_api_data_types.h"
 #include "hci/le_rand_callback.h"
 #include "macros.h"
-#include "os/log.h"
 #include "stack/btm/btm_eir.h"
 #include "stack/btm/power_mode.h"
 #include "stack/include/bt_dev_class.h"
@@ -130,17 +129,15 @@ inline std::string preferred_role_text(const tBTA_PREF_ROLES& role) {
 }
 
 enum {
-
   BTA_DM_NO_SCATTERNET,      /* Device doesn't support scatternet, it might
                                 support "role switch during connection" for
                                 an incoming connection, when it already has
                                 another connection in central role */
   BTA_DM_PARTIAL_SCATTERNET, /* Device supports partial scatternet. It can have
                                 simultaneous connection in Central and
-                                Peripheral roles for short period of time */
+                                Peripheral roles for small period of time */
   BTA_DM_FULL_SCATTERNET     /* Device can have simultaneous connection in central
                                 and peripheral roles */
-
 };
 
 typedef struct {
@@ -160,10 +157,11 @@ typedef struct {
 typedef uint8_t tBTA_DM_BLE_RSSI_ALERT_TYPE;
 
 typedef enum : uint8_t {
-  BTA_DM_LINK_UP_EVT = 5,         /* Connection UP event */
-  BTA_DM_LINK_DOWN_EVT = 6,       /* Connection DOWN event */
-  BTA_DM_LE_FEATURES_READ = 27,   /* Cotroller specific LE features are read */
-  BTA_DM_LINK_UP_FAILED_EVT = 34, /* Create connection failed event */
+  BTA_DM_LINK_UP_EVT = 5,                /* Connection UP event */
+  BTA_DM_LINK_DOWN_EVT = 6,              /* Connection DOWN event */
+  BTA_DM_LE_FEATURES_READ = 27,          /* Controller specific LE features are read */
+  BTA_DM_LPP_OFFLOAD_FEATURES_READ = 28, /* Low power processor offload features are read */
+  BTA_DM_LINK_UP_FAILED_EVT = 34,        /* Create connection failed event */
 } tBTA_DM_ACL_EVT;
 
 /* Structure associated with BTA_DM_LINK_UP_EVT */
@@ -272,22 +270,15 @@ typedef union {
 /* Search callback */
 typedef void(tBTA_DM_SEARCH_CBACK)(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH* p_data);
 
-// TODO: delete bd_name parameter after separate_service_and_device_discovery
-// rolls out
-typedef void(tBTA_DM_GATT_DISC_CBACK)(RawAddress bd_addr, BD_NAME bd_name,
-                                      std::vector<bluetooth::Uuid>& services, bool transport_le);
+typedef void(tBTA_DM_GATT_DISC_CBACK)(RawAddress bd_addr, std::vector<bluetooth::Uuid>& services,
+                                      bool transport_le);
 typedef void(tBTA_DM_DID_RES_CBACK)(RawAddress bd_addr, uint8_t vendor_id_src, uint16_t vendor_id,
                                     uint16_t product_id, uint16_t version);
-// TODO: delete after separate_service_and_device_discovery rolls out
-typedef void(tBTA_DM_NAME_READ_CBACK)(RawAddress bd_addr, tHCI_ERROR_CODE hci_status,
-                                      const BD_NAME bd_name);
 typedef void(tBTA_DM_DISC_CBACK)(RawAddress bd_addr, const std::vector<bluetooth::Uuid>& uuids,
                                  tBTA_STATUS result);
 struct service_discovery_callbacks {
   tBTA_DM_GATT_DISC_CBACK* on_gatt_results;
   tBTA_DM_DID_RES_CBACK* on_did_received;
-  // TODO: delete after separate_service_and_device_discovery rolls out
-  tBTA_DM_NAME_READ_CBACK* on_name_read;
   tBTA_DM_DISC_CBACK* on_service_discovery_results;
 };
 
@@ -857,13 +848,13 @@ bool BTA_DmCheckLeAudioCapable(const RawAddress& address);
 
 void DumpsysBtaDm(int fd);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_DM_SEARCH_EVT> : enum_formatter<tBTA_DM_SEARCH_EVT> {};
 template <>
 struct formatter<tBTA_DM_ACL_EVT> : enum_formatter<tBTA_DM_ACL_EVT> {};
 template <>
 struct formatter<tBTA_PREF_ROLES> : enum_formatter<tBTA_PREF_ROLES> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_API_H */

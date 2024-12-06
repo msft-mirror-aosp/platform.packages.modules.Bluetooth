@@ -39,11 +39,10 @@
 #include "common/time_util.h"
 #include "hci/address.h"
 #include "main/shim/metric_id_api.h"
-#include "metrics/metrics_state.h"
 #include "osi/include/osi.h"
 #include "types/raw_address.h"
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<android::bluetooth::DirectionEnum>
     : enum_formatter<android::bluetooth::DirectionEnum> {};
@@ -59,7 +58,7 @@ struct formatter<android::bluetooth::AddressTypeEnum>
 template <>
 struct formatter<android::bluetooth::DeviceInfoSrcEnum>
     : enum_formatter<android::bluetooth::DeviceInfoSrcEnum> {};
-}  // namespace fmt
+}  // namespace std
 
 namespace bluetooth {
 namespace common {
@@ -893,16 +892,6 @@ void LogLeAudioBroadcastSessionReported(int64_t duration_nanos) {
   if (ret < 0) {
     log::warn("failed for duration={}", duration_nanos);
   }
-}
-
-void LogLeBluetoothConnectionMetricEventReported(
-        const Address& address, android::bluetooth::le::LeConnectionOriginType origin_type,
-        android::bluetooth::le::LeConnectionType connection_type,
-        android::bluetooth::le::LeConnectionState transaction_state,
-        std::vector<std::pair<os::ArgumentType, int>> argument_list) {
-  // Log the events for the State Management
-  metrics::MetricsCollector::GetLEConnectionMetricsCollector()->AddStateChangedEvent(
-          address, origin_type, connection_type, transaction_state, argument_list);
 }
 
 }  // namespace common

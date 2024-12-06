@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_interface.h"
+#include "stack/l2cap/internal/l2c_api.h"
+#include "stack/l2cap/l2c_api.h"
 
 static bluetooth::stack::l2cap::Impl l2cap_impl;
 static bluetooth::stack::l2cap::Interface* interface_ = &l2cap_impl;
@@ -255,4 +256,9 @@ void bluetooth::stack::l2cap::Impl::L2CA_SetMediaStreamChannel(uint16_t local_me
 [[nodiscard]] bool bluetooth::stack::l2cap::Impl::L2CA_GetRemoteChannelId(uint16_t lcid,
                                                                           uint16_t* rcid) {
   return ::L2CA_GetRemoteChannelId(lcid, rcid);
+}
+
+[[nodiscard]] bool bluetooth::stack::l2cap::Impl::L2CA_GetAclHandle(uint16_t lcid,
+                                                                    uint16_t* acl_handle) {
+  return ::L2CA_GetAclHandle(lcid, acl_handle);
 }

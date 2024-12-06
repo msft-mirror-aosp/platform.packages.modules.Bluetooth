@@ -208,11 +208,11 @@ public class BluetoothMapUtils {
         for (int i = 0; i != length; i++) {
             c = nibbles[i];
             if (c >= '0' && c <= '9') {
-                c -= '0';
+                c = (byte) (c - '0');
             } else if (c >= 'A' && c <= 'F') {
-                c -= ('A' - 10);
+                c = (byte) (c - ('A' - 10));
             } else if (c >= 'a' && c <= 'f') {
-                c -= ('a' - 10);
+                c = (byte) (c - ('a' - 10));
             } else if (c <= ' ' || c == '-') {
                 Log.v(
                         TAG,

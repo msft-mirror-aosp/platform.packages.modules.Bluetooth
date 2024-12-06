@@ -104,6 +104,9 @@ impl GattServiceImpl {
             secondary_advertising_phy: 0,
             scan_request_notification_enable: 0,
             own_address_type: 0,
+            peer_address: self.create_raw_address(),
+            peer_address_type: 0,
+            discoverable: false,
         }
     }
 
@@ -479,7 +482,7 @@ impl GattService for GattServiceImpl {
 
     fn client_connect(&mut self, ctx: RpcContext<'_>, _req: Empty, sink: UnarySink<Empty>) {
         let client = &mut self.gatt.lock().unwrap().client;
-        client.connect(0, &self.create_raw_address(), 0, true, 0, true, 0);
+        client.connect(0, &self.create_raw_address(), 0, true, 0, true, 0, 0);
         ctx.spawn(async move {
             sink.success(Empty::default()).await.unwrap();
         })

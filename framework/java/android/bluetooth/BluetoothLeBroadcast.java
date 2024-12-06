@@ -347,8 +347,8 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
      *
      * <p>Repeated registration of the same <var>callback</var> object after the first call to this
      * method will result with IllegalArgumentException being thrown, even when the
-     * <var>executor</var> is different. API caller would have to call {@link
-     * #unregisterCallback(Callback)} with the same callback object before registering it again.
+     * <var>executor</var> is different. API caller must call {@link #unregisterCallback(Callback)}
+     * with the same callback object before registering it again.
      *
      * @param executor an {@link Executor} to execute given callback
      * @param callback user implementation of the {@link Callback}
@@ -382,7 +382,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
                         service.registerLeBroadcastCallback(mCallback, mAttributionSource);
                     }
                 } catch (RemoteException e) {
-                    throw e.rethrowAsRuntimeException();
+                    Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                 }
             }
 
@@ -400,7 +400,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
      * <p>The same {@link Callback} object used when calling {@link #registerCallback(Executor,
      * Callback)} must be used.
      *
-     * <p>Callbacks are automatically unregistered when application process goes away
+     * <p>Callbacks are automatically unregistered when the application process goes away
      *
      * @param callback user implementation of the {@link Callback}
      * @throws NullPointerException when callback is null or IllegalArgumentException when no
@@ -428,10 +428,8 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
                 if (service != null) {
                     service.unregisterLeBroadcastCallback(mCallback, mAttributionSource);
                 }
-            } catch (IllegalStateException e) {
+            } catch (RemoteException | IllegalStateException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
             }
         }
     }
@@ -497,7 +495,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
                         buildBroadcastSettingsFromMetadata(contentMetadata, broadcastCode),
                         mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }
@@ -528,7 +526,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
             try {
                 service.startBroadcast(broadcastSettings, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }
@@ -568,7 +566,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
                         buildBroadcastSettingsFromMetadata(contentMetadata, null),
                         mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }
@@ -605,7 +603,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
             try {
                 service.updateBroadcast(broadcastId, broadcastSettings, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }
@@ -638,7 +636,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
             try {
                 service.stopBroadcast(broadcastId, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }
@@ -663,7 +661,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
             try {
                 return service.isPlaying(broadcastId, mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return false;
@@ -688,7 +686,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
             try {
                 return service.getAllBroadcastMetadata(mAttributionSource);
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return Collections.emptyList();
@@ -711,7 +709,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
             try {
                 return service.getMaximumNumberOfBroadcasts();
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return 1;
@@ -734,7 +732,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
             try {
                 return service.getMaximumStreamsPerBroadcast();
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return 1;
@@ -760,7 +758,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
             try {
                 return service.getMaximumSubgroupsPerBroadcast();
             } catch (RemoteException e) {
-                throw e.rethrowAsRuntimeException();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return 1;

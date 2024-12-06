@@ -30,6 +30,7 @@ import io.grpc.okhttp.OkHttpChannelBuilder;
 
 import org.junit.rules.ExternalResource;
 
+import pandora.BumbleConfigGrpc;
 import pandora.DckGrpc;
 import pandora.GATTGrpc;
 import pandora.HIDGrpc;
@@ -37,6 +38,7 @@ import pandora.HostGrpc;
 import pandora.HostProto;
 import pandora.HostProto.AdvertiseRequest;
 import pandora.HostProto.OwnAddressType;
+import pandora.OOBGrpc;
 import pandora.RFCOMMGrpc;
 import pandora.SecurityGrpc;
 import pandora.l2cap.L2CAPGrpc;
@@ -173,6 +175,16 @@ public final class PandoraDevice extends ExternalResource {
         return HostGrpc.newBlockingStub(mChannel);
     }
 
+    /** Get Pandora BumbleConfig service */
+    public BumbleConfigGrpc.BumbleConfigStub bumbleConfig() {
+        return BumbleConfigGrpc.newStub(mChannel);
+    }
+
+    /** Get Pandora BumbleConfig service */
+    public BumbleConfigGrpc.BumbleConfigBlockingStub bumbleConfigBlocking() {
+        return BumbleConfigGrpc.newBlockingStub(mChannel);
+    }
+
     /** Get Pandora HID service */
     public HIDGrpc.HIDStub hid() {
         return HIDGrpc.newStub(mChannel);
@@ -196,6 +208,11 @@ public final class PandoraDevice extends ExternalResource {
     /** Get Pandora Security service */
     public SecurityGrpc.SecurityStub security() {
         return SecurityGrpc.newStub(mChannel);
+    }
+
+    /** Get Pandora OOB blocking service */
+    public OOBGrpc.OOBBlockingStub oobBlocking() {
+        return OOBGrpc.newBlockingStub(mChannel);
     }
 
     /** Get Pandora GATT service */

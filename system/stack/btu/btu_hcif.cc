@@ -36,10 +36,12 @@
 
 #include <cstdint>
 
+#include "btm_iso_api.h"
 #include "common/metrics.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/hci_layer.h"
 #include "osi/include/allocator.h"
+#include "stack/include/acl_api.h"
 #include "stack/include/acl_hci_link_interface.h"
 #include "stack/include/ble_hci_link_interface.h"
 #include "stack/include/bt_hdr.h"
@@ -48,6 +50,7 @@
 #include "stack/include/btm_iso_api.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/btu_hcif.h"
 #include "stack/include/dev_hci_link_interface.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hci_evt_length.h"
@@ -55,6 +58,7 @@
 #include "stack/include/main_thread.h"
 #include "stack/include/sco_hci_link_interface.h"
 #include "stack/include/sec_hci_link_interface.h"
+#include "stack/include/smp_api.h"
 #include "stack/include/stack_metrics_logging.h"
 #include "types/hci_role.h"
 #include "types/raw_address.h"
@@ -63,17 +67,12 @@ using namespace bluetooth;
 using base::Location;
 using bluetooth::hci::IsoManager;
 
-bool BTM_BLE_IS_RESOLVE_BDA(const RawAddress& x);  // TODO remove
-void BTA_sys_signal_hw_error();                    // TODO remove
-void smp_cancel_start_encryption_attempt();        // TODO remove
-void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason,
-                                std::string comment);  // TODO remove
-
 /******************************************************************************/
 /*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
 /******************************************************************************/
 static void btu_hcif_authentication_comp_evt(uint8_t* p);
 static void btu_hcif_encryption_change_evt(uint8_t* p);
+static void btu_hcif_encryption_change_evt_v2(uint8_t* p);
 static void btu_hcif_read_rmt_ext_features_comp_evt(uint8_t* p, uint8_t evt_len);
 static void btu_hcif_command_complete_evt(BT_HDR* response, void* context);
 static void btu_hcif_command_status_evt(uint8_t status, BT_HDR* command, void* context);
@@ -148,6 +147,16 @@ static void btu_hcif_log_event_metrics(uint8_t evt_code, const uint8_t* p_event)
       log_classic_pairing_event(bda, handle, cmd, evt_code, status, reason, encryption_enabled);
       break;
     }
+    case HCI_ENCRYPTION_CHANGE_EVT_V2: {
+      uint8_t encryption_enabled;
+      uint8_t key_size;
+      STREAM_TO_UINT8(status, p_event);
+      STREAM_TO_UINT16(handle, p_event);
+      STREAM_TO_UINT8(encryption_enabled, p_event);
+      STREAM_TO_UINT8(key_size, p_event);
+      log_classic_pairing_event(bda, handle, cmd, evt_code, status, reason, encryption_enabled);
+      break;
+    }
     case HCI_ESCO_CONNECTION_COMP_EVT: {
       uint8_t link_type;
       STREAM_TO_UINT8(status, p_event);
@@ -198,7 +207,7 @@ static void btu_hcif_log_event_metrics(uint8_t evt_code, const uint8_t* p_event)
  * Returns          void
  *
  ******************************************************************************/
-void btu_hcif_process_event(uint8_t /* controller_id */, const BT_HDR* p_msg) {
+static void btu_hcif_process_event(uint8_t /* controller_id */, const BT_HDR* p_msg) {
   uint8_t* p = (uint8_t*)(p_msg + 1) + p_msg->offset;
   uint8_t hci_evt_code, hci_evt_len;
   uint8_t ble_sub_code;
@@ -219,6 +228,9 @@ void btu_hcif_process_event(uint8_t /* controller_id */, const BT_HDR* p_msg) {
       break;
     case HCI_ENCRYPTION_CHANGE_EVT:
       btu_hcif_encryption_change_evt(p);
+      break;
+    case HCI_ENCRYPTION_CHANGE_EVT_V2:
+      btu_hcif_encryption_change_evt_v2(p);
       break;
     case HCI_ENCRYPTION_KEY_REFRESH_COMP_EVT:
       btu_hcif_encryption_key_refresh_cmpl_evt(p);
@@ -565,12 +577,12 @@ struct cmd_with_cb_data {
   base::Location posted_from;
 };
 
-void cmd_with_cb_data_init(cmd_with_cb_data* cb_wrapper) {
+static void cmd_with_cb_data_init(cmd_with_cb_data* cb_wrapper) {
   new (&cb_wrapper->cb) hci_cmd_cb;
   new (&cb_wrapper->posted_from) Location;
 }
 
-void cmd_with_cb_data_cleanup(cmd_with_cb_data* cb_wrapper) {
+static void cmd_with_cb_data_cleanup(cmd_with_cb_data* cb_wrapper) {
   cb_wrapper->cb.~hci_cmd_cb();
   cb_wrapper->posted_from.~Location();
 }
@@ -750,7 +762,30 @@ static void btu_hcif_encryption_change_evt(uint8_t* p) {
   STREAM_TO_UINT16(handle, p);
   STREAM_TO_UINT8(encr_enable, p);
 
-  btm_sec_encryption_change_evt(handle, static_cast<tHCI_STATUS>(status), encr_enable);
+  btm_sec_encryption_change_evt(handle, static_cast<tHCI_STATUS>(status), encr_enable, 0);
+}
+
+/*******************************************************************************
+ *
+ * Function         btu_hcif_encryption_change_evt_v2
+ *
+ * Description      Process event HCI_ENCRYPTION_CHANGE_EVT_V2
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+static void btu_hcif_encryption_change_evt_v2(uint8_t* p) {
+  uint8_t status;
+  uint16_t handle;
+  uint8_t encr_enable;
+  uint8_t key_size;
+
+  STREAM_TO_UINT8(status, p);
+  STREAM_TO_UINT16(handle, p);
+  STREAM_TO_UINT8(encr_enable, p);
+  STREAM_TO_UINT8(key_size, p);
+
+  btm_sec_encryption_change_evt(handle, static_cast<tHCI_STATUS>(status), encr_enable, key_size);
 }
 
 /*******************************************************************************
@@ -1025,7 +1060,7 @@ static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status, const u
       if (status != HCI_SUCCESS) {
         // Device refused to start encryption
         // This is treated as an encryption failure
-        btm_sec_encrypt_change(HCI_INVALID_HANDLE, hci_status, false);
+        btm_sec_encrypt_change(HCI_INVALID_HANDLE, hci_status, false, 0);
       }
       break;
     case HCI_READ_RMT_EXT_FEATURES:
@@ -1403,3 +1438,22 @@ static void btu_ble_proc_ltk_req(uint8_t* p, uint16_t evt_len) {
 /**********************************************
  * End of BLE Events Handler
  **********************************************/
+
+void btu_hci_msg_process(BT_HDR* p_msg) {
+  /* Determine the input message type. */
+  switch (p_msg->event & BT_EVT_MASK) {
+    case BT_EVT_TO_BTU_HCI_EVT:
+      btu_hcif_process_event((uint8_t)(p_msg->event & BT_SUB_EVT_MASK), p_msg);
+      osi_free(p_msg);
+      break;
+
+    case BT_EVT_TO_BTU_HCI_ISO:
+      IsoManager::GetInstance()->HandleIsoData(p_msg);
+      osi_free(p_msg);
+      break;
+
+    default:
+      osi_free(p_msg);
+      break;
+  }
+}
