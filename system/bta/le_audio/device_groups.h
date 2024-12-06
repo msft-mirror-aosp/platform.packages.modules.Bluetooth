@@ -407,6 +407,7 @@ public:
   }
   bool IsStreaming(void) const;
   bool IsReleasingOrIdle(void) const;
+  bool IsReleasing(void) const;
 
   void PrintDebugState(void) const;
   void Dump(std::stringstream& stream, int active_group_id) const;

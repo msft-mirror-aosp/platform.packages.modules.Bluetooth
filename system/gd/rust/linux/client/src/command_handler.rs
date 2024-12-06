@@ -314,6 +314,7 @@ fn build_commands() -> HashMap<String, CommandOption> {
                 String::from("hid get-report <address> <Input|Output|Feature> <report_id>"),
                 String::from("hid set-report <address> <Input|Output|Feature> <report_value>"),
                 String::from("hid send-data <address> <data>"),
+                String::from("hid virtual-unplug <address>"),
             ],
             description: String::from("Socket manager utilities."),
             function_pointer: CommandHandler::cmd_hid,
@@ -2043,6 +2044,16 @@ impl CommandHandler {
                 let data = String::from(get_arg(args, 2)?);
 
                 self.context.lock().unwrap().qa_dbus.as_mut().unwrap().send_hid_data(addr, data);
+            }
+            "virtual-unplug" => {
+                let addr = RawAddress::from_string(get_arg(args, 1)?).ok_or("Invalid Address")?;
+                self.context
+                    .lock()
+                    .unwrap()
+                    .qa_dbus
+                    .as_mut()
+                    .unwrap()
+                    .send_hid_virtual_unplug(addr);
             }
             _ => return Err(CommandError::InvalidArgs),
         };

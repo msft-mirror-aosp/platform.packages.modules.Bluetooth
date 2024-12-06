@@ -1244,7 +1244,7 @@ public:
   void OnDistanceMeasurementResult(RawAddress address, uint32_t centimeter,
                                    uint32_t error_centimeter, int azimuth_angle,
                                    int error_azimuth_angle, int altitude_angle,
-                                   int error_altitude_angle, long elapsedRealtimeNanos,
+                                   int error_altitude_angle, uint64_t elapsedRealtimeNanos,
                                    int8_t confidence_level, uint8_t method) {
     std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
     CallbackEnv sCallbackEnv(__func__);
@@ -2400,6 +2400,14 @@ static AdvertiseParameters parseParams(JNIEnv* env, jobject i) {
   int8_t txPowerLevel = env->CallIntMethod(i, methodId);
   methodId = env->GetMethodID(clazz, "getOwnAddressType", "()I");
   int8_t ownAddressType = env->CallIntMethod(i, methodId);
+  methodId = env->GetMethodID(clazz, "isDirected", "()Z");
+  jboolean isDirected = env->CallBooleanMethod(i, methodId);
+  methodId = env->GetMethodID(clazz, "isHighDutyCycle", "()Z");
+  jboolean isHighDutyCycle = env->CallBooleanMethod(i, methodId);
+  methodId = env->GetMethodID(clazz, "getPeerAddress", "()Ljava/lang/String;");
+  jstring peerAddress = (jstring)env->CallObjectMethod(i, methodId);
+  methodId = env->GetMethodID(clazz, "getPeerAddressType", "()I");
+  int8_t peerAddressType = env->CallIntMethod(i, methodId);
 
   uint16_t props = 0;
   if (isConnectable) {
@@ -2408,8 +2416,11 @@ static AdvertiseParameters parseParams(JNIEnv* env, jobject i) {
   if (isScannable) {
     props |= 0x02;
   }
-  if (isDiscoverable) {
+  if (isDirected) {
     props |= 0x04;
+  }
+  if (isHighDutyCycle) {
+    props |= 0x08;
   }
   if (isLegacy) {
     props |= 0x10;
@@ -2434,6 +2445,9 @@ static AdvertiseParameters parseParams(JNIEnv* env, jobject i) {
   p.secondary_advertising_phy = secondaryPhy;
   p.scan_request_notification_enable = false;
   p.own_address_type = ownAddressType;
+  p.peer_address = str2addr(env, peerAddress);
+  p.peer_address_type = peerAddressType;
+  p.discoverable = isDiscoverable;
   return p;
 }
 

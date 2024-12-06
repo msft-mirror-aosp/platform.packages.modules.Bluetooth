@@ -1525,7 +1525,7 @@ bool l2cu_start_post_bond_timer(uint16_t handle) {
         timeout_ms = L2CAP_LINK_DISCONNECT_TIMEOUT_MS;
       }
       alarm_set_on_mloop(p_lcb->l2c_lcb_timer, timeout_ms, l2c_lcb_timer_timeout, p_lcb);
-      log::debug("Started link IDLE timeout_ms:{}", (unsigned long)timeout_ms);
+      log::debug("Started link IDLE timeout_ms:{}", timeout_ms);
       return true;
     } break;
 
@@ -2827,7 +2827,7 @@ void l2cu_no_dynamic_ccbs(tL2C_LCB* p_lcb) {
 
   if (start_timeout) {
     alarm_set_on_mloop(p_lcb->l2c_lcb_timer, timeout_ms, l2c_lcb_timer_timeout, p_lcb);
-    log::debug("Started link IDLE timeout_ms:{}", (unsigned long)timeout_ms);
+    log::debug("Started link IDLE timeout_ms:{}", timeout_ms);
   } else {
     alarm_cancel(p_lcb->l2c_lcb_timer);
   }
@@ -3330,6 +3330,9 @@ void l2cu_send_peer_ble_credit_based_conn_res(tL2C_CCB* p_ccb, tL2CAP_LE_RESULT_
 
   p = (uint8_t*)(p_buf + 1) + L2CAP_SEND_CMD_OFFSET + HCI_DATA_PREAMBLE_SIZE + L2CAP_PKT_OVERHEAD +
       L2CAP_CMD_OVERHEAD;
+
+  log::verbose("local cid: {}, mtu: {}, mps: {}, initial credits: {}", p_ccb->local_cid,
+               p_ccb->local_conn_cfg.mtu, p_ccb->local_conn_cfg.mps, p_ccb->local_conn_cfg.credits);
 
   UINT16_TO_STREAM(p, p_ccb->local_cid);              /* Local CID */
   UINT16_TO_STREAM(p, p_ccb->local_conn_cfg.mtu);     /* MTU */

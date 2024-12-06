@@ -454,3 +454,11 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "leaudio_add_opus_codec_type"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Add OPUS codec type"
+    bug: "380029892"
+}

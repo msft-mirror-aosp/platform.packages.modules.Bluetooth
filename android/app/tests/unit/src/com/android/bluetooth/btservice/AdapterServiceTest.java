@@ -155,6 +155,7 @@ public class AdapterServiceTest {
     private @Mock AdapterNativeInterface mNativeInterface;
     private @Mock BluetoothKeystoreNativeInterface mKeystoreNativeInterface;
     private @Mock BluetoothQualityReportNativeInterface mQualityNativeInterface;
+    private @Mock BluetoothHciVendorSpecificNativeInterface mHciVendorSpecificNativeInterface;
     private @Mock SdpManagerNativeInterface mSdpNativeInterface;
     private @Mock AdvertiseManagerNativeInterface mAdvertiseNativeInterface;
     private @Mock DistanceMeasurementNativeInterface mDistanceNativeInterface;
@@ -226,6 +227,7 @@ public class AdapterServiceTest {
         AdapterNativeInterface.setInstance(mNativeInterface);
         BluetoothKeystoreNativeInterface.setInstance(mKeystoreNativeInterface);
         BluetoothQualityReportNativeInterface.setInstance(mQualityNativeInterface);
+        BluetoothHciVendorSpecificNativeInterface.setInstance(mHciVendorSpecificNativeInterface);
         SdpManagerNativeInterface.setInstance(mSdpNativeInterface);
         AdvertiseManagerNativeInterface.setInstance(mAdvertiseNativeInterface);
         DistanceMeasurementNativeInterface.setInstance(mDistanceNativeInterface);
@@ -354,6 +356,7 @@ public class AdapterServiceTest {
         AdapterNativeInterface.setInstance(null);
         BluetoothKeystoreNativeInterface.setInstance(null);
         BluetoothQualityReportNativeInterface.setInstance(null);
+        BluetoothHciVendorSpecificNativeInterface.setInstance(null);
         SdpManagerNativeInterface.setInstance(null);
         AdvertiseManagerNativeInterface.setInstance(null);
         DistanceMeasurementNativeInterface.setInstance(null);
@@ -976,6 +979,37 @@ public class AdapterServiceTest {
         identityAddress = mAdapterService.getIdentityAddress(TEST_BT_ADDR_1);
         assertThat(identityAddress).isEqualTo(TEST_BT_ADDR_2);
         assertThat(mLooper.nextMessage()).isNull();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_IDENTITY_ADDRESS_TYPE_API)
+    public void testIdentityAddressType() {
+        RemoteDevices remoteDevices = mAdapterService.getRemoteDevices();
+        remoteDevices.addDeviceProperties(Utils.getBytesFromAddress((TEST_BT_ADDR_1)));
+
+        int identityAddressTypePublic = 0x00; // Should map to BluetoothDevice.ADDRESS_TYPE_PUBLIC
+        int identityAddressTypeRandom = 0x01; // Should map to BluetoothDevice.ADDRESS_TYPE_RANDOM
+
+        remoteDevices.leAddressAssociateCallback(
+                Utils.getBytesFromAddress(TEST_BT_ADDR_1),
+                Utils.getBytesFromAddress(TEST_BT_ADDR_2),
+                identityAddressTypePublic);
+
+        BluetoothDevice.BluetoothAddress bluetoothAddress =
+                mAdapterService.getIdentityAddressWithType(TEST_BT_ADDR_1);
+        assertThat(bluetoothAddress.getAddress()).isEqualTo(TEST_BT_ADDR_2);
+        assertThat(bluetoothAddress.getAddressType())
+                .isEqualTo(BluetoothDevice.ADDRESS_TYPE_PUBLIC);
+
+        remoteDevices.leAddressAssociateCallback(
+                Utils.getBytesFromAddress(TEST_BT_ADDR_1),
+                Utils.getBytesFromAddress(TEST_BT_ADDR_2),
+                identityAddressTypeRandom);
+
+        bluetoothAddress = mAdapterService.getIdentityAddressWithType(TEST_BT_ADDR_1);
+        assertThat(bluetoothAddress.getAddress()).isEqualTo(TEST_BT_ADDR_2);
+        assertThat(bluetoothAddress.getAddressType())
+                .isEqualTo(BluetoothDevice.ADDRESS_TYPE_RANDOM);
     }
 
     @Test

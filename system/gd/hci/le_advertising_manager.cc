@@ -658,9 +658,7 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
       // but we only rotate if the AdvertiserAddressType is non-public
       // or non-rpa requested by leaudio(since static random addresses don't rotate)
       if (advertising_sets_[id].address_type != AdvertiserAddressType::PUBLIC &&
-          !leaudio_requested_nrpa &&
-          (!com::android::bluetooth::flags::rpa_offload_to_bt_controller() ||
-           !controller_->IsSupported(hci::OpCode::LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2))) {
+          !leaudio_requested_nrpa && (!controller_->IsRpaGenerationSupported())) {
         // start timer for random address
         log::info("Scheduling address rotation for advertiser_id={}", id);
         if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
@@ -906,8 +904,7 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
     auto own_address_type = static_cast<OwnAddressType>(
             advertising_sets_[advertiser_id].current_address.GetAddressType());
 
-    if (com::android::bluetooth::flags::rpa_offload_to_bt_controller() &&
-        controller_->IsSupported(hci::OpCode::LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2) &&
+    if (controller_->IsRpaGenerationSupported() &&
         own_address_type != OwnAddressType::PUBLIC_DEVICE_ADDRESS) {
       log::info("Support RPA offload, set own address type RESOLVABLE_OR_RANDOM_ADDRESS");
       own_address_type = OwnAddressType::RESOLVABLE_OR_RANDOM_ADDRESS;
@@ -945,7 +942,7 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
           LegacyAdvertisingEventProperties legacy_properties =
                   LegacyAdvertisingEventProperties::ADV_IND;
           if (config.connectable && config.directed) {
-            if (config.high_duty_directed_connectable) {
+            if (config.high_duty_cycle) {
               legacy_properties = LegacyAdvertisingEventProperties::ADV_DIRECT_IND_HIGH;
             } else {
               legacy_properties = LegacyAdvertisingEventProperties::ADV_DIRECT_IND_LOW;
@@ -974,7 +971,7 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
           extended_properties.connectable_ = config.connectable;
           extended_properties.scannable_ = config.scannable;
           extended_properties.directed_ = config.directed;
-          extended_properties.high_duty_cycle_ = config.high_duty_directed_connectable;
+          extended_properties.high_duty_cycle_ = config.high_duty_cycle;
           extended_properties.legacy_ = false;
           extended_properties.anonymous_ = config.anonymous;
           extended_properties.tx_power_ = config.include_tx_power;
@@ -1868,7 +1865,7 @@ void LeAdvertisingManager::ExtendedCreateAdvertiser(
              AdvertisingCallback::AdvertisingStatus::INTERNAL_ERROR);
       return;
     }
-    if (config.high_duty_directed_connectable) {
+    if (config.high_duty_cycle) {
       log::info("Extended advertising PDUs can not be high duty cycle");
       CallOn(pimpl_.get(), &impl::start_advertising_fail, reg_id,
              AdvertisingCallback::AdvertisingStatus::INTERNAL_ERROR);

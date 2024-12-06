@@ -41,10 +41,6 @@ cc_library_static {
         "packages/modules/Bluetooth/system/udrv/include",
         "system/security/keystore/include",
     ],
-    generated_headers: [
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     apex_available: [
         "com.android.btservices",
     ],
@@ -129,10 +125,6 @@ cc_library_static {
         "packages/modules/Bluetooth/system/gd",
         "packages/modules/Bluetooth/system/stack/include",
     ],
-    generated_headers: [
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     whole_static_libs: [
         "libbluetooth_gd", // Gabeldorsche
     ],
@@ -197,7 +189,6 @@ cc_test {
     static_libs: [
         "bluetooth_flags_c_lib_for_test",
         "libbase",
-        "libbluetooth-dumpsys",
         "libbluetooth-types",
         "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
@@ -236,10 +227,6 @@ cc_test {
             undefined: true,
         },
     },
-    generated_headers: [
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     min_sdk_version: "Tiramisu",
     header_libs: ["libbluetooth_headers"],
 }

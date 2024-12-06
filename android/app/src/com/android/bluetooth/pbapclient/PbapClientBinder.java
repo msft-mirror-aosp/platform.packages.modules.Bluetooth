@@ -34,7 +34,7 @@ import java.util.Collections;
 import java.util.List;
 
 /** Handler for incoming service calls destined for PBAP Client */
-public class PbapClientBinder extends IBluetoothPbapClient.Stub implements IProfileServiceBinder {
+class PbapClientBinder extends IBluetoothPbapClient.Stub implements IProfileServiceBinder {
     private static final String TAG = PbapClientBinder.class.getSimpleName();
 
     private PbapClientService mService;

@@ -29,7 +29,7 @@ import android.provider.ContactsContract;
 import android.util.Log;
 import android.util.Pair;
 
-import com.android.bluetooth.BluetoothMethodProxy;
+import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.vcard.VCardEntry;
 import com.android.vcard.VCardEntry.PhoneData;
@@ -52,6 +52,10 @@ public class CallLogPullRequest extends PullRequest {
 
     public CallLogPullRequest(
             Context context, String path, Map<String, Integer> map, Account account) {
+        if (Flags.pbapClientStorageRefactor()) {
+            Log.w(TAG, "This object should not be used. Use PbapClientContactsStorage");
+        }
+
         mContext = context;
         this.path = path;
         mCallCounter = map;
@@ -143,18 +147,16 @@ public class CallLogPullRequest extends PullRequest {
             Uri uri =
                     Uri.withAppendedPath(
                             ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(key));
-            try (Cursor c =
-                    BluetoothMethodProxy.getInstance()
-                            .contentResolverQuery(
-                                    mContext.getContentResolver(), uri, null, null, null)) {
+            try (Cursor c = mContext.getContentResolver().query(uri, null, null, null)) {
                 if (c != null && c.getCount() > 0) {
                     c.moveToNext();
                     String contactId =
                             c.getString(c.getColumnIndex(ContactsContract.PhoneLookup.CONTACT_ID));
                     Log.d(TAG, "onPullComplete: ID " + contactId + " key : " + key);
-                    String where = ContactsContract.RawContacts.CONTACT_ID + "=" + contactId;
+                    String where = ContactsContract.RawContacts.CONTACT_ID + "=?";
+                    String[] args = new String[] {contactId};
                     mContext.getContentResolver()
-                            .update(ContactsContract.RawContacts.CONTENT_URI, values, where, null);
+                            .update(ContactsContract.RawContacts.CONTENT_URI, values, where, args);
                 }
             }
         }

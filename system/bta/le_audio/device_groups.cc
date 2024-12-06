@@ -1138,6 +1138,10 @@ bool LeAudioDeviceGroup::IsReleasingOrIdle(void) const {
           !in_transition_);
 }
 
+bool LeAudioDeviceGroup::IsReleasing(void) const {
+  return (target_state_ == AseState::BTA_LE_AUDIO_ASE_STATE_IDLE) && in_transition_;
+}
+
 bool LeAudioDeviceGroup::IsGroupStreamReady(void) const {
   bool is_device_ready = false;
 

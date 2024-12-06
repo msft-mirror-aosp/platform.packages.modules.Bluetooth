@@ -1402,6 +1402,10 @@ impl IBluetoothQACallback for QACallback {
     fn on_send_hid_data_completed(&mut self, status: BtStatus) {
         print_info!("Send HID data: {:?}", status);
     }
+
+    fn on_send_hid_virtual_unplug_completed(&mut self, status: BtStatus) {
+        print_info!("Send HID virtual unplug: {:?}", status);
+    }
 }
 
 impl RPCProxy for QACallback {

@@ -1572,7 +1572,7 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
       /* this entry is not used yet. */
       p_cb->conn_lcb |= mask; /* mark it as used */
       log::verbose("start sig timer {}", p_data->hdr.offset);
-      if (p_data->hdr.offset == AVDT_ACP) {
+      if (p_data->hdr.offset == static_cast<uint16_t>(tAVDT_ROLE::AVDT_ACP)) {
         log::verbose("Incoming L2CAP acquired, set state as incoming");
         p_scb->OnConnected(p_data->str_msg.bd_addr);
         p_scb->use_rc = true; /* allowing RC for incoming connection */

@@ -39,6 +39,9 @@ struct AdvertiseParameters {
   uint8_t secondary_advertising_phy;
   uint8_t scan_request_notification_enable;
   int8_t own_address_type;
+  RawAddress peer_address;
+  int8_t peer_address_type;
+  bool discoverable;
 };
 
 struct PeriodicAdvertisingParameters {
