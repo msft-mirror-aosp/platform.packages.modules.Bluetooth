@@ -33,6 +33,7 @@
 
 #include "internal_include/bt_target.h"
 #include "internal_include/stack_config.h"
+#include "main/shim/helpers.h"
 #include "os/system_properties.h"
 #include "osi/include/allocator.h"
 #include "stack/arbiter/acl_arbiter.h"
@@ -47,6 +48,7 @@
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/sdp_api.h"
+#include "stack/include/stack_metrics_logging.h"
 #include "types/bluetooth/uuid.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
@@ -1472,6 +1474,8 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
     return true;
   }
 
+  log_le_connection_lifecycle(ToGdAddress(bd_addr), true /* is_connect */, is_direct);
+
   bool ret = false;
   if (is_direct) {
     log::debug("Starting direct connect gatt_if={} address={} transport={}", gatt_if, bd_addr,
@@ -1618,6 +1622,9 @@ tGATT_STATUS GATT_Disconnect(tCONN_ID conn_id) {
     log::warn("Cannot find TCB for connection {}", conn_id);
     return GATT_ILLEGAL_PARAMETER;
   }
+
+  log_le_connection_lifecycle(ToGdAddress(p_tcb->peer_bda), true /* is_connect */,
+                              false /* is_direct */);
 
   tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
   gatt_update_app_use_link_flag(gatt_if, p_tcb, false, true);
