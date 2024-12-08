@@ -27,6 +27,8 @@
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/hci/enums.pb.h>
 
+#include "hci/address.h"
+#include "hci/hci_packets.h"
 #include "types/raw_address.h"
 
 // Mocked compile conditionals, if any
@@ -199,6 +201,39 @@ struct log_mmc_transcode_rtt_stats {
   }
 };
 extern struct log_mmc_transcode_rtt_stats log_mmc_transcode_rtt_stats;
+
+// Name: log_le_connection_status
+struct log_le_connection_status {
+  std::function<void(bluetooth::hci::Address address, bool is_connect,
+                     bluetooth::hci::ErrorCode reason)>
+          body{[](bluetooth::hci::Address /* address */, bool /* is_connect */,
+                  bluetooth::hci::ErrorCode /* reason */) {}};
+  void operator()(bluetooth::hci::Address address, bool is_connect,
+                  bluetooth::hci::ErrorCode reason) {
+    body(address, is_connect, reason);
+  }
+};
+extern struct log_le_connection_status log_le_connection_status;
+
+// Name: log_le_device_in_accept_list
+struct log_le_device_in_accept_list {
+  std::function<void(bluetooth::hci::Address address, bool is_add)> body{
+          [](bluetooth::hci::Address /* address */, bool /* is_add */) {}};
+  void operator()(bluetooth::hci::Address address, bool is_add) { body(address, is_add); }
+};
+extern struct log_le_device_in_accept_list log_le_device_in_accept_list;
+
+// Name: log_le_connection_lifecycle
+struct log_le_connection_lifecycle {
+  std::function<void(bluetooth::hci::Address address, bool is_connect, bool is_direct)> body{
+          [](bluetooth::hci::Address /* address */, bool /* is_connect */, bool /* is_direct */) {
+          }};
+  void operator()(bluetooth::hci::Address address, bool is_connect, bool is_direct) {
+    body(address, is_connect, is_direct);
+  }
+};
+extern struct log_le_device_in_accept_list log_le_device_in_accept_list;
+
 }  // namespace stack_metrics_logging
 }  // namespace mock
 }  // namespace test

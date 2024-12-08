@@ -29,7 +29,6 @@
 
 #include "common/bidi_queue.h"
 #include "common/byte_array.h"
-#include "dumpsys_data_generated.h"
 #include "hci/acl_manager/acl_scheduler.h"
 #include "hci/acl_manager/classic_impl.h"
 #include "hci/acl_manager/le_acceptlist_callbacks.h"

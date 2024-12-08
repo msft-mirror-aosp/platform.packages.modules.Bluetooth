@@ -154,6 +154,7 @@ void Device::VendorPacketHandler(uint8_t label, std::shared_ptr<VendorPacket> pk
         // TODO (apanicke): Add a retry mechanism if the response has a
         // different volume than the one we set. For now, we don't care
         // about the response to this message.
+        active_labels_.erase(label);
         break;
       default:
         log::warn("{}: Unhandled Response: pdu={}", address_, pkt->GetCommandPdu());
@@ -1517,14 +1518,14 @@ void Device::HandleSetBrowsedPlayer(uint8_t label, std::shared_ptr<SetBrowsedPla
   }
 
   log::verbose("player_id={}", pkt->GetPlayerId());
-  media_interface_->SetBrowsedPlayer(pkt->GetPlayerId(), CurrentFolder(),
+  media_interface_->SetBrowsedPlayer(pkt->GetPlayerId(),
                                      base::Bind(&Device::SetBrowsedPlayerResponse,
                                                 weak_ptr_factory_.GetWeakPtr(), label, pkt));
 }
 
 void Device::SetBrowsedPlayerResponse(uint8_t label, std::shared_ptr<SetBrowsedPlayerRequest> pkt,
-                                      bool success, std::string current_path, uint32_t num_items) {
-  log::verbose("success={} current_path=\"{}\" num_items={}", success, current_path, num_items);
+                                      bool success, std::string root_id, uint32_t num_items) {
+  log::verbose("success={} root_id=\"{}\" num_items={}", success, root_id, num_items);
 
   if (!success) {
     auto response = SetBrowsedPlayerResponseBuilder::MakeBuilder(Status::INVALID_PLAYER_ID, 0x0000,
@@ -1541,18 +1542,14 @@ void Device::SetBrowsedPlayerResponse(uint8_t label, std::shared_ptr<SetBrowsedP
     return;
   }
 
-  // SetBrowsedPlayer can be called to retrieve the current path
-  // and to verify that the player is still present, so we need to
-  // keep current_path_ as is if the player is already the one browsed.
-  // Otherwise, the current_path in the callback will contain the root id.
-  if (pkt->GetPlayerId() != curr_browsed_player_id_) {
-    curr_browsed_player_id_ = pkt->GetPlayerId();
-    current_path_ = std::stack<std::string>();
-    current_path_.push(current_path);
-  }
+  curr_browsed_player_id_ = pkt->GetPlayerId();
+
+  // Clear the path and push the new root.
+  current_path_ = std::stack<std::string>();
+  current_path_.push(root_id);
 
   auto response = SetBrowsedPlayerResponseBuilder::MakeBuilder(Status::NO_ERROR, 0x0000, num_items,
-                                                               0, current_path);
+                                                               0, root_id);
   send_message(label, true, std::move(response));
 }
 

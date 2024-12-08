@@ -62,16 +62,6 @@ flag {
 }
 
 flag {
-    name: "ble_scan_setting_does_not_disconnect_if_bt_on"
-    namespace: "bluetooth"
-    description: "Stop calling unregAllGattClient when toggling the ble scan setting and bluetooth is ON"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-    bug: "379166793"
-}
-
-flag {
     name: "system_server_messenger"
     namespace: "bluetooth"
     description: "Replace binder call to the system server with a Messenger to enforce thread safety"

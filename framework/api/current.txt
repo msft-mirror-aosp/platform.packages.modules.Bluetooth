@@ -52,7 +52,7 @@ package android.bluetooth {
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public android.bluetooth.BluetoothServerSocket listenUsingInsecureRfcommWithServiceRecord(String, java.util.UUID) throws java.io.IOException;
     method @NonNull @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public android.bluetooth.BluetoothServerSocket listenUsingL2capChannel() throws java.io.IOException;
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public android.bluetooth.BluetoothServerSocket listenUsingRfcommWithServiceRecord(String, java.util.UUID) throws java.io.IOException;
-    method @FlaggedApi("com.android.bluetooth.flags.socket_settings_api") @NonNull @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public android.bluetooth.BluetoothServerSocket listenUsingSocketSettings(@NonNull android.bluetooth.BluetoothSocketSettings) throws java.io.IOException;
+    method @FlaggedApi("com.android.bluetooth.flags.socket_settings_api") @NonNull @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}, conditional=true) public android.bluetooth.BluetoothServerSocket listenUsingSocketSettings(@NonNull android.bluetooth.BluetoothSocketSettings) throws java.io.IOException;
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public boolean setName(String);
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_SCAN) public boolean startDiscovery();
     method @Deprecated @RequiresPermission(android.Manifest.permission.BLUETOOTH_SCAN) public boolean startLeScan(android.bluetooth.BluetoothAdapter.LeScanCallback);
@@ -1094,7 +1094,7 @@ package android.bluetooth {
 
   public final class BluetoothSocket implements java.io.Closeable {
     method public void close() throws java.io.IOException;
-    method @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT) public void connect() throws java.io.IOException;
+    method @FlaggedApi("com.android.bluetooth.flags.socket_settings_api") @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_PRIVILEGED}, conditional=true) public void connect() throws java.io.IOException;
     method public int getConnectionType();
     method public java.io.InputStream getInputStream() throws java.io.IOException;
     method public int getMaxReceivePacketSize();

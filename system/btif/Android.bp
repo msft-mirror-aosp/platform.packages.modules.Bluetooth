@@ -123,9 +123,6 @@ cc_library_static {
         "src/btif_rc.cc",
         "src/btif_vc.cc",
     ],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     local_include_dirs: [
         "include",
     ],
@@ -201,6 +198,7 @@ cc_library_static {
         "src/btif_sdp.cc",
         "src/btif_sdp_server.cc",
         "src/btif_sock.cc",
+        "src/btif_sock_hal.cc",
         "src/btif_sock_l2cap.cc",
         "src/btif_sock_logging.cc",
         "src/btif_sock_rfc.cc",
@@ -212,9 +210,6 @@ cc_library_static {
         "src/btif_uid.cc",
         "src/btif_util.cc",
         "src/stack_manager.cc",
-    ],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     target: {
         android: {
@@ -308,7 +303,6 @@ cc_test {
         "bluetooth_flags_c_lib_for_test",
         "libFraunhoferAAC",
         "libbase",
-        "libbluetooth-dumpsys",
         "libbluetooth-for-tests",
         "libbluetooth-types",
         "libbluetooth_core_rs",
@@ -390,9 +384,6 @@ cc_test {
         "test/btif_profile_queue_test.cc",
     ],
     header_libs: ["libbluetooth_headers"],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     static_libs: [
         "libbluetooth-types",
         "libbluetooth_gd",
@@ -426,9 +417,6 @@ cc_test {
         "test/btif_avrcp_audio_track_test.cc",
     ],
     header_libs: ["libbluetooth_headers"],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     static_libs: [
         "libbluetooth-types",
         "libbluetooth_log",
@@ -516,6 +504,7 @@ cc_test {
     static_libs: [
         "libbluetooth-types",
         "libbluetooth_core_rs_bridge",
+        "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
         "libchrome",
@@ -574,10 +563,6 @@ cc_test {
         ":TestMockUdrv",
         "test/btif_hh_test.cc",
     ],
-    generated_headers: [
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     header_libs: ["libbluetooth_headers"],
     aidl: {
         libs: ["bluetooth_constants"],
@@ -607,6 +592,7 @@ cc_test {
         "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
+        "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libbt-audio-hal-interface",
         "libbt-common",
@@ -698,10 +684,6 @@ cc_test {
         ":TestMockStackSecurityClientInterface",
         ":TestMockUdrv",
         "test/btif_core_test.cc",
-    ],
-    generated_headers: [
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     header_libs: ["libbluetooth_headers"],
     aidl: {
