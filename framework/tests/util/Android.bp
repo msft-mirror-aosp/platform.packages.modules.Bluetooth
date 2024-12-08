@@ -43,6 +43,7 @@ java_library {
         "//packages/modules/Connectivity/nearby/tests/cts/fastpair",
         "//packages/modules/Permission/tests/cts/permission",
         "//packages/modules/Permission/tests/cts/permissionui",
+        "//packages/modules/Uwb/ranging/tests/cts/tests",
         "//test/cts-root/tests/bluetooth",
     ],
 }

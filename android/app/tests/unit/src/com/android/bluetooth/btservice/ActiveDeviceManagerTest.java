@@ -456,6 +456,43 @@ public class ActiveDeviceManagerTest {
     }
 
     @Test
+    public void switchActiveDeviceFromLeToHfp_noFallbackToLe() {
+        // Turn off the dual mode audio flag
+        Utils.setDualModeAudioStateForTesting(false);
+
+        // Connect A2DP + HFP device, set it not active
+        a2dpConnected(mA2dpHeadsetDevice, true);
+        headsetConnected(mA2dpHeadsetDevice, true);
+        a2dpActiveDeviceChanged(null);
+        headsetActiveDeviceChanged(null);
+        mTestLooper.dispatchAll();
+
+        Mockito.clearInvocations(mHeadsetService);
+        Mockito.clearInvocations(mA2dpService);
+        Mockito.clearInvocations(mLeAudioService);
+
+        // Connect LE Audio device, set it to inactive
+        leAudioConnected(mLeAudioDevice);
+        leAudioActiveDeviceChanged(mLeAudioDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService).setActiveDevice(mLeAudioDevice);
+        assertThat(mActiveDeviceManager.getLeAudioActiveDevice()).isEqualTo(mLeAudioDevice);
+
+        Mockito.clearInvocations(mHeadsetService);
+        Mockito.clearInvocations(mA2dpService);
+        Mockito.clearInvocations(mLeAudioService);
+
+        // Set LE Audio device to inactive
+        // Set A2DP + HFP device to active
+        leAudioActiveDeviceChanged(null);
+        headsetActiveDeviceChanged(mA2dpHeadsetDevice);
+        mTestLooper.dispatchAll();
+        // A2DP + HFP should now be active
+        verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
+        verify(mA2dpService).setActiveDevice(mA2dpHeadsetDevice);
+    }
+
+    @Test
     public void hfpActivatedAfterTimeout_shouldActivateA2dpAgain() {
         a2dpConnected(mA2dpHeadsetDevice, true);
         headsetConnected(mA2dpHeadsetDevice, true);

@@ -1731,6 +1731,38 @@ bool L2CA_isMediaChannel(uint16_t handle, uint16_t channel_id, bool is_local_cid
   return ret;
 }
 
+/*******************************************************************************
+ *
+ *  Function        L2CA_GetAclHandle
+ *
+ *  Description     Given a local channel identifier, |lcid|, this function
+ *                  returns the bound ACL handle, |acl_handle|. If |acl_handle|
+ *                  is not known or is invalid, this function returns false and
+ *                  does not modify the value pointed at by |acl_handle|.
+ *
+ *  Parameters:     lcid: Local CID
+ *                  rcid: Pointer to ACL handle must NOT be nullptr
+ *
+ *  Return value:   true if acl_handle lookup was successful
+ *
+ ******************************************************************************/
+bool L2CA_GetAclHandle(uint16_t lcid, uint16_t* acl_handle) {
+  log::assert_that(acl_handle != nullptr, "assert failed: acl_handle != nullptr");
+
+  tL2C_CCB* p_ccb = l2cu_find_ccb_by_cid(nullptr, lcid);
+  if (p_ccb == nullptr) {
+    log::error("No CCB for CID:0x{:04x}", lcid);
+    return false;
+  }
+  uint16_t handle = p_ccb->p_lcb->Handle();
+  if (handle == HCI_INVALID_HANDLE) {
+    log::error("Invalid ACL handle");
+    return false;
+  }
+  *acl_handle = handle;
+  return true;
+}
+
 using namespace bluetooth;
 
 #define DUMPSYS_TAG "shim::legacy::l2cap"

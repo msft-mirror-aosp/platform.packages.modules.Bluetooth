@@ -508,10 +508,34 @@ public class PbapClientServiceTest {
     }
 
     // connect (policy allowed) -> connect/true
+
+    // old
+
     @Test
+    @DisableFlags(Flags.FLAG_PBAP_CLIENT_STORAGE_REFACTOR)
+    public void testConnect_onOld_onAllowedAndUnconnectedDevice_deviceCreatedAndIsConnecting() {
+        mService.mPbapClientStateMachineOldMap.clear();
+        assertThat(mService.connect(mRemoteDevice)).isTrue();
+
+        // Clean up and wait for it to complete
+        PbapClientStateMachineOld smOld = mService.mPbapClientStateMachineOldMap.get(mRemoteDevice);
+        assertThat(smOld).isNotNull();
+        smOld.doQuit();
+    }
+
+    // new
+
+    @Test
+    @EnableFlags(Flags.FLAG_PBAP_CLIENT_STORAGE_REFACTOR)
     public void testConnect_onAllowedAndUnconnectedDevice_deviceCreatedAndIsConnecting() {
         mMockDeviceMap.clear();
         assertThat(mService.connect(mRemoteDevice)).isTrue();
+
+        // Clean up and wait for it to complete
+        PbapClientStateMachine sm = mMockDeviceMap.get(mRemoteDevice);
+        assertThat(sm).isNotNull();
+        sm.disconnect();
+        TestUtils.waitForLooperToFinishScheduledTask(sm.getHandler().getLooper());
     }
 
     // connect (device null) -> false
@@ -753,7 +777,7 @@ public class PbapClientServiceTest {
     // setConnectionPolicy (allowed -> connect) -> connect/true
 
     @Test
-    public void testSetConnectionPolicy_onOld_toAllowed_connectIssued() {
+    public void testSetConnectionPolicy_toAllowed_connectIssued() {
         assertThat(
                         mService.setConnectionPolicy(
                                 mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED))
@@ -766,7 +790,7 @@ public class PbapClientServiceTest {
 
     @Test
     @DisableFlags(Flags.FLAG_PBAP_CLIENT_STORAGE_REFACTOR)
-    public void testSetConnectionPolicy_toOld_toForbidden_disconnectIssued() {
+    public void testSetConnectionPolicy_onOld_toForbidden_disconnectIssued() {
         PbapClientStateMachineOld sm = mock(PbapClientStateMachineOld.class);
         mService.mPbapClientStateMachineOldMap.put(mRemoteDevice, sm);
         assertThat(

@@ -129,7 +129,6 @@ public:
 
 class SnoopLoggerModuleTest : public Test {
 public:
-  flatbuffers::FlatBufferBuilder* builder_;
   TestModuleRegistry* test_registry;
 
 protected:
@@ -149,7 +148,6 @@ protected:
             temp_dir_ / (std::string(test_info->name()) + "_btsnoop_hci.log.filtered");
     temp_snoop_log_filtered_last =
             temp_dir_ / (std::string(test_info->name()) + "_btsnoop_hci.log.filtered.last");
-    builder_ = new flatbuffers::FlatBufferBuilder();
 
     DeleteSnoopLogFiles();
     ASSERT_FALSE(std::filesystem::exists(temp_snoop_log_));
@@ -164,7 +162,6 @@ protected:
 
   void TearDown() override {
     DeleteSnoopLogFiles();
-    delete builder_;
     fake_timerfd_reset();
     test_registry->StopAll();
     delete test_registry;

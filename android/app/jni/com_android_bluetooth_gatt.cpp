@@ -2403,7 +2403,7 @@ static AdvertiseParameters parseParams(JNIEnv* env, jobject i) {
   methodId = env->GetMethodID(clazz, "isDirected", "()Z");
   jboolean isDirected = env->CallBooleanMethod(i, methodId);
   methodId = env->GetMethodID(clazz, "isHighDutyCycle", "()Z");
-  jboolean isHighDutyCycle = env->CallIntMethod(i, methodId);
+  jboolean isHighDutyCycle = env->CallBooleanMethod(i, methodId);
   methodId = env->GetMethodID(clazz, "getPeerAddress", "()Ljava/lang/String;");
   jstring peerAddress = (jstring)env->CallObjectMethod(i, methodId);
   methodId = env->GetMethodID(clazz, "getPeerAddressType", "()I");

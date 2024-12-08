@@ -40,9 +40,6 @@ cc_fuzz {
         "liblog",
         "server_configurable_flags",
     ],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     static_libs: [
         "bluetooth_flags_c_lib",
         "libbluetooth-types",

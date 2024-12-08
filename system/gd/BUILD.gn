@@ -13,7 +13,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import("//bt/system/gd/dumpsys/bundler/bundler.gni")
 import("//bt/system/gd/packet/parser/packetgen.gni")
 import("//common-mk/flatbuffer.gni")
 
@@ -47,8 +46,6 @@ config("rust_defaults") {
 group("gd_default_deps") {
   deps = [
     "//bt/system:libbt-platform-protos-lite",
-    "//bt/system/gd:BluetoothGeneratedDumpsysDataSchema_h",
-    "//bt/system/gd/dumpsys:libbluetooth-dumpsys",
     "//bt/system/pdl:BluetoothGeneratedPackets_h",
   ]
 }
@@ -56,7 +53,6 @@ group("gd_default_deps") {
 static_library("libbluetooth_gd") {
   sources = [
     "module.cc",
-    "module_dumper.cc",
     "stack_manager.cc",
   ]
 
@@ -65,10 +61,10 @@ static_library("libbluetooth_gd") {
   deps = [
     "//bt/system/gd/rust/topshim:libbluetooth_topshim",
     "//bt/system/gd/common:BluetoothCommonSources",
-    "//bt/system/gd/dumpsys:BluetoothDumpsysSources",
     "//bt/system/gd/hal:BluetoothHalSources",
     "//bt/system/gd/hal:BluetoothHalSources_hci_host",
     "//bt/system/gd/hal:BluetoothHalSources_ranging_host",
+    "//bt/system/gd/hal:BluetoothHalSources_socket_host",
     "//bt/system/gd/metrics:BluetoothMetricsSources",
     "//bt/system/gd/neighbor:BluetoothNeighborSources",
     "//bt/system/gd/shim:BluetoothShimSources",
@@ -76,20 +72,4 @@ static_library("libbluetooth_gd") {
     "//bt/system/gd/sysprops:BluetoothSyspropsSources",
     "//bt/system/pdl:BluetoothGeneratedPackets_h",
   ]
-}
-
-flatbuffer("BluetoothGeneratedDumpsysDataSchema_h") {
-  sources = [
-    "dumpsys_data.fbs",
-    "os/wakelock_manager.fbs",
-  ]
-}
-
-bt_flatc_binary_schema("BluetoothGeneratedDumpsysBinarySchema_bfbs") {
-  sources = [
-    "dumpsys_data.fbs",
-    "os/wakelock_manager.fbs",
-  ]
-
-  include_dir = "system/gd"
 }

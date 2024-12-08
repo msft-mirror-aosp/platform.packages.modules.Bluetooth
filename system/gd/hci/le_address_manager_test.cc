@@ -18,9 +18,9 @@
 
 #include <gtest/gtest.h>
 
+#include "hci/controller.h"
 #include "hci/hci_layer_fake.h"
 #include "hci/octets.h"
-#include "hci/controller.h"
 #include "packet/raw_builder.h"
 
 using ::bluetooth::hci::Octet16;

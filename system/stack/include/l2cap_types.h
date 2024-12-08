@@ -129,6 +129,8 @@ typedef struct {
   uint8_t fcs;      /* '0' if desire is to bypass FCS, otherwise '1' */
   bool ext_flow_spec_present;
   tHCI_EXT_FLOW_SPEC ext_flow_spec;
+  bool init_credit_present;
+  uint16_t init_credit;
   uint16_t flags; /* bit 0: 0-no continuation, 1-continuation */
 } tL2CAP_CFG_INFO;
 
