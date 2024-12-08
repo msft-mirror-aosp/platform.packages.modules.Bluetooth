@@ -185,8 +185,8 @@ protected:
             .socketId = static_cast<int64_t>(context.socket_id),
             .name = context.name,
             .aclConnectionHandle = context.acl_connection_handle,
-            .hubId = static_cast<int64_t>(context.endpoint_info.hub_id),
-            .endpointId = static_cast<int64_t>(context.endpoint_info.endpoint_id),
+            .endpointId.id = static_cast<int64_t>(context.endpoint_info.endpoint_id),
+            .endpointId.hubId = static_cast<int64_t>(context.endpoint_info.hub_id),
     };
     if (std::holds_alternative<hal::LeCocChannelInfo>(context.channel_info)) {
       auto& le_coc_context = std::get<hal::LeCocChannelInfo>(context.channel_info);

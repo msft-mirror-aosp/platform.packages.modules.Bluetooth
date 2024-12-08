@@ -155,6 +155,7 @@ public class AdapterServiceTest {
     private @Mock AdapterNativeInterface mNativeInterface;
     private @Mock BluetoothKeystoreNativeInterface mKeystoreNativeInterface;
     private @Mock BluetoothQualityReportNativeInterface mQualityNativeInterface;
+    private @Mock BluetoothHciVendorSpecificNativeInterface mHciVendorSpecificNativeInterface;
     private @Mock SdpManagerNativeInterface mSdpNativeInterface;
     private @Mock AdvertiseManagerNativeInterface mAdvertiseNativeInterface;
     private @Mock DistanceMeasurementNativeInterface mDistanceNativeInterface;
@@ -226,6 +227,7 @@ public class AdapterServiceTest {
         AdapterNativeInterface.setInstance(mNativeInterface);
         BluetoothKeystoreNativeInterface.setInstance(mKeystoreNativeInterface);
         BluetoothQualityReportNativeInterface.setInstance(mQualityNativeInterface);
+        BluetoothHciVendorSpecificNativeInterface.setInstance(mHciVendorSpecificNativeInterface);
         SdpManagerNativeInterface.setInstance(mSdpNativeInterface);
         AdvertiseManagerNativeInterface.setInstance(mAdvertiseNativeInterface);
         DistanceMeasurementNativeInterface.setInstance(mDistanceNativeInterface);
@@ -354,6 +356,7 @@ public class AdapterServiceTest {
         AdapterNativeInterface.setInstance(null);
         BluetoothKeystoreNativeInterface.setInstance(null);
         BluetoothQualityReportNativeInterface.setInstance(null);
+        BluetoothHciVendorSpecificNativeInterface.setInstance(null);
         SdpManagerNativeInterface.setInstance(null);
         AdvertiseManagerNativeInterface.setInstance(null);
         DistanceMeasurementNativeInterface.setInstance(null);
