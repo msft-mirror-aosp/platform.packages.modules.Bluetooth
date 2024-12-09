@@ -1139,12 +1139,12 @@ bool btsock_l2cap_read_signaled_on_listen_socket(int fd, int /* flags */, uint32
     OSI_NO_INTR(count = recv(fd, reinterpret_cast<uint8_t*>(&accept_signal), sizeof(accept_signal),
                              MSG_NOSIGNAL | MSG_DONTWAIT | MSG_TRUNC));
     if (count != sizeof(accept_signal) || count != accept_signal.size) {
-      log::error("Unexpected count {} sizeof(accept_signal) {} accept_signal.size {}", count,
+      log::error("Unexpected count: {}, sizeof(accept_signal): {}, accept_signal.size: {}", count,
                  sizeof(accept_signal), accept_signal.size);
       return false;
     }
     sock->is_accepting = accept_signal.is_accepting;
-    log::info("Server socket {} is_accepting {}", sock->id, sock->is_accepting);
+    log::info("Server socket: {}, is_accepting: {}", sock->id, sock->is_accepting);
   }
   return true;
 }

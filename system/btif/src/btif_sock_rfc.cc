@@ -98,6 +98,7 @@ typedef struct {
   char socket_name[128];         // descriptive socket name
   uint64_t hub_id;               // ID of the hub to which the end point belongs
   uint64_t endpoint_id;          // ID of the hub end point
+  bool is_accepting;             // is app accepting on server socket?
 } rfc_slot_t;
 
 static rfc_slot_t rfc_slots[MAX_RFC_CHANNEL];
@@ -241,6 +242,7 @@ static rfc_slot_t* alloc_rfc_slot(const RawAddress* addr, const char* name, cons
   slot->data_path = BTSOCK_DATA_PATH_NO_OFFLOAD;
   slot->hub_id = 0;
   slot->endpoint_id = 0;
+  slot->is_accepting = false;
 
   slot->is_service_uuid_valid = !uuid.IsEmpty();
   slot->service_uuid = uuid;
@@ -386,6 +388,10 @@ bt_status_t btsock_rfc_listen(const char* service_name, const Uuid* service_uuid
     slot->endpoint_id = endpoint_id;
   }
   btsock_thread_add_fd(pth, slot->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_EXCEPTION, slot->id);
+  // start monitoring the socketpair to get call back when app is accepting on server socket
+  if (com::android::bluetooth::flags::socket_settings_api()) {
+    btsock_thread_add_fd(pth, slot->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_RD, slot->id);
+  }
 
   return BT_STATUS_SUCCESS;
 }
@@ -630,6 +636,10 @@ static uint32_t on_srv_rfc_connect(tBTA_JV_RFCOMM_SRV_OPEN* p_open, uint32_t id)
   send_app_connect_signal(srv_rs->fd, &accept_rs->addr, srv_rs->scn, 0, accept_rs->app_fd,
                           accept_rs->socket_id);
   accept_rs->app_fd = INVALID_FD;  // Ownership of the application fd has been transferred.
+  // start monitoring the socketpair to get call back when app is accepting on server socket
+  if (com::android::bluetooth::flags::socket_settings_api()) {
+    btsock_thread_add_fd(pth, srv_rs->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_RD, srv_rs->id);
+  }
   return srv_rs->id;
 }
 
@@ -981,7 +991,94 @@ static bool flush_incoming_que_on_wr_signal(rfc_slot_t* slot) {
   return true;
 }
 
-void btsock_rfc_signaled(int /* fd */, int flags, uint32_t id) {
+static bool btsock_rfc_read_signaled_on_connected_socket(int /* fd */, int flags, uint32_t /* id */,
+                                                         rfc_slot_t* slot) {
+  if (!slot->f.connected) {
+    log::error("socket signaled for read while disconnected, slot: {}, channel: {}", slot->id,
+               slot->scn);
+    return false;
+  }
+  // Make sure there's data pending in case the peer closed the socket.
+  int size = 0;
+  if (!(flags & SOCK_THREAD_FD_EXCEPTION) || (ioctl(slot->fd, FIONREAD, &size) == 0 && size)) {
+    BTA_JvRfcommWrite(slot->rfc_handle, slot->id);
+  }
+  return true;
+}
+
+static bool btsock_rfc_read_signaled_on_listen_socket(int fd, int /* flags */, uint32_t /* id */,
+                                                      rfc_slot_t* slot) {
+  int size = 0;
+  bool ioctl_success = ioctl(slot->fd, FIONREAD, &size) == 0;
+  if (ioctl_success && size) {
+    sock_accept_signal_t accept_signal = {};
+    ssize_t count;
+    OSI_NO_INTR(count = recv(fd, reinterpret_cast<uint8_t*>(&accept_signal), sizeof(accept_signal),
+                             MSG_NOSIGNAL | MSG_DONTWAIT | MSG_TRUNC));
+    if (count != sizeof(accept_signal) || count != accept_signal.size) {
+      log::error("Unexpected count: {}, sizeof(accept_signal): {}, accept_signal.size: {}", count,
+                 sizeof(accept_signal), accept_signal.size);
+      return false;
+    }
+    slot->is_accepting = accept_signal.is_accepting;
+    log::info("Server socket: {}, is_accepting: {}", slot->id, slot->is_accepting);
+  }
+  return true;
+}
+
+static void btsock_rfc_signaled_flagged(int fd, int flags, uint32_t id) {
+  bool need_close = false;
+  std::unique_lock<std::recursive_mutex> lock(slot_lock);
+  rfc_slot_t* slot = find_rfc_slot_by_id(id);
+  if (!slot) {
+    log::warn("RFCOMM slot with id {} not found.", id);
+    return;
+  }
+
+  // Data available from app, tell stack we have outgoing data.
+  if (flags & SOCK_THREAD_FD_RD) {
+    if (!slot->f.server) {
+      // app sending data on connection socket
+      if (!btsock_rfc_read_signaled_on_connected_socket(fd, flags, id, slot)) {
+        need_close = true;
+      }
+    } else {
+      // app sending signal on listen socket
+      if (!btsock_rfc_read_signaled_on_listen_socket(fd, flags, id, slot)) {
+        need_close = true;
+      }
+    }
+  }
+
+  if (flags & SOCK_THREAD_FD_WR) {
+    // App is ready to receive more data, tell stack to enable data flow.
+    if (!slot->f.connected || !flush_incoming_que_on_wr_signal(slot)) {
+      log::error(
+              "socket signaled for write while disconnected (or write failure), "
+              "slot: {}, channel: {}",
+              slot->id, slot->scn);
+      need_close = true;
+    }
+  }
+
+  if (need_close || (flags & SOCK_THREAD_FD_EXCEPTION)) {
+    // Clean up if there's no data pending.
+    int size = 0;
+    if (need_close || ioctl(slot->fd, FIONREAD, &size) != 0 || !size) {
+      if (com::android::bluetooth::flags::rfcomm_cancel_ongoing_sdp_on_close() &&
+          slot->f.doing_sdp_request) {
+        BTA_JvCancelDiscovery(slot->id);
+      }
+      cleanup_rfc_slot(slot);
+    }
+  }
+}
+
+void btsock_rfc_signaled(int fd, int flags, uint32_t id) {
+  if (com::android::bluetooth::flags::socket_settings_api()) {
+    btsock_rfc_signaled_flagged(fd, flags, id);
+    return;
+  }
   bool need_close = false;
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* slot = find_rfc_slot_by_id(id);
