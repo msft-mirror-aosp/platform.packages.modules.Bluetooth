@@ -1782,11 +1782,6 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   log::info("sep_idx={} avdt_handle={} bta_handle=0x{:x} err_code=0x{:x}", p_scb->sep_idx,
             p_scb->avdt_handle, p_scb->hndl, err_code);
 
-  if (!com::android::bluetooth::flags::avdtp_error_codes()) {
-    bta_av_adjust_seps_idx(p_scb, avdt_handle);
-    err_code = AVDT_ERR_UNSUP_CFG;
-  }
-
   // The error code might not be set when the configuration is rejected
   // based on the current AVDTP state.
   if (err_code == AVDT_SUCCESS) {
