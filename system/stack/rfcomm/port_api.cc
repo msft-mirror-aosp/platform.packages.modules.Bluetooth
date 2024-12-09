@@ -1194,3 +1194,51 @@ int PORT_GetSecurityMask(uint16_t handle, uint16_t* sec_mask) {
   *sec_mask = p_port->sec_mask;
   return PORT_SUCCESS;
 }
+
+int PORT_GetChannelInfo(uint16_t handle, uint16_t* local_mtu, uint16_t* remote_mtu,
+                        uint16_t* local_credit, uint16_t* remote_credit, uint16_t* local_cid,
+                        uint16_t* remote_cid, uint16_t* dlci, uint16_t* max_frame_size,
+                        uint16_t* acl_handle, bool* mux_initiator) {
+  log::verbose("PORT_GetChannelInfo() handle:{}", handle);
+
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
+    return PORT_BAD_HANDLE;
+  }
+
+  if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
+    return PORT_NOT_OPENED;
+  }
+
+  if (p_port->line_status) {
+    return PORT_LINE_ERR;
+  }
+
+  uint16_t rcid, ahandle, lmtu;
+  if (!stack::l2cap::get_interface().L2CA_GetRemoteChannelId(p_port->rfc.p_mcb->lcid, &rcid)) {
+    log::error("L2CA_GetRemoteChannelId failed, local cid: {}", p_port->rfc.p_mcb->lcid);
+    return PORT_PEER_FAILED;
+  }
+
+  if (!stack::l2cap::get_interface().L2CA_GetAclHandle(p_port->rfc.p_mcb->lcid, &ahandle)) {
+    log::error("L2CA_GetAclHandle failed, local cid: {}", p_port->rfc.p_mcb->lcid);
+    return PORT_PEER_FAILED;
+  }
+
+  if (!stack::l2cap::get_interface().L2CA_GetLocalMtu(p_port->rfc.p_mcb->lcid, &lmtu)) {
+    log::error("L2CA_GetLocalMtu failed, local cid: {}", p_port->rfc.p_mcb->lcid);
+    return PORT_PEER_FAILED;
+  }
+  *local_mtu = lmtu;
+  *remote_mtu = p_port->rfc.p_mcb->peer_l2cap_mtu + RFCOMM_MIN_OFFSET + 1;
+  *local_credit = p_port->credit_rx;
+  *remote_credit = p_port->credit_tx;
+  *local_cid = p_port->rfc.p_mcb->lcid;
+  *remote_cid = rcid;
+  *dlci = p_port->dlci;
+  *max_frame_size = p_port->mtu;
+  *acl_handle = ahandle;
+  *mux_initiator = p_port->rfc.p_mcb->is_initiator;
+  return PORT_SUCCESS;
+}

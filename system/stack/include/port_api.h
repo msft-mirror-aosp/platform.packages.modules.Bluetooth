@@ -483,4 +483,30 @@ void RFCOMM_Init(void);
  ******************************************************************************/
 [[nodiscard]] int PORT_GetSecurityMask(uint16_t handle, uint16_t* sec_mask);
 
+/*******************************************************************************
+ *
+ * Function         PORT_GetChannelInfo
+ *
+ * Description      This function is called to get RFCOMM channel information
+ *                  by the handle of the port. All OUT parameters must NOT be nullptr.
+ *
+ * Parameters:      handle        - Handle of the port returned in the Open
+ *                  local_mtu     - OUT local L2CAP MTU
+ *                  remote_mtu    - OUT remote L2CAP MTU
+ *                  local_credit  - OUT local RFCOMM credit
+ *                  remote_credit - OUT remote RFCOMM credit
+ *                  local_cid     - OUT local L2CAP CID
+ *                  remote_cid    - OUT remote L2CAP CID
+ *                  dlci          - OUT dlci
+ *                  max_frame_size- OUT max frame size for RFCOMM
+ *                  acl_handle    - OUT ACL handle
+ *                  mux_initiator - OUT is initiator of the RFCOMM multiplexer control channel
+ *
+ ******************************************************************************/
+[[nodiscard]] int PORT_GetChannelInfo(uint16_t handle, uint16_t* local_mtu, uint16_t* remote_mtu,
+                                      uint16_t* local_credit, uint16_t* remote_credit,
+                                      uint16_t* local_cid, uint16_t* remote_cid, uint16_t* dlci,
+                                      uint16_t* max_frame_size, uint16_t* acl_handle,
+                                      bool* mux_initiator);
+
 #endif /* PORT_API_H */
