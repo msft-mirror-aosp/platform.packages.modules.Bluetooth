@@ -2,16 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "a2dp_service_looper"
-    namespace: "bluetooth"
-    description: "Inject looper into A2dpService"
-    bug: "337348333"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "avdtp_error_codes"
     namespace: "bluetooth"
     description: "Use compliant error codes in AVDTP responses"
