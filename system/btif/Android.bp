@@ -504,7 +504,6 @@ cc_test {
     static_libs: [
         "libbluetooth-types",
         "libbluetooth_core_rs_bridge",
-        "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
         "libchrome",
@@ -592,7 +591,6 @@ cc_test {
         "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
-        "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libbt-audio-hal-interface",
         "libbt-common",
