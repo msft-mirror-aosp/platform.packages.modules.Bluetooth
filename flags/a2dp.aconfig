@@ -59,16 +59,6 @@ flag {
 }
 
 flag {
-    name: "avdt_discover_seps_as_acceptor"
-    namespace: "bluetooth"
-    description: "Discover stream end points when in acceptor role."
-    bug: "351158317"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "avdt_prioritize_mandatory_codec"
     namespace: "bluetooth"
     description: "Reject remote peer HD codec configuration if mandatory codec is preferred in the stack"
