@@ -25,7 +25,6 @@
 #include <string>
 #include <utility>
 
-#include "dumpsys_data_generated.h"
 #include "hci/controller_interface.h"
 #include "hci/event_checkers.h"
 #include "hci/hci_layer.h"
@@ -44,8 +43,11 @@ constexpr int kMinEncryptionKeySizeDefault = kMinEncryptionKeySize;
 constexpr int kMaxEncryptionKeySize = 16;
 
 constexpr bool kDefaultVendorCapabilitiesEnabled = true;
+constexpr bool kDefaultRpaOffload = false;
+
 static const std::string kPropertyVendorCapabilitiesEnabled =
         "bluetooth.core.le.vendor_capabilities.enabled";
+static const std::string kPropertyRpaOffload = "bluetooth.core.le.rpa_offload";
 
 using os::Handler;
 
@@ -1542,6 +1544,15 @@ uint64_t Controller::MaskLeEventMask(HciVersion version, uint64_t mask) {
   } else {
     return mask & kLeEventMask41;
   }
+}
+
+bool Controller::IsRpaGenerationSupported(void) const {
+  static const bool rpa_supported =
+          com::android::bluetooth::flags::rpa_offload_to_bt_controller() &&
+          os::GetSystemPropertyBool(kPropertyRpaOffload, kDefaultRpaOffload) &&
+          IsSupported(OpCode::LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2);
+
+  return rpa_supported;
 }
 
 const ModuleFactory Controller::Factory = ModuleFactory([]() { return new Controller(); });

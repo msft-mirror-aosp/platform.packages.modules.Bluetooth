@@ -69,6 +69,7 @@
 #include "hci/le_rand_callback.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/stack_config.h"
+#include "main/shim/acl_api.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
 #include "main/shim/le_advertising_manager.h"
@@ -1991,6 +1992,22 @@ void BTIF_dm_enable() {
   pairing_cb = {};
   pairing_cb.bond_type = BOND_TYPE_PERSISTENT;
 
+  /* Bluetooth Core Specification version 5.4
+   *   7.8.5 LE Set Advertising Parameters command
+   *   7.8.53 LE Set Extended Advertising Parameters command
+   *   7.8.64 LE Set Extended Scan Parameters command
+   *   7.8.12 LE Create Connection command
+   *   7.8.66 LE Extended Create Connection command
+   * Set all-zero set to resolving list to make controller generate RPA for
+   * un-direct (broadcast) advertising RPA */
+  if (bluetooth::shim::GetController()->IsRpaGenerationSupported()) {
+    log::info("Support RPA offload, set all-zero set in resolving list");
+    tBLE_BD_ADDR all_zero_address_with_type = {0};
+    const Octet16 all_zero_peer_irk = {0};
+    bluetooth::shim::ACL_AddToAddressResolution(all_zero_address_with_type, all_zero_peer_irk,
+                                                ble_local_key_cb.id_keys.irk);
+  }
+
   // Enable address consolidation.
   btif_storage_load_le_devices();
 
@@ -2280,6 +2297,9 @@ void btif_dm_acl_evt(tBTA_DM_ACL_EVT event, tBTA_DM_ACL* p_data) {
     } break;
     case BTA_DM_LE_FEATURES_READ:
       btif_get_adapter_property(BT_PROPERTY_LOCAL_LE_FEATURES);
+      break;
+    case BTA_DM_LPP_OFFLOAD_FEATURES_READ:
+      btif_get_adapter_property(BT_PROPERTY_LPP_OFFLOAD_FEATURES);
       break;
 
     default: {
@@ -3094,7 +3114,7 @@ static void id_status_callback(tBT_TRANSPORT transport, bool is_valid, const Oct
 
   auto advertiser = bluetooth::shim::get_ble_advertiser_instance();
   ::AdvertiseParameters parameters{};
-  parameters.advertising_event_properties = 0x0045 /* connectable, discoverable, tx power */;
+  parameters.advertising_event_properties = 0x0041 /* connectable, tx power */;
   parameters.min_interval = 0xa0;   // 100 ms
   parameters.max_interval = 0x500;  // 800 ms
   parameters.channel_map = 0x7;     // Use all the channels
@@ -3103,6 +3123,7 @@ static void id_status_callback(tBT_TRANSPORT transport, bool is_valid, const Oct
   parameters.secondary_advertising_phy = 2;
   parameters.scan_request_notification_enable = 0;
   parameters.own_address_type = BLE_ADDR_RANDOM;
+  parameters.discoverable = true;
 
   std::vector<uint8_t> advertisement{0x02, 0x01 /* Flags */, 0x02 /* Connectable */};
   std::vector<uint8_t> scan_data{};

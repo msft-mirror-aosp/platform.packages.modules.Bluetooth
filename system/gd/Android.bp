@@ -87,6 +87,7 @@ cc_defaults {
             srcs: [
                 ":BluetoothHalSources_hci_host",
                 ":BluetoothHalSources_ranging_host",
+                ":BluetoothHalSources_socket_host",
                 ":BluetoothOsSources_host",
                 ":BluetoothSyspropsSources",
             ],
@@ -95,6 +96,7 @@ cc_defaults {
             srcs: [
                 ":BluetoothHalSources_hci_android_hidl",
                 ":BluetoothHalSources_ranging_android",
+                ":BluetoothHalSources_socket_android",
                 ":BluetoothOsSources_android",
             ],
             shared_libs: [
@@ -117,14 +119,16 @@ cc_defaults {
             whole_static_libs: [
                 "android.hardware.bluetooth-V1-ndk",
                 "android.hardware.bluetooth.ranging-V2-ndk",
+                "android.hardware.bluetooth.socket-V1-ndk",
+                "android.hardware.contexthub-V4-ndk",
             ],
         },
     },
     srcs: [
         ":BluetoothCommonSources",
-        ":BluetoothDumpsysSources",
         ":BluetoothHalSources",
         ":BluetoothHciSources",
+        ":BluetoothLppOffloadSources",
         ":BluetoothMetricsSources",
         ":BluetoothNeighborSources",
         ":BluetoothOsSources",
@@ -132,12 +136,7 @@ cc_defaults {
         ":BluetoothShimSources",
         ":BluetoothStorageSources",
         "module.cc",
-        "module_dumper.cc",
         "stack_manager.cc",
-    ],
-    generated_headers: [
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     shared_libs: [
         "libcrypto",
@@ -156,7 +155,6 @@ cc_defaults {
     static_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
-        "libbluetooth-dumpsys",
         "libbluetooth-protos",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
@@ -256,7 +254,9 @@ cc_binary {
         ":BluetoothFacade_hci_hal",
         ":BluetoothFacade_hci_layer",
         ":BluetoothFacade_neighbor",
+        ":TestCommonMockFunctions",
         ":TestMockMainShimStack",
+        ":TestMockStackMetrics",
         "facade/facade_main.cc",
         "facade/grpc_root_server.cc",
         "facade/read_only_property_server.cc",
@@ -264,8 +264,6 @@ cc_binary {
     ],
     generated_headers: [
         "BlueberryFacadeGeneratedStub_h",
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     generated_sources: [
         "BlueberryFacadeGeneratedStub_cc",
@@ -274,7 +272,6 @@ cc_binary {
         "bluetooth_flags_c_lib",
         "breakpad_client",
         "libPlatformProperties",
-        "libbluetooth-dumpsys",
         "libbluetooth-protos",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
@@ -285,6 +282,7 @@ cc_binary {
         "libbluetooth_ras_pdl",
         "libbluetooth_smp_pdl",
         "libbt-common",
+        "libbt-platform-protos-lite",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libflatbuffers-cpp",
@@ -430,14 +428,10 @@ cc_test {
         ":BluetoothOsTestSources",
         ":BluetoothPacketTestSources",
         ":BluetoothStorageUnitTestSources",
+        ":TestCommonMockFunctions",
+        ":TestMockStackMetrics",
         "module_unittest.cc",
         "stack_manager_unittest.cc",
-    ],
-    generated_headers: [
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
-        "BluetoothGeneratedDumpsysInternalTestData_h",
-        "BluetoothGeneratedDumpsysTestData_h",
     ],
     static_libs: [
         "bluetooth_flags_c_lib_for_test",
@@ -541,9 +535,6 @@ cc_defaults {
         "libosi",
     ],
     host_supported: true,
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
-    ],
     shared_libs: [
         "libPlatformProperties",
         "libaconfig_storage_read_api_cc",
@@ -600,7 +591,15 @@ cc_fuzz {
     name: "bluetooth_gd_acl_manager_fuzz_test",
     defaults: ["gd_fuzz_defaults"],
     srcs: [
+        ":TestCommonMockFunctions",
+        ":TestMockStackMetrics",
         "hci/fuzz/acl_manager_fuzz_test.cc",
+    ],
+    include_dirs: [
+        "packages/modules/Bluetooth/system",
+    ],
+    static_libs: [
+        "libbt-platform-protos-lite",
     ],
     fuzz_config: {
         cc: ["android-bluetooth-security@google.com"],
@@ -627,40 +626,5 @@ cc_benchmark {
         "libchrome",
         "liblog",
         "server_configurable_flags",
-    ],
-}
-
-// Generates binary schema data to be bundled and source file generated
-genrule {
-    name: "BluetoothGeneratedDumpsysBinarySchema_bfbs",
-    tools: [
-        "flatc",
-    ],
-    cmd: "$(location flatc) -I packages/modules/Bluetooth/system/gd -b --schema -o $(genDir) $(in) ",
-    srcs: [
-        "dumpsys_data.fbs",
-        "module_unittest.fbs",
-        "os/wakelock_manager.fbs",
-    ],
-    out: [
-        "dumpsys_data.bfbs",
-        "wakelock_manager.bfbs",
-    ],
-}
-
-genrule {
-    name: "BluetoothGeneratedDumpsysDataSchema_h",
-    tools: [
-        "flatc",
-    ],
-    cmd: "$(location flatc) -I packages/modules/Bluetooth/system/gd -o $(genDir) --cpp $(in) ",
-    srcs: [
-        "dumpsys_data.fbs",
-        "module_unittest.fbs",
-        "os/wakelock_manager.fbs",
-    ],
-    out: [
-        "dumpsys_data_generated.h",
-        "wakelock_manager_generated.h",
     ],
 }

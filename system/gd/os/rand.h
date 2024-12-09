@@ -40,5 +40,12 @@ inline uint32_t GenerateRandom() {
   return ret;
 }
 
+inline uint64_t GenerateRandomUint64() {
+  uint64_t ret{};
+  log::assert_that(RAND_bytes((uint8_t*)(&ret), sizeof(uint64_t)) == 1,
+                   "assert failed: RAND_bytes((uint8_t*)(&ret), sizeof(uint64_t)) == 1");
+  return ret;
+}
+
 }  // namespace os
 }  // namespace bluetooth

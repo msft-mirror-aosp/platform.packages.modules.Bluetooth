@@ -662,6 +662,12 @@ public class HidHostTest {
                 mHidBlockingStub
                         .withDeadlineAfter(PROTO_MODE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
                         .onSetReport(Empty.getDefaultInstance());
+
+        // Todo: as a workaround added 50ms delay.
+        // To be removed once root cause is identified for b/382180335
+        final CompletableFuture<Integer> future = new CompletableFuture<>();
+        future.completeOnTimeout(null, 50, TimeUnit.MILLISECONDS).join();
+
         // Keyboard report
         String kbReportData = "010203040506070809";
         mHidService.setReport(mDevice, BluetoothHidHost.REPORT_TYPE_INPUT, kbReportData);
