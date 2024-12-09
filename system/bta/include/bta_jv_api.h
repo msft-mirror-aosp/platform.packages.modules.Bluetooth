@@ -328,9 +328,19 @@ typedef struct {
 
 /* data associated with BTA_JV_RFCOMM_OPEN_EVT */
 typedef struct {
-  tBTA_JV_STATUS status; /* Whether the operation succeeded or failed. */
-  uint32_t handle;       /* The connection handle */
-  RawAddress rem_bda;    /* The peer address */
+  tBTA_JV_STATUS status;   /* Whether the operation succeeded or failed. */
+  uint32_t handle;         /* The connection handle */
+  RawAddress rem_bda;      /* The peer address */
+  uint16_t rx_mtu;         /* The receive (local) L2CAP MTU */
+  uint16_t tx_mtu;         /* The transmit (remote) L2CAP MTU */
+  uint16_t local_credit;   /* The local RFCOMM credit */
+  uint16_t remote_credit;  /* The remote RFCOMM credit */
+  uint16_t local_cid;      /* The local L2CAP CID */
+  uint16_t remote_cid;     /* The remote L2CAP CID */
+  uint16_t dlci;           /* DLCI */
+  uint16_t max_frame_size; /* The max frame size for RFCOMM */
+  uint16_t acl_handle;     /* The ACL handle */
+  bool mux_initiator;      /* Is the initiator of the RFCOMM multiplexer control channel */
 } tBTA_JV_RFCOMM_OPEN;
 /* data associated with BTA_JV_RFCOMM_SRV_OPEN_EVT */
 typedef struct {
@@ -338,6 +348,16 @@ typedef struct {
   uint32_t handle;            /* The connection handle */
   uint32_t new_listen_handle; /* The new listen handle */
   RawAddress rem_bda;         /* The peer address */
+  uint16_t rx_mtu;            /* The receive (local) L2CAP MTU */
+  uint16_t tx_mtu;            /* The transmit (remote) L2CAP MTU */
+  uint16_t local_credit;      /* The local RFCOMM credit */
+  uint16_t remote_credit;     /* The remote RFCOMM credit */
+  uint16_t local_cid;         /* The local L2CAP CID */
+  uint16_t remote_cid;        /* The remote L2CAP CID */
+  uint16_t dlci;              /* DLCI */
+  uint16_t max_frame_size;    /* The max frame size for RFCOMM */
+  uint16_t acl_handle;        /* The ACL handle */
+  bool mux_initiator;         /* Is the initiator of the RFCOMM multiplexer control channel */
 } tBTA_JV_RFCOMM_SRV_OPEN;
 
 /* data associated with BTA_JV_RFCOMM_CLOSE_EVT */

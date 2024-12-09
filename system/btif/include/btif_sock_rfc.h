@@ -47,5 +47,8 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr, const bluetooth::Uuid*
                                int max_rx_packet_size);
 void btsock_rfc_signaled(int fd, int flags, uint32_t user_id);
 bt_status_t btsock_rfc_disconnect(const RawAddress* bd_addr);
+bool btsock_rfc_in_use(uint64_t socket_id);
+void on_btsocket_rfc_opened_complete(uint64_t socket_id, bool success);
+void on_btsocket_rfc_close(uint64_t socket_id);
 
 #endif
