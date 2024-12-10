@@ -185,3 +185,13 @@ flag {
     is_exported: true
     bug: "380118954"
 }
+
+flag {
+    name: "a2dp_cleanup_on_remove_device"
+    namespace: "bluetooth"
+    description: "Always remove A2DP state machine when device is removed"
+    bug: "381313622"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
