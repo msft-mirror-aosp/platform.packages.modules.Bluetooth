@@ -1011,6 +1011,9 @@ public class ScanManager {
         private final boolean mIsMsftSupported;
         // Whether or not MSFT-based scanning is currently enabled in the controller
         private boolean scanEnabledMsft = false;
+        // List of merged MSFT patterns
+        private final MsftAdvMonitorMergedPatternList mMsftAdvMonitorMergedPatternList =
+                new MsftAdvMonitorMergedPatternList();
 
         ScanNative(TransitionalScanHelper scanHelper) {
             mNativeInterface = ScanObjectsFactory.getInstance().getScanNativeInterface();
@@ -1981,18 +1984,48 @@ public class ScanManager {
 
             Deque<Integer> clientFilterIndices = new ArrayDeque<>();
             for (ScanFilter filter : client.filters) {
-                int filterIndex = mFilterIndexStack.pop();
                 MsftAdvMonitor monitor = new MsftAdvMonitor(filter);
 
-                resetCountDownLatch();
-                mNativeInterface.gattClientMsftAdvMonitorAdd(
-                        monitor.getMonitor(),
-                        monitor.getPatterns(),
-                        monitor.getAddress(),
-                        filterIndex);
-                waitForCallback();
+                if (monitor.getAddress().bd_addr != null) {
+                    int filterIndex = mFilterIndexStack.pop();
 
-                clientFilterIndices.add(filterIndex);
+                    resetCountDownLatch();
+                    mNativeInterface.gattClientMsftAdvMonitorAdd(
+                            monitor.getMonitor(),
+                            monitor.getPatterns(),
+                            monitor.getAddress(),
+                            filterIndex);
+                    waitForCallback();
+
+                    clientFilterIndices.add(filterIndex);
+                }
+
+                if (monitor.getPatterns().length == 0) {
+                    Log.d(
+                            TAG,
+                            "No MSFT pattern or address was translated from client filter: "
+                                    + filter);
+                    continue;
+                }
+
+                // Some chipsets don't support multiple monitors with the same pattern. Skip
+                // creating a new monitor if the pattern has alreaady been registered
+                int filterIndex = mFilterIndexStack.pop();
+                int existingFilterIndex =
+                        mMsftAdvMonitorMergedPatternList.add(filterIndex, monitor.getPatterns());
+                if (filterIndex == existingFilterIndex) {
+                    resetCountDownLatch();
+                    mNativeInterface.gattClientMsftAdvMonitorAdd(
+                            monitor.getMonitor(),
+                            monitor.getPatterns(),
+                            monitor.getAddress(),
+                            filterIndex);
+                    waitForCallback();
+                } else {
+                    mFilterIndexStack.add(filterIndex);
+                }
+
+                clientFilterIndices.add(existingFilterIndex);
             }
             mClientFilterIndexMap.put(client.scannerId, clientFilterIndices);
 
@@ -2002,11 +2035,13 @@ public class ScanManager {
         private void removeFiltersMsft(ScanClient client) {
             Deque<Integer> clientFilterIndices = mClientFilterIndexMap.remove(client.scannerId);
             if (clientFilterIndices != null) {
-                mFilterIndexStack.addAll(clientFilterIndices);
                 for (int filterIndex : clientFilterIndices) {
-                    resetCountDownLatch();
-                    mNativeInterface.gattClientMsftAdvMonitorRemove(filterIndex);
-                    waitForCallback();
+                    if (mMsftAdvMonitorMergedPatternList.remove(filterIndex)) {
+                        resetCountDownLatch();
+                        mNativeInterface.gattClientMsftAdvMonitorRemove(filterIndex);
+                        waitForCallback();
+                        mFilterIndexStack.add(filterIndex);
+                    }
                 }
             }
 
