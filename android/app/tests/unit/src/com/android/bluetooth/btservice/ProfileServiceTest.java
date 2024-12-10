@@ -37,7 +37,6 @@ import com.android.bluetooth.a2dpsink.A2dpSinkNativeInterface;
 import com.android.bluetooth.avrcp.AvrcpNativeInterface;
 import com.android.bluetooth.avrcpcontroller.AvrcpControllerNativeInterface;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
-import com.android.bluetooth.csip.CsipSetCoordinatorNativeInterface;
 import com.android.bluetooth.hearingaid.HearingAidNativeInterface;
 import com.android.bluetooth.hfp.HeadsetNativeInterface;
 import com.android.bluetooth.hfpclient.NativeInterface;
@@ -91,7 +90,6 @@ public class ProfileServiceTest {
     @Mock private HidDeviceNativeInterface mHidDeviceNativeInterface;
     @Mock private HidHostNativeInterface mHidHostNativeInterface;
     @Mock private PanNativeInterface mPanNativeInterface;
-    @Mock private CsipSetCoordinatorNativeInterface mCsipSetCoordinatorInterface;
     @Mock private LeAudioNativeInterface mLeAudioInterface;
 
     private void setProfileState(int profile, int state) {
@@ -156,6 +154,7 @@ public class ProfileServiceTest {
                                 profile ->
                                         profile != BluetoothProfile.HAP_CLIENT
                                                 && profile != BluetoothProfile.VOLUME_CONTROL
+                                                && profile != BluetoothProfile.CSIP_SET_COORDINATOR
                                                 && profile != BluetoothProfile.GATT)
                         .toArray();
         TestUtils.setAdapterService(mAdapterService);
@@ -172,7 +171,6 @@ public class ProfileServiceTest {
         HidDeviceNativeInterface.setInstance(mHidDeviceNativeInterface);
         HidHostNativeInterface.setInstance(mHidHostNativeInterface);
         PanNativeInterface.setInstance(mPanNativeInterface);
-        CsipSetCoordinatorNativeInterface.setInstance(mCsipSetCoordinatorInterface);
         LeAudioNativeInterface.setInstance(mLeAudioInterface);
     }
 
@@ -192,7 +190,6 @@ public class ProfileServiceTest {
         HidDeviceNativeInterface.setInstance(null);
         HidHostNativeInterface.setInstance(null);
         PanNativeInterface.setInstance(null);
-        CsipSetCoordinatorNativeInterface.setInstance(null);
         LeAudioNativeInterface.setInstance(null);
     }
 
