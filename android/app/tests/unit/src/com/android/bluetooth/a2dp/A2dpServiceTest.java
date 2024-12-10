@@ -110,7 +110,6 @@ public class A2dpServiceTest {
     @Parameters(name = "{0}")
     public static List<FlagsParameterization> getParams() {
         return FlagsParameterization.allCombinationsOf(
-                Flags.FLAG_A2DP_SERVICE_LOOPER,
                 Flags.FLAG_A2DP_BROADCAST_CONNECTION_STATE_WHEN_TURNED_OFF);
     }
 
@@ -155,19 +154,11 @@ public class A2dpServiceTest {
         doReturn(new ParcelUuid[] {BluetoothUuid.A2DP_SINK})
                 .when(mAdapterService)
                 .getRemoteUuids(any(BluetoothDevice.class));
-
-        if (!Flags.a2dpServiceLooper()) {
-            mLooper.startAutoDispatch();
-        }
     }
 
     @After
     public void tearDown() {
-        if (Flags.a2dpServiceLooper()) {
-            assertThat(mLooper.dispatchAll()).isEqualTo(0);
-        } else {
-            mLooper.stopAutoDispatchAndIgnoreExceptions();
-        }
+        assertThat(mLooper.dispatchAll()).isEqualTo(0);
         mA2dpService.stop();
     }
 
@@ -333,7 +324,6 @@ public class A2dpServiceTest {
 
     /** Test that an outgoing connection times out */
     @Test
-    @EnableFlags(Flags.FLAG_A2DP_SERVICE_LOOPER)
     public void testOutgoingConnectTimeout() {
         // Update the device priority so okToConnect() returns true
         when(mDatabaseManager.getProfileConnectionPolicy(sTestDevice, BluetoothProfile.A2DP))
@@ -654,7 +644,6 @@ public class A2dpServiceTest {
      * if the device is unbond.
      */
     @Test
-    @EnableFlags(Flags.FLAG_A2DP_SERVICE_LOOPER)
     public void testDeleteStateMachineDisconnectEvents() {
         // Update the device priority so okToConnect() returns true
         when(mDatabaseManager.getProfileConnectionPolicy(sTestDevice, BluetoothProfile.A2DP))
@@ -1255,21 +1244,15 @@ public class A2dpServiceTest {
     // Dispatch messages for the A2dpService looper, and validate
     // that at least one message was handled.
     private void dispatchAtLeastOneMessage() {
-        if (Flags.a2dpServiceLooper()) {
-            assertThat(mLooper.dispatchAll()).isGreaterThan(0);
-        }
+        assertThat(mLooper.dispatchAll()).isGreaterThan(0);
     }
 
     // Validate that no messages are pending on the A2dpService looper.
     private void dispatchNoMessages() {
-        if (Flags.a2dpServiceLooper()) {
-            assertThat(mLooper.dispatchAll()).isEqualTo(0);
-        }
+        assertThat(mLooper.dispatchAll()).isEqualTo(0);
     }
 
     private void moveTimeForward(long millis) {
-        if (Flags.a2dpServiceLooper()) {
-            mLooper.moveTimeForward(millis);
-        }
+        mLooper.moveTimeForward(millis);
     }
 }

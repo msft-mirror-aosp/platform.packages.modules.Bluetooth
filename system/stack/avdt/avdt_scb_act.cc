@@ -570,10 +570,9 @@ void avdt_scb_hdl_setconfig_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
   // the codec type differs from the type of the SEP, or INVALID_CODEC_TYPE
   // if the codec type does not match the values defined by Assigned Numbers.
   if (local_codec_type != remote_codec_type) {
-    p_data->msg.hdr.err_code =
-            !com::android::bluetooth::flags::avdtp_error_codes() ? AVDTP_UNSUPPORTED_CONFIGURATION
-            : !A2DP_IsCodecTypeValid(remote_codec_type)          ? A2DP_INVALID_CODEC_TYPE
-                                                                 : A2DP_NOT_SUPPORTED_CODEC_TYPE;
+    p_data->msg.hdr.err_code = !A2DP_IsCodecTypeValid(remote_codec_type)
+                                       ? A2DP_INVALID_CODEC_TYPE
+                                       : A2DP_NOT_SUPPORTED_CODEC_TYPE;
     p_data->msg.hdr.err_param = 0;
     avdt_msg_send_rej(avdt_ccb_by_idx(p_data->msg.hdr.ccb_idx), p_data->msg.hdr.sig_id,
                       &p_data->msg);
