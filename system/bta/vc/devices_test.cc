@@ -692,25 +692,39 @@ TEST_F(VolumeControlDeviceTest, test_enqueue_remaining_requests_multiread) {
   tGATT_IF gatt_if = 0x0001;
   std::vector<uint8_t> register_for_notification_data({0x01, 0x00});
 
+  // The amount of attributes read at once is limited by the MTU size - 1 (here 22)
   tBTA_GATTC_MULTI expected_to_read_part_1 = {
-          .num_attr = 10,
+          .num_attr = 4,
           .handles = {0x0022 /* audio input state 1 */, 0x0025 /* gain setting properties 1 */,
-                      0x0027 /* audio input type 1 */, 0x0029 /* audio input status 1 */,
-                      0x002e /* audio input description 1 */, 0x0042 /* audio input state 2 */,
-                      0x0045 /* gain setting properties 2 */, 0x0047 /* audio input type 2 */,
-                      0x0049 /* audio input status 2 */, 0x004e /* audio input description 2 */},
+                      0x0027 /* audio input type 1 */, 0x0029 /* audio input status 1 */},
   };
 
   tBTA_GATTC_MULTI expected_to_read_part_2 = {
-          .num_attr = 6,
-          .handles = {0x0062 /* audio output state 1 */, 0x0065 /* audio output location 1 */,
-                      0x0069 /* audio output description 1 */, 0x0082 /* audio output state 1 */,
-                      0x0085 /* audio output location 1 */,
-                      0x008a /* audio output description 1 */},
+          .num_attr = 5,
+          .handles = {0x0042 /* audio input state 2 */, 0x0045 /* gain setting properties 2 */,
+                      0x0047 /* audio input type 2 */, 0x0049 /* audio input status 2 */,
+                      0x0062 /* audio output state 1 */},
   };
+
+  tBTA_GATTC_MULTI expected_to_read_part_3 = {
+          .num_attr = 3,
+          .handles = {0x0065 /* audio output location 1 */, 0x0082 /* audio output state 1 */,
+                      0x0085 /* audio output location 1 */},
+  };
+
+  uint16_t expected_audio_input_description_1 = 0x002e;
+  uint16_t expected_audio_input_description_2 = 0x004e;
+  uint16_t expected_audio_output_description_1 = 0x0069;
+  uint16_t expected_audio_output_description_2 = 0x008a;
 
   tBTA_GATTC_MULTI received_to_read_part_1{};
   tBTA_GATTC_MULTI received_to_read_part_2{};
+  tBTA_GATTC_MULTI received_to_read_part_3{};
+
+  uint16_t audio_input_description_1 = 0;
+  uint16_t audio_input_description_2 = 0;
+  uint16_t audio_output_description_1 = 0;
+  uint16_t audio_output_description_2 = 0;
 
   {
     testing::InSequence s;
@@ -719,6 +733,16 @@ TEST_F(VolumeControlDeviceTest, test_enqueue_remaining_requests_multiread) {
             .WillOnce(SaveArg<1>(&received_to_read_part_1));
     EXPECT_CALL(gatt_queue, ReadMultiCharacteristic(_, _, _, _))
             .WillOnce(SaveArg<1>(&received_to_read_part_2));
+    EXPECT_CALL(gatt_queue, ReadMultiCharacteristic(_, _, _, _))
+            .WillOnce(SaveArg<1>(&received_to_read_part_3));
+    EXPECT_CALL(gatt_queue, ReadCharacteristic(_, _, _, _))
+            .WillOnce(SaveArg<1>(&audio_output_description_1));
+    EXPECT_CALL(gatt_queue, ReadCharacteristic(_, _, _, _))
+            .WillOnce(SaveArg<1>(&audio_output_description_2));
+    EXPECT_CALL(gatt_queue, ReadCharacteristic(_, _, _, _))
+            .WillOnce(SaveArg<1>(&audio_input_description_1));
+    EXPECT_CALL(gatt_queue, ReadCharacteristic(_, _, _, _))
+            .WillOnce(SaveArg<1>(&audio_input_description_2));
   }
   EXPECT_CALL(gatt_queue, WriteDescriptor(_, _, _, GATT_WRITE, _, _)).Times(0);
   EXPECT_CALL(gatt_interface, RegisterForNotifications(_, _, _)).Times(0);
@@ -738,6 +762,12 @@ TEST_F(VolumeControlDeviceTest, test_enqueue_remaining_requests_multiread) {
 
   ASSERT_EQ(expected_to_read_part_1.num_attr, received_to_read_part_1.num_attr);
   ASSERT_EQ(expected_to_read_part_2.num_attr, received_to_read_part_2.num_attr);
+  ASSERT_EQ(expected_to_read_part_3.num_attr, received_to_read_part_3.num_attr);
+
+  EXPECT_EQ(expected_audio_input_description_1, audio_input_description_1);
+  EXPECT_EQ(expected_audio_input_description_2, audio_input_description_2);
+  EXPECT_EQ(expected_audio_output_description_1, audio_output_description_1);
+  EXPECT_EQ(expected_audio_output_description_2, audio_output_description_2);
 }
 
 TEST_F(VolumeControlDeviceTest, test_check_link_encrypted) {

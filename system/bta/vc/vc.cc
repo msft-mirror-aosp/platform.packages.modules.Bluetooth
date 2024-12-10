@@ -176,7 +176,7 @@ public:
   }
 
   void OnGattConnected(tGATT_STATUS status, tCONN_ID connection_id, tGATT_IF /*client_if*/,
-                       RawAddress address, tBT_TRANSPORT transport, uint16_t /*mtu*/) {
+                       RawAddress address, tBT_TRANSPORT transport, uint16_t mtu) {
     bluetooth::log::info("{}, conn_id=0x{:04x}, transport={}, status={}(0x{:02x})", address,
                          connection_id, bt_transport_text(transport), gatt_status_text(status),
                          status);
@@ -202,6 +202,7 @@ public:
     }
 
     device->connection_id = connection_id;
+    device->mtu_ = mtu;
 
     /* Make sure to remove device from background connect.
      * It will be added back if needed, when device got disconnected
@@ -273,6 +274,15 @@ public:
     }
 
     ClearDeviceInformationAndStartSearch(device);
+  }
+
+  void OnMtuChanged(tCONN_ID conn_id, uint16_t mtu) {
+    VolumeControlDevice* device = volume_control_devices_.FindByConnId(conn_id);
+    if (!device) {
+      bluetooth::log::error("Skipping unknown device conn_id: {}", conn_id);
+      return;
+    }
+    device->mtu_ = mtu;
   }
 
   void OnServiceDiscDoneEvent(const RawAddress& address) {
@@ -1461,6 +1471,7 @@ private:
     device->Disconnect(gatt_if_);
 
     RemoveDeviceFromOperationList(device->address);
+    device->mtu_ = GATT_DEF_BLE_MTU_SIZE;
 
     if (notify) {
       callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, device->address);
@@ -1545,6 +1556,10 @@ private:
         OnServiceChangeEvent(p_data->service_changed.remote_bda);
         break;
 
+      case BTA_GATTC_CFG_MTU_EVT:
+        OnMtuChanged(p_data->cfg_mtu.conn_id, p_data->cfg_mtu.mtu);
+        break;
+
       case BTA_GATTC_SRVC_DISC_DONE_EVT:
         OnServiceDiscDoneEvent(p_data->service_discovery_done.remote_bda);
         break;
@@ -1599,14 +1614,13 @@ private:
       instance->OnCharacteristicValueChanged(conn_id, status, hdl, len, ptr,
                                              ((index == (handles.num_attr - 1)) ? data : nullptr),
                                              false);
-
       position += len + 2; /* skip the length of data */
       index++;
     }
 
-    if (handles.num_attr - 1 != index) {
+    if (handles.num_attr != index) {
       bluetooth::log::warn("Attempted to read {} handles, but received just {} values",
-                           +handles.num_attr, index + 1);
+                           +handles.num_attr, index);
     }
   }
 };
