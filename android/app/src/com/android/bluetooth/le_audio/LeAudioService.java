@@ -51,7 +51,6 @@ import android.bluetooth.IBluetoothLeBroadcastCallback;
 import android.bluetooth.IBluetoothVolumeControl;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.IScannerCallback;
-import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
@@ -604,30 +603,6 @@ public class LeAudioService extends ProfileService {
 
         // Setup codec config
         mLeAudioCodecConfig = new LeAudioCodecConfig(this);
-        if (!Flags.leaudioSynchronizeStart()) {
-            // Delay the call to init by posting it. This ensures TBS and MCS are fully initialized
-            // before we start accepting connections
-            mHandler.post(this::init);
-            return;
-        }
-        mNativeInterface.init(mLeAudioCodecConfig.getCodecConfigOffloading());
-
-        if (leaudioUseAudioModeListener()) {
-            mAudioManager.addOnModeChangedListener(getMainExecutor(), mAudioModeChangeListener);
-        }
-    }
-
-    // TODO: b/341385684 -- Delete the init method as it has been inlined in start
-    private void init() {
-        if (!isAvailable()) {
-            Log.e(TAG, " Service disabled before init");
-            return;
-        }
-
-        if (!mTmapStarted) {
-            mTmapStarted = registerTmap();
-        }
-
         mNativeInterface.init(mLeAudioCodecConfig.getCodecConfigOffloading());
 
         if (leaudioUseAudioModeListener()) {
@@ -656,9 +631,6 @@ public class LeAudioService extends ProfileService {
 
         clearCreateBroadcastTimeoutCallback();
 
-        if (!Flags.leaudioSynchronizeStart()) {
-            mHandler.removeCallbacks(this::init);
-        }
         removeActiveDevice(false);
 
         if (mTmapGattServer == null) {
