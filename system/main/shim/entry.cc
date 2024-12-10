@@ -30,7 +30,6 @@
 #include "main/shim/stack.h"
 #include "metrics/counter_metrics.h"
 #include "os/handler.h"
-#include "shim/dumpsys.h"
 #include "storage/storage_module.h"
 
 namespace bluetooth {
@@ -45,8 +44,6 @@ hci::LeAdvertisingManager* GetAdvertising() {
 hci::ControllerInterface* GetController() {
   return Stack::GetInstance()->GetStackManager()->GetInstance<hci::Controller>();
 }
-
-Dumpsys* GetDumpsys() { return Stack::GetInstance()->GetStackManager()->GetInstance<Dumpsys>(); }
 
 hci::HciInterface* GetHciLayer() {
   return Stack::GetInstance()->GetStackManager()->GetInstance<hci::HciLayer>();

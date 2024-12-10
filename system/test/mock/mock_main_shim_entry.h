@@ -22,7 +22,6 @@
 #include "hci/hci_interface.h"
 #include "hci/le_advertising_manager_mock.h"
 #include "hci/le_scanning_manager_mock.h"
-#include "shim/dumpsys.h"
 
 namespace bluetooth {
 namespace hci {
@@ -30,7 +29,6 @@ namespace testing {
 
 extern MockAclManager* mock_acl_manager_;
 extern MockControllerInterface* mock_controller_;
-extern std::function<shim::Dumpsys*()> shim_dumpsys_;
 extern HciInterface* mock_hci_layer_;
 extern os::Handler* mock_gd_shim_handler_;
 extern MockLeAdvertisingManager* mock_le_advertising_manager_;
