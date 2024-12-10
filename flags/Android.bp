@@ -13,7 +13,6 @@ aconfig_declarations {
         "a2dp.aconfig",
         "active_device_manager.aconfig",
         "adapter.aconfig",
-        "asha.aconfig",
         "avrcp.aconfig",
         "avrcp_controller.aconfig",
         "bta_dm.aconfig",

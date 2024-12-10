@@ -1105,62 +1105,18 @@ void bta_av_setconfig_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       p_scb->SetAvdtpVersion(AVDT_VERSION_1_3);
     }
 
-    if (com::android::bluetooth::flags::avdt_discover_seps_as_acceptor()) {
-      if (btif_av_src_sink_coexist_enabled()) {
-        if (local_sep == AVDT_TSEP_SRC) {
-          /* Make sure UUID has been initialized... */
-          /* if local sep is source, uuid_int should be source */
-          p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SOURCE;
-        } else {
-          p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SINK;
-        }
-      } else if (p_scb->uuid_int == 0) {
-        p_scb->uuid_int = p_scb->open_api.uuid;
-      }
-      bta_av_discover_req(p_scb, NULL);
-    } else {
-      p_scb->num_seps = 1;
-      if (A2DP_GetCodecType(p_scb->cfg.codec_info) == A2DP_MEDIA_CT_SBC) {
-        /* if SBC is used by the SNK as INT, discover req is not sent in
-         * bta_av_config_ind.
-         * call disc_res now */
-        /* this is called in A2DP SRC path only, In case of SINK we don't need it
-         */
-        if (local_sep == AVDT_TSEP_SRC) {
-          p_scb->p_cos->disc_res(p_scb->hndl, p_scb->PeerAddress(), p_scb->num_seps,
-                                 p_scb->num_seps, 0, UUID_SERVCLASS_AUDIO_SOURCE);
-        }
+    if (btif_av_src_sink_coexist_enabled()) {
+      if (local_sep == AVDT_TSEP_SRC) {
+        /* Make sure UUID has been initialized... */
+        /* if local sep is source, uuid_int should be source */
+        p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SOURCE;
       } else {
-        /* we do not know the peer device and it is using non-SBC codec
-         * we need to know all the SEPs on SNK */
-        if (p_scb->uuid_int == 0) {
-          p_scb->uuid_int = p_scb->open_api.uuid;
-        }
-        bta_av_discover_req(p_scb, NULL);
-        return;
+        p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SINK;
       }
-
-      /* only in case of local sep as SRC we need to look for other SEPs, In case
-       * of SINK we don't */
-      if (btif_av_src_sink_coexist_enabled()) {
-        if (local_sep == AVDT_TSEP_SRC) {
-          /* Make sure UUID has been initialized... */
-          /* if local sep is source, uuid_int should be source */
-          p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SOURCE;
-          bta_av_next_getcap(p_scb, p_data);
-        } else {
-          p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SINK;
-        }
-      } else {
-        if (local_sep == AVDT_TSEP_SRC) {
-          /* Make sure UUID has been initialized... */
-          if (p_scb->uuid_int == 0) {
-            p_scb->uuid_int = p_scb->open_api.uuid;
-          }
-          bta_av_next_getcap(p_scb, p_data);
-        }
-      }
+    } else if (p_scb->uuid_int == 0) {
+      p_scb->uuid_int = p_scb->open_api.uuid;
     }
+    bta_av_discover_req(p_scb, NULL);
   }
 }
 
@@ -1781,11 +1737,6 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
   log::info("sep_idx={} avdt_handle={} bta_handle=0x{:x} err_code=0x{:x}", p_scb->sep_idx,
             p_scb->avdt_handle, p_scb->hndl, err_code);
-
-  if (!com::android::bluetooth::flags::avdtp_error_codes()) {
-    bta_av_adjust_seps_idx(p_scb, avdt_handle);
-    err_code = AVDT_ERR_UNSUP_CFG;
-  }
 
   // The error code might not be set when the configuration is rejected
   // based on the current AVDTP state.
