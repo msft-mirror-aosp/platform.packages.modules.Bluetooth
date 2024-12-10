@@ -1120,11 +1120,16 @@ bt_status_t btif_hh_connect(const tAclLinkSpec& link_spec) {
     p_dev->dev_status = BTHH_CONN_STATE_CONNECTING;
   }
 
+  // Add the new connection to the pending list
+  if (!com::android::bluetooth::flags::pending_hid_connection_cancellation() ||
+      added_dev == nullptr) {
+    btif_hh_cb.pending_connections.push_back(link_spec);
+  }
+
   /* Not checking the NORMALLY_Connectible flags from sdp record, and anyways
    sending this request from host, for subsequent user initiated connection.
    If the remote is not in pagescan mode, we will do 2 retries to connect before
    giving up */
-  btif_hh_cb.pending_connections.push_back(link_spec);
   BTA_HhOpen(link_spec);
 
   do_in_jni_thread(base::Bind(
@@ -1645,6 +1650,10 @@ static bt_status_t disconnect(RawAddress* bd_addr, tBLE_ADDR_TYPE addr_type,
         log::warn("Device {} already not connected, state: {}", p_dev->link_spec,
                   bthh_connection_state_text(p_dev->dev_status));
         p_dev->dev_status = BTHH_CONN_STATE_DISCONNECTED;
+
+        if (com::android::bluetooth::flags::pending_hid_connection_cancellation()) {
+          btif_hh_cb.pending_connections.remove(link_spec);
+        }
         return BT_STATUS_DONE;
       } else if (com::android::bluetooth::flags::initiate_multiple_hid_connections() &&
                  std::find(btif_hh_cb.pending_connections.begin(),
