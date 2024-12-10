@@ -589,8 +589,8 @@ public class VolumeControlServiceTest {
         boolean initialAutonomousFlag = true;
 
         // Both devices are in the same group
-        when(mCsipService.getGroupId(mDevice, BluetoothUuid.CAP)).thenReturn(groupId);
-        when(mCsipService.getGroupId(mDeviceTwo, BluetoothUuid.CAP)).thenReturn(groupId);
+        when(mLeAudioService.getGroupDevices(groupId))
+                .thenReturn(Arrays.asList(mDevice, mDeviceTwo));
 
         generateDeviceAvailableMessageFromNative(mDevice, 1);
         generateConnectionMessageFromNative(mDevice, STATE_CONNECTED, STATE_DISCONNECTED);
