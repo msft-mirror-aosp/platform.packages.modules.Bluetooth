@@ -1150,7 +1150,12 @@ public class A2dpService extends ProfileService {
             if (sm == null) {
                 return;
             }
-            if (sm.getConnectionState() != BluetoothProfile.STATE_DISCONNECTED) {
+
+            // Bond removal implies that the ACL is disconnected and device properties are removed.
+            // If pseudo address is not same as the identity address, all further events from the
+            // native stack would get ignored. So the state machine must be removed right away.
+            if (!Flags.a2dpCleanupOnRemoveDevice()
+                    && sm.getConnectionState() != BluetoothProfile.STATE_DISCONNECTED) {
                 return;
             }
         }
