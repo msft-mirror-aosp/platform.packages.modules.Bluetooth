@@ -36,9 +36,6 @@
 #include "test/mock/mock_main_shim_entry.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 extern tBTM_CB btm_cb;
 
 using bluetooth::common::ContextualCallback;
@@ -129,11 +126,12 @@ public:
 
 MockBtmInquiryCallbacks* inquiry_callback_ptr = nullptr;
 
-void btm_inq_results_cb(tBTM_INQ_RESULTS* p_inq_results, const uint8_t* p_eir, uint16_t eir_len) {
+static void btm_inq_results_cb(tBTM_INQ_RESULTS* p_inq_results, const uint8_t* p_eir,
+                               uint16_t eir_len) {
   inquiry_callback_ptr->btm_inq_results_cb(p_inq_results, p_eir, eir_len);
 }
 
-void btm_inq_cmpl_cb(void* p1) { inquiry_callback_ptr->btm_inq_cmpl_cb(p1); }
+static void btm_inq_cmpl_cb(void* p1) { inquiry_callback_ptr->btm_inq_cmpl_cb(p1); }
 
 class BtmDeviceInquiryTest : public BtmInqTest {
 protected:
