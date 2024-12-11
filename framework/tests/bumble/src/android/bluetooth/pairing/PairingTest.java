@@ -76,7 +76,9 @@ import org.mockito.hamcrest.MockitoHamcrest;
 import pandora.GattProto;
 import pandora.HostProto.AdvertiseRequest;
 import pandora.HostProto.AdvertiseResponse;
+import pandora.HostProto.ConnectabilityMode;
 import pandora.HostProto.OwnAddressType;
+import pandora.HostProto.SetConnectabilityModeRequest;
 import pandora.SecurityProto.LESecurityLevel;
 import pandora.SecurityProto.PairingEvent;
 import pandora.SecurityProto.PairingEventAnswer;
@@ -620,6 +622,11 @@ public class PairingTest {
 
         assertThat(sAdapter.getBondedDevices()).contains(mBumbleDevice);
 
+        SetConnectabilityModeRequest request =
+                SetConnectabilityModeRequest.newBuilder()
+                        .setMode(ConnectabilityMode.CONNECTABLE)
+                        .build();
+        mBumble.hostBlocking().setConnectabilityMode(request);
         assertThat(mBumbleDevice.connect()).isEqualTo(BluetoothStatusCodes.SUCCESS);
         verifyIntentReceived(
                 hasAction(BluetoothDevice.ACTION_ACL_CONNECTED),
