@@ -9,13 +9,17 @@
 
 #include <memory>
 
+#include "main/shim/acl_api.h"
+#include "main/shim/le_scanning_manager.h"
 #include "osi/include/alarm.h"
 #include "osi/test/alarm_mock.h"
 #include "security_device_record.h"
+#include "stack/btm/btm_dev.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/btm/neighbor_inquiry.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#include "stack/include/btm_ble_api.h"
+#include "stack/include/btm_log_history.h"
+#include "stack/l2cap/internal/l2c_api.h"
 
 using testing::_;
 using testing::DoAll;
@@ -86,7 +90,7 @@ void set_target_announcements_filter(bool /*enable*/) {}
 }  // namespace bluetooth
 
 bool L2CA_ConnectFixedChnl(uint16_t /*fixed_cid*/, const RawAddress& /*bd_addr*/) { return false; }
-uint16_t BTM_GetHCIConnHandle(RawAddress const&, unsigned char) { return 0xFFFF; }
+uint16_t BTM_GetHCIConnHandle(RawAddress const&, tBT_TRANSPORT) { return 0xFFFF; }
 
 namespace connection_manager {
 class BleConnectionManager : public testing::Test {

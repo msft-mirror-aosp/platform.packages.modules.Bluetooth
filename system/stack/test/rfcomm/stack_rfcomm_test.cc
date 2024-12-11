@@ -34,12 +34,9 @@
 #include "stack/test/rfcomm/stack_rfcomm_test_utils.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
-std::string DumpByteBufferToString(uint8_t* p_data, size_t len) {
+static std::string DumpByteBufferToString(uint8_t* p_data, size_t len) {
   std::stringstream str;
   str.setf(std::ios_base::hex, std::ios::basefield);
   str.setf(std::ios_base::uppercase);
@@ -51,14 +48,14 @@ std::string DumpByteBufferToString(uint8_t* p_data, size_t len) {
   return str.str();
 }
 
-std::string DumpBtHdrToString(BT_HDR* p_hdr) {
+static std::string DumpBtHdrToString(BT_HDR* p_hdr) {
   uint8_t* p_hdr_data = p_hdr->data + p_hdr->offset;
   return DumpByteBufferToString(p_hdr_data, p_hdr->len);
 }
 
-void PrintTo(BT_HDR* value, ::std::ostream* os) { *os << DumpBtHdrToString(value); }
+static void PrintTo(BT_HDR* value, ::std::ostream* os) { *os << DumpBtHdrToString(value); }
 
-void PrintTo(tL2CAP_CFG_INFO* value, ::std::ostream* os) {
+static void PrintTo(tL2CAP_CFG_INFO* value, ::std::ostream* os) {
   *os << DumpByteBufferToString((uint8_t*)value, sizeof(tL2CAP_CFG_INFO));
 }
 
