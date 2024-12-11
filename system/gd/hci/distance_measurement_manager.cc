@@ -686,7 +686,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       }
     } else {
       auto res_it = cs_responder_trackers_.find(connection_handle);
-      if (res_it != cs_requester_trackers_.end() &&
+      if (res_it != cs_responder_trackers_.end() &&
           res_it->second.state == CsTrackerState::WAIT_FOR_CONFIG_COMPLETE) {
         res_it->second.state = CsTrackerState::WAIT_FOR_SECURITY_ENABLED;
       } else {
