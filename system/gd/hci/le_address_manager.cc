@@ -157,7 +157,7 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddress(
         log::info("minimum_rotation_time_={}ms, maximum_rotation_time_={}ms",
                   minimum_rotation_time_.count(), maximum_rotation_time_.count());
       }
-      if (controller_->IsRpaOffloadSupported()) {
+      if (controller_->IsRpaGenerationSupported()) {
         auto min_seconds = std::chrono::duration_cast<std::chrono::seconds>(minimum_rotation_time_);
         auto max_seconds = std::chrono::duration_cast<std::chrono::seconds>(maximum_rotation_time_);
         log::info("Support RPA offload, set min_seconds={}s, max_seconds={}s", min_seconds.count(),
@@ -221,7 +221,7 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddressForTest(
       maximum_rotation_time_ = maximum_rotation_time;
       log::info("minimum_rotation_time_={}ms, maximum_rotation_time_={}ms",
                 minimum_rotation_time_.count(), maximum_rotation_time_.count());
-      if (controller_->IsRpaOffloadSupported()) {
+      if (controller_->IsRpaGenerationSupported()) {
         auto min_seconds = std::chrono::duration_cast<std::chrono::seconds>(minimum_rotation_time_);
         auto max_seconds = std::chrono::duration_cast<std::chrono::seconds>(maximum_rotation_time_);
         log::info("Support RPA offload, set min_seconds={}s, max_seconds={}s", min_seconds.count(),
@@ -265,7 +265,7 @@ void LeAddressManager::register_client(LeAddressManagerCallback* callback) {
   } else if (address_policy_ == AddressPolicy::USE_RESOLVABLE_ADDRESS ||
              address_policy_ == AddressPolicy::USE_NON_RESOLVABLE_ADDRESS) {
     if (registered_clients_.size() == 1) {
-      if (!controller_->IsRpaOffloadSupported()) {
+      if (!controller_->IsRpaGenerationSupported()) {
         schedule_rotate_random_address();
         log::info("Scheduled address rotation for first client registered");
       }

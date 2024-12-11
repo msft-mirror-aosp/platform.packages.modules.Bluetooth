@@ -19,6 +19,7 @@
 #include "bta/include/bta_sec_api.h"
 #include "hci/address.h"
 #include "hci/hci_packets.h"
+#include "os/metrics.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "types/raw_address.h"
@@ -46,6 +47,8 @@ void LogAuthenticationComplete(const RawAddress& raw_address, tHCI_STATUS hci_st
 void LogSDPComplete(const RawAddress& raw_address, tBTA_STATUS status);
 
 void LogLePairingFail(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing);
+
+android::bluetooth::State MapErrorCodeToState(hci::ErrorCode reason);
 
 }  // namespace metrics
 }  // namespace bluetooth

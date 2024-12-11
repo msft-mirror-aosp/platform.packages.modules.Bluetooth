@@ -217,7 +217,7 @@ public:
 
   static uint64_t MaskLeEventMask(HciVersion version, uint64_t mask);
 
-  bool IsRpaOffloadSupported(void);
+  virtual bool IsRpaGenerationSupported(void) const override;
 
 protected:
   void ListDependencies(ModuleList* list) const override;

@@ -356,8 +356,7 @@ class A2dpStreamCallbacks : public bluetooth::audio::a2dp::StreamCallbacks {
     }
 
     // Check if LE Audio is currently active.
-    if (com::android::bluetooth::flags::a2dp_check_lea_iso_channel() &&
-        hci::IsoManager::GetInstance()->GetNumberOfActiveIso() > 0) {
+    if (hci::IsoManager::GetInstance()->GetNumberOfActiveIso() > 0) {
       log::error("unable to start stream: LEA is active");
       return Status::FAILURE;
     }

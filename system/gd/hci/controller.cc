@@ -1546,7 +1546,7 @@ uint64_t Controller::MaskLeEventMask(HciVersion version, uint64_t mask) {
   }
 }
 
-bool Controller::IsRpaOffloadSupported(void) {
+bool Controller::IsRpaGenerationSupported(void) const {
   static const bool rpa_supported =
           com::android::bluetooth::flags::rpa_offload_to_bt_controller() &&
           os::GetSystemPropertyBool(kPropertyRpaOffload, kDefaultRpaOffload) &&
