@@ -88,12 +88,14 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @RunWith(AndroidJUnit4.class)
 public class PairingTest {
     private static final String TAG = "PairingTest";
     private static final Duration BOND_INTENT_TIMEOUT = Duration.ofSeconds(10);
+    private static final int TEST_DELAY_MS = 1000;
 
     private static final ParcelUuid BATTERY_UUID =
             ParcelUuid.fromString("0000180F-0000-1000-8000-00805F9B34FB");
@@ -845,6 +847,10 @@ public class PairingTest {
                 hasExtra(BluetoothA2dp.EXTRA_STATE, BluetoothA2dp.STATE_CONNECTED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
 
+        // Todo: b/382118305 - due to settings app interference, profile connection initiate twice
+        // after bonding. Introduced 1 second delay after first profile connection success
+        final CompletableFuture<Integer> future = new CompletableFuture<>();
+        future.completeOnTimeout(null, TEST_DELAY_MS, TimeUnit.MILLISECONDS).join();
         // Disconnect all profiles
         assertThat(mBumbleDevice.disconnect()).isEqualTo(BluetoothStatusCodes.SUCCESS);
         verifyIntentReceived(
