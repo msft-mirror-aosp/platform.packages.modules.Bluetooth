@@ -60,7 +60,7 @@ public final class BluetoothManager {
 
     /** @hide */
     public BluetoothManager(Context context) {
-        if (com.android.bluetooth.flags.Flags.overrideContextToSpecifyDeviceId() && isAtLeastU()) {
+        if (isAtLeastU()) {
             // Pin the context DeviceId prevent the associated attribution source to be obsolete
             // TODO: b/343739429 -- pass the context to BluetoothAdapter constructor instead
             mContext = context.createDeviceContext(Context.DEVICE_ID_DEFAULT);
