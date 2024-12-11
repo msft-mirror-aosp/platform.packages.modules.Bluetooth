@@ -1472,7 +1472,8 @@ void bta_debug_av_dump(int fd) {
     if (lcb.addr.IsEmpty()) {
       continue;
     }
-    dprintf(fd, "\n  Link control block: %zu peer: %s\n", i, ADDRESS_TO_LOGGABLE_CSTR(lcb.addr));
+    dprintf(fd, "\n  Link control block: %zu peer: %s\n", i,
+            lcb.addr.ToRedactedStringForLogging().c_str());
     dprintf(fd, "    Connected stream handle mask: 0x%x\n", lcb.conn_msk);
     dprintf(fd, "    Index(+1) to LCB: %d\n", lcb.lidx);
   }
@@ -1484,7 +1485,8 @@ void bta_debug_av_dump(int fd) {
     if (p_scb->PeerAddress().IsEmpty()) {
       continue;
     }
-    dprintf(fd, "\n  BTA ID: %zu peer: %s\n", i, ADDRESS_TO_LOGGABLE_CSTR(p_scb->PeerAddress()));
+    dprintf(fd, "\n  BTA ID: %zu peer: %s\n", i,
+            p_scb->PeerAddress().ToRedactedStringForLogging().c_str());
     dprintf(fd, "    SDP discovery started: %s\n", p_scb->sdp_discovery_started ? "true" : "false");
     for (size_t j = 0; j < BTAV_A2DP_CODEC_INDEX_MAX; j++) {
       const tBTA_AV_SEP& sep = p_scb->seps[j];
@@ -1497,11 +1499,13 @@ void bta_debug_av_dump(int fd) {
       dprintf(fd, "      Codec: %s\n", A2DP_CodecName(sep.codec_info));
     }
     dprintf(fd, "    BTA info tag: %d\n", p_scb->q_tag);
-    dprintf(fd, "    API Open peer: %s\n", ADDRESS_TO_LOGGABLE_CSTR(p_scb->q_info.open.bd_addr));
+    dprintf(fd, "    API Open peer: %s\n",
+            p_scb->q_info.open.bd_addr.ToRedactedStringForLogging().c_str());
     dprintf(fd, "      Use AVRCP: %s\n", p_scb->q_info.open.use_rc ? "true" : "false");
     dprintf(fd, "      Switch result: %d\n", p_scb->q_info.open.switch_res);
     dprintf(fd, "      Initiator UUID: 0x%x\n", p_scb->q_info.open.uuid);
-    dprintf(fd, "    Saved API Open peer: %s\n", ADDRESS_TO_LOGGABLE_CSTR(p_scb->open_api.bd_addr));
+    dprintf(fd, "    Saved API Open peer: %s\n",
+            p_scb->open_api.bd_addr.ToRedactedStringForLogging().c_str());
     dprintf(fd, "      Use AVRCP: %s\n", p_scb->open_api.use_rc ? "true" : "false");
     dprintf(fd, "      Switch result: %d\n", p_scb->open_api.switch_res);
     dprintf(fd, "      Initiator UUID: 0x%x\n", p_scb->open_api.uuid);

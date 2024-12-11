@@ -249,7 +249,7 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event, uint16
   DCHECK(!connection_cb_.is_null());
 
   log::info("handle=0x{:x} result=0x{:x} addr={}", handle, result,
-            peer_addr ? ADDRESS_TO_LOGGABLE_STR(*peer_addr) : "none");
+            peer_addr ? peer_addr->ToRedactedStringForLogging() : "none");
 
   switch (event) {
     case AVRC_OPEN_IND_EVT: {
@@ -339,7 +339,7 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event, uint16_
   DCHECK(!connection_cb_.is_null());
 
   log::info("handle=0x{:x} result=0x{:x} addr={}", handle, result,
-            peer_addr ? ADDRESS_TO_LOGGABLE_STR(*peer_addr) : "none");
+            peer_addr ? peer_addr->ToRedactedStringForLogging() : "none");
 
   switch (event) {
     case AVRC_OPEN_IND_EVT: {

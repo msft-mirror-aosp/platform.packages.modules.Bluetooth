@@ -1443,7 +1443,7 @@ void btif_debug_linkkey_type_dump(int fd) {
   for (const auto& bd_addr : btif_config_get_paired_devices()) {
     auto bdstr = bd_addr.ToString();
     int linkkey_type;
-    dprintf(fd, "  %s\n", ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+    dprintf(fd, "  %s\n", bd_addr.ToRedactedStringForLogging().c_str());
 
     dprintf(fd, "    BR: ");
     if (btif_config_get_int(bdstr, BTIF_STORAGE_KEY_LINK_KEY_TYPE, &linkkey_type)) {

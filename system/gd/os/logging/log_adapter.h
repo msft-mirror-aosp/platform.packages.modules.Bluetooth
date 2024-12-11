@@ -20,9 +20,6 @@
 
 #include <string>
 
-#define ADDRESS_TO_LOGGABLE_STR(addr) (addr).ToRedactedStringForLogging()
-#define ADDRESS_TO_LOGGABLE_CSTR(addr) ADDRESS_TO_LOGGABLE_STR(addr).c_str()
-
 #define PRIVATE_CELL(number)                                        \
   (number.replace(0, (number.size() > 2) ? number.size() - 2 : 0,   \
                   (number.size() > 2) ? number.size() - 2 : 0, '*') \

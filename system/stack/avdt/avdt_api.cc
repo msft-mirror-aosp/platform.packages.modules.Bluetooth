@@ -978,7 +978,7 @@ void stack_debug_avdtp_api_dump(int fd) {
       continue;
     }
     dprintf(fd, "\n  Channel control block: %zu peer: %s\n", i,
-            ADDRESS_TO_LOGGABLE_CSTR(ccb.peer_addr));
+            ccb.peer_addr.ToRedactedStringForLogging().c_str());
     dprintf(fd, "    Allocated: %s\n", ccb.allocated ? "true" : "false");
     dprintf(fd, "    State: %d\n", ccb.state);
     dprintf(fd, "    Link-layer opened: %s\n", ccb.ll_opened ? "true" : "false");
@@ -1007,7 +1007,8 @@ void stack_debug_avdtp_api_dump(int fd) {
       dprintf(fd, "      Transport channel connect timer: %s\n",
               alarm_is_scheduled(scb.transport_channel_timer) ? "Scheduled" : "Not scheduled");
       dprintf(fd, "      Channel control block peer: %s\n",
-              (scb.p_ccb != nullptr) ? ADDRESS_TO_LOGGABLE_CSTR(scb.p_ccb->peer_addr) : "null");
+              (scb.p_ccb != nullptr) ? scb.p_ccb->peer_addr.ToRedactedStringForLogging().c_str()
+                                     : "null");
       dprintf(fd, "      Allocated: %s\n", scb.allocated ? "true" : "false");
       dprintf(fd, "      In use: %s\n", scb.in_use ? "true" : "false");
       dprintf(fd, "      Role: 0x%x\n", scb.role);
