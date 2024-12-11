@@ -73,6 +73,7 @@ static constexpr uint8_t kMinConfigId = 0;
 static constexpr uint8_t kMaxConfigId = 3;
 static constexpr uint16_t kDefaultIntervalMs = 1000;  // 1s
 static constexpr uint8_t kMaxRetryCounterForCreateConfig = 0x03;
+static constexpr uint8_t kMaxRetryCounterForCsEnable = 0x03;
 static constexpr uint16_t kInvalidConnInterval = 0;  // valid value is from 0x0006 to 0x0C80
 
 struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
@@ -182,6 +183,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     bool ras_connected = false;
     bool setup_complete = false;
     uint8_t retry_counter_for_create_config = 0;
+    uint8_t retry_counter_for_cs_enable = 0;
     uint16_t n_procedure_count = 0;
     CsMainModeType main_mode_type = CsMainModeType::MODE_2;
     CsSubModeType sub_mode_type = CsSubModeType::UNUSED;
@@ -823,8 +825,20 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       if (cs_requester_trackers_.find(connection_handle) != cs_requester_trackers_.end()) {
         reset_tracker_on_stopped(cs_requester_trackers_[connection_handle]);
       }
-    } else {
-      on_cs_setup_command_status_cb(connection_handle, status_view);
+    } else if (status_view.GetStatus() != ErrorCode::SUCCESS) {
+      if (cs_requester_trackers_.count(connection_handle) == 0) {
+        log::error("Error code {} for connection_handle {}. No request tracker found.",
+                   ErrorCodeText(status), connection_handle);
+        handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+        return;
+      }
+      log::error("Error code {} for connection_handle {}. Retry counter {}", ErrorCodeText(status),
+                 connection_handle,
+                 cs_requester_trackers_[connection_handle].retry_counter_for_cs_enable);
+      if (cs_requester_trackers_[connection_handle].retry_counter_for_cs_enable++ >=
+          kMaxRetryCounterForCsEnable) {
+        handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+      }
     }
   }
 
@@ -832,7 +846,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     ErrorCode status = status_view.GetStatus();
     OpCode op_code = status_view.GetCommandOpCode();
     if (status != ErrorCode::SUCCESS) {
-      log::error("Error code {}, opcode {} for connection-{}", ErrorCodeText(status),
+      log::error("Error code {}, opcode {} for connection_handle {}", ErrorCodeText(status),
                  OpCodeText(op_code), connection_handle);
       handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
     }
@@ -1109,8 +1123,20 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     log::debug("on cs procedure enabled complete");
     if (event_view.GetStatus() != ErrorCode::SUCCESS) {
       std::string error_code = ErrorCodeText(event_view.GetStatus());
-      log::warn("Received LeCsProcedureEnableCompleteView with error code {}", error_code);
-      handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+      if (cs_requester_trackers_.count(connection_handle) == 0) {
+        log::warn(
+                "Received LeCsProcedureEnableCompleteView with error code {}, No request tracker "
+                "found",
+                error_code);
+        handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+        return;
+      }
+      log::warn("Received LeCsProcedureEnableCompleteView with error code {}. Retry counter {}",
+                error_code, cs_requester_trackers_[connection_handle].retry_counter_for_cs_enable);
+      if (cs_requester_trackers_[connection_handle].retry_counter_for_cs_enable++ >=
+          kMaxRetryCounterForCsEnable) {
+        handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+      }
       return;
     }
     uint8_t config_id = event_view.GetConfigId();
@@ -1141,6 +1167,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       live_tracker->state = CsTrackerState::STARTED;
       live_tracker->selected_tx_power = event_view.GetSelectedTxPower();
       live_tracker->n_procedure_count = event_view.GetProcedureCount();
+      live_tracker->retry_counter_for_cs_enable = 0;
 
       if (live_tracker->local_start && live_tracker->waiting_for_start_callback) {
         live_tracker->waiting_for_start_callback = false;
