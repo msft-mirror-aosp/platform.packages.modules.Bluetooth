@@ -179,6 +179,15 @@ inline std::string port_result_text(const tPORT_RESULT& result) {
   RETURN_UNKNOWN_TYPE_STRING(tPORT_RESULT, result);
 }
 
+/* Define a structure to hold the configuration parameters. Since the
+ * parameters are optional, for each parameter there is a boolean to
+ * use to signify its presence or absence.
+ */
+struct RfcommCfgInfo {
+  bool init_credit_present;
+  uint16_t init_credit;
+};
+
 namespace std {
 template <>
 struct formatter<tPORT_RESULT> : enum_formatter<tPORT_RESULT> {};
@@ -192,9 +201,9 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle)
 
 /*******************************************************************************
  *
- * Function         RFCOMM_CreateConnection
+ * Function         RFCOMM_CreateConnectionWithSecurity
  *
- * Description      RFCOMM_CreateConnection is used from the application to
+ * Description      RFCOMM_CreateConnectionWithSecurity is used from the application to
  *                  establish a serial port connection to the peer device,
  *                  or allow RFCOMM to accept a connection from the peer
  *                  application.
@@ -210,6 +219,9 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle)
  *                  p_handle     - OUT pointer to the handle.
  *                  p_mgmt_callback - pointer to callback function to receive
  *                                 connection up/down events.
+ *                  sec_mask     - bitmask of BTM_SEC_* values indicating the
+ *                                 minimum security requirements for this
+ *                  cfg          - optional configurations for the connection
  * Notes:
  *
  * Server can call this function with the same scn parameter multiple times if
@@ -225,7 +237,7 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle)
                                                       uint16_t mtu, const RawAddress& bd_addr,
                                                       uint16_t* p_handle,
                                                       tPORT_MGMT_CALLBACK* p_mgmt_callback,
-                                                      uint16_t sec_mask);
+                                                      uint16_t sec_mask, RfcommCfgInfo cfg);
 
 /*******************************************************************************
  *

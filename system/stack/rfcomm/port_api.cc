@@ -28,6 +28,7 @@
 
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
@@ -97,6 +98,7 @@ const char kBtmLogTag[] = "RFCOMM";
  *                                 connection up/down events.
  *                  sec_mask     - bitmask of BTM_SEC_* values indicating the
  *                                 minimum security requirements for this
+ *                  cfg          - optional configurations for the connection
  *connection Notes:
  *
  * Server can call this function with the same scn parameter multiple times if
@@ -110,7 +112,8 @@ const char kBtmLogTag[] = "RFCOMM";
  ******************************************************************************/
 int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_server, uint16_t mtu,
                                         const RawAddress& bd_addr, uint16_t* p_handle,
-                                        tPORT_MGMT_CALLBACK* p_mgmt_callback, uint16_t sec_mask) {
+                                        tPORT_MGMT_CALLBACK* p_mgmt_callback, uint16_t sec_mask,
+                                        RfcommCfgInfo cfg) {
   *p_handle = 0;
 
   if ((scn == 0) || (scn > RFCOMM_MAX_SCN)) {
@@ -186,6 +189,12 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_serv
   p_port->is_server = is_server;
   p_port->scn = scn;
   p_port->ev_mask = 0;
+
+  // Set the optional configuration for future use when the server or client negotiates the
+  // parameters with the peer device.
+  if (com::android::bluetooth::flags::socket_settings_api()) {
+    p_port->rfc_cfg_info = cfg;
+  }
 
   // Find MTU
   // If the MTU is not specified (0), keep MTU decision until the PN frame has

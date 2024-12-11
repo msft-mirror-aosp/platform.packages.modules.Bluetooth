@@ -1511,7 +1511,8 @@ static void bta_jv_port_event_cl_cback(uint32_t code, uint16_t port_handle) {
 
 /* Client initiates an RFCOMM connection */
 void bta_jv_rfcomm_connect(tBTA_SEC sec_mask, uint8_t remote_scn, const RawAddress& peer_bd_addr,
-                           tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id) {
+                           tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id,
+                           RfcommCfgInfo cfg) {
   uint16_t handle = 0;
   uint32_t event_mask = BTA_JV_RFC_EV_MASK;
   PortSettings port_settings;
@@ -1535,9 +1536,9 @@ void bta_jv_rfcomm_connect(tBTA_SEC sec_mask, uint8_t remote_scn, const RawAddre
             0);
   }
 
-  if (RFCOMM_CreateConnectionWithSecurity(UUID_SERVCLASS_SERIAL_PORT, remote_scn, false,
-                                          BTA_JV_DEF_RFC_MTU, peer_bd_addr, &handle,
-                                          bta_jv_port_mgmt_cl_cback, sec_mask) != PORT_SUCCESS) {
+  if (RFCOMM_CreateConnectionWithSecurity(
+              UUID_SERVCLASS_SERIAL_PORT, remote_scn, false, BTA_JV_DEF_RFC_MTU, peer_bd_addr,
+              &handle, bta_jv_port_mgmt_cl_cback, sec_mask, cfg) != PORT_SUCCESS) {
     log::error("RFCOMM_CreateConnection failed");
     bta_jv.rfc_cl_init.status = tBTA_JV_STATUS::FAILURE;
   } else {
@@ -1796,9 +1797,10 @@ static tBTA_JV_PCB* bta_jv_add_rfc_port(tBTA_JV_RFC_CB* p_cb, tBTA_JV_PCB* p_pcb
         log::error("RFCOMM_CreateConnection failed: invalid port_handle");
       }
 
-      if (RFCOMM_CreateConnectionWithSecurity(
-                  p_cb->sec_id, p_cb->scn, true, BTA_JV_DEF_RFC_MTU, RawAddress::kAny,
-                  &(p_cb->rfc_hdl[si]), bta_jv_port_mgmt_sr_cback, sec_mask) == PORT_SUCCESS) {
+      if (RFCOMM_CreateConnectionWithSecurity(p_cb->sec_id, p_cb->scn, true, BTA_JV_DEF_RFC_MTU,
+                                              RawAddress::kAny, &(p_cb->rfc_hdl[si]),
+                                              bta_jv_port_mgmt_sr_cback, sec_mask,
+                                              RfcommCfgInfo{}) == PORT_SUCCESS) {
         p_cb->curr_sess++;
         p_pcb = &bta_jv_cb.port_cb[p_cb->rfc_hdl[si] - 1];
         p_pcb->state = BTA_JV_ST_SR_LISTEN;
@@ -1842,7 +1844,8 @@ static tBTA_JV_PCB* bta_jv_add_rfc_port(tBTA_JV_RFC_CB* p_cb, tBTA_JV_PCB* p_pcb
 
 /* waits for an RFCOMM client to connect */
 void bta_jv_rfcomm_start_server(tBTA_SEC sec_mask, uint8_t local_scn, uint8_t max_session,
-                                tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id) {
+                                tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id,
+                                RfcommCfgInfo cfg) {
   uint16_t handle = 0;
   uint32_t event_mask = BTA_JV_RFC_EV_MASK;
   PortSettings port_settings;
@@ -1856,7 +1859,7 @@ void bta_jv_rfcomm_start_server(tBTA_SEC sec_mask, uint8_t local_scn, uint8_t ma
   do {
     if (RFCOMM_CreateConnectionWithSecurity(0, local_scn, true, BTA_JV_DEF_RFC_MTU,
                                             RawAddress::kAny, &handle, bta_jv_port_mgmt_sr_cback,
-                                            sec_mask) != PORT_SUCCESS) {
+                                            sec_mask, cfg) != PORT_SUCCESS) {
       log::error("RFCOMM_CreateConnection failed");
       break;
     }

@@ -33,6 +33,7 @@
 #include "internal_include/bt_target.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cap_types.h"
+#include "stack/include/port_api.h"
 #include "stack/include/rfcdefs.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -697,7 +698,7 @@ tBTA_JV_STATUS BTA_JvL2capWrite(uint32_t handle, uint32_t req_id, BT_HDR* msg, u
  ******************************************************************************/
 tBTA_JV_STATUS BTA_JvRfcommConnect(tBTA_SEC sec_mask, uint8_t remote_scn,
                                    const RawAddress& peer_bd_addr, tBTA_JV_RFCOMM_CBACK* p_cback,
-                                   uint32_t rfcomm_slot_id);
+                                   uint32_t rfcomm_slot_id, RfcommCfgInfo cfg);
 
 /*******************************************************************************
  *
@@ -727,7 +728,8 @@ tBTA_JV_STATUS BTA_JvRfcommClose(uint32_t handle, uint32_t rfcomm_slot_id);
  *
  ******************************************************************************/
 tBTA_JV_STATUS BTA_JvRfcommStartServer(tBTA_SEC sec_mask, uint8_t local_scn, uint8_t max_session,
-                                       tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id);
+                                       tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id,
+                                       RfcommCfgInfo cfg);
 
 /*******************************************************************************
  *

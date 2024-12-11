@@ -205,6 +205,8 @@ typedef struct {
   uint16_t keep_mtu; /* Max MTU that port can receive by server */
   uint16_t sec_mask; /* Bitmask of security requirements for this port */
                      /* see the BTM_SEC_* values in btm_api_types.h */
+  RfcommCfgInfo rfc_cfg_info; /* store optional rfc configure info for incoming */
+                              /* connection while connecting */
 } tPORT;
 
 /* Define the PORT/RFCOMM control structure
