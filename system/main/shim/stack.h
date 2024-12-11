@@ -47,7 +47,6 @@ public:
 
   void Stop();
   bool IsRunning();
-  bool IsDumpsysModuleStarted() const;
 
   StackManager* GetStackManager();
   const StackManager* GetStackManager() const;
@@ -56,20 +55,10 @@ public:
 
   os::Handler* GetHandler();
 
-  bool LockForDumpsys(std::function<void()> dumpsys_callback);
+  void Dump(int fd, std::promise<void> promise) const;
 
   // Start the list of modules with the given stack manager thread
   void StartModuleStack(const ModuleList* modules, const os::Thread* thread);
-
-  // Run the callable object on the module instance
-  template <typename T>
-  bool CallOnModule(std::function<void(T* mod)> run) {
-    std::lock_guard<std::recursive_mutex> lock(mutex_);
-    if (is_running_) {
-      run(stack_manager_.GetInstance<T>());
-    }
-    return is_running_;
-  }
 
   size_t NumModules() const { return num_modules_; }
 

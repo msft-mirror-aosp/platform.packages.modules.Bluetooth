@@ -183,7 +183,6 @@ cc_test {
         "shim/stack.cc",
         "shim/utils.cc",
         "test/common_stack_test.cc",
-        "test/main_shim_dumpsys_test.cc",
         "test/main_shim_test.cc",
     ],
     static_libs: [

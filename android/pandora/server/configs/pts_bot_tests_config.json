@@ -3216,15 +3216,6 @@
   "flags": [
     {
       "flags": [
-        "avdtp_error_codes"
-      ],
-      "tests": [
-        "A2DP/SNK/AVP",
-        "A2DP/SRC/AVP"
-      ]
-    },
-    {
-      "flags": [
         "leaudio_allow_leaudio_only_devices",
         "enable_hap_by_default"
       ],
