@@ -125,3 +125,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "avdt_handle_signaling_on_peer_failure"
+    namespace: "bluetooth"
+    description: "Abort AVDTP on failed connection as the acceptor and retry as the initiator"
+    bug: "381388684"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
