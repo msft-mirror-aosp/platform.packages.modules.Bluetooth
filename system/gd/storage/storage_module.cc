@@ -177,10 +177,10 @@ void StorageModule::Start() {
 
   // Cleanup temporary pairings if we have left guest mode
   if (!is_restricted_mode_) {
-    config->RemoveSectionWithProperty("Restricted");
+    pimpl_->cache_.RemoveSectionWithProperty("Restricted");
   }
 
-  config->FixDeviceTypeInconsistencies();
+  pimpl_->cache_.FixDeviceTypeInconsistencies();
   if (bluetooth::os::ParameterProvider::GetBtKeystoreInterface() != nullptr) {
     bluetooth::os::ParameterProvider::GetBtKeystoreInterface()
             ->ConvertEncryptOrDecryptKeyIfNeeded();
