@@ -110,6 +110,10 @@ public:
     uint16_t conn_interval_ = kInvalidConnInterval;
 
     const gatt::Characteristic* FindCharacteristicByUuid(Uuid uuid) {
+      if (service_ == nullptr) {
+        log::error("Can't find Ranging Service");
+        return nullptr;
+      }
       for (auto& characteristic : service_->characteristics) {
         if (characteristic.uuid == uuid) {
           return &characteristic;
@@ -117,6 +121,7 @@ public:
       }
       return nullptr;
     }
+
     const gatt::Characteristic* FindCharacteristicByHandle(uint16_t handle) {
       for (auto& characteristic : service_->characteristics) {
         if (characteristic.value_handle == handle) {
