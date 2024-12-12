@@ -18,6 +18,8 @@ android_test_helper_app {
         "libprotobuf-java-micro",
     ],
 
+    jarjar_rules: ":bluetooth-jarjar-rules",
+
     static_libs: [
         "TestParameterInjector",
         "androidx.core_core",

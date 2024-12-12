@@ -64,16 +64,6 @@ flag {
 }
 
 flag {
-    name: "ble_gatt_server_use_address_type_in_connection"
-    namespace: "bluetooth"
-    description: "Use address type when initiating connection from BluetoothGattServer"
-    bug: "331147673"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "scan_record_manufacturer_data_merge"
     namespace: "bluetooth"
     description: "If a scan record has multiple datas under same manufacturer id, merge the values"
