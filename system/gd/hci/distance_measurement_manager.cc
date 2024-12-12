@@ -413,7 +413,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   void start_distance_measurement_with_cs(const Address& cs_remote_address,
                                           uint16_t connection_handle) {
     log::info("connection_handle: {}, address: {}", connection_handle, cs_remote_address);
-    if (!com::android::bluetooth::flags::channel_sounding_in_stack() && !is_local_cs_ready_) {
+    if (!com::android::bluetooth::flags::channel_sounding_in_stack() || !is_local_cs_ready_) {
       log::error("Channel Sounding is not enabled");
       distance_measurement_callbacks_->OnDistanceMeasurementStopped(
               cs_remote_address, REASON_INTERNAL_ERROR, METHOD_CS);
