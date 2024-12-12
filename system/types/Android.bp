@@ -10,7 +10,6 @@ package {
 
 cc_library_headers {
     name: "libbluetooth-types-header",
-    visibility: ["//visibility:public"],
     export_include_dirs: ["./"],
     vendor_available: true,
     host_supported: true,
