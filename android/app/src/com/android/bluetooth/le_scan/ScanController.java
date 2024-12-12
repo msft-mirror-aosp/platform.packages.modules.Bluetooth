@@ -46,6 +46,7 @@ public class ScanController {
     private static final String TAG = ScanController.class.getSimpleName();
 
     public final TransitionalScanHelper mTransitionalScanHelper;
+    public final HandlerThread mScanThread;
 
     private final BluetoothScanBinder mBinder;
 
@@ -72,15 +73,16 @@ public class ScanController {
         mMainLooper = adapterService.getMainLooper();
         mBinder = new BluetoothScanBinder(this);
         mIsAvailable = true;
-        HandlerThread thread = new HandlerThread("BluetoothScanManager");
-        thread.start();
-        mTransitionalScanHelper.start(thread.getLooper());
+        mScanThread = new HandlerThread("BluetoothScanManager");
+        mScanThread.start();
+        mTransitionalScanHelper.start(mScanThread.getLooper());
     }
 
     public void stop() {
         Log.d(TAG, "stop()");
         mIsAvailable = false;
         mBinder.clearScanController();
+        mScanThread.quitSafely();
         mTransitionalScanHelper.stop();
         mTransitionalScanHelper.cleanup();
     }

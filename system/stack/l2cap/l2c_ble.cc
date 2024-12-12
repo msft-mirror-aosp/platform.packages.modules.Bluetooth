@@ -108,10 +108,10 @@ void l2cble_notify_le_connection(const RawAddress& bda) {
   if (get_btm_client_interface().peer.BTM_IsAclConnectionUp(bda, BT_TRANSPORT_LE) &&
       p_lcb->link_state != LST_CONNECTED) {
     /* update link status */
+    p_lcb->link_state = LST_CONNECTED;
     // TODO Move this back into acl layer
     btm_establish_continue_from_address(bda, BT_TRANSPORT_LE);
-    /* update l2cap link status and send callback */
-    p_lcb->link_state = LST_CONNECTED;
+    /* send callback */
     l2cu_process_fixed_chnl_resp(p_lcb);
   }
 
@@ -777,11 +777,21 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       p_ccb->p_rcb = p_rcb;
       p_ccb->remote_cid = rcid;
 
-      p_ccb->local_conn_cfg.mtu = p_rcb->coc_cfg.mtu;
-      p_ccb->local_conn_cfg.mps = p_rcb->coc_cfg.mps;
-      p_ccb->local_conn_cfg.credits = p_rcb->coc_cfg.credits;
-
-      p_ccb->remote_credit_count = p_rcb->coc_cfg.credits;
+      if (com::android::bluetooth::flags::socket_settings_api()) {  // Added with aosp/3349377
+        p_ccb->local_conn_cfg.mtu = p_rcb->coc_cfg.mtu;
+        p_ccb->local_conn_cfg.mps = p_rcb->coc_cfg.mps;
+      } else {
+        p_ccb->local_conn_cfg.mtu = L2CAP_SDU_LENGTH_LE_MAX;
+        p_ccb->local_conn_cfg.mps =
+                bluetooth::shim::GetController()->GetLeBufferSize().le_data_packet_length_;
+      }
+      if (com::android::bluetooth::flags::socket_settings_api()) {  // Added with aosp/3349376
+        p_ccb->local_conn_cfg.credits = p_rcb->coc_cfg.credits;
+        p_ccb->remote_credit_count = p_rcb->coc_cfg.credits;
+      } else {
+        p_ccb->local_conn_cfg.credits = L2CA_LeCreditDefault();
+        p_ccb->remote_credit_count = L2CA_LeCreditDefault();
+      }
 
       p_ccb->peer_conn_cfg.mtu = mtu;
       p_ccb->peer_conn_cfg.mps = mps;

@@ -428,6 +428,7 @@ cc_test {
         "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
+        "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libbt-audio-hal-interface",
         "libbt-bta",
@@ -634,6 +635,7 @@ cc_test {
     srcs: [
         ":TestCommonMockFunctions",
         ":TestMockStackBtmInterface",
+        ":TestMockStackGatt",
         "gatt/database.cc",
         "gatt/database_builder.cc",
         "test/common/bta_gatt_api_mock.cc",

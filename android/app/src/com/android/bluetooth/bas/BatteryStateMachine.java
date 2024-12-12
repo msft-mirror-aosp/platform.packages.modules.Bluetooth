@@ -118,7 +118,7 @@ public class BatteryStateMachine extends StateMachine {
     }
 
     synchronized boolean isConnected() {
-        return getCurrentState() == mConnected;
+        return mLastConnectionState == BluetoothProfile.STATE_CONNECTED;
     }
 
     private static String messageWhatToString(int what) {
@@ -153,17 +153,7 @@ public class BatteryStateMachine extends StateMachine {
 
     @BluetoothProfile.BtProfileState
     int getConnectionState() {
-        String currentState = getCurrentState().getName();
-        return switch (currentState) {
-            case "Disconnected" -> BluetoothProfile.STATE_DISCONNECTED;
-            case "Connecting" -> BluetoothProfile.STATE_CONNECTING;
-            case "Connected" -> BluetoothProfile.STATE_CONNECTED;
-            case "Disconnecting" -> BluetoothProfile.STATE_DISCONNECTING;
-            default -> {
-                Log.e(TAG, "Bad currentState: " + currentState);
-                yield BluetoothProfile.STATE_DISCONNECTED;
-            }
-        };
+        return mLastConnectionState;
     }
 
     void dispatchConnectionStateChanged(int toState) {

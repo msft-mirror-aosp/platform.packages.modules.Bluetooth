@@ -204,30 +204,10 @@ flag {
 }
 
 flag {
-    name: "leaudio_call_start_scan_directly"
-    namespace: "bluetooth"
-    description: "Calling the framework is working only when we are expecting IPC. This will call the underlying implementation directly"
-    bug: "348562830"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "leaudio_no_context_validate_streaming_request"
     namespace: "bluetooth"
     description: "Request streaming would be send without available cotext validation"
     bug: "336466406"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_synchronize_start"
-    namespace: "bluetooth"
-    description: "Do not post on main looper when starting le_audio"
-    bug: "341385684"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -461,4 +441,24 @@ flag {
     namespace: "bluetooth"
     description: "Add OPUS codec type"
     bug: "380029892"
+}
+
+flag {
+    name: "leaudio_broadcast_receive_state_processing_refactor"
+    namespace: "bluetooth"
+    description: "Fix parsing empty receive states and refactor its processing"
+    bug: "380231464"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "dsa_hw_transparent_codec"
+    namespace: "bluetooth"
+    description: "Use trasparent codec for DSA hardware path"
+    bug: "382263607"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

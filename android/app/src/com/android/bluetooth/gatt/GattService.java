@@ -183,6 +183,7 @@ public class GattService extends ProfileService {
     private final DistanceMeasurementManager mDistanceMeasurementManager;
     private final ActivityManager mActivityManager;
     private final PackageManager mPackageManager;
+    private final HandlerThread mScanThread;
 
     private Handler mTestModeHandler;
 
@@ -203,9 +204,11 @@ public class GattService extends ProfileService {
         mAdvertiseManager = new AdvertiseManager(this);
 
         if (!Flags.scanManagerRefactor()) {
-            HandlerThread thread = new HandlerThread("BluetoothScanManager");
-            thread.start();
-            mTransitionalScanHelper.start(thread.getLooper());
+            mScanThread = new HandlerThread("BluetoothScanManager");
+            mScanThread.start();
+            mTransitionalScanHelper.start(mScanThread.getLooper());
+        } else {
+            mScanThread = null;
         }
         mDistanceMeasurementManager =
                 GattObjectsFactory.getInstance().createDistanceMeasurementManager(mAdapterService);
@@ -251,6 +254,9 @@ public class GattService extends ProfileService {
     @Override
     public void cleanup() {
         Log.d(TAG, "cleanup()");
+        if (!Flags.scanManagerRefactor()) {
+            mScanThread.quitSafely();
+        }
         mNativeInterface.cleanup();
         mAdvertiseManager.cleanup();
         mDistanceMeasurementManager.cleanup();
@@ -1334,6 +1340,13 @@ public class GattService extends ProfileService {
         if (app != null) {
             app.callback.onClientConnectionState(
                     status, clientIf, (status == BluetoothGatt.GATT_SUCCESS), address);
+            MetricsLogger.getInstance()
+                    .logBluetoothEvent(
+                            getDevice(address),
+                            BluetoothStatsLog
+                                    .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__GATT_CONNECT_JAVA,
+                            connectionStatusToState(status),
+                            app.appUid);
         }
         statsLogGattConnectionStateChange(
                 BluetoothProfile.GATT, address, clientIf, connectionState, status);
@@ -1379,6 +1392,13 @@ public class GattService extends ProfileService {
 
         if (app != null) {
             app.callback.onClientConnectionState(status, clientIf, false, address);
+            MetricsLogger.getInstance()
+                    .logBluetoothEvent(
+                            getDevice(address),
+                            BluetoothStatsLog
+                                    .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__GATT_DISCONNECT_JAVA,
+                            BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__SUCCESS,
+                            app.appUid);
         }
         statsLogGattConnectionStateChange(
                 BluetoothProfile.GATT,
@@ -1930,7 +1950,6 @@ public class GattService extends ProfileService {
         for (Map.Entry<Integer, String> entry : connMap.entrySet()) {
             Log.d(TAG, "disconnecting addr:" + entry.getValue());
             clientDisconnect(entry.getKey(), entry.getValue(), attributionSource);
-            // clientDisconnect(int clientIf, String address)
         }
     }
 
@@ -2156,6 +2175,15 @@ public class GattService extends ProfileService {
         }
 
         Log.d(TAG, "unregisterClient() - clientIf=" + clientIf);
+        for (ContextMap.Connection conn : mClientMap.getConnectionByApp(clientIf)) {
+            MetricsLogger.getInstance()
+                    .logBluetoothEvent(
+                            getDevice(conn.address),
+                            BluetoothStatsLog
+                                    .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__GATT_DISCONNECT_JAVA,
+                            BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__END,
+                            attributionSource.getUid());
+        }
         mClientMap.remove(clientIf);
         mNativeInterface.gattClientUnregisterApp(clientIf);
     }
@@ -2197,6 +2225,18 @@ public class GattService extends ProfileService {
                 clientIf,
                 BluetoothProtoEnums.CONNECTION_STATE_CONNECTING,
                 -1);
+
+        MetricsLogger.getInstance()
+                .logBluetoothEvent(
+                        getDevice(address),
+                        BluetoothStatsLog
+                                .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__GATT_CONNECT_JAVA,
+                        isDirect
+                                ? BluetoothStatsLog
+                                        .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__DIRECT_CONNECT
+                                : BluetoothStatsLog
+                                        .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__INDIRECT_CONNECT,
+                        attributionSource.getUid());
 
         int preferredMtu = 0;
 
@@ -2248,6 +2288,13 @@ public class GattService extends ProfileService {
                 clientIf,
                 BluetoothProtoEnums.CONNECTION_STATE_DISCONNECTING,
                 -1);
+        MetricsLogger.getInstance()
+                .logBluetoothEvent(
+                        getDevice(address),
+                        BluetoothStatsLog
+                                .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__GATT_DISCONNECT_JAVA,
+                        BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__START,
+                        attributionSource.getUid());
         mNativeInterface.gattClientDisconnect(clientIf, address, connId != null ? connId : 0);
     }
 
@@ -3795,6 +3842,24 @@ public class GattService extends ProfileService {
     @Override
     public void dumpProto(BluetoothMetricsProto.BluetoothLog.Builder builder) {
         mTransitionalScanHelper.dumpProto(builder);
+    }
+
+    private BluetoothDevice getDevice(String address) {
+        byte[] addressBytes = Utils.getBytesFromAddress(address);
+        return mAdapterService.getDeviceFromByte(addressBytes);
+    }
+
+    private static int connectionStatusToState(int status) {
+        return switch (status) {
+                // GATT_SUCCESS
+            case 0x00 -> BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__SUCCESS;
+                // GATT_CONNECTION_TIMEOUT
+            case 0x93 ->
+                    BluetoothStatsLog
+                            .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__CONNECTION_TIMEOUT;
+                // For now all other errors are bucketed together.
+            default -> BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__FAIL;
+        };
     }
 
     /**************************************************************************

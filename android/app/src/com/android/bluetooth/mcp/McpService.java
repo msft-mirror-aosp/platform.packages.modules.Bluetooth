@@ -24,15 +24,12 @@ import android.bluetooth.BluetoothProfile;
 import android.bluetooth.IBluetoothMcpServiceManager;
 import android.content.AttributionSource;
 import android.content.Context;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.ParcelUuid;
 import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.ProfileService;
-import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.le_audio.LeAudioService;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -48,7 +45,6 @@ public class McpService extends ProfileService {
 
     private final MediaControlProfile mGmcs;
     private final Map<BluetoothDevice, Integer> mDeviceAuthorizations = new HashMap<>();
-    private final Handler mHandler = new Handler(Looper.getMainLooper());
 
     public McpService(Context ctx) {
         this(ctx, null);
@@ -102,16 +98,7 @@ public class McpService extends ProfileService {
         // Mark service as started
         setMcpService(this);
 
-        if (Flags.leaudioSynchronizeStart()) {
-            mGmcs.init();
-            return;
-        }
-        mHandler.post(
-                () -> {
-                    if (isAvailable()) {
-                        mGmcs.init();
-                    }
-                });
+        mGmcs.init();
     }
 
     @Override

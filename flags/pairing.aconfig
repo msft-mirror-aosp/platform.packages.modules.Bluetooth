@@ -112,16 +112,6 @@ flag {
 }
 
 flag {
-    name: "use_encrypt_req_for_av"
-    namespace: "bluetooth"
-    description: "Use encrypted link for AVDTP and AVCTP channel"
-    bug: "357662929"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "donot_queue_dup_rnr"
     namespace: "bluetooth"
     description: "Avoid queueing second RNR as part of ssp process"
