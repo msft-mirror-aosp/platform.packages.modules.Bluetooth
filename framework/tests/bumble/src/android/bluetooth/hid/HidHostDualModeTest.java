@@ -84,6 +84,9 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.stubbing.Answer;
 
+import pandora.HIDGrpc;
+import pandora.HidProto.HidServiceType;
+import pandora.HidProto.ServiceRequest;
 import pandora.HostProto.AdvertiseRequest;
 import pandora.HostProto.OwnAddressType;
 
@@ -108,6 +111,7 @@ public class HidHostDualModeTest {
             InstrumentationRegistry.getInstrumentation().getTargetContext();
     private final BluetoothAdapter mAdapter =
             mContext.getSystemService(BluetoothManager.class).getAdapter();
+    private HIDGrpc.HIDBlockingStub mHidBlockingStub;
 
     @Rule(order = 0)
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
@@ -275,6 +279,11 @@ public class HidHostDualModeTest {
         BluetoothHeadset hfpService =
                 (BluetoothHeadset) verifyProfileServiceConnected(BluetoothProfile.HEADSET);
 
+        mHidBlockingStub = mBumble.hidBlocking();
+        mHidBlockingStub.registerService(
+                ServiceRequest.newBuilder()
+                        .setServiceType(HidServiceType.SERVICE_TYPE_BOTH)
+                        .build());
         AdvertiseRequest request =
                 AdvertiseRequest.newBuilder()
                         .setLegacy(true)

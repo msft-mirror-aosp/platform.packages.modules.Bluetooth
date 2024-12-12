@@ -140,7 +140,7 @@ public class BassClientServiceTest {
     // German language code in ISO 639-3
     private static final String TEST_LANGUAGE = "deu";
     private static final int TEST_SOURCE_ID = 10;
-    private static final int TEST_NUM_SOURCES = 2;
+    private static final int TEST_NUM_SOURCES = 1;
 
     private final HashMap<BluetoothDevice, BassClientStateMachine> mStateMachines = new HashMap<>();
     private HashMap<BluetoothDevice, LinkedBlockingQueue<Intent>> mIntentQueue;
@@ -2174,6 +2174,29 @@ public class BassClientServiceTest {
                 throw new AssertionError("Unexpected device");
             }
         }
+    }
+
+    @Test
+    public void testSecondAddSourceWithCapacityGreaterThanOne() {
+        prepareConnectedDeviceGroup();
+
+        // Set maximum source capacity to 2
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            doReturn(2).when(sm).getMaximumSourceCapacity();
+        }
+
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        verifyAddSourceForGroup(meta);
+        prepareRemoteSourceState(meta, true, true);
+
+        // Add another new broadcast source
+        onScanResult(mSourceDevice2, TEST_BROADCAST_ID + 1);
+        onSyncEstablished(mSourceDevice2, TEST_SYNC_HANDLE + 1);
+        BluetoothLeBroadcastMetadata newMeta = createBroadcastMetadata(TEST_BROADCAST_ID + 1);
+        verifyAddSourceForGroup(newMeta);
     }
 
     /**
