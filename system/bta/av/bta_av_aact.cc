@@ -26,7 +26,6 @@
 
 #define LOG_TAG "bluetooth-a2dp"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -1987,8 +1986,8 @@ void bta_av_reconfig(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   log::debug("Reconfig codec: {}", A2DP_CodecInfoString(p_rcfg->codec_info));
 
   BTM_LogHistory(kBtmLogTag, p_scb->PeerAddress(), "Codec reconfig",
-                 base::StringPrintf("%s => %s", A2DP_CodecName(p_scb->cfg.codec_info),
-                                    A2DP_CodecName(p_rcfg->codec_info)));
+                 std::format("{} => {}", A2DP_CodecName(p_scb->cfg.codec_info),
+                             A2DP_CodecName(p_rcfg->codec_info)));
 
   p_cfg->num_protect = p_rcfg->num_protect;
   memcpy(p_cfg->codec_info, p_rcfg->codec_info, AVDT_CODEC_SIZE);

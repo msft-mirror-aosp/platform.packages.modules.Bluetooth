@@ -23,7 +23,6 @@
  ******************************************************************************/
 #pragma once
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <stdbool.h>
 
@@ -95,7 +94,7 @@ inline std::string channel_state_text(const tL2C_CHNL_STATE& state) {
     CASE_RETURN_TEXT(CST_W4_L2CAP_DISCONNECT_RSP);
     CASE_RETURN_TEXT(CST_W4_L2CA_DISCONNECT_RSP);
     default:
-      return base::StringPrintf("UNKNOWN[%d]", state);
+      return std::format("UNKNOWN[{}]", static_cast<int>(state));
   }
 }
 

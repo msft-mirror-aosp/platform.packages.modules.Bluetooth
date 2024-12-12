@@ -643,7 +643,7 @@ bool ConnectionHandler::SdpLookupAudioRole(uint16_t handle) {
   log::info(
           "Performing SDP for AUDIO_SINK on connected device: address={}, "
           "handle={}",
-          ADDRESS_TO_LOGGABLE_STR(device->GetAddress()), handle);
+          device->GetAddress(), handle);
 
   return device->find_sink_service(base::Bind(&ConnectionHandler::SdpLookupAudioRoleCb,
                                               weak_ptr_factory_.GetWeakPtr(), handle));
@@ -658,8 +658,8 @@ void ConnectionHandler::SdpLookupAudioRoleCb(uint16_t handle, bool found,
   }
   auto device = device_map_[handle];
 
-  log::debug("SDP callback for address={}, handle={}, AUDIO_SINK {}",
-             ADDRESS_TO_LOGGABLE_STR(device->GetAddress()), handle, found ? "found" : "not found");
+  log::debug("SDP callback for address={}, handle={}, AUDIO_SINK {}", device->GetAddress(), handle,
+             found ? "found" : "not found");
 
   if (found) {
     device->connect_a2dp_sink_delayed(handle);
