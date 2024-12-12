@@ -85,6 +85,7 @@ public:
     PendingWriteResponse pending_write_response_;
     uint16_t last_ready_procedure_ = 0;
     uint16_t last_overwritten_procedure_ = 0;
+    uint16_t mtu = kDefaultGattMtu;
   };
 
   void Initialize() override {
@@ -210,6 +211,9 @@ public:
       case BTA_GATTS_DISCONNECT_EVT: {
         OnGattDisconnect(p_data);
       } break;
+      case BTA_GATTS_MTU_EVT: {
+        OnGattMtuChanged(p_data->req_data);
+      } break;
       case BTA_GATTS_REG_EVT: {
         OnGattServerRegister(p_data);
       } break;
@@ -248,6 +252,19 @@ public:
     btm_random_pseudo_to_identity_addr(&identity_address, &address_type);
     // TODO: optimize, remove this event, initialize the tracker within the GD on demand.
     callbacks_->OnRasServerConnected(identity_address);
+  }
+
+  void OnGattMtuChanged(const tBTA_GATTS_REQ& req_data) {
+    auto remote_bda = req_data.remote_bda;
+    log::info("mtu is changed as {}", req_data.p_data->mtu);
+    auto it = trackers_.find(remote_bda);
+    if (it != trackers_.end()) {
+      it->second.mtu = req_data.p_data->mtu;
+
+      tBLE_ADDR_TYPE address_type = BLE_ADDR_PUBLIC_ID;
+      btm_random_pseudo_to_identity_addr(&remote_bda, &address_type);
+      callbacks_->OnMtuChangedFromServer(remote_bda, it->second.mtu);
+    }
   }
 
   void OnGattDisconnect(tBTA_GATTS* p_data) {
