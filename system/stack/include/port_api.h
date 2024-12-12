@@ -186,6 +186,8 @@ inline std::string port_result_text(const tPORT_RESULT& result) {
 struct RfcommCfgInfo {
   bool init_credit_present;
   uint16_t init_credit;
+  bool rx_mtu_present;
+  uint16_t rx_mtu;
 };
 
 namespace std {

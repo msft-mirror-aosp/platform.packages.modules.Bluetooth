@@ -329,10 +329,32 @@ bt_status_t btsock_rfc_control_req(uint8_t dlci, const RawAddress& bd_addr, uint
   return BT_STATUS_SUCCESS;
 }
 
+/// Determine the local MTU for the offloaded RFCOMM connection.
+///
+/// The local MTU is selected as the minimum of:
+///   - The socket hal's offload capabilities (socket_cap.rfcommCapabilities.max_frame_size)
+///   - The application's requested maximum RX packet size (app_max_rx_packet_size)
+///
+/// However, the MTU must be at least the minimum required by the RFCOMM
+/// specification (RFCOMM_MIN_MTU).
+static bool btsock_rfc_get_offload_mtu(int app_max_rx_packet_size, int* rx_mtu) {
+  hal::SocketCapabilities socket_cap =
+          bluetooth::shim::GetLppOffloadManager()->GetSocketCapabilities();
+  if (!socket_cap.rfcomm_capabilities.number_of_supported_sockets) {
+    return false;
+  }
+  // Socket HAL client has already verified that the MTU is in a valid range.
+  int mtu = static_cast<int>(socket_cap.rfcomm_capabilities.max_frame_size);
+  mtu = std::min(mtu, app_max_rx_packet_size);
+  mtu = std::max(mtu, RFCOMM_MIN_MTU);
+  *rx_mtu = mtu;
+  return true;
+}
+
 bt_status_t btsock_rfc_listen(const char* service_name, const Uuid* service_uuid, int channel,
                               int* sock_fd, int flags, int app_uid, btsock_data_path_t data_path,
                               const char* socket_name, uint64_t hub_id, uint64_t endpoint_id,
-                              int /* max_rx_packet_size */) {
+                              int max_rx_packet_size) {
   log::assert_that(sock_fd != NULL, "assert failed: sock_fd != NULL");
   log::assert_that((service_uuid != NULL) || (channel >= 1 && channel <= MAX_RFC_CHANNEL) ||
                            ((flags & BTSOCK_FLAG_NO_SDP) != 0),
@@ -391,6 +413,11 @@ bt_status_t btsock_rfc_listen(const char* service_name, const Uuid* service_uuid
     }
     slot->hub_id = hub_id;
     slot->endpoint_id = endpoint_id;
+    if (data_path == BTSOCK_DATA_PATH_HARDWARE_OFFLOAD) {
+      if (!btsock_rfc_get_offload_mtu(max_rx_packet_size, &slot->mtu)) {
+        return BT_STATUS_UNSUPPORTED;
+      }
+    }
   }
   btsock_thread_add_fd(pth, slot->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_EXCEPTION, slot->id);
   // start monitoring the socketpair to get call back when app is accepting on server socket
@@ -404,7 +431,7 @@ bt_status_t btsock_rfc_listen(const char* service_name, const Uuid* service_uuid
 bt_status_t btsock_rfc_connect(const RawAddress* bd_addr, const Uuid* service_uuid, int channel,
                                int* sock_fd, int flags, int app_uid, btsock_data_path_t data_path,
                                const char* socket_name, uint64_t hub_id, uint64_t endpoint_id,
-                               int /* max_rx_packet_size */) {
+                               int max_rx_packet_size) {
   log::assert_that(sock_fd != NULL, "assert failed: sock_fd != NULL");
   log::assert_that((service_uuid != NULL) || (channel >= 1 && channel <= MAX_RFC_CHANNEL),
                    "assert failed: (service_uuid != NULL) || (channel >= 1 && channel <= "
@@ -468,6 +495,11 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr, const Uuid* service_uu
     }
     slot->hub_id = hub_id;
     slot->endpoint_id = endpoint_id;
+    if (data_path == BTSOCK_DATA_PATH_HARDWARE_OFFLOAD) {
+      if (!btsock_rfc_get_offload_mtu(max_rx_packet_size, &slot->mtu)) {
+        return BT_STATUS_UNSUPPORTED;
+      }
+    }
   }
   btsock_thread_add_fd(pth, slot->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_RD, slot->id);
 
@@ -1005,6 +1037,8 @@ static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id) {
           if (rs->data_path == BTSOCK_DATA_PATH_HARDWARE_OFFLOAD) {
             cfg.init_credit_present = true;
             cfg.init_credit = 0;
+            cfg.rx_mtu_present = rs->mtu > 0;
+            cfg.rx_mtu = rs->mtu;
           }
         }
         // now start the rfcomm server after sdp & channel # assigned
@@ -1043,6 +1077,8 @@ static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id) {
         if (slot->data_path == BTSOCK_DATA_PATH_HARDWARE_OFFLOAD) {
           cfg.init_credit_present = true;
           cfg.init_credit = 0;
+          cfg.rx_mtu_present = slot->mtu > 0;
+          cfg.rx_mtu = slot->mtu;
         }
       }
       // Start the rfcomm server after sdp & channel # assigned.
@@ -1100,6 +1136,8 @@ static void handle_discovery_comp(tBTA_JV_STATUS status, int scn, uint32_t id) {
     if (slot->data_path == BTSOCK_DATA_PATH_HARDWARE_OFFLOAD) {
       cfg.init_credit_present = true;
       cfg.init_credit = 0;
+      cfg.rx_mtu_present = slot->mtu > 0;
+      cfg.rx_mtu = slot->mtu;
     }
   }
 
