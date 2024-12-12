@@ -110,18 +110,13 @@ static int pth = -1;
 static void btsock_l2cap_cbk(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t l2cap_socket_id);
 
 /* TODO: Consider to remove this buffer, as we have a buffer in l2cap as well,
- * and we risk
- *       a buffer overflow with this implementation if the socket data is not
- * read from
- *       JAVA for a while. In such a case we should use flow control to tell the
- * sender to
- *       back off.
- *       BUT remember we need to avoid blocking the BTA task execution - hence
- * we cannot
- *       directly write to the socket.
- *       we should be able to change to store the data pointer here, and just
- * wait
- *       confirming the l2cap_ind until we have more space in the buffer. */
+ * and we risk a buffer overflow with this implementation if the socket data is not
+ * read from JAVA for a while. In such a case we should use flow control to tell the
+ * sender to back off.
+ * BUT remember we need to avoid blocking the BTA task execution - hence
+ * we cannot directly write to the socket.  We should be able to change to store the
+ * data pointer here, and just wait confirming the l2cap_ind until we have more space
+ * in the buffer. */
 
 /* returns false if none - caller must free "data" memory when done with it */
 static char packet_get_head_l(l2cap_socket* sock, uint8_t** data, uint32_t* len) {
@@ -265,6 +260,12 @@ static void btsock_l2cap_free_l(l2cap_socket* sock) {
           SOCKET_CONNECTION_STATE_DISCONNECTED,
           sock->server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION, sock->app_uid, sock->channel,
           sock->tx_bytes, sock->rx_bytes, sock->name);
+  if (com::android::bluetooth::flags::socket_settings_api()) {
+    if (sock->data_path == BTSOCK_DATA_PATH_HARDWARE_OFFLOAD && !sock->server &&
+        sock->socket_id != 0) {
+      bluetooth::shim::GetLppOffloadManager()->SocketClosed(sock->socket_id);
+    }
+  }
   if (sock->next) {
     sock->next->prev = sock->prev;
   }
@@ -333,10 +334,10 @@ static l2cap_socket* btsock_l2cap_alloc_l(const char* name, const RawAddress* ad
   }
 
 #if TARGET_FLOSS
-  //Changed socket type to SOCK_STREAM to address a platform issue on FLOSS.
-  //This is a workaround and not the recommended approach.
-  //SOCK_SEQPACKET is preferred for L2CAP LE CoC channels because it preserves L2CAP
-  //packet boundaries, ensuring message integrity.
+  // Changed socket type to SOCK_STREAM to address a platform issue on FLOSS.
+  // This is a workaround and not the recommended approach.
+  // SOCK_SEQPACKET is preferred for L2CAP LE CoC channels because it preserves L2CAP
+  // packet boundaries, ensuring message integrity.
   sock_type = SOCK_STREAM;
 #endif
   if (socketpair(AF_LOCAL, sock_type, 0, fds)) {
@@ -389,7 +390,7 @@ static l2cap_socket* btsock_l2cap_alloc_l(const char* name, const RawAddress* ad
     while (t && t->id != sock->id) {
       t = t->next;
     }
-    if (!t && sock->id) { /* non-zeor handle is unique -> we're done */
+    if (!t && sock->id) { /* non-zero handle is unique -> we're done */
       break;
     }
     /* if we're here, we found a duplicate */
