@@ -135,3 +135,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "a2dp_sm_ignore_connect_events_in_connecting_state"
+    namespace: "bluetooth"
+    description: "When received CONNECT event in Connecting state, with no prior DISCONNECT - ignore the event"
+    bug: "383576378"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
