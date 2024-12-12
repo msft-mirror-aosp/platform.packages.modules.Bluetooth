@@ -66,7 +66,6 @@ public class AvrcpTargetService extends ProfileService {
 
     // Cover Art Service (Storage + BIP Server)
     private final AvrcpCoverArtService mAvrcpCoverArtService;
-    private final AdapterService mAdapterService;
     private final AvrcpVersion mAvrcpVersion;
     private final MediaPlayerList mMediaPlayerList;
     private final PlayerSettingsManager mPlayerSettingsManager;
@@ -100,12 +99,29 @@ public class AvrcpTargetService extends ProfileService {
     private static AvrcpTargetService sInstance = null;
 
     public AvrcpTargetService(AdapterService adapterService) {
-        super(requireNonNull(adapterService));
-        mAdapterService = adapterService;
-        mAudioManager = requireNonNull(getSystemService(AudioManager.class));
-        mNativeInterface = requireNonNull(AvrcpNativeInterface.getInstance());
+        this(
+                requireNonNull(adapterService),
+                adapterService.getSystemService(AudioManager.class),
+                AvrcpNativeInterface.getInstance(),
+                new AvrcpVolumeManager(
+                        requireNonNull(adapterService),
+                        adapterService.getSystemService(AudioManager.class),
+                        AvrcpNativeInterface.getInstance()),
+                Looper.myLooper());
+    }
 
-        mMediaPlayerList = new MediaPlayerList(Looper.myLooper(), this);
+    @VisibleForTesting
+    AvrcpTargetService(
+            AdapterService adapterService,
+            AudioManager audioManager,
+            AvrcpNativeInterface nativeInterface,
+            AvrcpVolumeManager volumeManager,
+            Looper looper) {
+        super(requireNonNull(adapterService));
+        mAudioManager = requireNonNull(audioManager);
+        mNativeInterface = requireNonNull(nativeInterface);
+
+        mMediaPlayerList = new MediaPlayerList(looper, this);
 
         IntentFilter userFilter = new IntentFilter();
         userFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
@@ -119,7 +135,7 @@ public class AvrcpTargetService extends ProfileService {
         mNativeInterface.init(this);
 
         mAvrcpVersion = AvrcpVersion.getCurrentSystemPropertiesValue();
-        mVolumeManager = new AvrcpVolumeManager(mAdapterService, mAudioManager, mNativeInterface);
+        mVolumeManager = requireNonNull(volumeManager);
 
         UserManager userManager = getApplicationContext().getSystemService(UserManager.class);
         if (userManager.isUserUnlocked()) {
@@ -257,6 +273,7 @@ public class AvrcpTargetService extends ProfileService {
         mPlayerSettingsManager.cleanup();
         mMediaPlayerList.cleanup();
         mNativeInterface.cleanup();
+        mVolumeManager.cleanup();
         getApplicationContext().unregisterReceiver(mUserUnlockedReceiver);
     }
 

@@ -432,6 +432,8 @@ public class AudioInputControl {
     /**
      * Gets the minimum value for the gain setting.
      *
+     * <p>The value return is relative to {@link #getGainSettingUnit} in 0.1 decibel units.
+     *
      * @return The minimum Gain Setting as defined in AICS 1.0 - 3.2.2.
      */
     @RequiresBluetoothConnectPermission
@@ -445,6 +447,8 @@ public class AudioInputControl {
 
     /**
      * Gets the maximum value for the gain setting.
+     *
+     * <p>The value return is relative to {@link #getGainSettingUnit} in 0.1 decibel units.
      *
      * @return The maximum Gain Setting as defined in AICS 1.0 - 3.2.3.
      */
@@ -543,6 +547,8 @@ public class AudioInputControl {
      *
      * <p>Register an {@link AudioInputCallback} to be notified via {@link
      * AudioInputCallback#onGainSettingChanged} when the gain setting changes.
+     *
+     * <p>The value return is relative to {@link #getGainSettingUnit} in 0.1 decibel units.
      *
      * @return The current gain setting as defined in AICS 1.0 - 2.2.1.1.
      */
