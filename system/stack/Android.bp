@@ -456,7 +456,7 @@ cc_fuzz {
     ],
     include_dirs: [
         "external/flatbuffers/include",
-        "external/rust/crates/quiche/deps/boringssl/src/include",
+        "external/rust/android-crates-io/crates/quiche/deps/boringssl/src/include",
         "packages/modules/Bluetooth/system/stack/btm",
         "packages/modules/Bluetooth/system/stack/test/common",
         "packages/modules/Bluetooth/system/stack/test/rfcomm",
@@ -509,7 +509,7 @@ cc_fuzz {
     ],
     include_dirs: [
         "external/flatbuffers/include",
-        "external/rust/crates/quiche/deps/boringssl/src/include",
+        "external/rust/android-crates-io/crates/quiche/deps/boringssl/src/include",
         "packages/modules/Bluetooth/system/stack/btm",
     ],
     srcs: [
@@ -561,7 +561,7 @@ cc_fuzz {
     ],
     include_dirs: [
         "external/flatbuffers/include",
-        "external/rust/crates/quiche/deps/boringssl/src/include",
+        "external/rust/android-crates-io/crates/quiche/deps/boringssl/src/include",
         "packages/modules/Bluetooth/system/stack/btm",
     ],
     srcs: [
@@ -607,7 +607,7 @@ cc_fuzz {
     ],
     include_dirs: [
         "external/flatbuffers/include",
-        "external/rust/crates/quiche/deps/boringssl/src/include",
+        "external/rust/android-crates-io/crates/quiche/deps/boringssl/src/include",
         "packages/modules/Bluetooth/system/stack/btm",
     ],
     srcs: [
@@ -645,7 +645,7 @@ cc_fuzz {
     ],
     include_dirs: [
         "external/flatbuffers/include",
-        "external/rust/crates/quiche/deps/boringssl/src/include",
+        "external/rust/android-crates-io/crates/quiche/deps/boringssl/src/include",
         "packages/modules/Bluetooth/system/stack/btm",
     ],
     srcs: [
@@ -692,7 +692,7 @@ cc_fuzz {
     ],
     include_dirs: [
         "external/flatbuffers/include",
-        "external/rust/crates/quiche/deps/boringssl/src/include",
+        "external/rust/android-crates-io/crates/quiche/deps/boringssl/src/include",
         "packages/modules/Bluetooth/system/stack/btm",
     ],
     srcs: [
