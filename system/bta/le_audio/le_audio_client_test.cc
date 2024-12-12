@@ -10023,6 +10023,71 @@ TEST_F(UnicastTest, TwoEarbudsStreamingProfileDisconnectStreamStopTimeout) {
   ASSERT_NE(device->GetConnectionState(), DeviceConnectState::DISCONNECTING_AND_RECOVER);
 }
 
+TEST_F(UnicastTest, TwoEarbudsStreamingProfileDisconnectForSingleEarbudStreamStopTimeout) {
+  uint8_t group_size = 2;
+  int group_id = 2;
+
+  // Report working CSIS
+  ON_CALL(mock_csis_client_module_, IsCsisClientRunning()).WillByDefault(Return(true));
+
+  ON_CALL(mock_csis_client_module_, GetDesiredSize(group_id))
+          .WillByDefault(Invoke([&](int /*group_id*/) { return group_size; }));
+
+  // First earbud
+  const RawAddress test_address0 = GetTestAddress(0);
+  ConnectCsisDevice(test_address0, 1 /*conn_id*/, codec_spec_conf::kLeAudioLocationFrontLeft,
+                    codec_spec_conf::kLeAudioLocationFrontLeft, group_size, group_id, 1 /* rank*/);
+
+  // Second earbud
+  const RawAddress test_address1 = GetTestAddress(1);
+  ConnectCsisDevice(test_address1, 2 /*conn_id*/, codec_spec_conf::kLeAudioLocationFrontRight,
+                    codec_spec_conf::kLeAudioLocationFrontRight, group_size, group_id, 2 /* rank*/,
+                    true /*connect_through_csis*/);
+
+  // Audio sessions are started only when device gets active
+  EXPECT_CALL(*mock_le_audio_source_hal_client_, Start(_, _, _)).Times(1);
+  EXPECT_CALL(*mock_le_audio_sink_hal_client_, Start(_, _, _)).Times(1);
+  LeAudioClient::Get()->GroupSetActive(group_id);
+  SyncOnMainLoop();
+
+  /* Use StartStream to generate situation when target state is IDLE, one device is streaming and
+   * other one reached IDLE state.
+   */
+  ON_CALL(mock_state_machine_, StartStream(_, _, _, _))
+          .WillByDefault([this](LeAudioDeviceGroup* group,
+                                types::LeAudioContextType /* context_type */,
+                                types::BidirectionalPair<
+                                        types::AudioContexts> /* metadata_context_types */,
+                                types::BidirectionalPair<std::vector<uint8_t>> /* ccid_lists */) {
+            group->SetTargetState(types::AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
+            auto group_state = group->GetState();
+            LeAudioDevice* device = group->GetFirstDevice();
+            for (auto& ase : device->ases_) {
+              ase.state = types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING;
+              ase.active = true;
+            }
+            device = group->GetNextDevice(device);
+            for (auto& ase : device->ases_) {
+              ase.state = types::AseState::BTA_LE_AUDIO_ASE_STATE_IDLE;
+              ase.active = false;
+            }
+
+            state_machine_callbacks_->OnStateTransitionTimeout(group->group_id_);
+
+            return true;
+          });
+
+  // Do not accept direct connect, but expect it to arrive.
+  ON_CALL(mock_gatt_interface_, Open(_, _, BTM_BLE_DIRECT_CONNECTION, _)).WillByDefault(Return());
+
+  EXPECT_CALL(mock_btm_interface_, AclDisconnectFromHandle(_, _)).Times(1);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_, OnGroupStatus(group_id, GroupStatus::INACTIVE))
+          .Times(0);
+  StartStreaming(AUDIO_USAGE_MEDIA, AUDIO_CONTENT_TYPE_MUSIC, group_id, AUDIO_SOURCE_INVALID, false,
+                 false);
+  SyncOnMainLoop();
+}
+
 TEST_F(UnicastTest, EarbudsWithStereoSinkMonoSourceSupporting32kHz) {
   const RawAddress test_address0 = GetTestAddress(0);
   int group_id = 0;
