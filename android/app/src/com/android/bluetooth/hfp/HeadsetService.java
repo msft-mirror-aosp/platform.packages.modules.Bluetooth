@@ -1415,6 +1415,7 @@ public class HeadsetService extends ProfileService {
             }
 
             // Make sure the Audio Manager knows the previous active device is no longer active.
+            BluetoothDevice previousActiveDevice = mActiveDevice;
             mActiveDevice = null;
             mNativeInterface.setActiveDevice(null);
             if (Utils.isScoManagedByAudioEnabled()) {
@@ -1422,7 +1423,7 @@ public class HeadsetService extends ProfileService {
                         .getAudioManager()
                         .handleBluetoothActiveDeviceChanged(
                                 null,
-                                mActiveDevice,
+                                previousActiveDevice,
                                 BluetoothProfileConnectionInfo.createHfpInfo());
             } else {
                 broadcastActiveDevice(null);
