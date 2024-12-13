@@ -963,6 +963,7 @@ cc_test {
         ":TestMockMainShimEntry",
         ":TestMockStackBtmInterface",
         ":TestMockStackBtmIso",
+        ":TestMockStackGatt",
         ":TestMockStackL2cap",
         ":TestStubOsi",
         "gatt/database.cc",
