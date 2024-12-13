@@ -755,23 +755,6 @@ public class BluetoothMapUtils {
         return format.format(cal.getTime());
     }
 
-    static boolean isDateTimeOlderThanOneYear(long timestamp) {
-        Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(timestamp);
-        Calendar oneYearAgo = Calendar.getInstance();
-        oneYearAgo.add(Calendar.YEAR, -1);
-        if (cal.before(oneYearAgo)) {
-            Log.v(
-                    TAG,
-                    "isDateTimeOlderThanOneYear "
-                            + cal.getTimeInMillis()
-                            + " oneYearAgo: "
-                            + oneYearAgo.getTimeInMillis());
-            return true;
-        }
-        return false;
-    }
-
     static boolean isDateTimeOlderThanDuration(long timestamp, Duration duration) {
         Instant nowMinusDuration = Instant.now().minus(duration);
         Instant dateTime = Instant.ofEpochMilli(timestamp);

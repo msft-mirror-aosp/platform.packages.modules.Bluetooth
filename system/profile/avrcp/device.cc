@@ -1518,14 +1518,14 @@ void Device::HandleSetBrowsedPlayer(uint8_t label, std::shared_ptr<SetBrowsedPla
   }
 
   log::verbose("player_id={}", pkt->GetPlayerId());
-  media_interface_->SetBrowsedPlayer(pkt->GetPlayerId(),
+  media_interface_->SetBrowsedPlayer(pkt->GetPlayerId(), CurrentFolder(),
                                      base::Bind(&Device::SetBrowsedPlayerResponse,
                                                 weak_ptr_factory_.GetWeakPtr(), label, pkt));
 }
 
 void Device::SetBrowsedPlayerResponse(uint8_t label, std::shared_ptr<SetBrowsedPlayerRequest> pkt,
-                                      bool success, std::string root_id, uint32_t num_items) {
-  log::verbose("success={} root_id=\"{}\" num_items={}", success, root_id, num_items);
+                                      bool success, std::string current_path, uint32_t num_items) {
+  log::verbose("success={} current_path=\"{}\" num_items={}", success, current_path, num_items);
 
   if (!success) {
     auto response = SetBrowsedPlayerResponseBuilder::MakeBuilder(Status::INVALID_PLAYER_ID, 0x0000,
@@ -1544,12 +1544,12 @@ void Device::SetBrowsedPlayerResponse(uint8_t label, std::shared_ptr<SetBrowsedP
 
   curr_browsed_player_id_ = pkt->GetPlayerId();
 
-  // Clear the path and push the new root.
+  // Clear the path and push the new root or current path.
   current_path_ = std::stack<std::string>();
-  current_path_.push(root_id);
+  current_path_.push(current_path);
 
   auto response = SetBrowsedPlayerResponseBuilder::MakeBuilder(Status::NO_ERROR, 0x0000, num_items,
-                                                               0, root_id);
+                                                               0, current_path);
   send_message(label, true, std::move(response));
 }
 

@@ -66,7 +66,6 @@ static constexpr uint32_t kMinSubeventLen = 0x0004E2;         // 1250us
 static constexpr uint32_t kMaxSubeventLen = 0x3d0900;         // 4s
 static constexpr uint8_t kTxPwrDelta = 0x00;
 static constexpr uint8_t kProcedureDataBufferSize = 0x10;  // Buffer size of Procedure data
-static constexpr uint16_t kMtuForRasData = 507;            // 512 - 5
 static constexpr uint16_t kRangingCounterMask = 0x0FFF;
 static constexpr uint8_t kInvalidConfigId = 0xFF;
 static constexpr uint8_t kMinConfigId = 0;
@@ -75,6 +74,9 @@ static constexpr uint16_t kDefaultIntervalMs = 1000;  // 1s
 static constexpr uint8_t kMaxRetryCounterForCreateConfig = 0x03;
 static constexpr uint8_t kMaxRetryCounterForCsEnable = 0x03;
 static constexpr uint16_t kInvalidConnInterval = 0;  // valid value is from 0x0006 to 0x0C80
+static constexpr uint16_t kDefaultRasMtu = 247;      // Section 3.1.2 of RAP 1.0
+static constexpr uint8_t kAttHeaderSize = 5;         // Section 3.2.2.1 of RAS 1.0
+static constexpr uint8_t kRasSegmentHeaderSize = 1;
 
 struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   struct CsProcedureData {
@@ -411,7 +413,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   void start_distance_measurement_with_cs(const Address& cs_remote_address,
                                           uint16_t connection_handle) {
     log::info("connection_handle: {}, address: {}", connection_handle, cs_remote_address);
-    if (!com::android::bluetooth::flags::channel_sounding_in_stack() && !is_local_cs_ready_) {
+    if (!com::android::bluetooth::flags::channel_sounding_in_stack() || !is_local_cs_ready_) {
       log::error("Channel Sounding is not enabled");
       distance_measurement_callbacks_->OnDistanceMeasurementStopped(
               cs_remote_address, REASON_INTERNAL_ERROR, METHOD_CS);
@@ -534,6 +536,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
         }
         distance_measurement_callbacks_->OnDistanceMeasurementStopped(
                 address, REASON_NO_LE_CONNECTION, METHOD_CS);
+        gatt_mtus_.erase(it->first);
         it = cs_requester_trackers_.erase(it);  // erase and get the next iterator
       } else {
         ++it;
@@ -580,6 +583,20 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     it->second.local_hci_role = local_hci_role;
   }
 
+  void handle_mtu_changed(uint16_t connection_handle, uint16_t mtu) {
+    log::info("gatt mtu is changed as {}", mtu);
+    gatt_mtus_[connection_handle] = mtu;
+  }
+
+  uint16_t get_ras_raw_payload_size(uint16_t connection_handle) {
+    auto it = gatt_mtus_.find(connection_handle);
+    uint16_t mtu = kDefaultRasMtu;
+    if (it != gatt_mtus_.end()) {
+      mtu = gatt_mtus_[connection_handle];
+    }
+    return mtu - kAttHeaderSize - kRasSegmentHeaderSize;
+  }
+
   void handle_ras_server_disconnected(const Address& identity_address, uint16_t connection_handle) {
     auto it = cs_responder_trackers_.find(connection_handle);
     if (it == cs_responder_trackers_.end()) {
@@ -592,6 +609,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       return;
     }
     cs_responder_trackers_.erase(connection_handle);
+    gatt_mtus_.erase(connection_handle);
   }
 
   void handle_vendor_specific_reply_complete(const Address address, uint16_t connection_handle,
@@ -686,7 +704,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       }
     } else {
       auto res_it = cs_responder_trackers_.find(connection_handle);
-      if (res_it != cs_requester_trackers_.end() &&
+      if (res_it != cs_responder_trackers_.end() &&
           res_it->second.state == CsTrackerState::WAIT_FOR_CONFIG_COMPLETE) {
         res_it->second.state = CsTrackerState::WAIT_FOR_SECURITY_ENABLED;
       } else {
@@ -1356,7 +1374,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       append_vector(procedure_data->ras_raw_data_, subevent_raw);
       // erase buffer
       procedure_data->ras_subevent_data_.clear();
-      send_on_demand_data(live_tracker->address, procedure_data);
+      send_on_demand_data(live_tracker->address, procedure_data,
+                          get_ras_raw_payload_size(connection_handle));
       // remove procedure data sent previously
       if (procedure_done_status == CsProcedureDoneStatus::ALL_RESULTS_COMPLETE) {
         delete_consumed_procedure_data(live_tracker, live_tracker->procedure_counter);
@@ -1364,20 +1383,21 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
   }
 
-  void send_on_demand_data(Address address, CsProcedureData* procedure_data) {
+  void send_on_demand_data(Address address, CsProcedureData* procedure_data,
+                           uint16_t raw_payload_size) {
     // Check is last segment or not.
     uint16_t unsent_data_size =
             procedure_data->ras_raw_data_.size() - procedure_data->ras_raw_data_index_;
     if (procedure_data->local_status != CsProcedureDoneStatus::PARTIAL_RESULTS &&
-        unsent_data_size <= kMtuForRasData) {
+        unsent_data_size <= raw_payload_size) {
       procedure_data->segmentation_header_.last_segment_ = 1;
-    } else if (unsent_data_size < kMtuForRasData) {
+    } else if (unsent_data_size < raw_payload_size) {
       log::verbose("waiting for more data, current unsent data size {}", unsent_data_size);
       return;
     }
 
     // Create raw data for segment_data;
-    uint16_t copy_size = unsent_data_size < kMtuForRasData ? unsent_data_size : kMtuForRasData;
+    uint16_t copy_size = unsent_data_size < raw_payload_size ? unsent_data_size : raw_payload_size;
     auto copy_start = procedure_data->ras_raw_data_.begin() + procedure_data->ras_raw_data_index_;
     auto copy_end = copy_start + copy_size;
     std::vector<uint8_t> subevent_data(copy_start, copy_end);
@@ -1398,8 +1418,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (procedure_data->segmentation_header_.last_segment_) {
       // last segment sent, clear buffer
       procedure_data->ras_raw_data_.clear();
-    } else if (unsent_data_size > kMtuForRasData) {
-      send_on_demand_data(address, procedure_data);
+    } else if (unsent_data_size > raw_payload_size) {
+      send_on_demand_data(address, procedure_data, raw_payload_size);
     }
   }
 
@@ -2458,6 +2478,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   std::unordered_map<Address, RSSITracker> rssi_trackers;
   std::unordered_map<uint16_t, CsTracker> cs_requester_trackers_;
   std::unordered_map<uint16_t, CsTracker> cs_responder_trackers_;
+  std::unordered_map<uint16_t, uint16_t> gatt_mtus_;
   DistanceMeasurementCallbacks* distance_measurement_callbacks_;
   CsOptionalSubfeaturesSupported cs_subfeature_supported_;
   uint8_t num_antennas_supported_ = 0x01;
@@ -2549,6 +2570,10 @@ void DistanceMeasurementManager::HandleRasServerConnected(const Address& identit
                                                           hci::Role local_hci_role) {
   CallOn(pimpl_.get(), &impl::handle_ras_server_connected, identity_address, connection_handle,
          local_hci_role);
+}
+
+void DistanceMeasurementManager::HandleMtuChanged(uint16_t connection_handle, uint16_t mtu) {
+  CallOn(pimpl_.get(), &impl::handle_mtu_changed, connection_handle, mtu);
 }
 
 void DistanceMeasurementManager::HandleRasServerDisconnected(
