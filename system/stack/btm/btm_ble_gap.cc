@@ -30,6 +30,7 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <bitset>
 #include <cstdint>
 #include <list>
 #include <memory>
@@ -1464,15 +1465,25 @@ void btm_send_hci_set_scan_params(uint8_t scan_type, uint16_t scan_int, uint16_t
                                   uint8_t scan_phy, tBLE_ADDR_TYPE addr_type_own,
                                   uint8_t scan_filter_policy) {
   if (bluetooth::shim::GetController()->SupportsBleExtendedAdvertising()) {
-    scanning_phy_cfg phy_cfg;
-    phy_cfg.scan_type = scan_type;
-    phy_cfg.scan_int = scan_int;
-    phy_cfg.scan_win = scan_win;
-
     if (com::android::bluetooth::flags::phy_to_native()) {
+      int phy_cnt = std::bitset<std::numeric_limits<uint8_t>::digits>(scan_phy).count();
+
+      scanning_phy_cfg phy_cfgs[phy_cnt];
+
+      for (int i = 0; i < phy_cnt; i++) {
+        phy_cfgs[i].scan_type = scan_type;
+        phy_cfgs[i].scan_int = scan_int;
+        phy_cfgs[i].scan_win = scan_win;
+      }
+
       btsnd_hcic_ble_set_extended_scan_params(addr_type_own, scan_filter_policy, scan_phy,
-                                              &phy_cfg);
+                                              phy_cfgs);
     } else {
+      scanning_phy_cfg phy_cfg;
+      phy_cfg.scan_type = scan_type;
+      phy_cfg.scan_int = scan_int;
+      phy_cfg.scan_win = scan_win;
+
       btsnd_hcic_ble_set_extended_scan_params(addr_type_own, scan_filter_policy, 1, &phy_cfg);
     }
   } else {
