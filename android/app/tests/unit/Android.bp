@@ -55,7 +55,7 @@ java_defaults {
     platform_apis: true,
 
     test_suites: [
-        "automotive-tests",
+        "automotive-general-tests",
         "general-tests",
         "mts-bluetooth",
     ],
