@@ -1509,6 +1509,8 @@ void bta_debug_av_dump(int fd) {
             alarm_is_scheduled(p_scb->link_signalling_timer) ? "Scheduled" : "Not scheduled");
     dprintf(fd, "  Accept signalling timer: %s\n",
             alarm_is_scheduled(p_scb->accept_signalling_timer) ? "Scheduled" : "Not scheduled");
+    dprintf(fd, "  Accept open timer: %s\n",
+            alarm_is_scheduled(p_scb->accept_open_timer) ? "Scheduled" : "Not scheduled");
     // TODO: Print p_scb->sep_info[], cfg, avrc_ct_timer, current_codec ?
     dprintf(fd, "    L2CAP Channel ID: %d\n", p_scb->l2c_cid);
     dprintf(fd, "    Stream MTU: %d\n", p_scb->stream_mtu);
