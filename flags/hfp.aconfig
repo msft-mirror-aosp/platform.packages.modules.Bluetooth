@@ -128,3 +128,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "check_peer_hf_indicator"
+    namespace: "bluetooth"
+    description: "Flag to check the peer HF indicator before setting feature mask"
+    bug: "383933502"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
