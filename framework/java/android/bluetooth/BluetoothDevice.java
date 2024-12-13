@@ -1728,10 +1728,10 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     /**
      * Returns the identity address and identity address type of this BluetoothDevice.
      *
-     * @return a {@link #BluetoothAddress} containing identity address and identity address type. If
+     * @return a {@link BluetoothAddress} containing identity address and identity address type. If
      *     Bluetooth is not enabled or identity address type is not available, it will return a
-     *     {@link #BluetoothAddress} containing {@link #ADDRESS_TYPE_UNKNOWN} device for the
-     *     identity address type.
+     *     {@link BluetoothAddress} containing {@link #ADDRESS_TYPE_UNKNOWN} device for the identity
+     *     address type.
      */
     @FlaggedApi(Flags.FLAG_IDENTITY_ADDRESS_TYPE_API)
     @RequiresBluetoothConnectPermission
@@ -3804,11 +3804,24 @@ public final class BluetoothDevice implements Parcelable, Attributable {
             mAddressType = addressType;
         }
 
+        /**
+         * Returns the address of this {@link BluetoothAddress}.
+         *
+         * <p>For example, "00:11:22:AA:BB:CC".
+         *
+         * @return Bluetooth address as string
+         */
         @Nullable
         public String getAddress() {
             return mAddress;
         }
 
+        /**
+         * Returns the address type of this {@link BluetoothAddress}, one of {@link
+         * #ADDRESS_TYPE_PUBLIC}, {@link #ADDRESS_TYPE_RANDOM}, or {@link #ADDRESS_TYPE_UNKNOWN}.
+         *
+         * @return Bluetooth address type
+         */
         @AddressType
         public int getAddressType() {
             return mAddressType;
