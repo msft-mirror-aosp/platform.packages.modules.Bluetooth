@@ -16,7 +16,7 @@
 
 package com.android.bluetooth.le_scan;
 
-import static com.android.bluetooth.Utils.sSystemClock;
+import static com.android.bluetooth.Utils.getSystemClock;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -78,7 +78,8 @@ public class AppScanStatsTest {
         WorkSource source = null;
 
         AppScanStats appScanStats =
-                new AppScanStats(name, source, map, mAdapterService, mMockScanHelper, sSystemClock);
+                new AppScanStats(
+                        name, source, map, mAdapterService, mMockScanHelper, getSystemClock());
 
         assertThat(appScanStats.mScannerMap).isEqualTo(map);
         assertThat(appScanStats.mScanHelper).isEqualTo(mMockScanHelper);
@@ -92,7 +93,8 @@ public class AppScanStatsTest {
         WorkSource source = null;
 
         AppScanStats appScanStats =
-                new AppScanStats(name, source, map, mAdapterService, mMockScanHelper, sSystemClock);
+                new AppScanStats(
+                        name, source, map, mAdapterService, mMockScanHelper, getSystemClock());
 
         ScanSettings settings = new ScanSettings.Builder().build();
         List<ScanFilter> filters = new ArrayList<>();

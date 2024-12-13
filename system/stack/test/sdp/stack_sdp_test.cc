@@ -36,9 +36,6 @@
 #define BT_DEFAULT_BUFFER_SIZE (4096 + 16)
 #endif
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Invoke;
@@ -130,7 +127,7 @@ TEST_F(StackSdpInitTest, sdp_service_search_request) {
   ASSERT_EQ(p_ccb->con_state, tSDP_STATE::IDLE);
 }
 
-tCONN_CB* find_ccb(uint16_t cid, tSDP_STATE state) {
+static tCONN_CB* find_ccb(uint16_t cid, tSDP_STATE state) {
   uint16_t xx;
   tCONN_CB* p_ccb;
 
@@ -188,7 +185,7 @@ TEST_F(StackSdpInitTest, sdp_service_search_request_queuing) {
   ASSERT_EQ(p_ccb2->con_state, tSDP_STATE::IDLE);
 }
 
-void sdp_callback(const RawAddress& /* bd_addr */, tSDP_RESULT result) {
+static void sdp_callback(const RawAddress& /* bd_addr */, tSDP_RESULT result) {
   if (result == tSDP_STATUS::SDP_SUCCESS) {
     ASSERT_TRUE(SDP_ServiceSearchRequest(addr, sdp_db, nullptr));
   }

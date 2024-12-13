@@ -18,17 +18,41 @@ package com.android.bluetooth.avrcp;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyObject;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.verify;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.res.Resources;
+import android.media.AudioDeviceCallback;
+import android.media.AudioManager;
+import android.media.session.MediaSessionManager;
 import android.net.Uri;
+import android.os.UserManager;
+import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.audio_util.Image;
 import com.android.bluetooth.audio_util.Metadata;
+import com.android.bluetooth.btservice.AdapterService;
 
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +61,62 @@ import java.util.List;
 @RunWith(AndroidJUnit4.class)
 public class AvrcpTargetServiceTest {
 
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    private @Mock AdapterService mMockAdapterService;
+    private @Mock AudioManager mMockAudioManager;
+    private @Mock AvrcpNativeInterface mMockNativeInterface;
+    private @Mock UserManager mMockUserManager;
+    private @Mock Resources mMockResources;
+    private @Mock SharedPreferences mMockSharedPreferences;
+    private @Mock SharedPreferences.Editor mMockSharedPreferencesEditor;
+
+    private @Captor ArgumentCaptor<AudioDeviceCallback> mAudioDeviceCb;
+
+    private MediaSessionManager mMediaSessionManager;
+    private TestLooper mLooper;
+
     private static final String TEST_DATA = "-1";
+
+    @Before
+    public void setUp() throws Exception {
+        mLooper = new TestLooper();
+        mLooper.startAutoDispatch();
+
+        doReturn(mMockAudioManager)
+                .when(mMockAdapterService)
+                .getSystemService(Context.AUDIO_SERVICE);
+        doReturn(Context.AUDIO_SERVICE)
+                .when(mMockAdapterService)
+                .getSystemServiceName(AudioManager.class);
+
+        mMediaSessionManager =
+                InstrumentationRegistry.getInstrumentation()
+                        .getTargetContext()
+                        .getSystemService(MediaSessionManager.class);
+        TestUtils.mockGetSystemService(
+                mMockAdapterService,
+                Context.MEDIA_SESSION_SERVICE,
+                MediaSessionManager.class,
+                mMediaSessionManager);
+
+        doReturn(mLooper.getNewExecutor()).when(mMockAdapterService).getMainExecutor();
+
+        doReturn(mMockAdapterService).when(mMockAdapterService).getApplicationContext();
+        TestUtils.mockGetSystemService(
+                mMockAdapterService, Context.USER_SERVICE, UserManager.class, mMockUserManager);
+        doReturn(mMockResources).when(mMockAdapterService).getResources();
+
+        doReturn(mMockSharedPreferencesEditor).when(mMockSharedPreferences).edit();
+        doReturn(mMockSharedPreferences)
+                .when(mMockAdapterService)
+                .getSharedPreferences(anyString(), anyInt());
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+    }
 
     @Test
     public void testQueueUpdateData() {
@@ -74,5 +153,28 @@ public class AvrcpTargetServiceTest {
     private Metadata createEmptyMetadata() {
         Metadata.Builder builder = new Metadata.Builder();
         return builder.useDefaults().build();
+    }
+
+    @Test
+    public void testServiceInstance() {
+        AvrcpVolumeManager volumeManager =
+                new AvrcpVolumeManager(
+                        mMockAdapterService, mMockAudioManager, mMockNativeInterface);
+        AvrcpTargetService service =
+                new AvrcpTargetService(
+                        mMockAdapterService,
+                        mMockAudioManager,
+                        mMockNativeInterface,
+                        volumeManager,
+                        mLooper.getLooper());
+
+        service.start();
+        verify(mMockAudioManager)
+                .registerAudioDeviceCallback(mAudioDeviceCb.capture(), anyObject());
+
+        service.stop();
+        service.cleanup();
+        assertThat(mAudioDeviceCb.getValue()).isNotNull();
+        verify(mMockAudioManager).unregisterAudioDeviceCallback(mAudioDeviceCb.getValue());
     }
 }

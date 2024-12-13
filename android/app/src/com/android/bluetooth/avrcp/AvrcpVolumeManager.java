@@ -421,6 +421,11 @@ class AvrcpVolumeManager extends AudioDeviceCallback {
         mDeviceMap.remove(device);
     }
 
+    /** Cleans up and unregisters any registered callbacks. */
+    void cleanup() {
+        mAudioManager.unregisterAudioDeviceCallback(this);
+    }
+
     public void dump(StringBuilder sb) {
         sb.append("AvrcpVolumeManager:\n");
         sb.append("  mCurrentDevice: ").append(mCurrentDevice).append("\n");

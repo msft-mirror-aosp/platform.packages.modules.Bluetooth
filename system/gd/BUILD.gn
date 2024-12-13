@@ -67,7 +67,6 @@ static_library("libbluetooth_gd") {
     "//bt/system/gd/hal:BluetoothHalSources_socket_host",
     "//bt/system/gd/metrics:BluetoothMetricsSources",
     "//bt/system/gd/neighbor:BluetoothNeighborSources",
-    "//bt/system/gd/shim:BluetoothShimSources",
     "//bt/system/gd/storage:BluetoothStorageSources",
     "//bt/system/gd/sysprops:BluetoothSyspropsSources",
     "//bt/system/pdl:BluetoothGeneratedPackets_h",

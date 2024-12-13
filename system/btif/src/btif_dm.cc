@@ -232,7 +232,7 @@ typedef struct {
 
 #define BTA_SERVICE_ID_TO_SERVICE_MASK(id) (1 << (id))
 
-#define MAX_BTIF_BOND_EVENT_ENTRIES 15
+#define MAX_BTIF_BOND_EVENT_ENTRIES 31
 
 #define MAX_NUM_DEVICES_IN_EIR_UUID_CACHE 128
 
