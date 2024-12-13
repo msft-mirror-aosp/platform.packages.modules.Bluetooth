@@ -26,7 +26,6 @@ aconfig("bluetooth_flags_c_lib") {
     "l2cap.aconfig",
     "le_advertising.aconfig",
     "leaudio.aconfig",
-    "map.aconfig",
     "mapclient.aconfig",
     "mcp.aconfig",
     "metric.aconfig",
