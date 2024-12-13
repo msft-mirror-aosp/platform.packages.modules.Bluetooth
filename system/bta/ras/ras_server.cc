@@ -339,7 +339,7 @@ public:
     btgatt_db_element_t ras_control_point;
     ras_control_point.uuid = kRasControlPointCharacteristic;
     ras_control_point.type = BTGATT_DB_CHARACTERISTIC;
-    ras_control_point.properties = GATT_CHAR_PROP_BIT_WRITE | GATT_CHAR_PROP_BIT_INDICATE;
+    ras_control_point.properties = GATT_CHAR_PROP_BIT_WRITE_NR | GATT_CHAR_PROP_BIT_INDICATE;
     ras_control_point.permissions = GATT_PERM_WRITE_ENCRYPTED | key_mask;
     service.push_back(ras_control_point);
     service.push_back(ccc_descriptor);
