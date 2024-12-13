@@ -19,6 +19,7 @@ package com.android.bluetooth.bass_client;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 
 import static com.android.bluetooth.flags.Flags.leaudioAllowedContextMask;
@@ -1532,7 +1533,7 @@ public class BassClientService extends ProfileService {
             return BluetoothStatusCodes.ERROR_BAD_PARAMETERS;
         }
 
-        if (getConnectionState(device) != BluetoothProfile.STATE_CONNECTED) {
+        if (getConnectionState(device) != STATE_CONNECTED) {
             log("validateParameters: device is not connected, device: " + device);
             return BluetoothStatusCodes.ERROR_REMOTE_LINK_ERROR;
         }
@@ -1661,10 +1662,10 @@ public class BassClientService extends ProfileService {
             }
 
             /* Restore allowed context mask for unicast in case if last connected broadcast
-             * delegator device which has external source disconnectes.
+             * delegator device which has external source disconnects.
              */
             checkAndResetGroupAllowedContextMask();
-        } else if (toState == BluetoothProfile.STATE_CONNECTED) {
+        } else if (toState == STATE_CONNECTED) {
             handleReconnectingAudioSharingModeDevice(device);
         }
     }
@@ -3579,7 +3580,7 @@ public class BassClientService extends ProfileService {
                 if (devices.stream()
                         .anyMatch(
                                 d ->
-                                        ((getConnectionState(d) == BluetoothProfile.STATE_CONNECTED)
+                                        ((getConnectionState(d) == STATE_CONNECTED)
                                                 && leAudioService.isPrimaryDevice(d)))) {
                     continue;
                 }
@@ -3600,8 +3601,7 @@ public class BassClientService extends ProfileService {
                                         d ->
                                                 !d.equals(sink)
                                                         && (getConnectionState(d)
-                                                                == BluetoothProfile
-                                                                        .STATE_CONNECTED))) {
+                                                                == STATE_CONNECTED))) {
                     iterator.remove();
                     leAudioService.stopBroadcast(broadcastId);
                     continue;
@@ -3612,19 +3612,17 @@ public class BassClientService extends ProfileService {
                         .anyMatch(
                                 d ->
                                         !d.equals(sink)
-                                                && (getConnectionState(d)
-                                                        == BluetoothProfile.STATE_CONNECTED))) {
+                                                && (getConnectionState(d) == STATE_CONNECTED))) {
                     continue;
-                } else {
-                    Log.d(
-                            TAG,
-                            "handleUnintendedDeviceDisconnection: No more potential broadcast "
-                                    + "(broadcast ID: "
-                                    + broadcastId
-                                    + ") receivers - stopping broadcast");
-                    mDialingOutTimeoutEvent = new DialingOutTimeoutEvent(broadcastId);
-                    mHandler.postDelayed(mDialingOutTimeoutEvent, DIALING_OUT_TIMEOUT_MS);
                 }
+                Log.d(
+                        TAG,
+                        "handleUnintendedDeviceDisconnection: No more potential broadcast "
+                                + "(broadcast ID: "
+                                + broadcastId
+                                + ") receivers - stopping broadcast");
+                mDialingOutTimeoutEvent = new DialingOutTimeoutEvent(broadcastId);
+                mHandler.postDelayed(mDialingOutTimeoutEvent, DIALING_OUT_TIMEOUT_MS);
             }
         }
     }
@@ -4185,7 +4183,7 @@ public class BassClientService extends ProfileService {
                     try {
                         invokeCallback(callback, msg);
                     } catch (RemoteException e) {
-                        continue;
+                        // Ignore exception
                     }
                 }
                 mCallbacksList.finishBroadcast();
