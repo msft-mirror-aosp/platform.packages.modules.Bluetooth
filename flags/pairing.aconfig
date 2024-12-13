@@ -230,3 +230,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "handle_le_enc_queueing"
+    namespace: "bluetooth"
+    description: "Handle LE Encryption queuing to handle multiple encryption requests from different profiles"
+    bug: "383889628"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
