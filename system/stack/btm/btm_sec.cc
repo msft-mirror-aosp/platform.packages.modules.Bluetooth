@@ -1033,12 +1033,22 @@ tBTM_STATUS BTM_SetEncryption(const RawAddress& bd_addr, tBT_TRANSPORT transport
                                                           : p_dev_rec->sec_rec.classic_link;
 
   /* Enqueue security request if security is active */
-  if (p_dev_rec->sec_rec.p_callback || (p_dev_rec->sec_rec.le_link != tSECURITY_STATE::IDLE &&
-                                        p_dev_rec->sec_rec.classic_link != tSECURITY_STATE::IDLE)) {
-    log::warn("Security Manager: BTM_SetEncryption busy, enqueue request");
-    btm_sec_queue_encrypt_request(bd_addr, transport, p_callback, p_ref_data, sec_act);
-    log::info("Queued start encryption");
-    return tBTM_STATUS::BTM_CMD_STARTED;
+  if (!com::android::bluetooth::flags::le_enc_on_reconnection()) {
+    if (p_dev_rec->sec_rec.p_callback ||
+        (p_dev_rec->sec_rec.le_link != tSECURITY_STATE::IDLE &&
+         p_dev_rec->sec_rec.classic_link != tSECURITY_STATE::IDLE)) {
+      log::warn("Security Manager: BTM_SetEncryption busy, enqueue request");
+      btm_sec_queue_encrypt_request(bd_addr, transport, p_callback, p_ref_data, sec_act);
+      log::info("Queued start encryption");
+      return tBTM_STATUS::BTM_CMD_STARTED;
+    }
+  } else {
+    if (p_dev_rec->sec_rec.p_callback || state != tSECURITY_STATE::IDLE) {
+      log::warn("Security Manager: BTM_SetEncryption busy, enqueue request");
+      btm_sec_queue_encrypt_request(bd_addr, transport, p_callback, p_ref_data, sec_act);
+      log::info("Queued start encryption");
+      return tBTM_STATUS::BTM_CMD_STARTED;
+    }
   }
 
   p_dev_rec->sec_rec.p_callback = p_callback;
@@ -4974,17 +4984,32 @@ static void btm_sec_check_pending_enc_req(tBTM_SEC_DEV_REC* p_dev_rec, tBT_TRANS
   for (const list_node_t* node = list_begin(list); node != list_end(list);) {
     tBTM_SEC_QUEUE_ENTRY* p_e = (tBTM_SEC_QUEUE_ENTRY*)list_node(node);
     node = list_next(node);
-
+    log::debug("btm_sec_check_pending_enc_req : sec_act=0x{:x}", p_e->sec_act);
     if (p_e->bd_addr == p_dev_rec->bd_addr && p_e->psm == 0 && p_e->transport == transport) {
-      if (encr_enable == 0 || transport == BT_TRANSPORT_BR_EDR ||
-          p_e->sec_act == BTM_BLE_SEC_ENCRYPT || p_e->sec_act == BTM_BLE_SEC_ENCRYPT_NO_MITM ||
-          (p_e->sec_act == BTM_BLE_SEC_ENCRYPT_MITM &&
-           p_dev_rec->sec_rec.sec_flags & BTM_SEC_LE_AUTHENTICATED)) {
-        if (p_e->p_callback) {
-          (*p_e->p_callback)(p_dev_rec->bd_addr, transport, p_e->p_ref_data, res);
+      if (!com::android::bluetooth::flags::le_enc_on_reconnection()) {
+        if (encr_enable == 0 || transport == BT_TRANSPORT_BR_EDR ||
+            p_e->sec_act == BTM_BLE_SEC_ENCRYPT || p_e->sec_act == BTM_BLE_SEC_ENCRYPT_NO_MITM ||
+            (p_e->sec_act == BTM_BLE_SEC_ENCRYPT_MITM &&
+             p_dev_rec->sec_rec.sec_flags & BTM_SEC_LE_AUTHENTICATED)) {
+          if (p_e->p_callback) {
+            (*p_e->p_callback)(p_dev_rec->bd_addr, transport, p_e->p_ref_data, res);
+          }
+          fixed_queue_try_remove_from_queue(btm_sec_cb.sec_pending_q, (void*)p_e);
+          osi_free(p_e);
         }
-        fixed_queue_try_remove_from_queue(btm_sec_cb.sec_pending_q, (void*)p_e);
-        osi_free(p_e);
+      } else {
+        /*pending LE encryption requests can have sec_act as BTM_BLE_SEC_NONE*/
+        if (encr_enable == 0 || transport == BT_TRANSPORT_BR_EDR ||
+            p_e->sec_act == BTM_BLE_SEC_NONE || p_e->sec_act == BTM_BLE_SEC_ENCRYPT ||
+            p_e->sec_act == BTM_BLE_SEC_ENCRYPT_NO_MITM ||
+            (p_e->sec_act == BTM_BLE_SEC_ENCRYPT_MITM &&
+             p_dev_rec->sec_rec.sec_flags & BTM_SEC_LE_AUTHENTICATED)) {
+          if (p_e->p_callback) {
+            (*p_e->p_callback)(p_dev_rec->bd_addr, transport, p_e->p_ref_data, res);
+          }
+          fixed_queue_try_remove_from_queue(btm_sec_cb.sec_pending_q, (void*)p_e);
+          osi_free(p_e);
+        }
       }
     }
   }
