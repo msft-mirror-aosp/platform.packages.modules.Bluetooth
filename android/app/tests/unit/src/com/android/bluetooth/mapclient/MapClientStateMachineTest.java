@@ -108,6 +108,7 @@ public class MapClientStateMachineTest {
     private Bmessage mTestIncomingMmsBmessage;
     private String mTestMessageSmsHandle = "0001";
     private String mTestMessageMmsHandle = "0002";
+    private String mTestMessageUnknownHandle = "0003";
     boolean mIsAdapterServiceSet;
     boolean mIsMapClientServiceStarted;
 
@@ -719,6 +720,48 @@ public class MapClientStateMachineTest {
                         eq(mTestMessageMmsHandle),
                         any(),
                         eq(MESSAGE_NOT_SEEN));
+    }
+
+    @Test
+    public void testReceiveNewMessage_handleNotRecognized_messageDropped() {
+        setupSdpRecordReceipt();
+        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
+        mMceStateMachine.sendMessage(msg);
+
+        // verifying that state machine is in the Connected state
+        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+
+        // Send new message event with handle A
+        String dateTime = new ObexTime(Instant.now()).toString();
+        EventReport event =
+                createNewEventReport(
+                        "NewMessage",
+                        dateTime,
+                        mTestMessageMmsHandle,
+                        "telecom/msg/inbox",
+                        null,
+                        "MMS");
+
+        // Prepare to send back message content, but use handle B
+        when(mMockRequestGetMessage.getHandle()).thenReturn(mTestMessageUnknownHandle);
+        when(mMockRequestGetMessage.getMessage()).thenReturn(mTestIncomingMmsBmessage);
+
+        mMceStateMachine.receiveEvent(event);
+
+        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
+        verify(mMockMasClient).makeRequest(any(RequestGetMessage.class));
+
+        msg =
+                Message.obtain(
+                        mHandler,
+                        MceStateMachine.MSG_MAS_REQUEST_COMPLETED,
+                        mMockRequestGetMessage);
+        mMceStateMachine.sendMessage(msg);
+
+        // We should drop the message and not store it, as it's not one we requested
+        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
+        verify(mMockDatabase, never())
+                .storeMessage(any(Bmessage.class), anyString(), anyLong(), anyBoolean());
     }
 
     /** Test seen status set in database on initial download */
