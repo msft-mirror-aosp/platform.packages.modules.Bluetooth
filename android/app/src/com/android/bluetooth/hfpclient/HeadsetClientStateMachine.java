@@ -649,8 +649,6 @@ public class HeadsetClientStateMachine extends StateMachine {
                     action = HeadsetClientHalConstants.CALL_ACTION_CHLD_1;
                 } else if (getCall(HfpClientCall.CALL_STATE_ACTIVE) != null) {
                     action = HeadsetClientHalConstants.CALL_ACTION_CHLD_3;
-                } else if (flag == BluetoothHeadsetClient.CALL_ACCEPT_NONE) {
-                    action = HeadsetClientHalConstants.CALL_ACTION_CHLD_2;
                 } else {
                     action = HeadsetClientHalConstants.CALL_ACTION_CHLD_2;
                 }
