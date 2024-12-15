@@ -571,8 +571,9 @@ static void hh_open_handler(tBTA_HH_CONN& conn) {
       dev_status = p_dev->dev_status;
     }
 
-    if (std::find(btif_hh_cb.pending_connections.begin(), btif_hh_cb.pending_connections.end(),
-                  conn.link_spec) != btif_hh_cb.pending_connections.end()) {
+    if (std::find(btif_hh_cb.new_connection_requests.begin(),
+                  btif_hh_cb.new_connection_requests.end(),
+                  conn.link_spec) != btif_hh_cb.new_connection_requests.end()) {
       log::verbose("Device connection was pending for: {}, status: {}", conn.link_spec,
                    btif_hh_status_text(btif_hh_cb.status));
       dev_status = BTHH_CONN_STATE_CONNECTING;
@@ -602,7 +603,7 @@ static void hh_open_handler(tBTA_HH_CONN& conn) {
     BTHH_STATE_UPDATE(conn.link_spec, BTHH_CONN_STATE_CONNECTING);
   }
 
-  btif_hh_cb.pending_connections.remove(conn.link_spec);
+  btif_hh_cb.new_connection_requests.remove(conn.link_spec);
 
   if (conn.status != BTA_HH_OK) {
     btif_dm_hh_open_failed(&conn.link_spec.addrt.bda);
@@ -1036,7 +1037,7 @@ bt_status_t btif_hh_virtual_unplug(const tAclLinkSpec& link_spec) {
     if (btif_hh_find_dev_by_link_spec(link_spec) != nullptr ||
         btif_hh_find_added_dev(link_spec) != nullptr) {
       // Remove pending connection if address matches
-      btif_hh_cb.pending_connections.remove_if(
+      btif_hh_cb.new_connection_requests.remove_if(
               [link_spec](auto ls) { return ls.addrt.bda == link_spec.addrt.bda; });
 
       btif_hh_remove_device(link_spec);
@@ -1047,7 +1048,7 @@ bt_status_t btif_hh_virtual_unplug(const tAclLinkSpec& link_spec) {
 
   // Abort outgoing initial connection attempt
   bool pending_connection = false;
-  for (auto ls : btif_hh_cb.pending_connections) {
+  for (auto ls : btif_hh_cb.new_connection_requests) {
     if (ls.addrt.bda == link_spec.addrt.bda) {
       pending_connection = true;
       break;
@@ -1055,7 +1056,7 @@ bt_status_t btif_hh_virtual_unplug(const tAclLinkSpec& link_spec) {
   }
 
   if (pending_connection) {
-    btif_hh_cb.pending_connections.remove_if(
+    btif_hh_cb.new_connection_requests.remove_if(
             [link_spec](auto ls) { return ls.addrt.bda == link_spec.addrt.bda; });
 
     /* need to notify up-layer device is disconnected to avoid
@@ -1120,11 +1121,16 @@ bt_status_t btif_hh_connect(const tAclLinkSpec& link_spec) {
     p_dev->dev_status = BTHH_CONN_STATE_CONNECTING;
   }
 
+  // Add the new connection to the pending list
+  if (!com::android::bluetooth::flags::pending_hid_connection_cancellation() ||
+      added_dev == nullptr) {
+    btif_hh_cb.new_connection_requests.push_back(link_spec);
+  }
+
   /* Not checking the NORMALLY_Connectible flags from sdp record, and anyways
    sending this request from host, for subsequent user initiated connection.
    If the remote is not in pagescan mode, we will do 2 retries to connect before
    giving up */
-  btif_hh_cb.pending_connections.push_back(link_spec);
   BTA_HhOpen(link_spec);
 
   do_in_jni_thread(base::Bind(
@@ -1580,7 +1586,7 @@ static bt_status_t connect(RawAddress* bd_addr, tBLE_ADDR_TYPE addr_type, tBT_TR
   BTHH_LOG_LINK(link_spec);
 
   if (!com::android::bluetooth::flags::initiate_multiple_hid_connections() &&
-      !btif_hh_cb.pending_connections.empty()) {
+      !btif_hh_cb.new_connection_requests.empty()) {
     log::warn("HH status = {}", btif_hh_status_text(btif_hh_cb.status));
     return BT_STATUS_BUSY;
   } else if (btif_hh_cb.status == BTIF_HH_DISABLED || btif_hh_cb.status == BTIF_HH_DISABLING) {
@@ -1645,12 +1651,16 @@ static bt_status_t disconnect(RawAddress* bd_addr, tBLE_ADDR_TYPE addr_type,
         log::warn("Device {} already not connected, state: {}", p_dev->link_spec,
                   bthh_connection_state_text(p_dev->dev_status));
         p_dev->dev_status = BTHH_CONN_STATE_DISCONNECTED;
+
+        if (com::android::bluetooth::flags::pending_hid_connection_cancellation()) {
+          btif_hh_cb.new_connection_requests.remove(link_spec);
+        }
         return BT_STATUS_DONE;
       } else if (com::android::bluetooth::flags::initiate_multiple_hid_connections() &&
-                 std::find(btif_hh_cb.pending_connections.begin(),
-                           btif_hh_cb.pending_connections.end(),
-                           link_spec) != btif_hh_cb.pending_connections.end()) {
-        btif_hh_cb.pending_connections.remove(link_spec);
+                 std::find(btif_hh_cb.new_connection_requests.begin(),
+                           btif_hh_cb.new_connection_requests.end(),
+                           link_spec) != btif_hh_cb.new_connection_requests.end()) {
+        btif_hh_cb.new_connection_requests.remove(link_spec);
         log::info("Pending connection cancelled {}", link_spec);
         return BT_STATUS_SUCCESS;
       }
@@ -1688,7 +1698,7 @@ static bt_status_t virtual_unplug(RawAddress* bd_addr, tBLE_ADDR_TYPE addr_type,
   btif_hh_device_t* p_dev = btif_hh_find_dev_by_link_spec(link_spec);
   if (com::android::bluetooth::flags::remove_input_device_on_vup()) {
     bool pending_connection = false;
-    for (auto ls : btif_hh_cb.pending_connections) {
+    for (auto ls : btif_hh_cb.new_connection_requests) {
       if (ls.addrt.bda == link_spec.addrt.bda) {
         pending_connection = true;
         break;
@@ -2098,7 +2108,7 @@ static void cleanup(void) {
     btif_hh_cb.service_dereg_active = FALSE;
     btif_disable_service(BTA_HID_SERVICE_ID);
   }
-  btif_hh_cb.pending_connections.clear();
+  btif_hh_cb.new_connection_requests.clear();
   for (i = 0; i < BTIF_HH_MAX_HID; i++) {
     p_dev = &btif_hh_cb.devices[i];
     int fd = (com::android::bluetooth::flags::hid_report_queuing() ? p_dev->internal_send_fd
@@ -2184,7 +2194,7 @@ void DumpsysHid(int fd) {
   LOG_DUMPSYS(fd, "status:%s num_devices:%u", btif_hh_status_text(btif_hh_cb.status).c_str(),
               btif_hh_cb.device_num);
   LOG_DUMPSYS(fd, "status:%s", btif_hh_status_text(btif_hh_cb.status).c_str());
-  for (auto link_spec : btif_hh_cb.pending_connections) {
+  for (auto link_spec : btif_hh_cb.new_connection_requests) {
     LOG_DUMPSYS(fd, "Pending connection: %s", link_spec.ToRedactedStringForLogging().c_str());
   }
   for (unsigned i = 0; i < BTIF_HH_MAX_HID; i++) {

@@ -1459,60 +1459,7 @@ public class BluetoothMapContentObserverTest {
     }
 
     @Test
-    public void handleMsgListChangesMms_withNonExistingOldMessage_andVersion12() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_MAP_LIMIT_NOTIFICATION);
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.YEAR, -1);
-        cal.add(Calendar.DATE, -1);
-        long timestampSec = TimeUnit.MILLISECONDS.toSeconds(cal.getTimeInMillis());
-
-        MatrixCursor cursor =
-                new MatrixCursor(
-                        new String[] {
-                            Mms._ID,
-                            Mms.MESSAGE_BOX,
-                            Mms.MESSAGE_TYPE,
-                            Mms.THREAD_ID,
-                            Mms.READ,
-                            Mms.DATE,
-                            Mms.SUBJECT,
-                            Mms.PRIORITY,
-                            Mms.Addr.ADDRESS
-                        });
-        cursor.addRow(
-                new Object[] {
-                    TEST_HANDLE_ONE,
-                    TEST_MMS_TYPE_ALL,
-                    TEST_MMS_MTYPE,
-                    TEST_THREAD_ID,
-                    TEST_READ_FLAG_ONE,
-                    timestampSec,
-                    TEST_SUBJECT,
-                    PduHeaders.PRIORITY_HIGH,
-                    null
-                });
-        doReturn(cursor)
-                .when(mMapMethodProxy)
-                .contentResolverQuery(any(), any(), any(), any(), any(), any());
-
-        Map<Long, BluetoothMapContentObserver.Msg> map = new HashMap<>();
-        // Giving a different handle for msg below and cursor above makes handleMsgListChangesMms()
-        // function for a non-existing message
-        BluetoothMapContentObserver.Msg msg =
-                new BluetoothMapContentObserver.Msg(
-                        TEST_HANDLE_TWO, TEST_INBOX_FOLDER_ID, TEST_READ_FLAG_ONE);
-        map.put(TEST_HANDLE_TWO, msg);
-        mObserver.setMsgListMms(map, true);
-        mObserver.mMapEventReportVersion = BluetoothMapUtils.MAP_EVENT_REPORT_V12;
-
-        mObserver.handleMsgListChangesMms();
-
-        Assert.assertEquals(null, mObserver.getMsgListMms().get(TEST_HANDLE_ONE));
-    }
-
-    @Test
     public void handleMsgListChangesMms_withNonExistingOldMessage_andVersion12_andOneWeekLimit() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_MAP_LIMIT_NOTIFICATION);
         Instant oldInstant =
                 Instant.now()
                         .minus(BluetoothMapContentObserver.NEW_MESSAGE_DURATION_FOR_NOTIFICATION);
@@ -1861,55 +1808,7 @@ public class BluetoothMapContentObserverTest {
     }
 
     @Test
-    public void handleMsgListChangesSms_withNonExistingOldMessage_andVersion12() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_MAP_LIMIT_NOTIFICATION);
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.YEAR, -1);
-        cal.add(Calendar.DATE, -1);
-
-        MatrixCursor cursor =
-                new MatrixCursor(
-                        new String[] {
-                            Sms._ID,
-                            Sms.TYPE,
-                            Sms.THREAD_ID,
-                            Sms.READ,
-                            Sms.DATE,
-                            Sms.BODY,
-                            Sms.ADDRESS
-                        });
-        cursor.addRow(
-                new Object[] {
-                    TEST_HANDLE_ONE,
-                    TEST_SMS_TYPE_ALL,
-                    TEST_THREAD_ID,
-                    TEST_READ_FLAG_ONE,
-                    cal.getTimeInMillis(),
-                    "",
-                    null
-                });
-        doReturn(cursor)
-                .when(mMapMethodProxy)
-                .contentResolverQuery(any(), any(), any(), any(), any(), any());
-
-        Map<Long, BluetoothMapContentObserver.Msg> map = new HashMap<>();
-        // Giving a different handle for msg below and cursor above makes handleMsgListChangesMms()
-        // function for a non-existing message
-        BluetoothMapContentObserver.Msg msg =
-                new BluetoothMapContentObserver.Msg(
-                        TEST_HANDLE_TWO, TEST_SMS_TYPE_INBOX, TEST_READ_FLAG_ONE);
-        map.put(TEST_HANDLE_TWO, msg);
-        mObserver.setMsgListSms(map, true);
-        mObserver.mMapEventReportVersion = BluetoothMapUtils.MAP_EVENT_REPORT_V12;
-
-        mObserver.handleMsgListChangesSms();
-
-        Assert.assertEquals(null, mObserver.getMsgListSms().get(TEST_HANDLE_ONE));
-    }
-
-    @Test
     public void handleMsgListChangesSms_withNonExistingOldMessage_andVersion12_andOneWeekLimit() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_MAP_LIMIT_NOTIFICATION);
         Instant oldInstant =
                 Instant.now()
                         .minus(BluetoothMapContentObserver.NEW_MESSAGE_DURATION_FOR_NOTIFICATION);

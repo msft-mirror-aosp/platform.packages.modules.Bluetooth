@@ -41,6 +41,7 @@
 #include "os/alarm.h"
 #include "os/handler.h"
 #include "os/system_properties.h"
+#include "stack/include/stack_metrics_logging.h"
 
 namespace bluetooth {
 namespace hci {
@@ -404,6 +405,8 @@ public:
       return;
     }
 
+    log_le_connection_status(address, true /* is_connect */, status);
+
     const bool in_filter_accept_list = is_device_in_accept_list(remote_address);
 
     if (role == hci::Role::CENTRAL) {
@@ -560,6 +563,7 @@ public:
       arm_on_resume_ = true;
       add_device_to_accept_list(remote_address);
     }
+    log_le_connection_status(remote_address.GetAddress(), false /* is_connect */, reason);
   }
 
   void on_le_connection_update_complete(LeMetaEventView view) {
@@ -697,6 +701,7 @@ public:
   }
 
   void add_device_to_accept_list(AddressWithType address_with_type) {
+    log_le_device_in_accept_list(address_with_type.GetAddress(), true /* is_add */);
     if (connections.alreadyConnected(address_with_type)) {
       log::info("Device already connected, return");
       return;
@@ -719,6 +724,7 @@ public:
   }
 
   void remove_device_from_accept_list(AddressWithType address_with_type) {
+    log_le_device_in_accept_list(address_with_type.GetAddress(), false /* is_add */);
     if (accept_list.find(address_with_type) == accept_list.end()) {
       log::warn("Device not in acceptlist and cannot be removed: {}", address_with_type);
       return;
@@ -857,7 +863,7 @@ public:
       address_with_type = AddressWithType();
     }
 
-    if (controller_->IsRpaOffloadSupported() &&
+    if (controller_->IsRpaGenerationSupported() &&
         own_address_type != OwnAddressType::PUBLIC_DEVICE_ADDRESS) {
       log::info("Support RPA offload, set own address type RESOLVABLE_OR_RANDOM_ADDRESS");
       own_address_type = OwnAddressType::RESOLVABLE_OR_RANDOM_ADDRESS;

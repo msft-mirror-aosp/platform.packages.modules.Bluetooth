@@ -81,8 +81,10 @@ import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.stubbing.Answer;
 
 import pandora.HIDGrpc;
+import pandora.HidProto.HidServiceType;
 import pandora.HidProto.ProtocolModeEvent;
 import pandora.HidProto.ReportEvent;
+import pandora.HidProto.ServiceRequest;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -286,7 +288,10 @@ public class HidHostTest {
                 (BluetoothHeadset) verifyProfileServiceConnected(BluetoothProfile.HEADSET);
 
         mHidBlockingStub = mBumble.hidBlocking();
-
+        mHidBlockingStub.registerService(
+                ServiceRequest.newBuilder()
+                        .setServiceType(HidServiceType.SERVICE_TYPE_HID)
+                        .build());
         mDevice = mBumble.getRemoteDevice();
         // Remove bond if the device is already bonded
         if (mDevice.getBondState() == BluetoothDevice.BOND_BONDED) {
@@ -662,6 +667,12 @@ public class HidHostTest {
                 mHidBlockingStub
                         .withDeadlineAfter(PROTO_MODE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
                         .onSetReport(Empty.getDefaultInstance());
+
+        // Todo: as a workaround added 50ms delay.
+        // To be removed once root cause is identified for b/382180335
+        final CompletableFuture<Integer> future = new CompletableFuture<>();
+        future.completeOnTimeout(null, 50, TimeUnit.MILLISECONDS).join();
+
         // Keyboard report
         String kbReportData = "010203040506070809";
         mHidService.setReport(mDevice, BluetoothHidHost.REPORT_TYPE_INPUT, kbReportData);

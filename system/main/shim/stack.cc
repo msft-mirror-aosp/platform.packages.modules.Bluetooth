@@ -19,6 +19,7 @@
 #include "main/shim/stack.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -26,6 +27,7 @@
 
 #include "common/strings.h"
 #include "hal/hci_hal.h"
+#include "hal/snoop_logger.h"
 #include "hci/acl_manager.h"
 #include "hci/acl_manager/acl_scheduler.h"
 #include "hci/controller.h"
@@ -45,8 +47,9 @@
 #include "main/shim/le_advertising_manager.h"
 #include "main/shim/le_scanning_manager.h"
 #include "metrics/counter_metrics.h"
-#include "shim/dumpsys.h"
+#include "os/wakelock_manager.h"
 #include "storage/storage_module.h"
+
 #if TARGET_FLOSS
 #include "sysprops/sysprops_module.h"
 #endif
@@ -76,13 +79,14 @@ void Stack::StartEverything() {
 #if TARGET_FLOSS
   modules.add<sysprops::SyspropsModule>();
 #else
-  modules.add<lpp::LppOffloadManager>();
+  if (com::android::bluetooth::flags::socket_settings_api()) {  // Added with aosp/3286716
+    modules.add<lpp::LppOffloadManager>();
+  }
 #endif
   modules.add<metrics::CounterMetrics>();
   modules.add<hal::HciHal>();
   modules.add<hci::HciLayer>();
   modules.add<storage::StorageModule>();
-  modules.add<shim::Dumpsys>();
 
   modules.add<hci::Controller>();
   modules.add<hci::acl_manager::AclScheduler>();
@@ -98,8 +102,6 @@ void Stack::StartEverything() {
   log::assert_that(stack_manager_.GetInstance<storage::StorageModule>() != nullptr,
                    "assert failed: stack_manager_.GetInstance<storage::StorageModule>() != "
                    "nullptr");
-  log::assert_that(stack_manager_.GetInstance<shim::Dumpsys>() != nullptr,
-                   "assert failed: stack_manager_.GetInstance<shim::Dumpsys>() != nullptr");
   if (stack_manager_.IsStarted<hci::Controller>()) {
     pimpl_->acl_ =
             new Acl(stack_handler_, GetAclInterface(), GetController()->GetLeFilterAcceptListSize(),
@@ -197,17 +199,21 @@ os::Handler* Stack::GetHandler() {
   return stack_handler_;
 }
 
-bool Stack::IsDumpsysModuleStarted() const {
+void Stack::Dump(int fd, std::promise<void> promise) const {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
-  return GetStackManager()->IsStarted<Dumpsys>();
-}
-
-bool Stack::LockForDumpsys(std::function<void()> dumpsys_callback) {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  if (is_running_) {
-    dumpsys_callback();
+  if (is_running_ && fd >= 0) {
+    stack_handler_->Call(
+            [](int fd, std::promise<void> promise) {
+              bluetooth::shim::GetController()->Dump(fd);
+              bluetooth::shim::GetAclManager()->Dump(fd);
+              bluetooth::os::WakelockManager::Get().Dump(fd);
+              bluetooth::shim::GetSnoopLogger()->DumpSnoozLogToFile();
+              promise.set_value();
+            },
+            fd, std::move(promise));
+  } else {
+    promise.set_value();
   }
-  return is_running_;
 }
 
 }  // namespace shim

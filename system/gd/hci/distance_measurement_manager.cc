@@ -73,6 +73,7 @@ static constexpr uint8_t kMinConfigId = 0;
 static constexpr uint8_t kMaxConfigId = 3;
 static constexpr uint16_t kDefaultIntervalMs = 1000;  // 1s
 static constexpr uint8_t kMaxRetryCounterForCreateConfig = 0x03;
+static constexpr uint8_t kMaxRetryCounterForCsEnable = 0x03;
 static constexpr uint16_t kInvalidConnInterval = 0;  // valid value is from 0x0006 to 0x0C80
 
 struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
@@ -182,6 +183,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     bool ras_connected = false;
     bool setup_complete = false;
     uint8_t retry_counter_for_create_config = 0;
+    uint8_t retry_counter_for_cs_enable = 0;
     uint16_t n_procedure_count = 0;
     CsMainModeType main_mode_type = CsMainModeType::MODE_2;
     CsSubModeType sub_mode_type = CsSubModeType::UNUSED;
@@ -673,11 +675,25 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             handler_->BindOnceOn(this, &impl::on_cs_setup_command_status_cb, connection_handle));
   }
 
-  void send_le_cs_security_enable(uint16_t connection_handle) {
-    if (cs_requester_trackers_.find(connection_handle) == cs_requester_trackers_.end()) {
-      log::warn("no cs tracker found for {}", connection_handle);
+  void send_le_cs_security_enable(uint16_t connection_handle, bool local_start) {
+    if (local_start) {
+      auto req_it = cs_requester_trackers_.find(connection_handle);
+      if (req_it != cs_requester_trackers_.end() &&
+          req_it->second.state == CsTrackerState::WAIT_FOR_CONFIG_COMPLETE) {
+        req_it->second.state = CsTrackerState::WAIT_FOR_SECURITY_ENABLED;
+      } else {
+        log::error("no requester tracker. something wrong.");
+      }
+    } else {
+      auto res_it = cs_responder_trackers_.find(connection_handle);
+      if (res_it != cs_responder_trackers_.end() &&
+          res_it->second.state == CsTrackerState::WAIT_FOR_CONFIG_COMPLETE) {
+        res_it->second.state = CsTrackerState::WAIT_FOR_SECURITY_ENABLED;
+      } else {
+        log::error("no responder tracker. something wrong.");
+      }
     }
-    cs_requester_trackers_[connection_handle].state = CsTrackerState::WAIT_FOR_SECURITY_ENABLED;
+
     hci_layer_->EnqueueCommand(
             LeCsSecurityEnableBuilder::Create(connection_handle),
             handler_->BindOnceOn(this, &impl::on_cs_setup_command_status_cb, connection_handle));
@@ -809,8 +825,20 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       if (cs_requester_trackers_.find(connection_handle) != cs_requester_trackers_.end()) {
         reset_tracker_on_stopped(cs_requester_trackers_[connection_handle]);
       }
-    } else {
-      on_cs_setup_command_status_cb(connection_handle, status_view);
+    } else if (status_view.GetStatus() != ErrorCode::SUCCESS) {
+      if (cs_requester_trackers_.count(connection_handle) == 0) {
+        log::error("Error code {} for connection_handle {}. No request tracker found.",
+                   ErrorCodeText(status), connection_handle);
+        handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+        return;
+      }
+      log::error("Error code {} for connection_handle {}. Retry counter {}", ErrorCodeText(status),
+                 connection_handle,
+                 cs_requester_trackers_[connection_handle].retry_counter_for_cs_enable);
+      if (cs_requester_trackers_[connection_handle].retry_counter_for_cs_enable++ >=
+          kMaxRetryCounterForCsEnable) {
+        handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+      }
     }
   }
 
@@ -818,7 +846,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     ErrorCode status = status_view.GetStatus();
     OpCode op_code = status_view.GetCommandOpCode();
     if (status != ErrorCode::SUCCESS) {
-      log::error("Error code {}, opcode {} for connection-{}", ErrorCodeText(status),
+      log::error("Error code {}, opcode {} for connection_handle {}", ErrorCodeText(status),
                  OpCodeText(op_code), connection_handle);
       handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
     }
@@ -911,7 +939,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       return;
     }
     auto req_it = cs_requester_trackers_.find(connection_handle);
-    if (req_it != cs_requester_trackers_.end() && req_it->second.measurement_ongoing) {
+    if (req_it != cs_requester_trackers_.end() &&
+        req_it->second.state == CsTrackerState::WAIT_FOR_SECURITY_ENABLED) {
       send_le_cs_set_procedure_parameters(event_view.GetConnectionHandle(),
                                           req_it->second.used_config_id,
                                           req_it->second.remote_num_antennas_supported_);
@@ -965,6 +994,10 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       log::warn("Can't find cs tracker for connection_handle {}", connection_handle);
       return;
     }
+    if (!live_tracker->local_start) {
+      // reset the responder state, as no other event to set the state.
+      live_tracker->state = CsTrackerState::WAIT_FOR_CONFIG_COMPLETE;
+    }
 
     live_tracker->used_config_id = config_id;
     log::info("Get {}", event_view.ToString());
@@ -979,10 +1012,9 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
     if (live_tracker->local_hci_role == hci::Role::CENTRAL) {
       // send the cmd from the BLE central only.
-      send_le_cs_security_enable(connection_handle);
-    }
-    // TODO: else set a timeout alarm to make sure the remote would trigger the cmd.
-    if (!live_tracker->local_start) {
+      send_le_cs_security_enable(connection_handle, live_tracker->local_start);
+    } else {
+      // TODO: else set a timeout alarm to make sure the remote would trigger the cmd.
       live_tracker->state = CsTrackerState::WAIT_FOR_SECURITY_ENABLED;
     }
   }
@@ -1091,8 +1123,20 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     log::debug("on cs procedure enabled complete");
     if (event_view.GetStatus() != ErrorCode::SUCCESS) {
       std::string error_code = ErrorCodeText(event_view.GetStatus());
-      log::warn("Received LeCsProcedureEnableCompleteView with error code {}", error_code);
-      handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+      if (cs_requester_trackers_.count(connection_handle) == 0) {
+        log::warn(
+                "Received LeCsProcedureEnableCompleteView with error code {}, No request tracker "
+                "found",
+                error_code);
+        handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+        return;
+      }
+      log::warn("Received LeCsProcedureEnableCompleteView with error code {}. Retry counter {}",
+                error_code, cs_requester_trackers_[connection_handle].retry_counter_for_cs_enable);
+      if (cs_requester_trackers_[connection_handle].retry_counter_for_cs_enable++ >=
+          kMaxRetryCounterForCsEnable) {
+        handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
+      }
       return;
     }
     uint8_t config_id = event_view.GetConfigId();
@@ -1123,6 +1167,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       live_tracker->state = CsTrackerState::STARTED;
       live_tracker->selected_tx_power = event_view.GetSelectedTxPower();
       live_tracker->n_procedure_count = event_view.GetProcedureCount();
+      live_tracker->retry_counter_for_cs_enable = 0;
 
       if (live_tracker->local_start && live_tracker->waiting_for_start_callback) {
         live_tracker->waiting_for_start_callback = false;

@@ -20,6 +20,8 @@
 #include <frameworks/proto_logging/stats/enums/bluetooth/hci/enums.pb.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/le/enums.pb.h>
 
+#include "hci/address.h"
+#include "hci/hci_packets.h"
 #include "os/metrics.h"
 #include "types/raw_address.h"
 
@@ -255,6 +257,29 @@ void LogMetricManufacturerInfo(const RawAddress& address,
  */
 void LogMetricLePairingFail(const RawAddress& raw_address, uint8_t failure_reason,
                             bool is_outgoing);
+
+/**
+ * Logs GATT connect/disconnect status
+ * @param address Address of the device
+ * @param is_connect indicates connection or disconnection
+ * @param reason the reason/status for the connection event
+ */
+void LogMetricLeConnectionStatus(hci::Address address, bool is_connect, hci::ErrorCode reason);
+
+/**
+ * Logs LE filter accept list events
+ * @param address Address of the device
+ * @param is_add indicates addition or removal of the device in the accept list
+ */
+void LogMetricLeDeviceInAcceptList(hci::Address address, bool is_connect);
+
+/**
+ * Logs GATT lifecycle events
+ * @param address Address of the device
+ * @param is_connect indicates connection or disconnection
+ * @param is_direct indicates direct or background connection, ignored for disconnection
+ */
+void LogMetricLeConnectionLifecycle(hci::Address address, bool is_connect, bool is_direct);
 
 bool CountCounterMetrics(int32_t key, int64_t count);
 
