@@ -26,7 +26,6 @@
 
 #include "stack/include/sdp_api.h"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <string.h>
 

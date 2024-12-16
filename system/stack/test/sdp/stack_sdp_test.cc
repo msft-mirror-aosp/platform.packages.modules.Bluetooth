@@ -240,7 +240,7 @@ TEST_F(StackSdpInitTest, sdp_disc_wait_text) {
   for (const auto& state : states) {
     ASSERT_STREQ(state.second.c_str(), sdp_disc_wait_text(state.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[%d]", std::numeric_limits<uint8_t>::max());
+  auto unknown = std::format("UNKNOWN[{}]", std::numeric_limits<uint8_t>::max());
   ASSERT_STREQ(unknown.c_str(),
                sdp_disc_wait_text(static_cast<tSDP_DISC_WAIT>(std::numeric_limits<uint8_t>::max()))
                        .c_str());
@@ -274,7 +274,7 @@ TEST_F(StackSdpInitTest, sdp_flags_text) {
   for (const auto& flag : flags) {
     ASSERT_STREQ(flag.second.c_str(), sdp_flags_text(flag.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[%hhu]", std::numeric_limits<uint8_t>::max());
+  auto unknown = std::format("UNKNOWN[{}]", std::numeric_limits<uint8_t>::max());
   ASSERT_STREQ(
           unknown.c_str(),
           sdp_flags_text(static_cast<tSDP_DISC_WAIT>(std::numeric_limits<uint8_t>::max())).c_str());
@@ -312,7 +312,7 @@ TEST_F(StackSdpInitTest, sdp_status_text) {
   for (const auto& stat : status) {
     ASSERT_STREQ(stat.second.c_str(), sdp_status_text(stat.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[%hu]", std::numeric_limits<uint16_t>::max());
+  auto unknown = std::format("UNKNOWN[{}]", std::numeric_limits<uint16_t>::max());
   ASSERT_STREQ(
           unknown.c_str(),
           sdp_status_text(static_cast<tSDP_STATUS>(std::numeric_limits<uint16_t>::max())).c_str());

@@ -23,7 +23,6 @@
  ******************************************************************************/
 #define LOG_TAG "gatt_utils"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
