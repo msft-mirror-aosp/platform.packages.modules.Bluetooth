@@ -25,6 +25,7 @@
 #include <string>
 
 #include "macros.h"
+#include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
 /*****************************************************************************
@@ -57,6 +58,7 @@ inline std::string bta_status_text(const tBTA_STATUS& status) {
 typedef struct {
   RawAddress pairing_bda;
   RawAddress id_addr;
+  tBLE_ADDR_TYPE id_addr_type;
 } tBTA_DM_PROC_ID_ADDR;
 
 typedef struct {

@@ -202,6 +202,21 @@ public:
   }
 
   // Must be called from main_thread
+  // Callbacks of bluetooth::ras::RasServerCallbacks
+  void OnMtuChangedFromServer(const RawAddress& address, uint16_t mtu) override {
+    handle_mtu_changed(address, mtu);
+  }
+
+  void OnMtuChangedFromClient(const RawAddress& address, uint16_t mtu) override {
+    handle_mtu_changed(address, mtu);
+  }
+
+  void handle_mtu_changed(const RawAddress& address, uint16_t mtu) {
+    uint16_t connection_handle = GetConnectionHandleAndRole(address);
+    bluetooth::shim::GetDistanceMeasurementManager()->HandleMtuChanged(connection_handle, mtu);
+  }
+
+  // Must be called from main_thread
   // Callbacks of bluetooth::ras::RasSeverCallbacks
   void OnRasServerDisconnected(const RawAddress& identity_address) override {
     bluetooth::shim::GetDistanceMeasurementManager()->HandleRasServerDisconnected(
@@ -212,7 +227,8 @@ public:
   // Callbacks of bluetooth::ras::RasClientCallbacks
   void OnConnected(const RawAddress& address, uint16_t att_handle,
                    const std::vector<bluetooth::ras::VendorSpecificCharacteristic>&
-                           vendor_specific_characteristics) {
+                           vendor_specific_characteristics,
+                   uint16_t conn_interval) override {
     std::vector<bluetooth::hal::VendorSpecificCharacteristic> hal_vendor_specific_characteristics;
     for (auto& characteristic : vendor_specific_characteristics) {
       bluetooth::hal::VendorSpecificCharacteristic vendor_specific_characteristic;
@@ -224,7 +240,12 @@ public:
 
     bluetooth::shim::GetDistanceMeasurementManager()->HandleRasClientConnectedEvent(
             bluetooth::ToGdAddress(address), GetConnectionHandleAndRole(address), att_handle,
-            hal_vendor_specific_characteristics);
+            hal_vendor_specific_characteristics, conn_interval);
+  }
+
+  void OnConnIntervalUpdated(const RawAddress& address, uint16_t conn_interval) {
+    bluetooth::shim::GetDistanceMeasurementManager()->HandleConnIntervalUpdated(
+            bluetooth::ToGdAddress(address), GetConnectionHandleAndRole(address), conn_interval);
   }
 
   void OnDisconnected(const RawAddress& address) {

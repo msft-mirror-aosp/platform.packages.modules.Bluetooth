@@ -120,8 +120,6 @@ public:
 
   std::string ToString() const override { return std::string("TestSnoopLoggerModule"); }
 
-  void CallGetDumpsysData(flatbuffers::FlatBufferBuilder* builder) { GetDumpsysData(builder); }
-
   SnoopLoggerSocketThread* GetSocketThread() { return snoop_logger_socket_thread_.get(); }
 
   static uint32_t GetL2capHeaderSize() { return L2CAP_HEADER_SIZE; }
@@ -131,7 +129,6 @@ public:
 
 class SnoopLoggerModuleTest : public Test {
 public:
-  flatbuffers::FlatBufferBuilder* builder_;
   TestModuleRegistry* test_registry;
 
 protected:
@@ -151,7 +148,6 @@ protected:
             temp_dir_ / (std::string(test_info->name()) + "_btsnoop_hci.log.filtered");
     temp_snoop_log_filtered_last =
             temp_dir_ / (std::string(test_info->name()) + "_btsnoop_hci.log.filtered.last");
-    builder_ = new flatbuffers::FlatBufferBuilder();
 
     DeleteSnoopLogFiles();
     ASSERT_FALSE(std::filesystem::exists(temp_snoop_log_));
@@ -166,7 +162,6 @@ protected:
 
   void TearDown() override {
     DeleteSnoopLogFiles();
-    delete builder_;
     fake_timerfd_reset();
     test_registry->StopAll();
     delete test_registry;
@@ -264,7 +259,7 @@ TEST_F(SnoopLoggerModuleTest, capture_hci_cmd_btsnooz_test) {
 
   snoop_logger->Capture(kInformationRequest, SnoopLogger::Direction::OUTGOING,
                         SnoopLogger::PacketType::CMD);
-  snoop_logger->CallGetDumpsysData(builder_);
+  snoop_logger->DumpSnoozLogToFile();
 
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
   ASSERT_EQ(std::filesystem::file_size(temp_snooz_log_),
@@ -288,7 +283,7 @@ TEST_F(SnoopLoggerModuleTest, capture_l2cap_signal_packet_btsnooz_test) {
 
   snoop_logger->Capture(kSdpConnectionRequest, SnoopLogger::Direction::OUTGOING,
                         SnoopLogger::PacketType::ACL);
-  snoop_logger->CallGetDumpsysData(builder_);
+  snoop_logger->DumpSnoozLogToFile();
 
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
   ASSERT_EQ(std::filesystem::file_size(temp_snooz_log_),
@@ -312,7 +307,7 @@ TEST_F(SnoopLoggerModuleTest, capture_l2cap_short_data_packet_btsnooz_test) {
 
   snoop_logger->Capture(kAvdtpSuspend, SnoopLogger::Direction::OUTGOING,
                         SnoopLogger::PacketType::ACL);
-  snoop_logger->CallGetDumpsysData(builder_);
+  snoop_logger->DumpSnoozLogToFile();
 
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
   ASSERT_EQ(std::filesystem::file_size(temp_snooz_log_),
@@ -336,7 +331,7 @@ TEST_F(SnoopLoggerModuleTest, capture_l2cap_long_data_packet_btsnooz_test) {
 
   snoop_logger->Capture(kHfpAtNrec0, SnoopLogger::Direction::OUTGOING,
                         SnoopLogger::PacketType::ACL);
-  snoop_logger->CallGetDumpsysData(builder_);
+  snoop_logger->DumpSnoozLogToFile();
 
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
   ASSERT_EQ(std::filesystem::file_size(temp_snooz_log_),
@@ -359,7 +354,7 @@ TEST_F(SnoopLoggerModuleTest, snoop_log_persists) {
 
   snoop_logger->Capture(kHfpAtNrec0, SnoopLogger::Direction::OUTGOING,
                         SnoopLogger::PacketType::ACL);
-  snoop_logger->CallGetDumpsysData(builder_);
+  snoop_logger->DumpSnoozLogToFile();
 
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
   ASSERT_EQ(std::filesystem::file_size(temp_snooz_log_),
@@ -477,7 +472,7 @@ TEST_F(SnoopLoggerModuleTest, qualcomm_debug_log_test) {
   test_registry->InjectTestModule(&SnoopLogger::Factory, snoop_logger);
   snoop_logger->Capture(kQualcommConnectionRequest, SnoopLogger::Direction::OUTGOING,
                         SnoopLogger::PacketType::ACL);
-  snoop_logger->CallGetDumpsysData(builder_);
+  snoop_logger->DumpSnoozLogToFile();
 
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
   ASSERT_EQ(std::filesystem::file_size(temp_snooz_log_),
@@ -500,7 +495,7 @@ TEST_F(SnoopLoggerModuleTest, qualcomm_debug_log_regression_test) {
     test_registry->InjectTestModule(&SnoopLogger::Factory, snoop_logger);
     snoop_logger->Capture(kHfpAtNrec0, SnoopLogger::Direction::OUTGOING,
                           SnoopLogger::PacketType::ACL);
-    snoop_logger->CallGetDumpsysData(builder_);
+    snoop_logger->DumpSnoozLogToFile();
 
     ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
     ASSERT_EQ(
@@ -521,7 +516,7 @@ TEST_F(SnoopLoggerModuleTest, qualcomm_debug_log_regression_test) {
     test_registry->InjectTestModule(&SnoopLogger::Factory, snoop_logger);
     snoop_logger->Capture(kQualcommConnectionRequest, SnoopLogger::Direction::OUTGOING,
                           SnoopLogger::PacketType::ACL);
-    snoop_logger->CallGetDumpsysData(builder_);
+    snoop_logger->DumpSnoozLogToFile();
 
     ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
     ASSERT_EQ(

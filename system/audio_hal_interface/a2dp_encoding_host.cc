@@ -278,12 +278,12 @@ void end_session() {
 
 void set_audio_low_latency_mode_allowed(bool /*allowed*/) {}
 
-void ack_stream_started(BluetoothAudioStatus /*ack*/) {
+void ack_stream_started(Status /*ack*/) {
   a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
   // TODO: Notify server
 }
 
-void ack_stream_suspended(BluetoothAudioStatus /*ack*/) {
+void ack_stream_suspended(Status /*ack*/) {
   a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
   // TODO: Notify server
 }

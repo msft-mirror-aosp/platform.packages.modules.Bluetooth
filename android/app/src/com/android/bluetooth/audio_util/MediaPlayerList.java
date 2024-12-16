@@ -378,10 +378,7 @@ public class MediaPlayerList {
                 cb.run(playerId, false, "", 0);
                 return;
             }
-
-            mBrowsingPlayerId = playerId;
             MediaBrowserWrapper wrapper = mMediaBrowserWrappers.get(playerId);
-
             // If player is different than actual or if the given path is wrong, process rootId
             if (playerId != mBrowsingPlayerId || currentPath.equals("")) {
                 wrapper.getRootId(
@@ -399,6 +396,7 @@ public class MediaPlayerList {
                             cb.run(playerId, true, currentPath, itemList.size());
                         });
             }
+            mBrowsingPlayerId = playerId;
         } else {
             // Fix PTS AVRCP/TG/MCN/CB/BI-02-C
             if (Utils.isPtsTestMode()) {

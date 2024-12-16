@@ -70,9 +70,6 @@ void AVCT_Register() {
   memset(&avct_cb, 0, sizeof(tAVCT_CB));
 
   uint16_t sec = BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT;
-  if (!com::android::bluetooth::flags::use_encrypt_req_for_av()) {
-    sec = BTA_SEC_AUTHENTICATE;
-  }
 
   /* register PSM with L2CAP */
   if (!stack::l2cap::get_interface().L2CA_RegisterWithSecurity(

@@ -64,16 +64,6 @@ flag {
 }
 
 flag {
-    name: "ble_gatt_server_use_address_type_in_connection"
-    namespace: "bluetooth"
-    description: "Use address type when initiating connection from BluetoothGattServer"
-    bug: "331147673"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "scan_record_manufacturer_data_merge"
     namespace: "bluetooth"
     description: "If a scan record has multiple datas under same manufacturer id, merge the values"
@@ -297,6 +287,26 @@ flag {
     namespace: "bluetooth"
     description: "Drop pending ACL packet fragments for disconnected connection"
     bug: "376379859"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "configure_scan_on_resume"
+    namespace: "bluetooth"
+    description: "Configure scan paramters when start scanning from onResume"
+    bug: "383436218"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "unregister_gatt_client_disconnected"
+    namespace: "bluetooth"
+    description: "Unregister gatt client when disconneted to prevent client leaks"
+    bug: "380388092"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

@@ -20,6 +20,7 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.MODIFY_PHONE_STATE;
 import static android.bluetooth.BluetoothDevice.ACCESS_ALLOWED;
 import static android.bluetooth.BluetoothDevice.ACCESS_REJECTED;
+import static android.media.audio.Flags.deprecateStreamBtSco;
 
 import static com.android.modules.utils.build.SdkLevel.isAtLeastU;
 
@@ -86,7 +87,7 @@ class HeadsetStateMachine extends StateMachine {
     static final int VOICE_RECOGNITION_STOP = 6;
 
     // message.obj is an intent AudioManager.ACTION_VOLUME_CHANGED
-    // EXTRA_VOLUME_STREAM_TYPE is STREAM_BLUETOOTH_SCO
+    // EXTRA_VOLUME_STREAM_TYPE is STREAM_BLUETOOTH_SCO/STREAM_VOICE_CALL
     static final int INTENT_SCO_VOLUME_CHANGED = 7;
     static final int INTENT_CONNECTION_ACCESS_REPLY = 8;
     static final int CALL_STATE_CHANGED = 9;
@@ -1997,14 +1998,13 @@ class HeadsetStateMachine extends StateMachine {
         if (volumeType == HeadsetHalConstants.VOLUME_TYPE_SPK) {
             mSpeakerVolume = volume;
             int flag = (mCurrentState == mAudioOn) ? AudioManager.FLAG_SHOW_UI : 0;
-            int currentVol =
-                    mSystemInterface
-                            .getAudioManager()
-                            .getStreamVolume(AudioManager.STREAM_BLUETOOTH_SCO);
+            int volStream =
+                    deprecateStreamBtSco()
+                            ? AudioManager.STREAM_VOICE_CALL
+                            : AudioManager.STREAM_BLUETOOTH_SCO;
+            int currentVol = mSystemInterface.getAudioManager().getStreamVolume(volStream);
             if (volume != currentVol) {
-                mSystemInterface
-                        .getAudioManager()
-                        .setStreamVolume(AudioManager.STREAM_BLUETOOTH_SCO, volume, flag);
+                mSystemInterface.getAudioManager().setStreamVolume(volStream, volume, flag);
             }
         } else if (volumeType == HeadsetHalConstants.VOLUME_TYPE_MIC) {
             // Not used currently

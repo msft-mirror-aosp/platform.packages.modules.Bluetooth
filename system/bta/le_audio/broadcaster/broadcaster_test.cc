@@ -1422,6 +1422,38 @@ TEST_F(BroadcasterTest, BigCreationTerminationDependsOnAudioResumeSuspend) {
   ASSERT_TRUE(broadcast_stop_timer_->cb == nullptr);
 }
 
+TEST_F(BroadcasterTest, AudioResumeWhileStreaming) {
+  com::android::bluetooth::flags::provider_->leaudio_big_depends_on_audio_state(true);
+
+  EXPECT_CALL(*mock_codec_manager_, UpdateActiveBroadcastAudioHalClient(mock_audio_source_, true))
+          .Times(1);
+  LeAudioSourceAudioHalClient::Callbacks* audio_receiver;
+  EXPECT_CALL(*mock_audio_source_, Start)
+          .WillOnce(DoAll(SaveArg<1>(&audio_receiver), Return(true)))
+          .WillRepeatedly(Return(false));
+  auto broadcast_id = InstantiateBroadcast();
+
+  ASSERT_NE(audio_receiver, nullptr);
+
+  // onAudioResume cause state machine go to STREAMING state so BIG creation
+  EXPECT_CALL(mock_broadcaster_callbacks_,
+              OnBroadcastStateChanged(broadcast_id, BroadcastState::STREAMING))
+          .Times(1);
+  audio_receiver->OnAudioResume();
+  Mock::VerifyAndClearExpectations(mock_audio_source_);
+
+  // 2nd stream resume
+  EXPECT_CALL(*mock_audio_source_, ConfirmStreamingRequest()).Times(1);
+  audio_receiver->OnAudioResume();
+  Mock::VerifyAndClearExpectations(mock_audio_source_);
+
+  // 3rd stream resume
+  EXPECT_CALL(*mock_audio_source_, ConfirmStreamingRequest()).Times(1);
+  audio_receiver->OnAudioResume();
+  Mock::VerifyAndClearExpectations(mock_audio_source_);
+  Mock::VerifyAndClearExpectations(mock_codec_manager_);
+}
+
 // TODO: Add tests for:
 // ToRawPacket(BasicAudioAnnouncementData const& in, std::vector<uint8_t>& data)
 

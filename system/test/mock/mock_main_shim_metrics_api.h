@@ -28,6 +28,8 @@
 // Original included files, if any
 // #include <frameworks/proto_logging/stats/enums/bluetooth/le/enums.pb.h>
 
+#include "hci/address.h"
+#include "hci/hci_packets.h"
 #include "os/metrics.h"
 #include "types/raw_address.h"
 
@@ -312,6 +314,42 @@ struct LogMetricManufacturerInfo {
   }
 };
 extern struct LogMetricManufacturerInfo LogMetricManufacturerInfo;
+// Name: LogMetricLeConnectionStatus
+// Params: bluetooth::hci::Address address, bool is_connect, bluetooth::hci::ErrorCode reason
+// Returns: void
+struct LogMetricLeConnectionStatus {
+  std::function<void(bluetooth::hci::Address address, bool is_connect,
+                     bluetooth::hci::ErrorCode reason)>
+          body{[](bluetooth::hci::Address /* address */, bool /* is_connect */,
+                  bluetooth::hci::ErrorCode /* reason */) {}};
+  void operator()(bluetooth::hci::Address address, bool is_connect,
+                  bluetooth::hci::ErrorCode reason) {
+    body(address, is_connect, reason);
+  }
+};
+extern struct LogMetricLeConnectionStatus LogMetricLeConnectionStatus;
+// Name: LogMetricLeDeviceInAcceptList
+// Params: bluetooth::hci::Address address, bool is_add
+// Returns: void
+struct LogMetricLeDeviceInAcceptList {
+  std::function<void(bluetooth::hci::Address address, bool is_add)> body{
+          [](bluetooth::hci::Address /* address */, bool /* is_add */) {}};
+  void operator()(bluetooth::hci::Address address, bool is_add) { body(address, is_add); }
+};
+extern struct LogMetricLeDeviceInAcceptList LogMetricLeDeviceInAcceptList;
+
+// Name: LogMetricLeConnectionLifecycle
+// Params: bluetooth::hci::Address address, bool is_connect, bool is_direct
+// Returns: void
+struct LogMetricLeConnectionLifecycle {
+  std::function<void(bluetooth::hci::Address address, bool is_connect, bool is_direct)> body{
+          [](bluetooth::hci::Address /* address */, bool /* is_connect */, bool /* is_direct */) {
+          }};
+  void operator()(bluetooth::hci::Address address, bool is_connect, bool is_direct) {
+    body(address, is_connect, is_direct);
+  }
+};
+extern struct LogMetricLeConnectionLifecycle LogMetricLeConnectionLifecycle;
 
 }  // namespace main_shim_metrics_api
 }  // namespace mock

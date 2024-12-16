@@ -45,9 +45,5 @@ Acl* Stack::GetAcl() { return testing::acl_; }
 
 os::Handler* Stack::GetHandler() { return stack_handler_; }
 
-bool Stack::IsDumpsysModuleStarted() const { return false; }
-
-bool Stack::LockForDumpsys(std::function<void()> /* dumpsys_callback */) { return false; }
-
 }  // namespace shim
 }  // namespace bluetooth

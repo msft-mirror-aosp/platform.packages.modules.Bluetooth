@@ -85,7 +85,7 @@ static void avdt_ccb_clear_ccb(AvdtpCcb* p_ccb) {
  *
  ******************************************************************************/
 void avdt_ccb_chan_open(AvdtpCcb* p_ccb, tAVDT_CCB_EVT* /* p_data */) {
-  avdt_ad_open_req(AVDT_CHAN_SIG, p_ccb, NULL, AVDT_INT);
+  avdt_ad_open_req(AVDT_CHAN_SIG, p_ccb, NULL, tAVDT_ROLE::AVDT_INT);
 }
 
 /*******************************************************************************

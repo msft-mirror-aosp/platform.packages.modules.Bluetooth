@@ -86,19 +86,23 @@ public:
                                DistanceMeasurementMethod method);
   void HandleRasClientConnectedEvent(
           const Address& address, uint16_t connection_handle, uint16_t att_handle,
-          const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data);
+          const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data,
+          uint16_t conn_interval);
   void HandleRasClientDisconnectedEvent(const Address& address);
   void HandleVendorSpecificReply(
           const Address& address, uint16_t connection_handle,
           const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_reply);
   void HandleRasServerConnected(const Address& identity_address, uint16_t connection_handle,
                                 hci::Role local_hci_role);
+  void HandleMtuChanged(uint16_t connection_handle, uint16_t mtu);
   void HandleRasServerDisconnected(const Address& identity_address, uint16_t connection_handle);
   void HandleVendorSpecificReplyComplete(const Address& address, uint16_t connection_handle,
                                          bool success);
   void HandleRemoteData(const Address& address, uint16_t connection_handle,
                         const std::vector<uint8_t>& raw_data);
   void HandleRemoteDataTimeout(const Address& address, uint16_t connection_handle);
+  void HandleConnIntervalUpdated(const Address& address, uint16_t connection_handle,
+                                 uint16_t conn_interval);
 
   static const ModuleFactory Factory;
 

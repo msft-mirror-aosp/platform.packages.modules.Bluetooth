@@ -510,6 +510,7 @@ static bool send_app_connect_signal(int fd, const RawAddress* addr, int channel,
   cs.max_tx_packet_size = 0;  // not used for RFCOMM
   cs.conn_uuid_lsb = 0;       // not used for RFCOMM
   cs.conn_uuid_msb = 0;       // not used for RFCOMM
+  cs.socket_id = 0;           // not used for RFCOMM
   if (send_fd == INVALID_FD) {
     return sock_send_all(fd, (const uint8_t*)&cs, sizeof(cs)) == sizeof(cs);
   }

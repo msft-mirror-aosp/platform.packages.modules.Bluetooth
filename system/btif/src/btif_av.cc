@@ -2392,8 +2392,7 @@ bool BtifAvStateMachine::StateOpened::ProcessEvent(uint32_t event, void* p_data)
         if (peer_.CheckFlags(BtifAvPeer::kFlagPendingStart)) {
           log::error("Peer {} : cannot proceed to do AvStart", peer_.PeerAddress());
           peer_.ClearFlags(BtifAvPeer::kFlagPendingStart);
-          bluetooth::audio::a2dp::ack_stream_started(
-                  bluetooth::audio::a2dp::BluetoothAudioStatus::FAILURE);
+          bluetooth::audio::a2dp::ack_stream_started(bluetooth::audio::a2dp::Status::FAILURE);
         }
         if (peer_.IsSink()) {
           btif_av_source_disconnect(peer_.PeerAddress());
@@ -2811,7 +2810,7 @@ static void btif_av_source_initiate_av_open_timer_timeout(void* data) {
   BtifAvPeer* peer = reinterpret_cast<BtifAvPeer*>(data);
   bool device_connected = false;
 
-  if (com::android::bluetooth::flags::avrcp_connect_a2dp_with_delay() && is_new_avrcp_enabled()) {
+  if (is_new_avrcp_enabled()) {
     // check if device is connected
     if (bluetooth::avrcp::AvrcpService::Get() != nullptr) {
       device_connected =
