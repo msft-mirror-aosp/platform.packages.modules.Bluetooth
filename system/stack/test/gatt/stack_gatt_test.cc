@@ -217,7 +217,7 @@ TEST_F(StackGattTest, gatt_status_text) {
     ASSERT_STREQ(status.second.c_str(), gatt_status_text(status.first).c_str());
   }
   // Typical max value is already classified so use arbitrary unused one.
-  auto unknown = base::StringPrintf("UNKNOWN[%hhu]", 0xfc);
+  auto unknown = std::format("UNKNOWN[{}]", 0xfc);
   ASSERT_STREQ(unknown.c_str(), gatt_status_text(static_cast<tGATT_STATUS>(0xfc)).c_str());
 }
 

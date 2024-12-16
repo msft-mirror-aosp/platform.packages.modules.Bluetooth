@@ -578,9 +578,8 @@ void bta_hh_open_cmpl_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
   conn.app_id = p_cb->app_id;
 
   BTM_LogHistory(kBtmLogTag, p_cb->link_spec.addrt.bda, "Opened",
-                 base::StringPrintf("%s initiator:%s",
-                                    bt_transport_text(p_cb->link_spec.transport).c_str(),
-                                    (p_cb->incoming_conn) ? "remote" : "local"));
+                 std::format("{} initiator:{}", bt_transport_text(p_cb->link_spec.transport),
+                             (p_cb->incoming_conn) ? "remote" : "local"));
 
   if (p_cb->link_spec.transport != BT_TRANSPORT_LE) {
     /* inform role manager */
@@ -843,14 +842,12 @@ void bta_hh_close_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
   disc_dat.handle = p_cb->hid_handle;
   disc_dat.status = to_bta_hh_status(p_data->hid_cback.data);
 
-  std::string overlay_fail = base::StringPrintf(
-          "%s %s %s", (l2cap_conn_fail) ? "l2cap_conn_fail" : "",
-          (l2cap_req_fail) ? "l2cap_req_fail" : "", (l2cap_cfg_fail) ? "l2cap_cfg_fail" : "");
-  BTM_LogHistory(
-          kBtmLogTag, p_cb->link_spec.addrt.bda, "Closed",
-          base::StringPrintf("%s reason %s %s",
+  BTM_LogHistory(kBtmLogTag, p_cb->link_spec.addrt.bda, "Closed",
+                 std::format("{} reason {} {} {} {}",
                              (p_cb->link_spec.transport == BT_TRANSPORT_LE) ? "le" : "classic",
-                             hid_status_text(hid_status).c_str(), overlay_fail.c_str()));
+                             hid_status_text(hid_status), l2cap_conn_fail ? "l2cap_conn_fail" : "",
+                             l2cap_req_fail ? "l2cap_req_fail" : "",
+                             l2cap_cfg_fail ? "l2cap_cfg_fail" : ""));
 
   /* inform role manager */
   bta_sys_conn_close(BTA_ID_HH, p_cb->app_id, p_cb->link_spec.addrt.bda);

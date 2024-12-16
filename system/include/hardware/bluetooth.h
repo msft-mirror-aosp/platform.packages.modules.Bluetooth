@@ -1021,6 +1021,8 @@ template <>
 struct formatter<bt_bond_state_t> : enum_formatter<bt_bond_state_t> {};
 template <>
 struct formatter<bt_property_type_t> : enum_formatter<bt_property_type_t> {};
+template <>
+struct formatter<bt_ssp_variant_t> : enum_formatter<bt_ssp_variant_t> {};
 }  // namespace std
 
 #endif  // __has_include(<bluetooth/log.h>)

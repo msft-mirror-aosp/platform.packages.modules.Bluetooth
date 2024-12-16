@@ -215,11 +215,10 @@ static void bta_ag_port_cback_6(uint32_t code, uint16_t port_handle) {
 static void bta_ag_setup_port(tBTA_AG_SCB* p_scb, uint16_t handle) {
   int port_callback_index = bta_ag_scb_to_idx(p_scb) - 1;
   log::assert_that(port_callback_index >= 0, "invalid callback index, handle={}, bd_addr={}",
-                   handle, ADDRESS_TO_LOGGABLE_STR(p_scb->peer_addr));
+                   handle, p_scb->peer_addr);
   log::assert_that(port_callback_index < static_cast<int>(sizeof(bta_ag_port_cback_tbl) /
                                                           sizeof(bta_ag_port_cback_tbl[0])),
-                   "callback index out of bound, handle={}, bd_addr={}", handle,
-                   ADDRESS_TO_LOGGABLE_STR(p_scb->peer_addr));
+                   "callback index out of bound, handle={}, bd_addr={}", handle, p_scb->peer_addr);
   if (PORT_SetEventMaskAndCallback(handle, BTA_AG_PORT_EV_MASK,
                                    bta_ag_port_cback_tbl[port_callback_index]) != PORT_SUCCESS) {
     log::warn("Unable to set RFCOMM event and callback mask peer:{} handle:{}", p_scb->peer_addr,
@@ -245,12 +244,12 @@ void bta_ag_start_servers(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK services) {
       int management_callback_index = bta_ag_scb_to_idx(p_scb) - 1;
       log::assert_that(management_callback_index >= 0,
                        "invalid callback index, services=0x{:x}, bd_addr={}", services,
-                       ADDRESS_TO_LOGGABLE_STR(p_scb->peer_addr));
+                       p_scb->peer_addr);
       log::assert_that(
               management_callback_index < static_cast<int>(sizeof(bta_ag_mgmt_cback_tbl) /
                                                            sizeof(bta_ag_mgmt_cback_tbl[0])),
               "callback index out of bound, services=0x{:x}, bd_addr={}", services,
-              ADDRESS_TO_LOGGABLE_STR(p_scb->peer_addr));
+              p_scb->peer_addr);
       int status = RFCOMM_CreateConnectionWithSecurity(
               bta_ag_uuid[i], bta_ag_cb.profile[i].scn, true, BTA_AG_MTU, RawAddress::kAny,
               &(p_scb->serv_handle[i]), bta_ag_mgmt_cback_tbl[management_callback_index],
