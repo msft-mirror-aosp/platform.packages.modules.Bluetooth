@@ -3682,7 +3682,8 @@ public class LeAudioService extends ProfileService {
                             }
 
                             if (leaudioBigDependsOnAudioState()) {
-                                if (mAwaitingBroadcastCreateResponse) {
+                                if (mAwaitingBroadcastCreateResponse
+                                        && !Flags.leaudioBroadcastPrimaryGroupSelection()) {
                                     updateFallbackUnicastGroupIdForBroadcast(groupId);
                                 }
                             } else {
@@ -4219,6 +4220,11 @@ public class LeAudioService extends ProfileService {
                             false,
                             hasFallbackDevice,
                             false);
+                    /* Set by default earliest connected device */
+                    if (Flags.leaudioBroadcastPrimaryGroupSelection()
+                            && mUnicastGroupIdDeactivatedForBroadcastTransition == groupId) {
+                        setDefaultBroadcastToUnicastFallbackGroup();
+                    }
                     return;
                 }
 
