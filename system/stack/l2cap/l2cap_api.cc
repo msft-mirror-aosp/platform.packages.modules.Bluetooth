@@ -214,6 +214,11 @@ void bluetooth::stack::l2cap::Impl::L2CA_Consolidate(const RawAddress& identity_
   return ::L2CA_GetBleConnRole(bd_addr);
 }
 
+[[nodiscard]] uint16_t bluetooth::stack::l2cap::Impl::L2CA_GetBleConnInterval(
+        const RawAddress& bd_addr) {
+  return ::L2CA_GetBleConnInterval(bd_addr);
+}
+
 void bluetooth::stack::l2cap::Impl::L2CA_AdjustConnectionIntervals(uint16_t* min_interval,
                                                                    uint16_t* max_interval,
                                                                    uint16_t floor_interval) {

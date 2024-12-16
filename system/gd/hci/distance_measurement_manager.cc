@@ -508,7 +508,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
 
   void handle_conn_interval_updated(const Address& address, uint16_t connection_handle,
                                     uint16_t conn_interval) {
-    if (com::android::bluetooth::flags::channel_sounding_25q2_apis()) {
+    if (!com::android::bluetooth::flags::channel_sounding_25q2_apis()) {
       log::debug("connection interval is not required.");
       return;
     }
