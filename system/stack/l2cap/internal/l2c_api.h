@@ -705,6 +705,7 @@ void L2CA_LockBleConnParamsForProfileConnection(const RawAddress& rem_bda, bool 
  ******************************************************************************/
 void L2CA_Consolidate(const RawAddress& identity_addr, const RawAddress& rpa);
 [[nodiscard]] tHCI_ROLE L2CA_GetBleConnRole(const RawAddress& bd_addr);
+[[nodiscard]] uint16_t L2CA_GetBleConnInterval(const RawAddress& bd_addr);
 
 void L2CA_AdjustConnectionIntervals(uint16_t* min_interval, uint16_t* max_interval,
                                     uint16_t floor_interval);

@@ -59,6 +59,10 @@ tHCI_ROLE L2CA_GetBleConnRole(const RawAddress& bd_addr) {
   return to_hci_role(l2cap_interface->GetBleConnRole(bd_addr));
 }
 
+uint16_t L2CA_GetBleConnInterval(const RawAddress& bd_addr) {
+  return l2cap_interface->GetBleConnInterval(bd_addr);
+}
+
 std::vector<uint16_t> L2CA_ConnectCreditBasedReq(uint16_t psm, const RawAddress& bd_addr,
                                                  tL2CAP_LE_CFG_INFO* p_cfg) {
   return l2cap_interface->ConnectCreditBasedReq(psm, bd_addr, p_cfg);

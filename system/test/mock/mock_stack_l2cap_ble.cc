@@ -44,6 +44,7 @@ struct L2CA_LockBleConnParamsForServiceDiscovery L2CA_LockBleConnParamsForServic
 struct L2CA_LockBleConnParamsForProfileConnection L2CA_LockBleConnParamsForProfileConnection;
 struct L2CA_ConsolidateParams L2CA_ConsolidateParams;
 struct L2CA_GetBleConnRole L2CA_GetBleConnRole;
+struct L2CA_GetBleConnInterval L2CA_GetBleConnInterval;
 struct l2cble_notify_le_connection l2cble_notify_le_connection;
 struct l2cble_conn_comp l2cble_conn_comp;
 struct l2cble_process_conn_update_evt l2cble_process_conn_update_evt;
@@ -92,6 +93,10 @@ void L2CA_Consolidate(const RawAddress& identity_addr, const RawAddress& rpa) {
 hci_role_t L2CA_GetBleConnRole(const RawAddress& bd_addr) {
   inc_func_call_count(__func__);
   return test::mock::stack_l2cap_ble::L2CA_GetBleConnRole(bd_addr);
+}
+uint16_t L2CA_GetBleConnInterval(const RawAddress& bd_addr) {
+  inc_func_call_count(__func__);
+  return test::mock::stack_l2cap_ble::L2CA_GetBleConnInterval(bd_addr);
 }
 void l2cble_notify_le_connection(const RawAddress& bda) {
   inc_func_call_count(__func__);
