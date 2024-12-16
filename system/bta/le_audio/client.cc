@@ -1712,7 +1712,7 @@ public:
     /* If group become active while phone call, let's configure it right away,
      * so when audio framework resumes the stream, it will be almost there.
      */
-    if (IsInCall()) {
+    if (IsInCall() || IsInVoipCall()) {
       PrepareStreamForAConversational(group);
     }
   }
