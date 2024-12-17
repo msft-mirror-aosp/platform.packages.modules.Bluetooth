@@ -49,7 +49,6 @@ import static com.android.bluetooth.bass_client.BassConstants.CLIENT_CHARACTERIS
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -307,7 +306,7 @@ public class BassClientStateMachineTest {
                 mBassClientStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(BassClientStateMachine.Connecting.class));
 
-        assertNotNull(mBassClientStateMachine.mGattCallback);
+        assertThat(mBassClientStateMachine.mGattCallback).isNotNull();
         mBassClientStateMachine.notifyConnectionStateChanged(
                 GATT_SUCCESS, BluetoothProfile.STATE_CONNECTED);
 

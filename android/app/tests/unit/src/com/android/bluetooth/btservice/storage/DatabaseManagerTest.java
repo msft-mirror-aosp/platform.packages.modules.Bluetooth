@@ -523,8 +523,8 @@ public final class DatabaseManagerTest {
         mSetFlagsRule.disableFlags(Flags.FLAG_AUTO_CONNECT_ON_MULTIPLE_HFP_WHEN_NO_A2DP_DEVICE);
         // Verify pre-conditions to ensure a fresh test
         Assert.assertEquals(0, mDatabaseManager.mMetadataCache.size());
-        Assert.assertNotNull(mTestDevice);
-        Assert.assertNotNull(mTestDevice2);
+        assertThat(mTestDevice).isNotNull();
+        assertThat(mTestDevice2).isNotNull();
         assertThat(mDatabaseManager.getMostRecentlyActiveHfpDevice()).isNull();
 
         // Set the first device's connection
@@ -559,7 +559,7 @@ public final class DatabaseManagerTest {
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
         Assert.assertFalse(
                 mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress()).isActiveHfpDevice);
-        Assert.assertNotNull(mDatabaseManager.getMostRecentlyActiveHfpDevice());
+        assertThat(mDatabaseManager.getMostRecentlyActiveHfpDevice()).isNotNull();
         mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(2, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(1));
@@ -576,8 +576,8 @@ public final class DatabaseManagerTest {
         mSetFlagsRule.disableFlags(Flags.FLAG_AUTO_CONNECT_ON_MULTIPLE_HFP_WHEN_NO_A2DP_DEVICE);
         // Verify pre-conditions to ensure a fresh test
         Assert.assertEquals(0, mDatabaseManager.mMetadataCache.size());
-        Assert.assertNotNull(mTestDevice);
-        Assert.assertNotNull(mTestDevice2);
+        assertThat(mTestDevice).isNotNull();
+        assertThat(mTestDevice2).isNotNull();
         assertThat(mDatabaseManager.getMostRecentlyConnectedA2dpDevice()).isNull();
 
         // Set the first device's connection
@@ -1795,8 +1795,8 @@ public final class DatabaseManagerTest {
                 mDatabaseManager.setPreferredAudioProfiles(groupDevices, preferencesToSet));
         Bundle testDevicePreferences = mDatabaseManager.getPreferredAudioProfiles(mTestDevice);
         Bundle testDevice2Preferences = mDatabaseManager.getPreferredAudioProfiles(mTestDevice2);
-        Assert.assertNotNull(testDevicePreferences);
-        Assert.assertNotNull(testDevice2Preferences);
+        assertThat(testDevicePreferences).isNotNull();
+        assertThat(testDevice2Preferences).isNotNull();
 
         Assert.assertEquals(
                 expectedPreferences.getInt(BluetoothAdapter.AUDIO_MODE_OUTPUT_ONLY),
@@ -1824,8 +1824,8 @@ public final class DatabaseManagerTest {
         restartDatabaseManagerHelper();
         testDevicePreferences = mDatabaseManager.getPreferredAudioProfiles(mTestDevice);
         testDevice2Preferences = mDatabaseManager.getPreferredAudioProfiles(mTestDevice2);
-        Assert.assertNotNull(testDevicePreferences);
-        Assert.assertNotNull(testDevice2Preferences);
+        assertThat(testDevicePreferences).isNotNull();
+        assertThat(testDevice2Preferences).isNotNull();
 
         Assert.assertEquals(
                 expectedPreferences.getInt(BluetoothAdapter.AUDIO_MODE_OUTPUT_ONLY),

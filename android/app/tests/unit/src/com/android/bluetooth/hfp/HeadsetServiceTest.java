@@ -155,7 +155,7 @@ public class HeadsetServiceTest {
         // Mock methods in HeadsetObjectsFactory
         doAnswer(
                         invocation -> {
-                            Assert.assertNotNull(mCurrentDevice);
+                            assertThat(mCurrentDevice).isNotNull();
                             final HeadsetStateMachine stateMachine =
                                     mock(HeadsetStateMachine.class);
                             doReturn(BluetoothProfile.STATE_DISCONNECTED)

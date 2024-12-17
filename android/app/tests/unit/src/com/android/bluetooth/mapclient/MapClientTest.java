@@ -106,7 +106,7 @@ public class MapClientTest {
 
     @Test
     public void testInitialize() {
-        Assert.assertNotNull(MapClientService.getMapClientService());
+        assertThat(MapClientService.getMapClientService()).isNotNull();
     }
 
     /** Test connection of one device. */
@@ -125,7 +125,7 @@ public class MapClientTest {
 
         Assert.assertEquals(1, map.size());
         MceStateMachine sm = map.get(device);
-        Assert.assertNotNull(sm);
+        assertThat(sm).isNotNull();
         TestUtils.waitForLooperToFinishScheduledTask(sm.getHandler().getLooper());
 
         Assert.assertEquals(BluetoothProfile.STATE_CONNECTING, sm.getState());
@@ -173,7 +173,7 @@ public class MapClientTest {
         Map<BluetoothDevice, MceStateMachine> map = mService.getInstanceMap();
         Assert.assertEquals(MapClientService.MAXIMUM_CONNECTED_DEVICES, map.size());
         for (BluetoothDevice d : list) {
-            Assert.assertNotNull(map.get(d));
+            assertThat(map).containsKey(d);
         }
 
         // Try to connect one more device. Should fail.

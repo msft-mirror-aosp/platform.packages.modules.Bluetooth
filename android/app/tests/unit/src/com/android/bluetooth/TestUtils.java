@@ -99,7 +99,7 @@ public class TestUtils {
                                 + " AdapterService")
                 .that(AdapterService.getAdapterService())
                 .isNull();
-        Assert.assertNotNull("Adapter service should not be null", adapterService);
+        assertThat(adapterService).isNotNull();
         // We cannot mock AdapterService.getAdapterService() with Mockito.
         // Hence we need to set AdapterService.sAdapterService field.
         AdapterService.setAdapterService(adapterService);
@@ -117,7 +117,7 @@ public class TestUtils {
                         + " supplied adapterService in this method",
                 adapterService,
                 AdapterService.getAdapterService());
-        Assert.assertNotNull("Adapter service should not be null", adapterService);
+        assertThat(adapterService).isNotNull();
         AdapterService.clearAdapterService(adapterService);
     }
 
@@ -145,10 +145,10 @@ public class TestUtils {
      */
     public static BluetoothDevice getTestDevice(BluetoothAdapter bluetoothAdapter, int id) {
         Assert.assertTrue(id <= 0xFF);
-        Assert.assertNotNull(bluetoothAdapter);
+        assertThat(bluetoothAdapter).isNotNull();
         BluetoothDevice testDevice =
                 bluetoothAdapter.getRemoteDevice(String.format("00:01:02:03:04:%02X", id));
-        Assert.assertNotNull(testDevice);
+        assertThat(testDevice).isNotNull();
         return testDevice;
     }
 
@@ -175,7 +175,7 @@ public class TestUtils {
     public static Intent waitForIntent(int timeoutMs, BlockingQueue<Intent> queue) {
         try {
             Intent intent = queue.poll(timeoutMs, TimeUnit.MILLISECONDS);
-            Assert.assertNotNull(intent);
+            assertThat(intent).isNotNull();
             return intent;
         } catch (InterruptedException e) {
             Assert.fail("Cannot obtain an Intent from the queue: " + e.getMessage());

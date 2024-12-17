@@ -460,7 +460,7 @@ public class BluetoothMapContentObserverTest {
                 createMsgWithTypeAndThreadId(Mms.MESSAGE_BOX_ALL, TEST_THREAD_ID);
         map.put(TEST_HANDLE_ONE, msg);
         mObserver.setMsgListMms(map, true);
-        Assert.assertNotNull(mObserver.getMsgListMms().get(TEST_HANDLE_ONE));
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE)).isNotNull();
 
         MatrixCursor cursor = new MatrixCursor(new String[] {Mms.THREAD_ID});
         cursor.addRow(new Object[] {BluetoothMapContentObserver.DELETED_THREAD_ID});
@@ -506,7 +506,7 @@ public class BluetoothMapContentObserverTest {
                 createMsgWithTypeAndThreadId(Sms.MESSAGE_TYPE_ALL, TEST_THREAD_ID);
         map.put(TEST_HANDLE_ONE, msg);
         mObserver.setMsgListSms(map, true);
-        Assert.assertNotNull(mObserver.getMsgListSms().get(TEST_HANDLE_ONE));
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE)).isNotNull();
 
         MatrixCursor cursor = new MatrixCursor(new String[] {Mms.THREAD_ID});
         cursor.addRow(new Object[] {BluetoothMapContentObserver.DELETED_THREAD_ID});

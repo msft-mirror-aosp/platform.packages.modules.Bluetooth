@@ -109,7 +109,7 @@ public class HeadsetClientServiceTest {
     @Test
     public void testInitialize() throws Exception {
         startService();
-        Assert.assertNotNull(HeadsetClientService.getHeadsetClientService());
+        assertThat(HeadsetClientService.getHeadsetClientService()).isNotNull();
     }
 
     @Ignore("b/260202548")

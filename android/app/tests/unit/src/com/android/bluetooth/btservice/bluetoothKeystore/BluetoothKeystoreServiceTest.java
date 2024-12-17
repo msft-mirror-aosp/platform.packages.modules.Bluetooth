@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.btservice.bluetoothkeystore;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import android.os.Binder;
 import android.os.Process;
 import android.util.Log;
@@ -98,7 +100,7 @@ public final class BluetoothKeystoreServiceTest {
     public void setUp() {
         Assume.assumeTrue("Ignore test when the user is not primary.", isPrimaryUser());
         mBluetoothKeystoreService = new BluetoothKeystoreService(mMockNativeInterface, true);
-        Assert.assertNotNull(mBluetoothKeystoreService);
+        assertThat(mBluetoothKeystoreService).isNotNull();
         // backup origin config data.
         try {
             mConfigData = Files.readAllLines(Paths.get(CONFIG_FILE_PATH));
@@ -261,7 +263,7 @@ public final class BluetoothKeystoreServiceTest {
 
         // new mBluetoothKeystoreService and the Common Criteria mode is false.
         mBluetoothKeystoreService = new BluetoothKeystoreService(mMockNativeInterface, false);
-        Assert.assertNotNull(mBluetoothKeystoreService);
+        assertThat(mBluetoothKeystoreService).isNotNull();
 
         mBluetoothKeystoreService.loadConfigData();
 

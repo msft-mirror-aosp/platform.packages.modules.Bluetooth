@@ -105,7 +105,7 @@ public class AvrcpControllerStateMachineTest {
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
-        Assert.assertNotNull(Looper.myLooper());
+        assertThat(Looper.myLooper()).isNotNull();
 
         // Set a mock Adapter Service for profile state change notifications
         TestUtils.setAdapterService(mAdapterService);
@@ -410,7 +410,7 @@ public class AvrcpControllerStateMachineTest {
         int numBroadcastsSent = setUpConnectedState(true, false);
         MediaControllerCompat.TransportControls transportControls =
                 BluetoothMediaBrowserService.getTransportControls();
-        Assert.assertNotNull(transportControls);
+        assertThat(transportControls).isNotNull();
         Assert.assertEquals(
                 PlaybackStateCompat.STATE_NONE,
                 BluetoothMediaBrowserService.getPlaybackState().getState());
@@ -487,7 +487,7 @@ public class AvrcpControllerStateMachineTest {
     public void testDump() {
         StringBuilder sb = new StringBuilder();
         mAvrcpStateMachine.dump(sb);
-        Assert.assertNotNull(sb.toString());
+        assertThat(sb.toString()).isNotNull();
     }
 
     /** Test media browser play command */
@@ -1251,12 +1251,12 @@ public class AvrcpControllerStateMachineTest {
 
         // See that state from BluetoothMediaBrowserService is updated
         MediaSessionCompat session = BluetoothMediaBrowserService.getSession();
-        Assert.assertNotNull(session);
+        assertThat(session).isNotNull();
         MediaControllerCompat controller = session.getController();
-        Assert.assertNotNull(controller);
+        assertThat(controller).isNotNull();
 
         MediaMetadataCompat metadata = controller.getMetadata();
-        Assert.assertNotNull(metadata);
+        assertThat(metadata).isNotNull();
         Assert.assertEquals("title", metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE));
         Assert.assertEquals("artist", metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST));
         Assert.assertEquals("album", metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM));
@@ -1266,12 +1266,12 @@ public class AvrcpControllerStateMachineTest {
         Assert.assertEquals(10, metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
 
         PlaybackStateCompat playbackState = controller.getPlaybackState();
-        Assert.assertNotNull(playbackState);
+        assertThat(playbackState).isNotNull();
         Assert.assertEquals(PlaybackStateCompat.STATE_PAUSED, playbackState.getState());
         Assert.assertEquals(7, playbackState.getPosition());
 
         List<MediaSessionCompat.QueueItem> queue = controller.getQueue();
-        Assert.assertNotNull(queue);
+        assertThat(queue).isNotNull();
         Assert.assertEquals(2, queue.size());
         Assert.assertEquals("title", queue.get(0).getDescription().getTitle().toString());
         Assert.assertEquals("title 2", queue.get(1).getDescription().getTitle().toString());
@@ -1318,12 +1318,12 @@ public class AvrcpControllerStateMachineTest {
 
         // Verify track and playback state
         MediaSessionCompat session = BluetoothMediaBrowserService.getSession();
-        Assert.assertNotNull(session);
+        assertThat(session).isNotNull();
         MediaControllerCompat controller = session.getController();
-        Assert.assertNotNull(controller);
+        assertThat(controller).isNotNull();
 
         MediaMetadataCompat metadata = controller.getMetadata();
-        Assert.assertNotNull(metadata);
+        assertThat(metadata).isNotNull();
         Assert.assertEquals("Song 1", metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE));
         Assert.assertEquals("artist", metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST));
         Assert.assertEquals("album", metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM));
@@ -1333,7 +1333,7 @@ public class AvrcpControllerStateMachineTest {
         Assert.assertEquals(10, metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
 
         PlaybackStateCompat playbackState = controller.getPlaybackState();
-        Assert.assertNotNull(playbackState);
+        assertThat(playbackState).isNotNull();
         Assert.assertEquals(PlaybackStateCompat.STATE_PLAYING, playbackState.getState());
         Assert.assertEquals(0, playbackState.getActiveQueueItemId());
 
@@ -1344,7 +1344,7 @@ public class AvrcpControllerStateMachineTest {
 
         // Assert new track metadata and active queue item
         metadata = controller.getMetadata();
-        Assert.assertNotNull(metadata);
+        assertThat(metadata).isNotNull();
         Assert.assertEquals("Song 2", metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE));
         Assert.assertEquals("artist", metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST));
         Assert.assertEquals("album", metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM));
@@ -1354,7 +1354,7 @@ public class AvrcpControllerStateMachineTest {
         Assert.assertEquals(10, metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
 
         playbackState = controller.getPlaybackState();
-        Assert.assertNotNull(playbackState);
+        assertThat(playbackState).isNotNull();
         Assert.assertEquals(PlaybackStateCompat.STATE_PLAYING, playbackState.getState());
         Assert.assertEquals(1, playbackState.getActiveQueueItemId());
     }
@@ -1376,9 +1376,9 @@ public class AvrcpControllerStateMachineTest {
 
         // Since we're not active, verify BluetoothMediaBrowserService does not have these values
         MediaSessionCompat session = BluetoothMediaBrowserService.getSession();
-        Assert.assertNotNull(session);
+        assertThat(session).isNotNull();
         MediaControllerCompat controller = session.getController();
-        Assert.assertNotNull(controller);
+        assertThat(controller).isNotNull();
 
         assertThat(controller.getMetadata()).isNull(); // track starts as null and shouldn't change
     }
@@ -1428,12 +1428,12 @@ public class AvrcpControllerStateMachineTest {
 
         // Since we're not active, verify BluetoothMediaBrowserService does not have these values
         MediaSessionCompat session = BluetoothMediaBrowserService.getSession();
-        Assert.assertNotNull(session);
+        assertThat(session).isNotNull();
         MediaControllerCompat controller = session.getController();
-        Assert.assertNotNull(controller);
+        assertThat(controller).isNotNull();
 
         PlaybackStateCompat playbackState = controller.getPlaybackState();
-        Assert.assertNotNull(playbackState);
+        assertThat(playbackState).isNotNull();
         Assert.assertEquals(0, playbackState.getPosition());
     }
 
@@ -1460,9 +1460,9 @@ public class AvrcpControllerStateMachineTest {
 
         // Since we're not active, verify BluetoothMediaBrowserService does not have these values
         MediaSessionCompat session = BluetoothMediaBrowserService.getSession();
-        Assert.assertNotNull(session);
+        assertThat(session).isNotNull();
         MediaControllerCompat controller = session.getController();
-        Assert.assertNotNull(controller);
+        assertThat(controller).isNotNull();
 
         assertThat(controller.getQueue()).isNull();
     }
@@ -2003,9 +2003,9 @@ public class AvrcpControllerStateMachineTest {
 
         // See that state from BluetoothMediaBrowserService is updated to null (i.e. empty)
         MediaSessionCompat session = BluetoothMediaBrowserService.getSession();
-        Assert.assertNotNull(session);
+        assertThat(session).isNotNull();
         MediaControllerCompat controller = session.getController();
-        Assert.assertNotNull(controller);
+        assertThat(controller).isNotNull();
         assertThat(controller.getQueue()).isNull();
     }
 

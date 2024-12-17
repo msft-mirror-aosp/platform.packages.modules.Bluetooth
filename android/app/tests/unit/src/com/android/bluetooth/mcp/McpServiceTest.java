@@ -87,7 +87,7 @@ public class McpServiceTest {
     @Test
     public void testGetService() {
         McpService mMcpServiceDuplicate = McpService.getMcpService();
-        Assert.assertNotNull(mMcpServiceDuplicate);
+        assertThat(mMcpServiceDuplicate).isNotNull();
         Assert.assertSame(mMcpServiceDuplicate, mMcpService);
     }
 

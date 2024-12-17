@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.btservice;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -130,7 +132,7 @@ public class ProfileServiceTest {
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
-        Assert.assertNotNull(Looper.myLooper());
+        assertThat(Looper.myLooper()).isNotNull();
 
         doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
         doNothing().when(mAdapterService).addProfile(any());
@@ -158,7 +160,7 @@ public class ProfileServiceTest {
                         .toArray();
         TestUtils.setAdapterService(mAdapterService);
 
-        Assert.assertNotNull(AdapterService.getAdapterService());
+        assertThat(AdapterService.getAdapterService()).isNotNull();
 
         A2dpSinkNativeInterface.setInstance(mA2dpSinkNativeInterface);
         AvrcpNativeInterface.setInstance(mAvrcpNativeInterface);

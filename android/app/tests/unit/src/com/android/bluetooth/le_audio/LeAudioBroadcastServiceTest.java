@@ -751,7 +751,7 @@ public class LeAudioBroadcastServiceTest {
         TestUtils.waitForLooperToFinishScheduledTask(mService.getMainLooper());
 
         List<BluetoothLeBroadcastMetadata> meta_list = mService.getAllBroadcastMetadata();
-        Assert.assertNotNull(meta_list);
+        assertThat(meta_list).isNotNull();
         Assert.assertNotEquals(meta_list.size(), 0);
         Assert.assertEquals(meta_list.get(0), state_event.broadcastMetadata);
     }
@@ -805,7 +805,7 @@ public class LeAudioBroadcastServiceTest {
     private void verifyConnectionStateIntent(
             int timeoutMs, BluetoothDevice device, int newState, int prevState) {
         Intent intent = TestUtils.waitForIntent(timeoutMs, mIntentQueue);
-        Assert.assertNotNull(intent);
+        assertThat(intent).isNotNull();
         Assert.assertEquals(
                 BluetoothLeAudio.ACTION_LE_AUDIO_CONNECTION_STATE_CHANGED, intent.getAction());
         Assert.assertEquals(

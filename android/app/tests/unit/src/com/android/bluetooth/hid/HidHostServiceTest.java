@@ -84,7 +84,7 @@ public class HidHostServiceTest {
 
     @Test
     public void testInitialize() {
-        Assert.assertNotNull(HidHostService.getHidHostService());
+        assertThat(HidHostService.getHidHostService()).isNotNull();
     }
 
     /** Test okToConnect method using various test cases */

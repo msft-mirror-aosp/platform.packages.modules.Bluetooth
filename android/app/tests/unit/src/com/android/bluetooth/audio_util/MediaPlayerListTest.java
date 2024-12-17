@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.audio_util;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.content.Context;
@@ -71,7 +73,7 @@ public class MediaPlayerListTest {
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
-        Assert.assertNotNull(Looper.myLooper());
+        assertThat(Looper.myLooper()).isNotNull();
 
         AudioManager mockAudioManager = mock(AudioManager.class);
         when(mMockContext.getSystemService(Context.AUDIO_SERVICE)).thenReturn(mockAudioManager);

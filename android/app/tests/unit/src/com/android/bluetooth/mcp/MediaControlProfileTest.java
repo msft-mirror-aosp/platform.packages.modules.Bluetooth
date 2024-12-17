@@ -18,6 +18,8 @@ package com.android.bluetooth.mcp;
 
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothAdapter;
@@ -526,8 +528,8 @@ public class MediaControlProfileTest {
         // BluetoothDevice class is not mockable
         BluetoothDevice bluetoothDevice = TestUtils.getTestDevice(mAdapter, 0);
         mMediaControlProfile.setNotificationSubscription(ccid1, bluetoothDevice, charUuid1, true);
-        Assert.assertNotNull(
-                mMediaControlProfile.getNotificationSubscriptions(ccid1, bluetoothDevice));
+        assertThat(mMediaControlProfile.getNotificationSubscriptions(ccid1, bluetoothDevice))
+                .isNotNull();
     }
 
     @Test

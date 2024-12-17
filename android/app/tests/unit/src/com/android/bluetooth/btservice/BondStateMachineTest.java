@@ -17,6 +17,8 @@ package com.android.bluetooth.btservice;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothAdapter;
@@ -212,14 +214,14 @@ public class BondStateMachineTest {
         RemoteDevices.DeviceProperties pendingDeviceProperties =
                 mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES_2);
         BluetoothDevice pendingDevice = pendingDeviceProperties.getDevice();
-        Assert.assertNotNull(pendingDevice);
+        assertThat(pendingDevice).isNotNull();
         mBondStateMachine.sendIntent(pendingDevice, BOND_BONDED, TEST_BOND_REASON, false);
 
         RemoteDevices.DeviceProperties testDeviceProperties =
                 mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
         testDeviceProperties.mUuids = TEST_UUIDS;
         BluetoothDevice testDevice = testDeviceProperties.getDevice();
-        Assert.assertNotNull(testDevice);
+        assertThat(testDevice).isNotNull();
 
         Message bondingMsg = mBondStateMachine.obtainMessage(BondStateMachine.BONDING_STATE_CHANGE);
         bondingMsg.obj = testDevice;
@@ -248,7 +250,7 @@ public class BondStateMachineTest {
         mRemoteDevices.reset();
         mDeviceProperties = mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
         mDevice = mDeviceProperties.getDevice();
-        Assert.assertNotNull(mDevice);
+        assertThat(mDevice).isNotNull();
         mDeviceProperties.mDeviceType = deviceType;
         mBondStateMachine.mPendingBondedDevices.clear();
     }
@@ -734,7 +736,7 @@ public class BondStateMachineTest {
     }
 
     private void verifyBondStateChangeIntent(int oldState, int newState, Intent intent) {
-        Assert.assertNotNull(intent);
+        assertThat(intent).isNotNull();
         Assert.assertEquals(BluetoothDevice.ACTION_BOND_STATE_CHANGED, intent.getAction());
         Assert.assertEquals(mDevice, intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
         Assert.assertEquals(newState, intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1));

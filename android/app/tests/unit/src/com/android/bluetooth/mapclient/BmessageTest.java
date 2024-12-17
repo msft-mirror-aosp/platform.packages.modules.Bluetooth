@@ -61,8 +61,7 @@ public class BmessageTest {
 
     @Test
     public void testNormalMessages() {
-        Bmessage message = BmessageParser.createBmessage(SIMPLE_MMS_MESSAGE);
-        Assert.assertNotNull(message);
+        assertThat(BmessageParser.createBmessage(SIMPLE_MMS_MESSAGE)).isNotNull();
     }
 
     @Test

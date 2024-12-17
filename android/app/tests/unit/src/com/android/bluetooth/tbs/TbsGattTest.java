@@ -19,6 +19,8 @@ package com.android.bluetooth.tbs;
 
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.AdditionalMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -135,18 +137,16 @@ public class TbsGattTest {
                         mCurrentProviderName,
                         mCurrentTechnology,
                         mMockTbsGattCallback));
-        Assert.assertNotNull(mMockGattServer);
 
         verify(mAdapterService).registerBluetoothStateCallback(any(), any());
         verify(mMockGattServer).addService(mGattServiceCaptor.capture());
         doReturn(mGattServiceCaptor.getValue()).when(mMockGattServer).getService(any(UUID.class));
-        Assert.assertNotNull(mMockGattServer);
     }
 
     private BluetoothGattCharacteristic getCharacteristic(UUID uuid) {
         BluetoothGattService service = mGattServiceCaptor.getValue();
         BluetoothGattCharacteristic characteristic = service.getCharacteristic(uuid);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
 
         return characteristic;
     }
@@ -155,7 +155,7 @@ public class TbsGattTest {
             BluetoothDevice device, BluetoothGattCharacteristic characteristic, boolean enable) {
         BluetoothGattDescriptor descriptor =
                 characteristic.getDescriptor(TbsGatt.UUID_CLIENT_CHARACTERISTIC_CONFIGURATION);
-        Assert.assertNotNull(descriptor);
+        assertThat(descriptor).isNotNull();
 
         mTbsGatt.mGattServerCallback.onDescriptorWriteRequest(
                 device,
@@ -1053,14 +1053,14 @@ public class TbsGattTest {
     @Test
     public void testCharacteristicNotifyOnAuthorization() {
         prepareDefaultService();
-        Assert.assertNotNull(mGattServiceCaptor.getValue());
+        assertThat(mGattServiceCaptor.getValue()).isNotNull();
 
         BluetoothGattCharacteristic characteristic = getCharacteristic(TbsGatt.UUID_STATUS_FLAGS);
         configureNotifications(mFirstDevice, characteristic, true);
         configureNotifications(mSecondDevice, characteristic, true);
 
         doReturn(mGattServiceCaptor.getValue()).when(mMockGattServer).getService(any(UUID.class));
-        Assert.assertNotNull(mGattServiceCaptor.getValue());
+        assertThat(mGattServiceCaptor.getValue()).isNotNull();
 
         // Leave it as unauthorized yet
         doReturn(BluetoothDevice.ACCESS_REJECTED)
@@ -1073,7 +1073,7 @@ public class TbsGattTest {
         BluetoothGattCharacteristic characteristic2 = getCharacteristic(TbsGatt.UUID_CALL_STATE);
         characteristic2.setValue((byte[]) null);
 
-        Assert.assertNotNull(mGattServiceCaptor.getValue());
+        assertThat(mGattServiceCaptor.getValue()).isNotNull();
 
         // Call it once but expect no notification for the unauthorized device
         byte[] valueBytes = new byte[2];
@@ -1087,7 +1087,7 @@ public class TbsGattTest {
         doReturn(BluetoothDevice.ACCESS_ALLOWED)
                 .when(mMockTbsService)
                 .getDeviceAuthorization(any(BluetoothDevice.class));
-        Assert.assertNotNull(mGattServiceCaptor.getValue());
+        assertThat(mGattServiceCaptor.getValue()).isNotNull();
         mTbsGatt.onDeviceAuthorizationSet(mFirstDevice);
         verify(mMockGattServer, times(0))
                 .notifyCharacteristicChanged(any(), eq(characteristic2), eq(false));
@@ -1169,7 +1169,7 @@ public class TbsGattTest {
         BluetoothGattDescriptor descriptor =
                 getCharacteristic(TbsGatt.UUID_BEARER_TECHNOLOGY)
                         .getDescriptor(TbsGatt.UUID_CLIENT_CHARACTERISTIC_CONFIGURATION);
-        Assert.assertNotNull(descriptor);
+        assertThat(descriptor).isNotNull();
 
         doReturn(BluetoothDevice.ACCESS_REJECTED)
                 .when(mMockTbsService)
@@ -1193,7 +1193,7 @@ public class TbsGattTest {
         BluetoothGattDescriptor descriptor =
                 getCharacteristic(TbsGatt.UUID_BEARER_TECHNOLOGY)
                         .getDescriptor(TbsGatt.UUID_CLIENT_CHARACTERISTIC_CONFIGURATION);
-        Assert.assertNotNull(descriptor);
+        assertThat(descriptor).isNotNull();
 
         doReturn(BluetoothDevice.ACCESS_UNKNOWN)
                 .when(mMockTbsService)
@@ -1211,7 +1211,7 @@ public class TbsGattTest {
         BluetoothGattDescriptor descriptor =
                 getCharacteristic(TbsGatt.UUID_CALL_CONTROL_POINT)
                         .getDescriptor(TbsGatt.UUID_CLIENT_CHARACTERISTIC_CONFIGURATION);
-        Assert.assertNotNull(descriptor);
+        assertThat(descriptor).isNotNull();
 
         doReturn(BluetoothDevice.ACCESS_REJECTED)
                 .when(mMockTbsService)
@@ -1241,7 +1241,7 @@ public class TbsGattTest {
         BluetoothGattDescriptor descriptor =
                 getCharacteristic(TbsGatt.UUID_CALL_CONTROL_POINT)
                         .getDescriptor(TbsGatt.UUID_CLIENT_CHARACTERISTIC_CONFIGURATION);
-        Assert.assertNotNull(descriptor);
+        assertThat(descriptor).isNotNull();
 
         doReturn(BluetoothDevice.ACCESS_UNKNOWN)
                 .when(mMockTbsService)
