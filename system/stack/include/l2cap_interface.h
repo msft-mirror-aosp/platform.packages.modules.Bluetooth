@@ -934,6 +934,23 @@ public:
    **
    ******************************************************************************/
   virtual bool L2CA_GetAclHandle(uint16_t lcid, uint16_t* acl_handle) = 0;
+
+  /*******************************************************************************
+   **
+   ** Function         L2CA_GetLocalMtu
+   **
+   ** Description      Given a local channel identifier, |lcid|, this function
+   **                  returns the L2CAP local mtu, |local_mtu|. If
+   **                  |lcid| is not known or is invalid, this function returns false and does not
+   **                  modify the value pointed at by |local_mtu|.
+   **
+   ** Parameters:      lcid: Local CID
+   **                  local_mtu: Pointer to L2CAP local mtu must NOT be nullptr
+   **
+   ** Returns          true if local_mtu lookup was successful
+   **
+   ******************************************************************************/
+  virtual bool L2CA_GetLocalMtu(uint16_t lcid, uint16_t* local_mtu) = 0;
 };
 
 Interface& get_interface();
