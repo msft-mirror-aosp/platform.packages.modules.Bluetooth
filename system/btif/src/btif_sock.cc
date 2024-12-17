@@ -180,7 +180,8 @@ static bt_status_t btsock_listen(btsock_type_t type, const char* service_name,
                               SOCKET_ROLE_LISTEN, app_uid, channel, 0, 0, service_name);
   switch (type) {
     case BTSOCK_RFCOMM:
-      status = btsock_rfc_listen(service_name, service_uuid, channel, sock_fd, flags, app_uid);
+      status = btsock_rfc_listen(service_name, service_uuid, channel, sock_fd, flags, app_uid,
+                                 data_path, socket_name, hub_id, endpoint_id, max_rx_packet_size);
       break;
     case BTSOCK_L2CAP:
       status = btsock_l2cap_listen(service_name, channel, sock_fd, flags, app_uid, data_path,
@@ -231,7 +232,8 @@ static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type,
                               uuid ? uuid->ToString().c_str() : "");
   switch (type) {
     case BTSOCK_RFCOMM:
-      status = btsock_rfc_connect(bd_addr, uuid, channel, sock_fd, flags, app_uid);
+      status = btsock_rfc_connect(bd_addr, uuid, channel, sock_fd, flags, app_uid, data_path,
+                                  socket_name, hub_id, endpoint_id, max_rx_packet_size);
       break;
 
     case BTSOCK_L2CAP:

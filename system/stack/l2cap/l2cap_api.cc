@@ -267,3 +267,8 @@ void bluetooth::stack::l2cap::Impl::L2CA_SetMediaStreamChannel(uint16_t local_me
                                                                     uint16_t* acl_handle) {
   return ::L2CA_GetAclHandle(lcid, acl_handle);
 }
+
+[[nodiscard]] bool bluetooth::stack::l2cap::Impl::L2CA_GetLocalMtu(uint16_t lcid,
+                                                                   uint16_t* local_mtu) {
+  return ::L2CA_GetLocalMtu(lcid, local_mtu);
+}
