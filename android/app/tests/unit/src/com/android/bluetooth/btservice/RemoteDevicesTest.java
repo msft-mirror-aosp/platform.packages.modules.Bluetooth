@@ -2,6 +2,8 @@ package com.android.bluetooth.btservice;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothAdapter;
@@ -113,7 +115,7 @@ public class RemoteDevicesTest {
         int batteryLevel = 10;
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that updating battery level triggers ACTION_BATTERY_LEVEL_CHANGED intent
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
@@ -153,14 +155,14 @@ public class RemoteDevicesTest {
         int batteryLevel = BluetoothDevice.BATTERY_LEVEL_UNKNOWN;
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that updating with invalid battery level does not trigger the intent
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
         verify(mAdapterService, never()).sendBroadcast(any(), anyString(), any());
 
         // Verify that device property stays null after invalid update
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         verifyNoMoreInteractions(mAdapterService);
     }
@@ -170,14 +172,14 @@ public class RemoteDevicesTest {
         int batteryLevel = 101;
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that updating invalid battery level does not trigger the intent
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
         verify(mAdapterService, never()).sendBroadcast(any(), anyString(), any());
 
         // Verify that device property stays null after invalid update
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         verifyNoMoreInteractions(mAdapterService);
     }
@@ -185,11 +187,11 @@ public class RemoteDevicesTest {
     @Test
     public void testResetBatteryLevel_testResetBeforeUpdate() {
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that resetting battery level keeps device property null
         mRemoteDevices.resetBatteryLevel(mDevice1, /* fromBas= */ false);
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         verifyNoMoreInteractions(mAdapterService);
     }
@@ -199,7 +201,7 @@ public class RemoteDevicesTest {
         int batteryLevel = 10;
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that updating battery level triggers ACTION_BATTERY_LEVEL_CHANGED intent
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
@@ -250,7 +252,7 @@ public class RemoteDevicesTest {
         int batteryLevel = 10;
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that updating battery level triggers ACTION_BATTERY_LEVEL_CHANGED intent
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
@@ -303,7 +305,7 @@ public class RemoteDevicesTest {
         Assert.assertTrue(mRemoteDevices.hasBatteryService(mDevice1));
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that updating battery level triggers ACTION_BATTERY_LEVEL_CHANGED intent
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
@@ -340,7 +342,7 @@ public class RemoteDevicesTest {
         int batteryLevel = 10;
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that updating battery level triggers ACTION_BATTERY_LEVEL_CHANGED intent
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
@@ -400,7 +402,7 @@ public class RemoteDevicesTest {
         int batteryLevel = 10;
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that ACTION_HF_INDICATORS_VALUE_CHANGED intent updates battery level
         mRemoteDevices.onHfIndicatorValueChanged(
@@ -417,19 +419,19 @@ public class RemoteDevicesTest {
         int batteryLevel = 10;
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that ACTION_HF_INDICATORS_VALUE_CHANGED intent updates battery level
         mRemoteDevices.onHfIndicatorValueChanged(mDevice1, batteryLevel, 3);
         verify(mAdapterService, never()).sendBroadcast(any(), anyString());
         // Verify that device property is still null after invalid update
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
     }
 
     @Test
     public void testOnVendorSpecificHeadsetEvent_testCorrectPlantronicsXEvent() {
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that correct ACTION_VENDOR_SPECIFIC_HEADSET_EVENT updates battery level
         mRemoteDevices.onVendorSpecificHeadsetEvent(
@@ -448,7 +450,7 @@ public class RemoteDevicesTest {
     @Test
     public void testOnVendorSpecificHeadsetEvent_testCorrectAppleBatteryVsc() {
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that correct ACTION_VENDOR_SPECIFIC_HEADSET_EVENT updates battery level
         mRemoteDevices.onVendorSpecificHeadsetEvent(
@@ -577,7 +579,7 @@ public class RemoteDevicesTest {
         int batteryLevel = 10;
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that updating battery level triggers ACTION_BATTERY_LEVEL_CHANGED intent
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
@@ -632,7 +634,7 @@ public class RemoteDevicesTest {
         Assert.assertTrue(mRemoteDevices.hasBatteryService(mDevice1));
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that updating battery level triggers ACTION_BATTERY_LEVEL_CHANGED intent
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
@@ -671,7 +673,7 @@ public class RemoteDevicesTest {
         Assert.assertTrue(mRemoteDevices.hasBatteryService(mDevice1));
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that updating battery level triggers ACTION_BATTERY_LEVEL_CHANGED intent
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
@@ -715,7 +717,7 @@ public class RemoteDevicesTest {
         Assert.assertTrue(mRemoteDevices.hasBatteryService(mDevice1));
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that updating battery level triggers ACTION_BATTERY_LEVEL_CHANGED intent
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
@@ -750,7 +752,7 @@ public class RemoteDevicesTest {
         int batteryLevel = 3;
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         // Verify that ACTION_AG_EVENT intent updates battery level
         mRemoteDevices.onAgBatteryLevelChanged(mDevice1, batteryLevel);
@@ -768,7 +770,7 @@ public class RemoteDevicesTest {
     @EnableFlags(Flags.FLAG_FIX_ADD_DEVICE_PROPERTIES)
     public void testMultipleAddDeviceProperties() {
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
         DeviceProperties prop1 =
                 mRemoteDevices.addDeviceProperties(Utils.getBytesFromAddress(TEST_BT_ADDR_1));
         DeviceProperties prop2 =
@@ -779,7 +781,7 @@ public class RemoteDevicesTest {
     @Test
     public void testSetgetHfAudioPolicyForRemoteAg() {
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
 
         mRemoteDevices.addDeviceProperties(Utils.getBytesFromAddress(TEST_BT_ADDR_1));
 
@@ -793,7 +795,7 @@ public class RemoteDevicesTest {
                         .build();
         deviceProp.setHfAudioPolicyForRemoteAg(policies);
 
-        // Verify that the audio policy properties are set and get propperly
+        // Verify that the audio policy properties are set and get properly
         Assert.assertEquals(
                 policies,
                 mRemoteDevices.getDeviceProperties(mDevice1).getHfAudioPolicyForRemoteAg());
@@ -806,7 +808,7 @@ public class RemoteDevicesTest {
                 .getSupportedProfilesBitMask();
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
         mRemoteDevices.addDeviceProperties(Utils.getBytesFromAddress(TEST_BT_ADDR_1));
 
         DeviceProperties deviceProp = mRemoteDevices.getDeviceProperties(mDevice1);
@@ -822,7 +824,7 @@ public class RemoteDevicesTest {
                 .getSupportedProfilesBitMask();
 
         // Verify that device property is null initially
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
         mRemoteDevices.addDeviceProperties(Utils.getBytesFromAddress(TEST_BT_ADDR_1));
 
         DeviceProperties deviceProp = mRemoteDevices.getDeviceProperties(mDevice1);
@@ -833,7 +835,7 @@ public class RemoteDevicesTest {
 
     @Test
     public void testIsDeviceNull() {
-        Assert.assertNull(mRemoteDevices.getDeviceProperties(null));
+        assertThat(mRemoteDevices.getDeviceProperties(null)).isNull();
     }
 
     private static void verifyBatteryLevelChangedIntent(

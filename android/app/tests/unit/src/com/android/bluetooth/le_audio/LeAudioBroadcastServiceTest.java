@@ -21,6 +21,8 @@ import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 
 import static com.android.bluetooth.bass_client.BassConstants.INVALID_BROADCAST_ID;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.annotation.Nullable;
@@ -229,7 +231,7 @@ public class LeAudioBroadcastServiceTest {
     private void stopService() throws TimeoutException {
         mService.stop();
         mService = LeAudioService.getLeAudioService();
-        Assert.assertNull(mService);
+        assertThat(mService).isNull();
     }
 
     /** Test getting LeAudio Service */

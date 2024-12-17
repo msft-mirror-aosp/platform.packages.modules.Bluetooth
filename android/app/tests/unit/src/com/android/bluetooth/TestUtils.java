@@ -15,6 +15,7 @@
  */
 package com.android.bluetooth;
 
+import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.mockito.ArgumentMatchers.eq;
@@ -93,10 +94,11 @@ public class TestUtils {
      *     mocked or spied
      */
     public static void setAdapterService(AdapterService adapterService) {
-        Assert.assertNull(
-                "AdapterService.getAdapterService() must be null before setting another"
-                        + " AdapterService",
-                AdapterService.getAdapterService());
+        assertWithMessage(
+                        "AdapterService.getAdapterService() must be null before setting another"
+                                + " AdapterService")
+                .that(AdapterService.getAdapterService())
+                .isNull();
         Assert.assertNotNull("Adapter service should not be null", adapterService);
         // We cannot mock AdapterService.getAdapterService() with Mockito.
         // Hence we need to set AdapterService.sAdapterService field.
@@ -190,7 +192,7 @@ public class TestUtils {
     public static void waitForNoIntent(int timeoutMs, BlockingQueue<Intent> queue) {
         try {
             Intent intent = queue.poll(timeoutMs, TimeUnit.MILLISECONDS);
-            Assert.assertNull(intent);
+            assertThat(intent).isNull();
         } catch (InterruptedException e) {
             Assert.fail("Cannot obtain an Intent from the queue: " + e.getMessage());
         }

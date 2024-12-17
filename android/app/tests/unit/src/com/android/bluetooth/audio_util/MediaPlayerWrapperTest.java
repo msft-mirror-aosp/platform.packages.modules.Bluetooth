@@ -172,12 +172,10 @@ public class MediaPlayerWrapperTest {
      */
     @Test
     public void testNullControllerLooper() {
-        MediaPlayerWrapper wrapper =
-                MediaPlayerWrapperFactory.wrap(mMockContext, null, mThread.getLooper());
-        Assert.assertNull(wrapper);
+        assertThat(MediaPlayerWrapperFactory.wrap(mMockContext, null, mThread.getLooper()))
+                .isNull();
 
-        wrapper = MediaPlayerWrapperFactory.wrap(mMockContext, mMockController, null);
-        Assert.assertNull(wrapper);
+        assertThat(MediaPlayerWrapperFactory.wrap(mMockContext, mMockController, null)).isNull();
     }
 
     /*
@@ -556,7 +554,7 @@ public class MediaPlayerWrapperTest {
 
         // Ensure that everything was cleaned up
         verify(mMockController).unregisterCallback(any());
-        Assert.assertNull(wrapper.getTimeoutHandler());
+        assertThat(wrapper.getTimeoutHandler()).isNull();
     }
 
     /*

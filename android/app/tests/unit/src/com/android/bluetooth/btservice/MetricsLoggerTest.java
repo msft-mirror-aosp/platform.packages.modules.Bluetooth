@@ -15,6 +15,7 @@
  */
 package com.android.bluetooth.btservice;
 
+import static com.google.common.truth.Truth.assertThat;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -265,7 +266,7 @@ public class MetricsLoggerTest {
             Assert.assertEquals(bluetoothRemoteDeviceInformation.getOui(), oui);
 
         } catch (InvalidProtocolBufferException e) {
-            Assert.assertNull(e.getMessage()); // test failure here
+            assertThat(e.getMessage()).isNull(); // test failure here
         }
     }
 

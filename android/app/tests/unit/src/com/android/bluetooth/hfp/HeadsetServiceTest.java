@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.hfp;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
@@ -181,7 +183,7 @@ public class HeadsetServiceTest {
         mHeadsetService.stop();
         HeadsetNativeInterface.setInstance(null);
         mHeadsetService = HeadsetService.getHeadsetService();
-        Assert.assertNull(mHeadsetService);
+        assertThat(mHeadsetService).isNull();
         mStateMachines.clear();
         mCurrentDevice = null;
         HeadsetObjectsFactory.setInstanceForTesting(null);
@@ -1185,7 +1187,7 @@ public class HeadsetServiceTest {
         Assert.assertTrue(mHeadsetService.setActiveDevice(mCurrentDevice));
         Assert.assertEquals(mCurrentDevice, mHeadsetService.getActiveDevice());
         Assert.assertTrue(mHeadsetService.setSilenceMode(mCurrentDevice, true));
-        Assert.assertNull(mHeadsetService.getActiveDevice());
+        assertThat(mHeadsetService.getActiveDevice()).isNull();
 
         // Test whether active device been resumed after disable silence mode.
         Assert.assertTrue(mHeadsetService.setSilenceMode(mCurrentDevice, false));

@@ -251,7 +251,7 @@ public class CsipSetCoordinatorServiceTest {
         verify(mCsipSetCoordinatorLockCallback)
                 .onGroupLockSet(
                         group_id, BluetoothStatusCodes.ERROR_CSIP_GROUP_LOCKED_BY_OTHER, true);
-        Assert.assertNull(lock_uuid);
+        assertThat(lock_uuid).isNull();
     }
 
     @Test

@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.telephony;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -1681,8 +1683,8 @@ public class BluetoothInCallServiceTest {
     public void clear() {
         mBluetoothInCallService.clear();
 
-        Assert.assertNull(mBluetoothInCallService.mBluetoothAdapterReceiver);
-        Assert.assertNull(mBluetoothInCallService.mBluetoothHeadset);
+        assertThat(mBluetoothInCallService.mBluetoothAdapterReceiver).isNull();
+        assertThat(mBluetoothInCallService.mBluetoothHeadset).isNull();
     }
 
     @Test

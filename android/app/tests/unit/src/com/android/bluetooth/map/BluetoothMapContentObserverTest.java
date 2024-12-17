@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.map;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.*;
 
@@ -471,7 +473,7 @@ public class BluetoothMapContentObserverTest {
 
         Assert.assertTrue(mObserver.deleteMessageMms(TEST_HANDLE_ONE));
 
-        Assert.assertNull(mObserver.getMsgListMms().get(TEST_HANDLE_ONE));
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE)).isNull();
     }
 
     @Test
@@ -517,7 +519,7 @@ public class BluetoothMapContentObserverTest {
 
         Assert.assertTrue(mObserver.deleteMessageSms(TEST_HANDLE_ONE));
 
-        Assert.assertNull(mObserver.getMsgListSms().get(TEST_HANDLE_ONE));
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE)).isNull();
     }
 
     @Test

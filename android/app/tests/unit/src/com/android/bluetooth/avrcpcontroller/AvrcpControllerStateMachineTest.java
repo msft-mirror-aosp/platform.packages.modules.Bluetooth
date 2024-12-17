@@ -1380,8 +1380,7 @@ public class AvrcpControllerStateMachineTest {
         MediaControllerCompat controller = session.getController();
         Assert.assertNotNull(controller);
 
-        MediaMetadataCompat metadata = controller.getMetadata();
-        Assert.assertNull(metadata); // track starts as null and shouldn't change
+        assertThat(controller.getMetadata()).isNull(); // track starts as null and shouldn't change
     }
 
     /** Test receiving a playback status of playing when we're not the active device */
@@ -1465,8 +1464,7 @@ public class AvrcpControllerStateMachineTest {
         MediaControllerCompat controller = session.getController();
         Assert.assertNotNull(controller);
 
-        List<MediaSessionCompat.QueueItem> queue = controller.getQueue();
-        Assert.assertNull(queue);
+        assertThat(controller.getQueue()).isNull();
     }
 
     /**
@@ -2008,8 +2006,7 @@ public class AvrcpControllerStateMachineTest {
         Assert.assertNotNull(session);
         MediaControllerCompat controller = session.getController();
         Assert.assertNotNull(controller);
-        List<MediaSessionCompat.QueueItem> queue = controller.getQueue();
-        Assert.assertNull(queue);
+        assertThat(controller.getQueue()).isNull();
     }
 
     /**

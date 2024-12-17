@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.mapclient;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import androidx.test.filters.MediumTest;
@@ -65,33 +67,28 @@ public class BmessageTest {
 
     @Test
     public void testParseWrongLengthMessage() {
-        Bmessage message = BmessageParser.createBmessage(WRONG_LENGTH_MESSAGE);
-        Assert.assertNull(message);
+        assertThat(BmessageParser.createBmessage(WRONG_LENGTH_MESSAGE)).isNull();
     }
 
     @Test
     public void testParseNoEndMessage() {
-        Bmessage message = BmessageParser.createBmessage(NO_END_MESSAGE);
-        Assert.assertNull(message);
+        assertThat(BmessageParser.createBmessage(NO_END_MESSAGE)).isNull();
     }
 
     @Test
     public void testParseReallyLongMessage() {
         String testMessage = new String(new char[68048]).replace('\0', 'A');
-        Bmessage message = BmessageParser.createBmessage(testMessage);
-        Assert.assertNull(message);
+        assertThat(BmessageParser.createBmessage(testMessage)).isNull();
     }
 
     @Test
     public void testNoBodyMessage() {
-        Bmessage message = BmessageParser.createBmessage(NO_BODY_MESSAGE);
-        Assert.assertNull(message);
+        assertThat(BmessageParser.createBmessage(NO_BODY_MESSAGE)).isNull();
     }
 
     @Test
     public void testNegativeLengthMessage() {
-        Bmessage message = BmessageParser.createBmessage(NEGATIVE_LENGTH_MESSAGE);
-        Assert.assertNull(message);
+        assertThat(BmessageParser.createBmessage(NEGATIVE_LENGTH_MESSAGE)).isNull();
     }
 
     @Test

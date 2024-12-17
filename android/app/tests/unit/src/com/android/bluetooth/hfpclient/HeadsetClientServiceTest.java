@@ -21,6 +21,8 @@ import static android.content.pm.PackageManager.FEATURE_WATCH;
 import static com.android.bluetooth.hfpclient.HeadsetClientService.MAX_HFP_SCO_VOICE_CALL_VOLUME;
 import static com.android.bluetooth.hfpclient.HeadsetClientService.MIN_HFP_SCO_VOICE_CALL_VOLUME;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doReturn;
@@ -272,7 +274,7 @@ public class HeadsetClientServiceTest {
     private void stopServiceIfStarted() throws Exception {
         if (mIsHeadsetClientServiceStarted) {
             mService.stop();
-            Assert.assertNull(HeadsetClientService.getHeadsetClientService());
+            assertThat(HeadsetClientService.getHeadsetClientService()).isNull();
         }
     }
 }
