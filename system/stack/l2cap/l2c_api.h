@@ -136,6 +136,8 @@ public:
                                          bool is_local_cid) override;
 
   [[nodiscard]] bool L2CA_GetAclHandle(uint16_t lcid, uint16_t* acl_handle) override;
+
+  [[nodiscard]] bool L2CA_GetLocalMtu(uint16_t lcid, uint16_t* local_mtu) override;
 };
 
 }  // namespace l2cap
