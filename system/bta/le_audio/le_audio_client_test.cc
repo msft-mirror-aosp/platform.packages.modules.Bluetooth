@@ -1956,7 +1956,9 @@ protected:
             unicast_source_hal_cb_));
 
     SyncOnMainLoop();
-    Mock::VerifyAndClearExpectations(&*mock_le_audio_source_hal_client_);
+    if (expected_confirmation || expected_cancel) {
+      Mock::VerifyAndClearExpectations(&*mock_le_audio_source_hal_client_);
+    }
   }
 
   void LocalAudioSinkSuspend(void) {
@@ -12212,7 +12214,7 @@ TEST_F(UnicastTest, GroupStreamStatusManyGroups) {
           .Times(1);
   state_machine_callbacks_->StatusReportCb(group_id_2, GroupStreamStatus::IDLE);
 
-  // Group 1 active and start streaming
+  log::info("Group 1 active and start streaming");
   EXPECT_CALL(mock_audio_hal_client_callbacks_,
               OnGroupStreamStatus(group_id_1, GroupStreamStatus::STREAMING))
           .Times(1);
@@ -12222,7 +12224,7 @@ TEST_F(UnicastTest, GroupStreamStatusManyGroups) {
   SyncOnMainLoop();
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
 
-  // Group 2 active
+  log::info("Group 2 is getting active");
   EXPECT_CALL(mock_audio_hal_client_callbacks_,
               OnGroupStreamStatus(group_id_1, GroupStreamStatus::IDLE))
           .Times(1);
@@ -12230,13 +12232,113 @@ TEST_F(UnicastTest, GroupStreamStatusManyGroups) {
   SyncOnMainLoop();
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
 
-  // Group 2 start streaming
+  log::info("Group 2 is starts streaming");
   EXPECT_CALL(mock_audio_hal_client_callbacks_,
               OnGroupStreamStatus(group_id_2, GroupStreamStatus::STREAMING))
           .Times(1);
   StartStreaming(AUDIO_USAGE_MEDIA, AUDIO_CONTENT_TYPE_MUSIC, group_id_2);
   SyncOnMainLoop();
   Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
+}
+
+TEST_F(UnicastTest, GroupStreamStatusManyGroups_GettingConfigWhileOtherGroupIsStreaming) {
+  uint8_t group_size = 2;
+  int group_id_1 = 1;
+  int group_id_2 = 2;
+
+  // Report working CSIS
+  ON_CALL(mock_csis_client_module_, IsCsisClientRunning()).WillByDefault(Return(true));
+
+  ON_CALL(mock_csis_client_module_, GetDesiredSize(_)).WillByDefault(Return(group_size));
+
+  // First group - First earbud
+  const RawAddress test_address0 = GetTestAddress(0);
+  EXPECT_CALL(mock_btif_storage_, AddLeaudioAutoconnect(test_address0, true)).Times(1);
+  ConnectCsisDevice(test_address0, 1 /*conn_id*/, codec_spec_conf::kLeAudioLocationFrontLeft,
+                    codec_spec_conf::kLeAudioLocationFrontLeft, group_size, group_id_1,
+                    1 /* rank*/);
+
+  // First group - Second earbud
+  const RawAddress test_address1 = GetTestAddress(1);
+  EXPECT_CALL(mock_btif_storage_, AddLeaudioAutoconnect(test_address1, true)).Times(1);
+  ConnectCsisDevice(test_address1, 2 /*conn_id*/, codec_spec_conf::kLeAudioLocationFrontRight,
+                    codec_spec_conf::kLeAudioLocationFrontRight, group_size, group_id_1,
+                    2 /* rank*/, true /*connect_through_csis*/);
+
+  // Second group - First earbud
+  const RawAddress test_address2 = GetTestAddress(2);
+  EXPECT_CALL(mock_btif_storage_, AddLeaudioAutoconnect(test_address2, true)).Times(1);
+  ConnectCsisDevice(test_address2, 3 /*conn_id*/, codec_spec_conf::kLeAudioLocationFrontLeft,
+                    codec_spec_conf::kLeAudioLocationFrontLeft, group_size, group_id_2,
+                    1 /* rank*/);
+
+  // Second group - Second earbud
+  const RawAddress test_address3 = GetTestAddress(3);
+  EXPECT_CALL(mock_btif_storage_, AddLeaudioAutoconnect(test_address3, true)).Times(1);
+  ConnectCsisDevice(test_address3, 4 /*conn_id*/, codec_spec_conf::kLeAudioLocationFrontRight,
+                    codec_spec_conf::kLeAudioLocationFrontRight, group_size, group_id_2,
+                    2 /* rank*/, true /*connect_through_csis*/);
+
+  InSequence s;
+
+  // Group 1 IDLE
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnGroupStreamStatus(group_id_1, GroupStreamStatus::IDLE))
+          .Times(1);
+  state_machine_callbacks_->StatusReportCb(group_id_1, GroupStreamStatus::IDLE);
+
+  // Group 2 IDLE
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnGroupStreamStatus(group_id_2, GroupStreamStatus::IDLE))
+          .Times(1);
+  state_machine_callbacks_->StatusReportCb(group_id_2, GroupStreamStatus::IDLE);
+
+  log::info("Group 1 active and start streaming");
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnGroupStreamStatus(group_id_1, GroupStreamStatus::STREAMING))
+          .Times(1);
+  LeAudioClient::Get()->GroupSetActive(group_id_1);
+  SyncOnMainLoop();
+  StartStreaming(AUDIO_USAGE_MEDIA, AUDIO_CONTENT_TYPE_MUSIC, group_id_1);
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
+
+  log::info("Group 2 is getting active");
+  stay_at_releasing_stop_stream = true;
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnGroupStreamStatus(group_id_1, GroupStreamStatus::IDLE))
+          .Times(1);
+  LeAudioClient::Get()->GroupSetActive(group_id_2);
+  SyncOnMainLoop();
+
+  log::info("Group 2 is starts streaming");
+  stay_at_qos_config_in_start_stream = true;
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnGroupStreamStatus(group_id_2, GroupStreamStatus::STREAMING))
+          .Times(1);
+  EXPECT_CALL(*mock_le_audio_source_hal_client_, ConfirmStreamingRequest()).Times(1);
+
+  StartStreaming(AUDIO_USAGE_MEDIA, AUDIO_CONTENT_TYPE_MUSIC, group_id_2, AUDIO_SOURCE_INVALID,
+                 false, false);
+
+  log::info("Group 1 going to IDLE");
+  do_in_main_thread(base::BindOnce(
+          [](int group_id,
+             bluetooth::le_audio::LeAudioGroupStateMachine::Callbacks* state_machine_callbacks) {
+            state_machine_callbacks->StatusReportCb(group_id, GroupStreamStatus::IDLE);
+          },
+          group_id_1, base::Unretained(this->state_machine_callbacks_)));
+  SyncOnMainLoop();
+  log::info("Group 2 going to STREAMING");
+  do_in_main_thread(base::BindOnce(
+          [](int group_id,
+             bluetooth::le_audio::LeAudioGroupStateMachine::Callbacks* state_machine_callbacks) {
+            state_machine_callbacks->StatusReportCb(group_id, GroupStreamStatus::STREAMING);
+          },
+          group_id_2, base::Unretained(this->state_machine_callbacks_)));
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
+  Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
 }
 
 TEST_F(UnicastTest, GroupStreamStatusResendAfterRemove) {
