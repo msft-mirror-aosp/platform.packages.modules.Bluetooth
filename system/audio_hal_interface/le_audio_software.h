@@ -178,6 +178,9 @@ public:
   // singleton.
   static LeAudioClientInterface* Get();
 
+  // Get the Codec Configuration Provider info
+  std::optional<bluetooth::le_audio::ProviderInfo> GetCodecConfigProviderInfo(void) const;
+
 private:
   static LeAudioClientInterface* interface;
   Sink* unicast_sink_ = nullptr;

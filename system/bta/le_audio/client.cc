@@ -6617,6 +6617,7 @@ void LeAudioClient::Initialize(
 void LeAudioClient::DebugDump(int fd) {
   std::scoped_lock<std::mutex> lock(instance_mutex);
   DeviceGroups::DebugDump(fd);
+  GmapServer::DebugDump(fd);
 
   dprintf(fd, "LeAudio Manager: \n");
   if (instance) {

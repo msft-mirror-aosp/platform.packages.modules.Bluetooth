@@ -58,8 +58,8 @@ bool GmapClient::IsGmapClientEnabled() {
   bool system_prop = osi_property_get_bool("bluetooth.profile.gmap.enabled", false);
 
   bool result = flag && system_prop && is_offloader_support_gmap_;
-  log::info("GmapClientEnabled={}, flag={}, system_prop={}, offloader_support={}", result,
-            system_prop, flag, GmapClient::is_offloader_support_gmap_);
+  log::info("GmapClientEnabled={}, flag={}, system_prop={}, offloader_support={}", result, flag,
+            system_prop, GmapClient::is_offloader_support_gmap_);
   return result;
 }
 
