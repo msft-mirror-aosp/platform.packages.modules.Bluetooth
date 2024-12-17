@@ -755,7 +755,7 @@ public class AvrcpControllerStateMachineTest {
                 AvrcpControllerStateMachine.MESSAGE_PROCESS_AVAILABLE_PLAYER_CHANGED);
 
         // Verify we've uncached our browse root and made the call to fetch new players
-        Assert.assertFalse(mAvrcpStateMachine.mBrowseTree.mRootNode.isCached());
+        assertThat(mAvrcpStateMachine.mBrowseTree.mRootNode.isCached()).isFalse();
         verify(mNativeInterface, timeout(ASYNC_CALL_TIMEOUT_MILLIS).times(1))
                 .getPlayerList(eq(mTestAddress), eq(0), eq(19));
     }
@@ -784,7 +784,7 @@ public class AvrcpControllerStateMachineTest {
                 AvrcpControllerStateMachine.MESSAGE_PROCESS_AVAILABLE_PLAYER_CHANGED);
 
         // Verify we've uncached our browse root and made the call to fetch new players
-        Assert.assertFalse(mAvrcpStateMachine.mBrowseTree.mRootNode.isCached());
+        assertThat(mAvrcpStateMachine.mBrowseTree.mRootNode.isCached()).isFalse();
         verify(mNativeInterface, timeout(ASYNC_CALL_TIMEOUT_MILLIS).times(1))
                 .getPlayerList(eq(mTestAddress), eq(0), eq(19));
 
@@ -835,7 +835,7 @@ public class AvrcpControllerStateMachineTest {
                 AvrcpControllerStateMachine.MESSAGE_PROCESS_AVAILABLE_PLAYER_CHANGED);
 
         // Verify we've uncached our browse root and made the call to fetch new players
-        Assert.assertFalse(mAvrcpStateMachine.mBrowseTree.mRootNode.isCached());
+        assertThat(mAvrcpStateMachine.mBrowseTree.mRootNode.isCached()).isFalse();
         verify(mNativeInterface, timeout(ASYNC_CALL_TIMEOUT_MILLIS).times(1))
                 .getPlayerList(eq(mTestAddress), eq(0), eq(19));
 
@@ -1217,7 +1217,7 @@ public class AvrcpControllerStateMachineTest {
     @Test
     public void testIsActive_deviceInactive() {
         setActiveDevice(null);
-        Assert.assertFalse(mAvrcpStateMachine.isActive());
+        assertThat(mAvrcpStateMachine.isActive()).isFalse();
     }
 
     /** Test becoming active from the inactive state */
@@ -1230,7 +1230,7 @@ public class AvrcpControllerStateMachineTest {
         // Make the device inactive
         setActiveDevice(null);
         TestUtils.waitForLooperToFinishScheduledTask(mAvrcpStateMachine.getHandler().getLooper());
-        Assert.assertFalse(mAvrcpStateMachine.isActive());
+        assertThat(mAvrcpStateMachine.isActive()).isFalse();
 
         // Change device state while inactive
         AvrcpItem track = makeTrack("title", "artist", "album", 1, 10, "none", 10, null);
@@ -1293,7 +1293,7 @@ public class AvrcpControllerStateMachineTest {
                         eq(mTestAddress),
                         eq(AvrcpControllerService.PASS_THRU_CMD_ID_PAUSE),
                         eq(KEY_DOWN));
-        Assert.assertFalse(mAvrcpStateMachine.isActive());
+        assertThat(mAvrcpStateMachine.isActive()).isFalse();
     }
 
     @Test
@@ -1368,7 +1368,7 @@ public class AvrcpControllerStateMachineTest {
         // becoming inactive
         setActiveDevice(null);
         TestUtils.waitForLooperToFinishScheduledTask(mAvrcpStateMachine.getHandler().getLooper());
-        Assert.assertFalse(mAvrcpStateMachine.isActive());
+        assertThat(mAvrcpStateMachine.isActive()).isFalse();
 
         // Change track while inactive
         AvrcpItem track = makeTrack("title", "artist", "album", 1, 10, "none", 10, null);
@@ -1391,7 +1391,7 @@ public class AvrcpControllerStateMachineTest {
         // Set the active device to something else, verify we're inactive
         setActiveDevice(null);
         TestUtils.waitForLooperToFinishScheduledTask(mAvrcpStateMachine.getHandler().getLooper());
-        Assert.assertFalse(mAvrcpStateMachine.isActive());
+        assertThat(mAvrcpStateMachine.isActive()).isFalse();
         clearInvocations(mAvrcpControllerService);
         clearInvocations(mNativeInterface);
 
@@ -1419,7 +1419,7 @@ public class AvrcpControllerStateMachineTest {
         // Set the active device to something else, verify we're inactive
         setActiveDevice(null);
         TestUtils.waitForLooperToFinishScheduledTask(mAvrcpStateMachine.getHandler().getLooper());
-        Assert.assertFalse(mAvrcpStateMachine.isActive());
+        assertThat(mAvrcpStateMachine.isActive()).isFalse();
         clearInvocations(mAvrcpControllerService);
         clearInvocations(mNativeInterface);
 
@@ -1446,7 +1446,7 @@ public class AvrcpControllerStateMachineTest {
         // becoming inactive
         setActiveDevice(null);
         TestUtils.waitForLooperToFinishScheduledTask(mAvrcpStateMachine.getHandler().getLooper());
-        Assert.assertFalse(mAvrcpStateMachine.isActive());
+        assertThat(mAvrcpStateMachine.isActive()).isFalse();
 
         // Change queue while inactive
         List<AvrcpItem> nowPlayingList = new ArrayList<AvrcpItem>();
@@ -1991,7 +1991,7 @@ public class AvrcpControllerStateMachineTest {
 
         // Request for new contents should be sent
         verify(mNativeInterface).getNowPlayingList(eq(mTestAddress), eq(0), eq(19));
-        Assert.assertFalse(nowPlaying.isCached());
+        assertThat(nowPlaying.isCached()).isFalse();
 
         // Send timeout on our own instead of waiting 10 seconds
         mAvrcpStateMachine.sendMessage(AvrcpControllerStateMachine.MESSAGE_INTERNAL_CMD_TIMEOUT);

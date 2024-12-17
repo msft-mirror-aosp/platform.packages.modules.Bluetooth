@@ -142,7 +142,7 @@ public class MapClientTest {
 
         // connect a bluetooth device
         mockDevicePriority(device, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
-        Assert.assertFalse(mService.connect(device));
+        assertThat(mService.connect(device)).isFalse();
 
         // is the statemachine created
         assertThat(mService.getInstanceMap()).isEmpty();
@@ -178,7 +178,7 @@ public class MapClientTest {
 
         // Try to connect one more device. Should fail.
         BluetoothDevice last = makeBluetoothDevice("11:22:33:44:55:66");
-        Assert.assertFalse(mService.connect(last));
+        assertThat(mService.connect(last)).isFalse();
     }
 
     /** Test calling connect via Binder */

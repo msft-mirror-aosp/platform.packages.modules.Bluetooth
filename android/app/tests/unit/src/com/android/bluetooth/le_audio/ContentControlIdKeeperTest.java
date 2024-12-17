@@ -84,7 +84,7 @@ public class ContentControlIdKeeperTest {
 
         ContentControlIdKeeper.releaseCcid(ccid);
         uuidToCcidContextPair = ContentControlIdKeeper.getUuidToCcidContextPairMap();
-        Assert.assertFalse(uuidToCcidContextPair.containsKey(uuid));
+        assertThat(uuidToCcidContextPair).doesNotContainKey(uuid);
 
         verify(mLeAudioServiceMock).setCcidInformation(eq(uuid), eq(ccid), eq(0));
 

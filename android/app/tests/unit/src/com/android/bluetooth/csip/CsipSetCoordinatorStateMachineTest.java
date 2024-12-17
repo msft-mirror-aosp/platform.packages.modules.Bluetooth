@@ -279,7 +279,7 @@ public class CsipSetCoordinatorStateMachineTest {
 
     @Test
     public void testIsConnected() {
-        Assert.assertFalse(mStateMachine.isConnected());
+        assertThat(mStateMachine.isConnected()).isFalse();
 
         initToConnectedState();
         assertThat(mStateMachine.isConnected()).isTrue();

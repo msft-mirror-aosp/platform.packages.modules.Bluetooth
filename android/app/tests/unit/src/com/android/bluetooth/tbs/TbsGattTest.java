@@ -187,7 +187,7 @@ public class TbsGattTest {
             if (valueChanged) {
                 assertThat(mTbsGatt.setBearerProviderName((String) value)).isTrue();
             } else {
-                Assert.assertFalse(mTbsGatt.setBearerProviderName((String) value));
+                assertThat(mTbsGatt.setBearerProviderName((String) value)).isFalse();
             }
             Assert.assertEquals((String) value, characteristic.getStringValue(0));
 
@@ -206,7 +206,8 @@ public class TbsGattTest {
                 assertThat(mTbsGatt.setBearerUriSchemesSupportedList((List<String>) value))
                         .isTrue();
             } else {
-                Assert.assertFalse(mTbsGatt.setBearerUriSchemesSupportedList((List<String>) value));
+                assertThat(mTbsGatt.setBearerUriSchemesSupportedList((List<String>) value))
+                        .isFalse();
             }
             Assert.assertEquals(valueString, characteristic.getStringValue(0));
 

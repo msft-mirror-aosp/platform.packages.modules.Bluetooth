@@ -69,7 +69,6 @@ import com.android.bluetooth.le_audio.LeAudioService;
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -238,7 +237,7 @@ public class CsipSetCoordinatorServiceTest {
 
         mNativeCallback.onDeviceAvailable(
                 getByteAddress(mDevice), group_id, group_size, 1, uuidLsb, uuidMsb);
-        Assert.assertFalse(mService.isGroupLocked(group_id));
+        assertThat(mService.isGroupLocked(group_id)).isFalse();
 
         UUID lock_uuid = mService.lockGroup(group_id, mCsipSetCoordinatorLockCallback);
         verify(mNativeInterface).groupLockSet(eq(group_id), eq(true));

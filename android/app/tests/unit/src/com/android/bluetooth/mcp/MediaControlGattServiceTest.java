@@ -148,7 +148,7 @@ public class MediaControlGattServiceTest {
         long mMandatoryFeatures = 0;
 
         doReturn(mMandatoryFeatures).when(mMockMcsCallbacks).onGetFeatureFlags();
-        Assert.assertFalse(mMcpService.init(UUID_GMCS));
+        assertThat(mMcpService.init(UUID_GMCS)).isFalse();
     }
 
     private BluetoothGattService initAllFeaturesGattService() {
@@ -1033,7 +1033,7 @@ public class MediaControlGattServiceTest {
 
     @Test
     public void testMediaControlPointRequestInvalid() {
-        Assert.assertFalse(mMcpService.isOpcodeSupported(Request.Opcodes.PLAY));
+        assertThat(mMcpService.isOpcodeSupported(Request.Opcodes.PLAY)).isFalse();
     }
 
     @Test

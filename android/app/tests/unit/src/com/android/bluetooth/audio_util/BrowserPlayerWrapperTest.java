@@ -396,7 +396,7 @@ public class BrowserPlayerWrapperTest {
             if (item.isFolder) {
                 Folder folder = item.folder;
                 assertThat(folder).isNotNull();
-                Assert.assertFalse(folder.isPlayable);
+                assertThat(folder.isPlayable).isFalse();
                 Assert.assertEquals(expected.getDescription().getMediaId(), folder.mediaId);
                 Assert.assertEquals(expected.getDescription().getTitle().toString(), folder.title);
             } else {

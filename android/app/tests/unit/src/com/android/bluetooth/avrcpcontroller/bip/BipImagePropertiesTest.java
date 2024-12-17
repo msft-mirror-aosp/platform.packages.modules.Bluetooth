@@ -195,7 +195,7 @@ public class BipImagePropertiesTest {
         Assert.assertEquals(null, properties.getImageHandle());
         Assert.assertEquals(VERSION, properties.getVersion());
         Assert.assertEquals(FRIENDLY_NAME, properties.getFriendlyName());
-        Assert.assertFalse(properties.isValid());
+        assertThat(properties.isValid()).isFalse();
         Assert.assertEquals(xmlString, properties.toString());
         Assert.assertEquals(null, properties.serialize());
     }
@@ -222,7 +222,7 @@ public class BipImagePropertiesTest {
         Assert.assertEquals(IMAGE_HANDLE, properties.getImageHandle());
         Assert.assertEquals(null, properties.getVersion());
         Assert.assertEquals(FRIENDLY_NAME, properties.getFriendlyName());
-        Assert.assertFalse(properties.isValid());
+        assertThat(properties.isValid()).isFalse();
         Assert.assertEquals(xmlString, properties.toString());
         Assert.assertEquals(null, properties.serialize());
     }
@@ -345,7 +345,7 @@ public class BipImagePropertiesTest {
         Assert.assertEquals(IMAGE_HANDLE, properties.getImageHandle());
         Assert.assertEquals(VERSION, properties.getVersion());
         Assert.assertEquals(FRIENDLY_NAME, properties.getFriendlyName());
-        Assert.assertFalse(properties.isValid());
+        assertThat(properties.isValid()).isFalse();
         Assert.assertEquals(xmlString, properties.toString());
         Assert.assertEquals(null, properties.serialize());
     }
@@ -364,7 +364,7 @@ public class BipImagePropertiesTest {
         Assert.assertEquals(IMAGE_HANDLE, properties.getImageHandle());
         Assert.assertEquals(VERSION, properties.getVersion());
         Assert.assertEquals(FRIENDLY_NAME, properties.getFriendlyName());
-        Assert.assertFalse(properties.isValid());
+        assertThat(properties.isValid()).isFalse();
         Assert.assertEquals(null, properties.serialize());
     }
 

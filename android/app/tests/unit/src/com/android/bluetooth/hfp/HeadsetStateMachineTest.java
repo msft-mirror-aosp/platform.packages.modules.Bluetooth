@@ -1932,20 +1932,24 @@ public class HeadsetStateMachineTest {
                 .atResponseCode(mTestDevice, HeadsetHalConstants.AT_RESPONSE_ERROR, 0);
 
         // Commands with correct format but will not be handled
-        Assert.assertFalse(mHeadsetStateMachine.checkAndProcessAndroidAt("+ANDROID=", mTestDevice));
-        Assert.assertFalse(
-                mHeadsetStateMachine.checkAndProcessAndroidAt(
-                        "+ANDROID: PROBE,1,\"`AB\"", mTestDevice));
-        Assert.assertFalse(
-                mHeadsetStateMachine.checkAndProcessAndroidAt(
-                        "+ANDROID= PROBE,1,\"`AB\"", mTestDevice));
-        Assert.assertFalse(
-                mHeadsetStateMachine.checkAndProcessAndroidAt(
-                        "AT+ANDROID=PROBE,1,1,\"PQGHRSBCTU__\"", mTestDevice));
+        assertThat(mHeadsetStateMachine.checkAndProcessAndroidAt("+ANDROID=", mTestDevice))
+                .isFalse();
+        assertThat(
+                        mHeadsetStateMachine.checkAndProcessAndroidAt(
+                                "+ANDROID: PROBE,1,\"`AB\"", mTestDevice))
+                .isFalse();
+        assertThat(
+                        mHeadsetStateMachine.checkAndProcessAndroidAt(
+                                "+ANDROID= PROBE,1,\"`AB\"", mTestDevice))
+                .isFalse();
+        assertThat(
+                        mHeadsetStateMachine.checkAndProcessAndroidAt(
+                                "AT+ANDROID=PROBE,1,1,\"PQGHRSBCTU__\"", mTestDevice))
+                .isFalse();
 
         // Incorrect format AT command
-        Assert.assertFalse(
-                mHeadsetStateMachine.checkAndProcessAndroidAt("RANDOM FORMAT", mTestDevice));
+        assertThat(mHeadsetStateMachine.checkAndProcessAndroidAt("RANDOM FORMAT", mTestDevice))
+                .isFalse();
 
         // Check no any AT result was sent for the failed ones
         verify(mNativeInterface, timeout(ASYNC_CALL_TIMEOUT_MILLIS).times(counter_ok))
@@ -2016,15 +2020,15 @@ public class HeadsetStateMachineTest {
         assertThat(setSinkAudioPolicyArgs("SINKAUDIOPOLICY,1,1,1", mTestDevice)).isTrue();
 
         // invalid format
-        Assert.assertFalse(setSinkAudioPolicyArgs("SINKAUDIOPOLICY,0", mTestDevice));
-        Assert.assertFalse(setSinkAudioPolicyArgs("SINKAUDIOPOLICY,0,0", mTestDevice));
-        Assert.assertFalse(setSinkAudioPolicyArgs("SINKAUDIOPOLICY,0,0,0,0", mTestDevice));
-        Assert.assertFalse(setSinkAudioPolicyArgs("SINKAUDIOPOLICY,NOT,INT,TYPE", mTestDevice));
-        Assert.assertFalse(setSinkAudioPolicyArgs("RANDOM,VALUE-#$%,*(&^", mTestDevice));
+        assertThat(setSinkAudioPolicyArgs("SINKAUDIOPOLICY,0", mTestDevice)).isFalse();
+        assertThat(setSinkAudioPolicyArgs("SINKAUDIOPOLICY,0,0", mTestDevice)).isFalse();
+        assertThat(setSinkAudioPolicyArgs("SINKAUDIOPOLICY,0,0,0,0", mTestDevice)).isFalse();
+        assertThat(setSinkAudioPolicyArgs("SINKAUDIOPOLICY,NOT,INT,TYPE", mTestDevice)).isFalse();
+        assertThat(setSinkAudioPolicyArgs("RANDOM,VALUE-#$%,*(&^", mTestDevice)).isFalse();
 
         // wrong device
         BluetoothDevice device = mAdapter.getRemoteDevice("01:01:01:01:01:01");
-        Assert.assertFalse(setSinkAudioPolicyArgs("SINKAUDIOPOLICY,0,0,0", device));
+        assertThat(setSinkAudioPolicyArgs("SINKAUDIOPOLICY,0,0,0", device)).isFalse();
     }
 
     /** Test setting audio parameters according to received SWB event. SWB AptX is enabled. */

@@ -311,7 +311,7 @@ public class HeadsetServiceTest {
         Assert.assertEquals(
                 Collections.singletonList(mCurrentDevice), mHeadsetService.getConnectedDevices());
         // 2nd connection attempt will fail
-        Assert.assertFalse(mHeadsetService.connect(mCurrentDevice));
+        assertThat(mHeadsetService.connect(mCurrentDevice)).isFalse();
         // Verify makeStateMachine is only called once
         verify(mObjectsFactory).makeStateMachine(any(), any(), any(), any(), any(), any());
         // Verify CONNECT is only sent once
@@ -467,7 +467,7 @@ public class HeadsetServiceTest {
         }
         // Connect the next device will fail
         mCurrentDevice = TestUtils.getTestDevice(mAdapter, MAX_HEADSET_CONNECTIONS);
-        Assert.assertFalse(mHeadsetService.connect(mCurrentDevice));
+        assertThat(mHeadsetService.connect(mCurrentDevice)).isFalse();
         // Though connection failed, a new state machine is still lazily created for the device
         verify(mObjectsFactory, times(MAX_HEADSET_CONNECTIONS + 1))
                 .makeStateMachine(
@@ -1223,7 +1223,7 @@ public class HeadsetServiceTest {
         mHeadsetService.setAudioRouteAllowed(false);
 
         // Test that active device should not be changed if audio is not allowed
-        Assert.assertFalse(mHeadsetService.setActiveDevice(mCurrentDevice));
+        assertThat(mHeadsetService.setActiveDevice(mCurrentDevice)).isFalse();
         Assert.assertEquals(null, mHeadsetService.getActiveDevice());
     }
 

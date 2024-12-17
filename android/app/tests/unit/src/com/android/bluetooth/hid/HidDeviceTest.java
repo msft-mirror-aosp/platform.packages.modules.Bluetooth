@@ -528,11 +528,10 @@ public class HidDeviceTest {
                 mHidDeviceService.getConnectionState(mTestDevice));
 
         // Verify the list of connected devices
-        Assert.assertFalse(
-                mHidDeviceService
-                        .getDevicesMatchingConnectionStates(
-                                new int[] {BluetoothProfile.STATE_CONNECTED})
-                        .contains(mTestDevice));
+        assertThat(
+                        mHidDeviceService.getDevicesMatchingConnectionStates(
+                                new int[] {BluetoothProfile.STATE_CONNECTED}))
+                .doesNotContain(mTestDevice);
 
         // Unregister app
         doReturn(true).when(mHidDeviceNativeInterface).unregisterApp();

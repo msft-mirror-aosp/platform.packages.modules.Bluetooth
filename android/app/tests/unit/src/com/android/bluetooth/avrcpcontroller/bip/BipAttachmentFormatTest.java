@@ -430,12 +430,13 @@ public class BipAttachmentFormatTest {
     }
 
     @Test
+    @SuppressLint("TruthIncompatibleType") // That the point of this test
     public void testEquals_withDifferentClass() {
         BipAttachmentFormat attachment =
                 new BipAttachmentFormat("text/plain", null, "thisisatextfile.txt", -1, null, null);
         String notAttachment = "notAttachment";
 
-        Assert.assertFalse(attachment.equals(notAttachment));
+        assertThat(attachment).isNotEqualTo(notAttachment);
     }
 
     @Test

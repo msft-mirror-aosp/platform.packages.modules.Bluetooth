@@ -241,7 +241,7 @@ public class ProfileServiceTest {
         for (ProfileService service : startedArguments) {
             assertThat(stoppedArguments).contains(service);
             stoppedArguments.remove(service);
-            Assert.assertFalse(stoppedArguments.contains(service));
+            assertThat(stoppedArguments).doesNotContain(service);
         }
     }
 

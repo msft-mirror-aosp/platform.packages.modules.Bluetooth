@@ -205,8 +205,8 @@ public class MetricsLoggerTest {
         mTestableMetricsLogger.cacheCount(2, Long.MAX_VALUE - 8L);
         mTestableMetricsLogger.drainBufferedCounters();
 
-        Assert.assertFalse(mTestableMetricsLogger.mTestableCounters.containsKey(1));
-        Assert.assertFalse(mTestableMetricsLogger.mTestableCounters.containsKey(3));
+        assertThat(mTestableMetricsLogger.mTestableCounters).doesNotContainKey(1);
+        assertThat(mTestableMetricsLogger.mTestableCounters).doesNotContainKey(3);
         Assert.assertEquals(
                 Long.MAX_VALUE, mTestableMetricsLogger.mTestableCounters.get(2).longValue());
     }
@@ -226,9 +226,9 @@ public class MetricsLoggerTest {
     @Test
     public void testMetricsLoggerNotInit() {
         mTestableMetricsLogger.close();
-        Assert.assertFalse(mTestableMetricsLogger.cacheCount(1, 1));
+        assertThat(mTestableMetricsLogger.cacheCount(1, 1)).isFalse();
         mTestableMetricsLogger.drainBufferedCounters();
-        Assert.assertFalse(mTestableMetricsLogger.mTestableCounters.containsKey(1));
+        assertThat(mTestableMetricsLogger.mTestableCounters).doesNotContainKey(1);
     }
 
     @Test

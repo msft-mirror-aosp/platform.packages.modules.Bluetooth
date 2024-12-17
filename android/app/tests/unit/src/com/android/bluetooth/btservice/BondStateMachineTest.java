@@ -612,7 +612,8 @@ public class BondStateMachineTest {
                     .isTrue();
             mBondStateMachine.removeMessage(mBondStateMachine.BONDED_INTENT_DELAY);
         } else {
-            Assert.assertFalse(mBondStateMachine.hasMessage(mBondStateMachine.BONDED_INTENT_DELAY));
+            assertThat(mBondStateMachine.hasMessage(mBondStateMachine.BONDED_INTENT_DELAY))
+                    .isFalse();
         }
     }
 

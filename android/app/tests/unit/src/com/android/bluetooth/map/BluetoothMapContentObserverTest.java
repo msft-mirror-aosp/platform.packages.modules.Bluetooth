@@ -735,12 +735,13 @@ public class BluetoothMapContentObserverTest {
         mObserver.setMsgListMsg(map, true);
         doReturn(0).when(mMapMethodProxy).contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertFalse(
-                mObserver.setEmailMessageStatusDelete(
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        TEST_HANDLE_ONE,
-                        BluetoothMapAppParams.STATUS_VALUE_YES));
+        assertThat(
+                        mObserver.setEmailMessageStatusDelete(
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                TEST_HANDLE_ONE,
+                                BluetoothMapAppParams.STATUS_VALUE_YES))
+                .isFalse();
     }
 
     @Test
@@ -857,13 +858,14 @@ public class BluetoothMapContentObserverTest {
 
     @Test
     public void setMessageStatusDeleted_withTypeIm() {
-        Assert.assertFalse(
-                mObserver.setMessageStatusDeleted(
-                        TEST_HANDLE_ONE,
-                        TYPE.IM,
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        BluetoothMapAppParams.STATUS_VALUE_YES));
+        assertThat(
+                        mObserver.setMessageStatusDeleted(
+                                TEST_HANDLE_ONE,
+                                TYPE.IM,
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                BluetoothMapAppParams.STATUS_VALUE_YES))
+                .isFalse();
     }
 
     @Test
@@ -877,20 +879,22 @@ public class BluetoothMapContentObserverTest {
 
         // setMessageStatusDeleted with type Gsm or Mms calls either deleteMessage() or
         // unDeleteMessage(), which returns false when no cursor is set with BluetoothMethodProxy.
-        Assert.assertFalse(
-                mObserver.setMessageStatusDeleted(
-                        TEST_HANDLE_ONE,
-                        TYPE.MMS,
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        BluetoothMapAppParams.STATUS_VALUE_NO));
-        Assert.assertFalse(
-                mObserver.setMessageStatusDeleted(
-                        TEST_HANDLE_ONE,
-                        TYPE.SMS_GSM,
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        BluetoothMapAppParams.STATUS_VALUE_NO));
+        assertThat(
+                        mObserver.setMessageStatusDeleted(
+                                TEST_HANDLE_ONE,
+                                TYPE.MMS,
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                BluetoothMapAppParams.STATUS_VALUE_NO))
+                .isFalse();
+        assertThat(
+                        mObserver.setMessageStatusDeleted(
+                                TEST_HANDLE_ONE,
+                                TYPE.SMS_GSM,
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                BluetoothMapAppParams.STATUS_VALUE_NO))
+                .isFalse();
     }
 
     @Test
@@ -904,20 +908,22 @@ public class BluetoothMapContentObserverTest {
 
         // setMessageStatusDeleted with type Gsm or Mms calls either deleteMessage() or
         // unDeleteMessage(), which returns false when no cursor is set with BluetoothMethodProxy.
-        Assert.assertFalse(
-                mObserver.setMessageStatusDeleted(
-                        TEST_HANDLE_ONE,
-                        TYPE.MMS,
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        BluetoothMapAppParams.STATUS_VALUE_YES));
-        Assert.assertFalse(
-                mObserver.setMessageStatusDeleted(
-                        TEST_HANDLE_ONE,
-                        TYPE.SMS_GSM,
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        BluetoothMapAppParams.STATUS_VALUE_YES));
+        assertThat(
+                        mObserver.setMessageStatusDeleted(
+                                TEST_HANDLE_ONE,
+                                TYPE.MMS,
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                BluetoothMapAppParams.STATUS_VALUE_YES))
+                .isFalse();
+        assertThat(
+                        mObserver.setMessageStatusDeleted(
+                                TEST_HANDLE_ONE,
+                                TYPE.SMS_GSM,
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                BluetoothMapAppParams.STATUS_VALUE_YES))
+                .isFalse();
     }
 
     @Test
@@ -2000,7 +2006,7 @@ public class BluetoothMapContentObserverTest {
     public void handleMmsSendIntent_withMnsClientNotConnected() {
         when(mClient.isConnected()).thenReturn(false);
 
-        Assert.assertFalse(mObserver.handleMmsSendIntent(mContext, mIntent));
+        assertThat(mObserver.handleMmsSendIntent(mContext, mIntent)).isFalse();
     }
 
     @Test
@@ -2127,7 +2133,7 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.actionMmsSent(mContext, mIntent, 1, mmsMsgList);
 
-        Assert.assertFalse(mmsMsgList.containsKey(TEST_HANDLE_ONE));
+        assertThat(mmsMsgList).doesNotContainKey(TEST_HANDLE_ONE);
     }
 
     @Test

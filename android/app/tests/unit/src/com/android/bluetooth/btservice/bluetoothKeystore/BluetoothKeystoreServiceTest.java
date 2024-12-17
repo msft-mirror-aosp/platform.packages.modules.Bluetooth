@@ -23,7 +23,6 @@ import android.os.Process;
 import android.util.Log;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
@@ -276,8 +275,8 @@ public final class BluetoothKeystoreServiceTest {
         mBluetoothKeystoreService.loadConfigData();
 
         // check encryption file clean up.
-        Assert.assertFalse(Files.exists(Paths.get(CONFIG_CHECKSUM_ENCRYPTION_PATH)));
-        Assert.assertFalse(Files.exists(Paths.get(CONFIG_FILE_ENCRYPTION_PATH)));
+        assertThat(Files.exists(Paths.get(CONFIG_CHECKSUM_ENCRYPTION_PATH))).isFalse();
+        assertThat(Files.exists(Paths.get(CONFIG_FILE_ENCRYPTION_PATH))).isFalse();
 
         // remove hash data avoid interfering result.
         mBluetoothKeystoreService.getNameDecryptKey().remove(CONFIG_FILE_PREFIX);

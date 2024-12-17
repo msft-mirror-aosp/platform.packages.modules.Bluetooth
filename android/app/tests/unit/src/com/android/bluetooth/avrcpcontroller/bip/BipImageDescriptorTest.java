@@ -18,6 +18,8 @@ package com.android.bluetooth.avrcpcontroller;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.annotation.SuppressLint;
+
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Assert;
@@ -248,13 +250,14 @@ public class BipImageDescriptorTest {
     }
 
     @Test
+    @SuppressLint("TruthIncompatibleType") // That the point of this test
     public void testEquals_differentClass() {
         BipImageDescriptor.Builder builder = new BipImageDescriptor.Builder();
 
         BipImageDescriptor descriptor = builder.build();
         String notDescriptor = "notDescriptor";
 
-        Assert.assertFalse(descriptor.equals(notDescriptor));
+        assertThat(descriptor).isNotEqualTo(notDescriptor);
     }
 
     @Test

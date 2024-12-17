@@ -221,6 +221,7 @@ public class BipDatetimeTest {
     }
 
     @Test
+    @SuppressLint("TruthIncompatibleType") // That the point of this test
     public void testEquals_withDifferentClass() {
         TimeZone utc = TimeZone.getTimeZone("UTC");
         utc.setRawOffset(0);
@@ -228,7 +229,7 @@ public class BipDatetimeTest {
         BipDateTime bipDate = new BipDateTime(makeDate(1, 1, 2000, 6, 1, 15, utc));
         String notBipDate = "notBipDate";
 
-        Assert.assertFalse(bipDate.equals(notBipDate));
+        assertThat(bipDate).isNotEqualTo(notBipDate);
     }
 
     @Test

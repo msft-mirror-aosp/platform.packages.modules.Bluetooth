@@ -191,7 +191,7 @@ public class MediaPlayerWrapperTest {
 
         // Test isPlaybackStateReady() is false when the playback state is null
         doReturn(null).when(mMockController).getPlaybackState();
-        Assert.assertFalse(wrapper.isPlaybackStateReady());
+        assertThat(wrapper.isPlaybackStateReady()).isFalse();
 
         // Restore the old playback state
         doReturn(mTestState.build()).when(mMockController).getPlaybackState();
@@ -199,7 +199,7 @@ public class MediaPlayerWrapperTest {
 
         // Test isMetadataReady() is false when the metadata is null
         doReturn(null).when(mMockController).getMetadata();
-        Assert.assertFalse(wrapper.isMetadataReady());
+        assertThat(wrapper.isMetadataReady()).isFalse();
 
         // Restore the old metadata
         doReturn(mTestMetadata.build()).when(mMockController).getMetadata();
@@ -294,7 +294,7 @@ public class MediaPlayerWrapperTest {
         Assert.assertEquals("Returned Queue isn't empty", data.queue.size(), 0);
 
         // Verify that there are no timeout messages pending and there were no timeouts
-        Assert.assertFalse(wrapper.getTimeoutHandler().hasMessages(MSG_TIMEOUT));
+        assertThat(wrapper.getTimeoutHandler().hasMessages(MSG_TIMEOUT)).isFalse();
         verify(mFailHandler, never()).onTerribleFailure(any(), any(), anyBoolean());
     }
 
@@ -343,7 +343,7 @@ public class MediaPlayerWrapperTest {
         Assert.assertEquals("Returned Queue isn't empty", data.queue.size(), 0);
 
         // Verify that there are no timeout messages pending and there were no timeouts
-        Assert.assertFalse(wrapper.getTimeoutHandler().hasMessages(MSG_TIMEOUT));
+        assertThat(wrapper.getTimeoutHandler().hasMessages(MSG_TIMEOUT)).isFalse();
         verify(mFailHandler, never()).onTerribleFailure(any(), any(), anyBoolean());
     }
 
@@ -468,19 +468,16 @@ public class MediaPlayerWrapperTest {
                 MediaPlayerWrapperFactory.wrap(mMockContext, mMockController, mThread.getLooper());
 
         doReturn(null).when(mMockController).getMetadata();
-        Assert.assertFalse(
-                Util.toMetadata(mMockContext, mTestMetadata.build())
-                        .duration
-                        .equals(wrapper.getCurrentQueue().get(0).duration));
+        assertThat(Util.toMetadata(mMockContext, mTestMetadata.build()).duration)
+                .isNotEqualTo(wrapper.getCurrentQueue().get(0).duration);
         doReturn(mTestMetadata.build()).when(mMockController).getMetadata();
         Assert.assertEquals(
                 Util.toMetadata(mMockContext, mTestMetadata.build()).duration,
                 wrapper.getCurrentQueue().get(0).duration);
         // The MediaController Metadata should still not be equal to the queue
         // as the track count is different and should not be overridden.
-        Assert.assertFalse(
-                Util.toMetadata(mMockContext, mTestMetadata.build())
-                        .equals(wrapper.getCurrentQueue().get(0)));
+        assertThat(Util.toMetadata(mMockContext, mTestMetadata.build()))
+                .isNotEqualTo(wrapper.getCurrentQueue().get(0));
     }
 
     /*
@@ -535,7 +532,7 @@ public class MediaPlayerWrapperTest {
         controllerCallbacks.onPlaybackStateChanged(mTestState.build());
 
         // Verify that there are no timeout messages pending and there were no timeouts
-        Assert.assertFalse(wrapper.getTimeoutHandler().hasMessages(MSG_TIMEOUT));
+        assertThat(wrapper.getTimeoutHandler().hasMessages(MSG_TIMEOUT)).isFalse();
         verify(mFailHandler, never()).onTerribleFailure(any(), any(), anyBoolean());
     }
 
@@ -581,7 +578,7 @@ public class MediaPlayerWrapperTest {
         verify(mTestCbs, never()).mediaUpdatedCallback(any());
 
         // Verify that there are no timeout messages pending and there were no timeouts
-        Assert.assertFalse(wrapper.getTimeoutHandler().hasMessages(MSG_TIMEOUT));
+        assertThat(wrapper.getTimeoutHandler().hasMessages(MSG_TIMEOUT)).isFalse();
         verify(mFailHandler, never()).onTerribleFailure(any(), any(), anyBoolean());
     }
 
@@ -640,7 +637,7 @@ public class MediaPlayerWrapperTest {
                 Util.toMetadataList(mMockContext, getQueueFromDescriptions(mTestQueue)));
 
         // Verify that there are no timeout messages pending and there were no timeouts
-        Assert.assertFalse(wrapper.getTimeoutHandler().hasMessages(MSG_TIMEOUT));
+        assertThat(wrapper.getTimeoutHandler().hasMessages(MSG_TIMEOUT)).isFalse();
         verify(mFailHandler, never()).onTerribleFailure(any(), any(), anyBoolean());
     }
 
@@ -769,7 +766,7 @@ public class MediaPlayerWrapperTest {
         }
 
         // Verify that there are no timeout messages pending and there were no timeouts
-        Assert.assertFalse(wrapper.getTimeoutHandler().hasMessages(MSG_TIMEOUT));
+        assertThat(wrapper.getTimeoutHandler().hasMessages(MSG_TIMEOUT)).isFalse();
         verify(mFailHandler, never()).onTerribleFailure(any(), any(), anyBoolean());
     }
 

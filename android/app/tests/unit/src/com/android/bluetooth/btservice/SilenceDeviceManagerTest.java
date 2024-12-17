@@ -137,7 +137,7 @@ public class SilenceDeviceManagerTest {
         a2dpDisconnected(mTestDevice);
         headsetDisconnected(mTestDevice);
 
-        Assert.assertFalse(mSilenceDeviceManager.getSilenceMode(mTestDevice));
+        assertThat(mSilenceDeviceManager.getSilenceMode(mTestDevice)).isFalse();
         if (enableSilence) {
             // If the silence mode is enabled, it should be automatically disabled
             // after device is disconnected.
@@ -153,7 +153,7 @@ public class SilenceDeviceManagerTest {
         // Set silence mode and it should stay disabled
         assertThat(mSilenceDeviceManager.setSilenceMode(mTestDevice, enableSilence)).isTrue();
         TestUtils.waitForLooperToFinishScheduledTask(mLooper);
-        Assert.assertFalse(mSilenceDeviceManager.getSilenceMode(mTestDevice));
+        assertThat(mSilenceDeviceManager.getSilenceMode(mTestDevice)).isFalse();
 
         // Should be no intent been broadcasted
         verify(mAdapterService, times(mVerifyCount))

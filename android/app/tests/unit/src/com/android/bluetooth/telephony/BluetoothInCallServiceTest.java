@@ -132,8 +132,7 @@ public class BluetoothInCallServiceTest {
 
     @Test
     public void headsetAnswerCallNull() {
-        boolean callAnswered = mBluetoothInCallService.answerCall();
-        Assert.assertFalse(callAnswered);
+        assertThat(mBluetoothInCallService.answerCall()).isFalse();
     }
 
     @Test
@@ -148,8 +147,7 @@ public class BluetoothInCallServiceTest {
 
     @Test
     public void headsetHangupCallNull() {
-        boolean callHungup = mBluetoothInCallService.hangupCall();
-        Assert.assertFalse(callHungup);
+        assertThat(mBluetoothInCallService.hangupCall()).isFalse();
     }
 
     @Test
@@ -165,8 +163,7 @@ public class BluetoothInCallServiceTest {
 
     @Test
     public void headsetSendDTMFNull() {
-        boolean sentDtmf = mBluetoothInCallService.sendDtmf(TEST_DTMF_TONE);
-        Assert.assertFalse(sentDtmf);
+        assertThat(mBluetoothInCallService.sendDtmf(TEST_DTMF_TONE)).isFalse();
     }
 
     @Test
@@ -1820,7 +1817,7 @@ public class BluetoothInCallServiceTest {
 
         mBluetoothInCallService.onDestroy();
 
-        Assert.assertFalse(mBluetoothInCallService.mOnCreateCalled);
+        assertThat(mBluetoothInCallService.mOnCreateCalled).isFalse();
     }
 
     @Test

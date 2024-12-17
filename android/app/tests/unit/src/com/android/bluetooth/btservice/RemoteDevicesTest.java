@@ -830,7 +830,7 @@ public class RemoteDevicesTest {
         DeviceProperties deviceProp = mRemoteDevices.getDeviceProperties(mDevice1);
         deviceProp.setIsCoordinatedSetMember(true);
 
-        Assert.assertFalse(deviceProp.isCoordinatedSetMember());
+        assertThat(deviceProp.isCoordinatedSetMember()).isFalse();
     }
 
     @Test
