@@ -286,7 +286,7 @@ public class HeadsetServiceTest {
                         any(BluetoothDevice.class), eq(BluetoothProfile.HEADSET)))
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
         mCurrentDevice = TestUtils.getTestDevice(mAdapter, 0);
-        Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
+        assertThat(mHeadsetService.connect(mCurrentDevice)).isTrue();
         verify(mObjectsFactory)
                 .makeStateMachine(
                         mCurrentDevice,
@@ -426,7 +426,7 @@ public class HeadsetServiceTest {
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
         for (int i = 0; i < MAX_HEADSET_CONNECTIONS; ++i) {
             mCurrentDevice = TestUtils.getTestDevice(mAdapter, i);
-            Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
+            assertThat(mHeadsetService.connect(mCurrentDevice)).isTrue();
             verify(mObjectsFactory)
                     .makeStateMachine(
                             mCurrentDevice,
@@ -496,7 +496,7 @@ public class HeadsetServiceTest {
                         any(BluetoothDevice.class), eq(BluetoothProfile.HEADSET)))
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
         mCurrentDevice = TestUtils.getTestDevice(mAdapter, 0);
-        Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
+        assertThat(mHeadsetService.connect(mCurrentDevice)).isTrue();
         verify(mObjectsFactory)
                 .makeStateMachine(
                         mCurrentDevice,
@@ -522,7 +522,7 @@ public class HeadsetServiceTest {
                 BluetoothProfile.STATE_DISCONNECTED,
                 BluetoothProfile.STATE_CONNECTED);
         // Test connect audio - set the device first as the active device
-        Assert.assertTrue(mHeadsetService.setActiveDevice(mCurrentDevice));
+        assertThat(mHeadsetService.setActiveDevice(mCurrentDevice)).isTrue();
         Assert.assertEquals(
                 BluetoothStatusCodes.SUCCESS, mHeadsetService.connectAudio(mCurrentDevice));
         verify(mStateMachines.get(mCurrentDevice))
@@ -562,7 +562,7 @@ public class HeadsetServiceTest {
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
         for (int i = 0; i < MAX_HEADSET_CONNECTIONS; ++i) {
             mCurrentDevice = TestUtils.getTestDevice(mAdapter, i);
-            Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
+            assertThat(mHeadsetService.connect(mCurrentDevice)).isTrue();
             verify(mObjectsFactory)
                     .makeStateMachine(
                             mCurrentDevice,
@@ -616,7 +616,7 @@ public class HeadsetServiceTest {
                     BluetoothStatusCodes.ERROR_NOT_ACTIVE_DEVICE,
                     mHeadsetService.connectAudio(mCurrentDevice));
             // Should succeed after setActiveDevice()
-            Assert.assertTrue(mHeadsetService.setActiveDevice(mCurrentDevice));
+            assertThat(mHeadsetService.setActiveDevice(mCurrentDevice)).isTrue();
             Assert.assertEquals(
                     BluetoothStatusCodes.SUCCESS, mHeadsetService.connectAudio(mCurrentDevice));
             verify(mStateMachines.get(mCurrentDevice))
@@ -663,7 +663,7 @@ public class HeadsetServiceTest {
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
         for (int i = 0; i < MAX_HEADSET_CONNECTIONS; ++i) {
             mCurrentDevice = TestUtils.getTestDevice(mAdapter, i);
-            Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
+            assertThat(mHeadsetService.connect(mCurrentDevice)).isTrue();
             verify(mObjectsFactory)
                     .makeStateMachine(
                             mCurrentDevice,
@@ -717,7 +717,7 @@ public class HeadsetServiceTest {
             BluetoothDevice firstDevice = connectedDevices.get(0);
             BluetoothDevice secondDevice = connectedDevices.get(1);
             // Set the first device as the active device
-            Assert.assertTrue(mHeadsetService.setActiveDevice(firstDevice));
+            assertThat(mHeadsetService.setActiveDevice(firstDevice)).isTrue();
             Assert.assertEquals(
                     BluetoothStatusCodes.SUCCESS, mHeadsetService.connectAudio(firstDevice));
             verify(mStateMachines.get(firstDevice))
@@ -766,7 +766,7 @@ public class HeadsetServiceTest {
                 .getBondedDevices();
         for (int i = 0; i < MAX_HEADSET_CONNECTIONS; ++i) {
             mCurrentDevice = TestUtils.getTestDevice(mAdapter, i);
-            Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
+            assertThat(mHeadsetService.connect(mCurrentDevice)).isTrue();
             verify(mObjectsFactory)
                     .makeStateMachine(
                             mCurrentDevice,
@@ -819,7 +819,7 @@ public class HeadsetServiceTest {
         }
         // Try to connect audio
         BluetoothDevice firstDevice = connectedDevices.get(0);
-        Assert.assertTrue(mHeadsetService.setActiveDevice(firstDevice));
+        assertThat(mHeadsetService.setActiveDevice(firstDevice)).isTrue();
         Assert.assertEquals(BluetoothStatusCodes.SUCCESS, mHeadsetService.connectAudio());
         verify(mStateMachines.get(firstDevice))
                 .sendMessage(HeadsetStateMachine.CONNECT_AUDIO, firstDevice);
@@ -847,7 +847,7 @@ public class HeadsetServiceTest {
                         any(BluetoothDevice.class), eq(BluetoothProfile.HEADSET)))
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
         mCurrentDevice = TestUtils.getTestDevice(mAdapter, 0);
-        Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
+        assertThat(mHeadsetService.connect(mCurrentDevice)).isTrue();
         verify(mObjectsFactory)
                 .makeStateMachine(
                         mCurrentDevice,
@@ -922,7 +922,7 @@ public class HeadsetServiceTest {
         mCurrentDevice = TestUtils.getTestDevice(mAdapter, 0);
         final ArrayList<BluetoothDevice> connectedDevices = new ArrayList<>();
         // Connect one device
-        Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
+        assertThat(mHeadsetService.connect(mCurrentDevice)).isTrue();
         verify(mObjectsFactory)
                 .makeStateMachine(
                         mCurrentDevice,
@@ -986,7 +986,7 @@ public class HeadsetServiceTest {
                 mPhoneState, headsetCallState, ASYNC_CALL_TIMEOUT_MILLIS);
 
         // Set the device first as the active device
-        Assert.assertTrue(mHeadsetService.setActiveDevice(mCurrentDevice));
+        assertThat(mHeadsetService.setActiveDevice(mCurrentDevice)).isTrue();
         // Change phone state
         headsetCallState.mCallState = HeadsetHalConstants.CALL_STATE_ALERTING;
         mHeadsetService.phoneStateChanged(
@@ -1025,7 +1025,7 @@ public class HeadsetServiceTest {
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
         for (int i = 0; i < MAX_HEADSET_CONNECTIONS; ++i) {
             mCurrentDevice = TestUtils.getTestDevice(mAdapter, i);
-            Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
+            assertThat(mHeadsetService.connect(mCurrentDevice)).isTrue();
             verify(mObjectsFactory)
                     .makeStateMachine(
                             mCurrentDevice,
@@ -1075,7 +1075,7 @@ public class HeadsetServiceTest {
                     mCurrentDevice,
                     BluetoothProfile.STATE_CONNECTING,
                     BluetoothProfile.STATE_CONNECTED);
-            Assert.assertTrue(mHeadsetService.setActiveDevice(mCurrentDevice));
+            assertThat(mHeadsetService.setActiveDevice(mCurrentDevice)).isTrue();
         }
         // Change phone state
         mHeadsetService.phoneStateChanged(
@@ -1106,7 +1106,7 @@ public class HeadsetServiceTest {
                         any(BluetoothDevice.class), eq(BluetoothProfile.HEADSET)))
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
         mCurrentDevice = TestUtils.getTestDevice(mAdapter, 0);
-        Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
+        assertThat(mHeadsetService.connect(mCurrentDevice)).isTrue();
         verify(mObjectsFactory)
                 .makeStateMachine(
                         mCurrentDevice,
@@ -1141,7 +1141,7 @@ public class HeadsetServiceTest {
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
         for (int i = 2; i >= 0; i--) {
             mCurrentDevice = TestUtils.getTestDevice(mAdapter, i);
-            Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
+            assertThat(mHeadsetService.connect(mCurrentDevice)).isTrue();
             verify(mObjectsFactory)
                     .makeStateMachine(
                             mCurrentDevice,
@@ -1173,7 +1173,7 @@ public class HeadsetServiceTest {
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
         for (int i = 0; i < 2; i++) {
             mCurrentDevice = TestUtils.getTestDevice(mAdapter, i);
-            Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
+            assertThat(mHeadsetService.connect(mCurrentDevice)).isTrue();
             when(mStateMachines.get(mCurrentDevice).getDevice()).thenReturn(mCurrentDevice);
             when(mStateMachines.get(mCurrentDevice).getConnectionState())
                     .thenReturn(BluetoothProfile.STATE_CONNECTED);
@@ -1184,23 +1184,23 @@ public class HeadsetServiceTest {
         BluetoothDevice otherDevice = TestUtils.getTestDevice(mAdapter, 1);
 
         // Test whether active device been removed after enable silence mode.
-        Assert.assertTrue(mHeadsetService.setActiveDevice(mCurrentDevice));
+        assertThat(mHeadsetService.setActiveDevice(mCurrentDevice)).isTrue();
         Assert.assertEquals(mCurrentDevice, mHeadsetService.getActiveDevice());
-        Assert.assertTrue(mHeadsetService.setSilenceMode(mCurrentDevice, true));
+        assertThat(mHeadsetService.setSilenceMode(mCurrentDevice, true)).isTrue();
         assertThat(mHeadsetService.getActiveDevice()).isNull();
 
         // Test whether active device been resumed after disable silence mode.
-        Assert.assertTrue(mHeadsetService.setSilenceMode(mCurrentDevice, false));
+        assertThat(mHeadsetService.setSilenceMode(mCurrentDevice, false)).isTrue();
         Assert.assertEquals(mCurrentDevice, mHeadsetService.getActiveDevice());
 
         // Test that active device should not be changed when silence a non-active device
-        Assert.assertTrue(mHeadsetService.setActiveDevice(mCurrentDevice));
+        assertThat(mHeadsetService.setActiveDevice(mCurrentDevice)).isTrue();
         Assert.assertEquals(mCurrentDevice, mHeadsetService.getActiveDevice());
-        Assert.assertTrue(mHeadsetService.setSilenceMode(otherDevice, true));
+        assertThat(mHeadsetService.setSilenceMode(otherDevice, true)).isTrue();
         Assert.assertEquals(mCurrentDevice, mHeadsetService.getActiveDevice());
 
         // Test that active device should not be changed when another device exits silence mode
-        Assert.assertTrue(mHeadsetService.setSilenceMode(otherDevice, false));
+        assertThat(mHeadsetService.setSilenceMode(otherDevice, false)).isTrue();
         Assert.assertEquals(mCurrentDevice, mHeadsetService.getActiveDevice());
     }
 
@@ -1213,12 +1213,12 @@ public class HeadsetServiceTest {
         mCurrentDevice = TestUtils.getTestDevice(mAdapter, 0);
         mHeadsetService.setForceScoAudio(false);
 
-        Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
+        assertThat(mHeadsetService.connect(mCurrentDevice)).isTrue();
         when(mStateMachines.get(mCurrentDevice).getDevice()).thenReturn(mCurrentDevice);
         when(mStateMachines.get(mCurrentDevice).getConnectionState())
                 .thenReturn(BluetoothProfile.STATE_CONNECTED);
 
-        Assert.assertTrue(mHeadsetService.setActiveDevice(null));
+        assertThat(mHeadsetService.setActiveDevice(null)).isTrue();
         when(mSystemInterface.isInCall()).thenReturn(true);
         mHeadsetService.setAudioRouteAllowed(false);
 
@@ -1242,19 +1242,17 @@ public class HeadsetServiceTest {
                 .thenReturn(null);
 
         // No connected device
-        Assert.assertTrue(mHeadsetService.getFallbackCandidates(mDatabaseManager).isEmpty());
+        assertThat(mHeadsetService.getFallbackCandidates(mDatabaseManager)).isEmpty();
 
         // One connected device
         addConnectedDeviceHelper(deviceA);
-        Assert.assertTrue(
-                mHeadsetService.getFallbackCandidates(mDatabaseManager).contains(deviceA));
+        assertThat(mHeadsetService.getFallbackCandidates(mDatabaseManager))
+                .containsExactly(deviceA);
 
         // Two connected devices
         addConnectedDeviceHelper(deviceB);
-        Assert.assertTrue(
-                mHeadsetService.getFallbackCandidates(mDatabaseManager).contains(deviceA));
-        Assert.assertTrue(
-                mHeadsetService.getFallbackCandidates(mDatabaseManager).contains(deviceB));
+        assertThat(mHeadsetService.getFallbackCandidates(mDatabaseManager))
+                .containsExactly(deviceA, deviceB);
     }
 
     @Test
@@ -1270,14 +1268,12 @@ public class HeadsetServiceTest {
 
         // Has a connected watch device
         addConnectedDeviceHelper(deviceWatch);
-        Assert.assertTrue(mHeadsetService.getFallbackCandidates(mDatabaseManager).isEmpty());
+        assertThat(mHeadsetService.getFallbackCandidates(mDatabaseManager)).isEmpty();
 
         // Two connected devices with one watch
         addConnectedDeviceHelper(deviceRegular);
-        Assert.assertFalse(
-                mHeadsetService.getFallbackCandidates(mDatabaseManager).contains(deviceWatch));
-        Assert.assertTrue(
-                mHeadsetService.getFallbackCandidates(mDatabaseManager).contains(deviceRegular));
+        assertThat(mHeadsetService.getFallbackCandidates(mDatabaseManager))
+                .containsExactly(deviceRegular);
     }
 
     @Test
@@ -1286,7 +1282,7 @@ public class HeadsetServiceTest {
                         any(BluetoothDevice.class), eq(BluetoothProfile.HEADSET)))
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
         mCurrentDevice = TestUtils.getTestDevice(mAdapter, 0);
-        Assert.assertTrue(mHeadsetService.connect(mCurrentDevice));
+        assertThat(mHeadsetService.connect(mCurrentDevice)).isTrue();
         when(mStateMachines.get(mCurrentDevice).getDevice()).thenReturn(mCurrentDevice);
         when(mStateMachines.get(mCurrentDevice).getConnectionState())
                 .thenReturn(BluetoothProfile.STATE_CONNECTED);
@@ -1327,7 +1323,7 @@ public class HeadsetServiceTest {
         when(mDatabaseManager.getProfileConnectionPolicy(
                         any(BluetoothDevice.class), eq(BluetoothProfile.HEADSET)))
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
-        Assert.assertTrue(mHeadsetService.connect(device));
+        assertThat(mHeadsetService.connect(device)).isTrue();
         when(mStateMachines.get(device).getDevice()).thenReturn(device);
         when(mStateMachines.get(device).getConnectionState())
                 .thenReturn(BluetoothProfile.STATE_CONNECTING);
@@ -1337,7 +1333,7 @@ public class HeadsetServiceTest {
                 .thenReturn(BluetoothProfile.STATE_CONNECTED);
         Assert.assertEquals(
                 BluetoothProfile.STATE_CONNECTED, mHeadsetService.getConnectionState(device));
-        Assert.assertTrue(mHeadsetService.getConnectedDevices().contains(device));
+        assertThat(mHeadsetService.getConnectedDevices()).contains(device);
     }
 
     /*

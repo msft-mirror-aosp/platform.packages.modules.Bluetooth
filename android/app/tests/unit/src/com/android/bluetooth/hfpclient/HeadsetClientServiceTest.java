@@ -217,7 +217,7 @@ public class HeadsetClientServiceTest {
         int amMax = 10;
         Map<Integer, Integer> amToHfMap = new HashMap<>();
 
-        Assert.assertTrue(amMax < MAX_HFP_SCO_VOICE_CALL_VOLUME);
+        assertThat(amMax).isLessThan(MAX_HFP_SCO_VOICE_CALL_VOLUME);
 
         doReturn(amMax).when(mMockAudioManager).getStreamMaxVolume(anyInt());
         doReturn(amMin).when(mMockAudioManager).getStreamMinVolume(anyInt());
@@ -247,7 +247,7 @@ public class HeadsetClientServiceTest {
         int amMax = 20;
         Map<Integer, Integer> hfToAmMap = new HashMap<>();
 
-        Assert.assertTrue(amMax > MAX_HFP_SCO_VOICE_CALL_VOLUME);
+        assertThat(amMax).isGreaterThan(MAX_HFP_SCO_VOICE_CALL_VOLUME);
 
         doReturn(amMax).when(mMockAudioManager).getStreamMaxVolume(anyInt());
         doReturn(amMin).when(mMockAudioManager).getStreamMinVolume(anyInt());

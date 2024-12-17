@@ -302,7 +302,7 @@ public class RemoteDevicesTest {
         int batteryLevel = 10;
 
         BatteryService oldBatteryService = setBatteryServiceForTesting(mDevice1);
-        Assert.assertTrue(mRemoteDevices.hasBatteryService(mDevice1));
+        assertThat(mRemoteDevices.hasBatteryService(mDevice1)).isTrue();
 
         // Verify that device property is null initially
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
@@ -631,7 +631,7 @@ public class RemoteDevicesTest {
         int batteryLevel = 10;
 
         BatteryService oldBatteryService = setBatteryServiceForTesting(mDevice1);
-        Assert.assertTrue(mRemoteDevices.hasBatteryService(mDevice1));
+        assertThat(mRemoteDevices.hasBatteryService(mDevice1)).isTrue();
 
         // Verify that device property is null initially
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
@@ -670,7 +670,7 @@ public class RemoteDevicesTest {
         int batteryLevel2 = 20;
 
         BatteryService oldBatteryService = setBatteryServiceForTesting(mDevice1);
-        Assert.assertTrue(mRemoteDevices.hasBatteryService(mDevice1));
+        assertThat(mRemoteDevices.hasBatteryService(mDevice1)).isTrue();
 
         // Verify that device property is null initially
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
@@ -714,7 +714,7 @@ public class RemoteDevicesTest {
         int batteryLevel = 10;
 
         BatteryService oldBatteryService = setBatteryServiceForTesting(mDevice1);
-        Assert.assertTrue(mRemoteDevices.hasBatteryService(mDevice1));
+        assertThat(mRemoteDevices.hasBatteryService(mDevice1)).isTrue();
 
         // Verify that device property is null initially
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNull();
@@ -814,7 +814,7 @@ public class RemoteDevicesTest {
         DeviceProperties deviceProp = mRemoteDevices.getDeviceProperties(mDevice1);
         deviceProp.setIsCoordinatedSetMember(true);
 
-        Assert.assertTrue(deviceProp.isCoordinatedSetMember());
+        assertThat(deviceProp.isCoordinatedSetMember()).isTrue();
     }
 
     @Test

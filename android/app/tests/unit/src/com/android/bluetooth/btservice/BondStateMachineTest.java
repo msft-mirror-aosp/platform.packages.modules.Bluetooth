@@ -242,7 +242,7 @@ public class BondStateMachineTest {
         mBondStateMachine.sendMessage(bondedMsg);
 
         TestUtils.waitForLooperToFinishScheduledTask(mBondStateMachine.getHandler().getLooper());
-        Assert.assertTrue(mBondStateMachine.mPendingBondedDevices.isEmpty());
+        assertThat(mBondStateMachine.mPendingBondedDevices).isEmpty();
     }
 
     private void resetRemoteDevice(int deviceType) {
@@ -608,7 +608,8 @@ public class BondStateMachineTest {
         }
 
         if (shouldDelayMessageExist) {
-            Assert.assertTrue(mBondStateMachine.hasMessage(mBondStateMachine.BONDED_INTENT_DELAY));
+            assertThat(mBondStateMachine.hasMessage(mBondStateMachine.BONDED_INTENT_DELAY))
+                    .isTrue();
             mBondStateMachine.removeMessage(mBondStateMachine.BONDED_INTENT_DELAY);
         } else {
             Assert.assertFalse(mBondStateMachine.hasMessage(mBondStateMachine.BONDED_INTENT_DELAY));

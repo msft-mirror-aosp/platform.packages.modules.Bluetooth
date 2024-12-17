@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Assert;
@@ -242,7 +244,7 @@ public class BipImageDescriptorTest {
 
         BipImageDescriptor descriptor = builder.build();
 
-        Assert.assertTrue(descriptor.equals(descriptor));
+        assertThat(descriptor).isEqualTo(descriptor);
     }
 
     @Test
@@ -263,6 +265,6 @@ public class BipImageDescriptorTest {
         BipImageDescriptor descriptor = builder.build();
         BipImageDescriptor descriptorEqual = builderEqual.build();
 
-        Assert.assertTrue(descriptor.equals(descriptorEqual));
+        assertThat(descriptor).isEqualTo(descriptorEqual);
     }
 }

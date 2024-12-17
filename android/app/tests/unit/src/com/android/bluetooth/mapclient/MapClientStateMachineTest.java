@@ -368,8 +368,8 @@ public class MapClientStateMachineTest {
         // to MapClientService to change
         // state from STATE_CONNECTING to STATE_CONNECTED
         assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
-        Assert.assertTrue(
-                mMceStateMachine.setMessageStatus("123456789AB", BluetoothMapClient.READ));
+        assertThat(mMceStateMachine.setMessageStatus("123456789AB", BluetoothMapClient.READ))
+                .isTrue();
     }
 
     /** Test MceStateMachine#disconnect */

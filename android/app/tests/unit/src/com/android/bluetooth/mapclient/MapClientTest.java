@@ -118,7 +118,7 @@ public class MapClientTest {
 
         // connect a bluetooth device
         mockDevicePriority(device, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
-        Assert.assertTrue(mService.connect(device));
+        assertThat(mService.connect(device)).isTrue();
 
         // is the statemachine created
         Map<BluetoothDevice, MceStateMachine> map = mService.getInstanceMap();
@@ -166,7 +166,7 @@ public class MapClientTest {
         // run the test - connect all devices, set their priorities to on
         for (BluetoothDevice d : list) {
             mockDevicePriority(d, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
-            Assert.assertTrue(mService.connect(d));
+            assertThat(mService.connect(d)).isTrue();
         }
 
         // verify
@@ -186,12 +186,8 @@ public class MapClientTest {
     public void testConnectViaBinder() {
         BluetoothDevice device = makeBluetoothDevice("11:11:11:11:11:11");
         mockDevicePriority(device, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
-        try {
-            Utils.setForegroundUserId(UserHandle.getCallingUserId());
-            Assert.assertTrue(mService.connect(device));
-        } catch (Exception e) {
-            Assert.fail(e.toString());
-        }
+        Utils.setForegroundUserId(UserHandle.getCallingUserId());
+        assertThat(mService.connect(device)).isTrue();
     }
 
     private BluetoothDevice makeBluetoothDevice(String address) {

@@ -294,7 +294,7 @@ public class HidDeviceTest {
 
         // Register app
         BluetoothHidDeviceCallbackTestHelper helper = new BluetoothHidDeviceCallbackTestHelper();
-        Assert.assertTrue(mHidDeviceService.registerApp(mSettings, null, null, helper));
+        assertThat(mHidDeviceService.registerApp(mSettings, null, null, helper)).isTrue();
 
         verify(mHidDeviceNativeInterface)
                 .registerApp(
@@ -341,7 +341,7 @@ public class HidDeviceTest {
                         isNull(),
                         isNull());
         BluetoothHidDeviceCallbackTestHelper helper = new BluetoothHidDeviceCallbackTestHelper();
-        Assert.assertTrue(mHidDeviceService.registerApp(mSettings, null, null, helper));
+        assertThat(mHidDeviceService.registerApp(mSettings, null, null, helper)).isTrue();
 
         // App registered
         mHidDeviceService.onApplicationStateChangedFromNative(mTestDevice, true);
@@ -386,7 +386,7 @@ public class HidDeviceTest {
                         isNull(),
                         isNull());
         BluetoothHidDeviceCallbackTestHelper helper = new BluetoothHidDeviceCallbackTestHelper();
-        Assert.assertTrue(mHidDeviceService.registerApp(mSettings, null, null, helper));
+        assertThat(mHidDeviceService.registerApp(mSettings, null, null, helper)).isTrue();
 
         // App registered
         mHidDeviceService.onApplicationStateChangedFromNative(mTestDevice, true);
@@ -427,7 +427,7 @@ public class HidDeviceTest {
                         isNull(),
                         isNull());
         BluetoothHidDeviceCallbackTestHelper helper = new BluetoothHidDeviceCallbackTestHelper();
-        Assert.assertTrue(mHidDeviceService.registerApp(mSettings, null, null, helper));
+        assertThat(mHidDeviceService.registerApp(mSettings, null, null, helper)).isTrue();
 
         // App registered
         mHidDeviceService.onApplicationStateChangedFromNative(mTestDevice, true);
@@ -468,7 +468,7 @@ public class HidDeviceTest {
         mHidDeviceService.onApplicationStateChangedFromNative(mTestDevice, true);
 
         // Send a connect request
-        Assert.assertTrue("Connect failed", mHidDeviceService.connect(mTestDevice));
+        assertThat(mHidDeviceService.connect(mTestDevice)).isTrue();
 
         mHidDeviceService.onConnectStateChangedFromNative(
                 mTestDevice, HidDeviceService.HAL_CONN_STATE_CONNECTING);
@@ -495,14 +495,13 @@ public class HidDeviceTest {
                 mHidDeviceService.getConnectionState(mTestDevice));
 
         // Verify the list of connected devices
-        Assert.assertTrue(
-                mHidDeviceService
-                        .getDevicesMatchingConnectionStates(
-                                new int[] {BluetoothProfile.STATE_CONNECTED})
-                        .contains(mTestDevice));
+        assertThat(
+                        mHidDeviceService.getDevicesMatchingConnectionStates(
+                                new int[] {BluetoothProfile.STATE_CONNECTED}))
+                .contains(mTestDevice);
 
         // Send a disconnect request
-        Assert.assertTrue("Disconnect failed", mHidDeviceService.disconnect(mTestDevice));
+        assertThat(mHidDeviceService.disconnect(mTestDevice)).isTrue();
 
         mHidDeviceService.onConnectStateChangedFromNative(
                 mTestDevice, HidDeviceService.HAL_CONN_STATE_DISCONNECTING);
@@ -570,7 +569,7 @@ public class HidDeviceTest {
 
         // Register app
         BluetoothHidDeviceCallbackTestHelper helper = new BluetoothHidDeviceCallbackTestHelper();
-        Assert.assertTrue(mHidDeviceService.registerApp(mSettings, null, null, helper));
+        assertThat(mHidDeviceService.registerApp(mSettings, null, null, helper)).isTrue();
 
         verify(mHidDeviceNativeInterface)
                 .registerApp(

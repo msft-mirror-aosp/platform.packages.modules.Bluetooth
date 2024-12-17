@@ -328,7 +328,7 @@ public class AvrcpControllerStateMachineTest {
 
         // Make sure its set by re grabbing the node and checking its contents are cached
         nowPlaying = mAvrcpStateMachine.findNode("NOW_PLAYING");
-        Assert.assertTrue(nowPlaying.isCached());
+        assertThat(nowPlaying.isCached()).isTrue();
         assertNowPlayingList(nowPlayingList);
     }
 
@@ -804,12 +804,12 @@ public class AvrcpControllerStateMachineTest {
 
         // Verify we processed the first players properly. Note the addressed player should always
         // be in the available player set.
-        Assert.assertTrue(mAvrcpStateMachine.mBrowseTree.mRootNode.isCached());
+        assertThat(mAvrcpStateMachine.mBrowseTree.mRootNode.isCached()).isTrue();
         SparseArray<AvrcpPlayer> players = mAvrcpStateMachine.getAvailablePlayers();
-        Assert.assertTrue(players.contains(mAvrcpStateMachine.getAddressedPlayerId()));
+        assertThat(players.contains(mAvrcpStateMachine.getAddressedPlayerId())).isTrue();
         Assert.assertEquals(testPlayers.size(), players.size());
         for (AvrcpPlayer player : testPlayers) {
-            Assert.assertTrue(players.contains(player.getId()));
+            assertThat(players.contains(player.getId())).isTrue();
         }
 
         // Verify we request metadata, playback state and now playing list
@@ -856,12 +856,12 @@ public class AvrcpControllerStateMachineTest {
         // Verify we processed the players properly. Note the addressed player is currently the
         // default player and is not in the available player set sent. This means we'll have an
         // extra player at ID -1.
-        Assert.assertTrue(mAvrcpStateMachine.mBrowseTree.mRootNode.isCached());
+        assertThat(mAvrcpStateMachine.mBrowseTree.mRootNode.isCached()).isTrue();
         SparseArray<AvrcpPlayer> players = mAvrcpStateMachine.getAvailablePlayers();
-        Assert.assertTrue(players.contains(mAvrcpStateMachine.getAddressedPlayerId()));
+        assertThat(players.contains(mAvrcpStateMachine.getAddressedPlayerId())).isTrue();
         Assert.assertEquals(testPlayers.size() + 1, players.size());
         for (AvrcpPlayer player : testPlayers) {
-            Assert.assertTrue(players.contains(player.getId()));
+            assertThat(players.contains(player.getId())).isTrue();
         }
 
         // Verify we do not request metadata, playback state and now playing list because we're
@@ -916,7 +916,7 @@ public class AvrcpControllerStateMachineTest {
         // The addressed player should always be in the available player set
         Assert.assertEquals(2, mAvrcpStateMachine.getAddressedPlayerId());
         SparseArray<AvrcpPlayer> players = mAvrcpStateMachine.getAvailablePlayers();
-        Assert.assertTrue(players.contains(mAvrcpStateMachine.getAddressedPlayerId()));
+        assertThat(players.contains(mAvrcpStateMachine.getAddressedPlayerId())).isTrue();
 
         // Make sure the Now Playing list is now cleared
         assertNowPlayingList(new ArrayList<AvrcpItem>());
@@ -1194,7 +1194,7 @@ public class AvrcpControllerStateMachineTest {
     public void testPlaybackWhilePlayingState() {
         when(mA2dpSinkService.getFocusState()).thenReturn(AudioManager.AUDIOFOCUS_GAIN);
         setUpConnectedState(true, true);
-        Assert.assertTrue(mAvrcpStateMachine.isActive());
+        assertThat(mAvrcpStateMachine.isActive()).isTrue();
         mAvrcpStateMachine.sendMessage(
                 AvrcpControllerStateMachine.MESSAGE_PROCESS_PLAY_STATUS_CHANGED,
                 PlaybackStateCompat.STATE_PLAYING);
@@ -1210,7 +1210,7 @@ public class AvrcpControllerStateMachineTest {
     /** Test that isActive() reports the proper value when we're active */
     @Test
     public void testIsActive_deviceActive() {
-        Assert.assertTrue(mAvrcpStateMachine.isActive());
+        assertThat(mAvrcpStateMachine.isActive()).isTrue();
     }
 
     /** Test that isActive() reports the proper value when we're inactive */
@@ -1225,7 +1225,7 @@ public class AvrcpControllerStateMachineTest {
     public void testBecomeActive() {
         // Note device starts as active in setUp() and state cascades come the CONNECTED state
         setUpConnectedState(true, true);
-        Assert.assertTrue(mAvrcpStateMachine.isActive());
+        assertThat(mAvrcpStateMachine.isActive()).isTrue();
 
         // Make the device inactive
         setActiveDevice(null);
@@ -1247,7 +1247,7 @@ public class AvrcpControllerStateMachineTest {
         // Make device active
         setActiveDevice(mTestDevice);
         TestUtils.waitForLooperToFinishScheduledTask(mAvrcpStateMachine.getHandler().getLooper());
-        Assert.assertTrue(mAvrcpStateMachine.isActive());
+        assertThat(mAvrcpStateMachine.isActive()).isTrue();
 
         // See that state from BluetoothMediaBrowserService is updated
         MediaSessionCompat session = BluetoothMediaBrowserService.getSession();
@@ -1282,7 +1282,7 @@ public class AvrcpControllerStateMachineTest {
     public void testBecomeInactive() {
         // Note device starts as active in setUp()
         setUpConnectedState(true, true);
-        Assert.assertTrue(mAvrcpStateMachine.isActive());
+        assertThat(mAvrcpStateMachine.isActive()).isTrue();
 
         // Set the active device to something else, verify we're inactive and send a pause upon
         // becoming inactive
@@ -1771,7 +1771,7 @@ public class AvrcpControllerStateMachineTest {
 
         // Make sure its set by re grabbing the node and checking its contents are cached
         nowPlaying = mAvrcpStateMachine.findNode("NOW_PLAYING");
-        Assert.assertTrue(nowPlaying.isCached());
+        assertThat(nowPlaying.isCached()).isTrue();
         assertNowPlayingList(updatedNowPlayingList);
     }
 
@@ -1831,7 +1831,7 @@ public class AvrcpControllerStateMachineTest {
 
         // Make sure its set by re grabbing the node and checking its contents are cached
         nowPlaying = mAvrcpStateMachine.findNode("NOW_PLAYING");
-        Assert.assertTrue(nowPlaying.isCached());
+        assertThat(nowPlaying.isCached()).isTrue();
         assertNowPlayingList(updatedNowPlayingList);
     }
 
@@ -1899,7 +1899,7 @@ public class AvrcpControllerStateMachineTest {
 
         // Make sure its set by re grabbing the node and checking its contents are cached
         nowPlaying = mAvrcpStateMachine.findNode("NOW_PLAYING");
-        Assert.assertTrue(nowPlaying.isCached());
+        assertThat(nowPlaying.isCached()).isTrue();
         assertNowPlayingList(updatedNowPlayingList);
     }
 
@@ -1964,7 +1964,7 @@ public class AvrcpControllerStateMachineTest {
 
         // Make sure its set by re grabbing the node and checking its contents are cached
         nowPlaying = mAvrcpStateMachine.findNode("NOW_PLAYING");
-        Assert.assertTrue(nowPlaying.isCached());
+        assertThat(nowPlaying.isCached()).isTrue();
         assertNowPlayingList(updatedNowPlayingList);
     }
 
@@ -1999,7 +1999,7 @@ public class AvrcpControllerStateMachineTest {
 
         // Node should be set to cached and notified on
         assertNowPlayingList(new ArrayList<AvrcpItem>());
-        Assert.assertTrue(nowPlaying.isCached());
+        assertThat(nowPlaying.isCached()).isTrue();
 
         // See that state from BluetoothMediaBrowserService is updated to null (i.e. empty)
         MediaSessionCompat session = BluetoothMediaBrowserService.getSession();

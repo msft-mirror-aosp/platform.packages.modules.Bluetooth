@@ -547,7 +547,7 @@ public final class AvrcpItemTest {
         MediaItem mediaItem = item.toMediaItem();
         MediaDescriptionCompat desc = mediaItem.getDescription();
 
-        Assert.assertTrue(mediaItem.isPlayable());
+        assertThat(mediaItem.isPlayable()).isTrue();
         Assert.assertFalse(mediaItem.isBrowsable());
         Assert.assertEquals(UUID, mediaItem.getMediaId());
 
@@ -576,7 +576,7 @@ public final class AvrcpItemTest {
         MediaItem mediaItem = item.toMediaItem();
         MediaDescriptionCompat desc = mediaItem.getDescription();
 
-        Assert.assertTrue(mediaItem.isPlayable());
+        assertThat(mediaItem.isPlayable()).isTrue();
         Assert.assertFalse(mediaItem.isBrowsable());
         Assert.assertEquals(UUID, mediaItem.getMediaId());
 
@@ -604,7 +604,7 @@ public final class AvrcpItemTest {
         MediaDescriptionCompat desc = mediaItem.getDescription();
 
         Assert.assertFalse(mediaItem.isPlayable());
-        Assert.assertTrue(mediaItem.isBrowsable());
+        assertThat(mediaItem.isBrowsable()).isTrue();
         Assert.assertEquals(UUID, mediaItem.getMediaId());
 
         Assert.assertEquals(UUID, desc.getMediaId());
@@ -621,7 +621,7 @@ public final class AvrcpItemTest {
 
         AvrcpItem item = builder.build();
 
-        Assert.assertTrue(item.equals(item));
+        assertThat(item).isEqualTo(item);
     }
 
     @Test
@@ -642,6 +642,6 @@ public final class AvrcpItemTest {
         AvrcpItem item = builder.build();
         AvrcpItem itemEqual = builderEqual.build();
 
-        Assert.assertTrue(item.equals(itemEqual));
+        assertThat(item).isEqualTo(itemEqual);
     }
 }

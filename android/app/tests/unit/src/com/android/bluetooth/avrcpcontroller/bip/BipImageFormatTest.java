@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Assert;
@@ -312,7 +314,7 @@ public class BipImageFormatTest {
                         BipPixel.createFixed(1280, 1024),
                         -1);
 
-        Assert.assertTrue(format.equals(format));
+        assertThat(format).isEqualTo(format);
     }
 
     @Test
@@ -335,6 +337,6 @@ public class BipImageFormatTest {
         BipImageFormat format = BipImageFormat.createNative(encoding, pixel, -1);
         BipImageFormat formatEqual = BipImageFormat.createNative(encoding, pixel, -1);
 
-        Assert.assertTrue(format.equals(formatEqual));
+        assertThat(format).isEqualTo(formatEqual);
     }
 }

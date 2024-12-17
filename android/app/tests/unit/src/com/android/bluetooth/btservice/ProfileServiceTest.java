@@ -239,7 +239,7 @@ public class ProfileServiceTest {
         List<ProfileService> stoppedArguments = stops.getAllValues();
         Assert.assertEquals(startedArguments.size(), stoppedArguments.size());
         for (ProfileService service : startedArguments) {
-            Assert.assertTrue(stoppedArguments.contains(service));
+            assertThat(stoppedArguments).contains(service);
             stoppedArguments.remove(service);
             Assert.assertFalse(stoppedArguments.contains(service));
         }

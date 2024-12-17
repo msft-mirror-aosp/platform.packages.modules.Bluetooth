@@ -243,7 +243,7 @@ public class CsipSetCoordinatorServiceTest {
         UUID lock_uuid = mService.lockGroup(group_id, mCsipSetCoordinatorLockCallback);
         verify(mNativeInterface).groupLockSet(eq(group_id), eq(true));
         assertThat(lock_uuid).isNotNull();
-        Assert.assertTrue(mService.isGroupLocked(group_id));
+        assertThat(mService.isGroupLocked(group_id)).isTrue();
 
         lock_uuid = mService.lockGroup(group_id, mCsipSetCoordinatorLockCallback);
         verify(mNativeInterface).groupLockSet(eq(group_id), eq(true));

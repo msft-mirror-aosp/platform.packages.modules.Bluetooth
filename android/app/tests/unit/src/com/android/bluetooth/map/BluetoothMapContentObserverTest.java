@@ -235,8 +235,8 @@ public class BluetoothMapContentObserverTest {
 
         // Validate that 3 addresses were inserted into the database with 2 being the recipients
         Assert.assertEquals(3, mProvider.mContents.size());
-        Assert.assertTrue(mProvider.mContents.contains(TEST_NUMBER_ONE));
-        Assert.assertTrue(mProvider.mContents.contains(TEST_NUMBER_TWO));
+        assertThat(mProvider.mContents.contains(TEST_NUMBER_ONE)).isTrue();
+        assertThat(mProvider.mContents.contains(TEST_NUMBER_TWO)).isTrue();
     }
 
     @Test
@@ -388,9 +388,10 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(
-                mObserver.setMessageStatusRead(
-                        TEST_HANDLE_ONE, type, TEST_URI_STR, TEST_STATUS_VALUE));
+        assertThat(
+                        mObserver.setMessageStatusRead(
+                                TEST_HANDLE_ONE, type, TEST_URI_STR, TEST_STATUS_VALUE))
+                .isTrue();
 
         Assert.assertEquals(msg.flagRead, TEST_STATUS_VALUE);
     }
@@ -406,9 +407,10 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(
-                mObserver.setMessageStatusRead(
-                        TEST_HANDLE_ONE, type, TEST_URI_STR, TEST_STATUS_VALUE));
+        assertThat(
+                        mObserver.setMessageStatusRead(
+                                TEST_HANDLE_ONE, type, TEST_URI_STR, TEST_STATUS_VALUE))
+                .isTrue();
 
         Assert.assertEquals(msg.flagRead, TEST_STATUS_VALUE);
     }
@@ -423,9 +425,10 @@ public class BluetoothMapContentObserverTest {
         mObserver.mProviderClient = mProviderClient;
         when(mProviderClient.update(any(), any(), any(), any())).thenReturn(TEST_PLACEHOLDER_INT);
 
-        Assert.assertTrue(
-                mObserver.setMessageStatusRead(
-                        TEST_HANDLE_ONE, type, TEST_URI_STR, TEST_STATUS_VALUE));
+        assertThat(
+                        mObserver.setMessageStatusRead(
+                                TEST_HANDLE_ONE, type, TEST_URI_STR, TEST_STATUS_VALUE))
+                .isTrue();
 
         Assert.assertEquals(msg.flagRead, TEST_STATUS_VALUE);
     }
@@ -448,7 +451,7 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(mObserver.deleteMessageMms(TEST_HANDLE_ONE));
+        assertThat(mObserver.deleteMessageMms(TEST_HANDLE_ONE)).isTrue();
 
         Assert.assertEquals(msg.threadId, BluetoothMapContentObserver.DELETED_THREAD_ID);
     }
@@ -471,7 +474,7 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverDelete(any(), any(), any(), any());
 
-        Assert.assertTrue(mObserver.deleteMessageMms(TEST_HANDLE_ONE));
+        assertThat(mObserver.deleteMessageMms(TEST_HANDLE_ONE)).isTrue();
 
         assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE)).isNull();
     }
@@ -494,7 +497,7 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(mObserver.deleteMessageSms(TEST_HANDLE_ONE));
+        assertThat(mObserver.deleteMessageSms(TEST_HANDLE_ONE)).isTrue();
 
         Assert.assertEquals(msg.threadId, BluetoothMapContentObserver.DELETED_THREAD_ID);
     }
@@ -517,7 +520,7 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverDelete(any(), any(), any(), any());
 
-        Assert.assertTrue(mObserver.deleteMessageSms(TEST_HANDLE_ONE));
+        assertThat(mObserver.deleteMessageSms(TEST_HANDLE_ONE)).isTrue();
 
         assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE)).isNull();
     }
@@ -552,7 +555,7 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .telephonyGetOrCreateThreadId(any(), any());
 
-        Assert.assertTrue(mObserver.unDeleteMessageMms(TEST_HANDLE_ONE));
+        assertThat(mObserver.unDeleteMessageMms(TEST_HANDLE_ONE)).isTrue();
 
         Assert.assertEquals(msg.threadId, TEST_OLD_THREAD_ID);
         Assert.assertEquals(msg.type, Mms.MESSAGE_BOX_INBOX);
@@ -588,7 +591,7 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .telephonyGetOrCreateThreadId(any(), any());
 
-        Assert.assertTrue(mObserver.unDeleteMessageMms(TEST_HANDLE_ONE));
+        assertThat(mObserver.unDeleteMessageMms(TEST_HANDLE_ONE)).isTrue();
 
         Assert.assertEquals(msg.threadId, TEST_OLD_THREAD_ID);
         Assert.assertEquals(msg.type, Mms.MESSAGE_BOX_INBOX);
@@ -617,7 +620,7 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .telephonyGetOrCreateThreadId(any(), any());
 
-        Assert.assertTrue(mObserver.unDeleteMessageMms(TEST_HANDLE_ONE));
+        assertThat(mObserver.unDeleteMessageMms(TEST_HANDLE_ONE)).isTrue();
 
         // Nothing changes when thread id is not BluetoothMapContentObserver.DELETED_THREAD_ID
         Assert.assertEquals(msg.threadId, TEST_THREAD_ID);
@@ -646,7 +649,7 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .telephonyGetOrCreateThreadId(any(), any());
 
-        Assert.assertTrue(mObserver.unDeleteMessageSms(TEST_HANDLE_ONE));
+        assertThat(mObserver.unDeleteMessageSms(TEST_HANDLE_ONE)).isTrue();
 
         Assert.assertEquals(msg.threadId, TEST_OLD_THREAD_ID);
         Assert.assertEquals(msg.type, Sms.MESSAGE_TYPE_INBOX);
@@ -671,7 +674,7 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .telephonyGetOrCreateThreadId(any(), any());
 
-        Assert.assertTrue(mObserver.unDeleteMessageSms(TEST_HANDLE_ONE));
+        assertThat(mObserver.unDeleteMessageSms(TEST_HANDLE_ONE)).isTrue();
 
         // Nothing changes when thread id is not BluetoothMapContentObserver.DELETED_THREAD_ID
         Assert.assertEquals(msg.threadId, TEST_THREAD_ID);
@@ -710,12 +713,13 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(
-                mObserver.setEmailMessageStatusDelete(
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        TEST_HANDLE_ONE,
-                        BluetoothMapAppParams.STATUS_VALUE_YES));
+        assertThat(
+                        mObserver.setEmailMessageStatusDelete(
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                TEST_HANDLE_ONE,
+                                BluetoothMapAppParams.STATUS_VALUE_YES))
+                .isTrue();
         Assert.assertEquals(msg.folderId, TEST_DELETE_FOLDER_ID);
     }
 
@@ -757,12 +761,13 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(
-                mObserver.setEmailMessageStatusDelete(
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        TEST_HANDLE_ONE,
-                        BluetoothMapAppParams.STATUS_VALUE_NO));
+        assertThat(
+                        mObserver.setEmailMessageStatusDelete(
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                TEST_HANDLE_ONE,
+                                BluetoothMapAppParams.STATUS_VALUE_NO))
+                .isTrue();
         Assert.assertEquals(msg.folderId, TEST_INBOX_FOLDER_ID);
     }
 
@@ -785,12 +790,13 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(
-                mObserver.setEmailMessageStatusDelete(
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        TEST_HANDLE_ONE,
-                        BluetoothMapAppParams.STATUS_VALUE_NO));
+        assertThat(
+                        mObserver.setEmailMessageStatusDelete(
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                TEST_HANDLE_ONE,
+                                BluetoothMapAppParams.STATUS_VALUE_NO))
+                .isTrue();
         Assert.assertEquals(msg.folderId, TEST_INBOX_FOLDER_ID);
     }
 
@@ -815,12 +821,13 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(
-                mObserver.setEmailMessageStatusDelete(
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        TEST_HANDLE_ONE,
-                        BluetoothMapAppParams.STATUS_VALUE_NO));
+        assertThat(
+                        mObserver.setEmailMessageStatusDelete(
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                TEST_HANDLE_ONE,
+                                BluetoothMapAppParams.STATUS_VALUE_NO))
+                .isTrue();
         Assert.assertEquals(msg.folderId, TEST_OLD_FOLDER_ID);
     }
 
@@ -838,13 +845,14 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(
-                mObserver.setMessageStatusDeleted(
-                        TEST_HANDLE_ONE,
-                        TYPE.EMAIL,
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        BluetoothMapAppParams.STATUS_VALUE_YES));
+        assertThat(
+                        mObserver.setMessageStatusDeleted(
+                                TEST_HANDLE_ONE,
+                                TYPE.EMAIL,
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                BluetoothMapAppParams.STATUS_VALUE_YES))
+                .isTrue();
     }
 
     @Test
@@ -2002,7 +2010,7 @@ public class BluetoothMapContentObserverTest {
                 .when(mIntent)
                 .getLongExtra(BluetoothMapContentObserver.EXTRA_MESSAGE_SENT_HANDLE, -1);
 
-        Assert.assertTrue(mObserver.handleMmsSendIntent(mContext, mIntent));
+        assertThat(mObserver.handleMmsSendIntent(mContext, mIntent)).isTrue();
     }
 
     @Test
@@ -2021,7 +2029,7 @@ public class BluetoothMapContentObserverTest {
                 .getIntExtra(BluetoothMapContentObserver.EXTRA_MESSAGE_SENT_TRANSPARENT, 0);
         mObserver.mObserverRegistered = true;
 
-        Assert.assertTrue(mObserver.handleMmsSendIntent(mContext, mIntent));
+        assertThat(mObserver.handleMmsSendIntent(mContext, mIntent)).isTrue();
     }
 
     @Test
@@ -2040,7 +2048,7 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverDelete(any(), any(), any(), any());
 
-        Assert.assertTrue(mObserver.handleMmsSendIntent(mContext, mIntent));
+        assertThat(mObserver.handleMmsSendIntent(mContext, mIntent)).isTrue();
     }
 
     @Test
@@ -2061,7 +2069,7 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.actionMessageSentDisconnected(mContext, mIntent, 1);
 
-        Assert.assertTrue(mmsMsgList.containsKey(TEST_HANDLE_ONE));
+        assertThat(mmsMsgList.containsKey(TEST_HANDLE_ONE)).isTrue();
     }
 
     @Test
@@ -2098,7 +2106,7 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.actionMmsSent(mContext, mIntent, 1, mmsMsgList);
 
-        Assert.assertTrue(mmsMsgList.containsKey(TEST_HANDLE_ONE));
+        assertThat(mmsMsgList.containsKey(TEST_HANDLE_ONE)).isTrue();
     }
 
     @Test
@@ -2145,7 +2153,7 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.actionMmsSent(mContext, mIntent, Activity.RESULT_OK, mmsMsgList);
 
-        Assert.assertTrue(mmsMsgList.containsKey(TEST_HANDLE_ONE));
+        assertThat(mmsMsgList.containsKey(TEST_HANDLE_ONE)).isTrue();
     }
 
     @Test

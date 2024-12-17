@@ -531,8 +531,8 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setConnection(mTestDevice, BluetoothProfile.HEADSET);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress()).isActiveHfpDevice);
+        assertThat(mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress()).isActiveHfpDevice)
+                .isTrue();
         List<BluetoothDevice> mostRecentlyConnectedDevicesOrdered =
                 mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(mTestDevice, mDatabaseManager.getMostRecentlyActiveHfpDevice());
@@ -545,8 +545,8 @@ public final class DatabaseManagerTest {
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
         Assert.assertFalse(
                 mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress()).isActiveHfpDevice);
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress()).isActiveHfpDevice);
+        assertThat(mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress()).isActiveHfpDevice)
+                .isTrue();
         Assert.assertEquals(mTestDevice2, mDatabaseManager.getMostRecentlyActiveHfpDevice());
         mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(2, mostRecentlyConnectedDevicesOrdered.size());
@@ -584,9 +584,10 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setConnection(mTestDevice, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isTrue();
         List<BluetoothDevice> mostRecentlyConnectedDevicesOrdered =
                 mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(mTestDevice, mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
@@ -600,9 +601,10 @@ public final class DatabaseManagerTest {
         Assert.assertFalse(
                 mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
                         .is_active_a2dp_device);
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
-                        .is_active_a2dp_device);
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                                .is_active_a2dp_device)
+                .isTrue();
         Assert.assertEquals(mTestDevice2, mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
         mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(2, mostRecentlyConnectedDevicesOrdered.size());
@@ -613,9 +615,10 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setConnection(mTestDevice, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isTrue();
         Assert.assertFalse(
                 mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
                         .is_active_a2dp_device);
@@ -665,9 +668,10 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setConnection(mTestDevice, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isTrue();
         Assert.assertFalse(
                 mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
                         .is_active_a2dp_device);
@@ -685,9 +689,10 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setConnection(mTestDevice3, BluetoothProfile.HEADSET);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isTrue();
         Assert.assertFalse(
                 mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
                         .is_active_a2dp_device);
@@ -705,9 +710,10 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setDisconnection(mTestDevice2, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isTrue();
         Assert.assertFalse(
                 mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
                         .is_active_a2dp_device);

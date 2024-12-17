@@ -18,6 +18,8 @@ package com.android.bluetooth.btservice;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothAdapter;
@@ -109,7 +111,7 @@ public class SilenceDeviceManagerTest {
 
         // Set pre-state for mSilenceDeviceManager
         if (wasSilenced) {
-            Assert.assertTrue(mSilenceDeviceManager.setSilenceMode(mTestDevice, true));
+            assertThat(mSilenceDeviceManager.setSilenceMode(mTestDevice, true)).isTrue();
             TestUtils.waitForLooperToFinishScheduledTask(mLooper);
             verify(mAdapterService, times(++mVerifyCount))
                     .sendBroadcastAsUser(
@@ -118,7 +120,7 @@ public class SilenceDeviceManagerTest {
         }
 
         // Set silence state and check whether state changed successfully
-        Assert.assertTrue(mSilenceDeviceManager.setSilenceMode(mTestDevice, enableSilence));
+        assertThat(mSilenceDeviceManager.setSilenceMode(mTestDevice, enableSilence)).isTrue();
         TestUtils.waitForLooperToFinishScheduledTask(mLooper);
         Assert.assertEquals(enableSilence, mSilenceDeviceManager.getSilenceMode(mTestDevice));
 
@@ -149,7 +151,7 @@ public class SilenceDeviceManagerTest {
     void testSetGetDeviceSilenceDisconnectedCase(boolean enableSilence) {
         ArgumentCaptor<Intent> intentArgument = ArgumentCaptor.forClass(Intent.class);
         // Set silence mode and it should stay disabled
-        Assert.assertTrue(mSilenceDeviceManager.setSilenceMode(mTestDevice, enableSilence));
+        assertThat(mSilenceDeviceManager.setSilenceMode(mTestDevice, enableSilence)).isTrue();
         TestUtils.waitForLooperToFinishScheduledTask(mLooper);
         Assert.assertFalse(mSilenceDeviceManager.getSilenceMode(mTestDevice));
 

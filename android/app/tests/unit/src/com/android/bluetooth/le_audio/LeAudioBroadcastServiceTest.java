@@ -782,7 +782,7 @@ public class LeAudioBroadcastServiceTest {
         mService.messageFromNative(state_event);
 
         // Verify if broadcast is active
-        Assert.assertTrue(mService.isBroadcastActive());
+        assertThat(mService.isBroadcastActive()).isTrue();
 
         mService.stopBroadcast(broadcastId);
         verify(mLeAudioBroadcasterNativeInterface).stopBroadcast(eq(broadcastId));
@@ -827,7 +827,7 @@ public class LeAudioBroadcastServiceTest {
         LeAudioStackEvent stackEvent =
                 new LeAudioStackEvent(LeAudioStackEvent.EVENT_TYPE_NATIVE_INITIALIZED);
         mService.messageFromNative(stackEvent);
-        Assert.assertTrue(mService.mLeAudioNativeIsInitialized);
+        assertThat(mService.mLeAudioNativeIsInitialized).isTrue();
     }
 
     private void prepareConnectedUnicastDevice(int groupId, BluetoothDevice device) {
@@ -846,7 +846,7 @@ public class LeAudioBroadcastServiceTest {
         doReturn(new ParcelUuid[] {BluetoothUuid.LE_AUDIO})
                 .when(mAdapterService)
                 .getRemoteUuids(any(BluetoothDevice.class));
-        Assert.assertTrue(mService.connect(device));
+        assertThat(mService.connect(device)).isTrue();
 
         // Verify the connection state broadcast, and that we are in Connected state
         verifyConnectionStateIntent(
@@ -1110,7 +1110,7 @@ public class LeAudioBroadcastServiceTest {
         /* Imitate setting device in call */
         mService.setInCall(true);
 
-        Assert.assertTrue(mService.mBroadcastIdDeactivatedForUnicastTransition.isPresent());
+        assertThat(mService.mBroadcastIdDeactivatedForUnicastTransition.isPresent()).isTrue();
 
         /* Check if broadcast is paused by InCall handling */
         verify(mLeAudioBroadcasterNativeInterface).pauseBroadcast(eq(broadcastId));
@@ -1176,7 +1176,7 @@ public class LeAudioBroadcastServiceTest {
         /* Imitate setting device in call */
         mService.handleAudioModeChange(AudioManager.MODE_IN_CALL);
 
-        Assert.assertTrue(mService.mBroadcastIdDeactivatedForUnicastTransition.isPresent());
+        assertThat(mService.mBroadcastIdDeactivatedForUnicastTransition.isPresent()).isTrue();
 
         /* Check if broadcast is paused by AudioMode handling */
         verify(mLeAudioBroadcasterNativeInterface).pauseBroadcast(eq(broadcastId));
@@ -1259,7 +1259,7 @@ public class LeAudioBroadcastServiceTest {
         create_event.valueInt2 = LeAudioStackEvent.STATUS_LOCAL_STREAM_REQUESTED;
         mService.messageFromNative(create_event);
 
-        Assert.assertTrue(mService.mBroadcastIdDeactivatedForUnicastTransition.isPresent());
+        assertThat(mService.mBroadcastIdDeactivatedForUnicastTransition.isPresent()).isTrue();
 
         /* Check if broadcast is paused triggered by group change request */
         verify(mLeAudioBroadcasterNativeInterface).pauseBroadcast(eq(broadcastId));
@@ -1337,7 +1337,7 @@ public class LeAudioBroadcastServiceTest {
         /* Imitate setting device in call */
         mService.setInCall(true);
 
-        Assert.assertTrue(mService.mBroadcastIdDeactivatedForUnicastTransition.isPresent());
+        assertThat(mService.mBroadcastIdDeactivatedForUnicastTransition.isPresent()).isTrue();
 
         /* Broadcast already paused, not call pause again by InCall handling */
         verify(mLeAudioBroadcasterNativeInterface, never()).pauseBroadcast(eq(broadcastId));
@@ -1404,7 +1404,7 @@ public class LeAudioBroadcastServiceTest {
         /* Imitate setting device in call */
         mService.handleAudioModeChange(AudioManager.MODE_IN_CALL);
 
-        Assert.assertTrue(mService.mBroadcastIdDeactivatedForUnicastTransition.isPresent());
+        assertThat(mService.mBroadcastIdDeactivatedForUnicastTransition.isPresent()).isTrue();
 
         /* Broadcast already paused, not call pause again by AudioMode handling */
         verify(mLeAudioBroadcasterNativeInterface, never()).pauseBroadcast(eq(broadcastId));
@@ -1482,7 +1482,7 @@ public class LeAudioBroadcastServiceTest {
         create_event.valueInt2 = LeAudioStackEvent.STATUS_LOCAL_STREAM_REQUESTED;
         mService.messageFromNative(create_event);
 
-        Assert.assertTrue(mService.mBroadcastIdDeactivatedForUnicastTransition.isPresent());
+        assertThat(mService.mBroadcastIdDeactivatedForUnicastTransition.isPresent()).isTrue();
 
         /* Broadcast already paused, not call pause again by group change request */
         verify(mLeAudioBroadcasterNativeInterface, never()).pauseBroadcast(eq(broadcastId));
@@ -1579,7 +1579,7 @@ public class LeAudioBroadcastServiceTest {
         ArgumentCaptor<BluetoothProfileConnectionInfo> connectionInfoArgumentCaptor =
                 ArgumentCaptor.forClass(BluetoothProfileConnectionInfo.class);
 
-        Assert.assertTrue(mService.setActiveDevice(mDevice2));
+        assertThat(mService.setActiveDevice(mDevice2)).isTrue();
 
         verify(mAudioManager)
                 .handleBluetoothActiveDeviceChanged(
@@ -1635,7 +1635,7 @@ public class LeAudioBroadcastServiceTest {
 
         TestUtils.waitForLooperToFinishScheduledTask(mService.getMainLooper());
         Assert.assertEquals(groupId1, mService.mUnicastGroupIdDeactivatedForBroadcastTransition);
-        Assert.assertTrue(onBroadcastToUnicastFallbackGroupChangedCallbackCalled);
+        assertThat(onBroadcastToUnicastFallbackGroupChangedCallbackCalled).isTrue();
 
         onBroadcastToUnicastFallbackGroupChangedCallbackCalled = false;
         synchronized (mService.mLeAudioCallbacks) {

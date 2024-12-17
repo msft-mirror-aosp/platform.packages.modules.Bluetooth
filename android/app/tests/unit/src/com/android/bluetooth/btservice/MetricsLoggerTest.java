@@ -155,10 +155,10 @@ public class MetricsLoggerTest {
         Assert.assertEquals(2, metricsProto.getProfileConnectionStatsCount());
         Map<ProfileId, ProfileConnectionStats> profileConnectionCountMap =
                 getProfileUsageStatsMap(metricsProto.getProfileConnectionStatsList());
-        Assert.assertTrue(profileConnectionCountMap.containsKey(ProfileId.AVRCP));
+        assertThat(profileConnectionCountMap).containsKey(ProfileId.AVRCP);
         Assert.assertEquals(
                 2, profileConnectionCountMap.get(ProfileId.AVRCP).getNumTimesConnected());
-        Assert.assertTrue(profileConnectionCountMap.containsKey(ProfileId.HEADSET));
+        assertThat(profileConnectionCountMap).containsKey(ProfileId.HEADSET);
         Assert.assertEquals(
                 1, profileConnectionCountMap.get(ProfileId.HEADSET).getNumTimesConnected());
         // Verify that MetricsLogger's internal state is cleared after a dump
@@ -198,7 +198,7 @@ public class MetricsLoggerTest {
 
     @Test
     public void testAddAndSendCountersCornerCases() {
-        Assert.assertTrue(mTestableMetricsLogger.isInitialized());
+        assertThat(mTestableMetricsLogger.isInitialized()).isTrue();
         mTestableMetricsLogger.cacheCount(1, -1);
         mTestableMetricsLogger.cacheCount(3, 0);
         mTestableMetricsLogger.cacheCount(2, 10);
@@ -233,13 +233,13 @@ public class MetricsLoggerTest {
 
     @Test
     public void testAddAndSendCountersDoubleInit() {
-        Assert.assertTrue(mTestableMetricsLogger.isInitialized());
+        assertThat(mTestableMetricsLogger.isInitialized()).isTrue();
         // sending a null adapterService will crash in case the double init no longer works
         mTestableMetricsLogger.init(null, mRemoteDevices);
     }
 
     @Test
-    public void testDeviceNameToSha() {
+    public void testDeviceNameToSha() throws IOException {
         initTestingBloomfilter();
         for (Map.Entry<String, String> entry : SANITIZED_DEVICE_NAME_MAP.entrySet()) {
             String deviceName = entry.getKey();
@@ -293,21 +293,17 @@ public class MetricsLoggerTest {
     }
 
     @Test
-    public void uploadEmptyDeviceName() {
+    public void uploadEmptyDeviceName() throws IOException {
         initTestingBloomfilter();
         Assert.assertEquals("", mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, ""));
     }
 
-    private void initTestingBloomfilter() {
+    private void initTestingBloomfilter() throws IOException {
         byte[] bloomfilterData =
                 DeviceBloomfilterGenerator.hexStringToByteArray(
                         DeviceBloomfilterGenerator.BLOOM_FILTER_DEFAULT);
-        try {
-            mTestableMetricsLogger.setBloomfilter(
-                    BloomFilter.readFrom(
-                            new ByteArrayInputStream(bloomfilterData), Funnels.byteArrayFunnel()));
-        } catch (IOException e) {
-            Assert.assertTrue(false);
-        }
+        mTestableMetricsLogger.setBloomfilter(
+                BloomFilter.readFrom(
+                        new ByteArrayInputStream(bloomfilterData), Funnels.byteArrayFunnel()));
     }
 }

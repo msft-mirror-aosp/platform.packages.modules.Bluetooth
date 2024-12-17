@@ -20,6 +20,7 @@ package com.android.bluetooth.tbs;
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.mockito.AdditionalMatchers.*;
 import static org.mockito.Mockito.*;
@@ -127,16 +128,17 @@ public class TbsGattTest {
         mCurrentProviderName = "unknown";
         mCurrentTechnology = 0x00;
 
-        Assert.assertTrue(
-                mTbsGatt.init(
-                        mCurrentCcid,
-                        mCurrentUci,
-                        mCurrentUriSchemes,
-                        true,
-                        true,
-                        mCurrentProviderName,
-                        mCurrentTechnology,
-                        mMockTbsGattCallback));
+        assertThat(
+                        mTbsGatt.init(
+                                mCurrentCcid,
+                                mCurrentUci,
+                                mCurrentUriSchemes,
+                                true,
+                                true,
+                                mCurrentProviderName,
+                                mCurrentTechnology,
+                                mMockTbsGattCallback))
+                .isTrue();
 
         verify(mAdapterService).registerBluetoothStateCallback(any(), any());
         verify(mMockGattServer).addService(mGattServiceCaptor.capture());
@@ -183,14 +185,14 @@ public class TbsGattTest {
         if (characteristic.getUuid().equals(TbsGatt.UUID_BEARER_PROVIDER_NAME)) {
             boolean valueChanged = !characteristic.getStringValue(0).equals((String) value);
             if (valueChanged) {
-                Assert.assertTrue(mTbsGatt.setBearerProviderName((String) value));
+                assertThat(mTbsGatt.setBearerProviderName((String) value)).isTrue();
             } else {
                 Assert.assertFalse(mTbsGatt.setBearerProviderName((String) value));
             }
             Assert.assertEquals((String) value, characteristic.getStringValue(0));
 
         } else if (characteristic.getUuid().equals(TbsGatt.UUID_BEARER_TECHNOLOGY)) {
-            Assert.assertTrue(mTbsGatt.setBearerTechnology((Integer) value));
+            assertThat(mTbsGatt.setBearerTechnology((Integer) value)).isTrue();
             Assert.assertEquals(
                     (Integer) value,
                     characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0));
@@ -201,7 +203,8 @@ public class TbsGattTest {
             String valueString = String.join(",", (List<String>) value);
             boolean valueChanged = !characteristic.getStringValue(0).equals(valueString);
             if (valueChanged) {
-                Assert.assertTrue(mTbsGatt.setBearerUriSchemesSupportedList((List<String>) value));
+                assertThat(mTbsGatt.setBearerUriSchemesSupportedList((List<String>) value))
+                        .isTrue();
             } else {
                 Assert.assertFalse(mTbsGatt.setBearerUriSchemesSupportedList((List<String>) value));
             }
@@ -213,80 +216,73 @@ public class TbsGattTest {
             switch (flagStatePair.first) {
                 case TbsGatt.STATUS_FLAG_INBAND_RINGTONE_ENABLED:
                     if (flagStatePair.second) {
-                        Assert.assertTrue(mTbsGatt.setInbandRingtoneFlag(device));
+                        assertThat(mTbsGatt.setInbandRingtoneFlag(device)).isTrue();
                     } else {
-                        Assert.assertTrue(mTbsGatt.clearInbandRingtoneFlag(device));
+                        assertThat(mTbsGatt.clearInbandRingtoneFlag(device)).isTrue();
                     }
                     break;
 
                 case TbsGatt.STATUS_FLAG_SILENT_MODE_ENABLED:
                     if (flagStatePair.second) {
-                        Assert.assertTrue(mTbsGatt.setSilentModeFlag());
+                        assertThat(mTbsGatt.setSilentModeFlag()).isTrue();
                     } else {
-                        Assert.assertTrue(mTbsGatt.clearSilentModeFlag());
+                        assertThat(mTbsGatt.clearSilentModeFlag()).isTrue();
                     }
                     break;
 
                 default:
-                    Assert.assertTrue(false);
+                    assertWithMessage("Unexpected flag: " + flagStatePair.first).fail();
             }
 
         } else if (characteristic.getUuid().equals(TbsGatt.UUID_CALL_STATE)) {
             Pair<Map<Integer, TbsCall>, byte[]> callsExpectedPacketPair =
                     (Pair<Map<Integer, TbsCall>, byte[]>) value;
-            Assert.assertTrue(mTbsGatt.setCallState(callsExpectedPacketPair.first));
-            Assert.assertTrue(
-                    Arrays.equals(callsExpectedPacketPair.second, characteristic.getValue()));
+            assertThat(mTbsGatt.setCallState(callsExpectedPacketPair.first)).isTrue();
+            assertThat(characteristic.getValue()).isEqualTo(callsExpectedPacketPair.second);
 
         } else if (characteristic.getUuid().equals(TbsGatt.UUID_BEARER_LIST_CURRENT_CALLS)) {
             Pair<Map<Integer, TbsCall>, byte[]> callsExpectedPacketPair =
                     (Pair<Map<Integer, TbsCall>, byte[]>) value;
-            Assert.assertTrue(mTbsGatt.setBearerListCurrentCalls(callsExpectedPacketPair.first));
-            Assert.assertTrue(
-                    Arrays.equals(callsExpectedPacketPair.second, characteristic.getValue()));
+            assertThat(mTbsGatt.setBearerListCurrentCalls(callsExpectedPacketPair.first)).isTrue();
+            assertThat(characteristic.getValue()).isEqualTo(callsExpectedPacketPair.second);
 
         } else if (characteristic.getUuid().equals(TbsGatt.UUID_TERMINATION_REASON)) {
             Pair<Integer, Integer> indexReasonPair = (Pair<Integer, Integer>) value;
-            Assert.assertTrue(
-                    mTbsGatt.setTerminationReason(indexReasonPair.first, indexReasonPair.second));
-            Assert.assertTrue(
-                    Arrays.equals(
-                            new byte[] {
-                                (byte) indexReasonPair.first.byteValue(),
-                                indexReasonPair.second.byteValue()
-                            },
-                            characteristic.getValue()));
-
+            assertThat(mTbsGatt.setTerminationReason(indexReasonPair.first, indexReasonPair.second))
+                    .isTrue();
+            assertThat(characteristic.getValue())
+                    .asList()
+                    .containsExactly(
+                            indexReasonPair.first.byteValue(), indexReasonPair.second.byteValue())
+                    .inOrder();
         } else if (characteristic.getUuid().equals(TbsGatt.UUID_INCOMING_CALL)) {
             if (value == null) {
-                Assert.assertTrue(mTbsGatt.clearIncomingCall());
+                assertThat(mTbsGatt.clearIncomingCall()).isTrue();
                 Assert.assertEquals(0, characteristic.getValue().length);
             } else {
                 Pair<Integer, String> indexStrPair = (Pair<Integer, String>) value;
-                Assert.assertTrue(
-                        mTbsGatt.setIncomingCall(indexStrPair.first, indexStrPair.second));
-                Assert.assertTrue(
-                        Arrays.equals(
+                assertThat(mTbsGatt.setIncomingCall(indexStrPair.first, indexStrPair.second))
+                        .isTrue();
+                assertThat(characteristic.getValue())
+                        .isEqualTo(
                                 Bytes.concat(
                                         new byte[] {(byte) indexStrPair.first.byteValue()},
-                                        indexStrPair.second.getBytes(StandardCharsets.UTF_8)),
-                                characteristic.getValue()));
+                                        indexStrPair.second.getBytes(StandardCharsets.UTF_8)));
             }
 
         } else if (characteristic.getUuid().equals(TbsGatt.UUID_CALL_FRIENDLY_NAME)) {
             if (value == null) {
-                Assert.assertTrue(mTbsGatt.clearFriendlyName());
+                assertThat(mTbsGatt.clearFriendlyName()).isTrue();
                 Assert.assertEquals(0, characteristic.getValue().length);
             } else {
                 Pair<Integer, String> indexNamePair = (Pair<Integer, String>) value;
-                Assert.assertTrue(
-                        mTbsGatt.setCallFriendlyName(indexNamePair.first, indexNamePair.second));
-                Assert.assertTrue(
-                        Arrays.equals(
+                assertThat(mTbsGatt.setCallFriendlyName(indexNamePair.first, indexNamePair.second))
+                        .isTrue();
+                assertThat(characteristic.getValue())
+                        .isEqualTo(
                                 Bytes.concat(
                                         new byte[] {(byte) indexNamePair.first.byteValue()},
-                                        indexNamePair.second.getBytes(StandardCharsets.UTF_8)),
-                                characteristic.getValue()));
+                                        indexNamePair.second.getBytes(StandardCharsets.UTF_8)));
             }
         }
 
@@ -568,21 +564,17 @@ public class TbsGattTest {
         BluetoothGattCharacteristic characteristic =
                 getCharacteristic(TbsGatt.UUID_CALL_CONTROL_POINT);
 
-        int requestedOpcode = TbsGatt.CALL_CONTROL_POINT_OPCODE_ACCEPT;
-        int callIndex = 0x01;
-        int result = TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS;
+        byte requestedOpcode = TbsGatt.CALL_CONTROL_POINT_OPCODE_ACCEPT;
+        byte callIndex = 0x01;
+        byte result = TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS;
 
         // Check with notifications enabled
         configureNotifications(mFirstDevice, characteristic, true);
         mTbsGatt.setCallControlPointResult(mFirstDevice, requestedOpcode, callIndex, result);
-        Assert.assertTrue(
-                Arrays.equals(
-                        characteristic.getValue(),
-                        new byte[] {
-                            (byte) (requestedOpcode & 0xff),
-                            (byte) (callIndex & 0xff),
-                            (byte) (result & 0xff)
-                        }));
+        assertThat(characteristic.getValue())
+                .asList()
+                .containsExactly(requestedOpcode, callIndex, result)
+                .inOrder();
         verify(mMockGattServer, after(2000))
                 .notifyCharacteristicChanged(eq(mFirstDevice), eq(characteristic), eq(false));
         reset(mMockGattServer);
@@ -592,14 +584,10 @@ public class TbsGattTest {
         // Check with notifications disabled
         configureNotifications(mFirstDevice, characteristic, false);
         mTbsGatt.setCallControlPointResult(mFirstDevice, requestedOpcode, callIndex, result);
-        Assert.assertTrue(
-                Arrays.equals(
-                        characteristic.getValue(),
-                        new byte[] {
-                            (byte) (requestedOpcode & 0xff),
-                            (byte) (callIndex & 0xff),
-                            (byte) (result & 0xff)
-                        }));
+        assertThat(characteristic.getValue())
+                .asList()
+                .containsExactly(requestedOpcode, callIndex, result)
+                .inOrder();
         verify(mMockGattServer, after(2000).times(0))
                 .notifyCharacteristicChanged(any(), any(), anyBoolean());
     }

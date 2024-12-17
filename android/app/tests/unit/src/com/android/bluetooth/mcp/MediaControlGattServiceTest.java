@@ -134,7 +134,7 @@ public class MediaControlGattServiceTest {
         long mMandatoryFeatures = ServiceFeature.ALL_MANDATORY_SERVICE_FEATURES;
 
         doReturn(mMandatoryFeatures).when(mMockMcsCallbacks).onGetFeatureFlags();
-        Assert.assertTrue(mMcpService.init(UUID_GMCS));
+        assertThat(mMcpService.init(UUID_GMCS)).isTrue();
         Assert.assertEquals(mMcpService.getServiceUuid(), UUID_GMCS);
         Assert.assertEquals(mMcpService.getContentControlId(), TEST_CCID);
 
@@ -184,7 +184,7 @@ public class MediaControlGattServiceTest {
                         | ServiceFeature.MEDIA_CONTROL_POINT_OPCODES_SUPPORTED_NOTIFY;
 
         doReturn(features).when(mMockMcsCallbacks).onGetFeatureFlags();
-        Assert.assertTrue(mMcpService.init(UUID_GMCS));
+        assertThat(mMcpService.init(UUID_GMCS)).isTrue();
 
         verify(mMockGattServer).addService(mGattServiceCaptor.capture());
 
@@ -273,7 +273,7 @@ public class MediaControlGattServiceTest {
         assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(), BluetoothGattCharacteristic.PROPERTY_READ);
-        Assert.assertTrue(characteristic.getValue().length == 0);
+        assertThat(characteristic.getValue().length).isEqualTo(0);
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_PLAYER_ICON_URL);
         assertThat(characteristic).isNotNull();
@@ -314,7 +314,7 @@ public class MediaControlGattServiceTest {
         assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(), BluetoothGattCharacteristic.PROPERTY_READ);
-        Assert.assertTrue(characteristic.getValue().length == 0);
+        assertThat(characteristic.getValue().length).isEqualTo(0);
 
         characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_CURRENT_TRACK_OBJ_ID);
@@ -325,7 +325,7 @@ public class MediaControlGattServiceTest {
                         | BluetoothGattCharacteristic.PROPERTY_WRITE
                         | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE
                         | BluetoothGattCharacteristic.PROPERTY_NOTIFY);
-        Assert.assertTrue(characteristic.getValue().length == 0);
+        assertThat(characteristic.getValue().length).isEqualTo(0);
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_NEXT_TRACK_OBJ_ID);
         assertThat(characteristic).isNotNull();
@@ -335,7 +335,7 @@ public class MediaControlGattServiceTest {
                         | BluetoothGattCharacteristic.PROPERTY_WRITE
                         | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE
                         | BluetoothGattCharacteristic.PROPERTY_NOTIFY);
-        Assert.assertTrue(characteristic.getValue().length == 0);
+        assertThat(characteristic.getValue().length).isEqualTo(0);
 
         characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_CURRENT_GROUP_OBJ_ID);
@@ -346,7 +346,7 @@ public class MediaControlGattServiceTest {
                         | BluetoothGattCharacteristic.PROPERTY_WRITE
                         | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE
                         | BluetoothGattCharacteristic.PROPERTY_NOTIFY);
-        Assert.assertTrue(characteristic.getValue().length == 0);
+        assertThat(characteristic.getValue().length).isEqualTo(0);
 
         characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_PARENT_GROUP_OBJ_ID);
@@ -355,7 +355,7 @@ public class MediaControlGattServiceTest {
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
                         | BluetoothGattCharacteristic.PROPERTY_NOTIFY);
-        Assert.assertTrue(characteristic.getValue().length == 0);
+        assertThat(characteristic.getValue().length).isEqualTo(0);
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_PLAYING_ORDER);
         assertThat(characteristic).isNotNull();
@@ -410,7 +410,7 @@ public class MediaControlGattServiceTest {
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
                         | BluetoothGattCharacteristic.PROPERTY_NOTIFY);
-        Assert.assertTrue(characteristic.getValue().length == 0);
+        assertThat(characteristic.getValue().length).isEqualTo(0);
 
         characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_SEARCH_CONTROL_POINT);

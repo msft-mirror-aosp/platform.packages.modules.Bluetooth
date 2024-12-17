@@ -144,7 +144,7 @@ public class TestUtils {
      * @return {@link BluetoothDevice} test device for the device ID
      */
     public static BluetoothDevice getTestDevice(BluetoothAdapter bluetoothAdapter, int id) {
-        Assert.assertTrue(id <= 0xFF);
+        assertThat(id).isAtMost(0xFF);
         assertThat(bluetoothAdapter).isNotNull();
         BluetoothDevice testDevice =
                 bluetoothAdapter.getRemoteDevice(String.format("00:01:02:03:04:%02X", id));
@@ -278,7 +278,7 @@ public class TestUtils {
      * <pre>{@code
      * TestUtils.runOnMainSync(new Runnable() {
      *       public void run() {
-     *           Assert.assertTrue(mA2dpService.stop());
+     *           assertThat(mA2dpService.stop()).isTrue();
      *       }
      *   });
      * }</pre>

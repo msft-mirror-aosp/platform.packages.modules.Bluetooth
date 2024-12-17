@@ -411,9 +411,9 @@ public class BrowserPlayerWrapperTest {
                 if (expected.getDescription().getIconBitmap() != null) {
                     assertThat(song.image).isNotNull();
                     Bitmap expectedBitmap = expected.getDescription().getIconBitmap();
-                    Assert.assertTrue(expectedBitmap.sameAs(song.image.getImage()));
+                    assertThat(expectedBitmap.sameAs(song.image.getImage())).isTrue();
                 } else if (expected.getDescription().getIconUri() != null) {
-                    Assert.assertTrue(mTestBitmap.sameAs(song.image.getImage()));
+                    assertThat(mTestBitmap.sameAs(song.image.getImage())).isTrue();
                 } else {
                     Assert.assertEquals(null, song.image);
                 }
