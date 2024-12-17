@@ -764,9 +764,8 @@ void bta_gattc_disc_close(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data
   log::verbose("Discovery cancel conn_id=0x{:x}", p_clcb->bta_conn_id);
 
   if (p_clcb->disc_active ||
-      (com::android::bluetooth::flags::gatt_rediscover_on_canceled() &&
-       (p_clcb->request_during_discovery == BTA_GATTC_DISCOVER_REQ_READ_DB_HASH ||
-        p_clcb->request_during_discovery == BTA_GATTC_DISCOVER_REQ_READ_DB_HASH_FOR_SVC_CHG))) {
+      (p_clcb->request_during_discovery == BTA_GATTC_DISCOVER_REQ_READ_DB_HASH ||
+       p_clcb->request_during_discovery == BTA_GATTC_DISCOVER_REQ_READ_DB_HASH_FOR_SVC_CHG)) {
     bta_gattc_reset_discover_st(p_clcb->p_srcb, GATT_ERROR);
   } else {
     p_clcb->state = BTA_GATTC_CONN_ST;
