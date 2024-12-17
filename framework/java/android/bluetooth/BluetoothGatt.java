@@ -2157,57 +2157,6 @@ public final class BluetoothGatt implements BluetoothProfile {
     }
 
     /**
-     * Request a LE subrate request.
-     *
-     * <p>This function will send a LE subrate request to the remote device.
-     *
-     * @return true, if the request is send to the Bluetooth stack.
-     * @hide
-     */
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    public boolean bleSubrateRequest(
-            int subrateMin,
-            int subrateMax,
-            int maxLatency,
-            int contNumber,
-            int supervisionTimeout) {
-        if (DBG) {
-            Log.d(
-                    TAG,
-                    "bleSubrateRequest() - subrateMin="
-                            + subrateMin
-                            + " subrateMax="
-                            + (subrateMax)
-                            + " maxLatency= "
-                            + maxLatency
-                            + "contNumber="
-                            + contNumber
-                            + " supervisionTimeout="
-                            + supervisionTimeout);
-        }
-        if (mService == null || mClientIf == 0) {
-            return false;
-        }
-
-        try {
-            mService.leSubrateRequest(
-                    mClientIf,
-                    mDevice.getAddress(),
-                    subrateMin,
-                    subrateMax,
-                    maxLatency,
-                    contNumber,
-                    supervisionTimeout,
-                    mAttributionSource);
-        } catch (RemoteException e) {
-            Log.e(TAG, "", e);
-            return false;
-        }
-        return true;
-    }
-
-    /**
      * @deprecated Not supported - please use {@link BluetoothManager#getConnectedDevices(int)} with
      *     {@link BluetoothProfile#GATT} as argument
      * @throws UnsupportedOperationException on every call
