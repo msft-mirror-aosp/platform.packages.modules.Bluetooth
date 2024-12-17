@@ -452,7 +452,6 @@ static bt_status_t btif_in_fetch_bonded_devices(btif_bonded_devices_t* p_bonded_
   memset(p_bonded_devices, 0, sizeof(btif_bonded_devices_t));
 
   bool bt_linkkey_file_found = false;
-  int device_type;
 
   for (const auto& bd_addr : btif_config_get_paired_devices()) {
     auto name = bd_addr.ToString();
@@ -473,6 +472,7 @@ static bt_status_t btif_in_fetch_bonded_devices(btif_bonded_devices_t* p_bonded_
           btif_config_get_int(name, BTIF_STORAGE_KEY_PIN_LENGTH, &pin_length);
           BTA_DmAddDevice(bd_addr, dev_class, link_key, (uint8_t)linkkey_type, pin_length);
 
+          int device_type = BT_DEVICE_TYPE_UNKNOWN;
           if (btif_config_get_int(name, BTIF_STORAGE_KEY_DEV_TYPE, &device_type) &&
               (device_type == BT_DEVICE_TYPE_DUMO)) {
             btif_gatts_add_bonded_dev_from_nv(bd_addr);
@@ -1190,7 +1190,7 @@ bt_status_t btif_storage_get_ble_local_key(uint8_t key_type, Octet16* key_value)
 
 bt_status_t btif_in_fetch_bonded_ble_device(const std::string& remote_bd_addr, int add,
                                             btif_bonded_devices_t* p_bonded_devices) {
-  int device_type;
+  int device_type = BT_DEVICE_TYPE_UNKNOWN;
   tBLE_ADDR_TYPE addr_type;
   bool device_added = false;
   bool key_found = false;
@@ -1272,7 +1272,7 @@ bool btif_has_ble_keys(const std::string& bdstr) {
  ******************************************************************************/
 bt_status_t btif_storage_get_remote_addr_type(const RawAddress* remote_bd_addr,
                                               tBLE_ADDR_TYPE* addr_type) {
-  int val;
+  int val = BLE_ADDR_ANONYMOUS;
   bool ret = btif_config_get_int(remote_bd_addr->ToString(), BTIF_STORAGE_KEY_ADDR_TYPE, &val);
   *addr_type = static_cast<tBLE_ADDR_TYPE>(val);
   return ret ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
