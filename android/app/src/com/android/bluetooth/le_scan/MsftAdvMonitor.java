@@ -20,16 +20,18 @@ import android.bluetooth.le.ScanFilter;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.UUID;
 
 /** Helper class used to manage MSFT Advertisement Monitors. */
 class MsftAdvMonitor {
-    /* Only pattern filtering is supported currently */
+    /* Only pattern and address filtering are supported currently */
     // private static final int MSFT_CONDITION_TYPE_ALL = 0x00;
     private static final int MSFT_CONDITION_TYPE_PATTERNS = 0x01;
     // private static final int MSFT_CONDITION_TYPE_UUID = 0x02;
     // private static final int MSFT_CONDITION_TYPE_IRK = 0x03;
-    // private static final int MSFT_CONDITION_TYPE_ADDRESS = 0x04;
+    private static final int MSFT_CONDITION_TYPE_ADDRESS = 0x04;
 
     // Hardcoded values taken from CrOS defaults
     private static final byte RSSI_THRESHOLD_HIGH = (byte) 0xBF; // 191
@@ -50,6 +52,25 @@ class MsftAdvMonitor {
         public byte ad_type;
         public byte start_byte;
         public byte[] pattern;
+
+        @Override
+        public boolean equals(Object o) {
+            if (o == this) {
+                return true;
+            }
+            if (!(o instanceof Pattern other)) {
+                return false;
+            }
+
+            return other.ad_type == this.ad_type
+                    && other.start_byte == this.start_byte
+                    && Arrays.equals(other.pattern, this.pattern);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(ad_type, start_byte, Arrays.hashCode(pattern));
+        }
     }
 
     static class Address {
@@ -69,6 +90,13 @@ class MsftAdvMonitor {
         mMonitor.rssi_threshold_low_time_interval = RSSI_THRESHOLD_LOW_TIME_INTERVAL;
         mMonitor.rssi_sampling_period = RSSI_SAMPLING_PERIOD;
         mMonitor.condition_type = MSFT_CONDITION_TYPE_PATTERNS;
+
+        if (filter.getDeviceAddress() != null) {
+            mMonitor.condition_type = MSFT_CONDITION_TYPE_ADDRESS;
+            mAddress.addr_type = (byte) filter.getAddressType();
+            mAddress.bd_addr = filter.getDeviceAddress();
+            return;
+        }
 
         if (filter.getServiceDataUuid() != null && dataMaskIsEmpty(filter.getServiceDataMask())) {
             Pattern pattern = new Pattern();
@@ -92,11 +120,6 @@ class MsftAdvMonitor {
             pattern.start_byte = FILTER_PATTERN_START_POSITION;
             pattern.pattern = filter.getAdvertisingData();
             mPatterns.add(pattern);
-        }
-
-        if (filter.getDeviceAddress() != null) {
-            mAddress.addr_type = (byte) filter.getAddressType();
-            mAddress.bd_addr = filter.getDeviceAddress();
         }
     }
 
