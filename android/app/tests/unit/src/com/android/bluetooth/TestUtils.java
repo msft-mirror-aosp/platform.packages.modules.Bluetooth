@@ -186,17 +186,14 @@ public class TestUtils {
      *
      * @param timeoutMs the time (in milliseconds) to wait and verify no intent has been received
      * @param queue the queue for the intent
-     * @return the received intent. Should be null under normal circumstances
      */
-    public static Intent waitForNoIntent(int timeoutMs, BlockingQueue<Intent> queue) {
+    public static void waitForNoIntent(int timeoutMs, BlockingQueue<Intent> queue) {
         try {
             Intent intent = queue.poll(timeoutMs, TimeUnit.MILLISECONDS);
             Assert.assertNull(intent);
-            return intent;
         } catch (InterruptedException e) {
             Assert.fail("Cannot obtain an Intent from the queue: " + e.getMessage());
         }
-        return null;
     }
 
     /**
