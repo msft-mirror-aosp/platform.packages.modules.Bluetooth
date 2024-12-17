@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -91,7 +90,7 @@ inline std::string smp_status_text(const tSMP_STATUS& status) {
     CASE_RETURN_TEXT(SMP_SIRK_DEVICE_INVALID);
     CASE_RETURN_TEXT(SMP_USER_CANCELLED);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", status);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(status));
   }
 }
 

@@ -1076,8 +1076,7 @@ public:
     log::assert_that(ase != nullptr,
                      "shouldn't be called without an active ASE, device {}, "
                      "group id: {}, cis handle 0x{:04x}",
-                     ADDRESS_TO_LOGGABLE_CSTR(leAudioDevice->address_), event->cig_id,
-                     event->cis_conn_hdl);
+                     leAudioDevice->address_, event->cig_id, event->cis_conn_hdl);
 
     PrepareAndSendReceiverStartReady(leAudioDevice, ase);
   }
@@ -1086,8 +1085,8 @@ public:
     tGATT_WRITE_TYPE write_type = GATT_WRITE_NO_RSP;
 
     if (value.size() > (leAudioDevice->mtu_ - 3)) {
-      log::warn("{}, using long write procedure ({} > {})", leAudioDevice->address_,
-                static_cast<int>(value.size()), leAudioDevice->mtu_ - 3);
+      log::warn("{}, using long write procedure ({} > {})", leAudioDevice->address_, value.size(),
+                leAudioDevice->mtu_ - 3);
 
       /* Note, that this type is actually LONG WRITE.
        * Meaning all the Prepare Writes plus Execute is handled in the stack
