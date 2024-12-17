@@ -232,16 +232,6 @@ flag {
 }
 
 flag {
-    name: "identity_retention_on_restart"
-    namespace: "bluetooth"
-    description: "Retain identity address on BT restart"
-    bug: "383879096"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "bonded_device_smp_failure_handling"
     namespace: "bluetooth"
     description: "Don't remove bond on SMP failure for bonded devices in peripheral role"
