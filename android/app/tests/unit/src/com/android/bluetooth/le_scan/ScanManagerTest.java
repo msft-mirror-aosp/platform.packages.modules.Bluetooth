@@ -67,6 +67,7 @@ import android.os.BatteryStatsManager;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Message;
+import android.os.ParcelUuid;
 import android.os.SystemProperties;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
@@ -110,6 +111,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /** Test cases for {@link ScanManager}. */
 @SmallTest
@@ -283,13 +285,12 @@ public class ScanManagerTest {
 
     private ScanClient createScanClient(
             boolean isFiltered,
-            boolean isEmptyFilter,
             int scanMode,
             boolean isBatch,
             boolean isAutoBatch,
             int appUid,
-            AppScanStats appScanStats) {
-        List<ScanFilter> scanFilterList = createScanFilterList(isFiltered, isEmptyFilter);
+            AppScanStats appScanStats,
+            List<ScanFilter> scanFilterList) {
         ScanSettings scanSettings = createScanSettings(scanMode, isBatch, isAutoBatch);
 
         mClientId = mClientId + 1;
@@ -298,6 +299,19 @@ public class ScanManagerTest {
         client.stats.recordScanStart(
                 scanSettings, scanFilterList, isFiltered, false, mClientId, null);
         return client;
+    }
+
+    private ScanClient createScanClient(
+            boolean isFiltered,
+            boolean isEmptyFilter,
+            int scanMode,
+            boolean isBatch,
+            boolean isAutoBatch,
+            int appUid,
+            AppScanStats appScanStats) {
+        List<ScanFilter> scanFilterList = createScanFilterList(isFiltered, isEmptyFilter);
+        return createScanClient(
+                isFiltered, scanMode, isBatch, isAutoBatch, appUid, appScanStats, scanFilterList);
     }
 
     private ScanClient createScanClient(boolean isFiltered, int scanMode) {
@@ -1883,7 +1897,9 @@ public class ScanManagerTest {
         doReturn(false).when(mBluetoothAdapterProxy).isOffloadedScanFilteringSupported();
 
         final boolean isFiltered = true;
-        final boolean isEmptyFilter = false;
+        final ParcelUuid serviceUuid =
+                new ParcelUuid(UUID.fromString("12345678-90AB-CDEF-1234-567890ABCDEF"));
+        final byte[] serviceData = new byte[] {0x01, 0x02, 0x03};
 
         boolean isMsftEnabled = SystemProperties.getBoolean(MSFT_HCI_EXT_ENABLED, false);
         SystemProperties.set(MSFT_HCI_EXT_ENABLED, Boolean.toString(true));
@@ -1900,19 +1916,45 @@ public class ScanManagerTest {
 
             // Turn on screen
             sendMessageWaitForProcessed(createScreenOnOffMessage(true));
-            // Create scan client
-            ScanClient client = createScanClient(isFiltered, isEmptyFilter, SCAN_MODE_LOW_POWER);
+            // Create scan client with service data
+            List<ScanFilter> scanFilterList =
+                    List.of(
+                            new ScanFilter.Builder()
+                                    .setServiceData(serviceUuid, serviceData)
+                                    .build());
+            ScanClient client =
+                    createScanClient(
+                            isFiltered,
+                            SCAN_MODE_LOW_POWER,
+                            false,
+                            false,
+                            Binder.getCallingUid(),
+                            mMockAppScanStats,
+                            scanFilterList);
             // Start scan
             sendMessageWaitForProcessed(createStartStopScanMessage(true, client));
 
-            // Verify MSFT APIs
-            verify(mScanNativeInterface, atLeastOnce())
+            // Create another scan client with the same service data
+            ScanClient anotherClient =
+                    createScanClient(
+                            isFiltered,
+                            SCAN_MODE_LOW_POWER,
+                            false,
+                            false,
+                            Binder.getCallingUid(),
+                            mMockAppScanStats,
+                            scanFilterList);
+            // Start scan
+            sendMessageWaitForProcessed(createStartStopScanMessage(true, anotherClient));
+
+            // Verify MSFT APIs are only called once
+            verify(mScanNativeInterface)
                     .gattClientMsftAdvMonitorAdd(
                             any(MsftAdvMonitor.Monitor.class),
                             any(MsftAdvMonitor.Pattern[].class),
                             any(MsftAdvMonitor.Address.class),
                             anyInt());
-            verify(mScanNativeInterface, atLeastOnce()).gattClientMsftAdvMonitorEnable(eq(true));
+            verify(mScanNativeInterface).gattClientMsftAdvMonitorEnable(eq(true));
         } finally {
             SystemProperties.set(MSFT_HCI_EXT_ENABLED, Boolean.toString(isMsftEnabled));
         }
