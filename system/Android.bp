@@ -17,14 +17,6 @@ filegroup {
     ],
 }
 
-rust_protobuf {
-    name: "libbt_topshim_facade_protobuf",
-    crate_name: "bt_topshim_facade_protobuf",
-    source_stem: "topshim_facade",
-    host_supported: true,
-    grpc_protos: ["blueberry/facade/topshim/facade.proto"],
-}
-
 // Export system headers for rules that can't simply use `include_dirs`
 cc_library_headers {
     name: "libbluetooth_system_headers",
