@@ -49,8 +49,6 @@ import static com.android.bluetooth.bass_client.BassConstants.CLIENT_CHARACTERIS
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -282,7 +280,7 @@ public class BassClientStateMachineTest {
         Assert.assertThat(
                 mBassClientStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(BassClientStateMachine.Disconnected.class));
-        assertNull(mBassClientStateMachine.mBluetoothGatt);
+        assertThat(mBassClientStateMachine.mBluetoothGatt).isNull();
     }
 
     @Test
@@ -308,7 +306,7 @@ public class BassClientStateMachineTest {
                 mBassClientStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(BassClientStateMachine.Connecting.class));
 
-        assertNotNull(mBassClientStateMachine.mGattCallback);
+        assertThat(mBassClientStateMachine.mGattCallback).isNotNull();
         mBassClientStateMachine.notifyConnectionStateChanged(
                 GATT_SUCCESS, BluetoothProfile.STATE_CONNECTED);
 
@@ -1564,7 +1562,7 @@ public class BassClientStateMachineTest {
         mBassClientStateMachine.mBluetoothGatt = btGatt;
         sendMessageAndVerifyTransition(msg, BassClientStateMachine.Disconnected.class);
         verify(btGatt).close();
-        assertNull(mBassClientStateMachine.mBluetoothGatt);
+        assertThat(mBassClientStateMachine.mBluetoothGatt).isNull();
     }
 
     @Test
@@ -1593,7 +1591,7 @@ public class BassClientStateMachineTest {
         Message msg = mBassClientStateMachine.obtainMessage(CONNECT_TIMEOUT, mTestDevice);
         sendMessageAndVerifyTransition(msg, BassClientStateMachine.Disconnected.class);
         verify(btGatt).close();
-        assertNull(mBassClientStateMachine.mBluetoothGatt);
+        assertThat(mBassClientStateMachine.mBluetoothGatt).isNull();
     }
 
     @Test
@@ -1656,7 +1654,7 @@ public class BassClientStateMachineTest {
         noneConnectedMsg.obj = BluetoothProfile.STATE_DISCONNECTING;
         sendMessageAndVerifyTransition(noneConnectedMsg, BassClientStateMachine.Disconnected.class);
         verify(btGatt).close();
-        assertNull(mBassClientStateMachine.mBluetoothGatt);
+        assertThat(mBassClientStateMachine.mBluetoothGatt).isNull();
     }
 
     @Test
@@ -2222,7 +2220,7 @@ public class BassClientStateMachineTest {
         sendMessageAndVerifyTransition(
                 msgToNoneConnectedState, BassClientStateMachine.Disconnected.class);
         verify(btGatt).close();
-        assertNull(mBassClientStateMachine.mBluetoothGatt);
+        assertThat(mBassClientStateMachine.mBluetoothGatt).isNull();
     }
 
     /** This also tests BassClientStateMachine#sendPendingCallbacks */

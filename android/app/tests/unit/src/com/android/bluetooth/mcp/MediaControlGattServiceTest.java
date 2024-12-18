@@ -17,6 +17,8 @@
 
 package com.android.bluetooth.mcp;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothAdapter;
@@ -132,7 +134,7 @@ public class MediaControlGattServiceTest {
         long mMandatoryFeatures = ServiceFeature.ALL_MANDATORY_SERVICE_FEATURES;
 
         doReturn(mMandatoryFeatures).when(mMockMcsCallbacks).onGetFeatureFlags();
-        Assert.assertTrue(mMcpService.init(UUID_GMCS));
+        assertThat(mMcpService.init(UUID_GMCS)).isTrue();
         Assert.assertEquals(mMcpService.getServiceUuid(), UUID_GMCS);
         Assert.assertEquals(mMcpService.getContentControlId(), TEST_CCID);
 
@@ -146,7 +148,7 @@ public class MediaControlGattServiceTest {
         long mMandatoryFeatures = 0;
 
         doReturn(mMandatoryFeatures).when(mMockMcsCallbacks).onGetFeatureFlags();
-        Assert.assertFalse(mMcpService.init(UUID_GMCS));
+        assertThat(mMcpService.init(UUID_GMCS)).isFalse();
     }
 
     private BluetoothGattService initAllFeaturesGattService() {
@@ -182,13 +184,13 @@ public class MediaControlGattServiceTest {
                         | ServiceFeature.MEDIA_CONTROL_POINT_OPCODES_SUPPORTED_NOTIFY;
 
         doReturn(features).when(mMockMcsCallbacks).onGetFeatureFlags();
-        Assert.assertTrue(mMcpService.init(UUID_GMCS));
+        assertThat(mMcpService.init(UUID_GMCS)).isTrue();
 
         verify(mMockGattServer).addService(mGattServiceCaptor.capture());
 
         // Capture GATT Service definition for verification
         BluetoothGattService service = mGattServiceCaptor.getValue();
-        Assert.assertNotNull(service);
+        assertThat(service).isNotNull();
 
         // Call back the low level GATT callback and expect proper higher level callback to be
         // called
@@ -207,7 +209,7 @@ public class MediaControlGattServiceTest {
         // Check initial state of all mandatory characteristics
         BluetoothGattCharacteristic characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_PLAYER_NAME);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
@@ -215,7 +217,7 @@ public class MediaControlGattServiceTest {
         Assert.assertEquals("", characteristic.getStringValue(0));
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_TRACK_TITLE);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
@@ -223,7 +225,7 @@ public class MediaControlGattServiceTest {
         Assert.assertEquals("", characteristic.getStringValue(0));
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_TRACK_DURATION);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
@@ -235,7 +237,7 @@ public class MediaControlGattServiceTest {
                         .intValue());
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_TRACK_POSITION);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
@@ -249,7 +251,7 @@ public class MediaControlGattServiceTest {
                         .intValue());
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_MEDIA_STATE);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
@@ -259,7 +261,7 @@ public class MediaControlGattServiceTest {
                 characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0).intValue());
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_CONTENT_CONTROL_ID);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(), BluetoothGattCharacteristic.PROPERTY_READ);
         Assert.assertEquals(
@@ -268,24 +270,24 @@ public class MediaControlGattServiceTest {
 
         // Check initial state of all optional characteristics
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_PLAYER_ICON_OBJ_ID);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(), BluetoothGattCharacteristic.PROPERTY_READ);
-        Assert.assertTrue(characteristic.getValue().length == 0);
+        assertThat(characteristic.getValue().length).isEqualTo(0);
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_PLAYER_ICON_URL);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(), BluetoothGattCharacteristic.PROPERTY_READ);
         Assert.assertEquals("", characteristic.getStringValue(0));
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_TRACK_CHANGED);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(), BluetoothGattCharacteristic.PROPERTY_NOTIFY);
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_PLAYBACK_SPEED);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
@@ -297,7 +299,7 @@ public class MediaControlGattServiceTest {
                 characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT8, 0).intValue());
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_SEEKING_SPEED);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
@@ -309,54 +311,54 @@ public class MediaControlGattServiceTest {
         characteristic =
                 service.getCharacteristic(
                         MediaControlGattService.UUID_CURRENT_TRACK_SEGMENT_OBJ_ID);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(), BluetoothGattCharacteristic.PROPERTY_READ);
-        Assert.assertTrue(characteristic.getValue().length == 0);
+        assertThat(characteristic.getValue().length).isEqualTo(0);
 
         characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_CURRENT_TRACK_OBJ_ID);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
                         | BluetoothGattCharacteristic.PROPERTY_WRITE
                         | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE
                         | BluetoothGattCharacteristic.PROPERTY_NOTIFY);
-        Assert.assertTrue(characteristic.getValue().length == 0);
+        assertThat(characteristic.getValue().length).isEqualTo(0);
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_NEXT_TRACK_OBJ_ID);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
                         | BluetoothGattCharacteristic.PROPERTY_WRITE
                         | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE
                         | BluetoothGattCharacteristic.PROPERTY_NOTIFY);
-        Assert.assertTrue(characteristic.getValue().length == 0);
+        assertThat(characteristic.getValue().length).isEqualTo(0);
 
         characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_CURRENT_GROUP_OBJ_ID);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
                         | BluetoothGattCharacteristic.PROPERTY_WRITE
                         | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE
                         | BluetoothGattCharacteristic.PROPERTY_NOTIFY);
-        Assert.assertTrue(characteristic.getValue().length == 0);
+        assertThat(characteristic.getValue().length).isEqualTo(0);
 
         characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_PARENT_GROUP_OBJ_ID);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
                         | BluetoothGattCharacteristic.PROPERTY_NOTIFY);
-        Assert.assertTrue(characteristic.getValue().length == 0);
+        assertThat(characteristic.getValue().length).isEqualTo(0);
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_PLAYING_ORDER);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
@@ -369,7 +371,7 @@ public class MediaControlGattServiceTest {
 
         characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_PLAYING_ORDER_SUPPORTED);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(), BluetoothGattCharacteristic.PROPERTY_READ);
         Assert.assertEquals(
@@ -380,7 +382,7 @@ public class MediaControlGattServiceTest {
 
         characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_MEDIA_CONTROL_POINT);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_NOTIFY
@@ -390,7 +392,7 @@ public class MediaControlGattServiceTest {
         characteristic =
                 service.getCharacteristic(
                         MediaControlGattService.UUID_MEDIA_CONTROL_POINT_OPCODES_SUPPORTED);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
@@ -403,16 +405,16 @@ public class MediaControlGattServiceTest {
 
         characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_SEARCH_RESULT_OBJ_ID);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_READ
                         | BluetoothGattCharacteristic.PROPERTY_NOTIFY);
-        Assert.assertTrue(characteristic.getValue().length == 0);
+        assertThat(characteristic.getValue().length).isEqualTo(0);
 
         characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_SEARCH_CONTROL_POINT);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 characteristic.getProperties(),
                 BluetoothGattCharacteristic.PROPERTY_NOTIFY
@@ -485,18 +487,18 @@ public class MediaControlGattServiceTest {
 
         BluetoothGattCharacteristic characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_PLAYBACK_SPEED);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 playback_speed, mMcpService.getPlaybackSpeedChar().floatValue(), 0.001f);
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_PLAYING_ORDER);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 playing_order.getValue(),
                 characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0).intValue());
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_TRACK_POSITION);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         // Set value as ms, kept in characteristic as 0.01s
         Assert.assertEquals(
                 track_position / 10,
@@ -505,21 +507,21 @@ public class MediaControlGattServiceTest {
                         .intValue());
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_PLAYER_NAME);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(player_name, characteristic.getStringValue(0));
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_PLAYER_ICON_URL);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(icon_url, characteristic.getStringValue(0));
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_PLAYER_ICON_OBJ_ID);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 icon_obj_id.longValue(), mMcpService.byteArray2ObjId(characteristic.getValue()));
 
         characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_PLAYING_ORDER_SUPPORTED);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 playing_order_supported.intValue(),
                 characteristic
@@ -529,7 +531,7 @@ public class MediaControlGattServiceTest {
         characteristic =
                 service.getCharacteristic(
                         MediaControlGattService.UUID_MEDIA_CONTROL_POINT_OPCODES_SUPPORTED);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 opcodes_supported.intValue(),
                 characteristic
@@ -537,11 +539,11 @@ public class MediaControlGattServiceTest {
                         .intValue());
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_TRACK_TITLE);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(track_title, characteristic.getStringValue(0));
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_TRACK_DURATION);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         // Set value as ms, kept in characteristic as 0.01s
         Assert.assertEquals(
                 track_duration / 10,
@@ -550,13 +552,13 @@ public class MediaControlGattServiceTest {
                         .intValue());
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_MEDIA_STATE);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(
                 playback_state.getValue(),
                 characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0).intValue());
 
         characteristic = service.getCharacteristic(MediaControlGattService.UUID_SEEKING_SPEED);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         Assert.assertEquals(seeking_speed, mMcpService.getSeekingSpeedChar().floatValue(), 0.001f);
     }
 
@@ -1031,7 +1033,7 @@ public class MediaControlGattServiceTest {
 
     @Test
     public void testMediaControlPointRequestInvalid() {
-        Assert.assertFalse(mMcpService.isOpcodeSupported(Request.Opcodes.PLAY));
+        assertThat(mMcpService.isOpcodeSupported(Request.Opcodes.PLAY)).isFalse();
     }
 
     @Test
@@ -1311,7 +1313,7 @@ public class MediaControlGattServiceTest {
         BluetoothGattDescriptor descriptor =
                 service.getCharacteristic(MediaControlGattService.UUID_TRACK_POSITION)
                         .getDescriptor(UUID_CCCD);
-        Assert.assertNotNull(descriptor);
+        assertThat(descriptor).isNotNull();
 
         prepareConnectedDevice();
         doReturn(BluetoothDevice.ACCESS_REJECTED)
@@ -1336,7 +1338,7 @@ public class MediaControlGattServiceTest {
         BluetoothGattDescriptor descriptor =
                 service.getCharacteristic(MediaControlGattService.UUID_TRACK_POSITION)
                         .getDescriptor(UUID_CCCD);
-        Assert.assertNotNull(descriptor);
+        assertThat(descriptor).isNotNull();
 
         prepareConnectedDevice();
         doReturn(BluetoothDevice.ACCESS_UNKNOWN)
@@ -1361,7 +1363,7 @@ public class MediaControlGattServiceTest {
         BluetoothGattDescriptor descriptor =
                 service.getCharacteristic(MediaControlGattService.UUID_TRACK_POSITION)
                         .getDescriptor(UUID_CCCD);
-        Assert.assertNotNull(descriptor);
+        assertThat(descriptor).isNotNull();
 
         prepareConnectedDevice();
         doReturn(BluetoothDevice.ACCESS_REJECTED)
@@ -1391,7 +1393,7 @@ public class MediaControlGattServiceTest {
         BluetoothGattDescriptor descriptor =
                 service.getCharacteristic(MediaControlGattService.UUID_TRACK_POSITION)
                         .getDescriptor(UUID_CCCD);
-        Assert.assertNotNull(descriptor);
+        assertThat(descriptor).isNotNull();
 
         prepareConnectedDevice();
         doReturn(BluetoothDevice.ACCESS_UNKNOWN)
@@ -1420,7 +1422,7 @@ public class MediaControlGattServiceTest {
 
         BluetoothGattCharacteristic characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_PLAYER_NAME);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         byte[] nullname = null;
         characteristic.setValue(nullname);
 
@@ -1441,7 +1443,7 @@ public class MediaControlGattServiceTest {
 
         BluetoothGattCharacteristic characteristic =
                 service.getCharacteristic(MediaControlGattService.UUID_MEDIA_STATE);
-        Assert.assertNotNull(characteristic);
+        assertThat(characteristic).isNotNull();
         byte[] nullBytes = null;
         characteristic.setValue(nullBytes);
 

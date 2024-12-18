@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Assert;
@@ -120,7 +122,7 @@ public class BipEncodingTest {
         Assert.assertEquals(BipEncoding.USR_XXX, encoding.getType());
         Assert.assertEquals("TEST-ENCODING", encoding.getProprietaryEncodingId());
         Assert.assertEquals("USR-TEST-ENCODING", encoding.toString());
-        Assert.assertFalse(encoding.isAndroidSupported());
+        assertThat(encoding.isAndroidSupported()).isFalse();
     }
 
     @Test
@@ -129,7 +131,7 @@ public class BipEncodingTest {
         Assert.assertEquals(BipEncoding.USR_XXX, encoding.getType());
         Assert.assertEquals("", encoding.getProprietaryEncodingId());
         Assert.assertEquals("USR-", encoding.toString());
-        Assert.assertFalse(encoding.isAndroidSupported());
+        assertThat(encoding.isAndroidSupported()).isFalse();
     }
 
     @Test(expected = ParseException.class)

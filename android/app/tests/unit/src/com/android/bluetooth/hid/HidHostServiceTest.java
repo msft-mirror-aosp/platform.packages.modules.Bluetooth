@@ -15,6 +15,8 @@
  */
 package com.android.bluetooth.hid;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothAdapter;
@@ -77,12 +79,12 @@ public class HidHostServiceTest {
         mService.cleanup();
         HidHostNativeInterface.setInstance(null);
         mService = HidHostService.getHidHostService();
-        Assert.assertNull(mService);
+        assertThat(mService).isNull();
     }
 
     @Test
     public void testInitialize() {
-        Assert.assertNotNull(HidHostService.getHidHostService());
+        assertThat(HidHostService.getHidHostService()).isNotNull();
     }
 
     /** Test okToConnect method using various test cases */
