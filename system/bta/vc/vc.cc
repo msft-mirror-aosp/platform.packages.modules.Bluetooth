@@ -20,6 +20,7 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <hardware/bt_gatt_types.h>
 #include <hardware/bt_vc.h>
 #include <stdio.h>
@@ -934,6 +935,27 @@ public:
     }
   }
 
+  bool isPendingVolumeControlOperation(const RawAddress& addr) {
+    if (!com::android::bluetooth::flags::vcp_allow_set_same_volume_if_pending()) {
+      return false;
+    }
+
+    if (std::find_if(ongoing_operations_.begin(), ongoing_operations_.end(),
+                     [&addr](const VolumeOperation& op) {
+                       auto it = find(op.devices_.begin(), op.devices_.end(), addr);
+                       if (it != op.devices_.end()) {
+                         bluetooth::log::debug(
+                                 "There is a pending volume operation {} for device {}",
+                                 op.operation_id_, addr);
+                         return true;
+                       }
+                       return false;
+                     }) != ongoing_operations_.end()) {
+      return true;
+    }
+    return false;
+  }
+
   void RemovePendingVolumeControlOperations(const std::vector<RawAddress>& devices, int group_id) {
     bluetooth::log::debug("");
     for (auto op = ongoing_operations_.begin(); op != ongoing_operations_.end();) {
@@ -1156,7 +1178,8 @@ public:
               volume_control_devices_.FindByAddress(std::get<RawAddress>(addr_or_group_id));
       if (dev != nullptr) {
         bluetooth::log::debug("Address: {}: isReady: {}", dev->address, dev->IsReady());
-        if (dev->IsReady() && (dev->volume != volume)) {
+        if (dev->IsReady() &&
+            ((dev->volume != volume) || isPendingVolumeControlOperation(dev->address))) {
           std::vector<RawAddress> devices = {dev->address};
           RemovePendingVolumeControlOperations(devices, bluetooth::groups::kGroupUnknown);
           PrepareVolumeControlOperation(devices, bluetooth::groups::kGroupUnknown, false, opcode,
@@ -1189,7 +1212,7 @@ public:
           continue;
         }
 
-        if (!dev->IsReady() || (dev->volume == volume)) {
+        if (!dev->IsReady() || ((dev->volume == volume) && !isPendingVolumeControlOperation(*it))) {
           it = devices.erase(it);
           volumeNotChanged = volumeNotChanged ? volumeNotChanged : (dev->volume == volume);
           deviceNotReady = deviceNotReady ? deviceNotReady : !dev->IsReady();

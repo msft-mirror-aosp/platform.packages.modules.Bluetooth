@@ -1703,6 +1703,47 @@ TEST_F(VolumeControlValueSetTest, test_set_volume) {
   VolumeControl::Get()->SetVolume(test_address, 0x20);
 }
 
+TEST_F(VolumeControlValueSetTest, test_set_volume_to_previous_during_pending) {
+  com::android::bluetooth::flags::provider_->vcp_allow_set_same_volume_if_pending(true);
+  // In this test we simulate notification coming later and operations will be queued
+  ON_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x0024, _, GATT_WRITE, _, _))
+          .WillByDefault([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
+                            tGATT_WRITE_TYPE /*write_type*/, GATT_WRITE_OP_CB cb, void* cb_data) {
+            uint8_t write_rsp;
+
+            switch (value[0]) {
+              case 0x04:  // set abs. volume
+                break;
+              default:
+                break;
+            }
+            cb(conn_id, GATT_SUCCESS, handle, 0, &write_rsp, cb_data);
+          });
+
+  const std::vector<uint8_t> vol_x10({0x04, /*change_cnt*/ 0, 0x10});
+  std::vector<uint8_t> ntf_value_x10({0x10, 0, 1});
+  const std::vector<uint8_t> vol_x11({0x04, /*change_cnt*/ 1, 0x11});
+  std::vector<uint8_t> ntf_value_x11({0x11, 0, 2});
+  const std::vector<uint8_t> vol_x10_2({0x04, /*change_cnt*/ 2, 0x10});
+  std::vector<uint8_t> ntf_value_x10_2({0x10, 0, 3});
+
+  EXPECT_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x0024, vol_x10, GATT_WRITE, _, _)).Times(1);
+
+  VolumeControl::Get()->SetVolume(test_address, 0x10);
+  GetNotificationEvent(0x0021, ntf_value_x10);
+
+  EXPECT_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x0024, vol_x11, GATT_WRITE, _, _)).Times(1);
+  EXPECT_CALL(gatt_queue, WriteCharacteristic(conn_id, 0x0024, vol_x10_2, GATT_WRITE, _, _))
+          .Times(1);
+
+  VolumeControl::Get()->SetVolume(test_address, 0x11);
+  VolumeControl::Get()->SetVolume(test_address, 0x10);
+  GetNotificationEvent(0x0021, ntf_value_x11);
+  GetNotificationEvent(0x0021, ntf_value_x10_2);
+
+  Mock::VerifyAndClearExpectations(&gatt_queue);
+}
+
 TEST_F(VolumeControlValueSetTest, test_set_volume_stress) {
   uint8_t n = 100;
   uint8_t change_cnt = 0;
