@@ -252,10 +252,10 @@ public class TbsGattTest {
             assertThat(mTbsGatt.setTerminationReason(indexReasonPair.first, indexReasonPair.second))
                     .isTrue();
             assertThat(characteristic.getValue())
-                    .asList()
-                    .containsExactly(
-                            indexReasonPair.first.byteValue(), indexReasonPair.second.byteValue())
-                    .inOrder();
+                .isEqualTo(new byte[] {
+                                indexReasonPair.first.byteValue(),
+                                indexReasonPair.second.byteValue()
+                            });
         } else if (characteristic.getUuid().equals(TbsGatt.UUID_INCOMING_CALL)) {
             if (value == null) {
                 assertThat(mTbsGatt.clearIncomingCall()).isTrue();

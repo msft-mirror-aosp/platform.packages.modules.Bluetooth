@@ -234,8 +234,8 @@ public class BluetoothMapContentObserverTest {
 
         // Validate that 3 addresses were inserted into the database with 2 being the recipients
         Assert.assertEquals(3, mProvider.mContents.size());
-        assertThat(mProvider.mContents.contains(TEST_NUMBER_ONE)).isTrue();
-        assertThat(mProvider.mContents.contains(TEST_NUMBER_TWO)).isTrue();
+        assertThat(mProvider.mContents).contains(TEST_NUMBER_ONE);
+        assertThat(mProvider.mContents).contains(TEST_NUMBER_TWO);
     }
 
     @Test
@@ -2074,7 +2074,7 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.actionMessageSentDisconnected(mContext, mIntent, 1);
 
-        assertThat(mmsMsgList.containsKey(TEST_HANDLE_ONE)).isTrue();
+        assertThat(mmsMsgList).containsKey(TEST_HANDLE_ONE);
     }
 
     @Test
@@ -2111,7 +2111,7 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.actionMmsSent(mContext, mIntent, 1, mmsMsgList);
 
-        assertThat(mmsMsgList.containsKey(TEST_HANDLE_ONE)).isTrue();
+        assertThat(mmsMsgList).containsKey(TEST_HANDLE_ONE);
     }
 
     @Test
@@ -2158,7 +2158,7 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.actionMmsSent(mContext, mIntent, Activity.RESULT_OK, mmsMsgList);
 
-        assertThat(mmsMsgList.containsKey(TEST_HANDLE_ONE)).isTrue();
+        assertThat(mmsMsgList).containsKey(TEST_HANDLE_ONE);
     }
 
     @Test
