@@ -1994,6 +1994,32 @@ public class LeAudioServiceTest {
         assertThat(mService.mLeAudioNativeIsInitialized).isTrue();
     }
 
+    @Test
+    public void testHealthBasedGroupAction_recommendDisable() {
+        doReturn(true).when(mNativeInterface).connectLeAudio(any(BluetoothDevice.class));
+        connectTestDevice(mLeftDevice, testGroupId);
+        connectTestDevice(mRightDevice, testGroupId);
+
+        LeAudioStackEvent healthBasedGroupAction =
+                new LeAudioStackEvent(
+                        LeAudioStackEvent.EVENT_TYPE_HEALTH_BASED_GROUP_RECOMMENDATION);
+        healthBasedGroupAction.valueInt1 = testGroupId;
+        healthBasedGroupAction.valueInt2 = LeAudioStackEvent.HEALTH_RECOMMENDATION_ACTION_DISABLE;
+        mService.messageFromNative(healthBasedGroupAction);
+        assertThat(mService.mLeAudioNativeIsInitialized).isTrue();
+
+        verify(mDatabaseManager)
+                .setProfileConnectionPolicy(
+                        mLeftDevice,
+                        BluetoothProfile.LE_AUDIO,
+                        BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+        verify(mDatabaseManager)
+                .setProfileConnectionPolicy(
+                        mRightDevice,
+                        BluetoothProfile.LE_AUDIO,
+                        BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+    }
+
     private void sendEventAndVerifyIntentForGroupStatusChanged(int groupId, int groupStatus) {
 
         onGroupStatusCallbackCalled = false;
